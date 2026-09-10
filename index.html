@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Audio Sandbox — Neuromancer / Backrooms</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+  :root {
+    color-scheme: dark;
+  }
+  body {
+    background: #0a0a0a;
+    color: #c9c9c9;
+    font-family: "Courier New", monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 24px 16px;
+    box-sizing: border-box;
+  }
+  h1 {
+    font-size: 1rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #6b6b6b;
+    margin-bottom: 2rem;
+  }
+  .controls {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 2.5rem;
+  }
+  button {
+    background: #111;
+    color: #c9c9c9;
+    border: 1px solid #3a3a3a;
+    padding: 12px 28px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) {
+    border-color: #7a1f1f;
+    color: #e0b3b3;
+  }
+  button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  #status {
+    font-size: 0.75rem;
+    color: #4a4a4a;
+    margin-bottom: 2rem;
+    letter-spacing: 0.05em;
+  }
+  .panel {
+    width: 100%;
+    max-width: 420px;
+    border: 1px solid #222;
+    padding: 20px 24px;
+  }
+  .row {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 16px;
+  }
+  .row:last-child { margin-bottom: 0; }
+  .row label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: #7a7a7a;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .row input[type="range"] {
+    width: 100%;
+  }
+  .section-title {
+    font-size: 0.7rem;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid #222;
+    padding-bottom: 6px;
+    margin: 18px 0 12px;
+  }
+  .section-title:first-child { margin-top: 0; }
+</style>
+</head>
+<body>
+
+<h1>Audio Sandbox // Room Tone Rig</h1>
+
+<div class="controls">
+  <button id="startBtn">Start Audio</button>
+  <button id="stopBtn" disabled>Stop Audio</button>
+</div>
+
+<div id="status">stopped</div>
+
+<div class="panel">
+
+  <div class="section-title">Brown Noise — Room Resonance</div>
+  <div class="row">
+    <label><span>Level</span><span id="brownLevelVal">-18 dB</span></label>
+    <input type="range" id="brownLevel" min="-60" max="0" step="1" value="-18">
+  </div>
+  <div class="row">
+    <label><span>LPF Cutoff</span><span id="brownFreqVal">200 Hz</span></label>
+    <input type="range" id="brownFreq" min="40" max="800" step="1" value="200">
+  </div>
+  <div class="row">
+    <label><span>LFO Rate (resonance sway)</span><span id="brownLfoRateVal">0.08 Hz</span></label>
+    <input type="range" id="brownLfoRate" min="0.01" max="2" step="0.01" value="0.08">
+  </div>
+  <div class="row">
+    <label><span>LFO Depth</span><span id="brownLfoDepthVal">80 Hz</span></label>
+    <input type="range" id="brownLfoDepth" min="0" max="400" step="1" value="80">
+  </div>
+
+  <div class="section-title">Ungrounded Hum</div>
+  <div class="row">
+    <label><span>Level</span><span id="humLevelVal">-24 dB</span></label>
+    <input type="range" id="humLevel" min="-60" max="0" step="1" value="-24">
+  </div>
+  <div class="row">
+    <label><span>Frequency</span><span id="humFreqVal">60 Hz</span></label>
+    <input type="range" id="humFreq" min="40" max="70" step="1" value="60">
+  </div>
+
+  <div class="section-title">White Noise — Dying Hardware</div>
+  <div class="row">
+    <label><span>Level</span><span id="whiteLevelVal">-30 dB</span></label>
+    <input type="range" id="whiteLevel" min="-60" max="0" step="1" value="-30">
+  </div>
+  <div class="row">
+    <label><span>HPF Cutoff</span><span id="whiteFreqVal">4000 Hz</span></label>
+    <input type="range" id="whiteFreq" min="500" max="10000" step="1" value="4000">
+  </div>
+  <div class="row">
+    <label><span>Micro-short Rate</span><span id="shortRateVal">6 Hz</span></label>
+    <input type="range" id="shortRate" min="0.5" max="30" step="0.1" value="6">
+  </div>
+
+</div>
+
+<script>
+  let brownNoise, brownFilter, brownLfo;
+  let humOsc;
+  let whiteNoise, whiteFilter, whiteGain, shortLfo;
+  let running = false;
+
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const statusEl = document.getElementById('status');
+
+  function buildGraph() {
+    // Brown noise -> lowpass filter (LFO-modulated cutoff) -> destination
+    brownFilter = new Tone.Filter({
+      type: 'lowpass',
+      frequency: parseFloat(document.getElementById('brownFreq').value),
+      rolloff: -24,
+      Q: 1.2
+    }).toDestination();
+
+    brownLfo = new Tone.LFO({
+      frequency: parseFloat(document.getElementById('brownLfoRate').value),
+      min: parseFloat(document.getElementById('brownFreq').value) - parseFloat(document.getElementById('brownLfoDepth').value),
+      max: parseFloat(document.getElementById('brownFreq').value) + parseFloat(document.getElementById('brownLfoDepth').value)
+    }).connect(brownFilter.frequency);
+    brownLfo.start();
+
+    brownNoise = new Tone.Noise({
+      type: 'brown',
+      volume: parseFloat(document.getElementById('brownLevel').value)
+    }).connect(brownFilter);
+
+    // 60Hz sine hum straight to destination
+    humOsc = new Tone.Oscillator({
+      type: 'sine',
+      frequency: parseFloat(document.getElementById('humFreq').value),
+      volume: parseFloat(document.getElementById('humLevel').value)
+    }).toDestination();
+
+    // White noise -> highpass -> gain (random-modulated) -> destination
+    whiteGain = new Tone.Gain(1).toDestination();
+
+    whiteFilter = new Tone.Filter({
+      type: 'highpass',
+      frequency: parseFloat(document.getElementById('whiteFreq').value),
+      rolloff: -24
+    }).connect(whiteGain);
+
+    whiteNoise = new Tone.Noise({
+      type: 'white',
+      volume: parseFloat(document.getElementById('whiteLevel').value)
+    }).connect(whiteFilter);
+
+    shortLfo = new Tone.LFO({
+      type: 'square',
+      frequency: parseFloat(document.getElementById('shortRate').value),
+      min: 0,
+      max: 1
+    });
+    shortLfo.humanize = true;
+    shortLfo.connect(whiteGain.gain);
+    shortLfo.start();
+  }
+
+  function startAll() {
+    brownNoise.start();
+    humOsc.start();
+    whiteNoise.start();
+  }
+
+  function disposeGraph() {
+    [brownNoise, brownFilter, brownLfo, humOsc, whiteNoise, whiteFilter, whiteGain, shortLfo].forEach(n => {
+      if (n) {
+        try { n.stop && n.stop(); } catch (e) {}
+        n.dispose();
+      }
+    });
+  }
+
+  startBtn.addEventListener('click', async () => {
+    await Tone.start();
+    buildGraph();
+    startAll();
+    running = true;
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    statusEl.textContent = 'running';
+  });
+
+  stopBtn.addEventListener('click', () => {
+    disposeGraph();
+    running = false;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    statusEl.textContent = 'stopped';
+  });
+
+  // Live parameter bindings
+
+  function bindRange(id, valId, fmt, onChange) {
+    const el = document.getElementById(id);
+    const valEl = document.getElementById(valId);
+    el.addEventListener('input', () => {
+      const v = parseFloat(el.value);
+      valEl.textContent = fmt(v);
+      if (running) onChange(v);
+    });
+  }
+
+  bindRange('brownLevel', 'brownLevelVal', v => `${v} dB`, v => brownNoise.volume.value = v);
+  bindRange('brownFreq', 'brownFreqVal', v => `${v} Hz`, v => {
+    brownFilter.frequency.value = v;
+    const depth = parseFloat(document.getElementById('brownLfoDepth').value);
+    brownLfo.min = v - depth;
+    brownLfo.max = v + depth;
+  });
+  bindRange('brownLfoRate', 'brownLfoRateVal', v => `${v} Hz`, v => brownLfo.frequency.value = v);
+  bindRange('brownLfoDepth', 'brownLfoDepthVal', v => `${v} Hz`, v => {
+    const center = parseFloat(document.getElementById('brownFreq').value);
+    brownLfo.min = center - v;
+    brownLfo.max = center + v;
+  });
+
+  bindRange('humLevel', 'humLevelVal', v => `${v} dB`, v => humOsc.volume.value = v);
+  bindRange('humFreq', 'humFreqVal', v => `${v} Hz`, v => humOsc.frequency.value = v);
+
+  bindRange('whiteLevel', 'whiteLevelVal', v => `${v} dB`, v => whiteNoise.volume.value = v);
+  bindRange('whiteFreq', 'whiteFreqVal', v => `${v} Hz`, v => whiteFilter.frequency.value = v);
+  bindRange('shortRate', 'shortRateVal', v => `${v} Hz`, v => shortLfo.frequency.value = v);
+</script>
+
+</body>
+</html>
