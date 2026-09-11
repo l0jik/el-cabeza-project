@@ -14,6 +14,19 @@ page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
 
 await page.goto(`file://${file}`);
 await page.waitForTimeout(1200);
+
+// The dock starts as a spinning 3D piece preview; double-tap it to
+// bounce/open the settings panel (with Begin Game), same as a real player.
+const dockPieceCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
+const dockBox = await dockPieceCanvas.boundingBox();
+if (dockBox) {
+  const dpx = dockBox.x + dockBox.width / 2, dpy = dockBox.y + dockBox.height / 2;
+  await page.mouse.click(dpx, dpy);
+  await page.waitForTimeout(120);
+  await page.mouse.click(dpx, dpy);
+  await page.waitForTimeout(400);
+}
+
 await page.locator("button", { hasText: "Begin Game" }).click();
 await page.waitForTimeout(600);
 
@@ -30,7 +43,7 @@ console.log(`[${target}] initial status:`, await statusText());
 // cluster. Try a handful of candidate points since exact projection
 // varies slightly between the two themes' camera math (should be
 // identical, but confirm empirically rather than assume).
-const canvas = page.locator("canvas");
+const canvas = page.locator('canvas[data-testid="board-canvas"]');
 const box = await canvas.boundingBox();
 let selected = false;
 for (const [fx, fy] of [[0.5, 0.37], [0.42, 0.35], [0.58, 0.3], [0.44, 0.33], [0.52, 0.34]]) {
@@ -58,6 +71,20 @@ if (selected) {
   await page.screenshot({ path: `/tmp/${target}-after-move.png` });
   console.log(`[${target}] status after move attempt:`, await statusText());
 }
+
+// Begin Game closed the dock panel behind it — it remorphs into the
+// piece and relocates to the bottom-right corner watermark over the
+// next ~1.3s. Double-tap that corner piece to reopen the panel (same
+// gesture a real player uses mid-game) before End Active Game is
+// reachable again.
+await page.waitForTimeout(1300);
+const cornerPieceCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
+const cornerBox = await cornerPieceCanvas.boundingBox();
+const cpx = cornerBox.x + cornerBox.width / 2, cpy = cornerBox.y + cornerBox.height / 2;
+await page.mouse.click(cpx, cpy);
+await page.waitForTimeout(120);
+await page.mouse.click(cpx, cpy);
+await page.waitForTimeout(400);
 
 // End the game and check the Move Log popup.
 await page.locator("button", { hasText: "End Active Game" }).click();

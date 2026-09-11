@@ -279,6 +279,244 @@ export default function ElCabeza3D({ theme }) {
   const cardRef = useRef(null);
   const fxOverlayRef = useRef(null);
 
+  /* ------------------- Dock piece (idle 3D preview) ------------------
+     The dock has three views (dockView): "piece" (a small, always-
+     spinning 3D render of the human's own Cabeza piece — the disc,
+     built with the exact same theme.buildPieceVisual()/engine
+     proportions the real board uses, just standing alone in its own
+     tiny scene), "panel" (today's actual controls), and "corner" (the
+     same piece, shrunk and faded into a bottom-right watermark once a
+     game is under way). Double-clicking/double-tapping the piece in
+     either "piece" or "corner" view bounces it and opens "panel";
+     Begin Game reverses that (panel -> piece -> corner, on a short
+     delay so the remorph is visible before it relocates). A fresh game
+     (awaitingBegin true again) snaps straight back to "piece". */
+  const [dockView, setDockView] = useState("piece"); // "piece" | "panel" | "corner"
+  const dockPieceMountRef = useRef(null);
+  const dockPieceRef = useRef(null); // { scene, camera, renderer, pieceGroup, spin, velocity, dragging, bouncing }
+  const dockDragRef = useRef({ dragging: false, lastX: 0, lastY: 0, lastT: 0 });
+  const dockLastTapRef = useRef(0);
+
+  useEffect(() => {
+    if (awaitingBegin) setDockView("piece");
+  }, [awaitingBegin]);
+
+  useEffect(() => {
+    if (awaitingBegin) return; // handled by the effect above instead
+    // Begin Game just fired: remorph back to the piece, then — once
+    // that's had a moment to actually read as "the panel became the
+    // piece again" — relocate it to the corner watermark.
+    setDockView("piece");
+    const t = setTimeout(() => setDockView("corner"), 900);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameArmed]);
+
+  const prevDockViewRef = useRef(dockView);
+  useEffect(() => {
+    const prev = prevDockViewRef.current;
+    prevDockViewRef.current = dockView;
+    if (prev === dockView) return;
+    if (dockView === "panel") audioRef.current.playDockOpen();
+    else if (prev === "panel") audioRef.current.playDockClose();
+  }, [dockView]);
+
+  // Bounces the piece (a quick decaying squash/stretch on its group
+  // scale), then opens the panel once the bounce settles.
+  const triggerDockBounce = useCallback(() => {
+    const state = dockPieceRef.current;
+    if (!state || state.bouncing) return;
+    state.bouncing = true;
+    const start = performance.now();
+    const DUR = 260;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / DUR);
+      const s = 1 + Math.sin(t * Math.PI) * 0.24 * (1 - t);
+      state.pieceGroup.scale.set(1 / Math.sqrt(s), s, 1 / Math.sqrt(s));
+      if (t < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        state.pieceGroup.scale.set(1, 1, 1);
+        state.bouncing = false;
+        setDockView("panel");
+      }
+    };
+    requestAnimationFrame(tick);
+  }, []);
+
+  const handleDockPiecePointerDown = useCallback((ev) => {
+    const state = dockPieceRef.current;
+    if (!state) return;
+    state.dragging = true;
+    dockDragRef.current = { dragging: true, lastX: ev.clientX, lastY: ev.clientY, lastT: performance.now() };
+    if (ev.currentTarget.setPointerCapture) {
+      try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
+    }
+    ev.currentTarget.style.cursor = "grabbing";
+  }, []);
+
+  const handleDockPiecePointerMove = useCallback((ev) => {
+    const drag = dockDragRef.current;
+    const state = dockPieceRef.current;
+    if (!drag.dragging || !state) return;
+    const now = performance.now();
+    const dt = Math.max((now - drag.lastT) / 1000, 1 / 120);
+    const dx = ev.clientX - drag.lastX;
+    const dy = ev.clientY - drag.lastY;
+    state.pieceGroup.rotation.y += dx * 0.012;
+    state.pieceGroup.rotation.x += dy * 0.012;
+    // "Speed physics": velocity tracks how fast the drag is actually
+    // moving, not just how far — a quick flick keeps spinning briefly
+    // after release, a slow drag doesn't.
+    state.velocity.y = (dx * 0.012) / dt;
+    state.velocity.x = (dy * 0.012) / dt;
+    // A real drag (as opposed to the tiny jitter under a stationary
+    // tap) shouldn't also count as half of a double-tap — see the
+    // guard in handleDockPiecePointerUp.
+    if (Math.abs(dx) + Math.abs(dy) > 4) state.draggedFar = true;
+    drag.lastX = ev.clientX;
+    drag.lastY = ev.clientY;
+    drag.lastT = now;
+  }, []);
+
+  const handleDockPiecePointerUp = useCallback((ev) => {
+    const drag = dockDragRef.current;
+    const state = dockPieceRef.current;
+    drag.dragging = false;
+    if (state) state.dragging = false;
+    if (ev.currentTarget.style) ev.currentTarget.style.cursor = "grab";
+    // Manual double-tap/double-click detection via timing rather than
+    // onDoubleClick, so the same code path covers touch and mouse.
+    // Skipped if this pointer-up ended an actual drag (see
+    // handleDockPiecePointerMove) — a real flick shouldn't also
+    // register as half of a double-tap.
+    const now = performance.now();
+    if (!state || !state.draggedFar) {
+      if (now - dockLastTapRef.current < 340) {
+        dockLastTapRef.current = 0;
+        triggerDockBounce();
+      } else {
+        dockLastTapRef.current = now;
+      }
+    }
+    if (state) state.draggedFar = false;
+  }, [triggerDockBounce]);
+
+  // Mount-once: the dock piece's own tiny Three.js scene, entirely
+  // independent of the main board's renderer/camera.
+  useEffect(() => {
+    const mount = dockPieceMountRef.current;
+    if (!mount) return;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
+    camera.position.set(0, 0.55, 3.4);
+    camera.lookAt(0, 0, 0);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    mount.appendChild(renderer.domElement);
+    renderer.domElement.dataset.testid = "dock-piece-canvas";
+    renderer.domElement.style.display = "block";
+    renderer.domElement.style.width = "100%";
+    renderer.domElement.style.height = "100%";
+    renderer.domElement.style.touchAction = "none";
+    renderer.domElement.style.cursor = "grab";
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+    const key = new THREE.DirectionalLight(0xffffff, 1.15);
+    key.position.set(3, 4, 3);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.3);
+    fill.position.set(-3, 1.5, -2);
+    scene.add(fill);
+
+    const pieceGroup = new THREE.Group();
+    scene.add(pieceGroup);
+
+    function resize() {
+      const w = mount.clientWidth, h = mount.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(mount);
+
+    const state = {
+      scene, camera, renderer, pieceGroup,
+      // Baseline idle angular velocity per axis (rad/s) — re-wandered
+      // continuously below rather than held fixed, so the idle spin
+      // reads as "meandering" instead of a flat, predictable spin.
+      spin: { x: 0.15, y: 0.22, z: 0.08 },
+      velocity: { x: 0.15, y: 0.22, z: 0.08 },
+      dragging: false,
+      bouncing: false,
+      draggedFar: false,
+    };
+    dockPieceRef.current = state;
+
+    let raf;
+    let last = performance.now();
+    function tick(now) {
+      const dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+      const t = now / 1000;
+      state.spin.x = 0.15 + 0.1 * Math.sin(t * 0.13);
+      state.spin.y = 0.22 + 0.12 * Math.sin(t * 0.09 + 1.3);
+      state.spin.z = 0.08 + 0.08 * Math.sin(t * 0.17 + 2.6);
+      if (!state.dragging) {
+        // Decays whatever velocity a drag left behind back toward the
+        // idle meander — "rapidly slowing to regular slow rotational
+        // speed" rather than coasting forever or stopping dead.
+        const decay = Math.exp(-dt * 3.2);
+        state.velocity.x = state.spin.x + (state.velocity.x - state.spin.x) * decay;
+        state.velocity.y = state.spin.y + (state.velocity.y - state.spin.y) * decay;
+        state.velocity.z = state.spin.z + (state.velocity.z - state.spin.z) * decay;
+      }
+      pieceGroup.rotation.x += state.velocity.x * dt;
+      pieceGroup.rotation.y += state.velocity.y * dt;
+      pieceGroup.rotation.z += state.velocity.z * dt;
+      renderer.render(scene, camera);
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      renderer.dispose();
+      if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
+    };
+  }, []);
+
+  // Builds (and rebuilds, on a side change) the actual piece mesh —
+  // the same disc geometry and the current theme's own
+  // buildPieceVisual(), so it's genuinely proportional to how a Cabeza
+  // reads on the real board, not a bespoke decorative model. Color
+  // follows humanStartSide live, since this is meant to read as "the
+  // player's own piece" from the moment they pick a side.
+  useEffect(() => {
+    const state = dockPieceRef.current;
+    if (!state) return;
+    const { pieceGroup } = state;
+    while (pieceGroup.children.length) {
+      const c = pieceGroup.children.pop();
+      c.geometry && c.geometry.dispose();
+      c.material && c.material.dispose();
+    }
+    const isDark = humanStartSide === "dark";
+    const geo = new THREE.CylinderGeometry(
+      (DISC_DIAM * PIECE_SCALE) / 2,
+      (DISC_DIAM * PIECE_SCALE) / 2,
+      DISC_H * PIECE_SCALE,
+      40
+    );
+    const fakePiece = { id: "dock-preview-cabeza", type: "cabeza", owner: isDark ? "dark" : "light" };
+    const { mesh, shell } = theme.buildPieceVisual({ piece: fakePiece, isDark, isDisc: true, geo, center: { x: 0, z: 0 }, y: 0 });
+    pieceGroup.add(mesh, shell);
+  }, [humanStartSide, theme]);
+
   /* Mirrors the audio engine's own `windingDown` flag but at the
      component level: flips true once a win or a manual end fires, so
      ambient effects can stop re-arming themselves the same way the
@@ -517,6 +755,7 @@ export default function ElCabeza3D({ theme }) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
     mount.appendChild(renderer.domElement);
+    renderer.domElement.dataset.testid = "board-canvas";
     renderer.domElement.style.display = "block";
     renderer.domElement.style.touchAction = "none";
     renderer.domElement.style.cursor = "grab";
@@ -2483,6 +2722,27 @@ export default function ElCabeza3D({ theme }) {
     ? "Dark to move"
     : "Light to move";
 
+  // One consistent property set across all three dockView values (no
+  // switching between left/right or adding/removing properties) is
+  // what lets every transition between them — piece <-> panel via
+  // opacity/scale, piece <-> corner via left/bottom/size — actually
+  // animate instead of snapping.
+  const dockPieceIsCorner = dockView === "corner";
+  const dockPieceStyle = {
+    position: "fixed",
+    left: dockPieceIsCorner ? "calc(100% - 118px)" : "50%",
+    bottom: dockPieceIsCorner ? 18 : 20,
+    width: dockPieceIsCorner ? 100 : 260,
+    height: dockPieceIsCorner ? 88 : 220,
+    transform: dockPieceIsCorner ? "translateX(0) scale(1)" : "translateX(-50%) scale(1)",
+    opacity: dockView === "panel" ? 0 : dockPieceIsCorner ? 0.35 : 1,
+    pointerEvents: dockView === "panel" ? "none" : "auto",
+    zIndex: dockPieceIsCorner ? 2 : 15,
+    transition: "opacity 900ms ease, left 900ms ease, bottom 900ms ease, width 900ms ease, height 900ms ease, transform 900ms ease",
+    touchAction: "none",
+    cursor: "grab",
+  };
+
   return (
     <div
       style={{
@@ -2680,24 +2940,48 @@ export default function ElCabeza3D({ theme }) {
         </button>
       </div>
 
+      {/* Dock piece — an idle, physically-interactive 3D preview of the
+         player's own Cabeza (see the effects above), standing in for
+         the panel below whenever dockView isn't "panel". Always
+         mounted — its own Three.js scene/render loop never tears down
+         across a view switch, only this wrapper's position/size/
+         opacity change — so the idle spin and any in-flight drag
+         momentum are never reset by opening or closing the dock. */}
+      <div
+        ref={dockPieceMountRef}
+        onPointerDown={handleDockPiecePointerDown}
+        onPointerMove={handleDockPiecePointerMove}
+        onPointerUp={handleDockPiecePointerUp}
+        onPointerLeave={handleDockPiecePointerUp}
+        style={dockPieceStyle}
+      />
+
       {/* The dock — every non-board control, floating as one compact
          panel instead of a full-height card. Removing the canvas (now
          a fixed sibling above) and the masthead (now its own floating
          element above) from this element's children is the entire
          change: everything below still lays out exactly as it did
          inside the old card, it just now sizes to its own content
-         instead of stretching to fill the viewport. */}
+         instead of stretching to fill the viewport.
+         Shorter but wider than its first version, per feedback, and
+         only actually visible/interactive while dockView is "panel" —
+         opening/closing crossfades against the dock piece above via
+         the shared 320ms transition on opacity/scale, rather than the
+         two ever being shown at literally the same instant. */}
       <div
         ref={cardRef}
         style={{
           position: "fixed",
           left: "50%",
           bottom: 20,
-          transform: "translateX(-50%)",
-          width: "min(720px, 94vw)",
-          maxHeight: "56vh",
+          transform: `translateX(-50%) scale(${dockView === "panel" ? 1 : 0.92})`,
+          width: "min(880px, 96vw)",
+          maxHeight: "42vh",
           overflowY: "auto",
           zIndex: 10,
+          opacity: dockView === "panel" ? 1 : 0,
+          pointerEvents: dockView === "panel" ? "auto" : "none",
+          transition: "opacity 320ms ease, transform 320ms ease",
           background: hexToRgba(COLORS.cream, 0.82),
           border: `1px solid ${COLORS.slateSoft}`,
           borderRadius: 14,

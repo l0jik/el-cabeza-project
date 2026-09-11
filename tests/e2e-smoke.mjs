@@ -37,6 +37,20 @@ if (!rootHasContent) {
 const title = await page.textContent("h1");
 console.log(`[${target}] title text:`, JSON.stringify(title));
 
+// The dock starts as a spinning 3D piece preview; double-tapping it
+// bounces it into the settings panel (with Begin Game) — same gesture
+// a real player uses, so simulate it here rather than assuming the
+// panel is already open.
+const dockPieceCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
+const dockBox = await dockPieceCanvas.boundingBox();
+if (dockBox) {
+  const dpx = dockBox.x + dockBox.width / 2, dpy = dockBox.y + dockBox.height / 2;
+  await page.mouse.click(dpx, dpy);
+  await page.waitForTimeout(120);
+  await page.mouse.click(dpx, dpy);
+  await page.waitForTimeout(400);
+}
+
 // Click Begin Game.
 const beginBtn = page.locator("button", { hasText: "Begin Game" });
 const hasBegin = await beginBtn.count();
@@ -55,7 +69,7 @@ if (hasBegin > 0) {
 // ghost/legal-move indicator appearing (a real behavioral signal, not
 // just "didn't crash") — click roughly where Dark's home row pieces
 // render at the default camera angle.
-const canvas = page.locator("canvas");
+const canvas = page.locator('canvas[data-testid="board-canvas"]');
 const canvasBox = await canvas.boundingBox();
 if (canvasBox) {
   // A handful of sample points across the lower-middle of the canvas,

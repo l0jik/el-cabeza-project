@@ -199,6 +199,7 @@ export function createAudio() {
     playWin() {}, playMenu() {}, fadeOutMenu() {}, playPowerOn() {},
     playPowerOff() {}, playFlicker() {}, playArc() {}, playGlitch() {},
     playSingularityOpen() {}, playSingularityClose() {},
+    playDockOpen() {}, playDockClose() {},
     dispose() {},
   };
 }

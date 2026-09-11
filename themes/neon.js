@@ -4580,6 +4580,16 @@ export function createSoundscape() {
        exactly like those do, not blend into near-silence. */
     playSingularityOpen: () => { ensureGraph(); cue(70, 900, 0.7, "sine", 0.16); },
     playSingularityClose: () => { ensureGraph(); reverseCue(70, 900, 0.5, "sine", 0.24); },
+    /* Dock open/close — a very subtle low "vrrrt": a short, low,
+       buzzy sawtooth descent (not a clean sine — the harmonics are
+       what read as a mechanical whirr rather than a chime) and its
+       true reverse. Deliberately quieter than every other cue here on
+       open (this happens constantly, unlike the rarer Singularity/
+       Info events) but boosted on close to actually read as audible,
+       same reasoning as everywhere else in this file that pairs a
+       subtle forward cue with a boosted reverse. */
+    playDockOpen: () => { ensureGraph(); cue(60, 32, 0.24, "sawtooth", 0.05); },
+    playDockClose: () => { ensureGraph(); reverseCue(60, 32, 0.3, "sawtooth", 0.1); },
     dispose: () => {
       disposed = true;
       if (scheduleTimer) clearTimeout(scheduleTimer);

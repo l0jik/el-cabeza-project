@@ -14,6 +14,19 @@ page.on("console", (m) => { if (m.type() === "error" && !/ERR_CONNECTION_RESET/.
 await page.goto(`file://${file}`);
 await page.waitForTimeout(1000);
 
+// The dock starts as a spinning 3D piece preview; double-tap it to
+// bounce/open the settings panel (with Anomaly/Begin Game), same as a
+// real player.
+const dockPieceCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
+const dockBox0 = await dockPieceCanvas.boundingBox();
+if (dockBox0) {
+  const dpx = dockBox0.x + dockBox0.width / 2, dpy = dockBox0.y + dockBox0.height / 2;
+  await page.mouse.click(dpx, dpy);
+  await page.waitForTimeout(120);
+  await page.mouse.click(dpx, dpy);
+  await page.waitForTimeout(400);
+}
+
 const anomalyBtn = page.locator("button", { hasText: "Anomaly" });
 console.log("Anomaly button present:", await anomalyBtn.count());
 await page.screenshot({ path: "/tmp/neon-setup-screen.png" });
