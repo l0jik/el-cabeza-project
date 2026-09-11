@@ -368,17 +368,17 @@ export default function ElCabeza3D({ theme }) {
     else if (prev === "panel") audioRef.current.playDockClose();
   }, [dockView]);
 
-  // Reopening the panel mid-game (double-tapping the corner watermark)
-  // can also be dismissed by clicking anywhere outside it, back to the
-  // corner — a lighter-weight way out than Begin Game, which only makes
-  // sense pre-game anyway. Not attached before Begin Game: the initial
-  // piece -> panel open has no such "just glance and close" use case,
-  // and Begin Game is already the deliberate way through it.
+  // The panel — however it got opened, double-tapping the pre-game
+  // piece or the mid-game corner watermark alike — can also be
+  // dismissed by clicking anywhere outside it, a lighter-weight way out
+  // than Begin Game (which still starts the game, not just closes the
+  // panel). Returns to whichever non-panel view was showing before:
+  // "piece" pre-game, "corner" once a game is under way.
   useEffect(() => {
-    if (dockView !== "panel" || awaitingBegin) return;
+    if (dockView !== "panel") return;
     const onPointerDown = (ev) => {
       if (cardRef.current && !cardRef.current.contains(ev.target)) {
-        setDockView("corner");
+        setDockView(awaitingBegin ? "piece" : "corner");
       }
     };
     document.addEventListener("pointerdown", onPointerDown);
