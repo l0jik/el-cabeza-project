@@ -319,7 +319,7 @@ export default function ElCabeza3D({ theme }) {
      branch it takes for the lifetime of a mounted instance. A theme
      with no setup-screen state of its own (Standard) doesn't export
      this hook at all, and gets `null` here. */
-  const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({ awaitingBegin, pieces, setPieces }) : null;
+  const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({ awaitingBegin, pieces, setPieces, audio: audioRef.current }) : null;
 
   function handleTitleClick() {
     setInfoBtnVisible(true);

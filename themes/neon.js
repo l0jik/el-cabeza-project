@@ -1368,8 +1368,36 @@ export function mountAmbientEffects(refs, helpers) {
      VHS glitch, rare Scanimate/Vidicon, jitter-tear) ---- */
   const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  /* Splits the masthead's text into one span per character
+     (".ec-letter") so per-letter effects — the existing phosphor-flash
+     dim/undim in fireLetter below, and the new raster-tear effect —
+     have individual elements to grab, instead of one plain text node.
+     Runs once, synchronously, at mount: titleRef always holds exactly
+     the static "EL CABEZA" text at that point, so there's no reactive
+     content to preserve or resync later. */
+  (function splitTitleIntoLetters() {
+    const el = titleRef.current;
+    if (!el || el.querySelector(".ec-letter")) return;
+    const text = el.textContent;
+    el.textContent = "";
+    for (const ch of text) {
+      // A space wrapped alone in a display:inline-block span collapses
+      // to zero width (CSS trims edge whitespace inside its own inline
+      // formatting context) — leave spaces as plain text nodes between
+      // the letter spans instead of wrapping them.
+      if (ch === " ") {
+        el.appendChild(document.createTextNode(" "));
+        continue;
+      }
+      const span = document.createElement("span");
+      span.className = "ec-letter";
+      span.textContent = ch;
+      el.appendChild(span);
+    }
+  })();
+
   const FLICKER_CLASSES = ["ec-title-flicker", "ec-title-flicker-b", "ec-title-flicker-c"];
-  let flickerTimer, letterTimer, sparkTimer, haloTimer, vhsTimer, rareTimer, jitterTimer;
+  let flickerTimer, letterTimer, sparkTimer, haloTimer, vhsTimer, rareTimer, jitterTimer, mastheadJitterTimer, letterTearTimer, verticalHoldTimer;
 
   const fireFlicker = () => {
     if (windingDownRef.current) return;
@@ -1480,6 +1508,59 @@ export function mountAmbientEffects(refs, helpers) {
     jitterTimer = setTimeout(fireJitter, 11000 + Math.random() * 16000);
   };
 
+  /* Dedicated, more frequent jitter for the masthead specifically —
+     separate from fireJitter above (which only picks the title 1-in-3
+     times, shared with the turn label and buttons). Reuses the same
+     JITTER_CLASSES/keyframes, just fired on its own, tighter cadence. */
+  const fireMastheadJitter = () => {
+    if (windingDownRef.current) return;
+    const el = titleWrapRef.current;
+    if (el) {
+      JITTER_CLASSES.forEach((c) => el.classList.remove(c));
+      void el.offsetWidth;
+      const cls = JITTER_CLASSES[Math.floor(Math.random() * JITTER_CLASSES.length)];
+      el.classList.add(cls);
+      setTimeout(() => el.classList.remove(cls), 260);
+    }
+    mastheadJitterTimer = setTimeout(fireMastheadJitter, 3000 + Math.random() * 4000);
+  };
+
+  /* Occasional single-letter raster tear: picks one of the masthead's
+     per-character spans (see splitTitleIntoLetters above) and tears
+     just that glyph, rather than the whole title jittering together —
+     reads as one character's own signal briefly failing. */
+  const fireLetterTear = () => {
+    if (windingDownRef.current) return;
+    const container = titleRef.current;
+    const letters = container ? container.querySelectorAll(".ec-letter") : null;
+    if (letters && letters.length) {
+      const el = letters[Math.floor(Math.random() * letters.length)];
+      el.classList.remove("ec-letter-tear");
+      void el.offsetWidth;
+      el.classList.add("ec-letter-tear");
+      setTimeout(() => el.classList.remove("ec-letter-tear"), 150);
+      audio.playGlitch();
+    }
+    letterTearTimer = setTimeout(fireLetterTear, 9000 + Math.random() * 13000);
+  };
+
+  /* Vertical hold instability: the whole masthead row briefly rolls
+     and snaps back, the way an old CRT loses vertical sync — rarer
+     and more dramatic than the jitter/tear above, so it reads as a
+     distinct kind of malfunction rather than more of the same. */
+  const fireVerticalHold = () => {
+    if (windingDownRef.current) return;
+    const el = titleWrapRef.current;
+    if (el) {
+      el.classList.remove("ec-vertical-hold");
+      void el.offsetWidth;
+      el.classList.add("ec-vertical-hold");
+      setTimeout(() => el.classList.remove("ec-vertical-hold"), 500);
+      audio.playGlitch();
+    }
+    verticalHoldTimer = setTimeout(fireVerticalHold, 18000 + Math.random() * 22000);
+  };
+
   if (!reduceMotion) {
     // Masthead/UI effects run from mount — not gated on Begin Game,
     // since they're not board FX (per the original's own reasoning for
@@ -1489,6 +1570,9 @@ export function mountAmbientEffects(refs, helpers) {
     sparkTimer = setTimeout(fireSpark, 14000 + Math.random() * 16000);
     haloTimer = setTimeout(pulseHalo, 1200 + Math.random() * 2000);
     jitterTimer = setTimeout(fireJitter, 6000 + Math.random() * 9000);
+    mastheadJitterTimer = setTimeout(fireMastheadJitter, 3000 + Math.random() * 4000);
+    letterTearTimer = setTimeout(fireLetterTear, 6000 + Math.random() * 10000);
+    verticalHoldTimer = setTimeout(fireVerticalHold, 10000 + Math.random() * 15000);
   }
 
   return {
@@ -1513,6 +1597,9 @@ export function mountAmbientEffects(refs, helpers) {
         vhsTimer = setTimeout(fireVhs, 25714 + Math.random() * 35714);
         rareTimer = setTimeout(fireRare, 240000 + Math.random() * 300000);
         jitterTimer = setTimeout(fireJitter, 11000 + Math.random() * 16000);
+        mastheadJitterTimer = setTimeout(fireMastheadJitter, 3000 + Math.random() * 4000);
+        letterTearTimer = setTimeout(fireLetterTear, 9000 + Math.random() * 13000);
+        verticalHoldTimer = setTimeout(fireVerticalHold, 18000 + Math.random() * 22000);
       }
       arcTimer = setTimeout(fireArc, 8333 + Math.random() * 11667);
       crawlTimer = setTimeout(fireCrawl, 8000 + Math.random() * 12000);
@@ -1754,6 +1841,9 @@ export function mountAmbientEffects(refs, helpers) {
       clearTimeout(vhsTimer);
       clearTimeout(rareTimer);
       clearTimeout(jitterTimer);
+      clearTimeout(mastheadJitterTimer);
+      clearTimeout(letterTearTimer);
+      clearTimeout(verticalHoldTimer);
       clearTimeout(arcTimer);
       clearTimeout(crawlTimer);
       clearTimeout(floorWaveTimer);
@@ -1799,7 +1889,14 @@ export const styleSheet = `
       -0.6px 0 0 rgba(255, 255, 255, 0.10);
   }
   @supports (background-clip: text) or (-webkit-background-clip: text) {
-    .ec-title {
+    /* Targets .ec-letter too: the masthead's text is split into one
+       span per character on mount (see mountAmbientEffects) so the
+       raster-tear effect below can grab individual letters, which
+       moves the actual glyphs out of .ec-title's own text run and
+       into its children — background never inherits, so each letter
+       needs this applied directly, not just the (by then textless)
+       wrapper. */
+    .ec-title, .ec-title .ec-letter {
       background-color: currentColor;
       background-image: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0px, rgba(0, 0, 0, 0.5) 1px, transparent 1px, transparent 3px);
       -webkit-background-clip: text;
@@ -2074,8 +2171,43 @@ export const styleSheet = `
         }
         .ec-jitter-tear-b { animation: ec-jitter-tear-b 190ms steps(1, end) 1; }
 
+        /* theme: per-letter raster tear — see fireLetterTear. Each
+           masthead character is its own span (split on mount), so this
+           targets exactly one glyph at a time rather than the whole
+           title: a sharp horizontal displacement plus a clip-path
+           slice, snappier and more localized than the whole-title
+           jitter-tear above. */
+        .ec-letter { display: inline-block; }
+        @keyframes ec-letter-tear {
+          0%   { transform: translate(0, 0) skewX(0deg); clip-path: inset(0 0 0 0); }
+          20%  { transform: translate(-5px, 2px) skewX(-4deg); clip-path: inset(45% 0 10% 0); }
+          40%  { transform: translate(6px, -1px) skewX(3deg); clip-path: inset(5% 0 65% 0); }
+          60%  { transform: translate(-4px, 1px) skewX(-2deg); clip-path: inset(0 0 0 0); }
+          80%  { transform: translate(3px, 0) skewX(1deg); clip-path: inset(60% 0 8% 0); }
+          100% { transform: translate(0, 0) skewX(0deg); clip-path: inset(0 0 0 0); }
+        }
+        .ec-letter-tear { animation: ec-letter-tear 130ms steps(1, end) 1; position: relative; z-index: 2; }
+
+        /* theme: vertical hold instability — the whole masthead briefly
+           rolls/jumps the way an old CRT does when it loses vertical
+           sync, then snaps back. Applied to titleWrapRef (the row, not
+           the text itself) so it carries the sparks/hold-zone along
+           with it rather than just the glyphs. steps(1, end) again for
+           a hard, digital snap between positions rather than a smooth
+           roll. */
+        @keyframes ec-vertical-hold {
+          0%   { transform: translateY(0) scaleY(1); }
+          10%  { transform: translateY(-14px) scaleY(1.08); }
+          22%  { transform: translateY(9px) scaleY(0.94); }
+          35%  { transform: translateY(-5px) scaleY(1.03); }
+          50%  { transform: translateY(3px) scaleY(0.98); }
+          65%  { transform: translateY(-2px) scaleY(1.01); }
+          100% { transform: translateY(0) scaleY(1); }
+        }
+        .ec-vertical-hold { animation: ec-vertical-hold 480ms cubic-bezier(0.3, 0, 0.4, 1) 1; transform-origin: center top; }
+
         @media (prefers-reduced-motion: reduce) {
-          .ec-vhs-glitch, .ec-vhs-glitch-b, .ec-vhs-glitch-c, .ec-vhs-glitch-d, .ec-vhs-glitch-e, .ec-vhs-glitch-f, .ec-vhs-overlay-active, .ec-jitter-tear, .ec-jitter-tear-b, .ec-scanimate, .ec-vidicon-burn { animation: none !important; }
+          .ec-vhs-glitch, .ec-vhs-glitch-b, .ec-vhs-glitch-c, .ec-vhs-glitch-d, .ec-vhs-glitch-e, .ec-vhs-glitch-f, .ec-vhs-overlay-active, .ec-jitter-tear, .ec-jitter-tear-b, .ec-scanimate, .ec-vidicon-burn, .ec-letter-tear, .ec-vertical-hold { animation: none !important; }
         }
 
   .ec-fx-overlay {
@@ -2087,9 +2219,15 @@ export const styleSheet = `
     opacity: 0.5;
   }
 
-  /* SINGULARITY: a "Phantom Reveal" button -- black-on-black and
-     heavily blurred at rest, so it reads as an absence rather than a
-     dim control, until hovered. Sized entirely from its flex-column
+  /* SINGULARITY: only ever mounted once actually revealed (see
+     renderSetupExtras) -- no more hidden/black-on-black resting state,
+     so from the moment it exists it fades in briefly and then pulses
+     on its own, no hover needed. The glow itself is two layers: a
+     halo well outside the button's own box (an "event horizon" bleed,
+     not a contained button glow) and the text's own shifting glow,
+     both driven by the same slow, uneven color-cycle so the whole
+     thing reads as one strange light source rather than a static
+     control with a glow slapped on. Sized entirely from its flex-column
      parent (see the awaitingBegin block) rather than any fixed pixel
      target, so it always spans exactly the Anomaly/Begin Game row's
      own width above it. */
@@ -2105,64 +2243,104 @@ export const styleSheet = `
     border: 1.5px solid rgba(77, 232, 255, 0.18);
     box-sizing: border-box;
     padding: 8px 16px;
-    overflow: hidden;
+    overflow: visible;
     cursor: pointer;
+    opacity: 0;
+    animation: ec-singularity-appear 900ms ease-out forwards;
+  }
+  @keyframes ec-singularity-appear {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  /* The plasma halo: an oversized, blurred, color-cycling glow behind
+     the text that spills well past the button's own edges (overflow
+     above is visible, not hidden, specifically so this isn't clipped)
+     -- an event horizon around the button, not a glow contained by it. */
+  .ec-singularity-halo {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 150%;
+    height: 320%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+    mix-blend-mode: screen;
+    animation: ec-singularity-halo-mono 14s ease-in-out 0.9s infinite, ec-singularity-plasma 6s ease-in-out 0.9s infinite;
+  }
+  @keyframes ec-singularity-halo-mono {
+    0%   { background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.22) 16%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 46%, rgba(230,240,245,0.10) 54%, rgba(230,240,245,0) 66%); }
+    8%   { background: radial-gradient(circle, rgba(215,219,224,0.42) 0%, rgba(215,219,224,0.16) 15%, rgba(215,219,224,0) 28%, rgba(215,219,224,0) 44%, rgba(200,205,210,0.08) 52%, rgba(200,205,210,0) 64%); }
+    16%  { background: radial-gradient(circle, rgba(122,128,136,0.2) 0%, rgba(122,128,136,0) 22%, rgba(122,128,136,0) 40%, transparent 60%); }
+    22%  { background: radial-gradient(circle, transparent 0%, transparent 100%); }
+    30%  { background: radial-gradient(circle, rgba(195,200,206,0.35) 0%, rgba(195,200,206,0.14) 15%, rgba(195,200,206,0) 28%, rgba(195,200,206,0) 44%, rgba(180,185,190,0.07) 52%, rgba(180,185,190,0) 64%); }
+    38%  { background: radial-gradient(circle, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.26) 17%, rgba(255,255,255,0) 32%, rgba(255,255,255,0) 48%, rgba(230,240,245,0.12) 56%, rgba(230,240,245,0) 70%); }
+    44%  { background: radial-gradient(circle, rgba(205,249,255,0.5) 0%, rgba(77,232,255,0.2) 16%, rgba(77,232,255,0) 30%, rgba(77,232,255,0) 46%, rgba(77,232,255,0.1) 54%, rgba(77,232,255,0) 66%); }
+    50%  { background: radial-gradient(circle, rgba(138,143,150,0.18) 0%, rgba(138,143,150,0) 20%, transparent 60%); }
+    58%  { background: radial-gradient(circle, transparent 0%, transparent 100%); }
+    66%  { background: radial-gradient(circle, rgba(236,239,242,0.4) 0%, rgba(236,239,242,0.16) 15%, rgba(236,239,242,0) 28%, rgba(236,239,242,0) 44%, rgba(220,225,230,0.08) 52%, rgba(220,225,230,0) 64%); }
+    74%  { background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.22) 16%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 46%, rgba(230,240,245,0.1) 54%, rgba(230,240,245,0) 66%); }
+    82%  { background: radial-gradient(circle, rgba(107,112,120,0.16) 0%, rgba(107,112,120,0) 20%, transparent 60%); }
+    90%  { background: radial-gradient(circle, transparent 0%, transparent 100%); }
+    96%  { background: radial-gradient(circle, rgba(185,190,197,0.38) 0%, rgba(185,190,197,0.15) 15%, rgba(185,190,197,0) 28%, rgba(185,190,197,0) 44%, rgba(170,175,180,0.07) 52%, rgba(170,175,180,0) 64%); }
+    100% { background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.22) 16%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 46%, rgba(230,240,245,0.10) 54%, rgba(230,240,245,0) 66%); }
+  }
+  @keyframes ec-singularity-plasma {
+    0%   { transform: translate(-50%, -50%) scale(1); filter: blur(2px); }
+    25%  { transform: translate(-50%, -50%) scale(1.05); filter: blur(3px); }
+    50%  { transform: translate(-50%, -50%) scale(0.96); filter: blur(1.6px); }
+    75%  { transform: translate(-50%, -50%) scale(1.03); filter: blur(2.4px); }
+    100% { transform: translate(-50%, -50%) scale(1); filter: blur(2px); }
   }
   .ec-singularity-text {
+    position: relative;
+    z-index: 1;
     font-family: 'Chakra Petch', sans-serif;
     font-size: clamp(13px, 3.2vw, 24px);
     letter-spacing: 0.16em;
     line-height: 1;
     white-space: nowrap;
-    color: #000000;
-    font-weight: 100;
-    filter: blur(10px);
-    text-shadow: none;
-    pointer-events: none;
-    transition: color 2s ease-in-out, filter 2s ease-in-out, font-weight 2s ease-in-out, text-shadow 2s ease-in-out;
-  }
-  .ec-singularity-btn:hover .ec-singularity-text,
-  .ec-singularity-btn:focus-visible .ec-singularity-text {
-    color: #00ffff;
-    font-weight: 900;
-    filter: blur(0);
+    color: #ffffff;
+    font-weight: 400;
     text-shadow:
-      0 0 0.05em #00ffff,
-      0 0 0.16em #00ffff,
-      0 0 0.4em rgba(0, 255, 255, 0.85),
-      0 0 0.85em rgba(0, 255, 255, 0.65),
-      0 0 1.6em rgba(0, 255, 255, 0.45),
-      0 0 2.6em rgba(0, 255, 255, 0.3);
-    animation: ec-singularity-pulse 1.7s ease-in-out 2s infinite alternate;
+      0 0 0.06em #ffffff, 0 0 0.22em #ffffff,
+      0 0 0.55em rgba(255, 255, 255, 0.9),
+      0 0 1.3em rgba(255, 255, 255, 0.7),
+      0 0 2.6em rgba(255, 255, 255, 0.5),
+      0 0 4.2em rgba(255, 255, 255, 0.32);
+    pointer-events: none;
+    opacity: 0;
+    animation: ec-singularity-text-appear 900ms ease-out forwards, ec-singularity-mono 14s ease-in-out 0.9s infinite;
   }
-  @keyframes ec-singularity-pulse {
-    0% {
-      color: #00ffff;
-      text-shadow:
-        0 0 0.05em #00ffff,
-        0 0 0.16em #00ffff,
-        0 0 0.4em rgba(0, 255, 255, 0.85),
-        0 0 0.85em rgba(0, 255, 255, 0.65),
-        0 0 1.6em rgba(0, 255, 255, 0.45),
-        0 0 2.6em rgba(0, 255, 255, 0.3);
-    }
-    100% {
-      color: #c9a0ff;
-      text-shadow:
-        0 0 0.07em #c9a0ff,
-        0 0 0.22em #8a2be2,
-        0 0 0.55em rgba(138, 43, 226, 0.85),
-        0 0 1.1em rgba(138, 43, 226, 0.6),
-        0 0 2.1em rgba(77, 232, 255, 0.5),
-        0 0 3.2em rgba(77, 232, 255, 0.28);
-    }
+  @keyframes ec-singularity-text-appear {
+    from { opacity: 0; filter: blur(10px); }
+    to   { opacity: 1; filter: blur(0); }
+  }
+  /* The same uneven cycle as the halo (white -> dim grays -> a near-
+     black "gone dark" moment -> a cyan flash -> repeat) so the text
+     and its surrounding bleed always shift together. */
+  @keyframes ec-singularity-mono {
+    0%   { color: #ffffff; text-shadow: 0 0 0.06em #ffffff, 0 0 0.22em #ffffff, 0 0 0.55em rgba(255,255,255,0.9), 0 0 1.3em rgba(255,255,255,0.7), 0 0 2.6em rgba(255,255,255,0.5), 0 0 4.2em rgba(255,255,255,0.32); }
+    8%   { color: #d7dbe0; text-shadow: 0 0 0.05em #d7dbe0, 0 0 0.18em #d7dbe0, 0 0 0.42em rgba(215,219,224,0.8), 0 0 0.9em rgba(215,219,224,0.55), 0 0 1.8em rgba(215,219,224,0.35); }
+    16%  { color: #7a8088; text-shadow: 0 0 0.04em #7a8088, 0 0 0.1em rgba(122,128,136,0.5); }
+    22%  { color: #161616; text-shadow: none; }
+    30%  { color: #c3c8ce; text-shadow: 0 0 0.05em #c3c8ce, 0 0 0.2em #c3c8ce, 0 0 0.5em rgba(195,200,206,0.7), 0 0 1.1em rgba(195,200,206,0.45); }
+    38%  { color: #ffffff; text-shadow: 0 0 0.07em #ffffff, 0 0 0.26em #ffffff, 0 0 0.65em rgba(255,255,255,0.95), 0 0 1.5em rgba(255,255,255,0.75), 0 0 3em rgba(255,255,255,0.55), 0 0 4.8em rgba(255,255,255,0.35); }
+    44%  { color: #cdf9ff; text-shadow: 0 0 0.06em #cdf9ff, 0 0 0.2em #7ff1ff, 0 0 0.5em rgba(77,232,255,0.75), 0 0 1.2em rgba(77,232,255,0.5), 0 0 2.4em rgba(77,232,255,0.3); }
+    50%  { color: #8a8f96; text-shadow: 0 0 0.04em #8a8f96, 0 0 0.12em rgba(138,143,150,0.45); }
+    58%  { color: #141414; text-shadow: none; }
+    66%  { color: #eceff2; text-shadow: 0 0 0.05em #eceff2, 0 0 0.18em #eceff2, 0 0 0.45em rgba(236,239,242,0.75), 0 0 1em rgba(236,239,242,0.5); }
+    74%  { color: #ffffff; text-shadow: 0 0 0.06em #ffffff, 0 0 0.22em #ffffff, 0 0 0.55em rgba(255,255,255,0.9), 0 0 1.3em rgba(255,255,255,0.65), 0 0 2.7em rgba(255,255,255,0.4); }
+    82%  { color: #6b7078; text-shadow: 0 0 0.04em #6b7078, 0 0 0.1em rgba(107,112,120,0.4); }
+    90%  { color: #181818; text-shadow: none; }
+    96%  { color: #b9bec5; text-shadow: 0 0 0.05em #b9bec5, 0 0 0.2em #b9bec5, 0 0 0.5em rgba(185,190,197,0.7), 0 0 1.1em rgba(185,190,197,0.45); }
+    100% { color: #ffffff; text-shadow: 0 0 0.06em #ffffff, 0 0 0.22em #ffffff, 0 0 0.55em rgba(255,255,255,0.9), 0 0 1.3em rgba(255,255,255,0.7), 0 0 2.6em rgba(255,255,255,0.5), 0 0 4.2em rgba(255,255,255,0.32); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .ec-singularity-text { transition-duration: 0.3s; }
-    .ec-singularity-btn:hover .ec-singularity-text,
-    .ec-singularity-btn:focus-visible .ec-singularity-text {
-      animation: none;
-    }
+    .ec-singularity-btn { opacity: 1; animation: none; }
+    .ec-singularity-halo { animation: none; background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.22) 16%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 46%, rgba(230,240,245,0.10) 54%, rgba(230,240,245,0) 66%); }
+    .ec-singularity-text { opacity: 1; filter: none; animation: none; }
   }
 `;
 
@@ -2214,7 +2392,7 @@ export function renderGlobalDefs() {
    `setPieces` are chassis state, passed in because handleAnomaly needs
    to write pieces and the Singularity hold timer only makes sense
    during setup. */
-export function useSetupExtras({ awaitingBegin, setPieces }) {
+export function useSetupExtras({ awaitingBegin, setPieces, audio }) {
   const [singularityRevealed, setSingularityRevealed] = React.useState(false);
   const [showSingularityInfo, setShowSingularityInfo] = React.useState(false);
   const singularityHoldRef = React.useRef(null);
@@ -2249,11 +2427,13 @@ export function useSetupExtras({ awaitingBegin, setPieces }) {
   function openSingularityInfo() {
     clearTimeout(singularityHideTimerRef.current);
     setShowSingularityInfo(true);
+    audio.playSingularityOpen();
   }
   function closeSingularityInfo() {
     setShowSingularityInfo(false);
     clearTimeout(singularityHideTimerRef.current);
     singularityHideTimerRef.current = setTimeout(() => setSingularityRevealed(false), 10000);
+    audio.playSingularityClose();
   }
 
   React.useEffect(() => {
@@ -2328,6 +2508,7 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingula
       h(
         "div",
         { className: "ec-singularity-btn", onClick: openSingularityInfo, title: "???" },
+        h("div", { className: "ec-singularity-halo", "aria-hidden": "true" }),
         h("span", { className: "ec-singularity-text" }, "SINGULARITY")
       )
   );
@@ -3511,15 +3692,16 @@ export function createSoundscape() {
     } catch (e) {}
   }
 
-  function ensureStarted() {
-    if (started) {
-      if (ctx && ctx.state === "suspended") {
-        unlockIosAudio();
-        ctx.resume();
-      }
-      return;
-    }
-    started = true;
+  /* Builds the audio graph (context + gain stages + shared buffers)
+     without touching the ambient bed — idempotent and safe to call
+     from anywhere that needs a one-off SFX to work (e.g. the
+     Singularity reveal) even during setup, before ensureStarted()'s
+     own gate (`!awaitingBegin`) would normally have built it. Kept
+     entirely separate from the `started` flag below so calling this
+     first never skips the ambient bed's own startup once the real
+     ensureStarted() runs. */
+  function ensureGraph() {
+    if (ctx) return;
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
       ctx = new AC();
@@ -3593,12 +3775,25 @@ export function createSoundscape() {
 
       noiseBuffer = makeNoiseBuffer();
       brownNoiseBuffer = makeBrownNoiseBuffer();
-      startHum();
-      startCrackle();
-      scheduleNext();
     } catch (e) {
-      started = false; // Web Audio unavailable — game stays fully playable, just silent
+      ctx = null; // Web Audio unavailable — game stays fully playable, just silent
     }
+  }
+
+  function ensureStarted() {
+    ensureGraph();
+    if (!ctx) return;
+    if (started) {
+      if (ctx.state === "suspended") {
+        unlockIosAudio();
+        ctx.resume();
+      }
+      return;
+    }
+    started = true;
+    startHum();
+    startCrackle();
+    scheduleNext();
   }
 
   /* Called once, from the Begin Game button and nowhere else: starts
@@ -4363,6 +4558,15 @@ export function createSoundscape() {
     playFlicker: () => { if (ctx && ctx.state === "running") evPowerFluctuation(); },
     playArc: () => { if (ctx && ctx.state === "running") evArc(); },
     playGlitch: () => { if (ctx && ctx.state === "running") { evDataBurst(); evStatic(); } },
+    /* Singularity popup open/close — a wider, lower, slower cousin of
+       playPowerOn/Off's chime rather than a reuse of it, so entering
+       the Singularity reads as its own, stranger event. ensureGraph()
+       (not ensureStarted()) first: the Singularity can be discovered
+       and opened during setup, before ensureStarted()'s own gate would
+       normally have built the audio graph, and this must not also
+       wake the ambient bed early. */
+    playSingularityOpen: () => { ensureGraph(); cue(40, 900, 0.9, "sine", 0.05); },
+    playSingularityClose: () => { ensureGraph(); reverseCue(40, 900, 0.6, "sine", 0.11); },
     dispose: () => {
       disposed = true;
       if (scheduleTimer) clearTimeout(scheduleTimer);
