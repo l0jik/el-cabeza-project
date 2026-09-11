@@ -14,6 +14,15 @@ import { makeRoundedBox } from "../engine/geometry.js";
    constant. */
 const OUTLINE_T = 0.016;
 
+/* The chassis's roll animation strips this from a shell's Y position
+   before it enters a pivot rotation (the shell's at-rest offset would
+   otherwise rotate WITH the piece, dipping it below the board mid-roll
+   — see chassis/ElCabeza3D.jsx's animateStep). Neon's shell carries no
+   such offset (see themes/neon.js), so its value there is 0 — the
+   chassis always applies `theme.outlineYOffset ?? 0` unconditionally
+   rather than branching on which theme is active. */
+export const outlineYOffset = OUTLINE_T;
+
 export const COLORS = {
   /* Lightened from #FDFBF7 — a deliberate, if necessarily small, push:
      the starting value was already close to white, so there's limited
@@ -158,6 +167,92 @@ export function makeGrid() {
    silhouette shell is a genuinely different technique from Neon's
    translucent body + traced-edge outline (see themes/neon.js), not
    the same function with different colors. */
+/* Modal chrome (backdrop dimming, panel surface) for the chassis's
+   shared popups (Move Log, Info, Victory placard). A separate token
+   from COLORS.cream rather than deriving it inline, since these need
+   their own alpha and — for Neon — a materially different base color,
+   not just cream-with-opacity. */
+export const modalBackdrop = "rgba(36,24,10,0.45)";
+export const modalSurface = "rgba(253,251,247,0.96)";
+
+/* Endpoints of the canvas mount's own radial-gradient background
+   (the middle stop is COLORS.creamAlt, already theme-derived). */
+export const canvasGradientStart = "#FFFDF9";
+export const canvasGradientEnd = "#E9E1D2";
+
+/* No audio at all — every method is a no-op, called from the same
+   fixed chassis call sites Neon's real audio uses (see ARCHITECTURE.md).
+   hasAudio lets the chassis skip rendering a Sound On/Off control that
+   would have no perceptible effect, without branching on which theme
+   is mounted (it's a declared capability, not a per-theme special case). */
+export const hasAudio = false;
+export function createAudio() {
+  return {
+    ensureStarted() {}, beginGameFadeIn() {}, setZoom() {}, setMuted() {},
+    setTension() {}, beginFadeOut() {}, resetWindDown() {},
+    playSelect() {}, playDeselect() {}, playLanding() {}, playCapture() {},
+    playWin() {}, playMenu() {}, fadeOutMenu() {}, playPowerOn() {},
+    playPowerOff() {}, playFlicker() {}, playArc() {}, playGlitch() {},
+    dispose() {},
+  };
+}
+
+/* No ambient visual FX of its own — every hook is a no-op. The chassis
+   still calls these unconditionally at every lifecycle point. */
+export function mountAmbientEffects() {
+  return { armOnBegin() {}, restart() {}, tick() {}, dispose() {} };
+}
+
+/* Standard's own stylesheet is empty — its look needs no extra
+   keyframes or hover treatments beyond what the chassis already
+   provides. */
+export const styleSheet = "";
+
+/* No pre-game setup extras (Neon's Anomaly/Singularity have no
+   Standard equivalent). */
+export function renderSetupExtras() {
+  return null;
+}
+
+/* Scene lighting: color/intensity only. Every light's position, shadow
+   config, and cast/receive behavior is identical between themes and
+   lives in the chassis (see ARCHITECTURE.md) — this is a plain data
+   table, not a hook, because the chassis owns the light RIG and only
+   ever asks a theme for these per-light overrides. */
+export const lights = {
+  ambient: { color: 0xffffff, intensity: 0.19278 },
+  hemi: { sky: 0xffffff, ground: 0xa8946f, intensity: 0.273105 },
+  key: { color: 0xfff6e8, intensity: 1.08 },
+  fill: { color: 0xf4f7ff, intensity: 0.378 },
+  back: { color: 0xffffff, intensity: 0.18 },
+};
+
+/* The slab's six BoxGeometry face materials, given the already-built
+   board texture. A theme hook (not a shared function with parameters)
+   because Neon's top face uses MeshPhysicalMaterial's clearcoat layer
+   for a glossy sheen — a different material class, not just different
+   numbers — while Standard's is a plain MeshStandardMaterial throughout.
+   polygonOffset on the top face is chassis-owned tuning (it papers
+   over a z-fighting concern shared by both themes' slab geometry, not
+   a visual choice), so themes only ever set it exactly as shown here. */
+export function buildSlabMaterials(boardTex) {
+  const side = () => new THREE.MeshStandardMaterial({ color: HEX.wood, roughness: 0.85 });
+  return [
+    side(),
+    side(),
+    new THREE.MeshStandardMaterial({
+      map: boardTex,
+      roughness: 0.72,
+      polygonOffset: true,
+      polygonOffsetFactor: 0,
+      polygonOffsetUnits: 3,
+    }),
+    side(),
+    side(),
+    side(),
+  ];
+}
+
 export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
   const mat = new THREE.MeshStandardMaterial({
     color: isDark ? HEX.charcoal : HEX.pieceLight,

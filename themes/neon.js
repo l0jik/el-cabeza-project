@@ -453,6 +453,111 @@ export function makeGrid() {
    material is translucent, see the depthWrite:false comment below) —
    Neon traces EdgesGeometry on a simplified sharp-cornered proxy
    instead. */
+/* No at-rest Y offset on Neon's shell (see buildPieceVisual below —
+   it's positioned at the same y as the body), so the chassis's roll
+   animation has nothing to strip here. Kept as an explicit 0 rather
+   than omitted, so `theme.outlineYOffset ?? 0` reads as "this theme
+   deliberately has none" rather than "this theme forgot to declare
+   one." */
+export const outlineYOffset = 0;
+
+/* Modal chrome — see themes/standard.js's modalBackdrop/modalSurface
+   for why these are dedicated tokens rather than derived from
+   COLORS.cream inline. Values match Neon's own original Info-overlay
+   styling (a near-black backdrop and panel, not cream-with-opacity). */
+export const modalBackdrop = "rgba(2,4,8,0.6)";
+export const modalSurface = "rgba(8,11,16,0.88)";
+
+/* Endpoints of the canvas mount's own radial-gradient background. */
+export const canvasGradientStart = "#141A22";
+export const canvasGradientEnd = "#05070a";
+
+/* True: the chassis's Sound On/Off control is meaningful for this
+   theme (see themes/standard.js's hasAudio for why this is declared
+   metadata rather than a chassis branch). */
+export const hasAudio = true;
+export function createAudio() {
+  return createSoundscape();
+}
+
+/* NOT YET PORTED: the chassis's ambient-FX lifecycle hook (see
+   ARCHITECTURE.md) currently returns no-ops here. Neon's real ambient
+   effects — title flicker/spark/letter-burn, VHS glitch and its rarer
+   Scanimate/Vidicon-burn variants, localized jitter-tear, board arcs,
+   the crawling voxel mass, the floor wave, and the digital-interior /
+   voxel-shatter piece effects — are still closures inside the
+   original component's single scene-setup effect (el-cabeza-neon-3d.html)
+   and haven't been extracted into standalone functions yet. That's real
+   remaining work, not an oversight: those closures capture `three`,
+   `pieceGroup`, and DOM refs in ways that need actual interface design
+   (turning implicit closure capture into explicit parameters), not a
+   mechanical cut-and-paste. Core gameplay (rules, AI, camera, and the
+   full audio engine above) does not depend on this and is unaffected.
+   The stub below keeps the chassis's lifecycle calls (armOnBegin/
+   restart/tick/dispose) valid no-ops until that porting happens. */
+export function mountAmbientEffects() {
+  return { armOnBegin() {}, restart() {}, tick() {}, dispose() {} };
+}
+
+/* NOT YET PORTED: Neon's title-flicker/VHS-glitch/singularity-button
+   CSS (currently the <style> block inline in el-cabeza-neon-3d.html)
+   hasn't been extracted into a standalone string yet — see
+   mountAmbientEffects above for why. Empty for now rather than
+   incorrect. */
+export const styleSheet = "";
+
+/* NOT YET PORTED: the Anomaly random-setup button and the Singularity
+   easter egg (both fully implemented as standalone logic already —
+   see generateAnomalySetup and PIECE_ORIENTATIONS above) don't yet
+   have their JSX wired into this hook. The logic exists; the UI
+   wiring into the chassis's setup-extras slot is the remaining step. */
+export function renderSetupExtras() {
+  return null;
+}
+
+/* Scene lighting: color/intensity only — see themes/standard.js's
+   `lights` for why this is a data table rather than a hook. The
+   hemisphere's sky/ground colors shift from warm tan to a hazy
+   cyan-over-near-black cast (distant city-glow rather than daylight),
+   and the fill light carries a faint violet cast — the one place the
+   "deep violet" accent shows up as ambient light rather than a UI
+   color, so it stays atmosphere rather than decoration. */
+export const lights = {
+  ambient: { color: 0xffffff, intensity: 0.16 },
+  hemi: { sky: 0x8fd8ff, ground: 0x05070a, intensity: 0.24 },
+  key: { color: 0xcfe9ff, intensity: 1.02 },
+  fill: { color: 0xb9a8ff, intensity: 0.34 },
+  back: { color: 0xdfe8ff, intensity: 0.18 },
+};
+
+/* The slab's six BoxGeometry face materials. theme: MeshPhysicalMaterial's
+   clearcoat layer on the top face, per feedback ("glossy sheen on the
+   board surface") — a thin, fairly glossy lacquer coat over the same
+   textured surface, rather than raising the base material's own
+   reflectivity (which would also brighten/flatten the board texture's
+   colors). Base roughness lowered a bit too so the underlying surface
+   itself reads a touch less matte, with the clearcoat doing most of
+   the "sheen" work via its own sharp highlight. */
+export function buildSlabMaterials(boardTex) {
+  const side = () => new THREE.MeshStandardMaterial({ color: HEX.wood, roughness: 0.55, metalness: 0.3 });
+  return [
+    side(),
+    side(),
+    new THREE.MeshPhysicalMaterial({
+      map: boardTex,
+      roughness: 0.55,
+      clearcoat: 0.65,
+      clearcoatRoughness: 0.15,
+      polygonOffset: true,
+      polygonOffsetFactor: 0,
+      polygonOffsetUnits: 3,
+    }),
+    side(),
+    side(),
+    side(),
+  ];
+}
+
 export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
   /* theme: a faint emissive core per player (cyan for Dark, amber
      for Light) — "glowing internal cores" from the brief — kept low
