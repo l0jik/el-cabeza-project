@@ -4542,8 +4542,13 @@ export function createSoundscape() {
     playLanding,
     playCapture: playCabezaCrush, // pitch sink / plunging formant / downward Doppler decay, per feedback
     playWin: () => cue(440, 660, 0.5, "sine", 0.028), // halved, then -20% more per feedback (was 0.035)
-    playMenu: playChoirStab,
-    fadeOutMenu: fadeOutChoir,
+    // ensureGraph() first, same reasoning as the Singularity sounds:
+    // the Info overlay can be opened from the setup screen, before
+    // ensureStarted()'s own `!awaitingBegin` gate would normally have
+    // built the audio graph, and playChoirStab/fadeOutChoir silently
+    // no-op without it (both guard on `if (!ctx) return`).
+    playMenu: () => { ensureGraph(); playChoirStab(); },
+    fadeOutMenu: () => { ensureGraph(); fadeOutChoir(); },
     playPowerOn: () => cue(70, 220, 0.7, "sine", 0.06),
     // Shorter and considerably louder than the initial version — per
     // feedback it wasn't being heard at all, most likely because a

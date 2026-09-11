@@ -351,6 +351,18 @@ export default function ElCabeza3D({ theme }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [showInfoOverlay]);
 
+  // playMenu/fadeOutMenu bracket the Info overlay's open/close exactly
+  // once per transition, regardless of which of the three ways it gets
+  // closed (Escape, backdrop click, the close button) — the cleanup
+  // fires fadeOutMenu whenever showInfoOverlay flips back to false (or
+  // the component unmounts while it's open), and the effect body only
+  // ever runs playMenu on the false->true transition, never on mount.
+  useEffect(() => {
+    if (!showInfoOverlay) return;
+    audioRef.current.playMenu();
+    return () => audioRef.current.fadeOutMenu();
+  }, [showInfoOverlay]);
+
   useEffect(() => {
     if (!showVictoryPlacard) return;
     const onKey = (e) => {
