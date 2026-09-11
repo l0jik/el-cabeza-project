@@ -13,7 +13,7 @@
    bloom pass). */
 
 import * as THREE from "three";
-import { BOARD_SIZE, SLAB, MARGIN, SQUARE_SIZE, OFF, GRID_EXTENT, GOAL_ROW } from "../engine/constants.js";
+import { BOARD_SIZE, SLAB, MARGIN, SQUARE_SIZE, OFF, GRID_EXTENT, GOAL_ROW, PIECE_SCALE } from "../engine/constants.js";
 import { opponentOf, cabezaInDanger } from "../engine/ai.js";
 
 /* Everything visual in this experimental skin lives in these two
@@ -442,6 +442,104 @@ export function makeGrid() {
   group.add(glow);
 
   return group;
+}
+
+/* Builds a piece's body mesh and its outline shell. Deliberately a
+   different technique from themes/standard.js's buildPieceVisual, not
+   the same function with different colors: the body here is
+   translucent (a "digital glass" read), which is exactly what makes
+   Standard's inflated-silhouette shell technique break (self-
+   overlapping bevel geometry z-fights against itself once the
+   material is translucent, see the depthWrite:false comment below) —
+   Neon traces EdgesGeometry on a simplified sharp-cornered proxy
+   instead. */
+export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
+  /* theme: a faint emissive core per player (cyan for Dark, amber
+     for Light) — "glowing internal cores" from the brief — kept low
+     (0.08-0.1) so it reads as an inner glow, not a lit-up toy; body
+     color, geometry, and shadow behavior are all unchanged.
+     Per feedback, the body is now semi-translucent (a "digital
+     glass" read) — the solid neon rim shell built below stays
+     fully opaque, so the piece keeps a crisp, legible silhouette
+     even though its body can be partly seen through.
+
+     depthWrite: false fixes a real bug reported on rolling pieces:
+     makeRoundedBox's beveled edges are built from many small
+     segments (seg=8), and while that self-overlapping/near-
+     coincident geometry is invisible on an opaque material (two
+     triangles at nearly the same depth just paint the same lit
+     color over each other), it z-fights against ITSELF once the
+     material is translucent — as the piece rotates during a roll,
+     which of two coincident triangles wins the depth test flips
+     frame to frame, so a strip of the surface intermittently
+     fails the test and never gets drawn at all, reading as a dark
+     "hole" sweeping across the piece. With depthWrite off, the
+     body's own triangles no longer compete with each other for
+     depth priority (they still correctly test against, and stay
+     hidden behind, actually-opaque geometry like the board or
+     another piece's shell, since depthTest is still on and the
+     opaque pass renders first) — only the rare case of two
+     translucent pieces overlapping in screen space could sort
+     imperfectly against each other, which is far less visible
+     than this was. */
+  const mat = new THREE.MeshStandardMaterial({
+    color: isDark ? HEX.charcoal : HEX.pieceLight,
+    roughness: isDark ? 0.42 : 0.5,
+    metalness: isDark ? 0.35 : 0.15,
+    emissive: isDark ? HEX.glowCyan : HEX.glowAmber,
+    emissiveIntensity: isDark ? 0.105 : 0.084,
+    transparent: true,
+    opacity: isDark ? 0.837 : 0.804,
+    depthWrite: false,
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(center.x, y, center.z);
+  /* theme: per feedback, permanently drops receiveShadow on the
+     piece body (it still casts one onto the board/other pieces,
+     keeping the grounded look) — this eliminates shadow acne from a
+     surface receiving its own near-coincident cast shadow. */
+  mesh.castShadow = true;
+  mesh.receiveShadow = false;
+  mesh.renderOrder = 1; // explicitly after the grid's -10 — see buildGrid's renderOrder comment
+  mesh.userData = { pieceId: piece.id, kind: "piece" };
+
+  /* Box pieces trace a SIMPLIFIED PROXY (a plain sharp-cornered
+     BoxGeometry at the piece's true outer dimensions) rather than
+     their own beveled render geometry — makeRoundedBox has no sharp
+     macro edges at all, so tracing it directly means either zero
+     visible edges or ~700+ tiny ones through each rounded corner. The
+     disc keeps tracing its own real geometry (a plain cylinder has
+     genuinely sharp, non-tangent cap edges, so it was never the
+     problem). */
+  const outlineSourceGeo = isDisc
+    ? geo
+    : new THREE.BoxGeometry(piece.w * PIECE_SCALE, piece.z * PIECE_SCALE, piece.h * PIECE_SCALE);
+  const edgesGeo = new THREE.EdgesGeometry(outlineSourceGeo, 10);
+  if (!isDisc) outlineSourceGeo.dispose(); // the disc case reuses `geo`, the real body's own geometry — never dispose that one
+  const shell = new THREE.LineSegments(
+    edgesGeo,
+    new THREE.LineBasicMaterial({
+      // Light's outline uses a darker, more saturated orange
+      // (glowAmberOutline) rather than the body's pale amber, and is
+      // more transparent — a subtler accent than Dark's cyan rim.
+      color: isDark ? HEX.glowCyan : HEX.glowAmberOutline,
+      transparent: true,
+      opacity: isDark ? 0.945 : 0.4,
+      depthWrite: false,
+    })
+  );
+  shell.position.set(center.x, y, center.z);
+  /* Shares the body's own renderOrder rather than a separate later
+     one, so Three's normal back-to-front transparent sort interleaves
+     bodies and shells from DIFFERENT pieces by real camera distance —
+     a uniformly later renderOrder for every shell would mean a nearer
+     piece's body could never properly occlude a farther piece's
+     outline no matter how much depth actually separated them. */
+  shell.renderOrder = 1;
+  shell.userData = { pieceId: piece.id, kind: "shell" };
+
+  return { mesh, shell };
 }
 
 /* A synthesized ambient bed (Web Audio API, no external assets) plus a

@@ -5,7 +5,14 @@
    contrast: bloom textures, additive blending, a dark palette). */
 
 import * as THREE from "three";
-import { BOARD_SIZE, SLAB, MARGIN, SQUARE_SIZE, OFF } from "../engine/constants.js";
+import { BOARD_SIZE, SLAB, MARGIN, SQUARE_SIZE, OFF, DISC_DIAM, DISC_H, PIECE_SCALE } from "../engine/constants.js";
+import { makeRoundedBox } from "../engine/geometry.js";
+
+/* Outline thickness for the silhouette-shell technique below, in world
+   units. Standard-only: Neon uses a different outline technique (see
+   themes/neon.js's buildPieceVisual) that needs no equivalent
+   constant. */
+const OUTLINE_T = 0.016;
 
 export const COLORS = {
   /* Lightened from #FDFBF7 — a deliberate, if necessarily small, push:
@@ -142,4 +149,87 @@ export function makeGrid() {
   group.add(border);
 
   return group;
+}
+
+/* Builds a piece's body mesh and its outline shell, given the piece's
+   own edge radius (EDGE_RADIUS above) is already baked into `geo`
+   wherever the caller built it the same way. Kept as one hook per
+   ARCHITECTURE.md: Standard's opaque body + inflated back-face
+   silhouette shell is a genuinely different technique from Neon's
+   translucent body + traced-edge outline (see themes/neon.js), not
+   the same function with different colors. */
+export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
+  const mat = new THREE.MeshStandardMaterial({
+    color: isDark ? HEX.charcoal : HEX.pieceLight,
+    roughness: isDark ? 0.48 : 0.58,
+    metalness: 0.04,
+    /* No polygonOffset here. Biasing pieces forward was tried and
+       reverted: with every mesh pulled -8 and every shell -4, a
+       FARTHER piece's mesh could beat a NEARER piece's shell
+       wherever their depth difference was smaller than that 4-unit
+       gap, so pieces behind punched their outlines through pieces
+       in front. Offsets applied per-object break ordering BETWEEN
+       those objects; the board is the only surface here that every
+       piece must sort against but that never sorts against a
+       sibling, which is why the bias belongs there (see the slab's
+       top-face material) and not on the pieces. */
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(center.x, y, center.z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = { pieceId: piece.id, kind: "piece" };
+
+  /* Silhouette shell: the same solid grown by OUTLINE_T and drawn
+     back-faces-only, so the piece itself covers all of it except a
+     thin rim. This is what separates two light pieces sitting side
+     by side — a rounded solid has no sharp edge for EdgesGeometry
+     to trace, so an outline has to come from the silhouette. */
+  const shellGeo = isDisc
+    ? new THREE.CylinderGeometry(
+        (DISC_DIAM * PIECE_SCALE) / 2 + OUTLINE_T,
+        (DISC_DIAM * PIECE_SCALE) / 2 + OUTLINE_T,
+        DISC_H * PIECE_SCALE + OUTLINE_T * 2,
+        40
+      )
+    : makeRoundedBox(
+        piece.w * PIECE_SCALE + OUTLINE_T * 2,
+        piece.z * PIECE_SCALE + OUTLINE_T * 2,
+        piece.h * PIECE_SCALE + OUTLINE_T * 2,
+        EDGE_RADIUS + OUTLINE_T
+      );
+
+  const shell = new THREE.Mesh(
+    shellGeo,
+    new THREE.MeshBasicMaterial({
+      color: isDark ? 0x6f6f6f : HEX.charcoal,
+      side: THREE.BackSide,
+      /* shadowSide must be set EXPLICITLY here, and must be
+         BackSide. This shell casts a shadow (below), and the
+         shadow map keeps whichever surface is nearest the light.
+         three.js derives shadowSide from `side` when it isn't
+         given, and for a BackSide material it picks FrontSide —
+         which would record this shell's NEAR surface, sitting
+         OUTLINE_T in front of the piece's own lit faces. Every
+         piece would then test as being inside its own shadow and
+         render fully dark. Recording the FAR surface instead puts
+         the occluder behind the piece's lit faces, so the piece
+         stays lit while the board beyond it is still shadowed.
+         The silhouette is identical either way — front and back
+         faces of a closed convex solid share one outline — which
+         is exactly the property being exploited. */
+      shadowSide: THREE.BackSide,
+    })
+  );
+  /* The shell casts, not just the mesh — see themes/standard.js's
+     original comment history for why (matches the shadow's drawn
+     silhouette to the outline, not just the mesh's own edge). */
+  shell.castShadow = true;
+  /* y + OUTLINE_T so the shell's symmetric growth sits entirely above
+     the piece, flush with y=0, rather than penetrating the board. */
+  shell.position.set(center.x, y + OUTLINE_T, center.z);
+  shell.userData = { pieceId: piece.id, kind: "shell" };
+
+  return { mesh, shell };
 }
