@@ -301,6 +301,21 @@ export default function ElCabeza3D({ theme }) {
     setShowMoveLog(false);
   }
 
+  /* A theme's pre-game setup screen can need its own local state and
+     handlers (Neon's Singularity easter egg: a hover-hold reveal timer,
+     an info popup) that call back into chassis state (Neon's Anomaly
+     button calls setPieces). Since renderSetupExtras is a plain
+     function — not a component — it can't call useState/useRef itself
+     without breaking React's rules of hooks the moment it's skipped on
+     a render (e.g. once awaitingBegin goes false). useSetupExtras is a
+     REAL hook instead, called here unconditionally on every render at
+     a fixed position — safe despite the `theme.useSetupExtras ? ... :`
+     guard because `theme` is a stable prop that never changes which
+     branch it takes for the lifetime of a mounted instance. A theme
+     with no setup-screen state of its own (Standard) doesn't export
+     this hook at all, and gets `null` here. */
+  const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({ awaitingBegin, pieces, setPieces }) : null;
+
   function handleTitleClick() {
     setInfoBtnVisible(true);
     // Re-clicking the title while the button is already showing just
@@ -3044,8 +3059,8 @@ export default function ElCabeza3D({ theme }) {
           </div>
 
           {awaitingBegin ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8, flexShrink: 0 }}>
-              <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            (() => {
+              const beginGameButton = (
                 <button
                   key="begin"
                   className="ec-btn"
@@ -3065,9 +3080,18 @@ export default function ElCabeza3D({ theme }) {
                 >
                   Begin Game
                 </button>
-              </div>
-              {theme.renderSetupExtras && theme.renderSetupExtras()}
-            </div>
+              );
+              // A theme with setup-screen extras of its own (Neon's
+              // Anomaly button sits beside Begin Game; its Singularity
+              // easter egg sits below both) takes over the WHOLE
+              // pre-game row/column, Begin Game included, so it can
+              // place things relative to it — the chassis hands over
+              // the button rather than the theme trying to reconstruct
+              // an equivalent one. A theme with nothing to add
+              // (Standard) returns null and gets this default.
+              const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras });
+              return extras || <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>{beginGameButton}</div>;
+            })()
           ) : (
             /* Move Log is a chassis-level feature (see ARCHITECTURE.md):
                generic post-game UI with no theme dependency, shown once
@@ -3605,6 +3629,8 @@ export default function ElCabeza3D({ theme }) {
           </button>
         </div>
       </div>
+
+      {theme.renderExtraOverlays && theme.renderExtraOverlays(setupExtras)}
     </div>
   );
 }

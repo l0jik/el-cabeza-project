@@ -2047,6 +2047,84 @@ export const styleSheet = `
     filter: url(#ec-static);
     opacity: 0.5;
   }
+
+  /* SINGULARITY: a "Phantom Reveal" button -- black-on-black and
+     heavily blurred at rest, so it reads as an absence rather than a
+     dim control, until hovered. Sized entirely from its flex-column
+     parent (see the awaitingBegin block) rather than any fixed pixel
+     target, so it always spans exactly the Anomaly/Begin Game row's
+     own width above it. */
+  .ec-singularity-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 5.5 / 1;
+    min-height: 42px;
+    background: #000000;
+    border: 1.5px solid rgba(77, 232, 255, 0.18);
+    box-sizing: border-box;
+    padding: 8px 16px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .ec-singularity-text {
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: clamp(13px, 3.2vw, 24px);
+    letter-spacing: 0.16em;
+    line-height: 1;
+    white-space: nowrap;
+    color: #000000;
+    font-weight: 100;
+    filter: blur(10px);
+    text-shadow: none;
+    pointer-events: none;
+    transition: color 2s ease-in-out, filter 2s ease-in-out, font-weight 2s ease-in-out, text-shadow 2s ease-in-out;
+  }
+  .ec-singularity-btn:hover .ec-singularity-text,
+  .ec-singularity-btn:focus-visible .ec-singularity-text {
+    color: #00ffff;
+    font-weight: 900;
+    filter: blur(0);
+    text-shadow:
+      0 0 0.05em #00ffff,
+      0 0 0.16em #00ffff,
+      0 0 0.4em rgba(0, 255, 255, 0.85),
+      0 0 0.85em rgba(0, 255, 255, 0.65),
+      0 0 1.6em rgba(0, 255, 255, 0.45),
+      0 0 2.6em rgba(0, 255, 255, 0.3);
+    animation: ec-singularity-pulse 1.7s ease-in-out 2s infinite alternate;
+  }
+  @keyframes ec-singularity-pulse {
+    0% {
+      color: #00ffff;
+      text-shadow:
+        0 0 0.05em #00ffff,
+        0 0 0.16em #00ffff,
+        0 0 0.4em rgba(0, 255, 255, 0.85),
+        0 0 0.85em rgba(0, 255, 255, 0.65),
+        0 0 1.6em rgba(0, 255, 255, 0.45),
+        0 0 2.6em rgba(0, 255, 255, 0.3);
+    }
+    100% {
+      color: #c9a0ff;
+      text-shadow:
+        0 0 0.07em #c9a0ff,
+        0 0 0.22em #8a2be2,
+        0 0 0.55em rgba(138, 43, 226, 0.85),
+        0 0 1.1em rgba(138, 43, 226, 0.6),
+        0 0 2.1em rgba(77, 232, 255, 0.5),
+        0 0 3.2em rgba(77, 232, 255, 0.28);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ec-singularity-text { transition-duration: 0.3s; }
+    .ec-singularity-btn:hover .ec-singularity-text,
+    .ec-singularity-btn:focus-visible .ec-singularity-text {
+      animation: none;
+    }
+  }
 `;
 
 /* The two per-pixel warp filters (video-turbulence/wavy-raster VHS
@@ -2088,16 +2166,261 @@ export function renderGlobalDefs() {
   );
 }
 
-/* NOT YET PORTED: the Anomaly random-setup button and the Singularity
-   easter egg (both fully implemented as standalone logic already —
-   see generateAnomalySetup and PIECE_ORIENTATIONS above) don't yet
-   have their JSX wired into this hook, and the Singularity button's
-   own CSS isn't in styleSheet above either. That's a distinct feature
-   (a setup-screen gameplay easter egg), separate from the ambient
-   visual FX ported here — the logic exists; the UI wiring into the
-   chassis's setup-extras slot is the remaining step. */
-export function renderSetupExtras() {
-  return null;
+/* Local state/handlers for the pre-game setup screen's Neon-exclusive
+   extras (the Anomaly button, the Singularity hover-hold reveal and
+   its info popup). A REAL React hook — not a plain function — because
+   it needs useState/useRef/useEffect, and the chassis calls it
+   unconditionally every render (see chassis/ElCabeza3D.jsx) so that's
+   safe despite living in a theme module. `awaitingBegin`/`pieces`/
+   `setPieces` are chassis state, passed in because handleAnomaly needs
+   to write pieces and the Singularity hold timer only makes sense
+   during setup. */
+export function useSetupExtras({ awaitingBegin, setPieces }) {
+  const [singularityRevealed, setSingularityRevealed] = React.useState(false);
+  const [showSingularityInfo, setShowSingularityInfo] = React.useState(false);
+  const singularityHoldRef = React.useRef(null);
+  const singularityHideTimerRef = React.useRef(null);
+
+  function handleAnomaly() {
+    // Setup-phase-only random layout generator (see its button, gated
+    // on awaitingBegin) — just swaps piece positions, nothing else
+    // about game state, so clicking it repeatedly is fine: each click
+    // is an independent fresh randomization.
+    if (!awaitingBegin) return;
+    setPieces(generateAnomalySetup());
+  }
+
+  /* The Phantom Reveal button auto-hides 10s after it appears
+     (mirroring the masthead's own Info-button reveal/auto-hide).
+     Re-holding Anomaly (the same 4s discovery gesture) brings it back
+     and restarts this countdown; opening its info panel pauses the
+     countdown while reading, then gives it a fresh 10s once closed. */
+  function beginSingularityHold() {
+    clearTimeout(singularityHoldRef.current);
+    singularityHoldRef.current = setTimeout(() => {
+      setSingularityRevealed(true);
+      clearTimeout(singularityHideTimerRef.current);
+      singularityHideTimerRef.current = setTimeout(() => setSingularityRevealed(false), 10000);
+    }, 4000);
+  }
+  function cancelSingularityHold() {
+    clearTimeout(singularityHoldRef.current);
+  }
+
+  function openSingularityInfo() {
+    clearTimeout(singularityHideTimerRef.current);
+    setShowSingularityInfo(true);
+  }
+  function closeSingularityInfo() {
+    setShowSingularityInfo(false);
+    clearTimeout(singularityHideTimerRef.current);
+    singularityHideTimerRef.current = setTimeout(() => setSingularityRevealed(false), 10000);
+  }
+
+  React.useEffect(() => {
+    return () => {
+      clearTimeout(singularityHoldRef.current);
+      clearTimeout(singularityHideTimerRef.current);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!showSingularityInfo) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") closeSingularityInfo();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showSingularityInfo]);
+
+  return {
+    handleAnomaly,
+    singularityRevealed,
+    showSingularityInfo,
+    beginSingularityHold,
+    cancelSingularityHold,
+    openSingularityInfo,
+    closeSingularityInfo,
+  };
+}
+
+/* The pre-game row: Anomaly sits beside the chassis-supplied Begin Game
+   button; the Singularity phantom button (once revealed) sits below
+   both. Takes over the whole row/column rather than just appending
+   after Begin Game, since Anomaly has to sit BEFORE it. */
+export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingularityHold, cancelSingularityHold, singularityRevealed, openSingularityInfo }) {
+  const h = React.createElement;
+  return h(
+    "div",
+    { style: { display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8, flexShrink: 0 } },
+    h(
+      "div",
+      { style: { display: "flex", gap: 8, flexShrink: 0 } },
+      h(
+        "button",
+        {
+          key: "anomaly",
+          className: "ec-btn ec-btn-invert",
+          onClick: handleAnomaly,
+          onMouseEnter: beginSingularityHold,
+          onMouseLeave: cancelSingularityHold,
+          onTouchStart: beginSingularityHold,
+          onTouchEnd: cancelSingularityHold,
+          onTouchCancel: cancelSingularityHold,
+          title: "Generate a random, rotationally-symmetric opening layout",
+          style: {
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 11,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: COLORS.charcoal,
+            background: "transparent",
+            border: `1.5px solid ${COLORS.charcoal}`,
+            padding: "9px 16px",
+            cursor: "pointer",
+            flex: "1 0 auto",
+          },
+        },
+        "Anomaly"
+      ),
+      beginGameButton
+    ),
+    singularityRevealed &&
+      h(
+        "div",
+        { className: "ec-singularity-btn", onClick: openSingularityInfo, title: "???" },
+        h("span", { className: "ec-singularity-text" }, "SINGULARITY")
+      )
+  );
+}
+
+/* The Singularity info popup — a standalone, always-mounted modal (like
+   the chassis's own Info overlay/Victory placard) rather than nested
+   inside the setup row, so its own opacity transition works the same
+   way theirs do. */
+export function renderExtraOverlays(setupExtras) {
+  if (!setupExtras) return null;
+  const { showSingularityInfo, closeSingularityInfo } = setupExtras;
+  const h = React.createElement;
+  return h(
+    "div",
+    {
+      onClick: closeSingularityInfo,
+      style: {
+        position: "fixed",
+        inset: 0,
+        background: "rgba(2,4,8,0.72)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        boxSizing: "border-box",
+        zIndex: 1050,
+        opacity: showSingularityInfo ? 1 : 0,
+        pointerEvents: showSingularityInfo ? "auto" : "none",
+        transition: "opacity 0.3s ease",
+      },
+    },
+    h(
+      "div",
+      {
+        onClick: (e) => e.stopPropagation(),
+        style: {
+          position: "relative",
+          width: "clamp(280px, 78%, 500px)",
+          maxHeight: "86vh",
+          overflowY: "auto",
+          background: "rgba(4,6,10,0.92)",
+          backdropFilter: "blur(6px)",
+          border: "1px solid rgba(77,232,255,0.28)",
+          boxShadow: "0 30px 70px rgba(0,0,0,0.7), 0 0 50px rgba(77,232,255,0.14)",
+          padding: "40px 32px 30px",
+          boxSizing: "border-box",
+        },
+      },
+      h(
+        "button",
+        {
+          onClick: closeSingularityInfo,
+          "aria-label": "Close",
+          className: "ec-btn",
+          style: {
+            position: "absolute",
+            top: 14,
+            right: 14,
+            width: 26,
+            height: 26,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "1.5px solid rgba(77,232,255,0.4)",
+            background: "transparent",
+            color: "#00ffff",
+            fontSize: 13,
+            lineHeight: 1,
+            cursor: "pointer",
+          },
+        },
+        "✕"
+      ),
+      h(
+        "h2",
+        {
+          style: {
+            margin: "0 0 6px",
+            textAlign: "center",
+            fontFamily: "'Chakra Petch', sans-serif",
+            fontWeight: 700,
+            fontSize: 21,
+            letterSpacing: "0.1em",
+            color: "#00ffff",
+            textShadow: "0 0 18px rgba(0,255,255,0.45)",
+          },
+        },
+        "SINGULARITY PROTOCOL"
+      ),
+      h(
+        "p",
+        {
+          style: {
+            margin: "0 0 24px",
+            textAlign: "center",
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 10.5,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "rgba(77,232,255,0.65)",
+          },
+        },
+        "Status: In Development"
+      ),
+      h(
+        "div",
+        { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 14, lineHeight: 1.7, color: "#cfd8dc" } },
+        h(
+          "p",
+          { style: { margin: "0 0 16px" } },
+          "An experimental rules variant, not yet playable. When it lands, entering the Singularity will open a distinct branch of the game with:"
+        ),
+        h(
+          "ul",
+          { style: { margin: "0 0 18px", paddingLeft: 20 } },
+          h("li", { style: { marginBottom: 8 } }, "New piece types, each with movement rules of their own."),
+          h(
+            "li",
+            { style: { marginBottom: 8 } },
+            "A black hole variant: sections of the board become impassable, reshaping the battlefield mid-game."
+          ),
+          h("li", { style: { marginBottom: 0 } }, "User-defined board dimensions, rather than the fixed 10×10 grid.")
+        ),
+        h(
+          "p",
+          { style: { margin: 0, color: "rgba(207,216,220,0.7)", fontStyle: "italic" } },
+          "Planned primarily as a Neon Cabeza branch, with a possible toggle to bring the same variant to standard El Cabeza's own theming once the rules themselves are finalized."
+        )
+      )
+    )
+  );
 }
 
 /* Scene lighting: color/intensity only — see themes/standard.js's

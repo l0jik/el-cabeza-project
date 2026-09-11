@@ -258,21 +258,60 @@ from the deployed bundle's actual current structure rather than
 invented, including that "Move_Log Copied" persists rather than
 reverting after 2 seconds.
 
-## What's still not ported
+## Anomaly and Singularity (phase 5)
 
-Explicitly incomplete, flagged with `NOT YET PORTED`/`NOT YET WIRED`
-comments at each site in `themes/neon.js`:
+The Anomaly random-setup button and the Singularity easter egg are now
+ported too. Their underlying logic (`generateAnomalySetup`,
+`PIECE_ORIENTATIONS`) had been in `themes/neon.js` since phase 2; this
+phase wired the JSX and added a hook the earlier interface sketch
+hadn't anticipated:
 
-- **Anomaly random-setup button and the Singularity easter egg.**
-  Their underlying logic (`generateAnomalySetup`, `PIECE_ORIENTATIONS`)
-  has been in `themes/neon.js` since phase 2 and is fully
-  smoke-tested — what's missing is the JSX wiring into
-  `renderSetupExtras` and the Singularity button's own CSS (not
-  included in `styleSheet`). This is a distinct gameplay easter egg,
-  separate from the ambient visual FX ported in this phase.
+```js
+// A REAL React hook (useState/useRef/useEffect inside), not a plain
+// function — Singularity's hover-hold reveal timer and info-popup
+// state need to persist and trigger re-renders. Safe for the chassis
+// to call unconditionally every render (same reasoning as any other
+// hook: `theme` is a stable prop, so which branch `theme.useSetupExtras
+// ? ... : null` takes never changes for a mounted instance) even
+// though it lives in a theme module rather than the component itself.
+export function useSetupExtras({ awaitingBegin, pieces, setPieces }) {
+  return { handleAnomaly, singularityRevealed, showSingularityInfo,
+            beginSingularityHold, cancelSingularityHold,
+            openSingularityInfo, closeSingularityInfo };
+}
+```
 
-Everything else originally called out as unported — title flicker/
-spark/letter-burn, VHS glitch and its Scanimate/Vidicon-burn variants,
-jitter-tear, board arcs, the crawling voxel mass, the floor wave, and
-the digital-interior/voxel-shatter piece effects — is now real,
-wired, and verified per the Verification section above.
+`renderSetupExtras` needed a signature change from the original sketch
+too: it now receives `{ beginGameButton, ...setupExtras }` and returns
+the *entire* pre-game row/column, not just something appended after
+Begin Game — Neon's Anomaly button sits **beside** Begin Game, not
+after it, so the theme needs to place the chassis-supplied button
+itself rather than only being handed a slot below it. A theme that
+returns `null` (Standard) gets the chassis's own default single-button
+row. `renderExtraOverlays(setupExtras)` is new too — a slot for
+standalone modals a theme's setup state needs mounted globally (the
+Singularity info popup), analogous to `renderGlobalDefs` but for JSX
+overlays instead of SVG defs.
+
+Written with `React.createElement`, not JSX, same reasoning as
+`renderGlobalDefs`: theme files stay plain ES modules the smoke tests
+can `import` directly in Node.
+
+Verified with `tests/e2e-singularity.mjs`: clicks Anomaly (confirms
+the board doesn't break), holds hover for 4.5s to reveal Singularity,
+opens its info popup, and confirms Escape actually closes it (checked
+via the modal's own opacity style transitioning 1→0, not just DOM
+presence — an initial version of this test asserted on the wrong
+element and reported a false failure, caught by checking the real
+inline style directly rather than trusting a guessed selector).
+
+One knowable gap: this ports the *recovered* Neon source's Singularity
+CSS, which — per this session's own earlier task history — predates a
+later polish pass ("33% smaller letters, bold removed, immediate
+pulse-on-unlock, fixed padding, calmer plasma") applied directly to
+the deployed bundle. The ported version is complete and functional,
+just not necessarily pixel-identical to the latest deployed tuning.
+
+Nothing else remains flagged as unported — every ambient effect and
+gameplay feature from both original sources now exists in the shared
+chassis + theme structure, verified end-to-end.
