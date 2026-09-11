@@ -736,7 +736,7 @@ export default function ElCabeza3D({ theme }) {
        what any given theme's effects actually do. */
     ambientRef.current = theme.mountAmbientEffects(
       { titleRef, titleWrapRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef },
-      { three, windingDownRef }
+      { three, windingDownRef, audio: audioRef.current }
     );
 
     /* ---- camera positioning ---- */
@@ -1396,6 +1396,18 @@ export default function ElCabeza3D({ theme }) {
       return;
     }
 
+    /* Move-triggered ambient FX (weight lifting/landing glow, glitch
+       bursts, landing shockwave) — entirely theme-owned. These
+       properties only exist on three.current when a theme's own
+       mountAmbientEffects put them there (see themes/neon.js); the
+       `&&` guards make every one of these calls a no-op for a theme
+       that never sets them, same as the original per-theme sources
+       did before this component was shared. */
+    const accentColor = state.owner === "dark" ? HEX.glowCyan : HEX.glowAmber;
+    const originCenter = pieceCenter(state);
+    t.pulseSquare && t.pulseSquare(state.row, state.col, state.w, state.h, "release");
+    t.spawnGlitchBurst && t.spawnGlitchBurst(new THREE.Vector3(originCenter.x, 0, originCenter.z), HEX.structureEdge);
+
     /* Reparented onto boardGroup, not scene: the temporary pivot/carrier
        must inherit the board's current rotation, or a piece mid-animation
        while the board is spun to some heading would ignore that heading
@@ -1417,17 +1429,31 @@ export default function ElCabeza3D({ theme }) {
        — a real, confirmed regression, reverted outright. Whatever is
        causing the edge-flash-near-landing artifact this was trying to
        fix, it isn't this. */
-    const bake = (carrier) => {
+    const bake = (carrier, landingFootprint, landingCenter) => {
       carrier.updateMatrixWorld(true);
       parts.forEach((c) => t.pieceGroup.attach(c));
       t.boardGroup.remove(carrier);
+      if (landingFootprint) {
+        t.pulseSquare && t.pulseSquare(landingFootprint.row, landingFootprint.col, landingFootprint.w, landingFootprint.h, "apply", accentColor);
+        // Per Neon's own design, the Cabeza never gets the landing
+        // shockwave — every other piece type still does.
+        if (state.type !== "cabeza") {
+          t.spawnLandingShockwave && t.spawnLandingShockwave(
+            landingFootprint.row, landingFootprint.col, landingFootprint.w, landingFootprint.h, landingFootprint.z, accentColor
+          );
+        }
+      }
+      if (landingCenter) {
+        t.spawnGlitchBurst && t.spawnGlitchBurst(new THREE.Vector3(landingCenter.x, 0, landingCenter.z), accentColor);
+      }
       onDone();
     };
 
     if (PIECE_META[state.type].shape === "disc") {
       const [dr, dc] = STEP_DIRS[dir];
+      const landing = { ...state, row: state.row + dr, col: state.col + dc };
       const from = pieceCenter(state);
-      const to = pieceCenter({ ...state, row: state.row + dr, col: state.col + dc });
+      const to = pieceCenter(landing);
       const fromVec = new THREE.Vector3(from.x, 0, from.z);
 
       const carrier = new THREE.Object3D();
@@ -1445,11 +1471,13 @@ export default function ElCabeza3D({ theme }) {
         to: new THREE.Vector3(to.x, 0, to.z),
         elapsed: 0,
         duration: SLIDE_MS,
-        onComplete: () => bake(carrier),
+        onComplete: () => bake(carrier, landing, to),
       };
       return;
     }
 
+    const landing = rollBlock(state, dir);
+    const landingCenter = pieceCenter(landing);
     const pv = pivotFor(state, dir);
     const pivot = new THREE.Object3D();
     pivot.position.copy(pv.point);
@@ -1492,7 +1520,7 @@ export default function ElCabeza3D({ theme }) {
       angle: pv.angle,
       elapsed: 0,
       duration: ROLL_MS,
-      onComplete: () => bake(pivot),
+      onComplete: () => bake(pivot, landing, landingCenter),
     };
   }, []);
 
@@ -2433,6 +2461,7 @@ export default function ElCabeza3D({ theme }) {
         boxSizing: "border-box",
       }}
     >
+      {theme.renderGlobalDefs && theme.renderGlobalDefs()}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; }
@@ -2658,7 +2687,14 @@ export default function ElCabeza3D({ theme }) {
              overlay) without the chassis knowing what any given theme
              puts here. Inert by construction for a theme that never
              styles it. */}
-          <div ref={fxOverlayRef} aria-hidden="true" style={{ position: "absolute", inset: 0, opacity: 0, pointerEvents: "none" }} />
+          <div
+            ref={fxOverlayRef}
+            className="ec-fx-overlay"
+            aria-hidden="true"
+            style={{ position: "absolute", inset: 0, opacity: 0, pointerEvents: "none" }}
+          >
+            <div className="ec-fx-overlay-inner" style={{ position: "absolute", inset: 0 }} />
+          </div>
         </div>
 
         {/* View controls */}

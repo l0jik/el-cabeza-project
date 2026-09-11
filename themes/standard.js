@@ -214,6 +214,12 @@ export function renderSetupExtras() {
   return null;
 }
 
+/* No global SVG filter defs (Neon's VHS-glitch warp filters have no
+   Standard equivalent). */
+export function renderGlobalDefs() {
+  return null;
+}
+
 /* Scene lighting: color/intensity only. Every light's position, shadow
    config, and cast/receive behavior is identical between themes and
    lives in the chassis (see ARCHITECTURE.md) — this is a plain data

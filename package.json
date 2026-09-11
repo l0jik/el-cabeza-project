@@ -5,7 +5,7 @@
   "scripts": {
     "build": "node build/build.js",
     "test:engine": "node tests/engine.smoke.mjs && node tests/theme-standard.smoke.mjs && node tests/theme-neon.smoke.mjs",
-    "test:e2e": "npm run build && node tests/e2e-smoke.mjs standard && node tests/e2e-smoke.mjs neon && node tests/e2e-gameplay.mjs standard && node tests/e2e-gameplay.mjs neon",
+    "test:e2e": "npm run build && node tests/e2e-smoke.mjs standard && node tests/e2e-smoke.mjs neon && node tests/e2e-gameplay.mjs standard && node tests/e2e-gameplay.mjs neon && node tests/e2e-ambient.mjs",
     "test": "npm run test:engine && npm run test:e2e"
   },
   "devDependencies": {

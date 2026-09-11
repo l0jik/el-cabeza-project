@@ -12,6 +12,7 @@
    computeTension for the ambient hum, makeGridGlowTexture for the
    bloom pass). */
 
+import React from "react";
 import * as THREE from "three";
 import { BOARD_SIZE, SLAB, MARGIN, SQUARE_SIZE, OFF, GRID_EXTENT, GOAL_ROW, PIECE_SCALE } from "../engine/constants.js";
 import { opponentOf, cabezaInDanger } from "../engine/ai.js";
@@ -127,6 +128,31 @@ export const EDGE_RADIUS = 0.03;
    coexist under the same rules), so a reoriented Flaco just moves
    exactly like any other piece with a 1x1 footprint and z:2 height
    already would. */
+/* The crawling voxel mass (see spawnCrawlWave in mountAmbientEffects)
+   is built on a finer sub-grid than the board's own squares — each
+   voxel is sized so exactly CRAWL_SUB x CRAWL_SUB of them tile one
+   board square. */
+const CRAWL_SUB = 3;
+const CRAWL_VOXEL = SQUARE_SIZE / CRAWL_SUB;
+
+/* A soft round falloff (opaque center fading smoothly to transparent)
+   used to paint the weight-pulse squares as a diffuse bloom rather
+   than a hard-edged rectangle. Generated once and shared. */
+function makeSoftGlowTexture() {
+  const RES = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = RES;
+  canvas.height = RES;
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createRadialGradient(RES / 2, RES / 2, 0, RES / 2, RES / 2, RES / 2);
+  grad.addColorStop(0, "rgba(255,255,255,0.9)");
+  grad.addColorStop(0.35, "rgba(255,255,255,0.4)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, RES, RES);
+  return new THREE.CanvasTexture(canvas);
+}
+
 export const PIECE_ORIENTATIONS = {
   flaco: [
     { w: 1, h: 2, z: 1 },
@@ -480,37 +506,1596 @@ export function createAudio() {
   return createSoundscape();
 }
 
-/* NOT YET PORTED: the chassis's ambient-FX lifecycle hook (see
-   ARCHITECTURE.md) currently returns no-ops here. Neon's real ambient
-   effects — title flicker/spark/letter-burn, VHS glitch and its rarer
-   Scanimate/Vidicon-burn variants, localized jitter-tear, board arcs,
-   the crawling voxel mass, the floor wave, and the digital-interior /
-   voxel-shatter piece effects — are still closures inside the
-   original component's single scene-setup effect (el-cabeza-neon-3d.html)
-   and haven't been extracted into standalone functions yet. That's real
-   remaining work, not an oversight: those closures capture `three`,
-   `pieceGroup`, and DOM refs in ways that need actual interface design
-   (turning implicit closure capture into explicit parameters), not a
-   mechanical cut-and-paste. Core gameplay (rules, AI, camera, and the
-   full audio engine above) does not depend on this and is unaffected.
-   The stub below keeps the chassis's lifecycle calls (armOnBegin/
-   restart/tick/dispose) valid no-ops until that porting happens. */
-export function mountAmbientEffects() {
-  return { armOnBegin() {}, restart() {}, tick() {}, dispose() {} };
+/* Neon's ambient visual FX — title flicker/spark/letter-burn, the turn
+   halo's slow breathing pulse, VHS glitch (regular + rare Scanimate/
+   Vidicon-burn variants), localized jitter-tear, board arcs, the
+   crawling voxel mass, the floor wave, and the digital-interior/
+   voxel-shatter piece effects — plus the move-triggered weight-pulse/
+   landing-shockwave/glitch-burst effects animateStep calls directly.
+   Ported from el-cabeza-neon-3d.html's scene-setup effect and its
+   five separate ambient-effect useEffects, consolidated into one
+   mountAmbientEffects call per ARCHITECTURE.md's plugin contract.
+
+   `t` (= three.current) is captured once, matching the original's own
+   assumption that three.current is mutated in place after the chassis
+   creates it (never reassigned wholesale) — every property added here
+   (fxItems, pulseSquare, etc.) is visible to the chassis's own
+   animateStep through that same object. */
+export function mountAmbientEffects(refs, helpers) {
+  const { titleRef, titleWrapRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef } = refs;
+  const { three, windingDownRef, audio } = helpers;
+  const t = three.current;
+
+  const fxGroup = new THREE.Group();
+  const weightGroup = new THREE.Group();
+  t.boardGroup.add(weightGroup, fxGroup);
+  t.weightGroup = weightGroup;
+  t.fxGroup = fxGroup;
+  t.fxItems = [];
+  t.digitalGlitchItems = [];
+  t.voxelShatterItems = [];
+  t.crawlMassItems = [];
+  t.shockwaveItems = [];
+  t.softGlowTex = makeSoftGlowTexture();
+  const voxelDummy = new THREE.Object3D(); // scratch object reused every frame for instance-matrix writes
+
+  function spawnGlitchBurst(pos, color) {
+    const count = 4 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      const size = 0.03 + Math.random() * 0.05;
+      const geo = new THREE.PlaneGeometry(size, size * (0.3 + Math.random() * 0.5));
+      const mat = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(
+        pos.x + (Math.random() - 0.5) * 0.5,
+        0.02 + Math.random() * 0.3,
+        pos.z + (Math.random() - 0.5) * 0.5
+      );
+      mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      t.fxGroup.add(mesh);
+      t.fxItems.push({ mesh, born: performance.now(), life: 180 + Math.random() * 220, peak: 0.55 + Math.random() * 0.35 });
+    }
+  }
+  t.spawnGlitchBurst = spawnGlitchBurst;
+
+  /* theme: a soft, oversized bloom over one square (or a piece's whole
+     multi-square footprint) that fades in then out — `mode: "release"`
+     dims it (weight lifting off), `mode: "apply"` brightens it (weight
+     landing) in the mover's own accent color. Reworked from a hard-
+     edged flat-color quad to a soft radial texture, sized well beyond
+     the actual footprint and capped at a low peak opacity, per
+     feedback that the landing glow read as too bright and sharp-
+     lined — this is meant to be felt more than clearly seen. */
+  function pulseSquare(row, col, w, h, mode, accentColor) {
+    const cx = (col + w / 2) * SQUARE_SIZE - OFF;
+    const cz = (row + h / 2) * SQUARE_SIZE - OFF;
+    const isApply = mode === "apply";
+    const sizeMul = isApply ? 1.9 : 1.4;
+    const geo = new THREE.PlaneGeometry(w * SQUARE_SIZE * sizeMul, h * SQUARE_SIZE * sizeMul);
+    const mat = new THREE.MeshBasicMaterial({
+      map: t.softGlowTex,
+      color: isApply ? accentColor || HEX.glowCyan : 0x000000,
+      transparent: true,
+      opacity: 0,
+      blending: isApply ? THREE.AdditiveBlending : THREE.NormalBlending,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(cx, 0.011, cz);
+    t.weightGroup.add(mesh);
+    t.fxItems.push({
+      mesh,
+      born: performance.now(),
+      life: isApply ? 650 : 420,
+      peak: isApply ? 0.2 : 0.3,
+      envelope: "pulse",
+    });
+  }
+  t.pulseSquare = pulseSquare;
+
+  /* theme: the landing IMPACT shockwave/bloom — redesigned per
+     feedback into a real Rayleigh-surface-wave simulation traveling
+     through the board's own grid mesh, rather than a simple
+     expanding outline. A Rayleigh wave is a surface wave whose
+     displacement propagates outward from an impact point and decays
+     with both distance and time — modeled here as a literal
+     per-vertex vertical (Y) displacement of the actual grid LINES
+     around the landing footprint (sampled at fine sub-steps along
+     each real horizontal/vertical grid line within 2 squares of the
+     footprint), animated in the tick loop below as a traveling,
+     Gaussian-windowed sine pulse whose distance is measured with a
+     Chebyshev-style "distance outside the footprint rectangle"
+     metric — NOT Euclidean radius — so the wavefront it rides
+     propagates outward following the grid's own orthogonal
+     horizontal/vertical lines rather than expanding as a circle,
+     exactly as specified. Bloom (the quick footprint-sized flash) is
+     unchanged from last round. Range still defaults to 0.5 squares
+     and scales with mass (w*h*z, mass^0.25) exactly as before, now
+     used as the wave's spatial decay length rather than a hard
+     geometry cutoff — a heavier piece's ripple carries visibly
+     farther before fading, a lighter piece's dies out faster, which
+     is the physically-correct way "impact energy" should affect a
+     real decaying wave. "Subtle randomizations" per feedback: wave
+     speed, amplitude, and duration all vary a little per instance. */
+  function spawnLandingShockwave(row, col, w, h, z, accentColor) {
+    const cx = (col + w / 2) * SQUARE_SIZE - OFF;
+    const cz = (row + h / 2) * SQUARE_SIZE - OFF;
+    const baseW = w * SQUARE_SIZE;
+    const baseH = h * SQUARE_SIZE;
+    const mass = Math.max(1, w * h * z);
+    const rangeSquares = 0.5 * Math.pow(mass, 0.25);
+    const decayLength = rangeSquares * SQUARE_SIZE;
+
+    // Quick rectangular bloom fill — a flat, untextured additive
+    // plane at the footprint's own size (not round, per spec).
+    const bloomMat = new THREE.MeshBasicMaterial({
+      color: accentColor || HEX.glowCyan,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const bloom = new THREE.Mesh(new THREE.PlaneGeometry(baseW, baseH), bloomMat);
+    bloom.rotation.x = -Math.PI / 2;
+    bloom.position.set(cx, 0.013, cz);
+    t.weightGroup.add(bloom);
+
+    // Sample the real grid lines within K squares of the footprint,
+    // each broken into fine sub-steps (so the traveling wave has
+    // enough resolution to show real curvature, not a jagged
+    // zig-zag), built directly as LineSegments pairs (independent
+    // segments, not one connected strip — otherwise stitching
+    // multiple separate grid lines into one buffer would draw
+    // spurious diagonals between them).
+    const K = 2;
+    const xMin = col * SQUARE_SIZE - OFF, xMax = (col + w) * SQUARE_SIZE - OFF;
+    const zMin = row * SQUARE_SIZE - OFF, zMax = (row + h) * SQUARE_SIZE - OFF;
+    const spanXMin = Math.max(-OFF, xMin - K * SQUARE_SIZE);
+    const spanXMax = Math.min(OFF, xMax + K * SQUARE_SIZE);
+    const spanZMin = Math.max(-OFF, zMin - K * SQUARE_SIZE);
+    const spanZMax = Math.min(OFF, zMax + K * SQUARE_SIZE);
+    const STEP = 0.08;
+
+    // Chebyshev-style "distance outside the footprint rectangle" —
+    // 0 anywhere inside/on the footprint, growing outward along
+    // straight orthogonal offset contours (a rounded-rectangle-ish
+    // front, never a circle) rather than Euclidean radius.
+    const distOutside = (x, zc) => {
+      const dx = x < xMin ? xMin - x : x > xMax ? x - xMax : 0;
+      const dz = zc < zMin ? zMin - zc : zc > zMax ? zc - zMax : 0;
+      return Math.max(dx, dz);
+    };
+
+    const positions = [];
+    const distances = [];
+    const addLine = (x0, z0, x1, z1) => {
+      const len = Math.hypot(x1 - x0, z1 - z0);
+      const steps = Math.max(1, Math.round(len / STEP));
+      let prevX = x0, prevZ = z0, prevD = distOutside(x0, z0);
+      for (let i = 1; i <= steps; i++) {
+        const f = i / steps;
+        const x = x0 + (x1 - x0) * f;
+        const zc = z0 + (z1 - z0) * f;
+        const d = distOutside(x, zc);
+        positions.push(prevX, 0, prevZ, x, 0, zc);
+        distances.push(prevD, d);
+        prevX = x; prevZ = zc; prevD = d;
+      }
+    };
+    for (let r = row - K; r <= row + h + K; r++) {
+      const lz = r * SQUARE_SIZE - OFF;
+      if (lz >= -OFF && lz <= OFF) addLine(spanXMin, lz, spanXMax, lz);
+    }
+    for (let c = col - K; c <= col + w + K; c++) {
+      const lx = c * SQUARE_SIZE - OFF;
+      if (lx >= -OFF && lx <= OFF) addLine(lx, spanZMin, lx, spanZMax);
+    }
+
+    const rippleGeo = new THREE.BufferGeometry();
+    const posAttr = new THREE.Float32BufferAttribute(new Float32Array(positions), 3);
+    posAttr.setUsage(THREE.DynamicDrawUsage);
+    rippleGeo.setAttribute("position", posAttr);
+    const rippleMat = new THREE.LineBasicMaterial({
+      color: accentColor || HEX.glowCyan,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const ripple = new THREE.LineSegments(rippleGeo, rippleMat);
+    t.weightGroup.add(ripple);
+
+    // Per feedback ("must be toned down & slowed down & proportional
+    // to the weight/size of the piece") — every intensity/speed
+    // parameter below is now keyed off massFactor (0 for the
+    // lightest pieces, up to 3 for Opa) rather than a fixed
+    // baseline: lighter pieces get a barely-there ripple, heavier
+    // ones a more visible (but still restrained) one, and all of
+    // them are quieter and slower than before across the board.
+    const massFactor = Math.log2(mass);
+    t.shockwaveItems.push({
+      bloom,
+      bloomMat,
+      ripple,
+      rippleMat,
+      posAttr,
+      distances,
+      born: performance.now(),
+      duration: 1100 + massFactor * 220 + Math.random() * 300,
+      bloomPeak: (0.14 + massFactor * 0.055) * (0.85 + Math.random() * 0.3),
+      ripplePeak: (0.18 + massFactor * 0.07) * (0.85 + Math.random() * 0.3),
+      waveSpeed: 1.3 + massFactor * 0.15 + Math.random() * 0.3, // world units/sec — much slower than before
+      wavelength: SQUARE_SIZE * 0.3,
+      sigma: SQUARE_SIZE * 0.24,
+      amplitude: (0.022 + massFactor * 0.012) * (0.85 + Math.random() * 0.3),
+      decayLength,
+      decayTau: 0.55 + massFactor * 0.15, // how long the ripple lingers before fully damping out
+    });
+  }
+  t.spawnLandingShockwave = spawnLandingShockwave;
+
+  /* theme: an occasional jagged bolt of electricity between two
+     random pieces currently on the board — a rare, atmospheric
+     flourish, not tied to any move. Reads live piece MESH positions
+     from pieceGroup each time it fires (rather than the React
+     `pieces` state, which this once-on-mount effect can't see
+     fresh), so it always reflects whatever is actually on the board
+     at that moment, captures included. Purely decorative: it never
+     reads or writes game state, only THREE.js objects it created
+     itself. */
+  function spawnArc(posA, posB) {
+    const segments = 5 + Math.floor(Math.random() * 3);
+    const pts = [];
+    for (let i = 0; i <= segments; i++) {
+      const f = i / segments;
+      const jitter = i > 0 && i < segments ? 0.4 : 0;
+      pts.push(
+        posA.x + (posB.x - posA.x) * f + (Math.random() - 0.5) * jitter,
+        0.12 + Math.random() * 0.35,
+        posA.z + (posB.z - posA.z) * f + (Math.random() - 0.5) * jitter
+      );
+    }
+    const positions = [];
+    for (let i = 0; i < segments; i++) {
+      positions.push(
+        pts[i * 3], pts[i * 3 + 1], pts[i * 3 + 2],
+        pts[(i + 1) * 3], pts[(i + 1) * 3 + 1], pts[(i + 1) * 3 + 2]
+      );
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    const mat = new THREE.LineBasicMaterial({
+      color: 0xdff6ff,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const line = new THREE.LineSegments(geo, mat);
+    t.fxGroup.add(line);
+    t.fxItems.push({ mesh: line, born: performance.now(), life: 200 + Math.random() * 180, peak: 0.8, envelope: "pulse" });
+  }
+
+  let arcTimer;
+  function fireArc() {
+    if (windingDownRef.current) return; // stop spawning new ones once a win fires
+    const meshPieces = t.pieceGroup.children.filter((c) => c.userData.kind === "piece");
+    if (meshPieces.length >= 2) {
+      const a = meshPieces[Math.floor(Math.random() * meshPieces.length)];
+      let b = a;
+      for (let guard = 0; guard < 6 && b === a; guard++) {
+        b = meshPieces[Math.floor(Math.random() * meshPieces.length)];
+      }
+      if (b !== a) {
+        spawnArc(a.position, b.position);
+        audio.playArc();
+      }
+    }
+    arcTimer = setTimeout(fireArc, 13333 + Math.random() * 25000); // 20% more frequent (was 16000-46000)
+  }
+  /* theme: rebuilt again per feedback — the comet-shaped, staggered-
+     ignition version was the wrong idea entirely. There's no
+     specific shape intended: just a MASS of discrete, closely
+     adjacent, clean solid squares that all move together across the
+     board as one loose formation, like a raft of tiles sliding
+     across the underside of the glass — not a sequential relay of
+     cells each lighting up once in turn. This is a genuinely
+     different animation technique from the rest of the fxItems
+     system (which only ever fades a static mesh's opacity): here a
+     whole THREE.Group of squares is built once, then its own
+     position is smoothly interpolated frame-to-frame in the tick
+     loop below (see t.crawlMassItems), so the entire
+     mass visibly translates across the board while every square in
+     it stays lit together, in concert, the whole time. */
+  /* theme: per feedback ("still can't be seen... re-imagine it that
+     each grid box could fit 9 smaller blocks within it"), this now
+     floods across a sub-grid CRAWL_SUB times finer than the board's
+     own squares (see CRAWL_SUB/CRAWL_VOXEL) rather than across whole
+     board cells — same flood-fill logic, just addressed in voxel
+     units instead of board-cell units. */
+  const CRAWL_GRID = BOARD_SIZE * CRAWL_SUB;
+  function pickCrawlMassVoxels(count) {
+    const startR = Math.floor(Math.random() * CRAWL_GRID);
+    const startC = Math.floor(Math.random() * CRAWL_GRID);
+    const seen = new Set([startR + "," + startC]);
+    const cells = [[startR, startC]];
+    const frontier = [[startR, startC]];
+    const dirs4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    while (cells.length < count && frontier.length) {
+      const idx = Math.floor(Math.random() * frontier.length);
+      const [r, c] = frontier[idx];
+      const shuffled = dirs4.slice();
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      let extended = false;
+      for (const [dr, dc] of shuffled) {
+        const nr = r + dr, nc = c + dc;
+        if (nr < 0 || nr >= CRAWL_GRID || nc < 0 || nc >= CRAWL_GRID) continue;
+        const key = nr + "," + nc;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        cells.push([nr, nc]);
+        frontier.push([nr, nc]);
+        extended = true;
+        break;
+      }
+      if (!extended) frontier.splice(idx, 1); // dead end — stop growing from here
+    }
+    return cells;
+  }
+
+  function spawnCrawlWave() {
+    // 45-85 voxels — roughly the old 7-13 board-cell mass's total
+    // area, now built from CRAWL_SUB^2 times as many, much smaller
+    // pieces instead.
+    const voxels = pickCrawlMassVoxels(45 + Math.floor(Math.random() * 41));
+    if (voxels.length < 30) return; // flood-fill got boxed in early — skip silently, try again next fire
+
+    const avgR = voxels.reduce((s, [r]) => s + r, 0) / voxels.length;
+    const avgC = voxels.reduce((s, [, c]) => s + c, 0) / voxels.length;
+    let boundRadius = 0;
+    voxels.forEach(([r, c]) => {
+      boundRadius = Math.max(boundRadius, Math.hypot((c - avgC) * CRAWL_VOXEL, (r - avgR) * CRAWL_VOXEL));
+    });
+    const margin = boundRadius + SQUARE_SIZE;
+    const centerX = (avgC + 0.5) * CRAWL_VOXEL - OFF;
+    const centerZ = (avgR + 0.5) * CRAWL_VOXEL - OFF;
+
+    const dirs8 = [
+      [1, 0], [-1, 0], [0, 1], [0, -1],
+      [1, 1], [-1, -1], [1, -1], [-1, 1],
+    ];
+    const [dr, dc] = dirs8[Math.floor(Math.random() * dirs8.length)];
+    const halfTravel = (2 + Math.random() * 2) * SQUARE_SIZE; // total travel 4-8 board squares, split evenly before/after center
+    const startX = centerX - dr * halfTravel, startZ = centerZ - dc * halfTravel;
+    const endX = centerX + dr * halfTravel, endZ = centerZ + dc * halfTravel;
+    const safe = OFF - margin;
+    if (Math.abs(startX) > safe || Math.abs(startZ) > safe || Math.abs(endX) > safe || Math.abs(endZ) > safe) {
+      return; // doesn't fit on the board from this center — skip silently, try again next fire
+    }
+
+    const group = new THREE.Group();
+    group.position.set(startX, 0, startZ);
+    const materials = [];
+    voxels.forEach(([r, c]) => {
+      const lx = (c - avgC) * CRAWL_VOXEL;
+      const lz = (r - avgR) * CRAWL_VOXEL;
+
+      // A soft glow halo underneath, for "good glow" without
+      // softening the square itself.
+      const haloSize = CRAWL_VOXEL * 0.98;
+      const haloMat = new THREE.MeshBasicMaterial({
+        map: t.softGlowTex,
+        color: 0x8fe8ff,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const halo = new THREE.Mesh(new THREE.PlaneGeometry(haloSize, haloSize), haloMat);
+      halo.rotation.x = -Math.PI / 2;
+      halo.position.set(lx, 0.012, lz);
+      group.add(halo);
+
+      // The clean, solid square itself — untextured flat fill (not
+      // the soft radial-gradient texture), so its edges stay crisp
+      // rather than reading as a blurred blob. Sized close to the
+      // full voxel so, combined with its neighbors, the mass reads as
+      // a tightly-packed mosaic of closely adjacent tiles.
+      const coreSize = CRAWL_VOXEL * 0.88;
+      const coreMat = new THREE.MeshBasicMaterial({
+        color: 0xd6f9ff,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const core = new THREE.Mesh(new THREE.PlaneGeometry(coreSize, coreSize), coreMat);
+      core.rotation.x = -Math.PI / 2;
+      core.position.set(lx, 0.014, lz);
+      group.add(core);
+
+      materials.push({ halo: haloMat, core: coreMat });
+    });
+    t.weightGroup.add(group);
+
+    t.crawlMassItems.push({
+      group,
+      startX, startZ, endX, endZ,
+      born: performance.now(),
+      duration: 2200 + Math.random() * 1400, // 2.2-3.6s to cross, "slowly" in scale with the rest of the board's ambient life
+      materials,
+      haloPeak: 0.651 + Math.random() * 0.168, // +5% per feedback ("increase all neon glow 5%")
+      corePeak: 0.85 + Math.random() * 0.15, // already at its 1.0 opacity ceiling — can't go higher
+    });
+  }
+
+  let crawlTimer;
+  function fireCrawl() {
+    if (windingDownRef.current) return; // stop spawning new ones once a win fires
+    spawnCrawlWave();
+    crawlTimer = setTimeout(fireCrawl, 14000 + Math.random() * 26000);
+  }
+  /* theme: a rare, large-scale directional brightness wave that
+     sweeps across most of the board's surface — a much bigger,
+     softer cousin of the small crawling square wave above, reading
+     as a broad "digital brightness interpolation" pass over the
+     floor (roughly 50-100 of the board's ~100 cells, depending on
+     BOARD_SIZE) rather than a thin trail of a handful of dots.
+     Travels in a fully randomized direction each time, and uses the
+     same fxItems lifecycle as everything else. */
+  function spawnFloorWave() {
+    /* Rebuilt per feedback: the near-full-cell planes were reading
+       as blown-out gaussian blobs rather than distinct squares.
+       Shrunk each cell's mark down to the same "miniature square"
+       scale as the small crawling wave above (so the soft-glow
+       texture reads as a crisp point of bloom, not a blur), raised
+       peak brightness ~40%, and added sparse connecting traces
+       between some adjacent active cells so the wave reads as
+       "interconnected groups of squares" traveling together rather
+       than a field of isolated dots. */
+    const angle = Math.random() * Math.PI * 2;
+    const dir = { x: Math.cos(angle), z: Math.sin(angle) };
+
+    const active = new Map(); // "r,c" -> cell data, so adjacency lookups below are O(1)
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        if (Math.random() < 0.15) continue; // "somewhat randomized" coverage, not a perfectly uniform wipe
+        const cx = (c + 0.5) * SQUARE_SIZE - OFF;
+        const cz = (r + 0.5) * SQUARE_SIZE - OFF;
+        active.set(`${r},${c}`, { r, c, cx, cz, proj: cx * dir.x + cz * dir.z });
+      }
+    }
+    const cells = Array.from(active.values());
+    if (cells.length < 50) return; // too sparse to read as a coherent wave — skip silently
+
+    let minP = Infinity, maxP = -Infinity;
+    cells.forEach((cell) => {
+      if (cell.proj < minP) minP = cell.proj;
+      if (cell.proj > maxP) maxP = cell.proj;
+    });
+    const span = Math.max(0.0001, maxP - minP);
+    const waveDuration = 1800 + Math.random() * 1000; // total time for the wave to cross the board
+    const now0 = performance.now();
+    const bornOf = new Map();
+
+    cells.forEach((cell) => {
+      const travelFrac = (cell.proj - minP) / span;
+      const born = now0 + travelFrac * waveDuration + Math.random() * 90; // small per-cell jitter — "somewhat randomized"
+      bornOf.set(`${cell.r},${cell.c}`, born);
+
+      // A miniature square, not a near-full-cell blob.
+      const size = SQUARE_SIZE * (0.3 + Math.random() * 0.16);
+      const geo = new THREE.PlaneGeometry(size, size);
+      const mat = new THREE.MeshBasicMaterial({
+        map: t.softGlowTex,
+        color: HEX.structureEdge,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(cell.cx, 0.012, cell.cz);
+      t.weightGroup.add(mesh);
+      t.fxItems.push({
+        mesh,
+        born,
+        life: 650 + Math.random() * 250, // overlaps neighbors' timing into a soft gradient front rather than a hard line
+        peak: 0.14 + Math.random() * 0.08, // ~40% brighter than before (was 0.1-0.16)
+        envelope: "pulse",
+      });
+    });
+
+    // Sparse connecting traces between some adjacent active cells —
+    // not every neighbor gets one, so the squares read as loosely
+    // "interconnected groups" rather than either isolated dots or a
+    // solid connected grid.
+    cells.forEach((cell) => {
+      [[0, 1], [1, 0]].forEach(([dr, dc]) => {
+        const key = `${cell.r + dr},${cell.c + dc}`;
+        const other = active.get(key);
+        if (!other || Math.random() < 0.55) return;
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute(
+          "position",
+          new THREE.Float32BufferAttribute([cell.cx, 0.013, cell.cz, other.cx, 0.013, other.cz], 3)
+        );
+        const mat = new THREE.LineBasicMaterial({
+          color: HEX.structureEdge,
+          transparent: true,
+          opacity: 0,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        const line = new THREE.LineSegments(geo, mat);
+        t.weightGroup.add(line);
+        t.fxItems.push({
+          mesh: line,
+          born: Math.min(bornOf.get(`${cell.r},${cell.c}`), bornOf.get(key)),
+          life: 500 + Math.random() * 200,
+          peak: 0.07 + Math.random() * 0.04, // dimmer than the squares — a faint connective trace, not competing for attention
+          envelope: "pulse",
+        });
+      });
+    });
+  }
+
+  let floorWaveTimer;
+  function fireFloorWave() {
+    if (windingDownRef.current) return; // stop spawning new ones once a win fires
+    spawnFloorWave();
+    floorWaveTimer = setTimeout(fireFloorWave, 75000 + Math.random() * 90000);
+  }
+  /* theme: the digital-interior piece effect, rebuilt from scratch
+     per feedback — the previous version just read as "pieces
+     randomly lighting up." This one is a genuine traveling x-ray
+     scan: a wave passes sequentially through a short, spatially-
+     coherent run of pieces, and at each one, TWO real WebGL clipping
+     planes sweep upward through the piece's own volume (see
+     renderer.localClippingEnabled above), progressively uncovering
+     an internal 3D lattice as they pass and closing it again behind
+     them — an actual moving scan window through the geometry, not
+     just an opacity fade. The piece's own exterior simultaneously
+     dips toward translucency (never touching its position or
+     geometry) so the interior reads through it. Set
+     DIGITAL_GLITCH_ENABLED to false to disable this effect
+     independently of every other ambient effect. */
+  const DIGITAL_GLITCH_ENABLED = true;
+
+  // theme: per feedback, redesigned a third time — "the entire piece
+  // topology must exhibit close grid mesh look... the Opa might have
+  // 30 bars per face... distribute proportionately to all other
+  // pieces." Reusing the piece's own real render geometry (previous
+  // round) was topologically accurate but nowhere near dense enough
+  // — makeRoundedBox's flat faces are each a single quad with no
+  // internal subdivision, so most of a box piece's surface showed no
+  // grid lines at all. This instead builds a dedicated, purpose-built
+  // PROXY geometry sized to the piece's exact real dimensions but
+  // with deliberately high face subdivision — a BoxGeometry (or a
+  // CylinderGeometry for the disc) with explicit width/height/depth
+  // segment counts — so every face genuinely is a close grid mesh,
+  // not just its edges. Segment counts are computed from one shared
+  // density (BARS_PER_UNIT), calibrated so Opa's own 1.6-unit faces
+  // land on ~30 segments exactly, then applied to every other piece's
+  // own real per-axis dimensions — a smaller piece gets proportionately
+  // fewer bars at the SAME spacing, not the same fixed 30. Scaled to
+  // 0.97 so it sits just inside the body's own surface — avoids
+  // coincident-geometry flicker against the body without meaningfully
+  // changing the read. Glowing nodes are sampled from the wireframe's
+  // own vertices at a fixed stride (deterministic, not random) rather
+  // than floating at arbitrary points, so they land on real grid
+  // junctions too.
+  function buildDigitalInterior(mesh) {
+    mesh.geometry.computeBoundingBox();
+    const bb = mesh.geometry.boundingBox;
+    const fullW = bb.max.x - bb.min.x;
+    const fullH = bb.max.y - bb.min.y;
+    const fullD = bb.max.z - bb.min.z;
+    const sy = Math.max(0.05, fullH * 0.7);
+    const halfY = sy / 2;
+    const margin = halfY * 0.12 + 0.06;
+    const isDiscShape = mesh.geometry.type === "CylinderGeometry";
+
+    // topPlane starts fully closed (nothing visible); bottomPlane
+    // starts fully open. Animating topPlane's constant up sweeps a
+    // reveal in from the bottom; later animating bottomPlane's
+    // constant down closes it again from the bottom, so the visible
+    // band as a whole travels upward through the piece over time.
+    const topPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), -halfY - margin);
+    const bottomPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), halfY + margin);
+    const clippingPlanes = [topPlane, bottomPlane];
+
+    const group = new THREE.Group();
+    const lineMaterials = [];
+    const pointMaterials = [];
+    const SCALE = 0.97;
+
+    // Opa (the biggest piece, a 2x2x2-scale cube = 1.6 world units
+    // per axis) is the "30 bars per face" reference; every other
+    // piece's segment count is that same bars-per-unit density
+    // applied to its own real dimensions.
+    const BARS_PER_UNIT = 30 / (2 * PIECE_SCALE);
+    const segFor = (unitLength) => Math.max(3, Math.min(48, Math.round(unitLength * BARS_PER_UNIT)));
+
+    let proxyGeo;
+    if (isDiscShape) {
+      const radius = fullW / 2;
+      proxyGeo = new THREE.CylinderGeometry(radius, radius, fullH, segFor(fullW), Math.max(2, segFor(fullH)));
+    } else {
+      proxyGeo = new THREE.BoxGeometry(fullW, fullH, fullD, segFor(fullW), segFor(fullH), segFor(fullD));
+    }
+    const wireGeo = new THREE.WireframeGeometry(proxyGeo);
+    proxyGeo.dispose();
+    const wireMat = new THREE.LineBasicMaterial({
+      color: HEX.glowCyan,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      clippingPlanes,
+    });
+    wireMat.userData.baseOpacity = 0.45;
+    const wireLine = new THREE.LineSegments(wireGeo, wireMat);
+    wireLine.scale.setScalar(SCALE);
+    group.add(wireLine);
+    lineMaterials.push(wireMat);
+
+    // Deterministic stride sample of the wireframe's own vertex
+    // positions — real topology junctions, not arbitrary points.
+    const wirePos = wireGeo.attributes.position;
+    const nodePositions = [];
+    const STRIDE = 27; // much denser wireframe now — a wider stride keeps nodes sparse/purposeful rather than a solid cloud
+    for (let i = 0; i < wirePos.count; i += STRIDE) {
+      nodePositions.push(wirePos.getX(i) * SCALE, wirePos.getY(i) * SCALE, wirePos.getZ(i) * SCALE);
+    }
+    const nodeGeo = new THREE.BufferGeometry();
+    nodeGeo.setAttribute("position", new THREE.Float32BufferAttribute(nodePositions, 3));
+    const nodeMat = new THREE.PointsMaterial({
+      color: 0xeaffff,
+      size: 0.032,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      sizeAttenuation: true,
+      clippingPlanes,
+    });
+    nodeMat.userData.baseOpacity = 0.65;
+    group.add(new THREE.Points(nodeGeo, nodeMat));
+    pointMaterials.push(nodeMat);
+
+    return { group, topPlane, bottomPlane, halfY, margin, lineMaterials, pointMaterials };
+  }
+
+  /* theme: volumetric voxelization / orthogonal displacement — per
+     feedback, a second "digital glitch" payload alongside the
+     wireframe interior above (spawnDigitalGlitchWave below now picks
+     one or the other per piece, same rarity/scheduling as before).
+     Subdivides the piece into a uniform grid of small solid cubes
+     (a THREE.InstancedMesh, not one mesh per cube — this stays cheap
+     even at a few hundred instances) whose aggregate matches the
+     piece's own macro-shape: for the disc, any cube whose center
+     falls outside the actual circular footprint is simply excluded,
+     so the aggregate still reads as round rather than a plain box.
+     Density is proportional to size (Opa's own 1.6-unit axis gets
+     ~7 voxels per axis; smaller pieces/axes get proportionately
+     fewer at the same spacing), coarser than the wireframe effect's
+     own bar density since these are solid volume cubes, not a
+     surface line grid. Cubes inherit the parent piece's own color/
+     emissive/roughness/metalness directly from its live material.
+
+     Per feedback, "the direction this effect flows through the
+     piece should be randomized": one of the piece's own three local
+     axes is picked at random as the flow direction, each cube's
+     position along that axis sets WHEN its jostle window opens (a
+     sweep from one side to the other, not everything moving at
+     once), and "the entire piece doesn't necessarily have to
+     experience it" — a random 55-95% coverage means some cubes are
+     simply excluded and never move. Each active cube's own
+     displacement is drawn independently per X/Y/Z axis (orthogonal
+     jitter, not diagonal drift), animated in the tick loop as a
+     single damped bounce out and back — "sudden mechanical jostling
+     ... before returning them to a stable state." */
+  function buildVoxelShatter(mesh) {
+    mesh.geometry.computeBoundingBox();
+    const bb = mesh.geometry.boundingBox;
+    const fullW = bb.max.x - bb.min.x;
+    const fullH = bb.max.y - bb.min.y;
+    const fullD = bb.max.z - bb.min.z;
+    const isDiscShape = mesh.geometry.type === "CylinderGeometry";
+
+    const VOXELS_PER_UNIT = 7 / (2 * PIECE_SCALE); // Opa's own axis length -> ~7 voxels/axis
+    const countFor = (len) => Math.max(2, Math.min(9, Math.round(len * VOXELS_PER_UNIT)));
+    const nx = countFor(fullW), ny = countFor(fullH), nz = countFor(fullD);
+    const vx = fullW / nx, vy = fullH / ny, vz = fullD / nz;
+    const radius = fullW / 2;
+
+    const centers = [];
+    for (let ix = 0; ix < nx; ix++) {
+      const cx = bb.min.x + (ix + 0.5) * vx;
+      for (let iy = 0; iy < ny; iy++) {
+        const cy = bb.min.y + (iy + 0.5) * vy;
+        for (let iz = 0; iz < nz; iz++) {
+          const cz = bb.min.z + (iz + 0.5) * vz;
+          if (isDiscShape && Math.hypot(cx, cz) > radius) continue;
+          centers.push({ x: cx, y: cy, z: cz, ix, iy, iz });
+        }
+      }
+    }
+
+    const axisPick = Math.floor(Math.random() * 3);
+    const axisKey = axisPick === 0 ? "ix" : axisPick === 1 ? "iy" : "iz";
+    const axisCount = axisPick === 0 ? nx : axisPick === 1 ? ny : nz;
+    const flipped = Math.random() < 0.5;
+    const coverage = 0.55 + Math.random() * 0.4;
+
+    const mat = mesh.material;
+    const voxelGeo = new THREE.BoxGeometry(vx * 0.86, vy * 0.86, vz * 0.86); // slight gaps between cubes
+    const voxelMat = new THREE.MeshStandardMaterial({
+      color: mat.color ? mat.color.clone() : 0xffffff,
+      emissive: mat.emissive ? mat.emissive.clone() : 0x000000,
+      emissiveIntensity: mat.emissiveIntensity || 0,
+      roughness: mat.roughness != null ? mat.roughness : 0.5,
+      metalness: mat.metalness != null ? mat.metalness : 0,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+
+    const inst = new THREE.InstancedMesh(voxelGeo, voxelMat, Math.max(1, centers.length));
+    inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+    const dummy = new THREE.Object3D();
+    const voxels = centers.map((c, idx) => {
+      dummy.position.set(c.x, c.y, c.z);
+      dummy.updateMatrix();
+      inst.setMatrixAt(idx, dummy.matrix);
+      const axisIdx = c[axisKey];
+      const frac = axisCount <= 1 ? 0 : axisIdx / (axisCount - 1);
+      const phase = flipped ? 1 - frac : frac;
+      const active = Math.random() < coverage;
+      const offset = active
+        ? {
+            x: (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.9) * vx,
+            y: (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.9) * vy,
+            z: (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.9) * vz,
+          }
+        : { x: 0, y: 0, z: 0 };
+      return { center: c, phase, active, offset };
+    });
+    inst.instanceMatrix.needsUpdate = true;
+
+    return { inst, voxels, voxelMat };
+  }
+
+  function spawnDigitalGlitchWave() {
+    const meshPieces = t.pieceGroup.children.filter((c) => c.userData.kind === "piece");
+    if (meshPieces.length < 3) return;
+
+    // Build a spatially-coherent run via greedy nearest-neighbor
+    // chaining from a random start, so the wave travels through
+    // pieces that are actually "reasonably close together" rather
+    // than a purely random scatter across the whole board.
+    const runLength = Math.min(meshPieces.length, 3 + Math.floor(Math.random() * 5)); // 3-7
+    const remaining = meshPieces.slice();
+    const run = [remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0]];
+    while (run.length < runLength && remaining.length) {
+      const last = run[run.length - 1];
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      remaining.forEach((m, i) => {
+        const d = last.position.distanceToSquared(m.position);
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+      });
+      run.push(remaining.splice(bestIdx, 1)[0]);
+    }
+    if (run.length < 3) return; // couldn't find enough pieces nearby — skip silently
+
+    if (Math.random() < 0.5) run.reverse(); // randomize direction of travel
+
+    const now0 = performance.now();
+    const stepGap = 260 + Math.random() * 200; // randomized timing between pieces
+    run.forEach((mesh, i) => {
+      // Per feedback, a second payload (volumetric voxelization) now
+      // shares this same run/scheduling — each piece in the run
+      // independently gets one or the other.
+      if (Math.random() < 0.5) {
+        const shatter = buildVoxelShatter(mesh);
+        shatter.inst.position.copy(mesh.position);
+        shatter.inst.rotation.copy(mesh.rotation);
+        t.fxGroup.add(shatter.inst);
+        t.voxelShatterItems.push({
+          mesh,
+          inst: shatter.inst,
+          voxelMat: shatter.voxelMat,
+          voxels: shatter.voxels,
+          born: now0 + i * stepGap,
+          life: 700 + Math.random() * 300,
+          sweepSpread: 0.7,
+          exteriorDip: 0.6 + Math.random() * 0.2,
+          origTransparent: mesh.material.transparent,
+          origOpacity: mesh.material.opacity,
+        });
+        return;
+      }
+      const interior = buildDigitalInterior(mesh);
+      interior.group.position.copy(mesh.position);
+      interior.group.rotation.copy(mesh.rotation);
+      t.fxGroup.add(interior.group);
+      t.digitalGlitchItems.push({
+        mesh,
+        wire: interior.group,
+        topPlane: interior.topPlane,
+        bottomPlane: interior.bottomPlane,
+        halfY: interior.halfY,
+        margin: interior.margin,
+        lineMaterials: interior.lineMaterials,
+        pointMaterials: interior.pointMaterials,
+        born: now0 + i * stepGap,
+        life: 620 + Math.random() * 260,
+        exteriorDip: 0.55 + Math.random() * 0.2, // substantial — the interior needs to actually read through it
+        origTransparent: mesh.material.transparent,
+        origOpacity: mesh.material.opacity,
+      });
+    });
+  }
+
+  let digitalGlitchTimer;
+  function fireDigitalGlitch() {
+    if (windingDownRef.current) return; // stop spawning new ones once a win fires
+    if (DIGITAL_GLITCH_ENABLED) spawnDigitalGlitchWave();
+    digitalGlitchTimer = setTimeout(fireDigitalGlitch, 45000 + Math.random() * 75000);
+  }
+
+
+  /* ---- DOM-based effects (title flicker/spark/letter, turn halo,
+     VHS glitch, rare Scanimate/Vidicon, jitter-tear) ---- */
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const FLICKER_CLASSES = ["ec-title-flicker", "ec-title-flicker-b", "ec-title-flicker-c"];
+  let flickerTimer, letterTimer, sparkTimer, haloTimer, vhsTimer, rareTimer, jitterTimer;
+
+  const fireFlicker = () => {
+    if (windingDownRef.current) return;
+    const el = titleRef.current;
+    if (el) {
+      FLICKER_CLASSES.forEach((c) => el.classList.remove(c));
+      void el.offsetWidth;
+      const cls = FLICKER_CLASSES[Math.floor(Math.random() * FLICKER_CLASSES.length)];
+      el.style.animationDuration = (0.7 + Math.random() * 0.9).toFixed(2) + "s";
+      el.classList.add(cls);
+    }
+    audio.playFlicker();
+    flickerTimer = setTimeout(fireFlicker, 7000 + Math.random() * 24000);
+  };
+
+  const fireLetter = () => {
+    if (windingDownRef.current) return;
+    const container = titleRef.current;
+    const letters = container ? container.querySelectorAll(".ec-letter") : null;
+    if (letters && letters.length) {
+      const el = letters[Math.floor(Math.random() * letters.length)];
+      const hold = 250 + Math.random() * 900;
+      el.style.transition = "opacity 200ms ease";
+      el.style.opacity = "0.05";
+      setTimeout(() => {
+        el.style.transition = "opacity 420ms ease";
+        el.style.opacity = "1";
+      }, hold);
+    }
+    letterTimer = setTimeout(fireLetter, 6000 + Math.random() * 15000);
+  };
+
+  const fireSpark = () => {
+    if (windingDownRef.current) return;
+    const wrap = titleWrapRef.current;
+    if (wrap) {
+      const count = Math.random() < 0.25 ? 2 : 1;
+      for (let i = 0; i < count; i++) {
+        const el = document.createElement("span");
+        el.className = "ec-spark";
+        el.style.left = (12 + Math.random() * 76) + "%";
+        el.style.top = (30 + Math.random() * 55) + "%";
+        el.style.setProperty("--ec-spark-dx", (Math.random() * 18 - 9).toFixed(1) + "px");
+        el.style.setProperty("--ec-spark-dy", (-6 - Math.random() * 16).toFixed(1) + "px");
+        wrap.appendChild(el);
+        setTimeout(() => el.remove(), 700);
+      }
+    }
+    audio.playArc();
+    sparkTimer = setTimeout(fireSpark, 18000 + Math.random() * 34000);
+  };
+
+  const pulseHalo = () => {
+    const el = turnHaloRef.current;
+    if (el) {
+      const intensity = 0.35 + Math.random() * 1.55;
+      el.style.setProperty("--ec-halo-intensity", intensity.toFixed(2));
+    }
+    haloTimer = setTimeout(pulseHalo, 3500 + Math.random() * 6500);
+  };
+
+  const GLITCH_CLASSES = ["ec-vhs-glitch", "ec-vhs-glitch-b", "ec-vhs-glitch-c", "ec-vhs-glitch-d", "ec-vhs-glitch-e", "ec-vhs-glitch-f"];
+  const fireVhs = () => {
+    if (windingDownRef.current) return;
+    const card = cardRef.current;
+    const overlay = fxOverlayRef.current;
+    if (card && overlay) {
+      GLITCH_CLASSES.forEach((c) => card.classList.remove(c));
+      overlay.classList.remove("ec-vhs-overlay-active");
+      void card.offsetWidth;
+      const cls = GLITCH_CLASSES[Math.floor(Math.random() * GLITCH_CLASSES.length)];
+      card.classList.add(cls);
+      overlay.classList.add("ec-vhs-overlay-active");
+    }
+    audio.playGlitch();
+    vhsTimer = setTimeout(fireVhs, 57143 + Math.random() * 107143);
+  };
+
+  const RARE_CLASSES = ["ec-scanimate", "ec-vidicon-burn"];
+  const fireRare = () => {
+    if (windingDownRef.current) return;
+    const card = cardRef.current;
+    if (card) {
+      RARE_CLASSES.forEach((c) => card.classList.remove(c));
+      void card.offsetWidth;
+      const cls = RARE_CLASSES[Math.floor(Math.random() * RARE_CLASSES.length)];
+      card.classList.add(cls);
+    }
+    audio.playGlitch();
+    rareTimer = setTimeout(fireRare, 240000 + Math.random() * 300000);
+  };
+
+  const JITTER_CLASSES = ["ec-jitter-tear", "ec-jitter-tear-b"];
+  const fireJitter = () => {
+    if (windingDownRef.current) return;
+    const candidates = [titleWrapRef.current, turnLabelRef.current];
+    const buttons = document.querySelectorAll(".ec-btn");
+    if (buttons.length) candidates.push(buttons[Math.floor(Math.random() * buttons.length)]);
+    const pool = candidates.filter(Boolean);
+    if (pool.length) {
+      const el = pool[Math.floor(Math.random() * pool.length)];
+      JITTER_CLASSES.forEach((c) => el.classList.remove(c));
+      void el.offsetWidth;
+      const cls = JITTER_CLASSES[Math.floor(Math.random() * JITTER_CLASSES.length)];
+      el.classList.add(cls);
+      setTimeout(() => el.classList.remove(cls), 260);
+    }
+    jitterTimer = setTimeout(fireJitter, 11000 + Math.random() * 16000);
+  };
+
+  if (!reduceMotion) {
+    // Masthead/UI effects run from mount — not gated on Begin Game,
+    // since they're not board FX (per the original's own reasoning for
+    // why arc/crawl/floorWave/digitalGlitch ARE gated but these aren't).
+    flickerTimer = setTimeout(fireFlicker, 5000 + Math.random() * 9000);
+    letterTimer = setTimeout(fireLetter, 4000 + Math.random() * 9000);
+    sparkTimer = setTimeout(fireSpark, 14000 + Math.random() * 16000);
+    haloTimer = setTimeout(pulseHalo, 1200 + Math.random() * 2000);
+    jitterTimer = setTimeout(fireJitter, 6000 + Math.random() * 9000);
+  }
+
+  return {
+    armOnBegin() {
+      if (!reduceMotion) {
+        vhsTimer = setTimeout(fireVhs, 25714 + Math.random() * 35714);
+        rareTimer = setTimeout(fireRare, 90000 + Math.random() * 150000);
+      }
+      arcTimer = setTimeout(fireArc, 8333 + Math.random() * 11667);
+      crawlTimer = setTimeout(fireCrawl, 8000 + Math.random() * 12000);
+      floorWaveTimer = setTimeout(fireFloorWave, 40000 + Math.random() * 50000);
+      if (DIGITAL_GLITCH_ENABLED) {
+        digitalGlitchTimer = setTimeout(fireDigitalGlitch, 30000 + Math.random() * 40000);
+      }
+    },
+
+    restart() {
+      if (!reduceMotion) {
+        flickerTimer = setTimeout(fireFlicker, 5000 + Math.random() * 9000);
+        letterTimer = setTimeout(fireLetter, 4000 + Math.random() * 9000);
+        sparkTimer = setTimeout(fireSpark, 14000 + Math.random() * 16000);
+        vhsTimer = setTimeout(fireVhs, 25714 + Math.random() * 35714);
+        rareTimer = setTimeout(fireRare, 240000 + Math.random() * 300000);
+        jitterTimer = setTimeout(fireJitter, 11000 + Math.random() * 16000);
+      }
+      arcTimer = setTimeout(fireArc, 8333 + Math.random() * 11667);
+      crawlTimer = setTimeout(fireCrawl, 8000 + Math.random() * 12000);
+      floorWaveTimer = setTimeout(fireFloorWave, 40000 + Math.random() * 50000);
+      if (DIGITAL_GLITCH_ENABLED) {
+        digitalGlitchTimer = setTimeout(fireDigitalGlitch, 30000 + Math.random() * 40000);
+      }
+    },
+
+    tick(now) {
+  const fxItems = t.fxItems;
+  if (fxItems && fxItems.length) {
+    for (let i = fxItems.length - 1; i >= 0; i--) {
+      const item = fxItems[i];
+      /* Real bug fixed here: this used to be Math.min(...,1) with
+         no lower clamp. For anything pre-scheduled with a `born`
+         more than one `life` in the future (any run in the crawl
+         wave beyond its first few cells, and nearly every cell of
+         the large floor wave, whose stagger is seconds long
+         against a life of well under a second), t started well
+         below -1. Math.sin(Math.PI * t) is periodic, so for
+         t < -1 it swings back to POSITIVE — those items flashed
+         visibly the instant they were spawned, well before their
+         real born time, rather than staying invisible until then.
+         Clamping the lower bound to 0 makes "not born yet" reliably
+         render as opacity 0, which is what made the crawl wave (and
+         the floor wave) read as a garbled flash instead of a clean
+         traveling sequence. */
+      const t = Math.max(0, Math.min((now - item.born) / item.life, 1));
+      const opacity =
+        item.envelope === "pulse"
+          ? Math.sin(Math.PI * t) * item.peak
+          : (1 - t) * item.peak;
+      item.mesh.material.opacity = Math.max(0, opacity);
+      if (t >= 1) {
+        item.mesh.parent && item.mesh.parent.remove(item.mesh);
+        item.mesh.geometry && item.mesh.geometry.dispose();
+        item.mesh.material && item.mesh.material.dispose();
+        fxItems.splice(i, 1);
+      }
+    }
+  }
+
+  /* theme: the digital-interior piece effect — an actual traveling
+     x-ray scan. Two real clipping planes sweep upward through each
+     piece's own lattice geometry: topPlane opens the reveal from
+     the bottom during the first ~45% of the piece's own timeline,
+     then bottomPlane closes it again from the bottom during the
+     last ~45%, so the visible "window" of lattice itself travels
+     upward through the volume rather than the whole lattice
+     fading in and out uniformly. The piece's exterior dips toward
+     translucency in parallel (never touching its position or
+     geometry) so the interior actually reads through it, and each
+     lattice material gets its own small random flicker — the
+     "as though energized" cue — layered on top of the shared
+     rise/fall envelope. */
+  const digitalGlitchItems = t.digitalGlitchItems;
+  if (digitalGlitchItems && digitalGlitchItems.length) {
+    for (let i = digitalGlitchItems.length - 1; i >= 0; i--) {
+      const item = digitalGlitchItems[i];
+      const localT = (now - item.born) / item.life;
+      if (localT < 0) continue; // wave hasn't reached this piece yet
+      const tt = Math.min(localT, 1);
+      const envelope = Math.sin(Math.PI * tt); // rises then falls, 0 at both ends
+
+      if (!item.mesh.material.transparent) item.mesh.material.transparent = true;
+      item.mesh.material.opacity = 1 - envelope * item.exteriorDip;
+
+      const growT = Math.min(tt / 0.45, 1);
+      const shrinkT = Math.max(0, Math.min((tt - 0.55) / 0.45, 1));
+      const openC = item.halfY + item.margin;
+      const closedC = -item.halfY - item.margin;
+      item.topPlane.constant = closedC + (openC - closedC) * growT;
+      item.bottomPlane.constant = openC + (closedC - openC) * shrinkT;
+
+      item.lineMaterials.forEach((mat) => {
+        mat.opacity = envelope * mat.userData.baseOpacity * (0.8 + Math.random() * 0.3);
+      });
+      item.pointMaterials.forEach((mat) => {
+        mat.opacity = envelope * mat.userData.baseOpacity * (0.8 + Math.random() * 0.3);
+      });
+
+      if (tt >= 1) {
+        item.mesh.material.opacity = item.origOpacity;
+        item.mesh.material.transparent = item.origTransparent;
+        item.wire.parent && item.wire.parent.remove(item.wire);
+        item.wire.traverse((c) => {
+          c.geometry && c.geometry.dispose();
+          c.material && c.material.dispose();
+        });
+        digitalGlitchItems.splice(i, 1);
+      }
+    }
+  }
+
+  /* theme: volumetric voxelization/orthogonal displacement — see
+     buildVoxelShatter above for how the grid and per-cube
+     activation/offsets are built; this just animates what's
+     already been precomputed. Each cube's own "jostle window"
+     opens at a time set by its phase (the randomized flow
+     direction/sweep) and lasts the remainder of the piece's own
+     life span; within that window it plays one damped bounce out
+     to its randomized offset and back to rest — sin() for the
+     out-and-back shape, exp() decay so it settles rather than
+     oscillating indefinitely. Inactive cubes (outside the random
+     coverage fraction) never move at all. */
+  const voxelShatterItems = t.voxelShatterItems;
+  if (voxelShatterItems && voxelShatterItems.length) {
+    for (let i = voxelShatterItems.length - 1; i >= 0; i--) {
+      const item = voxelShatterItems[i];
+      const localT = (now - item.born) / item.life;
+      if (localT < 0) continue; // wave hasn't reached this piece yet
+      const tt = Math.min(localT, 1);
+      const envelope = Math.sin(Math.PI * tt);
+
+      if (!item.mesh.material.transparent) item.mesh.material.transparent = true;
+      item.mesh.material.opacity = 1 - envelope * item.exteriorDip;
+      item.voxelMat.opacity = envelope * 0.92;
+
+      for (let v = 0; v < item.voxels.length; v++) {
+        const voxel = item.voxels[v];
+        let bounce = 0;
+        if (voxel.active) {
+          const winStart = voxel.phase * item.sweepSpread;
+          const winLen = Math.max(0.05, 1 - winStart);
+          const winT = Math.max(0, Math.min((tt - winStart) / winLen, 1));
+          bounce = Math.sin(Math.PI * winT) * Math.exp(-winT * 1.6);
+        }
+        voxelDummy.position.set(
+          voxel.center.x + voxel.offset.x * bounce,
+          voxel.center.y + voxel.offset.y * bounce,
+          voxel.center.z + voxel.offset.z * bounce
+        );
+        voxelDummy.updateMatrix();
+        item.inst.setMatrixAt(v, voxelDummy.matrix);
+      }
+      item.inst.instanceMatrix.needsUpdate = true;
+
+      if (tt >= 1) {
+        item.mesh.material.opacity = item.origOpacity;
+        item.mesh.material.transparent = item.origTransparent;
+        item.inst.parent && item.inst.parent.remove(item.inst);
+        item.inst.geometry.dispose();
+        item.inst.material.dispose();
+        voxelShatterItems.splice(i, 1);
+      }
+    }
+  }
+
+  /* theme: the crawling square mass — unlike every other fxItems-
+     style effect, this one moves. Each entry's whole group is
+     smoothly interpolated from its start to end position (eased,
+     not linear, so it accelerates/decelerates gently rather than
+     sliding at a constant rate) while every square in it shares
+     the same fade-in/hold/fade-out envelope, so the mass appears,
+     travels together, and disappears as one formation. */
+  const crawlMassItems = t.crawlMassItems;
+  if (crawlMassItems && crawlMassItems.length) {
+    for (let i = crawlMassItems.length - 1; i >= 0; i--) {
+      const item = crawlMassItems[i];
+      const frac = Math.max(0, Math.min((now - item.born) / item.duration, 1));
+      const eased = frac * frac * (3 - 2 * frac);
+      item.group.position.x = item.startX + (item.endX - item.startX) * eased;
+      item.group.position.z = item.startZ + (item.endZ - item.startZ) * eased;
+
+      let envelope;
+      if (frac < 0.12) envelope = frac / 0.12;
+      else if (frac > 0.82) envelope = Math.max(0, (1 - frac) / 0.18);
+      else envelope = 1;
+      item.materials.forEach(({ halo, core }) => {
+        halo.opacity = envelope * item.haloPeak;
+        core.opacity = envelope * item.corePeak;
+      });
+
+      if (frac >= 1) {
+        item.group.parent && item.group.parent.remove(item.group);
+        item.group.traverse((c) => {
+          c.geometry && c.geometry.dispose();
+          c.material && c.material.dispose();
+        });
+        crawlMassItems.splice(i, 1);
+      }
+    }
+  }
+
+  const shockwaveItems = t.shockwaveItems;
+  if (shockwaveItems && shockwaveItems.length) {
+    for (let i = shockwaveItems.length - 1; i >= 0; i--) {
+      const item = shockwaveItems[i];
+      const frac = Math.max(0, Math.min((now - item.born) / item.duration, 1));
+      const elapsedSec = (now - item.born) / 1000;
+
+      // Bloom: a quick flash at the footprint itself, gone well
+      // before the ripple finishes traveling/decaying.
+      const bloomFrac = Math.min(1, frac / 0.35);
+      item.bloomMat.opacity = item.bloomPeak * Math.max(0, 1 - bloomFrac) * (bloomFrac < 1 ? 1 : 0);
+
+      // Rayleigh ripple: a traveling, Gaussian-windowed sine pulse
+      // per vertex, keyed on each vertex's precomputed "distance
+      // outside the footprint" — the wavefront position advances
+      // outward at waveSpeed, amplitude decays both with distance
+      // (decayLength) and with elapsed time, exactly like a real
+      // surface wave losing energy as it propagates.
+      const wavefront = item.waveSpeed * elapsedSec;
+      const globalDecay = Math.exp(-elapsedSec / item.decayTau);
+      const arr = item.posAttr.array;
+      const distances = item.distances;
+      const twoPiOverLambda = (2 * Math.PI) / item.wavelength;
+      const invTwoSigmaSq = 1 / (2 * item.sigma * item.sigma);
+      for (let v = 0; v < distances.length; v++) {
+        const d = distances[v];
+        const delta = d - wavefront;
+        const pulse = Math.exp(-(delta * delta) * invTwoSigmaSq);
+        const spatialDecay = Math.exp(-d / item.decayLength);
+        const y = item.amplitude * pulse * spatialDecay * globalDecay * Math.sin(delta * twoPiOverLambda);
+        arr[v * 3 + 1] = y;
+      }
+      item.posAttr.needsUpdate = true;
+      item.rippleMat.opacity = item.ripplePeak * Math.max(0, 1 - frac);
+
+      if (frac >= 1) {
+        [item.bloom, item.ripple].forEach((obj) => {
+          obj.parent && obj.parent.remove(obj);
+          obj.geometry && obj.geometry.dispose();
+          obj.material && obj.material.dispose();
+        });
+        shockwaveItems.splice(i, 1);
+      }
+    }
+  }
+
+    },
+
+    dispose() {
+      clearTimeout(flickerTimer);
+      clearTimeout(letterTimer);
+      clearTimeout(sparkTimer);
+      clearTimeout(haloTimer);
+      clearTimeout(vhsTimer);
+      clearTimeout(rareTimer);
+      clearTimeout(jitterTimer);
+      clearTimeout(arcTimer);
+      clearTimeout(crawlTimer);
+      clearTimeout(floorWaveTimer);
+      clearTimeout(digitalGlitchTimer);
+    },
+  };
 }
 
-/* NOT YET PORTED: Neon's title-flicker/VHS-glitch/singularity-button
-   CSS (currently the <style> block inline in el-cabeza-neon-3d.html)
-   hasn't been extracted into a standalone string yet — see
-   mountAmbientEffects above for why. Empty for now rather than
-   incorrect. */
-export const styleSheet = "";
+/* Ambient-FX CSS: title-flicker/spark keyframes, the hover glow, VHS
+   glitch (all six profiles) plus its scanline/static overlay, the two
+   rarer Scanimate/Vidicon-burn flourishes, and localized jitter-tear.
+   Ported from el-cabeza-neon-3d.html's two <style> blocks (the outer
+   page head and the inline JSX one), skipping the handful of rules
+   that duplicate what the chassis's own base stylesheet already
+   provides (box-sizing, .ec-btn transitions, .ec-btn-invert:hover).
+   The Singularity button's own CSS is NOT included here — see
+   renderSetupExtras below for why that's still pending. */
+export const styleSheet = `
+  /* Restrained hover glow — the one new interaction cue this theme adds.
+     Purely cosmetic (box-shadow only); no layout, timing, or hit-testing
+     is touched, so it cannot affect what a click actually does. */
+  .ec-btn:hover:not(:disabled) {
+    box-shadow: 0 0 0 1px rgba(77, 232, 255, 0.35), 0 0 14px rgba(77, 232, 255, 0.16);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ec-btn:hover:not(:disabled) { box-shadow: none; }
+  }
+  /* Irregular power-grid flicker on the title. Restarted imperatively
+     (class removed, reflowed, re-added) at randomized intervals rather
+     than looped in CSS, so the flicker itself never falls into a
+     detectable rhythm — see the title-flicker effect in the component. */
+  @keyframes ec-title-flicker {
+    0%   { opacity: 1; }
+    4%   { opacity: 0.32; }
+    7%   { opacity: 1; }
+    11%  { opacity: 0.55; }
+    12%  { opacity: 1; }
+    38%  { opacity: 1; }
+    41%  { opacity: 0.4; }
+    44%  { opacity: 0.9; }
+    46%  { opacity: 1; }
+    100% { opacity: 1; }
+  }
+  .ec-title-flicker { animation: ec-title-flicker 1.1s linear 1; }
+  /* Two further variants with different dip counts/timing — the
+     scheduler picks one of the three at random each time (see the
+     title effect), so "the flicker" is never quite the same shape
+     twice in a row, on top of its already-randomized interval. */
+  @keyframes ec-title-flicker-b {
+    0%   { opacity: 1; }
+    5%   { opacity: 0.15; }
+    8%   { opacity: 1; }
+    9%   { opacity: 0.5; }
+    13%  { opacity: 1; }
+    60%  { opacity: 1; }
+    63%  { opacity: 0.25; }
+    66%  { opacity: 1; }
+    100% { opacity: 1; }
+  }
+  @keyframes ec-title-flicker-c {
+    0%   { opacity: 1; }
+    3%   { opacity: 0.6; }
+    6%   { opacity: 1; }
+    22%  { opacity: 1; }
+    25%  { opacity: 0.1; }
+    27%  { opacity: 0.7; }
+    29%  { opacity: 0.2; }
+    32%  { opacity: 1; }
+    100% { opacity: 1; }
+  }
+  .ec-title-flicker-b { animation-name: ec-title-flicker-b; animation-timing-function: linear; animation-iteration-count: 1; }
+  .ec-title-flicker-c { animation-name: ec-title-flicker-c; animation-timing-function: linear; animation-iteration-count: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    .ec-title-flicker, .ec-title-flicker-b, .ec-title-flicker-c { animation: none; }
+  }
+  /* A single spark: a tiny bright point that flashes and drifts off
+     before fading, spawned near the title at rare, irregular
+     intervals — see spawnSpark in the title effect. */
+  @keyframes ec-spark {
+    0%   { opacity: 0; transform: translate(0, 0) scale(0.5); }
+    18%  { opacity: 1; transform: translate(0, 0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--ec-spark-dx, 6px), var(--ec-spark-dy, -10px)) scale(0.7); }
+  }
+  .ec-spark {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #f2fdff;
+    box-shadow: 0 0 5px 1px rgba(150, 235, 255, 0.95), 0 0 12px 3px rgba(77, 232, 255, 0.5);
+    pointer-events: none;
+    animation: ec-spark 600ms ease-out forwards;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ec-spark { display: none; }
+  }
+
+
+        /* theme: rare analog signal-degradation flourish — a brief
+           horizontal jitter/tear plus a color-phase wobble on the board
+           mount itself (a live DOM element, so this genuinely displaces
+           and re-tints the WebGL canvas underneath, not a copy of it),
+           paired with a scanline+static overlay flash. See the glitch
+           effect for scheduling. */
+        @keyframes ec-vhs-glitch {
+          0%   { transform: translate(0, 0); filter: none; }
+          10%  { transform: translate(-3px, 0); filter: hue-rotate(12deg) saturate(1.5); }
+          20%  { transform: translate(3px, 0); filter: hue-rotate(-10deg) saturate(1.4); }
+          28%  { transform: translate(-1px, 1px); opacity: 0.82; }
+          36%  { transform: translate(0, 0); opacity: 1; filter: none; }
+          55%  { transform: translate(2px, 0); filter: hue-rotate(-6deg); }
+          64%  { transform: translate(0, 0); filter: none; }
+          100% { transform: translate(0, 0); filter: none; }
+        }
+        .ec-vhs-glitch { animation: ec-vhs-glitch 420ms steps(1, end) 1; }
+
+        /* Profile B: vertical sync roll + line/frame displacement —
+           a vertical jump plus a couple of horizontally-offset clipped
+           bands, approximating a torn/rolled frame. steps(1,end) makes
+           this a sequence of jump-cuts rather than a smooth animation,
+           which is also why clip-path polygons/insets with different
+           shapes across stops need no matching vertex count. */
+        @keyframes ec-vhs-glitch-b {
+          0%   { transform: translateY(0); clip-path: none; }
+          12%  { transform: translateY(-14px); }
+          24%  { transform: translateY(10px); clip-path: inset(0 0 55% 0); }
+          30%  { transform: translateY(10px) translateX(4px); clip-path: inset(45% 0 0 0); }
+          38%  { transform: translateY(-4px) translateX(-3px); clip-path: none; }
+          46%  { transform: translateY(0); }
+          100% { transform: translateY(0); clip-path: none; }
+        }
+        .ec-vhs-glitch-b { animation: ec-vhs-glitch-b 460ms steps(1, end) 1; }
+
+        /* Profile C: signal breakup — brief invert flashes (digital
+           corruption/bit errors), a contrast/brightness spike
+           (overshoot), and a near-blackout dip (brief signal loss). */
+        @keyframes ec-vhs-glitch-c {
+          0%   { filter: none; opacity: 1; }
+          10%  { filter: invert(1) saturate(2); }
+          16%  { filter: none; opacity: 0.15; }
+          22%  { filter: contrast(2.2) brightness(1.4); opacity: 1; }
+          30%  { filter: none; }
+          50%  { filter: invert(1); opacity: 0.3; }
+          58%  { filter: none; opacity: 1; }
+          100% { filter: none; opacity: 1; }
+        }
+        .ec-vhs-glitch-c { animation: ec-vhs-glitch-c 500ms steps(1, end) 1; }
+
+        /* Profile D: horizontal sync distortion / tracking distortion —
+           the image bends and tears in shifting horizontal bands
+           (skewX plus banded clip-path insets), rather than the
+           whole-frame roll of profile B or the plain left-right jitter
+           of profile A. */
+        @keyframes ec-vhs-glitch-d {
+          0%   { transform: skewX(0deg) translateX(0); clip-path: none; }
+          8%   { transform: skewX(6deg) translateX(-6px); clip-path: inset(10% 0 60% 0); }
+          16%  { transform: skewX(-8deg) translateX(8px); clip-path: inset(55% 0 15% 0); }
+          24%  { transform: skewX(3deg) translateX(-3px); clip-path: inset(30% 0 40% 0); }
+          32%  { transform: skewX(0deg) translateX(0); clip-path: none; }
+          50%  { transform: skewX(-4deg) translateX(5px); clip-path: inset(0 0 70% 0); }
+          58%  { transform: skewX(0deg) translateX(0); clip-path: none; }
+          100% { transform: skewX(0deg) translateX(0); clip-path: none; }
+        }
+        .ec-vhs-glitch-d { animation: ec-vhs-glitch-d 480ms steps(1, end) 1; }
+
+        /* Profile E: wavy raster distortion / video turbulence / analog
+           signal ripple — the two genuine per-pixel warp filters above,
+           alternated, plus a gentle skewY/scaleY sweep so the whole
+           card reads as organically bending rather than just jittering
+           in place. */
+        @keyframes ec-vhs-glitch-e {
+          0%   { filter: none; transform: skewY(0deg) scaleY(1); }
+          14%  { filter: url(#ec-warp-a); transform: skewY(1.2deg) scaleY(1.01); }
+          28%  { filter: url(#ec-warp-b); transform: skewY(-1.6deg) scaleY(0.99); }
+          42%  { filter: url(#ec-warp-a); transform: skewY(0.8deg) scaleY(1.01); }
+          56%  { filter: none; transform: skewY(-0.6deg) scaleY(1); }
+          70%  { filter: url(#ec-warp-b); transform: skewY(1deg) scaleY(1); }
+          84%  { filter: none; transform: skewY(0deg) scaleY(1); }
+          100% { filter: none; transform: skewY(0deg) scaleY(1); }
+        }
+        .ec-vhs-glitch-e { animation: ec-vhs-glitch-e 560ms steps(1, end) 1; }
+
+        /* Profile F: a full-card wave/warp that blends rapidly through
+           several distinct warp shapes in quick succession — the two
+           warp filters and alternating skew directions cycle every
+           ~35-70ms, so it reads as one shape morphing straight into
+           the next rather than a single held distortion. */
+        @keyframes ec-vhs-glitch-f {
+          0%   { filter: none; transform: skewX(0) skewY(0) scale(1); }
+          7%   { filter: url(#ec-warp-a); transform: skewX(4deg) skewY(-2deg) scale(1.008); }
+          14%  { filter: url(#ec-warp-b); transform: skewX(-5deg) skewY(2deg) scale(0.992); }
+          21%  { filter: url(#ec-warp-a) hue-rotate(8deg); transform: skewX(3deg) skewY(-3deg) scale(1.01); }
+          28%  { filter: url(#ec-warp-b); transform: skewX(-6deg) skewY(1deg) scale(0.99); }
+          35%  { filter: url(#ec-warp-a); transform: skewX(2deg) skewY(2deg) scale(1.006); }
+          42%  { filter: none; transform: skewX(-3deg) skewY(-1deg) scale(0.996); }
+          49%  { filter: url(#ec-warp-b) saturate(1.4); transform: skewX(4deg) skewY(3deg) scale(1.01); }
+          56%  { filter: url(#ec-warp-a); transform: skewX(-2deg) skewY(-2deg) scale(0.995); }
+          63%  { filter: none; transform: skewX(1deg) skewY(1deg) scale(1); }
+          100% { filter: none; transform: skewX(0) skewY(0) scale(1); }
+        }
+        .ec-vhs-glitch-f { animation: ec-vhs-glitch-f 520ms steps(1, end) 1; }
+
+        /* theme: two new, much-rarer full-card flourishes (see the
+           dedicated scheduler below — separate from and far less
+           frequent than the regular VHS glitch rotation above).
+
+           ec-scanimate: a Scanimate-style analog video synthesizer
+           pass — the 1970s analog computer systems (Scanimate, the
+           Rutt-Etra, Paik-Abe) that generated broadcast graphics by
+           warping and color-cycling a live video signal. Reuses the
+           existing #ec-warp-a/#ec-warp-b turbulence displacement
+           filters (liquid, not glitchy, distortion) combined with a
+           full hue-rotate sweep and a slow vertical roll/stretch. Uses
+           smooth ease timing rather than the other profiles' hard
+           steps(1,end) cuts — this is meant to read as a flowing,
+           synthesized image, not a broken one. */
+        @keyframes ec-scanimate {
+          0%   { filter: hue-rotate(0deg) saturate(1); transform: translateY(0) scaleY(1); }
+          20%  { filter: hue-rotate(60deg) url(#ec-warp-b) saturate(1.5); transform: translateY(-3px) scaleY(1.008); }
+          40%  { filter: hue-rotate(140deg) url(#ec-warp-a) saturate(1.8); transform: translateY(2px) scaleY(0.994); }
+          60%  { filter: hue-rotate(220deg) url(#ec-warp-b) saturate(1.6); transform: translateY(-2px) scaleY(1.006); }
+          80%  { filter: hue-rotate(300deg) url(#ec-warp-a) saturate(1.3); transform: translateY(1px) scaleY(0.998); }
+          100% { filter: hue-rotate(360deg) saturate(1); transform: translateY(0) scaleY(1); }
+        }
+        .ec-scanimate { animation: ec-scanimate 900ms ease-in-out 1; }
+
+        /* ec-vidicon-burn: an old analog camera Vidicon tube's own two
+           signature faults, combined — "burn" (a bright image scorches
+           a temporary ghost/negative afterimage into the tube's
+           photoconductive surface, read here as a brief partial
+           invert()) and "deflection overload" (the beam-steering
+           circuit overdriven, read as a horizontal stretch spike plus
+           a bloom of brightness/contrast and a comet-tail streak via
+           an offset drop-shadow trailing the over-bright image).
+           steps(1,end), unlike Scanimate above — this is a sudden
+           electrical fault, not a flowing image. */
+        @keyframes ec-vidicon-burn {
+          0%   { filter: brightness(1) contrast(1) invert(0); transform: scaleX(1); }
+          8%   { filter: brightness(2.2) contrast(1.6) invert(0.15) drop-shadow(14px 0 rgba(77,232,255,0.5)); transform: scaleX(1.05); }
+          16%  { filter: brightness(2.6) contrast(1.8) invert(0.25) drop-shadow(22px 0 rgba(77,232,255,0.4)); transform: scaleX(1.09); }
+          28%  { filter: brightness(1.4) contrast(1.2) invert(0.1) drop-shadow(10px 0 rgba(77,232,255,0.25)); transform: scaleX(1.02); }
+          45%  { filter: brightness(1.1) contrast(1.05) invert(0.04); transform: scaleX(0.995); }
+          70%  { filter: brightness(1) contrast(1) invert(0); transform: scaleX(1); }
+          100% { filter: brightness(1) contrast(1) invert(0); transform: scaleX(1); }
+        }
+        .ec-vidicon-burn { animation: ec-vidicon-burn 650ms steps(1, end) 1; }
+
+        @keyframes ec-vhs-overlay {
+          0%   { opacity: 0; }
+          10%  { opacity: 0.55; }
+          22%  { opacity: 0.1; }
+          30%  { opacity: 0.4; }
+          46%  { opacity: 0.05; }
+          60%  { opacity: 0.3; }
+          100% { opacity: 0; }
+        }
+        .ec-vhs-overlay-active { animation: ec-vhs-overlay 420ms steps(1, end) 1; }
+
+        /* theme: localized text/button jitter-tear — see the scheduler
+           effect above. clip-path insets slice the element horizontally
+           at a shifting offset each step, combined with a small
+           translate, for a quick "tearing" read rather than a smooth
+           wobble; steps(1, end) keeps every step a hard cut, matching
+           the VHS glitch profiles' snappiness instead of easing between
+           positions. */
+        @keyframes ec-jitter-tear {
+          0%   { transform: translate(0, 0); clip-path: inset(0 0 0 0); }
+          15%  { transform: translate(-3px, 1px); clip-path: inset(10% 0 60% 0); }
+          30%  { transform: translate(2px, -1px); clip-path: inset(55% 0 15% 0); }
+          45%  { transform: translate(-2px, 0); clip-path: inset(0 0 0 0); }
+          60%  { transform: translate(3px, 1px); clip-path: inset(30% 0 40% 0); }
+          75%  { transform: translate(-1px, -1px); clip-path: inset(0 0 0 0); }
+          100% { transform: translate(0, 0); clip-path: inset(0 0 0 0); }
+        }
+        .ec-jitter-tear { animation: ec-jitter-tear 160ms steps(1, end) 1; }
+        @keyframes ec-jitter-tear-b {
+          0%   { transform: translate(0, 0) skewX(0deg); clip-path: inset(0 0 0 0); }
+          20%  { transform: translate(4px, -1px) skewX(2deg); clip-path: inset(40% 0 20% 0); }
+          40%  { transform: translate(-3px, 1px) skewX(-1deg); clip-path: inset(5% 0 70% 0); }
+          60%  { transform: translate(2px, 0) skewX(1deg); clip-path: inset(0 0 0 0); }
+          80%  { transform: translate(-2px, -1px) skewX(0deg); clip-path: inset(60% 0 5% 0); }
+          100% { transform: translate(0, 0) skewX(0deg); clip-path: inset(0 0 0 0); }
+        }
+        .ec-jitter-tear-b { animation: ec-jitter-tear-b 190ms steps(1, end) 1; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .ec-vhs-glitch, .ec-vhs-glitch-b, .ec-vhs-glitch-c, .ec-vhs-glitch-d, .ec-vhs-glitch-e, .ec-vhs-glitch-f, .ec-vhs-overlay-active, .ec-jitter-tear, .ec-jitter-tear-b, .ec-scanimate, .ec-vidicon-burn { animation: none !important; }
+        }
+
+  .ec-fx-overlay {
+    mix-blend-mode: screen;
+    background: repeating-linear-gradient(rgba(180,235,255,0.5) 0px, rgba(180,235,255,0.5) 1px, transparent 1px, transparent 3px);
+  }
+  .ec-fx-overlay-inner {
+    filter: url(#ec-static);
+    opacity: 0.5;
+  }
+`;
+
+/* The two per-pixel warp filters (video-turbulence/wavy-raster VHS
+   profiles E/F) and the static-noise filter the FX overlay uses need
+   real <filter> elements in the DOM, not just CSS — SVG filters can't
+   be expressed as pure CSS. Rendered once, globally, since every
+   profile that references url(#ec-warp-a) etc. needs it available
+   regardless of which element is currently glitching. */
+/* React.createElement, not JSX — this file stays plain ES modules
+   (loadable directly by Node for the smoke tests in tests/) rather
+   than requiring a JSX transform outside the build step. */
+export function renderGlobalDefs() {
+  const h = React.createElement;
+  return h(
+    "svg",
+    { width: 0, height: 0, style: { position: "absolute" }, "aria-hidden": "true" },
+    h(
+      "defs",
+      null,
+      h(
+        "filter",
+        { id: "ec-static" },
+        h("feTurbulence", { type: "fractalNoise", baseFrequency: "0.9", numOctaves: "2", stitchTiles: "stitch", result: "noise" }),
+        h("feColorMatrix", { in: "noise", type: "matrix", values: "0 0 0 0 0.7  0 0 0 0 0.92  0 0 0 0 1  0 0 0 0.9 0" })
+      ),
+      h(
+        "filter",
+        { id: "ec-warp-a", x: "-20%", y: "-20%", width: "140%", height: "140%" },
+        h("feTurbulence", { type: "turbulence", baseFrequency: "0.008 0.05", numOctaves: "2", seed: "3", result: "ec-warp-a-noise" }),
+        h("feDisplacementMap", { in: "SourceGraphic", in2: "ec-warp-a-noise", scale: "26", xChannelSelector: "R", yChannelSelector: "G" })
+      ),
+      h(
+        "filter",
+        { id: "ec-warp-b", x: "-20%", y: "-20%", width: "140%", height: "140%" },
+        h("feTurbulence", { type: "turbulence", baseFrequency: "0.015 0.02", numOctaves: "1", seed: "9", result: "ec-warp-b-noise" }),
+        h("feDisplacementMap", { in: "SourceGraphic", in2: "ec-warp-b-noise", scale: "34", xChannelSelector: "R", yChannelSelector: "B" })
+      )
+    )
+  );
+}
 
 /* NOT YET PORTED: the Anomaly random-setup button and the Singularity
    easter egg (both fully implemented as standalone logic already —
    see generateAnomalySetup and PIECE_ORIENTATIONS above) don't yet
-   have their JSX wired into this hook. The logic exists; the UI
-   wiring into the chassis's setup-extras slot is the remaining step. */
+   have their JSX wired into this hook, and the Singularity button's
+   own CSS isn't in styleSheet above either. That's a distinct feature
+   (a setup-screen gameplay easter egg), separate from the ambient
+   visual FX ported here — the logic exists; the UI wiring into the
+   chassis's setup-extras slot is the remaining step. */
 export function renderSetupExtras() {
   return null;
 }
