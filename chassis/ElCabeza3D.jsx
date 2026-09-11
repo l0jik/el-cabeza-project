@@ -2549,7 +2549,7 @@ export default function ElCabeza3D({ theme }) {
               paddingBottom: 18,
             }}
           >
-            <span ref={titleRef} onClick={handleTitleClick}>EL CABEZA</span>
+            <span ref={titleRef} className="ec-title" onClick={handleTitleClick}>EL CABEZA</span>
           </h1>
         </div>
 

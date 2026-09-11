@@ -1781,6 +1781,32 @@ export const styleSheet = `
      applies to every build that mounts this theme (standalone Neon
      and the unified app alike). */
   @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;500;600;700&display=swap');
+  /* Permanent CRT ghosting on the masthead glyphs themselves — not an
+     overlay div, but a scanline pattern clipped directly to the
+     letterforms via background-clip: text, plus a faint RGB-fringe
+     "persistence" ghost via text-shadow. Always on, independent of
+     the power-grid flicker (which still just toggles this element's
+     opacity, dimming the ghosted glyphs along with everything else),
+     the rare sparks, and the hold-gesture CRT transition elsewhere.
+     Falls back to plain solid glyphs — no scanlines, no clipping — in
+     any browser without background-clip: text support; the ghost
+     text-shadow alone still applies there. */
+  .ec-title {
+    position: relative;
+    text-shadow:
+      0 0 1px rgba(77, 232, 255, 0.22),
+      0.6px 0 0 rgba(77, 232, 255, 0.16),
+      -0.6px 0 0 rgba(255, 255, 255, 0.10);
+  }
+  @supports (background-clip: text) or (-webkit-background-clip: text) {
+    .ec-title {
+      background-color: currentColor;
+      background-image: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0px, rgba(0, 0, 0, 0.5) 1px, transparent 1px, transparent 3px);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  }
   /* Restrained hover glow — the one new interaction cue this theme adds.
      Purely cosmetic (box-shadow only); no layout, timing, or hit-testing
      is touched, so it cannot affect what a click actually does. */
