@@ -1,6 +1,7 @@
 import { chromium } from "playwright";
 import path from "path";
 import { fileURLToPath } from "url";
+import { openDockPanel, waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const target = process.argv[2];
@@ -16,16 +17,10 @@ await page.goto(`file://${file}`);
 await page.waitForTimeout(1200);
 
 // The dock starts as a spinning 3D piece preview; double-tap it to
-// bounce/open the settings panel (with Begin Game), same as a real player.
-const dockPieceCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
-const dockBox = await dockPieceCanvas.boundingBox();
-if (dockBox) {
-  const dpx = dockBox.x + dockBox.width / 2, dpy = dockBox.y + dockBox.height / 2;
-  await page.mouse.click(dpx, dpy);
-  await page.waitForTimeout(120);
-  await page.mouse.click(dpx, dpy);
-  await page.waitForTimeout(400);
-}
+// bounce/open the settings panel (with Begin Game), same as a real
+// player. Retries the gesture until confirmed open — see dock-helpers.mjs.
+const dockOpened = await openDockPanel(page);
+console.log(`[${target}] dock panel opened:`, dockOpened);
 
 await page.locator("button", { hasText: "Begin Game" }).click();
 await page.waitForTimeout(600);
@@ -73,18 +68,16 @@ if (selected) {
 }
 
 // Begin Game closed the dock panel behind it — it remorphs into the
-// piece and relocates to the bottom-right corner watermark over the
-// next ~1.3s. Double-tap that corner piece to reopen the panel (same
-// gesture a real player uses mid-game) before End Active Game is
-// reachable again.
-await page.waitForTimeout(1300);
-const cornerPieceCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
-const cornerBox = await cornerPieceCanvas.boundingBox();
-const cpx = cornerBox.x + cornerBox.width / 2, cpy = cornerBox.y + cornerBox.height / 2;
-await page.mouse.click(cpx, cpy);
-await page.waitForTimeout(120);
-await page.mouse.click(cpx, cpy);
-await page.waitForTimeout(400);
+// piece and relocates to the bottom-right corner watermark on a 900ms
+// delay plus its own 900ms CSS transition. Poll for that (rather than a
+// fixed sleep — this sandboxed test environment's real-world timing has
+// proven wildly variable, up to several seconds per interaction under
+// load), then double-tap it to reopen the panel, the same gesture a
+// real player uses mid-game — see dock-helpers.mjs.
+const cornerBox = await waitForDockCorner(page);
+console.log(`[${target}] dock piece reached corner:`, !!cornerBox);
+const reopened = cornerBox && (await reopenDockPanelFromCorner(page, cornerBox));
+console.log(`[${target}] panel reopened from corner:`, reopened);
 
 // End the game and check the Move Log popup.
 await page.locator("button", { hasText: "End Active Game" }).click();

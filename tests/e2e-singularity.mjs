@@ -1,6 +1,7 @@
 import { chromium } from "playwright";
 import path from "path";
 import { fileURLToPath } from "url";
+import { openDockPanel } from "./dock-helpers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const file = path.join(__dirname, "..", "dist", "el-cabeza-neon.html");
@@ -16,16 +17,10 @@ await page.waitForTimeout(1000);
 
 // The dock starts as a spinning 3D piece preview; double-tap it to
 // bounce/open the settings panel (with Anomaly/Begin Game), same as a
-// real player.
-const dockPieceCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
-const dockBox0 = await dockPieceCanvas.boundingBox();
-if (dockBox0) {
-  const dpx = dockBox0.x + dockBox0.width / 2, dpy = dockBox0.y + dockBox0.height / 2;
-  await page.mouse.click(dpx, dpy);
-  await page.waitForTimeout(120);
-  await page.mouse.click(dpx, dpy);
-  await page.waitForTimeout(400);
-}
+// real player. Retries the gesture until confirmed open — see
+// dock-helpers.mjs.
+const dockOpened = await openDockPanel(page);
+console.log("dock panel opened:", dockOpened);
 
 const anomalyBtn = page.locator("button", { hasText: "Anomaly" });
 console.log("Anomaly button present:", await anomalyBtn.count());

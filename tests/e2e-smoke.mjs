@@ -1,6 +1,7 @@
 import { chromium } from "playwright";
 import path from "path";
 import { fileURLToPath } from "url";
+import { openDockPanel } from "./dock-helpers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -40,16 +41,10 @@ console.log(`[${target}] title text:`, JSON.stringify(title));
 // The dock starts as a spinning 3D piece preview; double-tapping it
 // bounces it into the settings panel (with Begin Game) — same gesture
 // a real player uses, so simulate it here rather than assuming the
-// panel is already open.
-const dockPieceCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
-const dockBox = await dockPieceCanvas.boundingBox();
-if (dockBox) {
-  const dpx = dockBox.x + dockBox.width / 2, dpy = dockBox.y + dockBox.height / 2;
-  await page.mouse.click(dpx, dpy);
-  await page.waitForTimeout(120);
-  await page.mouse.click(dpx, dpy);
-  await page.waitForTimeout(400);
-}
+// panel is already open. Retries the gesture until confirmed open
+// rather than a single fixed-timing attempt — see dock-helpers.mjs.
+const dockOpened = await openDockPanel(page);
+console.log(`[${target}] dock panel opened:`, dockOpened);
 
 // Click Begin Game.
 const beginBtn = page.locator("button", { hasText: "Begin Game" });

@@ -281,24 +281,71 @@ export default function ElCabeza3D({ theme }) {
 
   /* ------------------- Dock piece (idle 3D preview) ------------------
      The dock has three views (dockView): "piece" (a small, always-
-     spinning 3D render of the human's own Cabeza piece — the disc,
-     built with the exact same theme.buildPieceVisual()/engine
-     proportions the real board uses, just standing alone in its own
-     tiny scene), "panel" (today's actual controls), and "corner" (the
-     same piece, shrunk and faded into a bottom-right watermark once a
-     game is under way). Double-clicking/double-tapping the piece in
-     either "piece" or "corner" view bounces it and opens "panel";
-     Begin Game reverses that (panel -> piece -> corner, on a short
-     delay so the remorph is visible before it relocates). A fresh game
-     (awaitingBegin true again) snaps straight back to "piece". */
+     spinning 3D render of that session's randomly-chosen Cabeza-set
+     piece — one of the five real piece types, built with the exact
+     same theme.buildPieceVisual()/engine proportions the real board
+     uses, just standing alone in its own tiny scene), "panel" (today's
+     actual controls), and "corner" (the same piece, shrunk and faded
+     into a bottom-right watermark once a game is under way). Double-
+     clicking/double-tapping the piece in either "piece" or "corner"
+     view bounces it and opens "panel"; Begin Game reverses that (panel
+     -> piece -> corner, on a short delay so the remorph is visible
+     before it relocates). A fresh game (awaitingBegin true again) snaps
+     straight back to "piece" and re-rolls which piece/color represents
+     the new session (see the dockSessionSeed effect below). */
   const [dockView, setDockView] = useState("piece"); // "piece" | "panel" | "corner"
   const dockPieceMountRef = useRef(null);
   const dockPieceRef = useRef(null); // { scene, camera, renderer, pieceGroup, spin, velocity, dragging, bouncing }
   const dockDragRef = useRef({ dragging: false, lastX: 0, lastY: 0, lastT: 0 });
   const dockLastTapRef = useRef(0);
 
+  /* One representative orientation per piece type — just enough to
+     render a recognizable, correctly-proportioned standalone model;
+     not the full board-placement orientation logic (that stays
+     theme-owned for Anomaly). Kept here, theme-agnostic, because
+     Standard has no orientation table of its own (no Anomaly button to
+     need one) but still needs to render every piece shape in its dock. */
+  const DOCK_PIECE_ORIENTATIONS = {
+    cabeza: { w: 1, h: 1, z: 1 },
+    turrito: { w: 1, h: 1, z: 1 },
+    opa: { w: 2, h: 2, z: 2 },
+    flaco: { w: 1, h: 1, z: 2 },
+    chato: { w: 2, h: 2, z: 1 },
+  };
+  const DOCK_PIECE_TYPES = Object.keys(DOCK_PIECE_ORIENTATIONS);
+
+  /* That session's randomly-chosen piece type and (for Human-vs-Human,
+     where there's no single "your side" to match) randomly-chosen
+     color — re-rolled once per fresh session, not on every render. In
+     an AI-opponent game the color instead tracks humanStartSide live
+     (see the mesh-building effect below), so dockSessionColor is only
+     ever actually used while aiPlayer is null. */
+  const [dockSessionPieceType, setDockSessionPieceType] = useState(
+    () => DOCK_PIECE_TYPES[Math.floor(Math.random() * DOCK_PIECE_TYPES.length)]
+  );
+  const [dockSessionColor, setDockSessionColor] = useState(
+    () => (Math.random() < 0.5 ? "dark" : "light")
+  );
+
   useEffect(() => {
     if (awaitingBegin) setDockView("piece");
+  }, [awaitingBegin]);
+
+  // A fresh session (New Game, or switching opponent type) re-rolls
+  // which piece type — and, for Human vs Human, which color — the dock
+  // piece represents, same moment it snaps back to "piece" above. The
+  // very first mount already got its roll from the useState initializers
+  // above, so this only fires on actual return-to-awaitingBegin transitions.
+  const dockSessionMountedRef = useRef(false);
+  useEffect(() => {
+    if (!dockSessionMountedRef.current) {
+      dockSessionMountedRef.current = true;
+      return;
+    }
+    if (!awaitingBegin) return;
+    setDockSessionPieceType(DOCK_PIECE_TYPES[Math.floor(Math.random() * DOCK_PIECE_TYPES.length)]);
+    setDockSessionColor(Math.random() < 0.5 ? "dark" : "light");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awaitingBegin]);
 
   useEffect(() => {
@@ -321,22 +368,45 @@ export default function ElCabeza3D({ theme }) {
     else if (prev === "panel") audioRef.current.playDockClose();
   }, [dockView]);
 
+  // Reopening the panel mid-game (double-tapping the corner watermark)
+  // can also be dismissed by clicking anywhere outside it, back to the
+  // corner — a lighter-weight way out than Begin Game, which only makes
+  // sense pre-game anyway. Not attached before Begin Game: the initial
+  // piece -> panel open has no such "just glance and close" use case,
+  // and Begin Game is already the deliberate way through it.
+  useEffect(() => {
+    if (dockView !== "panel" || awaitingBegin) return;
+    const onPointerDown = (ev) => {
+      if (cardRef.current && !cardRef.current.contains(ev.target)) {
+        setDockView("corner");
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [dockView, awaitingBegin]);
+
   // Bounces the piece (a quick decaying squash/stretch on its group
-  // scale), then opens the panel once the bounce settles.
+  // scale), then opens the panel once the bounce settles. Squashes
+  // around the piece's own base scale (see pieceBaseScale in the
+  // mesh-building effect below) rather than 1 — every piece type is
+  // normalized to a consistent apparent size in this tiny preview, so
+  // bouncing back to a bare 1 would visibly snap a smaller/larger piece
+  // to the wrong size for one frame.
   const triggerDockBounce = useCallback(() => {
     const state = dockPieceRef.current;
     if (!state || state.bouncing) return;
     state.bouncing = true;
     const start = performance.now();
     const DUR = 260;
+    const base = state.pieceBaseScale || 1;
     const tick = (now) => {
       const t = Math.min(1, (now - start) / DUR);
       const s = 1 + Math.sin(t * Math.PI) * 0.24 * (1 - t);
-      state.pieceGroup.scale.set(1 / Math.sqrt(s), s, 1 / Math.sqrt(s));
+      state.pieceGroup.scale.set((base / Math.sqrt(s)), base * s, (base / Math.sqrt(s)));
       if (t < 1) {
         requestAnimationFrame(tick);
       } else {
-        state.pieceGroup.scale.set(1, 1, 1);
+        state.pieceGroup.scale.set(base, base, base);
         state.bouncing = false;
         setDockView("panel");
       }
@@ -445,6 +515,12 @@ export default function ElCabeza3D({ theme }) {
 
     const state = {
       scene, camera, renderer, pieceGroup,
+      // Normalizes whichever piece type this session rolled to a
+      // consistent apparent size in this tiny, fixed-camera preview —
+      // see the mesh-building effect below, which sets this every time
+      // it (re)builds the mesh. Defaults to 1 (the disc's own natural
+      // size) until that effect has run at least once.
+      pieceBaseScale: 1,
       // Baseline idle angular velocity per axis (rad/s) — re-wandered
       // continuously below rather than held fixed, so the idle spin
       // reads as "meandering" instead of a flat, predictable spin.
@@ -467,9 +543,10 @@ export default function ElCabeza3D({ theme }) {
       state.spin.z = 0.08 + 0.08 * Math.sin(t * 0.17 + 2.6);
       if (!state.dragging) {
         // Decays whatever velocity a drag left behind back toward the
-        // idle meander — "rapidly slowing to regular slow rotational
-        // speed" rather than coasting forever or stopping dead.
-        const decay = Math.exp(-dt * 3.2);
+        // idle meander — slow enough that a real flick keeps spinning
+        // for a while, rather than snapping back to idle in under a
+        // second.
+        const decay = Math.exp(-dt * 0.9);
         state.velocity.x = state.spin.x + (state.velocity.x - state.spin.x) * decay;
         state.velocity.y = state.spin.y + (state.velocity.y - state.spin.y) * decay;
         state.velocity.z = state.spin.z + (state.velocity.z - state.spin.z) * decay;
@@ -490,12 +567,18 @@ export default function ElCabeza3D({ theme }) {
     };
   }, []);
 
-  // Builds (and rebuilds, on a side change) the actual piece mesh —
-  // the same disc geometry and the current theme's own
-  // buildPieceVisual(), so it's genuinely proportional to how a Cabeza
-  // reads on the real board, not a bespoke decorative model. Color
-  // follows humanStartSide live, since this is meant to read as "the
-  // player's own piece" from the moment they pick a side.
+  // Builds (and rebuilds, whenever the session's chosen type/color or
+  // the live opponent selection changes) the actual piece mesh — real
+  // engine geometry (disc or rounded box, per PIECE_META) through the
+  // current theme's own buildPieceVisual(), so whichever piece got
+  // rolled for this session is genuinely proportional to how it reads
+  // on the real board, not a bespoke decorative model. In an
+  // AI-opponent game, color follows whichever side the human actually
+  // plays live — the color aiPlayer does NOT control, never
+  // humanStartSide (that's a Human-vs-Human-only preference, inactive
+  // and not meaningful once an AI opponent is picked). In Human vs
+  // Human there's no single "your side" either, so it stays whatever
+  // dockSessionColor was randomly rolled for this session.
   useEffect(() => {
     const state = dockPieceRef.current;
     if (!state) return;
@@ -505,17 +588,56 @@ export default function ElCabeza3D({ theme }) {
       c.geometry && c.geometry.dispose();
       c.material && c.material.dispose();
     }
-    const isDark = humanStartSide === "dark";
-    const geo = new THREE.CylinderGeometry(
-      (DISC_DIAM * PIECE_SCALE) / 2,
-      (DISC_DIAM * PIECE_SCALE) / 2,
-      DISC_H * PIECE_SCALE,
-      40
-    );
-    const fakePiece = { id: "dock-preview-cabeza", type: "cabeza", owner: isDark ? "dark" : "light" };
-    const { mesh, shell } = theme.buildPieceVisual({ piece: fakePiece, isDark, isDisc: true, geo, center: { x: 0, z: 0 }, y: 0 });
+    const side = aiPlayer !== null ? (aiPlayer === "dark" ? "light" : "dark") : dockSessionColor;
+    const isDark = side === "dark";
+    const meta = PIECE_META[dockSessionPieceType];
+    const isDisc = meta.shape === "disc";
+    const orientation = DOCK_PIECE_ORIENTATIONS[dockSessionPieceType];
+    const geo = isDisc
+      ? new THREE.CylinderGeometry(
+          (DISC_DIAM * PIECE_SCALE) / 2,
+          (DISC_DIAM * PIECE_SCALE) / 2,
+          DISC_H * PIECE_SCALE,
+          40
+        )
+      : makeRoundedBox(
+          orientation.w * PIECE_SCALE,
+          orientation.z * PIECE_SCALE,
+          orientation.h * PIECE_SCALE,
+          EDGE_RADIUS
+        );
+    // w/h/z are required here even though `geo` above already has the
+    // real dimensions baked in — both themes' buildPieceVisual() read
+    // piece.w/h/z directly (not the geo argument) to build each piece's
+    // separate outline/glow shell geometry. Omitting them silently
+    // passed NaN into that second geometry (piece.w * PIECE_SCALE with
+    // piece.w undefined), corrupting its bounding sphere.
+    const fakePiece = {
+      id: "dock-preview",
+      type: dockSessionPieceType,
+      owner: isDark ? "dark" : "light",
+      w: orientation.w,
+      h: orientation.h,
+      z: orientation.z,
+    };
+    const { mesh, shell } = theme.buildPieceVisual({ piece: fakePiece, isDark, isDisc, geo, center: { x: 0, z: 0 }, y: 0 });
     pieceGroup.add(mesh, shell);
-  }, [humanStartSide, theme]);
+
+    // The dock's camera/framing was tuned around the disc's own
+    // footprint — the biggest block pieces (opa, and flaco/chato in
+    // some orientations) are up to 2x that across and would otherwise
+    // clip against the tiny preview's edges. Normalizing every piece
+    // type to the disc's apparent size keeps whichever one got rolled
+    // this session comfortably inside frame, without distorting its
+    // own true proportions (every axis is scaled together, uniformly).
+    const targetSize = DISC_DIAM * PIECE_SCALE;
+    const ownMaxDim = isDisc
+      ? DISC_DIAM * PIECE_SCALE
+      : Math.max(orientation.w, orientation.h, orientation.z) * PIECE_SCALE;
+    const baseScale = targetSize / ownMaxDim;
+    state.pieceBaseScale = baseScale;
+    if (!state.bouncing) pieceGroup.scale.set(baseScale, baseScale, baseScale);
+  }, [aiPlayer, dockSessionColor, dockSessionPieceType, theme]);
 
   /* Mirrors the audio engine's own `windingDown` flag but at the
      component level: flips true once a win or a manual end fires, so
@@ -2970,6 +3092,8 @@ export default function ElCabeza3D({ theme }) {
          two ever being shown at literally the same instant. */}
       <div
         ref={cardRef}
+        data-testid="dock-panel"
+        data-open={dockView === "panel"}
         style={{
           position: "fixed",
           left: "50%",
