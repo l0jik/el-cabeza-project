@@ -1,0 +1,2224 @@
+/* Neon theme: palette, piece-edge rounding, board visuals, the
+   Anomaly random-setup generator, the position-tension reading used to
+   drive ambient audio, and the full Web Audio ambient/SFX engine.
+   Extracted from el-cabeza-neon-3d.html.
+
+   createSoundscape is fully self-contained (no engine or other theme
+   dependencies) — it only touches the Web Audio API — so it is kept
+   whole rather than split further. Everything else here mirrors
+   themes/standard.js's shape (COLORS/HEX/EDGE_RADIUS/makeBoardTexture/
+   makeGrid) plus Neon-exclusive additions with no Standard equivalent
+   (PIECE_ORIENTATIONS/generateAnomalySetup for the Anomaly button,
+   computeTension for the ambient hum, makeGridGlowTexture for the
+   bloom pass). */
+
+import * as THREE from "three";
+import { BOARD_SIZE, SLAB, MARGIN, SQUARE_SIZE, OFF, GRID_EXTENT, GOAL_ROW } from "../engine/constants.js";
+import { opponentOf, cabezaInDanger } from "../engine/ai.js";
+
+/* Everything visual in this experimental skin lives in these two
+   objects (COLORS for the DOM/CSS layer, HEX for the Three.js scene
+   just below) plus a handful of Three.js material constants marked
+   "theme:" in comments near their use. Nothing outside these islands
+   was touched — every rule, AI weight, camera constant, and state
+   handler is byte-for-byte the same as the original light build. To
+   restore the original look, swap these two objects (and the marked
+   material lines) back; nothing else needs to change.
+
+   The four neutral roles (surface/surfaceAlt/ink/inkMuted) keep their
+   ORIGINAL names (cream/creamAlt/charcoal/slate) so every existing
+   style rule that already reads COLORS.cream or COLORS.charcoal just
+   inherits the new dark values automatically — only the handful of
+   spots that used charcoal/cream to mean "Dark player" / "Light
+   player" specifically (see accentDark/accentLight below) were
+   re-pointed at the new dedicated player-accent tokens, since blindly
+   inverting lightness on a shared token would have made both players'
+   chips read as "ink vs. surface" instead of two distinct hues. */
+export const COLORS = {
+  /* Card / panel surface — was near-white, now the near-black glass
+     the whole UI sits on. */
+  cream: "#0B0F14",
+  creamAlt: "#10151C",
+  /* Primary ink — was near-black text on a light card, now a cool
+     ice-white for text/borders on the new dark surfaces. */
+  charcoal: "#D9E7EC",
+  /* Secondary/muted ink — kept the same relative role, shifted cool. */
+  slate: "#5C7A88",
+  slateSoft: "rgba(93, 197, 227, 0.22)",
+  slateFaint: "rgba(93, 197, 227, 0.10)",
+  /* Outer page background, behind the app card. */
+  pageBg: "#080B12",
+  pageBgDeep: "#020305",
+  /* New: dedicated player-identity accents. Player chips, the current-
+     player dot, and the win placard read these directly instead of
+     the ink/surface pair above, so "whose piece is this" stays a
+     single, consistent hue per side rather than a light/dark
+     inversion that a dark theme would otherwise muddy. */
+  accentDark: "#4DE8FF", // Dark player's glow/halo — electric cyan
+  accentLight: "#FFB454", // Light player's glow/halo — warm amber
+  accentDanger: "#FF3D7A", // capture/crush warning, distinct from both players
+  /* Player chip FILL colors — matched to the actual rendered piece
+     materials (see HEX.charcoal/HEX.pieceLight in the 3D scene) rather
+     than the saturated accent hues above. Every player-colored circle
+     or button uses one of these for its fill and the matching accent
+     above only as a border/box-shadow halo, so a UI chip reads as "the
+     piece, glowing" instead of "a solid accent-colored swatch." */
+  bodyDark: "#0D1116",
+  bodyLight: "#FFFFFF",
+  /* Near-black text placed ON TOP of a bright/pale fill (player chips)
+     for guaranteed contrast. */
+  inkOnAccent: "#06090D",
+};
+
+export const HEX = {
+  /* Kept in sync with COLORS.cream, same reasoning as before. */
+  cream: 0x0b0f14,
+  /* Light piece body — cool pale steel instead of warm tan, so its
+     amber emissive edge (see the piece-material build effect) reads
+     as a deliberate accent rather than fighting the base color. */
+  pieceLight: 0xb9c4ce,
+  /* Dark piece body. Also still used for the grid's outer border line
+     — see makeGrid, unchanged call site, new value. */
+  charcoal: 0x0d1116,
+  /* Grid line color — dim, desaturated steel-blue; opacity is turned
+     down at the call site too, since a tinted line reads busier than
+     a neutral gray one at the same alpha. */
+  slate: 0x24414c,
+  /* Slab side material — was light wood, now a near-black voxel body;
+     roughness/metalness are adjusted at the call site for a faint
+     brushed-metal sheen. */
+  wood: 0x11151c,
+  /* New: the two per-player neon rim colors, used on the piece outline
+     shell (the existing silhouette trick — see build-pieces) and on
+     the move/ghost indicator lines, so a piece's glow and the move
+     options it's showing share one hue per side. */
+  glowCyan: 0x4de8ff,
+  glowAmber: 0xffb454,
+  /* Per feedback, the Light piece OUTLINE specifically uses a darker,
+     more saturated orange than the body's own pale amber accent above
+     — distinct color, not just a dimmed version of glowAmber. */
+  glowAmberOutline: 0xcc5c0e,
+  /* New: capture-move indicator color — distinct from both player
+     accents so "this move captures" reads as its own signal. */
+  glowMagenta: 0xff3d7a,
+  /* New: neutral structural edge color for the board's own border —
+     deliberately dimmer/cooler than either player accent, so the
+     board itself still reads as neutral architecture, not as
+     belonging to one side. */
+  structureEdge: 0x3f6472,
+};
+
+/* Edge rounding, in board units where one square = 1 inch. 0.125 = a
+   1/8" roundover. This is the single number to tune. */
+export const EDGE_RADIUS = 0.03;
+
+/* Each type's possible footprints — every way its physical block can
+   be stood on the board. Turrito and Opa are true cubes (1x1x1 and
+   2x2x2) and Cabeza is a disc, so each has exactly one orientation;
+   Flaco (a 1x1x2 block) and Chato (a 1x2x2 block) each have a repeated
+   pair of dimensions plus one different one, so each has exactly 3
+   distinct standing orientations — which axis (w, h, or z) gets the
+   odd-one-out size. Per feedback, the ANOMALY generator below picks
+   one of these per piece too, not just a position — e.g. Flaco
+   "standing upright" is its {w:1,h:1,z:2} orientation, Chato "laying
+   down" is its {w:2,h:2,z:1} one. Movement itself needs no changes for
+   this: rolling is already fully generic over whatever w/h/z a piece
+   currently has (that's how Opa's 2x2 and Turrito's 1x1 already
+   coexist under the same rules), so a reoriented Flaco just moves
+   exactly like any other piece with a 1x1 footprint and z:2 height
+   already would. */
+export const PIECE_ORIENTATIONS = {
+  flaco: [
+    { w: 1, h: 2, z: 1 },
+    { w: 2, h: 1, z: 1 },
+    { w: 1, h: 1, z: 2 },
+  ],
+  turrito: [{ w: 1, h: 1, z: 1 }],
+  cabeza: [{ w: 1, h: 1, z: 1 }],
+  chato: [
+    { w: 1, h: 2, z: 2 },
+    { w: 2, h: 1, z: 2 },
+    { w: 2, h: 2, z: 1 },
+  ],
+  opa: [{ w: 2, h: 2, z: 2 }],
+};
+
+export function shuffledIndices(n) {
+  const arr = Array.from({ length: n }, (_, i) => i);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/* theme: the ANOMALY button (setup-phase only, see its JSX) generates a
+   fresh random opening layout that's rotationally symmetrical — each
+   side's own five pieces confined entirely to its own back two rows,
+   and Light's arrangement is always the exact 180-degree rotation of
+   Dark's (the same piece type sitting at the point-reflected cell).
+   Only Dark's five pieces are ever actually placed/randomized; Light's
+   are derived by reflecting each one through the board's center
+   (row -> BOARD_SIZE - row - h, col -> BOARD_SIZE - col - w). That's
+   what GUARANTEES the symmetry and both sides' row confinement at
+   once, rather than generating and separately validating two halves —
+   reflecting a cell that's within Dark's rows {0,1} always lands
+   within Light's rows {BOARD_SIZE-2, BOARD_SIZE-1}, automatically.
+   Bigger pieces are placed first (greedy) since they're the most
+   constrained; only 10 of the 20 cells in the 2-row band ever need to
+   be filled, so a handful of shuffled retries is enough to succeed
+   essentially every time. */
+export function generateAnomalySetup() {
+  const types = ["opa", "chato", "flaco", "turrito", "cabeza"];
+  for (let attempt = 0; attempt < 300; attempt++) {
+    const occupied = new Set();
+    const placed = [];
+    let ok = true;
+    for (const type of types) {
+      const orientations = PIECE_ORIENTATIONS[type];
+      const { w, h, z } = orientations[Math.floor(Math.random() * orientations.length)];
+      const rowOptions = [];
+      for (let row = 0; row <= 2 - h; row++) rowOptions.push(row);
+      const colOptions = [];
+      for (let col = 0; col <= BOARD_SIZE - w; col++) colOptions.push(col);
+      const rowOrder = shuffledIndices(rowOptions.length).map((i) => rowOptions[i]);
+      const colOrder = shuffledIndices(colOptions.length).map((i) => colOptions[i]);
+      let placedThis = false;
+      for (const row of rowOrder) {
+        for (const col of colOrder) {
+          let free = true;
+          for (let r = row; r < row + h && free; r++) {
+            for (let c = col; c < col + w; c++) {
+              if (occupied.has(r * BOARD_SIZE + c)) { free = false; break; }
+            }
+          }
+          if (free) {
+            for (let r = row; r < row + h; r++) for (let c = col; c < col + w; c++) occupied.add(r * BOARD_SIZE + c);
+            placed.push({ type, row, col, w, h, z });
+            placedThis = true;
+            break;
+          }
+        }
+        if (placedThis) break;
+      }
+      if (!placedThis) { ok = false; break; }
+    }
+    if (ok) {
+      const pieces = [];
+      placed.forEach((p) => {
+        pieces.push({ id: `dark-${p.type}`, type: p.type, owner: "dark", row: p.row, col: p.col, w: p.w, h: p.h, z: p.z });
+        pieces.push({
+          id: `light-${p.type}`,
+          type: p.type,
+          owner: "light",
+          row: BOARD_SIZE - p.row - p.h,
+          col: BOARD_SIZE - p.col - p.w,
+          w: p.w,
+          h: p.h,
+          z: p.z,
+        });
+      });
+      return pieces;
+    }
+  }
+  return createInitialPieces(); // astronomically unlikely fallback
+}
+
+/* theme: a 0-1 "tension" reading of the current position, purely for
+   the ambient hum's resonance rate (see audioRef.current.setTension) —
+   never read by the AI or the rules. Combines, for each side's Cabeza:
+   whether it's actually in danger of being crushed this move (full
+   tension), a softer proximity-based ramp as any enemy piece merely
+   gets physically closer (a rough, cheap proxy for "closer to being
+   in danger" without a full move-legality lookahead), and how close it
+   is to its own goal row ("about to win"). Takes the maximum across
+   both sides and both conditions, since this is atmosphere for
+   whoever's watching, not a per-player signal. */
+export function computeTension(pieces) {
+  let tension = 0;
+  ["dark", "light"].forEach((owner) => {
+    const cabeza = pieces.find((p) => p.type === "cabeza" && p.owner === owner);
+    if (!cabeza) {
+      tension = 1; // already crushed — as tense as it gets
+      return;
+    }
+    const oppPlayer = opponentOf(owner);
+
+    const dangerNow = cabezaInDanger(pieces, owner) ? 1 : 0;
+    let minDist = Infinity;
+    pieces.forEach((p) => {
+      if (p.owner !== oppPlayer || p.type === "cabeza") return;
+      const d = Math.max(Math.abs(p.row - cabeza.row), Math.abs(p.col - cabeza.col));
+      if (d < minDist) minDist = d;
+    });
+    const proximityTension = minDist === Infinity ? 0 : Math.max(0, 1 - minDist / 3);
+    tension = Math.max(tension, dangerNow, proximityTension * 0.7);
+
+    const distToGoal = Math.abs(GOAL_ROW[owner] - cabeza.row);
+    const winTension = Math.max(0, 1 - distToGoal / 3);
+    tension = Math.max(tension, winTension);
+  });
+  return Math.min(1, tension);
+}
+
+export function makeBoardTexture() {
+  const RES = 2048;
+  const canvas = document.createElement("canvas");
+  canvas.width = RES;
+  canvas.height = RES;
+  const ctx = canvas.getContext("2d");
+  const pxPerUnit = RES / SLAB;
+  const pad = MARGIN * pxPerUnit;
+  const squarePx = SQUARE_SIZE * pxPerUnit;
+
+  ctx.fillStyle = COLORS.cream;
+  ctx.fillRect(0, 0, RES, RES);
+
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const isGoal = r === 0 || r === BOARD_SIZE - 1;
+      if (isGoal) {
+        /* theme: a faint cyan wash instead of neutral gray — still the
+           same functional marker (the two win-condition rows), just in
+           the accent hue instead of a plain tint. */
+        ctx.fillStyle = "rgba(77, 232, 255, 0.05)";
+        ctx.fillRect(pad + c * squarePx, pad + r * squarePx, squarePx, squarePx);
+      }
+    }
+  }
+
+  /* theme: a very subtle radial vignette, purely a texture draw — gives
+     the slab a faint sense of architectural depth (brighter center,
+     darker toward the frame) without touching any geometry, raycasting,
+     or the grid lines drawn as real 3D objects on top of this. */
+  const vignette = ctx.createRadialGradient(RES / 2, RES / 2, RES * 0.2, RES / 2, RES / 2, RES * 0.72);
+  vignette.addColorStop(0, "rgba(0,0,0,0)");
+  vignette.addColorStop(1, "rgba(0,0,0,0.35)");
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, RES, RES);
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+/* A blurred copy of the grid+border pattern, baked into a texture via
+   canvas 2D's own shadowBlur (a genuine gaussian-ish blur around each
+   stroke) rather than just raising a crisp line's opacity again. This
+   is what gives the grid actual "bloom" — a soft halo around each
+   line — without a real WebGL post-process bloom pass, which the
+   plain UMD three.js build loaded here doesn't include. */
+export function makeGridGlowTexture() {
+  const RES = 1024;
+  const canvas = document.createElement("canvas");
+  canvas.width = RES;
+  canvas.height = RES;
+  const ctx = canvas.getContext("2d");
+  const pxPerUnit = RES / GRID_EXTENT;
+  ctx.lineCap = "round";
+  ctx.shadowColor = "#4de8ff";
+  ctx.shadowBlur = 32.2; // +15% per feedback ("increase glow / bloom of ... lattice lines 15%")
+  ctx.strokeStyle = "rgba(130,228,255,0.9775)";
+  ctx.lineWidth = 2.53; // +15%
+  for (let i = 0; i <= BOARD_SIZE; i++) {
+    const p = i * SQUARE_SIZE * pxPerUnit;
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, RES);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, p);
+    ctx.lineTo(RES, p);
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 38;
+  ctx.strokeStyle = "rgba(150,235,255,0.95)";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(3, 3, RES - 6, RES - 6);
+  return new THREE.CanvasTexture(canvas);
+}
+
+/* theme: a world-space shader decal was tried here to make grid lines
+   show through every piece regardless of size (a real limitation of
+   plain depth-compositing transparency on short, small-footprint
+   pieces) — reverted per feedback: it sampled the grid pattern by
+   world X/Z on every fragment regardless of which face it belonged
+   to, so a piece's SIDE faces (spanning a range of Y at one X/Z
+   column) picked up the flat top-down grid pattern too, reading as a
+   constant wireframe embossed on/inside the piece rather than genuine
+   see-through, and much more visible on dark pieces than light ones
+   by sheer contrast. Pieces are plain, ordinary transparency again —
+   see the material below. */
+export function makeGrid() {
+  const group = new THREE.Group();
+  const lines = [];
+
+  for (let i = 0; i <= BOARD_SIZE; i++) {
+    const p = i * SQUARE_SIZE - OFF;
+    lines.push(p, 0, -OFF, p, 0, OFF);
+    lines.push(-OFF, 0, p, OFF, 0, p);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(lines, 3));
+  const gridLines = new THREE.LineSegments(
+    geo,
+    /* theme: additive blending is what actually reads as "glowing"
+       against the dark board — brightness stacks where lines cross
+       instead of just sitting at a flat alpha, which is the cheapest
+       real glow available without a post-process bloom pass.
+       depthWrite: false keeps the glow from fighting the grid's own
+       later-drawn siblings (border, pieces) in the depth buffer. */
+    new THREE.LineBasicMaterial({
+      color: HEX.slate,
+      transparent: true,
+      opacity: 0.507, // +15%, then a further +5% per feedback ("increase all neon glow 5%")
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  gridLines.position.y = 0.004;
+  /* theme: fixes a real bug reported as an "unexpected lighting
+     continuity issue" when panning/rotating the camera with
+     translucent pieces on the board. Three.js sorts same-renderOrder
+     transparent objects by distance from camera, and this group's own
+     bounding-sphere distance (the whole board, one object) versus any
+     given piece's distance can flip which one is judged "farther" as
+     the camera moves — when that flip happens, whichever object draws
+     second changes, and since order affects the blended result, the
+     piece's apparent brightness/grid visibility visibly jumps at that
+     crossover, reading as a discontinuity rather than a smooth reveal.
+     A fixed, negative renderOrder here (see also border/glow below)
+     makes the whole grid group always draw before any piece
+     regardless of distance, removing the flip entirely. */
+  gridLines.renderOrder = -10;
+  group.add(gridLines);
+
+  const borderGeo = new THREE.BufferGeometry();
+  borderGeo.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(
+      [
+        -OFF, 0, -OFF, OFF, 0, -OFF,
+        OFF, 0, -OFF, OFF, 0, OFF,
+        OFF, 0, OFF, -OFF, 0, OFF,
+        -OFF, 0, OFF, -OFF, 0, -OFF,
+      ],
+      3
+    )
+  );
+  const border = new THREE.LineSegments(
+    borderGeo,
+    /* theme: the board's defining edge, in the neutral structural-glow
+       color rather than solid ink — this is the one line most worth
+       spending the "thin luminous edge" language on, so it also gets
+       the additive treatment above. */
+    new THREE.LineBasicMaterial({
+      color: HEX.structureEdge,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  border.position.y = 0.006;
+  border.renderOrder = -10; // see gridLines.renderOrder comment above
+  group.add(border);
+
+  /* theme: the actual bloom halo — a soft-blurred copy of the same
+     pattern, sitting just above the crisp lines, additively blended so
+     it only ever brightens, never obscures. */
+  const glow = new THREE.Mesh(
+    new THREE.PlaneGeometry(GRID_EXTENT, GRID_EXTENT),
+    new THREE.MeshBasicMaterial({
+      map: makeGridGlowTexture(),
+      transparent: true,
+      opacity: 0.7245, // +15%, then a further +5% per feedback ("increase all neon glow 5%")
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  );
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.y = 0.009;
+  glow.renderOrder = -10; // see gridLines.renderOrder comment above
+  group.add(glow);
+
+  return group;
+}
+
+/* A synthesized ambient bed (Web Audio API, no external assets) plus a
+   sparse, randomized layer of "machine is alive" micro-events, plus a
+   handful of short gameplay cues. Entirely isolated from game state —
+   every call site below is a single fire-and-forget method call from
+   an existing state transition (select, move, capture, win, camera
+   zoom); nothing in here can read or change what actually happens on
+   the board, and if Web Audio is unavailable the game stays fully
+   playable, just silent.
+
+   Autoplay policies require a user gesture before any audio can
+   start, so ensureStarted() is idempotent and cheap to call from
+   anywhere — it's wired to the first pointer-down on the board. */
+export function createSoundscape() {
+  const MASTER_GAIN = Math.pow(10, 17 / 20); // +4dB, +10dB, then a further +3dB per feedback ("maximize the overall gain across every audio channel") — +17dB total, applied once at the final stage
+  let ctx = null;
+  let master = null; // overall output, respects mute
+  let ambientGain = null; // hum + noise bed, scaled live by zoom
+  let introGain = null; // 0->1 fade multiplier on the ambient bed only, see beginGameFadeIn
+  let crackleGain = null; // silent until close to max zoom — see setZoom/startCrackle
+  let crackleHissGain = null; // brown-noise bed under the crackle, same zoom curve at ~5% of its peak
+  let eventsGain = null; // random micro-events
+  let sfxGain = null; // gameplay cues — stays audible above the ambience
+  let reverbNode = null; // short synthetic impulse, for the landing thud
+  let cathedralReverb = null; // long synthetic impulse, built lazily for the choir stab only
+  let choirMasterEnv = null; // the active choir stab's master gain, so an early close can cut it short
+  let choirEndTime = 0; // ctx.currentTime at which the active choir stab naturally finishes
+  let thudShaper = null; // crunch/distortion stage shared by landing thuds
+  let muted = false;
+  let started = false;
+  let disposed = false;
+  let windingDown = false; // true once a win fires — ambient schedulers stop re-arming, master gain fades to 0
+  let wanderFn = null; // the hum's buzz-wander recursive step, stashed so resetWindDown can re-arm it after a win
+  let grainFn = null; // the crackle's grain recursive step, stashed for the same reason
+  let noiseBuffer = null;
+  let brownNoiseBuffer = null;
+  let scheduleTimer = null;
+  let buzzWanderTimer = null;
+  let crackleTimer = null;
+  const recentEvents = [];
+  // The hum's own "breathing" resonance LFOs — kept here so setTension
+  // (see below) can speed them up live as a Cabeza gets closer to
+  // danger or to winning, rather than only being set once at start.
+  let humLfo1 = null;
+  let humLfo2 = null;
+  let humLfo1BaseFreq = 0;
+  let humLfo2BaseFreq = 0;
+  let tension = 0; // 0-1, settable before ensureStarted — applied once the hum actually starts
+
+  const nowT = () => ctx.currentTime;
+
+  function makeNoiseBuffer() {
+    const len = ctx.sampleRate * 2;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+
+  /* Brown (red) noise via leaky integration of white noise — each
+     sample is a damped running sum of the last, which biases energy
+     toward the low end for a warmer, duller hiss than the white-noise
+     buffer above. Re-gained afterward since integration collapses the
+     raw amplitude a great deal. */
+  function makeBrownNoiseBuffer() {
+    const len = ctx.sampleRate * 2;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < len; i++) {
+      const white = Math.random() * 2 - 1;
+      last = (last + 0.02 * white) / 1.02;
+      data[i] = last * 3.5;
+    }
+    return buf;
+  }
+
+  /* A short synthetic impulse response — decaying noise, not a
+     recording — for a ConvolverNode. Gives a percussive hit a sense
+     of a small, hard room around it ("short reverb") without needing
+     any external audio asset. */
+  function makeImpulse(duration, decay) {
+    const len = Math.floor(ctx.sampleRate * duration);
+    const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+      }
+    }
+    return buf;
+  }
+
+  function noiseSource() {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer;
+    src.loop = true;
+    return src;
+  }
+
+  function brownNoiseSource() {
+    const src = ctx.createBufferSource();
+    src.buffer = brownNoiseBuffer;
+    src.loop = true;
+    return src;
+  }
+
+  /* Simple attack/hold/release envelope applied to a gain node. Every
+     synthesized event below is built from this plus one or two
+     oscillators/noise sources — the "simple components" the brief
+     asks for, nothing sample-based. */
+  function env(node, t0, attack, hold, release, peak) {
+    node.gain.setValueAtTime(0, t0);
+    node.gain.linearRampToValueAtTime(peak, t0 + attack);
+    node.gain.setValueAtTime(peak, t0 + attack + hold);
+    node.gain.linearRampToValueAtTime(0, t0 + attack + hold + release);
+  }
+
+  /* A tanh soft-clip curve for the events bus's WaveShaper — gentle at
+     low amplitude, increasingly rounded near the extremes. This is
+     what turns a clean synthesized click or sweep into something with
+     a bit of analog grit/asymmetry instead of a pristine tone. */
+  function makeSoftClipCurve(amount) {
+    const n = 2048;
+    const curve = new Float32Array(n);
+    const k = Math.tanh(amount) || 1;
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 2 - 1;
+      curve[i] = Math.tanh(x * amount) / k;
+    }
+    return curve;
+  }
+
+  function pan(node) {
+    if (!ctx.createStereoPanner) return node;
+    const p = ctx.createStereoPanner();
+    // Biased toward the edges rather than dead center, so an event
+    // reads as coming from somewhere in the room, not from the board
+    // itself — "the environment feels larger than the visible board."
+    p.pan.value = (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.6);
+    node.connect(p);
+    return p;
+  }
+
+  function startHum() {
+    /* Two slightly detuned low oscillators through a lowpass filter —
+       the transformer-like beating comes from the detune itself, not
+       from any rhythmic modulation layered on top. */
+    const humFilter = ctx.createBiquadFilter();
+    humFilter.type = "lowpass";
+    humFilter.frequency.value = 230; // opened slightly so the hum survives on speakers that roll off below ~150Hz
+    const humGain = ctx.createGain();
+    humGain.gain.value = 0.05;
+
+    [55, 55.6].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.value = i === 0 ? 1 : 0.55;
+      osc.connect(g).connect(humFilter);
+      osc.start();
+    });
+
+    /* An octave-down sub oscillator underneath — the deep, felt-more-
+       than-heard foundation that's closer to Vangelis/Blade-Runner-era
+       sub-bass than the mid-low hum alone gives. */
+    const sub = ctx.createOscillator();
+    sub.type = "sine";
+    sub.frequency.value = 27.5;
+    const subGain = ctx.createGain();
+    subGain.gain.value = 0.6;
+    sub.connect(subGain).connect(humFilter);
+    sub.start();
+
+    /* A very slow filter sweep on the hum's own tone color — distinct
+       from the amplitude LFOs below, this one moves the lowpass cutoff
+       itself, so the hum's timbre drifts warmer/brighter over a long,
+       irregular cycle the way an analog pad slowly evolves rather than
+       just getting louder/quieter. */
+    const filterLfo = ctx.createOscillator();
+    filterLfo.type = "sine";
+    filterLfo.frequency.value = 1 / 47;
+    const filterLfoGain = ctx.createGain();
+    filterLfoGain.gain.value = 55;
+    filterLfo.connect(filterLfoGain).connect(humFilter.frequency);
+    filterLfo.start();
+
+    /* Slow "breathing" on the hum's own level — two independent,
+       slow LFOs (an irrational-ish ratio to each other) summed onto
+       the same gain param, so two non-aligning cycles beat against
+       each other over a very long span, which is what reads as
+       "irregular" rather than a single, eventually-recognizable
+       breathing rate.
+
+       Per feedback, their baseline rate is now 40% slower again to
+       start (33.75s / 48.25s, was 20.25s / 28.95s), but setTension
+       (see the public API below) can speed both up live — toward
+       roughly their pre-slowdown rate at full tension — as a Cabeza
+       gets closer to being crushed or to winning. References and base
+       frequencies are kept in the outer closure so setTension can
+       reach them after this function returns. */
+    const lfo1 = ctx.createOscillator();
+    lfo1.type = "sine";
+    humLfo1BaseFreq = 1 / 135; // doubled period again per feedback (was 1/67.5)
+    lfo1.frequency.value = humLfo1BaseFreq;
+    const lfo1Gain = ctx.createGain();
+    lfo1Gain.gain.value = 0.009;
+    lfo1.connect(lfo1Gain).connect(humGain.gain);
+    lfo1.start();
+    humLfo1 = lfo1;
+
+    const lfo2 = ctx.createOscillator();
+    lfo2.type = "sine";
+    humLfo2BaseFreq = 1 / 193; // doubled period again per feedback (was 1/96.5)
+    lfo2.frequency.value = humLfo2BaseFreq;
+    const lfo2Gain = ctx.createGain();
+    lfo2Gain.gain.value = 0.006;
+    lfo2.connect(lfo2Gain).connect(humGain.gain);
+    lfo2.start();
+    humLfo2 = lfo2;
+
+    applyTension(tension); // pick up any tension set before the hum existed
+
+    humFilter.connect(humGain).connect(ambientGain);
+
+    /* A faint band of filtered noise for circuitry hiss — turned down
+       hard (was 0.004, now roughly a third of that) and, instead of
+       sitting on one fixed band forever, its center frequency and
+       level drift to a new random target on an irregular multi-second
+       schedule, so the hiss itself has some life to it rather than
+       reading as a static tone. Cut a further 30% per feedback (this
+       is the ambient hiss, not the zoomed-in crackle's own separate
+       hiss layer, which is untouched). */
+    const buzz = noiseSource();
+    const buzzFilter = ctx.createBiquadFilter();
+    buzzFilter.type = "bandpass";
+    buzzFilter.frequency.value = 1400;
+    buzzFilter.Q.value = 0.6;
+    const buzzGain = ctx.createGain();
+    buzzGain.gain.value = 0.00091;
+    buzz.connect(buzzFilter).connect(buzzGain).connect(ambientGain);
+    buzz.start();
+
+    const wander = () => {
+      if (disposed || windingDown) return;
+      const t0 = nowT();
+      buzzFilter.frequency.setTargetAtTime(900 + Math.random() * 1800, t0, 2.5);
+      buzzGain.gain.setTargetAtTime(0.00042 + Math.random() * 0.00112, t0, 2.5);
+      buzzWanderTimer = setTimeout(wander, 5000 + Math.random() * 9000);
+    };
+    wanderFn = wander;
+    buzzWanderTimer = setTimeout(wander, 4000 + Math.random() * 6000);
+  }
+
+  /* A continuous crackling-resonance layer, always running but held at
+     zero gain until setZoom pushes it up near maximum zoom. Built from
+     bright, highpassed noise whose amplitude is modulated by a SECOND,
+     heavily-lowpassed noise source (a "random slow wander" used as an
+     irregular envelope) rather than a smooth oscillator — that's what
+     makes it read as crackle/sizzle rather than a tremolo effect. */
+  /* Rebuilt from scratch — the previous version (continuous filtered
+     noise under a slow amplitude wobble) just read as a smooth "shhhh"
+     no matter how it was tuned, because a CONTINUOUS noise bed can't
+     sound granular; only discrete, separately-triggered grains can.
+     This is real granular synthesis instead: a self-perpetuating
+     stream of very short, independently-filtered noise grains fired
+     at irregular random gaps, each one a genuine little pop/burst/tick
+     rather than a slice of a continuous hiss. Density, per-grain
+     amplitude, and per-grain filter character are all randomized
+     independently, which is what produces "uneven amplitude and
+     frequency" rather than a uniform texture. The grain loop runs
+     continuously once started; crackleGain (the zoom-driven gate, see
+     setZoom) is what makes it silent or present, not the loop itself
+     stopping. */
+  function startCrackle() {
+    crackleGain = ctx.createGain();
+    crackleGain.gain.value = 0; // driven entirely by setZoom
+
+    function grain() {
+      if (disposed || windingDown) return;
+      const t0 = nowT();
+      const flavor = Math.random();
+      const src = noiseSource();
+      const filt = ctx.createBiquadFilter();
+      let dur;
+      if (flavor < 0.45) {
+        // Sharp little pop / microscopic static arc: brief, bright,
+        // narrow-band.
+        filt.type = "bandpass";
+        filt.frequency.value = 2200 + Math.random() * 4500;
+        filt.Q.value = 3 + Math.random() * 5;
+        dur = 0.00067 + Math.random() * 0.00133; // another 50% faster on top of the earlier 3x
+      } else if (flavor < 0.8) {
+        // Gritty/raspy burst: lower, rougher, a touch longer.
+        filt.type = "bandpass";
+        filt.frequency.value = 500 + Math.random() * 1400;
+        filt.Q.value = 1.2 + Math.random() * 2.5;
+        dur = 0.00133 + Math.random() * 0.00313;
+      } else {
+        // Rare dry crack: wideband, slightly longer, the loudest of
+        // the three flavors — an occasional harder discharge among
+        // the smaller grains.
+        filt.type = "highpass";
+        filt.frequency.value = 900 + Math.random() * 1200;
+        dur = 0.0022 + Math.random() * 0.00313;
+      }
+      const g = ctx.createGain();
+      // Near-instant attack, short irregular decay — a pop/tick shape,
+      // never a swell. Amplitude randomized per grain (0.35-1x) for
+      // genuinely uneven loudness grain-to-grain.
+      const peak = (0.35 + Math.random() * 0.65) * (flavor >= 0.8 ? 1.4 : 1);
+      env(g, t0, 0.0004, 0.0005, dur, peak);
+      src.connect(filt).connect(g).connect(crackleGain);
+      src.start(t0);
+      src.stop(t0 + dur + 0.02);
+      // Gap also 50% tighter again (on top of the earlier 3x cut) —
+      // denser spacing plus the shorter grains above, per feedback
+      // asking for another speed increase.
+      crackleTimer = setTimeout(grain, 2.7 + Math.random() * 15.3);
+    }
+    grainFn = grain;
+    grain();
+
+    crackleGain.connect(ambientGain);
+
+    /* A very faint, continuous brown-noise hiss underneath the crackle
+       — warmer and duller than the white-noise grains, at roughly 5%
+       of the crackle's own level (see setZoom, which drives both from
+       the same exponential zoom curve so they rise and fall together).
+       This is a bed, not a competing texture: it should be felt as
+       warmth under the crackle more than heard as its own layer. */
+    const hissSrc = brownNoiseSource();
+    const hissFilt = ctx.createBiquadFilter();
+    hissFilt.type = "lowpass";
+    hissFilt.frequency.value = 900;
+    crackleHissGain = ctx.createGain();
+    crackleHissGain.gain.value = 0; // driven entirely by setZoom, alongside crackleGain
+    hissSrc.connect(hissFilt).connect(crackleHissGain).connect(ambientGain);
+    hissSrc.start();
+  }
+
+  /* ---- micro-events — each schedules one short, self-contained sound
+     and lets it finish on its own; none of them hold a reference past
+     their own envelope. ---- */
+  function evTick() {
+    /* A filtered noise click rather than a tuned oscillator — a square
+       wave's strong harmonics are exactly what reads as a videogame
+       "boop"; a narrow band of filtered noise reads as a tiny
+       mechanical/electrical tick instead, with no clear pitch to latch
+       onto. */
+    const t0 = nowT();
+    const src = noiseSource();
+    const filt = ctx.createBiquadFilter();
+    filt.type = "bandpass";
+    filt.frequency.value = 1000 + Math.random() * 900;
+    filt.Q.value = 1.2;
+    const g = ctx.createGain();
+    env(g, t0, 0.001, 0.003, 0.018, 0.016 + Math.random() * 0.012);
+    src.connect(filt).connect(g);
+    pan(g).connect(eventsGain);
+    src.start(t0);
+    src.stop(t0 + 0.04);
+  }
+
+  function evStatic() {
+    const t0 = nowT();
+    const src = noiseSource();
+    const filt = ctx.createBiquadFilter();
+    filt.type = "highpass";
+    filt.frequency.value = 2500 + Math.random() * 3000;
+    const g = ctx.createGain();
+    const dur = 0.06 + Math.random() * 0.12;
+    env(g, t0, 0.005, dur * 0.4, dur * 0.6, 0.02 + Math.random() * 0.012);
+    src.connect(filt).connect(g);
+    pan(g).connect(eventsGain);
+    src.start(t0);
+    src.stop(t0 + dur + 0.05);
+  }
+
+  function evPowerFluctuation() {
+    const t0 = nowT();
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 58 + Math.random() * 20;
+    const g = ctx.createGain();
+    env(g, t0, 0.01, 0.03, 0.12, 0.018);
+    osc.connect(g);
+    pan(g).connect(eventsGain);
+    osc.start(t0);
+    osc.stop(t0 + 0.22);
+  }
+
+  function evChirp() {
+    /* Per feedback ("upward glissando... sounds like a stupid whoop in
+       a Nintendo game... far more other-worldly & sinister"): the old
+       version always multiplied frequency UPWARD every step, which is
+       exactly the ascending-tone gesture that reads as a cheerful
+       videogame power-up no matter how it's jittered/darkened. Rewired
+       so each step randomly goes up OR down (a real short-circuit
+       misfire doesn't climb predictably), with a net bias toward
+       ending LOWER than it started — an unstable signal guttering out,
+       not powering up. Lower base range and darker filtering too. */
+    const t0 = nowT();
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    const f0 = 130 + Math.random() * 110;
+    let tCursor = t0;
+    let f = f0;
+    osc.frequency.setValueAtTime(f, tCursor);
+    const steps = 3 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < steps; i++) {
+      tCursor += 0.012 + Math.random() * 0.02;
+      const mult = 1.08 + Math.random() * 0.22;
+      f *= Math.random() < 0.4 ? mult : 1 / mult; // biased toward net descent, never a clean climb
+      osc.frequency.setValueAtTime(f * (0.95 + Math.random() * 0.1), tCursor);
+    }
+    const filt = ctx.createBiquadFilter();
+    filt.type = "lowpass";
+    filt.frequency.value = 340; // darker — was 420
+    const g = ctx.createGain();
+    env(g, t0, 0.006, 0.02, 0.09, 0.012);
+
+    const hiss = noiseSource();
+    const hissFilt = ctx.createBiquadFilter();
+    hissFilt.type = "bandpass";
+    hissFilt.frequency.value = 900 + Math.random() * 600;
+    hissFilt.Q.value = 2;
+    const hissEnv = ctx.createGain();
+    env(hissEnv, t0, 0.002, 0.01, 0.05, 0.006);
+
+    osc.connect(filt).connect(g);
+    hiss.connect(hissFilt).connect(hissEnv);
+    const dest = pan(ctx.createGain());
+    dest.connect(eventsGain);
+    g.connect(dest);
+    hissEnv.connect(dest);
+    osc.start(t0);
+    osc.stop(t0 + 0.18);
+    hiss.start(t0);
+    hiss.stop(t0 + 0.07);
+  }
+
+  function evRelayClick() {
+    const t0 = nowT();
+    const src = noiseSource();
+    const filt = ctx.createBiquadFilter();
+    filt.type = "bandpass";
+    filt.frequency.value = 1400;
+    filt.Q.value = 3;
+    const g = ctx.createGain();
+    env(g, t0, 0.001, 0.006, 0.02, 0.035);
+    src.connect(filt).connect(g);
+    pan(g).connect(eventsGain);
+    src.start(t0);
+    src.stop(t0 + 0.04);
+  }
+
+  function evServoWhirr() {
+    /* Per feedback ("upward glissando... sounds like a stupid whoop...
+       far more other-worldly & sinister"): "revving up" toward a
+       HIGHER target frequency is inherently a triumphant/ascending
+       gesture no matter how it's jittered — so the target is now BELOW
+       the start instead: a motor grinding down and stalling rather
+       than successfully spinning up. */
+    const t0 = nowT();
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    const dur = 0.5 + Math.random() * 0.6;
+    let tCursor = t0;
+    let f = 180 + Math.random() * 50;
+    const fEnd = 65 + Math.random() * 35;
+    osc.frequency.setValueAtTime(f, tCursor);
+    const steps = 5 + Math.floor(Math.random() * 4);
+    for (let i = 1; i <= steps; i++) {
+      tCursor = t0 + (dur * i) / steps;
+      f = f + (fEnd - f) * (0.3 + Math.random() * 0.5);
+      osc.frequency.setValueAtTime(f * (0.94 + Math.random() * 0.12), tCursor);
+    }
+    const filt = ctx.createBiquadFilter();
+    filt.type = "lowpass";
+    filt.frequency.value = 300; // darker — was 380
+    const g = ctx.createGain();
+    env(g, t0, 0.08, dur * 0.5, dur * 0.4, 0.012); // quieter — was 0.016
+    osc.connect(filt).connect(g);
+    pan(g).connect(eventsGain);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.1);
+  }
+
+  function evArc() {
+    /* Completely rebuilt per feedback: this must sound like an actual
+       punctuated 0.5-second blast of the SAME granular static used for
+       the zoomed-in crackle (see startCrackle's grain()) — not its own
+       separate design — and it must have no tonal "boop" layer at all
+       (the previous version's low square-wave "thump" is gone
+       entirely). Built by spawning a dense, bounded run of the
+       crackle's own three grain flavors (sharp pop / gritty burst /
+       rare dry crack — identical filter and duration ranges, same
+       density) across a fixed ~500ms window, rather than recursively
+       forever the way the ambient crackle does, with a soft fade at
+       each end of the window so the blast has an edge instead of
+       starting/stopping on a hard cut. The very first grain is forced
+       to the loud "dry crack" flavor so there's a clear initiating
+       strike, exactly like a real arc catching. */
+    const t0 = nowT();
+    // One shared stereo position for the whole event, so it reads as
+    // one thing happening in one place rather than several unrelated
+    // sounds.
+    const panSpot = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
+    if (panSpot.pan) panSpot.pan.value = (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.6);
+    panSpot.connect(eventsGain);
+
+    const totalDur = 0.5;
+    let cursor = 0;
+    let first = true;
+    while (cursor < totalDur) {
+      const tG = t0 + cursor;
+      const flavor = first ? 0.95 : Math.random(); // force the opening grain to the loud "dry crack" flavor
+      first = false;
+      const src = noiseSource();
+      const filt = ctx.createBiquadFilter();
+      let dur;
+      // Each round of "pitch it up more" feedback kept multiplying these
+      // center frequencies further (2x, then 3x/"200%", now another 2x)
+      // until the top of the "sharp pop" range alone reached 40+kHz —
+      // well past a real AudioContext's Nyquist ceiling (sampleRate/2,
+      // e.g. 22050Hz at the common 44.1kHz rate). BiquadFilterNode.
+      // frequency is spec-clamped to that ceiling, so a large chunk of
+      // those draws were silently pinned at the same maximum regardless
+      // of the ever-higher literal value, which is likely WHY it kept
+      // reading as "not high enough" despite repeated increases — most
+      // of each "increase" was invisible. Rebuilt to scale off the
+      // actual Nyquist limit instead of a fixed literal, so every grain
+      // now sits deliberately close to the true ceiling of what's
+      // audible at all, with the three flavors still spread across
+      // distinct bands for character.
+      const nyquist = ctx.sampleRate / 2;
+      if (flavor < 0.45) {
+        // Sharp little pop / microscopic static arc — as bright as the
+        // output can actually reproduce.
+        filt.type = "bandpass";
+        filt.frequency.value = nyquist * (0.62 + Math.random() * 0.33);
+        filt.Q.value = 3 + Math.random() * 5;
+        dur = 0.00067 + Math.random() * 0.00133;
+      } else if (flavor < 0.8) {
+        // Gritty/raspy burst — still well up in the top half of the
+        // audible range, just a clear octave or so below the sharp pops.
+        filt.type = "bandpass";
+        filt.frequency.value = nyquist * (0.28 + Math.random() * 0.32);
+        filt.Q.value = 1.2 + Math.random() * 2.5;
+        dur = 0.00133 + Math.random() * 0.00313;
+      } else {
+        // Rare dry crack — a high shelf that passes nearly everything up
+        // to the ceiling, the loudest and airiest flavor.
+        filt.type = "highpass";
+        filt.frequency.value = nyquist * (0.5 + Math.random() * 0.35);
+        dur = 0.0022 + Math.random() * 0.00313;
+      }
+      // Soft fade in/out across the whole 0.5s window, applied as a
+      // per-grain amplitude multiplier, so the blast has a shape
+      // rather than a hard-edged start/stop.
+      const posFrac = cursor / totalDur;
+      const windowEnv = posFrac < 0.06 ? posFrac / 0.06 : posFrac > 0.82 ? Math.max(0, (1 - posFrac) / 0.18) : 1;
+      const g = ctx.createGain();
+      // Foreground-appropriate peak (this plays through eventsGain as
+      // its own event, not the quiet ambient crackleGain bed), scaled
+      // by the same per-flavor loudness bias the crackle itself uses.
+      const peak = (0.045 + Math.random() * 0.05) * (flavor >= 0.8 ? 1.35 : 1) * windowEnv;
+      env(g, tG, 0.0004, 0.0005, dur, peak);
+      src.connect(filt).connect(g).connect(panSpot);
+      src.start(tG);
+      src.stop(tG + dur + 0.02);
+      cursor += (2.7 + Math.random() * 15.3) / 1000; // identical grain spacing to the ambient crackle
+    }
+  }
+
+  function evWhine() {
+    /* Was a rising high-pitched sine sweep — a textbook "whistle,"
+       which read as corny rather than ominous. Replaced with a low,
+       descending resonant groan (noise through a narrow, downward-
+       sweeping bandpass) — same rarity and role as a strange, brief
+       instability, but dark and structural rather than a bright tone. */
+    const t0 = nowT();
+    const src = noiseSource();
+    const dur = 0.7 + Math.random() * 0.6;
+    const filt = ctx.createBiquadFilter();
+    filt.type = "bandpass";
+    filt.Q.value = 9;
+    filt.frequency.setValueAtTime(340 + Math.random() * 140, t0);
+    filt.frequency.exponentialRampToValueAtTime(120 + Math.random() * 40, t0 + dur);
+    const g = ctx.createGain();
+    env(g, t0, dur * 0.25, dur * 0.25, dur * 0.5, 0.032);
+    src.connect(filt).connect(g);
+    pan(g).connect(eventsGain);
+    src.start(t0);
+    src.stop(t0 + dur + 0.1);
+  }
+
+  function evClunk() {
+    const t0 = nowT();
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(90, t0);
+    osc.frequency.exponentialRampToValueAtTime(40, t0 + 0.12);
+    const g = ctx.createGain();
+    env(g, t0, 0.001, 0.01, 0.15, 0.05);
+    osc.connect(g);
+    pan(g).connect(eventsGain);
+    osc.start(t0);
+    osc.stop(t0 + 0.2);
+  }
+
+  /* ---- added for variety: five more distinct event types, leaning
+     further into the "distant machinery in a dark building" / Vangelis
+     end of the palette rather than adding more clicks. ---- */
+
+  function evMetallicRing() {
+    // A struck-metal resonance — noise excites a very high-Q bandpass
+    // and the ring is left to decay on its own.
+    const t0 = nowT();
+    const src = noiseSource();
+    const filt = ctx.createBiquadFilter();
+    filt.type = "bandpass";
+    filt.frequency.value = 260 + Math.random() * 500;
+    filt.Q.value = 18 + Math.random() * 10;
+    const g = ctx.createGain();
+    const dur = 0.5 + Math.random() * 0.5;
+    env(g, t0, 0.001, 0.01, dur, 0.03);
+    src.connect(filt).connect(g);
+    pan(g).connect(eventsGain);
+    src.start(t0);
+    src.stop(t0 + dur + 0.1);
+  }
+
+  function evDataBurst() {
+    // A short flurry of tiny high clicks at irregular micro-timing —
+    // reads as brief data/modem-like chatter rather than any single
+    // clean tone.
+    const t0 = nowT();
+    const dest = pan(ctx.createGain());
+    dest.connect(eventsGain);
+    const count = 4 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < count; i++) {
+      const tC = t0 + Math.random() * 0.22;
+      const src = noiseSource();
+      const filt = ctx.createBiquadFilter();
+      filt.type = "bandpass";
+      filt.frequency.value = 1800 + Math.random() * 2400;
+      filt.Q.value = 4;
+      const g = ctx.createGain();
+      env(g, tC, 0.0003, 0.001, 0.006, 0.012 + Math.random() * 0.01);
+      src.connect(filt).connect(g).connect(dest);
+      src.start(tC);
+      src.stop(tC + 0.02);
+    }
+  }
+
+  function evPressureHiss() {
+    // A soft swell and fade of highpassed noise — a distant valve or
+    // pneumatic release, slower and gentler than the static event.
+    const t0 = nowT();
+    const src = noiseSource();
+    const filt = ctx.createBiquadFilter();
+    filt.type = "highpass";
+    filt.frequency.value = 1200 + Math.random() * 800;
+    const g = ctx.createGain();
+    const dur = 0.7 + Math.random() * 0.6;
+    env(g, t0, dur * 0.35, dur * 0.15, dur * 0.5, 0.022);
+    src.connect(filt).connect(g);
+    pan(g).connect(eventsGain);
+    src.start(t0);
+    src.stop(t0 + dur + 0.1);
+  }
+
+  function evSubPulse() {
+    // A very low, short pulse — felt as much as heard, like something
+    // large shifting load somewhere in the structure.
+    const t0 = nowT();
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 32 + Math.random() * 14;
+    const g = ctx.createGain();
+    env(g, t0, 0.02, 0.05, 0.3, 0.05);
+    osc.connect(g);
+    pan(g).connect(eventsGain);
+    osc.start(t0);
+    osc.stop(t0 + 0.45);
+  }
+
+  function evCapacitorCharge() {
+    /* Per feedback ("upward glissando... sounds like a stupid whoop...
+       far more other-worldly & sinister"): the pitch used to climb
+       cleanly from 120 up to 340-500Hz — however much the gain
+       envelope faltered, that rising sweep alone still reads as a
+       classic videogame "power-up" gesture. Now the PITCH fails along
+       with the level: it climbs only partway (to a modest, much lower
+       ceiling), then drops sharply at the falter point and ends BELOW
+       where it started — a charge attempt that collapses, not one
+       that completes. */
+    const t0 = nowT();
+    const dur = 0.18 + Math.random() * 0.14;
+    const falterAt = t0 + dur * (0.4 + Math.random() * 0.2);
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(120, t0);
+    osc.frequency.exponentialRampToValueAtTime(170 + Math.random() * 40, falterAt);
+    osc.frequency.exponentialRampToValueAtTime(55 + Math.random() * 20, t0 + dur);
+    const filt = ctx.createBiquadFilter();
+    filt.type = "lowpass";
+    filt.frequency.value = 620; // darker — was 900
+    const g = ctx.createGain();
+    const peak = 0.02; // quieter — was 0.03
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(peak * 0.7, falterAt);
+    g.gain.linearRampToValueAtTime(peak * 0.25, falterAt + 0.012); // the falter
+    g.gain.linearRampToValueAtTime(peak, t0 + dur * 0.9);
+    // Per feedback ("all ambient sounds must fade to zero, not
+    // experience cutoff") — was an instant setValueAtTime(0, ...) jump
+    // right after the peak; now a real short decay instead.
+    const release = 0.09;
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + release);
+    g.gain.linearRampToValueAtTime(0, t0 + dur + release + 0.02);
+    osc.connect(filt).connect(g);
+    pan(g).connect(eventsGain);
+    osc.start(t0);
+    osc.stop(t0 + dur + release + 0.05);
+  }
+
+  function evSubWarble() {
+    // A deep, wavering tone — a subwoofer-register whirr with a
+    // wobbling pitch (vibrato) rather than a flat sustained note, like
+    // something large slowly cycling under load.
+    const t0 = nowT();
+    const dur = 1.2 + Math.random() * 1.6;
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 34 + Math.random() * 18;
+    const vibrato = ctx.createOscillator();
+    vibrato.type = "sine";
+    vibrato.frequency.value = 3.5 + Math.random() * 3;
+    const vibratoDepth = ctx.createGain();
+    vibratoDepth.gain.value = 4 + Math.random() * 5;
+    vibrato.connect(vibratoDepth).connect(osc.frequency);
+    vibrato.start(t0);
+    vibrato.stop(t0 + dur + 0.1);
+    const g = ctx.createGain();
+    env(g, t0, dur * 0.25, dur * 0.45, dur * 0.3, 0.05);
+    osc.connect(g);
+    pan(g).connect(eventsGain);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.1);
+  }
+
+  function evSwoosh() {
+    /* Per feedback: a slow, deep (pitch-shifted down), multi-tonal wash
+       that decrescendos — reads as something large sweeping past in
+       the distance, not a discrete hit or a swelling drone. Several
+       detuned low oscillators stacked at inharmonic-ish ratios give the
+       "multi-tonal wash" (a cluster, not a clean chord); a near-instant
+       attack followed by a long decay makes it loudest right at onset
+       and fade away from there — a true decrescendo, the opposite
+       shape from evSubWarble's swell-hold-fade. A slow stereo pan sweep
+       from one side toward the other adds the sense of motion a
+       "swoosh" implies, and the lowpass darkening further as it decays
+       reinforces the fade rather than just the amplitude dropping. */
+    const t0 = nowT();
+    const dur = 3.2 + Math.random() * 2.4;
+    const baseFreq = 46 + Math.random() * 26;
+    const partials = [1, 1.5, 2.24, 2.98];
+
+    const filt = ctx.createBiquadFilter();
+    filt.type = "lowpass";
+    filt.frequency.setValueAtTime(1400, t0);
+    filt.frequency.exponentialRampToValueAtTime(220, t0 + dur);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, t0);
+    g.gain.linearRampToValueAtTime(0.05, t0 + 0.15);
+    g.gain.exponentialRampToValueAtTime(0.0006, t0 + dur);
+
+    const panner = ctx.createStereoPanner ? ctx.createStereoPanner() : ctx.createGain();
+    if (panner.pan) {
+      const panStart = Math.random() < 0.5 ? -1 : 1;
+      panner.pan.setValueAtTime(panStart * (0.5 + Math.random() * 0.4), t0);
+      panner.pan.linearRampToValueAtTime(-panStart * (0.5 + Math.random() * 0.4), t0 + dur);
+    }
+
+    partials.forEach((mult, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = i === 0 ? "sine" : "triangle";
+      osc.frequency.value = baseFreq * mult;
+      osc.detune.value = (Math.random() - 0.5) * 12;
+      osc.connect(filt);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.2);
+    });
+
+    filt.connect(g).connect(panner).connect(eventsGain);
+  }
+
+  function evStutterPop() {
+    /* Per feedback ("need more subtle electronics noises popping off
+       randomly") — a rapid, irregular cluster of 2-4 ultra-brief
+       filtered pops, each at its own random spectral position, packed
+       into a tiny window. Quieter and shorter per-pop than evDataBurst
+       (which reads as a distinct "flurry"), so this reads as a
+       background circuit stuttering rather than a foreground event. */
+    const t0 = nowT();
+    const dest = pan(ctx.createGain());
+    dest.connect(eventsGain);
+    const count = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      const tC = t0 + Math.random() * 0.09;
+      const src = noiseSource();
+      const filt = ctx.createBiquadFilter();
+      filt.type = "bandpass";
+      filt.frequency.value = 500 + Math.random() * 4000;
+      filt.Q.value = 3 + Math.random() * 4;
+      const g = ctx.createGain();
+      env(g, tC, 0.0003, 0.0005, 0.006, 0.009 + Math.random() * 0.007);
+      src.connect(filt).connect(g).connect(dest);
+      src.start(tC);
+      src.stop(tC + 0.02);
+    }
+  }
+
+  /* Weighted so the "very subtle/frequent" tier dominates heavily —
+     roughly the brief's 90% environment / 10% strange-events split —
+     and even that 10% leans toward its own quieter end (arc/whine/
+     clunk are each rarer than chirp/relay/servo). */
+  /* Rebalanced further toward the quiet, textural "very subtle /
+     frequent" tier (tick/static/fluctuation, all noise- or sub-bass-
+     based, no clear pitch) and away from the more tonal "less
+     frequent" tier (chirp/relay/servo) — per feedback that the events
+     read as too many clear "boops," this leans the odds so a genuine
+     chirp or click is the rarer surprise, not the norm. */
+  /* Rebalanced further, per feedback that events still read as "video
+     game" sound effects rather than subtle background electrical
+     misfires: the fully textural/noise-based tier (tick/static/
+     fluctuation/subpulse/pressureHiss) weighted up further, the more
+     tonal tier (chirp/servoWhirr/capacitorCharge — all retextured with
+     jitter/stutter above, but still the most "eventful"-sounding of
+     the set) weighted down further. */
+  const EVENT_TABLE = [
+    { fn: evTick, weight: 30 },
+    { fn: evStatic, weight: 26 },
+    { fn: evPowerFluctuation, weight: 20 },
+    { fn: evSubPulse, weight: 12 },
+    { fn: evPressureHiss, weight: 7 },
+    { fn: evDataBurst, weight: 5 },
+    { fn: evRelayClick, weight: 4 },
+    { fn: evMetallicRing, weight: 4 },
+    { fn: evSubWarble, weight: 4 },
+    { fn: evCapacitorCharge, weight: 2 },
+    { fn: evChirp, weight: 1 },
+    { fn: evServoWhirr, weight: 1 },
+    { fn: evArc, weight: 2 },
+    { fn: evWhine, weight: 1 },
+    { fn: evClunk, weight: 1 },
+    { fn: evSwoosh, weight: 2 },
+    { fn: evStutterPop, weight: 18 }, // per feedback — "more subtle electronics noises popping off randomly"
+  ];
+  const TOTAL_WEIGHT = EVENT_TABLE.reduce((s, e) => s + e.weight, 0);
+
+  function pickEvent() {
+    // Reject a repeat of either of the last two picks rather than
+    // enforcing a rigid rotation — keeps it random without letting the
+    // same tick/static pair land back-to-back too often.
+    for (let attempt = 0; attempt < 6; attempt++) {
+      let r = Math.random() * TOTAL_WEIGHT;
+      let chosen = EVENT_TABLE[EVENT_TABLE.length - 1];
+      for (const e of EVENT_TABLE) {
+        if (r < e.weight) { chosen = e; break; }
+        r -= e.weight;
+      }
+      if (!recentEvents.includes(chosen.fn)) return chosen;
+    }
+    return EVENT_TABLE[0];
+  }
+
+  function scheduleNext() {
+    if (disposed || windingDown) return;
+    // 4-14s baseline gap between events, occasionally stretched much
+    // longer — the quiet stretches are as much a part of this as the
+    // events themselves.
+    let delay = 4000 + Math.random() * 10000;
+    if (Math.random() < 0.15) delay += 15000 + Math.random() * 30000;
+    scheduleTimer = setTimeout(() => {
+      if (!disposed && ctx && ctx.state === "running") {
+        const chosen = pickEvent();
+        try { chosen.fn(); } catch (e) { /* a synthesis hiccup should never break the loop */ }
+        recentEvents.push(chosen.fn);
+        if (recentEvents.length > 2) recentEvents.shift();
+      }
+      scheduleNext();
+    }, delay);
+  }
+
+  /* iOS Safari specifically needs more than ctx.resume() to reliably
+     unlock real hardware audio output on the first gesture — a
+     context can report state "running" while the device still plays
+     nothing at all. Synchronously starting one genuinely silent
+     buffer, right here inside the same user gesture, is the standard
+     workaround most web audio libraries use for this; harmless (and
+     a no-op in practice) on every other browser, where resume() alone
+     already works. Wrapped in try/catch since a handful of very old
+     WebKit builds throw on a 1-sample buffer rather than just
+     ignoring it. */
+  function unlockIosAudio() {
+    try {
+      const src = ctx.createBufferSource();
+      src.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      src.connect(ctx.destination);
+      src.start(0);
+    } catch (e) {}
+  }
+
+  function ensureStarted() {
+    if (started) {
+      if (ctx && ctx.state === "suspended") {
+        unlockIosAudio();
+        ctx.resume();
+      }
+      return;
+    }
+    started = true;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      ctx = new AC();
+      // Defensive: some browsers create a context suspended even inside
+      // a user gesture. Harmless to call when already running.
+      unlockIosAudio();
+      if (ctx.state === "suspended") ctx.resume();
+      master = ctx.createGain();
+      // +14dB overall total (10^(14/20) ≈ 5.01) — a single multiplier on
+      // the final stage, so every sound is raised by the same factor and
+      // nothing shifts relative to anything else.
+      master.gain.value = muted ? 0 : MASTER_GAIN;
+      master.connect(ctx.destination);
+
+      /* theme: sits between the ambient bed (hum/crackle, and the
+         random micro-events) and master, at 1 (no effect) by default.
+         beginGameFadeIn() drops it to 0 and ramps it back up over 2s,
+         so on first start the atmosphere swells in to whatever level
+         setZoom already says is correct for the current camera
+         distance, rather than starting there instantly. Deliberately
+         NOT in the sfxGain path — gameplay cues (the power-on chime
+         included) stay at their normal, immediate volume. */
+      introGain = ctx.createGain();
+      introGain.gain.value = 1;
+      introGain.connect(master);
+
+      ambientGain = ctx.createGain();
+      ambientGain.gain.value = 0.03; // scaled live by setZoom below
+      ambientGain.connect(introGain);
+
+      eventsGain = ctx.createGain();
+      /* Lowered again per feedback: still reading as too "video-game"
+         foreground sound effects rather than half-heard electrical
+         misfires happening somewhere in the background — cut further
+         on top of the per-event peak trims below. */
+      eventsGain.gain.value = 0.525; // +25% per feedback ("maximize... every audio channel") — was 0.42
+      /* Soft-clip distortion followed by a muffling lowpass — together
+         these are what actually blur a clean oscillator/noise burst
+         into something less legible as "a sound effect just played."
+         Distortion first (adds a little grit/asymmetry), then the
+         lowpass rounds off the harmonics that distortion just added,
+         rather than leaving them bright and buzzy. Muffle lowered
+         further (was 1500) so events sit further from the listener. */
+      const eventsShaper = ctx.createWaveShaper();
+      eventsShaper.curve = makeSoftClipCurve(2.3); // grittier, per "darker/grimdark" feedback
+      eventsShaper.oversample = "2x";
+      const eventsMuffle = ctx.createBiquadFilter();
+      eventsMuffle.type = "lowpass";
+      eventsMuffle.frequency.value = 1050; // duller/further-away than before (was 1500)
+      eventsMuffle.Q.value = 0.4;
+      eventsGain.connect(eventsShaper).connect(eventsMuffle).connect(introGain);
+
+      sfxGain = ctx.createGain();
+      sfxGain.gain.value = 1.25; // +25% per feedback ("maximize the overall gain across every audio channel")
+      sfxGain.connect(master);
+
+      /* A short, dark synthetic impulse response for the piece-landing
+         thud's "short reverb" — a burst of decaying noise, not a real
+         recorded space, but enough to give a percussive hit a sense of
+         a small, hard, enclosed room rather than landing completely
+         dry. thudShaper adds the "crunchy/analog" grit that plain
+         gain/filtering alone can't. */
+      reverbNode = ctx.createConvolver();
+      reverbNode.buffer = makeImpulse(0.32, 2.8);
+      const reverbSend = ctx.createGain();
+      reverbSend.gain.value = 0.3;
+      reverbNode.connect(reverbSend).connect(sfxGain);
+      thudShaper = ctx.createWaveShaper();
+      thudShaper.curve = makeSoftClipCurve(7.5); // "considerably more crunch" per feedback (was 5.2)
+      thudShaper.oversample = "4x";
+
+      noiseBuffer = makeNoiseBuffer();
+      brownNoiseBuffer = makeBrownNoiseBuffer();
+      startHum();
+      startCrackle();
+      scheduleNext();
+    } catch (e) {
+      started = false; // Web Audio unavailable — game stays fully playable, just silent
+    }
+  }
+
+  /* Called once, from the Begin Game button and nowhere else: starts
+     the engine (if this is the very first call, otherwise a cheap
+     resume) and fades the ambient bed in from silence to whatever
+     level setZoom already says is correct for the current camera
+     distance, over 2 seconds. Gameplay cues (the power-on chime this
+     is paired with, selection/landing/etc.) are NOT part of this fade
+     — they route straight to master and play at their normal volume
+     immediately, since they're deliberate UI feedback, not ambience. */
+  function beginGameFadeIn() {
+    ensureStarted();
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    // Snap master back up instantly (unramped) — this is the ONLY
+    // place that undoes a previous beginFadeOut, so a fresh game
+    // (whether the very first one or a NEW GAME after a win/manual
+    // end) stays truly silent right up until this button is clicked,
+    // never leaking back in early the way resetWindDown used to.
+    if (master) {
+      master.gain.cancelScheduledValues(t0);
+      master.gain.setValueAtTime(muted ? 0 : MASTER_GAIN, t0);
+    }
+    if (!introGain) return;
+    introGain.gain.cancelScheduledValues(t0);
+    introGain.gain.setValueAtTime(0, t0);
+    introGain.gain.linearRampToValueAtTime(1, t0 + 2);
+  }
+
+  function setZoom(t) {
+    // t: 0 (zoomed out) .. 1 (zoomed in close on the pieces). Ramped
+    // via setTargetAtTime rather than stepped, so it reads as "the
+    // machine sounds nearer" rather than as an operated volume knob.
+    if (!ambientGain) return;
+    // True exponential (geometric) interpolation, not linear or even a
+    // power curve: level = baseline * (peak/baseline)^t. At t=0 (fully
+    // zoomed out) that's baseline itself — near-silent. At the game's
+    // actual default camera distance (roughly t=0.68) it lands around
+    // a third of peak — present but modest. Approaching t=1 (maximum
+    // zoom) it climbs the rest of the way to peak, with the growth
+    // itself accelerating the whole way there rather than tapering
+    // off, which is what makes it read as exponential rather than
+    // just "gets louder."
+    // Raised slightly (was 0.018-0.62) after the ambience read as
+    // inaudible in practice — the shape (near-silent out, exponential
+    // climb approaching max zoom) is unchanged, just with more overall
+    // headroom.
+    const clamped = Math.max(0, Math.min(1, t));
+    /* Warped by an extra power curve (t^1.6) BEFORE the exponential
+       mapping — this compounds with the exponential itself, holding
+       the level down for more of the zoom range and making the final
+       approach to max zoom noticeably steeper ("more exponential")
+       rather than just uniformly climbing throughout. Peak also raised
+       (0.7 -> 0.98) so full zoom is genuinely much louder, not just
+       proportionally louder. */
+    const warped = Math.pow(clamped, 1.6);
+    const baseline = 0.038; // +20% per feedback ("maximize... every audio channel") — was 0.032
+    const peak = 1.15; // +17% — was 0.98
+    ambientGain.gain.setTargetAtTime(baseline * Math.pow(peak / baseline, warped), nowT(), 0.5);
+
+    /* A crackling resonance that stays completely silent until zoom
+       gets close to maximum, then ramps in sharply — see startCrackle
+       for how the crackle texture itself is built. Squaring an
+       already-clamped-to-0 ramp gives it a fast, late arrival rather
+       than a gradual fade-in. */
+    if (crackleGain) {
+      // Same exponential shape as always (crackleT, squared); only the
+      // peak scalars change here. Crackle cut a further 35%
+      // (0.0324 -> 0.02106). The brown-noise hiss added alongside it
+      // rides the identical shape at 5% of the crackle's own peak, so
+      // the two rise and fall together rather than needing their own
+      // separate curve.
+      const crackleT = Math.max(0, (clamped - 0.7) / 0.3);
+      const shape = Math.pow(crackleT, 2);
+      const cracklePeak = 0.0324 * 0.65 * 0.7 * 1.2; // +20% per feedback ("maximize... every audio channel"); shape/hiss ratio untouched
+      crackleGain.gain.setTargetAtTime(shape * cracklePeak, nowT(), 0.4);
+      if (crackleHissGain) {
+        crackleHissGain.gain.setTargetAtTime(shape * cracklePeak * 0.05, nowT(), 0.4);
+      }
+    }
+  }
+
+  /* Speeds up the hum's own "breathing" resonance LFOs as tension
+     rises (0 = the slow baseline, 1 = a Cabeza is genuinely about to
+     be crushed or about to win). Safe to call before the hum exists —
+     the value is remembered and picked up once startHum runs. Ramped
+     via setTargetAtTime rather than jumped, so a change in board state
+     is felt as the hum gradually quickening rather than an audible
+     jump cut. */
+  function applyTension(value) {
+    tension = Math.max(0, Math.min(1, value || 0));
+    if (!ctx || !humLfo1 || !humLfo2) return;
+    const FAST_MUL = 1.6; // at tension 1, only 60% faster than baseline, per feedback
+    const f1 = humLfo1BaseFreq * (1 + tension * (FAST_MUL - 1));
+    const f2 = humLfo2BaseFreq * (1 + tension * (FAST_MUL - 1));
+    humLfo1.frequency.setTargetAtTime(f1, nowT(), 1.2);
+    humLfo2.frequency.setTargetAtTime(f2, nowT(), 1.2);
+  }
+
+  function setMuted(m) {
+    muted = m;
+    if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : MASTER_GAIN, ctx.currentTime, 0.08);
+  }
+
+  /* Called once, right when a win fires OR the player manually ends the
+     active game: stops every ambient scheduler from arming another
+     event (scheduleNext/wander/grain all check `windingDown`, so
+     whatever's already in flight is the last of it) and linearly
+     fades the entire mix to silence over `seconds` (3 for a win, 2 for
+     a manual end — see the two call sites) — a cue like the win tone,
+     already playing through sfxGain, fades out along with everything
+     else since it too passes through master. */
+  function beginFadeOut(seconds) {
+    if (windingDown) return; // idempotent — a second call (shouldn't happen) won't restart the fade
+    windingDown = true;
+    if (!master || !ctx) return;
+    const t0 = ctx.currentTime;
+    master.gain.cancelScheduledValues(t0);
+    master.gain.setValueAtTime(master.gain.value, t0);
+    master.gain.linearRampToValueAtTime(0, t0 + (seconds || 3));
+  }
+
+  /* Called from a fresh game (see the component's handleReset) to undo
+     beginFadeOut: brings the master gain back up and re-arms the
+     three ambient chains that stopped scheduling themselves during the
+     wind-down (they returned early rather than calling setTimeout
+     again, so simply flipping `windingDown` back off would not, on
+     its own, revive a chain that's already dead). Safe to call even
+     when nothing is winding down — it's a no-op then. */
+  function resetWindDown(restoreVolume) {
+    if (!windingDown) return;
+    windingDown = false;
+    // Two different callers need two different outcomes here. A fresh
+    // game started via the end-game popup's NEW GAME button must stay
+    // silent exactly like a fresh page load, right up until Begin Game
+    // is clicked again — so by default this does NOT restore master's
+    // level, just pins it at its current (silent, or silent-bound)
+    // value so any in-flight fade-out ramp doesn't keep coasting toward
+    // 0 forever. But undoing a game-ending move (see handleUndoLastTurn)
+    // drops the player straight back into active play with no "Begin
+    // Game" gate to bring the volume back up through — per feedback
+    // ("I'm still playing... I want the sound to be back"), that caller
+    // passes restoreVolume: true to bring master back up here directly,
+    // via a brief ramp rather than an instant jump.
+    if (master && ctx) {
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
+      if (restoreVolume) {
+        master.gain.linearRampToValueAtTime(muted ? 0 : MASTER_GAIN, ctx.currentTime + 0.6);
+      }
+    }
+    if (!disposed) {
+      scheduleNext();
+      if (wanderFn) buzzWanderTimer = setTimeout(wanderFn, 4000 + Math.random() * 6000);
+      if (grainFn) crackleTimer = setTimeout(grainFn, 2.7 + Math.random() * 15.3);
+    }
+  }
+
+  /* ---- gameplay cues — simple by design, routed through sfxGain so
+     they stay audible above the ambience per the brief. ---- */
+  function cue(freqStart, freqEnd, dur, type, peak) {
+    if (!ctx) return;
+    const t0 = nowT();
+    const osc = ctx.createOscillator();
+    osc.type = type || "sine";
+    osc.frequency.setValueAtTime(freqStart, t0);
+    if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, t0 + dur);
+    const g = ctx.createGain();
+    env(g, t0, 0.005, dur * 0.3, dur * 0.7, peak);
+    osc.connect(g).connect(sfxGain);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.05);
+  }
+
+  /* A genuine time-reversal of cue(freqStart, freqEnd, dur, type, peak)
+     — per feedback ("END ACTIVE GAME should play the reverse audio of
+     BEGIN GAME"), not just a different sound with a similar vibe. Both
+     halves of cue() get flipped: the frequency sweep runs backwards
+     (freqEnd -> freqStart instead of freqStart -> freqEnd), and the
+     attack/hold/release envelope is mirrored end-to-end, so what was a
+     quick attack + long release becomes a long swell-up + quick cutoff
+     — exactly what playing the same clip backwards would sound like. */
+  function reverseCue(freqStart, freqEnd, dur, type, peak) {
+    if (!ctx) return;
+    const t0 = nowT();
+    const osc = ctx.createOscillator();
+    osc.type = type || "sine";
+    osc.frequency.setValueAtTime(freqEnd, t0);
+    if (freqStart) osc.frequency.exponentialRampToValueAtTime(freqStart, t0 + dur);
+    const g = ctx.createGain();
+    const attack = dur * 0.7; // cue()'s release, reversed into this cue's attack
+    const hold = dur * 0.3; // same hold duration, same relative position
+    /* Per feedback ("cuts off abruptly... should play out completely
+       fading to 0; no hard cut-off"): a literal mirror of cue()'s own
+       0.005s attack made for a near-instant snap-to-silence here,
+       which reads as a hard cutoff rather than a fade. This is now a
+       real, generous release instead of a literal reversal — the
+       point ("this is what Begin Game sounds like backwards") still
+       reads fine, since the swell-up attack is what actually carries
+       that impression; the tail just needs to audibly fade now. */
+    const release = Math.max(0.4, dur * 0.5);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + attack);
+    g.gain.setValueAtTime(peak, t0 + attack + hold);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + attack + hold + release);
+    g.gain.linearRampToValueAtTime(0, t0 + attack + hold + release + 0.05);
+    osc.connect(g).connect(sfxGain);
+    osc.start(t0);
+    osc.stop(t0 + attack + hold + release + 0.1);
+  }
+
+  /* CABEZA CRUSHED — per feedback, replaces the old flat downward
+     cue() sweep with three layered "falling away" characteristics at
+     once: a pitch sink (an ACCELERATING glide, slow-then-plunging,
+     rather than one steady exponential ramp — reads as losing its
+     footing, not a clean descending note), a plunging formant (a
+     resonant bandpass whose own center frequency sinks in lockstep,
+     giving the sawtooth a vocal, "ohh" -> collapsing quality instead of
+     a bare buzz), and a downward Doppler decay (a slower lowpass that
+     keeps darkening past where the formant settles, plus the amplitude
+     itself fading out alongside the pitch rather than holding a flat
+     sustain — a receding/sinking source loses loudness and high end
+     together, not just pitch). Peak level (0.036) is unchanged from
+     the last round's volume tuning — this is a character change, not
+     another loudness pass. */
+  function playCabezaCrush() {
+    if (!ctx) return;
+    const t0 = nowT();
+    const dur = 0.45;
+    const peak = 0.036;
+
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(260, t0);
+    osc.frequency.exponentialRampToValueAtTime(150, t0 + dur * 0.35); // slow start...
+    osc.frequency.exponentialRampToValueAtTime(46, t0 + dur); // ...then plunges
+
+    const formant = ctx.createBiquadFilter();
+    formant.type = "bandpass";
+    formant.Q.value = 6;
+    formant.frequency.setValueAtTime(900, t0);
+    formant.frequency.exponentialRampToValueAtTime(110, t0 + dur);
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(3000, t0);
+    lp.frequency.exponentialRampToValueAtTime(220, t0 + dur + 0.1);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(peak * 0.11, t0 + dur);
+    g.gain.linearRampToValueAtTime(0, t0 + dur + 0.12);
+
+    osc.connect(formant).connect(lp).connect(g).connect(sfxGain);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.15);
+  }
+
+  /* The info-panel "chirp" replacement: a massive, uncanny choir stab.
+     Built entirely from oscillators/filters — no samples. An ensemble
+     of many detuned voices per chord tone approximates choir thickness;
+     two parallel narrow bandpass "formants" per voice give each a
+     vowel-like ("ah") color instead of a bare tone; a dedicated,
+     several-second synthetic reverb (built once, lazily, and reused —
+     this one is far too long to regenerate on every call) stands in
+     for an impossibly large space.
+
+     The harmonic arc is entirely detune automation on a subset of
+     voices flagged "wrong": they start aligned, drift to a subtle,
+     almost-correct-but-not offset through the sustain (this is the
+     90%+ "uncanny" portion), then converge back to true pitch in the
+     last couple of seconds — right as the overall envelope is already
+     well into its long decay — so the "beautiful resolution" arrives
+     inside the fading tail, not as a separate loud event, and can
+     plausibly go half-noticed. */
+  function playChoirStab() {
+    /* Reworked again per feedback: half the length again, still more
+       reverb (a longer, gentler-decaying impulse plus a wetter mix),
+       overall level cut by 55%, and the resolution pushed harder
+       toward genuine assonance — now ALL voices (not just the two
+       flagged "wrong") tighten from their chorus-width detune into a
+       near-unison right at the turn, and the vibrato is calmed at the
+       same moment, so the climax reads as the whole choir suddenly
+       locking into a single pure, still chord rather than just the
+       wrong notes quietly giving up. */
+    if (!ctx) return;
+    /* theme: the info-overlay chime is UI chrome, not game ambience —
+       it should stay audible even right after a win/reset has pinned
+       master toward silence (see beginFadeOut/resetWindDown above).
+       Nudges master back up WITHOUT touching `windingDown` or
+       re-arming the ambient schedulers, so the post-game hush is
+       otherwise untouched; the next real resetWindDown()/
+       beginGameFadeIn() call still runs exactly as before. */
+    if (windingDown && master) {
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
+      master.gain.linearRampToValueAtTime(muted ? 0 : MASTER_GAIN, ctx.currentTime + 0.15);
+    }
+    const t0 = nowT();
+    const totalDur = 1.27; // was 1.82 — a further 30% cut per feedback
+
+    if (!cathedralReverb) {
+      cathedralReverb = ctx.createConvolver();
+      // Longer and even more gently-decaying (was 7.5s/1.9) — with the
+      // dry stab now much shorter, the tail needs to carry the sense
+      // of scale on its own.
+      cathedralReverb.buffer = makeImpulse(11.5, 1.25); // even longer/gentler — "add more reverb" again
+      cathedralReverb.connect(sfxGain);
+    }
+
+    // Overall shape, rescaled to the new half-length duration: the
+    // same proportions (substantial fade-in, brief hold through the
+    // uncanny section, decay into the wetter tail), just compressed.
+    const masterEnv = ctx.createGain();
+    masterEnv.gain.setValueAtTime(0, t0);
+    masterEnv.gain.linearRampToValueAtTime(1, t0 + 0.29);
+    masterEnv.gain.setValueAtTime(1, t0 + 0.5);
+    masterEnv.gain.linearRampToValueAtTime(0.45, t0 + 0.82);
+    masterEnv.gain.linearRampToValueAtTime(0.0001, t0 + totalDur);
+
+    // Handle for fadeOutChoir(): every voice's own gain is a fixed
+    // constant (see voiceGain below) — masterEnv above is the ONLY
+    // node shaping the stab's loudness over time.
+    choirMasterEnv = masterEnv;
+    choirEndTime = t0 + totalDur + 0.3;
+
+    // A gentle safety limiter — this sums 24 voices, and a mild soft
+    // clip here catches genuine peaks without adding audible crunch to
+    // what's meant to be beautiful/ethereal (contrast the much harsher
+    // curve used for the landing thud's deliberate crunch).
+    const safety = ctx.createWaveShaper();
+    safety.curve = makeSoftClipCurve(1.15);
+
+    const dryGain = ctx.createGain();
+    dryGain.gain.value = 0.08; // trimmed further again — "add more reverb"
+    const wetGain = ctx.createGain();
+    wetGain.gain.value = 1.0; // "add more reverb" again — was 0.98
+    masterEnv.connect(safety);
+    safety.connect(dryGain).connect(sfxGain);
+    safety.connect(wetGain).connect(cathedralReverb);
+
+    // An open, ambiguous chord (add9/maj7-ish) spanning bass to
+    // soprano register, for the "vast register spread" of a real
+    // choir. Two tones are flagged "wrong" — each given its own subtle
+    // target offset, sharp or flat, small enough to read as "almost
+    // correct" rather than a clashing wrong note.
+    const chordTones = [
+      { freq: 130.81, wrong: false },              // C3 — bass
+      { freq: 164.81, wrong: true, off: 42 },       // E3 — subtly sharp
+      { freq: 196.0, wrong: false },                // G3
+      { freq: 246.94, wrong: true, off: -33 },      // B3 — subtly flat
+      { freq: 293.66, wrong: false },               // D4 (9th)
+      { freq: 523.25, wrong: false },               // C5 — soprano register begins
+      { freq: 659.25, wrong: true, off: 27 },       // E5 — subtly sharp
+      { freq: 783.99, wrong: false },               // G5
+    ];
+
+    const unisonCount = 3;
+    const levelMul = 0.15; // was 0.19 — a further 20% cut per feedback
+    // The resolution moment, rescaled to the new, further-shortened duration.
+    const resolveAt = t0 + 1.05;
+
+    chordTones.forEach((tone) => {
+      for (let u = 0; u < unisonCount; u++) {
+        const osc = ctx.createOscillator();
+        osc.type = u % 2 === 0 ? "sawtooth" : "triangle";
+        osc.frequency.value = tone.freq;
+
+        // Stable ensemble detune (chorus width) — present on every
+        // voice, unrelated to the "wrongness" arc, but now also
+        // tightened toward unison right at the resolution so the
+        // WHOLE choir — not just the flagged-wrong tones — locks into
+        // a single pure chord at the climax, for a stronger, more
+        // deliberate swing into assonance.
+        const ensembleDetune = (Math.random() * 2 - 1) * 9;
+        osc.detune.setValueAtTime(ensembleDetune, t0);
+
+        if (tone.wrong) {
+          // Drift into wrongness through the attack, wander during the
+          // (now much shorter) sustain, overshoot furthest right
+          // before the turn, then swing back to pure tuning — the
+          // overshoot just before resolving is what makes the turn
+          // into consonance read as a transformation rather than the
+          // wrongness simply fading out. Timings rescaled to the new
+          // half-length duration.
+          osc.detune.linearRampToValueAtTime(ensembleDetune + tone.off, t0 + 0.2);
+          osc.detune.linearRampToValueAtTime(ensembleDetune + tone.off * 0.8, t0 + 0.41);
+          osc.detune.linearRampToValueAtTime(ensembleDetune + tone.off * 1.35, t0 + 0.66);
+          osc.detune.linearRampToValueAtTime(ensembleDetune * 0.5, t0 + 0.93);
+          osc.detune.linearRampToValueAtTime(0, resolveAt); // the fleeting resolution
+        } else {
+          // Not flagged "wrong," but still carries the static ensemble
+          // chorus width the whole way — tighten it to true unison at
+          // the same resolution moment as the wrong voices, so the
+          // pure tones audibly firm up into focus too, not just hold
+          // steady while only the wrong ones resolve around them.
+          osc.detune.setValueAtTime(ensembleDetune, t0 + 0.66);
+          osc.detune.linearRampToValueAtTime(ensembleDetune * 0.35, t0 + 0.93);
+          osc.detune.linearRampToValueAtTime(0, resolveAt);
+        }
+
+        // Slow vibrato on every voice for organic, breathing movement
+        // — calmed sharply at the resolution moment so the climax
+        // reads as the choir going still/pure rather than continuing
+        // to waver even once it's "in tune."
+        const vibrato = ctx.createOscillator();
+        vibrato.type = "sine";
+        vibrato.frequency.value = 4.2 + Math.random() * 1.6;
+        const vibratoDepth = ctx.createGain();
+        const baseVibratoDepth = 3 + Math.random() * 3;
+        vibratoDepth.gain.setValueAtTime(baseVibratoDepth, t0);
+        vibratoDepth.gain.setValueAtTime(baseVibratoDepth, t0 + 0.93);
+        vibratoDepth.gain.linearRampToValueAtTime(baseVibratoDepth * 0.15, resolveAt);
+        vibrato.connect(vibratoDepth).connect(osc.detune);
+        vibrato.start(t0);
+        vibrato.stop(t0 + totalDur);
+
+        // Two parallel narrow bandpass resonances from the same
+        // oscillator — a rough vowel ("ah") formant pair instead of a
+        // bare tone.
+        const formant1 = ctx.createBiquadFilter();
+        formant1.type = "bandpass";
+        formant1.frequency.value = 700 + (Math.random() * 60 - 30);
+        formant1.Q.value = 5;
+        const formant2 = ctx.createBiquadFilter();
+        formant2.type = "bandpass";
+        formant2.frequency.value = 1150 + (Math.random() * 80 - 40);
+        formant2.Q.value = 6;
+
+        const voiceGain = ctx.createGain();
+        voiceGain.gain.value = 0.07 * levelMul;
+
+        osc.connect(formant1).connect(voiceGain);
+        osc.connect(formant2).connect(voiceGain);
+
+        if (ctx.createStereoPanner) {
+          const voicePan = ctx.createStereoPanner();
+          voicePan.pan.value = (Math.random() * 2 - 1) * 0.95; // extremely wide image
+          voiceGain.connect(voicePan).connect(masterEnv);
+        } else {
+          voiceGain.connect(masterEnv);
+        }
+
+        osc.start(t0);
+        osc.stop(t0 + totalDur + 0.3);
+      }
+    });
+  }
+
+  /* Cuts the currently-playing choir stab (see playChoirStab above)
+     short, rather than letting its own ~1.57s envelope finish on its
+     own. Called when the Neon info overlay is dismissed —
+     closed/backdrop-clicked/Escaped — before the chime has finished;
+     if it's already done playing this is a no-op.
+
+     The original 48 oscillators keep whatever start()/stop() schedule
+     playChoirStab already gave them — rescheduling a source node's
+     stop() to a LATER time than one already given isn't reliably
+     honored across engines (several just keep the earliest one), so
+     extending those isn't a dependable way to stretch this out.
+     Instead: (1) the original stab's own master gain is pulled down to
+     silence quickly (60ms, just enough to avoid a click) so it can't
+     keep sounding through to its natural end, and (2) a small,
+     independent tail — a few sine tones at the chord's own root
+     frequencies, freshly start()/stop() scheduled just once, right
+     here, for exactly fadeSeconds — takes over, so there's always
+     genuine audible content fading out for the full requested
+     duration regardless of how early the close happens. */
+  function fadeOutChoir(fadeSeconds = 2.3) {
+    if (!ctx || !choirMasterEnv) return;
+    const now = ctx.currentTime;
+    if (now >= choirEndTime) return; // already finished naturally — nothing to fade
+
+    const currentLevel = choirMasterEnv.gain.value;
+    choirMasterEnv.gain.cancelScheduledValues(now);
+    choirMasterEnv.gain.setValueAtTime(currentLevel, now);
+    choirMasterEnv.gain.linearRampToValueAtTime(0.0001, now + 0.06);
+
+    const tailGain = ctx.createGain();
+    const tailPeak = Math.max(0.015, currentLevel * 0.05);
+    tailGain.gain.setValueAtTime(0, now);
+    tailGain.gain.linearRampToValueAtTime(tailPeak, now + 0.05);
+    tailGain.gain.linearRampToValueAtTime(0.0001, now + fadeSeconds);
+    tailGain.connect(sfxGain);
+    if (cathedralReverb) {
+      const tailWet = ctx.createGain();
+      tailWet.gain.value = 0.6;
+      tailGain.connect(tailWet).connect(cathedralReverb);
+    }
+    [130.81, 196.0, 293.66].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const voiceGain = ctx.createGain();
+      voiceGain.gain.value = i === 0 ? 1 : 0.5;
+      osc.connect(voiceGain).connect(tailGain);
+      osc.start(now);
+      osc.stop(now + fadeSeconds + 0.1);
+    });
+
+    choirEndTime = now + fadeSeconds + 0.1;
+  }
+
+  /* A piece landing: a short filtered-noise thud (the impact transient)
+     plus a low pitched body tone, both driven through the same crunch
+     shaper and a short reverb send — replaces what was a clean rising
+     triangle "boop." `mass` is the piece's own w*h*z volume (invariant
+     across a roll, since rolling only permutes which dimension is
+     which), so a larger piece genuinely lands lower and duller than a
+     small one, not just louder. */
+  function playLanding(mass) {
+    /* Replaced entirely per feedback: this used to be a dirty,
+       crunchy mechanical thud; now a crisp, brittle glass/ice crack —
+       a short "tik—crrk" fracture rather than a "whump." Built from a
+       tiny bright noise catch (the "tik"), a short cluster of very
+       short narrow-bandpass noise grains (microscopic fractures
+       propagating — the "crrk"), and a brief inharmonic partial
+       "ring" (a struck-material resonance, not a struck-string
+       harmonic series, so it doesn't read as a clean musical note).
+       Deliberately skips thudShaper — that heavy distortion belongs
+       to the old dirty-thud aesthetic and would just muddy the
+       crispness this needs.
+
+       Piece mass still drives pitch exactly as the "volume hierarchy"
+       feedback requires: the same Opa/other levelMul split from
+       before is unchanged, and mass still lowers the fundamental for
+       bigger pieces — only the sonic character and the specific pitch
+       mapping/curve changed.
+
+       Per further feedback ("much higher pitched & more brittle"):
+       the whole fundamental range was raised considerably, the
+       granular/"tik" layers pushed brighter and given more resonance
+       (higher Q), a fourth, higher shimmer partial added, every decay
+       shortened a touch for extra snap, and the low-end layer trimmed
+       back — brittle means thin and sharp, not weighty.
+
+       Latest round: overall volume cut a further 25% (still split
+       Opa/other, same hierarchy as before); the whole pitch curve
+       raised again, equally for every piece size (a single multiplier
+       on the base frequency, so the curve shape — and therefore the
+       size-vs-pitch relationship — is unchanged, just shifted up); and
+       roughly 30% of the time, the whole event is shifted a half step
+       up or down AND given an easily-detectable tape-warble wobble
+       (a fast, fairly deep detune wander across the note's own short
+       life) on every pitched component, for an analog "wow and
+       flutter" imperfection on some hits but not most.
+
+       Latest: volume cut a further 60%, and the whole pitch curve
+       raised 3x on top of everything above (again a single multiplier
+       on the base frequency, so the size-vs-pitch relationship and
+       every ratio/warble built on `fundamental` scale up with it
+       automatically). */
+    if (!ctx) return;
+    const t0 = nowT();
+    const m = Math.max(1, mass || 1);
+    const isOpa = m >= 8;
+    const levelMul = (isOpa ? 0.6 : 0.5) * 0.75 * 0.4; // unchanged hierarchy, each further cut 60% per feedback
+    // ~30% of hits get a half-step pitch shift (up or down) plus a
+    // tape-warble wobble applied to every pitched oscillator below.
+    const hasVariation = Math.random() < 0.3;
+    const halfStepMul = !hasVariation ? 1 : Math.random() < 0.5 ? Math.pow(2, 1 / 12) : Math.pow(2, -1 / 12);
+    // Warbling notes get a little extra time so the wobble is actually
+    // audible rather than clipped off — the other ~70% of hits are
+    // completely unaffected by this.
+    const warbleExtra = hasVariation ? 0.05 + Math.random() * 0.03 : 0;
+    function applyWarble(param, dur) {
+      if (!hasVariation) return;
+      const depth = 7 + Math.random() * 4; // cents — 80% less detectable per feedback (was 35-55)
+      param.setValueAtTime(0, t0);
+      param.linearRampToValueAtTime(depth, t0 + dur * 0.22);
+      param.linearRampToValueAtTime(-depth * 0.85, t0 + dur * 0.5);
+      param.linearRampToValueAtTime(depth * 0.6, t0 + dur * 0.75);
+      param.linearRampToValueAtTime(0, t0 + dur);
+    }
+    // Fundamental "ring" pitch — higher/thinner for small pieces,
+    // deeper for large ones, raised again here (equally across every
+    // piece size, via this one multiplier) on top of the earlier
+    // brittleness pass. Per-hit jitter plus the inharmonic partials
+    // below keep repeated hits, and different piece sizes, from ever
+    // lining up into anything resembling a musical scale.
+    const fundamental = 10200 * Math.pow(1 / m, 0.5) * (0.96 + Math.random() * 0.08) * halfStepMul; // 3400 x3 per feedback ("pitch-raised by a factor of 3")
+
+    const dry = ctx.createGain();
+    const wet = ctx.createGain();
+    wet.gain.value = 0.5; // a little shimmer, not a cinematic tail — stays restrained
+    dry.connect(sfxGain);
+    wet.connect(reverbNode); // reverbNode's own send gain routes back into sfxGain
+
+    // The "tik": an extremely short, very bright noise catch — the
+    // instant the fracture starts.
+    const tik = noiseSource();
+    const tikFilt = ctx.createBiquadFilter();
+    tikFilt.type = "highpass";
+    tikFilt.frequency.value = 6400 + Math.random() * 1800; // brighter/brittler — was 5200-6800
+    const tikEnv = ctx.createGain();
+    env(tikEnv, t0, 0.0002, 0.0005, 0.006, 0.012 * levelMul);
+    tik.connect(tikFilt).connect(tikEnv);
+    tikEnv.connect(dry);
+    tikEnv.connect(wet);
+    tik.start(t0);
+    tik.stop(t0 + 0.012);
+
+    // The "crrk": a tight cluster of very short, narrow-bandpass noise
+    // grains at irregular micro-offsets — microscopic fractures
+    // propagating through the material, not one smooth burst. Center
+    // frequency dips very slightly for bigger pieces so even this
+    // granular texture leans a touch duller/heavier without losing
+    // its glassy character.
+    const grainCount = 5 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < grainCount; i++) {
+      const tG = t0 + Math.random() * 0.032;
+      const gSrc = noiseSource();
+      const gFilt = ctx.createBiquadFilter();
+      gFilt.type = "bandpass";
+      gFilt.frequency.value = (3400 + Math.random() * 4200) / Math.pow(m, 0.1); // brighter, and even less mass-dependent — brittle across all sizes
+      gFilt.Q.value = 5 + Math.random() * 6; // higher resonance — more glassy/brittle ping, less noisy scrape
+      const gEnv = ctx.createGain();
+      const gDur = 0.0008 + Math.random() * 0.0018;
+      env(gEnv, tG, 0.0002, 0.0003, gDur, (0.01 + Math.random() * 0.012) * levelMul);
+      gSrc.connect(gFilt).connect(gEnv);
+      gEnv.connect(dry);
+      gEnv.connect(wet);
+      gSrc.start(tG);
+      gSrc.stop(tG + gDur + 0.01);
+    }
+
+    // The crystalline "ring": a few inharmonic (non-integer-ratio)
+    // partials with a fast, glass-like decay — deliberately inharmonic
+    // so it reads as struck glass/crystal rather than a tuned note,
+    // even though the fundamental clearly tracks piece size.
+    const partials = [
+      { ratio: 1, peak: 0.02 },
+      { ratio: 1.83, peak: 0.011 },
+      { ratio: 2.76, peak: 0.007 },
+      { ratio: 3.6, peak: 0.004 }, // added: a higher shimmer partial for extra brittleness
+    ];
+    partials.forEach(({ ratio, peak }, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = fundamental * ratio * (0.99 + Math.random() * 0.02);
+      const pEnv = ctx.createGain();
+      const dur = Math.max(0.016, 0.04 + Math.random() * 0.022 - i * 0.005) + warbleExtra; // shortened for snap; a touch longer only when warbling
+      env(pEnv, t0, 0.0006, 0.002, dur, peak * levelMul);
+      applyWarble(osc.detune, dur);
+      osc.connect(pEnv);
+      pEnv.connect(dry);
+      pEnv.connect(wet);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.04);
+    });
+
+    // A trace of low-end presence underneath it all — trimmed back
+    // further per "more brittle" feedback (brittle means thin and
+    // sharp, not weighty), just enough that a large piece's crack
+    // still feels a little deeper rather than merely louder. Its
+    // frequency (half the fundamental) already falls with mass on its
+    // own; peak amplitude does NOT change with mass, so bigger pieces
+    // feel deeper, not bass-boosted.
+    const low = ctx.createOscillator();
+    low.type = "sine";
+    low.frequency.value = fundamental * 0.5;
+    const lowEnv = ctx.createGain();
+    const lowDur = 0.032 + warbleExtra;
+    env(lowEnv, t0, 0.001, 0.003, lowDur, 0.006 * levelMul);
+    applyWarble(low.detune, lowDur);
+    low.connect(lowEnv);
+    lowEnv.connect(dry);
+    low.start(t0);
+    low.stop(t0 + lowDur + 0.013);
+  }
+
+  /* Selection cue — was a clean tonal beep, replaced with a dry,
+     dark, non-pitched click (filtered noise through the same crunch
+     stage as the landing thud) so it registers as a small mechanical
+     acknowledgment rather than a UI "bloop." Select and deselect share
+     the same sound but at a slightly different filter center, so
+     they're distinguishable without either one being a tone. */
+  function sfxClick(centerFreq, peak) {
+    if (!ctx) return;
+    const t0 = nowT();
+    const src = noiseSource();
+    const filt = ctx.createBiquadFilter();
+    filt.type = "bandpass";
+    filt.frequency.value = centerFreq;
+    filt.Q.value = 1.8;
+    const g = ctx.createGain();
+    env(g, t0, 0.001, 0.004, 0.03, peak);
+    src.connect(filt).connect(g).connect(thudShaper).connect(sfxGain);
+    src.start(t0);
+    src.stop(t0 + 0.05);
+  }
+
+  /* Piece-selection cue, per feedback: replaced the filtered-noise
+     click with an extremely high-pitched tonal "tink" — a clean sine
+     (plus a quiet, slightly-detuned upper partial for a touch of
+     metallic shimmer) sitting in the top ~10% of the normal 20Hz-20kHz
+     human hearing range (~18-19kHz), with a near-instant attack and a
+     very short decay so it reads as a tiny, thin contact tick rather
+     than a tone you could hum. */
+  function tink() {
+    /* Per feedback: ~18kHz was inaudible in practice — that's well
+       past where age-related high-frequency hearing loss (presbycusis)
+       typically sets in, which starts eroding sensitivity above
+       roughly 10-12kHz and climbs steeply from there, so most 50-60
+       year old ears simply couldn't hear it at all, regardless of
+       gain. Brought down to ~8.2-9.4kHz — still distinctly the
+       highest, thinnest tone in the whole soundscape (every other
+       piece sound tops out lower than this), but solidly inside the
+       range ordinary aging hearing still perceives clearly. Peak
+       nudged up slightly too, for margin. */
+    if (!ctx) return;
+    const t0 = nowT();
+    const freq = 8200 + Math.random() * 1200; // ~8.2-9.4kHz
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    env(g, t0, 0.0004, 0.0008, 0.018, 0.014);
+    osc.connect(g).connect(sfxGain);
+    osc.start(t0);
+    osc.stop(t0 + 0.03);
+
+    const partial = ctx.createOscillator();
+    partial.type = "sine";
+    partial.frequency.value = freq * 1.5; // inharmonic — metallic shimmer, not a clean octave
+    const pg = ctx.createGain();
+    env(pg, t0, 0.0004, 0.0004, 0.012, 0.005);
+    partial.connect(pg).connect(sfxGain);
+    partial.start(t0);
+    partial.stop(t0 + 0.025);
+  }
+
+  return {
+    ensureStarted,
+    beginGameFadeIn,
+    setZoom,
+    setMuted,
+    setTension: applyTension,
+    beginFadeOut,
+    resetWindDown,
+    // Pitched down further and quieter still, per feedback — these
+    // should now sit right at the edge of audible.
+    playSelect: tink, // replaced with an extremely high-pitched tonal "tink" per feedback (was a 600Hz filtered-noise click)
+    playDeselect: () => sfxClick(95, 0.009),
+    playLanding,
+    playCapture: playCabezaCrush, // pitch sink / plunging formant / downward Doppler decay, per feedback
+    playWin: () => cue(440, 660, 0.5, "sine", 0.028), // halved, then -20% more per feedback (was 0.035)
+    playMenu: playChoirStab,
+    fadeOutMenu: fadeOutChoir,
+    playPowerOn: () => cue(70, 220, 0.7, "sine", 0.06),
+    // Shorter and considerably louder than the initial version — per
+    // feedback it wasn't being heard at all, most likely because a
+    // reversed envelope's long, gentle swell-in (mirrored from
+    // playPowerOn's quick attack) is much less perceptually salient
+    // than a sharp attack at the same peak, especially competing
+    // against the still-playing ambient bed and the simultaneous
+    // master fade-out. Keeps the same reversed shape (still a swell-in
+    // + quick cutoff, not a normal cue) but compressed and boosted so
+    // it reliably cuts through both.
+    playPowerOff: () => reverseCue(70, 220, 0.4, "sine", 0.16),
+    playFlicker: () => { if (ctx && ctx.state === "running") evPowerFluctuation(); },
+    playArc: () => { if (ctx && ctx.state === "running") evArc(); },
+    playGlitch: () => { if (ctx && ctx.state === "running") { evDataBurst(); evStatic(); } },
+    dispose: () => {
+      disposed = true;
+      if (scheduleTimer) clearTimeout(scheduleTimer);
+      if (buzzWanderTimer) clearTimeout(buzzWanderTimer);
+      if (crackleTimer) clearTimeout(crackleTimer);
+      if (ctx) { try { ctx.close(); } catch (e) {} }
+    },
+  };
+}
