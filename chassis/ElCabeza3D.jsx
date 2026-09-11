@@ -33,6 +33,11 @@ const APP_VERSION = "1.39.0";
 
 export default function ElCabeza3D({ theme }) {
   const { COLORS, HEX, EDGE_RADIUS, modalBackdrop, modalSurface, canvasGradientStart, canvasGradientEnd } = theme;
+  /* Display face for the masthead title and modal headers (Move Log,
+     the intro panel, the end-of-game banner). Themes without their own
+     opinion fall back to Standard's Fraunces — only Neon currently
+     overrides this, with Chakra Petch. */
+  const titleFontFamily = theme.titleFontFamily || "'Fraunces', serif";
 
   /* Style helpers — nested here (not module-level) so they close
      over the theme's own COLORS/HEX rather than needing them passed
@@ -2529,7 +2534,7 @@ export default function ElCabeza3D({ theme }) {
           <h1
             style={{
               margin: 0,
-              fontFamily: "'Fraunces', serif",
+              fontFamily: titleFontFamily,
               fontWeight: 600,
               /* clamp, not a fixed 31 — 7vw only overtakes the 31px
                  ceiling below roughly 440px of viewport width, so this
@@ -3210,7 +3215,7 @@ export default function ElCabeza3D({ theme }) {
             style={{
               margin: "0 0 16px",
               textAlign: "center",
-              fontFamily: "'Fraunces', serif",
+              fontFamily: titleFontFamily,
               fontWeight: 600,
               fontSize: 19,
               letterSpacing: "0.04em",
@@ -3395,7 +3400,7 @@ export default function ElCabeza3D({ theme }) {
               style={{
                 margin: "0 0 10px",
                 textAlign: "center",
-                fontFamily: "'Fraunces', serif",
+                fontFamily: titleFontFamily,
                 fontWeight: 600,
                 fontSize: 20,
                 letterSpacing: "0.04em",
@@ -3592,7 +3597,7 @@ export default function ElCabeza3D({ theme }) {
           <h2
             style={{
               margin: "0 0 10px",
-              fontFamily: "'Fraunces', serif",
+              fontFamily: titleFontFamily,
               fontWeight: 600,
               fontSize: 34,
               letterSpacing: "0.02em",

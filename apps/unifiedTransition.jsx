@@ -392,13 +392,14 @@ export function HoldDegradeLayer({ dispRef, offRRef, offBRef, scanlineRef, stati
   );
 }
 
-export function ConnectModal({ word, onConfirm, onDismiss }) {
+export function ConnectModal({ word, onConfirm, onDismiss, sfx }) {
   return (
     <div className="ec-hold-modal-backdrop" onClick={onDismiss}>
       <div
         className="ec-hold-modal-word"
         onClick={(ev) => {
           ev.stopPropagation();
+          if (sfx) sfx.click();
           onConfirm();
         }}
       >
@@ -555,13 +556,21 @@ export const HOLD_DEGRADE_TUNING = {
   MAX_SHAKE_PX, MAX_WARP_PULSE, MAX_STROBE, SHAKE_FREQ_MIN, SHAKE_FREQ_MAX,
 };
 
-// A compact, from-scratch Web Audio sound set for the switcher gesture
-// — a soft click, a low crackle on hold-complete, and a rising/falling
-// sweep for power on/off. Deliberately simple (a handful of
-// oscillators/noise bursts) rather than a port of anything: it's a
-// self-contained nice-to-have, not the feature being restored, so it
-// isn't worth the risk of reverse-engineering a much larger procedural
-// synth from minified source.
+// Procedural Web Audio sound set for the switcher gesture, ported
+// from the original prototype's synth (same envelopes, frequencies,
+// and timings — just given readable names in place of the minified
+// ones). Everything is built from five primitives:
+//   noiseBuffer      — a buffer of white noise of a given duration.
+//   expDecay          — schedules an exponential ramp on a param.
+//   filteredNoiseBurst — white noise through a filter, quick attack,
+//                        exponential decay: the workhorse for clicks,
+//                        crackle, and hiss.
+//   oscSweep          — an oscillator sweeping between two
+//                        frequencies with the same attack/decay shape.
+//   triangleBlip       — a short, slightly-detuned triangle "tick".
+//   crackleField       — scatters randomly-timed filteredNoiseBursts
+//                        (with occasional triangleBlips) across a time
+//                        span, for static/crackle texture.
 export function createSwitcherSfx() {
   let ctx = null;
   const getCtx = () => {
@@ -569,57 +578,327 @@ export function createSwitcherSfx() {
     if (ctx.state === "suspended") ctx.resume();
     return ctx;
   };
-  const noiseBurst = (c, start, duration, gainPeak) => {
+
+  const noiseBuffer = (c, duration) => {
     const len = Math.max(1, Math.floor(c.sampleRate * duration));
     const buf = c.createBuffer(1, len, c.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    return buf;
+  };
+
+  const expDecay = (param, atTime, from, to, duration) => {
+    param.cancelScheduledValues(atTime);
+    param.setValueAtTime(Math.max(from, 1e-4), atTime);
+    param.exponentialRampToValueAtTime(Math.max(to, 1e-4), atTime + duration);
+  };
+
+  const filteredNoiseBurst = (c, time, duration, filterType, filterFreq, filterQ, gainPeak) => {
     const src = c.createBufferSource();
-    src.buffer = buf;
+    src.buffer = noiseBuffer(c, duration + 0.02);
+    const filt = c.createBiquadFilter();
+    filt.type = filterType;
+    filt.frequency.value = filterFreq;
+    if (filterQ != null) filt.Q.value = filterQ;
+    const gain = c.createGain();
+    const attack = Math.min(0.006, duration * 0.2);
+    gain.gain.setValueAtTime(1e-4, time);
+    gain.gain.linearRampToValueAtTime(gainPeak, time + attack);
+    expDecay(gain.gain, time + attack, gainPeak, 1e-4, duration);
+    src.connect(filt).connect(gain).connect(c.destination);
+    src.start(time);
+    src.stop(time + duration + 0.03);
+  };
+
+  const oscSweep = (c, time, duration, oscType, freqFrom, freqTo, gainPeak) => {
+    const osc = c.createOscillator();
+    osc.type = oscType;
+    osc.frequency.setValueAtTime(freqFrom, time);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(freqTo, 1), time + duration);
+    const gain = c.createGain();
+    const attack = Math.min(0.01, duration * 0.15);
+    gain.gain.setValueAtTime(1e-4, time);
+    gain.gain.linearRampToValueAtTime(gainPeak, time + attack);
+    expDecay(gain.gain, time + attack, gainPeak, 1e-4, duration);
+    osc.connect(gain).connect(c.destination);
+    osc.start(time);
+    osc.stop(time + duration + 0.03);
+  };
+
+  // Sweeps through `segments` geometric steps from freqFrom to freqTo
+  // (rather than one continuous exponential ramp) — gives the sweep a
+  // faint stepped/ratchet quality — then decays over the last ~18%.
+  const multiSegmentSweep = (c, time, duration, oscType, freqFrom, freqTo, segments, gainPeak) => {
+    const osc = c.createOscillator();
+    osc.type = oscType;
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(1e-4, time);
+    gain.gain.linearRampToValueAtTime(gainPeak, time + Math.min(0.01, duration * 0.1));
+    for (let step = 0; step <= segments; step++) {
+      const stepTime = time + (step / segments) * duration;
+      const ratio = Math.pow(freqTo / freqFrom, step / segments);
+      osc.frequency.setValueAtTime(freqFrom * ratio, stepTime);
+    }
+    expDecay(gain.gain, time + duration * 0.82, gainPeak, 1e-4, Math.max(duration * 0.3, 0.05));
+    osc.connect(gain).connect(c.destination);
+    osc.start(time);
+    osc.stop(time + duration + 0.08);
+  };
+
+  const triangleBlip = (c, time, freqBase, gainPeak) => {
+    const freq = freqBase * (0.9 + Math.random() * 0.2);
+    const osc = c.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq, time);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(freq * 0.82, 40), time + 0.05);
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(1e-4, time);
+    gain.gain.linearRampToValueAtTime(gainPeak, time + 0.004);
+    expDecay(gain.gain, time + 0.004, gainPeak, 1e-4, 0.045 + Math.random() * 0.025);
+    osc.connect(gain).connect(c.destination);
+    osc.start(time);
+    osc.stop(time + 0.09);
+  };
+
+  const bandpassNoiseBurst = (c, time, duration, freq, q, gainPeak) => {
+    const src = c.createBufferSource();
+    src.buffer = noiseBuffer(c, duration + 0.01);
     const filt = c.createBiquadFilter();
     filt.type = "bandpass";
-    filt.frequency.value = 1800;
-    filt.Q.value = 1.2;
+    filt.frequency.value = freq;
+    filt.Q.value = q;
     const gain = c.createGain();
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.linearRampToValueAtTime(gainPeak, start + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    const attack = Math.min(0.004, duration * 0.25);
+    gain.gain.setValueAtTime(1e-4, time);
+    gain.gain.linearRampToValueAtTime(gainPeak, time + attack);
+    expDecay(gain.gain, time + attack, gainPeak, 1e-4, duration);
     src.connect(filt).connect(gain).connect(c.destination);
-    src.start(start);
-    src.stop(start + duration + 0.02);
+    src.start(time);
+    src.stop(time + duration + 0.02);
   };
-  const tone = (c, start, duration, freqFrom, freqTo, gainPeak, type = "sine") => {
-    const osc = c.createOscillator();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freqFrom, start);
-    osc.frequency.exponentialRampToValueAtTime(Math.max(1, freqTo), start + duration);
-    const gain = c.createGain();
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.linearRampToValueAtTime(gainPeak, start + Math.min(0.02, duration * 0.2));
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-    osc.connect(gain).connect(c.destination);
-    osc.start(start);
-    osc.stop(start + duration + 0.03);
+
+  const crackleField = (c, start, span, grainCount, freqLo, freqHi, gainScale, blipChance, blipFreqLo, blipFreqHi) => {
+    for (let i = 0; i < grainCount; i++) {
+      const t = start + Math.random() * span;
+      bandpassNoiseBurst(
+        c, t, 0.02 + Math.random() * 0.05,
+        freqLo + Math.random() * (freqHi - freqLo), 2 + Math.random() * 4,
+        gainScale * (0.6 + Math.random() * 0.5),
+      );
+      if (Math.random() < blipChance) {
+        triangleBlip(c, t + Math.random() * 0.01, blipFreqLo + Math.random() * (blipFreqHi - blipFreqLo), gainScale * 0.7);
+      }
+    }
   };
+
+  // The confirm-word click (and the tail of holdComplete): a short
+  // highpass noise crack, a low sine thump, and a trailing blip.
+  const playClick = (atTime) => {
+    const c = getCtx();
+    const time = atTime != null ? atTime : c.currentTime;
+    filteredNoiseBurst(c, time, 0.03, "highpass", 2200, 0.7, 0.55);
+    oscSweep(c, time, 0.06, "sine", 150, 60, 0.4);
+    triangleBlip(c, time + 0.02, 1800, 0.12);
+  };
+
   return {
     click() {
-      const c = getCtx();
-      tone(c, c.currentTime, 0.05, 900, 500, 0.12, "square");
+      playClick();
     },
+    // A rising three-note chirp (900 -> 1300 -> 1700Hz) under a touch
+    // of noise texture, finishing with the click sound — plays the
+    // instant the hold completes and the CONNECT/DISCONNECT word appears.
     holdComplete() {
       const c = getCtx();
-      noiseBurst(c, c.currentTime, 0.12, 0.18);
-      tone(c, c.currentTime, 0.15, 220, 90, 0.15, "sine");
+      const t0 = c.currentTime;
+      triangleBlip(c, t0, 900, 0.14);
+      triangleBlip(c, t0 + 0.045, 1300, 0.13);
+      triangleBlip(c, t0 + 0.085, 1700, 0.12);
+      bandpassNoiseBurst(c, t0 + 0.02, 0.05, 1800, 2, 0.14);
+      playClick(t0 + 0.1);
     },
+    // Standard -> Neon: a low rumble, building static, a sawtooth
+    // power-up sweep, a bright flash-synced burst, then crackle
+    // settling out — timed against the ~2s visual CRT power-on.
     powerOn() {
       const c = getCtx();
-      tone(c, c.currentTime, 0.5, 90, 1200, 0.14, "sawtooth");
-      noiseBurst(c, c.currentTime + 0.35, 0.15, 0.12);
+      const t0 = c.currentTime;
+      oscSweep(c, t0, 0.16, "sine", 85, 34, 0.45);
+      bandpassNoiseBurst(c, t0, 0.05, 200, 1.2, 0.3);
+      crackleField(c, t0 + 0.01, 0.1, 4, 800, 2600, 0.18, 0.3, 900, 1800);
+      crackleField(c, t0 + 0.05, 0.28, 6, 1200, 3200, 0.1, 0.55, 700, 2200);
+      bandpassNoiseBurst(c, t0 + 0.13, 0.03, 3200, 3, 0.28);
+      triangleBlip(c, t0 + 0.15, 1600, 0.16);
+      multiSegmentSweep(c, t0 + 0.38, 0.57, "sawtooth", 70, 320, 9, 0.075);
+      crackleField(c, t0 + 0.38, 0.57, 16, 300, 4200, 0.12, 0.4, 500, 3000);
+      filteredNoiseBurst(c, t0 + 0.95, 0.22, "highpass", 3000, 0.5, 0.38);
+      crackleField(c, t0 + 0.95, 0.2, 5, 2500, 6000, 0.1, 0.6, 2000, 5000);
+      crackleField(c, t0 + 1.25, 0.5, 8, 800, 2400, 0.06, 0.4, 1200, 2800);
+      triangleBlip(c, t0 + 1.3, 1100, 0.05);
     },
+    // Neon -> Standard: a CRT shutdown — switch click, a flyback whine
+    // cut abruptly, a deflection downsweep, a power-rail drain with a
+    // sub-bass pop, a long sinking phosphor hum, sparse residual
+    // crackle, a detuned trailing whine, and a final settling pop
+    // timed to the visual afterglow's last fade.
     powerOff() {
       const c = getCtx();
-      tone(c, c.currentTime, 0.4, 900, 60, 0.14, "sawtooth");
-      noiseBurst(c, c.currentTime, 0.1, 0.14);
+      const t0 = c.currentTime;
+      const master = c.createGain();
+      master.gain.value = 0.9; // headroom so several simultaneous layers don't clip
+      master.connect(c.destination);
+
+      // Switch click: sharp highpass noise burst, 15ms decay.
+      const clickDur = 0.015;
+      const clickSrc = c.createBufferSource();
+      clickSrc.buffer = noiseBuffer(c, clickDur);
+      const clickFilter = c.createBiquadFilter();
+      clickFilter.type = "highpass";
+      clickFilter.frequency.value = 1200;
+      const clickGain = c.createGain();
+      clickGain.gain.setValueAtTime(0.8, t0);
+      clickGain.gain.exponentialRampToValueAtTime(0.001, t0 + clickDur);
+      clickSrc.connect(clickFilter).connect(clickGain).connect(master);
+      clickSrc.start(t0);
+      clickSrc.stop(t0 + clickDur + 0.005);
+
+      // Flyback cut: the NTSC horizontal scan tone (15,734Hz), cut
+      // abruptly at 20ms with a sharp 5ms fade.
+      const flybackCutAt = t0 + 0.02;
+      const flybackOsc = c.createOscillator();
+      flybackOsc.type = "sine";
+      flybackOsc.frequency.value = 15734;
+      const flybackGain = c.createGain();
+      flybackGain.gain.setValueAtTime(0.25, t0);
+      flybackGain.gain.setValueAtTime(0.25, flybackCutAt);
+      flybackGain.gain.linearRampToValueAtTime(0.0001, flybackCutAt + 0.005);
+      flybackOsc.connect(flybackGain).connect(master);
+      flybackOsc.start(t0);
+      flybackOsc.stop(flybackCutAt + 0.01);
+
+      // Deflection downsweep: 850Hz -> 30Hz over 220ms.
+      const deflectStart = t0 + 0.01;
+      const deflectDur = 0.22;
+      const deflectOsc = c.createOscillator();
+      deflectOsc.type = "sine";
+      deflectOsc.frequency.setValueAtTime(850, deflectStart);
+      deflectOsc.frequency.exponentialRampToValueAtTime(30, deflectStart + deflectDur);
+      const deflectGain = c.createGain();
+      deflectGain.gain.setValueAtTime(0.0001, deflectStart);
+      deflectGain.gain.linearRampToValueAtTime(0.5, deflectStart + 0.015);
+      deflectGain.gain.exponentialRampToValueAtTime(0.0001, deflectStart + deflectDur);
+      deflectOsc.connect(deflectGain).connect(master);
+      deflectOsc.start(deflectStart);
+      deflectOsc.stop(deflectStart + deflectDur + 0.02);
+
+      // Power-rail drain: lowpass noise sweeping 3000Hz -> 80Hz over
+      // 300ms, plus a sub-bass 50Hz pop.
+      const drainDur = 0.3;
+      const drainSrc = c.createBufferSource();
+      drainSrc.buffer = noiseBuffer(c, drainDur);
+      const drainFilter = c.createBiquadFilter();
+      drainFilter.type = "lowpass";
+      drainFilter.Q.value = 0.7;
+      drainFilter.frequency.setValueAtTime(3000, t0);
+      drainFilter.frequency.exponentialRampToValueAtTime(80, t0 + drainDur);
+      const drainGain = c.createGain();
+      drainGain.gain.setValueAtTime(0.35, t0);
+      drainGain.gain.exponentialRampToValueAtTime(0.001, t0 + drainDur);
+      drainSrc.connect(drainFilter).connect(drainGain).connect(master);
+      drainSrc.start(t0);
+      drainSrc.stop(t0 + drainDur + 0.02);
+
+      const popOsc = c.createOscillator();
+      popOsc.type = "sine";
+      popOsc.frequency.value = 50;
+      const popGain = c.createGain();
+      popGain.gain.setValueAtTime(0.4, t0);
+      popGain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.15);
+      popOsc.connect(popGain).connect(master);
+      popOsc.start(t0);
+      popOsc.stop(t0 + 0.16);
+
+      // Phosphor discharge hum: a low tone continuously sinking in
+      // pitch under a slow wobble, bridging the opening clunk to the
+      // long fade that follows.
+      const humStart = t0 + 0.08;
+      const humDur = 1.55;
+      const humOsc = c.createOscillator();
+      humOsc.type = "triangle";
+      humOsc.frequency.setValueAtTime(58, humStart);
+      humOsc.frequency.exponentialRampToValueAtTime(23, humStart + humDur * 0.6);
+      humOsc.frequency.exponentialRampToValueAtTime(14, humStart + humDur);
+      const humWobble = c.createOscillator();
+      humWobble.type = "sine";
+      humWobble.frequency.value = 0.6;
+      const humWobbleGain = c.createGain();
+      humWobbleGain.gain.value = 3;
+      humWobble.connect(humWobbleGain).connect(humOsc.frequency);
+      const humGain = c.createGain();
+      humGain.gain.setValueAtTime(0.0001, humStart);
+      humGain.gain.linearRampToValueAtTime(0.22, humStart + 0.12);
+      humGain.gain.exponentialRampToValueAtTime(0.0001, humStart + humDur);
+      humOsc.connect(humGain).connect(master);
+      humOsc.start(humStart);
+      humOsc.stop(humStart + humDur + 0.05);
+      humWobble.start(humStart);
+      humWobble.stop(humStart + humDur + 0.05);
+
+      // Residual static crackle field: sparse, randomly-timed noise
+      // grains scattered irregularly across the fade.
+      const crackleFieldEnd = t0 + 1.82;
+      let crackleT = t0 + 0.22;
+      while (crackleT < crackleFieldEnd) {
+        const grainDur = 0.008 + Math.random() * 0.03;
+        const grainSrc = c.createBufferSource();
+        grainSrc.buffer = noiseBuffer(c, grainDur);
+        const grainFilter = c.createBiquadFilter();
+        grainFilter.type = "bandpass";
+        grainFilter.frequency.value = 600 + Math.random() * 4200;
+        grainFilter.Q.value = 2 + Math.random() * 6;
+        const grainGain = c.createGain();
+        const grainPeak = (0.03 + Math.random() * 0.09) * Math.max(0, 1 - (crackleT - t0) / 1.85);
+        grainGain.gain.setValueAtTime(Math.max(grainPeak, 1e-4), crackleT);
+        grainGain.gain.exponentialRampToValueAtTime(0.0001, crackleT + grainDur);
+        grainSrc.connect(grainFilter).connect(grainGain).connect(master);
+        grainSrc.start(crackleT);
+        grainSrc.stop(crackleT + grainDur + 0.01);
+        crackleT += 0.05 + Math.random() * 0.16;
+      }
+
+      // Trailing whine: two closely-detuned high sines beating against
+      // each other, sinking in pitch and volume.
+      const whineStart = t0 + 0.4;
+      const whineDur = 1.35;
+      [1, 1.006].forEach((detuneMul, idx) => {
+        const whineOsc = c.createOscillator();
+        whineOsc.type = "sine";
+        whineOsc.frequency.setValueAtTime(2600 * detuneMul, whineStart);
+        whineOsc.frequency.exponentialRampToValueAtTime(340 * detuneMul, whineStart + whineDur);
+        const whineGain = c.createGain();
+        whineGain.gain.setValueAtTime(0.0001, whineStart);
+        whineGain.gain.linearRampToValueAtTime(idx === 0 ? 0.05 : 0.04, whineStart + 0.2);
+        whineGain.gain.exponentialRampToValueAtTime(0.0001, whineStart + whineDur);
+        whineOsc.connect(whineGain).connect(master);
+        whineOsc.start(whineStart);
+        whineOsc.stop(whineStart + whineDur + 0.05);
+      });
+
+      // Final phosphor pop: one last, very quiet settling click timed
+      // to land as the visual afterglow finishes fading.
+      const finalPopAt = t0 + 1.86;
+      const finalSrc = c.createBufferSource();
+      finalSrc.buffer = noiseBuffer(c, 0.01);
+      const finalFilter = c.createBiquadFilter();
+      finalFilter.type = "bandpass";
+      finalFilter.frequency.value = 900;
+      finalFilter.Q.value = 4;
+      const finalGain = c.createGain();
+      finalGain.gain.setValueAtTime(0.12, finalPopAt);
+      finalGain.gain.exponentialRampToValueAtTime(0.0001, finalPopAt + 0.04);
+      finalSrc.connect(finalFilter).connect(finalGain).connect(master);
+      finalSrc.start(finalPopAt);
+      finalSrc.stop(finalPopAt + 0.05);
     },
   };
 }

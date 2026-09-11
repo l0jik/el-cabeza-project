@@ -197,7 +197,7 @@ function UnifiedApp() {
         />
       </div>
       {connectWord && (
-        <ConnectModal word={connectWord} onConfirm={beginTransition} onDismiss={() => setConnectWord(null)} />
+        <ConnectModal word={connectWord} onConfirm={beginTransition} onDismiss={() => setConnectWord(null)} sfx={sfxRef.current} />
       )}
       {transition && (
         <CrtTransitionOverlay direction={transition.direction} filterId={transition.filterId} onDone={onTransitionDone} sfx={sfxRef.current} />

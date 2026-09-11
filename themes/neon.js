@@ -71,6 +71,10 @@ export const COLORS = {
   inkOnAccent: "#06090D",
 };
 
+/* The masthead title and modal-header display face — chassis falls
+   back to Standard's Fraunces when a theme doesn't set this. */
+export const titleFontFamily = "'Chakra Petch', sans-serif";
+
 export const HEX = {
   /* Kept in sync with COLORS.cream, same reasoning as before. */
   cream: 0x0b0f14,
@@ -1768,6 +1772,15 @@ export function mountAmbientEffects(refs, helpers) {
    The Singularity button's own CSS is NOT included here — see
    renderSetupExtras below for why that's still pending. */
 export const styleSheet = `
+  /* Chakra Petch is the masthead/UI display face this theme is built
+     around (see the "EL CABEZA" h1 and button labels below) — it was
+     being lost silently (falling back to plain sans-serif) because
+     nothing in the build actually loaded it; the chassis's own base
+     stylesheet only @imports the Standard theme's fonts (Fraunces/IBM
+     Plex). Importing it here, the same way, is theme-owned and
+     applies to every build that mounts this theme (standalone Neon
+     and the unified app alike). */
+  @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;500;600;700&display=swap');
   /* Restrained hover glow — the one new interaction cue this theme adds.
      Purely cosmetic (box-shadow only); no layout, timing, or hit-testing
      is touched, so it cannot affect what a click actually does. */

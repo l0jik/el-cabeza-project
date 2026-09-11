@@ -50,6 +50,11 @@ export const COLORS = {
   pageBgDeep: "#332B24",
 };
 
+/* The masthead title and modal-header display face. Declared
+   explicitly (chassis would fall back to this same value anyway) so
+   both themes' font choice is visible in one place. */
+export const titleFontFamily = "'Fraunces', serif";
+
 export const HEX = {
   /* Kept identical to COLORS.cream, same reasoning as that comment —
      currently unused by any actual Three.js material (the board
