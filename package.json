@@ -1,0 +1,14 @@
+{
+  "name": "el-cabeza",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build/build.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
+  "dependencies": {
+    "three": "^0.128.0"
+  }
+}

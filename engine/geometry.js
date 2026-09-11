@@ -1,0 +1,325 @@
+/* Shared piece/camera geometry math for El Cabeza's 3D engine.
+   Verified byte-for-byte identical between the Standard and Neon theme
+   sources before extraction (see build/scratch/). Depends on THREE
+   (assumed global, matching both original sources' own usage) and on
+   the shared board constants. setGhostLineTarget lives here too even
+   though it touches a Three.js mesh directly, since it has no game-rule
+   content of its own — pure animation-state bookkeeping shared by both
+   themes' ghost-move indicators. */
+
+import * as THREE from "three";
+import { SQUARE_SIZE, OFF, PIECE_SCALE, DISC_H, SLAB } from "./constants.js";
+import { PIECE_META } from "./constants.js";
+
+export function setGhostLineTarget(mesh, target, fadingOut) {
+  mesh.userData.opacityFrom = mesh.material.opacity;
+  mesh.userData.opacityTo = target;
+  mesh.userData.opacityStart = performance.now();
+  if (fadingOut) mesh.userData.fadingOut = true;
+}
+
+/* --------------------------- geometry ----------------------------- */
+export function pieceCenter(p) {
+  return {
+    x: (p.col + p.w / 2) * SQUARE_SIZE - OFF,
+    y: (p.z * PIECE_SCALE) / 2, // height is a piece property, independent of square spacing
+    z: (p.row + p.h / 2) * SQUARE_SIZE - OFF,
+  };
+}
+
+/* Resting Y for a piece's mesh: half its scaled height, so it sits on
+   the board rather than sinking into it. */
+export function restingY(p) {
+  return PIECE_META[p.type].shape === "disc"
+    ? (DISC_H * PIECE_SCALE) / 2
+    : (p.z * PIECE_SCALE) / 2;
+}
+
+/* A box with every edge and corner eased: the exact Minkowski sum of
+   a box and a sphere, so all 12 edges and 8 corners share one radius
+   and the extents are exactly sx x sy x sz.
+
+   Built by parameterising a sphere and DUPLICATING the rings that sit
+   on the octant boundaries (the equator, and the four azimuth
+   quarter-lines). Each octant's samples are offset to its own corner
+   of the inner box, so those duplicated rings automatically bridge
+   into the flat faces and the cylindrical edge fillets. The practical
+   consequence is that `seg` controls ONLY fillet smoothness — the flat
+   faces stay perfectly flat and full-size no matter how low it goes.
+
+   Two earlier versions were wrong in instructive ways, both caught by
+   measuring against the real geometry rather than by eye:
+
+   1. An ExtrudeGeometry version extruded a rounded rectangle with
+      bevelSize = radius, assuming the bevel insets the end caps. It
+      does the opposite — bevelSize expands the body OUTWARD in the
+      shape plane. Height was right, but the footprint was inflated by
+      2 * bevelSize: makeRoundedBox(0.8, 0.8, 0.8) measured
+      0.925 x 0.800 x 0.925. Invisible at rest, but a roll rotates the
+      OLD geometry 90 degrees (bringing the correct 0.800 height into a
+      horizontal axis) and then rebuilds it at 0.925, so pieces snapped
+      15.6% wider the instant they landed.
+
+   2. A sphere-swept version built on a uniform BoxGeometry grid fixed
+      the size but looked like a squircle. With seg=6 on a 0.8 box the
+      grid pitch is 0.133 while the fillet is only 0.0625 wide, so the
+      last flat vertex landed at 0.267 when the flat face should reach
+      0.3375 — the rounding started early and smeared across one huge
+      quad, and smooth normals over that span read as a bulge.
+
+   Verified for this version: extents exact for cubes and prisms alike;
+   the flat top face reaches +/-0.33750 against an ideal of 0.33750;
+   max deviation from the true rounded-box silhouette is 0.05% of a
+   piece at seg=8 (1190 triangles, cheaper than the 5604-vertex
+   ExtrudeGeometry it replaces); and a piece rotated 90 degrees matches
+   a freshly rebuilt one to 4.7e-4 world units, which is sub-pixel.
+   Any change here should be re-measured the same way — matching
+   extents alone is not sufficient, the rotated and rebuilt solids must
+   also agree, or landings will snap again. */
+export function makeRoundedBox(sx, sy, sz, radius, seg = 8) {
+  const r = Math.min(radius, sx / 2 - 1e-4, sy / 2 - 1e-4, sz / 2 - 1e-4);
+  const ix = sx / 2 - r;
+  const iy = sy / 2 - r;
+  const iz = sz / 2 - r;
+
+  const us = [];
+  const uq = [];
+  for (let q = 0; q < 4; q++) {
+    for (let k = 0; k <= seg; k++) {
+      us.push((q * Math.PI) / 2 + (k / seg) * (Math.PI / 2));
+      uq.push(q);
+    }
+  }
+  const vs = [];
+  const vh = [];
+  for (let h = 0; h < 2; h++) {
+    for (let k = 0; k <= seg; k++) {
+      vs.push((h * Math.PI) / 2 + (k / seg) * (Math.PI / 2));
+      vh.push(h);
+    }
+  }
+
+  const pos = [];
+  const nor = [];
+  const uv = [];
+  const idx = [];
+  const W = us.length;
+  const H = vs.length;
+
+  for (let j = 0; j < H; j++) {
+    const v = vs[j];
+    const sgnY = vh[j] === 0 ? 1 : -1;
+    for (let i = 0; i < W; i++) {
+      const u = us[i];
+      const q = uq[i];
+      const nx = Math.sin(v) * Math.cos(u);
+      const ny = Math.cos(v);
+      const nz = Math.sin(v) * Math.sin(u);
+      const sgnX = q === 0 || q === 3 ? 1 : -1;
+      const sgnZ = q === 0 || q === 1 ? 1 : -1;
+      pos.push(ix * sgnX + r * nx, iy * sgnY + r * ny, iz * sgnZ + r * nz);
+      nor.push(nx, ny, nz);
+      uv.push(i / (W - 1), 1 - j / (H - 1));
+    }
+  }
+  /* i wraps modulo W: the last azimuth column (u = 2pi, -z side) has to
+     bridge back to the first (u = 0, +z side) or the +x edge fillet is
+     left open. Stopping at W-1 left exactly that gap. */
+  for (let j = 0; j < H - 1; j++) {
+    for (let i = 0; i < W; i++) {
+      const i2 = (i + 1) % W;
+      const a = j * W + i;
+      const b = j * W + i2;
+      const c = (j + 1) * W + i;
+      const d = (j + 1) * W + i2;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+
+  /* Flat face caps. Each pole is a single point on the sphere but maps
+     to the FOUR corners of a flat face, and no quad in the loop above
+     spans between them — without these two triangles per face the top
+     and bottom are open and you see straight into the piece. */
+  const capT = [0, 1, 2, 3].map((q) => q * (seg + 1));
+  const capB = [0, 1, 2, 3].map((q) => (H - 1) * W + q * (seg + 1));
+  idx.push(capT[0], capT[2], capT[1], capT[0], capT[3], capT[2]);
+  idx.push(capB[0], capB[1], capB[2], capB[0], capB[2], capB[3]);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  return geo;
+}
+
+/* Where a ray from (camY, camZ), in direction (dirY, dirZ), crosses the
+   board's plane (Y=0), moving forward from the camera. Two genuinely
+   different failure modes here, which must NOT be conflated:
+
+   1. dirY >= 0 (level or pointing up): a real, common case at grazing
+      pitch — the ray genuinely never reaches the ground going forward,
+      because the visible ground has no far boundary in that direction.
+      This is the horizon, and correctly extends to +-Infinity.
+
+   2. dirY < 0 (pointing down) but the crossing point works out behind
+      the camera (t < 0): this means camY and dirY share a sign — the
+      camera has already passed below the board's plane and this ray
+      points even further away from it, not toward it. This ray sees
+      NONE of the board, which is the opposite of case 1's "sees an
+      unbounded amount of it." Conflating the two was a real bug: when
+      both of a frustum's edge rays hit this case at once, treating
+      both as +-Infinity made the visible span appear to cover the
+      ENTIRE board (max span minus min span = the whole width), which
+      reported 100% board visibility for a camera looking directly
+      AWAY from the board — verified by tracing the actual numbers at
+      near-top-down pitch with a deeply negative vertical offset, where
+      overlap incorrectly snapped back up to 1.0 after having correctly
+      approached 0.
+
+   Returns null for case 2 specifically, so the caller can tell the two
+   apart rather than treating every non-forward-hit the same way. */
+export function rayHitBoardPlaneY0(camY, camZ, dirY, dirZ) {
+  if (dirY >= -1e-9) return dirZ >= 0 ? Infinity : -Infinity;
+  const t = -camY / dirY;
+  if (t < 0) return null;
+  return camZ + t * dirZ;
+}
+
+/* Fraction of the board's own width (measured along the camera's
+   forward/back axis) that overlaps the visible ground, for a given
+   orbit radius/pitch and a PURELY VERTICAL target offset ty (this
+   assumes zero horizontal pan — horizontal drift is handled entirely
+   separately, see the XZ clamp in the render loop, and the two are
+   independent by design, not combined into one budget).
+
+   No camera-height floor here (an earlier version had one, at 0.75
+   then 0.1) — that was working around the rayHitBoardPlaneY0 bug
+   described above by refusing to evaluate the geometry at all once the
+   camera got close to the board, rather than fixing the actual
+   miscalculation. With that fixed at its root, the camera is free to
+   go to or below board level (per explicit confirmation this is fine
+   for the "top" pan direction, which is the only one that can ever
+   reach this), and this function's own math correctly reports
+   dwindling then zero visibility rather than needing an artificial cutoff.
+
+   Verified numerically (not just derived) against a wide grid of
+   radius/phi/ty before being relied on: the true relationship here is
+   NOT symmetric between panning up and down, and does not reduce to a
+   clean closed form the way the horizontal case does, so this
+   evaluates the actual ray-plane geometry directly rather than
+   approximating it. A prior attempt at a closed-form approximation
+   here (maxPanDistance / sin(phi)) was checked against this exact
+   function and found to allow as little as 0% board visibility while
+   reporting success — every downward-panning test case failed it
+   outright, since it had no way to notice the camera going
+   underground. That formula and this replacement should never be
+   confused for equivalent; only this one is checked against the real
+   geometry. */
+export function boardVerticalOverlapFraction(radius, phi, ty, halfFovRad) {
+  const camY = ty + radius * Math.cos(phi);
+  const camZ = radius * Math.sin(phi);
+  const dY = -Math.cos(phi);
+  const dZ = -Math.sin(phi);
+  const cos = Math.cos(halfFovRad);
+  const sin = Math.sin(halfFovRad);
+  // The frustum's two extreme rays in this vertical cross-section,
+  // found by rotating the boresight by +-halfFovRad.
+  const nY = dY * cos - dZ * sin,
+    nZ = dY * sin + dZ * cos; // steeper ("near") edge
+  const fY = dY * cos + dZ * sin,
+    fZ = -dY * sin + dZ * cos; // shallower ("far") edge
+  const zNear = rayHitBoardPlaneY0(camY, camZ, nY, nZ);
+  const zFar = rayHitBoardPlaneY0(camY, camZ, fY, fZ);
+  // Either edge unable to see the board's plane at all (case 2 above)
+  // means the board isn't visible via that edge — not "unboundedly
+  // visible." Must be checked before the min/max span below, since
+  // null can't meaningfully participate in that comparison.
+  if (zNear === null || zFar === null) return 0;
+  const lo = Math.min(zNear, zFar);
+  const hi = Math.max(zNear, zFar);
+  const half = SLAB / 2;
+  const overlap = Math.max(0, Math.min(half, hi) - Math.max(-half, lo));
+  return overlap / SLAB;
+}
+
+/* Bisects for the largest |ty|, in whichever direction ty already
+   points, that still keeps at least minFraction of the board visible.
+   target.y = 0 is always safely above the floor (confirmed across the
+   full radius/phi grid this was validated against), so it's always a
+   valid "known-safe" starting bracket regardless of which direction
+   needs to be searched. Returns ty unchanged in the common case where
+   it's already within bounds — this only does any real work on a
+   frame where a drag, zoom, or tilt change just pushed it out. */
+export function clampVerticalTarget(ty, radius, phi, halfFovRad, minFraction) {
+  if (boardVerticalOverlapFraction(radius, phi, ty, halfFovRad) >= minFraction) return ty;
+  let lo = 0,
+    hi = ty;
+  for (let i = 0; i < 24; i++) {
+    const mid = (lo + hi) / 2;
+    if (boardVerticalOverlapFraction(radius, phi, mid, halfFovRad) >= minFraction) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/* The pivot edge and rotation for a roll, in world space.
+   The piece is smaller than its square, so its contact edge sits inset
+   from the grid line. Hinging on the grid line would make the piece
+   appear to float; hinging on its own edge lands it short of the target
+   by the gap it left behind plus the gap it must open on arrival, so
+   that residual is carried as a translation across the same tween. */
+export function pivotFor(piece, dir) {
+  const { row, col, w, h, z } = piece;
+  const S = PIECE_SCALE;
+  /* Square-index position now scales by SQUARE_SIZE; the piece's own
+     contact-edge offset (below, ± w*S/2 etc.) does not — that's the
+     piece's real physical edge, sized independently of square spacing. */
+  const cx = (col + w / 2) * SQUARE_SIZE - OFF;
+  const cz = (row + h / 2) * SQUARE_SIZE - OFF;
+  const alongX = dir === "E" || dir === "W";
+  /* Re-derived for a general square size: rotating the piece about its
+     own contact edge lands its center at (old center) ± (w+z)/2 * S.
+     The square-grid rules, separately, place the landing center at
+     (old center) ± (w+z)/2 * SQUARE_SIZE. The gap between those two is
+     the translation carried alongside the rotation. When SQUARE_SIZE
+     was implicitly 1, this reduces to the original (1-S) form. */
+  const residual = ((SQUARE_SIZE - S) * ((alongX ? w : h) + z)) / 2;
+
+  switch (dir) {
+    case "E":
+      return {
+        point: new THREE.Vector3(cx + (w * S) / 2, 0, cz),
+        axis: new THREE.Vector3(0, 0, 1),
+        angle: -Math.PI / 2,
+        dirVec: new THREE.Vector3(1, 0, 0),
+        residual,
+      };
+    case "W":
+      return {
+        point: new THREE.Vector3(cx - (w * S) / 2, 0, cz),
+        axis: new THREE.Vector3(0, 0, 1),
+        angle: Math.PI / 2,
+        dirVec: new THREE.Vector3(-1, 0, 0),
+        residual,
+      };
+    case "S":
+      return {
+        point: new THREE.Vector3(cx, 0, cz + (h * S) / 2),
+        axis: new THREE.Vector3(1, 0, 0),
+        angle: Math.PI / 2,
+        dirVec: new THREE.Vector3(0, 0, 1),
+        residual,
+      };
+    case "N":
+      return {
+        point: new THREE.Vector3(cx, 0, cz - (h * S) / 2),
+        axis: new THREE.Vector3(1, 0, 0),
+        angle: -Math.PI / 2,
+        dirVec: new THREE.Vector3(0, 0, -1),
+        residual,
+      };
+    default:
+      return null;
+  }
+}
