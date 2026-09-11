@@ -68,12 +68,18 @@ function UnifiedApp() {
     const strobe = shakeOn ? 1 + MAX_STROBE * intensity * Math.sin(t * freq * 2 * Math.PI * 1.9) : 1;
     // Large, slow bending/wobbling — old CRT screens physically
     // flexing, not just losing clean signal — layered on top of the
-    // existing warp/aberration and unconditional (unlike the shake
-    // above, which is Neon-only). Ramps in disproportionately faster
+    // existing warp/aberration. Ramps in disproportionately faster
     // than intensity itself late in the hold (the ^1.4 curve), so it
     // reads as "the longer you hold, the worse this gets" rather than
-    // a flat scale-up.
-    const bendCurve = Math.pow(intensity, 1.4);
+    // a flat scale-up. Directional, like the shake above: holding from
+    // Standard (heading into Neon, CONNECT) stays comparatively mild —
+    // still just the original aberration/static/scanline degrade with
+    // a touch of bend — while holding from Neon (heading back to
+    // Standard, DISCONNECT) gets the full effect alongside the shake,
+    // so the two directions read as genuinely different events rather
+    // than the same animation with a different word at the end.
+    const bendMultiplier = themeName === "neon" ? 1 : 0.4;
+    const bendCurve = Math.pow(intensity, 1.4) * bendMultiplier;
     const wobbleDeg = bendCurve * MAX_WOBBLE_DEG * Math.sin(t * WOBBLE_FREQ_HZ * 2 * Math.PI);
     const wobbleSkew = bendCurve * MAX_WOBBLE_DEG * 0.7 * Math.sin(t * WOBBLE_FREQ_HZ * 2 * Math.PI * 0.63 + 1.1);
     if (el) {

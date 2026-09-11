@@ -4563,15 +4563,23 @@ export function createSoundscape() {
     playFlicker: () => { if (ctx && ctx.state === "running") evPowerFluctuation(); },
     playArc: () => { if (ctx && ctx.state === "running") evArc(); },
     playGlitch: () => { if (ctx && ctx.state === "running") { evDataBurst(); evStatic(); } },
-    /* Singularity popup open/close — a wider, lower, slower cousin of
+    /* Singularity popup open/close — a wider, slower cousin of
        playPowerOn/Off's chime rather than a reuse of it, so entering
        the Singularity reads as its own, stranger event. ensureGraph()
        (not ensureStarted()) first: the Singularity can be discovered
        and opened during setup, before ensureStarted()'s own gate would
        normally have built the audio graph, and this must not also
-       wake the ambient bed early. */
-    playSingularityOpen: () => { ensureGraph(); cue(40, 900, 0.9, "sine", 0.05); },
-    playSingularityClose: () => { ensureGraph(); reverseCue(40, 900, 0.6, "sine", 0.11); },
+       wake the ambient bed early.
+       Starts at 70Hz, not 40 — below roughly 60Hz most laptop/phone
+       speakers barely reproduce anything, so the original 40Hz start
+       spent its whole attack phase effectively silent before the gain
+       envelope had already peaked and started decaying. Gain roughly
+       2.5x playPowerOn/Off's own, matching the precedent already set
+       there ("boosted so it reliably cuts through" — see playPowerOff
+       above): this needs to read clearly over ambience + gameplay SFX
+       exactly like those do, not blend into near-silence. */
+    playSingularityOpen: () => { ensureGraph(); cue(70, 900, 0.7, "sine", 0.16); },
+    playSingularityClose: () => { ensureGraph(); reverseCue(70, 900, 0.5, "sine", 0.24); },
     dispose: () => {
       disposed = true;
       if (scheduleTimer) clearTimeout(scheduleTimer);

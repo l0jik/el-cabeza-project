@@ -37,8 +37,14 @@ const SHAKE_FREQ_MAX = 16;
 // clean signal. Unconditional (unlike the shake, which is Neon-only):
 // this accompanies the existing chromatic aberration regardless of
 // which theme is currently on screen.
-const MAX_BEND_SCALE = 240;
-const MAX_WOBBLE_DEG = 7;
+// Chains onto the existing degrade filter (each displacement map warps
+// the ALREADY-warped output of the previous one, compounding rather
+// than adding) — kept well under MAX_WARP_SCALE for that reason. An
+// early pass at 240/7deg, chained on top of the existing filter,
+// dissolved the whole scene into unrecognizable noise well before the
+// hold even finished; this reads as bending, not disintegration.
+const MAX_BEND_SCALE = 55;
+const MAX_WOBBLE_DEG = 2.5;
 const WOBBLE_FREQ_HZ = 0.55;
 
 const MAX_WARP_SCALE_CRT = 190;
