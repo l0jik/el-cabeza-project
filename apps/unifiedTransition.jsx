@@ -31,6 +31,15 @@ const MAX_WARP_PULSE = 0.35;
 const MAX_STROBE = 0.22;
 const SHAKE_FREQ_MIN = 5;
 const SHAKE_FREQ_MAX = 16;
+// A second, much larger-scale, low-frequency warp layered on top of
+// the "losing signal" static-noise degrade above — old CRTs bending
+// and wobbling under real magnetic/structural strain, not just losing
+// clean signal. Unconditional (unlike the shake, which is Neon-only):
+// this accompanies the existing chromatic aberration regardless of
+// which theme is currently on screen.
+const MAX_BEND_SCALE = 240;
+const MAX_WOBBLE_DEG = 7;
+const WOBBLE_FREQ_HZ = 0.55;
 
 const MAX_WARP_SCALE_CRT = 190;
 const MAX_VHS_SCALE = 46;
@@ -67,11 +76,20 @@ export const TransitionStyles = () => (
       user-select: none;
       -webkit-user-select: none;
       -webkit-tap-highlight-color: transparent;
+      /* A slow, subtle breathing pulse — "almost alive" — paused
+         on hover/active so the existing press/hover feedback below
+         still reads cleanly instead of fighting the animation. */
+      animation: ec-hold-modal-alive 1.9s ease-in-out infinite;
+    }
+    @keyframes ec-hold-modal-alive {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 24px rgba(77, 232, 255, 0.5), 0 0 60px rgba(77, 232, 255, 0.2); }
+      50%      { transform: scale(1.018); box-shadow: 0 0 30px rgba(77, 232, 255, 0.65), 0 0 74px rgba(77, 232, 255, 0.28); }
     }
     .ec-hold-modal-word:hover {
+      animation-play-state: paused;
       box-shadow: 0 0 34px rgba(77, 232, 255, 0.75), 0 0 80px rgba(77, 232, 255, 0.32);
     }
-    .ec-hold-modal-word:active { transform: scale(0.97); }
+    .ec-hold-modal-word:active { animation-play-state: paused; transform: scale(0.97); }
 
     .ec-masthead-hold-zone {
       -webkit-touch-callout: none;
@@ -217,6 +235,7 @@ export const TransitionStyles = () => (
         animation-duration: 1ms !important;
       }
       .ec-hold-modal-backdrop { animation: none; }
+      .ec-hold-modal-word { animation: none; }
     }
   `}</style>
 );
@@ -306,12 +325,16 @@ export function MastheadHoldZone({ zoneRef, onBegin, onEnd, onHoldComplete, onTa
       onTouchMove={move}
       onContextMenu={(ev) => ev.preventDefault()}
       style={{
-        position: "absolute",
-        top: 6,
-        left: "50%",
-        transform: "translateX(-50%)",
-        width: 300,
-        height: 78,
+        // Fixed at 0/0/0/0 initially — the parent (UnifiedApp) drives
+        // top/left/width/height imperatively every frame to track the
+        // real masthead's live bounding rect (it fades in place, then
+        // shrinks and relocates to a corner badge — a static offset
+        // here would only ever match one of those states).
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: 0,
+        height: 0,
         zIndex: 40,
       }}
     />
@@ -323,7 +346,7 @@ export function MastheadHoldZone({ zoneRef, onBegin, onEnd, onHoldComplete, onTa
 // opacity ramps with hold intensity. Mounted once, permanently — its
 // refs are driven imperatively (no re-render per frame) by the hold
 // state machine in UnifiedApp.
-export function HoldDegradeLayer({ dispRef, offRRef, offBRef, scanlineRef, staticRef }) {
+export function HoldDegradeLayer({ dispRef, offRRef, offBRef, scanlineRef, staticRef, bendDispRef }) {
   return (
     <>
       <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
@@ -369,6 +392,15 @@ export function HoldDegradeLayer({ dispRef, offRRef, offBRef, scanlineRef, stati
         <filter id="ec-hold-static" x="0%" y="0%" width="100%" height="100%">
           <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="ec-hold-noise" />
           <feColorMatrix in="ec-hold-noise" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.9 0" />
+        </filter>
+        {/* Large, smooth, low-frequency warp — CRT bending/wobbling
+           under real strain, layered via CSS `filter: url(#ec-hold-
+           degrade) url(#ec-hold-bend)` (chained, not merged into the
+           filter graph above) so the two effects can each scale
+           independently with hold intensity. */}
+        <filter id="ec-hold-bend" x="-50%" y="-50%" width="200%" height="200%">
+          <feTurbulence type="turbulence" baseFrequency="0.006 0.009" numOctaves="1" seed="7" result="ec-hold-bend-noise" />
+          <feDisplacementMap ref={bendDispRef} in="SourceGraphic" in2="ec-hold-bend-noise" xChannelSelector="R" yChannelSelector="G" scale="0" />
         </filter>
       </svg>
       <div
@@ -554,6 +586,7 @@ export function CrtTransitionOverlay({ direction, filterId, onDone, sfx }) {
 export const HOLD_DEGRADE_TUNING = {
   MAX_WARP_SCALE, MAX_ABERRATION_PX, MAX_SCANLINE_OPACITY, MAX_STATIC_OPACITY,
   MAX_SHAKE_PX, MAX_WARP_PULSE, MAX_STROBE, SHAKE_FREQ_MIN, SHAKE_FREQ_MAX,
+  MAX_BEND_SCALE, MAX_WOBBLE_DEG, WOBBLE_FREQ_HZ,
 };
 
 // Procedural Web Audio sound set for the switcher gesture, ported
@@ -701,14 +734,116 @@ export function createSwitcherSfx() {
     triangleBlip(c, time + 0.02, 1800, 0.12);
   };
 
+  /* The hold-gesture's continuous "jibbering electronic morass": two
+     detuned oscillators (square + sawtooth, through a moving bandpass
+     filter) whose frequencies are re-randomized on a fast interval
+     rather than swept smoothly, so it reads as chattering/glitchy
+     rather than a clean rising tone. updateJibber(intensity) — called
+     every tick alongside applyDegrade — both raises the volume and
+     widens/raises the frequency range live, and speeds up the
+     randomizer interval itself, so it sounds like it's accelerating,
+     not just getting louder. stopJibber(true) is the hard cutoff for
+     the instant CONNECT/DISCONNECT appears; stopJibber(false) is the
+     gentler release for letting go early. */
+  let jibberOsc1 = null, jibberOsc2 = null, jibberGain = null, jibberFilter = null;
+  let jibberInterval = null, jibberIntensity = 0;
+
+  const randomizeJibber = (c) => {
+    if (!jibberOsc1 || !jibberOsc2 || !jibberFilter) return;
+    const now = c.currentTime;
+    const base = 90 + jibberIntensity * 900;
+    const spread = 40 + jibberIntensity * 700;
+    jibberOsc1.frequency.setValueAtTime(base + Math.random() * spread, now);
+    jibberOsc2.frequency.setValueAtTime(base * (1.015 + Math.random() * 0.09) + Math.random() * spread * 0.7, now);
+    jibberFilter.frequency.setValueAtTime(220 + jibberIntensity * 1300 + Math.random() * 300, now);
+  };
+
+  const rescheduleJibberInterval = (c) => {
+    if (jibberInterval) clearInterval(jibberInterval);
+    // 90ms of chatter at rest, tightening to ~30ms at full intensity —
+    // the "accelerating" part of the buildup.
+    const stepMs = 90 - jibberIntensity * 60;
+    jibberInterval = setInterval(() => randomizeJibber(c), stepMs);
+  };
+
+  const startJibber = () => {
+    const c = getCtx();
+    if (jibberOsc1) return; // already running (shouldn't happen, but idempotent)
+    jibberOsc1 = c.createOscillator();
+    jibberOsc1.type = "square";
+    jibberOsc2 = c.createOscillator();
+    jibberOsc2.type = "sawtooth";
+    jibberFilter = c.createBiquadFilter();
+    jibberFilter.type = "bandpass";
+    jibberFilter.Q.value = 3;
+    jibberGain = c.createGain();
+    jibberGain.gain.value = 1e-4;
+    jibberOsc1.connect(jibberFilter);
+    jibberOsc2.connect(jibberFilter);
+    jibberFilter.connect(jibberGain).connect(c.destination);
+    jibberIntensity = 0;
+    jibberOsc1.start();
+    jibberOsc2.start();
+    randomizeJibber(c);
+    rescheduleJibberInterval(c);
+  };
+
+  const updateJibber = (intensity) => {
+    jibberIntensity = intensity;
+    if (!jibberGain || !ctx) return;
+    const now = ctx.currentTime;
+    jibberGain.gain.cancelScheduledValues(now);
+    jibberGain.gain.setValueAtTime(Math.max(jibberGain.gain.value, 1e-4), now);
+    jibberGain.gain.linearRampToValueAtTime(Math.max(1e-4, 0.015 + intensity * 0.17), now + 0.06);
+    rescheduleJibberInterval(ctx);
+  };
+
+  const stopJibber = (abrupt) => {
+    if (jibberInterval) {
+      clearInterval(jibberInterval);
+      jibberInterval = null;
+    }
+    if (!jibberGain || !ctx) {
+      jibberOsc1 = jibberOsc2 = jibberGain = jibberFilter = null;
+      return;
+    }
+    const now = ctx.currentTime;
+    const fadeDur = abrupt ? 0.02 : 0.25;
+    jibberGain.gain.cancelScheduledValues(now);
+    jibberGain.gain.setValueAtTime(Math.max(jibberGain.gain.value, 1e-4), now);
+    jibberGain.gain.exponentialRampToValueAtTime(1e-4, now + fadeDur);
+    const osc1 = jibberOsc1, osc2 = jibberOsc2;
+    setTimeout(() => { try { osc1.stop(); osc2.stop(); } catch (e) {} }, (fadeDur + 0.05) * 1000);
+    jibberOsc1 = jibberOsc2 = jibberGain = jibberFilter = null;
+  };
+
   return {
     click() {
       playClick();
     },
+    // Hold-gesture continuous jibber texture — see the definitions
+    // above. startJibber on the first pointerdown, updateJibber every
+    // tick while holding (also drives the visual degrade), stopJibber
+    // on release (gentle fade) or completion (the abrupt cutoff
+    // holdComplete below already triggers, so callers don't need to
+    // call it again there).
+    startJibber() {
+      startJibber();
+    },
+    updateJibber(intensity) {
+      updateJibber(intensity);
+    },
+    stopJibber(abrupt) {
+      stopJibber(abrupt);
+    },
     // A rising three-note chirp (900 -> 1300 -> 1700Hz) under a touch
     // of noise texture, finishing with the click sound — plays the
-    // instant the hold completes and the CONNECT/DISCONNECT word appears.
+    // instant the hold completes and the CONNECT/DISCONNECT word
+    // appears. Cuts the jibber texture off hard first, per spec: the
+    // buildup sound stops the moment this fires, not fading out
+    // alongside it.
     holdComplete() {
+      stopJibber(true);
       const c = getCtx();
       const t0 = c.currentTime;
       triangleBlip(c, t0, 900, 0.14);

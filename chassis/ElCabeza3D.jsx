@@ -70,6 +70,17 @@ export default function ElCabeza3D({ theme }) {
     };
   }
 
+  // Translucent version of a theme hex color, for the dock's glass
+  // effect — backdropFilter's blur only reads through a background
+  // that isn't fully opaque.
+  function hexToRgba(hex, alpha) {
+    const clean = hex.replace("#", "");
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
   /* For a row of mutually-exclusive choices (opponent type, difficulty) —
      the selected option reads as filled/committed, the rest sit quiet. */
   function toggleButtonStyle(active) {
@@ -293,6 +304,23 @@ export default function ElCabeza3D({ theme }) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
   }
+
+  /* The masthead's three-phase lifecycle: full-size and opaque during
+     setup; once Begin Game is pressed it fades toward "almost hidden"
+     in place first, then — 2s later, its own separate beat — relocates
+     to a small badge tucked behind the board in the upper-right. Resets
+     the instant awaitingBegin goes true again (a fresh game/reset), so
+     the next round gets the same entrance. */
+  const [titleRelocated, setTitleRelocated] = useState(false);
+  useEffect(() => {
+    if (awaitingBegin) {
+      setTitleRelocated(false);
+      return;
+    }
+    const t = setTimeout(() => setTitleRelocated(true), 2000);
+    return () => clearTimeout(t);
+  }, [awaitingBegin]);
+  const mastheadPhase = awaitingBegin ? "setup" : titleRelocated ? "relocated" : "fading";
 
   /* Move Log popup — a chassis-level feature (see ARCHITECTURE.md):
      generic post-game UI with no theme dependency, built once here
@@ -2510,76 +2538,139 @@ export default function ElCabeza3D({ theme }) {
       `}</style>
       {theme.styleSheet && <style>{theme.styleSheet}</style>}
 
+      {/* Board — a fixed full-viewport base layer now, not another
+         section boxed in alongside the title/buttons. Everything else
+         (masthead, dock) floats above it at its own z-index. */}
       <div
-        ref={cardRef}
         style={{
-          width: "100%",
-          /* Widens in fullscreen so the whole card — board, header, and
-             controls together — actually uses the extra screen real
-             estate a real monitor's fullscreen gives you, rather than
-             the board being the only thing that grows (see the mount
-             wrapper's own breakout below) while everything else stays
-             pinned to the normal-window width and ends up looking like
-             a mismatched narrow strip glued above a huge board. */
-          maxWidth: isFullscreen ? 1280 : 780,
-          background: COLORS.cream,
-          border: `1px solid ${COLORS.slateSoft}`,
-          boxShadow: "0 24px 60px rgba(36,24,10,0.18)",
-          padding: "18px 24px 16px",
-          position: "relative",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          /* The card is a flex ITEM of the stretched outer wrapper
-             above, so by default it already sizes to fill the
-             available height — this is here defensively, matching the
-             same "let a flex-in-flex chain actually shrink instead of
-             being blocked by a child's natural min-size" reasoning
-             behind the canvas's own minHeight further down (though
-             that one sets a real floor rather than 0, since the canvas
-             — unlike this card — should never shrink away entirely). */
-          minHeight: 0,
+          position: "fixed",
+          inset: 0,
+          zIndex: 0,
         }}
+      >
+        <div
+          ref={mountRef}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            background: `radial-gradient(circle at 50% 35%, ${canvasGradientStart} 0%, ${COLORS.creamAlt} 70%, ${canvasGradientEnd} 100%)`,
+            overflow: "hidden",
+          }}
+        />
+        {/* Generic FX-overlay slot, always mounted so a theme's own
+           CSS/JS can decorate it (e.g. Neon's scanline/static
+           overlay) without the chassis knowing what any given theme
+           puts here. Inert by construction for a theme that never
+           styles it. */}
+        <div
+          ref={fxOverlayRef}
+          className="ec-fx-overlay"
+          aria-hidden="true"
+          style={{ position: "absolute", inset: 0, opacity: 0, pointerEvents: "none" }}
+        >
+          <div className="ec-fx-overlay-inner" style={{ position: "absolute", inset: 0 }} />
+        </div>
+      </div>
+
+      {/* Masthead — floats independently of the dock below. Three
+         phases (see mastheadPhase above): full-size and opaque during
+         setup; faded toward "almost hidden" in place once Begin Game
+         is pressed; then, 2s later, shrunk and moved to a small badge
+         tucked behind the board (z-index below it) in the upper-right,
+         reading as a lingering logo rather than active UI. The same
+         `transition` string across all three phases is what makes
+         switching between them animate instead of jumping. */}
+      <div
+        ref={titleWrapRef}
+        style={
+          mastheadPhase === "relocated"
+            ? {
+                position: "fixed",
+                top: 14,
+                right: 18,
+                left: "auto",
+                transform: "scale(0.3)",
+                transformOrigin: "top right",
+                opacity: 0.22,
+                /* "Behind the board" in spirit, not literal z-order —
+                   the 3D canvas paints as one flat layer, so nothing
+                   can sit behind its meshes while staying in front of
+                   its own background. 1 (just above the board's own
+                   zIndex 0, still well under the dock's 10) is the
+                   practical equivalent: a small, faded watermark the
+                   board reads as sitting in front of, rather than a
+                   truly occluded logo. */
+                zIndex: 1,
+                transition: "opacity 1.1s ease, transform 1.1s ease, top 1.1s ease, right 1.1s ease",
+                textAlign: "center",
+              }
+            : {
+                position: "fixed",
+                top: "6vh",
+                left: "50%",
+                right: "auto",
+                transform: "translateX(-50%) scale(1)",
+                transformOrigin: "top center",
+                opacity: mastheadPhase === "setup" ? 1 : 0.16,
+                zIndex: 20,
+                transition: "opacity 1.1s ease, transform 1.1s ease, top 1.1s ease, right 1.1s ease",
+                textAlign: "center",
+              }
+        }
       >
         {/* Hidden trigger: only a tight box around the glyphs themselves
             is clickable — deliberately no cursor/hover change, so
             there's no visual hint this does anything. The h1 itself is
-            block-level (full row width) and carries its own padding
-            below the text for layout spacing, so the click handler goes
-            on an inline span instead: an inline element's hit box only
-            ever covers its actual text run, not the row or the padding
-            around it. */}
-        <div ref={titleWrapRef} style={{ textAlign: "center", marginBottom: 4, flexShrink: 0, position: "relative" }}>
-          <h1
-            style={{
-              margin: 0,
-              fontFamily: titleFontFamily,
-              fontWeight: 600,
-              /* clamp, not a fixed 31 — 7vw only overtakes the 31px
-                 ceiling below roughly 440px of viewport width, so this
-                 is a no-op on every desktop and most phone widths; it
-                 only softens the title on genuinely narrow screens
-                 instead of letting it force a wider layout than the
-                 card actually has room for. */
-              fontSize: "clamp(22px, 7vw, 31px)",
-              lineHeight: 1,
-              letterSpacing: "0.02em",
-              color: COLORS.charcoal,
-              paddingBottom: 18,
-            }}
-          >
-            <span ref={titleRef} className="ec-title" onClick={handleTitleClick}>EL CABEZA</span>
-          </h1>
-        </div>
-
+            block-level and carries its own padding below the text for
+            layout spacing, so the click handler goes on an inline span
+            instead: an inline element's hit box only ever covers its
+            actual text run, not the row or the padding around it. */}
+        <h1
+          style={{
+            margin: 0,
+            fontFamily: titleFontFamily,
+            fontWeight: 600,
+            /* Large and responsive to actual screen real estate now
+               that it's not boxed into a ~780px card — scales from a
+               readable floor on narrow phones up to a genuinely large
+               display size on a wide desktop/fullscreen viewport. vw
+               alone can't account for how wide "EL CABEZA" actually
+               renders in a given font (Neon's Chakra Petch runs wider
+               per-character than Standard's Fraunces), so this pairs
+               the vw scaling with a hard width ceiling on the wrapper
+               below and lets the title wrap to two lines rather than
+               overflow off-screen on any viewport/font combination
+               narrower than expected. */
+            fontSize: "clamp(26px, 9vw, 168px)",
+            lineHeight: 1.05,
+            letterSpacing: "0.02em",
+            color: COLORS.charcoal,
+            paddingBottom: 8,
+            /* nowrap, not a maxWidth-driven wrap: Neon splits this text
+               into one inline-block span per letter (see
+               splitTitleIntoLetters in themes/neon.js, for the raster-
+               tear effect), and inline-block siblings are valid
+               wrap points to a browser's line-breaker even mid-word —
+               a width-based wrap safety net here reliably produced
+               ugly, arbitrary mid-word breaks instead of a clean
+               two-line fallback. Fitting reliably is the font-size
+               formula's job instead (see above). */
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span ref={titleRef} className="ec-title" onClick={handleTitleClick}>EL CABEZA</span>
+        </h1>
         <button
           className="ec-btn"
           onClick={handleInfoButtonClick}
           style={{
             ...ghostButtonStyle(),
             position: "absolute",
-            top: 18,
-            right: 24,
+            top: "100%",
+            right: 0,
+            marginTop: 6,
             opacity: infoBtnVisible ? 1 : 0,
             pointerEvents: infoBtnVisible ? "auto" : "none",
             transition: "opacity 0.3s ease, background-color 0.15s ease, color 0.15s ease",
@@ -2587,6 +2678,37 @@ export default function ElCabeza3D({ theme }) {
         >
           Info
         </button>
+      </div>
+
+      {/* The dock — every non-board control, floating as one compact
+         panel instead of a full-height card. Removing the canvas (now
+         a fixed sibling above) and the masthead (now its own floating
+         element above) from this element's children is the entire
+         change: everything below still lays out exactly as it did
+         inside the old card, it just now sizes to its own content
+         instead of stretching to fill the viewport. */}
+      <div
+        ref={cardRef}
+        style={{
+          position: "fixed",
+          left: "50%",
+          bottom: 20,
+          transform: "translateX(-50%)",
+          width: "min(720px, 94vw)",
+          maxHeight: "56vh",
+          overflowY: "auto",
+          zIndex: 10,
+          background: hexToRgba(COLORS.cream, 0.82),
+          border: `1px solid ${COLORS.slateSoft}`,
+          borderRadius: 14,
+          boxShadow: "0 12px 48px rgba(0,0,0,0.35)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          padding: "14px 20px 16px",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
 
         {/* Status bar */}
         <div
@@ -2679,80 +2801,6 @@ export default function ElCabeza3D({ theme }) {
                 Undo turn
               </button>
             )}
-          </div>
-        </div>
-
-        {/* Canvas */}
-        <div
-          style={{
-            position: "relative",
-            /* The one element in this card that actually absorbs
-               layout change: grows to claim whatever's left after
-               every other section takes its natural height, and
-               shrinks the same way when a section (the Opponent row,
-               the Record section, Stop here/Undo turn) appears or
-               disappears — this is what "maximize the playing area"
-               and "reflow without abrupt shifting" both come down to
-               in practice. minHeight is a real floor, not 0 — small
-               enough to fit a constrained landscape-mobile viewport,
-               never so small the board becomes unusable; if every
-               section at its natural size plus this floor still
-               doesn't fit, the outer wrapper's overflowY is the
-               fallback (the whole page scrolls, nothing clips).
-               Three.js already reads this element's live measured size
-               on every resize (see the ResizeObserver in the
-               scene-setup effect) and recalculates the camera's aspect
-               ratio accordingly, so nothing on the rendering side
-               needed to change for this to work — it was always ready
-               for a size it wasn't previously being given. */
-            flex: "1 1 auto",
-            minHeight: 280,
-            /* Breaks the board out of the card's own horizontal padding
-               (24px, see cardRef above) so it reads as its own element
-               running edge-to-edge within the card rather than another
-               section boxed in alongside the title/buttons — negative
-               margins exactly canceling that padding land this div's
-               edges precisely on the card's inner border, never beyond
-               it, so nothing here needs the card's own overflow:hidden
-               changed. mountRef's own top/bottom border below is what
-               now marks the seam instead of a border running all the
-               way around. */
-            marginLeft: -24,
-            marginRight: -24,
-          }}
-        >
-          <div
-            ref={mountRef}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              /* Top/bottom only, not a full box — with the wrapper's
-                 negative margins above landing this flush against the
-                 card's own left/right edges, a full border here would
-                 just draw a redundant second line right next to the
-                 card's own. These two rules are what actually mark the
-                 board as its own element now: a seam above and below,
-                 not a frame around it. */
-              borderTop: `1px solid ${COLORS.slateSoft}`,
-              borderBottom: `1px solid ${COLORS.slateSoft}`,
-              background: `radial-gradient(circle at 50% 35%, ${canvasGradientStart} 0%, ${COLORS.creamAlt} 70%, ${canvasGradientEnd} 100%)`,
-              overflow: "hidden",
-            }}
-          />
-          {/* Generic FX-overlay slot, always mounted so a theme's own
-             CSS/JS can decorate it (e.g. Neon's scanline/static
-             overlay) without the chassis knowing what any given theme
-             puts here. Inert by construction for a theme that never
-             styles it. */}
-          <div
-            ref={fxOverlayRef}
-            className="ec-fx-overlay"
-            aria-hidden="true"
-            style={{ position: "absolute", inset: 0, opacity: 0, pointerEvents: "none" }}
-          >
-            <div className="ec-fx-overlay-inner" style={{ position: "absolute", inset: 0 }} />
           </div>
         </div>
 

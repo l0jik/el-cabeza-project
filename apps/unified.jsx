@@ -21,6 +21,7 @@ const THEMES = { standard: standardTheme, neon: neonTheme };
 const {
   MAX_WARP_SCALE, MAX_ABERRATION_PX, MAX_SCANLINE_OPACITY, MAX_STATIC_OPACITY,
   MAX_SHAKE_PX, MAX_WARP_PULSE, MAX_STROBE, SHAKE_FREQ_MIN, SHAKE_FREQ_MAX,
+  MAX_BEND_SCALE, MAX_WOBBLE_DEG, WOBBLE_FREQ_HZ,
 } = HOLD_DEGRADE_TUNING;
 
 function UnifiedApp() {
@@ -35,6 +36,7 @@ function UnifiedApp() {
   const offBRef = useRef(null);
   const scanlineRef = useRef(null);
   const staticRef = useRef(null);
+  const bendDispRef = useRef(null);
   const rafRef = useRef(null);
   const sfxRef = useRef(null);
   if (!sfxRef.current) sfxRef.current = createSwitcherSfx();
@@ -64,11 +66,24 @@ function UnifiedApp() {
     const sy = shakeOn ? intensity * MAX_SHAKE_PX * 0.6 * Math.sin(t * freq * 2 * Math.PI * 1.37 + 1.7) : 0;
     const pulse = shakeOn ? 1 + MAX_WARP_PULSE * intensity * Math.sin(t * freq * 2 * Math.PI * 0.8 + 0.6) : 1;
     const strobe = shakeOn ? 1 + MAX_STROBE * intensity * Math.sin(t * freq * 2 * Math.PI * 1.9) : 1;
+    // Large, slow bending/wobbling — old CRT screens physically
+    // flexing, not just losing clean signal — layered on top of the
+    // existing warp/aberration and unconditional (unlike the shake
+    // above, which is Neon-only). Ramps in disproportionately faster
+    // than intensity itself late in the hold (the ^1.4 curve), so it
+    // reads as "the longer you hold, the worse this gets" rather than
+    // a flat scale-up.
+    const bendCurve = Math.pow(intensity, 1.4);
+    const wobbleDeg = bendCurve * MAX_WOBBLE_DEG * Math.sin(t * WOBBLE_FREQ_HZ * 2 * Math.PI);
+    const wobbleSkew = bendCurve * MAX_WOBBLE_DEG * 0.7 * Math.sin(t * WOBBLE_FREQ_HZ * 2 * Math.PI * 0.63 + 1.1);
     if (el) {
-      el.style.filter = intensity > 0.001 ? `url(#ec-hold-degrade) brightness(${strobe})` : "";
-      el.style.transform = intensity > 0.001 ? `translate(${sx}px, ${sy}px)` : "";
+      el.style.filter = intensity > 0.001 ? `url(#ec-hold-degrade) url(#ec-hold-bend) brightness(${strobe})` : "";
+      el.style.transform = intensity > 0.001
+        ? `translate(${sx}px, ${sy}px) rotate(${wobbleDeg.toFixed(2)}deg) skewX(${wobbleSkew.toFixed(2)}deg)`
+        : "";
     }
     if (dispRef.current) dispRef.current.setAttribute("scale", String(Math.max(0, intensity * MAX_WARP_SCALE * pulse)));
+    if (bendDispRef.current) bendDispRef.current.setAttribute("scale", String(bendCurve * MAX_BEND_SCALE));
     if (offRRef.current) offRRef.current.setAttribute("dx", String(aberration * MAX_ABERRATION_PX));
     if (offBRef.current) offBRef.current.setAttribute("dx", String(-aberration * MAX_ABERRATION_PX));
     if (scanlineRef.current) scanlineRef.current.style.opacity = String(intensity * MAX_SCANLINE_OPACITY);
@@ -82,6 +97,7 @@ function UnifiedApp() {
       const m = Math.min(1, (now - s.startedAt) / HOLD_MS);
       s.intensity = m;
       applyDegrade(m, m, now);
+      sfxRef.current.updateJibber(m);
       if (m >= 1) { s.phase = "idle"; stopRaf(); return; }
     } else if (s.phase === "releasing") {
       const m = Math.min(1, (now - s.releaseStartedAt) / RELEASE_EASE_MS);
@@ -111,6 +127,7 @@ function UnifiedApp() {
     holdState.current.phase = "holding";
     holdState.current.startedAt = performance.now();
     rafRef.current = requestAnimationFrame(tick);
+    sfxRef.current.startJibber();
   }, [stopRaf, tick]);
 
   const endHold = useCallback(() => {
@@ -121,6 +138,7 @@ function UnifiedApp() {
     s.releaseFrom = s.intensity;
     s.releaseStartedAt = performance.now();
     rafRef.current = requestAnimationFrame(tick);
+    sfxRef.current.stopJibber(false);
   }, [stopRaf, tick]);
 
   const onHoldComplete = useCallback(() => {
@@ -148,6 +166,32 @@ function UnifiedApp() {
   }, []);
 
   useEffect(() => stopRaf, [stopRaf]);
+
+  /* The masthead the hold-zone needs to sit over isn't a fixed spot
+     any more — the chassis fades it in place after Begin Game, then
+     shrinks and relocates it to a small corner badge (see
+     mastheadPhase in ElCabeza3D.jsx). Rather than duplicate that
+     timing/state here, just track the real ".ec-title" element's live
+     bounding rect every frame and keep the (otherwise invisible) hold
+     zone glued to it, inflated a little for a comfortable hit area. */
+  useEffect(() => {
+    let raf;
+    const sync = () => {
+      const titleEl = document.querySelector(".ec-title");
+      const zone = holdZoneRef.current;
+      if (titleEl && zone) {
+        const r = titleEl.getBoundingClientRect();
+        const pad = 16;
+        zone.style.top = (r.top - pad) + "px";
+        zone.style.left = (r.left - pad) + "px";
+        zone.style.width = (r.width + pad * 2) + "px";
+        zone.style.height = (r.height + pad * 2) + "px";
+      }
+      raf = requestAnimationFrame(sync);
+    };
+    raf = requestAnimationFrame(sync);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   useEffect(() => {
     if (!connectWord) return;
@@ -183,7 +227,7 @@ function UnifiedApp() {
   return (
     <>
       <TransitionStyles />
-      <HoldDegradeLayer dispRef={dispRef} offRRef={offRRef} offBRef={offBRef} scanlineRef={scanlineRef} staticRef={staticRef} />
+      <HoldDegradeLayer dispRef={dispRef} offRRef={offRRef} offBRef={offBRef} scanlineRef={scanlineRef} staticRef={staticRef} bendDispRef={bendDispRef} />
       <div style={{ position: "relative" }}>
         <div ref={contentRef} className={contentClass} style={contentStyle}>
           <ElCabeza3D key={themeName} theme={THEMES[themeName]} />
