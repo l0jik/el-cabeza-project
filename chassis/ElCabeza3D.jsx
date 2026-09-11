@@ -2514,7 +2514,14 @@ export default function ElCabeza3D({ theme }) {
         ref={cardRef}
         style={{
           width: "100%",
-          maxWidth: 780,
+          /* Widens in fullscreen so the whole card — board, header, and
+             controls together — actually uses the extra screen real
+             estate a real monitor's fullscreen gives you, rather than
+             the board being the only thing that grows (see the mount
+             wrapper's own breakout below) while everything else stays
+             pinned to the normal-window width and ends up looking like
+             a mismatched narrow strip glued above a huge board. */
+          maxWidth: isFullscreen ? 1280 : 780,
           background: COLORS.cream,
           border: `1px solid ${COLORS.slateSoft}`,
           boxShadow: "0 24px 60px rgba(36,24,10,0.18)",
@@ -2700,6 +2707,18 @@ export default function ElCabeza3D({ theme }) {
                for a size it wasn't previously being given. */
             flex: "1 1 auto",
             minHeight: 280,
+            /* Breaks the board out of the card's own horizontal padding
+               (24px, see cardRef above) so it reads as its own element
+               running edge-to-edge within the card rather than another
+               section boxed in alongside the title/buttons — negative
+               margins exactly canceling that padding land this div's
+               edges precisely on the card's inner border, never beyond
+               it, so nothing here needs the card's own overflow:hidden
+               changed. mountRef's own top/bottom border below is what
+               now marks the seam instead of a border running all the
+               way around. */
+            marginLeft: -24,
+            marginRight: -24,
           }}
         >
           <div
@@ -2709,7 +2728,15 @@ export default function ElCabeza3D({ theme }) {
               inset: 0,
               width: "100%",
               height: "100%",
-              border: `1px solid ${COLORS.slateSoft}`,
+              /* Top/bottom only, not a full box — with the wrapper's
+                 negative margins above landing this flush against the
+                 card's own left/right edges, a full border here would
+                 just draw a redundant second line right next to the
+                 card's own. These two rules are what actually mark the
+                 board as its own element now: a seam above and below,
+                 not a frame around it. */
+              borderTop: `1px solid ${COLORS.slateSoft}`,
+              borderBottom: `1px solid ${COLORS.slateSoft}`,
               background: `radial-gradient(circle at 50% 35%, ${canvasGradientStart} 0%, ${COLORS.creamAlt} 70%, ${canvasGradientEnd} 100%)`,
               overflow: "hidden",
             }}
