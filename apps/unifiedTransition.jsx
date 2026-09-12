@@ -742,14 +742,20 @@ export function createSwitcherSfx() {
 
   /* The hold-gesture's continuous "jibbering electronic morass": two
      detuned oscillators (square + sawtooth, through a moving bandpass
-     filter) whose frequencies are re-randomized on a fast interval
-     rather than swept smoothly, so it reads as chattering/glitchy
-     rather than a clean rising tone. updateJibber(intensity) — called
-     every tick alongside applyDegrade — both raises the volume and
-     widens/raises the frequency range live, and speeds up the
-     randomizer interval itself, so it sounds like it's accelerating,
-     not just getting louder. stopJibber(true) is the hard cutoff for
-     the instant CONNECT/DISCONNECT appears; stopJibber(false) is the
+     filter) whose frequencies are re-randomized on a fast interval.
+     jibberOsc2 (sawtooth) — the "jibbering beeps" — still jumps
+     instantly to each new frequency, unaffected by the change below.
+     jibberOsc1 (square) — the LFO hum — instead glides to each new
+     target with a fast portamento/pitch-sweep (exponentialRampToValueAtTime)
+     rather than jumping: a continuous slide between pitches that, run
+     this fast over this wide a range, reads as a sudden drop/swoop each
+     time rather than a clean glissando. updateJibber(intensity) —
+     called every tick alongside applyDegrade — both raises the volume
+     and widens/raises the frequency range live, and speeds up the
+     randomizer interval itself (which also shortens the hum's own
+     portamento time to match), so it sounds like it's accelerating, not
+     just getting louder. stopJibber(true) is the hard cutoff for the
+     instant CONNECT/DISCONNECT appears; stopJibber(false) is the
      gentler release for letting go early. */
   let jibberOsc1 = null, jibberOsc2 = null, jibberGain = null, jibberFilter = null;
   let jibberInterval = null, jibberIntensity = 0;
@@ -759,7 +765,15 @@ export function createSwitcherSfx() {
     const now = c.currentTime;
     const base = 90 + jibberIntensity * 900;
     const spread = 40 + jibberIntensity * 700;
-    jibberOsc1.frequency.setValueAtTime(base + Math.random() * spread, now);
+    const stepMs = 90 - jibberIntensity * 60;
+    // Portamento time for the hum's glide — a fraction of the current
+    // step interval so each slide always finishes well before the next
+    // one starts, shortening as jibberIntensity rises along with the
+    // interval itself.
+    const glideDur = Math.max(0.012, (stepMs / 1000) * 0.45);
+    jibberOsc1.frequency.cancelScheduledValues(now);
+    jibberOsc1.frequency.setValueAtTime(jibberOsc1.frequency.value, now);
+    jibberOsc1.frequency.exponentialRampToValueAtTime(base + Math.random() * spread, now + glideDur);
     jibberOsc2.frequency.setValueAtTime(base * (1.015 + Math.random() * 0.09) + Math.random() * spread * 0.7, now);
     jibberFilter.frequency.setValueAtTime(220 + jibberIntensity * 1300 + Math.random() * 300, now);
   };
