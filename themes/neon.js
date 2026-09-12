@@ -1130,7 +1130,8 @@ export function mountAmbientEffects(refs, helpers) {
   // theme: per feedback, redesigned a third time — "the entire piece
   // topology must exhibit close grid mesh look... the Opa might have
   // 30 bars per face... distribute proportionately to all other
-  // pieces." Reusing the piece's own real render geometry (previous
+  // pieces," then reduced to ~15 bars per feedback that the interior
+  // was too tight/dense to read. Reusing the piece's own real render geometry (previous
   // round) was topologically accurate but nowhere near dense enough
   // — makeRoundedBox's flat faces are each a single quad with no
   // internal subdivision, so most of a box piece's surface showed no
@@ -1176,10 +1177,12 @@ export function mountAmbientEffects(refs, helpers) {
     const SCALE = 0.97;
 
     // Opa (the biggest piece, a 2x2x2-scale cube = 1.6 world units
-    // per axis) is the "30 bars per face" reference; every other
-    // piece's segment count is that same bars-per-unit density
-    // applied to its own real dimensions.
-    const BARS_PER_UNIT = 30 / (2 * PIECE_SCALE);
+    // per axis) is the "~15 bars per longest face" reference (halved
+    // from an original 30 per feedback that the wireframe interior
+    // read too tight/dense to discern); every other piece's segment
+    // count is that same bars-per-unit density applied to its own
+    // real dimensions, proportionately fewer on shorter sides.
+    const BARS_PER_UNIT = 15 / (2 * PIECE_SCALE);
     const segFor = (unitLength) => Math.max(3, Math.min(48, Math.round(unitLength * BARS_PER_UNIT)));
 
     let proxyGeo;
@@ -1397,7 +1400,9 @@ export function mountAmbientEffects(refs, helpers) {
         lineMaterials: interior.lineMaterials,
         pointMaterials: interior.pointMaterials,
         born: now0 + i * stepGap,
-        life: 620 + Math.random() * 260,
+        // +5% per feedback ("when the wire frames are exposed increase
+        // duration of show by 5%") — was 620 + rand*260.
+        life: 651 + Math.random() * 273,
         exteriorDip: 0.55 + Math.random() * 0.2, // substantial — the interior needs to actually read through it
         origTransparent: mesh.material.transparent,
         origOpacity: mesh.material.opacity,
@@ -1539,11 +1544,30 @@ export function mountAmbientEffects(refs, helpers) {
     rareTimer = setTimeout(fireRare, 240000 + Math.random() * 300000);
   };
 
+  // Per feedback, a jitter must never land on a button that isn't
+  // actually visible right now — e.g. the dock panel's own buttons
+  // while it's closed (the panel fades via opacity/pointerEvents
+  // rather than unmounting), or a conditionally-shown button like the
+  // Singularity reveal before it appears. Checks the element's own box
+  // plus every ancestor up to <body> for display/visibility/opacity,
+  // since a hidden ANCESTOR (the closed dock panel itself) is the
+  // common case, not just the button's own style.
+  const isVisibleForGlitch = (el) => {
+    if (!el || !el.isConnected) return false;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return false;
+    for (let node = el; node && node !== document.body; node = node.parentElement) {
+      const cs = getComputedStyle(node);
+      if (cs.display === "none" || cs.visibility === "hidden" || parseFloat(cs.opacity) === 0) return false;
+    }
+    return true;
+  };
+
   const JITTER_CLASSES = ["ec-jitter-tear", "ec-jitter-tear-b"];
   const fireJitter = () => {
     if (windingDownRef.current) return;
     const candidates = [titleWrapRef.current, turnLabelRef.current];
-    const buttons = document.querySelectorAll(".ec-btn");
+    const buttons = [...document.querySelectorAll(".ec-btn")].filter(isVisibleForGlitch);
     if (buttons.length) candidates.push(buttons[Math.floor(Math.random() * buttons.length)]);
     const pool = candidates.filter(Boolean);
     if (pool.length) {
@@ -2641,31 +2665,6 @@ export function renderExtraOverlays(setupExtras) {
         },
       },
       h(
-        "button",
-        {
-          onClick: closeSingularityInfo,
-          "aria-label": "Close",
-          className: "ec-btn",
-          style: {
-            position: "absolute",
-            top: 14,
-            right: 14,
-            width: 26,
-            height: 26,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "1.5px solid rgba(77,232,255,0.4)",
-            background: "transparent",
-            color: "#00ffff",
-            fontSize: 13,
-            lineHeight: 1,
-            cursor: "pointer",
-          },
-        },
-        "✕"
-      ),
-      h(
         "h2",
         {
           style: {
@@ -2804,7 +2803,10 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
     emissive: isDark ? HEX.glowCyan : HEX.glowAmber,
     emissiveIntensity: isDark ? 0.105 : 0.084,
     transparent: true,
-    opacity: isDark ? 0.837 : 0.804,
+    /* Light's opacity was reduced 2% (0.804 -> 0.788) per feedback,
+       then Dark was raised to match that same level rather than the
+       two colors sitting at visibly different translucency. */
+    opacity: 0.788,
     depthWrite: false,
   });
 

@@ -1,32 +1,28 @@
 // Shared helpers for driving the dock's 3D piece <-> panel gesture from
 // Playwright. Two things make this trickier than a plain click:
 //
-// 1. The app's own double-tap detection is timing-based (two taps under
-//    340ms apart — see handleDockPiecePointerUp in ElCabeza3D.jsx), and
-//    this sandboxed test environment's real-world latency per action has
+// 1. This sandboxed test environment's real-world latency per action has
 //    proven wildly variable (from tens of ms up to multiple real
-//    seconds under load), so two page.mouse.click() calls with a small
-//    fixed gap can easily land MORE than 340ms apart in wall-clock time
-//    even though the script only asked for ~120ms — silently missing
-//    the double-tap and leaving the panel closed. Retrying the whole
+//    seconds under load), so a single click can land without the panel
+//    visibly reacting before a short poll gives up. Retrying the whole
 //    gesture in a loop until the panel is actually confirmed open is
-//    robust to that; a fixed gap is not.
+//    robust to that; a single fixed-timeout attempt is not.
 // 2. The piece <-> corner relocation runs on a 900ms delay plus its own
 //    900ms CSS transition, so "wait roughly a second" after Begin Game
 //    is never quite right either — polling the actual DOM state (the
 //    React-set inline style target, then the bounding box settling) is.
 
-// Double-taps the dock piece until the panel is confirmed open
-// (Begin Game — or whatever panel content — actually receiving pointer
-// events), retrying the whole gesture rather than a single attempt.
+// Clicks the dock piece until the panel is confirmed open (Begin Game —
+// or whatever panel content — actually receiving pointer events),
+// retrying rather than a single attempt. A single click opens it (see
+// handleDockPiecePointerUp in ElCabeza3D.jsx) while it's still the
+// pre-game centered piece.
 export async function openDockPanel(page, { attempts = 8 } = {}) {
   const dockCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
   for (let i = 0; i < attempts; i++) {
     const box = await dockCanvas.boundingBox();
     if (!box) return false;
     const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
-    await page.mouse.click(cx, cy);
-    await page.waitForTimeout(80);
     await page.mouse.click(cx, cy);
     const opened = await waitForPanelOpen(page, 1000);
     if (opened) return true;
@@ -79,16 +75,19 @@ export async function waitForDockCorner(page, { timeoutMs = 15000 } = {}) {
   return box;
 }
 
-// Double-taps the dock piece while it's in its small bottom-right corner
-// watermark form, reopening the panel — retries the gesture the same
-// way openDockPanel does, for the same reason.
+// Hovers the dock piece while it's in its small bottom-right corner
+// watermark form, reopening the panel — a click there does nothing once
+// relocated (see handleDockPiecePointerUp); opening it instead requires
+// hovering/holding for 1.6s (handleDockPieceHoverStart). Retries the
+// gesture the same way openDockPanel does, for the same reason.
 export async function reopenDockPanelFromCorner(page, cornerBox, { attempts = 8 } = {}) {
   const cx = cornerBox.x + cornerBox.width / 2, cy = cornerBox.y + cornerBox.height / 2;
   for (let i = 0; i < attempts; i++) {
-    await page.mouse.click(cx, cy);
-    await page.waitForTimeout(80);
-    await page.mouse.click(cx, cy);
-    const opened = await waitForPanelOpen(page, 1000);
+    // Moving off-target first guarantees a fresh pointerenter fires even
+    // if a previous attempt's pointer is already sitting on the piece.
+    await page.mouse.move(cx + 40, cy + 40);
+    await page.mouse.move(cx, cy);
+    const opened = await waitForPanelOpen(page, 2200);
     if (opened) return true;
   }
   return false;

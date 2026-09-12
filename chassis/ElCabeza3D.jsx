@@ -56,8 +56,13 @@ export default function ElCabeza3D({ theme }) {
     const isDark = player === "dark";
     return {
       ...MINI_BUTTON_BASE,
-      background: isDark ? COLORS.charcoal : COLORS.cream,
-      color: isDark ? COLORS.cream : COLORS.charcoal,
+      // bodyDark/bodyLight, not the raw charcoal/cream ink tokens —
+      // Neon's own charcoal/cream are inverted for its dark UI, which
+      // would otherwise swap which player's button reads as filled-
+      // dark vs filled-light. See the same fix on the move-log column
+      // headers.
+      background: isDark ? COLORS.bodyDark : COLORS.bodyLight,
+      color: isDark ? COLORS.bodyLight : COLORS.bodyDark,
     };
   }
 
@@ -119,8 +124,9 @@ export default function ElCabeza3D({ theme }) {
       cursor: "pointer",
       borderRadius: 999,
       border: `1.5px solid ${COLORS.charcoal}`,
-      background: isDark ? COLORS.charcoal : COLORS.cream,
-      color: isDark ? COLORS.cream : COLORS.charcoal,
+      // bodyDark/bodyLight — see the comment on playerButtonStyle above.
+      background: isDark ? COLORS.bodyDark : COLORS.bodyLight,
+      color: isDark ? COLORS.bodyLight : COLORS.bodyDark,
     };
   }
 
@@ -297,7 +303,17 @@ export default function ElCabeza3D({ theme }) {
   const dockPieceMountRef = useRef(null);
   const dockPieceRef = useRef(null); // { scene, camera, renderer, pieceGroup, spin, velocity, dragging, bouncing }
   const dockDragRef = useRef({ dragging: false, lastX: 0, lastY: 0, lastT: 0 });
-  const dockLastTapRef = useRef(0);
+  // Post-Begin-Game, the dock lives as a small corner watermark rather
+  // than the pre-game centered piece — opening it there is deliberately
+  // gated behind a hover/hold (see handleDockPieceHoverStart) instead of
+  // a click, so it can't be triggered by an incidental tap mid-play.
+  const dockHoverTimerRef = useRef(null);
+  const clearDockHoverTimer = useCallback(() => {
+    if (dockHoverTimerRef.current) {
+      clearTimeout(dockHoverTimerRef.current);
+      dockHoverTimerRef.current = null;
+    }
+  }, []);
 
   /* One representative orientation per piece type — just enough to
      render a recognizable, correctly-proportioned standalone model;
@@ -414,6 +430,19 @@ export default function ElCabeza3D({ theme }) {
     requestAnimationFrame(tick);
   }, []);
 
+  // Hovering the corner watermark (mouse) or holding it (touch, which
+  // has no hover) for 1.6s opens the dock — see the field comment on
+  // dockHoverTimerRef. No-ops outside the "corner" view; a pointerup or
+  // pointerleave before the timer fires cancels it (see
+  // handleDockPiecePointerUp below).
+  const handleDockPieceHoverStart = useCallback(() => {
+    if (dockView !== "corner" || dockHoverTimerRef.current) return;
+    dockHoverTimerRef.current = setTimeout(() => {
+      dockHoverTimerRef.current = null;
+      triggerDockBounce();
+    }, 1600);
+  }, [dockView, triggerDockBounce]);
+
   const handleDockPiecePointerDown = useCallback((ev) => {
     const state = dockPieceRef.current;
     if (!state) return;
@@ -423,7 +452,11 @@ export default function ElCabeza3D({ theme }) {
       try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
     }
     ev.currentTarget.style.cursor = "grabbing";
-  }, []);
+    // Touch has no real hover, so pointerdown doubles as the start of
+    // the corner watermark's hold-to-open timer (see
+    // handleDockPieceHoverStart) — a no-op everywhere else.
+    handleDockPieceHoverStart();
+  }, [handleDockPieceHoverStart]);
 
   const handleDockPiecePointerMove = useCallback((ev) => {
     const drag = dockDragRef.current;
@@ -455,22 +488,21 @@ export default function ElCabeza3D({ theme }) {
     drag.dragging = false;
     if (state) state.dragging = false;
     if (ev.currentTarget.style) ev.currentTarget.style.cursor = "grab";
-    // Manual double-tap/double-click detection via timing rather than
-    // onDoubleClick, so the same code path covers touch and mouse.
-    // Skipped if this pointer-up ended an actual drag (see
-    // handleDockPiecePointerMove) — a real flick shouldn't also
-    // register as half of a double-tap.
-    const now = performance.now();
-    if (!state || !state.draggedFar) {
-      if (now - dockLastTapRef.current < 340) {
-        dockLastTapRef.current = 0;
-        triggerDockBounce();
-      } else {
-        dockLastTapRef.current = now;
-      }
+    // A touch contact ending early (before the hover-hold timer below
+    // fires) must not still open the dock later — see
+    // handleDockPieceHoverStart.
+    clearDockHoverTimer();
+    // Single click/tap opens the dock while it's the pre-game centered
+    // piece. Once relocated to the post-Begin-Game corner watermark,
+    // opening it goes through hover/hold instead (see
+    // handleDockPieceHoverStart) — a click there does nothing extra.
+    // Skipped entirely if this pointer-up ended an actual drag (see
+    // handleDockPiecePointerMove).
+    if ((!state || !state.draggedFar) && dockView !== "corner") {
+      triggerDockBounce();
     }
     if (state) state.draggedFar = false;
-  }, [triggerDockBounce]);
+  }, [triggerDockBounce, dockView, clearDockHoverTimer]);
 
   // Mount-once: the dock piece's own tiny Three.js scene, entirely
   // independent of the main board's renderer/camera.
@@ -1818,7 +1850,15 @@ export default function ElCabeza3D({ theme }) {
     const accentColor = state.owner === "dark" ? HEX.glowCyan : HEX.glowAmber;
     const originCenter = pieceCenter(state);
     t.pulseSquare && t.pulseSquare(state.row, state.col, state.w, state.h, "release");
-    t.spawnGlitchBurst && t.spawnGlitchBurst(new THREE.Vector3(originCenter.x, 0, originCenter.z), HEX.structureEdge);
+    // Per feedback, the Cabeza never gets this either (same reasoning
+    // as the landing shockwave/particles below): it rolls as a low
+    // disc rather than tumbling, so the burst's particles — spawned
+    // right at its own center — read as stray specks appearing inside
+    // its body as it rolls, rather than a burst beside/behind it like
+    // every other piece shape shows.
+    if (state.type !== "cabeza") {
+      t.spawnGlitchBurst && t.spawnGlitchBurst(new THREE.Vector3(originCenter.x, 0, originCenter.z), HEX.structureEdge);
+    }
 
     /* Reparented onto boardGroup, not scene: the temporary pivot/carrier
        must inherit the board's current rotation, or a piece mid-animation
@@ -1860,7 +1900,7 @@ export default function ElCabeza3D({ theme }) {
           );
         }
       }
-      if (landingCenter) {
+      if (landingCenter && state.type !== "cabeza") {
         t.spawnGlitchBurst && t.spawnGlitchBurst(new THREE.Vector3(landingCenter.x, 0, landingCenter.z), accentColor);
       }
       onDone();
@@ -2052,6 +2092,40 @@ export default function ElCabeza3D({ theme }) {
     let lastY = 0;
     let pinchDist = 0;
     let panAnchor = null;
+    /* Set at pointerdown when the contact starts directly on the
+       currently mid-turn piece (turnLocked, hit.id === selectedId):
+       the normalized on-screen direction from that piece's CURRENT
+       position back to where it started this turn. onMove compares the
+       gesture's own net drag direction against this — see "Undo Move"
+       there — instead of orbiting the camera, for exactly this one
+       gesture. null the rest of the time, which is what keeps every
+       other drag (empty board, a different piece, a piece not yet
+       moved) behaving exactly as before. */
+    let undoDragTarget = null;
+    let undoDownX = 0;
+    let undoDownY = 0;
+    // Projects a boardGroup-local (x, z) point (piece centers are
+    // stored in the board's own local space, since pieceGroup is a
+    // child of boardGroup and turns with it) to CSS pixel coordinates,
+    // for comparing on-screen drag direction against a piece's own
+    // on-screen position.
+    function worldToScreen(x, z) {
+      const v = new THREE.Vector3(x, 0, z);
+      t.boardGroup.localToWorld(v);
+      v.project(t.camera);
+      const rect = el.getBoundingClientRect();
+      return { x: rect.left + (v.x * 0.5 + 0.5) * rect.width, y: rect.top + (-v.y * 0.5 + 0.5) * rect.height };
+    }
+    /* Latched at pointerdown, same as altPanning: whether the drag
+       started above or below the canvas's own vertical midpoint. The
+       board is viewed from an oblique angle, so a grab point on the
+       visually "far" (upper-screen) half of it behaves like grabbing
+       the far side of a physical turntable — dragging right there
+       reads as the opposite rotation from grabbing the near (lower-
+       screen) half, even though theta's own sign never changes. This
+       flips theta's sign for an upper-half-started drag so both
+       halves feel consistent with each other. */
+    let dragFlipTheta = false;
 
     function pick(ev, opts = {}) {
       const rect = el.getBoundingClientRect();
@@ -2168,7 +2242,35 @@ export default function ElCabeza3D({ theme }) {
         moved = 0;
         lastX = ev.clientX;
         lastY = ev.clientY;
+        const rect = el.getBoundingClientRect();
+        dragFlipTheta = ev.clientY - rect.top < rect.height / 2;
         el.style.cursor = "grabbing";
+
+        // "Undo Move": dragging the piece that has already made a step
+        // this turn back toward where it started undoes the turn, same
+        // as clicking the Undo Move button — see the alignment check
+        // in onMove. Only armed when a contact starts directly on that
+        // exact piece, mid-turn, on the human's own turn.
+        undoDragTarget = null;
+        if (!altPanning && turnLocked && selectedId != null && !busy && !anim.current && currentPlayer !== aiPlayer && !awaitingBegin) {
+          const hit = pick(ev);
+          if (hit && hit.type === "piece" && hit.id === selectedId) {
+            const origin = turnSnapshot && turnSnapshot.find((p) => p.id === selectedId);
+            const current = pieces.find((p) => p.id === selectedId);
+            if (origin && current) {
+              const originScreen = worldToScreen(pieceCenter(origin).x, pieceCenter(origin).z);
+              const currentScreen = worldToScreen(pieceCenter(current).x, pieceCenter(current).z);
+              const ddx = originScreen.x - currentScreen.x;
+              const ddy = originScreen.y - currentScreen.y;
+              const dlen = Math.hypot(ddx, ddy);
+              if (dlen > 1) {
+                undoDragTarget = { dirX: ddx / dlen, dirY: ddy / dlen };
+                undoDownX = ev.clientX;
+                undoDownY = ev.clientY;
+              }
+            }
+          }
+        }
       } else {
         /* A second finger cancels the rotate outright rather than
            blending into it. */
@@ -2210,6 +2312,28 @@ export default function ElCabeza3D({ theme }) {
         moved += Math.abs(dx) + Math.abs(dy);
         lastX = ev.clientX;
         lastY = ev.clientY;
+
+        if (undoDragTarget) {
+          // Compares the gesture's NET drag (from the original
+          // pointerdown, not this frame's delta) against the direction
+          // captured at pointerdown, so a curved drag is judged by
+          // where it ended up pointing overall, not each jittery step.
+          // Never falls through to camera-rotate below while this
+          // gesture is live — see the field comment on undoDragTarget.
+          const totalDx = ev.clientX - undoDownX;
+          const totalDy = ev.clientY - undoDownY;
+          const totalLen = Math.hypot(totalDx, totalDy);
+          if (totalLen > DRAG_DEAD_ZONE_PX) {
+            const dot = (totalDx / totalLen) * undoDragTarget.dirX + (totalDy / totalLen) * undoDragTarget.dirY;
+            if (dot > 0.55) {
+              // Within ~56 degrees of dead-on toward the origin square.
+              undoDragTarget = null;
+              dragging = false;
+              handleUndoTurn();
+            }
+          }
+          return;
+        }
 
         if (altPanning) {
           /* Same panBy the two-finger touch gesture uses, with the raw
@@ -2256,7 +2380,7 @@ export default function ElCabeza3D({ theme }) {
            is what reproduces the identical drag-right-feels-right
            direction players already learned, just via a fixed camera and
            a turning board instead of the other way around. */
-        cam.current.theta -= dx * ORBIT_SENS_THETA;
+        cam.current.theta -= dx * ORBIT_SENS_THETA * (dragFlipTheta ? -1 : 1);
         /* Lower bound is a hair above zero rather than zero itself: at
            exactly vertical the view direction is parallel to the camera's
            up vector and lookAt has no defined roll, which snaps the view. */
@@ -2354,6 +2478,12 @@ export default function ElCabeza3D({ theme }) {
       const hit = pick(ev);
       if (hit && hit.type === "ghost" && activePiece) {
         beginMove(activePiece, hit.dir);
+      } else if (hit && hit.type === "piece" && turnLocked && hit.id === selectedId) {
+        // Tapping directly on the piece that's already made a step this
+        // turn stops here, same as the "Stop here" button — handleStopHere
+        // re-checks stepsUsed/etc. itself, so this is a no-op the one
+        // frame the piece is mid-animation and not yet actually stoppable.
+        handleStopHere();
       } else if (hit && hit.type === "piece" && !turnLocked) {
         const p = pieces.find((x) => x.id === hit.id);
         if (p && p.owner === currentPlayer) {
@@ -2412,7 +2542,7 @@ export default function ElCabeza3D({ theme }) {
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [pieces, currentPlayer, turnLocked, activePiece, busy, isPlaying, beginMove, aiPlayer, awaitingBegin]);
+  }, [pieces, currentPlayer, turnLocked, activePiece, busy, isPlaying, beginMove, aiPlayer, awaitingBegin, selectedId, turnSnapshot]);
 
   /* --------------------------- actions --------------------------- */
   /* With the standalone rotate buttons gone, this is the only reset
@@ -3071,6 +3201,7 @@ export default function ElCabeza3D({ theme }) {
         onPointerMove={handleDockPiecePointerMove}
         onPointerUp={handleDockPiecePointerUp}
         onPointerLeave={handleDockPiecePointerUp}
+        onPointerEnter={handleDockPieceHoverStart}
         style={dockPieceStyle}
       />
 
@@ -3101,7 +3232,9 @@ export default function ElCabeza3D({ theme }) {
           zIndex: 10,
           opacity: dockView === "panel" ? 1 : 0,
           pointerEvents: dockView === "panel" ? "auto" : "none",
-          transition: "opacity 320ms ease, transform 320ms ease",
+          // 500ms per feedback ("click outside...closing it, with .5
+          // second fade-out") — was 320ms.
+          transition: "opacity 500ms ease, transform 500ms ease",
           background: hexToRgba(COLORS.cream, 0.82),
           border: `1px solid ${COLORS.slateSoft}`,
           borderRadius: 14,
@@ -3149,7 +3282,11 @@ export default function ElCabeza3D({ theme }) {
                 height: 13,
                 flexShrink: 0,
                 borderRadius: "50%",
-                background: currentPlayer === "dark" ? COLORS.charcoal : COLORS.cream,
+                // bodyDark/bodyLight, not the raw charcoal/cream ink
+                // tokens — see the same fix on the move-log column
+                // headers below for why (Neon's charcoal/cream are
+                // inverted for its own dark UI).
+                background: currentPlayer === "dark" ? COLORS.bodyDark : COLORS.bodyLight,
                 border: `1.5px solid ${COLORS.charcoal}`,
               }}
             />
@@ -3482,17 +3619,24 @@ export default function ElCabeza3D({ theme }) {
               }}
             >
               <span>#</span>
+              {/* bodyDark/bodyLight, not the raw charcoal/cream ink
+                  tokens: Neon's own charcoal/cream are inverted for its
+                  dark UI (charcoal reads near-white there), which had
+                  been quietly swapping which player got the dark vs.
+                  light dot. bodyDark/bodyLight are a theme-agnostic
+                  pair every theme defines to mean exactly "this
+                  player's own color," so they can't invert. */}
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <span
                   aria-hidden="true"
-                  style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.charcoal, border: `1px solid ${COLORS.charcoal}` }}
+                  style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.bodyDark, border: `1px solid ${COLORS.charcoal}` }}
                 />
                 Dark
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <span
                   aria-hidden="true"
-                  style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.cream, border: `1px solid ${COLORS.charcoal}` }}
+                  style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.bodyLight, border: `1px solid ${COLORS.charcoal}` }}
                 />
                 Light
               </span>
@@ -3678,30 +3822,6 @@ export default function ElCabeza3D({ theme }) {
             boxSizing: "border-box",
           }}
         >
-          <button
-            onClick={closeMoveLog}
-            aria-label="Close"
-            className="ec-btn"
-            style={{
-              position: "absolute",
-              top: 14,
-              right: 14,
-              width: 26,
-              height: 26,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: `1.5px solid ${COLORS.charcoal}`,
-              background: "transparent",
-              color: COLORS.charcoal,
-              fontSize: 13,
-              lineHeight: 1,
-              cursor: "pointer",
-            }}
-          >
-            {"✕"}
-          </button>
-
           <h2
             style={{
               margin: "0 0 16px",
@@ -3746,17 +3866,19 @@ export default function ElCabeza3D({ theme }) {
                 }}
               >
                 <span>#</span>
+                {/* bodyDark/bodyLight — see the comment on the same
+                    pair in the dock's own inline table above. */}
                 <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <span
                     aria-hidden="true"
-                    style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.charcoal, border: `1px solid ${COLORS.charcoal}` }}
+                    style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.bodyDark, border: `1px solid ${COLORS.charcoal}` }}
                   />
                   Dark
                 </span>
                 <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <span
                     aria-hidden="true"
-                    style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.cream, border: `1px solid ${COLORS.charcoal}` }}
+                    style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.bodyLight, border: `1px solid ${COLORS.charcoal}` }}
                   />
                   Light
                 </span>
@@ -3829,7 +3951,8 @@ export default function ElCabeza3D({ theme }) {
           Always mounted (never conditionally rendered) so opacity can
           actually transition on the way in AND out — the same fade
           speed/pattern already used for the INFO button reveal itself,
-          rather than a hard cut. */}
+          rather than a hard cut. Per feedback, no dedicated close ("X")
+          button — click-outside is the only dismiss path. */}
       <div
         onClick={() => setShowInfoOverlay(false)}
         style={{
@@ -3863,30 +3986,6 @@ export default function ElCabeza3D({ theme }) {
               boxSizing: "border-box",
             }}
           >
-            <button
-              onClick={() => setShowInfoOverlay(false)}
-              aria-label="Close"
-              className="ec-btn"
-              style={{
-                position: "absolute",
-                top: 14,
-                right: 14,
-                width: 26,
-                height: 26,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: `1.5px solid ${COLORS.charcoal}`,
-                background: "transparent",
-                color: COLORS.charcoal,
-                fontSize: 13,
-                lineHeight: 1,
-                cursor: "pointer",
-              }}
-            >
-              ✕
-            </button>
-
             <h2
               style={{
                 margin: "0 0 10px",
@@ -4013,11 +4112,13 @@ export default function ElCabeza3D({ theme }) {
       {/* Victory placard: opens automatically the instant a game ends
           (see the status-watching effect above). Same always-mounted +
           opacity-fade pattern as the info overlay, at 0.3s to match.
-          Backdrop click, the X, or Escape all dismiss it WITHOUT
-          resetting the game — the finished board is still there to
-          look at, and the bottom New Game / Begin button still works
-          either way — so this is a convenience shortcut, not the only
-          path forward. */}
+          Backdrop click or Escape dismiss it WITHOUT resetting the
+          game — the finished board is still there to look at, and the
+          bottom New Game / Begin button still works either way — so
+          this is a convenience shortcut, not the only path forward.
+          Per feedback, no dedicated close ("X") button — every
+          overlay in the app closes by clicking outside it only,
+          for graphical minimalism. */}
       <div
         onClick={() => setShowVictoryPlacard(false)}
         style={{
@@ -4048,30 +4149,6 @@ export default function ElCabeza3D({ theme }) {
             textAlign: "center",
           }}
         >
-          <button
-            onClick={() => setShowVictoryPlacard(false)}
-            aria-label="Close"
-            className="ec-btn"
-            style={{
-              position: "absolute",
-              top: 14,
-              right: 14,
-              width: 26,
-              height: 26,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: `1.5px solid ${COLORS.charcoal}`,
-              background: "transparent",
-              color: COLORS.charcoal,
-              fontSize: 13,
-              lineHeight: 1,
-              cursor: "pointer",
-            }}
-          >
-            ✕
-          </button>
-
           <span
             aria-hidden="true"
             style={{
@@ -4079,7 +4156,8 @@ export default function ElCabeza3D({ theme }) {
               width: 28,
               height: 28,
               borderRadius: "50%",
-              background: winner === "dark" ? COLORS.charcoal : COLORS.cream,
+              // bodyDark/bodyLight — see the comment on playerButtonStyle.
+              background: winner === "dark" ? COLORS.bodyDark : COLORS.bodyLight,
               border: `2px solid ${COLORS.charcoal}`,
               marginBottom: 18,
             }}

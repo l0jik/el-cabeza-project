@@ -48,6 +48,14 @@ export const COLORS = {
      wood). */
   pageBg: "#4A4038",
   pageBgDeep: "#332B24",
+  /* Player chip FILL colors — a theme-agnostic pair chassis reads for
+     any "which player is this" swatch (e.g. the move-log column
+     headers), so it never has to assume charcoal=dark/cream=light
+     itself. In Standard those literally are the ink/surface pair
+     above; Neon's own charcoal/cream are inverted for its dark UI, so
+     it defines this pair separately (see themes/neon.js). */
+  bodyDark: "#242424",
+  bodyLight: "#FFFEFC",
 };
 
 /* The masthead title and modal-header display face. Declared
@@ -65,8 +73,10 @@ export const HEX = {
   /* Light pieces are deliberately darker than the board cream: at
      0xfdfbf7 they were the same value as the squares beneath them, so
      neither their silhouette nor their shaded faces could register. */
-  /* 0xe4dac6 darkened 10% (each channel x0.9). */
-  pieceLight: 0xcdc4b2,
+  /* 0xe4dac6 darkened 10% (each channel x0.9), then brightened 2%
+     (each channel x1.02) per feedback that the darkened tone read
+     slightly too dim against the board. */
+  pieceLight: 0xd1c8b6,
   charcoal: 0x242424,
   slate: 0x4a5568,
   wood: 0xddceaf,
