@@ -2775,6 +2775,157 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
   return { mesh, shell };
 }
 
+/* Move/legal-move indicator: a four-corner L-bracket "targeting
+   reticle" — Neon's own replacement for Standard's dashed square,
+   deliberately different rather than the same shape recolored (a
+   dashed charcoal square reads as board-game notation; Standard's own
+   HEX.charcoal happens to be near-black on Standard's cream board, but
+   Neon's semantic "charcoal" — the Dark player's own near-black tone —
+   sits on Neon's OWN near-black board, so reusing that shared chassis
+   line was invisible here; this both fixes that and gives Neon a
+   distinct sci-fi-HUD identity for it).
+
+   Each corner is a rigid L — two short glowing bars meeting at the
+   corner, each extending 22% of the square's own side length inward —
+   that free-falls in from above and snaps onto the corner. The chassis
+   owns WHEN this fades in/out or brightens on hover, exactly as
+   Standard's does (see setOpacity()); everything about HOW it looks
+   and animates is owned entirely here. */
+export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
+  const group = new THREE.Group();
+  group.position.set(cx, 0, cz);
+
+  const sideX = hx * 2, sideZ = hz * 2;
+  const segX = sideX * 0.22, segZ = sideZ * 0.22;
+  const THICKNESS = isCrush ? 0.1 : 0.085;
+  const RESTING_Y = 0.025;
+  const SPAWN_Y = 2; // "vertical height of ~2 units above the board"
+  const SPREAD = 1.75; // brackets spawn spaced as if on a 1.75x-larger square
+  const FALL_MS = 190; // the snap itself — "must execute very quickly"
+  const BOUNCE_MS = 150; // the spring/bounce settle, strictly after impact
+  const CHUNKY_DEPTH = 0.16; // in-flight "volumetric voxel" thickness…
+  const FLAT_DEPTH = 0.018; // …resolving flat once landed, per spec
+
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  // A single glowing bar: a solid inner core plus a softer, wider
+  // additive halo behind it — the "glowing, semi-transparent"
+  // dual-layer look, same technique as the piece shells' own rim glow
+  // but doubled up rather than relying on a single thin outline.
+  function makeBar(w, h, startX, startZ, endX, endZ) {
+    const core = new THREE.Mesh(
+      new THREE.BoxGeometry(w, CHUNKY_DEPTH, h),
+      new THREE.MeshBasicMaterial({ color: HEX.glowCyan, transparent: true, opacity: 0, depthWrite: false })
+    );
+    const halo = new THREE.Mesh(
+      new THREE.BoxGeometry(w * 1.6, CHUNKY_DEPTH, h * 1.6),
+      new THREE.MeshBasicMaterial({
+        color: HEX.glowCyan,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      })
+    );
+    group.add(core, halo);
+    return { core, halo, startX, startZ, endX, endZ };
+  }
+
+  // Each corner's two bars are built with a FIXED offset from that
+  // corner's own vertex and moved together as one rigid L throughout
+  // the flight (rather than animating each bar's endpoints
+  // independently), so the bracket shape never distorts mid-fall —
+  // only its position does, exactly as a real object snapping down and
+  // inward would.
+  const bars = [];
+  [
+    [-1, -1], [1, -1], [1, 1], [-1, 1],
+  ].forEach(([sx, sz]) => {
+    const endAnchorX = sx * hx, endAnchorZ = sz * hz;
+    const startAnchorX = sx * hx * SPREAD, startAnchorZ = sz * hz * SPREAD;
+    // Horizontal bar: extends along X, inward from the corner.
+    bars.push(
+      makeBar(
+        segX, THICKNESS,
+        startAnchorX - sx * segX / 2, startAnchorZ,
+        endAnchorX - sx * segX / 2, endAnchorZ
+      )
+    );
+    // Vertical bar: extends along Z, inward from the corner.
+    bars.push(
+      makeBar(
+        THICKNESS, segZ,
+        startAnchorX, startAnchorZ - sz * segZ / 2,
+        endAnchorX, endAnchorZ - sz * segZ / 2
+      )
+    );
+  });
+
+  const spawnedAt = performance.now();
+  let landed = false;
+
+  function applyFrame(now) {
+    // Clamped to 0: a rAF timestamp can land fractionally earlier than
+    // this object's own creation-time performance.now() call (they're
+    // captured on different ticks of the event loop), which would
+    // otherwise send fallT negative and overshoot easeOutCubic past the
+    // spawn position for one frame.
+    const elapsed = Math.max(0, now - spawnedAt);
+    const fallT = Math.min(elapsed / FALL_MS, 1);
+    const posE = easeOutCubic(fallT);
+    const depthE = easeOutCubic(Math.min(elapsed / (FALL_MS * 0.7), 1));
+    const depth = CHUNKY_DEPTH + (FLAT_DEPTH - CHUNKY_DEPTH) * depthE;
+
+    // Vertical: a fast direct fall to the board, X/Z arriving together
+    // with it — the spring/bounce below is reserved for strictly AFTER
+    // this lands, not blended through the fall itself.
+    let y = SPAWN_Y + (RESTING_Y - SPAWN_Y) * posE;
+    if (elapsed > FALL_MS) {
+      const bounceT = Math.min((elapsed - FALL_MS) / BOUNCE_MS, 1);
+      // Damped spring: dips slightly below rest (impact compression),
+      // rebounds a little above it, settles — decaying to ~0 by the
+      // end of BOUNCE_MS rather than oscillating indefinitely.
+      const spring = Math.exp(-4.5 * bounceT) * Math.sin(bounceT * Math.PI * 2.2) * 0.045;
+      y = RESTING_Y + spring;
+      if (bounceT >= 1) landed = true;
+    }
+
+    bars.forEach(({ core, halo, startX, startZ, endX, endZ }) => {
+      const x = startX + (endX - startX) * posE;
+      const z = startZ + (endZ - startZ) * posE;
+      core.position.set(x, y, z);
+      halo.position.set(x, y, z);
+      const depthScale = depth / CHUNKY_DEPTH;
+      core.scale.y = depthScale;
+      halo.scale.y = depthScale;
+    });
+  }
+  applyFrame(spawnedAt); // first frame lands correctly even before any tick() call
+
+  return {
+    root: group,
+    setOpacity(v) {
+      bars.forEach(({ core, halo }) => {
+        core.material.opacity = v;
+        halo.material.opacity = v * 0.4;
+      });
+    },
+    tick(now) {
+      if (!landed) applyFrame(now);
+    },
+    dispose() {
+      bars.forEach(({ core, halo }) => {
+        core.geometry.dispose();
+        core.material.dispose();
+        halo.geometry.dispose();
+        halo.material.dispose();
+      });
+    },
+  };
+}
+
 /* A synthesized ambient bed (Web Audio API, no external assets) plus a
    sparse, randomized layer of "machine is alive" micro-events, plus a
    handful of short gameplay cues. Entirely isolated from game state —

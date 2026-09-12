@@ -3,19 +3,26 @@
    sources before extraction (see build/scratch/). Depends on THREE
    (assumed global, matching both original sources' own usage) and on
    the shared board constants. setGhostLineTarget lives here too even
-   though it touches a Three.js mesh directly, since it has no game-rule
-   content of its own — pure animation-state bookkeeping shared by both
-   themes' ghost-move indicators. */
+   though it touches a Three.js object directly, since it has no
+   game-rule content of its own — pure animation-state bookkeeping
+   shared by both themes' ghost-move indicators. */
 
 import * as THREE from "three";
 import { SQUARE_SIZE, OFF, PIECE_SCALE, DISC_H, SLAB } from "./constants.js";
 import { PIECE_META } from "./constants.js";
 
-export function setGhostLineTarget(mesh, target, fadingOut) {
-  mesh.userData.opacityFrom = mesh.material.opacity;
-  mesh.userData.opacityTo = target;
-  mesh.userData.opacityStart = performance.now();
-  if (fadingOut) mesh.userData.fadingOut = true;
+/* `root` is a theme-built move-indicator's root object (see
+   theme.buildMoveIndicator in themes/standard.js and themes/neon.js) —
+   a plain Mesh/LineSegments for Standard, a Group for Neon's multi-bar
+   bracket. Reads/writes userData.currentOpacity rather than
+   root.material.opacity directly so this stays agnostic to which:
+   the chassis tick loop is what actually applies the interpolated
+   value each frame, via root.userData.indicator.setOpacity(). */
+export function setGhostLineTarget(root, target, fadingOut) {
+  root.userData.opacityFrom = root.userData.currentOpacity ?? 0;
+  root.userData.opacityTo = target;
+  root.userData.opacityStart = performance.now();
+  if (fadingOut) root.userData.fadingOut = true;
 }
 
 /* --------------------------- geometry ----------------------------- */

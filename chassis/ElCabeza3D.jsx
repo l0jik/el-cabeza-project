@@ -1428,19 +1428,27 @@ export default function ElCabeza3D({ theme }) {
          re-reads elapsed time against opacityStart rather than
          assuming a fade runs to completion uninterrupted. A handful of
          objects at most (one per legal-move direction), so this is
-         cheap even though it runs every frame. */
+         cheap even though it runs every frame. The actual opacity
+         value is applied via the theme's own setOpacity() — see
+         theme.buildMoveIndicator — rather than touching .material
+         directly, since Neon's indicator is a multi-mesh Group with no
+         single material of its own; indicator.tick() separately drives
+         Neon's own entrance-animation position/depth on top of this,
+         entirely independent of the opacity fade. */
       if (ghostGroup) {
         for (let i = ghostGroup.children.length - 1; i >= 0; i--) {
           const c = ghostGroup.children[i];
           if (c.userData.kind !== "ghostLine") continue;
-          const { opacityFrom, opacityTo, opacityStart, fadingOut } = c.userData;
+          const { opacityFrom, opacityTo, opacityStart, fadingOut, indicator } = c.userData;
           if (opacityStart === undefined) continue;
           const e = Math.min((now - opacityStart) / GHOST_FADE_MS, 1);
-          c.material.opacity = opacityFrom + (opacityTo - opacityFrom) * e;
+          const opacity = opacityFrom + (opacityTo - opacityFrom) * e;
+          c.userData.currentOpacity = opacity;
+          indicator.setOpacity(opacity);
+          indicator.tick(now);
           if (fadingOut && e >= 1) {
             ghostGroup.remove(c);
-            c.geometry && c.geometry.dispose();
-            c.material && c.material.dispose();
+            indicator.dispose();
           }
         }
       }
@@ -1585,44 +1593,27 @@ export default function ElCabeza3D({ theme }) {
       hit.userData = { dir, kind: "ghost", isCrush };
       group.add(hit);
 
-      /* Dashed outline. A filled patch competes with the pieces' own
-         cast shadows; a dashed rule reads as notation instead. */
+      /* Move-indicator visual: entirely theme-owned (see
+         theme.buildMoveIndicator in themes/standard.js and
+         themes/neon.js) — Standard's own dashed square and Neon's
+         animated corner-bracket reticle are genuinely different
+         objects, not the same shape recolored. The chassis only owns
+         WHEN this fades in/out or brightens on hover (below), via the
+         returned setOpacity(); everything about HOW it looks and
+         animates is the theme's call. */
       const hx = (cand.w * SQUARE_SIZE * GHOST_SCALE) / 2;
       const hz = (cand.h * SQUARE_SIZE * GHOST_SCALE) / 2;
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(
-          [
-            -hx, 0, -hz, hx, 0, -hz,
-            hx, 0, -hz, hx, 0, hz,
-            hx, 0, hz, -hx, 0, hz,
-            -hx, 0, hz, -hx, 0, -hz,
-          ],
-          3
-        )
-      );
-
-      const line = new THREE.LineSegments(
-        geo,
-        new THREE.LineDashedMaterial({
-          color: HEX.charcoal,
-          dashSize: isCrush ? 0.16 : 0.1,
-          gapSize: isCrush ? 0.05 : 0.075,
-          transparent: true,
-          opacity: 0,
-        })
-      );
-      line.computeLineDistances();
-      line.position.set(cx, 0.025, cz);
-      line.userData = { dir, kind: "ghostLine", isCrush };
+      const indicator = theme.buildMoveIndicator({ cx, cz, hx, hz, isCrush, dir });
+      indicator.root.userData = { dir, kind: "ghostLine", isCrush, indicator };
       /* Starts invisible and is immediately targeted to fade up to its
          real (hot/cold) opacity — see the hover-emphasis effect just
          below, which computes that value the same way it always has.
          This is what makes a newly-hovered or newly-selected piece's
-         indicators fade IN instead of appearing instantly. */
-      setGhostLineTarget(line, isCrush ? 0.8 : 0.5, false);
-      group.add(line);
+         indicators fade IN instead of appearing instantly. Neon's own
+         indicator additionally runs its own entrance animation on top
+         of this opacity fade (see its tick()), driven independently. */
+      setGhostLineTarget(indicator.root, isCrush ? 0.8 : 0.5, false);
+      group.add(indicator.root);
     });
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [shadowSig]);

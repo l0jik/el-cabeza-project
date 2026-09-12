@@ -341,3 +341,49 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
 
   return { mesh, shell };
 }
+
+/* Move/legal-move indicator: a dashed square outline, reading as
+   drafting notation rather than competing with a piece's own cast
+   shadow (a filled patch would). The chassis owns WHEN this fades in,
+   out, or brightens on hover (see setGhostLineTarget/opacity in
+   chassis/ElCabeza3D.jsx) — this only owns HOW that opacity value gets
+   drawn, via the returned setOpacity(). Neon's own implementation (see
+   themes/neon.js) looks and animates entirely differently; this is the
+   plain, static baseline this theme has always used. */
+export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(
+      [
+        -hx, 0, -hz, hx, 0, -hz,
+        hx, 0, -hz, hx, 0, hz,
+        hx, 0, hz, -hx, 0, hz,
+        -hx, 0, hz, -hx, 0, -hz,
+      ],
+      3
+    )
+  );
+  const material = new THREE.LineDashedMaterial({
+    color: HEX.charcoal,
+    dashSize: isCrush ? 0.16 : 0.1,
+    gapSize: isCrush ? 0.05 : 0.075,
+    transparent: true,
+    opacity: 0,
+  });
+  const line = new THREE.LineSegments(geo, material);
+  line.computeLineDistances();
+  line.position.set(cx, 0.025, cz);
+
+  return {
+    root: line,
+    setOpacity(v) {
+      material.opacity = v;
+    },
+    tick() {},
+    dispose() {
+      geo.dispose();
+      material.dispose();
+    },
+  };
+}
