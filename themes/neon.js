@@ -1092,9 +1092,31 @@ export function mountAmbientEffects(refs, helpers) {
       const lz = (r - avgR) * CRAWL_VOXEL;
       const cellBrightness = 0.55 + Math.random() * 0.45; // per-cell variance, not a uniform block
 
-      // A soft glow halo underneath, for "good glow" without
-      // softening the square itself.
-      const haloSize = CRAWL_VOXEL * 0.98;
+      // Per feedback ("more blur and glow and bloom... as if not
+      // completely able to be seen, [as if] the board itself is not
+      // purely transparent"): a third, much larger and dimmer bloom
+      // layer underneath everything else, for the soft light-scatter
+      // a hazy/frosted surface would actually produce — the halo
+      // alone read as a tighter glow, not genuine bloom spread.
+      const bloomSize = CRAWL_VOXEL * 3.2;
+      const bloomMat = new THREE.MeshBasicMaterial({
+        map: t.softGlowTex,
+        color: 0x8fe8ff,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const bloom = new THREE.Mesh(new THREE.PlaneGeometry(bloomSize, bloomSize), bloomMat);
+      bloom.rotation.x = -Math.PI / 2;
+      bloom.position.set(lx, 0.010, lz);
+      group.add(bloom);
+
+      // The halo, enlarged from before for a softer spread — pulled
+      // back from an initial 1.7x per feedback that too much round
+      // glow was itself rounding off the squares' own shape; the new
+      // bloom layer above now carries most of the extra spread.
+      const haloSize = CRAWL_VOXEL * 1.25;
       const haloMat = new THREE.MeshBasicMaterial({
         map: t.softGlowTex,
         color: 0x8fe8ff,
@@ -1108,11 +1130,15 @@ export function mountAmbientEffects(refs, helpers) {
       halo.position.set(lx, 0.012, lz);
       group.add(halo);
 
-      // The clean, solid square itself — untextured flat fill (not
-      // the soft radial-gradient texture), so its edges stay crisp
-      // rather than reading as a blurred blob. Sized close to the
-      // full voxel so, combined with its neighbors, the mass reads as
-      // a tightly-packed mosaic of closely adjacent tiles.
+      // The square itself — reverted back to an untextured flat fill
+      // per feedback: putting the round soft-glow texture on the
+      // core too (the previous pass) read as the squares themselves
+      // turning into circles, not just gaining bloom around them. The
+      // new bloom layer above and the enlarged halo below are what
+      // now carry all the actual blur/glow — the core's own job is
+      // just to keep the mass legible as a grid of squares, capped
+      // well under fully opaque so it still doesn't look like solid,
+      // fully-visible geometry.
       const coreSize = CRAWL_VOXEL * 0.88;
       const coreMat = new THREE.MeshBasicMaterial({
         color: 0xd6f9ff,
@@ -1126,10 +1152,20 @@ export function mountAmbientEffects(refs, helpers) {
       core.position.set(lx, 0.014, lz);
       group.add(core);
 
+      // Overall ceiling pulled down another 10% per feedback ("the
+      // brightest is too bright... but I do want the [per-cell]
+      // variance to be present") — applied as a flat multiplier on
+      // top of the existing per-cell random range, so the SPREAD
+      // between dim and bright cells stays exactly as wide, just
+      // scaled down together.
+      const BRIGHTNESS_CEILING = 0.9;
       materials.push({
-        halo: haloMat, core: coreMat,
-        haloPeak: (0.651 + Math.random() * 0.168) * cellBrightness,
-        corePeak: (0.85 + Math.random() * 0.15) * cellBrightness,
+        bloom: bloomMat, halo: haloMat, core: coreMat,
+        bloomPeak: (0.28 + Math.random() * 0.12) * cellBrightness * BRIGHTNESS_CEILING,
+        haloPeak: (0.55 + Math.random() * 0.15) * cellBrightness * BRIGHTNESS_CEILING,
+        // Capped well under fully opaque per feedback ("not
+        // completely able to be seen") — was 0.85-1.0.
+        corePeak: (0.55 + Math.random() * 0.15) * cellBrightness * BRIGHTNESS_CEILING,
       });
     });
     t.weightGroup.add(group);
@@ -2091,7 +2127,8 @@ export function mountAmbientEffects(refs, helpers) {
       if (frac < 0.25) envelope = frac / 0.25;
       else if (frac > 0.6) envelope = Math.max(0, (1 - frac) / 0.4);
       else envelope = 1;
-      item.materials.forEach(({ halo, core, haloPeak, corePeak }) => {
+      item.materials.forEach(({ bloom, halo, core, bloomPeak, haloPeak, corePeak }) => {
+        bloom.opacity = envelope * bloomPeak;
         halo.opacity = envelope * haloPeak;
         core.opacity = envelope * corePeak;
       });
