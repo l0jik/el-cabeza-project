@@ -1157,8 +1157,9 @@ export function mountAmbientEffects(refs, helpers) {
       // variance to be present") — applied as a flat multiplier on
       // top of the existing per-cell random range, so the SPREAD
       // between dim and bright cells stays exactly as wide, just
-      // scaled down together.
-      const BRIGHTNESS_CEILING = 0.9;
+      // scaled down together. Reduced a further 15% (0.9 -> 0.765)
+      // per feedback to dim the whole crawling swarm overall.
+      const BRIGHTNESS_CEILING = 0.765;
       materials.push({
         bloom: bloomMat, halo: haloMat, core: coreMat,
         bloomPeak: (0.28 + Math.random() * 0.12) * cellBrightness * BRIGHTNESS_CEILING,

@@ -123,7 +123,9 @@ export const DRAG_DEAD_ZONE_PX = 10;
    drift out of sync with each other. */
 export const ZOOM_MIN = 9;
 
-export const ZOOM_MAX = 34;
+/* Raised from 34 (~+20%) so the board can pull back further before
+   hitting its zoom-out limit. */
+export const ZOOM_MAX = 41;
 
 export const PIECE_META = {
   cabeza: { label: "C", name: "Cabeza", shape: "disc", maxSteps: 2 },

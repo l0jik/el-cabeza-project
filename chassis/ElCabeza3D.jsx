@@ -293,9 +293,12 @@ export default function ElCabeza3D({ theme }) {
      same theme.buildPieceVisual()/engine proportions the real board
      uses, just standing alone in its own tiny scene), "panel" (today's
      actual controls), and "corner" (the same piece, shrunk and faded
-     into a bottom-right watermark once a game is under way). Double-
-     clicking/double-tapping the piece in either "piece" or "corner"
-     view bounces it and opens "panel"; Begin Game reverses that (panel
+     into a bottom-right watermark once a game is under way). A single
+     click/tap on the piece opens "panel" right away in "piece" view;
+     in "corner" view that same single click/tap still works, but so
+     does a shorter hover/hold (see handleDockPieceHoverStart) so the
+     tiny post-game watermark stays reachable without needing a precise
+     click. Begin Game reverses that (panel
      -> piece -> corner, on a short delay so the remorph is visible
      before it relocates). A fresh game (awaitingBegin true again) snaps
      straight back to "piece" and re-rolls which piece/color represents
@@ -461,23 +464,26 @@ export default function ElCabeza3D({ theme }) {
   }, [dockHitFraction]);
 
   // Hovering the corner watermark (mouse) or holding it (touch, which
-  // has no hover) for 1.6s opens the dock — see the field comment on
-  // dockHoverTimerRef. No-ops outside the "corner" view; a pointerup
-  // or pointerleave before the timer fires cancels it (see
-  // handleDockPiecePointerUp below). Deliberately NOT gated by
-  // isInsideDockHitbox: the corner watermark is already small (100x88)
-  // and semi-transparent, so per-piece hitbox precision belongs on the
-  // deliberate pre-game CLICK (a big, prominent, directly-looked-at
-  // piece) rather than this passive hover trigger — shrinking an
-  // already-tiny hover target further for the smallest piece types
-  // reintroduces exactly the "too small/sensitive" complaint this
-  // gesture exists to avoid.
+  // has no hover) for 0.5s opens the dock — see the field comment on
+  // dockHoverTimerRef. This is IN ADDITION to a plain single click/tap
+  // (see handleDockPiecePointerUp below), not instead of it — the
+  // watermark is small, so a quick, deliberate hover/hold is offered as
+  // an easier-to-land alternative to hitting its exact hitbox. No-ops
+  // outside the "corner" view; a pointerup or pointerleave before the
+  // timer fires cancels it (see handleDockPiecePointerUp below).
+  // Deliberately NOT gated by isInsideDockHitbox: the corner watermark
+  // is already small (100x88) and semi-transparent, so per-piece
+  // hitbox precision belongs on the deliberate CLICK (see
+  // isInsideDockHitbox) rather than this passive hover trigger —
+  // shrinking an already-tiny hover target further for the smallest
+  // piece types reintroduces exactly the "too small/sensitive"
+  // complaint this gesture exists to avoid.
   const handleDockPieceHoverStart = useCallback((ev) => {
     if (dockView !== "corner" || dockHoverTimerRef.current) return;
     dockHoverTimerRef.current = setTimeout(() => {
       dockHoverTimerRef.current = null;
       triggerDockBounce();
-    }, 1600);
+    }, 500);
   }, [dockView, triggerDockBounce]);
 
   const handleDockPiecePointerDown = useCallback((ev) => {
@@ -529,19 +535,20 @@ export default function ElCabeza3D({ theme }) {
     // fires) must not still open the dock later — see
     // handleDockPieceHoverStart.
     clearDockHoverTimer();
-    // Single click/tap opens the dock while it's the pre-game centered
-    // piece, but only when it actually lands on the piece's own
-    // hitbox (see isInsideDockHitbox) — not anywhere on the fixed-size
-    // canvas around it. Once relocated to the post-Begin-Game corner
-    // watermark, opening it goes through hover/hold instead (see
-    // handleDockPieceHoverStart) — a click there does nothing extra.
-    // Skipped entirely if this pointer-up ended an actual drag (see
-    // handleDockPiecePointerMove).
-    if ((!state || !state.draggedFar) && dockView !== "corner" && isInsideDockHitbox(ev)) {
+    // Single click/tap opens the dock in either "piece" (the pre-game
+    // centered piece) or "corner" (the post-Begin-Game watermark) view,
+    // but only when it actually lands on the piece's own hitbox (see
+    // isInsideDockHitbox) — not anywhere on the fixed-size canvas
+    // around it. The corner watermark ALSO opens via a shorter hover/
+    // hold (see handleDockPieceHoverStart) for when landing that click
+    // precisely is inconvenient mid-play; this is simply the other way
+    // in, not a replacement for it. Skipped entirely if this pointer-up
+    // ended an actual drag (see handleDockPiecePointerMove).
+    if ((!state || !state.draggedFar) && isInsideDockHitbox(ev)) {
       triggerDockBounce();
     }
     if (state) state.draggedFar = false;
-  }, [triggerDockBounce, dockView, clearDockHoverTimer, isInsideDockHitbox]);
+  }, [triggerDockBounce, clearDockHoverTimer, isInsideDockHitbox]);
 
   // Mount-once: the dock piece's own tiny Three.js scene, entirely
   // independent of the main board's renderer/camera.
@@ -770,6 +777,57 @@ export default function ElCabeza3D({ theme }) {
     return () => clearTimeout(t);
   }, [awaitingBegin]);
   const mastheadPhase = awaitingBegin ? "setup" : titleRelocated ? "relocated" : "fading";
+
+  /* Pre-game board framing: while awaitingBegin, the board's own fixed
+     full-viewport layer is windowed down to the vertical gap between the
+     masthead letters and the dock piece's animation box, instead of
+     spanning the whole screen. Two effects per feedback come from the
+     SAME change here, not two separate ones: shrinking a perspective
+     camera's viewport height (width held fixed) scales its rendered
+     content by that same height ratio in both dimensions — the
+     aspect/FOV coupling keeps horizontal scaled in step even though only
+     height changes — so windowing the layer down to a shorter band both
+     shrinks the board and (by construction, since the band IS that gap)
+     centers it in that gap, with no separate camera math needed. Height
+     is capped at 60% of the viewport (a ~40% reduction) when the gap is
+     roomy enough to show it at that size without touching the masthead
+     or dock; on a short viewport where the gap itself is tighter than
+     that, the gap wins and the frame simply fills it exactly, since
+     never overlapping the masthead/dock is the harder constraint of the
+     two. Reverts to the normal full-viewport layer (see boardLayerStyle
+     below) the instant Begin Game is pressed. */
+  const [preGameBoardFrame, setPreGameBoardFrame] = useState(null);
+  useEffect(() => {
+    if (!awaitingBegin) {
+      setPreGameBoardFrame(null);
+      return;
+    }
+    function recompute() {
+      const titleEl = titleRef.current;
+      const dockEl = dockPieceMountRef.current;
+      if (!titleEl || !dockEl) return;
+      const bandTop = titleEl.getBoundingClientRect().bottom;
+      const bandBottom = dockEl.getBoundingClientRect().top;
+      const bandHeight = bandBottom - bandTop;
+      if (bandHeight < 40) return;
+      const height = Math.min(window.innerHeight * 0.6, bandHeight);
+      const bandMid = (bandTop + bandBottom) / 2;
+      const top = Math.max(bandTop, Math.min(bandMid - height / 2, bandBottom - height));
+      setPreGameBoardFrame({ top, height });
+    }
+    recompute();
+    // The dock piece box can still be mid-transition into its "piece"
+    // position here (e.g. reset from a finished game, where it was
+    // sitting in its "corner" spot a moment ago — see the 900ms
+    // transition on dockPieceStyle) — this second pass catches the
+    // settled position once that animation finishes.
+    const settleTimer = setTimeout(recompute, 950);
+    window.addEventListener("resize", recompute);
+    return () => {
+      clearTimeout(settleTimer);
+      window.removeEventListener("resize", recompute);
+    };
+  }, [awaitingBegin]);
 
   /* Move Log popup — a chassis-level feature (see ARCHITECTURE.md):
      generic post-game UI with no theme dependency, built once here
@@ -2192,6 +2250,27 @@ export default function ElCabeza3D({ theme }) {
     let lastY = 0;
     let pinchDist = 0;
     let panAnchor = null;
+    /* Two-finger gesture recognition — a double-tap toggles full screen,
+       a fast mostly-vertical swipe jumps to Current Player View (up) or
+       Top-Down View (down) — layers on top of the pinch/pan handling
+       above rather than replacing it: every two-finger contact still
+       pinches and pans live exactly as before (see onMove), and is
+       ADDITIONALLY classified as a tap or a swipe once it ends (see
+       onUp), using the start time/position recorded here and in onDown.
+       A genuine pinch-zoom or a slower deliberate pan naturally fails
+       both the tap and swipe thresholds below and is simply left as the
+       live pinch/pan it already performed — nothing needs to actively
+       rule those out. */
+    const TWO_FINGER_TAP_MAX_MS = 300; // a two-finger contact shorter than this, with barely any movement, is a tap
+    const TWO_FINGER_TAP_MOVE_PX = 12; // max cumulative midpoint travel still counted as a tap, not a drag
+    const TWO_FINGER_DOUBLE_TAP_MS = 400; // max gap between two taps to count as a double-tap
+    const TWO_FINGER_SWIPE_MAX_MS = 700; // longer than this reads as a deliberate pan, not a flick
+    const TWO_FINGER_SWIPE_MIN_PX = 60; // minimum net vertical travel to count as a swipe
+    let twoFingerStartTime = 0;
+    let twoFingerStartMid = null; // null whenever the current gesture isn't a clean two-finger contact (see onDown)
+    let twoFingerLastMid = null;
+    let twoFingerMoved = 0; // cumulative midpoint travel this gesture, for tap-vs-swipe
+    let lastTwoFingerTapAt = 0; // wall-clock time of the previous qualifying tap, for double-tap detection
     /* Set at pointerdown when the contact starts directly on the
        currently mid-turn piece (turnLocked, hit.id === selectedId):
        the normalized on-screen direction from that piece's CURRENT
@@ -2378,6 +2457,20 @@ export default function ElCabeza3D({ theme }) {
         altPanning = false;
         pinchDist = active.size === 2 ? pinchSpan() : 0;
         panAnchor = active.size === 2 ? pinchMid() : null;
+        if (active.size === 2) {
+          // A clean two-finger contact starts here — see the field
+          // comments above for how this feeds the tap/swipe
+          // classification in onUp.
+          twoFingerStartTime = performance.now();
+          twoFingerStartMid = panAnchor;
+          twoFingerLastMid = panAnchor;
+          twoFingerMoved = 0;
+        } else {
+          // A third (or more) simultaneous contact is no longer a
+          // clean two-finger gesture — never classify it as a tap or
+          // swipe (see onUp).
+          twoFingerStartMid = null;
+        }
       }
     }
 
@@ -2402,6 +2495,15 @@ export default function ElCabeza3D({ theme }) {
             panBy(mid.x - panAnchor.x, mid.y - panAnchor.y);
           }
           panAnchor = mid;
+
+          // Tracks how far the two-finger midpoint has actually
+          // traveled this gesture, independent of the live pan above —
+          // see TWO_FINGER_TAP_MOVE_PX in onUp, which uses this to tell
+          // a held-still tap apart from an intentional drag.
+          if (twoFingerLastMid) {
+            twoFingerMoved += Math.hypot(mid.x - twoFingerLastMid.x, mid.y - twoFingerLastMid.y);
+          }
+          twoFingerLastMid = mid;
         }
         return;
       }
@@ -2549,6 +2651,11 @@ export default function ElCabeza3D({ theme }) {
 
     function onUp(ev) {
       const wasMulti = active.size >= 2;
+      // Exactly two, not "two or more" — a third contact having ever
+      // joined this gesture already nulled twoFingerStartMid in onDown,
+      // so classification below only ever fires for a clean two-finger
+      // contact dropping back to one (or zero) fingers.
+      const wasExactlyTwo = active.size === 2;
       const wasAltPan = altPanning;
       active.delete(ev.pointerId);
       el.releasePointerCapture && el.releasePointerCapture(ev.pointerId);
@@ -2564,6 +2671,47 @@ export default function ElCabeza3D({ theme }) {
         dragging = false;
         altPanning = false;
       }
+
+      /* Two-finger tap (toggles full screen on the SECOND qualifying
+         tap within TWO_FINGER_DOUBLE_TAP_MS) and a fast, mostly-
+         vertical two-finger swipe (Current Player View on an upswipe,
+         Top-Down View on a downswipe) are classified right here, the
+         moment a clean two-finger gesture drops back below two
+         contacts — see the field comments where these are tracked, in
+         onDown/onMove above. A genuine pinch-zoom or a slower two-
+         finger pan simply fails both checks below and is left exactly
+         as the live pinch/pan it already performed. */
+      if (wasExactlyTwo && twoFingerStartMid) {
+        const elapsed = performance.now() - twoFingerStartTime;
+        const mid = twoFingerLastMid || twoFingerStartMid;
+        const netDx = mid.x - twoFingerStartMid.x;
+        const netDy = mid.y - twoFingerStartMid.y;
+
+        if (elapsed < TWO_FINGER_TAP_MAX_MS && twoFingerMoved < TWO_FINGER_TAP_MOVE_PX) {
+          const now = performance.now();
+          if (now - lastTwoFingerTapAt < TWO_FINGER_DOUBLE_TAP_MS) {
+            lastTwoFingerTapAt = 0;
+            toggleFullscreen();
+          } else {
+            lastTwoFingerTapAt = now;
+          }
+        } else if (
+          elapsed < TWO_FINGER_SWIPE_MAX_MS &&
+          Math.abs(netDy) >= TWO_FINGER_SWIPE_MIN_PX &&
+          Math.abs(netDy) > Math.abs(netDx) * 1.5
+        ) {
+          // Screen-space Y grows downward, so a positive netDy is a
+          // downswipe (-> Top-Down View) and a negative one is an
+          // upswipe (-> Current Player View) — both of these already
+          // re-center the pan target themselves (see snapToCenter), so
+          // whatever this gesture's own live two-finger pan did to
+          // cam.current.target is simply overwritten, not restored.
+          if (netDy > 0) topDownView();
+          else recenterView();
+        }
+        twoFingerStartMid = null;
+      }
+
       if (wasMulti) return;
 
       const wasDrag = moved > DRAG_DEAD_ZONE_PX;
@@ -2601,6 +2749,9 @@ export default function ElCabeza3D({ theme }) {
       if (active.size < 2) {
         pinchDist = 0;
         panAnchor = null;
+        // An interrupted two-finger gesture must never be classified
+        // as a tap or swipe on some later, unrelated release.
+        twoFingerStartMid = null;
       }
       if (active.size === 0) {
         dragging = false;
@@ -3079,7 +3230,10 @@ export default function ElCabeza3D({ theme }) {
   const dockPieceStyle = {
     position: "fixed",
     left: dockPieceIsCorner ? "calc(100% - 118px)" : "50%",
-    bottom: dockPieceIsCorner ? 18 : 20,
+    // Piece-view (pre-game) bottom lowered from 20 -> 8 per feedback that
+    // it sat slightly too high; corner (post-game watermark) is unrelated
+    // and keeps its own value.
+    bottom: dockPieceIsCorner ? 18 : 8,
     width: dockPieceIsCorner ? 100 : 260,
     height: dockPieceIsCorner ? 88 : 220,
     transform: dockPieceIsCorner ? "translateX(0) scale(1)" : "translateX(-50%) scale(1)",
@@ -3150,11 +3304,23 @@ export default function ElCabeza3D({ theme }) {
          section boxed in alongside the title/buttons. Everything else
          (masthead, dock) floats above it at its own z-index. */}
       <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 0,
-        }}
+        style={
+          preGameBoardFrame
+            ? {
+                position: "fixed",
+                left: 0,
+                right: 0,
+                top: preGameBoardFrame.top,
+                height: preGameBoardFrame.height,
+                zIndex: 0,
+                transition: "top 0.3s ease, height 0.3s ease",
+              }
+            : {
+                position: "fixed",
+                inset: 0,
+                zIndex: 0,
+              }
+        }
       >
         <div
           ref={mountRef}
@@ -4245,18 +4411,41 @@ export default function ElCabeza3D({ theme }) {
             {winReason}
           </p>
 
-          <button
-            className="ec-btn"
-            onClick={handleReset}
-            style={{
-              ...playerButtonStyle(winner),
-              fontSize: 11,
-              letterSpacing: "0.14em",
-              padding: "10px 24px",
-            }}
-          >
-            New Game
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="ec-btn ec-btn-invert"
+              onClick={handleCopyLog}
+              disabled={log.length === 0}
+              style={{
+                flex: "1 1 0",
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 11,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: COLORS.charcoal,
+                background: "transparent",
+                border: `1.5px solid ${COLORS.charcoal}`,
+                padding: "10px 12px",
+                cursor: log.length === 0 ? "default" : "pointer",
+                opacity: log.length === 0 ? 0.4 : 1,
+              }}
+            >
+              {logCopied ? "Move_Log Copied" : logCopyFailed ? "Copy Failed" : "Copy Move_Log"}
+            </button>
+            <button
+              className="ec-btn"
+              onClick={handleReset}
+              style={{
+                ...playerButtonStyle(winner),
+                flex: "1 1 0",
+                fontSize: 11,
+                letterSpacing: "0.14em",
+                padding: "10px 12px",
+              }}
+            >
+              New Game
+            </button>
+          </div>
         </div>
       </div>
 

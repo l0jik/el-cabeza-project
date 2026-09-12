@@ -76,10 +76,12 @@ export async function waitForDockCorner(page, { timeoutMs = 15000 } = {}) {
 }
 
 // Hovers the dock piece while it's in its small bottom-right corner
-// watermark form, reopening the panel — a click there does nothing once
-// relocated (see handleDockPiecePointerUp); opening it instead requires
-// hovering/holding for 1.6s (handleDockPieceHoverStart). Retries the
-// gesture the same way openDockPanel does, for the same reason.
+// watermark form, reopening the panel. A single click also opens it
+// there now (see handleDockPiecePointerUp) — this helper specifically
+// exercises the hover/hold alternative (handleDockPieceHoverStart,
+// 0.5s) rather than the click path openDockPanel already covers.
+// Retries the gesture the same way openDockPanel does, for the same
+// reason.
 export async function reopenDockPanelFromCorner(page, cornerBox, { attempts = 8 } = {}) {
   const cx = cornerBox.x + cornerBox.width / 2, cy = cornerBox.y + cornerBox.height / 2;
   for (let i = 0; i < attempts; i++) {
