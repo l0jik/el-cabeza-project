@@ -868,16 +868,27 @@ export function mountAmbientEffects(refs, helpers) {
      loop below (see t.crawlMassItems), so the entire
      mass visibly translates across the board while every square in
      it stays lit together, in concert, the whole time. */
-  /* theme: per feedback ("still can't be seen... re-imagine it that
-     each grid box could fit 9 smaller blocks within it"), this now
-     floods across a sub-grid CRAWL_SUB times finer than the board's
-     own squares (see CRAWL_SUB/CRAWL_VOXEL) rather than across whole
-     board cells — same flood-fill logic, just addressed in voxel
-     units instead of board-cell units. */
+  /* theme: completely redone per feedback — the previous version (a
+     single fixed mosaic of voxels translating rigidly from A to B,
+     everything fading in/out together) read as "a raft sliding," not
+     the reference images' actual character: interlocking blocks that
+     visibly RECONFIGURE as the mass moves, like current finding its
+     own path — "stray electrons traversing a microchip." Rather than
+     one shape in continuous motion, this spawns a fast SERIES of
+     independent, short-lived voxel clusters ("generations") timed
+     along one path from corner to corner: each is its own random
+     flood-fill (so consecutive generations are never quite the same
+     shape — that difference IS the morphing), anchored a little
+     further along the path than the last with a bit of lateral
+     jitter (an electron finding its own way, not a ruler-straight
+     slide), and overlapping its neighbors' fade in/out so the mass
+     reads as continuous despite no single mesh ever translating.
+     Floods across the same CRAWL_SUB-finer sub-grid as before (see
+     CRAWL_SUB/CRAWL_VOXEL). */
   const CRAWL_GRID = BOARD_SIZE * CRAWL_SUB;
-  function pickCrawlMassVoxels(count) {
-    const startR = Math.floor(Math.random() * CRAWL_GRID);
-    const startC = Math.floor(Math.random() * CRAWL_GRID);
+  function pickCrawlMassVoxels(count, anchorR, anchorC) {
+    const startR = anchorR != null ? anchorR : Math.floor(Math.random() * CRAWL_GRID);
+    const startC = anchorC != null ? anchorC : Math.floor(Math.random() * CRAWL_GRID);
     const seen = new Set([startR + "," + startC]);
     const cells = [[startR, startC]];
     const frontier = [[startR, startC]];
@@ -907,42 +918,37 @@ export function mountAmbientEffects(refs, helpers) {
     return cells;
   }
 
-  function spawnCrawlWave() {
-    // 45-85 voxels — roughly the old 7-13 board-cell mass's total
-    // area, now built from CRAWL_SUB^2 times as many, much smaller
-    // pieces instead.
-    const voxels = pickCrawlMassVoxels(45 + Math.floor(Math.random() * 41));
-    if (voxels.length < 30) return; // flood-fill got boxed in early — skip silently, try again next fire
+  // Timers for every generation queued by the CURRENT spawnCrawlWave
+  // call, so a win (or unmount, via dispose() below) can cancel a
+  // whole in-flight crossing rather than only stopping the next one
+  // from being scheduled. Cleared and emptied at the start of every
+  // fresh spawnCrawlWave call too — only one crossing is ever in
+  // flight at a time.
+  let crawlStepTimers = [];
+
+  // One generation: a single random flood-fill cluster, anchored at
+  // (anchorR, anchorC), that fades in, holds briefly, and fades out —
+  // exactly the old per-item envelope, just no longer translating
+  // (see the crawlMassItems tick loop below). Each cell gets its own
+  // random peak-brightness multiplier ("brightness, opacity
+  // variance"), so a generation doesn't pulse as one flat block.
+  function spawnCrawlGeneration(anchorR, anchorC, lifeMs) {
+    const voxels = pickCrawlMassVoxels(22 + Math.floor(Math.random() * 22), anchorR, anchorC); // 22-43 voxels per generation
+    if (voxels.length < 12) return; // boxed in near an edge — skip this one generation, the rest of the crossing carries on
 
     const avgR = voxels.reduce((s, [r]) => s + r, 0) / voxels.length;
     const avgC = voxels.reduce((s, [, c]) => s + c, 0) / voxels.length;
-    let boundRadius = 0;
-    voxels.forEach(([r, c]) => {
-      boundRadius = Math.max(boundRadius, Math.hypot((c - avgC) * CRAWL_VOXEL, (r - avgR) * CRAWL_VOXEL));
-    });
-    const margin = boundRadius + SQUARE_SIZE;
     const centerX = (avgC + 0.5) * CRAWL_VOXEL - OFF;
     const centerZ = (avgR + 0.5) * CRAWL_VOXEL - OFF;
-
-    const dirs8 = [
-      [1, 0], [-1, 0], [0, 1], [0, -1],
-      [1, 1], [-1, -1], [1, -1], [-1, 1],
-    ];
-    const [dr, dc] = dirs8[Math.floor(Math.random() * dirs8.length)];
-    const halfTravel = (2 + Math.random() * 2) * SQUARE_SIZE; // total travel 4-8 board squares, split evenly before/after center
-    const startX = centerX - dr * halfTravel, startZ = centerZ - dc * halfTravel;
-    const endX = centerX + dr * halfTravel, endZ = centerZ + dc * halfTravel;
-    const safe = OFF - margin;
-    if (Math.abs(startX) > safe || Math.abs(startZ) > safe || Math.abs(endX) > safe || Math.abs(endZ) > safe) {
-      return; // doesn't fit on the board from this center — skip silently, try again next fire
-    }
+    if (Math.abs(centerX) > OFF || Math.abs(centerZ) > OFF) return; // drifted off the playable board — skip silently
 
     const group = new THREE.Group();
-    group.position.set(startX, 0, startZ);
+    group.position.set(centerX, 0, centerZ);
     const materials = [];
     voxels.forEach(([r, c]) => {
       const lx = (c - avgC) * CRAWL_VOXEL;
       const lz = (r - avgR) * CRAWL_VOXEL;
+      const cellBrightness = 0.55 + Math.random() * 0.45; // per-cell variance, not a uniform block
 
       // A soft glow halo underneath, for "good glow" without
       // softening the square itself.
@@ -978,19 +984,57 @@ export function mountAmbientEffects(refs, helpers) {
       core.position.set(lx, 0.014, lz);
       group.add(core);
 
-      materials.push({ halo: haloMat, core: coreMat });
+      materials.push({
+        halo: haloMat, core: coreMat,
+        haloPeak: (0.651 + Math.random() * 0.168) * cellBrightness,
+        corePeak: (0.85 + Math.random() * 0.15) * cellBrightness,
+      });
     });
     t.weightGroup.add(group);
 
-    t.crawlMassItems.push({
-      group,
-      startX, startZ, endX, endZ,
-      born: performance.now(),
-      duration: 2200 + Math.random() * 1400, // 2.2-3.6s to cross, "slowly" in scale with the rest of the board's ambient life
-      materials,
-      haloPeak: 0.651 + Math.random() * 0.168, // +5% per feedback ("increase all neon glow 5%")
-      corePeak: 0.85 + Math.random() * 0.15, // already at its 1.0 opacity ceiling — can't go higher
-    });
+    t.crawlMassItems.push({ group, born: performance.now(), duration: lifeMs, materials });
+  }
+
+  // One full corner-to-corner crossing: schedules a generation every
+  // STEP_MS along a straight path between two (inset, so the first/
+  // last flood-fills have room to grow) board corners, each anchor
+  // jittered a couple voxels off the straight line so the path itself
+  // wanders slightly rather than reading as a ruler-drawn line.
+  // steps*STEP_MS totals the requested "~3 seconds... corner to the
+  // other," with per-crossing variance for interest.
+  function spawnCrawlWave() {
+    crawlStepTimers.forEach(clearTimeout);
+    crawlStepTimers = [];
+
+    const inset = 3;
+    const cornerPts = [
+      [inset, inset], [inset, CRAWL_GRID - 1 - inset],
+      [CRAWL_GRID - 1 - inset, inset], [CRAWL_GRID - 1 - inset, CRAWL_GRID - 1 - inset],
+    ];
+    const a = cornerPts[Math.floor(Math.random() * cornerPts.length)];
+    let b = a;
+    while (b === a) b = cornerPts[Math.floor(Math.random() * cornerPts.length)];
+
+    const duration = 2600 + Math.random() * 800; // "~3 seconds... vary a little, up or down"
+    const STEP_MS = 220;
+    const GEN_LIFE_MS = STEP_MS * 2.4; // consecutive generations overlap, so the mass never visibly gaps
+    const steps = Math.max(3, Math.round(duration / STEP_MS));
+
+    for (let i = 0; i < steps; i++) {
+      const timer = setTimeout(() => {
+        if (windingDownRef.current) return;
+        const along = steps <= 1 ? 0 : i / (steps - 1);
+        const jitter = () => (Math.random() * 2 - 1) * 1.5;
+        const anchorR = Math.round(a[0] + (b[0] - a[0]) * along + jitter());
+        const anchorC = Math.round(a[1] + (b[1] - a[1]) * along + jitter());
+        spawnCrawlGeneration(
+          Math.max(0, Math.min(CRAWL_GRID - 1, anchorR)),
+          Math.max(0, Math.min(CRAWL_GRID - 1, anchorC)),
+          GEN_LIFE_MS
+        );
+      }, i * STEP_MS);
+      crawlStepTimers.push(timer);
+    }
   }
 
   let crawlTimer;
@@ -2884,85 +2928,112 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
    line was invisible here; this both fixes that and gives Neon a
    distinct sci-fi-HUD identity for it).
 
-   Each corner is a rigid L — two short glowing bars meeting at the
-   corner, each extending 22% of the square's own side length inward —
-   that free-falls in from above and snaps onto the corner. The chassis
-   owns WHEN this fades in/out or brightens on hover, exactly as
-   Standard's does (see setOpacity()); everything about HOW it looks
-   and animates is owned entirely here. */
+   Second full revision of the entrance, per feedback that the first
+   (a vertical free-fall + spring-bounce from 2 units above the board)
+   should be replaced outright: each corner now starts flat at board
+   level already, offset 25% further out than its true corner, and
+   slides inward (brisk ease-in/ease-out, no vertical motion at all)
+   to land exactly on the corner. Arrival triggers a "targeting lock"
+   flash: one quick opacity blink, then three true brightness strobes
+   (an actual color-toward-white + halo boost, not just an opacity
+   toggle) — kept subtle overall but always reading brighter than the
+   board's own grid lines. The chassis owns WHEN this fades in/out or
+   brightens on hover, exactly as Standard's does (see setOpacity());
+   everything about HOW it looks and animates is owned entirely here.
+
+   Each corner is now ONE flat L-shaped mesh (a 6-vertex hexagon: two
+   rectangular arms sharing their own corner square), not two
+   separate overlapping boxes — the previous version's two bars each
+   reached fully into the vertex, so their rectangles doubled up right
+   at the corner, reading as a bright overlap blob in a
+   transparent/additive material. One contiguous shape has no seam to
+   overlap at all, which is what actually delivers "crisper... no
+   vertex overlap" rather than just thinning the old bars further. */
 export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
   const group = new THREE.Group();
   group.position.set(cx, 0, cz);
 
   const sideX = hx * 2, sideZ = hz * 2;
-  const segX = sideX * 0.22, segZ = sideZ * 0.22;
-  const THICKNESS = isCrush ? 0.041 : 0.034; // 25% thinner than the previous pass, for a finer line
-  const RESTING_Y = 0.025;
-  const SPAWN_Y = 2; // "vertical height of ~2 units above the board"
-  const SPREAD = 1.75; // brackets spawn spaced as if on a 1.75x-larger square
-  const FALL_MS = 190; // the snap itself — "must execute very quickly"
-  const BOUNCE_MS = 150; // the spring/bounce settle, strictly after impact
-  const CHUNKY_DEPTH = 0.16; // in-flight "volumetric voxel" thickness…
-  const FLAT_DEPTH = 0.018; // …resolving flat once landed, per spec
+  const segX = sideX * 0.22, segZ = sideZ * 0.22; // "22% of the square's own side length inward" — unchanged
+  const THICKNESS = isCrush ? 0.03 : 0.024; // thinner again per feedback — was 0.041 / 0.034
+  const RESTING_Y = 0.025; // fixed for the whole animation now — nothing moves vertically
+  const SPREAD = 1.25; // "approximately 25% larger than their respective target corners" — was 1.75, and no longer paired with any vertical spawn height
+  const SLIDE_MS = 160; // "quickly slide/move inward" — the whole approach, brisk ease-in/ease-out
+  const BLINK_MS = 70; // the initial quick opacity blink's own half-step
+  const STROBE_MS = 100; // each of the 3 brightness-strobe pulses (up + down)
+  const STROBE_COUNT = 3;
   const GRAVITY = 5.5; // world units/s^2 pulling shed particles back down
 
-  function easeOutCubic(t) {
-    return 1 - Math.pow(1 - t, 3);
+  // Brisk, symmetric ease-in/ease-out for the slide — accelerates hard
+  // off the spawn point, decelerates hard into the corner, rather than
+  // easing only on one end the way a fall's landing-only ease did.
+  function easeInOutQuint(t) {
+    return t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2;
   }
 
-  // A single glowing bar: a solid inner core plus a softer, wider
+  // One corner's L-shaped flat hexagon: vertex at the mesh's own local
+  // origin, arms extending toward (armX, 0) and (0, armZ) — signed, so
+  // passing the corner's own inward direction directly (rather than a
+  // magnitude the caller then has to flip) is what points the two arms
+  // the right way without any separate mirroring/scale trick, and
+  // without the winding-order sign flips a mirrored scale would cause
+  // (material.side below is set to DoubleSide as a robustness
+  // backstop regardless, since a hand-built triangle fan's winding
+  // relative to "viewed from above" is easy to get backwards).
+  function makeLGeometry(armX, armZ, thickness) {
+    const verts = new Float32Array([
+      0, 0, 0,
+      armX, 0, 0,
+      armX, 0, thickness,
+      thickness, 0, thickness,
+      thickness, 0, armZ,
+      0, 0, armZ,
+    ]);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(verts, 3));
+    geo.setIndex([0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5]);
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  // A single corner's L: a solid inner core plus a softer, wider
   // additive halo behind it — the "glowing, semi-transparent"
-  // dual-layer look, same technique as the piece shells' own rim glow
-  // but doubled up rather than relying on a single thin outline.
-  function makeBar(w, h, startX, startZ, endX, endZ) {
+  // dual-layer look, same technique as the piece shells' own rim glow.
+  // The halo shares the core's own vertex exactly (arms merely longer/
+  // thicker by the same factor) so the two layers stay concentric
+  // through the slide instead of drifting apart.
+  function makeCorner(armX, armZ) {
     const core = new THREE.Mesh(
-      new THREE.BoxGeometry(w, CHUNKY_DEPTH, h),
-      new THREE.MeshBasicMaterial({ color: HEX.glowCyan, transparent: true, opacity: 0, depthWrite: false })
+      makeLGeometry(armX, armZ, THICKNESS),
+      new THREE.MeshBasicMaterial({
+        color: HEX.glowCyan, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide,
+      })
     );
     const halo = new THREE.Mesh(
-      new THREE.BoxGeometry(w * 1.6, CHUNKY_DEPTH, h * 1.6),
+      makeLGeometry(armX * 1.6, armZ * 1.6, THICKNESS * 1.6),
       new THREE.MeshBasicMaterial({
-        color: HEX.glowCyan,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
+        color: HEX.glowCyan, transparent: true, opacity: 0, depthWrite: false,
+        blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       })
     );
     group.add(core, halo);
-    return { core, halo, startX, startZ, endX, endZ };
+    return { core, halo };
   }
 
-  // Each corner's two bars are built with a FIXED offset from that
-  // corner's own vertex and moved together as one rigid L throughout
-  // the flight (rather than animating each bar's endpoints
-  // independently), so the bracket shape never distorts mid-fall —
-  // only its position does, exactly as a real object snapping down and
-  // inward would.
-  const bars = [];
+  // Each corner's L is built once, arms already at their true inward
+  // length/direction — nothing about its SHAPE animates, only its
+  // (shared core+halo) position, sliding from the spread-out spawn
+  // point to the true corner.
+  const corners = [];
   const cornerLandingPoints = [];
   [
     [-1, -1], [1, -1], [1, 1], [-1, 1],
   ].forEach(([sx, sz]) => {
-    const endAnchorX = sx * hx, endAnchorZ = sz * hz;
-    const startAnchorX = sx * hx * SPREAD, startAnchorZ = sz * hz * SPREAD;
-    cornerLandingPoints.push({ x: endAnchorX, z: endAnchorZ });
-    // Horizontal bar: extends along X, inward from the corner.
-    bars.push(
-      makeBar(
-        segX, THICKNESS,
-        startAnchorX - sx * segX / 2, startAnchorZ,
-        endAnchorX - sx * segX / 2, endAnchorZ
-      )
-    );
-    // Vertical bar: extends along Z, inward from the corner.
-    bars.push(
-      makeBar(
-        THICKNESS, segZ,
-        startAnchorX, startAnchorZ - sz * segZ / 2,
-        endAnchorX, endAnchorZ - sz * segZ / 2
-      )
-    );
+    const endX = sx * hx, endZ = sz * hz;
+    const startX = sx * hx * SPREAD, startZ = sz * hz * SPREAD;
+    cornerLandingPoints.push({ x: endX, z: endZ });
+    const { core, halo } = makeCorner(-sx * segX, -sz * segZ); // arms point inward: opposite the corner's own sign
+    corners.push({ core, halo, startX, startZ, endX, endZ });
   });
 
   // Landing-impact particles: a handful of small, differently-sized
@@ -3032,69 +3103,133 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
 
   const spawnedAt = performance.now();
   let landed = false;
+  // The opacity chassis's own setOpacity() last asked for — hover
+  // emphasis and the ghost fade-in/out both drive this continuously,
+  // but it's only actually APPLIED to the materials once the intro
+  // sequence below is done with them (see setOpacity/applyFrame).
+  let pendingOpacity = 0;
+
+  // Timeline, each phase strictly after the last:
+  //   0 .. SLIDE_MS            the inward slide (fading in as it goes)
+  //   .. + BLINK_MS*2          one quick opacity blink (full -> dip -> full)
+  //   .. + STROBE_MS*3         three true brightness strobes ("targeting lock")
+  // then landed — chassis's own setOpacity() takes over from there.
+  const BLINK_END = SLIDE_MS + BLINK_MS * 2;
+  const STROBE_END = BLINK_END + STROBE_MS * STROBE_COUNT;
+  const cyanColor = new THREE.Color(HEX.glowCyan);
+  const whiteColor = new THREE.Color(0xffffff);
+  const tmpColor = new THREE.Color();
+
+  // v is the chassis's own 0-1 opacity request (hover emphasis, fade
+  // in/out). Per feedback ("must be subtle, but brighter than
+  // surrounding grid lines"), both layers are boosted well past a
+  // literal 1:1 mapping of v — measured against a real screenshot
+  // next to the board's own grid lines, a bare v (and the halo's
+  // ratio used elsewhere in this file for unrelated effects) read as
+  // DIMMER than the grid at v's resting value, the opposite of the
+  // ask. The core stays a thin, subtle line (a mild boost, capped at
+  // fully opaque); the halo — additive, so it actually glows against
+  // the dark board rather than just overlaying flat color — carries
+  // most of the "clearly brighter" read.
+  function setCornersOpacity(v) {
+    // A flat multiplier on v wasn't enough — even boosted, v's own
+    // resting value (0.5, set by the chassis's hover-emphasis logic)
+    // scaled down to something a screenshot still showed reading
+    // dimmer than the grid. A floor lifts the resting case specifically
+    // without flattening the hover/fade curve chassis is driving.
+    const coreOp = Math.min(1, 0.35 + v * 0.9);
+    const haloOp = Math.min(1, 0.25 + v * 1.1);
+    corners.forEach(({ core, halo }) => {
+      core.material.opacity = coreOp;
+      halo.material.opacity = haloOp;
+    });
+  }
 
   function applyFrame(now) {
     // Clamped to 0: a rAF timestamp can land fractionally earlier than
     // this object's own creation-time performance.now() call (they're
     // captured on different ticks of the event loop), which would
-    // otherwise send fallT negative and overshoot easeOutCubic past the
-    // spawn position for one frame.
+    // otherwise send the slide backward for one frame.
     const elapsed = Math.max(0, now - spawnedAt);
-    const fallT = Math.min(elapsed / FALL_MS, 1);
-    const posE = easeOutCubic(fallT);
-    const depthE = easeOutCubic(Math.min(elapsed / (FALL_MS * 0.7), 1));
-    const depth = CHUNKY_DEPTH + (FLAT_DEPTH - CHUNKY_DEPTH) * depthE;
+    const slideT = Math.min(elapsed / SLIDE_MS, 1);
+    const posE = easeInOutQuint(slideT);
 
-    // Vertical: a fast direct fall to the board, X/Z arriving together
-    // with it — the spring/bounce below is reserved for strictly AFTER
-    // this lands, not blended through the fall itself.
-    let y = SPAWN_Y + (RESTING_Y - SPAWN_Y) * posE;
-    if (elapsed > FALL_MS) {
-      if (!particlesSpawned) {
-        particlesSpawned = true;
-        // "Sometimes" — each corner independently rolls its own chance
-        // to shed debris, so a given landing might kick loose particles
-        // at one, all four, or none of its corners, rather than always
-        // firing identically at every one of them.
-        cornerLandingPoints.forEach((c) => {
-          if (Math.random() < 0.6) spawnParticles(c.x, c.z);
-        });
-      }
-      const bounceT = Math.min((elapsed - FALL_MS) / BOUNCE_MS, 1);
-      // Damped spring: dips slightly below rest (impact compression),
-      // rebounds a little above it, settles — decaying to ~0 by the
-      // end of BOUNCE_MS rather than oscillating indefinitely.
-      const spring = Math.exp(-4.5 * bounceT) * Math.sin(bounceT * Math.PI * 2.2) * 0.045;
-      y = RESTING_Y + spring;
-      if (bounceT >= 1) landed = true;
-    }
-
-    bars.forEach(({ core, halo, startX, startZ, endX, endZ }) => {
+    // Position slides in throughout, then never moves again — no
+    // vertical motion at all, per feedback replacing the old fall.
+    corners.forEach(({ core, halo, startX, startZ, endX, endZ }) => {
       const x = startX + (endX - startX) * posE;
       const z = startZ + (endZ - startZ) * posE;
-      core.position.set(x, y, z);
-      halo.position.set(x, y, z);
-      const depthScale = depth / CHUNKY_DEPTH;
-      core.scale.y = depthScale;
-      halo.scale.y = depthScale;
+      core.position.set(x, RESTING_Y, z);
+      halo.position.set(x, RESTING_Y, z);
     });
+
+    if (elapsed < SLIDE_MS) {
+      // Fading in WHILE sliding (0 -> full exactly as it arrives)
+      // rather than popping in at full opacity the instant it spawns.
+      setCornersOpacity(slideT);
+      return;
+    }
+
+    if (!particlesSpawned) {
+      particlesSpawned = true;
+      // "Sometimes" — each corner independently rolls its own chance
+      // to shed debris the instant it arrives, so a given indicator
+      // might kick loose particles at one, all four, or none of its
+      // corners, rather than always firing identically at every one.
+      cornerLandingPoints.forEach((c) => {
+        if (Math.random() < 0.6) spawnParticles(c.x, c.z);
+      });
+    }
+
+    if (elapsed < BLINK_END) {
+      // One quick blink: dips toward (not all the way to) off, at the
+      // blink's midpoint, then back to full — reads as a brief
+      // "acquiring" flicker rather than the lock-on strobe itself.
+      const blinkT = (elapsed - SLIDE_MS) / (BLINK_MS * 2);
+      const dip = Math.sin(blinkT * Math.PI);
+      const opacity = 1 - dip * 0.85;
+      setCornersOpacity(opacity);
+      return;
+    }
+
+    if (elapsed < STROBE_END) {
+      // Three actual brightness pulses — the core color itself lerps
+      // toward white at each peak (MeshBasicMaterial opacity alone
+      // maxes out at "fully opaque cyan," which reads as no brighter
+      // than the resting state; a real color shift plus a brighter
+      // halo is what actually sells "brighter than the grid lines,"
+      // kept subtle by capping how far toward white it goes). Halo
+      // opacity also spikes at each peak, on top of its own boosted
+      // base level while the strobe is active.
+      const pulseT = ((elapsed - BLINK_END) % STROBE_MS) / STROBE_MS;
+      const pulse = Math.sin(pulseT * Math.PI);
+      tmpColor.copy(cyanColor).lerp(whiteColor, pulse * 0.5);
+      corners.forEach(({ core, halo }) => {
+        core.material.color.copy(tmpColor);
+        core.material.opacity = 1;
+        halo.material.opacity = 0.45 + pulse * 0.45;
+      });
+      return;
+    }
+
+    landed = true;
+    corners.forEach(({ core }) => core.material.color.copy(cyanColor));
+    setCornersOpacity(pendingOpacity);
   }
   applyFrame(spawnedAt); // first frame lands correctly even before any tick() call
 
   return {
     root: group,
     setOpacity(v) {
-      bars.forEach(({ core, halo }) => {
-        core.material.opacity = v;
-        halo.material.opacity = v * 0.4;
-      });
+      pendingOpacity = v;
+      if (landed) setCornersOpacity(v);
     },
     tick(now) {
       if (!landed) applyFrame(now);
       if (particles.length) tickParticles(now);
     },
     dispose() {
-      bars.forEach(({ core, halo }) => {
+      corners.forEach(({ core, halo }) => {
         core.geometry.dispose();
         core.material.dispose();
         halo.geometry.dispose();
