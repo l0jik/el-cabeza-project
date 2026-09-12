@@ -1631,7 +1631,10 @@ export function mountAmbientEffects(refs, helpers) {
       setTimeout(() => el.classList.remove("ec-vertical-hold"), 500);
       audio.playGlitch();
     }
-    verticalHoldTimer = setTimeout(fireVerticalHold, 18000 + Math.random() * 22000);
+    // Widened per feedback ("the visual effect that causes it to jump
+    // to a larger size randomly needs to be decreased in frequency") —
+    // was 18000 + rand*22000.
+    verticalHoldTimer = setTimeout(fireVerticalHold, 30000 + Math.random() * 36000);
   };
 
   if (!reduceMotion) {
@@ -1645,7 +1648,7 @@ export function mountAmbientEffects(refs, helpers) {
     jitterTimer = setTimeout(fireJitter, 6000 + Math.random() * 9000);
     mastheadJitterTimer = setTimeout(fireMastheadJitter, 3000 + Math.random() * 4000);
     letterTearTimer = setTimeout(fireLetterTear, 6000 + Math.random() * 10000);
-    verticalHoldTimer = setTimeout(fireVerticalHold, 10000 + Math.random() * 15000);
+    verticalHoldTimer = setTimeout(fireVerticalHold, 16000 + Math.random() * 20000);
   }
 
   return {
@@ -4562,34 +4565,49 @@ export function createSoundscape() {
     });
   }
 
-  /* Cuts the currently-playing choir stab (see playChoirStab above)
-     short, rather than letting its own ~1.57s envelope finish on its
-     own. Called when the Neon info overlay is dismissed —
-     closed/backdrop-clicked/Escaped — before the chime has finished;
-     if it's already done playing this is a no-op.
+  /* Plays a short, distinct "closing" choir tail — a few sine tones at
+     the opening chord's own root frequencies — every time the Neon
+     info overlay is dismissed (closed/backdrop-clicked/Escaped),
+     regardless of whether the opening stab (see playChoirStab above)
+     is still sustaining. Originally this only ever cut the STILL-
+     PLAYING opening stab short and returned early once that stab had
+     already finished on its own — since the opening stab's own total
+     envelope is under 1.6s and an overlay is routinely left open
+     longer than that before being closed, that early return meant
+     "seems to fail more than works" for the closing cue specifically:
+     most closes produced no sound at all. Unconditionally building
+     this independent tail (cutting the still-live original stab short
+     too, when there is one) is what makes closing produce audible
+     content every time.
 
-     The original 48 oscillators keep whatever start()/stop() schedule
-     playChoirStab already gave them — rescheduling a source node's
-     stop() to a LATER time than one already given isn't reliably
-     honored across engines (several just keep the earliest one), so
-     extending those isn't a dependable way to stretch this out.
-     Instead: (1) the original stab's own master gain is pulled down to
-     silence quickly (60ms, just enough to avoid a click) so it can't
-     keep sounding through to its natural end, and (2) a small,
-     independent tail — a few sine tones at the chord's own root
-     frequencies, freshly start()/stop() scheduled just once, right
-     here, for exactly fadeSeconds — takes over, so there's always
-     genuine audible content fading out for the full requested
-     duration regardless of how early the close happens. */
-  function fadeOutChoir(fadeSeconds = 2.3) {
-    if (!ctx || !choirMasterEnv) return;
+     The original 48 oscillators, when still live, keep whatever
+     start()/stop() schedule playChoirStab already gave them —
+     rescheduling a source node's stop() to a LATER time than one
+     already given isn't reliably honored across engines (several just
+     keep the earliest one), so extending those isn't a dependable way
+     to stretch this out. Instead: (1) if the original stab is still
+     live, its own master gain is pulled down to silence quickly (60ms,
+     just enough to avoid a click) so it can't also keep sounding
+     through to its natural end, and (2) this fresh, independent tail
+     — start()/stop() scheduled just once, right here, for exactly
+     fadeSeconds — is what actually plays, so there's always genuine
+     audible content for the full requested duration regardless of how
+     early or late the close happens. */
+  function fadeOutChoir(fadeSeconds = 1.1) {
+    if (!ctx) return;
     const now = ctx.currentTime;
-    if (now >= choirEndTime) return; // already finished naturally — nothing to fade
 
-    const currentLevel = choirMasterEnv.gain.value;
-    choirMasterEnv.gain.cancelScheduledValues(now);
-    choirMasterEnv.gain.setValueAtTime(currentLevel, now);
-    choirMasterEnv.gain.linearRampToValueAtTime(0.0001, now + 0.06);
+    // 0.5 default: a reasonable mid-level stand-in for the now-common
+    // case (the opening stab has already finished, so there's no live
+    // gain left to read) — the actual case, when the stab is still
+    // live, still reads its own real current level.
+    let currentLevel = 0.5;
+    if (choirMasterEnv && now < choirEndTime) {
+      currentLevel = choirMasterEnv.gain.value;
+      choirMasterEnv.gain.cancelScheduledValues(now);
+      choirMasterEnv.gain.setValueAtTime(currentLevel, now);
+      choirMasterEnv.gain.linearRampToValueAtTime(0.0001, now + 0.06);
+    }
 
     const tailGain = ctx.createGain();
     const tailPeak = Math.max(0.015, currentLevel * 0.05);

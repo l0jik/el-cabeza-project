@@ -754,6 +754,14 @@ export default function ElCabeza3D({ theme }) {
     if (infoBtnTimerRef.current) clearTimeout(infoBtnTimerRef.current);
     setInfoBtnVisible(false);
     setShowInfoOverlay(true);
+    // Fired synchronously from the real click, not from the effect
+    // below reacting to showInfoOverlay flipping true — some browsers
+    // only actually resume/build an AudioContext when that happens
+    // inside the original user-gesture call stack, and a React effect
+    // runs one tick later, outside it. That gap is almost certainly
+    // why this "seems to fail more than works": most calls simply
+    // landed silently on a still-suspended context.
+    audioRef.current.playMenu();
   }
 
   useEffect(() => {
@@ -771,15 +779,14 @@ export default function ElCabeza3D({ theme }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [showInfoOverlay]);
 
-  // playMenu/fadeOutMenu bracket the Info overlay's open/close exactly
-  // once per transition, regardless of which of the three ways it gets
-  // closed (Escape, backdrop click, the close button) — the cleanup
-  // fires fadeOutMenu whenever showInfoOverlay flips back to false (or
-  // the component unmounts while it's open), and the effect body only
-  // ever runs playMenu on the false->true transition, never on mount.
+  // fadeOutMenu fires exactly once per close, regardless of which of
+  // the two ways the Info overlay gets closed (Escape, backdrop
+  // click) or whether the component unmounts while it's open — this
+  // cleanup covers all three. playMenu itself now fires directly from
+  // handleInfoButtonClick's own click handler, not from here reacting
+  // to showInfoOverlay flipping true (see the comment there for why).
   useEffect(() => {
     if (!showInfoOverlay) return;
-    audioRef.current.playMenu();
     return () => audioRef.current.fadeOutMenu();
   }, [showInfoOverlay]);
 
