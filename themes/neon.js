@@ -2797,7 +2797,7 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
 
   const sideX = hx * 2, sideZ = hz * 2;
   const segX = sideX * 0.22, segZ = sideZ * 0.22;
-  const THICKNESS = isCrush ? 0.1 : 0.085;
+  const THICKNESS = isCrush ? 0.055 : 0.045;
   const RESTING_Y = 0.025;
   const SPAWN_Y = 2; // "vertical height of ~2 units above the board"
   const SPREAD = 1.75; // brackets spawn spaced as if on a 1.75x-larger square
@@ -2805,6 +2805,7 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
   const BOUNCE_MS = 150; // the spring/bounce settle, strictly after impact
   const CHUNKY_DEPTH = 0.16; // in-flight "volumetric voxel" thickness…
   const FLAT_DEPTH = 0.018; // …resolving flat once landed, per spec
+  const GRAVITY = 5.5; // world units/s^2 pulling shed particles back down
 
   function easeOutCubic(t) {
     return 1 - Math.pow(1 - t, 3);
@@ -2840,11 +2841,13 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
   // only its position does, exactly as a real object snapping down and
   // inward would.
   const bars = [];
+  const cornerLandingPoints = [];
   [
     [-1, -1], [1, -1], [1, 1], [-1, 1],
   ].forEach(([sx, sz]) => {
     const endAnchorX = sx * hx, endAnchorZ = sz * hz;
     const startAnchorX = sx * hx * SPREAD, startAnchorZ = sz * hz * SPREAD;
+    cornerLandingPoints.push({ x: endAnchorX, z: endAnchorZ });
     // Horizontal bar: extends along X, inward from the corner.
     bars.push(
       makeBar(
@@ -2862,6 +2865,71 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
       )
     );
   });
+
+  // Landing-impact particles: a handful of small, differently-sized
+  // glowing chips per corner that kick loose the instant that corner
+  // touches down, scatter outward under a bit of gravity, and burn out
+  // fast — a debris shed, not a persistent decoration. Independent of
+  // the bars' own lifecycle: still ticking (and disposed) even after
+  // the bracket itself is done animating.
+  const particles = [];
+  let particlesSpawned = false;
+
+  function spawnParticles(cornerX, cornerZ) {
+    const count = 3 + Math.floor(Math.random() * 3); // 3-5 per corner
+    for (let i = 0; i < count; i++) {
+      const size = 0.012 + Math.random() * 0.03; // "smaller, but different sized"
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(size, size, size),
+        new THREE.MeshBasicMaterial({
+          color: HEX.glowCyan,
+          transparent: true,
+          opacity: 0.9,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        })
+      );
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.6 + Math.random() * 1.1;
+      mesh.position.set(cornerX, RESTING_Y, cornerZ);
+      group.add(mesh);
+      particles.push({
+        mesh,
+        vx: Math.cos(angle) * speed,
+        vz: Math.sin(angle) * speed,
+        vy: 0.9 + Math.random() * 0.9,
+        bornAt: performance.now(),
+        lifeMs: 260 + Math.random() * 260,
+      });
+    }
+  }
+
+  let lastParticleTickAt = null;
+  function tickParticles(now) {
+    // Real elapsed time since the last particle update, not an assumed
+    // frame rate — this environment's own render loop has been observed
+    // running well under 60fps under load, and a fixed-dt physics step
+    // would make particles crawl in slow motion whenever frames are
+    // sparse while their (real-time-based) fade races ahead unchanged.
+    const dt = lastParticleTickAt ? Math.min((now - lastParticleTickAt) / 1000, 0.05) : 0.016;
+    lastParticleTickAt = now;
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      const ageMs = now - p.bornAt;
+      if (ageMs >= p.lifeMs) {
+        group.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mesh.material.dispose();
+        particles.splice(i, 1);
+        continue;
+      }
+      p.vy -= GRAVITY * dt;
+      p.mesh.position.x += p.vx * dt;
+      p.mesh.position.z += p.vz * dt;
+      p.mesh.position.y = Math.max(RESTING_Y, p.mesh.position.y + p.vy * dt);
+      p.mesh.material.opacity = 0.9 * (1 - ageMs / p.lifeMs);
+    }
+  }
 
   const spawnedAt = performance.now();
   let landed = false;
@@ -2883,6 +2951,10 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
     // this lands, not blended through the fall itself.
     let y = SPAWN_Y + (RESTING_Y - SPAWN_Y) * posE;
     if (elapsed > FALL_MS) {
+      if (!particlesSpawned) {
+        particlesSpawned = true;
+        cornerLandingPoints.forEach((c) => spawnParticles(c.x, c.z));
+      }
       const bounceT = Math.min((elapsed - FALL_MS) / BOUNCE_MS, 1);
       // Damped spring: dips slightly below rest (impact compression),
       // rebounds a little above it, settles — decaying to ~0 by the
@@ -2914,6 +2986,7 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
     },
     tick(now) {
       if (!landed) applyFrame(now);
+      if (particles.length) tickParticles(now);
     },
     dispose() {
       bars.forEach(({ core, halo }) => {
@@ -2921,6 +2994,10 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
         core.material.dispose();
         halo.geometry.dispose();
         halo.material.dispose();
+      });
+      particles.forEach((p) => {
+        p.mesh.geometry.dispose();
+        p.mesh.material.dispose();
       });
     },
   };
