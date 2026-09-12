@@ -795,21 +795,43 @@ export function mountAmbientEffects(refs, helpers) {
   }
   t.spawnLandingParticles = spawnLandingParticles;
 
-  /* theme: an occasional jagged bolt of electricity between two
-     random pieces currently on the board — a rare, atmospheric
-     flourish, not tied to any move. Reads live piece MESH positions
-     from pieceGroup each time it fires (rather than the React
-     `pieces` state, which this once-on-mount effect can't see
-     fresh), so it always reflects whatever is actually on the board
-     at that moment, captures included. Purely decorative: it never
-     reads or writes game state, only THREE.js objects it created
-     itself. */
-  function spawnArc(posA, posB) {
+  /* theme: an occasional bolt of electricity between two random
+     pieces currently on the board — a rare, atmospheric flourish, not
+     tied to any move. Reads live piece MESH positions from pieceGroup
+     each time it fires (rather than the React `pieces` state, which
+     this once-on-mount effect can't see fresh), so it always reflects
+     whatever is actually on the board at that moment, captures
+     included. Purely decorative: it never reads or writes game
+     state, only THREE.js objects it created itself.
+
+     Per feedback, one random STYLE among several is picked each time
+     this fires — same frequency as before, more variety in what
+     actually appears — rather than always the same jagged zigzag.
+     Every style stays off-white (0xdff6ff) with at most a cyan-tinted
+     halo layer as an accent, per feedback that color itself should
+     stay downplayed regardless of which named idea (Snapping Spark,
+     Plasma Ribbon, etc.) inspired a given style's SHAPE/behavior. */
+  function makeArcLine(positions, color) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    const mat = new THREE.LineBasicMaterial({
+      color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const line = new THREE.LineSegments(geo, mat);
+    t.fxGroup.add(line);
+    return line;
+  }
+
+  // A single jagged strand between posA/posB — the shared geometry
+  // behind Snapping Spark, Pulsing Discharge, Intermittent Contact,
+  // and (doubled up) Chaotic Discharge; only each style's ENVELOPE
+  // (and, for Chaotic Discharge, strand count) actually differs.
+  function jaggedStrandPositions(posA, posB, jitterScale) {
     const segments = 5 + Math.floor(Math.random() * 3);
     const pts = [];
     for (let i = 0; i <= segments; i++) {
       const f = i / segments;
-      const jitter = i > 0 && i < segments ? 0.4 : 0;
+      const jitter = i > 0 && i < segments ? 0.4 * jitterScale : 0;
       pts.push(
         posA.x + (posB.x - posA.x) * f + (Math.random() - 0.5) * jitter,
         0.12 + Math.random() * 0.35,
@@ -823,18 +845,138 @@ export function mountAmbientEffects(refs, helpers) {
         pts[(i + 1) * 3], pts[(i + 1) * 3 + 1], pts[(i + 1) * 3 + 2]
       );
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    const mat = new THREE.LineBasicMaterial({
-      color: 0xdff6ff,
-      transparent: true,
-      opacity: 0,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const line = new THREE.LineSegments(geo, mat);
-    t.fxGroup.add(line);
-    t.fxItems.push({ mesh: line, born: performance.now(), life: 200 + Math.random() * 180, peak: 0.8, envelope: "pulse" });
+    return positions;
+  }
+
+  // A smooth curved sample along posA -> posB, bowed sideways by
+  // `bow` at the midpoint (a simple quadratic-bezier-style offset) —
+  // Plasma Ribbon (a gentle, near-straight wave) and Magnetically
+  // Driven Arc (a much more pronounced single bow) both build on
+  // this, just with very different bow/sample counts.
+  function curvedStrandPositions(posA, posB, bow, samples) {
+    const mx = (posA.x + posB.x) / 2, mz = (posA.z + posB.z) / 2;
+    const dx = posB.x - posA.x, dz = posB.z - posA.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const nx = -dz / len, nz = dx / len; // perpendicular to A->B, for the bow offset
+    const ctrlX = mx + nx * bow, ctrlZ = mz + nz * bow;
+    const pts = [];
+    for (let i = 0; i <= samples; i++) {
+      const f = i / samples;
+      // Quadratic bezier through (posA, control, posB).
+      const omf = 1 - f;
+      const x = omf * omf * posA.x + 2 * omf * f * ctrlX + f * f * posB.x;
+      const z = omf * omf * posA.z + 2 * omf * f * ctrlZ + f * f * posB.z;
+      pts.push(x, 0.14 + Math.sin(f * Math.PI) * 0.18, z);
+    }
+    const positions = [];
+    for (let i = 0; i < samples; i++) {
+      positions.push(
+        pts[i * 3], pts[i * 3 + 1], pts[i * 3 + 2],
+        pts[(i + 1) * 3], pts[(i + 1) * 3 + 1], pts[(i + 1) * 3 + 2]
+      );
+    }
+    return positions;
+  }
+
+  // A short helical/spiral path winding around the A->B axis —
+  // Rotating Helix. The "rotating" character reads as the shape of a
+  // multi-turn spiral itself rather than an actual live rotation
+  // animation — at this effect's ~200-400ms lifetime, a real twist
+  // wouldn't be perceptible anyway.
+  function helixStrandPositions(posA, posB, turns, radius, samples) {
+    const dx = posB.x - posA.x, dz = posB.z - posA.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const ux = dx / len, uz = dz / len; // along A->B
+    const nx = -uz, nz = ux; // perpendicular, the spiral's own radial direction
+    const pts = [];
+    for (let i = 0; i <= samples; i++) {
+      const f = i / samples;
+      const angle = f * Math.PI * 2 * turns;
+      const r = radius * Math.sin(f * Math.PI); // tapers to a point at both ends
+      const px = posA.x + ux * len * f + nx * Math.cos(angle) * r;
+      const pz = posA.z + uz * len * f + nz * Math.cos(angle) * r;
+      pts.push(px, 0.14 + Math.sin(angle) * r, pz);
+    }
+    const positions = [];
+    for (let i = 0; i < samples; i++) {
+      positions.push(
+        pts[i * 3], pts[i * 3 + 1], pts[i * 3 + 2],
+        pts[(i + 1) * 3], pts[(i + 1) * 3 + 1], pts[(i + 1) * 3 + 2]
+      );
+    }
+    return positions;
+  }
+
+  const ARC_STYLES = [
+    // Snapping Spark: the original jagged zigzag, one quick clean pulse.
+    (posA, posB) => {
+      const life = 200 + Math.random() * 180;
+      const line = makeArcLine(jaggedStrandPositions(posA, posB, 1), 0xdff6ff);
+      t.fxItems.push({ mesh: line, born: performance.now(), life, peak: 0.8, envelope: "pulse" });
+    },
+    // Plasma Ribbon: a smooth, gently wavy curve (barely bowed, many
+    // samples) rather than a jagged strand, held a touch longer so
+    // its smoothness actually reads.
+    (posA, posB) => {
+      const life = 260 + Math.random() * 200;
+      const bow = (Math.random() - 0.5) * 0.5;
+      const line = makeArcLine(curvedStrandPositions(posA, posB, bow, 10), 0xdff6ff);
+      t.fxItems.push({ mesh: line, born: performance.now(), life, peak: 0.75, envelope: "pulse" });
+    },
+    // Chaotic Discharge: 2-3 jagged strands firing together between
+    // the same two points, each its own independent random path —
+    // messier/denser than a single Snapping Spark.
+    (posA, posB) => {
+      const life = 200 + Math.random() * 160;
+      const strandCount = 2 + Math.floor(Math.random() * 2);
+      for (let s = 0; s < strandCount; s++) {
+        const line = makeArcLine(jaggedStrandPositions(posA, posB, 1.3), 0xdff6ff);
+        t.fxItems.push({ mesh: line, born: performance.now() + s * 15, life, peak: 0.6, envelope: "pulse" });
+      }
+    },
+    // Rotating Helix: the spiral path above, cyan-tinted (this
+    // effect's one deliberate accent, per "possible tinges... of the
+    // NEON cyan color motif") rather than plain off-white.
+    (posA, posB) => {
+      const life = 260 + Math.random() * 180;
+      const line = makeArcLine(helixStrandPositions(posA, posB, 2.5, 0.16, 24), 0x9fe9ff);
+      t.fxItems.push({ mesh: line, born: performance.now(), life, peak: 0.75, envelope: "pulse" });
+    },
+    // Pulsing Discharge: the jagged strand again, but strobing through
+    // several rapid pulses instead of one smooth rise-fall.
+    (posA, posB) => {
+      const life = 320 + Math.random() * 160;
+      const line = makeArcLine(jaggedStrandPositions(posA, posB, 1), 0xdff6ff);
+      t.fxItems.push({ mesh: line, born: performance.now(), life, peak: 0.8, envelope: "multipulse", pulses: 3 });
+    },
+    // Magnetically Driven Arc: one pronounced single bow to the side,
+    // as if deflected by a field, rather than a straight or jagged path.
+    (posA, posB) => {
+      const life = 220 + Math.random() * 180;
+      const dx = posB.x - posA.x, dz = posB.z - posA.z;
+      const span = Math.hypot(dx, dz);
+      const bow = (0.35 + Math.random() * 0.35) * span * (Math.random() < 0.5 ? -1 : 1);
+      const line = makeArcLine(curvedStrandPositions(posA, posB, bow, 14), 0xdff6ff);
+      t.fxItems.push({ mesh: line, born: performance.now(), life, peak: 0.8, envelope: "pulse" });
+    },
+    // Intermittent Contact: a "loose connector" — 2-3 short random ON
+    // windows within its lifetime rather than any smooth fade at all.
+    (posA, posB) => {
+      const life = 380 + Math.random() * 200;
+      const line = makeArcLine(jaggedStrandPositions(posA, posB, 0.8), 0xdff6ff);
+      const windowCount = 2 + Math.floor(Math.random() * 2);
+      const flickerWindows = [];
+      for (let w = 0; w < windowCount; w++) {
+        const start = Math.random() * 0.8;
+        flickerWindows.push([start, Math.min(1, start + 0.05 + Math.random() * 0.08)]);
+      }
+      t.fxItems.push({ mesh: line, born: performance.now(), life, peak: 0.85, envelope: "flicker", flickerWindows });
+    },
+  ];
+
+  function spawnArc(posA, posB) {
+    const style = ARC_STYLES[Math.floor(Math.random() * ARC_STYLES.length)];
+    style(posA, posB);
   }
 
   let arcTimer;
@@ -852,7 +994,7 @@ export function mountAmbientEffects(refs, helpers) {
         audio.playArc();
       }
     }
-    arcTimer = setTimeout(fireArc, 13333 + Math.random() * 25000); // 20% more frequent (was 16000-46000)
+    arcTimer = setTimeout(fireArc, 13333 + Math.random() * 25000); // unchanged frequency — variety, not more of them, per feedback
   }
   /* theme: rebuilt again per feedback — the comet-shaped, staggered-
      ignition version was the wrong idea entirely. There's no
@@ -1761,10 +1903,26 @@ export function mountAmbientEffects(refs, helpers) {
          the floor wave) read as a garbled flash instead of a clean
          traveling sequence. */
       const t = Math.max(0, Math.min((now - item.born) / item.life, 1));
-      const opacity =
-        item.envelope === "pulse"
-          ? Math.sin(Math.PI * t) * item.peak
-          : (1 - t) * item.peak;
+      let opacity;
+      if (item.envelope === "pulse") {
+        opacity = Math.sin(Math.PI * t) * item.peak;
+      } else if (item.envelope === "multipulse") {
+        // Several rapid full pulses across the same lifetime, each
+        // individually rising and falling — "Pulsing Discharge": a
+        // strobing arc rather than one smooth rise-fall.
+        const pulses = item.pulses || 3;
+        opacity = Math.abs(Math.sin(Math.PI * t * pulses)) * item.peak * (1 - t * 0.3);
+      } else if (item.envelope === "flicker") {
+        // A handful of random ON windows within the lifetime — "loose
+        // contact" — rather than any smooth curve at all. Windows are
+        // fixed at spawn time (item.flickerWindows), not re-rolled
+        // every frame, so the same item flickers the same way from
+        // every observer/frame instead of buzzing randomly.
+        const on = item.flickerWindows.some(([start, end]) => t >= start && t < end);
+        opacity = on ? item.peak : 0;
+      } else {
+        opacity = (1 - t) * item.peak;
+      }
       item.mesh.material.opacity = Math.max(0, opacity);
       if (t >= 1) {
         item.mesh.parent && item.mesh.parent.remove(item.mesh);
@@ -1914,29 +2072,28 @@ export function mountAmbientEffects(refs, helpers) {
     }
   }
 
-  /* theme: the crawling square mass — unlike every other fxItems-
-     style effect, this one moves. Each entry's whole group is
-     smoothly interpolated from its start to end position (eased,
-     not linear, so it accelerates/decelerates gently rather than
-     sliding at a constant rate) while every square in it shares
-     the same fade-in/hold/fade-out envelope, so the mass appears,
-     travels together, and disappears as one formation. */
+  /* theme: the crawling voxel mass — see spawnCrawlWave/
+     spawnCrawlGeneration above for the full redesign. Each entry here
+     is now one static "generation": a fixed-position flood-fill
+     cluster that only ever fades in, holds, and fades out — it never
+     translates itself. The mass's apparent MOVEMENT is entirely an
+     emergent effect of many overlapping generations, each spawned a
+     little further along the path than the last (see spawnCrawlWave),
+     which is also what makes the shape genuinely reconfigure as it
+     goes rather than one fixed silhouette sliding. */
   const crawlMassItems = t.crawlMassItems;
   if (crawlMassItems && crawlMassItems.length) {
     for (let i = crawlMassItems.length - 1; i >= 0; i--) {
       const item = crawlMassItems[i];
       const frac = Math.max(0, Math.min((now - item.born) / item.duration, 1));
-      const eased = frac * frac * (3 - 2 * frac);
-      item.group.position.x = item.startX + (item.endX - item.startX) * eased;
-      item.group.position.z = item.startZ + (item.endZ - item.startZ) * eased;
 
       let envelope;
-      if (frac < 0.12) envelope = frac / 0.12;
-      else if (frac > 0.82) envelope = Math.max(0, (1 - frac) / 0.18);
+      if (frac < 0.25) envelope = frac / 0.25;
+      else if (frac > 0.6) envelope = Math.max(0, (1 - frac) / 0.4);
       else envelope = 1;
-      item.materials.forEach(({ halo, core }) => {
-        halo.opacity = envelope * item.haloPeak;
-        core.opacity = envelope * item.corePeak;
+      item.materials.forEach(({ halo, core, haloPeak, corePeak }) => {
+        halo.opacity = envelope * haloPeak;
+        core.opacity = envelope * corePeak;
       });
 
       if (frac >= 1) {
@@ -2011,6 +2168,7 @@ export function mountAmbientEffects(refs, helpers) {
       clearTimeout(verticalHoldTimer);
       clearTimeout(arcTimer);
       clearTimeout(crawlTimer);
+      crawlStepTimers.forEach(clearTimeout);
       clearTimeout(floorWaveTimer);
       clearTimeout(digitalGlitchTimer);
     },
