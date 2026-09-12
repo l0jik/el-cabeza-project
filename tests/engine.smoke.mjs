@@ -12,7 +12,7 @@ console.log("dark-cabeza legal moves:", Object.keys(moves));
 
 console.log("evaluatePosition(dark):", evaluatePosition(pieces, "dark"));
 
-const turn = findBestAiTurn(pieces, "dark", AI_DIFFICULTY.easy, 0, 0);
+const turn = await findBestAiTurn(pieces, "dark", AI_DIFFICULTY.easy, 0, 0);
 console.log("AI (easy) chosen turn:", turn && { pieceId: turn.pieceId, dirs: turn.dirs });
 
 const geo = makeRoundedBox(0.8, 0.8, 0.8, 0.0625);

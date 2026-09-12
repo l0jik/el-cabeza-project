@@ -493,7 +493,31 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
    evaluatePosition already treats all-zero as "off"; a tier that
    doesn't set any of them just gets the same all-zero object Easy and
    Medium always have. */
-export function findBestAiTurn(
+/* Yields a turn of the event loop back to the browser (or Node) between
+   completed search depths — see the loop below. setTimeout(fn, 0) over
+   requestAnimationFrame: this file also runs unmodified under Node in
+   the engine smoke test, where rAF doesn't exist, and a real frame
+   isn't the point anyway — just a chance for the render loop's own
+   rAF callback (camera easing, ambient FX ticks) to run before the
+   next, potentially much longer, depth begins. */
+function yieldToEventLoop() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/* async per feedback that a Hard-difficulty search — synchronous,
+   fully blocking the main thread for up to timeBudgetMs (4.3s at the
+   top tier) — read as "the board freezes" right as the AI starts
+   thinking: nothing else on the page (camera easing, ambient FX, even
+   the tail of the piece that had just landed) can run at all while
+   this function has the thread. Awaiting a yield between each
+   COMPLETED depth (not mid-depth — minimaxSearch's own recursion isn't
+   interruptible) lets that other work interleave for every depth but
+   the last, which is what actually consumes most of a deep search's
+   time budget; a single very deep final attempt can still occupy the
+   thread for a stretch, since splitting minimaxSearch itself into
+   interruptible chunks would be a considerably larger change. Callers
+   now await this. */
+export async function findBestAiTurn(
   pieces,
   aiPlayer,
   {
@@ -528,6 +552,7 @@ export function findBestAiTurn(
 
   for (let depth = 1; depth <= maxDepth; depth++) {
     if (performance.now() > deadline) break;
+    if (depth > 1) await yieldToEventLoop(); // let a frame render between depths — see the function comment above
     const result = minimaxSearch(pieces, aiPlayer, aiPlayer, depth, -Infinity, Infinity, deadline, rootBias, weights);
     if (result.timedOut && depth > 1) break;
     if (result.turn) best = result.turn;

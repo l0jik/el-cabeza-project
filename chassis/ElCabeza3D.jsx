@@ -283,6 +283,7 @@ export default function ElCabeza3D({ theme }) {
   const turnHaloRef = useRef(null);
   const turnLabelRef = useRef(null);
   const cardRef = useRef(null);
+  const moveLogScrollRef = useRef(null);
   const fxOverlayRef = useRef(null);
 
   /* ------------------- Dock piece (idle 3D preview) ------------------
@@ -329,6 +330,15 @@ export default function ElCabeza3D({ theme }) {
     chato: { w: 2, h: 2, z: 1 },
   };
   const DOCK_PIECE_TYPES = Object.keys(DOCK_PIECE_ORIENTATIONS);
+  // The single largest dimension any dock piece can ever present (Opa,
+  // Flaco, and Chato all tie at 2 units on their longest axis) — see
+  // the mesh-building effect below, where this replaces normalizing
+  // every piece type to the SAME apparent size regardless of which one
+  // got rolled.
+  const DOCK_PIECE_LARGEST_DIM = Math.max(
+    DISC_DIAM,
+    ...Object.values(DOCK_PIECE_ORIENTATIONS).map((o) => Math.max(o.w, o.h, o.z))
+  );
 
   /* That session's randomly-chosen piece type and (for Human-vs-Human,
      where there's no single "your side" to match) randomly-chosen
@@ -655,17 +665,23 @@ export default function ElCabeza3D({ theme }) {
     const { mesh, shell } = theme.buildPieceVisual({ piece: fakePiece, isDark, isDisc, geo, center: { x: 0, z: 0 }, y: 0 });
     pieceGroup.add(mesh, shell);
 
-    // The dock's camera/framing was tuned around the disc's own
-    // footprint — the biggest block pieces (opa, and flaco/chato in
-    // some orientations) are up to 2x that across and would otherwise
-    // clip against the tiny preview's edges. Normalizing every piece
-    // type to the disc's apparent size keeps whichever one got rolled
-    // this session comfortably inside frame, without distorting its
-    // own true proportions (every axis is scaled together, uniformly).
+    // Per feedback, every piece type must render at its own TRUE
+    // relative size (Opa correctly bigger than Turrito, etc.), not
+    // normalized to a shared apparent size — this used to compute
+    // ownMaxDim from whichever piece got rolled THIS session and scale
+    // it to fill the same target every time, which is exactly what
+    // erased the size difference between types. Basing baseScale on
+    // the single LARGEST dimension across every possible dock piece
+    // instead (a fixed constant, not per-session) means only the
+    // biggest pieces (Opa/Flaco/Chato, tied at 2 units) ever reach the
+    // dock's original comfortable-fit target size — the disc and
+    // Turrito now render genuinely smaller within the same frame,
+    // rather than being stretched to fill it. The frame was tuned
+    // around the disc's own footprint, so some overlap with the board
+    // when a large piece is showing is expected and fine per feedback
+    // ("There can be some overlap with the game board...").
     const targetSize = DISC_DIAM * PIECE_SCALE;
-    const ownMaxDim = isDisc
-      ? DISC_DIAM * PIECE_SCALE
-      : Math.max(orientation.w, orientation.h, orientation.z) * PIECE_SCALE;
+    const ownMaxDim = DOCK_PIECE_LARGEST_DIM * PIECE_SCALE;
     const baseScale = targetSize / ownMaxDim;
     state.pieceBaseScale = baseScale;
     if (!state.bouncing) pieceGroup.scale.set(baseScale, baseScale, baseScale);
@@ -719,11 +735,34 @@ export default function ElCabeza3D({ theme }) {
      rather than per theme. Replaces what used to be an inline Copy Log
      control in the record section. */
   const [showMoveLog, setShowMoveLog] = useState(false);
+  // Per feedback, Copy Move_Log's confirmed state now resets on close
+  // (was previously left standing so a later reopen still showed the
+  // last copy's confirmation — the opposite of what's wanted here).
+  const [moveLogExpanded, setMoveLogExpanded] = useState(false);
   function openMoveLog() {
     setShowMoveLog(true);
   }
   function closeMoveLog() {
     setShowMoveLog(false);
+    setLogCopied(false);
+    setLogCopyFailed(false);
+    setMoveLogExpanded(false);
+  }
+  // Scrolling to (or near) the bottom of the still-collapsed (5-row)
+  // list expands the window to fit 10 more rows; scrolling back up to
+  // (or near) the top while expanded snaps it closed again. A small
+  // pixel tolerance on each edge, not an exact 0/max check, since a
+  // real scroll gesture rarely lands on the precise boundary pixel.
+  const MOVE_LOG_ROW_PX = 26;
+  const MOVE_LOG_COLLAPSED_ROWS = 5;
+  const MOVE_LOG_EXPANDED_ROWS = 15;
+  function handleMoveLogScroll(e) {
+    const el = e.currentTarget;
+    if (!moveLogExpanded && el.scrollTop + el.clientHeight >= el.scrollHeight - 4) {
+      setMoveLogExpanded(true);
+    } else if (moveLogExpanded && el.scrollTop <= 4) {
+      setMoveLogExpanded(false);
+    }
   }
 
   /* A theme's pre-game setup screen can need its own local state and
@@ -2031,14 +2070,24 @@ export default function ElCabeza3D({ theme }) {
 
     if (stepsUsed === 0 && !aiDirsRef.current) {
       setAiThinking(true);
-      const timer = setTimeout(() => {
-        const turn = findBestAiTurn(
+      // findBestAiTurn is async now — it yields back to the event loop
+      // between search depths so its own (sometimes multi-second)
+      // search no longer blocks the render thread solid, which used to
+      // read as the whole board freezing right as the AI began
+      // thinking. `cancelled` guards against this timer's own 500ms
+      // delay or the search's now-nonzero real duration outliving this
+      // effect run (a fresh dependency change, e.g. a reset) —
+      // clearTimeout alone can't cancel a Promise already in flight.
+      let cancelled = false;
+      const timer = setTimeout(async () => {
+        const turn = await findBestAiTurn(
           pieces,
           aiPlayer,
           AI_DIFFICULTY[aiDifficulty],
           aiCabezaStreakRef.current,
           log.length // turns played so far — drives the opening jitter boost
         );
+        if (cancelled) return;
         setAiThinking(false);
         if (!turn) return; // no legal turn at all — shouldn't normally happen
         aiDirsRef.current = turn;
@@ -2048,7 +2097,10 @@ export default function ElCabeza3D({ theme }) {
           beginMoveRef.current(piece, turn.dirs[0]);
         }
       }, 500);
-      return () => clearTimeout(timer);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
     }
 
     if (stepsUsed > 0 && aiDirsRef.current) {
@@ -3378,12 +3430,23 @@ export default function ElCabeza3D({ theme }) {
           }}
         >
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8 }}>
-            <button className="ec-btn" onClick={recenterView} style={ghostButtonStyle()}>
-              Current Player View
-            </button>
-            <button className="ec-btn" onClick={() => topDownView()} style={ghostButtonStyle()}>
-              Top-Down View
-            </button>
+            {/* Per feedback, the dock's INITIAL (pre-game) button set is
+               exactly Sound/Full Screen/Opponent/Anomaly/Begin Game
+               (plus the hidden Singularity) — these two camera-view
+               buttons have nothing to act on yet (no piece has ever
+               moved, there's no "current player's" board state worth
+               a dedicated view), so they wait for Begin Game same as
+               the Opponent row already does via declutter below. */}
+            {!awaitingBegin && (
+              <>
+                <button className="ec-btn" onClick={recenterView} style={ghostButtonStyle()}>
+                  Current Player View
+                </button>
+                <button className="ec-btn" onClick={() => topDownView()} style={ghostButtonStyle()}>
+                  Top-Down View
+                </button>
+              </>
+            )}
             {theme.hasAudio && (
               <button
                 className="ec-btn"
@@ -3592,17 +3655,24 @@ export default function ElCabeza3D({ theme }) {
         </div>
         )}
 
-        {/* Record — hidden while declutter is true (its own button
-            relocates up next to Top-Down View in that state; see
-            above), so the whole section, move log included, goes away
-            together rather than leaving an empty shell behind. */}
+        {/* Setup/post-game action row — hidden while declutter is true
+            (its own button relocates up next to Top-Down View in that
+            state; see above). Per feedback, the inline running move
+            log that used to live here (a Dark/Light table, visible
+            during setup and mid-game) is gone entirely — it was a
+            substantial contributor to the dock's own height, and every
+            move it recorded is already available afterward in the
+            Move Log popup below, the only place a finished game's
+            history actually needs to be read. This row is now just
+            whichever action button set belongs in this state (Begin
+            Game/Anomaly pre-game, Move Log/New Game post-game). */}
         {!declutter && (
         <div
           style={{
             display: "flex",
             flexWrap: "wrap",
             alignItems: "flex-start",
-            justifyContent: "space-between",
+            justifyContent: "flex-end",
             gap: 16,
             marginTop: 10,
             paddingTop: 10,
@@ -3610,101 +3680,6 @@ export default function ElCabeza3D({ theme }) {
             flexShrink: 0,
           }}
         >
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "26px 104px 104px",
-                gap: "0 10px",
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 10,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: COLORS.slate,
-                paddingBottom: 5,
-                borderBottom: `1px solid ${COLORS.slateFaint}`,
-              }}
-            >
-              <span>#</span>
-              {/* bodyDark/bodyLight, not the raw charcoal/cream ink
-                  tokens: Neon's own charcoal/cream are inverted for its
-                  dark UI (charcoal reads near-white there), which had
-                  been quietly swapping which player got the dark vs.
-                  light dot. bodyDark/bodyLight are a theme-agnostic
-                  pair every theme defines to mean exactly "this
-                  player's own color," so they can't invert. */}
-              <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span
-                  aria-hidden="true"
-                  style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.bodyDark, border: `1px solid ${COLORS.charcoal}` }}
-                />
-                Dark
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                <span
-                  aria-hidden="true"
-                  style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.bodyLight, border: `1px solid ${COLORS.charcoal}` }}
-                />
-                Light
-              </span>
-            </div>
-
-            {/* Fixed height, not max-height. Without this the log would
-                grow taller with every move played, and since the canvas
-                is what actually absorbs a taller card now (see the flex
-                architecture above), an ever-growing log would mean the
-                canvas quietly shrinking turn after turn through an
-                entire game — worth avoiding even though it's no longer
-                the old "re-centers the whole card" judder. */}
-            <div
-              style={{
-                height: 66,
-                overflowY: "auto",
-                marginTop: 2,
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 11.5,
-                lineHeight: 1.3,
-                color: COLORS.charcoal,
-              }}
-            >
-              {log.length === 0 ? (
-                <p
-                  style={{
-                    margin: "6px 0 0",
-                    color: COLORS.slate,
-                    fontStyle: "italic",
-                  }}
-                >
-                  Hover over or tap piece to see movement options
-                </p>
-              ) : (
-                pairLog(log).map((row, i, arr) => {
-                  const isLast = i === arr.length - 1;
-                  return (
-                    <div
-                      key={row.n}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "26px 104px 104px",
-                        gap: "0 10px",
-                        padding: "1px 0",
-                        borderBottom: isLast ? "1px solid transparent" : `1px solid ${COLORS.slateFaint}`,
-                      }}
-                    >
-                      <span style={{ color: COLORS.slate }}>{String(row.n).padStart(2, "0")}</span>
-                      <span style={{ background: isLast && !row.light && row.dark ? COLORS.slateFaint : "transparent" }}>
-                        {row.dark ? `${row.dark.notation}${row.dark.mark ? " " + row.dark.mark : ""}` : "\u2014"}
-                      </span>
-                      <span style={{ background: isLast && row.light ? COLORS.slateFaint : "transparent" }}>
-                        {row.light ? `${row.light.notation}${row.light.mark ? " " + row.light.mark : ""}` : ""}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
           {awaitingBegin ? (
             (() => {
               const beginGameButton = (
@@ -3831,7 +3806,7 @@ export default function ElCabeza3D({ theme }) {
         >
           <h2
             style={{
-              margin: "0 0 16px",
+              margin: "0 0 14px",
               textAlign: "center",
               fontFamily: titleFontFamily,
               fontWeight: 600,
@@ -3842,6 +3817,30 @@ export default function ElCabeza3D({ theme }) {
           >
             MOVE LOG
           </h2>
+
+          {/* Per feedback, directly under the MOVE LOG heading rather
+              than at the bottom of the sheet. */}
+          <button
+            className="ec-btn ec-btn-invert"
+            onClick={handleCopyLog}
+            disabled={log.length === 0}
+            style={{
+              width: "100%",
+              marginBottom: 16,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 11,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: COLORS.charcoal,
+              background: "transparent",
+              border: `1.5px solid ${COLORS.charcoal}`,
+              padding: "10px 16px",
+              cursor: log.length === 0 ? "default" : "pointer",
+              opacity: log.length === 0 ? 0.4 : 1,
+            }}
+          >
+            {logCopied ? "Move_Log Copied" : logCopyFailed ? "Copy Failed" : "Copy Move_Log"}
+          </button>
 
           {log.length === 0 ? (
             <p
@@ -3891,8 +3890,14 @@ export default function ElCabeza3D({ theme }) {
                 </span>
               </div>
               <div
+                ref={moveLogScrollRef}
+                onScroll={handleMoveLogScroll}
                 style={{
-                  maxHeight: "46vh",
+                  // 5 rows initially; scrolling to the bottom expands to
+                  // fit 10 more (15 total), scrolling back to the top
+                  // snaps it back to 5 — see handleMoveLogScroll.
+                  maxHeight: MOVE_LOG_ROW_PX * (moveLogExpanded ? MOVE_LOG_EXPANDED_ROWS : MOVE_LOG_COLLAPSED_ROWS),
+                  transition: "max-height 0.3s ease",
                   overflowY: "auto",
                   marginTop: 4,
                   fontFamily: "'IBM Plex Mono', monospace",
@@ -3927,28 +3932,6 @@ export default function ElCabeza3D({ theme }) {
               </div>
             </>
           )}
-
-          <button
-            className="ec-btn ec-btn-invert"
-            onClick={handleCopyLog}
-            disabled={log.length === 0}
-            style={{
-              width: "100%",
-              marginTop: 18,
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 11,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: COLORS.charcoal,
-              background: "transparent",
-              border: `1.5px solid ${COLORS.charcoal}`,
-              padding: "10px 16px",
-              cursor: log.length === 0 ? "default" : "pointer",
-              opacity: log.length === 0 ? 0.4 : 1,
-            }}
-          >
-            {logCopied ? "Move_Log Copied" : logCopyFailed ? "Copy Failed" : "Copy Move_Log"}
-          </button>
         </div>
       </div>
 
