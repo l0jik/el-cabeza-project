@@ -1527,7 +1527,14 @@ export function mountAmbientEffects(refs, helpers) {
       overlay.classList.add("ec-vhs-overlay-active");
     }
     audio.playGlitch();
-    vhsTimer = setTimeout(fireVhs, 57143 + Math.random() * 107143);
+    // Interval widened ~30% (x1.43) per feedback ("reduce screen
+    // flashing, seizure-inducing animations by 30%") — was 57143 +
+    // rand*107143. The GLITCH_CLASSES themselves (rapid hard-cut
+    // opacity/filter swings) are the sharpest flash risk in the whole
+    // theme, so frequency is the first, safe lever; swapping their
+    // actual look for new, gentler CRT-aberration profiles is a
+    // separate design pass, not done here.
+    vhsTimer = setTimeout(fireVhs, 81714 + Math.random() * 153234);
   };
 
   const RARE_CLASSES = ["ec-scanimate", "ec-vidicon-burn"];
@@ -1541,7 +1548,8 @@ export function mountAmbientEffects(refs, helpers) {
       card.classList.add(cls);
     }
     audio.playGlitch();
-    rareTimer = setTimeout(fireRare, 240000 + Math.random() * 300000);
+    // Widened ~30% per the same feedback — was 240000 + rand*300000.
+    rareTimer = setTimeout(fireRare, 343200 + Math.random() * 429000);
   };
 
   // Per feedback, a jitter must never land on a button that isn't
@@ -1654,8 +1662,10 @@ export function mountAmbientEffects(refs, helpers) {
   return {
     armOnBegin() {
       if (!reduceMotion) {
-        vhsTimer = setTimeout(fireVhs, 25714 + Math.random() * 35714);
-        rareTimer = setTimeout(fireRare, 90000 + Math.random() * 150000);
+        // Widened ~30% per feedback ("reduce screen flashing... by
+        // 30%") — was 25714 + rand*35714.
+        vhsTimer = setTimeout(fireVhs, 36771 + Math.random() * 51071);
+        rareTimer = setTimeout(fireRare, 128700 + Math.random() * 214500); // widened ~30% — was 90000 + rand*150000
       }
       arcTimer = setTimeout(fireArc, 8333 + Math.random() * 11667);
       crawlTimer = setTimeout(fireCrawl, 8000 + Math.random() * 12000);
@@ -1670,8 +1680,10 @@ export function mountAmbientEffects(refs, helpers) {
         flickerTimer = setTimeout(fireFlicker, 5000 + Math.random() * 9000);
         letterTimer = setTimeout(fireLetter, 4000 + Math.random() * 9000);
         sparkTimer = setTimeout(fireSpark, 14000 + Math.random() * 16000);
-        vhsTimer = setTimeout(fireVhs, 25714 + Math.random() * 35714);
-        rareTimer = setTimeout(fireRare, 240000 + Math.random() * 300000);
+        // Widened ~30% per feedback ("reduce screen flashing... by
+        // 30%") — was 25714 + rand*35714.
+        vhsTimer = setTimeout(fireVhs, 36771 + Math.random() * 51071);
+        rareTimer = setTimeout(fireRare, 343200 + Math.random() * 429000); // widened ~30% — was 240000 + rand*300000
         jitterTimer = setTimeout(fireJitter, 11000 + Math.random() * 16000);
         mastheadJitterTimer = setTimeout(fireMastheadJitter, 3000 + Math.random() * 4000);
         letterTearTimer = setTimeout(fireLetterTear, 9000 + Math.random() * 13000);

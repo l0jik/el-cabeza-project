@@ -304,6 +304,11 @@ export default function ElCabeza3D({ theme }) {
   const dockPieceMountRef = useRef(null);
   const dockPieceRef = useRef(null); // { scene, camera, renderer, pieceGroup, spin, velocity, dragging, bouncing }
   const dockDragRef = useRef({ dragging: false, lastX: 0, lastY: 0, lastT: 0 });
+  // Fraction (0.4-1) of the dock frame this session's piece type/
+  // orientation actually occupies — see the mesh-building effect
+  // below, where it's computed from the piece's own true proportions.
+  // Sizes the pointer-hit target (dockHitStyle), not the canvas.
+  const [dockHitFraction, setDockHitFraction] = useState(1);
   // Post-Begin-Game, the dock lives as a small corner watermark rather
   // than the pre-game centered piece — opening it there is deliberately
   // gated behind a hover/hold (see handleDockPieceHoverStart) instead of
@@ -440,18 +445,33 @@ export default function ElCabeza3D({ theme }) {
     requestAnimationFrame(tick);
   }, []);
 
+  // True when ev lands inside a box centered on the mount element,
+  // sized to dockHitFraction of its full box — the actual per-piece
+  // "trigger" hitbox (see the field comment on dockHitFraction). The
+  // mount element itself (and its canvas) stay full-size/undistorted;
+  // only which pointer events count as "on the piece" for OPENING the
+  // dock shrinks or grows with it. Drag-to-spin deliberately still
+  // works from anywhere on the full canvas — this only gates the
+  // open-trigger checks below, not the drag physics.
+  const isInsideDockHitbox = useCallback((ev) => {
+    const rect = ev.currentTarget.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const halfW = (rect.width * dockHitFraction) / 2, halfH = (rect.height * dockHitFraction) / 2;
+    return Math.abs(ev.clientX - cx) <= halfW && Math.abs(ev.clientY - cy) <= halfH;
+  }, [dockHitFraction]);
+
   // Hovering the corner watermark (mouse) or holding it (touch, which
   // has no hover) for 1.6s opens the dock — see the field comment on
-  // dockHoverTimerRef. No-ops outside the "corner" view; a pointerup or
-  // pointerleave before the timer fires cancels it (see
-  // handleDockPiecePointerUp below).
-  const handleDockPieceHoverStart = useCallback(() => {
-    if (dockView !== "corner" || dockHoverTimerRef.current) return;
+  // dockHoverTimerRef. No-ops outside the "corner" view or outside the
+  // piece's own hitbox; a pointerup or pointerleave before the timer
+  // fires cancels it (see handleDockPiecePointerUp below).
+  const handleDockPieceHoverStart = useCallback((ev) => {
+    if (dockView !== "corner" || dockHoverTimerRef.current || !isInsideDockHitbox(ev)) return;
     dockHoverTimerRef.current = setTimeout(() => {
       dockHoverTimerRef.current = null;
       triggerDockBounce();
     }, 1600);
-  }, [dockView, triggerDockBounce]);
+  }, [dockView, triggerDockBounce, isInsideDockHitbox]);
 
   const handleDockPiecePointerDown = useCallback((ev) => {
     const state = dockPieceRef.current;
@@ -465,7 +485,7 @@ export default function ElCabeza3D({ theme }) {
     // Touch has no real hover, so pointerdown doubles as the start of
     // the corner watermark's hold-to-open timer (see
     // handleDockPieceHoverStart) — a no-op everywhere else.
-    handleDockPieceHoverStart();
+    handleDockPieceHoverStart(ev);
   }, [handleDockPieceHoverStart]);
 
   const handleDockPiecePointerMove = useCallback((ev) => {
@@ -503,16 +523,18 @@ export default function ElCabeza3D({ theme }) {
     // handleDockPieceHoverStart.
     clearDockHoverTimer();
     // Single click/tap opens the dock while it's the pre-game centered
-    // piece. Once relocated to the post-Begin-Game corner watermark,
-    // opening it goes through hover/hold instead (see
+    // piece, but only when it actually lands on the piece's own
+    // hitbox (see isInsideDockHitbox) — not anywhere on the fixed-size
+    // canvas around it. Once relocated to the post-Begin-Game corner
+    // watermark, opening it goes through hover/hold instead (see
     // handleDockPieceHoverStart) — a click there does nothing extra.
     // Skipped entirely if this pointer-up ended an actual drag (see
     // handleDockPiecePointerMove).
-    if ((!state || !state.draggedFar) && dockView !== "corner") {
+    if ((!state || !state.draggedFar) && dockView !== "corner" && isInsideDockHitbox(ev)) {
       triggerDockBounce();
     }
     if (state) state.draggedFar = false;
-  }, [triggerDockBounce, dockView, clearDockHoverTimer]);
+  }, [triggerDockBounce, dockView, clearDockHoverTimer, isInsideDockHitbox]);
 
   // Mount-once: the dock piece's own tiny Three.js scene, entirely
   // independent of the main board's renderer/camera.
@@ -685,6 +707,18 @@ export default function ElCabeza3D({ theme }) {
     const baseScale = targetSize / ownMaxDim;
     state.pieceBaseScale = baseScale;
     if (!state.bouncing) pieceGroup.scale.set(baseScale, baseScale, baseScale);
+
+    // Per feedback ("hit boxes should be appropriately sized for each
+    // piece, custom to that piece's dimensions, not a generic one-
+    // size-fits-all, largest to fit everything one"): the fraction of
+    // the dock's fixed-size frame this specific piece type/orientation
+    // actually occupies, now that sizing above is genuinely
+    // proportional rather than every type filling the same footprint.
+    // Drives the pointer-hit target's own size below (see
+    // dockPieceStyle/dockHitStyle), not the canvas itself — the canvas
+    // and its camera/aspect stay fixed so the render never distorts.
+    const ownFootprint = isDisc ? DISC_DIAM : Math.max(orientation.w, orientation.h, orientation.z);
+    setDockHitFraction(Math.max(0.4, ownFootprint / DOCK_PIECE_LARGEST_DIM));
   }, [aiPlayer, dockSessionColor, dockSessionPieceType, theme]);
 
   /* Mirrors the audio engine's own `windingDown` flag but at the
