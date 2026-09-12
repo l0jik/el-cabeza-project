@@ -462,16 +462,23 @@ export default function ElCabeza3D({ theme }) {
 
   // Hovering the corner watermark (mouse) or holding it (touch, which
   // has no hover) for 1.6s opens the dock — see the field comment on
-  // dockHoverTimerRef. No-ops outside the "corner" view or outside the
-  // piece's own hitbox; a pointerup or pointerleave before the timer
-  // fires cancels it (see handleDockPiecePointerUp below).
+  // dockHoverTimerRef. No-ops outside the "corner" view; a pointerup
+  // or pointerleave before the timer fires cancels it (see
+  // handleDockPiecePointerUp below). Deliberately NOT gated by
+  // isInsideDockHitbox: the corner watermark is already small (100x88)
+  // and semi-transparent, so per-piece hitbox precision belongs on the
+  // deliberate pre-game CLICK (a big, prominent, directly-looked-at
+  // piece) rather than this passive hover trigger — shrinking an
+  // already-tiny hover target further for the smallest piece types
+  // reintroduces exactly the "too small/sensitive" complaint this
+  // gesture exists to avoid.
   const handleDockPieceHoverStart = useCallback((ev) => {
-    if (dockView !== "corner" || dockHoverTimerRef.current || !isInsideDockHitbox(ev)) return;
+    if (dockView !== "corner" || dockHoverTimerRef.current) return;
     dockHoverTimerRef.current = setTimeout(() => {
       dockHoverTimerRef.current = null;
       triggerDockBounce();
     }, 1600);
-  }, [dockView, triggerDockBounce, isInsideDockHitbox]);
+  }, [dockView, triggerDockBounce]);
 
   const handleDockPiecePointerDown = useCallback((ev) => {
     const state = dockPieceRef.current;
