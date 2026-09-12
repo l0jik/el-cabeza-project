@@ -1736,6 +1736,28 @@ export function mountAmbientEffects(refs, helpers) {
   };
 
   const GLITCH_CLASSES = ["ec-vhs-glitch", "ec-vhs-glitch-b", "ec-vhs-glitch-c", "ec-vhs-glitch-d", "ec-vhs-glitch-e", "ec-vhs-glitch-f"];
+
+  // The 4 new CRT-aberration profiles — an ADDITIONAL, separately-
+  // scheduled rotation, not merged into GLITCH_CLASSES above, per
+  // feedback ("do not replace them, just add new ones"). Fires on the
+  // card alone, with no overlay flash and no glitch audio cue —
+  // fireVhs's own ec-vhs-overlay-active flash and audio.playGlitch()
+  // are exactly the harsher pairing these calmer, smooth-ease effects
+  // were built to be an alternative to; coupling them to the same
+  // overlay/cue would undercut that.
+  const CRT_ABERRATION_CLASSES = ["ec-chromatic-ghost", "ec-degauss", "ec-phosphor-trail", "ec-curvature-ripple"];
+  let crtAberrationTimer;
+  function fireCrtAberration() {
+    if (windingDownRef.current) return;
+    const card = cardRef.current;
+    if (card) {
+      CRT_ABERRATION_CLASSES.forEach((c) => card.classList.remove(c));
+      void card.offsetWidth;
+      const cls = CRT_ABERRATION_CLASSES[Math.floor(Math.random() * CRT_ABERRATION_CLASSES.length)];
+      card.classList.add(cls);
+    }
+    crtAberrationTimer = setTimeout(fireCrtAberration, 45000 + Math.random() * 60000);
+  }
   const fireVhs = () => {
     if (windingDownRef.current) return;
     const card = cardRef.current;
@@ -1888,6 +1910,7 @@ export function mountAmbientEffects(refs, helpers) {
         // 30%") — was 25714 + rand*35714.
         vhsTimer = setTimeout(fireVhs, 36771 + Math.random() * 51071);
         rareTimer = setTimeout(fireRare, 128700 + Math.random() * 214500); // widened ~30% — was 90000 + rand*150000
+        crtAberrationTimer = setTimeout(fireCrtAberration, 45000 + Math.random() * 60000);
       }
       arcTimer = setTimeout(fireArc, 8333 + Math.random() * 11667);
       crawlTimer = setTimeout(fireCrawl, 8000 + Math.random() * 12000);
@@ -1906,6 +1929,7 @@ export function mountAmbientEffects(refs, helpers) {
         // 30%") — was 25714 + rand*35714.
         vhsTimer = setTimeout(fireVhs, 36771 + Math.random() * 51071);
         rareTimer = setTimeout(fireRare, 343200 + Math.random() * 429000); // widened ~30% — was 240000 + rand*300000
+        crtAberrationTimer = setTimeout(fireCrtAberration, 45000 + Math.random() * 60000);
         jitterTimer = setTimeout(fireJitter, 11000 + Math.random() * 16000);
         mastheadJitterTimer = setTimeout(fireMastheadJitter, 3000 + Math.random() * 4000);
         letterTearTimer = setTimeout(fireLetterTear, 9000 + Math.random() * 13000);
@@ -2199,6 +2223,7 @@ export function mountAmbientEffects(refs, helpers) {
       clearTimeout(haloTimer);
       clearTimeout(vhsTimer);
       clearTimeout(rareTimer);
+      clearTimeout(crtAberrationTimer);
       clearTimeout(jitterTimer);
       clearTimeout(mastheadJitterTimer);
       clearTimeout(letterTearTimer);

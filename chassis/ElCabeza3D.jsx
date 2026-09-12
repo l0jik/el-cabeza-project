@@ -3859,29 +3859,54 @@ export default function ElCabeza3D({ theme }) {
             MOVE LOG
           </h2>
 
-          {/* Per feedback, directly under the MOVE LOG heading rather
-              than at the bottom of the sheet. */}
-          <button
-            className="ec-btn ec-btn-invert"
-            onClick={handleCopyLog}
-            disabled={log.length === 0}
-            style={{
-              width: "100%",
-              marginBottom: 16,
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 11,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: COLORS.charcoal,
-              background: "transparent",
-              border: `1.5px solid ${COLORS.charcoal}`,
-              padding: "10px 16px",
-              cursor: log.length === 0 ? "default" : "pointer",
-              opacity: log.length === 0 ? 0.4 : 1,
-            }}
-          >
-            {logCopied ? "Move_Log Copied" : logCopyFailed ? "Copy Failed" : "Copy Move_Log"}
-          </button>
+          {/* Per feedback, 2 buttons directly under the MOVE LOG
+              heading rather than one at the bottom of the sheet: left
+              = Copy Move_Log, right = New Game (closes this popup and
+              starts fresh in one action, rather than requiring the
+              popup closed first). */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <button
+              className="ec-btn ec-btn-invert"
+              onClick={handleCopyLog}
+              disabled={log.length === 0}
+              style={{
+                flex: "1 1 0",
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 11,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: COLORS.charcoal,
+                background: "transparent",
+                border: `1.5px solid ${COLORS.charcoal}`,
+                padding: "10px 12px",
+                cursor: log.length === 0 ? "default" : "pointer",
+                opacity: log.length === 0 ? 0.4 : 1,
+              }}
+            >
+              {logCopied ? "Move_Log Copied" : logCopyFailed ? "Copy Failed" : "Copy Move_Log"}
+            </button>
+            <button
+              className="ec-btn ec-btn-invert"
+              onClick={() => {
+                closeMoveLog();
+                handleReset();
+              }}
+              style={{
+                flex: "1 1 0",
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 11,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: COLORS.charcoal,
+                background: "transparent",
+                border: `1.5px solid ${COLORS.charcoal}`,
+                padding: "10px 12px",
+                cursor: "pointer",
+              }}
+            >
+              New Game
+            </button>
+          </div>
 
           {log.length === 0 ? (
             <p
