@@ -2493,6 +2493,69 @@ export const styleSheet = `
         }
         .ec-vidicon-burn { animation: ec-vidicon-burn 650ms steps(1, end) 1; }
 
+        /* Four new CRT-aberration flourishes, per feedback asking for
+           "new, not-yet-tried" additions alongside (not replacing)
+           the glitch profiles above, kept to smooth ease timing
+           throughout rather than the hard steps(1,end) cuts those
+           use — deliberately calmer/lower flash-risk, since the same
+           feedback separately asked to reduce flashing overall. Not
+           yet wired into any scheduler; these are for review first. */
+
+        /* Chromatic Aberration Ghosting: a brief RGB channel split —
+           red and cyan fringes drift apart and re-converge, like a
+           CRT's electron guns drifting out of alignment. Pure
+           drop-shadow color fringing, no displacement, so it stays
+           gentle. */
+        @keyframes ec-chromatic-ghost {
+          0%   { filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); }
+          35%  { filter: drop-shadow(2.5px 0 0 rgba(255,70,70,0.4)) drop-shadow(-2.5px 0 0 rgba(70,255,255,0.4)); }
+          65%  { filter: drop-shadow(1.4px 0 0 rgba(255,70,70,0.22)) drop-shadow(-1.4px 0 0 rgba(70,255,255,0.22)); }
+          100% { filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); }
+        }
+        .ec-chromatic-ghost { animation: ec-chromatic-ghost 900ms ease-in-out 1; }
+
+        /* Degauss Wobble: the classic "press degauss on an old CRT"
+           moment — a magnetic bulge that ripples through as a
+           decaying scale/skew oscillation plus a brief brightness
+           flex, then settles back to normal. No cut at any point. */
+        @keyframes ec-degauss {
+          0%   { transform: scale(1, 1) skewX(0deg); filter: brightness(1); }
+          14%  { transform: scale(1.015, 0.985) skewX(0.5deg); filter: brightness(1.09); }
+          30%  { transform: scale(0.99, 1.018) skewX(-0.35deg); filter: brightness(0.95); }
+          46%  { transform: scale(1.008, 0.994) skewX(0.18deg); filter: brightness(1.04); }
+          62%  { transform: scale(0.997, 1.005) skewX(-0.08deg); filter: brightness(0.99); }
+          80%  { transform: scale(1.001, 0.999) skewX(0.02deg); filter: brightness(1.005); }
+          100% { transform: scale(1, 1) skewX(0deg); filter: brightness(1); }
+        }
+        .ec-degauss { animation: ec-degauss 1100ms ease-in-out 1; }
+
+        /* Phosphor Persistence Trail: a soft breathing smear, as if
+           slow-decay phosphor is briefly failing to fully resolve the
+           image — blur rises and falls once, smoothly, with a
+           matching light dip in opacity, never fully losing the
+           image. */
+        @keyframes ec-phosphor-trail {
+          0%   { filter: blur(0px); opacity: 1; }
+          25%  { filter: blur(1.6px); opacity: 0.86; }
+          55%  { filter: blur(2.6px); opacity: 0.74; }
+          80%  { filter: blur(1px); opacity: 0.92; }
+          100% { filter: blur(0px); opacity: 1; }
+        }
+        .ec-phosphor-trail { animation: ec-phosphor-trail 950ms ease-out 1; }
+
+        /* Screen Curvature Ripple: a genuine liquid displacement wave
+           (reusing the existing ec-warp-a/b turbulence filters, same
+           technique as ec-scanimate above) rather than a jitter —
+           reads as the screen's own curvature briefly flexing, not a
+           broken signal. */
+        @keyframes ec-curvature-ripple {
+          0%   { filter: none; }
+          35%  { filter: url(#ec-warp-a); }
+          65%  { filter: url(#ec-warp-b); }
+          100% { filter: none; }
+        }
+        .ec-curvature-ripple { animation: ec-curvature-ripple 850ms ease-in-out 1; }
+
         @keyframes ec-vhs-overlay {
           0%   { opacity: 0; }
           10%  { opacity: 0.55; }
@@ -2567,7 +2630,7 @@ export const styleSheet = `
         .ec-vertical-hold { animation: ec-vertical-hold 480ms cubic-bezier(0.3, 0, 0.4, 1) 1; transform-origin: center top; }
 
         @media (prefers-reduced-motion: reduce) {
-          .ec-vhs-glitch, .ec-vhs-glitch-b, .ec-vhs-glitch-c, .ec-vhs-glitch-d, .ec-vhs-glitch-e, .ec-vhs-glitch-f, .ec-vhs-overlay-active, .ec-jitter-tear, .ec-jitter-tear-b, .ec-scanimate, .ec-vidicon-burn, .ec-letter-tear, .ec-vertical-hold { animation: none !important; }
+          .ec-vhs-glitch, .ec-vhs-glitch-b, .ec-vhs-glitch-c, .ec-vhs-glitch-d, .ec-vhs-glitch-e, .ec-vhs-glitch-f, .ec-vhs-overlay-active, .ec-jitter-tear, .ec-jitter-tear-b, .ec-scanimate, .ec-vidicon-burn, .ec-letter-tear, .ec-vertical-hold, .ec-chromatic-ghost, .ec-degauss, .ec-phosphor-trail, .ec-curvature-ripple { animation: none !important; }
         }
 
   .ec-fx-overlay {
