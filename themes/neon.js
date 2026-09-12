@@ -540,6 +540,8 @@ export function mountAmbientEffects(refs, helpers) {
   t.voxelShatterItems = [];
   t.crawlMassItems = [];
   t.shockwaveItems = [];
+  t.landingParticleItems = [];
+  let lastLandingParticleTickAt = null;
   t.softGlowTex = makeSoftGlowTexture();
   const voxelDummy = new THREE.Object3D(); // scratch object reused every frame for instance-matrix writes
 
@@ -745,6 +747,53 @@ export function mountAmbientEffects(refs, helpers) {
     });
   }
   t.spawnLandingShockwave = spawnLandingShockwave;
+
+  /* theme: the same landing-impact debris shed used for the move
+     indicator's own corner-bracket reticle (see buildMoveIndicator),
+     now applied to a tumbling piece's own landing — small glowing
+     chips, differently sized, scattering outward under a bit of
+     gravity and burning out fast. "Sometimes", not guaranteed, same as
+     the reticle's own version, so it reads as a debris flourish rather
+     than a fixed cue tied to the game rules. Count and size scale with
+     the piece's own mass — the same w*h*z/massFactor convention
+     spawnLandingShockwave already uses — so Opa kicks up a real
+     handful and Turrito barely sparks. */
+  function spawnLandingParticles(row, col, w, h, z, accentColor) {
+    if (Math.random() > 0.6) return;
+    const cx = (col + w / 2) * SQUARE_SIZE - OFF;
+    const cz = (row + h / 2) * SQUARE_SIZE - OFF;
+    const mass = Math.max(1, w * h * z);
+    const massFactor = Math.log2(mass);
+    const count = Math.round(3 + massFactor * 3 + Math.random() * 2);
+    const color = accentColor || HEX.glowCyan;
+    for (let i = 0; i < count; i++) {
+      const size = (0.014 + Math.random() * 0.032) * (0.8 + massFactor * 0.18);
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(size, size, size),
+        new THREE.MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity: 0.9,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        })
+      );
+      const angle = Math.random() * Math.PI * 2;
+      const speed = (0.5 + Math.random() * 1.0) * (0.85 + massFactor * 0.12);
+      mesh.position.set(cx, 0.02, cz);
+      t.fxGroup.add(mesh);
+      t.landingParticleItems.push({
+        mesh,
+        vx: Math.cos(angle) * speed,
+        vz: Math.sin(angle) * speed,
+        vy: 0.8 + Math.random() * 0.8,
+        floorY: 0.02,
+        born: performance.now(),
+        life: 260 + Math.random() * 260,
+      });
+    }
+  }
+  t.spawnLandingParticles = spawnLandingParticles;
 
   /* theme: an occasional jagged bolt of electricity between two
      random pieces currently on the board — a rare, atmospheric
@@ -1641,6 +1690,39 @@ export function mountAmbientEffects(refs, helpers) {
         fxItems.splice(i, 1);
       }
     }
+  }
+
+  /* Landing-impact debris (see spawnLandingParticles) — real position
+     motion (outward scatter + gravity), not just an opacity fade, so
+     it needs its own physics dt rather than fxItems' simpler
+     life-fraction envelope. Tracked via actual elapsed time between
+     tick() calls rather than an assumed frame rate: this environment's
+     own render loop has been observed running well under 60fps under
+     load, and a fixed-dt step would make particles crawl in slow
+     motion whenever frames are sparse while their (real-time-based)
+     fade raced on unchanged. */
+  const landingParticleItems = t.landingParticleItems;
+  if (landingParticleItems && landingParticleItems.length) {
+    const pdt = lastLandingParticleTickAt ? Math.min((now - lastLandingParticleTickAt) / 1000, 0.05) : 0.016;
+    lastLandingParticleTickAt = now;
+    for (let i = landingParticleItems.length - 1; i >= 0; i--) {
+      const p = landingParticleItems[i];
+      const age = now - p.born;
+      if (age >= p.life) {
+        p.mesh.parent && p.mesh.parent.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mesh.material.dispose();
+        landingParticleItems.splice(i, 1);
+        continue;
+      }
+      p.vy -= 5.5 * pdt;
+      p.mesh.position.x += p.vx * pdt;
+      p.mesh.position.z += p.vz * pdt;
+      p.mesh.position.y = Math.max(p.floorY, p.mesh.position.y + p.vy * pdt);
+      p.mesh.material.opacity = 0.9 * (1 - age / p.life);
+    }
+  } else {
+    lastLandingParticleTickAt = null; // resync cleanly next time a burst spawns, rather than one big dt jump
   }
 
   /* theme: the digital-interior piece effect — an actual traveling
@@ -2797,7 +2879,7 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
 
   const sideX = hx * 2, sideZ = hz * 2;
   const segX = sideX * 0.22, segZ = sideZ * 0.22;
-  const THICKNESS = isCrush ? 0.055 : 0.045;
+  const THICKNESS = isCrush ? 0.041 : 0.034; // 25% thinner than the previous pass, for a finer line
   const RESTING_Y = 0.025;
   const SPAWN_Y = 2; // "vertical height of ~2 units above the board"
   const SPREAD = 1.75; // brackets spawn spaced as if on a 1.75x-larger square
@@ -2876,7 +2958,7 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
   let particlesSpawned = false;
 
   function spawnParticles(cornerX, cornerZ) {
-    const count = 3 + Math.floor(Math.random() * 3); // 3-5 per corner
+    const count = 4 + Math.floor(Math.random() * 3); // 4-6 per corner
     for (let i = 0; i < count; i++) {
       const size = 0.012 + Math.random() * 0.03; // "smaller, but different sized"
       const mesh = new THREE.Mesh(
@@ -2953,7 +3035,13 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
     if (elapsed > FALL_MS) {
       if (!particlesSpawned) {
         particlesSpawned = true;
-        cornerLandingPoints.forEach((c) => spawnParticles(c.x, c.z));
+        // "Sometimes" — each corner independently rolls its own chance
+        // to shed debris, so a given landing might kick loose particles
+        // at one, all four, or none of its corners, rather than always
+        // firing identically at every one of them.
+        cornerLandingPoints.forEach((c) => {
+          if (Math.random() < 0.6) spawnParticles(c.x, c.z);
+        });
       }
       const bounceT = Math.min((elapsed - FALL_MS) / BOUNCE_MS, 1);
       // Damped spring: dips slightly below rest (impact compression),

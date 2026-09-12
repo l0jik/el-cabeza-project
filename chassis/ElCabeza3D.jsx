@@ -1848,9 +1848,14 @@ export default function ElCabeza3D({ theme }) {
       if (landingFootprint) {
         t.pulseSquare && t.pulseSquare(landingFootprint.row, landingFootprint.col, landingFootprint.w, landingFootprint.h, "apply", accentColor);
         // Per Neon's own design, the Cabeza never gets the landing
-        // shockwave — every other piece type still does.
+        // shockwave (or the landing-impact particle shed below) — it
+        // rolls as a disc, not a tumbling polyhedron; every other
+        // piece type still gets both.
         if (state.type !== "cabeza") {
           t.spawnLandingShockwave && t.spawnLandingShockwave(
+            landingFootprint.row, landingFootprint.col, landingFootprint.w, landingFootprint.h, landingFootprint.z, accentColor
+          );
+          t.spawnLandingParticles && t.spawnLandingParticles(
             landingFootprint.row, landingFootprint.col, landingFootprint.w, landingFootprint.h, landingFootprint.z, accentColor
           );
         }
