@@ -124,8 +124,11 @@ export const DRAG_DEAD_ZONE_PX = 10;
 export const ZOOM_MIN = 9;
 
 /* Raised from 34 (~+20%) so the board can pull back further before
-   hitting its zoom-out limit. */
-export const ZOOM_MAX = 41;
+   hitting its zoom-out limit, then raised again from 41 (~+34%) per
+   feedback asking for the ability to zoom out even further, making the
+   board noticeably smaller on screen than either previous limit
+   allowed. */
+export const ZOOM_MAX = 55;
 
 export const PIECE_META = {
   cabeza: { label: "C", name: "Cabeza", shape: "disc", maxSteps: 2 },

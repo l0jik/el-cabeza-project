@@ -5355,8 +5355,8 @@ export function createSoundscape() {
        Info events) but boosted on close to actually read as audible,
        same reasoning as everywhere else in this file that pairs a
        subtle forward cue with a boosted reverse. */
-    playDockOpen: () => { ensureGraph(); cue(60, 32, 0.24, "sawtooth", 0.05); },
-    playDockClose: () => { ensureGraph(); reverseCue(60, 32, 0.3, "sawtooth", 0.1); },
+    playDockOpen: () => { ensureGraph(); cue(60, 32, 0.24, "sawtooth", 0.025); },
+    playDockClose: () => { ensureGraph(); reverseCue(60, 32, 0.3, "sawtooth", 0.05); },
     dispose: () => {
       disposed = true;
       if (scheduleTimer) clearTimeout(scheduleTimer);

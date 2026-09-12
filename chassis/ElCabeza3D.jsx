@@ -778,54 +778,67 @@ export default function ElCabeza3D({ theme }) {
   }, [awaitingBegin]);
   const mastheadPhase = awaitingBegin ? "setup" : titleRelocated ? "relocated" : "fading";
 
-  /* Pre-game board framing: while awaitingBegin, the board's own fixed
-     full-viewport layer is windowed down to the vertical gap between the
-     masthead letters and the dock piece's animation box, instead of
-     spanning the whole screen. Two effects per feedback come from the
-     SAME change here, not two separate ones: shrinking a perspective
-     camera's viewport height (width held fixed) scales its rendered
-     content by that same height ratio in both dimensions — the
-     aspect/FOV coupling keeps horizontal scaled in step even though only
-     height changes — so windowing the layer down to a shorter band both
-     shrinks the board and (by construction, since the band IS that gap)
-     centers it in that gap, with no separate camera math needed. Height
-     is capped at 60% of the viewport (a ~40% reduction) when the gap is
-     roomy enough to show it at that size without touching the masthead
-     or dock; on a short viewport where the gap itself is tighter than
-     that, the gap wins and the frame simply fills it exactly, since
-     never overlapping the masthead/dock is the harder constraint of the
-     two. Reverts to the normal full-viewport layer (see boardLayerStyle
-     below) the instant Begin Game is pressed. */
-  const [preGameBoardFrame, setPreGameBoardFrame] = useState(null);
+  /* Pre-game framing: while awaiting Begin Game, the camera itself
+     (not any DOM clipping — the render layer always stays full
+     viewport, see the board's mount div below) pulls back just far
+     enough that the board sits fully between the masthead's bottom
+     edge and the dock's top edge, with real breathing room on both
+     sides. Recomputed on resize/orientation change so it keeps fitting
+     as the layout reflows; a settle timer covers the masthead's own
+     fonts/animation still resolving their final size right after
+     mount. Uses three.current.measureBoardPx (set up in the main
+     scene effect) to bisect for the smallest radius — biggest, most
+     legible board — whose on-screen height (including the tallest
+     piece, so nothing pokes into the masthead/dock) still fits the
+     gap; never overrides a game already in progress, and a manual
+     wheel/pinch zoom during setup stays in effect until the next
+     resize or the next fresh setup screen recomputes it again.
+
+     On leaving setup (Begin Game pressed), the fit is undone — back to
+     the normal gameplay default — UNLESS the player zoomed away from
+     it manually first, in which case that manual choice carries into
+     the game exactly as it always has, unaffected by this feature:
+     the masthead and dock both shrink out of the way once play starts,
+     so nothing still needs the board held back to fit between them. */
+  const preGameFitRadiusRef = useRef(null);
   useEffect(() => {
-    if (!awaitingBegin) {
-      setPreGameBoardFrame(null);
-      return;
-    }
+    if (!awaitingBegin) return;
+    const GAP_PADDING_PX = 28;
     function recompute() {
       const titleEl = titleRef.current;
       const dockEl = dockPieceMountRef.current;
-      if (!titleEl || !dockEl) return;
-      const bandTop = titleEl.getBoundingClientRect().bottom;
-      const bandBottom = dockEl.getBoundingClientRect().top;
-      const bandHeight = bandBottom - bandTop;
-      if (bandHeight < 40) return;
-      const height = Math.min(window.innerHeight * 0.6, bandHeight);
-      const bandMid = (bandTop + bandBottom) / 2;
-      const top = Math.max(bandTop, Math.min(bandMid - height / 2, bandBottom - height));
-      setPreGameBoardFrame({ top, height });
+      const measure = three.current.measureBoardPx;
+      if (!titleEl || !dockEl || !measure) return;
+      const gapTop = titleEl.getBoundingClientRect().bottom + GAP_PADDING_PX;
+      const gapBottom = dockEl.getBoundingClientRect().top - GAP_PADDING_PX;
+      const gapHeight = gapBottom - gapTop;
+      if (gapHeight < 40) return;
+      const { theta, phi, target } = cam.current;
+      let lo = ZOOM_MIN;
+      let hi = ZOOM_MAX;
+      // A larger radius always reads as a smaller (or equal) on-screen
+      // span, so this is a monotonic search: bisect for the smallest
+      // radius whose span still fits, rather than the other direction.
+      for (let i = 0; i < 24; i++) {
+        const mid = (lo + hi) / 2;
+        const m = measure(mid, phi, theta, target);
+        if (!m) return;
+        if (m.span > gapHeight) lo = mid;
+        else hi = mid;
+      }
+      cam.current.radius = hi;
+      preGameFitRadiusRef.current = hi;
     }
     recompute();
-    // The dock piece box can still be mid-transition into its "piece"
-    // position here (e.g. reset from a finished game, where it was
-    // sitting in its "corner" spot a moment ago — see the 900ms
-    // transition on dockPieceStyle) — this second pass catches the
-    // settled position once that animation finishes.
     const settleTimer = setTimeout(recompute, 950);
     window.addEventListener("resize", recompute);
     return () => {
       clearTimeout(settleTimer);
       window.removeEventListener("resize", recompute);
+      if (preGameFitRadiusRef.current != null && cam.current.radius === preGameFitRadiusRef.current) {
+        cam.current.radius = 17;
+      }
+      preGameFitRadiusRef.current = null;
     };
   }, [awaitingBegin]);
 
@@ -1360,6 +1373,45 @@ export default function ElCabeza3D({ theme }) {
     }
     three.current.applyCamera = applyCamera;
     applyCamera();
+
+    /* Lets the pre-game framing effect (outside this mount-once effect
+       — it reacts to titleRef/dockPieceMountRef layout instead, see
+       near the masthead state below) measure how tall the board reads
+       on screen at a hypothetical radius, without disturbing the LIVE
+       camera: tick() re-derives camera.position from cam.current.view
+       every frame regardless, so a transient position/lookAt set here
+       is overwritten on the very next frame and never actually renders.
+       Includes the tallest real piece (Opa, h * PIECE_SCALE = 2 * 0.8)
+       at every corner, not just the bare board plate, since a piece
+       standing on the near or far edge is what would actually clip
+       into the masthead or dock first. */
+    const TALLEST_PIECE_HEIGHT = 2 * PIECE_SCALE;
+    three.current.measureBoardPx = function (radius, phi, theta, target) {
+      const w = mount.clientWidth;
+      const h = mount.clientHeight;
+      if (!w || !h) return null;
+      camera.position.set(target.x, target.y + radius * Math.cos(phi), target.z + radius * Math.sin(phi));
+      camera.lookAt(target);
+      camera.updateMatrixWorld(true);
+      const half = SLAB / 2;
+      const cosT = Math.cos(-theta);
+      const sinT = Math.sin(-theta);
+      let minY = Infinity;
+      let maxY = -Infinity;
+      for (const x of [-half, half]) {
+        for (const z of [-half, half]) {
+          const rx = target.x + x * cosT + z * sinT;
+          const rz = target.z + -x * sinT + z * cosT;
+          for (const y of [target.y, target.y + TALLEST_PIECE_HEIGHT]) {
+            const v = new THREE.Vector3(rx, y, rz).project(camera);
+            const py = (1 - (v.y * 0.5 + 0.5)) * h;
+            if (py < minY) minY = py;
+            if (py > maxY) maxY = py;
+          }
+        }
+      }
+      return { top: minY, bottom: maxY, span: maxY - minY };
+    };
 
     function resize() {
       const w = mount.clientWidth;
@@ -3300,27 +3352,19 @@ export default function ElCabeza3D({ theme }) {
       `}</style>
       {theme.styleSheet && <style>{theme.styleSheet}</style>}
 
-      {/* Board — a fixed full-viewport base layer now, not another
-         section boxed in alongside the title/buttons. Everything else
-         (masthead, dock) floats above it at its own z-index. */}
+      {/* Board — a fixed full-viewport base layer, not another section
+         boxed in alongside the title/buttons. Everything else (masthead,
+         dock) floats above it at its own z-index. Both the outer layer
+         and mountRef (the actual canvas-holding box the renderer sizes
+         itself to) always span the full viewport — no windowing/framing
+         of any kind, at any time. */}
       <div
-        style={
-          preGameBoardFrame
-            ? {
-                position: "fixed",
-                left: 0,
-                right: 0,
-                top: preGameBoardFrame.top,
-                height: preGameBoardFrame.height,
-                zIndex: 0,
-                transition: "top 0.3s ease, height 0.3s ease",
-              }
-            : {
-                position: "fixed",
-                inset: 0,
-                zIndex: 0,
-              }
-        }
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 0,
+          background: `radial-gradient(circle at 50% 35%, ${canvasGradientStart} 0%, ${COLORS.creamAlt} 70%, ${canvasGradientEnd} 100%)`,
+        }}
       >
         <div
           ref={mountRef}
@@ -3329,7 +3373,6 @@ export default function ElCabeza3D({ theme }) {
             inset: 0,
             width: "100%",
             height: "100%",
-            background: `radial-gradient(circle at 50% 35%, ${canvasGradientStart} 0%, ${COLORS.creamAlt} 70%, ${canvasGradientEnd} 100%)`,
             overflow: "hidden",
           }}
         />
