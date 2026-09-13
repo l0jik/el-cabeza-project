@@ -2812,8 +2812,53 @@ export default function ElCabeza3D({ theme }) {
       el.style.cursor = "grab";
     }
 
+    /* Laptop trackpad equivalents of the touch-only two-finger gestures
+       above. Two of the four already work on a trackpad with no changes
+       at all: a single-finger click-drag is just a mouse drag (orbit),
+       and a trackpad's own pinch gesture reaches the browser as this
+       same wheel event with an inflated deltaY, so it already zooms.
+       The other two have no raw multi-touch events to read on a
+       trackpad — the OS/driver consumes them and only ever hands the
+       browser a wheel event (for a two-finger scroll) or a contextmenu
+       event (the standard "two-finger tap = right-click" convention),
+       never individual per-finger pointer events the way a touchscreen
+       does — so they're recovered here from those two events instead. */
+    let wheelBurstDy = 0;
+    let wheelBurstDx = 0;
+    let wheelBurstStart = 0;
+    let wheelSwipeCooldownUntil = 0;
+    const WHEEL_SWIPE_WINDOW_MS = 160; // how long a burst of wheel events is treated as one gesture
+    const WHEEL_SWIPE_MIN_DY = 320; // net deltaY within that window to count as a flick, not a scroll/zoom
+    const WHEEL_SWIPE_COOLDOWN_MS = 500; // guards against the same flick re-triggering as it decays
+
     function onWheel(ev) {
       ev.preventDefault();
+      const now = performance.now();
+      if (now - wheelBurstStart > WHEEL_SWIPE_WINDOW_MS) {
+        wheelBurstStart = now;
+        wheelBurstDy = 0;
+        wheelBurstDx = 0;
+      }
+      wheelBurstDy += ev.deltaY;
+      wheelBurstDx += ev.deltaX;
+      /* A trackpad flick piles up far more distance far faster than
+         either turning a mouse wheel or nudging the trackpad to zoom —
+         that gap is what tells the two apart here, the same way
+         TWO_FINGER_SWIPE_MIN_PX/MAX_MS do for an actual touchscreen.
+         Below this threshold every event still falls through and zooms
+         exactly as before, so ordinary scrolling is untouched. */
+      if (
+        now >= wheelSwipeCooldownUntil &&
+        Math.abs(wheelBurstDy) >= WHEEL_SWIPE_MIN_DY &&
+        Math.abs(wheelBurstDy) > Math.abs(wheelBurstDx) * 1.5
+      ) {
+        if (wheelBurstDy > 0) topDownView();
+        else recenterView();
+        wheelSwipeCooldownUntil = now + WHEEL_SWIPE_COOLDOWN_MS;
+        wheelBurstDy = 0;
+        wheelBurstDx = 0;
+        return;
+      }
       cam.current.radius = Math.max(
         ZOOM_MIN,
         Math.min(ZOOM_MAX, cam.current.radius + ev.deltaY * 0.014)
@@ -2825,9 +2870,22 @@ export default function ElCabeza3D({ theme }) {
        unconditionally, not just while a drag is in progress. preventDefault()
        on the contextmenu event itself is the standard, sufficient way
        to suppress it; it doesn't depend on which mouse button pattern
-       or platform triggered the menu. */
+       or platform triggered the menu.
+
+       It doubles as the trackpad's two-finger-tap gesture (see above):
+       a second one arriving within TWO_FINGER_DOUBLE_TAP_MS of the
+       first toggles full screen, the same trigger and the same window
+       touch's own two-finger double-tap uses. */
+    let lastContextMenuAt = 0;
     function onContextMenu(ev) {
       ev.preventDefault();
+      const now = performance.now();
+      if (now - lastContextMenuAt < TWO_FINGER_DOUBLE_TAP_MS) {
+        lastContextMenuAt = 0;
+        toggleFullscreen();
+      } else {
+        lastContextMenuAt = now;
+      }
     }
 
     el.addEventListener("pointerdown", onDown);
@@ -3459,8 +3517,11 @@ export default function ElCabeza3D({ theme }) {
                the vw scaling with a hard width ceiling on the wrapper
                below and lets the title wrap to two lines rather than
                overflow off-screen on any viewport/font combination
-               narrower than expected. */
-            fontSize: "clamp(26px, 9vw, 168px)",
+               narrower than expected. All three numbers cut 22% from
+               their prior values (26/9/168) per feedback that the
+               whole scale — especially the top end a wide/fullscreen
+               viewport actually reaches — had grown too large. */
+            fontSize: "clamp(20px, 7vw, 131px)",
             lineHeight: 1.05,
             letterSpacing: "0.02em",
             color: COLORS.charcoal,
