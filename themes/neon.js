@@ -1079,7 +1079,7 @@ export function mountAmbientEffects(refs, helpers) {
       // layer underneath everything else, for the soft light-scatter
       // a hazy/frosted surface would actually produce — the halo
       // alone read as a tighter glow, not genuine bloom spread.
-      const bloomSize = CRAWL_VOXEL * 3.2;
+      const bloomSize = CRAWL_VOXEL * 3.5; // slightly larger per feedback
       const bloomMat = new THREE.MeshBasicMaterial({
         map: t.softGlowTex,
         color: 0x8fe8ff,
@@ -1097,7 +1097,7 @@ export function mountAmbientEffects(refs, helpers) {
       // back from an initial 1.7x per feedback that too much round
       // glow was itself rounding off the squares' own shape; the new
       // bloom layer above now carries most of the extra spread.
-      const haloSize = CRAWL_VOXEL * 1.25;
+      const haloSize = CRAWL_VOXEL * 1.4; // slightly larger per feedback
       const haloMat = new THREE.MeshBasicMaterial({
         map: t.softGlowTex,
         color: 0x8fe8ff,
@@ -1120,7 +1120,7 @@ export function mountAmbientEffects(refs, helpers) {
       // just to keep the mass legible as a grid of squares, capped
       // well under fully opaque so it still doesn't look like solid,
       // fully-visible geometry.
-      const coreSize = CRAWL_VOXEL * 0.88;
+      const coreSize = CRAWL_VOXEL * 0.95; // slightly larger per feedback
       const coreMat = new THREE.MeshBasicMaterial({
         color: 0xd6f9ff,
         transparent: true,
@@ -1140,7 +1140,7 @@ export function mountAmbientEffects(refs, helpers) {
       // between dim and bright cells stays exactly as wide, just
       // scaled down together. Reduced a further 15% (0.9 -> 0.765)
       // per feedback to dim the whole crawling swarm overall.
-      const BRIGHTNESS_CEILING = 0.765;
+      const BRIGHTNESS_CEILING = 0.65; // dimmed a further ~15% (0.765 -> 0.65) per feedback
       materials.push({
         bloom: bloomMat, halo: haloMat, core: coreMat,
         bloomPeak: (0.28 + Math.random() * 0.12) * cellBrightness * BRIGHTNESS_CEILING,
@@ -1148,6 +1148,12 @@ export function mountAmbientEffects(refs, helpers) {
         // Capped well under fully opaque per feedback ("not
         // completely able to be seen") — was 0.85-1.0.
         corePeak: (0.55 + Math.random() * 0.15) * cellBrightness * BRIGHTNESS_CEILING,
+        // Small per-voxel timing offset for the fade envelope (see the
+        // crawlMassItems tick loop) — makes individual pixels within a
+        // generation light up and die out a beat apart from their
+        // neighbors instead of the whole cluster fading as one flat
+        // block, for a true "crawling" pixel-fade feel.
+        phase: (Math.random() * 2 - 1) * 0.12,
       });
     });
     t.weightGroup.add(group);
@@ -1175,8 +1181,8 @@ export function mountAmbientEffects(refs, helpers) {
     let b = a;
     while (b === a) b = cornerPts[Math.floor(Math.random() * cornerPts.length)];
 
-    const duration = 2600 + Math.random() * 800; // "~3 seconds... vary a little, up or down"
-    const STEP_MS = 220;
+    const duration = 3200 + Math.random() * 1000; // slowed down per feedback (was 2600-3400ms)
+    const STEP_MS = 270; // slowed down per feedback (was 220) — widens generation spacing along the path
     const GEN_LIFE_MS = STEP_MS * 2.4; // consecutive generations overlap, so the mass never visibly gaps
     const steps = Math.max(3, Math.round(duration / STEP_MS));
 
@@ -1201,11 +1207,10 @@ export function mountAmbientEffects(refs, helpers) {
   function fireCrawl() {
     if (windingDownRef.current) return; // stop spawning new ones once a win fires
     spawnCrawlWave();
-    // 2.5x the old 14000-40000ms window (== the old rate * 0.4) per
-    // feedback to cut how often the crawling mass crosses the board by
-    // 60% — the crossing itself (spawnCrawlWave's own duration/STEP_MS)
-    // is untouched, only how often a new one starts.
-    crawlTimer = setTimeout(fireCrawl, 35000 + Math.random() * 65000);
+    // Widened further per feedback (was 35000-100000ms) to make the
+    // crawling mass cross the board less often still — only how often
+    // a new crossing starts, not the crossing itself.
+    crawlTimer = setTimeout(fireCrawl, 55000 + Math.random() * 95000);
   }
   /* theme: a rare, large-scale directional brightness wave that
      sweeps across most of the board's surface — a much bigger,
@@ -2136,11 +2141,15 @@ export function mountAmbientEffects(refs, helpers) {
       const item = crawlMassItems[i];
       const frac = Math.max(0, Math.min((now - item.born) / item.duration, 1));
 
-      let envelope;
-      if (frac < 0.25) envelope = frac / 0.25;
-      else if (frac > 0.6) envelope = Math.max(0, (1 - frac) / 0.4);
-      else envelope = 1;
-      item.materials.forEach(({ bloom, halo, core, bloomPeak, haloPeak, corePeak }) => {
+      item.materials.forEach(({ bloom, halo, core, bloomPeak, haloPeak, corePeak, phase }) => {
+        // Each voxel's own envelope is nudged by its stored phase, so
+        // cells within the same generation don't all light up/die out
+        // in lockstep — see spawnCrawlGeneration's phase comment.
+        const pf = Math.max(0, Math.min(frac - phase, 1));
+        let envelope;
+        if (pf < 0.25) envelope = pf / 0.25;
+        else if (pf > 0.6) envelope = Math.max(0, (1 - pf) / 0.4);
+        else envelope = 1;
         bloom.opacity = envelope * bloomPeak;
         halo.opacity = envelope * haloPeak;
         core.opacity = envelope * corePeak;
@@ -2841,6 +2850,7 @@ export function useSetupExtras({ awaitingBegin, setPieces, audio }) {
     // about game state, so clicking it repeatedly is fine: each click
     // is an independent fresh randomization.
     if (!awaitingBegin) return;
+    audio.playAnomaly();
     setPieces(generateAnomalySetup());
   }
 
@@ -4520,6 +4530,24 @@ export function createSoundscape() {
     }
   }
 
+  /* Mobile browsers (iOS Safari especially) can suspend an already-
+     running AudioContext when the tab is backgrounded or the screen
+     locks, and never resume it on their own — silently swallowing
+     every cue queued afterward until something happens to call
+     ensureStarted() again. Re-resume proactively the moment the page
+     becomes visible again, so audio parity holds after a lock-screen
+     round-trip on mobile the way it already does on desktop (which
+     rarely suspends mid-session at all). */
+  function onVisibilityChange() {
+    if (ctx && document.visibilityState === "visible" && ctx.state === "suspended") {
+      unlockIosAudio();
+      ctx.resume();
+    }
+  }
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", onVisibilityChange);
+  }
+
   function ensureStarted() {
     ensureGraph();
     if (!ctx) return;
@@ -5304,7 +5332,18 @@ export function createSoundscape() {
     // no-op without it (both guard on `if (!ctx) return`).
     playMenu: () => { ensureGraph(); playChoirStab(); },
     fadeOutMenu: () => { ensureGraph(); fadeOutChoir(); },
-    playPowerOn: () => cue(70, 220, 0.7, "sine", 0.06),
+    // ensureGraph() + an explicit resume, same self-contained pattern
+    // as playDockOpen/playSingularityOpen below — beginGameFadeIn()
+    // (called right before this on desktop) already builds the graph,
+    // but on mobile a backgrounded/locked screen can leave an existing
+    // context suspended, and ensureGraph() alone no-ops once ctx
+    // already exists, so it never resumed. Fixes the CONNECT chime
+    // going silent on mobile.
+    playPowerOn: () => {
+      ensureGraph();
+      if (ctx && ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
+      cue(70, 220, 0.7, "sine", 0.06);
+    },
     // Shorter and considerably louder than the initial version — per
     // feedback it wasn't being heard at all, most likely because a
     // reversed envelope's long, gentle swell-in (mirrored from
@@ -5314,7 +5353,13 @@ export function createSoundscape() {
     // master fade-out. Keeps the same reversed shape (still a swell-in
     // + quick cutoff, not a normal cue) but compressed and boosted so
     // it reliably cuts through both.
-    playPowerOff: () => reverseCue(70, 220, 0.4, "sine", 0.16),
+    // Same self-contained fix as playPowerOn above — the DISCONNECT
+    // chime.
+    playPowerOff: () => {
+      ensureGraph();
+      if (ctx && ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
+      reverseCue(70, 220, 0.4, "sine", 0.16);
+    },
     playFlicker: () => { if (ctx && ctx.state === "running") evPowerFluctuation(); },
     playArc: () => { if (ctx && ctx.state === "running") evArc(); },
     playGlitch: () => { if (ctx && ctx.state === "running") { evDataBurst(); evStatic(); } },
@@ -5345,12 +5390,23 @@ export function createSoundscape() {
        subtle forward cue with a boosted reverse. */
     playDockOpen: () => { ensureGraph(); cue(60, 32, 0.24, "sawtooth", 0.025); },
     playDockClose: () => { ensureGraph(); reverseCue(60, 32, 0.3, "sawtooth", 0.05); },
+    /* Anomaly button — a brief, high, rising square-wave blip: the
+       squarewave's buzzy harmonics read as "electronic/scientific
+       readout" rather than a musical chime, and the quick upward
+       sweep gives it the feel of a scan or sensor ping rather than a
+       generic UI click. ensureGraph() first, same reasoning as
+       playDockOpen: Anomaly is only ever available during setup,
+       before ensureStarted() would normally have built the graph. */
+    playAnomaly: () => { ensureGraph(); cue(900, 1600, 0.09, "square", 0.045); },
     dispose: () => {
       disposed = true;
       if (scheduleTimer) clearTimeout(scheduleTimer);
       if (buzzWanderTimer) clearTimeout(buzzWanderTimer);
       if (crackleTimer) clearTimeout(crackleTimer);
       if (ctx) { try { ctx.close(); } catch (e) {} }
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
     },
   };
 }
