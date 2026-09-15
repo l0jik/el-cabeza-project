@@ -133,6 +133,12 @@ export default function ElCabeza3D({ theme }) {
   const mountRef = useRef(null);
   const three = useRef({});
   const anim = useRef(null);
+  // Keyed by piece id -> { pieceRef, mesh, shell }, so the "build pieces"
+  // effect below can tell which pieces are untouched since the last render
+  // (commitRef's setPieces calls keep the exact same object reference for
+  // every piece the move didn't affect — see that function's own comment)
+  // and skip disposing/rebuilding their mesh+shell entirely.
+  const pieceMeshCacheRef = useRef(new Map());
   const commitRef = useRef(null);
   /* Always-fresh reference to beginMove, reassigned every render (same
      pattern as commitRef). Needed because the AI's continuation logic
@@ -1915,19 +1921,43 @@ export default function ElCabeza3D({ theme }) {
   }, []);
 
   /* ------------------------ build pieces ------------------------- */
+  // Keyed diff, not a full tear-down/rebuild: a piece whose object
+  // reference is unchanged since the last time this ran had nothing
+  // about it change (see commitRef's own comment on why that identity
+  // holds for every piece a move didn't touch), so its existing mesh+
+  // shell are already correct and are left alone — no dispose, no
+  // rebuild, no repositioning. Only a piece that is new, whose reference
+  // changed (moved/grew/shrunk), or that no longer exists gets touched.
+  // This must keep every invariant the rest of the file depends on:
+  // exactly one mesh (userData.kind "piece") and one shell (userData.kind
+  // "shell") per live piece id, both live children of t.pieceGroup once
+  // this effect finishes, since animateStep (userData.pieceId lookups),
+  // hit-testing (userData.kind === "piece") and hover/selection all read
+  // pieceGroup's children directly rather than through this cache.
   useEffect(() => {
     const t = three.current;
     if (!t.pieceGroup) return;
     if (anim.current) return; // mid-animation the moving mesh is live
 
     const group = t.pieceGroup;
-    while (group.children.length) {
-      const c = group.children.pop();
-      c.geometry && c.geometry.dispose();
-      c.material && c.material.dispose();
-    }
+    const cache = pieceMeshCacheRef.current;
+    const seen = new Set();
+
+    const disposeEntry = (entry) => {
+      group.remove(entry.mesh, entry.shell);
+      entry.mesh.geometry.dispose();
+      entry.mesh.material.dispose();
+      entry.shell.geometry.dispose();
+      entry.shell.material.dispose();
+    };
 
     pieces.forEach((p) => {
+      seen.add(p.id);
+      const cached = cache.get(p.id);
+      if (cached && cached.pieceRef === p) return; // untouched since last render
+
+      if (cached) disposeEntry(cached);
+
       const meta = PIECE_META[p.type];
       const isDark = p.owner === "dark";
       const isDisc = meta.shape === "disc";
@@ -1955,6 +1985,17 @@ export default function ElCabeza3D({ theme }) {
       const { mesh, shell } = theme.buildPieceVisual({ piece: p, isDark, isDisc, geo, center, y });
       group.add(mesh);
       group.add(shell);
+      cache.set(p.id, { pieceRef: p, mesh, shell });
+    });
+
+    // Anything left in the cache but not in `pieces` was captured,
+    // resurrected away, or otherwise removed from play — dispose it so
+    // it doesn't leak, and drop it from the cache.
+    cache.forEach((entry, id) => {
+      if (!seen.has(id)) {
+        disposeEntry(entry);
+        cache.delete(id);
+      }
     });
   }, [pieces]);
 
