@@ -5478,8 +5478,9 @@ export function createSoundscape() {
        Info events) but boosted on close to actually read as audible,
        same reasoning as everywhere else in this file that pairs a
        subtle forward cue with a boosted reverse. */
-    playDockOpen: () => { ensureGraph(); cue(60, 32, 0.24, "sawtooth", 0.025); },
-    playDockClose: () => { ensureGraph(); reverseCue(60, 32, 0.3, "sawtooth", 0.05); },
+    // Both cut 42% per feedback (0.025 -> 0.0145, 0.05 -> 0.029).
+    playDockOpen: () => { ensureGraph(); cue(60, 32, 0.24, "sawtooth", 0.0145); },
+    playDockClose: () => { ensureGraph(); reverseCue(60, 32, 0.3, "sawtooth", 0.029); },
     /* Anomaly button — a brief, high, rising square-wave blip: the
        squarewave's buzzy harmonics read as "electronic/scientific
        readout" rather than a musical chime, and the quick upward
