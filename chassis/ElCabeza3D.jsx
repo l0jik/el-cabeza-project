@@ -4153,8 +4153,13 @@ export default function ElCabeza3D({ theme }) {
           // full gameplay/post-game width, which exists for the wider
           // status bar and Move Log content those states actually
           // have. Shared chassis markup, so this narrows it identically
-          // for every theme.
-          width: awaitingBegin ? "min(480px, 92vw)" : "min(880px, 96vw)",
+          // for every theme. Widened specifically once an AI opponent
+          // is picked (aiPlayer set): Opponent and Difficulty must sit
+          // on one indivisible line together (see that row's own
+          // comment), which needs more room than the Human-only 480px
+          // cap gives it — without this, Difficulty's own buttons ran
+          // off the right edge of the panel.
+          width: awaitingBegin ? (aiPlayer ? "min(600px, 94vw)" : "min(480px, 92vw)") : "min(880px, 96vw)",
           /* Pre-game only: shrunk by roughly the row (button + its
              marginTop/paddingTop/border) that Begin Game and Neon's
              Anomaly used to occupy on their own line below the Opponent
@@ -4435,23 +4440,20 @@ export default function ElCabeza3D({ theme }) {
         <div
           style={{
             display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            // Left-aligned, not centered — per feedback, Opponent
-            // should pack toward the left to leave room for Difficulty
-            // beside it rather than centering both groups and wrapping
-            // sooner than the row's real width would otherwise allow.
-            justifyContent: "flex-start",
+            flexDirection: "column",
+            alignItems: "flex-start",
             gap: 8,
             marginTop: 10,
             flexShrink: 0,
           }}
         >
-          {/* Opponent group — its own non-wrapping unit, so it never
-             splits internally; only the boundary between this group
-             and Difficulty below is a valid wrap point on a narrow
-             panel. */}
-          <span style={{ display: "flex", alignItems: "center", flexWrap: "nowrap", gap: 8 }}>
+          {/* Opponent + (once picked) Difficulty on ONE indivisible
+             line — per feedback, the word DIFFICULTY and the AI
+             selections must sit next to each other, full stop, not
+             merely on the same panel. overflowX:auto is the fallback
+             on a viewport too narrow to fit all of it rather than ever
+             breaking the group apart. */}
+          <div style={{ display: "flex", flexWrap: "nowrap", alignItems: "center", gap: 8, maxWidth: "100%", overflowX: "auto" }}>
           <span
             style={{
               fontFamily: "'IBM Plex Mono', monospace",
@@ -4460,6 +4462,7 @@ export default function ElCabeza3D({ theme }) {
               textTransform: "uppercase",
               color: COLORS.slate,
               marginRight: 2,
+              flexShrink: 0,
             }}
           >
             Opponent
@@ -4476,6 +4479,7 @@ export default function ElCabeza3D({ theme }) {
                  option can't fade along with the ones it isn't. */
               opacity: aiPlayer === null ? 1 : 0.35,
               cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
+              flexShrink: 0,
             }}
           >
             Human
@@ -4503,21 +4507,16 @@ export default function ElCabeza3D({ theme }) {
                      click would currently do anything. */
                   opacity: isActive ? 1 : 0.35,
                   cursor: locked ? "default" : "pointer",
+                  flexShrink: 0,
                 }}
               >
                 {opt.label}
               </button>
             );
           })}
-          </span>
 
           {aiPlayer && (
-            // Difficulty group — per feedback, EASY/MEDIUM/HARD must
-            // always stay on the same line as each other and their own
-            // label. flexWrap:"nowrap" makes this whole span one
-            // indivisible unit: the parent row can still wrap BEFORE
-            // it (dropping it to its own line), but never splits it.
-            <span style={{ display: "flex", alignItems: "center", flexWrap: "nowrap", gap: 8 }}>
+            <>
               <span
                 style={{
                   fontFamily: "'IBM Plex Mono', monospace",
@@ -4526,6 +4525,7 @@ export default function ElCabeza3D({ theme }) {
                   textTransform: "uppercase",
                   color: COLORS.slate,
                   margin: "0 2px 0 6px",
+                  flexShrink: 0,
                 }}
               >
                 Difficulty
@@ -4540,20 +4540,21 @@ export default function ElCabeza3D({ theme }) {
                     ...toggleButtonStyle(aiDifficulty === key),
                     opacity: busy || aiThinking || turnLocked ? 0.5 : 1,
                     cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
+                    flexShrink: 0,
                   }}
                 >
                   {cfg.label}
                 </button>
               ))}
-            </span>
+            </>
           )}
-          {/* Begin Game (and, for a theme with setup extras of its own —
-              Neon's Anomaly button — that whole extras row) moves up into
-              this Opponent row rather than sitting in its own bordered
-              row below, per feedback that the setup screen's bottom row
-              was pure dead weight once Opponent selection was the only
-              other thing on it. See the popup's own maxHeight below for
-              the matching height reduction this frees up. */}
+          </div>
+
+          {/* Begin Game (and, for a theme with setup extras of its own
+              — Neon's Anomaly button — that whole extras row) on its
+              own line below Opponent/Difficulty, rather than crowding
+              the same line — classier, and reads as "commit" only once
+              the opponent configuration above it is settled. */}
           {awaitingBegin &&
             (() => {
               const beginGameButton = (
@@ -4578,7 +4579,7 @@ export default function ElCabeza3D({ theme }) {
                 </button>
               );
               const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras });
-              return extras || <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>{beginGameButton}</div>;
+              return extras || <div style={{ display: "flex", gap: 8, flexShrink: 0, width: "100%" }}>{beginGameButton}</div>;
             })()}
         </div>
         )}
