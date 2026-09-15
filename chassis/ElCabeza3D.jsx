@@ -3216,7 +3216,15 @@ export default function ElCabeza3D({ theme }) {
     const FIT_FRACTION = 0.82;
     const availW = size.w * FIT_FRACTION;
     const availH = size.h * FIT_FRACTION;
-    const target = { x: 0, y: 0, z: 0 };
+    // Must be a real THREE.Vector3, not a plain {x,y,z} object: camera
+    // .lookAt() checks target.isVector3 and silently corrupts its own
+    // matrix with NaN (via Vector3.set(target, undefined, undefined))
+    // when that check fails, which is what made every measure() call
+    // below return {width: -Infinity, height: -Infinity} — read by the
+    // bisection as "always fits," collapsing the result straight to
+    // ZOOM_MIN regardless of the box's real size. That was the actual
+    // cause of both views reading as far too zoomed in.
+    const target = new THREE.Vector3(0, 0, 0);
 
     let lo = ZOOM_MIN, hi = ZOOM_MAX;
     for (let i = 0; i < 24; i++) {
