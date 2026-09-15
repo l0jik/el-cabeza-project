@@ -526,7 +526,7 @@ export function createAudio() {
    (fxItems, pulseSquare, etc.) is visible to the chassis's own
    animateStep through that same object. */
 export function mountAmbientEffects(refs, helpers) {
-  const { titleRef, titleWrapRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef } = refs;
+  const { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef } = refs;
   const { three, windingDownRef, audio } = helpers;
   const t = three.current;
 
@@ -1215,9 +1215,10 @@ export function mountAmbientEffects(refs, helpers) {
     let b = a;
     while (b === a) b = cornerPts[Math.floor(Math.random() * cornerPts.length)];
 
-    // Slowed a further 40% per feedback (was 3200-4200ms / 270ms step).
-    const duration = (3200 + Math.random() * 1000) * 1.4;
-    const STEP_MS = 270 * 1.4;
+    // Slowed a further 40%, then another 30% per feedback (was
+    // 3200-4200ms / 270ms step, before either multiplier).
+    const duration = (3200 + Math.random() * 1000) * 1.4 * 1.3;
+    const STEP_MS = 270 * 1.4 * 1.3;
     const GEN_LIFE_MS = STEP_MS * 2.4; // consecutive generations overlap, so the mass never visibly gaps
     const steps = Math.max(3, Math.round(duration / STEP_MS));
 
@@ -1250,10 +1251,11 @@ export function mountAmbientEffects(refs, helpers) {
   function fireCrawl() {
     if (windingDownRef.current) return; // stop spawning new ones once a win fires
     spawnCrawlWave();
-    // Widened further per feedback (was 35000-100000ms) to make the
-    // crawling mass cross the board less often still — only how often
-    // a new crossing starts, not the crossing itself.
-    crawlTimer = setTimeout(fireCrawl, 55000 + Math.random() * 95000);
+    // Widened to 4x per feedback ("happen only 25% as it currently
+    // does") — was 55000-150000ms — to make the crawling mass cross
+    // the board far less often still; only how often a new crossing
+    // starts, not the crossing itself.
+    crawlTimer = setTimeout(fireCrawl, 220000 + Math.random() * 380000);
   }
   /* theme: a rare, large-scale directional brightness wave that
      sweeps across most of the board's surface — a much bigger,
@@ -1857,7 +1859,11 @@ export function mountAmbientEffects(refs, helpers) {
   const JITTER_CLASSES = ["ec-jitter-tear", "ec-jitter-tear-b"];
   const fireJitter = () => {
     if (windingDownRef.current) return;
-    const candidates = [titleWrapRef.current, turnLabelRef.current];
+    // titleFxRef, not titleWrapRef — see its own comment in the
+    // chassis: a transform-animating class on titleWrapRef itself
+    // would blow away its React-controlled position/scale transform
+    // for the animation's duration.
+    const candidates = [titleFxRef.current, turnLabelRef.current];
     const buttons = [...document.querySelectorAll(".ec-btn")].filter(isVisibleForGlitch);
     if (buttons.length) candidates.push(buttons[Math.floor(Math.random() * buttons.length)]);
     const pool = candidates.filter(Boolean);
@@ -1878,7 +1884,7 @@ export function mountAmbientEffects(refs, helpers) {
      JITTER_CLASSES/keyframes, just fired on its own, tighter cadence. */
   const fireMastheadJitter = () => {
     if (windingDownRef.current) return;
-    const el = titleWrapRef.current;
+    const el = titleFxRef.current; // see titleFxRef's own comment in the chassis
     if (el) {
       JITTER_CLASSES.forEach((c) => el.classList.remove(c));
       void el.offsetWidth;
@@ -1914,7 +1920,7 @@ export function mountAmbientEffects(refs, helpers) {
      distinct kind of malfunction rather than more of the same. */
   const fireVerticalHold = () => {
     if (windingDownRef.current) return;
-    const el = titleWrapRef.current;
+    const el = titleFxRef.current; // see titleFxRef's own comment in the chassis
     if (el) {
       el.classList.remove("ec-vertical-hold");
       void el.offsetWidth;
@@ -1952,9 +1958,8 @@ export function mountAmbientEffects(refs, helpers) {
         crtAberrationTimer = setTimeout(fireCrtAberration, 45000 + Math.random() * 60000);
       }
       arcTimer = setTimeout(fireArc, 8333 + Math.random() * 11667);
-      // 2.5x the old 8000-20000ms window (== the old rate * 0.4) — see
-      // fireCrawl's own reschedule above for the full reasoning.
-      crawlTimer = setTimeout(fireCrawl, 20000 + Math.random() * 30000);
+      // Widened 4x, same as fireCrawl's own reschedule above.
+      crawlTimer = setTimeout(fireCrawl, 80000 + Math.random() * 120000);
       floorWaveTimer = setTimeout(fireFloorWave, 40000 + Math.random() * 50000);
       if (DIGITAL_GLITCH_ENABLED) {
         digitalGlitchTimer = setTimeout(fireDigitalGlitch, 30000 + Math.random() * 40000);
@@ -1977,8 +1982,8 @@ export function mountAmbientEffects(refs, helpers) {
         verticalHoldTimer = setTimeout(fireVerticalHold, 18000 + Math.random() * 22000);
       }
       arcTimer = setTimeout(fireArc, 8333 + Math.random() * 11667);
-      // Same 2.5x widening as armOnBegin above.
-      crawlTimer = setTimeout(fireCrawl, 20000 + Math.random() * 30000);
+      // Same 4x widening as armOnBegin above.
+      crawlTimer = setTimeout(fireCrawl, 80000 + Math.random() * 120000);
       floorWaveTimer = setTimeout(fireFloorWave, 40000 + Math.random() * 50000);
       if (DIGITAL_GLITCH_ENABLED) {
         digitalGlitchTimer = setTimeout(fireDigitalGlitch, 30000 + Math.random() * 40000);
@@ -2684,10 +2689,12 @@ export const styleSheet = `
 
         /* theme: vertical hold instability — the whole masthead briefly
            rolls/jumps the way an old CRT does when it loses vertical
-           sync, then snaps back. Applied to titleWrapRef (the row, not
-           the text itself) so it carries the sparks/hold-zone along
-           with it rather than just the glyphs. steps(1, end) again for
-           a hard, digital snap between positions rather than a smooth
+           sync, then snaps back. Applied to titleFxRef (the h1/Info
+           button, not titleWrapRef itself — see titleFxRef's own
+           comment in the chassis for why) so it carries the whole row
+           along with it rather than just the glyphs. steps(1, end)
+           again for a hard, digital snap between positions rather
+           than a smooth
            roll. */
         @keyframes ec-vertical-hold {
           0%   { transform: translateY(0) scaleY(1); }
@@ -4742,23 +4749,42 @@ export function createSoundscape() {
   function resetWindDown(restoreVolume) {
     if (!windingDown) return;
     windingDown = false;
-    // Two different callers need two different outcomes here. A fresh
-    // game started via the end-game popup's NEW GAME button must stay
-    // silent exactly like a fresh page load, right up until Begin Game
-    // is clicked again — so by default this does NOT restore master's
-    // level, just pins it at its current (silent, or silent-bound)
-    // value so any in-flight fade-out ramp doesn't keep coasting toward
-    // 0 forever. But undoing a game-ending move (see handleUndoLastTurn)
-    // drops the player straight back into active play with no "Begin
-    // Game" gate to bring the volume back up through — per feedback
-    // ("I'm still playing... I want the sound to be back"), that caller
-    // passes restoreVolume: true to bring master back up here directly,
-    // via a brief ramp rather than an instant jump.
+    // Three different callers need three different outcomes here.
+    // Undoing a game-ending move (see handleUndoLastTurn) drops the
+    // player straight back into active play with no "Begin Game" gate
+    // to bring the volume back up through — per feedback ("I'm still
+    // playing... I want the sound to be back"), that caller passes
+    // restoreVolume: true to bring master all the way back up here
+    // directly, via a brief ramp.
+    //
+    // A fresh game started via the end-game popup's NEW GAME button
+    // (see the chassis's handleReset) is different again: the AMBIENT
+    // bed must stay silent right up until Begin Game is clicked again,
+    // same as a genuinely fresh page load — but one-off UI cues (dock
+    // open/close etc.) route straight to master too, and a truly fresh
+    // page load already has those working on its very first setup
+    // screen (master starts at full gain the moment ensureGraph()
+    // first runs, long before any beginFadeOut could have touched it).
+    // Leaving master pinned at 0 here to keep the ambient bed quiet
+    // silenced those UI cues right along with it — a regression per
+    // feedback ("button audio cues no longer happen"). restoreVolume:
+    // "sfxOnly" restores master immediately (an ordinary UI click's own
+    // gain, not an ambient swell — no ramp) while explicitly resetting
+    // introGain to 0, so the ambient bed genuinely stays silent until
+    // the next beginGameFadeIn() ramps it back in, matching a fresh
+    // load's behavior exactly rather than approximating it by muting
+    // everything.
     if (master && ctx) {
       master.gain.cancelScheduledValues(ctx.currentTime);
       master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
-      if (restoreVolume) {
+      if (restoreVolume === true) {
         master.gain.linearRampToValueAtTime(muted ? 0 : MASTER_GAIN, ctx.currentTime + 0.6);
+      } else if (restoreVolume === "sfxOnly") {
+        master.gain.setValueAtTime(muted ? 0 : MASTER_GAIN, ctx.currentTime);
+        if (introGain) {
+          introGain.gain.cancelScheduledValues(ctx.currentTime);
+          introGain.gain.setValueAtTime(0, ctx.currentTime);
+        }
       }
     }
     if (!disposed) {

@@ -298,6 +298,19 @@ export default function ElCabeza3D({ theme }) {
      nodes the chassis itself renders. */
   const titleRef = useRef(null);
   const titleWrapRef = useRef(null);
+  // Inner sibling of titleWrapRef, holding just the h1/Info button —
+  // themes' glitch effects (jitter, vertical-hold) that animate a CSS
+  // `transform` on the masthead target THIS ref, not titleWrapRef.
+  // titleWrapRef's own transform is React-controlled (its position/
+  // scale for the setup vs. relocated-corner-badge states) and a CSS
+  // animation on the SAME property completely overrides an inline
+  // style for the animated element — so a jitter used to blow away
+  // the corner badge's scale(0.3) for its own duration, snapping the
+  // whole badge to full size and back and moving its actual clickable
+  // area out from under the cursor. Splitting position and effects
+  // across parent/child lets both transforms compose normally instead
+  // of fighting over one property on one element.
+  const titleFxRef = useRef(null);
   const turnHaloRef = useRef(null);
   const turnLabelRef = useRef(null);
   const cardRef = useRef(null);
@@ -875,6 +888,17 @@ export default function ElCabeza3D({ theme }) {
       const gapHeight = gapBottom - gapTop;
       if (gapHeight < 40) return;
       const { theta, phi, target } = cam.current;
+      // Fresh y=0, not the live target straight from cam.current: a
+      // previous run of THIS SAME effect may have left target.y at a
+      // nonzero vertical-centering offset (see below), and re-using
+      // that stale offset as the radius search's own camera position
+      // corrupts the measured span — on a fresh game's second
+      // recompute (the 950ms settle pass), this collapsed the fit
+      // straight to ZOOM_MIN, reading as the board suddenly zooming
+      // in far too close right after New Game. The radius search
+      // always wants a clean, uncentered baseline; only the dedicated
+      // centering pass below should ever touch target.y.
+      const radiusTarget = new THREE.Vector3(target.x, 0, target.z);
       let lo = ZOOM_MIN;
       let hi = ZOOM_MAX;
       // A larger radius always reads as a smaller (or equal) on-screen
@@ -882,7 +906,7 @@ export default function ElCabeza3D({ theme }) {
       // radius whose span still fits, rather than the other direction.
       for (let i = 0; i < 24; i++) {
         const mid = (lo + hi) / 2;
-        const m = measure(mid, phi, theta, target);
+        const m = measure(mid, phi, theta, radiusTarget);
         if (!m) return;
         if (m.span > gapHeight) lo = mid;
         else hi = mid;
@@ -1471,7 +1495,7 @@ export default function ElCabeza3D({ theme }) {
        meshes for an arc effect) without the chassis needing to know
        what any given theme's effects actually do. */
     ambientRef.current = theme.mountAmbientEffects(
-      { titleRef, titleWrapRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef },
+      { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef },
       { three, windingDownRef, audio: audioRef.current }
     );
 
@@ -3577,9 +3601,13 @@ export default function ElCabeza3D({ theme }) {
     // Undo a previous win's audio/visual wind-down, if any, so a new
     // game gets the ambient effects back rather than staying
     // permanently silent and static for the rest of the session.
+    // "sfxOnly" restores one-off UI cues (dock open/close etc.)
+    // immediately on the new setup screen, matching a fresh page load,
+    // while keeping the ambient bed itself silent until Begin Game is
+    // pressed again — see resetWindDown's own comment.
     if (windingDownRef.current) {
       windingDownRef.current = false;
-      audioRef.current.resetWindDown();
+      audioRef.current.resetWindDown("sfxOnly");
       ambientRef.current && ambientRef.current.restart();
     }
     /* If a roll or slide is mid-flight, force it to a clean stop before
@@ -3631,7 +3659,20 @@ export default function ElCabeza3D({ theme }) {
     setAiPlayer(null); // New Game always starts back at Human vs Human
     setGameArmed(false); // every fresh game — Human included — now waits on Begin Game
     resetTransitionUntilRef.current = performance.now() + RESET_TRANSITION_MS;
-    topDownView(humanStartSide); // same camera reset as Top-Down View, but eased slower and facing the side about to actually move first
+    // Faces the side about to move first, at the SAME oblique pitch
+    // the setup screen always starts at (cam's own initial phi:0.86)
+    // — NOT topDownView's near-vertical 0.012. This now goes back to
+    // awaitingBegin's own pre-game framing effect (see it below,
+    // watching [awaitingBegin]) to fit the radius/vertical centering
+    // once the DOM has settled, the exact same path the very first
+    // page load takes. Using topDownView here left phi at 0.012, which
+    // that effect's bisection then (mis)used as if it were the normal
+    // setup pitch, computing the fit for entirely the wrong camera
+    // angle — this is what read as the board suddenly zooming in far
+    // too close right after New Game.
+    cam.current.theta = humanStartSide === "dark" ? Math.PI : 0;
+    cam.current.phi = 0.86;
+    snapToCenter();
   }
 
   /* Plain-text export of the move log, for copying out of the game
@@ -3943,6 +3984,13 @@ export default function ElCabeza3D({ theme }) {
               }
         }
       >
+        {/* Plain (unpositioned) inner wrapper — see titleFxRef's own
+           comment above for why the glitch effects animate THIS
+           element's transform, not titleWrapRef's. The Info button's
+           position:absolute still resolves against titleWrapRef (the
+           nearest positioned ancestor), skipping straight past this
+           div, so nothing about its placement changes. */}
+        <div ref={titleFxRef}>
         {/* Hidden trigger: only a tight box around the glyphs themselves
             is clickable — deliberately no cursor/hover change, so
             there's no visual hint this does anything. The h1 itself is
@@ -4009,7 +4057,55 @@ export default function ElCabeza3D({ theme }) {
         >
           Info
         </button>
+        </div>
       </div>
+
+      {/* Exit Full Screen — per feedback, replaced the text button
+         (which used to sit inline in the dock/declutter column) with a
+         small, permanently ghosted icon fixed to the bottom-left
+         corner, out of the way of everything else, for players who
+         need a click-based escape from full screen but can't or don't
+         want to use the two-finger double-tap gesture (see
+         TWO_FINGER_DOUBLE_TAP_MS above). Only ever rendered while
+         actually in full screen — entering still goes through the
+         ordinary "Full Screen" button, unaffected. The two diagonal
+         corner-arrows pointing inward toward each other are the
+         standard "exit full screen / restore" glyph. Same opacity/
+         transform transition timing as the masthead's own fade above,
+         so it settles in rather than popping. */}
+      {isFullscreen && (
+        <button
+          onClick={toggleFullscreen}
+          aria-label="Exit full screen"
+          title="Exit full screen"
+          style={{
+            position: "fixed",
+            left: 18,
+            bottom: 18,
+            zIndex: 12,
+            width: 38,
+            height: 38,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "transparent",
+            border: "none",
+            color: COLORS.slate,
+            opacity: 0.35,
+            cursor: "pointer",
+            transition: "opacity 1.1s ease, transform 1.1s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.8; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = 0.35; }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 14 10 14 10 20" />
+            <polyline points="20 10 14 10 14 4" />
+            <line x1="14" y1="10" x2="21" y2="3" />
+            <line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        </button>
+      )}
 
       {/* Dock piece — an idle, physically-interactive 3D preview of the
          player's own Cabeza (see the effects above), standing in for
@@ -4241,16 +4337,18 @@ export default function ElCabeza3D({ theme }) {
             )}
             {/* While actively playing, Full Screen relocates under End
                Active Game instead (see the declutter column below) —
-               shown here in every other state (pre-game, post-game). */}
-            {!declutter && (document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
+               shown here in every other state (pre-game, post-game).
+               Only rendered when NOT already full screen — the exit
+               affordance is the floating corner icon above instead. */}
+            {!declutter && !isFullscreen && (document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
               <button
                 className="ec-btn"
                 onClick={toggleFullscreen}
                 style={ghostButtonStyle()}
-                aria-label={isFullscreen ? "Exit full screen" : "Enter full screen"}
-                title={isFullscreen ? "Exit full screen" : "Enter full screen"}
+                aria-label="Enter full screen"
+                title="Enter full screen"
               >
-                {isFullscreen ? "Exit Full Screen" : "Full Screen"}
+                Full Screen
               </button>
             )}
           </div>
@@ -4292,15 +4390,18 @@ export default function ElCabeza3D({ theme }) {
                 >
                   End Active Game
                 </button>
-                {(document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
+                {/* Only rendered when NOT already full screen — the
+                   exit affordance is the floating corner icon instead
+                   (see near the masthead above). */}
+                {!isFullscreen && (document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
                   <button
                     className="ec-btn"
                     onClick={toggleFullscreen}
                     style={ghostButtonStyle()}
-                    aria-label={isFullscreen ? "Exit full screen" : "Enter full screen"}
-                    title={isFullscreen ? "Exit full screen" : "Enter full screen"}
+                    aria-label="Enter full screen"
+                    title="Enter full screen"
                   >
-                    {isFullscreen ? "Exit Full Screen" : "Full Screen"}
+                    Full Screen
                   </button>
                 )}
               </div>
