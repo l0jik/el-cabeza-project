@@ -159,7 +159,15 @@ export const TransitionStyles = () => (
        own accent), the other toward the complementary phosphor green
        real P1-phosphor CRTs actually used, each blurred and offset in
        an opposite direction so the two visibly separate rather than
-       just doubling up as one blob. */
+       just doubling up as one blob.
+
+       Offset/blur/opacity and the ghosts' own pulse peak (well past
+       the real word's 1.012) are all pushed considerably further than
+       a "physically accurate" faint persistence would call for — per
+       feedback the first pass ("not obvious at all... I see no change
+       there") wasn't visible at a glance, and a trail that has to be
+       studied to notice isn't doing its job as a piece of visible
+       styling. This should read immediately, even in a single frame. */
     .ec-modal-ghost-layer {
       position: absolute;
       inset: 0;
@@ -172,30 +180,32 @@ export const TransitionStyles = () => (
        (not set as a separate static transform) — a running CSS
        animation replaces the whole transform value on every tick, so a
        static transform declared alongside an animation would just be
-       silently discarded once the animation starts. Same scale curve
-       as ec-hold-modal-alive, just carrying its own translate through
-       every step. */
+       silently discarded once the animation starts. Unlike the real
+       word, these swing all the way up to a visibly larger scale at
+       their own peak — the ghost should look like it's blooming
+       outward past the real word's own edges, not just breathing in
+       lockstep with it. */
     @keyframes ec-modal-ghost-a {
-      0%, 100% { transform: translate(-2.5px, 0.5px) scale(1); }
-      50%      { transform: translate(-2.5px, 0.5px) scale(1.012); }
+      0%, 100% { transform: translate(-9px, 3px) scale(1); }
+      50%      { transform: translate(-9px, 3px) scale(1.14); }
     }
     @keyframes ec-modal-ghost-b {
-      0%, 100% { transform: translate(2.5px, -0.5px) scale(1); }
-      50%      { transform: translate(2.5px, -0.5px) scale(1.012); }
+      0%, 100% { transform: translate(9px, -4px) scale(1); }
+      50%      { transform: translate(9px, -4px) scale(1.14); }
     }
     .ec-modal-ghost-layer--a {
       color: #4de8ff;
-      opacity: 0.32;
-      filter: blur(3px);
+      opacity: 0.65;
+      filter: blur(6px);
       animation: ec-modal-ghost-a 1.9s ease-in-out infinite;
-      animation-delay: -0.55s;
+      animation-delay: -0.4s;
     }
     .ec-modal-ghost-layer--b {
       color: #39ff8a;
-      opacity: 0.22;
-      filter: blur(4px);
+      opacity: 0.5;
+      filter: blur(8px);
       animation: ec-modal-ghost-b 1.9s ease-in-out infinite;
-      animation-delay: -1.1s;
+      animation-delay: -1.0s;
     }
     @media (prefers-reduced-motion: reduce) {
       .ec-modal-ghost-layer { display: none; }
@@ -869,7 +879,20 @@ export function createSwitcherSfx() {
      instant CONNECT/DISCONNECT appears; stopJibber(false) is the
      gentler release for letting go early. */
   let jibberOsc1 = null, jibberOsc2 = null, jibberGain = null, jibberFilter = null;
+  // Per-oscillator gains, added after feedback that the "gibbering
+  // beeps" (jibberOsc2, sawtooth) were going unheard on at least one
+  // real mobile device while the hum (jibberOsc1, square) came through
+  // fine, even though both share one filter and were always started/
+  // stopped together — nothing in the scheduling singles one out, so
+  // the likely culprit is that a small phone speaker's frequency
+  // response and ambient noise floor simply favor the hum's steadier
+  // fundamental over the sawtooth's business. Giving each its own gain
+  // (BEEP_RELATIVE_GAIN measurably louder) makes the beeps assert
+  // themselves independently of whatever else is fighting for
+  // attention, rather than trusting relative perceptual loudness.
+  let jibberGainHum = null, jibberGainBeep = null;
   let jibberInterval = null, jibberIntensity = 0;
+  const BEEP_RELATIVE_GAIN = 1.6;
 
   const randomizeJibber = (c) => {
     if (!jibberOsc1 || !jibberOsc2 || !jibberFilter) return;
@@ -904,13 +927,21 @@ export function createSwitcherSfx() {
     jibberOsc1.type = "square";
     jibberOsc2 = c.createOscillator();
     jibberOsc2.type = "sawtooth";
+    // Independent per-oscillator gain BEFORE the shared filter, so the
+    // hum/beep balance is a deliberate mix rather than whatever the
+    // filter and destination happen to leave it at — see
+    // BEEP_RELATIVE_GAIN's own comment above.
+    jibberGainHum = c.createGain();
+    jibberGainHum.gain.value = 1;
+    jibberGainBeep = c.createGain();
+    jibberGainBeep.gain.value = BEEP_RELATIVE_GAIN;
     jibberFilter = c.createBiquadFilter();
     jibberFilter.type = "bandpass";
     jibberFilter.Q.value = 3;
     jibberGain = c.createGain();
     jibberGain.gain.value = 1e-4;
-    jibberOsc1.connect(jibberFilter);
-    jibberOsc2.connect(jibberFilter);
+    jibberOsc1.connect(jibberGainHum).connect(jibberFilter);
+    jibberOsc2.connect(jibberGainBeep).connect(jibberFilter);
     jibberFilter.connect(jibberGain).connect(c.destination);
     jibberIntensity = 0;
     jibberOsc1.start();
@@ -923,9 +954,18 @@ export function createSwitcherSfx() {
     jibberIntensity = intensity;
     if (!jibberGain || !ctx) return;
     const now = ctx.currentTime;
+    // Curved rather than linear — per feedback ("crescendoing before
+    // the button pops up"), the buildup should stay relatively
+    // restrained through the middle of the hold and then surge
+    // disproportionately in its final stretch, reading as a climax
+    // arriving right as CONNECT/DISCONNECT appears, not a flat ramp
+    // that happens to stop. Ceiling also raised (0.17 -> 0.30 range)
+    // so the whole texture sits at a level where dropping either layer
+    // is far less likely to go unnoticed on a quieter device.
+    const curved = Math.pow(Math.max(0, intensity), 1.6);
     jibberGain.gain.cancelScheduledValues(now);
     jibberGain.gain.setValueAtTime(Math.max(jibberGain.gain.value, 1e-4), now);
-    jibberGain.gain.linearRampToValueAtTime(Math.max(1e-4, 0.015 + intensity * 0.17), now + 0.06);
+    jibberGain.gain.linearRampToValueAtTime(Math.max(1e-4, 0.02 + curved * 0.3), now + 0.06);
     rescheduleJibberInterval(ctx);
   };
 
@@ -935,7 +975,7 @@ export function createSwitcherSfx() {
       jibberInterval = null;
     }
     if (!jibberGain || !ctx) {
-      jibberOsc1 = jibberOsc2 = jibberGain = jibberFilter = null;
+      jibberOsc1 = jibberOsc2 = jibberGain = jibberFilter = jibberGainHum = jibberGainBeep = null;
       return;
     }
     const now = ctx.currentTime;
@@ -945,7 +985,7 @@ export function createSwitcherSfx() {
     jibberGain.gain.exponentialRampToValueAtTime(1e-4, now + fadeDur);
     const osc1 = jibberOsc1, osc2 = jibberOsc2;
     setTimeout(() => { try { osc1.stop(); osc2.stop(); } catch (e) {} }, (fadeDur + 0.05) * 1000);
-    jibberOsc1 = jibberOsc2 = jibberGain = jibberFilter = null;
+    jibberOsc1 = jibberOsc2 = jibberGain = jibberFilter = jibberGainHum = jibberGainBeep = null;
   };
 
   return {

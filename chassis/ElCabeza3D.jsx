@@ -4350,8 +4350,14 @@ export default function ElCabeza3D({ theme }) {
               flexShrink: 0,
               /* Reserved width: these buttons appear and disappear mid-turn,
                  and without a fixed slot their arrival resizes the card and
-                 shifts the canvas. */
-              minWidth: 186,
+                 shifts the canvas. Zero pre-game specifically — none of
+                 Stop here/Undo move/Undo turn can ever render while
+                 awaitingBegin (all three require a game already under
+                 way or turn history to exist), so reserving 186px then
+                 was pure dead space squeezing the turn-status text on
+                 the left into truncating ("DARK TO MOVE" clipped to
+                 "DAR…") on a narrow phone — confirmed via screenshot. */
+              minWidth: awaitingBegin ? 0 : 186,
               justifyContent: "flex-end",
             }}
           >
