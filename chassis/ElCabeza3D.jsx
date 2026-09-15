@@ -341,6 +341,14 @@ export default function ElCabeza3D({ theme }) {
      straight back to "piece" and re-rolls which piece/color represents
      the new session (see the dockSessionSeed effect below). */
   const [dockView, setDockView] = useState("piece"); // "piece" | "panel" | "corner"
+  // Always-fresh reference to dockView, reassigned every render (same
+  // pattern as commitRef/beginMoveRef) — read by the dock preview's own
+  // mount-once render loop below to skip rendering while "panel" makes
+  // that canvas fully invisible (opacity 0, see its own style below)
+  // rather than adding dockView to that effect's deps, which would tear
+  // down and rebuild the whole mini scene on every dock open/close.
+  const dockViewRef = useRef(dockView);
+  dockViewRef.current = dockView;
   const dockPieceMountRef = useRef(null);
   const dockPieceRef = useRef(null); // { scene, camera, renderer, pieceGroup, spin, velocity, dragging, bouncing }
   const dockDragRef = useRef({ dragging: false, lastX: 0, lastY: 0, lastT: 0 });
@@ -674,6 +682,19 @@ export default function ElCabeza3D({ theme }) {
     let raf;
     let last = performance.now();
     function tick(now) {
+      raf = requestAnimationFrame(tick);
+      // While the settings panel is open, this canvas sits at opacity 0
+      // behind it (see its own style below) — fully invisible, but
+      // still a real WebGL render every frame if left running, on top
+      // of the main board's own full render loop happening at the same
+      // time. Skipping both the physics step and the render call here
+      // costs nothing visible (nobody can see it) and resumes cleanly:
+      // dt is already clamped below, so however long "panel" was open
+      // just becomes one ordinary clamped step once it closes.
+      if (dockViewRef.current === "panel") {
+        last = now;
+        return;
+      }
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
       const t = now / 1000;
@@ -694,7 +715,6 @@ export default function ElCabeza3D({ theme }) {
       pieceGroup.rotation.y += state.velocity.y * dt;
       pieceGroup.rotation.z += state.velocity.z * dt;
       renderer.render(scene, camera);
-      raf = requestAnimationFrame(tick);
     }
     raf = requestAnimationFrame(tick);
 
@@ -1579,9 +1599,9 @@ export default function ElCabeza3D({ theme }) {
           // Absolute world Y (the board's real, fixed resting height and
           // the tallest piece above it) — NOT offset by target.y. The
           // board itself never moves; target.y is only ever the
-          // camera's own pan/aim offset (see fitRadiusToPieces/
-          // fitRadiusToBoard's sibling measureBoxPx, which already
-          // takes heights as absolute values for exactly this reason).
+          // camera's own pan/aim offset (see fitRadiusToBoard's sibling
+          // measureBoxPx, which already takes heights as absolute
+          // values for exactly this reason).
           // Adding target.y here used to translate the camera AND the
           // sampled points by the same amount, which cancels out in
           // the projection entirely — silently making target.y a
@@ -1600,16 +1620,14 @@ export default function ElCabeza3D({ theme }) {
     };
 
     /* General-purpose sibling to measureBoardPx above, for fitting the
-       camera to an arbitrary set of board-local (x,z) corners rather
-       than always the fixed SLAB footprint — used by Current Player
-       View to zoom to the current player's own pieces (see
-       fitRadiusToPieces) and by Top-Down View to zoom to the whole
-       board plate (see fitRadiusToBoard, which just passes the SLAB's
-       own corners through the same bisection). Returns BOTH the
-       horizontal and vertical on-screen span, since a near-top-down
-       view (Top-Down View's shallow phi) can be width-bound on a
-       narrow viewport just as easily as a perspective view can be
-       height-bound. */
+       camera to an arbitrary set of board-local (x,z) corners — used by
+       fitRadiusToBoard (the SLAB's own corners), which both Current
+       Player View and Top-Down View call to zoom to the whole board
+       plate at their own respective pitch and margin/overflow. Returns
+       BOTH the horizontal and vertical on-screen span, since a
+       near-top-down view (Top-Down View's shallow phi) can be
+       width-bound on a narrow viewport just as easily as a perspective
+       view can be height-bound. */
     three.current.measureBoxPx = function (radius, phi, theta, target, corners, heights) {
       const w = mount.clientWidth;
       const h = mount.clientHeight;
@@ -3336,8 +3354,8 @@ export default function ElCabeza3D({ theme }) {
     cam.current.view.target.set(0, 0, 0);
   }
 
-  /* Shared bisection core behind fitRadiusToPieces/fitRadiusToBoard
-     below: smallest radius, at the given heading/pitch, whose on-screen
+  /* Shared bisection core behind fitRadiusToBoard below: smallest
+     radius, at the given heading/pitch, whose on-screen
      projection of an arbitrary set of board-local (x,z) corners still
      fits inside most of the viewport. Same technique as the pre-game
      masthead/dock framing above (see measureBoxPx). Returns null when
@@ -3381,44 +3399,18 @@ export default function ElCabeza3D({ theme }) {
     return hi;
   }
 
-  /* Smallest radius fitting every piece belonging to `owner` (or every
-     piece on the board, if owner is omitted) — used by Current Player
-     View, which per feedback should frame only the CURRENT player's
-     own pieces, not the whole board or the opponent's side too.
-     Returns null when there's nothing to fit against (no matching
-     pieces, or the helpers aren't ready), same as fitRadiusToCorners. */
-  function fitRadiusToPieces(theta, phi, owner, fitFraction) {
-    const relevant = owner ? pieces.filter((p) => p.owner === owner) : pieces;
-    if (!relevant.length) return null;
-
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const p of relevant) {
-      minX = Math.min(minX, p.col * SQUARE_SIZE - OFF);
-      maxX = Math.max(maxX, (p.col + p.w) * SQUARE_SIZE - OFF);
-      minZ = Math.min(minZ, p.row * SQUARE_SIZE - OFF);
-      maxZ = Math.max(maxZ, (p.row + p.h) * SQUARE_SIZE - OFF);
-    }
-    // Padding so the outermost pieces don't sit flush against the
-    // frame edge, then the tallest piece's own height so a tall block
-    // right at the fitted edge doesn't poke out the top of the frame.
-    const PAD = SQUARE_SIZE * 0.6;
-    minX -= PAD; maxX += PAD; minZ -= PAD; maxZ += PAD;
-    const corners = [
-      [minX, minZ], [minX, maxZ], [maxX, minZ], [maxX, maxZ],
-    ];
-    return fitRadiusToCorners(theta, phi, corners, [0, 2 * PIECE_SCALE], fitFraction);
-  }
-
   /* Smallest radius fitting the WHOLE board plate (the fixed SLAB
-     footprint, same extent measureBoardPx uses) — Top-Down View should
-     always show the entire board per feedback, not just wherever
-     pieces happen to currently be clustered. */
-  function fitRadiusToBoard(theta, phi) {
+     footprint, same extent measureBoardPx uses) — both Top-Down View
+     and Current Player View frame the entire board, not just wherever
+     pieces happen to currently be clustered; they differ in pitch and
+     in how much margin/overflow fitFraction asks for (see their own
+     call sites). */
+  function fitRadiusToBoard(theta, phi, fitFraction) {
     const half = SLAB / 2;
     const corners = [
       [-half, -half], [-half, half], [half, -half], [half, half],
     ];
-    return fitRadiusToCorners(theta, phi, corners, [0, 2 * PIECE_SCALE]);
+    return fitRadiusToCorners(theta, phi, corners, [0, 2 * PIECE_SCALE], fitFraction);
   }
 
   function recenterView() {
@@ -3431,24 +3423,23 @@ export default function ElCabeza3D({ theme }) {
        centering (snapToCenter) is instant. */
     cam.current.theta = currentPlayer === "dark" ? Math.PI : 0;
     cam.current.phi = 0.86;
-    // Zooms to fit only the CURRENT player's own pieces (not the whole
-    // board, and not the opponent's side either — see fitRadiusToPieces)
-    // — shared chassis code, so this applies identically to every theme
-    // and device, not just one.
+    // Zooms to fit the WHOLE board plate — same subject as Top-Down
+    // View (see fitRadiusToBoard), just at this view's own tilted pitch
+    // instead of a near-vertical one — shared chassis code, so this
+    // applies identically to every theme and device, not just one.
     //
     // The zoom level went back and forth on backoff multipliers layered
     // on top of a comfortable-margin fit (1.3x, then 2.6x, chasing
     // "still too zoomed in" feedback each time) until it swung past
     // comfortable into "too small," most visible on mobile's narrower
     // viewport. Rather than another multiplier, this asks the fit
-    // itself for a tight frame that lets the current player's own
-    // pieces' bounding box — its widest point — run 10% PAST the
-    // viewport edges (fitFraction > 1, see fitRadiusToCorners), instead
-    // of leaving a margin inside it. Top-Down View's own whole-board
-    // fit (fitRadiusToBoard) is untouched — still uses the default
+    // itself for a tight frame that lets the board's own widest point
+    // run 10% PAST the viewport edges (fitFraction > 1, see
+    // fitRadiusToCorners), instead of leaving a margin inside it.
+    // Top-Down View's own fit is untouched — still uses the default
     // margin — since this feedback was about Current Player View only.
     const CURRENT_PLAYER_FIT_FRACTION = 1.1;
-    const fitted = fitRadiusToPieces(cam.current.theta, cam.current.phi, currentPlayer, CURRENT_PLAYER_FIT_FRACTION);
+    const fitted = fitRadiusToBoard(cam.current.theta, cam.current.phi, CURRENT_PLAYER_FIT_FRACTION);
     cam.current.radius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitted ?? 12.5));
     snapToCenter();
   }
