@@ -7,8 +7,8 @@
 //    visibly reacting before a short poll gives up. Retrying the whole
 //    gesture in a loop until the panel is actually confirmed open is
 //    robust to that; a single fixed-timeout attempt is not.
-// 2. The piece <-> corner relocation runs on a 900ms delay plus its own
-//    900ms CSS transition, so "wait roughly a second" after Begin Game
+// 2. The piece <-> corner relocation runs on a short delay plus its own
+//    CSS transition, so "wait roughly a fixed amount" after Begin Game
 //    is never quite right either — polling the actual DOM state (the
 //    React-set inline style target, then the bounding box settling) is.
 

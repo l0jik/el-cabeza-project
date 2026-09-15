@@ -157,6 +157,24 @@ export default function ElCabeza3D({ theme }) {
      Hard difficulty actually reads this (see AI_DIFFICULTY), but it
      costs nothing to keep updated regardless of difficulty. */
   const aiCabezaStreakRef = useRef(0);
+  /* Lets a human queue their turn's second input (a continuation
+     direction, or a "stop here") WHILE the first step's roll/slide
+     animation is still playing, instead of that tap being silently
+     dropped until the animation finishes — see beginMove (where this is
+     populated) and onUp/the consuming effect below (where it's read).
+     inFlightRef describes the step currently animating: the piece it
+     belongs to, and — only when a further step is actually possible
+     from the resulting position (not a crush/win, and under maxSteps)
+     — the second-step candidates a tap can be matched against, computed
+     the same way generateTurns/commitRef.current already would, just
+     up front rather than waited on. null whenever no step is animating,
+     or the one that is can't be continued anyway. pendingIntentRef is
+     the single queued action such a tap resolved to (at most one: a
+     turn is at most 2 steps, so there's never more than one "next"
+     action to remember); consumed and cleared by the effect below the
+     moment the animation it was waiting on actually commits. */
+  const inFlightRef = useRef(null);
+  const pendingIntentRef = useRef(null);
   /* cam.current holds where input WANTS the camera — set instantly and
      directly by drag, wheel, and pinch. The camera actually reads from
      cam.current.view, which chases those goals every frame at a fixed
@@ -348,26 +366,48 @@ export default function ElCabeza3D({ theme }) {
     ...Object.values(DOCK_PIECE_ORIENTATIONS).map((o) => Math.max(o.w, o.h, o.z))
   );
 
-  /* That session's randomly-chosen piece type and (for Human-vs-Human,
-     where there's no single "your side" to match) randomly-chosen
-     color — re-rolled once per fresh session, not on every render. In
-     an AI-opponent game the color instead tracks humanStartSide live
-     (see the mesh-building effect below), so dockSessionColor is only
-     ever actually used while aiPlayer is null. */
+  /* That session's randomly-chosen piece type, and which color sits
+     closest to the viewer on the pre-game board (see the heading effect
+     below) — both re-rolled once per fresh session, not on every
+     render. dockSessionColor (for Human-vs-Human, where there's no
+     single "your side" to match the dock to) is no longer its own
+     independent roll: it's ALWAYS whichever color is NOT sitting near
+     the viewer this session, so the dock piece reads as "the far
+     side's" — the near/far split is the one thing actually decided at
+     random, and the dock just follows it. In an AI-opponent game the
+     dock's color instead tracks humanStartSide live (see the mesh-
+     building effect below), so dockSessionColor is only ever actually
+     used while aiPlayer is null. */
   const [dockSessionPieceType, setDockSessionPieceType] = useState(
     () => DOCK_PIECE_TYPES[Math.floor(Math.random() * DOCK_PIECE_TYPES.length)]
   );
-  const [dockSessionColor, setDockSessionColor] = useState(
+  const [boardNearSide, setBoardNearSide] = useState(
     () => (Math.random() < 0.5 ? "dark" : "light")
   );
+  const dockSessionColor = boardNearSide === "dark" ? "light" : "dark";
+
+  /* Orients the pre-game board to match boardNearSide the moment a fresh
+     setup screen is shown — theta 0 is Dark-top/Light-bottom (Light
+     near the viewer) and Math.PI is the reverse (see recenterView/
+     topDownView's own comments on this same convention), so this just
+     picks whichever heading puts boardNearSide at the bottom. Written
+     directly to both cam.current and its eased view, not just the goal,
+     so the very first frame already shows the rolled side near — a
+     fresh setup screen should never visibly spin into place. */
+  useEffect(() => {
+    if (!awaitingBegin) return;
+    const theta = boardNearSide === "dark" ? Math.PI : 0;
+    cam.current.theta = theta;
+    cam.current.view.theta = theta;
+  }, [boardNearSide, awaitingBegin]);
 
   useEffect(() => {
     if (awaitingBegin) setDockView("piece");
   }, [awaitingBegin]);
 
   // A fresh session (New Game, or switching opponent type) re-rolls
-  // which piece type — and, for Human vs Human, which color — the dock
-  // piece represents, same moment it snaps back to "piece" above. The
+  // which piece type the dock piece represents and which color sits
+  // near the viewer, same moment it snaps back to "piece" above. The
   // very first mount already got its roll from the useState initializers
   // above, so this only fires on actual return-to-awaitingBegin transitions.
   const dockSessionMountedRef = useRef(false);
@@ -378,7 +418,7 @@ export default function ElCabeza3D({ theme }) {
     }
     if (!awaitingBegin) return;
     setDockSessionPieceType(DOCK_PIECE_TYPES[Math.floor(Math.random() * DOCK_PIECE_TYPES.length)]);
-    setDockSessionColor(Math.random() < 0.5 ? "dark" : "light");
+    setBoardNearSide(Math.random() < 0.5 ? "dark" : "light");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awaitingBegin]);
 
@@ -386,9 +426,11 @@ export default function ElCabeza3D({ theme }) {
     if (awaitingBegin) return; // handled by the effect above instead
     // Begin Game just fired: remorph back to the piece, then — once
     // that's had a moment to actually read as "the panel became the
-    // piece again" — relocate it to the corner watermark.
+    // piece again" — relocate it to the corner watermark. Cut from 900ms
+    // per feedback that the whole hand-off read as sluggish; see
+    // dockPieceStyle below for the matching cut to the move itself.
     setDockView("piece");
-    const t = setTimeout(() => setDockView("corner"), 900);
+    const t = setTimeout(() => setDockView("corner"), 200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameArmed]);
@@ -655,8 +697,9 @@ export default function ElCabeza3D({ theme }) {
   // plays live — the color aiPlayer does NOT control, never
   // humanStartSide (that's a Human-vs-Human-only preference, inactive
   // and not meaningful once an AI opponent is picked). In Human vs
-  // Human there's no single "your side" either, so it stays whatever
-  // dockSessionColor was randomly rolled for this session.
+  // Human there's no single "your side" either, so it stays whichever
+  // color dockSessionColor derived as the OPPOSITE of this session's
+  // randomly-rolled near side (see boardNearSide above).
   useEffect(() => {
     const state = dockPieceRef.current;
     if (!state) return;
@@ -1015,7 +1058,16 @@ export default function ElCabeza3D({ theme }) {
     const scene = new THREE.Scene();
     scene.background = null;
 
-    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+    /* near raised 0.1 -> 1: a conservative fix for a reported depth-
+       sort/z-fighting glitch (a piece briefly rendering in front of
+       something it should be behind, most visible during board
+       rotation) — nothing here ever needs the camera closer than
+       ZOOM_MIN (9) to its target, so this loses no legitimate close-up
+       range, while cutting the near:far ratio the depth buffer has to
+       resolve by 10x, which is where the spare precision actually goes.
+       Doesn't touch any piece material/geometry — see themes/standard.js
+       for why that surface was deliberately left alone before. */
+    const camera = new THREE.PerspectiveCamera(42, 1, 1, 200);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
@@ -1411,6 +1463,45 @@ export default function ElCabeza3D({ theme }) {
         }
       }
       return { top: minY, bottom: maxY, span: maxY - minY };
+    };
+
+    /* General-purpose sibling to measureBoardPx above, for fitting the
+       camera to an arbitrary set of board-local (x,z) corners rather
+       than the fixed SLAB footprint — used by recenterView/topDownView
+       to zoom to whatever pieces are actually on the board right now
+       (see fitRadiusToPieces) instead of the whole board plate. Returns
+       BOTH the horizontal and vertical on-screen span, since a near-
+       top-down view (Top-Down View's shallow phi) can be width-bound on
+       a narrow viewport just as easily as a perspective view can be
+       height-bound. */
+    three.current.measureBoxPx = function (radius, phi, theta, target, corners, heights) {
+      const w = mount.clientWidth;
+      const h = mount.clientHeight;
+      if (!w || !h) return null;
+      camera.position.set(target.x, target.y + radius * Math.cos(phi), target.z + radius * Math.sin(phi));
+      camera.lookAt(target);
+      camera.updateMatrixWorld(true);
+      const cosT = Math.cos(-theta);
+      const sinT = Math.sin(-theta);
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const [x, z] of corners) {
+        const rx = target.x + x * cosT + z * sinT;
+        const rz = target.z + -x * sinT + z * cosT;
+        for (const y of heights) {
+          const v = new THREE.Vector3(rx, y, rz).project(camera);
+          const px = (v.x * 0.5 + 0.5) * w;
+          const py = (1 - (v.y * 0.5 + 0.5)) * h;
+          if (px < minX) minX = px;
+          if (px > maxX) maxX = px;
+          if (py < minY) minY = py;
+          if (py > maxY) maxY = py;
+        }
+      }
+      return { width: maxX - minX, height: maxY - minY };
+    };
+    three.current.getMountSize = function () {
+      const w = mount.clientWidth, h = mount.clientHeight;
+      return w && h ? { w, h } : null;
     };
 
     function resize() {
@@ -1903,6 +1994,7 @@ export default function ElCabeza3D({ theme }) {
   function settleTurn(currentPieceState, notation) {
     const origin = turnSnapshot && turnSnapshot.find((p) => p.id === currentPieceState.id);
     aiDirsRef.current = null; // whichever branch below runs, this turn is over
+    pendingIntentRef.current = null; // and so is any queued continuation for it
     if (origin && sameState(origin, currentPieceState)) {
       setSelectedId(null);
       setHoveredId(null);
@@ -2188,9 +2280,36 @@ export default function ElCabeza3D({ theme }) {
       setBusy(true);
       while (t.ghostGroup.children.length) t.ghostGroup.children.pop();
 
+      // A fresh turn (this piece's first step) always starts with a
+      // clean slate — any intent queued during a PREVIOUS turn's
+      // animation has already either been consumed or is now moot.
+      const isFirstStep = !(piece.id === selectedId && stepsUsed > 0);
+      if (isFirstStep) pendingIntentRef.current = null;
+
+      // Whether a second step could follow this one, and if so, what it
+      // would be allowed to be — see inFlightRef's own field comment.
+      // Computed up front, synchronously, from data this closure already
+      // has, so a tap arriving mid-animation has something to match
+      // against without waiting for the animation to actually finish.
+      const usedAfter = (piece.id === selectedId ? stepsUsed : 0) + 1;
+      const terminal =
+        !!move.crushes || (piece.type === "cabeza" && move.candidate.row === GOAL_ROW[piece.owner]);
+      const canContinue = !terminal && usedAfter < PIECE_META[piece.type].maxSteps;
+      if (canContinue) {
+        let afterStep = pieces.map((p) => (p.id === piece.id ? move.candidate : p));
+        if (move.crushes) afterStep = afterStep.filter((p) => p.id !== move.crushes.id);
+        inFlightRef.current = {
+          pieceId: piece.id,
+          landing: move.candidate,
+          secondMoves: legalMovesFor(afterStep, move.candidate),
+        };
+      } else {
+        inFlightRef.current = null;
+      }
+
       animateStep(piece, dir, () => commitRef.current(piece, dir, move));
     },
-    [pieces, busy, animateStep]
+    [pieces, busy, selectedId, stepsUsed, animateStep]
   );
   beginMoveRef.current = beginMove;
 
@@ -2268,6 +2387,26 @@ export default function ElCabeza3D({ theme }) {
       if (piece) settleTurn(piece, pendingNotation);
     }
   }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, awaitingBegin, log]);
+
+  /* Drains a human's queued continuation (see pendingIntentRef/onUp's
+     busy branch above) the instant the step it was waiting on actually
+     commits — mirrors the AI orchestration effect just above (same
+     "busy/anim.current just cleared, act now" shape), but for a human's
+     own already-decided next input instead of a fresh AI search. Only
+     fires mid-turn (stepsUsed > 0); a turn that just settled already
+     cleared pendingIntentRef itself (see settleTurn), so there's nothing
+     left to drain once stepsUsed resets to 0. */
+  useEffect(() => {
+    if (busy || anim.current || !isPlaying || awaitingBegin || currentPlayer === aiPlayer) return;
+    if (stepsUsed === 0) return;
+    const intent = pendingIntentRef.current;
+    if (!intent) return;
+    pendingIntentRef.current = null;
+    const piece = pieces.find((p) => p.id === intent.pieceId);
+    if (!piece || piece.id !== selectedId) return;
+    if (intent.kind === "stop") handleStopHere();
+    else if (intent.kind === "move") beginMoveRef.current(piece, intent.dir);
+  }, [busy, stepsUsed, isPlaying, awaitingBegin, currentPlayer, aiPlayer, pieces, selectedId]);
 
   /* --------------------------- input ----------------------------- */
   useEffect(() => {
@@ -2347,6 +2486,41 @@ export default function ElCabeza3D({ theme }) {
       const rect = el.getBoundingClientRect();
       return { x: rect.left + (v.x * 0.5 + 0.5) * rect.width, y: rect.top + (-v.y * 0.5 + 0.5) * rect.height };
     }
+
+    /* worldToScreen's inverse-ish counterpart, used ONLY for resolving a
+       tap that arrives mid-animation (see onUp's busy branch below) —
+       real ghost meshes don't exist yet at that point (beginMove clears
+       them the instant a step starts), so there's nothing for the
+       normal pick()/raycaster-vs-objects path to hit. This instead
+       raycasts against the board's own (flat, always-present) surface
+       plane and converts the hit into fractional board coordinates,
+       independent of whatever meshes do or don't currently exist —
+       exactly the row/col a real ghost for that square would occupy,
+       just computed rather than picked. */
+    function screenToBoardCell(ev) {
+      const rect = el.getBoundingClientRect();
+      t.pointer.set(
+        ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+        -((ev.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      t.raycaster.setFromCamera(t.pointer, t.camera);
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const hit = new THREE.Vector3();
+      if (!t.raycaster.ray.intersectPlane(plane, hit)) return null;
+      const local = t.boardGroup.worldToLocal(hit.clone());
+      return { col: (local.x + OFF) / SQUARE_SIZE, row: (local.z + OFF) / SQUARE_SIZE };
+    }
+    // Whether a (fractional) board cell falls within a candidate
+    // piece-state's footprint — the same rectangle a real ghost's hit-
+    // plane would cover for that candidate, just tested by containment
+    // instead of by raycasting an actual mesh.
+    function cellInFootprint(cell, cand) {
+      return (
+        cell.col >= cand.col && cell.col <= cand.col + cand.w &&
+        cell.row >= cand.row && cell.row <= cand.row + cand.h
+      );
+    }
+
     /* Latched at pointerdown, same as altPanning: whether the drag
        started above or below the canvas's own vertical midpoint. The
        board is viewed from an oblique angle, so a grab point on the
@@ -2773,7 +2947,41 @@ export default function ElCabeza3D({ theme }) {
          threshold, and without this it would fall through and
          select/deselect a piece on release. An Option/Alt drag is never
          a click. */
-      if (wasAltPan || wasDrag || busy || !isPlaying || currentPlayer === aiPlayer || awaitingBegin) return;
+      if (wasAltPan || wasDrag || !isPlaying || currentPlayer === aiPlayer || awaitingBegin) return;
+
+      /* A step is currently animating: real ghost meshes don't exist to
+         pick() against (beginMove already cleared them), so a tap here
+         is resolved against the PROJECTED next-step candidates instead
+         (see inFlightRef/screenToBoardCell/cellInFootprint above) and
+         queued rather than acted on immediately — the effect that
+         drains pendingIntentRef fires the instant this step's own
+         animation actually commits, no further tap required. Per
+         feedback that a player who already knows their whole turn
+         shouldn't have to wait for each roll to finish before
+         indicating the next one. */
+      if (busy || anim.current) {
+        const inFlight = inFlightRef.current;
+        if (inFlight) {
+          const cell = screenToBoardCell(ev);
+          if (cell) {
+            if (cellInFootprint(cell, inFlight.landing)) {
+              // Tapping the square the piece is headed for — same
+              // gesture as tapping the piece itself once it's actually
+              // there (see the turnLocked branch below) — means "stop
+              // here," don't chain a second step.
+              pendingIntentRef.current = { pieceId: inFlight.pieceId, kind: "stop" };
+            } else {
+              for (const [dir2, move2] of Object.entries(inFlight.secondMoves)) {
+                if (cellInFootprint(cell, move2.candidate)) {
+                  pendingIntentRef.current = { pieceId: inFlight.pieceId, kind: "move", dir: dir2 };
+                  break;
+                }
+              }
+            }
+          }
+        }
+        return;
+      }
 
       const hit = pick(ev);
       if (hit && hit.type === "ghost" && activePiece) {
@@ -2919,6 +3127,60 @@ export default function ElCabeza3D({ theme }) {
     cam.current.view.target.set(0, 0, 0);
   }
 
+  /* Smallest radius, at the given heading/pitch, whose on-screen
+     projection of every piece currently on the board (not the board
+     itself — the board can run off either edge of the screen, only the
+     pieces need to stay visible) still fits inside most of the
+     viewport. Same bisection technique as the pre-game masthead/dock
+     framing above (see measureBoxPx), just fitting a different box: the
+     union of every piece's footprint instead of the fixed SLAB.
+     Returns null when there's nothing to fit against (no pieces, or the
+     mount/measure helpers aren't ready yet) — callers fall back to
+     their own fixed radius in that case. */
+  function fitRadiusToPieces(theta, phi) {
+    const measure = three.current.measureBoxPx;
+    const getSize = three.current.getMountSize;
+    if (!measure || !getSize || !pieces.length) return null;
+    const size = getSize();
+    if (!size) return null;
+
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const p of pieces) {
+      minX = Math.min(minX, p.col * SQUARE_SIZE - OFF);
+      maxX = Math.max(maxX, (p.col + p.w) * SQUARE_SIZE - OFF);
+      minZ = Math.min(minZ, p.row * SQUARE_SIZE - OFF);
+      maxZ = Math.max(maxZ, (p.row + p.h) * SQUARE_SIZE - OFF);
+    }
+    // Padding so the outermost pieces don't sit flush against the
+    // frame edge, then the tallest piece's own height so a tall block
+    // right at the fitted edge doesn't poke out the top of the frame.
+    const PAD = SQUARE_SIZE * 0.6;
+    minX -= PAD; maxX += PAD; minZ -= PAD; maxZ += PAD;
+    const corners = [
+      [minX, minZ], [minX, maxZ], [maxX, minZ], [maxX, maxZ],
+    ];
+    const heights = [0, 2 * PIECE_SCALE];
+    // Fit within most of the viewport, not edge-to-edge — leaves a
+    // visible margin around the outermost pieces on every side, the
+    // same spirit as the pre-game framing's own GAP_PADDING_PX.
+    const FIT_FRACTION = 0.82;
+    const availW = size.w * FIT_FRACTION;
+    const availH = size.h * FIT_FRACTION;
+    const target = { x: 0, y: 0, z: 0 };
+
+    let lo = ZOOM_MIN, hi = ZOOM_MAX;
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2;
+      const m = measure(mid, phi, theta, target, corners, heights);
+      if (!m) return null;
+      // Larger radius -> smaller on-screen size -> more likely to fit —
+      // same monotonic bisection as measureBoardPx's own caller.
+      if (m.width <= availW && m.height <= availH) hi = mid;
+      else lo = mid;
+    }
+    return hi;
+  }
+
   function recenterView() {
     /* Pitch and distance are still camera moves. Heading (theta) is now
        applied to the board's own rotation instead of the camera's orbit
@@ -2929,7 +3191,12 @@ export default function ElCabeza3D({ theme }) {
        centering (snapToCenter) is instant. */
     cam.current.theta = currentPlayer === "dark" ? Math.PI : 0;
     cam.current.phi = 0.86;
-    cam.current.radius = 17;
+    // Zooms to fit whatever pieces are actually on the board right now
+    // (not the whole board plate — see fitRadiusToPieces) rather than
+    // this fixed distance; falls back to it only when there's nothing
+    // to fit against yet (e.g. before the scene has measured its own
+    // mount even once).
+    cam.current.radius = fitRadiusToPieces(cam.current.theta, cam.current.phi) ?? 17;
     snapToCenter();
   }
 
@@ -2947,17 +3214,16 @@ export default function ElCabeza3D({ theme }) {
        fresh one is actually about to start with. The render loop's
        existing shortest-path wrapping (see tick()) still animates the
        turn via whichever direction is shorter, so this never spins
-       further than it has to to reach the correct side. Pitch and zoom
-       are what actually distinguish this button from Current Player
-       View. */
+       further than it has to to reach the correct side. Pitch is what
+       actually distinguishes this button from Current Player View; zoom
+       now fits the pieces on the board the same way Current Player View
+       does (see fitRadiusToPieces), falling back to the old fixed 70%-
+       zoomed default only when there's nothing to fit against yet. */
     cam.current.theta = facePlayer === "dark" ? Math.PI : 0;
     cam.current.phi = 0.012; // matches the drag clamp's near-vertical limit
-    /* Zoom convention: 0% = fully zoomed out (ZOOM_MAX, farthest), 100% =
-       fully zoomed in (ZOOM_MIN, closest) — the same direction "zoom" has
-       in a photo viewer or a map, where a higher percentage means bigger
-       and closer. 70% sits 70% of the way from MAX down to MIN. */
     const ZOOM_PCT = 0.7;
-    cam.current.radius = ZOOM_MAX - ZOOM_PCT * (ZOOM_MAX - ZOOM_MIN);
+    const fallback = ZOOM_MAX - ZOOM_PCT * (ZOOM_MAX - ZOOM_MIN);
+    cam.current.radius = fitRadiusToPieces(cam.current.theta, cam.current.phi) ?? fallback;
     snapToCenter();
   }
 
@@ -2975,6 +3241,7 @@ export default function ElCabeza3D({ theme }) {
   }
   function handleUndoTurn() {
     if (!turnSnapshot || busy || anim.current || currentPlayer === aiPlayer || awaitingBegin) return;
+    pendingIntentRef.current = null; // whatever was queued for this turn no longer applies
 
     const restore = () => {
       setPieces(turnSnapshot);
@@ -3350,7 +3617,24 @@ export default function ElCabeza3D({ theme }) {
     opacity: dockView === "panel" ? 0 : dockPieceIsCorner ? 0.35 : 1,
     pointerEvents: dockView === "panel" ? "none" : "auto",
     zIndex: dockPieceIsCorner ? 2 : 15,
-    transition: "opacity 900ms ease, left 900ms ease, bottom 900ms ease, width 900ms ease, height 900ms ease, transform 900ms ease",
+    /* Position/size cut from 900ms linear-feeling ease to a shorter,
+       snappier curve with a touch of overshoot — per feedback that the
+       move into the corner read as "almost zero animation." A slower
+       symmetric ease and a same-duration opacity fade running at the
+       same time were masking each other: the piece was shrinking AND
+       fading out over the exact span it was also supposed to visibly
+       slide across the screen, so the fade ate the one cue that would
+       have read as motion. Keyed on the DESTINATION being "corner"
+       specifically (not on dockView, which would misfire for
+       corner->panel — that transition needs the position move too, not
+       just an opacity fade): arriving at the corner delays opacity so
+       the piece stays fully visible while it actually moves and only
+       dims once it's essentially arrived; every other transition (which
+       never has this masking problem, since piece<->panel never
+       actually moves position) keeps a quick, undelayed fade. */
+    transition: dockPieceIsCorner
+      ? "left 480ms cubic-bezier(0.34,1.56,0.64,1), bottom 480ms cubic-bezier(0.34,1.56,0.64,1), width 480ms cubic-bezier(0.34,1.56,0.64,1), height 480ms cubic-bezier(0.34,1.56,0.64,1), transform 480ms cubic-bezier(0.34,1.56,0.64,1), opacity 350ms ease 380ms"
+      : "opacity 320ms ease, left 480ms cubic-bezier(0.34,1.56,0.64,1), bottom 480ms cubic-bezier(0.34,1.56,0.64,1), width 480ms cubic-bezier(0.34,1.56,0.64,1), height 480ms cubic-bezier(0.34,1.56,0.64,1), transform 480ms cubic-bezier(0.34,1.56,0.64,1)",
     touchAction: "none",
     cursor: "grab",
   };
@@ -3597,7 +3881,13 @@ export default function ElCabeza3D({ theme }) {
           bottom: 20,
           transform: `translateX(-50%) scale(${dockView === "panel" ? 1 : 0.92})`,
           width: "min(880px, 96vw)",
-          maxHeight: "42vh",
+          /* Pre-game only: shrunk by roughly the row (button + its
+             marginTop/paddingTop/border) that Begin Game and Neon's
+             Anomaly used to occupy on their own line below the Opponent
+             row, before both moved up into it (see there). Every other
+             state keeps the original cap — the post-game Move Log/New
+             Game row still uses that same bottom row. */
+          maxHeight: awaitingBegin ? "calc(42vh - 56px)" : "42vh",
           overflowY: "auto",
           zIndex: 10,
           opacity: dockView === "panel" ? 1 : 0,
@@ -3963,35 +4253,14 @@ export default function ElCabeza3D({ theme }) {
               ))}
             </>
           )}
-        </div>
-        )}
-
-        {/* Setup/post-game action row — hidden while declutter is true
-            (its own button relocates up next to Top-Down View in that
-            state; see above). Per feedback, the inline running move
-            log that used to live here (a Dark/Light table, visible
-            during setup and mid-game) is gone entirely — it was a
-            substantial contributor to the dock's own height, and every
-            move it recorded is already available afterward in the
-            Move Log popup below, the only place a finished game's
-            history actually needs to be read. This row is now just
-            whichever action button set belongs in this state (Begin
-            Game/Anomaly pre-game, Move Log/New Game post-game). */}
-        {!declutter && (
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "flex-start",
-            justifyContent: "flex-end",
-            gap: 16,
-            marginTop: 10,
-            paddingTop: 10,
-            borderTop: `1px solid ${COLORS.slateSoft}`,
-            flexShrink: 0,
-          }}
-        >
-          {awaitingBegin ? (
+          {/* Begin Game (and, for a theme with setup extras of its own —
+              Neon's Anomaly button — that whole extras row) moves up into
+              this Opponent row rather than sitting in its own bordered
+              row below, per feedback that the setup screen's bottom row
+              was pure dead weight once Opponent selection was the only
+              other thing on it. See the popup's own maxHeight below for
+              the matching height reduction this frees up. */}
+          {awaitingBegin &&
             (() => {
               const beginGameButton = (
                 <button
@@ -4014,50 +4283,53 @@ export default function ElCabeza3D({ theme }) {
                   Begin Game
                 </button>
               );
-              // A theme with setup-screen extras of its own (Neon's
-              // Anomaly button sits beside Begin Game; its Singularity
-              // easter egg sits below both) takes over the WHOLE
-              // pre-game row/column, Begin Game included, so it can
-              // place things relative to it — the chassis hands over
-              // the button rather than the theme trying to reconstruct
-              // an equivalent one. A theme with nothing to add
-              // (Standard) returns null and gets this default.
               const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras });
               return extras || <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>{beginGameButton}</div>;
-            })()
-          ) : (
-            /* Move Log is a chassis-level feature (see ARCHITECTURE.md):
-               generic post-game UI with no theme dependency, shown once
-               the game has actually concluded one way or another
-               (a real win, or a manual End Active Game). Replaces what
-               used to be an inline Copy Log control here — Copy
-               Move_Log now lives inside the popup itself, see below. */
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              {(status === "ended" || status === "finished") && (
-                <button
-                  key="movelog"
-                  className="ec-btn ec-btn-invert"
-                  onClick={openMoveLog}
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: 11,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    color: COLORS.charcoal,
-                    background: "transparent",
-                    border: `1.5px solid ${COLORS.charcoal}`,
-                    padding: "9px 16px",
-                    cursor: "pointer",
-                    flex: "1 0 auto",
-                  }}
-                >
-                  Move Log
-                </button>
-              )}
+            })()}
+        </div>
+        )}
+
+        {/* Setup/post-game action row — hidden while declutter is true
+            (its own button relocates up next to Top-Down View in that
+            state; see above). Per feedback, the inline running move
+            log that used to live here (a Dark/Light table, visible
+            during setup and mid-game) is gone entirely — it was a
+            substantial contributor to the dock's own height, and every
+            move it recorded is already available afterward in the
+            Move Log popup below, the only place a finished game's
+            history actually needs to be read. This row is now just
+            whichever action button set belongs in this state (Begin
+            Game/Anomaly pre-game, Move Log/New Game post-game). */}
+        {/* Post-game action row only now — the pre-game Begin Game (and
+            Neon's Anomaly) buttons moved up into the Opponent row above,
+            so this row no longer renders at all while awaitingBegin;
+            see the popup's own maxHeight below for the matching height
+            reduction that frees up. Move Log is a chassis-level feature
+            (see ARCHITECTURE.md): generic post-game UI with no theme
+            dependency, shown once the game has actually concluded one
+            way or another (a real win, or a manual End Active Game).
+            Replaces what used to be an inline Copy Log control here —
+            Copy Move_Log now lives inside the popup itself, see below. */}
+        {!declutter && !awaitingBegin && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "flex-start",
+            justifyContent: "flex-end",
+            gap: 16,
+            marginTop: 10,
+            paddingTop: 10,
+            borderTop: `1px solid ${COLORS.slateSoft}`,
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            {(status === "ended" || status === "finished") && (
               <button
-                key="newgame"
+                key="movelog"
                 className="ec-btn ec-btn-invert"
-                onClick={handleReset}
+                onClick={openMoveLog}
                 style={{
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: 11,
@@ -4071,10 +4343,29 @@ export default function ElCabeza3D({ theme }) {
                   flex: "1 0 auto",
                 }}
               >
-                New Game
+                Move Log
               </button>
-            </div>
-          )}
+            )}
+            <button
+              key="newgame"
+              className="ec-btn ec-btn-invert"
+              onClick={handleReset}
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 11,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: COLORS.charcoal,
+                background: "transparent",
+                border: `1.5px solid ${COLORS.charcoal}`,
+                padding: "9px 16px",
+                cursor: "pointer",
+                flex: "1 0 auto",
+              }}
+            >
+              New Game
+            </button>
+          </div>
         </div>
         )}
       </div>

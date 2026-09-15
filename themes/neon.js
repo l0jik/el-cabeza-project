@@ -1220,7 +1220,11 @@ export function mountAmbientEffects(refs, helpers) {
   function fireCrawl() {
     if (windingDownRef.current) return; // stop spawning new ones once a win fires
     spawnCrawlWave();
-    crawlTimer = setTimeout(fireCrawl, 14000 + Math.random() * 26000);
+    // 2.5x the old 14000-40000ms window (== the old rate * 0.4) per
+    // feedback to cut how often the crawling mass crosses the board by
+    // 60% — the crossing itself (spawnCrawlWave's own duration/STEP_MS)
+    // is untouched, only how often a new one starts.
+    crawlTimer = setTimeout(fireCrawl, 35000 + Math.random() * 65000);
   }
   /* theme: a rare, large-scale directional brightness wave that
      sweeps across most of the board's surface — a much bigger,
@@ -1914,7 +1918,9 @@ export function mountAmbientEffects(refs, helpers) {
         crtAberrationTimer = setTimeout(fireCrtAberration, 45000 + Math.random() * 60000);
       }
       arcTimer = setTimeout(fireArc, 8333 + Math.random() * 11667);
-      crawlTimer = setTimeout(fireCrawl, 8000 + Math.random() * 12000);
+      // 2.5x the old 8000-20000ms window (== the old rate * 0.4) — see
+      // fireCrawl's own reschedule above for the full reasoning.
+      crawlTimer = setTimeout(fireCrawl, 20000 + Math.random() * 30000);
       floorWaveTimer = setTimeout(fireFloorWave, 40000 + Math.random() * 50000);
       if (DIGITAL_GLITCH_ENABLED) {
         digitalGlitchTimer = setTimeout(fireDigitalGlitch, 30000 + Math.random() * 40000);
@@ -1937,7 +1943,8 @@ export function mountAmbientEffects(refs, helpers) {
         verticalHoldTimer = setTimeout(fireVerticalHold, 18000 + Math.random() * 22000);
       }
       arcTimer = setTimeout(fireArc, 8333 + Math.random() * 11667);
-      crawlTimer = setTimeout(fireCrawl, 8000 + Math.random() * 12000);
+      // Same 2.5x widening as armOnBegin above.
+      crawlTimer = setTimeout(fireCrawl, 20000 + Math.random() * 30000);
       floorWaveTimer = setTimeout(fireFloorWave, 40000 + Math.random() * 50000);
       if (DIGITAL_GLITCH_ENABLED) {
         digitalGlitchTimer = setTimeout(fireDigitalGlitch, 30000 + Math.random() * 40000);

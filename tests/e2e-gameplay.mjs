@@ -33,15 +33,22 @@ const statusText = () => page.evaluate(() => {
 
 console.log(`[${target}] initial status:`, await statusText());
 
-// Click on the light Cabeza (the disc) — in the default camera framing
-// it's the small circular piece front-and-center-left of the light
-// cluster. Try a handful of candidate points since exact projection
+// Click on Dark's Opa (a block) — in the default camera framing (Light
+// near the viewer) it's up near the top of the canvas, in Dark's
+// cluster. The pre-game setup screen now randomly rolls which color
+// starts near the viewer (see boardNearSide in ElCabeza3D.jsx), and
+// that heading carries into the game exactly like a manual pre-game
+// drag always has, so the board is just as likely to be showing the
+// mirrored (Dark near) heading here — the second half of this list is
+// each original point reflected through the canvas center for that
+// case. Try a handful of candidate points since exact projection also
 // varies slightly between the two themes' camera math (should be
 // identical, but confirm empirically rather than assume).
 const canvas = page.locator('canvas[data-testid="board-canvas"]');
 const box = await canvas.boundingBox();
 let selected = false;
-for (const [fx, fy] of [[0.5, 0.37], [0.42, 0.35], [0.58, 0.3], [0.44, 0.33], [0.52, 0.34]]) {
+const selectCandidates = [[0.5, 0.37], [0.42, 0.35], [0.58, 0.3], [0.44, 0.33], [0.52, 0.34]];
+for (const [fx, fy] of [...selectCandidates, ...selectCandidates.map(([x, y]) => [1 - x, 1 - y])]) {
   await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
   await page.waitForTimeout(300);
   const s = await statusText();
@@ -54,11 +61,29 @@ await page.screenshot({ path: `/tmp/${target}-selected.png` });
 // Try to complete an actual move by clicking just south (toward camera)
 // of the selected piece, where a legal-move ghost outline should be.
 if (selected) {
-  for (const [fx, fy] of [[0.5, 0.44], [0.5, 0.48], [0.46, 0.44], [0.54, 0.44]]) {
+  // Same near/far mirroring as the selection candidates above, plus a
+  // slightly wider spread on the mirrored half — the flat (1-fx,1-fy)
+  // reflection is only approximate under this oblique perspective
+  // camera (exact for an orthographic top-down view, not quite for a
+  // tilted one), so the single reflected point can land just outside
+  // the actual ghost square where the un-mirrored points, tuned by
+  // hand against the real default view, land dead center.
+  const moveCandidates = [[0.5, 0.44], [0.5, 0.48], [0.46, 0.44], [0.54, 0.44]];
+  const mirroredCandidates = [
+    ...moveCandidates.map(([x, y]) => [1 - x, 1 - y]),
+    [0.5, 0.58], [0.5, 0.6], [0.46, 0.56], [0.54, 0.56],
+  ];
+  for (const [fx, fy] of [...moveCandidates, ...mirroredCandidates]) {
     await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
     await page.waitForTimeout(700); // roll animation
     const s = await statusText();
-    if (s === "Light to move" || /finished|left/i.test(s || "")) {
+    // Deliberately NOT matching "left" here — a piece that's still
+    // selected with steps remaining ("Opa - 1 roll left") also contains
+    // that word, and a missed click (this candidate wasn't actually on
+    // the ghost) leaves that exact text on screen unchanged, which used
+    // to read as a false "move completed" the instant the loop hit a
+    // miss before ever reaching a candidate that really lands.
+    if (s === "Light to move" || /finished/i.test(s || "")) {
       console.log(`[${target}] move completed via (${fx},${fy}), status now:`, s);
       break;
     }
