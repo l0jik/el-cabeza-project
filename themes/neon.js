@@ -1106,6 +1106,11 @@ export function mountAmbientEffects(refs, helpers) {
       const lx = (c - avgC) * CRAWL_VOXEL;
       const lz = (r - avgR) * CRAWL_VOXEL;
       const cellBrightness = 0.55 + Math.random() * 0.45; // per-cell variance, not a uniform block
+      // Per feedback ("more visually interesting"): about a quarter of
+      // the voxels in a generation render at 1/4 size instead of the
+      // usual full square, so the mass reads as a mix of block sizes
+      // rather than one uniform grid of identical squares.
+      const sizeScale = Math.random() < 0.25 ? 0.25 : 1;
 
       // Per feedback ("more blur and glow and bloom... as if not
       // completely able to be seen, [as if] the board itself is not
@@ -1113,7 +1118,7 @@ export function mountAmbientEffects(refs, helpers) {
       // layer underneath everything else, for the soft light-scatter
       // a hazy/frosted surface would actually produce — the halo
       // alone read as a tighter glow, not genuine bloom spread.
-      const bloomSize = CRAWL_VOXEL * 3.5; // slightly larger per feedback
+      const bloomSize = CRAWL_VOXEL * 3.5 * sizeScale; // slightly larger per feedback
       const bloomMat = new THREE.MeshBasicMaterial({
         map: t.softGlowTex,
         color: 0x8fe8ff,
@@ -1131,7 +1136,7 @@ export function mountAmbientEffects(refs, helpers) {
       // back from an initial 1.7x per feedback that too much round
       // glow was itself rounding off the squares' own shape; the new
       // bloom layer above now carries most of the extra spread.
-      const haloSize = CRAWL_VOXEL * 1.4; // slightly larger per feedback
+      const haloSize = CRAWL_VOXEL * 1.4 * sizeScale; // slightly larger per feedback
       const haloMat = new THREE.MeshBasicMaterial({
         map: t.softGlowTex,
         color: 0x8fe8ff,
@@ -1154,7 +1159,7 @@ export function mountAmbientEffects(refs, helpers) {
       // just to keep the mass legible as a grid of squares, capped
       // well under fully opaque so it still doesn't look like solid,
       // fully-visible geometry.
-      const coreSize = CRAWL_VOXEL * 0.95; // slightly larger per feedback
+      const coreSize = CRAWL_VOXEL * 0.95 * sizeScale; // slightly larger per feedback
       const coreMat = new THREE.MeshBasicMaterial({
         color: 0xd6f9ff,
         transparent: true,
