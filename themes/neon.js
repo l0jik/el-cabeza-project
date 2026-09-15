@@ -5499,15 +5499,17 @@ export function createSoundscape() {
       ensureGraph();
       if (!ctx) return;
       const t0 = nowT();
+      // Cut 50% (0.022 -> 0.011) and pitched up 2x (5200/2600 ->
+      // 10400/5200) per feedback — still too loud/low.
       [
-        { freq: 5200, start: 0, dur: 0.045 },
-        { freq: 2600, start: 0.05, dur: 0.05 },
+        { freq: 10400, start: 0, dur: 0.045 },
+        { freq: 5200, start: 0.05, dur: 0.05 },
       ].forEach(({ freq, start, dur }) => {
         const osc = ctx.createOscillator();
         osc.type = "square";
         osc.frequency.value = freq; // flat — no glissando, no chirp
         const g = ctx.createGain();
-        env(g, t0 + start, 0.002, dur * 0.3, dur * 0.7, 0.022);
+        env(g, t0 + start, 0.002, dur * 0.3, dur * 0.7, 0.011);
         osc.connect(g).connect(sfxGain);
         osc.start(t0 + start);
         osc.stop(t0 + start + dur + 0.03);

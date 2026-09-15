@@ -861,6 +861,7 @@ export default function ElCabeza3D({ theme }) {
      the masthead and dock both shrink out of the way once play starts,
      so nothing still needs the board held back to fit between them. */
   const preGameFitRadiusRef = useRef(null);
+  const preGameFitTargetYRef = useRef(null);
   useEffect(() => {
     if (!awaitingBegin) return;
     const GAP_PADDING_PX = 28;
@@ -888,6 +889,45 @@ export default function ElCabeza3D({ theme }) {
       }
       cam.current.radius = hi;
       preGameFitRadiusRef.current = hi;
+
+      // Center the fitted board vertically within the SAME masthead-
+      // to-dock gap, not just make it fit — a symmetric gapHeight
+      // budget doesn't guarantee a viewport-centered render actually
+      // lands in the middle of that specific band, since the masthead
+      // and dock rarely take up equal space on screen. Solves for the
+      // target.y (the camera's own pan/aim offset — see
+      // measureBoardPx's own comment on why this must sample absolute
+      // world heights to make target.y do anything at all) that puts
+      // the board's on-screen vertical midpoint at the gap's midpoint.
+      // The relationship between target.y and screen position is very
+      // close to linear for a fixed radius/phi, so one secant step
+      // plus a single refinement against the real projection is
+      // enough — same numeric-over-closed-form philosophy as the rest
+      // of this file's camera-fitting code.
+      const desiredCenter = (gapTop + gapBottom) / 2;
+      const probeTarget = new THREE.Vector3(target.x, 0, target.z);
+      const m0 = measure(hi, phi, theta, probeTarget);
+      if (m0) {
+        const c0 = (m0.top + m0.bottom) / 2;
+        const STEP = 2;
+        probeTarget.y = STEP;
+        const m1 = measure(hi, phi, theta, probeTarget);
+        if (m1) {
+          const c1 = (m1.top + m1.bottom) / 2;
+          const slope = (c1 - c0) / STEP;
+          if (Math.abs(slope) > 1e-6) {
+            let ty = (desiredCenter - c0) / slope;
+            probeTarget.y = ty;
+            const mR = measure(hi, phi, theta, probeTarget);
+            if (mR) {
+              const cR = (mR.top + mR.bottom) / 2;
+              ty += (desiredCenter - cR) / slope;
+            }
+            cam.current.target.y = ty;
+            preGameFitTargetYRef.current = ty;
+          }
+        }
+      }
     }
     recompute();
     const settleTimer = setTimeout(recompute, 950);
@@ -898,7 +938,11 @@ export default function ElCabeza3D({ theme }) {
       if (preGameFitRadiusRef.current != null && cam.current.radius === preGameFitRadiusRef.current) {
         cam.current.radius = 17;
       }
+      if (preGameFitTargetYRef.current != null && cam.current.target.y === preGameFitTargetYRef.current) {
+        cam.current.target.y = 0;
+      }
       preGameFitRadiusRef.current = null;
+      preGameFitTargetYRef.current = null;
     };
   }, [awaitingBegin]);
 
@@ -1483,7 +1527,19 @@ export default function ElCabeza3D({ theme }) {
         for (const z of [-half, half]) {
           const rx = target.x + x * cosT + z * sinT;
           const rz = target.z + -x * sinT + z * cosT;
-          for (const y of [target.y, target.y + TALLEST_PIECE_HEIGHT]) {
+          // Absolute world Y (the board's real, fixed resting height and
+          // the tallest piece above it) — NOT offset by target.y. The
+          // board itself never moves; target.y is only ever the
+          // camera's own pan/aim offset (see fitRadiusToPieces/
+          // fitRadiusToBoard's sibling measureBoxPx, which already
+          // takes heights as absolute values for exactly this reason).
+          // Adding target.y here used to translate the camera AND the
+          // sampled points by the same amount, which cancels out in
+          // the projection entirely — silently making target.y a
+          // no-op for this function specifically, which is what let
+          // the pre-game vertical-centering fix below appear to do
+          // nothing until this was corrected.
+          for (const y of [0, TALLEST_PIECE_HEIGHT]) {
             const v = new THREE.Vector3(rx, y, rz).project(camera);
             const py = (1 - (v.y * 0.5 + 0.5)) * h;
             if (py < minY) minY = py;
@@ -3993,7 +4049,14 @@ export default function ElCabeza3D({ theme }) {
           left: "50%",
           bottom: 20,
           transform: `translateX(-50%) scale(${dockView === "panel" ? 1 : 0.92})`,
-          width: "min(880px, 96vw)",
+          // Per feedback, the pre-game panel (Sound/Full Screen/
+          // Opponent/Anomaly/Begin Game only — see maxHeight's own
+          // pre-game comment below) reads as unnecessarily wide at the
+          // full gameplay/post-game width, which exists for the wider
+          // status bar and Move Log content those states actually
+          // have. Shared chassis markup, so this narrows it identically
+          // for every theme.
+          width: awaitingBegin ? "min(480px, 92vw)" : "min(880px, 96vw)",
           /* Pre-game only: shrunk by roughly the row (button + its
              marginTop/paddingTop/border) that Begin Game and Neon's
              Anomaly used to occupy on their own line below the Opponent
