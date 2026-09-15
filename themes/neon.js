@@ -5453,6 +5453,12 @@ export function createSoundscape() {
     // should now sit right at the edge of audible.
     playSelect: tink, // replaced with an extremely high-pitched tonal "tink" per feedback (was a 600Hz filtered-noise click)
     playDeselect: () => sfxClick(95, 0.009),
+    // No-op: Neon has no wood-physical rolling cue of its own — this
+    // theme's whole audio identity is synthesized/electronic, not
+    // acoustic-material — but the shared chassis call site (animateStep,
+    // fired the instant a roll/slide animation starts) calls this
+    // unconditionally on every theme, same as every other method here.
+    playRollStart() {},
     playLanding,
     playCapture: playCabezaCrush, // pitch sink / plunging formant / downward Doppler decay, per feedback
     playWin: () => cue(440, 660, 0.5, "sine", 0.028), // halved, then -20% more per feedback (was 0.035)

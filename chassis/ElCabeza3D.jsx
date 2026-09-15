@@ -2312,6 +2312,18 @@ export default function ElCabeza3D({ theme }) {
       return;
     }
 
+    /* The motion is starting right now, for exactly `duration` ms — the
+       one moment a theme's own audio can sync a rolling/tumbling cue to
+       the actual animation, as opposed to playLanding below (fired only
+       once the animation completes, i.e. already too late to sound like
+       it accompanied the motion itself). Same shape/kind distinction as
+       the branch below: the disc slides (SLIDE_MS) rather than rolls
+       (ROLL_MS), though both constants share one value today. */
+    audioRef.current.playRollStart(
+      state.w * state.h * state.z,
+      PIECE_META[state.type].shape === "disc" ? SLIDE_MS : ROLL_MS
+    );
+
     /* Move-triggered ambient FX (weight lifting/landing glow, glitch
        bursts, landing shockwave) — entirely theme-owned. These
        properties only exist on three.current when a theme's own
