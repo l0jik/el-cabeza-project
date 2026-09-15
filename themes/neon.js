@@ -5487,9 +5487,32 @@ export function createSoundscape() {
        playDockOpen: Anomaly is only ever available during setup,
        before ensureStarted() would normally have built the graph. */
     // Cut 50% (0.045 -> 0.0225) and pitched up 300% (900-1600Hz ->
-    // 3600-6400Hz) per feedback — it was too loud/low for a brief
-    // scan blip.
-    playAnomaly: () => { ensureGraph(); cue(3600, 6400, 0.09, "square", 0.0225); },
+    // 3600-6400Hz) per feedback. That single smooth rising sweep then
+    // read as "too much like a bird's peep" — a continuous glissande
+    // is exactly what a chirp is. Replaced with two short FLAT
+    // (unswept) tones stepping down, back to back, no slide between
+    // them: a stepped "beep-boop" digital readout instead of one
+    // whistled note. Second tone fires via ctx timing (t0 offset), not
+    // a JS setTimeout, so it stays sample-accurate regardless of any
+    // main-thread jank.
+    playAnomaly: () => {
+      ensureGraph();
+      if (!ctx) return;
+      const t0 = nowT();
+      [
+        { freq: 5200, start: 0, dur: 0.045 },
+        { freq: 2600, start: 0.05, dur: 0.05 },
+      ].forEach(({ freq, start, dur }) => {
+        const osc = ctx.createOscillator();
+        osc.type = "square";
+        osc.frequency.value = freq; // flat — no glissando, no chirp
+        const g = ctx.createGain();
+        env(g, t0 + start, 0.002, dur * 0.3, dur * 0.7, 0.022);
+        osc.connect(g).connect(sfxGain);
+        osc.start(t0 + start);
+        osc.stop(t0 + start + dur + 0.03);
+      });
+    },
     dispose: () => {
       disposed = true;
       if (scheduleTimer) clearTimeout(scheduleTimer);
