@@ -742,6 +742,23 @@ export default function ElCabeza3D({ theme }) {
       z: orientation.z,
     };
     const { mesh, shell } = theme.buildPieceVisual({ piece: fakePiece, isDark, isDisc, geo, center: { x: 0, z: 0 }, y: 0 });
+    // Neon's body is translucent with depthWrite:false (see
+    // buildPieceVisual's own comment on the self-z-fighting bevel
+    // bug this avoids), which also means its wireframe shell never
+    // gets occluded by the body's own near faces — both the near AND
+    // far edges of the box render at once as it tumbles here, reading
+    // as a trapezoidal double-image rather than a normal opaque box
+    // outline. A depth-only pre-pass (real depth, no color) restores
+    // correct occlusion for the shell without reintroducing that bug:
+    // color output isn't a factor, so near-coincident bevel seams
+    // produce no visible artifact from it. No-ops for Standard, whose
+    // piece material is fully opaque already.
+    if (mesh.material.transparent && mesh.material.depthWrite === false) {
+      const depthMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true }));
+      depthMesh.position.copy(mesh.position);
+      depthMesh.renderOrder = 0;
+      pieceGroup.add(depthMesh);
+    }
     pieceGroup.add(mesh, shell);
 
     // Per feedback, every piece type must render at its own TRUE
