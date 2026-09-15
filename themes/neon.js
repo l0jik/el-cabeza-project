@@ -827,15 +827,24 @@ export function mountAmbientEffects(refs, helpers) {
   // and (doubled up) Chaotic Discharge; only each style's ENVELOPE
   // (and, for Chaotic Discharge, strand count) actually differs.
   function jaggedStrandPositions(posA, posB, jitterScale) {
-    const segments = 5 + Math.floor(Math.random() * 3);
+    const dx = posB.x - posA.x, dz = posB.z - posA.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const nx = -dz / len, nz = dx / len; // perpendicular to A->B, for the kink/branch direction
+
+    // More segments, and jitter applied perpendicular to the strand
+    // (plus a little along it) rather than a diagonal random offset —
+    // per feedback ("more jagged, erratic") this reads as the bolt
+    // actually kinking back and forth, not just a wavier line.
+    const segments = 7 + Math.floor(Math.random() * 4);
     const pts = [];
     for (let i = 0; i <= segments; i++) {
       const f = i / segments;
-      const jitter = i > 0 && i < segments ? 0.4 * jitterScale : 0;
+      const perp = i > 0 && i < segments ? (Math.random() - 0.5) * 0.55 * jitterScale : 0;
+      const along = i > 0 && i < segments ? (Math.random() - 0.5) * 0.12 * jitterScale : 0;
       pts.push(
-        posA.x + (posB.x - posA.x) * f + (Math.random() - 0.5) * jitter,
+        posA.x + dx * f + nx * perp + (dx / len) * along,
         0.12 + Math.random() * 0.35,
-        posA.z + (posB.z - posA.z) * f + (Math.random() - 0.5) * jitter
+        posA.z + dz * f + nz * perp + (dz / len) * along
       );
     }
     const positions = [];
@@ -845,6 +854,31 @@ export function mountAmbientEffects(refs, helpers) {
         pts[(i + 1) * 3], pts[(i + 1) * 3 + 1], pts[(i + 1) * 3 + 2]
       );
     }
+
+    // Branching forks, per feedback ("branching lightning bolt-like"):
+    // 1-2 short spurs peeling off the main strand at a random interior
+    // vertex, angled away from the main path and tapering toward a
+    // point — real lightning's forward-branching character, which a
+    // single kinked line alone doesn't give.
+    const branchCount = Math.random() < 0.6 ? 1 : 2;
+    for (let b = 0; b < branchCount; b++) {
+      const originIdx = 1 + Math.floor(Math.random() * (segments - 1));
+      let bx = pts[originIdx * 3], by = pts[originIdx * 3 + 1], bz = pts[originIdx * 3 + 2];
+      const branchSegs = 2 + Math.floor(Math.random() * 2);
+      const side = Math.random() < 0.5 ? 1 : -1;
+      const branchLen = len * (0.12 + Math.random() * 0.16);
+      for (let s = 1; s <= branchSegs; s++) {
+        const f = s / branchSegs;
+        const spread = (0.3 + Math.random() * 0.3) * side * branchLen * f;
+        const forward = branchLen * f * 0.6;
+        const nbx = pts[originIdx * 3] + (dx / len) * forward + nx * spread;
+        const nby = 0.1 + Math.random() * 0.3;
+        const nbz = pts[originIdx * 3 + 2] + (dz / len) * forward + nz * spread;
+        positions.push(bx, by, bz, nbx, nby, nbz);
+        bx = nbx; by = nby; bz = nbz;
+      }
+    }
+
     return positions;
   }
 
