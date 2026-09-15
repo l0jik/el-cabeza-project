@@ -3294,8 +3294,15 @@ export default function ElCabeza3D({ theme }) {
     // rather than this fixed distance; falls back to it only when
     // there's nothing to fit against yet (e.g. before the scene has
     // measured its own mount even once, or that player has no pieces
-    // left at all).
-    cam.current.radius = fitRadiusToPieces(cam.current.theta, cam.current.phi, currentPlayer) ?? 17;
+    // left at all). Backed off a further 30% (per feedback it still
+    // read as too tight even once the fit itself was actually working)
+    // — shared chassis code, so this applies identically to every
+    // theme, not just one.
+    const FIT_ZOOM_OUT = 1.3;
+    cam.current.radius = Math.min(
+      ZOOM_MAX,
+      (fitRadiusToPieces(cam.current.theta, cam.current.phi, currentPlayer) ?? 17) * FIT_ZOOM_OUT
+    );
     snapToCenter();
   }
 
