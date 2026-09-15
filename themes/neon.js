@@ -996,37 +996,18 @@ export function mountAmbientEffects(refs, helpers) {
     }
     arcTimer = setTimeout(fireArc, 13333 + Math.random() * 25000); // unchanged frequency — variety, not more of them, per feedback
   }
-  /* theme: rebuilt again per feedback — the comet-shaped, staggered-
-     ignition version was the wrong idea entirely. There's no
-     specific shape intended: just a MASS of discrete, closely
-     adjacent, clean solid squares that all move together across the
-     board as one loose formation, like a raft of tiles sliding
-     across the underside of the glass — not a sequential relay of
-     cells each lighting up once in turn. This is a genuinely
-     different animation technique from the rest of the fxItems
-     system (which only ever fades a static mesh's opacity): here a
-     whole THREE.Group of squares is built once, then its own
-     position is smoothly interpolated frame-to-frame in the tick
-     loop below (see t.crawlMassItems), so the entire
-     mass visibly translates across the board while every square in
-     it stays lit together, in concert, the whole time. */
-  /* theme: completely redone per feedback — the previous version (a
-     single fixed mosaic of voxels translating rigidly from A to B,
-     everything fading in/out together) read as "a raft sliding," not
-     the reference images' actual character: interlocking blocks that
-     visibly RECONFIGURE as the mass moves, like current finding its
-     own path — "stray electrons traversing a microchip." Rather than
-     one shape in continuous motion, this spawns a fast SERIES of
-     independent, short-lived voxel clusters ("generations") timed
-     along one path from corner to corner: each is its own random
-     flood-fill (so consecutive generations are never quite the same
-     shape — that difference IS the morphing), anchored a little
-     further along the path than the last with a bit of lateral
-     jitter (an electron finding its own way, not a ruler-straight
-     slide), and overlapping its neighbors' fade in/out so the mass
-     reads as continuous despite no single mesh ever translating.
-     Floods across the same CRAWL_SUB-finer sub-grid as before (see
-     CRAWL_SUB/CRAWL_VOXEL). */
+  /* Interlocking blocks that visibly RECONFIGURE as the mass moves,
+     like current finding its own path — "stray electrons traversing a
+     microchip." Spawns a fast SERIES of independent, short-lived voxel
+     clusters ("generations") timed along one path from corner to
+     corner: each is its own random flood-fill (so consecutive
+     generations are never quite the same shape — that difference IS
+     the morphing), anchored a little further along the path than the
+     last with a bit of lateral jitter (an electron finding its own
+     way, not a ruler-straight slide), and overlapping its neighbors'
+     fade in/out so the mass reads as continuous despite no single mesh
+     ever translating. Floods across the same CRAWL_SUB-finer sub-grid
+     (see CRAWL_SUB/CRAWL_VOXEL). */
   const CRAWL_GRID = BOARD_SIZE * CRAWL_SUB;
   function pickCrawlMassVoxels(count, anchorR, anchorC) {
     const startR = anchorR != null ? anchorR : Math.floor(Math.random() * CRAWL_GRID);
