@@ -7,7 +7,6 @@
 import * as THREE from "three";
 import { BOARD_SIZE, SLAB, MARGIN, SQUARE_SIZE, OFF, DISC_DIAM, DISC_H, PIECE_SCALE } from "../engine/constants.js";
 import { makeRoundedBox } from "../engine/geometry.js";
-import { createWoodPercussion } from "../scripts/wood-impact-synth.js";
 
 /* Outline thickness for the silhouette-shell technique below, in world
    units. Standard-only: Neon uses a different outline technique (see
@@ -206,79 +205,27 @@ export const modalSurface = "rgba(253,251,247,0.96)";
 export const canvasGradientStart = "#FFFDF9";
 export const canvasGradientEnd = "#E9E1D2";
 
-/* Real, if deliberately minimal, audio: physically-modeled wooden-
-   piece impact sounds on landing (see scripts/wood-impact-synth.js
-   for the acoustic model itself), nothing else. Every other cue
-   (select, capture, win, ambient...) stays a no-op, same as before —
-   Standard's identity is a quiet, classic wooden board, not a full
-   soundscape to match Neon's. hasAudio lets the chassis show a real
-   Sound On/Off control now that muting it actually does something. */
-export const hasAudio = true;
+/* No audio at all — every method is a no-op, called from the same
+   fixed chassis call sites Neon's real audio uses (see ARCHITECTURE.md).
+   hasAudio lets the chassis skip rendering a Sound On/Off control that
+   would have no perceptible effect, without branching on which theme
+   is mounted (it's a declared capability, not a per-theme special case).
+   A physically-modeled wood-impact synth (scripts/wood-impact-synth.js)
+   was wired in here briefly but reverted per feedback — it read as
+   "wildly off the mark," not the wood-block sound actually wanted.
+   That file is unwired again; a future attempt should probably start
+   from real recorded samples rather than another synthesis pass. */
+export const hasAudio = false;
 export function createAudio() {
-  let ctx = null;
-  let master = null; // the one node playLanding's cues route through, so setMuted controls all of them
-  let wood = null;
-  let muted = false;
-
-  function ensureGraph() {
-    if (ctx) return;
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      ctx = new AC();
-      master = ctx.createGain();
-      master.gain.value = muted ? 0 : 1;
-      master.connect(ctx.destination);
-      wood = createWoodPercussion(ctx, master);
-    } catch (e) {
-      ctx = null; // Web Audio unavailable — game stays fully playable, just silent
-    }
-  }
-
-  function ensureStarted() {
-    ensureGraph();
-    if (ctx && ctx.state === "suspended") ctx.resume();
-  }
-
   return {
-    ensureStarted,
-    beginGameFadeIn: ensureStarted, // no ambient bed to fade in — just needs the graph built/resumed inside Begin Game's own click
-    setZoom() {},
-    setMuted(next) {
-      muted = next;
-      if (master) master.gain.value = muted ? 0 : 1;
-    },
+    ensureStarted() {}, beginGameFadeIn() {}, setZoom() {}, setMuted() {},
     setTension() {}, beginFadeOut() {}, resetWindDown() {},
-    playSelect() {}, playDeselect() {},
-    /* volume is piece.w * piece.h * piece.z (unitless grid multipliers,
-       1 for the smallest piece up to 8 for Opa) — the same single
-       scalar Neon's own playLanding(mass) already uses for its pitch
-       hierarchy. Converted to real-world-ish units via cube-root
-       scaling for the physical size (mass scales with volume, size
-       scales with its cube root) rather than a linear guess, so the
-       biggest and smallest pieces don't collapse to nearly the same
-       synthesized size. Velocity/contact angle aren't available from
-       this single call site, so they're randomized within a range
-       that reads as "a solid piece settling flat onto the board,"
-       rather than always sounding identical. */
-    playLanding(volume) {
-      ensureGraph();
-      if (!wood) return;
-      const v = Math.max(0.5, volume || 1);
-      wood.playImpact({
-        sizeM: 0.020 + 0.010 * Math.cbrt(v),
-        massKg: 0.025 + 0.012 * v,
-        velocityMS: 0.6 + Math.random() * 0.6,
-        contactFrac: 0.6 + Math.random() * 0.3,
-      });
-    },
-    playCapture() {},
+    playSelect() {}, playDeselect() {}, playLanding() {}, playCapture() {},
     playWin() {}, playMenu() {}, fadeOutMenu() {}, playPowerOn() {},
     playPowerOff() {}, playFlicker() {}, playArc() {}, playGlitch() {},
     playSingularityOpen() {}, playSingularityClose() {},
     playDockOpen() {}, playDockClose() {},
-    dispose() {
-      if (ctx) { try { ctx.close(); } catch (e) {} }
-    },
+    dispose() {},
   };
 }
 

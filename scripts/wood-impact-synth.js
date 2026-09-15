@@ -2,15 +2,16 @@
  * wood-impact-synth.js
  * ---------------------------------------------------------------------
  * Procedural synthesis of wooden-game-piece impact sounds, for Standard
- * theme. Now wired in — see themes/standard.js's createAudio(), which
- * imports createWoodPercussion from here and calls playImpact() from
- * playLanding(volume), volume being piece.w * piece.h * piece.z as
- * passed from chassis/ElCabeza3D.jsx's existing
- * audioRef.current.playLanding(piece.w * piece.h * piece.z) call site
- * (unchanged — this only needed a theme-side implementation, not a
- * new call site). Every other cue (select, capture, win, ambient...)
- * is still a no-op in Standard; only piece-landing impacts are wired,
- * matching this file's own scope.
+ * El Cabeza's currently-silent theme (see themes/standard.js — its
+ * createAudio() is a set of no-op stubs; hasAudio is false). This was
+ * wired in briefly (createWoodPercussion called from playLanding) but
+ * reverted per feedback: it read as "wildly off the mark," not the
+ * wood-block sound actually wanted. Left here unwired again as
+ * reference/salvage — the modal-synthesis approach itself (Rayleigh
+ * free-free bar modes, frequency-dependent damping, etc.) may still be
+ * useful groundwork, but a future attempt should probably start from
+ * real recorded wood-impact samples instead of another from-scratch
+ * synthesis pass.
  *
  * ACOUSTIC MODEL — what's real, and what's a reasonable approximation
  * ---------------------------------------------------------------------
