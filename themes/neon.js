@@ -1424,12 +1424,17 @@ export function mountAmbientEffects(refs, helpers) {
     const SCALE = 0.97;
 
     // Opa (the biggest piece, a 2x2x2-scale cube = 1.6 world units
-    // per axis) is the "~15 bars per longest face" reference (halved
+    // per axis) is the "~11 bars per longest face" reference (halved
     // from an original 30 per feedback that the wireframe interior
-    // read too tight/dense to discern); every other piece's segment
-    // count is that same bars-per-unit density applied to its own
-    // real dimensions, proportionately fewer on shorter sides.
-    const BARS_PER_UNIT = 15 / (2 * PIECE_SCALE);
+    // read too tight/dense to discern, then reduced further from 15
+    // per feedback to bring the mesh/skeleton density down further
+    // still); every other piece's segment count is that same
+    // bars-per-unit density applied to its own real dimensions —
+    // computed from the piece's OWN current bounding box below, so a
+    // smaller piece (or a smaller face of the same piece in a
+    // different roll orientation) gets proportionately fewer bars at
+    // the same spacing, never the same fixed count regardless of size.
+    const BARS_PER_UNIT = 11 / (2 * PIECE_SCALE);
     const segFor = (unitLength) => Math.max(3, Math.min(48, Math.round(unitLength * BARS_PER_UNIT)));
 
     let proxyGeo;
