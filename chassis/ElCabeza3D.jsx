@@ -1496,12 +1496,14 @@ export default function ElCabeza3D({ theme }) {
 
     /* General-purpose sibling to measureBoardPx above, for fitting the
        camera to an arbitrary set of board-local (x,z) corners rather
-       than the fixed SLAB footprint — used by recenterView/topDownView
-       to zoom to whatever pieces are actually on the board right now
-       (see fitRadiusToPieces) instead of the whole board plate. Returns
-       BOTH the horizontal and vertical on-screen span, since a near-
-       top-down view (Top-Down View's shallow phi) can be width-bound on
-       a narrow viewport just as easily as a perspective view can be
+       than always the fixed SLAB footprint — used by Current Player
+       View to zoom to the current player's own pieces (see
+       fitRadiusToPieces) and by Top-Down View to zoom to the whole
+       board plate (see fitRadiusToBoard, which just passes the SLAB's
+       own corners through the same bisection). Returns BOTH the
+       horizontal and vertical on-screen span, since a near-top-down
+       view (Top-Down View's shallow phi) can be width-bound on a
+       narrow viewport just as easily as a perspective view can be
        height-bound. */
     three.current.measureBoxPx = function (radius, phi, theta, target, corners, heights) {
       const w = mount.clientWidth;
@@ -1611,23 +1613,17 @@ export default function ElCabeza3D({ theme }) {
          of the board's width: boardHalfExtent*(1-2*0.20), plus the
          visible half-span itself. */
       const MIN_VISIBLE_FRACTION = 0.2;
-      /* Stricter floor applied only when panning the board toward the
-         BOTTOM of frame (positive target.y) — see the VERTICAL block
-         below. More than double the base 20%: validated this reduces
-         how far positive target.y can reach by roughly 15-20% across
-         the tested radius/phi grid, tightening the direction reported
-         as allowing the board to pan out of the play area at
-         near-horizontal pitch. */
-      const BOTTOM_MIN_VISIBLE_FRACTION = 0.45;
-      /* Required visible fraction when panning the board toward the TOP
-         of frame (negative target.y) — see the VERTICAL block below.
-         Lower than the horizontal clamp's 20%, per explicit request:
-         with the rayHitBoardPlaneY0 bug fixed (see that function's
-         comment) and the camera now free to approach or pass below
-         board level, this is the only thing governing how far the
-         board can pan toward the top — there's no longer a separate
-         camera-height floor doing part of the job. */
-      const TOP_MIN_VISIBLE_FRACTION = 0.15;
+      /* Per feedback, no more than 25% of the board may ever be fully
+         out of viewing range in the vertical direction, at ANY tilt
+         angle — so both vertical floors are now 0.75 (== 25% max out
+         of view), same value in both directions rather than the
+         previous asymmetric 0.45/0.15 split, which still let up to
+         85% of the board pan out of view toward the top. This calls
+         the exact numerically-validated model below (clampVerticalTarget)
+         at every phi, so the 75% floor holds across the whole tilt
+         range, not just at whatever angles were spot-checked before. */
+      const BOTTOM_MIN_VISIBLE_FRACTION = 0.75;
+      const TOP_MIN_VISIBLE_FRACTION = 0.75;
       const halfFovRad = (camera.fov / 2) * (Math.PI / 180);
       const groundHalfSpan = goal.radius * Math.tan(halfFovRad);
       const maxPanDistance = (SLAB / 2) * (1 - 2 * MIN_VISIBLE_FRACTION) + groundHalfSpan;
@@ -2868,23 +2864,8 @@ export default function ElCabeza3D({ theme }) {
           // crosses the threshold is swallowed too rather than applied
           // as a catch-up jump; rotation starts cleanly from wherever
           // the finger is the moment it's actually dragging.
-          if (moved > DRAG_DEAD_ZONE_PX) {
-            dragArmed = true;
-            // Re-centers the pivot the instant a genuine tilt/rotate
-            // drag actually begins (not on every pointerdown, which
-            // would visibly snap the camera even for a plain tap-to-
-            // select) — fixes phi (pitch) orbiting around a stale,
-            // previously-panned-to point instead of the board's own
-            // center. theta never had this problem (it spins boardGroup
-            // about its own local origin, not the camera), but phi
-            // orbits the camera around cam.current.target, and nothing
-            // else re-centers that after a pan. Trade-off, accepted:
-            // any manual pan is discarded the moment the board is
-            // tilted/rotated again, rather than preserved across it.
-            snapToCenter();
-          } else {
-            return;
-          }
+          if (moved > DRAG_DEAD_ZONE_PX) dragArmed = true;
+          return;
         }
         /* These only move the GOAL (cam.current); the render loop damps
            the actual view toward it every frame, which is what removes
@@ -3215,42 +3196,23 @@ export default function ElCabeza3D({ theme }) {
     cam.current.view.target.set(0, 0, 0);
   }
 
-  /* Smallest radius, at the given heading/pitch, whose on-screen
-     projection of every piece currently on the board (not the board
-     itself — the board can run off either edge of the screen, only the
-     pieces need to stay visible) still fits inside most of the
-     viewport. Same bisection technique as the pre-game masthead/dock
-     framing above (see measureBoxPx), just fitting a different box: the
-     union of every piece's footprint instead of the fixed SLAB.
-     Returns null when there's nothing to fit against (no pieces, or the
-     mount/measure helpers aren't ready yet) — callers fall back to
+  /* Shared bisection core behind fitRadiusToPieces/fitRadiusToBoard
+     below: smallest radius, at the given heading/pitch, whose on-screen
+     projection of an arbitrary set of board-local (x,z) corners still
+     fits inside most of the viewport. Same technique as the pre-game
+     masthead/dock framing above (see measureBoxPx). Returns null when
+     the mount/measure helpers aren't ready yet — callers fall back to
      their own fixed radius in that case. */
-  function fitRadiusToPieces(theta, phi) {
+  function fitRadiusToCorners(theta, phi, corners, heights) {
     const measure = three.current.measureBoxPx;
     const getSize = three.current.getMountSize;
-    if (!measure || !getSize || !pieces.length) return null;
+    if (!measure || !getSize) return null;
     const size = getSize();
     if (!size) return null;
 
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const p of pieces) {
-      minX = Math.min(minX, p.col * SQUARE_SIZE - OFF);
-      maxX = Math.max(maxX, (p.col + p.w) * SQUARE_SIZE - OFF);
-      minZ = Math.min(minZ, p.row * SQUARE_SIZE - OFF);
-      maxZ = Math.max(maxZ, (p.row + p.h) * SQUARE_SIZE - OFF);
-    }
-    // Padding so the outermost pieces don't sit flush against the
-    // frame edge, then the tallest piece's own height so a tall block
-    // right at the fitted edge doesn't poke out the top of the frame.
-    const PAD = SQUARE_SIZE * 0.6;
-    minX -= PAD; maxX += PAD; minZ -= PAD; maxZ += PAD;
-    const corners = [
-      [minX, minZ], [minX, maxZ], [maxX, minZ], [maxX, maxZ],
-    ];
-    const heights = [0, 2 * PIECE_SCALE];
     // Fit within most of the viewport, not edge-to-edge — leaves a
-    // visible margin around the outermost pieces on every side, the
-    // same spirit as the pre-game framing's own GAP_PADDING_PX.
+    // visible margin around the fitted box on every side, the same
+    // spirit as the pre-game framing's own GAP_PADDING_PX.
     const FIT_FRACTION = 0.82;
     const availW = size.w * FIT_FRACTION;
     const availH = size.h * FIT_FRACTION;
@@ -3269,6 +3231,46 @@ export default function ElCabeza3D({ theme }) {
     return hi;
   }
 
+  /* Smallest radius fitting every piece belonging to `owner` (or every
+     piece on the board, if owner is omitted) — used by Current Player
+     View, which per feedback should frame only the CURRENT player's
+     own pieces, not the whole board or the opponent's side too.
+     Returns null when there's nothing to fit against (no matching
+     pieces, or the helpers aren't ready), same as fitRadiusToCorners. */
+  function fitRadiusToPieces(theta, phi, owner) {
+    const relevant = owner ? pieces.filter((p) => p.owner === owner) : pieces;
+    if (!relevant.length) return null;
+
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (const p of relevant) {
+      minX = Math.min(minX, p.col * SQUARE_SIZE - OFF);
+      maxX = Math.max(maxX, (p.col + p.w) * SQUARE_SIZE - OFF);
+      minZ = Math.min(minZ, p.row * SQUARE_SIZE - OFF);
+      maxZ = Math.max(maxZ, (p.row + p.h) * SQUARE_SIZE - OFF);
+    }
+    // Padding so the outermost pieces don't sit flush against the
+    // frame edge, then the tallest piece's own height so a tall block
+    // right at the fitted edge doesn't poke out the top of the frame.
+    const PAD = SQUARE_SIZE * 0.6;
+    minX -= PAD; maxX += PAD; minZ -= PAD; maxZ += PAD;
+    const corners = [
+      [minX, minZ], [minX, maxZ], [maxX, minZ], [maxX, maxZ],
+    ];
+    return fitRadiusToCorners(theta, phi, corners, [0, 2 * PIECE_SCALE]);
+  }
+
+  /* Smallest radius fitting the WHOLE board plate (the fixed SLAB
+     footprint, same extent measureBoardPx uses) — Top-Down View should
+     always show the entire board per feedback, not just wherever
+     pieces happen to currently be clustered. */
+  function fitRadiusToBoard(theta, phi) {
+    const half = SLAB / 2;
+    const corners = [
+      [-half, -half], [-half, half], [half, -half], [half, half],
+    ];
+    return fitRadiusToCorners(theta, phi, corners, [0, 2 * PIECE_SCALE]);
+  }
+
   function recenterView() {
     /* Pitch and distance are still camera moves. Heading (theta) is now
        applied to the board's own rotation instead of the camera's orbit
@@ -3279,12 +3281,13 @@ export default function ElCabeza3D({ theme }) {
        centering (snapToCenter) is instant. */
     cam.current.theta = currentPlayer === "dark" ? Math.PI : 0;
     cam.current.phi = 0.86;
-    // Zooms to fit whatever pieces are actually on the board right now
-    // (not the whole board plate — see fitRadiusToPieces) rather than
-    // this fixed distance; falls back to it only when there's nothing
-    // to fit against yet (e.g. before the scene has measured its own
-    // mount even once).
-    cam.current.radius = fitRadiusToPieces(cam.current.theta, cam.current.phi) ?? 17;
+    // Zooms to fit only the CURRENT player's own pieces (not the whole
+    // board, and not the opponent's side either — see fitRadiusToPieces)
+    // rather than this fixed distance; falls back to it only when
+    // there's nothing to fit against yet (e.g. before the scene has
+    // measured its own mount even once, or that player has no pieces
+    // left at all).
+    cam.current.radius = fitRadiusToPieces(cam.current.theta, cam.current.phi, currentPlayer) ?? 17;
     snapToCenter();
   }
 
@@ -3304,14 +3307,16 @@ export default function ElCabeza3D({ theme }) {
        turn via whichever direction is shorter, so this never spins
        further than it has to to reach the correct side. Pitch is what
        actually distinguishes this button from Current Player View; zoom
-       now fits the pieces on the board the same way Current Player View
-       does (see fitRadiusToPieces), falling back to the old fixed 70%-
-       zoomed default only when there's nothing to fit against yet. */
+       now fits the WHOLE board plate (see fitRadiusToBoard) — per
+       feedback this view should always show the entire board, not
+       zoom to wherever pieces currently happen to be clustered —
+       falling back to the old fixed 70%-zoomed default only when
+       there's nothing to fit against yet. */
     cam.current.theta = facePlayer === "dark" ? Math.PI : 0;
     cam.current.phi = 0.012; // matches the drag clamp's near-vertical limit
     const ZOOM_PCT = 0.7;
     const fallback = ZOOM_MAX - ZOOM_PCT * (ZOOM_MAX - ZOOM_MIN);
-    cam.current.radius = fitRadiusToPieces(cam.current.theta, cam.current.phi) ?? fallback;
+    cam.current.radius = fitRadiusToBoard(cam.current.theta, cam.current.phi) ?? fallback;
     snapToCenter();
   }
 
@@ -3892,8 +3897,13 @@ export default function ElCabeza3D({ theme }) {
                narrower than expected. All three numbers cut 22% from
                their prior values (26/9/168) per feedback that the
                whole scale — especially the top end a wide/fullscreen
-               viewport actually reaches — had grown too large. */
-            fontSize: "clamp(20px, 7vw, 131px)",
+               viewport actually reaches — had grown too large. Cut a
+               further 40% (all three numbers * 0.6) specifically
+               while in full screen — a fullscreen viewport is where
+               7vw actually reaches, and stays pinned near, the 131px
+               ceiling, which read as oversized per feedback. Windowed
+               play is unaffected. */
+            fontSize: isFullscreen ? "clamp(12px, 4.2vw, 79px)" : "clamp(20px, 7vw, 131px)",
             lineHeight: 1.05,
             letterSpacing: "0.02em",
             color: COLORS.charcoal,

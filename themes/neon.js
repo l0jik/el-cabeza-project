@@ -1174,7 +1174,7 @@ export function mountAmbientEffects(refs, helpers) {
       // between dim and bright cells stays exactly as wide, just
       // scaled down together. Reduced a further 15% (0.9 -> 0.765)
       // per feedback to dim the whole crawling swarm overall.
-      const BRIGHTNESS_CEILING = 0.65; // dimmed a further ~15% (0.765 -> 0.65) per feedback
+      const BRIGHTNESS_CEILING = 0.26; // dimmed a further 60% (0.65 -> 0.26) per feedback
       materials.push({
         bloom: bloomMat, halo: haloMat, core: coreMat,
         bloomPeak: (0.28 + Math.random() * 0.12) * cellBrightness * BRIGHTNESS_CEILING,
@@ -1215,12 +1215,21 @@ export function mountAmbientEffects(refs, helpers) {
     let b = a;
     while (b === a) b = cornerPts[Math.floor(Math.random() * cornerPts.length)];
 
-    const duration = 3200 + Math.random() * 1000; // slowed down per feedback (was 2600-3400ms)
-    const STEP_MS = 270; // slowed down per feedback (was 220) — widens generation spacing along the path
+    // Slowed a further 40% per feedback (was 3200-4200ms / 270ms step).
+    const duration = (3200 + Math.random() * 1000) * 1.4;
+    const STEP_MS = 270 * 1.4;
     const GEN_LIFE_MS = STEP_MS * 2.4; // consecutive generations overlap, so the mass never visibly gaps
     const steps = Math.max(3, Math.round(duration / STEP_MS));
 
+    // Occasionally hesitates before a step instead of advancing on a
+    // perfectly metronomic beat — per feedback ("it may sometimes even
+    // pause to think about which way it wants to move"). A ~25% chance
+    // per step of a longer-than-usual gap before it, rather than a
+    // fixed i*STEP_MS schedule.
+    let elapsed = 0;
     for (let i = 0; i < steps; i++) {
+      if (i > 0) elapsed += Math.random() < 0.25 ? STEP_MS * (0.8 + Math.random() * 1.6) : STEP_MS;
+      const delay = elapsed;
       const timer = setTimeout(() => {
         if (windingDownRef.current) return;
         const along = steps <= 1 ? 0 : i / (steps - 1);
@@ -1232,7 +1241,7 @@ export function mountAmbientEffects(refs, helpers) {
           Math.max(0, Math.min(CRAWL_GRID - 1, anchorC)),
           GEN_LIFE_MS
         );
-      }, i * STEP_MS);
+      }, delay);
       crawlStepTimers.push(timer);
     }
   }
@@ -4812,6 +4821,41 @@ export function createSoundscape() {
     osc.stop(t0 + attack + hold + release + 0.1);
   }
 
+  /* The CONNECT/DISCONNECT chimes' companion layer — a second, warbly
+     "warped sine" voice (an LFO wobbling its own pitch) that plays
+     alongside cue()/reverseCue()'s own sharper beep, restoring the
+     two-layer "jibbering beeps + underlying warp" texture per
+     feedback. Its own gain builds through the whole duration to a
+     peak right at the very end (climaxing exactly as the cue itself
+     finishes, not partway through) rather than cue()'s quick-attack/
+     long-decay shape, so the pair reads as one event escalating
+     together. `delay` (a random small fraction of dur, different each
+     call — see playPowerOn/Off) offsets this voice's start relative to
+     the main beep so the two never intertwine the same way twice. */
+  function connectionCompanion(freqStart, freqEnd, dur, peak, delay) {
+    if (!ctx) return;
+    const t0 = nowT() + Math.max(0, delay);
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freqStart, t0);
+    osc.frequency.exponentialRampToValueAtTime(freqEnd, t0 + dur);
+    const lfo = ctx.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = 4 + Math.random() * 5; // warble rate, randomized per play
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = freqStart * 0.18; // warble depth scales with the voice's own pitch
+    lfo.connect(lfoGain).connect(osc.frequency);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + dur * 0.88); // builds all the way to the climax
+    g.gain.linearRampToValueAtTime(0, t0 + dur + 0.06); // then a quick cutoff at the peak, not a lingering tail
+    osc.connect(g).connect(sfxGain);
+    osc.start(t0);
+    lfo.start(t0);
+    osc.stop(t0 + dur + 0.12);
+    lfo.stop(t0 + dur + 0.12);
+  }
+
   /* CABEZA CRUSHED — per feedback, replaces the old flat downward
      cue() sweep with three layered "falling away" characteristics at
      once: a pitch sink (an ACCELERATING glide, slow-then-plunging,
@@ -5382,6 +5426,9 @@ export function createSoundscape() {
       ensureGraph();
       if (ctx && ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
       cue(70, 220, 0.7, "sine", 0.06);
+      // Warped-sine companion, randomly offset so the two voices
+      // intertwine differently every time (see connectionCompanion).
+      connectionCompanion(140, 660, 0.7, 0.05, Math.random() * 0.25);
     },
     // Shorter and considerably louder than the initial version — per
     // feedback it wasn't being heard at all, most likely because a
@@ -5398,6 +5445,9 @@ export function createSoundscape() {
       ensureGraph();
       if (ctx && ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
       reverseCue(70, 220, 0.4, "sine", 0.16);
+      // Same companion as playPowerOn, pitched down to mirror the
+      // DISCONNECT direction, own random intertwine offset.
+      connectionCompanion(660, 140, 0.4, 0.09, Math.random() * 0.15);
     },
     playFlicker: () => { if (ctx && ctx.state === "running") evPowerFluctuation(); },
     playArc: () => { if (ctx && ctx.state === "running") evArc(); },
@@ -5436,7 +5486,10 @@ export function createSoundscape() {
        generic UI click. ensureGraph() first, same reasoning as
        playDockOpen: Anomaly is only ever available during setup,
        before ensureStarted() would normally have built the graph. */
-    playAnomaly: () => { ensureGraph(); cue(900, 1600, 0.09, "square", 0.045); },
+    // Cut 50% (0.045 -> 0.0225) and pitched up 300% (900-1600Hz ->
+    // 3600-6400Hz) per feedback — it was too loud/low for a brief
+    // scan blip.
+    playAnomaly: () => { ensureGraph(); cue(3600, 6400, 0.09, "square", 0.0225); },
     dispose: () => {
       disposed = true;
       if (scheduleTimer) clearTimeout(scheduleTimer);
