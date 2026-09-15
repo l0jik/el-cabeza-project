@@ -4158,8 +4158,17 @@ export default function ElCabeza3D({ theme }) {
           // on one indivisible line together (see that row's own
           // comment), which needs more room than the Human-only 480px
           // cap gives it — without this, Difficulty's own buttons ran
-          // off the right edge of the panel.
-          width: awaitingBegin ? (aiPlayer ? "min(600px, 94vw)" : "min(480px, 92vw)") : "min(880px, 96vw)",
+          // off the right edge of the panel. Mid-game (declutter) is
+          // its own case too, per feedback — its content (the status
+          // bar, the two view buttons, End Active Game) is far sparser
+          // than the post-game Move Log panel that also uses this
+          // "not setup" branch, and read as unnecessarily large at the
+          // full 880px.
+          width: awaitingBegin
+            ? (aiPlayer ? "min(600px, 94vw)" : "min(480px, 92vw)")
+            : declutter
+            ? "min(560px, 92vw)"
+            : "min(880px, 96vw)",
           /* Pre-game only: shrunk by roughly the row (button + its
              marginTop/paddingTop/border) that Begin Game and Neon's
              Anomaly used to occupy on their own line below the Opponent
