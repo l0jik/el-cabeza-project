@@ -2313,6 +2313,51 @@ export default function ElCabeza3D({ theme }) {
   );
   beginMoveRef.current = beginMove;
 
+  /* Runs findBestAiTurn on a dedicated Worker thread (see engine/ai-
+     worker.js and build/build.js's own comments on how it gets
+     embedded) instead of the main one — a Hard-tier search can occupy
+     a thread for its FULL time budget (up to 4.3s) in one synchronous
+     stretch; findBestAiTurn's own yield-between-depths only ever gave
+     other main-thread work a chance BETWEEN completed depths, never
+     during the depth actually in progress, so the page (camera easing,
+     ambient FX, any input) could still visibly lock up for a stretch
+     right as a deep search ran. A real Worker removes the main thread
+     from that path entirely. Mount-once: the worker's own lifetime
+     matches this component instance's, not any single search. */
+  const aiWorkerRef = useRef(null);
+  const aiRequestsRef = useRef(new Map());
+  const aiRequestIdRef = useRef(0);
+  useEffect(() => {
+    const scriptEl = document.getElementById("ai-worker-src");
+    if (!scriptEl || !scriptEl.textContent) return; // no bundled worker (e.g. running from source) — runAiSearch below falls back to in-thread
+    const blob = new Blob([scriptEl.textContent], { type: "application/javascript" });
+    const url = URL.createObjectURL(blob);
+    const worker = new Worker(url);
+    worker.onmessage = (ev) => {
+      const { requestId, turn, error } = ev.data;
+      const pending = aiRequestsRef.current.get(requestId);
+      if (!pending) return; // already handled, or this component instance is on its way out
+      aiRequestsRef.current.delete(requestId);
+      if (error) pending.reject(new Error(error));
+      else pending.resolve(turn);
+    };
+    aiWorkerRef.current = worker;
+    return () => {
+      worker.terminate();
+      URL.revokeObjectURL(url);
+      aiWorkerRef.current = null;
+    };
+  }, []);
+  function runAiSearch(pieces, aiPlayer, config, cabezaStreak, turnIndex) {
+    const worker = aiWorkerRef.current;
+    if (!worker) return findBestAiTurn(pieces, aiPlayer, config, cabezaStreak, turnIndex);
+    const requestId = ++aiRequestIdRef.current;
+    return new Promise((resolve, reject) => {
+      aiRequestsRef.current.set(requestId, { resolve, reject });
+      worker.postMessage({ requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex });
+    });
+  }
+
   /* Drives the AI's entire turn from the outside, without commitRef.current
      needing to know AI exists at all. Two situations, both handled by
      the same effect since they share every guard:
@@ -2340,17 +2385,16 @@ export default function ElCabeza3D({ theme }) {
 
     if (stepsUsed === 0 && !aiDirsRef.current) {
       setAiThinking(true);
-      // findBestAiTurn is async now — it yields back to the event loop
-      // between search depths so its own (sometimes multi-second)
-      // search no longer blocks the render thread solid, which used to
-      // read as the whole board freezing right as the AI began
-      // thinking. `cancelled` guards against this timer's own 500ms
-      // delay or the search's now-nonzero real duration outliving this
-      // effect run (a fresh dependency change, e.g. a reset) —
-      // clearTimeout alone can't cancel a Promise already in flight.
+      // Runs on the AI worker thread now (see runAiSearch above) — the
+      // main thread stays fully responsive for the entire search,
+      // including within a single depth, not just between completed
+      // ones. `cancelled` guards against this timer's own 500ms delay
+      // or the search's own duration outliving this effect run (a
+      // fresh dependency change, e.g. a reset) — clearTimeout alone
+      // can't cancel a Promise already in flight.
       let cancelled = false;
       const timer = setTimeout(async () => {
-        const turn = await findBestAiTurn(
+        const turn = await runAiSearch(
           pieces,
           aiPlayer,
           AI_DIFFICULTY[aiDifficulty],

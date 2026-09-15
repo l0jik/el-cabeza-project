@@ -9,6 +9,23 @@ const targets = [
 
 mkdirSync("dist", { recursive: true });
 
+/* Bundled once, shared by all three targets (identical AI code
+   regardless of theme) — see engine/ai-worker.js's own header comment
+   for why this is embedded as inert script text rather than shipped as
+   a second file: the whole point of this build is one self-contained
+   HTML page per theme. Plain JS, no JSX loader needed. */
+const workerResult = await esbuild.build({
+  entryPoints: ["engine/ai-worker.js"],
+  bundle: true,
+  write: false,
+  format: "iife",
+  logLevel: "warning",
+});
+const workerJs = workerResult.outputFiles[0].text;
+// </script sequences inside the bundled worker text would otherwise
+// prematurely close this holder tag when the browser parses the HTML.
+const workerJsEscaped = workerJs.replace(/<\/script/gi, "<\\/script");
+
 for (const t of targets) {
   const result = await esbuild.build({
     entryPoints: [t.entry],
@@ -21,7 +38,10 @@ for (const t of targets) {
     logLevel: "warning",
   });
   const js = result.outputFiles[0].text;
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${t.title}</title></head><body style="margin:0"><div id="root"></div><script>${js}</script></body></html>`;
+  // type="application/x-ai-worker" (not a JS mimetype) keeps the browser
+  // from ever trying to execute this inline — chassis/ElCabeza3D.jsx
+  // reads its textContent and turns it into a real Worker via a Blob URL.
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${t.title}</title></head><body style="margin:0"><div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script><script>${js}</script></body></html>`;
   writeFileSync(`dist/el-cabeza-${t.name}.html`, html);
-  console.log(`built dist/el-cabeza-${t.name}.html (${(js.length / 1024).toFixed(0)}kb JS)`);
+  console.log(`built dist/el-cabeza-${t.name}.html (${(js.length / 1024).toFixed(0)}kb JS, ${(workerJs.length / 1024).toFixed(0)}kb worker)`);
 }

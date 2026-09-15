@@ -40,6 +40,58 @@ export function cabezaInDanger(pieces, owner) {
   return false;
 }
 
+/* Mutates `pieces` (an array of MUTABLE piece objects — see the single
+   clone findBestAiTurn makes up front) so that `piece` becomes the state
+   described by `move`, applying a crush by splicing the crushed piece
+   out. Paired with undoMove below to make the whole search a real
+   make/unmake walk instead of allocating a fresh 10-element pieces array
+   at every node the way this used to (see PERFORMANCE NOTE below
+   generateTurns) — the return value is everything undoMove needs to put
+   the position back exactly as it was.
+
+   `move.crushes`, when present, is a direct reference into the SAME
+   `pieces` array (see evaluateBlockLanding in rules.js, which reads it
+   off `pieces.find(...)`), which is what makes `pieces.indexOf` below
+   reliable — it's the very object this array already contains, not a
+   lookalike copy. */
+function applyMove(pieces, piece, move) {
+  const prevFields = { row: piece.row, col: piece.col, w: piece.w, h: piece.h, z: piece.z };
+  const c = move.candidate;
+  piece.row = c.row;
+  piece.col = c.col;
+  piece.w = c.w;
+  piece.h = c.h;
+  piece.z = c.z;
+  let removedIndex = -1;
+  if (move.crushes) {
+    removedIndex = pieces.indexOf(move.crushes);
+    pieces.splice(removedIndex, 1);
+  }
+  return { prevFields, removed: move.crushes || null, removedIndex };
+}
+
+function undoMove(pieces, piece, undo) {
+  const p = undo.prevFields;
+  piece.row = p.row;
+  piece.col = p.col;
+  piece.w = p.w;
+  piece.h = p.h;
+  piece.z = p.z;
+  if (undo.removed) pieces.splice(undo.removedIndex, 0, undo.removed);
+}
+
+// A whole turn (1 or 2 chained moves) applied/undone as one unit —
+// undoTurn reverses in the opposite order applyTurn applied in, same as
+// unwinding any other stack.
+function applyTurn(pieces, turn) {
+  const undos = [];
+  for (const move of turn.moves) undos.push(applyMove(pieces, turn.piece, move));
+  return undos;
+}
+function undoTurn(pieces, turn, undos) {
+  for (let i = undos.length - 1; i >= 0; i--) undoMove(pieces, turn.piece, undos[i]);
+}
+
 /* Every complete legal turn available to `player` from this position:
    one piece, either a single step/roll or two chained together,
    exactly mirroring what the UI itself allows (see PIECE_META.maxSteps
@@ -47,7 +99,19 @@ export function cabezaInDanger(pieces, owner) {
    back on the turn's own starting square and orientation are excluded
    here for the same reason the engine voids them live — see sameState
    — so the AI never wastes a search branch, let alone an actual turn,
-   considering a move that isn't really a move. */
+   considering a move that isn't really a move.
+
+   PERFORMANCE NOTE: this used to build a whole new 10-element
+   `resultingPieces` array (and filter a second one for a crush) for
+   EVERY candidate turn — up to ~180 per node, at every node of a
+   depth-11 search. Every one of those turns is now described instead as
+   `{ piece, moves }` — a reference to the real piece object plus the
+   `legalMovesFor` move descriptor(s) needed to replay it — and the
+   second step's own legal moves are read by applying the first move IN
+   PLACE (via applyMove) and undoing it right after, the same
+   apply/evaluate/undo pattern minimaxSearch below uses for everything
+   else. The only pieces array allocation in the entire search now
+   happens once, in findBestAiTurn, before any of this runs. */
 export function generateTurns(pieces, player) {
   const turns = [];
 
@@ -57,9 +121,6 @@ export function generateTurns(pieces, player) {
     const firstMoves = legalMovesFor(pieces, piece);
 
     for (const [dir1, move1] of Object.entries(firstMoves)) {
-      let afterStep1 = pieces.map((p) => (p.id === piece.id ? move1.candidate : p));
-      if (move1.crushes) afterStep1 = afterStep1.filter((p) => p.id !== move1.crushes.id);
-
       const wins1 =
         !move1.crushes &&
         piece.type === "cabeza" &&
@@ -71,26 +132,26 @@ export function generateTurns(pieces, player) {
       // even when a second step would be available, and the AI needs
       // that same option on the table, not just the deepest chain.
       turns.push({
+        piece,
         pieceId: piece.id,
         dirs: [dir1],
-        resultingPieces: afterStep1,
+        moves: [move1],
         crushes: !!move1.crushes,
         wins: wins1,
       });
 
       if (terminal1 || maxSteps < 2) continue;
 
-      const secondMoves = legalMovesFor(afterStep1, move1.candidate);
+      const undo1 = applyMove(pieces, piece, move1);
+      const secondMoves = legalMovesFor(pieces, piece);
       for (const [dir2, move2] of Object.entries(secondMoves)) {
-        if (sameState(piece, move2.candidate)) continue; // net-zero round trip — not a real turn
-
-        let afterStep2 = afterStep1.map((p) => (p.id === piece.id ? move2.candidate : p));
-        if (move2.crushes) afterStep2 = afterStep2.filter((p) => p.id !== move2.crushes.id);
+        if (sameState(undo1.prevFields, move2.candidate)) continue; // net-zero round trip — not a real turn
 
         turns.push({
+          piece,
           pieceId: piece.id,
           dirs: [dir1, dir2],
-          resultingPieces: afterStep2,
+          moves: [move1, move2],
           crushes: !!move2.crushes,
           wins:
             !move2.crushes &&
@@ -98,6 +159,7 @@ export function generateTurns(pieces, player) {
             move2.candidate.row === GOAL_ROW[piece.owner],
         });
       }
+      undoMove(pieces, piece, undo1);
     }
   }
 
@@ -247,6 +309,30 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
   return score;
 }
 
+/* A move-ordering identity for a turn — stable across positions/nodes
+   since it's just (which piece, which direction sequence), which is
+   exactly the granularity killer moves and the history table need: "was
+   THIS piece's THIS direction choice good," not "was this exact
+   resulting board good" (evaluatePosition's job already). */
+function moveKey(turn) {
+  return turn.piece.id + "|" + turn.dirs.join(",");
+}
+const EMPTY_KILLERS = [];
+const EMPTY_HISTORY = Object.create(null);
+
+function recordKiller(killers, ply, turn) {
+  const key = moveKey(turn);
+  const slot = killers[ply] || (killers[ply] = [null, null]);
+  if (slot[0] === key) return; // already the top killer here — nothing to shift
+  slot[1] = slot[0];
+  slot[0] = key;
+}
+
+function recordHistory(history, turn, depth) {
+  const key = moveKey(turn);
+  history[key] = (history[key] || 0) + depth * depth;
+}
+
 /* Alpha-beta minimax over generateTurns. `player` is whoever moves at
    this node (alternates every ply); `aiPlayer` is fixed for the whole
    search and is who every leaf is scored for — maximizing when it's
@@ -280,8 +366,22 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
    `weights` is different: it's genuine position evaluation (see
    evaluatePosition), not a style nudge, so it DOES thread through every
    recursive call below — using a different value system at different
-   plies would make minimax's own comparisons incoherent. */
-export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, deadline, rootBias = null, weights = DEFAULT_EVAL_WEIGHTS) {
+   plies would make minimax's own comparisons incoherent.
+
+   `killers`/`history`/`ply` are move-ordering memory, not game state:
+   `killers[ply]` holds up to 2 move keys (see moveKey) that most
+   recently caused a beta cutoff AT THIS PLY, in any branch searched so
+   far — a move that was devastating in one sibling line is usually
+   worth trying early in the next one too. `history` is a flatter,
+   longer-memory table of the same idea, scored by depth^2 every time a
+   move causes a cutoff anywhere in the tree, so a piece/direction that
+   keeps winning early exits keeps floating toward the front of future
+   orderings even across different plies. Both are created once per
+   findBestAiTurn call (including across its iterative-deepening
+   depths) and threaded through every recursive call — `ply` counts UP
+   from the root (0) precisely so killers stay ply-indexed rather than
+   remaining-depth-indexed, since `depth` counts down instead. */
+export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, deadline, rootBias = null, weights = DEFAULT_EVAL_WEIGHTS, killers = EMPTY_KILLERS, history = EMPTY_HISTORY, ply = 0) {
   if (performance.now() > deadline) {
     return { score: evaluatePosition(pieces, aiPlayer, weights), turn: null, timedOut: true };
   }
@@ -322,7 +422,9 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
      and is used directly.
 
      The scoring itself uses decorate-sort-undecorate — each candidate
-     is evaluated exactly once up front, not re-evaluated on every
+     is evaluated exactly once up front (applying/undoing it in place —
+     see applyTurn/undoTurn — rather than reading a precomputed
+     snapshot, since none exists anymore), not re-evaluated on every
      pairwise comparison a naive sort comparator would trigger. That
      wasn't a micro-optimization: an earlier version that scored inside
      the comparator itself measured roughly 8x the per-node cost of the
@@ -330,20 +432,44 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
      roughly 2.6x, which is what let the reduced node count from better
      pruning actually win out in wall-clock time rather than being
      eaten by ordering overhead. */
-  const scoredTurns = turns.map((t) => ({
-    turn: t,
-    terminal: !!(t.crushes || t.wins),
-    orderScore: t.crushes || t.wins ? 0 : evaluatePosition(t.resultingPieces, aiPlayer, weights),
-  }));
+  const killerSlot = killers[ply];
+  const scoredTurns = turns.map((t) => {
+    const terminal = !!(t.crushes || t.wins);
+    let orderScore = 0;
+    if (!terminal) {
+      const undos = applyTurn(pieces, t);
+      orderScore = evaluatePosition(pieces, aiPlayer, weights);
+      undoTurn(pieces, t, undos);
+    }
+    const key = moveKey(t);
+    return {
+      turn: t,
+      terminal,
+      orderScore,
+      isKiller: !!(killerSlot && (killerSlot[0] === key || killerSlot[1] === key)),
+      histScore: history[key] || 0,
+    };
+  });
   scoredTurns.sort((a, b) => {
     if (a.terminal !== b.terminal) return a.terminal ? -1 : 1;
     if (a.terminal) return 0; // both terminal -- no further ranking needed between them
-    return maximizing ? b.orderScore - a.orderScore : a.orderScore - b.orderScore;
+    if (a.isKiller !== b.isKiller) return a.isKiller ? -1 : 1;
+    if (a.isKiller && b.isKiller) return b.histScore - a.histScore;
+    const primary = maximizing ? b.orderScore - a.orderScore : a.orderScore - b.orderScore;
+    return primary !== 0 ? primary : b.histScore - a.histScore;
   });
   turns.splice(0, turns.length, ...scoredTurns.map((s) => s.turn));
 
   let bestScore = maximizing ? -Infinity : Infinity;
   let bestTurn = null;
+  // Cached alongside bestTurn: whether ITS resulting position leaves
+  // player's own Cabeza safe — computed once, right when bestTurn is
+  // set, while the move is still applied (see the tie-break below,
+  // which used to recompute this against a snapshot that no longer
+  // exists; recomputing it post-hoc against an already-undone turn
+  // isn't possible with in-place mutation, so it has to be cached
+  // going forward instead).
+  let bestTurnSafe = false;
   let timedOut = false;
 
   /* Computed once, not per-turn: whether `player`'s own Cabeza is
@@ -355,6 +481,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
 
   for (const turn of turns) {
     let score;
+    const undos = applyTurn(pieces, turn);
     if (turn.crushes || turn.wins) {
       // Terminal within this ply. depth is folded in as a small
       // tiebreak — not to decide who wins, only to prefer a faster win
@@ -365,7 +492,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
       score = sign * (AI_WIN_SCORE + depth);
     } else {
       const child = minimaxSearch(
-        turn.resultingPieces,
+        pieces,
         opponentOf(player),
         aiPlayer,
         depth - 1,
@@ -373,7 +500,10 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
         beta,
         deadline,
         null, // rootBias intentionally NOT passed through — see comment above.
-        weights // weights DOES thread through — evaluation must stay consistent at every ply.
+        weights, // weights DOES thread through — evaluation must stay consistent at every ply.
+        killers,
+        history,
+        ply + 1
       );
       score = child.score;
       if (child.timedOut) timedOut = true;
@@ -389,7 +519,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
         // lose to a one-step move that merely LOOKS comparable once
         // twoStepBias knocks it down — style should never outweigh
         // survival.
-        const resolvesDanger = dangerBeforeMove && !cabezaInDanger(turn.resultingPieces, player);
+        const resolvesDanger = dangerBeforeMove && !cabezaInDanger(pieces, player);
 
         if (!resolvesDanger) {
           // Prefer a single movement over automatically chaining the
@@ -402,8 +532,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
           // something else this time — scales with the streak so an
           // isolated Cabeza move costs little, but leaning on it turn
           // after turn costs progressively more.
-          const movedPiece = pieces.find((p) => p.id === turn.pieceId);
-          if (movedPiece && movedPiece.type === "cabeza") {
+          if (turn.piece.type === "cabeza") {
             score -= rootBias.cabezaRepeatBias * rootBias.cabezaStreak;
           }
         }
@@ -434,9 +563,15 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
       }
     }
 
+    // Cached while `turn` is still applied — see bestTurnSafe's own
+    // comment above for why this can no longer be recomputed later.
+    const turnSafe = !cabezaInDanger(pieces, player);
+    undoTurn(pieces, turn, undos);
+
     if (maximizing ? score > bestScore : score < bestScore) {
       bestScore = score;
       bestTurn = turn;
+      bestTurnSafe = turnSafe;
     } else if (score === bestScore && bestTurn) {
       // Tie-break for otherwise-identical outcomes — most commonly a
       // forced loss the search can't avoid or delay any further,
@@ -452,17 +587,22 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
       // but the AI keeps visibly trying rather than abandoning the
       // threatened piece — and a human (or another AI) doesn't always
       // find the correct follow-through even when one exists.
-      const stayedSafe = !cabezaInDanger(turn.resultingPieces, player);
-      const bestWasSafe = !cabezaInDanger(bestTurn.resultingPieces, player);
-      if (stayedSafe && !bestWasSafe) {
+      if (turnSafe && !bestTurnSafe) {
         bestScore = score;
         bestTurn = turn;
+        bestTurnSafe = turnSafe;
       }
     }
 
     if (maximizing) alpha = Math.max(alpha, bestScore);
     else beta = Math.min(beta, bestScore);
-    if (beta <= alpha) break; // prune — the rest of this branch can't change the outcome
+    if (beta <= alpha) {
+      if (!turn.crushes && !turn.wins) {
+        recordKiller(killers, ply, turn);
+        recordHistory(history, turn, depth);
+      }
+      break; // prune — the rest of this branch can't change the outcome
+    }
 
     if (timedOut) break;
   }
@@ -548,18 +688,34 @@ export async function findBestAiTurn(
       ? { twoStepBias, cabezaRepeatBias, cabezaStreak, jitter: effectiveJitter }
       : null;
   const weights = { blockAdvance, turritoBonus, wall, centrality };
+  /* The ONLY pieces-array allocation in the whole search: everything
+     below (generateTurns, minimaxSearch, their move-ordering pass) now
+     mutates this one cloned array/objects in place via applyMove/
+     undoMove rather than building a fresh array at every node — see
+     generateTurns' own PERFORMANCE NOTE. The caller's `pieces` (live
+     React state) is never touched. */
+  const working = pieces.map((p) => ({ ...p }));
+  // Move-ordering memory, persisted across every iterative-deepening
+  // depth below — see minimaxSearch's own comment on killers/history.
+  const killers = [];
+  const history = Object.create(null);
   let best = null;
 
   for (let depth = 1; depth <= maxDepth; depth++) {
     if (performance.now() > deadline) break;
     if (depth > 1) await yieldToEventLoop(); // let a frame render between depths — see the function comment above
-    const result = minimaxSearch(pieces, aiPlayer, aiPlayer, depth, -Infinity, Infinity, deadline, rootBias, weights);
+    const result = minimaxSearch(working, aiPlayer, aiPlayer, depth, -Infinity, Infinity, deadline, rootBias, weights, killers, history, 0);
     if (result.timedOut && depth > 1) break;
     if (result.turn) best = result.turn;
     if (Math.abs(result.score) >= AI_WIN_SCORE) break; // forced win/loss found — deeper search can't change that
   }
 
-  return best;
+  // Only pieceId/dirs are ever actually a caller's contract (see
+  // beginMoveRef.current(piece, turn.dirs[0]) in the chassis, which
+  // looks the piece up fresh from LIVE state by id) — stripping the
+  // rest here means nothing downstream can accidentally reach into
+  // `working`, which is garbage the instant this function returns.
+  return best && { pieceId: best.pieceId, dirs: best.dirs };
 }
 
 /* Each tier raised roughly a step or two from the original pass, on
