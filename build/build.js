@@ -36,6 +36,18 @@ for (const t of targets) {
     jsx: "automatic",
     jsxImportSource: "react",
     logLevel: "warning",
+    // Without this, react/react-dom's own package.json branches on
+    // process.env.NODE_ENV to pick cjs/react.development.js — esbuild
+    // leaves that check untouched with no define, so it evaluates to
+    // undefined at runtime and always takes the DEVELOPMENT branch.
+    // That build does real per-render work a shipped build shouldn't
+    // pay for: Object.freeze() on every element and props object,
+    // prop-type/key/ref validation, and the warning-formatting
+    // machinery behind every dev-only console.error/warn call — on
+    // every re-render, for the app's whole lifetime, not just at
+    // startup. `define` here makes esbuild dead-code-eliminate that
+    // branch entirely, so only the production build gets bundled.
+    define: { "process.env.NODE_ENV": '"production"' },
   });
   const js = result.outputFiles[0].text;
   // type="application/x-ai-worker" (not a JS mimetype) keeps the browser
