@@ -3378,7 +3378,9 @@ export default function ElCabeza3D({ theme }) {
     // read as too tight even once the fit itself was actually working)
     // — shared chassis code, so this applies identically to every
     // theme, not just one.
-    const FIT_ZOOM_OUT = 1.3;
+    // Doubled again per feedback ("still zooms in too far... should
+    // be half that") — was 1.3.
+    const FIT_ZOOM_OUT = 2.6;
     cam.current.radius = Math.min(
       ZOOM_MAX,
       (fitRadiusToPieces(cam.current.theta, cam.current.phi, currentPlayer) ?? 17) * FIT_ZOOM_OUT
