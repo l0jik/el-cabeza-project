@@ -1712,9 +1712,33 @@ export default function ElCabeza3D({ theme }) {
          and phi can change independently afterward (wheel, pinch,
          drag-to-tilt), and a pan that satisfied this at one zoom/tilt
          could otherwise become invalid at another without ever being
-         re-checked. Two independent limits, not one shared budget —
-         being at the horizontal limit doesn't reduce how far vertical
-         drift is separately allowed to go, and vice versa.
+         re-checked.
+
+         The two axes are each solved independently below, but their
+         RESULTS are combined into one shared elliptical budget (see
+         the joint scaling after the vertical solve) rather than kept
+         as fully separate allowances. A real diagonal drag — the
+         common case, not the exception — used to be able to walk
+         each axis right up to its own independent 100% limit at the
+         same time, and satisfying "board visible" on the horizontal
+         axis alone and again on the vertical axis alone does not
+         imply the board stays visible under BOTH offsets at once.
+         Confirmed by instrumenting cam.current live during a
+         diagonal alt-drag: horizontal landed exactly on its clamp
+         boundary as intended, but vertical — evaluated as if
+         horizontal were still zero — kept climbing drag after drag to
+         several times the board's own half-extent, because a
+         wide-open frustum at that tilt reports high "overlap" on the
+         board's forward/back span regardless of how far the view has
+         already drifted sideways. The board ended up almost entirely
+         off-screen despite both individual checks reporting success.
+         The elliptical coupling below is the fix: once horizontal has
+         used up its own budget, vertical's independent limit is
+         scaled toward zero by the same amount, and vice versa is left
+         alone deliberately (horizontal keeps its full independent
+         limit unconditionally, since it was already correct in
+         isolation) — asymmetric, but minimal against a confirmed bug
+         rather than a symmetric rewrite of code that already worked.
 
          HORIZONTAL (XZ): a circular clamp on the goal's distance from
          the board's own center, which is the origin — the board is
@@ -1732,10 +1756,31 @@ export default function ElCabeza3D({ theme }) {
          board go further off-screen than intended in any of them.
 
          maxPanDistance is solved from requiring the overlap between
-         the board's own span and the visible span to be at least 20%
-         of the board's width: boardHalfExtent*(1-2*0.20), plus the
-         visible half-span itself. */
-      const MIN_VISIBLE_FRACTION = 0.2;
+         the board's own span and the visible span to be at least
+         MIN_VISIBLE_FRACTION of the board's width:
+         boardHalfExtent*(1-2*MIN_VISIBLE_FRACTION), plus the visible
+         half-span itself.
+
+         Raised from 0.2 to 0.5 per feedback that the board was still
+         very easy to pan almost entirely out of view — confirmed via
+         a real alt-drag test: at 0.2, a sustained pan left barely a
+         sliver of the board in frame, which is exactly what "at least
+         20% visible" actually permits, just far too permissive to feel
+         like a floor at all. The vertical clamp below got the
+         equivalent tightening (0.45/0.15 -> a uniform 0.75) in an
+         earlier round of feedback; this axis was simply never brought
+         up to match. 0.5 specifically because it's the value at which
+         this formula's own boardHalfExtent term vanishes to exactly
+         zero (1 - 2*0.5 = 0) rather than going negative — the clamp
+         distance becomes purely groundHalfSpan, i.e. the visible
+         window's center can never leave the board's own silhouette,
+         which stays well-behaved at every zoom level without needing
+         a separate floor on the result. Matching the vertical case's
+         0.75 exactly was checked and would still stay positive across
+         the real zoom range (barely — 0.6 world units at the closest
+         zoom), but 0.5 leaves headroom against the same kind of edge
+         case rather than sitting right at the boundary of it. */
+      const MIN_VISIBLE_FRACTION = 0.5;
       /* Per feedback, no more than 25% of the board may ever be fully
          out of viewing range in the vertical direction, at ANY tilt
          angle — so both vertical floors are now 0.75 (== 25% max out
@@ -1756,6 +1801,16 @@ export default function ElCabeza3D({ theme }) {
         goal.target.x *= panK;
         goal.target.z *= panK;
       }
+      /* How much of the horizontal budget the current position already
+         spends, 0 (dead center) to 1 (right at the circular clamp
+         above) — fed into the vertical solve below to couple the two
+         axes. maxPanDistance is 0 only in a degenerate zero-radius
+         case that never occurs in practice, but the guard keeps this
+         finite regardless. */
+      const horizUsage =
+        maxPanDistance > 0
+          ? Math.min(1, Math.sqrt(goal.target.x * goal.target.x + goal.target.z * goal.target.z) / maxPanDistance)
+          : 0;
 
       /* VERTICAL (Y): panBy's vertical drag component moves target
          along the camera's own tilted up-vector, not world-up, so it
@@ -1800,7 +1855,28 @@ export default function ElCabeza3D({ theme }) {
          floor needed or present. BOTTOM_MIN_VISIBLE_FRACTION (45%)
          applies only to the bottom direction, unchanged from before. */
       const verticalMinFraction = goal.target.y > 0 ? BOTTOM_MIN_VISIBLE_FRACTION : TOP_MIN_VISIBLE_FRACTION;
-      goal.target.y = clampVerticalTarget(goal.target.y, goal.radius, goal.phi, halfFovRad, verticalMinFraction);
+      /* clampVerticalTarget(goal.target.y, ...) would only clamp when
+         goal.target.y ITSELF already fails the visibility check — a
+         no-op whenever it's still within its own independent bound,
+         which is exactly the case a diagonal drag hits (see the joint
+         elliptical comment above): vertical looks individually fine
+         while horizontal is already maxed out. Probing with a value
+         far outside any real range instead (same sign as the current
+         target, since the two directions are asymmetric) finds the
+         TRUE independent boundary regardless of where goal.target.y
+         currently sits, so it can be scaled down by horizUsage below
+         rather than only being checked in isolation. 1000 world units
+         is far past anything boardVerticalOverlapFraction could ever
+         call visible at any real radius/phi, and 0 is always the
+         known-safe other end of the search per clampVerticalTarget's
+         own invariant, so the bisection still converges correctly. */
+      const verticalSign = goal.target.y >= 0 ? 1 : -1;
+      const verticalMaxMag = Math.abs(
+        clampVerticalTarget(verticalSign * 1000, goal.radius, goal.phi, halfFovRad, verticalMinFraction)
+      );
+      const verticalBudget = Math.sqrt(Math.max(0, 1 - horizUsage * horizUsage));
+      const verticalAllowedMag = verticalMaxMag * verticalBudget;
+      goal.target.y = verticalSign * Math.min(Math.abs(goal.target.y), verticalAllowedMag);
 
       /* Ease the rendered camera toward wherever input currently wants it.
          1 - e^(-dt/1000 * damping) is frame-rate independent: the same
@@ -3050,10 +3126,23 @@ export default function ElCabeza3D({ theme }) {
         cam.current.theta -= dx * ORBIT_SENS_THETA * (dragFlipTheta ? -1 : 1);
         /* Lower bound is a hair above zero rather than zero itself: at
            exactly vertical the view direction is parallel to the camera's
-           up vector and lookAt has no defined roll, which snaps the view. */
+           up vector and lookAt has no defined roll, which snaps the view.
+           Upper bound pulled in from 1.45 (~83deg, nearly edge-on) after
+           it turned out reachable at all: Neon's translucent pieces
+           (depthWrite:false, an accepted trade-off — see buildPieceVisual's
+           own comment on the rolling-piece z-fighting bug that traded
+           for) sort by draw order rather than true depth at that shape,
+           and a grazing enough view of several overlapping translucent
+           pieces plus the grid produced a visibly wrong dark band, which
+           Standard (opaque pieces) never showed at the identical angle —
+           confirmed by removing slabEdges and the grid in turn and
+           finding the artifact persisted in Neon regardless, then
+           checking Standard at the same angle and finding nothing.
+           1.25 (~72deg) stays low/dramatic while keeping clear of the
+           angles where that showed up in testing. */
         cam.current.phi = Math.max(
           0.012,
-          Math.min(1.45, cam.current.phi - dy * ORBIT_SENS_PHI)
+          Math.min(1.25, cam.current.phi - dy * ORBIT_SENS_PHI)
         );
         return;
       }
