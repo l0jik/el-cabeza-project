@@ -826,6 +826,25 @@ export default function ElCabeza3D({ theme }) {
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
+
+  /* Per feedback, the native right-click/long-press context menu must
+     never appear ANYWHERE in the app, not just on the board (which
+     already had its own contextmenu preventDefault — see the pointer-
+     handling effect below — since right-click there doubles as a pan
+     trigger). This one is document-wide and unconditional: it's the
+     only thing standing between a right-click (or the equivalent
+     context-menu key, Shift+F10, or a touch/pen long-press — browsers
+     dispatch the same "contextmenu" event for all of them, regardless
+     of platform or input method) and the native menu anywhere else on
+     the page — the dock panel, buttons, the masthead, empty
+     background. Mounted once for the component's whole lifetime, not
+     tied to any other effect's dependencies. */
+  useEffect(() => {
+    const onContextMenu = (ev) => ev.preventDefault();
+    document.addEventListener("contextmenu", onContextMenu);
+    return () => document.removeEventListener("contextmenu", onContextMenu);
+  }, []);
+
   function toggleFullscreen() {
     if (document.fullscreenElement) {
       document.exitFullscreen && document.exitFullscreen().catch(() => {});
