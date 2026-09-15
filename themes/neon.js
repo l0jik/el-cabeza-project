@@ -527,7 +527,14 @@ export function createAudio() {
    animateStep through that same object. */
 export function mountAmbientEffects(refs, helpers) {
   const { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef } = refs;
-  const { three, windingDownRef, audio } = helpers;
+  const { three, windingDownRef, awaitingBeginRef, audio } = helpers;
+  // Board/piece ambient effects (arc, crawl, floor wave, digital
+  // glitch) have no business running while no game is actually in
+  // progress — pre-game setup, or back in setup after New Game — same
+  // as they already stop once a win fires (windingDownRef). Masthead-
+  // only effects (flicker, letter, jitter, etc.) are untouched by this
+  // and keep running regardless, per the idle-state UI exception.
+  const boardEffectsIdle = () => windingDownRef.current || (awaitingBeginRef && awaitingBeginRef.current);
   const t = three.current;
 
   const fxGroup = new THREE.Group();
@@ -1015,7 +1022,7 @@ export function mountAmbientEffects(refs, helpers) {
 
   let arcTimer;
   function fireArc() {
-    if (windingDownRef.current) return; // stop spawning new ones once a win fires
+    if (boardEffectsIdle()) return; // no game in progress — see boardEffectsIdle
     const meshPieces = t.pieceGroup.children.filter((c) => c.userData.kind === "piece");
     if (meshPieces.length >= 2) {
       const a = meshPieces[Math.floor(Math.random() * meshPieces.length)];
@@ -1254,7 +1261,7 @@ export function mountAmbientEffects(refs, helpers) {
 
   let crawlTimer;
   function fireCrawl() {
-    if (windingDownRef.current) return; // stop spawning new ones once a win fires
+    if (boardEffectsIdle()) return; // no game in progress — see boardEffectsIdle
     spawnCrawlWave();
     // Widened to 4x per feedback ("happen only 25% as it currently
     // does") — was 55000-150000ms — to make the crawling mass cross
@@ -1370,7 +1377,7 @@ export function mountAmbientEffects(refs, helpers) {
 
   let floorWaveTimer;
   function fireFloorWave() {
-    if (windingDownRef.current) return; // stop spawning new ones once a win fires
+    if (boardEffectsIdle()) return; // no game in progress — see boardEffectsIdle
     spawnFloorWave();
     floorWaveTimer = setTimeout(fireFloorWave, 75000 + Math.random() * 90000);
   }
@@ -1680,7 +1687,7 @@ export function mountAmbientEffects(refs, helpers) {
 
   let digitalGlitchTimer;
   function fireDigitalGlitch() {
-    if (windingDownRef.current) return; // stop spawning new ones once a win fires
+    if (boardEffectsIdle()) return; // no game in progress — see boardEffectsIdle
     if (DIGITAL_GLITCH_ENABLED) spawnDigitalGlitchWave();
     digitalGlitchTimer = setTimeout(fireDigitalGlitch, 45000 + Math.random() * 75000);
   }
@@ -2998,7 +3005,7 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingula
     { style: { display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8, flexShrink: 0 } },
     h(
       "div",
-      { style: { display: "flex", gap: 8, flexShrink: 0 } },
+      { style: { display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap", justifyContent: "center" } },
       h(
         "button",
         {
@@ -3021,7 +3028,7 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingula
             border: `1.5px solid ${COLORS.charcoal}`,
             padding: "9px 16px",
             cursor: "pointer",
-            flex: "1 0 auto",
+            flex: "1 1 140px",
           },
         },
         "Anomaly"

@@ -840,6 +840,16 @@ export default function ElCabeza3D({ theme }) {
      audio engine's own schedulers do. */
   const windingDownRef = useRef(false);
 
+  /* Mirrors awaitingBegin into a ref for the same reason windingDownRef
+     exists: a theme's ambient timers fire from setTimeout callbacks
+     scheduled outside React's render cycle, so they need a live read of
+     "is a game actually in progress right now" rather than whatever
+     awaitingBegin closed over at schedule time. Kept in sync below. */
+  const awaitingBeginRef = useRef(awaitingBegin);
+  useEffect(() => {
+    awaitingBeginRef.current = awaitingBegin;
+  }, [awaitingBegin]);
+
   const [audioMuted, setAudioMuted] = useState(false);
 
   /* Full Screen is theme-agnostic browser API — promoted to the
@@ -1541,7 +1551,7 @@ export default function ElCabeza3D({ theme }) {
        what any given theme's effects actually do. */
     ambientRef.current = theme.mountAmbientEffects(
       { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef },
-      { three, windingDownRef, audio: audioRef.current }
+      { three, windingDownRef, awaitingBeginRef, audio: audioRef.current }
     );
 
     /* ---- camera positioning ---- */
@@ -4466,7 +4476,13 @@ export default function ElCabeza3D({ theme }) {
                  was pure dead space squeezing the turn-status text on
                  the left into truncating ("DARK TO MOVE" clipped to
                  "DAR…") on a narrow phone — confirmed via screenshot. */
-              minWidth: awaitingBegin ? 0 : 186,
+              minWidth: awaitingBegin
+                ? 0
+                : isPlaying && turnLocked && currentPlayer !== aiPlayer
+                ? 186
+                : !turnLocked && turnHistory.length > 0
+                ? 104
+                : 0,
               justifyContent: "flex-end",
             }}
           >
@@ -4622,75 +4638,16 @@ export default function ElCabeza3D({ theme }) {
             flexShrink: 0,
           }}
         >
-          {/* Opponent + (once picked) Difficulty on ONE indivisible
-             line — per feedback, the word DIFFICULTY and the AI
-             selections must sit next to each other, full stop, not
-             merely on the same panel. overflowX:auto is the fallback
-             on a viewport too narrow to fit all of it rather than ever
-             breaking the group apart. */}
-          <div style={{ display: "flex", flexWrap: "nowrap", alignItems: "center", gap: 8, maxWidth: "100%", overflowX: "auto" }}>
-          <span
-            style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 10,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: COLORS.slate,
-              marginRight: 2,
-              flexShrink: 0,
-            }}
-          >
-            Opponent
-          </span>
-          <button
-            className="ec-btn"
-            disabled={busy || aiThinking || turnLocked}
-            onClick={handleHumanButtonClick}
-            style={{
-              ...playerButtonStyle(humanStartSide),
-              /* Opacity reads selection, not lock state — same reasoning
-                 as the AI buttons below: this row is an always-visible
-                 readout of the current opponent setting, so the active
-                 option can't fade along with the ones it isn't. */
-              opacity: aiPlayer === null ? 1 : 0.35,
-              cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
-              flexShrink: 0,
-            }}
-          >
-            Human
-          </button>
-          {[
-            { label: "AI", value: "dark", side: "dark" },
-            { label: "AI", value: "light", side: "light" },
-          ].map((opt) => {
-            const isActive = aiPlayer === opt.value;
-            const locked = busy || aiThinking || turnLocked;
-            return (
-              <button
-                key={opt.value}
-                className="ec-btn"
-                disabled={locked}
-                onClick={() => selectOpponent(opt.value)}
-                style={{
-                  ...aiSideButtonStyle(opt.side),
-                  /* Opacity reads selection, not lock state — this row is
-                     meant to work as an always-visible readout of the
-                     current game's opponent setting, including mid-turn,
-                     so the active option can't be allowed to fade along
-                     with the two it isn't. Only the cursor (and the
-                     disabled attribute itself) communicates whether a
-                     click would currently do anything. */
-                  opacity: isActive ? 1 : 0.35,
-                  cursor: locked ? "default" : "pointer",
-                  flexShrink: 0,
-                }}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-
-          {aiPlayer && (
+          {/* Opponent selection is a two-state sequential flow, not a
+             single crowded line: picking an AI side collapses the
+             Human/AI-dark/AI-light picker into a compact Back control
+             (curved arrow) and hands its freed space to Difficulty,
+             rather than cramming both groups onto one row behind a
+             horizontal scrollbar. Only one of the two branches below
+             is ever mounted, so there's no width for either state to
+             overflow — no overflowX/scroll needed. */}
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, maxWidth: "100%" }}>
+          {aiPlayer === null ? (
             <>
               <span
                 style={{
@@ -4699,7 +4656,80 @@ export default function ElCabeza3D({ theme }) {
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
                   color: COLORS.slate,
-                  margin: "0 2px 0 6px",
+                  marginRight: 2,
+                  flexShrink: 0,
+                }}
+              >
+                Opponent
+              </span>
+              <button
+                className="ec-btn"
+                disabled={busy || aiThinking || turnLocked}
+                onClick={handleHumanButtonClick}
+                style={{
+                  ...playerButtonStyle(humanStartSide),
+                  flexShrink: 0,
+                  cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
+                }}
+              >
+                Human
+              </button>
+              {[
+                { label: "AI", value: "dark", side: "dark" },
+                { label: "AI", value: "light", side: "light" },
+              ].map((opt) => {
+                const locked = busy || aiThinking || turnLocked;
+                return (
+                  <button
+                    key={opt.value}
+                    className="ec-btn"
+                    disabled={locked}
+                    onClick={() => selectOpponent(opt.value)}
+                    style={{
+                      ...aiSideButtonStyle(opt.side),
+                      opacity: 0.35,
+                      cursor: locked ? "default" : "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </>
+          ) : (
+            <>
+              <button
+                className="ec-btn"
+                aria-label="Back to opponent selection"
+                title="Back to opponent selection"
+                disabled={busy || aiThinking || turnLocked}
+                onClick={() => selectOpponent(null)}
+                style={{
+                  ...ghostButtonStyle(),
+                  flexShrink: 0,
+                  width: 32,
+                  height: 32,
+                  padding: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 14 4 9 9 4" />
+                  <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+                </svg>
+              </button>
+              <span
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 10,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: COLORS.slate,
+                  margin: "0 2px 0 2px",
                   flexShrink: 0,
                 }}
               >
@@ -4741,13 +4771,22 @@ export default function ElCabeza3D({ theme }) {
                     audioRef.current.playPowerOn();
                     ambientRef.current && ambientRef.current.armOnBegin();
                     setGameArmed(true);
+                    recenterView();
                   }}
                   style={{
                     ...playerButtonStyle(currentPlayer),
                     fontSize: 11,
                     letterSpacing: "0.14em",
                     padding: "9px 16px",
-                    flex: "1 0 auto",
+                    // "1 0 auto" (fill remaining row width) only makes
+                    // sense for themes without renderSetupExtras, where
+                    // this is the sole button in its own full-width
+                    // wrapper below. A theme WITH extras (Neon's Anomaly
+                    // button) lays this out inside its own centered,
+                    // wrapping row instead — see renderSetupExtras — so
+                    // it needs the same content-sized, shrinkable flex
+                    // as its sibling there, not a forced full stretch.
+                    flex: theme.renderSetupExtras ? "1 1 140px" : "1 0 auto",
                   }}
                 >
                   Begin Game
