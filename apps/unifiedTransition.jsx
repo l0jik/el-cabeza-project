@@ -68,15 +68,57 @@ export const TransitionStyles = () => (
       from { opacity: 0; }
       to { opacity: 1; }
     }
-    .ec-hold-modal-word {
+    /* Wraps the real (clickable) word and its two phosphor-ghost
+       duplicates so all three share one animation phase-space and one
+       centered position — see .ec-modal-ghost-layer below. Sized by
+       its own content, not the viewport, so the ghosts (position:
+       absolute, inset:0) always exactly overlay the real word
+       regardless of how long CONNECT vs DISCONNECT ends up being. */
+    .ec-hold-modal-word-wrap {
+      position: relative;
+      display: inline-block;
+      /* Hard ceiling on the whole control's footprint — CONNECT/
+         DISCONNECT's font-size below is already viewport-responsive,
+         but this is the actual safety net: whatever the computed
+         font-size turns out to be in an unusual host viewport, the
+         word can wrap onto a second line here rather than ever
+         spilling past the screen edge. */
+      max-width: min(90vw, 460px);
+      box-sizing: border-box;
+    }
+    /* Shared by the real word AND both ghost layers below — they're
+       SIBLINGS, not parent/child, so the CSS "inherit" keyword on the
+       ghosts would pull font-size/padding/etc. from
+       .ec-hold-modal-word-wrap (which sets none of these) rather than
+       from this element; every ghost needs its own literal copy of
+       these values to stay pixel-identical to the real word, which is
+       what makes the "duplicate signal" illusion work at all. */
+    .ec-modal-word-base {
+      display: block;
       font-family: 'IBM Plex Mono', 'Courier New', monospace;
-      font-size: clamp(30px, 7vw, 58px);
+      /* Floor and ceiling both pulled in from the original 30-58px —
+         per feedback this read as too large on a real phone,
+         especially DISCONNECT (3 characters longer than CONNECT) once
+         the "breathing" pulse's peak scale was on top of it. */
+      font-size: clamp(20px, 6vw, 40px);
       letter-spacing: 0.14em;
       font-weight: 600;
+      line-height: 1.3;
+      text-align: center;
+      white-space: normal;
+      word-break: break-word;
+      /* Responsive too, not just the font-size — a fixed 54px side
+         padding was itself a large fraction of a narrow phone's width
+         regardless of the text inside it. */
+      padding: clamp(16px, 4vw, 28px) clamp(20px, 5.5vw, 46px);
+      box-sizing: border-box;
+      max-width: 100%;
+      border: 2px solid transparent;
+    }
+    .ec-hold-modal-word {
       color: #eafcff;
       background: #0b0f14;
-      border: 2px solid #4de8ff;
-      padding: 30px 54px;
+      border-color: #4de8ff;
       cursor: pointer;
       box-shadow: 0 0 24px rgba(77, 232, 255, 0.5), 0 0 60px rgba(77, 232, 255, 0.2);
       user-select: none;
@@ -84,18 +126,80 @@ export const TransitionStyles = () => (
       -webkit-tap-highlight-color: transparent;
       /* A slow, subtle breathing pulse — "almost alive" — paused
          on hover/active so the existing press/hover feedback below
-         still reads cleanly instead of fighting the animation. */
+         still reads cleanly instead of fighting the animation. Peak
+         scale trimmed slightly (1.018 -> 1.012) alongside the size
+         reduction above, for the same "too big on mobile" feedback. */
       animation: ec-hold-modal-alive 1.9s ease-in-out infinite;
+      position: relative;
+      z-index: 2;
     }
     @keyframes ec-hold-modal-alive {
       0%, 100% { transform: scale(1); box-shadow: 0 0 24px rgba(77, 232, 255, 0.5), 0 0 60px rgba(77, 232, 255, 0.2); }
-      50%      { transform: scale(1.018); box-shadow: 0 0 30px rgba(77, 232, 255, 0.65), 0 0 74px rgba(77, 232, 255, 0.28); }
+      50%      { transform: scale(1.012); box-shadow: 0 0 30px rgba(77, 232, 255, 0.65), 0 0 74px rgba(77, 232, 255, 0.28); }
     }
     .ec-hold-modal-word:hover {
       animation-play-state: paused;
       box-shadow: 0 0 34px rgba(77, 232, 255, 0.75), 0 0 80px rgba(77, 232, 255, 0.32);
     }
     .ec-hold-modal-word:active { animation-play-state: paused; transform: scale(0.97); }
+
+    /* CRT Phosphor Trails / Signal Ghosting: two duplicate copies of
+       the same word, sitting exactly behind the real one (inset: 0
+       inside .ec-hold-modal-word-wrap), each phase-shifted from the
+       main word's own breathing pulse via a NEGATIVE animation-delay
+       rather than a separate timeline — so the ghosts are always
+       showing where the real word's glow/scale WAS a fraction of a
+       cycle ago, the way slow-decay phosphor keeps glowing faintly
+       after the electron beam has already moved on, or a weak signal
+       shows a faint mis-timed duplicate of itself. mix-blend-mode:
+       screen makes them ADD light rather than muddy the real text
+       underneath, and pointer-events:none plus a lower z-index than
+       the real word keep them purely decorative — the actual click
+       target is unchanged. One layer tints toward cyan (this modal's
+       own accent), the other toward the complementary phosphor green
+       real P1-phosphor CRTs actually used, each blurred and offset in
+       an opposite direction so the two visibly separate rather than
+       just doubling up as one blob. */
+    .ec-modal-ghost-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      mix-blend-mode: screen;
+      background: transparent;
+    }
+    /* Each ghost's own fixed offset has to be baked INTO its keyframes
+       (not set as a separate static transform) — a running CSS
+       animation replaces the whole transform value on every tick, so a
+       static transform declared alongside an animation would just be
+       silently discarded once the animation starts. Same scale curve
+       as ec-hold-modal-alive, just carrying its own translate through
+       every step. */
+    @keyframes ec-modal-ghost-a {
+      0%, 100% { transform: translate(-2.5px, 0.5px) scale(1); }
+      50%      { transform: translate(-2.5px, 0.5px) scale(1.012); }
+    }
+    @keyframes ec-modal-ghost-b {
+      0%, 100% { transform: translate(2.5px, -0.5px) scale(1); }
+      50%      { transform: translate(2.5px, -0.5px) scale(1.012); }
+    }
+    .ec-modal-ghost-layer--a {
+      color: #4de8ff;
+      opacity: 0.32;
+      filter: blur(3px);
+      animation: ec-modal-ghost-a 1.9s ease-in-out infinite;
+      animation-delay: -0.55s;
+    }
+    .ec-modal-ghost-layer--b {
+      color: #39ff8a;
+      opacity: 0.22;
+      filter: blur(4px);
+      animation: ec-modal-ghost-b 1.9s ease-in-out infinite;
+      animation-delay: -1.1s;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .ec-modal-ghost-layer { display: none; }
+    }
 
     .ec-masthead-hold-zone {
       -webkit-touch-callout: none;
@@ -433,15 +537,22 @@ export function HoldDegradeLayer({ dispRef, offRRef, offBRef, scanlineRef, stati
 export function ConnectModal({ word, onConfirm, onDismiss, sfx }) {
   return (
     <div className="ec-hold-modal-backdrop" onClick={onDismiss}>
-      <div
-        className="ec-hold-modal-word"
-        onClick={(ev) => {
-          ev.stopPropagation();
-          if (sfx) sfx.click();
-          onConfirm();
-        }}
-      >
-        {word}
+      <div className="ec-hold-modal-word-wrap">
+        {/* Phosphor-trail ghosts sit behind the real word (lower
+           z-index, pointer-events:none) — purely decorative, see their
+           own CSS comment above. */}
+        <div className="ec-modal-word-base ec-modal-ghost-layer ec-modal-ghost-layer--a" aria-hidden="true">{word}</div>
+        <div className="ec-modal-word-base ec-modal-ghost-layer ec-modal-ghost-layer--b" aria-hidden="true">{word}</div>
+        <div
+          className="ec-modal-word-base ec-hold-modal-word"
+          onClick={(ev) => {
+            ev.stopPropagation();
+            if (sfx) sfx.click();
+            onConfirm();
+          }}
+        >
+          {word}
+        </div>
       </div>
     </div>
   );
