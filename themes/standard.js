@@ -148,7 +148,17 @@ export function makeGrid() {
     geo,
     new THREE.LineBasicMaterial({ color: HEX.slate, transparent: true, opacity: 0.3 })
   );
-  gridLines.position.y = 0.004;
+  /* Raised from 0.004 — the slab's own top-face material carries a
+     view-angle-dependent polygonOffset push (see buildSlabMaterials'
+     own comment: ~0.012 world units overhead, up to ~0.03 at a grazing
+     angle) meant to guarantee these exact lines win the depth test
+     against it. 0.004 is comfortably UNDER even that smallest push, so
+     as phi swept through its range during a drag's own deceleration
+     ease, the two could cross — read as the grid flickering in and out
+     right at the board surface. Clearing the full range with margin,
+     not just the overhead case, removes the crossing entirely rather
+     than narrowing when it happens. */
+  gridLines.position.y = 0.05;
   group.add(gridLines);
 
   /* Crisp charcoal border around the playing area. */
@@ -169,7 +179,7 @@ export function makeGrid() {
     borderGeo,
     new THREE.LineBasicMaterial({ color: HEX.charcoal, transparent: true, opacity: 0.8 })
   );
-  border.position.y = 0.006;
+  border.position.y = 0.06; // same reasoning as gridLines above, kept above it
   group.add(border);
 
   return group;

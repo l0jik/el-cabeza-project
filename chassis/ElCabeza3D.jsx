@@ -1343,6 +1343,18 @@ export default function ElCabeza3D({ theme }) {
     const topY = SLAB_THICKNESS / 2;
     const botY = -SLAB_THICKNESS / 2;
     const VERTICAL_GAP = 0.06;
+    // The top ring specifically sits exactly coplanar with the slab's own
+    // top face otherwise (world y=0, since slab.position.y is -half the
+    // slab's own thickness) — zero margin against that face's own
+    // view-angle-dependent polygonOffset push, which read as this ring
+    // flickering during a drag's deceleration ease as phi swept through
+    // its range. Same fix, same reasoning as themes/standard.js's
+    // makeGrid (grid/border lines had the identical problem, just with a
+    // little margin instead of none) — deliberately only touches the TOP
+    // ring's own Y, not `topY` itself, which the vertical edges below
+    // still anchor against for a completely different, already-tuned gap
+    // (see the VERTICAL_GAP comment above this block).
+    const topRingY = topY + 0.07;
     const slabCorners = [
       [-halfSlab, -halfSlab],
       [halfSlab, -halfSlab],
@@ -1354,7 +1366,7 @@ export default function ElCabeza3D({ theme }) {
       const [x1, z1] = slabCorners[i];
       const [x2, z2] = slabCorners[(i + 1) % 4];
       // top ring
-      edgePts.push(x1, topY, z1, x2, topY, z2);
+      edgePts.push(x1, topRingY, z1, x2, topRingY, z2);
       // bottom ring
       edgePts.push(x1, botY, z1, x2, botY, z2);
       // vertical, stopping short of the top face
@@ -2839,8 +2851,23 @@ export default function ElCabeza3D({ theme }) {
           // crosses the threshold is swallowed too rather than applied
           // as a catch-up jump; rotation starts cleanly from wherever
           // the finger is the moment it's actually dragging.
-          if (moved > DRAG_DEAD_ZONE_PX) dragArmed = true;
-          return;
+          if (moved > DRAG_DEAD_ZONE_PX) {
+            dragArmed = true;
+            // Re-centers the pivot the instant a genuine tilt/rotate
+            // drag actually begins (not on every pointerdown, which
+            // would visibly snap the camera even for a plain tap-to-
+            // select) — fixes phi (pitch) orbiting around a stale,
+            // previously-panned-to point instead of the board's own
+            // center. theta never had this problem (it spins boardGroup
+            // about its own local origin, not the camera), but phi
+            // orbits the camera around cam.current.target, and nothing
+            // else re-centers that after a pan. Trade-off, accepted:
+            // any manual pan is discarded the moment the board is
+            // tilted/rotated again, rather than preserved across it.
+            snapToCenter();
+          } else {
+            return;
+          }
         }
         /* These only move the GOAL (cam.current); the render loop damps
            the actual view toward it every frame, which is what removes
