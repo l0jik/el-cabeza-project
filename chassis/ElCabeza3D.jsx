@@ -4130,24 +4130,29 @@ export default function ElCabeza3D({ theme }) {
         </div>
       </div>
 
-      {/* Exit Full Screen — per feedback, replaced the text button
-         (which used to sit inline in the dock/declutter column) with a
-         small, permanently ghosted icon fixed to the bottom-left
-         corner, out of the way of everything else, for players who
-         need a click-based escape from full screen but can't or don't
-         want to use the two-finger double-tap gesture (see
-         TWO_FINGER_DOUBLE_TAP_MS above). Only ever rendered while
-         actually in full screen — entering still goes through the
-         ordinary "Full Screen" button, unaffected. The two diagonal
-         corner-arrows pointing inward toward each other are the
-         standard "exit full screen / restore" glyph. Same opacity/
-         transform transition timing as the masthead's own fade above,
-         so it settles in rather than popping. */}
-      {isFullscreen && (
+      {/* Full Screen toggle — the ONLY way to enter or exit full screen
+         now (the dock's own "Full Screen" text button is gone; see the
+         ghost-button row and declutter column above). A single small,
+         permanently ghosted icon fixed to the bottom-left corner, out
+         of the way of everything else, for players who need a click-
+         based toggle but can't or don't want to use the two-finger
+         double-tap gesture (see TWO_FINGER_DOUBLE_TAP_MS above).
+
+         Same button, same position, same style in both states —
+         entering and exiting are the same action from opposite sides,
+         so this is one continuous control rather than a control that
+         appears only once already in full screen. The glyph is the
+         standard "maximize"/"minimize" diagonal-corner-arrows pair:
+         identical configuration, just pointing outward (toward the
+         corners — "expand") when not yet full screen, inward (toward
+         center — "restore") once already there. Same opacity/transform
+         transition timing as the masthead's own fade above, so it
+         settles in rather than popping. */}
+      {(document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
         <button
           onClick={toggleFullscreen}
-          aria-label="Exit full screen"
-          title="Exit full screen"
+          aria-label={isFullscreen ? "Exit full screen" : "Enter full screen"}
+          title={isFullscreen ? "Exit full screen" : "Enter full screen"}
           style={{
             position: "fixed",
             left: 18,
@@ -4168,12 +4173,21 @@ export default function ElCabeza3D({ theme }) {
           onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.8; }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = 0.35; }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="4 14 10 14 10 20" />
-            <polyline points="20 10 14 10 14 4" />
-            <line x1="14" y1="10" x2="21" y2="3" />
-            <line x1="3" y1="21" x2="10" y2="14" />
-          </svg>
+          {isFullscreen ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="4 14 10 14 10 20" />
+              <polyline points="20 10 14 10 14 4" />
+              <line x1="14" y1="10" x2="21" y2="3" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 3 21 3 21 9" />
+              <polyline points="9 21 3 21 3 15" />
+              <line x1="21" y1="3" x2="14" y2="10" />
+              <line x1="3" y1="21" x2="10" y2="14" />
+            </svg>
+          )}
         </button>
       )}
 
@@ -4368,7 +4382,15 @@ export default function ElCabeza3D({ theme }) {
           </div>
         </div>
 
-        {/* View controls */}
+        {/* View controls — entirely empty (and so entirely skipped) pre-
+           game: the two view buttons below require !awaitingBegin, Full
+           Screen no longer lives here at all (it's the floating corner
+           icon now, see near the masthead above), and showTopButton is
+           unconditionally false while awaitingBegin (see its own
+           definition). Without this guard the row would still render as
+           an empty, marginTop:8-tall gap between the status bar and the
+           Opponent row below, pre-game only. */}
+        {!awaitingBegin && (
         <div
           style={{
             display: "grid",
@@ -4411,22 +4433,6 @@ export default function ElCabeza3D({ theme }) {
                 </button>
               </>
             )}
-            {/* While actively playing, Full Screen relocates under End
-               Active Game instead (see the declutter column below) —
-               shown here in every other state (pre-game, post-game).
-               Only rendered when NOT already full screen — the exit
-               affordance is the floating corner icon above instead. */}
-            {!declutter && !isFullscreen && (document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
-              <button
-                className="ec-btn"
-                onClick={toggleFullscreen}
-                style={ghostButtonStyle()}
-                aria-label="Enter full screen"
-                title="Enter full screen"
-              >
-                Full Screen
-              </button>
-            )}
           </div>
           {showTopButton && (
             /* Relocated from the Record row below (hidden while
@@ -4441,46 +4447,30 @@ export default function ElCabeza3D({ theme }) {
                disappearing once a real win hands the reset action off
                to the bottom row + victory placard instead.
 
-               While actively playing (declutter), Full Screen moves
-               to sit directly under this button instead of the ghost
-               row above — the same relocation logic, just packaged as
-               a column since this is the only other live control on
-               screen in that state. */
+               Full Screen used to relocate to sit directly under this
+               button during declutter — now that entering/exiting full
+               screen is always the floating corner icon (see near the
+               masthead above), this button stands alone in both
+               "playing" and "ended," same shape as Reset Game below. */
             declutter ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <button
-                  className="ec-btn ec-btn-invert"
-                  onClick={handleEndActiveGame}
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: 11,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    color: COLORS.charcoal,
-                    background: "transparent",
-                    border: `1.5px solid ${COLORS.charcoal}`,
-                    padding: "9px 16px",
-                    cursor: "pointer",
-                    justifySelf: "end",
-                  }}
-                >
-                  End Active Game
-                </button>
-                {/* Only rendered when NOT already full screen — the
-                   exit affordance is the floating corner icon instead
-                   (see near the masthead above). */}
-                {!isFullscreen && (document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
-                  <button
-                    className="ec-btn"
-                    onClick={toggleFullscreen}
-                    style={ghostButtonStyle()}
-                    aria-label="Enter full screen"
-                    title="Enter full screen"
-                  >
-                    Full Screen
-                  </button>
-                )}
-              </div>
+              <button
+                className="ec-btn ec-btn-invert"
+                onClick={handleEndActiveGame}
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 11,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: COLORS.charcoal,
+                  background: "transparent",
+                  border: `1.5px solid ${COLORS.charcoal}`,
+                  padding: "9px 16px",
+                  cursor: "pointer",
+                  justifySelf: "end",
+                }}
+              >
+                End Active Game
+              </button>
             ) : (
               <button
                 className="ec-btn ec-btn-invert"
@@ -4503,6 +4493,7 @@ export default function ElCabeza3D({ theme }) {
             )
           )}
         </div>
+        )}
 
         {/* Opponent settings — hidden while declutter is true, see there */}
         {!declutter && (
