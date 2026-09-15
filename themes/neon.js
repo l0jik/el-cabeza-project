@@ -2110,12 +2110,20 @@ export function mountAmbientEffects(refs, helpers) {
       item.topPlane.constant = closedC + (openC - closedC) * growT;
       item.bottomPlane.constant = openC + (closedC - openC) * shrinkT;
 
-      item.lineMaterials.forEach((mat) => {
+      // Plain indexed loops, not .forEach — this runs every frame for
+      // every active digitalGlitchItem, and .forEach would allocate a
+      // fresh callback closure per item per frame just to do the same
+      // per-material assignment a raw loop does with no allocation at all.
+      const lineMats = item.lineMaterials;
+      for (let m = 0; m < lineMats.length; m++) {
+        const mat = lineMats[m];
         mat.opacity = envelope * mat.userData.baseOpacity * (0.8 + Math.random() * 0.3);
-      });
-      item.pointMaterials.forEach((mat) => {
+      }
+      const pointMats = item.pointMaterials;
+      for (let m = 0; m < pointMats.length; m++) {
+        const mat = pointMats[m];
         mat.opacity = envelope * mat.userData.baseOpacity * (0.8 + Math.random() * 0.3);
-      });
+      }
 
       if (tt >= 1) {
         item.mesh.material.opacity = item.origOpacity;
@@ -2199,19 +2207,28 @@ export function mountAmbientEffects(refs, helpers) {
       const item = crawlMassItems[i];
       const frac = Math.max(0, Math.min((now - item.born) / item.duration, 1));
 
-      item.materials.forEach(({ bloom, halo, core, bloomPeak, haloPeak, corePeak, phase }) => {
+      // Plain indexed loop, not .forEach + destructuring — this is the
+      // single hottest per-frame loop in ambient FX (up to ~40 voxels
+      // per generation, often several generations overlapping at once,
+      // every frame for as long as any of them are alive). forEach with
+      // a destructuring param allocates a fresh callback closure AND
+      // re-destructures each element every frame; a raw loop with plain
+      // property reads does neither, for identical output.
+      const materials = item.materials;
+      for (let m = 0; m < materials.length; m++) {
+        const mat = materials[m];
         // Each voxel's own envelope is nudged by its stored phase, so
         // cells within the same generation don't all light up/die out
         // in lockstep — see spawnCrawlGeneration's phase comment.
-        const pf = Math.max(0, Math.min(frac - phase, 1));
+        const pf = Math.max(0, Math.min(frac - mat.phase, 1));
         let envelope;
         if (pf < 0.25) envelope = pf / 0.25;
         else if (pf > 0.6) envelope = Math.max(0, (1 - pf) / 0.4);
         else envelope = 1;
-        bloom.opacity = envelope * bloomPeak;
-        halo.opacity = envelope * haloPeak;
-        core.opacity = envelope * corePeak;
-      });
+        mat.bloom.opacity = envelope * mat.bloomPeak;
+        mat.halo.opacity = envelope * mat.haloPeak;
+        mat.core.opacity = envelope * mat.corePeak;
+      }
 
       if (frac >= 1) {
         item.group.parent && item.group.parent.remove(item.group);

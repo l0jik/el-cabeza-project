@@ -3343,7 +3343,7 @@ export default function ElCabeza3D({ theme }) {
      masthead/dock framing above (see measureBoxPx). Returns null when
      the mount/measure helpers aren't ready yet — callers fall back to
      their own fixed radius in that case. */
-  function fitRadiusToCorners(theta, phi, corners, heights) {
+  function fitRadiusToCorners(theta, phi, corners, heights, fitFraction = 0.82) {
     const measure = three.current.measureBoxPx;
     const getSize = three.current.getMountSize;
     if (!measure || !getSize) return null;
@@ -3352,10 +3352,12 @@ export default function ElCabeza3D({ theme }) {
 
     // Fit within most of the viewport, not edge-to-edge — leaves a
     // visible margin around the fitted box on every side, the same
-    // spirit as the pre-game framing's own GAP_PADDING_PX.
-    const FIT_FRACTION = 0.82;
-    const availW = size.w * FIT_FRACTION;
-    const availH = size.h * FIT_FRACTION;
+    // spirit as the pre-game framing's own GAP_PADDING_PX. Callers that
+    // want the fitted box to instead OVERFLOW the viewport (Current
+    // Player View — see recenterView) pass a fraction above 1 here;
+    // the bisection below is agnostic to which side of 1.0 this lands on.
+    const availW = size.w * fitFraction;
+    const availH = size.h * fitFraction;
     // Must be a real THREE.Vector3, not a plain {x,y,z} object: camera
     // .lookAt() checks target.isVector3 and silently corrupts its own
     // matrix with NaN (via Vector3.set(target, undefined, undefined))
@@ -3385,7 +3387,7 @@ export default function ElCabeza3D({ theme }) {
      own pieces, not the whole board or the opponent's side too.
      Returns null when there's nothing to fit against (no matching
      pieces, or the helpers aren't ready), same as fitRadiusToCorners. */
-  function fitRadiusToPieces(theta, phi, owner) {
+  function fitRadiusToPieces(theta, phi, owner, fitFraction) {
     const relevant = owner ? pieces.filter((p) => p.owner === owner) : pieces;
     if (!relevant.length) return null;
 
@@ -3404,7 +3406,7 @@ export default function ElCabeza3D({ theme }) {
     const corners = [
       [minX, minZ], [minX, maxZ], [maxX, minZ], [maxX, maxZ],
     ];
-    return fitRadiusToCorners(theta, phi, corners, [0, 2 * PIECE_SCALE]);
+    return fitRadiusToCorners(theta, phi, corners, [0, 2 * PIECE_SCALE], fitFraction);
   }
 
   /* Smallest radius fitting the WHOLE board plate (the fixed SLAB
@@ -3431,20 +3433,23 @@ export default function ElCabeza3D({ theme }) {
     cam.current.phi = 0.86;
     // Zooms to fit only the CURRENT player's own pieces (not the whole
     // board, and not the opponent's side either — see fitRadiusToPieces)
-    // rather than this fixed distance; falls back to it only when
-    // there's nothing to fit against yet (e.g. before the scene has
-    // measured its own mount even once, or that player has no pieces
-    // left at all). Backed off a further 30% (per feedback it still
-    // read as too tight even once the fit itself was actually working)
-    // — shared chassis code, so this applies identically to every
-    // theme, not just one.
-    // Doubled again per feedback ("still zooms in too far... should
-    // be half that") — was 1.3.
-    const FIT_ZOOM_OUT = 2.6;
-    cam.current.radius = Math.min(
-      ZOOM_MAX,
-      (fitRadiusToPieces(cam.current.theta, cam.current.phi, currentPlayer) ?? 17) * FIT_ZOOM_OUT
-    );
+    // — shared chassis code, so this applies identically to every theme
+    // and device, not just one.
+    //
+    // The zoom level went back and forth on backoff multipliers layered
+    // on top of a comfortable-margin fit (1.3x, then 2.6x, chasing
+    // "still too zoomed in" feedback each time) until it swung past
+    // comfortable into "too small," most visible on mobile's narrower
+    // viewport. Rather than another multiplier, this asks the fit
+    // itself for a tight frame that lets the current player's own
+    // pieces' bounding box — its widest point — run 10% PAST the
+    // viewport edges (fitFraction > 1, see fitRadiusToCorners), instead
+    // of leaving a margin inside it. Top-Down View's own whole-board
+    // fit (fitRadiusToBoard) is untouched — still uses the default
+    // margin — since this feedback was about Current Player View only.
+    const CURRENT_PLAYER_FIT_FRACTION = 1.1;
+    const fitted = fitRadiusToPieces(cam.current.theta, cam.current.phi, currentPlayer, CURRENT_PLAYER_FIT_FRACTION);
+    cam.current.radius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitted ?? 12.5));
     snapToCenter();
   }
 
