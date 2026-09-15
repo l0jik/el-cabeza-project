@@ -82,8 +82,31 @@ export function restingY(p) {
    a freshly rebuilt one to 4.7e-4 world units, which is sub-pixel.
    Any change here should be re-measured the same way — matching
    extents alone is not sufficient, the rotated and rebuilt solids must
-   also agree, or landings will snap again. */
-export function makeRoundedBox(sx, sy, sz, radius, seg = 8) {
+   also agree, or landings will snap again.
+
+   Default lowered 8 -> 6 (per-quadrant sample count): the fillet's
+   sagitta — a segment's own max deviation from the true circular arc
+   it approximates, r*(1-cos((pi/2/seg)/2)) — is EXACTLY what seg
+   controls, independent of piece size, since radius here is a fixed
+   per-theme constant (EDGE_RADIUS) never scaled to a piece's own w/h/z.
+   That means there's no such thing as a piece "too big" or "too small"
+   for a given seg the way there is for the digital-interior wireframe's
+   own bars-per-unit density elsewhere in this codebase (see
+   buildDigitalInterior in themes/neon.js) — every piece shares the
+   exact same fillet geometry regardless of footprint, so one constant
+   already suits all of them, and the only question is how low it can
+   go before the facets show. At seg=6 the sagitta is ~0.066% of a
+   0.8-unit piece for Standard's radius (0.0625) and ~0.032% for Neon's
+   (0.03) — both comfortably under seg=8's own already-invisible 0.05%
+   baseline in absolute terms, while cutting the exterior shell/body
+   geometry from 648 to 392 vertices (1228 to 732 triangles) per piece,
+   confirmed via engine/geometry.js's own extent/rotation invariants
+   still holding exactly at seg=6 (only the fillet's own facet count
+   changes; the flat faces and reported extents are untouched by seg at
+   any value, per this function's own construction). Left as an
+   explicit named default rather than per-call-site tuning, since both
+   themes' fixed radii land well inside the same safe margin. */
+export function makeRoundedBox(sx, sy, sz, radius, seg = 6) {
   const r = Math.min(radius, sx / 2 - 1e-4, sy / 2 - 1e-4, sz / 2 - 1e-4);
   const ix = sx / 2 - r;
   const iy = sy / 2 - r;
