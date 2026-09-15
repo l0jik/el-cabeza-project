@@ -2,15 +2,15 @@
  * wood-impact-synth.js
  * ---------------------------------------------------------------------
  * Procedural synthesis of wooden-game-piece impact sounds, for Standard
- * El Cabeza's currently-silent theme (see themes/standard.js — its
- * createAudio() is a set of no-op stubs; hasAudio is false). This is a
- * standalone script: it does not modify or get imported by the game
- * yet. Drop-in path once approved: replace createAudio() in
- * standard.js with something that constructs one AudioContext and
- * calls createWoodPercussion(ctx) below, wire hasAudio to true, and
- * pass piece geometry into playImpact() from the same call sites that
- * already call audioRef.current.playLanding(piece.w * piece.h * piece.z)
- * in chassis/ElCabeza3D.jsx.
+ * theme. Now wired in — see themes/standard.js's createAudio(), which
+ * imports createWoodPercussion from here and calls playImpact() from
+ * playLanding(volume), volume being piece.w * piece.h * piece.z as
+ * passed from chassis/ElCabeza3D.jsx's existing
+ * audioRef.current.playLanding(piece.w * piece.h * piece.z) call site
+ * (unchanged — this only needed a theme-side implementation, not a
+ * new call site). Every other cue (select, capture, win, ambient...)
+ * is still a no-op in Standard; only piece-landing impacts are wired,
+ * matching this file's own scope.
  *
  * ACOUSTIC MODEL — what's real, and what's a reasonable approximation
  * ---------------------------------------------------------------------
@@ -124,12 +124,18 @@ function makeNoiseBuffer(ctx, seconds) {
 
 /**
  * @param {AudioContext} ctx
+ * @param {AudioNode} [destination] - where this instance's own master
+ *   gain connects; defaults to ctx.destination for standalone use (see
+ *   the manual smoke test at the bottom of this file). A caller wiring
+ *   this into a larger graph — e.g. Standard theme's createAudio(),
+ *   which needs one shared mute-capable gain node in front of every
+ *   sound it makes — passes its own node here instead.
  * @returns {{ playImpact: (params: object) => void, dispose: () => void }}
  */
-export function createWoodPercussion(ctx) {
+export function createWoodPercussion(ctx, destination) {
   const master = ctx.createGain();
   master.gain.value = 1;
-  master.connect(ctx.destination);
+  master.connect(destination || ctx.destination);
 
   const clickNoise = makeNoiseBuffer(ctx, 0.06);
 
