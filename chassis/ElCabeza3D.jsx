@@ -3956,6 +3956,26 @@ export default function ElCabeza3D({ theme }) {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; }
+        /* Text selection off everywhere, not just on individual
+           buttons — this is a game board, not a document, and a press-
+           and-hold gesture (the dock piece's hover/hold, the masthead's
+           multi-second hold-to-transition in the unified app) landing
+           on ordinary text anywhere on the page must never trigger the
+           browser's native word-select or, on iOS, its press-and-hold
+           copy/lookup callout menu instead. No <input> or other real
+           text-entry element exists anywhere in this app, so there's
+           nothing this could break by being unconditional. A global
+           rule here covers the whole document regardless of which
+           component's <style> tag defines it — themes' own stylesheets
+           and the unified app's overlay elements don't need their own
+           copies, though a couple already had one for other reasons. */
+        * {
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+          -webkit-touch-callout: none;
+        }
         .ec-btn:focus-visible { outline: 2px solid ${COLORS.slate}; outline-offset: 2px; }
         .ec-btn { transition: background-color 0.15s ease, color 0.15s ease; }
         @media (prefers-reduced-motion: reduce) { .ec-btn { transition: none !important; } }
