@@ -5467,8 +5467,9 @@ export function createSoundscape() {
        there ("boosted so it reliably cuts through" — see playPowerOff
        above): this needs to read clearly over ambience + gameplay SFX
        exactly like those do, not blend into near-silence. */
-    playSingularityOpen: () => { ensureGraph(); cue(70, 900, 0.7, "sine", 0.16); },
-    playSingularityClose: () => { ensureGraph(); reverseCue(70, 900, 0.5, "sine", 0.24); },
+    // Both cut 50% per feedback (0.16 -> 0.08, 0.24 -> 0.12).
+    playSingularityOpen: () => { ensureGraph(); cue(70, 900, 0.7, "sine", 0.08); },
+    playSingularityClose: () => { ensureGraph(); reverseCue(70, 900, 0.5, "sine", 0.12); },
     /* Dock open/close — a very subtle low "vrrrt": a short, low,
        buzzy sawtooth descent (not a clean sine — the harmonics are
        what read as a mechanical whirr rather than a chime) and its
