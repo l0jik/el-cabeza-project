@@ -4208,7 +4208,14 @@ export default function ElCabeza3D({ theme }) {
           boxShadow: "0 12px 48px rgba(0,0,0,0.35)",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
-          padding: "14px 20px 16px",
+          // Extra bottom padding reserves a dedicated footer strip for
+          // the Sound On/Off icon (see it near this div's own closing
+          // tag) — every row above sits inside the ORIGINAL 16px
+          // bottom padding same as before, so the icon's corner spot
+          // never overlaps whichever row currently happens to end at
+          // the panel's own right edge (e.g. Full Screen during
+          // declutter), regardless of which rows are showing.
+          padding: theme.hasAudio ? "14px 20px 40px" : "14px 20px 16px",
           display: "flex",
           flexDirection: "column",
         }}
@@ -4354,21 +4361,6 @@ export default function ElCabeza3D({ theme }) {
                   Top-Down View
                 </button>
               </>
-            )}
-            {theme.hasAudio && (
-              <button
-                className="ec-btn"
-                onClick={() => {
-                  const next = !audioMuted;
-                  setAudioMuted(next);
-                  audioRef.current.setMuted(next);
-                }}
-                style={ghostButtonStyle()}
-                aria-label={audioMuted ? "Unmute ambience" : "Mute ambience"}
-                title={audioMuted ? "Unmute ambience" : "Mute ambience"}
-              >
-                {audioMuted ? "Sound Off" : "Sound On"}
-              </button>
             )}
             {/* While actively playing, Full Screen relocates under End
                Active Game instead (see the declutter column below) —
@@ -4690,6 +4682,62 @@ export default function ElCabeza3D({ theme }) {
             </button>
           </div>
         </div>
+        )}
+
+        {/* Sound On/Off — per feedback, a small icon-only toggle tucked
+           into the dock's own bottom-right corner instead of a text
+           button competing for space in the centered rows above (which
+           are re-centered/rebalanced automatically just by this no
+           longer being one of their flex children). Absolutely
+           positioned against cardRef itself (position:fixed already
+           establishes a valid containing block), so it stays put
+           regardless of which row layout is currently showing above
+           it. The classic speaker glyph, with a diagonal slash added
+           only in the muted state — recognizable in either theme
+           without needing per-theme redesign. */}
+        {theme.hasAudio && (
+          <button
+            onClick={() => {
+              const next = !audioMuted;
+              setAudioMuted(next);
+              audioRef.current.setMuted(next);
+            }}
+            aria-label={audioMuted ? "Unmute ambience" : "Mute ambience"}
+            title={audioMuted ? "Unmute ambience" : "Mute ambience"}
+            style={{
+              position: "absolute",
+              right: 8,
+              bottom: 8,
+              width: 30,
+              height: 30,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "transparent",
+              border: "none",
+              color: COLORS.slate,
+              opacity: 0.45,
+              cursor: "pointer",
+              transition: "opacity 0.2s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.85; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = 0.45; }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              {audioMuted ? (
+                <>
+                  <line x1="23" y1="9" x2="17" y2="15" />
+                  <line x1="17" y1="9" x2="23" y2="15" />
+                </>
+              ) : (
+                <>
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                </>
+              )}
+            </svg>
+          </button>
         )}
       </div>
 
