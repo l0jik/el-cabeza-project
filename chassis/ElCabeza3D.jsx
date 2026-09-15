@@ -4435,12 +4435,21 @@ export default function ElCabeza3D({ theme }) {
             display: "flex",
             flexWrap: "wrap",
             alignItems: "center",
-            justifyContent: "center",
+            // Left-aligned, not centered — per feedback, Opponent
+            // should pack toward the left to leave room for Difficulty
+            // beside it rather than centering both groups and wrapping
+            // sooner than the row's real width would otherwise allow.
+            justifyContent: "flex-start",
             gap: 8,
             marginTop: 10,
             flexShrink: 0,
           }}
         >
+          {/* Opponent group — its own non-wrapping unit, so it never
+             splits internally; only the boundary between this group
+             and Difficulty below is a valid wrap point on a narrow
+             panel. */}
+          <span style={{ display: "flex", alignItems: "center", flexWrap: "nowrap", gap: 8 }}>
           <span
             style={{
               fontFamily: "'IBM Plex Mono', monospace",
@@ -4498,9 +4507,15 @@ export default function ElCabeza3D({ theme }) {
               </button>
             );
           })}
+          </span>
 
           {aiPlayer && (
-            <>
+            // Difficulty group — per feedback, EASY/MEDIUM/HARD must
+            // always stay on the same line as each other and their own
+            // label. flexWrap:"nowrap" makes this whole span one
+            // indivisible unit: the parent row can still wrap BEFORE
+            // it (dropping it to its own line), but never splits it.
+            <span style={{ display: "flex", alignItems: "center", flexWrap: "nowrap", gap: 8 }}>
               <span
                 style={{
                   fontFamily: "'IBM Plex Mono', monospace",
@@ -4528,7 +4543,7 @@ export default function ElCabeza3D({ theme }) {
                   {cfg.label}
                 </button>
               ))}
-            </>
+            </span>
           )}
           {/* Begin Game (and, for a theme with setup extras of its own —
               Neon's Anomaly button — that whole extras row) moves up into
