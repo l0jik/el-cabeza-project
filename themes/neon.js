@@ -2873,6 +2873,22 @@ export const styleSheet = `
     cursor: pointer;
     opacity: 0;
     animation: ec-singularity-appear 900ms ease-out forwards;
+    /* The halo below is deliberately oversized (150%/320%) and
+       absolutely positioned so its glow bleeds past this button's own
+       box — that's the intended "event horizon" look, not a bug. The
+       bug it WAS causing: an oversized absolutely-positioned
+       descendant still counts toward its scrolling ancestor's
+       SCROLLABLE overflow region even though it's purely decorative,
+       and the dock panel wrapping this has overflow-y:auto for its
+       own (legitimate) reasons — so the halo was making a scrollbar
+       appear on the whole panel. The contain:layout property below
+       makes this element opaque to that calculation: descendants can
+       still PAINT outside its box (this doesn't clip anything, unlike
+       contain:paint),
+       but their layout/overflow no longer propagates up to make an
+       ancestor think there's more scrollable content than there
+       actually is. */
+    contain: layout;
   }
   @keyframes ec-singularity-appear {
     from { opacity: 0; }

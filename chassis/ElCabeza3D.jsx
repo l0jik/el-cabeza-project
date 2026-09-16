@@ -270,6 +270,15 @@ export default function ElCabeza3D({ theme }) {
   const [busy, setBusy] = useState(false);
   /* null = two-player. "dark"/"light" = that color is AI-controlled. */
   const [aiPlayer, setAiPlayer] = useState(null);
+  /* Which of the opponent row's two sub-views is showing — decoupled
+     from aiPlayer itself so the Back control can return to the
+     Human/AI-side picker WITHOUT resetting the actual selection. Picking
+     an AI side sets this false (collapsing to the Back+Difficulty
+     view); Back sets it true again, leaving aiPlayer exactly as it was
+     so the picker shows whichever side was actually chosen, still
+     selected, letting a player go back purely to CONFIRM the choice
+     rather than starting over. */
+  const [showOpponentPicker, setShowOpponentPicker] = useState(true);
   /* Which color moves first in Human vs Human games — toggled by
      re-clicking the already-selected Human button (see the opponent
      row below). Only read at New Game, when aiPlayer is guaranteed
@@ -3956,6 +3965,7 @@ export default function ElCabeza3D({ theme }) {
     aiCabezaStreakRef.current = 0;
     setAiThinking(false);
     setAiPlayer(null); // New Game always starts back at Human vs Human
+    setShowOpponentPicker(true); // and back to the picker view, not a stale Back+Difficulty view
     setGameArmed(false); // every fresh game — Human included — now waits on Begin Game
     resetTransitionUntilRef.current = performance.now() + RESET_TRANSITION_MS;
     // Faces the side about to move first, at the SAME oblique pitch
@@ -4800,7 +4810,7 @@ export default function ElCabeza3D({ theme }) {
              is ever mounted, so there's no width for either state to
              overflow — no overflowX/scroll needed. */}
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, maxWidth: "100%" }}>
-          {aiPlayer === null ? (
+          {showOpponentPicker ? (
             <>
               <span
                 style={{
@@ -4821,6 +4831,12 @@ export default function ElCabeza3D({ theme }) {
                 onClick={handleHumanButtonClick}
                 style={{
                   ...playerButtonStyle(humanStartSide),
+                  /* Opacity reads the ACTUAL current selection now, not
+                     just "always active" — reachable via Back with
+                     aiPlayer still set to a chosen AI side, so this
+                     needs to correctly show as NOT the current pick
+                     in that case rather than always reading as active. */
+                  opacity: aiPlayer === null ? 1 : 0.35,
                   flexShrink: 0,
                   cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
                 }}
@@ -4832,15 +4848,22 @@ export default function ElCabeza3D({ theme }) {
                 { label: "AI", value: "light", side: "light" },
               ].map((opt) => {
                 const locked = busy || aiThinking || turnLocked;
+                const isActive = aiPlayer === opt.value;
                 return (
                   <button
                     key={opt.value}
                     className="ec-btn"
                     disabled={locked}
-                    onClick={() => selectOpponent(opt.value)}
+                    onClick={() => {
+                      selectOpponent(opt.value);
+                      setShowOpponentPicker(false);
+                    }}
                     style={{
                       ...aiSideButtonStyle(opt.side),
-                      opacity: 0.35,
+                      // Reads the current selection — see Human's own
+                      // opacity comment just above for why this can no
+                      // longer be a flat, always-inactive 0.35.
+                      opacity: isActive ? 1 : 0.35,
                       cursor: locked ? "default" : "pointer",
                       flexShrink: 0,
                     }}
@@ -4857,7 +4880,13 @@ export default function ElCabeza3D({ theme }) {
                 aria-label="Back to opponent selection"
                 title="Back to opponent selection"
                 disabled={busy || aiThinking || turnLocked}
-                onClick={() => selectOpponent(null)}
+                // Only shows the picker again — does NOT touch aiPlayer
+                // (selectOpponent(null) used to, resetting the choice
+                // back to Human). Per feedback, Back is for double-
+                // checking which side you picked, not for undoing it;
+                // the actual selection stays exactly as it was until
+                // the player deliberately clicks a different option.
+                onClick={() => setShowOpponentPicker(true)}
                 style={{
                   ...ghostButtonStyle(),
                   flexShrink: 0,
