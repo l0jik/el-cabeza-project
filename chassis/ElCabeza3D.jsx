@@ -4681,7 +4681,20 @@ export default function ElCabeza3D({ theme }) {
                   width: 12,
                   height: 12,
                   borderRadius: "50%",
-                  background: "currentColor",
+                  // The actual player color (dark piece = a dark dot,
+                  // light piece = a light dot), not currentColor — that
+                  // tracked the pill's TEXT color instead, which is
+                  // chosen for contrast against the pill's own
+                  // background and so is the opposite of the color this
+                  // dot is supposed to represent (came out as a black
+                  // dot for "Light" and a white dot for "Dark"). The
+                  // pill's own background is this same player color, so
+                  // a border in the (contrasting) text color keeps the
+                  // dot visible as its own distinct shape rather than
+                  // blending into the pill it sits on.
+                  background: aiJustSelected === "dark" ? COLORS.bodyDark : COLORS.bodyLight,
+                  border: "1.5px solid currentColor",
+                  boxSizing: "border-box",
                   flexShrink: 0,
                 }}
               />
