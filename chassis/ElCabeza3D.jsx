@@ -194,6 +194,22 @@ export default function ElCabeza3D({ theme }) {
     target: new THREE.Vector3(0, 0, 0),
     view: { theta: 0, phi: 0.86, radius: 17, target: new THREE.Vector3(0, 0, 0) },
   });
+  /* Current Player View / Top-Down View's own zoom radius, captured
+     ONCE per game (see captureViewBaselines, called right when Begin
+     Game is pressed) and reused by every later press of either button
+     or gesture — never recomputed against whatever the window happens
+     to measure at click time. Per feedback: resizing the browser
+     window between two presses of the same button used to change its
+     framing, because the fit itself (fitRadiusToBoard) measures
+     against the LIVE canvas size every time it runs. These hold the
+     one-time "absolute" answer instead; recenterView/topDownView read
+     from here first and only fall back to a live fit if a ref is
+     somehow still null (defensive — Begin Game always populates both
+     before either button is ever reachable). Nulled out in handleReset
+     so the NEXT game's Begin Game press captures its own fresh
+     baseline rather than inheriting the previous game's. */
+  const currentPlayerViewRadiusRef = useRef(null);
+  const topDownViewRadiusRef = useRef(null);
   /* A performance.now() deadline: while now() is before this, tick()
      uses RESET_CAMERA_DAMPING instead of the normal CAMERA_DAMPING.
      Set once, in handleReset, right when the post-reset camera move
@@ -1483,30 +1499,74 @@ export default function ElCabeza3D({ theme }) {
     const topY = SLAB_THICKNESS / 2;
     const botY = -SLAB_THICKNESS / 2;
     const VERTICAL_GAP = 0.06;
-    // The top ring specifically sits exactly coplanar with the slab's own
-    // top face otherwise (world y=0, since slab.position.y is -half the
-    // slab's own thickness) — zero margin against that face's own
-    // view-angle-dependent polygonOffset push, which read as this ring
-    // flickering during a drag's deceleration ease as phi swept through
-    // its range. Same fix, same reasoning as themes/standard.js's
-    // makeGrid (grid/border lines had the identical problem, just with a
-    // little margin instead of none) — deliberately only touches the TOP
-    // ring's own Y, not `topY` itself, which the vertical edges below
-    // still anchor against for a completely different, already-tuned gap
-    // (see the VERTICAL_GAP comment above this block).
-    const topRingY = topY + 0.07;
     const slabCorners = [
       [-halfSlab, -halfSlab],
       [halfSlab, -halfSlab],
       [halfSlab, halfSlab],
       [-halfSlab, halfSlab],
     ];
+    /* The top ring is now its OWN LineSegments/material, split out from
+       slabEdges below, for a reason neither a geometric Y offset nor a
+       depthTest:false flag alone could fix on its own.
+
+       It used to sit at topY + 0.07 — a real, deliberate offset (matching
+       makeGrid's own gridLines/border margins in themes/standard.js,
+       same reasoning) needed because a truly coincident ring at exactly
+       the top face's own Y (topY) can lose the depth test against that
+       face's own polygonOffset push, which read as the ring flickering
+       during a drag's deceleration ease as phi swept through its range.
+
+       That fix traded one bug for another: a real, nonzero world-space Y
+       offset is invisible from directly above but grows in apparent
+       on-screen size as the camera tilts toward a grazing, near-
+       horizontal angle — pure perspective foreshortening, unrelated to
+       the offset's own (correct, still-needed) magnitude — and once the
+       max drag pitch was later relaxed to let players tilt much further
+       (see the drag handler's own phi clamp), that same 0.07 became
+       visible as a floating line hovering over the board's edge, exactly at the
+       angles players specifically asked to be able to reach. Shrinking
+       the offset was tried and rejected: makeGrid's own margin (already
+       tuned against this identical push, see its comment) sits in the
+       same 0.05-0.07 range, so a materially smaller value here risks
+       silently reintroducing the original flicker rather than fixing
+       anything.
+
+       The actual fix: this ring never needs occlusion by the slab's own
+       opaque body at all — it sits exactly at the visible top surface,
+       which nothing on the slab itself sits above — so depthTest:false
+       resolves the WIN-the-depth-test problem outright, with ZERO
+       geometric offset (topY exactly), removing the foreshortening
+       problem at its root instead of trading it for a smaller one. This
+       is deliberately NOT applied to the bottom ring or the verticals
+       below (they stay in the original slabEdges, depth-tested
+       normally): unlike the top ring, those genuinely can sit behind
+       the slab's own opaque bulk from some angles (e.g. the far
+       vertical edge, viewed from one side), and disabling their depth
+       test would make them wrongly draw through it. The only accepted
+       trade-off is the top ring now also drawing over a piece that
+       happens to sit exactly between the camera and the board's own
+       edge at a sufficiently grazing angle — far rarer and far less
+       objectionable than a visibly floating line every time that tilt
+       range is used at all. */
+    const topRingPts = [];
+    for (let i = 0; i < 4; i++) {
+      const [x1, z1] = slabCorners[i];
+      const [x2, z2] = slabCorners[(i + 1) % 4];
+      topRingPts.push(x1, topY, z1, x2, topY, z2);
+    }
+    const topRingGeo = new THREE.BufferGeometry();
+    topRingGeo.setAttribute("position", new THREE.Float32BufferAttribute(topRingPts, 3));
+    const topRing = new THREE.LineSegments(
+      topRingGeo,
+      new THREE.LineBasicMaterial({ color: HEX.charcoal, transparent: true, opacity: 0.45, depthTest: false })
+    );
+    topRing.position.copy(slab.position);
+    topRing.renderOrder = 1;
+
     const edgePts = [];
     for (let i = 0; i < 4; i++) {
       const [x1, z1] = slabCorners[i];
       const [x2, z2] = slabCorners[(i + 1) % 4];
-      // top ring
-      edgePts.push(x1, topRingY, z1, x2, topRingY, z2);
       // bottom ring
       edgePts.push(x1, botY, z1, x2, botY, z2);
       // vertical, stopping short of the top face
@@ -1530,7 +1590,7 @@ export default function ElCabeza3D({ theme }) {
        what makes each piece's shadow sweep as its facing to the fixed
        light changes, the way a lazy Susan looks under a fixed lamp. */
     const boardGroup = new THREE.Group();
-    boardGroup.add(slab, slabEdges, theme.makeGrid(), pieceGroup, ghostGroup);
+    boardGroup.add(slab, slabEdges, topRing, theme.makeGrid(), pieceGroup, ghostGroup);
     scene.add(boardGroup);
 
     three.current = {
@@ -3524,6 +3584,46 @@ export default function ElCabeza3D({ theme }) {
     return fitRadiusToCorners(theta, phi, corners, [0, 2 * PIECE_SCALE], fitFraction);
   }
 
+  // Standard media-query way to tell a touch-primary device (phone/
+  // tablet) from a mouse/trackpad-primary one (laptop/desktop) — no
+  // existing device-type check to reuse elsewhere in the chassis, so
+  // this is intentionally the one place that needs it (see
+  // captureViewBaselines' own desktop-only zoom-out).
+  function isCoarsePointer() {
+    return typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+  }
+
+  /* Computes and caches the ONE fit radius each of Current Player View
+     and Top-Down View will use for the rest of this game — see the
+     refs' own comment for why this exists (a resize between two
+     presses of the same button used to reframe it, since the live fit
+     re-measures the current canvas every time it runs). Called once,
+     right when Begin Game is pressed (see its onClick), rather than
+     lazily on first use of either button specifically so Top-Down
+     View's own baseline is still pinned to game-start's window size
+     even if the player never opens it until after a later resize.
+     theta is irrelevant to the fit itself (a square board's corners
+     measure identically at any 180°-symmetric heading), so 0 is used
+     for both regardless of which side is actually about to move. */
+  function captureViewBaselines() {
+    const CURRENT_PLAYER_FIT_FRACTION = 1.1;
+    const fittedCPV = fitRadiusToBoard(0, 0.86, CURRENT_PLAYER_FIT_FRACTION);
+    // Per feedback, Current Player View reads too zoomed in specifically
+    // on laptop/desktop — mobile was explicitly excluded. A 1.4x on the
+    // fitted radius is a 40% reduction in zoom (farther away = less
+    // zoomed in), baked into the captured baseline itself rather than
+    // reapplied on every later read, since the baseline IS the fixed
+    // answer for the rest of the game either way.
+    const desktopZoomOutFactor = isCoarsePointer() ? 1 : 1.4;
+    currentPlayerViewRadiusRef.current = Math.max(
+      ZOOM_MIN,
+      Math.min(ZOOM_MAX, (fittedCPV ?? 12.5) * desktopZoomOutFactor)
+    );
+    const ZOOM_PCT = 0.7;
+    const fallback = ZOOM_MAX - ZOOM_PCT * (ZOOM_MAX - ZOOM_MIN);
+    topDownViewRadiusRef.current = fitRadiusToBoard(0, 0.012) ?? fallback;
+  }
+
   function recenterView() {
     /* Pitch and distance are still camera moves. Heading (theta) is now
        applied to the board's own rotation instead of the camera's orbit
@@ -3534,24 +3634,14 @@ export default function ElCabeza3D({ theme }) {
        centering (snapToCenter) is instant. */
     cam.current.theta = currentPlayer === "dark" ? Math.PI : 0;
     cam.current.phi = 0.86;
-    // Zooms to fit the WHOLE board plate — same subject as Top-Down
-    // View (see fitRadiusToBoard), just at this view's own tilted pitch
-    // instead of a near-vertical one — shared chassis code, so this
-    // applies identically to every theme and device, not just one.
-    //
-    // The zoom level went back and forth on backoff multipliers layered
-    // on top of a comfortable-margin fit (1.3x, then 2.6x, chasing
-    // "still too zoomed in" feedback each time) until it swung past
-    // comfortable into "too small," most visible on mobile's narrower
-    // viewport. Rather than another multiplier, this asks the fit
-    // itself for a tight frame that lets the board's own widest point
-    // run 10% PAST the viewport edges (fitFraction > 1, see
-    // fitRadiusToCorners), instead of leaving a margin inside it.
-    // Top-Down View's own fit is untouched — still uses the default
-    // margin — since this feedback was about Current Player View only.
-    const CURRENT_PLAYER_FIT_FRACTION = 1.1;
-    const fitted = fitRadiusToBoard(cam.current.theta, cam.current.phi, CURRENT_PLAYER_FIT_FRACTION);
-    cam.current.radius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitted ?? 12.5));
+    // Reads the ONE radius captured at this game's Begin Game press
+    // (see captureViewBaselines) rather than re-fitting live against
+    // the current window size — per feedback, a resize between two
+    // presses of this button should never change what it resets to.
+    // The live-fit fallback only matters if this is somehow ever
+    // reached before that capture has run once.
+    if (currentPlayerViewRadiusRef.current == null) captureViewBaselines();
+    cam.current.radius = currentPlayerViewRadiusRef.current;
     snapToCenter();
   }
 
@@ -3578,9 +3668,12 @@ export default function ElCabeza3D({ theme }) {
        there's nothing to fit against yet. */
     cam.current.theta = facePlayer === "dark" ? Math.PI : 0;
     cam.current.phi = 0.012; // matches the drag clamp's near-vertical limit
-    const ZOOM_PCT = 0.7;
-    const fallback = ZOOM_MAX - ZOOM_PCT * (ZOOM_MAX - ZOOM_MIN);
-    cam.current.radius = fitRadiusToBoard(cam.current.theta, cam.current.phi) ?? fallback;
+    // Reads the ONE radius captured at this game's Begin Game press
+    // (see captureViewBaselines) — same reasoning as recenterView's
+    // own comment: a resize between two presses must never change
+    // what this button resets to.
+    if (topDownViewRadiusRef.current == null) captureViewBaselines();
+    cam.current.radius = topDownViewRadiusRef.current;
     snapToCenter();
   }
 
@@ -3767,6 +3860,12 @@ export default function ElCabeza3D({ theme }) {
     processEntry(0, pieces);
   }
   function handleReset() {
+    // Invalidates both views' cached fit baselines — see the refs' own
+    // comment. The NEXT Begin Game press (captureViewBaselines) recaptures
+    // both fresh against whatever the window measures at that moment,
+    // rather than this new game silently inheriting the previous one's.
+    currentPlayerViewRadiusRef.current = null;
+    topDownViewRadiusRef.current = null;
     // Undo a previous win's audio/visual wind-down, if any, so a new
     // game gets the ambient effects back rather than staying
     // permanently silent and static for the rest of the session.
@@ -3980,13 +4079,19 @@ export default function ElCabeza3D({ theme }) {
   const dockPieceIsCorner = dockView === "corner";
   const dockPieceStyle = {
     position: "fixed",
-    left: dockPieceIsCorner ? "calc(100% - 118px)" : "50%",
+    // Corner offset halved along with the piece's own size below (118 ->
+    // 59) so it still sits the same visual distance in from the edge
+    // relative to its own now-smaller footprint, rather than leaving a
+    // now-oversized gap where the bigger piece used to reach.
+    left: dockPieceIsCorner ? "calc(100% - 59px)" : "50%",
     // Piece-view (pre-game) bottom lowered from 20 -> 8 per feedback that
     // it sat slightly too high; corner (post-game watermark) is unrelated
-    // and keeps its own value.
+    // and keeps its own value. Corner size halved (100x88 -> 50x44) per
+    // feedback that the minimized branding piece needed to read as ~50%
+    // of its prior size once relocated.
     bottom: dockPieceIsCorner ? 18 : 8,
-    width: dockPieceIsCorner ? 100 : 260,
-    height: dockPieceIsCorner ? 88 : 220,
+    width: dockPieceIsCorner ? 50 : 260,
+    height: dockPieceIsCorner ? 44 : 220,
     transform: dockPieceIsCorner ? "translateX(0) scale(1)" : "translateX(-50%) scale(1)",
     opacity: dockView === "panel" ? 0 : dockPieceIsCorner ? 0.35 : 1,
     pointerEvents: dockView === "panel" ? "none" : "auto",
@@ -4144,7 +4249,10 @@ export default function ElCabeza3D({ theme }) {
                 top: 14,
                 right: 18,
                 left: "auto",
-                transform: "scale(0.3)",
+                // Halved again (0.3 -> 0.15) per feedback that the
+                // minimized branding masthead needed to read as ~50%
+                // of its prior relocated size.
+                transform: "scale(0.15)",
                 transformOrigin: "top right",
                 opacity: 0.22,
                 /* "Behind the board" in spirit, not literal z-order —
@@ -4210,8 +4318,16 @@ export default function ElCabeza3D({ theme }) {
                while in full screen — a fullscreen viewport is where
                7vw actually reaches, and stays pinned near, the 131px
                ceiling, which read as oversized per feedback. Windowed
-               play is unaffected. */
-            fontSize: isFullscreen ? "clamp(12px, 4.2vw, 79px)" : "clamp(20px, 7vw, 131px)",
+               play is unaffected for a theme whose own masthead reads
+               fine at the larger windowed scale — but per feedback
+               Standard's own display face (Fraunces, a serif) renders
+               visually larger than Neon's (Chakra Petch) at the exact
+               same clamp values, so Standard alone opts into the
+               smaller fullscreen-only formula unconditionally via
+               theme.mastheadCompact, windowed or not. Neon is
+               unaffected — it still only gets the compact size while
+               actually fullscreen. */
+            fontSize: isFullscreen || theme.mastheadCompact ? "clamp(12px, 4.2vw, 79px)" : "clamp(20px, 7vw, 131px)",
             lineHeight: 1.05,
             letterSpacing: "0.02em",
             color: COLORS.charcoal,
@@ -4354,19 +4470,23 @@ export default function ElCabeza3D({ theme }) {
           // full gameplay/post-game width, which exists for the wider
           // status bar and Move Log content those states actually
           // have. Shared chassis markup, so this narrows it identically
-          // for every theme. Widened specifically once an AI opponent
-          // is picked (aiPlayer set): Opponent and Difficulty must sit
-          // on one indivisible line together (see that row's own
-          // comment), which needs more room than the Human-only 480px
-          // cap gives it — without this, Difficulty's own buttons ran
-          // off the right edge of the panel. Mid-game (declutter) is
-          // its own case too, per feedback — its content (the status
-          // bar, the two view buttons, End Active Game) is far sparser
-          // than the post-game Move Log panel that also uses this
-          // "not setup" branch, and read as unnecessarily large at the
-          // full 880px.
+          // for every theme. Fixed at 480px pre-game regardless of
+          // aiPlayer now — the Opponent picker and Difficulty no longer
+          // ever share one line (picking an AI side collapses the
+          // former into a compact Back control, handing Difficulty the
+          // freed space — see that row's own comment), so there is no
+          // longer a wider "both on one line" case to make room for.
+          // Widening it there used to also visibly resize the whole
+          // dock the instant an AI side was picked, which read as an
+          // unexplained jump per feedback — fixed by simply not doing
+          // that anymore, not by re-deriving a new width. Mid-game
+          // (declutter) is its own case too, per feedback — its content
+          // (the status bar, the two view buttons, End Active Game) is
+          // far sparser than the post-game Move Log panel that also
+          // uses this "not setup" branch, and read as unnecessarily
+          // large at the full 880px.
           width: awaitingBegin
-            ? (aiPlayer ? "min(600px, 94vw)" : "min(480px, 92vw)")
+            ? "min(480px, 92vw)"
             : declutter
             ? "min(560px, 92vw)"
             : "min(880px, 96vw)",
@@ -4771,6 +4891,13 @@ export default function ElCabeza3D({ theme }) {
                     audioRef.current.playPowerOn();
                     ambientRef.current && ambientRef.current.armOnBegin();
                     setGameArmed(true);
+                    // Captures BOTH views' fixed baselines for the game
+                    // that's about to start, before actually applying
+                    // Current Player View's — see captureViewBaselines'
+                    // own comment for why this has to be eager (Top-Down
+                    // View's baseline needs pinning now even though that
+                    // view itself isn't being switched to yet).
+                    captureViewBaselines();
                     recenterView();
                   }}
                   style={{
@@ -4778,15 +4905,15 @@ export default function ElCabeza3D({ theme }) {
                     fontSize: 11,
                     letterSpacing: "0.14em",
                     padding: "9px 16px",
-                    // "1 0 auto" (fill remaining row width) only makes
-                    // sense for themes without renderSetupExtras, where
-                    // this is the sole button in its own full-width
-                    // wrapper below. A theme WITH extras (Neon's Anomaly
-                    // button) lays this out inside its own centered,
-                    // wrapping row instead — see renderSetupExtras — so
-                    // it needs the same content-sized, shrinkable flex
-                    // as its sibling there, not a forced full stretch.
-                    flex: theme.renderSetupExtras ? "1 1 140px" : "1 0 auto",
+                    // A theme WITH extras (Neon's Anomaly button) lays
+                    // this out sharing a never-wrapping row evenly with
+                    // its sibling there — see renderSetupExtras — so it
+                    // needs the matching "1 1 0" flex, not a plain
+                    // "1 0 auto" fill (which is for the OTHER branch:
+                    // themes without extras, where this is the sole
+                    // button in its own full-width wrapper below).
+                    flex: theme.renderSetupExtras ? "1 1 0" : "1 0 auto",
+                    minWidth: theme.renderSetupExtras ? 0 : undefined,
                   }}
                 >
                   Begin Game

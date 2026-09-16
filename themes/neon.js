@@ -1728,6 +1728,32 @@ export function mountAmbientEffects(refs, helpers) {
   const FLICKER_CLASSES = ["ec-title-flicker", "ec-title-flicker-b", "ec-title-flicker-c"];
   let flickerTimer, letterTimer, sparkTimer, haloTimer, vhsTimer, rareTimer, jitterTimer, mastheadJitterTimer, letterTearTimer, verticalHoldTimer;
 
+  /* Which of the three CRT/VAX-terminal distortions (see their own CSS
+     comment) are active for the CURRENT game — re-rolled fresh by
+     rollCrtEffects on every armOnBegin/restart, per feedback that this
+     should randomly cycle through a mixture rather than always show
+     the same fixed set (or none at all). Scanlines/vignette are pure
+     CSS classes, applied here; phosphor is imperative (a blur pulse
+     riding along with fireFlicker below, not a static class) since it
+     needs to trigger at a moment, not just be present. */
+  let crtEffects = { scanlines: false, phosphor: false, vignette: false };
+  function rollCrtEffects() {
+    crtEffects = {
+      scanlines: Math.random() < 0.6,
+      phosphor: Math.random() < 0.6,
+      vignette: Math.random() < 0.6,
+    };
+    // A game with all three rolled off would show no CRT character at
+    // all, which isn't "a mixture," it's "none" — always keep at least
+    // one live by falling back to scanlines, the least intrusive.
+    if (!crtEffects.scanlines && !crtEffects.phosphor && !crtEffects.vignette) crtEffects.scanlines = true;
+    const wrap = titleWrapRef.current;
+    if (wrap) {
+      wrap.classList.toggle("ec-crt-scanlines", crtEffects.scanlines);
+      wrap.classList.toggle("ec-crt-vignette", crtEffects.vignette);
+    }
+  }
+
   const fireFlicker = () => {
     if (windingDownRef.current) return;
     const el = titleRef.current;
@@ -1737,9 +1763,19 @@ export function mountAmbientEffects(refs, helpers) {
       const cls = FLICKER_CLASSES[Math.floor(Math.random() * FLICKER_CLASSES.length)];
       el.style.animationDuration = (0.7 + Math.random() * 0.9).toFixed(2) + "s";
       el.classList.add(cls);
+      /* Phosphor persistence: a brief blur-then-settle riding along
+         with the same flicker that already reads as "signal trouble,"
+         rather than a permanently blurry title — a real CRT's phosphor
+         trails only show as something actually CHANGES on screen. */
+      if (crtEffects.phosphor) {
+        el.style.transition = "filter 260ms ease-out";
+        el.style.filter = "blur(2px)";
+        requestAnimationFrame(() => requestAnimationFrame(() => { el.style.filter = "blur(0px)"; }));
+      }
     }
     audio.playFlicker();
-    flickerTimer = setTimeout(fireFlicker, 7000 + Math.random() * 24000);
+    // Widened per feedback ("glitch & blink less") — was 7000 + rand*24000.
+    flickerTimer = setTimeout(fireFlicker, 13000 + Math.random() * 43000);
   };
 
   const fireLetter = () => {
@@ -1756,7 +1792,8 @@ export function mountAmbientEffects(refs, helpers) {
         el.style.opacity = "1";
       }, hold);
     }
-    letterTimer = setTimeout(fireLetter, 6000 + Math.random() * 15000);
+    // Widened per feedback ("glitch & blink less") — was 6000 + rand*15000.
+    letterTimer = setTimeout(fireLetter, 11000 + Math.random() * 27000);
   };
 
   const fireSpark = () => {
@@ -1904,7 +1941,9 @@ export function mountAmbientEffects(refs, helpers) {
       el.classList.add(cls);
       setTimeout(() => el.classList.remove(cls), 260);
     }
-    mastheadJitterTimer = setTimeout(fireMastheadJitter, 3000 + Math.random() * 4000);
+    // Widened ~2x per feedback ("glitch & blink less") — was 3000 + rand*4000,
+    // the most frequent of the masthead's own glitch timers.
+    mastheadJitterTimer = setTimeout(fireMastheadJitter, 6000 + Math.random() * 8000);
   };
 
   /* Occasional single-letter raster tear: picks one of the masthead's
@@ -1923,7 +1962,8 @@ export function mountAmbientEffects(refs, helpers) {
       setTimeout(() => el.classList.remove("ec-letter-tear"), 150);
       audio.playGlitch();
     }
-    letterTearTimer = setTimeout(fireLetterTear, 9000 + Math.random() * 13000);
+    // Widened per feedback ("glitch & blink less") — was 9000 + rand*13000.
+    letterTearTimer = setTimeout(fireLetterTear, 16000 + Math.random() * 23000);
   };
 
   /* Vertical hold instability: the whole masthead row briefly rolls
@@ -1950,18 +1990,23 @@ export function mountAmbientEffects(refs, helpers) {
     // Masthead/UI effects run from mount — not gated on Begin Game,
     // since they're not board FX (per the original's own reasoning for
     // why arc/crawl/floorWave/digitalGlitch ARE gated but these aren't).
-    flickerTimer = setTimeout(fireFlicker, 5000 + Math.random() * 9000);
-    letterTimer = setTimeout(fireLetter, 4000 + Math.random() * 9000);
+    // All widened ~1.8x here and at both re-arm points below (armOnBegin,
+    // restart) per feedback that the masthead should "glitch & blink
+    // less" — mastheadJitter specifically (was every 3-7s, the most
+    // frequent of the bunch) is the one most responsible for that read.
+    flickerTimer = setTimeout(fireFlicker, 9000 + Math.random() * 16000);
+    letterTimer = setTimeout(fireLetter, 8000 + Math.random() * 16000);
     sparkTimer = setTimeout(fireSpark, 14000 + Math.random() * 16000);
     haloTimer = setTimeout(pulseHalo, 1200 + Math.random() * 2000);
-    jitterTimer = setTimeout(fireJitter, 6000 + Math.random() * 9000);
-    mastheadJitterTimer = setTimeout(fireMastheadJitter, 3000 + Math.random() * 4000);
-    letterTearTimer = setTimeout(fireLetterTear, 6000 + Math.random() * 10000);
-    verticalHoldTimer = setTimeout(fireVerticalHold, 16000 + Math.random() * 20000);
+    jitterTimer = setTimeout(fireJitter, 11000 + Math.random() * 16000);
+    mastheadJitterTimer = setTimeout(fireMastheadJitter, 6000 + Math.random() * 8000);
+    letterTearTimer = setTimeout(fireLetterTear, 11000 + Math.random() * 18000);
+    verticalHoldTimer = setTimeout(fireVerticalHold, 29000 + Math.random() * 36000);
   }
 
   return {
     armOnBegin() {
+      rollCrtEffects();
       if (!reduceMotion) {
         // Widened ~30% per feedback ("reduce screen flashing... by
         // 30%") — was 25714 + rand*35714.
@@ -1979,19 +2024,22 @@ export function mountAmbientEffects(refs, helpers) {
     },
 
     restart() {
+      rollCrtEffects();
       if (!reduceMotion) {
-        flickerTimer = setTimeout(fireFlicker, 5000 + Math.random() * 9000);
-        letterTimer = setTimeout(fireLetter, 4000 + Math.random() * 9000);
+        // Same ~1.8x widening as the mount schedule above — see its
+        // own comment.
+        flickerTimer = setTimeout(fireFlicker, 9000 + Math.random() * 16000);
+        letterTimer = setTimeout(fireLetter, 8000 + Math.random() * 16000);
         sparkTimer = setTimeout(fireSpark, 14000 + Math.random() * 16000);
         // Widened ~30% per feedback ("reduce screen flashing... by
         // 30%") — was 25714 + rand*35714.
         vhsTimer = setTimeout(fireVhs, 36771 + Math.random() * 51071);
         rareTimer = setTimeout(fireRare, 343200 + Math.random() * 429000); // widened ~30% — was 240000 + rand*300000
         crtAberrationTimer = setTimeout(fireCrtAberration, 45000 + Math.random() * 60000);
-        jitterTimer = setTimeout(fireJitter, 11000 + Math.random() * 16000);
-        mastheadJitterTimer = setTimeout(fireMastheadJitter, 3000 + Math.random() * 4000);
-        letterTearTimer = setTimeout(fireLetterTear, 9000 + Math.random() * 13000);
-        verticalHoldTimer = setTimeout(fireVerticalHold, 18000 + Math.random() * 22000);
+        jitterTimer = setTimeout(fireJitter, 20000 + Math.random() * 29000);
+        mastheadJitterTimer = setTimeout(fireMastheadJitter, 6000 + Math.random() * 8000);
+        letterTearTimer = setTimeout(fireLetterTear, 16000 + Math.random() * 23000);
+        verticalHoldTimer = setTimeout(fireVerticalHold, 32000 + Math.random() * 40000);
       }
       arcTimer = setTimeout(fireArc, 8333 + Math.random() * 11667);
       // Same 4x widening as armOnBegin above.
@@ -2426,6 +2474,54 @@ export const styleSheet = `
   @media (prefers-reduced-motion: reduce) {
     .ec-title-flicker, .ec-title-flicker-b, .ec-title-flicker-c { animation: none; }
   }
+  /* CRT/VAX-terminal character for the masthead — three independent
+     distortions, each toggled on titleWrapRef by rollCrtEffects (see
+     its own comment) as a random mixture picked fresh every new game,
+     rather than always all three or always none. Every element here
+     is ::before/::after only (no extra DOM), scoped to titleWrapRef so
+     it travels with the masthead through its own relocate/shrink
+     phases without needing separate positioning logic.
+
+     Scanlines: the raster-line texture of an actual CRT tube. Drawn
+     oversized (inset beyond the element's own edges) so it still
+     covers the full glyph area through the masthead's own scale()
+     transforms in its relocated phase, rather than clipping at a
+     fixed pre-scale boundary. mix-blend-mode:multiply darkens through
+     the existing glow/text-shadow rather than sitting as a flat
+     overlay on top of it. */
+  .ec-crt-scanlines { position: relative; }
+  .ec-crt-scanlines::after {
+    content: "";
+    position: absolute;
+    inset: -20% -10%;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.18) 0px,
+      rgba(0, 0, 0, 0.18) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    mix-blend-mode: multiply;
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: 2;
+  }
+  /* Vignette: the corner-darkening a curved CRT tube's own glass
+     produces, standing in for actual barrel curvature (a true optical
+     bulge isn't a believable CSS-only effect at text scale) — same
+     visual cue a real VAX terminal's tube reads at a glance. */
+  .ec-crt-vignette { position: relative; }
+  .ec-crt-vignette::before {
+    content: "";
+    position: absolute;
+    inset: -45% -25%;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.5) 100%);
+    pointer-events: none;
+    z-index: 2;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ec-crt-scanlines::after, .ec-crt-vignette::before { display: none; }
+  }
   /* A single spark: a tiny bright point that flashes and drifts off
      before fading, spawned near the title at rare, irregular
      intervals — see spawnSpark in the title effect. */
@@ -2772,7 +2868,7 @@ export const styleSheet = `
     background: #000000;
     border: 1.5px solid rgba(77, 232, 255, 0.18);
     box-sizing: border-box;
-    padding: 8px 16px;
+    padding: 9px 16px; /* matches Anomaly/Begin Game's own 9px 16px exactly */
     overflow: visible;
     cursor: pointer;
     opacity: 0;
@@ -3002,10 +3098,28 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingula
   const h = React.createElement;
   return h(
     "div",
-    { style: { display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8, flexShrink: 0 } },
+    {
+      // Explicit width:100% (not just alignItems:"stretch" below,
+      // which only ever governs OUR OWN children, not us) because
+      // this div's own parent uses alignItems:"flex-start" — without
+      // this it auto-sizes to a shrink-wrapped width instead of the
+      // dock's real content width, and since that shrink-wrap picks
+      // whichever child's own natural content is narrower/wider in an
+      // ambiguous way, Singularity's own width:100% below ended up
+      // resolving against a DIFFERENT (and wider) natural size than
+      // the Anomaly/Begin Game row actually rendered at — the exact
+      // "Singularity is wider than the row above it" bug this fixes.
+      style: { display: "flex", flexDirection: "column", alignItems: "stretch", gap: 8, flexShrink: 0, width: "100%" },
+    },
     h(
+      // Must never wrap — Anomaly and Begin Game stay on one row at
+      // any width, per feedback. Both share the row's full space
+      // exactly evenly (flex: "1 1 0" on each, matched below on
+      // beginGameButton), which is what reads as centered — a pair
+      // spanning edge to edge is its own kind of centered — without
+      // ever needing a second line to fall back to.
       "div",
-      { style: { display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap", justifyContent: "center" } },
+      { style: { display: "flex", gap: 8, flexShrink: 0, flexWrap: "nowrap" } },
       h(
         "button",
         {
@@ -3028,7 +3142,8 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingula
             border: `1.5px solid ${COLORS.charcoal}`,
             padding: "9px 16px",
             cursor: "pointer",
-            flex: "1 1 140px",
+            flex: "1 1 0",
+            minWidth: 0,
           },
         },
         "Anomaly"

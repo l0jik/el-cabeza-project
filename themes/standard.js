@@ -24,6 +24,16 @@ const OUTLINE_T = 0.016;
    rather than branching on which theme is active. */
 export const outlineYOffset = OUTLINE_T;
 
+/* Per feedback: Standard's display face (Fraunces, a serif) renders
+   visibly larger than Neon's (Chakra Petch) at the exact same masthead
+   clamp values, so the windowed masthead read as oversized here even
+   though the underlying formula is shared chassis code. Chassis reads
+   this to always use its smaller, fullscreen-only font-size formula
+   for Standard's masthead, windowed or not — see its own fontSize
+   comment. Absent (undefined, falsy) for Neon, which keeps the
+   original fullscreen-only behavior. */
+export const mastheadCompact = true;
+
 export const COLORS = {
   /* Lightened from #FDFBF7 — a deliberate, if necessarily small, push:
      the starting value was already close to white, so there's limited
