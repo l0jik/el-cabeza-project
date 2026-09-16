@@ -75,6 +75,15 @@ export const COLORS = {
    back to Standard's Fraunces when a theme doesn't set this. */
 export const titleFontFamily = "'Chakra Petch', sans-serif";
 
+/* Scales the REGULAR (pre-game/setup, non-relocated) masthead's own
+   font-size clamp() numbers up 25% — per feedback that Neon's own
+   regular masthead read small. Chassis applies this to the actual
+   clamp() numbers (see mastheadClamp), not a wrapping transform:
+   scale(), so it doesn't shrink the formula's own legibility floor on
+   a narrow viewport. Doesn't touch the relocated corner badge, which
+   has its own fixed clamp() shared by both themes. */
+export const mastheadScale = 1.25;
+
 export const HEX = {
   /* Kept in sync with COLORS.cream, same reasoning as before. */
   cream: 0x0b0f14,

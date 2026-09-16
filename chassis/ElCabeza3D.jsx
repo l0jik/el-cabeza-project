@@ -22,6 +22,19 @@ import {
    it describes the game as a whole, not any one skin's own history. */
 const APP_VERSION = "1.39.0";
 
+/* Builds a clamp() string with all three numbers scaled by a per-theme
+   multiplier — used for the masthead's font-size (see its own comment
+   at the h1 below). Scales the actual numbers, not a wrapping
+   transform:scale(): the latter shrinks the clamp()'s own floor right
+   along with everything else, which is exactly the bug a previous pass
+   of this same masthead shipped (see ARCHITECTURE.md's "Known
+   pitfalls"). floorPx/ceilingPx are bare px numbers, vw is a bare vw
+   number; scale defaults to 1 for a theme with no opinion. */
+function mastheadClamp(floorPx, vw, ceilingPx, scale) {
+  const s = scale || 1;
+  return `clamp(${floorPx * s}px, ${vw * s}vw, ${ceilingPx * s}px)`;
+}
+
 /* ------------------------------------------------------------------ */
 /*  El Cabeza — 3D — shared chassis                                    */
 /*                                                                     */
@@ -4443,13 +4456,26 @@ export default function ElCabeza3D({ theme }) {
                legibility rather than inherited as a fraction of the
                much-larger pre-game floor; the vw slope and ceiling
                (2.8vw, 52px) still land at roughly 40% of the pre-game
-               formula's own for a viewport wide enough to reach them. */
+               formula's own for a viewport wide enough to reach them.
+
+               theme.mastheadScale (see mastheadClamp) scales the
+               REGULAR (non-relocated) formula's own numbers directly,
+               same reasoning as the corner badge's dedicated clamp()
+               just above: a transform:scale() here would shrink this
+               formula's own floor right along with the rest, hitting
+               the exact same narrow-viewport illegibility bug on any
+               theme whose multiplier pushes it down instead of up.
+               Applied per-theme (Neon at 1.25 per feedback that its
+               own regular masthead read small) rather than baked into
+               the shared numbers, which both themes still default to
+               unscaled (Standard has no mastheadScale export, so
+               `|| 1`). */
             fontSize:
               mastheadPhase === "relocated"
                 ? "clamp(16px, 2.8vw, 52px)"
                 : isFullscreen
-                  ? "clamp(12px, 4.2vw, 79px)"
-                  : "clamp(20px, 7vw, 131px)",
+                  ? mastheadClamp(12, 4.2, 79, theme.mastheadScale)
+                  : mastheadClamp(20, 7, 131, theme.mastheadScale),
             lineHeight: 1.05,
             letterSpacing: "0.02em",
             color: COLORS.charcoal,
