@@ -4341,17 +4341,20 @@ export default function ElCabeza3D({ theme }) {
                 left: "auto",
                 // Several passes of "too small"/"too big" feedback (0.3
                 // -> 0.15 -> 0.45 -> a mobile-only 5x -> half that back
-                // down) all chased an ad-hoc multiplier instead of a
-                // fixed ratio. Settled per spec as flat 40% of the
-                // pre-game masthead's own font size — since that base
-                // size is itself already responsive (the vw-based
-                // clamp() on the h1 below), a flat scale() here now
-                // naturally comes out smaller on a narrow/mobile
-                // viewport too, with no separate per-platform case
-                // needed. The Info button lives inside this same
-                // transformed wrapper, so it scales down with it
-                // automatically.
-                transform: "scale(0.4)",
+                // down -> a flat scale(0.4)) all read fine on a wide
+                // desktop viewport and unreadably tiny on a narrow one —
+                // because EVERY one of them was a transform:scale() on
+                // this wrapper, which shrinks the h1's own font-size
+                // clamp() *floor* right along with everything else
+                // (its 20px minimum became 8px at 0.4x) — exactly the
+                // narrow-viewport case the clamp's floor exists to
+                // protect. No scale() here at all now; the h1 below
+                // gets its OWN clamp() for this phase instead, with a
+                // floor sized for legibility on its own terms rather
+                // than inheriting a fraction of the (much larger)
+                // pre-game floor. transformOrigin stays for the
+                // fade/position transition group below, but there's no
+                // actual scale in it to anchor.
                 transformOrigin: "top right",
                 opacity: 0.22,
                 /* "Behind the board" in spirit, not literal z-order —
@@ -4426,8 +4429,27 @@ export default function ElCabeza3D({ theme }) {
                masthead being too small — both themes now share this
                one baseline formula unconditionally, windowed or not,
                so isFullscreen is the only thing that ever picks the
-               smaller clamp. */
-            fontSize: isFullscreen ? "clamp(12px, 4.2vw, 79px)" : "clamp(20px, 7vw, 131px)",
+               smaller clamp (setup/fading phases only — see below for
+               "relocated").
+
+               The tiny corner badge (mastheadPhase === "relocated")
+               gets its OWN clamp() rather than a transform:scale() of
+               this one: a scale() shrinks this formula's own 20px
+               floor right along with everything else, so on a narrow
+               phone (where 7vw is already near that floor) the badge
+               came out at ~8px — illegible, and the actual bug behind
+               "still very very small" even after several scale-factor
+               passes. 16px is its own floor, sized for the badge's own
+               legibility rather than inherited as a fraction of the
+               much-larger pre-game floor; the vw slope and ceiling
+               (2.8vw, 52px) still land at roughly 40% of the pre-game
+               formula's own for a viewport wide enough to reach them. */
+            fontSize:
+              mastheadPhase === "relocated"
+                ? "clamp(16px, 2.8vw, 52px)"
+                : isFullscreen
+                  ? "clamp(12px, 4.2vw, 79px)"
+                  : "clamp(20px, 7vw, 131px)",
             lineHeight: 1.05,
             letterSpacing: "0.02em",
             color: COLORS.charcoal,
