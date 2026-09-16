@@ -4369,8 +4369,24 @@ export default function ElCabeza3D({ theme }) {
                smaller fullscreen-only formula unconditionally via
                theme.mastheadCompact, windowed or not. Neon is
                unaffected — it still only gets the compact size while
-               actually fullscreen. */
-            fontSize: isFullscreen || theme.mastheadCompact ? "clamp(12px, 4.2vw, 79px)" : "clamp(20px, 7vw, 131px)",
+               actually fullscreen.
+
+               mastheadPhase !== "relocated" on the compact branch:
+               the relocated corner badge already applies its OWN
+               0.45 scale on top of whatever this resolves to (see
+               titleWrapRef's style below) — compounding that with
+               Standard's already-smaller compact formula made its
+               relocated badge render far tinier/fainter than Neon's
+               equivalent, reported as the minimized masthead reading
+               as missing. The compact opt-in is scoped to the
+               windowed SETUP view it was actually about; the
+               relocated badge always starts from the same larger
+               base as Neon so the two themes' badges end up the same
+               size once both are scaled down. */
+            fontSize:
+              isFullscreen || (theme.mastheadCompact && mastheadPhase !== "relocated")
+                ? "clamp(12px, 4.2vw, 79px)"
+                : "clamp(20px, 7vw, 131px)",
             lineHeight: 1.05,
             letterSpacing: "0.02em",
             color: COLORS.charcoal,
