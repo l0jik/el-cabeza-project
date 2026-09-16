@@ -2416,6 +2416,23 @@ export const styleSheet = `
       background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+    /* The scanline-clip effect above reads fine at setup size, but its
+       background-image is a fixed 3px-period stripe — at the relocated
+       corner badge's own much smaller rendered glyph size, that period
+       can end up comparable to (or larger than) a glyph's own stroke
+       width, and depending on exactly where the repeating pattern
+       happens to land, a given letter can come out entirely on the
+       "transparent" 2px of the stripe with none of the opaque 1px
+       showing through at all — effectively invisible despite every
+       opacity/color value along the way being nonzero. The tiny badge
+       doesn't need the CRT texture anyway (it's a watermark, not
+       legible body text), so it falls back to plain solid currentColor
+       there instead of chasing a stripe-period fix that would only
+       ever be correct at one specific scale.  */
+    .ec-masthead-relocated .ec-title, .ec-masthead-relocated .ec-title .ec-letter {
+      background: none;
+      -webkit-text-fill-color: currentColor;
+    }
   }
   /* Restrained hover glow — the one new interaction cue this theme adds.
      Purely cosmetic (box-shadow only); no layout, timing, or hit-testing

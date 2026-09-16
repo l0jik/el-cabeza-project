@@ -4328,6 +4328,7 @@ export default function ElCabeza3D({ theme }) {
          switching between them animate instead of jumping. */}
       <div
         ref={titleWrapRef}
+        className={mastheadPhase === "relocated" ? "ec-masthead-relocated" : undefined}
         style={
           mastheadPhase === "relocated"
             ? {
@@ -4335,21 +4336,19 @@ export default function ElCabeza3D({ theme }) {
                 top: 14,
                 right: 18,
                 left: "auto",
-                // Went 0.3 -> 0.15 (halved), then per feedback that
-                // read as "way too small" — 300% of that halved size:
-                // 0.15 * 3 = 0.45. Per further feedback the corner
-                // badge was still unreadable specifically on mobile
-                // (a coarse pointer, per the same isCoarsePointer()
-                // convention used for Current Player View's own
-                // mobile-only zoom exception below) — 5x that on
-                // mobile only: 0.45 * 5 = 2.25. That overshot (per a
-                // reference screenshot, it read as oversized/crowding
-                // the top of the screen) — cut 50%: 2.25 * 0.5 = 1.125.
-                // Desktop/laptop was never reported as wrong and keeps
-                // the original 0.45. The Info button lives inside this
-                // same transformed wrapper, so it scales down with it
-                // automatically — no separate change needed there.
-                transform: `scale(${isCoarsePointer() ? 0.45 * 5 * 0.5 : 0.45})`,
+                // Several passes of "too small"/"too big" feedback (0.3
+                // -> 0.15 -> 0.45 -> a mobile-only 5x -> half that back
+                // down) all chased an ad-hoc multiplier instead of a
+                // fixed ratio. Settled per spec as flat 40% of the
+                // pre-game masthead's own font size — since that base
+                // size is itself already responsive (the vw-based
+                // clamp() on the h1 below), a flat scale() here now
+                // naturally comes out smaller on a narrow/mobile
+                // viewport too, with no separate per-platform case
+                // needed. The Info button lives inside this same
+                // transformed wrapper, so it scales down with it
+                // automatically.
+                transform: "scale(0.4)",
                 transformOrigin: "top right",
                 opacity: 0.22,
                 /* "Behind the board" in spirit, not literal z-order —
@@ -4415,32 +4414,17 @@ export default function ElCabeza3D({ theme }) {
                while in full screen — a fullscreen viewport is where
                7vw actually reaches, and stays pinned near, the 131px
                ceiling, which read as oversized per feedback. Windowed
-               play is unaffected for a theme whose own masthead reads
-               fine at the larger windowed scale — but per feedback
-               Standard's own display face (Fraunces, a serif) renders
-               visually larger than Neon's (Chakra Petch) at the exact
-               same clamp values, so Standard alone opts into the
-               smaller fullscreen-only formula unconditionally via
-               theme.mastheadCompact, windowed or not. Neon is
-               unaffected — it still only gets the compact size while
-               actually fullscreen.
-
-               mastheadPhase !== "relocated" on the compact branch:
-               the relocated corner badge already applies its OWN
-               0.45 scale on top of whatever this resolves to (see
-               titleWrapRef's style below) — compounding that with
-               Standard's already-smaller compact formula made its
-               relocated badge render far tinier/fainter than Neon's
-               equivalent, reported as the minimized masthead reading
-               as missing. The compact opt-in is scoped to the
-               windowed SETUP view it was actually about; the
-               relocated badge always starts from the same larger
-               base as Neon so the two themes' badges end up the same
-               size once both are scaled down. */
-            fontSize:
-              isFullscreen || (theme.mastheadCompact && mastheadPhase !== "relocated")
-                ? "clamp(12px, 4.2vw, 79px)"
-                : "clamp(20px, 7vw, 131px)",
+               play keeps the larger clamp — a prior pass had Standard
+               opt into the smaller fullscreen-only formula even while
+               windowed (theme.mastheadCompact, reasoning Standard's
+               own display face, Fraunces, a serif, renders visually
+               larger than Neon's Chakra Petch at the exact same clamp
+               values), but per feedback that read as the pre-game
+               masthead being too small — both themes now share this
+               one baseline formula unconditionally, windowed or not,
+               so isFullscreen is the only thing that ever picks the
+               smaller clamp. */
+            fontSize: isFullscreen ? "clamp(12px, 4.2vw, 79px)" : "clamp(20px, 7vw, 131px)",
             lineHeight: 1.05,
             letterSpacing: "0.02em",
             color: COLORS.charcoal,
@@ -4464,6 +4448,15 @@ export default function ElCabeza3D({ theme }) {
           onClick={handleInfoButtonClick}
           style={{
             ...ghostButtonStyle(),
+            // ghostButtonStyle's own size (fontSize 10, padding 6px
+            // 10px) is MINI_BUTTON_BASE's shared dock-button size —
+            // appropriate for the dock, but oversized sitting directly
+            // under the masthead specifically, which no longer shares
+            // MINI_BUTTON_BASE's own sizing scale. Scoped down here
+            // only, not on the shared base (other buttons using it
+            // still want the original size).
+            fontSize: 8,
+            padding: "4px 7px",
             position: "absolute",
             top: "100%",
             right: 0,
