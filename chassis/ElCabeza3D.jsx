@@ -969,11 +969,21 @@ export default function ElCabeza3D({ theme }) {
   useEffect(() => {
     if (!awaitingBegin) return;
     const GAP_PADDING_PX = 28;
+    // The vertical-gap search alone leaves the board pinned edge-to-edge
+    // on a narrow/tall viewport (a perspective camera's on-screen WIDTH
+    // isn't part of that search at all) — per feedback/reference
+    // screenshot, the setup board should keep real side margins too, so
+    // this caps the board at 84% of the viewport's width (~8% margin
+    // each side, matching the reference) as a second, independent
+    // constraint on top of the gap fit.
+    const MAX_BOARD_WIDTH_FRACTION = 0.84;
     function recompute() {
       const titleEl = titleRef.current;
       const dockEl = dockPieceMountRef.current;
       const measure = three.current.measureBoardPx;
-      if (!titleEl || !dockEl || !measure) return;
+      const measureBox = three.current.measureBoxPx;
+      const mountSize = three.current.getMountSize && three.current.getMountSize();
+      if (!titleEl || !dockEl || !measure || !mountSize) return;
       const gapTop = titleEl.getBoundingClientRect().bottom + GAP_PADDING_PX;
       const gapBottom = dockEl.getBoundingClientRect().top - GAP_PADDING_PX;
       const gapHeight = gapBottom - gapTop;
@@ -1001,6 +1011,28 @@ export default function ElCabeza3D({ theme }) {
         if (!m) return;
         if (m.span > gapHeight) lo = mid;
         else hi = mid;
+      }
+      // Second, independent bisection for the width margin — same
+      // monotonic search, just against the board's on-screen WIDTH
+      // (via measureBoxPx, which — unlike measureBoardPx above —
+      // reports both axes) instead of its height.
+      if (measureBox) {
+        const maxWidthPx = mountSize.w * MAX_BOARD_WIDTH_FRACTION;
+        const half = SLAB / 2;
+        const corners = [[-half, -half], [-half, half], [half, -half], [half, half]];
+        const heights = [0, 2 * PIECE_SCALE]; // same "tallest piece" reach as measureBoardPx's own TALLEST_PIECE_HEIGHT
+        let wLo = ZOOM_MIN;
+        let wHi = ZOOM_MAX;
+        for (let i = 0; i < 24; i++) {
+          const mid = (wLo + wHi) / 2;
+          const m = measureBox(mid, phi, theta, radiusTarget, corners, heights);
+          if (!m) break;
+          if (m.width > maxWidthPx) wLo = mid;
+          else wHi = mid;
+        }
+        // Whichever constraint needs the bigger radius (more zoomed
+        // out) wins — the other one still has slack to spare.
+        hi = Math.max(hi, wHi);
       }
       cam.current.radius = hi;
       preGameFitRadiusRef.current = hi;
@@ -4306,13 +4338,18 @@ export default function ElCabeza3D({ theme }) {
                 // Went 0.3 -> 0.15 (halved), then per feedback that
                 // read as "way too small" — 300% of that halved size:
                 // 0.15 * 3 = 0.45. Per further feedback the corner
-                // badge is still unreadable specifically on mobile
+                // badge was still unreadable specifically on mobile
                 // (a coarse pointer, per the same isCoarsePointer()
                 // convention used for Current Player View's own
                 // mobile-only zoom exception below) — 5x that on
-                // mobile only: 0.45 * 5 = 2.25. Desktop/laptop keeps
-                // the original 0.45.
-                transform: `scale(${isCoarsePointer() ? 0.45 * 5 : 0.45})`,
+                // mobile only: 0.45 * 5 = 2.25. That overshot (per a
+                // reference screenshot, it read as oversized/crowding
+                // the top of the screen) — cut 50%: 2.25 * 0.5 = 1.125.
+                // Desktop/laptop was never reported as wrong and keeps
+                // the original 0.45. The Info button lives inside this
+                // same transformed wrapper, so it scales down with it
+                // automatically — no separate change needed there.
+                transform: `scale(${isCoarsePointer() ? 0.45 * 5 * 0.5 : 0.45})`,
                 transformOrigin: "top right",
                 opacity: 0.22,
                 /* "Behind the board" in spirit, not literal z-order —
