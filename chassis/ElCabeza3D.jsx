@@ -4169,15 +4169,18 @@ export default function ElCabeza3D({ theme }) {
     // 118 -> 59 (halved) then, per feedback that read as "way too
     // small," back up to 177 (300% of that halved size — 50*3=150,
     // 150*1.18=177).
-    left: dockPieceIsCorner ? "calc(100% - 177px)" : "50%",
+    left: dockPieceIsCorner ? "calc(100% - 142px)" : "50%",
     // Piece-view (pre-game) bottom lowered from 20 -> 8 per feedback that
     // it sat slightly too high; corner (post-game watermark) is unrelated
     // and keeps its own value. Corner size went 100x88 -> 50x44 (halved)
     // -> 150x132 (300% of the halved size) per feedback that the halved
-    // size read as "way too small."
+    // size read as "way too small" — then cut 20% (150x132 * 0.8 =
+    // 120x105.6) per feedback that the corner badge had grown too large
+    // again. left's offset scales with it (~1.18x ratio kept at every
+    // size change, see comment below) — 120 * 1.18 = 141.6, rounded.
     bottom: dockPieceIsCorner ? 18 : 8,
-    width: dockPieceIsCorner ? 150 : 260,
-    height: dockPieceIsCorner ? 132 : 220,
+    width: dockPieceIsCorner ? 120 : 260,
+    height: dockPieceIsCorner ? 106 : 220,
     transform: dockPieceIsCorner ? "translateX(0) scale(1)" : "translateX(-50%) scale(1)",
     opacity: dockView === "panel" ? 0 : dockPieceIsCorner ? 0.35 : 1,
     pointerEvents: dockView === "panel" ? "none" : "auto",
