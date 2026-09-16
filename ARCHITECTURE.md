@@ -315,3 +315,29 @@ just not necessarily pixel-identical to the latest deployed tuning.
 Nothing else remains flagged as unported — every ambient effect and
 gameplay feature from both original sources now exists in the shared
 chassis + theme structure, verified end-to-end.
+
+## Known pitfalls
+
+**Never size responsive text with `transform: scale()`.** The
+relocated corner masthead badge went through several passes (0.45,
+a mobile-only 5x, half of that, then a flat `scale(0.4)`) that all
+looked fine on a wide desktop viewport and came out illegibly tiny on
+a narrow phone. The actual bug was architectural, not a wrong
+multiplier: the badge's font-size came from the SAME `clamp(20px,
+7vw, ...)` formula as the full-size pre-game masthead, wrapped in a
+`transform: scale()` to shrink it. A `scale()` shrinks a `clamp()`
+floor right along with everything else — on a narrow phone, where
+`7vw` is already near that 20px floor, `scale(0.4)` drove it down to
+~8px. Retuning the multiplier could never fix this; every multiplier
+has *some* viewport width narrow enough to hit the same wall.
+
+The fix: give the badge its own `clamp(16px, 2.8vw, 52px)` directly on
+the font-size (2.8vw/52px = 0.4 × the pre-game formula's own 7vw/131px,
+so desktop sizing is unchanged), with its own 16px floor sized for the
+badge's own legibility — not `transform: scale()` of a different
+element's floor. General rule: if an element needs to be "a fraction
+of" another element's responsive text size, give it its own `clamp()`
+at that fraction, never a CSS `transform: scale()` wrapping the
+original — `scale()` is fine for non-text chrome (icons, the dock
+piece's own 3D canvas) but not for anything whose size bottoms out at
+a `clamp()`/`min()` floor meant to protect legibility.
