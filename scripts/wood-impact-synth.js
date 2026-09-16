@@ -408,17 +408,16 @@ export function createWoodImpactEngine(ctx, destination, env = {}) {
     // ================= 2. Resonator bank (low-Q, no ringing) ============
     const qCeiling = (base) => (opts.isMicroGrain ? Math.min(MICRO_GRAIN_Q_CAP, base) : base);
 
-    // Piece Mode 1 (Fundamental Body) — broad, non-pitched thud. Small
-    // (2ms, <=8% depth) transient pitch-drop on contact, kept brief and
-    // shallow enough at this Q to read as a soft "give" rather than any
-    // audible pitch bend.
+    // Piece Mode 1 (Fundamental Body) — broad, non-pitched thud. No
+    // pitch-bend on this one (a previous pass swept it 3-8% over the
+    // first 2ms as a "surface give" cue) — removed per feedback that
+    // ANY frequency motion on a resonant mode reads as vibrato once the
+    // rest of the ringing is cleaned up; a static frequency is the only
+    // way to be certain none is left.
     const mode1Freq = freqForMass(...PIECE_MODE1_HZ, m) * contactFreqMul;
     const mode1QBase = lerp(PIECE_MODE1_Q[0], PIECE_MODE1_Q[1], clamp01((m - 0.1) / 0.9));
     const mode1Q = qCeiling(applyDampening(mode1QBase, dampeningMul, PIECE_MODE1_Q[1]));
-    const mode1 = addResonator(exciterGain, sum, { freq: mode1Freq, q: mode1Q, gain: piecePeak * 0.9 });
-    const pitchDropPct = lerp(0.03, 0.08, v);
-    mode1.frequency.setValueAtTime(mode1Freq * (1 + pitchDropPct), t0);
-    mode1.frequency.exponentialRampToValueAtTime(mode1Freq, t0 + 0.002);
+    addResonator(exciterGain, sum, { freq: mode1Freq, q: mode1Q, gain: piecePeak * 0.9 });
 
     // Piece Mode 2 (Wood Knock) — quieter secondary knock, jittered
     // +/-5% per hit so it never sounds like the exact same tone twice.
@@ -457,6 +456,36 @@ export function createWoodImpactEngine(ctx, destination, env = {}) {
       gain: boardPeak * 0.3 * (0.5 + 0.5 * a),
     });
 
+    // ================= 2b. Hard resonator gate (kills vibrato/echo) =====
+    // A biquad bandpass, once excited, keeps ringing on ITS OWN terms
+    // after the exciter's own envelope has already finished — governed
+    // by the pole locations (T60 = 6.91*Q/(pi*f)), not by whatever
+    // envelope was fed into it. That's a real, separate problem from
+    // the Q-value correction above: T60 scales with 1/f, so even a
+    // "low," spec-compliant Q reads as a MUCH longer absolute ring at
+    // the low end of this bank than at the high end — Board Sub-Thud at
+    // ~90Hz, Q up to 3.0, rings for close to 90ms on its own, and that
+    // tail sits well past the very next rolling micro-grain (grains
+    // land every 20-50ms), so several overlap and beat against each
+    // other. That's precisely what reads as a lingering "vibrato/echo"
+    // rather than a clean, dry knock, no matter how correct each mode's
+    // own Q number is in isolation.
+    //
+    // The fix is a hard, FREQUENCY-INDEPENDENT amplitude gate on the
+    // resonator bank's own combined output — the same principle real
+    // damping cloth under a physical board uses: it absorbs vibrational
+    // energy on a fixed timescale, not one that gets longer just
+    // because a particular mode happens to be low-pitched. This forces
+    // every mode's audible tail into the same tight window regardless
+    // of its own natural T60, rather than trying to fight the T60=Q/f
+    // relationship through Q alone.
+    const gateWindowS = opts.isMicroGrain ? 0.006 : 0.014;
+    const resonatorGate = ctx.createGain();
+    resonatorGate.gain.setValueAtTime(1, t0);
+    resonatorGate.gain.setValueAtTime(1, t0 + gateWindowS * 0.35);
+    resonatorGate.gain.exponentialRampToValueAtTime(0.001, t0 + gateWindowS);
+    sum.connect(resonatorGate);
+
     // ================= 3. Contact-driven lowpass =========================
     // Flat-face impact: cutoff pulled hard down to 1.2kHz (was 3kHz in
     // the previous pass). Edge/corner: left open enough (2.5kHz) for
@@ -466,7 +495,7 @@ export function createWoodImpactEngine(ctx, destination, env = {}) {
     contactLp.type = "lowpass";
     contactLp.Q.value = 0.707;
     contactLp.frequency.value = lerp(EDGE_CONTACT_LP_HZ, FLAT_CONTACT_LP_HZ, a);
-    sum.connect(contactLp);
+    resonatorGate.connect(contactLp);
 
     // ================= 4. Master muffled lowpass (4th-order Butterworth) =
     // Two cascaded 2nd-order sections at the exact 4-pole Butterworth Q

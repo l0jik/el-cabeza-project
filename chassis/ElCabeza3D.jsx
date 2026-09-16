@@ -279,6 +279,17 @@ export default function ElCabeza3D({ theme }) {
      selected, letting a player go back purely to CONFIRM the choice
      rather than starting over. */
   const [showOpponentPicker, setShowOpponentPicker] = useState(true);
+  /* Null, or "dark"/"light" for ~1.3s right after that side is picked —
+     drives the brief confirmation overlay over the dock panel (see its
+     own render below) so picking an AI side reads as an obvious,
+     unmistakable choice rather than a quiet toggle that only shows up
+     as a state change in the collapsed Back+Difficulty row above it. */
+  const [aiJustSelected, setAiJustSelected] = useState(null);
+  useEffect(() => {
+    if (!aiJustSelected) return;
+    const timer = setTimeout(() => setAiJustSelected(null), 1300);
+    return () => clearTimeout(timer);
+  }, [aiJustSelected]);
   /* Which color moves first in Human vs Human games — toggled by
      re-clicking the already-selected Human button (see the opponent
      row below). Only read at New Game, when aiPlayer is guaranteed
@@ -4582,6 +4593,74 @@ export default function ElCabeza3D({ theme }) {
         }}
       >
 
+        {/* Brief, obtrusive confirmation the instant an AI side is
+           picked — per feedback, the collapsed Back+Difficulty row
+           above shows the choice was REGISTERED, but not clearly WHICH
+           side, unless a player thinks to press Back and check. This
+           sits on top of the whole panel (position:absolute, not a
+           flex child, so it doesn't participate in — or disturb — the
+           column layout of everything else in here) rather than
+           quietly updating in place, then fades itself out on its own
+           — see aiJustSelected's own comment for the timing. Uses
+           playerButtonStyle's own bodyDark/bodyLight convention so
+           "which side" reads instantly from color alone, the same cue
+           every other player-color chip in this UI already uses. */}
+        <div
+          aria-hidden={aiJustSelected == null}
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 30,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(10, 12, 16, 0.55)",
+            backdropFilter: "blur(3px)",
+            WebkitBackdropFilter: "blur(3px)",
+            borderRadius: 14,
+            opacity: aiJustSelected ? 1 : 0,
+            pointerEvents: "none",
+            transition: aiJustSelected ? "opacity 160ms ease" : "opacity 500ms ease 250ms",
+          }}
+        >
+          {aiJustSelected && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "12px 22px",
+                borderRadius: 999,
+                background: aiJustSelected === "dark" ? COLORS.bodyDark : COLORS.bodyLight,
+                color: aiJustSelected === "dark" ? COLORS.bodyLight : COLORS.bodyDark,
+                boxShadow: "0 8px 28px rgba(0,0,0,0.4)",
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  background: "currentColor",
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 13,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                AI Opponent: {aiJustSelected === "dark" ? "Dark" : "Light"}
+              </span>
+            </div>
+          )}
+        </div>
+
         {/* Status bar */}
         <div
           style={{
@@ -4825,7 +4904,15 @@ export default function ElCabeza3D({ theme }) {
              horizontal scrollbar. Only one of the two branches below
              is ever mounted, so there's no width for either state to
              overflow — no overflowX/scroll needed. */}
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, maxWidth: "100%" }}>
+          {/* gap trimmed 8 -> 5 per feedback that Easy/Medium/Hard could
+             wrap onto a second line on a narrow real device (this
+             sandbox's own test render, lacking network access to load
+             the real IBM Plex Mono face, under-measures this row's
+             true width — see the Difficulty buttons' own padding/
+             letter-spacing trims below for the same reason: several
+             small margin cuts here rather than chasing one exact
+             pixel threshold that isn't reliably measurable locally). */}
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 5, maxWidth: "100%" }}>
           {showOpponentPicker ? (
             <>
               <span
@@ -4873,6 +4960,7 @@ export default function ElCabeza3D({ theme }) {
                     onClick={() => {
                       selectOpponent(opt.value);
                       setShowOpponentPicker(false);
+                      setAiJustSelected(opt.value);
                     }}
                     style={{
                       ...aiSideButtonStyle(opt.side),
@@ -4924,10 +5012,10 @@ export default function ElCabeza3D({ theme }) {
                 style={{
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: 10,
-                  letterSpacing: "0.12em",
+                  letterSpacing: "0.08em",
                   textTransform: "uppercase",
                   color: COLORS.slate,
-                  margin: "0 2px 0 2px",
+                  margin: 0,
                   flexShrink: 0,
                 }}
               >
@@ -4941,6 +5029,15 @@ export default function ElCabeza3D({ theme }) {
                   onClick={() => setAiDifficulty(key)}
                   style={{
                     ...toggleButtonStyle(aiDifficulty === key),
+                    // Padding/letter-spacing trimmed from the shared
+                    // MINI_BUTTON_BASE default (6px 10px / 0.1em) just
+                    // here, not globally — this row is the one place
+                    // that needs the extra room to keep Easy/Medium/
+                    // Hard on one line; other buttons sharing that base
+                    // style elsewhere aren't tight on space and don't
+                    // need the same squeeze.
+                    padding: "6px 7px",
+                    letterSpacing: "0.05em",
                     opacity: busy || aiThinking || turnLocked ? 0.5 : 1,
                     cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
                     flexShrink: 0,
