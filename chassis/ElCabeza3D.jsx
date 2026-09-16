@@ -1505,27 +1505,47 @@ export default function ElCabeza3D({ theme }) {
       [halfSlab, halfSlab],
       [-halfSlab, halfSlab],
     ];
-    /* REVERTED: this ring was briefly split into its own depthTest:false
-       LineSegments (zero Y offset, always wins the depth test) to fix a
-       floating-line artifact visible at extreme grazing camera angles
-       — see git history for that attempt's own reasoning. That traded
-       a rare, extreme-angle cosmetic bug for a much more common one:
-       depthTest:false means this ring draws OVER EVERYTHING regardless
-       of actual depth, including pieces that should occlude it at
-       perfectly ordinary play angles — the board's outer perimeter
-       passes behind/through piece silhouettes in screen space far more
-       often than "only at extreme grazing angles," so this showed up
-       as a black line cut across opaque pieces during completely
-       normal play. Reverted to the original, depth-tested, small-Y-
-       offset ring below — a floating line only at rare extreme tilts
-       is a smaller problem than a line through pieces at any angle. */
-    const topRingY = topY + 0.07;
+    /* The top ring specifically has been through two failed fixes for
+       the SAME underlying tension before this one — worth reading if
+       this ever needs touching again:
+
+       1. A world-space Y offset (topY + 0.07, matching makeGrid's own
+          gridLines/border margins) to stop it losing the depth test
+          against the top face's own polygon-offset push. This worked
+          for the depth test, but the offset perspective-foreshortens
+          into a visibly floating line at grazing camera angles — small
+          in world space, but on-screen size grows the more edge-on the
+          view gets, since foreshortening compresses the surrounding
+          depth cues while the vertical gap itself doesn't shrink.
+
+       2. depthTest:false on a zero-offset ring — no foreshortening
+          (nothing is geometrically displaced), but disabling the depth
+          test means it also draws over opaque PIECES near the edge at
+          completely ordinary angles, not just grazing ones, which is a
+          more common and more objectionable bug than the one it fixed.
+
+       Both failed for the same reason: LineBasicMaterial can't carry a
+       real GPU polygon offset in WebGL — three.js only ever enables
+       GL_POLYGON_OFFSET_FILL (filled polygons), never the LINE
+       variant, so `polygonOffset` on a Line material is silently a
+       no-op. That ruled out the standard, purpose-built tool for
+       "two coincident surfaces, make THIS one win the depth test
+       without moving it" — which is exactly this problem.
+
+       The actual fix: render the top ring as a thin quad-frame MESH
+       instead of a Line, positioned at EXACTLY topY (zero geometric
+       offset — no foreshortening possible at any angle), with a real
+       negative polygonOffset. Meshes get genuine hardware polygon
+       offset support, so this wins the depth test against the
+       coincident top face by a tiny, fixed NDC-depth bias — not a
+       world-space displacement — while remaining fully depth-TESTED
+       against everything else, so a piece that's actually in front of
+       it (a real, much larger depth difference than this bias) still
+       correctly occludes it. See buildTopRingFrame below. */
     const edgePts = [];
     for (let i = 0; i < 4; i++) {
       const [x1, z1] = slabCorners[i];
       const [x2, z2] = slabCorners[(i + 1) % 4];
-      // top ring
-      edgePts.push(x1, topRingY, z1, x2, topRingY, z2);
       // bottom ring
       edgePts.push(x1, botY, z1, x2, botY, z2);
       // vertical, stopping short of the top face
@@ -1539,6 +1559,58 @@ export default function ElCabeza3D({ theme }) {
     );
     slabEdges.position.copy(slab.position);
 
+    /* Thin quad-frame mesh for the top ring — see the long comment
+       above slabEdgeGeo for why this needs to be a Mesh (real polygon
+       offset support) rather than a Line (silently no-op in WebGL).
+       `y` is a LOCAL coordinate in the same space as topY/botY above;
+       `position.copy(slab.position)` below lands it at world y=0,
+       exactly coincident with the slab's own top face, matching how
+       slabEdges' own top-ring-turned-bottom-ring math already works. */
+    function buildTopRingFrame(halfExtent, y, width, color, opacity) {
+      const inner = halfExtent - width;
+      const outer = [
+        [-halfExtent, -halfExtent], [halfExtent, -halfExtent],
+        [halfExtent, halfExtent], [-halfExtent, halfExtent],
+      ];
+      const inn = [
+        [-inner, -inner], [inner, -inner],
+        [inner, inner], [-inner, inner],
+      ];
+      const positions = [];
+      const indices = [];
+      for (let i = 0; i < 4; i++) {
+        const [ox1, oz1] = outer[i];
+        const [ox2, oz2] = outer[(i + 1) % 4];
+        const [ix1, iz1] = inn[i];
+        const [ix2, iz2] = inn[(i + 1) % 4];
+        const vi = i * 4;
+        positions.push(ox1, y, oz1, ox2, y, oz2, ix2, y, iz2, ix1, y, iz1);
+        indices.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3);
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geo.setIndex(indices);
+      const mat = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: 0,
+        // Negative pulls this surface's depth-buffer value CLOSER to
+        // camera (the opposite direction from the top face's own +3,
+        // which pushes IT back) — real hardware depth-test margin
+        // against the coincident face, not a vertex displacement, so
+        // it costs nothing in on-screen position at any camera angle.
+        polygonOffsetUnits: -4,
+      });
+      return new THREE.Mesh(geo, mat);
+    }
+    const TOP_RING_WIDTH = 0.025;
+    const topRing = buildTopRingFrame(halfSlab, topY, TOP_RING_WIDTH, HEX.charcoal, 0.45);
+    topRing.position.copy(slab.position);
+
     const pieceGroup = new THREE.Group();
     const ghostGroup = new THREE.Group();
 
@@ -1549,7 +1621,7 @@ export default function ElCabeza3D({ theme }) {
        what makes each piece's shadow sweep as its facing to the fixed
        light changes, the way a lazy Susan looks under a fixed lamp. */
     const boardGroup = new THREE.Group();
-    boardGroup.add(slab, slabEdges, theme.makeGrid(), pieceGroup, ghostGroup);
+    boardGroup.add(slab, slabEdges, topRing, theme.makeGrid(), pieceGroup, ghostGroup);
     scene.add(boardGroup);
 
     three.current = {
@@ -4038,19 +4110,21 @@ export default function ElCabeza3D({ theme }) {
   const dockPieceIsCorner = dockView === "corner";
   const dockPieceStyle = {
     position: "fixed",
-    // Corner offset halved along with the piece's own size below (118 ->
-    // 59) so it still sits the same visual distance in from the edge
-    // relative to its own now-smaller footprint, rather than leaving a
-    // now-oversized gap where the bigger piece used to reach.
-    left: dockPieceIsCorner ? "calc(100% - 59px)" : "50%",
+    // Corner offset scales with the piece's own size below (same ~1.18x
+    // ratio kept at every size change) so it sits the same visual
+    // distance in from the edge relative to its own footprint. Went
+    // 118 -> 59 (halved) then, per feedback that read as "way too
+    // small," back up to 177 (300% of that halved size — 50*3=150,
+    // 150*1.18=177).
+    left: dockPieceIsCorner ? "calc(100% - 177px)" : "50%",
     // Piece-view (pre-game) bottom lowered from 20 -> 8 per feedback that
     // it sat slightly too high; corner (post-game watermark) is unrelated
-    // and keeps its own value. Corner size halved (100x88 -> 50x44) per
-    // feedback that the minimized branding piece needed to read as ~50%
-    // of its prior size once relocated.
+    // and keeps its own value. Corner size went 100x88 -> 50x44 (halved)
+    // -> 150x132 (300% of the halved size) per feedback that the halved
+    // size read as "way too small."
     bottom: dockPieceIsCorner ? 18 : 8,
-    width: dockPieceIsCorner ? 50 : 260,
-    height: dockPieceIsCorner ? 44 : 220,
+    width: dockPieceIsCorner ? 150 : 260,
+    height: dockPieceIsCorner ? 132 : 220,
     transform: dockPieceIsCorner ? "translateX(0) scale(1)" : "translateX(-50%) scale(1)",
     opacity: dockView === "panel" ? 0 : dockPieceIsCorner ? 0.35 : 1,
     pointerEvents: dockView === "panel" ? "none" : "auto",
@@ -4208,10 +4282,10 @@ export default function ElCabeza3D({ theme }) {
                 top: 14,
                 right: 18,
                 left: "auto",
-                // Halved again (0.3 -> 0.15) per feedback that the
-                // minimized branding masthead needed to read as ~50%
-                // of its prior relocated size.
-                transform: "scale(0.15)",
+                // Went 0.3 -> 0.15 (halved), then per feedback that
+                // read as "way too small" — 300% of that halved size:
+                // 0.15 * 3 = 0.45.
+                transform: "scale(0.45)",
                 transformOrigin: "top right",
                 opacity: 0.22,
                 /* "Behind the board" in spirit, not literal z-order —
