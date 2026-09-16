@@ -47,36 +47,47 @@ console.log(`[${target}] initial status:`, await statusText());
 const canvas = page.locator('canvas[data-testid="board-canvas"]');
 const box = await canvas.boundingBox();
 let selected = false;
+let selectedAt = null;
 const selectCandidates = [[0.5, 0.37], [0.42, 0.35], [0.58, 0.3], [0.44, 0.33], [0.52, 0.34]];
-for (const [fx, fy] of [...selectCandidates, ...selectCandidates.map(([x, y]) => [1 - x, 1 - y])]) {
+const allSelectCandidates = [...selectCandidates, ...selectCandidates.map(([x, y]) => [1 - x, 1 - y])];
+for (const [fx, fy] of allSelectCandidates) {
   await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
   await page.waitForTimeout(300);
   const s = await statusText();
-  if (s && /step|roll/i.test(s)) { selected = true; console.log(`[${target}] selected via (${fx},${fy}):`, s); break; }
+  if (s && /step|roll/i.test(s)) { selected = true; selectedAt = [fx, fy]; console.log(`[${target}] selected via (${fx},${fy}):`, s); break; }
 }
 console.log(`[${target}] a piece got selected:`, selected);
 
 await page.screenshot({ path: `/tmp/${target}-selected.png` });
 
-// Try to complete an actual move by clicking just south (toward camera)
-// of the selected piece, where a legal-move ghost outline should be.
+// Try to complete an actual move by clicking on the legal-move ghost
+// outline near the board's vertical middle. A click that MISSES the
+// ghost (lands on an ordinary empty square) deselects the piece rather
+// than being a harmless no-op, so each candidate below reselects first
+// via selectedAt whenever the previous attempt lost the selection —
+// a plain sweep across many points otherwise dooms itself the moment
+// its first miss (long before it reaches the real target) deselects.
 if (selected) {
-  // Same near/far mirroring as the selection candidates above, plus a
-  // slightly wider spread on the mirrored half — the flat (1-fx,1-fy)
-  // reflection is only approximate under this oblique perspective
-  // camera (exact for an orthographic top-down view, not quite for a
-  // tilted one), so the single reflected point can land just outside
-  // the actual ghost square where the un-mirrored points, tuned by
-  // hand against the real default view, land dead center.
-  const moveCandidates = [[0.5, 0.44], [0.5, 0.48], [0.46, 0.44], [0.54, 0.44]];
-  const mirroredCandidates = [
-    ...moveCandidates.map(([x, y]) => [1 - x, 1 - y]),
-    [0.5, 0.58], [0.5, 0.6], [0.46, 0.56], [0.54, 0.56],
+  // Games now open in Top-Down View by default (was Current Player
+  // View), which reframes the whole board in canvas space, so this
+  // band (rather than the old fixed "just south of the piece" spot)
+  // is where the ghost actually lands, for either near/far mirroring.
+  const moveCandidates = [
+    [0.5, 0.52], [0.48, 0.52], [0.52, 0.52], [0.5, 0.5], [0.5, 0.54], [0.46, 0.5], [0.54, 0.5],
+    [0.5, 0.48], [0.48, 0.48], [0.52, 0.48], [0.5, 0.46], [0.5, 0.44], [0.46, 0.46], [0.54, 0.46],
   ];
-  for (const [fx, fy] of [...moveCandidates, ...mirroredCandidates]) {
+  for (const [fx, fy] of moveCandidates) {
+    let s = await statusText();
+    if (!(s && /step|roll/i.test(s)) && selectedAt) {
+      // Lost the selection to a previous miss — reselect before trying
+      // the next candidate, otherwise this click (even a real hit)
+      // lands on nothing selected.
+      await page.mouse.click(box.x + box.width * selectedAt[0], box.y + box.height * selectedAt[1]);
+      await page.waitForTimeout(300);
+    }
     await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
     await page.waitForTimeout(700); // roll animation
-    const s = await statusText();
+    s = await statusText();
     // Deliberately NOT matching "left" here — a piece that's still
     // selected with steps remaining ("Opa - 1 roll left") also contains
     // that word, and a missed click (this candidate wasn't actually on

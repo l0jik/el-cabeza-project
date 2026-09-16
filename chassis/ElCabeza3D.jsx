@@ -4305,8 +4305,14 @@ export default function ElCabeza3D({ theme }) {
                 left: "auto",
                 // Went 0.3 -> 0.15 (halved), then per feedback that
                 // read as "way too small" — 300% of that halved size:
-                // 0.15 * 3 = 0.45.
-                transform: "scale(0.45)",
+                // 0.15 * 3 = 0.45. Per further feedback the corner
+                // badge is still unreadable specifically on mobile
+                // (a coarse pointer, per the same isCoarsePointer()
+                // convention used for Current Player View's own
+                // mobile-only zoom exception below) — 5x that on
+                // mobile only: 0.45 * 5 = 2.25. Desktop/laptop keeps
+                // the original 0.45.
+                transform: `scale(${isCoarsePointer() ? 0.45 * 5 : 0.45})`,
                 transformOrigin: "top right",
                 opacity: 0.22,
                 /* "Behind the board" in spirit, not literal z-order —
@@ -5068,12 +5074,12 @@ export default function ElCabeza3D({ theme }) {
                     setGameArmed(true);
                     // Captures BOTH views' fixed baselines for the game
                     // that's about to start, before actually applying
-                    // Current Player View's — see captureViewBaselines'
-                    // own comment for why this has to be eager (Top-Down
-                    // View's baseline needs pinning now even though that
-                    // view itself isn't being switched to yet).
+                    // one of them — see captureViewBaselines' own
+                    // comment for why this has to be eager. Every game
+                    // now opens in Top-Down View rather than Current
+                    // Player View, per feedback.
                     captureViewBaselines();
-                    recenterView();
+                    topDownView();
                   }}
                   style={{
                     ...playerButtonStyle(currentPlayer),
