@@ -1505,68 +1505,27 @@ export default function ElCabeza3D({ theme }) {
       [halfSlab, halfSlab],
       [-halfSlab, halfSlab],
     ];
-    /* The top ring is now its OWN LineSegments/material, split out from
-       slabEdges below, for a reason neither a geometric Y offset nor a
-       depthTest:false flag alone could fix on its own.
-
-       It used to sit at topY + 0.07 — a real, deliberate offset (matching
-       makeGrid's own gridLines/border margins in themes/standard.js,
-       same reasoning) needed because a truly coincident ring at exactly
-       the top face's own Y (topY) can lose the depth test against that
-       face's own polygonOffset push, which read as the ring flickering
-       during a drag's deceleration ease as phi swept through its range.
-
-       That fix traded one bug for another: a real, nonzero world-space Y
-       offset is invisible from directly above but grows in apparent
-       on-screen size as the camera tilts toward a grazing, near-
-       horizontal angle — pure perspective foreshortening, unrelated to
-       the offset's own (correct, still-needed) magnitude — and once the
-       max drag pitch was later relaxed to let players tilt much further
-       (see the drag handler's own phi clamp), that same 0.07 became
-       visible as a floating line hovering over the board's edge, exactly at the
-       angles players specifically asked to be able to reach. Shrinking
-       the offset was tried and rejected: makeGrid's own margin (already
-       tuned against this identical push, see its comment) sits in the
-       same 0.05-0.07 range, so a materially smaller value here risks
-       silently reintroducing the original flicker rather than fixing
-       anything.
-
-       The actual fix: this ring never needs occlusion by the slab's own
-       opaque body at all — it sits exactly at the visible top surface,
-       which nothing on the slab itself sits above — so depthTest:false
-       resolves the WIN-the-depth-test problem outright, with ZERO
-       geometric offset (topY exactly), removing the foreshortening
-       problem at its root instead of trading it for a smaller one. This
-       is deliberately NOT applied to the bottom ring or the verticals
-       below (they stay in the original slabEdges, depth-tested
-       normally): unlike the top ring, those genuinely can sit behind
-       the slab's own opaque bulk from some angles (e.g. the far
-       vertical edge, viewed from one side), and disabling their depth
-       test would make them wrongly draw through it. The only accepted
-       trade-off is the top ring now also drawing over a piece that
-       happens to sit exactly between the camera and the board's own
-       edge at a sufficiently grazing angle — far rarer and far less
-       objectionable than a visibly floating line every time that tilt
-       range is used at all. */
-    const topRingPts = [];
-    for (let i = 0; i < 4; i++) {
-      const [x1, z1] = slabCorners[i];
-      const [x2, z2] = slabCorners[(i + 1) % 4];
-      topRingPts.push(x1, topY, z1, x2, topY, z2);
-    }
-    const topRingGeo = new THREE.BufferGeometry();
-    topRingGeo.setAttribute("position", new THREE.Float32BufferAttribute(topRingPts, 3));
-    const topRing = new THREE.LineSegments(
-      topRingGeo,
-      new THREE.LineBasicMaterial({ color: HEX.charcoal, transparent: true, opacity: 0.45, depthTest: false })
-    );
-    topRing.position.copy(slab.position);
-    topRing.renderOrder = 1;
-
+    /* REVERTED: this ring was briefly split into its own depthTest:false
+       LineSegments (zero Y offset, always wins the depth test) to fix a
+       floating-line artifact visible at extreme grazing camera angles
+       — see git history for that attempt's own reasoning. That traded
+       a rare, extreme-angle cosmetic bug for a much more common one:
+       depthTest:false means this ring draws OVER EVERYTHING regardless
+       of actual depth, including pieces that should occlude it at
+       perfectly ordinary play angles — the board's outer perimeter
+       passes behind/through piece silhouettes in screen space far more
+       often than "only at extreme grazing angles," so this showed up
+       as a black line cut across opaque pieces during completely
+       normal play. Reverted to the original, depth-tested, small-Y-
+       offset ring below — a floating line only at rare extreme tilts
+       is a smaller problem than a line through pieces at any angle. */
+    const topRingY = topY + 0.07;
     const edgePts = [];
     for (let i = 0; i < 4; i++) {
       const [x1, z1] = slabCorners[i];
       const [x2, z2] = slabCorners[(i + 1) % 4];
+      // top ring
+      edgePts.push(x1, topRingY, z1, x2, topRingY, z2);
       // bottom ring
       edgePts.push(x1, botY, z1, x2, botY, z2);
       // vertical, stopping short of the top face
@@ -1590,7 +1549,7 @@ export default function ElCabeza3D({ theme }) {
        what makes each piece's shadow sweep as its facing to the fixed
        light changes, the way a lazy Susan looks under a fixed lamp. */
     const boardGroup = new THREE.Group();
-    boardGroup.add(slab, slabEdges, topRing, theme.makeGrid(), pieceGroup, ghostGroup);
+    boardGroup.add(slab, slabEdges, theme.makeGrid(), pieceGroup, ghostGroup);
     scene.add(boardGroup);
 
     three.current = {
