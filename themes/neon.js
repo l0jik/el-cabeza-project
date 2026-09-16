@@ -2911,22 +2911,32 @@ export const styleSheet = `
     mix-blend-mode: screen;
     animation: ec-singularity-halo-mono 14s ease-in-out 0.9s infinite, ec-singularity-plasma 6s ease-in-out 0.9s infinite;
   }
+  /* Inverted per feedback: cyan (the theme's own glowCyan accent) is
+     now the DOMINANT color through the cycle, with white demoted to
+     the single rare flash — swapped roles from the original (white
+     dominant, one cyan flash), rather than a literal CSS color-invert
+     filter, which would wash out to near-nothing here (the halo's
+     mix-blend-mode:screen against a black backdrop makes an inverted
+     — near-black — source render as almost no visible effect at all,
+     screen-blending toward the backdrop rather than away from it).
+     The dim/off/transparent resting stops are neutral grays either
+     way, so those are unchanged. */
   @keyframes ec-singularity-halo-mono {
-    0%   { background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.22) 16%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 46%, rgba(230,240,245,0.10) 54%, rgba(230,240,245,0) 66%); }
-    8%   { background: radial-gradient(circle, rgba(215,219,224,0.42) 0%, rgba(215,219,224,0.16) 15%, rgba(215,219,224,0) 28%, rgba(215,219,224,0) 44%, rgba(200,205,210,0.08) 52%, rgba(200,205,210,0) 64%); }
+    0%   { background: radial-gradient(circle, rgba(77,232,255,0.55) 0%, rgba(77,232,255,0.22) 16%, rgba(77,232,255,0) 30%, rgba(77,232,255,0) 46%, rgba(60,210,235,0.10) 54%, rgba(60,210,235,0) 66%); }
+    8%   { background: radial-gradient(circle, rgba(140,220,235,0.42) 0%, rgba(140,220,235,0.16) 15%, rgba(140,220,235,0) 28%, rgba(140,220,235,0) 44%, rgba(120,200,220,0.08) 52%, rgba(120,200,220,0) 64%); }
     16%  { background: radial-gradient(circle, rgba(122,128,136,0.2) 0%, rgba(122,128,136,0) 22%, rgba(122,128,136,0) 40%, transparent 60%); }
     22%  { background: radial-gradient(circle, transparent 0%, transparent 100%); }
-    30%  { background: radial-gradient(circle, rgba(195,200,206,0.35) 0%, rgba(195,200,206,0.14) 15%, rgba(195,200,206,0) 28%, rgba(195,200,206,0) 44%, rgba(180,185,190,0.07) 52%, rgba(180,185,190,0) 64%); }
-    38%  { background: radial-gradient(circle, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.26) 17%, rgba(255,255,255,0) 32%, rgba(255,255,255,0) 48%, rgba(230,240,245,0.12) 56%, rgba(230,240,245,0) 70%); }
-    44%  { background: radial-gradient(circle, rgba(205,249,255,0.5) 0%, rgba(77,232,255,0.2) 16%, rgba(77,232,255,0) 30%, rgba(77,232,255,0) 46%, rgba(77,232,255,0.1) 54%, rgba(77,232,255,0) 66%); }
+    30%  { background: radial-gradient(circle, rgba(160,210,225,0.35) 0%, rgba(160,210,225,0.14) 15%, rgba(160,210,225,0) 28%, rgba(160,210,225,0) 44%, rgba(140,190,205,0.07) 52%, rgba(140,190,205,0) 64%); }
+    38%  { background: radial-gradient(circle, rgba(77,232,255,0.6) 0%, rgba(77,232,255,0.26) 17%, rgba(77,232,255,0) 32%, rgba(77,232,255,0) 48%, rgba(60,210,235,0.12) 56%, rgba(60,210,235,0) 70%); }
+    44%  { background: radial-gradient(circle, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.2) 16%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 46%, rgba(255,255,255,0.1) 54%, rgba(255,255,255,0) 66%); }
     50%  { background: radial-gradient(circle, rgba(138,143,150,0.18) 0%, rgba(138,143,150,0) 20%, transparent 60%); }
     58%  { background: radial-gradient(circle, transparent 0%, transparent 100%); }
-    66%  { background: radial-gradient(circle, rgba(236,239,242,0.4) 0%, rgba(236,239,242,0.16) 15%, rgba(236,239,242,0) 28%, rgba(236,239,242,0) 44%, rgba(220,225,230,0.08) 52%, rgba(220,225,230,0) 64%); }
-    74%  { background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.22) 16%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 46%, rgba(230,240,245,0.1) 54%, rgba(230,240,245,0) 66%); }
+    66%  { background: radial-gradient(circle, rgba(150,225,238,0.4) 0%, rgba(150,225,238,0.16) 15%, rgba(150,225,238,0) 28%, rgba(150,225,238,0) 44%, rgba(130,205,225,0.08) 52%, rgba(130,205,225,0) 64%); }
+    74%  { background: radial-gradient(circle, rgba(77,232,255,0.55) 0%, rgba(77,232,255,0.22) 16%, rgba(77,232,255,0) 30%, rgba(77,232,255,0) 46%, rgba(60,210,235,0.1) 54%, rgba(60,210,235,0) 66%); }
     82%  { background: radial-gradient(circle, rgba(107,112,120,0.16) 0%, rgba(107,112,120,0) 20%, transparent 60%); }
     90%  { background: radial-gradient(circle, transparent 0%, transparent 100%); }
-    96%  { background: radial-gradient(circle, rgba(185,190,197,0.38) 0%, rgba(185,190,197,0.15) 15%, rgba(185,190,197,0) 28%, rgba(185,190,197,0) 44%, rgba(170,175,180,0.07) 52%, rgba(170,175,180,0) 64%); }
-    100% { background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.22) 16%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 46%, rgba(230,240,245,0.10) 54%, rgba(230,240,245,0) 66%); }
+    96%  { background: radial-gradient(circle, rgba(130,210,225,0.38) 0%, rgba(130,210,225,0.15) 15%, rgba(130,210,225,0) 28%, rgba(130,210,225,0) 44%, rgba(110,190,210,0.07) 52%, rgba(110,190,210,0) 64%); }
+    100% { background: radial-gradient(circle, rgba(77,232,255,0.55) 0%, rgba(77,232,255,0.22) 16%, rgba(77,232,255,0) 30%, rgba(77,232,255,0) 46%, rgba(60,210,235,0.10) 54%, rgba(60,210,235,0) 66%); }
   }
   @keyframes ec-singularity-plasma {
     0%   { transform: translate(-50%, -50%) scale(1); filter: blur(2px); }
@@ -2943,14 +2953,17 @@ export const styleSheet = `
     letter-spacing: 0.16em;
     line-height: 1;
     white-space: nowrap;
-    color: #ffffff;
+    /* Base/fallback color — matches ec-singularity-mono's own 0% frame
+       (cyan-dominant, see its comment) for whatever instant the
+       animation hasn't yet applied. */
+    color: #4de8ff;
     font-weight: 400;
     text-shadow:
-      0 0 0.06em #ffffff, 0 0 0.22em #ffffff,
-      0 0 0.55em rgba(255, 255, 255, 0.9),
-      0 0 1.3em rgba(255, 255, 255, 0.7),
-      0 0 2.6em rgba(255, 255, 255, 0.5),
-      0 0 4.2em rgba(255, 255, 255, 0.32);
+      0 0 0.06em #4de8ff, 0 0 0.22em #4de8ff,
+      0 0 0.55em rgba(77, 232, 255, 0.9),
+      0 0 1.3em rgba(77, 232, 255, 0.7),
+      0 0 2.6em rgba(77, 232, 255, 0.5),
+      0 0 4.2em rgba(77, 232, 255, 0.32);
     pointer-events: none;
     opacity: 0;
     animation: ec-singularity-text-appear 900ms ease-out forwards, ec-singularity-mono 14s ease-in-out 0.9s infinite;
@@ -2962,26 +2975,28 @@ export const styleSheet = `
   /* The same uneven cycle as the halo (white -> dim grays -> a near-
      black "gone dark" moment -> a cyan flash -> repeat) so the text
      and its surrounding bleed always shift together. */
+  /* Same role-swap as ec-singularity-halo-mono above: cyan is now the
+     dominant color, white the rare flash (was the reverse). */
   @keyframes ec-singularity-mono {
-    0%   { color: #ffffff; text-shadow: 0 0 0.06em #ffffff, 0 0 0.22em #ffffff, 0 0 0.55em rgba(255,255,255,0.9), 0 0 1.3em rgba(255,255,255,0.7), 0 0 2.6em rgba(255,255,255,0.5), 0 0 4.2em rgba(255,255,255,0.32); }
-    8%   { color: #d7dbe0; text-shadow: 0 0 0.05em #d7dbe0, 0 0 0.18em #d7dbe0, 0 0 0.42em rgba(215,219,224,0.8), 0 0 0.9em rgba(215,219,224,0.55), 0 0 1.8em rgba(215,219,224,0.35); }
+    0%   { color: #4de8ff; text-shadow: 0 0 0.06em #4de8ff, 0 0 0.22em #4de8ff, 0 0 0.55em rgba(77,232,255,0.9), 0 0 1.3em rgba(77,232,255,0.7), 0 0 2.6em rgba(77,232,255,0.5), 0 0 4.2em rgba(77,232,255,0.32); }
+    8%   { color: #a7dfe8; text-shadow: 0 0 0.05em #a7dfe8, 0 0 0.18em #a7dfe8, 0 0 0.42em rgba(140,220,235,0.8), 0 0 0.9em rgba(140,220,235,0.55), 0 0 1.8em rgba(140,220,235,0.35); }
     16%  { color: #7a8088; text-shadow: 0 0 0.04em #7a8088, 0 0 0.1em rgba(122,128,136,0.5); }
     22%  { color: #161616; text-shadow: none; }
-    30%  { color: #c3c8ce; text-shadow: 0 0 0.05em #c3c8ce, 0 0 0.2em #c3c8ce, 0 0 0.5em rgba(195,200,206,0.7), 0 0 1.1em rgba(195,200,206,0.45); }
-    38%  { color: #ffffff; text-shadow: 0 0 0.07em #ffffff, 0 0 0.26em #ffffff, 0 0 0.65em rgba(255,255,255,0.95), 0 0 1.5em rgba(255,255,255,0.75), 0 0 3em rgba(255,255,255,0.55), 0 0 4.8em rgba(255,255,255,0.35); }
-    44%  { color: #cdf9ff; text-shadow: 0 0 0.06em #cdf9ff, 0 0 0.2em #7ff1ff, 0 0 0.5em rgba(77,232,255,0.75), 0 0 1.2em rgba(77,232,255,0.5), 0 0 2.4em rgba(77,232,255,0.3); }
+    30%  { color: #93c8ce; text-shadow: 0 0 0.05em #93c8ce, 0 0 0.2em #93c8ce, 0 0 0.5em rgba(160,210,225,0.7), 0 0 1.1em rgba(160,210,225,0.45); }
+    38%  { color: #4de8ff; text-shadow: 0 0 0.07em #4de8ff, 0 0 0.26em #4de8ff, 0 0 0.65em rgba(77,232,255,0.95), 0 0 1.5em rgba(77,232,255,0.75), 0 0 3em rgba(77,232,255,0.55), 0 0 4.8em rgba(77,232,255,0.35); }
+    44%  { color: #ffffff; text-shadow: 0 0 0.06em #ffffff, 0 0 0.2em #ffffff, 0 0 0.5em rgba(255,255,255,0.75), 0 0 1.2em rgba(255,255,255,0.5), 0 0 2.4em rgba(255,255,255,0.3); }
     50%  { color: #8a8f96; text-shadow: 0 0 0.04em #8a8f96, 0 0 0.12em rgba(138,143,150,0.45); }
     58%  { color: #141414; text-shadow: none; }
-    66%  { color: #eceff2; text-shadow: 0 0 0.05em #eceff2, 0 0 0.18em #eceff2, 0 0 0.45em rgba(236,239,242,0.75), 0 0 1em rgba(236,239,242,0.5); }
-    74%  { color: #ffffff; text-shadow: 0 0 0.06em #ffffff, 0 0 0.22em #ffffff, 0 0 0.55em rgba(255,255,255,0.9), 0 0 1.3em rgba(255,255,255,0.65), 0 0 2.7em rgba(255,255,255,0.4); }
+    66%  { color: #96dfe8; text-shadow: 0 0 0.05em #96dfe8, 0 0 0.18em #96dfe8, 0 0 0.45em rgba(150,225,238,0.75), 0 0 1em rgba(150,225,238,0.5); }
+    74%  { color: #4de8ff; text-shadow: 0 0 0.06em #4de8ff, 0 0 0.22em #4de8ff, 0 0 0.55em rgba(77,232,255,0.9), 0 0 1.3em rgba(77,232,255,0.65), 0 0 2.7em rgba(77,232,255,0.4); }
     82%  { color: #6b7078; text-shadow: 0 0 0.04em #6b7078, 0 0 0.1em rgba(107,112,120,0.4); }
     90%  { color: #181818; text-shadow: none; }
-    96%  { color: #b9bec5; text-shadow: 0 0 0.05em #b9bec5, 0 0 0.2em #b9bec5, 0 0 0.5em rgba(185,190,197,0.7), 0 0 1.1em rgba(185,190,197,0.45); }
-    100% { color: #ffffff; text-shadow: 0 0 0.06em #ffffff, 0 0 0.22em #ffffff, 0 0 0.55em rgba(255,255,255,0.9), 0 0 1.3em rgba(255,255,255,0.7), 0 0 2.6em rgba(255,255,255,0.5), 0 0 4.2em rgba(255,255,255,0.32); }
+    96%  { color: #82c3ce; text-shadow: 0 0 0.05em #82c3ce, 0 0 0.2em #82c3ce, 0 0 0.5em rgba(130,210,225,0.7), 0 0 1.1em rgba(130,210,225,0.45); }
+    100% { color: #4de8ff; text-shadow: 0 0 0.06em #4de8ff, 0 0 0.22em #4de8ff, 0 0 0.55em rgba(77,232,255,0.9), 0 0 1.3em rgba(77,232,255,0.7), 0 0 2.6em rgba(77,232,255,0.5), 0 0 4.2em rgba(77,232,255,0.32); }
   }
   @media (prefers-reduced-motion: reduce) {
     .ec-singularity-btn { opacity: 1; animation: none; }
-    .ec-singularity-halo { animation: none; background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.22) 16%, rgba(255,255,255,0) 30%, rgba(255,255,255,0) 46%, rgba(230,240,245,0.10) 54%, rgba(230,240,245,0) 66%); }
+    .ec-singularity-halo { animation: none; background: radial-gradient(circle, rgba(77,232,255,0.55) 0%, rgba(77,232,255,0.22) 16%, rgba(77,232,255,0) 30%, rgba(77,232,255,0) 46%, rgba(60,210,235,0.10) 54%, rgba(60,210,235,0) 66%); }
     .ec-singularity-text { opacity: 1; filter: none; animation: none; }
   }
 `;
