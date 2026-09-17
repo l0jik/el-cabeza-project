@@ -5607,39 +5607,44 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             style={{
               position: "relative",
               width: "clamp(280px, 75%, 560px)",
-              aspectRatio: "8.5 / 11",
               maxHeight: "88vh",
-              overflowY: "auto",
+              display: "flex",
+              flexDirection: "column",
               background: modalSurface,
               backdropFilter: "blur(6px)",
               border: `1px solid ${COLORS.slateSoft}`,
               boxShadow: "0 30px 70px rgba(36,24,10,0.35)",
-              padding: "40px 34px 32px",
               boxSizing: "border-box",
             }}
           >
-            <h2
-              style={{
-                margin: "0 0 10px",
-                textAlign: "center",
-                fontFamily: titleFontFamily,
-                fontWeight: 600,
-                fontSize: 20,
-                letterSpacing: "0.04em",
-                color: COLORS.charcoal,
-              }}
-            >
-              EL CABEZA
-            </h2>
-            <div
-              style={{
-                width: 36,
-                height: 1,
-                background: COLORS.charcoal,
-                margin: "0 auto 26px",
-              }}
-            />
+            {/* Masthead is pinned outside the scrolling body below so it
+                stays put while the rest of the page scrolls — the body,
+                not the header, owns overflowY and the available height. */}
+            <div style={{ padding: "40px 34px 0", flexShrink: 0 }}>
+              <h2
+                style={{
+                  margin: "0 0 10px",
+                  textAlign: "center",
+                  fontFamily: titleFontFamily,
+                  fontWeight: 600,
+                  fontSize: 20,
+                  letterSpacing: "0.04em",
+                  color: COLORS.charcoal,
+                }}
+              >
+                EL CABEZA
+              </h2>
+              <div
+                style={{
+                  width: 36,
+                  height: 1,
+                  background: COLORS.charcoal,
+                  margin: "0 auto 26px",
+                }}
+              />
+            </div>
 
+            <div style={{ overflowY: "auto", padding: "0 34px 32px" }}>
             <div
               style={{
                 fontFamily: "'IBM Plex Sans', sans-serif",
@@ -5738,6 +5743,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               This digital implementation by Ted Ortmann, August 2026
               &middot; v{APP_VERSION}
             </p>
+            </div>
           </div>
         </div>
 
