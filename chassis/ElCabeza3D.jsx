@@ -885,12 +885,23 @@ export default function ElCabeza3D({ theme }) {
     // target still leaves real slack in its own corners around a
     // rotating 3D piece's actual on-screen silhouette — per feedback
     // that the hitbox read as noticeably bigger than the piece itself,
-    // regardless of which piece is showing. Scales the whole
-    // proportional-by-piece-size result (including its own floor) down
-    // 30% uniformly, rather than raising the floor (which would only
-    // help the smallest pieces) or capping the ceiling (which wouldn't
-    // touch the largest ones — exactly the case in the reported image).
-    const HIT_TIGHTEN = 0.7;
+    // regardless of which piece is showing. A first pass cut this 30%
+    // (to 0.7) as an across-the-board guess and was still reported as
+    // much too large — measuring the ACTUAL rendered alpha silhouette
+    // pixel-by-pixel (getImageData on the dock canvas) rather than
+    // guessing again showed why: even the largest piece type's real
+    // on-screen width only ever reached ~0.42 of the frame — at the
+    // old 0.7 that's a hitbox 65%+ wider than the piece actually is.
+    // 0.4 lines up with that same measurement at both ends of the
+    // range (the disc's own ~0.51 ratio * 0.4 ≈ 0.2, matching its
+    // measured ~0.19-0.21 silhouette width; the largest pieces' 1.0
+    // ratio * 0.4 = 0.4, matching their measured ~0.42). Still a
+    // single shared width/height fraction, not a true per-axis fit
+    // (the measured height ran a bit smaller than width throughout,
+    // ~0.11-0.35 across the same pieces), so this errs slightly
+    // generous vertically rather than any tighter than the real
+    // silhouette on either axis.
+    const HIT_TIGHTEN = 0.4;
     const ownFootprint = isDisc ? DISC_DIAM : Math.max(orientation.w, orientation.h, orientation.z);
     setDockHitFraction(HIT_TIGHTEN * Math.max(0.4, ownFootprint / DOCK_PIECE_LARGEST_DIM));
   }, [aiPlayer, dockSessionColor, dockSessionPieceType, theme]);
@@ -4452,10 +4463,17 @@ export default function ElCabeza3D({ theme }) {
                larger than Neon's Chakra Petch at the exact same clamp
                values), but per feedback that read as the pre-game
                masthead being too small — both themes now share this
-               one baseline formula unconditionally, windowed or not,
-               so isFullscreen is the only thing that ever picks the
-               smaller clamp (setup/fading phases only — see below for
-               "relocated").
+               one baseline formula.
+
+               BUT per further feedback, the pre-game masthead
+               specifically (mastheadPhase === "setup") must never
+               shrink for fullscreen at all — the fullscreen-only
+               smaller clamp only ever applies once a game is actually
+               under way (the "fading" phase, before the corner-badge
+               relocation), not before Begin Game is pressed. isFullscreen
+               is checked at all only in that one remaining phase — see
+               below for "relocated", which has its own dedicated
+               clamp regardless of fullscreen.
 
                The tiny corner badge (mastheadPhase === "relocated")
                gets its OWN clamp() rather than a transform:scale() of
@@ -4485,9 +4503,11 @@ export default function ElCabeza3D({ theme }) {
             fontSize:
               mastheadPhase === "relocated"
                 ? "clamp(16px, 2.8vw, 52px)"
-                : isFullscreen
-                  ? mastheadClamp(12, 4.2, 79, theme.mastheadScale)
-                  : mastheadClamp(20, 7, 131, theme.mastheadScale),
+                : mastheadPhase === "setup"
+                  ? mastheadClamp(20, 7, 131, theme.mastheadScale)
+                  : isFullscreen
+                    ? mastheadClamp(12, 4.2, 79, theme.mastheadScale)
+                    : mastheadClamp(20, 7, 131, theme.mastheadScale),
             lineHeight: 1.05,
             letterSpacing: "0.02em",
             color: COLORS.charcoal,
