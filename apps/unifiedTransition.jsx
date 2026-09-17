@@ -733,10 +733,35 @@ export const HOLD_DEGRADE_TUNING = {
 //                        span, for static/crackle texture.
 export function createSwitcherSfx() {
   let ctx = null;
+  // Every sound this engine makes used to connect straight to
+  // ctx.destination with no shared node in between, so there was
+  // nothing here a mute toggle could ever reach — this ran as a
+  // completely separate audio graph from the in-game theme's own
+  // createAudio()/setMuted (see themes/standard.js's own master gain,
+  // same convention followed here: setTargetAtTime for a smooth
+  // transition, and the gain applied directly at creation in case
+  // setMuted was called before this context existed yet).
+  let masterGain = null;
+  let muted = false;
   const getCtx = () => {
-    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = ctx.createGain();
+      masterGain.gain.value = muted ? 0 : 1;
+      masterGain.connect(ctx.destination);
+    }
     if (ctx.state === "suspended") ctx.resume();
     return ctx;
+  };
+  // Every primitive below connects to this instead of ctx.destination
+  // directly — one place a mute toggle can silence all of it.
+  const getMaster = () => {
+    getCtx();
+    return masterGain;
+  };
+  const setMuted = (m) => {
+    muted = m;
+    if (masterGain && ctx) masterGain.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.08);
   };
 
   const noiseBuffer = (c, duration) => {
@@ -765,7 +790,7 @@ export function createSwitcherSfx() {
     gain.gain.setValueAtTime(1e-4, time);
     gain.gain.linearRampToValueAtTime(gainPeak, time + attack);
     expDecay(gain.gain, time + attack, gainPeak, 1e-4, duration);
-    src.connect(filt).connect(gain).connect(c.destination);
+    src.connect(filt).connect(gain).connect(getMaster());
     src.start(time);
     src.stop(time + duration + 0.03);
   };
@@ -780,7 +805,7 @@ export function createSwitcherSfx() {
     gain.gain.setValueAtTime(1e-4, time);
     gain.gain.linearRampToValueAtTime(gainPeak, time + attack);
     expDecay(gain.gain, time + attack, gainPeak, 1e-4, duration);
-    osc.connect(gain).connect(c.destination);
+    osc.connect(gain).connect(getMaster());
     osc.start(time);
     osc.stop(time + duration + 0.03);
   };
@@ -800,7 +825,7 @@ export function createSwitcherSfx() {
       osc.frequency.setValueAtTime(freqFrom * ratio, stepTime);
     }
     expDecay(gain.gain, time + duration * 0.82, gainPeak, 1e-4, Math.max(duration * 0.3, 0.05));
-    osc.connect(gain).connect(c.destination);
+    osc.connect(gain).connect(getMaster());
     osc.start(time);
     osc.stop(time + duration + 0.08);
   };
@@ -815,7 +840,7 @@ export function createSwitcherSfx() {
     gain.gain.setValueAtTime(1e-4, time);
     gain.gain.linearRampToValueAtTime(gainPeak, time + 0.004);
     expDecay(gain.gain, time + 0.004, gainPeak, 1e-4, 0.045 + Math.random() * 0.025);
-    osc.connect(gain).connect(c.destination);
+    osc.connect(gain).connect(getMaster());
     osc.start(time);
     osc.stop(time + 0.09);
   };
@@ -832,7 +857,7 @@ export function createSwitcherSfx() {
     gain.gain.setValueAtTime(1e-4, time);
     gain.gain.linearRampToValueAtTime(gainPeak, time + attack);
     expDecay(gain.gain, time + attack, gainPeak, 1e-4, duration);
-    src.connect(filt).connect(gain).connect(c.destination);
+    src.connect(filt).connect(gain).connect(getMaster());
     src.start(time);
     src.stop(time + duration + 0.02);
   };
@@ -942,7 +967,7 @@ export function createSwitcherSfx() {
     jibberGain.gain.value = 1e-4;
     jibberOsc1.connect(jibberGainHum).connect(jibberFilter);
     jibberOsc2.connect(jibberGainBeep).connect(jibberFilter);
-    jibberFilter.connect(jibberGain).connect(c.destination);
+    jibberFilter.connect(jibberGain).connect(getMaster());
     jibberIntensity = 0;
     jibberOsc1.start();
     jibberOsc2.start();
@@ -991,6 +1016,14 @@ export function createSwitcherSfx() {
   return {
     click() {
       playClick();
+    },
+    // Mutes this engine's own shared master gain — see its own comment
+    // above for why this engine needed one added at all. Applies
+    // immediately even before any sound has ever played (setMuted just
+    // records the flag; getCtx/getMaster apply it the moment the real
+    // AudioContext is actually created on first use).
+    setMuted(m) {
+      setMuted(m);
     },
     // Hold-gesture continuous jibber texture — see the definitions
     // above. startJibber on the first pointerdown, updateJibber every
@@ -1052,7 +1085,7 @@ export function createSwitcherSfx() {
       const t0 = c.currentTime;
       const master = c.createGain();
       master.gain.value = 0.9; // headroom so several simultaneous layers don't clip
-      master.connect(c.destination);
+      master.connect(getMaster()); // into the shared, mute-aware master gain
 
       // Switch click: sharp highpass noise burst, 15ms decay.
       const clickDur = 0.015;

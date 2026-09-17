@@ -44,7 +44,7 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
 /*  (south), +y = up.                                                   */
 /* ------------------------------------------------------------------ */
 
-export default function ElCabeza3D({ theme }) {
+export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange }) {
   const { COLORS, HEX, EDGE_RADIUS, modalBackdrop, modalSurface, canvasGradientStart, canvasGradientEnd } = theme;
   /* Display face for the masthead title and modal headers (Move Log,
      the intro panel, the end-of-game banner). Themes without their own
@@ -339,7 +339,16 @@ export default function ElCabeza3D({ theme }) {
      unconditionally at the same game-event sites regardless of which
      theme is mounted. */
   const audioRef = useRef(null);
-  if (!audioRef.current) audioRef.current = theme.createAudio();
+  if (!audioRef.current) {
+    audioRef.current = theme.createAudio();
+    // The unified app remounts this whole component (key={themeName})
+    // on every theme switch, which would otherwise silently drop the
+    // mute preference along with the rest of this component's state —
+    // a fresh engine always starts unmuted internally regardless of
+    // what initialMuted says, so that has to be applied explicitly
+    // here, once, right when the engine is actually created.
+    if (initialMuted) audioRef.current.setMuted(true);
+  }
 
   /* Ambient visual FX (title flicker, VHS glitch, arcs, etc. — entirely
      theme-owned, see themes/neon.js's mountAmbientEffects). Standard
@@ -922,7 +931,7 @@ export default function ElCabeza3D({ theme }) {
     awaitingBeginRef.current = awaitingBegin;
   }, [awaitingBegin]);
 
-  const [audioMuted, setAudioMuted] = useState(false);
+  const [audioMuted, setAudioMuted] = useState(initialMuted);
 
   /* Full Screen is theme-agnostic browser API — promoted to the
      chassis per ARCHITECTURE.md rather than routed through a theme
@@ -5331,6 +5340,11 @@ export default function ElCabeza3D({ theme }) {
               const next = !audioMuted;
               setAudioMuted(next);
               audioRef.current.setMuted(next);
+              // Lets a host (the unified app's theme switcher, which
+              // remounts this whole component on every theme change —
+              // see initialMuted's own comment above) mirror this
+              // outside the state that's about to be thrown away.
+              if (onMutedChange) onMutedChange(next);
             }}
             aria-label={audioMuted ? "Unmute ambience" : "Mute ambience"}
             title={audioMuted ? "Unmute ambience" : "Mute ambience"}

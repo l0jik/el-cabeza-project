@@ -28,6 +28,15 @@ function UnifiedApp() {
   const [themeName, setThemeName] = useState("standard");
   const [connectWord, setConnectWord] = useState(null); // null | "CONNECT" | "DISCONNECT"
   const [transition, setTransition] = useState(null); // null | { direction: "in"|"out", filterId }
+  // Lives here, above <ElCabeza3D key={themeName}> below, specifically
+  // because that key remounts the whole chassis (a fresh audio engine,
+  // fresh useState(false)) on every theme switch — anything the mute
+  // toggle needs to survive that has to live outside it. Mirrored into
+  // the theme-switcher's OWN separate audio engine too (sfxRef, created
+  // just below) since that one runs entirely independently of
+  // whichever theme is currently mounted and was previously immune to
+  // this toggle altogether.
+  const [muted, setMuted] = useState(false);
 
   const contentRef = useRef(null);
   const holdZoneRef = useRef(null);
@@ -236,7 +245,15 @@ function UnifiedApp() {
       <HoldDegradeLayer dispRef={dispRef} offRRef={offRRef} offBRef={offBRef} scanlineRef={scanlineRef} staticRef={staticRef} bendDispRef={bendDispRef} />
       <div style={{ position: "relative" }}>
         <div ref={contentRef} className={contentClass} style={contentStyle}>
-          <ElCabeza3D key={themeName} theme={THEMES[themeName]} />
+          <ElCabeza3D
+            key={themeName}
+            theme={THEMES[themeName]}
+            initialMuted={muted}
+            onMutedChange={(m) => {
+              setMuted(m);
+              sfxRef.current.setMuted(m);
+            }}
+          />
         </div>
         <MastheadHoldZone
           zoneRef={holdZoneRef}
