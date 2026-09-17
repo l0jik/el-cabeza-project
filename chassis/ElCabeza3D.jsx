@@ -879,8 +879,20 @@ export default function ElCabeza3D({ theme }) {
     // Drives the pointer-hit target's own size below (see
     // dockPieceStyle/dockHitStyle), not the canvas itself — the canvas
     // and its camera/aspect stay fixed so the render never distorts.
+    //
+    // HIT_TIGHTEN (0.7): even at fraction 1 (the largest piece types,
+    // which exactly fill the frame's own longest axis), a square hit
+    // target still leaves real slack in its own corners around a
+    // rotating 3D piece's actual on-screen silhouette — per feedback
+    // that the hitbox read as noticeably bigger than the piece itself,
+    // regardless of which piece is showing. Scales the whole
+    // proportional-by-piece-size result (including its own floor) down
+    // 30% uniformly, rather than raising the floor (which would only
+    // help the smallest pieces) or capping the ceiling (which wouldn't
+    // touch the largest ones — exactly the case in the reported image).
+    const HIT_TIGHTEN = 0.7;
     const ownFootprint = isDisc ? DISC_DIAM : Math.max(orientation.w, orientation.h, orientation.z);
-    setDockHitFraction(Math.max(0.4, ownFootprint / DOCK_PIECE_LARGEST_DIM));
+    setDockHitFraction(HIT_TIGHTEN * Math.max(0.4, ownFootprint / DOCK_PIECE_LARGEST_DIM));
   }, [aiPlayer, dockSessionColor, dockSessionPieceType, theme]);
 
   /* Mirrors the audio engine's own `windingDown` flag but at the
