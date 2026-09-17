@@ -1993,7 +1993,25 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       const BOTTOM_MIN_VISIBLE_FRACTION = 0.75;
       const TOP_MIN_VISIBLE_FRACTION = 0.75;
       const halfFovRad = (camera.fov / 2) * (Math.PI / 180);
-      const groundHalfSpan = goal.radius * Math.tan(halfFovRad);
+      /* groundHalfSpan below must stay safe regardless of which way the
+         camera is currently oriented (theta) — a world-space XZ pan can
+         land on screen as a purely sideways, purely depth-wise, or
+         diagonal motion depending on heading, so "safe in every
+         direction" has to mean safe against the narrower of the two
+         on-screen axes. camera.fov is Three's VERTICAL fov; on a
+         narrow/tall viewport (aspect < 1 — a phone held in portrait,
+         the common case) the true horizontal fov is smaller than that,
+         so deriving groundHalfSpan from the vertical fov alone silently
+         permits far more pan than keeps the board's on-screen width
+         within the guaranteed fraction. Confirmed against a captured
+         mobile-portrait recording: a horizontal drag pushed the board
+         fully off-screen despite this clamp, on a device narrow enough
+         (aspect ~0.45) that the gap between the two fovs is large.
+         Taking the smaller of the two keeps the circle conservative on
+         any aspect ratio, the same way it's already deliberately
+         conservative across the pitch range (see above). */
+      const halfHFovRad = Math.atan(Math.tan(halfFovRad) * camera.aspect);
+      const groundHalfSpan = goal.radius * Math.tan(Math.min(halfFovRad, halfHFovRad));
       const maxPanDistance = (SLAB / 2) * (1 - 2 * MIN_VISIBLE_FRACTION) + groundHalfSpan;
       const panDistSq = goal.target.x * goal.target.x + goal.target.z * goal.target.z;
       if (panDistSq > maxPanDistance * maxPanDistance) {
