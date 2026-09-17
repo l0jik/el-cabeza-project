@@ -1148,10 +1148,14 @@ export default function ElCabeza3D({ theme }) {
     setMoveLogExpanded(false);
   }
   // Scrolling to (or near) the bottom of the still-collapsed (5-row)
-  // list expands the window to fit 10 more rows; scrolling back up to
-  // (or near) the top while expanded snaps it closed again. A small
-  // pixel tolerance on each edge, not an exact 0/max check, since a
-  // real scroll gesture rarely lands on the precise boundary pixel.
+  // list expands the window to fit 10 more rows. A small pixel
+  // tolerance, not an exact max check, since a real scroll gesture
+  // rarely lands on the precise boundary pixel. Once expanded, it
+  // STAYS expanded for the rest of this popup's open session — per
+  // feedback, scrolling back up to the top used to auto-collapse it
+  // again, which read as the popup fighting the very scroll gesture
+  // that had just been used to read further down the list. closeMoveLog
+  // still resets this back to false for the NEXT time the popup opens.
   const MOVE_LOG_ROW_PX = 26;
   const MOVE_LOG_COLLAPSED_ROWS = 5;
   const MOVE_LOG_EXPANDED_ROWS = 15;
@@ -1159,8 +1163,6 @@ export default function ElCabeza3D({ theme }) {
     const el = e.currentTarget;
     if (!moveLogExpanded && el.scrollTop + el.clientHeight >= el.scrollHeight - 4) {
       setMoveLogExpanded(true);
-    } else if (moveLogExpanded && el.scrollTop <= 4) {
-      setMoveLogExpanded(false);
     }
   }
 
@@ -5247,12 +5249,12 @@ export default function ElCabeza3D({ theme }) {
             Neon's Anomaly) buttons moved up into the Opponent row above,
             so this row no longer renders at all while awaitingBegin;
             see the popup's own maxHeight below for the matching height
-            reduction that frees up. Move Log is a chassis-level feature
-            (see ARCHITECTURE.md): generic post-game UI with no theme
-            dependency, shown once the game has actually concluded one
-            way or another (a real win, or a manual End Active Game).
-            Replaces what used to be an inline Copy Log control here —
-            Copy Move_Log now lives inside the popup itself, see below. */}
+            reduction that frees up. The dock's own Move Log button is
+            now only needed for a manual End Active Game (status
+            "ended") — a real win (status "finished") opens the Victory
+            placard instead, whose own Move Log button opens this same
+            popup, making a second entry point here genuinely redundant
+            for that case only. */}
         {!declutter && !awaitingBegin && (
         <div
           style={{
@@ -5268,7 +5270,7 @@ export default function ElCabeza3D({ theme }) {
           }}
         >
           <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-            {(status === "ended" || status === "finished") && (
+            {status === "ended" && (
               <button
                 key="movelog"
                 className="ec-btn ec-btn-invert"
@@ -5443,7 +5445,7 @@ export default function ElCabeza3D({ theme }) {
                 opacity: log.length === 0 ? 0.4 : 1,
               }}
             >
-              {logCopied ? "Move_Log Copied" : logCopyFailed ? "Copy Failed" : "Copy Move_Log"}
+              {logCopied ? "Move Log Copied" : logCopyFailed ? "Copy Failed" : "Copy Move Log"}
             </button>
             <button
               className="ec-btn ec-btn-invert"
@@ -5808,8 +5810,13 @@ export default function ElCabeza3D({ theme }) {
           <div style={{ display: "flex", gap: 8 }}>
             <button
               className="ec-btn ec-btn-invert"
-              onClick={handleCopyLog}
-              disabled={log.length === 0}
+              onClick={() => {
+                // Opens the Move Log popup in place of this placard —
+                // Copy Move Log now lives there instead of copying
+                // directly from here (see the popup's own two buttons).
+                setShowVictoryPlacard(false);
+                openMoveLog();
+              }}
               style={{
                 flex: "1 1 0",
                 fontFamily: "'IBM Plex Mono', monospace",
@@ -5820,11 +5827,10 @@ export default function ElCabeza3D({ theme }) {
                 background: "transparent",
                 border: `1.5px solid ${COLORS.charcoal}`,
                 padding: "10px 12px",
-                cursor: log.length === 0 ? "default" : "pointer",
-                opacity: log.length === 0 ? 0.4 : 1,
+                cursor: "pointer",
               }}
             >
-              {logCopied ? "Move_Log Copied" : logCopyFailed ? "Copy Failed" : "Copy Move_Log"}
+              Move Log
             </button>
             <button
               className="ec-btn"

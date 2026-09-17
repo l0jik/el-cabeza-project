@@ -118,7 +118,12 @@ console.log(`[${target}] panel reopened from corner:`, reopened);
 // End the game and check the Move Log popup.
 await page.locator("button", { hasText: "End Active Game" }).click();
 await page.waitForTimeout(400);
-const moveLogBtn = page.locator("button", { hasText: "Move Log" });
+// Exact text AND scoped to the dock panel: the Victory placard (always
+// mounted, just hidden for a manual end) has its own "Move Log" button
+// too, which opens this same popup for a real win instead — an exact-
+// text match alone still resolves both, so this scopes to the one
+// actually reachable from a manual End Active Game.
+const moveLogBtn = page.locator('[data-testid="dock-panel"] button', { hasText: /^Move Log$/ });
 console.log(`[${target}] Move Log button present after End Active Game:`, await moveLogBtn.count());
 if (await moveLogBtn.count()) {
   await moveLogBtn.click();
