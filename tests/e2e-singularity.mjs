@@ -106,6 +106,22 @@ await page.keyboard.press("Escape");
 await page.waitForTimeout(500);
 check("Escape closes the panel", (await popupOpacity()) === "0", `opacity=${await popupOpacity()}`);
 
+// ---- dismissing via the popup's own backdrop must NOT also collapse
+// the setup dock underneath it (the reported bug: the dock has a
+// document-level "pointerdown outside the card" listener that closes
+// it, and the popup's backdrop sat outside that card without stopping
+// the event, so one tap closed both at once) ----
+await onSingularity();
+await page.waitForTimeout(FULL_HOLD_MS);
+check("re-committing opens the panel again", (await popupOpacity()) === "1", `opacity=${await popupOpacity()}`);
+const dockOpenBefore = await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]')?.dataset.open);
+await page.mouse.click(20, 20); // corner of the fixed backdrop, away from the popup's own content box
+await page.waitForTimeout(500);
+check("clicking the popup's backdrop closes it", (await popupOpacity()) === "0", `opacity=${await popupOpacity()}`);
+const dockOpenAfter = await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]')?.dataset.open);
+check("dismissing the popup does not also collapse the setup dock",
+  dockOpenBefore === "true" && dockOpenAfter === "true", `before=${dockOpenBefore} after=${dockOpenAfter}`);
+
 // ---- click-outside dismisses the revealed button ----
 await awayFromButtons();
 await page.waitForTimeout(400);

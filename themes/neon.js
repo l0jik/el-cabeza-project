@@ -3362,6 +3362,12 @@ export function renderExtraOverlays(setupExtras) {
     "div",
     {
       onClick: closeSingularityInfo,
+      // The chassis closes the whole setup dock on any pointerdown
+      // outside its card (ElCabeza3D.jsx) — this backdrop sits outside
+      // that card in the DOM, so without stopping it here, dismissing
+      // this popup by tapping the backdrop also bubbles up and collapses
+      // the dock underneath it.
+      onPointerDown: (e) => e.stopPropagation(),
       style: {
         position: "fixed",
         inset: 0,
