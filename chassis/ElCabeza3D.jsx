@@ -933,6 +933,27 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
 
   const [audioMuted, setAudioMuted] = useState(initialMuted);
 
+  /* Audio must fall silent the instant this tab/window isn't the
+     active, visible one, independent of the player's own mute
+     preference above. Browsers do NOT auto-suspend a running
+     AudioContext just because focus moves elsewhere on desktop (unlike
+     some mobile lock-screen/background cases the theme's own
+     visibilitychange listener already handles by resuming a suspended
+     context) — without this, switching tabs or apps left the game
+     fully audible to anyone in the room despite the game still
+     "running" in the background. Forces the underlying engine silent
+     on hide and restores it to whatever audioMuted actually is the
+     moment the tab is visible again — never flips an unmuted
+     preference to muted, or a muted one to unmuted, just suspends and
+     resumes it around the hidden interval. */
+  useEffect(() => {
+    function onVisibilityChange() {
+      audioRef.current.setMuted(document.visibilityState === "visible" ? audioMuted : true);
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [audioMuted]);
+
   /* Full Screen is theme-agnostic browser API — promoted to the
      chassis per ARCHITECTURE.md rather than routed through a theme
      hook, since every theme wants it and none of it depends on visual

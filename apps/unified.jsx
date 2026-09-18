@@ -215,6 +215,17 @@ function UnifiedApp() {
     return () => window.removeEventListener("keydown", onKey);
   }, [connectWord]);
 
+  // Same tab-visibility mute as ElCabeza3D's own (see its comment) —
+  // this engine runs entirely independently of whichever theme is
+  // mounted, so it needs the identical fix applied separately here.
+  useEffect(() => {
+    function onVisibilityChange() {
+      sfxRef.current.setMuted(document.visibilityState === "visible" ? muted : true);
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [muted]);
+
   const beginTransition = useCallback(() => {
     // Any leftover hold-degrade styling is superseded by the CRT
     // transition's own filter/animation from here on.
