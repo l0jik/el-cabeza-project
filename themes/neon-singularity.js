@@ -411,13 +411,37 @@ const LAWS_ITEMS = [
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "Raises the per-turn movement budget by one." },
 ];
 
+// Footprints (col,row cells, all one layer) used only to draw the
+// small isometric icon next to each MATTER item — see renderPieceIcon.
+// The five originals match their real starting orientation in
+// engine/rules.js's STARTING_LAYOUT (w x h in board cells); the four
+// new types have no real engine geometry yet (SINGULARITY_DESIGN.md
+// Part 2 describes them only as rules, not authored geometry), so
+// these are representative shapes, not the eventual real footprint
+// mask data — good enough for "what does this roughly look like",
+// which is all a selection-menu icon needs to do.
+const PIECE_FOOTPRINTS = {
+  cabeza: [[0, 0]],
+  turrito: [[0, 0]],
+  flaco: [[0, 0], [0, 1]],
+  chato: [[0, 0], [0, 1]],
+  opa: [[0, 0], [1, 0], [0, 1], [1, 1]],
+  lPentomino: [[0, 0], [0, 1], [0, 2], [0, 3], [1, 3]],
+  block1x3: [[0, 0], [0, 1], [0, 2]],
+  block2x3: [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2]],
+  // The design doc's "non-convex shape with a genuine hollow/void" —
+  // a 3-wide arch with its center cell empty is the simplest icon that
+  // actually reads as an arch rather than a plain block.
+  arch: [[0, 0], [2, 0], [0, 1], [1, 1], [2, 1]],
+};
+
 // MATTER — the four new polycube types from the design doc, each a
 // simple enable/disable checkbox.
 const MATTER_NEW_PIECES = [
-  { key: "lPentomino", label: "L-Pentomino" },
-  { key: "block1x3", label: "1×3 Block" },
-  { key: "block2x3", label: "2×3 Block" },
-  { key: "arch", label: "Arch" },
+  { key: "lPentomino", label: "L-Pentomino", icon: "lPentomino" },
+  { key: "block1x3", label: "1×3 Block", icon: "block1x3" },
+  { key: "block2x3", label: "2×3 Block", icon: "block2x3" },
+  { key: "arch", label: "Arch", icon: "arch" },
 ];
 
 // MATTER also lets the roster of the five ORIGINAL pieces be
@@ -430,11 +454,11 @@ const MATTER_NEW_PIECES = [
 // pieces per side" being enforced live here — this pass is selections-
 // only (see the module header), so the wheels just record a count.
 const MATTER_ROSTER = [
-  { key: "cabeza", label: "Cabeza", min: 1, max: 2, default: 1 },
-  { key: "chato", label: "Chato", min: 0, max: 4, default: 1 },
-  { key: "flaco", label: "Flaco", min: 0, max: 4, default: 1 },
-  { key: "opa", label: "Opa", min: 0, max: 4, default: 1 },
-  { key: "turrito", label: "Turrito", min: 0, max: 4, default: 1 },
+  { key: "cabeza", label: "Cabeza", min: 1, max: 2, default: 1, icon: "cabeza" },
+  { key: "chato", label: "Chato", min: 0, max: 4, default: 1, icon: "chato" },
+  { key: "flaco", label: "Flaco", min: 0, max: 4, default: 1, icon: "flaco" },
+  { key: "opa", label: "Opa", min: 0, max: 4, default: 1, icon: "opa" },
+  { key: "turrito", label: "Turrito", min: 0, max: 4, default: 1, icon: "turrito" },
 ];
 
 function createDefaultSelections() {
@@ -1120,6 +1144,49 @@ const chevronButtonStyle = {
   lineHeight: 1,
 };
 
+/* A small isometric-tile glyph built straight from a piece's footprint
+   (PIECE_FOOTPRINTS) — so the MATTER menu shows what's actually being
+   selected instead of naming it and hoping. Flat diamond tiles rather
+   than extruded cubes deliberately: at the ~40px this renders at (nine
+   of these on screen at once — four new pieces plus five roster
+   wheels — leaves no room for a bigger one), a cube's side faces
+   mostly just overlap their neighbors and blur the silhouette; a bare
+   tile per occupied cell reads as the actual footprint shape at a
+   glance, which is the one thing this icon needs to do. Same
+   isometric placement math the real board's top-down camera angle
+   already evokes, just drawn directly rather than rendered. */
+const ISO_STEP_X = 13, ISO_STEP_Y = 8, ISO_TILE_W = 11, ISO_TILE_H = 6.5;
+function isoTilePath(cx, cy) {
+  const w = ISO_TILE_W, h = ISO_TILE_H;
+  return `M ${cx},${cy - h} L ${cx + w},${cy} L ${cx},${cy + h} L ${cx - w},${cy} Z`;
+}
+function renderPieceIcon(footprintKey, size) {
+  const cells = PIECE_FOOTPRINTS[footprintKey];
+  if (!cells) return null;
+  const h = React.createElement;
+  const cols = cells.map((c) => c[0]);
+  const rows = cells.map((c) => c[1]);
+  const midCol = (Math.min(...cols) + Math.max(...cols)) / 2;
+  const midRow = (Math.min(...rows) + Math.max(...rows)) / 2;
+  const tiles = cells.map(([col, row], i) => {
+    const cx = 50 + (col - midCol - (row - midRow)) * ISO_STEP_X;
+    const cy = 32 + (col - midCol + (row - midRow)) * ISO_STEP_Y;
+    return h("path", {
+      key: i,
+      d: isoTilePath(cx, cy),
+      fill: "rgba(142,243,255,0.4)",
+      stroke: "rgba(223,250,255,0.95)",
+      strokeWidth: 1.5,
+      strokeLinejoin: "round",
+    });
+  });
+  return h(
+    "svg",
+    { width: size || 40, height: size || 40, viewBox: "0 0 100 64", style: { flexShrink: 0, display: "block" } },
+    ...tiles
+  );
+}
+
 /* A CSS-3D "drum roller" tumbler — a combination-lock-style wheel for
    an integer value, used for both TOPOLOGIES' board dimensions and
    MATTER's per-piece roster counts. Values clamp at min/max rather
@@ -1130,7 +1197,7 @@ const chevronButtonStyle = {
    the e2e suite drives, since simulating an exact-value drag
    gesture reliably is much harder than clicking a button a known
    number of times). */
-function DrumRoller({ id, label, value, min, max, onChange, compact }) {
+function DrumRoller({ id, label, value, min, max, onChange, compact, icon }) {
   const h = React.createElement;
   const dragRef = React.useRef(null);
   const ITEM_H = compact ? 28 : 36;
@@ -1183,6 +1250,7 @@ function DrumRoller({ id, label, value, min, max, onChange, compact }) {
   return h(
     "div",
     { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 } },
+    icon && renderPieceIcon(icon, compact ? 38 : 46),
     label && h("span", { style: { ...sectionLabelStyle, margin: 0 } }, label),
     h(
       "button",
@@ -1239,6 +1307,7 @@ function renderCheckboxRow(item, checked, onToggle, testId) {
         borderRadius: 3,
       },
     }),
+    item.icon && renderPieceIcon(item.icon, 40),
     h(
       "div",
       null,
@@ -1313,7 +1382,7 @@ function renderCategoryOverlay(t) {
         { style: { display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", padding: "4px 0 2px" } },
         ...MATTER_ROSTER.map((p) =>
           h(DrumRoller, {
-            key: p.key, id: `roster-${p.key}`, label: p.label,
+            key: p.key, id: `roster-${p.key}`, label: p.label, icon: p.icon,
             value: sel.matter.roster[p.key], min: p.min, max: p.max, compact: true,
             onChange: (v) => { sel.matter.roster[p.key] = v; s.labelsDirty = true; s.bump(); },
           })
