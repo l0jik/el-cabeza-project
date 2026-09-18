@@ -34,6 +34,7 @@ jobs:
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width,initial-scale=1">
+            <meta name="robots" content="noindex, nofollow">
             <title>El Cabeza</title>
             <style>
               body { font-family: system-ui, sans-serif; background: #111; color: #eee; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; gap: 1.5rem; }
@@ -48,6 +49,12 @@ jobs:
             <a href="el-cabeza-unified.html">Unified</a>
           </body>
           </html>
+          EOF
+      - name: Add robots.txt
+        run: |
+          cat > dist/robots.txt <<'EOF'
+          User-agent: *
+          Disallow: /
           EOF
       - uses: actions/upload-pages-artifact@v3
         with:
