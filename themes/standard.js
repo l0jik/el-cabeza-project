@@ -311,6 +311,12 @@ export function createAudio() {
     playWin() {}, playMenu() {}, fadeOutMenu() {}, playPowerOn() {},
     playPowerOff() {}, playFlicker() {}, playArc() {}, playGlitch() {},
     playSingularityOpen() {}, playSingularityClose() {},
+    /* Singularity is a Neon-only feature, but the chassis calls every
+       audio method unconditionally rather than branching on theme (see
+       ARCHITECTURE.md), so these exist here as no-ops exactly like the
+       rest of this object. */
+    startSingularityHum() {}, updateSingularityHum() {}, stopSingularityHum() {},
+    playSingularityDismiss() {},
     playDockOpen() {}, playDockClose() {},
     dispose() {
       engine && engine.dispose();

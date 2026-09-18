@@ -3101,6 +3101,8 @@ export function useSetupExtras({ awaitingBegin, setPieces, audio }) {
   const [showSingularityInfo, setShowSingularityInfo] = React.useState(false);
   const singularityHoldRef = React.useRef(null);
   const singularityHideTimerRef = React.useRef(null);
+  const singularityCommitRef = React.useRef(null); // rAF id for the commit hold
+  const singularityBtnRef = React.useRef(null); // so a click-outside can tell "outside" from the button itself
 
   function handleAnomaly() {
     // Setup-phase-only random layout generator (see its button, gated
@@ -3129,6 +3131,94 @@ export function useSetupExtras({ awaitingBegin, setPieces, audio }) {
     clearTimeout(singularityHoldRef.current);
   }
 
+  /* ---- the commit hold, on the revealed Singularity button itself ----
+     Discovery and commitment are ONE continuous deepening hold rather
+     than hover-then-click: hold Anomaly to reveal Singularity (above),
+     then keep holding on Singularity itself to commit. Chosen over a
+     click because hover doesn't exist on touch, and the two can't be
+     cleanly separate gestures there — touch has no way to hover without
+     also pressing. As a hold it works identically with a mouse and a
+     finger, and it suits the feature: the whole point of Singularity is
+     that it rewards a patient player.
+
+     Timeline, per SINGULARITY_DESIGN.md: nothing for the first 2s, the
+     hum starts and builds over the next 4s, and holding through the end
+     of that build commits. Releasing at any point before the end
+     cancels with no failure sound — the hum's own reverb tail just
+     decays naturally from however far it got (see stopSingularityHum). */
+  const SINGULARITY_HUM_START_MS = 2000;
+  const SINGULARITY_HUM_BUILD_MS = 4000;
+
+  function beginSingularityCommitHold() {
+    if (singularityCommitRef.current) return;
+    // Don't let the 10s auto-hide pull the button out from under a hold
+    // already in progress; cancelling re-arms it below.
+    clearTimeout(singularityHideTimerRef.current);
+    const startedAt = performance.now();
+    let humStarted = false;
+    const step = () => {
+      const elapsed = performance.now() - startedAt;
+      if (elapsed >= SINGULARITY_HUM_START_MS) {
+        if (!humStarted) {
+          humStarted = true;
+          audio.startSingularityHum();
+        }
+        const progress = (elapsed - SINGULARITY_HUM_START_MS) / SINGULARITY_HUM_BUILD_MS;
+        audio.updateSingularityHum(progress);
+        if (progress >= 1) {
+          singularityCommitRef.current = null;
+          commitSingularity();
+          return;
+        }
+      }
+      singularityCommitRef.current = requestAnimationFrame(step);
+    };
+    singularityCommitRef.current = requestAnimationFrame(step);
+  }
+
+  function cancelSingularityCommitHold() {
+    if (!singularityCommitRef.current) return;
+    cancelAnimationFrame(singularityCommitRef.current);
+    singularityCommitRef.current = null;
+    audio.stopSingularityHum();
+    // Re-arm the auto-hide the hold suspended.
+    clearTimeout(singularityHideTimerRef.current);
+    singularityHideTimerRef.current = setTimeout(() => setSingularityRevealed(false), 10000);
+  }
+
+  /* Reaching the end of the hold. INTERIM: this opens the existing
+     info panel, which is Singularity's only destination today. The
+     design's actual destination is the collapse-into-the-sphere-menu
+     sequence (SINGULARITY_DESIGN.md Phases 1-3), which doesn't exist
+     yet — when it does, this is the one place that changes, and the hum
+     stops handing off to it rather than stopping here (the spec has the
+     hum continuing to build through the collapse, then hard-cutting to
+     silence at the event horizon). Stopping it here keeps the drone
+     from running forever in the meantime. */
+  function commitSingularity() {
+    audio.stopSingularityHum();
+    openSingularityInfo();
+  }
+
+  /* Clicking anywhere else while the button is revealed (but not being
+     held, and with no panel open) dismisses it early instead of waiting
+     out the 10s auto-hide — with its own one-off cue: a heavily
+     reverberated, slightly discordant radar ping. pointerdown rather
+     than click so it lands on the same gesture that's about to do
+     whatever else it was going to do. */
+  React.useEffect(() => {
+    if (!singularityRevealed || showSingularityInfo) return;
+    const onDown = (e) => {
+      const btn = singularityBtnRef.current;
+      if (btn && (btn === e.target || btn.contains(e.target))) return;
+      cancelSingularityCommitHold();
+      setSingularityRevealed(false);
+      audio.playSingularityDismiss();
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [singularityRevealed, showSingularityInfo]);
+
   function openSingularityInfo() {
     clearTimeout(singularityHideTimerRef.current);
     setShowSingularityInfo(true);
@@ -3145,6 +3235,10 @@ export function useSetupExtras({ awaitingBegin, setPieces, audio }) {
     return () => {
       clearTimeout(singularityHoldRef.current);
       clearTimeout(singularityHideTimerRef.current);
+      // A hold still running at unmount would otherwise keep its rAF
+      // loop and its drone alive past the component.
+      if (singularityCommitRef.current) cancelAnimationFrame(singularityCommitRef.current);
+      audio.stopSingularityHum();
     };
   }, []);
 
@@ -3165,6 +3259,9 @@ export function useSetupExtras({ awaitingBegin, setPieces, audio }) {
     cancelSingularityHold,
     openSingularityInfo,
     closeSingularityInfo,
+    beginSingularityCommitHold,
+    cancelSingularityCommitHold,
+    singularityBtnRef,
   };
 }
 
@@ -3172,7 +3269,7 @@ export function useSetupExtras({ awaitingBegin, setPieces, audio }) {
    button; the Singularity phantom button (once revealed) sits below
    both. Takes over the whole row/column rather than just appending
    after Begin Game, since Anomaly has to sit BEFORE it. */
-export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingularityHold, cancelSingularityHold, singularityRevealed, openSingularityInfo }) {
+export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingularityHold, cancelSingularityHold, singularityRevealed, beginSingularityCommitHold, cancelSingularityCommitHold, singularityBtnRef }) {
   const h = React.createElement;
   return h(
     "div",
@@ -3231,7 +3328,22 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingula
     singularityRevealed &&
       h(
         "div",
-        { className: "ec-singularity-btn", onClick: openSingularityInfo, title: "???" },
+        {
+          className: "ec-singularity-btn",
+          ref: singularityBtnRef,
+          /* No onClick: a plain tap deliberately does nothing. Holding
+             is the only way in (see beginSingularityCommitHold), which
+             replaced the old tap-to-open-the-panel behaviour outright.
+             Hover for a mouse, touch-and-hold for a finger — the same
+             pairing the Anomaly reveal above already uses, since touch
+             has no hover of its own. */
+          onMouseEnter: beginSingularityCommitHold,
+          onMouseLeave: cancelSingularityCommitHold,
+          onTouchStart: beginSingularityCommitHold,
+          onTouchEnd: cancelSingularityCommitHold,
+          onTouchCancel: cancelSingularityCommitHold,
+          title: "???",
+        },
         h("div", { className: "ec-singularity-halo", "aria-hidden": "true" }),
         h("span", { className: "ec-singularity-text" }, "SINGULARITY")
       )
@@ -3876,6 +3988,204 @@ export function createSoundscape() {
       data[i] = last * 3.5;
     }
     return buf;
+  }
+
+  /* ---------------- Singularity hold hum ----------------
+     The sound of the hold gesture that opens the Singularity: a very
+     low multiphonic drone that builds while the player keeps holding,
+     and — the part that matters most — gains REVERB as it builds, not
+     just volume.
+
+     Why the reverb grows rather than being a fixed wet mix: releasing
+     early has to "decay naturally depending on how much reverb it has
+     gained at that point." Because the send into the convolver is what
+     ramps up over the hold, that behaviour falls straight out of the
+     physics rather than needing a hand-authored release envelope —
+     stopping the dry oscillators just stops feeding the reverb, and
+     whatever energy is already in it rings out on its own. Let go at
+     one second and there's barely any wet signal in there, so it dies
+     almost dry; hold nearly to the commit point and it blooms into a
+     long tail. Same as cutting a live signal into a real room.
+
+     "Multiphonic": four detuned voices a hair apart rather than one
+     tone, so they beat against each other instead of sitting still. The
+     interval set is deliberately not a clean chord — a slightly
+     stretched minor cluster, so it reads as unsettling rather than
+     musical. */
+  let humNodes = null;
+
+  function startSingularityHum() {
+    ensureGraph();
+    if (!ctx || humNodes) return;
+    if (ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
+    const t0 = ctx.currentTime;
+
+    // Dry path and wet (reverb) path run in parallel into sfxGain, so
+    // the hum sits above the ambient bed like every other cue and is
+    // unaffected by introGain's pre-Begin-Game gating — this plays
+    // during setup, before any game exists.
+    const dry = ctx.createGain();
+    dry.gain.value = 0;
+    dry.connect(sfxGain);
+
+    const conv = ctx.createConvolver();
+    // Long and gently decaying: a cavernous space, not a room.
+    conv.buffer = makeImpulse(6.5, 1.35);
+    const wetSend = ctx.createGain(); // ramps up with the hold — see above
+    wetSend.gain.value = 0;
+    const wetOut = ctx.createGain();
+    wetOut.gain.value = 1;
+    wetSend.connect(conv).connect(wetOut).connect(sfxGain);
+
+    // One shared lowpass ahead of both paths: as the hold builds it
+    // opens, so the drone gets not just louder but brighter/closer.
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 90;
+    lp.Q.value = 3;
+    lp.connect(dry);
+    lp.connect(wetSend);
+
+    // Slow amplitude LFO across everything — the "LFO-like" pulse.
+    const lfo = ctx.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = 0.7;
+    const lfoDepth = ctx.createGain();
+    lfoDepth.gain.value = 0.35;
+    const lfoTarget = ctx.createGain();
+    lfoTarget.gain.value = 1;
+    lfo.connect(lfoDepth).connect(lfoTarget.gain);
+    lfoTarget.connect(lp);
+    lfo.start(t0);
+
+    const FUNDAMENTALS = [26, 39, 52.7, 61.3]; // stretched, deliberately not a clean chord
+    const oscs = FUNDAMENTALS.map((f, i) => {
+      const o = ctx.createOscillator();
+      o.type = i % 2 ? "triangle" : "sine";
+      o.frequency.value = f;
+      o.detune.value = (i - 1.5) * 7; // a few cents apart so they beat
+      const g = ctx.createGain();
+      g.gain.value = 1 / FUNDAMENTALS.length;
+      o.connect(g).connect(lfoTarget);
+      o.start(t0);
+      return o;
+    });
+
+    humNodes = { dry, conv, wetSend, wetOut, lp, lfo, lfoDepth, lfoTarget, oscs, baseF: FUNDAMENTALS };
+    updateSingularityHum(0);
+  }
+
+  /* intensity: 0 at the moment the hum starts, 1 at the commit point.
+     Everything that makes it feel like it's tightening is driven from
+     this one value, so the caller only has to report progress. */
+  function updateSingularityHum(intensity) {
+    if (!ctx || !humNodes) return;
+    const t = Math.max(0, Math.min(1, intensity));
+    const now = ctx.currentTime;
+    const S = 0.08; // setTargetAtTime constant — smooth, no zipper noise
+    /* Level rises faster than linearly late on, so the last stretch of
+       the hold reads as accelerating rather than a flat ramp.
+
+       These look tiny because MASTER_GAIN applies +17dB at the final
+       stage — every cue in this file is scaled for that (compare
+       playSingularityOpen's 0.08). The first version of this hum used
+       ~0.5 dry / 1.25 wet, which drove a SUSTAINED drone into the
+       ceiling: measured 35 of 231 samples pinned at full scale. These
+       values came from measuring the real rendered output rather than
+       from a second guess (an AnalyserNode tapped onto everything
+       reaching ctx.destination; see the RMS/peak method in the commit
+       that introduced this).
+
+       At these values, holding to just before the commit point:
+       peak amplitude 0.79-0.86 across runs, zero samples at full scale,
+       build RMS ~0.05 against an ambient bed that idles near 0.0002 —
+       so it's unmistakably present with ~15% headroom left for
+       anything else sounding at the same moment.
+
+       The wet send is deliberately the bigger number and climbs on a
+       steeper curve than the dry: ConvolverNode normalizes its impulse,
+       so an intuitively-balanced send comes out far quieter than
+       expected, and an under-driven send is what makes an early and a
+       late release sound alike. At these values a near-full hold blooms
+       to roughly 3-4x the release tail of a hold let go at 1s in, which
+       is the whole point of the gesture. */
+    humNodes.dry.gain.setTargetAtTime(0.001 + 0.007 * Math.pow(t, 1.5), now, S);
+    // Wet send climbs harder still: by the commit point the tail is the
+    // dominant voice, which is what makes a late release bloom.
+    humNodes.wetSend.gain.setTargetAtTime(0.0015 + 0.075 * Math.pow(t, 1.6), now, S);
+    humNodes.lp.frequency.setTargetAtTime(90 + 470 * t, now, S);
+    humNodes.lfo.frequency.setTargetAtTime(0.7 + 3.1 * t, now, S);
+    humNodes.lfoDepth.gain.setTargetAtTime(0.35 + 0.3 * t, now, S);
+    // A slight upward pitch drift — tension, not a glissando.
+    humNodes.oscs.forEach((o, i) => {
+      o.frequency.setTargetAtTime(humNodes.baseF[i] * (1 + 0.14 * t), now, 0.25);
+    });
+  }
+
+  /* Stops FEEDING the reverb rather than silencing it. The dry voices
+     duck out quickly; the convolver keeps ringing with whatever it was
+     already given, which is the whole point (see startSingularityHum).
+     Oscillators are stopped only after the tail has had time to run, so
+     nothing is cut off mid-decay. */
+  function stopSingularityHum() {
+    if (!ctx || !humNodes) return;
+    const h = humNodes;
+    humNodes = null;
+    const now = ctx.currentTime;
+    h.dry.gain.cancelScheduledValues(now);
+    h.dry.gain.setTargetAtTime(0, now, 0.12);
+    h.wetSend.gain.cancelScheduledValues(now);
+    h.wetSend.gain.setTargetAtTime(0, now, 0.05); // stop feeding it; the tail lives on in wetOut
+    const TAIL_S = 7.5; // comfortably past the 6.5s impulse
+    try {
+      h.oscs.forEach((o) => o.stop(now + TAIL_S));
+      h.lfo.stop(now + TAIL_S);
+    } catch (e) { /* already stopped — harmless */ }
+    setTimeout(() => {
+      try {
+        h.dry.disconnect(); h.wetSend.disconnect(); h.wetOut.disconnect();
+        h.conv.disconnect(); h.lp.disconnect(); h.lfoTarget.disconnect(); h.lfoDepth.disconnect();
+      } catch (e) { /* context may be gone on dispose */ }
+    }, (TAIL_S + 0.5) * 1000);
+  }
+
+  /* The revealed Singularity button being dismissed by a click
+     elsewhere: "a highly reverberated radar ping, slightly discordant."
+     Two close tones a semitone-ish apart sounding together is what
+     makes it read as discordant rather than a clean sonar blip, and it
+     goes almost entirely wet so it sounds like it's arriving from
+     somewhere far off. */
+  function playSingularityDismiss() {
+    ensureGraph();
+    if (!ctx) return;
+    if (ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
+    const t0 = ctx.currentTime;
+    const conv = ctx.createConvolver();
+    conv.buffer = makeImpulse(4.2, 1.5);
+    const wet = ctx.createGain();
+    wet.gain.value = 1.15; // dominantly wet — a ping heard across a large space
+    conv.connect(wet).connect(sfxGain);
+    const dry = ctx.createGain();
+    dry.gain.value = 0.16;
+    dry.connect(sfxGain);
+    [1046, 1109].forEach((f, i) => { // ~a semitone apart: the discord
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.setValueAtTime(f, t0);
+      o.frequency.exponentialRampToValueAtTime(f * 0.86, t0 + 0.5);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(i ? 0.05 : 0.07, t0 + 0.012); // fast attack = "ping"
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55);
+      o.connect(g);
+      g.connect(conv);
+      g.connect(dry);
+      o.start(t0);
+      o.stop(t0 + 0.6);
+    });
+    setTimeout(() => {
+      try { conv.disconnect(); wet.disconnect(); dry.disconnect(); } catch (e) { /* disposed */ }
+    }, 5200);
   }
 
   /* A short synthetic impulse response — decaying noise, not a
@@ -5724,6 +6034,10 @@ export function createSoundscape() {
     // Both cut 50% per feedback (0.16 -> 0.08, 0.24 -> 0.12).
     playSingularityOpen: () => { ensureGraph(); cue(70, 900, 0.7, "sine", 0.08); },
     playSingularityClose: () => { ensureGraph(); reverseCue(70, 900, 0.5, "sine", 0.12); },
+    startSingularityHum,
+    updateSingularityHum,
+    stopSingularityHum,
+    playSingularityDismiss,
     /* Dock open/close — a very subtle low "vrrrt": a short, low,
        buzzy sawtooth descent (not a clean sine — the harmonics are
        what read as a mechanical whirr rather than a chime) and its
@@ -5773,6 +6087,10 @@ export function createSoundscape() {
     },
     dispose: () => {
       disposed = true;
+      // A hold in progress when the theme unmounts would otherwise
+      // leave its oscillators running until ctx.close() below — drop
+      // the reference so nothing tries to keep updating it either.
+      humNodes = null;
       if (scheduleTimer) clearTimeout(scheduleTimer);
       if (buzzWanderTimer) clearTimeout(buzzWanderTimer);
       if (crackleTimer) clearTimeout(crackleTimer);
