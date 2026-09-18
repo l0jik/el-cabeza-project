@@ -2,11 +2,11 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import * as THREE from "three";
 
 import {
-  BOARD_SIZE, SLAB, SQUARE_SIZE, SLAB_THICKNESS, OFF, PIECE_SCALE,
+  BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MIN, SQUARE_SIZE, SLAB_THICKNESS, OFF_X, OFF_Z, PIECE_SCALE,
   DISC_DIAM, DISC_H, GHOST_SCALE, GHOST_FADE_MS, ROLL_MS, SLIDE_MS,
   CAMERA_DAMPING, RESET_CAMERA_DAMPING, RESET_TRANSITION_MS,
-  ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX,
-  PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR,
+  ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
+  PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions,
 } from "../engine/constants.js";
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState,
@@ -1067,7 +1067,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // centering pass below should ever touch target.y.
       const radiusTarget = new THREE.Vector3(target.x, 0, target.z);
       let lo = ZOOM_MIN;
-      let hi = ZOOM_MAX;
+      let hi = ZOOM_MAX_FOR_BOARD;
       // A larger radius always reads as a smaller (or equal) on-screen
       // span, so this is a monotonic search: bisect for the smallest
       // radius whose span still fits, rather than the other direction.
@@ -1084,11 +1084,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // reports both axes) instead of its height.
       if (measureBox) {
         const maxWidthPx = mountSize.w * MAX_BOARD_WIDTH_FRACTION;
-        const half = SLAB / 2;
-        const corners = [[-half, -half], [-half, half], [half, -half], [half, half]];
+        const halfX = SLAB_X / 2, halfZ = SLAB_Z / 2;
+        const corners = [[-halfX, -halfZ], [-halfX, halfZ], [halfX, -halfZ], [halfX, halfZ]];
         const heights = [0, 2 * PIECE_SCALE]; // same "tallest piece" reach as measureBoardPx's own TALLEST_PIECE_HEIGHT
         let wLo = ZOOM_MIN;
-        let wHi = ZOOM_MAX;
+        let wHi = ZOOM_MAX_FOR_BOARD;
         for (let i = 0; i < 24; i++) {
           const mid = (wLo + wHi) / 2;
           const m = measureBox(mid, phi, theta, radiusTarget, corners, heights);
@@ -1572,7 +1572,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     /* Board slab */
     const boardTex = theme.makeBoardTexture();
     boardTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    const slabGeo = new THREE.BoxGeometry(SLAB, SLAB_THICKNESS, SLAB);
+    const slabGeo = new THREE.BoxGeometry(SLAB_X, SLAB_THICKNESS, SLAB_Z);
     const slabMats = theme.buildSlabMaterials(boardTex);
     const slab = new THREE.Mesh(slabGeo, slabMats);
     slab.position.y = -SLAB_THICKNESS / 2;
@@ -1615,15 +1615,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        term), since the gap this offset actually needs to cover — a
        piece's outline shell dipping below the board — is a roughly
        fixed world-space amount that does not depend on view angle. */
-    const halfSlab = SLAB / 2;
+    const halfSlabX = SLAB_X / 2;
+    const halfSlabZ = SLAB_Z / 2;
     const topY = SLAB_THICKNESS / 2;
     const botY = -SLAB_THICKNESS / 2;
     const VERTICAL_GAP = 0.06;
     const slabCorners = [
-      [-halfSlab, -halfSlab],
-      [halfSlab, -halfSlab],
-      [halfSlab, halfSlab],
-      [-halfSlab, halfSlab],
+      [-halfSlabX, -halfSlabZ],
+      [halfSlabX, -halfSlabZ],
+      [halfSlabX, halfSlabZ],
+      [-halfSlabX, halfSlabZ],
     ];
     /* The top ring specifically has been through two failed fixes for
        the SAME underlying tension before this one — worth reading if
@@ -1686,15 +1687,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        `position.copy(slab.position)` below lands it at world y=0,
        exactly coincident with the slab's own top face, matching how
        slabEdges' own top-ring-turned-bottom-ring math already works. */
-    function buildTopRingFrame(halfExtent, y, width, color, opacity) {
-      const inner = halfExtent - width;
+    // Takes both half-extents, not one: the plate is only square at a
+    // square board size, and a single value would draw the ring to the
+    // wrong depth on every other one.
+    function buildTopRingFrame(halfX, halfZ, y, width, color, opacity) {
+      const innerX = halfX - width;
+      const innerZ = halfZ - width;
       const outer = [
-        [-halfExtent, -halfExtent], [halfExtent, -halfExtent],
-        [halfExtent, halfExtent], [-halfExtent, halfExtent],
+        [-halfX, -halfZ], [halfX, -halfZ],
+        [halfX, halfZ], [-halfX, halfZ],
       ];
       const inn = [
-        [-inner, -inner], [inner, -inner],
-        [inner, inner], [-inner, inner],
+        [-innerX, -innerZ], [innerX, -innerZ],
+        [innerX, innerZ], [-innerX, innerZ],
       ];
       const positions = [];
       const indices = [];
@@ -1728,7 +1733,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       return new THREE.Mesh(geo, mat);
     }
     const TOP_RING_WIDTH = 0.025;
-    const topRing = buildTopRingFrame(halfSlab, topY, TOP_RING_WIDTH, HEX.charcoal, 0.45);
+    const topRing = buildTopRingFrame(halfSlabX, halfSlabZ, topY, TOP_RING_WIDTH, HEX.charcoal, 0.45);
     topRing.position.copy(slab.position);
 
     const pieceGroup = new THREE.Group();
@@ -1808,13 +1813,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       camera.position.set(target.x, target.y + radius * Math.cos(phi), target.z + radius * Math.sin(phi));
       camera.lookAt(target);
       camera.updateMatrixWorld(true);
-      const half = SLAB / 2;
+      const halfX = SLAB_X / 2, halfZ = SLAB_Z / 2;
       const cosT = Math.cos(-theta);
       const sinT = Math.sin(-theta);
       let minY = Infinity;
       let maxY = -Infinity;
-      for (const x of [-half, half]) {
-        for (const z of [-half, half]) {
+      for (const x of [-halfX, halfX]) {
+        for (const z of [-halfZ, halfZ]) {
           const rx = target.x + x * cosT + z * sinT;
           const rz = target.z + -x * sinT + z * cosT;
           // Absolute world Y (the board's real, fixed resting height and
@@ -2033,7 +2038,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
          conservative across the pitch range (see above). */
       const halfHFovRad = Math.atan(Math.tan(halfFovRad) * camera.aspect);
       const groundHalfSpan = goal.radius * Math.tan(Math.min(halfFovRad, halfHFovRad));
-      const maxPanDistance = (SLAB / 2) * (1 - 2 * MIN_VISIBLE_FRACTION) + groundHalfSpan;
+      const maxPanDistance = (SLAB_MIN / 2) * (1 - 2 * MIN_VISIBLE_FRACTION) + groundHalfSpan;
       const panDistSq = goal.target.x * goal.target.x + goal.target.z * goal.target.z;
       if (panDistSq > maxPanDistance * maxPanDistance) {
         const panK = maxPanDistance / Math.sqrt(panDistSq);
@@ -2143,7 +2148,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // uses, so a theme's ambient audio can never disagree with what
       // "fully zoomed in" actually means. A no-op for a theme whose
       // audio doesn't react to zoom.
-      audioRef.current.setZoom((ZOOM_MAX - view.radius) / (ZOOM_MAX - ZOOM_MIN));
+      audioRef.current.setZoom((ZOOM_MAX_FOR_BOARD - view.radius) / (ZOOM_MAX_FOR_BOARD - ZOOM_MIN));
 
       const a = anim.current;
       if (a) {
@@ -2389,8 +2394,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     shadowEntries.forEach(([dir, move]) => {
       const cand = move.candidate;
       const isCrush = !!move.crushes;
-      const cx = (cand.col + cand.w / 2) * SQUARE_SIZE - OFF;
-      const cz = (cand.row + cand.h / 2) * SQUARE_SIZE - OFF;
+      const cx = (cand.col + cand.w / 2) * SQUARE_SIZE - OFF_X;
+      const cz = (cand.row + cand.h / 2) * SQUARE_SIZE - OFF_Z;
 
       /* Invisible hit target. A dashed line is a poor raycast target —
          thin, and full of gaps — so picking is done against a plane
@@ -2864,7 +2869,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const requestId = ++aiRequestIdRef.current;
     return new Promise((resolve, reject) => {
       aiRequestsRef.current.set(requestId, { resolve, reject });
-      worker.postMessage({ requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex });
+      // `board` carries the current dimensions across the thread
+      // boundary — the worker's own copy of engine/constants.js is a
+      // separate module instance that this thread's setBoardDimensions()
+      // can't reach. See engine/ai-worker.js.
+      worker.postMessage({
+        requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex,
+        board: getBoardDimensions(),
+      });
     });
   }
 
@@ -3062,7 +3074,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       const hit = new THREE.Vector3();
       if (!t.raycaster.ray.intersectPlane(plane, hit)) return null;
       const local = t.boardGroup.worldToLocal(hit.clone());
-      return { col: (local.x + OFF) / SQUARE_SIZE, row: (local.z + OFF) / SQUARE_SIZE };
+      return { col: (local.x + OFF_X) / SQUARE_SIZE, row: (local.z + OFF_Z) / SQUARE_SIZE };
     }
     // Whether a (fractional) board cell falls within a candidate
     // piece-state's footprint — the same rectangle a real ghost's hit-
@@ -3265,7 +3277,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           if (pinchDist && d > 0) {
             cam.current.radius = Math.max(
               ZOOM_MIN,
-              Math.min(ZOOM_MAX, cam.current.radius * (pinchDist / d))
+              Math.min(ZOOM_MAX_FOR_BOARD, cam.current.radius * (pinchDist / d))
             );
           }
           pinchDist = d;
@@ -3636,7 +3648,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       }
       cam.current.radius = Math.max(
         ZOOM_MIN,
-        Math.min(ZOOM_MAX, cam.current.radius + ev.deltaY * 0.014)
+        Math.min(ZOOM_MAX_FOR_BOARD, cam.current.radius + ev.deltaY * 0.014)
       );
     }
 
@@ -3726,7 +3738,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // cause of both views reading as far too zoomed in.
     const target = new THREE.Vector3(0, 0, 0);
 
-    let lo = ZOOM_MIN, hi = ZOOM_MAX;
+    let lo = ZOOM_MIN, hi = ZOOM_MAX_FOR_BOARD;
     for (let i = 0; i < 24; i++) {
       const mid = (lo + hi) / 2;
       const m = measure(mid, phi, theta, target, corners, heights);
@@ -3746,9 +3758,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      in how much margin/overflow fitFraction asks for (see their own
      call sites). */
   function fitRadiusToBoard(theta, phi, fitFraction) {
-    const half = SLAB / 2;
+    const halfX = SLAB_X / 2, halfZ = SLAB_Z / 2;
     const corners = [
-      [-half, -half], [-half, half], [half, -half], [half, half],
+      [-halfX, -halfZ], [-halfX, halfZ], [halfX, -halfZ], [halfX, halfZ],
     ];
     return fitRadiusToCorners(theta, phi, corners, [0, 2 * PIECE_SCALE], fitFraction);
   }
@@ -3786,10 +3798,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const desktopZoomOutFactor = isCoarsePointer() ? 1 : 1.4;
     currentPlayerViewRadiusRef.current = Math.max(
       ZOOM_MIN,
-      Math.min(ZOOM_MAX, (fittedCPV ?? 12.5) * desktopZoomOutFactor)
+      Math.min(ZOOM_MAX_FOR_BOARD, (fittedCPV ?? 12.5) * desktopZoomOutFactor)
     );
     const ZOOM_PCT = 0.7;
-    const fallback = ZOOM_MAX - ZOOM_PCT * (ZOOM_MAX - ZOOM_MIN);
+    const fallback = ZOOM_MAX_FOR_BOARD - ZOOM_PCT * (ZOOM_MAX_FOR_BOARD - ZOOM_MIN);
     topDownViewRadiusRef.current = fitRadiusToBoard(0, 0.012) ?? fallback;
   }
 

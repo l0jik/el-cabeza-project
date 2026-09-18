@@ -6,7 +6,33 @@
    since Standard and Neon deliberately use different values (0.0625 vs
    0.03). */
 
-export const BOARD_SIZE = 10;
+/* Board dimensions are a RUNTIME parameter, not a fixed constant — see
+   setBoardDimensions() below and SINGULARITY_DESIGN.md's TOPOLOGIES
+   section. They're `let` exports on purpose: ES module imports are live
+   bindings, so every module that does `import { BOARD_ROWS } from
+   "./constants.js"` sees the updated value after setBoardDimensions()
+   runs, with no call-site changes and no getter indirection. Verified
+   to survive esbuild's IIFE bundling, which is how this ships.
+
+   Rows and cols are deliberately SEPARATE rather than one square
+   BOARD_SIZE: a non-square board (9x12, 10x11) is an explicit goal, and
+   a single conflated value is exactly how a rows-vs-cols mix-up would
+   hide. At the 10x10 default the two are equal, so such a mix-up is
+   invisible at the default size — tests/board-size.smoke.mjs exists to
+   catch it by exercising a deliberately non-square board.
+
+   A Worker has its own module instance of this file and therefore its
+   own copy of these, untouched by the main thread's setBoardDimensions()
+   — engine/ai-worker.js applies the dimensions carried on each request
+   before searching. */
+export let BOARD_ROWS = 10;
+export let BOARD_COLS = 10;
+
+/* Hard bounds. 20 is the ceiling per the TOPOLOGIES design decision; 6
+   is the floor because the classic starting layout needs 4 columns of
+   pieces plus two rows per side and stops being sensible below that. */
+export const MIN_BOARD_DIM = 6;
+export const MAX_BOARD_DIM = 20;
 
 /* Border reduced from the historical MARGIN_OLD baseline in two rounds
    now: 20% first, then a further reduction to a cumulative 40% off
@@ -21,11 +47,17 @@ export const BOARD_SIZE = 10;
    squares. */
 export const MARGIN_OLD = 0.7;
 
-export const SLAB = BOARD_SIZE + MARGIN_OLD * 2;
-
 export const MARGIN = MARGIN_OLD * 0.6;
 
-export const SQUARE_SIZE = (SLAB - MARGIN * 2) / BOARD_SIZE;
+/* Now a genuine constant rather than something derived from the board's
+   size. A square is a fixed 1.056 world units whatever the board's
+   dimensions are, so a bigger board is physically bigger (and the
+   camera pulls back further — see ZOOM_MAX) instead of squeezing the
+   same plate into more, smaller squares, which would shrink every
+   piece's apparent size along with it. The literal value is exactly
+   what the old (SLAB - MARGIN*2) / BOARD_SIZE produced at 10x10, so
+   the default board's geometry is unchanged to the last decimal. */
+export const SQUARE_SIZE = (10 + MARGIN_OLD * 2 - MARGIN * 2) / 10;
 
 /* The slab's vertical thickness (its Y dimension — SLAB above is its
    footprint, X/Z). Reduced 25% from its original 0.5. slab.position.y
@@ -36,9 +68,27 @@ export const SQUARE_SIZE = (SLAB - MARGIN * 2) / BOARD_SIZE;
    are positioned relative to that surface, not the slab's center. */
 export const SLAB_THICKNESS = 0.375;
 
-export const GRID_EXTENT = BOARD_SIZE * SQUARE_SIZE;
+/* All dimension-dependent geometry, split by axis: X follows columns,
+   Z follows rows (the board lies in the XZ plane, +Z toward Light's
+   end). At the 10x10 default every X value equals its Z counterpart —
+   which is exactly why an X/Z mix-up can't be caught at the default
+   size, and why the non-square smoke test exists.
 
-export const OFF = GRID_EXTENT / 2;
+   SLAB_* is the physical plate's footprint: the grid plus its border on
+   each side. SLAB_MAX/SLAB_MIN are conveniences for camera math that
+   wants the board's largest or smallest extent without caring which
+   axis it came from. */
+export let GRID_EXTENT_X = BOARD_COLS * SQUARE_SIZE;
+export let GRID_EXTENT_Z = BOARD_ROWS * SQUARE_SIZE;
+
+export let OFF_X = GRID_EXTENT_X / 2;
+export let OFF_Z = GRID_EXTENT_Z / 2;
+
+export let SLAB_X = GRID_EXTENT_X + MARGIN * 2;
+export let SLAB_Z = GRID_EXTENT_Z + MARGIN * 2;
+
+export let SLAB_MAX = Math.max(SLAB_X, SLAB_Z);
+export let SLAB_MIN = Math.min(SLAB_X, SLAB_Z);
 
 /* Every piece is scaled by the same factor, so true proportions are kept
    (a Turrito stays a cube, a Flaco stays 1:1:2) while a gap opens up
@@ -138,7 +188,62 @@ export const PIECE_META = {
   chato: { label: "Ch", name: "Chato", shape: "block", maxSteps: 2 },
 };
 
-export const GOAL_ROW = { dark: BOARD_SIZE - 1, light: 0 };
+/* Dark advances toward the highest row index, Light toward 0. Mutable
+   alongside the rest: the object is REPLACED (not mutated in place) by
+   setBoardDimensions, so importers holding the live binding see the new
+   object rather than a stale one. */
+export let GOAL_ROW = { dark: BOARD_ROWS - 1, light: 0 };
+
+/* Camera pull-back ceiling, scaled to the board it has to frame. The
+   old flat 55 was tuned by eye against a 10x10 plate specifically (see
+   the history in the ZOOM_MAX comment above); a 20x20 board is double
+   that footprint in each direction and simply would not fit on screen
+   at any allowed zoom if the ceiling stayed fixed. Scaling by the
+   board's largest extent keeps the tuned-by-feel framing at 10x10
+   (SLAB_MAX is 11.4 there, so this reproduces 55 exactly) and grows it
+   proportionally from there. ZOOM_MIN is untouched: how close you may
+   get to a piece has nothing to do with how many squares surround it. */
+export let ZOOM_MAX_FOR_BOARD = ZOOM_MAX;
+
+/* Recomputes every dimension-dependent value above. Split out so the
+   initial module-load values and every later change run through the
+   exact same derivation rather than two copies that could drift. */
+function recomputeBoardGeometry() {
+  GRID_EXTENT_X = BOARD_COLS * SQUARE_SIZE;
+  GRID_EXTENT_Z = BOARD_ROWS * SQUARE_SIZE;
+  OFF_X = GRID_EXTENT_X / 2;
+  OFF_Z = GRID_EXTENT_Z / 2;
+  SLAB_X = GRID_EXTENT_X + MARGIN * 2;
+  SLAB_Z = GRID_EXTENT_Z + MARGIN * 2;
+  SLAB_MAX = Math.max(SLAB_X, SLAB_Z);
+  SLAB_MIN = Math.min(SLAB_X, SLAB_Z);
+  GOAL_ROW = { dark: BOARD_ROWS - 1, light: 0 };
+  ZOOM_MAX_FOR_BOARD = ZOOM_MAX * (SLAB_MAX / (10 + MARGIN_OLD * 2));
+}
+
+/* The one supported way to change the board's dimensions. Clamps to
+   [MIN_BOARD_DIM, MAX_BOARD_DIM] and floors to integers rather than
+   throwing: a malformed size should degrade to a playable board, not
+   take the whole app down mid-setup. Call before building a scene or
+   generating a starting layout — every derived value above updates
+   together, and callers holding live bindings need no notification. */
+export function setBoardDimensions(rows, cols) {
+  const clamp = (n, fallback) => {
+    const v = Math.floor(Number(n));
+    if (!Number.isFinite(v)) return fallback;
+    return Math.min(MAX_BOARD_DIM, Math.max(MIN_BOARD_DIM, v));
+  };
+  BOARD_ROWS = clamp(rows, BOARD_ROWS);
+  BOARD_COLS = clamp(cols, BOARD_COLS);
+  recomputeBoardGeometry();
+  return { rows: BOARD_ROWS, cols: BOARD_COLS };
+}
+
+/* For handing the current dimensions across a boundary that doesn't
+   share this module instance — notably the AI worker. */
+export function getBoardDimensions() {
+  return { rows: BOARD_ROWS, cols: BOARD_COLS };
+}
 
 export const ROLL_DIRS = ["N", "E", "S", "W"];
 

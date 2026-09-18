@@ -108,6 +108,53 @@ similarly be grounded in a reconstructed real game, not a guessed weight
 bump — several of the numbers in this table are explicitly flagged in
 comments as "reasoned but unverified extrapolation," not measured.
 
+## 3b. Board dimensions are a runtime parameter (TOPOLOGIES groundwork)
+
+`BOARD_SIZE` no longer exists. `engine/constants.js` now owns
+`BOARD_ROWS`/`BOARD_COLS` (default 10/10, bounds `MIN_BOARD_DIM` 6 to
+`MAX_BOARD_DIM` 20) plus `setBoardDimensions(rows, cols)` /
+`getBoardDimensions()`.
+
+- **The mechanism is ES module live bindings.** Those values are `let`
+  exports; importers write `BOARD_ROWS`, `OFF_X` etc. exactly as before
+  and automatically see updated values after `setBoardDimensions()`
+  runs — no getters, no call-site churn across ~60 sites. Verified
+  empirically that this survives esbuild's IIFE bundling before the
+  refactor was built on it. If that ever stops holding, this whole
+  design collapses quietly, so re-verify before changing the bundler.
+- **Rows and cols are deliberately separate**, and every dimension-
+  dependent geometry value is split by axis: `GRID_EXTENT_X/Z`,
+  `OFF_X/Z`, `SLAB_X/Z` (plus `SLAB_MAX`/`SLAB_MIN` for camera math).
+  X follows columns, Z follows rows. **At the 10×10 default every X
+  value equals its Z counterpart, so an X/Z or rows/cols swap is
+  completely invisible at the default size** — that's why
+  `tests/board-size.smoke.mjs` (Node) and `tests/e2e-board-size.mjs`
+  (real browser, non-square + max sizes, with a real click that must
+  select a real piece) exist. Never verify board-dimension work only at
+  10×10.
+- **`SQUARE_SIZE` is now a true constant** (1.056, exactly its old
+  computed value). A bigger board means a physically bigger plate, not
+  smaller squares — so pieces keep their apparent size and the camera
+  pulls back instead. `ZOOM_MAX_FOR_BOARD` scales the old flat
+  `ZOOM_MAX` by the plate's largest extent (identical at 10×10); the
+  old fixed 55 could not frame a 20×20 board at any zoom.
+- **The AI worker has its own module instance** of `constants.js`, which
+  `setBoardDimensions()` on the main thread cannot reach. Every search
+  request carries `board: getBoardDimensions()` and the worker applies
+  it before searching. Forget this and the AI silently evaluates a 10×10
+  board while the player plays something else.
+- `createInitialPieces()` is parametric: Dark's formation is defined in
+  columns relative to a centred 4-wide block, and Light is *derived* by
+  180° rotation rather than a second hardcoded table. At 10×10 its
+  output is byte-identical to the original hardcoded array (asserted).
+- `apps/boardBootstrap.js` is the seam that applies a size before mount
+  (`window.__EC_BOARD__`). Tests drive it today; TOPOLOGIES' own menu
+  becomes the real caller. It lives in `apps/` because engine modules
+  must never touch `window` (a Worker has no `window` at all).
+- Known non-obvious consequence, confirmed not a bug: four pieces (each
+  side's Turrito and Cabeza) start boxed in by their own neighbours —
+  identically at 10×10, 20×20 and non-square sizes. Don't "fix" it.
+
 ## 4. Performance work already done (don't undo without reason)
 
 - **Piece mesh diffing**: the "build pieces" effect used to dispose and

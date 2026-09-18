@@ -2,21 +2,58 @@
    between the Standard and Neon theme sources before extraction — see
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
-import { BOARD_SIZE, ROLL_DIRS, STEP_DIRS } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS } from "./constants.js";
+
+/* Dark's half of the opening setup, with columns expressed RELATIVE to
+   the leftmost of the four columns the formation occupies, so the whole
+   thing can be re-centred on a board of any width. At the 10-wide
+   default the offset below works out to 3, reproducing the original
+   hardcoded columns (3,4,5,6 / opa at 4) exactly. */
+const DARK_SETUP = [
+  { id: "dark-flaco", type: "flaco", row: 0, relCol: 0, w: 1, h: 2, z: 1 },
+  { id: "dark-turrito", type: "turrito", row: 0, relCol: 1, w: 1, h: 1, z: 1 },
+  { id: "dark-cabeza", type: "cabeza", row: 0, relCol: 2, w: 1, h: 1, z: 1 },
+  { id: "dark-chato", type: "chato", row: 0, relCol: 3, w: 1, h: 2, z: 2 },
+  { id: "dark-opa", type: "opa", row: 1, relCol: 1, w: 2, h: 2, z: 2 },
+];
+
+/* Light is the 180° rotation of Dark (row -> ROWS-row-h, col ->
+   COLS-col-w), which is what makes the opening position rotationally
+   symmetric at any board size rather than a second hand-placed table
+   that would have to be re-derived per size. Listed in this order, and
+   emitted after Dark's, purely to keep createInitialPieces' output
+   array order byte-identical to the original hardcoded version — see
+   the order assertion in tests/board-size.smoke.mjs. */
+const LIGHT_ORDER = ["chato", "opa", "cabeza", "turrito", "flaco"];
+
+const SETUP_WIDTH = 4; // columns Dark's formation spans
 
 export function createInitialPieces() {
-  return [
-    { id: "dark-flaco", type: "flaco", owner: "dark", row: 0, col: 3, w: 1, h: 2, z: 1 },
-    { id: "dark-turrito", type: "turrito", owner: "dark", row: 0, col: 4, w: 1, h: 1, z: 1 },
-    { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 0, col: 5, w: 1, h: 1, z: 1 },
-    { id: "dark-chato", type: "chato", owner: "dark", row: 0, col: 6, w: 1, h: 2, z: 2 },
-    { id: "dark-opa", type: "opa", owner: "dark", row: 1, col: 4, w: 2, h: 2, z: 2 },
-    { id: "light-chato", type: "chato", owner: "light", row: 8, col: 3, w: 1, h: 2, z: 2 },
-    { id: "light-opa", type: "opa", owner: "light", row: 7, col: 4, w: 2, h: 2, z: 2 },
-    { id: "light-cabeza", type: "cabeza", owner: "light", row: 9, col: 4, w: 1, h: 1, z: 1 },
-    { id: "light-turrito", type: "turrito", owner: "light", row: 9, col: 5, w: 1, h: 1, z: 1 },
-    { id: "light-flaco", type: "flaco", owner: "light", row: 8, col: 6, w: 1, h: 2, z: 1 },
-  ];
+  const colOffset = Math.floor((BOARD_COLS - SETUP_WIDTH) / 2);
+  const dark = DARK_SETUP.map((p) => ({
+    id: p.id,
+    type: p.type,
+    owner: "dark",
+    row: p.row,
+    col: p.relCol + colOffset,
+    w: p.w,
+    h: p.h,
+    z: p.z,
+  }));
+  const light = LIGHT_ORDER.map((type) => {
+    const d = dark.find((p) => p.type === type);
+    return {
+      id: "light-" + type,
+      type,
+      owner: "light",
+      row: BOARD_ROWS - d.row - d.h,
+      col: BOARD_COLS - d.col - d.w,
+      w: d.w,
+      h: d.h,
+      z: d.z,
+    };
+  });
+  return [...dark, ...light];
 }
 
 export function cellsOf(piece) {
@@ -55,8 +92,8 @@ export function inBounds(piece) {
   return (
     piece.row >= 0 &&
     piece.col >= 0 &&
-    piece.row + piece.h <= BOARD_SIZE &&
-    piece.col + piece.w <= BOARD_SIZE
+    piece.row + piece.h <= BOARD_ROWS &&
+    piece.col + piece.w <= BOARD_COLS
   );
 }
 
@@ -89,7 +126,7 @@ export function legalCabezaSteps(pieces, piece) {
   for (const [dir, [dr, dc]] of Object.entries(STEP_DIRS)) {
     const r = piece.row + dr;
     const c = piece.col + dc;
-    if (r < 0 || c < 0 || r >= BOARD_SIZE || c >= BOARD_SIZE) continue;
+    if (r < 0 || c < 0 || r >= BOARD_ROWS || c >= BOARD_COLS) continue;
     const occupant = getPieceAt(pieces, r, c);
     if (occupant && occupant.id !== piece.id) continue;
     out[dir] = { candidate: { ...piece, row: r, col: c }, crushes: null };

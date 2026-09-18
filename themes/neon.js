@@ -14,7 +14,7 @@
 
 import React from "react";
 import * as THREE from "three";
-import { BOARD_SIZE, SLAB, MARGIN, SQUARE_SIZE, OFF, GRID_EXTENT, GOAL_ROW, PIECE_SCALE } from "../engine/constants.js";
+import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, GRID_EXTENT_X, GRID_EXTENT_Z, GOAL_ROW, PIECE_SCALE } from "../engine/constants.js";
 import { opponentOf, cabezaInDanger } from "../engine/ai.js";
 
 /* Everything visual in this experimental skin lives in these two
@@ -198,11 +198,11 @@ export function shuffledIndices(n) {
    Dark's (the same piece type sitting at the point-reflected cell).
    Only Dark's five pieces are ever actually placed/randomized; Light's
    are derived by reflecting each one through the board's center
-   (row -> BOARD_SIZE - row - h, col -> BOARD_SIZE - col - w). That's
+   (row -> BOARD_ROWS - row - h, col -> BOARD_COLS - col - w). That's
    what GUARANTEES the symmetry and both sides' row confinement at
    once, rather than generating and separately validating two halves —
    reflecting a cell that's within Dark's rows {0,1} always lands
-   within Light's rows {BOARD_SIZE-2, BOARD_SIZE-1}, automatically.
+   within Light's rows {BOARD_ROWS-2, BOARD_ROWS-1}, automatically.
    Bigger pieces are placed first (greedy) since they're the most
    constrained; only 10 of the 20 cells in the 2-row band ever need to
    be filled, so a handful of shuffled retries is enough to succeed
@@ -219,7 +219,7 @@ export function generateAnomalySetup() {
       const rowOptions = [];
       for (let row = 0; row <= 2 - h; row++) rowOptions.push(row);
       const colOptions = [];
-      for (let col = 0; col <= BOARD_SIZE - w; col++) colOptions.push(col);
+      for (let col = 0; col <= BOARD_COLS - w; col++) colOptions.push(col);
       const rowOrder = shuffledIndices(rowOptions.length).map((i) => rowOptions[i]);
       const colOrder = shuffledIndices(colOptions.length).map((i) => colOptions[i]);
       let placedThis = false;
@@ -228,11 +228,11 @@ export function generateAnomalySetup() {
           let free = true;
           for (let r = row; r < row + h && free; r++) {
             for (let c = col; c < col + w; c++) {
-              if (occupied.has(r * BOARD_SIZE + c)) { free = false; break; }
+              if (occupied.has(r * BOARD_COLS + c)) { free = false; break; }
             }
           }
           if (free) {
-            for (let r = row; r < row + h; r++) for (let c = col; c < col + w; c++) occupied.add(r * BOARD_SIZE + c);
+            for (let r = row; r < row + h; r++) for (let c = col; c < col + w; c++) occupied.add(r * BOARD_COLS + c);
             placed.push({ type, row, col, w, h, z });
             placedThis = true;
             break;
@@ -250,8 +250,8 @@ export function generateAnomalySetup() {
           id: `light-${p.type}`,
           type: p.type,
           owner: "light",
-          row: BOARD_SIZE - p.row - p.h,
-          col: BOARD_SIZE - p.col - p.w,
+          row: BOARD_ROWS - p.row - p.h,
+          col: BOARD_COLS - p.col - p.w,
           w: p.w,
           h: p.h,
           z: p.z,
@@ -303,19 +303,23 @@ export function computeTension(pieces) {
 export function makeBoardTexture() {
   const RES = 2048;
   const canvas = document.createElement("canvas");
-  canvas.width = RES;
-  canvas.height = RES;
+  /* Canvas matches the slab's aspect rather than always being square —
+     see the same treatment in themes/standard.js's makeBoardTexture for
+     why (one shared px-per-unit scale off the longest side keeps drawn
+     squares square on a non-square board). */
+  const pxPerUnit = RES / SLAB_MAX;
+  canvas.width = Math.round(SLAB_X * pxPerUnit);
+  canvas.height = Math.round(SLAB_Z * pxPerUnit);
   const ctx = canvas.getContext("2d");
-  const pxPerUnit = RES / SLAB;
   const pad = MARGIN * pxPerUnit;
   const squarePx = SQUARE_SIZE * pxPerUnit;
 
   ctx.fillStyle = COLORS.cream;
-  ctx.fillRect(0, 0, RES, RES);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      const isGoal = r === 0 || r === BOARD_SIZE - 1;
+  for (let r = 0; r < BOARD_ROWS; r++) {
+    for (let c = 0; c < BOARD_COLS; c++) {
+      const isGoal = r === 0 || r === BOARD_ROWS - 1;
       if (isGoal) {
         /* theme: a faint cyan wash instead of neutral gray — still the
            same functional marker (the two win-condition rows), just in
@@ -330,11 +334,13 @@ export function makeBoardTexture() {
      the slab a faint sense of architectural depth (brighter center,
      darker toward the frame) without touching any geometry, raycasting,
      or the grid lines drawn as real 3D objects on top of this. */
-  const vignette = ctx.createRadialGradient(RES / 2, RES / 2, RES * 0.2, RES / 2, RES / 2, RES * 0.72);
+  const vigW = canvas.width, vigH = canvas.height;
+  const vigR = Math.max(vigW, vigH);
+  const vignette = ctx.createRadialGradient(vigW / 2, vigH / 2, vigR * 0.2, vigW / 2, vigH / 2, vigR * 0.72);
   vignette.addColorStop(0, "rgba(0,0,0,0)");
   vignette.addColorStop(1, "rgba(0,0,0,0.35)");
   ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, RES, RES);
+  ctx.fillRect(0, 0, vigW, vigH);
 
   return new THREE.CanvasTexture(canvas);
 }
@@ -348,30 +354,39 @@ export function makeBoardTexture() {
 export function makeGridGlowTexture() {
   const RES = 1024;
   const canvas = document.createElement("canvas");
-  canvas.width = RES;
-  canvas.height = RES;
+  /* Matches the GRID's aspect (not the slab's — this texture covers the
+     playing area only, no border), same shared-scale approach as the
+     board texture above. */
+  const gridMax = Math.max(GRID_EXTENT_X, GRID_EXTENT_Z);
+  const pxPerUnit = RES / gridMax;
+  const W = Math.round(GRID_EXTENT_X * pxPerUnit);
+  const H = Math.round(GRID_EXTENT_Z * pxPerUnit);
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext("2d");
-  const pxPerUnit = RES / GRID_EXTENT;
   ctx.lineCap = "round";
   ctx.shadowColor = "#4de8ff";
   ctx.shadowBlur = 32.2; // +15% per feedback ("increase glow / bloom of ... lattice lines 15%")
   ctx.strokeStyle = "rgba(130,228,255,0.9775)";
   ctx.lineWidth = 2.53; // +15%
-  for (let i = 0; i <= BOARD_SIZE; i++) {
-    const p = i * SQUARE_SIZE * pxPerUnit;
+  for (let i = 0; i <= BOARD_COLS; i++) {
+    const x = i * SQUARE_SIZE * pxPerUnit;
     ctx.beginPath();
-    ctx.moveTo(p, 0);
-    ctx.lineTo(p, RES);
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
     ctx.stroke();
+  }
+  for (let i = 0; i <= BOARD_ROWS; i++) {
+    const y = i * SQUARE_SIZE * pxPerUnit;
     ctx.beginPath();
-    ctx.moveTo(0, p);
-    ctx.lineTo(RES, p);
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
     ctx.stroke();
   }
   ctx.shadowBlur = 38;
   ctx.strokeStyle = "rgba(150,235,255,0.95)";
   ctx.lineWidth = 4;
-  ctx.strokeRect(3, 3, RES - 6, RES - 6);
+  ctx.strokeRect(3, 3, W - 6, H - 6);
   return new THREE.CanvasTexture(canvas);
 }
 
@@ -390,10 +405,13 @@ export function makeGrid() {
   const group = new THREE.Group();
   const lines = [];
 
-  for (let i = 0; i <= BOARD_SIZE; i++) {
-    const p = i * SQUARE_SIZE - OFF;
-    lines.push(p, 0, -OFF, p, 0, OFF);
-    lines.push(-OFF, 0, p, OFF, 0, p);
+  for (let i = 0; i <= BOARD_COLS; i++) {
+    const x = i * SQUARE_SIZE - OFF_X;
+    lines.push(x, 0, -OFF_Z, x, 0, OFF_Z);
+  }
+  for (let i = 0; i <= BOARD_ROWS; i++) {
+    const z = i * SQUARE_SIZE - OFF_Z;
+    lines.push(-OFF_X, 0, z, OFF_X, 0, z);
   }
 
   const geo = new THREE.BufferGeometry();
@@ -436,10 +454,10 @@ export function makeGrid() {
     "position",
     new THREE.Float32BufferAttribute(
       [
-        -OFF, 0, -OFF, OFF, 0, -OFF,
-        OFF, 0, -OFF, OFF, 0, OFF,
-        OFF, 0, OFF, -OFF, 0, OFF,
-        -OFF, 0, OFF, -OFF, 0, -OFF,
+        -OFF_X, 0, -OFF_Z, OFF_X, 0, -OFF_Z,
+        OFF_X, 0, -OFF_Z, OFF_X, 0, OFF_Z,
+        OFF_X, 0, OFF_Z, -OFF_X, 0, OFF_Z,
+        -OFF_X, 0, OFF_Z, -OFF_X, 0, -OFF_Z,
       ],
       3
     )
@@ -466,7 +484,7 @@ export function makeGrid() {
      pattern, sitting just above the crisp lines, additively blended so
      it only ever brightens, never obscures. */
   const glow = new THREE.Mesh(
-    new THREE.PlaneGeometry(GRID_EXTENT, GRID_EXTENT),
+    new THREE.PlaneGeometry(GRID_EXTENT_X, GRID_EXTENT_Z),
     new THREE.MeshBasicMaterial({
       map: makeGridGlowTexture(),
       transparent: true,
@@ -596,8 +614,8 @@ export function mountAmbientEffects(refs, helpers) {
      feedback that the landing glow read as too bright and sharp-
      lined — this is meant to be felt more than clearly seen. */
   function pulseSquare(row, col, w, h, mode, accentColor) {
-    const cx = (col + w / 2) * SQUARE_SIZE - OFF;
-    const cz = (row + h / 2) * SQUARE_SIZE - OFF;
+    const cx = (col + w / 2) * SQUARE_SIZE - OFF_X;
+    const cz = (row + h / 2) * SQUARE_SIZE - OFF_Z;
     const isApply = mode === "apply";
     const sizeMul = isApply ? 1.9 : 1.4;
     const geo = new THREE.PlaneGeometry(w * SQUARE_SIZE * sizeMul, h * SQUARE_SIZE * sizeMul);
@@ -648,8 +666,8 @@ export function mountAmbientEffects(refs, helpers) {
      real decaying wave. "Subtle randomizations" per feedback: wave
      speed, amplitude, and duration all vary a little per instance. */
   function spawnLandingShockwave(row, col, w, h, z, accentColor) {
-    const cx = (col + w / 2) * SQUARE_SIZE - OFF;
-    const cz = (row + h / 2) * SQUARE_SIZE - OFF;
+    const cx = (col + w / 2) * SQUARE_SIZE - OFF_X;
+    const cz = (row + h / 2) * SQUARE_SIZE - OFF_Z;
     const baseW = w * SQUARE_SIZE;
     const baseH = h * SQUARE_SIZE;
     const mass = Math.max(1, w * h * z);
@@ -678,12 +696,12 @@ export function mountAmbientEffects(refs, helpers) {
     // multiple separate grid lines into one buffer would draw
     // spurious diagonals between them).
     const K = 2;
-    const xMin = col * SQUARE_SIZE - OFF, xMax = (col + w) * SQUARE_SIZE - OFF;
-    const zMin = row * SQUARE_SIZE - OFF, zMax = (row + h) * SQUARE_SIZE - OFF;
-    const spanXMin = Math.max(-OFF, xMin - K * SQUARE_SIZE);
-    const spanXMax = Math.min(OFF, xMax + K * SQUARE_SIZE);
-    const spanZMin = Math.max(-OFF, zMin - K * SQUARE_SIZE);
-    const spanZMax = Math.min(OFF, zMax + K * SQUARE_SIZE);
+    const xMin = col * SQUARE_SIZE - OFF_X, xMax = (col + w) * SQUARE_SIZE - OFF_X;
+    const zMin = row * SQUARE_SIZE - OFF_Z, zMax = (row + h) * SQUARE_SIZE - OFF_Z;
+    const spanXMin = Math.max(-OFF_X, xMin - K * SQUARE_SIZE);
+    const spanXMax = Math.min(OFF_X, xMax + K * SQUARE_SIZE);
+    const spanZMin = Math.max(-OFF_Z, zMin - K * SQUARE_SIZE);
+    const spanZMax = Math.min(OFF_Z, zMax + K * SQUARE_SIZE);
     const STEP = 0.08;
 
     // Chebyshev-style "distance outside the footprint rectangle" —
@@ -713,12 +731,12 @@ export function mountAmbientEffects(refs, helpers) {
       }
     };
     for (let r = row - K; r <= row + h + K; r++) {
-      const lz = r * SQUARE_SIZE - OFF;
-      if (lz >= -OFF && lz <= OFF) addLine(spanXMin, lz, spanXMax, lz);
+      const lz = r * SQUARE_SIZE - OFF_Z;
+      if (lz >= -OFF_Z && lz <= OFF_Z) addLine(spanXMin, lz, spanXMax, lz);
     }
     for (let c = col - K; c <= col + w + K; c++) {
-      const lx = c * SQUARE_SIZE - OFF;
-      if (lx >= -OFF && lx <= OFF) addLine(lx, spanZMin, lx, spanZMax);
+      const lx = c * SQUARE_SIZE - OFF_X;
+      if (lx >= -OFF_X && lx <= OFF_X) addLine(lx, spanZMin, lx, spanZMax);
     }
 
     const rippleGeo = new THREE.BufferGeometry();
@@ -776,8 +794,8 @@ export function mountAmbientEffects(refs, helpers) {
      handful and Turrito barely sparks. */
   function spawnLandingParticles(row, col, w, h, z, accentColor) {
     if (Math.random() > 0.6) return;
-    const cx = (col + w / 2) * SQUARE_SIZE - OFF;
-    const cz = (row + h / 2) * SQUARE_SIZE - OFF;
+    const cx = (col + w / 2) * SQUARE_SIZE - OFF_X;
+    const cz = (row + h / 2) * SQUARE_SIZE - OFF_Z;
     const mass = Math.max(1, w * h * z);
     const massFactor = Math.log2(mass);
     const count = Math.round(3 + massFactor * 3 + Math.random() * 2);
@@ -1058,10 +1076,11 @@ export function mountAmbientEffects(refs, helpers) {
      fade in/out so the mass reads as continuous despite no single mesh
      ever translating. Floods across the same CRAWL_SUB-finer sub-grid
      (see CRAWL_SUB/CRAWL_VOXEL). */
-  const CRAWL_GRID = BOARD_SIZE * CRAWL_SUB;
+  const CRAWL_GRID_R = BOARD_ROWS * CRAWL_SUB;
+  const CRAWL_GRID_C = BOARD_COLS * CRAWL_SUB;
   function pickCrawlMassVoxels(count, anchorR, anchorC) {
-    const startR = anchorR != null ? anchorR : Math.floor(Math.random() * CRAWL_GRID);
-    const startC = anchorC != null ? anchorC : Math.floor(Math.random() * CRAWL_GRID);
+    const startR = anchorR != null ? anchorR : Math.floor(Math.random() * CRAWL_GRID_R);
+    const startC = anchorC != null ? anchorC : Math.floor(Math.random() * CRAWL_GRID_C);
     const seen = new Set([startR + "," + startC]);
     const cells = [[startR, startC]];
     const frontier = [[startR, startC]];
@@ -1077,7 +1096,7 @@ export function mountAmbientEffects(refs, helpers) {
       let extended = false;
       for (const [dr, dc] of shuffled) {
         const nr = r + dr, nc = c + dc;
-        if (nr < 0 || nr >= CRAWL_GRID || nc < 0 || nc >= CRAWL_GRID) continue;
+        if (nr < 0 || nr >= CRAWL_GRID_R || nc < 0 || nc >= CRAWL_GRID_C) continue;
         const key = nr + "," + nc;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -1111,9 +1130,9 @@ export function mountAmbientEffects(refs, helpers) {
 
     const avgR = voxels.reduce((s, [r]) => s + r, 0) / voxels.length;
     const avgC = voxels.reduce((s, [, c]) => s + c, 0) / voxels.length;
-    const centerX = (avgC + 0.5) * CRAWL_VOXEL - OFF;
-    const centerZ = (avgR + 0.5) * CRAWL_VOXEL - OFF;
-    if (Math.abs(centerX) > OFF || Math.abs(centerZ) > OFF) return; // drifted off the playable board — skip silently
+    const centerX = (avgC + 0.5) * CRAWL_VOXEL - OFF_X;
+    const centerZ = (avgR + 0.5) * CRAWL_VOXEL - OFF_Z;
+    if (Math.abs(centerX) > OFF_X || Math.abs(centerZ) > OFF_Z) return; // drifted off the playable board — skip silently
 
     const group = new THREE.Group();
     group.position.set(centerX, 0, centerZ);
@@ -1229,8 +1248,10 @@ export function mountAmbientEffects(refs, helpers) {
 
     const inset = 3;
     const cornerPts = [
-      [inset, inset], [inset, CRAWL_GRID - 1 - inset],
-      [CRAWL_GRID - 1 - inset, inset], [CRAWL_GRID - 1 - inset, CRAWL_GRID - 1 - inset],
+      // [row, col] pairs — row bounded by the row sub-grid, col by the
+      // col one; they differ on a non-square board.
+      [inset, inset], [inset, CRAWL_GRID_C - 1 - inset],
+      [CRAWL_GRID_R - 1 - inset, inset], [CRAWL_GRID_R - 1 - inset, CRAWL_GRID_C - 1 - inset],
     ];
     const a = cornerPts[Math.floor(Math.random() * cornerPts.length)];
     let b = a;
@@ -1259,8 +1280,8 @@ export function mountAmbientEffects(refs, helpers) {
         const anchorR = Math.round(a[0] + (b[0] - a[0]) * along + jitter());
         const anchorC = Math.round(a[1] + (b[1] - a[1]) * along + jitter());
         spawnCrawlGeneration(
-          Math.max(0, Math.min(CRAWL_GRID - 1, anchorR)),
-          Math.max(0, Math.min(CRAWL_GRID - 1, anchorC)),
+          Math.max(0, Math.min(CRAWL_GRID_R - 1, anchorR)),
+          Math.max(0, Math.min(CRAWL_GRID_C - 1, anchorC)),
           GEN_LIFE_MS
         );
       }, delay);
@@ -1283,7 +1304,7 @@ export function mountAmbientEffects(refs, helpers) {
      softer cousin of the small crawling square wave above, reading
      as a broad "digital brightness interpolation" pass over the
      floor (roughly 50-100 of the board's ~100 cells, depending on
-     BOARD_SIZE) rather than a thin trail of a handful of dots.
+     the board's full width) rather than a thin trail of a handful of dots.
      Travels in a fully randomized direction each time, and uses the
      same fxItems lifecycle as everything else. */
   function spawnFloorWave() {
@@ -1300,11 +1321,11 @@ export function mountAmbientEffects(refs, helpers) {
     const dir = { x: Math.cos(angle), z: Math.sin(angle) };
 
     const active = new Map(); // "r,c" -> cell data, so adjacency lookups below are O(1)
-    for (let r = 0; r < BOARD_SIZE; r++) {
-      for (let c = 0; c < BOARD_SIZE; c++) {
+    for (let r = 0; r < BOARD_ROWS; r++) {
+      for (let c = 0; c < BOARD_COLS; c++) {
         if (Math.random() < 0.15) continue; // "somewhat randomized" coverage, not a perfectly uniform wipe
-        const cx = (c + 0.5) * SQUARE_SIZE - OFF;
-        const cz = (r + 0.5) * SQUARE_SIZE - OFF;
+        const cx = (c + 0.5) * SQUARE_SIZE - OFF_X;
+        const cz = (r + 0.5) * SQUARE_SIZE - OFF_Z;
         active.set(`${r},${c}`, { r, c, cx, cz, proj: cx * dir.x + cz * dir.z });
       }
     }

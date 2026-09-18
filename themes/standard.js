@@ -5,7 +5,7 @@
    contrast: bloom textures, additive blending, a dark palette). */
 
 import * as THREE from "three";
-import { BOARD_SIZE, SLAB, MARGIN, SQUARE_SIZE, OFF, DISC_DIAM, DISC_H, PIECE_SCALE } from "../engine/constants.js";
+import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, DISC_DIAM, DISC_H, PIECE_SCALE } from "../engine/constants.js";
 import { makeRoundedBox } from "../engine/geometry.js";
 import { createWoodImpactEngine } from "../scripts/wood-impact-synth.js";
 
@@ -90,24 +90,31 @@ export const EDGE_RADIUS = 0.0625;
 export function makeBoardTexture() {
   const RES = 2048;
   const canvas = document.createElement("canvas");
-  canvas.width = RES;
-  canvas.height = RES;
+  /* The canvas matches the slab's own ASPECT rather than always being
+     square: one pixels-per-world-unit scale is derived from the board's
+     longest side (so resolution stays bounded at 2048 whatever the
+     dimensions) and both axes then use it, which is what keeps a drawn
+     square actually square on a non-square board instead of stretching
+     with the plate. At 10x10 both sides are SLAB_MAX, so this is
+     exactly the old RES x RES canvas. */
+  const pxPerUnit = RES / SLAB_MAX;
+  canvas.width = Math.round(SLAB_X * pxPerUnit);
+  canvas.height = Math.round(SLAB_Z * pxPerUnit);
   const ctx = canvas.getContext("2d");
-  const pxPerUnit = RES / SLAB; // pixels per world unit — SLAB is unchanged
   const pad = MARGIN * pxPerUnit; // border thickness in pixels (uses the smaller MARGIN)
   const squarePx = SQUARE_SIZE * pxPerUnit; // each drawn square is now SQUARE_SIZE units wide
 
   ctx.fillStyle = COLORS.cream;
-  ctx.fillRect(0, 0, RES, RES);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   /* Every square is this same uniform cream — no alternating checker
      fill here anymore. Goal-row tinting still runs per-square below,
      but that's a different thing: a functional marker of the two
      win-condition rows (every square within a goal row gets the same
      tint as its neighbors), not a decorative light/dark pattern. */
-  for (let r = 0; r < BOARD_SIZE; r++) {
-    for (let c = 0; c < BOARD_SIZE; c++) {
-      const isGoal = r === 0 || r === BOARD_SIZE - 1;
+  for (let r = 0; r < BOARD_ROWS; r++) {
+    for (let c = 0; c < BOARD_COLS; c++) {
+      const isGoal = r === 0 || r === BOARD_ROWS - 1;
       if (isGoal) {
         ctx.fillStyle = "rgba(74, 85, 104, 0.055)";
         ctx.fillRect(pad + c * squarePx, pad + r * squarePx, squarePx, squarePx);
@@ -128,19 +135,25 @@ export function makeGrid() {
   const group = new THREE.Group();
   const lines = [];
 
-  /* Every internal line (i = 0..BOARD_SIZE) drawn at one uniform
-     opacity — no separate "major" tier for the center-bisecting lines
-     (i = 5) or the two edge lines (i = 0, BOARD_SIZE) the way an
+  /* Every internal line drawn at one uniform opacity — no separate
+     "major" tier for the center-bisecting lines or the two edge lines
+     (i = 0, i = the last index) the way an
      earlier version had. The edges get their own distinct emphasis
      from the charcoal border drawn below regardless, so a second,
      heavier-opacity copy of the grid line sitting exactly underneath
      it was never doing anything visible there anyway — it was only
      ever the center cross that this bucketing was actually making
      look heavier than the rest of the grid. */
-  for (let i = 0; i <= BOARD_SIZE; i++) {
-    const p = i * SQUARE_SIZE - OFF;
-    lines.push(p, 0, -OFF, p, 0, OFF);
-    lines.push(-OFF, 0, p, OFF, 0, p);
+  /* Two loops, not one: on a non-square board the number of lines
+     running each way differs (COLS+1 verticals, ROWS+1 horizontals),
+     and each spans the OTHER axis's full extent. */
+  for (let i = 0; i <= BOARD_COLS; i++) {
+    const x = i * SQUARE_SIZE - OFF_X;
+    lines.push(x, 0, -OFF_Z, x, 0, OFF_Z);
+  }
+  for (let i = 0; i <= BOARD_ROWS; i++) {
+    const z = i * SQUARE_SIZE - OFF_Z;
+    lines.push(-OFF_X, 0, z, OFF_X, 0, z);
   }
 
   const geo = new THREE.BufferGeometry();
@@ -168,10 +181,10 @@ export function makeGrid() {
     "position",
     new THREE.Float32BufferAttribute(
       [
-        -OFF, 0, -OFF, OFF, 0, -OFF,
-        OFF, 0, -OFF, OFF, 0, OFF,
-        OFF, 0, OFF, -OFF, 0, OFF,
-        -OFF, 0, OFF, -OFF, 0, -OFF,
+        -OFF_X, 0, -OFF_Z, OFF_X, 0, -OFF_Z,
+        OFF_X, 0, -OFF_Z, OFF_X, 0, OFF_Z,
+        OFF_X, 0, OFF_Z, -OFF_X, 0, OFF_Z,
+        -OFF_X, 0, OFF_Z, -OFF_X, 0, -OFF_Z,
       ],
       3
     )

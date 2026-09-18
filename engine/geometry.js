@@ -8,7 +8,7 @@
    shared by both themes' ghost-move indicators. */
 
 import * as THREE from "three";
-import { SQUARE_SIZE, OFF, PIECE_SCALE, DISC_H, SLAB } from "./constants.js";
+import { SQUARE_SIZE, OFF_X, OFF_Z, PIECE_SCALE, DISC_H, SLAB_Z } from "./constants.js";
 import { PIECE_META } from "./constants.js";
 
 /* `root` is a theme-built move-indicator's root object (see
@@ -28,9 +28,9 @@ export function setGhostLineTarget(root, target, fadingOut) {
 /* --------------------------- geometry ----------------------------- */
 export function pieceCenter(p) {
   return {
-    x: (p.col + p.w / 2) * SQUARE_SIZE - OFF,
+    x: (p.col + p.w / 2) * SQUARE_SIZE - OFF_X,
     y: (p.z * PIECE_SCALE) / 2, // height is a piece property, independent of square spacing
-    z: (p.row + p.h / 2) * SQUARE_SIZE - OFF,
+    z: (p.row + p.h / 2) * SQUARE_SIZE - OFF_Z,
   };
 }
 
@@ -268,9 +268,11 @@ export function boardVerticalOverlapFraction(radius, phi, ty, halfFovRad) {
   if (zNear === null || zFar === null) return 0;
   const lo = Math.min(zNear, zFar);
   const hi = Math.max(zNear, zFar);
-  const half = SLAB / 2;
+  // SLAB_Z, not SLAB_X: this measures how much of the board the camera's
+  // VERTICAL fov spans, and the camera looks down the board's Z axis.
+  const half = SLAB_Z / 2;
   const overlap = Math.max(0, Math.min(half, hi) - Math.max(-half, lo));
-  return overlap / SLAB;
+  return overlap / SLAB_Z;
 }
 
 /* Bisects for the largest |ty|, in whichever direction ty already
@@ -305,8 +307,8 @@ export function pivotFor(piece, dir) {
   /* Square-index position now scales by SQUARE_SIZE; the piece's own
      contact-edge offset (below, ± w*S/2 etc.) does not — that's the
      piece's real physical edge, sized independently of square spacing. */
-  const cx = (col + w / 2) * SQUARE_SIZE - OFF;
-  const cz = (row + h / 2) * SQUARE_SIZE - OFF;
+  const cx = (col + w / 2) * SQUARE_SIZE - OFF_X;
+  const cz = (row + h / 2) * SQUARE_SIZE - OFF_Z;
   const alongX = dir === "E" || dir === "W";
   /* Re-derived for a general square size: rotating the piece about its
      own contact edge lands its center at (old center) ± (w+z)/2 * S.

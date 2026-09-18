@@ -1,10 +1,10 @@
 import { createInitialPieces, legalMovesFor, sameState, pairLog } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY, evaluatePosition } from "../engine/ai.js";
 import { pieceCenter, makeRoundedBox, pivotFor } from "../engine/geometry.js";
-import { BOARD_SIZE } from "../engine/constants.js";
+import { BOARD_ROWS, BOARD_COLS } from "../engine/constants.js";
 
 const pieces = createInitialPieces();
-console.log("pieces:", pieces.length, "BOARD_SIZE:", BOARD_SIZE);
+console.log("pieces:", pieces.length, "board:", BOARD_ROWS + "x" + BOARD_COLS);
 
 const cabeza = pieces.find((p) => p.id === "dark-cabeza");
 const moves = legalMovesFor(pieces, cabeza);

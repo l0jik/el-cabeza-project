@@ -11,10 +11,19 @@
    has no `window`/`document` at all, so anything reaching for either
    would throw immediately. */
 import { findBestAiTurn } from "./ai.js";
+import { setBoardDimensions } from "./constants.js";
 
 self.onmessage = async (event) => {
-  const { requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex } = event.data;
+  const { requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex, board } = event.data;
   try {
+    /* A Worker has its own module instance of constants.js, so the main
+       thread's setBoardDimensions() never reached it — without this the
+       search would evaluate every position against a 10x10 board no
+       matter what size is actually being played, silently generating
+       illegal moves (or missing legal ones) near the real edges. Applied
+       per request rather than once at startup because this same worker
+       is reused across games, and a New Game can change the board. */
+    if (board) setBoardDimensions(board.rows, board.cols);
     const turn = await findBestAiTurn(pieces, aiPlayer, config, cabezaStreak, turnIndex);
     self.postMessage({ requestId, turn });
   } catch (err) {

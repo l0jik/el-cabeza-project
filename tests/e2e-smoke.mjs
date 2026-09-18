@@ -81,7 +81,17 @@ await page.waitForTimeout(500);
 // sandboxed/offline test environment (no network egress to fonts.
 // googleapis.com) — that's an environment limitation, not a bug in
 // this codebase, so it's excluded from the pass/fail verdict.
-const realErrors = errors.filter((e) => !/ERR_CONNECTION_RESET|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED/.test(e));
+//
+// ERR_CERT_AUTHORITY_INVALID belongs in that same list: this sandbox
+// reaches the network through a TLS-intercepting proxy, so a blocked
+// fetch surfaces as an untrusted-certificate error rather than a
+// connection-level one. Without it here the whole `npm test` chain
+// stops at this first e2e step no matter what the code does —
+// verified against an unmodified baseline worktree, so this is a stale
+// filter rather than anything the app regressed.
+const realErrors = errors.filter(
+  (e) => !/ERR_CONNECTION_RESET|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|ERR_CERT_AUTHORITY_INVALID/.test(e)
+);
 
 console.log(`[${target}] console/page errors (${errors.length}, ${realErrors.length} not attributable to blocked network access):`);
 errors.slice(0, 20).forEach((e) => console.log("   " + e));

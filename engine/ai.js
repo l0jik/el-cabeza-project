@@ -2,7 +2,7 @@
    the Standard and Neon theme sources before extraction (see
    build/scratch/) — pure logic, no React, no Three.js, no DOM. */
 
-import { BOARD_SIZE, GOAL_ROW, PIECE_META } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, PIECE_META } from "./constants.js";
 import { legalMovesFor, sameState } from "./rules.js";
 
 /* Everything below is pure — no React, no Three.js. It only knows the
@@ -197,8 +197,8 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
 
   // Progress toward each side's own goal row — dominant term, since
   // reaching it wins outright regardless of anything else on the board.
-  const myProgress = forPlayer === "dark" ? myCabeza.row : BOARD_SIZE - 1 - myCabeza.row;
-  const oppProgress = oppPlayer === "dark" ? oppCabeza.row : BOARD_SIZE - 1 - oppCabeza.row;
+  const myProgress = forPlayer === "dark" ? myCabeza.row : BOARD_ROWS - 1 - myCabeza.row;
+  const oppProgress = oppPlayer === "dark" ? oppCabeza.row : BOARD_ROWS - 1 - oppCabeza.row;
   let score = (myProgress - oppProgress) * 12;
 
   // Mobility: total legal rolls/steps available across each side's
@@ -242,7 +242,7 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
     // advance from Opa or Chato, not just as much.
     for (const p of pieces) {
       if (p.type === "cabeza") continue;
-      const rowsAdvanced = p.owner === "dark" ? p.row : BOARD_SIZE - 1 - p.row;
+      const rowsAdvanced = p.owner === "dark" ? p.row : BOARD_ROWS - 1 - p.row;
       const rate = weights.blockAdvance + (p.type === "turrito" ? weights.turritoBonus : 0);
       score += (p.owner === forPlayer ? 1 : -1) * rowsAdvanced * rate;
     }
@@ -275,10 +275,10 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
         .filter((p) => inBand(p.row + (p.h - 1) / 2))
         .map((p) => p.col + (p.w - 1) / 2)
         .sort((a, b) => a - b);
-      const marks = [-1, ...cols, BOARD_SIZE];
+      const marks = [-1, ...cols, BOARD_COLS];
       let gap = 0;
       for (let i = 1; i < marks.length; i++) gap = Math.max(gap, marks[i] - marks[i - 1] - 1);
-      return gap; // 0 = fully covered, up toward BOARD_SIZE = wide open
+      return gap; // 0 = fully covered, up toward BOARD_COLS = wide open
     };
     const myGap = corridorGap(forPlayer, oppCabeza, GOAL_ROW[oppPlayer]);
     const oppGap = corridorGap(oppPlayer, myCabeza, GOAL_ROW[forPlayer]);
@@ -294,13 +294,19 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
     // from it than the same piece pinned against an edge or corner —
     // true for a block's roll directions and doubly true for the
     // Cabeza, whose diagonal options get clipped outright near a wall.
-    const center = (BOARD_SIZE - 1) / 2;
-    const maxDist = Math.hypot(center, center);
+    // Separate row/col centres: on a non-square board the middle row and
+    // the middle column aren't the same index, and maxDist is the corner
+    // distance for THIS board's shape, so "central" stays normalised to
+    // [0,1] at any dimensions rather than exceeding 1 along the longer
+    // axis (which would quietly inflate this whole term's weight).
+    const rowCenter = (BOARD_ROWS - 1) / 2;
+    const colCenter = (BOARD_COLS - 1) / 2;
+    const maxDist = Math.hypot(rowCenter, colCenter);
     let value = 0;
     for (const p of pieces) {
       const pr = p.row + (p.h - 1) / 2;
       const pc = p.col + (p.w - 1) / 2;
-      const central = 1 - Math.hypot(pr - center, pc - center) / maxDist;
+      const central = 1 - Math.hypot(pr - rowCenter, pc - colCenter) / maxDist;
       value += (p.owner === forPlayer ? 1 : -1) * central;
     }
     score += value * weights.centrality;

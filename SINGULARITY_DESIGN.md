@@ -246,16 +246,21 @@ the sphere
 ### TOPOLOGIES — flat board, deliberately bounded
 
 Configurable board dimensions beyond the fixed 10×10 (e.g. 10×11, 9×12),
-**capped at 20×20 maximum**. Most of the engine already generalizes to
-this for free, since `GOAL_ROW`, `SLAB`, and `GRID_EXTENT` in
-`engine/constants.js` are already *derived from* `BOARD_SIZE`, not
-hardcoded to 10 — turning `BOARD_SIZE` into a real runtime parameter
-(currently a static ES module export imported in dozens of places) is a
-wide but mechanical refactor, not a new algorithm. One thing that does
-**not** auto-scale and needs deliberate handling: `ZOOM_MIN`/`ZOOM_MAX`
-are fixed absolute camera-distance numbers tuned for a 10×10 board's
-footprint — `ZOOM_MAX` specifically needs to scale with `BOARD_SIZE`/
-`SLAB` or a 20×20 board may not fit on screen at any allowed zoom level.
+**capped at 20×20 maximum**.
+
+**STATUS: the engine-side parameterization is BUILT and shipped** — this
+is the one part of this document that is no longer just a plan. See
+`PROJECT_MEMORY.md` §3b for what actually exists: `BOARD_ROWS`/
+`BOARD_COLS` with `setBoardDimensions()`, axis-split geometry
+(`OFF_X/Z`, `SLAB_X/Z`, `GRID_EXTENT_X/Z`), a board-scaled zoom ceiling,
+worker dimension passing, a parametric starting layout, and tests at
+non-square and maximum sizes. `SQUARE_SIZE` became a true constant, so a
+bigger board is a physically bigger plate rather than smaller squares.
+
+**Still to build for TOPOLOGIES proper:** the menu itself (the sphere's
+TOPOLOGIES section) and whatever carries the player's choice into
+`apps/boardBootstrap.js`'s seam; plus the non-rectangular shape idea
+below.
 
 Non-rectangular board shapes were raised as an idea but **explicitly left
 unresolved** — the user hasn't figured out what that would look like yet.

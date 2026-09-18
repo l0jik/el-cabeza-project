@@ -10,7 +10,10 @@ const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromi
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
-page.on("console", (m) => { if (m.type() === "error" && !/ERR_CONNECTION_RESET/.test(m.text())) errors.push(m.text()); });
+// ERR_CERT_AUTHORITY_INVALID is the same blocked-Google-Fonts fetch as
+// ERR_CONNECTION_RESET, just as this sandbox's TLS-intercepting proxy
+// reports it — an environment limitation, not an app error.
+page.on("console", (m) => { if (m.type() === "error" && !/ERR_CONNECTION_RESET|ERR_CERT_AUTHORITY_INVALID/.test(m.text())) errors.push(m.text()); });
 
 await page.goto(`file://${file}`);
 await page.waitForTimeout(1000);
