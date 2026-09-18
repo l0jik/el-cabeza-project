@@ -1,7 +1,10 @@
 /* Neon's Singularity: the Anomaly random-setup button, the phantom
-   reveal, the hold gesture that commits, and the collapse/blackout/
-   sphere cinematic that follows (SINGULARITY_DESIGN.md Part 1,
-   themes/neon-singularity.js).
+   reveal, the hold gesture that commits, the collapse/blackout/sphere
+   cinematic, and the sphere's own menu — root labels distributed
+   around the sphere (MATTER/LAWS/TOPOLOGIES), each opening a real
+   holographic overlay of sub-items, finished by a triple-tap that
+   reveals a BEGIN GAME summary menu with real Opponent/AI controls
+   (SINGULARITY_DESIGN.md Part 1, themes/neon-singularity.js).
 
    The gesture under test: hold Anomaly ~4s to reveal Singularity, then
    keep holding on Singularity ITSELF — 2s of nothing, then a hum that
@@ -17,13 +20,16 @@
    at the bottom for manual visual review. What IS tested here: the
    phase sequence actually reaches each stage in order, the audio
    really goes silent exactly when the screen goes black (not "soon
-   after"), the sphere really responds to drag, and none of this
-   accidentally collapses the setup dock underneath it (a real bug
-   this suite caught once already — see the backdrop-stopPropagation
-   check below). Every check reads real state (data attributes, a
-   test-only window hook mirroring Web Audio's actual gain value, inline
-   opacity) — never DOM presence alone, which proves nothing on an
-   always-mounted element. */
+   after"), the sphere really responds to drag, tapping a root label
+   opens the right holographic overlay, its checkboxes/drum rollers
+   actually mutate the real selections (and clicking outside closes it
+   without losing them), a bare-sphere triple-tap reveals the summary
+   menu, and Opponent/AI/Begin Game on that menu drive the exact same
+   game-start path the normal dock does — not a re-implementation of
+   it. Every check reads real state (data attributes, a test-only
+   window hook mirroring both Web Audio's actual gain value and the
+   sphere's own selections, inline opacity, aria-pressed) — never DOM
+   presence alone, which proves nothing on an always-mounted element. */
 
 import { chromium } from "playwright";
 import path from "path";
@@ -73,6 +79,17 @@ const cinematicPhase = () =>
   page.evaluate(() => document.querySelector('[data-testid="singularity-overlay"]')?.dataset.singularityPhase || null);
 const dockOpen = () => page.evaluate(() => document.querySelector('[data-testid="dock-panel"]')?.dataset.open);
 const masterGain = () => page.evaluate(() => window.__EC_TEST_MASTER_GAIN__);
+const sphereState = () => page.evaluate(() => window.__EC_TEST_SINGULARITY__);
+
+async function holdAnomalyThenSingularity() {
+  const aBox = await anomalyBtn.boundingBox();
+  await page.mouse.move(aBox.x + aBox.width / 2, aBox.y + aBox.height / 2);
+  await page.waitForTimeout(4600);
+  const sBox = await page.locator(".ec-singularity-btn").boundingBox();
+  await page.mouse.move(sBox.x + sBox.width / 2, sBox.y + sBox.height / 2);
+  await page.waitForTimeout(FULL_HOLD_MS);
+  await page.waitForTimeout(COLLAPSE_TO_SPHERE_MS);
+}
 
 // ---- reveal ----
 const aBox = await anomalyBtn.boundingBox();
@@ -124,51 +141,120 @@ check("the setup dock never collapsed underneath the cinematic — a regression 
 
 await page.screenshot({ path: "/tmp/neon-singularity-sphere.png" });
 
-// ---- the sphere actually responds to drag (and only the sphere — not
-// the board/camera underneath, which the overlay should be fully
-// capturing input away from) ----
+// ---- root label geometry setup. The drag-actually-rotates-it check
+// runs LATER (after the tap-driven overlay tests below), deliberately:
+// a drag doesn't return the sphere to its starting orientation when
+// released (only the COAST velocity decays to zero — the rotation
+// itself is permanent, exactly as a real momentum-driven drag should
+// behave), so testing it here first would leave MATTER no longer
+// centered under the very next "tap dead center" assumption those
+// tests depend on. ----
 const overlay = page.locator('[data-testid="singularity-overlay"]');
 const obox = await overlay.boundingBox();
-const rotBefore = await page.evaluate(() => window.__EC_TEST_SINGULARITY__?.sphereRotationY);
-await page.mouse.move(obox.x + obox.width / 2, obox.y + obox.height / 2);
-await page.mouse.down();
-for (let i = 1; i <= 8; i++) {
-  await page.mouse.move(obox.x + obox.width / 2 + i * 12, obox.y + obox.height / 2, { steps: 1 });
-  await page.waitForTimeout(16);
+const cx = obox.x + obox.width / 2;
+const cy = obox.y + obox.height / 2;
+
+async function dragSphereBy(dx) {
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  const steps = 20;
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(cx + (dx * i) / steps, cy, { steps: 1 });
+    await page.waitForTimeout(8);
+  }
+  await page.mouse.up();
 }
-await page.mouse.up();
+
+// ---- root labels are distributed around the sphere with no checkbox
+// of their own; MATTER sits front-and-center after the
+// BLACKOUT->SPHERE auto-centering raycast, so a plain tap dead center
+// opens ITS holographic overlay ----
+await page.mouse.click(cx, cy);
+await page.waitForTimeout(250);
+let state = await sphereState();
+check("tapping the front-facing root label opens its overlay",
+  state.stage === "overlay" && state.activeCategory === "matter", JSON.stringify(state));
+check("the category overlay is actually rendered",
+  (await page.locator('[data-testid="category-overlay"]').count()) > 0);
+
+// ---- LAWS/MATTER get real checkboxes for their sub-items ----
+const archBefore = state.selections.matter.newPieces.arch;
+await page.locator('[data-testid="matter-piece-arch"]').click();
+await page.waitForTimeout(150);
+state = await sphereState();
+check("a MATTER checkbox actually toggles the real selection", state.selections.matter.newPieces.arch === !archBefore,
+  `before=${archBefore} after=${state.selections.matter.newPieces.arch}`);
+
+// ---- MATTER also gets a scroll wheel for each of the five ORIGINAL
+// pieces, not just the four new ones, so a roster can be customized ----
+await page.locator('[data-testid="roster-cabeza-inc"]').click();
+await page.waitForTimeout(120);
+state = await sphereState();
+check("a MATTER roster drum increments its piece count", state.selections.matter.roster.cabeza === 2,
+  `roster=${JSON.stringify(state.selections.matter.roster)}`);
+// Cabeza is capped at 2 per SINGULARITY_DESIGN.md ("at least one
+// required, at most two allowed") — a further increment must clamp,
+// not keep climbing.
+await page.locator('[data-testid="roster-cabeza-inc"]').click();
+await page.waitForTimeout(120);
+state = await sphereState();
+check("the roster drum clamps at its declared max", state.selections.matter.roster.cabeza === 2,
+  `roster.cabeza=${state.selections.matter.roster.cabeza}`);
+
+// ---- clicking outside the overlay closes it, returning control to
+// sphere rotation, without discarding the edits just made ----
+await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
+await page.waitForTimeout(200);
+state = await sphereState();
+check("clicking outside the overlay closes it", state.stage === "labels", `stage=${state.stage}`);
+check("closing the overlay keeps the edits made inside it",
+  state.selections.matter.newPieces.arch === true && state.selections.matter.roster.cabeza === 2,
+  JSON.stringify(state.selections.matter));
+
+// ---- TOPOLOGIES gets a drum roller per board dimension instead of
+// checkboxes, clamped to the engine's own MIN/MAX_BOARD_DIM (6/20) ----
+// A ~1/3 turn (matching the 120 degrees between labels) brings
+// TOPOLOGIES into view from MATTER's own front-facing rest position.
+await dragSphereBy(420);
+await page.waitForTimeout(650); // let the release coast decay out
+await page.mouse.click(cx, cy);
+await page.waitForTimeout(250);
+state = await sphereState();
+check("dragging a third of the way around brings TOPOLOGIES into view",
+  state.activeCategory === "topologies", `activeCategory=${state.activeCategory}`);
+
+if (state.activeCategory === "topologies") {
+  for (let i = 0; i < 20; i++) await page.locator('[data-testid="board-rows-inc"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("TOPOLOGIES' rows drum clamps at the engine's own MAX_BOARD_DIM (20)",
+    state.selections.topologies.rows === 20, `rows=${state.selections.topologies.rows}`);
+
+  for (let i = 0; i < 20; i++) await page.locator('[data-testid="board-cols-dec"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("TOPOLOGIES' cols drum clamps at the engine's own MIN_BOARD_DIM (6)",
+    state.selections.topologies.cols === 6, `cols=${state.selections.topologies.cols}`);
+
+  await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
+  await page.waitForTimeout(200);
+}
+
+// ---- the sphere actually responds to drag (and only the sphere — not
+// the board/camera underneath, which the overlay should be fully
+// capturing input away from). Run last among the labels-stage checks,
+// now that nothing downstream depends on a particular label being
+// centered any more. ----
+const rotBefore = await page.evaluate(() => window.__EC_TEST_SINGULARITY__?.sphereRotationY);
+await dragSphereBy(96);
 const rotAfter = await page.evaluate(() => window.__EC_TEST_SINGULARITY__?.sphereRotationY);
 check("dragging the sphere actually rotates it", rotAfter !== rotBefore, `before=${rotBefore} after=${rotAfter}`);
 
-// ---- a plain tap toggles exactly one MATTER/LAWS/TOPOLOGIES checkbox
-// via a real raycast against the rotated sphere geometry, and further
-// dragging must NOT also toggle one (the same tap-vs-drag gesture the
-// board's own Undo-Move/Stop-Here disambiguation already relies on
-// elsewhere in this app) ----
-const sphereChecks = () => page.evaluate(() => window.__EC_TEST_SINGULARITY__?.sphereChecks);
-const checksBefore = await sphereChecks();
-await page.mouse.click(obox.x + obox.width / 2, obox.y + obox.height * 0.4);
-await page.waitForTimeout(200);
-const checksAfterTap = await sphereChecks();
-const flippedCount = checksAfterTap.filter((v, i) => v !== checksBefore[i]).length;
-check("tapping the sphere toggles exactly one checkbox", flippedCount === 1,
-  `before=${JSON.stringify(checksBefore)} after=${JSON.stringify(checksAfterTap)}`);
-
-await page.mouse.move(obox.x + obox.width / 2, obox.y + obox.height / 2);
-await page.mouse.down();
-for (let i = 1; i <= 8; i++) {
-  await page.mouse.move(obox.x + obox.width / 2 + i * 15, obox.y + obox.height / 2, { steps: 1 });
-  await page.waitForTimeout(10);
-}
-await page.mouse.up();
-await page.waitForTimeout(200);
-const checksAfterDrag = await sphereChecks();
-check("dragging the sphere does not also toggle a checkbox",
-  JSON.stringify(checksAfterDrag) === JSON.stringify(checksAfterTap),
-  `afterTap=${JSON.stringify(checksAfterTap)} afterDrag=${JSON.stringify(checksAfterDrag)}`);
+await page.screenshot({ path: "/tmp/neon-singularity-labels.png" });
 
 // ---- Escape (or the on-screen Back button, for touch) restores
-// everything: board, dock, masthead, audio ----
+// everything: board, dock, masthead, audio — from any sub-stage, not
+// just the root labels (an overlay was open moments ago). ----
 await page.keyboard.press("Escape");
 await page.waitForTimeout(700);
 check("Escape closes the cinematic", (await cinematicPhase()) === null, `phase=${await cinematicPhase()}`);
@@ -190,6 +276,66 @@ if (await revealed()) {
   // that's the same end state, so don't fail on losing the race.
   console.log("  ..  button already auto-hid before the click-outside check (not a failure)");
 }
+
+// ---- a fresh full cycle, taken all the way through triple-tap and a
+// real Begin Game — the most committal path through the sphere, kept
+// as its own pass since it ends the cinematic by genuinely starting a
+// game rather than leaving anything to test afterward ----
+// The click-away-dismiss check just clicked (20,20), well outside the
+// dock card — the same click chassis uses to close the panel itself,
+// so it has to be reopened before the next hold gesture can reach
+// Anomaly at all.
+await openDockPanel(page);
+await holdAnomalyThenSingularity();
+check("a fresh cycle reaches the sphere again", (await cinematicPhase()) === "sphere", `phase=${await cinematicPhase()}`);
+
+const overlay2 = page.locator('[data-testid="singularity-overlay"]');
+const obox2 = await overlay2.boundingBox();
+const cx2 = obox2.x + obox2.width / 2;
+const cy2 = obox2.y + obox2.height / 2;
+
+// Triple-tapping BARE sphere (well outside any root label's latitude
+// band, near the pole) finalizes every selection and reveals the
+// summary menu — a plain tap there must NOT open a category first.
+const bareX = cx2;
+const bareY = obox2.y + obox2.height * 0.15;
+for (let i = 0; i < 3; i++) {
+  await page.mouse.click(bareX, bareY);
+  await page.waitForTimeout(120);
+}
+await page.waitForTimeout(250);
+state = await sphereState();
+check("triple-tapping bare sphere finalizes to the summary menu", state.stage === "summary", `stage=${state.stage}`);
+check("the summary menu is actually rendered",
+  (await page.locator('[data-testid="singularity-summary-menu"]').count()) > 0);
+
+// ---- the summary menu's Opponent/AI controls are the chassis's real
+// state/setters, not a re-implementation — picking one really flips it ----
+await page.locator('[data-testid="opponent-ai-dark"]').click();
+await page.waitForTimeout(150);
+const aiDarkPressed = await page.locator('[data-testid="opponent-ai-dark"]').getAttribute("aria-pressed");
+check("picking AI Dark on the summary menu marks it pressed", aiDarkPressed === "true", `aria-pressed=${JSON.stringify(aiDarkPressed)}`);
+await page.locator('[data-testid="ai-difficulty-hard"]').click();
+await page.waitForTimeout(150);
+const hardPressed = await page.locator('[data-testid="ai-difficulty-hard"]').getAttribute("aria-pressed");
+check("picking a difficulty on the summary menu marks it pressed", hardPressed === "true", `aria-pressed=${JSON.stringify(hardPressed)}`);
+
+await page.screenshot({ path: "/tmp/neon-singularity-summary.png" });
+
+// ---- BEGIN GAME on the summary menu fires the exact same game-start
+// path the dock's own Begin Game button uses, then tears the
+// cinematic down onto an already-armed game rather than an untouched
+// setup screen ----
+await page.locator('[data-testid="singularity-begin-game"]').click();
+await page.waitForTimeout(700);
+check("Begin Game on the summary menu closes the cinematic",
+  (await cinematicPhase()) === null, `phase=${await cinematicPhase()}`);
+const statusAfterBegin = await page.evaluate(() => {
+  const spans = [...document.querySelectorAll("span")];
+  return spans.map((s) => s.textContent).find((t) => /to move|thinking/i.test(t || ""));
+});
+check("Begin Game on the summary menu actually starts a real game",
+  !!statusAfterBegin, `statusAfterBegin=${JSON.stringify(statusAfterBegin)}`);
 
 check(`no page errors (${errors.length})`, errors.length === 0, JSON.stringify(errors.slice(0, 3)));
 

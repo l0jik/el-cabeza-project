@@ -1208,8 +1208,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      guard because `theme` is a stable prop that never changes which
      branch it takes for the lifetime of a mounted instance. A theme
      with no setup-screen state of its own (Standard) doesn't export
-     this hook at all, and gets `null` here. */
-  const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({ awaitingBegin, pieces, setPieces, audio: audioRef.current, three }) : null;
+     this hook at all, and gets `null` here.
+
+     aiPlayer/selectOpponent/aiDifficulty/setAiDifficulty/AI_DIFFICULTY/
+     busy/aiThinking/triggerBeginGame are exposed the same additive way
+     `cam` was for the collapse camera work — real opponent-picker state
+     and the real Begin Game trigger (see triggerBeginGame below), not a
+     theme-local reimplementation, so a theme's own Opponent/AI/Begin
+     Game controls (Neon's Singularity summary menu) drive the exact
+     same game-start path the dock's own buttons do. */
+  const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({
+    awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
+    aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
+    busy, aiThinking, triggerBeginGame,
+  }) : null;
 
   function handleTitleClick() {
     setInfoBtnVisible(true);
@@ -1272,6 +1284,24 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   function selectOpponent(value) {
     setAiPlayer(value);
     setGameArmed(false); // switching opponent type always re-requires Begin Game, Human included
+  }
+
+  /* The real Begin Game action, hoisted out of the button below so a
+     theme-owned trigger (Neon's Singularity summary menu) can fire the
+     exact same game-start path as the dock's own button rather than a
+     re-implementation that could drift from it. */
+  function triggerBeginGame() {
+    audioRef.current.beginGameFadeIn();
+    audioRef.current.playPowerOn();
+    ambientRef.current && ambientRef.current.armOnBegin();
+    setGameArmed(true);
+    // Captures BOTH views' fixed baselines for the game that's about to
+    // start, before actually applying one of them — see
+    // captureViewBaselines' own comment for why this has to be eager.
+    // Every game now opens in Top-Down View rather than Current Player
+    // View, per feedback.
+    captureViewBaselines();
+    topDownView();
   }
 
   /* The Human button does double duty: from an AI mode, it switches
@@ -5302,20 +5332,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                 <button
                   key="begin"
                   className="ec-btn"
-                  onClick={() => {
-                    audioRef.current.beginGameFadeIn();
-                    audioRef.current.playPowerOn();
-                    ambientRef.current && ambientRef.current.armOnBegin();
-                    setGameArmed(true);
-                    // Captures BOTH views' fixed baselines for the game
-                    // that's about to start, before actually applying
-                    // one of them — see captureViewBaselines' own
-                    // comment for why this has to be eager. Every game
-                    // now opens in Top-Down View rather than Current
-                    // Player View, per feedback.
-                    captureViewBaselines();
-                    topDownView();
-                  }}
+                  onClick={triggerBeginGame}
                   style={{
                     ...playerButtonStyle(currentPlayer),
                     fontSize: 11,

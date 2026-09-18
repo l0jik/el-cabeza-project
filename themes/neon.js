@@ -3107,14 +3107,25 @@ export function renderGlobalDefs() {
    `setPieces` are chassis state, passed in because handleAnomaly needs
    to write pieces and the Singularity hold timer only makes sense
    during setup. */
-export function useSetupExtras({ awaitingBegin, setPieces, audio, three }) {
+export function useSetupExtras({
+  awaitingBegin, setPieces, audio, three,
+  aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
+  busy, aiThinking, triggerBeginGame,
+}) {
   const [singularityRevealed, setSingularityRevealed] = React.useState(false);
   const singularityHoldRef = React.useRef(null);
   const singularityHideTimerRef = React.useRef(null);
   const singularityCommitRef = React.useRef(null); // rAF id for the commit hold
   const singularityBtnRef = React.useRef(null); // so a click-outside can tell "outside" from the button itself
   // The collapse/blackout/sphere cinematic — see themes/neon-singularity.js.
-  const singularityCinematic = useSingularityPhase({ three, audio });
+  // Opponent/AI/Begin Game are passed straight through from the chassis
+  // (see its own useSetupExtras call) so the sphere's own Opponent/AI/
+  // Begin Game controls drive the real game-start path, not a
+  // reimplementation of it.
+  const singularityCinematic = useSingularityPhase({
+    three, audio, aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty,
+    AI_DIFFICULTY, busy, aiThinking, triggerBeginGame,
+  });
 
   function handleAnomaly() {
     // Setup-phase-only random layout generator (see its button, gated

@@ -29,7 +29,7 @@
 
 import React from "react";
 import * as THREE from "three";
-import { SLAB_X, SLAB_Z } from "../engine/constants.js";
+import { SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM } from "../engine/constants.js";
 
 export const PHASES = { IDLE: "idle", COLLAPSING: "collapsing", BLACKOUT: "blackout", SPHERE: "sphere" };
 
@@ -363,122 +363,196 @@ function buildStarfield() {
   return points;
 }
 
-/* MATTER / LAWS / TOPOLOGIES, real UV-mapped text with a checkbox per
-   section — placeholder content (per the confirmed scope, there are no
-   rules behind these yet, so a tap just flips a visual checkbox and
-   nothing downstream reacts to it), but a REAL interaction: hit-tested
-   against the actual rotated sphere geometry via a raycast, not a flat
-   overlay, so the text distorts under rotation exactly the way the
-   design doc describes.
+/* MATTER / LAWS / TOPOLOGIES, distributed equally around the sphere's
+   equator (not stacked — see the earlier single-column/stacked-list
+   layouts this replaces) as three plain root labels, no checkbox on
+   any of them. Each opens a real DOM holographic overlay (see
+   renderCategoryOverlay) holding its actual sub-items; the root label
+   itself just dims or glows depending on whether that category holds
+   any user selection (isCategoryActive). Real UV-mapped canvas text,
+   hit-tested against the actual rotated sphere geometry via a raycast
+   (categoryAtUv) rather than a flat overlay, so the text still visibly
+   distorts under rotation the way the design doc describes.
 
-   Laid out as a stacked list (checkbox directly left of each item,
-   larger text, one row above the next — per feedback that this should
-   read as a checklist rather than three side-by-side sections) within
-   a compact latitude band (LIST_V_MIN..LIST_V_MAX, empirically measured
-   — see the note below) rather than spread across the sphere's full
-   height: near either pole, equal steps in u correspond to ever-smaller
-   physical distances, so a wide row of text placed too close to one
-   would compress into an illegible smear. Hit-testing divides the SAME
-   band into three equal latitude thirds, so tapping wherever a row is
-   actually drawn always resolves to that row — a tap outside the band
-   (elsewhere on the sphere) is a no-op rather than guessing the nearest
-   item. Also note CanvasTexture's flipY (see buildSphereTextTexture) —
-   without disabling it, content drawn at canvas-Y corresponding to v
-   is actually SAMPLED at 1-v, which cost real time to track down. */
-const SPHERE_LABELS = ["MATTER", "LAWS", "TOPOLOGIES"];
+   MATTER sits at u=0.5 deliberately — that's the longitude the
+   BLACKOUT->SPHERE auto-centering raycast (see advanceSingularityScene)
+   rotates to face the camera, so MATTER is always the label greeting
+   the player on settle; LAWS and TOPOLOGIES sit a third of the way
+   around in each direction, reached by dragging. Also note
+   CanvasTexture's flipY (unchanged from the earlier layout) — canvas-Y
+   = height*(1-v) samples at v, not canvas-Y = height*v. */
+const ROOT_LABELS = [
+  { key: "matter", label: "MATTER", u: 0.5 },
+  { key: "laws", label: "LAWS", u: 0.5 - 1 / 3 },
+  { key: "topologies", label: "TOPOLOGIES", u: 0.5 + 1 / 3 },
+];
 const TEXT_TEXTURE_W = 2048, TEXT_TEXTURE_H = 1024;
-// Measured empirically by raycasting real taps against the rendered
-// sphere at its resting camera angle: the visible/reachable hemisphere
-// there covers roughly uv.y (v) 0.58-0.86, not the lower band a naive
-// "v near 0.4 reads as upper-ish" guess from the single-item version
-// suggested — this sphere's v=1 is the pole nearest that elevated,
-// tilted-down camera, the opposite of this file's first assumption.
-const LIST_V_MIN = 0.55, LIST_V_MAX = 0.88;
+// Same empirically-measured visible/reachable latitude band the
+// earlier stacked list used, now holding one row per label (title +
+// status line) instead of three stacked rows.
+const LABEL_V_MIN = 0.58, LABEL_V_MAX = 0.82;
+// How far in u (as a fraction of the full 0..1 wrap) a tap can land
+// from a label's center and still count as hitting it — comfortably
+// under 1/6 (half of the 1/3 spacing between labels) so the gaps
+// between labels stay genuinely neutral "bare sphere" space, which is
+// exactly where the triple-tap-to-finalize gesture lives (see
+// registerBareTap) without fighting a label's own hit region.
+const LABEL_U_HALF_WIDTH = 0.13;
 
-function drawSphereLabels(canvas, ctx, checks) {
+const DEFAULT_BOARD_DIM = 10; // matches the engine's fixed board before any TOPOLOGIES choice
+
+// LAWS — the five independent toggles from SINGULARITY_DESIGN.md's
+// Part 2, verbatim.
+const LAWS_ITEMS = [
+  { key: "splitMovement", label: "Split Movement", blurb: "Divide a turn's movement across multiple pieces instead of one." },
+  { key: "slide", label: "Slide", blurb: "Move one open adjacent square without rolling, as a full turn action." },
+  { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "One or two linked squares — enter one, arrive at the other." },
+  { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "Pivot a cantilevered piece in place around its one grounded cell." },
+  { key: "threeActions", label: "3 Actions Per Turn", blurb: "Raises the per-turn movement budget by one." },
+];
+
+// MATTER — the four new polycube types from the design doc, each a
+// simple enable/disable checkbox.
+const MATTER_NEW_PIECES = [
+  { key: "lPentomino", label: "L-Pentomino" },
+  { key: "block1x3", label: "1×3 Block" },
+  { key: "block2x3", label: "2×3 Block" },
+  { key: "arch", label: "Arch" },
+];
+
+// MATTER also lets the roster of the five ORIGINAL pieces be
+// customized via a scroll wheel each, not just the four new ones —
+// this is the design doc's "custom piece rosters" idea (a player's own
+// piece complement, e.g. all originals plus an extra Turrito) surfaced
+// as a real per-piece count control. Cabeza is capped at the doc's own
+// 1-2 range (at least one required, at most two allowed); the other
+// four get a generous 0-4 each rather than the doc's overall "max 10
+// pieces per side" being enforced live here — this pass is selections-
+// only (see the module header), so the wheels just record a count.
+const MATTER_ROSTER = [
+  { key: "cabeza", label: "Cabeza", min: 1, max: 2, default: 1 },
+  { key: "chato", label: "Chato", min: 0, max: 4, default: 1 },
+  { key: "flaco", label: "Flaco", min: 0, max: 4, default: 1 },
+  { key: "opa", label: "Opa", min: 0, max: 4, default: 1 },
+  { key: "turrito", label: "Turrito", min: 0, max: 4, default: 1 },
+];
+
+function createDefaultSelections() {
+  return {
+    laws: Object.fromEntries(LAWS_ITEMS.map((i) => [i.key, false])),
+    matter: {
+      newPieces: Object.fromEntries(MATTER_NEW_PIECES.map((i) => [i.key, false])),
+      roster: Object.fromEntries(MATTER_ROSTER.map((p) => [p.key, p.default])),
+    },
+    topologies: { rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM },
+  };
+}
+
+function isCategoryActive(key, selections) {
+  if (key === "laws") return Object.values(selections.laws).some(Boolean);
+  if (key === "matter") {
+    if (Object.values(selections.matter.newPieces).some(Boolean)) return true;
+    return MATTER_ROSTER.some((p) => selections.matter.roster[p.key] !== p.default);
+  }
+  if (key === "topologies") {
+    return selections.topologies.rows !== DEFAULT_BOARD_DIM || selections.topologies.cols !== DEFAULT_BOARD_DIM;
+  }
+  return false;
+}
+
+function summarizeCategory(key, selections) {
+  if (key === "laws") {
+    const n = Object.values(selections.laws).filter(Boolean).length;
+    return n ? `${n} LAW${n > 1 ? "S" : ""} ACTIVE` : "TAP TO CONFIGURE";
+  }
+  if (key === "matter") {
+    return isCategoryActive("matter", selections) ? "ROSTER CUSTOMIZED" : "TAP TO CONFIGURE";
+  }
+  if (key === "topologies") {
+    const { rows, cols } = selections.topologies;
+    return isCategoryActive("topologies", selections) ? `${rows} × ${cols} BOARD` : "TAP TO CONFIGURE";
+  }
+  return "";
+}
+
+// Circular distance in u-space (u wraps at 0/1, since the sphere's
+// longitude is a loop) — plain Math.abs would wrongly treat a label
+// near u=0 and a tap near u=1 as far apart when they're actually
+// adjacent on the sphere.
+function circularUDist(a, b) {
+  const d = Math.abs(a - b) % 1;
+  return Math.min(d, 1 - d);
+}
+
+// Which root label (if any) a raycast hit's UV landed on — null for
+// anywhere else on the sphere, including the gaps between labels,
+// which is deliberately "bare sphere" (rotates on drag, counts toward
+// triple-tap-to-finalize on a clean tap; see registerBareTap).
+function categoryAtUv(uv) {
+  if (uv.y < LABEL_V_MIN || uv.y > LABEL_V_MAX) return null;
+  for (const entry of ROOT_LABELS) {
+    const u = ((entry.u % 1) + 1) % 1;
+    if (circularUDist(uv.x, u) < LABEL_U_HALF_WIDTH) return entry.key;
+  }
+  return null;
+}
+
+function drawRootLabels(canvas, ctx, selections) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const boxSize = 64;
-  const gap = 34;
-  const labelFont = "700 76px 'Chakra Petch', sans-serif";
-  // The whole block is centered on u=0.5 — confirmed by the earlier
-  // single-item layout (which placed its one column's center exactly
-  // there) to be the longitude that actually faces the camera at the
-  // sphere's default rest rotation. A fixed left-edge guess instead of
-  // measuring came out visibly off-center (most of the list shifted
-  // toward one side, empty sphere on the other) — measuring the widest
-  // label keeps this centered regardless of exactly how the real
-  // Chakra Petch metrics differ from whatever font a build without web
-  // access falls back to.
-  ctx.font = labelFont;
-  let maxLabelWidth = 0;
-  for (const label of SPHERE_LABELS) maxLabelWidth = Math.max(maxLabelWidth, ctx.measureText(label).width);
-  const blockWidth = boxSize + gap + maxLabelWidth;
-  // One shared left edge for every row's checkbox, and one shared left
-  // edge for every row's text — a real checklist column, not each row
-  // independently centered.
-  const listLeftX = canvas.width / 2 - blockWidth / 2;
-  const textLeftX = listLeftX + boxSize + gap;
-  ctx.textAlign = "left";
+  const titleFont = "700 88px 'Chakra Petch', sans-serif";
+  const subFont = "400 28px 'IBM Plex Mono', monospace";
+  ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  for (let i = 0; i < 3; i++) {
-    // Row centers sit at the middle of each latitude third of the list
-    // band — see the block comment above for why this stays a compact
-    // band rather than the sphere's full v range.
-    // CanvasTexture samples with flipY:true by default (canvas pixel
-    // row 0 lands at UV v=1, not v=0 — confirmed by raycasting real
-    // taps and finding they landed at 1-v from what this file's own
-    // drawing math intended). Rather than disabling the flip (which
-    // flips the WHOLE canvas, text included, upside down), this just
-    // accounts for it directly: canvas-Y = height*(1-v) samples at v.
-    const rowV = LIST_V_MIN + (i + 0.5) / 3 * (LIST_V_MAX - LIST_V_MIN);
-    const rowY = canvas.height * (1 - rowV);
-    const checked = checks[i];
-    ctx.strokeStyle = checked ? "#8ef3ff" : "rgba(142,243,255,0.55)";
-    ctx.lineWidth = 5;
-    ctx.strokeRect(listLeftX, rowY - boxSize / 2, boxSize, boxSize);
-    if (checked) {
-      ctx.fillStyle = "rgba(142,243,255,0.85)";
-      ctx.fillRect(listLeftX + 12, rowY - boxSize / 2 + 12, boxSize - 24, boxSize - 24);
+  const v = (LABEL_V_MIN + LABEL_V_MAX) / 2;
+  const y = canvas.height * (1 - v);
+  for (const entry of ROOT_LABELS) {
+    const active = isCategoryActive(entry.key, selections);
+    const u = ((entry.u % 1) + 1) % 1;
+    const x = u * canvas.width;
+    ctx.font = titleFont;
+    if (active) {
+      // Bright glow: a soft canvas shadow doubling as the "this
+      // category holds a real selection" signal, since there's no
+      // checkbox left on the root label to carry that any more.
+      ctx.shadowColor = "rgba(142,243,255,0.9)";
+      ctx.shadowBlur = 40;
+      ctx.fillStyle = "#dffaff";
+    } else {
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "rgba(142,243,255,0.5)";
     }
-    // Label — larger than the original single-column version per
-    // feedback ("make text larger").
-    ctx.fillStyle = checked ? "#dffaff" : "rgba(142,243,255,0.85)";
-    ctx.font = labelFont;
-    ctx.fillText(SPHERE_LABELS[i], textLeftX, rowY - 16);
-    // Status line — the honest "not real yet" note, small enough not
-    // to fight the label.
-    ctx.fillStyle = "rgba(142,243,255,0.45)";
-    ctx.font = "400 28px 'IBM Plex Mono', monospace";
-    ctx.fillText("NOT YET IMPLEMENTED", textLeftX, rowY + 32);
+    ctx.fillText(entry.label, x, y - 20);
+    ctx.shadowBlur = 0;
+    ctx.font = subFont;
+    ctx.fillStyle = active ? "rgba(223,250,255,0.75)" : "rgba(142,243,255,0.4)";
+    ctx.fillText(summarizeCategory(entry.key, selections), x, y + 34);
   }
 }
 
-function buildSphereTextTexture() {
+function buildSphereTextTexture(markLabelsDirty) {
   const canvas = document.createElement("canvas");
   canvas.width = TEXT_TEXTURE_W;
   canvas.height = TEXT_TEXTURE_H;
   const ctx = canvas.getContext("2d");
-  const checks = [false, false, false];
-  drawSphereLabels(canvas, ctx, checks);
+  drawRootLabels(canvas, ctx, createDefaultSelections());
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   /* Canvas text drawn before the webfonts finish loading silently falls
      back to a generic sans-serif — a real, easy-to-miss bug with canvas
-     text generally, not specific to this file. Redraw once the browser
-     confirms the real faces are ready, whenever that happens to land
-     relative to first paint. */
+     text generally, not specific to this file. Rather than redrawing
+     with these defaults again (the real, current selections live on
+     t.singularity, not reachable from here), just flag dirty — the
+     next frame's updateSphereVisuals redraws from whatever the actual
+     current selections are and clears the flag. */
   if (typeof document !== "undefined" && document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => {
-      drawSphereLabels(canvas, ctx, checks);
-      texture.needsUpdate = true;
-    });
+    document.fonts.ready.then(() => { if (markLabelsDirty) markLabelsDirty(); });
   }
-  return { canvas, ctx, texture, checks };
+  return { canvas, ctx, texture };
 }
 
-function buildSphere() {
+function buildSphere(markLabelsDirty) {
   const geo = new THREE.SphereGeometry(6, 64, 48);
-  const text = buildSphereTextTexture();
+  const text = buildSphereTextTexture(markLabelsDirty);
   const uniforms = {
     uPulsePhase: { value: 0 },
     uPulseAmount: { value: 0.22 },
@@ -491,19 +565,6 @@ function buildSphere() {
   group.add(mesh);
   group.visible = false;
   return { group, mesh, material, uniforms, text };
-}
-
-/* Toggles the checkbox under a raycast hit and redraws the texture in
-   place — texture.needsUpdate is the only thing that actually costs
-   anything here; the canvas itself is small and cheap to redraw
-   entirely rather than patching just the changed column. */
-function toggleSphereLabelAt(sphere, uv) {
-  if (uv.y < LIST_V_MIN || uv.y > LIST_V_MAX) return; // outside the list band — no-op, not a guess
-  const frac = (uv.y - LIST_V_MIN) / (LIST_V_MAX - LIST_V_MIN);
-  const index = Math.min(2, Math.max(0, Math.floor(frac * 3)));
-  sphere.text.checks[index] = !sphere.text.checks[index];
-  drawSphereLabels(sphere.text.canvas, sphere.text.ctx, sphere.text.checks);
-  sphere.text.texture.needsUpdate = true;
 }
 
 function ensureSingularityObjects(t) {
@@ -524,7 +585,7 @@ function ensureSingularityObjects(t) {
   t.scene.add(s.blastRings.group);
   s.debris = buildDebris();
   t.scene.add(s.debris.group);
-  s.sphere = buildSphere();
+  s.sphere = buildSphere(() => { s.labelsDirty = true; });
   t.scene.add(s.sphere.group);
   s.starfield = buildStarfield();
   t.scene.add(s.starfield);
@@ -796,8 +857,21 @@ function clearScreenChaos(s) {
 
 function updateSphereVisuals(t, dt) {
   const s = t.singularity;
-  s.sphere.group.visible = true;
+  // Redrawn only on demand (a checkbox/drum change, a fonts-ready
+  // callback, or the initial default paint), not every frame — the
+  // canvas is cheap but there's no reason to touch it 60x/s when
+  // nothing about the selections changed.
+  if (s.labelsDirty && s.sphere) {
+    drawRootLabels(s.sphere.text.canvas, s.sphere.text.ctx, s.selections);
+    s.sphere.text.texture.needsUpdate = true;
+    s.labelsDirty = false;
+  }
+
+  // Finalizing (triple-tap) hides the sphere itself per the spec, but
+  // the starfield stays as the summary menu's backdrop.
+  s.sphere.group.visible = s.sphereMenuStage !== "summary";
   s.starfield.visible = true;
+  if (s.sphereMenuStage === "summary") return; // nothing left to animate
 
   if (!s.dragging) {
     const decay = Math.exp(-dt * DRAG_DECAY);
@@ -846,6 +920,16 @@ function teardownSingularityScene(t) {
   s.dragVelocity = { x: 0, y: 0 };
   s.dragging = false;
   s.pulsePhase = 0;
+  // Every fresh visit starts back at the root labels, not wherever a
+  // previous visit left off (mid-overlay, or past the triple-tap
+  // finalize with the sphere hidden) — the same "each visit is
+  // independent" reasoning teardown already applies to drag momentum
+  // and pulse phase above.
+  s.sphereMenuStage = "labels";
+  s.activeCategory = null;
+  s.selections = createDefaultSelections();
+  s.tapTimestamps = [];
+  s.labelsDirty = true;
   if (t.singularityGridMaterials) {
     t.singularityGridMaterials.forEach((m) => { m.opacity = m.userData.singularityBaseOpacity; });
   }
@@ -980,7 +1064,9 @@ export function advanceSingularityScene(t, now, chromeRefs) {
     window.__EC_TEST_SINGULARITY__ = {
       phase: s.phase,
       sphereRotationY: s.sphere ? s.sphere.group.rotation.y : null,
-      sphereChecks: s.sphere ? s.sphere.text.checks.slice() : null,
+      stage: s.sphereMenuStage || null,
+      activeCategory: s.activeCategory || null,
+      selections: s.selections ? JSON.parse(JSON.stringify(s.selections)) : null,
       collapseU: s.phase === PHASES.COLLAPSING
         ? Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS)
         : null,
@@ -993,12 +1079,484 @@ export function advanceSingularityScene(t, now, chromeRefs) {
    renderExtraOverlays call into (themes/neon.js).
 --------------------------------------------------------------------- */
 
-export function useSingularityPhase({ three, audio }) {
+/* ---------------------------------------------------------------------
+   DOM widgets for the holographic overlays and the summary menu —
+   real interactive controls (checkboxes, a 3D drum-roller tumbler),
+   unlike the sphere's own canvas-texture root labels. State they touch
+   lives on t.singularity (the same plain bridge object the 3D side
+   already uses — see the module header), not React state: a checkbox
+   click mutates it directly and then calls the bump() function stashed
+   on the bridge (see useSingularityPhase) to force the one re-render
+   that shows the change, the same "plain bridge, force a React render
+   when something needs to be seen" split the whole file already uses
+   for phase/setPhase.
+--------------------------------------------------------------------- */
+
+const overlayTitleStyle = {
+  margin: "0 0 14px",
+  fontFamily: "'Chakra Petch', sans-serif",
+  fontWeight: 700,
+  fontSize: 17,
+  letterSpacing: "0.12em",
+  color: "#66d9ff",
+  textShadow: "0 0 16px rgba(102,217,255,0.5)",
+  textAlign: "center",
+};
+const sectionLabelStyle = {
+  fontFamily: "'IBM Plex Mono', monospace",
+  fontSize: 10.5,
+  letterSpacing: "0.12em",
+  color: "rgba(142,243,255,0.55)",
+  textTransform: "uppercase",
+  margin: "4px 0",
+};
+const chevronButtonStyle = {
+  background: "transparent",
+  border: "none",
+  color: "rgba(142,243,255,0.7)",
+  fontSize: 10,
+  cursor: "pointer",
+  padding: "2px 0",
+  lineHeight: 1,
+};
+
+/* A CSS-3D "drum roller" tumbler — a combination-lock-style wheel for
+   an integer value, used for both TOPOLOGIES' board dimensions and
+   MATTER's per-piece roster counts. Values clamp at min/max rather
+   than wrapping — looping a board dimension or a piece count past its
+   cap back around to the other end would read as a glitch, not a
+   feature. Driven two ways, like a real date-picker wheel: a vertical
+   drag (the actual "roll" feel the spec asks for) and +/- taps (what
+   the e2e suite drives, since simulating an exact-value drag
+   gesture reliably is much harder than clicking a button a known
+   number of times). */
+function DrumRoller({ id, label, value, min, max, onChange, compact }) {
+  const h = React.createElement;
+  const dragRef = React.useRef(null);
+  const ITEM_H = compact ? 28 : 36;
+  const RADIUS = compact ? 44 : 58;
+  const ANGLE_STEP = (2 * Math.asin(Math.min(1, ITEM_H / (2 * RADIUS))) * 180) / Math.PI;
+  const clamp = (v) => Math.min(max, Math.max(min, v));
+
+  function handlePointerDown(e) {
+    e.stopPropagation();
+    dragRef.current = { startY: e.clientY, startValue: value };
+  }
+  function handlePointerMove(e) {
+    if (!dragRef.current) return;
+    e.stopPropagation();
+    const dy = e.clientY - dragRef.current.startY;
+    const steps = Math.round(dy / ITEM_H);
+    const next = clamp(dragRef.current.startValue + steps);
+    if (next !== value) onChange(next);
+  }
+  function handlePointerUp(e) {
+    e.stopPropagation();
+    dragRef.current = null;
+  }
+
+  const items = [];
+  for (let d = -2; d <= 2; d++) {
+    const v = value + d;
+    if (v < min || v > max) continue;
+    items.push(
+      h(
+        "div",
+        {
+          key: v,
+          style: {
+            position: "absolute", left: 0, right: 0, top: "50%", height: ITEM_H,
+            lineHeight: `${ITEM_H}px`, textAlign: "center",
+            transform: `translateY(-50%) rotateX(${-d * ANGLE_STEP}deg) translateZ(${RADIUS}px)`,
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: d === 0 ? (compact ? 17 : 21) : 13,
+            fontWeight: d === 0 ? 700 : 400,
+            color: d === 0 ? "#dffaff" : "rgba(142,243,255,0.35)",
+            backfaceVisibility: "hidden",
+          },
+        },
+        String(v)
+      )
+    );
+  }
+
+  return h(
+    "div",
+    { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 } },
+    label && h("span", { style: { ...sectionLabelStyle, margin: 0 } }, label),
+    h(
+      "button",
+      { type: "button", "data-testid": `${id}-inc`, onClick: (e) => { e.stopPropagation(); onChange(clamp(value + 1)); }, style: chevronButtonStyle },
+      "▲"
+    ),
+    h(
+      "div",
+      {
+        "data-testid": `${id}-drum`,
+        onPointerDown: handlePointerDown,
+        onPointerMove: handlePointerMove,
+        onPointerUp: handlePointerUp,
+        onPointerCancel: handlePointerUp,
+        style: {
+          position: "relative", width: compact ? 58 : 74, height: ITEM_H * 1.5,
+          perspective: 300, overflow: "hidden", touchAction: "none", cursor: "ns-resize",
+          background: "rgba(102,217,255,0.06)",
+          border: "1px solid rgba(102,217,255,0.28)",
+          borderRadius: 4,
+        },
+      },
+      h("div", { style: { position: "absolute", inset: 0, transformStyle: "preserve-3d" } }, ...items)
+    ),
+    h(
+      "button",
+      { type: "button", "data-testid": `${id}-dec`, onClick: (e) => { e.stopPropagation(); onChange(clamp(value - 1)); }, style: chevronButtonStyle },
+      "▼"
+    ),
+    h(
+      "span",
+      { "data-testid": `${id}-value`, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(142,243,255,0.5)" } },
+      String(value)
+    )
+  );
+}
+
+function renderCheckboxRow(item, checked, onToggle, testId) {
+  const h = React.createElement;
+  return h(
+    "div",
+    {
+      key: item.key,
+      "data-testid": testId,
+      "data-checked": checked ? "true" : "false",
+      onClick: () => onToggle(),
+      style: { display: "flex", alignItems: "flex-start", gap: 12, padding: "9px 2px", cursor: "pointer" },
+    },
+    h("div", {
+      style: {
+        width: 24, height: 24, flexShrink: 0, marginTop: 2,
+        border: `2px solid ${checked ? "#8ef3ff" : "rgba(142,243,255,0.5)"}`,
+        background: checked ? "rgba(142,243,255,0.85)" : "transparent",
+        borderRadius: 3,
+      },
+    }),
+    h(
+      "div",
+      null,
+      h(
+        "div",
+        { style: { fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 13.5, color: checked ? "#dffaff" : "rgba(207,216,220,0.9)", letterSpacing: "0.03em" } },
+        item.label
+      ),
+      item.blurb &&
+        h(
+          "div",
+          { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.5)", marginTop: 2, lineHeight: 1.4 } },
+          item.blurb
+        )
+    )
+  );
+}
+
+/* The holographic overlay a root-label tap opens — LAWS/MATTER get
+   real checkboxes, TOPOLOGIES (and MATTER's own roster section) get
+   drum rollers. Reads/writes t.singularity.selections directly (see
+   the header comment above) rather than taking props from React
+   state, since it's rendered straight from the bridge object by
+   renderSingularityOverlay. Clicking outside its own panel (the
+   backdrop) closes it and returns control to sphere rotation, per the
+   spec — implemented as a full-screen backdrop with onPointerDown
+   both closing AND stopping propagation, so it never also starts a
+   sphere-rotate drag on the overlay div underneath it. */
+function renderCategoryOverlay(t) {
+  const s = t.singularity;
+  if (!s || s.sphereMenuStage !== "overlay" || !s.activeCategory) return null;
+  const h = React.createElement;
+  const sel = s.selections;
+  const category = s.activeCategory;
+  const close = () => {
+    s.activeCategory = null;
+    s.sphereMenuStage = "labels";
+    s.labelsDirty = true; // the label's own status line may have changed
+    s.bump();
+  };
+
+  let body = null;
+  if (category === "laws") {
+    body = h(
+      "div",
+      { style: { display: "flex", flexDirection: "column" } },
+      ...LAWS_ITEMS.map((item) =>
+        renderCheckboxRow(
+          item,
+          sel.laws[item.key],
+          () => { sel.laws[item.key] = !sel.laws[item.key]; s.labelsDirty = true; s.bump(); },
+          `law-${item.key}`
+        )
+      )
+    );
+  } else if (category === "matter") {
+    body = h(
+      "div",
+      { style: { display: "flex", flexDirection: "column", gap: 6 } },
+      h("div", { style: sectionLabelStyle }, "New Piece Types"),
+      ...MATTER_NEW_PIECES.map((item) =>
+        renderCheckboxRow(
+          item,
+          sel.matter.newPieces[item.key],
+          () => { sel.matter.newPieces[item.key] = !sel.matter.newPieces[item.key]; s.labelsDirty = true; s.bump(); },
+          `matter-piece-${item.key}`
+        )
+      ),
+      h("div", { style: { ...sectionLabelStyle, marginTop: 10 } }, "Roster"),
+      h(
+        "div",
+        { style: { display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", padding: "4px 0 2px" } },
+        ...MATTER_ROSTER.map((p) =>
+          h(DrumRoller, {
+            key: p.key, id: `roster-${p.key}`, label: p.label,
+            value: sel.matter.roster[p.key], min: p.min, max: p.max, compact: true,
+            onChange: (v) => { sel.matter.roster[p.key] = v; s.labelsDirty = true; s.bump(); },
+          })
+        )
+      )
+    );
+  } else if (category === "topologies") {
+    body = h(
+      "div",
+      { style: { display: "flex", gap: 22, justifyContent: "center", padding: "6px 0" } },
+      h(DrumRoller, {
+        id: "board-rows", label: "Rows", value: sel.topologies.rows, min: MIN_BOARD_DIM, max: MAX_BOARD_DIM,
+        onChange: (v) => { sel.topologies.rows = v; s.labelsDirty = true; s.bump(); },
+      }),
+      h(DrumRoller, {
+        id: "board-cols", label: "Cols", value: sel.topologies.cols, min: MIN_BOARD_DIM, max: MAX_BOARD_DIM,
+        onChange: (v) => { sel.topologies.cols = v; s.labelsDirty = true; s.bump(); },
+      })
+    );
+  }
+
+  return h(
+    "div",
+    {
+      "data-testid": "category-overlay-backdrop",
+      onPointerDown: (e) => { e.stopPropagation(); close(); },
+      style: { position: "fixed", inset: 0, zIndex: 2100, display: "flex", alignItems: "center", justifyContent: "center" },
+    },
+    h(
+      "div",
+      {
+        "data-testid": "category-overlay",
+        "data-category": category,
+        onPointerDown: (e) => e.stopPropagation(),
+        style: {
+          width: "clamp(280px, 84%, 440px)",
+          maxHeight: "72vh",
+          overflowY: "auto",
+          background: "rgba(4,10,18,0.94)",
+          backdropFilter: "blur(10px)",
+          border: "1px solid rgba(102,217,255,0.35)",
+          borderRadius: 6,
+          padding: "20px 20px 18px",
+          boxShadow: "0 0 40px rgba(77,232,255,0.16)",
+          boxSizing: "border-box",
+        },
+      },
+      h("h3", { style: overlayTitleStyle }, category.toUpperCase()),
+      body,
+      h(
+        "div",
+        { style: { marginTop: 16, textAlign: "center", fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, color: "rgba(142,243,255,0.4)", letterSpacing: "0.08em" } },
+        "TAP OUTSIDE TO CLOSE"
+      )
+    )
+  );
+}
+
+/* Real Opponent/AI controls — aiPlayer/selectOpponent/aiDifficulty/
+   setAiDifficulty/AI_DIFFICULTY/busy/aiThinking are the chassis's own
+   state and setters, threaded through unchanged (see triggerBeginGame's
+   own comment in chassis/ElCabeza3D.jsx), so picking one here is
+   exactly as real as picking it on the normal dock — just styled to
+   match the sphere's own holographic language instead of duplicating
+   the dock's two-step picker/difficulty-row layout. */
+function renderOpponentAiPicker(setupExtras) {
+  const { aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking } = setupExtras;
+  if (!selectOpponent || !AI_DIFFICULTY) return null;
+  const h = React.createElement;
+  const locked = busy || aiThinking;
+  const pillStyle = (active) => ({
+    fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
+    padding: "7px 13px", borderRadius: 18,
+    border: `1px solid ${active ? "#8ef3ff" : "rgba(102,217,255,0.3)"}`,
+    background: active ? "rgba(142,243,255,0.18)" : "transparent",
+    color: active ? "#dffaff" : "rgba(207,216,220,0.7)",
+    cursor: locked ? "default" : "pointer", opacity: locked ? 0.5 : 1,
+  });
+  return h(
+    "div",
+    { style: { display: "flex", flexDirection: "column", gap: 8, alignItems: "center", margin: "4px 0 6px" } },
+    h(
+      "div",
+      { style: { display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" } },
+      // aria-pressed needs the literal string "true"/"false", not a raw
+      // JS boolean — React only writes aria-*/data-* attributes verbatim
+      // (no boolean-attribute coercion the way it handles e.g. disabled),
+      // so a bare boolean here gets silently dropped instead of stringified.
+      h("button", { type: "button", "data-testid": "opponent-human", "aria-pressed": String(aiPlayer === null), disabled: locked, onClick: () => selectOpponent(null), style: pillStyle(aiPlayer === null) }, "Human"),
+      h("button", { type: "button", "data-testid": "opponent-ai-dark", "aria-pressed": String(aiPlayer === "dark"), disabled: locked, onClick: () => selectOpponent("dark"), style: pillStyle(aiPlayer === "dark") }, "AI · Dark"),
+      h("button", { type: "button", "data-testid": "opponent-ai-light", "aria-pressed": String(aiPlayer === "light"), disabled: locked, onClick: () => selectOpponent("light"), style: pillStyle(aiPlayer === "light") }, "AI · Light")
+    ),
+    aiPlayer !== null &&
+      h(
+        "div",
+        { style: { display: "flex", gap: 5 } },
+        ...Object.entries(AI_DIFFICULTY).map(([key, cfg]) =>
+          h(
+            "button",
+            {
+              type: "button", key, "data-testid": `ai-difficulty-${key}`, "aria-pressed": String(aiDifficulty === key), disabled: locked,
+              onClick: () => setAiDifficulty(key),
+              style: { ...pillStyle(aiDifficulty === key), padding: "4px 9px", fontSize: 9.5 },
+            },
+            cfg.label
+          )
+        )
+      )
+  );
+}
+
+/* The final "BEGIN GAME" menu a triple-tap reveals: every modifier
+   picked across the three categories, the real Opponent/AI picker, and
+   a Begin Game button wired to finalizeSingularityBegin (which fires
+   the chassis's own real game-start path, then tears down the
+   cinematic — see useSingularityPhase). */
+function renderSummaryPanel(setupExtras) {
+  const { three, finalizeSingularityBegin } = setupExtras;
+  const t = three && three.current;
+  if (!t || !t.singularity || t.singularity.sphereMenuStage !== "summary") return null;
+  const sel = t.singularity.selections;
+  const h = React.createElement;
+
+  const lawsOn = LAWS_ITEMS.filter((i) => sel.laws[i.key]);
+  const piecesOn = MATTER_NEW_PIECES.filter((i) => sel.matter.newPieces[i.key]);
+  const rosterLine = MATTER_ROSTER.map((p) => `${sel.matter.roster[p.key]} ${p.label}`).join(" · ");
+  const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}`;
+  const lineStyle = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: "rgba(207,216,220,0.85)", lineHeight: 1.7 };
+  const tagStyle = { color: "#66d9ff", letterSpacing: "0.08em" };
+
+  return h(
+    "div",
+    {
+      "data-testid": "singularity-summary-menu",
+      onPointerDown: (e) => e.stopPropagation(),
+      style: {
+        position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+        width: "clamp(280px, 88%, 460px)", maxHeight: "84vh", overflowY: "auto",
+        background: "rgba(4,10,18,0.92)", backdropFilter: "blur(10px)",
+        border: "1px solid rgba(102,217,255,0.35)", borderRadius: 6,
+        padding: "26px 22px 22px", boxSizing: "border-box", pointerEvents: "auto",
+        boxShadow: "0 0 60px rgba(77,232,255,0.18)",
+      },
+    },
+    h("h2", { style: { ...overlayTitleStyle, fontSize: 19 } }, "BEGIN GAME"),
+    h(
+      "div",
+      { style: { display: "flex", flexDirection: "column", gap: 8, margin: "14px 0 18px" } },
+      h("div", { style: lineStyle }, h("span", { style: tagStyle }, "TOPOLOGIES  "), boardLine),
+      h("div", { style: lineStyle }, h("span", { style: tagStyle }, "LAWS  "), lawsOn.length ? lawsOn.map((i) => i.label).join(", ") : "none"),
+      h("div", { style: lineStyle }, h("span", { style: tagStyle }, "MATTER  "), piecesOn.length ? piecesOn.map((i) => i.label).join(", ") : "no new pieces"),
+      h("div", { style: { ...lineStyle, fontSize: 10, color: "rgba(207,216,220,0.5)", paddingLeft: 4 } }, rosterLine)
+    ),
+    renderOpponentAiPicker(setupExtras),
+    h(
+      "button",
+      {
+        type: "button",
+        "data-testid": "singularity-begin-game",
+        onClick: finalizeSingularityBegin,
+        style: {
+          marginTop: 18, width: "100%",
+          fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 14,
+          letterSpacing: "0.12em", textTransform: "uppercase",
+          color: "#04141c", background: "linear-gradient(135deg,#8ef3ff,#4de8ff)",
+          border: "none", borderRadius: 4, padding: "13px 0", cursor: "pointer",
+          boxShadow: "0 0 24px rgba(77,232,255,0.45)",
+        },
+      },
+      "Begin Game"
+    )
+  );
+}
+
+function renderLabelsHint() {
+  const h = React.createElement;
+  return h(
+    "div",
+    {
+      style: {
+        position: "absolute", left: "50%", bottom: "6%", transform: "translateX(-50%)",
+        width: "clamp(240px, 74%, 400px)", textAlign: "center",
+        background: "rgba(4,6,10,0.78)", backdropFilter: "blur(6px)",
+        border: "1px solid rgba(102,217,255,0.26)", borderRadius: 4,
+        padding: "12px 18px", boxSizing: "border-box", pointerEvents: "none",
+        fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.5,
+        color: "rgba(207,216,220,0.8)",
+      },
+    },
+    "Drag to rotate. Tap a glowing category to configure it. Triple-tap open space on the sphere to finish."
+  );
+}
+
+// A persistent escape hatch across every sphere sub-stage (labels,
+// an open overlay, the summary menu) — the touch equivalent of Escape,
+// unchanged in spirit from the original single-stage placeholder card's
+// own Back button, just no longer tied to that card's layout.
+function renderBackButton(exitSingularity) {
+  const h = React.createElement;
+  return h(
+    "button",
+    {
+      type: "button",
+      "data-testid": "singularity-back-button",
+      onClick: exitSingularity,
+      style: {
+        position: "absolute", left: 16, top: 16, zIndex: 2200,
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5,
+        letterSpacing: "0.1em", textTransform: "uppercase",
+        color: "#66d9ff", background: "rgba(4,6,10,0.6)",
+        border: "1px solid rgba(102,217,255,0.4)", borderRadius: 3,
+        padding: "7px 14px", cursor: "pointer", pointerEvents: "auto",
+      },
+    },
+    "Back"
+  );
+}
+
+export function useSingularityPhase({
+  three, audio,
+  aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
+  busy, aiThinking, triggerBeginGame,
+}) {
   const [phase, setPhase] = React.useState(PHASES.IDLE);
   const blackDivRef = React.useRef(null);
   const phaseSetterRef = React.useRef(setPhase);
   phaseSetterRef.current = setPhase;
   const dragStateRef = React.useRef({ lastX: 0, lastY: 0, lastT: 0, moved: 0 });
+
+  // Forces the one re-render the DOM overlays (category checkboxes,
+  // drum rollers, the summary menu) need after a plain mutation of
+  // t.singularity's own fields — see the module comment above these
+  // widgets. Stashed on the bridge object itself (mirroring
+  // t.singularity.setPhase just below) so plain functions outside this
+  // hook's closure (renderCategoryOverlay et al.) can reach it too.
+  const [, setRenderTick] = React.useState(0);
+  const bumpRef = React.useRef(() => {});
+  bumpRef.current = () => setRenderTick((n) => n + 1);
+  const bridge = three && three.current;
+  if (bridge) {
+    bridge.singularity = bridge.singularity || {};
+    bridge.singularity.bump = () => bumpRef.current();
+  }
 
   // startCollapse (below) is what actually wires the bridge object onto
   // three.current — not a mount-time effect here, deliberately: this
@@ -1022,6 +1580,13 @@ export function useSingularityPhase({ three, audio }) {
     t.singularity.audio = audio;
     t.singularity.blackDivRef = blackDivRef;
     t.singularity.setPhase = (p) => phaseSetterRef.current(p);
+    // Every fresh entry starts back at the root labels with a clean
+    // slate — see teardownSingularityScene's matching reset on exit.
+    t.singularity.sphereMenuStage = "labels";
+    t.singularity.activeCategory = null;
+    t.singularity.selections = createDefaultSelections();
+    t.singularity.tapTimestamps = [];
+    t.singularity.labelsDirty = true;
     // The roar layer runs alongside the hum for the whole collapse; the
     // hard cut stops it along with everything else.
     audio.startSingularityCollapseRoar();
@@ -1039,10 +1604,29 @@ export function useSingularityPhase({ three, audio }) {
        still running — only the event-horizon cut stops them on the
        normal path, and it hasn't happened yet. Cutting first and then
        restoring the master level does both jobs regardless of which
-       phase the exit came from. */
+       phase the exit came from. This is also the path a real triple-tap
+       finalize takes (see finalizeSingularityBegin below) — resuming
+       audio here is exactly "audio only returns once a game has
+       actually begun" per the design doc, whether that's an Escape
+       abandoning the whole thing or a real Begin Game commit. */
     audio.cutSingularityAudioToSilence();
     audio.resumeAudioAfterSingularity();
     setPhase(PHASES.IDLE);
+  }
+
+  // The summary menu's real BEGIN GAME button: fire the exact same
+  // game-start path the dock's own Begin Game button does (Opponent/AI
+  // were already applied live as they were picked, via the real
+  // selectOpponent/setAiDifficulty setters below), then tear the
+  // cinematic down so what's left is an already-armed game, not a
+  // fresh, untouched setup screen. LAWS/MATTER/TOPOLOGIES' own
+  // selections are NOT threaded any further than this summary — see
+  // the module header for why this pass stops at "real selections,
+  // real menu" rather than also building the rules/board-resize
+  // engines behind them.
+  function finalizeSingularityBegin() {
+    if (triggerBeginGame) triggerBeginGame();
+    exitSingularity();
   }
 
   React.useEffect(() => {
@@ -1056,15 +1640,20 @@ export function useSingularityPhase({ three, audio }) {
   // pattern (chassis/ElCabeza3D.jsx), retargeted at the sphere group's
   // own rotation. Live velocity is stashed on t.singularity so the tick
   // (in mountAmbientEffects, a different closure) can decay it each
-  // frame when not actively dragging.
+  // frame when not actively dragging. Only active while still browsing
+  // the root labels — once an overlay or the summary menu is showing,
+  // their own DOM stops propagation before it ever reaches here (belt),
+  // and this stage check is the suspenders.
   // A tap (as opposed to a drag) under this much total pointer movement
-  // hit-tests the sphere for a MATTER/LAWS/TOPOLOGIES checkbox instead
-  // of having rotated it.
+  // either opens a category (hit a root label) or counts toward the
+  // triple-tap-to-finalize gesture (hit bare sphere) — see
+  // handleSphereTap.
   const TAP_MOVE_THRESHOLD_PX = 6;
 
   function handlePointerDown(ev) {
     const t = three && three.current;
     if (!t || !t.singularity || t.singularity.phase !== PHASES.SPHERE) return;
+    if (t.singularity.sphereMenuStage !== "labels") return;
     t.singularity.dragging = true;
     dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY, lastT: performance.now(), moved: 0 };
   }
@@ -1107,23 +1696,60 @@ export function useSingularityPhase({ three, audio }) {
     if (!t || !t.singularity) return;
     const wasTap = ev && ev.type === "pointerup" && dragStateRef.current.moved < TAP_MOVE_THRESHOLD_PX;
     t.singularity.dragging = false;
-    if (wasTap) hitTestSphereTap(t, ev.clientX, ev.clientY);
+    if (wasTap && t.singularity.sphereMenuStage === "labels") handleSphereTap(t, ev.clientX, ev.clientY);
+  }
+
+  // Opening a category is a real state transition (labels -> overlay),
+  // not just a texture redraw — see renderCategoryOverlay for the DOM
+  // side of it.
+  function openCategoryOverlay(t, category) {
+    const s = t.singularity;
+    s.activeCategory = category;
+    s.sphereMenuStage = "overlay";
+    s.tapTimestamps = [];
+    s.bump();
+  }
+
+  // Three quick taps on BARE sphere (i.e. not on a root label — see
+  // categoryAtUv/handleSphereTap) finalize every selection and reveal
+  // the summary menu. Deliberately gated on landing outside a label's
+  // own hit region rather than counted regardless of where the tap
+  // lands: a label tap already has its own immediate, unambiguous
+  // meaning (open that category), so routing it into a timing-based
+  // triple-tap counter instead would make the two gestures race each
+  // other. The gaps between labels are exactly the "bare sphere" this
+  // gesture is meant to live on.
+  const TRIPLE_TAP_WINDOW_MS = 650;
+  function registerBareTap(t) {
+    const s = t.singularity;
+    const now = performance.now();
+    s.tapTimestamps = (s.tapTimestamps || []).filter((ts) => now - ts < TRIPLE_TAP_WINDOW_MS);
+    s.tapTimestamps.push(now);
+    if (s.tapTimestamps.length >= 3) {
+      s.tapTimestamps = [];
+      s.sphereMenuStage = "summary";
+      s.bump();
+    }
   }
 
   // Raycasts the real, currently-rotated sphere geometry (not a flat
   // screen-space hitbox) using the same raycaster/pointer objects the
   // chassis already keeps on three.current for its own piece-picking —
-  // this is what makes the checkbox hit-test agree with wherever the
-  // label actually is after however much dragging has happened.
-  function hitTestSphereTap(t, clientX, clientY) {
+  // this is what makes a label's hit-test agree with wherever it
+  // actually is after however much dragging has happened.
+  function handleSphereTap(t, clientX, clientY) {
     const sphere = t.singularity.sphere;
     if (!t.raycaster || !t.pointer || !t.camera || !sphere) return;
     t.pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
     t.raycaster.setFromCamera(t.pointer, t.camera);
     const hits = t.raycaster.intersectObject(sphere.mesh);
-    if (hits.length && hits[0].uv) {
-      toggleSphereLabelAt(sphere, hits[0].uv);
+    if (!hits.length || !hits[0].uv) return;
+    const category = categoryAtUv(hits[0].uv);
+    if (category) {
+      openCategoryOverlay(t, category);
       audio.playSelect();
+    } else {
+      registerBareTap(t);
     }
   }
 
@@ -1131,10 +1757,17 @@ export function useSingularityPhase({ three, audio }) {
     singularityPhase: phase,
     startCollapse,
     exitSingularity,
+    finalizeSingularityBegin,
     blackDivRef,
     handleSingularityPointerDown: handlePointerDown,
     handleSingularityPointerMove: handlePointerMove,
     handleSingularityPointerUp: handlePointerUp,
+    // Passed straight through so renderCategoryOverlay/renderSummaryPanel
+    // (plain functions, not part of this hook's own closure) can read
+    // the live bridge object and drive the real Opponent/AI/Begin Game
+    // controls — see their own comments.
+    three,
+    aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking,
   };
 }
 
@@ -1147,14 +1780,19 @@ export function renderSingularityOverlay(setupExtras) {
     handleSingularityPointerDown,
     handleSingularityPointerMove,
     handleSingularityPointerUp,
+    three,
   } = setupExtras;
   if (!phase || phase === PHASES.IDLE) return null;
   const h = React.createElement;
+  const t = three && three.current;
+  const stage = t && t.singularity ? t.singularity.sphereMenuStage : "labels";
+
   return h(
     "div",
     {
       "data-testid": "singularity-overlay",
       "data-singularity-phase": phase,
+      "data-singularity-stage": phase === PHASES.SPHERE ? stage : undefined,
       style: {
         position: "fixed",
         inset: 0,
@@ -1191,74 +1829,9 @@ export function renderSingularityOverlay(setupExtras) {
       ref: blackDivRef,
       style: { position: "absolute", inset: 0, background: "#000", opacity: 0 },
     }),
-    phase === PHASES.SPHERE &&
-      h(
-        "div",
-        {
-          style: {
-            position: "absolute",
-            left: "50%",
-            bottom: "8%",
-            transform: "translateX(-50%)",
-            width: "clamp(260px, 78%, 440px)",
-            textAlign: "center",
-            background: "rgba(4,6,10,0.82)",
-            backdropFilter: "blur(6px)",
-            border: "1px solid rgba(102,217,255,0.28)",
-            borderRadius: 4,
-            padding: "20px 22px",
-            boxSizing: "border-box",
-            pointerEvents: "auto",
-          },
-        },
-        h(
-          "h2",
-          {
-            style: {
-              margin: "0 0 8px",
-              fontFamily: "'Chakra Petch', sans-serif",
-              fontWeight: 700,
-              fontSize: 17,
-              letterSpacing: "0.12em",
-              color: "#66d9ff",
-              textShadow: "0 0 16px rgba(102,217,255,0.5)",
-            },
-          },
-          "SINGULARITY"
-        ),
-        h(
-          "p",
-          {
-            style: {
-              margin: "0 0 16px",
-              fontFamily: "'IBM Plex Sans', sans-serif",
-              fontSize: 12.5,
-              lineHeight: 1.6,
-              color: "rgba(207,216,220,0.85)",
-            },
-          },
-          "Drag to rotate. Tap a section of the sphere to preview its checkbox — MATTER, LAWS, and TOPOLOGIES aren't real yet, so nothing behind them does anything."
-        ),
-        h(
-          "button",
-          {
-            "data-testid": "singularity-back-button",
-            onClick: exitSingularity,
-            style: {
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 11,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: "#66d9ff",
-              background: "transparent",
-              border: "1px solid rgba(102,217,255,0.4)",
-              borderRadius: 3,
-              padding: "8px 18px",
-              cursor: "pointer",
-            },
-          },
-          "Back"
-        )
-      )
+    phase === PHASES.SPHERE && renderBackButton(exitSingularity),
+    phase === PHASES.SPHERE && stage === "labels" && renderLabelsHint(),
+    phase === PHASES.SPHERE && stage === "overlay" && t && renderCategoryOverlay(t),
+    phase === PHASES.SPHERE && stage === "summary" && renderSummaryPanel(setupExtras)
   );
 }
