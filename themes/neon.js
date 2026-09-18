@@ -16,6 +16,7 @@ import React from "react";
 import * as THREE from "three";
 import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, GRID_EXTENT_X, GRID_EXTENT_Z, GOAL_ROW, PIECE_SCALE } from "../engine/constants.js";
 import { opponentOf, cabezaInDanger } from "../engine/ai.js";
+import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay } from "./neon-singularity.js";
 
 /* Everything visual in this experimental skin lives in these two
    objects (COLORS for the DOM/CSS layer, HEX for the Three.js scene
@@ -2372,6 +2373,16 @@ export function mountAmbientEffects(refs, helpers) {
     }
   }
 
+  // The Singularity collapse/blackout/sphere sequence — see
+  // themes/neon-singularity.js. Runs regardless of boardEffectsIdle()
+  // (it only ever fires from the pre-game setup screen, exactly where
+  // this tick keeps running today) and reads/writes t.singularity, the
+  // bridge object useSingularityPhase (called from useSetupExtras, a
+  // separate hook invocation elsewhere in this same component) also
+  // reads and writes — both close over the identical `t = three.current`
+  // object, so no extra chassis plumbing is needed to connect them.
+  advanceSingularityScene(t, now, { titleWrapRef, cardRef });
+
     },
 
     dispose() {
@@ -3096,13 +3107,14 @@ export function renderGlobalDefs() {
    `setPieces` are chassis state, passed in because handleAnomaly needs
    to write pieces and the Singularity hold timer only makes sense
    during setup. */
-export function useSetupExtras({ awaitingBegin, setPieces, audio }) {
+export function useSetupExtras({ awaitingBegin, setPieces, audio, three }) {
   const [singularityRevealed, setSingularityRevealed] = React.useState(false);
-  const [showSingularityInfo, setShowSingularityInfo] = React.useState(false);
   const singularityHoldRef = React.useRef(null);
   const singularityHideTimerRef = React.useRef(null);
   const singularityCommitRef = React.useRef(null); // rAF id for the commit hold
   const singularityBtnRef = React.useRef(null); // so a click-outside can tell "outside" from the button itself
+  // The collapse/blackout/sphere cinematic — see themes/neon-singularity.js.
+  const singularityCinematic = useSingularityPhase({ three, audio });
 
   function handleAnomaly() {
     // Setup-phase-only random layout generator (see its button, gated
@@ -3186,28 +3198,23 @@ export function useSetupExtras({ awaitingBegin, setPieces, audio }) {
     singularityHideTimerRef.current = setTimeout(() => setSingularityRevealed(false), 10000);
   }
 
-  /* Reaching the end of the hold. INTERIM: this opens the existing
-     info panel, which is Singularity's only destination today. The
-     design's actual destination is the collapse-into-the-sphere-menu
-     sequence (SINGULARITY_DESIGN.md Phases 1-3), which doesn't exist
-     yet — when it does, this is the one place that changes, and the hum
-     stops handing off to it rather than stopping here (the spec has the
-     hum continuing to build through the collapse, then hard-cutting to
-     silence at the event horizon). Stopping it here keeps the drone
-     from running forever in the meantime. */
+  /* Reaching the end of the hold hands off to the collapse cinematic
+     (SINGULARITY_DESIGN.md Phases 1-3) — the hum deliberately keeps
+     building rather than stopping here; it hard-cuts to silence only
+     at the event horizon (see startCollapse/advanceSingularityScene in
+     themes/neon-singularity.js). */
   function commitSingularity() {
-    audio.stopSingularityHum();
-    openSingularityInfo();
+    singularityCinematic.startCollapse();
   }
 
   /* Clicking anywhere else while the button is revealed (but not being
-     held, and with no panel open) dismisses it early instead of waiting
-     out the 10s auto-hide — with its own one-off cue: a heavily
-     reverberated, slightly discordant radar ping. pointerdown rather
-     than click so it lands on the same gesture that's about to do
-     whatever else it was going to do. */
+     held, and the cinematic hasn't taken over) dismisses it early
+     instead of waiting out the 10s auto-hide — with its own one-off
+     cue: a heavily reverberated, slightly discordant radar ping.
+     pointerdown rather than click so it lands on the same gesture
+     that's about to do whatever else it was going to do. */
   React.useEffect(() => {
-    if (!singularityRevealed || showSingularityInfo) return;
+    if (!singularityRevealed || singularityCinematic.singularityPhase !== "idle") return;
     const onDown = (e) => {
       const btn = singularityBtnRef.current;
       if (btn && (btn === e.target || btn.contains(e.target))) return;
@@ -3217,19 +3224,7 @@ export function useSetupExtras({ awaitingBegin, setPieces, audio }) {
     };
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
-  }, [singularityRevealed, showSingularityInfo]);
-
-  function openSingularityInfo() {
-    clearTimeout(singularityHideTimerRef.current);
-    setShowSingularityInfo(true);
-    audio.playSingularityOpen();
-  }
-  function closeSingularityInfo() {
-    setShowSingularityInfo(false);
-    clearTimeout(singularityHideTimerRef.current);
-    singularityHideTimerRef.current = setTimeout(() => setSingularityRevealed(false), 10000);
-    audio.playSingularityClose();
-  }
+  }, [singularityRevealed, singularityCinematic.singularityPhase]);
 
   React.useEffect(() => {
     return () => {
@@ -3242,26 +3237,15 @@ export function useSetupExtras({ awaitingBegin, setPieces, audio }) {
     };
   }, []);
 
-  React.useEffect(() => {
-    if (!showSingularityInfo) return;
-    const onKey = (e) => {
-      if (e.key === "Escape") closeSingularityInfo();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showSingularityInfo]);
-
   return {
     handleAnomaly,
     singularityRevealed,
-    showSingularityInfo,
     beginSingularityHold,
     cancelSingularityHold,
-    openSingularityInfo,
-    closeSingularityInfo,
     beginSingularityCommitHold,
     cancelSingularityCommitHold,
     singularityBtnRef,
+    ...singularityCinematic,
   };
 }
 
@@ -3350,114 +3334,15 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingula
   );
 }
 
-/* The Singularity info popup — a standalone, always-mounted modal (like
-   the chassis's own Info overlay/Victory placard) rather than nested
-   inside the setup row, so its own opacity transition works the same
-   way theirs do. */
+/* The Singularity's full-screen overlay — the collapse/blackout/sphere
+   cinematic (themes/neon-singularity.js) replaces what used to be a
+   static "coming soon" info popup here. Conditionally mounted (only
+   while the cinematic is running) rather than the always-mounted/
+   opacity-toggled pattern the rest of this file's modals use, since
+   this is a rare, heavy, mostly one-way takeover rather than a
+   frequently-toggled panel. */
 export function renderExtraOverlays(setupExtras) {
-  if (!setupExtras) return null;
-  const { showSingularityInfo, closeSingularityInfo } = setupExtras;
-  const h = React.createElement;
-  return h(
-    "div",
-    {
-      onClick: closeSingularityInfo,
-      // The chassis closes the whole setup dock on any pointerdown
-      // outside its card (ElCabeza3D.jsx) — this backdrop sits outside
-      // that card in the DOM, so without stopping it here, dismissing
-      // this popup by tapping the backdrop also bubbles up and collapses
-      // the dock underneath it.
-      onPointerDown: (e) => e.stopPropagation(),
-      style: {
-        position: "fixed",
-        inset: 0,
-        background: "rgba(2,4,8,0.72)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        boxSizing: "border-box",
-        zIndex: 1050,
-        opacity: showSingularityInfo ? 1 : 0,
-        pointerEvents: showSingularityInfo ? "auto" : "none",
-        transition: "opacity 0.3s ease",
-      },
-    },
-    h(
-      "div",
-      {
-        onClick: (e) => e.stopPropagation(),
-        style: {
-          position: "relative",
-          width: "clamp(280px, 78%, 500px)",
-          maxHeight: "86vh",
-          overflowY: "auto",
-          background: "rgba(4,6,10,0.92)",
-          backdropFilter: "blur(6px)",
-          border: "1px solid rgba(77,232,255,0.28)",
-          boxShadow: "0 30px 70px rgba(0,0,0,0.7), 0 0 50px rgba(77,232,255,0.14)",
-          padding: "40px 32px 30px",
-          boxSizing: "border-box",
-        },
-      },
-      h(
-        "h2",
-        {
-          style: {
-            margin: "0 0 6px",
-            textAlign: "center",
-            fontFamily: "'Chakra Petch', sans-serif",
-            fontWeight: 700,
-            fontSize: 21,
-            letterSpacing: "0.1em",
-            color: "#00ffff",
-            textShadow: "0 0 18px rgba(0,255,255,0.45)",
-          },
-        },
-        "SINGULARITY PROTOCOL"
-      ),
-      h(
-        "p",
-        {
-          style: {
-            margin: "0 0 24px",
-            textAlign: "center",
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 10.5,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: "rgba(77,232,255,0.65)",
-          },
-        },
-        "Status: In Development"
-      ),
-      h(
-        "div",
-        { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 14, lineHeight: 1.7, color: "#cfd8dc" } },
-        h(
-          "p",
-          { style: { margin: "0 0 16px" } },
-          "An experimental rules variant, not yet playable. When it lands, entering the Singularity will open a distinct branch of the game with:"
-        ),
-        h(
-          "ul",
-          { style: { margin: "0 0 18px", paddingLeft: 20 } },
-          h("li", { style: { marginBottom: 8 } }, "New piece types, each with movement rules of their own."),
-          h(
-            "li",
-            { style: { marginBottom: 8 } },
-            "A black hole variant: sections of the board become impassable, reshaping the battlefield mid-game."
-          ),
-          h("li", { style: { marginBottom: 0 } }, "User-defined board dimensions, rather than the fixed 10×10 grid.")
-        ),
-        h(
-          "p",
-          { style: { margin: 0, color: "rgba(207,216,220,0.7)", fontStyle: "italic" } },
-          "Planned primarily as a Neon Cabeza branch, with a possible toggle to bring the same variant to standard El Cabeza's own theming once the rules themselves are finalized."
-        )
-      )
-    )
-  );
+  return renderSingularityOverlay(setupExtras);
 }
 
 /* Scene lighting: color/intensity only — see themes/standard.js's
@@ -4126,6 +4011,68 @@ export function createSoundscape() {
     humNodes.oscs.forEach((o, i) => {
       o.frequency.setTargetAtTime(humNodes.baseF[i] * (1 + 0.14 * t), now, 0.25);
     });
+  }
+
+  /* Keeps the hum intensifying past the commit point, through the
+     collapse animation, rather than holding flat at whatever
+     updateSingularityHum(1) left it at — continues the same curves
+     (lowpass opening further, wet send climbing further, LFO
+     quickening further) parameterized by collapse progress u (0-1)
+     instead of hold progress, picking up exactly where intensity=1
+     left off so there's no audible seam at the handoff. */
+  function continueSingularityHumThroughCollapse(u) {
+    if (!ctx || !humNodes) return;
+    const c = Math.max(0, Math.min(1, u));
+    const now = ctx.currentTime;
+    const S = 0.08;
+    humNodes.lp.frequency.setTargetAtTime(560 + 300 * c, now, S);
+    humNodes.wetSend.gain.setTargetAtTime(0.0765 + 0.05 * c, now, S);
+    humNodes.lfo.frequency.setTargetAtTime(3.8 + 2.5 * c, now, S);
+    humNodes.lfoDepth.gain.setTargetAtTime(0.65 + 0.2 * c, now, S);
+  }
+
+  /* The event-horizon hard cut: "the instant the black screen is
+     established, audio cuts to absolute silence — sudden, jarring,
+     deliberate," per SINGULARITY_DESIGN.md. Zeroing master once
+     silences every downstream bus (hum, ambient bed, events, sfx) in a
+     single call regardless of what else happens to be sounding at that
+     exact instant, rather than hunting down each one individually.
+     Unlike stopSingularityHum, this stops the hum's oscillators
+     immediately — nothing should be left scheduled to ring back in
+     once master is restored later. */
+  function cutSingularityAudioToSilence() {
+    if (!ctx || !master) return;
+    const now = ctx.currentTime;
+    master.gain.cancelScheduledValues(now);
+    master.gain.setValueAtTime(0, now);
+    // Test-only hook — Playwright can't read the Web Audio graph
+    // directly, and there's no DOM property standing in for "is sound
+    // actually silent right now."
+    if (typeof window !== "undefined") window.__EC_TEST_MASTER_GAIN__ = 0;
+    if (humNodes) {
+      const h = humNodes;
+      humNodes = null;
+      try {
+        h.oscs.forEach((o) => o.stop(now));
+        h.lfo.stop(now);
+      } catch (e) { /* already stopped — harmless */ }
+      try {
+        h.dry.disconnect(); h.wetSend.disconnect(); h.wetOut.disconnect();
+        h.conv.disconnect(); h.lp.disconnect(); h.lfoTarget.disconnect(); h.lfoDepth.disconnect();
+      } catch (e) { /* fine either way */ }
+    }
+  }
+
+  /* The only way back to sound today (see themes/neon-singularity.js's
+     escape hatch) — there's no real "game begins" event reachable from
+     the placeholder sphere yet, so this restores the same level
+     ensureGraph() would have set, respecting the existing mute toggle. */
+  function resumeAudioAfterSingularity() {
+    if (!ctx || !master) return;
+    const now = ctx.currentTime;
+    master.gain.cancelScheduledValues(now);
+    master.gain.setValueAtTime(muted ? 0 : MASTER_GAIN, now);
+    if (typeof window !== "undefined") window.__EC_TEST_MASTER_GAIN__ = muted ? 0 : MASTER_GAIN;
   }
 
   /* Stops FEEDING the reverb rather than silencing it. The dry voices
@@ -6042,7 +5989,10 @@ export function createSoundscape() {
     playSingularityClose: () => { ensureGraph(); reverseCue(70, 900, 0.5, "sine", 0.12); },
     startSingularityHum,
     updateSingularityHum,
+    continueSingularityHumThroughCollapse,
     stopSingularityHum,
+    cutSingularityAudioToSilence,
+    resumeAudioAfterSingularity,
     playSingularityDismiss,
     /* Dock open/close — a very subtle low "vrrrt": a short, low,
        buzzy sawtooth descent (not a clean sine — the harmonics are

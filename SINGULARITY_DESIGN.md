@@ -1,10 +1,13 @@
 # Cabeza [the_system] — Singularity design spec
 
-**Status: planning only. Nothing in this document is implemented.** This
-captures a full planning conversation before any code exists, so a future
-session can pick up implementation without re-deriving these decisions.
-Cross-check anything load-bearing against `PROJECT_MEMORY.md` and the
-actual code before building, since this document predates all of it.
+**Status: mostly planning still, but Part 1's trigger, cinematic
+transition, and the discovery gesture that leads into it are now BUILT
+and shipped** — see the status note under Part 1 below for exactly what
+exists. MATTER/LAWS/TOPOLOGIES' actual rules content remains
+unimplemented (TOPOLOGIES' own board-size parameterization is the one
+exception — see its own status note further down). This document
+predates all of it, so cross-check anything load-bearing against
+`PROJECT_MEMORY.md` and the actual code before building further.
 
 ## What this is
 
@@ -115,6 +118,32 @@ distinct from a broad accretion-disk glow) should look like.
   drag-imparts-angular-velocity-decaying-to-idle pattern already built for
   the dock's spinning piece preview, applied to the sphere instead of the
   camera).
+
+**STATUS: Part 1's trigger and transition are BUILT and shipped** — the
+hold gesture, the collapse (a real vertex-shader-warped grid mesh pulling
+into a wormhole funnel, energy streaks, rigid per-piece translate/scale/
+tumble toward center, palette cooling through "deeper collapse"), the
+hard silent cut to black (screen and audio land on the same frame, via a
+new `cutSingularityAudioToSilence` that zeros the shared master gain
+node), and Phase 3's sphere (a real `ShaderMaterial` Fresnel rim/"photon
+ring" term with a breathing pulse uniform, a `THREE.Points` starfield,
+and drag-rotate physics ported from the dock-piece pattern — decaying to
+a still, calm rest rather than a continuous wander) all exist in
+`themes/neon-singularity.js`, wired into `themes/neon.js` at the
+`commitSingularity`/`useSetupExtras`/`renderExtraOverlays` seams. See
+`PROJECT_MEMORY.md` for the exact architecture (the `three.current`
+bridge object that lets a React hook trigger animation living inside the
+chassis's per-frame tick).
+
+**Deliberately out of scope for this pass, per an explicit scope
+decision**: the sphere's surface carries simple placeholder DOM text
+(the same "not yet playable" message the old info-popup placeholder
+used) rather than the real UV-mapped, checkbox-driven, canvas-texture
+MATTER/LAWS/TOPOLOGIES menu described above — those rules systems don't
+exist yet, so real interactive menu content on the sphere would be inert
+regardless. The escape hatch (Escape key, or an on-screen "Back" button
+for touch) exits back to the normal setup screen; there is no real
+"selections made, game begins" path yet, since there's nothing to select.
 
 ## Part 2 — MATTER, LAWS, TOPOLOGIES
 

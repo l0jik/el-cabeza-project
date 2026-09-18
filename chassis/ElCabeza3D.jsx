@@ -1209,7 +1209,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      branch it takes for the lifetime of a mounted instance. A theme
      with no setup-screen state of its own (Standard) doesn't export
      this hook at all, and gets `null` here. */
-  const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({ awaitingBegin, pieces, setPieces, audio: audioRef.current }) : null;
+  const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({ awaitingBegin, pieces, setPieces, audio: audioRef.current, three }) : null;
 
   function handleTitleClick() {
     setInfoBtnVisible(true);
@@ -1767,7 +1767,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        what any given theme's effects actually do. */
     ambientRef.current = theme.mountAmbientEffects(
       { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef },
-      { three, windingDownRef, awaitingBeginRef, audio: audioRef.current }
+      { three, cam, windingDownRef, awaitingBeginRef, audio: audioRef.current }
     );
 
     /* ---- camera positioning ---- */

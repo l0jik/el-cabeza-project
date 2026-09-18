@@ -1,18 +1,29 @@
 /* Neon's Singularity: the Anomaly random-setup button, the phantom
-   reveal, and the hold gesture that commits.
+   reveal, the hold gesture that commits, and the collapse/blackout/
+   sphere cinematic that follows (SINGULARITY_DESIGN.md Part 1,
+   themes/neon-singularity.js).
 
-   The gesture under test (SINGULARITY_DESIGN.md): hold Anomaly ~4s to
-   reveal Singularity, then keep holding on Singularity ITSELF — 2s of
-   nothing, then a hum that builds over 4s — and holding through the end
-   of that build commits. A plain tap on Singularity is deliberately a
+   The gesture under test: hold Anomaly ~4s to reveal Singularity, then
+   keep holding on Singularity ITSELF — 2s of nothing, then a hum that
+   builds over 4s — and holding through the end of that build commits,
+   handing off to the cinematic: the board warps into a wormhole for
+   ~3.2s, hard-cuts to silent black, then settles on a draggable,
+   Fresnel-glow sphere. A plain tap on Singularity is deliberately a
    no-op, releasing early cancels, and clicking elsewhere dismisses the
    revealed button.
 
-   Note the popup is ALWAYS mounted and toggled by opacity (same pattern
-   as the chassis's Info overlay and Victory placard), so "is the
-   heading in the DOM" is always true and proves nothing — every check
-   here reads the real inline opacity instead. An earlier version of
-   this file asserted on DOM presence and reported a false pass. */
+   Pixel-level shader correctness (the funnel's curve, the rim's exact
+   shape) isn't realistically Playwright-testable — see the screenshot
+   at the bottom for manual visual review. What IS tested here: the
+   phase sequence actually reaches each stage in order, the audio
+   really goes silent exactly when the screen goes black (not "soon
+   after"), the sphere really responds to drag, and none of this
+   accidentally collapses the setup dock underneath it (a real bug
+   this suite caught once already — see the backdrop-stopPropagation
+   check below). Every check reads real state (data attributes, a
+   test-only window hook mirroring Web Audio's actual gain value, inline
+   opacity) — never DOM presence alone, which proves nothing on an
+   always-mounted element. */
 
 import { chromium } from "playwright";
 import path from "path";
@@ -25,6 +36,8 @@ const file = path.join(__dirname, "..", "dist", "el-cabeza-neon.html");
 // Must exceed the gesture's own 2s delay + 4s build, with margin for
 // this sandbox's very variable timing.
 const FULL_HOLD_MS = 7400;
+// Collapse (3200ms) + blackout dwell (700ms), with generous margin.
+const COLLAPSE_TO_SPHERE_MS = 5500;
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const page = await browser.newPage({ viewport: { width: 1100, height: 900 } });
@@ -56,16 +69,10 @@ check("board survives repeated Anomaly re-rolls",
   await page.evaluate(() => !!document.querySelector('canvas[data-testid="board-canvas"]')));
 
 const revealed = () => page.evaluate(() => !!document.querySelector(".ec-singularity-btn"));
-/* The popup's own backdrop carries the opacity transition — walk up
-   from the heading rather than assuming a nesting depth. */
-const popupOpacity = () =>
-  page.evaluate(() => {
-    const h2 = [...document.querySelectorAll("h2")].find((h) => h.textContent.includes("SINGULARITY PROTOCOL"));
-    if (!h2) return null;
-    let el = h2;
-    while (el && el.style.opacity === "") el = el.parentElement;
-    return el ? el.style.opacity : null;
-  });
+const cinematicPhase = () =>
+  page.evaluate(() => document.querySelector('[data-testid="singularity-overlay"]')?.dataset.singularityPhase || null);
+const dockOpen = () => page.evaluate(() => document.querySelector('[data-testid="dock-panel"]')?.dataset.open);
+const masterGain = () => page.evaluate(() => window.__EC_TEST_MASTER_GAIN__);
 
 // ---- reveal ----
 const aBox = await anomalyBtn.boundingBox();
@@ -81,7 +88,7 @@ const awayFromButtons = async () => page.mouse.move(20, 20);
 // ---- a plain tap must NOT open it ----
 await page.locator(".ec-singularity-btn").click();
 await page.waitForTimeout(500);
-check("a plain tap on Singularity does nothing", (await popupOpacity()) !== "1", `opacity=${await popupOpacity()}`);
+check("a plain tap on Singularity does nothing", (await cinematicPhase()) === null, `phase=${await cinematicPhase()}`);
 await awayFromButtons();
 await page.waitForTimeout(300);
 
@@ -91,38 +98,56 @@ await onSingularity();
 await page.waitForTimeout(3000); // past the 2s hum start, well short of commit
 await awayFromButtons();
 await page.waitForTimeout(600);
-check("releasing the hold early does not commit", (await popupOpacity()) !== "1", `opacity=${await popupOpacity()}`);
+check("releasing the hold early does not commit", (await cinematicPhase()) === null, `phase=${await cinematicPhase()}`);
 check("the button is still revealed after an early release", await revealed());
 
-// ---- holding all the way through DOES commit ----
+// ---- holding all the way through commits and starts the collapse ----
 await onSingularity();
 await page.waitForTimeout(FULL_HOLD_MS);
-const afterHold = await popupOpacity();
-check("holding through the full build commits and opens the panel", afterHold === "1", `opacity=${afterHold}`);
-await page.screenshot({ path: "/tmp/neon-singularity-committed.png" });
+check("holding through the full build commits and starts the collapse",
+  (await cinematicPhase()) === "collapsing", `phase=${await cinematicPhase()}`);
 
-// ---- Escape closes it ----
+// ---- the collapse reaches a hard, silent cut to black ----
+const dockOpenDuringCollapse = await dockOpen();
+await page.waitForTimeout(COLLAPSE_TO_SPHERE_MS);
+const finalPhase = await cinematicPhase();
+check("the collapse hands off to the sphere", finalPhase === "sphere", `phase=${finalPhase}`);
+check("audio is silent by the time the sphere settles (cut at the black frame, not after)",
+  (await masterGain()) === 0, `gain=${await masterGain()}`);
+check("the setup dock never collapsed underneath the cinematic — a regression this suite caught once already",
+  dockOpenDuringCollapse === "true" && (await dockOpen()) === "true",
+  `duringCollapse=${dockOpenDuringCollapse} now=${await dockOpen()}`);
+
+await page.screenshot({ path: "/tmp/neon-singularity-sphere.png" });
+
+// ---- the sphere actually responds to drag (and only the sphere — not
+// the board/camera underneath, which the overlay should be fully
+// capturing input away from) ----
+const overlay = page.locator('[data-testid="singularity-overlay"]');
+const obox = await overlay.boundingBox();
+const rotBefore = await page.evaluate(() => window.__EC_TEST_SINGULARITY__?.sphereRotationY);
+await page.mouse.move(obox.x + obox.width / 2, obox.y + obox.height / 2);
+await page.mouse.down();
+for (let i = 1; i <= 8; i++) {
+  await page.mouse.move(obox.x + obox.width / 2 + i * 12, obox.y + obox.height / 2, { steps: 1 });
+  await page.waitForTimeout(16);
+}
+await page.mouse.up();
+const rotAfter = await page.evaluate(() => window.__EC_TEST_SINGULARITY__?.sphereRotationY);
+check("dragging the sphere actually rotates it", rotAfter !== rotBefore, `before=${rotBefore} after=${rotAfter}`);
+
+// ---- Escape (or the on-screen Back button, for touch) restores
+// everything: board, dock, masthead, audio ----
 await page.keyboard.press("Escape");
-await page.waitForTimeout(500);
-check("Escape closes the panel", (await popupOpacity()) === "0", `opacity=${await popupOpacity()}`);
+await page.waitForTimeout(700);
+check("Escape closes the cinematic", (await cinematicPhase()) === null, `phase=${await cinematicPhase()}`);
+check("audio resumes after escaping", (await masterGain()) > 0, `gain=${await masterGain()}`);
+check("the setup dock is interactable again", await anomalyBtn.isVisible());
 
-// ---- dismissing via the popup's own backdrop must NOT also collapse
-// the setup dock underneath it (the reported bug: the dock has a
-// document-level "pointerdown outside the card" listener that closes
-// it, and the popup's backdrop sat outside that card without stopping
-// the event, so one tap closed both at once) ----
+// ---- click-outside dismisses the revealed button (pre-commit gesture,
+// unaffected by any of the above) ----
 await onSingularity();
-await page.waitForTimeout(FULL_HOLD_MS);
-check("re-committing opens the panel again", (await popupOpacity()) === "1", `opacity=${await popupOpacity()}`);
-const dockOpenBefore = await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]')?.dataset.open);
-await page.mouse.click(20, 20); // corner of the fixed backdrop, away from the popup's own content box
-await page.waitForTimeout(500);
-check("clicking the popup's backdrop closes it", (await popupOpacity()) === "0", `opacity=${await popupOpacity()}`);
-const dockOpenAfter = await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]')?.dataset.open);
-check("dismissing the popup does not also collapse the setup dock",
-  dockOpenBefore === "true" && dockOpenAfter === "true", `before=${dockOpenBefore} after=${dockOpenAfter}`);
-
-// ---- click-outside dismisses the revealed button ----
+await page.waitForTimeout(3000);
 await awayFromButtons();
 await page.waitForTimeout(400);
 if (await revealed()) {
