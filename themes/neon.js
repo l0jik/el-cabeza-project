@@ -404,6 +404,12 @@ export function makeGridGlowTexture() {
    see the material below. */
 export function makeGrid() {
   const group = new THREE.Group();
+  // Named so later code (the singularity board palette retune) can
+  // reach these specific materials via getObjectByName instead of a
+  // t.boardGroup.traverse() that would also net every on-board piece's
+  // shell — pieces are LineSegments too, and pieceGroup is itself a
+  // child of boardGroup by the time any of this runs.
+  group.name = "ec-grid";
   const lines = [];
 
   for (let i = 0; i <= BOARD_COLS; i++) {
@@ -448,6 +454,7 @@ export function makeGrid() {
      makes the whole grid group always draw before any piece
      regardless of distance, removing the flip entirely. */
   gridLines.renderOrder = -10;
+  gridLines.name = "ec-grid-lines";
   group.add(gridLines);
 
   const borderGeo = new THREE.BufferGeometry();
@@ -479,6 +486,7 @@ export function makeGrid() {
   );
   border.position.y = 0.006;
   border.renderOrder = -10; // see gridLines.renderOrder comment above
+  border.name = "ec-grid-border";
   group.add(border);
 
   /* theme: the actual bloom halo — a soft-blurred copy of the same
@@ -497,6 +505,7 @@ export function makeGrid() {
   glow.rotation.x = -Math.PI / 2;
   glow.position.y = 0.009;
   glow.renderOrder = -10; // see gridLines.renderOrder comment above
+  glow.name = "ec-grid-glow";
   group.add(glow);
 
   return group;
@@ -2383,6 +2392,14 @@ export function mountAmbientEffects(refs, helpers) {
   // object, so no extra chassis plumbing is needed to connect them.
   advanceSingularityScene(t, now, { titleWrapRef, cardRef, fxOverlayRef });
 
+  // The board palette retune + weight-warp, active only once an
+  // actual Singularity-originated game is underway — see the block's
+  // own comment above buildWeightWarpMesh. Deliberately NOT gated on
+  // boardEffectsIdle() the way most of this tick's other FX are: those
+  // exist purely between-turns, while this needs to track live piece
+  // positions throughout an active game.
+  advanceSingularityBoardFx(t);
+
     },
 
     dispose() {
@@ -3454,7 +3471,16 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
   mesh.castShadow = true;
   mesh.receiveShadow = false;
   mesh.renderOrder = 1; // explicitly after the grid's -10 — see buildGrid's renderOrder comment
-  mesh.userData = { pieceId: piece.id, kind: "piece" };
+  // isDark/weight ride along so later per-frame code (the singularity
+  // board palette retune and the weight-warp overlay, both reached
+  // only via t.pieceGroup.children — see their own comments) can read
+  // a piece's side and mass without needing the chassis's own `pieces`
+  // array threaded all the way into theme code. weight is volume-
+  // based (current w*h*z, not a fixed per-type constant) since rolling
+  // genuinely changes a piece's live footprint/height, and this mesh
+  // is rebuilt fresh (see the pieceRef !== p check in chassis's keyed-
+  // diff effect) every time that happens, so it's never stale.
+  mesh.userData = { pieceId: piece.id, kind: "piece", isDark, weight: piece.w * piece.h * piece.z };
 
   /* Box pieces trace a SIMPLIFIED PROXY (a plain sharp-cornered
      BoxGeometry at the piece's true outer dimensions) rather than
@@ -3489,9 +3515,254 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
      piece's body could never properly occlude a farther piece's
      outline no matter how much depth actually separated them. */
   shell.renderOrder = 1;
-  shell.userData = { pieceId: piece.id, kind: "shell" };
+  shell.userData = { pieceId: piece.id, kind: "shell", isDark };
 
   return { mesh, shell };
+}
+
+/* ---------------------------------------------------------------------
+   Singularity board FX: a cosmic palette retune plus a purely visual,
+   weight-based warp of the board surface, active only for a game that
+   was actually started via the Singularity flow (see
+   finalizeSingularityBegin, themes/neon-singularity.js, which sets
+   t.singularityGameActive = true right before firing the real Begin
+   Game). Neither of these touches gameplay — move legality, rolling,
+   and the AI's evaluation are all untouched; this is purely "does the
+   board look like something out of the sphere" per user feedback that
+   an active Singularity game should read as less neon-signage, more
+   deep-space/cosmic. Lives here (not themes/neon-singularity.js)
+   because it retints THIS file's own HEX constants/materials in
+   place, and neon-singularity.js is imported BY this file — giving it
+   these functions instead would create a circular import.
+
+   Board/pieces already exist by the time a Singularity game's Begin
+   Game fires (they're built once at chassis mount, independent of
+   Begin Game — see chassis/ElCabeza3D.jsx), so nothing here rebuilds
+   geometry; everything is a mutation of already-live materials/lights,
+   discovered via getObjectByName (ec-slab/ec-grid-*, named at
+   construction above) rather than an unfiltered boardGroup.traverse()
+   — traversal would also catch on-board pieces' own shell materials,
+   which are LineSegments too. */
+
+// Named per role rather than reusing HEX's own keys 1:1 — these are
+// retint TARGETS, not a parallel full palette, so only the handful of
+// roles actually being swapped need an entry. Violet is the sphere's
+// own photon-ring accent (see SPHERE_FRAGMENT's uRimColor in
+// neon-singularity.js) standing in for Light's warm amber; Dark's
+// cyan is untouched since it already reads as "singularity" — it's
+// the same hue the sphere itself glows.
+// How far above the slab's own top face (y=0) the weight-warp mesh
+// rests before any deformation — needs real headroom (not just enough
+// to clear the grid at y=0.004-0.009) since a dip has to have
+// somewhere to go without sinking below the opaque slab; see its own
+// comment at buildWeightWarpMesh/updateWeightWarp for the numbers this
+// was tuned against.
+const WEIGHT_WARP_BASE_HEIGHT = 0.15;
+
+const SINGULARITY_BOARD_PALETTE = {
+  lightEmissive: 0x8a5cff,
+  lightOutline: 0x6a3ddb,
+  gridLine: 0x3d2f78,
+  gridBorder: 0x5a3fc4,
+  gridGlowTint: 0xcfa8ff,
+  slabTopTint: 0xd9d0ff,
+  slabSide: 0x140b22,
+  keyLight: 0xcdb8ff,
+  fillLight: 0xb08cff,
+  backLight: 0xd9c8ff,
+};
+
+/* Sets (or restores) one color/intensity property on a material or
+   light, snapshotting the ORIGINAL value into userData the first time
+   it's ever touched — the same "stash the base value once, read it
+   back on the way out" pattern themes/neon-singularity.js already
+   uses for the grid's opacity (see its own singularityBaseOpacity
+   comment). Works for both THREE.Color properties (material.color,
+   material.emissive, light.color — anything with getHex/setHex) and
+   plain numeric ones (light.intensity), so one function covers every
+   case this file needs. */
+function retintProp(target, prop, activeValue, active) {
+  if (!target) return;
+  const stashKey = `singularityBase_${prop}`;
+  const current = target[prop];
+  const isColor = current && typeof current.getHex === "function";
+  if (target.userData[stashKey] === undefined) {
+    target.userData[stashKey] = isColor ? current.getHex() : current;
+  }
+  const value = active ? activeValue : target.userData[stashKey];
+  if (isColor) current.setHex(value);
+  else target[prop] = value;
+}
+
+/* The palette retune itself — safe to call every frame while active
+   (see its call site in mountAmbientEffects's tick, below): a piece
+   whose mesh gets fully rebuilt mid-game (any move at all replaces the
+   piece object reference, which chassis's keyed-diff effect treats as
+   "rebuild the mesh" — see its own pieceRef !== p check) starts life
+   with plain HEX colors again, so a one-time call at Begin Game alone
+   would only last until the first move. Re-applying each frame is
+   cheap (a handful of setHex calls) and keeps every current piece
+   correctly tinted regardless of when its mesh was (re)built. */
+function applySingularityBoardPalette(t, active) {
+  if (!t || !t.boardGroup) return;
+  const P = SINGULARITY_BOARD_PALETTE;
+
+  const slab = t.boardGroup.getObjectByName("ec-slab");
+  if (slab && Array.isArray(slab.material)) {
+    retintProp(slab.material[2], "color", P.slabTopTint, active); // the textured top face
+    [0, 1, 3, 4, 5].forEach((i) => retintProp(slab.material[i], "color", P.slabSide, active));
+  }
+
+  retintProp(t.boardGroup.getObjectByName("ec-grid-lines")?.material, "color", P.gridLine, active);
+  retintProp(t.boardGroup.getObjectByName("ec-grid-border")?.material, "color", P.gridBorder, active);
+  retintProp(t.boardGroup.getObjectByName("ec-grid-glow")?.material, "color", P.gridGlowTint, active);
+
+  if (t.pieceGroup) {
+    t.pieceGroup.children.forEach((obj) => {
+      if (!obj.userData || obj.userData.isDark) return; // Dark's cyan is untouched — see the palette comment above
+      if (obj.userData.kind === "piece") retintProp(obj.material, "emissive", P.lightEmissive, active);
+      else if (obj.userData.kind === "shell") retintProp(obj.material, "color", P.lightOutline, active);
+    });
+  }
+
+  if (t.lights) {
+    retintProp(t.lights.key, "color", P.keyLight, active);
+    retintProp(t.lights.fill, "color", P.fillLight, active);
+    retintProp(t.lights.back, "color", P.backLight, active);
+  }
+}
+
+/* A purely cosmetic "gravity well" surface hovering just above the
+   real board — never touched for gameplay, hit-testing, or legality,
+   only ever read for its own vertex positions. Built as a fresh
+   manually-authored BufferGeometry (not THREE.PlaneGeometry + a
+   rotation) specifically so its own local X/Z map directly onto the
+   same board-local X/Z every piece's mesh.position already uses (both
+   sit under t.boardGroup) — no rotation-derived axis flip to account
+   for when comparing a vertex to a piece position. 40x40 segments is
+   plenty of resolution for a gentle dip/rise, at a fraction of the
+   collapse funnel's own 96x96 (this one runs continuously through an
+   entire game, not for a few seconds during a cinematic). */
+function buildWeightWarpMesh() {
+  const segsX = 28, segsZ = 28;
+  const positions = [];
+  for (let iz = 0; iz <= segsZ; iz++) {
+    for (let ix = 0; ix <= segsX; ix++) {
+      positions.push((ix / segsX - 0.5) * SLAB_X, 0, (iz / segsZ - 0.5) * SLAB_Z);
+    }
+  }
+  const indices = [];
+  const rowLen = segsX + 1;
+  for (let iz = 0; iz < segsZ; iz++) {
+    for (let ix = 0; ix < segsX; ix++) {
+      const a = iz * rowLen + ix, b = a + 1, c = a + rowLen, d = c + 1;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  const material = new THREE.MeshBasicMaterial({
+    color: 0x8a5cff,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.3,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(geo, material);
+  // Raised well clear of the slab's own top face (y=0) and the grid/
+  // glow just above it (y=0.004-0.009) — WEIGHT_WARP_BASE_HEIGHT's own
+  // comment explains why this needs real headroom, not just enough to
+  // clear the grid: a real dip has to have somewhere to go without
+  // sinking below the opaque slab, where depthTest would hide it
+  // entirely (a first attempt at 0.02 did exactly that — the deepest
+  // dips vanished under the board instead of reading as a dip).
+  mesh.position.y = WEIGHT_WARP_BASE_HEIGHT;
+  mesh.renderOrder = -5; // after the grid's -10, before pieces' 1
+  mesh.visible = false;
+  return mesh;
+}
+
+/* Per-vertex height = sum over every current piece of (a broad, gentle
+   RISE ring minus a narrow, deep DIP at the piece itself) — a
+   difference-of-Gaussians per piece, which is deliberately the shape a
+   real stretched elastic membrane takes under a point load (it sags
+   sharply right at the load and bulges slightly in a berm around it
+   before leveling off). Summing this over several pieces is what
+   produces the effect actually requested: two heavy pieces (e.g. two
+   Opas) with a light one (a Cabeza/Turrito) sitting between them each
+   contribute a rise-ring reaching into that middle square, so it reads
+   as pushed up even though nothing sits under it directly. Weight is
+   read straight off each piece mesh's own userData (set in
+   buildPieceVisual as current w*h*z, so a piece rolled into a new
+   orientation mid-game is picked up automatically the next time its
+   mesh is rebuilt) — no separate weight table to keep in sync. */
+function updateWeightWarp(t) {
+  if (!t.singularityWarp) {
+    t.singularityWarp = buildWeightWarpMesh();
+    t.boardGroup.add(t.singularityWarp);
+  }
+  const warp = t.singularityWarp;
+  warp.visible = true;
+
+  const pieces = [];
+  t.pieceGroup.children.forEach((obj) => {
+    if (obj.userData && obj.userData.kind === "piece" && obj.userData.weight) {
+      pieces.push({ x: obj.position.x, z: obj.position.z, weight: obj.userData.weight });
+    }
+  });
+
+  const DIP_SIGMA = 1.0, RING_SIGMA = 2.15, RING_STRENGTH = 0.6;
+  /* Tuned so the heaviest piece (an Opa, weight 8) sitting exactly at
+     a vertex dips it roughly 0.10 — clearly readable but nowhere near
+     WEIGHT_WARP_BASE_HEIGHT (0.15), so even the deepest realistic dip
+     stays comfortably above the slab's own top face (y=0) instead of
+     sinking below it and disappearing behind opaque board geometry
+     (depthTest is still on; only depthWrite is off). */
+  const DEPTH_SCALE = 0.0125;
+  const posAttr = warp.geometry.attributes.position;
+  for (let i = 0; i < posAttr.count; i++) {
+    const vx = posAttr.getX(i);
+    const vz = posAttr.getZ(i);
+    let h = 0;
+    for (const p of pieces) {
+      const dx = vx - p.x, dz = vz - p.z;
+      const d2 = dx * dx + dz * dz;
+      const dip = p.weight * Math.exp(-d2 / (2 * DIP_SIGMA * DIP_SIGMA));
+      const ring = p.weight * RING_STRENGTH * Math.exp(-d2 / (2 * RING_SIGMA * RING_SIGMA));
+      h += ring - dip;
+    }
+    posAttr.setY(i, h * DEPTH_SCALE);
+  }
+  posAttr.needsUpdate = true;
+  warp.geometry.computeVertexNormals();
+}
+
+/* The one call site inside mountAmbientEffects's own tick (see below)
+   — cheap early-return when no Singularity game is active, so this
+   costs nothing for every normal Neon session. */
+function advanceSingularityBoardFx(t) {
+  if (!t || !t.boardGroup || !t.pieceGroup) return;
+  if (t.singularityGameActive) {
+    applySingularityBoardPalette(t, true);
+    updateWeightWarp(t);
+  } else if (t.singularityWarp && t.singularityWarp.visible) {
+    t.singularityWarp.visible = false;
+  }
+}
+
+/* Chassis's own New Game reset calls this directly (rather than
+   waiting for the next tick's inactive branch above) so the board
+   snaps back to normal Neon colors and the warp mesh hides in the
+   same frame a fresh game is armed, not one frame later. Exported
+   since chassis needs to reach it; Standard has no equivalent, so
+   chassis calls it as theme.deactivateSingularityBoardFx?.(...). */
+export function deactivateSingularityBoardFx(t) {
+  if (!t) return;
+  applySingularityBoardPalette(t, false);
+  if (t.singularityWarp) t.singularityWarp.visible = false;
 }
 
 /* Move/legal-move indicator: a four-corner L-bracket "targeting

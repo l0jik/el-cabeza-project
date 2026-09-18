@@ -1694,6 +1694,14 @@ export function useSingularityPhase({
   // real menu" rather than also building the rules/board-resize
   // engines behind them.
   function finalizeSingularityBegin() {
+    // Marks the game about to start as Singularity-originated — read by
+    // themes/neon.js's own board-FX tick (applySingularityBoardPalette/
+    // updateWeightWarp) for as long as this game is active, and cleared
+    // by chassis's New Game reset (see deactivateSingularityBoardFx).
+    // Set before triggerBeginGame so the retint is already in place the
+    // instant the board becomes visible, not one frame later.
+    const t = three && three.current;
+    if (t) t.singularityGameActive = true;
     if (triggerBeginGame) triggerBeginGame();
     exitSingularity();
   }

@@ -1628,6 +1628,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const slab = new THREE.Mesh(slabGeo, slabMats);
     slab.position.y = -SLAB_THICKNESS / 2;
     slab.receiveShadow = true;
+    // Named for the same reason theme.makeGrid()'s own children are —
+    // see the singularity board palette retune, reached via
+    // boardGroup.getObjectByName("ec-slab").
+    slab.name = "ec-slab";
 
     /* Built explicitly rather than from EdgesGeometry(slabGeo). The
        full box wireframe includes four vertical corner segments that
@@ -1809,6 +1813,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       ghostGroup,
       raycaster: new THREE.Raycaster(),
       pointer: new THREE.Vector2(),
+      // Exposed so theme code reached later (the singularity board
+      // palette retune) can retint the scene's own lighting in place —
+      // key/fill/back are otherwise local consts, unreachable outside
+      // this mount effect's own closure.
+      lights: { key, fill, back },
     };
 
     /* Theme-owned ambient visual FX lifecycle — see ARCHITECTURE.md.
@@ -4092,6 +4101,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     processEntry(0, pieces);
   }
   function handleReset() {
+    // A fresh game is never a Singularity game until proven otherwise
+    // (i.e. until finalizeSingularityBegin sets this again) — snaps the
+    // board palette/warp back to normal Neon in the same frame, rather
+    // than leaving them active (or waiting for the next tick's own
+    // inactive-branch cleanup) into a game that never went through the
+    // sphere at all.
+    if (three.current) {
+      three.current.singularityGameActive = false;
+      theme.deactivateSingularityBoardFx && theme.deactivateSingularityBoardFx(three.current);
+    }
     // Invalidates both views' cached fit baselines — see the refs' own
     // comment. The NEXT Begin Game press (captureViewBaselines) recaptures
     // both fresh against whatever the window measures at that moment,
