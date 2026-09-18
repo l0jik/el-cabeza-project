@@ -94,8 +94,12 @@ await page.waitForTimeout(300);
 
 // ---- releasing the hold early must NOT commit ----
 // (the click above moved the pointer onto the button, so reset first)
+// Commit lands at 900ms (hum start) + 4000ms (build) = ~4900ms; this
+// releases at 2000ms, comfortably past hum start with real margin
+// against this sandbox's own documented multi-second latency spikes
+// (see dock-helpers.mjs) before the commit threshold.
 await onSingularity();
-await page.waitForTimeout(3000); // past the 2s hum start, well short of commit
+await page.waitForTimeout(2000);
 await awayFromButtons();
 await page.waitForTimeout(600);
 check("releasing the hold early does not commit", (await cinematicPhase()) === null, `phase=${await cinematicPhase()}`);
@@ -135,6 +139,33 @@ for (let i = 1; i <= 8; i++) {
 await page.mouse.up();
 const rotAfter = await page.evaluate(() => window.__EC_TEST_SINGULARITY__?.sphereRotationY);
 check("dragging the sphere actually rotates it", rotAfter !== rotBefore, `before=${rotBefore} after=${rotAfter}`);
+
+// ---- a plain tap toggles exactly one MATTER/LAWS/TOPOLOGIES checkbox
+// via a real raycast against the rotated sphere geometry, and further
+// dragging must NOT also toggle one (the same tap-vs-drag gesture the
+// board's own Undo-Move/Stop-Here disambiguation already relies on
+// elsewhere in this app) ----
+const sphereChecks = () => page.evaluate(() => window.__EC_TEST_SINGULARITY__?.sphereChecks);
+const checksBefore = await sphereChecks();
+await page.mouse.click(obox.x + obox.width / 2, obox.y + obox.height * 0.4);
+await page.waitForTimeout(200);
+const checksAfterTap = await sphereChecks();
+const flippedCount = checksAfterTap.filter((v, i) => v !== checksBefore[i]).length;
+check("tapping the sphere toggles exactly one checkbox", flippedCount === 1,
+  `before=${JSON.stringify(checksBefore)} after=${JSON.stringify(checksAfterTap)}`);
+
+await page.mouse.move(obox.x + obox.width / 2, obox.y + obox.height / 2);
+await page.mouse.down();
+for (let i = 1; i <= 8; i++) {
+  await page.mouse.move(obox.x + obox.width / 2 + i * 15, obox.y + obox.height / 2, { steps: 1 });
+  await page.waitForTimeout(10);
+}
+await page.mouse.up();
+await page.waitForTimeout(200);
+const checksAfterDrag = await sphereChecks();
+check("dragging the sphere does not also toggle a checkbox",
+  JSON.stringify(checksAfterDrag) === JSON.stringify(checksAfterTap),
+  `afterTap=${JSON.stringify(checksAfterTap)} afterDrag=${JSON.stringify(checksAfterDrag)}`);
 
 // ---- Escape (or the on-screen Back button, for touch) restores
 // everything: board, dock, masthead, audio ----

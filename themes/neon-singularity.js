@@ -18,11 +18,14 @@
      work without new chassis plumbing beyond exposing `three` to
      useSetupExtras (see chassis/ElCabeza3D.jsx).
 
-   Per the confirmed scope: the sphere is real (Fresnel shader, real
-   drag physics, real starfield) but its surface carries simple
-   placeholder DOM text rather than true UV-mapped, checkbox-driven
-   MATTER/LAWS/TOPOLOGIES content — those rules systems don't exist yet,
-   so real menu content would be inert regardless. */
+   The sphere's surface carries real UV-mapped MATTER/LAWS/TOPOLOGIES
+   text with a checkbox each (buildSphereTextTexture/drawSphereLabels),
+   hit-tested via an actual raycast against the rotated geometry
+   (hitTestSphereTap) rather than a flat DOM overlay — the interaction
+   itself is real. What's NOT real: nothing is behind those checkboxes.
+   MATTER/LAWS/TOPOLOGIES as rules systems don't exist yet, so a tap
+   only flips the drawn checkbox and redraws the texture; there is no
+   downstream state this feeds. */
 
 import React from "react";
 import * as THREE from "three";
@@ -125,24 +128,36 @@ const WARP_FRAGMENT = `
 const SPHERE_VERTEX = `
   varying vec3 vNormal;
   varying vec3 vViewDir;
+  varying vec2 vUv;
   void main() {
     vNormal = normalize(normalMatrix * normal);
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vViewDir = normalize(-mv.xyz);
+    vUv = uv;
     gl_Position = projectionMatrix * mv;
   }
 `;
+// uTextMap is the MATTER/LAWS/TOPOLOGIES canvas texture (buildSphereTextTexture),
+// equirectangular-mapped onto the same UV space THREE.SphereGeometry
+// already provides — no custom UV authoring needed. Added additively
+// (never blended/subtracted) so the texture's own black background
+// contributes nothing and the text reads as the surface glowing from
+// within, the same visual language as the rim itself.
 const SPHERE_FRAGMENT = `
   uniform float uPulsePhase;
   uniform float uPulseAmount;
   uniform vec3 uRimColor;
+  uniform sampler2D uTextMap;
   varying vec3 vNormal;
   varying vec3 vViewDir;
+  varying vec2 vUv;
   void main() {
     float rim = 1.0 - max(dot(normalize(vNormal), normalize(vViewDir)), 0.0);
     rim = pow(rim, 2.5);
     float breathe = 1.0 + uPulseAmount * sin(uPulsePhase);
     vec3 color = uRimColor * rim * breathe;
+    vec4 text = texture2D(uTextMap, vUv);
+    color += text.rgb * text.a;
     gl_FragColor = vec4(color, 1.0);
   }
 `;
@@ -333,19 +348,116 @@ function buildStarfield() {
   return points;
 }
 
+/* MATTER / LAWS / TOPOLOGIES, real UV-mapped text with a checkbox per
+   section — placeholder content (per the confirmed scope, there are no
+   rules behind these yet, so a tap just flips a visual checkbox and
+   nothing downstream reacts to it), but a REAL interaction: hit-tested
+   against the actual rotated sphere geometry via a raycast, not a flat
+   overlay, so the text distorts under rotation exactly the way the
+   design doc describes.
+
+   Three equal longitude thirds (u in [0,1/3), [1/3,2/3), [2/3,1)),
+   each tappable across its FULL latitude — simplest hit-test that still
+   reads as "tap a section of the sphere," rather than requiring a tap
+   to land pixel-precisely on the drawn label band. */
+const SPHERE_LABELS = ["MATTER", "LAWS", "TOPOLOGIES"];
+const TEXT_TEXTURE_W = 2048, TEXT_TEXTURE_H = 1024;
+
+function drawSphereLabels(canvas, ctx, checks) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const colW = canvas.width / 3;
+  // Shifted up from true dead-center (0.5): the camera settles on the
+  // sphere at the same elevated, tilted-down angle the board itself is
+  // always viewed at, so the true equator reads as low in frame and
+  // sits behind the placeholder card at rest. This puts the labels
+  // clear of the card by default — dragging still reaches the rest of
+  // the surface either way.
+  const midY = canvas.height * 0.4;
+  const boxSize = 46;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i < 3; i++) {
+    const cx = colW * i + colW / 2;
+    const checked = checks[i];
+    // Column divider — faint, just enough to read as three sections.
+    if (i > 0) {
+      ctx.strokeStyle = "rgba(102,217,255,0.25)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(colW * i, midY - 140);
+      ctx.lineTo(colW * i, midY + 140);
+      ctx.stroke();
+    }
+    // Checkbox, centered above the label.
+    const boxY = midY - 60;
+    ctx.strokeStyle = checked ? "#8ef3ff" : "rgba(142,243,255,0.55)";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(cx - boxSize / 2, boxY - boxSize / 2, boxSize, boxSize);
+    if (checked) {
+      ctx.fillStyle = "rgba(142,243,255,0.85)";
+      ctx.fillRect(cx - boxSize / 2 + 9, boxY - boxSize / 2 + 9, boxSize - 18, boxSize - 18);
+    }
+    // Label.
+    ctx.fillStyle = checked ? "#dffaff" : "rgba(142,243,255,0.85)";
+    ctx.font = "700 52px 'Chakra Petch', sans-serif";
+    ctx.fillText(SPHERE_LABELS[i], cx, midY + 40);
+    // Status line — the honest "not real yet" note, small enough not
+    // to fight the label.
+    ctx.fillStyle = "rgba(142,243,255,0.45)";
+    ctx.font = "400 22px 'IBM Plex Mono', monospace";
+    ctx.fillText("NOT YET IMPLEMENTED", cx, midY + 88);
+  }
+}
+
+function buildSphereTextTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = TEXT_TEXTURE_W;
+  canvas.height = TEXT_TEXTURE_H;
+  const ctx = canvas.getContext("2d");
+  const checks = [false, false, false];
+  drawSphereLabels(canvas, ctx, checks);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  /* Canvas text drawn before the webfonts finish loading silently falls
+     back to a generic sans-serif — a real, easy-to-miss bug with canvas
+     text generally, not specific to this file. Redraw once the browser
+     confirms the real faces are ready, whenever that happens to land
+     relative to first paint. */
+  if (typeof document !== "undefined" && document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => {
+      drawSphereLabels(canvas, ctx, checks);
+      texture.needsUpdate = true;
+    });
+  }
+  return { canvas, ctx, texture, checks };
+}
+
 function buildSphere() {
   const geo = new THREE.SphereGeometry(6, 64, 48);
+  const text = buildSphereTextTexture();
   const uniforms = {
     uPulsePhase: { value: 0 },
     uPulseAmount: { value: 0.22 },
     uRimColor: { value: new THREE.Vector3(0.4, 0.85, 1.0) },
+    uTextMap: { value: text.texture },
   };
   const material = new THREE.ShaderMaterial({ uniforms, vertexShader: SPHERE_VERTEX, fragmentShader: SPHERE_FRAGMENT });
   const mesh = new THREE.Mesh(geo, material);
   const group = new THREE.Group();
   group.add(mesh);
   group.visible = false;
-  return { group, material, uniforms };
+  return { group, mesh, material, uniforms, text };
+}
+
+/* Toggles the checkbox under a raycast hit and redraws the texture in
+   place — texture.needsUpdate is the only thing that actually costs
+   anything here; the canvas itself is small and cheap to redraw
+   entirely rather than patching just the changed column. */
+function toggleSphereLabelAt(sphere, uv) {
+  const index = Math.min(2, Math.max(0, Math.floor(uv.x * 3)));
+  sphere.text.checks[index] = !sphere.text.checks[index];
+  drawSphereLabels(sphere.text.canvas, sphere.text.ctx, sphere.text.checks);
+  sphere.text.texture.needsUpdate = true;
 }
 
 function ensureSingularityObjects(t) {
@@ -803,6 +915,7 @@ export function advanceSingularityScene(t, now, chromeRefs) {
     window.__EC_TEST_SINGULARITY__ = {
       phase: s.phase,
       sphereRotationY: s.sphere ? s.sphere.group.rotation.y : null,
+      sphereChecks: s.sphere ? s.sphere.text.checks.slice() : null,
       collapseU: s.phase === PHASES.COLLAPSING
         ? Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS)
         : null,
@@ -820,7 +933,7 @@ export function useSingularityPhase({ three, audio }) {
   const blackDivRef = React.useRef(null);
   const phaseSetterRef = React.useRef(setPhase);
   phaseSetterRef.current = setPhase;
-  const dragStateRef = React.useRef({ lastX: 0, lastY: 0 });
+  const dragStateRef = React.useRef({ lastX: 0, lastY: 0, moved: 0 });
 
   // startCollapse (below) is what actually wires the bridge object onto
   // three.current — not a mount-time effect here, deliberately: this
@@ -879,11 +992,16 @@ export function useSingularityPhase({ three, audio }) {
   // own rotation. Live velocity is stashed on t.singularity so the tick
   // (in mountAmbientEffects, a different closure) can decay it each
   // frame when not actively dragging.
+  // A tap (as opposed to a drag) under this much total pointer movement
+  // hit-tests the sphere for a MATTER/LAWS/TOPOLOGIES checkbox instead
+  // of having rotated it.
+  const TAP_MOVE_THRESHOLD_PX = 6;
+
   function handlePointerDown(ev) {
     const t = three && three.current;
     if (!t || !t.singularity || t.singularity.phase !== PHASES.SPHERE) return;
     t.singularity.dragging = true;
-    dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY };
+    dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY, moved: 0 };
   }
   function handlePointerMove(ev) {
     const t = three && three.current;
@@ -891,7 +1009,7 @@ export function useSingularityPhase({ three, audio }) {
     const drag = dragStateRef.current;
     const dx = ev.clientX - drag.lastX;
     const dy = ev.clientY - drag.lastY;
-    dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY };
+    dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY, moved: drag.moved + Math.abs(dx) + Math.abs(dy) };
     if (t.singularity.sphere) {
       t.singularity.sphere.group.rotation.y += dx * 0.01;
       t.singularity.sphere.group.rotation.x += dy * 0.01;
@@ -901,9 +1019,29 @@ export function useSingularityPhase({ three, audio }) {
     // not for physical accuracy.
     t.singularity.dragVelocity = { x: dy * 0.6, y: dx * 0.6 };
   }
-  function handlePointerUp() {
+  function handlePointerUp(ev) {
     const t = three && three.current;
-    if (t && t.singularity) t.singularity.dragging = false;
+    if (!t || !t.singularity) return;
+    const wasTap = ev && ev.type === "pointerup" && dragStateRef.current.moved < TAP_MOVE_THRESHOLD_PX;
+    t.singularity.dragging = false;
+    if (wasTap) hitTestSphereTap(t, ev.clientX, ev.clientY);
+  }
+
+  // Raycasts the real, currently-rotated sphere geometry (not a flat
+  // screen-space hitbox) using the same raycaster/pointer objects the
+  // chassis already keeps on three.current for its own piece-picking —
+  // this is what makes the checkbox hit-test agree with wherever the
+  // label actually is after however much dragging has happened.
+  function hitTestSphereTap(t, clientX, clientY) {
+    const sphere = t.singularity.sphere;
+    if (!t.raycaster || !t.pointer || !t.camera || !sphere) return;
+    t.pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+    t.raycaster.setFromCamera(t.pointer, t.camera);
+    const hits = t.raycaster.intersectObject(sphere.mesh);
+    if (hits.length && hits[0].uv) {
+      toggleSphereLabelAt(sphere, hits[0].uv);
+      audio.playSelect();
+    }
   }
 
   return {
@@ -1009,7 +1147,7 @@ export function renderSingularityOverlay(setupExtras) {
               color: "rgba(207,216,220,0.85)",
             },
           },
-          "An experimental rules variant, not yet playable. MATTER, LAWS, and TOPOLOGIES will live here, mapped onto this sphere's own surface, once those systems exist."
+          "Drag to rotate. Tap a section of the sphere to preview its checkbox — MATTER, LAWS, and TOPOLOGIES aren't real yet, so nothing behind them does anything."
         ),
         h(
           "button",
