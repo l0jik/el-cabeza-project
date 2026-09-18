@@ -317,6 +317,8 @@ export function createAudio() {
        rest of this object. */
     startSingularityHum() {}, updateSingularityHum() {}, stopSingularityHum() {},
     playSingularityDismiss() {},
+    continueSingularityHumThroughCollapse() {}, startSingularityCollapseRoar() {},
+    cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
     playDockOpen() {}, playDockClose() {},
     dispose() {
       engine && engine.dispose();

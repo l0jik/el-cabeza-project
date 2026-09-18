@@ -352,14 +352,20 @@ function ensureSingularityObjects(t) {
   const s = t.singularity;
   if (s.built) return;
   s.built = true;
+  /* All the collapse FX are parented to the SCENE, not to boardGroup —
+     the board itself now folds and sinks into the funnel (see
+     updateBoardFold), and anything parented to it would shrink right
+     along with it instead of staying the fixed thing it falls into.
+     Losing boardGroup's heading rotation costs nothing here: every one
+     of these is radially symmetric about the throat. */
   s.warpMesh = buildWarpMesh();
-  t.boardGroup.add(s.warpMesh);
+  t.scene.add(s.warpMesh);
   s.streaks = buildStreaks();
-  t.boardGroup.add(s.streaks.group);
+  t.scene.add(s.streaks.group);
   s.blastRings = buildBlastRings();
-  t.boardGroup.add(s.blastRings.group);
+  t.scene.add(s.blastRings.group);
   s.debris = buildDebris();
-  t.boardGroup.add(s.debris.group);
+  t.scene.add(s.debris.group);
   s.sphere = buildSphere();
   t.scene.add(s.sphere.group);
   s.starfield = buildStarfield();
@@ -373,7 +379,7 @@ function ensureSingularityObjects(t) {
   if (!t.singularityGridMaterials) {
     t.singularityGridMaterials = [];
     t.boardGroup.traverse((obj) => {
-      if (obj.isLineSegments && obj.material && obj.material.transparent && obj !== s.warpMesh) {
+      if (obj.isLineSegments && obj.material && obj.material.transparent) {
         if (obj.material.userData.singularityBaseOpacity === undefined) {
           obj.material.userData.singularityBaseOpacity = obj.material.opacity;
         }
@@ -398,6 +404,7 @@ function updateCollapseVisuals(t, u, dt, now) {
 
   updateBlastRings(s, u, now);
   updateDebris(s, dt, now);
+  updateBoardFold(t, u);
   updateCollapseCamera(t, u, now);
   updateChromeSuction(s, u);
 
@@ -506,22 +513,44 @@ function updateDebris(s, dt, now) {
    offset here is purely visual and needs no cleanup — the next frame's
    applyCamera() recomputes the real position from scratch, which is
    also exactly what restores the camera on escape, for free. */
+/* The board doesn't just sit there being warped around any more — it
+   folds along both horizontal axes, tumbles, and sinks down the throat
+   with everything still on it. rotation.y is deliberately untouched:
+   that's the heading applyCamera rewrites every frame. */
+function updateBoardFold(t, u) {
+  const g = t.boardGroup;
+  if (!g) return;
+  const bite = Math.pow(u, 1.7);
+  // Squashed harder across X than Z, so it creases rather than simply
+  // shrinking — a plate buckling as it goes in, not a dissolve.
+  g.scale.set(1 - 0.92 * bite, 1 - 0.6 * bite, 1 - 0.78 * bite);
+  g.rotation.x = 0.9 * bite;
+  g.rotation.z = -0.55 * bite;
+  g.position.y = -14 * Math.pow(u, 2.4);
+}
+
 function updateCollapseCamera(t, u, now) {
   const camera = t.camera;
   if (!camera) return;
   const bite = Math.pow(u, 1.8);
-  // Drawn toward the throat, and dropping as it goes over the lip.
-  camera.position.multiplyScalar(1 - 0.28 * bite);
-  camera.position.y -= 2.6 * bite;
-  const shake = 0.55 * Math.pow(u, 3);
+  /* Flown down INTO the throat, but deliberately not through it. An
+     earlier pass dove far harder (0.9 / -9) and the camera came out the
+     far side into empty space, so the last ~0.5s before the cut — the
+     climax — played as a blank black frame. This lands it just under
+     the board's plane with the funnel walls wrapping the frame, and
+     holds it there. */
+  camera.position.multiplyScalar(1 - 0.72 * bite);
+  camera.position.y -= 5.5 * Math.pow(u, 2);
+  const shake = 0.35 + 2.4 * Math.pow(u, 2.6);
   camera.position.x += (Math.random() - 0.5) * shake;
   camera.position.y += (Math.random() - 0.5) * shake;
   camera.position.z += (Math.random() - 0.5) * shake;
-  // A slow roll off-axis, plus jitter — the horizon stops being level,
-  // which is what sells "being pulled in" over "zooming in".
-  const roll = 0.42 * bite + Math.sin(now / 90) * 0.05 * bite;
+  // Roll off-axis, with a judder that gets coarser as it goes — the
+  // horizon stops being level, which is what sells "being pulled in"
+  // over "zooming in".
+  const roll = 1.5 * bite + Math.sin(now / 55) * 0.16 * bite + (Math.random() - 0.5) * 0.09 * bite;
   camera.up.set(Math.sin(roll), Math.cos(roll), 0);
-  camera.lookAt(0, -1.5 * bite, 0);
+  camera.lookAt(0, -3.5 * bite, 0);
 }
 
 /* camera.up is persistent state, unlike camera.position — applyCamera()
@@ -530,6 +559,18 @@ function updateCollapseCamera(t, u, now) {
    cinematic and leave the board sitting at a dutch angle forever. */
 function resetCameraRoll(t) {
   if (t.camera) t.camera.up.set(0, 1, 0);
+}
+
+/* Same class of persistent state as camera.up: applyCamera only ever
+   rewrites boardGroup.rotation.y, so the fold's scale, position and
+   other two rotation axes survive until something puts them back. */
+function resetBoardFold(t) {
+  const g = t.boardGroup;
+  if (!g) return;
+  g.scale.set(1, 1, 1);
+  g.rotation.x = 0;
+  g.rotation.z = 0;
+  g.position.y = 0;
 }
 
 /* The masthead and dock get sucked in too, not just faded — scaled
@@ -572,9 +613,12 @@ function updateScreenChaos(s, u) {
   const bite = (u - 0.55) / 0.45;
   // Strobe probability and intensity both climb; between hits the
   // overlay drops back to fully transparent, so it reads as flicker.
-  if (Math.random() < 0.12 + 0.5 * bite) {
+  if (Math.random() < 0.15 + 0.7 * bite) {
     el.style.background = CHAOS_COLORS[Math.floor(Math.random() * CHAOS_COLORS.length)];
-    el.style.opacity = String(0.04 + Math.random() * 0.3 * bite);
+    // Climbs hard at the end: the frame right before the cut should be
+    // barely legible, so the cut lands on something already breaking up
+    // rather than on a clean picture.
+    el.style.opacity = String(0.04 + Math.random() * (0.25 + 0.5 * bite * bite));
   } else {
     el.style.opacity = "0";
   }
@@ -628,6 +672,7 @@ function teardownSingularityScene(t) {
   s.nextDebrisAt = 0;
   clearScreenChaos(s);
   resetCameraRoll(t);
+  resetBoardFold(t);
   // Pieces were moved by direct mesh mutation (position/scale/rotation),
   // not through the normal pieces-state render path, so nothing else
   // restores them automatically — put every piece back exactly where
@@ -799,6 +844,9 @@ export function useSingularityPhase({ three, audio }) {
     t.singularity.audio = audio;
     t.singularity.blackDivRef = blackDivRef;
     t.singularity.setPhase = (p) => phaseSetterRef.current(p);
+    // The roar layer runs alongside the hum for the whole collapse; the
+    // hard cut stops it along with everything else.
+    audio.startSingularityCollapseRoar();
     setPhase(PHASES.COLLAPSING);
   }
 
@@ -809,6 +857,12 @@ export function useSingularityPhase({ three, audio }) {
       if (t.boardGroup) t.boardGroup.visible = true;
       if (t.singularity) t.singularity.phase = PHASES.IDLE;
     }
+    /* Escaping mid-collapse has to kill the hum and the roar, which are
+       still running — only the event-horizon cut stops them on the
+       normal path, and it hasn't happened yet. Cutting first and then
+       restoring the master level does both jobs regardless of which
+       phase the exit came from. */
+    audio.cutSingularityAudioToSilence();
     audio.resumeAudioAfterSingularity();
     setPhase(PHASES.IDLE);
   }

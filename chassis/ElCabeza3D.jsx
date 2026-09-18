@@ -1285,6 +1285,27 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     else setHumanStartSide((prev) => (prev === "dark" ? "light" : "dark"));
   }
 
+  /* Tapping the status pill during setup flips which side moves first —
+     the same preference the Human button's re-click toggle writes, just
+     reachable from the thing that actually SHOWS whose turn it is.
+
+     Both pieces of state have to move together: currentPlayer is what
+     the pill and its colour dot read, while humanStartSide is what New
+     Game restores and what the pre-game camera framing and the dock
+     piece's colour track. Setting only one would leave the pill
+     disagreeing with the board underneath it. theta is written straight
+     onto the camera GOAL (not the rendered view), so the board turns to
+     face the new starting side on the usual damping rather than
+     snapping — the same thing handleNewGame does. */
+  function toggleStartingPlayer() {
+    if (!awaitingBegin) return;
+    const next = currentPlayer === "dark" ? "light" : "dark";
+    setCurrentPlayer(next);
+    setHumanStartSide(next);
+    cam.current.theta = next === "dark" ? Math.PI : 0;
+    audioRef.current.playSelect();
+  }
+
   const isPlaying = status === "playing";
   const turnLocked = stepsUsed > 0;
   /* True from the moment a game is begun (awaitingBegin cleared) until
@@ -4881,7 +4902,33 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             flexShrink: 0,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <div
+            // Only a control while a game hasn't begun — mid-game this
+            // is a plain readout again, and toggleStartingPlayer no-ops.
+            role={awaitingBegin ? "button" : undefined}
+            tabIndex={awaitingBegin ? 0 : undefined}
+            data-testid="turn-status"
+            title={awaitingBegin ? "Tap to switch which side moves first" : undefined}
+            onClick={toggleStartingPlayer}
+            onKeyDown={(e) => {
+              if (!awaitingBegin) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                toggleStartingPlayer();
+              }
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              minWidth: 0,
+              cursor: awaitingBegin ? "pointer" : "default",
+              // Keeps the tap target a comfortable size without changing
+              // the row's own fixed height or the text's position.
+              alignSelf: "stretch",
+              userSelect: "none",
+            }}
+          >
             <span
               ref={turnHaloRef}
               aria-hidden="true"

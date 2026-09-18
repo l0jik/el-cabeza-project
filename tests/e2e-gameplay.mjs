@@ -22,6 +22,32 @@ await page.waitForTimeout(1200);
 const dockOpened = await openDockPanel(page);
 console.log(`[${target}] dock panel opened:`, dockOpened);
 
+/* Tapping the turn pill during setup flips which side moves first (the
+   dot beside it too). Toggled an even number of times here so the rest
+   of this file still starts from Dark, as it always has — the point is
+   that the label and the dot both actually change and change back, not
+   just that something was clicked. */
+const turnPill = page.locator('[data-testid="turn-status"]');
+const pillState = () => page.evaluate(() => {
+  const el = document.querySelector('[data-testid="turn-status"]');
+  return { text: (el?.innerText || "").trim(), dot: el?.firstElementChild ? getComputedStyle(el.firstElementChild).backgroundColor : null };
+});
+const pillBefore = await pillState();
+await turnPill.click();
+await page.waitForTimeout(250);
+const pillToggled = await pillState();
+await turnPill.click();
+await page.waitForTimeout(250);
+const pillBack = await pillState();
+const toggleOk =
+  /dark to move/i.test(pillBefore.text) &&
+  /light to move/i.test(pillToggled.text) &&
+  pillToggled.dot !== pillBefore.dot &&
+  pillBack.text === pillBefore.text &&
+  pillBack.dot === pillBefore.dot;
+console.log(`[${target}] turn pill toggles first player: ${toggleOk ? "ok" : "FAIL"} (${pillBefore.text} -> ${pillToggled.text} -> ${pillBack.text})`);
+if (!toggleOk) errors.push(`turn pill toggle failed: ${JSON.stringify([pillBefore, pillToggled, pillBack])}`);
+
 await page.locator("button", { hasText: "Begin Game" }).click();
 await page.waitForTimeout(600);
 

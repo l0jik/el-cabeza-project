@@ -4087,6 +4087,71 @@ export function createSoundscape() {
     // Past the commit point the chop never lets up — pass a value above
     // the gate's own 0.5 threshold so every call is eligible to fire.
     scheduleSingularityGateStutter(1, now);
+    updateSingularityCollapseRoar(c);
+  }
+
+  /* A separate layer from the hum, started when the collapse commits:
+     brown noise through a bandpass that opens from a subsonic rumble to
+     a full-band tearing roar, soft-clipped so it grits up rather than
+     just getting louder. This is what makes the last second read as
+     genuinely out of control instead of merely intense — the hum alone
+     stays too musical to sell it, however hard it's driven. */
+  let collapseRoar = null;
+
+  function startSingularityCollapseRoar() {
+    ensureGraph();
+    if (!ctx || collapseRoar) return;
+    const src = brownNoiseSource();
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 55;
+    bp.Q.value = 0.6;
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = makeSoftClipCurve(5.5);
+    shaper.oversample = "2x";
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    src.connect(bp).connect(shaper).connect(g).connect(sfxGain);
+    src.start();
+    collapseRoar = { src, bp, g, nextLurchAt: 0 };
+  }
+
+  function updateSingularityCollapseRoar(u) {
+    if (!ctx || !collapseRoar) return;
+    const c = Math.max(0, Math.min(1, u));
+    const now = ctx.currentTime;
+    const S = 0.09;
+    /* Rises steeply and late, so it arrives as the thing that finally
+       overwhelms the drone rather than something present all along.
+
+       Scaled for MASTER_GAIN's +17dB like every other level in this
+       file — 0.022 peak into sfxGain's 1.25 lands around a quarter of
+       full scale on its own. Broadband noise reads far louder than a
+       drone at equal amplitude, so this is plenty; the first draft used
+       0.085 here, which on paper would have put the roar ALONE near
+       0.75 and, stacked on the hum's own measured 0.79-0.86, clipped
+       hard through the whole collapse. Note the gate stutter is ducking
+       the hum toward silence in this same window, so the two peaks
+       largely interleave rather than summing. */
+    collapseRoar.g.gain.setTargetAtTime(0.0015 + 0.022 * Math.pow(c, 1.8), now, S);
+    collapseRoar.bp.frequency.setTargetAtTime(55 + 1500 * Math.pow(c, 1.4), now, S);
+    collapseRoar.bp.Q.setTargetAtTime(0.6 + 2.2 * c, now, S);
+    /* Irregular lurches in the filter — the roar keeps breaking pitch
+       instead of sweeping smoothly, which is most of what "uncontrolled"
+       actually sounds like. */
+    if (c > 0.35 && now >= collapseRoar.nextLurchAt) {
+      const jump = 200 + Math.random() * 2200 * c;
+      collapseRoar.bp.frequency.setTargetAtTime(jump, now, 0.02);
+      collapseRoar.nextLurchAt = now + 0.05 + Math.random() * 0.3 * (1 - c);
+    }
+  }
+
+  function stopSingularityCollapseRoar() {
+    if (!collapseRoar) return;
+    const r = collapseRoar;
+    collapseRoar = null;
+    try { r.src.stop(); } catch (e) { /* already stopped — harmless */ }
+    try { r.src.disconnect(); r.bp.disconnect(); r.g.disconnect(); } catch (e) { /* fine either way */ }
   }
 
   /* The event-horizon hard cut: "the instant the black screen is
@@ -4107,6 +4172,7 @@ export function createSoundscape() {
     // directly, and there's no DOM property standing in for "is sound
     // actually silent right now."
     if (typeof window !== "undefined") window.__EC_TEST_MASTER_GAIN__ = 0;
+    stopSingularityCollapseRoar();
     if (humNodes) {
       const h = humNodes;
       humNodes = null;
@@ -6048,6 +6114,7 @@ export function createSoundscape() {
     startSingularityHum,
     updateSingularityHum,
     continueSingularityHumThroughCollapse,
+    startSingularityCollapseRoar,
     stopSingularityHum,
     cutSingularityAudioToSilence,
     resumeAudioAfterSingularity,
