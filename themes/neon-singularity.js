@@ -30,12 +30,16 @@ import { SLAB_X, SLAB_Z } from "../engine/constants.js";
 
 export const PHASES = { IDLE: "idle", COLLAPSING: "collapsing", BLACKOUT: "blackout", SPHERE: "sphere" };
 
-const COLLAPSE_DURATION_MS = 3200;
+const COLLAPSE_DURATION_MS = 3600;
 // Progress fraction where the palette starts cooling toward uniform
 // blue ("deeper collapse" in the design doc) — no separate phase, just
 // a second curve read off the same progress value.
 const COOL_BREAKPOINT = 0.55;
-const BLACKOUT_DWELL_MS = 700;
+// How long pure black holds before the sphere fades up. The fade
+// itself is deliberately slow (SPHERE_FADE_IN_MS) — the hard cut is
+// the jarring beat; the reveal on the far side of it is the calm one.
+const BLACKOUT_DWELL_MS = 900;
+const SPHERE_FADE_IN_MS = 2000;
 const PULSE_SPEED = 1.1; // rad/s-ish — the sphere's slow breathing rate
 // Same decay constant as the dock-piece drag-to-idle precedent
 // (chassis/ElCabeza3D.jsx) this is deliberately ported from, EXCEPT the
@@ -56,16 +60,36 @@ const WARP_VERTEX = `
   uniform float uProgress;
   uniform float uMaxRadius;
   uniform float uThroatDepth;
+  uniform float uTime;
   varying float vRadial;
+  varying float vRoil;
   void main() {
     vec3 pos = position;
     float r = length(pos.xy);
     float rNorm = clamp(r / uMaxRadius, 0.0, 1.0);
     vRadial = rNorm;
-    float pull = uProgress * pow(1.0 - rNorm, 2.5);
+
+    // Everything below is scaled by pull, so the outer rim stays put
+    // while the middle does the collapsing.
+    float pull = uProgress * pow(1.0 - rNorm, 2.2);
+
+    // Swirl: the closer to the throat, the further round it has been
+    // dragged. This is what turns a passive dent into something that
+    // reads as actively spinning matter down a drain.
+    float swirl = pull * 3.4;
+    float cs = cos(swirl), sn = sin(swirl);
+    pos.xy = mat2(cs, -sn, sn, cs) * pos.xy;
+
+    // Radial contraction toward the throat.
     vec2 dir = r > 0.0001 ? normalize(pos.xy) : vec2(0.0);
-    pos.xy -= dir * pull * uMaxRadius * 0.6;
-    pos.z -= pull * uThroatDepth;
+    pos.xy -= dir * pull * uMaxRadius * 0.72;
+
+    // Roil: two interfering travelling waves riding the funnel wall, so
+    // the surface churns rather than sliding smoothly down a cone.
+    float roil = sin(r * 5.5 - uTime * 5.0) * 0.55 + sin(r * 11.0 + uTime * 3.1) * 0.28;
+    vRoil = roil;
+    pos.z -= pull * uThroatDepth + roil * pull * uMaxRadius * 0.14;
+
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
 `;
@@ -76,13 +100,20 @@ const WARP_FRAGMENT = `
   uniform float uProgress;
   uniform float uCool;
   varying float vRadial;
+  varying float vRoil;
   void main() {
     vec3 violet = vec3(0.541, 0.361, 1.0);
     vec3 cyan = vec3(0.302, 0.910, 1.0);
     vec3 deepBlue = vec3(0.039, 0.102, 0.29);
     vec3 rimColor = mix(violet, cyan, vRadial);
     vec3 color = mix(rimColor, deepBlue, uCool);
-    float alpha = mix(0.35, 1.0, uProgress) * (1.0 - vRadial * 0.3);
+    // Wave crests flare brighter than troughs, so the roil in the
+    // vertex stage reads as moving light and not just moving geometry.
+    color += vec3(0.35, 0.55, 0.9) * max(vRoil, 0.0) * uProgress * 0.5;
+    // Fades out at the very edge so the mesh doesn't hard-cut against
+    // the board it overhangs.
+    float edge = 1.0 - smoothstep(0.82, 1.0, vRadial);
+    float alpha = mix(0.35, 1.0, uProgress) * (1.0 - vRadial * 0.3) * edge;
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -124,14 +155,19 @@ const SPHERE_FRAGMENT = `
 --------------------------------------------------------------------- */
 
 function buildWarpMesh() {
-  const segs = 64;
-  const geo = new THREE.PlaneGeometry(SLAB_X, SLAB_Z, segs, segs);
+  const segs = 96;
+  // Deliberately overhangs the real plate: the warp field reads as
+  // something acting ON the board from outside it, and gives the blast
+  // rings somewhere to travel out across.
+  const spanX = SLAB_X * 1.35, spanZ = SLAB_Z * 1.35;
+  const geo = new THREE.PlaneGeometry(spanX, spanZ, segs, segs);
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uProgress: { value: 0 },
-      uMaxRadius: { value: Math.max(SLAB_X, SLAB_Z) * 0.5 },
-      uThroatDepth: { value: Math.max(SLAB_X, SLAB_Z) * 0.6 },
+      uMaxRadius: { value: Math.max(spanX, spanZ) * 0.5 },
+      uThroatDepth: { value: Math.max(spanX, spanZ) * 1.45 },
       uCool: { value: 0 },
+      uTime: { value: 0 },
     },
     vertexShader: WARP_VERTEX,
     fragmentShader: WARP_FRAGMENT,
@@ -187,6 +223,89 @@ function buildStreaks(count = 8) {
   return { group, items };
 }
 
+/* Shockwave rings that punch outward across the warp field each time
+   the collapse "bites" — the blast-radius half of the splash. Pooled
+   and reused rather than allocated per burst; a ring with opacity 0 is
+   simply idle. */
+function buildBlastRings(count = 5) {
+  const group = new THREE.Group();
+  const items = [];
+  for (let i = 0; i < count; i++) {
+    const geo = new THREE.RingGeometry(1, 1.06, 96);
+    const material = new THREE.MeshBasicMaterial({
+      color: i % 2 ? 0x8a5cff : 0x4de8ff,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.rotation.x = -Math.PI / 2;
+    group.add(mesh);
+    items.push({ mesh, material, active: false, born: 0, life: 1 });
+  }
+  group.visible = false;
+  return { group, items };
+}
+
+/* Digital artifact splash: small hard-edged shards flung out of the
+   throat, each tumbling and fading. Deliberately unlit boxes with flat
+   emissive-looking colors rather than sprites — they should read as
+   fragments of the board's own geometry being torn off, not as soft
+   particles. */
+function buildDebris(count = 90) {
+  const group = new THREE.Group();
+  const items = [];
+  const geo = new THREE.BoxGeometry(0.16, 0.16, 0.16);
+  for (let i = 0; i < count; i++) {
+    const material = new THREE.MeshBasicMaterial({
+      color: i % 3 === 0 ? 0x8a5cff : i % 3 === 1 ? 0x4de8ff : 0xdfeaff,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.visible = false;
+    group.add(mesh);
+    items.push({ mesh, material, active: false, vel: new THREE.Vector3(), spin: new THREE.Vector3(), born: 0, life: 1 });
+  }
+  group.visible = false;
+  return { group, items };
+}
+
+function spawnBlastRing(s, now, strength) {
+  const ring = s.blastRings.items.find((r) => !r.active);
+  if (!ring) return;
+  ring.active = true;
+  ring.born = now;
+  ring.life = 700 + Math.random() * 500;
+  ring.peak = 0.5 * strength;
+  ring.maxScale = s.warpMesh.material.uniforms.uMaxRadius.value * (0.9 + Math.random() * 0.5);
+  ring.mesh.position.set(0, 0.12 + Math.random() * 0.3, 0);
+}
+
+function spawnDebrisBurst(s, now, strength, count) {
+  let spawned = 0;
+  for (const d of s.debris.items) {
+    if (spawned >= count) break;
+    if (d.active) continue;
+    d.active = true;
+    d.born = now;
+    d.life = 500 + Math.random() * 700;
+    d.peak = 0.55 + Math.random() * 0.45;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = (2.5 + Math.random() * 6) * strength;
+    d.vel.set(Math.cos(angle) * speed, 2 + Math.random() * 5 * strength, Math.sin(angle) * speed);
+    d.spin.set((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12);
+    d.mesh.position.set(Math.cos(angle) * 0.35, 0.25, Math.sin(angle) * 0.35);
+    d.mesh.scale.setScalar(0.5 + Math.random() * 1.4);
+    d.mesh.visible = true;
+    spawned++;
+  }
+}
+
 function buildStarfield() {
   const COUNT = 800;
   const RADIUS_MIN = 30, RADIUS_MAX = 55;
@@ -237,6 +356,10 @@ function ensureSingularityObjects(t) {
   t.boardGroup.add(s.warpMesh);
   s.streaks = buildStreaks();
   t.boardGroup.add(s.streaks.group);
+  s.blastRings = buildBlastRings();
+  t.boardGroup.add(s.blastRings.group);
+  s.debris = buildDebris();
+  t.boardGroup.add(s.debris.group);
   s.sphere = buildSphere();
   t.scene.add(s.sphere.group);
   s.starfield = buildStarfield();
@@ -266,11 +389,17 @@ function ensureSingularityObjects(t) {
    when idle).
 --------------------------------------------------------------------- */
 
-function updateCollapseVisuals(t, u, dt) {
+function updateCollapseVisuals(t, u, dt, now) {
   const s = t.singularity;
   s.warpMesh.visible = true;
   s.warpMesh.material.uniforms.uProgress.value = u;
   s.warpMesh.material.uniforms.uCool.value = Math.max(0, (u - COOL_BREAKPOINT) / (1 - COOL_BREAKPOINT));
+  s.warpMesh.material.uniforms.uTime.value = (now - s.collapseStartedAt) / 1000;
+
+  updateBlastRings(s, u, now);
+  updateDebris(s, dt, now);
+  updateCollapseCamera(t, u, now);
+  updateChromeSuction(s, u);
 
   const fadeU = Math.min(1, u / 0.2);
   t.singularityGridMaterials.forEach((m) => {
@@ -317,6 +446,152 @@ function updateCollapseVisuals(t, u, dt) {
   if (s.audio) s.audio.continueSingularityHumThroughCollapse(u);
 }
 
+/* Rings fire on a schedule that tightens as the collapse accelerates,
+   each one expanding and fading as it goes. Ring 0 fires almost
+   immediately so the collapse opens with a bang rather than easing in. */
+function updateBlastRings(s, u, now) {
+  s.blastRings.group.visible = true;
+  if (now >= (s.nextRingAt || 0)) {
+    spawnBlastRing(s, now, 0.4 + u);
+    // 620ms between early rings down to ~120ms at the throat.
+    s.nextRingAt = now + 120 + 500 * (1 - u);
+  }
+  s.blastRings.items.forEach((r) => {
+    if (!r.active) return;
+    const frac = (now - r.born) / r.life;
+    if (frac >= 1) {
+      r.active = false;
+      r.material.opacity = 0;
+      return;
+    }
+    const scale = 0.25 + r.maxScale * Math.pow(frac, 0.55);
+    r.mesh.scale.set(scale, scale, scale);
+    r.material.opacity = r.peak * (1 - frac) * (1 - frac);
+  });
+}
+
+/* Shards are thrown outward, arc over, and are then dragged back down
+   and inward — the "splash" reads as material escaping the throat and
+   being reclaimed by it, not as a fountain. */
+function updateDebris(s, dt, now) {
+  s.debris.group.visible = true;
+  if (now >= (s.nextDebrisAt || 0)) {
+    const u = Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS);
+    spawnDebrisBurst(s, now, 0.5 + u, 5 + Math.floor(u * 10));
+    s.nextDebrisAt = now + 90 + 260 * (1 - u);
+  }
+  s.debris.items.forEach((d) => {
+    if (!d.active) return;
+    const frac = (now - d.born) / d.life;
+    if (frac >= 1) {
+      d.active = false;
+      d.mesh.visible = false;
+      d.material.opacity = 0;
+      return;
+    }
+    d.vel.y -= 14 * dt; // gravity
+    // Pulled back toward the throat, harder the longer it's been out.
+    d.vel.x -= d.mesh.position.x * 3.2 * dt;
+    d.vel.z -= d.mesh.position.z * 3.2 * dt;
+    d.mesh.position.addScaledVector(d.vel, dt);
+    d.mesh.rotation.x += d.spin.x * dt;
+    d.mesh.rotation.y += d.spin.y * dt;
+    d.material.opacity = d.peak * (1 - frac);
+  });
+}
+
+/* Camera judder and pull-in. Written straight onto the live camera
+   rather than the chassis's cam goal: this tick runs AFTER the
+   chassis's own applyCamera() and before the render, so a per-frame
+   offset here is purely visual and needs no cleanup — the next frame's
+   applyCamera() recomputes the real position from scratch, which is
+   also exactly what restores the camera on escape, for free. */
+function updateCollapseCamera(t, u, now) {
+  const camera = t.camera;
+  if (!camera) return;
+  const bite = Math.pow(u, 1.8);
+  // Drawn toward the throat, and dropping as it goes over the lip.
+  camera.position.multiplyScalar(1 - 0.28 * bite);
+  camera.position.y -= 2.6 * bite;
+  const shake = 0.55 * Math.pow(u, 3);
+  camera.position.x += (Math.random() - 0.5) * shake;
+  camera.position.y += (Math.random() - 0.5) * shake;
+  camera.position.z += (Math.random() - 0.5) * shake;
+  // A slow roll off-axis, plus jitter — the horizon stops being level,
+  // which is what sells "being pulled in" over "zooming in".
+  const roll = 0.42 * bite + Math.sin(now / 90) * 0.05 * bite;
+  camera.up.set(Math.sin(roll), Math.cos(roll), 0);
+  camera.lookAt(0, -1.5 * bite, 0);
+}
+
+/* camera.up is persistent state, unlike camera.position — applyCamera()
+   rewrites position every frame but reads `up` as it finds it, so the
+   roll updateCollapseCamera applies would otherwise survive the
+   cinematic and leave the board sitting at a dutch angle forever. */
+function resetCameraRoll(t) {
+  if (t.camera) t.camera.up.set(0, 1, 0);
+}
+
+/* The masthead and dock get sucked in too, not just faded — scaled
+   down toward the funnel's screen position (the viewport centre, where
+   the board sits) while spinning and blurring out. Uses the standalone
+   scale/rotate/translate CSS properties rather than `transform`, which
+   React owns on these elements (the dock's own translateX(-50%)
+   centring lives there) and would be clobbered by writing to it. */
+function updateChromeSuction(s, u) {
+  if (!s.chromeRefs) return;
+  const bite = Math.pow(u, 1.3);
+  const scale = Math.max(0.05, 1 - 0.95 * bite);
+  const spin = 28 * bite;
+  const blur = 7 * bite;
+  const fade = Math.max(0, 1 - Math.pow(u, 0.75) * 1.25);
+  [s.chromeRefs.titleWrapRef, s.chromeRefs.cardRef].forEach((ref, i) => {
+    const el = ref && ref.current;
+    if (!el) return;
+    el.style.transformOrigin = "50% 50%";
+    el.style.scale = String(scale);
+    el.style.rotate = `${i ? spin : -spin}deg`;
+    el.style.filter = `blur(${blur}px)`;
+    el.style.opacity = String(fade);
+    el.style.pointerEvents = "none";
+  });
+}
+
+/* Full-screen digital chaos over the last stretch of the collapse,
+   painted into the chassis's existing FX overlay slot (a DOM layer
+   sitting directly over the canvas). Hard strobing colour hits rather
+   than a smooth wash — this is the bit that's meant to feel like the
+   picture itself is breaking up right before the cut. Inline styles
+   only, all cleared on the way out, so the theme's own class-driven
+   VHS effect that shares this element is unaffected. */
+const CHAOS_COLORS = ["#4de8ff", "#8a5cff", "#dfeaff", "#0b1a3a"];
+function updateScreenChaos(s, u) {
+  const el = s.chromeRefs && s.chromeRefs.fxOverlayRef && s.chromeRefs.fxOverlayRef.current;
+  if (!el) return;
+  if (u < 0.55) return;
+  const bite = (u - 0.55) / 0.45;
+  // Strobe probability and intensity both climb; between hits the
+  // overlay drops back to fully transparent, so it reads as flicker.
+  if (Math.random() < 0.12 + 0.5 * bite) {
+    el.style.background = CHAOS_COLORS[Math.floor(Math.random() * CHAOS_COLORS.length)];
+    el.style.opacity = String(0.04 + Math.random() * 0.3 * bite);
+  } else {
+    el.style.opacity = "0";
+  }
+}
+
+function clearScreenChaos(s) {
+  const el = s.chromeRefs && s.chromeRefs.fxOverlayRef && s.chromeRefs.fxOverlayRef.current;
+  if (!el) return;
+  el.style.background = "";
+  /* Explicitly 0, NOT "" — the chassis sets opacity:0 on this element as
+     a React inline style, so clearing the property outright doesn't
+     restore that, it removes it, and the theme's own .ec-fx-overlay
+     scanline layer underneath becomes permanently visible over the
+     whole game. (Which is exactly what happened the first time.) */
+  el.style.opacity = "0";
+}
+
 function updateSphereVisuals(t, dt) {
   const s = t.singularity;
   s.sphere.group.visible = true;
@@ -341,6 +616,18 @@ function teardownSingularityScene(t) {
   if (s.streaks) s.streaks.group.visible = false;
   if (s.sphere) s.sphere.group.visible = false;
   if (s.starfield) s.starfield.visible = false;
+  if (s.blastRings) {
+    s.blastRings.group.visible = false;
+    s.blastRings.items.forEach((r) => { r.active = false; r.material.opacity = 0; });
+  }
+  if (s.debris) {
+    s.debris.group.visible = false;
+    s.debris.items.forEach((d) => { d.active = false; d.material.opacity = 0; d.mesh.visible = false; });
+  }
+  s.nextRingAt = 0;
+  s.nextDebrisAt = 0;
+  clearScreenChaos(s);
+  resetCameraRoll(t);
   // Pieces were moved by direct mesh mutation (position/scale/rotation),
   // not through the normal pieces-state render path, so nothing else
   // restores them automatically — put every piece back exactly where
@@ -366,9 +653,17 @@ function teardownSingularityScene(t) {
   if (s.chromeRefs) {
     [s.chromeRefs.titleWrapRef, s.chromeRefs.cardRef].forEach((ref) => {
       if (ref && ref.current) {
-        ref.current.style.transition = "";
-        ref.current.style.opacity = "";
-        ref.current.style.pointerEvents = "";
+        const el = ref.current;
+        el.style.transition = "";
+        el.style.opacity = "";
+        el.style.pointerEvents = "";
+        // Everything updateChromeSuction touched, back to the stylesheet's
+        // own values — note `transform` is deliberately never in this
+        // list, because it's React's and was never written to.
+        el.style.scale = "";
+        el.style.rotate = "";
+        el.style.filter = "";
+        el.style.transformOrigin = "";
       }
     });
   }
@@ -386,17 +681,19 @@ export function advanceSingularityScene(t, now, chromeRefs) {
   s.lastTickAt = now;
 
   // The overlay only takes over the 3D canvas — the masthead and dock
-  // are separate DOM layers stacked ABOVE it, so without this they'd
-  // still show through once the black cutout fades for the sphere
-  // reveal. Fades once per collapse start, not every frame.
+  // are separate DOM layers stacked ABOVE it, so they have to be dealt
+  // with explicitly or they'd still show through once the black cutout
+  // fades for the sphere reveal. They're animated per-frame by
+  // updateChromeSuction (below) rather than simply faded, so they get
+  // pulled into the funnel along with everything else.
   if (chromeRefs && !s.chromeHidden) {
     s.chromeHidden = true;
     s.chromeRefs = chromeRefs;
     [chromeRefs.titleWrapRef, chromeRefs.cardRef].forEach((ref) => {
       if (ref && ref.current) {
-        ref.current.style.transition = "opacity 0.5s ease";
-        ref.current.style.opacity = "0";
-        ref.current.style.pointerEvents = "none";
+        // No CSS transition: every frame writes its own value, and a
+        // transition would just smear them against each other.
+        ref.current.style.transition = "none";
       }
     });
   }
@@ -404,7 +701,8 @@ export function advanceSingularityScene(t, now, chromeRefs) {
   switch (s.phase) {
     case PHASES.COLLAPSING: {
       const u = Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS);
-      updateCollapseVisuals(t, u, dt);
+      updateCollapseVisuals(t, u, dt, now);
+      updateScreenChaos(s, u);
       if (u >= 1) {
         // Land the visual cut and the audio cut on the SAME frame — no
         // cross-frame race between "screen looks black" and "sound goes
@@ -415,6 +713,10 @@ export function advanceSingularityScene(t, now, chromeRefs) {
         t.boardGroup.visible = false;
         s.warpMesh.visible = false;
         s.streaks.group.visible = false;
+        s.blastRings.group.visible = false;
+        s.debris.group.visible = false;
+        clearScreenChaos(s);
+        resetCameraRoll(t);
         if (s.blackDivRef && s.blackDivRef.current) {
           s.blackDivRef.current.style.transition = "none";
           s.blackDivRef.current.style.opacity = "1";
@@ -434,7 +736,7 @@ export function advanceSingularityScene(t, now, chromeRefs) {
         // which must stay a hard cut) matches "after the transition
         // settles" reading as a settling-in, not another jarring snap.
         if (s.blackDivRef && s.blackDivRef.current) {
-          s.blackDivRef.current.style.transition = "opacity 1.4s ease";
+          s.blackDivRef.current.style.transition = `opacity ${SPHERE_FADE_IN_MS}ms ease`;
           s.blackDivRef.current.style.opacity = "0";
         }
         if (s.setPhase) s.setPhase(PHASES.SPHERE);
@@ -456,6 +758,9 @@ export function advanceSingularityScene(t, now, chromeRefs) {
     window.__EC_TEST_SINGULARITY__ = {
       phase: s.phase,
       sphereRotationY: s.sphere ? s.sphere.group.rotation.y : null,
+      collapseU: s.phase === PHASES.COLLAPSING
+        ? Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS)
+        : null,
     };
   }
 }

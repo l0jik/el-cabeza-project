@@ -1767,7 +1767,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        what any given theme's effects actually do. */
     ambientRef.current = theme.mountAmbientEffects(
       { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef },
-      { three, cam, windingDownRef, awaitingBeginRef, audio: audioRef.current }
+      { three, windingDownRef, awaitingBeginRef, audio: audioRef.current }
     );
 
     /* ---- camera positioning ---- */

@@ -2381,7 +2381,7 @@ export function mountAmbientEffects(refs, helpers) {
   // separate hook invocation elsewhere in this same component) also
   // reads and writes — both close over the identical `t = three.current`
   // object, so no extra chassis plumbing is needed to connect them.
-  advanceSingularityScene(t, now, { titleWrapRef, cardRef });
+  advanceSingularityScene(t, now, { titleWrapRef, cardRef, fxOverlayRef });
 
     },
 
@@ -3153,12 +3153,15 @@ export function useSetupExtras({ awaitingBegin, setPieces, audio, three }) {
      finger, and it suits the feature: the whole point of Singularity is
      that it rewards a patient player.
 
-     Timeline, per SINGULARITY_DESIGN.md: nothing for the first 2s, the
-     hum starts and builds over the next 4s, and holding through the end
-     of that build commits. Releasing at any point before the end
-     cancels with no failure sound — the hum's own reverb tail just
-     decays naturally from however far it got (see stopSingularityHum). */
-  const SINGULARITY_HUM_START_MS = 2000;
+     Timeline: a short beat of nothing, then the hum starts and builds,
+     and holding through the end of that build commits. Releasing at any
+     point before the end cancels with no failure sound — the hum's own
+     reverb tail just decays naturally from however far it got (see
+     stopSingularityHum). The opening silence was cut from the spec's
+     original 2s per feedback that the ramp should start sooner; the
+     build itself also now climbs on a much earlier-rising curve (see
+     updateSingularityHum). */
+  const SINGULARITY_HUM_START_MS = 900;
   const SINGULARITY_HUM_BUILD_MS = 4000;
 
   function beginSingularityCommitHold() {
@@ -3919,6 +3922,15 @@ export function createSoundscape() {
     dry.gain.value = 0;
     dry.connect(sfxGain);
 
+    /* Sits between the lowpass and both output paths, normally fully
+       open at 1. Late in the hold, updateSingularityHum chops brief,
+       randomly-timed dips into it — the "spasmodic" character, and
+       deliberately implemented as momentary DUCKING rather than extra
+       modulation gain, so it can never push the sustained drone past
+       the headroom the levels below were measured against. */
+    const gate = ctx.createGain();
+    gate.gain.value = 1;
+
     const conv = ctx.createConvolver();
     // Long and gently decaying: a cavernous space, not a room.
     conv.buffer = makeImpulse(6.5, 1.35);
@@ -3932,10 +3944,11 @@ export function createSoundscape() {
     // opens, so the drone gets not just louder but brighter/closer.
     const lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
-    lp.frequency.value = 90;
+    lp.frequency.value = 70;
     lp.Q.value = 3;
-    lp.connect(dry);
-    lp.connect(wetSend);
+    lp.connect(gate);
+    gate.connect(dry);
+    gate.connect(wetSend);
 
     // Slow amplitude LFO across everything — the "LFO-like" pulse.
     const lfo = ctx.createOscillator();
@@ -3949,7 +3962,12 @@ export function createSoundscape() {
     lfoTarget.connect(lp);
     lfo.start(t0);
 
-    const FUNDAMENTALS = [26, 39, 52.7, 61.3]; // stretched, deliberately not a clean chord
+    // Stretched, deliberately not a clean chord. Dropped roughly a
+    // fourth from the original [26, 39, 52.7, 61.3] per feedback that
+    // it should sit in a lower key — the triangle voices' harmonics
+    // plus the lowpass opening are what keep it audible on phone
+    // speakers this far down.
+    const FUNDAMENTALS = [19.5, 29, 39.2, 46];
     const oscs = FUNDAMENTALS.map((f, i) => {
       const o = ctx.createOscillator();
       o.type = i % 2 ? "triangle" : "sine";
@@ -3962,7 +3980,7 @@ export function createSoundscape() {
       return o;
     });
 
-    humNodes = { dry, conv, wetSend, wetOut, lp, lfo, lfoDepth, lfoTarget, oscs, baseF: FUNDAMENTALS };
+    humNodes = { dry, conv, wetSend, wetOut, lp, gate, lfo, lfoDepth, lfoTarget, oscs, baseF: FUNDAMENTALS, nextGateAt: 0 };
     updateSingularityHum(0);
   }
 
@@ -3999,18 +4017,51 @@ export function createSoundscape() {
        expected, and an under-driven send is what makes an early and a
        late release sound alike. At these values a near-full hold blooms
        to roughly 3-4x the release tail of a hold let go at 1s in, which
-       is the whole point of the gesture. */
-    humNodes.dry.gain.setTargetAtTime(0.001 + 0.007 * Math.pow(t, 1.5), now, S);
-    // Wet send climbs harder still: by the commit point the tail is the
-    // dominant voice, which is what makes a late release bloom.
-    humNodes.wetSend.gain.setTargetAtTime(0.0015 + 0.075 * Math.pow(t, 1.6), now, S);
-    humNodes.lp.frequency.setTargetAtTime(90 + 470 * t, now, S);
-    humNodes.lfo.frequency.setTargetAtTime(0.7 + 3.1 * t, now, S);
-    humNodes.lfoDepth.gain.setTargetAtTime(0.35 + 0.3 * t, now, S);
-    // A slight upward pitch drift — tension, not a glissando.
+       is the whole point of the gesture.
+
+       Exponents pulled below 1 (were 1.5 / 1.6) per feedback that the
+       ramp should start climbing sooner: the old curves spent the first
+       half of the hold nearly flat, so most of the build read as dead
+       air. Peak values at t=1 are unchanged, so the measured headroom
+       above still holds. */
+    humNodes.dry.gain.setTargetAtTime(0.001 + 0.007 * Math.pow(t, 0.95), now, S);
+    // Wet send still climbs harder than the dry: by the commit point
+    // the tail is the dominant voice, which is what makes a late
+    // release bloom.
+    humNodes.wetSend.gain.setTargetAtTime(0.0015 + 0.075 * Math.pow(t, 1.05), now, S);
+    humNodes.lp.frequency.setTargetAtTime(70 + 520 * t, now, S);
+    humNodes.lfo.frequency.setTargetAtTime(0.6 + 5.4 * t, now, S);
+    humNodes.lfoDepth.gain.setTargetAtTime(0.3 + 0.45 * t, now, S);
+    /* An upward pitch drift with a wobble that only destabilizes late —
+       tension, not a glissando. The random term is what stops the four
+       voices from beating in a steady, predictable pattern once the
+       hold is nearly done. */
     humNodes.oscs.forEach((o, i) => {
-      o.frequency.setTargetAtTime(humNodes.baseF[i] * (1 + 0.14 * t), now, 0.25);
+      const wobble = (Math.random() - 0.5) * 2.2 * Math.pow(t, 2);
+      o.frequency.setTargetAtTime(humNodes.baseF[i] * (1 + 0.14 * t) + wobble, now, 0.12);
     });
+    scheduleSingularityGateStutter(t, now);
+  }
+
+  /* The spasmodic chop, late in the hold: brief, randomly-timed ducks
+     of the shared gate node, getting more frequent and deeper as t
+     climbs. Scheduled on the audio clock (not setTimeout) so the chop
+     stays sample-accurate through main-thread jank, and rate-limited
+     via nextGateAt so that being called every animation frame doesn't
+     pile overlapping ramps onto the same parameter. */
+  function scheduleSingularityGateStutter(t, now) {
+    if (!humNodes || t < 0.5) return;
+    if (now < humNodes.nextGateAt) return;
+    const bite = (t - 0.5) / 0.5; // 0 at the halfway point, 1 at commit
+    const g = humNodes.gate.gain;
+    const at = now + 0.01;
+    const dur = 0.03 + Math.random() * 0.07;
+    const depth = 0.55 - 0.45 * bite; // ducks toward near-silence late on
+    g.setValueAtTime(1, at);
+    g.linearRampToValueAtTime(depth, at + 0.006);
+    g.linearRampToValueAtTime(1, at + dur);
+    // Gaps shrink from ~0.5s down to ~0.07s as the hold tightens.
+    humNodes.nextGateAt = at + dur + 0.06 + Math.random() * (0.45 * (1 - bite));
   }
 
   /* Keeps the hum intensifying past the commit point, through the
@@ -4025,10 +4076,17 @@ export function createSoundscape() {
     const c = Math.max(0, Math.min(1, u));
     const now = ctx.currentTime;
     const S = 0.08;
-    humNodes.lp.frequency.setTargetAtTime(560 + 300 * c, now, S);
+    humNodes.lp.frequency.setTargetAtTime(590 + 340 * c, now, S);
     humNodes.wetSend.gain.setTargetAtTime(0.0765 + 0.05 * c, now, S);
-    humNodes.lfo.frequency.setTargetAtTime(3.8 + 2.5 * c, now, S);
-    humNodes.lfoDepth.gain.setTargetAtTime(0.65 + 0.2 * c, now, S);
+    humNodes.lfo.frequency.setTargetAtTime(6.0 + 4.5 * c, now, S);
+    humNodes.lfoDepth.gain.setTargetAtTime(0.75 + 0.2 * c, now, S);
+    humNodes.oscs.forEach((o, i) => {
+      const wobble = (Math.random() - 0.5) * (3.5 + 4 * c);
+      o.frequency.setTargetAtTime(humNodes.baseF[i] * (1.14 + 0.2 * c) + wobble, now, 0.08);
+    });
+    // Past the commit point the chop never lets up — pass a value above
+    // the gate's own 0.5 threshold so every call is eligible to fire.
+    scheduleSingularityGateStutter(1, now);
   }
 
   /* The event-horizon hard cut: "the instant the black screen is
@@ -4058,7 +4116,7 @@ export function createSoundscape() {
       } catch (e) { /* already stopped — harmless */ }
       try {
         h.dry.disconnect(); h.wetSend.disconnect(); h.wetOut.disconnect();
-        h.conv.disconnect(); h.lp.disconnect(); h.lfoTarget.disconnect(); h.lfoDepth.disconnect();
+        h.conv.disconnect(); h.lp.disconnect(); h.gate.disconnect(); h.lfoTarget.disconnect(); h.lfoDepth.disconnect();
       } catch (e) { /* fine either way */ }
     }
   }
@@ -4097,7 +4155,7 @@ export function createSoundscape() {
     setTimeout(() => {
       try {
         h.dry.disconnect(); h.wetSend.disconnect(); h.wetOut.disconnect();
-        h.conv.disconnect(); h.lp.disconnect(); h.lfoTarget.disconnect(); h.lfoDepth.disconnect();
+        h.conv.disconnect(); h.lp.disconnect(); h.gate.disconnect(); h.lfoTarget.disconnect(); h.lfoDepth.disconnect();
       } catch (e) { /* context may be gone on dispose */ }
     }, (TAIL_S + 0.5) * 1000);
   }
