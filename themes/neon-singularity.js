@@ -44,11 +44,26 @@ const COOL_BREAKPOINT = 0.55;
 const BLACKOUT_DWELL_MS = 900;
 const SPHERE_FADE_IN_MS = 2000;
 const PULSE_SPEED = 1.1; // rad/s-ish — the sphere's slow breathing rate
-// Same decay constant as the dock-piece drag-to-idle precedent
-// (chassis/ElCabeza3D.jsx) this is deliberately ported from, EXCEPT the
-// idle target here is zero, not a continuous wander — the sphere's
-// resting mood is calm/trance-like, not restless.
-const DRAG_DECAY = 0.9;
+/* Drag-to-idle decay. NOT the dock-piece precedent's own 0.9 (that
+   value produces a long, floaty coast — fine for a small always-visible
+   corner widget, wrong for this: at 0.9 the sphere took the better
+   part of a second to noticeably slow and several more to fully settle,
+   which read as loose/uncontrolled rather than calm. Raised sharply so
+   released momentum dies out within a few frames — still a real coast,
+   not an instant stop, just a short one. */
+const DRAG_DECAY = 4.5;
+// Radians of rotation per pixel of pointer movement while actively
+// dragging — also reused (divided by dt) as the per-second coast
+// velocity a release seeds, so live dragging and the momentum right
+// after release always agree on how "fast" a given swipe was. Halved
+// from an initial 0.01 per feedback that the sphere was too sensitive
+// once a drag was recognized.
+const DRAG_ROTATE_SENSITIVITY = 0.005;
+// Accumulated pointer movement, in px, before a drag starts rotating
+// the sphere at all — small enough to feel instant once a real drag
+// begins, but enough to swallow the first few pixels of an unsteady
+// touch-down that would otherwise read as an unwanted twitch.
+const DRAG_DEAD_ZONE_PX = 3;
 
 /* ---------------------------------------------------------------------
    Shaders. First custom ShaderMaterial usage in this codebase — kept
@@ -356,56 +371,85 @@ function buildStarfield() {
    overlay, so the text distorts under rotation exactly the way the
    design doc describes.
 
-   Three equal longitude thirds (u in [0,1/3), [1/3,2/3), [2/3,1)),
-   each tappable across its FULL latitude — simplest hit-test that still
-   reads as "tap a section of the sphere," rather than requiring a tap
-   to land pixel-precisely on the drawn label band. */
+   Laid out as a stacked list (checkbox directly left of each item,
+   larger text, one row above the next — per feedback that this should
+   read as a checklist rather than three side-by-side sections) within
+   a compact latitude band (LIST_V_MIN..LIST_V_MAX, empirically measured
+   — see the note below) rather than spread across the sphere's full
+   height: near either pole, equal steps in u correspond to ever-smaller
+   physical distances, so a wide row of text placed too close to one
+   would compress into an illegible smear. Hit-testing divides the SAME
+   band into three equal latitude thirds, so tapping wherever a row is
+   actually drawn always resolves to that row — a tap outside the band
+   (elsewhere on the sphere) is a no-op rather than guessing the nearest
+   item. Also note CanvasTexture's flipY (see buildSphereTextTexture) —
+   without disabling it, content drawn at canvas-Y corresponding to v
+   is actually SAMPLED at 1-v, which cost real time to track down. */
 const SPHERE_LABELS = ["MATTER", "LAWS", "TOPOLOGIES"];
 const TEXT_TEXTURE_W = 2048, TEXT_TEXTURE_H = 1024;
+// Measured empirically by raycasting real taps against the rendered
+// sphere at its resting camera angle: the visible/reachable hemisphere
+// there covers roughly uv.y (v) 0.58-0.86, not the lower band a naive
+// "v near 0.4 reads as upper-ish" guess from the single-item version
+// suggested — this sphere's v=1 is the pole nearest that elevated,
+// tilted-down camera, the opposite of this file's first assumption.
+const LIST_V_MIN = 0.55, LIST_V_MAX = 0.88;
 
 function drawSphereLabels(canvas, ctx, checks) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const colW = canvas.width / 3;
-  // Shifted up from true dead-center (0.5): the camera settles on the
-  // sphere at the same elevated, tilted-down angle the board itself is
-  // always viewed at, so the true equator reads as low in frame and
-  // sits behind the placeholder card at rest. This puts the labels
-  // clear of the card by default — dragging still reaches the rest of
-  // the surface either way.
-  const midY = canvas.height * 0.4;
-  const boxSize = 46;
-  ctx.textAlign = "center";
+  const boxSize = 64;
+  const gap = 34;
+  const labelFont = "700 76px 'Chakra Petch', sans-serif";
+  // The whole block is centered on u=0.5 — confirmed by the earlier
+  // single-item layout (which placed its one column's center exactly
+  // there) to be the longitude that actually faces the camera at the
+  // sphere's default rest rotation. A fixed left-edge guess instead of
+  // measuring came out visibly off-center (most of the list shifted
+  // toward one side, empty sphere on the other) — measuring the widest
+  // label keeps this centered regardless of exactly how the real
+  // Chakra Petch metrics differ from whatever font a build without web
+  // access falls back to.
+  ctx.font = labelFont;
+  let maxLabelWidth = 0;
+  for (const label of SPHERE_LABELS) maxLabelWidth = Math.max(maxLabelWidth, ctx.measureText(label).width);
+  const blockWidth = boxSize + gap + maxLabelWidth;
+  // One shared left edge for every row's checkbox, and one shared left
+  // edge for every row's text — a real checklist column, not each row
+  // independently centered.
+  const listLeftX = canvas.width / 2 - blockWidth / 2;
+  const textLeftX = listLeftX + boxSize + gap;
+  ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   for (let i = 0; i < 3; i++) {
-    const cx = colW * i + colW / 2;
+    // Row centers sit at the middle of each latitude third of the list
+    // band — see the block comment above for why this stays a compact
+    // band rather than the sphere's full v range.
+    // CanvasTexture samples with flipY:true by default (canvas pixel
+    // row 0 lands at UV v=1, not v=0 — confirmed by raycasting real
+    // taps and finding they landed at 1-v from what this file's own
+    // drawing math intended). Rather than disabling the flip (which
+    // flips the WHOLE canvas, text included, upside down), this just
+    // accounts for it directly: canvas-Y = height*(1-v) samples at v.
+    const rowV = LIST_V_MIN + (i + 0.5) / 3 * (LIST_V_MAX - LIST_V_MIN);
+    const rowY = canvas.height * (1 - rowV);
     const checked = checks[i];
-    // Column divider — faint, just enough to read as three sections.
-    if (i > 0) {
-      ctx.strokeStyle = "rgba(102,217,255,0.25)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(colW * i, midY - 140);
-      ctx.lineTo(colW * i, midY + 140);
-      ctx.stroke();
-    }
-    // Checkbox, centered above the label.
-    const boxY = midY - 60;
     ctx.strokeStyle = checked ? "#8ef3ff" : "rgba(142,243,255,0.55)";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(cx - boxSize / 2, boxY - boxSize / 2, boxSize, boxSize);
+    ctx.lineWidth = 5;
+    ctx.strokeRect(listLeftX, rowY - boxSize / 2, boxSize, boxSize);
     if (checked) {
       ctx.fillStyle = "rgba(142,243,255,0.85)";
-      ctx.fillRect(cx - boxSize / 2 + 9, boxY - boxSize / 2 + 9, boxSize - 18, boxSize - 18);
+      ctx.fillRect(listLeftX + 12, rowY - boxSize / 2 + 12, boxSize - 24, boxSize - 24);
     }
-    // Label.
+    // Label — larger than the original single-column version per
+    // feedback ("make text larger").
     ctx.fillStyle = checked ? "#dffaff" : "rgba(142,243,255,0.85)";
-    ctx.font = "700 52px 'Chakra Petch', sans-serif";
-    ctx.fillText(SPHERE_LABELS[i], cx, midY + 40);
+    ctx.font = labelFont;
+    ctx.fillText(SPHERE_LABELS[i], textLeftX, rowY - 16);
     // Status line — the honest "not real yet" note, small enough not
     // to fight the label.
     ctx.fillStyle = "rgba(142,243,255,0.45)";
-    ctx.font = "400 22px 'IBM Plex Mono', monospace";
-    ctx.fillText("NOT YET IMPLEMENTED", cx, midY + 88);
+    ctx.font = "400 28px 'IBM Plex Mono', monospace";
+    ctx.fillText("NOT YET IMPLEMENTED", textLeftX, rowY + 32);
   }
 }
 
@@ -454,7 +498,9 @@ function buildSphere() {
    anything here; the canvas itself is small and cheap to redraw
    entirely rather than patching just the changed column. */
 function toggleSphereLabelAt(sphere, uv) {
-  const index = Math.min(2, Math.max(0, Math.floor(uv.x * 3)));
+  if (uv.y < LIST_V_MIN || uv.y > LIST_V_MAX) return; // outside the list band — no-op, not a guess
+  const frac = (uv.y - LIST_V_MIN) / (LIST_V_MAX - LIST_V_MIN);
+  const index = Math.min(2, Math.max(0, Math.floor(frac * 3)));
   sphere.text.checks[index] = !sphere.text.checks[index];
   drawSphereLabels(sphere.text.canvas, sphere.text.ctx, sphere.text.checks);
   sphere.text.texture.needsUpdate = true;
@@ -886,6 +932,25 @@ export function advanceSingularityScene(t, now, chromeRefs) {
     case PHASES.BLACKOUT: {
       if (now - s.blackoutStartedAt >= BLACKOUT_DWELL_MS) {
         s.phase = PHASES.SPHERE;
+        /* Faces the checklist toward wherever the camera actually ends
+           up, rather than assuming a fixed "u=0.5 is front-facing"
+           longitude. That assumption doesn't hold: the sphere's own
+           group always starts at rotation.y=0, but the CAMERA's
+           position depends on cam.current.theta, which carries over
+           from whatever the board's heading was (itself dependent on
+           which side was set to move first — see the turn-pill toggle)
+           — so "front-facing" genuinely varies run to run. By now
+           (BLACKOUT has fully elapsed) the chassis's own applyCamera()
+           has long since reverted the camera to its normal resting
+           position, so this raycast reads the real, final geometry. */
+        if (t.raycaster && t.pointer && t.camera && s.sphere) {
+          t.pointer.set(0, 0); // NDC screen center
+          t.raycaster.setFromCamera(t.pointer, t.camera);
+          const hits = t.raycaster.intersectObject(s.sphere.mesh);
+          if (hits.length && hits[0].uv) {
+            s.sphere.group.rotation.y = (hits[0].uv.x - 0.5) * Math.PI * 2;
+          }
+        }
         // The blackout div is opaque and sits above the main canvas —
         // it has to fade back down for the sphere/starfield (already
         // rendering underneath it) to actually become visible. A soft
@@ -933,7 +998,7 @@ export function useSingularityPhase({ three, audio }) {
   const blackDivRef = React.useRef(null);
   const phaseSetterRef = React.useRef(setPhase);
   phaseSetterRef.current = setPhase;
-  const dragStateRef = React.useRef({ lastX: 0, lastY: 0, moved: 0 });
+  const dragStateRef = React.useRef({ lastX: 0, lastY: 0, lastT: 0, moved: 0 });
 
   // startCollapse (below) is what actually wires the bridge object onto
   // three.current — not a mount-time effect here, deliberately: this
@@ -1001,23 +1066,41 @@ export function useSingularityPhase({ three, audio }) {
     const t = three && three.current;
     if (!t || !t.singularity || t.singularity.phase !== PHASES.SPHERE) return;
     t.singularity.dragging = true;
-    dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY, moved: 0 };
+    dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY, lastT: performance.now(), moved: 0 };
   }
   function handlePointerMove(ev) {
     const t = three && three.current;
     if (!t || !t.singularity || !t.singularity.dragging) return;
     const drag = dragStateRef.current;
+    const now = performance.now();
+    const dt = Math.max((now - drag.lastT) / 1000, 1 / 120);
     const dx = ev.clientX - drag.lastX;
     const dy = ev.clientY - drag.lastY;
-    dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY, moved: drag.moved + Math.abs(dx) + Math.abs(dy) };
+    const moved = drag.moved + Math.abs(dx) + Math.abs(dy);
+    dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY, lastT: now, moved };
+    // Dead zone: the first few px of a drag don't rotate anything, so
+    // an unsteady touch-down doesn't visibly nudge the sphere. Once
+    // past it, every further px counts — this only ever suppresses the
+    // very start of a gesture, not ongoing sensitivity.
+    if (moved < DRAG_DEAD_ZONE_PX) return;
     if (t.singularity.sphere) {
-      t.singularity.sphere.group.rotation.y += dx * 0.01;
-      t.singularity.sphere.group.rotation.x += dy * 0.01;
+      t.singularity.sphere.group.rotation.y += dx * DRAG_ROTATE_SENSITIVITY;
+      t.singularity.sphere.group.rotation.x += dy * DRAG_ROTATE_SENSITIVITY;
     }
-    // Velocity in "radians per pointermove event" terms is good enough
-    // here — it's only used to seed the decay-to-zero coast afterward,
-    // not for physical accuracy.
-    t.singularity.dragVelocity = { x: dy * 0.6, y: dx * 0.6 };
+    /* Time-normalized "speed physics" — the same pattern the dock-piece
+       preview this was ported from actually uses (chassis/ElCabeza3D.jsx,
+       (dx * sensitivity) / dt), NOT a plain delta*scale. That distinction
+       matters here specifically: a naive delta*scale reads the raw size
+       of whatever pointermove event happened to fire, and touch input
+       can coalesce a fast real swipe into one single large-delta event —
+       which would read as one enormous one-frame "velocity" and blow
+       straight past DRAG_DECAY's friction tuning regardless of how high
+       it's set. Dividing by dt makes this genuine speed, robust to
+       however few or many events the browser chose to deliver. */
+    t.singularity.dragVelocity = {
+      x: (dy * DRAG_ROTATE_SENSITIVITY) / dt,
+      y: (dx * DRAG_ROTATE_SENSITIVITY) / dt,
+    };
   }
   function handlePointerUp(ev) {
     const t = three && three.current;
@@ -1084,6 +1167,13 @@ export function renderSingularityOverlay(setupExtras) {
         // chassis changes: this div simply sits in front of the main
         // canvas in DOM stacking order.
         pointerEvents: phase === PHASES.SPHERE ? "auto" : "none",
+        // Without this, a touch browser spends the first several
+        // pixels of every drag deciding whether this is a page scroll
+        // before recognizing it as a custom gesture at all — exactly
+        // the "initial touch doesn't react, then catches up all at
+        // once" feel reported against this drag. None of that
+        // scroll/zoom behavior is wanted here regardless.
+        touchAction: "none",
       },
       // Stops this from also bubbling to the chassis's document-level
       // "pointerdown outside the dock card" listener (see the fix in
