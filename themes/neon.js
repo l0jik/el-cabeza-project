@@ -3546,30 +3546,28 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
 
 // Named per role rather than reusing HEX's own keys 1:1 — these are
 // retint TARGETS, not a parallel full palette, so only the handful of
-// roles actually being swapped need an entry. Violet is the sphere's
-// own photon-ring accent (see SPHERE_FRAGMENT's uRimColor in
-// neon-singularity.js) standing in for Light's warm amber; Dark's
-// cyan is untouched since it already reads as "singularity" — it's
-// the same hue the sphere itself glows.
+// roles actually being swapped need an entry. Monochrome white/grey/
+// black rather than a new accent hue, per feedback that an earlier
+// violet pass read as fighting Neon's own identity instead of a
+// simplified version of it — pieces (Dark's cyan, Light's amber) are
+// deliberately left untouched, only the board itself goes monochrome.
 // How far above the slab's own top face (y=0) the weight-warp mesh
 // rests before any deformation — needs real headroom (not just enough
 // to clear the grid at y=0.004-0.009) since a dip has to have
 // somewhere to go without sinking below the opaque slab; see its own
 // comment at buildWeightWarpMesh/updateWeightWarp for the numbers this
 // was tuned against.
-const WEIGHT_WARP_BASE_HEIGHT = 0.15;
+const WEIGHT_WARP_BASE_HEIGHT = 0.28;
 
 const SINGULARITY_BOARD_PALETTE = {
-  lightEmissive: 0x8a5cff,
-  lightOutline: 0x6a3ddb,
-  gridLine: 0x3d2f78,
-  gridBorder: 0x5a3fc4,
-  gridGlowTint: 0xcfa8ff,
-  slabTopTint: 0xd9d0ff,
-  slabSide: 0x140b22,
-  keyLight: 0xcdb8ff,
-  fillLight: 0xb08cff,
-  backLight: 0xd9c8ff,
+  gridLine: 0xe6e6ee,
+  gridBorder: 0xffffff,
+  gridGlowTint: 0xdcdce4,
+  slabTopTint: 0xc9c9d2,
+  slabSide: 0x0a0a0c,
+  keyLight: 0xf2f2f6,
+  fillLight: 0xd6d6de,
+  backLight: 0xeceef2,
 };
 
 /* Sets (or restores) one color/intensity property on a material or
@@ -3595,14 +3593,12 @@ function retintProp(target, prop, activeValue, active) {
 }
 
 /* The palette retune itself — safe to call every frame while active
-   (see its call site in mountAmbientEffects's tick, below): a piece
-   whose mesh gets fully rebuilt mid-game (any move at all replaces the
-   piece object reference, which chassis's keyed-diff effect treats as
-   "rebuild the mesh" — see its own pieceRef !== p check) starts life
-   with plain HEX colors again, so a one-time call at Begin Game alone
-   would only last until the first move. Re-applying each frame is
-   cheap (a handful of setHex calls) and keeps every current piece
-   correctly tinted regardless of when its mesh was (re)built. */
+   (see its call site in mountAmbientEffects's tick, below): any
+   material rebuilt mid-game (a piece move replaces its mesh from
+   scratch — see chassis's pieceRef !== p check, though pieces are no
+   longer retinted here at all, see the palette's own comment) would
+   otherwise start life with plain HEX colors again. Re-applying each
+   frame is cheap (a handful of setHex calls). */
 function applySingularityBoardPalette(t, active) {
   if (!t || !t.boardGroup) return;
   const P = SINGULARITY_BOARD_PALETTE;
@@ -3616,14 +3612,6 @@ function applySingularityBoardPalette(t, active) {
   retintProp(t.boardGroup.getObjectByName("ec-grid-lines")?.material, "color", P.gridLine, active);
   retintProp(t.boardGroup.getObjectByName("ec-grid-border")?.material, "color", P.gridBorder, active);
   retintProp(t.boardGroup.getObjectByName("ec-grid-glow")?.material, "color", P.gridGlowTint, active);
-
-  if (t.pieceGroup) {
-    t.pieceGroup.children.forEach((obj) => {
-      if (!obj.userData || obj.userData.isDark) return; // Dark's cyan is untouched — see the palette comment above
-      if (obj.userData.kind === "piece") retintProp(obj.material, "emissive", P.lightEmissive, active);
-      else if (obj.userData.kind === "shell") retintProp(obj.material, "color", P.lightOutline, active);
-    });
-  }
 
   if (t.lights) {
     retintProp(t.lights.key, "color", P.keyLight, active);
@@ -3661,28 +3649,61 @@ function buildWeightWarpMesh() {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  // Per-vertex grayscale, driven by height every frame (see
+  // heightToGray in updateWeightWarp) — real geometry bending alone
+  // turned out to read as nearly flat regardless of camera angle (a
+  // ~0.15-0.2 world-unit bump is small next to an 11+ unit board at
+  // normal play distance, and top-down view — where a Singularity
+  // game actually opens — is close to the worst possible angle for
+  // perceiving height at all). A brightness gradient is legible from
+  // ANY angle, including straight down, which plain shading never
+  // could be — this is what actually makes the warp "very noticeable"
+  // rather than technically-there-but-invisible.
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(positions.length), 3));
   geo.setIndex(indices);
   geo.computeVertexNormals();
-  const material = new THREE.MeshBasicMaterial({
-    color: 0x8a5cff,
-    wireframe: true,
+
+  /* Two meshes sharing the SAME geometry object — updating the shared
+     position/color attributes once (see updateWeightWarp) moves and
+     recolors both at once, no separate sync needed. The wireframe
+     keeps the "hologram grid" look legible on top of the solid layer's
+     own height-mapped shading. */
+  const solidMaterial = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    roughness: 0.35,
+    metalness: 0.1,
     transparent: true,
-    opacity: 0.3,
-    blending: THREE.AdditiveBlending,
+    opacity: 0.62,
+    side: THREE.DoubleSide,
     depthWrite: false,
   });
-  const mesh = new THREE.Mesh(geo, material);
+  const solidMesh = new THREE.Mesh(geo, solidMaterial);
+  solidMesh.renderOrder = -6;
+
+  const wireMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+  });
+  const wireMesh = new THREE.Mesh(geo, wireMaterial);
+  wireMesh.renderOrder = -5; // after the grid's -10, before pieces' 1
+
+  const group = new THREE.Group();
+  group.warpGeometry = geo; // updateWeightWarp's own handle — see its comment
+  group.add(solidMesh, wireMesh);
   // Raised well clear of the slab's own top face (y=0) and the grid/
   // glow just above it (y=0.004-0.009) — WEIGHT_WARP_BASE_HEIGHT's own
   // comment explains why this needs real headroom, not just enough to
   // clear the grid: a real dip has to have somewhere to go without
   // sinking below the opaque slab, where depthTest would hide it
-  // entirely (a first attempt at 0.02 did exactly that — the deepest
-  // dips vanished under the board instead of reading as a dip).
-  mesh.position.y = WEIGHT_WARP_BASE_HEIGHT;
-  mesh.renderOrder = -5; // after the grid's -10, before pieces' 1
-  mesh.visible = false;
-  return mesh;
+  // entirely (a first attempt at a much smaller base height did
+  // exactly that — the deepest dips vanished under the board instead
+  // of reading as a dip).
+  group.position.y = WEIGHT_WARP_BASE_HEIGHT;
+  group.visible = false;
+  return group;
 }
 
 /* Per-vertex height = sum over every current piece of (a broad, gentle
@@ -3714,15 +3735,45 @@ function updateWeightWarp(t) {
     }
   });
 
-  const DIP_SIGMA = 1.0, RING_SIGMA = 2.15, RING_STRENGTH = 0.6;
+  /* DIP_SIGMA is deliberately narrower than one board square
+     (SQUARE_SIZE ~1.056) — a wider dip bleeds into the very square a
+     flanking rise is supposed to lift, cancelling the effect right
+     where it needs to show up most (a Cabeza one square from a
+     flanking Opa read as still-dipping, not lifted, until this was
+     narrowed). RING_SIGMA stays wide enough to comfortably reach 1-2
+     squares out, which is exactly the "two heavies with a gap between
+     them" case actually being aimed for. */
+  const DIP_SIGMA = 0.5, RING_SIGMA = 2.0, RING_STRENGTH = 0.35;
   /* Tuned so the heaviest piece (an Opa, weight 8) sitting exactly at
-     a vertex dips it roughly 0.10 — clearly readable but nowhere near
-     WEIGHT_WARP_BASE_HEIGHT (0.15), so even the deepest realistic dip
-     stays comfortably above the slab's own top face (y=0) instead of
+     a vertex dips it roughly 0.23 — a large, unmissable dip, but still
+     under WEIGHT_WARP_BASE_HEIGHT (0.28), so even the deepest
+     realistic dip stays above the slab's own top face (y=0) instead of
      sinking below it and disappearing behind opaque board geometry
-     (depthTest is still on; only depthWrite is off). */
-  const DEPTH_SCALE = 0.0125;
-  const posAttr = warp.geometry.attributes.position;
+     (depthTest is still on; only depthWrite is off). Two such pieces
+     flanking a light one one square away each lift that middle square
+     roughly 0.14 — also easily readable. Per feedback that an earlier,
+     much gentler pass ("can't see any warping at all") read as flat,
+     this is deliberately closer to "obviously bent" than "subtly
+     suggested". */
+  const DEPTH_SCALE = 0.045;
+  // Fixed anchor points (not normalized to each frame's actual min/max)
+  // so the color mapping stays stable as pieces move — a dynamically
+  // rescaled range would make the SAME physical dip look like a
+  // different shade of grey depending on what else is on the board,
+  // which would read as flickering rather than a stable field. -0.25/
+  // +0.2 comfortably bracket the realistic range (see DEPTH_SCALE's
+  // own comment: heaviest-piece dip ~-0.23, two-piece flanking rise
+  // ~+0.14-0.29).
+  const GRAY_AT_DIP = 0.05, GRAY_AT_ZERO = 0.38, GRAY_AT_RISE = 0.95;
+  const DIP_ANCHOR = -0.25, RISE_ANCHOR = 0.2;
+  function heightToGray(h) {
+    if (h <= 0) return GRAY_AT_ZERO + (GRAY_AT_DIP - GRAY_AT_ZERO) * Math.min(1, h / DIP_ANCHOR);
+    return GRAY_AT_ZERO + (GRAY_AT_RISE - GRAY_AT_ZERO) * Math.min(1, h / RISE_ANCHOR);
+  }
+
+  const posAttr = warp.warpGeometry.attributes.position;
+  const colorAttr = warp.warpGeometry.attributes.color;
+  let minH = Infinity, maxH = -Infinity;
   for (let i = 0; i < posAttr.count; i++) {
     const vx = posAttr.getX(i);
     const vz = posAttr.getZ(i);
@@ -3734,10 +3785,27 @@ function updateWeightWarp(t) {
       const ring = p.weight * RING_STRENGTH * Math.exp(-d2 / (2 * RING_SIGMA * RING_SIGMA));
       h += ring - dip;
     }
-    posAttr.setY(i, h * DEPTH_SCALE);
+    h *= DEPTH_SCALE;
+    if (h < minH) minH = h;
+    if (h > maxH) maxH = h;
+    posAttr.setY(i, h);
+    const gray = heightToGray(h);
+    colorAttr.setXYZ(i, gray, gray, gray);
   }
   posAttr.needsUpdate = true;
-  warp.geometry.computeVertexNormals();
+  colorAttr.needsUpdate = true;
+  warp.warpGeometry.computeVertexNormals();
+  // Test-only hook, same convention as window.__EC_TEST_SINGULARITY__ —
+  // there's no DOM property for "how much is the warp actually
+  // deforming right now", and this was directly useful for diagnosing
+  // why an early, much gentler pass read as visually flat.
+  if (typeof window !== "undefined") {
+    window.__EC_TEST_BOARD_FX__ = {
+      pieceWeights: pieces.map((p) => p.weight),
+      minH, maxH,
+      baseHeight: WEIGHT_WARP_BASE_HEIGHT,
+    };
+  }
 }
 
 /* The one call site inside mountAmbientEffects's own tick (see below)
