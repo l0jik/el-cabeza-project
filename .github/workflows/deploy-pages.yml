@@ -1,0 +1,64 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - claude/artifact-code-update-u6amyw
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+      - name: Add landing page
+        run: |
+          cat > dist/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <title>El Cabeza</title>
+            <style>
+              body { font-family: system-ui, sans-serif; background: #111; color: #eee; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; gap: 1.5rem; }
+              a { color: #7cf; font-size: 1.4rem; text-decoration: none; padding: 0.75rem 1.5rem; border: 1px solid #7cf; border-radius: 8px; }
+              a:hover { background: #7cf; color: #111; }
+            </style>
+          </head>
+          <body>
+            <h1>El Cabeza</h1>
+            <a href="el-cabeza-standard.html">Standard</a>
+            <a href="el-cabeza-neon.html">Neon</a>
+            <a href="el-cabeza-unified.html">Unified</a>
+          </body>
+          </html>
+          EOF
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
