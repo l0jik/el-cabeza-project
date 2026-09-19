@@ -27,17 +27,36 @@ export function opponentOf(player) {
    leaf scoring and minimaxSearch's tie-break (see below) share one
    definition rather than two copies that could drift apart. */
 export function cabezaInDanger(pieces, owner) {
-  const cabeza = pieces.find((p) => p.type === "cabeza" && p.owner === owner);
-  if (!cabeza) return true; // already gone — about as "in danger" as it gets
+  // MATTER's 2-Cabeza roster option means `owner` can have more than
+  // one — true if ANY of them could be crushed this move. A normal
+  // one-Cabeza-per-side game always has exactly one entry here, so
+  // this behaves identically to the original single-Cabeza check.
+  const cabezas = pieces.filter((p) => p.type === "cabeza" && p.owner === owner);
+  if (cabezas.length === 0) return true; // none left at all — about as "in danger" as it gets
+  const cabezaIds = new Set(cabezas.map((c) => c.id));
   const oppPlayer = opponentOf(owner);
   for (const p of pieces) {
     if (p.owner !== oppPlayer || p.type === "cabeza") continue;
     const moves = legalMovesFor(pieces, p);
     for (const dir in moves) {
-      if (moves[dir].crushes && moves[dir].crushes.id === cabeza.id) return true;
+      if (moves[dir].crushes && cabezaIds.has(moves[dir].crushes.id)) return true;
     }
   }
   return false;
+}
+
+/* A crush only actually ends the game if it removes the crushed
+   side's LAST Cabeza — SINGULARITY_DESIGN.md's 2-Cabeza asymmetry:
+   crushing one of two doesn't end it, only crushing the last one does.
+   `pieces` here still contains `crushedPiece` itself (called before
+   it's spliced out), so this checks whether its owner has any OTHER
+   Cabeza besides it. A normal one-Cabeza-per-side game always returns
+   true here (there never was another), so this generalizes the
+   original always-terminal behavior rather than changing it. */
+function crushEndsGame(pieces, crushedPiece) {
+  return !pieces.some(
+    (p) => p.type === "cabeza" && p.owner === crushedPiece.owner && p.id !== crushedPiece.id
+  );
 }
 
 /* Mutates `pieces` (an array of MUTABLE piece objects — see the single
@@ -125,7 +144,11 @@ export function generateTurns(pieces, player) {
         !move1.crushes &&
         piece.type === "cabeza" &&
         move1.candidate.row === GOAL_ROW[piece.owner];
-      const terminal1 = !!move1.crushes || wins1;
+      // A crush only actually ends the game if it's the crushed side's
+      // last Cabeza (see crushEndsGame) — with a normal one-Cabeza-per-
+      // side game this is always true for any crush, same as before;
+      // MATTER's 2-Cabeza option is what makes the distinction matter.
+      const endsGame1 = (move1.crushes && crushEndsGame(pieces, move1.crushes)) || wins1;
 
       // Stopping after this single step is always itself a complete,
       // valid candidate turn — a human can always choose "Stop here"
@@ -138,25 +161,32 @@ export function generateTurns(pieces, player) {
         moves: [move1],
         crushes: !!move1.crushes,
         wins: wins1,
+        endsGame: endsGame1,
       });
 
-      if (terminal1 || maxSteps < 2) continue;
+      // A crush that DOESN'T end the game is still just a capture — the
+      // piece can keep chaining a second step afterward exactly like
+      // any other successful roll, so only endsGame1 (not merely
+      // move1.crushes) gates a second step here.
+      if (endsGame1 || maxSteps < 2) continue;
 
       const undo1 = applyMove(pieces, piece, move1);
       const secondMoves = legalMovesFor(pieces, piece);
       for (const [dir2, move2] of Object.entries(secondMoves)) {
         if (sameState(undo1.prevFields, move2.candidate)) continue; // net-zero round trip — not a real turn
 
+        const wins2 =
+          !move2.crushes &&
+          piece.type === "cabeza" &&
+          move2.candidate.row === GOAL_ROW[piece.owner];
         turns.push({
           piece,
           pieceId: piece.id,
           dirs: [dir1, dir2],
           moves: [move1, move2],
           crushes: !!move2.crushes,
-          wins:
-            !move2.crushes &&
-            piece.type === "cabeza" &&
-            move2.candidate.row === GOAL_ROW[piece.owner],
+          wins: wins2,
+          endsGame: (move2.crushes && crushEndsGame(pieces, move2.crushes)) || wins2,
         });
       }
       undoMove(pieces, piece, undo1);
@@ -187,18 +217,32 @@ export const DEFAULT_EVAL_WEIGHTS = {
 
 export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGHTS) {
   const oppPlayer = opponentOf(forPlayer);
-  const myCabeza = pieces.find((p) => p.type === "cabeza" && p.owner === forPlayer);
-  const oppCabeza = pieces.find((p) => p.type === "cabeza" && p.owner === oppPlayer);
+  const progressOf = (c) => (c.owner === "dark" ? c.row : BOARD_ROWS - 1 - c.row);
+  const myCabezas = pieces.filter((p) => p.type === "cabeza" && p.owner === forPlayer);
+  const oppCabezas = pieces.filter((p) => p.type === "cabeza" && p.owner === oppPlayer);
 
-  // A missing Cabeza means it was crushed on some earlier ply of the
-  // search itself (not necessarily the position actually on screen).
-  if (!myCabeza) return -AI_WIN_SCORE;
-  if (!oppCabeza) return AI_WIN_SCORE;
+  // Losing every Cabeza means the last one was crushed on some earlier
+  // ply of the search itself (not necessarily the position actually on
+  // screen) — a normal one-Cabeza-per-side game has at most one to
+  // begin with, so this is unchanged there. MATTER's 2-Cabeza option
+  // is the only way there's ever more than one to check.
+  if (myCabezas.length === 0) return -AI_WIN_SCORE;
+  if (oppCabezas.length === 0) return AI_WIN_SCORE;
+
+  // With two Cabezas, the one FURTHEST along toward its own goal is
+  // the more relevant piece for every positional term below (progress,
+  // corridor gap) — it's the more immediate threat/asset, and this
+  // keeps those terms working with one concrete piece exactly like the
+  // original one-Cabeza-per-side model did, rather than rewriting each
+  // to reason about a pair. Mobility (below) already sums over every
+  // piece regardless, second Cabeza included.
+  const myCabeza = myCabezas.reduce((best, c) => (progressOf(c) > progressOf(best) ? c : best));
+  const oppCabeza = oppCabezas.reduce((best, c) => (progressOf(c) > progressOf(best) ? c : best));
 
   // Progress toward each side's own goal row — dominant term, since
   // reaching it wins outright regardless of anything else on the board.
-  const myProgress = forPlayer === "dark" ? myCabeza.row : BOARD_ROWS - 1 - myCabeza.row;
-  const oppProgress = oppPlayer === "dark" ? oppCabeza.row : BOARD_ROWS - 1 - oppCabeza.row;
+  const myProgress = progressOf(myCabeza);
+  const oppProgress = progressOf(oppCabeza);
   let score = (myProgress - oppProgress) * 12;
 
   // Mobility: total legal rolls/steps available across each side's
@@ -440,7 +484,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
      eaten by ordering overhead. */
   const killerSlot = killers[ply];
   const scoredTurns = turns.map((t) => {
-    const terminal = !!(t.crushes || t.wins);
+    const terminal = !!t.endsGame;
     let orderScore = 0;
     if (!terminal) {
       const undos = applyTurn(pieces, t);
@@ -488,7 +532,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
   for (const turn of turns) {
     let score;
     const undos = applyTurn(pieces, turn);
-    if (turn.crushes || turn.wins) {
+    if (turn.endsGame) {
       // Terminal within this ply. depth is folded in as a small
       // tiebreak — not to decide who wins, only to prefer a faster win
       // and a more-delayed loss among otherwise-equal outcomes. Never
@@ -603,7 +647,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
     if (maximizing) alpha = Math.max(alpha, bestScore);
     else beta = Math.min(beta, bestScore);
     if (beta <= alpha) {
-      if (!turn.crushes && !turn.wins) {
+      if (!turn.endsGame) {
         recordKiller(killers, ply, turn);
         recordHistory(history, turn, depth);
       }

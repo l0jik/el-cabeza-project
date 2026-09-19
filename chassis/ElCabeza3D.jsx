@@ -2587,42 +2587,58 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     let nextPieces = pieces.map((p) => (p.id === piece.id ? move.candidate : p));
 
     if (move.crushes) {
-      // Only a Cabeza can ever be `crushes` (see evaluateBlockLanding),
-      // so reaching this branch always ends the game.
-      audioRef.current.playCapture();
-      windingDownRef.current = true;
-      audioRef.current.playWin();
-      audioRef.current.playPowerOff(); // any game ending plays Begin Game's reverse, not just a manual End Active Game
-      audioRef.current.beginFadeOut(3);
+      // Only a Cabeza can ever be `crushes` (see evaluateBlockLanding).
+      // With MATTER's 2-Cabeza roster option, that's no longer always
+      // game-ending, though \u2014 SINGULARITY_DESIGN.md's own asymmetry:
+      // crushing one of a player's two Cabezas doesn't end the game,
+      // only crushing the LAST one does. A normal one-Cabeza-per-side
+      // game always has crushedOwnerHasCabezaLeft === false here (there
+      // was only ever the one), so this generalizes the original
+      // always-ends-the-game behavior rather than changing it.
       nextPieces = nextPieces.filter((p) => p.id !== move.crushes.id);
-      setPieces(nextPieces);
-      setLog([...log, makeEntry(piece, notation, "\u00d7")]);
-      setTurnHistory((prev) => [
-        ...prev,
-        {
-          pieces: turnSnapshot || pieces,
-          currentPlayer,
-          log,
-          status: "playing",
-          winner: null,
-          winReason: "",
-          pieceId: piece.id,
-          dirs: notation,
-          crushedPiece: move.crushes,
-        },
-      ]);
-      setStatus("finished");
-      setWinner(currentPlayer);
-      setWinReason("Cabeza crushed");
-      setSelectedId(null);
-      setHoveredId(null);
-      setHoverShadow(null);
-      setStepsUsed(0);
-      setTurnSnapshot(null);
-      setPendingNotation([]);
-      setBusy(false);
-      aiDirsRef.current = null;
-      return;
+      const crushedOwnerHasCabezaLeft = nextPieces.some(
+        (p) => p.type === "cabeza" && p.owner === move.crushes.owner
+      );
+      if (!crushedOwnerHasCabezaLeft) {
+        audioRef.current.playCapture();
+        windingDownRef.current = true;
+        audioRef.current.playWin();
+        audioRef.current.playPowerOff(); // any game ending plays Begin Game's reverse, not just a manual End Active Game
+        audioRef.current.beginFadeOut(3);
+        setPieces(nextPieces);
+        setLog([...log, makeEntry(piece, notation, "\u00d7")]);
+        setTurnHistory((prev) => [
+          ...prev,
+          {
+            pieces: turnSnapshot || pieces,
+            currentPlayer,
+            log,
+            status: "playing",
+            winner: null,
+            winReason: "",
+            pieceId: piece.id,
+            dirs: notation,
+            crushedPiece: move.crushes,
+          },
+        ]);
+        setStatus("finished");
+        setWinner(currentPlayer);
+        setWinReason("Cabeza crushed");
+        setSelectedId(null);
+        setHoveredId(null);
+        setHoverShadow(null);
+        setStepsUsed(0);
+        setTurnSnapshot(null);
+        setPendingNotation([]);
+        setBusy(false);
+        aiDirsRef.current = null;
+        return;
+      }
+      // The crushed side still has another Cabeza \u2014 this is a capture,
+      // not a game-ender. Play the cue and fall through into the same
+      // move-continuation tail any other successful roll uses below
+      // (nextPieces already has the crushed piece removed).
+      audioRef.current.playCapture();
     }
 
     if (piece.type === "cabeza" && move.candidate.row === GOAL_ROW[piece.owner]) {

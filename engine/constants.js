@@ -186,6 +186,15 @@ export const PIECE_META = {
   opa: { label: "O", name: "Opa", shape: "block", maxSteps: 1 },
   flaco: { label: "F", name: "Flaco", shape: "block", maxSteps: 2 },
   chato: { label: "Ch", name: "Chato", shape: "block", maxSteps: 2 },
+  // MATTER's two rectangular new piece types (SINGULARITY_DESIGN.md
+  // Part 2) — plain boxes, so they need no new rules: rollBlock/
+  // evaluateBlockLanding already generalize over any {w,h,z}, and every
+  // theme's own piece geometry is already built generically from a
+  // piece's current w/h/z (see buildPieceVisual). Only reachable via a
+  // MATTER roster chosen on the Singularity sphere — createInitialPieces'
+  // fixed five and the plain Anomaly button never place these.
+  block1x3: { label: "1x3", name: "1×3 Block", shape: "block", maxSteps: 2 },
+  block2x3: { label: "2x3", name: "2×3 Block", shape: "block", maxSteps: 2 },
 };
 
 /* Dark advances toward the highest row index, Light toward 0. Mutable

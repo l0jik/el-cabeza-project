@@ -181,6 +181,27 @@ export const PIECE_ORIENTATIONS = {
     { w: 2, h: 2, z: 1 },
   ],
   opa: [{ w: 2, h: 2, z: 2 }],
+  // block1x3's three edges are 1/3/1 — two equal, so (like flaco's own
+  // 1/2/1) only 3 of the 6 axis-assignment permutations are actually
+  // distinct shapes.
+  block1x3: [
+    { w: 1, h: 3, z: 1 },
+    { w: 3, h: 1, z: 1 },
+    { w: 1, h: 1, z: 3 },
+  ],
+  // block2x3's three edges (2/3/1) are all DIFFERENT, unlike every
+  // other piece here — so all 6 permutations of assigning them to
+  // {w,h,z} are genuinely distinct resting orientations (a 2x3
+  // footprint truly differs from a 3x2 one against the board's fixed
+  // row/col axes, not just "the same shape rotated").
+  block2x3: [
+    { w: 2, h: 3, z: 1 },
+    { w: 3, h: 2, z: 1 },
+    { w: 2, h: 1, z: 3 },
+    { w: 1, h: 2, z: 3 },
+    { w: 3, h: 1, z: 2 },
+    { w: 1, h: 3, z: 2 },
+  ],
 };
 
 export function shuffledIndices(n) {
@@ -192,29 +213,94 @@ export function shuffledIndices(n) {
   return arr;
 }
 
+// Converts the sphere's own MATTER selections into a roster
+// generateAnomalySetup understands. Only the two rectangular new piece
+// types are wired to anything real yet — L-Pentomino and Arch stay
+// selectable but inert (see neon-singularity.js's own MATTER copy)
+// since they'd need a non-convex collision system that doesn't exist.
+// Enforces SINGULARITY_DESIGN.md's "max 10 pieces per side" cap by
+// trimming non-Cabeza counts (starting from the roster's own tail)
+// if the sphere's independent per-wheel maximums ever combine past
+// it — no single wheel can exceed 10 alone, but several sitting near
+// their own max at once could.
+function buildRosterFromSelections(matterSelections) {
+  if (!matterSelections) return null;
+  const roster = [];
+  ["cabeza", "chato", "flaco", "opa", "turrito"].forEach((type) => {
+    const count = matterSelections.roster[type];
+    if (count > 0) roster.push({ type, count });
+  });
+  if (matterSelections.newPieces.block1x3) roster.push({ type: "block1x3", count: 1 });
+  if (matterSelections.newPieces.block2x3) roster.push({ type: "block2x3", count: 1 });
+
+  let total = roster.reduce((sum, r) => sum + r.count, 0);
+  for (let i = roster.length - 1; total > 10 && i >= 0; i--) {
+    const entry = roster[i];
+    const floor = entry.type === "cabeza" ? 1 : 0; // at least 1 Cabeza always required
+    while (total > 10 && entry.count > floor) { entry.count--; total--; }
+  }
+  return roster.filter((r) => r.count > 0);
+}
+
+// The classic fixed five, one each — generateAnomalySetup()'s own
+// default when called with no roster (the plain Anomaly button during
+// normal setup), byte-for-byte the same selection the original
+// hardcoded `types` array always used.
+const DEFAULT_ANOMALY_ROSTER = [
+  { type: "opa", count: 1 },
+  { type: "chato", count: 1 },
+  { type: "flaco", count: 1 },
+  { type: "turrito", count: 1 },
+  { type: "cabeza", count: 1 },
+];
+
+// Placement order proxy: the larger a piece's biggest available
+// footprint, the more constrained (and therefore earlier-placed) it
+// should be — mirrors the original hardcoded order (opa=4 cells first,
+// cabeza=1 cell last) generically for any roster.
+function maxFootprintCells(type) {
+  return Math.max(...PIECE_ORIENTATIONS[type].map((o) => o.w * o.h));
+}
+
 /* theme: the ANOMALY button (setup-phase only, see its JSX) generates a
    fresh random opening layout that's rotationally symmetrical — each
-   side's own five pieces confined entirely to its own back two rows,
-   and Light's arrangement is always the exact 180-degree rotation of
-   Dark's (the same piece type sitting at the point-reflected cell).
-   Only Dark's five pieces are ever actually placed/randomized; Light's
-   are derived by reflecting each one through the board's center
-   (row -> BOARD_ROWS - row - h, col -> BOARD_COLS - col - w). That's
-   what GUARANTEES the symmetry and both sides' row confinement at
-   once, rather than generating and separately validating two halves —
+   side's own pieces confined entirely to its own back two rows, and
+   Light's arrangement is always the exact 180-degree rotation of
+   Dark's (the same piece sitting at the point-reflected cell). Only
+   Dark's pieces are ever actually placed/randomized; Light's are
+   derived by reflecting each one through the board's center (row ->
+   BOARD_ROWS - row - h, col -> BOARD_COLS - col - w). That's what
+   GUARANTEES the symmetry and both sides' row confinement at once,
+   rather than generating and separately validating two halves —
    reflecting a cell that's within Dark's rows {0,1} always lands
    within Light's rows {BOARD_ROWS-2, BOARD_ROWS-1}, automatically.
    Bigger pieces are placed first (greedy) since they're the most
-   constrained; only 10 of the 20 cells in the 2-row band ever need to
-   be filled, so a handful of shuffled retries is enough to succeed
-   essentially every time. */
-export function generateAnomalySetup() {
-  const types = ["opa", "chato", "flaco", "turrito", "cabeza"];
+   constrained.
+
+   `roster` (an array of {type, count}) is MATTER's own "custom piece
+   rosters" idea (SINGULARITY_DESIGN.md Part 2) — a player's chosen
+   complement instead of the fixed five, threaded in from the sphere's
+   own selections (see applyMatterRoster in useSetupExtras below).
+   Defaults to DEFAULT_ANOMALY_ROSTER so every existing call site (the
+   plain Anomaly button, which never passes one) is unaffected. A count
+   greater than 1 is new — the original fixed five never had two of the
+   same type — so ids get a numeric suffix per instance rather than
+   always being bare `dark-${type}`; count===1 keeps the original bare
+   id, so a default-roster game's piece ids are byte-identical to
+   before this existed. */
+export function generateAnomalySetup(roster) {
+  const effectiveRoster = roster && roster.length ? roster : DEFAULT_ANOMALY_ROSTER;
+  const instances = [];
+  effectiveRoster.forEach(({ type, count }) => {
+    for (let i = 0; i < count; i++) instances.push({ type, index: i });
+  });
+  instances.sort((a, b) => maxFootprintCells(b.type) - maxFootprintCells(a.type));
+
   for (let attempt = 0; attempt < 300; attempt++) {
     const occupied = new Set();
     const placed = [];
     let ok = true;
-    for (const type of types) {
+    for (const { type, index } of instances) {
       const orientations = PIECE_ORIENTATIONS[type];
       const { w, h, z } = orientations[Math.floor(Math.random() * orientations.length)];
       const rowOptions = [];
@@ -234,7 +320,7 @@ export function generateAnomalySetup() {
           }
           if (free) {
             for (let r = row; r < row + h; r++) for (let c = col; c < col + w; c++) occupied.add(r * BOARD_COLS + c);
-            placed.push({ type, row, col, w, h, z });
+            placed.push({ type, index, row, col, w, h, z });
             placedThis = true;
             break;
           }
@@ -246,9 +332,10 @@ export function generateAnomalySetup() {
     if (ok) {
       const pieces = [];
       placed.forEach((p) => {
-        pieces.push({ id: `dark-${p.type}`, type: p.type, owner: "dark", row: p.row, col: p.col, w: p.w, h: p.h, z: p.z });
+        const suffix = p.index > 0 ? `-${p.index}` : "";
+        pieces.push({ id: `dark-${p.type}${suffix}`, type: p.type, owner: "dark", row: p.row, col: p.col, w: p.w, h: p.h, z: p.z });
         pieces.push({
-          id: `light-${p.type}`,
+          id: `light-${p.type}${suffix}`,
           type: p.type,
           owner: "light",
           row: BOARD_ROWS - p.row - p.h,
@@ -261,7 +348,11 @@ export function generateAnomalySetup() {
       return pieces;
     }
   }
-  return createInitialPieces(); // astronomically unlikely fallback
+  // A custom roster heavy enough to never fit the 2-row home band in
+  // 300 shuffled attempts falls back to the always-fits classic five,
+  // same as the original single-roster version's own fallback —
+  // better than silently returning nothing.
+  return roster ? generateAnomalySetup() : createInitialPieces();
 }
 
 /* theme: a 0-1 "tension" reading of the current position, purely for
@@ -3138,9 +3229,20 @@ export function useSetupExtras({
   // (see its own useSetupExtras call) so the sphere's own Opponent/AI/
   // Begin Game controls drive the real game-start path, not a
   // reimplementation of it.
+  // The sphere's own real Begin Game path (finalizeSingularityBegin,
+  // themes/neon-singularity.js) calls this right before actually
+  // arming the game, so whatever roster was picked on the sphere is
+  // what Anomaly's own generator places — the same mechanism the
+  // plain Anomaly button already uses, just with a chosen roster
+  // instead of the fixed five.
+  function applyMatterRoster(matterSelections) {
+    const roster = buildRosterFromSelections(matterSelections);
+    if (roster) setPieces(generateAnomalySetup(roster));
+  }
+
   const singularityCinematic = useSingularityPhase({
     three, audio, aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty,
-    AI_DIFFICULTY, busy, aiThinking, triggerBeginGame,
+    AI_DIFFICULTY, busy, aiThinking, triggerBeginGame, applyMatterRoster,
   });
 
   function handleAnomaly() {

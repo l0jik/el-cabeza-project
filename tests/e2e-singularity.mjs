@@ -103,10 +103,21 @@ const onSingularity = async () => page.mouse.move(sBox.x + sBox.width / 2, sBox.
 const awayFromButtons = async () => page.mouse.move(20, 20);
 
 // ---- a plain tap must NOT open it ----
-await page.locator(".ec-singularity-btn").click();
+// Raw coordinate mouse.down/up rather than locator().click(): the
+// button hovers = holds for a mouse (see beginSingularityCommitHold),
+// and locator().click() re-checks hit-testing before each attempt,
+// retrying (mouse left sitting on the button the whole time) when this
+// sandbox's documented multi-second latency spikes make the element
+// transiently "unstable" — enough stray dwell time to accidentally
+// arm and complete the real hold-to-commit gesture. A raw coordinate
+// tap dispatches immediately with no such retry loop, so it can't
+// balloon into an accidental hold.
+await page.mouse.move(sBox.x + sBox.width / 2, sBox.y + sBox.height / 2);
+await page.mouse.down();
+await page.mouse.up();
+await awayFromButtons();
 await page.waitForTimeout(500);
 check("a plain tap on Singularity does nothing", (await cinematicPhase()) === null, `phase=${await cinematicPhase()}`);
-await awayFromButtons();
 await page.waitForTimeout(300);
 
 // ---- releasing the hold early must NOT commit ----

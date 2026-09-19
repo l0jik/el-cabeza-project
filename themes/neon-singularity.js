@@ -437,11 +437,20 @@ const PIECE_FOOTPRINTS = {
 
 // MATTER — the four new polycube types from the design doc, each a
 // simple enable/disable checkbox.
+// block1x3/block2x3 are real: plain rectangular boxes, so they place,
+// roll, and collide exactly like the five originals with no new
+// engine work (see generateAnomalySetup's own roster support in
+// themes/neon.js). lPentomino/arch are non-convex — a genuine hollow
+// in the arch, an L-shaped footprint — and need a collision system
+// that checks actual solid cells against a roll's pivot edge rather
+// than just a bounding rectangle, which doesn't exist yet; they stay
+// selectable so the menu is honest about what MATTER will eventually
+// include, but enabling one has no effect on the game that starts.
 const MATTER_NEW_PIECES = [
-  { key: "lPentomino", label: "L-Pentomino", icon: "lPentomino" },
+  { key: "lPentomino", label: "L-Pentomino", icon: "lPentomino", blurb: "Not yet implemented — needs a non-convex collision system." },
   { key: "block1x3", label: "1×3 Block", icon: "block1x3" },
   { key: "block2x3", label: "2×3 Block", icon: "block2x3" },
-  { key: "arch", label: "Arch", icon: "arch" },
+  { key: "arch", label: "Arch", icon: "arch", blurb: "Not yet implemented — needs a non-convex collision system." },
 ];
 
 // MATTER also lets the roster of the five ORIGINAL pieces be
@@ -1604,7 +1613,7 @@ function renderBackButton(exitSingularity) {
 export function useSingularityPhase({
   three, audio,
   aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
-  busy, aiThinking, triggerBeginGame,
+  busy, aiThinking, triggerBeginGame, applyMatterRoster,
 }) {
   const [phase, setPhase] = React.useState(PHASES.IDLE);
   const blackDivRef = React.useRef(null);
@@ -1695,13 +1704,23 @@ export function useSingularityPhase({
   // engines behind them.
   function finalizeSingularityBegin() {
     // Marks the game about to start as Singularity-originated — read by
-    // themes/neon.js's own board-FX tick (applySingularityBoardPalette/
-    // updateWeightWarp) for as long as this game is active, and cleared
-    // by chassis's New Game reset (see deactivateSingularityBoardFx).
-    // Set before triggerBeginGame so the retint is already in place the
-    // instant the board becomes visible, not one frame later.
+    // themes/neon.js's own board-FX tick (applySingularityBoardPalette)
+    // for as long as this game is active, and cleared by chassis's New
+    // Game reset (see deactivateSingularityBoardFx). Set before
+    // triggerBeginGame so the retint is already in place the instant
+    // the board becomes visible, not one frame later.
     const t = three && three.current;
     if (t) t.singularityGameActive = true;
+    // MATTER's chosen roster (the two rectangular new piece types plus
+    // any custom counts of the five originals) actually gets placed
+    // here, via the same Anomaly generator the plain button already
+    // uses — see applyMatterRoster/buildRosterFromSelections in
+    // themes/neon.js. LAWS/TOPOLOGIES and MATTER's two non-convex
+    // pieces (L-Pentomino/Arch) still aren't wired to anything real;
+    // this is the one category with a real gameplay effect so far.
+    if (t && t.singularity && t.singularity.selections && applyMatterRoster) {
+      applyMatterRoster(t.singularity.selections.matter);
+    }
     if (triggerBeginGame) triggerBeginGame();
     exitSingularity();
   }
