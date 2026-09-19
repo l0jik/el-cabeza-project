@@ -157,9 +157,9 @@ await page.screenshot({ path: "/tmp/neon-singularity-sphere.png" });
 // a drag doesn't return the sphere to its starting orientation when
 // released (only the COAST velocity decays to zero — the rotation
 // itself is permanent, exactly as a real momentum-driven drag should
-// behave), so testing it here first would leave MATTER no longer
-// centered under the very next "tap dead center" assumption those
-// tests depend on. ----
+// behave), so testing it here first would leave whichever label is
+// currently front no longer centered under the very next "tap dead
+// center" assumption those tests depend on. ----
 const overlay = page.locator('[data-testid="singularity-overlay"]');
 const obox = await overlay.boundingBox();
 const cx = obox.x + obox.width / 2;
@@ -176,17 +176,52 @@ async function dragSphereBy(dx) {
   await page.mouse.up();
 }
 
+const closeOverlay = async () => {
+  await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
+  await page.waitForTimeout(200);
+};
+
 // ---- root labels are distributed around the sphere with no checkbox
-// of their own; MATTER sits front-and-center after the
-// BLACKOUT->SPHERE auto-centering raycast, so a plain tap dead center
-// opens ITS holographic overlay ----
+// of their own; whichever label the sphere's own per-cycle shuffle
+// (shuffleRootLabels, themes/neon-singularity.js) assigned the u=0.5
+// slot sits front-and-center after the BLACKOUT->SPHERE auto-centering
+// raycast, so a plain tap dead center opens ITS holographic overlay —
+// MATTER isn't guaranteed to be that label any more, so read the
+// actual arrangement off the test hook rather than assuming it ----
+let state = await sphereState();
+const frontKey = state.rootLabels?.find((r) => Math.abs(r.u - 0.5) < 1e-6)?.key;
 await page.mouse.click(cx, cy);
 await page.waitForTimeout(250);
-let state = await sphereState();
+state = await sphereState();
 check("tapping the front-facing root label opens its overlay",
-  state.stage === "overlay" && state.activeCategory === "matter", JSON.stringify(state));
+  state.stage === "overlay" && state.activeCategory === frontKey,
+  `frontKey=${frontKey} ${JSON.stringify(state)}`);
 check("the category overlay is actually rendered",
   (await page.locator('[data-testid="category-overlay"]').count()) > 0);
+await closeOverlay();
+
+// Brings a given root label's overlay into view regardless of where
+// the per-cycle shuffle put it: taps the currently-front label, and if
+// it's not the target, closes that overlay and drags a third of the
+// way around (matching the fixed 120-degree spacing between labels)
+// before trying again. At most 2 drags ever suffice — 3 labels, 3
+// possible starting positions relative to the target.
+async function navigateToCategory(targetKey) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.mouse.click(cx, cy);
+    await page.waitForTimeout(250);
+    const s = await sphereState();
+    if (s.activeCategory === targetKey) return s;
+    await closeOverlay();
+    await dragSphereBy(420);
+    await page.waitForTimeout(650); // let the release coast decay out
+  }
+  return sphereState();
+}
+
+state = await navigateToCategory("matter");
+check("dragging brings MATTER into view regardless of the shuffled arrangement",
+  state.activeCategory === "matter", `activeCategory=${state.activeCategory}`);
 
 // ---- LAWS/MATTER get real checkboxes for their sub-items ----
 const archBefore = state.selections.matter.newPieces.arch;
@@ -214,8 +249,7 @@ check("the roster drum clamps at its declared max", state.selections.matter.rost
 
 // ---- clicking outside the overlay closes it, returning control to
 // sphere rotation, without discarding the edits just made ----
-await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
-await page.waitForTimeout(200);
+await closeOverlay();
 state = await sphereState();
 check("clicking outside the overlay closes it", state.stage === "labels", `stage=${state.stage}`);
 check("closing the overlay keeps the edits made inside it",
@@ -224,14 +258,8 @@ check("closing the overlay keeps the edits made inside it",
 
 // ---- TOPOLOGIES gets a drum roller per board dimension instead of
 // checkboxes, clamped to the engine's own MIN/MAX_BOARD_DIM (6/20) ----
-// A ~1/3 turn (matching the 120 degrees between labels) brings
-// TOPOLOGIES into view from MATTER's own front-facing rest position.
-await dragSphereBy(420);
-await page.waitForTimeout(650); // let the release coast decay out
-await page.mouse.click(cx, cy);
-await page.waitForTimeout(250);
-state = await sphereState();
-check("dragging a third of the way around brings TOPOLOGIES into view",
+state = await navigateToCategory("topologies");
+check("dragging brings TOPOLOGIES into view regardless of the shuffled arrangement",
   state.activeCategory === "topologies", `activeCategory=${state.activeCategory}`);
 
 if (state.activeCategory === "topologies") {

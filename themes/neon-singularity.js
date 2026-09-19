@@ -374,18 +374,46 @@ function buildStarfield() {
    (categoryAtUv) rather than a flat overlay, so the text still visibly
    distorts under rotation the way the design doc describes.
 
-   MATTER sits at u=0.5 deliberately — that's the longitude the
-   BLACKOUT->SPHERE auto-centering raycast (see advanceSingularityScene)
-   rotates to face the camera, so MATTER is always the label greeting
-   the player on settle; LAWS and TOPOLOGIES sit a third of the way
-   around in each direction, reached by dragging. Also note
-   CanvasTexture's flipY (unchanged from the earlier layout) — canvas-Y
-   = height*(1-v) samples at v, not canvas-Y = height*v. */
-const ROOT_LABELS = [
-  { key: "matter", label: "MATTER", u: 0.5 },
-  { key: "laws", label: "LAWS", u: 0.5 - 1 / 3 },
-  { key: "topologies", label: "TOPOLOGIES", u: 0.5 + 1 / 3 },
+   The three u-slots themselves are fixed — one sits at u=0.5, which is
+   the longitude the BLACKOUT->SPHERE auto-centering raycast (see
+   advanceSingularityScene) rotates to face the camera, so whichever
+   label occupies that slot is always the one greeting the player on
+   settle; the other two sit a third of the way around in each
+   direction, reached by dragging. WHICH label occupies which slot is
+   randomized fresh each time the cinematic starts (see
+   shuffleRootLabels/startCollapse) — every hold-to-commit reveals the
+   three menus in a new arrangement rather than MATTER always greeting
+   the player. Also note CanvasTexture's flipY (unchanged from the
+   earlier layout) — canvas-Y = height*(1-v) samples at v, not
+   canvas-Y = height*v. */
+const ROOT_LABEL_DEFS = [
+  { key: "matter", label: "MATTER" },
+  { key: "laws", label: "LAWS" },
+  { key: "topologies", label: "TOPOLOGIES" },
 ];
+const ROOT_LABEL_U_SLOTS = [0.5, 0.5 - 1 / 3, 0.5 + 1 / 3];
+
+// A fresh random assignment of the three labels to the three fixed
+// u-slots — called once per cinematic entry (startCollapse), so a
+// re-hold after escaping (or a fresh game) can land on a different
+// arrangement. Not called mid-cycle: the arrangement stays fixed for
+// the whole time the sphere is up, exactly like the original static
+// layout did, just re-rolled at the start of each new visit.
+function shuffleRootLabels() {
+  const defs = [...ROOT_LABEL_DEFS];
+  for (let i = defs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [defs[i], defs[j]] = [defs[j], defs[i]];
+  }
+  return defs.map((def, i) => ({ ...def, u: ROOT_LABEL_U_SLOTS[i] }));
+}
+
+// The pre-shuffle layout (MATTER front, LAWS/TOPOLOGIES flanking) —
+// used only as a placeholder before the first real shuffle exists
+// (the very first texture draw, before t.singularity is even built;
+// see buildSphereTextTexture) since it's overwritten within the same
+// visit by the dirty-flag redraw once real state is available.
+const DEFAULT_ROOT_LABELS = ROOT_LABEL_DEFS.map((def, i) => ({ ...def, u: ROOT_LABEL_U_SLOTS[i] }));
 const TEXT_TEXTURE_W = 2048, TEXT_TEXTURE_H = 1024;
 // Same empirically-measured visible/reachable latitude band the
 // earlier stacked list used, now holding one row per label (title +
@@ -521,16 +549,16 @@ function circularUDist(a, b) {
 // anywhere else on the sphere, including the gaps between labels,
 // which is deliberately "bare sphere" (rotates on drag, counts toward
 // triple-tap-to-finalize on a clean tap; see registerBareTap).
-function categoryAtUv(uv) {
+function categoryAtUv(uv, rootLabels) {
   if (uv.y < LABEL_V_MIN || uv.y > LABEL_V_MAX) return null;
-  for (const entry of ROOT_LABELS) {
+  for (const entry of rootLabels || DEFAULT_ROOT_LABELS) {
     const u = ((entry.u % 1) + 1) % 1;
     if (circularUDist(uv.x, u) < LABEL_U_HALF_WIDTH) return entry.key;
   }
   return null;
 }
 
-function drawRootLabels(canvas, ctx, selections) {
+function drawRootLabels(canvas, ctx, selections, rootLabels) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const titleFont = "700 88px 'Chakra Petch', sans-serif";
   const subFont = "400 28px 'IBM Plex Mono', monospace";
@@ -538,7 +566,7 @@ function drawRootLabels(canvas, ctx, selections) {
   ctx.textBaseline = "middle";
   const v = (LABEL_V_MIN + LABEL_V_MAX) / 2;
   const y = canvas.height * (1 - v);
-  for (const entry of ROOT_LABELS) {
+  for (const entry of rootLabels || DEFAULT_ROOT_LABELS) {
     const active = isCategoryActive(entry.key, selections);
     const u = ((entry.u % 1) + 1) % 1;
     const x = u * canvas.width;
@@ -567,7 +595,7 @@ function buildSphereTextTexture(markLabelsDirty) {
   canvas.width = TEXT_TEXTURE_W;
   canvas.height = TEXT_TEXTURE_H;
   const ctx = canvas.getContext("2d");
-  drawRootLabels(canvas, ctx, createDefaultSelections());
+  drawRootLabels(canvas, ctx, createDefaultSelections(), DEFAULT_ROOT_LABELS);
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   /* Canvas text drawn before the webfonts finish loading silently falls
@@ -895,7 +923,7 @@ function updateSphereVisuals(t, dt) {
   // canvas is cheap but there's no reason to touch it 60x/s when
   // nothing about the selections changed.
   if (s.labelsDirty && s.sphere) {
-    drawRootLabels(s.sphere.text.canvas, s.sphere.text.ctx, s.selections);
+    drawRootLabels(s.sphere.text.canvas, s.sphere.text.ctx, s.selections, s.rootLabels);
     s.sphere.text.texture.needsUpdate = true;
     s.labelsDirty = false;
   }
@@ -1100,6 +1128,10 @@ export function advanceSingularityScene(t, now, chromeRefs) {
       stage: s.sphereMenuStage || null,
       activeCategory: s.activeCategory || null,
       selections: s.selections ? JSON.parse(JSON.stringify(s.selections)) : null,
+      // This cycle's MATTER/LAWS/TOPOLOGIES -> u-slot arrangement (see
+      // shuffleRootLabels) — exposed so tests can find a given category
+      // deterministically instead of assuming a fixed layout.
+      rootLabels: s.rootLabels ? s.rootLabels.map((r) => ({ key: r.key, u: r.u })) : null,
       collapseU: s.phase === PHASES.COLLAPSING
         ? Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS)
         : null,
@@ -1660,6 +1692,10 @@ export function useSingularityPhase({
     t.singularity.setPhase = (p) => phaseSetterRef.current(p);
     // Every fresh entry starts back at the root labels with a clean
     // slate — see teardownSingularityScene's matching reset on exit.
+    // A fresh random MATTER/LAWS/TOPOLOGIES arrangement too, so which
+    // menu greets the player (and where the other two sit) isn't the
+    // same every time.
+    t.singularity.rootLabels = shuffleRootLabels();
     t.singularity.sphereMenuStage = "labels";
     t.singularity.activeCategory = null;
     t.singularity.selections = createDefaultSelections();
@@ -1840,7 +1876,7 @@ export function useSingularityPhase({
     t.raycaster.setFromCamera(t.pointer, t.camera);
     const hits = t.raycaster.intersectObject(sphere.mesh);
     if (!hits.length || !hits[0].uv) return;
-    const category = categoryAtUv(hits[0].uv);
+    const category = categoryAtUv(hits[0].uv, t.singularity.rootLabels);
     if (category) {
       openCategoryOverlay(t, category);
       audio.playSelect();
