@@ -1,0 +1,20 @@
+{
+  "name": "el-cabeza",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build/build.js",
+    "test:engine": "node tests/engine.smoke.mjs && node tests/board-size.smoke.mjs && node tests/theme-standard.smoke.mjs && node tests/theme-neon.smoke.mjs",
+    "test:e2e": "npm run build && node tests/e2e-smoke.mjs standard && node tests/e2e-smoke.mjs neon && node tests/e2e-gameplay.mjs standard && node tests/e2e-gameplay.mjs neon && node tests/e2e-board-size.mjs && node tests/e2e-ai-worker.mjs && node tests/e2e-ambient.mjs && node tests/e2e-singularity.mjs",
+    "test": "npm run test:engine && npm run test:e2e"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "playwright": "^1.63.0"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.128.0"
+  }
+}
