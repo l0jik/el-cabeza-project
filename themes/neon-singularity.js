@@ -432,10 +432,26 @@ function categoryDisplayLabel(key) {
   return ROOT_LABEL_DEFS.find((d) => d.key === key)?.label || key.toUpperCase();
 }
 const TEXT_TEXTURE_W = 2048, TEXT_TEXTURE_H = 1024;
-// Same empirically-measured visible/reachable latitude band the
-// earlier stacked list used, now holding one row per label (title +
-// status line) instead of three stacked rows.
-const LABEL_V_MIN = 0.58, LABEL_V_MAX = 0.82;
+// The label band's total v-extent (title + status line), unchanged
+// from the earlier fixed band's own width (0.82-0.58). WHERE that
+// band sits (its center) is no longer a hardcoded guess — see
+// DEFAULT_LABEL_CENTER_V and the BLACKOUT->SPHERE raycast below.
+const LABEL_V_HALF_WIDTH_BAND = 0.12;
+// A sphere has no equivalent of the horizontal auto-centering rotate
+// for latitude: rotating the group to bring a given v to screen-center
+// would tip the whole sphere over, changing which point reads as "up"
+// — a much bigger visual change than the invisible yaw spin u-centering
+// already does. So instead of trying to move the geometry, this reads
+// where the camera is ALREADY looking (the same BLACKOUT->SPHERE
+// raycast that sets the yaw, at hits[0].uv.y instead of .x) and uses
+// THAT as the band's center — the sphere's camera elevation genuinely
+// varies with viewport/device (board framing logic elsewhere sizes
+// and angles the camera to fit), so a fixed v center that looked right
+// on one viewport read as too high (or too low) on another; this
+// setting is per-session real geometry instead of a fixed guess.
+// 0.7 is the fallback for the handful of frames between a fresh
+// collapse starting and that raycast actually landing.
+const DEFAULT_LABEL_CENTER_V = 0.7;
 // How far in u (as a fraction of the full 0..1 wrap) a tap can land
 // from a label's center and still count as hitting it — comfortably
 // under 1/6 (half of the 1/3 spacing between labels) so the gaps
@@ -566,8 +582,8 @@ function circularUDist(a, b) {
 // anywhere else on the sphere, including the gaps between labels,
 // which is deliberately "bare sphere" (rotates on drag, counts toward
 // triple-tap-to-finalize on a clean tap; see registerBareTap).
-function categoryAtUv(uv, rootLabels) {
-  if (uv.y < LABEL_V_MIN || uv.y > LABEL_V_MAX) return null;
+function categoryAtUv(uv, rootLabels, centerV = DEFAULT_LABEL_CENTER_V) {
+  if (uv.y < centerV - LABEL_V_HALF_WIDTH_BAND || uv.y > centerV + LABEL_V_HALF_WIDTH_BAND) return null;
   for (const entry of rootLabels || DEFAULT_ROOT_LABELS) {
     const u = ((entry.u % 1) + 1) % 1;
     if (circularUDist(uv.x, u) < LABEL_U_HALF_WIDTH) return entry.key;
@@ -575,14 +591,13 @@ function categoryAtUv(uv, rootLabels) {
   return null;
 }
 
-function drawRootLabels(canvas, ctx, selections, rootLabels) {
+function drawRootLabels(canvas, ctx, selections, rootLabels, centerV = DEFAULT_LABEL_CENTER_V) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const titleFont = "700 88px 'Chakra Petch', sans-serif";
   const subFont = "400 28px 'IBM Plex Mono', monospace";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const v = (LABEL_V_MIN + LABEL_V_MAX) / 2;
-  const y = canvas.height * (1 - v);
+  const y = canvas.height * (1 - centerV);
   for (const entry of rootLabels || DEFAULT_ROOT_LABELS) {
     const active = isCategoryActive(entry.key, selections);
     const u = ((entry.u % 1) + 1) % 1;
@@ -940,7 +955,7 @@ function updateSphereVisuals(t, dt) {
   // canvas is cheap but there's no reason to touch it 60x/s when
   // nothing about the selections changed.
   if (s.labelsDirty && s.sphere) {
-    drawRootLabels(s.sphere.text.canvas, s.sphere.text.ctx, s.selections, s.rootLabels);
+    drawRootLabels(s.sphere.text.canvas, s.sphere.text.ctx, s.selections, s.rootLabels, s.labelCenterV);
     s.sphere.text.texture.needsUpdate = true;
     s.labelsDirty = false;
   }
@@ -1111,6 +1126,17 @@ export function advanceSingularityScene(t, now, chromeRefs) {
           const hits = t.raycaster.intersectObject(s.sphere.mesh);
           if (hits.length && hits[0].uv) {
             s.sphere.group.rotation.y = (hits[0].uv.x - 0.5) * Math.PI * 2;
+            // Same hit, .y instead of .x: there's no rotation that can
+            // bring a given LATITUDE to screen-center the way yaw does
+            // for longitude (that would tip the whole sphere over), so
+            // instead of moving the sphere, the label band itself gets
+            // centered on wherever the camera is already looking. The
+            // camera's elevation angle genuinely varies by viewport
+            // (board-framing logic elsewhere sizes/angles it to fit),
+            // which is exactly why a fixed v center read as too high on
+            // some devices and too low on others (see LABEL_V_HALF_WIDTH_BAND).
+            s.labelCenterV = hits[0].uv.y;
+            s.labelsDirty = true; // redraw at the real center, not the fallback
           }
         }
         // The blackout div is opaque and sits above the main canvas —
@@ -1149,6 +1175,7 @@ export function advanceSingularityScene(t, now, chromeRefs) {
       // shuffleRootLabels) — exposed so tests can find a given category
       // deterministically instead of assuming a fixed layout.
       rootLabels: s.rootLabels ? s.rootLabels.map((r) => ({ key: r.key, u: r.u })) : null,
+      labelCenterV: typeof s.labelCenterV === "number" ? s.labelCenterV : null,
       collapseU: s.phase === PHASES.COLLAPSING
         ? Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS)
         : null,
@@ -1894,7 +1921,7 @@ export function useSingularityPhase({
     t.raycaster.setFromCamera(t.pointer, t.camera);
     const hits = t.raycaster.intersectObject(sphere.mesh);
     if (!hits.length || !hits[0].uv) return;
-    const category = categoryAtUv(hits[0].uv, t.singularity.rootLabels);
+    const category = categoryAtUv(hits[0].uv, t.singularity.rootLabels, t.singularity.labelCenterV);
     if (category) {
       openCategoryOverlay(t, category);
       audio.playSelect();
