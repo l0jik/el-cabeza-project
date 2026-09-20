@@ -181,6 +181,23 @@ const closeOverlay = async () => {
   await page.waitForTimeout(200);
 };
 
+// Polls the sphere's own rotation (exposed on the test hook) until two
+// consecutive reads agree, rather than a fixed delay — the release
+// coast decays out over a variable amount of real time under this
+// sandbox's own documented latency spikes, and tapping while it's
+// still drifting can land off a label's center by more than
+// LABEL_U_HALF_WIDTH, missing every category.
+async function waitForSphereSettle(timeoutMs = 3000) {
+  let last = await page.evaluate(() => window.__EC_TEST_SINGULARITY__?.sphereRotationY);
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    await page.waitForTimeout(120);
+    const cur = await page.evaluate(() => window.__EC_TEST_SINGULARITY__?.sphereRotationY);
+    if (cur === last) return;
+    last = cur;
+  }
+}
+
 // ---- root labels are distributed around the sphere with no checkbox
 // of their own; whichever label the sphere's own per-cycle shuffle
 // (shuffleRootLabels, themes/neon-singularity.js) assigned the u=0.5
@@ -202,19 +219,39 @@ await closeOverlay();
 
 // Brings a given root label's overlay into view regardless of where
 // the per-cycle shuffle put it: taps the currently-front label, and if
-// it's not the target, closes that overlay and drags a third of the
-// way around (matching the fixed 120-degree spacing between labels)
-// before trying again. At most 2 drags ever suffice — 3 labels, 3
-// possible starting positions relative to the target.
+// it's not the target, closes that overlay (only if the tap actually
+// landed on a label and opened one — a miss lands as a genuine bare
+// tap on the sphere itself, and firing a second stray click right
+// after it risks tipping the triple-tap-to-finalize counter).
+//
+// The drag is velocity/momentum-driven (see updateSphereVisuals's
+// dragVelocity coast), not a fixed rotation per fixed pixel distance —
+// the SAME 420px drag measurably rotates the sphere by a different
+// amount from one call to the next under this sandbox's own variable
+// frame timing (confirmed by logging real rotation deltas: consecutive
+// "identical" drags produced deltas differing by tens of degrees). A
+// big enough overshoot can land dead in the narrow gap between two
+// labels' hit zones (untested state: activeCategory null) — repeating
+// the same full-size drag from there is just as likely to overshoot
+// again. So a gap-landing gets a much smaller corrective nudge instead
+// of another full step, to settle onto the nearest label rather than
+// vault past it; landing on a real (wrong) label still takes a full
+// step onward. The guard is generous (not "2 drags always suffice")
+// precisely because drag distance isn't reliable here.
 async function navigateToCategory(targetKey) {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let guard = 0; guard < 12; guard++) {
     await page.mouse.click(cx, cy);
     await page.waitForTimeout(250);
     const s = await sphereState();
+    if (process.env.EC_DEBUG_NAV) console.error(`  [nav->${targetKey}] guard=${guard} activeCategory=${s.activeCategory} stage=${s.stage} rot=${s.sphereRotationY} rootLabels=${JSON.stringify(s.rootLabels)}`);
     if (s.activeCategory === targetKey) return s;
-    await closeOverlay();
-    await dragSphereBy(420);
-    await page.waitForTimeout(650); // let the release coast decay out
+    if (s.stage === "overlay") {
+      await closeOverlay();
+      await dragSphereBy(420);
+    } else {
+      await dragSphereBy(90); // landed in a gap — nudge, don't vault past
+    }
+    await waitForSphereSettle(); // let the release coast decay out
   }
   return sphereState();
 }

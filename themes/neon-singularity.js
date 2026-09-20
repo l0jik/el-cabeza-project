@@ -389,7 +389,7 @@ function buildStarfield() {
 const ROOT_LABEL_DEFS = [
   { key: "matter", label: "MATTER" },
   { key: "laws", label: "LAWS" },
-  { key: "topologies", label: "TOPOLOGIES" },
+  { key: "topologies", label: "TOPOLOGY" },
 ];
 const ROOT_LABEL_U_SLOTS = [0.5, 0.5 - 1 / 3, 0.5 + 1 / 3];
 
@@ -414,6 +414,14 @@ function shuffleRootLabels() {
 // see buildSphereTextTexture) since it's overwritten within the same
 // visit by the dirty-flag redraw once real state is available.
 const DEFAULT_ROOT_LABELS = ROOT_LABEL_DEFS.map((def, i) => ({ ...def, u: ROOT_LABEL_U_SLOTS[i] }));
+
+// A category's display word, e.g. for the overlay's own heading —
+// looked up from ROOT_LABEL_DEFS rather than just uppercasing the key
+// itself, since the two aren't always identical (the "topologies" key
+// displays as "TOPOLOGY", singular).
+function categoryDisplayLabel(key) {
+  return ROOT_LABEL_DEFS.find((d) => d.key === key)?.label || key.toUpperCase();
+}
 const TEXT_TEXTURE_W = 2048, TEXT_TEXTURE_H = 1024;
 // Same empirically-measured visible/reachable latitude band the
 // earlier stacked list used, now holding one row per label (title +
@@ -1471,7 +1479,7 @@ function renderCategoryOverlay(t) {
           boxSizing: "border-box",
         },
       },
-      h("h3", { style: overlayTitleStyle }, category.toUpperCase()),
+      h("h3", { style: overlayTitleStyle }, categoryDisplayLabel(category)),
       body,
       h(
         "div",
@@ -1572,7 +1580,7 @@ function renderSummaryPanel(setupExtras) {
     h(
       "div",
       { style: { display: "flex", flexDirection: "column", gap: 8, margin: "14px 0 18px" } },
-      h("div", { style: lineStyle }, h("span", { style: tagStyle }, "TOPOLOGIES  "), boardLine),
+      h("div", { style: lineStyle }, h("span", { style: tagStyle }, "TOPOLOGY  "), boardLine),
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "LAWS  "), lawsOn.length ? lawsOn.map((i) => i.label).join(", ") : "none"),
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "MATTER  "), piecesOn.length ? piecesOn.map((i) => i.label).join(", ") : "no new pieces"),
       h("div", { style: { ...lineStyle, fontSize: 10, color: "rgba(207,216,220,0.5)", paddingLeft: 4 } }, rosterLine)
