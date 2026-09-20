@@ -437,20 +437,19 @@ const TEXT_TEXTURE_W = 2048, TEXT_TEXTURE_H = 1024;
 // band sits (its center) is no longer a hardcoded guess — see
 // DEFAULT_LABEL_CENTER_V and the BLACKOUT->SPHERE raycast below.
 const LABEL_V_HALF_WIDTH_BAND = 0.12;
-// A sphere has no equivalent of the horizontal auto-centering rotate
-// for latitude: rotating the group to bring a given v to screen-center
-// would tip the whole sphere over, changing which point reads as "up"
-// — a much bigger visual change than the invisible yaw spin u-centering
-// already does. So instead of trying to move the geometry, this reads
-// where the camera is ALREADY looking (the same BLACKOUT->SPHERE
-// raycast that sets the yaw, at hits[0].uv.y instead of .x) and uses
-// THAT as the band's center — the sphere's camera elevation genuinely
-// varies with viewport/device (board framing logic elsewhere sizes
-// and angles the camera to fit), so a fixed v center that looked right
-// on one viewport read as too high (or too low) on another; this
-// setting is per-session real geometry instead of a fixed guess.
-// 0.7 is the fallback for the handful of frames between a fresh
-// collapse starting and that raycast actually landing.
+// Rather than a fixed guess, the label band's center tracks wherever
+// the camera is CURRENTLY looking on the sphere (updateSphereVisuals
+// re-raycasts this every frame) — both because camera elevation
+// genuinely varies with viewport/device (board-framing logic
+// elsewhere sizes/angles the camera to fit), and because vertical
+// drag pitches the sphere itself (rotation.x), which changes this
+// same relationship just as much. There's no equivalent trick for
+// MOVING the geometry the way the horizontal auto-centering rotate
+// does for yaw — rotating to bring a given v to screen-center would
+// just be fighting whatever pitch the player has already dragged to
+// — so this leaves the sphere's own orientation alone and instead
+// keeps recalculating where "center" currently means. 0.7 is only the
+// fallback for the handful of frames before the first raycast lands.
 const DEFAULT_LABEL_CENTER_V = 0.7;
 // How far in u (as a fraction of the full 0..1 wrap) a tap can land
 // from a label's center and still count as hitting it — comfortably
@@ -974,6 +973,28 @@ function updateSphereVisuals(t, dt) {
   s.sphere.group.rotation.x += s.dragVelocity.x * dt;
   s.sphere.group.rotation.y += s.dragVelocity.y * dt;
 
+  // The label band's vertical center tracks wherever the camera is
+  // CURRENTLY looking on the sphere — recomputed every frame, not just
+  // once at settle. rotation.x right above IS a pitch (vertical drag
+  // tips the sphere), so a one-shot snapshot taken before any dragging
+  // goes stale the instant the player drags vertically at all: the
+  // band would keep rendering at the ORIGINAL camera-facing latitude
+  // while the sphere itself has tipped out from under it. Re-raycasting
+  // every frame (same technique as the one-shot BLACKOUT->SPHERE read
+  // below, just repeated) keeps it correct through any amount of
+  // dragging, and is cheap enough to not bother gating.
+  if (t.raycaster && t.pointer && t.camera) {
+    const ndc = s.sphere.group.position.clone().project(t.camera);
+    t.pointer.set(ndc.x, ndc.y);
+    t.raycaster.setFromCamera(t.pointer, t.camera);
+    const hits = t.raycaster.intersectObject(s.sphere.mesh);
+    if (hits.length && hits[0].uv) {
+      const nextCenterV = hits[0].uv.y;
+      if (Math.abs((s.labelCenterV ?? nextCenterV) - nextCenterV) > 0.001) s.labelsDirty = true;
+      s.labelCenterV = nextCenterV;
+    }
+  }
+
   s.pulsePhase = (s.pulsePhase || 0) + dt * PULSE_SPEED;
   s.sphere.uniforms.uPulsePhase.value = s.pulsePhase;
 }
@@ -1142,15 +1163,13 @@ export function advanceSingularityScene(t, now, chromeRefs) {
           const hits = t.raycaster.intersectObject(s.sphere.mesh);
           if (hits.length && hits[0].uv) {
             s.sphere.group.rotation.y = (hits[0].uv.x - 0.5) * Math.PI * 2;
-            // Same hit, .y instead of .x: there's no rotation that can
-            // bring a given LATITUDE to screen-center the way yaw does
-            // for longitude (that would tip the whole sphere over), so
-            // instead of moving the sphere, the label band itself gets
-            // centered on wherever the camera is already looking. The
-            // camera's elevation angle genuinely varies by viewport
-            // (board-framing logic elsewhere sizes/angles it to fit),
-            // which is exactly why a fixed v center read as too high on
-            // some devices and too low on others (see LABEL_V_HALF_WIDTH_BAND).
+            // Same hit, .y instead of .x, seeds the label band's
+            // vertical center for this very first frame — updateSphereVisuals
+            // recomputes it continuously from here on (it has to: vertical
+            // drag pitches the sphere via rotation.x, which changes this
+            // same relationship just as much as an unsettled camera does,
+            // so a value that's only ever set once here would go stale
+            // the moment the player drags at all).
             s.labelCenterV = hits[0].uv.y;
             s.labelsDirty = true; // redraw at the real center, not the fallback
           }
