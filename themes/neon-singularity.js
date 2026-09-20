@@ -1585,6 +1585,7 @@ function renderSummaryPanel(setupExtras) {
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "MATTER  "), piecesOn.length ? piecesOn.map((i) => i.label).join(", ") : "no new pieces"),
       h("div", { style: { ...lineStyle, fontSize: 10, color: "rgba(207,216,220,0.5)", paddingLeft: 4 } }, rosterLine)
     ),
+    h("div", { style: { ...lineStyle, textAlign: "center" } }, h("span", { style: tagStyle }, "OPPONENT")),
     renderOpponentAiPicker(setupExtras),
     h(
       "button",
