@@ -438,24 +438,19 @@ function categoryDisplayLabel(key) {
 }
 const TEXT_TEXTURE_W = 2048, TEXT_TEXTURE_H = 1024;
 // The label band's total v-extent (title + status line), unchanged
-// from the earlier fixed band's own width (0.82-0.58). WHERE that
-// band sits (its center) is no longer a hardcoded guess — see
-// DEFAULT_LABEL_CENTER_V and the BLACKOUT->SPHERE raycast below.
+// from the earlier fixed band's own width (0.82-0.58).
 const LABEL_V_HALF_WIDTH_BAND = 0.12;
-// Rather than a fixed guess, the label band's center tracks wherever
-// the camera is CURRENTLY looking on the sphere (updateSphereVisuals
-// re-raycasts this every frame) — both because camera elevation
-// genuinely varies with viewport/device (board-framing logic
-// elsewhere sizes/angles the camera to fit), and because vertical
-// drag pitches the sphere itself (rotation.x), which changes this
-// same relationship just as much. There's no equivalent trick for
-// MOVING the geometry the way the horizontal auto-centering rotate
-// does for yaw — rotating to bring a given v to screen-center would
-// just be fighting whatever pitch the player has already dragged to
-// — so this leaves the sphere's own orientation alone and instead
-// keeps recalculating where "center" currently means. 0.7 is only the
-// fallback for the handful of frames before the first raycast lands.
-const DEFAULT_LABEL_CENTER_V = 0.7;
+// The sphere's actual geometric equator — not a guess: THREE.SphereGeometry's
+// default UV mapping puts v=0.5 exactly at the midpoint between its two
+// poles for a standard full sphere (thetaStart=0, thetaLength=Math.PI),
+// regardless of camera position or the sphere's own current rotation.
+// Earlier versions of this tried to derive the center from wherever the
+// camera happened to be looking (via a raycast), which is a different
+// thing entirely — that tracks the CAMERA's elevation, not the sphere's
+// own equator, and is why the words sat too high (an elevated,
+// downward-tilted camera looks at a point above true center). Fixed,
+// not per-session state.
+const LABEL_CENTER_V = 0.5;
 // How far in u (as a fraction of the full 0..1 wrap) a tap can land
 // from a label's center and still count as hitting it — comfortably
 // under 1/6 (half of the 1/3 spacing between labels) so the gaps
@@ -586,8 +581,8 @@ function circularUDist(a, b) {
 // anywhere else on the sphere, including the gaps between labels,
 // which is deliberately "bare sphere" (rotates on drag, counts toward
 // triple-tap-to-finalize on a clean tap; see registerBareTap).
-function categoryAtUv(uv, rootLabels, centerV = DEFAULT_LABEL_CENTER_V) {
-  if (uv.y < centerV - LABEL_V_HALF_WIDTH_BAND || uv.y > centerV + LABEL_V_HALF_WIDTH_BAND) return null;
+function categoryAtUv(uv, rootLabels) {
+  if (uv.y < LABEL_CENTER_V - LABEL_V_HALF_WIDTH_BAND || uv.y > LABEL_CENTER_V + LABEL_V_HALF_WIDTH_BAND) return null;
   for (const entry of rootLabels || DEFAULT_ROOT_LABELS) {
     const u = ((entry.u % 1) + 1) % 1;
     if (circularUDist(uv.x, u) < LABEL_U_HALF_WIDTH) return entry.key;
@@ -595,13 +590,13 @@ function categoryAtUv(uv, rootLabels, centerV = DEFAULT_LABEL_CENTER_V) {
   return null;
 }
 
-function drawRootLabels(canvas, ctx, selections, rootLabels, centerV = DEFAULT_LABEL_CENTER_V) {
+function drawRootLabels(canvas, ctx, selections, rootLabels) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const titleFont = "700 88px 'Chakra Petch', sans-serif";
   const subFont = "400 28px 'IBM Plex Mono', monospace";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const y = canvas.height * (1 - centerV);
+  const y = canvas.height * (1 - LABEL_CENTER_V);
   for (const entry of rootLabels || DEFAULT_ROOT_LABELS) {
     const active = isCategoryActive(entry.key, selections);
     const u = ((entry.u % 1) + 1) % 1;
@@ -959,7 +954,7 @@ function updateSphereVisuals(t, dt) {
   // canvas is cheap but there's no reason to touch it 60x/s when
   // nothing about the selections changed.
   if (s.labelsDirty && s.sphere) {
-    drawRootLabels(s.sphere.text.canvas, s.sphere.text.ctx, s.selections, s.rootLabels, s.labelCenterV);
+    drawRootLabels(s.sphere.text.canvas, s.sphere.text.ctx, s.selections, s.rootLabels);
     s.sphere.text.texture.needsUpdate = true;
     s.labelsDirty = false;
   }
@@ -970,17 +965,17 @@ function updateSphereVisuals(t, dt) {
   s.starfield.visible = true;
   if (s.sphereMenuStage === "summary") return; // nothing left to animate
 
-  // The words are painted onto the sphere's surface ONCE, at a fixed
-  // latitude (labelCenterV, set only at BLACKOUT->SPHERE settle below)
-  // — they are not re-centered here. Dragging rotates the sphere
-  // itself, words and all, exactly like spinning a globe: tilt it far
-  // enough and the equatorial band rotates up toward a pole and out of
-  // legible view, rather than the text sliding around to keep facing
-  // the camera. (An earlier version of this function re-picked the
-  // latitude to draw on every frame to chase the camera — that made
-  // the words visibly compress as the sphere tipped, since each frame
-  // sampled a different, more pole-adjacent ring instead of the same
-  // ring just turning away. This is the corrected model.)
+  // The words are painted onto the sphere's surface at its fixed
+  // geometric equator (LABEL_CENTER_V) — never re-centered here.
+  // Dragging rotates the sphere itself, words and all, exactly like
+  // spinning a globe: tilt it far enough and the equatorial band
+  // rotates up toward a pole and out of legible view, rather than the
+  // text sliding around to keep facing the camera. (An earlier version
+  // of this function re-picked the latitude to draw on every frame to
+  // chase wherever the camera looked — that made the words visibly
+  // compress as the sphere tipped, since each frame sampled a
+  // different, more pole-adjacent ring instead of the same ring just
+  // turning away. This is the corrected model.)
 
   // Actual angular velocity eases toward a target every frame — the
   // SAME smoothing whether that target is "whatever the live drag
@@ -1169,15 +1164,6 @@ export function advanceSingularityScene(t, now, chromeRefs) {
           const hits = t.raycaster.intersectObject(s.sphere.mesh);
           if (hits.length && hits[0].uv) {
             s.sphere.group.rotation.y = (hits[0].uv.x - 0.5) * Math.PI * 2;
-            // Same hit, .y instead of .x, seeds the label band's
-            // vertical center for this very first frame — updateSphereVisuals
-            // recomputes it continuously from here on (it has to: vertical
-            // drag pitches the sphere via rotation.x, which changes this
-            // same relationship just as much as an unsettled camera does,
-            // so a value that's only ever set once here would go stale
-            // the moment the player drags at all).
-            s.labelCenterV = hits[0].uv.y;
-            s.labelsDirty = true; // redraw at the real center, not the fallback
           }
         }
         // The blackout div is opaque and sits above the main canvas —
@@ -1216,7 +1202,6 @@ export function advanceSingularityScene(t, now, chromeRefs) {
       // shuffleRootLabels) — exposed so tests can find a given category
       // deterministically instead of assuming a fixed layout.
       rootLabels: s.rootLabels ? s.rootLabels.map((r) => ({ key: r.key, u: r.u })) : null,
-      labelCenterV: typeof s.labelCenterV === "number" ? s.labelCenterV : null,
       collapseU: s.phase === PHASES.COLLAPSING
         ? Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS)
         : null,
@@ -1968,7 +1953,7 @@ export function useSingularityPhase({
     t.raycaster.setFromCamera(t.pointer, t.camera);
     const hits = t.raycaster.intersectObject(sphere.mesh);
     if (!hits.length || !hits[0].uv) return;
-    const category = categoryAtUv(hits[0].uv, t.singularity.rootLabels, t.singularity.labelCenterV);
+    const category = categoryAtUv(hits[0].uv, t.singularity.rootLabels);
     if (category) {
       openCategoryOverlay(t, category);
       audio.playSelect();

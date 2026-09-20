@@ -163,7 +163,7 @@ await page.screenshot({ path: "/tmp/neon-singularity-sphere.png" });
 const overlay = page.locator('[data-testid="singularity-overlay"]');
 const obox = await overlay.boundingBox();
 const cx = obox.x + obox.width / 2;
-const cy = obox.y + obox.height / 2;
+let cy = obox.y + obox.height / 2;
 
 async function dragSphereBy(dx) {
   await page.mouse.move(cx, cy);
@@ -180,6 +180,30 @@ const closeOverlay = async () => {
   await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
   await page.waitForTimeout(200);
 };
+
+// The label band sits on the sphere's actual geometric equator
+// (LABEL_CENTER_V, themes/neon-singularity.js), which does NOT
+// generally coincide with the viewport's own vertical center — the
+// camera looks at the sphere from an elevated angle inherited from
+// the board view, so "straight ahead" and "the equator" are two
+// different latitudes. Rather than hardcode that offset (viewport-
+// dependent, and liable to drift if the camera framing is ever
+// retuned), probe a small range of vertical offsets once, up front,
+// for whichever one actually lands on a label, and reuse that
+// calibrated y for every following tap in this test.
+async function calibrateLabelCy() {
+  for (const off of [0, 60, 120, 180, 240, -60, -120]) {
+    await page.mouse.click(cx, cy + off);
+    await page.waitForTimeout(200);
+    const s = await sphereState();
+    if (s.stage === "overlay" && s.activeCategory) {
+      await closeOverlay();
+      return cy + off;
+    }
+  }
+  return cy; // calibration failed to find any label — let later checks report why
+}
+cy = await calibrateLabelCy();
 
 // Polls the sphere's own rotation (exposed on the test hook) until two
 // consecutive reads agree, rather than a fixed delay — the release
