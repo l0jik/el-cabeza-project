@@ -1121,7 +1121,23 @@ export function advanceSingularityScene(t, now, chromeRefs) {
            has long since reverted the camera to its normal resting
            position, so this raycast reads the real, final geometry. */
         if (t.raycaster && t.pointer && t.camera && s.sphere) {
-          t.pointer.set(0, 0); // NDC screen center
+          // Raycast through the sphere's own on-screen center, not the
+          // viewport's — those aren't the same point once other UI
+          // chrome (the BACK button, the hint bar at the bottom) makes
+          // the sphere sit off-center within the viewport. Projecting
+          // the sphere's actual world position to NDC first, then
+          // raycasting through THAT, guarantees the ray passes through
+          // whichever point is genuinely facing the camera along the
+          // camera-to-sphere-center line — which is, by the sphere's
+          // own symmetry, the exact middle of its silhouette on
+          // screen, regardless of any such layout offset. (A first
+          // attempt at this raycast at plain NDC (0,0) fixed the
+          // per-viewport variance but still wasn't the sphere's own
+          // visual center whenever the sphere itself sat off from
+          // true viewport-center — exactly the "still not centered"
+          // case reported after that fix.)
+          const ndc = s.sphere.group.position.clone().project(t.camera);
+          t.pointer.set(ndc.x, ndc.y);
           t.raycaster.setFromCamera(t.pointer, t.camera);
           const hits = t.raycaster.intersectObject(s.sphere.mesh);
           if (hits.length && hits[0].uv) {
