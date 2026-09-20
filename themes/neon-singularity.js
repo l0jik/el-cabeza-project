@@ -350,13 +350,22 @@ function buildStarfield() {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  // A bare PointsMaterial with no sprite map draws every point as a
+  // hard-edged square, not a soft dot — normally too small to notice,
+  // but sizeAttenuation means a star that happens to land close to the
+  // camera renders large enough for that square edge to actually read
+  // as a small gray box. The same soft radial-gradient sprite the
+  // streaks already use (makeGlowTexture) rounds every point off
+  // regardless of how big any single one gets.
   const material = new THREE.PointsMaterial({
+    map: makeGlowTexture(),
     color: 0xdbe9ff,
     size: 0.18,
     sizeAttenuation: true,
     transparent: true,
     opacity: 0.85,
     depthWrite: false,
+    blending: THREE.AdditiveBlending,
   });
   const points = new THREE.Points(geo, material);
   points.visible = false;
