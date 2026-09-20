@@ -44,26 +44,31 @@ const COOL_BREAKPOINT = 0.55;
 const BLACKOUT_DWELL_MS = 900;
 const SPHERE_FADE_IN_MS = 2000;
 const PULSE_SPEED = 1.1; // rad/s-ish — the sphere's slow breathing rate
-/* Drag-to-idle decay. NOT the dock-piece precedent's own 0.9 (that
-   value produces a long, floaty coast — fine for a small always-visible
-   corner widget, wrong for this: at 0.9 the sphere took the better
-   part of a second to noticeably slow and several more to fully settle,
-   which read as loose/uncontrolled rather than calm. Raised sharply so
-   released momentum dies out within a few frames — still a real coast,
-   not an instant stop, just a short one. */
-const DRAG_DECAY = 4.5;
-// Radians of rotation per pixel of pointer movement while actively
-// dragging — also reused (divided by dt) as the per-second coast
-// velocity a release seeds, so live dragging and the momentum right
-// after release always agree on how "fast" a given swipe was. Halved
-// from an initial 0.01 per feedback that the sphere was too sensitive
-// once a drag was recognized.
+// How fast the sphere's ACTUAL angular velocity chases its target
+// (see updateSphereVisuals) — one exponential-smoothing rate used for
+// both easing up to speed while dragging (acceleration) and easing
+// back down, whether that's toward a slower drag or toward zero after
+// release (deceleration). Lower = weightier/smoother, higher = more
+// instant. Per feedback that raw, unsmoothed pointer-driven rotation
+// ("Radians of rotation per pixel... " applied directly every event)
+// read as too sensitive/twitchy — this replaced that entirely rather
+// than only smoothing the post-release coast.
+const DRAG_VELOCITY_SMOOTHING = 9;
+const ZERO_DRAG_VELOCITY = { x: 0, y: 0 };
+// Radians of rotation per pixel of pointer movement, per second of
+// drag — the raw input this converts into a TARGET velocity that
+// DRAG_VELOCITY_SMOOTHING above then eases the sphere toward, rather
+// than applying directly. Halved from an initial 0.01 per earlier
+// feedback that the sphere was too sensitive once a drag was
+// recognized (see DRAG_VELOCITY_SMOOTHING's own comment for the
+// smoothing pass added on top of that, later, for the same reason).
 const DRAG_ROTATE_SENSITIVITY = 0.005;
 // Accumulated pointer movement, in px, before a drag starts rotating
-// the sphere at all — small enough to feel instant once a real drag
-// begins, but enough to swallow the first few pixels of an unsteady
-// touch-down that would otherwise read as an unwanted twitch.
-const DRAG_DEAD_ZONE_PX = 3;
+// the sphere at all. Raised from an original 3px, alongside the
+// smoothing above, per feedback that the drag was too sensitive —
+// matches TAP_MOVE_THRESHOLD_PX below exactly (see its own comment)
+// so nothing can wobble the sphere on what still counts as a tap.
+const DRAG_DEAD_ZONE_PX = 12;
 
 /* ---------------------------------------------------------------------
    Shaders. First custom ShaderMaterial usage in this codebase — kept
@@ -965,35 +970,35 @@ function updateSphereVisuals(t, dt) {
   s.starfield.visible = true;
   if (s.sphereMenuStage === "summary") return; // nothing left to animate
 
-  if (!s.dragging) {
-    const decay = Math.exp(-dt * DRAG_DECAY);
-    s.dragVelocity.x *= decay;
-    s.dragVelocity.y *= decay;
-  }
+  // The words are painted onto the sphere's surface ONCE, at a fixed
+  // latitude (labelCenterV, set only at BLACKOUT->SPHERE settle below)
+  // — they are not re-centered here. Dragging rotates the sphere
+  // itself, words and all, exactly like spinning a globe: tilt it far
+  // enough and the equatorial band rotates up toward a pole and out of
+  // legible view, rather than the text sliding around to keep facing
+  // the camera. (An earlier version of this function re-picked the
+  // latitude to draw on every frame to chase the camera — that made
+  // the words visibly compress as the sphere tipped, since each frame
+  // sampled a different, more pole-adjacent ring instead of the same
+  // ring just turning away. This is the corrected model.)
+
+  // Actual angular velocity eases toward a target every frame — the
+  // SAME smoothing whether that target is "whatever the live drag
+  // currently implies" (giving real acceleration: a sudden flick
+  // doesn't instantly snap the sphere to full speed) or zero (giving
+  // real deceleration: releasing, or simply holding still mid-drag,
+  // eases the spin down instead of it either freezing solid or
+  // dropping to zero the instant the last pointermove stops arriving).
+  // Replaces the previous model, which applied each pointermove's
+  // rotation directly and instantly — exactly what read as "too
+  // sensitive," since every raw, sometimes-jittery browser pointer
+  // event drove the sphere 1:1 with zero smoothing.
+  const target = s.dragging ? s.dragTargetVelocity : ZERO_DRAG_VELOCITY;
+  const smoothing = 1 - Math.exp(-dt * DRAG_VELOCITY_SMOOTHING);
+  s.dragVelocity.x += (target.x - s.dragVelocity.x) * smoothing;
+  s.dragVelocity.y += (target.y - s.dragVelocity.y) * smoothing;
   s.sphere.group.rotation.x += s.dragVelocity.x * dt;
   s.sphere.group.rotation.y += s.dragVelocity.y * dt;
-
-  // The label band's vertical center tracks wherever the camera is
-  // CURRENTLY looking on the sphere — recomputed every frame, not just
-  // once at settle. rotation.x right above IS a pitch (vertical drag
-  // tips the sphere), so a one-shot snapshot taken before any dragging
-  // goes stale the instant the player drags vertically at all: the
-  // band would keep rendering at the ORIGINAL camera-facing latitude
-  // while the sphere itself has tipped out from under it. Re-raycasting
-  // every frame (same technique as the one-shot BLACKOUT->SPHERE read
-  // below, just repeated) keeps it correct through any amount of
-  // dragging, and is cheap enough to not bother gating.
-  if (t.raycaster && t.pointer && t.camera) {
-    const ndc = s.sphere.group.position.clone().project(t.camera);
-    t.pointer.set(ndc.x, ndc.y);
-    t.raycaster.setFromCamera(t.pointer, t.camera);
-    const hits = t.raycaster.intersectObject(s.sphere.mesh);
-    if (hits.length && hits[0].uv) {
-      const nextCenterV = hits[0].uv.y;
-      if (Math.abs((s.labelCenterV ?? nextCenterV) - nextCenterV) > 0.001) s.labelsDirty = true;
-      s.labelCenterV = nextCenterV;
-    }
-  }
 
   s.pulsePhase = (s.pulsePhase || 0) + dt * PULSE_SPEED;
   s.sphere.uniforms.uPulsePhase.value = s.pulsePhase;
@@ -1032,6 +1037,7 @@ function teardownSingularityScene(t) {
   }
   s.collapseItems = null;
   s.dragVelocity = { x: 0, y: 0 };
+  s.dragTargetVelocity = { x: 0, y: 0 };
   s.dragging = false;
   s.pulsePhase = 0;
   // Every fresh visit starts back at the root labels, not wherever a
@@ -1766,6 +1772,7 @@ export function useSingularityPhase({
     t.singularity.collapseStartedAt = performance.now();
     t.singularity.lastTickAt = null;
     t.singularity.dragVelocity = { x: 0, y: 0 };
+    t.singularity.dragTargetVelocity = { x: 0, y: 0 };
     t.singularity.dragging = false;
     t.singularity.audio = audio;
     t.singularity.blackDivRef = blackDivRef;
@@ -1859,14 +1866,18 @@ export function useSingularityPhase({
   // A tap (as opposed to a drag) under this much total pointer movement
   // either opens a category (hit a root label) or counts toward the
   // triple-tap-to-finalize gesture (hit bare sphere) — see
-  // handleSphereTap.
-  const TAP_MOVE_THRESHOLD_PX = 6;
+  // handleSphereTap. Kept exactly equal to DRAG_DEAD_ZONE_PX: anything
+  // under it neither rotates the sphere nor fails to count as a tap,
+  // so there's no gap where a touch can wobble the sphere yet still
+  // resolve as a tap.
+  const TAP_MOVE_THRESHOLD_PX = DRAG_DEAD_ZONE_PX;
 
   function handlePointerDown(ev) {
     const t = three && three.current;
     if (!t || !t.singularity || t.singularity.phase !== PHASES.SPHERE) return;
     if (t.singularity.sphereMenuStage !== "labels") return;
     t.singularity.dragging = true;
+    t.singularity.dragTargetVelocity = { x: 0, y: 0 };
     dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY, lastT: performance.now(), moved: 0 };
   }
   function handlePointerMove(ev) {
@@ -1879,26 +1890,27 @@ export function useSingularityPhase({
     const dy = ev.clientY - drag.lastY;
     const moved = drag.moved + Math.abs(dx) + Math.abs(dy);
     dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY, lastT: now, moved };
-    // Dead zone: the first few px of a drag don't rotate anything, so
-    // an unsteady touch-down doesn't visibly nudge the sphere. Once
+    // Dead zone: the first several px of a drag don't rotate anything,
+    // so an unsteady touch-down doesn't visibly nudge the sphere. Once
     // past it, every further px counts — this only ever suppresses the
-    // very start of a gesture, not ongoing sensitivity.
-    if (moved < DRAG_DEAD_ZONE_PX) return;
-    if (t.singularity.sphere) {
-      t.singularity.sphere.group.rotation.y += dx * DRAG_ROTATE_SENSITIVITY;
-      t.singularity.sphere.group.rotation.x += dy * DRAG_ROTATE_SENSITIVITY;
-    }
+    // very start of a gesture, not ongoing sensitivity (that's
+    // DRAG_VELOCITY_SMOOTHING's job, applied every frame in
+    // updateSphereVisuals).
+    if (moved < DRAG_DEAD_ZONE_PX) { t.singularity.dragTargetVelocity = { x: 0, y: 0 }; return; }
     /* Time-normalized "speed physics" — the same pattern the dock-piece
        preview this was ported from actually uses (chassis/ElCabeza3D.jsx,
        (dx * sensitivity) / dt), NOT a plain delta*scale. That distinction
        matters here specifically: a naive delta*scale reads the raw size
        of whatever pointermove event happened to fire, and touch input
        can coalesce a fast real swipe into one single large-delta event —
-       which would read as one enormous one-frame "velocity" and blow
-       straight past DRAG_DECAY's friction tuning regardless of how high
-       it's set. Dividing by dt makes this genuine speed, robust to
-       however few or many events the browser chose to deliver. */
-    t.singularity.dragVelocity = {
+       which would otherwise read as one enormous one-frame "velocity."
+       Dividing by dt makes this genuine speed, robust to however few or
+       many events the browser chose to deliver. This is only the
+       TARGET the sphere's actual velocity eases toward each frame
+       (updateSphereVisuals) — it is not applied to rotation directly
+       here, which is what made every raw pointer event feel instant
+       and twitchy before. */
+    t.singularity.dragTargetVelocity = {
       x: (dy * DRAG_ROTATE_SENSITIVITY) / dt,
       y: (dx * DRAG_ROTATE_SENSITIVITY) / dt,
     };
