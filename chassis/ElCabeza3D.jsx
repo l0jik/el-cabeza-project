@@ -7,7 +7,7 @@ import {
   CAMERA_DAMPING, RESET_CAMERA_DAMPING, RESET_TRANSITION_MS,
   ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
-  isSlideKey, baseDirOfSlideKey,
+  isSlideKey, baseDirOfSlideKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles,
 } from "../engine/constants.js";
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState,
@@ -259,6 +259,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      consumed by an undo — this is real history, not a single-slot
      snapshot. */
   const [turnHistory, setTurnHistory] = useState([]);
+  /* React-visible copy of the Black Hole Squares LAW's current
+     placement — engine/constants.js's own BLACK_HOLES is plain mutable
+     module state, invisible to React's render cycle, same reason
+     `pieces` is its own useState rather than being read off some
+     engine-side array. Populated by finalizeSingularityBegin
+     (themes/neon-singularity.js) via the setter threaded through
+     useSetupExtras below, alongside the constants.js copy every other
+     consumer (rules.js, the AI worker) reads. */
+  const [blackHoles, setBlackHoles] = useState([]);
   const [winner, setWinner] = useState(null);
   const [winReason, setWinReason] = useState("");
   /* Opens automatically the moment a game ends (see the effect below),
@@ -1222,6 +1231,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
     busy, aiThinking, triggerBeginGame,
+    // Black Hole Squares LAW: the chassis-local React state, threaded
+    // through so finalizeSingularityBegin (themes/neon-singularity.js)
+    // can populate it with the same placement it hands to
+    // engine/constants.js's setBlackHoles, for rendering (see the
+    // holeGroup effect below) rather than a second computation.
+    blackHoles, setBlackHoles,
   }) : null;
 
   function handleTitleClick() {
@@ -1794,6 +1809,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
 
     const pieceGroup = new THREE.Group();
     const ghostGroup = new THREE.Group();
+    // Black Hole Squares LAW obstacle markers — a distinct group from
+    // pieceGroup/ghostGroup so its (re)population effect (keyed on the
+    // chassis's own `blackHoles` React state, below) never has to sift
+    // through real pieces or move indicators to find its own meshes.
+    const holeGroup = new THREE.Group();
 
     /* Everything that should turn together — the slab, the grid, every
        piece, every footprint indicator — lives under one group. Camera
@@ -1802,7 +1822,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        what makes each piece's shadow sweep as its facing to the fixed
        light changes, the way a lazy Susan looks under a fixed lamp. */
     const boardGroup = new THREE.Group();
-    boardGroup.add(slab, slabEdges, topRing, theme.makeGrid(), pieceGroup, ghostGroup);
+    boardGroup.add(slab, slabEdges, topRing, theme.makeGrid(), pieceGroup, ghostGroup, holeGroup);
     scene.add(boardGroup);
 
     three.current = {
@@ -1812,6 +1832,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       boardGroup,
       pieceGroup,
       ghostGroup,
+      holeGroup,
       raycaster: new THREE.Raycaster(),
       pointer: new THREE.Vector2(),
       // Exposed so theme code reached later (the singularity board
@@ -2398,6 +2419,60 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     });
   }, [pieces]);
 
+  /* Black Hole Squares LAW obstacle markers — a small, theme-agnostic
+     pair of primitives per hole (a dark sphere plus a glowing ring),
+     distinct from a piece or a ghost so it reads as a fixed board
+     feature rather than either. Rebuilt from scratch on every change:
+     there are at most two of these ever, so the per-piece diff/cache
+     the pieces effect above needs isn't worth replicating here. Reads
+     the chassis's own `blackHoles` React state (populated by
+     finalizeSingularityBegin via useSetupExtras), not
+     engine/constants.js's BLACK_HOLES directly — that plain module
+     state is invisible to React's render cycle, same reason `pieces`
+     itself is a separate useState. */
+  useEffect(() => {
+    const t = three.current;
+    if (!t.holeGroup) return;
+    const group = t.holeGroup;
+    while (group.children.length) {
+      const c = group.children.pop();
+      c.geometry && c.geometry.dispose();
+      c.material && c.material.dispose();
+    }
+    const HOLE_RADIUS = 0.3;
+    blackHoles.forEach((hole) => {
+      const center = pieceCenter({ row: hole.row, col: hole.col, w: 1, h: 1, z: 0 });
+      const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(HOLE_RADIUS, 24, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x050208,
+          emissive: 0x7a2dff,
+          emissiveIntensity: 0.5,
+          roughness: 0.35,
+          metalness: 0.4,
+        })
+      );
+      sphere.position.set(center.x, HOLE_RADIUS, center.z);
+      sphere.castShadow = true;
+      // A flat "event horizon" ring reads as a portal rather than just
+      // a dark ball sitting on the board — kept a plain primitive, not
+      // an animated shader, per this being a gameplay marker rather
+      // than a visual-effects moment.
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(HOLE_RADIUS * 1.35, HOLE_RADIUS * 0.08, 12, 32),
+        new THREE.MeshStandardMaterial({
+          color: 0x120a1e,
+          emissive: 0xb266ff,
+          emissiveIntensity: 0.9,
+          roughness: 0.3,
+        })
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.set(center.x, 0.02, center.z);
+      group.add(sphere, ring);
+    });
+  }, [blackHoles]);
+
   /* Feeds the current position's "tension" to the audio engine, purely
      atmospheric (reads pieces, never writes game state). Standard's
      theme has no computeTension, so this is a no-op for it — the
@@ -2688,8 +2763,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
 
     // Slide is "a full turn action" per SINGULARITY_DESIGN.md — it ends
     // the turn immediately regardless of remaining budget, same as a
-    // crush or a Cabeza reaching the goal already do further up.
-    if (move.isSlide || used >= maxStepsFor(piece.type) || !stillHasMoves) {
+    // crush or a Cabeza reaching the goal already do further up. A
+    // Black Hole Squares wormhole landing (move.teleports) gets the
+    // exact same treatment, per the design doc's own words.
+    if (move.isSlide || move.teleports || used >= maxStepsFor(piece.type) || !stillHasMoves) {
       settleTurn(move.candidate, notation);
     } else {
       setSelectedId(piece.id);
@@ -2898,6 +2975,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       const terminal =
         !!move.crushes ||
         !!move.isSlide ||
+        !!move.teleports ||
         (piece.type === "cabeza" && move.candidate.row === GOAL_ROW[piece.owner]);
       const canContinue = !terminal && usedAfter < maxStepsFor(piece.type);
       if (canContinue) {
@@ -2967,6 +3045,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex,
         board: getBoardDimensions(),
         laws: ACTIVE_LAWS,
+        // Same cross-boundary problem as `board`/`laws` above — the
+        // worker's own module instance of constants.js needs the
+        // current Black Hole Squares placement to search moves that
+        // actually match what's on the real board (see engine/ai-worker.js).
+        blackHoles: BLACK_HOLES,
       });
     });
   }
@@ -3966,17 +4049,36 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      turn's own recorded key strings to work from (no move descriptor,
      no `.isSlide`). A Slide key is a pure translate for any piece
      shape; otherwise it's Cabeza's own translate (shape "disc") or an
-     actual roll (rollBlock, which reorients w/h/z). */
+     actual roll (rollBlock, which reorients w/h/z).
+
+     Black Hole Squares: a piece can only ever be resting exactly on a
+     hole square as the far end of a wormhole teleport — entering a
+     hole always redirects AWAY from it (see blackHoleVerdict/
+     rules.js), so `state` sitting on one here can never be a piece
+     that's genuinely "at" that square. Reconstructing the near-mouth
+     state at the OTHER hole first, then replaying the ordinary reverse
+     transform from there, is what correctly undoes the teleport too —
+     same invertibility this function already relies on for a plain
+     roll/translate (see rollBlock's own comment on N/S/E/W inverting
+     exactly), just anchored at the mouth the piece actually entered
+     through rather than where it ended up. Only a 1x1 footprint can
+     ever sit on a hole in the first place (a bigger one is blocked
+     outright — see blackHoleVerdict), so that's the only case checked. */
   function nextStateAfterDir(state, dir) {
+    const farHole = state.w === 1 && state.h === 1
+      ? BLACK_HOLES.find((b) => b.row === state.row && b.col === state.col)
+      : null;
+    const nearHole = farHole && BLACK_HOLES.find((b) => b !== farHole);
+    const anchor = nearHole ? { ...state, row: nearHole.row, col: nearHole.col } : state;
     if (isSlideKey(dir)) {
       const [dr, dc] = STEP_DIRS[baseDirOfSlideKey(dir)];
-      return { ...state, row: state.row + dr, col: state.col + dc };
+      return { ...anchor, row: anchor.row + dr, col: anchor.col + dc };
     }
     if (PIECE_META[state.type].shape === "disc") {
       const [dr, dc] = STEP_DIRS[dir];
-      return { ...state, row: state.row + dr, col: state.col + dc };
+      return { ...anchor, row: anchor.row + dr, col: anchor.col + dc };
     }
-    return rollBlock(state, dir);
+    return rollBlock(anchor, dir);
   }
 
   function handleUndoTurn() {
@@ -4151,6 +4253,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // again, rather than silently inheriting whatever the last
     // Singularity game had active.
     setActiveLaws({ splitMovement: false, slide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false });
+    // Same reasoning, same reset: a black hole layout is a Singularity-
+    // game-specific setup fact, not a persistent session setting.
+    // Both copies need clearing — engine/constants.js's module state
+    // (read by rules.js/the AI worker) and the chassis's own React
+    // copy (read by the holeGroup render effect below).
+    setActiveBlackHoles([]);
+    setBlackHoles([]);
     // Invalidates both views' cached fit baselines — see the refs' own
     // comment. The NEXT Begin Game press (captureViewBaselines) recaptures
     // both fresh against whatever the window measures at that moment,

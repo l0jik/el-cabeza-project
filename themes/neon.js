@@ -3215,9 +3215,9 @@ export function renderGlobalDefs() {
    to write pieces and the Singularity hold timer only makes sense
    during setup. */
 export function useSetupExtras({
-  awaitingBegin, setPieces, audio, three,
+  awaitingBegin, pieces, setPieces, audio, three,
   aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
-  busy, aiThinking, triggerBeginGame,
+  busy, aiThinking, triggerBeginGame, setBlackHoles,
 }) {
   const [singularityRevealed, setSingularityRevealed] = React.useState(false);
   const singularityHoldRef = React.useRef(null);
@@ -3243,6 +3243,11 @@ export function useSetupExtras({
   const singularityCinematic = useSingularityPhase({
     three, audio, aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty,
     AI_DIFFICULTY, busy, aiThinking, triggerBeginGame, applyMatterRoster,
+    // Black Hole Squares LAW: finalizeSingularityBegin needs the
+    // current pieces (to place holes on empty squares) and the
+    // chassis's own React setter (to make the placement it computes
+    // renderable — see chassis's holeGroup effect).
+    pieces, setBlackHoles,
   });
 
   function handleAnomaly() {

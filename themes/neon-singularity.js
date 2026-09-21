@@ -29,7 +29,11 @@
 
 import React from "react";
 import * as THREE from "three";
-import { SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws } from "../engine/constants.js";
+import {
+  SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws, getBoardDimensions,
+  setBlackHoles as setActiveBlackHoles,
+} from "../engine/constants.js";
+import { pickBlackHoleSquares } from "../engine/rules.js";
 
 export const PHASES = { IDLE: "idle", COLLAPSING: "collapsing", BLACKOUT: "blackout", SPHERE: "sphere" };
 
@@ -1717,6 +1721,8 @@ export function useSingularityPhase({
   three, audio,
   aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
   busy, aiThinking, triggerBeginGame, applyMatterRoster,
+  // Black Hole Squares LAW — see finalizeSingularityBegin below.
+  pieces, setBlackHoles,
 }) {
   const [phase, setPhase] = React.useState(PHASES.IDLE);
   const blackDivRef = React.useRef(null);
@@ -1835,7 +1841,20 @@ export function useSingularityPhase({
     // engine/constants.js's setActiveLaws for the shared cross-thread
     // mechanism the AI worker also relies on).
     if (t && t.singularity && t.singularity.selections) {
-      setActiveLaws(t.singularity.selections.laws);
+      const laws = setActiveLaws(t.singularity.selections.laws);
+      // Black Hole Squares: the sphere has only one checkbox for this
+      // (no "how many" control), so ON always means the richer,
+      // two-hole wormhole version — see SINGULARITY_DESIGN.md and
+      // pickBlackHoleSquares' own comment for the placement rule. Set
+      // on both engine/constants.js's module state (read by rules.js
+      // and forwarded to the AI worker) and the chassis's React copy
+      // (read by its holeGroup render effect) from the SAME computed
+      // list, so what's enforced and what's drawn never disagree.
+      const holes = laws.blackHoleSquares
+        ? pickBlackHoleSquares(pieces || [], getBoardDimensions().rows, getBoardDimensions().cols)
+        : [];
+      setActiveBlackHoles(holes);
+      if (setBlackHoles) setBlackHoles(holes);
     }
     if (triggerBeginGame) triggerBeginGame();
     exitSingularity();

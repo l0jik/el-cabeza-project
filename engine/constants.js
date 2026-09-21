@@ -274,6 +274,23 @@ export function setActiveLaws(partial) {
   return ACTIVE_LAWS;
 }
 
+/* Black Hole Squares LAW placement: [] when the law is off (the
+   default), or exactly two {row,col} squares once
+   pickBlackHoleSquares (rules.js) has placed them for the current
+   Singularity game — see rules.js's blackHoleVerdict/
+   evaluateBlockLanding for how they redirect a move. Same mutable-
+   module-state pattern as ACTIVE_LAWS/BOARD_ROWS: REPLACED (not
+   mutated) on change, so a live-binding importer (rules.js, the AI
+   worker) sees the update with no call-site changes; the worker's own
+   module instance is set independently (engine/ai-worker.js), same as
+   setActiveLaws/setBoardDimensions already are. */
+export let BLACK_HOLES = [];
+
+export function setBlackHoles(list) {
+  BLACK_HOLES = list;
+  return BLACK_HOLES;
+}
+
 /* The one supported way to read a piece's per-turn movement budget —
    PIECE_META[type].maxSteps itself never changes; this is where the
    "3 Actions Per Turn" law's +1 gets applied, uniformly, wherever a
