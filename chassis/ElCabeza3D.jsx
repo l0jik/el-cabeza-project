@@ -7,6 +7,7 @@ import {
   CAMERA_DAMPING, RESET_CAMERA_DAMPING, RESET_TRANSITION_MS,
   ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
+  isSlideKey, baseDirOfSlideKey,
 } from "../engine/constants.js";
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState,
@@ -2685,7 +2686,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const used = (piece.id === selectedId ? stepsUsed : 0) + 1;
     const stillHasMoves = Object.keys(legalMovesFor(nextPieces, move.candidate)).length > 0;
 
-    if (used >= maxStepsFor(piece.type) || !stillHasMoves) {
+    // Slide is "a full turn action" per SINGULARITY_DESIGN.md — it ends
+    // the turn immediately regardless of remaining budget, same as a
+    // crush or a Cabeza reaching the goal already do further up.
+    if (move.isSlide || used >= maxStepsFor(piece.type) || !stillHasMoves) {
       settleTurn(move.candidate, notation);
     } else {
       setSelectedId(piece.id);
@@ -2708,16 +2712,24 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       return;
     }
 
+    // A Slide (see legalSlideSteps/rules.js) is a pure translate for
+    // ANY piece shape, not just Cabeza's own disc — its key carries the
+    // "slide-" prefix precisely so this playback code, which only ever
+    // sees a bare dir string, can tell it apart from a same-lettered
+    // roll (STEP_DIRS and ROLL_DIRS share N/E/S/W).
+    const isSlideMove = isSlideKey(dir);
+    const baseDir = isSlideMove ? baseDirOfSlideKey(dir) : dir;
+
     /* The motion is starting right now, for exactly `duration` ms — the
        one moment a theme's own audio can sync a rolling/tumbling cue to
        the actual animation, as opposed to playLanding below (fired only
        once the animation completes, i.e. already too late to sound like
        it accompanied the motion itself). Same shape/kind distinction as
-       the branch below: the disc slides (SLIDE_MS) rather than rolls
-       (ROLL_MS), though both constants share one value today. */
+       the branch below: a translate (disc, or any Slide) uses SLIDE_MS
+       rather than ROLL_MS, though both constants share one value today. */
     audioRef.current.playRollStart(
       state.w * state.h * state.z,
-      PIECE_META[state.type].shape === "disc" ? SLIDE_MS : ROLL_MS
+      PIECE_META[state.type].shape === "disc" || isSlideMove ? SLIDE_MS : ROLL_MS
     );
 
     /* Move-triggered ambient FX (weight lifting/landing glow, glitch
@@ -2786,8 +2798,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       onDone();
     };
 
-    if (PIECE_META[state.type].shape === "disc") {
-      const [dr, dc] = STEP_DIRS[dir];
+    if (PIECE_META[state.type].shape === "disc" || isSlideMove) {
+      const [dr, dc] = STEP_DIRS[baseDir];
       const landing = { ...state, row: state.row + dr, col: state.col + dc };
       const from = pieceCenter(state);
       const to = pieceCenter(landing);
@@ -2884,7 +2896,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // against without waiting for the animation to actually finish.
       const usedAfter = (piece.id === selectedId ? stepsUsed : 0) + 1;
       const terminal =
-        !!move.crushes || (piece.type === "cabeza" && move.candidate.row === GOAL_ROW[piece.owner]);
+        !!move.crushes ||
+        !!move.isSlide ||
+        (piece.type === "cabeza" && move.candidate.row === GOAL_ROW[piece.owner]);
       const canContinue = !terminal && usedAfter < maxStepsFor(piece.type);
       if (canContinue) {
         let afterStep = pieces.map((p) => (p.id === piece.id ? move.candidate : p));
@@ -3947,6 +3961,24 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     if (!selectedPiece || stepsUsed === 0 || busy || anim.current || currentPlayer === aiPlayer || awaitingBegin) return;
     settleTurn(selectedPiece, pendingNotation);
   }
+  /* Replays a single recorded move key against `state` to get the piece
+     state it landed on — used only by undo, which has nothing but the
+     turn's own recorded key strings to work from (no move descriptor,
+     no `.isSlide`). A Slide key is a pure translate for any piece
+     shape; otherwise it's Cabeza's own translate (shape "disc") or an
+     actual roll (rollBlock, which reorients w/h/z). */
+  function nextStateAfterDir(state, dir) {
+    if (isSlideKey(dir)) {
+      const [dr, dc] = STEP_DIRS[baseDirOfSlideKey(dir)];
+      return { ...state, row: state.row + dr, col: state.col + dc };
+    }
+    if (PIECE_META[state.type].shape === "disc") {
+      const [dr, dc] = STEP_DIRS[dir];
+      return { ...state, row: state.row + dr, col: state.col + dc };
+    }
+    return rollBlock(state, dir);
+  }
+
   function handleUndoTurn() {
     if (!turnSnapshot || busy || anim.current || currentPlayer === aiPlayer || awaitingBegin) return;
     pendingIntentRef.current = null; // whatever was queued for this turn no longer applies
@@ -3982,17 +4014,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         return;
       }
       const dir = steps[i];
-      animateStep(state, dir, () => {
-        const next =
-          PIECE_META[state.type].shape === "disc"
-            ? {
-                ...state,
-                row: state.row + STEP_DIRS[dir][0],
-                col: state.col + STEP_DIRS[dir][1],
-              }
-            : rollBlock(state, dir);
-        run(i + 1, next);
-      });
+      animateStep(state, dir, () => run(i + 1, nextStateAfterDir(state, dir)));
     };
 
     run(0, moving);
@@ -4084,13 +4106,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             return;
           }
           const dir = steps[i];
-          animateStep(state, dir, () => {
-            const next =
-              PIECE_META[state.type].shape === "disc"
-                ? { ...state, row: state.row + STEP_DIRS[dir][0], col: state.col + STEP_DIRS[dir][1] }
-                : rollBlock(state, dir);
-            runStep(i + 1, next);
-          });
+          animateStep(state, dir, () => runStep(i + 1, nextStateAfterDir(state, dir)));
         };
         runStep(0, moving);
       };

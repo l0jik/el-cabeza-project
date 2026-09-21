@@ -314,3 +314,24 @@ export const INVERSE_DIR = {
   NW: "SE",
   SE: "NW",
 };
+
+/* Slide LAW key vocabulary (SINGULARITY_DESIGN.md): a block piece can
+   have both a roll and a slide available in the same on-screen
+   direction (rollBlock and STEP_DIRS share the 4 cardinal letters), so
+   legalMovesFor (rules.js) keys a slide as this prefix + the STEP_DIRS
+   direction rather than the bare letter, to merge both into one dict
+   without either overwriting the other. Centralized here, not
+   re-typed at each call site, since the prefix has to agree exactly
+   between where a slide key is BUILT (rules.js) and where it's later
+   pulled back apart (chassis, to replay a slide's translate-only
+   animation and to undo one). */
+export const SLIDE_KEY_PREFIX = "slide-";
+export const isSlideKey = (key) => key.startsWith(SLIDE_KEY_PREFIX);
+export const slideKey = (dir) => SLIDE_KEY_PREFIX + dir;
+export const baseDirOfSlideKey = (key) => key.slice(SLIDE_KEY_PREFIX.length);
+
+/* Every slide key needs its own inverse for undo's backward replay,
+   derived from the plain table above so the two can't drift apart. */
+for (const dir of Object.keys(STEP_DIRS)) {
+  INVERSE_DIR[slideKey(dir)] = slideKey(INVERSE_DIR[dir]);
+}

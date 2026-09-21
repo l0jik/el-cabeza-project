@@ -167,8 +167,10 @@ export function generateTurns(pieces, player) {
       // A crush that DOESN'T end the game is still just a capture — the
       // piece can keep chaining a second step afterward exactly like
       // any other successful roll, so only endsGame1 (not merely
-      // move1.crushes) gates a second step here.
-      if (endsGame1 || maxSteps < 2) continue;
+      // move1.crushes) gates a second step here. A Slide, though, is
+      // "a full turn action" per SINGULARITY_DESIGN.md regardless of
+      // budget — never a candidate for chaining a further step.
+      if (endsGame1 || move1.isSlide || maxSteps < 2) continue;
 
       const undo1 = applyMove(pieces, piece, move1);
       const secondMoves = legalMovesFor(pieces, piece);
@@ -197,8 +199,9 @@ export function generateTurns(pieces, player) {
         // against the turn's own ORIGINAL start (undo1.prevFields),
         // not the after-step-1 position, since a full three-step
         // round trip back to where the turn began is exactly as
-        // pointless as a two-step one.
-        if (endsGame2 || maxSteps < 3) continue;
+        // pointless as a two-step one. Same Slide-is-terminal rule as
+        // move1 above, checked against move2 this time.
+        if (endsGame2 || move2.isSlide || maxSteps < 3) continue;
 
         const undo2 = applyMove(pieces, piece, move2);
         const thirdMoves = legalMovesFor(pieces, piece);
