@@ -6,7 +6,7 @@ import {
   DISC_DIAM, DISC_H, GHOST_SCALE, GHOST_FADE_MS, ROLL_MS, SLIDE_MS,
   CAMERA_DAMPING, RESET_CAMERA_DAMPING, RESET_TRANSITION_MS,
   ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
-  PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions,
+  PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
 } from "../engine/constants.js";
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState,
@@ -1361,7 +1361,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   const hoveredPiece = pieces.find((p) => p.id === hoveredId) || null;
   const activePiece = selectedPiece || hoveredPiece;
 
-  const maxSteps = activePiece ? PIECE_META[activePiece.type].maxSteps : 0;
+  const maxSteps = activePiece ? maxStepsFor(activePiece.type) : 0;
   const stepsRemaining = activePiece
     ? maxSteps - (activePiece.id === selectedId ? stepsUsed : 0)
     : 0;
@@ -2685,7 +2685,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const used = (piece.id === selectedId ? stepsUsed : 0) + 1;
     const stillHasMoves = Object.keys(legalMovesFor(nextPieces, move.candidate)).length > 0;
 
-    if (used >= PIECE_META[piece.type].maxSteps || !stillHasMoves) {
+    if (used >= maxStepsFor(piece.type) || !stillHasMoves) {
       settleTurn(move.candidate, notation);
     } else {
       setSelectedId(piece.id);
@@ -2885,7 +2885,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       const usedAfter = (piece.id === selectedId ? stepsUsed : 0) + 1;
       const terminal =
         !!move.crushes || (piece.type === "cabeza" && move.candidate.row === GOAL_ROW[piece.owner]);
-      const canContinue = !terminal && usedAfter < PIECE_META[piece.type].maxSteps;
+      const canContinue = !terminal && usedAfter < maxStepsFor(piece.type);
       if (canContinue) {
         let afterStep = pieces.map((p) => (p.id === piece.id ? move.candidate : p));
         if (move.crushes) afterStep = afterStep.filter((p) => p.id !== move.crushes.id);
@@ -2952,6 +2952,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       worker.postMessage({
         requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex,
         board: getBoardDimensions(),
+        laws: ACTIVE_LAWS,
       });
     });
   }
@@ -4127,6 +4128,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       three.current.singularityGameActive = false;
       theme.deactivateSingularityBoardFx && theme.deactivateSingularityBoardFx(three.current);
     }
+    // Same reasoning as singularityGameActive right above: LAWS are a
+    // Singularity-originated game's own rules, not a persistent session
+    // setting — a fresh game (including a normal, non-Singularity one)
+    // starts with every law off until finalizeSingularityBegin sets them
+    // again, rather than silently inheriting whatever the last
+    // Singularity game had active.
+    setActiveLaws({ splitMovement: false, slide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false });
     // Invalidates both views' cached fit baselines — see the refs' own
     // comment. The NEXT Begin Game press (captureViewBaselines) recaptures
     // both fresh against whatever the window measures at that moment,

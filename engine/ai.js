@@ -2,7 +2,7 @@
    the Standard and Neon theme sources before extraction (see
    build/scratch/) — pure logic, no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, PIECE_META } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor } from "./constants.js";
 import { legalMovesFor, sameState } from "./rules.js";
 
 /* Everything below is pure — no React, no Three.js. It only knows the
@@ -136,7 +136,7 @@ export function generateTurns(pieces, player) {
 
   for (const piece of pieces) {
     if (piece.owner !== player) continue;
-    const maxSteps = PIECE_META[piece.type].maxSteps;
+    const maxSteps = maxStepsFor(piece.type);
     const firstMoves = legalMovesFor(pieces, piece);
 
     for (const [dir1, move1] of Object.entries(firstMoves)) {
@@ -179,6 +179,7 @@ export function generateTurns(pieces, player) {
           !move2.crushes &&
           piece.type === "cabeza" &&
           move2.candidate.row === GOAL_ROW[piece.owner];
+        const endsGame2 = (move2.crushes && crushEndsGame(pieces, move2.crushes)) || wins2;
         turns.push({
           piece,
           pieceId: piece.id,
@@ -186,8 +187,39 @@ export function generateTurns(pieces, player) {
           moves: [move1, move2],
           crushes: !!move2.crushes,
           wins: wins2,
-          endsGame: (move2.crushes && crushEndsGame(pieces, move2.crushes)) || wins2,
+          endsGame: endsGame2,
         });
+
+        // A third step — only ever reachable when LAWS' "3 Actions Per
+        // Turn" is active (maxStepsFor returns 2 for every non-Opa
+        // piece otherwise). Same apply/undo/net-zero pattern as the
+        // second step, one level deeper; "net-zero" still checks
+        // against the turn's own ORIGINAL start (undo1.prevFields),
+        // not the after-step-1 position, since a full three-step
+        // round trip back to where the turn began is exactly as
+        // pointless as a two-step one.
+        if (endsGame2 || maxSteps < 3) continue;
+
+        const undo2 = applyMove(pieces, piece, move2);
+        const thirdMoves = legalMovesFor(pieces, piece);
+        for (const [dir3, move3] of Object.entries(thirdMoves)) {
+          if (sameState(undo1.prevFields, move3.candidate)) continue; // net-zero round trip — not a real turn
+
+          const wins3 =
+            !move3.crushes &&
+            piece.type === "cabeza" &&
+            move3.candidate.row === GOAL_ROW[piece.owner];
+          turns.push({
+            piece,
+            pieceId: piece.id,
+            dirs: [dir1, dir2, dir3],
+            moves: [move1, move2, move3],
+            crushes: !!move3.crushes,
+            wins: wins3,
+            endsGame: (move3.crushes && crushEndsGame(pieces, move3.crushes)) || wins3,
+          });
+        }
+        undoMove(pieces, piece, undo2);
       }
       undoMove(pieces, piece, undo1);
     }

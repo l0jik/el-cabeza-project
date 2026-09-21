@@ -29,7 +29,7 @@
 
 import React from "react";
 import * as THREE from "three";
-import { SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM } from "../engine/constants.js";
+import { SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws } from "../engine/constants.js";
 
 export const PHASES = { IDLE: "idle", COLLAPSING: "collapsing", BLACKOUT: "blackout", SPHERE: "sphere" };
 
@@ -1823,11 +1823,19 @@ export function useSingularityPhase({
     // any custom counts of the five originals) actually gets placed
     // here, via the same Anomaly generator the plain button already
     // uses — see applyMatterRoster/buildRosterFromSelections in
-    // themes/neon.js. LAWS/TOPOLOGIES and MATTER's two non-convex
-    // pieces (L-Pentomino/Arch) still aren't wired to anything real;
-    // this is the one category with a real gameplay effect so far.
+    // themes/neon.js. TOPOLOGIES and MATTER's two non-convex pieces
+    // (L-Pentomino/Arch) still aren't wired to anything real.
     if (t && t.singularity && t.singularity.selections && applyMatterRoster) {
       applyMatterRoster(t.singularity.selections.matter);
+    }
+    // LAWS: the sphere's checkboxes just toggle plain booleans in
+    // selections.laws (same shape as ACTIVE_LAWS) — actually applying
+    // them to the game about to start is this one call. Reset back to
+    // all-off on New Game via chassis's handleReset (see
+    // engine/constants.js's setActiveLaws for the shared cross-thread
+    // mechanism the AI worker also relies on).
+    if (t && t.singularity && t.singularity.selections) {
+      setActiveLaws(t.singularity.selections.laws);
     }
     if (triggerBeginGame) triggerBeginGame();
     exitSingularity();

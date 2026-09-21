@@ -254,6 +254,39 @@ export function getBoardDimensions() {
   return { rows: BOARD_ROWS, cols: BOARD_COLS };
 }
 
+/* SINGULARITY_DESIGN.md Part 2's LAWS — five independent toggles, all
+   off by default so a normal (non-Singularity) game is completely
+   unaffected. Mutable via setActiveLaws the same way board dimensions
+   are: a plain object REPLACED (not mutated) on change, so importers
+   holding the live binding see the new object. Only reachable today
+   via the sphere's own LAWS menu (themes/neon-singularity.js) at
+   Begin Game time — see finalizeSingularityBegin. */
+export let ACTIVE_LAWS = {
+  splitMovement: false,
+  slide: false,
+  blackHoleSquares: false,
+  cantileverPivot: false,
+  threeActions: false,
+};
+
+export function setActiveLaws(partial) {
+  ACTIVE_LAWS = { ...ACTIVE_LAWS, ...partial };
+  return ACTIVE_LAWS;
+}
+
+/* The one supported way to read a piece's per-turn movement budget —
+   PIECE_META[type].maxSteps itself never changes; this is where the
+   "3 Actions Per Turn" law's +1 gets applied, uniformly, wherever a
+   step budget is checked. Opa is explicitly excluded: its maxSteps:1
+   isn't a spendable points budget at all, it's a structural fact
+   about a 2x2x2 cube always covering exactly 2 squares in one
+   physical roll (rollBlock's math moves it by its own width) — see
+   SINGULARITY_DESIGN.md's own note on this. */
+export function maxStepsFor(type) {
+  const base = PIECE_META[type].maxSteps;
+  return ACTIVE_LAWS.threeActions && type !== "opa" ? base + 1 : base;
+}
+
 export const ROLL_DIRS = ["N", "E", "S", "W"];
 
 export const STEP_DIRS = {

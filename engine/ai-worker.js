@@ -11,10 +11,10 @@
    has no `window`/`document` at all, so anything reaching for either
    would throw immediately. */
 import { findBestAiTurn } from "./ai.js";
-import { setBoardDimensions } from "./constants.js";
+import { setBoardDimensions, setActiveLaws } from "./constants.js";
 
 self.onmessage = async (event) => {
-  const { requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex, board } = event.data;
+  const { requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex, board, laws } = event.data;
   try {
     /* A Worker has its own module instance of constants.js, so the main
        thread's setBoardDimensions() never reached it — without this the
@@ -24,6 +24,11 @@ self.onmessage = async (event) => {
        per request rather than once at startup because this same worker
        is reused across games, and a New Game can change the board. */
     if (board) setBoardDimensions(board.rows, board.cols);
+    // Same cross-boundary problem, same fix, for SINGULARITY_DESIGN.md's
+    // LAWS — without this the worker's own maxStepsFor/generateTurns
+    // would search against every law being off even when e.g. "3
+    // Actions Per Turn" is active, silently under-using a real budget.
+    if (laws) setActiveLaws(laws);
     const turn = await findBestAiTurn(pieces, aiPlayer, config, cabezaStreak, turnIndex);
     self.postMessage({ requestId, turn });
   } catch (err) {
