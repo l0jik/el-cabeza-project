@@ -228,10 +228,113 @@ to-black → draggable Fresnel-glow sphere sequence, in a new module,
   mirroring the real `master.gain.value`, written at every place it
   changes; `window.__EC_TEST_SINGULARITY__.sphereRotationY` for the
   drag-rotate assertion. See `tests/e2e-singularity.mjs`.
-- **Deliberately out of scope, per an explicit decision recorded in
-  SINGULARITY_DESIGN.md**: the sphere's surface is simple placeholder
+- **No longer accurate, kept for history**: the line below used to say
+  the sphere carried only placeholder DOM text. That's since been
+  replaced by a real UV-mapped, raycast-hit-testable MATTER/LAWS/
+  TOPOLOGIES menu — see §3d.
+- ~~Deliberately out of scope, per an explicit decision recorded in
+  SINGULARITY_DESIGN.md: the sphere's surface is simple placeholder
   DOM text, not the real UV-mapped/raycast-hit-testable MATTER/LAWS/
-  TOPOLOGIES menu — those rules systems don't exist yet.
+  TOPOLOGIES menu — those rules systems don't exist yet.~~
+
+## 3d. MATTER/LAWS/TOPOLOGIES sphere menu (Part 2 of SINGULARITY_DESIGN.md) — menu BUILT, rules mostly NOT
+
+The sphere's surface now carries a real canvas-texture UV-mapped menu
+(`themes/neon-singularity.js`), raycast-hit-tested against the actual
+rotated geometry — not a flat DOM overlay. Root labels (MATTER/LAWS/
+TOPOLOGY — note singular "TOPOLOGY" as displayed text, `topologies` is
+still the internal key) sit at three fixed, evenly-spaced longitude
+slots; `shuffleRootLabels()` re-rolls which label occupies which slot
+on every fresh hold-to-commit entry, so the arrangement (and which one
+greets the player front-and-center) is different each time. Tapping a
+label opens a real holographic DOM overlay with its actual sub-items
+(checkboxes for LAWS/MATTER's new pieces, drum rollers for MATTER's
+roster counts and TOPOLOGY's rows/cols) — `renderCategoryOverlay` in
+the same file. A triple-tap on bare sphere (outside any label's hit
+band) finalizes to a summary menu with real Opponent/AI controls
+wired straight to the chassis's own state (not a re-implementation),
+then a real Begin Game.
+
+**What's actually wired to gameplay vs. still just UI:**
+- **MATTER — rectangular pieces only, wired and real.** The roster
+  (up to 2 Cabeza, plus 1×3/2×3 block toggles) is applied via
+  `applyMatterRoster`/`buildRosterFromSelections` in `themes/neon.js`,
+  which builds a real `{type,count}[]` roster for the existing
+  `generateAnomalySetup`. L-Pentomino and Arch (MATTER's two
+  non-convex piece types) are selectable in the UI but **inert** —
+  a deliberate scope decision (rectangular pieces only), since
+  non-convex collision needs the footprint-mask generalization
+  SINGULARITY_DESIGN.md describes and that hasn't been built.
+  2-Cabeza-per-side games work correctly end to end: reaching goal
+  with either Cabeza wins instantly, crushing one doesn't end the
+  game unless it's the last one (`crushEndsGame` in `engine/ai.js`,
+  generalized from what used to assume exactly one Cabeza per side —
+  see `endsGame` vs. the older `crushes`/`wins` fields).
+- **TOPOLOGY — selection UI is real (drum rollers, clamped to the
+  engine's own `MIN_BOARD_DIM`/`MAX_BOARD_DIM`), but choosing a size
+  and pressing Begin Game does NOT currently resize the actual board.**
+  `setBoardDimensions(rows, cols)` (§3b) updates the live
+  `BOARD_ROWS`/`BOARD_COLS` bindings other modules read, but
+  `chassis/ElCabeza3D.jsx`'s entire 3D scene (slab/grid geometry,
+  camera framing) is built in a **mount-once `useEffect` with an
+  empty dependency array** — calling `setBoardDimensions()` after that
+  effect has already run updates the game's *logical* dimensions
+  without touching the already-built geometry, producing a
+  size-mismatched board. Actually wiring this needs the chassis to be
+  forced through a full remount with the new size already set (e.g. a
+  `key` prop keyed on `${rows}x${cols}` on whatever renders
+  `<ElCabeza3D>`, in `apps/neon.jsx`/`apps/unified.jsx`) — a real,
+  deliberately-scoped-out feature, not a quick add. Assessed directly
+  with the user and explicitly deferred.
+- **LAWS — all five are still just UI-only toggles with zero gameplay
+  effect.** None of Split Movement, Slide, Black Hole Squares,
+  Cantilever Pivot, or 3 Actions Per Turn are wired to the rules
+  engine yet. Cantilever Pivot specifically **cannot** be implemented
+  before non-convex pieces exist (it's defined in terms of "a piece
+  resting with only one cell grounded," which no current piece type
+  can ever be in) — it's the same blocker as MATTER's L-Pentomino/Arch
+  inertness above, not a separate gap.
+
+**Failed/rejected approach — sphere label vertical positioning (add to
+§12 too):** getting the MATTER/LAWS/TOPOLOGY words to sit on the
+sphere's own equator took three wrong turns before landing on the
+right model, each shipped and each reported back as still wrong by
+the user with real device video evidence — worth reading in order so
+the same ones aren't retried:
+1. A hardcoded `v` constant (0.7, picked by eyeballing one viewport)
+   — read as too high on some devices, wrong on others, because
+   camera framing genuinely varies by viewport/device.
+2. Raycasting the viewport's own center (NDC `(0,0)`) each time the
+   sphere settled, and using that hit's `uv.y` as the label center —
+   better, but conflates "center of the viewport" with "center of the
+   sphere's own on-screen silhouette," which differ whenever
+   surrounding UI (the BACK button vs. a taller hint bar) pushes the
+   sphere off-center within the viewport.
+3. Projecting the sphere's own world position to NDC first (fixing
+   #2's conflation), then **recomputing that raycast every frame** so
+   the label band would "always track wherever the camera is
+   looking." This was based on a real fact (vertical drag really does
+   pitch the sphere via `rotation.x` — a comment claiming no such
+   rotation existed was simply wrong) but drew the wrong conclusion
+   from it: re-picking which latitude to paint the text on every
+   frame made the words visibly **compress toward the poles** as the
+   sphere tipped, since each frame sampled a different, more
+   pole-adjacent ring instead of the same ring just rotating away.
+   The user's own description of the desired behavior (a real video,
+   plus explicit correction) was the actual unlock: the words belong
+   at a **fixed** latitude, painted once; dragging should tilt the
+   whole sphere rigidly, words included, exactly like a globe, until
+   tilted far enough to rotate them out of view near a pole.
+4. **The actual fix**: `LABEL_CENTER_V = 0.5`, a plain constant, no
+   raycast at all — `THREE.SphereGeometry`'s default UV mapping puts
+   the equator at exactly `v=0.5` for a standard full sphere,
+   independent of camera or the sphere's current rotation. Every
+   earlier attempt was solving a different problem (matching wherever
+   the *camera* looks) than the one actually asked (matching the
+   sphere's own *geometric* equator) — those only coincide by
+   accident, and don't for an elevated/tilted camera (inherited
+   unmodified from the board's own viewing angle), which is why they
+   kept reading as "too high."
 
 ## 4. Performance work already done (don't undo without reason)
 
@@ -609,6 +712,13 @@ reason.
 8. **Reusing the pre-game hitbox tightening for the post-game corner
    hover gesture** — broke small piece types intermittently. Keep these
    two gestures' hit-target logic separate (§6).
+9. **Raycasting the camera's look direction to position the sphere
+   menu's MATTER/LAWS/TOPOLOGY labels** (either at the plain viewport
+   center, or the sphere's own projected center, one-shot or
+   recomputed every frame) — see §3d for the full sequence of wrong
+   turns. The camera's look direction and the sphere's own geometric
+   equator are two different things that only coincide by accident;
+   the fix was a plain `v=0.5` constant, no raycast involved.
 
 ## 13. Hard invariants — do not break without a deliberate, explicit decision
 
