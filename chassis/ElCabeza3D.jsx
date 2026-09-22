@@ -1259,7 +1259,31 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // hide it out from under a still-fresh reveal.
     if (infoBtnTimerRef.current) clearTimeout(infoBtnTimerRef.current);
     infoBtnTimerRef.current = setTimeout(() => setInfoBtnVisible(false), 4000);
+    // Neon's hidden SINGULARITY trigger: five masthead taps reveal the
+    // invite (see useSetupExtras/handleMastheadTap in themes/neon.js).
+    // A no-op in Standard (no useSetupExtras -> setupExtras null), and
+    // it coexists with the Info easter egg above — both react per tap.
+    if (setupExtras && setupExtras.handleMastheadTap) setupExtras.handleMastheadTap();
   }
+
+  // The masthead's click handler is bound NATIVELY (below) rather than as
+  // a React onClick prop: Neon splits "EL CABEZA" into per-letter <span>s
+  // created imperatively (splitTitleIntoLetters), which are NOT in React's
+  // fiber tree — so a React onClick on the title span never fires for a
+  // click that lands on a letter (only on the bare spaces/padding). A
+  // plain DOM listener on the title element catches native bubbling from
+  // those letters just fine, which is what makes both the Info easter egg
+  // and the five-tap Singularity reveal work no matter where on the word
+  // the click actually lands.
+  const handleTitleClickRef = useRef(handleTitleClick);
+  handleTitleClickRef.current = handleTitleClick;
+  useEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    const onClick = () => handleTitleClickRef.current();
+    el.addEventListener("click", onClick);
+    return () => el.removeEventListener("click", onClick);
+  }, []);
 
   function handleInfoButtonClick() {
     if (infoBtnTimerRef.current) clearTimeout(infoBtnTimerRef.current);
@@ -4947,7 +4971,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             whiteSpace: "nowrap",
           }}
         >
-          <span ref={titleRef} className="ec-title" onClick={handleTitleClick}>EL CABEZA</span>
+          <span ref={titleRef} className="ec-title">EL CABEZA</span>
         </h1>
         <button
           className="ec-btn"

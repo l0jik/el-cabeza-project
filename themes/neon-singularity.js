@@ -35,7 +35,14 @@ import {
 } from "../engine/constants.js";
 import { pickBlackHoleSquares } from "../engine/rules.js";
 
-export const PHASES = { IDLE: "idle", COLLAPSING: "collapsing", BLACKOUT: "blackout", SPHERE: "sphere" };
+// TOLLING is the lead-in the player triggers by clicking the revealed
+// SINGULARITY invite: the cathedral bell tolls and a black curtain fades
+// up over the still-visible board for SINGULARITY_TOLL_MS, then it hands
+// off to COLLAPSING (which fades the curtain back out to reveal the warp).
+export const PHASES = { IDLE: "idle", TOLLING: "tolling", COLLAPSING: "collapsing", BLACKOUT: "blackout", SPHERE: "sphere" };
+
+// The bell-toll / fade-to-black lead-in length before the collapse begins.
+const SINGULARITY_TOLL_MS = 2000;
 
 const COLLAPSE_DURATION_MS = 3600;
 // Progress fraction where the palette starts cooling toward uniform
@@ -1113,7 +1120,10 @@ function teardownSingularityScene(t) {
 
 export function advanceSingularityScene(t, now, chromeRefs) {
   const s = t.singularity;
-  if (!s || !s.phase || s.phase === PHASES.IDLE) return;
+  // TOLLING is a pure DOM/audio lead-in (bell + fading black curtain over
+  // the still-normal board) — no 3D scene work, no chrome suction, no
+  // object building until the collapse proper begins.
+  if (!s || !s.phase || s.phase === PHASES.IDLE || s.phase === PHASES.TOLLING) return;
   ensureSingularityObjects(t);
   const dt = s.lastTickAt ? Math.min((now - s.lastTickAt) / 1000, 0.05) : 0.016;
   s.lastTickAt = now;
@@ -1794,6 +1804,7 @@ export function useSingularityPhase({
 }) {
   const [phase, setPhase] = React.useState(PHASES.IDLE);
   const blackDivRef = React.useRef(null);
+  const tollTimerRef = React.useRef(null); // the toll -> collapse handoff timer
   const phaseSetterRef = React.useRef(setPhase);
   phaseSetterRef.current = setPhase;
   const dragStateRef = React.useRef({ lastX: 0, lastY: 0, lastT: 0, moved: 0 });
@@ -1823,12 +1834,66 @@ export function useSingularityPhase({
   // gesture), by which point three.current is already the final object,
   // so it re-establishes every bridge field fresh each time rather than
   // relying on an earlier write surviving.
+  /* The bell-toll lead-in the SINGULARITY invite click fires (see
+     themes/neon.js's commitSingularity): the cathedral bell tolls, a
+     drone begins building, and a black curtain fades up over the
+     still-visible board across SINGULARITY_TOLL_MS. When it's fully
+     black, startCollapse takes over — and immediately fades the curtain
+     back out so the collapse warp is what re-emerges from the dark,
+     matching the user's "2s black -> then the collapse animation". */
+  function startSingularityToll() {
+    const t = three && three.current;
+    if (!t) return;
+    t.singularity = t.singularity || {};
+    t.singularity.phase = PHASES.TOLLING;
+    t.singularity.audio = audio;
+    t.singularity.blackDivRef = blackDivRef;
+    t.singularity.setPhase = (p) => phaseSetterRef.current(p);
+    // The single enormous funereal toll, plus a drone that swells under
+    // it for the whole lead-in (the collapse roar joins at startCollapse;
+    // all three hard-cut together at the event horizon).
+    if (audio.playSingularityBell) audio.playSingularityBell();
+    if (audio.startSingularityHum) {
+      audio.startSingularityHum();
+      const humStart = performance.now();
+      const humStep = () => {
+        if (!t.singularity || t.singularity.phase !== PHASES.TOLLING) return;
+        const p = Math.min(1, (performance.now() - humStart) / SINGULARITY_TOLL_MS);
+        if (audio.updateSingularityHum) audio.updateSingularityHum(p);
+        if (p < 1) requestAnimationFrame(humStep);
+      };
+      requestAnimationFrame(humStep);
+    }
+    setPhase(PHASES.TOLLING);
+    // The black curtain only exists once the overlay has mounted for the
+    // TOLLING phase — wait a frame (two, to be safe past React's commit)
+    // before driving its fade so the transition actually takes.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (blackDivRef.current) {
+        blackDivRef.current.style.transition = `opacity ${SINGULARITY_TOLL_MS}ms ease-in`;
+        blackDivRef.current.style.opacity = "1";
+      }
+    }));
+    clearTimeout(tollTimerRef.current);
+    tollTimerRef.current = setTimeout(() => {
+      tollTimerRef.current = null;
+      startCollapse();
+    }, SINGULARITY_TOLL_MS);
+  }
+
   function startCollapse() {
     const t = three && three.current;
     if (!t) return;
     t.singularity = t.singularity || {};
     t.singularity.phase = PHASES.COLLAPSING;
     t.singularity.collapseStartedAt = performance.now();
+    // If we arrived from the toll the curtain is fully black — fade it
+    // back out so the collapsing board re-emerges from the dark rather
+    // than the whole warp happening unseen behind an opaque curtain.
+    if (blackDivRef.current) {
+      blackDivRef.current.style.transition = "opacity 650ms ease-out";
+      blackDivRef.current.style.opacity = "0";
+    }
     t.singularity.lastTickAt = null;
     t.singularity.dragVelocity = { x: 0, y: 0 };
     t.singularity.dragTargetVelocity = { x: 0, y: 0 };
@@ -1854,6 +1919,10 @@ export function useSingularityPhase({
   }
 
   function exitSingularity() {
+    // Cancel a pending toll->collapse handoff so an Escape during the
+    // lead-in doesn't fire the collapse a beat after we've bailed out.
+    clearTimeout(tollTimerRef.current);
+    tollTimerRef.current = null;
     const t = three && three.current;
     if (t) {
       teardownSingularityScene(t);
@@ -2072,6 +2141,7 @@ export function useSingularityPhase({
 
   return {
     singularityPhase: phase,
+    startSingularityToll,
     startCollapse,
     exitSingularity,
     finalizeSingularityBegin,

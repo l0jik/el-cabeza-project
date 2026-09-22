@@ -3165,6 +3165,61 @@ export const styleSheet = `
     .ec-singularity-halo { animation: none; background: radial-gradient(circle, rgba(77,232,255,0.55) 0%, rgba(77,232,255,0.22) 16%, rgba(77,232,255,0) 30%, rgba(77,232,255,0) 46%, rgba(60,210,235,0.10) 54%, rgba(60,210,235,0) 66%); }
     .ec-singularity-text { opacity: 1; filter: none; animation: none; }
   }
+
+  /* ---- The full-screen SINGULARITY invite (revealed by 5 masthead taps) ----
+     A screen-dominating takeover: a dark, near-opaque backdrop that
+     quickly fades in, with an enormous SINGULARITY button centered on it.
+     Its scale is driven by vmin so, per the brief, "screen real estate
+     dictates how large this actually is" — very predominant on any
+     device. Reuses .ec-singularity-btn/-halo/-text (so the plasma/mono
+     animations carry over) with size overrides scoped to the invite. */
+  .ec-singularity-invite-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+    background: radial-gradient(circle at 50% 50%, rgba(6,10,18,0.82) 0%, rgba(0,0,0,0.94) 72%);
+    opacity: 0;
+    animation: ec-singularity-invite-fade 320ms ease-out forwards;
+    cursor: pointer;
+  }
+  @keyframes ec-singularity-invite-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  /* Strip the dock button's own box (fixed aspect-ratio, border, black
+     fill, full-width): the invite version is just the glowing text and
+     its halo, sized to the viewport, on the backdrop above. */
+  .ec-singularity-invite-btn {
+    width: auto;
+    aspect-ratio: auto;
+    min-height: 0;
+    background: transparent;
+    border: none;
+    padding: clamp(20px, 6vmin, 72px) clamp(28px, 10vmin, 140px);
+    /* Its own quick fade/scale-in on top of the backdrop's fade. */
+    animation: ec-singularity-invite-appear 420ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+  @keyframes ec-singularity-invite-appear {
+    from { opacity: 0; transform: scale(0.88); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .ec-singularity-invite-btn .ec-singularity-text {
+    font-size: clamp(2.4rem, 13vmin, 9rem);
+    letter-spacing: 0.14em;
+  }
+  .ec-singularity-invite-btn .ec-singularity-halo {
+    width: 175%;
+    height: 300%;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ec-singularity-invite-backdrop { animation: none; opacity: 1; }
+    .ec-singularity-invite-btn { animation: none; opacity: 1; transform: none; }
+  }
 `;
 
 /* The two per-pixel warp filters (video-turbulence/wavy-raster VHS
@@ -3222,9 +3277,8 @@ export function useSetupExtras({
   isPlaying, currentVariants, setCurrentVariants,
 }) {
   const [singularityRevealed, setSingularityRevealed] = React.useState(false);
-  const singularityHoldRef = React.useRef(null);
+  const singularityTapRef = React.useRef([]); // masthead tap timestamps
   const singularityHideTimerRef = React.useRef(null);
-  const singularityCommitRef = React.useRef(null); // rAF id for the commit hold
   const singularityBtnRef = React.useRef(null); // so a click-outside can tell "outside" from the button itself
   // The collapse/blackout/sphere cinematic — see themes/neon-singularity.js.
   // Opponent/AI/Begin Game are passed straight through from the chassis
@@ -3271,88 +3325,48 @@ export function useSetupExtras({
     setPieces(generateAnomalySetup());
   }
 
-  /* The Phantom Reveal button auto-hides 10s after it appears
-     (mirroring the masthead's own Info-button reveal/auto-hide).
-     Re-holding Anomaly (the same 4s discovery gesture) brings it back
-     and restarts this countdown; opening its info panel pauses the
-     countdown while reading, then gives it a fresh 10s once closed. */
-  function beginSingularityHold() {
-    clearTimeout(singularityHoldRef.current);
-    singularityHoldRef.current = setTimeout(() => {
+  /* ---- discovery: five taps on the EL CABEZA masthead ----
+     The chassis calls this from the masthead's own click handler (see
+     handleTitleClick), once per tap. Five taps inside a rolling window
+     reveal the SINGULARITY invite — a massive, screen-dominating overlay
+     button (renderSingularityInvite). Gated on the pre-game setup screen
+     only (awaitingBegin): Singularity is a way to start a configured
+     game, so it has no meaning mid-game. The invite auto-hides after a
+     while if left untouched, exactly like the masthead's own Info easter
+     egg it sits alongside. */
+  const SINGULARITY_TAP_COUNT = 5;
+  const SINGULARITY_TAP_WINDOW_MS = 2500; // all five must land inside this
+  const SINGULARITY_INVITE_TIMEOUT_MS = 12000;
+  function handleMastheadTap() {
+    if (!awaitingBegin) return;
+    // Already revealed (or mid-cinematic): further masthead taps do
+    // nothing rather than re-arming or double-firing.
+    if (singularityRevealed || singularityCinematic.singularityPhase !== "idle") return;
+    const now = performance.now();
+    const taps = singularityTapRef.current.filter((ts) => now - ts < SINGULARITY_TAP_WINDOW_MS);
+    taps.push(now);
+    singularityTapRef.current = taps;
+    if (taps.length >= SINGULARITY_TAP_COUNT) {
+      singularityTapRef.current = [];
       setSingularityRevealed(true);
       clearTimeout(singularityHideTimerRef.current);
-      singularityHideTimerRef.current = setTimeout(() => setSingularityRevealed(false), 10000);
-    }, 4000);
-  }
-  function cancelSingularityHold() {
-    clearTimeout(singularityHoldRef.current);
+      singularityHideTimerRef.current = setTimeout(
+        () => setSingularityRevealed(false), SINGULARITY_INVITE_TIMEOUT_MS);
+    }
   }
 
-  /* ---- the commit hold, on the revealed Singularity button itself ----
-     Discovery and commitment are ONE continuous deepening hold rather
-     than hover-then-click: hold Anomaly to reveal Singularity (above),
-     then keep holding on Singularity itself to commit. Chosen over a
-     click because hover doesn't exist on touch, and the two can't be
-     cleanly separate gestures there — touch has no way to hover without
-     also pressing. As a hold it works identically with a mouse and a
-     finger, and it suits the feature: the whole point of Singularity is
-     that it rewards a patient player.
-
-     Timeline: a short beat of nothing, then the hum starts and builds,
-     and holding through the end of that build commits. Releasing at any
-     point before the end cancels with no failure sound — the hum's own
-     reverb tail just decays naturally from however far it got (see
-     stopSingularityHum). The opening silence was cut from the spec's
-     original 2s per feedback that the ramp should start sooner; the
-     build itself also now climbs on a much earlier-rising curve (see
-     updateSingularityHum). */
-  const SINGULARITY_HUM_START_MS = 900;
-  const SINGULARITY_HUM_BUILD_MS = 4000;
-
-  function beginSingularityCommitHold() {
-    if (singularityCommitRef.current) return;
-    // Don't let the 10s auto-hide pull the button out from under a hold
-    // already in progress; cancelling re-arms it below.
-    clearTimeout(singularityHideTimerRef.current);
-    const startedAt = performance.now();
-    let humStarted = false;
-    const step = () => {
-      const elapsed = performance.now() - startedAt;
-      if (elapsed >= SINGULARITY_HUM_START_MS) {
-        if (!humStarted) {
-          humStarted = true;
-          audio.startSingularityHum();
-        }
-        const progress = (elapsed - SINGULARITY_HUM_START_MS) / SINGULARITY_HUM_BUILD_MS;
-        audio.updateSingularityHum(progress);
-        if (progress >= 1) {
-          singularityCommitRef.current = null;
-          commitSingularity();
-          return;
-        }
-      }
-      singularityCommitRef.current = requestAnimationFrame(step);
-    };
-    singularityCommitRef.current = requestAnimationFrame(step);
-  }
-
-  function cancelSingularityCommitHold() {
-    if (!singularityCommitRef.current) return;
-    cancelAnimationFrame(singularityCommitRef.current);
-    singularityCommitRef.current = null;
-    audio.stopSingularityHum();
-    // Re-arm the auto-hide the hold suspended.
-    clearTimeout(singularityHideTimerRef.current);
-    singularityHideTimerRef.current = setTimeout(() => setSingularityRevealed(false), 10000);
-  }
-
-  /* Reaching the end of the hold hands off to the collapse cinematic
-     (SINGULARITY_DESIGN.md Phases 1-3) — the hum deliberately keeps
-     building rather than stopping here; it hard-cuts to silence only
-     at the event horizon (see startCollapse/advanceSingularityScene in
-     themes/neon-singularity.js). */
+  /* ---- commitment: a single click on the revealed SINGULARITY invite ----
+     One click begins the whole sequence — the cathedral bell tolls, the
+     screen blacks out over ~2s, then the collapse cinematic runs into the
+     sphere (see startSingularityToll -> startCollapse in
+     themes/neon-singularity.js). Replaces the old press-and-hold: now the
+     patience gate is finding the 5-tap trigger, and committing is a
+     single deliberate click. */
   function commitSingularity() {
-    singularityCinematic.startCollapse();
+    if (singularityCinematic.singularityPhase !== "idle") return;
+    clearTimeout(singularityHideTimerRef.current);
+    setSingularityRevealed(false);
+    singularityCinematic.startSingularityToll();
   }
 
   /* Clicking anywhere else while the button is revealed (but not being
@@ -3366,7 +3380,7 @@ export function useSetupExtras({
     const onDown = (e) => {
       const btn = singularityBtnRef.current;
       if (btn && (btn === e.target || btn.contains(e.target))) return;
-      cancelSingularityCommitHold();
+      clearTimeout(singularityHideTimerRef.current);
       setSingularityRevealed(false);
       audio.playSingularityDismiss();
     };
@@ -3376,11 +3390,9 @@ export function useSetupExtras({
 
   React.useEffect(() => {
     return () => {
-      clearTimeout(singularityHoldRef.current);
       clearTimeout(singularityHideTimerRef.current);
-      // A hold still running at unmount would otherwise keep its rAF
-      // loop and its drone alive past the component.
-      if (singularityCommitRef.current) cancelAnimationFrame(singularityCommitRef.current);
+      // A drone still building at unmount would otherwise ring on past
+      // the component (the toll lead-in starts one — see startSingularityToll).
       audio.stopSingularityHum();
     };
   }, []);
@@ -3388,10 +3400,8 @@ export function useSetupExtras({
   return {
     handleAnomaly,
     singularityRevealed,
-    beginSingularityHold,
-    cancelSingularityHold,
-    beginSingularityCommitHold,
-    cancelSingularityCommitHold,
+    handleMastheadTap,
+    commitSingularity,
     singularityBtnRef,
     // For the in-game Current Variants flyout (renderExtraOverlays):
     // shown only once a game has actually begun (awaitingBegin cleared)
@@ -3405,7 +3415,7 @@ export function useSetupExtras({
    button; the Singularity phantom button (once revealed) sits below
    both. Takes over the whole row/column rather than just appending
    after Begin Game, since Anomaly has to sit BEFORE it. */
-export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingularityHold, cancelSingularityHold, singularityRevealed, beginSingularityCommitHold, cancelSingularityCommitHold, singularityBtnRef }) {
+export function renderSetupExtras({ beginGameButton, handleAnomaly }) {
   const h = React.createElement;
   return h(
     "div",
@@ -3437,11 +3447,6 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingula
           key: "anomaly",
           className: "ec-btn ec-btn-invert",
           onClick: handleAnomaly,
-          onMouseEnter: beginSingularityHold,
-          onMouseLeave: cancelSingularityHold,
-          onTouchStart: beginSingularityHold,
-          onTouchEnd: cancelSingularityHold,
-          onTouchCancel: cancelSingularityHold,
           title: "Generate a random, rotationally-symmetric opening layout",
           style: {
             fontFamily: "'IBM Plex Mono', monospace",
@@ -3460,29 +3465,41 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingula
         "Anomaly"
       ),
       beginGameButton
-    ),
-    singularityRevealed &&
-      h(
-        "div",
-        {
-          className: "ec-singularity-btn",
-          ref: singularityBtnRef,
-          /* No onClick: a plain tap deliberately does nothing. Holding
-             is the only way in (see beginSingularityCommitHold), which
-             replaced the old tap-to-open-the-panel behaviour outright.
-             Hover for a mouse, touch-and-hold for a finger — the same
-             pairing the Anomaly reveal above already uses, since touch
-             has no hover of its own. */
-          onMouseEnter: beginSingularityCommitHold,
-          onMouseLeave: cancelSingularityCommitHold,
-          onTouchStart: beginSingularityCommitHold,
-          onTouchEnd: cancelSingularityCommitHold,
-          onTouchCancel: cancelSingularityCommitHold,
-          title: "???",
-        },
-        h("div", { className: "ec-singularity-halo", "aria-hidden": "true" }),
-        h("span", { className: "ec-singularity-text" }, "SINGULARITY")
-      )
+    )
+    // The SINGULARITY invite is no longer a small dock button revealed by
+    // holding Anomaly — it's a massive screen-takeover overlay (see
+    // renderSingularityInvite in renderExtraOverlays), triggered by five
+    // taps on the EL CABEZA masthead.
+  );
+}
+
+/* The SINGULARITY invite: once five taps on the masthead reveal it, a
+   massive centered overlay button takes over the whole screen (very
+   predominant, responsive — its size is driven by vmin so screen real
+   estate dictates how large it lands). A single click begins the
+   sequence (commitSingularity -> the bell toll, the fade to black, then
+   the collapse into the sphere). Clicking anywhere outside the button
+   dismisses it (handled by useSetupExtras' click-outside effect, which
+   also fires the radar-ping dismiss cue). */
+export function renderSingularityInvite({ singularityRevealed, singularityPhase, commitSingularity, singularityBtnRef }) {
+  // Only while revealed and before the cinematic has taken over.
+  if (!singularityRevealed || (singularityPhase && singularityPhase !== "idle")) return null;
+  const h = React.createElement;
+  return h(
+    "div",
+    { className: "ec-singularity-invite-backdrop", key: "singularity-invite" },
+    h(
+      "div",
+      {
+        className: "ec-singularity-btn ec-singularity-invite-btn",
+        ref: singularityBtnRef,
+        onClick: commitSingularity,
+        role: "button",
+        title: "???",
+      },
+      h("div", { className: "ec-singularity-halo", "aria-hidden": "true" }),
+      h("span", { className: "ec-singularity-text" }, "SINGULARITY")
+    )
   );
 }
 
@@ -3497,6 +3514,7 @@ export function renderExtraOverlays(setupExtras) {
   return React.createElement(
     React.Fragment,
     null,
+    renderSingularityInvite(setupExtras),
     renderSingularityOverlay(setupExtras),
     renderVariantsFlyout(setupExtras)
   );
@@ -4537,6 +4555,123 @@ export function createSoundscape() {
     setTimeout(() => {
       try { conv.disconnect(); wet.disconnect(); dry.disconnect(); } catch (e) { /* disposed */ }
     }, 5200);
+  }
+
+  /* The SINGULARITY toll: one enormous, low, funereal cathedral bell,
+     built entirely from oscillators + a noise strike (no samples). The
+     brief: "low-pitched, massive and resonant, a slow deliberate toll,
+     long reverberation/decay, cavernous/subterranean, metallic but not
+     bright, funereal and ritualistic, distant — as though heard through
+     another dimension — with a subtle sub-bass rumble underneath."
+
+     How each of those is produced:
+     - A sharp filtered-noise strike transient for the dark metallic
+       impact (the clapper hit), gone in ~0.35s.
+     - Inharmonic bell partials on a low ~66Hz prime — real bells ring a
+       stretched, non-integer series (hum an octave down, a minor-third
+       "tierce" that gives the mournful/funereal color, a fifth, the
+       nominal octave, then progressively shorter-lived upper partials).
+       Higher partials decay faster than lower ones, exactly as a struck
+       bell's spectrum thins over its ring.
+     - A ~32Hz sub-bass swell underneath for the physical, imposing
+       weight.
+     - A gentle low-pass keeps it "metallic but not bright," and the bulk
+       of the signal goes into the long cathedralReverb for the
+       cavernous, "another dimension" tail. */
+  function playSingularityBell() {
+    ensureGraph();
+    if (!ctx) return;
+    if (ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); }
+    // The bell is a rare, deliberate cue — like the choir stab, it should
+    // read clearly even if a post-game hush has pinned master low.
+    if (windingDown && master) {
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
+      master.gain.linearRampToValueAtTime(muted ? 0 : MASTER_GAIN, ctx.currentTime + 0.15);
+    }
+    if (!cathedralReverb) {
+      cathedralReverb = ctx.createConvolver();
+      cathedralReverb.buffer = makeImpulse(11.5, 1.25);
+      cathedralReverb.connect(sfxGain);
+    }
+    const t0 = ctx.currentTime;
+
+    // Shared bus: a low-pass to tame brightness, then split dry (small)
+    // and wet (dominant) so the toll sounds like it's ringing across an
+    // enormous space.
+    const tone = ctx.createGain();
+    tone.gain.value = 1;
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.setValueAtTime(2600, t0);
+    lp.frequency.exponentialRampToValueAtTime(900, t0 + 6); // darkens as it decays
+    lp.Q.value = 0.4;
+    const dry = ctx.createGain();
+    dry.gain.value = 0.32;
+    const wet = ctx.createGain();
+    wet.gain.value = 1.0;
+    tone.connect(lp);
+    lp.connect(dry).connect(sfxGain);
+    lp.connect(wet).connect(cathedralReverb);
+
+    const PRIME = 66; // Hz — a deep, subterranean strike tone
+    // { ratio to prime, peak, decay seconds }. Inharmonic, stretched
+    // series; upper partials quieter and shorter-lived.
+    const partials = [
+      { r: 0.5, g: 0.20, d: 9.5 },  // hum (octave below) — rings longest
+      { r: 1.0, g: 0.22, d: 8.0 },  // prime / strike tone
+      { r: 1.19, g: 0.12, d: 5.5 }, // tierce (minor third) — the funereal color
+      { r: 1.5, g: 0.10, d: 5.0 },  // quint (fifth)
+      { r: 2.0, g: 0.13, d: 5.5 },  // nominal (octave)
+      { r: 2.55, g: 0.06, d: 3.0 }, // stretched upper partials, faster decay
+      { r: 3.0, g: 0.055, d: 2.4 },
+      { r: 4.1, g: 0.035, d: 1.6 },
+      { r: 5.43, g: 0.022, d: 1.0 },
+    ];
+    partials.forEach((p) => {
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = PRIME * p.r;
+      const g = ctx.createGain();
+      // Fast strike attack, then a long exponential ring-down.
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(p.g, t0 + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + p.d);
+      o.connect(g).connect(tone);
+      o.start(t0);
+      o.stop(t0 + p.d + 0.1);
+    });
+
+    // Sub-bass rumble — a slow swell (not a strike) that gives the toll
+    // its physical, imposing weight underneath the partials.
+    const sub = ctx.createOscillator();
+    sub.type = "sine";
+    sub.frequency.value = 32;
+    const subG = ctx.createGain();
+    subG.gain.setValueAtTime(0, t0);
+    subG.gain.linearRampToValueAtTime(0.16, t0 + 0.35);
+    subG.gain.exponentialRampToValueAtTime(0.0001, t0 + 8.5);
+    sub.connect(subG).connect(tone); // through the same lp/reverb path
+    sub.start(t0);
+    sub.stop(t0 + 8.7);
+
+    // The dark metallic clapper impact: a short band-limited noise burst.
+    const strike = noiseSource();
+    const strikeBp = ctx.createBiquadFilter();
+    strikeBp.type = "bandpass";
+    strikeBp.frequency.value = 1400;
+    strikeBp.Q.value = 0.7;
+    const strikeG = ctx.createGain();
+    strikeG.gain.setValueAtTime(0, t0);
+    strikeG.gain.linearRampToValueAtTime(0.10, t0 + 0.004);
+    strikeG.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.35);
+    strike.connect(strikeBp).connect(strikeG).connect(tone);
+    strike.start(t0);
+    strike.stop(t0 + 0.4);
+
+    setTimeout(() => {
+      try { tone.disconnect(); lp.disconnect(); dry.disconnect(); wet.disconnect(); } catch (e) { /* disposed */ }
+    }, 11000);
   }
 
   /* A short synthetic impulse response — decaying noise, not a
@@ -6393,6 +6528,7 @@ export function createSoundscape() {
     cutSingularityAudioToSilence,
     resumeAudioAfterSingularity,
     playSingularityDismiss,
+    playSingularityBell,
     /* Dock open/close — a very subtle low "vrrrt": a short, low,
        buzzy sawtooth descent (not a clean sine — the harmonics are
        what read as a mechanical whirr rather than a chime) and its
