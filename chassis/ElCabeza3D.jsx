@@ -1913,7 +1913,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        meshes for an arc effect) without the chassis needing to know
        what any given theme's effects actually do. */
     ambientRef.current = theme.mountAmbientEffects(
-      { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef },
+      // dockPieceMountRef (the floating 3D setup piece) is handed in so a
+      // theme's collapse can suck it into the funnel with the rest of the
+      // chrome — see the Singularity's updateChromeSuction. cardRef (the
+      // dock panel) is deliberately NOT sucked: it's hidden during setup,
+      // and its opacity is React-owned, so animating it imperatively and
+      // then clearing the inline value stranded the panel visible after
+      // the game began (React never re-applies an unchanged opacity:0).
+      { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, dockPieceMountRef, fxOverlayRef },
       { three, windingDownRef, awaitingBeginRef, audio: audioRef.current }
     );
 

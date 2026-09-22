@@ -655,7 +655,7 @@ export function createAudio() {
    (fxItems, pulseSquare, etc.) is visible to the chassis's own
    animateStep through that same object. */
 export function mountAmbientEffects(refs, helpers) {
-  const { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, fxOverlayRef } = refs;
+  const { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, dockPieceMountRef, fxOverlayRef } = refs;
   const { three, windingDownRef, awaitingBeginRef, audio } = helpers;
   // Board/piece ambient effects (arc, crawl, floor wave, digital
   // glitch) have no business running while no game is actually in
@@ -2482,7 +2482,7 @@ export function mountAmbientEffects(refs, helpers) {
   // separate hook invocation elsewhere in this same component) also
   // reads and writes — both close over the identical `t = three.current`
   // object, so no extra chassis plumbing is needed to connect them.
-  advanceSingularityScene(t, now, { titleWrapRef, cardRef, fxOverlayRef });
+  advanceSingularityScene(t, now, { titleWrapRef, cardRef, dockPieceMountRef, fxOverlayRef });
 
   // The board palette retune, active only once an actual Singularity-
   // originated game is underway — see advanceSingularityBoardFx's own

@@ -974,7 +974,11 @@ function updateChromeSuction(s, u) {
   const spin = 28 * bite;
   const blur = 7 * bite;
   const fade = Math.max(0, 1 - Math.pow(u, 0.75) * 1.25);
-  [s.chromeRefs.titleWrapRef, s.chromeRefs.cardRef].forEach((ref, i) => {
+  // The masthead and the floating dock piece both get pulled into the
+  // funnel. NOT the dock panel (cardRef): it's hidden during setup, and
+  // its opacity is React-owned — animating it here and clearing it on
+  // teardown left the panel stranded visible once the game began.
+  [s.chromeRefs.titleWrapRef, s.chromeRefs.dockPieceMountRef].forEach((ref, i) => {
     const el = ref && ref.current;
     if (!el) return;
     el.style.transformOrigin = "50% 50%";
@@ -1132,7 +1136,7 @@ function teardownSingularityScene(t) {
     s.blackDivRef.current.style.opacity = "0";
   }
   if (s.chromeRefs) {
-    [s.chromeRefs.titleWrapRef, s.chromeRefs.cardRef].forEach((ref) => {
+    [s.chromeRefs.titleWrapRef, s.chromeRefs.dockPieceMountRef].forEach((ref) => {
       if (ref && ref.current) {
         const el = ref.current;
         el.style.transition = "";
@@ -1173,7 +1177,7 @@ export function advanceSingularityScene(t, now, chromeRefs) {
   if (chromeRefs && !s.chromeHidden) {
     s.chromeHidden = true;
     s.chromeRefs = chromeRefs;
-    [chromeRefs.titleWrapRef, chromeRefs.cardRef].forEach((ref) => {
+    [chromeRefs.titleWrapRef, chromeRefs.dockPieceMountRef].forEach((ref) => {
       if (ref && ref.current) {
         // No CSS transition: every frame writes its own value, and a
         // transition would just smear them against each other.

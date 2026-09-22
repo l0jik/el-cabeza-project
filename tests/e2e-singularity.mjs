@@ -34,7 +34,7 @@
 import { chromium } from "playwright";
 import path from "path";
 import { fileURLToPath } from "url";
-import { openDockPanel } from "./dock-helpers.mjs";
+import { openDockPanel, waitForDockCorner } from "./dock-helpers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const file = path.join(__dirname, "..", "dist", "el-cabeza-neon.html");
@@ -473,6 +473,20 @@ const statusAfterBegin = await page.evaluate(() => {
 });
 check("Begin Game on the summary menu actually starts a real game",
   !!statusAfterBegin, `statusAfterBegin=${JSON.stringify(statusAfterBegin)}`);
+
+// ---- after a Singularity Begin Game the dock must hand off exactly like
+// a normal Begin Game: the panel collapses (not left stranded visible by
+// the collapse's chrome suction) and the piece relocates to the corner
+// watermark. Regression for the stuck-panel bug. ----
+const cornerBox = await waitForDockCorner(page, { timeoutMs: 6000 });
+check("the dock piece relocates to the corner watermark after a Singularity begin",
+  cornerBox !== null, `cornerBox=${JSON.stringify(cornerBox)}`);
+const panelOpacityAfter = await page.evaluate(() => {
+  const el = document.querySelector('[data-testid="dock-panel"]');
+  return el ? getComputedStyle(el).opacity : null;
+});
+check("the dock panel is hidden after a Singularity begin (not stranded visible)",
+  Number(panelOpacityAfter) < 0.05, `panelOpacity=${panelOpacityAfter}`);
 
 check(`no page errors (${errors.length})`, errors.length === 0, JSON.stringify(errors.slice(0, 3)));
 
