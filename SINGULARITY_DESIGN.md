@@ -230,9 +230,11 @@ the sphere
    turn a slide spends the whole turn, and with "3 Actions Per Turn" (a
    3-point turn) it leaves exactly one point — room for a single follow-up
    roll ("a slide and an additional roll"). A piece can only slide when it
-   has at least two points left this turn, so a 1-point piece (Opa) can
-   never slide. Available to every piece, old and new, once enabled (not
-   restricted to irregular pieces).
+   has at least two points left this turn. Opa's base budget is 1, so in a
+   plain Slide game (no "3 Actions") Opa still can't afford a slide — but
+   "3 Actions" now grants Opa the +1 too (1 → 2 points), so with both laws
+   on Opa can slide like everything else. Available to every piece, old
+   and new, once enabled (not restricted to irregular pieces).
 3. **Black Hole Squares** — one or two obstacle squares, placed fairly:
    a single one must sit at the exact board center; two must be placed
    at rotationally-symmetric locations relative to each other. A single
@@ -269,13 +271,15 @@ the sphere
    model used everywhere else: "which one cell is grounded" plus "which
    cells are occupied in the air above adjacent squares" — a second kind
    of orientation entry, not an extension of the flat-footprint kind.
-5. **3 Actions Per Turn** — raises the per-turn movement budget by one
-   for every piece whose current allotment (`PIECE_META.maxSteps` today)
-   is a real spendable points budget. **Does not affect Opa** — its
-   existing `maxSteps: 1` isn't a points budget at all, it's a structural
-   fact about a 2×2×2 cube always covering exactly 2 squares in one
-   physical roll (`rollBlock`'s math moves it by its own width), so this
-   law doesn't change what a single Opa roll physically does.
+5. **3 Actions Per Turn** — raises every piece's per-turn movement budget
+   by one (`PIECE_META.maxSteps` + 1). In the base game Opa's `maxSteps: 1`
+   is a structural fact (a 2×2×2 cube always covers exactly 2 squares in
+   one physical roll — `rollBlock` moves it by its own width) rather than
+   a spendable budget, so the base game leaves it at 1. But this opt-in
+   law now grants Opa the +1 as well (1 → 2): otherwise a 1-point piece
+   could never afford a Slide (2 points), leaving Opa the one piece unable
+   to slide even with both laws on. The trade-off — Opa can take two
+   actions (two rolls, or a slide) in a 3-Actions game — is intended.
 
 ### TOPOLOGIES — flat board, deliberately bounded
 

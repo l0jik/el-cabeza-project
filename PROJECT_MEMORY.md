@@ -290,7 +290,10 @@ then a real Begin Game.
   Turn**, **Slide** (orthogonal only; costs **two action points**, a roll
   costs one — so a normal 2-point turn is fully spent by one slide, while
   "3 Actions" (3 points) leaves exactly one point for a single follow-up
-  roll; a 1-point piece/Opa can never slide; the wormhole still ends the
+  roll. Opa's base budget is 1, so in a plain Slide game it still can't
+  afford a slide — but "3 Actions" now grants Opa the +1 too (1→2), so
+  with both laws on Opa can slide (this reverses the old Opa exclusion
+  from the 3-Actions bonus). The wormhole still ends the
   turn outright. Interactively a slide is a press-drag of the piece one
   cell, armed BOTH on a fresh piece and after a roll — the drag-slide and
   the mid-turn undo-drag now coexist on the already-moved piece, with

@@ -53,6 +53,22 @@ console.log("[3-pt] slide-then-roll turns:", slideThenRoll.length);
 if (slideThenRoll.length === 0) throw new Error("With 3 Actions a slide should leave one point for a follow-up roll");
 if (!noSlideSlide) throw new Error("Two slides cost 4 points — impossible within a 3-point budget");
 if (!noTripleAfterSlide) throw new Error("A slide costs 2, so a slide can never sit in a 3-move (3x1) turn");
+
+// Opa (base budget 1) can't afford a slide in a plain Slide game, but the
+// "3 Actions" law grants it the +1 too (1 -> 2), so with both laws on Opa
+// can slide like every other piece.
+const opaPieces = [
+  { id: "o", type: "opa", owner: "dark", row: 4, col: 4, w: 2, h: 2, z: 2 },
+  { id: "cd", type: "cabeza", owner: "dark", row: 0, col: 0, w: 1, h: 1, z: 2 },
+  { id: "cl", type: "cabeza", owner: "light", row: 9, col: 9, w: 1, h: 1, z: 2 },
+];
+setActiveLaws({ slide: true, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
+const opaPlain = generateTurns(opaPieces, "dark").filter((t) => t.dirs.some(isSlideKey));
+setActiveLaws({ slide: true, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: true });
+const opa3 = generateTurns(opaPieces, "dark").filter((t) => t.dirs.some(isSlideKey));
+console.log("[Opa] slide turns — plain Slide:", opaPlain.length, "| Slide+3Actions:", opa3.length);
+if (opaPlain.length !== 0) throw new Error("Opa (1 point) should not be able to slide without 3 Actions");
+if (opa3.length === 0) throw new Error("With 3 Actions, Opa should get a 2-point budget and be able to slide");
 setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
 
 console.log("\nSMOKE TEST PASSED");

@@ -295,14 +295,17 @@ export function setBlackHoles(list) {
 /* The one supported way to read a piece's per-turn movement budget —
    PIECE_META[type].maxSteps itself never changes; this is where the
    "3 Actions Per Turn" law's +1 gets applied, uniformly, wherever a
-   step budget is checked. Opa is explicitly excluded: its maxSteps:1
-   isn't a spendable points budget at all, it's a structural fact
-   about a 2x2x2 cube always covering exactly 2 squares in one
-   physical roll (rollBlock's math moves it by its own width) — see
-   SINGULARITY_DESIGN.md's own note on this. */
+   step budget is checked. In the BASE game Opa keeps its structural
+   maxSteps:1 (a 2x2x2 cube always covers exactly 2 squares in one
+   physical roll — rollBlock moves it by its own width). Under the "3
+   Actions" LAW, though, Opa gets the +1 too (1 -> 2): without it a
+   1-point piece could never afford a Slide (which costs SLIDE_COST=2),
+   so Opa was the one piece unable to slide even with both laws on. The
+   trade-off — Opa can now take two actions (two rolls, or a slide) in a
+   3-Actions game — is an intended effect of that opt-in law. */
 export function maxStepsFor(type) {
   const base = PIECE_META[type].maxSteps;
-  return ACTIVE_LAWS.threeActions && type !== "opa" ? base + 1 : base;
+  return ACTIVE_LAWS.threeActions ? base + 1 : base;
 }
 
 /* A Slide always costs TWO action points (a roll costs one). So in a
