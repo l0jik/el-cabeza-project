@@ -3638,12 +3638,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
            the actual view toward it every frame, which is what removes
            the raw, sample-for-sample twitchiness a direct 1:1 mapping had.
            Yaw uses ONE consistent sign regardless of where on screen the
-           drag started: dragging right always spins the board the same
-           way. (A previous turntable-style flip that reversed yaw for a
-           drag begun in the upper screen half was latched at pointerdown,
-           so a gesture crossing the vertical midline kept the wrong
-           half's sign and read as an inversion — removed.) */
-        cam.current.theta -= dx * ORBIT_SENS_THETA;
+           drag started, and follows the finger: dragging left spins the
+           board left, dragging right spins it right (direct manipulation,
+           as if grabbing the board and turning it). (A previous
+           turntable-style flip that reversed yaw for a drag begun in the
+           upper screen half was latched at pointerdown, so a gesture
+           crossing the vertical midline kept the wrong half's sign and
+           read as an inversion — removed.) */
+        cam.current.theta += dx * ORBIT_SENS_THETA;
         /* Lower bound is a hair above zero rather than zero itself: at
            exactly vertical the view direction is parallel to the camera's
            up vector and lookAt has no defined roll, which snaps the view.
