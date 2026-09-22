@@ -291,8 +291,13 @@ then a real Begin Game.
   costs one — so a normal 2-point turn is fully spent by one slide, while
   "3 Actions" (3 points) leaves exactly one point for a single follow-up
   roll; a 1-point piece/Opa can never slide; the wormhole still ends the
-  turn outright), **Diagonal Slide** (a 6th toggle that adds diagonals to
-  Slide), and **Black Hole Squares** (always two
+  turn outright. Interactively a slide is a press-drag of the piece one
+  cell, armed BOTH on a fresh piece and after a roll — the drag-slide and
+  the mid-turn undo-drag now coexist on the already-moved piece, with
+  onMove disambiguating by direction: a drag clearly back toward the
+  start square undoes, any other direction snaps to a slide, so
+  roll→slide works under 3 Actions), **Diagonal Slide** (a 6th toggle
+  that adds diagonals to Slide), and **Black Hole Squares** (always two
   linked wormholes; entry gated on a 1-cell ground footprint; a wormhole
   entry EJECTS the piece one cell past the far hole on the same relative
   side it entered — `farHole - travelDir` — never landing on a hole,

@@ -3523,12 +3523,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                   undoDownY = ev.clientY;
                 }
               }
-            } else {
-              // Slide LAW: drag a not-yet-moved piece one cell to slide it
-              // (see onMove/onUp). Each legal slide's on-screen direction
-              // is captured now, since the board holds still through the
-              // drag. Nothing to arm if this piece has no legal slide
-              // (slide law off, Cabeza, or fully boxed in).
+            }
+            // Slide LAW drag — armed whenever the selected piece has a
+            // legal slide AND at least SLIDE_COST points left this turn,
+            // so it works BOTH on a not-yet-moved piece and AFTER a roll
+            // (roll->slide, which the budget only allows under 3 Actions).
+            // Deliberately not gated on turnLocked: it now coexists with
+            // the undo-drag armed just above, and onMove disambiguates by
+            // direction (a drag clearly toward the start square undoes;
+            // any other direction snaps to a slide). Each legal slide's
+            // on-screen direction is captured now, since the board holds
+            // still through the drag.
+            {
               const piece = pieces.find((p) => p.id === selectedId);
               // Budget-aware: a slide needs two points, so it's only
               // armable when the piece still has at least that many.
@@ -3624,8 +3630,6 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           // pointerdown, not this frame's delta) against the direction
           // captured at pointerdown, so a curved drag is judged by
           // where it ended up pointing overall, not each jittery step.
-          // Never falls through to camera-rotate below while this
-          // gesture is live — see the field comment on undoDragTarget.
           const totalDx = ev.clientX - undoDownX;
           const totalDy = ev.clientY - undoDownY;
           const totalLen = Math.hypot(totalDx, totalDy);
@@ -3634,11 +3638,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             if (dot > 0.55) {
               // Within ~56 degrees of dead-on toward the origin square.
               undoDragTarget = null;
+              slideDrag = null;
+              updateSlideArrow(null);
               dragging = false;
               handleUndoTurn();
+              return;
             }
           }
-          return;
+          // Not (yet) an undo. If a slide is ALSO armed (roll->slide),
+          // let the slide block below claim a drag toward a non-origin
+          // direction. Otherwise consume the gesture here so it never
+          // falls through to camera-rotate while an undo-drag is live.
+          if (!slideDrag) return;
         }
 
         if (slideDrag) {
@@ -3945,6 +3956,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         altPanning = false; // an interrupted gesture must not leave the board latched in pan mode
         // An interrupted slide drag must clear its cue and not commit.
         if (slideDrag) { slideDrag = null; updateSlideArrow(null); }
+        // Likewise an interrupted undo-drag, so it can't resolve later.
+        undoDragTarget = null;
       }
       el.style.cursor = "grab";
     }
