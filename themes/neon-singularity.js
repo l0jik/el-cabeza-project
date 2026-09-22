@@ -2088,87 +2088,147 @@ export function useSingularityPhase({
   };
 }
 
-/* The in-game Current Variants reference — a small top-left flyout that
-   lists the specials this game is running under, grouped by category.
-   It flies open briefly when a game starts, then collapses to a handle;
-   hovering the handle re-opens it, hovering a category reveals its
-   items, and leaving collapses it again. Touch: tap the handle to
-   toggle, tap a category to toggle its items. Always reachable so a
-   player can remind themselves mid-game what's in play. `groups` is
-   buildVariantsSnapshot's output (or null for a plain game -> "Standard
-   rules"). */
+/* The in-game Current Variants reference — a compact top-left HUD emblem
+   that reports which Singularity categories this game is running under.
+   Collapsed, it's a dimmed stack of three checkbox rows (one per
+   category: LAWS / MATTER / TOPOLOGY), each row a small square + an
+   abstract glyph; a category with active variants shows its box filled
+   and glowing blue, an inactive one shows it muted/unchecked. A
+   continuous 0.5s hover or press-and-hold brightens the emblem to full
+   and flies a panel out to the right/below listing the active variants;
+   leaving the combined zone starts a 0.5s buffer — return within it and
+   it stays open, otherwise it collapses back to the dimmed emblem.
+   `groups` is buildVariantsSnapshot's output (or null/empty for a plain
+   game -> "Standard rules"). */
+
+// Category order + glyphs for the three emblem rows. Keys match
+// buildVariantsSnapshot's group keys so a row lights up iff that group
+// carries active items.
+const VARIANT_ROWS = [
+  { key: "laws", glyph: "⌬" },
+  { key: "matter", glyph: "⍝" },
+  { key: "topologies", glyph: "⏣" },
+];
+const VARIANT_HOLD_MS = 500; // continuous hover/hold before opening
+const VARIANT_EXIT_MS = 500; // buffer before collapsing after leaving
+
 function VariantsFlyout({ groups }) {
   const h = React.createElement;
-  const [open, setOpen] = React.useState(true);
-  const [expanded, setExpanded] = React.useState(null);
-  // Fly open on mount (a game just started), then settle to the handle.
-  React.useEffect(() => {
-    const id = setTimeout(() => setOpen(false), 5200);
-    return () => clearTimeout(id);
-  }, []);
+  const [open, setOpen] = React.useState(false);
+  const openTimer = React.useRef(null);
+  const exitTimer = React.useRef(null);
+
+  const clearTimers = () => {
+    if (openTimer.current) { clearTimeout(openTimer.current); openTimer.current = null; }
+    if (exitTimer.current) { clearTimeout(exitTimer.current); exitTimer.current = null; }
+  };
+  React.useEffect(() => clearTimers, []);
+
+  // Pointer entered the combined zone (emblem or open panel). Cancel any
+  // pending collapse; if still closed, arm the 500ms open timer.
+  const onEnter = () => {
+    if (exitTimer.current) { clearTimeout(exitTimer.current); exitTimer.current = null; }
+    if (open) return;
+    if (openTimer.current) return;
+    openTimer.current = setTimeout(() => { openTimer.current = null; setOpen(true); }, VARIANT_HOLD_MS);
+  };
+  // Pointer left the combined zone. Cancel a not-yet-fired open; if
+  // already open, arm the 500ms exit buffer.
+  const onLeave = () => {
+    if (openTimer.current) { clearTimeout(openTimer.current); openTimer.current = null; }
+    if (!open) return;
+    if (exitTimer.current) return;
+    exitTimer.current = setTimeout(() => { exitTimer.current = null; setOpen(false); }, VARIANT_EXIT_MS);
+  };
 
   const active = Array.isArray(groups) && groups.length > 0;
-  const accent = "#66d9ff";
-  const panelBg = "rgba(5,11,18,0.94)";
-  const border = "1px solid rgba(102,217,255,0.35)";
+  const groupByKey = {};
+  if (active) groups.forEach((g) => { groupByKey[g.key] = g; });
 
-  const handle = h(
+  const accent = "#3b82f6";
+  const accentGlow = "rgba(59,130,246,0.55)";
+  const idleOpacity = 0.4;
+
+  // --- Collapsed emblem: three checkbox rows -------------------------
+  const emblemRows = VARIANT_ROWS.map((row) => {
+    const on = !!groupByKey[row.key];
+    const box = h("span", {
+      style: {
+        width: 11, height: 11, flex: "0 0 auto", borderRadius: 2,
+        border: on ? `1px solid ${accent}` : "1px solid rgba(160,174,192,0.5)",
+        background: on ? accent : "transparent",
+        boxShadow: on && open ? `0 0 7px ${accentGlow}` : "none",
+      },
+    });
+    const glyph = h("span", {
+      style: {
+        fontFamily: "'Chakra Petch', sans-serif", fontSize: 12, lineHeight: 1,
+        color: on ? (open ? "#dbeafe" : accent) : "rgba(160,174,192,0.65)",
+        textShadow: on && open ? `0 0 8px ${accentGlow}` : "none",
+      },
+    }, row.glyph);
+    return h("div", {
+      key: row.key,
+      style: { display: "flex", alignItems: "center", gap: 6 },
+    }, box, glyph);
+  });
+
+  const emblem = h(
     "div",
     {
-      onClick: () => setOpen((o) => !o),
+      title: "Currently selected singularity variants",
       style: {
-        fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 11,
-        letterSpacing: "0.14em", textTransform: "uppercase", color: accent,
-        background: panelBg, border, borderRadius: 4, padding: "6px 10px",
-        cursor: "pointer", whiteSpace: "nowrap", userSelect: "none",
-        boxShadow: "0 0 14px rgba(102,217,255,0.18)",
+        display: "flex", flexDirection: "column", gap: 4,
+        padding: "6px 8px", borderRadius: 5,
+        background: open ? "rgba(7,15,26,0.95)" : "rgba(10,14,22,0.72)",
+        border: open ? `1px solid ${accent}` : "1px solid rgba(120,140,170,0.28)",
+        boxShadow: open ? `0 0 16px ${accentGlow}` : "none",
+        opacity: open ? 1 : idleOpacity,
+        transition: "opacity 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease",
+        cursor: "default", userSelect: "none",
       },
     },
-    "◈ Current Variants"
+    emblemRows
   );
 
-  const body = open && h(
+  // --- Expanded panel: the active variant details --------------------
+  const panel = open && h(
     "div",
     {
       style: {
-        marginTop: 4, background: panelBg, border, borderRadius: 4,
-        padding: "6px 4px", minWidth: 172, maxWidth: 240,
-        boxShadow: "0 6px 22px rgba(0,0,0,0.5)",
+        marginTop: 6, background: "rgba(7,15,26,0.96)",
+        border: `1px solid ${accent}`, borderRadius: 5,
+        padding: "8px 6px", minWidth: 184, maxWidth: 248,
+        boxShadow: `0 8px 26px rgba(0,0,0,0.55), 0 0 14px ${accentGlow}`,
       },
     },
     active
       ? groups.map((g) =>
           h(
             "div",
-            {
-              key: g.key,
-              onMouseEnter: () => setExpanded(g.key),
-              onClick: () => setExpanded((e) => (e === g.key ? null : g.key)),
-              style: { padding: "4px 8px", cursor: "pointer" },
-            },
+            { key: g.key, style: { padding: "3px 8px 5px" } },
             h(
               "div",
               { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 } },
-              h("span", { style: { fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 11.5, letterSpacing: "0.08em", color: accent } }, g.label),
-              h("span", { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(207,216,220,0.6)" } }, String(g.items.length))
+              h("span", { style: { fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "#93c5fd" } }, g.label),
+              h("span", { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(147,197,253,0.55)" } }, String(g.items.length))
             ),
-            expanded === g.key &&
-              h(
-                "ul",
-                { style: { margin: "4px 0 2px", padding: "0 0 0 14px", listStyle: "none" } },
-                g.items.map((it, idx) =>
-                  h(
-                    "li",
-                    { key: idx, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, lineHeight: 1.5, color: "rgba(223,250,255,0.9)" } },
-                    "• " + it
-                  )
+            h(
+              "ul",
+              { style: { margin: "3px 0 0", padding: "0 0 0 12px", listStyle: "none" } },
+              g.items.map((it, idx) =>
+                h(
+                  "li",
+                  { key: idx, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, lineHeight: 1.55, color: "rgba(223,244,255,0.9)" } },
+                  "• " + it
                 )
               )
+            )
           )
         )
       : h(
           "div",
-          { style: { padding: "4px 8px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "rgba(207,216,220,0.75)" } },
+          { style: { padding: "3px 8px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "rgba(200,214,230,0.75)" } },
           "Standard rules"
         )
   );
@@ -2178,16 +2238,18 @@ function VariantsFlyout({ groups }) {
     {
       "data-testid": "variants-flyout",
       "data-open": open ? "true" : "false",
-      onMouseEnter: () => setOpen(true),
-      onMouseLeave: () => { setOpen(false); setExpanded(null); },
+      onMouseEnter: onEnter,
+      onMouseLeave: onLeave,
+      onPointerDown: onEnter,
+      onPointerUp: onLeave,
       style: {
         position: "absolute", top: 12, left: 12, zIndex: 40,
         display: "flex", flexDirection: "column", alignItems: "flex-start",
         pointerEvents: "auto",
       },
     },
-    handle,
-    body
+    emblem,
+    panel
   );
 }
 
