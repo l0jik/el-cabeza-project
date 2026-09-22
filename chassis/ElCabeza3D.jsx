@@ -1391,7 +1391,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     stepsRemaining > 0
       ? legalMovesFor(pieces, activePiece)
       : {};
-  const shadowEntries = Object.entries(shadows);
+  // Slide moves are NOT drawn as persistent landing markers — they're
+  // invoked by dragging the piece (see the drag-to-slide gesture in the
+  // pointer effect), so only roll landings (and Cabeza's own steps, which
+  // carry no isSlide flag) show as ghosts. This keeps the board from
+  // being buried under a marker for every slide direction on top of every
+  // roll.
+  const shadowEntries = Object.entries(shadows).filter(([, m]) => !m.isSlide);
 
   /* ------------------------- scene setup ------------------------- */
   useEffect(() => {
@@ -1815,6 +1821,28 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // through real pieces or move indicators to find its own meshes.
     const holeGroup = new THREE.Group();
 
+    // Slide LAW gesture cue — a single arrow lit up on the selected
+    // piece while the player is dragging it toward a legal slide (see
+    // the drag-to-slide handling in the pointer effect). Built once and
+    // reused: hidden by default, oriented and positioned imperatively
+    // per drag frame. A child of boardGroup so it turns WITH the board,
+    // which is what lets rotation.y (derived from the slide's own
+    // row/col direction) always point true regardless of camera heading.
+    const slideArrowGroup = new THREE.Group();
+    {
+      const arrowMat = new THREE.MeshStandardMaterial({
+        color: 0x0a1a20, emissive: 0x66d9ff, emissiveIntensity: 0.95, roughness: 0.4, metalness: 0.1,
+      });
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 12), arrowMat);
+      shaft.rotation.z = -Math.PI / 2; // default +Y -> lie along +X
+      shaft.position.x = 0.28;
+      const head = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.3, 16), arrowMat);
+      head.rotation.z = -Math.PI / 2; // cone default +Y -> point +X
+      head.position.x = 0.66;
+      slideArrowGroup.add(shaft, head);
+      slideArrowGroup.visible = false;
+    }
+
     /* Everything that should turn together — the slab, the grid, every
        piece, every footprint indicator — lives under one group. Camera
        and lights are NOT children of it: the viewer and the lamp stay
@@ -1822,7 +1850,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        what makes each piece's shadow sweep as its facing to the fixed
        light changes, the way a lazy Susan looks under a fixed lamp. */
     const boardGroup = new THREE.Group();
-    boardGroup.add(slab, slabEdges, topRing, theme.makeGrid(), pieceGroup, ghostGroup, holeGroup);
+    boardGroup.add(slab, slabEdges, topRing, theme.makeGrid(), pieceGroup, ghostGroup, holeGroup, slideArrowGroup);
     scene.add(boardGroup);
 
     three.current = {
@@ -1833,6 +1861,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       pieceGroup,
       ghostGroup,
       holeGroup,
+      slideArrowGroup,
       raycaster: new THREE.Raycaster(),
       pointer: new THREE.Vector2(),
       // Exposed so theme code reached later (the singularity board
@@ -3218,6 +3247,32 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     let undoDragTarget = null;
     let undoDownX = 0;
     let undoDownY = 0;
+    /* Slide LAW drag gesture (see onDown/onMove/onUp): armed when a
+       contact starts on the selected piece that hasn't acted yet this
+       turn and has at least one legal slide. `dirs` are the on-screen
+       unit directions toward each legal slide's adjacent cell (computed
+       once at contact, since the board doesn't move during the drag);
+       `chosen` is the slide key whose direction the net drag best matches,
+       updated per move and committed on release. null the rest of the
+       time, so no other gesture is affected. Mutually exclusive with
+       undoDragTarget by turn state (undo is turnLocked, slide is not). */
+    let slideDrag = null;
+    let slideDownX = 0;
+    let slideDownY = 0;
+    // Shows/orients/hides the slide arrow cue on the selected piece.
+    // dirKey is a "slide-<DIR>" key or null to hide. rotation.y maps the
+    // arrow's local +X onto the slide's own (dr,dc) board direction.
+    function updateSlideArrow(dirKey) {
+      const g = t.slideArrowGroup;
+      if (!g) return;
+      const piece = dirKey ? pieces.find((p) => p.id === selectedId) : null;
+      if (!piece) { g.visible = false; return; }
+      const [dr, dc] = STEP_DIRS[baseDirOfSlideKey(dirKey)];
+      const pc = pieceCenter(piece);
+      g.position.set(pc.x, 0.16, pc.z);
+      g.rotation.y = Math.atan2(-dr, dc);
+      g.visible = true;
+    }
     // Projects a boardGroup-local (x, z) point (piece centers are
     // stored in the board's own local space, since pieceGroup is a
     // child of boardGroup and turns with it) to CSS pixel coordinates,
@@ -3401,21 +3456,51 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         // in onMove. Only armed when a contact starts directly on that
         // exact piece, mid-turn, on the human's own turn.
         undoDragTarget = null;
-        if (!altPanning && turnLocked && selectedId != null && !busy && !anim.current && currentPlayer !== aiPlayer && !awaitingBegin) {
+        slideDrag = null;
+        if (!altPanning && selectedId != null && !busy && !anim.current && currentPlayer !== aiPlayer && !awaitingBegin) {
           const hit = pick(ev);
           if (hit && hit.type === "piece" && hit.id === selectedId) {
-            const origin = turnSnapshot && turnSnapshot.find((p) => p.id === selectedId);
-            const current = pieces.find((p) => p.id === selectedId);
-            if (origin && current) {
-              const originScreen = worldToScreen(pieceCenter(origin).x, pieceCenter(origin).z);
-              const currentScreen = worldToScreen(pieceCenter(current).x, pieceCenter(current).z);
-              const ddx = originScreen.x - currentScreen.x;
-              const ddy = originScreen.y - currentScreen.y;
-              const dlen = Math.hypot(ddx, ddy);
-              if (dlen > 1) {
-                undoDragTarget = { dirX: ddx / dlen, dirY: ddy / dlen };
-                undoDownX = ev.clientX;
-                undoDownY = ev.clientY;
+            if (turnLocked) {
+              // "Undo Move": drag the already-moved piece back toward its
+              // start-of-turn square (see onMove).
+              const origin = turnSnapshot && turnSnapshot.find((p) => p.id === selectedId);
+              const current = pieces.find((p) => p.id === selectedId);
+              if (origin && current) {
+                const originScreen = worldToScreen(pieceCenter(origin).x, pieceCenter(origin).z);
+                const currentScreen = worldToScreen(pieceCenter(current).x, pieceCenter(current).z);
+                const ddx = originScreen.x - currentScreen.x;
+                const ddy = originScreen.y - currentScreen.y;
+                const dlen = Math.hypot(ddx, ddy);
+                if (dlen > 1) {
+                  undoDragTarget = { dirX: ddx / dlen, dirY: ddy / dlen };
+                  undoDownX = ev.clientX;
+                  undoDownY = ev.clientY;
+                }
+              }
+            } else {
+              // Slide LAW: drag a not-yet-moved piece one cell to slide it
+              // (see onMove/onUp). Each legal slide's on-screen direction
+              // is captured now, since the board holds still through the
+              // drag. Nothing to arm if this piece has no legal slide
+              // (slide law off, Cabeza, or fully boxed in).
+              const piece = pieces.find((p) => p.id === selectedId);
+              const moves = piece ? legalMovesFor(pieces, piece) : {};
+              const slideEntries = Object.entries(moves).filter(([, m]) => m.isSlide);
+              if (piece && slideEntries.length) {
+                const pc = pieceCenter(piece);
+                const originScreen = worldToScreen(pc.x, pc.z);
+                const dirs = slideEntries.map(([key]) => {
+                  const [dr, dc] = STEP_DIRS[baseDirOfSlideKey(key)];
+                  const adj = pieceCenter({ ...piece, row: piece.row + dr, col: piece.col + dc });
+                  const a = worldToScreen(adj.x, adj.z);
+                  const vx = a.x - originScreen.x;
+                  const vy = a.y - originScreen.y;
+                  const len = Math.hypot(vx, vy) || 1;
+                  return { key, dirX: vx / len, dirY: vy / len };
+                });
+                slideDrag = { dirs, chosen: null };
+                slideDownX = ev.clientX;
+                slideDownY = ev.clientY;
               }
             }
           }
@@ -3504,6 +3589,26 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               handleUndoTurn();
             }
           }
+          return;
+        }
+
+        if (slideDrag) {
+          // Snap the net drag to the nearest legal slide direction and
+          // light the arrow toward it; committed on release (onUp). Never
+          // falls through to camera-rotate while this gesture is live.
+          const totalDx = ev.clientX - slideDownX;
+          const totalDy = ev.clientY - slideDownY;
+          const totalLen = Math.hypot(totalDx, totalDy);
+          let chosen = null;
+          if (totalLen > DRAG_DEAD_ZONE_PX) {
+            let bestDot = 0.5; // require ~60deg alignment before claiming a direction
+            for (const d of slideDrag.dirs) {
+              const dot = (totalDx / totalLen) * d.dirX + (totalDy / totalLen) * d.dirY;
+              if (dot > bestDot) { bestDot = dot; chosen = d.key; }
+            }
+          }
+          slideDrag.chosen = chosen;
+          updateSlideArrow(chosen);
           return;
         }
 
@@ -3699,6 +3804,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
 
       const wasDrag = moved > DRAG_DEAD_ZONE_PX;
       dragging = false;
+
+      /* Slide LAW: a drag that settled on a legal slide direction commits
+         that slide on release. If none was chosen (drag went nowhere legal,
+         or never left the dead zone), just clear the cue and fall through —
+         a genuine tap still selects/deselects below. */
+      if (slideDrag) {
+        const chosen = slideDrag.chosen;
+        slideDrag = null;
+        updateSlideArrow(null);
+        if (chosen && activePiece && !busy && !anim.current) {
+          beginMove(activePiece, chosen);
+          return;
+        }
+      }
+
       /* wasAltPan is checked explicitly rather than leaning on wasDrag:
          a deliberate but very short pan can finish under the movement
          threshold, and without this it would fall through and
@@ -3773,6 +3893,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       if (active.size === 0) {
         dragging = false;
         altPanning = false; // an interrupted gesture must not leave the board latched in pan mode
+        // An interrupted slide drag must clear its cue and not commit.
+        if (slideDrag) { slideDrag = null; updateSlideArrow(null); }
       }
       el.style.cursor = "grab";
     }
