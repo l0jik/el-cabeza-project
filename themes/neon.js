@@ -3306,13 +3306,15 @@ export function useSetupExtras({
   // instead of the fixed five.
   function applyMatterRoster(matterSelections, randomize) {
     const roster = buildRosterFromSelections(matterSelections);
-    if (!roster) return;
-    // Only shuffle the opening layout when actually asked to (see
-    // finalizeSingularityBegin): a default roster with Randomized Start
-    // off keeps the standard fixed formation instead of silently
-    // randomizing. A customized roster has no fixed formation, so the
-    // caller forces randomize there — that's the only way to place it.
-    setPieces(randomize ? generateAnomalySetup(roster) : createInitialPieces());
+    // Always (re)place a fresh opening. Only shuffle when actually asked to
+    // (see finalizeSingularityBegin): a default roster with Randomized Start
+    // off keeps the standard fixed formation; a customized roster has no
+    // fixed formation, so the caller forces randomize to place it. Placing
+    // the standard formation even for a null (default) roster — rather than
+    // returning without touching the board — is what lets a persisted New
+    // Game reset to a clean opening instead of inheriting the ended game's
+    // final piece positions.
+    setPieces(roster && randomize ? generateAnomalySetup(roster) : createInitialPieces());
   }
 
   const singularityCinematic = useSingularityPhase({

@@ -2193,70 +2193,65 @@ export function useSingularityPhase({
   function finalizeSingularityBegin() {
     // Marks the game about to start as Singularity-originated — read by
     // themes/neon.js's own board-FX tick (applySingularityBoardPalette)
-    // for as long as this game is active, and cleared by chassis's New
-    // Game reset (see deactivateSingularityBoardFx). Set before
-    // triggerBeginGame so the retint is already in place the instant
+    // for as long as this game is active, and cleared only by the chassis's
+    // "Reset rules" control now (see deactivateSingularityBoardFx). Set
+    // before triggerBeginGame so the retint is already in place the instant
     // the board becomes visible, not one frame later.
     const t = three && three.current;
     if (t) t.singularityGameActive = true;
-    // TOPOLOGIES: apply the chosen board size FIRST, before any pieces or
-    // holes are placed — createInitialPieces/generateAnomalySetup and
-    // pickBlackHoleSquares all read the live engine dimensions, so they
-    // land on the resized board only if the resize has already happened.
-    // Still awaiting Begin here (triggerBeginGame is the last call below),
-    // so the plate rebuild + camera refit runs while the board is hidden.
-    if (t && t.singularity && t.singularity.selections && applyBoardResize) {
-      const topo = t.singularity.selections.topologies;
-      applyBoardResize(topo.rows, topo.cols);
-    }
-    // MATTER's chosen roster (the two rectangular new piece types plus
-    // any custom counts of the five originals) actually gets placed
-    // here, via the same Anomaly generator the plain button already
-    // uses — see applyMatterRoster/buildRosterFromSelections in
-    // themes/neon.js. MATTER's two non-convex pieces (L-Pentomino/Arch)
-    // still aren't wired to anything real.
-    if (t && t.singularity && t.singularity.selections && applyMatterRoster) {
-      // Randomize the opening layout only when the player opted in
-      // (Randomized Start) or picked a custom roster/new pieces (which
-      // has no standard formation to fall back to). A plain default game
-      // keeps the standard fixed formation — no silent shuffle.
-      const sel = t.singularity.selections;
-      applyMatterRoster(sel.matter, isCategoryActive("matter", sel));
-    }
-    // LAWS: the sphere's checkboxes just toggle plain booleans in
-    // selections.laws (same shape as ACTIVE_LAWS) — actually applying
-    // them to the game about to start is this one call. Reset back to
-    // all-off on New Game via chassis's handleReset (see
-    // engine/constants.js's setActiveLaws for the shared cross-thread
-    // mechanism the AI worker also relies on).
-    if (t && t.singularity && t.singularity.selections) {
-      const laws = setActiveLaws(t.singularity.selections.laws);
-      // Black Hole Squares: the sphere has only one checkbox for this
-      // (no "how many" control), so ON always means the richer,
-      // two-hole wormhole version — see SINGULARITY_DESIGN.md and
-      // pickBlackHoleSquares' own comment for the placement rule. Set
-      // on both engine/constants.js's module state (read by rules.js
-      // and forwarded to the AI worker) and the chassis's React copy
-      // (read by its holeGroup render effect) from the SAME computed
-      // list, so what's enforced and what's drawn never disagree.
+    const liveSel = t && t.singularity && t.singularity.selections;
+    if (liveSel) {
+      // Snapshot the selections so a later New Game replays THIS game's
+      // setup even if the sphere is reopened and fiddled with without
+      // beginning again — selections are plain data, so a JSON clone is a
+      // safe deep copy.
+      const sel = JSON.parse(JSON.stringify(liveSel));
+      const matterActive = isCategoryActive("matter", sel);
+
+      // TOPOLOGIES first: board size must be applied before any pieces or
+      // holes, since piece placement and hole placement both read the live
+      // engine dimensions. Still awaiting Begin here, so the plate rebuild
+      // + camera refit runs while the board is hidden.
+      if (applyBoardResize) applyBoardResize(sel.topologies.rows, sel.topologies.cols);
+      // MATTER's chosen roster (custom counts of the five originals; the
+      // two rectangular new types) placed via the same Anomaly generator
+      // the plain button uses. Randomized only when the player opted in or
+      // customized — a plain default game keeps the standard formation.
+      if (applyMatterRoster) applyMatterRoster(sel.matter, matterActive);
+      // LAWS: the sphere's checkboxes are plain booleans shaped like
+      // ACTIVE_LAWS; this is where they actually take effect (and get
+      // forwarded to the AI worker via setActiveLaws' shared mechanism).
+      const laws = setActiveLaws(sel.laws);
+      // Black Hole Squares: ON always means the two-hole wormhole version.
+      // Resolved ONCE here and reused on replay so the layout stays
+      // identical game to game. Set on both the engine module state and the
+      // chassis React copy from the same list, so enforced == drawn.
       const holes = laws.blackHoleSquares
-        ? buildBlackHolePlacement(
-            t.singularity.selections,
-            getBoardDimensions().rows,
-            getBoardDimensions().cols,
-            pieces,
-          )
+        ? buildBlackHolePlacement(sel, getBoardDimensions().rows, getBoardDimensions().cols, pieces)
         : [];
       setActiveBlackHoles(holes);
       if (setBlackHoles) setBlackHoles(holes);
-    }
-    // Snapshot the chosen specials for the in-game Current Variants
-    // flyout (renderVariantsFlyout). Built from the same label tables the
-    // sphere menu uses so names match, and only the ACTIVE ones — a plain
-    // game (reached without the sphere) never calls this, leaving the
-    // chassis snapshot null, which the flyout renders as "Standard rules".
-    if (t && t.singularity && t.singularity.selections && setCurrentVariants) {
-      setCurrentVariants(buildVariantsSnapshot(t.singularity.selections));
+      // Snapshot the active specials for the in-game Current Variants
+      // flyout (and, now, as the signal the chassis uses to show its Reset
+      // rules control — a null snapshot means a plain game).
+      const variants = buildVariantsSnapshot(sel);
+      if (setCurrentVariants) setCurrentVariants(variants);
+
+      // Register a replay of exactly this setup on three.current so the
+      // chassis (a different module) can re-run it when New Game persists
+      // the Singularity rules instead of resetting to a vanilla game — see
+      // handleReset's keepSingularity branch. Board size + roster are
+      // re-derived each time (a fresh, possibly re-randomized opening),
+      // while the resolved holes/variants are reused verbatim.
+      t.reapplySingularitySetup = () => {
+        t.singularityGameActive = true;
+        if (applyBoardResize) applyBoardResize(sel.topologies.rows, sel.topologies.cols);
+        if (applyMatterRoster) applyMatterRoster(sel.matter, matterActive);
+        setActiveLaws(sel.laws);
+        setActiveBlackHoles(holes);
+        if (setBlackHoles) setBlackHoles(holes);
+        if (setCurrentVariants) setCurrentVariants(variants);
+      };
     }
     if (triggerBeginGame) triggerBeginGame();
     exitSingularity();

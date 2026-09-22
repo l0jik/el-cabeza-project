@@ -160,9 +160,33 @@ comments as "reasoned but unverified extrapolation," not measured.
   by name, plus a rescaled shadow frustum), while piece placement, picking
   math and camera fit all read the live engine bindings and follow the new
   size on their own. `topDownView()` on Begin Game reframes the camera to
-  the new plate. New Game restores the boot size (`bootBoardRef`). The
+  the new plate. New Game restores the boot size (`bootBoardRef`) ONLY for a
+  vanilla reset — see the Singularity-persistence note below. The
   black-hole picker uses `selections.topologies` (the chosen size), since
   the live board isn't resized until Begin Game.
+- **Singularity settings persist across New Game (reversal of the old
+  reset-to-vanilla).** `handleReset` is now `resetGame(keepSingularity)`
+  with `handleReset = resetGame(true)` (New Game) and `handleResetRules =
+  resetGame(false)` (the "Reset Rules" dock button). When the ended game was
+  Singularity-originated (`three.current.singularityGameActive` true and the
+  theme registered `three.current.reapplySingularitySetup`), New Game
+  REPLAYS the same setup — laws, board size, black holes, MATTER roster,
+  board FX and the variants snapshot — instead of wiping them; only the
+  vanilla branch clears laws/holes/variants/FX and restores the boot board +
+  `createInitialPieces`. `finalizeSingularityBegin` (neon-singularity.js)
+  deep-clones the selections and registers `reapplySingularitySetup`
+  (board resize + `applyMatterRoster` for a fresh, possibly re-randomized
+  opening + `setActiveLaws` + the resolved holes + variants). `applyMatterRoster`
+  now ALWAYS `setPieces` (default roster → `createInitialPieces`) so a
+  persisted New Game resets to a clean opening rather than inheriting the
+  ended game's final positions. "Reset Rules" (chassis dock button, gated on
+  `currentVariants != null` and `status !== "playing"`, `data-testid=
+  "reset-rules"`) forces the vanilla branch; it clears `singularityGameActive`,
+  so subsequent New Games are vanilla until the sphere runs again. A
+  brand-new session never went through the sphere, so it starts vanilla.
+  Standard theme never sets `singularityGameActive`, so it always
+  vanilla-resets. Verified in `tests/e2e-singularity.mjs` (12×8 board
+  persists across New Game; Reset Rules reverts to 10×10 and hides).
 - Known non-obvious consequence, confirmed not a bug: four pieces (each
   side's Turrito and Cabeza) start boxed in by their own neighbours —
   identically at 10×10, 20×20 and non-square sizes. Don't "fix" it.
@@ -598,6 +622,15 @@ Line-based fix for board-edge z-fighting again.
   their own separate rotation, not merged into the harsher
   hard-cut glitch pool). Default to restraint on any new Neon ambient
   effect, not brightness/frequency.
+- **Card-targeted glitches (`fireVhs`, `fireRare`, `fireCrtAberration`) are
+  gated on `isVisibleForGlitch(card)`.** `cardRef` is the dock panel
+  (`data-testid="dock-panel"`); in-game it's closed by fading to `opacity:0`
+  (not unmounted), and a glitch class's own opacity keyframes would override
+  that and flash the whole panel back into view — the "dock briefly appears
+  mid-game" bug. Only glitch the card while the dock is actually open (same
+  gate the button jitter uses). `fireVhs` still fires its screen-wide overlay
+  flash + cue regardless (not the dock); `fireRare`'s card-only cue is
+  skipped with its visual when the dock is closed.
 - Every theme's font must be read from `theme.titleFontFamily` (Neon =
   Chakra Petch via `@import` in `styleSheet`; Standard defaults to
   Fraunces) — never hardcoded on the chassis side; this broke once

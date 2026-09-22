@@ -34,7 +34,7 @@
 import { chromium } from "playwright";
 import path from "path";
 import { fileURLToPath } from "url";
-import { openDockPanel, waitForDockCorner } from "./dock-helpers.mjs";
+import { openDockPanel, waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const file = path.join(__dirname, "..", "dist", "el-cabeza-neon.html");
@@ -521,6 +521,49 @@ const panelOpacityAfter = await page.evaluate(() => {
 });
 check("the dock panel is hidden after a Singularity begin (not stranded visible)",
   Number(panelOpacityAfter) < 0.05, `panelOpacity=${panelOpacityAfter}`);
+
+// ---- New Game PERSISTS the Singularity rules (the 12x8 board carries
+// over instead of resetting to 10x10); the Reset Rules control clears them
+// back to a plain game. Reopen the dock (collapsed to the corner after
+// Begin Game) to reach End Active Game / New Game. ----
+await reopenDockPanelFromCorner(page, cornerBox);
+await page.waitForTimeout(400);
+await page.locator('[data-testid="dock-panel"] button', { hasText: "End Active Game" }).click();
+await page.waitForTimeout(500);
+// A Singularity game just ended, so the Reset Rules control is offered.
+check("Reset Rules control appears once a Singularity game has ended",
+  (await page.locator('[data-testid="reset-rules"]').count()) > 0);
+// New Game (the ended-state Reset Game button) keeps the Singularity rules:
+// the 12x8 board must persist rather than snapping back to the boot size.
+await page.locator('[data-testid="dock-panel"] button', { hasText: /^Reset Game$/ }).click();
+await page.waitForTimeout(700);
+const boardAfterNewGame = await page.evaluate(() => window.__EC_TEST_BOARD__ || null);
+check("New Game persists the Singularity board size (12x8 kept, not reset to boot)",
+  boardAfterNewGame && boardAfterNewGame.rows === wantRows && boardAfterNewGame.cols === wantCols,
+  `board=${JSON.stringify(boardAfterNewGame)}`);
+// New Game lands back at pre-game setup — Reset Rules is only offered once a
+// game has ended, so it must NOT be showing here.
+check("Reset Rules is hidden at pre-game setup",
+  (await page.locator('[data-testid="reset-rules"]').count()) === 0);
+// Begin the persisted-rules game from the dock (no sphere needed), end it,
+// then Reset Rules must clear the board back to the boot size. Reopen the
+// pre-game panel first — New Game leaves the dock as the collapsed piece.
+await openDockPanel(page);
+await page.waitForTimeout(300);
+await page.locator("button", { hasText: "Begin Game" }).first().click();
+const cornerBox2 = await waitForDockCorner(page, { timeoutMs: 8000 });
+await reopenDockPanelFromCorner(page, cornerBox2);
+await page.waitForTimeout(400);
+await page.locator('[data-testid="dock-panel"] button', { hasText: "End Active Game" }).click();
+await page.waitForTimeout(500);
+await page.locator('[data-testid="reset-rules"]').click();
+await page.waitForTimeout(700);
+const boardAfterResetRules = await page.evaluate(() => window.__EC_TEST_BOARD__ || null);
+check("Reset Rules clears the board back to the boot size (10x10)",
+  boardAfterResetRules && boardAfterResetRules.rows === 10 && boardAfterResetRules.cols === 10,
+  `board=${JSON.stringify(boardAfterResetRules)}`);
+check("Reset Rules control disappears once rules are cleared",
+  (await page.locator('[data-testid="reset-rules"]').count()) === 0);
 
 check(`no page errors (${errors.length})`, errors.length === 0, JSON.stringify(errors.slice(0, 3)));
 

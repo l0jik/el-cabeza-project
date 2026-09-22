@@ -4657,35 +4657,50 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
 
     processEntry(0, pieces);
   }
+  /* New Game (handleReset) now PERSISTS the previous game's Singularity
+     setup — laws, board size, black holes, MATTER roster and the variants
+     snapshot all carry into the next game instead of resetting to a vanilla
+     one — so long as the ended game was Singularity-originated and the
+     theme registered a replay (three.current.reapplySingularitySetup, set
+     by finalizeSingularityBegin). The dedicated "Reset rules" control calls
+     this with keepSingularity=false to force a clean vanilla game; a
+     brand-new session (never through the sphere) has nothing to replay, so
+     it starts vanilla regardless. */
   function handleReset() {
-    // A fresh game is never a Singularity game until proven otherwise
-    // (i.e. until finalizeSingularityBegin sets this again) — snaps the
-    // board palette/warp back to normal Neon in the same frame, rather
-    // than leaving them active (or waiting for the next tick's own
-    // inactive-branch cleanup) into a game that never went through the
-    // sphere at all.
-    if (three.current) {
-      three.current.singularityGameActive = false;
-      theme.deactivateSingularityBoardFx && theme.deactivateSingularityBoardFx(three.current);
+    resetGame(true);
+  }
+  function handleResetRules() {
+    resetGame(false);
+  }
+  function resetGame(keepSingularity) {
+    const keepSingularityConfig =
+      keepSingularity &&
+      three.current &&
+      three.current.singularityGameActive &&
+      typeof three.current.reapplySingularitySetup === "function";
+
+    // Vanilla-reset the Singularity state ONLY when not persisting it. When
+    // persisting, the theme's reapplySingularitySetup (called below, in
+    // place of the standard board/piece reset) re-establishes laws, board
+    // size, black holes, roster, FX and the variants snapshot as they were.
+    if (!keepSingularityConfig) {
+      // A fresh game is never a Singularity game until proven otherwise —
+      // snap the board palette/warp back to normal Neon this same frame.
+      if (three.current) {
+        three.current.singularityGameActive = false;
+        theme.deactivateSingularityBoardFx && theme.deactivateSingularityBoardFx(three.current);
+      }
+      // LAWS/black holes/variants are Singularity-game facts, not persistent
+      // session settings — cleared here for a plain game (both the engine
+      // module state read by rules.js/the AI worker and the chassis's own
+      // React copies).
+      setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false });
+      setActiveBlackHoles([]);
+      setBlackHoles([]);
+      // No captured variant snapshot — the flyout reads "Standard rules",
+      // and the Reset rules control (gated on this) hides itself.
+      setCurrentVariants(null);
     }
-    // Same reasoning as singularityGameActive right above: LAWS are a
-    // Singularity-originated game's own rules, not a persistent session
-    // setting — a fresh game (including a normal, non-Singularity one)
-    // starts with every law off until finalizeSingularityBegin sets them
-    // again, rather than silently inheriting whatever the last
-    // Singularity game had active.
-    setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false });
-    // Same reasoning, same reset: a black hole layout is a Singularity-
-    // game-specific setup fact, not a persistent session setting.
-    // Both copies need clearing — engine/constants.js's module state
-    // (read by rules.js/the AI worker) and the chassis's own React
-    // copy (read by the holeGroup render effect below).
-    setActiveBlackHoles([]);
-    setBlackHoles([]);
-    // The next game starts with no captured variant snapshot; a fresh
-    // Singularity Begin Game recaptures it, a plain game leaves it null
-    // (the flyout then reads "Standard rules").
-    setCurrentVariants(null);
     // Invalidates both views' cached fit baselines — see the refs' own
     // comment. The NEXT Begin Game press (captureViewBaselines) recaptures
     // both fresh against whatever the window measures at that moment,
@@ -4730,13 +4745,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       }
       anim.current = null;
     }
-    // Restore the board to the size the app booted at, so a resized
-    // Singularity game doesn't leave every later game stuck at that size.
-    // A no-op (early return) whenever the board is already that size, i.e.
-    // for every normal game. Done before createInitialPieces below so the
-    // fresh standard layout is placed at the restored size.
-    applyBoardResize(bootBoardRef.current.rows, bootBoardRef.current.cols);
-    setPieces(createInitialPieces());
+    if (keepSingularityConfig) {
+      // Persist the Singularity setup: replay the exact laws/board/roster/
+      // holes/variants/FX the ended game used (re-deriving a fresh, possibly
+      // re-randomized opening). This stands in for the vanilla board resize
+      // + createInitialPieces below.
+      three.current.reapplySingularitySetup();
+    } else {
+      // Restore the board to the size the app booted at, so a resized
+      // Singularity game doesn't leave every later game stuck at that size.
+      // A no-op whenever the board is already that size, i.e. for every
+      // normal game. Done before createInitialPieces so the fresh standard
+      // layout is placed at the restored size.
+      applyBoardResize(bootBoardRef.current.rows, bootBoardRef.current.cols);
+      setPieces(createInitialPieces());
+    }
     setCurrentPlayer(humanStartSide); // New Game always lands in Human mode, so this is always the relevant preference
     setSelectedId(null);
     setHoveredId(null);
@@ -5696,6 +5719,22 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                   Top-Down View
                 </button>
               </>
+            )}
+            {/* New Game now carries the previous game's Singularity rules
+               forward (see resetGame). This clears them back to a plain
+               game on demand — shown only once a game has ended (not
+               mid-play, where End Active Game comes first) and only while a
+               Singularity config is actually active (currentVariants set;
+               null = already a plain game). */}
+            {currentVariants && status !== "playing" && (
+              <button
+                className="ec-btn"
+                onClick={handleResetRules}
+                style={ghostButtonStyle()}
+                data-testid="reset-rules"
+              >
+                Reset Rules
+              </button>
             )}
           </div>
           {showTopButton && (
