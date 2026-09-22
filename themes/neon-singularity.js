@@ -1725,17 +1725,21 @@ function renderCategoryOverlay(t) {
     body = h(
       "div",
       { style: { display: "flex", flexDirection: "column" } },
-      ...LAWS_ITEMS.map((item) =>
-        renderCheckboxRow(
+      // The Black Hole Squares manual-placement control sits DIRECTLY
+      // below its own toggle (not appended after every law), so it reads
+      // as that toggle's sub-option. Only shown when the law is on.
+      ...LAWS_ITEMS.flatMap((item) => {
+        const row = renderCheckboxRow(
           item,
           sel.laws[item.key],
           () => { sel.laws[item.key] = !sel.laws[item.key]; s.labelsDirty = true; s.bump(); },
           `law-${item.key}`
-        )
-      ),
-      // When Black Hole Squares is on, offer manual placement (default is
-      // the random-but-fair auto pair). See renderBlackHolePicker.
-      sel.laws.blackHoleSquares ? renderBlackHolePlacementRow(t) : null
+        );
+        if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares) {
+          return [row, renderBlackHolePlacementRow(t)];
+        }
+        return [row];
+      })
     );
   } else if (category === "matter") {
     body = h(
@@ -1790,6 +1794,18 @@ function renderCategoryOverlay(t) {
     {
       "data-testid": "category-overlay-backdrop",
       onPointerDown: (e) => { e.stopPropagation(); close(); },
+      // A real press anywhere on the overlay (capture phase, so it also
+      // sees presses on the panel/controls that stopPropagation in bubble)
+      // marks that a genuine interaction has begun.
+      onPointerDownCapture: () => { s.categorySawPointerDown = true; },
+      // Ghost-touch guard: swallow, in the capture phase (before any
+      // control's own onClick), any click that arrives before such a real
+      // press — i.e. the trailing click of the very tap that opened this
+      // overlay. A deliberate tap always begins with its own pointerdown
+      // on the overlay, so it passes through untouched.
+      onClickCapture: (e) => {
+        if (!s.categorySawPointerDown) { e.stopPropagation(); e.preventDefault(); }
+      },
       style: { position: "fixed", inset: 0, zIndex: 2100, display: "flex", alignItems: "center", justifyContent: "center" },
     },
     h(
@@ -2329,6 +2345,14 @@ export function useSingularityPhase({
     s.activeCategory = category;
     s.sphereMenuStage = "overlay";
     s.tapTimestamps = [];
+    // Ghost-touch guard (see renderCategoryOverlay's capture handlers):
+    // the tap that opened this overlay fires a trailing `click` once the
+    // panel has rendered under the finger, which would otherwise toggle
+    // whatever control landed there. That ghost click has NO preceding
+    // pointerdown on the overlay (the opening press was on the sphere), so
+    // start "hasn't seen a fresh press yet" and only let a click through
+    // once a real pointerdown has landed on the overlay.
+    s.categorySawPointerDown = false;
     s.bump();
   }
 

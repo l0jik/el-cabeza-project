@@ -350,6 +350,15 @@ if (state.activeCategory === "laws") {
     `laws=${JSON.stringify(state.selections.laws)}`);
   check("the manual-placement control appears once Black Hole Squares is on",
     (await page.locator('[data-testid="blackhole-placement"]').count()) > 0);
+  // It must sit DIRECTLY below the Black Hole Squares toggle (its own
+  // sub-option), not appended after every law.
+  const placementRightAfterToggle = await page.evaluate(() => {
+    const toggle = document.querySelector('[data-testid="law-blackHoleSquares"]');
+    const next = toggle && toggle.nextElementSibling;
+    return !!next && next.getAttribute("data-testid") === "blackhole-placement";
+  });
+  check("the manual-placement control sits directly below the Black Hole toggle",
+    placementRightAfterToggle);
 
   await page.locator('[data-testid="blackhole-place-btn"]').click();
   await page.waitForTimeout(250);
