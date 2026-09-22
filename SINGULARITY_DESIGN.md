@@ -295,10 +295,16 @@ worker dimension passing, a parametric starting layout, and tests at
 non-square and maximum sizes. `SQUARE_SIZE` became a true constant, so a
 bigger board is a physically bigger plate rather than smaller squares.
 
-**Still to build for TOPOLOGIES proper:** the menu itself (the sphere's
-TOPOLOGIES section) and whatever carries the player's choice into
-`apps/boardBootstrap.js`'s seam; plus the non-rectangular shape idea
-below.
+**The sphere's TOPOLOGIES menu now applies for real.** The rows/cols
+drums feed `finalizeSingularityBegin`, which calls the chassis's
+`applyBoardResize(rows, cols)` at Begin Game (before the roster/holes are
+placed). This is an in-place resize, not the boot-time
+`apps/boardBootstrap.js` seam: `setBoardDimensions` updates the live
+engine bindings and `three.current.resizeBoardPlate` rebuilds only the 3D
+plate (slab/edges/top-ring/grid, by name) plus a rescaled shadow frustum;
+everything else (piece placement, picking, camera fit) already reads the
+live bindings. New Game restores the boot size. **Still open:** the
+non-rectangular shape idea below.
 
 Non-rectangular board shapes were raised as an idea but **explicitly left
 unresolved** — the user hasn't figured out what that would look like yet.

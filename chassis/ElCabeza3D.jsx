@@ -6,7 +6,7 @@ import {
   DISC_DIAM, DISC_H, GHOST_SCALE, GHOST_FADE_MS, ROLL_MS, SLIDE_MS,
   CAMERA_DAMPING, RESET_CAMERA_DAMPING, RESET_TRANSITION_MS,
   ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
-  PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
+  PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, setBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
   isSlideKey, baseDirOfSlideKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
 } from "../engine/constants.js";
 import {
@@ -1250,6 +1250,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // non-Singularity game -> the flyout reads "Standard rules"),
     // cleared on New Game (handleReset).
     isPlaying, currentVariants, setCurrentVariants,
+    // TOPOLOGIES board resize: finalizeSingularityBegin calls this to
+    // apply the chosen board size before placing the roster/holes.
+    applyBoardResize,
   }) : null;
 
   function handleTitleClick() {
@@ -1343,6 +1346,34 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      theme-owned trigger (Neon's Singularity summary menu) can fire the
      exact same game-start path as the dock's own button rather than a
      re-implementation that could drift from it. */
+  // The board size the app booted at — restored on New Game so a resized
+  // Singularity game doesn't leave every later game stuck at that size.
+  const bootBoardRef = useRef(getBoardDimensions());
+
+  /* Applies a TOPOLOGIES board-size choice for real (SINGULARITY_DESIGN.md
+     Part 2). Only the 3D plate is size-specific; every other value (piece
+     placement, picking math, camera fit) reads the live engine bindings,
+     so setBoardDimensions + a plate rebuild + a camera refit is the whole
+     job. Called only while still awaiting Begin (from
+     finalizeSingularityBegin, before the roster/holes are placed, and
+     from handleReset), so the board is hidden behind the sphere / not yet
+     shown and the setup-framing effect is live to catch the refit. */
+  // A hoisted function (not useCallback) so useSetupExtras above can
+  // receive it — it's referenced there, earlier in the component body.
+  function applyBoardResize(rows, cols) {
+    const before = getBoardDimensions();
+    const after = setBoardDimensions(rows, cols);
+    // Test-only hook (see __EC_TEST_SINGULARITY__) — the live board size
+    // isn't otherwise observable from the page after a mid-session resize.
+    if (typeof window !== "undefined") window.__EC_TEST_BOARD__ = { rows: after.rows, cols: after.cols };
+    if (after.rows === before.rows && after.cols === before.cols) return after;
+    if (three.current && three.current.resizeBoardPlate) three.current.resizeBoardPlate();
+    // The setup-framing effect refits on a window 'resize' — re-fit the
+    // camera to the new plate without reaching into that effect's closure.
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("resize"));
+    return after;
+  }
+
   function triggerBeginGame() {
     audioRef.current.beginGameFadeIn();
     audioRef.current.playPowerOn();
@@ -1792,6 +1823,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       new THREE.LineBasicMaterial({ color: HEX.charcoal, transparent: true, opacity: 0.45 })
     );
     slabEdges.position.copy(slab.position);
+    slabEdges.name = "ec-slab-edges"; // so resizeBoardPlate can find/replace it
 
     /* Thin quad-frame mesh for the top ring — see the long comment
        above slabEdgeGeo for why this needs to be a Mesh (real polygon
@@ -1848,6 +1880,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const TOP_RING_WIDTH = 0.025;
     const topRing = buildTopRingFrame(halfSlabX, halfSlabZ, topY, TOP_RING_WIDTH, HEX.charcoal, 0.45);
     topRing.position.copy(slab.position);
+    topRing.name = "ec-top-ring"; // so resizeBoardPlate can find/replace it
 
     const pieceGroup = new THREE.Group();
     const ghostGroup = new THREE.Group();
@@ -1886,7 +1919,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        what makes each piece's shadow sweep as its facing to the fixed
        light changes, the way a lazy Susan looks under a fixed lamp. */
     const boardGroup = new THREE.Group();
-    boardGroup.add(slab, slabEdges, topRing, theme.makeGrid(), pieceGroup, ghostGroup, holeGroup, slideArrowGroup);
+    const grid = theme.makeGrid();
+    grid.name = "ec-grid"; // so resizeBoardPlate can find/replace it
+    boardGroup.add(slab, slabEdges, topRing, grid, pieceGroup, ghostGroup, holeGroup, slideArrowGroup);
     scene.add(boardGroup);
 
     three.current = {
@@ -1905,6 +1940,59 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // key/fill/back are otherwise local consts, unreachable outside
       // this mount effect's own closure.
       lights: { key, fill, back },
+    };
+
+    /* Rebuild the board plate (slab + edges + top ring + grid) at the
+       CURRENT board dimensions, for when TOPOLOGIES resizes mid-setup
+       (see applyBoardResize / finalizeSingularityBegin). Only the plate
+       meshes are size-dependent — every camera/pick/piece value reads
+       the live SLAB_X/OFF_X/BOARD_ROWS bindings, so those follow the new
+       size on their own. Reuses this closure's own slabMats and
+       buildTopRingFrame so the rebuilt plate is identical to the initial
+       one, just at the new extent, and rescales the shadow frustum to
+       cover a larger plate. Never runs for a default-size game. */
+    three.current.resizeBoardPlate = () => {
+      for (const nm of ["ec-slab", "ec-slab-edges", "ec-top-ring", "ec-grid"]) {
+        const old = boardGroup.getObjectByName(nm);
+        if (!old) continue;
+        boardGroup.remove(old);
+        old.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+      }
+      const newSlab = new THREE.Mesh(new THREE.BoxGeometry(SLAB_X, SLAB_THICKNESS, SLAB_Z), slabMats);
+      newSlab.position.y = -SLAB_THICKNESS / 2;
+      newSlab.receiveShadow = true;
+      newSlab.name = "ec-slab";
+      const hx = SLAB_X / 2, hz = SLAB_Z / 2, ty = SLAB_THICKNESS / 2, by = -SLAB_THICKNESS / 2;
+      const VGAP = 0.06;
+      const corners = [[-hx, -hz], [hx, -hz], [hx, hz], [-hx, hz]];
+      const ePts = [];
+      for (let i = 0; i < 4; i++) {
+        const [x1, z1] = corners[i], [x2, z2] = corners[(i + 1) % 4];
+        ePts.push(x1, by, z1, x2, by, z2);
+        ePts.push(x1, by, z1, x1, ty - VGAP, z1);
+      }
+      const eGeo = new THREE.BufferGeometry();
+      eGeo.setAttribute("position", new THREE.Float32BufferAttribute(ePts, 3));
+      const newEdges = new THREE.LineSegments(eGeo, new THREE.LineBasicMaterial({ color: HEX.charcoal, transparent: true, opacity: 0.45 }));
+      newEdges.position.copy(newSlab.position);
+      newEdges.name = "ec-slab-edges";
+      const newRing = buildTopRingFrame(hx, hz, ty, TOP_RING_WIDTH, HEX.charcoal, 0.45);
+      newRing.position.copy(newSlab.position);
+      newRing.name = "ec-top-ring";
+      const newGrid = theme.makeGrid();
+      newGrid.name = "ec-grid";
+      boardGroup.add(newSlab, newEdges, newRing, newGrid);
+      // The shadow frustum was sized for the default plate; a bigger board
+      // needs a wider one or its shadows clip. Its half-extent has to
+      // cover the plate's bounding circle as it spins about Y, plus a
+      // little margin (the same 9.05 -> 9.5 reasoning as the fixed value).
+      const sMax = Math.max(SLAB_X, SLAB_Z);
+      const half = Math.max(9.5, (sMax * Math.SQRT2) / 2 + 1.5);
+      key.shadow.camera.left = -half;
+      key.shadow.camera.right = half;
+      key.shadow.camera.top = half;
+      key.shadow.camera.bottom = -half;
+      key.shadow.camera.updateProjectionMatrix();
     };
 
     /* Theme-owned ambient visual FX lifecycle — see ARCHITECTURE.md.
@@ -4504,6 +4592,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       }
       anim.current = null;
     }
+    // Restore the board to the size the app booted at, so a resized
+    // Singularity game doesn't leave every later game stuck at that size.
+    // A no-op (early return) whenever the board is already that size, i.e.
+    // for every normal game. Done before createInitialPieces below so the
+    // fresh standard layout is placed at the restored size.
+    applyBoardResize(bootBoardRef.current.rows, bootBoardRef.current.cols);
     setPieces(createInitialPieces());
     setCurrentPlayer(humanStartSide); // New Game always lands in Human mode, so this is always the relevant preference
     setSelectedId(null);

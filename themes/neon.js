@@ -3274,7 +3274,7 @@ export function useSetupExtras({
   awaitingBegin, pieces, setPieces, audio, three,
   aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
   busy, aiThinking, triggerBeginGame, setBlackHoles,
-  isPlaying, currentVariants, setCurrentVariants,
+  isPlaying, currentVariants, setCurrentVariants, applyBoardResize,
 }) {
   const [singularityRevealed, setSingularityRevealed] = React.useState(false);
   const singularityTapRef = React.useRef([]); // masthead tap timestamps
@@ -3313,6 +3313,9 @@ export function useSetupExtras({
     // Current Variants flyout: the setter finalizeSingularityBegin uses
     // to record which specials this game started with.
     setCurrentVariants,
+    // TOPOLOGIES: applies the chosen board size before the roster/holes
+    // are placed (finalizeSingularityBegin).
+    applyBoardResize,
   });
 
   function handleAnomaly() {

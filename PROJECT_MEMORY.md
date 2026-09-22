@@ -148,9 +148,21 @@ comments as "reasoned but unverified extrapolation," not measured.
   180° rotation rather than a second hardcoded table. At 10×10 its
   output is byte-identical to the original hardcoded array (asserted).
 - `apps/boardBootstrap.js` is the seam that applies a size before mount
-  (`window.__EC_BOARD__`). Tests drive it today; TOPOLOGIES' own menu
-  becomes the real caller. It lives in `apps/` because engine modules
+  (`window.__EC_BOARD__`). It lives in `apps/` because engine modules
   must never touch `window` (a Worker has no `window` at all).
+- **TOPOLOGIES is now wired for real.** The sphere's board-size choice is
+  applied at Begin Game via the chassis's `applyBoardResize(rows, cols)`
+  (exposed to the theme through `useSetupExtras`), which
+  `finalizeSingularityBegin` calls FIRST (before the roster/holes are
+  placed, while still awaiting Begin so the board is hidden). It's an
+  in-place resize, not a remount: only the 3D plate is size-specific
+  (rebuilt by `three.current.resizeBoardPlate` — slab/edges/top-ring/grid
+  by name, plus a rescaled shadow frustum), while piece placement, picking
+  math and camera fit all read the live engine bindings and follow the new
+  size on their own. `topDownView()` on Begin Game reframes the camera to
+  the new plate. New Game restores the boot size (`bootBoardRef`). The
+  black-hole picker uses `selections.topologies` (the chosen size), since
+  the live board isn't resized until Begin Game.
 - Known non-obvious consequence, confirmed not a bug: four pieces (each
   side's Turrito and Cabeza) start boxed in by their own neighbours —
   identically at 10×10, 20×20 and non-square sizes. Don't "fix" it.

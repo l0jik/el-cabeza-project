@@ -1583,7 +1583,11 @@ function renderBlackHolePicker(t) {
   const s = t.singularity;
   if (!s || !s.blackHolePicker) return null;
   const h = React.createElement;
-  const { rows, cols } = getBoardDimensions();
+  // The TOPOLOGIES-chosen size, not the live engine size: the resize is
+  // only applied at Begin Game, so during setup the grid must reflect the
+  // board the game WILL play on (which finalizeSingularityBegin then makes
+  // real, and buildBlackHolePlacement reads back as getBoardDimensions).
+  const { rows, cols } = s.selections.topologies;
   const confirm = s.blackHolePickConfirm || null;
   const mirror = confirm ? mirrorCell(confirm.row, confirm.col, rows, cols) : null;
   // Player's side = the bottom floor(rows/2) rows (mirror lands on top).
@@ -2014,6 +2018,8 @@ export function useSingularityPhase({
   pieces, setBlackHoles,
   // Current Variants flyout snapshot setter — see finalizeSingularityBegin.
   setCurrentVariants,
+  // TOPOLOGIES board resize — see finalizeSingularityBegin.
+  applyBoardResize,
 }) {
   const [phase, setPhase] = React.useState(PHASES.IDLE);
   const blackDivRef = React.useRef(null);
@@ -2177,12 +2183,22 @@ export function useSingularityPhase({
     // the board becomes visible, not one frame later.
     const t = three && three.current;
     if (t) t.singularityGameActive = true;
+    // TOPOLOGIES: apply the chosen board size FIRST, before any pieces or
+    // holes are placed — createInitialPieces/generateAnomalySetup and
+    // pickBlackHoleSquares all read the live engine dimensions, so they
+    // land on the resized board only if the resize has already happened.
+    // Still awaiting Begin here (triggerBeginGame is the last call below),
+    // so the plate rebuild + camera refit runs while the board is hidden.
+    if (t && t.singularity && t.singularity.selections && applyBoardResize) {
+      const topo = t.singularity.selections.topologies;
+      applyBoardResize(topo.rows, topo.cols);
+    }
     // MATTER's chosen roster (the two rectangular new piece types plus
     // any custom counts of the five originals) actually gets placed
     // here, via the same Anomaly generator the plain button already
     // uses — see applyMatterRoster/buildRosterFromSelections in
-    // themes/neon.js. TOPOLOGIES and MATTER's two non-convex pieces
-    // (L-Pentomino/Arch) still aren't wired to anything real.
+    // themes/neon.js. MATTER's two non-convex pieces (L-Pentomino/Arch)
+    // still aren't wired to anything real.
     if (t && t.singularity && t.singularity.selections && applyMatterRoster) {
       // Randomize the opening layout only when the player opted in
       // (Randomized Start) or picked a custom roster/new pieces (which

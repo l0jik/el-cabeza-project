@@ -431,6 +431,24 @@ const obox2 = await overlay2.boundingBox();
 const cx2 = obox2.x + obox2.width / 2;
 const cy2 = obox2.y + obox2.height / 2;
 
+// ---- TOPOLOGIES board resize actually applies at Begin Game. Pick a
+// non-default, non-square size in THIS session (the one that begins the
+// game), then assert the live engine board matches it once the game
+// starts (window.__EC_TEST_BOARD__, set by applyBoardResize). ----
+const wantRows = 12, wantCols = 8;
+state = await navigateToCategory("topologies");
+if (state.activeCategory === "topologies") {
+  for (let i = 0; i < wantRows - state.selections.topologies.rows; i++) await page.locator('[data-testid="board-rows-inc"]').click();
+  for (let i = 0; i < state.selections.topologies.cols - wantCols; i++) await page.locator('[data-testid="board-cols-dec"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("TOPOLOGIES size set for the game about to begin",
+    state.selections.topologies.rows === wantRows && state.selections.topologies.cols === wantCols,
+    `topo=${JSON.stringify(state.selections.topologies)}`);
+  await page.mouse.click(obox2.x + obox2.width - 24, obox2.y + obox2.height - 24);
+  await page.waitForTimeout(200);
+}
+
 // Triple-tapping BARE sphere (well outside any root label's latitude
 // band, near the pole) finalizes every selection and reveals the
 // summary menu — a plain tap there must NOT open a category first.
@@ -473,6 +491,13 @@ const statusAfterBegin = await page.evaluate(() => {
 });
 check("Begin Game on the summary menu actually starts a real game",
   !!statusAfterBegin, `statusAfterBegin=${JSON.stringify(statusAfterBegin)}`);
+
+// TOPOLOGIES actually resized the live board to the chosen size.
+const liveBoard = await page.evaluate(() => window.__EC_TEST_BOARD__ || null);
+check("TOPOLOGIES board resize applied to the real game",
+  liveBoard && liveBoard.rows === wantRows && liveBoard.cols === wantCols,
+  `liveBoard=${JSON.stringify(liveBoard)} want=${wantRows}x${wantCols}`);
+await page.screenshot({ path: "/tmp/neon-singularity-resized-board.png" });
 
 // ---- after a Singularity Begin Game the dock must hand off exactly like
 // a normal Begin Game: the panel collapses (not left stranded visible by
