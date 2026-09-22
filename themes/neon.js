@@ -1972,7 +1972,11 @@ export function mountAmbientEffects(refs, helpers) {
   function fireCrtAberration() {
     if (windingDownRef.current) return;
     const card = cardRef.current;
-    if (card) {
+    // cardRef is the dock panel. In-game it's closed — faded to opacity 0,
+    // not unmounted — and these classes' own opacity keyframes would flash
+    // the whole panel back into view. Only glitch the card while the dock
+    // is actually open (same visibility gate the button jitter uses).
+    if (card && isVisibleForGlitch(card)) {
       CRT_ABERRATION_CLASSES.forEach((c) => card.classList.remove(c));
       void card.offsetWidth;
       const cls = CRT_ABERRATION_CLASSES[Math.floor(Math.random() * CRT_ABERRATION_CLASSES.length)];
@@ -1984,12 +1988,18 @@ export function mountAmbientEffects(refs, helpers) {
     if (windingDownRef.current) return;
     const card = cardRef.current;
     const overlay = fxOverlayRef.current;
-    if (card && overlay) {
+    // Only glitch the card (the dock panel) while the dock is actually open
+    // — closed, it's faded to opacity 0 and a GLITCH_CLASS's own opacity
+    // keyframes would flash it back into view mid-game. The screen-wide
+    // overlay flash below is NOT the dock, so it fires regardless.
+    if (card && isVisibleForGlitch(card)) {
       GLITCH_CLASSES.forEach((c) => card.classList.remove(c));
-      overlay.classList.remove("ec-vhs-overlay-active");
       void card.offsetWidth;
-      const cls = GLITCH_CLASSES[Math.floor(Math.random() * GLITCH_CLASSES.length)];
-      card.classList.add(cls);
+      card.classList.add(GLITCH_CLASSES[Math.floor(Math.random() * GLITCH_CLASSES.length)]);
+    }
+    if (overlay) {
+      overlay.classList.remove("ec-vhs-overlay-active");
+      void overlay.offsetWidth;
       overlay.classList.add("ec-vhs-overlay-active");
     }
     audio.playGlitch();
@@ -2007,13 +2017,16 @@ export function mountAmbientEffects(refs, helpers) {
   const fireRare = () => {
     if (windingDownRef.current) return;
     const card = cardRef.current;
-    if (card) {
+    // Card-only effect (with its own audio cue) — skip it entirely while
+    // the dock is closed, so a hidden panel never gets flashed into view
+    // (and no glitch cue sounds for an effect nothing can see).
+    if (card && isVisibleForGlitch(card)) {
       RARE_CLASSES.forEach((c) => card.classList.remove(c));
       void card.offsetWidth;
       const cls = RARE_CLASSES[Math.floor(Math.random() * RARE_CLASSES.length)];
       card.classList.add(cls);
+      audio.playGlitch();
     }
-    audio.playGlitch();
     // Widened ~30% per the same feedback — was 240000 + rand*300000.
     rareTimer = setTimeout(fireRare, 343200 + Math.random() * 429000);
   };
