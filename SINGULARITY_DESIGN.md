@@ -230,11 +230,12 @@ the sphere
    turn a slide spends the whole turn, and with "3 Actions Per Turn" (a
    3-point turn) it leaves exactly one point — room for a single follow-up
    roll ("a slide and an additional roll"). A piece can only slide when it
-   has at least two points left this turn. Opa's base budget is 1, so in a
-   plain Slide game (no "3 Actions") Opa still can't afford a slide — but
-   "3 Actions" now grants Opa the +1 too (1 → 2 points), so with both laws
-   on Opa can slide like everything else. Available to every piece, old
-   and new, once enabled (not restricted to irregular pieces).
+   has at least two points left this turn. Opa has the same 2/3-point
+   budget as everything else, so it can slide in a plain Slide game too —
+   but note an Opa MOVE (roll or slide) itself costs two points (see "3
+   Actions" below), which is a whole 2-point turn, so an Opa slide always
+   ends its turn. Available to every piece, old and new, once enabled (not
+   restricted to irregular pieces).
 3. **Black Hole Squares** — one or two obstacle squares, placed fairly:
    a single one must sit at the exact board center; two must be placed
    at rotationally-symmetric locations relative to each other. A single
@@ -274,15 +275,16 @@ the sphere
    model used everywhere else: "which one cell is grounded" plus "which
    cells are occupied in the air above adjacent squares" — a second kind
    of orientation entry, not an extension of the flat-footprint kind.
-5. **3 Actions Per Turn** — raises every piece's per-turn movement budget
-   by one (`PIECE_META.maxSteps` + 1). In the base game Opa's `maxSteps: 1`
-   is a structural fact (a 2×2×2 cube always covers exactly 2 squares in
-   one physical roll — `rollBlock` moves it by its own width) rather than
-   a spendable budget, so the base game leaves it at 1. But this opt-in
-   law now grants Opa the +1 as well (1 → 2): otherwise a 1-point piece
-   could never afford a Slide (2 points), leaving Opa the one piece unable
-   to slide even with both laws on. The trade-off — Opa can take two
-   actions (two rolls, or a slide) in a 3-Actions game — is intended.
+5. **3 Actions Per Turn** — raises every piece's per-turn action-point
+   budget from 2 to 3 (`PIECE_META.maxSteps` + 1), uniformly, Opa included.
+   Costs: a roll or Cabeza step is 1 point, a Slide is 2, and **an Opa
+   move (roll OR slide) is 2** — because the 2×2×2 cube already covers two
+   squares in one physical roll (`rollBlock` moves it by its own width), so
+   its move is worth two points. Since `legalMovesFor` offers an Opa no
+   move when fewer than two points remain, an Opa never moves more than
+   once in a turn even on a 3-point budget (its second move is never
+   affordable); the leftover point after an Opa move belongs to a
+   *different* piece — which requires **Split Movement** (below) to spend.
 
 ### TOPOLOGIES — flat board, deliberately bounded
 

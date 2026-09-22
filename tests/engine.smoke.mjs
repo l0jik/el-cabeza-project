@@ -55,21 +55,26 @@ if (slideThenRoll.length === 0) throw new Error("With 3 Actions a slide should l
 if (!noSlideSlide) throw new Error("Two slides cost 4 points — impossible within a 3-point budget");
 if (!noTripleAfterSlide) throw new Error("A slide costs 2, so a slide can never sit in a 3-move (3x1) turn");
 
-// Opa (base budget 1) can't afford a slide in a plain Slide game, but the
-// "3 Actions" law grants it the +1 too (1 -> 2), so with both laws on Opa
-// can slide like every other piece.
+// An Opa move (roll or slide) costs two points, so an Opa NEVER moves
+// more than once in a turn — not even with a 3-point "3 Actions" budget.
+// Its 2-point budget also lets it slide in a plain Slide game.
 const opaPieces = [
   { id: "o", type: "opa", owner: "dark", row: 4, col: 4, w: 2, h: 2, z: 2 },
   { id: "cd", type: "cabeza", owner: "dark", row: 0, col: 0, w: 1, h: 1, z: 2 },
   { id: "cl", type: "cabeza", owner: "light", row: 9, col: 9, w: 1, h: 1, z: 2 },
 ];
 setActiveLaws({ slide: true, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
-const opaPlain = generateTurns(opaPieces, "dark").filter((t) => t.dirs.some(isSlideKey));
+let opaTurns = generateTurns(opaPieces, "dark").filter((t) => t.pieceId === "o");
+const opaPlainSlide = opaTurns.filter((t) => t.dirs.some(isSlideKey)).length;
+const opaPlainMulti = opaTurns.filter((t) => t.dirs.length > 1).length;
+console.log("[Opa] plain Slide — slide turns:", opaPlainSlide, "| multi-move turns:", opaPlainMulti);
+if (opaPlainSlide === 0) throw new Error("A base-game Opa should be able to slide (2-point budget)");
+if (opaPlainMulti !== 0) throw new Error("An Opa must never move more than once in a turn");
 setActiveLaws({ slide: true, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: true });
-const opa3 = generateTurns(opaPieces, "dark").filter((t) => t.dirs.some(isSlideKey));
-console.log("[Opa] slide turns — plain Slide:", opaPlain.length, "| Slide+3Actions:", opa3.length);
-if (opaPlain.length !== 0) throw new Error("Opa (1 point) should not be able to slide without 3 Actions");
-if (opa3.length === 0) throw new Error("With 3 Actions, Opa should get a 2-point budget and be able to slide");
+opaTurns = generateTurns(opaPieces, "dark").filter((t) => t.pieceId === "o");
+const opa3Multi = opaTurns.filter((t) => t.dirs.length > 1).length;
+console.log("[Opa] Slide + 3 Actions — multi-move turns:", opa3Multi);
+if (opa3Multi !== 0) throw new Error("Even with a 3-point budget, an Opa must never move more than once");
 setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
 
 // A Cabeza can NEVER crush another Cabeza — normally or via a wormhole.

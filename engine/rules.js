@@ -2,7 +2,7 @@
    between the Standard and Neon theme sources before extraction — see
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, SLIDE_COST } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, SLIDE_COST, OPA_MOVE_COST } from "./constants.js";
 
 /* Dark's half of the opening setup, with columns expressed RELATIVE to
    the leftmost of the four columns the formation occupies, so the whole
@@ -299,13 +299,17 @@ export function legalSlideSteps(pieces, piece) {
 }
 
 /* `remaining` is the piece's action-point budget left THIS TURN (default
-   Infinity = a fresh piece / caller that doesn't track it). A Slide costs
-   SLIDE_COST (2) points, so it's only offered when at least that many
-   remain — that's the whole "a slide always costs two points" rule: with
-   only one point left (mid-turn, or Opa's 1-point budget) no slide is
-   available, only rolls. */
+   Infinity = a fresh piece / caller that doesn't track it). Costs gate
+   what's offered: a Slide costs SLIDE_COST (2) for any piece, and EVERY
+   Opa move (roll or slide) costs OPA_MOVE_COST (2) — so with only one
+   point left, no slide is available, and an Opa (whose cheapest move is
+   already two points) has NO legal move at all. That last part is what
+   keeps an Opa to a single move per turn: after its first move spends two
+   of the budget, it can never afford a second. */
 export function legalMovesFor(pieces, piece, remaining = Infinity) {
   if (piece.type === "cabeza") return legalCabezaSteps(pieces, piece);
+  // An Opa's cheapest move is two points; with fewer left it can't move.
+  if (piece.type === "opa" && remaining < OPA_MOVE_COST) return {};
   const rolls = legalRolls(pieces, piece);
   if (!ACTIVE_LAWS.slide || remaining < SLIDE_COST) return rolls;
   // Prefixed keys (see slideKey/constants.js): a block piece's roll and

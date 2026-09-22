@@ -302,11 +302,14 @@ then a real Begin Game.
   Turn**, **Slide** (orthogonal only; costs **two action points**, a roll
   costs one — so a normal 2-point turn is fully spent by one slide, while
   "3 Actions" (3 points) leaves exactly one point for a single follow-up
-  roll. Opa's base budget is 1, so in a plain Slide game it still can't
-  afford a slide — but "3 Actions" now grants Opa the +1 too (1→2), so
-  with both laws on Opa can slide (this reverses the old Opa exclusion
-  from the 3-Actions bonus). The wormhole still ends the
-  turn outright. Interactively a slide is a press-drag of the piece one
+  roll. **Opa** is no longer budget-limited — every piece has the same
+  2/3-point budget — but an **Opa MOVE (roll OR slide) costs two points**
+  (`OPA_MOVE_COST`, `moveCost`), and `legalMovesFor` offers an Opa no move
+  when fewer than two points remain. So an Opa moves at most once per turn
+  even with a 3-point budget (its second move is never affordable), and
+  its 2-point budget lets it slide in a plain Slide game too. The wormhole
+  still ends the turn outright. Interactively a slide is a press-drag of
+  the piece one
   cell, armed BOTH on a fresh piece and after a roll — the drag-slide and
   the mid-turn undo-drag now coexist on the already-moved piece, with
   onMove disambiguating by direction: a drag clearly back toward the

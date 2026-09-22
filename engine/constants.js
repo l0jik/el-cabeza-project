@@ -183,7 +183,7 @@ export const ZOOM_MAX = 55;
 export const PIECE_META = {
   cabeza: { label: "C", name: "Cabeza", shape: "disc", maxSteps: 2 },
   turrito: { label: "T", name: "Turrito", shape: "block", maxSteps: 2 },
-  opa: { label: "O", name: "Opa", shape: "block", maxSteps: 1 },
+  opa: { label: "O", name: "Opa", shape: "block", maxSteps: 2 },
   flaco: { label: "F", name: "Flaco", shape: "block", maxSteps: 2 },
   chato: { label: "Ch", name: "Chato", shape: "block", maxSteps: 2 },
   // MATTER's two rectangular new piece types (SINGULARITY_DESIGN.md
@@ -292,17 +292,12 @@ export function setBlackHoles(list) {
   return BLACK_HOLES;
 }
 
-/* The one supported way to read a piece's per-turn movement budget —
-   PIECE_META[type].maxSteps itself never changes; this is where the
-   "3 Actions Per Turn" law's +1 gets applied, uniformly, wherever a
-   step budget is checked. In the BASE game Opa keeps its structural
-   maxSteps:1 (a 2x2x2 cube always covers exactly 2 squares in one
-   physical roll — rollBlock moves it by its own width). Under the "3
-   Actions" LAW, though, Opa gets the +1 too (1 -> 2): without it a
-   1-point piece could never afford a Slide (which costs SLIDE_COST=2),
-   so Opa was the one piece unable to slide even with both laws on. The
-   trade-off — Opa can now take two actions (two rolls, or a slide) in a
-   3-Actions game — is an intended effect of that opt-in law. */
+/* A turn's action-point budget: 2 by default, 3 with the "3 Actions Per
+   Turn" law. Uniform across every piece now — including Opa. Opa isn't
+   kept to a smaller budget any more; instead an Opa MOVE costs two points
+   (see moveCost), which is what keeps it to a single move per turn while
+   still letting it slide. `type` is accepted (and ignored) so existing
+   per-type call sites keep working. */
 export function maxStepsFor(type) {
   const base = PIECE_META[type].maxSteps;
   return ACTIVE_LAWS.threeActions ? base + 1 : base;
@@ -311,16 +306,27 @@ export function maxStepsFor(type) {
 /* A Slide always costs TWO action points (a roll costs one). So in a
    normal 2-point turn a slide consumes the whole turn, while with "3
    Actions Per Turn" (a 3-point turn) it leaves exactly one point — room
-   for a single follow-up roll ("a slide and an additional roll"). A
-   piece can therefore only slide when it has at least this many points
-   left this turn; a piece with a 1-point budget (Opa) can never slide. */
+   for a single follow-up roll ("a slide and an additional roll"). A piece
+   can only slide when it has at least this many points left this turn. */
 export const SLIDE_COST = 2;
 
-// The action-point cost of a given move (a roll or Cabeza step is 1; a
-// block piece's Slide is SLIDE_COST). A wormhole teleport is handled
-// separately as turn-ending, not by point cost.
+/* An Opa MOVE always costs two action points — a roll as well as a slide.
+   Opa is the 2x2x2 cube: one physical roll already carries it two squares
+   (rollBlock moves it by its own width), so its move is worth two points.
+   With a 2-point budget that's a whole normal turn; with "3 Actions" (3
+   points) it's one Opa move plus one point left over — which, once the
+   turn can be split across pieces (the Split Movement law), another piece
+   can spend. Either way an Opa can never move more than once in a turn. */
+export const OPA_MOVE_COST = 2;
+
+// The action-point cost of a given move: a Slide (any piece) or ANY Opa
+// move costs two; a normal roll or Cabeza step costs one. A wormhole
+// teleport is handled separately as turn-ending, not by point cost.
 export function moveCost(move) {
-  return move && move.isSlide ? SLIDE_COST : 1;
+  if (!move) return 1;
+  if (move.isSlide) return SLIDE_COST;
+  if (move.candidate && move.candidate.type === "opa") return OPA_MOVE_COST;
+  return 1;
 }
 
 export const ROLL_DIRS = ["N", "E", "S", "W"];
