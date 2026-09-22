@@ -4252,7 +4252,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // starts with every law off until finalizeSingularityBegin sets them
     // again, rather than silently inheriting whatever the last
     // Singularity game had active.
-    setActiveLaws({ splitMovement: false, slide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false });
+    setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false });
     // Same reasoning, same reset: a black hole layout is a Singularity-
     // game-specific setup fact, not a persistent session setting.
     // Both copies need clearing — engine/constants.js's module state

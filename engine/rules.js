@@ -148,18 +148,26 @@ function pieceOccupancyVerdict(pieces, candidate) {
   return { legal: false, crushes: null };
 }
 
-export function evaluateBlockLanding(pieces, candidate) {
+export function evaluateBlockLanding(pieces, candidate, travelDir) {
   if (!inBounds(candidate)) return { legal: false, crushes: null };
   const bh = blackHoleVerdict(candidate);
   if (bh.blocked) return { legal: false, crushes: null };
   if (bh.teleportTo) {
-    // Wormhole entry: "evaluated under the exact same landing-legality
-    // check every other move already uses" (SINGULARITY_DESIGN.md) —
-    // the far square is checked for plain piece occupancy only, a real
-    // crush included, exactly like any other landing.
-    const landed = { ...candidate, row: bh.teleportTo.row, col: bh.teleportTo.col };
-    const verdict = pieceOccupancyVerdict(pieces, landed);
-    return verdict.legal ? { ...verdict, teleportsTo: bh.teleportTo } : { legal: false, crushes: null };
+    // Wormhole entry: the piece is EJECTED one cell past the far hole,
+    // on the same relative side it entered from — far hole minus its
+    // unit direction of travel (a piece that went east into the near
+    // mouth emerges on the west side of the far one). It never rests on
+    // a hole square. The EJECTION square, not the hole itself, is what's
+    // checked — for bounds and for plain piece occupancy (a lone enemy
+    // Cabeza there is still a legal crush). Off-board or blocked by a
+    // non-crushable piece there = the entry is simply illegal, no
+    // partial entry. travelDir is [dr,dc]; a caller reaching a wormhole
+    // always has it (see legalRolls/translatedCandidate).
+    const [dr, dc] = travelDir;
+    const eject = { ...candidate, row: bh.teleportTo.row - dr, col: bh.teleportTo.col - dc };
+    if (!inBounds(eject)) return { legal: false, crushes: null };
+    const verdict = pieceOccupancyVerdict(pieces, eject);
+    return verdict.legal ? { ...verdict, teleportsTo: { row: eject.row, col: eject.col } } : { legal: false, crushes: null };
   }
   return pieceOccupancyVerdict(pieces, candidate);
 }
@@ -190,11 +198,11 @@ export function legalRolls(pieces, piece) {
   const out = {};
   for (const dir of ROLL_DIRS) {
     const candidate = rollBlock(piece, dir);
-    const verdict = evaluateBlockLanding(pieces, candidate);
+    const verdict = evaluateBlockLanding(pieces, candidate, STEP_DIRS[dir]);
     if (verdict.legal) {
-      // A wormhole roll lands at the FAR hole, not the near mouth it
-      // was rolled toward — the piece never visibly sits on the near
-      // square. teleportsTo is only ever set when the law is on.
+      // A wormhole roll ejects the piece one cell past the far hole (see
+      // evaluateBlockLanding) — it never sits on either hole. teleportsTo
+      // is the ejection square, and only ever set when the law is on.
       out[dir] = verdict.teleportsTo
         ? { candidate: { ...candidate, row: verdict.teleportsTo.row, col: verdict.teleportsTo.col }, crushes: verdict.crushes, teleports: true }
         : { candidate, crushes: verdict.crushes };
@@ -219,7 +227,7 @@ function translatedCandidate(pieces, piece, dr, dc) {
   const bh = blackHoleVerdict(candidate);
   if (bh.blocked) return null;
   if (bh.teleportTo) {
-    const verdict = evaluateBlockLanding(pieces, candidate);
+    const verdict = evaluateBlockLanding(pieces, candidate, [dr, dc]);
     if (!verdict.legal) return null;
     return {
       candidate: { ...candidate, row: verdict.teleportsTo.row, col: verdict.teleportsTo.col },
@@ -254,10 +262,17 @@ export function legalCabezaSteps(pieces, piece) {
    a wormhole entry), generalized over any footprint. Left as its own
    function rather than folded unconditionally into legalMovesFor:
    Cabeza already has this exact movement as its unconditional baseline
-   and must not gain a redundant, identically-keyed duplicate of it. */
+   and must not gain a redundant, identically-keyed duplicate of it.
+
+   Orthogonal only by default (N/E/S/W) — diagonal sliding is its own
+   separate law (ACTIVE_LAWS.diagonalSlide), so a plain Slide game never
+   offers a diagonal. Cabeza's own baseline stepping (legalCabezaSteps)
+   is unchanged and still 8-directional; this divergence is intentional. */
 export function legalSlideSteps(pieces, piece) {
   const out = {};
-  for (const [dir, [dr, dc]] of Object.entries(STEP_DIRS)) {
+  const dirs = ACTIVE_LAWS.diagonalSlide ? Object.keys(STEP_DIRS) : ROLL_DIRS;
+  for (const dir of dirs) {
+    const [dr, dc] = STEP_DIRS[dir];
     const move = translatedCandidate(pieces, piece, dr, dc);
     if (move) {
       out[dir] = move.teleports

@@ -465,11 +465,12 @@ const LABEL_U_HALF_WIDTH = 0.13;
 
 const DEFAULT_BOARD_DIM = 10; // matches the engine's fixed board before any TOPOLOGIES choice
 
-// LAWS — the five independent toggles from SINGULARITY_DESIGN.md's
-// Part 2, verbatim.
+// LAWS — the independent toggles from SINGULARITY_DESIGN.md's Part 2,
+// plus Diagonal Slide (a modifier on Slide).
 const LAWS_ITEMS = [
   { key: "splitMovement", label: "Split Movement", blurb: "Divide a turn's movement across multiple pieces instead of one." },
-  { key: "slide", label: "Slide", blurb: "Move one open adjacent square without rolling, as a full turn action." },
+  { key: "slide", label: "Slide", blurb: "Move one open orthogonally-adjacent square without rolling, as a full turn action." },
+  { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Also allow Slide moves diagonally (only matters when Slide is on)." },
   { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "One or two linked squares — enter one, arrive at the other." },
   { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "Pivot a cantilevered piece in place around its one grounded cell." },
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "Raises the per-turn movement budget by one." },

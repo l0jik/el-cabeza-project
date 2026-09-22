@@ -264,6 +264,7 @@ export function getBoardDimensions() {
 export let ACTIVE_LAWS = {
   splitMovement: false,
   slide: false,
+  diagonalSlide: false,
   blackHoleSquares: false,
   cantileverPivot: false,
   threeActions: false,
