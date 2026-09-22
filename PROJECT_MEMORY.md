@@ -316,8 +316,11 @@ then a real Begin Game.
   linked wormholes; entry gated on a 1-cell ground footprint; a wormhole
   entry EJECTS the piece one cell past the far hole on the same relative
   side it entered — `farHole - travelDir` — never landing on a hole,
-  crushing a lone enemy Cabeza at the ejection square, illegal if that
-  square is off-board or blocked). **Split Movement** is planned but not
+  crushing a lone enemy Cabeza at the ejection square **only when a block
+  is entering** (a Cabeza can never crush a Cabeza — enforced in
+  `pieceOccupancyVerdict`, so a Cabeza whose ejection square holds an enemy
+  Cabeza can't enter that wormhole), illegal if that square is off-board or
+  blocked). **Split Movement** is planned but not
   built (see the reviewed plan; budget = shared pool of 2, or 3 with 3
   Actions). **Cantilever Pivot** still **cannot** be implemented before
   non-convex pieces exist — same blocker as MATTER's L-Pentomino/Arch

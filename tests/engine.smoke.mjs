@@ -1,5 +1,6 @@
 import { createInitialPieces, legalMovesFor, sameState, pairLog } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY, evaluatePosition, generateTurns } from "../engine/ai.js";
+import { setBlackHoles } from "../engine/constants.js";
 import { pieceCenter, makeRoundedBox, pivotFor } from "../engine/geometry.js";
 import { BOARD_ROWS, BOARD_COLS, setActiveLaws, isSlideKey } from "../engine/constants.js";
 
@@ -69,6 +70,27 @@ const opa3 = generateTurns(opaPieces, "dark").filter((t) => t.dirs.some(isSlideK
 console.log("[Opa] slide turns — plain Slide:", opaPlain.length, "| Slide+3Actions:", opa3.length);
 if (opaPlain.length !== 0) throw new Error("Opa (1 point) should not be able to slide without 3 Actions");
 if (opa3.length === 0) throw new Error("With 3 Actions, Opa should get a 2-point budget and be able to slide");
+setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
+
+// A Cabeza can NEVER crush another Cabeza — normally or via a wormhole.
+// A block still crushes a lone enemy Cabeza.
+setBlackHoles([]);
+const cabA = { id: "dc", type: "cabeza", owner: "dark", row: 5, col: 5, w: 1, h: 1, z: 1 };
+const cabB = { id: "lc", type: "cabeza", owner: "light", row: 5, col: 6, w: 1, h: 1, z: 1 };
+const cabVsCab = Object.values(legalMovesFor([cabA, cabB], cabA)).filter((m) => m.crushes).length;
+const blkVsCab = Object.values(legalMovesFor([{ id: "dt", type: "turrito", owner: "dark", row: 5, col: 5, w: 1, h: 1, z: 2 }, cabB], { id: "dt", type: "turrito", owner: "dark", row: 5, col: 5, w: 1, h: 1, z: 2 })).filter((m) => m.crushes && m.crushes.id === "lc").length;
+console.log("[crush] Cabeza-onto-Cabeza crushes:", cabVsCab, "| block-onto-Cabeza crushes:", blkVsCab);
+if (cabVsCab !== 0) throw new Error("A Cabeza must never be able to crush another Cabeza");
+if (blkVsCab === 0) throw new Error("A block must still be able to crush a lone enemy Cabeza");
+// Wormhole variant: a Cabeza whose ejection square holds an enemy Cabeza
+// cannot enter that wormhole at all (no crush, no teleport onto it).
+setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: true, cantileverPivot: false, splitMovement: false, threeActions: false });
+setBlackHoles([{ row: 5, col: 4 }, { row: 4, col: 5 }]); // W entry ejects to (4,6)
+const wormCab = { id: "dc2", type: "cabeza", owner: "dark", row: 5, col: 5, w: 1, h: 1, z: 1 };
+const wormEnemy = { id: "lc2", type: "cabeza", owner: "light", row: 4, col: 6, w: 1, h: 1, z: 1 };
+const wormCrush = Object.values(legalMovesFor([wormCab, wormEnemy], wormCab)).filter((m) => m.teleports && m.crushes).length;
+if (wormCrush !== 0) throw new Error("A Cabeza must not wormhole-crush an enemy Cabeza at the ejection square");
+setBlackHoles([]);
 setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
 
 console.log("\nSMOKE TEST PASSED");

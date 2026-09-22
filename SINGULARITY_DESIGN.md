@@ -243,9 +243,12 @@ the sphere
    action point) is a real move whose "destination" is the *other* black
    hole's square, evaluated under the **exact same landing-legality check
    every other move already uses** — empty destination = legal and you're
-   teleported there; occupied by a lone enemy Cabeza = legal as a crush;
-   occupied by anything else = illegal, and the game blocks you from
-   entering in the first place (no partial/failed-entry state). Landing
+   teleported there; occupied by a lone enemy Cabeza = legal as a crush
+   ONLY when a block is entering (a Cabeza can never crush another Cabeza,
+   so a Cabeza whose ejection square holds an enemy Cabeza simply can't
+   enter that wormhole); occupied by anything else = illegal, and the game
+   blocks you from entering in the first place (no partial/failed-entry
+   state). Landing
    legally ends the piece's turn immediately regardless of leftover
    movement points. This needs zero new occupancy-handling logic — it's
    the existing `evaluateBlockLanding` function called with the paired

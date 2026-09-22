@@ -142,7 +142,20 @@ function pieceOccupancyVerdict(pieces, candidate) {
     if (occupant && occupant.id !== candidate.id && !hits.includes(occupant)) hits.push(occupant);
   }
   if (hits.length === 0) return { legal: true, crushes: null };
-  if (hits.length === 1 && hits[0].type === "cabeza" && hits[0].owner !== candidate.owner) {
+  // Landing on a lone enemy Cabeza is a crush ONLY when the moving piece
+  // is a block — a Cabeza can never capture/crush another Cabeza (it wins
+  // by reaching the far edge, not by landing on the enemy Cabeza). Without
+  // the type guard a Cabeza stepping onto an enemy Cabeza — most easily
+  // via a Black Hole Squares wormhole ejecting it right onto one — was
+  // wrongly scored as a crush and a win. A Cabeza landing there is instead
+  // illegal (so a wormhole whose exit holds an enemy Cabeza can't be
+  // entered by a Cabeza at all), which falls through to the return below.
+  if (
+    hits.length === 1 &&
+    hits[0].type === "cabeza" &&
+    hits[0].owner !== candidate.owner &&
+    candidate.type !== "cabeza"
+  ) {
     return { legal: true, crushes: hits[0] };
   }
   return { legal: false, crushes: null };
@@ -159,10 +172,12 @@ export function evaluateBlockLanding(pieces, candidate, travelDir) {
     // mouth emerges on the west side of the far one). It never rests on
     // a hole square. The EJECTION square, not the hole itself, is what's
     // checked — for bounds and for plain piece occupancy (a lone enemy
-    // Cabeza there is still a legal crush). Off-board or blocked by a
-    // non-crushable piece there = the entry is simply illegal, no
-    // partial entry. travelDir is [dr,dc]; a caller reaching a wormhole
-    // always has it (see legalRolls/translatedCandidate).
+    // Cabeza there is a legal crush only for a BLOCK entering; a Cabeza
+    // can't crush a Cabeza, so pieceOccupancyVerdict makes that ejection
+    // illegal). Off-board or blocked by a non-crushable piece there = the
+    // entry is simply illegal, no partial entry. travelDir is [dr,dc]; a
+    // caller reaching a wormhole always has it (see legalRolls/
+    // translatedCandidate).
     const [dr, dc] = travelDir;
     const eject = { ...candidate, row: bh.teleportTo.row - dr, col: bh.teleportTo.col - dc };
     if (!inBounds(eject)) return { legal: false, crushes: null };
