@@ -573,6 +573,32 @@ function summarizeCategory(key, selections) {
   return "";
 }
 
+/* The in-game Current Variants flyout's data: the specials this game
+   actually started with, grouped by category, ACTIVE ones only, using
+   the same label tables the sphere menu shows so names match. Returned
+   as a flat list of {key,label,items} groups; a group is omitted when it
+   has no active items, and an all-empty result renders as "Standard
+   rules" (see VariantsFlyout). */
+function buildVariantsSnapshot(selections) {
+  const groups = [];
+  const laws = LAWS_ITEMS.filter((i) => selections.laws[i.key]).map((i) => i.label);
+  if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws });
+
+  const matter = [];
+  MATTER_NEW_PIECES.forEach((i) => { if (selections.matter.newPieces[i.key]) matter.push(i.label); });
+  MATTER_ROSTER.forEach((p) => {
+    const n = selections.matter.roster[p.key];
+    if (n !== p.default) matter.push(`${n}× ${p.label}`);
+  });
+  if (matter.length) groups.push({ key: "matter", label: "MATTER", items: matter });
+
+  const { rows, cols } = selections.topologies;
+  if (rows !== DEFAULT_BOARD_DIM || cols !== DEFAULT_BOARD_DIM) {
+    groups.push({ key: "topologies", label: "TOPOLOGY", items: [`${rows} × ${cols} board`] });
+  }
+  return groups;
+}
+
 // Circular distance in u-space (u wraps at 0/1, since the sphere's
 // longitude is a loop) — plain Math.abs would wrongly treat a label
 // near u=0 and a tap near u=1 as far apart when they're actually
@@ -1724,6 +1750,8 @@ export function useSingularityPhase({
   busy, aiThinking, triggerBeginGame, applyMatterRoster,
   // Black Hole Squares LAW — see finalizeSingularityBegin below.
   pieces, setBlackHoles,
+  // Current Variants flyout snapshot setter — see finalizeSingularityBegin.
+  setCurrentVariants,
 }) {
   const [phase, setPhase] = React.useState(PHASES.IDLE);
   const blackDivRef = React.useRef(null);
@@ -1856,6 +1884,14 @@ export function useSingularityPhase({
         : [];
       setActiveBlackHoles(holes);
       if (setBlackHoles) setBlackHoles(holes);
+    }
+    // Snapshot the chosen specials for the in-game Current Variants
+    // flyout (renderVariantsFlyout). Built from the same label tables the
+    // sphere menu uses so names match, and only the ACTIVE ones — a plain
+    // game (reached without the sphere) never calls this, leaving the
+    // chassis snapshot null, which the flyout renders as "Standard rules".
+    if (t && t.singularity && t.singularity.selections && setCurrentVariants) {
+      setCurrentVariants(buildVariantsSnapshot(t.singularity.selections));
     }
     if (triggerBeginGame) triggerBeginGame();
     exitSingularity();
@@ -2006,6 +2042,117 @@ export function useSingularityPhase({
     three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking,
   };
+}
+
+/* The in-game Current Variants reference — a small top-left flyout that
+   lists the specials this game is running under, grouped by category.
+   It flies open briefly when a game starts, then collapses to a handle;
+   hovering the handle re-opens it, hovering a category reveals its
+   items, and leaving collapses it again. Touch: tap the handle to
+   toggle, tap a category to toggle its items. Always reachable so a
+   player can remind themselves mid-game what's in play. `groups` is
+   buildVariantsSnapshot's output (or null for a plain game -> "Standard
+   rules"). */
+function VariantsFlyout({ groups }) {
+  const h = React.createElement;
+  const [open, setOpen] = React.useState(true);
+  const [expanded, setExpanded] = React.useState(null);
+  // Fly open on mount (a game just started), then settle to the handle.
+  React.useEffect(() => {
+    const id = setTimeout(() => setOpen(false), 5200);
+    return () => clearTimeout(id);
+  }, []);
+
+  const active = Array.isArray(groups) && groups.length > 0;
+  const accent = "#66d9ff";
+  const panelBg = "rgba(5,11,18,0.94)";
+  const border = "1px solid rgba(102,217,255,0.35)";
+
+  const handle = h(
+    "div",
+    {
+      onClick: () => setOpen((o) => !o),
+      style: {
+        fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 11,
+        letterSpacing: "0.14em", textTransform: "uppercase", color: accent,
+        background: panelBg, border, borderRadius: 4, padding: "6px 10px",
+        cursor: "pointer", whiteSpace: "nowrap", userSelect: "none",
+        boxShadow: "0 0 14px rgba(102,217,255,0.18)",
+      },
+    },
+    "◈ Current Variants"
+  );
+
+  const body = open && h(
+    "div",
+    {
+      style: {
+        marginTop: 4, background: panelBg, border, borderRadius: 4,
+        padding: "6px 4px", minWidth: 172, maxWidth: 240,
+        boxShadow: "0 6px 22px rgba(0,0,0,0.5)",
+      },
+    },
+    active
+      ? groups.map((g) =>
+          h(
+            "div",
+            {
+              key: g.key,
+              onMouseEnter: () => setExpanded(g.key),
+              onClick: () => setExpanded((e) => (e === g.key ? null : g.key)),
+              style: { padding: "4px 8px", cursor: "pointer" },
+            },
+            h(
+              "div",
+              { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 } },
+              h("span", { style: { fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 11.5, letterSpacing: "0.08em", color: accent } }, g.label),
+              h("span", { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(207,216,220,0.6)" } }, String(g.items.length))
+            ),
+            expanded === g.key &&
+              h(
+                "ul",
+                { style: { margin: "4px 0 2px", padding: "0 0 0 14px", listStyle: "none" } },
+                g.items.map((it, idx) =>
+                  h(
+                    "li",
+                    { key: idx, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, lineHeight: 1.5, color: "rgba(223,250,255,0.9)" } },
+                    "• " + it
+                  )
+                )
+              )
+          )
+        )
+      : h(
+          "div",
+          { style: { padding: "4px 8px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "rgba(207,216,220,0.75)" } },
+          "Standard rules"
+        )
+  );
+
+  return h(
+    "div",
+    {
+      "data-testid": "variants-flyout",
+      "data-open": open ? "true" : "false",
+      onMouseEnter: () => setOpen(true),
+      onMouseLeave: () => { setOpen(false); setExpanded(null); },
+      style: {
+        position: "absolute", top: 12, left: 12, zIndex: 40,
+        display: "flex", flexDirection: "column", alignItems: "flex-start",
+        pointerEvents: "auto",
+      },
+    },
+    handle,
+    body
+  );
+}
+
+export function renderVariantsFlyout(setupExtras) {
+  // Only during an actual in-progress game: not on the setup dock
+  // (awaitingBegin), not through the Singularity cinematic, and not once
+  // the game has ended (isPlaying goes false on a win).
+  if (!setupExtras || !setupExtras.isPlaying || setupExtras.awaitingBegin) return null;
+  return React.createElement(VariantsFlyout, { groups: setupExtras.currentVariants, key: "variants-flyout" });
 }
 
 export function renderSingularityOverlay(setupExtras) {

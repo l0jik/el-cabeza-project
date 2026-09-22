@@ -268,6 +268,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      useSetupExtras below, alongside the constants.js copy every other
      consumer (rules.js, the AI worker) reads. */
   const [blackHoles, setBlackHoles] = useState([]);
+  /* Snapshot of the specials (LAWS / MATTER / TOPOLOGY) chosen for the
+     current game, captured by finalizeSingularityBegin for the in-game
+     "Current Variants" flyout (themes/neon-singularity.js). null means a
+     plain, non-Singularity game — the flyout then reads "Standard rules".
+     Cleared on New Game (handleReset). */
+  const [currentVariants, setCurrentVariants] = useState(null);
   const [winner, setWinner] = useState(null);
   const [winReason, setWinReason] = useState("");
   /* Opens automatically the moment a game ends (see the effect below),
@@ -1227,6 +1233,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      theme-local reimplementation, so a theme's own Opponent/AI/Begin
      Game controls (Neon's Singularity summary menu) drive the exact
      same game-start path the dock's own buttons do. */
+  const isPlaying = status === "playing";
   const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
@@ -1237,6 +1244,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // engine/constants.js's setBlackHoles, for rendering (see the
     // holeGroup effect below) rather than a second computation.
     blackHoles, setBlackHoles,
+    // Current Variants flyout: isPlaying gates when the in-game flyout
+    // shows; currentVariants is the snapshot finalizeSingularityBegin
+    // captures of the specials chosen for THIS game (null = a plain,
+    // non-Singularity game -> the flyout reads "Standard rules"),
+    // cleared on New Game (handleReset).
+    isPlaying, currentVariants, setCurrentVariants,
   }) : null;
 
   function handleTitleClick() {
@@ -1352,7 +1365,6 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     audioRef.current.playSelect();
   }
 
-  const isPlaying = status === "playing";
   const turnLocked = stepsUsed > 0;
   /* True from the moment a game is begun (awaitingBegin cleared) until
      it concludes — the window where the Opponent row and the move
@@ -4386,6 +4398,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // copy (read by the holeGroup render effect below).
     setActiveBlackHoles([]);
     setBlackHoles([]);
+    // The next game starts with no captured variant snapshot; a fresh
+    // Singularity Begin Game recaptures it, a plain game leaves it null
+    // (the flyout then reads "Standard rules").
+    setCurrentVariants(null);
     // Invalidates both views' cached fit baselines — see the refs' own
     // comment. The NEXT Begin Game press (captureViewBaselines) recaptures
     // both fresh against whatever the window measures at that moment,

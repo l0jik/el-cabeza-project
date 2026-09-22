@@ -16,7 +16,7 @@ import React from "react";
 import * as THREE from "three";
 import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, GRID_EXTENT_X, GRID_EXTENT_Z, GOAL_ROW, PIECE_SCALE } from "../engine/constants.js";
 import { opponentOf, cabezaInDanger } from "../engine/ai.js";
-import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay } from "./neon-singularity.js";
+import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay, renderVariantsFlyout } from "./neon-singularity.js";
 
 /* Everything visual in this experimental skin lives in these two
    objects (COLORS for the DOM/CSS layer, HEX for the Three.js scene
@@ -3218,6 +3218,7 @@ export function useSetupExtras({
   awaitingBegin, pieces, setPieces, audio, three,
   aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
   busy, aiThinking, triggerBeginGame, setBlackHoles,
+  isPlaying, currentVariants, setCurrentVariants,
 }) {
   const [singularityRevealed, setSingularityRevealed] = React.useState(false);
   const singularityHoldRef = React.useRef(null);
@@ -3248,6 +3249,9 @@ export function useSetupExtras({
     // chassis's own React setter (to make the placement it computes
     // renderable — see chassis's holeGroup effect).
     pieces, setBlackHoles,
+    // Current Variants flyout: the setter finalizeSingularityBegin uses
+    // to record which specials this game started with.
+    setCurrentVariants,
   });
 
   function handleAnomaly() {
@@ -3382,6 +3386,10 @@ export function useSetupExtras({
     beginSingularityCommitHold,
     cancelSingularityCommitHold,
     singularityBtnRef,
+    // For the in-game Current Variants flyout (renderExtraOverlays):
+    // shown only once a game has actually begun (awaitingBegin cleared)
+    // and is still in progress (isPlaying).
+    isPlaying, awaitingBegin, currentVariants,
     ...singularityCinematic,
   };
 }
@@ -3479,7 +3487,12 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, beginSingula
    this is a rare, heavy, mostly one-way takeover rather than a
    frequently-toggled panel. */
 export function renderExtraOverlays(setupExtras) {
-  return renderSingularityOverlay(setupExtras);
+  return React.createElement(
+    React.Fragment,
+    null,
+    renderSingularityOverlay(setupExtras),
+    renderVariantsFlyout(setupExtras)
+  );
 }
 
 /* Scene lighting: color/intensity only — see themes/standard.js's
