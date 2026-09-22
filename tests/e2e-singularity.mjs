@@ -335,6 +335,49 @@ if (state.activeCategory === "topologies") {
   await page.waitForTimeout(200);
 }
 
+// ---- LAWS: Black Hole Squares manual placement (the ghost-grid picker).
+// Toggling the law on reveals a placement control; opening its picker and
+// tapping a cell on the player's side stores that cell as the manual hole
+// (its mirror is the paired hole), then closes back to the LAWS overlay. --
+state = await navigateToCategory("laws");
+check("dragging brings LAWS into view regardless of the shuffled arrangement",
+  state.activeCategory === "laws", `activeCategory=${state.activeCategory}`);
+if (state.activeCategory === "laws") {
+  await page.locator('[data-testid="law-blackHoleSquares"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("Black Hole Squares toggles on", state.selections.laws.blackHoleSquares === true,
+    `laws=${JSON.stringify(state.selections.laws)}`);
+  check("the manual-placement control appears once Black Hole Squares is on",
+    (await page.locator('[data-testid="blackhole-placement"]').count()) > 0);
+
+  await page.locator('[data-testid="blackhole-place-btn"]').click();
+  await page.waitForTimeout(250);
+  check("the ghost-grid picker opens",
+    (await page.locator('[data-testid="blackhole-picker"]').count()) > 0);
+
+  const cell = page.locator('[data-selectable="true"]').first();
+  const cellId = await cell.getAttribute("data-testid");
+  const m = cellId.match(/bh-cell-(\d+)-(\d+)/);
+  await cell.click();
+  await page.waitForTimeout(150);
+  check("picking a cell shows the SELECTED confirmation",
+    (await page.locator('[data-testid="blackhole-confirm"]').count()) > 0);
+
+  await page.waitForTimeout(950); // the confirm holds ~780ms, then auto-closes
+  check("the picker closes after a selection",
+    (await page.locator('[data-testid="blackhole-picker"]').count()) === 0);
+  state = await sphereState();
+  const man = state.selections.blackHole && state.selections.blackHole.manual;
+  check("the chosen cell is stored as the manual black-hole placement",
+    !!man && man.row === Number(m[1]) && man.col === Number(m[2]),
+    `manual=${JSON.stringify(man)} chosen=${m[1]},${m[2]}`);
+
+  // Close the LAWS overlay so the drag-rotate check below reaches the sphere.
+  await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
+  await page.waitForTimeout(200);
+}
+
 // ---- the sphere actually responds to drag (and only the sphere — not
 // the board/camera underneath, which the overlay should be fully
 // capturing input away from). Run last among the labels-stage checks,

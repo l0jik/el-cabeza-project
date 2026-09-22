@@ -553,6 +553,11 @@ function createDefaultSelections() {
       randomizeStart: false,
     },
     topologies: { rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM },
+    // Black Hole Squares placement: null = auto (random-but-fair, the
+    // default), or { row, col } = a manually-chosen cell on the player's
+    // side of the board, whose 180-degree mirror is the paired hole (see
+    // the picker in renderBlackHolePicker and buildBlackHolePlacement).
+    blackHole: { manual: null },
   };
 }
 
@@ -609,6 +614,35 @@ function buildVariantsSnapshot(selections) {
     groups.push({ key: "topologies", label: "TOPOLOGY", items: [`${rows} × ${cols} board`] });
   }
   return groups;
+}
+
+// The 180-degree point-symmetric partner of a cell — the paired hole for
+// a manually-placed one, the same mirror createInitialPieces uses.
+function mirrorCell(row, col, rows, cols) {
+  return { row: rows - 1 - row, col: cols - 1 - col };
+}
+
+// Does any piece's footprint cover this cell?
+function cellOccupied(pieces, r, c) {
+  return (pieces || []).some((p) => r >= p.row && r < p.row + p.h && c >= p.col && c < p.col + p.w);
+}
+
+/* The two paired Black Hole squares for a game: the player's manual pick
+   plus its mirror when one was placed AND both cells are free of pieces;
+   otherwise the automatic random-but-fair pair (pickBlackHoleSquares).
+   The fallback keeps a manual pick from ever landing a hole under a piece
+   — e.g. a randomized/custom opening the picker couldn't preview, or a
+   pick made stale by a later board-size change. */
+function buildBlackHolePlacement(selections, rows, cols, pieces) {
+  const manual = selections && selections.blackHole && selections.blackHole.manual;
+  if (manual && manual.row < rows && manual.col < cols) {
+    const m = mirrorCell(manual.row, manual.col, rows, cols);
+    const distinct = !(m.row === manual.row && m.col === manual.col);
+    if (distinct && !cellOccupied(pieces, manual.row, manual.col) && !cellOccupied(pieces, m.row, m.col)) {
+      return [{ row: manual.row, col: manual.col }, { row: m.row, col: m.col }];
+    }
+  }
+  return pickBlackHoleSquares(pieces || [], rows, cols);
 }
 
 // Circular distance in u-space (u wraps at 0/1, since the sphere's
@@ -1088,6 +1122,8 @@ function teardownSingularityScene(t) {
   s.selections = createDefaultSelections();
   s.tapTimestamps = [];
   s.labelsDirty = true;
+  s.blackHolePicker = false;
+  s.blackHolePickConfirm = null;
   if (t.singularityGridMaterials) {
     t.singularityGridMaterials.forEach((m) => { m.opacity = m.userData.singularityBaseOpacity; });
   }
@@ -1483,6 +1519,176 @@ function renderCheckboxRow(item, checked, onToggle, testId) {
   );
 }
 
+/* The Black Hole Squares placement control, shown under the LAWS
+   checkboxes once that law is on. By default the two holes are placed
+   automatically (random but fair); this lets the player instead pick the
+   cell on their own side of the board, its 180-degree mirror becoming the
+   paired hole. Reads/writes t.singularity.selections.blackHole directly,
+   the same live-bridge pattern the checkboxes use. */
+function renderBlackHolePlacementRow(t) {
+  const s = t.singularity;
+  const h = React.createElement;
+  const manual = s.selections.blackHole.manual;
+  const openPicker = () => {
+    s.blackHolePicker = true;
+    s.blackHolePickConfirm = null;
+    if (s.audio && s.audio.playSingularityOpen) s.audio.playSingularityOpen();
+    s.bump();
+  };
+  const clearManual = () => { s.selections.blackHole.manual = null; s.labelsDirty = true; s.bump(); };
+  const btn = (extra) => ({
+    fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
+    padding: "7px 12px", borderRadius: 4, cursor: "pointer",
+    border: "1px solid rgba(102,217,255,0.4)", background: "rgba(102,217,255,0.1)", color: "#dffaff",
+    ...extra,
+  });
+  return h(
+    "div",
+    {
+      key: "blackhole-placement",
+      "data-testid": "blackhole-placement",
+      style: { margin: "0 0 6px 36px", padding: "9px 11px", border: "1px solid rgba(102,217,255,0.22)", borderRadius: 4, background: "rgba(102,217,255,0.05)" },
+    },
+    h(
+      "div",
+      { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.72)", marginBottom: 7, lineHeight: 1.45 } },
+      manual
+        ? `Placed on your side at row ${manual.row + 1}, column ${manual.col + 1}. Its mirror on the far side is the paired hole.`
+        : "Placed at random by default — or choose where it sits on your side of the board (its mirror pairs on the far side)."
+    ),
+    h(
+      "div",
+      { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+      h("button", { type: "button", "data-testid": "blackhole-place-btn", onClick: openPicker, style: btn() }, manual ? "◇ Change placement" : "◇ Place on board"),
+      manual
+        ? h("button", { type: "button", "data-testid": "blackhole-clear-btn", onClick: clearManual, style: btn({ border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)" }) }, "Use random")
+        : null
+    )
+  );
+}
+
+/* The ghost-grid picker: a board-sized grid where the player taps a cell
+   on their own side (the near/bottom half) to place a Black Hole. The
+   180-degree mirror on the far side is the paired hole and lights up with
+   the pick. Choosing plays a select cue, flashes the chosen pair with a
+   "SELECTED" confirmation, then closes back to the LAWS overlay. Sized to
+   the ACTUAL board (getBoardDimensions), since TOPOLOGIES' size is not
+   applied to real play. The center row of an odd board self-mirrors, so
+   it's excluded from the selectable side. */
+function renderBlackHolePicker(t) {
+  const s = t.singularity;
+  if (!s || !s.blackHolePicker) return null;
+  const h = React.createElement;
+  const { rows, cols } = getBoardDimensions();
+  const confirm = s.blackHolePickConfirm || null;
+  const mirror = confirm ? mirrorCell(confirm.row, confirm.col, rows, cols) : null;
+  // Player's side = the bottom floor(rows/2) rows (mirror lands on top).
+  const selRowStart = rows - Math.floor(rows / 2);
+  const selectableRow = (r) => r >= selRowStart;
+
+  const close = () => { s.blackHolePicker = false; s.blackHolePickConfirm = null; s.bump(); };
+  const pick = (r, c) => {
+    if (confirm) return; // a pick is already confirming and about to close
+    s.selections.blackHole.manual = { row: r, col: c };
+    s.blackHolePickConfirm = { row: r, col: c };
+    if (s.audio && s.audio.playSelect) s.audio.playSelect();
+    s.bump();
+    setTimeout(() => {
+      s.blackHolePicker = false;
+      s.blackHolePickConfirm = null;
+      s.labelsDirty = true;
+      s.bump();
+    }, 780);
+  };
+
+  const cells = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const sel = selectableRow(r);
+      const isChosen = confirm && confirm.row === r && confirm.col === c;
+      const isMirror = mirror && mirror.row === r && mirror.col === c;
+      cells.push(h("div", {
+        key: `${r}-${c}`,
+        "data-testid": `bh-cell-${r}-${c}`,
+        "data-selectable": sel ? "true" : "false",
+        onClick: sel && !confirm ? () => pick(r, c) : undefined,
+        style: {
+          aspectRatio: "1 / 1",
+          borderRadius: 2,
+          boxSizing: "border-box",
+          border: `1px solid ${sel ? "rgba(102,217,255,0.4)" : "rgba(120,140,170,0.16)"}`,
+          background: isChosen
+            ? "#07080b"
+            : isMirror
+              ? "rgba(174,182,194,0.55)"
+              : sel ? "rgba(102,217,255,0.08)" : "rgba(40,50,66,0.28)",
+          boxShadow: isChosen
+            ? "0 0 12px rgba(174,182,194,0.85), inset 0 0 7px rgba(0,0,0,0.95)"
+            : isMirror ? "0 0 9px rgba(174,182,194,0.55)" : "none",
+          cursor: sel && !confirm ? "pointer" : "default",
+        },
+      }));
+    }
+  }
+
+  const label = (text, color) => h(
+    "div",
+    { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color, textAlign: "center" } },
+    text
+  );
+
+  return h(
+    "div",
+    {
+      "data-testid": "blackhole-picker-backdrop",
+      onPointerDown: (e) => { e.stopPropagation(); if (!confirm) close(); },
+      style: { position: "fixed", inset: 0, zIndex: 2300, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(2,5,10,0.55)" },
+    },
+    h(
+      "div",
+      {
+        "data-testid": "blackhole-picker",
+        onPointerDown: (e) => e.stopPropagation(),
+        style: {
+          width: "clamp(280px, 90%, 460px)",
+          maxHeight: "86vh",
+          overflowY: "auto",
+          background: "rgba(4,10,18,0.96)",
+          backdropFilter: "blur(10px)",
+          border: "1px solid rgba(102,217,255,0.4)",
+          borderRadius: 6,
+          padding: "18px 18px 16px",
+          boxShadow: "0 0 44px rgba(77,232,255,0.2)",
+          boxSizing: "border-box",
+          display: "flex", flexDirection: "column", gap: 10,
+        },
+      },
+      h("h3", { style: overlayTitleStyle }, "Place Black Hole"),
+      label("Mirror · far side", "rgba(174,182,194,0.55)"),
+      h(
+        "div",
+        {
+          style: {
+            display: "grid",
+            gridTemplateColumns: `repeat(${cols}, 1fr)`,
+            gap: 3,
+            width: "100%",
+          },
+        },
+        ...cells
+      ),
+      label("Your side · tap a square", confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"),
+      confirm
+        ? h("div", { "data-testid": "blackhole-confirm", style: { textAlign: "center", fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: "0.12em", color: "#dffaff", textShadow: "0 0 10px rgba(142,243,255,0.7)" } }, "◇ SELECTED")
+        : h(
+            "button",
+            { type: "button", "data-testid": "blackhole-picker-cancel", onClick: close, style: { alignSelf: "center", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 4, border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)", cursor: "pointer" } },
+            "Cancel"
+          )
+    )
+  );
+}
+
 /* The holographic overlay a root-label tap opens — LAWS/MATTER get
    real checkboxes, TOPOLOGIES (and MATTER's own roster section) get
    drum rollers. Reads/writes t.singularity.selections directly (see
@@ -1518,7 +1724,10 @@ function renderCategoryOverlay(t) {
           () => { sel.laws[item.key] = !sel.laws[item.key]; s.labelsDirty = true; s.bump(); },
           `law-${item.key}`
         )
-      )
+      ),
+      // When Black Hole Squares is on, offer manual placement (default is
+      // the random-but-fair auto pair). See renderBlackHolePicker.
+      sel.laws.blackHoleSquares ? renderBlackHolePlacementRow(t) : null
     );
   } else if (category === "matter") {
     body = h(
@@ -1912,6 +2121,8 @@ export function useSingularityPhase({
     t.singularity.selections = createDefaultSelections();
     t.singularity.tapTimestamps = [];
     t.singularity.labelsDirty = true;
+    t.singularity.blackHolePicker = false;
+    t.singularity.blackHolePickConfirm = null;
     // The roar layer runs alongside the hum for the whole collapse; the
     // hard cut stops it along with everything else.
     audio.startSingularityCollapseRoar();
@@ -1993,7 +2204,12 @@ export function useSingularityPhase({
       // (read by its holeGroup render effect) from the SAME computed
       // list, so what's enforced and what's drawn never disagree.
       const holes = laws.blackHoleSquares
-        ? pickBlackHoleSquares(pieces || [], getBoardDimensions().rows, getBoardDimensions().cols)
+        ? buildBlackHolePlacement(
+            t.singularity.selections,
+            getBoardDimensions().rows,
+            getBoardDimensions().cols,
+            pieces,
+          )
         : [];
       setActiveBlackHoles(holes);
       if (setBlackHoles) setBlackHoles(holes);
@@ -2392,6 +2608,7 @@ export function renderSingularityOverlay(setupExtras) {
     phase === PHASES.SPHERE && renderBackButton(exitSingularity),
     phase === PHASES.SPHERE && stage === "labels" && renderLabelsHint(),
     phase === PHASES.SPHERE && stage === "overlay" && t && renderCategoryOverlay(t),
+    phase === PHASES.SPHERE && stage === "overlay" && t && renderBlackHolePicker(t),
     phase === PHASES.SPHERE && stage === "summary" && renderSummaryPanel(setupExtras)
   );
 }
