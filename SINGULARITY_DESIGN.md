@@ -225,9 +225,12 @@ the sphere
 
 1. **Split Movement** — divide a turn's movement points across multiple
    pieces instead of committing them all to one piece.
-2. **Slide** — move one open adjacent square without rolling/reorienting,
-   as a full turn action. Available to every piece, old and new, once
-   enabled (not restricted to irregular pieces).
+2. **Slide** — move one open adjacent square without rolling/reorienting.
+   Costs **one action point** (like a roll), not the whole turn: in a
+   normal 2-point turn a slide leaves one further action (a roll or
+   another slide), and with "3 Actions Per Turn" it leaves two.
+   Available to every piece, old and new, once enabled (not restricted
+   to irregular pieces).
 3. **Black Hole Squares** — one or two obstacle squares, placed fairly:
    a single one must sit at the exact board center; two must be placed
    at rotationally-symmetric locations relative to each other. A single

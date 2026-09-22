@@ -287,7 +287,10 @@ then a real Begin Game.
   deliberately-scoped-out feature, not a quick add. Assessed directly
   with the user and explicitly deferred.
 - **LAWS — status.** Wired to the rules engine so far: **3 Actions Per
-  Turn**, **Slide** (orthogonal only), **Diagonal Slide** (a 6th toggle
+  Turn**, **Slide** (orthogonal only; costs **one action point** like a
+  roll, NOT the whole turn — a normal 2-point turn leaves one more action
+  after a slide, "3 Actions" leaves two; the wormhole is the one
+  exception that still ends the turn), **Diagonal Slide** (a 6th toggle
   that adds diagonals to Slide), and **Black Hole Squares** (always two
   linked wormholes; entry gated on a 1-cell ground footprint; a wormhole
   entry EJECTS the piece one cell past the far hole on the same relative

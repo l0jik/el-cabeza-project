@@ -2830,12 +2830,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const used = (piece.id === selectedId ? stepsUsed : 0) + 1;
     const stillHasMoves = Object.keys(legalMovesFor(nextPieces, move.candidate)).length > 0;
 
-    // Slide is "a full turn action" per SINGULARITY_DESIGN.md — it ends
-    // the turn immediately regardless of remaining budget, same as a
-    // crush or a Cabeza reaching the goal already do further up. A
-    // Black Hole Squares wormhole landing (move.teleports) gets the
-    // exact same treatment, per the design doc's own words.
-    if (move.isSlide || move.teleports || used >= maxStepsFor(piece.type) || !stillHasMoves) {
+    // Slide costs ONE action point, exactly like a roll — it does NOT
+    // end the turn on its own. So in a normal (2-point) game a slide
+    // leaves one more action (a roll or another slide); with "3 Actions
+    // Per Turn" a slide leaves two. The turn ends only when the budget
+    // is spent or no move remains. A Black Hole Squares wormhole landing
+    // (move.teleports) is the exception the design doc keeps turn-ending:
+    // it spends an action point AND ends the turn regardless of budget.
+    if (move.teleports || used >= maxStepsFor(piece.type) || !stillHasMoves) {
       settleTurn(move.candidate, notation);
     } else {
       setSelectedId(piece.id);
@@ -3041,9 +3043,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // has, so a tap arriving mid-animation has something to match
       // against without waiting for the animation to actually finish.
       const usedAfter = (piece.id === selectedId ? stepsUsed : 0) + 1;
+      // A slide is NOT terminal — it spends one point and a further
+      // action can follow (see settleTurn's own note). A wormhole
+      // (teleports) still is, as is a crush or a Cabeza reaching goal.
       const terminal =
         !!move.crushes ||
-        !!move.isSlide ||
         !!move.teleports ||
         (piece.type === "cabeza" && move.candidate.row === GOAL_ROW[piece.owner]);
       const canContinue = !terminal && usedAfter < maxStepsFor(piece.type);

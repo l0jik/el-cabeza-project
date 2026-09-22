@@ -167,13 +167,12 @@ export function generateTurns(pieces, player) {
       // A crush that DOESN'T end the game is still just a capture — the
       // piece can keep chaining a second step afterward exactly like
       // any other successful roll, so only endsGame1 (not merely
-      // move1.crushes) gates a second step here. A Slide, though, is
-      // "a full turn action" per SINGULARITY_DESIGN.md regardless of
-      // budget — never a candidate for chaining a further step. Same
-      // for a Black Hole Squares wormhole landing (move.teleports):
-      // "ends the piece's turn immediately regardless of leftover
-      // movement points."
-      if (endsGame1 || move1.isSlide || move1.teleports || maxSteps < 2) continue;
+      // move1.crushes) gates a second step here. A Slide now costs just
+      // ONE action point, so it too can chain a further step within the
+      // budget — no longer terminal. A Black Hole Squares wormhole
+      // landing (move.teleports) IS still terminal: it "ends the piece's
+      // turn immediately regardless of leftover movement points."
+      if (endsGame1 || move1.teleports || maxSteps < 2) continue;
 
       const undo1 = applyMove(pieces, piece, move1);
       const secondMoves = legalMovesFor(pieces, piece);
@@ -202,9 +201,10 @@ export function generateTurns(pieces, player) {
         // against the turn's own ORIGINAL start (undo1.prevFields),
         // not the after-step-1 position, since a full three-step
         // round trip back to where the turn began is exactly as
-        // pointless as a two-step one. Same Slide/wormhole-is-terminal
-        // rule as move1 above, checked against move2 this time.
-        if (endsGame2 || move2.isSlide || move2.teleports || maxSteps < 3) continue;
+        // pointless as a two-step one. Same wormhole-is-terminal rule as
+        // move1 above (a slide is no longer terminal), checked against
+        // move2 this time.
+        if (endsGame2 || move2.teleports || maxSteps < 3) continue;
 
         const undo2 = applyMove(pieces, piece, move2);
         const thirdMoves = legalMovesFor(pieces, piece);
