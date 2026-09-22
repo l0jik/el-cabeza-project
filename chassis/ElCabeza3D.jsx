@@ -3320,17 +3320,6 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       );
     }
 
-    /* Latched at pointerdown, same as altPanning: whether the drag
-       started above or below the canvas's own vertical midpoint. The
-       board is viewed from an oblique angle, so a grab point on the
-       visually "far" (upper-screen) half of it behaves like grabbing
-       the far side of a physical turntable — dragging right there
-       reads as the opposite rotation from grabbing the near (lower-
-       screen) half, even though theta's own sign never changes. This
-       flips theta's sign for an upper-half-started drag so both
-       halves feel consistent with each other. */
-    let dragFlipTheta = false;
-
     function pick(ev, opts = {}) {
       const rect = el.getBoundingClientRect();
       t.pointer.set(
@@ -3446,8 +3435,6 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         moved = 0;
         lastX = ev.clientX;
         lastY = ev.clientY;
-        const rect = el.getBoundingClientRect();
-        dragFlipTheta = ev.clientY - rect.top < rect.height / 2;
         el.style.cursor = "grabbing";
 
         // "Undo Move": dragging the piece that has already made a step
@@ -3650,14 +3637,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         /* These only move the GOAL (cam.current); the render loop damps
            the actual view toward it every frame, which is what removes
            the raw, sample-for-sample twitchiness a direct 1:1 mapping had.
-           theta here still uses the same sign it always did — dragging
-           right still decreases it. What changed is downstream, in
-           applyCamera: theta used to swing the camera around the board,
-           now it spins the board itself (with a sign flip there), which
-           is what reproduces the identical drag-right-feels-right
-           direction players already learned, just via a fixed camera and
-           a turning board instead of the other way around. */
-        cam.current.theta -= dx * ORBIT_SENS_THETA * (dragFlipTheta ? -1 : 1);
+           Yaw uses ONE consistent sign regardless of where on screen the
+           drag started: dragging right always spins the board the same
+           way. (A previous turntable-style flip that reversed yaw for a
+           drag begun in the upper screen half was latched at pointerdown,
+           so a gesture crossing the vertical midline kept the wrong
+           half's sign and read as an inversion — removed.) */
+        cam.current.theta -= dx * ORBIT_SENS_THETA;
         /* Lower bound is a hair above zero rather than zero itself: at
            exactly vertical the view direction is parallel to the camera's
            up vector and lookAt has no defined roll, which snaps the view.
