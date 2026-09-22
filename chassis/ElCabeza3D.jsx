@@ -2439,32 +2439,36 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       c.geometry && c.geometry.dispose();
       c.material && c.material.dispose();
     }
-    const HOLE_RADIUS = 0.3;
+    const HOLE_RADIUS = 0.42;
     blackHoles.forEach((hole) => {
       const center = pieceCenter({ row: hole.row, col: hole.col, w: 1, h: 1, z: 0 });
+      // A near-black glossy orb — an actual black hole, not the earlier
+      // purple. A faint cool-grey emissive keeps it from vanishing into a
+      // dark board while still reading as a void; a little metalness gives
+      // the surface a subtle sheen at its edge.
       const sphere = new THREE.Mesh(
-        new THREE.SphereGeometry(HOLE_RADIUS, 24, 16),
+        new THREE.SphereGeometry(HOLE_RADIUS, 32, 24),
         new THREE.MeshStandardMaterial({
-          color: 0x050208,
-          emissive: 0x7a2dff,
-          emissiveIntensity: 0.5,
-          roughness: 0.35,
-          metalness: 0.4,
+          color: 0x07080b,
+          emissive: 0x161b22,
+          emissiveIntensity: 0.35,
+          roughness: 0.22,
+          metalness: 0.55,
         })
       );
       sphere.position.set(center.x, HOLE_RADIUS, center.z);
       sphere.castShadow = true;
-      // A flat "event horizon" ring reads as a portal rather than just
-      // a dark ball sitting on the board — kept a plain primitive, not
-      // an animated shader, per this being a gameplay marker rather
-      // than a visual-effects moment.
+      // A flat neutral "event horizon" ring reads as a portal rather than
+      // a plain dark ball — a cool silver, no hue, so it sits in either
+      // theme. Kept a plain primitive, not an animated shader.
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(HOLE_RADIUS * 1.35, HOLE_RADIUS * 0.08, 12, 32),
+        new THREE.TorusGeometry(HOLE_RADIUS * 1.18, HOLE_RADIUS * 0.075, 16, 40),
         new THREE.MeshStandardMaterial({
-          color: 0x120a1e,
-          emissive: 0xb266ff,
-          emissiveIntensity: 0.9,
+          color: 0x2a2f37,
+          emissive: 0xaeb6c2,
+          emissiveIntensity: 0.85,
           roughness: 0.3,
+          metalness: 0.2,
         })
       );
       ring.rotation.x = Math.PI / 2;
