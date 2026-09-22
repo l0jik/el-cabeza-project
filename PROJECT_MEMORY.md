@@ -286,14 +286,28 @@ then a real Begin Game.
   `<ElCabeza3D>`, in `apps/neon.jsx`/`apps/unified.jsx`) — a real,
   deliberately-scoped-out feature, not a quick add. Assessed directly
   with the user and explicitly deferred.
-- **LAWS — all five are still just UI-only toggles with zero gameplay
-  effect.** None of Split Movement, Slide, Black Hole Squares,
-  Cantilever Pivot, or 3 Actions Per Turn are wired to the rules
-  engine yet. Cantilever Pivot specifically **cannot** be implemented
-  before non-convex pieces exist (it's defined in terms of "a piece
-  resting with only one cell grounded," which no current piece type
-  can ever be in) — it's the same blocker as MATTER's L-Pentomino/Arch
-  inertness above, not a separate gap.
+- **LAWS — status.** Wired to the rules engine so far: **3 Actions Per
+  Turn**, **Slide** (orthogonal only), **Diagonal Slide** (a 6th toggle
+  that adds diagonals to Slide), and **Black Hole Squares** (always two
+  linked wormholes; entry gated on a 1-cell ground footprint; a wormhole
+  entry EJECTS the piece one cell past the far hole on the same relative
+  side it entered — `farHole - travelDir` — never landing on a hole,
+  crushing a lone enemy Cabeza at the ejection square, illegal if that
+  square is off-board or blocked). **Split Movement** is planned but not
+  built (see the reviewed plan; budget = shared pool of 2, or 3 with 3
+  Actions). **Cantilever Pivot** still **cannot** be implemented before
+  non-convex pieces exist — same blocker as MATTER's L-Pentomino/Arch
+  inertness above.
+- **Backlog LAW — Shoving (not built, spec later):** larger pieces can
+  displace smaller pieces 1 space (2? for Opa — TBD). No rules,
+  UI, or toggle yet.
+- **Black Holes + future irregular pieces (L / Z / S):** the current
+  wormhole-entry gate is "ground footprint is exactly one cell"
+  (`cells.length === 1`). Irregular pieces will be able to have a single
+  grounded cell while their standing body/shadow overhangs neighbouring
+  cells — those must NOT be wormhole-eligible. When irregular pieces are
+  added, the entry check must test the piece's full occupied shadow, not
+  just its ground contact.
 
 **Failed/rejected approach — sphere label vertical positioning (add to
 §12 too):** getting the MATTER/LAWS/TOPOLOGY words to sit on the
