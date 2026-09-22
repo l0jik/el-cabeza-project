@@ -2,7 +2,7 @@
    the Standard and Neon theme sources before extraction (see
    build/scratch/) — pure logic, no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost } from "./constants.js";
 import { legalMovesFor, sameState } from "./rules.js";
 
 /* Everything below is pure — no React, no Three.js. It only knows the
@@ -137,7 +137,7 @@ export function generateTurns(pieces, player) {
   for (const piece of pieces) {
     if (piece.owner !== player) continue;
     const maxSteps = maxStepsFor(piece.type);
-    const firstMoves = legalMovesFor(pieces, piece);
+    const firstMoves = legalMovesFor(pieces, piece, maxSteps);
 
     for (const [dir1, move1] of Object.entries(firstMoves)) {
       const wins1 =
@@ -167,15 +167,18 @@ export function generateTurns(pieces, player) {
       // A crush that DOESN'T end the game is still just a capture — the
       // piece can keep chaining a second step afterward exactly like
       // any other successful roll, so only endsGame1 (not merely
-      // move1.crushes) gates a second step here. A Slide now costs just
-      // ONE action point, so it too can chain a further step within the
-      // budget — no longer terminal. A Black Hole Squares wormhole
-      // landing (move.teleports) IS still terminal: it "ends the piece's
-      // turn immediately regardless of leftover movement points."
-      if (endsGame1 || move1.teleports || maxSteps < 2) continue;
+      // move1.crushes) gates a second step here. Steps are gated by the
+      // action-point BUDGET, not a step count: a roll spends 1, a slide
+      // spends 2 (moveCost), so a further move is possible only while
+      // points remain (the cheapest next move, a roll, costs 1). A Black
+      // Hole Squares wormhole (move.teleports) is still terminal.
+      const spent1 = moveCost(move1);
+      if (endsGame1 || move1.teleports || spent1 >= maxSteps) continue;
 
       const undo1 = applyMove(pieces, piece, move1);
-      const secondMoves = legalMovesFor(pieces, piece);
+      // Budget-aware: legalMovesFor only offers a slide when >= 2 points
+      // remain, so a mid-turn slide with a single point left won't appear.
+      const secondMoves = legalMovesFor(pieces, piece, maxSteps - spent1);
       for (const [dir2, move2] of Object.entries(secondMoves)) {
         if (sameState(undo1.prevFields, move2.candidate)) continue; // net-zero round trip — not a real turn
 
@@ -201,13 +204,14 @@ export function generateTurns(pieces, player) {
         // against the turn's own ORIGINAL start (undo1.prevFields),
         // not the after-step-1 position, since a full three-step
         // round trip back to where the turn began is exactly as
-        // pointless as a two-step one. Same wormhole-is-terminal rule as
-        // move1 above (a slide is no longer terminal), checked against
-        // move2 this time.
-        if (endsGame2 || move2.teleports || maxSteps < 3) continue;
+        // pointless as a two-step one. Same budget gate as move1 above
+        // (a slide spends 2, a roll 1), checked against the running total
+        // this time; a wormhole (teleports) stays terminal.
+        const spent2 = spent1 + moveCost(move2);
+        if (endsGame2 || move2.teleports || spent2 >= maxSteps) continue;
 
         const undo2 = applyMove(pieces, piece, move2);
-        const thirdMoves = legalMovesFor(pieces, piece);
+        const thirdMoves = legalMovesFor(pieces, piece, maxSteps - spent2);
         for (const [dir3, move3] of Object.entries(thirdMoves)) {
           if (sameState(undo1.prevFields, move3.candidate)) continue; // net-zero round trip — not a real turn
 

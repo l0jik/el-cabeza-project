@@ -7,7 +7,7 @@ import {
   CAMERA_DAMPING, RESET_CAMERA_DAMPING, RESET_TRANSITION_MS,
   ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
-  isSlideKey, baseDirOfSlideKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles,
+  isSlideKey, baseDirOfSlideKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
 } from "../engine/constants.js";
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState,
@@ -1425,7 +1425,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     activePiece.owner === currentPlayer &&
     currentPlayer !== aiPlayer && // the AI moves without narrating its options on the board
     stepsRemaining > 0
-      ? legalMovesFor(pieces, activePiece)
+      ? legalMovesFor(pieces, activePiece, stepsRemaining)
       : {};
   // Slide moves are NOT drawn as persistent landing markers — they're
   // invoked by dragging the piece (see the drag-to-slide gesture in the
@@ -2827,16 +2827,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     setPendingNotation(notation);
     setHoverShadow(null);
 
-    const used = (piece.id === selectedId ? stepsUsed : 0) + 1;
-    const stillHasMoves = Object.keys(legalMovesFor(nextPieces, move.candidate)).length > 0;
+    // A Slide always costs TWO action points; a roll costs one (moveCost).
+    // So in a normal 2-point turn a slide spends the whole turn, and with
+    // "3 Actions Per Turn" it leaves exactly one point — a single follow-up
+    // roll ("a slide and an additional roll").
+    const used = (piece.id === selectedId ? stepsUsed : 0) + moveCost(move);
+    const remainingAfter = maxStepsFor(piece.type) - used;
+    // Budget-aware: with one point left a Slide is no longer offered, so
+    // "still has a move" means "still has a roll" in that case.
+    const stillHasMoves = Object.keys(legalMovesFor(nextPieces, move.candidate, remainingAfter)).length > 0;
 
-    // Slide costs ONE action point, exactly like a roll — it does NOT
-    // end the turn on its own. So in a normal (2-point) game a slide
-    // leaves one more action (a roll or another slide); with "3 Actions
-    // Per Turn" a slide leaves two. The turn ends only when the budget
-    // is spent or no move remains. A Black Hole Squares wormhole landing
-    // (move.teleports) is the exception the design doc keeps turn-ending:
-    // it spends an action point AND ends the turn regardless of budget.
+    // The turn ends when the budget is spent or no move remains. A Black
+    // Hole Squares wormhole landing (move.teleports) is the exception the
+    // design doc keeps turn-ending: it ends the turn regardless of budget.
     if (move.teleports || used >= maxStepsFor(piece.type) || !stillHasMoves) {
       settleTurn(move.candidate, notation);
     } else {
@@ -3024,7 +3027,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   const beginMove = useCallback(
     (piece, dir) => {
       if (!piece || anim.current || busy) return;
-      const move = legalMovesFor(pieces, piece)[dir];
+      const remainingBefore = maxStepsFor(piece.type) - (piece.id === selectedId ? stepsUsed : 0);
+      const move = legalMovesFor(pieces, piece, remainingBefore)[dir];
       if (!move) return;
 
       const t = three.current;
@@ -3042,10 +3046,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // Computed up front, synchronously, from data this closure already
       // has, so a tap arriving mid-animation has something to match
       // against without waiting for the animation to actually finish.
-      const usedAfter = (piece.id === selectedId ? stepsUsed : 0) + 1;
-      // A slide is NOT terminal — it spends one point and a further
-      // action can follow (see settleTurn's own note). A wormhole
-      // (teleports) still is, as is a crush or a Cabeza reaching goal.
+      // A slide spends TWO points (moveCost); a further action can still
+      // follow if the budget allows (e.g. a slide then a roll under 3
+      // Actions). A wormhole (teleports) is terminal, as is a crush or a
+      // Cabeza reaching goal.
+      const usedAfter = (piece.id === selectedId ? stepsUsed : 0) + moveCost(move);
       const terminal =
         !!move.crushes ||
         !!move.teleports ||
@@ -3057,7 +3062,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         inFlightRef.current = {
           pieceId: piece.id,
           landing: move.candidate,
-          secondMoves: legalMovesFor(afterStep, move.candidate),
+          // The follow-up set is budget-aware: with one point left it's
+          // rolls only (a slide needs two).
+          secondMoves: legalMovesFor(afterStep, move.candidate, maxStepsFor(piece.type) - usedAfter),
         };
       } else {
         inFlightRef.current = null;
@@ -3523,7 +3530,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               // drag. Nothing to arm if this piece has no legal slide
               // (slide law off, Cabeza, or fully boxed in).
               const piece = pieces.find((p) => p.id === selectedId);
-              const moves = piece ? legalMovesFor(pieces, piece) : {};
+              // Budget-aware: a slide needs two points, so it's only
+              // armable when the piece still has at least that many.
+              const slideRemaining = piece ? maxStepsFor(piece.type) - stepsUsed : 0;
+              const moves = piece ? legalMovesFor(pieces, piece, slideRemaining) : {};
               const slideEntries = Object.entries(moves).filter(([, m]) => m.isSlide);
               if (piece && slideEntries.length) {
                 const pc = pieceCenter(piece);

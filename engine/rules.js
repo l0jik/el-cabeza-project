@@ -2,7 +2,7 @@
    between the Standard and Neon theme sources before extraction — see
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, SLIDE_COST } from "./constants.js";
 
 /* Dark's half of the opening setup, with columns expressed RELATIVE to
    the leftmost of the four columns the formation occupies, so the whole
@@ -283,10 +283,16 @@ export function legalSlideSteps(pieces, piece) {
   return out;
 }
 
-export function legalMovesFor(pieces, piece) {
+/* `remaining` is the piece's action-point budget left THIS TURN (default
+   Infinity = a fresh piece / caller that doesn't track it). A Slide costs
+   SLIDE_COST (2) points, so it's only offered when at least that many
+   remain — that's the whole "a slide always costs two points" rule: with
+   only one point left (mid-turn, or Opa's 1-point budget) no slide is
+   available, only rolls. */
+export function legalMovesFor(pieces, piece, remaining = Infinity) {
   if (piece.type === "cabeza") return legalCabezaSteps(pieces, piece);
   const rolls = legalRolls(pieces, piece);
-  if (!ACTIVE_LAWS.slide) return rolls;
+  if (!ACTIVE_LAWS.slide || remaining < SLIDE_COST) return rolls;
   // Prefixed keys (see slideKey/constants.js): a block piece's roll and
   // slide can legally coexist in the same cardinal direction (e.g. "E"
   // rolls it a full square-and-a-bit away while "slide-E" just nudges

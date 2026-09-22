@@ -305,6 +305,21 @@ export function maxStepsFor(type) {
   return ACTIVE_LAWS.threeActions && type !== "opa" ? base + 1 : base;
 }
 
+/* A Slide always costs TWO action points (a roll costs one). So in a
+   normal 2-point turn a slide consumes the whole turn, while with "3
+   Actions Per Turn" (a 3-point turn) it leaves exactly one point — room
+   for a single follow-up roll ("a slide and an additional roll"). A
+   piece can therefore only slide when it has at least this many points
+   left this turn; a piece with a 1-point budget (Opa) can never slide. */
+export const SLIDE_COST = 2;
+
+// The action-point cost of a given move (a roll or Cabeza step is 1; a
+// block piece's Slide is SLIDE_COST). A wormhole teleport is handled
+// separately as turn-ending, not by point cost.
+export function moveCost(move) {
+  return move && move.isSlide ? SLIDE_COST : 1;
+}
+
 export const ROLL_DIRS = ["N", "E", "S", "W"];
 
 export const STEP_DIRS = {
