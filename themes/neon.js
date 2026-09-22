@@ -16,6 +16,7 @@ import React from "react";
 import * as THREE from "three";
 import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, GRID_EXTENT_X, GRID_EXTENT_Z, GOAL_ROW, PIECE_SCALE } from "../engine/constants.js";
 import { opponentOf, cabezaInDanger } from "../engine/ai.js";
+import { createInitialPieces } from "../engine/rules.js";
 import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay, renderVariantsFlyout } from "./neon-singularity.js";
 
 /* Everything visual in this experimental skin lives in these two
@@ -3236,9 +3237,15 @@ export function useSetupExtras({
   // what Anomaly's own generator places — the same mechanism the
   // plain Anomaly button already uses, just with a chosen roster
   // instead of the fixed five.
-  function applyMatterRoster(matterSelections) {
+  function applyMatterRoster(matterSelections, randomize) {
     const roster = buildRosterFromSelections(matterSelections);
-    if (roster) setPieces(generateAnomalySetup(roster));
+    if (!roster) return;
+    // Only shuffle the opening layout when actually asked to (see
+    // finalizeSingularityBegin): a default roster with Randomized Start
+    // off keeps the standard fixed formation instead of silently
+    // randomizing. A customized roster has no fixed formation, so the
+    // caller forces randomize there — that's the only way to place it.
+    setPieces(randomize ? generateAnomalySetup(roster) : createInitialPieces());
   }
 
   const singularityCinematic = useSingularityPhase({

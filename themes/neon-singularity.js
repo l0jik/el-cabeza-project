@@ -541,6 +541,9 @@ function createDefaultSelections() {
     matter: {
       newPieces: Object.fromEntries(MATTER_NEW_PIECES.map((i) => [i.key, false])),
       roster: Object.fromEntries(MATTER_ROSTER.map((p) => [p.key, p.default])),
+      // Opt-in random opening layout (Anomaly-style). Off = the standard
+      // fixed formation; on = a fresh randomized placement at Begin Game.
+      randomizeStart: false,
     },
     topologies: { rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM },
   };
@@ -549,6 +552,7 @@ function createDefaultSelections() {
 function isCategoryActive(key, selections) {
   if (key === "laws") return Object.values(selections.laws).some(Boolean);
   if (key === "matter") {
+    if (selections.matter.randomizeStart) return true;
     if (Object.values(selections.matter.newPieces).some(Boolean)) return true;
     return MATTER_ROSTER.some((p) => selections.matter.roster[p.key] !== p.default);
   }
@@ -585,6 +589,7 @@ function buildVariantsSnapshot(selections) {
   if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws });
 
   const matter = [];
+  if (selections.matter.randomizeStart) matter.push("Randomized start");
   MATTER_NEW_PIECES.forEach((i) => { if (selections.matter.newPieces[i.key]) matter.push(i.label); });
   MATTER_ROSTER.forEach((p) => {
     const n = selections.matter.roster[p.key];
@@ -1529,6 +1534,13 @@ function renderCategoryOverlay(t) {
             onChange: (v) => { sel.matter.roster[p.key] = v; s.labelsDirty = true; s.bump(); },
           })
         )
+      ),
+      h("div", { style: { ...sectionLabelStyle, marginTop: 10 } }, "Setup"),
+      renderCheckboxRow(
+        { key: "randomizeStart", label: "Randomized Start", blurb: "Begin with a random Anomaly-style layout instead of the standard formation." },
+        sel.matter.randomizeStart,
+        () => { sel.matter.randomizeStart = !sel.matter.randomizeStart; s.labelsDirty = true; s.bump(); },
+        "matter-randomize-start"
       )
     );
   } else if (category === "topologies") {
@@ -1696,6 +1708,33 @@ function renderSummaryPanel(setupExtras) {
         },
       },
       "Begin Game"
+    ),
+    // Return to the sphere to change selections without abandoning setup:
+    // unlike the top-left BACK (which exits to the dock), this keeps every
+    // pick and just drops back to the rotating labels so a category can be
+    // reopened, then a bare triple-tap comes back here to Begin.
+    h(
+      "button",
+      {
+        type: "button",
+        "data-testid": "singularity-edit-settings",
+        onClick: () => {
+          t.singularity.sphereMenuStage = "labels";
+          t.singularity.activeCategory = null;
+          t.singularity.tapTimestamps = [];
+          t.singularity.labelsDirty = true;
+          if (t.singularity.bump) t.singularity.bump();
+        },
+        style: {
+          marginTop: 10, width: "100%",
+          fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 12,
+          letterSpacing: "0.12em", textTransform: "uppercase",
+          color: "#8ef3ff", background: "transparent",
+          border: "1px solid rgba(102,217,255,0.5)", borderRadius: 4,
+          padding: "10px 0", cursor: "pointer",
+        },
+      },
+      "◂ Edit Settings"
     )
   );
 }
@@ -1861,7 +1900,12 @@ export function useSingularityPhase({
     // themes/neon.js. TOPOLOGIES and MATTER's two non-convex pieces
     // (L-Pentomino/Arch) still aren't wired to anything real.
     if (t && t.singularity && t.singularity.selections && applyMatterRoster) {
-      applyMatterRoster(t.singularity.selections.matter);
+      // Randomize the opening layout only when the player opted in
+      // (Randomized Start) or picked a custom roster/new pieces (which
+      // has no standard formation to fall back to). A plain default game
+      // keeps the standard fixed formation — no silent shuffle.
+      const sel = t.singularity.selections;
+      applyMatterRoster(sel.matter, isCategoryActive("matter", sel));
     }
     // LAWS: the sphere's checkboxes just toggle plain booleans in
     // selections.laws (same shape as ACTIVE_LAWS) — actually applying
