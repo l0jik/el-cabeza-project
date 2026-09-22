@@ -3194,6 +3194,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        two gestures mutually exclusive. */
     const active = new Map();
     let dragging = false;
+    /* Yaw arcball flip, recomputed from the CURRENT pointer position on
+       every move (NOT latched at pointerdown): the board is viewed
+       obliquely, so spinning it one way sends its far edge and near edge
+       in OPPOSITE screen directions. To make a horizontal drag feel like
+       grabbing the board and turning it — the edge under the finger
+       follows the finger — the yaw sign has to depend on which half of
+       the canvas the finger is in right now. A finger above the vertical
+       midline (grabbing the far edge) turns it one way; below (the near
+       edge) the other. Recomputing per move is what lets a drag that
+       crosses the midline keep following the finger instead of inverting.
+       true = pointer in the upper (far) half. */
+    let dragFlipTheta = false;
     /* Stays false until cumulative pointer travel since the down event
        crosses DRAG_DEAD_ZONE_PX — see onMove. Every touch carries a few
        pixels of contact-point jitter even when the finger is meant to be
@@ -3637,15 +3649,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         /* These only move the GOAL (cam.current); the render loop damps
            the actual view toward it every frame, which is what removes
            the raw, sample-for-sample twitchiness a direct 1:1 mapping had.
-           Yaw uses ONE consistent sign regardless of where on screen the
-           drag started, and follows the finger: dragging left spins the
-           board left, dragging right spins it right (direct manipulation,
-           as if grabbing the board and turning it). (A previous
-           turntable-style flip that reversed yaw for a drag begun in the
-           upper screen half was latched at pointerdown, so a gesture
-           crossing the vertical midline kept the wrong half's sign and
-           read as an inversion — removed.) */
-        cam.current.theta += dx * ORBIT_SENS_THETA;
+           Yaw follows the finger from either half of the board: the flip
+           is recomputed from the pointer's CURRENT vertical position each
+           move (see dragFlipTheta's own comment) so the edge under the
+           finger always tracks it, including across the midline. */
+        {
+          const rect = el.getBoundingClientRect();
+          dragFlipTheta = ev.clientY - rect.top < rect.height / 2;
+        }
+        cam.current.theta -= dx * ORBIT_SENS_THETA * (dragFlipTheta ? -1 : 1);
         /* Lower bound is a hair above zero rather than zero itself: at
            exactly vertical the view direction is parallel to the camera's
            up vector and lookAt has no defined roll, which snaps the view.
