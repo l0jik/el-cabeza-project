@@ -1,6 +1,6 @@
-import { createInitialPieces, legalMovesFor, sameState, pairLog } from "../engine/rules.js";
+import { createInitialPieces, legalMovesFor, sameState, pairLog, turnContinues } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY, evaluatePosition, generateTurns } from "../engine/ai.js";
-import { setBlackHoles } from "../engine/constants.js";
+import { setBlackHoles, turnBudget, MAX_PIECES_PER_TURN } from "../engine/constants.js";
 import { pieceCenter, makeRoundedBox, pivotFor } from "../engine/geometry.js";
 import { BOARD_ROWS, BOARD_COLS, setActiveLaws, isSlideKey } from "../engine/constants.js";
 
@@ -96,6 +96,52 @@ const wormEnemy = { id: "lc2", type: "cabeza", owner: "light", row: 4, col: 6, w
 const wormCrush = Object.values(legalMovesFor([wormCab, wormEnemy], wormCab)).filter((m) => m.teleports && m.crushes).length;
 if (wormCrush !== 0) throw new Error("A Cabeza must not wormhole-crush an enemy Cabeza at the ejection square");
 setBlackHoles([]);
+setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
+
+// ---- Split Movement bank sizing ----
+// turnBudget() is the whole-turn action-point bank the Split Movement law
+// spends across up to MAX_PIECES_PER_TURN pieces: 2 normally, 3 with "3
+// Actions". (The engine only sizes the bank/cap; the cross-piece spending
+// itself is driven in the chassis for the human player.)
+setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: true, threeActions: false });
+if (turnBudget() !== 2) throw new Error("Split Movement alone is a 2-point bank");
+setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: true, threeActions: true });
+if (turnBudget() !== 3) throw new Error("Split Movement + 3 Actions is a 3-point bank");
+if (MAX_PIECES_PER_TURN !== 2) throw new Error("At most two pieces may move in a turn");
+console.log("[split] bank 2/3 and 2-piece cap OK");
+
+// turnContinues is the single "is there another move?" rule the live game
+// and AI both defer to. Board: an Opa plus a Turrito (both Dark) with the
+// two Cabezas parked out of the way. Budget 3 (Split + 3 Actions).
+setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: true, threeActions: true });
+const contPieces = [
+  { id: "o", type: "opa", owner: "dark", row: 4, col: 4, w: 2, h: 2, z: 2 },
+  { id: "t", type: "turrito", owner: "dark", row: 1, col: 1, w: 1, h: 1, z: 2 },
+  { id: "cd", type: "cabeza", owner: "dark", row: 0, col: 0, w: 1, h: 1, z: 2 },
+  { id: "cl", type: "cabeza", owner: "light", row: 9, col: 9, w: 1, h: 1, z: 2 },
+];
+const contOpa = contPieces[0];
+const contT = contPieces[1];
+// Opa just rolled (used 2 of 3). It can't move again (its cheapest move is
+// 2, only 1 left), but with Split Movement the Turrito can spend the last
+// point — so the turn stays open.
+if (turnContinues(contPieces, "dark", ["o"], contOpa, 2, 3, true) !== true)
+  throw new Error("Split: after an Opa roll a different piece may still take the leftover point");
+// Same position WITHOUT Split Movement: the Opa is done and no other piece
+// may join, so the turn ends.
+if (turnContinues(contPieces, "dark", ["o"], contOpa, 2, 3, false) !== false)
+  throw new Error("Without Split Movement a spent Opa ends the turn");
+// The 2-piece cap: two distinct pieces have already moved, so no third may
+// start even though a point remains.
+if (turnContinues(contPieces, "dark", ["o", "t"], contOpa, 2, 3, true) !== false)
+  throw new Error("At most two distinct pieces may move, even with a point left");
+// A spent bank always ends the turn, Split or not.
+if (turnContinues(contPieces, "dark", ["o"], contOpa, 3, 3, true) !== false)
+  throw new Error("A spent bank ends the turn");
+// A piece that can still move itself keeps the turn open with or without Split.
+if (turnContinues(contPieces, "dark", ["t"], contT, 1, 3, false) !== true)
+  throw new Error("A piece with a legal move and points left continues its own turn");
+console.log("[split] turnContinues: Opa+leftover, no-split, 2-piece cap, spent-bank OK");
 setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
 
 console.log("\nSMOKE TEST PASSED");

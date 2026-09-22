@@ -2,7 +2,7 @@
    between the Standard and Neon theme sources before extraction — see
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, SLIDE_COST, OPA_MOVE_COST } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, SLIDE_COST, OPA_MOVE_COST, MAX_PIECES_PER_TURN } from "./constants.js";
 
 /* Dark's half of the opening setup, with columns expressed RELATIVE to
    the leftmost of the four columns the formation occupies, so the whole
@@ -320,6 +320,37 @@ export function legalMovesFor(pieces, piece, remaining = Infinity) {
   const out = { ...rolls };
   for (const [dir, move] of Object.entries(legalSlideSteps(pieces, piece))) out[slideKey(dir)] = move;
   return out;
+}
+
+/* Whether `player`'s turn stays open after `currentPieceState` just moved,
+   spending `used` of the turn's `budget`-point bank. This is the single
+   rule the live game and the AI's own turn shape both defer to for "is
+   there another move to make."
+
+   Without Split Movement (`split` false) a turn is one piece: it continues
+   only while that piece still has a legal move and the bank isn't spent —
+   exactly the original per-piece rule. With Split Movement it ALSO stays
+   open when a point remains, fewer than MAX_PIECES_PER_TURN DISTINCT pieces
+   have moved, and some OTHER eligible piece can still move — that's the
+   leftover point a different piece may spend (an Opa rolls for two, then
+   another piece rolls for the third). `movedPieceIds` is the distinct
+   pieces already moved this turn, currentPieceState included. A wormhole
+   teleport is turn-ending and handled by the caller, so it never reaches
+   here. */
+export function turnContinues(pieces, player, movedPieceIds, currentPieceState, used, budget, split) {
+  if (used >= budget) return false;
+  const remaining = budget - used;
+  const currentCanContinue =
+    Object.keys(legalMovesFor(pieces, currentPieceState, remaining)).length > 0;
+  if (!split) return currentCanContinue;
+  if (currentCanContinue) return true;
+  if (movedPieceIds.length >= MAX_PIECES_PER_TURN) return false;
+  return pieces.some(
+    (q) =>
+      q.owner === player &&
+      !movedPieceIds.includes(q.id) &&
+      Object.keys(legalMovesFor(pieces, q, remaining)).length > 0
+  );
 }
 
 export function pairLog(entries) {

@@ -323,9 +323,25 @@ then a real Begin Game.
   is entering** (a Cabeza can never crush a Cabeza — enforced in
   `pieceOccupancyVerdict`, so a Cabeza whose ejection square holds an enemy
   Cabeza can't enter that wormhole), illegal if that square is off-board or
-  blocked). **Split Movement** is planned but not
-  built (see the reviewed plan; budget = shared pool of 2, or 3 with 3
-  Actions). **Cantilever Pivot** still **cannot** be implemented before
+  blocked). **Split Movement** is **built for the human player**: the turn's
+  point bank (`turnBudget()` — 2, or 3 with 3 Actions) may be spent across up
+  to `MAX_PIECES_PER_TURN` (=2) DISTINCT pieces instead of one. The single
+  shared decision is `turnContinues(pieces, player, movedPieceIds, cur, used,
+  budget, split)` in `engine/rules.js` (no-split → original per-piece rule;
+  split → also stays open when a point remains, <2 distinct pieces moved, and
+  some other own piece can move). Chassis: `movedPieceIds`/`pendingSteps`
+  state track distinct movers + a piece-tagged step record (so the move log
+  names each piece — `makeStepEntry` — and undo animates each piece's own
+  moves in reverse, both `handleUndoTurn` and `handleUndoLastTurn`); the
+  pointer handler lets the player select a second eligible piece mid-turn
+  (`ACTIVE_LAWS.splitMovement && currentPlayer !== aiPlayer`, bank>0, cap not
+  reached). `humanSplit` gates it to the human — the **AI plays legal
+  single-piece turns** under the law (committing its whole bank to one piece,
+  always legal) and does not proactively split; teaching `generateTurns` to
+  spend across two pieces (combinatorial in the deep search) is the staged
+  follow-up. Verified headlessly via `turnContinues` cases in
+  `tests/engine.smoke.mjs`; two-piece touch feel wants real-device play.
+  **Cantilever Pivot** still **cannot** be implemented before
   non-convex pieces exist — same blocker as MATTER's L-Pentomino/Arch
   inertness above.
 - **Backlog LAW — Shoving (not built, spec later):** larger pieces can

@@ -8,9 +8,10 @@ import {
   ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, setBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
   isSlideKey, baseDirOfSlideKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
+  turnBudget, MAX_PIECES_PER_TURN,
 } from "../engine/constants.js";
 import {
-  createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState,
+  createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues,
 } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY } from "../engine/ai.js";
 import {
@@ -240,6 +241,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   const [stepsUsed, setStepsUsed] = useState(0);
   const [turnSnapshot, setTurnSnapshot] = useState(null);
   const [pendingNotation, setPendingNotation] = useState([]);
+  /* Split Movement bookkeeping (both empty except during a Split turn):
+     the distinct pieces that have already moved this turn (capped at
+     MAX_PIECES_PER_TURN), and a piece-tagged record of every step taken so
+     the move log can name each piece and undo can animate each piece's own
+     moves in reverse. A normal one-piece turn leaves movedPieceIds with a
+     single id and pendingSteps a single label group — identical output to
+     before. Both reset wherever stepsUsed resets to 0. */
+  const [movedPieceIds, setMovedPieceIds] = useState([]);
+  const [pendingSteps, setPendingSteps] = useState([]);
   const [log, setLog] = useState([]);
   const [status, setStatus] = useState("playing");
   /* Every completed turn, oldest first, each entry holding full state
@@ -2768,12 +2778,34 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     []
   );
 
+  /* Log entry from piece-tagged steps (see pendingSteps). Consecutive
+     steps by the same piece group under that piece's label, so a normal
+     one-piece turn reads exactly like makeEntry ("T: N.E") while a Split
+     Movement turn names each piece it moved ("O: N  ·  Ch: E"). `player`
+     is passed explicitly because a Split turn moves two of that one
+     player's pieces — there's no single "the piece" to read an owner off. */
+  const makeStepEntry = useCallback((steps, mark, player) => {
+    const groups = [];
+    for (const s of steps) {
+      const last = groups[groups.length - 1];
+      if (last && last.pieceId === s.pieceId) last.dirs.push(s.dir);
+      else groups.push({ pieceId: s.pieceId, label: s.label, dirs: [s.dir] });
+    }
+    return {
+      player,
+      notation: groups.map((g) => `${g.label}: ${g.dirs.join(".")}`).join("  ·  "),
+      mark: mark || "",
+    };
+  }, []);
+
   const endTurn = useCallback((nextLog, turnEntry) => {
     if (turnEntry) setTurnHistory((prev) => [...prev, turnEntry]);
     setSelectedId(null);
     setHoveredId(null);
     setHoverShadow(null);
     setStepsUsed(0);
+    setMovedPieceIds([]);
+    setPendingSteps([]);
     setTurnSnapshot(null);
     setPendingNotation([]);
     setCurrentPlayer((prev) => (prev === "dark" ? "light" : "dark"));
@@ -2794,20 +2826,36 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      generator (below) needs the exact same definition of "not a move"
      that the game engine enforces here, not a second copy that could
      drift out of sync with it. */
-  function settleTurn(currentPieceState, notation) {
+  function settleTurn(currentPieceState, notation, steps) {
     const origin = turnSnapshot && turnSnapshot.find((p) => p.id === currentPieceState.id);
     aiDirsRef.current = null; // whichever branch below runs, this turn is over
     pendingIntentRef.current = null; // and so is any queued continuation for it
-    if (origin && sameState(origin, currentPieceState)) {
+    // Piece-tagged steps for the log/undo. Callers mid-commit pass the
+    // up-to-date array (the just-committed move isn't in state yet); the
+    // AI/Stop-here callers pass the settled pendingSteps. Fall back to a
+    // single-piece record so any caller that omits it still logs sensibly.
+    const turnSteps =
+      steps && steps.length
+        ? steps
+        : notation.map((d) => ({ pieceId: currentPieceState.id, label: PIECE_META[currentPieceState.type].label, dir: d }));
+    // The "rolled out and back" void only applies to a turn that touched a
+    // SINGLE piece and left it exactly where it began (E then W). A genuine
+    // multi-piece Split turn always changed the board, so it never voids —
+    // and `currentPieceState` is that one piece's final state in the
+    // single-piece case, so no stale board read is needed.
+    const distinctMoved = new Set(turnSteps.map((s) => s.pieceId));
+    if (distinctMoved.size <= 1 && origin && sameState(origin, currentPieceState)) {
       setSelectedId(null);
       setHoveredId(null);
       setHoverShadow(null);
       setStepsUsed(0);
+      setMovedPieceIds([]);
+      setPendingSteps([]);
       setTurnSnapshot(null);
       setPendingNotation([]);
       return; // currentPlayer untouched, log untouched — as if this turn never happened
     }
-    endTurn([...log, makeEntry(currentPieceState, notation)], {
+    endTurn([...log, makeStepEntry(turnSteps, "", currentPlayer)], {
       pieces: turnSnapshot || pieces,
       currentPlayer,
       log,
@@ -2816,6 +2864,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       winReason: "",
       pieceId: currentPieceState.id,
       dirs: notation,
+      steps: turnSteps,
       crushedPiece: null,
     });
   }
@@ -2824,6 +2873,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      rendered pose never disagree. */
   commitRef.current = (piece, dir, move) => {
     const notation = [...(piece.id === selectedId ? pendingNotation : []), dir];
+    // Piece-tagged running record of the turn (see pendingSteps). It
+    // accumulates across a Split turn the same way `notation` does — the
+    // selection gate sets selectedId to the second piece before it moves,
+    // so `piece.id === selectedId` carries the prior steps forward rather
+    // than starting over.
+    const stepsNext = [
+      ...(piece.id === selectedId ? pendingSteps : []),
+      { pieceId: piece.id, label: PIECE_META[piece.type].label, dir },
+    ];
+    // Distinct pieces moved this turn after this move — the Split Movement
+    // 2-piece cap counts these, not the number of moves.
+    const movedAfter = movedPieceIds.includes(piece.id) ? movedPieceIds : [...movedPieceIds, piece.id];
     let nextPieces = pieces.map((p) => (p.id === piece.id ? move.candidate : p));
 
     if (move.crushes) {
@@ -2846,7 +2907,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         audioRef.current.playPowerOff(); // any game ending plays Begin Game's reverse, not just a manual End Active Game
         audioRef.current.beginFadeOut(3);
         setPieces(nextPieces);
-        setLog([...log, makeEntry(piece, notation, "\u00d7")]);
+        setLog([...log, makeStepEntry(stepsNext, "\u00d7", currentPlayer)]);
         setTurnHistory((prev) => [
           ...prev,
           {
@@ -2858,6 +2919,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             winReason: "",
             pieceId: piece.id,
             dirs: notation,
+            steps: stepsNext,
             crushedPiece: move.crushes,
           },
         ]);
@@ -2868,6 +2930,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         setHoveredId(null);
         setHoverShadow(null);
         setStepsUsed(0);
+        setMovedPieceIds([]);
+        setPendingSteps([]);
         setTurnSnapshot(null);
         setPendingNotation([]);
         setBusy(false);
@@ -2887,7 +2951,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       audioRef.current.playPowerOff();
       audioRef.current.beginFadeOut(3);
       setPieces(nextPieces);
-      setLog([...log, makeEntry(piece, notation, "\u2726")]);
+      setLog([...log, makeStepEntry(stepsNext, "\u2726", currentPlayer)]);
       setTurnHistory((prev) => [
         ...prev,
         {
@@ -2899,6 +2963,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           winReason: "",
           pieceId: piece.id,
           dirs: notation,
+          steps: stepsNext,
           crushedPiece: null,
         },
       ]);
@@ -2909,6 +2974,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       setHoveredId(null);
       setHoverShadow(null);
       setStepsUsed(0);
+      setMovedPieceIds([]);
+      setPendingSteps([]);
       setTurnSnapshot(null);
       setPendingNotation([]);
       setBusy(false);
@@ -2922,22 +2989,38 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     setPendingNotation(notation);
     setHoverShadow(null);
 
+    // Split Movement applies to the HUMAN player only: under the law, a
+    // turn's points are a shared bank spendable across up to
+    // MAX_PIECES_PER_TURN distinct pieces. The AI always plays a legal
+    // single-piece turn (committing its whole bank to one piece — always a
+    // legal option), so its accounting stays exactly the original logic.
+    const humanSplit = ACTIVE_LAWS.splitMovement && currentPlayer !== aiPlayer;
+
     // A Slide always costs TWO action points; a roll costs one (moveCost).
     // So in a normal 2-point turn a slide spends the whole turn, and with
     // "3 Actions Per Turn" it leaves exactly one point — a single follow-up
-    // roll ("a slide and an additional roll").
+    // roll ("a slide and an additional roll"). Under Split Movement the
+    // bank is the whole turn's (turnBudget), shared across pieces; the
+    // per-piece budget equals it anyway (every piece's base is 2).
+    const budget = humanSplit ? turnBudget() : maxStepsFor(piece.type);
     const used = (piece.id === selectedId ? stepsUsed : 0) + moveCost(move);
-    const remainingAfter = maxStepsFor(piece.type) - used;
-    // Budget-aware: with one point left a Slide is no longer offered, so
-    // "still has a move" means "still has a roll" in that case.
-    const stillHasMoves = Object.keys(legalMovesFor(nextPieces, move.candidate, remainingAfter)).length > 0;
 
-    // The turn ends when the budget is spent or no move remains. A Black
-    // Hole Squares wormhole landing (move.teleports) is the exception the
-    // design doc keeps turn-ending: it ends the turn regardless of budget.
-    if (move.teleports || used >= maxStepsFor(piece.type) || !stillHasMoves) {
-      settleTurn(move.candidate, notation);
+    // Whether the turn ends now. A Black Hole Squares wormhole landing
+    // (move.teleports) ends it regardless; otherwise the shared engine rule
+    // (turnContinues) decides — the current piece keeps going while it has a
+    // legal move and the bank isn't spent, and under Split Movement the turn
+    // also stays open when a point remains, the 2-piece cap isn't reached,
+    // and some other piece can move. Without Split Movement it reduces to
+    // the original per-piece rule.
+    const stop =
+      move.teleports ||
+      !turnContinues(nextPieces, currentPlayer, movedAfter, move.candidate, used, budget, humanSplit);
+
+    if (stop) {
+      settleTurn(move.candidate, notation, stepsNext);
     } else {
+      setMovedPieceIds(movedAfter);
+      setPendingSteps(stepsNext);
       setSelectedId(piece.id);
       setHoveredId(piece.id);
       setStepsUsed(used);
@@ -3299,9 +3382,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       }
       const piece = pieces.find((p) => p.id === pieceId);
       aiDirsRef.current = null;
-      if (piece) settleTurn(piece, pendingNotation);
+      if (piece) settleTurn(piece, pendingNotation, pendingSteps);
     }
-  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, awaitingBegin, log]);
+  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, pendingSteps, awaitingBegin, log]);
 
   /* Drains a human's queued continuation (see pendingIntentRef/onUp's
      busy branch above) the instant the step it was waiting on actually
@@ -4025,6 +4108,27 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         // re-checks stepsUsed/etc. itself, so this is a no-op the one
         // frame the piece is mid-animation and not yet actually stoppable.
         handleStopHere();
+      } else if (hit && hit.type === "piece" && turnLocked && ACTIVE_LAWS.splitMovement && currentPlayer !== aiPlayer) {
+        // Split Movement: mid-turn, tapping a DIFFERENT own piece hands the
+        // leftover bank to it (the "another piece can roll for one point"
+        // case). Allowed only while a point remains and the 2-piece cap
+        // isn't spent — a piece already counted this turn may be re-selected
+        // to keep going, but no third distinct piece may join. The shared
+        // bank (stepsUsed) and step record carry over untouched; only the
+        // selection changes, so beginMove picks up the remaining points.
+        const p = pieces.find((x) => x.id === hit.id);
+        const remaining = turnBudget() - stepsUsed;
+        const eligible =
+          p &&
+          p.owner === currentPlayer &&
+          remaining > 0 &&
+          (movedPieceIds.includes(p.id) || movedPieceIds.length < MAX_PIECES_PER_TURN) &&
+          Object.keys(legalMovesFor(pieces, p, remaining)).length > 0;
+        if (eligible) {
+          audioRef.current.playSelect();
+          setSelectedId(p.id);
+          setHoveredId(p.id);
+        }
       } else if (hit && hit.type === "piece" && !turnLocked) {
         const p = pieces.find((x) => x.id === hit.id);
         if (p && p.owner === currentPlayer) {
@@ -4148,7 +4252,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [pieces, currentPlayer, turnLocked, activePiece, busy, isPlaying, beginMove, aiPlayer, awaitingBegin, selectedId, turnSnapshot]);
+  }, [pieces, currentPlayer, turnLocked, activePiece, busy, isPlaying, beginMove, aiPlayer, awaitingBegin, selectedId, turnSnapshot, movedPieceIds, stepsUsed]);
 
   /* --------------------------- actions --------------------------- */
   /* With the standalone rotate buttons gone, this is the only reset
@@ -4326,7 +4430,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // ends the turn while that roll's own animation is still in flight,
     // before its own commit logic has had a chance to run.
     if (!selectedPiece || stepsUsed === 0 || busy || anim.current || currentPlayer === aiPlayer || awaitingBegin) return;
-    settleTurn(selectedPiece, pendingNotation);
+    // Settle against the piece that actually moved LAST this turn, not
+    // whatever happens to be selected — under Split Movement the player may
+    // have just selected a second piece without moving it yet, and
+    // settleTurn's net-zero check keys off this piece's final state.
+    const lastStep = pendingSteps[pendingSteps.length - 1];
+    const lastMoved = (lastStep && pieces.find((p) => p.id === lastStep.pieceId)) || selectedPiece;
+    settleTurn(lastMoved, pendingNotation, pendingSteps);
   }
   /* Replays a single recorded move key against `state` to get the piece
      state it landed on — used only by undo, which has nothing but the
@@ -4372,6 +4482,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const restore = () => {
       setPieces(turnSnapshot);
       setStepsUsed(0);
+      setMovedPieceIds([]);
+      setPendingSteps([]);
       setTurnSnapshot(null);
       setPendingNotation([]);
       setSelectedId(null);
@@ -4380,8 +4492,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       setBusy(false);
     };
 
-    const moving = pieces.find((p) => p.id === selectedId);
-    if (!moving || pendingNotation.length === 0) {
+    if (pendingSteps.length === 0) {
       restore();
       return;
     }
@@ -4391,19 +4502,31 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     while (t.ghostGroup.children.length) t.ghostGroup.children.pop();
     setHoverShadow(null);
 
-    /* Walk the turn backwards, inverting each recorded direction. */
-    const steps = [...pendingNotation].reverse().map((d) => INVERSE_DIR[d]);
+    /* Walk the turn backwards, inverting each recorded step ON ITS OWN
+       piece — a Split Movement turn moved two pieces, so each piece's own
+       moves are undone from that piece's current pose. Per-piece live state
+       is tracked in `stateOf`, seeded from the board. */
+    const stateOf = new Map(pieces.map((p) => [p.id, p]));
 
-    const run = (i, state) => {
-      if (i >= steps.length) {
+    const run = (i) => {
+      if (i < 0) {
         restore();
         return;
       }
-      const dir = steps[i];
-      animateStep(state, dir, () => run(i + 1, nextStateAfterDir(state, dir)));
+      const step = pendingSteps[i];
+      const state = stateOf.get(step.pieceId);
+      if (!state) {
+        run(i - 1);
+        return;
+      }
+      const dir = INVERSE_DIR[step.dir];
+      animateStep(state, dir, () => {
+        stateOf.set(step.pieceId, nextStateAfterDir(state, dir));
+        run(i - 1);
+      });
     };
 
-    run(0, moving);
+    run(pendingSteps.length - 1);
   }
   function handleUndoLastTurn() {
     if (turnHistory.length === 0 || busy || aiThinking || turnLocked || anim.current || awaitingBegin) return;
@@ -4457,6 +4580,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       setWinReason(target.winReason);
       setShowVictoryPlacard(false); // only ever auto-shown on finish, never auto-hidden
       setStepsUsed(0);
+      setMovedPieceIds([]);
+      setPendingSteps([]);
       setTurnSnapshot(null);
       setPendingNotation([]);
       aiDirsRef.current = null;
@@ -4476,25 +4601,38 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         return;
       }
       const entry = batch[idx];
-      const steps = [...entry.dirs].reverse().map((d) => INVERSE_DIR[d]);
+      // Piece-tagged steps when the entry recorded them (a Split Movement
+      // turn moved two pieces); otherwise the flat dirs on the single
+      // recorded piece, so older/single-piece history still replays.
+      const entrySteps =
+        entry.steps && entry.steps.length
+          ? entry.steps
+          : (entry.dirs || []).map((d) => ({ pieceId: entry.pieceId, dir: d }));
 
       const animateBack = (basePieces) => {
-        const moving = basePieces.find((p) => p.id === entry.pieceId);
-        if (!moving) {
-          // Should not happen for a well-formed history, but fail soft
-          // rather than throw if it ever does.
-          processEntry(idx + 1, basePieces);
-          return;
-        }
-        const runStep = (i, state) => {
-          if (i >= steps.length) {
-            processEntry(idx + 1, basePieces.map((p) => (p.id === state.id ? state : p)));
+        // Each step's inverse plays on ITS OWN piece, from that piece's
+        // current pose — walked newest-first. Per-piece live state lives in
+        // stateOf so two pieces' reversals don't clobber each other.
+        const stateOf = new Map(basePieces.map((p) => [p.id, p]));
+        const runStep = (i) => {
+          if (i < 0) {
+            processEntry(idx + 1, basePieces.map((p) => stateOf.get(p.id) || p));
             return;
           }
-          const dir = steps[i];
-          animateStep(state, dir, () => runStep(i + 1, nextStateAfterDir(state, dir)));
+          const step = entrySteps[i];
+          const state = stateOf.get(step.pieceId);
+          if (!state) {
+            // Fail soft rather than throw on malformed history.
+            runStep(i - 1);
+            return;
+          }
+          const dir = INVERSE_DIR[step.dir];
+          animateStep(state, dir, () => {
+            stateOf.set(step.pieceId, nextStateAfterDir(state, dir));
+            runStep(i - 1);
+          });
         };
-        runStep(0, moving);
+        runStep(entrySteps.length - 1);
       };
 
       if (entry.crushedPiece) {
@@ -4604,6 +4742,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     setHoveredId(null);
     setHoverShadow(null);
     setStepsUsed(0);
+    setMovedPieceIds([]);
+    setPendingSteps([]);
     setTurnSnapshot(null);
     setPendingNotation([]);
     setTurnHistory([]);
@@ -4740,6 +4880,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     setHoveredId(null);
     setHoverShadow(null);
     setStepsUsed(0);
+    setMovedPieceIds([]);
+    setPendingSteps([]);
     setTurnSnapshot(null);
     setPendingNotation([]);
     // A pending AI "thinking" timer gets cleared automatically once

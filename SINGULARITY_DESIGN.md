@@ -223,8 +223,24 @@ up, at "don't end the game on a crush unless it was the last one."
 ### LAWS — five independent toggles, in their own overlay reached from
 the sphere
 
-1. **Split Movement** — divide a turn's movement points across multiple
-   pieces instead of committing them all to one piece.
+1. **Split Movement** — divide a turn's action-point bank across more than
+   one piece instead of committing it all to one. The bank is the whole
+   turn's points (2 normally, 3 with "3 Actions"); with this law on, those
+   points may be spent across up to **two distinct pieces** (`MAX_PIECES_PER_TURN`),
+   never more, however many points the bank holds. The classic case is a
+   3-point turn where an **Opa rolls for two points and a different piece
+   then rolls for the last one** — the leftover point an Opa move always
+   leaves (see "3 Actions"). Every move still costs what it normally costs
+   (roll 1, slide 2, Opa move 2), and committing the whole bank to a single
+   piece stays legal — splitting is an option, not an obligation. **Status:
+   implemented for the human player** (`turnContinues` in `engine/rules.js`
+   is the shared decision; the chassis lets the player select a second
+   eligible piece mid-turn while the bank has a point and the 2-piece cap
+   isn't reached). The **AI plays legal single-piece turns** under this law
+   — committing its bank to one piece, always a legal option — and does not
+   yet proactively split; teaching the AI's turn generator to spend the
+   bank across two pieces is a follow-up (its combinatorial cost in the deep
+   search is why it's staged separately).
 2. **Slide** — move one open adjacent square without rolling/reorienting.
    Costs **two action points** (a roll costs one). So in a normal 2-point
    turn a slide spends the whole turn, and with "3 Actions Per Turn" (a

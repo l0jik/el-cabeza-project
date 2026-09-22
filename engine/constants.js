@@ -303,6 +303,25 @@ export function maxStepsFor(type) {
   return ACTIVE_LAWS.threeActions ? base + 1 : base;
 }
 
+/* The whole turn's action-point bank, independent of any one piece: 2 by
+   default, 3 with "3 Actions Per Turn". Every piece now shares the same
+   base budget (maxSteps 2), so this equals maxStepsFor(anyType) — but it's
+   named for what it is at the TURN level, which is where the Split Movement
+   law spends it: under Split Movement the bank is spent across up to
+   MAX_PIECES_PER_TURN distinct pieces instead of committing it all to one.
+   Without Split Movement a turn is always one piece and this is simply that
+   piece's budget. */
+export function turnBudget() {
+  return ACTIVE_LAWS.threeActions ? 3 : 2;
+}
+
+/* The hard ceiling on how many DISTINCT pieces may move in a single turn,
+   and only ever reached under the Split Movement law — a normal turn moves
+   exactly one piece. Two is fixed by the design regardless of how many
+   points the bank holds: a 3-point Split turn can be one Opa roll (2) plus a
+   different piece's roll (1), but never a third piece. */
+export const MAX_PIECES_PER_TURN = 2;
+
 /* A Slide always costs TWO action points (a roll costs one). So in a
    normal 2-point turn a slide consumes the whole turn, while with "3
    Actions Per Turn" (a 3-point turn) it leaves exactly one point — room
