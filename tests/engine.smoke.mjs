@@ -1,4 +1,4 @@
-import { createInitialPieces, legalMovesFor, sameState, pairLog, turnContinues, evaluateBlockLanding, pickMissingSquares } from "../engine/rules.js";
+import { createInitialPieces, legalMovesFor, sameState, pairLog, turnContinues, evaluateBlockLanding, pickMissingSquares, pickBlackHoleSquares } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY, evaluatePosition, generateTurns } from "../engine/ai.js";
 import { setBlackHoles, setMissingSquares, turnBudget, MAX_PIECES_PER_TURN } from "../engine/constants.js";
 import { pieceCenter, makeRoundedBox, pivotFor } from "../engine/geometry.js";
@@ -191,5 +191,16 @@ const avoidedSet = new Set(avoidedPair.map((p) => `${p.row},${p.col}`));
 if (!(avoidedSet.has("0,1") && avoidedSet.has("1,0")))
   throw new Error(`pickMissingSquares must skip a reserved pair, got ${JSON.stringify(avoidedPair)}`);
 console.log("[missing squares] pickMissingSquares respects its avoid list");
+
+// Black Holes never land in either side's back two rows (random placement),
+// checked across board heights down to the 6-row minimum.
+for (const rows of [6, 7, 10, 20]) {
+  for (let i = 0; i < 200; i++) {
+    const pair = pickBlackHoleSquares([], rows, 8);
+    if (pair.length !== 2) throw new Error(`no black hole pair found on a ${rows}-row board`);
+    for (const h of pair) if (h.row < 2 || h.row > rows - 3) throw new Error(`black hole in a back row: ${JSON.stringify(h)} on ${rows} rows`);
+  }
+}
+console.log("[black holes] never placed in either side's back two rows");
 
 console.log("\nSMOKE TEST PASSED");

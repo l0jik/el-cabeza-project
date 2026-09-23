@@ -217,9 +217,10 @@ export function evaluateBlockLanding(pieces, candidate, travelDir) {
    all is exceedingly rare, and degrading to "the feature has no effect
    this game" ([]) is a reasonable fallback rather than something worth
    more engineering. */
-function pickPairedSquares(pieces, rows, cols, avoid, attempts) {
+function pickPairedSquares(pieces, rows, cols, avoid, attempts, rowAllowed = () => true) {
   for (let i = 0; i < attempts; i++) {
     const r = Math.floor(Math.random() * rows);
+    if (!rowAllowed(r, rows)) continue;
     const c = Math.floor(Math.random() * cols);
     const r2 = rows - 1 - r;
     const c2 = cols - 1 - c;
@@ -231,8 +232,15 @@ function pickPairedSquares(pieces, rows, cols, avoid, attempts) {
   return [];
 }
 
+/* Black Holes may never sit in either side's back two rows (rows 0-1 and
+   rows-2..rows-1). A row is allowed iff it's outside both bands — and since
+   the mirror of an allowed row is also allowed, checking one cell suffices. */
+export function blackHoleRowAllowed(r, rows) {
+  return r >= 2 && r <= rows - 3;
+}
+
 export function pickBlackHoleSquares(pieces, rows, cols, avoid = [], attempts = 200) {
-  return pickPairedSquares(pieces, rows, cols, avoid, attempts);
+  return pickPairedSquares(pieces, rows, cols, avoid, attempts, blackHoleRowAllowed);
 }
 
 /* Missing Squares' own placement — same rotational-pairing/random-

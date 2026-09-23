@@ -33,7 +33,7 @@ import {
   SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws, getBoardDimensions,
   setBlackHoles as setActiveBlackHoles, setMissingSquares as setActiveMissingSquares,
 } from "../engine/constants.js";
-import { pickBlackHoleSquares, pickMissingSquares } from "../engine/rules.js";
+import { pickBlackHoleSquares, pickMissingSquares, blackHoleRowAllowed } from "../engine/rules.js";
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
 // SINGULARITY invite: the cathedral bell tolls and a black curtain fades
@@ -667,8 +667,8 @@ function cellReserved(avoid, r, c) {
    opening the picker couldn't preview, a pick made stale by a later
    board-size change, or the two features' squares having been chosen to
    coincide. */
-function buildPairedSquarePlacement(manual, rows, cols, pieces, avoid, pick) {
-  if (manual && manual.row < rows && manual.col < cols) {
+function buildPairedSquarePlacement(manual, rows, cols, pieces, avoid, pick, rowAllowed = () => true) {
+  if (manual && manual.row < rows && manual.col < cols && rowAllowed(manual.row, rows)) {
     const m = mirrorCell(manual.row, manual.col, rows, cols);
     const distinct = !(m.row === manual.row && m.col === manual.col);
     if (
@@ -685,7 +685,7 @@ function buildPairedSquarePlacement(manual, rows, cols, pieces, avoid, pick) {
 function buildBlackHolePlacement(selections, rows, cols, pieces, avoid) {
   return buildPairedSquarePlacement(
     selections && selections.blackHole && selections.blackHole.manual,
-    rows, cols, pieces, avoid, pickBlackHoleSquares
+    rows, cols, pieces, avoid, pickBlackHoleSquares, blackHoleRowAllowed
   );
 }
 
@@ -1833,7 +1833,11 @@ function renderPairedSquarePicker(t, kind) {
   const mirror = highlight ? mirrorCell(highlight.row, highlight.col, rows, cols) : null;
   // Player's side = the bottom floor(rows/2) rows (mirror lands on top).
   const selRowStart = rows - Math.floor(rows / 2);
-  const selectableRow = (r) => r >= selRowStart;
+  // Black Holes may never go in either side's back two rows (engine's
+  // blackHoleRowAllowed), so those rows aren't pickable on your side —
+  // and their mirrors are the far side's back rows, excluded with them.
+  const backRowsBanned = kind === "blackHole";
+  const selectableRow = (r) => r >= selRowStart && (!backRowsBanned || blackHoleRowAllowed(r, rows));
 
   // The OTHER paired feature's manually-placed squares (and mirrors), if
   // it's on — shown in their in-game look and not pickable, so a Black
@@ -1960,6 +1964,9 @@ function renderPairedSquarePicker(t, kind) {
         ...cells
       ),
       label("Your side · tap a square", confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"),
+      backRowsBanned
+        ? h("div", { "data-testid": `${k.pickerTestid}-backrows-note`, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: "0.06em", color: "rgba(207,216,220,0.6)", textAlign: "center" } }, "Black holes can't go in either side's back two rows.")
+        : null,
       otherOn && !otherCells.length
         ? h(
             "div",

@@ -430,7 +430,7 @@ then a real Begin Game.
   first, but the `avoid` param on both is symmetric either way. Visual
 (second pass — the first, a tall stack of additive-glow box segments
 rising ABOVE the square, was rejected as too distracting in play; nothing
-may rise above the board): a flush on-square overlay whose 4x4 sub-tiles
+may rise above the board): a flush on-square overlay whose 8x8 sub-tiles
 keep reshuffling through blacks/greys/silvers (small ShaderMaterial,
 uTime driven by the effect's own rAF loop), plus ONE continuous open
 square tube of semi-opaque black below the slab, alpha fading with depth
@@ -478,6 +478,12 @@ lands on one; the pre-game Anomaly button also avoids the live
   equator labels out of view. Covered in `tests/e2e-singularity.mjs`
   (drag to pole, hover hint, save, change, load restores exactly + lands on
   summary, delete with confirm).
+- **Black Holes can never sit in either side's back two rows** (rows 0-1
+  and rows-2..rows-1): `blackHoleRowAllowed` in `engine/rules.js` gates
+  both random placement (`pickBlackHoleSquares`) and a manual pick
+  (`buildBlackHolePlacement` falls back to random if a stored pick is in a
+  banned row, e.g. after a board resize); the picker greys those rows out
+  and says why. Missing Squares are NOT restricted this way (decided).
 - **LAWS — status.** Wired to the rules engine so far: **3 Actions Per
   Turn**, **Slide** (orthogonal only; costs **two action points**, a roll
   costs one — so a normal 2-point turn is fully spent by one slide, while

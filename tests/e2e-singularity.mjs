@@ -450,6 +450,12 @@ if (state.activeCategory === "laws") {
   await page.waitForTimeout(250);
   check("the ghost-grid picker opens",
     (await page.locator('[data-testid="blackhole-picker"]').count()) > 0);
+  // No cell in either side's back two rows is pickable for a Black Hole.
+  const bhRows = (await sphereState()).selections.topologies.rows;
+  const backRowPickable = await page.evaluate((rows) =>
+    [...document.querySelectorAll('[data-testid="blackhole-picker"] [data-selectable="true"]')]
+      .some((el) => { const r = Number(el.dataset.testid.split("-")[2]); return r < 2 || r > rows - 3; }), bhRows);
+  check("black holes can't be picked in either side's back two rows", !backRowPickable);
   // The Missing Square placed under TOPOLOGIES above (and its mirror)
   // shows on the Black Hole picker in its own look, and isn't pickable.
   const shownMissing = page.locator('[data-testid="blackhole-picker"] [data-occupied-by="missingSquare"]');
@@ -530,15 +536,30 @@ async function bringConfigLabelToFront() {
   return (await sphereState()).configLabel;
 }
 // Tilt back down until the equator (the three category labels) faces you.
+// waitForSphereSettle watches the left/right spin; the up/down tilt can
+// still be coasting, so wait for IT to stop too before trusting it.
+async function waitForTiltSettle(timeoutMs = 4000) {
+  const start = Date.now();
+  let last = (await sphereState()).sphereRotationX;
+  while (Date.now() - start < timeoutMs) {
+    await page.waitForTimeout(120);
+    const cur = (await sphereState()).sphereRotationX;
+    if (Math.abs(cur - last) < 0.002) return;
+    last = cur;
+  }
+}
 async function tiltBackToEquator() {
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 20; i++) {
+    await waitForTiltSettle();
     const x = (await sphereState()).sphereRotationX;
     const wrapped = Math.atan2(Math.sin(x), Math.cos(x));
-    if (Math.abs(wrapped) < 0.3) return;
+    if (Math.abs(wrapped) < 0.15) return;
     const dir = wrapped < 0 ? 1 : -1; // drag down to undo an upward tilt
-    await page.mouse.move(cx, cy - dir * 60);
+    // Smaller drags as it closes in, so it doesn't overshoot the equator.
+    const len = Math.min(100, 20 + 60 * Math.abs(wrapped));
+    await page.mouse.move(cx, cy - dir * len / 2);
     await page.mouse.down();
-    await page.mouse.move(cx, cy + dir * 40, { steps: 8 });
+    await page.mouse.move(cx, cy + dir * len / 2, { steps: 8 });
     await page.mouse.up();
     await waitForSphereSettle();
   }

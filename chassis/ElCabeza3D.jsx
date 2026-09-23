@@ -2716,7 +2716,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   /* Missing Squares TOPOLOGIES markers, theme-agnostic, two parts per
      square and nothing ABOVE the board (a rising column read as too
      distracting in play):
-     - On the square: a flush overlay whose 4x4 sub-tiles keep reshuffling
+     - On the square: a flush overlay whose 8x8 sub-tiles keep reshuffling
        through blacks, greys and silvers (a small shader, time-driven by
        this effect's own rAF loop) — "this cell isn't really there."
      - Below the board: ONE continuous square tube of semi-opaque black
@@ -2732,7 +2732,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       c.material && c.material.dispose();
     }
     const FOOT = SQUARE_SIZE * 0.96;
-    const COLUMN_H = 7;
+    const COLUMN_H = 21;
     const overlayMats = [];
     missingSquares.forEach((sq, idx) => {
       const center = pieceCenter({ row: sq.row, col: sq.col, w: 1, h: 1, z: 0 });
@@ -2748,16 +2748,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           uniform float uTime; uniform float uSeed; varying vec2 vUv;
           float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)) + uSeed) * 43758.5453); }
           void main(){
-            vec2 cell = floor(vUv * 4.0);
+            vec2 cell = floor(vUv * 8.0);
             float h0 = hash(cell);
-            // each sub-tile re-rolls on its own staggered beat
-            float beat = floor(uTime * (1.4 + h0 * 1.6) + h0 * 10.0);
+            // each sub-tile re-rolls on its own staggered beat (~0.5-1.1s)
+            float beat = floor(uTime * (0.93 + h0 * 1.07) + h0 * 10.0);
             float v = hash(cell + beat * 1.37);
             vec3 black = vec3(0.02,0.02,0.025), grey = vec3(0.22,0.23,0.25), silver = vec3(0.62,0.65,0.70);
             vec3 col = v < 0.45 ? black : (v < 0.8 ? grey : silver);
             // thin dark seams between sub-tiles
-            vec2 f = fract(vUv * 4.0);
-            float seam = step(0.06, f.x) * step(0.06, f.y);
+            vec2 f = fract(vUv * 8.0);
+            float seam = step(0.08, f.x) * step(0.08, f.y);
             col *= mix(0.35, 1.0, seam);
             gl_FragColor = vec4(col, 0.96);
           }`,
