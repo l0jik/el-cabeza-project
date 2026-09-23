@@ -382,6 +382,23 @@ if (state.activeCategory === "laws") {
     !!man && man.row === Number(m[1]) && man.col === Number(m[2]),
     `manual=${JSON.stringify(man)} chosen=${m[1]},${m[2]}`);
 
+  // Reopening the picker (Change placement) must show the CURRENT selection
+  // rather than a blank grid: the stored cell reads as chosen, and it's
+  // still editable (Cancel present, no SELECTED flash) so it can be moved.
+  await page.locator('[data-testid="blackhole-place-btn"]').click();
+  await page.waitForTimeout(250);
+  check("reopening the picker reopens it editable (not stuck confirming)",
+    (await page.locator('[data-testid="blackhole-picker-cancel"]').count()) > 0 &&
+      (await page.locator('[data-testid="blackhole-confirm"]').count()) === 0);
+  const reopenBg = await page.evaluate((id) => {
+    const el = document.querySelector(`[data-testid="${id}"]`);
+    return el ? getComputedStyle(el).backgroundColor : null;
+  }, `bh-cell-${m[1]}-${m[2]}`);
+  check("the previously-placed cell is highlighted as the current selection on reopen",
+    reopenBg === "rgb(7, 8, 11)", `bg=${reopenBg}`);
+  await page.locator('[data-testid="blackhole-picker-cancel"]').click();
+  await page.waitForTimeout(200);
+
   // Close the LAWS overlay so the drag-rotate check below reaches the sphere.
   await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
   await page.waitForTimeout(200);

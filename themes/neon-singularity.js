@@ -1589,7 +1589,16 @@ function renderBlackHolePicker(t) {
   // real, and buildBlackHolePlacement reads back as getBoardDimensions).
   const { rows, cols } = s.selections.topologies;
   const confirm = s.blackHolePickConfirm || null;
-  const mirror = confirm ? mirrorCell(confirm.row, confirm.col, rows, cols) : null;
+  // Reopened with a placement already made (Change placement): show that
+  // stored cell (and its mirror) as the current selection so the player
+  // sees where it sits and can move it, instead of a blank grid. A live
+  // confirm (a just-made pick mid-flash) takes precedence over it.
+  const existing =
+    !confirm && s.selections.blackHole && s.selections.blackHole.manual
+      ? s.selections.blackHole.manual
+      : null;
+  const highlight = confirm || existing;
+  const mirror = highlight ? mirrorCell(highlight.row, highlight.col, rows, cols) : null;
   // Player's side = the bottom floor(rows/2) rows (mirror lands on top).
   const selRowStart = rows - Math.floor(rows / 2);
   const selectableRow = (r) => r >= selRowStart;
@@ -1613,7 +1622,7 @@ function renderBlackHolePicker(t) {
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const sel = selectableRow(r);
-      const isChosen = confirm && confirm.row === r && confirm.col === c;
+      const isChosen = highlight && highlight.row === r && highlight.col === c;
       const isMirror = mirror && mirror.row === r && mirror.col === c;
       cells.push(h("div", {
         key: `${r}-${c}`,
