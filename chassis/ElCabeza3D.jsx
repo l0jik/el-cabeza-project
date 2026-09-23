@@ -288,6 +288,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      game), New Game asks RETAIN vs RECONFIGURE instead of silently
      persisting — see handleNewGameClick below. */
   const [showNewGameChoice, setShowNewGameChoice] = useState(false);
+  /* Which post-game overlay a blank board tap should bring back once
+     dismissed — "placard" (the default; a real win always opens there
+     first) or "choice" (the RETAIN/RECONFIGURE dialog, once New Game has
+     been clicked from it). The two are treated as one conceptual
+     "post-game overlay" with a single dismissed/shown toggle — see the
+     board's own tap handler (search "post-game overlay tap-to-toggle")
+     and handleNewGameClick. Never read while neither overlay can be
+     showing (status !== "finished"), so it doesn't need resetting on a
+     fresh game — the next win just overwrites it via the effect below. */
+  const lastPostGameOverlayRef = useRef("placard");
   const [winner, setWinner] = useState(null);
   const [winReason, setWinReason] = useState("");
   /* Opens automatically the moment a game ends (see the effect below),
@@ -297,7 +307,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      until New Game, rather than being immediately forced open again. */
   const [showVictoryPlacard, setShowVictoryPlacard] = useState(false);
   useEffect(() => {
-    if (status === "finished") setShowVictoryPlacard(true);
+    if (status === "finished") {
+      lastPostGameOverlayRef.current = "placard";
+      setShowVictoryPlacard(true);
+    }
   }, [status]);
   /* "Move_Log Copied" feedback after handleCopyLog succeeds — persists
      rather than reverting, so re-opening the Move Log popup later in
@@ -1342,14 +1355,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     return () => audioRef.current.fadeOutMenu();
   }, [showInfoOverlay]);
 
+  /* Escape dismisses whichever post-game overlay is currently showing —
+     the placard, or the RETAIN/RECONFIGURE dialog it can hand off to
+     (see handleNewGameClick) — treating the two as the one conceptual
+     overlay the board's own tap-to-reopen handler does. */
   useEffect(() => {
-    if (!showVictoryPlacard) return;
+    if (!showVictoryPlacard && !showNewGameChoice) return;
     const onKey = (e) => {
-      if (e.key === "Escape") setShowVictoryPlacard(false);
+      if (e.key !== "Escape") return;
+      setShowVictoryPlacard(false);
+      setShowNewGameChoice(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [showVictoryPlacard]);
+  }, [showVictoryPlacard, showNewGameChoice]);
 
   function selectOpponent(value) {
     setAiPlayer(value);
@@ -4062,6 +4081,24 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         }
       }
 
+      /* Post-game overlay tap-to-toggle: a real win's placard (or the
+         RETAIN/RECONFIGURE dialog it can hand off to, see
+         handleNewGameClick) dismisses on an outside/Escape tap so the
+         finished board is free to inspect — this is the mirror gesture,
+         bringing it back. Only reachable at all once the overlay is
+         actually dismissed: while it's showing, its own full-screen
+         backdrop intercepts every pointer event before one ever reaches
+         here. Deliberately ANY tap on the board (piece or empty square,
+         doesn't matter — no piece-selection logic runs post-game anyway,
+         see the isPlaying check below), not just a miss. lastPostGame-
+         OverlayRef (kept current by the win effect and
+         handleNewGameClick) says which of the two it was. */
+      if (!wasAltPan && !wasDrag && status === "finished") {
+        if (lastPostGameOverlayRef.current === "choice") setShowNewGameChoice(true);
+        else setShowVictoryPlacard(true);
+        return;
+      }
+
       /* wasAltPan is checked explicitly rather than leaning on wasDrag:
          a deliberate but very short pan can finish under the movement
          threshold, and without this it would fall through and
@@ -4811,7 +4848,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      (currentVariants set — see finalizeSingularityBegin) asks RETAIN vs
      RECONFIGURE instead of silently persisting the rules; a manual end
      (status "ended", no winner) or a plain game keeps the old one-click
-     behavior, since there's nothing to choose between. */
+     behavior, since there's nothing to choose between. Reachable while
+     the placard is still open (its own New Game button), so this closes
+     it explicitly rather than leaving it stacked underneath the dialog —
+     the same "close the one overlay before opening the next" pattern the
+     placard's own Move Log button already uses. */
   function handleNewGameClick() {
     const t = three.current;
     const eligible =
@@ -4821,8 +4862,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       t &&
       t.singularityGameActive &&
       typeof t.reconfigureSingularitySetup === "function";
-    if (eligible) setShowNewGameChoice(true);
-    else handleReset();
+    if (eligible) {
+      setShowVictoryPlacard(false);
+      lastPostGameOverlayRef.current = "choice";
+      setShowNewGameChoice(true);
+    } else handleReset();
   }
   function handleRetainSettings() {
     setShowNewGameChoice(false);

@@ -228,6 +228,43 @@ comments as "reasoned but unverified extrapolation," not measured.
   for this pass. Verify RETAIN/RECONFIGURE manually (or extend the test
   with a real win, e.g. via a reduced-roster race to `GOAL_ROW`) before
   relying on it in production.
+- **Post-game win overlay tap-to-toggle, unified across the placard AND
+  the RETAIN/RECONFIGURE dialog above (both themes, not Neon-only —
+  extended scope, decided explicitly).** The Victory placard already
+  dismissed on backdrop click/Escape without resetting the game; it just
+  had no way back except the dock's own separate post-game row. Board
+  taps were a complete no-op post-game (`!isPlaying` early-return in the
+  main input handler), which turned out to be the exact ready-made hook:
+  a new branch ahead of that early-return, gated on `status ===
+  "finished"` and the SAME `wasAltPan`/`wasDrag` classification the
+  handler already computes (so orbiting the camera to inspect the board
+  never accidentally reopens anything), fires on ANY board tap — piece or
+  empty square, doesn't matter, since no piece-selection logic runs
+  post-game anyway. The placard and the RETAIN/RECONFIGURE dialog are
+  treated as ONE conceptual overlay with a single dismissed/shown state
+  rather than two independent toggles: `lastPostGameOverlayRef` ("placard"
+  | "choice") records which one was last showing, kept current by the
+  win-transition effect (always "placard" — a win always opens there
+  first) and by `handleNewGameClick` (flips to "choice" when it opens the
+  dialog, which now also explicitly closes the placard first — the same
+  "close the one overlay before opening the next" pattern the placard's
+  own Move Log button already used, but a gap in the original #40 pass
+  since the placard's New Game button can reach this while still open). A
+  board tap reads only that ref, not the overlays' own booleans — reaching
+  the tap handler at all already proves whichever overlay wasn't showing,
+  since each one's own full-screen backdrop (`pointerEvents:"auto"` while
+  open) intercepts every pointer event ahead of the canvas underneath.
+  Escape now dismisses whichever of the two is open (was placard-only
+  before). The separate Move Log POPUP (opened from the placard's own
+  Move Log button — the table of moves, not the placard itself) is
+  intentionally NOT part of this toggle: dismissing it leaves
+  `lastPostGameOverlayRef` untouched (still "placard"), so a board tap
+  after backing out of the log returns to the placard one level up, not
+  back into the log — reads as "step back," not "reopen exactly what I
+  had." NOT covered by an automated test, same root cause as the
+  RETAIN/RECONFIGURE dialog above (both only ever exist post-`"finished"`,
+  which nothing in this test suite can currently reach) — verify manually,
+  or extend together once a real-win test path exists.
 
 ## 3c. Singularity cinematic transition (Neon-only) — Part 1 of SINGULARITY_DESIGN.md, BUILT
 
