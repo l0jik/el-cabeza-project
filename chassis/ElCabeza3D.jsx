@@ -2713,22 +2713,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     });
   }, [blackHoles]);
 
-  /* Missing Squares TOPOLOGIES markers — a theme-agnostic pair of
-     primitives per square (a dark, near-flush void tile, plus a tall
-     additive-glow column rising off it), same rebuild-from-scratch
-     pattern and same reasoning as the Black Hole Squares effect above
-     (at most two of these ever, so no per-square diff/cache needed).
-     Deliberately a plain stack of fixed-opacity segments rather than a
-     shader or vertex-alpha gradient — matches the Black Hole ring's own
-     "plain primitive, not an animated shader" restraint, and fading
-     opacity across discrete segments needs no assumptions about this
-     Three.js version's vertex-color-alpha support. The column has no
-     visible top: by the last segment its opacity has decayed close
-     enough to zero that where it actually ends is never apparent, which
-     is the "can't see how high it goes" read the design asked for. A
-     neutral, no-hue color (echoing the black hole ring's own reasoning)
-     keeps it legible in both themes despite Missing Squares only ever
-     being reachable through Neon's Singularity sphere today. */
+  /* Missing Squares TOPOLOGIES markers, theme-agnostic, two parts per
+     square and nothing ABOVE the board (a rising column read as too
+     distracting in play):
+     - On the square: a flush overlay whose 4x4 sub-tiles keep reshuffling
+       through blacks, greys and silvers (a small shader, time-driven by
+       this effect's own rAF loop) — "this cell isn't really there."
+     - Below the board: ONE continuous square tube of semi-opaque black
+       fading out with depth (alpha by height in the shader, not stacked
+       segments), only visible when the camera is tilted under the board. */
   useEffect(() => {
     const t = three.current;
     if (!t.missingGroup) return;
@@ -2738,46 +2731,74 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       c.geometry && c.geometry.dispose();
       c.material && c.material.dispose();
     }
-    const FOOTPRINT = SQUARE_SIZE * 0.8;
-    const TILE_H = 0.03;
-    const COLUMN_SEGMENTS = 8;
-    const COLUMN_TOTAL_H = 8.5;
-    const SEGMENT_H = COLUMN_TOTAL_H / COLUMN_SEGMENTS;
-    missingSquares.forEach((sq) => {
+    const FOOT = SQUARE_SIZE * 0.96;
+    const COLUMN_H = 7;
+    const overlayMats = [];
+    missingSquares.forEach((sq, idx) => {
       const center = pieceCenter({ row: sq.row, col: sq.col, w: 1, h: 1, z: 0 });
-      // The void tile: near-flush with the board (not sunken — nothing
-      // else here models real depth), just dark enough to read as "not
-      // part of the playable grid" even straight down from Top-Down View.
-      const tile = new THREE.Mesh(
-        new THREE.BoxGeometry(FOOTPRINT, TILE_H, FOOTPRINT),
-        new THREE.MeshStandardMaterial({ color: 0x07080b, roughness: 0.35, metalness: 0.1 })
+      const overlayMat = new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 }, uSeed: { value: idx * 17.31 + 3.7 } },
+        transparent: true,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -6,
+        vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+        fragmentShader: `
+          uniform float uTime; uniform float uSeed; varying vec2 vUv;
+          float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)) + uSeed) * 43758.5453); }
+          void main(){
+            vec2 cell = floor(vUv * 4.0);
+            float h0 = hash(cell);
+            // each sub-tile re-rolls on its own staggered beat
+            float beat = floor(uTime * (1.4 + h0 * 1.6) + h0 * 10.0);
+            float v = hash(cell + beat * 1.37);
+            vec3 black = vec3(0.02,0.02,0.025), grey = vec3(0.22,0.23,0.25), silver = vec3(0.62,0.65,0.70);
+            vec3 col = v < 0.45 ? black : (v < 0.8 ? grey : silver);
+            // thin dark seams between sub-tiles
+            vec2 f = fract(vUv * 4.0);
+            float seam = step(0.06, f.x) * step(0.06, f.y);
+            col *= mix(0.35, 1.0, seam);
+            gl_FragColor = vec4(col, 0.96);
+          }`,
+      });
+      overlayMats.push(overlayMat);
+      const overlay = new THREE.Mesh(new THREE.PlaneGeometry(FOOT, FOOT), overlayMat);
+      overlay.rotation.x = -Math.PI / 2;
+      overlay.position.set(center.x, 0.006, center.z);
+      group.add(overlay);
+
+      const tubeGeo = new THREE.CylinderGeometry(FOOT / Math.SQRT2, FOOT / Math.SQRT2, COLUMN_H, 4, 1, true);
+      tubeGeo.rotateY(Math.PI / 4);
+      const tube = new THREE.Mesh(
+        tubeGeo,
+        new THREE.ShaderMaterial({
+          uniforms: { uH: { value: COLUMN_H } },
+          transparent: true,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          vertexShader: `uniform float uH; varying float vDepth; void main(){ vDepth = 0.5 - position.y / uH; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+          fragmentShader: `varying float vDepth; void main(){ float a = 0.72 * pow(1.0 - clamp(vDepth,0.0,1.0), 1.6); gl_FragColor = vec4(0.0,0.0,0.0,a); }`,
+        })
       );
-      tile.position.set(center.x, TILE_H / 2, center.z);
-      group.add(tile);
-      // The column: stacked segments, tallest/most opaque at the bottom,
-      // easing toward fully transparent — see the effect's own comment
-      // for why segments rather than a gradient shader.
-      for (let i = 0; i < COLUMN_SEGMENTS; i++) {
-        const frac = i / (COLUMN_SEGMENTS - 1); // 0 at the base, 1 at the top
-        const opacity = 0.5 * Math.pow(1 - frac, 1.7);
-        const seg = new THREE.Mesh(
-          new THREE.BoxGeometry(FOOTPRINT, SEGMENT_H, FOOTPRINT),
-          new THREE.MeshBasicMaterial({
-            color: 0xd7ecf5,
-            transparent: true,
-            opacity,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-          })
-        );
-        seg.position.set(center.x, TILE_H + SEGMENT_H * (i + 0.5), center.z);
-        group.add(seg);
-      }
+      tube.position.set(center.x, -SLAB_THICKNESS - COLUMN_H / 2, center.z);
+      group.add(tube);
     });
+    let raf = 0;
+    if (overlayMats.length) {
+      const start = performance.now();
+      const loop = (now) => {
+        const s = (now - start) / 1000;
+        overlayMats.forEach((m) => { m.uniforms.uTime.value = s; });
+        raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+    }
     // Test-only hook (see __EC_TEST_BOARD__'s own comment) — the live
     // placement isn't otherwise observable from the page once a real
     // game has begun.
     if (typeof window !== "undefined") window.__EC_TEST_MISSING_SQUARES__ = missingSquares;
+    return () => cancelAnimationFrame(raf);
   }, [missingSquares]);
 
   /* Feeds the current position's "tension" to the audio engine, purely
@@ -4253,6 +4274,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         return;
       }
 
+      // A piece is selected and the tap landed on a Missing Square: it can
+      // never move there, so answer with a soft low "no" and keep the
+      // selection, rather than silently deselecting.
+      if (selectedId && MISSING_SQUARES.length) {
+        const cell = screenToBoardCell(ev);
+        if (cell && MISSING_SQUARES.some((m) => m.row === Math.floor(cell.row) && m.col === Math.floor(cell.col))) {
+          audioRef.current.playBlocked && audioRef.current.playBlocked();
+          return;
+        }
+      }
       const hit = pick(ev);
       if (hit && hit.type === "ghost" && activePiece) {
         beginMove(activePiece, hit.dir);

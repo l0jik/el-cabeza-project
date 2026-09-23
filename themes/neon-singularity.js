@@ -2217,6 +2217,23 @@ function renderBackButton(exitSingularity) {
   );
 }
 
+/* Missing Squares first, then Black Hole Squares avoiding them — both
+   against the pieces actually on the board. `prev` (a replay's last
+   placement) is kept when still clear of every piece, so a persisted
+   layout stays put game to game; otherwise it re-resolves. */
+function resolvePairedSquares(sel, laws, placedPieces, prev) {
+  const { rows, cols } = getBoardDimensions();
+  const clear = (list) => list.length > 0 && list.every((q) => !cellOccupied(placedPieces, q.row, q.col));
+  const missing = sel.topologies.missingSquares
+    ? (prev && clear(prev.missing) ? prev.missing : buildMissingSquaresPlacement(sel, rows, cols, placedPieces))
+    : [];
+  const holesClear = (list) => clear(list) && !list.some((h) => missing.some((m) => m.row === h.row && m.col === h.col));
+  const holes = laws.blackHoleSquares
+    ? (prev && holesClear(prev.holes) ? prev.holes : buildBlackHolePlacement(sel, rows, cols, placedPieces, missing))
+    : [];
+  return { missing, holes };
+}
+
 export function useSingularityPhase({
   three, audio,
   aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
@@ -2486,7 +2503,7 @@ export function useSingularityPhase({
       // two rectangular new types) placed via the same Anomaly generator
       // the plain button uses. Randomized only when the player opted in or
       // customized — a plain default game keeps the standard formation.
-      if (applyMatterRoster) applyMatterRoster(sel.matter, matterActive);
+      const placedPieces = (applyMatterRoster && applyMatterRoster(sel.matter, matterActive)) || pieces;
       // LAWS: the sphere's checkboxes are plain booleans shaped like
       // ACTIVE_LAWS; this is where they actually take effect (and get
       // forwarded to the AI worker via setActiveLaws' shared mechanism).
@@ -2496,18 +2513,15 @@ export function useSingularityPhase({
       // treats the first's placement as reserved too (buildBlackHole-
       // Placement's own avoid param). Set on both the engine module state
       // and the chassis React copy from the same list, so enforced == drawn.
-      const missing = sel.topologies.missingSquares
-        ? buildMissingSquaresPlacement(sel, getBoardDimensions().rows, getBoardDimensions().cols, pieces)
-        : [];
+      // Placed against the pieces actually just placed (placedPieces), not
+      // the render-time `pieces` — so no piece ever starts on one.
+      const { missing, holes } = resolvePairedSquares(sel, laws, placedPieces, null);
       setActiveMissingSquares(missing);
       if (setMissingSquares) setMissingSquares(missing);
       // Black Hole Squares: ON always means the two-hole wormhole version.
       // Resolved ONCE here and reused on replay so the layout stays
       // identical game to game. Set on both the engine module state and the
       // chassis React copy from the same list, so enforced == drawn.
-      const holes = laws.blackHoleSquares
-        ? buildBlackHolePlacement(sel, getBoardDimensions().rows, getBoardDimensions().cols, pieces, missing)
-        : [];
       setActiveBlackHoles(holes);
       if (setBlackHoles) setBlackHoles(holes);
       // Snapshot the active specials for the in-game Current Variants
@@ -2523,15 +2537,20 @@ export function useSingularityPhase({
       // re-derived each time (a fresh, possibly re-randomized opening),
       // while the resolved missing squares/holes/variants are reused
       // verbatim.
+      let lastSquares = { missing, holes };
       t.reapplySingularitySetup = () => {
         t.singularityGameActive = true;
         if (applyBoardResize) applyBoardResize(sel.topologies.rows, sel.topologies.cols);
-        if (applyMatterRoster) applyMatterRoster(sel.matter, matterActive);
-        setActiveLaws(sel.laws);
-        setActiveMissingSquares(missing);
-        if (setMissingSquares) setMissingSquares(missing);
-        setActiveBlackHoles(holes);
-        if (setBlackHoles) setBlackHoles(holes);
+        // A re-randomized opening avoids the previous squares; if a piece
+        // still lands on one (e.g. the fixed formation), they re-resolve.
+        const replayPieces =
+          (applyMatterRoster && applyMatterRoster(sel.matter, matterActive, [...lastSquares.missing, ...lastSquares.holes])) || pieces;
+        const replayLaws = setActiveLaws(sel.laws);
+        lastSquares = resolvePairedSquares(sel, replayLaws, replayPieces, lastSquares);
+        setActiveMissingSquares(lastSquares.missing);
+        if (setMissingSquares) setMissingSquares(lastSquares.missing);
+        setActiveBlackHoles(lastSquares.holes);
+        if (setBlackHoles) setBlackHoles(lastSquares.holes);
         if (setCurrentVariants) setCurrentVariants(variants);
       };
       // The Win -> New Game dialog's RECONFIGURE path: re-enters the

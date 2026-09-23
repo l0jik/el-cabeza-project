@@ -48,4 +48,22 @@ console.log("buildPieceVisual mesh/shell kinds:", mesh.userData.kind, shell.user
 console.log("mesh material translucent (transparent=true):", mesh.material.transparent === true);
 console.log("shell is EdgesGeometry-based LineSegments:", shell.geometry.type === "EdgesGeometry");
 
+// A randomized opening never places a piece on a blocked square (Black
+// Hole / Missing Square placements) or on its 180-degree mirror.
+{
+  const blocked = [{ row: 0, col: 3 }, { row: 1, col: 5 }];
+  const mirrors = blocked.map((b) => ({ row: 9 - b.row, col: 9 - b.col }));
+  const all = [...blocked, ...mirrors];
+  for (let i = 0; i < 200; i++) {
+    const ps = generateAnomalySetup(undefined, blocked);
+    for (const p of ps) {
+      for (const q of all) {
+        if (q.row >= p.row && q.row < p.row + p.h && q.col >= p.col && q.col < p.col + p.w)
+          throw new Error(`generateAnomalySetup put ${p.id} on blocked cell ${q.row},${q.col}`);
+      }
+    }
+  }
+  console.log("generateAnomalySetup avoids blocked cells (200 rolls): ok");
+}
+
 console.log("\nNEON THEME SMOKE TEST PASSED");

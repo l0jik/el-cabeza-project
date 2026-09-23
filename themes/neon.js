@@ -14,7 +14,7 @@
 
 import React from "react";
 import * as THREE from "three";
-import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, GRID_EXTENT_X, GRID_EXTENT_Z, GOAL_ROW, PIECE_SCALE } from "../engine/constants.js";
+import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, GRID_EXTENT_X, GRID_EXTENT_Z, GOAL_ROW, PIECE_SCALE, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { opponentOf, cabezaInDanger } from "../engine/ai.js";
 import { createInitialPieces } from "../engine/rules.js";
 import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay, renderVariantsFlyout } from "./neon-singularity.js";
@@ -289,7 +289,14 @@ function maxFootprintCells(type) {
    always being bare `dark-${type}`; count===1 keeps the original bare
    id, so a default-roster game's piece ids are byte-identical to
    before this existed. */
-export function generateAnomalySetup(roster) {
+// `blocked`: {row,col} cells no piece may start on (Black Hole / Missing
+// Square placements). Seeded into `occupied` along with each one's
+// 180-degree mirror, so Light's reflected pieces avoid them too.
+export function generateAnomalySetup(roster, blocked = []) {
+  const blockedKeys = [];
+  blocked.forEach(({ row, col }) => {
+    blockedKeys.push(row * BOARD_COLS + col, (BOARD_ROWS - 1 - row) * BOARD_COLS + (BOARD_COLS - 1 - col));
+  });
   const effectiveRoster = roster && roster.length ? roster : DEFAULT_ANOMALY_ROSTER;
   const instances = [];
   effectiveRoster.forEach(({ type, count }) => {
@@ -298,7 +305,7 @@ export function generateAnomalySetup(roster) {
   instances.sort((a, b) => maxFootprintCells(b.type) - maxFootprintCells(a.type));
 
   for (let attempt = 0; attempt < 300; attempt++) {
-    const occupied = new Set();
+    const occupied = new Set(blockedKeys);
     const placed = [];
     let ok = true;
     for (const { type, index } of instances) {
@@ -353,7 +360,7 @@ export function generateAnomalySetup(roster) {
   // 300 shuffled attempts falls back to the always-fits classic five,
   // same as the original single-roster version's own fallback —
   // better than silently returning nothing.
-  return roster ? generateAnomalySetup() : createInitialPieces();
+  return roster ? generateAnomalySetup(undefined, blocked) : createInitialPieces();
 }
 
 /* theme: a 0-1 "tension" reading of the current position, purely for
@@ -3304,7 +3311,10 @@ export function useSetupExtras({
   // what Anomaly's own generator places — the same mechanism the
   // plain Anomaly button already uses, just with a chosen roster
   // instead of the fixed five.
-  function applyMatterRoster(matterSelections, randomize) {
+  // Returns the placed pieces (React state is async, so callers that go
+  // on to place Black Holes / Missing Squares must use this, not a stale
+  // `pieces`). `blocked`: cells a randomized opening must leave empty.
+  function applyMatterRoster(matterSelections, randomize, blocked = []) {
     const roster = buildRosterFromSelections(matterSelections);
     // Always (re)place a fresh opening. Only shuffle when actually asked to
     // (see finalizeSingularityBegin): a default roster with Randomized Start
@@ -3314,7 +3324,9 @@ export function useSetupExtras({
     // returning without touching the board — is what lets a persisted New
     // Game reset to a clean opening instead of inheriting the ended game's
     // final piece positions.
-    setPieces(roster && randomize ? generateAnomalySetup(roster) : createInitialPieces());
+    const placed = roster && randomize ? generateAnomalySetup(roster, blocked) : createInitialPieces();
+    setPieces(placed);
+    return placed;
   }
 
   const singularityCinematic = useSingularityPhase({
@@ -3343,7 +3355,9 @@ export function useSetupExtras({
     // is an independent fresh randomization.
     if (!awaitingBegin) return;
     audio.playAnomaly();
-    setPieces(generateAnomalySetup());
+    // Never re-roll a piece onto a Black Hole or Missing Square that a
+    // persisted Singularity setup already placed on this board.
+    setPieces(generateAnomalySetup(undefined, [...BLACK_HOLES, ...MISSING_SQUARES]));
   }
 
   /* ---- discovery: five taps on the EL CABEZA masthead ----
@@ -6425,6 +6439,27 @@ export function createSoundscape() {
      acknowledgment rather than a UI "bloop." Select and deselect share
      the same sound but at a slightly different filter center, so
      they're distinguishable without either one being a tone. */
+  /* Tried to move onto a Missing Square: a soft, low "no" — two short
+     sine blips a minor third apart, falling (Eb3 -> C3), gentle attack,
+     quiet. Negating without sounding like an error buzzer. */
+  function playBlocked() {
+    if (!ctx) return;
+    const t0 = nowT();
+    [[155.56, 0], [130.81, 0.085]].forEach(([freq, offset]) => {
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      const t = t0 + offset;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.07, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      o.connect(g).connect(sfxGain);
+      o.start(t);
+      o.stop(t + 0.18);
+    });
+  }
+
   function sfxClick(centerFreq, peak) {
     if (!ctx) return;
     const t0 = nowT();
@@ -6492,6 +6527,7 @@ export function createSoundscape() {
     // should now sit right at the edge of audible.
     playSelect: tink, // replaced with an extremely high-pitched tonal "tink" per feedback (was a 600Hz filtered-noise click)
     playDeselect: () => sfxClick(95, 0.009),
+    playBlocked,
     // No-op: Neon has no wood-physical rolling cue of its own — this
     // theme's whole audio identity is synthesized/electronic, not
     // acoustic-material — but the shared chassis call site (animateStep,

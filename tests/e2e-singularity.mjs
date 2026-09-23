@@ -104,10 +104,28 @@ async function clickInvite() {
   await page.mouse.down();
   await page.mouse.up();
 }
+// End Active Game is a no-op while a move is animating (busy) — in an AI
+// game that can be the AI's own move — so keep pressing until the game has
+// actually ended (the button swaps to Reset Game).
+async function endActiveGame() {
+  const btn = page.locator('[data-testid="dock-panel"] button', { hasText: "End Active Game" });
+  for (let i = 0; i < 20 && (await btn.count()) > 0; i++) {
+    await btn.click().catch(() => {});
+    await page.waitForTimeout(500);
+  }
+}
+
 // The whole trigger, reused later (line ~389): five taps + one click,
 // through the toll and collapse, settling on the sphere.
+// A tap can occasionally miss the jittering title, leaving the count short;
+// retry (after letting the partial count lapse) until the invite is up.
 async function triggerSingularity() {
-  await tapMastheadNTimes(5);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await tapMastheadNTimes(5);
+    await page.waitForTimeout(300);
+    if (await invitePresent()) break;
+    await page.waitForTimeout(2700);
+  }
   await clickInvite();
   await page.waitForTimeout(TOLL_TO_COLLAPSE_MS);
   await page.waitForTimeout(COLLAPSE_TO_SPHERE_MS);
@@ -121,8 +139,14 @@ check("three masthead taps do not reveal the invite", !(await invitePresent()));
 await page.waitForTimeout(2700);
 
 // ---- five taps reveal the invite ----
-await tapMastheadNTimes(5);
-await page.waitForTimeout(300);
+// (Retried like triggerSingularity: a harness click can land between the
+// jittering letters and not count — see tapMasthead's comment.)
+for (let attempt = 0; attempt < 3; attempt++) {
+  await tapMastheadNTimes(5);
+  await page.waitForTimeout(300);
+  if (await invitePresent()) break;
+  await page.waitForTimeout(2700);
+}
 check("five masthead taps reveal the SINGULARITY invite", await invitePresent());
 
 // ---- a single click commits: bell toll first, then the collapse ----
@@ -639,7 +663,7 @@ check("the dock panel is hidden after a Singularity begin (not stranded visible)
 // Begin Game) to reach End Active Game / New Game. ----
 await reopenDockPanelFromCorner(page, cornerBox);
 await page.waitForTimeout(400);
-await page.locator('[data-testid="dock-panel"] button', { hasText: "End Active Game" }).click();
+await endActiveGame();
 await page.waitForTimeout(500);
 // A Singularity game just ended, so the Reset Rules control is offered.
 check("Reset Rules control appears once a Singularity game has ended",
@@ -686,7 +710,7 @@ await page.locator("button", { hasText: "Begin Game" }).first().click();
 const cornerBox2 = await waitForDockCorner(page, { timeoutMs: 8000 });
 await reopenDockPanelFromCorner(page, cornerBox2);
 await page.waitForTimeout(400);
-await page.locator('[data-testid="dock-panel"] button', { hasText: "End Active Game" }).click();
+await endActiveGame();
 await page.waitForTimeout(500);
 await page.locator('[data-testid="reset-rules"]').click();
 await page.waitForTimeout(700);

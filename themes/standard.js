@@ -307,7 +307,7 @@ export function createAudio() {
   return {
     ensureStarted, beginGameFadeIn() {}, setZoom() {}, setMuted,
     setTension() {}, beginFadeOut() {}, resetWindDown() {},
-    playSelect() {}, playDeselect() {}, playRollStart, playLanding, playCapture() {},
+    playSelect() {}, playDeselect() {}, playBlocked() {}, playRollStart, playLanding, playCapture() {},
     playWin() {}, playMenu() {}, fadeOutMenu() {}, playPowerOn() {},
     playPowerOff() {}, playFlicker() {}, playArc() {}, playGlitch() {},
     playSingularityOpen() {}, playSingularityClose() {},

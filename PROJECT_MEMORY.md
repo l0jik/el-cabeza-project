@@ -24,8 +24,12 @@ input, JSX skeleton, generic actions; theme-agnostic). Three entry points
 (`apps/standard.jsx`, `apps/neon.jsx`, `apps/unified.jsx` + its
 `unifiedTransition.jsx` theme-switcher) are bundled by `build/build.js`
 (esbuild) into three self-contained HTML files in `dist/` (gitignored,
-built fresh every time). No backend, no persistence — everything is
-client-side state, reset on reload.
+built fresh every time). No backend. Everything is client-side state,
+reset on reload, EXCEPT opponent settings (Human/AI side, AI difficulty,
+Human-vs-Human starting side), which persist in `localStorage` under
+`el-cabeza:opponent` (chassis `loadOpponentPrefs`/`saveOpponentPrefs`,
+guarded so blocked storage just falls back to defaults) and also carry
+over across every New Game / reset path.
 
 Shipped as Claude Artifacts (the unified build is the one with a live
 shared link; that link's "Latest vs. pinned version" mode is a claude.ai
@@ -423,20 +427,25 @@ then a real Begin Game.
   with Missing Squares FIRST, so Black Hole Squares' own resolution
   (when both are active) treats Missing Squares' cells as reserved too;
   the reverse is not needed since Missing Squares always resolves
-  first, but the `avoid` param on both is symmetric either way. Visual:
-  chassis-level, theme-agnostic (mirrors the black hole sphere/ring's
-  own `holeGroup` pattern exactly) — a `missingGroup` renders a dark
-  near-flush void tile plus a tall additive-glow column of stacked,
-  progressively-more-transparent box segments per square (deliberately
-  NOT a shader/vertex-alpha gradient — segments need no assumption
-  about this Three.js version's vertex-color-alpha support), reading as
-  "no visible top" by the time the fade is negligible. A known
-  pre-existing limitation shared with Black Hole Squares, not
-  introduced here: placement avoidance checks `pieces` from this same
-  synchronous call's closure, which is stale immediately after
-  `applyMatterRoster`'s own `setPieces` (React state is async) when
-  MATTER was also customized this same game — a rare edge case, not
-  fixed here to keep both features' behavior identical. Verified in
+  first, but the `avoid` param on both is symmetric either way. Visual
+(second pass — the first, a tall stack of additive-glow box segments
+rising ABOVE the square, was rejected as too distracting in play; nothing
+may rise above the board): a flush on-square overlay whose 4x4 sub-tiles
+keep reshuffling through blacks/greys/silvers (small ShaderMaterial,
+uTime driven by the effect's own rAF loop), plus ONE continuous open
+square tube of semi-opaque black below the slab, alpha fading with depth
+in its shader — only visible if the camera tilts under the board. Tapping
+a Missing Square with a piece selected plays `playBlocked` (Neon: two
+soft low sine blips, Eb3->C3, a falling minor third; Standard: no-op) and
+keeps the selection. **No piece can ever start on a Black Hole or Missing
+Square:** `applyMatterRoster` returns the pieces it just placed and
+`resolvePairedSquares` places both features against THOSE (not the
+render-time `pieces`, which is stale right after a `setPieces`); a New Game
+replay re-randomizes the roster around the previous squares
+(`generateAnomalySetup(roster, blocked)`, which seeds each blocked cell
+and its mirror as occupied) and re-resolves the squares if any piece still
+lands on one; the pre-game Anomaly button also avoids the live
+`BLACK_HOLES`/`MISSING_SQUARES`. Verified in
   `tests/engine.smoke.mjs` (Cabeza step onto one refused, others legal;
   a block's landing footprint overlap refused, clear landing legal; a
   wormhole ejection onto one refused; `pickMissingSquares`'s `avoid`
