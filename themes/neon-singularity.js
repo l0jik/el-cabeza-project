@@ -1701,6 +1701,20 @@ function renderPairedSquarePicker(t, kind) {
   const selRowStart = rows - Math.floor(rows / 2);
   const selectableRow = (r) => r >= selRowStart;
 
+  // The OTHER paired feature's manually-placed squares (and mirrors), if
+  // it's on — shown in their in-game look and not pickable, so a Black
+  // Hole can't be placed onto a Missing Square or vice versa.
+  const otherKind = kind === "blackHole" ? "missingSquare" : "blackHole";
+  const otherOn = otherKind === "blackHole" ? s.selections.laws.blackHoleSquares : s.selections.topologies.missingSquares;
+  const otherManual = otherOn && s.selections[PAIRED_SQUARE_KINDS[otherKind].manualField].manual;
+  const otherCells = otherManual && otherManual.row < rows && otherManual.col < cols
+    ? [otherManual, mirrorCell(otherManual.row, otherManual.col, rows, cols)]
+    : [];
+  const isOther = (r, c) => otherCells.some((o) => o.row === r && o.col === c);
+  const otherStyle = otherKind === "missingSquare"
+    ? { background: "rgba(215,236,245,0.85)", boxShadow: "0 0 10px rgba(215,236,245,0.9), inset 0 0 6px rgba(255,255,255,0.8)", border: "1px solid rgba(215,236,245,0.9)" }
+    : { background: "radial-gradient(circle, #07080b 45%, #aeb6c2 58%, #07080b 70%)", boxShadow: "0 0 8px rgba(174,182,194,0.7)", border: "1px solid rgba(174,182,194,0.6)" };
+
   const close = () => { s[k.pickerFlag] = false; s[k.confirmFlag] = null; s.bump(); };
   const pick = (r, c) => {
     if (confirm) return; // a pick is already confirming and about to close
@@ -1719,15 +1733,23 @@ function renderPairedSquarePicker(t, kind) {
   const cells = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const sel = selectableRow(r);
+      const other = isOther(r, c);
+      const sel = selectableRow(r) && !other;
       const isChosen = highlight && highlight.row === r && highlight.col === c;
       const isMirror = mirror && mirror.row === r && mirror.col === c;
       cells.push(h("div", {
         key: `${r}-${c}`,
         "data-testid": `${k.cellPrefix}-${r}-${c}`,
         "data-selectable": sel ? "true" : "false",
+        "data-occupied-by": other ? otherKind : undefined,
         onClick: sel && !confirm ? () => pick(r, c) : undefined,
-        style: {
+        style: other ? {
+          aspectRatio: "1 / 1",
+          borderRadius: 2,
+          boxSizing: "border-box",
+          cursor: "not-allowed",
+          ...otherStyle,
+        } : {
           aspectRatio: "1 / 1",
           borderRadius: 2,
           boxSizing: "border-box",
@@ -1793,6 +1815,9 @@ function renderPairedSquarePicker(t, kind) {
         ...cells
       ),
       label("Your side · tap a square", confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"),
+      otherCells.length
+        ? label(otherKind === "missingSquare" ? "Glowing · missing squares (unavailable)" : "Dark orbs · black holes (unavailable)", "rgba(207,216,220,0.6)")
+        : null,
       confirm
         ? h("div", { "data-testid": k.confirmTestid, style: { textAlign: "center", fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: "0.12em", color: "#dffaff", textShadow: "0 0 10px rgba(142,243,255,0.7)" } }, "◇ SELECTED")
         : h(
@@ -2027,7 +2052,7 @@ function renderSummaryPanel(setupExtras) {
   const lawsOn = LAWS_ITEMS.filter((i) => sel.laws[i.key]);
   const piecesOn = MATTER_NEW_PIECES.filter((i) => sel.matter.newPieces[i.key]);
   const rosterLine = MATTER_ROSTER.map((p) => `${sel.matter.roster[p.key]} ${p.label}`).join(" · ");
-  const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}`;
+  const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}${sel.topologies.missingSquares ? ", Missing Squares" : ""}`;
   const lineStyle = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: "rgba(207,216,220,0.85)", lineHeight: 1.7 };
   const tagStyle = { color: "#66d9ff", letterSpacing: "0.08em" };
 

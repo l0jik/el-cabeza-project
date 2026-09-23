@@ -4888,7 +4888,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       applyBoardResize(bootBoardRef.current.rows, bootBoardRef.current.cols);
       setPieces(createInitialPieces());
     }
-    setCurrentPlayer(humanStartSide); // New Game always lands in Human mode, so this is always the relevant preference
+    setCurrentPlayer(humanStartSide); // same opening side selecting an opponent pre-game already leaves in place
     setSelectedId(null);
     setHoveredId(null);
     setHoverShadow(null);
@@ -4909,8 +4909,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     aiDirsRef.current = null;
     aiCabezaStreakRef.current = 0;
     setAiThinking(false);
-    setAiPlayer(null); // New Game always starts back at Human vs Human
-    setShowOpponentPicker(true); // and back to the picker view, not a stale Back+Difficulty view
+    // Opponent (Human / AI side) and AI difficulty carry over into every
+    // new game, whichever reset path got here. The dock shows the
+    // Back+Difficulty view for a kept AI opponent, the picker for Human.
+    setShowOpponentPicker(aiPlayer === null);
     setGameArmed(false); // every fresh game — Human included — now waits on Begin Game
     resetTransitionUntilRef.current = performance.now() + RESET_TRANSITION_MS;
     // Faces the side about to move first, at the SAME oblique pitch

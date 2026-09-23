@@ -426,6 +426,13 @@ if (state.activeCategory === "laws") {
   await page.waitForTimeout(250);
   check("the ghost-grid picker opens",
     (await page.locator('[data-testid="blackhole-picker"]').count()) > 0);
+  // The Missing Square placed under TOPOLOGIES above (and its mirror)
+  // shows on the Black Hole picker in its own look, and isn't pickable.
+  const shownMissing = page.locator('[data-testid="blackhole-picker"] [data-occupied-by="missingSquare"]');
+  check("the black-hole picker shows the already-placed missing squares",
+    (await shownMissing.count()) === 2, `count=${await shownMissing.count()}`);
+  check("those missing squares can't be picked as a black hole",
+    (await page.locator('[data-testid="blackhole-picker"] [data-occupied-by="missingSquare"][data-selectable="true"]').count()) === 0);
 
   const cell = page.locator('[data-selectable="true"]').first();
   const cellId = await cell.getAttribute("data-testid");
@@ -664,6 +671,11 @@ check("Reset Rules is hidden at pre-game setup",
 // pre-game panel first — New Game leaves the dock as the collapsed piece.
 await openDockPanel(page);
 await page.waitForTimeout(300);
+// The opponent picked on the summary menu (AI Dark, Hard) survives New
+// Game: the dock opens on the kept-AI view (Back + Difficulty), not the
+// Human-default picker.
+check("New Game keeps the AI opponent selection",
+  (await page.locator('[data-testid="dock-panel"] [aria-label="Back to opponent selection"]').count()) > 0);
 await page.locator("button", { hasText: "Begin Game" }).first().click();
 const cornerBox2 = await waitForDockCorner(page, { timeoutMs: 8000 });
 await reopenDockPanelFromCorner(page, cornerBox2);
