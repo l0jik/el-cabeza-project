@@ -65,6 +65,10 @@ const PULSE_SPEED = 1.1; // rad/s-ish — the sphere's slow breathing rate
 // read as too sensitive/twitchy — this replaced that entirely rather
 // than only smoothing the post-release coast.
 const DRAG_VELOCITY_SMOOTHING = 9;
+// After release only: a slightly gentler decay so a flick keeps coasting a
+// little longer (a bit more momentum for spin-to-navigate). Dragging itself
+// still uses DRAG_VELOCITY_SMOOTHING, so grab-feel is unchanged.
+const RELEASE_VELOCITY_DECAY = 6.5;
 const ZERO_DRAG_VELOCITY = { x: 0, y: 0 };
 // Radians of rotation per pixel of pointer movement, per second of
 // drag — the raw input this converts into a TARGET velocity that
@@ -1222,7 +1226,7 @@ function updateSphereVisuals(t, dt) {
   // sensitive," since every raw, sometimes-jittery browser pointer
   // event drove the sphere 1:1 with zero smoothing.
   const target = s.dragging ? s.dragTargetVelocity : ZERO_DRAG_VELOCITY;
-  const smoothing = 1 - Math.exp(-dt * DRAG_VELOCITY_SMOOTHING);
+  const smoothing = 1 - Math.exp(-dt * (s.dragging ? DRAG_VELOCITY_SMOOTHING : RELEASE_VELOCITY_DECAY));
   s.dragVelocity.x += (target.x - s.dragVelocity.x) * smoothing;
   s.dragVelocity.y += (target.y - s.dragVelocity.y) * smoothing;
   s.sphere.group.rotation.x += s.dragVelocity.x * dt;
