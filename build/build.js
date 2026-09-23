@@ -4,7 +4,7 @@ import { writeFileSync, mkdirSync } from "fs";
 const targets = [
   { name: "standard", entry: "apps/standard.jsx", title: "El Cabeza" },
   { name: "neon", entry: "apps/neon.jsx", title: "Neon Cabeza" },
-  { name: "unified", entry: "apps/unified.jsx", title: "El Cabeza Nova" },
+  { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova" },
 ];
 
 mkdirSync("dist", { recursive: true });
@@ -57,3 +57,20 @@ for (const t of targets) {
   writeFileSync(`dist/el-cabeza-${t.name}.html`, html);
   console.log(`built dist/el-cabeza-${t.name}.html (${(js.length / 1024).toFixed(0)}kb JS, ${(workerJs.length / 1024).toFixed(0)}kb worker)`);
 }
+
+/* Nova used to be published as el-cabeza-unified.html, and that link has
+   been shared. Keep it working: a tiny page that forwards to Nova at
+   once, keeping any ?query or #hash. */
+writeFileSync(
+  "dist/el-cabeza-unified.html",
+  `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>El Cabeza Nova</title>
+<meta http-equiv="refresh" content="0; url=el-cabeza-nova.html">
+<link rel="canonical" href="el-cabeza-nova.html">
+<script>location.replace("el-cabeza-nova.html" + location.search + location.hash);</script>
+</head><body style="background:#111;color:#eee;font-family:system-ui,sans-serif">
+<p>El Cabeza Unified is now <a href="el-cabeza-nova.html" style="color:#7cf">El Cabeza Nova</a>.</p>
+</body></html>
+`
+);
+console.log("built dist/el-cabeza-unified.html (redirect to Nova)");
