@@ -190,6 +190,44 @@ comments as "reasoned but unverified extrapolation," not measured.
 - Known non-obvious consequence, confirmed not a bug: four pieces (each
   side's Turrito and Cabeza) start boxed in by their own neighbours —
   identically at 10×10, 20×20 and non-square sizes. Don't "fix" it.
+- **Win → New Game settings dialog (RETAIN vs RECONFIGURE).** Every "New
+  Game" button (dock post-game row, Move Log popup, Victory placard) now
+  routes through `handleNewGameClick`, not `handleReset` directly. It's
+  eligible — shows a chassis-level dialog (`data-testid="new-game-choice"`,
+  always-mounted/opacity-faded like the Move Log popup and Victory
+  placard) instead of resetting immediately — only for a REAL win
+  (`status === "finished" && winner`) off a Singularity-originated game
+  (`currentVariants` set, `three.current.singularityGameActive`,
+  `reconfigureSingularitySetup` registered). A manual end (`status
+  "ended"`) or a plain game keeps the old one-click reset — nothing to
+  choose between there. RETAIN calls the existing `handleReset` (silent
+  persistence, unchanged). RECONFIGURE calls `resetGame(false)` (the same
+  vanilla reset "Reset Rules" uses) then immediately
+  `three.current.reconfigureSingularitySetup()` — a closure
+  `finalizeSingularityBegin` (neon-singularity.js) registers alongside
+  `reapplySingularitySetup`, closed over the real, structured `sel` object
+  (not `buildVariantsSnapshot`'s lossy display strings). That closure calls
+  `enterSphereDirect(sel)`, a new function that jumps straight to
+  `PHASES.SPHERE`, pre-populated with `sel`, skipping the discovery
+  gesture AND the whole toll/collapse/blackout cinematic entirely — it
+  replicates only the END STATE that path leaves behind (board hidden,
+  audio cut, chrome sucked away, sphere raycast-faced toward camera), not
+  an animation through it. `advanceSingularityScene`'s existing chrome-
+  suction block gained one line (`if (s.phase === PHASES.SPHERE)
+  updateChromeSuction(s, 1)`) to snap the masthead/dock to their fully-
+  sucked-away state on that first post-entry tick, since no collapse ran
+  to do it frame by frame. Verified in `tests/e2e-singularity.mjs` for the
+  non-eligible (manual end) path only — the dialog doesn't appear and New
+  Game still resets in one click. The eligible (real win) path is NOT
+  covered by an automated test: forcing an actual win through this game's
+  3D screen-coordinate piece-picking (see e2e-gameplay.mjs's own
+  candidate-point sweeps, needed even for a single known move on the
+  standard board) turned out to require either multi-turn navigation
+  around obstructing pieces or a randomized MATTER-roster placement with
+  no test hook for piece positions — assessed as disproportionate effort
+  for this pass. Verify RETAIN/RECONFIGURE manually (or extend the test
+  with a real win, e.g. via a reduced-roster race to `GOAL_ROW`) before
+  relying on it in production.
 
 ## 3c. Singularity cinematic transition (Neon-only) — Part 1 of SINGULARITY_DESIGN.md, BUILT
 

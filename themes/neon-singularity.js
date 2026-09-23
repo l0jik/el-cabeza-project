@@ -1184,6 +1184,14 @@ export function advanceSingularityScene(t, now, chromeRefs) {
         ref.current.style.transition = "none";
       }
     });
+    // A direct sphere entry (enterSphereDirect, the RECONFIGURE path out
+    // of the Win -> New Game dialog) skips the whole collapse that would
+    // normally suck the masthead/dock away frame by frame across
+    // COLLAPSING -- this is the first tick chromeRefs is available, and
+    // the phase is ALREADY sphere, so snap them straight to updateChromeSuction's
+    // own u=1 end state instead of leaving them lingering, fully visible,
+    // behind the sphere overlay.
+    if (s.phase === PHASES.SPHERE) updateChromeSuction(s, 1);
   }
 
   switch (s.phase) {
@@ -2164,6 +2172,77 @@ export function useSingularityPhase({
     setPhase(PHASES.COLLAPSING);
   }
 
+  /* RECONFIGURE entry point for the Win -> New Game dialog (see chassis's
+     handleReset/resetGame and t.reconfigureSingularitySetup below): jumps
+     straight to the sphere's root-label stage, pre-populated with a prior
+     game's selections, skipping the discovery gesture AND the whole
+     toll/collapse/blackout cinematic -- the player just finished a
+     Singularity game and explicitly asked to reconfigure it, so the
+     ceremony of "discovering" the sphere again would be pointless friction
+     rather than payoff. Deliberately replicates only the END STATE the
+     normal collapsing->blackout->sphere path leaves behind (board hidden,
+     audio silent, chrome sucked away, phase SPHERE) rather than animating
+     through it -- see advanceSingularityScene's own chrome-suction block
+     for the one matching snap this needs on the far side. */
+  function enterSphereDirect(prefilledSelections) {
+    const t = three && three.current;
+    if (!t) return;
+    t.singularity = t.singularity || {};
+    const s = t.singularity;
+    s.audio = audio;
+    s.blackDivRef = blackDivRef;
+    s.setPhase = (p) => phaseSetterRef.current(p);
+    s.lastTickAt = null;
+    s.dragVelocity = { x: 0, y: 0 };
+    s.dragTargetVelocity = { x: 0, y: 0 };
+    s.dragging = false;
+    s.pulsePhase = 0;
+    s.collapseItems = null;
+    // Same fresh-arrangement/root-labels reset startCollapse gives a
+    // discovery visit -- reconfiguring shouldn't always land on the same
+    // MATTER/LAWS/TOPOLOGIES layout either.
+    s.rootLabels = shuffleRootLabels();
+    s.sphereMenuStage = "labels";
+    s.activeCategory = null;
+    s.selections = prefilledSelections
+      ? JSON.parse(JSON.stringify(prefilledSelections))
+      : createDefaultSelections();
+    s.tapTimestamps = [];
+    s.labelsDirty = true;
+    s.blackHolePicker = false;
+    s.blackHolePickConfirm = null;
+    // No collapse ran to hide the board or cut the audio -- do both
+    // directly, landing in exactly the state the collapsing->blackout
+    // edge produces on the normal path (see advanceSingularityScene).
+    if (t.boardGroup) t.boardGroup.visible = false;
+    resetCameraRoll(t);
+    audio.cutSingularityAudioToSilence();
+    if (blackDivRef.current) {
+      blackDivRef.current.style.transition = "none";
+      blackDivRef.current.style.opacity = "0";
+    }
+    // Faces the sphere toward the camera immediately, the same raycast
+    // the blackout->sphere transition performs once the camera has
+    // settled back to its resting position (already true here -- no
+    // collapse camera roll ran to unsettle it).
+    if (t.raycaster && t.pointer && t.camera && s.sphere) {
+      const ndc = s.sphere.group.position.clone().project(t.camera);
+      t.pointer.set(ndc.x, ndc.y);
+      t.raycaster.setFromCamera(t.pointer, t.camera);
+      const hits = t.raycaster.intersectObject(s.sphere.mesh);
+      if (hits.length && hits[0].uv) {
+        s.sphere.group.rotation.y = (hits[0].uv.x - 0.5) * Math.PI * 2;
+      }
+    }
+    // Lets the next tick's chrome-suction block (advanceSingularityScene)
+    // know this is a fresh, not-yet-hidden arrival so it snaps the
+    // masthead/dock straight to their fully-sucked-away end state -- see
+    // that block's own comment.
+    s.chromeHidden = false;
+    s.phase = PHASES.SPHERE;
+    setPhase(PHASES.SPHERE);
+  }
+
   function exitSingularity() {
     // Cancel a pending toll->collapse handoff so an Escape during the
     // lead-in doesn't fire the collapse a beat after we've bailed out.
@@ -2261,6 +2340,14 @@ export function useSingularityPhase({
         if (setBlackHoles) setBlackHoles(holes);
         if (setCurrentVariants) setCurrentVariants(variants);
       };
+      // The Win -> New Game dialog's RECONFIGURE path: re-enters the
+      // sphere pre-populated with THIS game's real, structured selections
+      // (sel itself -- not buildVariantsSnapshot's lossy display strings,
+      // which is all setCurrentVariants above ever gets). The chassis
+      // calls resetGame(false) (a vanilla reset back to pre-game setup)
+      // immediately before this, so the sphere opens over a clean board
+      // rather than the just-finished one.
+      t.reconfigureSingularitySetup = () => enterSphereDirect(sel);
     }
     if (triggerBeginGame) triggerBeginGame();
     exitSingularity();

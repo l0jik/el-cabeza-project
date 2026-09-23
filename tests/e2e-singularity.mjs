@@ -550,10 +550,26 @@ await page.waitForTimeout(500);
 // A Singularity game just ended, so the Reset Rules control is offered.
 check("Reset Rules control appears once a Singularity game has ended",
   (await page.locator('[data-testid="reset-rules"]').count()) > 0);
-// New Game (the ended-state Reset Game button) keeps the Singularity rules:
-// the 12x8 board must persist rather than snapping back to the boot size.
-await page.locator('[data-testid="dock-panel"] button', { hasText: /^Reset Game$/ }).click();
-await page.waitForTimeout(700);
+// New Game (the dock's actual New Game button, not the relocated Reset
+// Game control) keeps the Singularity rules: the 12x8 board must persist
+// rather than snapping back to the boot size. This is a manual end
+// (status "ended", no winner), so the new RETAIN/RECONFIGURE dialog
+// (only for a real Singularity win — see handleNewGameClick) must NOT
+// appear; New Game has to still reset in one click exactly as before.
+await page.locator('[data-testid="dock-panel"] button', { hasText: /^New Game$/ }).click();
+await page.waitForTimeout(400);
+// Always-mounted (opacity-faded, like the Move Log popup and Victory
+// placard) — real visibility, not DOM presence, is what proves it stayed
+// closed. New Game must also have already reset in this one click (the
+// dialog never opened to intercept it), so waitForTimeout below can move
+// straight on to reading the persisted board size.
+const newGameChoiceOpacity = await page.evaluate(() => {
+  const el = document.querySelector('[data-testid="new-game-choice"]');
+  return el ? getComputedStyle(el).opacity : null;
+});
+check("New Game after a manual end does not show the win settings dialog",
+  Number(newGameChoiceOpacity) < 0.05, `opacity=${newGameChoiceOpacity}`);
+await page.waitForTimeout(300);
 const boardAfterNewGame = await page.evaluate(() => window.__EC_TEST_BOARD__ || null);
 check("New Game persists the Singularity board size (12x8 kept, not reset to boot)",
   boardAfterNewGame && boardAfterNewGame.rows === wantRows && boardAfterNewGame.cols === wantCols,

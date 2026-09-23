@@ -284,6 +284,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      plain, non-Singularity game — the flyout then reads "Standard rules".
      Cleared on New Game (handleReset). */
   const [currentVariants, setCurrentVariants] = useState(null);
+  /* On a real win with currentVariants set (a Singularity-originated
+     game), New Game asks RETAIN vs RECONFIGURE instead of silently
+     persisting — see handleNewGameClick below. */
+  const [showNewGameChoice, setShowNewGameChoice] = useState(false);
   const [winner, setWinner] = useState(null);
   const [winReason, setWinReason] = useState("");
   /* Opens automatically the moment a game ends (see the effect below),
@@ -4801,6 +4805,45 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     snapToCenter();
   }
 
+  /* Every New Game button (dock row, Move Log popup, Victory placard)
+     routes through this instead of calling handleReset directly. A real
+     win (status "finished", a winner) off a Singularity-originated game
+     (currentVariants set — see finalizeSingularityBegin) asks RETAIN vs
+     RECONFIGURE instead of silently persisting the rules; a manual end
+     (status "ended", no winner) or a plain game keeps the old one-click
+     behavior, since there's nothing to choose between. */
+  function handleNewGameClick() {
+    const t = three.current;
+    const eligible =
+      status === "finished" &&
+      winner &&
+      currentVariants &&
+      t &&
+      t.singularityGameActive &&
+      typeof t.reconfigureSingularitySetup === "function";
+    if (eligible) setShowNewGameChoice(true);
+    else handleReset();
+  }
+  function handleRetainSettings() {
+    setShowNewGameChoice(false);
+    handleReset();
+  }
+  /* Vanilla-resets back to pre-game setup (same path "Reset rules"
+     takes), then hands off to the theme's own reconfigureSingularitySetup
+     — set on three.current by finalizeSingularityBegin alongside
+     reapplySingularitySetup, closed over the real, structured selections
+     of the game that just ended (not buildVariantsSnapshot's lossy
+     display strings) — which jumps straight to the sphere UI
+     pre-populated with them. Both calls are synchronous imperative
+     three.js/bridge-object work, so there's no need to wait for
+     resetGame's own React state updates to have committed first. */
+  function handleReconfigureSettings() {
+    setShowNewGameChoice(false);
+    resetGame(false);
+    const t = three.current;
+    if (t && typeof t.reconfigureSingularitySetup === "function") t.reconfigureSingularitySetup();
+  }
+
   /* Plain-text export of the move log, for copying out of the game
      entirely — e.g. pasting a completed game elsewhere for analysis.
      Reuses pairLog exactly as the display table does, so the exported
@@ -6061,7 +6104,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             <button
               key="newgame"
               className="ec-btn ec-btn-invert"
-              onClick={handleReset}
+              onClick={handleNewGameClick}
               style={{
                 fontFamily: "'IBM Plex Mono', monospace",
                 fontSize: 11,
@@ -6223,7 +6266,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               className="ec-btn ec-btn-invert"
               onClick={() => {
                 closeMoveLog();
-                handleReset();
+                handleNewGameClick();
               }}
               style={{
                 flex: "1 1 0",
@@ -6612,7 +6655,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             </button>
             <button
               className="ec-btn"
-              onClick={handleReset}
+              onClick={handleNewGameClick}
               style={{
                 ...playerButtonStyle(winner),
                 flex: "1 1 0",
@@ -6622,6 +6665,107 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               }}
             >
               New Game
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Win -> New Game settings dialog: only ever shown by
+          handleNewGameClick, and only for a real win off a
+          Singularity-originated game (see its own gating comment) — a
+          manual end or a plain game's New Game still resets in one
+          click, with nothing here to choose between. Same
+          always-mounted + opacity-fade + backdrop-click-dismiss pattern
+          as the Move Log popup and Victory placard; sits above both
+          (they're never open at the same time this is, but the z-index
+          order still matters for the fade transitions crossing). */}
+      <div
+        data-testid="new-game-choice"
+        onClick={() => setShowNewGameChoice(false)}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: modalBackdrop,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+          boxSizing: "border-box",
+          zIndex: 1150,
+          opacity: showNewGameChoice ? 1 : 0,
+          pointerEvents: showNewGameChoice ? "auto" : "none",
+          transition: "opacity 0.3s ease",
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "relative",
+            width: "min(90%, 420px)",
+            background: COLORS.cream,
+            border: `1px solid ${COLORS.slateSoft}`,
+            boxShadow: "0 30px 70px rgba(36,24,10,0.35)",
+            padding: "36px 32px 32px",
+            boxSizing: "border-box",
+            textAlign: "center",
+          }}
+        >
+          <h2
+            style={{
+              margin: "0 0 10px",
+              fontFamily: titleFontFamily,
+              fontWeight: 600,
+              fontSize: 24,
+              letterSpacing: "0.02em",
+              color: COLORS.charcoal,
+            }}
+          >
+            NEW GAME
+          </h2>
+          <p
+            style={{
+              margin: "0 0 22px",
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 10.5,
+              letterSpacing: "0.06em",
+              color: COLORS.slate,
+              lineHeight: 1.6,
+            }}
+          >
+            {currentVariants && currentVariants.length
+              ? currentVariants.map((g) => `${g.label}: ${g.items.join(", ")}`).join("  ·  ")
+              : "No specials — standard rules."}
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <button
+              className="ec-btn"
+              onClick={handleRetainSettings}
+              style={{
+                ...playerButtonStyle(winner),
+                fontSize: 11,
+                letterSpacing: "0.14em",
+                padding: "12px 12px",
+              }}
+            >
+              Retain Current Game Settings
+            </button>
+            <button
+              className="ec-btn ec-btn-invert"
+              onClick={handleReconfigureSettings}
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 11,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: COLORS.charcoal,
+                background: "transparent",
+                border: `1.5px solid ${COLORS.charcoal}`,
+                padding: "12px 12px",
+                cursor: "pointer",
+              }}
+            >
+              Reconfigure Game Settings
             </button>
           </div>
         </div>
