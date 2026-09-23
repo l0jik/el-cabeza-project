@@ -1131,3 +1131,10 @@ a large enough surface that starting on assumptions risks substantial
 wasted work. No other explicit backlog exists; recent history (last
 ~15 commits before this one) has been reactive bug-fix/polish passes on
 a feature-complete app, not progress toward a specific queued feature.
+
+## Nova naming
+The Unified build (`apps/unified.jsx`) is published as **El Cabeza Nova**
+at `dist/el-cabeza-nova.html` (the landing-page button reads "Nova"). The
+old `el-cabeza-unified.html` had already been shared, so `build/build.js`
+still writes that file, now as a tiny redirect to Nova that keeps any
+`?query`/`#hash`. Don't remove the redirect.
