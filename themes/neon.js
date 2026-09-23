@@ -3286,7 +3286,7 @@ export function renderGlobalDefs() {
 export function useSetupExtras({
   awaitingBegin, pieces, setPieces, audio, three,
   aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
-  busy, aiThinking, triggerBeginGame, setBlackHoles,
+  busy, aiThinking, triggerBeginGame, setBlackHoles, setMissingSquares,
   isPlaying, currentVariants, setCurrentVariants, applyBoardResize,
 }) {
   const [singularityRevealed, setSingularityRevealed] = React.useState(false);
@@ -3325,6 +3325,9 @@ export function useSetupExtras({
     // chassis's own React setter (to make the placement it computes
     // renderable — see chassis's holeGroup effect).
     pieces, setBlackHoles,
+    // Missing Squares TOPOLOGIES option: same reasoning as
+    // setBlackHoles just above, for the impassable-void feature.
+    setMissingSquares,
     // Current Variants flyout: the setter finalizeSingularityBegin uses
     // to record which specials this game started with.
     setCurrentVariants,

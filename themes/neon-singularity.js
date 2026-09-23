@@ -31,9 +31,9 @@ import React from "react";
 import * as THREE from "three";
 import {
   SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws, getBoardDimensions,
-  setBlackHoles as setActiveBlackHoles,
+  setBlackHoles as setActiveBlackHoles, setMissingSquares as setActiveMissingSquares,
 } from "../engine/constants.js";
-import { pickBlackHoleSquares } from "../engine/rules.js";
+import { pickBlackHoleSquares, pickMissingSquares } from "../engine/rules.js";
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
 // SINGULARITY invite: the cathedral bell tolls and a black curtain fades
@@ -552,12 +552,21 @@ function createDefaultSelections() {
       // fixed formation; on = a fresh randomized placement at Begin Game.
       randomizeStart: false,
     },
-    topologies: { rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM },
+    // missingSquares (the enable toggle) lives here, in topologies, not
+    // as its own LAW — it changes the board's physical shape/playable
+    // area rather than a movement rule, same category as rows/cols.
+    topologies: { rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM, missingSquares: false },
     // Black Hole Squares placement: null = auto (random-but-fair, the
     // default), or { row, col } = a manually-chosen cell on the player's
     // side of the board, whose 180-degree mirror is the paired hole (see
-    // the picker in renderBlackHolePicker and buildBlackHolePlacement).
+    // the picker in renderPairedSquarePicker and buildBlackHolePlacement).
     blackHole: { manual: null },
+    // Missing Squares placement — same shape/reasoning as blackHole
+    // above, its own top-level field rather than nested under topologies
+    // for the same reason blackHole isn't nested under laws: the picker
+    // logic is generic and only visually lives inside its category's
+    // overlay, not structurally bound to it.
+    missingSquare: { manual: null },
   };
 }
 
@@ -569,7 +578,11 @@ function isCategoryActive(key, selections) {
     return MATTER_ROSTER.some((p) => selections.matter.roster[p.key] !== p.default);
   }
   if (key === "topologies") {
-    return selections.topologies.rows !== DEFAULT_BOARD_DIM || selections.topologies.cols !== DEFAULT_BOARD_DIM;
+    return (
+      selections.topologies.rows !== DEFAULT_BOARD_DIM ||
+      selections.topologies.cols !== DEFAULT_BOARD_DIM ||
+      selections.topologies.missingSquares
+    );
   }
   return false;
 }
@@ -583,8 +596,12 @@ function summarizeCategory(key, selections) {
     return isCategoryActive("matter", selections) ? "ROSTER CUSTOMIZED" : "TAP TO CONFIGURE";
   }
   if (key === "topologies") {
-    const { rows, cols } = selections.topologies;
-    return isCategoryActive("topologies", selections) ? `${rows} × ${cols} BOARD` : "TAP TO CONFIGURE";
+    if (!isCategoryActive("topologies", selections)) return "TAP TO CONFIGURE";
+    const { rows, cols, missingSquares } = selections.topologies;
+    const sized = rows !== DEFAULT_BOARD_DIM || cols !== DEFAULT_BOARD_DIM;
+    if (sized && missingSquares) return `${rows} × ${cols} · MISSING SQUARES`;
+    if (sized) return `${rows} × ${cols} BOARD`;
+    return "MISSING SQUARES";
   }
   return "";
 }
@@ -609,10 +626,11 @@ function buildVariantsSnapshot(selections) {
   });
   if (matter.length) groups.push({ key: "matter", label: "MATTER", items: matter });
 
-  const { rows, cols } = selections.topologies;
-  if (rows !== DEFAULT_BOARD_DIM || cols !== DEFAULT_BOARD_DIM) {
-    groups.push({ key: "topologies", label: "TOPOLOGY", items: [`${rows} × ${cols} board`] });
-  }
+  const { rows, cols, missingSquares } = selections.topologies;
+  const topoItems = [];
+  if (rows !== DEFAULT_BOARD_DIM || cols !== DEFAULT_BOARD_DIM) topoItems.push(`${rows} × ${cols} board`);
+  if (missingSquares) topoItems.push("Missing squares");
+  if (topoItems.length) groups.push({ key: "topologies", label: "TOPOLOGY", items: topoItems });
   return groups;
 }
 
@@ -627,22 +645,50 @@ function cellOccupied(pieces, r, c) {
   return (pieces || []).some((p) => r >= p.row && r < p.row + p.h && c >= p.col && c < p.col + p.w);
 }
 
-/* The two paired Black Hole squares for a game: the player's manual pick
-   plus its mirror when one was placed AND both cells are free of pieces;
-   otherwise the automatic random-but-fair pair (pickBlackHoleSquares).
-   The fallback keeps a manual pick from ever landing a hole under a piece
-   — e.g. a randomized/custom opening the picker couldn't preview, or a
-   pick made stale by a later board-size change. */
-function buildBlackHolePlacement(selections, rows, cols, pieces) {
-  const manual = selections && selections.blackHole && selections.blackHole.manual;
+// Is this cell one of the OTHER paired-square feature's already-resolved
+// squares? See buildPairedSquarePlacement's own comment for why.
+function cellReserved(avoid, r, c) {
+  return (avoid || []).some((a) => a.row === r && a.col === c);
+}
+
+/* Shared by Black Hole Squares and Missing Squares: the two paired
+   squares for a game — the player's manual pick plus its mirror when one
+   was placed AND both cells are free of pieces AND free of the OTHER
+   feature's own squares (`avoid`, if both are active in the same game);
+   otherwise the automatic random-but-fair pair (`pick`, either
+   pickBlackHoleSquares or pickMissingSquares — same shape, different
+   engine state). The fallback keeps a manual pick from ever landing on a
+   piece or on the other feature's square — e.g. a randomized/custom
+   opening the picker couldn't preview, a pick made stale by a later
+   board-size change, or the two features' squares having been chosen to
+   coincide. */
+function buildPairedSquarePlacement(manual, rows, cols, pieces, avoid, pick) {
   if (manual && manual.row < rows && manual.col < cols) {
     const m = mirrorCell(manual.row, manual.col, rows, cols);
     const distinct = !(m.row === manual.row && m.col === manual.col);
-    if (distinct && !cellOccupied(pieces, manual.row, manual.col) && !cellOccupied(pieces, m.row, m.col)) {
+    if (
+      distinct &&
+      !cellOccupied(pieces, manual.row, manual.col) && !cellOccupied(pieces, m.row, m.col) &&
+      !cellReserved(avoid, manual.row, manual.col) && !cellReserved(avoid, m.row, m.col)
+    ) {
       return [{ row: manual.row, col: manual.col }, { row: m.row, col: m.col }];
     }
   }
-  return pickBlackHoleSquares(pieces || [], rows, cols);
+  return pick(pieces || [], rows, cols, avoid || []);
+}
+
+function buildBlackHolePlacement(selections, rows, cols, pieces, avoid) {
+  return buildPairedSquarePlacement(
+    selections && selections.blackHole && selections.blackHole.manual,
+    rows, cols, pieces, avoid, pickBlackHoleSquares
+  );
+}
+
+function buildMissingSquaresPlacement(selections, rows, cols, pieces, avoid) {
+  return buildPairedSquarePlacement(
+    selections && selections.missingSquare && selections.missingSquare.manual,
+    rows, cols, pieces, avoid, pickMissingSquares
+  );
 }
 
 // Circular distance in u-space (u wraps at 0/1, since the sphere's
@@ -1128,6 +1174,8 @@ function teardownSingularityScene(t) {
   s.labelsDirty = true;
   s.blackHolePicker = false;
   s.blackHolePickConfirm = null;
+  s.missingSquaresPicker = false;
+  s.missingSquaresPickConfirm = null;
   if (t.singularityGridMaterials) {
     t.singularityGridMaterials.forEach((m) => { m.opacity = m.userData.singularityBaseOpacity; });
   }
@@ -1537,17 +1585,55 @@ function renderCheckboxRow(item, checked, onToggle, testId) {
    cell on their own side of the board, its 180-degree mirror becoming the
    paired hole. Reads/writes t.singularity.selections.blackHole directly,
    the same live-bridge pattern the checkboxes use. */
-function renderBlackHolePlacementRow(t) {
+/* Shared by Black Hole Squares (LAWS) and Missing Squares (TOPOLOGIES):
+   both place a manually-pickable, rotationally-mirrored pair of squares
+   via an identical ghost-grid picker, differing only in text/testids and
+   which selections field they read/write. `kind` picks one of these. */
+const PAIRED_SQUARE_KINDS = {
+  blackHole: {
+    manualField: "blackHole",
+    pickerFlag: "blackHolePicker",
+    confirmFlag: "blackHolePickConfirm",
+    title: "Place Black Hole",
+    pairedNoun: "hole",
+    cellPrefix: "bh-cell",
+    placementTestid: "blackhole-placement",
+    placeBtnTestid: "blackhole-place-btn",
+    clearBtnTestid: "blackhole-clear-btn",
+    pickerTestid: "blackhole-picker",
+    backdropTestid: "blackhole-picker-backdrop",
+    cancelTestid: "blackhole-picker-cancel",
+    confirmTestid: "blackhole-confirm",
+  },
+  missingSquare: {
+    manualField: "missingSquare",
+    pickerFlag: "missingSquaresPicker",
+    confirmFlag: "missingSquaresPickConfirm",
+    title: "Place Missing Square",
+    pairedNoun: "missing square",
+    cellPrefix: "missing-cell",
+    placementTestid: "missing-placement",
+    placeBtnTestid: "missing-place-btn",
+    clearBtnTestid: "missing-clear-btn",
+    pickerTestid: "missing-picker",
+    backdropTestid: "missing-picker-backdrop",
+    cancelTestid: "missing-picker-cancel",
+    confirmTestid: "missing-confirm",
+  },
+};
+
+function renderPairedSquarePlacementRow(t, kind) {
+  const k = PAIRED_SQUARE_KINDS[kind];
   const s = t.singularity;
   const h = React.createElement;
-  const manual = s.selections.blackHole.manual;
+  const manual = s.selections[k.manualField].manual;
   const openPicker = () => {
-    s.blackHolePicker = true;
-    s.blackHolePickConfirm = null;
+    s[k.pickerFlag] = true;
+    s[k.confirmFlag] = null;
     if (s.audio && s.audio.playSingularityOpen) s.audio.playSingularityOpen();
     s.bump();
   };
-  const clearManual = () => { s.selections.blackHole.manual = null; s.labelsDirty = true; s.bump(); };
+  const clearManual = () => { s.selections[k.manualField].manual = null; s.labelsDirty = true; s.bump(); };
   const btn = (extra) => ({
     fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
     padding: "7px 12px", borderRadius: 4, cursor: "pointer",
@@ -1557,53 +1643,57 @@ function renderBlackHolePlacementRow(t) {
   return h(
     "div",
     {
-      key: "blackhole-placement",
-      "data-testid": "blackhole-placement",
+      key: k.placementTestid,
+      "data-testid": k.placementTestid,
       style: { margin: "0 0 6px 36px", padding: "9px 11px", border: "1px solid rgba(102,217,255,0.22)", borderRadius: 4, background: "rgba(102,217,255,0.05)" },
     },
     h(
       "div",
       { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.72)", marginBottom: 7, lineHeight: 1.45 } },
       manual
-        ? `Placed on your side at row ${manual.row + 1}, column ${manual.col + 1}. Its mirror on the far side is the paired hole.`
+        ? `Placed on your side at row ${manual.row + 1}, column ${manual.col + 1}. Its mirror on the far side is the paired ${k.pairedNoun}.`
         : "Placed at random by default — or choose where it sits on your side of the board (its mirror pairs on the far side)."
     ),
     h(
       "div",
       { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
-      h("button", { type: "button", "data-testid": "blackhole-place-btn", onClick: openPicker, style: btn() }, manual ? "◇ Change placement" : "◇ Place on board"),
+      h("button", { type: "button", "data-testid": k.placeBtnTestid, onClick: openPicker, style: btn() }, manual ? "◇ Change placement" : "◇ Place on board"),
       manual
-        ? h("button", { type: "button", "data-testid": "blackhole-clear-btn", onClick: clearManual, style: btn({ border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)" }) }, "Use random")
+        ? h("button", { type: "button", "data-testid": k.clearBtnTestid, onClick: clearManual, style: btn({ border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)" }) }, "Use random")
         : null
     )
   );
 }
 
 /* The ghost-grid picker: a board-sized grid where the player taps a cell
-   on their own side (the near/bottom half) to place a Black Hole. The
-   180-degree mirror on the far side is the paired hole and lights up with
-   the pick. Choosing plays a select cue, flashes the chosen pair with a
-   "SELECTED" confirmation, then closes back to the LAWS overlay. Sized to
-   the ACTUAL board (getBoardDimensions), since TOPOLOGIES' size is not
-   applied to real play. The center row of an odd board self-mirrors, so
-   it's excluded from the selectable side. */
-function renderBlackHolePicker(t) {
+   on their own side (the near/bottom half) to place their half of a
+   rotationally-mirrored pair (a Black Hole or a Missing Square — see
+   `kind`/PAIRED_SQUARE_KINDS). The 180-degree mirror on the far side is
+   the paired square and lights up with the pick. Choosing plays a select
+   cue, flashes the chosen pair with a "SELECTED" confirmation, then
+   closes back to the category overlay. Sized to the ACTUAL board
+   (getBoardDimensions), since TOPOLOGIES' size is not applied to real
+   play. The center row of an odd board self-mirrors, so it's excluded
+   from the selectable side. */
+function renderPairedSquarePicker(t, kind) {
+  const k = PAIRED_SQUARE_KINDS[kind];
   const s = t.singularity;
-  if (!s || !s.blackHolePicker) return null;
+  if (!s || !s[k.pickerFlag]) return null;
   const h = React.createElement;
   // The TOPOLOGIES-chosen size, not the live engine size: the resize is
   // only applied at Begin Game, so during setup the grid must reflect the
   // board the game WILL play on (which finalizeSingularityBegin then makes
-  // real, and buildBlackHolePlacement reads back as getBoardDimensions).
+  // real, and buildBlackHolePlacement/buildMissingSquaresPlacement read
+  // back as getBoardDimensions).
   const { rows, cols } = s.selections.topologies;
-  const confirm = s.blackHolePickConfirm || null;
+  const confirm = s[k.confirmFlag] || null;
   // Reopened with a placement already made (Change placement): show that
   // stored cell (and its mirror) as the current selection so the player
   // sees where it sits and can move it, instead of a blank grid. A live
   // confirm (a just-made pick mid-flash) takes precedence over it.
   const existing =
-    !confirm && s.selections.blackHole && s.selections.blackHole.manual
-      ? s.selections.blackHole.manual
+    !confirm && s.selections[k.manualField] && s.selections[k.manualField].manual
+      ? s.selections[k.manualField].manual
       : null;
   const highlight = confirm || existing;
   const mirror = highlight ? mirrorCell(highlight.row, highlight.col, rows, cols) : null;
@@ -1611,16 +1701,16 @@ function renderBlackHolePicker(t) {
   const selRowStart = rows - Math.floor(rows / 2);
   const selectableRow = (r) => r >= selRowStart;
 
-  const close = () => { s.blackHolePicker = false; s.blackHolePickConfirm = null; s.bump(); };
+  const close = () => { s[k.pickerFlag] = false; s[k.confirmFlag] = null; s.bump(); };
   const pick = (r, c) => {
     if (confirm) return; // a pick is already confirming and about to close
-    s.selections.blackHole.manual = { row: r, col: c };
-    s.blackHolePickConfirm = { row: r, col: c };
+    s.selections[k.manualField].manual = { row: r, col: c };
+    s[k.confirmFlag] = { row: r, col: c };
     if (s.audio && s.audio.playSelect) s.audio.playSelect();
     s.bump();
     setTimeout(() => {
-      s.blackHolePicker = false;
-      s.blackHolePickConfirm = null;
+      s[k.pickerFlag] = false;
+      s[k.confirmFlag] = null;
       s.labelsDirty = true;
       s.bump();
     }, 780);
@@ -1634,7 +1724,7 @@ function renderBlackHolePicker(t) {
       const isMirror = mirror && mirror.row === r && mirror.col === c;
       cells.push(h("div", {
         key: `${r}-${c}`,
-        "data-testid": `bh-cell-${r}-${c}`,
+        "data-testid": `${k.cellPrefix}-${r}-${c}`,
         "data-selectable": sel ? "true" : "false",
         onClick: sel && !confirm ? () => pick(r, c) : undefined,
         style: {
@@ -1665,14 +1755,14 @@ function renderBlackHolePicker(t) {
   return h(
     "div",
     {
-      "data-testid": "blackhole-picker-backdrop",
+      "data-testid": k.backdropTestid,
       onPointerDown: (e) => { e.stopPropagation(); if (!confirm) close(); },
       style: { position: "fixed", inset: 0, zIndex: 2300, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(2,5,10,0.55)" },
     },
     h(
       "div",
       {
-        "data-testid": "blackhole-picker",
+        "data-testid": k.pickerTestid,
         onPointerDown: (e) => e.stopPropagation(),
         style: {
           width: "clamp(280px, 90%, 460px)",
@@ -1688,7 +1778,7 @@ function renderBlackHolePicker(t) {
           display: "flex", flexDirection: "column", gap: 10,
         },
       },
-      h("h3", { style: overlayTitleStyle }, "Place Black Hole"),
+      h("h3", { style: overlayTitleStyle }, k.title),
       label("Mirror · far side", "rgba(174,182,194,0.55)"),
       h(
         "div",
@@ -1704,10 +1794,10 @@ function renderBlackHolePicker(t) {
       ),
       label("Your side · tap a square", confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"),
       confirm
-        ? h("div", { "data-testid": "blackhole-confirm", style: { textAlign: "center", fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: "0.12em", color: "#dffaff", textShadow: "0 0 10px rgba(142,243,255,0.7)" } }, "◇ SELECTED")
+        ? h("div", { "data-testid": k.confirmTestid, style: { textAlign: "center", fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: "0.12em", color: "#dffaff", textShadow: "0 0 10px rgba(142,243,255,0.7)" } }, "◇ SELECTED")
         : h(
             "button",
-            { type: "button", "data-testid": "blackhole-picker-cancel", onClick: close, style: { alignSelf: "center", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 4, border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)", cursor: "pointer" } },
+            { type: "button", "data-testid": k.cancelTestid, onClick: close, style: { alignSelf: "center", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 4, border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)", cursor: "pointer" } },
             "Cancel"
           )
     )
@@ -1753,7 +1843,7 @@ function renderCategoryOverlay(t) {
           `law-${item.key}`
         );
         if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares) {
-          return [row, renderBlackHolePlacementRow(t)];
+          return [row, renderPairedSquarePlacementRow(t, "blackHole")];
         }
         return [row];
       })
@@ -1792,17 +1882,31 @@ function renderCategoryOverlay(t) {
       )
     );
   } else if (category === "topologies") {
+    // Missing Squares' own manual-placement control sits directly below
+    // its toggle (its own sub-option), same as Black Hole Squares' does
+    // under LAWS — only shown once the toggle is on.
+    const missingRow = renderCheckboxRow(
+      { key: "missingSquares", label: "Missing Squares", blurb: "Two rotationally-mirrored squares no piece can ever enter or pass through." },
+      sel.topologies.missingSquares,
+      () => { sel.topologies.missingSquares = !sel.topologies.missingSquares; s.labelsDirty = true; s.bump(); },
+      "topo-missingSquares"
+    );
     body = h(
       "div",
-      { style: { display: "flex", gap: 22, justifyContent: "center", padding: "6px 0" } },
-      h(DrumRoller, {
-        id: "board-rows", label: "Rows", value: sel.topologies.rows, min: MIN_BOARD_DIM, max: MAX_BOARD_DIM,
-        onChange: (v) => { sel.topologies.rows = v; s.labelsDirty = true; s.bump(); },
-      }),
-      h(DrumRoller, {
-        id: "board-cols", label: "Cols", value: sel.topologies.cols, min: MIN_BOARD_DIM, max: MAX_BOARD_DIM,
-        onChange: (v) => { sel.topologies.cols = v; s.labelsDirty = true; s.bump(); },
-      })
+      { style: { display: "flex", flexDirection: "column" } },
+      h(
+        "div",
+        { style: { display: "flex", gap: 22, justifyContent: "center", padding: "6px 0 14px" } },
+        h(DrumRoller, {
+          id: "board-rows", label: "Rows", value: sel.topologies.rows, min: MIN_BOARD_DIM, max: MAX_BOARD_DIM,
+          onChange: (v) => { sel.topologies.rows = v; s.labelsDirty = true; s.bump(); },
+        }),
+        h(DrumRoller, {
+          id: "board-cols", label: "Cols", value: sel.topologies.cols, min: MIN_BOARD_DIM, max: MAX_BOARD_DIM,
+          onChange: (v) => { sel.topologies.cols = v; s.labelsDirty = true; s.bump(); },
+        })
+      ),
+      ...(sel.topologies.missingSquares ? [missingRow, renderPairedSquarePlacementRow(t, "missingSquare")] : [missingRow])
     );
   }
 
@@ -2049,6 +2153,9 @@ export function useSingularityPhase({
   busy, aiThinking, triggerBeginGame, applyMatterRoster,
   // Black Hole Squares LAW — see finalizeSingularityBegin below.
   pieces, setBlackHoles,
+  // Missing Squares TOPOLOGIES option — same reasoning, see
+  // finalizeSingularityBegin below.
+  setMissingSquares,
   // Current Variants flyout snapshot setter — see finalizeSingularityBegin.
   setCurrentVariants,
   // TOPOLOGIES board resize — see finalizeSingularityBegin.
@@ -2166,6 +2273,8 @@ export function useSingularityPhase({
     t.singularity.labelsDirty = true;
     t.singularity.blackHolePicker = false;
     t.singularity.blackHolePickConfirm = null;
+    t.singularity.missingSquaresPicker = false;
+    t.singularity.missingSquaresPickConfirm = null;
     // The roar layer runs alongside the hum for the whole collapse; the
     // hard cut stops it along with everything else.
     audio.startSingularityCollapseRoar();
@@ -2211,6 +2320,8 @@ export function useSingularityPhase({
     s.labelsDirty = true;
     s.blackHolePicker = false;
     s.blackHolePickConfirm = null;
+    s.missingSquaresPicker = false;
+    s.missingSquaresPickConfirm = null;
     // No collapse ran to hide the board or cut the audio -- do both
     // directly, landing in exactly the state the collapsing->blackout
     // edge produces on the normal path (see advanceSingularityScene).
@@ -2310,12 +2421,22 @@ export function useSingularityPhase({
       // ACTIVE_LAWS; this is where they actually take effect (and get
       // forwarded to the AI worker via setActiveLaws' shared mechanism).
       const laws = setActiveLaws(sel.laws);
+      // Missing Squares: resolved BEFORE Black Hole Squares below so the
+      // two never land on the same cell — whichever is active second
+      // treats the first's placement as reserved too (buildBlackHole-
+      // Placement's own avoid param). Set on both the engine module state
+      // and the chassis React copy from the same list, so enforced == drawn.
+      const missing = sel.topologies.missingSquares
+        ? buildMissingSquaresPlacement(sel, getBoardDimensions().rows, getBoardDimensions().cols, pieces)
+        : [];
+      setActiveMissingSquares(missing);
+      if (setMissingSquares) setMissingSquares(missing);
       // Black Hole Squares: ON always means the two-hole wormhole version.
       // Resolved ONCE here and reused on replay so the layout stays
       // identical game to game. Set on both the engine module state and the
       // chassis React copy from the same list, so enforced == drawn.
       const holes = laws.blackHoleSquares
-        ? buildBlackHolePlacement(sel, getBoardDimensions().rows, getBoardDimensions().cols, pieces)
+        ? buildBlackHolePlacement(sel, getBoardDimensions().rows, getBoardDimensions().cols, pieces, missing)
         : [];
       setActiveBlackHoles(holes);
       if (setBlackHoles) setBlackHoles(holes);
@@ -2330,12 +2451,15 @@ export function useSingularityPhase({
       // the Singularity rules instead of resetting to a vanilla game — see
       // handleReset's keepSingularity branch. Board size + roster are
       // re-derived each time (a fresh, possibly re-randomized opening),
-      // while the resolved holes/variants are reused verbatim.
+      // while the resolved missing squares/holes/variants are reused
+      // verbatim.
       t.reapplySingularitySetup = () => {
         t.singularityGameActive = true;
         if (applyBoardResize) applyBoardResize(sel.topologies.rows, sel.topologies.cols);
         if (applyMatterRoster) applyMatterRoster(sel.matter, matterActive);
         setActiveLaws(sel.laws);
+        setActiveMissingSquares(missing);
+        if (setMissingSquares) setMissingSquares(missing);
         setActiveBlackHoles(holes);
         if (setBlackHoles) setBlackHoles(holes);
         if (setCurrentVariants) setCurrentVariants(variants);
@@ -2743,7 +2867,8 @@ export function renderSingularityOverlay(setupExtras) {
     phase === PHASES.SPHERE && renderBackButton(exitSingularity),
     phase === PHASES.SPHERE && stage === "labels" && renderLabelsHint(),
     phase === PHASES.SPHERE && stage === "overlay" && t && renderCategoryOverlay(t),
-    phase === PHASES.SPHERE && stage === "overlay" && t && renderBlackHolePicker(t),
+    phase === PHASES.SPHERE && stage === "overlay" && t && renderPairedSquarePicker(t, "blackHole"),
+    phase === PHASES.SPHERE && stage === "overlay" && t && renderPairedSquarePicker(t, "missingSquare"),
     phase === PHASES.SPHERE && stage === "summary" && renderSummaryPanel(setupExtras)
   );
 }

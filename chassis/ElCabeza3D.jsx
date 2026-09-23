@@ -8,6 +8,7 @@ import {
   ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, setBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
   isSlideKey, baseDirOfSlideKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
+  MISSING_SQUARES, setMissingSquares as setActiveMissingSquares,
   turnBudget, MAX_PIECES_PER_TURN,
 } from "../engine/constants.js";
 import {
@@ -278,6 +279,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      useSetupExtras below, alongside the constants.js copy every other
      consumer (rules.js, the AI worker) reads. */
   const [blackHoles, setBlackHoles] = useState([]);
+  /* Missing Squares TOPOLOGIES option — same cross-boundary React-state
+     mirror of engine/constants.js's plain module state as blackHoles
+     above (see its own comment), just for the impassable-void feature
+     instead of the wormhole one. Populated by finalizeSingularityBegin
+     via the setter threaded through useSetupExtras below. */
+  const [missingSquares, setMissingSquares] = useState([]);
   /* Snapshot of the specials (LAWS / MATTER / TOPOLOGY) chosen for the
      current game, captured by finalizeSingularityBegin for the in-game
      "Current Variants" flyout (themes/neon-singularity.js). null means a
@@ -1271,6 +1278,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // engine/constants.js's setBlackHoles, for rendering (see the
     // holeGroup effect below) rather than a second computation.
     blackHoles, setBlackHoles,
+    // Missing Squares TOPOLOGIES option: same reasoning/wiring as
+    // blackHoles/setBlackHoles just above, for the impassable-void
+    // feature (see the missingGroup effect below).
+    missingSquares, setMissingSquares,
     // Current Variants flyout: isPlaying gates when the in-game flyout
     // shows; currentVariants is the snapshot finalizeSingularityBegin
     // captures of the specials chosen for THIS game (null = a plain,
@@ -1922,6 +1933,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // chassis's own `blackHoles` React state, below) never has to sift
     // through real pieces or move indicators to find its own meshes.
     const holeGroup = new THREE.Group();
+    // Missing Squares TOPOLOGIES markers — same reasoning, own group,
+    // keyed on the chassis's own `missingSquares` React state below.
+    const missingGroup = new THREE.Group();
 
     // Slide LAW gesture cue — a single arrow lit up on the selected
     // piece while the player is dragging it toward a legal slide (see
@@ -1954,7 +1968,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const boardGroup = new THREE.Group();
     const grid = theme.makeGrid();
     grid.name = "ec-grid"; // so resizeBoardPlate can find/replace it
-    boardGroup.add(slab, slabEdges, topRing, grid, pieceGroup, ghostGroup, holeGroup, slideArrowGroup);
+    boardGroup.add(slab, slabEdges, topRing, grid, pieceGroup, ghostGroup, holeGroup, missingGroup, slideArrowGroup);
     scene.add(boardGroup);
 
     three.current = {
@@ -1965,6 +1979,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       pieceGroup,
       ghostGroup,
       holeGroup,
+      missingGroup,
       slideArrowGroup,
       raycaster: new THREE.Raycaster(),
       pointer: new THREE.Vector2(),
@@ -2670,6 +2685,73 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     });
   }, [blackHoles]);
 
+  /* Missing Squares TOPOLOGIES markers — a theme-agnostic pair of
+     primitives per square (a dark, near-flush void tile, plus a tall
+     additive-glow column rising off it), same rebuild-from-scratch
+     pattern and same reasoning as the Black Hole Squares effect above
+     (at most two of these ever, so no per-square diff/cache needed).
+     Deliberately a plain stack of fixed-opacity segments rather than a
+     shader or vertex-alpha gradient — matches the Black Hole ring's own
+     "plain primitive, not an animated shader" restraint, and fading
+     opacity across discrete segments needs no assumptions about this
+     Three.js version's vertex-color-alpha support. The column has no
+     visible top: by the last segment its opacity has decayed close
+     enough to zero that where it actually ends is never apparent, which
+     is the "can't see how high it goes" read the design asked for. A
+     neutral, no-hue color (echoing the black hole ring's own reasoning)
+     keeps it legible in both themes despite Missing Squares only ever
+     being reachable through Neon's Singularity sphere today. */
+  useEffect(() => {
+    const t = three.current;
+    if (!t.missingGroup) return;
+    const group = t.missingGroup;
+    while (group.children.length) {
+      const c = group.children.pop();
+      c.geometry && c.geometry.dispose();
+      c.material && c.material.dispose();
+    }
+    const FOOTPRINT = SQUARE_SIZE * 0.8;
+    const TILE_H = 0.03;
+    const COLUMN_SEGMENTS = 8;
+    const COLUMN_TOTAL_H = 8.5;
+    const SEGMENT_H = COLUMN_TOTAL_H / COLUMN_SEGMENTS;
+    missingSquares.forEach((sq) => {
+      const center = pieceCenter({ row: sq.row, col: sq.col, w: 1, h: 1, z: 0 });
+      // The void tile: near-flush with the board (not sunken — nothing
+      // else here models real depth), just dark enough to read as "not
+      // part of the playable grid" even straight down from Top-Down View.
+      const tile = new THREE.Mesh(
+        new THREE.BoxGeometry(FOOTPRINT, TILE_H, FOOTPRINT),
+        new THREE.MeshStandardMaterial({ color: 0x07080b, roughness: 0.35, metalness: 0.1 })
+      );
+      tile.position.set(center.x, TILE_H / 2, center.z);
+      group.add(tile);
+      // The column: stacked segments, tallest/most opaque at the bottom,
+      // easing toward fully transparent — see the effect's own comment
+      // for why segments rather than a gradient shader.
+      for (let i = 0; i < COLUMN_SEGMENTS; i++) {
+        const frac = i / (COLUMN_SEGMENTS - 1); // 0 at the base, 1 at the top
+        const opacity = 0.5 * Math.pow(1 - frac, 1.7);
+        const seg = new THREE.Mesh(
+          new THREE.BoxGeometry(FOOTPRINT, SEGMENT_H, FOOTPRINT),
+          new THREE.MeshBasicMaterial({
+            color: 0xd7ecf5,
+            transparent: true,
+            opacity,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          })
+        );
+        seg.position.set(center.x, TILE_H + SEGMENT_H * (i + 0.5), center.z);
+        group.add(seg);
+      }
+    });
+    // Test-only hook (see __EC_TEST_BOARD__'s own comment) — the live
+    // placement isn't otherwise observable from the page once a real
+    // game has begun.
+    if (typeof window !== "undefined") window.__EC_TEST_MISSING_SQUARES__ = missingSquares;
+  }, [missingSquares]);
+
   /* Feeds the current position's "tension" to the audio engine, purely
      atmospheric (reads pieces, never writes game state). Standard's
      theme has no computeTension, so this is a no-op for it — the
@@ -3331,6 +3413,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         // current Black Hole Squares placement to search moves that
         // actually match what's on the real board (see engine/ai-worker.js).
         blackHoles: BLACK_HOLES,
+        // Same cross-boundary problem, same fix, for Missing Squares'
+        // placement (see engine/ai-worker.js).
+        missingSquares: MISSING_SQUARES,
       });
     });
   }
@@ -4738,6 +4823,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false });
       setActiveBlackHoles([]);
       setBlackHoles([]);
+      setActiveMissingSquares([]);
+      setMissingSquares([]);
       // No captured variant snapshot — the flyout reads "Standard rules",
       // and the Reset rules control (gated on this) hides itself.
       setCurrentVariants(null);

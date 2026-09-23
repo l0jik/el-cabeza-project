@@ -331,6 +331,68 @@ if (state.activeCategory === "topologies") {
   check("TOPOLOGIES' cols drum clamps at the engine's own MIN_BOARD_DIM (6)",
     state.selections.topologies.cols === 6, `cols=${state.selections.topologies.cols}`);
 
+  // ---- TOPOLOGIES: Missing Squares manual placement (the same
+  // ghost-grid picker Black Hole Squares uses, just targeting a
+  // different selections field — see PAIRED_SQUARE_KINDS in
+  // themes/neon-singularity.js). Toggling it on reveals a placement
+  // control; opening its picker and tapping a cell on the player's side
+  // stores that cell as the manual missing square (its mirror is the
+  // paired one), then closes back to the TOPOLOGIES overlay. ----
+  await page.locator('[data-testid="topo-missingSquares"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("Missing Squares toggles on", state.selections.topologies.missingSquares === true,
+    `topologies=${JSON.stringify(state.selections.topologies)}`);
+  check("the manual-placement control appears once Missing Squares is on",
+    (await page.locator('[data-testid="missing-placement"]').count()) > 0);
+  // It must sit DIRECTLY below the Missing Squares toggle (its own
+  // sub-option), not appended after the rest of the category.
+  const missingPlacementRightAfterToggle = await page.evaluate(() => {
+    const toggle = document.querySelector('[data-testid="topo-missingSquares"]');
+    const next = toggle && toggle.nextElementSibling;
+    return !!next && next.getAttribute("data-testid") === "missing-placement";
+  });
+  check("the manual-placement control sits directly below the Missing Squares toggle",
+    missingPlacementRightAfterToggle);
+
+  await page.locator('[data-testid="missing-place-btn"]').click();
+  await page.waitForTimeout(250);
+  check("the missing-square ghost-grid picker opens",
+    (await page.locator('[data-testid="missing-picker"]').count()) > 0);
+
+  const missingCell = page.locator('[data-selectable="true"]').first();
+  const missingCellId = await missingCell.getAttribute("data-testid");
+  const mm = missingCellId.match(/missing-cell-(\d+)-(\d+)/);
+  await missingCell.click();
+  await page.waitForTimeout(150);
+  check("picking a cell shows the SELECTED confirmation",
+    (await page.locator('[data-testid="missing-confirm"]').count()) > 0);
+
+  await page.waitForTimeout(950); // the confirm holds ~780ms, then auto-closes
+  check("the missing-square picker closes after a selection",
+    (await page.locator('[data-testid="missing-picker"]').count()) === 0);
+  state = await sphereState();
+  const missingMan = state.selections.missingSquare && state.selections.missingSquare.manual;
+  check("the chosen cell is stored as the manual missing-square placement",
+    !!missingMan && missingMan.row === Number(mm[1]) && missingMan.col === Number(mm[2]),
+    `manual=${JSON.stringify(missingMan)} chosen=${mm[1]},${mm[2]}`);
+
+  // Reopening (Change placement) shows the CURRENT selection, editable —
+  // same regression this already covers for Black Hole Squares above.
+  await page.locator('[data-testid="missing-place-btn"]').click();
+  await page.waitForTimeout(250);
+  check("reopening the missing-square picker reopens it editable (not stuck confirming)",
+    (await page.locator('[data-testid="missing-picker-cancel"]').count()) > 0 &&
+      (await page.locator('[data-testid="missing-confirm"]').count()) === 0);
+  const missingReopenBg = await page.evaluate((id) => {
+    const el = document.querySelector(`[data-testid="${id}"]`);
+    return el ? getComputedStyle(el).backgroundColor : null;
+  }, `missing-cell-${mm[1]}-${mm[2]}`);
+  check("the previously-placed missing square is highlighted as the current selection on reopen",
+    missingReopenBg === "rgb(7, 8, 11)", `bg=${missingReopenBg}`);
+  await page.locator('[data-testid="missing-picker-cancel"]').click();
+  await page.waitForTimeout(200);
+
   await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
   await page.waitForTimeout(200);
 }
@@ -471,6 +533,14 @@ if (state.activeCategory === "topologies") {
   check("TOPOLOGIES size set for the game about to begin",
     state.selections.topologies.rows === wantRows && state.selections.topologies.cols === wantCols,
     `topo=${JSON.stringify(state.selections.topologies)}`);
+  // Also toggle Missing Squares on here (random placement, no manual
+  // pick) so the full pipeline — sphere selection -> finalizeSingularity-
+  // Begin's resolution -> the chassis's missingGroup render effect -> the
+  // AI worker's own cross-boundary constants thread (this cycle's AI
+  // Dark opponent, picked below, actually searches a turn against it) —
+  // gets exercised end to end, not just the sphere UI in isolation.
+  await page.locator('[data-testid="topo-missingSquares"]').click();
+  await page.waitForTimeout(150);
   await page.mouse.click(obox2.x + obox2.width - 24, obox2.y + obox2.height - 24);
   await page.waitForTimeout(200);
 }
@@ -523,6 +593,17 @@ const liveBoard = await page.evaluate(() => window.__EC_TEST_BOARD__ || null);
 check("TOPOLOGIES board resize applied to the real game",
   liveBoard && liveBoard.rows === wantRows && liveBoard.cols === wantCols,
   `liveBoard=${JSON.stringify(liveBoard)} want=${wantRows}x${wantCols}`);
+// Missing Squares (toggled on, left at random placement above) actually
+// resolved to a real rotationally-mirrored pair on the live board — the
+// full pipeline (finalizeSingularityBegin -> chassis's missingGroup
+// render effect -> the AI worker's cross-boundary threading, since this
+// game's AI Dark opponent is about to search a turn against it).
+const liveMissing = await page.evaluate(() => window.__EC_TEST_MISSING_SQUARES__ || null);
+check("Missing Squares resolved to a real pair on the live board",
+  Array.isArray(liveMissing) && liveMissing.length === 2 &&
+    liveMissing[0].row === wantRows - 1 - liveMissing[1].row &&
+    liveMissing[0].col === wantCols - 1 - liveMissing[1].col,
+  `liveMissing=${JSON.stringify(liveMissing)}`);
 await page.screenshot({ path: "/tmp/neon-singularity-resized-board.png" });
 
 // ---- after a Singularity Begin Game the dock must hand off exactly like

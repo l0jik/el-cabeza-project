@@ -292,6 +292,23 @@ export function setBlackHoles(list) {
   return BLACK_HOLES;
 }
 
+/* Missing Squares TOPOLOGIES option: [] when off (the default), or
+   exactly two {row,col} squares once pickMissingSquares (rules.js) has
+   placed them for the current Singularity game. Unlike Black Hole
+   Squares these are simply impassable — no wormhole redirect, just a
+   square no move may ever land its footprint on (see rules.js's
+   missingSquareAt/evaluateBlockLanding/translatedCandidate). Same
+   mutable-module-state pattern as BLACK_HOLES, for the same reason: a
+   live-binding importer (rules.js, the AI worker) sees an update with no
+   call-site changes; the worker's own module instance is set
+   independently (engine/ai-worker.js), same as setBlackHoles already is. */
+export let MISSING_SQUARES = [];
+
+export function setMissingSquares(list) {
+  MISSING_SQUARES = list;
+  return MISSING_SQUARES;
+}
+
 /* A turn's action-point budget: 2 by default, 3 with the "3 Actions Per
    Turn" law. Uniform across every piece now — including Opa. Opa isn't
    kept to a smaller budget any more; instead an Opa MOVE costs two points

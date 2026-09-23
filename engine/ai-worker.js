@@ -11,10 +11,10 @@
    has no `window`/`document` at all, so anything reaching for either
    would throw immediately. */
 import { findBestAiTurn } from "./ai.js";
-import { setBoardDimensions, setActiveLaws, setBlackHoles } from "./constants.js";
+import { setBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares } from "./constants.js";
 
 self.onmessage = async (event) => {
-  const { requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex, board, laws, blackHoles } = event.data;
+  const { requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex, board, laws, blackHoles, missingSquares } = event.data;
   try {
     /* A Worker has its own module instance of constants.js, so the main
        thread's setBoardDimensions() never reached it — without this the
@@ -34,6 +34,10 @@ self.onmessage = async (event) => {
     // holes on it at all, generating/scoring moves a real wormhole
     // entry would have redirected or blocked.
     if (blackHoles) setBlackHoles(blackHoles);
+    // Same cross-boundary problem, same fix, for Missing Squares'
+    // placement — without this the worker would search a board with no
+    // voids on it at all, proposing moves a real board would refuse.
+    if (missingSquares) setMissingSquares(missingSquares);
     const turn = await findBestAiTurn(pieces, aiPlayer, config, cabezaStreak, turnIndex);
     self.postMessage({ requestId, turn });
   } catch (err) {

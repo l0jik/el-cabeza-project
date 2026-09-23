@@ -2,7 +2,7 @@
    between the Standard and Neon theme sources before extraction — see
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, SLIDE_COST, OPA_MOVE_COST, MAX_PIECES_PER_TURN } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, MAX_PIECES_PER_TURN } from "./constants.js";
 
 /* Dark's half of the opening setup, with columns expressed RELATIVE to
    the leftmost of the four columns the formation occupies, so the whole
@@ -109,6 +109,19 @@ function otherBlackHole(square) {
   return BLACK_HOLES.length === 2 ? BLACK_HOLES.find((b) => b !== square) : null;
 }
 
+/* Missing Squares TOPOLOGIES option: MISSING_SQUARES is either [] (off)
+   or exactly the two paired squares pickMissingSquares below placed.
+   Unlike a black hole there's no verdict object to build — a candidate
+   whose footprint overlaps one at all is simply illegal, checked
+   alongside inBounds at both chokepoints every move type funnels
+   through (evaluateBlockLanding, translatedCandidate) below. */
+function missingSquareAt(row, col) {
+  return MISSING_SQUARES.some((m) => m.row === row && m.col === col);
+}
+function overlapsMissingSquare(candidate) {
+  return cellsOf(candidate).some(([r, c]) => missingSquareAt(r, c));
+}
+
 /* A candidate's fate w.r.t. black holes: blocked outright, passes
    through untouched, or is redirected (wormhole entry) to the paired
    square. ONLY a candidate whose ENTIRE footprint is exactly one cell,
@@ -163,6 +176,7 @@ function pieceOccupancyVerdict(pieces, candidate) {
 
 export function evaluateBlockLanding(pieces, candidate, travelDir) {
   if (!inBounds(candidate)) return { legal: false, crushes: null };
+  if (overlapsMissingSquare(candidate)) return { legal: false, crushes: null };
   const bh = blackHoleVerdict(candidate);
   if (bh.blocked) return { legal: false, crushes: null };
   if (bh.teleportTo) {
@@ -181,32 +195,53 @@ export function evaluateBlockLanding(pieces, candidate, travelDir) {
     const [dr, dc] = travelDir;
     const eject = { ...candidate, row: bh.teleportTo.row - dr, col: bh.teleportTo.col - dc };
     if (!inBounds(eject)) return { legal: false, crushes: null };
+    if (overlapsMissingSquare(eject)) return { legal: false, crushes: null };
     const verdict = pieceOccupancyVerdict(pieces, eject);
     return verdict.legal ? { ...verdict, teleportsTo: { row: eject.row, col: eject.col } } : { legal: false, crushes: null };
   }
   return pieceOccupancyVerdict(pieces, candidate);
 }
 
-/* Random-but-fair placement for the Black Hole Squares LAW: a uniformly
-   random empty cell, paired with its 180-degree rotation partner — the
-   exact same point-symmetry createInitialPieces already uses for
-   Dark/Light mirroring above (row -> rows-row-h, col -> cols-col-w),
-   which is what "rotationally-symmetric locations relative to each
-   other" means here. Bounded retries rather than an exhaustive search:
-   a board packed enough that no valid pair exists at all is exceedingly
-   rare, and degrading to "law has no effect this game" ([]) is a
-   reasonable fallback rather than something worth more engineering. */
-export function pickBlackHoleSquares(pieces, rows, cols, attempts = 200) {
+/* Random-but-fair placement shared by both paired-square features (Black
+   Hole Squares and Missing Squares): a uniformly random empty cell,
+   paired with its 180-degree rotation partner — the exact same point-
+   symmetry createInitialPieces already uses for Dark/Light mirroring
+   above (row -> rows-row-h, col -> cols-col-w), which is what
+   "rotationally-symmetric locations relative to each other" means here.
+   `avoid` is the OTHER feature's own resolved squares, if any — Black
+   Hole Squares and Missing Squares are mutually exclusive per cell (a
+   square that's simultaneously an impassable void and a wormhole mouth
+   is undefined), so whichever of the two resolves second treats the
+   first's placement as occupied too. Bounded retries rather than an
+   exhaustive search: a board packed enough that no valid pair exists at
+   all is exceedingly rare, and degrading to "the feature has no effect
+   this game" ([]) is a reasonable fallback rather than something worth
+   more engineering. */
+function pickPairedSquares(pieces, rows, cols, avoid, attempts) {
   for (let i = 0; i < attempts; i++) {
     const r = Math.floor(Math.random() * rows);
     const c = Math.floor(Math.random() * cols);
     const r2 = rows - 1 - r;
     const c2 = cols - 1 - c;
-    if (r === r2 && c === c2) continue; // odd-dimension center coincidence -- can't hold two holes on one square
+    if (r === r2 && c === c2) continue; // odd-dimension center coincidence -- can't hold two on one square
     if (getPieceAt(pieces, r, c) || getPieceAt(pieces, r2, c2)) continue;
+    if (avoid.some((a) => (a.row === r && a.col === c) || (a.row === r2 && a.col === c2))) continue;
     return [{ row: r, col: c }, { row: r2, col: c2 }];
   }
   return [];
+}
+
+export function pickBlackHoleSquares(pieces, rows, cols, avoid = [], attempts = 200) {
+  return pickPairedSquares(pieces, rows, cols, avoid, attempts);
+}
+
+/* Missing Squares' own placement — same rotational-pairing/random-
+   fallback shape as pickBlackHoleSquares, kept as its own exported name
+   (rather than callers reaching for pickPairedSquares directly) so a
+   theme importing this reads "Missing Squares' placement function," not
+   an internal implementation detail shared with a different feature. */
+export function pickMissingSquares(pieces, rows, cols, avoid = [], attempts = 200) {
+  return pickPairedSquares(pieces, rows, cols, avoid, attempts);
 }
 
 export function legalRolls(pieces, piece) {
@@ -239,6 +274,7 @@ export function legalRolls(pieces, piece) {
 function translatedCandidate(pieces, piece, dr, dc) {
   const candidate = { ...piece, row: piece.row + dr, col: piece.col + dc };
   if (!inBounds(candidate)) return null;
+  if (overlapsMissingSquare(candidate)) return null;
   const bh = blackHoleVerdict(candidate);
   if (bh.blocked) return null;
   if (bh.teleportTo) {

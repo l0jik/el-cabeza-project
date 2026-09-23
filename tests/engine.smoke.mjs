@@ -1,6 +1,6 @@
-import { createInitialPieces, legalMovesFor, sameState, pairLog, turnContinues } from "../engine/rules.js";
+import { createInitialPieces, legalMovesFor, sameState, pairLog, turnContinues, evaluateBlockLanding, pickMissingSquares } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY, evaluatePosition, generateTurns } from "../engine/ai.js";
-import { setBlackHoles, turnBudget, MAX_PIECES_PER_TURN } from "../engine/constants.js";
+import { setBlackHoles, setMissingSquares, turnBudget, MAX_PIECES_PER_TURN } from "../engine/constants.js";
 import { pieceCenter, makeRoundedBox, pivotFor } from "../engine/geometry.js";
 import { BOARD_ROWS, BOARD_COLS, setActiveLaws, isSlideKey } from "../engine/constants.js";
 
@@ -143,5 +143,53 @@ if (turnContinues(contPieces, "dark", ["t"], contT, 1, 3, false) !== true)
   throw new Error("A piece with a legal move and points left continues its own turn");
 console.log("[split] turnContinues: Opa+leftover, no-split, 2-piece cap, spent-bank OK");
 setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
+
+// ---- Missing Squares TOPOLOGIES option: unlike Black Hole Squares,
+// simply impassable — no wormhole, no teleport, no crush. A candidate
+// whose footprint overlaps one at all is illegal, checked at both
+// chokepoints every move type funnels through. ----
+// A Cabeza step directly onto one is refused; other directions stay legal.
+setMissingSquares([{ row: 5, col: 6 }]);
+const missCab = { id: "mc", type: "cabeza", owner: "dark", row: 5, col: 5, w: 1, h: 1, z: 1 };
+const missMoves = legalMovesFor([missCab], missCab);
+if (missMoves.E) throw new Error("A Cabeza must not be able to step onto a Missing Square");
+if (!missMoves.W) throw new Error("A Cabeza's other directions must stay legal near a Missing Square");
+console.log("[missing squares] Cabeza step onto a missing square refused, others OK");
+
+// A block's landing footprint overlapping one at all is illegal (any
+// overlap, not just an exact single-cell match — unlike a black hole,
+// which requires an exact 1-cell fit to redirect).
+setMissingSquares([{ row: 3, col: 3 }, { row: 3, col: 4 }]);
+const missBlock = { id: "mb", type: "chato", owner: "dark", row: 3, col: 3, w: 2, h: 1, z: 2 };
+const missBlockVerdict = evaluateBlockLanding([], missBlock, [0, 1]);
+if (missBlockVerdict.legal) throw new Error("A block landing on a Missing Square must be illegal");
+const clearBlockVerdict = evaluateBlockLanding([], { ...missBlock, row: 6, col: 6 }, [0, 1]);
+if (!clearBlockVerdict.legal) throw new Error("A block landing clear of any Missing Square must stay legal");
+console.log("[missing squares] block landing overlap refused, clear landing OK");
+
+// A wormhole must not eject a piece onto a Missing Square either — same
+// "checked wherever a candidate is checked" reasoning as the crush test
+// above, just for the ejection square instead of the hole itself.
+setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: true, cantileverPivot: false, splitMovement: false, threeActions: false });
+setBlackHoles([{ row: 5, col: 4 }, { row: 4, col: 5 }]); // W entry ejects to (4,6)
+setMissingSquares([{ row: 4, col: 6 }]);
+const wormMissCab = { id: "dc4", type: "cabeza", owner: "dark", row: 5, col: 5, w: 1, h: 1, z: 1 };
+const wormMissMoves = legalMovesFor([wormMissCab], wormMissCab);
+if (wormMissMoves.W) throw new Error("A wormhole must not eject a piece onto a Missing Square");
+setBlackHoles([]);
+setMissingSquares([]);
+setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
+console.log("[missing squares] wormhole ejection onto a missing square refused");
+
+// pickMissingSquares' own avoid list (used to keep it off Black Hole
+// Squares' cells when both are active — see themes/neon-singularity.js's
+// buildPairedSquarePlacement): a 2x2 board has exactly two possible
+// mirror pairs, (0,0)/(1,1) and (0,1)/(1,0) — reserving the first must
+// deterministically leave only the second.
+const avoidedPair = pickMissingSquares([], 2, 2, [{ row: 0, col: 0 }]);
+const avoidedSet = new Set(avoidedPair.map((p) => `${p.row},${p.col}`));
+if (!(avoidedSet.has("0,1") && avoidedSet.has("1,0")))
+  throw new Error(`pickMissingSquares must skip a reserved pair, got ${JSON.stringify(avoidedPair)}`);
+console.log("[missing squares] pickMissingSquares respects its avoid list");
 
 console.log("\nSMOKE TEST PASSED");

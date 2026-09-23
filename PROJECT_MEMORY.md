@@ -397,6 +397,55 @@ then a real Begin Game.
   `<ElCabeza3D>`, in `apps/neon.jsx`/`apps/unified.jsx`) — a real,
   deliberately-scoped-out feature, not a quick add. Assessed directly
   with the user and explicitly deferred.
+- **TOPOLOGY — Missing Squares, wired and real.** Two rotationally-
+  mirrored squares (same manual-pick-plus-180°-mirror model as Black
+  Hole Squares, same ghost-grid picker reused via a `kind` param —
+  `PAIRED_SQUARE_KINDS`/`renderPairedSquarePicker`/`renderPairedSquare-
+  PlacementRow` in `themes/neon-singularity.js`) that are simply
+  impassable: no wormhole, no teleport, no crush, just a square no
+  move's footprint may ever overlap. Deliberately placed under
+  TOPOLOGIES rather than as a LAW — it changes the board's playable
+  shape, not a movement rule — toggled via `selections.topologies.
+  missingSquares`, placement in the separate top-level `selections.
+  missingSquare.manual` (same split reasoning as `blackHole` not being
+  nested under `laws`). Engine: `MISSING_SQUARES` (`engine/
+  constants.js`, mirrors `BLACK_HOLES`'s plain-module-state pattern
+  exactly, including the AI worker's own cross-boundary thread —
+  `engine/ai-worker.js`, chassis's `runAiSearch`); `missingSquareAt`/
+  `overlapsMissingSquare` checked at both chokepoints every move type
+  funnels through (`evaluateBlockLanding`, `translatedCandidate`,
+  `engine/rules.js`) — including a wormhole's own ejection square, so
+  Black Hole Squares can never eject a piece onto one. Placement:
+  `pickMissingSquares`/`pickBlackHoleSquares` now share one internal
+  `pickPairedSquares(pieces, rows, cols, avoid, attempts)`, and
+  `buildMissingSquaresPlacement`/`buildBlackHolePlacement` share
+  `buildPairedSquarePlacement` — resolved in `finalizeSingularityBegin`
+  with Missing Squares FIRST, so Black Hole Squares' own resolution
+  (when both are active) treats Missing Squares' cells as reserved too;
+  the reverse is not needed since Missing Squares always resolves
+  first, but the `avoid` param on both is symmetric either way. Visual:
+  chassis-level, theme-agnostic (mirrors the black hole sphere/ring's
+  own `holeGroup` pattern exactly) — a `missingGroup` renders a dark
+  near-flush void tile plus a tall additive-glow column of stacked,
+  progressively-more-transparent box segments per square (deliberately
+  NOT a shader/vertex-alpha gradient — segments need no assumption
+  about this Three.js version's vertex-color-alpha support), reading as
+  "no visible top" by the time the fade is negligible. A known
+  pre-existing limitation shared with Black Hole Squares, not
+  introduced here: placement avoidance checks `pieces` from this same
+  synchronous call's closure, which is stale immediately after
+  `applyMatterRoster`'s own `setPieces` (React state is async) when
+  MATTER was also customized this same game — a rare edge case, not
+  fixed here to keep both features' behavior identical. Verified in
+  `tests/engine.smoke.mjs` (Cabeza step onto one refused, others legal;
+  a block's landing footprint overlap refused, clear landing legal; a
+  wormhole ejection onto one refused; `pickMissingSquares`'s `avoid`
+  list respected) and `tests/e2e-singularity.mjs` (the sphere UI same
+  depth as Black Hole Squares' own coverage, PLUS one the black hole
+  test doesn't have: an actual Begin Game with Missing Squares on,
+  checked via a new `window.__EC_TEST_MISSING_SQUARES__` hook, with a
+  real AI opponent searching a turn against the live board — proves the
+  full pipeline end to end, not just the picker UI in isolation).
 - **LAWS — status.** Wired to the rules engine so far: **3 Actions Per
   Turn**, **Slide** (orthogonal only; costs **two action points**, a roll
   costs one — so a normal 2-point turn is fully spent by one slide, while
