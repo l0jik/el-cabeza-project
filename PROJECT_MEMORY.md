@@ -477,6 +477,25 @@ lands on one; the pre-game Anomaly button also avoids the live
     (sfxGain × MASTER_GAIN, the same level as before), and `setMuted`
     follows it. `cutSingularityAudioToSilence` still zeroes everything
     else, while the toll and its ~11.5s reverb decay to zero on their own.
+  - **Bell clipping check: `tests/audio-bell.mjs`** (in `npm test`). Before
+    the page loads, it re-routes every connection to `ctx.destination`
+    through ScriptProcessor meters, one per source (master bus, bell bus)
+    plus the final mix. It then triggers the Singularity and counts every
+    sample at or above ±1.0 over 26s. Set `EC_AUDIO_TIMELINE=1` for
+    per-0.25s peaks.
+    - First measurement: the bell peaked at about +9 dBFS and clipped for
+      its first ~6s, mostly from the reverb build-up.
+    - Fix: `BELL_BUS_GAIN = 1.25 × MASTER_GAIN × 0.24`. The bell alone
+      now peaks at 0.59-0.82 (it varies because the reverb impulse is
+      random noise), and the final mix at ≤0.85, with zero clipped samples.
+    - The test fails on any clipped sample or a mix peak ≥ 0.95.
+  - **Bell tone.**
+    - The "bong" was lowered from 4.7× to 3.73× the 66Hz prime (310 →
+      246Hz). Its two triangle voices now sit 2.4% apart, and a third
+      voice a tritone above was added.
+    - Added disharmonic partials: 1.013× (a slow ~0.9Hz beat against the
+      prime), 1.414× (a tritone), 2.12× (a minor second against the
+      nominal) and 3.37× (a stray overtone).
 - **CONFIGURATIONS — saved rule presets, BUILT.** A fourth sphere label
   fixed at the **south pole** (the three categories stay on the equator).
   It is NOT painted into the sphere's equirectangular text texture (text

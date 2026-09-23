@@ -4620,9 +4620,13 @@ export function createSoundscape() {
      - A gentle low-pass keeps it "metallic but not bright," and the bulk
        of the signal goes into its own long bellReverb for the
        cavernous, "another dimension" tail. */
-  // The level the bell used to reach the speakers at (sfxGain x master),
-  // kept identical now that it bypasses both.
-  const BELL_BUS_GAIN = 1.25 * MASTER_GAIN;
+  // The bell's output level. It first ran at sfxGain x master (1.25 x
+  // MASTER_GAIN), but measured sample by sample at the destination
+  // (tests/audio-bell.mjs) that drove the toll to ~+9 dBFS, clipping for
+  // its first ~6s. Most of the energy is the long reverb building up
+  // under the strike. Scaled down to fit under full scale, with headroom
+  // left for the singularity hum sounding at the same time.
+  const BELL_BUS_GAIN = 1.25 * MASTER_GAIN * 0.24;
   function ensureBellBus() {
     if (bellBus) return;
     bellBus = ctx.createGain();
@@ -4680,6 +4684,12 @@ export function createSoundscape() {
       { r: 3.0, g: 0.055, d: 2.4 },
       { r: 4.1, g: 0.035, d: 1.6 },
       { r: 5.43, g: 0.022, d: 1.0 },
+      // Disharmonic partials: each clashes with a clean one above, so
+      // the ring sours and wobbles instead of settling into a chord.
+      { r: 1.013, g: 0.11, d: 7.5 }, // a hair above the prime: a slow ~0.9Hz throb as the two beat
+      { r: 1.414, g: 0.09, d: 6.5 }, // tritone over the prime — the "devil's interval"
+      { r: 2.12, g: 0.07, d: 4.5 },  // a minor second above the nominal, rubbing against it
+      { r: 3.37, g: 0.03, d: 2.0 },  // a stray, cracked-metal overtone off every series
     ];
     partials.forEach((p) => {
       const o = ctx.createOscillator();
@@ -4696,19 +4706,24 @@ export function createSoundscape() {
     });
 
     // A dissonant "bong" midtone clang, deliberately OFF the clean
-    // partials series above (4.7x the prime — not close to any of that
-    // series' ratios) so it reads as a separate, slightly cracked color
-    // rather than just another overtone. Two triangle oscillators a
-    // hair apart in pitch beat audibly against each other as they decay,
-    // giving the strike a discordant wobble instead of a pure tone.
-    const bongBase = PRIME * 4.7;
-    [bongBase, bongBase * 1.016].forEach((freq, i) => {
+    // partials series above (3.73x the prime, ~246Hz — lowered about four
+    // semitones from the first 4.7x/310Hz, which sat too high) so it
+    // reads as a separate, slightly cracked color rather than just another
+    // overtone. Two triangle voices a little apart in pitch beat against
+    // each other as they decay, and a quieter third a tritone above sours
+    // it further — a discordant wobble instead of a pure tone.
+    const bongBase = PRIME * 3.73;
+    [
+      { f: bongBase, g: 0.05 },
+      { f: bongBase * 1.024, g: 0.05 },
+      { f: bongBase * 1.414, g: 0.028 },
+    ].forEach(({ f: freq, g: peak }, i) => {
       const o = ctx.createOscillator();
       o.type = "triangle";
       o.frequency.value = freq;
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, t0);
-      g.gain.linearRampToValueAtTime(0.05, t0 + 0.006 + i * 0.003);
+      g.gain.linearRampToValueAtTime(peak, t0 + 0.006 + i * 0.003);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + 3.2);
       o.connect(g).connect(tone);
       o.start(t0);
