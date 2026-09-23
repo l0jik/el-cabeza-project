@@ -1630,6 +1630,7 @@ function renderPairedSquarePlacementRow(t, kind) {
   const openPicker = () => {
     s[k.pickerFlag] = true;
     s[k.confirmFlag] = null;
+    s[`${k.pickerFlag}Pulse`] = 0; // no leftover caption pulse on reopen
     if (s.audio && s.audio.playSingularityOpen) s.audio.playSingularityOpen();
     s.bump();
   };
@@ -1711,9 +1712,20 @@ function renderPairedSquarePicker(t, kind) {
     ? [otherManual, mirrorCell(otherManual.row, otherManual.col, rows, cols)]
     : [];
   const isOther = (r, c) => otherCells.some((o) => o.row === r && o.col === c);
-  const otherStyle = otherKind === "missingSquare"
-    ? { background: "rgba(215,236,245,0.85)", boxShadow: "0 0 10px rgba(215,236,245,0.9), inset 0 0 6px rgba(255,255,255,0.8)", border: "1px solid rgba(215,236,245,0.9)" }
-    : { background: "radial-gradient(circle, #07080b 45%, #aeb6c2 58%, #07080b 70%)", boxShadow: "0 0 8px rgba(174,182,194,0.7)", border: "1px solid rgba(174,182,194,0.6)" };
+  // In-game look underneath, with a red wash + red outline on top so the
+  // cell reads as "this is that feature" AND "not allowed here."
+  const redWash = "linear-gradient(rgba(255,70,70,0.3), rgba(255,70,70,0.3))";
+  const otherStyle = {
+    background: otherKind === "missingSquare"
+      ? `${redWash}, rgba(215,236,245,0.85)`
+      : `${redWash}, radial-gradient(circle, #07080b 45%, #aeb6c2 58%, #07080b 70%)`,
+    border: "2px solid #ff5a5a",
+    boxShadow: "0 0 9px rgba(255,90,90,0.75)",
+  };
+  // A tap on a blocked cell pulses the red caption below the grid (the
+  // caption's key changes, restarting its CSS animation).
+  const pulseKey = `${k.pickerFlag}Pulse`;
+  const pulseBlocked = () => { s[pulseKey] = (s[pulseKey] || 0) + 1; s.bump(); };
 
   const close = () => { s[k.pickerFlag] = false; s[k.confirmFlag] = null; s.bump(); };
   const pick = (r, c) => {
@@ -1742,7 +1754,7 @@ function renderPairedSquarePicker(t, kind) {
         "data-testid": `${k.cellPrefix}-${r}-${c}`,
         "data-selectable": sel ? "true" : "false",
         "data-occupied-by": other ? otherKind : undefined,
-        onClick: sel && !confirm ? () => pick(r, c) : undefined,
+        onClick: sel && !confirm ? () => pick(r, c) : other && !confirm ? pulseBlocked : undefined,
         style: other ? {
           aspectRatio: "1 / 1",
           borderRadius: 2,
@@ -1816,7 +1828,24 @@ function renderPairedSquarePicker(t, kind) {
       ),
       label("Your side · tap a square", confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"),
       otherCells.length
-        ? label(otherKind === "missingSquare" ? "Glowing · missing squares (unavailable)" : "Dark orbs · black holes (unavailable)", "rgba(207,216,220,0.6)")
+        ? h(
+            "div",
+            {
+              key: `blocked-caption-${s[pulseKey] || 0}`,
+              "data-testid": `${k.pickerTestid}-blocked-caption`,
+              "data-pulse": String(s[pulseKey] || 0),
+              style: {
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.06em", lineHeight: 1.45,
+                color: "#ff6b6b", textAlign: "center", padding: "6px 8px", borderRadius: 4,
+                border: "1px solid rgba(255,90,90,0.45)", background: "rgba(255,70,70,0.08)",
+                animation: s[pulseKey] ? "ecBlockedPulse 0.9s ease-out" : "none",
+              },
+            },
+            h("style", null, "@keyframes ecBlockedPulse{0%{background:rgba(255,70,70,0.55);box-shadow:0 0 18px rgba(255,90,90,0.9);transform:scale(1.04)}100%{background:rgba(255,70,70,0.08);box-shadow:none;transform:scale(1)}}"),
+            otherKind === "missingSquare"
+              ? "▮ Missing Squares (set in Topology) — black holes can't go here."
+              : "● Black Holes (set in Laws) — missing squares can't go here."
+          )
         : null,
       confirm
         ? h("div", { "data-testid": k.confirmTestid, style: { textAlign: "center", fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: "0.12em", color: "#dffaff", textShadow: "0 0 10px rgba(142,243,255,0.7)" } }, "◇ SELECTED")

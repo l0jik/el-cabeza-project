@@ -433,6 +433,12 @@ if (state.activeCategory === "laws") {
     (await shownMissing.count()) === 2, `count=${await shownMissing.count()}`);
   check("those missing squares can't be picked as a black hole",
     (await page.locator('[data-testid="blackhole-picker"] [data-occupied-by="missingSquare"][data-selectable="true"]').count()) === 0);
+  // Tapping one pulses the red explanatory caption instead of placing.
+  await shownMissing.first().click();
+  await page.waitForTimeout(150);
+  check("tapping a blocked cell pulses the red caption (and places nothing)",
+    (await page.locator('[data-testid="blackhole-picker-blocked-caption"]').getAttribute("data-pulse")) === "1" &&
+      (await page.locator('[data-testid="blackhole-confirm"]').count()) === 0);
 
   const cell = page.locator('[data-selectable="true"]').first();
   const cellId = await cell.getAttribute("data-testid");
