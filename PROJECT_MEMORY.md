@@ -455,6 +455,29 @@ lands on one; the pre-game Anomaly button also avoids the live
   checked via a new `window.__EC_TEST_MISSING_SQUARES__` hook, with a
   real AI opponent searching a turn against the live board — proves the
   full pipeline end to end, not just the picker UI in isolation).
+- **CONFIGURATIONS — saved rule presets, BUILT.** A fourth sphere label
+  fixed at the **south pole** (the three categories stay on the equator).
+  It is NOT painted into the sphere's equirectangular text texture (text
+  smears at a pole) but its own canvas-textured plane, parented to a pivot
+  that cancels the sphere's left/right spin every frame so it always reads
+  upright when the pole is tipped toward the camera (drag UP). Tap-tested
+  before the sphere itself in `handleSphereTap`; mouse hover shows a
+  "saved presets" tooltip (touch: the overlay's own "Saved presets"
+  subtitle). Opens the `configurations` category overlay
+  (`renderConfigurationsBody`): name + "Save current", list with Load /
+  Delete (inline confirm). Storage: `localStorage["el-cabeza:configurations"]`
+  = `[{id,name,savedAt,selections}]`, guarded. A configuration is the
+  RULES only (LAWS, MATTER, TOPOLOGY, hand-placed Black Hole / Missing
+  Square spots), never the opponent. Saving under an existing name
+  (case-insensitive) replaces it. Load runs `normalizeSelections` (merge
+  onto today's defaults key by key, so older saves survive new options),
+  then jumps straight to the BEGIN GAME summary, which shows a
+  CONFIGURATION line until a category is edited. `teardownSingularityScene`
+  now also levels the sphere (`rotation.x = 0`) — without it, a visit that
+  tipped up to the pole made the NEXT visit open pole-first with the
+  equator labels out of view. Covered in `tests/e2e-singularity.mjs`
+  (drag to pole, hover hint, save, change, load restores exactly + lands on
+  summary, delete with confirm).
 - **LAWS — status.** Wired to the rules engine so far: **3 Actions Per
   Turn**, **Slide** (orthogonal only; costs **two action points**, a roll
   costs one — so a normal 2-point turn is fully spent by one slide, while

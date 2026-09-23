@@ -513,6 +513,101 @@ await dragSphereBy(96);
 const rotAfter = await page.evaluate(() => window.__EC_TEST_SINGULARITY__?.sphereRotationY);
 check("dragging the sphere actually rotates it", rotAfter !== rotBefore, `before=${rotBefore} after=${rotAfter}`);
 
+// ---- CONFIGURATIONS: a fourth label fixed at the sphere's south pole.
+// Drag upward until it faces the camera, tap it, save the current rules
+// under a name, then load it back (which jumps to the BEGIN GAME summary),
+// and finally delete it. ----
+async function bringConfigLabelToFront() {
+  for (let i = 0; i < 14; i++) {
+    const c = (await sphereState()).configLabel;
+    if (c && c.facing > 0.85) return c;
+    await page.mouse.move(cx, cy + 120);
+    await page.mouse.down();
+    await page.mouse.move(cx, cy - 30, { steps: 8 });
+    await page.mouse.up();
+    await waitForSphereSettle();
+  }
+  return (await sphereState()).configLabel;
+}
+// Tilt back down until the equator (the three category labels) faces you.
+async function tiltBackToEquator() {
+  for (let i = 0; i < 14; i++) {
+    const x = (await sphereState()).sphereRotationX;
+    const wrapped = Math.atan2(Math.sin(x), Math.cos(x));
+    if (Math.abs(wrapped) < 0.3) return;
+    const dir = wrapped < 0 ? 1 : -1; // drag down to undo an upward tilt
+    await page.mouse.move(cx, cy - dir * 60);
+    await page.mouse.down();
+    await page.mouse.move(cx, cy + dir * 40, { steps: 8 });
+    await page.mouse.up();
+    await waitForSphereSettle();
+  }
+}
+let cfgLabel = await bringConfigLabelToFront();
+check("dragging upward brings the south-pole CONFIGURATIONS label to face you",
+  cfgLabel && cfgLabel.facing > 0.85, JSON.stringify(cfgLabel));
+await page.mouse.move(cfgLabel.x, cfgLabel.y);
+await page.waitForTimeout(150);
+check("hovering the CONFIGURATIONS label shows the 'saved presets' hint",
+  (await page.locator('[data-testid="config-hover-hint"]').textContent().catch(() => null)) === "saved presets");
+await page.mouse.click(cfgLabel.x, cfgLabel.y);
+await page.waitForTimeout(300);
+check("tapping it opens the CONFIGURATIONS panel",
+  (await page.locator('[data-testid="category-overlay"]').getAttribute("data-category").catch(() => null)) === "configurations");
+check("it starts empty", (await page.locator('[data-testid="config-empty"]').count()) > 0);
+const savedSel = (await sphereState()).selections;
+await page.locator('[data-testid="config-name"]').fill("Test Setup");
+await page.locator('[data-testid="config-save"]').click();
+await page.waitForTimeout(200);
+const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:configurations") || "[]"));
+check("Save current stores a named configuration in the browser",
+  stored.length === 1 && stored[0].name === "Test Setup" &&
+    JSON.stringify(stored[0].selections) === JSON.stringify(savedSel),
+  JSON.stringify(stored.map((c) => c.name)));
+check("the saved configuration appears in the list",
+  (await page.locator('[data-testid="config-item"][data-name="Test Setup"]').count()) === 1);
+// Change something, then load: the saved rules come back and we land on
+// the BEGIN GAME summary to review them.
+await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
+await page.waitForTimeout(200);
+await tiltBackToEquator();
+state = await navigateToCategory("topologies");
+if (state.activeCategory === "topologies") {
+  await page.locator('[data-testid="topo-missingSquares"]').click(); // turn it off
+  await page.waitForTimeout(150);
+  await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
+  await page.waitForTimeout(200);
+}
+check("(setup) a rule was changed after saving",
+  (await sphereState()).selections.topologies.missingSquares === false);
+cfgLabel = await bringConfigLabelToFront();
+await page.mouse.click(cfgLabel.x, cfgLabel.y);
+await page.waitForTimeout(300);
+await page.locator('[data-testid="config-item"][data-name="Test Setup"] [data-testid="config-load"]').click();
+await page.waitForTimeout(300);
+state = await sphereState();
+check("Load restores the saved rules exactly",
+  JSON.stringify(state.selections) === JSON.stringify(savedSel), JSON.stringify(state.selections.topologies));
+check("Load jumps to the BEGIN GAME summary", state.stage === "summary", `stage=${state.stage}`);
+check("the summary names the loaded configuration",
+  /Test Setup/.test((await page.locator('[data-testid="summary-loaded-config"]').textContent().catch(() => "")) || ""));
+// Back to the labels, then delete it (with its confirm step).
+await page.locator('[data-testid="singularity-edit-settings"]').click();
+await page.waitForTimeout(300);
+cfgLabel = await bringConfigLabelToFront();
+await page.mouse.click(cfgLabel.x, cfgLabel.y);
+await page.waitForTimeout(300);
+await page.locator('[data-testid="config-delete"]').first().click();
+await page.waitForTimeout(150);
+await page.locator('[data-testid="config-delete-confirm"]').click();
+await page.waitForTimeout(200);
+check("Delete (after confirming) removes it from the browser and the list",
+  (await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:configurations") || "[]").length)) === 0 &&
+    (await page.locator('[data-testid="config-empty"]').count()) > 0);
+await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
+await page.waitForTimeout(200);
+await tiltBackToEquator();
+
 await page.screenshot({ path: "/tmp/neon-singularity-labels.png" });
 
 // ---- Escape (or the on-screen Back button, for touch) restores

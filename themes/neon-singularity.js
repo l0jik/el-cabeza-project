@@ -445,6 +445,7 @@ const DEFAULT_ROOT_LABELS = ROOT_LABEL_DEFS.map((def, i) => ({ ...def, u: ROOT_L
 // itself, since the two aren't always identical (the "topologies" key
 // displays as "TOPOLOGY", singular).
 function categoryDisplayLabel(key) {
+  if (key === "configurations") return "CONFIGURATIONS";
   return ROOT_LABEL_DEFS.find((d) => d.key === key)?.label || key.toUpperCase();
 }
 const TEXT_TEXTURE_W = 2048, TEXT_TEXTURE_H = 1024;
@@ -765,6 +766,103 @@ function buildSphereTextTexture(markLabelsDirty) {
   return { canvas, ctx, texture };
 }
 
+/* ---- CONFIGURATIONS: saved rule presets ----
+   A configuration is a named snapshot of the sphere's rule selections
+   (LAWS, MATTER, TOPOLOGY, and hand-placed Black Hole / Missing Square
+   spots) — NOT the opponent, which is remembered separately by the
+   chassis. Stored in this browser's localStorage; every access is guarded
+   so blocked storage just means "no saved configurations." */
+const CONFIGS_KEY = "el-cabeza:configurations";
+function loadConfigurations() {
+  try {
+    const list = JSON.parse(window.localStorage.getItem(CONFIGS_KEY) || "[]");
+    return Array.isArray(list)
+      ? list.filter((c) => c && typeof c.name === "string" && c.selections && typeof c.selections === "object")
+      : [];
+  } catch (e) { return []; }
+}
+function saveConfigurations(list) {
+  try { window.localStorage.setItem(CONFIGS_KEY, JSON.stringify(list)); return true; } catch (e) { return false; }
+}
+// Merge a saved selections object onto today's defaults, key by key, so a
+// configuration saved before a newer option existed still loads cleanly
+// (the new option just takes its default) and unknown keys are dropped.
+function normalizeSelections(saved) {
+  const d = createDefaultSelections();
+  const pick = (base, src) => {
+    const out = { ...base };
+    if (src && typeof src === "object") {
+      Object.keys(base).forEach((k) => { if (typeof src[k] === typeof base[k] || (base[k] === null && src[k] && typeof src[k] === "object")) out[k] = src[k]; });
+    }
+    return out;
+  };
+  const cell = (m) => (m && Number.isInteger(m.row) && Number.isInteger(m.col) ? { row: m.row, col: m.col } : null);
+  const src = saved || {};
+  const matterSrc = src.matter || {};
+  return {
+    laws: pick(d.laws, src.laws),
+    matter: {
+      newPieces: pick(d.matter.newPieces, matterSrc.newPieces),
+      roster: pick(d.matter.roster, matterSrc.roster),
+      randomizeStart: typeof matterSrc.randomizeStart === "boolean" ? matterSrc.randomizeStart : d.matter.randomizeStart,
+    },
+    topologies: pick(d.topologies, src.topologies),
+    blackHole: { manual: cell(src.blackHole && src.blackHole.manual) },
+    missingSquare: { manual: cell(src.missingSquare && src.missingSquare.manual) },
+  };
+}
+// Short human summary for a saved configuration's list row.
+function describeSelections(sel) {
+  const groups = buildVariantsSnapshot(sel);
+  return groups.length ? groups.map((g) => `${g.label}: ${g.items.join(", ")}`).join("  ·  ") : "Standard rules";
+}
+
+// The CONFIGURATIONS label: a flat decal fixed at the sphere's SOUTH pole
+// (the three categories sit on the equator). Not painted into the sphere's
+// equirectangular text texture — text there smears badly at a pole — but
+// its own plane, a child of the sphere group so it rotates with it; drag
+// the sphere upward to tip the pole toward you.
+const CONFIG_LABEL_W = 7.2, CONFIG_LABEL_H = 2.6;
+function drawConfigLabel(ctx, canvas, count) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const active = count > 0;
+  ctx.font = "700 92px 'Chakra Petch', sans-serif";
+  ctx.shadowColor = "rgba(142,243,255,0.9)";
+  ctx.shadowBlur = active ? 36 : 0;
+  ctx.fillStyle = active ? "#dffaff" : "rgba(142,243,255,0.55)";
+  ctx.fillText("CONFIGURATIONS", canvas.width / 2, canvas.height * 0.42);
+  ctx.shadowBlur = 0;
+  ctx.font = "400 32px 'IBM Plex Mono', monospace";
+  ctx.fillStyle = active ? "rgba(223,250,255,0.75)" : "rgba(142,243,255,0.4)";
+  ctx.fillText(count ? `${count} SAVED` : "TAP TO SAVE ONE", canvas.width / 2, canvas.height * 0.78);
+}
+function buildConfigLabel() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024; canvas.height = 370;
+  const ctx = canvas.getContext("2d");
+  drawConfigLabel(ctx, canvas, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(CONFIG_LABEL_W, CONFIG_LABEL_H),
+    new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, side: THREE.FrontSide })
+  );
+  // Plane faces +Z with text-up +Y; tip it so it faces -Y (outward at the
+  // south pole) with text-up +Z — upright once the sphere is dragged up
+  // (rotation.x toward -90deg) to bring the pole around to the camera.
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.set(0, -6.03, 0);
+  mesh.renderOrder = 2;
+  // Parented to a pivot on the pole axis that cancels the sphere's own
+  // left/right spin every frame (see updateSphereVisuals), so the words
+  // always read upright when the pole is tipped toward you instead of
+  // coming around at whatever angle the sphere happened to be spun.
+  const pivot = new THREE.Group();
+  pivot.add(mesh);
+  return { pivot, mesh, canvas, ctx, texture };
+}
+
 function buildSphere(markLabelsDirty) {
   const geo = new THREE.SphereGeometry(6, 64, 48);
   const text = buildSphereTextTexture(markLabelsDirty);
@@ -778,8 +876,13 @@ function buildSphere(markLabelsDirty) {
   const mesh = new THREE.Mesh(geo, material);
   const group = new THREE.Group();
   group.add(mesh);
+  const configLabel = buildConfigLabel();
+  group.add(configLabel.pivot);
   group.visible = false;
-  return { group, mesh, material, uniforms, text };
+  if (typeof document !== "undefined" && document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => { if (markLabelsDirty) markLabelsDirty(); });
+  }
+  return { group, mesh, material, uniforms, text, configLabel };
 }
 
 function ensureSingularityObjects(t) {
@@ -1083,6 +1186,9 @@ function updateSphereVisuals(t, dt) {
   if (s.labelsDirty && s.sphere) {
     drawRootLabels(s.sphere.text.canvas, s.sphere.text.ctx, s.selections, s.rootLabels);
     s.sphere.text.texture.needsUpdate = true;
+    const cl = s.sphere.configLabel;
+    drawConfigLabel(cl.ctx, cl.canvas, loadConfigurations().length);
+    cl.texture.needsUpdate = true;
     s.labelsDirty = false;
   }
 
@@ -1121,6 +1227,7 @@ function updateSphereVisuals(t, dt) {
   s.dragVelocity.y += (target.y - s.dragVelocity.y) * smoothing;
   s.sphere.group.rotation.x += s.dragVelocity.x * dt;
   s.sphere.group.rotation.y += s.dragVelocity.y * dt;
+  if (s.sphere.configLabel) s.sphere.configLabel.pivot.rotation.y = -s.sphere.group.rotation.y;
 
   s.pulsePhase = (s.pulsePhase || 0) + dt * PULSE_SPEED;
   s.sphere.uniforms.uPulsePhase.value = s.pulsePhase;
@@ -1158,6 +1265,11 @@ function teardownSingularityScene(t) {
     });
   }
   s.collapseItems = null;
+  // Level the sphere again: a visit that tipped it up to the south-pole
+  // CONFIGURATIONS label must not make the next visit open pole-first with
+  // the equator labels out of view. (Spin around the pole is re-aimed on
+  // arrival anyway.)
+  if (s.sphere) s.sphere.group.rotation.x = 0;
   s.dragVelocity = { x: 0, y: 0 };
   s.dragTargetVelocity = { x: 0, y: 0 };
   s.dragging = false;
@@ -1176,6 +1288,10 @@ function teardownSingularityScene(t) {
   s.blackHolePickConfirm = null;
   s.missingSquaresPicker = false;
   s.missingSquaresPickConfirm = null;
+  s.configHover = null;
+  s.configNotice = null;
+  s.configPendingDelete = null;
+  s.loadedConfigName = null;
   if (t.singularityGridMaterials) {
     t.singularityGridMaterials.forEach((m) => { m.opacity = m.userData.singularityBaseOpacity; });
   }
@@ -1337,6 +1453,7 @@ export function advanceSingularityScene(t, now, chromeRefs) {
     window.__EC_TEST_SINGULARITY__ = {
       phase: s.phase,
       sphereRotationY: s.sphere ? s.sphere.group.rotation.y : null,
+      sphereRotationX: s.sphere ? s.sphere.group.rotation.x : null,
       stage: s.sphereMenuStage || null,
       activeCategory: s.activeCategory || null,
       selections: s.selections ? JSON.parse(JSON.stringify(s.selections)) : null,
@@ -1344,6 +1461,18 @@ export function advanceSingularityScene(t, now, chromeRefs) {
       // shuffleRootLabels) — exposed so tests can find a given category
       // deterministically instead of assuming a fixed layout.
       rootLabels: s.rootLabels ? s.rootLabels.map((r) => ({ key: r.key, u: r.u })) : null,
+      // Where the south-pole CONFIGURATIONS label is on screen and whether it
+      // currently faces the camera (so a test can drag it into view and tap it).
+      configLabel: (() => {
+        const cl = s.sphere && s.sphere.configLabel;
+        if (!cl || !t.camera) return null;
+        const wp = new THREE.Vector3();
+        cl.mesh.getWorldPosition(wp);
+        const n = new THREE.Vector3(0, 0, 1).applyQuaternion(cl.mesh.getWorldQuaternion(new THREE.Quaternion()));
+        const toCam = t.camera.position.clone().sub(wp).normalize();
+        const ndc = wp.clone().project(t.camera);
+        return { facing: n.dot(toCam), x: (ndc.x + 1) / 2 * window.innerWidth, y: (1 - ndc.y) / 2 * window.innerHeight };
+      })(),
       collapseU: s.phase === PHASES.COLLAPSING
         ? Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS)
         : null,
@@ -1884,6 +2013,127 @@ function renderPairedSquarePicker(t, kind) {
    spec — implemented as a full-screen backdrop with onPointerDown
    both closing AND stopping propagation, so it never also starts a
    sphere-rotate drag on the overlay div underneath it. */
+/* The CONFIGURATIONS overlay: save the sphere's current rule selections
+   under a name, and load / delete saved ones. Loading replaces the
+   selections and jumps straight to the BEGIN GAME summary for review. */
+function renderConfigurationsBody(t) {
+  const s = t.singularity;
+  const h = React.createElement;
+  const configs = loadConfigurations();
+  const suggested = `Configuration ${configs.length + 1}`;
+  const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+  const btn = (extra) => ({
+    ...mono, fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
+    padding: "7px 12px", borderRadius: 4, cursor: "pointer",
+    border: "1px solid rgba(102,217,255,0.4)", background: "rgba(102,217,255,0.1)", color: "#dffaff",
+    ...extra,
+  });
+  const ghost = { border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)" };
+  const notice = (text) => { s.configNotice = text; s.bump(); };
+
+  const save = () => {
+    const input = document.getElementById("ec-config-name");
+    const name = ((input && input.value) || "").trim().slice(0, 40) || suggested;
+    const entry = { id: `c${Date.now().toString(36)}`, name, savedAt: Date.now(), selections: JSON.parse(JSON.stringify(s.selections)) };
+    const list = loadConfigurations();
+    const idx = list.findIndex((c) => c.name.toLowerCase() === name.toLowerCase());
+    const replaced = idx >= 0;
+    if (replaced) list[idx] = { ...entry, id: list[idx].id || entry.id }; else list.push(entry);
+    if (!saveConfigurations(list)) { notice("Couldn't save — this browser is blocking storage."); return; }
+    if (input) input.value = "";
+    if (s.audio && s.audio.playSelect) s.audio.playSelect();
+    s.labelsDirty = true;
+    notice(replaced ? `Replaced “${name}”.` : `Saved “${name}”.`);
+  };
+  const load = (c) => {
+    s.selections = normalizeSelections(JSON.parse(JSON.stringify(c.selections)));
+    s.loadedConfigName = c.name;
+    s.configNotice = null;
+    s.configPendingDelete = null;
+    s.activeCategory = null;
+    s.sphereMenuStage = "summary";
+    s.tapTimestamps = [];
+    s.labelsDirty = true;
+    if (s.audio && s.audio.playSelect) s.audio.playSelect();
+    s.bump();
+  };
+  const remove = (c) => {
+    const list = loadConfigurations().filter((x) => (x.id || x.name) !== (c.id || c.name));
+    saveConfigurations(list);
+    s.configPendingDelete = null;
+    s.labelsDirty = true;
+    notice(`Deleted “${c.name}”.`);
+  };
+
+  return h(
+    "div",
+    { style: { display: "flex", flexDirection: "column", gap: 12 } },
+    h("div", { style: { ...sectionLabelStyle, textAlign: "center", margin: "-6px 0 2px" } }, "Saved presets"),
+    h(
+      "div",
+      { style: { display: "flex", gap: 8 } },
+      h("input", {
+        id: "ec-config-name",
+        "data-testid": "config-name",
+        type: "text",
+        maxLength: 40,
+        placeholder: suggested,
+        "aria-label": "Configuration name",
+        onKeyDown: (e) => { if (e.key === "Enter") save(); },
+        style: {
+          ...mono, flex: "1 1 auto", minWidth: 0, fontSize: 12, color: "#dffaff",
+          background: "rgba(102,217,255,0.06)", border: "1px solid rgba(102,217,255,0.35)",
+          borderRadius: 4, padding: "7px 10px", outline: "none",
+        },
+      }),
+      h("button", { type: "button", "data-testid": "config-save", onClick: save, style: btn({ flexShrink: 0 }) }, "Save current")
+    ),
+    h(
+      "div",
+      { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.6)", lineHeight: 1.45 } },
+      "Saves the current LAWS, MATTER and TOPOLOGY choices (not the opponent) in this browser. Saving under an existing name replaces it."
+    ),
+    s.configNotice
+      ? h("div", { "data-testid": "config-notice", style: { ...mono, fontSize: 10.5, color: "#8ef3ff", textAlign: "center" } }, s.configNotice)
+      : null,
+    configs.length
+      ? h(
+          "div",
+          { style: { display: "flex", flexDirection: "column", gap: 8, marginTop: 4 } },
+          ...configs.map((c) => {
+            const key = c.id || c.name;
+            const confirming = s.configPendingDelete === key;
+            return h(
+              "div",
+              {
+                key,
+                "data-testid": "config-item",
+                "data-name": c.name,
+                style: { border: "1px solid rgba(102,217,255,0.22)", borderRadius: 4, background: "rgba(102,217,255,0.05)", padding: "9px 11px" },
+              },
+              h("div", { style: { fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: "0.06em", color: "#dffaff" } }, c.name),
+              h("div", { style: { ...mono, fontSize: 9.5, color: "rgba(207,216,220,0.6)", margin: "4px 0 8px", lineHeight: 1.5 } }, describeSelections(normalizeSelections(c.selections))),
+              confirming
+                ? h(
+                    "div",
+                    { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" } },
+                    h("span", { style: { ...mono, fontSize: 10, color: "#ff6b6b" } }, "Delete this configuration?"),
+                    h("button", { type: "button", "data-testid": "config-delete-confirm", onClick: () => remove(c), style: btn({ border: "1px solid #ff5a5a", background: "rgba(255,70,70,0.12)", color: "#ffb3b3" }) }, "Delete"),
+                    h("button", { type: "button", onClick: () => { s.configPendingDelete = null; s.bump(); }, style: btn(ghost) }, "Keep")
+                  )
+                : h(
+                    "div",
+                    { style: { display: "flex", gap: 8 } },
+                    h("button", { type: "button", "data-testid": "config-load", onClick: () => load(c), style: btn() }, "Load"),
+                    h("button", { type: "button", "data-testid": "config-delete", "aria-label": `Delete ${c.name}`, onClick: () => { s.configPendingDelete = key; s.bump(); }, style: btn(ghost) }, "Delete")
+                  )
+            );
+          })
+        )
+      : h("div", { "data-testid": "config-empty", style: { ...mono, fontSize: 10.5, color: "rgba(207,216,220,0.5)", textAlign: "center", marginTop: 4 } }, "No saved configurations yet.")
+  );
+}
+
 function renderCategoryOverlay(t) {
   const s = t.singularity;
   if (!s || s.sphereMenuStage !== "overlay" || !s.activeCategory) return null;
@@ -1951,6 +2201,8 @@ function renderCategoryOverlay(t) {
         "matter-randomize-start"
       )
     );
+  } else if (category === "configurations") {
+    body = renderConfigurationsBody(t);
   } else if (category === "topologies") {
     // Missing Squares' own manual-placement control sits directly below
     // its toggle (its own sub-option), same as Black Hole Squares' does
@@ -2119,6 +2371,9 @@ function renderSummaryPanel(setupExtras) {
     h(
       "div",
       { style: { display: "flex", flexDirection: "column", gap: 8, margin: "14px 0 18px" } },
+      t.singularity.loadedConfigName
+        ? h("div", { "data-testid": "summary-loaded-config", style: { ...lineStyle, color: "#dffaff" } }, h("span", { style: tagStyle }, "CONFIGURATION  "), t.singularity.loadedConfigName)
+        : null,
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "TOPOLOGY  "), boardLine),
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "LAWS  "), lawsOn.length ? lawsOn.map((i) => i.label).join(", ") : "none"),
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "MATTER  "), piecesOn.length ? piecesOn.map((i) => i.label).join(", ") : "no new pieces"),
@@ -2188,7 +2443,7 @@ function renderLabelsHint() {
         color: "rgba(207,216,220,0.8)",
       },
     },
-    "Drag to rotate. Tap a glowing category to configure it. Triple-tap open space on the sphere to finish."
+    "Drag to rotate. Tap a glowing category to configure it. Saved CONFIGURATIONS sit at the south pole — drag upward to reach them. Triple-tap open space on the sphere to finish."
   );
 }
 
@@ -2362,6 +2617,10 @@ export function useSingularityPhase({
     t.singularity.blackHolePickConfirm = null;
     t.singularity.missingSquaresPicker = false;
     t.singularity.missingSquaresPickConfirm = null;
+    t.singularity.configHover = null;
+    t.singularity.configNotice = null;
+    t.singularity.configPendingDelete = null;
+    t.singularity.loadedConfigName = null;
     // The roar layer runs alongside the hum for the whole collapse; the
     // hard cut stops it along with everything else.
     audio.startSingularityCollapseRoar();
@@ -2409,6 +2668,10 @@ export function useSingularityPhase({
     s.blackHolePickConfirm = null;
     s.missingSquaresPicker = false;
     s.missingSquaresPickConfirm = null;
+    s.configHover = null;
+    s.configNotice = null;
+    s.configPendingDelete = null;
+    s.loadedConfigName = null;
     // No collapse ran to hide the board or cut the audio -- do both
     // directly, landing in exactly the state the collapsing->blackout
     // edge produces on the normal path (see advanceSingularityScene).
@@ -2423,6 +2686,7 @@ export function useSingularityPhase({
     // the blackout->sphere transition performs once the camera has
     // settled back to its resting position (already true here -- no
     // collapse camera roll ran to unsettle it).
+    if (s.sphere) s.sphere.group.rotation.x = 0;
     if (t.raycaster && t.pointer && t.camera && s.sphere) {
       const ndc = s.sphere.group.position.clone().project(t.camera);
       t.pointer.set(ndc.x, ndc.y);
@@ -2598,8 +2862,25 @@ export function useSingularityPhase({
     t.singularity.dragTargetVelocity = { x: 0, y: 0 };
     dragStateRef.current = { lastX: ev.clientX, lastY: ev.clientY, lastT: performance.now(), moved: 0 };
   }
+  // Hovering the south-pole CONFIGURATIONS label (mouse only — touch has
+  // no hover; its overlay subtitle carries the same "saved presets" hint).
+  function updateConfigHover(t, ev) {
+    const s = t.singularity;
+    const sphere = s.sphere;
+    let hover = null;
+    if (ev.pointerType === "mouse" && s.phase === PHASES.SPHERE && s.sphereMenuStage === "labels" && sphere && sphere.configLabel && t.raycaster) {
+      t.pointer.set((ev.clientX / window.innerWidth) * 2 - 1, -(ev.clientY / window.innerHeight) * 2 + 1);
+      t.raycaster.setFromCamera(t.pointer, t.camera);
+      if (t.raycaster.intersectObject(sphere.configLabel.mesh).length) hover = { x: ev.clientX, y: ev.clientY };
+    }
+    const was = s.configHover;
+    s.configHover = hover;
+    if (!!was !== !!hover || (hover && was && (Math.abs(was.x - hover.x) > 6 || Math.abs(was.y - hover.y) > 6))) s.bump();
+  }
+
   function handlePointerMove(ev) {
     const t = three && three.current;
+    if (t && t.singularity && !t.singularity.dragging) updateConfigHover(t, ev);
     if (!t || !t.singularity || !t.singularity.dragging) return;
     const drag = dragStateRef.current;
     const now = performance.now();
@@ -2649,6 +2930,9 @@ export function useSingularityPhase({
     s.activeCategory = category;
     s.sphereMenuStage = "overlay";
     s.tapTimestamps = [];
+    s.configHover = null;
+    // Any edit path invalidates "you're looking at configuration X".
+    if (category !== "configurations") s.loadedConfigName = null;
     // Ghost-touch guard (see renderCategoryOverlay's capture handlers):
     // the tap that opened this overlay fires a trailing `click` once the
     // panel has rendered under the finger, which would otherwise toggle
@@ -2692,6 +2976,13 @@ export function useSingularityPhase({
     if (!t.raycaster || !t.pointer || !t.camera || !sphere) return;
     t.pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
     t.raycaster.setFromCamera(t.pointer, t.camera);
+    // The south-pole CONFIGURATIONS label sits just outside the sphere's
+    // surface, so it's tested first.
+    if (sphere.configLabel && t.raycaster.intersectObject(sphere.configLabel.mesh).length) {
+      openCategoryOverlay(t, "configurations");
+      audio.playSelect();
+      return;
+    }
     const hits = t.raycaster.intersectObject(sphere.mesh);
     if (!hits.length || !hits[0].uv) return;
     const category = categoryAtUv(hits[0].uv, t.singularity.rootLabels);
@@ -2955,6 +3246,17 @@ export function renderSingularityOverlay(setupExtras) {
     }),
     phase === PHASES.SPHERE && renderBackButton(exitSingularity),
     phase === PHASES.SPHERE && stage === "labels" && renderLabelsHint(),
+    phase === PHASES.SPHERE && stage === "labels" && t && t.singularity.configHover &&
+      h("div", {
+        "data-testid": "config-hover-hint",
+        style: {
+          position: "fixed", left: t.singularity.configHover.x + 14, top: t.singularity.configHover.y + 14,
+          pointerEvents: "none", zIndex: 2050,
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.08em",
+          color: "#dffaff", background: "rgba(4,10,18,0.9)", border: "1px solid rgba(102,217,255,0.45)",
+          borderRadius: 3, padding: "4px 8px",
+        },
+      }, "saved presets"),
     phase === PHASES.SPHERE && stage === "overlay" && t && renderCategoryOverlay(t),
     phase === PHASES.SPHERE && stage === "overlay" && t && renderPairedSquarePicker(t, "blackHole"),
     phase === PHASES.SPHERE && stage === "overlay" && t && renderPairedSquarePicker(t, "missingSquare"),
