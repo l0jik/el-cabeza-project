@@ -4159,6 +4159,13 @@ export function createSoundscape() {
   let sfxGain = null; // gameplay cues — stays audible above the ambience
   let reverbNode = null; // short synthetic impulse, for the landing thud
   let cathedralReverb = null; // long synthetic impulse, built lazily for the choir stab only
+  // The SINGULARITY bell's own output path — its own long reverb into a
+  // bus wired straight to the destination, NOT through master — so the
+  // event-horizon hard cut (cutSingularityAudioToSilence zeroes master)
+  // silences everything else while the toll keeps ringing and its
+  // reverb decays naturally all the way to nothing. See ensureBellBus.
+  let bellBus = null;
+  let bellReverb = null;
   let choirMasterEnv = null; // the active choir stab's master gain, so an early close can cut it short
   let choirEndTime = 0; // ctx.currentTime at which the active choir stab naturally finishes
   let thudShaper = null; // crunch/distortion stage shared by landing thuds
@@ -4611,8 +4618,21 @@ export function createSoundscape() {
      - A ~32Hz sub-bass swell underneath for the physical, imposing
        weight.
      - A gentle low-pass keeps it "metallic but not bright," and the bulk
-       of the signal goes into the long cathedralReverb for the
+       of the signal goes into its own long bellReverb for the
        cavernous, "another dimension" tail. */
+  // The level the bell used to reach the speakers at (sfxGain x master),
+  // kept identical now that it bypasses both.
+  const BELL_BUS_GAIN = 1.25 * MASTER_GAIN;
+  function ensureBellBus() {
+    if (bellBus) return;
+    bellBus = ctx.createGain();
+    bellBus.gain.value = muted ? 0 : BELL_BUS_GAIN;
+    bellBus.connect(ctx.destination);
+    bellReverb = ctx.createConvolver();
+    bellReverb.buffer = makeImpulse(11.5, 1.25);
+    bellReverb.connect(bellBus);
+  }
+
   function playSingularityBell() {
     ensureGraph();
     if (!ctx) return;
@@ -4624,11 +4644,9 @@ export function createSoundscape() {
       master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
       master.gain.linearRampToValueAtTime(muted ? 0 : MASTER_GAIN, ctx.currentTime + 0.15);
     }
-    if (!cathedralReverb) {
-      cathedralReverb = ctx.createConvolver();
-      cathedralReverb.buffer = makeImpulse(11.5, 1.25);
-      cathedralReverb.connect(sfxGain);
-    }
+    // Its own bus, outside master: the toll outlives the event-horizon
+    // cut to silence and rings out, reverb and all, to true zero.
+    ensureBellBus();
     const t0 = ctx.currentTime;
 
     // Shared bus: a low-pass to tame brightness, then split dry (small)
@@ -4646,8 +4664,8 @@ export function createSoundscape() {
     const wet = ctx.createGain();
     wet.gain.value = 1.0;
     tone.connect(lp);
-    lp.connect(dry).connect(sfxGain);
-    lp.connect(wet).connect(cathedralReverb);
+    lp.connect(dry).connect(bellBus);
+    lp.connect(wet).connect(bellReverb);
 
     const PRIME = 66; // Hz — a deep, subterranean strike tone
     // { ratio to prime, peak, decay seconds }. Inharmonic, stretched
@@ -5794,6 +5812,7 @@ export function createSoundscape() {
   function setMuted(m) {
     muted = m;
     if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : MASTER_GAIN, ctx.currentTime, 0.08);
+    if (bellBus && ctx) bellBus.gain.setTargetAtTime(muted ? 0 : BELL_BUS_GAIN, ctx.currentTime, 0.08);
   }
 
   /* Called once, right when a win fires OR the player manually ends the

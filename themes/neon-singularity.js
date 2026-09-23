@@ -956,7 +956,13 @@ function ensureSingularityObjects(t) {
   s.debris = buildDebris();
   t.scene.add(s.debris.group);
   s.sphere = buildSphere(() => { s.labelsDirty = true; });
-  t.scene.add(s.sphere.group);
+  // A parent frame turned (on arrival, see faceSphereNorthPole) so the
+  // camera always sits on its +Z side — the sphere's own tilt/spin (and
+  // the drag that drives them) then read the same whichever side of the
+  // board the camera happens to be on.
+  s.sphereFrame = new THREE.Group();
+  s.sphereFrame.add(s.sphere.group);
+  t.scene.add(s.sphereFrame);
   s.starfield = buildStarfield();
   t.scene.add(s.starfield);
 
@@ -1285,6 +1291,34 @@ function updateSphereVisuals(t, dt) {
   s.sphere.uniforms.uPulsePhase.value = s.pulsePhase;
 }
 
+/* On arrival the sphere turns its NORTH pole straight at the camera.
+   1. The parent frame turns so the camera sits on the frame's +Z side.
+   2. With the sphere level, a raycast through its on-screen center finds
+      which longitude faces the camera, and the spin (rotation.y) puts the
+      front root label (u = 0.5) there.
+   3. The tilt (rotation.x) then tips the north pole up to meet the
+      camera's line of sight, elevation included. Dragging upward tips it
+      back down to the equator, landing on that front label. */
+function faceSphereNorthPole(t, s) {
+  if (!s.sphere || !t.camera) return;
+  const g = s.sphere.group;
+  const d = t.camera.position.clone().sub(g.getWorldPosition(new THREE.Vector3()));
+  if (s.sphereFrame) s.sphereFrame.rotation.y = Math.atan2(d.x, d.z);
+  g.rotation.set(0, 0, 0);
+  if (s.sphereFrame) s.sphereFrame.updateMatrixWorld(true);
+  if (t.raycaster && t.pointer) {
+    const ndc = g.getWorldPosition(new THREE.Vector3()).project(t.camera);
+    t.pointer.set(ndc.x, ndc.y);
+    t.raycaster.setFromCamera(t.pointer, t.camera);
+    const hits = t.raycaster.intersectObject(s.sphere.mesh);
+    if (hits.length && hits[0].uv) g.rotation.y = (hits[0].uv.x - 0.5) * Math.PI * 2;
+  }
+  // In the frame the camera is at (0, d.y, horizontal distance); tilting
+  // by θ about X carries the pole (0,1,0) to (0, cos θ, sin θ).
+  g.rotation.x = Math.atan2(Math.hypot(d.x, d.z), d.y);
+  s.northPoleTilt = g.rotation.x;
+}
+
 function teardownSingularityScene(t) {
   const s = t.singularity;
   if (!s) return;
@@ -1452,30 +1486,11 @@ export function advanceSingularityScene(t, now, chromeRefs) {
            (BLACKOUT has fully elapsed) the chassis's own applyCamera()
            has long since reverted the camera to its normal resting
            position, so this raycast reads the real, final geometry. */
-        if (t.raycaster && t.pointer && t.camera && s.sphere) {
-          // Raycast through the sphere's own on-screen center, not the
-          // viewport's — those aren't the same point once other UI
-          // chrome (the BACK button, the hint bar at the bottom) makes
-          // the sphere sit off-center within the viewport. Projecting
-          // the sphere's actual world position to NDC first, then
-          // raycasting through THAT, guarantees the ray passes through
-          // whichever point is genuinely facing the camera along the
-          // camera-to-sphere-center line — which is, by the sphere's
-          // own symmetry, the exact middle of its silhouette on
-          // screen, regardless of any such layout offset. (A first
-          // attempt at this raycast at plain NDC (0,0) fixed the
-          // per-viewport variance but still wasn't the sphere's own
-          // visual center whenever the sphere itself sat off from
-          // true viewport-center — exactly the "still not centered"
-          // case reported after that fix.)
-          const ndc = s.sphere.group.position.clone().project(t.camera);
-          t.pointer.set(ndc.x, ndc.y);
-          t.raycaster.setFromCamera(t.pointer, t.camera);
-          const hits = t.raycaster.intersectObject(s.sphere.mesh);
-          if (hits.length && hits[0].uv) {
-            s.sphere.group.rotation.y = (hits[0].uv.x - 0.5) * Math.PI * 2;
-          }
-        }
+        // Aims the front label, then turns the north pole to the player
+        // — see faceSphereNorthPole (the raycast goes through the
+        // sphere's own on-screen center, not the viewport's, since UI
+        // chrome can make the sphere sit off-center).
+        faceSphereNorthPole(t, s);
         // The blackout div is opaque and sits above the main canvas —
         // it has to fade back down for the sphere/starfield (already
         // rendering underneath it) to actually become visible. A soft
@@ -1506,6 +1521,12 @@ export function advanceSingularityScene(t, now, chromeRefs) {
       phase: s.phase,
       sphereRotationY: s.sphere ? s.sphere.group.rotation.y : null,
       sphereRotationX: s.sphere ? s.sphere.group.rotation.x : null,
+      // How squarely the north pole faces the camera (1 = dead on).
+      northPoleFacing: s.sphere && t.camera ? (() => {
+        const c = s.sphere.group.getWorldPosition(new THREE.Vector3());
+        const pole = new THREE.Vector3(0, 1, 0).transformDirection(s.sphere.group.matrixWorld);
+        return pole.dot(t.camera.position.clone().sub(c).normalize());
+      })() : null,
       stage: s.sphereMenuStage || null,
       activeCategory: s.activeCategory || null,
       selections: s.selections ? JSON.parse(JSON.stringify(s.selections)) : null,
@@ -2767,22 +2788,68 @@ function renderSummaryPanel(setupExtras) {
   );
 }
 
-function renderLabelsHint() {
+/* The sphere's how-to text, hidden behind a small, faint "?" at the
+   bottom middle of the screen: hovering it (or tapping it, on touch)
+   shows the instructions just above it. Its pointerdown is stopped so a
+   tap on the "?" never starts a sphere drag or counts toward the
+   triple-tap finish. */
+const LABELS_HINT_TEXT =
+  "The sphere opens with its north pole toward you — drag upward to bring the glowing categories round. Tap one to configure it. Saved CONFIGURATIONS sit at the south pole — keep dragging upward to reach them. Triple-tap open space on the sphere to finish.";
+function LabelsHint() {
   const h = React.createElement;
+  const [hover, setHover] = React.useState(false);
+  const [pinned, setPinned] = React.useState(false);
+  const open = hover || pinned;
   return h(
     "div",
     {
-      style: {
-        position: "absolute", left: "50%", bottom: "6%", transform: "translateX(-50%)",
-        width: "clamp(240px, 74%, 400px)", textAlign: "center",
-        background: "rgba(4,6,10,0.78)", backdropFilter: "blur(6px)",
-        border: "1px solid rgba(102,217,255,0.26)", borderRadius: 4,
-        padding: "12px 18px", boxSizing: "border-box", pointerEvents: "none",
-        fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.5,
-        color: "rgba(207,216,220,0.8)",
-      },
+      "data-testid": "sphere-help",
+      style: { position: "absolute", left: "50%", bottom: 18, transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center" },
+      onPointerDown: (e) => e.stopPropagation(),
+      onPointerUp: (e) => e.stopPropagation(),
+      onPointerMove: (e) => e.stopPropagation(),
     },
-    "Drag to rotate. Tap a glowing category to configure it. Saved CONFIGURATIONS sit at the south pole — drag upward to reach them. Triple-tap open space on the sphere to finish."
+    open &&
+      h(
+        "div",
+        {
+          "data-testid": "sphere-help-text",
+          style: {
+            position: "absolute", bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)",
+            width: "min(400px, calc(100vw - 32px))", textAlign: "center",
+            background: "rgba(4,6,10,0.82)", backdropFilter: "blur(6px)",
+            border: "1px solid rgba(102,217,255,0.26)", borderRadius: 4,
+            padding: "12px 18px", boxSizing: "border-box", pointerEvents: "none",
+            fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.5,
+            color: "rgba(207,216,220,0.8)",
+          },
+        },
+        LABELS_HINT_TEXT
+      ),
+    h(
+      "button",
+      {
+        type: "button",
+        "data-testid": "sphere-help-button",
+        "aria-label": "How the sphere works",
+        "aria-expanded": open ? "true" : "false",
+        onMouseEnter: () => setHover(true),
+        onMouseLeave: () => setHover(false),
+        onFocus: () => setHover(true),
+        onBlur: () => { setHover(false); setPinned(false); },
+        onClick: (e) => { e.stopPropagation(); setPinned((p) => !p); },
+        style: {
+          width: 20, height: 20, padding: 0, borderRadius: "50%", cursor: "help",
+          border: `1px solid ${open ? "rgba(102,217,255,0.55)" : "rgba(102,217,255,0.2)"}`,
+          background: "transparent",
+          color: open ? "rgba(142,243,255,0.85)" : "rgba(142,243,255,0.32)",
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, lineHeight: "18px",
+          boxShadow: open ? "0 0 8px rgba(77,232,255,0.35)" : "none",
+          transition: "color 160ms ease, border-color 160ms ease, box-shadow 160ms ease",
+        },
+      },
+      "?"
+    )
   );
 }
 
@@ -3025,16 +3092,7 @@ export function useSingularityPhase({
     // the blackout->sphere transition performs once the camera has
     // settled back to its resting position (already true here -- no
     // collapse camera roll ran to unsettle it).
-    if (s.sphere) s.sphere.group.rotation.x = 0;
-    if (t.raycaster && t.pointer && t.camera && s.sphere) {
-      const ndc = s.sphere.group.position.clone().project(t.camera);
-      t.pointer.set(ndc.x, ndc.y);
-      t.raycaster.setFromCamera(t.pointer, t.camera);
-      const hits = t.raycaster.intersectObject(s.sphere.mesh);
-      if (hits.length && hits[0].uv) {
-        s.sphere.group.rotation.y = (hits[0].uv.x - 0.5) * Math.PI * 2;
-      }
-    }
+    faceSphereNorthPole(t, s);
     // Lets the next tick's chrome-suction block (advanceSingularityScene)
     // know this is a fresh, not-yet-hidden arrival so it snaps the
     // masthead/dock straight to their fully-sucked-away end state -- see
@@ -3590,7 +3648,7 @@ export function renderSingularityOverlay(setupExtras) {
       style: { position: "absolute", inset: 0, background: "#000", opacity: 0 },
     }),
     phase === PHASES.SPHERE && renderBackButton(exitSingularity),
-    phase === PHASES.SPHERE && stage === "labels" && renderLabelsHint(),
+    phase === PHASES.SPHERE && stage === "labels" && h(LabelsHint, { key: "sphere-help" }),
     phase === PHASES.SPHERE && stage === "labels" && t && t.singularity.configHover &&
       h("div", {
         "data-testid": "config-hover-hint",

@@ -184,6 +184,29 @@ const obox = await overlay.boundingBox();
 const cx = obox.x + obox.width / 2;
 let cy = obox.y + obox.height / 2;
 
+// ---- the sphere arrives with its NORTH pole facing the player, the
+// how-to text hidden behind a faint "?" at the bottom middle ----
+const arrival = await sphereState();
+check("the sphere arrives with its north pole facing you",
+  arrival.northPoleFacing > 0.99, `northPoleFacing=${arrival.northPoleFacing}`);
+check("the sphere's instructions are hidden until asked for",
+  (await page.locator('[data-testid="sphere-help-button"]').count()) === 1 &&
+    (await page.locator('[data-testid="sphere-help-text"]').count()) === 0);
+const helpBox = await page.locator('[data-testid="sphere-help-button"]').boundingBox();
+const vp = page.viewportSize();
+check("the ? sits at the bottom middle of the screen",
+  !!helpBox && Math.abs(helpBox.x + helpBox.width / 2 - vp.width / 2) < 4 && helpBox.y > vp.height * 0.85,
+  JSON.stringify(helpBox));
+await page.locator('[data-testid="sphere-help-button"]').hover();
+await page.waitForTimeout(150);
+check("hovering the ? shows the instructions",
+  (await page.locator('[data-testid="sphere-help-text"]').count()) === 1);
+await page.mouse.move(cx, cy);
+await page.waitForTimeout(150);
+check("moving off the ? hides them again",
+  (await page.locator('[data-testid="sphere-help-text"]').count()) === 0);
+await tiltBackToEquator(0.05);
+
 async function dragSphereBy(dx) {
   await page.mouse.move(cx, cy);
   await page.mouse.down();
@@ -219,6 +242,9 @@ async function calibrateLabelCy() {
       await closeOverlay();
       return cy + off;
     }
+    // A miss is a bare tap — let it age out of the triple-tap window so
+    // three misses in a row can't finish the sphere.
+    await page.waitForTimeout(550);
   }
   return cy; // calibration failed to find any label — let later checks report why
 }
@@ -617,12 +643,12 @@ async function waitForTiltSettle(timeoutMs = 4000) {
     last = cur;
   }
 }
-async function tiltBackToEquator() {
-  for (let i = 0; i < 20; i++) {
+async function tiltBackToEquator(tol = 0.15) {
+  for (let i = 0; i < 30; i++) {
     await waitForTiltSettle();
     const x = (await sphereState()).sphereRotationX;
     const wrapped = Math.atan2(Math.sin(x), Math.cos(x));
-    if (Math.abs(wrapped) < 0.15) return;
+    if (Math.abs(wrapped) < tol) return;
     const dir = wrapped < 0 ? 1 : -1; // drag down to undo an upward tilt
     // Smaller drags as it closes in, so it doesn't overshoot the equator.
     const len = Math.min(100, 20 + 60 * Math.abs(wrapped));
@@ -740,6 +766,7 @@ const overlay2 = page.locator('[data-testid="singularity-overlay"]');
 const obox2 = await overlay2.boundingBox();
 const cx2 = obox2.x + obox2.width / 2;
 const cy2 = obox2.y + obox2.height / 2;
+await tiltBackToEquator(0.05);
 
 // ---- TOPOLOGIES board resize actually applies at Begin Game. Pick a
 // non-default, non-square size in THIS session (the one that begins the

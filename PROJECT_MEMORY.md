@@ -456,6 +456,27 @@ lands on one; the pre-game Anomaly button also avoids the live
   checked via a new `window.__EC_TEST_MISSING_SQUARES__` hook, with a
   real AI opponent searching a turn against the live board — proves the
   full pipeline end to end, not just the picker UI in isolation).
+- **Sphere arrival, help "?", bell tail.**
+  - **North pole faces the player on arrival.** `faceSphereNorthPole`
+    (neon-singularity.js) turns the sphere's parent `s.sphereFrame` so
+    the camera sits on its +Z side. It spins the level sphere so the front
+    root label faces the camera, then tilts `rotation.x` by
+    `atan2(horizontalDist, dy)` so the pole meets the camera's line of
+    sight. The front label is edge-on at the rim, so dragging upward brings
+    the categories round. Because of the frame, the drag and tilt now read
+    the same from either side of the board. Test hook: `northPoleFacing`
+    (1 = dead on). The e2e tilts back to the equator (`tiltBackToEquator(0.05)`)
+    before tapping labels.
+  - **Instructions are hidden behind a faint "?"** at the bottom middle
+    (`LabelsHint`, testids `sphere-help-button` / `sphere-help-text`). Hover,
+    focus or tap shows the text. The "?" stops pointer events, so it never
+    drags the sphere or counts toward the triple-tap.
+  - **The bell rings out past the cut to silence.** `playSingularityBell`
+    (neon.js) routes through its own `bellReverb` → `bellBus` →
+    `ctx.destination`, bypassing master. Its gain is `BELL_BUS_GAIN`
+    (sfxGain × MASTER_GAIN, the same level as before), and `setMuted`
+    follows it. `cutSingularityAudioToSilence` still zeroes everything
+    else, while the toll and its ~11.5s reverb decay to zero on their own.
 - **CONFIGURATIONS — saved rule presets, BUILT.** A fourth sphere label
   fixed at the **south pole** (the three categories stay on the equator).
   It is NOT painted into the sphere's equirectangular text texture (text
