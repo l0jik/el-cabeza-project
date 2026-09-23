@@ -430,7 +430,7 @@ then a real Begin Game.
   first, but the `avoid` param on both is symmetric either way. Visual
 (second pass — the first, a tall stack of additive-glow box segments
 rising ABOVE the square, was rejected as too distracting in play; nothing
-may rise above the board): a flush on-square overlay whose 8x8 sub-tiles
+may rise above the board): a flush on-square overlay whose 16x16 sub-tiles (mostly black/dark grey, ~4% silver, each re-rolling every ~0.8-1.8s)
 keep reshuffling through blacks/greys/silvers (small ShaderMaterial,
 uTime driven by the effect's own rAF loop), plus ONE continuous open
 square tube of semi-opaque black below the slab, alpha fading with depth

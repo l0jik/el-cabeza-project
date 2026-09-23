@@ -2748,15 +2748,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           uniform float uTime; uniform float uSeed; varying vec2 vUv;
           float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)) + uSeed) * 43758.5453); }
           void main(){
-            vec2 cell = floor(vUv * 8.0);
+            vec2 cell = floor(vUv * 16.0);
             float h0 = hash(cell);
-            // each sub-tile re-rolls on its own staggered beat (~0.5-1.1s)
-            float beat = floor(uTime * (0.93 + h0 * 1.07) + h0 * 10.0);
+            // each sub-tile re-rolls on its own staggered beat (~0.8-1.8s)
+            float beat = floor(uTime * (0.56 + h0 * 0.64) + h0 * 10.0);
             float v = hash(cell + beat * 1.37);
-            vec3 black = vec3(0.02,0.02,0.025), grey = vec3(0.22,0.23,0.25), silver = vec3(0.62,0.65,0.70);
-            vec3 col = v < 0.45 ? black : (v < 0.8 ? grey : silver);
+            // Mostly dark: ~60% black, ~36% dark grey, ~4% silver.
+            vec3 black = vec3(0.012,0.012,0.016), grey = vec3(0.13,0.135,0.15), silver = vec3(0.5,0.52,0.56);
+            vec3 col = v < 0.6 ? black : (v < 0.96 ? grey : silver);
             // thin dark seams between sub-tiles
-            vec2 f = fract(vUv * 8.0);
+            vec2 f = fract(vUv * 16.0);
             float seam = step(0.08, f.x) * step(0.08, f.y);
             col *= mix(0.35, 1.0, seam);
             gl_FragColor = vec4(col, 0.96);
