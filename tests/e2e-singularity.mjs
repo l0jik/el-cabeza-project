@@ -379,30 +379,49 @@ if (state.activeCategory === "topologies") {
   check("the manual-placement control sits directly below the Missing Squares toggle",
     missingPlacementRightAfterToggle);
 
+  // Turning it on places one pair at random right away (count 1).
+  state = await sphereState();
+  check("turning Missing Squares on places one random pair right away",
+    state.selections.missingSquare.count === 1 && state.selections.missingSquare.spots.length === 1 &&
+      state.selections.missingSquare.spots[0].random === true,
+    JSON.stringify(state.selections.missingSquare));
+  check("the placement buttons read Select and Random",
+    (await page.locator('[data-testid="missing-place-btn"]').textContent()) === "Select" &&
+      (await page.locator('[data-testid="missing-clear-btn"]').textContent()) === "Random");
+
   await page.locator('[data-testid="missing-place-btn"]').click();
   await page.waitForTimeout(250);
   check("the missing-square ghost-grid picker opens",
     (await page.locator('[data-testid="missing-picker"]').count()) > 0);
 
-  const missingCell = page.locator('[data-selectable="true"]').first();
+  // Multi-select: a tap marks the spot (the random one gives way at the
+  // count) without closing; Done commits and closes.
+  const missingCell = page.locator('[data-testid="missing-picker"] [data-selectable="true"]').first();
   const missingCellId = await missingCell.getAttribute("data-testid");
   const mm = missingCellId.match(/missing-cell-(\d+)-(\d+)/);
   await missingCell.click();
   await page.waitForTimeout(150);
-  check("picking a cell shows the SELECTED confirmation",
+  check("tapping a cell marks it selected without closing the picker",
+    (await page.locator(`[data-testid="${missingCellId}"]`).getAttribute("data-chosen")) === "hand" &&
+      (await page.locator('[data-testid="missing-picker"]').count()) > 0 &&
+      (await page.locator('[data-testid="missing-confirm"]').count()) === 0);
+  await page.locator('[data-testid="missing-picker-done"]').click();
+  await page.waitForTimeout(150);
+  check("Done shows the SELECTED confirmation",
     (await page.locator('[data-testid="missing-confirm"]').count()) > 0);
 
   await page.waitForTimeout(950); // the confirm holds ~780ms, then auto-closes
-  check("the missing-square picker closes after a selection",
+  check("the missing-square picker closes after Done",
     (await page.locator('[data-testid="missing-picker"]').count()) === 0);
   state = await sphereState();
-  const missingMan = state.selections.missingSquare && state.selections.missingSquare.manual;
-  check("the chosen cell is stored as the manual missing-square placement",
-    !!missingMan && missingMan.row === Number(mm[1]) && missingMan.col === Number(mm[2]),
-    `manual=${JSON.stringify(missingMan)} chosen=${mm[1]},${mm[2]}`);
+  const missingSpots = state.selections.missingSquare.spots;
+  check("the chosen cell is stored as a hand-picked missing-square spot",
+    missingSpots.length === 1 && missingSpots[0].row === Number(mm[1]) && missingSpots[0].col === Number(mm[2]) &&
+      missingSpots[0].random === false,
+    `spots=${JSON.stringify(missingSpots)} chosen=${mm[1]},${mm[2]}`);
 
-  // Reopening (Change placement) shows the CURRENT selection, editable —
-  // same regression this already covers for Black Hole Squares above.
+  // Reopening (Select) shows the CURRENT selection, editable — same
+  // regression this already covers for Black Hole Squares below.
   await page.locator('[data-testid="missing-place-btn"]').click();
   await page.waitForTimeout(250);
   check("reopening the missing-square picker reopens it editable (not stuck confirming)",
@@ -417,18 +436,55 @@ if (state.activeCategory === "topologies") {
   await page.locator('[data-testid="missing-picker-cancel"]').click();
   await page.waitForTimeout(200);
 
-  // "Use random" rolls a REAL spot now (not a deferral to Begin Game), so
-  // it stays a concrete, visible placement — the Black Hole picker below
+  // Random rolls a REAL spot now (not a deferral to Begin Game), so it
+  // stays a concrete, visible placement — the Black Hole picker below
   // must still show it. Regression for "random loses the selection".
   await page.locator('[data-testid="missing-clear-btn"]').click();
   await page.waitForTimeout(150);
   state = await sphereState();
-  const rolled = state.selections.missingSquare;
-  check("Use random rolls and keeps a real missing-square spot",
-    rolled.random === true && !!rolled.manual && rolled.manual.row >= state.selections.topologies.rows / 2,
+  const rolled = state.selections.missingSquare.spots;
+  check("Random rolls and keeps a real missing-square spot",
+    rolled.length === 1 && rolled[0].random === true && rolled[0].row >= state.selections.topologies.rows / 2,
     JSON.stringify(rolled));
-  check("the placement row now offers Re-roll",
-    (await page.locator('[data-testid="missing-clear-btn"]').textContent()) === "Re-roll");
+  check("the Random button keeps its name after rolling",
+    (await page.locator('[data-testid="missing-clear-btn"]').textContent()) === "Random");
+
+  // The count drum: up to five pairs, filled at random to match.
+  for (let i = 0; i < 6; i++) {
+    await page.locator('[data-testid="missing-count-inc"]').click();
+    await page.waitForTimeout(60);
+  }
+  state = await sphereState();
+  check("the count drum tops out at five pairs, all placed",
+    state.selections.missingSquare.count === 5 && state.selections.missingSquare.spots.length === 5,
+    JSON.stringify(state.selections.missingSquare));
+  // Hand-pick one in the picker (a random one gives way), then lower the
+  // count: the hand-picked spot stays, random ones are trimmed.
+  await page.locator('[data-testid="missing-place-btn"]').click();
+  await page.waitForTimeout(250);
+  check("reopening shows the five random spots as random (dashed)",
+    (await page.locator('[data-testid="missing-picker"] [data-chosen="random"]').count()) === 5);
+  const openCell = page.locator('[data-testid="missing-picker"] [data-selectable="true"]:not([data-chosen])').first();
+  const openCellId = await openCell.getAttribute("data-testid");
+  await openCell.click();
+  await page.waitForTimeout(150);
+  check("tapping an open square at the count swaps out a random spot",
+    (await page.locator('[data-testid="missing-picker"] [data-chosen="random"]').count()) === 4 &&
+      (await page.locator(`[data-testid="${openCellId}"]`).getAttribute("data-chosen")) === "hand");
+  await page.screenshot({ path: "/tmp/neon-missing-picker.png" });
+  await page.locator('[data-testid="missing-picker-done"]').click();
+  await page.waitForTimeout(1000);
+  for (let i = 0; i < 3; i++) {
+    await page.locator('[data-testid="missing-count-dec"]').click();
+    await page.waitForTimeout(60);
+  }
+  state = await sphereState();
+  const [, or, oc] = openCellId.match(/missing-cell-(\d+)-(\d+)/);
+  const trimmed = state.selections.missingSquare.spots;
+  check("lowering the count keeps the hand-picked spot and trims random ones",
+    state.selections.missingSquare.count === 2 && trimmed.length === 2 &&
+      trimmed.some((p) => !p.random && p.row === Number(or) && p.col === Number(oc)),
+    JSON.stringify(trimmed));
 
   await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
   await page.waitForTimeout(200);
@@ -472,8 +528,8 @@ if (state.activeCategory === "laws") {
   // The Missing Square placed under TOPOLOGIES above (and its mirror)
   // shows on the Black Hole picker in its own look, and isn't pickable.
   const shownMissing = page.locator('[data-testid="blackhole-picker"] [data-occupied-by="missingSquare"]');
-  check("the black-hole picker shows the already-placed missing squares",
-    (await shownMissing.count()) === 2, `count=${await shownMissing.count()}`);
+  check("the black-hole picker shows every already-placed missing square (2 pairs)",
+    (await shownMissing.count()) === 4, `count=${await shownMissing.count()}`);
   check("those missing squares can't be picked as a black hole",
     (await page.locator('[data-testid="blackhole-picker"] [data-occupied-by="missingSquare"][data-selectable="true"]').count()) === 0);
   // Tapping one pulses the red explanatory caption instead of placing.
@@ -707,6 +763,11 @@ if (state.activeCategory === "topologies") {
   // gets exercised end to end, not just the sphere UI in isolation.
   await page.locator('[data-testid="topo-missingSquares"]').click();
   await page.waitForTimeout(150);
+  // ...at the full five pairs, so all ten squares go through the pipeline.
+  for (let i = 0; i < 4; i++) {
+    await page.locator('[data-testid="missing-count-inc"]').click();
+    await page.waitForTimeout(60);
+  }
   await page.mouse.click(obox2.x + obox2.width - 24, obox2.y + obox2.height - 24);
   await page.waitForTimeout(200);
 }
@@ -765,10 +826,11 @@ check("TOPOLOGIES board resize applied to the real game",
 // render effect -> the AI worker's cross-boundary threading, since this
 // game's AI Dark opponent is about to search a turn against it).
 const liveMissing = await page.evaluate(() => window.__EC_TEST_MISSING_SQUARES__ || null);
-check("Missing Squares resolved to a real pair on the live board",
-  Array.isArray(liveMissing) && liveMissing.length === 2 &&
-    liveMissing[0].row === wantRows - 1 - liveMissing[1].row &&
-    liveMissing[0].col === wantCols - 1 - liveMissing[1].col,
+check("Missing Squares resolved to five real mirrored pairs (ten squares) on the live board",
+  Array.isArray(liveMissing) && liveMissing.length === 10 &&
+    liveMissing.every((q, i) => i % 2 === 1 ||
+      (q.row === wantRows - 1 - liveMissing[i + 1].row && q.col === wantCols - 1 - liveMissing[i + 1].col)) &&
+    new Set(liveMissing.map((q) => `${q.row},${q.col}`)).size === 10,
   `liveMissing=${JSON.stringify(liveMissing)}`);
 await page.screenshot({ path: "/tmp/neon-singularity-resized-board.png" });
 

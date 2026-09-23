@@ -1,4 +1,4 @@
-import { createInitialPieces, legalMovesFor, sameState, pairLog, turnContinues, evaluateBlockLanding, pickMissingSquares, pickBlackHoleSquares } from "../engine/rules.js";
+import { createInitialPieces, legalMovesFor, sameState, pairLog, turnContinues, evaluateBlockLanding, pickMissingSquares, pickBlackHoleSquares, pickMissingSquarePairs, missingSquaresKeepPath, initialPiecesFor, getPieceAt } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY, evaluatePosition, generateTurns } from "../engine/ai.js";
 import { setBlackHoles, setMissingSquares, turnBudget, MAX_PIECES_PER_TURN } from "../engine/constants.js";
 import { pieceCenter, makeRoundedBox, pivotFor } from "../engine/geometry.js";
@@ -183,14 +183,48 @@ console.log("[missing squares] wormhole ejection onto a missing square refused")
 
 // pickMissingSquares' own avoid list (used to keep it off Black Hole
 // Squares' cells when both are active — see themes/neon-singularity.js's
-// buildPairedSquarePlacement): a 2x2 board has exactly two possible
-// mirror pairs, (0,0)/(1,1) and (0,1)/(1,0) — reserving the first must
-// deterministically leave only the second.
-const avoidedPair = pickMissingSquares([], 2, 2, [{ row: 0, col: 0 }]);
-const avoidedSet = new Set(avoidedPair.map((p) => `${p.row},${p.col}`));
-if (!(avoidedSet.has("0,1") && avoidedSet.has("1,0")))
-  throw new Error(`pickMissingSquares must skip a reserved pair, got ${JSON.stringify(avoidedPair)}`);
+// buildMissingSquaresPlacement) and its path guard: a 2x3 board has three
+// mirror pairs, (0,0)/(1,2), (0,1)/(1,1) and (0,2)/(1,0). The middle pair
+// would cut the board in two, and reserving the first must then leave
+// only the third.
+for (let i = 0; i < 50; i++) {
+  const avoidedPair = pickMissingSquares([], 2, 3, [{ row: 0, col: 0 }]);
+  const avoidedSet = new Set(avoidedPair.map((p) => `${p.row},${p.col}`));
+  if (!(avoidedSet.has("0,2") && avoidedSet.has("1,0")))
+    throw new Error(`pickMissingSquares must skip a reserved pair and a board-splitting pair, got ${JSON.stringify(avoidedPair)}`);
+}
 console.log("[missing squares] pickMissingSquares respects its avoid list");
+
+// The path guard itself: missing squares may never wall any square off.
+if (!missingSquaresKeepPath([], 3, 3)) throw new Error("an empty board keeps a path");
+if (missingSquaresKeepPath([{ row: 0, col: 1 }, { row: 1, col: 1 }, { row: 2, col: 1 }], 3, 3))
+  throw new Error("a full column of missing squares splits the board");
+if (missingSquaresKeepPath([{ row: 0, col: 1 }, { row: 1, col: 0 }], 3, 3))
+  throw new Error("a corner boxed in by two missing squares is walled off");
+if (!missingSquaresKeepPath([{ row: 0, col: 1 }, { row: 2, col: 1 }], 3, 3))
+  throw new Error("two missing squares with a gap between them keep a path");
+console.log("[missing squares] path guard detects walled-off squares");
+
+// Up to five pairs (ten squares): every square distinct, mirrored in
+// pairs, off the opening pieces, and never walling off the board — down
+// to the 6x6 minimum.
+for (const [rows, cols] of [[6, 6], [8, 8], [7, 9], [20, 20]]) {
+  const pieces = initialPiecesFor(rows, cols);
+  for (let i = 0; i < 60; i++) {
+    const count = 1 + (i % 5);
+    const squares = pickMissingSquarePairs(pieces, rows, cols, count);
+    if (squares.length !== count * 2) throw new Error(`expected ${count} pairs on ${rows}x${cols}, got ${squares.length / 2}`);
+    const keys = new Set(squares.map((q) => `${q.row},${q.col}`));
+    if (keys.size !== squares.length) throw new Error(`duplicate missing squares on ${rows}x${cols}`);
+    for (let j = 0; j < squares.length; j += 2) {
+      const [a, b] = [squares[j], squares[j + 1]];
+      if (b.row !== rows - 1 - a.row || b.col !== cols - 1 - a.col) throw new Error("missing squares must come in mirrored pairs");
+    }
+    if (squares.some((q) => getPieceAt(pieces, q.row, q.col))) throw new Error("a missing square landed on an opening piece");
+    if (!missingSquaresKeepPath(squares, rows, cols)) throw new Error(`missing squares walled off part of a ${rows}x${cols} board`);
+  }
+}
+console.log("[missing squares] up to five mirrored pairs, off the pieces, always leaving a path");
 
 // Black Holes never land in either side's back two rows (random placement),
 // checked across board heights down to the 6-row minimum.

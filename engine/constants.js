@@ -293,7 +293,7 @@ export function setBlackHoles(list) {
 }
 
 /* Missing Squares TOPOLOGIES option: [] when off (the default), or
-   exactly two {row,col} squares once pickMissingSquares (rules.js) has
+   one to five mirrored pairs of {row,col} squares once pickMissingSquares (rules.js) has
    placed them for the current Singularity game. Unlike Black Hole
    Squares these are simply impassable — no wormhole redirect, just a
    square no move may ever land its footprint on (see rules.js's

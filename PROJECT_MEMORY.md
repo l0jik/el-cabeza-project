@@ -401,8 +401,9 @@ then a real Begin Game.
   `<ElCabeza3D>`, in `apps/neon.jsx`/`apps/unified.jsx`) — a real,
   deliberately-scoped-out feature, not a quick add. Assessed directly
   with the user and explicitly deferred.
-- **TOPOLOGY — Missing Squares, wired and real.** Two rotationally-
-  mirrored squares (same manual-pick-plus-180°-mirror model as Black
+- **TOPOLOGY — Missing Squares, wired and real.** One to five pairs of
+  rotationally-mirrored squares (see "Up to five Missing Square pairs"
+  below) (same manual-pick-plus-180°-mirror model as Black
   Hole Squares, same ghost-grid picker reused via a `kind` param —
   `PAIRED_SQUARE_KINDS`/`renderPairedSquarePicker`/`renderPairedSquare-
   PlacementRow` in `themes/neon-singularity.js`) that are simply
@@ -411,7 +412,7 @@ then a real Begin Game.
   TOPOLOGIES rather than as a LAW — it changes the board's playable
   shape, not a movement rule — toggled via `selections.topologies.
   missingSquares`, placement in the separate top-level `selections.
-  missingSquare.manual` (same split reasoning as `blackHole` not being
+  missingSquare` (`{ spots, count }`) (same split reasoning as `blackHole` not being
   nested under `laws`). Engine: `MISSING_SQUARES` (`engine/
   constants.js`, mirrors `BLACK_HOLES`'s plain-module-state pattern
   exactly, including the AI worker's own cross-boundary thread —
@@ -481,14 +482,43 @@ lands on one; the pre-game Anomaly button also avoids the live
 - **"Random" placement is a real spot rolled at setup time**, not a
   deferral to Begin Game (that deferral made a random spot invisible to the
   other feature's picker and read as "random lost my selection").
-  `rollPairedSquare` (neon-singularity.js) stores `{ manual, random: true }`
-  — rolled on the player's side, off the standard opening for the chosen
-  board size (`initialPiecesFor(rows, cols)` in engine/rules.js), off the
-  other feature's squares, and for Black Holes out of the back rows. It
-  runs when a feature is switched on with no spot, on "Use random" /
-  "Re-roll", and again for random spots when TOPOLOGY rows/cols change. A
-  hand pick sets `random: false`. At Begin Game a randomized MATTER opening
-  is placed around the chosen spots (`applyMatterRoster(..., chosenSpots)`).
+  `fillPairedSpots` (neon-singularity.js) stores concrete spots marked
+  `random: true` — rolled on the player's side, off the standard opening
+  for the chosen board size (`initialPiecesFor(rows, cols)` in
+  engine/rules.js), off the other feature's squares, and for Black Holes
+  out of the back rows. It runs when a feature is switched on, on the
+  **Random** button, when the Missing Squares count changes, and again for
+  random spots when TOPOLOGY rows/cols change. A hand pick sets
+  `random: false`. At Begin Game a randomized MATTER opening is placed
+  around the chosen spots (`applyMatterRoster(..., chosenSpots)`).
+  **Button names (user's words): "Select" opens the picker and "Random"
+  rolls — never "roll"/"re-roll"/"choose spot".**
+- **Up to five Missing Square pairs (ten squares).** Shape:
+  `selections.missingSquare = { spots: [{row,col,random}], count: 1..5 }`
+  (`MAX_MISSING_PAIRS`). Black Holes keep `{ manual, random }`, and the
+  generic helpers `pairedSpots`/`setPairedSpots`/`pairedCells`/
+  `pairedCount` hide the difference. `normalizeSelections` loads an older
+  single-spot save (`{manual, random}`) as one spot with count 1. A **Pairs**
+  count drum (`missing-count`, 1-5) sits in the placement block under the
+  toggle. Raising it fills new spots at random. Lowering it trims random
+  spots first, then hand-picked ones. The **Random** button re-rolls only
+  the random spots, or all of them when every spot is hand-picked. The
+  Missing Squares picker is **multi-select over a draft**
+  (`s.missingSquaresDraft`). A tap adds a spot, and when the draft is
+  full a random spot gives way. Tapping a hand spot removes it, and tapping
+  a random spot (dashed) keeps it. **Done** commits the draft and fills
+  any open spots at random. Cancel or a backdrop tap discards the draft.
+  The Black Hole picker stays single-tap and auto-closes.
+  **Missing Squares never wall off the board:**
+  `missingSquaresKeepPath(missing, rows, cols)` (engine/rules.js) requires
+  every non-missing square to be orthogonally connected, with pieces
+  ignored. `pickMissingSquares(..., existing)` only accepts pairs that
+  pass. `pickMissingSquarePairs` builds `count` pairs. The picker marks
+  cells that would wall off the board with a red dash, blocks them, and
+  shows a red `missing-picker-wall-note` that pulses on tap.
+  `buildMissingSquaresPlacement` at Begin keeps every spot that is still
+  valid and replaces the rest with random pairs. `MISSING_SQUARES` is a
+  flat list, in [spot, mirror] pairs.
 - **Black Holes can never sit in either side's back two rows** (rows 0-1
   and rows-2..rows-1): `blackHoleRowAllowed` in `engine/rules.js` gates
   both random placement (`pickBlackHoleSquares`) and a manual pick

@@ -117,7 +117,8 @@ function otherBlackHole(square) {
 }
 
 /* Missing Squares TOPOLOGIES option: MISSING_SQUARES is either [] (off)
-   or exactly the two paired squares pickMissingSquares below placed.
+   or one to five rotationally-paired squares pickMissingSquares below
+   placed (two to ten squares in all).
    Unlike a black hole there's no verdict object to build — a candidate
    whose footprint overlaps one at all is simply illegal, checked
    alongside inBounds at both chokepoints every move type funnels
@@ -224,7 +225,7 @@ export function evaluateBlockLanding(pieces, candidate, travelDir) {
    all is exceedingly rare, and degrading to "the feature has no effect
    this game" ([]) is a reasonable fallback rather than something worth
    more engineering. */
-function pickPairedSquares(pieces, rows, cols, avoid, attempts, rowAllowed = () => true) {
+function pickPairedSquares(pieces, rows, cols, avoid, attempts, rowAllowed = () => true, accept = () => true) {
   for (let i = 0; i < attempts; i++) {
     const r = Math.floor(Math.random() * rows);
     if (!rowAllowed(r, rows)) continue;
@@ -234,7 +235,9 @@ function pickPairedSquares(pieces, rows, cols, avoid, attempts, rowAllowed = () 
     if (r === r2 && c === c2) continue; // odd-dimension center coincidence -- can't hold two on one square
     if (getPieceAt(pieces, r, c) || getPieceAt(pieces, r2, c2)) continue;
     if (avoid.some((a) => (a.row === r && a.col === c) || (a.row === r2 && a.col === c2))) continue;
-    return [{ row: r, col: c }, { row: r2, col: c2 }];
+    const pair = [{ row: r, col: c }, { row: r2, col: c2 }];
+    if (!accept(pair)) continue;
+    return pair;
   }
   return [];
 }
@@ -250,13 +253,59 @@ export function pickBlackHoleSquares(pieces, rows, cols, avoid = [], attempts = 
   return pickPairedSquares(pieces, rows, cols, avoid, attempts, blackHoleRowAllowed);
 }
 
+/* Is every square that ISN'T missing still reachable from every other
+   (orthogonal steps, pieces ignored since they move)? Missing Squares may
+   never wall off part of the board — every random pick and every hand
+   pick in the sphere's picker is checked against this. */
+export function missingSquaresKeepPath(missing, rows, cols) {
+  const gone = new Set(missing.filter((m) => m.row >= 0 && m.row < rows && m.col >= 0 && m.col < cols).map((m) => m.row * cols + m.col));
+  const open = rows * cols - gone.size;
+  if (open <= 0) return false;
+  let start = 0;
+  while (gone.has(start)) start++;
+  const seen = new Set([start]);
+  const queue = [start];
+  while (queue.length) {
+    const i = queue.pop();
+    const r = Math.floor(i / cols), c = i % cols;
+    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nr = r + dr, nc = c + dc;
+      if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+      const j = nr * cols + nc;
+      if (gone.has(j) || seen.has(j)) continue;
+      seen.add(j);
+      queue.push(j);
+    }
+  }
+  return seen.size === open;
+}
+
 /* Missing Squares' own placement — same rotational-pairing/random-
    fallback shape as pickBlackHoleSquares, kept as its own exported name
    (rather than callers reaching for pickPairedSquares directly) so a
    theme importing this reads "Missing Squares' placement function," not
-   an internal implementation detail shared with a different feature. */
-export function pickMissingSquares(pieces, rows, cols, avoid = [], attempts = 200) {
-  return pickPairedSquares(pieces, rows, cols, avoid, attempts);
+   an internal implementation detail shared with a different feature.
+   `existing` = missing squares already placed this game (up to five
+   pairs are allowed): the new pair never lands on one, and never
+   combines with them to wall off part of the board. */
+export function pickMissingSquares(pieces, rows, cols, avoid = [], attempts = 200, existing = []) {
+  return pickPairedSquares(
+    pieces, rows, cols, avoid.concat(existing), attempts, () => true,
+    (pair) => missingSquaresKeepPath(existing.concat(pair), rows, cols)
+  );
+}
+
+/* Up to `count` pairs in total: `existing` (already-placed missing
+   squares, kept as-is) plus fresh random pairs until the count is met or
+   no legal spot remains. Returns every square, existing first. */
+export function pickMissingSquarePairs(pieces, rows, cols, count, avoid = [], existing = []) {
+  const out = existing.slice();
+  while (out.length < count * 2) {
+    const pair = pickMissingSquares(pieces, rows, cols, avoid, 200, out);
+    if (!pair.length) break;
+    out.push(...pair);
+  }
+  return out;
 }
 
 export function legalRolls(pieces, piece) {

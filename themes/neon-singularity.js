@@ -33,7 +33,7 @@ import {
   SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws, getBoardDimensions,
   setBlackHoles as setActiveBlackHoles, setMissingSquares as setActiveMissingSquares,
 } from "../engine/constants.js";
-import { pickBlackHoleSquares, pickMissingSquares, blackHoleRowAllowed, initialPiecesFor } from "../engine/rules.js";
+import { pickBlackHoleSquares, pickMissingSquares, blackHoleRowAllowed, initialPiecesFor, missingSquaresKeepPath } from "../engine/rules.js";
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
 // SINGULARITY invite: the cathedral bell tolls and a black curtain fades
@@ -566,12 +566,14 @@ function createDefaultSelections() {
     // side of the board, whose 180-degree mirror is the paired hole (see
     // the picker in renderPairedSquarePicker and buildBlackHolePlacement).
     blackHole: { manual: null, random: false },
-    // Missing Squares placement — same shape/reasoning as blackHole
-    // above, its own top-level field rather than nested under topologies
-    // for the same reason blackHole isn't nested under laws: the picker
-    // logic is generic and only visually lives inside its category's
-    // overlay, not structurally bound to it.
-    missingSquare: { manual: null, random: false },
+    // Missing Squares placement — its own top-level field rather than
+    // nested under topologies for the same reason blackHole isn't nested
+    // under laws: the picker logic is generic and only visually lives
+    // inside its category's overlay, not structurally bound to it.
+    // `count` pairs (1-5) are wanted; `spots` holds the player's-side half
+    // of each placed pair ({row,col,random}), hand-picked or rolled at
+    // random — each one's 180-degree mirror is its partner.
+    missingSquare: { spots: [], count: 1 },
   };
 }
 
@@ -604,11 +606,18 @@ function summarizeCategory(key, selections) {
     if (!isCategoryActive("topologies", selections)) return "TAP TO CONFIGURE";
     const { rows, cols, missingSquares } = selections.topologies;
     const sized = rows !== DEFAULT_BOARD_DIM || cols !== DEFAULT_BOARD_DIM;
-    if (sized && missingSquares) return `${rows} × ${cols} · MISSING SQUARES`;
+    const n = selections.missingSquare.count;
+    const missingText = n > 1 ? `MISSING SQUARES ×${n}` : "MISSING SQUARES";
+    if (sized && missingSquares) return `${rows} × ${cols} · ${missingText}`;
     if (sized) return `${rows} × ${cols} BOARD`;
-    return "MISSING SQUARES";
+    return missingText;
   }
   return "";
+}
+
+// "Missing squares (3 pairs)" — each pair is a spot plus its mirror.
+function missingSquaresLabel(count) {
+  return `Missing squares (${count} pair${count === 1 ? "" : "s"})`;
 }
 
 /* The in-game Current Variants flyout's data: the specials this game
@@ -634,10 +643,14 @@ function buildVariantsSnapshot(selections) {
   const { rows, cols, missingSquares } = selections.topologies;
   const topoItems = [];
   if (rows !== DEFAULT_BOARD_DIM || cols !== DEFAULT_BOARD_DIM) topoItems.push(`${rows} × ${cols} board`);
-  if (missingSquares) topoItems.push("Missing squares");
+  if (missingSquares) topoItems.push(missingSquaresLabel(selections.missingSquare.count));
   if (topoItems.length) groups.push({ key: "topologies", label: "TOPOLOGY", items: topoItems });
   return groups;
 }
+
+// How many mirrored pairs of Missing Squares a game may have (5 pairs =
+// 10 squares).
+const MAX_MISSING_PAIRS = 5;
 
 // The 180-degree point-symmetric partner of a cell — the paired hole for
 // a manually-placed one, the same mirror createInitialPieces uses.
@@ -689,11 +702,31 @@ function buildBlackHolePlacement(selections, rows, cols, pieces, avoid) {
   );
 }
 
+/* Missing Squares' version, for up to five pairs: every chosen spot
+   (hand-picked or rolled) that's still free of pieces and of `avoid` and
+   keeps a path across the board is kept as-is, and any spot that isn't
+   is replaced by a fresh random pair — so the game always gets `count`
+   pairs when the board has room for them. */
 function buildMissingSquaresPlacement(selections, rows, cols, pieces, avoid) {
-  return buildPairedSquarePlacement(
-    selections && selections.missingSquare && selections.missingSquare.manual,
-    rows, cols, pieces, avoid, pickMissingSquares
-  );
+  const ms = (selections && selections.missingSquare) || { spots: [], count: 1 };
+  const out = [];
+  (ms.spots || []).forEach((p) => {
+    if (out.length >= ms.count * 2 || p.row >= rows || p.col >= cols) return;
+    const m = mirrorCell(p.row, p.col, rows, cols);
+    if (m.row === p.row && m.col === p.col) return;
+    if (cellOccupied(pieces, p.row, p.col) || cellOccupied(pieces, m.row, m.col)) return;
+    if (cellReserved(avoid, p.row, p.col) || cellReserved(avoid, m.row, m.col)) return;
+    if (cellReserved(out, p.row, p.col)) return;
+    const pair = [{ row: p.row, col: p.col }, m];
+    if (!missingSquaresKeepPath([...out, ...pair], rows, cols)) return;
+    out.push(...pair);
+  });
+  while (out.length < ms.count * 2) {
+    const pair = pickMissingSquares(pieces || [], rows, cols, avoid || [], 200, out);
+    if (!pair.length) break;
+    out.push(...pair);
+  }
+  return out;
 }
 
 // Circular distance in u-space (u wraps at 0/1, since the sphere's
@@ -812,8 +845,23 @@ function normalizeSelections(saved) {
     },
     topologies: pick(d.topologies, src.topologies),
     blackHole: { manual: cell(src.blackHole && src.blackHole.manual), random: !!(src.blackHole && src.blackHole.random) },
-    missingSquare: { manual: cell(src.missingSquare && src.missingSquare.manual), random: !!(src.missingSquare && src.missingSquare.random) },
+    missingSquare: normalizeMissingSquare(src.missingSquare, cell),
   };
+}
+// Missing Squares' saved shape: { spots, count }. A configuration saved
+// back when only one pair existed ({ manual, random }) loads as a single
+// spot with a count of 1.
+function normalizeMissingSquare(src, cell) {
+  const m = src && typeof src === "object" ? src : {};
+  const raw = Array.isArray(m.spots) ? m.spots : m.manual ? [{ ...m.manual, random: !!m.random }] : [];
+  const spots = [];
+  raw.forEach((q) => {
+    const c = cell(q);
+    if (c && !spots.some((o) => o.row === c.row && o.col === c.col)) spots.push({ ...c, random: !!q.random });
+  });
+  const n = Number.isInteger(m.count) ? m.count : spots.length || 1;
+  const count = Math.min(MAX_MISSING_PAIRS, Math.max(1, n));
+  return { spots: spots.slice(0, count), count };
 }
 // Short human summary for a saved configuration's list row.
 function describeSelections(sel) {
@@ -1755,58 +1803,134 @@ const PAIRED_SQUARE_KINDS = {
   },
 };
 
+/* Generic accessors over the two features' selections shapes: Black
+   Holes hold a single { manual, random } spot, Missing Squares a list of
+   { row, col, random } spots (up to `count`). Each spot is the player's-
+   side half of a pair; the 180-degree mirror is its partner. */
+function otherPairedKind(kind) {
+  return kind === "blackHole" ? "missingSquare" : "blackHole";
+}
+function pairedFeatureOn(sel, kind) {
+  return kind === "blackHole" ? !!sel.laws.blackHoleSquares : !!sel.topologies.missingSquares;
+}
+function pairedCount(sel, kind) {
+  return kind === "blackHole" ? 1 : sel.missingSquare.count;
+}
+function pairedSpots(sel, kind) {
+  if (kind === "blackHole") {
+    const b = sel.blackHole;
+    return b.manual ? [{ row: b.manual.row, col: b.manual.col, random: !!b.random }] : [];
+  }
+  return sel.missingSquare.spots;
+}
+function setPairedSpots(sel, kind, spots) {
+  if (kind === "blackHole") {
+    const p = spots[0];
+    sel.blackHole = p ? { manual: { row: p.row, col: p.col }, random: !!p.random } : { manual: null, random: true };
+  } else {
+    sel.missingSquare = { ...sel.missingSquare, spots: spots.map((p) => ({ row: p.row, col: p.col, random: !!p.random })) };
+  }
+}
+// Every square (spots + mirrors) a list of spots covers on this board.
+function spotCells(spots, rows, cols) {
+  const out = [];
+  spots.forEach((p) => {
+    if (p.row < rows && p.col < cols) out.push({ row: p.row, col: p.col }, mirrorCell(p.row, p.col, rows, cols));
+  });
+  return out;
+}
+// Every square a feature currently covers — [] when it's off.
+function pairedCells(sel, kind) {
+  if (!pairedFeatureOn(sel, kind)) return [];
+  const { rows, cols } = sel.topologies;
+  return spotCells(pairedSpots(sel, kind), rows, cols);
+}
+// Rows a feature's spot may sit in: the player's side (the bottom
+// floor(rows/2) rows — the mirror lands on top), and for Black Holes
+// never either side's back two rows.
+function pairedRowAllowed(kind, r, rows) {
+  return r >= rows - Math.floor(rows / 2) && r < rows && (kind !== "blackHole" || blackHoleRowAllowed(r, rows));
+}
+
 /* "Random" is a real, concrete spot rolled NOW (and stored with
    random:true), not a deferral to Begin Game — so the other feature's
    picker, the summary and a saved configuration all see it. Rolled on the
    player's side (the mirror pairs on the far side), off the standard
    opening pieces for the chosen board size, off the other feature's
-   squares, and — for Black Holes — out of both back two rows. A
-   customized/randomized MATTER opening is placed around it at Begin Game;
-   if a piece still ends up on it there, Begin falls back to a fresh roll. */
-function rollPairedSquare(s, kind) {
-  const k = PAIRED_SQUARE_KINDS[kind];
-  const { rows, cols } = s.selections.topologies;
-  const otherKind = kind === "blackHole" ? "missingSquare" : "blackHole";
-  const otherOn = otherKind === "blackHole" ? s.selections.laws.blackHoleSquares : s.selections.topologies.missingSquares;
-  const om = otherOn && s.selections[PAIRED_SQUARE_KINDS[otherKind].manualField].manual;
-  const avoid = om && om.row < rows && om.col < cols ? [om, mirrorCell(om.row, om.col, rows, cols)] : [];
+   squares, and — for Black Holes — out of both back two rows. Missing
+   Squares also never wall off part of the board (missingSquaresKeepPath).
+   A customized/randomized MATTER opening is placed around them at Begin
+   Game; if a piece still ends up on one there, Begin falls back to a
+   fresh roll.
+
+   fillPairedSpots keeps every still-valid spot (hand-picked first, then
+   random ones unless `rerollRandom`), trims to the feature's count —
+   random spots go first — and fills any shortfall at random. */
+function fillPairedSpots(s, kind, rerollRandom) {
+  const sel = s.selections;
+  const { rows, cols } = sel.topologies;
+  const count = pairedCount(sel, kind);
   const pieces = initialPiecesFor(rows, cols);
-  const pick = kind === "blackHole" ? pickBlackHoleSquares : pickMissingSquares;
+  const avoid = pairedCells(sel, otherPairedKind(kind));
+  const current = pairedSpots(sel, kind);
+  const kept = [];
+  const fits = (p) => {
+    if (!pairedRowAllowed(kind, p.row, rows) || p.col >= cols) return false;
+    const m = mirrorCell(p.row, p.col, rows, cols);
+    if (cellOccupied(pieces, p.row, p.col) || cellOccupied(pieces, m.row, m.col)) return false;
+    if (cellReserved(avoid, p.row, p.col) || cellReserved(avoid, m.row, m.col)) return false;
+    if (kept.some((q) => q.row === p.row && q.col === p.col)) return false;
+    return kind === "blackHole" || missingSquaresKeepPath(spotCells([...kept, p], rows, cols), rows, cols);
+  };
+  current.filter((p) => !p.random).forEach((p) => { if (kept.length < count && fits(p)) kept.push({ ...p, random: false }); });
+  if (!rerollRandom) current.filter((p) => p.random).forEach((p) => { if (kept.length < count && fits(p)) kept.push({ ...p, random: true }); });
   const playerSideStart = rows - Math.floor(rows / 2);
-  for (let i = 0; i < 20; i++) {
-    const pair = pick(pieces, rows, cols, avoid);
+  for (let tries = 0; kept.length < count && tries < 40; tries++) {
+    const pair = kind === "blackHole"
+      ? pickBlackHoleSquares(pieces, rows, cols, avoid)
+      : pickMissingSquares(pieces, rows, cols, avoid, 200, spotCells(kept, rows, cols));
     if (!pair.length) break;
     const mine = pair.find((q) => q.row >= playerSideStart);
-    if (mine) {
-      s.selections[k.manualField] = { manual: { row: mine.row, col: mine.col }, random: true };
-      return true;
-    }
+    if (mine) kept.push({ row: mine.row, col: mine.col, random: true });
   }
-  s.selections[k.manualField] = { manual: null, random: true };
-  return false;
+  setPairedSpots(sel, kind, kept);
+  return kept.length === count;
+}
+/* The Random button: re-rolls just the random spots, keeping hand-picked
+   ones — or, when every spot is hand-picked, re-rolls them all. */
+function randomizePairedSpots(s, kind) {
+  const spots = pairedSpots(s.selections, kind);
+  const allHand = spots.length >= pairedCount(s.selections, kind) && spots.every((p) => !p.random);
+  if (allHand) setPairedSpots(s.selections, kind, []);
+  return fillPairedSpots(s, kind, true);
 }
 // When the board size changes, spots that were rolled at random re-roll
-// for the new size (a hand-picked spot is left for the player to adjust).
+// for the new size; hand-picked spots stay while they still fit.
 function rerollRandomPairedSquares(s) {
-  if (s.selections.topologies.missingSquares && s.selections.missingSquare.random) rollPairedSquare(s, "missingSquare");
-  if (s.selections.laws.blackHoleSquares && s.selections.blackHole.random) rollPairedSquare(s, "blackHole");
+  if (s.selections.topologies.missingSquares) fillPairedSpots(s, "missingSquare", true);
+  if (s.selections.laws.blackHoleSquares) fillPairedSpots(s, "blackHole", true);
 }
 
 function renderPairedSquarePlacementRow(t, kind) {
   const k = PAIRED_SQUARE_KINDS[kind];
   const s = t.singularity;
   const h = React.createElement;
-  const manual = s.selections[k.manualField].manual;
+  const sel = s.selections;
+  const spots = pairedSpots(sel, kind);
+  const count = pairedCount(sel, kind);
+  const multi = kind === "missingSquare";
   const openPicker = () => {
     s[k.pickerFlag] = true;
     s[k.confirmFlag] = null;
     s[`${k.pickerFlag}Pulse`] = 0; // no leftover caption pulse on reopen
+    s[`${k.pickerFlag}WallPulse`] = 0;
+    // The multi-spot picker edits a draft, committed on Done.
+    if (multi) s.missingSquaresDraft = spots.map((p) => ({ ...p }));
     if (s.audio && s.audio.playSingularityOpen) s.audio.playSingularityOpen();
     s.bump();
   };
-  const isRandom = !!s.selections[k.manualField].random;
-  const reroll = () => {
-    rollPairedSquare(s, kind);
+  const randomize = () => {
+    randomizePairedSpots(s, kind);
     if (s.audio && s.audio.playSelect) s.audio.playSelect();
     s.labelsDirty = true;
     s.bump();
@@ -1817,6 +1941,35 @@ function renderPairedSquarePlacementRow(t, kind) {
     border: "1px solid rgba(102,217,255,0.4)", background: "rgba(102,217,255,0.1)", color: "#dffaff",
     ...extra,
   });
+  const where = (p) => `row ${p.row + 1}, column ${p.col + 1}${multi && p.random ? " (random)" : ""}`;
+  let text;
+  if (!spots.length) {
+    text = "No free spot could be found — select one on your side of the board, or try Random.";
+  } else if (!multi) {
+    text = `${spots[0].random ? "Placed at random" : "Placed"} on your side at ${where(spots[0])}. Its mirror on the far side is the paired ${k.pairedNoun}.`;
+  } else {
+    text = `Placed on your side at ${spots.map(where).join(" · ")}. Each one's mirror on the far side is its pair.`;
+    if (spots.length < count) text += ` Only ${spots.length} of ${count} fit without walling off part of the board.`;
+  }
+  const countDrum = multi
+    ? h(
+        "div",
+        { style: { display: "flex", alignItems: "center", gap: 14, marginBottom: 8 } },
+        h(DrumRoller, {
+          id: "missing-count", label: "Pairs", value: count, min: 1, max: MAX_MISSING_PAIRS, compact: true,
+          onChange: (v) => {
+            sel.missingSquare = { ...sel.missingSquare, count: v };
+            fillPairedSpots(s, "missingSquare", false);
+            s.labelsDirty = true; s.bump();
+          },
+        }),
+        h(
+          "div",
+          { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.72)", lineHeight: 1.45 } },
+          `${count} on your side, mirrored on the far side — ${count * 2} missing squares in all.`
+        )
+      )
+    : null;
   return h(
     "div",
     {
@@ -1824,18 +1977,17 @@ function renderPairedSquarePlacementRow(t, kind) {
       "data-testid": k.placementTestid,
       style: { margin: "0 0 6px 36px", padding: "9px 11px", border: "1px solid rgba(102,217,255,0.22)", borderRadius: 4, background: "rgba(102,217,255,0.05)" },
     },
+    countDrum,
     h(
       "div",
-      { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.72)", marginBottom: 7, lineHeight: 1.45 } },
-      manual
-        ? `${isRandom ? "Placed at random" : "Placed"} on your side at row ${manual.row + 1}, column ${manual.col + 1}. Its mirror on the far side is the paired ${k.pairedNoun}.`
-        : "No free spot could be found — choose one on your side of the board, or re-roll."
+      { "data-testid": `${k.placementTestid}-text`, style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.72)", marginBottom: 7, lineHeight: 1.45 } },
+      text
     ),
     h(
       "div",
       { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
-      h("button", { type: "button", "data-testid": k.placeBtnTestid, onClick: openPicker, style: btn() }, isRandom || !manual ? "◇ Choose spot" : "◇ Change placement"),
-      h("button", { type: "button", "data-testid": k.clearBtnTestid, onClick: reroll, style: btn({ border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)" }) }, isRandom ? "Re-roll" : "Use random")
+      h("button", { type: "button", "data-testid": k.placeBtnTestid, onClick: openPicker, style: btn() }, "Select"),
+      h("button", { type: "button", "data-testid": k.clearBtnTestid, onClick: randomize, style: btn({ border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)" }) }, "Random")
     )
   );
 }
@@ -1849,7 +2001,13 @@ function renderPairedSquarePlacementRow(t, kind) {
    closes back to the category overlay. Sized to the ACTUAL board
    (getBoardDimensions), since TOPOLOGIES' size is not applied to real
    play. The center row of an odd board self-mirrors, so it's excluded
-   from the selectable side. */
+   from the selectable side.
+
+   Missing Squares take up to `count` spots, so their picker is
+   multi-select over a draft (s.missingSquaresDraft): tap to add or
+   remove a spot, tap a random one to keep it, then Done — any spots
+   left open are filled at random. A square that would wall off part of
+   the board (missingSquaresKeepPath) can't be picked. */
 function renderPairedSquarePicker(t, kind) {
   const k = PAIRED_SQUARE_KINDS[kind];
   const s = t.singularity;
@@ -1860,35 +2018,39 @@ function renderPairedSquarePicker(t, kind) {
   // board the game WILL play on (which finalizeSingularityBegin then makes
   // real, and buildBlackHolePlacement/buildMissingSquaresPlacement read
   // back as getBoardDimensions).
-  const { rows, cols } = s.selections.topologies;
+  const sel = s.selections;
+  const { rows, cols } = sel.topologies;
+  const multi = kind === "missingSquare";
+  const count = pairedCount(sel, kind);
   const confirm = s[k.confirmFlag] || null;
-  // Reopened with a placement already made (Change placement): show that
-  // stored cell (and its mirror) as the current selection so the player
-  // sees where it sits and can move it, instead of a blank grid. A live
-  // confirm (a just-made pick mid-flash) takes precedence over it.
-  const existing =
-    !confirm && s.selections[k.manualField] && s.selections[k.manualField].manual
-      ? s.selections[k.manualField].manual
-      : null;
-  const highlight = confirm || existing;
-  const mirror = highlight ? mirrorCell(highlight.row, highlight.col, rows, cols) : null;
-  // Player's side = the bottom floor(rows/2) rows (mirror lands on top).
-  const selRowStart = rows - Math.floor(rows / 2);
+  // The spots shown as chosen. Black Holes: a live confirm (a just-made
+  // pick mid-flash), else the stored spot (reopened to change it) so the
+  // player sees where it sits. Missing Squares: the working draft.
+  let shown;
+  if (multi) {
+    shown = s.missingSquaresDraft || [];
+  } else {
+    const hl = confirm || pairedSpots(sel, kind)[0] || null;
+    shown = hl ? [{ row: hl.row, col: hl.col, random: false }] : [];
+  }
+  const shownAt = (r, c) => shown.find((p) => p.row === r && p.col === c) || null;
+  const mirrorOfShownAt = (r, c) => shown.find((p) => {
+    const m = mirrorCell(p.row, p.col, rows, cols);
+    return m.row === r && m.col === c;
+  }) || null;
+  const handCount = shown.filter((p) => !p.random).length;
   // Black Holes may never go in either side's back two rows (engine's
   // blackHoleRowAllowed), so those rows aren't pickable on your side —
   // and their mirrors are the far side's back rows, excluded with them.
   const backRowsBanned = kind === "blackHole";
-  const selectableRow = (r) => r >= selRowStart && (!backRowsBanned || blackHoleRowAllowed(r, rows));
+  const selectableRow = (r) => pairedRowAllowed(kind, r, rows);
 
-  // The OTHER paired feature's manually-placed squares (and mirrors), if
-  // it's on — shown in their in-game look and not pickable, so a Black
-  // Hole can't be placed onto a Missing Square or vice versa.
-  const otherKind = kind === "blackHole" ? "missingSquare" : "blackHole";
-  const otherOn = otherKind === "blackHole" ? s.selections.laws.blackHoleSquares : s.selections.topologies.missingSquares;
-  const otherManual = otherOn && s.selections[PAIRED_SQUARE_KINDS[otherKind].manualField].manual;
-  const otherCells = otherManual && otherManual.row < rows && otherManual.col < cols
-    ? [otherManual, mirrorCell(otherManual.row, otherManual.col, rows, cols)]
-    : [];
+  // The OTHER paired feature's squares (spots and mirrors), if it's on —
+  // shown in their in-game look and not pickable, so a Black Hole can't
+  // be placed onto a Missing Square or vice versa.
+  const otherKind = otherPairedKind(kind);
+  const otherOn = pairedFeatureOn(sel, otherKind);
+  const otherCells = pairedCells(sel, otherKind);
   const isOther = (r, c) => otherCells.some((o) => o.row === r && o.col === c);
   // In-game look underneath, with a red wash + red outline on top so the
   // cell reads as "this is that feature" AND "not allowed here."
@@ -1904,35 +2066,94 @@ function renderPairedSquarePicker(t, kind) {
   // caption's key changes, restarting its CSS animation).
   const pulseKey = `${k.pickerFlag}Pulse`;
   const pulseBlocked = () => { s[pulseKey] = (s[pulseKey] || 0) + 1; s.bump(); };
+  const wallPulseKey = `${k.pickerFlag}WallPulse`;
+  const pulseWall = () => { s[wallPulseKey] = (s[wallPulseKey] || 0) + 1; if (s.audio && s.audio.playBlocked) s.audio.playBlocked(); s.bump(); };
+  const fullPulseKey = `${k.pickerFlag}FullPulse`;
+  const pulseFull = () => { s[fullPulseKey] = (s[fullPulseKey] || 0) + 1; s.bump(); };
 
-  const close = () => { s[k.pickerFlag] = false; s[k.confirmFlag] = null; s.bump(); };
-  const pick = (r, c) => {
-    if (confirm) return; // a pick is already confirming and about to close
-    s.selections[k.manualField] = { manual: { row: r, col: c }, random: false };
-    s[k.confirmFlag] = { row: r, col: c };
+  // Multi-select: the draft after adding a hand-picked spot at (r,c) — a
+  // random spot gives way when the draft is already at the count — or
+  // null when every spot is already hand-picked.
+  const draftWith = (r, c) => {
+    const d = shown.slice();
+    if (d.length >= count) {
+      let i = -1;
+      d.forEach((p, j) => { if (p.random) i = j; });
+      if (i < 0) return null;
+      d.splice(i, 1);
+    }
+    d.push({ row: r, col: c, random: false });
+    return d;
+  };
+  const wallsOff = (r, c) => {
+    if (!multi) return false;
+    const d = draftWith(r, c);
+    return !!d && !missingSquaresKeepPath(spotCells(d, rows, cols), rows, cols);
+  };
+
+  const close = () => { s[k.pickerFlag] = false; s[k.confirmFlag] = null; s.missingSquaresDraft = null; s.bump(); };
+  const finish = () => {
+    if (!s[k.confirmFlag]) s[k.confirmFlag] = true;
     if (s.audio && s.audio.playSelect) s.audio.playSelect();
     s.bump();
     setTimeout(() => {
       s[k.pickerFlag] = false;
       s[k.confirmFlag] = null;
+      s.missingSquaresDraft = null;
       s.labelsDirty = true;
       s.bump();
     }, 780);
+  };
+  const pick = (r, c) => {
+    if (confirm) return; // a pick is already confirming and about to close
+    if (multi) {
+      const at = shownAt(r, c);
+      if (at && !at.random) {
+        s.missingSquaresDraft = shown.filter((p) => p !== at); // tap again to remove
+      } else if (at) {
+        s.missingSquaresDraft = shown.map((p) => (p === at ? { ...p, random: false } : p)); // keep a random one
+      } else {
+        const d = draftWith(r, c);
+        if (!d) { pulseFull(); return; }
+        s.missingSquaresDraft = d;
+      }
+      if (s.audio && s.audio.playSelect) s.audio.playSelect();
+      s.bump();
+      return;
+    }
+    setPairedSpots(sel, kind, [{ row: r, col: c, random: false }]);
+    s[k.confirmFlag] = { row: r, col: c };
+    finish();
+  };
+  // Done (multi-select): commit the draft, then fill any open spots at
+  // random; the flash shows the final layout, random fills included.
+  const done = () => {
+    if (confirm) return;
+    setPairedSpots(sel, kind, shown);
+    fillPairedSpots(s, kind, false);
+    s.missingSquaresDraft = pairedSpots(sel, kind).map((p) => ({ ...p }));
+    finish();
   };
 
   const cells = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const other = isOther(r, c);
-      const sel = selectableRow(r) && !other;
-      const isChosen = highlight && highlight.row === r && highlight.col === c;
-      const isMirror = mirror && mirror.row === r && mirror.col === c;
+      const selectable = selectableRow(r) && !other;
+      const chosen = shownAt(r, c);
+      const mirrorOf = mirrorOfShownAt(r, c);
+      const walled = selectable && !chosen && wallsOff(r, c);
+      const isRandom = !!((chosen || mirrorOf) && (chosen || mirrorOf).random);
+      let onClick;
+      if (!confirm) onClick = walled ? pulseWall : selectable ? () => pick(r, c) : other ? pulseBlocked : undefined;
       cells.push(h("div", {
         key: `${r}-${c}`,
         "data-testid": `${k.cellPrefix}-${r}-${c}`,
-        "data-selectable": sel ? "true" : "false",
+        "data-selectable": selectable && !walled ? "true" : "false",
         "data-occupied-by": other ? otherKind : undefined,
-        onClick: sel && !confirm ? () => pick(r, c) : other && !confirm ? pulseBlocked : undefined,
+        "data-chosen": chosen ? (chosen.random ? "random" : "hand") : undefined,
+        "data-wall-blocked": walled ? "true" : undefined,
+        onClick,
         style: other ? {
           aspectRatio: "1 / 1",
           borderRadius: 2,
@@ -1943,16 +2164,23 @@ function renderPairedSquarePicker(t, kind) {
           aspectRatio: "1 / 1",
           borderRadius: 2,
           boxSizing: "border-box",
-          border: `1px solid ${sel ? "rgba(102,217,255,0.4)" : "rgba(120,140,170,0.16)"}`,
-          background: isChosen
-            ? "#07080b"
-            : isMirror
-              ? "rgba(174,182,194,0.55)"
-              : sel ? "rgba(102,217,255,0.08)" : "rgba(40,50,66,0.28)",
-          boxShadow: isChosen
-            ? "0 0 12px rgba(174,182,194,0.85), inset 0 0 7px rgba(0,0,0,0.95)"
-            : isMirror ? "0 0 9px rgba(174,182,194,0.55)" : "none",
-          cursor: sel && !confirm ? "pointer" : "default",
+          // A randomly-placed spot (Missing Squares) shows dashed, so it
+          // reads as "placed for you — tap to keep it."
+          border: walled
+            ? "1px dashed rgba(255,90,90,0.75)"
+            : (chosen || mirrorOf) && isRandom
+              ? "1px dashed rgba(174,182,194,0.8)"
+              : `1px solid ${selectable ? "rgba(102,217,255,0.4)" : "rgba(120,140,170,0.16)"}`,
+          background: chosen
+            ? (isRandom ? "rgba(7,8,11,0.62)" : "#07080b")
+            : mirrorOf
+              ? (isRandom ? "rgba(174,182,194,0.3)" : "rgba(174,182,194,0.55)")
+              : walled ? "rgba(255,70,70,0.1)"
+                : selectable ? "rgba(102,217,255,0.08)" : "rgba(40,50,66,0.28)",
+          boxShadow: chosen
+            ? (isRandom ? "inset 0 0 6px rgba(0,0,0,0.9)" : "0 0 12px rgba(174,182,194,0.85), inset 0 0 7px rgba(0,0,0,0.95)")
+            : mirrorOf && !isRandom ? "0 0 9px rgba(174,182,194,0.55)" : "none",
+          cursor: confirm ? "default" : walled ? "not-allowed" : selectable ? "pointer" : "default",
         },
       }));
     }
@@ -2004,9 +2232,48 @@ function renderPairedSquarePicker(t, kind) {
         },
         ...cells
       ),
-      label("Your side · tap a square", confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"),
+      label(
+        multi ? `Your side · ${handCount} of ${count} selected` : "Your side · tap a square",
+        confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"
+      ),
+      multi
+        ? h(
+            "div",
+            {
+              key: `full-hint-${s[fullPulseKey] || 0}`,
+              "data-testid": `${k.pickerTestid}-hint`,
+              style: {
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: "0.04em", lineHeight: 1.5,
+                color: "rgba(207,216,220,0.65)", textAlign: "center", padding: "4px 6px", borderRadius: 4,
+                animation: s[fullPulseKey] ? "ecBlockedPulse 0.9s ease-out" : "none",
+              },
+            },
+            h("style", null, "@keyframes ecBlockedPulse{0%{background:rgba(255,70,70,0.55);box-shadow:0 0 18px rgba(255,90,90,0.9);transform:scale(1.04)}100%{background:rgba(255,70,70,0.08);box-shadow:none;transform:scale(1)}}"),
+            handCount >= count
+              ? `All ${count} are selected — tap one to remove it first.`
+              : `Tap up to ${count}; tap one again to remove it. Any left open are placed at random when you press Done. Dashed squares were placed at random — tap one to keep it.`
+          )
+        : null,
       backRowsBanned
         ? h("div", { "data-testid": `${k.pickerTestid}-backrows-note`, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: "0.06em", color: "rgba(207,216,220,0.6)", textAlign: "center" } }, "Black holes can't go in either side's back two rows.")
+        : null,
+      multi && cells.some((cEl) => cEl.props["data-wall-blocked"])
+        ? h(
+            "div",
+            {
+              key: `wall-note-${s[wallPulseKey] || 0}`,
+              "data-testid": `${k.pickerTestid}-wall-note`,
+              "data-pulse": String(s[wallPulseKey] || 0),
+              style: {
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.06em", lineHeight: 1.45,
+                color: "#ff6b6b", textAlign: "center", padding: "6px 8px", borderRadius: 4,
+                border: "1px dashed rgba(255,90,90,0.55)", background: "rgba(255,70,70,0.08)",
+                animation: s[wallPulseKey] ? "ecBlockedPulse 0.9s ease-out" : "none",
+              },
+            },
+            h("style", null, "@keyframes ecBlockedPulse{0%{background:rgba(255,70,70,0.55);box-shadow:0 0 18px rgba(255,90,90,0.9);transform:scale(1.04)}100%{background:rgba(255,70,70,0.08);box-shadow:none;transform:scale(1)}}"),
+            "┆ Red-dashed squares would wall off part of the board — there must always be a path through."
+          )
         : null,
       otherOn && !otherCells.length
         ? h(
@@ -2047,9 +2314,20 @@ function renderPairedSquarePicker(t, kind) {
       confirm
         ? h("div", { "data-testid": k.confirmTestid, style: { textAlign: "center", fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: "0.12em", color: "#dffaff", textShadow: "0 0 10px rgba(142,243,255,0.7)" } }, "◇ SELECTED")
         : h(
-            "button",
-            { type: "button", "data-testid": k.cancelTestid, onClick: close, style: { alignSelf: "center", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 4, border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)", cursor: "pointer" } },
-            "Cancel"
+            "div",
+            { style: { display: "flex", gap: 10, justifyContent: "center" } },
+            multi
+              ? h(
+                  "button",
+                  { type: "button", "data-testid": `${k.pickerTestid}-done`, onClick: done, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 4, border: "1px solid rgba(102,217,255,0.5)", background: "rgba(102,217,255,0.14)", color: "#dffaff", cursor: "pointer" } },
+                  "Done"
+                )
+              : null,
+            h(
+              "button",
+              { type: "button", "data-testid": k.cancelTestid, onClick: close, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 4, border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)", cursor: "pointer" } },
+              "Cancel"
+            )
           )
     )
   );
@@ -2214,7 +2492,7 @@ function renderCategoryOverlay(t) {
           () => {
             sel.laws[item.key] = !sel.laws[item.key];
             // Turning Black Holes on with no spot yet rolls a real one now.
-            if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares && !sel.blackHole.manual) rollPairedSquare(s, "blackHole");
+            if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares && !sel.blackHole.manual) fillPairedSpots(s, "blackHole", false);
             s.labelsDirty = true; s.bump();
           },
           `law-${item.key}`
@@ -2265,11 +2543,11 @@ function renderCategoryOverlay(t) {
     // its toggle (its own sub-option), same as Black Hole Squares' does
     // under LAWS — only shown once the toggle is on.
     const missingRow = renderCheckboxRow(
-      { key: "missingSquares", label: "Missing Squares", blurb: "Two rotationally-mirrored squares no piece can ever enter or pass through." },
+      { key: "missingSquares", label: "Missing Squares", blurb: "One to five rotationally-mirrored pairs of squares no piece can ever enter or pass through." },
       sel.topologies.missingSquares,
       () => {
         sel.topologies.missingSquares = !sel.topologies.missingSquares;
-        if (sel.topologies.missingSquares && !sel.missingSquare.manual) rollPairedSquare(s, "missingSquare");
+        if (sel.topologies.missingSquares) fillPairedSpots(s, "missingSquare", false);
         s.labelsDirty = true; s.bump();
       },
       "topo-missingSquares"
@@ -2410,7 +2688,7 @@ function renderSummaryPanel(setupExtras) {
   const lawsOn = LAWS_ITEMS.filter((i) => sel.laws[i.key]);
   const piecesOn = MATTER_NEW_PIECES.filter((i) => sel.matter.newPieces[i.key]);
   const rosterLine = MATTER_ROSTER.map((p) => `${sel.matter.roster[p.key]} ${p.label}`).join(" · ");
-  const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}${sel.topologies.missingSquares ? ", Missing Squares" : ""}`;
+  const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}${sel.topologies.missingSquares ? `, ${missingSquaresLabel(sel.missingSquare.count)}` : ""}`;
   const lineStyle = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: "rgba(207,216,220,0.85)", lineHeight: 1.7 };
   const tagStyle = { color: "#66d9ff", letterSpacing: "0.08em" };
 
@@ -2831,9 +3109,9 @@ export function useSingularityPhase({
       // A randomized opening is placed around the spots already chosen on
       // the sphere (hand-picked or rolled), so what was shown is what plays.
       const chosenSpots = [
-        sel.topologies.missingSquares && sel.missingSquare.manual,
-        sel.laws.blackHoleSquares && sel.blackHole.manual,
-      ].filter(Boolean);
+        ...(sel.topologies.missingSquares ? sel.missingSquare.spots.map((p) => ({ row: p.row, col: p.col })) : []),
+        ...(sel.laws.blackHoleSquares && sel.blackHole.manual ? [sel.blackHole.manual] : []),
+      ];
       const placedPieces = (applyMatterRoster && applyMatterRoster(sel.matter, matterActive, chosenSpots)) || pieces;
       // LAWS: the sphere's checkboxes are plain booleans shaped like
       // ACTIVE_LAWS; this is where they actually take effect (and get
