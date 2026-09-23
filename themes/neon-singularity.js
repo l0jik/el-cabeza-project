@@ -1827,6 +1827,22 @@ function renderPairedSquarePicker(t, kind) {
         ...cells
       ),
       label("Your side · tap a square", confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"),
+      otherOn && !otherCells.length
+        ? h(
+            "div",
+            {
+              "data-testid": `${k.pickerTestid}-random-note`,
+              style: {
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.06em", lineHeight: 1.45,
+                color: "#ff6b6b", textAlign: "center", padding: "6px 8px", borderRadius: 4,
+                border: "1px solid rgba(255,90,90,0.45)", background: "rgba(255,70,70,0.08)",
+              },
+            },
+            otherKind === "missingSquare"
+              ? "Missing Squares are on with random placement — their spots aren't decided until Begin Game, so they can't be shown here. Place them in Topology to see them (black holes will never land on them either way)."
+              : "Black Holes are on with random placement — their spots aren't decided until Begin Game, so they can't be shown here. Place them in Laws to see them (missing squares will never land on them either way)."
+          )
+        : null,
       otherCells.length
         ? h(
             "div",

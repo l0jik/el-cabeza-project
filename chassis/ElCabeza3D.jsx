@@ -47,7 +47,32 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
 /*  (south), +y = up.                                                   */
 /* ------------------------------------------------------------------ */
 
+/* Opponent settings (Human/AI side, AI difficulty, Human-vs-Human starting
+   side) persist in this browser across page reloads, not just across New
+   Game. Every read/write is guarded — storage can be blocked or throw (a
+   private window, disabled site data), and the game must boot fine
+   either way, just falling back to the defaults. */
+const OPPONENT_PREFS_KEY = "el-cabeza:opponent";
+function loadOpponentPrefs() {
+  const prefs = { aiPlayer: null, aiDifficulty: "medium", humanStartSide: "dark" };
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(OPPONENT_PREFS_KEY) || "null");
+    if (saved && typeof saved === "object") {
+      if (saved.aiPlayer === null || saved.aiPlayer === "dark" || saved.aiPlayer === "light") prefs.aiPlayer = saved.aiPlayer;
+      if (Object.prototype.hasOwnProperty.call(AI_DIFFICULTY, saved.aiDifficulty)) prefs.aiDifficulty = saved.aiDifficulty;
+      if (saved.humanStartSide === "dark" || saved.humanStartSide === "light") prefs.humanStartSide = saved.humanStartSide;
+    }
+  } catch (e) { /* storage unavailable — defaults */ }
+  return prefs;
+}
+function saveOpponentPrefs(prefs) {
+  try { window.localStorage.setItem(OPPONENT_PREFS_KEY, JSON.stringify(prefs)); } catch (e) { /* storage unavailable */ }
+}
+
 export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange }) {
+  const opponentPrefsRef = useRef(null);
+  if (opponentPrefsRef.current === null) opponentPrefsRef.current = loadOpponentPrefs();
+  const savedOpponent = opponentPrefsRef.current;
   const { COLORS, HEX, EDGE_RADIUS, modalBackdrop, modalSurface, canvasGradientStart, canvasGradientEnd } = theme;
   /* Display face for the masthead title and modal headers (Move Log,
      the intro panel, the end-of-game banner). Themes without their own
@@ -235,7 +260,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   const resetTransitionUntilRef = useRef(0);
 
   const [pieces, setPieces] = useState(createInitialPieces);
-  const [currentPlayer, setCurrentPlayer] = useState("dark");
+  const [currentPlayer, setCurrentPlayer] = useState(savedOpponent.humanStartSide);
   const [selectedId, setSelectedId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
   const [hoverShadow, setHoverShadow] = useState(null);
@@ -332,7 +357,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   const [logCopyFailed, setLogCopyFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   /* null = two-player. "dark"/"light" = that color is AI-controlled. */
-  const [aiPlayer, setAiPlayer] = useState(null);
+  const [aiPlayer, setAiPlayer] = useState(savedOpponent.aiPlayer);
   /* Which of the opponent row's two sub-views is showing — decoupled
      from aiPlayer itself so the Back control can return to the
      Human/AI-side picker WITHOUT resetting the actual selection. Picking
@@ -341,7 +366,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      so the picker shows whichever side was actually chosen, still
      selected, letting a player go back purely to CONFIRM the choice
      rather than starting over. */
-  const [showOpponentPicker, setShowOpponentPicker] = useState(true);
+  const [showOpponentPicker, setShowOpponentPicker] = useState(savedOpponent.aiPlayer === null);
   /* Null, or "dark"/"light" for ~1.3s right after that side is picked —
      drives the brief confirmation overlay over the dock panel (see its
      own render below) so picking an AI side reads as an obvious,
@@ -361,8 +386,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      their existing fixed Dark-first behavior regardless of this. Left
      unreset by New Game itself — it's a standing preference, same as
      aiDifficulty. */
-  const [humanStartSide, setHumanStartSide] = useState("dark");
-  const [aiDifficulty, setAiDifficulty] = useState("medium");
+  const [humanStartSide, setHumanStartSide] = useState(savedOpponent.humanStartSide);
+  const [aiDifficulty, setAiDifficulty] = useState(savedOpponent.aiDifficulty);
+  useEffect(() => {
+    saveOpponentPrefs({ aiPlayer, aiDifficulty, humanStartSide });
+  }, [aiPlayer, aiDifficulty, humanStartSide]);
   const [aiThinking, setAiThinking] = useState(false);
   /* Every game — Human vs Human included — now needs an explicit Begin
      Game press before anything can move, not just an AI-opponent game.
