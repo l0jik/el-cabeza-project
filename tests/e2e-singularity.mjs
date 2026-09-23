@@ -417,6 +417,19 @@ if (state.activeCategory === "topologies") {
   await page.locator('[data-testid="missing-picker-cancel"]').click();
   await page.waitForTimeout(200);
 
+  // "Use random" rolls a REAL spot now (not a deferral to Begin Game), so
+  // it stays a concrete, visible placement — the Black Hole picker below
+  // must still show it. Regression for "random loses the selection".
+  await page.locator('[data-testid="missing-clear-btn"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  const rolled = state.selections.missingSquare;
+  check("Use random rolls and keeps a real missing-square spot",
+    rolled.random === true && !!rolled.manual && rolled.manual.row >= state.selections.topologies.rows / 2,
+    JSON.stringify(rolled));
+  check("the placement row now offers Re-roll",
+    (await page.locator('[data-testid="missing-clear-btn"]').textContent()) === "Re-roll");
+
   await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
   await page.waitForTimeout(200);
 }

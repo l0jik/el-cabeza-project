@@ -478,6 +478,17 @@ lands on one; the pre-game Anomaly button also avoids the live
   equator labels out of view. Covered in `tests/e2e-singularity.mjs`
   (drag to pole, hover hint, save, change, load restores exactly + lands on
   summary, delete with confirm).
+- **"Random" placement is a real spot rolled at setup time**, not a
+  deferral to Begin Game (that deferral made a random spot invisible to the
+  other feature's picker and read as "random lost my selection").
+  `rollPairedSquare` (neon-singularity.js) stores `{ manual, random: true }`
+  — rolled on the player's side, off the standard opening for the chosen
+  board size (`initialPiecesFor(rows, cols)` in engine/rules.js), off the
+  other feature's squares, and for Black Holes out of the back rows. It
+  runs when a feature is switched on with no spot, on "Use random" /
+  "Re-roll", and again for random spots when TOPOLOGY rows/cols change. A
+  hand pick sets `random: false`. At Begin Game a randomized MATTER opening
+  is placed around the chosen spots (`applyMatterRoster(..., chosenSpots)`).
 - **Black Holes can never sit in either side's back two rows** (rows 0-1
   and rows-2..rows-1): `blackHoleRowAllowed` in `engine/rules.js` gates
   both random placement (`pickBlackHoleSquares`) and a manual pick

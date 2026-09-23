@@ -33,7 +33,7 @@ import {
   SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws, getBoardDimensions,
   setBlackHoles as setActiveBlackHoles, setMissingSquares as setActiveMissingSquares,
 } from "../engine/constants.js";
-import { pickBlackHoleSquares, pickMissingSquares, blackHoleRowAllowed } from "../engine/rules.js";
+import { pickBlackHoleSquares, pickMissingSquares, blackHoleRowAllowed, initialPiecesFor } from "../engine/rules.js";
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
 // SINGULARITY invite: the cathedral bell tolls and a black curtain fades
@@ -565,13 +565,13 @@ function createDefaultSelections() {
     // default), or { row, col } = a manually-chosen cell on the player's
     // side of the board, whose 180-degree mirror is the paired hole (see
     // the picker in renderPairedSquarePicker and buildBlackHolePlacement).
-    blackHole: { manual: null },
+    blackHole: { manual: null, random: false },
     // Missing Squares placement — same shape/reasoning as blackHole
     // above, its own top-level field rather than nested under topologies
     // for the same reason blackHole isn't nested under laws: the picker
     // logic is generic and only visually lives inside its category's
     // overlay, not structurally bound to it.
-    missingSquare: { manual: null },
+    missingSquare: { manual: null, random: false },
   };
 }
 
@@ -811,8 +811,8 @@ function normalizeSelections(saved) {
       randomizeStart: typeof matterSrc.randomizeStart === "boolean" ? matterSrc.randomizeStart : d.matter.randomizeStart,
     },
     topologies: pick(d.topologies, src.topologies),
-    blackHole: { manual: cell(src.blackHole && src.blackHole.manual) },
-    missingSquare: { manual: cell(src.missingSquare && src.missingSquare.manual) },
+    blackHole: { manual: cell(src.blackHole && src.blackHole.manual), random: !!(src.blackHole && src.blackHole.random) },
+    missingSquare: { manual: cell(src.missingSquare && src.missingSquare.manual), random: !!(src.missingSquare && src.missingSquare.random) },
   };
 }
 // Short human summary for a saved configuration's list row.
@@ -1755,6 +1755,43 @@ const PAIRED_SQUARE_KINDS = {
   },
 };
 
+/* "Random" is a real, concrete spot rolled NOW (and stored with
+   random:true), not a deferral to Begin Game — so the other feature's
+   picker, the summary and a saved configuration all see it. Rolled on the
+   player's side (the mirror pairs on the far side), off the standard
+   opening pieces for the chosen board size, off the other feature's
+   squares, and — for Black Holes — out of both back two rows. A
+   customized/randomized MATTER opening is placed around it at Begin Game;
+   if a piece still ends up on it there, Begin falls back to a fresh roll. */
+function rollPairedSquare(s, kind) {
+  const k = PAIRED_SQUARE_KINDS[kind];
+  const { rows, cols } = s.selections.topologies;
+  const otherKind = kind === "blackHole" ? "missingSquare" : "blackHole";
+  const otherOn = otherKind === "blackHole" ? s.selections.laws.blackHoleSquares : s.selections.topologies.missingSquares;
+  const om = otherOn && s.selections[PAIRED_SQUARE_KINDS[otherKind].manualField].manual;
+  const avoid = om && om.row < rows && om.col < cols ? [om, mirrorCell(om.row, om.col, rows, cols)] : [];
+  const pieces = initialPiecesFor(rows, cols);
+  const pick = kind === "blackHole" ? pickBlackHoleSquares : pickMissingSquares;
+  const playerSideStart = rows - Math.floor(rows / 2);
+  for (let i = 0; i < 20; i++) {
+    const pair = pick(pieces, rows, cols, avoid);
+    if (!pair.length) break;
+    const mine = pair.find((q) => q.row >= playerSideStart);
+    if (mine) {
+      s.selections[k.manualField] = { manual: { row: mine.row, col: mine.col }, random: true };
+      return true;
+    }
+  }
+  s.selections[k.manualField] = { manual: null, random: true };
+  return false;
+}
+// When the board size changes, spots that were rolled at random re-roll
+// for the new size (a hand-picked spot is left for the player to adjust).
+function rerollRandomPairedSquares(s) {
+  if (s.selections.topologies.missingSquares && s.selections.missingSquare.random) rollPairedSquare(s, "missingSquare");
+  if (s.selections.laws.blackHoleSquares && s.selections.blackHole.random) rollPairedSquare(s, "blackHole");
+}
+
 function renderPairedSquarePlacementRow(t, kind) {
   const k = PAIRED_SQUARE_KINDS[kind];
   const s = t.singularity;
@@ -1767,7 +1804,13 @@ function renderPairedSquarePlacementRow(t, kind) {
     if (s.audio && s.audio.playSingularityOpen) s.audio.playSingularityOpen();
     s.bump();
   };
-  const clearManual = () => { s.selections[k.manualField].manual = null; s.labelsDirty = true; s.bump(); };
+  const isRandom = !!s.selections[k.manualField].random;
+  const reroll = () => {
+    rollPairedSquare(s, kind);
+    if (s.audio && s.audio.playSelect) s.audio.playSelect();
+    s.labelsDirty = true;
+    s.bump();
+  };
   const btn = (extra) => ({
     fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
     padding: "7px 12px", borderRadius: 4, cursor: "pointer",
@@ -1785,16 +1828,14 @@ function renderPairedSquarePlacementRow(t, kind) {
       "div",
       { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.72)", marginBottom: 7, lineHeight: 1.45 } },
       manual
-        ? `Placed on your side at row ${manual.row + 1}, column ${manual.col + 1}. Its mirror on the far side is the paired ${k.pairedNoun}.`
-        : "Placed at random by default — or choose where it sits on your side of the board (its mirror pairs on the far side)."
+        ? `${isRandom ? "Placed at random" : "Placed"} on your side at row ${manual.row + 1}, column ${manual.col + 1}. Its mirror on the far side is the paired ${k.pairedNoun}.`
+        : "No free spot could be found — choose one on your side of the board, or re-roll."
     ),
     h(
       "div",
       { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
-      h("button", { type: "button", "data-testid": k.placeBtnTestid, onClick: openPicker, style: btn() }, manual ? "◇ Change placement" : "◇ Place on board"),
-      manual
-        ? h("button", { type: "button", "data-testid": k.clearBtnTestid, onClick: clearManual, style: btn({ border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)" }) }, "Use random")
-        : null
+      h("button", { type: "button", "data-testid": k.placeBtnTestid, onClick: openPicker, style: btn() }, isRandom || !manual ? "◇ Choose spot" : "◇ Change placement"),
+      h("button", { type: "button", "data-testid": k.clearBtnTestid, onClick: reroll, style: btn({ border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)" }) }, isRandom ? "Re-roll" : "Use random")
     )
   );
 }
@@ -1867,7 +1908,7 @@ function renderPairedSquarePicker(t, kind) {
   const close = () => { s[k.pickerFlag] = false; s[k.confirmFlag] = null; s.bump(); };
   const pick = (r, c) => {
     if (confirm) return; // a pick is already confirming and about to close
-    s.selections[k.manualField].manual = { row: r, col: c };
+    s.selections[k.manualField] = { manual: { row: r, col: c }, random: false };
     s[k.confirmFlag] = { row: r, col: c };
     if (s.audio && s.audio.playSelect) s.audio.playSelect();
     s.bump();
@@ -1979,8 +2020,8 @@ function renderPairedSquarePicker(t, kind) {
               },
             },
             otherKind === "missingSquare"
-              ? "Missing Squares are on with random placement — their spots aren't decided until Begin Game, so they can't be shown here. Place them in Topology to see them (black holes will never land on them either way)."
-              : "Black Holes are on with random placement — their spots aren't decided until Begin Game, so they can't be shown here. Place them in Laws to see them (missing squares will never land on them either way)."
+              ? "Missing Squares are on but have no spot yet — set one in Topology to see it here (black holes will never land on them either way)."
+              : "Black Holes are on but have no spot yet — set one in Laws to see it here (missing squares will never land on them either way)."
           )
         : null,
       otherCells.length
@@ -2170,7 +2211,12 @@ function renderCategoryOverlay(t) {
         const row = renderCheckboxRow(
           item,
           sel.laws[item.key],
-          () => { sel.laws[item.key] = !sel.laws[item.key]; s.labelsDirty = true; s.bump(); },
+          () => {
+            sel.laws[item.key] = !sel.laws[item.key];
+            // Turning Black Holes on with no spot yet rolls a real one now.
+            if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares && !sel.blackHole.manual) rollPairedSquare(s, "blackHole");
+            s.labelsDirty = true; s.bump();
+          },
           `law-${item.key}`
         );
         if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares) {
@@ -2221,7 +2267,11 @@ function renderCategoryOverlay(t) {
     const missingRow = renderCheckboxRow(
       { key: "missingSquares", label: "Missing Squares", blurb: "Two rotationally-mirrored squares no piece can ever enter or pass through." },
       sel.topologies.missingSquares,
-      () => { sel.topologies.missingSquares = !sel.topologies.missingSquares; s.labelsDirty = true; s.bump(); },
+      () => {
+        sel.topologies.missingSquares = !sel.topologies.missingSquares;
+        if (sel.topologies.missingSquares && !sel.missingSquare.manual) rollPairedSquare(s, "missingSquare");
+        s.labelsDirty = true; s.bump();
+      },
       "topo-missingSquares"
     );
     body = h(
@@ -2232,11 +2282,11 @@ function renderCategoryOverlay(t) {
         { style: { display: "flex", gap: 22, justifyContent: "center", padding: "6px 0 14px" } },
         h(DrumRoller, {
           id: "board-rows", label: "Rows", value: sel.topologies.rows, min: MIN_BOARD_DIM, max: MAX_BOARD_DIM,
-          onChange: (v) => { sel.topologies.rows = v; s.labelsDirty = true; s.bump(); },
+          onChange: (v) => { sel.topologies.rows = v; rerollRandomPairedSquares(s); s.labelsDirty = true; s.bump(); },
         }),
         h(DrumRoller, {
           id: "board-cols", label: "Cols", value: sel.topologies.cols, min: MIN_BOARD_DIM, max: MAX_BOARD_DIM,
-          onChange: (v) => { sel.topologies.cols = v; s.labelsDirty = true; s.bump(); },
+          onChange: (v) => { sel.topologies.cols = v; rerollRandomPairedSquares(s); s.labelsDirty = true; s.bump(); },
         })
       ),
       ...(sel.topologies.missingSquares ? [missingRow, renderPairedSquarePlacementRow(t, "missingSquare")] : [missingRow])
@@ -2778,7 +2828,13 @@ export function useSingularityPhase({
       // two rectangular new types) placed via the same Anomaly generator
       // the plain button uses. Randomized only when the player opted in or
       // customized — a plain default game keeps the standard formation.
-      const placedPieces = (applyMatterRoster && applyMatterRoster(sel.matter, matterActive)) || pieces;
+      // A randomized opening is placed around the spots already chosen on
+      // the sphere (hand-picked or rolled), so what was shown is what plays.
+      const chosenSpots = [
+        sel.topologies.missingSquares && sel.missingSquare.manual,
+        sel.laws.blackHoleSquares && sel.blackHole.manual,
+      ].filter(Boolean);
+      const placedPieces = (applyMatterRoster && applyMatterRoster(sel.matter, matterActive, chosenSpots)) || pieces;
       // LAWS: the sphere's checkboxes are plain booleans shaped like
       // ACTIVE_LAWS; this is where they actually take effect (and get
       // forwarded to the AI worker via setActiveLaws' shared mechanism).

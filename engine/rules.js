@@ -29,6 +29,13 @@ const LIGHT_ORDER = ["chato", "opa", "cabeza", "turrito", "flaco"];
 const SETUP_WIDTH = 4; // columns Dark's formation spans
 
 export function createInitialPieces() {
+  return initialPiecesFor(BOARD_ROWS, BOARD_COLS);
+}
+
+// The standard opening for an explicit board size, independent of the live
+// engine dimensions — e.g. to keep a setup-time random Black Hole / Missing
+// Square off the opening pieces of a board that isn't applied yet.
+export function initialPiecesFor(BOARD_ROWS, BOARD_COLS) {
   const colOffset = Math.floor((BOARD_COLS - SETUP_WIDTH) / 2);
   const dark = DARK_SETUP.map((p) => ({
     id: p.id,
