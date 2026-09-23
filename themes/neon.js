@@ -4660,14 +4660,36 @@ export function createSoundscape() {
       o.stop(t0 + p.d + 0.1);
     });
 
+    // A dissonant "bong" midtone clang, deliberately OFF the clean
+    // partials series above (4.7x the prime — not close to any of that
+    // series' ratios) so it reads as a separate, slightly cracked color
+    // rather than just another overtone. Two triangle oscillators a
+    // hair apart in pitch beat audibly against each other as they decay,
+    // giving the strike a discordant wobble instead of a pure tone.
+    const bongBase = PRIME * 4.7;
+    [bongBase, bongBase * 1.016].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      o.type = "triangle";
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(0.05, t0 + 0.006 + i * 0.003);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 3.2);
+      o.connect(g).connect(tone);
+      o.start(t0);
+      o.stop(t0 + 3.3);
+    });
+
     // Sub-bass rumble — a slow swell (not a strike) that gives the toll
-    // its physical, imposing weight underneath the partials.
+    // its physical, imposing weight underneath the partials. Kept
+    // noticeably lighter than the tonal partials/bong above it, so the
+    // toll reads less like a subwoofer hit and more like a struck bell.
     const sub = ctx.createOscillator();
     sub.type = "sine";
     sub.frequency.value = 32;
     const subG = ctx.createGain();
     subG.gain.setValueAtTime(0, t0);
-    subG.gain.linearRampToValueAtTime(0.16, t0 + 0.35);
+    subG.gain.linearRampToValueAtTime(0.12, t0 + 0.35);
     subG.gain.exponentialRampToValueAtTime(0.0001, t0 + 8.5);
     sub.connect(subG).connect(tone); // through the same lp/reverb path
     sub.start(t0);
