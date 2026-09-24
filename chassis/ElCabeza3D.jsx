@@ -5973,7 +5973,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           <div
             data-testid="points-counter"
             data-left={left}
-            aria-label={`${left} of ${budget} points left`}
+            aria-label={`${left} of ${budget} action points left`}
             style={{
               position: "fixed",
               left: "50%",
@@ -5992,7 +5992,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             }}
           >
             <style>{"@keyframes ecPointsRefund{0%{transform:scale(1.35);filter:brightness(1.8)}100%{transform:scale(1);filter:none}}"}</style>
-            <span style={{ opacity: 0.7 }}>Points</span>
+            <span style={{ opacity: 0.7 }}>Action points</span>
             <span key={pointsPulse} style={{ display: "flex", gap: 7, animation: pointsPulse ? "ecPointsRefund 0.6s ease-out" : "none" }}>
               {Array.from({ length: budget }, (_, i) => (
                 <span
@@ -6005,8 +6005,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                     boxSizing: "border-box",
                     border: `1.5px solid ${i < left && accent ? accent : COLORS.charcoal}`,
                     background: i < left ? fill : "transparent",
-                    boxShadow: i < left && accent ? `0 0 8px ${accent}` : "none",
-                    opacity: i < left ? 1 : 0.4,
+                    boxShadow: i < left && accent ? `0 0 5px ${accent}` : "none",
+                    // Dimmed per feedback: a quiet readout, not a beacon.
+                    opacity: i < left ? 0.55 : 0.28,
                     transition: "background 0.25s ease, opacity 0.25s ease",
                   }}
                 />

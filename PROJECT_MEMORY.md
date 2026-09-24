@@ -1516,7 +1516,7 @@ unaffected.
   left of Sound, or in its place when a theme has no audio.
 - Remembered in localStorage `el-cabeza:show-points`; off by default.
 - During play (hidden while the dock panel is open) it shows one dot
-  per point of `turnBudget()` at the bottom centre (`points-counter`,
+  per point of `turnBudget()` at the bottom centre, labelled "Action points", dimmed (filled 0.55, spent 0.28) per feedback (`points-counter`,
   `data-left`). Filled dots use the player's accent (Neon cyan/amber,
   glowing) or body colour (Standard); spent dots are hollow.
 - `pointsPulse` flashes it when a free detour refunds points.
