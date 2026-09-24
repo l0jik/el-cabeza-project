@@ -143,6 +143,7 @@ function missingSquareAt(row, col) {
    piece's overhang may hang over a Missing Square (see engine/shapes.js).
    For a box that's its whole footprint, as always. */
 function overlapsMissingSquare(candidate) {
+  if (!MISSING_SQUARES.length) return false; // the common case, checked at every node of an AI search
   return groundCellsOf(candidate).some(([r, c]) => missingSquareAt(r, c));
 }
 
@@ -159,6 +160,7 @@ function blackHoleVerdict(candidate) {
   // overhang may hang over a hole. And only a one-square piece can ever
   // enter — an odd-shaped piece never is one, even balanced on a single
   // cube, so it can never drop in.
+  if (!BLACK_HOLES.length) return { blocked: false, teleportTo: null }; // no holes this game
   const cells = groundCellsOf(candidate);
   const hit = cells.map(([r, c]) => blackHoleAt(r, c)).find(Boolean);
   if (!hit) return { blocked: false, teleportTo: null };

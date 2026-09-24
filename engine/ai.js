@@ -2,8 +2,9 @@
    the Standard and Neon theme sources before extraction (see
    build/scratch/) — pure logic, no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost, ACTIVE_LAWS, turnBudget, MAX_PIECES_PER_TURN } from "./constants.js";
-import { legalMovesFor, sameState } from "./rules.js";
+import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost, ACTIVE_LAWS, turnBudget, MAX_PIECES_PER_TURN, MISSING_SQUARES } from "./constants.js";
+import { legalMovesFor, legalRolls, legalCabezaSteps, sameState } from "./rules.js";
+import { maskAt } from "./shapes.js";
 
 /* Everything below is pure — no React, no Three.js. It only knows the
    game through the same functions a human's clicks already go through
@@ -349,13 +350,20 @@ function generateSplitTurns(pieces, player, turns) {
 }
 
 /* Scores a position from `forPlayer`'s point of view — higher is
-   better for them, regardless of whose turn it actually is. This is
-   the part that's genuinely hand-tuned rather than derived, and the
-   most likely thing to need adjusting once this is actually played
-   against.
+   better for them. The base terms always apply:
+   - each side's route cost: how many steps its lead Cabeza still needs
+     to reach its goal row, going around pieces and paying extra for
+     squares enemy blocks can land on (cabezaRouteCost);
+   - Cabezas on the board (material, decisive with two per side);
+   - mobility (legal rolls and Cabeza steps);
+   - crush threats, read by whose move it is (see evaluatePosition's
+     `toMove`).
+   The route term replaced raw "rows advanced", which made walking the
+   Cabeza forward the best-scoring move almost regardless of what stood
+   in its way — the AI ran its Cabeza into blocks rather than using
+   them. Tuned with tests/ai-sim.mjs (AI-vs-AI games).
 
-   `weights` layers optional positional terms on top of the base score
-   (progress/mobility/crush-threat below always apply regardless).
+   `weights` layers optional positional terms on top of the base score.
    Every term under DEFAULT_EVAL_WEIGHTS defaults to 0 — meaning "off,
    evaluates identically to before this existed" — and only becomes
    live when a difficulty's config actually sets it, so a tier that
@@ -367,55 +375,196 @@ export const DEFAULT_EVAL_WEIGHTS = {
   centrality: 0,
 };
 
-export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGHTS) {
+/* Scale of the evaluation's fixed terms (the difficulty-tunable ones
+   are DEFAULT_EVAL_WEIGHTS above). */
+// Per step of a Cabeza's route to its goal row (see cabezaRouteCost).
+const ROUTE_STEP_VALUE = 12;
+// A Cabeza as material: only ever decisive with MATTER's two-Cabeza
+// roster (losing a side's LAST Cabeza ends the game outright).
+const CABEZA_VALUE = 400;
+// What a route pays, in extra steps, to cross a square an enemy block can
+// land on next move — walking through it invites a crush.
+const ATTACKED_STEP_COST = 3;
+// A Cabeza that can be crushed by the side about to move: its last one
+// is as good as lost; one of two is lost material.
+const LAST_CABEZA_HANGING = 20000;
+// Mobility: per legal single move available.
+const MOBILITY_VALUE = 1.5;
+
+/* How many steps a Cabeza still needs to reach its goal row, walking
+   around every piece's ground cubes (it can pass under an overhang) and
+   around Missing Squares, with each square the enemy's blocks could land
+   on next move counting ATTACKED_STEP_COST extra. On an open board this
+   is exactly its rows-to-go (it steps diagonally), which is what the
+   evaluation used to measure directly; the difference is a Cabeza facing
+   a wall of blocks no longer reads as "nearly home", and a block that
+   closes or threatens its route gains real value. A small Dijkstra over
+   the board with a bucket queue (every cost is a small integer).
+   `blocked`/`attacked` are Uint8Arrays indexed row * BOARD_COLS + col. */
+// Reused across calls (this runs at every leaf of every search): the
+// distance table plus a ring of ATTACKED_STEP_COST + 2 buckets — every
+// edge costs 1 or 1 + ATTACKED_STEP_COST, so no pending entry is ever
+// further ahead than that. Resized when the board size changes.
+const ROUTE_RING = ATTACKED_STEP_COST + 2;
+let routeDist = null;
+let routeBuckets = null;
+let routeCounts = null;
+function cabezaRouteCost(cabeza, goalRow, blocked, attacked) {
+  const rows = BOARD_ROWS;
+  const cols = BOARD_COLS;
+  const n = rows * cols;
+  const unreachable = 2 * rows + 4;
+  if (!routeDist || routeDist.length !== n) {
+    routeDist = new Int16Array(n);
+    routeBuckets = Array.from({ length: ROUTE_RING }, () => new Int32Array(n * 8 + 1));
+    routeCounts = new Int32Array(ROUTE_RING);
+  }
+  const dist = routeDist;
+  dist.fill(0x7fff);
+  routeCounts.fill(0);
+  const startIdx = cabeza.row * cols + cabeza.col;
+  dist[startIdx] = 0;
+  routeBuckets[0][routeCounts[0]++] = startIdx;
+  let pending = 1;
+  for (let d = 0; pending > 0 && d < unreachable; d++) {
+    const slot = d % ROUTE_RING;
+    const bucket = routeBuckets[slot];
+    // Entries pushed onto this slot while it's being read belong to a
+    // later lap of the ring only if cost >= ROUTE_RING, which never
+    // happens, so reading up to the live count is safe.
+    for (let i = 0; i < routeCounts[slot]; i++) {
+      const idx = bucket[i];
+      pending--;
+      if (dist[idx] !== d) continue;
+      const r = (idx / cols) | 0;
+      if (r === goalRow) return d;
+      const c = idx - r * cols;
+      for (let dr = -1; dr <= 1; dr++) {
+        const nr = r + dr;
+        if (nr < 0 || nr >= rows) continue;
+        for (let dc = -1; dc <= 1; dc++) {
+          if (!dr && !dc) continue;
+          const nc = c + dc;
+          if (nc < 0 || nc >= cols) continue;
+          const ni = nr * cols + nc;
+          if (blocked[ni]) continue;
+          const nd = d + 1 + (attacked[ni] ? ATTACKED_STEP_COST : 0);
+          if (nd < dist[ni]) {
+            dist[ni] = nd;
+            const ns = nd % ROUTE_RING;
+            routeBuckets[ns][routeCounts[ns]++] = ni;
+            pending++;
+          }
+        }
+      }
+    }
+    routeCounts[slot] = 0;
+  }
+  return unreachable;
+}
+
+/* `toMove`: whose turn it is in this position (the search always knows).
+   It decides what a crush threat means: a Cabeza the side ABOUT TO MOVE
+   can crush is as good as gone, while a threat against the side to move
+   is only a problem it has to answer. Left out, the opponent of
+   `forPlayer` is assumed to move next (the cautious reading). */
+export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGHTS, toMove = null) {
   const oppPlayer = opponentOf(forPlayer);
-  const progressOf = (c) => (c.owner === "dark" ? c.row : BOARD_ROWS - 1 - c.row);
-  const myCabezas = pieces.filter((p) => p.type === "cabeza" && p.owner === forPlayer);
-  const oppCabezas = pieces.filter((p) => p.type === "cabeza" && p.owner === oppPlayer);
+  const mover = toMove || oppPlayer;
+  const myCabezas = [];
+  const oppCabezas = [];
+  for (const p of pieces) {
+    if (p.type !== "cabeza") continue;
+    if (p.owner === forPlayer) myCabezas.push(p);
+    else oppCabezas.push(p);
+  }
 
   // Losing every Cabeza means the last one was crushed on some earlier
   // ply of the search itself (not necessarily the position actually on
-  // screen) — a normal one-Cabeza-per-side game has at most one to
-  // begin with, so this is unchanged there. MATTER's 2-Cabeza option
-  // is the only way there's ever more than one to check.
+  // screen).
   if (myCabezas.length === 0) return -AI_WIN_SCORE;
   if (oppCabezas.length === 0) return AI_WIN_SCORE;
 
-  // With two Cabezas, the one FURTHEST along toward its own goal is
-  // the more relevant piece for every positional term below (progress,
-  // corridor gap) — it's the more immediate threat/asset, and this
-  // keeps those terms working with one concrete piece exactly like the
-  // original one-Cabeza-per-side model did, rather than rewriting each
-  // to reason about a pair. Mobility (below) already sums over every
-  // piece regardless, second Cabeza included.
-  const myCabeza = myCabezas.reduce((best, c) => (progressOf(c) > progressOf(best) ? c : best));
-  const oppCabeza = oppCabezas.reduce((best, c) => (progressOf(c) > progressOf(best) ? c : best));
-
-  // Progress toward each side's own goal row — dominant term, since
-  // reaching it wins outright regardless of anything else on the board.
-  const myProgress = progressOf(myCabeza);
-  const oppProgress = progressOf(oppCabeza);
-  let score = (myProgress - oppProgress) * 12;
-
-  // Mobility: total legal rolls/steps available across each side's
-  // pieces right now. Cheap proxy for "how much flexibility does this
-  // side actually have" — a block rolled into a dead corner is worth
-  // less than its mere presence on the board suggests.
+  /* One pass over every piece's legal moves feeds three terms:
+     mobility (how many moves each side has), crush threats (which
+     Cabezas a block could land on next move), and the squares each
+     side's blocks could land on (a Cabeza's route prices them in). */
+  const n = BOARD_ROWS * BOARD_COLS;
+  const blocked = new Uint8Array(n);
+  const attackedBy = { [forPlayer]: new Uint8Array(n), [oppPlayer]: new Uint8Array(n) };
+  const threatened = new Set(); // Cabeza ids a block can crush next move
   let myMobility = 0;
   let oppMobility = 0;
   for (const p of pieces) {
-    const count = Object.keys(legalMovesFor(pieces, p)).length;
+    // Rolls and Cabeza steps only: slides (and the shoves they carry)
+    // never crush, and checking them for every piece at every leaf more
+    // than doubled a MATTER game's evaluation time. Mobility counts the
+    // same kinds of move for both sides, so it stays a fair comparison.
+    const moves = p.type === "cabeza" ? legalCabezaSteps(pieces, p) : legalRolls(pieces, p);
+    let count = 0;
+    for (const dir in moves) {
+      count++;
+      if (p.type === "cabeza") continue;
+      const m = moves[dir];
+      if (m.crushes && m.crushes.type === "cabeza") threatened.add(m.crushes.id);
+      const cand = m.candidate;
+      const marks = attackedBy[p.owner];
+      for (let r = cand.row; r < cand.row + cand.h; r++) {
+        for (let c = cand.col; c < cand.col + cand.w; c++) {
+          // A box's every square touches the board; an odd shape's only
+          // where it has a ground cube (an overhang crushes nothing).
+          if (r >= 0 && r < BOARD_ROWS && c >= 0 && c < BOARD_COLS && (!cand.vox || (maskAt(cand, r, c) & 1))) marks[r * BOARD_COLS + c] = 1;
+        }
+      }
+    }
     if (p.owner === forPlayer) myMobility += count;
     else oppMobility += count;
+    if (p.type === "cabeza") continue; // a Cabeza's route steps around every OTHER piece
+    for (let r = p.row; r < p.row + p.h; r++) {
+      for (let c = p.col; c < p.col + p.w; c++) {
+        if (!p.vox || (maskAt(p, r, c) & 1)) blocked[r * BOARD_COLS + c] = 1;
+      }
+    }
   }
-  score += (myMobility - oppMobility) * 1.5;
+  for (const m of MISSING_SQUARES) blocked[m.row * BOARD_COLS + m.col] = 1;
+  // Cabezas block each other too (none may step onto another).
+  for (const c of [...myCabezas, ...oppCabezas]) blocked[c.row * BOARD_COLS + c.col] = 1;
 
-  // Immediate threat: can any enemy block crush my Cabeza on its very
-  // next move, from this exact position? A real search finds this
-  // organically at enough depth, but folding it into the leaf score too
-  // gives even a shallow (Easy-mode) search genuine defensive sense
-  // rather than none at all.
-  if (cabezaInDanger(pieces, forPlayer)) score -= 4000;
+  // Each side's Cabeza nearest its goal — the one the race is about.
+  const routeOf = (c) => {
+    const idx = c.row * BOARD_COLS + c.col;
+    blocked[idx] = 0; // its own square isn't an obstacle to itself
+    const cost = cabezaRouteCost(c, GOAL_ROW[c.owner], blocked, attackedBy[opponentOf(c.owner)]);
+    blocked[idx] = 1;
+    return cost;
+  };
+  let myRoute = Infinity;
+  let myCabeza = myCabezas[0];
+  for (const c of myCabezas) { const d = routeOf(c); if (d < myRoute) { myRoute = d; myCabeza = c; } }
+  let oppRoute = Infinity;
+  let oppCabeza = oppCabezas[0];
+  for (const c of oppCabezas) { const d = routeOf(c); if (d < oppRoute) { oppRoute = d; oppCabeza = c; } }
+
+  let score = (oppRoute - myRoute) * ROUTE_STEP_VALUE;
+  score += (myCabezas.length - oppCabezas.length) * CABEZA_VALUE;
+  score += (myMobility - oppMobility) * MOBILITY_VALUE;
+
+  /* Crush threats, read by who moves next. The side to move crushes one
+     threatened Cabeza: if that's the other side's last one the game is
+     effectively over; otherwise it's a Cabeza of material. A threat
+     against the side to move itself costs a little (it must spend its
+     turn answering) — unless two of its Cabezas are threatened at once,
+     when it can only save one. */
+  const myHit = myCabezas.filter((c) => threatened.has(c.id)).length;
+  const oppHit = oppCabezas.filter((c) => threatened.has(c.id)).length;
+  const hangingValue = (hit, total) => (hit === 0 ? 0 : hit >= total ? LAST_CABEZA_HANGING : CABEZA_VALUE * 0.9);
+  if (mover === oppPlayer) {
+    score -= hangingValue(myHit, myCabezas.length);
+    if (oppHit) score += oppHit >= 2 ? CABEZA_VALUE * 0.8 : 25;
+  } else {
+    score += hangingValue(oppHit, oppCabezas.length);
+    if (myHit) score -= myHit >= 2 ? CABEZA_VALUE * 0.8 : 25;
+  }
 
   /* Everything below is off unless a difficulty's config turns it on
      (see AI_DIFFICULTY). Mobility above already rewards "more legal
@@ -586,12 +735,12 @@ function recordHistory(history, turn, depth) {
    remaining-depth-indexed, since `depth` counts down instead. */
 export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, deadline, rootBias = null, weights = DEFAULT_EVAL_WEIGHTS, killers = EMPTY_KILLERS, history = EMPTY_HISTORY, ply = 0) {
   if (performance.now() > deadline) {
-    return { score: evaluatePosition(pieces, aiPlayer, weights), turn: null, timedOut: true };
+    return { score: evaluatePosition(pieces, aiPlayer, weights, player), turn: null, timedOut: true };
   }
 
   const turns = generateTurns(pieces, player);
   if (turns.length === 0 || depth === 0) {
-    return { score: evaluatePosition(pieces, aiPlayer, weights), turn: null, timedOut: false };
+    return { score: evaluatePosition(pieces, aiPlayer, weights, player), turn: null, timedOut: false };
   }
 
   const maximizing = player === aiPlayer;
@@ -641,7 +790,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
     let orderScore = 0;
     if (!terminal) {
       const undos = applyTurn(pieces, t);
-      orderScore = evaluatePosition(pieces, aiPlayer, weights);
+      orderScore = evaluatePosition(pieces, aiPlayer, weights, opponentOf(player));
       undoTurn(pieces, t, undos);
     }
     const key = moveKey(t);
@@ -662,6 +811,22 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
     return primary !== 0 ? primary : b.histScore - a.histScore;
   });
   turns.splice(0, turns.length, ...scoredTurns.map((s) => s.turn));
+  /* Beam: below a node that will search deeper, only the `beam` best-
+     ordered turns (three times as many at the root) are looked into;
+     game-ending turns always are. Without it, Split Movement's ~1000
+     turns a side left no time to look past the AI's own move at all —
+     every tier played a one-turn search. The ordering score already
+     reads crush threats, so a turn that hangs or wins a Cabeza is never
+     among the ones cut. 0 = full width. */
+  if (weights.beam && depth >= 2) {
+    const keep = (ply === 0 ? weights.beam * 3 : weights.beam) + scoredTurns.filter((st) => st.terminal).length;
+    if (turns.length > keep) turns.length = keep;
+  }
+  // The ordering score IS the leaf score one ply down (same position,
+  // same side to move), so a depth-1 node reads it straight back instead
+  // of recursing — which would generate the opponent's turns only to
+  // discard them and evaluate the identical position a second time.
+  const leafScore = depth === 1 ? new Map(scoredTurns.map((st) => [st.turn, st.orderScore])) : null;
 
   let bestScore = maximizing ? -Infinity : Infinity;
   let bestTurn = null;
@@ -672,7 +837,9 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
   // exists; recomputing it post-hoc against an already-undone turn
   // isn't possible with in-place mutation, so it has to be cached
   // going forward instead).
-  let bestTurnSafe = false;
+  // null = not worked out yet: only a tie ever needs it (see below), so
+  // it's computed on demand rather than for every candidate.
+  let bestTurnSafe = null;
   let timedOut = false;
 
   /* Computed once, not per-turn: whether `player`'s own Cabeza is
@@ -693,8 +860,10 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
       // for the sake of style.
       const sign = player === aiPlayer ? 1 : -1;
       score = sign * (AI_WIN_SCORE + depth);
+    } else if (leafScore && !rootBias) {
+      score = leafScore.get(turn);
     } else {
-      const child = minimaxSearch(
+      const child = leafScore ? { score: leafScore.get(turn), timedOut: false } : minimaxSearch(
         pieces,
         opponentOf(player),
         aiPlayer,
@@ -766,16 +935,22 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
       }
     }
 
-    // Cached while `turn` is still applied — see bestTurnSafe's own
-    // comment above for why this can no longer be recomputed later.
-    const turnSafe = !cabezaInDanger(pieces, player);
+    // Only a tie needs to know whether this turn leaves `player`'s own
+    // Cabeza safe — worked out while the turn is still applied.
+    const tied = score === bestScore && !!bestTurn;
+    const turnSafe = tied ? !cabezaInDanger(pieces, player) : null;
     undoTurn(pieces, turn, undos);
+    if (tied && bestTurnSafe === null) {
+      const bestUndos = applyTurn(pieces, bestTurn);
+      bestTurnSafe = !cabezaInDanger(pieces, player);
+      undoTurn(pieces, bestTurn, bestUndos);
+    }
 
     if (maximizing ? score > bestScore : score < bestScore) {
       bestScore = score;
       bestTurn = turn;
-      bestTurnSafe = turnSafe;
-    } else if (score === bestScore && bestTurn) {
+      bestTurnSafe = null;
+    } else if (tied) {
       // Tie-break for otherwise-identical outcomes — most commonly a
       // forced loss the search can't avoid or delay any further,
       // where every remaining option scores the exact same terminal
@@ -860,6 +1035,10 @@ function yieldToEventLoop() {
    thread for a stretch, since splitting minimaxSearch itself into
    interruptible chunks would be a considerably larger change. Callers
    now await this. */
+/* The deepest search depth the last findBestAiTurn call fully completed
+   — for tests and the AI simulator (tests/ai-sim.mjs). */
+export const lastSearchInfo = { depth: 0 };
+
 export async function findBestAiTurn(
   pieces,
   aiPlayer,
@@ -872,6 +1051,7 @@ export async function findBestAiTurn(
     turritoBonus = 0,
     wall = 0,
     centrality = 0,
+    beam = 0,
     jitter = 0,
     openingJitter = 0,
   },
@@ -890,7 +1070,9 @@ export async function findBestAiTurn(
     twoStepBias || cabezaRepeatBias || effectiveJitter
       ? { twoStepBias, cabezaRepeatBias, cabezaStreak, jitter: effectiveJitter }
       : null;
-  const weights = { blockAdvance, turritoBonus, wall, centrality };
+  // `beam` rides along with the evaluation weights since both thread
+  // through every ply of the search (see minimaxSearch).
+  const weights = { blockAdvance, turritoBonus, wall, centrality, beam };
   /* The ONLY pieces-array allocation in the whole search: everything
      below (generateTurns, minimaxSearch, their move-ordering pass) now
      mutates this one cloned array/objects in place via applyMove/
@@ -904,12 +1086,14 @@ export async function findBestAiTurn(
   const history = Object.create(null);
   let best = null;
 
+  lastSearchInfo.depth = 0;
   for (let depth = 1; depth <= maxDepth; depth++) {
     if (performance.now() > deadline) break;
     if (depth > 1) await yieldToEventLoop(); // let a frame render between depths — see the function comment above
     const result = minimaxSearch(working, aiPlayer, aiPlayer, depth, -Infinity, Infinity, deadline, rootBias, weights, killers, history, 0);
     if (result.timedOut && depth > 1) break;
     if (result.turn) best = result.turn;
+    lastSearchInfo.depth = depth;
     if (Math.abs(result.score) >= AI_WIN_SCORE) break; // forced win/loss found — deeper search can't change that
   }
 
@@ -1018,6 +1202,10 @@ export const AI_DIFFICULTY = {
     turritoBonus: 0,
     wall: 0,
     centrality: 0,
+    /* No beam: Easy looks at every turn but only a short way ahead — in
+       a Split Movement game that's its own move plus the evaluation's
+       read of the reply (crush threats, the Cabeza's route). */
+    beam: 0,
     /* Easy is already loose; a wide jitter suits it and keeps it from
        being memorisable either. */
     jitter: 2.5,
@@ -1069,6 +1257,12 @@ export const AI_DIFFICULTY = {
        to make Medium's positional judgment read as Hard's. */
     wall: 2.0,
     centrality: 0,
+    /* Looks deeper into only its 8 best-ordered turns per position (24
+       at the root). Measured with tests/ai-sim.mjs against the previous
+       Medium: 11 of 12 games won on the classic board, 12 of 12 with
+       MATTER pieces + Split Movement + Shoving, where the full-width
+       search had only ever managed one turn of look-ahead. */
+    beam: 8,
     /* The tier this was actually reported on. 1.8 is a bit over two
        rows of block advancement (0.8 each) and just over one point of
        mobility (1.5), so moves the search rates within a couple of
@@ -1106,6 +1300,8 @@ export const AI_DIFFICULTY = {
        this, same as the depth numbers above. */
     wall: 4,
     centrality: 0.8,
+    /* Wider than Medium's, with twice the time to use it. */
+    beam: 12,
     /* Deliberately the smallest of the three. Hard's whole point is
        playing the best move it can find, so noise here is limited to
        breaking pure repetition — well under one row of its own

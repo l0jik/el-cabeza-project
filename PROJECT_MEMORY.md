@@ -533,6 +533,18 @@ lands on one; the pre-game Anomaly button also avoids the live
   around the chosen spots (`applyMatterRoster(..., chosenSpots)`).
   **Button names (user's words): "Select" opens the picker and "Random"
   rolls — never "roll"/"re-roll"/"choose spot".**
+- **Random lives inside the picker** (user request), not in the placement
+  row under the toggle, so the roll shows on the grid as it happens. The
+  placement row has just **Select** (plus the Pairs drum). In the picker
+  the buttons are **Random · Done · Cancel** (testids
+  `missing-picker-random` / `blackhole-picker-random`, `...-done`,
+  `...-cancel`).
+  - Missing Squares: Random rolls into the draft. Done commits it and
+    Cancel drops it.
+  - Black Hole: Random changes the stored spot straight away. Done keeps
+    it; Cancel (or a backdrop tap) puts back the spot the picker opened
+    with (`s.blackHolePickerOrig`). Tapping a square still places it and
+    closes.
 - **Up to five Missing Square pairs (ten squares).** Shape:
   `selections.missingSquare = { spots: [{row,col,random}], count: 1..5 }`
   (`MAX_MISSING_PAIRS`). Black Holes keep `{ manual, random }`, and the
@@ -1295,3 +1307,54 @@ Cabezas and so on, and only their layout changes. A plain board still
 gets the classic five. If the generator can't fit the roster, it falls
 back to the classic five; in that case the button leaves the board
 alone. Test: `tests/e2e-anomaly.mjs`.
+
+**AI evaluation rework** (engine/ai.js). Reported problem: the AI leaned
+on moving its Cabeza. Measured with the new AI-vs-AI simulator
+`tests/ai-sim.mjs` (`node tests/ai-sim.mjs <classic|matter|holes> <tier>
+<tier> <games> [timeScale]`, with `AI_OLD=<copy of ai.js>` for a
+`tier:old` opponent and `AI_OVERRIDE` JSON for trial settings). It
+isn't part of `npm test`, since a run takes minutes.
+
+Old AI findings:
+- The score was driven by "rows the lead Cabeza has advanced" (12 per
+  row), so walking the Cabeza forward outscored anything a block could
+  do. It moved the Cabeza in 30–58% of turns, and most games ended with
+  that Cabeza crushed.
+- With two Cabezas it only looked at the furthest one, so losing the
+  other cost nothing (MATTER games lasted ~6 turns a side).
+- It only ever feared crush threats and never valued making one.
+- Under Split Movement (~1000 turns a side) it searched 1 turn ahead at
+  every tier.
+
+The new evaluation:
+- **Route cost:** steps to the goal row around pieces' ground cubes and
+  Missing Squares, +3 per square an enemy block could land on next
+  (`cabezaRouteCost`, a ring-buffer Dijkstra).
+- **Material:** 400 per Cabeza.
+- **Mobility** over rolls and Cabeza steps (slides skipped for speed;
+  they never crush).
+- **Threats by side to move** (`evaluatePosition(..., toMove)`): a
+  Cabeza the mover can crush is lost (last one: 20000). A threat to the
+  mover costs 25, or a Cabeza if two are hit at once.
+
+Search:
+- A per-tier **beam** (Easy 0, Medium 8, Hard 12; ×3 at the root;
+  game-ending turns are always kept).
+- Depth-1 nodes reuse their ordering scores as leaf scores.
+- Tie-safety checks are computed lazily.
+- `lastSearchInfo.depth` reports the depth reached.
+
+Rules speedups:
+- Hole and Missing Square checks exit early when there are none.
+- `rollVox` results are cached.
+- The sweep check skips box-vs-box pairs and far pieces, and
+  bounding-box rejects before SAT.
+
+Results (sim, both colours):
+- New Medium vs old Medium: 11/12 on the classic board, 12/12 in MATTER.
+- New Easy vs old Easy: 13/20 classic (1 draw), 17/20 MATTER.
+- Tier order holds: Hard beat Medium 7/8 on the classic board, and
+  3 wins / 0 losses / 5 draws in MATTER. Medium beat Easy 12/16.
+- Cabeza-only turns for Medium on the classic board fell to ~16–21%.
+
+The style nudges (cabezaRepeatBias etc.) are unchanged.

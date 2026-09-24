@@ -441,9 +441,9 @@ if (state.activeCategory === "topologies") {
     state.selections.missingSquare.count === 1 && state.selections.missingSquare.spots.length === 1 &&
       state.selections.missingSquare.spots[0].random === true,
     JSON.stringify(state.selections.missingSquare));
-  check("the placement buttons read Select and Random",
+  check("the placement row has just Select (Random lives in the picker)",
     (await page.locator('[data-testid="missing-place-btn"]').textContent()) === "Select" &&
-      (await page.locator('[data-testid="missing-clear-btn"]').textContent()) === "Random");
+      (await page.locator('[data-testid="missing-placement"] button', { hasText: /^Random$/i }).count()) === 0);
 
   await page.locator('[data-testid="missing-place-btn"]').click();
   await page.waitForTimeout(250);
@@ -492,18 +492,41 @@ if (state.activeCategory === "topologies") {
   await page.locator('[data-testid="missing-picker-cancel"]').click();
   await page.waitForTimeout(200);
 
-  // Random rolls a REAL spot now (not a deferral to Begin Game), so it
-  // stays a concrete, visible placement — the Black Hole picker below
-  // must still show it. Regression for "random loses the selection".
-  await page.locator('[data-testid="missing-clear-btn"]').click();
+  // Random sits in the picker, so the roll shows on the grid as it
+  // happens: with the one spot hand-picked, it re-rolls it (dashed, as a
+  // random spot) in the draft; Cancel drops the roll, Done keeps it.
+  await page.locator('[data-testid="missing-place-btn"]').click();
+  await page.waitForTimeout(250);
+  await page.locator('[data-testid="missing-picker-random"]').click();
   await page.waitForTimeout(150);
+  const shownRandom = await page.locator('[data-testid="missing-picker"] [data-chosen="random"]').count();
+  check("Random in the picker shows a freshly rolled spot on the grid",
+    shownRandom === 1 && (await page.locator('[data-testid="missing-picker"] [data-chosen="hand"]').count()) === 0,
+    `random=${shownRandom}`);
+  state = await sphereState();
+  check("the roll is only a draft until Done (the stored spot is unchanged)",
+    state.selections.missingSquare.spots[0].random === false);
+  await page.locator('[data-testid="missing-picker-cancel"]').click();
+  await page.waitForTimeout(200);
+  state = await sphereState();
+  check("Cancel drops the roll",
+    state.selections.missingSquare.spots.length === 1 && state.selections.missingSquare.spots[0].random === false &&
+      state.selections.missingSquare.spots[0].row === Number(mm[1]) && state.selections.missingSquare.spots[0].col === Number(mm[2]));
+  // Random rolls a REAL spot (not a deferral to Begin Game), so it stays
+  // a concrete, visible placement — the Black Hole picker below must
+  // still show it. Regression for "random loses the selection".
+  await page.locator('[data-testid="missing-place-btn"]').click();
+  await page.waitForTimeout(250);
+  await page.locator('[data-testid="missing-picker-random"]').click();
+  await page.waitForTimeout(150);
+  await page.locator('[data-testid="missing-picker-done"]').click();
+  await page.waitForTimeout(1000);
   state = await sphereState();
   const rolled = state.selections.missingSquare.spots;
-  check("Random rolls and keeps a real missing-square spot",
-    rolled.length === 1 && rolled[0].random === true && rolled[0].row >= state.selections.topologies.rows / 2,
+  check("Random then Done keeps a real, random missing-square spot",
+    rolled.length === 1 && rolled[0].random === true && rolled[0].row >= state.selections.topologies.rows / 2 &&
+      (await page.locator('[data-testid="missing-picker"]').count()) === 0,
     JSON.stringify(rolled));
-  check("the Random button keeps its name after rolling",
-    (await page.locator('[data-testid="missing-clear-btn"]').textContent()) === "Random");
 
   // The count drum: up to five pairs, filled at random to match.
   for (let i = 0; i < 6; i++) {
@@ -626,8 +649,24 @@ if (state.activeCategory === "laws") {
   }, `bh-cell-${m[1]}-${m[2]}`);
   check("the previously-placed cell is highlighted as the current selection on reopen",
     reopenBg === "rgb(7, 8, 11)", `bg=${reopenBg}`);
+  // Random in the picker moves the hole where you can see it; Cancel puts
+  // the hand-picked spot back.
+  await page.locator('[data-testid="blackhole-picker-random"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  const bhRolled = state.selections.blackHole;
+  const bhShown = await page.locator('[data-testid="blackhole-picker"] [data-chosen]').getAttribute("data-testid");
+  check("Random in the Black Hole picker rolls a new spot and shows it on the grid",
+    bhRolled.random === true && !!bhRolled.manual && bhShown === `bh-cell-${bhRolled.manual.row}-${bhRolled.manual.col}` &&
+      (await page.locator('[data-testid="blackhole-picker"]').count()) > 0,
+    `stored=${JSON.stringify(bhRolled)} shown=${bhShown}`);
   await page.locator('[data-testid="blackhole-picker-cancel"]').click();
   await page.waitForTimeout(200);
+  state = await sphereState();
+  check("Cancel puts the hand-picked Black Hole spot back",
+    state.selections.blackHole.random === false && !!state.selections.blackHole.manual && state.selections.blackHole.manual.row === Number(m[1]) &&
+      state.selections.blackHole.manual.col === Number(m[2]),
+    JSON.stringify(state.selections.blackHole));
 
   // Shoving: ticking the law reveals its two settings directly beneath
   // it (push distance, which moves shove), defaulting to "1 square" and
