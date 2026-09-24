@@ -647,12 +647,11 @@ lands on one; the pre-game Anomaly button also avoids the live
       opening turn, and reads `window.__EC_TEST_TURNS__` /
       `__EC_TEST_LOG__`. Verified headlessly via `turnContinues` cases in
   `tests/engine.smoke.mjs`; two-piece touch feel wants real-device play.
-  **Cantilever Pivot** still **cannot** be implemented before
-  non-convex pieces exist — same blocker as MATTER's L-Pentomino/Arch
-  inertness above.
-- **Backlog LAW — Shoving (not built, spec later):** larger pieces can
-  displace smaller pieces 1 space (2? for Opa — TBD). No rules,
-  UI, or toggle yet.
+  **Cantilever Pivot** is not built yet (its LAWS checkbox is inert).
+  Its old blocker is gone: odd-shaped pieces exist now (the Codo, see
+  the shape system below), so a Codo balanced on one cube is the first
+  piece that can pivot.
+- **Shoving LAW:** built — see "Shoving LAW" below.
 - **Black Holes + future irregular pieces (L / Z / S):** the current
   wormhole-entry gate is "ground footprint is exactly one cell"
   (`cells.length === 1`). Irregular pieces will be able to have a single
