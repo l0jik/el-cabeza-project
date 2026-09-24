@@ -1842,7 +1842,6 @@ const PAIRED_SQUARE_KINDS = {
     cellPrefix: "bh-cell",
     placementTestid: "blackhole-placement",
     placeBtnTestid: "blackhole-place-btn",
-    clearBtnTestid: "blackhole-clear-btn",
     pickerTestid: "blackhole-picker",
     backdropTestid: "blackhole-picker-backdrop",
     cancelTestid: "blackhole-picker-cancel",
@@ -1857,7 +1856,6 @@ const PAIRED_SQUARE_KINDS = {
     cellPrefix: "missing-cell",
     placementTestid: "missing-placement",
     placeBtnTestid: "missing-place-btn",
-    clearBtnTestid: "missing-clear-btn",
     pickerTestid: "missing-picker",
     backdropTestid: "missing-picker-backdrop",
     cancelTestid: "missing-picker-cancel",
@@ -2096,15 +2094,12 @@ function renderPairedSquarePlacementRow(t, kind) {
     s[k.confirmFlag] = null;
     s[`${k.pickerFlag}Pulse`] = 0; // no leftover caption pulse on reopen
     s[`${k.pickerFlag}WallPulse`] = 0;
-    // The multi-spot picker edits a draft, committed on Done.
+    // The multi-spot picker edits a draft, committed on Done. The single
+    // (Black Hole) picker commits as it goes, so Cancel puts back the spot
+    // it opened with.
     if (multi) s.missingSquaresDraft = spots.map((p) => ({ ...p }));
+    else s[`${k.pickerFlag}Orig`] = spots.map((p) => ({ ...p }));
     if (s.audio && s.audio.playSingularityOpen) s.audio.playSingularityOpen();
-    s.bump();
-  };
-  const randomize = () => {
-    randomizePairedSpots(s, kind);
-    if (s.audio && s.audio.playSelect) s.audio.playSelect();
-    s.labelsDirty = true;
     s.bump();
   };
   const btn = (extra) => ({
@@ -2116,7 +2111,7 @@ function renderPairedSquarePlacementRow(t, kind) {
   const where = (p) => `row ${p.row + 1}, column ${p.col + 1}${multi && p.random ? " (random)" : ""}`;
   let text;
   if (!spots.length) {
-    text = "No free spot could be found — select one on your side of the board, or try Random.";
+    text = "No free spot could be found — press Select to pick one on your side of the board, or to try Random there.";
   } else if (!multi) {
     text = `${spots[0].random ? "Placed at random" : "Placed"} on your side at ${where(spots[0])}. Its mirror on the far side is the paired ${k.pairedNoun}.`;
   } else {
@@ -2158,8 +2153,7 @@ function renderPairedSquarePlacementRow(t, kind) {
     h(
       "div",
       { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
-      h("button", { type: "button", "data-testid": k.placeBtnTestid, onClick: openPicker, style: btn() }, "Select"),
-      h("button", { type: "button", "data-testid": k.clearBtnTestid, onClick: randomize, style: btn({ border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)" }) }, "Random")
+      h("button", { type: "button", "data-testid": k.placeBtnTestid, onClick: openPicker, style: btn() }, "Select")
     )
   );
 }
@@ -2263,7 +2257,14 @@ function renderPairedSquarePicker(t, kind) {
     return !!d && !missingSquaresKeepPath(spotCells(d, rows, cols), rows, cols);
   };
 
-  const close = () => { s[k.pickerFlag] = false; s[k.confirmFlag] = null; s.missingSquaresDraft = null; s.bump(); };
+  const origKey = `${k.pickerFlag}Orig`;
+  const close = () => {
+    // Cancel: the single picker's Random commits as it goes, so put back
+    // the spot it opened with (the multi picker only ever edits a draft).
+    if (!multi && s[origKey]) { setPairedSpots(sel, kind, s[origKey]); s.labelsDirty = true; }
+    s[origKey] = null;
+    s[k.pickerFlag] = false; s[k.confirmFlag] = null; s.missingSquaresDraft = null; s.bump();
+  };
   const finish = () => {
     if (!s[k.confirmFlag]) s[k.confirmFlag] = true;
     if (s.audio && s.audio.playSelect) s.audio.playSelect();
@@ -2272,6 +2273,7 @@ function renderPairedSquarePicker(t, kind) {
       s[k.pickerFlag] = false;
       s[k.confirmFlag] = null;
       s.missingSquaresDraft = null;
+      s[origKey] = null;
       s.labelsDirty = true;
       s.bump();
     }, 780);
@@ -2301,10 +2303,38 @@ function renderPairedSquarePicker(t, kind) {
   // random; the flash shows the final layout, random fills included.
   const done = () => {
     if (confirm) return;
+    if (!multi) {
+      // Keep the spot shown (e.g. one Random just rolled).
+      const spot = pairedSpots(sel, kind)[0];
+      if (!spot) { close(); return; }
+      s[k.confirmFlag] = { row: spot.row, col: spot.col };
+      finish();
+      return;
+    }
     setPairedSpots(sel, kind, shown);
     fillPairedSpots(s, kind, false);
     s.missingSquaresDraft = pairedSpots(sel, kind).map((p) => ({ ...p }));
     finish();
+  };
+  // Random, right here on the grid so the roll is visible: re-rolls the
+  // random spots and keeps hand-picked ones — or re-rolls them all when
+  // every spot is hand-picked (randomizePairedSpots). The multi picker
+  // rolls into its draft (committed on Done, dropped on Cancel); the
+  // single picker's spot changes straight away (Cancel puts it back).
+  const randomize = () => {
+    if (confirm) return;
+    if (multi) {
+      const committed = pairedSpots(sel, kind).map((p) => ({ ...p }));
+      setPairedSpots(sel, kind, shown);
+      randomizePairedSpots(s, kind);
+      s.missingSquaresDraft = pairedSpots(sel, kind).map((p) => ({ ...p }));
+      setPairedSpots(sel, kind, committed);
+    } else {
+      randomizePairedSpots(s, kind);
+      s.labelsDirty = true;
+    }
+    if (s.audio && s.audio.playSelect) s.audio.playSelect();
+    s.bump();
   };
 
   const cells = [];
@@ -2422,7 +2452,7 @@ function renderPairedSquarePicker(t, kind) {
             },
             h("style", null, "@keyframes ecBlockedPulse{0%{background:rgba(255,70,70,0.55);box-shadow:0 0 18px rgba(255,90,90,0.9);transform:scale(1.04)}100%{background:rgba(255,70,70,0.08);box-shadow:none;transform:scale(1)}}"),
             handCount >= count
-              ? `All ${count} are selected — tap one to remove it first.`
+              ? `All ${count} are selected — tap one to remove it first, or press Random.`
               : `Tap up to ${count}; tap one again to remove it. Any left open are placed at random when you press Done. Dashed squares were placed at random — tap one to keep it.`
           )
         : null,
@@ -2487,14 +2517,17 @@ function renderPairedSquarePicker(t, kind) {
         ? h("div", { "data-testid": k.confirmTestid, style: { textAlign: "center", fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: "0.12em", color: "#dffaff", textShadow: "0 0 10px rgba(142,243,255,0.7)" } }, "◇ SELECTED")
         : h(
             "div",
-            { style: { display: "flex", gap: 10, justifyContent: "center" } },
-            multi
-              ? h(
-                  "button",
-                  { type: "button", "data-testid": `${k.pickerTestid}-done`, onClick: done, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 4, border: "1px solid rgba(102,217,255,0.5)", background: "rgba(102,217,255,0.14)", color: "#dffaff", cursor: "pointer" } },
-                  "Done"
-                )
-              : null,
+            { style: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" } },
+            h(
+              "button",
+              { type: "button", "data-testid": `${k.pickerTestid}-random`, onClick: randomize, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 4, border: "1px dashed rgba(174,182,194,0.7)", background: "transparent", color: "#cfd8dc", cursor: "pointer" } },
+              "Random"
+            ),
+            h(
+              "button",
+              { type: "button", "data-testid": `${k.pickerTestid}-done`, onClick: done, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 4, border: "1px solid rgba(102,217,255,0.5)", background: "rgba(102,217,255,0.14)", color: "#dffaff", cursor: "pointer" } },
+              "Done"
+            ),
             h(
               "button",
               { type: "button", "data-testid": k.cancelTestid, onClick: close, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "6px 16px", borderRadius: 4, border: "1px solid rgba(207,216,220,0.3)", background: "transparent", color: "rgba(207,216,220,0.75)", cursor: "pointer" } },

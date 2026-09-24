@@ -533,6 +533,18 @@ lands on one; the pre-game Anomaly button also avoids the live
   around the chosen spots (`applyMatterRoster(..., chosenSpots)`).
   **Button names (user's words): "Select" opens the picker and "Random"
   rolls — never "roll"/"re-roll"/"choose spot".**
+- **Random lives inside the picker** (user request), not in the placement
+  row under the toggle, so the roll shows on the grid as it happens. The
+  placement row has just **Select** (plus the Pairs drum). In the picker
+  the buttons are **Random · Done · Cancel** (testids
+  `missing-picker-random` / `blackhole-picker-random`, `...-done`,
+  `...-cancel`).
+  - Missing Squares: Random rolls into the draft. Done commits it and
+    Cancel drops it.
+  - Black Hole: Random changes the stored spot straight away. Done keeps
+    it; Cancel (or a backdrop tap) puts back the spot the picker opened
+    with (`s.blackHolePickerOrig`). Tapping a square still places it and
+    closes.
 - **Up to five Missing Square pairs (ten squares).** Shape:
   `selections.missingSquare = { spots: [{row,col,random}], count: 1..5 }`
   (`MAX_MISSING_PAIRS`). Black Holes keep `{ manual, random }`, and the
