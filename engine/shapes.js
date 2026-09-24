@@ -122,7 +122,19 @@ export function piecesClash(a, b) {
    always has at least one cube on the board: a piece can never end up
    floating. E then W (and S then N) is an exact inverse, which undo
    relies on. */
+// rollVox results, cached: an AI search rolls the same few poses the
+// same ways thousands of times.
+const rollCache = new Map();
 export function rollVox(piece, dir) {
+  const { w, h, z } = piece;
+  const key = `${piece.vox}|${w},${h},${z}|${dir}`;
+  const hit = rollCache.get(key);
+  if (hit) return hit;
+  const out = rollVoxUncached(piece, dir);
+  rollCache.set(key, out);
+  return out;
+}
+function rollVoxUncached(piece, dir) {
   const { w, h, z } = piece;
   const cubes = parseVox(piece.vox).map(([x, y, l]) => {
     switch (dir) {
@@ -179,6 +191,20 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
   const obstacles = new Map();
   for (const other of pieces) {
     if (other.id === piece.id || other === ignore) continue;
+    // Box against box can't clash mid-roll without the landing clashing
+    // too (see above), so a box only needs checking against odd shapes.
+    if (!piece.vox && !other.vox) continue;
+    // Whole-piece reject before looking at cubes: it must share a lane
+    // (row for E/W, column for N/S) with the roller and come within reach
+    // of the pivot along the roll axis.
+    const laneLo = alongCols ? other.row : other.col;
+    const laneHi = laneLo + (alongCols ? other.h : other.w) - 1;
+    const myLo = alongCols ? piece.row : piece.col;
+    const myHi = myLo + (alongCols ? piece.h : piece.w) - 1;
+    if (laneHi < myLo || laneLo > myHi) continue;
+    const uLo = alongCols ? other.col : other.row;
+    const uHi = uLo + (alongCols ? other.w : other.h);
+    if (uHi < pivot - reach - 1 || uLo > pivot + reach + 1) continue;
     for (let y = 0; y < other.h; y++) {
       for (let x = 0; x < other.w; x++) {
         const lane = alongCols ? other.row + y : other.col + x;
@@ -210,7 +236,19 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
         const du = u - pivot;
         return [pivot + du * cs - v * sn, du * sn + v * cs];
       });
+      // The turned square's bounding box: most obstacles are nowhere
+      // near it, and the full separating-axis test is only needed for
+      // the ones this can't rule out.
+      let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+      for (const [cu, cv] of corners) {
+        if (cu < minU) minU = cu;
+        if (cu > maxU) maxU = cu;
+        if (cv < minV) minV = cv;
+        if (cv > maxV) maxV = cv;
+      }
       for (const [ou, ol] of obs) {
+        if (maxU - SWEEP_EPS <= ou + SWEEP_EPS || ou + 1 - SWEEP_EPS <= minU + SWEEP_EPS) continue;
+        if (maxV - SWEEP_EPS <= ol + SWEEP_EPS || ol + 1 - SWEEP_EPS <= minV + SWEEP_EPS) continue;
         if (squaresOverlap(corners, ou, ol)) return true;
       }
     }
