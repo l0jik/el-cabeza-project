@@ -6940,7 +6940,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               .map((side) => `${side === "dark" ? "Dark" : "Light"}: ${
                 aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : "Human"
               }`)
-              .join("  ·  ")}
+              .join("  \u2502  ") /* a full-height pipe between the two sides */}
           </div>
         )}
         {/* Points-left counter on/off — same quiet corner-icon treatment

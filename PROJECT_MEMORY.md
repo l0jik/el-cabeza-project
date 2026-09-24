@@ -1531,7 +1531,7 @@ unaffected.
 
 **Dock "who's playing" line** (`dock-players`). From Begin Game onward
 (`!awaitingBegin`), the dock's footer strip (the one Sound's icon sits
-in) shows e.g. "DARK: AI (HARD) · LIGHT: YOU", or "Human" for both
+in) shows e.g. "DARK: AI (HARD) │ LIGHT: YOU", or "Human" for both
 sides. It's absolutely placed with an ellipsis before the corner icons,
 so the dock never grows (user: docks as small as practicable).
 
