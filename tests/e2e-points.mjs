@@ -4,7 +4,9 @@
    dot per action point (data-testid points-counter, data-left = points
    left). It counts down as moves spend points, springs back when a move
    returns to an earlier position (the free detour), and refills for the
-   next player. Checked in Neon and in Standard (which has no Sound icon,
+   next player; after a finished game it holds that game's last turn
+   through the win screen and clears when a new game is set up. Checked
+   in Neon and in Standard (which has no Sound icon,
    so the toggle takes its corner). */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
@@ -71,8 +73,31 @@ for (const theme of ["neon", "standard"]) {
   await openDockPanel(page);
   check("the setting is remembered after a reload", (await page.locator('[data-testid="points-toggle"]').getAttribute("aria-pressed")) === "true");
   await page.locator("button", { hasText: "Begin Game" }).click();
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2200); // the dock folds away first (it hides the counter while open)
   check("...and the counter shows in the next game", (await left(page)) === 2, String(await left(page)));
+
+  // A finished game: the counter stays up through the win screen,
+  // holding that game's last turn, and clears when a new game is set up.
+  await page.reload();
+  await page.waitForTimeout(1500);
+  await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), [
+    { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 8, col: 0, w: 1, h: 1, z: 1 },
+    { id: "light-cabeza", type: "cabeza", owner: "light", row: 9, col: 5, w: 1, h: 1, z: 1 },
+  ]);
+  await page.waitForTimeout(300);
+  await openDockPanel(page);
+  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "S"));
+  await page.waitForTimeout(2500);
+  const won = await page.evaluate(() => [...document.querySelectorAll("span")].some((el) => /wins/i.test(el.textContent || "")));
+  check("a Cabeza stepping onto its far row wins", won);
+  check("after the win the counter stays up, holding the last turn (1 point left)", (await left(page)) === 1, String(await left(page)));
+  if (theme === "neon") await page.screenshot({ path: "/tmp/e2e-points-won.png" });
+  await openDockPanel(page);
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /^New Game$/ }).click();
+  await page.waitForTimeout(1500);
+  check("a new game's setup clears it", (await left(page)) === null, String(await left(page)));
 
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await context.close();

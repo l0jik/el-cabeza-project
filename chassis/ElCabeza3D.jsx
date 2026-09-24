@@ -615,6 +615,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      commitRef's turn trail), replaying a short flash on the counter. */
   const [showPoints, setShowPoints] = useState(loadShowPoints);
   const [pointsPulse, setPointsPulse] = useState(0);
+  /* The counter outlives the game it counted: once a game ends it freezes
+     on that game's last turn ({ player, left } — the points the final
+     turn had left, not a refilled counter) and stays up through the
+     win/ended screens until a new game's setup begins. */
+  const [pointsFinal, setPointsFinal] = useState(null);
   // Always-fresh reference to dockView, reassigned every render (same
   // pattern as commitRef/beginMoveRef) — read by the dock preview's own
   // mount-once render loop below to skip rendering while "panel" makes
@@ -3240,6 +3245,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         (p) => p.type === "cabeza" && p.owner === move.crushes.owner
       );
       if (!crushedOwnerHasCabezaLeft) {
+        setPointsFinal({ player: currentPlayer, left: Math.max(0, turnBudget() - ((piece.id === selectedId ? stepsUsed : 0) + moveCost(move))) });
         audioRef.current.playCapture();
         windingDownRef.current = true;
         audioRef.current.playWin();
@@ -3285,6 +3291,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     }
 
     if (piece.type === "cabeza" && move.candidate.row === GOAL_ROW[piece.owner]) {
+      setPointsFinal({ player: currentPlayer, left: Math.max(0, turnBudget() - ((piece.id === selectedId ? stepsUsed : 0) + moveCost(move))) });
       windingDownRef.current = true;
       audioRef.current.playWin();
       audioRef.current.playPowerOff();
@@ -5372,6 +5379,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     setTurnHistory([]);
     setLog([]);
     setStatus("playing");
+    setPointsFinal(null); // a new game: the old counter has nothing to say about it
     setWinner(null);
     setWinReason("");
     setShowVictoryPlacard(false);
@@ -5562,6 +5570,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // explicitly to avoid a stuck "(AI) thinking…" status.
     setAiThinking(false);
     aiDirsRef.current = null;
+    setPointsFinal({ player: currentPlayer, left: Math.max(0, turnBudget() - stepsUsed) });
     setStatus("ended");
   }
 
@@ -5960,15 +5969,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
          center — "restore") once already there. Same opacity/transform
          transition timing as the masthead's own fade above, so it
          settles in rather than popping. */}
-      {/* Points-left counter — see showPoints. Hidden while the dock
-         panel is open (its own status line says the same thing there). */}
-      {showPoints && isPlaying && dockView !== "panel" && (() => {
+      {/* Points-left counter — see showPoints. Shown from Begin Game until
+         the next game's setup begins (awaitingBegin): through the win/ended
+         screens it holds the finished game's last turn (pointsFinal).
+         Hidden while the dock panel is open (it would sit under it). */}
+      {showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && (() => {
         const budget = turnBudget();
-        const left = Math.max(0, budget - stepsUsed);
+        const final = isPlaying ? null : pointsFinal;
+        const player = final ? final.player : currentPlayer;
+        const left = final ? final.left : Math.max(0, budget - stepsUsed);
         // The player's glow where the theme has one (Neon: Dark's body
         // colour would vanish into its dark backdrop), else their body.
-        const accent = currentPlayer === "dark" ? COLORS.accentDark : COLORS.accentLight;
-        const fill = accent || (currentPlayer === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
+        const accent = player === "dark" ? COLORS.accentDark : COLORS.accentLight;
+        const fill = accent || (player === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
         return (
           <div
             data-testid="points-counter"
@@ -5993,17 +6006,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           >
             <style>{"@keyframes ecPointsRefund{0%{transform:scale(1.35);filter:brightness(1.8)}100%{transform:scale(1);filter:none}}"}</style>
             <span style={{ opacity: 0.7 }}>Action points</span>
-            <span key={pointsPulse} style={{ display: "flex", gap: 7, animation: pointsPulse ? "ecPointsRefund 0.6s ease-out" : "none" }}>
+            <span key={pointsPulse} style={{ display: "flex", gap: 5, animation: pointsPulse ? "ecPointsRefund 0.6s ease-out" : "none" }}>
               {Array.from({ length: budget }, (_, i) => (
                 <span
                   key={i}
                   data-filled={i < left ? "true" : "false"}
                   style={{
-                    width: 12,
-                    height: 12,
+                    width: 9,
+                    height: 9,
                     borderRadius: "50%",
                     boxSizing: "border-box",
-                    border: `1.5px solid ${i < left && accent ? accent : COLORS.charcoal}`,
+                    border: `1.25px solid ${i < left && accent ? accent : COLORS.charcoal}`,
                     background: i < left ? fill : "transparent",
                     boxShadow: i < left && accent ? `0 0 5px ${accent}` : "none",
                     // Dimmed per feedback: a quiet readout, not a beacon.

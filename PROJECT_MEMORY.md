@@ -1521,3 +1521,10 @@ unaffected.
   glowing) or body colour (Standard); spent dots are hollow.
 - `pointsPulse` flashes it when a free detour refunds points.
 - Test: tests/e2e-points.mjs (both themes).
+- Counter lifetime (user): shown from Begin Game until the next game's
+  setup (`!awaitingBegin`), so it stays up through the win placard and
+  the ended screen. After the game ends it holds that game's last turn
+  (`pointsFinal { player, left }`, set in both win branches of commit and
+  in handleEndActiveGame; cleared by the New Game reset). Leaving via New
+  Game, Singularity or a theme switch clears it.
+- Dots are 9px with a 5px gap.
