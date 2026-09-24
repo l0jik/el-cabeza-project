@@ -124,6 +124,14 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
    private window, disabled site data), and the game must boot fine
    either way, just falling back to the defaults. */
 const OPPONENT_PREFS_KEY = "el-cabeza:opponent";
+// The points-left counter's on/off switch (see the dock's corner toggle).
+const SHOW_POINTS_KEY = "el-cabeza:show-points";
+function loadShowPoints() {
+  try { return window.localStorage.getItem(SHOW_POINTS_KEY) === "1"; } catch (e) { return false; }
+}
+function saveShowPoints(on) {
+  try { window.localStorage.setItem(SHOW_POINTS_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
+}
 function loadOpponentPrefs() {
   const prefs = { aiPlayer: null, aiDifficulty: "medium", humanStartSide: "dark" };
   try {
@@ -599,6 +607,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      straight back to "piece" and re-rolls which piece/color represents
      the new session (see the dockSessionSeed effect below). */
   const [dockView, setDockView] = useState("piece"); // "piece" | "panel" | "corner"
+  /* Points-left counter (user-requested, off by default, remembered per
+     browser): a row of dots at the bottom centre showing how many of the
+     current player's action points this turn has left — filled for
+     left, hollow for spent. Switched from the dock's corner, beside
+     Sound. `pointsPulse` bumps when a free detour hands points back (see
+     commitRef's turn trail), replaying a short flash on the counter. */
+  const [showPoints, setShowPoints] = useState(loadShowPoints);
+  const [pointsPulse, setPointsPulse] = useState(0);
   // Always-fresh reference to dockView, reassigned every render (same
   // pattern as commitRef/beginMoveRef) — read by the dock preview's own
   // mount-once render loop below to skip rendering while "panel" makes
@@ -3324,6 +3340,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       if (k >= 0) {
         const e = trail[k];
         turnTrailRef.current = trail.slice(0, k);
+        setPointsPulse((n) => n + 1); // the points counter flashes the refund
         setPieces(nextPieces);
         setHoverShadow(null);
         if (k === 0) {
@@ -5943,6 +5960,62 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
          center — "restore") once already there. Same opacity/transform
          transition timing as the masthead's own fade above, so it
          settles in rather than popping. */}
+      {/* Points-left counter — see showPoints. Hidden while the dock
+         panel is open (its own status line says the same thing there). */}
+      {showPoints && isPlaying && dockView !== "panel" && (() => {
+        const budget = turnBudget();
+        const left = Math.max(0, budget - stepsUsed);
+        // The player's glow where the theme has one (Neon: Dark's body
+        // colour would vanish into its dark backdrop), else their body.
+        const accent = currentPlayer === "dark" ? COLORS.accentDark : COLORS.accentLight;
+        const fill = accent || (currentPlayer === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
+        return (
+          <div
+            data-testid="points-counter"
+            data-left={left}
+            aria-label={`${left} of ${budget} points left`}
+            style={{
+              position: "fixed",
+              left: "50%",
+              bottom: 22,
+              transform: "translateX(-50%)",
+              zIndex: 12,
+              pointerEvents: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: COLORS.slate,
+            }}
+          >
+            <style>{"@keyframes ecPointsRefund{0%{transform:scale(1.35);filter:brightness(1.8)}100%{transform:scale(1);filter:none}}"}</style>
+            <span style={{ opacity: 0.7 }}>Points</span>
+            <span key={pointsPulse} style={{ display: "flex", gap: 7, animation: pointsPulse ? "ecPointsRefund 0.6s ease-out" : "none" }}>
+              {Array.from({ length: budget }, (_, i) => (
+                <span
+                  key={i}
+                  data-filled={i < left ? "true" : "false"}
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    boxSizing: "border-box",
+                    border: `1.5px solid ${i < left && accent ? accent : COLORS.charcoal}`,
+                    background: i < left ? fill : "transparent",
+                    boxShadow: i < left && accent ? `0 0 8px ${accent}` : "none",
+                    opacity: i < left ? 1 : 0.4,
+                    transition: "background 0.25s ease, opacity 0.25s ease",
+                  }}
+                />
+              ))}
+            </span>
+          </div>
+        );
+      })()}
+
       {(document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
         <button
           onClick={toggleFullscreen}
@@ -6772,6 +6845,46 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             </svg>
           </button>
         )}
+        {/* Points-left counter on/off — same quiet corner-icon treatment
+           as Sound, just to its left (or in its place for a theme with
+           no audio). The glyph is the counter itself: two filled dots and
+           a hollow one, struck through while it's off. */}
+        <button
+          data-testid="points-toggle"
+          aria-pressed={showPoints}
+          onClick={() => {
+            const next = !showPoints;
+            setShowPoints(next);
+            saveShowPoints(next);
+          }}
+          aria-label={showPoints ? "Hide points left" : "Show points left"}
+          title={showPoints ? "Hide points left" : "Show points left"}
+          style={{
+            position: "absolute",
+            right: theme.hasAudio ? 40 : 8,
+            bottom: 8,
+            width: 30,
+            height: 30,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "transparent",
+            border: "none",
+            color: COLORS.slate,
+            opacity: showPoints ? 0.85 : 0.45,
+            cursor: "pointer",
+            transition: "opacity 0.2s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.85; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = showPoints ? 0.85 : 0.45; }}
+        >
+          <svg width="18" height="16" viewBox="0 0 26 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="5" cy="12" r="3.2" fill="currentColor" />
+            <circle cx="13" cy="12" r="3.2" fill="currentColor" />
+            <circle cx="21" cy="12" r="3.2" />
+            {!showPoints && <line x1="2" y1="20" x2="24" y2="4" />}
+          </svg>
+        </button>
       </div>
 
       {/* Move Log popup — chassis-level (see ARCHITECTURE.md), shown via

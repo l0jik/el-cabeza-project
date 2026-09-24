@@ -3666,6 +3666,9 @@ export function buildSlabMaterials(boardTex) {
   ];
 }
 
+// Shared by every piece's depth twin (see buildPieceVisual); never disposed.
+const PIECE_DEPTH_MATERIAL = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true, transparent: true });
+
 export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
   /* theme: a faint emissive core per player (cyan for Dark, amber
      for Light) — "glowing internal cores" from the brief — kept low
@@ -3723,6 +3726,23 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
   // piece's side without needing the chassis's own `pieces` array
   // threaded all the way into theme code.
   mesh.userData = { pieceId: piece.id, kind: "piece", isDark };
+
+  /* Depth twin: the same shape again, drawing no colour, only depth —
+     after the grid (renderOrder -10) but before every glass body (1).
+     The bodies don't write depth (see above), so without it translucent
+     pieces were layered whole, by each piece's centre: a Codo balanced
+     over a 1x3 painted its base over the 1x3 standing in front of it,
+     because no single order is right there (its arm is in front of the
+     1x3, its base behind). With every piece's depth laid down first,
+     each body only shows where nothing else stands in front of it —
+     per pixel — while the grid underneath still shows through the glass.
+     A child of the body, so it moves, rolls and hides with it; never
+     picked (picking isn't recursive) and casts no shadow. */
+  const depthTwin = new THREE.Mesh(geo, PIECE_DEPTH_MATERIAL);
+  depthTwin.renderOrder = 0.5;
+  depthTwin.castShadow = false;
+  depthTwin.receiveShadow = false;
+  mesh.add(depthTwin);
 
   /* Box pieces trace a SIMPLIFIED PROXY (a plain sharp-cornered
      BoxGeometry at the piece's true outer dimensions) rather than
