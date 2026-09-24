@@ -191,6 +191,10 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
   const obstacles = new Map();
   for (const other of pieces) {
     if (other.id === piece.id || other === ignore) continue;
+    // Clearance (user rule): a Cabeza is lower than a cube, so every
+    // swing passes over it; and a piece sheltered under an overhang or
+    // in an opening only gets in the way if it reaches the underside.
+    if (other.type === "cabeza" || leavesClearance(piece, other)) continue;
     // Box against box can't clash mid-roll without the landing clashing
     // too (see above), so a box only needs checking against odd shapes.
     if (!piece.vox && !other.vox) continue;
@@ -328,7 +332,7 @@ export function pivotSweepClashes(pieces, piece, turn) {
   const reach = Math.max(...arm.map(([c, r]) => Math.hypot(c + 0.5 - cu, r + 0.5 - cv))) + 1;
   const sign = turn === "cw" ? 1 : -1;
   for (const other of pieces) {
-    if (other.id === piece.id) continue;
+    if (other.id === piece.id || other.type === "cabeza") continue; // lower than a cube: swung over
     if (other.row > cv + reach || other.row + other.h < cv - reach) continue;
     if (other.col > cu + reach || other.col + other.w < cu - reach) continue;
     for (let r = other.row; r < other.row + other.h; r++) {
@@ -355,6 +359,28 @@ export function pivotSweepClashes(pieces, piece, turn) {
     }
   }
   return false;
+}
+
+/* Whether `other` sits wholly beneath `piece` without reaching its
+   underside anywhere: every square `other` stands on is roofed by one of
+   `piece`'s cubes, and `other`'s top stops below that roof. Such a piece
+   never blocks `piece`'s roll, however the swing would geometrically
+   pass (a Turrito in an Arco Alto's two-tall opening). One that fills
+   the gap up to the underside (a Turrito under a Codo's arm, a standing
+   1x2 in the Alto) does, on the moves that swing into it. */
+function leavesClearance(piece, other) {
+  for (let r = other.row; r < other.row + other.h; r++) {
+    for (let c = other.col; c < other.col + other.w; c++) {
+      const own = maskAt(other, r, c);
+      if (!own) continue;
+      const roof = maskAt(piece, r, c);
+      if (!roof) return false; // not under the piece here
+      const top = 32 - Math.clz32(own); // levels other fills: 0 .. top-1
+      const underside = 31 - Math.clz32(roof & -roof); // lowest level of the roof
+      if (top >= underside) return false; // reaches the underside (or worse)
+    }
+  }
+  return true;
 }
 
 /* Separating-axis test between a turned unit square (its 4 corners) and

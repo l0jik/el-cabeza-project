@@ -1485,9 +1485,31 @@ now only shows where nothing stands in front of it, per pixel, and the
 grid still shows through the glass. It's never picked (picking isn't
 recursive) and casts no shadow.
 
-Side effect: a piece no longer shows its own back edges, or pieces
-behind it, through its glass; it reads a bit more solid. Standard's
-pieces are opaque, so it's unaffected.
+The glass look is kept by a **see-through layer** (user: "this must be
+addressed" after the twins alone made pieces read solid).
+`seenThroughCopy` adds a copy of each body and outline with
+`depthFunc: GreaterDepth` and renderOrder 0.7. It draws only what lies
+BEHIND the frontmost surface (its own back edges, other pieces further
+back); the front glass (renderOrder 1) then blends over it. Behind
+things show through dimmed, as through glass, but can never paint over
+a piece in front. The frontmost surfaces fail "greater", so nothing is
+drawn twice. The copies' materials are disposed with the originals'
+(the material "dispose" event). Standard's pieces are opaque, so it's
+unaffected.
+
+**Clearance rule** (user, confirmed by Q&A), in `rollSweepClashes`
+(shapes.js):
+- A Cabeza never blocks another piece's swing (it's lower than a cube).
+  It is still sheltered, and still can't be landed on except by a crush.
+- A piece sheltered wholly under an overhang or in an opening blocks the
+  roll only if it reaches the underside (`leavesClearance`): its top
+  level must be at least the lowest roof cube above it. For example, a
+  Turrito in an Arco Alto's 2-tall opening never blocks, and a standing
+  1x2 there does.
+- A piece that fills the gap still only blocks the moves that swing into
+  it; rolling away stays open.
+- Pivot sweeps skip Cabezas too.
+- Tests: the clearance block in tests/shapes.smoke.mjs.
 
 **Points-left counter** (option 1 of the user's choices).
 - Toggled by an icon in the dock's bottom-right corner (`points-toggle`),
