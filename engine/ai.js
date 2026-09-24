@@ -1037,7 +1037,8 @@ function yieldToEventLoop() {
    now await this. */
 /* The deepest search depth the last findBestAiTurn call fully completed
    — for tests and the AI simulator (tests/ai-sim.mjs). */
-export const lastSearchInfo = { depth: 0 };
+export const lastSearchInfo = { depth: 0, depthMs: [] };
+
 
 export async function findBestAiTurn(
   pieces,
@@ -1052,6 +1053,7 @@ export async function findBestAiTurn(
     wall = 0,
     centrality = 0,
     beam = 0,
+    earlyStop = true,
     jitter = 0,
     openingJitter = 0,
   },
@@ -1087,14 +1089,30 @@ export async function findBestAiTurn(
   let best = null;
 
   lastSearchInfo.depth = 0;
+  lastSearchInfo.depthMs = [];
   for (let depth = 1; depth <= maxDepth; depth++) {
     if (performance.now() > deadline) break;
     if (depth > 1) await yieldToEventLoop(); // let a frame render between depths — see the function comment above
+    const depthStart = performance.now();
     const result = minimaxSearch(working, aiPlayer, aiPlayer, depth, -Infinity, Infinity, deadline, rootBias, weights, killers, history, 0);
     if (result.timedOut && depth > 1) break;
     if (result.turn) best = result.turn;
     lastSearchInfo.depth = depth;
     if (Math.abs(result.score) >= AI_WIN_SCORE) break; // forced win/loss found — deeper search can't change that
+    /* Stop early when the next depth can't finish: an unfinished depth is
+       thrown away (above), so searching it only burns the processor while
+       the 3D scene competes with this thread for the same cores. A deeper
+       search always takes at least as long as the one before it, so once
+       the depth just finished took longer than the time left, the next
+       one cannot complete — stopping then changes nothing about the move.
+       (Predicting further ahead isn't safe: measured over 100+ real
+       searches, the next depth took anywhere from 1.1x to 25x the last.)
+       Timings wobble a little from run to run, so it waits for the last
+       depth to have taken 25% MORE than the time left before stopping.
+       Measured saving with no depth ever lost: 4-13% of each think. */
+    const depthMs = performance.now() - depthStart;
+    lastSearchInfo.depthMs.push(depthMs);
+    if (earlyStop && depth > 1 && depthMs > 1.25 * (deadline - performance.now())) break;
   }
 
   // Only pieceId/dirs are ever actually a caller's contract (see

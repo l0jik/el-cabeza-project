@@ -1358,3 +1358,22 @@ Results (sim, both colours):
 - Cabeza-only turns for Medium on the classic board fell to ~16–21%.
 
 The style nudges (cabezaRepeatBias etc.) are unchanged.
+
+**AI early stop** (findBestAiTurn, `earlyStop`, on by default). A
+depth that runs out of time is thrown away, so searching it only burns
+the CPU the 3D scene is competing for. The AI already runs on its own
+Web Worker, and the main thread does no extra work while it thinks;
+frames slow only from CPU contention. So more workers would make it
+worse, not better.
+
+The rule: stop once the depth just finished took more than 1.25× the
+time left. A deeper search is never faster, so the next one can't
+finish.
+
+Measured from 102 recorded searches (per-depth times in
+`lastSearchInfo.depthMs`):
+- Predicting further ahead is unsafe: the next depth took 1.1× to 25×
+  the last.
+- This rule never lost a depth, and saved 4–13% of think time
+  (Hard: ~0.2–0.5s).
+- Live with/without comparison: 33 of 34 same move, 0 shallower.
