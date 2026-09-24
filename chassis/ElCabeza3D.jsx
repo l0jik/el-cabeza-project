@@ -295,6 +295,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      consumed by an undo — this is real history, not a single-slot
      snapshot. */
   const [turnHistory, setTurnHistory] = useState([]);
+  // Test-only mirror of the move log plus each turn's piece-tagged steps,
+  // so e2e tests can read what a turn actually did (e.g. an AI Split
+  // Movement turn moving two pieces) without parsing rendered text.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.__EC_TEST_LOG__ = log.map((e) => ({ player: e.player, notation: e.notation, mark: e.mark }));
+      window.__EC_TEST_TURNS__ = turnHistory.map((h) => ({ player: h.currentPlayer, steps: (h.steps || []).map((st) => ({ pieceId: st.pieceId, dir: st.dir })) }));
+    }
+  }, [log, turnHistory]);
   /* React-visible copy of the Black Hole Squares LAW's current
      placement — engine/constants.js's own BLACK_HOLES is plain mutable
      module state, invisible to React's render cycle, same reason
@@ -3144,12 +3153,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     setPendingNotation(notation);
     setHoverShadow(null);
 
-    // Split Movement applies to the HUMAN player only: under the law, a
-    // turn's points are a shared bank spendable across up to
-    // MAX_PIECES_PER_TURN distinct pieces. The AI always plays a legal
-    // single-piece turn (committing its whole bank to one piece — always a
-    // legal option), so its accounting stays exactly the original logic.
-    const humanSplit = ACTIVE_LAWS.splitMovement && currentPlayer !== aiPlayer;
+    // Split Movement: under the law, a turn's points are a shared bank
+    // spendable across up to MAX_PIECES_PER_TURN distinct pieces — for the
+    // human and the AI alike (the AI's plan names each step's piece; see
+    // the AI orchestration effect, which hands a step to a second piece).
+    const splitOn = !!ACTIVE_LAWS.splitMovement;
 
     // A Slide always costs TWO action points; a roll costs one (moveCost).
     // So in a normal 2-point turn a slide spends the whole turn, and with
@@ -3157,7 +3165,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // roll ("a slide and an additional roll"). Under Split Movement the
     // bank is the whole turn's (turnBudget), shared across pieces; the
     // per-piece budget equals it anyway (every piece's base is 2).
-    const budget = humanSplit ? turnBudget() : maxStepsFor(piece.type);
+    const budget = splitOn ? turnBudget() : maxStepsFor(piece.type);
     const used = (piece.id === selectedId ? stepsUsed : 0) + moveCost(move);
 
     // Whether the turn ends now. A Black Hole Squares wormhole landing
@@ -3169,7 +3177,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // the original per-piece rule.
     const stop =
       move.teleports ||
-      !turnContinues(nextPieces, currentPlayer, movedAfter, move.candidate, used, budget, humanSplit);
+      !turnContinues(nextPieces, currentPlayer, movedAfter, move.candidate, used, budget, splitOn);
 
     if (stop) {
       settleTurn(move.candidate, notation, stepsNext);
@@ -3516,11 +3524,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         if (cancelled) return;
         setAiThinking(false);
         if (!turn) return; // no legal turn at all — shouldn't normally happen
-        aiDirsRef.current = turn;
-        const piece = pieces.find((p) => p.id === turn.pieceId);
+        // The plan as piece-tagged steps: a Split Movement turn names each
+        // step's piece; a normal turn is every dir on one piece. `next`
+        // counts steps already started (not action points — a slide
+        // spends two points but is one step).
+        const planSteps = turn.steps || turn.dirs.map((dir) => ({ pieceId: turn.pieceId, dir }));
+        aiDirsRef.current = { ...turn, planSteps, next: 1 };
+        const piece = pieces.find((p) => p.id === planSteps[0].pieceId);
         if (piece) {
-          aiCabezaStreakRef.current = piece.type === "cabeza" ? aiCabezaStreakRef.current + 1 : 0;
-          beginMoveRef.current(piece, turn.dirs[0]);
+          const movesCabeza = planSteps.some((st) => {
+            const q = pieces.find((p) => p.id === st.pieceId);
+            return q && q.type === "cabeza";
+          });
+          aiCabezaStreakRef.current = movesCabeza ? aiCabezaStreakRef.current + 1 : 0;
+          beginMoveRef.current(piece, planSteps[0].dir);
         }
       }, 500);
       return () => {
@@ -3530,19 +3547,33 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     }
 
     if (stepsUsed > 0 && aiDirsRef.current) {
-      const { pieceId, dirs } = aiDirsRef.current;
-      if (stepsUsed < dirs.length) {
+      const plan = aiDirsRef.current;
+      if (plan.next < plan.planSteps.length) {
+        const step = plan.planSteps[plan.next];
+        // A Split Movement step on a different piece: hand the turn's
+        // remaining bank to it first (exactly what a human's mid-turn tap
+        // on another own piece does), so the commit carries the shared
+        // points and step record forward. The move itself fires after the
+        // usual pause, by which time the selection has re-rendered into
+        // beginMove.
+        if (step.pieceId !== selectedId) {
+          setSelectedId(step.pieceId);
+          setHoveredId(step.pieceId);
+        }
         const timer = setTimeout(() => {
-          const piece = pieces.find((p) => p.id === pieceId);
-          if (piece) beginMoveRef.current(piece, dirs[stepsUsed]);
+          const piece = pieces.find((p) => p.id === step.pieceId);
+          if (!piece) return;
+          plan.next += 1;
+          beginMoveRef.current(piece, step.dir);
         }, 500);
         return () => clearTimeout(timer);
       }
-      const piece = pieces.find((p) => p.id === pieceId);
+      const lastId = plan.planSteps[plan.planSteps.length - 1].pieceId;
+      const piece = pieces.find((p) => p.id === lastId);
       aiDirsRef.current = null;
       if (piece) settleTurn(piece, pendingNotation, pendingSteps);
     }
-  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, pendingSteps, awaitingBegin, log]);
+  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, pendingSteps, awaitingBegin, log, selectedId]);
 
   /* Drains a human's queued continuation (see pendingIntentRef/onUp's
      busy branch above) the instant the step it was waiting on actually

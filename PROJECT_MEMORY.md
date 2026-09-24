@@ -400,7 +400,7 @@ then a real Begin Game.
   `key` prop keyed on `${rows}x${cols}` on whatever renders
   `<ElCabeza3D>`, in `apps/neon.jsx`/`apps/unified.jsx`) — a real,
   deliberately-scoped-out feature, not a quick add. Assessed directly
-  with the user and explicitly deferred.
+  with the user and explicitly deferred; later dropped entirely ("forget about this").
 - **TOPOLOGY — Missing Squares, wired and real.** One to five pairs of
   rotationally-mirrored squares (see "Up to five Missing Square pairs"
   below) (same manual-pick-plus-180°-mirror model as Black
@@ -602,11 +602,38 @@ lands on one; the pre-game Anomaly button also avoids the live
   moves in reverse, both `handleUndoTurn` and `handleUndoLastTurn`); the
   pointer handler lets the player select a second eligible piece mid-turn
   (`ACTIVE_LAWS.splitMovement && currentPlayer !== aiPlayer`, bank>0, cap not
-  reached). `humanSplit` gates it to the human — the **AI plays legal
-  single-piece turns** under the law (committing its whole bank to one piece,
-  always legal) and does not proactively split; teaching `generateTurns` to
-  spend across two pieces (combinatorial in the deep search) is the staged
-  follow-up. Verified headlessly via `turnContinues` cases in
+  reached). **The AI splits too.**
+  - With the law on, `generateTurns` also calls `generateSplitTurns`
+    (engine/ai.js). It walks every sequence of steps that spends the shared
+    bank across at most two distinct pieces: A-B, and with 3 points also
+    A-A-B, A-B-A and A-B-B. Any prefix is a complete turn, and a
+    game-ending crush/win or a wormhole ends it.
+  - Pruning:
+    - A turn where either piece ends where it started without crushing
+      anything is dropped, because it is really a one-piece turn.
+    - Turns with the same end state (moved pieces' final states plus
+      crushes) are kept once, so A-then-B and B-then-A don't double up.
+  - Split turns carry `steps: [{piece, pieceId, dir, move}]`.
+    `applyTurn`/`undoTurn`/`moveKey` handle them, and `findBestAiTurn`
+    returns `steps: [{pieceId, dir}]` alongside `pieceId`/`dirs`.
+  - Chassis:
+    - commit uses `splitOn` (the law) for both sides, with
+      `turnBudget()` and `turnContinues(..., split)`.
+    - The AI effect plays `aiDirsRef.current.planSteps` by index `next`.
+      It counts steps, not points, which also fixes a latent slide
+      mismatch in the old `stepsUsed < dirs.length` check.
+    - Before a step on a different piece it `setSelectedId`s that piece
+      (like a human's mid-turn tap), so the shared bank and log carry over.
+  - Branching: at the opening, 13 → 23 turns (2 points) and 39 → 92
+    (3 points).
+  - Tests:
+    - `tests/engine.smoke.mjs` replays every generated two-piece turn
+      legally over random games, with and without 3 Actions + Slide.
+    - `tests/e2e-ai-split.mjs` boots with `window.__EC_LAWS__ =
+      { splitMovement: true }` (the test-only hook `applyBootstrapLaws`,
+      apps/boardBootstrap.js), watches the AI play a real two-piece
+      opening turn, and reads `window.__EC_TEST_TURNS__` /
+      `__EC_TEST_LOG__`. Verified headlessly via `turnContinues` cases in
   `tests/engine.smoke.mjs`; two-piece touch feel wants real-device play.
   **Cantilever Pivot** still **cannot** be implemented before
   non-convex pieces exist — same blocker as MATTER's L-Pentomino/Arch

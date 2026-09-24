@@ -1,4 +1,4 @@
-import { setBoardDimensions, getBoardDimensions } from "../engine/constants.js";
+import { setBoardDimensions, getBoardDimensions, setActiveLaws } from "../engine/constants.js";
 
 /* Applies a board size chosen OUTSIDE the React tree, before anything
    mounts — the seam between "something picked a board size" and the
@@ -24,4 +24,13 @@ export function applyBootstrapBoardSize() {
   const applied = setBoardDimensions(req.rows, req.cols);
   req.applied = applied;
   return applied;
+}
+
+/* Same seam, for LAWS: a test sets window.__EC_LAWS__ (e.g.
+   { splitMovement: true }) in an init script to start a plain game with
+   those laws active — how the suite drives the AI through a real Split
+   Movement turn without walking the Singularity sphere. Unused otherwise. */
+export function applyBootstrapLaws() {
+  if (typeof window === "undefined" || !window.__EC_LAWS__) return;
+  setActiveLaws(window.__EC_LAWS__);
 }

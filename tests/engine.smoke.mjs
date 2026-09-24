@@ -1,6 +1,6 @@
 import { createInitialPieces, legalMovesFor, sameState, pairLog, turnContinues, evaluateBlockLanding, pickMissingSquares, pickBlackHoleSquares, pickMissingSquarePairs, missingSquaresKeepPath, initialPiecesFor, getPieceAt } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY, evaluatePosition, generateTurns } from "../engine/ai.js";
-import { setBlackHoles, setMissingSquares, turnBudget, MAX_PIECES_PER_TURN } from "../engine/constants.js";
+import { setBlackHoles, setMissingSquares, turnBudget, MAX_PIECES_PER_TURN, moveCost } from "../engine/constants.js";
 import { pieceCenter, makeRoundedBox, pivotFor } from "../engine/geometry.js";
 import { BOARD_ROWS, BOARD_COLS, setActiveLaws, isSlideKey } from "../engine/constants.js";
 
@@ -236,5 +236,75 @@ for (const rows of [6, 7, 10, 20]) {
   }
 }
 console.log("[black holes] never placed in either side's back two rows");
+
+// ---- AI Split Movement: with the law on, the AI's candidate turns
+// include two-piece turns, and every one of them is a turn a human could
+// legally play — replayed step by step on a fresh copy, each step is a
+// legal move for its piece with the shared bank's remaining points, the
+// bank is never overspent, at most two distinct pieces move, and both
+// actually end up changed. Generating them never disturbs the position.
+function replaySplit(start, turn, budget) {
+  const board = start.map((p) => ({ ...p }));
+  let used = 0;
+  const moved = new Set();
+  for (const st of turn.steps) {
+    const q = board.find((p) => p.id === st.pieceId);
+    if (!q) throw new Error(`split step names a missing piece ${st.pieceId}`);
+    const move = legalMovesFor(board, q, budget - used)[st.dir];
+    if (!move) throw new Error(`illegal split step ${st.pieceId} ${st.dir} after ${used} points: ${JSON.stringify(turn.steps.map((x) => x.pieceId + ":" + x.dir))}`);
+    used += moveCost(move);
+    moved.add(q.id);
+    Object.assign(q, move.candidate);
+    if (move.crushes) board.splice(board.findIndex((p) => p.id === move.crushes.id), 1);
+  }
+  if (used > budget) throw new Error(`split turn overspent the bank (${used} > ${budget})`);
+  if (moved.size !== 2) throw new Error(`split turn moved ${moved.size} pieces`);
+  return board;
+}
+for (const threeActions of [false, true]) {
+  // Slides on alongside 3 Actions: a slide (2 points) then another piece's roll (1).
+  setActiveLaws({ splitMovement: true, threeActions, slide: threeActions, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false });
+  let position = createInitialPieces().map((p) => ({ ...p }));
+  let player = "light";
+  let splitSeen = 0;
+  for (let ply = 0; ply < 12; ply++) {
+    const before = JSON.stringify(position);
+    const turns = generateTurns(position, player);
+    if (JSON.stringify(position) !== before) throw new Error("generateTurns must leave the position exactly as it found it");
+    for (const t of turns.filter((t) => t.steps)) {
+      replaySplit(position, t, turnBudget());
+      splitSeen++;
+    }
+    // Advance by a random non-terminal turn to reach varied positions.
+    const pool = turns.filter((t) => !t.endsGame);
+    if (!pool.length) break;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    position = pick.steps
+      ? replaySplit(position, pick, turnBudget())
+      : (() => {
+          const b = position.map((p) => ({ ...p }));
+          const q = b.find((p) => p.id === pick.pieceId);
+          for (const mv of pick.moves) { Object.assign(q, mv.candidate); if (mv.crushes) b.splice(b.findIndex((p) => p.id === mv.crushes.id), 1); }
+          return b;
+        })();
+    player = player === "light" ? "dark" : "light";
+  }
+  if (!splitSeen) throw new Error(`no two-piece turns generated with Split Movement on (threeActions=${threeActions})`);
+  console.log(`[split movement] ${splitSeen} AI two-piece turns replayed legally (3 Actions + Slide ${threeActions ? "on" : "off"})`);
+}
+// Without the law, no two-piece turns at all.
+setActiveLaws({ splitMovement: false, threeActions: false });
+if (generateTurns(createInitialPieces().map((p) => ({ ...p })), "light").some((t) => t.steps))
+  throw new Error("two-piece turns must only exist under Split Movement");
+// The AI's actual pick under the law is a playable plan.
+setActiveLaws({ splitMovement: true, threeActions: false });
+{
+  const start = createInitialPieces();
+  const plan = await findBestAiTurn(start, "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 400 }, 0, 10);
+  if (!plan) throw new Error("the AI found no turn under Split Movement");
+  if (plan.steps) replaySplit(start, plan, turnBudget());
+  console.log(`[split movement] AI plan under the law is playable: ${JSON.stringify(plan.steps || plan.dirs)}`);
+}
+setActiveLaws({ splitMovement: false, threeActions: false });
 
 console.log("\nSMOKE TEST PASSED");
