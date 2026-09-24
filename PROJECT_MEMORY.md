@@ -1471,3 +1471,31 @@ triggers now when the detour happens to end the turn some other way.
   slide (`preferred`).
 - Tests: tests/e2e-pivot.mjs 1b (pivot back is free), 1c (swipe) and 5
   (roll out and back is free).
+
+**Neon piece occlusion (depth twin).** Neon's glass bodies don't write
+depth (self-z-fighting fix), so translucent pieces were layered whole,
+by their centres. A balanced Codo over a 1x3 painted its base over the
+1x3 standing in front of it; no single order works when an arm is in
+front and a base behind.
+
+The fix is in `buildPieceVisual`: every body gets a child "depth twin"
+(same geo, shared `PIECE_DEPTH_MATERIAL`, colorWrite off, depthWrite on,
+renderOrder 0.5: after the grid's -10, before bodies at 1). Each body
+now only shows where nothing stands in front of it, per pixel, and the
+grid still shows through the glass. It's never picked (picking isn't
+recursive) and casts no shadow.
+
+Side effect: a piece no longer shows its own back edges, or pieces
+behind it, through its glass; it reads a bit more solid. Standard's
+pieces are opaque, so it's unaffected.
+
+**Points-left counter** (option 1 of the user's choices).
+- Toggled by an icon in the dock's bottom-right corner (`points-toggle`),
+  left of Sound, or in its place when a theme has no audio.
+- Remembered in localStorage `el-cabeza:show-points`; off by default.
+- During play (hidden while the dock panel is open) it shows one dot
+  per point of `turnBudget()` at the bottom centre (`points-counter`,
+  `data-left`). Filled dots use the player's accent (Neon cyan/amber,
+  glowing) or body colour (Standard); spent dots are hollow.
+- `pointsPulse` flashes it when a free detour refunds points.
+- Test: tests/e2e-points.mjs (both themes).
