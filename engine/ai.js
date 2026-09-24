@@ -907,6 +907,17 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
           if (turn.steps ? turn.steps.some((st) => st.piece.type === "cabeza") : turn.piece.type === "cabeza") {
             score -= rootBias.cabezaRepeatBias * rootBias.cabezaStreak;
           }
+
+          // The same idea for every other piece: one moved turn after
+          // turn (reported: a Turrito shuffling for a whole game while
+          // the Opa, 1x3 and Arco never moved) costs a little more each
+          // consecutive turn, so near-equal alternatives rotate in.
+          if (rootBias.pieceRepeatBias && rootBias.pieceStreaks) {
+            const moved = turn.steps ? new Set(turn.steps.map((st) => st.piece)) : new Set([turn.piece]);
+            for (const q of moved) {
+              if (q.type !== "cabeza") score -= rootBias.pieceRepeatBias * (rootBias.pieceStreaks[q.id] || 0);
+            }
+          }
         }
 
         /* Root-only score noise, the fix for the AI opening with the
@@ -1050,6 +1061,7 @@ export async function findBestAiTurn(
     cabezaRepeatBias = 0,
     blockAdvance = 0,
     turritoBonus = 0,
+    pieceRepeatBias = 0,
     wall = 0,
     centrality = 0,
     beam = 0,
@@ -1058,7 +1070,8 @@ export async function findBestAiTurn(
     openingJitter = 0,
   },
   cabezaStreak = 0,
-  turnIndex = 0
+  turnIndex = 0,
+  pieceStreaks = null
 ) {
   const deadline = performance.now() + timeBudgetMs;
   /* Openings get extra noise on top of the baseline. The opening is
@@ -1069,8 +1082,8 @@ export async function findBestAiTurn(
      game has its own shape. */
   const effectiveJitter = jitter + (turnIndex < AI_OPENING_TURNS ? openingJitter : 0);
   const rootBias =
-    twoStepBias || cabezaRepeatBias || effectiveJitter
-      ? { twoStepBias, cabezaRepeatBias, cabezaStreak, jitter: effectiveJitter }
+    twoStepBias || cabezaRepeatBias || pieceRepeatBias || effectiveJitter
+      ? { twoStepBias, cabezaRepeatBias, cabezaStreak, pieceRepeatBias, pieceStreaks, jitter: effectiveJitter }
       : null;
   // `beam` rides along with the evaluation weights since both thread
   // through every ply of the search (see minimaxSearch).
@@ -1216,6 +1229,10 @@ export const AI_DIFFICULTY = {
     timeBudgetMs: 450,
     twoStepBias: 0,
     cabezaRepeatBias: 12,
+    /* See minimaxSearch's root bias: a piece moved turn after turn is
+       nudged aside for near-equal alternatives. Easy, searching
+       shallowest, fixated hardest (one piece in ~60% of its turns). */
+    pieceRepeatBias: 8,
     blockAdvance: 0,
     turritoBonus: 0,
     wall: 0,
@@ -1249,8 +1266,12 @@ export const AI_DIFFICULTY = {
     timeBudgetMs: 2200,
     twoStepBias: 0,
     cabezaRepeatBias: 11,
+    pieceRepeatBias: 6,
     blockAdvance: 0.8,
-    turritoBonus: 0.9,
+    /* Was 0.9: an extra reward for advancing the Turrito specifically,
+       from before the MATTER pieces existed. With 3 actions it made the
+       Turrito the AI's piece for everything; now no piece is favoured. */
+    turritoBonus: 0,
     /* Added after simulating a real reported game move-by-move (exact
        piece positions reconstructed from the log, not just move
        counts). Dark's blocks left a persistent gap on the board's
@@ -1309,8 +1330,10 @@ export const AI_DIFFICULTY = {
     timeBudgetMs: 3500,
     twoStepBias: 10,
     cabezaRepeatBias: 9,
+    pieceRepeatBias: 5,
     blockAdvance: 1.4,
-    turritoBonus: 1.6,
+    turritoBonus: 0, // was 1.6 — see Medium's note
+
     /* Set to 4 per explicit instruction, replacing the 5.0 this was
        raised to last round. Worth noting plainly rather than silently:
        that was a reasoned-but-unverified extrapolation from Medium's

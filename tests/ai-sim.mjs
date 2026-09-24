@@ -40,7 +40,7 @@ function tierConfig(name) {
 }
 
 function setupScenario() {
-  setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, threeActions: false, shoving: false, shoveFar: false, shoveOnRolls: false });
+  setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, threeActions: false, shoving: false, shoveFar: false, shoveOnRolls: false, cantileverPivot: false });
   setBlackHoles([]);
   setMissingSquares([]);
   if (scenario === "classic") return createInitialPieces();
@@ -50,6 +50,16 @@ function setupScenario() {
       { type: "opa", count: 1 }, { type: "chato", count: 1 }, { type: "flaco", count: 1 },
       { type: "turrito", count: 1 }, { type: "cabeza", count: 2 }, { type: "codo", count: 2 },
       { type: "arcoChico", count: 1 },
+    ]);
+  }
+  if (scenario === "user") {
+    // The user's reported game: 3 Actions Per Turn, Slide, Cantilever
+    // Pivot; one of each classic block plus a Codo, a 1x3 and an Arco Alto.
+    setActiveLaws({ threeActions: true, slide: true, cantileverPivot: true });
+    return generateAnomalySetup([
+      { type: "opa", count: 1 }, { type: "chato", count: 1 }, { type: "flaco", count: 1 },
+      { type: "turrito", count: 1 }, { type: "cabeza", count: 1 }, { type: "codo", count: 1 },
+      { type: "block1x3", count: 1 }, { type: "arcoAlto", count: 1 },
     ]);
   }
   if (scenario === "holes") {
@@ -74,9 +84,10 @@ function applyPlan(pieces, player, plan) {
     : t.piece.id + ":" + t.dirs.join(">")) === want);
   if (!turn) throw new Error("plan not found among legal turns: " + want);
   const steps = turn.steps ? turn.steps.map((s) => ({ piece: s.piece, move: s.move })) : turn.moves.map((m) => ({ piece: turn.piece, move: m }));
-  const result = { types: new Set(), crushed: 0, shoves: 0, won: false };
+  const result = { types: new Set(), ids: new Set(), crushed: 0, shoves: 0, won: false };
   for (const { piece, move } of steps) {
     result.types.add(piece.type);
+    result.ids.add(piece.id);
     const c = move.candidate;
     Object.assign(piece, { row: c.row, col: c.col, w: c.w, h: c.h, z: c.z, vox: c.vox });
     if (move.crushes) { pieces.splice(pieces.indexOf(move.crushes), 1); result.crushed++; }
@@ -99,11 +110,12 @@ for (let g = 0; g < GAMES; g++) {
   const pieces = setupScenario().map((p) => ({ ...p }));
   let player = "dark";
   const streak = { dark: 0, light: 0 };
+  const pieceStreaks = { dark: {}, light: {} };
   let over = false;
   let t = 0;
   for (; t < TURN_CAP && !over; t++) {
     const start = performance.now();
-    const plan = await sides[player].find(pieces, player, sides[player], streak[player], Math.floor(t / 2));
+    const plan = await sides[player].find(pieces, player, sides[player], streak[player], Math.floor(t / 2), pieceStreaks[player]);
     stats[player].ms += performance.now() - start;
     stats[player].depth += sides[player].info.depth || 0;
     if (!plan) { over = true; stats[player === "dark" ? "light" : "dark"].wins++; endings.crush++; break; }
@@ -116,6 +128,8 @@ for (let g = 0; g < GAMES; g++) {
     s.crushes += r.crushed;
     s.shoves += r.shoves;
     streak[player] = r.types.has("cabeza") ? streak[player] + 1 : 0;
+    { const next = {}; for (const id of r.ids) next[id] = (pieceStreaks[player][id] || 0) + 1; pieceStreaks[player] = next; }
+    s.maxSameRun = Math.max(s.maxSameRun || 0, ...Object.values(pieceStreaks[player]));
     const opp = player === "dark" ? "light" : "dark";
     if (r.won) { s.wins++; endings.goal++; over = true; break; }
     if (!pieces.some((p) => p.type === "cabeza" && p.owner === opp)) { s.wins++; endings.crush++; over = true; break; }
@@ -138,6 +152,7 @@ for (const side of ["dark", "light"]) {
     crushes: s.crushes,
     shoves: s.shoves,
     avgThinkMs: Math.round(s.ms / Math.max(1, s.turns)),
+    longestSamePieceRun: s.maxSameRun || 0,
     avgDepth: +(s.depth / Math.max(1, s.turns)).toFixed(1),
   };
 }
