@@ -1543,3 +1543,12 @@ made e2e-pivot flaky in the full suite.
   Standard the dock can reopen by hover right after Begin Game, when it
   folds back under a pointer still resting on the button; the counter
   hides under an open dock. That's existing Standard dock behaviour.
+
+**Readability pass (user):**
+- `dock-players` is now 11px in the dock's text colour (`COLORS.charcoal`)
+  at 0.8, from 9px slate at 0.75.
+- INFO button (revealed by tapping the title) is 10px, and 11.5px in the
+  top-right corner phase (from 8px).
+- The relocated masthead is a 0.22-opacity watermark and the button
+  lives inside it, so while `infoBtnVisible` the masthead comes up to
+  0.9 (1 in the other phases) over 0.3s, then fades back over 1.1s.
