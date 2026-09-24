@@ -46,7 +46,7 @@ const APP_VERSION = "1.39.0";
 
    `center` is the planted cube's (x, z); angles are atan2(z, x) in the
    board's plane, and a clockwise pivot increases them (rows run +z). */
-function buildPivotArrow({ center, radius, fromAngle, toAngle, y, color, tubeRadius, dir }) {
+function buildPivotArrow({ center, radius, fromAngle, toAngle, y, color, tubeRadius, hitRadius, dir }) {
   const pad = 0.2; // radians of daylight at each end, so the two arrows read as two
   const span = toAngle - fromAngle;
   const a0 = fromAngle + Math.sign(span) * pad;
@@ -62,16 +62,18 @@ function buildPivotArrow({ center, radius, fromAngle, toAngle, y, color, tubeRad
   const shaft = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, tubeRadius, 8, false), material);
   root.add(shaft);
   // Arrowhead: a cone at the arc's end, pointing along the arc.
-  const headLen = tubeRadius * 5;
-  const head = new THREE.Mesh(new THREE.ConeGeometry(tubeRadius * 2.6, headLen, 16), material);
+  const headLen = tubeRadius * 4;
+  const head = new THREE.Mesh(new THREE.ConeGeometry(tubeRadius * 2.4, headLen, 16), material);
   const end = points[points.length - 1];
   const tangent = curve.getTangent(1).normalize();
   head.position.copy(end).addScaledVector(tangent, headLen / 2);
   head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
   root.add(head);
 
+  // Generous on purpose: a near miss beside a thin arrow used to land on
+  // the roll marker underneath instead.
   const hit = new THREE.Mesh(
-    new THREE.TubeGeometry(curve, 16, tubeRadius * 4, 6, false),
+    new THREE.TubeGeometry(curve, 16, hitRadius, 8, false),
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
   );
   // midPoint: a point on the arc, for tests that tap the arrow.
@@ -250,6 +252,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   // and skip disposing/rebuilding their mesh+shell entirely.
   const pieceMeshCacheRef = useRef(new Map());
   const commitRef = useRef(null);
+  /* This turn's trail of positions (see commitRef): one entry per move
+     made so far, holding the board and the turn's bookkeeping from just
+     BEFORE that move. A move that recreates one of those boards rewinds
+     the turn to it and refunds the points spent since. */
+  const turnTrailRef = useRef([]);
   /* Always-fresh reference to beginMove, reassigned every render (same
      pattern as commitRef). Needed because the AI's continuation logic
      fires from a setTimeout — by the time that callback actually runs,
@@ -3000,7 +3007,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           toAngle,
           y: cand.z * PIECE_SCALE + 0.14,
           color: cand.owner === "dark" ? HEX.glowCyan : HEX.glowAmber,
-          tubeRadius: SQUARE_SIZE * 0.06,
+          tubeRadius: SQUARE_SIZE * 0.1,
+          hitRadius: SQUARE_SIZE * 0.42,
           dir,
         });
         group.add(arrow.hit);
@@ -3180,6 +3188,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   /* Commit runs after the animation lands, so board state and the
      rendered pose never disagree. */
   commitRef.current = (piece, dir, move) => {
+    if (!turnSnapshot) turnTrailRef.current = []; // first move of a turn
     const notation = [...(piece.id === selectedId ? pendingNotation : []), dir];
     // Piece-tagged running record of the turn (see pendingSteps). It
     // accumulates across a Split turn the same way `notation` does — the
@@ -3298,6 +3307,57 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     }
 
     audioRef.current.playLanding(cubeCount(piece)); // cubes, not box volume — an odd shape weighs what it's made of
+
+    /* A move that puts the board back exactly how it was earlier this
+       turn (rolling out and back, pivoting there and back, a Split turn's
+       second piece stepping home) costs nothing: the turn rewinds to that
+       earlier point — points, notation and steps — as if the detour never
+       happened. Back at the turn's start, the turn is simply open again.
+       Human turns only: the AI never plans a detour, and its step-by-step
+       replay counts on the points it planned with. A crush or a shove
+       changes the board for good, so neither can be walked back. */
+    const trail = turnTrailRef.current;
+    if (currentPlayer !== aiPlayer && !move.crushes && !move.shoves) {
+      const sameBoard = (a, b) =>
+        a.length === b.length && a.every((p) => { const q = b.find((x) => x.id === p.id); return q && sameState(p, q); });
+      const k = trail.findIndex((e) => sameBoard(e.board, nextPieces));
+      if (k >= 0) {
+        const e = trail[k];
+        turnTrailRef.current = trail.slice(0, k);
+        setPieces(nextPieces);
+        setHoverShadow(null);
+        if (k === 0) {
+          setTurnSnapshot(null);
+          setStepsUsed(0);
+          setMovedPieceIds([]);
+          setPendingSteps([]);
+          setPendingNotation([]);
+          setSelectedId(piece.id);
+          setHoveredId(piece.id);
+        } else {
+          setStepsUsed(e.used);
+          setMovedPieceIds(e.moved);
+          setPendingSteps(e.steps);
+          setPendingNotation(e.notation);
+          setSelectedId(e.selected);
+          setHoveredId(e.selected);
+        }
+        setBusy(false);
+        return;
+      }
+    }
+    turnTrailRef.current = [
+      ...trail,
+      {
+        board: pieces,
+        used: piece.id === selectedId ? stepsUsed : 0,
+        moved: movedPieceIds,
+        steps: piece.id === selectedId ? pendingSteps : [],
+        notation: piece.id === selectedId ? pendingNotation : [],
+        selected: piece.id,
+      },
+    ];
+
     setPieces(nextPieces);
     setTurnSnapshot(turnSnapshot || pieces);
     setPendingNotation(notation);
@@ -3902,6 +3962,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     let slideDrag = null;
     let slideDownX = 0;
     let slideDownY = 0;
+    /* Cantilever Pivot swipe: armed when a contact starts on one of the
+       player's pieces that can pivot (the selected one, or any of theirs
+       before the turn has started). A swipe ACROSS the arm — sideways to
+       the line from the planted cube out to the arm, on screen — turns it
+       that way round: the on-screen sense of the swipe is the pivot's
+       (the camera always looks down on the board, so screen clockwise is
+       board clockwise). The matching arrow lights up while the swipe
+       points at it; release commits. `preferred` is false only when a
+       Slide is also armed and the contact began nearer the planted base
+       than the arm: grab the arm to swing it, grab the base to slide. */
+    let pivotDrag = null;
     // Shows/orients/hides the slide arrow cue on the selected piece.
     // dirKey is a "slide-<DIR>" key or null to hide. rotation.y maps the
     // arrow's local +X onto the slide's own (dr,dc) board direction.
@@ -3921,8 +3992,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // child of boardGroup and turns with it) to CSS pixel coordinates,
     // for comparing on-screen drag direction against a piece's own
     // on-screen position.
-    function worldToScreen(x, z) {
-      const v = new THREE.Vector3(x, 0, z);
+    function worldToScreen(x, z, y = 0) {
+      const v = new THREE.Vector3(x, y, z);
       t.boardGroup.localToWorld(v);
       v.project(t.camera);
       const rect = el.getBoundingClientRect();
@@ -4144,6 +4215,37 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             }
           }
         }
+        pivotDrag = null;
+        if (!altPanning && !busy && !anim.current && currentPlayer !== aiPlayer && !awaitingBegin && isPlaying) {
+          const hit = pick(ev);
+          const piece = hit && hit.type === "piece" ? pieces.find((p) => p.id === hit.id) : null;
+          if (piece && piece.owner === currentPlayer && (piece.id === selectedId || !turnLocked) && pivotCellOf(piece)) {
+            const remaining = maxStepsFor(piece.type) - (piece.id === selectedId ? stepsUsed : 0);
+            const moves = legalMovesFor(pieces, piece, remaining);
+            const keys = Object.keys(moves).filter((k) => moves[k].isPivot);
+            if (keys.length) {
+              // Screen positions of the planted column and the arm, at the
+              // arm's own height (that's what the player sees and grabs).
+              const pc = pivotCellOf(piece);
+              const arm = pivotArmFootprint(piece);
+              const armY = (piece.z - 0.5) * PIECE_SCALE;
+              const center = worldToScreen((pc.col + 0.5) * SQUARE_SIZE - OFF_X, (pc.row + 0.5) * SQUARE_SIZE - OFF_Z, armY);
+              const armPos = worldToScreen((arm.col + arm.w / 2) * SQUARE_SIZE - OFF_X, (arm.row + arm.h / 2) * SQUARE_SIZE - OFF_Z, armY);
+              const nearArm = Math.hypot(ev.clientX - armPos.x, ev.clientY - armPos.y) < Math.hypot(ev.clientX - center.x, ev.clientY - center.y);
+              pivotDrag = {
+                pieceId: piece.id,
+                keys,
+                leverX: armPos.x - center.x,
+                leverY: armPos.y - center.y,
+                downX: ev.clientX,
+                downY: ev.clientY,
+                chosen: null,
+                claimed: false,
+                preferred: !slideDrag || nearArm,
+              };
+            }
+          }
+        }
       } else {
         /* A second finger cancels the rotate outright rather than
            blending into it. */
@@ -4208,6 +4310,39 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         moved += Math.abs(dx) + Math.abs(dy);
         lastX = ev.clientX;
         lastY = ev.clientY;
+
+        if (pivotDrag && pivotDrag.preferred) {
+          const tdx = ev.clientX - pivotDrag.downX;
+          const tdy = ev.clientY - pivotDrag.downY;
+          const len = Math.hypot(tdx, tdy);
+          const lever = Math.hypot(pivotDrag.leverX, pivotDrag.leverY) || 1;
+          let chosen = null;
+          if (len > DRAG_DEAD_ZONE_PX) {
+            // Sine of the angle between the arm and the swipe: near +-1 is
+            // straight across the arm. Screen y runs down, so positive is
+            // clockwise on screen.
+            const across = (pivotDrag.leverX * tdy - pivotDrag.leverY * tdx) / (lever * len);
+            if (Math.abs(across) > 0.55) {
+              const key = across > 0 ? "pivot-cw" : "pivot-ccw";
+              if (pivotDrag.keys.includes(key)) chosen = key;
+            }
+          }
+          if (chosen && !pivotDrag.claimed) {
+            // The swipe is a pivot: it owns the gesture from here on.
+            pivotDrag.claimed = true;
+            undoDragTarget = null;
+            if (slideDrag) { slideDrag = null; updateSlideArrow(null); }
+            setHoveredId(pivotDrag.pieceId);
+          }
+          if (pivotDrag.claimed) {
+            if (chosen !== pivotDrag.chosen) setHoverShadow(chosen);
+            pivotDrag.chosen = chosen;
+            return;
+          }
+          // Not across the arm (yet): with nothing else armed, hold the
+          // camera still rather than orbiting from under the finger.
+          if (!slideDrag && !undoDragTarget) return;
+        }
 
         if (undoDragTarget) {
           // Compares the gesture's NET drag (from the original
@@ -4454,6 +4589,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
          that slide on release. If none was chosen (drag went nowhere legal,
          or never left the dead zone), just clear the cue and fall through —
          a genuine tap still selects/deselects below. */
+      if (pivotDrag) {
+        const { chosen, pieceId, claimed } = pivotDrag;
+        pivotDrag = null;
+        if (claimed) {
+          setHoverShadow(null);
+          const piece = pieces.find((p) => p.id === pieceId);
+          if (chosen && piece && !busy && !anim.current) beginMove(piece, chosen);
+          return;
+        }
+      }
       if (slideDrag) {
         const chosen = slideDrag.chosen;
         slideDrag = null;
@@ -4589,6 +4734,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         altPanning = false; // an interrupted gesture must not leave the board latched in pan mode
         // An interrupted slide drag must clear its cue and not commit.
         if (slideDrag) { slideDrag = null; updateSlideArrow(null); }
+        pivotDrag = null; // an interrupted pivot swipe never commits
         // Likewise an interrupted undo-drag, so it can't resolve later.
         undoDragTarget = null;
       }
