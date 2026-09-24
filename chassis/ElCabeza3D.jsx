@@ -7417,6 +7417,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                 the reliable and the erratic that keeps a fresh tactical
                 puzzle arriving almost every turn.
               </p>
+
+              <p
+                data-testid="info-original-note"
+                style={{
+                  margin: "16px 0 0",
+                  fontStyle: "italic",
+                  color: COLORS.slate,
+                }}
+              >
+                Played without ANOMALY or SINGULARITY, this is Cabeza as it
+                was originally designed; everything else here is a variation
+                on it.
+              </p>
             </div>
 
             <div

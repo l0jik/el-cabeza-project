@@ -71,16 +71,20 @@ function QuickCard({ C, budget }) {
   const rows = [
     ["Win", <>Get your <b>Cabeza</b> to the far row, or crush the enemy Cabeza by landing a block on it.</>],
     ["Turn", <>Spend up to <b>{budget} action points</b> <Dots n={budget} C={C} /> on one piece. You can stop after one move: tap the piece again, or press Stop here.</>],
-    ["Blocks", <>Tip over an edge: north, south, east or west. <b>1 point</b> a roll.</>],
+    ["Blocks", <>Every piece but the Cabeza. Tip over an edge: north, south, east or west. <b>1 point</b> a roll.</>],
+    // The Opa is a block with its own cost, so it sits indented under Blocks.
+    ["Opa", <>The big cube's move costs <b>2 points</b>, and it moves once per turn.</>, true],
     ["Cabeza", <>Steps one square in any of 8 directions. <b>1 point</b>. It can't crush.</>],
-    ["Opa", <>The big cube's move costs <b>2 points</b>, and it moves once per turn.</>],
     ["Free", <>Moving back to where you already were this turn costs nothing.</>],
   ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-      {rows.map(([k, v]) => (
-        <div key={k} style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: 10, alignItems: "baseline" }}>
-          <Label C={C}>{k}</Label>
+      {rows.map(([k, v, sub]) => (
+        <div key={k} data-testid={`rules-quick-${k.toLowerCase()}`} style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: 10, alignItems: "baseline", marginTop: sub ? -4 : 0 }}>
+          <span style={{ paddingLeft: sub ? 12 : 0, whiteSpace: "nowrap" }}>
+            {sub && <span style={{ color: C.slate, marginRight: 4 }}>└</span>}
+            <Label C={C}>{k}</Label>
+          </span>
           <span>{v}</span>
         </div>
       ))}
@@ -174,57 +178,71 @@ function GameCard({ C, game, onFocus }) {
 }
 
 /* ---------------------------------------------------------------- D */
-/* Each tile is a small looping SVG. Drawn in a 120 x 60 box: ground at
-   y = 46, one square = 22 units. `ink` is the piece colour, `glow` the
-   motion/arrow colour, `warn` the crush/void colour. */
+/* Each tile is a small looping SVG, seen from directly above the board
+   so the move reads as squares crossed: a 120 x 60 box holding a grid of
+   16-unit squares. A roll shows a quick flip (the piece narrows as it
+   tips over the edge between squares); a slide glides flat. `ink` is the
+   piece colour, `glow` the grid/arrow colour, `alt` the second piece,
+   `warn` the crush/void colour. */
+const SQ = 16;
+const X0 = 12, Y0 = 6; // top-left of the 6 x 3 grid
+const cx = (c) => X0 + c * SQ;
+const cy = (r) => Y0 + r * SQ;
 function tiles(C) {
   const ink = C.accentDark || C.charcoal;
   const glow = C.accentDark || C.slate;
   const alt = C.accentLight || C.slate;
   const warn = C.accentDanger || "#c0392b";
-  const soft = C.slateSoft;
-  const ground = <line x1="4" y1="46.5" x2="116" y2="46.5" stroke={glow} strokeOpacity=".35" />;
-  const box = (x, y, w, h, extra = {}) => <rect x={x} y={y} width={w} height={h} fill={ink} fillOpacity=".2" stroke={ink} strokeWidth="1.3" {...extra} />;
-  const disc = (cx, cy, extra = {}) => <ellipse cx={cx} cy={cy} rx="9" ry="3.6" fill={C.charcoal} {...extra} />;
-  const cell = (x, y, extra = {}) => <rect x={x} y={y} width="16" height="16" fill="none" stroke={glow} strokeOpacity=".3" {...extra} />;
-  const grid = (cols, rows, x0, y0) => {
+  const grid = (cols = 6, rows = 3, x0 = X0, y0 = Y0) => {
     const out = [];
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) out.push(<g key={`${r}-${c}`}>{cell(x0 + c * 16, y0 + r * 16)}</g>);
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        out.push(<rect key={`${r}-${c}`} x={x0 + c * SQ} y={y0 + r * SQ} width={SQ} height={SQ} fill="none" stroke={glow} strokeOpacity=".28" />);
     return out;
   };
+  // A piece covering w x h squares from square (c, r), inset 2 units.
+  const piece = (c, r, w = 1, h = 1, colour = ink, extra = {}) => (
+    <rect x={cx(c) + 2} y={cy(r) + 2} width={w * SQ - 4} height={h * SQ - 4} fill={colour} fillOpacity=".35" stroke={colour} strokeWidth="1.2" {...extra} />
+  );
+  const ghost = (c, r, w = 1, h = 1) => (
+    <rect x={cx(c) + 2} y={cy(r) + 2} width={w * SQ - 4} height={h * SQ - 4} fill="none" stroke={glow} strokeOpacity=".45" strokeDasharray="2 2" />
+  );
+  const disc = (c, r, colour = C.charcoal) => <circle cx={cx(c) + 8} cy={cy(r) + 8} r="5" fill={colour} />;
+  const fb = { transformBox: "fill-box", transformOrigin: "center" };
+  const fbLeft = { transformBox: "fill-box", transformOrigin: "left center" };
   const vb = { transformBox: "view-box" };
   return [
     {
-      key: "roll", title: "Roll", cost: <Dots n={1} C={C} />, text: "A block tips over one of its bottom edges: north, south, east or west.",
-      svg: <>{ground}<g className="ec-rc-roll" style={{ ...vb, transformOrigin: "46px 46px" }}>{box(24, 24, 22, 22)}</g></>,
+      key: "roll", title: "Roll", cost: <Dots n={1} C={C} />, text: "A block tips over one edge into the next square: north, south, east or west.",
+      svg: <>{grid()}{ghost(3, 1)}<g className="ec-rc-rollT" style={fb}>{piece(2, 1)}</g></>,
     },
     {
-      key: "flaco", title: "Tall pieces tumble", cost: <Dots n={1} C={C} />, text: "A Flaco standing up lands lying down, two squares long. Roll it again and it stands back up.",
-      svg: <>{ground}<g className="ec-rc-roll" style={{ ...vb, transformOrigin: "40px 46px" }}>{box(29, 2, 11, 44)}</g></>,
+      key: "flaco", title: "Tall pieces tumble", cost: <Dots n={1} C={C} />, text: "A standing Flaco rolls over and lands lying down across the next two squares. Roll it on and it stands back up.",
+      svg: <>{grid()}{ghost(2, 1, 2, 1)}<g className="ec-rc-tumble" style={fbLeft}>{piece(1, 1, 1, 1, ink, { strokeWidth: 2 })}</g></>,
     },
     {
       key: "cabeza", title: "Cabeza step", cost: <Dots n={1} C={C} />, text: "The Cabeza steps one square in any of 8 directions. It never crushes.",
       svg: (
         <>
           {grid(3, 3, 36, 6)}
-          <g className="ec-rc-step" style={vb}>{disc(60, 30, { ry: 5, rx: 6 })}</g>
-          <g stroke={glow} strokeWidth="1" strokeOpacity=".7">
+          <g stroke={glow} strokeWidth="1" strokeOpacity=".6">
             <path d="M60 22v-10M60 38v10M52 30h-10M68 30h10M54 24l-7-7M66 24l7-7M54 36l-7 7M66 36l7 7" />
           </g>
+          <g className="ec-rc-step" style={vb}><circle cx="60" cy="30" r="5" fill={C.charcoal} /></g>
         </>
       ),
     },
     {
-      key: "opa", title: "Opa", cost: <Dots n={2} C={C} />, text: "The big cube rolls two squares at once. Its move costs 2 points, and it moves only once per turn.",
-      svg: <>{ground}<g className="ec-rc-roll" style={{ ...vb, transformOrigin: "52px 46px" }}>{box(18, 12, 34, 34)}</g></>,
+      key: "opa", title: "Opa", cost: <Dots n={2} C={C} />, text: "The big cube covers four squares and rolls two squares at once. Its move costs 2 points, and it moves only once per turn.",
+      svg: <>{grid()}{ghost(3, 0, 2, 2)}<g className="ec-rc-opaT" style={fb}>{piece(1, 0, 2, 2)}</g></>,
     },
     {
-      key: "crush", title: "Crush", cost: null, text: "Land a block on the enemy Cabeza to crush it. Crushing their last Cabeza wins.",
+      key: "crush", title: "Crush", cost: null, text: "Roll a block onto the enemy Cabeza's square to crush it. Crushing their last Cabeza wins.",
       svg: (
         <>
-          {ground}
-          <g className="ec-rc-crushdisc" style={{ ...vb, transformOrigin: "82px 46px" }}>{disc(82, 43, { fill: warn })}</g>
-          <g className="ec-rc-roll" style={{ ...vb, transformOrigin: "68px 46px" }}>{box(46, 24, 22, 22)}</g>
+          {grid()}
+          <g className="ec-rc-crushdisc" style={fb}>{disc(3, 1, warn)}</g>
+          <g className="ec-rc-rollT" style={fb}>{piece(2, 1)}</g>
         </>
       ),
     },
@@ -232,9 +250,9 @@ function tiles(C) {
       key: "win", title: "Reach the far row", cost: null, text: "Step your Cabeza onto the opponent's back row to win.",
       svg: (
         <>
-          {grid(5, 2, 20, 12)}
-          <rect className="ec-rc-goal" x="20" y="12" width="80" height="16" fill={alt} fillOpacity=".18" />
-          <g className="ec-rc-win" style={vb}>{disc(60, 36, { rx: 6, ry: 5 })}</g>
+          {grid(5, 3, 20, 6)}
+          <rect className="ec-rc-goal" x="20" y="6" width="80" height="16" fill={alt} fillOpacity=".25" />
+          <g className="ec-rc-win" style={vb}><circle cx="60" cy="30" r="5" fill={C.charcoal} /></g>
         </>
       ),
     },
@@ -242,33 +260,41 @@ function tiles(C) {
       key: "free", title: "Free way back", cost: <span style={{ color: C.slate }}>free</span>, text: "Change your mind: moving back to where you already were this turn gives the points back.",
       svg: (
         <>
-          {ground}
-          <g className="ec-rc-rollback" style={{ ...vb, transformOrigin: "46px 46px" }}>{box(24, 24, 22, 22)}</g>
-          <circle cx="92" cy="12" r="4" fill={ink} opacity=".75" />
-          <circle className="ec-rc-refund" cx="103" cy="12" r="4" fill={ink} />
+          {grid()}
+          <g className="ec-rc-rollback" style={fb}>{piece(1, 1)}</g>
+          <circle cx="86" cy="14" r="3.5" fill={ink} opacity=".75" />
+          <circle className="ec-rc-refund" cx="96" cy="14" r="3.5" fill={ink} />
         </>
       ),
     },
     {
-      key: "shelter", title: "Shelter", cost: null, text: "A Cabeza can shelter under an Arco or a Codo's overhang. It never stops a piece rolling over it.",
+      key: "shelter", title: "Shelter", cost: null, text: "A Cabeza can shelter in an Arco's opening or under a Codo's overhang (the roof is drawn see-through). It never stops a piece rolling over it.",
       svg: (
         <>
-          {ground}
-          <path d="M34 46V16h52v30H72V30H48v16Z" fill={ink} fillOpacity=".2" stroke={ink} strokeWidth="1.3" />
-          <g className="ec-rc-shelter" style={vb}>{disc(60, 43)}</g>
+          {grid()}
+          <g className="ec-rc-shelter" style={fb}>{disc(2, 1)}</g>
+          <rect x={cx(1) + 2} y={cy(1) + 2} width={3 * SQ - 4} height={SQ - 4} fill={ink} fillOpacity=".14" stroke={ink} strokeWidth="1.2" />
+          <line x1={cx(2)} y1={cy(1) + 2} x2={cx(2)} y2={cy(2) - 2} stroke={ink} strokeOpacity=".5" />
+          <line x1={cx(3)} y1={cy(1) + 2} x2={cx(3)} y2={cy(2) - 2} stroke={ink} strokeOpacity=".5" />
         </>
       ),
     },
     {
-      key: "slide", law: "slide", title: "Slide", cost: <Dots n={2} C={C} />, text: LAW_TEXT.slide.text,
-      svg: <>{ground}<g className="ec-rc-slide" style={vb}>{box(30, 24, 22, 22)}</g></>,
+      key: "slide", law: "slide", title: "Slide", cost: <Dots n={2} C={C} />, text: "Any piece glides one square north, south, east or west without tipping over. Costs 2 points.",
+      svg: (
+        <>
+          {grid()}
+          <line x1={cx(2) + 8} y1={cy(1) + 8} x2={cx(3) + 8} y2={cy(1) + 8} stroke={glow} strokeOpacity=".4" strokeDasharray="2 2" />
+          <g className="ec-rc-slideT" style={fb}>{piece(2, 1)}</g>
+        </>
+      ),
     },
     {
-      key: "diagonalSlide", law: "diagonalSlide", title: "Diagonal Slide", cost: <Dots n={2} C={C} />, text: "With Slide on, a slide may also go diagonally. Seen from above.",
+      key: "diagonalSlide", law: "diagonalSlide", title: "Diagonal Slide", cost: <Dots n={2} C={C} />, text: "With Slide on, a slide may also go diagonally.",
       svg: (
         <>
           {grid(3, 3, 36, 6)}
-          <g className="ec-rc-diag" style={vb}><rect x="38" y="40" width="12" height="12" fill={ink} fillOpacity=".3" stroke={ink} /></g>
+          <g className="ec-rc-diag" style={vb}><rect x="38" y="40" width="12" height="12" fill={ink} fillOpacity=".35" stroke={ink} strokeWidth="1.2" /></g>
         </>
       ),
     },
@@ -276,14 +302,14 @@ function tiles(C) {
       key: "shoving", law: "shoving", title: "Shove", cost: <Dots n={1} C={C} plus />, text: "Moving into a piece with fewer cubes pushes it along, for 1 extra point.",
       svg: (
         <>
-          {ground}
-          <g className="ec-rc-slide" style={vb}>{box(14, 13, 33, 33)}</g>
-          <g className="ec-rc-pushed" style={vb}>{box(47, 35, 11, 11, { fill: alt, stroke: alt })}</g>
+          {grid()}
+          <g className="ec-rc-slideT" style={fb}>{piece(0, 0, 2, 2)}</g>
+          <g className="ec-rc-slideT" style={fb}>{piece(2, 1, 1, 1, alt)}</g>
         </>
       ),
     },
     {
-      key: "cantileverPivot", law: "cantileverPivot", title: "Pivot", cost: <Dots n={1} C={C} />, text: "Seen from above: a piece balanced on one cube turns a quarter turn around it.",
+      key: "cantileverPivot", law: "cantileverPivot", title: "Pivot", cost: <Dots n={1} C={C} />, text: "A piece balanced on one cube turns a quarter turn around it. The arm is held up, so it passes over what's below.",
       svg: (
         <>
           {grid(5, 3, 20, 6)}
@@ -297,7 +323,7 @@ function tiles(C) {
     },
     {
       key: "blackHoleSquares", law: "blackHoleSquares", title: "Black hole", cost: null,
-      text: "Seen from above: go in from one side and you come out of the other hole on that same side. Here: in from the west, out to the west. The turn ends.",
+      text: "Go in from one side and you come out of the other hole on that same side. Here: in from the west, out to the west. The turn ends.",
       svg: (
         <>
           {grid(6, 1, 12, 22)}
@@ -316,11 +342,11 @@ function tiles(C) {
       key: "splitMovement", law: "splitMovement", title: "Split Movement", cost: null, text: LAW_TEXT.splitMovement.text,
       svg: (
         <>
-          {ground}
-          <g className="ec-rc-roll" style={{ ...vb, transformOrigin: "36px 46px" }}>{box(22, 32, 14, 14)}</g>
-          <g className="ec-rc-roll2" style={{ ...vb, transformOrigin: "86px 46px" }}>{box(72, 32, 14, 14, { fill: ink, stroke: ink })}</g>
-          <text x="29" y="24" fontFamily={mono} fontSize="8" fill={glow} textAnchor="middle">1</text>
-          <text x="79" y="24" fontFamily={mono} fontSize="8" fill={glow} textAnchor="middle">2</text>
+          {grid()}
+          <text x="7" y={cy(0) + 11} fontFamily={mono} fontSize="7" fill={glow} textAnchor="middle">1</text>
+          <text x="7" y={cy(2) + 11} fontFamily={mono} fontSize="7" fill={glow} textAnchor="middle">2</text>
+          <g className="ec-rc-rollT" style={fb}>{piece(1, 0)}</g>
+          <g className="ec-rc-roll2T" style={fb}>{piece(3, 2, 1, 1, alt)}</g>
         </>
       ),
     },
@@ -348,8 +374,10 @@ function tiles(C) {
 }
 
 const KEYFRAMES = `
-.ec-rc-anim .ec-rc-roll { animation: ecRcRoll 3.2s ease-in-out infinite; }
-.ec-rc-anim .ec-rc-roll2 { animation: ecRcRoll2 3.2s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-rollT { animation: ecRcRollT 3.2s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-roll2T { animation: ecRcRoll2T 3.2s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-opaT { animation: ecRcOpaT 3.2s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-tumble { animation: ecRcTumble 3.2s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-rollback { animation: ecRcRollBack 4s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-refund { animation: ecRcRefund 4s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-step { animation: ecRcStep 4.8s ease-in-out infinite; }
@@ -357,33 +385,32 @@ const KEYFRAMES = `
 .ec-rc-anim .ec-rc-win { animation: ecRcWin 3.2s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-goal { animation: ecRcGoal 3.2s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-shelter { animation: ecRcShelter 3.6s ease-in-out infinite; }
-.ec-rc-anim .ec-rc-slide { animation: ecRcSlide 3.2s ease-in-out infinite; }
-.ec-rc-anim .ec-rc-pushed { animation: ecRcPushed 3.2s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-slideT { animation: ecRcSlideT 3.2s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-diag { animation: ecRcDiag 3.2s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-pivot { animation: ecRcPivot 3.6s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-bh-in { animation: ecRcBhIn 3.6s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-bh-out { animation: ecRcBhOut 3.6s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-dot0 { animation: ecRcDot 3s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-dot1 { animation: ecRcDot 3s ease-in-out 0.25s infinite; }
-.ec-rc-anim .ec-rc-dot2 { animation: ecRcDot3 3s ease-in-out 0.5s infinite; }
+.ec-rc-anim .ec-rc-dot2 { animation: ecRcDot 3s ease-in-out 0.5s infinite; }
 .ec-rc-anim .ec-rc-bump { animation: ecRcBump 3.2s ease-in-out infinite; }
-@keyframes ecRcRoll { 0%,15% { transform: rotate(0); opacity: 1 } 45%,80% { transform: rotate(90deg); opacity: 1 } 90% { transform: rotate(90deg); opacity: 0 } 91% { transform: rotate(0); opacity: 0 } 100% { transform: rotate(0); opacity: 1 } }
-@keyframes ecRcRoll2 { 0%,45% { transform: rotate(0); opacity: 1 } 70%,82% { transform: rotate(90deg); opacity: 1 } 90% { transform: rotate(90deg); opacity: 0 } 91% { transform: rotate(0); opacity: 0 } 100% { transform: rotate(0); opacity: 1 } }
-@keyframes ecRcRollBack { 0%,10% { transform: rotate(0) } 35%,55% { transform: rotate(90deg) } 80%,100% { transform: rotate(0) } }
+@keyframes ecRcRollT { 0%,15% { transform: translate(0,0) scaleX(1); opacity: 1 } 30% { transform: translate(8px,0) scaleX(.3) } 45%,80% { transform: translate(16px,0) scaleX(1); opacity: 1 } 90% { transform: translate(16px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
+@keyframes ecRcRoll2T { 0%,45% { transform: translate(0,0) scaleX(1); opacity: 1 } 58% { transform: translate(8px,0) scaleX(.3) } 70%,82% { transform: translate(16px,0) scaleX(1); opacity: 1 } 90% { transform: translate(16px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
+@keyframes ecRcOpaT { 0%,15% { transform: translate(0,0) scaleX(1); opacity: 1 } 30% { transform: translate(16px,0) scaleX(.3) } 45%,80% { transform: translate(32px,0) scaleX(1); opacity: 1 } 90% { transform: translate(32px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
+@keyframes ecRcTumble { 0%,15% { transform: translate(0,0) scaleX(1); opacity: 1 } 30% { transform: translate(12px,0) scaleX(.35) } 45%,80% { transform: translate(16px,0) scaleX(2.333); opacity: 1 } 90% { transform: translate(16px,0) scaleX(2.333); opacity: 0 } 91% { transform: translate(0,0) scaleX(1); opacity: 0 } 100% { transform: translate(0,0) scaleX(1); opacity: 1 } }
+@keyframes ecRcRollBack { 0%,10% { transform: translate(0,0) scaleX(1) } 22% { transform: translate(8px,0) scaleX(.3) } 35%,55% { transform: translate(16px,0) scaleX(1) } 67% { transform: translate(8px,0) scaleX(.3) } 80%,100% { transform: translate(0,0) scaleX(1) } }
 @keyframes ecRcRefund { 0%,20% { opacity: .75 } 35%,60% { opacity: .15 } 80%,100% { opacity: .75 } }
 @keyframes ecRcStep { 0%,8% { transform: translate(0,0) } 20%,30% { transform: translate(16px,0) } 42%,52% { transform: translate(0,0) } 64%,74% { transform: translate(-16px,-16px) } 86%,100% { transform: translate(0,0) } }
-@keyframes ecRcCrush { 0%,40% { transform: scale(1,1); opacity: 1 } 46%,82% { transform: scale(1.2,.25); opacity: .7 } 90% { opacity: 0 } 100% { transform: scale(1,1); opacity: 1 } }
+@keyframes ecRcCrush { 0%,38% { transform: scale(1); opacity: 1 } 46%,82% { transform: scale(.35); opacity: .35 } 90% { opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
 @keyframes ecRcWin { 0%,15% { transform: translate(0,0) } 45%,85% { transform: translate(0,-16px) } 100% { transform: translate(0,0) } }
 @keyframes ecRcGoal { 0%,42% { opacity: .15 } 50%,80% { opacity: .9 } 100% { opacity: .15 } }
-@keyframes ecRcShelter { 0%,10% { transform: translate(-40px,0) } 45%,80% { transform: translate(0,0) } 100% { transform: translate(-40px,0) } }
-@keyframes ecRcSlide { 0%,15% { transform: translate(0,0); opacity: 1 } 45%,80% { transform: translate(22px,0); opacity: 1 } 90% { opacity: 0; transform: translate(22px,0) } 91% { transform: translate(0,0); opacity: 0 } 100% { opacity: 1 } }
-@keyframes ecRcPushed { 0%,15% { transform: translate(0,0); opacity: 1 } 45%,80% { transform: translate(22px,0); opacity: 1 } 90% { opacity: 0; transform: translate(22px,0) } 91% { transform: translate(0,0); opacity: 0 } 100% { opacity: 1 } }
+@keyframes ecRcShelter { 0%,10% { transform: translate(0,16px) } 45%,80% { transform: translate(0,0) } 100% { transform: translate(0,16px) } }
+@keyframes ecRcSlideT { 0%,15% { transform: translate(0,0); opacity: 1 } 45%,80% { transform: translate(16px,0); opacity: 1 } 90% { transform: translate(16px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
 @keyframes ecRcDiag { 0%,15% { transform: translate(0,0); opacity: 1 } 45%,80% { transform: translate(16px,-16px); opacity: 1 } 90% { opacity: 0; transform: translate(16px,-16px) } 91% { transform: translate(0,0); opacity: 0 } 100% { opacity: 1 } }
 @keyframes ecRcPivot { 0%,15% { transform: rotate(0) } 45%,80% { transform: rotate(90deg) } 100% { transform: rotate(0) } }
 @keyframes ecRcBhIn { 0%,10% { transform: translate(0,0) scale(1); opacity: 1 } 30% { transform: translate(16px,0) scale(1); opacity: 1 } 40% { transform: translate(16px,0) scale(.1); opacity: 0 } 92% { transform: translate(16px,0) scale(.1); opacity: 0 } 93% { transform: translate(0,0) scale(1); opacity: 0 } 100% { opacity: 1 } }
 @keyframes ecRcBhOut { 0%,40% { transform: translate(0,0) scale(.1); opacity: 0 } 44% { opacity: 1 } 55%,85% { transform: translate(0,0) scale(1); opacity: 1 } 92%,100% { opacity: 0 } }
-@keyframes ecRcDot { 0%,10% { opacity: .15 } 25%,85% { opacity: .8 } 100% { opacity: .15 } }
-@keyframes ecRcDot3 { 0%,10% { opacity: .15 } 25%,85% { opacity: .95; filter: drop-shadow(0 0 3px currentColor) } 100% { opacity: .15 } }
+@keyframes ecRcDot { 0%,10% { opacity: .15 } 25%,85% { opacity: .85 } 100% { opacity: .15 } }
 @keyframes ecRcBump { 0%,15% { transform: translate(0,0) } 40% { transform: translate(12px,0) } 50%,80% { transform: translate(0,0) } 100% { transform: translate(0,0) } }
 @media (prefers-reduced-motion: reduce) { .ec-rc-anim * { animation: none !important; } }
 `;
@@ -398,6 +425,9 @@ function MovesCard({ C, focus }) {
   return (
     <div className="ec-rc-anim" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8 }}>
       <style>{KEYFRAMES}</style>
+      <div style={{ gridColumn: "1 / -1", fontFamily: mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.slate, textAlign: "center" }}>
+        Seen from above · a roll flips over the edge, a slide glides
+      </div>
       {list.map((t) => {
         const hot = focus && (focus === t.key || focus === t.law);
         return (
