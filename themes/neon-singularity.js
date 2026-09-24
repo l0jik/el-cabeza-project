@@ -3163,14 +3163,22 @@ function LabelsHint() {
 // an open overlay, the summary menu) — the touch equivalent of Escape,
 // unchanged in spirit from the original single-stage placeholder card's
 // own Back button, just no longer tied to that card's layout.
-function renderBackButton(exitSingularity) {
+// Ghosted until hovered, focused or pressed, with a quick fade either way.
+function BackButton({ onExit }) {
   const h = React.createElement;
+  const [lit, setLit] = React.useState(false);
   return h(
     "button",
     {
       type: "button",
       "data-testid": "singularity-back-button",
-      onClick: exitSingularity,
+      "data-lit": lit ? "true" : "false",
+      onClick: onExit,
+      onMouseEnter: () => setLit(true),
+      onMouseLeave: () => setLit(false),
+      onFocus: () => setLit(true),
+      onBlur: () => setLit(false),
+      onPointerDown: () => setLit(true),
       style: {
         position: "absolute", left: 16, top: 16, zIndex: 2200,
         fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5,
@@ -3178,10 +3186,15 @@ function renderBackButton(exitSingularity) {
         color: "#66d9ff", background: "rgba(4,6,10,0.6)",
         border: "1px solid rgba(102,217,255,0.4)", borderRadius: 3,
         padding: "7px 14px", cursor: "pointer", pointerEvents: "auto",
+        opacity: lit ? 1 : 0.28,
+        transition: "opacity 160ms ease",
       },
     },
     "Back"
   );
+}
+function renderBackButton(exitSingularity) {
+  return React.createElement(BackButton, { key: "singularity-back", onExit: exitSingularity });
 }
 
 /* Missing Squares first, then Black Hole Squares avoiding them — both

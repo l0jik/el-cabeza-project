@@ -192,6 +192,14 @@ check("the sphere arrives with its north pole facing you",
 check("the sphere's instructions are hidden until asked for",
   (await page.locator('[data-testid="sphere-help-button"]').count()) === 1 &&
     (await page.locator('[data-testid="sphere-help-text"]').count()) === 0);
+// The Back button sits ghosted until the pointer is on it.
+const backOpacity = () => page.locator('[data-testid="singularity-back-button"]').evaluate((el) => Number(getComputedStyle(el).opacity));
+check("Back is ghosted while not hovered", (await backOpacity()) < 0.5, String(await backOpacity()));
+await page.locator('[data-testid="singularity-back-button"]').hover();
+await page.waitForTimeout(300);
+check("...and lights up on hover", (await backOpacity()) > 0.95, String(await backOpacity()));
+await page.mouse.move(cx, cy);
+await page.waitForTimeout(300);
 const helpBox = await page.locator('[data-testid="sphere-help-button"]').boundingBox();
 const vp = page.viewportSize();
 check("the help line sits at the bottom middle of the screen",
