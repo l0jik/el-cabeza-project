@@ -1403,14 +1403,26 @@ Chassis:
 - The spin reuses the roll carrier with axis +Y through the planted cube
   (clockwise is a negative angle).
 - `nextStateAfterDir` inverts it for undo.
-- The move indicator sits on the arm's destination square
-  (`pivotArmFootprint`).
+- **Move cue: curved arrows** (user found the first version, a square
+  marker on the destination, invisible/unclear). `buildPivotArrow`
+  (chassis, module scope) draws, per legal way round, a tube arc plus
+  a cone head, floating just above the piece. It sweeps round the
+  planted cube from the arm toward its destination, in the owner's glow
+  colour, breathing at rest and flaring near-white on hover.
+- It returns the `{ root, setOpacity, tick, dispose }` indicator shape,
+  so the ghost fade/hover code drives it, plus `hit`: a fatter invisible
+  tube (kind "ghost") for picking. Being above the board it's nearer the
+  camera than the roll markers, so a tap on the arrow always means the
+  pivot.
+- Test hook: `__EC_TEST_PIVOT_ARROW_POS__(dir)`.
+- The view flips 180° with the player to move, so "clockwise" on screen
+  depends on the side. The arrows are drawn in board space, so they're
+  always right.
 - The move log shows the keys (e.g. `Co: pivot-ccw.pivot-ccw`).
 
 The AI finds pivots through legalMovesFor.
 
-Not built from the design doc: the curved-arrow cue and the swipe
-gesture. The pivot is chosen by tapping its indicator, like a roll.
+Not built from the design doc: the swipe gesture (the arrows are tapped).
 
 Tests: the `[pivot]` block in tests/engine.smoke.mjs and
 tests/e2e-pivot.mjs.
