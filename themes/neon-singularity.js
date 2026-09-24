@@ -1815,7 +1815,7 @@ function renderCheckboxRow(item, checked, onToggle, testId) {
       item.blurb &&
         h(
           "div",
-          { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.5)", marginTop: 2, lineHeight: 1.4 } },
+          { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.58)", marginTop: 2, lineHeight: 1.4 } },
           item.blurb
         )
     )
@@ -1992,7 +1992,7 @@ function renderShoveSettingsRow(t) {
       h(
         "div",
         { key: setting.key, style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } },
-        h("div", { style: { ...mono, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(207,216,220,0.6)", minWidth: 96 } }, setting.label),
+        h("div", { style: { ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(207,216,220,0.68)", minWidth: 96 } }, setting.label),
         h(
           "div",
           { role: "group", "aria-label": setting.label, style: { display: "flex", border: "1px solid rgba(102,217,255,0.35)", borderRadius: 4, overflow: "hidden" } },
@@ -2026,9 +2026,20 @@ function renderShoveSettingsRow(t) {
     ),
     h(
       "div",
-      { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.6)", lineHeight: 1.45 } },
+      { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.68)", lineHeight: 1.45 } },
       "A shove adds 1 point: a shoving roll costs 2, a shoving slide 3 (so slide-shoves need 3 Actions Per Turn)."
-    )
+    ),
+    // Slides-only shoving does nothing unless the Slide law is on.
+    !sel.shove.onRolls && !(sel.laws && sel.laws.slide) &&
+      h(
+        "div",
+        {
+          role: "status",
+          "data-testid": "shove-needs-slide",
+          style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, lineHeight: 1.45, color: "rgba(255,214,150,0.85)", borderLeft: "2px solid rgba(255,196,110,0.55)", paddingLeft: 8 },
+        },
+        "Slides only requires the Slide law. Turn on Slide, or choose Slides and rolls."
+      )
   );
 }
 
@@ -2047,7 +2058,7 @@ function renderArcoSizeRow(t) {
   return h(
     "div",
     { "data-testid": "arco-size", style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 5, marginTop: 8 } },
-    h("div", { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(207,216,220,0.6)" } }, "Arco size"),
+    h("div", { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(207,216,220,0.68)" } }, "Arco size"),
     h(
       "div",
       { role: "group", "aria-label": "Arco size", style: { display: "flex", border: "1px solid rgba(102,217,255,0.35)", borderRadius: 4, overflow: "hidden" } },
@@ -2077,7 +2088,7 @@ function renderArcoSizeRow(t) {
         );
       })
     ),
-    h("div", { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.6)" } }, describe[sel.matter.arcoSize] || describe.chico)
+    h("div", { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.68)" } }, describe[sel.matter.arcoSize] || describe.chico)
   );
 }
 
@@ -2132,7 +2143,7 @@ function renderPairedSquarePlacementRow(t, kind) {
         }),
         h(
           "div",
-          { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.72)", lineHeight: 1.45 } },
+          { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.8)", lineHeight: 1.45 } },
           `${count} on your side, mirrored on the far side — ${count * 2} missing squares in all.`
         )
       )
@@ -2147,7 +2158,7 @@ function renderPairedSquarePlacementRow(t, kind) {
     countDrum,
     h(
       "div",
-      { "data-testid": `${k.placementTestid}-text`, style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.72)", marginBottom: 7, lineHeight: 1.45 } },
+      { "data-testid": `${k.placementTestid}-text`, style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.8)", marginBottom: 7, lineHeight: 1.45 } },
       text
     ),
     h(
@@ -2457,7 +2468,7 @@ function renderPairedSquarePicker(t, kind) {
           )
         : null,
       backRowsBanned
-        ? h("div", { "data-testid": `${k.pickerTestid}-backrows-note`, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: "0.06em", color: "rgba(207,216,220,0.6)", textAlign: "center" } }, "Black holes can't go in either side's back two rows.")
+        ? h("div", { "data-testid": `${k.pickerTestid}-backrows-note`, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.06em", color: "rgba(207,216,220,0.68)", textAlign: "center" } }, "Black holes can't go in either side's back two rows.")
         : null,
       multi && cells.some((cEl) => cEl.props["data-wall-blocked"])
         ? h(
@@ -2625,7 +2636,7 @@ function renderConfigurationsBody(t) {
     ),
     h(
       "div",
-      { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.6)", lineHeight: 1.45 } },
+      { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.68)", lineHeight: 1.45 } },
       "Saves the current LAWS, MATTER and TOPOLOGY choices (not the opponent) in this browser. Saving under an existing name replaces it."
     ),
     s.configNotice
@@ -2647,7 +2658,7 @@ function renderConfigurationsBody(t) {
                 style: { border: "1px solid rgba(102,217,255,0.22)", borderRadius: 4, background: "rgba(102,217,255,0.05)", padding: "9px 11px" },
               },
               h("div", { style: { fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: "0.06em", color: "#dffaff" } }, c.name),
-              h("div", { style: { ...mono, fontSize: 9.5, color: "rgba(207,216,220,0.6)", margin: "4px 0 8px", lineHeight: 1.5 } }, describeSelections(normalizeSelections(c.selections))),
+              h("div", { style: { ...mono, fontSize: 10, color: "rgba(207,216,220,0.68)", margin: "4px 0 8px", lineHeight: 1.5 } }, describeSelections(normalizeSelections(c.selections))),
               confirming
                 ? h(
                     "div",
@@ -2665,7 +2676,7 @@ function renderConfigurationsBody(t) {
             );
           })
         )
-      : h("div", { "data-testid": "config-empty", style: { ...mono, fontSize: 10.5, color: "rgba(207,216,220,0.5)", textAlign: "center", marginTop: 4 } }, "No saved configurations yet.")
+      : h("div", { "data-testid": "config-empty", style: { ...mono, fontSize: 11, color: "rgba(207,216,220,0.58)", textAlign: "center", marginTop: 4 } }, "No saved configurations yet.")
   );
 }
 
@@ -2930,7 +2941,7 @@ function renderSummaryPanel(setupExtras) {
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "TOPOLOGY  "), boardLine),
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "LAWS  "), lawsOn.length ? lawsOn.map((i) => lawLabel(i, sel)).join(", ") : "none"),
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "MATTER  "), piecesOn.length ? piecesOn.map((i) => i.label).join(", ") : "no new pieces"),
-      h("div", { style: { ...lineStyle, fontSize: 10, color: "rgba(207,216,220,0.5)", paddingLeft: 4 } }, rosterLine)
+      h("div", { style: { ...lineStyle, fontSize: 10.5, color: "rgba(207,216,220,0.58)", paddingLeft: 4 } }, rosterLine)
     ),
     h("div", { style: { ...lineStyle, textAlign: "center" } }, h("span", { style: tagStyle }, "OPPONENT")),
     renderOpponentAiPicker(setupExtras),
