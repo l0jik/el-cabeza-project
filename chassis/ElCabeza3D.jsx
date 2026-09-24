@@ -3,7 +3,7 @@ import * as THREE from "three";
 
 import {
   BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MIN, SQUARE_SIZE, SLAB_THICKNESS, OFF_X, OFF_Z, PIECE_SCALE,
-  DISC_DIAM, DISC_H, GHOST_SCALE, GHOST_FADE_MS, ROLL_MS, SLIDE_MS,
+  DISC_DIAM, DISC_H, CABEZA_SCALE, GHOST_SCALE, GHOST_FADE_MS, ROLL_MS, SLIDE_MS,
   CAMERA_DAMPING, RESET_CAMERA_DAMPING, RESET_TRANSITION_MS,
   ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, setBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
@@ -1067,9 +1067,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const orientation = DOCK_PIECE_ORIENTATIONS[dockSessionPieceType];
     const geo = isDisc
       ? new THREE.CylinderGeometry(
-          (DISC_DIAM * PIECE_SCALE) / 2,
-          (DISC_DIAM * PIECE_SCALE) / 2,
-          DISC_H * PIECE_SCALE,
+          (DISC_DIAM * CABEZA_SCALE) / 2,
+          (DISC_DIAM * CABEZA_SCALE) / 2,
+          DISC_H * CABEZA_SCALE,
           40
         )
       : makeRoundedBox(
@@ -1127,7 +1127,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // around the disc's own footprint, so some overlap with the board
     // when a large piece is showing is expected and fine per feedback
     // ("There can be some overlap with the game board...").
-    const targetSize = DISC_DIAM * PIECE_SCALE;
+    const targetSize = DISC_DIAM * PIECE_SCALE; // the dock's frame size, not the Cabeza's
     const ownMaxDim = DOCK_PIECE_LARGEST_DIM * PIECE_SCALE;
     const baseScale = targetSize / ownMaxDim;
     state.pieceBaseScale = baseScale;
@@ -2295,7 +2295,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        camera: tick() re-derives camera.position from cam.current.view
        every frame regardless, so a transient position/lookAt set here
        is overwritten on the very next frame and never actually renders.
-       Includes the tallest real piece (Opa, h * PIECE_SCALE = 2 * 0.8)
+       Includes the tallest real piece (Opa, h * PIECE_SCALE = 2 * 0.88)
        at every corner, not just the bare board plate, since a piece
        standing on the near or far edge is what would actually clip
        into the masthead or dock first. */
@@ -2803,9 +2803,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // places and rolls identically.
       const geo = isDisc
         ? new THREE.CylinderGeometry(
-            (DISC_DIAM * PIECE_SCALE) / 2,
-            (DISC_DIAM * PIECE_SCALE) / 2,
-            DISC_H * PIECE_SCALE,
+            (DISC_DIAM * CABEZA_SCALE) / 2,
+            (DISC_DIAM * CABEZA_SCALE) / 2,
+            DISC_H * CABEZA_SCALE,
             40
           )
         : p.vox

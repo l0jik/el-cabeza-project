@@ -90,10 +90,16 @@ export let SLAB_Z = GRID_EXTENT_Z + MARGIN * 2;
 export let SLAB_MAX = Math.max(SLAB_X, SLAB_Z);
 export let SLAB_MIN = Math.min(SLAB_X, SLAB_Z);
 
-/* Every piece is scaled by the same factor, so true proportions are kept
+/* Every block is scaled by the same factor, so true proportions are kept
    (a Turrito stays a cube, a Flaco stays 1:1:2) while a gap opens up
-   between each piece and the square it occupies. */
-export const PIECE_SCALE = 0.8;
+   between each piece and the square it occupies. 0.88 (up from 0.8) so
+   the Arcos and the Codo fill their squares; it is also the height of
+   one stacking level. */
+export const PIECE_SCALE = 0.88;
+
+/* The Cabeza disc's own scale (applied to DISC_DIAM / DISC_H), kept a
+   little smaller than the blocks by the user's choice. */
+export const CABEZA_SCALE = 0.84;
 
 export const DISC_DIAM = 1.0304;
 

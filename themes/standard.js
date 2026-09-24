@@ -5,7 +5,7 @@
    contrast: bloom textures, additive blending, a dark palette). */
 
 import * as THREE from "three";
-import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, DISC_DIAM, DISC_H, PIECE_SCALE } from "../engine/constants.js";
+import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, DISC_DIAM, DISC_H, PIECE_SCALE, CABEZA_SCALE } from "../engine/constants.js";
 import { makeRoundedBox, makePolycubeRounded } from "../engine/geometry.js";
 import { createWoodImpactEngine } from "../scripts/wood-impact-synth.js";
 
@@ -419,9 +419,9 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
      to trace, so an outline has to come from the silhouette. */
   const shellGeo = isDisc
     ? new THREE.CylinderGeometry(
-        (DISC_DIAM * PIECE_SCALE) / 2 + OUTLINE_T,
-        (DISC_DIAM * PIECE_SCALE) / 2 + OUTLINE_T,
-        DISC_H * PIECE_SCALE + OUTLINE_T * 2,
+        (DISC_DIAM * CABEZA_SCALE) / 2 + OUTLINE_T,
+        (DISC_DIAM * CABEZA_SCALE) / 2 + OUTLINE_T,
+        DISC_H * CABEZA_SCALE + OUTLINE_T * 2,
         40
       )
     : piece.vox

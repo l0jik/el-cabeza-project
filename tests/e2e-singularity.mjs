@@ -682,6 +682,17 @@ if (state.activeCategory === "laws") {
       state.selections.shove.far === false && state.selections.shove.onRolls === false &&
       (await page.evaluate(() => document.querySelector('[data-testid="law-shoving"]')?.nextElementSibling?.getAttribute("data-testid"))) === "shove-settings",
     JSON.stringify(state.selections.shove));
+  // Slides-only shoving without the Slide law gets a one-line warning,
+  // which goes once Slide is on (or rolls shove too).
+  const slideWasOn = !!state.selections.laws.slide;
+  if (slideWasOn) { await page.locator('[data-testid="law-slide"]').click(); await page.waitForTimeout(150); }
+  check("slides-only shoving without Slide shows the warning",
+    (await page.locator('[data-testid="shove-needs-slide"]').count()) === 1);
+  await page.locator('[data-testid="law-slide"]').click();
+  await page.waitForTimeout(150);
+  check("...and turning Slide on clears it",
+    (await page.locator('[data-testid="shove-needs-slide"]').count()) === 0);
+  if (!slideWasOn) { await page.locator('[data-testid="law-slide"]').click(); await page.waitForTimeout(150); }
   await page.locator('[data-testid="shove-far-on"]').click();
   await page.locator('[data-testid="shove-onRolls-on"]').click();
   await page.waitForTimeout(150);
@@ -690,6 +701,8 @@ if (state.activeCategory === "laws") {
     state.selections.shove.far === true && state.selections.shove.onRolls === true &&
       (await page.locator('[data-testid="shove-far-on"]').getAttribute("aria-pressed")) === "true",
     JSON.stringify(state.selections.shove));
+  check("slides and rolls needs no Slide, so no warning",
+    (await page.locator('[data-testid="shove-needs-slide"]').count()) === 0 || !!state.selections.laws.slide);
   await page.locator('[data-testid="law-shoving"]').click();
   await page.waitForTimeout(150);
 

@@ -1583,3 +1583,22 @@ Results, new vs previous:
 - Longest same-piece run fell from 15 to ≤3–6.
 - Medium in the user setup: 9–5 (2 draws). Easy: 7–5.
 - Classic Medium: 5–5.
+
+## Future wishlist (user-requested, not started)
+
+- **Online play against another human.** GitHub Pages only serves static
+  files, so this needs a small backend: a relay (WebSocket) service, or
+  peer-to-peer WebRTC with a tiny signalling server. Invite by link or
+  short game code; the engine's move descriptors and move log are already
+  the natural wire format.
+- **No accounts, but saves that outlive the browser.** Options discussed:
+  an export/import save code or file (no server); an anonymous save stored
+  on the same backend under a secret code or link (no sign-up); browser
+  storage as today. An installable app (PWA or native) doesn't solve this
+  on its own; it still stores on the one device. Pick the approach with
+  the user before building.
+- **Piece size (decided, built).** The user chose, after renders of
+  0.8 / 0.87 / 0.92: blocks, Codos and Arcos at `PIECE_SCALE` 0.88 (was
+  0.8; it is also the height of one stacking level), and the Cabeza disc
+  at its own `CABEZA_SCALE` 0.84 (engine/constants.js). The dock keeps
+  its frame size. Board squares are unchanged.
