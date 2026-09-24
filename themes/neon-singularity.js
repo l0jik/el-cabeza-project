@@ -2038,7 +2038,7 @@ function renderShoveSettingsRow(t) {
           "data-testid": "shove-needs-slide",
           style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, lineHeight: 1.45, color: "rgba(255,214,150,0.85)", borderLeft: "2px solid rgba(255,196,110,0.55)", paddingLeft: 8 },
         },
-        "Slides only requires the Slide law. Turn on Slide, or choose Slides and rolls."
+        "SLIDES ONLY requires the Slide law. Turn on Slide, or choose SLIDES AND ROLLS."
       )
   );
 }
