@@ -238,6 +238,25 @@ export const PIECE_ORIENTATIONS = {
     { w: 4, h: 2, z: 1, vox: "0,0,0;0,1,0;1,0,0;2,0,0;3,0,0;3,1,0" },
     { w: 4, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0;2,1,0;3,0,0;3,1,0" },
   ],
+  // The Rayo (4-cube S/Z): standing upright across the row, a pair on
+  // the board and a pair above it shifted one square (either way), or
+  // lying flat in either S turn.
+  rayo: [
+    { w: 3, h: 1, z: 2, vox: "0,0,0;1,0,0;1,0,1;2,0,1" },
+    { w: 3, h: 1, z: 2, vox: "0,0,1;1,0,0;1,0,1;2,0,0" },
+    { w: 3, h: 2, z: 1, vox: "0,0,0;1,0,0;1,1,0;2,1,0" },
+    { w: 3, h: 2, z: 1, vox: "0,1,0;1,0,0;1,1,0;2,0,0" },
+  ],
+  // The Zeta (5-cube Z): standing upright across the row. Drawn the way
+  // the user described it (two upright pairs joined by a middle cube) it
+  // stands on one cube; turned a quarter it stands on a pair. Lying flat
+  // it's 3 rows deep, too deep for the 2-row home band.
+  zeta: [
+    { w: 3, h: 1, z: 3, vox: "0,0,0;0,0,1;1,0,1;2,0,1;2,0,2" },
+    { w: 3, h: 1, z: 3, vox: "2,0,0;2,0,1;1,0,1;0,0,1;0,0,2" },
+    { w: 3, h: 1, z: 3, vox: "1,0,0;2,0,0;1,0,1;0,0,2;1,0,2" },
+    { w: 3, h: 1, z: 3, vox: "0,0,0;1,0,0;1,0,1;1,0,2;2,0,2" },
+  ],
 };
 
 export function shuffledIndices(n) {
@@ -271,6 +290,8 @@ function buildRosterFromSelections(matterSelections) {
     const size = ARCO_SIZES.find((a) => a.key === matterSelections.arcoSize) || ARCO_SIZES[0];
     roster.push({ type: size.type, count: matterSelections.roster.arco });
   }
+  if (matterSelections.roster.rayo > 0) roster.push({ type: "rayo", count: matterSelections.roster.rayo });
+  if (matterSelections.roster.zeta > 0) roster.push({ type: "zeta", count: matterSelections.roster.zeta });
   if (matterSelections.newPieces.block1x3) roster.push({ type: "block1x3", count: 1 });
   if (matterSelections.newPieces.block2x3) roster.push({ type: "block2x3", count: 1 });
 

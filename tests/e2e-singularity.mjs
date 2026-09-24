@@ -185,7 +185,7 @@ const cx = obox.x + obox.width / 2;
 let cy = obox.y + obox.height / 2;
 
 // ---- the sphere arrives with its NORTH pole facing the player, the
-// how-to text hidden behind a faint "?" at the bottom middle ----
+// how-to text hidden behind a faint line at the bottom middle ----
 const arrival = await sphereState();
 check("the sphere arrives with its north pole facing you",
   arrival.northPoleFacing > 0.99, `northPoleFacing=${arrival.northPoleFacing}`);
@@ -194,17 +194,31 @@ check("the sphere's instructions are hidden until asked for",
     (await page.locator('[data-testid="sphere-help-text"]').count()) === 0);
 const helpBox = await page.locator('[data-testid="sphere-help-button"]').boundingBox();
 const vp = page.viewportSize();
-check("the ? sits at the bottom middle of the screen",
+check("the help line sits at the bottom middle of the screen",
   !!helpBox && Math.abs(helpBox.x + helpBox.width / 2 - vp.width / 2) < 4 && helpBox.y > vp.height * 0.85,
   JSON.stringify(helpBox));
 await page.locator('[data-testid="sphere-help-button"]').hover();
 await page.waitForTimeout(150);
-check("hovering the ? shows the instructions",
+check("hovering the help line shows the instructions",
   (await page.locator('[data-testid="sphere-help-text"]').count()) === 1);
 await page.mouse.move(cx, cy);
 await page.waitForTimeout(150);
-check("moving off the ? hides them again",
+check("moving off the help line hides them again",
   (await page.locator('[data-testid="sphere-help-text"]').count()) === 0);
+// Tapping the line pins the text open; its link opens the rules cards.
+await page.locator('[data-testid="sphere-help-button"]').click();
+await page.waitForTimeout(150);
+await page.locator('[data-testid="sphere-help-rules"]').click();
+await page.waitForTimeout(500);
+check("the help's Game rules link opens the Quick rules card above the sphere",
+  (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "true" &&
+    (await page.locator('[data-testid="rules-card-quick"]').count()) === 1);
+await page.mouse.click(6, 6); // a tap outside the card
+await page.waitForTimeout(500);
+check("a tap outside closes it, back on the sphere",
+  (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "false");
+await page.mouse.move(cx, cy);
+await page.waitForTimeout(150);
 await tiltBackToEquator(0.05);
 
 async function dragSphereBy(dx) {
@@ -718,6 +732,34 @@ if (state.activeCategory === "laws") {
     (await page.locator('[data-testid="shove-needs-slide"], [data-testid="shove-needs-three"]').count()) === 0);
   await page.locator('[data-testid="law-shoving"]').click();
   await page.waitForTimeout(150);
+
+  // Laws that can't act warn under their own row: Diagonal Slide without
+  // Slide; Cantilever Pivot with no Codo, Rayo or Zeta in the roster.
+  state = await sphereState();
+  const slideOn = !!state.selections.laws.slide;
+  if (slideOn) { await page.locator('[data-testid="law-slide"]').click(); await page.waitForTimeout(120); }
+  await page.locator('[data-testid="law-diagonalSlide"]').click();
+  await page.waitForTimeout(150);
+  check("Diagonal Slide without Slide warns",
+    (await page.locator('[data-testid="law-warning-diagonalSlide"]').count()) === 1);
+  await page.locator('[data-testid="law-diagonalSlide"]').click();
+  if (slideOn) await page.locator('[data-testid="law-slide"]').click();
+  await page.waitForTimeout(120);
+  const pivotWasOn = !!state.selections.laws.cantileverPivot;
+  if (!pivotWasOn) { await page.locator('[data-testid="law-cantileverPivot"]').click(); await page.waitForTimeout(150); }
+  const pivotCapable = ["codo", "rayo", "zeta"].some((k) => state.selections.matter.roster[k] > 0);
+  check("Cantilever Pivot warns when no piece in the roster can pivot",
+    (await page.locator('[data-testid="law-warning-cantileverPivot"]').count()) === (pivotCapable ? 0 : 1));
+  if (!pivotWasOn) { await page.locator('[data-testid="law-cantileverPivot"]').click(); await page.waitForTimeout(120); }
+  // Each law's "i" opens its rules card: the MOVES tab, that law's tile.
+  await page.locator('[data-testid="law-blackHoleSquares-info"]').click();
+  await page.waitForTimeout(600);
+  check("a law's i opens the MOVES card at that law's tile",
+    (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "true" &&
+      (await page.locator('[data-testid="rules-tile-blackHoleSquares"]').getAttribute("data-focus")) === "true");
+  check("...without toggling the law", (await sphereState()).selections.laws.blackHoleSquares === state.selections.laws.blackHoleSquares);
+  await page.mouse.click(6, 6);
+  await page.waitForTimeout(500);
 
   // Close the LAWS overlay so the drag-rotate check below reaches the sphere.
   await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);

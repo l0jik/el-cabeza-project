@@ -1598,7 +1598,7 @@ Results, new vs previous:
   on its own; it still stores on the one device. Pick the approach with
   the user before building.
 - **Piece size (decided, built).** The user chose, after renders of
-  0.8 / 0.87 / 0.92: blocks, Codos and Arcos at `PIECE_SCALE` 0.88 (was
+  0.8 / 0.87 / 0.92: blocks, Codos and Arcos at `PIECE_SCALE` 0.87 (was
   0.8; it is also the height of one stacking level), and the Cabeza disc
   at its own `CABEZA_SCALE` 0.84 (engine/constants.js). The dock keeps
   its frame size. Board squares are unchanged.
@@ -1610,11 +1610,29 @@ Results, new vs previous:
 - **Shoving warnings (built).** SLIDES ONLY warns when Slide is off
   (`shove-needs-slide`), and when Slide is on but 3 Actions is off
   (`shove-needs-three`): a shoving slide costs 3 points.
-- **Laws review (reported to the user, nothing changed yet):** Cantilever
-  Pivot only works with a Codo (no other piece can stand on one cube);
-  Diagonal Slide does nothing without Slide; an Opa can never shove
-  without 3 Actions (roll 2 + shove 1); the Slide blurb ("as a full turn
-  action") and the Black Hole blurb ("one or two") are out of date.
-- **Rules card:** five designs shown to the user (quick card, point
-  ledger, this game's laws, picture tiles, turn walkthrough); waiting on
-  a pick.
+- **LAWS fixes (built).** Blurbs rewritten to match the engine (Slide
+  costs 2, Black Holes are always two and exit on the same side, Split is
+  up to two pieces, only a Codo/Rayo/Zeta can pivot). Warnings under a
+  law's row (`lawWarning`, `law-warning-*`): Diagonal Slide without Slide;
+  Cantilever Pivot with no Codo/Rayo/Zeta in the roster. Shoving adds
+  `shove-opa-needs-three` (slides-and-rolls, an Opa in the roster, no 3
+  Actions: an Opa shove costs 3).
+- **Rayo and Zeta (built).** MATTER roster counters (0-4, default 0).
+  Rayo: 4-cube S/Z (`rayo`, "Ra"); Zeta: 5-cube Z (`zeta`, "Ze"), which
+  starts upright and can stand on one cube, so it can pivot (the Rayo can
+  too, once stood on end). Poses in themes/neon.js PIECE_ORIENTATIONS;
+  Zeta never starts flat (3 rows deep).
+- **Pieces at 87%.** `PIECE_SCALE` 0.87 (user's final pick); the Cabeza
+  stays at `CABEZA_SCALE` 0.84.
+- **Rules cards (built).** chassis/RulesCards.jsx: tabs in the INFO
+  overlay (About, Quick, Costs, This game, Moves, Your turn). Opened from
+  anywhere by the window event `el-cabeza:open-rules` {tab, focus}
+  (focus = a MOVES tile key or law key). Contextual entry points: each
+  SINGULARITY law's "i" (`law-<key>-info`), law names in the Current
+  Variants flyout (`variants-law-<key>`) plus its "Rules ›" link, the
+  unused-points note (opens Your turn), and the sphere's help line (the
+  old "?" is now a plain line; its text links "Game rules ›"). The INFO
+  overlay is z-index 2500 so it covers the sphere; the sphere's Escape
+  handler ignores Escape while it is open. MOVES has 16 animated SVG
+  tiles (CSS keyframes, off under prefers-reduced-motion); the black
+  hole tile shows the same-side exit. Test: tests/e2e-rules.mjs.

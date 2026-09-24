@@ -480,13 +480,13 @@ const DEFAULT_BOARD_DIM = 10; // matches the engine's fixed board before any TOP
 // LAWS — the independent toggles from SINGULARITY_DESIGN.md's Part 2,
 // plus Diagonal Slide (a modifier on Slide).
 const LAWS_ITEMS = [
-  { key: "splitMovement", label: "Split Movement", blurb: "Divide a turn's movement across multiple pieces instead of one." },
-  { key: "slide", label: "Slide", blurb: "Move one open orthogonally-adjacent square without rolling, as a full turn action." },
-  { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Also allow Slide moves diagonally (only matters when Slide is on)." },
-  { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "One or two linked squares — enter one, arrive at the other." },
-  { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "Pivot a cantilevered piece in place around its one grounded cell." },
-  { key: "threeActions", label: "3 Actions Per Turn", blurb: "Raises the per-turn movement budget by one." },
-  { key: "shoving", label: "Shoving", blurb: "A piece with more cubes moving into a smaller one pushes it along. Costs 1 extra point." },
+  { key: "splitMovement", label: "Split Movement", blurb: "Split a turn's points between up to two pieces instead of one." },
+  { key: "slide", label: "Slide", blurb: "Move a piece one open square north, south, east or west without tipping it. Costs 2 points (a roll costs 1)." },
+  { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Slides may also go diagonally. Needs Slide." },
+  { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
+  { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 point." },
+  { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 action points per turn instead of 2." },
+  { key: "shoving", label: "Shoving", blurb: "A piece moving into one with fewer cubes pushes it along. Costs 1 extra point." },
 ];
 
 // The Shoving law's two game-start settings (selections.shove), shown
@@ -531,6 +531,8 @@ const PIECE_FOOTPRINTS = {
   // a 3-wide arch with its center cell empty is the simplest icon that
   // actually reads as an arch rather than a plain block.
   arch: [[0, 0], [2, 0], [0, 1], [1, 1], [2, 1]],
+  rayo: [[0, 0], [1, 0], [1, 1], [2, 1]],
+  zeta: [[0, 0], [0, 1], [1, 1], [2, 1], [2, 2]],
 };
 
 // MATTER — the four new polycube types from the design doc, each a
@@ -568,6 +570,9 @@ const MATTER_ROSTER = [
   // The Arco (an arch — see engine/constants.js): one counter, and a
   // size choice (matter.arcoSize) that applies to every Arco in the game.
   { key: "arco", label: "Arco", min: 0, max: 4, default: 0, icon: "arch" },
+  // The Rayo (4-cube S/Z) and the Zeta (5-cube Z): off by default.
+  { key: "rayo", label: "Rayo", min: 0, max: 4, default: 0, icon: "rayo" },
+  { key: "zeta", label: "Zeta", min: 0, max: 4, default: 0, icon: "zeta" },
 ];
 
 // "Arco Alto" etc. for the summary / variants — the counter's label plus
@@ -665,8 +670,10 @@ function missingSquaresLabel(count) {
    rules" (see VariantsFlyout). */
 function buildVariantsSnapshot(selections) {
   const groups = [];
-  const laws = LAWS_ITEMS.filter((i) => selections.laws[i.key]).map((i) => lawLabel(i, selections));
-  if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws });
+  const lawItems = LAWS_ITEMS.filter((i) => selections.laws[i.key]);
+  const laws = lawItems.map((i) => lawLabel(i, selections));
+  // keys: which rules card each item opens when tapped in the flyout.
+  if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws, keys: lawItems.map((i) => i.key) });
 
   const matter = [];
   if (selections.matter.randomizeStart) matter.push("Randomized start");
@@ -1784,7 +1791,7 @@ function DrumRoller({ id, label, value, min, max, onChange, compact, icon }) {
   );
 }
 
-function renderCheckboxRow(item, checked, onToggle, testId) {
+function renderCheckboxRow(item, checked, onToggle, testId, onInfo = null) {
   const h = React.createElement;
   return h(
     "div",
@@ -1818,7 +1825,24 @@ function renderCheckboxRow(item, checked, onToggle, testId) {
           { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.58)", marginTop: 2, lineHeight: 1.4 } },
           item.blurb
         )
-    )
+    ),
+    // A small "i" at the row's end opens this rule's card (MOVES tab).
+    onInfo &&
+      h(
+        "button",
+        {
+          type: "button",
+          "data-testid": `${testId}-info`,
+          "aria-label": `How ${item.label} works`,
+          onClick: (e) => { e.stopPropagation(); onInfo(); },
+          style: {
+            marginLeft: "auto", flexShrink: 0, width: 20, height: 20, marginTop: 3, padding: 0, borderRadius: "50%", cursor: "pointer",
+            border: "1px solid rgba(142,243,255,0.3)", background: "transparent", color: "rgba(142,243,255,0.6)",
+            fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, lineHeight: "18px", fontStyle: "italic",
+          },
+        },
+        "i"
+      )
   );
 }
 
@@ -1971,10 +1995,55 @@ function rerollRandomPairedSquares(s) {
   if (s.selections.laws.blackHoleSquares) fillPairedSpots(s, "blackHole", true);
 }
 
+// Opens a rules card in the chassis's INFO overlay (chassis/RulesCards.jsx
+// listens for this event; the name must match its OPEN_RULES_EVENT).
+function openRulesCard(tab, focus = null) {
+  window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab, focus } }));
+}
+
+// Pieces that can ever stand balanced on one cube (so can Cantilever
+// Pivot): checked against every orientation in engine/shapes.js.
+const PIVOT_CAPABLE_ROSTER = ["codo", "rayo", "zeta"];
+
+// A law that's on but can't do anything with the other settings, and
+// why: shown under the law's own row. Shoving's own cases live in
+// shoveWarning (under its settings).
+function lawWarning(key, sel) {
+  const laws = sel.laws || {};
+  if (!laws[key]) return null;
+  if (key === "diagonalSlide" && !laws.slide)
+    return { testid: "law-warning-diagonalSlide", text: "Diagonal Slide only works with Slide. Turn on Slide." };
+  if (key === "cantileverPivot") {
+    const roster = (sel.matter && sel.matter.roster) || {};
+    if (!PIVOT_CAPABLE_ROSTER.some((k) => roster[k] > 0))
+      return { testid: "law-warning-cantileverPivot", text: "Only a Codo, Rayo or Zeta can pivot. Add one in MATTER." };
+  }
+  return null;
+}
+function renderLawWarning(w) {
+  return React.createElement(
+    "div",
+    {
+      key: w.testid,
+      role: "status",
+      "data-testid": w.testid,
+      style: { margin: "0 0 8px 36px", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, lineHeight: 1.45, color: "rgba(255,214,150,0.85)", borderLeft: "2px solid rgba(255,196,110,0.55)", paddingLeft: 8 },
+    },
+    w.text
+  );
+}
+
 // Why the chosen Shoving settings can never shove, if they can't.
 function shoveWarning(sel) {
-  if (!sel.shove || sel.shove.onRolls) return null;
+  if (!sel.shove) return null;
   const laws = sel.laws || {};
+  if (sel.shove.onRolls) {
+    // Rolls shove for 2, but an Opa's move already costs 2: its shove is 3.
+    const opas = (sel.matter && sel.matter.roster && sel.matter.roster.opa) || 0;
+    if (opas > 0 && !laws.threeActions)
+      return { testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 points, so Opas can only shove with 3 Actions Per Turn." };
+    return null;
+  }
   if (!laws.slide) return { testid: "shove-needs-slide", text: "SLIDES ONLY requires the Slide law. Turn on Slide, or choose SLIDES AND ROLLS." };
   if (!laws.threeActions) return { testid: "shove-needs-three", text: "A shoving slide costs 3 points, so SLIDES ONLY requires 3 Actions Per Turn. Turn it on, or choose SLIDES AND ROLLS." };
   return null;
@@ -2036,7 +2105,7 @@ function renderShoveSettingsRow(t) {
     h(
       "div",
       { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.68)", lineHeight: 1.45 } },
-      "A shove adds 1 point: a shoving roll costs 2, a shoving slide 3 (so slide-shoves need 3 Actions Per Turn)."
+      "A shove adds 1 point: a shoving roll costs 2, a shoving slide 3, and an Opa shove 3 (its move already costs 2). Anything costing 3 needs 3 Actions Per Turn."
     ),
     // Slides-only shoving does nothing unless the Slide law is on, and
     // even then a shoving slide costs 3 points, so it needs 3 Actions.
@@ -2721,7 +2790,8 @@ function renderCategoryOverlay(t) {
             if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares && !sel.blackHole.manual) fillPairedSpots(s, "blackHole", false);
             s.labelsDirty = true; s.bump();
           },
-          `law-${item.key}`
+          `law-${item.key}`,
+          () => openRulesCard("moves", item.key)
         );
         if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares) {
           return [row, renderPairedSquarePlacementRow(t, "blackHole")];
@@ -2729,7 +2799,8 @@ function renderCategoryOverlay(t) {
         if (item.key === "shoving" && sel.laws.shoving) {
           return [row, renderShoveSettingsRow(t)];
         }
-        return [row];
+        const warning = lawWarning(item.key, sel);
+        return warning ? [row, renderLawWarning(warning)] : [row];
       })
     );
   } else if (category === "matter") {
@@ -3002,11 +3073,11 @@ function renderSummaryPanel(setupExtras) {
   );
 }
 
-/* The sphere's how-to text, hidden behind a small, faint "?" at the
+/* The sphere's how-to text, hidden behind a short, faint line at the
    bottom middle of the screen: hovering it (or tapping it, on touch)
-   shows the instructions just above it. Its pointerdown is stopped so a
-   tap on the "?" never starts a sphere drag or counts toward the
-   triple-tap finish. */
+   shows the instructions just above it, with a link into the rules cards
+   (chassis/RulesCards.jsx). Its pointerdown is stopped so a tap on it
+   never starts a sphere drag or counts toward the triple-tap finish. */
 const LABELS_HINT_TEXT =
   "The sphere opens with its north pole toward you — drag upward to bring the glowing categories round. Tap one to configure it. Saved CONFIGURATIONS sit at the south pole — keep dragging upward to reach them. Triple-tap open space on the sphere to finish.";
 function LabelsHint() {
@@ -3022,6 +3093,8 @@ function LabelsHint() {
       onPointerDown: (e) => e.stopPropagation(),
       onPointerUp: (e) => e.stopPropagation(),
       onPointerMove: (e) => e.stopPropagation(),
+      onMouseEnter: () => setHover(true),
+      onMouseLeave: () => setHover(false),
     },
     open &&
       h(
@@ -3029,40 +3102,59 @@ function LabelsHint() {
         {
           "data-testid": "sphere-help-text",
           style: {
-            position: "absolute", bottom: "calc(100% + 10px)", left: "50%", transform: "translateX(-50%)",
+            position: "absolute", bottom: "100%", left: "50%", transform: "translateX(-50%)",
             width: "min(400px, calc(100vw - 32px))", textAlign: "center",
-            background: "rgba(4,6,10,0.82)", backdropFilter: "blur(6px)",
-            border: "1px solid rgba(102,217,255,0.26)", borderRadius: 4,
-            padding: "12px 18px", boxSizing: "border-box", pointerEvents: "none",
-            fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.5,
-            color: "rgba(207,216,220,0.8)",
+            paddingBottom: 10, boxSizing: "border-box",
           },
         },
-        LABELS_HINT_TEXT
+        h(
+          "div",
+          {
+            style: {
+              background: "rgba(4,6,10,0.82)", backdropFilter: "blur(6px)",
+              border: "1px solid rgba(102,217,255,0.26)", borderRadius: 4,
+              padding: "12px 18px 10px", boxSizing: "border-box",
+              fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.5,
+              color: "rgba(207,216,220,0.8)",
+            },
+          },
+          LABELS_HINT_TEXT,
+          h(
+            "button",
+            {
+              type: "button",
+              "data-testid": "sphere-help-rules",
+              onClick: (e) => { e.stopPropagation(); openRulesCard("quick"); },
+              style: {
+                display: "block", margin: "8px auto 0", padding: "2px 6px", background: "transparent", border: "none", cursor: "pointer",
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8ef3ff",
+              },
+            },
+            "Game rules ›"
+          )
+        )
       ),
     h(
       "button",
       {
         type: "button",
         "data-testid": "sphere-help-button",
-        "aria-label": "How the sphere works",
+        "aria-label": "How the sphere works, and the game rules",
         "aria-expanded": open ? "true" : "false",
-        onMouseEnter: () => setHover(true),
-        onMouseLeave: () => setHover(false),
         onFocus: () => setHover(true),
-        onBlur: () => { setHover(false); setPinned(false); },
+        onBlur: (e) => { if (!e.currentTarget.parentElement.contains(e.relatedTarget)) { setHover(false); setPinned(false); } },
         onClick: (e) => { e.stopPropagation(); setPinned((p) => !p); },
-        style: {
-          width: 20, height: 20, padding: 0, borderRadius: "50%", cursor: "help",
-          border: `1px solid ${open ? "rgba(102,217,255,0.55)" : "rgba(102,217,255,0.2)"}`,
-          background: "transparent",
-          color: open ? "rgba(142,243,255,0.85)" : "rgba(142,243,255,0.32)",
-          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, lineHeight: "18px",
-          boxShadow: open ? "0 0 8px rgba(77,232,255,0.35)" : "none",
-          transition: "color 160ms ease, border-color 160ms ease, box-shadow 160ms ease",
-        },
+        // A plain line, longer than an em dash, in place of a "?".
+        style: { width: 44, height: 18, padding: 0, background: "transparent", border: "none", cursor: "help", display: "flex", alignItems: "center", justifyContent: "center" },
       },
-      "?"
+      h("span", {
+        style: {
+          display: "block", width: 34, height: 1.5, borderRadius: 1,
+          background: open ? "rgba(142,243,255,0.85)" : "rgba(142,243,255,0.35)",
+          boxShadow: open ? "0 0 8px rgba(77,232,255,0.45)" : "none",
+          transition: "background 160ms ease, box-shadow 160ms ease",
+        },
+      })
     )
   );
 }
@@ -3449,7 +3541,12 @@ export function useSingularityPhase({
 
   React.useEffect(() => {
     if (phase === PHASES.IDLE) return;
-    const onKey = (e) => { if (e.key === "Escape") exitSingularity(); };
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      // A rules card open over the sphere takes this Escape for itself.
+      if (document.querySelector('[data-testid="info-overlay"][data-open="true"]')) return;
+      exitSingularity();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase]);
@@ -3762,7 +3859,19 @@ function VariantsFlyout({ groups }) {
                 h(
                   "li",
                   { key: idx, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, lineHeight: 1.55, color: "rgba(223,244,255,0.9)" } },
-                  "• " + it
+                  // A law opens its rules card (the MOVES tile for it).
+                  g.keys && g.keys[idx]
+                    ? h(
+                        "button",
+                        {
+                          type: "button",
+                          "data-testid": `variants-law-${g.keys[idx]}`,
+                          onClick: () => openRulesCard("moves", g.keys[idx]),
+                          style: { all: "unset", cursor: "pointer", borderBottom: "1px dotted rgba(147,197,253,0.45)" },
+                        },
+                        "• " + it
+                      )
+                    : "• " + it
                 )
               )
             )
@@ -3772,7 +3881,18 @@ function VariantsFlyout({ groups }) {
           "div",
           { style: { padding: "3px 8px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "rgba(200,214,230,0.75)" } },
           "Standard rules"
-        )
+        ),
+    open &&
+      h(
+        "button",
+        {
+          type: "button",
+          "data-testid": "variants-rules",
+          onClick: () => openRulesCard("game"),
+          style: { all: "unset", cursor: "pointer", display: "block", padding: "6px 8px 2px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "#93c5fd" },
+        },
+        "Rules ›"
+      )
   );
 
   return h(

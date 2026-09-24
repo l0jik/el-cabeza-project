@@ -92,10 +92,10 @@ export let SLAB_MIN = Math.min(SLAB_X, SLAB_Z);
 
 /* Every block is scaled by the same factor, so true proportions are kept
    (a Turrito stays a cube, a Flaco stays 1:1:2) while a gap opens up
-   between each piece and the square it occupies. 0.88 (up from 0.8) so
+   between each piece and the square it occupies. 0.87 (up from 0.8) so
    the Arcos and the Codo fill their squares; it is also the height of
    one stacking level. */
-export const PIECE_SCALE = 0.88;
+export const PIECE_SCALE = 0.87;
 
 /* The Cabeza disc's own scale (applied to DISC_DIAM / DISC_H), kept a
    little smaller than the blocks by the user's choice. */
@@ -217,6 +217,13 @@ export const PIECE_META = {
   arcoChico: { label: "AC", name: "Arco Chico", shape: "block", maxSteps: 2 },
   arcoAlto: { label: "AA", name: "Arco Alto", shape: "block", maxSteps: 2 },
   arcoAncho: { label: "AN", name: "Arco Ancho", shape: "block", maxSteps: 2 },
+  // The Rayo: a 4-cube S/Z (two pairs of two, offset by one square).
+  // Its S and Z forms are the same piece turned over.
+  rayo: { label: "Ra", name: "Rayo", shape: "block", maxSteps: 2 },
+  // The Zeta: a 5-cube Z (two pairs of two joined by one middle cube).
+  // Standing upright as the user drew it, it's balanced on one cube, so
+  // it can Cantilever Pivot like a Codo.
+  zeta: { label: "Ze", name: "Zeta", shape: "block", maxSteps: 2 },
 };
 
 /* The Arco's three sizes, in MATTER's size choice: the key stored in
