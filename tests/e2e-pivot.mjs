@@ -10,10 +10,14 @@
       sweeps (clockwise), and free the other way (counter-clockwise),
       where it swings over an enemy Cabeza that stays sheltered. Only
       the free way gets a curved arrow, and tapping it plays the pivot.
+   1b. Pivoting back refunds the point (a move that recreates an earlier
+      position this turn rewinds the turn — chassis commit's trail).
+   1c. A swipe across the arm pivots it the way the swipe goes.
    2. Undo move turns it back.
    3. Two quarter turns the same way make a half turn in one turn, and
       the move log records both.
-   4. An AI opponent plays a turn with the law on and a balanced Codo. */
+   4. An AI opponent plays a turn with the law on and a balanced Codo.
+   5. Rolling a piece out and back also costs nothing. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -44,6 +48,10 @@ async function openPage() {
   await page.waitForTimeout(1500);
   return { page, errs };
 }
+const statusText = (page) => page.evaluate(() => {
+  const s = [...document.querySelectorAll("span")].find((el) => /to move|left$/i.test(el.textContent || ""));
+  return s ? s.textContent : "";
+});
 const codoOf = async (page) => (await page.evaluate(() => window.__EC_TEST_PIECES__)).find((p) => p.id === "dark-codo");
 const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w && a.h === b.h && a.vox === b.vox;
 
@@ -79,6 +87,32 @@ const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w &&
   check("the enemy Cabeza under the arm is sheltered, not crushed", ps.some((p) => p.id === "light-cabeza-1" && p.row === 3 && p.col === 4));
   await page.screenshot({ path: "/tmp/e2e-pivot-quarter.png" });
 
+  // ---- 1b. turning back costs nothing: the turn rewinds ----
+  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-codo", "pivot-cw"));
+  await page.waitForTimeout(1400);
+  check("pivoting back puts it where it started", same(await codoOf(page), BALANCED), JSON.stringify(await codoOf(page)));
+  check("...and refunds the point: the Codo stays selected with both rolls left, nothing logged, no turn in progress",
+    /2 rolls left/i.test(await statusText(page)) && (await page.evaluate(() => (window.__EC_TEST_LOG__ || []).length)) === 0 &&
+      (await page.locator("button", { hasText: /^Undo move$/ }).count()) === 0,
+    await statusText(page));
+
+  // ---- 1c. the swipe: across the arm, the way it should turn ----
+  // Start on the Codo and swipe toward where the counter-clockwise arrow
+  // curves (its midpoint is across the arm, on that side).
+  // (Still selected after the refund, so its arrows are up.)
+  const start = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-codo"));
+  const target = await page.evaluate(() => window.__EC_TEST_PIVOT_ARROW_POS__("pivot-ccw"));
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) {
+    await page.mouse.move(start.x + ((target.x - start.x) * 1.4 * i) / 8, start.y + ((target.y - start.y) * 1.4 * i) / 8);
+    await page.waitForTimeout(30);
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(1500);
+  check("swiping across the arm pivots it that way round",
+    same(await codoOf(page), { row: 3, col: 4, w: 1, h: 2, vox: "0,0,1;0,1,0;0,1,1" }), JSON.stringify(await codoOf(page)));
+
   // ---- 2. undo ----
   // Undo move lives in the menu dock, which folds away during play.
   await openDockPanel(page);
@@ -96,11 +130,23 @@ const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w &&
     same(half, { row: 4, col: 3, w: 2, h: 1, vox: "0,0,1;1,0,0;1,0,1" }), JSON.stringify(half));
   const log = await page.evaluate(() => window.__EC_TEST_LOG__ || []);
   check("the move log records both quarter turns", log.length === 1 && /pivot-ccw\.pivot-ccw/.test(log[0].notation), JSON.stringify(log));
-  const status = await page.evaluate(() => {
-    const s = [...document.querySelectorAll("span")].find((el) => /to move/i.test(el.textContent || ""));
-    return s ? s.textContent : null;
-  });
-  check("the half turn used the whole turn (Light to move)", !!status && /light to move/i.test(status), JSON.stringify(status));
+  check("the half turn used the whole turn (Light to move)", /light to move/i.test(await statusText(page)), await statusText(page));
+
+  // ---- 5. rolling out and back costs nothing either ----
+  await page.evaluate(() => window.__EC_TEST_MOVE__("light-turrito", "E"));
+  await page.waitForTimeout(1400);
+  await page.evaluate(() => window.__EC_TEST_MOVE__("light-turrito", "W"));
+  await page.waitForTimeout(1400);
+  const tu = (await page.evaluate(() => window.__EC_TEST_PIECES__)).find((p) => p.id === "light-turrito");
+  check("a Turrito rolled east then back west is where it started, with both rolls still to spend",
+    tu.row === 5 && tu.col === 5 && tu.z === 2 && /2 rolls left/i.test(await statusText(page)) &&
+      (await page.evaluate(() => (window.__EC_TEST_LOG__ || []).length)) === 1,
+    JSON.stringify(tu) + " " + (await statusText(page)));
+  await page.evaluate(() => window.__EC_TEST_MOVE__("light-turrito", "E"));
+  await page.waitForTimeout(1400);
+  await page.evaluate(() => window.__EC_TEST_MOVE__("light-turrito", "E"));
+  await page.waitForTimeout(1400);
+  check("...and two more rolls then end the turn", /dark to move/i.test(await statusText(page)), await statusText(page));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();
 }

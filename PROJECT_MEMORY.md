@@ -1432,3 +1432,42 @@ stretch where the AI and the 3D scene compete for the CPU). Sim vs
 Medium on the classic board, both colours:
 - 3500ms / beam 12: 7 wins, 0 losses, 3 draws.
 - 3000ms / beam 10: 5–5. 3000ms / beam 8: 4 wins of 10.
+
+**Free detours (user rule: "any move that returns to a previous position
+should not deduct a movement point").** The chassis commit keeps
+`turnTrailRef`: one entry per move this turn, each holding the board plus
+the turn's bookkeeping (points used, moved ids, steps, notation, selected
+piece) from just before that move.
+
+When a human's move recreates one of those boards, the turn rewinds to
+it. The points spent since are refunded, and the steps and notation are
+trimmed. Back at the turn's start, the turn is simply open again, with
+the piece still selected.
+
+Examples: roll E then W, pivot there and back, or a Split turn's second
+piece stepping home.
+
+Limits:
+- A crush or shove is never rewound.
+- AI turns are excluded: its plans never detour, and its replay counts
+  the points it planned with.
+
+The old "rolled out and back voids the turn" branch in settleTurn only
+triggers now when the detour happens to end the turn some other way.
+
+**Pivot input, round 2.**
+- Arrows are thicker (tube 0.1 square).
+- The invisible tap tube is much fatter (0.42 square radius), so near
+  misses no longer hit the roll markers under the arm.
+- New **swipe** (`pivotDrag` in the pointer effect). Armed on pointerdown
+  on one of the player's pivot-eligible pieces: the selected one, or any
+  of theirs before the turn starts.
+- A swipe across the arm, where the sine between the arm's on-screen
+  vector and the swipe is over 0.55, picks cw/ccw from its screen sense.
+  That's safe because the camera always looks down on the board, so
+  screen clockwise is board clockwise. It claims the gesture, lights the
+  matching arrow via hoverShadow, and commits on release.
+- With a Slide also armed: grab near the arm to pivot, near the base to
+  slide (`preferred`).
+- Tests: tests/e2e-pivot.mjs 1b (pivot back is free), 1c (swipe) and 5
+  (roll out and back is free).
