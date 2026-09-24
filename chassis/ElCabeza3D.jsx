@@ -34,6 +34,74 @@ const APP_VERSION = "1.39.0";
    of this same masthead shipped (see ARCHITECTURE.md's "Known
    pitfalls"). floorPx/ceilingPx are bare px numbers, vw is a bare vw
    number; scale defaults to 1 for a theme with no opinion. */
+/* Cantilever Pivot's move cue: a curved arrow floating just above the
+   piece, sweeping round its planted cube from where the arm is now
+   toward where the pivot would swing it — one per legal direction. The
+   player taps the arrow itself. Returns the same { root, setOpacity,
+   tick, dispose } shape a theme's buildMoveIndicator does, so the
+   ghost fade/hover machinery drives it unchanged, plus `hit`: a fatter
+   invisible tube along the same arc for the raycaster (floating above
+   the board, it's nearer the camera than the roll markers under it, so
+   a tap on the arrow always means the pivot).
+
+   `center` is the planted cube's (x, z); angles are atan2(z, x) in the
+   board's plane, and a clockwise pivot increases them (rows run +z). */
+function buildPivotArrow({ center, radius, fromAngle, toAngle, y, color, tubeRadius, dir }) {
+  const pad = 0.2; // radians of daylight at each end, so the two arrows read as two
+  const span = toAngle - fromAngle;
+  const a0 = fromAngle + Math.sign(span) * pad;
+  const a1 = toAngle - Math.sign(span) * pad * 0.6;
+  const at = (a) => new THREE.Vector3(center.x + radius * Math.cos(a), y, center.z + radius * Math.sin(a));
+  const points = [];
+  const SEGS = 16;
+  for (let i = 0; i <= SEGS; i++) points.push(at(a0 + ((a1 - a0) * i) / SEGS));
+  const curve = new THREE.CatmullRomCurve3(points);
+
+  const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false });
+  const root = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, tubeRadius, 8, false), material);
+  root.add(shaft);
+  // Arrowhead: a cone at the arc's end, pointing along the arc.
+  const headLen = tubeRadius * 5;
+  const head = new THREE.Mesh(new THREE.ConeGeometry(tubeRadius * 2.6, headLen, 16), material);
+  const end = points[points.length - 1];
+  const tangent = curve.getTangent(1).normalize();
+  head.position.copy(end).addScaledVector(tangent, headLen / 2);
+  head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
+  root.add(head);
+
+  const hit = new THREE.Mesh(
+    new THREE.TubeGeometry(curve, 16, tubeRadius * 4, 6, false),
+    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+  );
+  // midPoint: a point on the arc, for tests that tap the arrow.
+  hit.userData = { dir, kind: "ghost", isCrush: false, isPivot: true, midPoint: at((a0 + a1) / 2) };
+
+  let opacity = 0;
+  const baseColor = new THREE.Color(color);
+  const hotColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.65);
+  return {
+    root,
+    hit,
+    // Marker fades run 0 -> 0.5 (idle) and up to 0.95 when hovered. The
+    // arrow is thin, so it's drawn stronger than that with a slow breathe
+    // at rest, and flares near-white and fully opaque under the pointer.
+    setOpacity: (o) => { opacity = o; },
+    tick: (now) => {
+      const hot = Math.max(0, Math.min(1, (opacity - 0.5) / 0.45));
+      material.opacity = Math.min(1, opacity * 1.5) * (hot > 0.5 ? 1 : 0.88 + 0.12 * Math.sin(now / 260));
+      material.color.copy(baseColor).lerp(hotColor, hot);
+    },
+    dispose: () => {
+      shaft.geometry.dispose();
+      head.geometry.dispose();
+      material.dispose();
+      hit.geometry.dispose();
+      hit.material.dispose();
+    },
+  };
+}
+
 function mastheadClamp(floorPx, vw, ceilingPx, scale) {
   const s = scale || 1;
   return `clamp(${floorPx * s}px, ${vw * s}vw, ${ceilingPx * s}px)`;
@@ -319,6 +387,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       const piece = pieces.find((p) => p.id === id);
       if (piece && beginMoveRef.current) beginMoveRef.current(piece, dir);
       return !!piece;
+    };
+    // Screen position of a Cantilever Pivot arrow ("pivot-cw"/"pivot-ccw").
+    window.__EC_TEST_PIVOT_ARROW_POS__ = (dir) => {
+      const t = three.current;
+      const hit = t.ghostGroup && t.ghostGroup.children.find((c) => c.userData.kind === "ghost" && c.userData.dir === dir);
+      if (!hit || !t.camera || !t.renderer) return null;
+      const v = hit.userData.midPoint.clone();
+      t.ghostGroup.localToWorld(v);
+      v.project(t.camera);
+      const r = t.renderer.domElement.getBoundingClientRect();
+      return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
     };
     window.__EC_TEST_SCREEN_POS__ = (id) => {
       const t = three.current;
@@ -2900,9 +2979,37 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       .forEach((c) => setGhostLineTarget(c, 0, true));
 
     shadowEntries.forEach(([dir, move]) => {
-      // A pivot's indicator marks the square its arm swings onto, not
-      // its whole new outline (which still includes the planted square).
-      const cand = move.isPivot ? pivotArmFootprint(move.candidate) : move.candidate;
+      // Cantilever Pivot: a curved arrow round the planted cube instead
+      // of a square marker (see buildPivotArrow).
+      if (move.isPivot) {
+        const cand = move.candidate;
+        const pc = pivotCellOf(cand);
+        const arm = pivotArmFootprint(cand);
+        const center = {
+          x: (pc.col + 0.5) * SQUARE_SIZE - OFF_X,
+          z: (pc.row + 0.5) * SQUARE_SIZE - OFF_Z,
+        };
+        const ax = (arm.col + arm.w / 2) * SQUARE_SIZE - OFF_X - center.x;
+        const az = (arm.row + arm.h / 2) * SQUARE_SIZE - OFF_Z - center.z;
+        const toAngle = Math.atan2(az, ax);
+        const cw = dir === "pivot-cw";
+        const arrow = buildPivotArrow({
+          center,
+          radius: Math.hypot(ax, az),
+          fromAngle: toAngle + (cw ? -Math.PI / 2 : Math.PI / 2),
+          toAngle,
+          y: cand.z * PIECE_SCALE + 0.14,
+          color: cand.owner === "dark" ? HEX.glowCyan : HEX.glowAmber,
+          tubeRadius: SQUARE_SIZE * 0.06,
+          dir,
+        });
+        group.add(arrow.hit);
+        arrow.root.userData = { dir, kind: "ghostLine", isCrush: false, indicator: arrow };
+        setGhostLineTarget(arrow.root, 0.5, false);
+        group.add(arrow.root);
+        return;
+      }
+      const cand = move.candidate;
       const isCrush = !!move.crushes;
       const cx = (cand.col + cand.w / 2) * SQUARE_SIZE - OFF_X;
       const cz = (cand.row + cand.h / 2) * SQUARE_SIZE - OFF_Z;

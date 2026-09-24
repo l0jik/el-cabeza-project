@@ -8,7 +8,8 @@
 
    1. The arm's swing is blocked by a 2-tall piece on the diagonal it
       sweeps (clockwise), and free the other way (counter-clockwise),
-      where it swings over an enemy Cabeza that stays sheltered.
+      where it swings over an enemy Cabeza that stays sheltered. Only
+      the free way gets a curved arrow, and tapping it plays the pivot.
    2. Undo move turns it back.
    3. Two quarter turns the same way make a half turn in one turn, and
       the move log records both.
@@ -59,7 +60,15 @@ const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w &&
   await page.waitForTimeout(900);
   check("clockwise is blocked: the arm would sweep through the 2-tall Turrito", same(await codoOf(page), BALANCED), JSON.stringify(await codoOf(page)));
 
-  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-codo", "pivot-ccw"));
+  // Played the way a player does it: tap the Codo, then tap its
+  // curved arrow. Only the unblocked way round gets an arrow.
+  const codoPos = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-codo"));
+  await page.mouse.click(codoPos.x, codoPos.y);
+  await page.waitForTimeout(900);
+  const arrows = await page.evaluate(() => ({ cw: window.__EC_TEST_PIVOT_ARROW_POS__("pivot-cw"), ccw: window.__EC_TEST_PIVOT_ARROW_POS__("pivot-ccw") }));
+  check("selecting the balanced Codo shows a curved arrow only for the way it can turn", !arrows.cw && !!arrows.ccw, JSON.stringify(arrows));
+  await page.screenshot({ path: "/tmp/e2e-pivot-arrow.png" });
+  if (arrows.ccw) await page.mouse.click(arrows.ccw.x, arrows.ccw.y);
   await page.waitForTimeout(400);
   await page.screenshot({ path: "/tmp/e2e-pivot-mid.png" });
   await page.waitForTimeout(1000);
