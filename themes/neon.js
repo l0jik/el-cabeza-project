@@ -4517,8 +4517,12 @@ export function createSoundscape() {
        0.75 and, stacked on the hum's own measured 0.79-0.86, clipped
        hard through the whole collapse. Note the gate stutter is ducking
        the hum toward silence in this same window, so the two peaks
-       largely interleave rather than summing. */
-    collapseRoar.g.gain.setTargetAtTime(0.0015 + 0.022 * Math.pow(c, 1.8), now, S);
+       largely interleave rather than summing.
+       Trimmed 0.022 -> 0.018 once the bell got its own bus: at the very
+       end of the collapse the roar, the drone and the bell's ringing tail
+       all sound together, and tests/audio-bell.mjs measured that moment
+       reaching 0.96-0.98 of full scale in some runs. */
+    collapseRoar.g.gain.setTargetAtTime(0.0015 + 0.018 * Math.pow(c, 1.8), now, S);
     collapseRoar.bp.frequency.setTargetAtTime(55 + 1500 * Math.pow(c, 1.4), now, S);
     collapseRoar.bp.Q.setTargetAtTime(0.6 + 2.2 * c, now, S);
     /* Irregular lurches in the filter — the roar keeps breaking pitch

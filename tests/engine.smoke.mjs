@@ -307,4 +307,68 @@ setActiveLaws({ splitMovement: true, threeActions: false });
 }
 setActiveLaws({ splitMovement: false, threeActions: false });
 
+// ---- Shoving LAW ----
+{
+  const LAWS_OFF = { splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveFar: false, shoveOnRolls: false };
+  const P = (id, type, row, col, w, h, z, owner = "dark") => ({ id, type, owner, row, col, w, h, z });
+  const chato = P("ch", "chato", 4, 3, 1, 2, 2); // 4 cubes
+  const turrito = P("tu", "turrito", 4, 4, 1, 1, 1, "light"); // 1 cube, east of the Chato
+  const shoveCheck = (label, cond, detail) => { if (!cond) throw new Error(`${label}${detail ? " — " + detail : ""}`); };
+
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true });
+  shoveCheck("without the law a slide into a piece is blocked", !legalMovesFor([chato, turrito], chato, 3)["slide-E"]);
+
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true });
+  let m = legalMovesFor([chato, turrito], chato, 3)["slide-E"];
+  shoveCheck("a bigger piece sliding into a smaller one shoves it 1 square", m && m.shoves && m.shoves.id === "tu" && m.shoves.col === 5 && m.shoves.row === 4, JSON.stringify(m));
+  shoveCheck("a shoving slide costs 3 points", moveCost(m) === 3);
+  shoveCheck("with only 2 points left it isn't offered", !legalMovesFor([chato, turrito], chato, 2)["slide-E"]);
+  shoveCheck("equal sizes can't shove", !legalMovesFor([P("f1", "flaco", 4, 3, 1, 2, 1), P("f2", "flaco", 4, 4, 1, 2, 1, "light")], P("f1", "flaco", 4, 3, 1, 2, 1), 3)["slide-E"]);
+  shoveCheck("a line of pieces can't be shoved", !legalMovesFor([chato, turrito, P("t2", "turrito", 4, 5, 1, 1, 1)], chato, 3)["slide-E"]);
+  shoveCheck("nothing is shoved off the board", !legalMovesFor([P("ch", "chato", 4, 8, 1, 2, 2), P("tu", "turrito", 4, 9, 1, 1, 1, "light")], P("ch", "chato", 4, 8, 1, 2, 2), 3)["slide-E"]);
+  setMissingSquares([{ row: 4, col: 5 }]);
+  shoveCheck("nothing is shoved onto a Missing Square", !legalMovesFor([chato, turrito], chato, 3)["slide-E"]);
+  setMissingSquares([]);
+  const cabFriend = P("cf", "cabeza", 4, 4, 1, 1, 1);
+  m = legalMovesFor([chato, cabFriend], chato, 3)["slide-E"];
+  shoveCheck("a Cabeza can be shoved", m && m.shoves && m.shoves.id === "cf");
+
+  // Black Holes: a Turrito drops through; a Flaco (2 cubes) is blocked.
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true, blackHoleSquares: true });
+  setBlackHoles([{ row: 4, col: 5 }, { row: 7, col: 7 }]);
+  m = legalMovesFor([chato, turrito], chato, 3)["slide-E"];
+  shoveCheck("a shoved Turrito drops into a Black Hole and comes out past the pair", m && m.shoves && m.shoves.teleports && m.shoves.row === 7 && m.shoves.col === 6, JSON.stringify(m));
+  const flacoStanding = P("fl", "flaco", 4, 4, 1, 1, 2, "light");
+  shoveCheck("a Flaco can't be shoved into a Black Hole", !legalMovesFor([chato, flacoStanding], chato, 3)["slide-E"]);
+  setBlackHoles([]);
+
+  // Rolls shove only with the "slides and rolls" setting; a roll onto a
+  // lone enemy Cabeza is still a crush.
+  const chatoTall = P("ct", "chato", 4, 3, 1, 1, 2); // 2 cubes tall, rolls E to cols 4-5
+  const tur2 = P("t3", "turrito", 4, 4, 1, 1, 1, "light");
+  setActiveLaws({ ...LAWS_OFF, shoving: true });
+  shoveCheck("rolls don't shove with 'slides only'", !legalMovesFor([chatoTall, tur2], chatoTall, 2).E);
+  setActiveLaws({ ...LAWS_OFF, shoving: true, shoveOnRolls: true });
+  shoveCheck("a 1-square push can't clear a roll that lands 2 squares deep", !legalMovesFor([chatoTall, tur2], chatoTall, 2).E);
+  setActiveLaws({ ...LAWS_OFF, shoving: true, shoveOnRolls: true, shoveFar: true });
+  m = legalMovesFor([chatoTall, tur2], chatoTall, 2).E;
+  shoveCheck("'as far as it travels' pushes it clear (2 squares)", m && m.shoves && m.shoves.col === 6, JSON.stringify(m));
+  shoveCheck("a shoving roll costs 2 points", moveCost(m) === 2);
+  const enemyCab = P("ec", "cabeza", 4, 4, 1, 1, 1, "light");
+  m = legalMovesFor([chatoTall, enemyCab], chatoTall, 2).E;
+  shoveCheck("a roll onto a lone enemy Cabeza is still a crush", m && m.crushes && !m.shoves, JSON.stringify(m));
+
+  // The AI sees shoves, and applying/undoing one restores the board exactly.
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true });
+  const board = [{ ...chato }, { ...turrito }, P("dc", "cabeza", 0, 0, 1, 1, 1), P("lc", "cabeza", 9, 9, 1, 1, 1, "light")];
+  const before = JSON.stringify(board);
+  const turns = generateTurns(board, "dark");
+  shoveCheck("the AI's candidate turns include a shove", turns.some((t) => t.moves.some((mv) => mv.shoves)));
+  shoveCheck("generating them leaves the board untouched", JSON.stringify(board) === before);
+  const plan = await findBestAiTurn(board, "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 300 }, 0, 10);
+  shoveCheck("the AI still finds a turn with Shoving on", !!plan);
+  setActiveLaws(LAWS_OFF);
+  console.log("[shoving] bigger pushes smaller; no chains, edges, Missing Squares; Turrito/Cabeza into holes; +1 point; rolls per setting; crushes intact; AI sees it");
+}
+
 console.log("\nSMOKE TEST PASSED");

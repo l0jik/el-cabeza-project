@@ -87,7 +87,17 @@ function applyMove(pieces, piece, move) {
     removedIndex = pieces.indexOf(move.crushes);
     pieces.splice(removedIndex, 1);
   }
-  return { prevFields, removed: move.crushes || null, removedIndex };
+  // Shoving LAW: the pushed piece moves too (never alongside a crush).
+  let shoved = null;
+  if (move.shoves) {
+    const q = pieces.find((p) => p.id === move.shoves.id);
+    if (q) {
+      shoved = { piece: q, row: q.row, col: q.col };
+      q.row = move.shoves.row;
+      q.col = move.shoves.col;
+    }
+  }
+  return { prevFields, removed: move.crushes || null, removedIndex, shoved };
 }
 
 function undoMove(pieces, piece, undo) {
@@ -98,6 +108,10 @@ function undoMove(pieces, piece, undo) {
   piece.h = p.h;
   piece.z = p.z;
   piece.vox = p.vox;
+  if (undo.shoved) {
+    undo.shoved.piece.row = undo.shoved.row;
+    undo.shoved.piece.col = undo.shoved.col;
+  }
   if (undo.removed) pieces.splice(undo.removedIndex, 0, undo.removed);
 }
 
@@ -190,7 +204,8 @@ export function generateTurns(pieces, player) {
       // remain, so a mid-turn slide with a single point left won't appear.
       const secondMoves = legalMovesFor(pieces, piece, maxSteps - spent1);
       for (const [dir2, move2] of Object.entries(secondMoves)) {
-        if (sameState(undo1.prevFields, move2.candidate)) continue; // net-zero round trip — not a real turn
+        // net-zero round trip — not a real turn (unless something got shoved on the way)
+        if (sameState(undo1.prevFields, move2.candidate) && !move1.shoves && !move2.shoves) continue;
 
         const wins2 =
           !move2.crushes &&
@@ -223,7 +238,7 @@ export function generateTurns(pieces, player) {
         const undo2 = applyMove(pieces, piece, move2);
         const thirdMoves = legalMovesFor(pieces, piece, maxSteps - spent2);
         for (const [dir3, move3] of Object.entries(thirdMoves)) {
-          if (sameState(undo1.prevFields, move3.candidate)) continue; // net-zero round trip — not a real turn
+          if (sameState(undo1.prevFields, move3.candidate) && !move1.shoves && !move2.shoves && !move3.shoves) continue; // net-zero round trip
 
           const wins3 =
             !move3.crushes &&
@@ -278,12 +293,14 @@ function generateSplitTurns(pieces, player, turns) {
     const moved = [...starts.keys()];
     if (moved.length < 2) return;
     for (const q of moved) {
-      if (sameState(starts.get(q), q) && !crushedBy.get(q)) return;
+      if (sameState(starts.get(q), q) && !crushedBy.get(q) && !steps.some((st) => st.piece === q && st.move.shoves)) return;
     }
     const key = moved
       .map((q) => `${q.id}@${q.row},${q.col},${q.w},${q.h},${q.z},${q.vox || ""}`)
       .sort()
-      .join("|") + "|x" + steps.filter((st) => st.move.crushes).map((st) => st.move.crushes.id).sort().join(",");
+      .join("|") + "|x" + steps.filter((st) => st.move.crushes).map((st) => st.move.crushes.id).sort().join(",") +
+      // A shoved piece ends somewhere too — part of the end position.
+      "|s" + pieces.filter((p) => steps.some((st) => st.move.shoves && st.move.shoves.id === p.id)).map((p) => `${p.id}@${p.row},${p.col}`).sort().join(",");
     if (seen.has(key)) return;
     seen.add(key);
     turns.push({

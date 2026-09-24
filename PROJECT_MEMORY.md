@@ -1243,3 +1243,46 @@ every Arco in the game.
 - Tests: the Arco cases in `tests/shapes.smoke.mjs` and
   `tests/e2e-odd-pieces.mjs` (renamed from e2e-codo.mjs), and the size
   control in `tests/e2e-singularity.mjs`.
+
+**Shoving LAW** (`laws.shoving`). Its two game-start settings live in
+`selections.shove = { far, onRolls }`. `lawsForEngine` turns them into
+`ACTIVE_LAWS.shoveFar` / `shoveOnRolls`, set at Begin and on replay. On
+the sphere they're a pair of segmented controls directly under the
+checkbox (`renderShoveSettingsRow`, testids `shove-far-on/off`,
+`shove-onRolls-on/off`).
+
+Rules (`tryShove` / `rollShove` in rules.js):
+- A move whose landing hits exactly ONE piece with fewer cubes
+  (`cubeCount`) pushes it in the move's direction, instead of being
+  blocked. That includes a Cabeza, and your own pieces.
+- Distance: 1 square, or with `shoveFar` as far as the mover's leading
+  edge advances.
+- Every square along the way must be on the board and not a Missing
+  Square, with no second piece in the way (no chains). The pushed piece
+  must end clear of the mover's landing.
+- Only a Turrito or a Cabeza can be pushed into a Black Hole. It comes
+  out one square past the paired hole.
+- Slides always shove when the law is on. Rolls shove only with
+  `shoveOnRolls`.
+- A roll onto a lone enemy Cabeza stays a crush, not a shove.
+- Being pushed onto the far row never wins.
+- Cost: `SHOVE_COST = 1` extra (`moveCost`), gated by `withinBudget` in
+  legalMovesFor. So a shoving slide costs 3 and needs 3 Actions Per
+  Turn; a shoving roll costs 2 (an Opa roll 3).
+
+Other pieces:
+- The move carries `shoves: { id, row, col, teleports }`.
+- ai.js applyMove/undoMove move the pushed piece. The net-zero checks and
+  the split-turn dedupe treat a shove as the turn doing something.
+- Chassis: commit applies it; step records carry `shoved`; settleTurn
+  never voids a turn that shoved.
+- Animation: `animateStep(..., shove)` glides the pushed piece on its own
+  carrier over the same duration (`anim.current.push`). Undo snaps it
+  back when the turn is restored.
+- Tests: the Shoving block in `tests/engine.smoke.mjs`,
+  `tests/e2e-shoving.mjs`, and the sphere settings in
+  `tests/e2e-singularity.mjs`.
+
+Audio: the collapse roar's peak was trimmed from 0.022 to 0.018. At the
+end of the collapse the roar, the drone and the bell's tail sum; the
+bell test measured up to 0.98 before the trim and ≤0.86 after.

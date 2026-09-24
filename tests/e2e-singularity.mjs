@@ -629,6 +629,31 @@ if (state.activeCategory === "laws") {
   await page.locator('[data-testid="blackhole-picker-cancel"]').click();
   await page.waitForTimeout(200);
 
+  // Shoving: ticking the law reveals its two settings directly beneath
+  // it (push distance, which moves shove), defaulting to "1 square" and
+  // "slides only"; each choice is stored. Unticked again afterwards so
+  // the rest of this run plays without it.
+  check("the Shoving settings are hidden while the law is off",
+    (await page.locator('[data-testid="shove-settings"]').count()) === 0);
+  await page.locator('[data-testid="law-shoving"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("Shoving toggles on, with its settings right beneath it at their defaults",
+    state.selections.laws.shoving === true &&
+      state.selections.shove.far === false && state.selections.shove.onRolls === false &&
+      (await page.evaluate(() => document.querySelector('[data-testid="law-shoving"]')?.nextElementSibling?.getAttribute("data-testid"))) === "shove-settings",
+    JSON.stringify(state.selections.shove));
+  await page.locator('[data-testid="shove-far-on"]').click();
+  await page.locator('[data-testid="shove-onRolls-on"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("choosing 'as far as it travels' and 'slides and rolls' stores both",
+    state.selections.shove.far === true && state.selections.shove.onRolls === true &&
+      (await page.locator('[data-testid="shove-far-on"]').getAttribute("aria-pressed")) === "true",
+    JSON.stringify(state.selections.shove));
+  await page.locator('[data-testid="law-shoving"]').click();
+  await page.waitForTimeout(150);
+
   // Close the LAWS overlay so the drag-rotate check below reaches the sphere.
   await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);
   await page.waitForTimeout(200);

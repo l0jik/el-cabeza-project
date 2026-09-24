@@ -292,6 +292,14 @@ export let ACTIVE_LAWS = {
   blackHoleSquares: false,
   cantileverPivot: false,
   threeActions: false,
+  // Shoving LAW: a bigger piece (more cubes) moving into a smaller one
+  // pushes it along instead of being blocked — see tryShove in rules.js.
+  // Its two game-start settings ride along here too: shoveFar = push as
+  // far as the shoving piece travels (else 1 square); shoveOnRolls =
+  // rolls shove as well as slides (else slides only).
+  shoving: false,
+  shoveFar: false,
+  shoveOnRolls: false,
 };
 
 export function setActiveLaws(partial) {
@@ -384,10 +392,15 @@ export const OPA_MOVE_COST = 2;
 // teleport is handled separately as turn-ending, not by point cost.
 export function moveCost(move) {
   if (!move) return 1;
-  if (move.isSlide) return SLIDE_COST;
-  if (move.candidate && move.candidate.type === "opa") return OPA_MOVE_COST;
-  return 1;
+  // A shove (Shoving LAW) adds SHOVE_COST on top of the move itself.
+  const extra = move.shoves ? SHOVE_COST : 0;
+  if (move.isSlide) return SLIDE_COST + extra;
+  if (move.candidate && move.candidate.type === "opa") return OPA_MOVE_COST + extra;
+  return 1 + extra;
 }
+
+/* What pushing another piece adds to a move's cost (Shoving LAW). */
+export const SHOVE_COST = 1;
 
 export const ROLL_DIRS = ["N", "E", "S", "W"];
 

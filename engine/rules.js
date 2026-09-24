@@ -2,8 +2,8 @@
    between the Standard and Neon theme sources before extraction — see
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, MAX_PIECES_PER_TURN } from "./constants.js";
-import { rollVox, groundCellsOf, piecesClash, rollSweepClashes, anyOddShape } from "./shapes.js";
+import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, MAX_PIECES_PER_TURN, moveCost } from "./constants.js";
+import { rollVox, groundCellsOf, piecesClash, rollSweepClashes, anyOddShape, cubeCount } from "./shapes.js";
 
 /* Dark's half of the opening setup, with columns expressed RELATIVE to
    the leftmost of the four columns the formation occupies, so the whole
@@ -330,6 +330,72 @@ export function pickMissingSquarePairs(pieces, rows, cols, count, avoid = [], ex
   return out;
 }
 
+/* Shoving LAW. `mover` moving to `landing` runs into `hits` (the pieces
+   sharing a cube with the landing). It may push instead of being blocked
+   when:
+   - exactly one piece is in the way (no pushing a line of pieces), and
+   - the mover has more cubes than it (engine/shapes.js cubeCount).
+   The pushed piece slides `distance` squares in the move's direction:
+   1, or with the "as far as it travels" setting (ACTIVE_LAWS.shoveFar)
+   the `travel` the caller passes — how far the mover's leading edge
+   advances. Every square along the way must be on the board and not a
+   Missing Square, and must not hit another piece. It must end clear of
+   the mover's landing.
+   Only a Turrito or a Cabeza can be pushed into a Black Hole: it drops
+   in and comes out one square past the paired hole, the same exit a
+   wormhole move uses. Anything else reaching a hole is blocked.
+   Returns { id, row, col, teleports } for the pushed piece, or null.
+   Being pushed onto the far row never wins — only a Cabeza's own move
+   does. */
+function tryShove(pieces, mover, landing, hits, [dr, dc], travel) {
+  if (hits.length !== 1) return null;
+  const q = hits[0];
+  if (cubeCount(mover) <= cubeCount(q)) return null;
+  const distance = ACTIVE_LAWS.shoveFar ? Math.max(1, travel) : 1;
+  const others = pieces.filter((p) => p.id !== q.id && p.id !== mover.id);
+  let pos = q;
+  for (let k = 1; k <= distance; k++) {
+    pos = { ...q, row: q.row + dr * k, col: q.col + dc * k };
+    if (!inBounds(pos) || overlapsMissingSquare(pos)) return null;
+    const bh = blackHoleVerdict(pos);
+    if (bh.blocked) return null;
+    if (bh.teleportTo) {
+      if (q.type !== "turrito" && q.type !== "cabeza") return null;
+      const eject = { ...q, row: bh.teleportTo.row - dr, col: bh.teleportTo.col - dc };
+      if (!inBounds(eject) || overlapsMissingSquare(eject)) return null;
+      if (others.some((p) => piecesClash(eject, p)) || piecesClash(eject, landing)) return null;
+      return { id: q.id, row: eject.row, col: eject.col, teleports: true };
+    }
+    if (others.some((p) => piecesClash(pos, p))) return null;
+  }
+  if (piecesClash(pos, landing)) return null;
+  return { id: q.id, row: pos.row, col: pos.col, teleports: false };
+}
+
+/* A roll that runs into a smaller piece, under the Shoving LAW's "rolls
+   shove too" setting. The landing must be fine apart from that one
+   piece: on the board, not on a Missing Square or a Black Hole mouth
+   (no pushing and falling in at once). A lone enemy Cabeza isn't here —
+   a roll onto one is a crush (evaluateBlockLanding), as always. */
+function rollShove(pieces, piece, candidate, dir, sweep) {
+  if (!inBounds(candidate) || overlapsMissingSquare(candidate)) return null;
+  const bh = blackHoleVerdict(candidate);
+  if (bh.blocked || bh.teleportTo) return null;
+  const hits = pieces.filter((p) => p.id !== piece.id && piecesClash(candidate, p));
+  if (!hits.length) return null;
+  const [dr, dc] = STEP_DIRS[dir];
+  // How far the leading edge advances — the "as far as it travels" push.
+  const travel =
+    dir === "E" ? candidate.col + candidate.w - (piece.col + piece.w)
+    : dir === "W" ? piece.col - candidate.col
+    : dir === "S" ? candidate.row + candidate.h - (piece.row + piece.h)
+    : piece.row - candidate.row;
+  const shoves = tryShove(pieces, piece, candidate, hits, [dr, dc], travel);
+  if (!shoves) return null;
+  if (sweep && rollSweepClashes(pieces, piece, dir, hits[0])) return null;
+  return { candidate, crushes: null, shoves };
+}
+
 export function legalRolls(pieces, piece) {
   const out = {};
   // With an odd-shaped piece anywhere on the board, a roll must also not
@@ -340,6 +406,11 @@ export function legalRolls(pieces, piece) {
     const candidate = rollBlock(piece, dir);
     const verdict = evaluateBlockLanding(pieces, candidate, STEP_DIRS[dir]);
     if (verdict.legal && sweep && rollSweepClashes(pieces, piece, dir, verdict.crushes)) continue;
+    if (!verdict.legal && ACTIVE_LAWS.shoving && ACTIVE_LAWS.shoveOnRolls) {
+      const shoveMove = rollShove(pieces, piece, candidate, dir, sweep);
+      if (shoveMove) out[dir] = shoveMove;
+      continue;
+    }
     if (verdict.legal) {
       // A wormhole roll ejects the piece one cell past the far hole (see
       // evaluateBlockLanding) — it never sits on either hole. teleportsTo
@@ -362,7 +433,7 @@ export function legalRolls(pieces, piece) {
    cellsOf generalizes the emptiness check across any w x h, not just
    the single cell a 1x1 Cabeza needs; for a 1x1 candidate the two are
    the same check. */
-function translatedCandidate(pieces, piece, dr, dc) {
+function translatedCandidate(pieces, piece, dr, dc, allowShove = false) {
   const candidate = { ...piece, row: piece.row + dr, col: piece.col + dc };
   if (!inBounds(candidate)) return null;
   if (overlapsMissingSquare(candidate)) return null;
@@ -377,10 +448,14 @@ function translatedCandidate(pieces, piece, dr, dc) {
       teleports: true,
     };
   }
-  for (const p of pieces) {
-    if (p.id !== piece.id && piecesClash(candidate, p)) return null;
+  const hits = pieces.filter((p) => p.id !== piece.id && piecesClash(candidate, p));
+  if (hits.length === 0) return { candidate, crushes: null, teleports: false };
+  // Shoving LAW: moving into a smaller piece pushes it along instead.
+  if (allowShove) {
+    const shoves = tryShove(pieces, piece, candidate, hits, [dr, dc], 1);
+    if (shoves) return { candidate, crushes: null, teleports: false, shoves };
   }
-  return { candidate, crushes: null, teleports: false };
+  return null;
 }
 
 export function legalCabezaSteps(pieces, piece) {
@@ -414,11 +489,13 @@ export function legalSlideSteps(pieces, piece) {
   const dirs = ACTIVE_LAWS.diagonalSlide ? Object.keys(STEP_DIRS) : ROLL_DIRS;
   for (const dir of dirs) {
     const [dr, dc] = STEP_DIRS[dir];
-    const move = translatedCandidate(pieces, piece, dr, dc);
+    const move = translatedCandidate(pieces, piece, dr, dc, !!ACTIVE_LAWS.shoving);
     if (move) {
       out[dir] = move.teleports
         ? { candidate: move.candidate, crushes: move.crushes, isSlide: true, teleports: true }
-        : { candidate: move.candidate, crushes: null, isSlide: true };
+        : move.shoves
+          ? { candidate: move.candidate, crushes: null, isSlide: true, shoves: move.shoves }
+          : { candidate: move.candidate, crushes: null, isSlide: true };
     }
   }
   return out;
@@ -437,7 +514,7 @@ export function legalMovesFor(pieces, piece, remaining = Infinity) {
   // An Opa's cheapest move is two points; with fewer left it can't move.
   if (piece.type === "opa" && remaining < OPA_MOVE_COST) return {};
   const rolls = legalRolls(pieces, piece);
-  if (!ACTIVE_LAWS.slide || remaining < SLIDE_COST) return rolls;
+  if (!ACTIVE_LAWS.slide || remaining < SLIDE_COST) return withinBudget(rolls, remaining);
   // Prefixed keys (see slideKey/constants.js): a block piece's roll and
   // slide can legally coexist in the same cardinal direction (e.g. "E"
   // rolls it a full square-and-a-bit away while "slide-E" just nudges
@@ -445,6 +522,16 @@ export function legalMovesFor(pieces, piece, remaining = Infinity) {
   // overwriting the other.
   const out = { ...rolls };
   for (const [dir, move] of Object.entries(legalSlideSteps(pieces, piece))) out[slideKey(dir)] = move;
+  return withinBudget(out, remaining);
+}
+
+// Drops any move costing more than the points left — only ever bites
+// on a shove (Shoving LAW's +1) now that every other cost is already
+// gated above.
+function withinBudget(moves, remaining) {
+  if (!ACTIVE_LAWS.shoving || remaining === Infinity) return moves;
+  const out = {};
+  for (const [dir, move] of Object.entries(moves)) if (moveCost(move) <= remaining) out[dir] = move;
   return out;
 }
 
