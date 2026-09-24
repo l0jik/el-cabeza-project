@@ -70,10 +70,17 @@ const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w &&
 
   // Played the way a player does it: tap the Codo, then tap its
   // curved arrow. Only the unblocked way round gets an arrow.
-  const codoPos = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-codo"));
-  await page.mouse.click(codoPos.x, codoPos.y);
-  await page.waitForTimeout(900);
-  const arrows = await page.evaluate(() => ({ cw: window.__EC_TEST_PIVOT_ARROW_POS__("pivot-cw"), ccw: window.__EC_TEST_PIVOT_ARROW_POS__("pivot-ccw") }));
+  // Tap the planted column's lower cube: the Codo's bounding-box centre
+  // is the inner corner of its L, where a tap can slip through the notch.
+  // The camera eases into the player's view after Begin Game, so if it's
+  // still moving, re-measure and tap again until the arrow appears.
+  let arrows = { cw: null, ccw: null };
+  for (let attempt = 0; attempt < 4 && !arrows.ccw; attempt++) {
+    const codoPos = await page.evaluate(() => window.__EC_TEST_CUBE_POS__(4, 4, 0));
+    await page.mouse.click(codoPos.x, codoPos.y);
+    await page.waitForTimeout(900);
+    arrows = await page.evaluate(() => ({ cw: window.__EC_TEST_PIVOT_ARROW_POS__("pivot-cw"), ccw: window.__EC_TEST_PIVOT_ARROW_POS__("pivot-ccw") }));
+  }
   check("selecting the balanced Codo shows a curved arrow only for the way it can turn", !arrows.cw && !!arrows.ccw, JSON.stringify(arrows));
   await page.screenshot({ path: "/tmp/e2e-pivot-arrow.png" });
   if (arrows.ccw) await page.mouse.click(arrows.ccw.x, arrows.ccw.y);
@@ -100,7 +107,8 @@ const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w &&
   // Start on the Codo and swipe toward where the counter-clockwise arrow
   // curves (its midpoint is across the arm, on that side).
   // (Still selected after the refund, so its arrows are up.)
-  const start = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-codo"));
+  // Start the swipe on the arm itself (grab the arm and swing it).
+  const start = await page.evaluate(() => window.__EC_TEST_CUBE_POS__(4, 5, 1));
   const target = await page.evaluate(() => window.__EC_TEST_PIVOT_ARROW_POS__("pivot-ccw"));
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();

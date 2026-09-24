@@ -1528,3 +1528,18 @@ unaffected.
   in handleEndActiveGame; cleared by the New Game reset). Leaving via New
   Game, Singularity or a theme switch clears it.
 - Dots are 9px with a 5px gap.
+
+**Dock "who's playing" line** (`dock-players`). From Begin Game onward
+(`!awaitingBegin`), the dock's footer strip (the one Sound's icon sits
+in) shows e.g. "DARK: AI (HARD) · LIGHT: YOU", or "Human" for both
+sides. It's absolutely placed with an ellipsis before the corner icons,
+so the dock never grows (user: docks as small as practicable).
+
+Pivot test fix: taps target a real cube via `__EC_TEST_CUBE_POS__(row,
+col, level)`. The Codo's bounding-box centre is the inner corner of its
+L, where a tap can slip through the notch at some camera angles, which
+made e2e-pivot flaky in the full suite.
+- e2e-points closes the dock the way a player would (`closeDock`). In
+  Standard the dock can reopen by hover right after Begin Game, when it
+  folds back under a pointer still resting on the button; the counter
+  hides under an open dock. That's existing Standard dock behaviour.

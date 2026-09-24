@@ -21,6 +21,19 @@ const position = [
   { id: "light-cabeza", type: "cabeza", owner: "light", row: 9, col: 5, w: 1, h: 1, z: 1 },
   { id: "light-turrito", type: "turrito", owner: "light", row: 8, col: 8, w: 1, h: 1, z: 2 },
 ];
+// The counter hides under an open dock panel (they share the bottom
+// centre). In Standard the dock can reopen by hover right after Begin
+// Game, when it folds back under a pointer still resting on the button.
+// Move off it, and if it's open anyway, close it the way a player would:
+// a tap outside it (the empty left margin).
+async function closeDock(page) {
+  await page.mouse.move(4, 450); // off the dock before it folds back under the pointer
+  await page.waitForTimeout(1000);
+  if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") {
+    await page.mouse.click(4, 450);
+    await page.waitForTimeout(400);
+  }
+}
 const left = (page) => page.evaluate(() => {
   const el = document.querySelector('[data-testid="points-counter"]');
   return el ? Number(el.getAttribute("data-left")) : null;
@@ -49,6 +62,7 @@ for (const theme of ["neon", "standard"]) {
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
   await page.locator("button", { hasText: "Begin Game" }).click();
+  await closeDock(page);
   await page.waitForTimeout(1500);
   check("in play, the counter shows 2 points left", (await left(page)) === 2, String(await left(page)));
 
@@ -73,8 +87,10 @@ for (const theme of ["neon", "standard"]) {
   await openDockPanel(page);
   check("the setting is remembered after a reload", (await page.locator('[data-testid="points-toggle"]').getAttribute("aria-pressed")) === "true");
   await page.locator("button", { hasText: "Begin Game" }).click();
+  await closeDock(page);
   await page.waitForTimeout(2200); // the dock folds away first (it hides the counter while open)
-  check("...and the counter shows in the next game", (await left(page)) === 2, String(await left(page)));
+  check("...and the counter shows in the next game", (await left(page)) === 2,
+    String(await left(page)) + " dock open=" + (await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) + " status=" + (await page.evaluate(() => ([...document.querySelectorAll("span")].find((e) => /to move|left$|thinking/i.test(e.textContent || "")) || {}).textContent)));
 
   // A finished game: the counter stays up through the win screen,
   // holding that game's last turn, and clears when a new game is set up.
@@ -87,6 +103,7 @@ for (const theme of ["neon", "standard"]) {
   await page.waitForTimeout(300);
   await openDockPanel(page);
   await page.locator("button", { hasText: "Begin Game" }).click();
+  await closeDock(page);
   await page.waitForTimeout(1500);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "S"));
   await page.waitForTimeout(2500);
