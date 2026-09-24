@@ -1286,3 +1286,12 @@ Other pieces:
 Audio: the collapse roar's peak was trimmed from 0.022 to 0.018. At the
 end of the collapse the roar, the drone and the bell's tail sum; the
 bell test measured up to 0.98 before the trim and ≤0.86 after.
+
+**Anomaly button shuffles the game's own pieces.** `handleAnomaly`
+(themes/neon.js) builds its roster from the pieces on the board
+(`rosterFromPieces`: Dark's pieces counted by type), not the classic
+five. So a game set up on the sphere keeps its Codos, Arcos, extra
+Cabezas and so on, and only their layout changes. A plain board still
+gets the classic five. If the generator can't fit the roster, it falls
+back to the classic five; in that case the button leaves the board
+alone. Test: `tests/e2e-anomaly.mjs`.

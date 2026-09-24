@@ -283,6 +283,21 @@ function buildRosterFromSelections(matterSelections) {
   return roster.filter((r) => r.count > 0);
 }
 
+// The roster a board's pieces were built from — Dark's pieces counted by
+// type (Light's mirror them). What the Anomaly button re-shuffles, so a
+// game set up on the sphere keeps its own pieces. Null for no pieces.
+function rosterFromPieces(pieces) {
+  const counts = new Map();
+  (pieces || []).forEach((p) => {
+    if (p.owner === "dark") counts.set(p.type, (counts.get(p.type) || 0) + 1);
+  });
+  if (!counts.size) return null;
+  return [...counts].map(([type, count]) => ({ type, count }));
+}
+function rosterKey(roster) {
+  return (roster || []).map((r) => `${r.type}:${r.count}`).sort().join(",");
+}
+
 // The classic fixed five, one each — generateAnomalySetup()'s own
 // default when called with no roster (the plain Anomaly button during
 // normal setup), byte-for-byte the same selection the original
@@ -3401,9 +3416,16 @@ export function useSetupExtras({
     // is an independent fresh randomization.
     if (!awaitingBegin) return;
     audio.playAnomaly();
-    // Never re-roll a piece onto a Black Hole or Missing Square that a
-    // persisted Singularity setup already placed on this board.
-    setPieces(generateAnomalySetup(undefined, [...BLACK_HOLES, ...MISSING_SQUARES]));
+    // Shuffle the pieces THIS game has (a Singularity setup's Codos,
+    // Arcos, extra Cabezas…), not the classic five. Never re-roll a piece
+    // onto a Black Hole or Missing Square a persisted Singularity setup
+    // already placed on this board.
+    const roster = rosterFromPieces(pieces);
+    const placed = generateAnomalySetup(roster, [...BLACK_HOLES, ...MISSING_SQUARES]);
+    // The generator falls back to the classic five if a roster won't fit;
+    // keep the current layout rather than swapping out the game's pieces.
+    if (roster && rosterKey(rosterFromPieces(placed)) !== rosterKey(roster)) return;
+    setPieces(placed);
   }
 
   /* ---- discovery: five taps on the EL CABEZA masthead ----
