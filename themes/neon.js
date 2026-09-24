@@ -3669,6 +3669,30 @@ export function buildSlabMaterials(boardTex) {
 // Shared by every piece's depth twin (see buildPieceVisual); never disposed.
 const PIECE_DEPTH_MATERIAL = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true, transparent: true });
 
+/* The see-through layer that keeps the glass look with the depth twins
+   in place: a copy of a body (or outline) that draws ONLY where it lies
+   BEHIND the frontmost piece surface at that pixel (depthFunc greater
+   than what the twins laid down), just before the glass itself is drawn
+   (renderOrder 0.7, between the twins' 0.5 and the bodies' 1). What's
+   behind a piece — its own back edges, other pieces further back — is
+   drawn there, then the front glass blends over it, so it shows through
+   dimmed exactly as through glass; and nothing behind can paint over a
+   piece in front any more (the Codo-over-a-1x3 bug). The frontmost
+   surfaces themselves never pass this test (equal depth isn't
+   greater), so nothing is drawn twice. The copy's material is disposed
+   with the original's. */
+function seenThroughCopy(original, Kind) {
+  const material = original.material.clone();
+  material.depthFunc = THREE.GreaterDepth;
+  material.depthWrite = false;
+  original.material.addEventListener("dispose", () => material.dispose());
+  const copy = new Kind(original.geometry, material);
+  copy.renderOrder = 0.7;
+  copy.castShadow = false;
+  copy.receiveShadow = false;
+  return copy;
+}
+
 export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
   /* theme: a faint emissive core per player (cyan for Dark, amber
      for Light) — "glowing internal cores" from the brief — kept low
@@ -3743,6 +3767,8 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
   depthTwin.castShadow = false;
   depthTwin.receiveShadow = false;
   mesh.add(depthTwin);
+  // ...and the glass look through it: see seenThroughCopy below.
+  mesh.add(seenThroughCopy(mesh, THREE.Mesh));
 
   /* Box pieces trace a SIMPLIFIED PROXY (a plain sharp-cornered
      BoxGeometry at the piece's true outer dimensions) rather than
@@ -3783,6 +3809,7 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
      outline no matter how much depth actually separated them. */
   shell.renderOrder = 1;
   shell.userData = { pieceId: piece.id, kind: "shell", isDark };
+  shell.add(seenThroughCopy(shell, THREE.LineSegments));
 
   return { mesh, shell };
 }

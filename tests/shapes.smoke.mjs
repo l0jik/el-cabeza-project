@@ -146,5 +146,20 @@ check("cube counts: the L is 3, a 2x2x2 box is 8, a Cabeza 1",
 // Box pieces are untouched: no vox, full columns.
 check("a box still fills every level of its footprint", maskAt({ row: 0, col: 0, w: 2, h: 1, z: 3 }, 0, 1) === 0b111);
 
+// ---- clearance under overhangs and openings (user rule) ----
+{
+  const P = (id, type, row, col, w, h, z, vox, owner = "light") => ({ id, type, owner, row, col, w, h, z, ...(vox ? { vox } : {}) });
+  const codo = P("co", "codo", 4, 4, 2, 1, 2, "0,0,0;0,0,1;1,0,1", "dark"); // arm over (4,5), 1 tall gap
+  const chico = P("ac", "arcoChico", 4, 3, 3, 1, 2, "0,0,0;0,0,1;1,0,1;2,0,0;2,0,1", "dark"); // opening (4,4), 1 tall
+  const alto = P("aa", "arcoAlto", 4, 3, 3, 1, 3, "0,0,0;0,0,1;0,0,2;1,0,2;2,0,0;2,0,1;2,0,2", "dark"); // opening (4,4), 2 tall
+  const rolls = (mover, other) => Object.keys(legalMovesFor([mover, other], mover)).filter((k) => !k.includes("-")).sort().join(",");
+  check("a Cabeza under a Codo's arm doesn't stop it rolling toward it", rolls(codo, P("cb", "cabeza", 4, 5, 1, 1, 1)) === "E,N,S,W", rolls(codo, P("cb", "cabeza", 4, 5, 1, 1, 1)));
+  check("a Turrito filling the gap under the arm blocks only the roll that swings into it", rolls(codo, P("tu", "turrito", 4, 5, 1, 1, 1)) === "N,S,W", rolls(codo, P("tu", "turrito", 4, 5, 1, 1, 1)));
+  check("a Cabeza in an Arco Chico doesn't lock it", rolls(chico, P("cb", "cabeza", 4, 4, 1, 1, 1)) === "E,N,S,W");
+  check("a Turrito filling the Chico's opening blocks its sideways rolls", rolls(chico, P("tu", "turrito", 4, 4, 1, 1, 1)) === "N,S");
+  check("a Turrito in the Alto's 2-tall opening leaves clearance: every roll open", rolls(alto, P("tu", "turrito", 4, 4, 1, 1, 1)) === "E,N,S,W");
+  check("a standing 1x2 filling the Alto's opening blocks its sideways rolls", rolls(alto, P("fl", "flaco", 4, 4, 1, 1, 2)) === "N,S");
+}
+
 if (failures) { console.log(`\nSHAPES SMOKE TEST FAILED (${failures})`); process.exit(1); }
 console.log("\nSHAPES SMOKE TEST PASSED");
