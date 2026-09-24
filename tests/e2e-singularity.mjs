@@ -330,12 +330,12 @@ check("dragging brings MATTER into view regardless of the shuffled arrangement",
   state.activeCategory === "matter", `activeCategory=${state.activeCategory}`);
 
 // ---- LAWS/MATTER get real checkboxes for their sub-items ----
-const archBefore = state.selections.matter.newPieces.arch;
-await page.locator('[data-testid="matter-piece-arch"]').click();
+const blockBefore = state.selections.matter.newPieces.block1x3;
+await page.locator('[data-testid="matter-piece-block1x3"]').click();
 await page.waitForTimeout(150);
 state = await sphereState();
-check("a MATTER checkbox actually toggles the real selection", state.selections.matter.newPieces.arch === !archBefore,
-  `before=${archBefore} after=${state.selections.matter.newPieces.arch}`);
+check("a MATTER checkbox actually toggles the real selection", state.selections.matter.newPieces.block1x3 === !blockBefore,
+  `before=${blockBefore} after=${state.selections.matter.newPieces.block1x3}`);
 
 // ---- MATTER also gets a scroll wheel for each of the five ORIGINAL
 // pieces, not just the four new ones, so a roster can be customized ----
@@ -367,13 +367,29 @@ await page.locator('[data-testid="roster-codo-dec"]').click();
 await page.waitForTimeout(120);
 state = await sphereState();
 
+// The Arco: its own counter (off by default) plus a size choice that
+// defaults to Chico; picking Alto lights it and stores it.
+check("the Arco counter starts at 0 with the Chico size, and the old Arch checkbox is gone",
+  state.selections.matter.roster.arco === 0 && state.selections.matter.arcoSize === "chico" &&
+    (await page.locator('[data-testid="matter-piece-arch"]').count()) === 0,
+  JSON.stringify(state.selections.matter));
+await page.locator('[data-testid="arco-size-alto"]').click();
+await page.waitForTimeout(120);
+state = await sphereState();
+check("choosing the Alto size stores it and marks it pressed",
+  state.selections.matter.arcoSize === "alto" &&
+    (await page.locator('[data-testid="arco-size-alto"]').getAttribute("aria-pressed")) === "true");
+await page.locator('[data-testid="arco-size-chico"]').click();
+await page.waitForTimeout(120);
+state = await sphereState();
+
 // ---- clicking outside the overlay closes it, returning control to
 // sphere rotation, without discarding the edits just made ----
 await closeOverlay();
 state = await sphereState();
 check("clicking outside the overlay closes it", state.stage === "labels", `stage=${state.stage}`);
 check("closing the overlay keeps the edits made inside it",
-  state.selections.matter.newPieces.arch === true && state.selections.matter.roster.cabeza === 2,
+  state.selections.matter.newPieces.block1x3 === true && state.selections.matter.roster.cabeza === 2,
   JSON.stringify(state.selections.matter));
 
 // ---- TOPOLOGIES gets a drum roller per board dimension instead of

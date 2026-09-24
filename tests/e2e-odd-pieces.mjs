@@ -1,5 +1,5 @@
-/* The Codo (MATTER's 3-cube L) in the real game — Neon, where MATTER
-   lives. Positions are placed through the test-only hooks
+/* MATTER's odd-shaped pieces — the Codo (a 3-cube L) and the Arco (an
+   arch) — in the real game: Neon, where MATTER lives. Positions are placed through the test-only hooks
    (window.__EC_TEST_HOOKS__: __EC_TEST_SET_PIECES__ / __EC_TEST_MOVE__ /
    __EC_TEST_PIECES__ / __EC_TEST_SCREEN_POS__ in chassis/ElCabeza3D.jsx),
    then moves play through the same path a click uses: the roll
@@ -9,7 +9,9 @@
       overhang coming down over an enemy Cabeza: legal, and the Cabeza is
       sheltered — not crushed.
    2. An AI opponent plays a turn with Codos on the board (the worker
-      thread gets the cubes and searches their moves) without errors. */
+      thread gets the cubes and searches their moves) without errors.
+   3. An Arco Chico lying flat rolls up to stand over an enemy Cabeza,
+      which ends up sheltered in its opening. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -92,6 +94,34 @@ async function openPage() {
   await page.close();
 }
 
+// ---- 3. an Arco stands up over an enemy Cabeza: sheltered in its opening ----
+{
+  const { page, errs } = await openPage();
+  const arcoPosition = [
+    { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 0, col: 4, w: 1, h: 1, z: 1 },
+    // Lying flat as a U, top bar on row 2, legs on row 3 (opening south).
+    { id: "dark-arcoChico", type: "arcoChico", owner: "dark", row: 2, col: 3, w: 3, h: 2, z: 1, vox: "0,0,0;0,1,0;1,0,0;2,0,0;2,1,0" },
+    { id: "light-cabeza", type: "cabeza", owner: "light", row: 9, col: 5, w: 1, h: 1, z: 1 },
+    { id: "light-cabeza-1", type: "cabeza", owner: "light", row: 4, col: 4, w: 1, h: 1, z: 1 },
+  ];
+  await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), arcoPosition);
+  await page.waitForTimeout(300);
+  await openDockPanel(page);
+  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.waitForTimeout(1200);
+  check("the Arco is on the board (its mesh is drawn)", !!(await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-arcoChico"))));
+  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-arcoChico", "S"));
+  await page.waitForTimeout(1400);
+  const after = await page.evaluate(() => window.__EC_TEST_PIECES__);
+  const arco = after.find((p) => p.id === "dark-arcoChico");
+  check("it rolls up to stand across row 4", arco && arco.row === 4 && arco.h === 1 && arco.z === 2, JSON.stringify(arco));
+  check("the enemy Cabeza in its opening is sheltered, not crushed",
+    after.some((p) => p.id === "light-cabeza-1" && p.row === 4 && p.col === 4));
+  await page.screenshot({ path: "/tmp/e2e-arco-sheltered.png" });
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await page.close();
+}
+
 await browser.close();
-console.log(failures === 0 ? "\nCODO E2E PASSED" : `\nCODO E2E FAILED (${failures})`);
+console.log(failures === 0 ? "\nODD-SHAPED PIECES E2E PASSED" : `\nODD-SHAPED PIECES E2E FAILED (${failures})`);
 process.exit(failures === 0 ? 0 : 1);

@@ -201,7 +201,25 @@ export const PIECE_META = {
   // flat, or balanced on one cube with the rest held out over the next
   // square, and crushes a Cabeza only with a cube that comes down ON it.
   codo: { label: "Co", name: "Codo", shape: "block", maxSteps: 2 },
+  // The Arco: an arch with an opening that whatever fits can stand in
+  // (a Cabeza under it is sheltered, like under a Codo's overhang). One
+  // MATTER counter plus a size choice for the whole game; each size is
+  // its own shape, so its own type. One point per roll.
+  //   Chico: 5 cubes, 3 wide x 2 tall, opening 1 wide
+  //   Alto:  7 cubes, 3 wide x 3 tall, opening 1 wide x 2 tall
+  //   Ancho: 6 cubes, 4 wide x 2 tall, opening 2 wide
+  arcoChico: { label: "AC", name: "Arco Chico", shape: "block", maxSteps: 2 },
+  arcoAlto: { label: "AA", name: "Arco Alto", shape: "block", maxSteps: 2 },
+  arcoAncho: { label: "AN", name: "Arco Ancho", shape: "block", maxSteps: 2 },
 };
+
+/* The Arco's three sizes, in MATTER's size choice: the key stored in
+   the sphere's selections -> the piece type it places. */
+export const ARCO_SIZES = [
+  { key: "chico", type: "arcoChico", label: "Chico" },
+  { key: "alto", type: "arcoAlto", label: "Alto" },
+  { key: "ancho", type: "arcoAncho", label: "Ancho" },
+];
 
 /* Dark advances toward the highest row index, Light toward 0. Mutable
    alongside the rest: the object is REPLACED (not mutated in place) by

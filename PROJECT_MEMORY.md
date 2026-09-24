@@ -1216,3 +1216,30 @@ pieces have no `vox` and behave exactly as before.
   `__EC_TEST_SCREEN_POS__`.
 - Tests: `tests/e2e-codo.mjs` (a sheltered Cabeza under a real roll; the
   AI with Codos) and the theme-neon smoke test (mirrored openings).
+
+**Arco** is one MATTER counter from 0 to 4 (default 0) plus a size
+choice, `matter.arcoSize` ("chico" / "alto" / "ancho"), which applies to
+every Arco in the game.
+- The size choice is a segmented control (testids `arco-size-*`), and it
+  replaced the inert "Arch" checkbox.
+- Each size is its own piece type (`ARCO_SIZES` in engine/constants.js),
+  each rolling for 1 point:
+
+| Type | Label | Cubes | Size | Opening |
+|---|---|---|---|---|
+| `arcoChico` | AC | 5 | 3 wide × 2 tall | 1 wide |
+| `arcoAlto` | AA | 7 | 3 wide × 3 tall | 1 wide × 2 tall |
+| `arcoAncho` | AN | 6 | 4 wide × 2 tall | 2 wide |
+
+- Whatever fits the opening can stand in it (3D occupancy), and a Cabeza
+  there is sheltered.
+- Openings (`PIECE_ORIENTATIONS`): upright across the row. The Chico and
+  Ancho can also lie flat as a U, opening north or south. The Alto is too
+  deep for the 2-row home band, so it always starts upright.
+- The summary and variants read "Arco Alto" etc. (`rosterItemLabel`).
+- A piece inside an upright Arco blocks the Arco from tipping sideways,
+  because its leg would sweep through it. It can still roll along its
+  length.
+- Tests: the Arco cases in `tests/shapes.smoke.mjs` and
+  `tests/e2e-odd-pieces.mjs` (renamed from e2e-codo.mjs), and the size
+  control in `tests/e2e-singularity.mjs`.

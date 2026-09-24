@@ -30,7 +30,7 @@
 import React from "react";
 import * as THREE from "three";
 import {
-  SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws, getBoardDimensions,
+  SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws, getBoardDimensions, ARCO_SIZES,
   setBlackHoles as setActiveBlackHoles, setMissingSquares as setActiveMissingSquares,
 } from "../engine/constants.js";
 import { pickBlackHoleSquares, pickMissingSquares, blackHoleRowAllowed, initialPiecesFor, missingSquaresKeepPath } from "../engine/rules.js";
@@ -518,12 +518,11 @@ const PIECE_FOOTPRINTS = {
 // roll, and collide exactly like the five originals with no new
 // engine work (see generateAnomalySetup's own roster support in
 // themes/neon.js). The L became the Codo, a real piece with its own
-// roster counter (MATTER_ROSTER below). The arch still waits on its own
-// build step, so enabling it has no effect yet.
+// roster counter (MATTER_ROSTER below), and so did the arch — the Arco,
+// with a size choice (see ARCO_SIZES / the MATTER overlay).
 const MATTER_NEW_PIECES = [
   { key: "block1x3", label: "1×3 Block", icon: "block1x3" },
   { key: "block2x3", label: "2×3 Block", icon: "block2x3" },
-  { key: "arch", label: "Arch", icon: "arch", blurb: "Not yet implemented — needs a non-convex collision system." },
 ];
 
 // MATTER also lets the roster of the five ORIGINAL pieces be
@@ -545,7 +544,20 @@ const MATTER_ROSTER = [
   // engine/shapes.js). Off by default; any count places it in a
   // randomized opening.
   { key: "codo", label: "Codo", min: 0, max: 4, default: 0, icon: "codo" },
+  // The Arco (an arch — see engine/constants.js): one counter, and a
+  // size choice (matter.arcoSize) that applies to every Arco in the game.
+  { key: "arco", label: "Arco", min: 0, max: 4, default: 0, icon: "arch" },
 ];
+
+// "Arco Alto" etc. for the summary / variants — the counter's label plus
+// the chosen size.
+function arcoLabel(selections) {
+  const size = ARCO_SIZES.find((a) => a.key === selections.matter.arcoSize) || ARCO_SIZES[0];
+  return `Arco ${size.label}`;
+}
+function rosterItemLabel(p, selections) {
+  return p.key === "arco" ? arcoLabel(selections) : p.label;
+}
 
 function createDefaultSelections() {
   return {
@@ -556,6 +568,8 @@ function createDefaultSelections() {
       // Opt-in random opening layout (Anomaly-style). Off = the standard
       // fixed formation; on = a fresh randomized placement at Begin Game.
       randomizeStart: false,
+      // Which Arco every Arco in the game is (ARCO_SIZES key).
+      arcoSize: "chico",
     },
     // missingSquares (the enable toggle) lives here, in topologies, not
     // as its own LAW — it changes the board's physical shape/playable
@@ -636,7 +650,7 @@ function buildVariantsSnapshot(selections) {
   MATTER_NEW_PIECES.forEach((i) => { if (selections.matter.newPieces[i.key]) matter.push(i.label); });
   MATTER_ROSTER.forEach((p) => {
     const n = selections.matter.roster[p.key];
-    if (n !== p.default) matter.push(`${n}× ${p.label}`);
+    if (n !== p.default) matter.push(`${n}× ${rosterItemLabel(p, selections)}`);
   });
   if (matter.length) groups.push({ key: "matter", label: "MATTER", items: matter });
 
@@ -842,6 +856,7 @@ function normalizeSelections(saved) {
       newPieces: pick(d.matter.newPieces, matterSrc.newPieces),
       roster: pick(d.matter.roster, matterSrc.roster),
       randomizeStart: typeof matterSrc.randomizeStart === "boolean" ? matterSrc.randomizeStart : d.matter.randomizeStart,
+      arcoSize: ARCO_SIZES.some((a) => a.key === matterSrc.arcoSize) ? matterSrc.arcoSize : d.matter.arcoSize,
     },
     topologies: pick(d.topologies, src.topologies),
     blackHole: { manual: cell(src.blackHole && src.blackHole.manual), random: !!(src.blackHole && src.blackHole.random) },
@@ -1932,6 +1947,55 @@ function rerollRandomPairedSquares(s) {
   if (s.selections.laws.blackHoleSquares) fillPairedSpots(s, "blackHole", true);
 }
 
+/* The Arco's size choice, under the roster counters: Chico / Alto /
+   Ancho, one for every Arco in the game. A small segmented control; the
+   chosen size is lit, with its shape spelled out beneath. */
+function renderArcoSizeRow(t) {
+  const s = t.singularity;
+  const h = React.createElement;
+  const sel = s.selections;
+  const describe = {
+    chico: "5 cubes · 3 wide, 2 tall · opening 1 wide",
+    alto: "7 cubes · 3 wide, 3 tall · opening 1 wide, 2 tall",
+    ancho: "6 cubes · 4 wide, 2 tall · opening 2 wide",
+  };
+  return h(
+    "div",
+    { "data-testid": "arco-size", style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 5, marginTop: 8 } },
+    h("div", { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(207,216,220,0.6)" } }, "Arco size"),
+    h(
+      "div",
+      { role: "group", "aria-label": "Arco size", style: { display: "flex", border: "1px solid rgba(102,217,255,0.35)", borderRadius: 4, overflow: "hidden" } },
+      ...ARCO_SIZES.map((a, i) => {
+        const on = sel.matter.arcoSize === a.key;
+        return h(
+          "button",
+          {
+            key: a.key,
+            type: "button",
+            "data-testid": `arco-size-${a.key}`,
+            "aria-pressed": on ? "true" : "false",
+            onClick: () => {
+              sel.matter.arcoSize = a.key;
+              if (s.audio && s.audio.playSelect) s.audio.playSelect();
+              s.labelsDirty = true; s.bump();
+            },
+            style: {
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
+              padding: "6px 12px", cursor: "pointer", border: "none",
+              borderLeft: i ? "1px solid rgba(102,217,255,0.25)" : "none",
+              background: on ? "rgba(102,217,255,0.22)" : "transparent",
+              color: on ? "#dffaff" : "rgba(207,216,220,0.7)",
+            },
+          },
+          a.label
+        );
+      })
+    ),
+    h("div", { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.6)" } }, describe[sel.matter.arcoSize] || describe.chico)
+  );
+}
+
 function renderPairedSquarePlacementRow(t, kind) {
   const k = PAIRED_SQUARE_KINDS[kind];
   const s = t.singularity;
@@ -2549,6 +2613,7 @@ function renderCategoryOverlay(t) {
           })
         )
       ),
+      renderArcoSizeRow(t),
       h("div", { style: { ...sectionLabelStyle, marginTop: 10 } }, "Setup"),
       renderCheckboxRow(
         { key: "randomizeStart", label: "Randomized Start", blurb: "Begin with a random Anomaly-style layout instead of the standard formation." },
@@ -2712,7 +2777,7 @@ function renderSummaryPanel(setupExtras) {
   // is left out rather than listed as "0 Codo".
   const rosterLine = MATTER_ROSTER
     .filter((p) => p.default > 0 || sel.matter.roster[p.key] > 0)
-    .map((p) => `${sel.matter.roster[p.key]} ${p.label}`)
+    .map((p) => `${sel.matter.roster[p.key]} ${rosterItemLabel(p, sel)}`)
     .join(" · ");
   const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}${sel.topologies.missingSquares ? `, ${missingSquaresLabel(sel.missingSquare.count)}` : ""}`;
   const lineStyle = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: "rgba(207,216,220,0.85)", lineHeight: 1.7 };

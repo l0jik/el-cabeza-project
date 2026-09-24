@@ -14,6 +14,7 @@
 
 import React from "react";
 import * as THREE from "three";
+import { ARCO_SIZES } from "../engine/constants.js";
 import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, GRID_EXTENT_X, GRID_EXTENT_Z, GOAL_ROW, PIECE_SCALE, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { opponentOf, cabezaInDanger } from "../engine/ai.js";
 import { createInitialPieces } from "../engine/rules.js";
@@ -220,6 +221,23 @@ export const PIECE_ORIENTATIONS = {
     { w: 2, h: 2, z: 1, vox: "0,0,0;0,1,0;1,0,0" },
     { w: 2, h: 2, z: 1, vox: "0,1,0;1,0,0;1,1,0" },
   ],
+  // The Arco, per size (engine/constants.js ARCO_SIZES): standing upright
+  // across the row (opening at the board), or — for the 2-tall sizes —
+  // lying flat as a U opening north or south. The Alto is 3 tall, too
+  // deep to lie flat in the 2-row home band, so it always starts upright.
+  arcoChico: [
+    { w: 3, h: 1, z: 2, vox: "0,0,0;0,0,1;1,0,1;2,0,0;2,0,1" },
+    { w: 3, h: 2, z: 1, vox: "0,0,0;0,1,0;1,0,0;2,0,0;2,1,0" },
+    { w: 3, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0;2,0,0;2,1,0" },
+  ],
+  arcoAlto: [
+    { w: 3, h: 1, z: 3, vox: "0,0,0;0,0,1;0,0,2;1,0,2;2,0,0;2,0,1;2,0,2" },
+  ],
+  arcoAncho: [
+    { w: 4, h: 1, z: 2, vox: "0,0,0;0,0,1;1,0,1;2,0,1;3,0,0;3,0,1" },
+    { w: 4, h: 2, z: 1, vox: "0,0,0;0,1,0;1,0,0;2,0,0;3,0,0;3,1,0" },
+    { w: 4, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0;2,1,0;3,0,0;3,1,0" },
+  ],
 };
 
 export function shuffledIndices(n) {
@@ -249,6 +267,10 @@ function buildRosterFromSelections(matterSelections) {
     if (count > 0) roster.push({ type, count });
   });
   if (matterSelections.roster.codo > 0) roster.push({ type: "codo", count: matterSelections.roster.codo });
+  if (matterSelections.roster.arco > 0) {
+    const size = ARCO_SIZES.find((a) => a.key === matterSelections.arcoSize) || ARCO_SIZES[0];
+    roster.push({ type: size.type, count: matterSelections.roster.arco });
+  }
   if (matterSelections.newPieces.block1x3) roster.push({ type: "block1x3", count: 1 });
   if (matterSelections.newPieces.block2x3) roster.push({ type: "block2x3", count: 1 });
 

@@ -115,6 +115,31 @@ check("a 2-tall piece there does clash", piecesClash(balanced, { ...cabezaUnder,
   check("the balanced L still has legal rolls with a Cabeza sheltered under it", Object.keys(blocked).length > 0, JSON.stringify(Object.keys(blocked)));
 }
 
+// ---- the Arco's openings: whatever fits stands inside ----
+{
+  const CHICO = "0,0,0;0,0,1;1,0,1;2,0,0;2,0,1";
+  const ALTO = "0,0,0;0,0,1;0,0,2;1,0,2;2,0,0;2,0,1;2,0,2";
+  const ANCHO = "0,0,0;0,0,1;1,0,1;2,0,1;3,0,0;3,0,1";
+  const at = (vox, w, z) => ({ id: "A", type: "arcoX", owner: "dark", row: 3, col: 3, w, h: 1, z, vox });
+  const chico = at(CHICO, 3, 2), alto = at(ALTO, 3, 3), ancho = at(ANCHO, 4, 2);
+  const piece = (w, h, z, col = 4) => ({ id: "P", type: "flaco", owner: "light", row: 3, col, w, h, z });
+  check("a Cabeza fits in the Arco Chico's opening", !piecesClash(chico, { ...piece(1, 1, 1), type: "cabeza" }));
+  check("a 2-tall piece doesn't fit under the Chico", piecesClash(chico, piece(1, 1, 2)));
+  check("a 2-tall piece fits under the Arco Alto", !piecesClash(alto, piece(1, 1, 2)));
+  check("a 3-tall piece doesn't fit under the Alto", piecesClash(alto, piece(1, 1, 3)));
+  check("a 2-wide, 1-tall piece fits under the Arco Ancho", !piecesClash(ancho, piece(2, 1, 1, 4)));
+  check("a 3-wide piece doesn't fit under the Ancho", piecesClash(ancho, piece(3, 1, 1, 3)));
+  // A Cabeza can step in under the Chico, and one standing there is
+  // sheltered when the Arco rolls in over it (its opening lands on it).
+  const cab = { id: "cab", type: "cabeza", owner: "light", row: 4, col: 4, w: 1, h: 1, z: 1 };
+  check("a Cabeza can step in under the Arco Chico", !!legalMovesFor([chico, cab], cab).N);
+  const lying = { ...chico, row: 1, col: 3, h: 2, z: 1, vox: "0,0,0;0,1,0;1,0,0;2,0,0;2,1,0" }; // flat U, opening south
+  const stood = rollBlock(lying, "S");
+  const cabUnder = { ...cab, row: stood.row, col: 4 };
+  const v = evaluateBlockLanding([cabUnder], stood, [1, 0]);
+  check("an Arco standing up over a Cabeza shelters it (legal, no crush)", v.legal && !v.crushes, JSON.stringify({ stood, v }));
+}
+
 check("cube counts: the L is 3, a 2x2x2 box is 8, a Cabeza 1",
   cubeCount(L()) === 3 && cubeCount({ w: 2, h: 2, z: 2 }) === 8 && cubeCount({ w: 1, h: 1, z: 1 }) === 1);
 
