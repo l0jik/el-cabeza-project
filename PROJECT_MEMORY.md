@@ -1636,3 +1636,16 @@ Results, new vs previous:
   handler ignores Escape while it is open. MOVES has 16 animated SVG
   tiles (CSS keyframes, off under prefers-reduced-motion); the black
   hole tile shows the same-side exit. Test: tests/e2e-rules.mjs.
+- **"The original El Cabeza" (built).** ABOUT ends with a link
+  (`play-original`) that closes INFO and runs resetGame(false) (no laws,
+  boot board size, standard pieces, no holes), then sends the window event
+  `el-cabeza:play-original`: the sphere exits if open, and Nova
+  (apps/unified.jsx) transitions back to the Standard theme if it's on
+  Neon. Standard has no ANOMALY button, so nothing else to disable. Test:
+  tests/e2e-original.mjs.
+- **Original-game cue (built).** The link plays assets/original-cue.mp3
+  (5.5 s of archive.org's "Mall Music Muzak – Mall Of 1974", Third Floor
+  Spending Spree, from 0:06, +8 dB, fading out over the last 1.5 s)
+  through a plain Audio element (volume 0.75; skipped when muted), so it
+  survives Nova's theme switch. build/build.js inlines .mp3 files as data
+  URLs.

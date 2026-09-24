@@ -21,7 +21,11 @@ import {
   setGhostLineTarget,
 } from "../engine/geometry.js";
 import { cubeCount, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
-import { RulesTabs, RulesCard, OPEN_RULES_EVENT } from "./RulesCards.jsx";
+import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT } from "./RulesCards.jsx";
+// A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
+// Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
+// ABOUT's link returns to the original game. Inlined by the build.
+import ORIGINAL_CUE_URL from "../assets/original-cue.mp3";
 
 /* Semantic Versioning (MAJOR.MINOR.PATCH), shared by both themes since
    it describes the game as a whole, not any one skin's own history. */
@@ -5358,6 +5362,27 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   function handleResetRules() {
     resetGame(false);
   }
+  /* ABOUT's "The original El Cabeza" link: close INFO and set up a plain
+     game with the basic rules only (no laws, standard board and pieces,
+     no Black Holes or Missing Squares). It also announces itself as the
+     window event PLAY_ORIGINAL_EVENT, so the sphere closes if it's open
+     and Nova (apps/unified.jsx) switches back to the Standard theme. */
+  function playOriginal() {
+    // Played through a plain Audio element, not the theme's sound engine:
+    // Standard's engine is silent, and in Nova this page's chassis is
+    // replaced mid-cue when the theme switches back to Standard.
+    if (!audioMuted && document.visibilityState === "visible") {
+      try {
+        const cue = new Audio(ORIGINAL_CUE_URL);
+        cue.volume = 0.75;
+        window.__EC_LAST_ORIGINAL_CUE__ = cue; // tests read this
+        cue.play().catch(() => {});
+      } catch (_) { /* no audio support: carry on silently */ }
+    }
+    setShowInfoOverlay(false);
+    resetGame(false);
+    window.dispatchEvent(new CustomEvent(PLAY_ORIGINAL_EVENT));
+  }
   function resetGame(keepSingularity) {
     const keepSingularityConfig =
       keepSingularity &&
@@ -7426,9 +7451,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                   color: COLORS.slate,
                 }}
               >
-                Played without ANOMALY or SINGULARITY, this is Cabeza as it
-                was originally designed; everything else here is a variation
-                on it.
+                <button
+                  type="button"
+                  data-testid="play-original"
+                  onClick={(e) => { e.stopPropagation(); playOriginal(); }}
+                  style={{ all: "unset", cursor: "pointer", fontStyle: "italic", color: COLORS.charcoal, borderBottom: `1px solid ${COLORS.slateSoft}` }}
+                >
+                  The original El Cabeza
+                </button>{" "}
+                is played with its basic rules alone; everything from ANOMALY
+                and SINGULARITY was added later.
               </p>
             </div>
 

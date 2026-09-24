@@ -32,7 +32,9 @@ for (const t of targets) {
     bundle: true,
     write: false,
     format: "iife",
-    loader: { ".js": "jsx" },
+    // Sound files (assets/) are inlined as data: URLs, keeping each page a
+    // single self-contained file.
+    loader: { ".js": "jsx", ".mp3": "dataurl" },
     jsx: "automatic",
     jsxImportSource: "react",
     logLevel: "warning",

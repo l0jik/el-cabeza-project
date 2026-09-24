@@ -246,6 +246,14 @@ function UnifiedApp() {
 
   const onTransitionDone = useCallback(() => setTransition(null), []);
 
+  // ABOUT's "The original El Cabeza" link: the chassis has already reset
+  // to a plain game; from Neon, go back to the Standard theme as well.
+  useEffect(() => {
+    const onOriginal = () => { if (themeName === "neon" && !transition) beginTransition(); };
+    window.addEventListener("el-cabeza:play-original", onOriginal);
+    return () => window.removeEventListener("el-cabeza:play-original", onOriginal);
+  }, [themeName, transition, beginTransition]);
+
   const contentStyle = transition
     ? { filter: `url(#${transition.filterId})`, pointerEvents: "none", overflow: "hidden" }
     : undefined;
