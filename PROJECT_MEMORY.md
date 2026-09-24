@@ -1636,3 +1636,10 @@ Results, new vs previous:
   handler ignores Escape while it is open. MOVES has 16 animated SVG
   tiles (CSS keyframes, off under prefers-reduced-motion); the black
   hole tile shows the same-side exit. Test: tests/e2e-rules.mjs.
+- **"The original El Cabeza" (built).** ABOUT ends with a link
+  (`play-original`) that closes INFO and runs resetGame(false) (no laws,
+  boot board size, standard pieces, no holes), then sends the window event
+  `el-cabeza:play-original`: the sphere exits if open, and Nova
+  (apps/unified.jsx) transitions back to the Standard theme if it's on
+  Neon. Standard has no ANOMALY button, so nothing else to disable. Test:
+  tests/e2e-original.mjs.

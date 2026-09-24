@@ -14,6 +14,9 @@
 import React, { useEffect, useRef } from "react";
 
 export const OPEN_RULES_EVENT = "el-cabeza:open-rules";
+// Sent when the player asks for the original game (ABOUT's link): the
+// sphere closes and Nova returns to the Standard theme.
+export const PLAY_ORIGINAL_EVENT = "el-cabeza:play-original";
 
 export function openRules(tab = "quick", focus = null) {
   window.dispatchEvent(new CustomEvent(OPEN_RULES_EVENT, { detail: { tab, focus } }));

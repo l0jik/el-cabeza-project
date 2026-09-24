@@ -5,7 +5,7 @@
   "scripts": {
     "build": "node build/build.js",
     "test:engine": "node tests/engine.smoke.mjs && node tests/shapes.smoke.mjs && node tests/board-size.smoke.mjs && node tests/theme-standard.smoke.mjs && node tests/theme-neon.smoke.mjs",
-    "test:e2e": "npm run build && node tests/e2e-smoke.mjs standard && node tests/e2e-smoke.mjs neon && node tests/e2e-gameplay.mjs standard && node tests/e2e-gameplay.mjs neon && node tests/e2e-board-size.mjs && node tests/e2e-ai-worker.mjs && node tests/e2e-ai-split.mjs && node tests/e2e-odd-pieces.mjs && node tests/e2e-shoving.mjs && node tests/e2e-anomaly.mjs && node tests/e2e-pivot.mjs && node tests/e2e-points.mjs && node tests/e2e-rules.mjs && node tests/e2e-ambient.mjs && node tests/e2e-singularity.mjs && node tests/audio-bell.mjs",
+    "test:e2e": "npm run build && node tests/e2e-smoke.mjs standard && node tests/e2e-smoke.mjs neon && node tests/e2e-gameplay.mjs standard && node tests/e2e-gameplay.mjs neon && node tests/e2e-board-size.mjs && node tests/e2e-ai-worker.mjs && node tests/e2e-ai-split.mjs && node tests/e2e-odd-pieces.mjs && node tests/e2e-shoving.mjs && node tests/e2e-anomaly.mjs && node tests/e2e-pivot.mjs && node tests/e2e-points.mjs && node tests/e2e-rules.mjs && node tests/e2e-original.mjs && node tests/e2e-ambient.mjs && node tests/e2e-singularity.mjs && node tests/audio-bell.mjs",
     "test": "npm run test:engine && npm run test:e2e"
   },
   "devDependencies": {

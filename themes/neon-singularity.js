@@ -3561,7 +3561,14 @@ export function useSingularityPhase({
       exitSingularity();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // ABOUT's "The original El Cabeza" link (chassis/RulesCards.jsx
+    // PLAY_ORIGINAL_EVENT) leaves the sphere too.
+    const onOriginal = () => exitSingularity();
+    window.addEventListener("el-cabeza:play-original", onOriginal);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("el-cabeza:play-original", onOriginal);
+    };
   }, [phase]);
 
   // Drag-rotate the sphere — a direct port of the dock-piece pointer
