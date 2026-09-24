@@ -371,4 +371,35 @@ setActiveLaws({ splitMovement: false, threeActions: false });
   console.log("[shoving] bigger pushes smaller; no chains, edges, Missing Squares; Turrito/Cabeza into holes; +1 point; rolls per setting; crushes intact; AI sees it");
 }
 
+// ---------- Cantilever Pivot LAW ----------
+{
+  const LAWS_OFF = { splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveFar: false, shoveOnRolls: false };
+  const ok = (label, cond, detail) => { if (!cond) throw new Error(`[pivot] ${label}${detail ? " — " + detail : ""}`); };
+  const balanced = { id: "co", type: "codo", owner: "dark", row: 4, col: 4, w: 2, h: 1, z: 2, vox: "0,0,0;0,0,1;1,0,1" };
+  const standing = { id: "co", type: "codo", owner: "dark", row: 4, col: 4, w: 2, h: 1, z: 2, vox: "0,0,0;0,0,1;1,0,0" };
+  const tall = { id: "tu", type: "turrito", owner: "light", row: 5, col: 5, w: 1, h: 1, z: 2 };
+  const keys = (ps, p) => Object.keys(legalMovesFor(ps, p)).filter((k) => k.startsWith("pivot-")).sort().join(",");
+
+  setActiveLaws(LAWS_OFF);
+  ok("no pivots without the law", keys([balanced], balanced) === "");
+  setActiveLaws({ ...LAWS_OFF, cantileverPivot: true });
+  ok("a Codo balanced on one cube can pivot both ways", keys([balanced], balanced) === "pivot-ccw,pivot-cw", keys([balanced], balanced));
+  ok("a standing Codo (two cubes down) can't pivot", keys([standing], standing) === "");
+  ok("a box never pivots", keys([tall], tall) === "");
+  ok("a 2-tall piece on the swept diagonal blocks that way only", keys([balanced, tall], balanced) === "pivot-ccw", keys([balanced, tall], balanced));
+  const low = { ...tall, id: "cb", type: "cabeza", z: 1 };
+  ok("a 1-tall piece never blocks (the arm passes over it)", keys([balanced, low], balanced) === "pivot-ccw,pivot-cw");
+  const edge = { ...balanced, row: 0 }; // arm east on the top row: ccw would put it off the board
+  ok("the arm can't end off the board", keys([edge], edge) === "pivot-cw", keys([edge], edge));
+  const m = legalMovesFor([balanced], balanced)["pivot-cw"];
+  ok("a pivot costs 1 point and crushes nothing", moveCost(m) === 1 && !m.crushes);
+  const back = legalMovesFor([m.candidate], m.candidate)["pivot-ccw"].candidate;
+  ok("pivoting back restores the piece exactly", sameState(back, balanced));
+  const turns = generateTurns([balanced, { id: "dk", type: "cabeza", owner: "dark", row: 0, col: 0, w: 1, h: 1, z: 1 }, { id: "lk", type: "cabeza", owner: "light", row: 9, col: 9, w: 1, h: 1, z: 1 }], "dark");
+  ok("the AI's turn list includes pivots, and a half turn both ways round",
+    turns.some((t) => t.dirs.join() === "pivot-cw,pivot-cw") && turns.some((t) => t.dirs.join() === "pivot-ccw,pivot-ccw"));
+  setActiveLaws(LAWS_OFF);
+  console.log("[pivot] one-cube stance only; both ways; swept diagonal blocks; 1-tall never blocks; stays on board; 1 point; exact inverse; AI sees it");
+}
+
 console.log("\nSMOKE TEST PASSED");

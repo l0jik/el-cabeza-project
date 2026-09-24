@@ -2,8 +2,8 @@
    between the Standard and Neon theme sources before extraction — see
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, MAX_PIECES_PER_TURN, moveCost } from "./constants.js";
-import { rollVox, groundCellsOf, piecesClash, rollSweepClashes, anyOddShape, cubeCount } from "./shapes.js";
+import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, MAX_PIECES_PER_TURN, moveCost, PIVOT_KEYS } from "./constants.js";
+import { rollVox, groundCellsOf, piecesClash, rollSweepClashes, anyOddShape, cubeCount, pivotCellOf, pivotPiece, pivotSweepClashes } from "./shapes.js";
 
 /* Dark's half of the opening setup, with columns expressed RELATIVE to
    the leftmost of the four columns the formation occupies, so the whole
@@ -511,11 +511,33 @@ export function legalSlideSteps(pieces, piece) {
    already two points) has NO legal move at all. That last part is what
    keeps an Opa to a single move per turn: after its first move spends two
    of the budget, it can never afford a second. */
+/* Cantilever Pivot LAW (SINGULARITY_DESIGN.md): a piece standing on a
+   single cube with the rest of it held out over the board — a Codo
+   balanced on one cube — turns a quarter turn about that cube for one
+   point ("pivot-cw" / "pivot-ccw"; a half turn is two quarter turns in
+   the same direction, so the player picks which way it goes round).
+   The new pose must be on the board and clear of every other piece's
+   cubes, and the swinging arm mustn't pass through one on the way
+   (pivotSweepClashes). The arm is held up in the air, so it never
+   crushes: a Cabeza it swings over is sheltered, like any overhang. */
+export function legalPivots(pieces, piece) {
+  const out = {};
+  if (!ACTIVE_LAWS.cantileverPivot || !pivotCellOf(piece)) return out;
+  for (const turn of ["cw", "ccw"]) {
+    const candidate = pivotPiece(piece, turn);
+    if (!inBounds(candidate)) continue;
+    if (pieces.some((p) => p.id !== piece.id && piecesClash(candidate, p))) continue;
+    if (pivotSweepClashes(pieces, piece, turn)) continue;
+    out[PIVOT_KEYS[turn]] = { candidate, crushes: null, isPivot: true };
+  }
+  return out;
+}
+
 export function legalMovesFor(pieces, piece, remaining = Infinity) {
   if (piece.type === "cabeza") return legalCabezaSteps(pieces, piece);
   // An Opa's cheapest move is two points; with fewer left it can't move.
   if (piece.type === "opa" && remaining < OPA_MOVE_COST) return {};
-  const rolls = legalRolls(pieces, piece);
+  const rolls = { ...legalRolls(pieces, piece), ...legalPivots(pieces, piece) };
   if (!ACTIVE_LAWS.slide || remaining < SLIDE_COST) return withinBudget(rolls, remaining);
   // Prefixed keys (see slideKey/constants.js): a block piece's roll and
   // slide can legally coexist in the same cardinal direction (e.g. "E"

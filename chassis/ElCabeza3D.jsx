@@ -7,7 +7,7 @@ import {
   CAMERA_DAMPING, RESET_CAMERA_DAMPING, RESET_TRANSITION_MS,
   ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, setBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
-  isSlideKey, baseDirOfSlideKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
+  isSlideKey, baseDirOfSlideKey, isPivotKey, pivotTurnOfKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
   MISSING_SQUARES, setMissingSquares as setActiveMissingSquares,
   turnBudget, MAX_PIECES_PER_TURN,
 } from "../engine/constants.js";
@@ -20,7 +20,7 @@ import {
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
   setGhostLineTarget,
 } from "../engine/geometry.js";
-import { cubeCount } from "../engine/shapes.js";
+import { cubeCount, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
 
 /* Semantic Versioning (MAJOR.MINOR.PATCH), shared by both themes since
    it describes the game as a whole, not any one skin's own history. */
@@ -2900,7 +2900,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       .forEach((c) => setGhostLineTarget(c, 0, true));
 
     shadowEntries.forEach(([dir, move]) => {
-      const cand = move.candidate;
+      // A pivot's indicator marks the square its arm swings onto, not
+      // its whole new outline (which still includes the planted square).
+      const cand = move.isPivot ? pivotArmFootprint(move.candidate) : move.candidate;
       const isCrush = !!move.crushes;
       const cx = (cand.col + cand.w / 2) * SQUARE_SIZE - OFF_X;
       const cz = (cand.row + cand.h / 2) * SQUARE_SIZE - OFF_Z;
@@ -3382,6 +3384,40 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         duration: SLIDE_MS,
         push,
         onComplete: () => bake(carrier, landing, to),
+      };
+      return;
+    }
+
+    /* Cantilever Pivot: a quarter turn about the vertical axis through
+       the planted cube — the same rigid-carrier animation a roll uses,
+       turning about +Y instead of a bottom edge, with no residual slide.
+       Seen from above with rows running down the screen, clockwise is a
+       negative angle about +Y (x = column, z = row). */
+    if (isPivotKey(dir)) {
+      const turn = pivotTurnOfKey(dir);
+      const landing = pivotPiece(state, turn);
+      const landingCenter = pieceCenter(landing);
+      const pc = pivotCellOf(state);
+      const point = new THREE.Vector3((pc.col + 0.5) * SQUARE_SIZE - OFF_X, 0, (pc.row + 0.5) * SQUARE_SIZE - OFF_Z);
+      const spin = new THREE.Object3D();
+      spin.position.copy(point);
+      t.boardGroup.add(spin);
+      parts.forEach((c) => {
+        c.position.sub(point);
+        spin.add(c);
+      });
+      anim.current = {
+        kind: "roll",
+        pivot: spin,
+        base: point.clone(),
+        dirVec: new THREE.Vector3(),
+        residual: 0,
+        axis: new THREE.Vector3(0, 1, 0),
+        angle: turn === "cw" ? -Math.PI / 2 : Math.PI / 2,
+        elapsed: 0,
+        duration: ROLL_MS,
+        push,
+        onComplete: () => bake(spin, landing, landingCenter),
       };
       return;
     }
@@ -4759,6 +4795,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       const [dr, dc] = STEP_DIRS[baseDirOfSlideKey(dir)];
       return { ...anchor, row: anchor.row + dr, col: anchor.col + dc };
     }
+    if (isPivotKey(dir)) return pivotPiece(state, pivotTurnOfKey(dir));
     if (PIECE_META[state.type].shape === "disc") {
       const [dr, dc] = STEP_DIRS[dir];
       return { ...anchor, row: anchor.row + dr, col: anchor.col + dc };

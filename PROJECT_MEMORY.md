@@ -647,12 +647,11 @@ lands on one; the pre-game Anomaly button also avoids the live
       opening turn, and reads `window.__EC_TEST_TURNS__` /
       `__EC_TEST_LOG__`. Verified headlessly via `turnContinues` cases in
   `tests/engine.smoke.mjs`; two-piece touch feel wants real-device play.
-  **Cantilever Pivot** still **cannot** be implemented before
-  non-convex pieces exist — same blocker as MATTER's L-Pentomino/Arch
-  inertness above.
-- **Backlog LAW — Shoving (not built, spec later):** larger pieces can
-  displace smaller pieces 1 space (2? for Opa — TBD). No rules,
-  UI, or toggle yet.
+  **Cantilever Pivot** is not built yet (its LAWS checkbox is inert).
+  Its old blocker is gone: odd-shaped pieces exist now (the Codo, see
+  the shape system below), so a Codo balanced on one cube is the first
+  piece that can pivot.
+- **Shoving LAW:** built — see "Shoving LAW" below.
 - **Black Holes + future irregular pieces (L / Z / S):** the current
   wormhole-entry gate is "ground footprint is exactly one cell"
   (`cells.length === 1`). Irregular pieces will be able to have a single
@@ -1377,3 +1376,47 @@ Measured from 102 recorded searches (per-depth times in
 - This rule never lost a depth, and saved 4–13% of think time
   (Hard: ~0.2–0.5s).
 - Live with/without comparison: 33 of 34 same move, 0 shallower.
+
+**Cantilever Pivot LAW** (`laws.cantileverPivot`, the sphere's LAWS
+checkbox).
+
+Who can pivot: a piece standing on exactly ONE cube (`pivotCellOf`, which
+means a Codo balanced on one cube; no Arco pose or box qualifies).
+
+The move:
+- A quarter turn about the vertical axis through that cube, as move
+  keys `pivot-cw` / `pivot-ccw` (clockwise as seen from above, rows down
+  the screen). Each costs 1 point and each undoes the other
+  (`INVERSE_DIR`).
+- A half turn is two quarter turns the same way, so the player picks
+  which way round.
+- `pivotPiece` (shapes.js) turns the cubes. `legalPivots` (rules.js,
+  merged into legalMovesFor) needs the new pose on the board and clear
+  of other cubes, plus no clash along the way (`pivotSweepClashes`).
+- The swept check samples the arm at angles with the SAT test in the
+  board plane. A one-square arm sweeps its destination and the diagonal
+  between the headings. Only a piece with a cube at the arm's level (2+
+  tall) blocks it, and swinging over the board edge is allowed.
+- The arm never crushes: a Cabeza under it is sheltered.
+
+Chassis:
+- The spin reuses the roll carrier with axis +Y through the planted cube
+  (clockwise is a negative angle).
+- `nextStateAfterDir` inverts it for undo.
+- The move indicator sits on the arm's destination square
+  (`pivotArmFootprint`).
+- The move log shows the keys (e.g. `Co: pivot-ccw.pivot-ccw`).
+
+The AI finds pivots through legalMovesFor.
+
+Not built from the design doc: the curved-arrow cue and the swipe
+gesture. The pivot is chosen by tapping its indicator, like a roll.
+
+Tests: the `[pivot]` block in tests/engine.smoke.mjs and
+tests/e2e-pivot.mjs.
+
+**Hard's thinking time: 4300 -> 3500ms** (user request, to shorten the
+stretch where the AI and the 3D scene compete for the CPU). Sim vs
+Medium on the classic board, both colours:
+- 3500ms / beam 12: 7 wins, 0 losses, 3 draws.
+- 3000ms / beam 10: 5–5. 3000ms / beam 8: 4 wins of 10.

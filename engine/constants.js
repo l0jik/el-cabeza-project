@@ -450,3 +450,12 @@ export const baseDirOfSlideKey = (key) => key.slice(SLIDE_KEY_PREFIX.length);
 for (const dir of Object.keys(STEP_DIRS)) {
   INVERSE_DIR[slideKey(dir)] = slideKey(INVERSE_DIR[dir]);
 }
+
+/* Cantilever Pivot LAW keys: a piece standing on ONE cube turns a
+   quarter turn about it, clockwise or counter-clockwise as seen from
+   above (see legalPivots in rules.js). Each undoes the other. */
+export const PIVOT_KEYS = { cw: "pivot-cw", ccw: "pivot-ccw" };
+export const isPivotKey = (key) => key === PIVOT_KEYS.cw || key === PIVOT_KEYS.ccw;
+export const pivotTurnOfKey = (key) => (key === PIVOT_KEYS.cw ? "cw" : "ccw");
+INVERSE_DIR[PIVOT_KEYS.cw] = PIVOT_KEYS.ccw;
+INVERSE_DIR[PIVOT_KEYS.ccw] = PIVOT_KEYS.cw;

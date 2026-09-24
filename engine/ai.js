@@ -1301,7 +1301,12 @@ export const AI_DIFFICULTY = {
        would exploit it rather than weighing that tradeoff only a
        couple of turns out. */
     maxDepth: 11,
-    timeBudgetMs: 4300,
+    /* 4300 -> 3500 to shorten how long the processor runs flat out
+       (and the 3D scene competes with it). Checked with tests/ai-sim.mjs
+       against Medium on the classic board: 3500ms with beam 12 went
+       7 wins / 0 losses / 3 draws, while 3000ms (beam 10 or 8) fell to
+       an even match. */
+    timeBudgetMs: 3500,
     twoStepBias: 10,
     cabezaRepeatBias: 9,
     blockAdvance: 1.4,
