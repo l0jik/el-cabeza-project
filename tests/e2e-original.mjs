@@ -41,6 +41,11 @@ const theme = (page) => page.evaluate(() => {
   await page.locator('[data-testid="play-original"]').click();
   await page.waitForTimeout(800);
   check("the link closes INFO", (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "false");
+  const cue = await page.evaluate(() => {
+    const a = window.__EC_LAST_ORIGINAL_CUE__;
+    return a ? { src: a.src.slice(0, 22), playing: !a.paused, duration: a.duration } : null;
+  });
+  check("...and plays the muzak cue (about 5.5 s)", !!cue && cue.src.startsWith("data:audio/mpeg") && cue.playing && cue.duration > 5 && cue.duration < 6, JSON.stringify(cue));
   check("...and the game now has no laws", (await lawsInPlay(page)) === 0);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();
@@ -69,6 +74,8 @@ const theme = (page) => page.evaluate(() => {
   await page.locator('[data-testid="play-original"]').click();
   await page.waitForTimeout(3500);
   check("the original-game link brings Nova back to Standard", (await theme(page)) === "standard");
+  check("...with the muzak cue still playing through the theme switch",
+    await page.evaluate(() => !!window.__EC_LAST_ORIGINAL_CUE__ && !window.__EC_LAST_ORIGINAL_CUE__.paused));
   check("...with INFO closed", (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "false");
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();

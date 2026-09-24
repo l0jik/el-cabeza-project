@@ -1643,3 +1643,9 @@ Results, new vs previous:
   (apps/unified.jsx) transitions back to the Standard theme if it's on
   Neon. Standard has no ANOMALY button, so nothing else to disable. Test:
   tests/e2e-original.mjs.
+- **Original-game cue (built).** The link plays assets/original-cue.mp3
+  (5.5 s of archive.org's "Mall Music Muzak – Mall Of 1974", Third Floor
+  Spending Spree, from 0:06, +8 dB, fading out over the last 1.5 s)
+  through a plain Audio element (volume 0.75; skipped when muted), so it
+  survives Nova's theme switch. build/build.js inlines .mp3 files as data
+  URLs.
