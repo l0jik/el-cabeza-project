@@ -403,6 +403,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       if (piece && beginMoveRef.current) beginMoveRef.current(piece, dir);
       return !!piece;
     };
+    // Screen position of the centre of the cube at (row, col, level) —
+    // for tapping a specific cube of an odd-shaped piece (its bounding-box
+    // centre can fall in the notch of an L, where a tap rightly misses).
+    window.__EC_TEST_CUBE_POS__ = (row, col, level = 0) => {
+      const t = three.current;
+      if (!t.boardGroup || !t.camera || !t.renderer) return null;
+      const v = new THREE.Vector3((col + 0.5) * SQUARE_SIZE - OFF_X, (level + 0.5) * PIECE_SCALE, (row + 0.5) * SQUARE_SIZE - OFF_Z);
+      t.boardGroup.localToWorld(v);
+      v.project(t.camera);
+      const r = t.renderer.domElement.getBoundingClientRect();
+      return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+    };
     // Screen position of a Cantilever Pivot arrow ("pivot-cw"/"pivot-ccw").
     window.__EC_TEST_PIVOT_ARROW_POS__ = (dir) => {
       const t = three.current;
@@ -6858,6 +6870,39 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               )}
             </svg>
           </button>
+        )}
+        {/* Who's playing what — a quiet read-out in the dock's footer strip
+           (the one Sound's icon sits in), never a control: the setup
+           buttons already say it before the game, so this is for once
+           it's under way (and after, for the game just played). Absolutely
+           placed, so it never makes the dock any bigger; it gives way
+           (ellipsis) to the corner icons on a narrow screen. */}
+        {!awaitingBegin && (
+          <div
+            data-testid="dock-players"
+            style={{
+              position: "absolute",
+              left: 20,
+              right: theme.hasAudio ? 76 : 44,
+              bottom: 15,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 9,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: COLORS.slate,
+              opacity: 0.75,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              pointerEvents: "none",
+            }}
+          >
+            {["dark", "light"]
+              .map((side) => `${side === "dark" ? "Dark" : "Light"}: ${
+                aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : "Human"
+              }`)
+              .join("  ·  ")}
+          </div>
         )}
         {/* Points-left counter on/off — same quiet corner-icon treatment
            as Sound, just to its left (or in its place for a theme with
