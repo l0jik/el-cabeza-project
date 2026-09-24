@@ -5801,7 +5801,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                 // fade/position transition group below, but there's no
                 // actual scale in it to anchor.
                 transformOrigin: "top right",
-                opacity: 0.22,
+                // A faint watermark — except while the Info button it
+                // holds is showing (a tap on the title reveals it for a
+                // few seconds): the button lives inside this wrapper, so
+                // at 0.22 it was all but invisible. Comes up quickly,
+                // fades back at the usual pace.
+                opacity: infoBtnVisible ? 0.9 : 0.22,
                 /* "Behind the board" in spirit, not literal z-order —
                    the 3D canvas paints as one flat layer, so nothing
                    can sit behind its meshes while staying in front of
@@ -5811,7 +5816,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                    board reads as sitting in front of, rather than a
                    truly occluded logo. */
                 zIndex: 1,
-                transition: "opacity 1.1s ease, transform 1.1s ease, top 1.1s ease, right 1.1s ease",
+                transition: `opacity ${infoBtnVisible ? 0.3 : 1.1}s ease, transform 1.1s ease, top 1.1s ease, right 1.1s ease`,
                 textAlign: "center",
               }
             : {
@@ -5821,9 +5826,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                 right: "auto",
                 transform: "translateX(-50%) scale(1)",
                 transformOrigin: "top center",
-                opacity: mastheadPhase === "setup" ? 1 : 0.16,
+                opacity: mastheadPhase === "setup" || infoBtnVisible ? 1 : 0.16,
                 zIndex: 20,
-                transition: "opacity 1.1s ease, transform 1.1s ease, top 1.1s ease, right 1.1s ease",
+                transition: `opacity ${infoBtnVisible ? 0.3 : 1.1}s ease, transform 1.1s ease, top 1.1s ease, right 1.1s ease`,
                 textAlign: "center",
               }
         }
@@ -5947,8 +5952,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             // MINI_BUTTON_BASE's own sizing scale. Scoped down here
             // only, not on the shared base (other buttons using it
             // still want the original size).
-            fontSize: 8,
-            padding: "4px 7px",
+            // Enlarged per feedback ("almost imperceptible" once the
+            // masthead shrinks into the top-right corner during play):
+            // bigger still in that corner, where the title beside it is
+            // small too.
+            fontSize: mastheadPhase === "relocated" ? 11.5 : 10,
+            padding: mastheadPhase === "relocated" ? "6px 12px" : "5px 10px",
             position: "absolute",
             top: "100%",
             right: 0,
@@ -6884,13 +6893,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               position: "absolute",
               left: 20,
               right: theme.hasAudio ? 76 : 44,
-              bottom: 15,
+              bottom: 13,
               fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 9,
-              letterSpacing: "0.14em",
+              // Larger and in the dock's own text colour per feedback
+              // (was 9px slate at 0.75 — too dim and small to read).
+              fontSize: 11,
+              letterSpacing: "0.1em",
               textTransform: "uppercase",
-              color: COLORS.slate,
-              opacity: 0.75,
+              color: COLORS.charcoal,
+              opacity: 0.8,
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
