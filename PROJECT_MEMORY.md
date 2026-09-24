@@ -1583,3 +1583,21 @@ Results, new vs previous:
 - Longest same-piece run fell from 15 to ≤3–6.
 - Medium in the user setup: 9–5 (2 draws). Easy: 7–5.
 - Classic Medium: 5–5.
+
+## Future wishlist (user-requested, not started)
+
+- **Online play against another human.** GitHub Pages only serves static
+  files, so this needs a small backend: a relay (WebSocket) service, or
+  peer-to-peer WebRTC with a tiny signalling server. Invite by link or
+  short game code; the engine's move descriptors and move log are already
+  the natural wire format.
+- **No accounts, but saves that outlive the browser.** Options discussed:
+  an export/import save code or file (no server); an anonymous save stored
+  on the same backend under a secret code or link (no sign-up); browser
+  storage as today. An installable app (PWA or native) doesn't solve this
+  on its own; it still stores on the one device. Pick the approach with
+  the user before building.
+- **Piece size (pending decision).** Renders of 80% (current), 87% and 92%
+  `PIECE_SCALE` were shown (angled, zoomed and top-down). Recommended 87%:
+  Arcos and Codos fill their squares while neighbours keep a visible gap.
+  Waiting on the user's pick; board squares stay as they are.
