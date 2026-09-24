@@ -5,6 +5,7 @@ import {
   buildPieceVisual,
 } from "../themes/neon.js";
 import { createInitialPieces } from "../engine/rules.js";
+import { parseVox, groundCellsOf, mirrorVox, piecesClash } from "../engine/shapes.js";
 import { makeRoundedBox } from "../engine/geometry.js";
 
 console.log("COLORS.cream:", COLORS.cream);
@@ -64,6 +65,29 @@ console.log("shell is EdgesGeometry-based LineSegments:", shell.geometry.type ==
     }
   }
   console.log("generateAnomalySetup avoids blocked cells (200 rolls): ok");
+}
+
+// The Codo (MATTER's 3-cube L) in a randomized opening: every copy
+// carries its cubes, stays in its side's home rows, touches the board,
+// and Light's copy is Dark's turned 180° — cubes included — so the
+// opening stays rotationally symmetric. No two pieces share a cube.
+{
+  for (let i = 0; i < 200; i++) {
+    const ps = generateAnomalySetup([{ type: "codo", count: 2 }, { type: "cabeza", count: 1 }, { type: "chato", count: 1 }]);
+    const codos = ps.filter((p) => p.type === "codo");
+    if (codos.length !== 4) throw new Error(`expected 4 Codos, got ${codos.length}`);
+    for (const d of codos.filter((p) => p.owner === "dark")) {
+      if (!d.vox || parseVox(d.vox).length !== 3) throw new Error(`Codo without its 3 cubes: ${JSON.stringify(d)}`);
+      if (d.row + d.h > 2) throw new Error(`Dark Codo outside its home rows: ${JSON.stringify(d)}`);
+      if (!groundCellsOf(d).length) throw new Error("a Codo must touch the board");
+      const l = ps.find((p) => p.id === d.id.replace("dark-", "light-"));
+      if (l.vox !== mirrorVox(d)) throw new Error(`Light's Codo isn't Dark's mirrored: ${d.vox} vs ${l.vox}`);
+    }
+    for (let a = 0; a < ps.length; a++)
+      for (let b = a + 1; b < ps.length; b++)
+        if (piecesClash(ps[a], ps[b])) throw new Error(`opening overlaps: ${ps[a].id} / ${ps[b].id}`);
+  }
+  console.log("generateAnomalySetup places Codos with their cubes, mirrored and non-overlapping (200 rolls): ok");
 }
 
 console.log("\nNEON THEME SMOKE TEST PASSED");

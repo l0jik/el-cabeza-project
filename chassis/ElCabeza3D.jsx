@@ -16,10 +16,11 @@ import {
 } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY } from "../engine/ai.js";
 import {
-  pieceCenter, restingY, makeRoundedBox, rayHitBoardPlaneY0,
+  pieceCenter, restingY, makeRoundedBox, makePolycubeGeometry, rayHitBoardPlaneY0,
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
   setGhostLineTarget,
 } from "../engine/geometry.js";
+import { cubeCount } from "../engine/shapes.js";
 
 /* Semantic Versioning (MAJOR.MINOR.PATCH), shared by both themes since
    it describes the game as a whole, not any one skin's own history. */
@@ -295,6 +296,41 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      consumed by an undo — this is real history, not a single-slot
      snapshot. */
   const [turnHistory, setTurnHistory] = useState([]);
+  // Test-only mirror of the move log plus each turn's piece-tagged steps,
+  // so e2e tests can read what a turn actually did (e.g. an AI Split
+  // Movement turn moving two pieces) without parsing rendered text.
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.__EC_TEST_LOG__ = log.map((e) => ({ player: e.player, notation: e.notation, mark: e.mark }));
+      window.__EC_TEST_TURNS__ = turnHistory.map((h) => ({ player: h.currentPlayer, steps: (h.steps || []).map((st) => ({ pieceId: st.pieceId, dir: st.dir })) }));
+    }
+  }, [log, turnHistory]);
+  // Test-only: when a test sets window.__EC_TEST_HOOKS__ before load, it
+  // can place an arbitrary position during setup (e.g. an odd-shaped
+  // piece next to a Cabeza) and read the live pieces back.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.__EC_TEST_HOOKS__) return;
+    window.__EC_TEST_SET_PIECES__ = (list) => setPieces(list.map((p) => ({ ...p })));
+    window.__EC_TEST_PIECES__ = pieces.map((p) => ({ ...p }));
+    // Plays one move for a piece through the same path a click uses
+    // (animation, commit, turn logic), and projects a piece's body to
+    // screen pixels for tests that then click on it.
+    window.__EC_TEST_MOVE__ = (id, dir) => {
+      const piece = pieces.find((p) => p.id === id);
+      if (piece && beginMoveRef.current) beginMoveRef.current(piece, dir);
+      return !!piece;
+    };
+    window.__EC_TEST_SCREEN_POS__ = (id) => {
+      const t = three.current;
+      const mesh = t.pieceGroup && t.pieceGroup.children.find((c) => c.userData.pieceId === id && c.userData.kind === "piece");
+      if (!mesh || !t.camera || !t.renderer) return null;
+      const v = new THREE.Vector3();
+      mesh.getWorldPosition(v);
+      v.project(t.camera);
+      const r = t.renderer.domElement.getBoundingClientRect();
+      return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+    };
+  }, [pieces]);
   /* React-visible copy of the Black Hole Squares LAW's current
      placement — engine/constants.js's own BLACK_HOLES is plain mutable
      module state, invisible to React's render cycle, same reason
@@ -2507,6 +2543,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         const smoothstep = t * t * (3 - 2 * t);
         const residualE = smoothstep * smoothstep;
 
+        // A piece being shoved (Shoving LAW) glides alongside.
+        if (a.push) a.push.carrier.position.lerpVectors(a.push.from, a.push.to, e);
         if (a.kind === "roll") {
           a.pivot.setRotationFromAxisAngle(a.axis, a.angle * e);
           a.pivot.position.copy(a.base).addScaledVector(a.dirVec, a.residual * residualE);
@@ -2620,6 +2658,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       const center = pieceCenter(p);
       const y = restingY(p);
 
+      // An odd-shaped piece (engine/shapes.js) is built from its own
+      // cubes, in the same box-centered frame as a box piece, so it
+      // places and rolls identically.
       const geo = isDisc
         ? new THREE.CylinderGeometry(
             (DISC_DIAM * PIECE_SCALE) / 2,
@@ -2627,12 +2668,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             DISC_H * PIECE_SCALE,
             40
           )
-        : makeRoundedBox(
-            p.w * PIECE_SCALE,
-            p.z * PIECE_SCALE,
-            p.h * PIECE_SCALE,
-            EDGE_RADIUS
-          );
+        : p.vox
+          ? makePolycubeGeometry(p, PIECE_SCALE)
+          : makeRoundedBox(
+              p.w * PIECE_SCALE,
+              p.z * PIECE_SCALE,
+              p.h * PIECE_SCALE,
+              EDGE_RADIUS
+            );
 
       // Everything about HOW a piece is materialized and outlined is
       // theme-owned (see ARCHITECTURE.md) — Standard and Neon use
@@ -2819,7 +2862,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   const shadowSig = shadowEntries
     .map(([dir, m]) => {
       const c = m.candidate;
-      return `${dir}:${c.row},${c.col},${c.w},${c.h},${c.z}${m.crushes ? "!" : ""}`;
+      return `${dir}:${c.row},${c.col},${c.w},${c.h},${c.z},${c.vox || ""}${m.crushes ? "!" : ""}`;
     })
     .join("|");
 
@@ -2999,7 +3042,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // and `currentPieceState` is that one piece's final state in the
     // single-piece case, so no stale board read is needed.
     const distinctMoved = new Set(turnSteps.map((s) => s.pieceId));
-    if (distinctMoved.size <= 1 && origin && sameState(origin, currentPieceState)) {
+    const shovedSomething = turnSteps.some((s) => s.shoved);
+    if (distinctMoved.size <= 1 && !shovedSomething && origin && sameState(origin, currentPieceState)) {
       setSelectedId(null);
       setHoveredId(null);
       setHoverShadow(null);
@@ -3035,12 +3079,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // than starting over.
     const stepsNext = [
       ...(piece.id === selectedId ? pendingSteps : []),
-      { pieceId: piece.id, label: PIECE_META[piece.type].label, dir },
+      // `shoved` marks a step that pushed another piece (Shoving LAW) — such
+      // a turn always changed the board, even if the mover ends back home.
+      { pieceId: piece.id, label: PIECE_META[piece.type].label, dir, ...(move.shoves ? { shoved: move.shoves.id } : {}) },
     ];
     // Distinct pieces moved this turn after this move — the Split Movement
     // 2-piece cap counts these, not the number of moves.
     const movedAfter = movedPieceIds.includes(piece.id) ? movedPieceIds : [...movedPieceIds, piece.id];
     let nextPieces = pieces.map((p) => (p.id === piece.id ? move.candidate : p));
+    // Shoving LAW: the pushed piece lands where the push put it.
+    if (move.shoves) {
+      nextPieces = nextPieces.map((p) => (p.id === move.shoves.id ? { ...p, row: move.shoves.row, col: move.shoves.col } : p));
+    }
 
     if (move.crushes) {
       // Only a Cabeza can ever be `crushes` (see evaluateBlockLanding).
@@ -3138,18 +3188,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       return;
     }
 
-    audioRef.current.playLanding(piece.w * piece.h * piece.z);
+    audioRef.current.playLanding(cubeCount(piece)); // cubes, not box volume — an odd shape weighs what it's made of
     setPieces(nextPieces);
     setTurnSnapshot(turnSnapshot || pieces);
     setPendingNotation(notation);
     setHoverShadow(null);
 
-    // Split Movement applies to the HUMAN player only: under the law, a
-    // turn's points are a shared bank spendable across up to
-    // MAX_PIECES_PER_TURN distinct pieces. The AI always plays a legal
-    // single-piece turn (committing its whole bank to one piece — always a
-    // legal option), so its accounting stays exactly the original logic.
-    const humanSplit = ACTIVE_LAWS.splitMovement && currentPlayer !== aiPlayer;
+    // Split Movement: under the law, a turn's points are a shared bank
+    // spendable across up to MAX_PIECES_PER_TURN distinct pieces — for the
+    // human and the AI alike (the AI's plan names each step's piece; see
+    // the AI orchestration effect, which hands a step to a second piece).
+    const splitOn = !!ACTIVE_LAWS.splitMovement;
 
     // A Slide always costs TWO action points; a roll costs one (moveCost).
     // So in a normal 2-point turn a slide spends the whole turn, and with
@@ -3157,7 +3206,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // roll ("a slide and an additional roll"). Under Split Movement the
     // bank is the whole turn's (turnBudget), shared across pieces; the
     // per-piece budget equals it anyway (every piece's base is 2).
-    const budget = humanSplit ? turnBudget() : maxStepsFor(piece.type);
+    const budget = splitOn ? turnBudget() : maxStepsFor(piece.type);
     const used = (piece.id === selectedId ? stepsUsed : 0) + moveCost(move);
 
     // Whether the turn ends now. A Black Hole Squares wormhole landing
@@ -3169,7 +3218,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // the original per-piece rule.
     const stop =
       move.teleports ||
-      !turnContinues(nextPieces, currentPlayer, movedAfter, move.candidate, used, budget, humanSplit);
+      !turnContinues(nextPieces, currentPlayer, movedAfter, move.candidate, used, budget, splitOn);
 
     if (stop) {
       settleTurn(move.candidate, notation, stepsNext);
@@ -3188,9 +3237,30 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      a move, inverted for an undo. On completion the parts are re-attached
      to the piece group with their world pose preserved, which is what
      lets steps be chained without a rebuild in between. */
-  const animateStep = useCallback((state, dir, onDone) => {
+  const animateStep = useCallback((state, dir, onDone, shove = null) => {
     const t = three.current;
     const parts = t.pieceGroup.children.filter((c) => c.userData.pieceId === state.id);
+    /* Shoving LAW: the pushed piece glides to where it's pushed over the
+       same time as the move, on its own carrier (see `push` in the anim
+       tick), and is handed back to the piece group when the move lands. */
+    let push = null;
+    if (shove) {
+      const shovedParts = t.pieceGroup.children.filter((c) => c.userData.pieceId === shove.id);
+      const shovedState = shove.state;
+      if (shovedParts.length && shovedState) {
+        const from = pieceCenter(shovedState);
+        const to = pieceCenter({ ...shovedState, row: shove.row, col: shove.col });
+        const fromVec = new THREE.Vector3(from.x, 0, from.z);
+        const carrier = new THREE.Object3D();
+        carrier.position.copy(fromVec);
+        t.boardGroup.add(carrier);
+        shovedParts.forEach((c) => {
+          c.position.sub(fromVec);
+          carrier.add(c);
+        });
+        push = { carrier, parts: shovedParts, from: fromVec.clone(), to: new THREE.Vector3(to.x, 0, to.z) };
+      }
+    }
     if (!parts.length) {
       onDone();
       return;
@@ -3212,7 +3282,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        the branch below: a translate (disc, or any Slide) uses SLIDE_MS
        rather than ROLL_MS, though both constants share one value today. */
     audioRef.current.playRollStart(
-      state.w * state.h * state.z,
+      cubeCount(state),
       PIECE_META[state.type].shape === "disc" || isSlideMove ? SLIDE_MS : ROLL_MS
     );
 
@@ -3261,6 +3331,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       carrier.updateMatrixWorld(true);
       parts.forEach((c) => t.pieceGroup.attach(c));
       t.boardGroup.remove(carrier);
+      if (push) {
+        push.carrier.position.copy(push.to);
+        push.carrier.updateMatrixWorld(true);
+        push.parts.forEach((c) => t.pieceGroup.attach(c));
+        t.boardGroup.remove(push.carrier);
+      }
       if (landingFootprint) {
         t.pulseSquare && t.pulseSquare(landingFootprint.row, landingFootprint.col, landingFootprint.w, landingFootprint.h, "apply", accentColor);
         // Per Neon's own design, the Cabeza never gets the landing
@@ -3304,6 +3380,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         to: new THREE.Vector3(to.x, 0, to.z),
         elapsed: 0,
         duration: SLIDE_MS,
+        push,
         onComplete: () => bake(carrier, landing, to),
       };
       return;
@@ -3353,6 +3430,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       angle: pv.angle,
       elapsed: 0,
       duration: ROLL_MS,
+      push,
       onComplete: () => bake(pivot, landing, landingCenter),
     };
   }, []);
@@ -3392,6 +3470,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       if (canContinue) {
         let afterStep = pieces.map((p) => (p.id === piece.id ? move.candidate : p));
         if (move.crushes) afterStep = afterStep.filter((p) => p.id !== move.crushes.id);
+        if (move.shoves) afterStep = afterStep.map((p) => (p.id === move.shoves.id ? { ...p, row: move.shoves.row, col: move.shoves.col } : p));
         inFlightRef.current = {
           pieceId: piece.id,
           landing: move.candidate,
@@ -3403,7 +3482,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         inFlightRef.current = null;
       }
 
-      animateStep(piece, dir, () => commitRef.current(piece, dir, move));
+      animateStep(
+        piece, dir, () => commitRef.current(piece, dir, move),
+        move.shoves ? { ...move.shoves, state: pieces.find((p) => p.id === move.shoves.id) } : null
+      );
     },
     [pieces, busy, selectedId, stepsUsed, animateStep]
   );
@@ -3516,11 +3598,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         if (cancelled) return;
         setAiThinking(false);
         if (!turn) return; // no legal turn at all — shouldn't normally happen
-        aiDirsRef.current = turn;
-        const piece = pieces.find((p) => p.id === turn.pieceId);
+        // The plan as piece-tagged steps: a Split Movement turn names each
+        // step's piece; a normal turn is every dir on one piece. `next`
+        // counts steps already started (not action points — a slide
+        // spends two points but is one step).
+        const planSteps = turn.steps || turn.dirs.map((dir) => ({ pieceId: turn.pieceId, dir }));
+        aiDirsRef.current = { ...turn, planSteps, next: 1 };
+        const piece = pieces.find((p) => p.id === planSteps[0].pieceId);
         if (piece) {
-          aiCabezaStreakRef.current = piece.type === "cabeza" ? aiCabezaStreakRef.current + 1 : 0;
-          beginMoveRef.current(piece, turn.dirs[0]);
+          const movesCabeza = planSteps.some((st) => {
+            const q = pieces.find((p) => p.id === st.pieceId);
+            return q && q.type === "cabeza";
+          });
+          aiCabezaStreakRef.current = movesCabeza ? aiCabezaStreakRef.current + 1 : 0;
+          beginMoveRef.current(piece, planSteps[0].dir);
         }
       }, 500);
       return () => {
@@ -3530,19 +3621,33 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     }
 
     if (stepsUsed > 0 && aiDirsRef.current) {
-      const { pieceId, dirs } = aiDirsRef.current;
-      if (stepsUsed < dirs.length) {
+      const plan = aiDirsRef.current;
+      if (plan.next < plan.planSteps.length) {
+        const step = plan.planSteps[plan.next];
+        // A Split Movement step on a different piece: hand the turn's
+        // remaining bank to it first (exactly what a human's mid-turn tap
+        // on another own piece does), so the commit carries the shared
+        // points and step record forward. The move itself fires after the
+        // usual pause, by which time the selection has re-rendered into
+        // beginMove.
+        if (step.pieceId !== selectedId) {
+          setSelectedId(step.pieceId);
+          setHoveredId(step.pieceId);
+        }
         const timer = setTimeout(() => {
-          const piece = pieces.find((p) => p.id === pieceId);
-          if (piece) beginMoveRef.current(piece, dirs[stepsUsed]);
+          const piece = pieces.find((p) => p.id === step.pieceId);
+          if (!piece) return;
+          plan.next += 1;
+          beginMoveRef.current(piece, step.dir);
         }, 500);
         return () => clearTimeout(timer);
       }
-      const piece = pieces.find((p) => p.id === pieceId);
+      const lastId = plan.planSteps[plan.planSteps.length - 1].pieceId;
+      const piece = pieces.find((p) => p.id === lastId);
       aiDirsRef.current = null;
       if (piece) settleTurn(piece, pendingNotation, pendingSteps);
     }
-  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, pendingSteps, awaitingBegin, log]);
+  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, pendingSteps, awaitingBegin, log, selectedId]);
 
   /* Drains a human's queued continuation (see pendingIntentRef/onUp's
      busy branch above) the instant the step it was waiting on actually
@@ -4880,7 +4985,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // session settings — cleared here for a plain game (both the engine
       // module state read by rules.js/the AI worker and the chassis's own
       // React copies).
-      setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false });
+      setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveFar: false, shoveOnRolls: false });
       setActiveBlackHoles([]);
       setBlackHoles([]);
       setActiveMissingSquares([]);

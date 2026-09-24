@@ -330,12 +330,12 @@ check("dragging brings MATTER into view regardless of the shuffled arrangement",
   state.activeCategory === "matter", `activeCategory=${state.activeCategory}`);
 
 // ---- LAWS/MATTER get real checkboxes for their sub-items ----
-const archBefore = state.selections.matter.newPieces.arch;
-await page.locator('[data-testid="matter-piece-arch"]').click();
+const blockBefore = state.selections.matter.newPieces.block1x3;
+await page.locator('[data-testid="matter-piece-block1x3"]').click();
 await page.waitForTimeout(150);
 state = await sphereState();
-check("a MATTER checkbox actually toggles the real selection", state.selections.matter.newPieces.arch === !archBefore,
-  `before=${archBefore} after=${state.selections.matter.newPieces.arch}`);
+check("a MATTER checkbox actually toggles the real selection", state.selections.matter.newPieces.block1x3 === !blockBefore,
+  `before=${blockBefore} after=${state.selections.matter.newPieces.block1x3}`);
 
 // ---- MATTER also gets a scroll wheel for each of the five ORIGINAL
 // pieces, not just the four new ones, so a roster can be customized ----
@@ -353,13 +353,43 @@ state = await sphereState();
 check("the roster drum clamps at its declared max", state.selections.matter.roster.cabeza === 2,
   `roster.cabeza=${state.selections.matter.roster.cabeza}`);
 
+// The Codo (MATTER's 3-cube L) has its own roster counter, off (0) by
+// default; the old inert "L-Pentomino" checkbox is gone.
+check("the Codo counter starts at 0 and the L-Pentomino checkbox is gone",
+  state.selections.matter.roster.codo === 0 && state.selections.matter.newPieces.lPentomino === undefined &&
+    (await page.locator('[data-testid="matter-piece-lPentomino"]').count()) === 0,
+  JSON.stringify(state.selections.matter));
+await page.locator('[data-testid="roster-codo-inc"]').click();
+await page.waitForTimeout(120);
+state = await sphereState();
+check("the Codo counter increments", state.selections.matter.roster.codo === 1, `roster=${JSON.stringify(state.selections.matter.roster)}`);
+await page.locator('[data-testid="roster-codo-dec"]').click();
+await page.waitForTimeout(120);
+state = await sphereState();
+
+// The Arco: its own counter (off by default) plus a size choice that
+// defaults to Chico; picking Alto lights it and stores it.
+check("the Arco counter starts at 0 with the Chico size, and the old Arch checkbox is gone",
+  state.selections.matter.roster.arco === 0 && state.selections.matter.arcoSize === "chico" &&
+    (await page.locator('[data-testid="matter-piece-arch"]').count()) === 0,
+  JSON.stringify(state.selections.matter));
+await page.locator('[data-testid="arco-size-alto"]').click();
+await page.waitForTimeout(120);
+state = await sphereState();
+check("choosing the Alto size stores it and marks it pressed",
+  state.selections.matter.arcoSize === "alto" &&
+    (await page.locator('[data-testid="arco-size-alto"]').getAttribute("aria-pressed")) === "true");
+await page.locator('[data-testid="arco-size-chico"]').click();
+await page.waitForTimeout(120);
+state = await sphereState();
+
 // ---- clicking outside the overlay closes it, returning control to
 // sphere rotation, without discarding the edits just made ----
 await closeOverlay();
 state = await sphereState();
 check("clicking outside the overlay closes it", state.stage === "labels", `stage=${state.stage}`);
 check("closing the overlay keeps the edits made inside it",
-  state.selections.matter.newPieces.arch === true && state.selections.matter.roster.cabeza === 2,
+  state.selections.matter.newPieces.block1x3 === true && state.selections.matter.roster.cabeza === 2,
   JSON.stringify(state.selections.matter));
 
 // ---- TOPOLOGIES gets a drum roller per board dimension instead of
@@ -598,6 +628,31 @@ if (state.activeCategory === "laws") {
     reopenBg === "rgb(7, 8, 11)", `bg=${reopenBg}`);
   await page.locator('[data-testid="blackhole-picker-cancel"]').click();
   await page.waitForTimeout(200);
+
+  // Shoving: ticking the law reveals its two settings directly beneath
+  // it (push distance, which moves shove), defaulting to "1 square" and
+  // "slides only"; each choice is stored. Unticked again afterwards so
+  // the rest of this run plays without it.
+  check("the Shoving settings are hidden while the law is off",
+    (await page.locator('[data-testid="shove-settings"]').count()) === 0);
+  await page.locator('[data-testid="law-shoving"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("Shoving toggles on, with its settings right beneath it at their defaults",
+    state.selections.laws.shoving === true &&
+      state.selections.shove.far === false && state.selections.shove.onRolls === false &&
+      (await page.evaluate(() => document.querySelector('[data-testid="law-shoving"]')?.nextElementSibling?.getAttribute("data-testid"))) === "shove-settings",
+    JSON.stringify(state.selections.shove));
+  await page.locator('[data-testid="shove-far-on"]').click();
+  await page.locator('[data-testid="shove-onRolls-on"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("choosing 'as far as it travels' and 'slides and rolls' stores both",
+    state.selections.shove.far === true && state.selections.shove.onRolls === true &&
+      (await page.locator('[data-testid="shove-far-on"]').getAttribute("aria-pressed")) === "true",
+    JSON.stringify(state.selections.shove));
+  await page.locator('[data-testid="law-shoving"]').click();
+  await page.waitForTimeout(150);
 
   // Close the LAWS overlay so the drag-rotate check below reaches the sphere.
   await page.mouse.click(obox.x + obox.width - 24, obox.y + obox.height - 24);

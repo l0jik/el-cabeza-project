@@ -400,7 +400,7 @@ then a real Begin Game.
   `key` prop keyed on `${rows}x${cols}` on whatever renders
   `<ElCabeza3D>`, in `apps/neon.jsx`/`apps/unified.jsx`) — a real,
   deliberately-scoped-out feature, not a quick add. Assessed directly
-  with the user and explicitly deferred.
+  with the user and explicitly deferred; later dropped entirely ("forget about this").
 - **TOPOLOGY — Missing Squares, wired and real.** One to five pairs of
   rotationally-mirrored squares (see "Up to five Missing Square pairs"
   below) (same manual-pick-plus-180°-mirror model as Black
@@ -602,11 +602,38 @@ lands on one; the pre-game Anomaly button also avoids the live
   moves in reverse, both `handleUndoTurn` and `handleUndoLastTurn`); the
   pointer handler lets the player select a second eligible piece mid-turn
   (`ACTIVE_LAWS.splitMovement && currentPlayer !== aiPlayer`, bank>0, cap not
-  reached). `humanSplit` gates it to the human — the **AI plays legal
-  single-piece turns** under the law (committing its whole bank to one piece,
-  always legal) and does not proactively split; teaching `generateTurns` to
-  spend across two pieces (combinatorial in the deep search) is the staged
-  follow-up. Verified headlessly via `turnContinues` cases in
+  reached). **The AI splits too.**
+  - With the law on, `generateTurns` also calls `generateSplitTurns`
+    (engine/ai.js). It walks every sequence of steps that spends the shared
+    bank across at most two distinct pieces: A-B, and with 3 points also
+    A-A-B, A-B-A and A-B-B. Any prefix is a complete turn, and a
+    game-ending crush/win or a wormhole ends it.
+  - Pruning:
+    - A turn where either piece ends where it started without crushing
+      anything is dropped, because it is really a one-piece turn.
+    - Turns with the same end state (moved pieces' final states plus
+      crushes) are kept once, so A-then-B and B-then-A don't double up.
+  - Split turns carry `steps: [{piece, pieceId, dir, move}]`.
+    `applyTurn`/`undoTurn`/`moveKey` handle them, and `findBestAiTurn`
+    returns `steps: [{pieceId, dir}]` alongside `pieceId`/`dirs`.
+  - Chassis:
+    - commit uses `splitOn` (the law) for both sides, with
+      `turnBudget()` and `turnContinues(..., split)`.
+    - The AI effect plays `aiDirsRef.current.planSteps` by index `next`.
+      It counts steps, not points, which also fixes a latent slide
+      mismatch in the old `stepsUsed < dirs.length` check.
+    - Before a step on a different piece it `setSelectedId`s that piece
+      (like a human's mid-turn tap), so the shared bank and log carry over.
+  - Branching: at the opening, 13 → 23 turns (2 points) and 39 → 92
+    (3 points).
+  - Tests:
+    - `tests/engine.smoke.mjs` replays every generated two-piece turn
+      legally over random games, with and without 3 Actions + Slide.
+    - `tests/e2e-ai-split.mjs` boots with `window.__EC_LAWS__ =
+      { splitMovement: true }` (the test-only hook `applyBootstrapLaws`,
+      apps/boardBootstrap.js), watches the AI play a real two-piece
+      opening turn, and reads `window.__EC_TEST_TURNS__` /
+      `__EC_TEST_LOG__`. Verified headlessly via `turnContinues` cases in
   `tests/engine.smoke.mjs`; two-piece touch feel wants real-device play.
   **Cantilever Pivot** still **cannot** be implemented before
   non-convex pieces exist — same blocker as MATTER's L-Pentomino/Arch
@@ -1138,3 +1165,124 @@ at `dist/el-cabeza-nova.html` (the landing-page button reads "Nova"). The
 old `el-cabeza-unified.html` had already been shared, so `build/build.js`
 still writes that file, now as a tiny redirect to Nova that keeps any
 `?query`/`#hash`. Don't remove the redirect.
+
+## Odd-shaped pieces: the shape system, Codo, Arco, Shoving (user-approved plan)
+
+Agreed with the user, built in this order: 1) shape system, 2) Codo,
+3) Arco, 4) Shoving law.
+
+**Shape system (engine/shapes.js).** A piece keeps its bounding box
+(row/col/w/h/z). An odd-shaped piece also carries `vox`, a canonical sorted
+cube list "x,y,l;…" (x = column offset, y = row offset, l = level). Box
+pieces have no `vox` and behave exactly as before.
+- **Occupancy is 3D:** `piecesClash` compares per-square level bitmasks
+  (`maskAt`). A box fills its footprint from the ground up. This is what
+  makes overhangs and openings work: a piece 1 cube tall fits under a
+  1-high overhang, and a Cabeza there is sheltered, not crushed.
+  `pieceOccupancyVerdict` and `translatedCandidate` (rules.js) use it.
+- **Rolling:** `rollVox` turns the cubes about the bbox's bottom edge.
+  E: x'=l, l'=w-1-x; W: x'=z-1-l, l'=x; S/N the same on rows. The bbox
+  moves like a box's. This is an exact inverse pair (undo relies on it).
+  A tight bbox guarantees at least one cube is on the ground.
+- **Ground cells only** (`groundCellsOf`) count for Missing Squares and
+  Black Holes: an overhang may hang over either. Only a 1×1 piece can
+  enter a hole, so odd shapes never do.
+- **Swept path:** `rollSweepClashes` samples each cube's quarter-turn in
+  the roll plane with a SAT test. It runs only when `anyOddShape(pieces)`,
+  so box-only games are unaffected. Consequence: a piece can't ROLL into
+  or out from under an overhang (its top edge would swing through it).
+  It can get there by a Cabeza step or a Slide.
+- `sameState` also compares `vox`; ai.js applyMove/undoMove copy `vox`.
+- Rendering: `makePolycubeGeometry` (outside faces only, so
+  EdgesGeometry traces just the real outline — Neon's shell) and
+  `makePolycubeRounded` (merged rounded cubes, optionally grown —
+  Standard's shell), in engine/geometry.js, both centered on the bbox
+  like makeRoundedBox. So pieceCenter/pivotFor/roll animation are unchanged.
+- `cubeCount` (weight for landing audio; "bigger" for Shoving).
+- Tests: `tests/shapes.smoke.mjs`.
+
+**Codo** (`PIECE_META.codo`, log label "Co") is 3 cubes in an L.
+- Poses: standing, flat, or balanced on one cube; all 12 are reached by
+  rolling.
+- Each roll costs 1 point. It crushes only with a cube landing ON a
+  Cabeza. It never drops into a Black Hole.
+- MATTER: a roster counter from 0 to 4 (default 0). It replaced the inert
+  "L-Pentomino" checkbox.
+- Openings: `PIECE_ORIENTATIONS.codo` holds 8 starting poses, each with
+  `vox` (standing ×4, flat ×4, never balanced). `generateAnomalySetup`
+  mirrors Light's cubes with `mirrorVox`.
+- Test-only hooks (set `window.__EC_TEST_HOOKS__`):
+  `__EC_TEST_SET_PIECES__`, `__EC_TEST_PIECES__`, `__EC_TEST_MOVE__`,
+  `__EC_TEST_SCREEN_POS__`.
+- Tests: `tests/e2e-codo.mjs` (a sheltered Cabeza under a real roll; the
+  AI with Codos) and the theme-neon smoke test (mirrored openings).
+
+**Arco** is one MATTER counter from 0 to 4 (default 0) plus a size
+choice, `matter.arcoSize` ("chico" / "alto" / "ancho"), which applies to
+every Arco in the game.
+- The size choice is a segmented control (testids `arco-size-*`), and it
+  replaced the inert "Arch" checkbox.
+- Each size is its own piece type (`ARCO_SIZES` in engine/constants.js),
+  each rolling for 1 point:
+
+| Type | Label | Cubes | Size | Opening |
+|---|---|---|---|---|
+| `arcoChico` | AC | 5 | 3 wide × 2 tall | 1 wide |
+| `arcoAlto` | AA | 7 | 3 wide × 3 tall | 1 wide × 2 tall |
+| `arcoAncho` | AN | 6 | 4 wide × 2 tall | 2 wide |
+
+- Whatever fits the opening can stand in it (3D occupancy), and a Cabeza
+  there is sheltered.
+- Openings (`PIECE_ORIENTATIONS`): upright across the row. The Chico and
+  Ancho can also lie flat as a U, opening north or south. The Alto is too
+  deep for the 2-row home band, so it always starts upright.
+- The summary and variants read "Arco Alto" etc. (`rosterItemLabel`).
+- A piece inside an upright Arco blocks the Arco from tipping sideways,
+  because its leg would sweep through it. It can still roll along its
+  length.
+- Tests: the Arco cases in `tests/shapes.smoke.mjs` and
+  `tests/e2e-odd-pieces.mjs` (renamed from e2e-codo.mjs), and the size
+  control in `tests/e2e-singularity.mjs`.
+
+**Shoving LAW** (`laws.shoving`). Its two game-start settings live in
+`selections.shove = { far, onRolls }`. `lawsForEngine` turns them into
+`ACTIVE_LAWS.shoveFar` / `shoveOnRolls`, set at Begin and on replay. On
+the sphere they're a pair of segmented controls directly under the
+checkbox (`renderShoveSettingsRow`, testids `shove-far-on/off`,
+`shove-onRolls-on/off`).
+
+Rules (`tryShove` / `rollShove` in rules.js):
+- A move whose landing hits exactly ONE piece with fewer cubes
+  (`cubeCount`) pushes it in the move's direction, instead of being
+  blocked. That includes a Cabeza, and your own pieces.
+- Distance: 1 square, or with `shoveFar` as far as the mover's leading
+  edge advances.
+- Every square along the way must be on the board and not a Missing
+  Square, with no second piece in the way (no chains). The pushed piece
+  must end clear of the mover's landing.
+- Only a Turrito or a Cabeza can be pushed into a Black Hole. It comes
+  out one square past the paired hole.
+- Slides always shove when the law is on. Rolls shove only with
+  `shoveOnRolls`.
+- A roll onto a lone enemy Cabeza stays a crush, not a shove.
+- Being pushed onto the far row never wins.
+- Cost: `SHOVE_COST = 1` extra (`moveCost`), gated by `withinBudget` in
+  legalMovesFor. So a shoving slide costs 3 and needs 3 Actions Per
+  Turn; a shoving roll costs 2 (an Opa roll 3).
+
+Other pieces:
+- The move carries `shoves: { id, row, col, teleports }`.
+- ai.js applyMove/undoMove move the pushed piece. The net-zero checks and
+  the split-turn dedupe treat a shove as the turn doing something.
+- Chassis: commit applies it; step records carry `shoved`; settleTurn
+  never voids a turn that shoved.
+- Animation: `animateStep(..., shove)` glides the pushed piece on its own
+  carrier over the same duration (`anim.current.push`). Undo snaps it
+  back when the turn is restored.
+- Tests: the Shoving block in `tests/engine.smoke.mjs`,
+  `tests/e2e-shoving.mjs`, and the sphere settings in
+  `tests/e2e-singularity.mjs`.
+
+Audio: the collapse roar's peak was trimmed from 0.022 to 0.018. At the
+end of the collapse the roar, the drone and the bell's tail sum; the
+bell test measured up to 0.98 before the trim and ≤0.86 after.

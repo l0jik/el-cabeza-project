@@ -30,7 +30,7 @@
 import React from "react";
 import * as THREE from "three";
 import {
-  SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws, getBoardDimensions,
+  SLAB_X, SLAB_Z, MIN_BOARD_DIM, MAX_BOARD_DIM, setActiveLaws, getBoardDimensions, ARCO_SIZES,
   setBlackHoles as setActiveBlackHoles, setMissingSquares as setActiveMissingSquares,
 } from "../engine/constants.js";
 import { pickBlackHoleSquares, pickMissingSquares, blackHoleRowAllowed, initialPiecesFor, missingSquaresKeepPath } from "../engine/rules.js";
@@ -486,7 +486,28 @@ const LAWS_ITEMS = [
   { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "One or two linked squares — enter one, arrive at the other." },
   { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "Pivot a cantilevered piece in place around its one grounded cell." },
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "Raises the per-turn movement budget by one." },
+  { key: "shoving", label: "Shoving", blurb: "A piece with more cubes moving into a smaller one pushes it along. Costs 1 extra point." },
 ];
+
+// The Shoving law's two game-start settings (selections.shove), shown
+// under its checkbox: how far a shove pushes, and which moves shove.
+const SHOVE_SETTINGS = [
+  { key: "far", label: "Push distance", options: [{ value: false, label: "1 square" }, { value: true, label: "As far as it travels" }] },
+  { key: "onRolls", label: "Shoves on", options: [{ value: false, label: "Slides only" }, { value: true, label: "Slides and rolls" }] },
+];
+// "Shoving (1 square, slides only)" etc. for the summary / variants.
+function shovingLabel(selections) {
+  const sh = selections.shove || {};
+  return `Shoving (${sh.far ? "as far as it travels" : "1 square"}, ${sh.onRolls ? "slides and rolls" : "slides only"})`;
+}
+function lawLabel(item, selections) {
+  return item.key === "shoving" ? shovingLabel(selections) : item.label;
+}
+// What setActiveLaws gets: the law checkboxes plus Shoving's settings.
+function lawsForEngine(selections) {
+  const sh = selections.shove || {};
+  return { ...selections.laws, shoveFar: !!sh.far, shoveOnRolls: !!sh.onRolls };
+}
 
 // Footprints (col,row cells, all one layer) used only to draw the
 // small isometric icon next to each MATTER item — see renderPieceIcon.
@@ -503,7 +524,7 @@ const PIECE_FOOTPRINTS = {
   flaco: [[0, 0], [0, 1]],
   chato: [[0, 0], [0, 1]],
   opa: [[0, 0], [1, 0], [0, 1], [1, 1]],
-  lPentomino: [[0, 0], [0, 1], [0, 2], [0, 3], [1, 3]],
+  codo: [[0, 0], [0, 1], [1, 1]],
   block1x3: [[0, 0], [0, 1], [0, 2]],
   block2x3: [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2]],
   // The design doc's "non-convex shape with a genuine hollow/void" —
@@ -517,17 +538,12 @@ const PIECE_FOOTPRINTS = {
 // block1x3/block2x3 are real: plain rectangular boxes, so they place,
 // roll, and collide exactly like the five originals with no new
 // engine work (see generateAnomalySetup's own roster support in
-// themes/neon.js). lPentomino/arch are non-convex — a genuine hollow
-// in the arch, an L-shaped footprint — and need a collision system
-// that checks actual solid cells against a roll's pivot edge rather
-// than just a bounding rectangle, which doesn't exist yet; they stay
-// selectable so the menu is honest about what MATTER will eventually
-// include, but enabling one has no effect on the game that starts.
+// themes/neon.js). The L became the Codo, a real piece with its own
+// roster counter (MATTER_ROSTER below), and so did the arch — the Arco,
+// with a size choice (see ARCO_SIZES / the MATTER overlay).
 const MATTER_NEW_PIECES = [
-  { key: "lPentomino", label: "L-Pentomino", icon: "lPentomino", blurb: "Not yet implemented — needs a non-convex collision system." },
   { key: "block1x3", label: "1×3 Block", icon: "block1x3" },
   { key: "block2x3", label: "2×3 Block", icon: "block2x3" },
-  { key: "arch", label: "Arch", icon: "arch", blurb: "Not yet implemented — needs a non-convex collision system." },
 ];
 
 // MATTER also lets the roster of the five ORIGINAL pieces be
@@ -545,7 +561,24 @@ const MATTER_ROSTER = [
   { key: "flaco", label: "Flaco", min: 0, max: 4, default: 1, icon: "flaco" },
   { key: "opa", label: "Opa", min: 0, max: 4, default: 1, icon: "opa" },
   { key: "turrito", label: "Turrito", min: 0, max: 4, default: 1, icon: "turrito" },
+  // The Codo: MATTER's first odd-shaped piece (a 3-cube L — see
+  // engine/shapes.js). Off by default; any count places it in a
+  // randomized opening.
+  { key: "codo", label: "Codo", min: 0, max: 4, default: 0, icon: "codo" },
+  // The Arco (an arch — see engine/constants.js): one counter, and a
+  // size choice (matter.arcoSize) that applies to every Arco in the game.
+  { key: "arco", label: "Arco", min: 0, max: 4, default: 0, icon: "arch" },
 ];
+
+// "Arco Alto" etc. for the summary / variants — the counter's label plus
+// the chosen size.
+function arcoLabel(selections) {
+  const size = ARCO_SIZES.find((a) => a.key === selections.matter.arcoSize) || ARCO_SIZES[0];
+  return `Arco ${size.label}`;
+}
+function rosterItemLabel(p, selections) {
+  return p.key === "arco" ? arcoLabel(selections) : p.label;
+}
 
 function createDefaultSelections() {
   return {
@@ -556,6 +589,8 @@ function createDefaultSelections() {
       // Opt-in random opening layout (Anomaly-style). Off = the standard
       // fixed formation; on = a fresh randomized placement at Begin Game.
       randomizeStart: false,
+      // Which Arco every Arco in the game is (ARCO_SIZES key).
+      arcoSize: "chico",
     },
     // missingSquares (the enable toggle) lives here, in topologies, not
     // as its own LAW — it changes the board's physical shape/playable
@@ -574,6 +609,8 @@ function createDefaultSelections() {
     // of each placed pair ({row,col,random}), hand-picked or rolled at
     // random — each one's 180-degree mirror is its partner.
     missingSquare: { spots: [], count: 1 },
+    // The Shoving law's settings (only matter while it's on).
+    shove: { far: false, onRolls: false },
   };
 }
 
@@ -628,7 +665,7 @@ function missingSquaresLabel(count) {
    rules" (see VariantsFlyout). */
 function buildVariantsSnapshot(selections) {
   const groups = [];
-  const laws = LAWS_ITEMS.filter((i) => selections.laws[i.key]).map((i) => i.label);
+  const laws = LAWS_ITEMS.filter((i) => selections.laws[i.key]).map((i) => lawLabel(i, selections));
   if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws });
 
   const matter = [];
@@ -636,7 +673,7 @@ function buildVariantsSnapshot(selections) {
   MATTER_NEW_PIECES.forEach((i) => { if (selections.matter.newPieces[i.key]) matter.push(i.label); });
   MATTER_ROSTER.forEach((p) => {
     const n = selections.matter.roster[p.key];
-    if (n !== p.default) matter.push(`${n}× ${p.label}`);
+    if (n !== p.default) matter.push(`${n}× ${rosterItemLabel(p, selections)}`);
   });
   if (matter.length) groups.push({ key: "matter", label: "MATTER", items: matter });
 
@@ -842,10 +879,14 @@ function normalizeSelections(saved) {
       newPieces: pick(d.matter.newPieces, matterSrc.newPieces),
       roster: pick(d.matter.roster, matterSrc.roster),
       randomizeStart: typeof matterSrc.randomizeStart === "boolean" ? matterSrc.randomizeStart : d.matter.randomizeStart,
+      arcoSize: ARCO_SIZES.some((a) => a.key === matterSrc.arcoSize) ? matterSrc.arcoSize : d.matter.arcoSize,
     },
     topologies: pick(d.topologies, src.topologies),
     blackHole: { manual: cell(src.blackHole && src.blackHole.manual), random: !!(src.blackHole && src.blackHole.random) },
     missingSquare: normalizeMissingSquare(src.missingSquare, cell),
+    // Same key order as createDefaultSelections, so a loaded
+    // configuration compares equal to the live selections it came from.
+    shove: pick(d.shove, src.shove),
   };
 }
 // Missing Squares' saved shape: { spots, count }. A configuration saved
@@ -1932,6 +1973,116 @@ function rerollRandomPairedSquares(s) {
   if (s.selections.laws.blackHoleSquares) fillPairedSpots(s, "blackHole", true);
 }
 
+/* The Shoving law's two settings, directly under its checkbox (like
+   Black Hole placement under its own): push distance and which moves
+   shove. Each is a two-way segmented control. A note spells out the
+   point cost, since a slide (2) plus a shove (1) needs 3 points. */
+function renderShoveSettingsRow(t) {
+  const s = t.singularity;
+  const h = React.createElement;
+  const sel = s.selections;
+  if (!sel.shove) sel.shove = { far: false, onRolls: false };
+  const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+  return h(
+    "div",
+    {
+      key: "shove-settings",
+      "data-testid": "shove-settings",
+      style: { margin: "0 0 6px 36px", padding: "9px 11px", border: "1px solid rgba(102,217,255,0.22)", borderRadius: 4, background: "rgba(102,217,255,0.05)", display: "flex", flexDirection: "column", gap: 8 },
+    },
+    ...SHOVE_SETTINGS.map((setting) =>
+      h(
+        "div",
+        { key: setting.key, style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } },
+        h("div", { style: { ...mono, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(207,216,220,0.6)", minWidth: 96 } }, setting.label),
+        h(
+          "div",
+          { role: "group", "aria-label": setting.label, style: { display: "flex", border: "1px solid rgba(102,217,255,0.35)", borderRadius: 4, overflow: "hidden" } },
+          ...setting.options.map((opt, i) => {
+            const on = !!sel.shove[setting.key] === opt.value;
+            return h(
+              "button",
+              {
+                key: String(opt.value),
+                type: "button",
+                "data-testid": `shove-${setting.key}-${opt.value ? "on" : "off"}`,
+                "aria-pressed": on ? "true" : "false",
+                onClick: () => {
+                  sel.shove = { ...sel.shove, [setting.key]: opt.value };
+                  if (s.audio && s.audio.playSelect) s.audio.playSelect();
+                  s.labelsDirty = true; s.bump();
+                },
+                style: {
+                  ...mono, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase",
+                  padding: "6px 10px", cursor: "pointer", border: "none",
+                  borderLeft: i ? "1px solid rgba(102,217,255,0.25)" : "none",
+                  background: on ? "rgba(102,217,255,0.22)" : "transparent",
+                  color: on ? "#dffaff" : "rgba(207,216,220,0.7)",
+                },
+              },
+              opt.label
+            );
+          })
+        )
+      )
+    ),
+    h(
+      "div",
+      { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.6)", lineHeight: 1.45 } },
+      "A shove adds 1 point: a shoving roll costs 2, a shoving slide 3 (so slide-shoves need 3 Actions Per Turn)."
+    )
+  );
+}
+
+/* The Arco's size choice, under the roster counters: Chico / Alto /
+   Ancho, one for every Arco in the game. A small segmented control; the
+   chosen size is lit, with its shape spelled out beneath. */
+function renderArcoSizeRow(t) {
+  const s = t.singularity;
+  const h = React.createElement;
+  const sel = s.selections;
+  const describe = {
+    chico: "5 cubes · 3 wide, 2 tall · opening 1 wide",
+    alto: "7 cubes · 3 wide, 3 tall · opening 1 wide, 2 tall",
+    ancho: "6 cubes · 4 wide, 2 tall · opening 2 wide",
+  };
+  return h(
+    "div",
+    { "data-testid": "arco-size", style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 5, marginTop: 8 } },
+    h("div", { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(207,216,220,0.6)" } }, "Arco size"),
+    h(
+      "div",
+      { role: "group", "aria-label": "Arco size", style: { display: "flex", border: "1px solid rgba(102,217,255,0.35)", borderRadius: 4, overflow: "hidden" } },
+      ...ARCO_SIZES.map((a, i) => {
+        const on = sel.matter.arcoSize === a.key;
+        return h(
+          "button",
+          {
+            key: a.key,
+            type: "button",
+            "data-testid": `arco-size-${a.key}`,
+            "aria-pressed": on ? "true" : "false",
+            onClick: () => {
+              sel.matter.arcoSize = a.key;
+              if (s.audio && s.audio.playSelect) s.audio.playSelect();
+              s.labelsDirty = true; s.bump();
+            },
+            style: {
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
+              padding: "6px 12px", cursor: "pointer", border: "none",
+              borderLeft: i ? "1px solid rgba(102,217,255,0.25)" : "none",
+              background: on ? "rgba(102,217,255,0.22)" : "transparent",
+              color: on ? "#dffaff" : "rgba(207,216,220,0.7)",
+            },
+          },
+          a.label
+        );
+      })
+    ),
+    h("div", { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 10.5, color: "rgba(207,216,220,0.6)" } }, describe[sel.matter.arcoSize] || describe.chico)
+  );
+}
+
 function renderPairedSquarePlacementRow(t, kind) {
   const k = PAIRED_SQUARE_KINDS[kind];
   const s = t.singularity;
@@ -2521,6 +2672,9 @@ function renderCategoryOverlay(t) {
         if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares) {
           return [row, renderPairedSquarePlacementRow(t, "blackHole")];
         }
+        if (item.key === "shoving" && sel.laws.shoving) {
+          return [row, renderShoveSettingsRow(t)];
+        }
         return [row];
       })
     );
@@ -2549,6 +2703,7 @@ function renderCategoryOverlay(t) {
           })
         )
       ),
+      renderArcoSizeRow(t),
       h("div", { style: { ...sectionLabelStyle, marginTop: 10 } }, "Setup"),
       renderCheckboxRow(
         { key: "randomizeStart", label: "Randomized Start", blurb: "Begin with a random Anomaly-style layout instead of the standard formation." },
@@ -2708,7 +2863,12 @@ function renderSummaryPanel(setupExtras) {
 
   const lawsOn = LAWS_ITEMS.filter((i) => sel.laws[i.key]);
   const piecesOn = MATTER_NEW_PIECES.filter((i) => sel.matter.newPieces[i.key]);
-  const rosterLine = MATTER_ROSTER.map((p) => `${sel.matter.roster[p.key]} ${p.label}`).join(" · ");
+  // An optional piece that's off (a default of 0, still at 0 — the Codo)
+  // is left out rather than listed as "0 Codo".
+  const rosterLine = MATTER_ROSTER
+    .filter((p) => p.default > 0 || sel.matter.roster[p.key] > 0)
+    .map((p) => `${sel.matter.roster[p.key]} ${rosterItemLabel(p, sel)}`)
+    .join(" · ");
   const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}${sel.topologies.missingSquares ? `, ${missingSquaresLabel(sel.missingSquare.count)}` : ""}`;
   const lineStyle = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: "rgba(207,216,220,0.85)", lineHeight: 1.7 };
   const tagStyle = { color: "#66d9ff", letterSpacing: "0.08em" };
@@ -2735,7 +2895,7 @@ function renderSummaryPanel(setupExtras) {
         ? h("div", { "data-testid": "summary-loaded-config", style: { ...lineStyle, color: "#dffaff" } }, h("span", { style: tagStyle }, "CONFIGURATION  "), t.singularity.loadedConfigName)
         : null,
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "TOPOLOGY  "), boardLine),
-      h("div", { style: lineStyle }, h("span", { style: tagStyle }, "LAWS  "), lawsOn.length ? lawsOn.map((i) => i.label).join(", ") : "none"),
+      h("div", { style: lineStyle }, h("span", { style: tagStyle }, "LAWS  "), lawsOn.length ? lawsOn.map((i) => lawLabel(i, sel)).join(", ") : "none"),
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "MATTER  "), piecesOn.length ? piecesOn.map((i) => i.label).join(", ") : "no new pieces"),
       h("div", { style: { ...lineStyle, fontSize: 10, color: "rgba(207,216,220,0.5)", paddingLeft: 4 } }, rosterLine)
     ),
@@ -3174,7 +3334,7 @@ export function useSingularityPhase({
       // LAWS: the sphere's checkboxes are plain booleans shaped like
       // ACTIVE_LAWS; this is where they actually take effect (and get
       // forwarded to the AI worker via setActiveLaws' shared mechanism).
-      const laws = setActiveLaws(sel.laws);
+      const laws = setActiveLaws(lawsForEngine(sel));
       // Missing Squares: resolved BEFORE Black Hole Squares below so the
       // two never land on the same cell — whichever is active second
       // treats the first's placement as reserved too (buildBlackHole-
@@ -3212,7 +3372,7 @@ export function useSingularityPhase({
         // still lands on one (e.g. the fixed formation), they re-resolve.
         const replayPieces =
           (applyMatterRoster && applyMatterRoster(sel.matter, matterActive, [...lastSquares.missing, ...lastSquares.holes])) || pieces;
-        const replayLaws = setActiveLaws(sel.laws);
+        const replayLaws = setActiveLaws(lawsForEngine(sel));
         lastSquares = resolvePairedSquares(sel, replayLaws, replayPieces, lastSquares);
         setActiveMissingSquares(lastSquares.missing);
         if (setMissingSquares) setMissingSquares(lastSquares.missing);

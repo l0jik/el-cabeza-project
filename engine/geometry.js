@@ -10,6 +10,7 @@
 import * as THREE from "three";
 import { SQUARE_SIZE, OFF_X, OFF_Z, PIECE_SCALE, DISC_H, SLAB_Z } from "./constants.js";
 import { PIECE_META } from "./constants.js";
+import { parseVox } from "./shapes.js";
 
 /* `root` is a theme-built move-indicator's root object (see
    theme.buildMoveIndicator in themes/standard.js and themes/neon.js) —
@@ -175,6 +176,96 @@ export function makeRoundedBox(sx, sy, sz, radius, seg = 6) {
   idx.push(capT[0], capT[2], capT[1], capT[0], capT[3], capT[2]);
   idx.push(capB[0], capB[1], capB[2], capB[0], capB[2], capB[3]);
 
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  return geo;
+}
+
+/* Odd-shaped pieces (engine/shapes.js): a piece built from unit cubes.
+   Both builders are centered on the piece's bounding box, the same frame
+   makeRoundedBox(w*S, z*S, h*S) uses for a box piece — so pieceCenter/
+   restingY/pivotFor place and roll either kind identically. Axes: x =
+   columns, y = up (levels), z = rows. Each cube is `unit` on a side and
+   they sit edge to edge, so the whole shape spans the box exactly. */
+function voxCubeCenters(piece, unit) {
+  const cubes = parseVox(piece.vox);
+  return cubes.map(([x, y, l]) => [
+    (x + 0.5) * unit - (piece.w * unit) / 2,
+    (l + 0.5) * unit - (piece.z * unit) / 2,
+    (y + 0.5) * unit - (piece.h * unit) / 2,
+  ]);
+}
+
+/* Only the faces on the outside of the shape (a face shared by two of
+   the piece's own cubes is skipped), as unit squares on the cube grid.
+   Neighbouring squares in one plane share whole edges, so an
+   EdgesGeometry of this traces just the shape's real outline — the
+   corners and the silhouette, not a line between every pair of cubes. */
+export function makePolycubeGeometry(piece, unit) {
+  const cubes = parseVox(piece.vox);
+  const solid = new Set(cubes.map((c) => c.join(",")));
+  const centers = voxCubeCenters(piece, unit);
+  const h = unit / 2;
+  // [neighbour offset (x, y-row, l), face normal (X, Y, Z), 4 corners]
+  const faces = [
+    [[1, 0, 0], [1, 0, 0], [[h, -h, -h], [h, h, -h], [h, h, h], [h, -h, h]]],
+    [[-1, 0, 0], [-1, 0, 0], [[-h, -h, h], [-h, h, h], [-h, h, -h], [-h, -h, -h]]],
+    [[0, 0, 1], [0, 1, 0], [[-h, h, -h], [-h, h, h], [h, h, h], [h, h, -h]]],
+    [[0, 0, -1], [0, -1, 0], [[-h, -h, h], [-h, -h, -h], [h, -h, -h], [h, -h, h]]],
+    [[0, 1, 0], [0, 0, 1], [[h, -h, h], [h, h, h], [-h, h, h], [-h, -h, h]]],
+    [[0, -1, 0], [0, 0, -1], [[-h, -h, -h], [-h, h, -h], [h, h, -h], [h, -h, -h]]],
+  ];
+  const pos = [];
+  const nor = [];
+  const uv = [];
+  const idx = [];
+  cubes.forEach(([x, y, l], i) => {
+    const [cx, cy, cz] = centers[i];
+    for (const [[dx, dy, dl], n, corners] of faces) {
+      if (solid.has(`${x + dx},${y + dy},${l + dl}`)) continue;
+      const base = pos.length / 3;
+      corners.forEach(([px, py, pz], k) => {
+        pos.push(cx + px, cy + py, cz + pz);
+        nor.push(n[0], n[1], n[2]);
+        uv.push(k === 0 || k === 1 ? 0 : 1, k === 0 || k === 3 ? 0 : 1);
+      });
+      idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  return geo;
+}
+
+/* A rounded cube per solid cube, merged into one geometry — for a theme
+   whose pieces are opaque rounded solids (Standard). `grow` enlarges
+   every cube by that much on each side, for a silhouette shell drawn
+   behind the body; the cubes' shared inner walls sit inside the body and
+   never show. */
+export function makePolycubeRounded(piece, unit, radius, grow = 0) {
+  const parts = voxCubeCenters(piece, unit).map(([cx, cy, cz]) => {
+    const g = makeRoundedBox(unit + grow * 2, unit + grow * 2, unit + grow * 2, radius);
+    g.translate(cx, cy, cz);
+    return g;
+  });
+  const pos = [];
+  const nor = [];
+  const uv = [];
+  const idx = [];
+  for (const g of parts) {
+    const base = pos.length / 3;
+    pos.push(...g.getAttribute("position").array);
+    nor.push(...g.getAttribute("normal").array);
+    uv.push(...g.getAttribute("uv").array);
+    for (const i of g.getIndex().array) idx.push(base + i);
+    g.dispose();
+  }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));

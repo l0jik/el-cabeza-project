@@ -195,7 +195,31 @@ export const PIECE_META = {
   // fixed five and the plain Anomaly button never place these.
   block1x3: { label: "1x3", name: "1×3 Block", shape: "block", maxSteps: 2 },
   block2x3: { label: "2x3", name: "2×3 Block", shape: "block", maxSteps: 2 },
+  // MATTER's first odd-shaped piece: three cubes in an L (see
+  // engine/shapes.js — its cubes ride along on the piece as `vox`). It
+  // rolls for one point like the Chato/Flaco/Turrito, can rest standing,
+  // flat, or balanced on one cube with the rest held out over the next
+  // square, and crushes a Cabeza only with a cube that comes down ON it.
+  codo: { label: "Co", name: "Codo", shape: "block", maxSteps: 2 },
+  // The Arco: an arch with an opening that whatever fits can stand in
+  // (a Cabeza under it is sheltered, like under a Codo's overhang). One
+  // MATTER counter plus a size choice for the whole game; each size is
+  // its own shape, so its own type. One point per roll.
+  //   Chico: 5 cubes, 3 wide x 2 tall, opening 1 wide
+  //   Alto:  7 cubes, 3 wide x 3 tall, opening 1 wide x 2 tall
+  //   Ancho: 6 cubes, 4 wide x 2 tall, opening 2 wide
+  arcoChico: { label: "AC", name: "Arco Chico", shape: "block", maxSteps: 2 },
+  arcoAlto: { label: "AA", name: "Arco Alto", shape: "block", maxSteps: 2 },
+  arcoAncho: { label: "AN", name: "Arco Ancho", shape: "block", maxSteps: 2 },
 };
+
+/* The Arco's three sizes, in MATTER's size choice: the key stored in
+   the sphere's selections -> the piece type it places. */
+export const ARCO_SIZES = [
+  { key: "chico", type: "arcoChico", label: "Chico" },
+  { key: "alto", type: "arcoAlto", label: "Alto" },
+  { key: "ancho", type: "arcoAncho", label: "Ancho" },
+];
 
 /* Dark advances toward the highest row index, Light toward 0. Mutable
    alongside the rest: the object is REPLACED (not mutated in place) by
@@ -268,6 +292,14 @@ export let ACTIVE_LAWS = {
   blackHoleSquares: false,
   cantileverPivot: false,
   threeActions: false,
+  // Shoving LAW: a bigger piece (more cubes) moving into a smaller one
+  // pushes it along instead of being blocked — see tryShove in rules.js.
+  // Its two game-start settings ride along here too: shoveFar = push as
+  // far as the shoving piece travels (else 1 square); shoveOnRolls =
+  // rolls shove as well as slides (else slides only).
+  shoving: false,
+  shoveFar: false,
+  shoveOnRolls: false,
 };
 
 export function setActiveLaws(partial) {
@@ -360,10 +392,15 @@ export const OPA_MOVE_COST = 2;
 // teleport is handled separately as turn-ending, not by point cost.
 export function moveCost(move) {
   if (!move) return 1;
-  if (move.isSlide) return SLIDE_COST;
-  if (move.candidate && move.candidate.type === "opa") return OPA_MOVE_COST;
-  return 1;
+  // A shove (Shoving LAW) adds SHOVE_COST on top of the move itself.
+  const extra = move.shoves ? SHOVE_COST : 0;
+  if (move.isSlide) return SLIDE_COST + extra;
+  if (move.candidate && move.candidate.type === "opa") return OPA_MOVE_COST + extra;
+  return 1 + extra;
 }
+
+/* What pushing another piece adds to a move's cost (Shoving LAW). */
+export const SHOVE_COST = 1;
 
 export const ROLL_DIRS = ["N", "E", "S", "W"];
 

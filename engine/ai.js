@@ -2,7 +2,7 @@
    the Standard and Neon theme sources before extraction (see
    build/scratch/) — pure logic, no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost, ACTIVE_LAWS, turnBudget, MAX_PIECES_PER_TURN } from "./constants.js";
 import { legalMovesFor, sameState } from "./rules.js";
 
 /* Everything below is pure — no React, no Three.js. It only knows the
@@ -74,19 +74,30 @@ function crushEndsGame(pieces, crushedPiece) {
    reliable — it's the very object this array already contains, not a
    lookalike copy. */
 function applyMove(pieces, piece, move) {
-  const prevFields = { row: piece.row, col: piece.col, w: piece.w, h: piece.h, z: piece.z };
+  const prevFields = { row: piece.row, col: piece.col, w: piece.w, h: piece.h, z: piece.z, vox: piece.vox };
   const c = move.candidate;
   piece.row = c.row;
   piece.col = c.col;
   piece.w = c.w;
   piece.h = c.h;
   piece.z = c.z;
+  piece.vox = c.vox; // an odd-shaped piece's cubes (engine/shapes.js); undefined for a box
   let removedIndex = -1;
   if (move.crushes) {
     removedIndex = pieces.indexOf(move.crushes);
     pieces.splice(removedIndex, 1);
   }
-  return { prevFields, removed: move.crushes || null, removedIndex };
+  // Shoving LAW: the pushed piece moves too (never alongside a crush).
+  let shoved = null;
+  if (move.shoves) {
+    const q = pieces.find((p) => p.id === move.shoves.id);
+    if (q) {
+      shoved = { piece: q, row: q.row, col: q.col };
+      q.row = move.shoves.row;
+      q.col = move.shoves.col;
+    }
+  }
+  return { prevFields, removed: move.crushes || null, removedIndex, shoved };
 }
 
 function undoMove(pieces, piece, undo) {
@@ -96,19 +107,32 @@ function undoMove(pieces, piece, undo) {
   piece.w = p.w;
   piece.h = p.h;
   piece.z = p.z;
+  piece.vox = p.vox;
+  if (undo.shoved) {
+    undo.shoved.piece.row = undo.shoved.row;
+    undo.shoved.piece.col = undo.shoved.col;
+  }
   if (undo.removed) pieces.splice(undo.removedIndex, 0, undo.removed);
 }
 
-// A whole turn (1 or 2 chained moves) applied/undone as one unit —
+// A whole turn (1-3 chained moves) applied/undone as one unit —
 // undoTurn reverses in the opposite order applyTurn applied in, same as
-// unwinding any other stack.
+// unwinding any other stack. A Split Movement turn (see
+// generateSplitTurns) carries `steps`, each naming its own piece; a
+// normal turn is one piece and `moves`.
 function applyTurn(pieces, turn) {
   const undos = [];
-  for (const move of turn.moves) undos.push(applyMove(pieces, turn.piece, move));
+  if (turn.steps) {
+    for (const st of turn.steps) undos.push(applyMove(pieces, st.piece, st.move));
+  } else {
+    for (const move of turn.moves) undos.push(applyMove(pieces, turn.piece, move));
+  }
   return undos;
 }
 function undoTurn(pieces, turn, undos) {
-  for (let i = undos.length - 1; i >= 0; i--) undoMove(pieces, turn.piece, undos[i]);
+  for (let i = undos.length - 1; i >= 0; i--) {
+    undoMove(pieces, turn.steps ? turn.steps[i].piece : turn.piece, undos[i]);
+  }
 }
 
 /* Every complete legal turn available to `player` from this position:
@@ -180,7 +204,8 @@ export function generateTurns(pieces, player) {
       // remain, so a mid-turn slide with a single point left won't appear.
       const secondMoves = legalMovesFor(pieces, piece, maxSteps - spent1);
       for (const [dir2, move2] of Object.entries(secondMoves)) {
-        if (sameState(undo1.prevFields, move2.candidate)) continue; // net-zero round trip — not a real turn
+        // net-zero round trip — not a real turn (unless something got shoved on the way)
+        if (sameState(undo1.prevFields, move2.candidate) && !move1.shoves && !move2.shoves) continue;
 
         const wins2 =
           !move2.crushes &&
@@ -213,7 +238,7 @@ export function generateTurns(pieces, player) {
         const undo2 = applyMove(pieces, piece, move2);
         const thirdMoves = legalMovesFor(pieces, piece, maxSteps - spent2);
         for (const [dir3, move3] of Object.entries(thirdMoves)) {
-          if (sameState(undo1.prevFields, move3.candidate)) continue; // net-zero round trip — not a real turn
+          if (sameState(undo1.prevFields, move3.candidate) && !move1.shoves && !move2.shoves && !move3.shoves) continue; // net-zero round trip
 
           const wins3 =
             !move3.crushes &&
@@ -235,7 +260,92 @@ export function generateTurns(pieces, player) {
     }
   }
 
+  if (ACTIVE_LAWS.splitMovement) generateSplitTurns(pieces, player, turns);
   return turns;
+}
+
+/* Split Movement: the turn's point bank (turnBudget — 2, or 3 with "3
+   Actions") may be spent across up to MAX_PIECES_PER_TURN distinct pieces,
+   exactly as a human may (see turnContinues in rules.js and the chassis's
+   mid-turn re-selection). generateTurns above already covers every
+   ONE-piece turn; this adds every turn that genuinely moves TWO pieces —
+   A then B, and with a 3-point bank A-B-A / A-A-B / A-B-B too. Each step
+   may be any own piece that's already moved this turn, or a new one while
+   the 2-piece cap isn't reached; any prefix is a complete turn (the human
+   can stop at any point), and a game-ending crush/win or a wormhole ends
+   the turn at once.
+
+   Pruned, since this multiplies the branching factor:
+   - A turn where either piece ends back exactly where it started having
+     crushed nothing is dropped — its net effect is a one-piece turn that
+     generateTurns already offers.
+   - Turns reaching the same end position (A then B vs B then A when they
+     don't interact) are kept once, keyed on each moved piece's final
+     state plus anything crushed. */
+function generateSplitTurns(pieces, player, turns) {
+  const budget = turnBudget();
+  const seen = new Set();
+  const steps = [];
+  const starts = new Map(); // piece -> its state before its first step this turn
+  const crushedBy = new Map(); // piece -> number of crushes it made this turn
+
+  const record = (last) => {
+    const moved = [...starts.keys()];
+    if (moved.length < 2) return;
+    for (const q of moved) {
+      if (sameState(starts.get(q), q) && !crushedBy.get(q) && !steps.some((st) => st.piece === q && st.move.shoves)) return;
+    }
+    const key = moved
+      .map((q) => `${q.id}@${q.row},${q.col},${q.w},${q.h},${q.z},${q.vox || ""}`)
+      .sort()
+      .join("|") + "|x" + steps.filter((st) => st.move.crushes).map((st) => st.move.crushes.id).sort().join(",") +
+      // A shoved piece ends somewhere too — part of the end position.
+      "|s" + pieces.filter((p) => steps.some((st) => st.move.shoves && st.move.shoves.id === p.id)).map((p) => `${p.id}@${p.row},${p.col}`).sort().join(",");
+    if (seen.has(key)) return;
+    seen.add(key);
+    turns.push({
+      piece: steps[0].piece,
+      pieceId: steps[0].piece.id,
+      dirs: steps.map((st) => st.dir),
+      steps: steps.map((st) => ({ piece: st.piece, pieceId: st.piece.id, dir: st.dir, move: st.move })),
+      moves: steps.map((st) => st.move),
+      crushes: !!last.move.crushes,
+      wins: last.wins,
+      endsGame: last.endsGame,
+    });
+  };
+
+  const walk = (used) => {
+    const remaining = budget - used;
+    if (remaining <= 0) return;
+    const movedCount = starts.size;
+    for (const q of pieces.slice()) {
+      if (q.owner !== player) continue;
+      if (!starts.has(q) && movedCount >= MAX_PIECES_PER_TURN) continue;
+      // The first step is always a fresh piece; after that the current
+      // piece may continue, a moved one may resume, or a new one may join.
+      const moves = legalMovesFor(pieces, q, remaining);
+      for (const [dir, move] of Object.entries(moves)) {
+        const wins = !move.crushes && q.type === "cabeza" && move.candidate.row === GOAL_ROW[q.owner];
+        const endsGame = (move.crushes && crushEndsGame(pieces, move.crushes)) || wins;
+        const firstForQ = !starts.has(q);
+        const undo = applyMove(pieces, q, move);
+        if (firstForQ) starts.set(q, undo.prevFields);
+        if (move.crushes) crushedBy.set(q, (crushedBy.get(q) || 0) + 1);
+        const step = { piece: q, dir, move, wins, endsGame };
+        steps.push(step);
+
+        record(step);
+        if (!endsGame && !move.teleports) walk(used + moveCost(move));
+
+        steps.pop();
+        if (move.crushes) crushedBy.set(q, crushedBy.get(q) - 1);
+        if (firstForQ) starts.delete(q);
+        undoMove(pieces, q, undo);
+      }
+    }
+  };
+  walk(0);
 }
 
 /* Scores a position from `forPlayer`'s point of view — higher is
@@ -407,6 +517,7 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
    THIS piece's THIS direction choice good," not "was this exact
    resulting board good" (evaluatePosition's job already). */
 function moveKey(turn) {
+  if (turn.steps) return turn.steps.map((st) => st.pieceId + ":" + st.dir).join(",");
   return turn.piece.id + "|" + turn.dirs.join(",");
 }
 const EMPTY_KILLERS = [];
@@ -624,7 +735,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
           // something else this time — scales with the streak so an
           // isolated Cabeza move costs little, but leaning on it turn
           // after turn costs progressively more.
-          if (turn.piece.type === "cabeza") {
+          if (turn.steps ? turn.steps.some((st) => st.piece.type === "cabeza") : turn.piece.type === "cabeza") {
             score -= rootBias.cabezaRepeatBias * rootBias.cabezaStreak;
           }
         }
@@ -807,7 +918,12 @@ export async function findBestAiTurn(
   // looks the piece up fresh from LIVE state by id) — stripping the
   // rest here means nothing downstream can accidentally reach into
   // `working`, which is garbage the instant this function returns.
-  return best && { pieceId: best.pieceId, dirs: best.dirs };
+  // A Split Movement turn also lists its steps piece by piece, so the
+  // chassis can hand each step to the right piece.
+  if (!best) return null;
+  const out = { pieceId: best.pieceId, dirs: best.dirs };
+  if (best.steps) out.steps = best.steps.map((st) => ({ pieceId: st.pieceId, dir: st.dir }));
+  return out;
 }
 
 /* Each tier raised roughly a step or two from the original pass, on

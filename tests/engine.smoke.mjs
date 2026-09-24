@@ -1,6 +1,6 @@
 import { createInitialPieces, legalMovesFor, sameState, pairLog, turnContinues, evaluateBlockLanding, pickMissingSquares, pickBlackHoleSquares, pickMissingSquarePairs, missingSquaresKeepPath, initialPiecesFor, getPieceAt } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY, evaluatePosition, generateTurns } from "../engine/ai.js";
-import { setBlackHoles, setMissingSquares, turnBudget, MAX_PIECES_PER_TURN } from "../engine/constants.js";
+import { setBlackHoles, setMissingSquares, turnBudget, MAX_PIECES_PER_TURN, moveCost } from "../engine/constants.js";
 import { pieceCenter, makeRoundedBox, pivotFor } from "../engine/geometry.js";
 import { BOARD_ROWS, BOARD_COLS, setActiveLaws, isSlideKey } from "../engine/constants.js";
 
@@ -236,5 +236,139 @@ for (const rows of [6, 7, 10, 20]) {
   }
 }
 console.log("[black holes] never placed in either side's back two rows");
+
+// ---- AI Split Movement: with the law on, the AI's candidate turns
+// include two-piece turns, and every one of them is a turn a human could
+// legally play — replayed step by step on a fresh copy, each step is a
+// legal move for its piece with the shared bank's remaining points, the
+// bank is never overspent, at most two distinct pieces move, and both
+// actually end up changed. Generating them never disturbs the position.
+function replaySplit(start, turn, budget) {
+  const board = start.map((p) => ({ ...p }));
+  let used = 0;
+  const moved = new Set();
+  for (const st of turn.steps) {
+    const q = board.find((p) => p.id === st.pieceId);
+    if (!q) throw new Error(`split step names a missing piece ${st.pieceId}`);
+    const move = legalMovesFor(board, q, budget - used)[st.dir];
+    if (!move) throw new Error(`illegal split step ${st.pieceId} ${st.dir} after ${used} points: ${JSON.stringify(turn.steps.map((x) => x.pieceId + ":" + x.dir))}`);
+    used += moveCost(move);
+    moved.add(q.id);
+    Object.assign(q, move.candidate);
+    if (move.crushes) board.splice(board.findIndex((p) => p.id === move.crushes.id), 1);
+  }
+  if (used > budget) throw new Error(`split turn overspent the bank (${used} > ${budget})`);
+  if (moved.size !== 2) throw new Error(`split turn moved ${moved.size} pieces`);
+  return board;
+}
+for (const threeActions of [false, true]) {
+  // Slides on alongside 3 Actions: a slide (2 points) then another piece's roll (1).
+  setActiveLaws({ splitMovement: true, threeActions, slide: threeActions, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false });
+  let position = createInitialPieces().map((p) => ({ ...p }));
+  let player = "light";
+  let splitSeen = 0;
+  for (let ply = 0; ply < 12; ply++) {
+    const before = JSON.stringify(position);
+    const turns = generateTurns(position, player);
+    if (JSON.stringify(position) !== before) throw new Error("generateTurns must leave the position exactly as it found it");
+    for (const t of turns.filter((t) => t.steps)) {
+      replaySplit(position, t, turnBudget());
+      splitSeen++;
+    }
+    // Advance by a random non-terminal turn to reach varied positions.
+    const pool = turns.filter((t) => !t.endsGame);
+    if (!pool.length) break;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    position = pick.steps
+      ? replaySplit(position, pick, turnBudget())
+      : (() => {
+          const b = position.map((p) => ({ ...p }));
+          const q = b.find((p) => p.id === pick.pieceId);
+          for (const mv of pick.moves) { Object.assign(q, mv.candidate); if (mv.crushes) b.splice(b.findIndex((p) => p.id === mv.crushes.id), 1); }
+          return b;
+        })();
+    player = player === "light" ? "dark" : "light";
+  }
+  if (!splitSeen) throw new Error(`no two-piece turns generated with Split Movement on (threeActions=${threeActions})`);
+  console.log(`[split movement] ${splitSeen} AI two-piece turns replayed legally (3 Actions + Slide ${threeActions ? "on" : "off"})`);
+}
+// Without the law, no two-piece turns at all.
+setActiveLaws({ splitMovement: false, threeActions: false });
+if (generateTurns(createInitialPieces().map((p) => ({ ...p })), "light").some((t) => t.steps))
+  throw new Error("two-piece turns must only exist under Split Movement");
+// The AI's actual pick under the law is a playable plan.
+setActiveLaws({ splitMovement: true, threeActions: false });
+{
+  const start = createInitialPieces();
+  const plan = await findBestAiTurn(start, "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 400 }, 0, 10);
+  if (!plan) throw new Error("the AI found no turn under Split Movement");
+  if (plan.steps) replaySplit(start, plan, turnBudget());
+  console.log(`[split movement] AI plan under the law is playable: ${JSON.stringify(plan.steps || plan.dirs)}`);
+}
+setActiveLaws({ splitMovement: false, threeActions: false });
+
+// ---- Shoving LAW ----
+{
+  const LAWS_OFF = { splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveFar: false, shoveOnRolls: false };
+  const P = (id, type, row, col, w, h, z, owner = "dark") => ({ id, type, owner, row, col, w, h, z });
+  const chato = P("ch", "chato", 4, 3, 1, 2, 2); // 4 cubes
+  const turrito = P("tu", "turrito", 4, 4, 1, 1, 1, "light"); // 1 cube, east of the Chato
+  const shoveCheck = (label, cond, detail) => { if (!cond) throw new Error(`${label}${detail ? " — " + detail : ""}`); };
+
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true });
+  shoveCheck("without the law a slide into a piece is blocked", !legalMovesFor([chato, turrito], chato, 3)["slide-E"]);
+
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true });
+  let m = legalMovesFor([chato, turrito], chato, 3)["slide-E"];
+  shoveCheck("a bigger piece sliding into a smaller one shoves it 1 square", m && m.shoves && m.shoves.id === "tu" && m.shoves.col === 5 && m.shoves.row === 4, JSON.stringify(m));
+  shoveCheck("a shoving slide costs 3 points", moveCost(m) === 3);
+  shoveCheck("with only 2 points left it isn't offered", !legalMovesFor([chato, turrito], chato, 2)["slide-E"]);
+  shoveCheck("equal sizes can't shove", !legalMovesFor([P("f1", "flaco", 4, 3, 1, 2, 1), P("f2", "flaco", 4, 4, 1, 2, 1, "light")], P("f1", "flaco", 4, 3, 1, 2, 1), 3)["slide-E"]);
+  shoveCheck("a line of pieces can't be shoved", !legalMovesFor([chato, turrito, P("t2", "turrito", 4, 5, 1, 1, 1)], chato, 3)["slide-E"]);
+  shoveCheck("nothing is shoved off the board", !legalMovesFor([P("ch", "chato", 4, 8, 1, 2, 2), P("tu", "turrito", 4, 9, 1, 1, 1, "light")], P("ch", "chato", 4, 8, 1, 2, 2), 3)["slide-E"]);
+  setMissingSquares([{ row: 4, col: 5 }]);
+  shoveCheck("nothing is shoved onto a Missing Square", !legalMovesFor([chato, turrito], chato, 3)["slide-E"]);
+  setMissingSquares([]);
+  const cabFriend = P("cf", "cabeza", 4, 4, 1, 1, 1);
+  m = legalMovesFor([chato, cabFriend], chato, 3)["slide-E"];
+  shoveCheck("a Cabeza can be shoved", m && m.shoves && m.shoves.id === "cf");
+
+  // Black Holes: a Turrito drops through; a Flaco (2 cubes) is blocked.
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true, blackHoleSquares: true });
+  setBlackHoles([{ row: 4, col: 5 }, { row: 7, col: 7 }]);
+  m = legalMovesFor([chato, turrito], chato, 3)["slide-E"];
+  shoveCheck("a shoved Turrito drops into a Black Hole and comes out past the pair", m && m.shoves && m.shoves.teleports && m.shoves.row === 7 && m.shoves.col === 6, JSON.stringify(m));
+  const flacoStanding = P("fl", "flaco", 4, 4, 1, 1, 2, "light");
+  shoveCheck("a Flaco can't be shoved into a Black Hole", !legalMovesFor([chato, flacoStanding], chato, 3)["slide-E"]);
+  setBlackHoles([]);
+
+  // Rolls shove only with the "slides and rolls" setting; a roll onto a
+  // lone enemy Cabeza is still a crush.
+  const chatoTall = P("ct", "chato", 4, 3, 1, 1, 2); // 2 cubes tall, rolls E to cols 4-5
+  const tur2 = P("t3", "turrito", 4, 4, 1, 1, 1, "light");
+  setActiveLaws({ ...LAWS_OFF, shoving: true });
+  shoveCheck("rolls don't shove with 'slides only'", !legalMovesFor([chatoTall, tur2], chatoTall, 2).E);
+  setActiveLaws({ ...LAWS_OFF, shoving: true, shoveOnRolls: true });
+  shoveCheck("a 1-square push can't clear a roll that lands 2 squares deep", !legalMovesFor([chatoTall, tur2], chatoTall, 2).E);
+  setActiveLaws({ ...LAWS_OFF, shoving: true, shoveOnRolls: true, shoveFar: true });
+  m = legalMovesFor([chatoTall, tur2], chatoTall, 2).E;
+  shoveCheck("'as far as it travels' pushes it clear (2 squares)", m && m.shoves && m.shoves.col === 6, JSON.stringify(m));
+  shoveCheck("a shoving roll costs 2 points", moveCost(m) === 2);
+  const enemyCab = P("ec", "cabeza", 4, 4, 1, 1, 1, "light");
+  m = legalMovesFor([chatoTall, enemyCab], chatoTall, 2).E;
+  shoveCheck("a roll onto a lone enemy Cabeza is still a crush", m && m.crushes && !m.shoves, JSON.stringify(m));
+
+  // The AI sees shoves, and applying/undoing one restores the board exactly.
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true });
+  const board = [{ ...chato }, { ...turrito }, P("dc", "cabeza", 0, 0, 1, 1, 1), P("lc", "cabeza", 9, 9, 1, 1, 1, "light")];
+  const before = JSON.stringify(board);
+  const turns = generateTurns(board, "dark");
+  shoveCheck("the AI's candidate turns include a shove", turns.some((t) => t.moves.some((mv) => mv.shoves)));
+  shoveCheck("generating them leaves the board untouched", JSON.stringify(board) === before);
+  const plan = await findBestAiTurn(board, "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 300 }, 0, 10);
+  shoveCheck("the AI still finds a turn with Shoving on", !!plan);
+  setActiveLaws(LAWS_OFF);
+  console.log("[shoving] bigger pushes smaller; no chains, edges, Missing Squares; Turrito/Cabeza into holes; +1 point; rolls per setting; crushes intact; AI sees it");
+}
 
 console.log("\nSMOKE TEST PASSED");
