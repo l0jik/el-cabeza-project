@@ -1552,3 +1552,34 @@ made e2e-pivot flaky in the full suite.
 - The relocated masthead is a 0.22-opacity watermark and the button
   lives inside it, so while `infoBtnVisible` the masthead comes up to
   0.9 (1 in the other phases) over 0.3s, then fades back over 1.1s.
+
+**Standard dock reopening after Begin Game (fixed).** The dock piece had
+`onPointerLeave={handleDockPiecePointerUp}`, so a pointer leaving it
+counted as a tap and opened the dock. After Begin Game the panel folds
+back into the piece under a pointer still resting on the button; the
+piece then slides to its corner, "leaving" the pointer inside the hitbox,
+and the dock reopened. `handleDockPiecePointerLeave` now only ends a drag
+and cancels the hover timer, never opening the dock.
+
+**AI piece fixation (user report).** In a 3-action MATTER game the AI
+moved its Turrito in ~21 of 27 turns, shuffling S.S.S / N.N.N. Causes:
+- Shallow search: 1–2 turns deep with 3 actions + slides + pivots, so
+  development rarely pays off within the horizon.
+- The Turrito is the cheapest piece to reposition for threats and blocks.
+- The legacy `turritoBonus` (Medium 0.9, Hard 1.6) specifically rewarded
+  advancing it.
+
+Fixes:
+- `turritoBonus` is 0 in all tiers.
+- New root-only `pieceRepeatBias` (Easy 8, Medium 6, Hard 5) × consecutive
+  AI turns that piece has moved. It generalizes `cabezaRepeatBias` to the
+  other pieces, with the same exemptions (danger resolution, crush/win).
+  `findBestAiTurn`'s 6th param is `pieceStreaks` (id -> streak); the
+  chassis tracks it in `aiPieceStreaksRef` and passes it through the
+  worker.
+- Sim `user` scenario (`tests/ai-sim.mjs`) mirrors the reported game.
+
+Results, new vs previous:
+- Longest same-piece run fell from 15 to ≤3–6.
+- Medium in the user setup: 9–5 (2 draws). Easy: 7–5.
+- Classic Medium: 5–5.

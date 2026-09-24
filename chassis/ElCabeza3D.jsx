@@ -288,6 +288,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      Hard difficulty actually reads this (see AI_DIFFICULTY), but it
      costs nothing to keep updated regardless of difficulty. */
   const aiCabezaStreakRef = useRef(0);
+  // piece id -> consecutive AI turns it has moved in (see runAiSearch).
+  const aiPieceStreaksRef = useRef({});
   /* Lets a human queue their turn's second input (a continuation
      direction, or a "stop here") WHILE the first step's roll/slide
      animation is still playing, instead of that tap being silently
@@ -909,6 +911,25 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     }
     if (state) state.draggedFar = false;
   }, [triggerDockBounce, clearDockHoverTimer, isInsideDockHitbox]);
+
+  /* The pointer leaving the piece ends a drag and cancels a pending
+     hover/hold — but it is NOT a tap, so it never opens the dock. (It used
+     to share the pointer-up handler, open-on-tap included: right after
+     Begin Game the panel folds back into the piece under a pointer still
+     resting on the button, the piece then slides away to its corner, and
+     that slide "left" the pointer inside the hitbox — reopening the dock
+     the player had just closed.) */
+  const handleDockPiecePointerLeave = useCallback((ev) => {
+    const drag = dockDragRef.current;
+    const state = dockPieceRef.current;
+    drag.dragging = false;
+    if (state) {
+      state.dragging = false;
+      state.draggedFar = false;
+    }
+    if (ev.currentTarget.style) ev.currentTarget.style.cursor = "grab";
+    clearDockHoverTimer();
+  }, [clearDockHoverTimer]);
 
   // Mount-once: the dock piece's own tiny Three.js scene, entirely
   // independent of the main board's renderer/camera.
@@ -3765,9 +3786,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       aiWorkerRef.current = null;
     };
   }, []);
-  function runAiSearch(pieces, aiPlayer, config, cabezaStreak, turnIndex) {
+  function runAiSearch(pieces, aiPlayer, config, cabezaStreak, turnIndex, pieceStreaks) {
     const worker = aiWorkerRef.current;
-    if (!worker) return findBestAiTurn(pieces, aiPlayer, config, cabezaStreak, turnIndex);
+    if (!worker) return findBestAiTurn(pieces, aiPlayer, config, cabezaStreak, turnIndex, pieceStreaks);
     const requestId = ++aiRequestIdRef.current;
     return new Promise((resolve, reject) => {
       aiRequestsRef.current.set(requestId, { resolve, reject });
@@ -3776,7 +3797,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // separate module instance that this thread's setBoardDimensions()
       // can't reach. See engine/ai-worker.js.
       worker.postMessage({
-        requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex,
+        requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex, pieceStreaks,
         board: getBoardDimensions(),
         laws: ACTIVE_LAWS,
         // Same cross-boundary problem as `board`/`laws` above — the
@@ -3832,7 +3853,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           aiPlayer,
           AI_DIFFICULTY[aiDifficulty],
           aiCabezaStreakRef.current,
-          log.length // turns played so far — drives the opening jitter boost
+          log.length, // turns played so far — drives the opening jitter boost
+          aiPieceStreaksRef.current
         );
         if (cancelled) return;
         setAiThinking(false);
@@ -3850,6 +3872,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             return q && q.type === "cabeza";
           });
           aiCabezaStreakRef.current = movesCabeza ? aiCabezaStreakRef.current + 1 : 0;
+          // Consecutive AI turns each piece has moved in (see the piece
+          // repeat bias in engine/ai.js); a piece left alone drops out.
+          const streaks = {};
+          for (const st of planSteps) streaks[st.pieceId] = (aiPieceStreaksRef.current[st.pieceId] || 0) + 1;
+          aiPieceStreaksRef.current = streaks;
           beginMoveRef.current(piece, planSteps[0].dir);
         }
       }, 500);
@@ -5400,6 +5427,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     setShowMoveLog(false);
     aiDirsRef.current = null;
     aiCabezaStreakRef.current = 0;
+    aiPieceStreaksRef.current = {};
     setAiThinking(false);
     // Opponent (Human / AI side) and AI difficulty carry over into every
     // new game, whichever reset path got here. The dock shows the
@@ -6106,7 +6134,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         onPointerDown={handleDockPiecePointerDown}
         onPointerMove={handleDockPiecePointerMove}
         onPointerUp={handleDockPiecePointerUp}
-        onPointerLeave={handleDockPiecePointerUp}
+        onPointerLeave={handleDockPiecePointerLeave}
         onPointerEnter={handleDockPieceHoverStart}
         style={dockPieceStyle}
       />
