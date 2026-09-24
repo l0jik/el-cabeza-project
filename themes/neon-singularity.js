@@ -1971,6 +1971,15 @@ function rerollRandomPairedSquares(s) {
   if (s.selections.laws.blackHoleSquares) fillPairedSpots(s, "blackHole", true);
 }
 
+// Why the chosen Shoving settings can never shove, if they can't.
+function shoveWarning(sel) {
+  if (!sel.shove || sel.shove.onRolls) return null;
+  const laws = sel.laws || {};
+  if (!laws.slide) return { testid: "shove-needs-slide", text: "SLIDES ONLY requires the Slide law. Turn on Slide, or choose SLIDES AND ROLLS." };
+  if (!laws.threeActions) return { testid: "shove-needs-three", text: "A shoving slide costs 3 points, so SLIDES ONLY requires 3 Actions Per Turn. Turn it on, or choose SLIDES AND ROLLS." };
+  return null;
+}
+
 /* The Shoving law's two settings, directly under its checkbox (like
    Black Hole placement under its own): push distance and which moves
    shove. Each is a two-way segmented control. A note spells out the
@@ -2029,16 +2038,17 @@ function renderShoveSettingsRow(t) {
       { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.68)", lineHeight: 1.45 } },
       "A shove adds 1 point: a shoving roll costs 2, a shoving slide 3 (so slide-shoves need 3 Actions Per Turn)."
     ),
-    // Slides-only shoving does nothing unless the Slide law is on.
-    !sel.shove.onRolls && !(sel.laws && sel.laws.slide) &&
+    // Slides-only shoving does nothing unless the Slide law is on, and
+    // even then a shoving slide costs 3 points, so it needs 3 Actions.
+    shoveWarning(sel) &&
       h(
         "div",
         {
           role: "status",
-          "data-testid": "shove-needs-slide",
+          "data-testid": shoveWarning(sel).testid,
           style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, lineHeight: 1.45, color: "rgba(255,214,150,0.85)", borderLeft: "2px solid rgba(255,196,110,0.55)", paddingLeft: 8 },
         },
-        "SLIDES ONLY requires the Slide law. Turn on Slide, or choose SLIDES AND ROLLS."
+        shoveWarning(sel).text
       )
   );
 }

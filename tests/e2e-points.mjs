@@ -120,6 +120,36 @@ for (const theme of ["neon", "standard"]) {
   await context.close();
 }
 
+// A turn that ends with points nothing can spend says why: with 3 Actions
+// Per Turn an Opa roll costs 2 of the 3, and an Opa moves once per turn.
+{
+  console.log("[unused points note]");
+  const context = await browser.newContext({ viewport: { width: 1000, height: 900 } });
+  const page = await context.newPage();
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = { threeActions: true }; });
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.waitForTimeout(1500);
+  await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), [
+    { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 0, col: 4, w: 1, h: 1, z: 1 },
+    { id: "dark-opa", type: "opa", owner: "dark", row: 1, col: 0, w: 2, h: 2, z: 2 },
+    { id: "light-cabeza", type: "cabeza", owner: "light", row: 9, col: 5, w: 1, h: 1, z: 1 },
+  ]);
+  await page.waitForTimeout(300);
+  await openDockPanel(page);
+  await page.locator("button", { hasText: "Begin Game" }).click();
+  await closeDock(page);
+  await page.waitForTimeout(1200);
+  const note = page.locator('[data-testid="unused-points-note"]');
+  check("no note before the move", (await note.count()) === 0);
+  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-opa", "S"));
+  await page.waitForTimeout(1600);
+  const text = (await note.count()) ? await note.textContent() : "";
+  check("an Opa roll ends the turn with a note saying why", /1 point unused: an Opa moves only once per turn/.test(text), text);
+  await page.waitForTimeout(4000);
+  check("the note fades away", (await note.count()) === 0);
+  await context.close();
+}
+
 await browser.close();
 console.log(failures === 0 ? "\nPOINTS COUNTER E2E PASSED" : `\nPOINTS COUNTER E2E FAILED (${failures})`);
 process.exit(failures === 0 ? 0 : 1);

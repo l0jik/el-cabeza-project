@@ -692,6 +692,19 @@ if (state.activeCategory === "laws") {
   await page.waitForTimeout(150);
   check("...and turning Slide on clears it",
     (await page.locator('[data-testid="shove-needs-slide"]').count()) === 0);
+  // With Slide on, a shoving slide still costs 3 points: without 3 Actions
+  // Per Turn a second warning says so, and ticking 3 Actions clears it.
+  state = await sphereState();
+  if (!state.selections.laws.threeActions) {
+    check("slides-only shoving without 3 Actions shows the 3-points warning",
+      (await page.locator('[data-testid="shove-needs-three"]').count()) === 1);
+    await page.locator('[data-testid="law-threeActions"]').click();
+    await page.waitForTimeout(150);
+    check("...and turning 3 Actions on clears it",
+      (await page.locator('[data-testid="shove-needs-three"]').count()) === 0);
+    await page.locator('[data-testid="law-threeActions"]').click();
+    await page.waitForTimeout(150);
+  }
   if (!slideWasOn) { await page.locator('[data-testid="law-slide"]').click(); await page.waitForTimeout(150); }
   await page.locator('[data-testid="shove-far-on"]').click();
   await page.locator('[data-testid="shove-onRolls-on"]').click();
@@ -701,8 +714,8 @@ if (state.activeCategory === "laws") {
     state.selections.shove.far === true && state.selections.shove.onRolls === true &&
       (await page.locator('[data-testid="shove-far-on"]').getAttribute("aria-pressed")) === "true",
     JSON.stringify(state.selections.shove));
-  check("slides and rolls needs no Slide, so no warning",
-    (await page.locator('[data-testid="shove-needs-slide"]').count()) === 0 || !!state.selections.laws.slide);
+  check("slides and rolls shows neither warning",
+    (await page.locator('[data-testid="shove-needs-slide"], [data-testid="shove-needs-three"]').count()) === 0);
   await page.locator('[data-testid="law-shoving"]').click();
   await page.waitForTimeout(150);
 
