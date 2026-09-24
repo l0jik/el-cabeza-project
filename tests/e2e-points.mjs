@@ -145,6 +145,13 @@ for (const theme of ["neon", "standard"]) {
   await page.waitForTimeout(1600);
   const text = (await note.count()) ? await note.textContent() : "";
   check("an Opa roll ends the turn with a note saying why", /1 point unused: an Opa moves only once per turn/.test(text), text);
+  await note.click();
+  await page.waitForTimeout(500);
+  check("tapping the note opens the Your turn rules card",
+    (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "true" &&
+      (await page.locator('[data-testid="rules-card-turn"]').count()) === 1);
+  await page.mouse.click(6, 6);
+  await page.waitForTimeout(500);
   await page.waitForTimeout(4000);
   check("the note fades away", (await note.count()) === 0);
   await context.close();

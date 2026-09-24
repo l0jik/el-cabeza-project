@@ -21,6 +21,7 @@ import {
   setGhostLineTarget,
 } from "../engine/geometry.js";
 import { cubeCount, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
+import { RulesTabs, RulesCard, OPEN_RULES_EVENT } from "./RulesCards.jsx";
 
 /* Semantic Versioning (MAJOR.MINOR.PATCH), shared by both themes since
    it describes the game as a whole, not any one skin's own history. */
@@ -552,6 +553,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      about-the-game overlay. */
   const [infoBtnVisible, setInfoBtnVisible] = useState(false);
   const [showInfoOverlay, setShowInfoOverlay] = useState(false);
+  /* The INFO overlay's tab: "about" (the game's history) or one of the
+     rules cards (chassis/RulesCards.jsx). rulesFocus names a MOVES tile
+     to scroll to when a card is opened from where a rule matters. */
+  const [infoTab, setInfoTab] = useState("about");
+  const [rulesFocus, setRulesFocus] = useState(null);
   const infoBtnTimerRef = useRef(null);
 
   /* --------------------- theme plugin wiring ---------------------- */
@@ -1560,6 +1566,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     };
   }, []);
 
+  // Any part of the page (a theme's flyout, the sphere, the unused-points
+  // note) opens a rules card through this one event (see RulesCards.jsx).
+  useEffect(() => {
+    const onOpen = (e) => {
+      const d = (e && e.detail) || {};
+      setInfoTab(d.tab || "quick");
+      setRulesFocus(d.focus || null);
+      setShowInfoOverlay(true);
+      audioRef.current.playMenu();
+    };
+    window.addEventListener(OPEN_RULES_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_RULES_EVENT, onOpen);
+  }, []);
+
   useEffect(() => {
     if (!showInfoOverlay) return;
     const onKey = (e) => {
@@ -2305,7 +2325,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        camera: tick() re-derives camera.position from cam.current.view
        every frame regardless, so a transient position/lookAt set here
        is overwritten on the very next frame and never actually renders.
-       Includes the tallest real piece (Opa, h * PIECE_SCALE = 2 * 0.88)
+       Includes the tallest real piece (Opa, h * PIECE_SCALE = 2 * 0.87)
        at every corner, not just the bare board plate, since a piece
        standing on the near or far edge is what would actually clip
        into the masthead or dock first. */
@@ -6108,13 +6128,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           key={unusedNote.key}
           data-testid="unused-points-note"
           role="status"
+          // Tapping it opens the "Your turn" rules card.
+          onClick={() => { setInfoTab("turn"); setRulesFocus(null); setShowInfoOverlay(true); audioRef.current.playMenu(); }}
           style={{
             position: "fixed",
             left: "50%",
             bottom: showPoints ? 44 : 22,
             transform: "translateX(-50%)",
             zIndex: 12,
-            pointerEvents: "none",
+            pointerEvents: "auto",
+            cursor: "pointer",
             whiteSpace: "nowrap",
             maxWidth: "calc(100vw - 32px)",
             overflow: "hidden",
@@ -6127,7 +6150,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           }}
         >
           <style>{"@keyframes ecUnusedNote{0%{opacity:0}8%{opacity:0.85}75%{opacity:0.85}100%{opacity:0}}"}</style>
-          {unusedNote.text}
+          {unusedNote.text} <span style={{ opacity: 0.7 }}>›</span>
         </div>
       )}
 
@@ -7238,6 +7261,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           rather than a hard cut. Per feedback, no dedicated close ("X")
           button — click-outside is the only dismiss path. */}
       <div
+        data-testid="info-overlay"
+        data-open={showInfoOverlay ? "true" : "false"}
         onClick={() => setShowInfoOverlay(false)}
         style={{
           position: "fixed",
@@ -7248,7 +7273,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           justifyContent: "center",
           padding: 24,
           boxSizing: "border-box",
-          zIndex: 1000,
+          // Above the SINGULARITY sphere's own overlays (2000-2300), since
+          // the rules cards open from there too.
+          zIndex: 2500,
           opacity: showInfoOverlay ? 1 : 0,
           pointerEvents: showInfoOverlay ? "auto" : "none",
           transition: "opacity 0.3s ease",
@@ -7291,12 +7318,30 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                   width: 36,
                   height: 1,
                   background: COLORS.charcoal,
-                  margin: "0 auto 26px",
+                  margin: "0 auto 18px",
                 }}
               />
+              <RulesTabs tab={infoTab} onTab={(k) => { setInfoTab(k); setRulesFocus(null); }} C={COLORS} />
             </div>
 
-            <div style={{ overflowY: "auto", padding: "0 34px 32px" }}>
+            <div data-testid="info-body" style={{ overflowY: "auto", padding: "0 34px 32px" }}>
+            {infoTab !== "about" ? (
+              <RulesCard
+                tab={infoTab}
+                focus={rulesFocus}
+                onFocus={(k) => { setInfoTab("moves"); setRulesFocus(k); }}
+                C={COLORS}
+                budget={turnBudget()}
+                game={{
+                  laws: ACTIVE_LAWS,
+                  rows: BOARD_ROWS,
+                  cols: BOARD_COLS,
+                  missing: MISSING_SQUARES.length,
+                  newTypes: [...new Set(pieces.filter((p) => !["cabeza", "turrito", "opa", "flaco", "chato"].includes(p.type)).map((p) => PIECE_META[p.type].name))],
+                }}
+              />
+            ) : (
+            <>
             <div
               style={{
                 fontFamily: "'IBM Plex Sans', sans-serif",
@@ -7372,6 +7417,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                 the reliable and the erratic that keeps a fresh tactical
                 puzzle arriving almost every turn.
               </p>
+
+              <p
+                data-testid="info-original-note"
+                style={{
+                  margin: "16px 0 0",
+                  fontStyle: "italic",
+                  color: COLORS.slate,
+                }}
+              >
+                Played without ANOMALY or SINGULARITY, this is Cabeza as it
+                was originally designed; everything else here is a variation
+                on it.
+              </p>
             </div>
 
             <div
@@ -7395,6 +7453,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               This digital implementation by Ted Ortmann, August 2026
               &middot; v{APP_VERSION}
             </p>
+            </>
+            )}
             </div>
           </div>
         </div>

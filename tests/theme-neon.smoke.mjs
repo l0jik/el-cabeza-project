@@ -90,4 +90,24 @@ console.log("shell is EdgesGeometry-based LineSegments:", shell.geometry.type ==
   console.log("generateAnomalySetup places Codos with their cubes, mirrored and non-overlapping (200 rolls): ok");
 }
 
+// The Rayo (4 cubes) and the Zeta (5): same guarantees as the Codo.
+{
+  for (let i = 0; i < 200; i++) {
+    const ps = generateAnomalySetup([{ type: "rayo", count: 1 }, { type: "zeta", count: 1 }, { type: "cabeza", count: 1 }, { type: "chato", count: 1 }]);
+    for (const [type, n] of [["rayo", 4], ["zeta", 5]]) {
+      const all = ps.filter((p) => p.type === type);
+      if (all.length !== 2) throw new Error(`expected 2 ${type}s, got ${all.length}`);
+      const d = all.find((p) => p.owner === "dark");
+      if (!d.vox || parseVox(d.vox).length !== n) throw new Error(`${type} without its ${n} cubes: ${JSON.stringify(d)}`);
+      if (d.row + d.h > 2) throw new Error(`Dark ${type} outside its home rows: ${JSON.stringify(d)}`);
+      const l = ps.find((p) => p.id === d.id.replace("dark-", "light-"));
+      if (l.vox !== mirrorVox(d)) throw new Error(`Light's ${type} isn't Dark's mirrored`);
+    }
+    for (let a = 0; a < ps.length; a++)
+      for (let b = a + 1; b < ps.length; b++)
+        if (piecesClash(ps[a], ps[b])) throw new Error(`opening overlaps: ${ps[a].id} / ${ps[b].id}`);
+  }
+  console.log("generateAnomalySetup places Rayos and Zetas with their cubes, mirrored and non-overlapping (200 rolls): ok");
+}
+
 console.log("\nNEON THEME SMOKE TEST PASSED");

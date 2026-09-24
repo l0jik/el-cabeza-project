@@ -161,5 +161,27 @@ check("a box still fills every level of its footprint", maskAt({ row: 0, col: 0,
   check("a standing 1x2 filling the Alto's opening blocks its sideways rolls", rolls(alto, P("fl", "flaco", 4, 4, 1, 1, 2)) === "N,S");
 }
 
+// ---- the Rayo (4-cube S/Z) and the Zeta (5-cube Z) ----
+{
+  const piece = (type, w, z, vox) => ({ id: type, type, owner: "dark", row: 5, col: 5, w, h: 1, z, vox });
+  const rayo = piece("rayo", 3, 2, "0,0,0;1,0,0;1,0,1;2,0,1");
+  const zeta = piece("zeta", 3, 3, "0,0,0;0,0,1;1,0,1;2,0,1;2,0,2");
+  for (const p of [rayo, zeta]) {
+    let q = p;
+    for (let i = 0; i < 4; i++) q = rollBlock(q, "E");
+    let r = p;
+    for (let i = 0; i < 4; i++) r = rollBlock(r, "S");
+    check(`the ${p.type} keeps its ${cubeCount(p)} cubes and comes back to its pose after four rolls either way`,
+      cubeCount(q) === cubeCount(p) && voxKey(parseVox(rollBlock(rollBlock(rollBlock(rollBlock({ ...p, row: 0, col: 0 }, "E"), "E"), "E"), "E").vox)) === voxKey(parseVox(p.vox)) &&
+        voxKey(parseVox(r.vox)) === voxKey(parseVox(p.vox)), q.vox + " / " + r.vox);
+  }
+  check("the standing Rayo stands on two squares, the standing Zeta on one",
+    groundCellsOf(rayo).length === 2 && groundCellsOf(zeta).length === 1);
+  setActiveLaws({ cantileverPivot: true });
+  check("the Zeta, balanced on one cube, can Cantilever Pivot",
+    Object.keys(legalMovesFor([zeta], zeta)).some((k) => k.startsWith("pivot")));
+  setActiveLaws({ cantileverPivot: false });
+}
+
 if (failures) { console.log(`\nSHAPES SMOKE TEST FAILED (${failures})`); process.exit(1); }
 console.log("\nSHAPES SMOKE TEST PASSED");
