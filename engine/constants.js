@@ -195,6 +195,12 @@ export const PIECE_META = {
   // fixed five and the plain Anomaly button never place these.
   block1x3: { label: "1x3", name: "1×3 Block", shape: "block", maxSteps: 2 },
   block2x3: { label: "2x3", name: "2×3 Block", shape: "block", maxSteps: 2 },
+  // MATTER's first odd-shaped piece: three cubes in an L (see
+  // engine/shapes.js — its cubes ride along on the piece as `vox`). It
+  // rolls for one point like the Chato/Flaco/Turrito, can rest standing,
+  // flat, or balanced on one cube with the rest held out over the next
+  // square, and crushes a Cabeza only with a cube that comes down ON it.
+  codo: { label: "Co", name: "Codo", shape: "block", maxSteps: 2 },
 };
 
 /* Dark advances toward the highest row index, Light toward 0. Mutable

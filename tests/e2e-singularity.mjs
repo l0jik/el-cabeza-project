@@ -353,6 +353,20 @@ state = await sphereState();
 check("the roster drum clamps at its declared max", state.selections.matter.roster.cabeza === 2,
   `roster.cabeza=${state.selections.matter.roster.cabeza}`);
 
+// The Codo (MATTER's 3-cube L) has its own roster counter, off (0) by
+// default; the old inert "L-Pentomino" checkbox is gone.
+check("the Codo counter starts at 0 and the L-Pentomino checkbox is gone",
+  state.selections.matter.roster.codo === 0 && state.selections.matter.newPieces.lPentomino === undefined &&
+    (await page.locator('[data-testid="matter-piece-lPentomino"]').count()) === 0,
+  JSON.stringify(state.selections.matter));
+await page.locator('[data-testid="roster-codo-inc"]').click();
+await page.waitForTimeout(120);
+state = await sphereState();
+check("the Codo counter increments", state.selections.matter.roster.codo === 1, `roster=${JSON.stringify(state.selections.matter.roster)}`);
+await page.locator('[data-testid="roster-codo-dec"]').click();
+await page.waitForTimeout(120);
+state = await sphereState();
+
 // ---- clicking outside the overlay closes it, returning control to
 // sphere rotation, without discarding the edits just made ----
 await closeOverlay();

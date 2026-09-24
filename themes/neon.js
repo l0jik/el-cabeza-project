@@ -17,6 +17,8 @@ import * as THREE from "three";
 import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, GRID_EXTENT_X, GRID_EXTENT_Z, GOAL_ROW, PIECE_SCALE, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { opponentOf, cabezaInDanger } from "../engine/ai.js";
 import { createInitialPieces } from "../engine/rules.js";
+import { makePolycubeGeometry } from "../engine/geometry.js";
+import { mirrorVox } from "../engine/shapes.js";
 import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay, renderVariantsFlyout } from "./neon-singularity.js";
 
 /* Everything visual in this experimental skin lives in these two
@@ -203,6 +205,21 @@ export const PIECE_ORIENTATIONS = {
     { w: 3, h: 1, z: 2 },
     { w: 1, h: 3, z: 2 },
   ],
+  // The Codo (engine/shapes.js): three cubes in an L, so each starting
+  // pose names its cubes too. Standing (two on the board, one on top at
+  // either end) along either axis, or lying flat in any of its four L
+  // turns. Balanced-on-one-cube is reachable in play but never a
+  // starting pose.
+  codo: [
+    { w: 2, h: 1, z: 2, vox: "0,0,0;0,0,1;1,0,0" },
+    { w: 2, h: 1, z: 2, vox: "0,0,0;1,0,0;1,0,1" },
+    { w: 1, h: 2, z: 2, vox: "0,0,0;0,0,1;0,1,0" },
+    { w: 1, h: 2, z: 2, vox: "0,0,0;0,1,0;0,1,1" },
+    { w: 2, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0" },
+    { w: 2, h: 2, z: 1, vox: "0,0,0;1,0,0;1,1,0" },
+    { w: 2, h: 2, z: 1, vox: "0,0,0;0,1,0;1,0,0" },
+    { w: 2, h: 2, z: 1, vox: "0,1,0;1,0,0;1,1,0" },
+  ],
 };
 
 export function shuffledIndices(n) {
@@ -231,6 +248,7 @@ function buildRosterFromSelections(matterSelections) {
     const count = matterSelections.roster[type];
     if (count > 0) roster.push({ type, count });
   });
+  if (matterSelections.roster.codo > 0) roster.push({ type: "codo", count: matterSelections.roster.codo });
   if (matterSelections.newPieces.block1x3) roster.push({ type: "block1x3", count: 1 });
   if (matterSelections.newPieces.block2x3) roster.push({ type: "block2x3", count: 1 });
 
@@ -310,7 +328,7 @@ export function generateAnomalySetup(roster, blocked = []) {
     let ok = true;
     for (const { type, index } of instances) {
       const orientations = PIECE_ORIENTATIONS[type];
-      const { w, h, z } = orientations[Math.floor(Math.random() * orientations.length)];
+      const { w, h, z, vox } = orientations[Math.floor(Math.random() * orientations.length)];
       const rowOptions = [];
       for (let row = 0; row <= 2 - h; row++) rowOptions.push(row);
       const colOptions = [];
@@ -328,7 +346,7 @@ export function generateAnomalySetup(roster, blocked = []) {
           }
           if (free) {
             for (let r = row; r < row + h; r++) for (let c = col; c < col + w; c++) occupied.add(r * BOARD_COLS + c);
-            placed.push({ type, index, row, col, w, h, z });
+            placed.push({ type, index, row, col, w, h, z, vox });
             placedThis = true;
             break;
           }
@@ -341,8 +359,8 @@ export function generateAnomalySetup(roster, blocked = []) {
       const pieces = [];
       placed.forEach((p) => {
         const suffix = p.index > 0 ? `-${p.index}` : "";
-        pieces.push({ id: `dark-${p.type}${suffix}`, type: p.type, owner: "dark", row: p.row, col: p.col, w: p.w, h: p.h, z: p.z });
-        pieces.push({
+        const dark = { id: `dark-${p.type}${suffix}`, type: p.type, owner: "dark", row: p.row, col: p.col, w: p.w, h: p.h, z: p.z };
+        const light = {
           id: `light-${p.type}${suffix}`,
           type: p.type,
           owner: "light",
@@ -351,7 +369,13 @@ export function generateAnomalySetup(roster, blocked = []) {
           w: p.w,
           h: p.h,
           z: p.z,
-        });
+        };
+        // An odd-shaped piece's cubes turn with the 180° mirror too.
+        if (p.vox) {
+          dark.vox = p.vox;
+          light.vox = mirrorVox(p);
+        }
+        pieces.push(dark, light);
       });
       return pieces;
     }
@@ -3664,9 +3688,14 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
      disc keeps tracing its own real geometry (a plain cylinder has
      genuinely sharp, non-tangent cap edges, so it was never the
      problem). */
+  // An odd-shaped piece traces its own outside faces instead (see
+  // makePolycubeGeometry — neighbouring faces in one plane share edges,
+  // so only the shape's real corners and silhouette are drawn).
   const outlineSourceGeo = isDisc
     ? geo
-    : new THREE.BoxGeometry(piece.w * PIECE_SCALE, piece.z * PIECE_SCALE, piece.h * PIECE_SCALE);
+    : piece.vox
+      ? makePolycubeGeometry(piece, PIECE_SCALE)
+      : new THREE.BoxGeometry(piece.w * PIECE_SCALE, piece.z * PIECE_SCALE, piece.h * PIECE_SCALE);
   const edgesGeo = new THREE.EdgesGeometry(outlineSourceGeo, 10);
   if (!isDisc) outlineSourceGeo.dispose(); // the disc case reuses `geo`, the real body's own geometry — never dispose that one
   const shell = new THREE.LineSegments(

@@ -503,7 +503,7 @@ const PIECE_FOOTPRINTS = {
   flaco: [[0, 0], [0, 1]],
   chato: [[0, 0], [0, 1]],
   opa: [[0, 0], [1, 0], [0, 1], [1, 1]],
-  lPentomino: [[0, 0], [0, 1], [0, 2], [0, 3], [1, 3]],
+  codo: [[0, 0], [0, 1], [1, 1]],
   block1x3: [[0, 0], [0, 1], [0, 2]],
   block2x3: [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2]],
   // The design doc's "non-convex shape with a genuine hollow/void" —
@@ -517,14 +517,10 @@ const PIECE_FOOTPRINTS = {
 // block1x3/block2x3 are real: plain rectangular boxes, so they place,
 // roll, and collide exactly like the five originals with no new
 // engine work (see generateAnomalySetup's own roster support in
-// themes/neon.js). lPentomino/arch are non-convex — a genuine hollow
-// in the arch, an L-shaped footprint — and need a collision system
-// that checks actual solid cells against a roll's pivot edge rather
-// than just a bounding rectangle, which doesn't exist yet; they stay
-// selectable so the menu is honest about what MATTER will eventually
-// include, but enabling one has no effect on the game that starts.
+// themes/neon.js). The L became the Codo, a real piece with its own
+// roster counter (MATTER_ROSTER below). The arch still waits on its own
+// build step, so enabling it has no effect yet.
 const MATTER_NEW_PIECES = [
-  { key: "lPentomino", label: "L-Pentomino", icon: "lPentomino", blurb: "Not yet implemented — needs a non-convex collision system." },
   { key: "block1x3", label: "1×3 Block", icon: "block1x3" },
   { key: "block2x3", label: "2×3 Block", icon: "block2x3" },
   { key: "arch", label: "Arch", icon: "arch", blurb: "Not yet implemented — needs a non-convex collision system." },
@@ -545,6 +541,10 @@ const MATTER_ROSTER = [
   { key: "flaco", label: "Flaco", min: 0, max: 4, default: 1, icon: "flaco" },
   { key: "opa", label: "Opa", min: 0, max: 4, default: 1, icon: "opa" },
   { key: "turrito", label: "Turrito", min: 0, max: 4, default: 1, icon: "turrito" },
+  // The Codo: MATTER's first odd-shaped piece (a 3-cube L — see
+  // engine/shapes.js). Off by default; any count places it in a
+  // randomized opening.
+  { key: "codo", label: "Codo", min: 0, max: 4, default: 0, icon: "codo" },
 ];
 
 function createDefaultSelections() {
@@ -2708,7 +2708,12 @@ function renderSummaryPanel(setupExtras) {
 
   const lawsOn = LAWS_ITEMS.filter((i) => sel.laws[i.key]);
   const piecesOn = MATTER_NEW_PIECES.filter((i) => sel.matter.newPieces[i.key]);
-  const rosterLine = MATTER_ROSTER.map((p) => `${sel.matter.roster[p.key]} ${p.label}`).join(" · ");
+  // An optional piece that's off (a default of 0, still at 0 — the Codo)
+  // is left out rather than listed as "0 Codo".
+  const rosterLine = MATTER_ROSTER
+    .filter((p) => p.default > 0 || sel.matter.roster[p.key] > 0)
+    .map((p) => `${sel.matter.roster[p.key]} ${p.label}`)
+    .join(" · ");
   const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}${sel.topologies.missingSquares ? `, ${missingSquaresLabel(sel.missingSquare.count)}` : ""}`;
   const lineStyle = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: "rgba(207,216,220,0.85)", lineHeight: 1.7 };
   const tagStyle = { color: "#66d9ff", letterSpacing: "0.08em" };

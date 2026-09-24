@@ -16,10 +16,11 @@ import {
 } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY } from "../engine/ai.js";
 import {
-  pieceCenter, restingY, makeRoundedBox, rayHitBoardPlaneY0,
+  pieceCenter, restingY, makeRoundedBox, makePolycubeGeometry, rayHitBoardPlaneY0,
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
   setGhostLineTarget,
 } from "../engine/geometry.js";
+import { cubeCount } from "../engine/shapes.js";
 
 /* Semantic Versioning (MAJOR.MINOR.PATCH), shared by both themes since
    it describes the game as a whole, not any one skin's own history. */
@@ -304,6 +305,32 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       window.__EC_TEST_TURNS__ = turnHistory.map((h) => ({ player: h.currentPlayer, steps: (h.steps || []).map((st) => ({ pieceId: st.pieceId, dir: st.dir })) }));
     }
   }, [log, turnHistory]);
+  // Test-only: when a test sets window.__EC_TEST_HOOKS__ before load, it
+  // can place an arbitrary position during setup (e.g. an odd-shaped
+  // piece next to a Cabeza) and read the live pieces back.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.__EC_TEST_HOOKS__) return;
+    window.__EC_TEST_SET_PIECES__ = (list) => setPieces(list.map((p) => ({ ...p })));
+    window.__EC_TEST_PIECES__ = pieces.map((p) => ({ ...p }));
+    // Plays one move for a piece through the same path a click uses
+    // (animation, commit, turn logic), and projects a piece's body to
+    // screen pixels for tests that then click on it.
+    window.__EC_TEST_MOVE__ = (id, dir) => {
+      const piece = pieces.find((p) => p.id === id);
+      if (piece && beginMoveRef.current) beginMoveRef.current(piece, dir);
+      return !!piece;
+    };
+    window.__EC_TEST_SCREEN_POS__ = (id) => {
+      const t = three.current;
+      const mesh = t.pieceGroup && t.pieceGroup.children.find((c) => c.userData.pieceId === id && c.userData.kind === "piece");
+      if (!mesh || !t.camera || !t.renderer) return null;
+      const v = new THREE.Vector3();
+      mesh.getWorldPosition(v);
+      v.project(t.camera);
+      const r = t.renderer.domElement.getBoundingClientRect();
+      return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+    };
+  }, [pieces]);
   /* React-visible copy of the Black Hole Squares LAW's current
      placement — engine/constants.js's own BLACK_HOLES is plain mutable
      module state, invisible to React's render cycle, same reason
@@ -2629,6 +2656,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       const center = pieceCenter(p);
       const y = restingY(p);
 
+      // An odd-shaped piece (engine/shapes.js) is built from its own
+      // cubes, in the same box-centered frame as a box piece, so it
+      // places and rolls identically.
       const geo = isDisc
         ? new THREE.CylinderGeometry(
             (DISC_DIAM * PIECE_SCALE) / 2,
@@ -2636,12 +2666,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             DISC_H * PIECE_SCALE,
             40
           )
-        : makeRoundedBox(
-            p.w * PIECE_SCALE,
-            p.z * PIECE_SCALE,
-            p.h * PIECE_SCALE,
-            EDGE_RADIUS
-          );
+        : p.vox
+          ? makePolycubeGeometry(p, PIECE_SCALE)
+          : makeRoundedBox(
+              p.w * PIECE_SCALE,
+              p.z * PIECE_SCALE,
+              p.h * PIECE_SCALE,
+              EDGE_RADIUS
+            );
 
       // Everything about HOW a piece is materialized and outlined is
       // theme-owned (see ARCHITECTURE.md) — Standard and Neon use
@@ -2828,7 +2860,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   const shadowSig = shadowEntries
     .map(([dir, m]) => {
       const c = m.candidate;
-      return `${dir}:${c.row},${c.col},${c.w},${c.h},${c.z}${m.crushes ? "!" : ""}`;
+      return `${dir}:${c.row},${c.col},${c.w},${c.h},${c.z},${c.vox || ""}${m.crushes ? "!" : ""}`;
     })
     .join("|");
 
@@ -3147,7 +3179,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       return;
     }
 
-    audioRef.current.playLanding(piece.w * piece.h * piece.z);
+    audioRef.current.playLanding(cubeCount(piece)); // cubes, not box volume — an odd shape weighs what it's made of
     setPieces(nextPieces);
     setTurnSnapshot(turnSnapshot || pieces);
     setPendingNotation(notation);
@@ -3220,7 +3252,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        the branch below: a translate (disc, or any Slide) uses SLIDE_MS
        rather than ROLL_MS, though both constants share one value today. */
     audioRef.current.playRollStart(
-      state.w * state.h * state.z,
+      cubeCount(state),
       PIECE_META[state.type].shape === "disc" || isSlideMove ? SLIDE_MS : ROLL_MS
     );
 

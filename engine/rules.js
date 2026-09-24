@@ -3,6 +3,7 @@
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
 import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, MAX_PIECES_PER_TURN } from "./constants.js";
+import { rollVox, groundCellsOf, piecesClash, rollSweepClashes, anyOddShape } from "./shapes.js";
 
 /* Dark's half of the opening setup, with columns expressed RELATIVE to
    the leftmost of the four columns the formation occupies, so the whole
@@ -81,6 +82,18 @@ export function getPieceAt(pieces, row, col) {
 
 export function rollBlock(piece, dir) {
   const { row, col, w, h, z } = piece;
+  // An odd-shaped piece (see engine/shapes.js) turns its cubes with it;
+  // its bounding box moves exactly like a box's below.
+  if (piece.vox) {
+    const vox = rollVox(piece, dir);
+    switch (dir) {
+      case "E": return { ...piece, col: col + w, w: z, z: w, vox };
+      case "W": return { ...piece, col: col - z, w: z, z: w, vox };
+      case "S": return { ...piece, row: row + h, h: z, z: h, vox };
+      case "N": return { ...piece, row: row - z, h: z, z: h, vox };
+      default: return piece;
+    }
+  }
   switch (dir) {
     case "E":
       return { ...piece, col: col + w, w: z, z: w };
@@ -126,8 +139,11 @@ function otherBlackHole(square) {
 function missingSquareAt(row, col) {
   return MISSING_SQUARES.some((m) => m.row === row && m.col === col);
 }
+/* Only the squares a piece actually stands on count — an odd-shaped
+   piece's overhang may hang over a Missing Square (see engine/shapes.js).
+   For a box that's its whole footprint, as always. */
 function overlapsMissingSquare(candidate) {
-  return cellsOf(candidate).some(([r, c]) => missingSquareAt(r, c));
+  return groundCellsOf(candidate).some(([r, c]) => missingSquareAt(r, c));
 }
 
 /* A candidate's fate w.r.t. black holes: blocked outright, passes
@@ -139,10 +155,14 @@ function overlapsMissingSquare(candidate) {
    footprint outright, since such a footprint can never coincide with a
    single hole-cell exactly, so it can never legally "enter." */
 function blackHoleVerdict(candidate) {
-  const cells = cellsOf(candidate);
+  // As with Missing Squares, only squares the piece stands on count: an
+  // overhang may hang over a hole. And only a one-square piece can ever
+  // enter — an odd-shaped piece never is one, even balanced on a single
+  // cube, so it can never drop in.
+  const cells = groundCellsOf(candidate);
   const hit = cells.map(([r, c]) => blackHoleAt(r, c)).find(Boolean);
   if (!hit) return { blocked: false, teleportTo: null };
-  if (cells.length === 1) {
+  if (cells.length === 1 && candidate.w === 1 && candidate.h === 1) {
     const other = otherBlackHole(hit);
     if (other) return { blocked: false, teleportTo: other };
   }
@@ -157,10 +177,12 @@ function blackHoleVerdict(candidate) {
    there would detect "landing exactly on a hole cell" a second time and
    try to teleport back to where the piece just came from. */
 function pieceOccupancyVerdict(pieces, candidate) {
+  // Every piece sharing a cube with the landing (see engine/shapes.js —
+  // a piece sheltered under an overhang doesn't share one, so it's
+  // neither a clash nor a crush).
   const hits = [];
-  for (const [r, c] of cellsOf(candidate)) {
-    const occupant = getPieceAt(pieces, r, c);
-    if (occupant && occupant.id !== candidate.id && !hits.includes(occupant)) hits.push(occupant);
+  for (const p of pieces) {
+    if (p.id !== candidate.id && piecesClash(candidate, p)) hits.push(p);
   }
   if (hits.length === 0) return { legal: true, crushes: null };
   // Landing on a lone enemy Cabeza is a crush ONLY when the moving piece
@@ -310,9 +332,14 @@ export function pickMissingSquarePairs(pieces, rows, cols, count, avoid = [], ex
 
 export function legalRolls(pieces, piece) {
   const out = {};
+  // With an odd-shaped piece anywhere on the board, a roll must also not
+  // sweep a cube through another piece on its way over (engine/shapes.js,
+  // rollSweepClashes). A board of boxes never needs this check.
+  const sweep = anyOddShape(pieces);
   for (const dir of ROLL_DIRS) {
     const candidate = rollBlock(piece, dir);
     const verdict = evaluateBlockLanding(pieces, candidate, STEP_DIRS[dir]);
+    if (verdict.legal && sweep && rollSweepClashes(pieces, piece, dir, verdict.crushes)) continue;
     if (verdict.legal) {
       // A wormhole roll ejects the piece one cell past the far hole (see
       // evaluateBlockLanding) — it never sits on either hole. teleportsTo
@@ -350,9 +377,8 @@ function translatedCandidate(pieces, piece, dr, dc) {
       teleports: true,
     };
   }
-  for (const [r, c] of cellsOf(candidate)) {
-    const occupant = getPieceAt(pieces, r, c);
-    if (occupant && occupant.id !== piece.id) return null;
+  for (const p of pieces) {
+    if (p.id !== piece.id && piecesClash(candidate, p)) return null;
   }
   return { candidate, crushes: null, teleports: false };
 }
@@ -475,5 +501,5 @@ export function pairLog(entries) {
    at module scope so both places read one definition, not two that
    could quietly drift apart. */
 export function sameState(a, b) {
-  return a.row === b.row && a.col === b.col && a.w === b.w && a.h === b.h && a.z === b.z;
+  return a.row === b.row && a.col === b.col && a.w === b.w && a.h === b.h && a.z === b.z && (a.vox || "") === (b.vox || "");
 }

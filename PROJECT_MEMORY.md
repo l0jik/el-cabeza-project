@@ -1165,3 +1165,54 @@ at `dist/el-cabeza-nova.html` (the landing-page button reads "Nova"). The
 old `el-cabeza-unified.html` had already been shared, so `build/build.js`
 still writes that file, now as a tiny redirect to Nova that keeps any
 `?query`/`#hash`. Don't remove the redirect.
+
+## Odd-shaped pieces: the shape system, Codo, Arco, Shoving (user-approved plan)
+
+Agreed with the user, built in this order: 1) shape system, 2) Codo,
+3) Arco, 4) Shoving law.
+
+**Shape system (engine/shapes.js).** A piece keeps its bounding box
+(row/col/w/h/z). An odd-shaped piece also carries `vox`, a canonical sorted
+cube list "x,y,l;…" (x = column offset, y = row offset, l = level). Box
+pieces have no `vox` and behave exactly as before.
+- **Occupancy is 3D:** `piecesClash` compares per-square level bitmasks
+  (`maskAt`). A box fills its footprint from the ground up. This is what
+  makes overhangs and openings work: a piece 1 cube tall fits under a
+  1-high overhang, and a Cabeza there is sheltered, not crushed.
+  `pieceOccupancyVerdict` and `translatedCandidate` (rules.js) use it.
+- **Rolling:** `rollVox` turns the cubes about the bbox's bottom edge.
+  E: x'=l, l'=w-1-x; W: x'=z-1-l, l'=x; S/N the same on rows. The bbox
+  moves like a box's. This is an exact inverse pair (undo relies on it).
+  A tight bbox guarantees at least one cube is on the ground.
+- **Ground cells only** (`groundCellsOf`) count for Missing Squares and
+  Black Holes: an overhang may hang over either. Only a 1×1 piece can
+  enter a hole, so odd shapes never do.
+- **Swept path:** `rollSweepClashes` samples each cube's quarter-turn in
+  the roll plane with a SAT test. It runs only when `anyOddShape(pieces)`,
+  so box-only games are unaffected. Consequence: a piece can't ROLL into
+  or out from under an overhang (its top edge would swing through it).
+  It can get there by a Cabeza step or a Slide.
+- `sameState` also compares `vox`; ai.js applyMove/undoMove copy `vox`.
+- Rendering: `makePolycubeGeometry` (outside faces only, so
+  EdgesGeometry traces just the real outline — Neon's shell) and
+  `makePolycubeRounded` (merged rounded cubes, optionally grown —
+  Standard's shell), in engine/geometry.js, both centered on the bbox
+  like makeRoundedBox. So pieceCenter/pivotFor/roll animation are unchanged.
+- `cubeCount` (weight for landing audio; "bigger" for Shoving).
+- Tests: `tests/shapes.smoke.mjs`.
+
+**Codo** (`PIECE_META.codo`, log label "Co") is 3 cubes in an L.
+- Poses: standing, flat, or balanced on one cube; all 12 are reached by
+  rolling.
+- Each roll costs 1 point. It crushes only with a cube landing ON a
+  Cabeza. It never drops into a Black Hole.
+- MATTER: a roster counter from 0 to 4 (default 0). It replaced the inert
+  "L-Pentomino" checkbox.
+- Openings: `PIECE_ORIENTATIONS.codo` holds 8 starting poses, each with
+  `vox` (standing ×4, flat ×4, never balanced). `generateAnomalySetup`
+  mirrors Light's cubes with `mirrorVox`.
+- Test-only hooks (set `window.__EC_TEST_HOOKS__`):
+  `__EC_TEST_SET_PIECES__`, `__EC_TEST_PIECES__`, `__EC_TEST_MOVE__`,
+  `__EC_TEST_SCREEN_POS__`.
+- Tests: `tests/e2e-codo.mjs` (a sheltered Cabeza under a real roll; the
+  AI with Codos) and the theme-neon smoke test (mirrored openings).

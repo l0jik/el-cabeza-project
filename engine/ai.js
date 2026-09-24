@@ -74,13 +74,14 @@ function crushEndsGame(pieces, crushedPiece) {
    reliable — it's the very object this array already contains, not a
    lookalike copy. */
 function applyMove(pieces, piece, move) {
-  const prevFields = { row: piece.row, col: piece.col, w: piece.w, h: piece.h, z: piece.z };
+  const prevFields = { row: piece.row, col: piece.col, w: piece.w, h: piece.h, z: piece.z, vox: piece.vox };
   const c = move.candidate;
   piece.row = c.row;
   piece.col = c.col;
   piece.w = c.w;
   piece.h = c.h;
   piece.z = c.z;
+  piece.vox = c.vox; // an odd-shaped piece's cubes (engine/shapes.js); undefined for a box
   let removedIndex = -1;
   if (move.crushes) {
     removedIndex = pieces.indexOf(move.crushes);
@@ -96,6 +97,7 @@ function undoMove(pieces, piece, undo) {
   piece.w = p.w;
   piece.h = p.h;
   piece.z = p.z;
+  piece.vox = p.vox;
   if (undo.removed) pieces.splice(undo.removedIndex, 0, undo.removed);
 }
 
@@ -279,7 +281,7 @@ function generateSplitTurns(pieces, player, turns) {
       if (sameState(starts.get(q), q) && !crushedBy.get(q)) return;
     }
     const key = moved
-      .map((q) => `${q.id}@${q.row},${q.col},${q.w},${q.h},${q.z}`)
+      .map((q) => `${q.id}@${q.row},${q.col},${q.w},${q.h},${q.z},${q.vox || ""}`)
       .sort()
       .join("|") + "|x" + steps.filter((st) => st.move.crushes).map((st) => st.move.crushes.id).sort().join(",");
     if (seen.has(key)) return;
