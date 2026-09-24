@@ -1597,7 +1597,8 @@ Results, new vs previous:
   storage as today. An installable app (PWA or native) doesn't solve this
   on its own; it still stores on the one device. Pick the approach with
   the user before building.
-- **Piece size (pending decision).** Renders of 80% (current), 87% and 92%
-  `PIECE_SCALE` were shown (angled, zoomed and top-down). Recommended 87%:
-  Arcos and Codos fill their squares while neighbours keep a visible gap.
-  Waiting on the user's pick; board squares stay as they are.
+- **Piece size (decided, built).** The user chose, after renders of
+  0.8 / 0.87 / 0.92: blocks, Codos and Arcos at `PIECE_SCALE` 0.88 (was
+  0.8; it is also the height of one stacking level), and the Cabeza disc
+  at its own `CABEZA_SCALE` 0.84 (engine/constants.js). The dock keeps
+  its frame size. Board squares are unchanged.

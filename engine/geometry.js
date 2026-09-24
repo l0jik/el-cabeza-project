@@ -8,7 +8,7 @@
    shared by both themes' ghost-move indicators. */
 
 import * as THREE from "three";
-import { SQUARE_SIZE, OFF_X, OFF_Z, PIECE_SCALE, DISC_H, SLAB_Z } from "./constants.js";
+import { SQUARE_SIZE, OFF_X, OFF_Z, PIECE_SCALE, CABEZA_SCALE, DISC_H, SLAB_Z } from "./constants.js";
 import { PIECE_META } from "./constants.js";
 import { parseVox } from "./shapes.js";
 
@@ -39,7 +39,7 @@ export function pieceCenter(p) {
    the board rather than sinking into it. */
 export function restingY(p) {
   return PIECE_META[p.type].shape === "disc"
-    ? (DISC_H * PIECE_SCALE) / 2
+    ? (DISC_H * CABEZA_SCALE) / 2
     : (p.z * PIECE_SCALE) / 2;
 }
 
