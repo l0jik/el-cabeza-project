@@ -256,6 +256,107 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
   return false;
 }
 
+// ---- pivoting (Cantilever Pivot LAW) ----
+
+/* The one square a piece stands on, if it stands on exactly one — the
+   cube it can pivot about. null for a piece with more ground contact
+   (every box, and most poses of an odd shape). */
+export function pivotCellOf(piece) {
+  if (!piece.vox) return null;
+  const cells = groundCellsOf(piece);
+  return cells.length === 1 ? { row: cells[0][0], col: cells[0][1] } : null;
+}
+
+/* The piece after a quarter turn about the vertical axis through its
+   planted cube: "cw" or "ccw" as seen from above, looking down on the
+   board with rows running down the screen (so cw takes an arm pointing
+   east round to the south). Every cube keeps its level; the planted
+   column turns in place. Returns the new bounding box and cubes. */
+export function pivotPiece(piece, turn) {
+  const pc = pivotCellOf(piece);
+  const cubes = parseVox(piece.vox).map(([x, y, l]) => {
+    const dx = piece.col + x - pc.col;
+    const dy = piece.row + y - pc.row;
+    const [nx, ny] = turn === "cw" ? [-dy, dx] : [dy, -dx];
+    return [pc.col + nx, pc.row + ny, l];
+  });
+  const col = Math.min(...cubes.map((c) => c[0]));
+  const row = Math.min(...cubes.map((c) => c[1]));
+  const w = Math.max(...cubes.map((c) => c[0])) - col + 1;
+  const h = Math.max(...cubes.map((c) => c[1])) - row + 1;
+  return {
+    ...piece,
+    row,
+    col,
+    w,
+    h,
+    vox: voxKey(cubes.map(([c, r, l]) => [c - col, r - row, l])),
+  };
+}
+
+/* Where a pivot's arm ends up: the bounding box of every square the
+   piece covers other than its planted one. The move indicator for a
+   pivot sits there — the square the player taps to swing the arm onto. */
+export function pivotArmFootprint(piece) {
+  const pc = pivotCellOf(piece);
+  let r0 = Infinity, c0 = Infinity, r1 = -Infinity, c1 = -Infinity;
+  for (let r = piece.row; r < piece.row + piece.h; r++) {
+    for (let c = piece.col; c < piece.col + piece.w; c++) {
+      if ((r === pc.row && c === pc.col) || !maskAt(piece, r, c)) continue;
+      r0 = Math.min(r0, r); c0 = Math.min(c0, c); r1 = Math.max(r1, r); c1 = Math.max(c1, c);
+    }
+  }
+  return { row: r0, col: c0, w: c1 - c0 + 1, h: r1 - r0 + 1 };
+}
+
+/* Does the pivot's swinging arm pass through another piece's cube on
+   its way round? Each cube off the pivot column sweeps a quarter circle
+   at its own level; it's sampled at intermediate angles (the start and
+   end poses are checked elsewhere) against every other piece's cube at
+   that same level, with the same separating-axis test the roll sweep
+   uses — here in the board's plane (u = column, v = row). A one-square
+   arm sweeps its destination square and the diagonal square between
+   the two headings. Swinging over the board's edge is fine: it's air. */
+export function pivotSweepClashes(pieces, piece, turn) {
+  const pc = pivotCellOf(piece);
+  const cu = pc.col + 0.5;
+  const cv = pc.row + 0.5;
+  const arm = parseVox(piece.vox)
+    .map(([x, y, l]) => [piece.col + x, piece.row + y, l])
+    .filter(([c, r]) => c !== pc.col || r !== pc.row);
+  if (!arm.length) return false;
+  const reach = Math.max(...arm.map(([c, r]) => Math.hypot(c + 0.5 - cu, r + 0.5 - cv))) + 1;
+  const sign = turn === "cw" ? 1 : -1;
+  for (const other of pieces) {
+    if (other.id === piece.id) continue;
+    if (other.row > cv + reach || other.row + other.h < cv - reach) continue;
+    if (other.col > cu + reach || other.col + other.w < cu - reach) continue;
+    for (let r = other.row; r < other.row + other.h; r++) {
+      for (let c = other.col; c < other.col + other.w; c++) {
+        const mask = maskAt(other, r, c);
+        if (!mask) continue;
+        for (const [ac, ar, l] of arm) {
+          if (!((mask >> l) & 1)) continue;
+          for (let k = 1; k < SWEEP_SAMPLES; k++) {
+            const phi = (sign * (Math.PI / 2) * k) / SWEEP_SAMPLES;
+            const cs = Math.cos(phi);
+            const sn = Math.sin(phi);
+            // Rows run down the screen, so this turns (u, v) clockwise
+            // as seen from above for a positive angle.
+            const corners = [[ac, ar], [ac + 1, ar], [ac + 1, ar + 1], [ac, ar + 1]].map(([u, v]) => {
+              const du = u - cu;
+              const dv = v - cv;
+              return [cu + du * cs - dv * sn, cv + du * sn + dv * cs];
+            });
+            if (squaresOverlap(corners, c, r)) return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
 /* Separating-axis test between a turned unit square (its 4 corners) and
    the axis-aligned unit square [ou, ou+1] x [ol, ol+1], both shrunk by
    SWEEP_EPS so shared edges don't count as overlap. */
