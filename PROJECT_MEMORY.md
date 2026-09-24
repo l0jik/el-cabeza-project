@@ -1602,3 +1602,19 @@ Results, new vs previous:
   0.8; it is also the height of one stacking level), and the Cabeza disc
   at its own `CABEZA_SCALE` 0.84 (engine/constants.js). The dock keeps
   its frame size. Board squares are unchanged.
+- **Unused-points note (built).** When a player's own turn ends with
+  points left that nothing can spend, a short note fades in at the bottom
+  centre (`unusedNote`, data-testid `unused-points-note`), e.g. "1 point
+  unused: an Opa moves only once per turn". Shown with or without the
+  points counter; never for the AI's turns or a wormhole move.
+- **Shoving warnings (built).** SLIDES ONLY warns when Slide is off
+  (`shove-needs-slide`), and when Slide is on but 3 Actions is off
+  (`shove-needs-three`): a shoving slide costs 3 points.
+- **Laws review (reported to the user, nothing changed yet):** Cantilever
+  Pivot only works with a Codo (no other piece can stand on one cube);
+  Diagonal Slide does nothing without Slide; an Opa can never shove
+  without 3 Actions (roll 2 + shove 1); the Slide blurb ("as a full turn
+  action") and the Black Hole blurb ("one or two") are out of date.
+- **Rules card:** five designs shown to the user (quick card, point
+  ledger, this game's laws, picture tiles, turn walkthrough); waiting on
+  a pick.

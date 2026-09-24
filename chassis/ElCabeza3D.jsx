@@ -634,6 +634,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      turn had left, not a refilled counter) and stays up through the
      win/ended screens until a new game's setup begins. */
   const [pointsFinal, setPointsFinal] = useState(null);
+  /* A short note when a player's turn ends with points still unspent
+     (e.g. an Opa move costs 2 and an Opa moves once per turn, so a
+     3-point turn leaves one point nothing can use). Shown whether or not
+     the counter is on, then fades; { key, text } or null. */
+  const [unusedNote, setUnusedNote] = useState(null);
+  useEffect(() => {
+    if (!unusedNote) return undefined;
+    const id = setTimeout(() => setUnusedNote(null), 3600);
+    return () => clearTimeout(id);
+  }, [unusedNote]);
   // Always-fresh reference to dockView, reassigned every render (same
   // pattern as commitRef/beginMoveRef) — read by the dock preview's own
   // mount-once render loop below to skip rendering while "panel" makes
@@ -3447,6 +3457,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       !turnContinues(nextPieces, currentPlayer, movedAfter, move.candidate, used, budget, splitOn);
 
     if (stop) {
+      // Points left over that nothing could spend: say why, so the turn
+      // ending doesn't look like a glitch (the player's own turns only).
+      if (!move.teleports && used < budget && currentPlayer !== aiPlayer) {
+        const left = budget - used;
+        const why =
+          piece.type === "opa" && !splitOn
+            ? "an Opa moves only once per turn"
+            : splitOn && movedAfter.length >= MAX_PIECES_PER_TURN
+              ? "only two pieces can move per turn"
+              : "no move fits the points left";
+        setUnusedNote({ key: Date.now(), text: `${left} point${left > 1 ? "s" : ""} unused: ${why}` });
+      }
       settleTurn(move.candidate, notation, stepsNext);
     } else {
       setMovedPieceIds(movedAfter);
@@ -6078,6 +6100,36 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           </div>
         );
       })()}
+
+      {/* Unused-points note — see unusedNote. Sits just above the points
+         counter when that's on, in its place when it's off. */}
+      {unusedNote && isPlaying && dockView !== "panel" && (
+        <div
+          key={unusedNote.key}
+          data-testid="unused-points-note"
+          role="status"
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: showPoints ? 44 : 22,
+            transform: "translateX(-50%)",
+            zIndex: 12,
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+            maxWidth: "calc(100vw - 32px)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 11,
+            letterSpacing: "0.04em",
+            color: COLORS.slate,
+            animation: "ecUnusedNote 3.6s ease forwards",
+          }}
+        >
+          <style>{"@keyframes ecUnusedNote{0%{opacity:0}8%{opacity:0.85}75%{opacity:0.85}100%{opacity:0}}"}</style>
+          {unusedNote.text}
+        </div>
+      )}
 
       {(document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
         <button
