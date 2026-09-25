@@ -2881,7 +2881,14 @@ function renderCategoryOverlay(t) {
   const viewer = pv && h(PieceViewer, {
     key: `${pv.key}:${pv.type}`,
     type: pv.type, name: pv.name, detail: pv.detail, fromRect: pv.rect, closing: pv.closing,
-    onClose: () => { if (s.pieceViewer && !s.pieceViewer.closing) { s.pieceViewer.closing = true; s.bump(); } },
+    onClose: () => {
+      if (!s.pieceViewer || s.pieceViewer.closing) return;
+      // Return to where the still is now, not where it was when opened.
+      const still = typeof document !== "undefined" && document.querySelector(`[data-testid="matter-view-${s.pieceViewer.key}"]`);
+      if (still) s.pieceViewer.rect = still.getBoundingClientRect();
+      s.pieceViewer.closing = true;
+      s.bump();
+    },
     onClosed: () => { s.pieceViewer = null; s.bump(); },
   });
   const overlay = h(
@@ -2931,7 +2938,11 @@ function renderCategoryOverlay(t) {
       )
     )
   );
-  return viewer ? h(React.Fragment, null, overlay, viewer) : overlay;
+  // Always the same shape, viewer or not: switching between a bare overlay
+  // and a fragment made React rebuild the overlay each time the viewer
+  // opened or closed, scrolling the list back to the top, so the model
+  // shrank back to where its row no longer was.
+  return h(React.Fragment, null, overlay, viewer || null);
 }
 
 /* One MATTER row: the piece's 3D still (a button: it opens the viewer,

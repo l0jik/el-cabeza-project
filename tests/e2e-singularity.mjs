@@ -385,9 +385,18 @@ check("its roller counts it like the rest", state.selections.matter.roster.block
 // Tapping a still opens the piece in 3D: frameless, over a blurred menu,
 // grown out of that still (which is emptied and ringed while it's out),
 // turning slowly on its own and turned further by a drag.
+// Scroll the list first, so the Codo's row sits partway down: the list
+// must keep its place while the viewer is out, and the model must go back
+// to that row, not to where it would be with the list at the top.
+const matterList = page.locator('[data-testid="category-overlay"]');
+await page.locator('[data-testid="matter-view-codo"]').scrollIntoViewIfNeeded();
+await matterList.evaluate((el) => { el.scrollTop = Math.min(el.scrollHeight - el.clientHeight, el.scrollTop + 60); });
+await page.waitForTimeout(150);
+const listScroll0 = await matterList.evaluate((el) => el.scrollTop);
 await page.locator('[data-testid="matter-view-codo"]').click();
 await page.waitForTimeout(700);
 const viewer = page.locator('[data-testid="piece-viewer"]');
+check(`the list keeps its scroll while the viewer is open (${listScroll0})`, listScroll0 > 0 && (await matterList.evaluate((el) => el.scrollTop)) === listScroll0);
 check("tapping a still opens the 3D viewer for that piece", (await viewer.count()) === 1 && (await viewer.getAttribute("data-piece")) === "codo");
 check("...fully open, over a blurred background", (await viewer.getAttribute("data-state")) === "open" &&
   /blur\(9px\)/.test(await viewer.evaluate((el) => el.style.backdropFilter || el.style.webkitBackdropFilter)));
@@ -408,7 +417,20 @@ const yaw2 = await page.evaluate(() => window.__EC_PIECE_VIEWER__ && window.__EC
 check("dragging turns it", yaw2 - yaw1 > 1, `${yaw1} -> ${yaw2}`);
 await page.screenshot({ path: "/tmp/e2e-singularity-piece-viewer.png" });
 await page.mouse.click(12, 12);
-await page.waitForTimeout(700);
+await page.waitForTimeout(120);
+{
+  // Mid-return: the model is headed for the Codo's still where it is now.
+  const still = await page.locator('[data-testid="matter-view-codo"]').boundingBox();
+  const canvas = await page.locator('[data-testid="piece-viewer-canvas"]').evaluate((el) => {
+    const r = el.getBoundingClientRect(), m = el.style.transform.match(/translate\(([-\d.]+)px, ([-\d.]+)px\)/);
+    return { cx: parseFloat(el.style.left) + r.width * 0 + parseFloat(el.style.width) / 2, cy: parseFloat(el.style.top) + parseFloat(el.style.height) / 2, tx: m ? +m[1] : null, ty: m ? +m[2] : null };
+  });
+  const tx = still.x + still.width / 2 - canvas.cx, ty = still.y + still.height / 2 - canvas.cy;
+  check(`closing sends the model back to its own row (target ${canvas.tx},${canvas.ty} vs still ${tx.toFixed(1)},${ty.toFixed(1)})`,
+    canvas.tx !== null && Math.abs(canvas.tx - tx) < 2 && Math.abs(canvas.ty - ty) < 2);
+  check("...with the list still where it was", (await matterList.evaluate((el) => el.scrollTop)) === listScroll0);
+}
+await page.waitForTimeout(600);
 check("a tap outside sends it back into its still and closes it", (await viewer.count()) === 0 &&
   (await page.locator('[data-testid="matter-view-codo"]').getAttribute("data-viewing")) === "false");
 check("...leaving the MATTER menu open", (await page.locator('[data-testid="category-overlay"]').count()) === 1);
