@@ -351,13 +351,54 @@ state = await navigateToCategory("matter");
 check("dragging brings MATTER into view regardless of the shuffled arrangement",
   state.activeCategory === "matter", `activeCategory=${state.activeCategory}`);
 
-// ---- LAWS/MATTER get real checkboxes for their sub-items ----
-const blockBefore = state.selections.matter.newPieces.block1x3;
-await page.locator('[data-testid="matter-piece-block1x3"]').click();
+// ---- MATTER: one row per piece type, each with a 3D still and a count
+// roller on the right — the 1×3 and 2×3 blocks included (they used to be
+// on/off checkboxes) ----
+const rowKeys = await page.locator('[data-testid^="matter-row-"]').evaluateAll((els) => els.map((e) => e.dataset.testid.replace("matter-row-", "")));
+check("MATTER lists every piece type as the same kind of row (11)",
+  rowKeys.join(",") === "cabeza,turrito,flaco,chato,opa,block1x3,block2x3,codo,arco,rayo,zeta", rowKeys.join(","));
+check("no checkbox rows are left for pieces", (await page.locator('[data-testid^="matter-piece-"]').count()) === 0);
+check("each row's still is a rendered 3D image",
+  (await page.locator('[data-testid^="matter-view-"] img').count()) === 11);
+check("the 1×3 Block starts at 0", state.selections.matter.roster.block1x3 === 0, JSON.stringify(state.selections.matter.roster));
+await page.locator('[data-testid="roster-block1x3-inc"]').click();
 await page.waitForTimeout(150);
 state = await sphereState();
-check("a MATTER checkbox actually toggles the real selection", state.selections.matter.newPieces.block1x3 === !blockBefore,
-  `before=${blockBefore} after=${state.selections.matter.newPieces.block1x3}`);
+check("its roller counts it like the rest", state.selections.matter.roster.block1x3 === 1 &&
+  (await page.locator('[data-testid="matter-row-block1x3"]').getAttribute("data-count")) === "1",
+  JSON.stringify(state.selections.matter.roster));
+
+// Tapping a still opens the piece in 3D: frameless, over a blurred menu,
+// grown out of that still (which is emptied and ringed while it's out),
+// turning slowly on its own and turned further by a drag.
+await page.locator('[data-testid="matter-view-codo"]').click();
+await page.waitForTimeout(700);
+const viewer = page.locator('[data-testid="piece-viewer"]');
+check("tapping a still opens the 3D viewer for that piece", (await viewer.count()) === 1 && (await viewer.getAttribute("data-piece")) === "codo");
+check("...fully open, over a blurred background", (await viewer.getAttribute("data-state")) === "open" &&
+  /blur\(9px\)/.test(await viewer.evaluate((el) => el.style.backdropFilter || el.style.webkitBackdropFilter)));
+check("...with the still it came from marked as the one being shown",
+  (await page.locator('[data-testid="matter-view-codo"]').getAttribute("data-viewing")) === "true");
+const yaw0 = await page.evaluate(() => window.__EC_PIECE_VIEWER__ && window.__EC_PIECE_VIEWER__.yaw());
+await page.waitForTimeout(600);
+const yaw1 = await page.evaluate(() => window.__EC_PIECE_VIEWER__ && window.__EC_PIECE_VIEWER__.yaw());
+check("the model turns slowly on its own", typeof yaw0 === "number" && yaw1 > yaw0 && yaw1 - yaw0 < 0.5, `${yaw0} -> ${yaw1}`);
+{
+  const box = await page.locator('[data-testid="piece-viewer-canvas"]').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  for (let i = 1; i <= 8; i++) await page.mouse.move(box.x + box.width / 2 + i * 20, box.y + box.height / 2, { steps: 2 });
+  await page.mouse.up();
+}
+const yaw2 = await page.evaluate(() => window.__EC_PIECE_VIEWER__ && window.__EC_PIECE_VIEWER__.yaw());
+check("dragging turns it", yaw2 - yaw1 > 1, `${yaw1} -> ${yaw2}`);
+await page.screenshot({ path: "/tmp/e2e-singularity-piece-viewer.png" });
+await page.mouse.click(12, 12);
+await page.waitForTimeout(700);
+check("a tap outside sends it back into its still and closes it", (await viewer.count()) === 0 &&
+  (await page.locator('[data-testid="matter-view-codo"]').getAttribute("data-viewing")) === "false");
+check("...leaving the MATTER menu open", (await page.locator('[data-testid="category-overlay"]').count()) === 1);
+await page.screenshot({ path: "/tmp/e2e-singularity-matter.png" });
 
 // ---- MATTER also gets a scroll wheel for each of the five ORIGINAL
 // pieces, not just the four new ones, so a roster can be customized ----
@@ -378,7 +419,7 @@ check("the roster drum clamps at its declared max", state.selections.matter.rost
 // The Codo (MATTER's 3-cube L) has its own roster counter, off (0) by
 // default; the old inert "L-Pentomino" checkbox is gone.
 check("the Codo counter starts at 0 and the L-Pentomino checkbox is gone",
-  state.selections.matter.roster.codo === 0 && state.selections.matter.newPieces.lPentomino === undefined &&
+  state.selections.matter.roster.codo === 0 && state.selections.matter.newPieces === undefined &&
     (await page.locator('[data-testid="matter-piece-lPentomino"]').count()) === 0,
   JSON.stringify(state.selections.matter));
 await page.locator('[data-testid="roster-codo-inc"]').click();
@@ -411,7 +452,7 @@ await closeOverlay();
 state = await sphereState();
 check("clicking outside the overlay closes it", state.stage === "labels", `stage=${state.stage}`);
 check("closing the overlay keeps the edits made inside it",
-  state.selections.matter.newPieces.block1x3 === true && state.selections.matter.roster.cabeza === 2,
+  state.selections.matter.roster.block1x3 === 1 && state.selections.matter.roster.cabeza === 2,
   JSON.stringify(state.selections.matter));
 
 // ---- TOPOLOGIES gets a drum roller per board dimension instead of

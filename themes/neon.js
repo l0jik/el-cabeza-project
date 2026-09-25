@@ -292,8 +292,10 @@ function buildRosterFromSelections(matterSelections) {
   }
   if (matterSelections.roster.rayo > 0) roster.push({ type: "rayo", count: matterSelections.roster.rayo });
   if (matterSelections.roster.zeta > 0) roster.push({ type: "zeta", count: matterSelections.roster.zeta });
-  if (matterSelections.newPieces.block1x3) roster.push({ type: "block1x3", count: 1 });
-  if (matterSelections.newPieces.block2x3) roster.push({ type: "block2x3", count: 1 });
+  ["block1x3", "block2x3"].forEach((type) => {
+    const count = matterSelections.roster[type] || 0;
+    if (count > 0) roster.push({ type, count });
+  });
 
   let total = roster.reduce((sum, r) => sum + r.count, 0);
   for (let i = roster.length - 1; total > 10 && i >= 0; i--) {
