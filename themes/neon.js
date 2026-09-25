@@ -5823,6 +5823,12 @@ export function createSoundscape() {
       unlockIosAudio();
       if (ctx.state === "suspended") ctx.resume();
       master = ctx.createGain();
+      // Test-only: the live master level, the context state and the
+      // wind-down flag (tests/e2e-undo-audio.mjs).
+      if (typeof window !== "undefined") {
+        window.__EC_TEST_AUDIO__ = () => ({ gain: master ? master.gain.value : null, state: ctx ? ctx.state : null, windingDown, intro: introGain ? introGain.gain.value : null });
+        window.__EC_TEST_AUDIO_SUSPEND__ = () => ctx && ctx.suspend(); // stands in for a phone suspending a silent context
+      }
       // +14dB overall total (10^(14/20) ≈ 5.01) — a single multiplier on
       // the final stage, so every sound is raised by the same factor and
       // nothing shifts relative to anything else.
@@ -6083,6 +6089,14 @@ export function createSoundscape() {
     // the next beginGameFadeIn() ramps it back in, matching a fresh
     // load's behavior exactly rather than approximating it by muting
     // everything.
+    // Back into play (an undone win or ending): a phone may have
+    // suspended the context during the post-game silence, and bringing
+    // master back up then plays nothing. The undo tap is a user gesture,
+    // so the context can be woken here.
+    if (restoreVolume === true && ctx && ctx.state !== "running") {
+      unlockIosAudio();
+      try { ctx.resume(); } catch (e) { /* closed — nothing to wake */ }
+    }
     if (master && ctx) {
       master.gain.cancelScheduledValues(ctx.currentTime);
       master.gain.setValueAtTime(master.gain.value, ctx.currentTime);

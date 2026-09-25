@@ -5384,7 +5384,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // Undoing the winning move brings the game back to "playing" —
       // bring ambient audio/effects wind-down back with it, same as a
       // full reset (see handleReset).
-      if (windingDownRef.current && target.status === "playing") {
+      if ((windingDownRef.current || status !== "playing") && target.status === "playing") {
         windingDownRef.current = false;
         // true: unlike a brand-new game, undoing back into active play
         // has no Begin Game button ahead of it to restore volume
