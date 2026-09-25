@@ -1824,3 +1824,20 @@ Sumi, Vacío) each have a Title and an In-game phone board.
   resumes a suspended AudioContext (phones may suspend it in the
   post-game silence); tests/e2e-undo-audio.mjs, probe
   window.__EC_TEST_AUDIO__ / __EC_TEST_AUDIO_SUSPEND__ (Neon).
+
+- **Cromo theme (built).** themes/cromo.js (+ cromo-fx.js scene effects,
+  cromo-audio.js), apps/cromo.jsx, dist/el-cabeza-cromo.html, linked on
+  the Pages landing page. The board is the top of a monolith cube of
+  TUNGSTEN or SHUNGITE (setup-row switch `cromo-stone`, remembered in
+  localStorage `el-cabeza:cromo-stone`); the cube (vertex-colour fade to
+  black) is added under the slab by mountAmbientEffects, which also hides
+  ec-slab-edges and runs the light sweeps (Begin Game, idle every 9-16 s,
+  game end) and the landing shimmer (a piece whose square changed and then
+  held still 4 frames; >2 at once = new board, no shimmer). Reflections: a
+  canvas-painted studio panorama set as each material's envMap (not
+  scene.environment) so the setup screen's separate dock-piece renderer
+  gets it too. Pieces: mirror chrome (Light) / warm gunmetal (Dark) with
+  a thin dark silhouette shell. Audio: synthesized struck-bar/stone
+  modes per stone, room reverb, near-silent ambience (room tone, beating
+  55 Hz drone, a rare far bowl), Neon's wind-down contract. Fonts
+  Michroma + Barlow; chrome-gradient .ec-title. Test: e2e-smoke cromo.
