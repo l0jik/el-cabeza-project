@@ -214,6 +214,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      opinion fall back to Standard's Fraunces — only Neon currently
      overrides this, with Chakra Petch. */
   const titleFontFamily = theme.titleFontFamily || "'Fraunces', serif";
+  /* The camera's pitch for the setup screen and Current Player View
+     (radians from straight down). A theme set in a room (Tienda) can
+     look a little lower, so the room shows behind the board. */
+  const VIEW_PHI = theme.viewPitch ?? 0.86;
 
   /* Style helpers — nested here (not module-level) so they close
      over the theme's own COLORS/HEX rather than needing them passed
@@ -372,10 +376,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      immediately, so any jitter in the input showed up immediately too. */
   const cam = useRef({
     theta: 0,
-    phi: 0.86,
+    phi: VIEW_PHI,
     radius: 17,
     target: new THREE.Vector3(0, 0, 0),
-    view: { theta: 0, phi: 0.86, radius: 17, target: new THREE.Vector3(0, 0, 0) },
+    view: { theta: 0, phi: VIEW_PHI, radius: 17, target: new THREE.Vector3(0, 0, 0) },
   });
   /* Current Player View / Top-Down View's own zoom radius, captured
      ONCE per game (see captureViewBaselines, called right when Begin
@@ -5186,7 +5190,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      for both regardless of which side is actually about to move. */
   function captureViewBaselines() {
     const CURRENT_PLAYER_FIT_FRACTION = 1.1;
-    const fittedCPV = fitRadiusToBoard(0, 0.86, CURRENT_PLAYER_FIT_FRACTION);
+    const fittedCPV = fitRadiusToBoard(0, VIEW_PHI, CURRENT_PLAYER_FIT_FRACTION);
     // Per feedback, Current Player View reads too zoomed in specifically
     // on laptop/desktop — mobile was explicitly excluded. A 1.4x on the
     // fitted radius is a 40% reduction in zoom (farther away = less
@@ -5212,7 +5216,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
        three still glide through the render loop's damping; only
        centering (snapToCenter) is instant. */
     cam.current.theta = currentPlayer === "dark" ? Math.PI : 0;
-    cam.current.phi = 0.86;
+    cam.current.phi = VIEW_PHI;
     // Reads the ONE radius captured at this game's Begin Game press
     // (see captureViewBaselines) rather than re-fitting live against
     // the current window size — per feedback, a resize between two
@@ -5661,7 +5665,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // angle — this is what read as the board suddenly zooming in far
     // too close right after New Game.
     cam.current.theta = humanStartSide === "dark" ? Math.PI : 0;
-    cam.current.phi = 0.86;
+    cam.current.phi = VIEW_PHI;
     snapToCenter();
   }
 

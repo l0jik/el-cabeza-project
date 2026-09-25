@@ -7,6 +7,9 @@ const targets = [
   { name: "cromo", entry: "apps/cromo.jsx", title: "Cromo Cabeza" },
   { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza" },
   { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova" },
+  // Tienda is built minified, and its page can draw under a phone's
+  // notch and home bar (the theme keeps its controls clear of them).
+  { name: "tienda", entry: "apps/tienda.jsx", title: "El Cabeza · Tienda", minify: true, head: '<meta name="theme-color" content="#2B2219">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover" },
 ];
 
 mkdirSync("dist", { recursive: true });
@@ -36,7 +39,8 @@ for (const t of targets) {
     format: "iife",
     // Sound files (assets/) are inlined as data: URLs, keeping each page a
     // single self-contained file.
-    loader: { ".js": "jsx", ".mp3": "dataurl" },
+    loader: { ".js": "jsx", ".mp3": "dataurl", ".jpg": "dataurl" },
+    minify: !!t.minify,
     jsx: "automatic",
     jsxImportSource: "react",
     logLevel: "warning",
@@ -57,7 +61,7 @@ for (const t of targets) {
   // type="application/x-ai-worker" (not a JS mimetype) keeps the browser
   // from ever trying to execute this inline — chassis/ElCabeza3D.jsx
   // reads its textContent and turns it into a real Worker via a Blob URL.
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>${t.title}</title></head><body style="margin:0"><div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script><script>${js}</script></body></html>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="${t.viewport || "width=device-width,initial-scale=1"}">${t.head || ""}<meta name="robots" content="noindex, nofollow"><title>${t.title}</title></head><body style="margin:0"><div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script><script>${js}</script></body></html>`;
   writeFileSync(`dist/el-cabeza-${t.name}.html`, html);
   console.log(`built dist/el-cabeza-${t.name}.html (${(js.length / 1024).toFixed(0)}kb JS, ${(workerJs.length / 1024).toFixed(0)}kb worker)`);
 }
