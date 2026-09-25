@@ -21,9 +21,7 @@
    so the theme stays importable in plain Node for the smoke tests. */
 
 import React from "react";
-import { setActiveLaws, setBlackHoles as setEngineBlackHoles, setMissingSquares as setEngineMissing, getBoardDimensions } from "../engine/constants.js";
-import { createInitialPieces, pickBlackHoleSquares, pickMissingSquarePairs } from "../engine/rules.js";
-import { generateAnomalySetup } from "./neon.js";
+import { PIECE_OPTIONS, LAW_OPTIONS, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame } from "./rules-selections.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
 
@@ -38,91 +36,16 @@ const JP = "'Dela Gothic One', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'IPA
 
 /* ------------------------------------------------------------ settings */
 
+/* The choices themselves, and applying them to a game, are shared with
+   Tienda (themes/rules-selections.js); the city only adds its signs. */
+const SIGN = { cabeza: "頭", turrito: "塔", flaco: "細", chato: "平", opa: "重", codo: "肘", arco: "弧", rayo: "雷", zeta: "乙" };
 // [key, name, sign, min, max, default]
-const PIECES = [
-  ["cabeza", "Cabeza", "頭", 1, 2, 1], ["turrito", "Turrito", "塔", 0, 3, 1], ["flaco", "Flaco", "細", 0, 3, 1],
-  ["chato", "Chato", "平", 0, 3, 1], ["opa", "Opa", "重", 0, 3, 1], ["codo", "Codo", "肘", 0, 3, 0],
-  ["arco", "Arco", "弧", 0, 3, 0], ["rayo", "Rayo", "雷", 0, 3, 0], ["zeta", "Zeta", "乙", 0, 3, 0],
-];
-const PIECE_TYPE = { arco: "arcoChico" }; // the Arco the city sells is the small one
-const LAWS = [
-  ["slide", "Slide", "Move one square without rolling. 2 points."],
-  ["diagonalSlide", "Diagonal slide", "Slides may go corner to corner. Needs Slide."],
-  ["blackHoleSquares", "Black hole squares", "Enter one, come out of the other."],
-  ["threeActions", "3 actions per turn", "One more point each turn."],
-  ["shoving", "Shoving", "Bigger pieces push smaller ones. 1 point more."],
-  ["cantileverPivot", "Cantilever pivot", "A Codo, Rayo or Zeta on one cube swings round it."],
-  ["splitMovement", "Split movement", "Spread a turn over two pieces."],
-];
-const SIZES = [8, 10, 12];
-const MAX_PIECES = 10;
-const DEFAULT_BOARD_DIM = 10;
-
-export function defaultSelections() {
-  const counts = {};
-  PIECES.forEach(([k, , , , , d]) => { counts[k] = d; });
-  const laws = {};
-  LAWS.forEach(([k]) => { laws[k] = false; });
-  return { counts, laws, size: DEFAULT_BOARD_DIM, missing: false, random: false };
-}
-const clone = (s) => JSON.parse(JSON.stringify(s));
-const totalOf = (sel) => Object.values(sel.counts).reduce((a, b) => a + b, 0);
-const isDefault = (sel) => JSON.stringify(sel) === JSON.stringify(defaultSelections());
-
-/* What the city's choices change, for the chassis's "Reset rules" state
-   (a null list is a plain game). */
-function variantsOf(sel) {
-  const groups = [];
-  const laws = LAWS.filter(([k]) => sel.laws[k]).map(([, n]) => n);
-  if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws, keys: LAWS.filter(([k]) => sel.laws[k]).map(([k]) => k) });
-  const matter = PIECES.filter(([k, , , , , d]) => sel.counts[k] !== d).map(([k, n]) => `${sel.counts[k]}× ${n}`);
-  if (sel.random) matter.unshift("Randomized start");
-  if (matter.length) groups.push({ key: "matter", label: "MATTER", items: matter });
-  const topo = [];
-  if (sel.size !== DEFAULT_BOARD_DIM) topo.push(`${sel.size} × ${sel.size} board`);
-  if (sel.missing) topo.push("Missing squares");
-  if (topo.length) groups.push({ key: "topologies", label: "TOPOLOGY", items: topo });
-  return groups.length ? groups : null;
-}
-
-/* Sets the board up as the city's choices say. Returns nothing; the game
-   is begun by the caller. */
-function applySelections(sel, x) {
-  x.applyBoardResize && x.applyBoardResize(sel.size, sel.size);
-  const laws = { ...sel.laws, diagonalSlide: sel.laws.diagonalSlide && sel.laws.slide, shoveFar: false, shoveOnRolls: false };
-  setActiveLaws(laws);
-  const roster = PIECES.map(([k]) => ({ type: PIECE_TYPE[k] || k, count: sel.counts[k] })).filter((r) => r.count > 0);
-  const customRoster = PIECES.some(([k, , , , , d]) => sel.counts[k] !== d);
-  const placed = customRoster || sel.random ? generateAnomalySetup(roster, []) : createInitialPieces();
-  x.setPieces && x.setPieces(placed);
-  const { rows, cols } = getBoardDimensions();
-  const missing = sel.missing ? pickMissingSquarePairs(placed, rows, cols, 2, []) : [];
-  const holes = laws.blackHoleSquares ? pickBlackHoleSquares(placed, rows, cols, missing) : [];
-  setEngineMissing(missing); x.setMissingSquares && x.setMissingSquares(missing);
-  setEngineBlackHoles(holes); x.setBlackHoles && x.setBlackHoles(holes);
-  x.setCurrentVariants && x.setCurrentVariants(variantsOf(sel));
-}
-
-/* Applies the city's rules and begins the game, and registers them with
-   the chassis so New Game replays them (and a finished game's "change the
-   rules" reopens the city). A plain default game registers nothing. */
-export function beginCityGame(sel, x, reopenCity) {
-  const t = x.three && x.three.current;
-  const snapshot = clone(sel);
-  applySelections(snapshot, x);
-  if (t) {
-    if (isDefault(snapshot)) {
-      t.singularityGameActive = false;
-      t.reapplySingularitySetup = null;
-      t.reconfigureSingularitySetup = null;
-    } else {
-      t.singularityGameActive = true;
-      t.reapplySingularitySetup = () => applySelections(snapshot, x);
-      t.reconfigureSingularitySetup = () => reopenCity(snapshot);
-    }
-  }
-  x.triggerBeginGame && x.triggerBeginGame();
-}
+const PIECES = PIECE_OPTIONS.map((p) => [p.key, p.name, SIGN[p.key], p.min, p.max, p.def]);
+const LAWS = LAW_OPTIONS.map((l) => [l.key, l.name, l.note]);
+const clone = cloneSelections;
+const totalOf = totalPieces;
+export { defaultSelections };
+export const beginCityGame = beginCustomGame;
 
 /* ------------------------------------------------------------ pieces of UI */
 
