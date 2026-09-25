@@ -5,6 +5,7 @@ const targets = [
   { name: "standard", entry: "apps/standard.jsx", title: "El Cabeza" },
   { name: "neon", entry: "apps/neon.jsx", title: "Neon Cabeza" },
   { name: "cromo", entry: "apps/cromo.jsx", title: "Cromo Cabeza" },
+  { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza" },
   { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova" },
 ];
 

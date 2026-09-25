@@ -1841,3 +1841,18 @@ Sumi, Vacío) each have a Title and an In-game phone board.
   modes per stone, room reverb, near-silent ambience (room tone, beating
   55 Hz drone, a rare far bowl), Neon's wind-down contract. Fonts
   Michroma + Barlow; chrome-gradient .ec-title. Test: e2e-smoke cromo.
+
+- **Lluvia theme (stage 1 built).** themes/lluvia.js (+ lluvia-fx.js,
+  lluvia-audio.js, lluvia-bus.js, lluvia-city.js = the design canvas's
+  city engine as an ES module: LLUVIA.mount(canvas,{mode, dpr, fps}),
+  createScore(hooks) exposing its instruments as score.inst),
+  apps/lluvia.jsx, dist/el-cabeza-lluvia.html. The city runs in
+  "backdrop" mode on a canvas inserted into the chassis's board layer
+  under the (transparent) board canvas, at reduced dpr/fps. Board: wet
+  asphalt with glossy puddles, pink rim; pieces neon glass (cyan Dark,
+  magenta Light) with a bright tube shell; sodium-yellow move frames.
+  Rain streaks around the board, drop rings on it, a splash on landing,
+  lightning synced to the score's thunder via lluvia-bus. Audio = the
+  synth score (pads, rain, drone, far đàn bầu/zither/voice) + cues built
+  on its instruments. Stages 2 (descent opening) and 3 (city menu as
+  the custom-rules screen) to follow.
