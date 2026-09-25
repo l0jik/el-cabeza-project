@@ -39,6 +39,47 @@ const APP_VERSION = "1.39.0";
    of this same masthead shipped (see ARCHITECTURE.md's "Known
    pitfalls"). floorPx/ceilingPx are bare px numbers, vw is a bare vw
    number; scale defaults to 1 for a theme with no opinion. */
+/* A move marker's cost badge: a small round label floating over the
+   target square, always facing the camera and drawn over everything, so
+   a player sees what a move costs before making it. `text` is the
+   points ("1", "2") or "free" for a move back to an earlier position
+   this turn (drawn as a ring on the ink colour). Colours come from the
+   mover's side. */
+function buildCostBadge({ text, fill, ink, x, y, z, size }) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 128;
+  const g = canvas.getContext("2d");
+  const free = text === "free";
+  g.beginPath();
+  g.arc(64, 64, free ? 54 : 58, 0, Math.PI * 2);
+  if (free) {
+    g.fillStyle = ink;
+    g.fill();
+    g.lineWidth = 12;
+    g.strokeStyle = fill;
+    g.stroke();
+  } else {
+    g.fillStyle = fill;
+    g.fill();
+    g.lineWidth = 5;
+    g.strokeStyle = ink;
+    g.stroke();
+  }
+  g.fillStyle = free ? fill : ink;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.font = free ? "800 38px system-ui, sans-serif" : "800 72px system-ui, sans-serif";
+  g.fillText(text, 64, free ? 66 : 70);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, opacity: 0 });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(size, size, 1);
+  sprite.position.set(x, y, z);
+  sprite.renderOrder = 20;
+  sprite.userData.costBadge = text;
+  return sprite;
+}
+
 /* Cantilever Pivot's move cue: a curved arrow floating just above the
    piece, sweeping round its planted cube from where the arm is now
    toward where the pivot would swing it — one per legal direction. The
@@ -432,6 +473,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       v.project(t.camera);
       const r = t.renderer.domElement.getBoundingClientRect();
       return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+    };
+    // The cost badges on the move markers now showing: [{ dir, text }].
+    window.__EC_TEST_COST_BADGES__ = () => {
+      const t = three.current;
+      if (!t.ghostGroup) return [];
+      const out = [];
+      t.ghostGroup.traverse((o) => { if (o.userData.costBadge) out.push({ dir: o.parent && o.parent.userData.dir, text: o.userData.costBadge }); });
+      return out;
     };
     window.__EC_TEST_SCREEN_POS__ = (id) => {
       const t = three.current;
@@ -3073,6 +3122,35 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       .filter((c) => c.userData.kind === "ghostLine")
       .forEach((c) => setGhostLineTarget(c, 0, true));
 
+    /* Every marker carries a cost badge riding its fade (see
+       buildCostBadge), so each reachable square says what it costs. A
+       move that puts the board back as it was earlier this turn is free
+       (the turn trail in commit); a crush or shove never is. */
+    const sameBoard = (a, b) =>
+      a.length === b.length && a.every((p) => { const q = b.find((x) => x.id === p.id); return q && sameState(p, q); });
+    const withCostBadge = (themed, move, x, y, z) => {
+      const cand = move.candidate;
+      const nextBoard = pieces.map((p) => (p.id === cand.id ? cand : p));
+      const isFree = currentPlayer !== aiPlayer && !move.crushes && !move.shoves &&
+        turnTrailRef.current.some((e) => sameBoard(e.board, nextBoard));
+      const dark = cand.owner === "dark";
+      const badge = buildCostBadge({
+        text: isFree ? "free" : String(moveCost(move)),
+        fill: (dark ? COLORS.accentDark : COLORS.accentLight) || (dark ? COLORS.bodyDark : COLORS.bodyLight),
+        ink: COLORS.inkOnAccent || (dark ? COLORS.bodyLight : COLORS.bodyDark),
+        x, y, z,
+        size: SQUARE_SIZE * 0.42,
+      });
+      const root = new THREE.Group();
+      root.add(themed.root, badge);
+      return {
+        ...themed,
+        root,
+        setOpacity: (o) => { themed.setOpacity(o); badge.material.opacity = Math.min(1, o * 4); },
+        dispose: () => { themed.dispose(); badge.material.map.dispose(); badge.material.dispose(); },
+      };
+    };
+
     shadowEntries.forEach(([dir, move]) => {
       // Cantilever Pivot: a curved arrow round the planted cube instead
       // of a square marker (see buildPivotArrow).
@@ -3100,9 +3178,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           dir,
         });
         group.add(arrow.hit);
-        arrow.root.userData = { dir, kind: "ghostLine", isCrush: false, indicator: arrow };
-        setGhostLineTarget(arrow.root, 0.5, false);
-        group.add(arrow.root);
+        const mid = arrow.hit.userData.midPoint;
+        const marker = withCostBadge(arrow, move, mid.x, mid.y + 0.3, mid.z);
+        marker.root.userData = { dir, kind: "ghostLine", isCrush: false, indicator: marker };
+        setGhostLineTarget(marker.root, 0.5, false);
+        group.add(marker.root);
         return;
       }
       const cand = move.candidate;
@@ -3139,7 +3219,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
          animates is the theme's call. */
       const hx = (cand.w * SQUARE_SIZE * GHOST_SCALE) / 2;
       const hz = (cand.h * SQUARE_SIZE * GHOST_SCALE) / 2;
-      const indicator = theme.buildMoveIndicator({ cx, cz, hx, hz, isCrush, dir });
+      const indicator = withCostBadge(theme.buildMoveIndicator({ cx, cz, hx, hz, isCrush, dir }), move, cx, 0.55, cz);
       indicator.root.userData = { dir, kind: "ghostLine", isCrush, indicator };
       /* Starts invisible and is immediately targeted to fade up to its
          real (hot/cold) opacity — see the hover-emphasis effect just
