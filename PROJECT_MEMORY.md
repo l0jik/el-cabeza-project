@@ -1584,6 +1584,36 @@ Results, new vs previous:
 - Medium in the user setup: 9–5 (2 draws). Easy: 7–5.
 - Classic Medium: 5–5.
 
+## Everything out in the open (user: "I want everything out in the open… as user friendly as possible")
+
+Came out of the Claude Design redesign boards (the "Streamlined"
+direction). First pass, in the real game, both themes:
+- **Cost badges on move markers.** `buildCostBadge` (chassis) is a
+  camera-facing sprite over each marker (and each Cantilever Pivot arrow)
+  showing `moveCost(move)`, or a "free" ring when the move would put the
+  board back as it was earlier this turn (same turn-trail test as the
+  refund in commit; never for a crush, shove or the AI). It rides the
+  marker's fade via a wrapper (`withCostBadge` in the ghost effect).
+  Colours: Neon uses the side's accent with `inkOnAccent`; Standard uses
+  `bodyDark`/`bodyLight`. `toneMapped: false`, or Neon's cyan dulls.
+  Test hook `__EC_TEST_COST_BADGES__()` -> `[{ dir, text }]`.
+- **Piece card** (`piece-card`, lower left above the full-screen button):
+  on your turn, the selected piece's name, how it moves and its cost under
+  the active laws (slide, diagonal slide, pivot, shoving), plus "More ›"
+  to its MOVES tile. Text comes from `pieceCardInfo` in RulesCards.jsx.
+  It stays while the piece is committed mid-turn.
+- **How to play** (`how-to-play`): always on screen beside the full-screen
+  button and opens the Quick card. Below 560px wide only the "?" shows,
+  keeping it clear of the points counter.
+- **Custom rules** (`custom-rules`, Neon setup dock, under Anomaly/Begin
+  Game): calls `revealSingularity`, the same reveal five masthead taps do
+  (the taps still work).
+- **Points counter on by default.** `loadShowPoints` is true unless the
+  saved value is "0", so a player who switched it off keeps it off.
+- Tests: `tests/e2e-costs.mjs` (badges, free ring, piece card, pivot badge
+  in e2e-pivot); e2e-rules covers How to play and Custom rules;
+  e2e-points expects the toggle to start on.
+
 ## Future wishlist (user-requested, not started)
 
 - **Online play against another human.** GitHub Pages only serves static

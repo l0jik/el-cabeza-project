@@ -1,4 +1,4 @@
-/* The points-left counter (chassis/ElCabeza3D.jsx, showPoints): off by
+/* The points-left counter (chassis/ElCabeza3D.jsx, showPoints): on by
    default, switched from the dock's corner (data-testid points-toggle),
    remembered per browser, shown at the bottom centre during play as one
    dot per action point (data-testid points-counter, data-left = points
@@ -53,10 +53,13 @@ for (const theme of ["neon", "standard"]) {
 
   await openDockPanel(page);
   const toggle = page.locator('[data-testid="points-toggle"]');
-  check("the toggle starts off", (await toggle.getAttribute("aria-pressed")) === "false");
+  check("the toggle starts on", (await toggle.getAttribute("aria-pressed")) === "true");
   await toggle.click();
   await page.waitForTimeout(200);
-  check("clicking it switches it on", (await toggle.getAttribute("aria-pressed")) === "true");
+  check("clicking it switches it off", (await toggle.getAttribute("aria-pressed")) === "false");
+  await toggle.click();
+  await page.waitForTimeout(200);
+  check("...and on again", (await toggle.getAttribute("aria-pressed")) === "true");
   check("no counter before the game starts", (await left(page)) === null);
 
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);

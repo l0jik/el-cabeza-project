@@ -171,9 +171,10 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
    either way, just falling back to the defaults. */
 const OPPONENT_PREFS_KEY = "el-cabeza:opponent";
 // The points-left counter's on/off switch (see the dock's corner toggle).
+// On unless the player has switched it off.
 const SHOW_POINTS_KEY = "el-cabeza:show-points";
 function loadShowPoints() {
-  try { return window.localStorage.getItem(SHOW_POINTS_KEY) === "1"; } catch (e) { return false; }
+  try { return window.localStorage.getItem(SHOW_POINTS_KEY) !== "0"; } catch (e) { return true; }
 }
 function saveShowPoints(on) {
   try { window.localStorage.setItem(SHOW_POINTS_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
@@ -6347,6 +6348,47 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           )}
         </button>
       )}
+
+      {/* How to play: always on screen, beside the full-screen button,
+         so the rules are never more than one tap away. Opens the rules
+         at the Quick card. */}
+      <button
+        type="button"
+        data-testid="how-to-play"
+        aria-label="How to play"
+        title="How to play"
+        onClick={() => { setInfoTab("quick"); setRulesFocus(null); setShowInfoOverlay(true); audioRef.current.playMenu(); }}
+        style={{
+          position: "fixed",
+          left: (document.fullscreenEnabled || document.documentElement.requestFullscreen) ? 58 : 18,
+          bottom: 18,
+          zIndex: 12,
+          height: 38,
+          display: "flex",
+          alignItems: "center",
+          gap: 7,
+          padding: "0 6px",
+          background: "transparent",
+          border: "none",
+          color: COLORS.charcoal,
+          opacity: 0.6,
+          cursor: "pointer",
+          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontSize: 12.5,
+          fontWeight: 500,
+          transition: "opacity 0.2s ease",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.opacity = 1; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = 0.6; }}
+        onFocus={(e) => { e.currentTarget.style.opacity = 1; }}
+        onBlur={(e) => { e.currentTarget.style.opacity = 0.6; }}
+      >
+        {/* On a narrow screen only the "?" shows, clear of the points
+            counter at the bottom centre. */}
+        <style>{"@media (max-width: 560px){.ec-howto-label{display:none}}"}</style>
+        <span aria-hidden="true" style={{ width: 17, height: 17, borderRadius: "50%", border: "1.5px solid currentColor", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, boxSizing: "border-box" }}>?</span>
+        <span className="ec-howto-label">How to play</span>
+      </button>
 
       {/* Dock piece — an idle, physically-interactive 3D preview of the
          player's own Cabeza (see the effects above), standing in for

@@ -3487,11 +3487,18 @@ export function useSetupExtras({
     singularityTapRef.current = taps;
     if (taps.length >= SINGULARITY_TAP_COUNT) {
       singularityTapRef.current = [];
-      setSingularityRevealed(true);
-      clearTimeout(singularityHideTimerRef.current);
-      singularityHideTimerRef.current = setTimeout(
-        () => setSingularityRevealed(false), SINGULARITY_INVITE_TIMEOUT_MS);
+      revealSingularity();
     }
+  }
+  /* The same reveal, out in the open: the setup dock's "Custom rules"
+     button (renderSetupExtras) calls this directly. */
+  function revealSingularity() {
+    if (!awaitingBegin) return;
+    if (singularityRevealed || singularityCinematic.singularityPhase !== "idle") return;
+    setSingularityRevealed(true);
+    clearTimeout(singularityHideTimerRef.current);
+    singularityHideTimerRef.current = setTimeout(
+      () => setSingularityRevealed(false), SINGULARITY_INVITE_TIMEOUT_MS);
   }
 
   /* ---- commitment: a single click on the revealed SINGULARITY invite ----
@@ -3540,6 +3547,7 @@ export function useSetupExtras({
     handleAnomaly,
     singularityRevealed,
     handleMastheadTap,
+    revealSingularity,
     commitSingularity,
     singularityBtnRef,
     // For the in-game Current Variants flyout (renderExtraOverlays):
@@ -3554,7 +3562,7 @@ export function useSetupExtras({
    button; the Singularity phantom button (once revealed) sits below
    both. Takes over the whole row/column rather than just appending
    after Begin Game, since Anomaly has to sit BEFORE it. */
-export function renderSetupExtras({ beginGameButton, handleAnomaly }) {
+export function renderSetupExtras({ beginGameButton, handleAnomaly, revealSingularity }) {
   const h = React.createElement;
   return h(
     "div",
@@ -3604,11 +3612,33 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly }) {
         "Anomaly"
       ),
       beginGameButton
+    ),
+    // Custom rules: opens the SINGULARITY invite (the massive screen-
+    // takeover overlay, renderSingularityInvite) — the same thing five
+    // taps on the EL CABEZA masthead do, now out in the open.
+    revealSingularity && h(
+      "button",
+      {
+        key: "custom-rules",
+        type: "button",
+        "data-testid": "custom-rules",
+        className: "ec-btn",
+        onClick: revealSingularity,
+        title: "New pieces, laws and boards: SINGULARITY",
+        style: {
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 11,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: COLORS.charcoal,
+          background: "transparent",
+          border: `1px solid ${COLORS.slateSoft}`,
+          padding: "8px 16px",
+          cursor: "pointer",
+        },
+      },
+      "Custom rules ›"
     )
-    // The SINGULARITY invite is no longer a small dock button revealed by
-    // holding Anomaly — it's a massive screen-takeover overlay (see
-    // renderSingularityInvite in renderExtraOverlays), triggered by five
-    // taps on the EL CABEZA masthead.
   );
 }
 
