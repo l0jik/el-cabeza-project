@@ -6500,13 +6500,16 @@ export function createSoundscape() {
      that isn't the ABOUT tab's (the choir owns ABOUT). The same glass
      family as the rest of Neon: a sine and its bell-like 2.76x partial,
      quick to fade, with a faint air of filtered noise on open/close.
-     Each has a few variants and small random shifts in pitch, level and
-     timing (the same variant never plays twice in a row), so repeats
-     never sound identical.
-       open  — a short rising two-note figure, a swish sweeping up
-       close — the same figure falling, a touch softer, swish sweeping down
-       tab   — one crystal tick whose pitch follows the tab's place in the
-               row (left low, right high), so the ear can follow it */
+     Each has variants and small random shifts, and the same variant
+     never plays twice in a row, so repeats never sound identical.
+       open  — one plain struck tone (D5 with a faint octave), soft attack
+               and a long quiet fall. It was a rising two-note glass
+               figure with a swish, which read as too playful ("too much
+               like a Nintendo game"); now austere, and 20% quieter.
+       close — the old figure falling, a touch softer, swish sweeping down
+       tab   — ONE tick for every tab (the one COSTS had, G#6), in ten
+               near-identical takes: a few cents of pitch, the partial's
+               ratio, the decay, and a trace of soft distortion differ. */
   const RULES_FIGURES = [[0, 7], [0, 5], [2, 9], [-3, 4]];
   let lastFigure = -1;
   const cents = (c) => Math.pow(2, c / 1200);
@@ -6560,13 +6563,66 @@ export function createSoundscape() {
     notes.forEach((st, k) => glassNote(t0 + k * gap, base * Math.pow(2, st / 12), level * (k ? 0.8 : 1), 0.2 + jitter(0.03)));
     airSwish(t0, rising ? 1800 : 6000, rising ? 6000 : 1800, 0.13 + jitter(0.02), level * 0.35);
   }
-  const TAB_STEPS = [0, 2, 4, 7, 9, 12, 14];
-  function rulesTabTick(index) {
+  function rulesOpenTone() {
     if (!ctx) return;
+    const t0 = nowT() + 0.005;
+    const level = 0.00845 * (0.92 + Math.random() * 0.12); // the old open figure's 0.01056, less 20%
+    const f = 587.33 * cents(jitter(5)); // D5
+    const tone = (freq, attack, decay, peak) => {
+      const o = ctx.createOscillator();
+      o.type = "sine"; o.frequency.value = freq;
+      const g = ctx.createGain();
+      env(g, t0, attack, 0.02, decay, peak);
+      o.connect(g).connect(sfxGain);
+      o.start(t0); o.stop(t0 + attack + decay + 0.08);
+    };
+    tone(f, 0.012, 0.5 + jitter(0.04), level);
+    tone(f * 2, 0.008, 0.2, level * 0.2);
+  }
+  // Tab tick: the COSTS tick for every tab. [cents, partial ratio, decay s, grit]
+  const TAB_FREQ = 1318.5 * Math.pow(2, 4 / 12); // G#6
+  const TAB_TAKES = [
+    [0, 2.76, 0.070, 0], [4, 2.74, 0.066, 0.1], [-3, 2.78, 0.074, 0.05], [7, 2.75, 0.068, 0.2], [-6, 2.77, 0.072, 0.15],
+    [2, 2.73, 0.070, 0.3], [-8, 2.79, 0.064, 0.08], [5, 2.76, 0.076, 0.25], [-2, 2.72, 0.068, 0.35], [8, 2.8, 0.072, 0.12],
+  ];
+  let lastTake = -1;
+  const gritCurves = new Map();
+  function gritCurve(amount) {
+    if (!gritCurves.has(amount)) {
+      const k = 1 + amount * 8, n = 1024, c = new Float32Array(n);
+      for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
+      gritCurves.set(amount, c);
+    }
+    return gritCurves.get(amount);
+  }
+  function rulesTabTick() {
+    if (!ctx) return;
+    let i = Math.floor(Math.random() * TAB_TAKES.length);
+    if (i === lastTake) i = (i + 1) % TAB_TAKES.length;
+    lastTake = i;
+    const [c, ratio, decay, grit] = TAB_TAKES[i];
     const t0 = nowT() + 0.003;
-    const step = TAB_STEPS[Math.max(0, Math.min(TAB_STEPS.length - 1, index | 0))];
-    const freq = 1318.5 * Math.pow(2, step / 12) * cents(jitter(8)); // from E6 up the pentatonic
-    glassNote(t0, freq, 0.00576 * (0.85 + Math.random() * 0.25), 0.07 + jitter(0.012)); // 40% then another 20% below the first pass, per feedback
+    const peak = 0.00576 * (0.94 + Math.random() * 0.08);
+    const freq = TAB_FREQ * cents(c);
+    // The body runs through a soft clipper at full swing (so the grit is
+    // real harmonics, not level), then the envelope sets its loudness.
+    const osc = ctx.createOscillator();
+    osc.type = "sine"; osc.frequency.value = freq;
+    const g = ctx.createGain();
+    env(g, t0, 0.004, 0.01, decay, peak);
+    if (grit > 0) {
+      const shaper = ctx.createWaveShaper();
+      shaper.curve = gritCurve(grit);
+      osc.connect(shaper).connect(g);
+    } else osc.connect(g);
+    g.connect(sfxGain);
+    osc.start(t0); osc.stop(t0 + decay + 0.05);
+    const part = ctx.createOscillator();
+    part.type = "sine"; part.frequency.value = freq * ratio;
+    const pg = ctx.createGain();
+    env(pg, t0, 0.002, 0.004, decay * 0.45, peak * 0.35);
+    part.connect(pg).connect(sfxGain);
+    part.start(t0); part.stop(t0 + decay + 0.05);
   }
 
   function logMenuCue(name) {
@@ -6869,9 +6925,9 @@ export function createSoundscape() {
     playMenu: () => { logMenuCue("play"); ensureGraph(); playChoirStab(); },
     fadeOutMenu: () => { logMenuCue("close"); ensureGraph(); fadeOutChoir(); },
     stopMenu: () => { logMenuCue("stop"); if (ctx) silenceChoir(); },
-    playRulesOpen: () => { logMenuCue("open"); ensureGraph(); rulesFigure(true); },
+    playRulesOpen: () => { logMenuCue("open"); ensureGraph(); rulesOpenTone(); },
     playRulesClose: () => { logMenuCue("shut"); ensureGraph(); rulesFigure(false); },
-    playRulesTab: (index) => { logMenuCue("tab"); ensureGraph(); rulesTabTick(index); },
+    playRulesTab: () => { logMenuCue("tab"); ensureGraph(); rulesTabTick(); },
     // ensureGraph() + an explicit resume, same self-contained pattern
     // as playDockOpen/playSingularityOpen below — beginGameFadeIn()
     // (called right before this on desktop) already builds the graph,

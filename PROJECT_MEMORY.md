@@ -1642,20 +1642,22 @@ nothing else:
   (`audio.stopMenu`, a 0.25 s fade with no tail).
 - **Every other open, switch or close gets its own small Neon earcon**
   (user follow-up):
-  - `playRulesOpen`: a rising two-note glass figure around C6 with an
-    upward air swish.
-  - `playRulesClose`: the same figure falling, softer, with the swish
-    sweeping down.
-  - `playRulesTab(index)`: one crystal tick. Its pitch follows the tab's
-    place in `RULES_TABS` on a pentatonic scale from E6, low on the left
-    and high on the right.
-  - All three: four figure variants, never the same twice in a row, with
-    ±8–12 cents, level and timing jitter. The sound is a sine plus a
-    2.76× bell partial through `sfxGain`, so mute applies. Standard has
-    no-ops.
-  - Levels were cut 40% after the first pass, then another 20% (user):
-    open peaks 0.01056, close 0.00816, tab 0.00576 (the swish follows
-    the figure's level).
+  - `playRulesOpen` (How to play and every other non-ABOUT open): ONE
+    plain struck tone, D5 with a faint octave, soft attack and a 0.5 s
+    fall, peak 0.00845. It was a rising two-note glass figure with an
+    air swish; the user found that "too much like a Nintendo game" and
+    asked for something more austere and 20% quieter.
+  - `playRulesClose`: the old figure falling (four variants, never the
+    same twice, ±12 cents), softer, with the swish sweeping down.
+  - `playRulesTab()`: the SAME tick for every tab (user: the one COSTS
+    had, G#6, a sine plus a 2.76x bell partial), in ten near-identical
+    takes (`TAB_TAKES`: a few cents, the partial's ratio, the decay and a
+    trace of tanh soft-clip grit). Never the same take twice. It no
+    longer follows the tab's position; the chassis still passes an index,
+    which is ignored.
+  - All go through `sfxGain`, so mute applies. Standard has no-ops.
+  - Levels: open 0.00845, close 0.00816, tab 0.00576 (after a 40% and
+    then a 20% cut on the originals; the swish follows the figure).
 
 In the chassis, `openRulesAt(tab, focus)` and `switchRulesTab(tab,
 focus)` are the only ways in. `infoTabRef` feeds the close cleanup. The
