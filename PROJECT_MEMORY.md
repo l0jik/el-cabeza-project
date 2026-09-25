@@ -1778,6 +1778,10 @@ Sumi, Vacío) each have a Title and an In-game phone board.
   handler ignores Escape while it is open. MOVES has 16 animated SVG
   tiles (CSS keyframes; under prefers-reduced-motion they play at half speed, 7.2 s); the black
   hole tile shows the same-side exit. Test: tests/e2e-rules.mjs.
+  No skipping: Quick has a MUST row and Your turn opens with step 1,
+  "You must move at least 1 piece, 1 time. Skipping your turn is not
+  allowed." The engine already enforces it: there is no pass, Stop needs
+  a move first, and a turn that ends where it began is voided (settleTurn).
 - **"The original El Cabeza" (built).** ABOUT ends with a link
   (`play-original`) that closes INFO and runs resetGame(false) (no laws,
   boot board size, standard pieces, no holes), then sends the window event
