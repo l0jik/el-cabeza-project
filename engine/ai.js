@@ -38,9 +38,21 @@ export function cabezaInDanger(pieces, owner) {
   const oppPlayer = opponentOf(owner);
   for (const p of pieces) {
     if (p.owner !== oppPlayer || p.type === "cabeza") continue;
-    const moves = legalMovesFor(pieces, p);
+    const budget = maxStepsFor(p.type);
+    const moves = legalMovesFor(pieces, p, budget);
     for (const dir in moves) {
-      if (moves[dir].crushes && cabezaIds.has(moves[dir].crushes.id)) return true;
+      const m1 = moves[dir];
+      if (m1.crushes && cabezaIds.has(m1.crushes.id)) return true;
+      // A turn is two points or more, so a roll to line up and a second
+      // one down onto the Cabeza is a threat too (see evaluatePosition).
+      if (m1.crushes || m1.teleports || budget - moveCost(m1) < 1) continue;
+      const moved = { ...p, ...m1.candidate, id: p.id, type: p.type, owner: p.owner };
+      if (m1.shoves) continue; // a shove moves a second piece; not worth modelling here
+      const after = pieces.map((q) => (q === p ? moved : q));
+      const second = legalMovesFor(after, moved, budget - moveCost(m1));
+      for (const d2 in second) {
+        if (second[d2].crushes && cabezaIds.has(second[d2].crushes.id)) return true;
+      }
     }
   }
   return false;
@@ -373,6 +385,7 @@ export const DEFAULT_EVAL_WEIGHTS = {
   turritoBonus: 0,
   wall: 0,
   centrality: 0,
+  cabezaSafety: 0,
 };
 
 /* Scale of the evaluation's fixed terms (the difficulty-tunable ones
@@ -495,6 +508,7 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
   const threatened = new Set(); // Cabeza ids a block can crush next move
   let myMobility = 0;
   let oppMobility = 0;
+  const blockRolls = []; // [piece, its legal rolls] for the two-roll pass below
   for (const p of pieces) {
     // Rolls and Cabeza steps only: slides (and the shoves they carry)
     // never crush, and checking them for every piece at every leaf more
@@ -517,6 +531,7 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
         }
       }
     }
+    if (p.type !== "cabeza") blockRolls.push([p, moves]);
     if (p.owner === forPlayer) myMobility += count;
     else oppMobility += count;
     if (p.type === "cabeza") continue; // a Cabeza's route steps around every OTHER piece
@@ -527,6 +542,48 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
     }
   }
   for (const m of MISSING_SQUARES) blocked[m.row * BOARD_COLS + m.col] = 1;
+
+  /* Two-roll threats. A turn is two action points, so the usual crush is
+     a roll to line up and a second roll down onto the Cabeza (a reported
+     game was lost exactly so: Flaco west, then south onto it). The pass
+     above only sees one roll, so without this a Cabeza two rolls from a
+     block read as safe, and one walked alone into the enemy's blocks.
+     Only blocks near an enemy Cabeza are expanded — two rolls carry a
+     block at most about twice its longest side — which keeps the cost to
+     the few blocks that matter. Their second-roll landing squares join
+     the attacked squares too, so a Cabeza's route prices them in. */
+  const cabezasOf = { [forPlayer]: myCabezas, [oppPlayer]: oppCabezas };
+  for (const [p, moves] of blockRolls) {
+    const targets = cabezasOf[opponentOf(p.owner)];
+    const reach = 2 * Math.max(p.w, p.h, p.z || 1) + 1;
+    let near = false;
+    for (const c of targets) {
+      const dr = Math.max(0, c.row - (p.row + p.h - 1), p.row - c.row);
+      const dc = Math.max(0, c.col - (p.col + p.w - 1), p.col - c.col);
+      if (dr <= reach && dc <= reach) { near = true; break; }
+    }
+    if (!near) continue;
+    const budget = maxStepsFor(p.type);
+    const marks = attackedBy[p.owner];
+    for (const dir in moves) {
+      const m1 = moves[dir];
+      if (m1.crushes || m1.teleports || m1.shoves || budget - moveCost(m1) < 1) continue;
+      const moved = { ...p, ...m1.candidate, id: p.id, type: p.type, owner: p.owner };
+      const after = pieces.map((q) => (q === p ? moved : q));
+      const second = legalRolls(after, moved);
+      for (const d2 in second) {
+        const m2 = second[d2];
+        if (m2.crushes && m2.crushes.type === "cabeza") threatened.add(m2.crushes.id);
+        const cand = m2.candidate;
+        for (let r = cand.row; r < cand.row + cand.h; r++) {
+          for (let c = cand.col; c < cand.col + cand.w; c++) {
+            if (r >= 0 && r < BOARD_ROWS && c >= 0 && c < BOARD_COLS && (!cand.vox || (maskAt(cand, r, c) & 1))) marks[r * BOARD_COLS + c] = 1;
+          }
+        }
+      }
+    }
+  }
+
   // Cabezas block each other too (none may step onto another).
   for (const c of [...myCabezas, ...oppCabezas]) blocked[c.row * BOARD_COLS + c.col] = 1;
 
@@ -632,6 +689,34 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
     // through, so it adds — this is what gives the term both a
     // defensive and an aggressive side, not just a defensive one.
     score += (oppGap - myGap) * weights.wall;
+  }
+
+  if (weights.cabezaSafety) {
+    /* Room to run. A Cabeza with few squares it could step to that no
+       enemy block can land on next turn is being netted, even before any
+       block can crush it: a reported game had Medium's Cabeza chased up
+       the board by three Dark blocks, each turn's escape step deeper
+       into their pieces, until none was left. Counting the squares its
+       next step could reach, safe ones only, and charging for each one
+       short of three makes walking into that net cost something while
+       there's still time to bring a block up or turn back. */
+    const safeSteps = (c) => {
+      const foes = attackedBy[opponentOf(c.owner)];
+      let safe = 0;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (!dr && !dc) continue;
+          const r = c.row + dr, col = c.col + dc;
+          if (r < 0 || r >= BOARD_ROWS || col < 0 || col >= BOARD_COLS) continue;
+          const i = r * BOARD_COLS + col;
+          if (!blocked[i] && !foes[i]) safe++;
+        }
+      }
+      return safe;
+    };
+    const short = (c) => Math.max(0, 3 - safeSteps(c));
+    score -= short(myCabeza) * weights.cabezaSafety;
+    score += short(oppCabeza) * weights.cabezaSafety;
   }
 
   if (weights.centrality) {
@@ -1064,6 +1149,7 @@ export async function findBestAiTurn(
     pieceRepeatBias = 0,
     wall = 0,
     centrality = 0,
+    cabezaSafety = 0,
     beam = 0,
     earlyStop = true,
     jitter = 0,
@@ -1087,7 +1173,7 @@ export async function findBestAiTurn(
       : null;
   // `beam` rides along with the evaluation weights since both thread
   // through every ply of the search (see minimaxSearch).
-  const weights = { blockAdvance, turritoBonus, wall, centrality, beam };
+  const weights = { blockAdvance, turritoBonus, wall, centrality, cabezaSafety, beam };
   /* The ONLY pieces-array allocation in the whole search: everything
      below (generateTurns, minimaxSearch, their move-ordering pass) now
      mutates this one cloned array/objects in place via applyMove/

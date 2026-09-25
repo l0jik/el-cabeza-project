@@ -6,7 +6,7 @@
 
      node tests/ai-sim.mjs [scenario] [darkTier] [lightTier] [games] [timeScale]
 
-   scenario: classic | matter (2 Cabezas, 2 Codos, an Arco Chico and the
+   scenario: classic | rayo (Rayo + 1x3 + classic blocks, Split Movement + Slides) | matter (2 Cabezas, 2 Codos, an Arco Chico and the
    classic blocks, Split Movement + Shoving + Slides) | holes (classic
    pieces with Black Holes and Missing Squares). A tier may be
    easy/medium/hard, optionally suffixed ":old" to play it with another
@@ -60,6 +60,17 @@ function setupScenario() {
       { type: "opa", count: 1 }, { type: "chato", count: 1 }, { type: "flaco", count: 1 },
       { type: "turrito", count: 1 }, { type: "cabeza", count: 1 }, { type: "codo", count: 1 },
       { type: "block1x3", count: 1 }, { type: "arcoAlto", count: 1 },
+    ]);
+  }
+  if (scenario === "rayo") {
+    // The second reported game: Slide + Split Movement, a Rayo and a 1x3
+    // alongside the classic blocks. Medium walked its Cabeza alone for
+    // six turns and lost it to a two-roll Flaco crush.
+    setActiveLaws({ splitMovement: true, slide: true });
+    return generateAnomalySetup([
+      { type: "opa", count: 1 }, { type: "chato", count: 1 }, { type: "flaco", count: 1 },
+      { type: "turrito", count: 1 }, { type: "cabeza", count: 1 }, { type: "rayo", count: 1 },
+      { type: "block1x3", count: 1 },
     ]);
   }
   if (scenario === "holes") {
@@ -128,6 +139,7 @@ for (let g = 0; g < GAMES; g++) {
     s.crushes += r.crushed;
     s.shoves += r.shoves;
     streak[player] = r.types.has("cabeza") ? streak[player] + 1 : 0;
+    s.maxCabezaRun = Math.max(s.maxCabezaRun || 0, r.types.size === 1 && r.types.has("cabeza") ? (s.cabRun = (s.cabRun || 0) + 1) : (s.cabRun = 0));
     { const next = {}; for (const id of r.ids) next[id] = (pieceStreaks[player][id] || 0) + 1; pieceStreaks[player] = next; }
     s.maxSameRun = Math.max(s.maxSameRun || 0, ...Object.values(pieceStreaks[player]));
     const opp = player === "dark" ? "light" : "dark";
@@ -137,6 +149,7 @@ for (let g = 0; g < GAMES; g++) {
   }
   if (!over) { draws++; endings.draw++; }
   lengths.push(t + 1);
+  stats.dark.cabRun = stats.light.cabRun = 0;
   process.stderr.write(`game ${g + 1}/${GAMES}: ${over ? "decided" : "draw"} after ${t + 1} turns\n`);
 }
 
@@ -153,6 +166,7 @@ for (const side of ["dark", "light"]) {
     shoves: s.shoves,
     avgThinkMs: Math.round(s.ms / Math.max(1, s.turns)),
     longestSamePieceRun: s.maxSameRun || 0,
+    longestCabezaOnlyRun: s.maxCabezaRun || 0,
     avgDepth: +(s.depth / Math.max(1, s.turns)).toFixed(1),
   };
 }
