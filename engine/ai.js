@@ -978,12 +978,20 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
         // survival.
         const resolvesDanger = dangerBeforeMove && !cabezaInDanger(pieces, player);
 
-        if (!resolvesDanger) {
-          // Prefer a single movement over automatically chaining the
-          // second one, unless the second movement is worth enough on
-          // its own merits to overcome the nudge.
-          if (turn.dirs.length === 2) score -= rootBias.twoStepBias;
+        // Prefer a single movement over automatically chaining the
+        // second one, unless the second movement is worth enough on its
+        // own merits to overcome the nudge.
+        if (!resolvesDanger && turn.dirs.length === 2) score -= rootBias.twoStepBias;
 
+        /* The repeat biases apply even to a turn that rescues the Cabeza.
+           They used to be waived there, and a reported game showed the
+           cost: Dark kept threatening Medium's Cabeza, every Cabeza step
+           away counted as a rescue, and it walked alone six turns running
+           instead of ever guarding it with a block. Survival still wins
+           outright: a Cabeza left hanging scores LAST_CABEZA_HANGING
+           (20000), far beyond these (a few hundred at most), so the bias
+           only chooses between rescues — and prefers one by a block. */
+        {
           // The more turns in a row the AI has already spent walking
           // its own Cabeza, the more it's nudged toward using
           // something else this time — scales with the streak so an
