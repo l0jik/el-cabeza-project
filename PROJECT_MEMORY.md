@@ -1204,11 +1204,21 @@ pieces have no `vox` and behave exactly as before.
   or out from under an overhang (its top edge would swing through it).
   It can get there by a Cabeza step or a Slide.
 - `sameState` also compares `vox`; ai.js applyMove/undoMove copy `vox`.
-- Rendering: `makePolycubeGeometry` (outside faces only, so
-  EdgesGeometry traces just the real outline — Neon's shell) and
-  `makePolycubeRounded` (merged rounded cubes, optionally grown —
-  Standard's shell), in engine/geometry.js, both centered on the bbox
-  like makeRoundedBox. So pieceCenter/pivotFor/roll animation are unchanged.
+- Rendering (engine/geometry.js, all centered on the bbox like
+  makeRoundedBox, so pieceCenter/pivotFor/roll animation are unchanged):
+  - `makePolycubeSmooth(piece, unit, radius, grow)`: the body. ONE
+    seamless solid with the same rounded edges as a box piece: every
+    odd piece is flat (one cube thick), so it is the shape's outline
+    swept through its thickness, with exact normals. The cubes only
+    explain a piece's size; they must never show as seams (user). Used
+    for the chassis body (both themes, EDGE_RADIUS), Standard's grown
+    silhouette shell, and the MATTER models. A shape that isn't flat or
+    has a hole falls back to `makePolycubeRounded`.
+  - `makePolycubeGeometry`: outside faces only, so EdgesGeometry traces
+    just the real outline (Neon's shell, the MATTER models' edges).
+  - `makePolycubeRounded` (merged rounded cubes): fallback only. It
+    showed grooves at the seams, and as Standard's shell those grooves
+    cast thin self-shadow lines across the pieces.
 - `cubeCount` (weight for landing audio; "bigger" for Shoving).
 - Tests: `tests/shapes.smoke.mjs`.
 
@@ -1584,6 +1594,138 @@ Results, new vs previous:
 - Medium in the user setup: 9–5 (2 draws). Easy: 7–5.
 - Classic Medium: 5–5.
 
+## Everything out in the open (user: "I want everything out in the open… as user friendly as possible")
+
+Came out of the Claude Design redesign boards (the "Streamlined"
+direction). First pass, in the real game, both themes:
+- **Cost badges on move markers.** `buildCostBadge` (chassis) is a
+  camera-facing sprite over each marker (and each Cantilever Pivot arrow)
+  showing `moveCost(move)`, or a "free" ring when the move would put the
+  board back as it was earlier this turn (same turn-trail test as the
+  refund in commit; never for a crush, shove or the AI). It rides the
+  marker's fade via a wrapper (`withCostBadge` in the ghost effect).
+  Colours: Neon uses the side's accent with `inkOnAccent`; Standard uses
+  `bodyDark`/`bodyLight`. `toneMapped: false`, or Neon's cyan dulls.
+  Test hook `__EC_TEST_COST_BADGES__()` -> `[{ dir, text }]`.
+- **Piece card** (`piece-card`, lower left above the full-screen button):
+  on your turn, the selected piece's name, how it moves and its cost under
+  the active laws (slide, diagonal slide, pivot, shoving), plus "More ›"
+  to its MOVES tile. Text comes from `pieceCardInfo` in RulesCards.jsx.
+  It stays while the piece is committed mid-turn.
+- **Move costs switch** (Neon, user request): a circled-"1" icon in the
+  dock's corner row, left of the points switch (`costs-toggle`). It hides
+  or shows the cost badges on the move markers. On by default, and
+  remembered in localStorage `el-cabeza:show-move-costs`. A theme opts
+  in with `export const moveCostToggle = true`; without it (Standard)
+  the badges always show. The chassis reads `costsOn`, and the marker
+  effect depends on it, so flipping it redraws the markers at once.
+  e2e-costs covers it.
+- **How to play** (`how-to-play`): always on screen beside the full-screen
+  button and opens the Quick card. Below 560px wide only the "?" shows,
+  keeping it clear of the points counter.
+  - Both corner controls use `cornerControlsZ` (12 by default). Neon's
+    useSetupExtras returns 2050 while the SINGULARITY sphere is up: above
+    the sphere's full-screen layer (2000, which ate their taps; user
+    report), under its menus (2100+) and the rules overlay (2500). They
+    are not raised during the collapse or the cut to black.
+- **Custom rules** (`custom-rules`, Neon setup dock, under Anomaly/Begin
+  Game): calls `revealSingularity`, the same reveal five masthead taps do
+  (the taps still work).
+- **Points counter on by default.** `loadShowPoints` is true unless the
+  saved value is "0", so a player who switched it off keeps it off.
+- Tests: `tests/e2e-costs.mjs` (badges, free ring, piece card, pivot badge
+  in e2e-pivot); e2e-rules covers How to play and Custom rules;
+  e2e-points expects the toggle to start on.
+
+## Rules pop-up audio: ABOUT tab only (user rule)
+
+The angelic choir (`audio.playMenu`) and its closing cue
+(`audio.fadeOutMenu`) belong to the ABOUT tab of the rules pop-up and
+nothing else:
+- **Choir:** plays when the rules open on ABOUT, or when the player
+  switches to ABOUT.
+- **Closing cue:** plays only when the pop-up closes while ABOUT is
+  showing.
+- **Leaving ABOUT for another tab:** only silences the choir
+  (`audio.stopMenu`, a 0.25 s fade with no tail).
+- **Every other open, switch or close gets its own small Neon earcon**
+  (user follow-up):
+  - `playRulesOpen` (How to play and every other non-ABOUT open): ONE
+    plain struck tone, D5 with a faint octave, soft attack and a 0.5 s
+    fall, peak 0.00845. It was a rising two-note glass figure with an
+    air swish; the user found that "too much like a Nintendo game" and
+    asked for something more austere and 20% quieter.
+  - `playRulesClose`: the same plain tone a fourth lower (A4), softer
+    (0.0068) and shorter (0.42 s), so closing settles. Replaced the old
+    falling two-note figure at the user's request, to match the open.
+  - `playRulesTab()`: the SAME tick for every tab (user: the one COSTS
+    had, G#6, a sine plus a 2.76x bell partial), in ten near-identical
+    takes (`TAB_TAKES`: a few cents, the partial's ratio, the decay and a
+    trace of tanh soft-clip grit). Never the same take twice. It no
+    longer follows the tab's position; the chassis still passes an index,
+    which is ignored.
+  - All go through `sfxGain`, so mute applies. Standard has no-ops.
+  - Levels: open 0.00845, close 0.0068, tab 0.00576.
+
+In the chassis, `openRulesAt(tab, focus)` and `switchRulesTab(tab,
+focus)` are the only ways in. `infoTabRef` feeds the close cleanup. The
+masthead Info button opens on the last-shown tab and plays the choir only
+if that tab is ABOUT. Test hook: `window.__EC_MENU_CUES__ = []` logs
+`play`/`close`/`stop`/`open`/`shut`/`tab` (e2e-rules "[menu audio]").
+
+## MATTER menu: one list, 3D piece models (user request)
+
+The 1×3 and 2×3 Blocks were on/off checkboxes (the first MATTER pieces);
+every later piece got a count roller in a grid. Now every piece type is
+the same row, in this order: Cabeza, Turrito, Flaco, Chato, Opa, 1×3
+Block, 2×3 Block, Codo, Arco, Rayo, Zeta.
+- **Row layout:** a 3D still (a button), the name with a one-line
+  `detail`, and an inline `DrumRoller` (`inline: true`) on the right. The
+  Arco's size choice sits directly under the Arco row. A "Pieces per
+  side N of 10" line sits on top, with a note when the total is over 10
+  (the extras are trimmed at game start).
+- **Data model:** `MATTER_NEW_PIECES` and `selections.matter.newPieces`
+  are gone. The blocks are `roster.block1x3` / `roster.block2x3` (0–4,
+  default 0). `normalizeSelections` → `migrateRoster` turns an old saved
+  ticked box into a count of 1. `buildRosterFromSelections` (neon.js)
+  reads the counts.
+- **Models** (`themes/piece-showcase.js`):
+  - Each type in its first starting pose, built from the engine
+    geometry: `makePolycubeSmooth` for odd pieces (one seamless solid)
+    and rounded boxes otherwise.
+  - Look: dark clear-coated glass, a painted studio environment, cyan
+    edges, and a glow pool.
+  - `ensureThumbs` renders all the stills in ONE short-lived WebGL
+    context (released straight after); `pieceThumb(type)` returns them.
+  - `PieceViewer` is the live model: it turns slowly (0.35 rad/s) and
+    can be dragged, with some carry after release.
+  - It opens from the still's own screen rectangle: a scale/translate
+    transition to centre, frameless, over a `backdrop-filter: blur(9px)`
+    scrim. It closes back into the still.
+  - While the viewer is open, the still is emptied and ringed
+    (`data-viewing`).
+  - It closes on a tap outside or on Escape; the sphere's own Escape
+    handler ignores Escape while `[data-testid="piece-viewer"]` exists.
+  - Test hook: `window.__EC_PIECE_VIEWER__.yaw()`.
+- Tests: e2e-singularity checks the 11 uniform rows, that the stills are
+  images, the 1×3 count, and the viewer opening, turning, dragging and
+  closing.
+
+## Design canvas: third batch (ten 3D finishes)
+
+On the Claude Design canvas (El Cabeza Redesigns), themes 11–20
+(Prisma, Cromo, Arcilla, Taller, Mármol, Aurora, Horizonte, Circuito,
+Sumi, Vacío) each have a Title and an In-game phone board.
+- The board and pieces are real 3D from a shared renderer, `ec3d.js`
+  (Three r128), uploaded to the canvas as an asset along with
+  `three.min.js`. Source is in the session scratchpad
+  (`redesign3d/ec3d.js`), not the repo.
+- Each board renders once and releases its WebGL context; dragging
+  re-opens a context to turn the board. This keeps a canvas of many
+  boards under the browser's context limit.
+- Changing the renderer means re-uploading it and repointing every
+  board's `/_blob/<id>` script tag.
+
 ## Future wishlist (user-requested, not started)
 
 - **Online play against another human.** GitHub Pages only serves static
@@ -1636,6 +1778,10 @@ Results, new vs previous:
   handler ignores Escape while it is open. MOVES has 16 animated SVG
   tiles (CSS keyframes; under prefers-reduced-motion they play at half speed, 7.2 s); the black
   hole tile shows the same-side exit. Test: tests/e2e-rules.mjs.
+  No skipping: Quick has a MUST row and Your turn opens with step 1,
+  "You must move at least 1 piece, 1 time. Skipping your turn is not
+  allowed." The engine already enforces it: there is no pass, Stop needs
+  a move first, and a turn that ends where it began is voided (settleTurn).
 - **"The original El Cabeza" (built).** ABOUT ends with a link
   (`play-original`) that closes INFO and runs resetGame(false) (no laws,
   boot board size, standard pieces, no holes), then sends the window event
@@ -1654,3 +1800,71 @@ Results, new vs previous:
   button/invite then breathes (ec-singularity-calm-halo/-text: a slow 5 s
   opacity/brightness pulse, no flicker or scaling) instead of standing
   still, and the MOVES tiles play at half speed.
+
+- **Move Log order follows the opener.** `pairLog` (engine/rules.js) pairs
+  each round from whoever made the log's first move and tags rows with
+  `opener`; the Move Log table puts the opener's column first and Copy
+  Move Log writes "1. Light: … | Dark: …" for a Light-opened game, and
+  drops the empty half of a round the game ended in. It used to show
+  "1. Dark: — | Light: …", which read as a skipped Dark turn. Tests:
+  engine.smoke.mjs ([log]) and tests/e2e-movelog.mjs (AI plays Light and
+  opens).
+- **AI sees two-roll crushes.** evaluatePosition and cabezaInDanger also
+  expand a second roll for blocks near an enemy Cabeza (a turn is two
+  points, so roll-to-line-up then roll-onto is the usual crush). In
+  Split Movement games with pieces in contact Medium often only finishes
+  depth 1, where the evaluation alone guards the Cabeza. A
+  `cabezaSafety` weight (8 per safe step square short of three) is on
+  for Medium and Hard, and the Cabeza/piece repeat biases now also apply
+  to turns that rescue a threatened Cabeza (only twoStepBias keeps that
+  waiver). ai-sim `rayo`: longest Cabeza-only run 38 -> 3, and new
+  Medium beat the old 7-0 (1 draw) across both sides. Hard's value is
+  Medium's, not separately simulated. tests/ai-threats.smoke.mjs.
+- **Undo after a game ends restores sound.** resetWindDown(true) also
+  resumes a suspended AudioContext (phones may suspend it in the
+  post-game silence); tests/e2e-undo-audio.mjs, probe
+  window.__EC_TEST_AUDIO__ / __EC_TEST_AUDIO_SUSPEND__ (Neon).
+
+- **Cromo theme (built).** themes/cromo.js (+ cromo-fx.js scene effects,
+  cromo-audio.js), apps/cromo.jsx, dist/el-cabeza-cromo.html, linked on
+  the Pages landing page. The board is the top of a monolith cube of
+  TUNGSTEN or SHUNGITE (setup-row switch `cromo-stone`, remembered in
+  localStorage `el-cabeza:cromo-stone`); the cube (vertex-colour fade to
+  black) is added under the slab by mountAmbientEffects, which also hides
+  ec-slab-edges and runs the light sweeps (Begin Game, idle every 9-16 s,
+  game end) and the landing shimmer (a piece whose square changed and then
+  held still 4 frames; >2 at once = new board, no shimmer). Reflections: a
+  canvas-painted studio panorama set as each material's envMap (not
+  scene.environment) so the setup screen's separate dock-piece renderer
+  gets it too. Pieces: mirror chrome (Light) / warm gunmetal (Dark) with
+  a thin dark silhouette shell. Audio: synthesized struck-bar/stone
+  modes per stone, room reverb, near-silent ambience (room tone, beating
+  55 Hz drone, a rare far bowl), Neon's wind-down contract. Fonts
+  Michroma + Barlow; chrome-gradient .ec-title. Test: e2e-smoke cromo.
+
+- **Lluvia theme (stage 1 built).** themes/lluvia.js (+ lluvia-fx.js,
+  lluvia-audio.js, lluvia-bus.js, lluvia-city.js = the design canvas's
+  city engine as an ES module: LLUVIA.mount(canvas,{mode, dpr, fps}),
+  createScore(hooks) exposing its instruments as score.inst),
+  apps/lluvia.jsx, dist/el-cabeza-lluvia.html. The city runs in
+  "backdrop" mode on a canvas inserted into the chassis's board layer
+  under the (transparent) board canvas, at reduced dpr/fps. Board: wet
+  asphalt with glossy puddles, pink rim; pieces neon glass (cyan Dark,
+  magenta Light) with a bright tube shell; sodium-yellow move frames.
+  Rain streaks around the board, drop rings on it, a splash on landing,
+  lightning synced to the score's thunder via lluvia-bus. Audio = the
+  synth score (pads, rain, drone, far đàn bầu/zither/voice) + cues built
+  on its instruments.
+- **Lluvia opening + city menu (stages 2-3 built).** themes/lluvia-overlay.js
+  via useSetupExtras/renderExtraOverlays: on load a full-screen layer
+  ("THE RULES ARE MADE DOWN THERE", DESCEND / Straight to the board);
+  DESCEND runs the engine's descent (own score, captions, SKIP); on
+  arrival the city's billboards/buttons open terminal panels (MATTER
+  counts, LAWS toggles, TOPOLOGIES size/missing/random) plus an
+  OPPONENT cycle (Human -> CPU easy/medium/hard); BEGIN THE GAME applies
+  them (board resize, roster via generateAnomalySetup, setActiveLaws,
+  missing squares/black holes, variants) and triggers Begin. Non-default
+  rules register t.singularityGameActive + reapplySingularitySetup (New
+  Game keeps them) and reconfigureSingularitySetup (reopens the city).
+  The backdrop city pauses while the layer is open (lluvia-bus
+  "overlay"). The setup row gets CUSTOM RULES. Test: e2e-lluvia.mjs.

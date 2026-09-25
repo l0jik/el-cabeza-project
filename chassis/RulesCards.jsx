@@ -73,6 +73,7 @@ const Label = ({ children, C }) => (
 function QuickCard({ C, budget }) {
   const rows = [
     ["Win", <>Get your <b>Cabeza</b> to the far row, or crush the enemy Cabeza by landing a block on it.</>],
+    ["Must", <><b>Move at least 1 piece, 1 time.</b> Skipping your turn is not allowed.</>],
     ["Turn", <>Spend up to <b>{budget} action points</b> <Dots n={budget} C={C} /> on one piece. You can stop after one move: tap the piece again, or press Stop here.</>],
     ["Blocks", <>Every piece but the Cabeza. Tip over an edge: north, south, east or west. <b>1 point</b> a roll.</>],
     // The Opa is a block with its own cost, so it sits indented under Blocks.
@@ -515,10 +516,11 @@ function MovesCard({ C, focus }) {
 /* ---------------------------------------------------------------- E */
 function TurnCard({ C, budget }) {
   const steps = [
+    <><b>You must move at least 1 piece, 1 time.</b> Skipping your turn is not allowed.</>,
     <>Pick <b>one piece</b>. (With Split Movement, up to two.)</>,
     <>Spend your points <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, a slide or any Opa move is 2, a pivot 1, a shove 1 more.</>,
     <>Changed your mind? Moving back to where you were this turn gives the points back.</>,
-    <>The turn ends when the points run out, when nothing left can use them, or when you stop early: tap the piece again, or press Stop here.</>,
+    <>The turn ends when the points run out, when nothing left can use them, or when you stop early after your first move: tap the piece again, or press Stop here.</>,
   ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -575,4 +577,49 @@ export function RulesCard({ tab, focus, onFocus, C, budget, game }) {
       {tab === "turn" && <TurnCard C={C} budget={budget} />}
     </div>
   );
+}
+
+/* The piece card (ElCabeza3D.jsx, data-testid piece-card): what the
+   selected piece is, how it moves and what that costs, in this game's
+   rules. `piece` is a live piece ({ type, w, h, z }); `laws` is
+   ACTIVE_LAWS. Returns { name, text, tile }, tile being the MOVES tile
+   its "More" link opens. */
+const CRUSH = "Land on the enemy Cabeza to crush it.";
+const CUBE_CRUSH = "It crushes only with a cube that comes down on the Cabeza.";
+const PIECE_TEXT = {
+  cabeza: ["Steps one square in any of 8 directions, 1 point a step. It never crushes. Reach the far row to win.", "cabeza"],
+  turrito: ["Rolls one square north, south, east or west, 1 point a roll. " + CRUSH, "roll"],
+  opa: ["The big cube rolls two squares at once. Its move costs 2 points, once per turn. " + CRUSH, "opa"],
+  chato: ["Rolls over one edge into the next squares, 1 point a roll. " + CRUSH, "roll"],
+  block1x3: ["Rolls over one edge, 1 point a roll. Standing on one square, it can enter a black hole. " + CRUSH, "roll"],
+  block2x3: ["Rolls over one edge, 1 point a roll. " + CRUSH, "roll"],
+  codo: ["Three cubes in an L. Rolls for 1 point; its overhang can shelter a Cabeza. " + CUBE_CRUSH, "shelter"],
+  arcoChico: ["An arch. Rolls for 1 point; a Cabeza in its opening is sheltered. " + CUBE_CRUSH, "shelter"],
+  arcoAlto: ["A tall arch. Rolls for 1 point; a Cabeza in its opening is sheltered. " + CUBE_CRUSH, "shelter"],
+  arcoAncho: ["A wide arch. Rolls for 1 point; a Cabeza in its opening is sheltered. " + CUBE_CRUSH, "shelter"],
+  rayo: ["Four cubes in an S. Rolls for 1 point. " + CUBE_CRUSH, "roll"],
+  zeta: ["Five cubes in a Z. Rolls for 1 point. " + CUBE_CRUSH, "roll"],
+};
+const PIVOTERS = ["codo", "rayo", "zeta"];
+
+export function pieceCardInfo(piece, laws = {}, name = piece.type) {
+  let [text, tile] = PIECE_TEXT[piece.type] || ["Rolls over one edge, 1 point a roll. " + CRUSH, "roll"];
+  if (piece.type === "flaco") {
+    const standing = piece.z > 1;
+    text = standing
+      ? "Standing, it tips over and lands lying across the next two squares, 1 point. " + CRUSH
+      : "Lying down, it rolls one square, 1 point; rolled along its length it stands back up. " + CRUSH;
+    tile = "flaco";
+  }
+  const extra = [];
+  if (laws.slide && piece.type !== "cabeza") {
+    extra.push(piece.type === "opa"
+      ? `It can also slide one square${laws.diagonalSlide ? ", diagonals too" : ""}, still 2 points.`
+      : `Or slide one square without tipping${laws.diagonalSlide ? ", diagonals too" : ""}, 2 points.`);
+  }
+  if (laws.cantileverPivot && PIVOTERS.includes(piece.type)) extra.push("Or pivot a quarter turn on one cube, 1 point.");
+  if (laws.shoving && piece.type !== "cabeza") {
+    extra.push(`Moving into a smaller piece shoves it along, 1 point more${laws.shoveOnRolls ? "" : " (slides only)"}.`);
+  }
+  return { name, text: [text, ...extra].join(" "), tile };
 }

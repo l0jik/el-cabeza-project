@@ -16,12 +16,12 @@ import {
 } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY } from "../engine/ai.js";
 import {
-  pieceCenter, restingY, makeRoundedBox, makePolycubeGeometry, rayHitBoardPlaneY0,
+  pieceCenter, restingY, makeRoundedBox, makePolycubeSmooth, rayHitBoardPlaneY0,
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
   setGhostLineTarget,
 } from "../engine/geometry.js";
 import { cubeCount, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
-import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT } from "./RulesCards.jsx";
+import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
 // ABOUT's link returns to the original game. Inlined by the build.
@@ -39,6 +39,47 @@ const APP_VERSION = "1.39.0";
    of this same masthead shipped (see ARCHITECTURE.md's "Known
    pitfalls"). floorPx/ceilingPx are bare px numbers, vw is a bare vw
    number; scale defaults to 1 for a theme with no opinion. */
+/* A move marker's cost badge: a small round label floating over the
+   target square, always facing the camera and drawn over everything, so
+   a player sees what a move costs before making it. `text` is the
+   points ("1", "2") or "free" for a move back to an earlier position
+   this turn (drawn as a ring on the ink colour). Colours come from the
+   mover's side. */
+function buildCostBadge({ text, fill, ink, x, y, z, size }) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 128;
+  const g = canvas.getContext("2d");
+  const free = text === "free";
+  g.beginPath();
+  g.arc(64, 64, free ? 54 : 58, 0, Math.PI * 2);
+  if (free) {
+    g.fillStyle = ink;
+    g.fill();
+    g.lineWidth = 12;
+    g.strokeStyle = fill;
+    g.stroke();
+  } else {
+    g.fillStyle = fill;
+    g.fill();
+    g.lineWidth = 5;
+    g.strokeStyle = ink;
+    g.stroke();
+  }
+  g.fillStyle = free ? fill : ink;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.font = free ? "800 38px system-ui, sans-serif" : "800 72px system-ui, sans-serif";
+  g.fillText(text, 64, free ? 66 : 70);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, toneMapped: false, opacity: 0 });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(size, size, 1);
+  sprite.position.set(x, y, z);
+  sprite.renderOrder = 20;
+  sprite.userData.costBadge = text;
+  return sprite;
+}
+
 /* Cantilever Pivot's move cue: a curved arrow floating just above the
    piece, sweeping round its planted cube from where the arm is now
    toward where the pivot would swing it — one per legal direction. The
@@ -130,12 +171,22 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
    either way, just falling back to the defaults. */
 const OPPONENT_PREFS_KEY = "el-cabeza:opponent";
 // The points-left counter's on/off switch (see the dock's corner toggle).
+// On unless the player has switched it off.
 const SHOW_POINTS_KEY = "el-cabeza:show-points";
 function loadShowPoints() {
-  try { return window.localStorage.getItem(SHOW_POINTS_KEY) === "1"; } catch (e) { return false; }
+  try { return window.localStorage.getItem(SHOW_POINTS_KEY) !== "0"; } catch (e) { return true; }
 }
 function saveShowPoints(on) {
   try { window.localStorage.setItem(SHOW_POINTS_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
+}
+// The cost badges on the move markers (buildCostBadge), for a theme that
+// offers a switch for them (theme.moveCostToggle). On unless switched off.
+const SHOW_COSTS_KEY = "el-cabeza:show-move-costs";
+function loadShowCosts() {
+  try { return window.localStorage.getItem(SHOW_COSTS_KEY) !== "0"; } catch (e) { return true; }
+}
+function saveShowCosts(on) {
+  try { window.localStorage.setItem(SHOW_COSTS_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
 }
 function loadOpponentPrefs() {
   const prefs = { aiPlayer: null, aiDifficulty: "medium", humanStartSide: "dark" };
@@ -433,6 +484,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       const r = t.renderer.domElement.getBoundingClientRect();
       return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
     };
+    // The cost badges on the move markers now showing: [{ dir, text }].
+    window.__EC_TEST_COST_BADGES__ = () => {
+      const t = three.current;
+      if (!t.ghostGroup) return [];
+      const out = [];
+      t.ghostGroup.traverse((o) => { if (o.userData.costBadge) out.push({ dir: o.parent && o.parent.userData.dir, text: o.userData.costBadge }); });
+      return out;
+    };
     window.__EC_TEST_SCREEN_POS__ = (id) => {
       const t = three.current;
       const mesh = t.pieceGroup && t.pieceGroup.children.find((c) => c.userData.pieceId === id && c.userData.kind === "piece");
@@ -638,6 +697,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      Sound. `pointsPulse` bumps when a free detour hands points back (see
      commitRef's turn trail), replaying a short flash on the counter. */
   const [showPoints, setShowPoints] = useState(loadShowPoints);
+  const [showCosts, setShowCosts] = useState(loadShowCosts);
+  // A theme without the switch always shows the badges.
+  const costsOn = showCosts || !theme.moveCostToggle;
   const [pointsPulse, setPointsPulse] = useState(0);
   /* The counter outlives the game it counted: once a game ends it freezes
      on that game's last turn ({ player, left } — the points the final
@@ -1516,6 +1578,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // apply the chosen board size before placing the roster/holes.
     applyBoardResize,
   }) : null;
+  // A theme may raise the corner controls over a full-screen layer of
+  // its own (Neon's SINGULARITY sphere), so they stay usable there.
+  const cornerControlsZ = (setupExtras && setupExtras.cornerControlsZ) || 12;
 
   function handleTitleClick() {
     setInfoBtnVisible(true);
@@ -1550,6 +1615,36 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     return () => el.removeEventListener("click", onClick);
   }, []);
 
+  /* The choir (playMenu) and its closing tail (fadeOutMenu) belong to
+     the ABOUT tab alone: the choir sounds when the rules open on ABOUT or
+     the player switches to it, the tail when they close from ABOUT, and
+     leaving ABOUT for another tab silences the choir (stopMenu). Every
+     other open, close and tab change has its own small earcon instead
+     (playRulesOpen / playRulesClose / playRulesTab — see themes/neon.js).
+     infoTabRef mirrors infoTab for the close cleanup, which runs after
+     the state has moved on. */
+  const infoTabRef = useRef(infoTab);
+  infoTabRef.current = infoTab;
+  function openRulesAt(tab, focus = null) {
+    setInfoTab(tab);
+    setRulesFocus(focus);
+    setShowInfoOverlay(true);
+    if (tab === "about") audioRef.current.playMenu();
+    else audioRef.current.playRulesOpen();
+  }
+  function switchRulesTab(tab, focus = null) {
+    const from = infoTabRef.current;
+    if (tab !== from) {
+      if (tab === "about") audioRef.current.playMenu();
+      else {
+        if (from === "about") audioRef.current.stopMenu();
+        audioRef.current.playRulesTab(Math.max(0, RULES_TABS.findIndex((t) => t.key === tab)));
+      }
+    }
+    setInfoTab(tab);
+    setRulesFocus(focus);
+  }
+
   function handleInfoButtonClick() {
     if (infoBtnTimerRef.current) clearTimeout(infoBtnTimerRef.current);
     setInfoBtnVisible(false);
@@ -1560,8 +1655,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // inside the original user-gesture call stack, and a React effect
     // runs one tick later, outside it. That gap is almost certainly
     // why this "seems to fail more than works": most calls simply
-    // landed silently on a still-suspended context.
-    audioRef.current.playMenu();
+    // landed silently on a still-suspended context. It opens on the tab
+    // last shown, so the choir only when that's ABOUT.
+    if (infoTabRef.current === "about") audioRef.current.playMenu();
+    else audioRef.current.playRulesOpen();
   }
 
   useEffect(() => {
@@ -1575,10 +1672,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   useEffect(() => {
     const onOpen = (e) => {
       const d = (e && e.detail) || {};
-      setInfoTab(d.tab || "quick");
-      setRulesFocus(d.focus || null);
-      setShowInfoOverlay(true);
-      audioRef.current.playMenu();
+      openRulesAt(d.tab || "quick", d.focus || null);
     };
     window.addEventListener(OPEN_RULES_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_RULES_EVENT, onOpen);
@@ -1601,7 +1695,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   // to showInfoOverlay flipping true (see the comment there for why).
   useEffect(() => {
     if (!showInfoOverlay) return;
-    return () => audioRef.current.fadeOutMenu();
+    return () => {
+      if (infoTabRef.current === "about") audioRef.current.fadeOutMenu();
+      else audioRef.current.playRulesClose();
+    };
   }, [showInfoOverlay]);
 
   /* Escape dismisses whichever post-game overlay is currently showing —
@@ -2832,8 +2929,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       const center = pieceCenter(p);
       const y = restingY(p);
 
-      // An odd-shaped piece (engine/shapes.js) is built from its own
-      // cubes, in the same box-centered frame as a box piece, so it
+      // An odd-shaped piece (engine/shapes.js) is one seamless solid
+      // with the same rounded edges as a box piece (the cubes only
+      // explain its size), in the same box-centered frame, so it
       // places and rolls identically.
       const geo = isDisc
         ? new THREE.CylinderGeometry(
@@ -2843,7 +2941,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             40
           )
         : p.vox
-          ? makePolycubeGeometry(p, PIECE_SCALE)
+          ? makePolycubeSmooth(p, PIECE_SCALE, EDGE_RADIUS)
           : makeRoundedBox(
               p.w * PIECE_SCALE,
               p.z * PIECE_SCALE,
@@ -3073,6 +3171,36 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       .filter((c) => c.userData.kind === "ghostLine")
       .forEach((c) => setGhostLineTarget(c, 0, true));
 
+    /* Every marker carries a cost badge riding its fade (see
+       buildCostBadge), so each reachable square says what it costs. A
+       move that puts the board back as it was earlier this turn is free
+       (the turn trail in commit); a crush or shove never is. */
+    const sameBoard = (a, b) =>
+      a.length === b.length && a.every((p) => { const q = b.find((x) => x.id === p.id); return q && sameState(p, q); });
+    const withCostBadge = (themed, move, x, y, z) => {
+      if (!costsOn) return themed;
+      const cand = move.candidate;
+      const nextBoard = pieces.map((p) => (p.id === cand.id ? cand : p));
+      const isFree = currentPlayer !== aiPlayer && !move.crushes && !move.shoves &&
+        turnTrailRef.current.some((e) => sameBoard(e.board, nextBoard));
+      const dark = cand.owner === "dark";
+      const badge = buildCostBadge({
+        text: isFree ? "free" : String(moveCost(move)),
+        fill: (dark ? COLORS.accentDark : COLORS.accentLight) || (dark ? COLORS.bodyDark : COLORS.bodyLight),
+        ink: COLORS.inkOnAccent || (dark ? COLORS.bodyLight : COLORS.bodyDark),
+        x, y, z,
+        size: SQUARE_SIZE * 0.42,
+      });
+      const root = new THREE.Group();
+      root.add(themed.root, badge);
+      return {
+        ...themed,
+        root,
+        setOpacity: (o) => { themed.setOpacity(o); badge.material.opacity = Math.min(1, o * 4); },
+        dispose: () => { themed.dispose(); badge.material.map.dispose(); badge.material.dispose(); },
+      };
+    };
+
     shadowEntries.forEach(([dir, move]) => {
       // Cantilever Pivot: a curved arrow round the planted cube instead
       // of a square marker (see buildPivotArrow).
@@ -3100,9 +3228,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           dir,
         });
         group.add(arrow.hit);
-        arrow.root.userData = { dir, kind: "ghostLine", isCrush: false, indicator: arrow };
-        setGhostLineTarget(arrow.root, 0.5, false);
-        group.add(arrow.root);
+        const mid = arrow.hit.userData.midPoint;
+        const marker = withCostBadge(arrow, move, mid.x, mid.y + 0.3, mid.z);
+        marker.root.userData = { dir, kind: "ghostLine", isCrush: false, indicator: marker };
+        setGhostLineTarget(marker.root, 0.5, false);
+        group.add(marker.root);
         return;
       }
       const cand = move.candidate;
@@ -3139,7 +3269,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
          animates is the theme's call. */
       const hx = (cand.w * SQUARE_SIZE * GHOST_SCALE) / 2;
       const hz = (cand.h * SQUARE_SIZE * GHOST_SCALE) / 2;
-      const indicator = theme.buildMoveIndicator({ cx, cz, hx, hz, isCrush, dir });
+      const indicator = withCostBadge(theme.buildMoveIndicator({ cx, cz, hx, hz, isCrush, dir }), move, cx, 0.55, cz);
       indicator.root.userData = { dir, kind: "ghostLine", isCrush, indicator };
       /* Starts invisible and is immediately targeted to fade up to its
          real (hot/cold) opacity — see the hover-emphasis effect just
@@ -3152,7 +3282,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       group.add(indicator.root);
     });
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [shadowSig]);
+  }, [shadowSig, costsOn]);
 
   /* Hover emphasis retargets the fade rather than setting opacity
      directly — sliding between footprints must not re-create meshes,
@@ -5254,7 +5384,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       // Undoing the winning move brings the game back to "playing" —
       // bring ambient audio/effects wind-down back with it, same as a
       // full reset (see handleReset).
-      if (windingDownRef.current && target.status === "playing") {
+      if ((windingDownRef.current || status !== "playing") && target.status === "playing") {
         windingDownRef.current = false;
         // true: unlike a brand-new game, undoing back into active play
         // has no Begin Game button ahead of it to restore volume
@@ -5572,12 +5702,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      punctuation) rather than a structured format — nothing currently
      reads this back into the game, so there's no parser to satisfy,
      just a person or a paste target reading plain lines. */
+  // The Move Log's column order: whoever opened this game first (the log's
+  // first entry), or before any move, the side set to start.
+  const logOpener = log.length ? log[0].player : humanStartSide;
+  const logSides = logOpener === "light" ? ["light", "dark"] : ["dark", "light"];
+
   function handleCopyLog() {
     const rows = pairLog(log);
+    const cell = (e) => `${e.notation}${e.mark ? " " + e.mark : ""}`;
+    const name = (side) => (side === "dark" ? "Dark" : "Light");
+    // Whoever opened goes first on every line; a round the game ended in
+    // the middle of just stops after the last move made.
     const lines = rows.map((row) => {
-      const dark = row.dark ? `${row.dark.notation}${row.dark.mark ? " " + row.dark.mark : ""}` : "\u2014";
-      const light = row.light ? `${row.light.notation}${row.light.mark ? " " + row.light.mark : ""}` : "\u2014";
-      return `${row.n}. Dark: ${dark} | Light: ${light}`;
+      const [a, b] = row.opener === "light" ? ["light", "dark"] : ["dark", "light"];
+      const first = row[a] ? `${name(a)}: ${cell(row[a])}` : `${name(a)}: \u2014`;
+      return row[b] ? `${row.n}. ${first} | ${name(b)}: ${cell(row[b])}` : `${row.n}. ${first}`;
     });
     const summary =
       status === "finished" && winner
@@ -6146,6 +6285,52 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         );
       })()}
 
+      {/* Piece card: while it's your turn and a piece of yours is
+         selected, a small card in the lower left says what it is, how it
+         moves and what that costs in this game's rules (text from
+         RulesCards.jsx, pieceCardInfo). "More" opens its MOVES tile. */}
+      {isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && dockView !== "panel" && (() => {
+        const info = pieceCardInfo(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name);
+        return (
+          <div
+            data-testid="piece-card"
+            data-piece={selectedPiece.type}
+            role="status"
+            style={{
+              position: "fixed",
+              left: 18,
+              bottom: 66,
+              zIndex: 12,
+              width: "min(250px, calc(100vw - 36px))",
+              boxSizing: "border-box",
+              padding: "10px 12px 9px",
+              borderRadius: 8,
+              background: COLORS.cream,
+              border: `1px solid ${COLORS.slateSoft}`,
+              boxShadow: "0 6px 18px rgba(0,0,0,0.18)",
+              color: COLORS.charcoal,
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontSize: 12.5,
+              lineHeight: 1.45,
+              pointerEvents: "auto",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 3 }}>
+              <span style={{ fontFamily: theme.titleFontFamily || "'Fraunces', serif", fontSize: 15, fontWeight: 600 }}>{info.name}</span>
+              <button
+                type="button"
+                data-testid="piece-card-more"
+                onClick={() => openRulesAt("moves", info.tile)}
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: COLORS.slate, font: "600 11.5px 'IBM Plex Sans', sans-serif" }}
+              >
+                More ›
+              </button>
+            </div>
+            <div data-testid="piece-card-text">{info.text}</div>
+          </div>
+        );
+      })()}
+
       {/* Unused-points note — see unusedNote. Sits just above the points
          counter when that's on, in its place when it's off. */}
       {unusedNote && isPlaying && dockView !== "panel" && (
@@ -6154,7 +6339,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           data-testid="unused-points-note"
           role="status"
           // Tapping it opens the "Your turn" rules card.
-          onClick={() => { setInfoTab("turn"); setRulesFocus(null); setShowInfoOverlay(true); audioRef.current.playMenu(); }}
+          onClick={() => openRulesAt("turn")}
           style={{
             position: "fixed",
             left: "50%",
@@ -6188,7 +6373,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             position: "fixed",
             left: 18,
             bottom: 18,
-            zIndex: 12,
+            zIndex: cornerControlsZ,
             width: 38,
             height: 38,
             display: "flex",
@@ -6221,6 +6406,47 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           )}
         </button>
       )}
+
+      {/* How to play: always on screen, beside the full-screen button,
+         so the rules are never more than one tap away. Opens the rules
+         at the Quick card. */}
+      <button
+        type="button"
+        data-testid="how-to-play"
+        aria-label="How to play"
+        title="How to play"
+        onClick={() => openRulesAt("quick")}
+        style={{
+          position: "fixed",
+          left: (document.fullscreenEnabled || document.documentElement.requestFullscreen) ? 58 : 18,
+          bottom: 18,
+          zIndex: cornerControlsZ,
+          height: 38,
+          display: "flex",
+          alignItems: "center",
+          gap: 7,
+          padding: "0 6px",
+          background: "transparent",
+          border: "none",
+          color: COLORS.charcoal,
+          opacity: 0.6,
+          cursor: "pointer",
+          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontSize: 12.5,
+          fontWeight: 500,
+          transition: "opacity 0.2s ease",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.opacity = 1; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = 0.6; }}
+        onFocus={(e) => { e.currentTarget.style.opacity = 1; }}
+        onBlur={(e) => { e.currentTarget.style.opacity = 0.6; }}
+      >
+        {/* On a narrow screen only the "?" shows, clear of the points
+            counter at the bottom centre. */}
+        <style>{"@media (max-width: 560px){.ec-howto-label{display:none}}"}</style>
+        <span aria-hidden="true" style={{ width: 17, height: 17, borderRadius: "50%", border: "1.5px solid currentColor", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, boxSizing: "border-box" }}>?</span>
+        <span className="ec-howto-label">How to play</span>
+      </button>
 
       {/* Dock piece — an idle, physically-interactive 3D preview of the
          player's own Cabeza (see the effects above), standing in for
@@ -7020,7 +7246,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             style={{
               position: "absolute",
               left: 20,
-              right: theme.hasAudio ? 76 : 44,
+              right: (theme.hasAudio ? 76 : 44) + (theme.moveCostToggle ? 32 : 0),
               bottom: 13,
               fontFamily: "'IBM Plex Mono', monospace",
               // Larger and in the dock's own text colour per feedback
@@ -7083,6 +7309,46 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             {!showPoints && <line x1="2" y1="20" x2="24" y2="4" />}
           </svg>
         </button>
+        {/* Move costs on/off (a theme opts in with moveCostToggle): the
+           circled numbers on the move markers. The glyph is one of those
+           badges, struck through while they're off. */}
+        {theme.moveCostToggle && (
+          <button
+            data-testid="costs-toggle"
+            aria-pressed={showCosts}
+            onClick={() => {
+              const next = !showCosts;
+              setShowCosts(next);
+              saveShowCosts(next);
+            }}
+            aria-label={showCosts ? "Hide move costs" : "Show move costs"}
+            title={showCosts ? "Hide move costs" : "Show move costs"}
+            style={{
+              position: "absolute",
+              right: theme.hasAudio ? 72 : 40,
+              bottom: 8,
+              width: 30,
+              height: 30,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "transparent",
+              border: "none",
+              color: COLORS.slate,
+              opacity: showCosts ? 0.85 : 0.45,
+              cursor: "pointer",
+              transition: "opacity 0.2s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.85; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = showCosts ? 0.85 : 0.45; }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M10 9.5l2.5-2v9" />
+              {!showCosts && <line x1="3" y1="21" x2="21" y2="3" />}
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Move Log popup — chassis-level (see ARCHITECTURE.md), shown via
@@ -7215,21 +7481,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               >
                 <span>#</span>
                 {/* bodyDark/bodyLight — see the comment on the same
-                    pair in the dock's own inline table above. */}
-                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span
-                    aria-hidden="true"
-                    style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.bodyDark, border: `1px solid ${COLORS.charcoal}` }}
-                  />
-                  Dark
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span
-                    aria-hidden="true"
-                    style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.bodyLight, border: `1px solid ${COLORS.charcoal}` }}
-                  />
-                  Light
-                </span>
+                    pair in the dock's own inline table above. Whoever
+                    opened the game gets the first column (see pairLog). */}
+                {logSides.map((side) => (
+                  <span key={side} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span
+                      aria-hidden="true"
+                      style={{ width: 8, height: 8, borderRadius: "50%", background: side === "dark" ? COLORS.bodyDark : COLORS.bodyLight, border: `1px solid ${COLORS.charcoal}` }}
+                    />
+                    {side === "dark" ? "Dark" : "Light"}
+                  </span>
+                ))}
               </div>
               <div
                 ref={moveLogScrollRef}
@@ -7262,12 +7524,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                       }}
                     >
                       <span style={{ color: COLORS.slate }}>{String(row.n).padStart(2, "0")}</span>
-                      <span style={{ background: isLast && !row.light && row.dark ? COLORS.slateFaint : "transparent" }}>
-                        {row.dark ? `${row.dark.notation}${row.dark.mark ? " " + row.dark.mark : ""}` : "—"}
-                      </span>
-                      <span style={{ background: isLast && row.light ? COLORS.slateFaint : "transparent" }}>
-                        {row.light ? `${row.light.notation}${row.light.mark ? " " + row.light.mark : ""}` : ""}
-                      </span>
+                      {logSides.map((side, k) => {
+                        const e = row[side];
+                        // The latest move made gets the highlight: the
+                        // second cell once filled, else the first.
+                        const latest = isLast && e && (k === 1 || !row[logSides[1]]);
+                        return (
+                          <span key={side} style={{ background: latest ? COLORS.slateFaint : "transparent" }}>
+                            {e ? `${e.notation}${e.mark ? " " + e.mark : ""}` : k === 0 ? "—" : ""}
+                          </span>
+                        );
+                      })}
                     </div>
                   );
                 })}
@@ -7346,7 +7613,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                   margin: "0 auto 18px",
                 }}
               />
-              <RulesTabs tab={infoTab} onTab={(k) => { setInfoTab(k); setRulesFocus(null); }} C={COLORS} />
+              <RulesTabs tab={infoTab} onTab={(k) => switchRulesTab(k)} C={COLORS} />
             </div>
 
             <div data-testid="info-body" style={{ overflowY: "auto", padding: "0 34px 32px" }}>
@@ -7354,7 +7621,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               <RulesCard
                 tab={infoTab}
                 focus={rulesFocus}
-                onFocus={(k) => { setInfoTab("moves"); setRulesFocus(k); }}
+                onFocus={(k) => switchRulesTab("moves", k)}
                 C={COLORS}
                 budget={turnBudget()}
                 game={{

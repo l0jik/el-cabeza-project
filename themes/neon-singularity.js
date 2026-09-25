@@ -34,6 +34,7 @@ import {
   setBlackHoles as setActiveBlackHoles, setMissingSquares as setActiveMissingSquares,
 } from "../engine/constants.js";
 import { pickBlackHoleSquares, pickMissingSquares, blackHoleRowAllowed, initialPiecesFor, missingSquaresKeepPath } from "../engine/rules.js";
+import { ensureThumbs, pieceThumb, PieceViewer } from "./piece-showcase.js";
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
 // SINGULARITY invite: the cathedral bell tolls and a black curtain fades
@@ -535,45 +536,41 @@ const PIECE_FOOTPRINTS = {
   zeta: [[0, 0], [0, 1], [1, 1], [2, 1], [2, 2]],
 };
 
-// MATTER — the four new polycube types from the design doc, each a
-// simple enable/disable checkbox.
-// block1x3/block2x3 are real: plain rectangular boxes, so they place,
-// roll, and collide exactly like the five originals with no new
-// engine work (see generateAnomalySetup's own roster support in
-// themes/neon.js). The L became the Codo, a real piece with its own
-// roster counter (MATTER_ROSTER below), and so did the arch — the Arco,
-// with a size choice (see ARCO_SIZES / the MATTER overlay).
-const MATTER_NEW_PIECES = [
-  { key: "block1x3", label: "1×3 Block", icon: "block1x3" },
-  { key: "block2x3", label: "2×3 Block", icon: "block2x3" },
-];
-
-// MATTER also lets the roster of the five ORIGINAL pieces be
-// customized via a scroll wheel each, not just the four new ones —
-// this is the design doc's "custom piece rosters" idea (a player's own
-// piece complement, e.g. all originals plus an extra Turrito) surfaced
-// as a real per-piece count control. Cabeza is capped at the doc's own
-// 1-2 range (at least one required, at most two allowed); the other
-// four get a generous 0-4 each rather than the doc's overall "max 10
-// pieces per side" being enforced live here — this pass is selections-
-// only (see the module header), so the wheels just record a count.
+// MATTER — every piece type, one row each with a count (0-4; the
+// Cabeza 1-2, one is always required). The five originals start at one
+// each, everything else at none. The 1×3 and 2×3 blocks began as on/off
+// checkboxes; they are counts like the rest now (a saved configuration
+// with a box ticked loads as a count of 1 — see normalizeSelections).
+// `view` is the model the row's 3D still and viewer show
+// (themes/piece-showcase.js); the Arco's follows the chosen size.
+// `detail` is the row's one-line description.
 const MATTER_ROSTER = [
-  { key: "cabeza", label: "Cabeza", min: 1, max: 2, default: 1, icon: "cabeza" },
-  { key: "chato", label: "Chato", min: 0, max: 4, default: 1, icon: "chato" },
-  { key: "flaco", label: "Flaco", min: 0, max: 4, default: 1, icon: "flaco" },
-  { key: "opa", label: "Opa", min: 0, max: 4, default: 1, icon: "opa" },
-  { key: "turrito", label: "Turrito", min: 0, max: 4, default: 1, icon: "turrito" },
+  { key: "cabeza", label: "Cabeza", min: 1, max: 2, default: 1, icon: "cabeza", view: "cabeza", detail: "The one to protect. Steps one square any way." },
+  { key: "turrito", label: "Turrito", min: 0, max: 4, default: 1, icon: "turrito", view: "turrito", detail: "1 cube. Rolls one square." },
+  { key: "flaco", label: "Flaco", min: 0, max: 4, default: 1, icon: "flaco", view: "flaco", detail: "2 cubes long. Tips up to stand, and back down." },
+  { key: "chato", label: "Chato", min: 0, max: 4, default: 1, icon: "chato", view: "chato", detail: "A 1×2 slab, 2 tall." },
+  { key: "opa", label: "Opa", min: 0, max: 4, default: 1, icon: "opa", view: "opa", detail: "The big 2×2×2 cube. Rolls two squares; 2 points." },
+  { key: "block1x3", label: "1×3 Block", min: 0, max: 4, default: 0, icon: "block1x3", view: "block1x3", detail: "3 cubes in a row." },
+  { key: "block2x3", label: "2×3 Block", min: 0, max: 4, default: 0, icon: "block2x3", view: "block2x3", detail: "A 2×3 slab of 6 cubes." },
   // The Codo: MATTER's first odd-shaped piece (a 3-cube L — see
-  // engine/shapes.js). Off by default; any count places it in a
-  // randomized opening.
-  { key: "codo", label: "Codo", min: 0, max: 4, default: 0, icon: "codo" },
+  // engine/shapes.js).
+  { key: "codo", label: "Codo", min: 0, max: 4, default: 0, icon: "codo", view: "codo", detail: "3 cubes in an L. Its overhang can shelter a Cabeza." },
   // The Arco (an arch — see engine/constants.js): one counter, and a
   // size choice (matter.arcoSize) that applies to every Arco in the game.
-  { key: "arco", label: "Arco", min: 0, max: 4, default: 0, icon: "arch" },
-  // The Rayo (4-cube S/Z) and the Zeta (5-cube Z): off by default.
-  { key: "rayo", label: "Rayo", min: 0, max: 4, default: 0, icon: "rayo" },
-  { key: "zeta", label: "Zeta", min: 0, max: 4, default: 0, icon: "zeta" },
+  { key: "arco", label: "Arco", min: 0, max: 4, default: 0, icon: "arch", view: "arco", detail: "An arch. A Cabeza in its opening is sheltered." },
+  // The Rayo (4-cube S/Z) and the Zeta (5-cube Z).
+  { key: "rayo", label: "Rayo", min: 0, max: 4, default: 0, icon: "rayo", view: "rayo", detail: "4 cubes in an S." },
+  { key: "zeta", label: "Zeta", min: 0, max: 4, default: 0, icon: "zeta", view: "zeta", detail: "5 cubes in a Z." },
 ];
+// How many pieces a side may field; extras beyond it are dropped from the
+// end of the roster at game start (themes/neon.js, buildRosterFromSelections).
+const MAX_PIECES_PER_SIDE = 10;
+
+const ARCO_DESCRIBE = {
+  chico: "5 cubes · 3 wide, 2 tall · opening 1 wide",
+  alto: "7 cubes · 3 wide, 3 tall · opening 1 wide, 2 tall",
+  ancho: "6 cubes · 4 wide, 2 tall · opening 2 wide",
+};
 
 // "Arco Alto" etc. for the summary / variants — the counter's label plus
 // the chosen size.
@@ -589,7 +586,6 @@ function createDefaultSelections() {
   return {
     laws: Object.fromEntries(LAWS_ITEMS.map((i) => [i.key, false])),
     matter: {
-      newPieces: Object.fromEntries(MATTER_NEW_PIECES.map((i) => [i.key, false])),
       roster: Object.fromEntries(MATTER_ROSTER.map((p) => [p.key, p.default])),
       // Opt-in random opening layout (Anomaly-style). Off = the standard
       // fixed formation; on = a fresh randomized placement at Begin Game.
@@ -623,7 +619,6 @@ function isCategoryActive(key, selections) {
   if (key === "laws") return Object.values(selections.laws).some(Boolean);
   if (key === "matter") {
     if (selections.matter.randomizeStart) return true;
-    if (Object.values(selections.matter.newPieces).some(Boolean)) return true;
     return MATTER_ROSTER.some((p) => selections.matter.roster[p.key] !== p.default);
   }
   if (key === "topologies") {
@@ -677,7 +672,6 @@ function buildVariantsSnapshot(selections) {
 
   const matter = [];
   if (selections.matter.randomizeStart) matter.push("Randomized start");
-  MATTER_NEW_PIECES.forEach((i) => { if (selections.matter.newPieces[i.key]) matter.push(i.label); });
   MATTER_ROSTER.forEach((p) => {
     const n = selections.matter.roster[p.key];
     if (n !== p.default) matter.push(`${n}× ${rosterItemLabel(p, selections)}`);
@@ -868,6 +862,16 @@ function saveConfigurations(list) {
 // Merge a saved selections object onto today's defaults, key by key, so a
 // configuration saved before a newer option existed still loads cleanly
 // (the new option just takes its default) and unknown keys are dropped.
+// A configuration saved when the 1×3 and 2×3 blocks were on/off boxes:
+// a ticked box becomes a count of 1 (unless a count was saved too).
+function migrateRoster(roster, matterSrc) {
+  const old = matterSrc && matterSrc.newPieces;
+  const saved = matterSrc && matterSrc.roster;
+  ["block1x3", "block2x3"].forEach((k) => {
+    if (old && old[k] === true && !(saved && typeof saved[k] === "number")) roster[k] = 1;
+  });
+  return roster;
+}
 function normalizeSelections(saved) {
   const d = createDefaultSelections();
   const pick = (base, src) => {
@@ -883,8 +887,7 @@ function normalizeSelections(saved) {
   return {
     laws: pick(d.laws, src.laws),
     matter: {
-      newPieces: pick(d.matter.newPieces, matterSrc.newPieces),
-      roster: pick(d.matter.roster, matterSrc.roster),
+      roster: migrateRoster(pick(d.matter.roster, matterSrc.roster), matterSrc),
       randomizeStart: typeof matterSrc.randomizeStart === "boolean" ? matterSrc.randomizeStart : d.matter.randomizeStart,
       arcoSize: ARCO_SIZES.some((a) => a.key === matterSrc.arcoSize) ? matterSrc.arcoSize : d.matter.arcoSize,
     },
@@ -1700,11 +1703,13 @@ function renderPieceIcon(footprintKey, size) {
    the e2e suite drives, since simulating an exact-value drag
    gesture reliably is much harder than clicking a button a known
    number of times). */
-function DrumRoller({ id, label, value, min, max, onChange, compact, icon }) {
+function DrumRoller({ id, label, value, min, max, onChange, compact, icon, inline, ariaLabel }) {
   const h = React.createElement;
   const dragRef = React.useRef(null);
-  const ITEM_H = compact ? 28 : 36;
-  const RADIUS = compact ? 44 : 58;
+  // inline: the small roller at the right of a MATTER row — no icon or
+  // label of its own (the row has them), same drag and +/- behaviour.
+  const ITEM_H = inline ? 26 : compact ? 28 : 36;
+  const RADIUS = inline ? 40 : compact ? 44 : 58;
   const ANGLE_STEP = (2 * Math.asin(Math.min(1, ITEM_H / (2 * RADIUS))) * 180) / Math.PI;
   const clamp = (v) => Math.min(max, Math.max(min, v));
 
@@ -1739,7 +1744,7 @@ function DrumRoller({ id, label, value, min, max, onChange, compact, icon }) {
             lineHeight: `${ITEM_H}px`, textAlign: "center",
             transform: `translateY(-50%) rotateX(${-d * ANGLE_STEP}deg) translateZ(${RADIUS}px)`,
             fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: d === 0 ? (compact ? 17 : 21) : 13,
+            fontSize: d === 0 ? (inline ? 18 : compact ? 17 : 21) : inline ? 12 : 13,
             fontWeight: d === 0 ? 700 : 400,
             color: d === 0 ? "#dffaff" : "rgba(142,243,255,0.35)",
             backfaceVisibility: "hidden",
@@ -1750,14 +1755,15 @@ function DrumRoller({ id, label, value, min, max, onChange, compact, icon }) {
     );
   }
 
+  const chevron = inline ? { ...chevronButtonStyle, width: 48, height: 20, fontSize: 11, opacity: 1 } : chevronButtonStyle;
   return h(
     "div",
-    { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 } },
-    icon && renderPieceIcon(icon, compact ? 38 : 46),
-    label && h("span", { style: { ...sectionLabelStyle, margin: 0 } }, label),
+    { role: inline ? "group" : undefined, "aria-label": ariaLabel, style: { display: "flex", flexDirection: "column", alignItems: "center", gap: inline ? 0 : 2 } },
+    !inline && icon && renderPieceIcon(icon, compact ? 38 : 46),
+    !inline && label && h("span", { style: { ...sectionLabelStyle, margin: 0 } }, label),
     h(
       "button",
-      { type: "button", "data-testid": `${id}-inc`, onClick: (e) => { e.stopPropagation(); onChange(clamp(value + 1)); }, style: chevronButtonStyle },
+      { type: "button", "data-testid": `${id}-inc`, "aria-label": "One more", onClick: (e) => { e.stopPropagation(); onChange(clamp(value + 1)); }, style: { ...chevron, opacity: value >= max ? 0.25 : 1 } },
       "▲"
     ),
     h(
@@ -1769,7 +1775,7 @@ function DrumRoller({ id, label, value, min, max, onChange, compact, icon }) {
         onPointerUp: handlePointerUp,
         onPointerCancel: handlePointerUp,
         style: {
-          position: "relative", width: compact ? 58 : 74, height: ITEM_H * 1.5,
+          position: "relative", width: inline ? 48 : compact ? 58 : 74, height: ITEM_H * 1.5,
           perspective: 300, overflow: "hidden", touchAction: "none", cursor: "ns-resize",
           background: "rgba(102,217,255,0.06)",
           border: "1px solid rgba(102,217,255,0.28)",
@@ -1780,12 +1786,19 @@ function DrumRoller({ id, label, value, min, max, onChange, compact, icon }) {
     ),
     h(
       "button",
-      { type: "button", "data-testid": `${id}-dec`, onClick: (e) => { e.stopPropagation(); onChange(clamp(value - 1)); }, style: chevronButtonStyle },
+      { type: "button", "data-testid": `${id}-dec`, "aria-label": "One fewer", onClick: (e) => { e.stopPropagation(); onChange(clamp(value - 1)); }, style: { ...chevron, opacity: value <= min ? 0.25 : 1 } },
       "▼"
     ),
     h(
       "span",
-      { "data-testid": `${id}-value`, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(142,243,255,0.5)" } },
+      {
+        "data-testid": `${id}-value`,
+        // Inline, the drum already shows the number; this stays for
+        // screen readers (and the tests) without repeating it on screen.
+        style: inline
+          ? { position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }
+          : { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(142,243,255,0.5)" },
+      },
       String(value)
     )
   );
@@ -2129,11 +2142,7 @@ function renderArcoSizeRow(t) {
   const s = t.singularity;
   const h = React.createElement;
   const sel = s.selections;
-  const describe = {
-    chico: "5 cubes · 3 wide, 2 tall · opening 1 wide",
-    alto: "7 cubes · 3 wide, 3 tall · opening 1 wide, 2 tall",
-    ancho: "6 cubes · 4 wide, 2 tall · opening 2 wide",
-  };
+  const describe = ARCO_DESCRIBE;
   return h(
     "div",
     { "data-testid": "arco-size", style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 5, marginTop: 8 } },
@@ -2804,32 +2813,28 @@ function renderCategoryOverlay(t) {
       })
     );
   } else if (category === "matter") {
+    // One row per piece type: its 3D still (tap to see it in 3D), what
+    // it is, and how many a side fields. The Arco's size sits under it.
+    const arcoType = (ARCO_SIZES.find((a) => a.key === sel.matter.arcoSize) || ARCO_SIZES[0]).type;
+    const viewOf = (p) => (p.view === "arco" ? arcoType : p.view);
+    ensureThumbs(MATTER_ROSTER.map(viewOf));
+    const total = MATTER_ROSTER.reduce((n, p) => n + sel.matter.roster[p.key], 0);
+    const over = total > MAX_PIECES_PER_SIDE;
     body = h(
       "div",
-      { style: { display: "flex", flexDirection: "column", gap: 6 } },
-      h("div", { style: sectionLabelStyle }, "New Piece Types"),
-      ...MATTER_NEW_PIECES.map((item) =>
-        renderCheckboxRow(
-          item,
-          sel.matter.newPieces[item.key],
-          () => { sel.matter.newPieces[item.key] = !sel.matter.newPieces[item.key]; s.labelsDirty = true; s.bump(); },
-          `matter-piece-${item.key}`
-        )
-      ),
-      h("div", { style: { ...sectionLabelStyle, marginTop: 10 } }, "Roster"),
+      { style: { display: "flex", flexDirection: "column" } },
       h(
         "div",
-        { style: { display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center", padding: "4px 0 2px" } },
-        ...MATTER_ROSTER.map((p) =>
-          h(DrumRoller, {
-            key: p.key, id: `roster-${p.key}`, label: p.label, icon: p.icon,
-            value: sel.matter.roster[p.key], min: p.min, max: p.max, compact: true,
-            onChange: (v) => { sel.matter.roster[p.key] = v; s.labelsDirty = true; s.bump(); },
-          })
-        )
+        { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "0 2px 4px" } },
+        h("div", { style: { ...sectionLabelStyle, margin: 0 } }, "Pieces per side"),
+        h("div", { "data-testid": "matter-total", "data-total": String(total), style: { ...sectionLabelStyle, margin: 0, color: over ? "#ffb454" : "rgba(223,250,255,0.85)" } }, `${total} of ${MAX_PIECES_PER_SIDE}`)
       ),
-      renderArcoSizeRow(t),
-      h("div", { style: { ...sectionLabelStyle, marginTop: 10 } }, "Setup"),
+      over && h("div", { "data-testid": "matter-over", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, color: "#ffcf8a", margin: "0 2px 6px" } }, `A side fields at most ${MAX_PIECES_PER_SIDE}: the last ${total - MAX_PIECES_PER_SIDE} won't be placed.`),
+      ...MATTER_ROSTER.flatMap((p) => {
+        const row = renderRosterRow(t, p, viewOf(p));
+        return p.key === "arco" ? [row, renderArcoSizeRow(t)] : [row];
+      }),
+      h("div", { style: { ...sectionLabelStyle, marginTop: 14 } }, "Setup"),
       renderCheckboxRow(
         { key: "randomizeStart", label: "Randomized Start", blurb: "Begin with a random Anomaly-style layout instead of the standard formation." },
         sel.matter.randomizeStart,
@@ -2872,7 +2877,21 @@ function renderCategoryOverlay(t) {
     );
   }
 
-  return h(
+  const pv = s.pieceViewer;
+  const viewer = pv && h(PieceViewer, {
+    key: `${pv.key}:${pv.type}`,
+    type: pv.type, name: pv.name, detail: pv.detail, fromRect: pv.rect, closing: pv.closing,
+    onClose: () => {
+      if (!s.pieceViewer || s.pieceViewer.closing) return;
+      // Return to where the still is now, not where it was when opened.
+      const still = typeof document !== "undefined" && document.querySelector(`[data-testid="matter-view-${s.pieceViewer.key}"]`);
+      if (still) s.pieceViewer.rect = still.getBoundingClientRect();
+      s.pieceViewer.closing = true;
+      s.bump();
+    },
+    onClosed: () => { s.pieceViewer = null; s.bump(); },
+  });
+  const overlay = h(
     "div",
     {
       "data-testid": "category-overlay-backdrop",
@@ -2918,6 +2937,73 @@ function renderCategoryOverlay(t) {
         "TAP OUTSIDE TO CLOSE"
       )
     )
+  );
+  // Always the same shape, viewer or not: switching between a bare overlay
+  // and a fragment made React rebuild the overlay each time the viewer
+  // opened or closed, scrolling the list back to the top, so the model
+  // shrank back to where its row no longer was.
+  return h(React.Fragment, null, overlay, viewer || null);
+}
+
+/* One MATTER row: the piece's 3D still (a button: it opens the viewer,
+   which grows out of this very still — see PieceViewer), its name and
+   what it is, and its count on a roller at the right. While the viewer
+   shows this piece its still is emptied and ringed, so the socket the
+   model left (and returns to) is plain to see. */
+function renderRosterRow(t, p, viewType) {
+  const h = React.createElement;
+  const s = t.singularity;
+  const sel = s.selections;
+  const n = sel.matter.roster[p.key];
+  const thumb = pieceThumb(viewType);
+  const viewing = !!(s.pieceViewer && s.pieceViewer.key === p.key);
+  const label = rosterItemLabel(p, sel);
+  const detail = p.key === "arco" ? `${ARCO_DESCRIBE[sel.matter.arcoSize] || ARCO_DESCRIBE.chico}. ${p.detail}` : p.detail;
+  return h(
+    "div",
+    {
+      key: p.key,
+      "data-testid": `matter-row-${p.key}`,
+      "data-count": String(n),
+      style: { display: "grid", gridTemplateColumns: "62px minmax(0, 1fr) auto", alignItems: "center", gap: 12, padding: "6px 2px", borderTop: "1px solid rgba(102,217,255,0.1)" },
+    },
+    h(
+      "button",
+      {
+        type: "button",
+        "data-testid": `matter-view-${p.key}`,
+        "data-viewing": viewing ? "true" : "false",
+        "aria-label": `See the ${label} in 3D`,
+        onClick: (e) => {
+          e.stopPropagation();
+          if (s.pieceViewer) return;
+          s.pieceViewer = { key: p.key, type: viewType, name: label, detail, rect: e.currentTarget.getBoundingClientRect(), closing: false };
+          if (s.audio && s.audio.playSelect) s.audio.playSelect();
+          s.bump();
+        },
+        style: {
+          width: 62, height: 62, padding: 0, display: "flex", alignItems: "center", justifyContent: "center",
+          borderRadius: 10, cursor: "zoom-in",
+          border: `1px solid ${viewing ? "#8ef3ff" : "rgba(102,217,255,0.22)"}`,
+          background: "radial-gradient(circle at 50% 62%, rgba(77,232,255,0.16), rgba(4,10,18,0) 70%)",
+          boxShadow: viewing ? "0 0 18px rgba(77,232,255,0.6), inset 0 0 12px rgba(77,232,255,0.35)" : "none",
+          transition: "box-shadow 220ms ease, border-color 220ms ease",
+        },
+      },
+      thumb
+        ? h("img", { src: thumb, alt: "", width: 62, height: 62, draggable: false, style: { display: "block", width: 62, height: 62, opacity: viewing ? 0 : 1, transition: "opacity 160ms ease" } })
+        : renderPieceIcon(p.icon, 44)
+    ),
+    h(
+      "div",
+      { style: { minWidth: 0 } },
+      h("div", { style: { fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 14, letterSpacing: "0.03em", color: n > 0 ? "#dffaff" : "rgba(207,216,220,0.72)" } }, label),
+      h("div", { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.4, color: "rgba(207,216,220,0.64)", marginTop: 2 } }, detail)
+    ),
+    h(DrumRoller, {
+      id: `roster-${p.key}`, value: n, min: p.min, max: p.max, inline: true, ariaLabel: `${label} count`,
+      onChange: (v) => { sel.matter.roster[p.key] = v; s.labelsDirty = true; s.bump(); },
+    })
   );
 }
 
@@ -2987,7 +3073,7 @@ function renderSummaryPanel(setupExtras) {
   const h = React.createElement;
 
   const lawsOn = LAWS_ITEMS.filter((i) => sel.laws[i.key]);
-  const piecesOn = MATTER_NEW_PIECES.filter((i) => sel.matter.newPieces[i.key]);
+  const piecesChanged = MATTER_ROSTER.some((p) => sel.matter.roster[p.key] !== p.default);
   // An optional piece that's off (a default of 0, still at 0 — the Codo)
   // is left out rather than listed as "0 Codo".
   const rosterLine = MATTER_ROSTER
@@ -3021,7 +3107,7 @@ function renderSummaryPanel(setupExtras) {
         : null,
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "TOPOLOGY  "), boardLine),
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "LAWS  "), lawsOn.length ? lawsOn.map((i) => lawLabel(i, sel)).join(", ") : "none"),
-      h("div", { style: lineStyle }, h("span", { style: tagStyle }, "MATTER  "), piecesOn.length ? piecesOn.map((i) => i.label).join(", ") : "no new pieces"),
+      h("div", { style: lineStyle }, h("span", { style: tagStyle }, "MATTER  "), piecesChanged ? "custom pieces" : "the original five"),
       h("div", { style: { ...lineStyle, fontSize: 10.5, color: "rgba(207,216,220,0.58)", paddingLeft: 4 } }, rosterLine)
     ),
     h("div", { style: { ...lineStyle, textAlign: "center" } }, h("span", { style: tagStyle }, "OPPONENT")),
@@ -3556,7 +3642,9 @@ export function useSingularityPhase({
     if (phase === PHASES.IDLE) return;
     const onKey = (e) => {
       if (e.key !== "Escape") return;
-      // A rules card open over the sphere takes this Escape for itself.
+      // A rules card or the piece viewer open over the sphere takes this
+      // Escape for itself.
+      if (document.querySelector('[data-testid="piece-viewer"]')) return;
       if (document.querySelector('[data-testid="info-overlay"][data-open="true"]')) return;
       exitSingularity();
     };

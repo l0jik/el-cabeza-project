@@ -2,7 +2,8 @@
    tab renders in both themes; "This game" lists exactly the laws in
    play (here 3 Actions + Slide, switched on through window.__EC_LAWS__),
    and tapping one jumps to its MOVES tile; the open-rules event opens a
-   given tab from anywhere. Screenshots of the cards land in /tmp. */
+   given tab from anywhere; the How to play button opens it, and Neon's
+   Custom rules button opens the SINGULARITY invite. Screenshots of the cards land in /tmp. */
 import { chromium } from "playwright";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
@@ -54,7 +55,81 @@ for (const theme of ["neon", "standard"]) {
   await page.mouse.click(6, 6);
   await page.waitForTimeout(500);
   check("a tap outside closes it", (await overlay.getAttribute("data-open")) === "false");
+
+  // Out in the open: an always-visible How to play button opens the
+  // Quick card, and in Neon the setup dock's Custom rules button brings
+  // up the SINGULARITY invite (the same one five masthead taps do).
+  const how = page.locator('[data-testid="how-to-play"]');
+  check("a How to play button is on screen", await how.isVisible());
+  await how.click();
+  await page.waitForTimeout(400);
+  check("...and opens the rules at the Quick card",
+    (await overlay.getAttribute("data-open")) === "true" && (await page.locator('[data-testid="rules-card-quick"]').count()) === 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(500);
+  if (theme === "neon") {
+    const { openDockPanel } = await import("./dock-helpers.mjs");
+    await openDockPanel(page);
+    const custom = page.locator('[data-testid="custom-rules"]');
+    check("the setup dock has a Custom rules button", await custom.isVisible());
+    await custom.click();
+    await page.waitForTimeout(700);
+    check("...which brings up the SINGULARITY invite", await page.evaluate(() => !!document.querySelector(".ec-singularity-invite-btn")));
+    await page.screenshot({ path: "/tmp/e2e-rules-custom.png" });
+  } else {
+    check("Standard has no Custom rules button", (await page.locator('[data-testid="custom-rules"]').count()) === 0);
+  }
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await context.close();
+}
+
+// The angelic choir and its closing cue belong to the ABOUT tab alone:
+// switching to ABOUT sings, leaving it silences the choir (no closing
+// cue), closing from ABOUT plays the cue. Every other open, close and tab
+// change plays its own small earcon (open / shut / tab) instead.
+{
+  console.log("[menu audio]");
+  const context = await browser.newContext({ viewport: { width: 900, height: 900 } });
+  const page = await context.newPage();
+  const audioErrs = [];
+  page.on("pageerror", (e) => audioErrs.push(e.message));
+  await page.addInitScript(() => { window.__EC_MENU_CUES__ = []; });
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.waitForTimeout(1500);
+  const cues = () => page.evaluate(() => window.__EC_MENU_CUES__.splice(0));
+  const overlay = page.locator('[data-testid="info-overlay"]');
+  const closeRules = async () => { await page.mouse.click(6, 6); await page.waitForTimeout(400); };
+
+  await page.locator('[data-testid="how-to-play"]').click();
+  await page.waitForTimeout(300);
+  check("opening the rules on Quick plays the open earcon, not the choir", (await cues()).join(",") === "open");
+  await page.locator('[data-testid="rules-tab-costs"]').click();
+  await page.waitForTimeout(150);
+  check("switching between other tabs plays a tab tick", (await cues()).join(",") === "tab");
+  await closeRules();
+  check("closing from another tab plays the close earcon, not the choir's cue", (await overlay.getAttribute("data-open")) === "false" && (await cues()).join(",") === "shut");
+
+  await open(page, "moves", "slide");
+  await page.waitForTimeout(300);
+  check("a rules card opened from elsewhere (not ABOUT) plays the open earcon", (await cues()).join(",") === "open");
+  await page.locator('[data-testid="rules-tab-about"]').click();
+  await page.waitForTimeout(150);
+  check("switching to ABOUT plays the choir", (await cues()).join(",") === "play");
+  await page.locator('[data-testid="rules-tab-quick"]').click();
+  await page.waitForTimeout(150);
+  check("leaving ABOUT silences the choir and ticks (no closing cue)", (await cues()).join(",") === "stop,tab");
+  await page.locator('[data-testid="rules-tab-about"]').click();
+  await page.waitForTimeout(150);
+  await cues();
+  await closeRules();
+  check("closing from ABOUT plays the closing cue", (await cues()).join(",") === "close");
+
+  await open(page, "about");
+  await page.waitForTimeout(300);
+  check("opening straight onto ABOUT plays the choir", (await cues()).join(",") === "play");
+  await closeRules();
+  await cues();
+  check(`the earcons run without errors (${audioErrs.length})`, audioErrs.length === 0, audioErrs.join(" | "));
   await context.close();
 }
 

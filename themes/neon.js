@@ -292,8 +292,10 @@ function buildRosterFromSelections(matterSelections) {
   }
   if (matterSelections.roster.rayo > 0) roster.push({ type: "rayo", count: matterSelections.roster.rayo });
   if (matterSelections.roster.zeta > 0) roster.push({ type: "zeta", count: matterSelections.roster.zeta });
-  if (matterSelections.newPieces.block1x3) roster.push({ type: "block1x3", count: 1 });
-  if (matterSelections.newPieces.block2x3) roster.push({ type: "block2x3", count: 1 });
+  ["block1x3", "block2x3"].forEach((type) => {
+    const count = matterSelections.roster[type] || 0;
+    if (count > 0) roster.push({ type, count });
+  });
 
   let total = roster.reduce((sum, r) => sum + r.count, 0);
   for (let i = roster.length - 1; total > 10 && i >= 0; i--) {
@@ -724,6 +726,9 @@ export const canvasGradientEnd = "#05070a";
    theme (see themes/standard.js's hasAudio for why this is declared
    metadata rather than a chassis branch). */
 export const hasAudio = true;
+// The in-game menu offers a switch for the cost badges on the move
+// markers (chassis: theme.moveCostToggle, the costs-toggle button).
+export const moveCostToggle = true;
 export function createAudio() {
   return createSoundscape();
 }
@@ -3487,11 +3492,18 @@ export function useSetupExtras({
     singularityTapRef.current = taps;
     if (taps.length >= SINGULARITY_TAP_COUNT) {
       singularityTapRef.current = [];
-      setSingularityRevealed(true);
-      clearTimeout(singularityHideTimerRef.current);
-      singularityHideTimerRef.current = setTimeout(
-        () => setSingularityRevealed(false), SINGULARITY_INVITE_TIMEOUT_MS);
+      revealSingularity();
     }
+  }
+  /* The same reveal, out in the open: the setup dock's "Custom rules"
+     button (renderSetupExtras) calls this directly. */
+  function revealSingularity() {
+    if (!awaitingBegin) return;
+    if (singularityRevealed || singularityCinematic.singularityPhase !== "idle") return;
+    setSingularityRevealed(true);
+    clearTimeout(singularityHideTimerRef.current);
+    singularityHideTimerRef.current = setTimeout(
+      () => setSingularityRevealed(false), SINGULARITY_INVITE_TIMEOUT_MS);
   }
 
   /* ---- commitment: a single click on the revealed SINGULARITY invite ----
@@ -3540,12 +3552,18 @@ export function useSetupExtras({
     handleAnomaly,
     singularityRevealed,
     handleMastheadTap,
+    revealSingularity,
     commitSingularity,
     singularityBtnRef,
     // For the in-game Current Variants flyout (renderExtraOverlays):
     // shown only once a game has actually begun (awaitingBegin cleared)
     // and is still in progress (isPlaying).
     isPlaying, awaitingBegin, currentVariants,
+    // The sphere's full-screen layer sits at 2000: while it is up, the
+    // chassis's corner controls (full screen, How to play) come above it
+    // so they still work, but stay under its menus (2100+). Not during
+    // the collapse or the cut to black.
+    cornerControlsZ: singularityCinematic.singularityPhase === "sphere" ? 2050 : undefined,
     ...singularityCinematic,
   };
 }
@@ -3554,7 +3572,7 @@ export function useSetupExtras({
    button; the Singularity phantom button (once revealed) sits below
    both. Takes over the whole row/column rather than just appending
    after Begin Game, since Anomaly has to sit BEFORE it. */
-export function renderSetupExtras({ beginGameButton, handleAnomaly }) {
+export function renderSetupExtras({ beginGameButton, handleAnomaly, revealSingularity }) {
   const h = React.createElement;
   return h(
     "div",
@@ -3604,11 +3622,33 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly }) {
         "Anomaly"
       ),
       beginGameButton
+    ),
+    // Custom rules: opens the SINGULARITY invite (the massive screen-
+    // takeover overlay, renderSingularityInvite) — the same thing five
+    // taps on the EL CABEZA masthead do, now out in the open.
+    revealSingularity && h(
+      "button",
+      {
+        key: "custom-rules",
+        type: "button",
+        "data-testid": "custom-rules",
+        className: "ec-btn",
+        onClick: revealSingularity,
+        title: "New pieces, laws and boards: SINGULARITY",
+        style: {
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 11,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: COLORS.charcoal,
+          background: "transparent",
+          border: `1px solid ${COLORS.slateSoft}`,
+          padding: "8px 16px",
+          cursor: "pointer",
+        },
+      },
+      "Custom rules ›"
     )
-    // The SINGULARITY invite is no longer a small dock button revealed by
-    // holding Anomaly — it's a massive screen-takeover overlay (see
-    // renderSingularityInvite in renderExtraOverlays), triggered by five
-    // taps on the EL CABEZA masthead.
   );
 }
 
@@ -5783,6 +5823,12 @@ export function createSoundscape() {
       unlockIosAudio();
       if (ctx.state === "suspended") ctx.resume();
       master = ctx.createGain();
+      // Test-only: the live master level, the context state and the
+      // wind-down flag (tests/e2e-undo-audio.mjs).
+      if (typeof window !== "undefined") {
+        window.__EC_TEST_AUDIO__ = () => ({ gain: master ? master.gain.value : null, state: ctx ? ctx.state : null, windingDown, intro: introGain ? introGain.gain.value : null });
+        window.__EC_TEST_AUDIO_SUSPEND__ = () => ctx && ctx.suspend(); // stands in for a phone suspending a silent context
+      }
       // +14dB overall total (10^(14/20) ≈ 5.01) — a single multiplier on
       // the final stage, so every sound is raised by the same factor and
       // nothing shifts relative to anything else.
@@ -6043,6 +6089,14 @@ export function createSoundscape() {
     // the next beginGameFadeIn() ramps it back in, matching a fresh
     // load's behavior exactly rather than approximating it by muting
     // everything.
+    // Back into play (an undone win or ending): a phone may have
+    // suspended the context during the post-game silence, and bringing
+    // master back up then plays nothing. The undo tap is a user gesture,
+    // so the context can be woken here.
+    if (restoreVolume === true && ctx && ctx.state !== "running") {
+      unlockIosAudio();
+      try { ctx.resume(); } catch (e) { /* closed — nothing to wake */ }
+    }
     if (master && ctx) {
       master.gain.cancelScheduledValues(ctx.currentTime);
       master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
@@ -6459,6 +6513,106 @@ export function createSoundscape() {
     choirEndTime = now + fadeSeconds + 0.1;
   }
 
+  /* The rules pop-up's own earcons, for every open, close and tab change
+     that isn't the ABOUT tab's (the choir owns ABOUT). The same glass
+     family as the rest of Neon: a sine and its bell-like 2.76x partial,
+     quick to fade, with a faint air of filtered noise on open/close.
+     Each has variants and small random shifts, and the same variant
+     never plays twice in a row, so repeats never sound identical.
+       open  — one plain struck tone (D5 with a faint octave), soft attack
+               and a long quiet fall. It was a rising two-note glass
+               figure with a swish, which read as too playful ("too much
+               like a Nintendo game"); now austere, and 20% quieter.
+       close — the same tone a fourth lower (A4), softer and shorter
+       tab   — ONE tick for every tab (the one COSTS had, G#6), in ten
+               near-identical takes: a few cents of pitch, the partial's
+               ratio, the decay, and a trace of soft distortion differ. */
+  const cents = (c) => Math.pow(2, c / 1200);
+  const jitter = (amt) => (Math.random() * 2 - 1) * amt;
+  // One plain struck tone: a sine with a faint octave, soft attack, long
+  // quiet fall. Open and close are the same sound at two pitches.
+  function rulesTone(base, level, decay) {
+    if (!ctx) return;
+    const t0 = nowT() + 0.005;
+    const f = base * cents(jitter(5));
+    const peak = level * (0.92 + Math.random() * 0.12);
+    const tone = (freq, attack, fall, p) => {
+      const o = ctx.createOscillator();
+      o.type = "sine"; o.frequency.value = freq;
+      const g = ctx.createGain();
+      env(g, t0, attack, 0.02, fall, p);
+      o.connect(g).connect(sfxGain);
+      o.start(t0); o.stop(t0 + attack + fall + 0.08);
+    };
+    tone(f, 0.012, decay + jitter(0.04), peak);
+    tone(f * 2, 0.008, decay * 0.4, peak * 0.2);
+  }
+  const rulesOpenTone = () => rulesTone(587.33, 0.00845, 0.5); // D5; the old open figure's 0.01056, less 20%
+  const rulesCloseTone = () => rulesTone(440, 0.0068, 0.42); // A4, a fourth below: settles rather than rises
+  // Tab tick: the COSTS tick for every tab. [cents, partial ratio, decay s, grit]
+  const TAB_FREQ = 1318.5 * Math.pow(2, 4 / 12); // G#6
+  const TAB_TAKES = [
+    [0, 2.76, 0.070, 0], [4, 2.74, 0.066, 0.1], [-3, 2.78, 0.074, 0.05], [7, 2.75, 0.068, 0.2], [-6, 2.77, 0.072, 0.15],
+    [2, 2.73, 0.070, 0.3], [-8, 2.79, 0.064, 0.08], [5, 2.76, 0.076, 0.25], [-2, 2.72, 0.068, 0.35], [8, 2.8, 0.072, 0.12],
+  ];
+  let lastTake = -1;
+  const gritCurves = new Map();
+  function gritCurve(amount) {
+    if (!gritCurves.has(amount)) {
+      const k = 1 + amount * 8, n = 1024, c = new Float32Array(n);
+      for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(k * x) / Math.tanh(k); }
+      gritCurves.set(amount, c);
+    }
+    return gritCurves.get(amount);
+  }
+  function rulesTabTick() {
+    if (!ctx) return;
+    let i = Math.floor(Math.random() * TAB_TAKES.length);
+    if (i === lastTake) i = (i + 1) % TAB_TAKES.length;
+    lastTake = i;
+    const [c, ratio, decay, grit] = TAB_TAKES[i];
+    const t0 = nowT() + 0.003;
+    const peak = 0.00576 * (0.94 + Math.random() * 0.08);
+    const freq = TAB_FREQ * cents(c);
+    // The body runs through a soft clipper at full swing (so the grit is
+    // real harmonics, not level), then the envelope sets its loudness.
+    const osc = ctx.createOscillator();
+    osc.type = "sine"; osc.frequency.value = freq;
+    const g = ctx.createGain();
+    env(g, t0, 0.004, 0.01, decay, peak);
+    if (grit > 0) {
+      const shaper = ctx.createWaveShaper();
+      shaper.curve = gritCurve(grit);
+      osc.connect(shaper).connect(g);
+    } else osc.connect(g);
+    g.connect(sfxGain);
+    osc.start(t0); osc.stop(t0 + decay + 0.05);
+    const part = ctx.createOscillator();
+    part.type = "sine"; part.frequency.value = freq * ratio;
+    const pg = ctx.createGain();
+    env(pg, t0, 0.002, 0.004, decay * 0.45, peak * 0.35);
+    part.connect(pg).connect(sfxGain);
+    part.start(t0); part.stop(t0 + decay + 0.05);
+  }
+
+  function logMenuCue(name) {
+    if (typeof window !== "undefined" && Array.isArray(window.__EC_MENU_CUES__)) window.__EC_MENU_CUES__.push(name);
+  }
+
+  /* Leaving the ABOUT tab for another rules tab: the opening stab, if
+     it's still sounding, fades out quickly and nothing else plays — the
+     closing tail belongs to closing from ABOUT only. */
+  function silenceChoir() {
+    if (!ctx || !choirMasterEnv) return;
+    const now = ctx.currentTime;
+    if (now >= choirEndTime) return;
+    const level = choirMasterEnv.gain.value;
+    choirMasterEnv.gain.cancelScheduledValues(now);
+    choirMasterEnv.gain.setValueAtTime(level, now);
+    choirMasterEnv.gain.linearRampToValueAtTime(0.0001, now + 0.25);
+    choirEndTime = now + 0.3;
+  }
+
   /* A piece landing: a short filtered-noise thud (the impact transient)
      plus a low pitched body tone, both driven through the same crunch
      shaper and a short reverb send — replaces what was a clean rising
@@ -6736,8 +6890,14 @@ export function createSoundscape() {
     // ensureStarted()'s own `!awaitingBegin` gate would normally have
     // built the audio graph, and playChoirStab/fadeOutChoir silently
     // no-op without it (both guard on `if (!ctx) return`).
-    playMenu: () => { ensureGraph(); playChoirStab(); },
-    fadeOutMenu: () => { ensureGraph(); fadeOutChoir(); },
+    // A test that sets window.__EC_MENU_CUES__ = [] sees each of these
+    // three logged (e2e-rules: the choir belongs to the ABOUT tab only).
+    playMenu: () => { logMenuCue("play"); ensureGraph(); playChoirStab(); },
+    fadeOutMenu: () => { logMenuCue("close"); ensureGraph(); fadeOutChoir(); },
+    stopMenu: () => { logMenuCue("stop"); if (ctx) silenceChoir(); },
+    playRulesOpen: () => { logMenuCue("open"); ensureGraph(); rulesOpenTone(); },
+    playRulesClose: () => { logMenuCue("shut"); ensureGraph(); rulesCloseTone(); },
+    playRulesTab: () => { logMenuCue("tab"); ensureGraph(); rulesTabTick(); },
     // ensureGraph() + an explicit resume, same self-contained pattern
     // as playDockOpen/playSingularityOpen below — beginGameFadeIn()
     // (called right before this on desktop) already builds the graph,
