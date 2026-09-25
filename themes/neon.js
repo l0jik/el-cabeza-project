@@ -726,6 +726,9 @@ export const canvasGradientEnd = "#05070a";
    theme (see themes/standard.js's hasAudio for why this is declared
    metadata rather than a chassis branch). */
 export const hasAudio = true;
+// The in-game menu offers a switch for the cost badges on the move
+// markers (chassis: theme.moveCostToggle, the costs-toggle button).
+export const moveCostToggle = true;
 export function createAudio() {
   return createSoundscape();
 }

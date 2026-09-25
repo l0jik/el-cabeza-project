@@ -55,6 +55,23 @@ for (const theme of ["neon", "standard"]) {
   check("the piece card names the selected piece", (await card.count()) === 1 && /Turrito/.test(await card.innerText()), await card.count() ? await card.innerText() : "none");
   check("...and says how it moves and what it costs", /rolls one square.*1 point/i.test(await page.locator('[data-testid="piece-card-text"]').innerText()));
   await page.screenshot({ path: `/tmp/e2e-costs-${theme}-1.png` });
+  // Neon's in-game menu switches the cost badges off and on (and
+  // remembers it); Standard has no such switch.
+  if (theme === "neon") {
+    await openDockPanel(page);
+    await page.locator('[data-testid="costs-toggle"]').click();
+    await page.waitForTimeout(400);
+    check("the costs switch turns the badges off", (await badges(page)).length === 0 &&
+      (await page.locator('[data-testid="costs-toggle"]').getAttribute("aria-pressed")) === "false");
+    check("...and remembers it", (await page.evaluate(() => localStorage.getItem("el-cabeza:show-move-costs"))) === "0");
+    await page.locator('[data-testid="costs-toggle"]').click();
+    await page.waitForTimeout(400);
+    check("...and back on", (await badges(page)).length >= 4);
+    await page.mouse.click(4, 450);
+    await page.waitForTimeout(400);
+  } else {
+    check("Standard has no costs switch", (await page.locator('[data-testid="costs-toggle"]').count()) === 0);
+  }
   await page.mouse.click(500, 880);
   await page.waitForTimeout(500);
   check("deselecting hides the card and the badges", (await card.count()) === 0 && (await badges(page)).length === 0);

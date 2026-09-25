@@ -179,6 +179,15 @@ function loadShowPoints() {
 function saveShowPoints(on) {
   try { window.localStorage.setItem(SHOW_POINTS_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
 }
+// The cost badges on the move markers (buildCostBadge), for a theme that
+// offers a switch for them (theme.moveCostToggle). On unless switched off.
+const SHOW_COSTS_KEY = "el-cabeza:show-move-costs";
+function loadShowCosts() {
+  try { return window.localStorage.getItem(SHOW_COSTS_KEY) !== "0"; } catch (e) { return true; }
+}
+function saveShowCosts(on) {
+  try { window.localStorage.setItem(SHOW_COSTS_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
+}
 function loadOpponentPrefs() {
   const prefs = { aiPlayer: null, aiDifficulty: "medium", humanStartSide: "dark" };
   try {
@@ -688,6 +697,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      Sound. `pointsPulse` bumps when a free detour hands points back (see
      commitRef's turn trail), replaying a short flash on the counter. */
   const [showPoints, setShowPoints] = useState(loadShowPoints);
+  const [showCosts, setShowCosts] = useState(loadShowCosts);
+  // A theme without the switch always shows the badges.
+  const costsOn = showCosts || !theme.moveCostToggle;
   const [pointsPulse, setPointsPulse] = useState(0);
   /* The counter outlives the game it counted: once a game ends it freezes
      on that game's last turn ({ player, left } — the points the final
@@ -3166,6 +3178,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const sameBoard = (a, b) =>
       a.length === b.length && a.every((p) => { const q = b.find((x) => x.id === p.id); return q && sameState(p, q); });
     const withCostBadge = (themed, move, x, y, z) => {
+      if (!costsOn) return themed;
       const cand = move.candidate;
       const nextBoard = pieces.map((p) => (p.id === cand.id ? cand : p));
       const isFree = currentPlayer !== aiPlayer && !move.crushes && !move.shoves &&
@@ -3269,7 +3282,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       group.add(indicator.root);
     });
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [shadowSig]);
+  }, [shadowSig, costsOn]);
 
   /* Hover emphasis retargets the fade rather than setting opacity
      directly — sliding between footprints must not re-create meshes,
@@ -7224,7 +7237,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             style={{
               position: "absolute",
               left: 20,
-              right: theme.hasAudio ? 76 : 44,
+              right: (theme.hasAudio ? 76 : 44) + (theme.moveCostToggle ? 32 : 0),
               bottom: 13,
               fontFamily: "'IBM Plex Mono', monospace",
               // Larger and in the dock's own text colour per feedback
@@ -7287,6 +7300,46 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             {!showPoints && <line x1="2" y1="20" x2="24" y2="4" />}
           </svg>
         </button>
+        {/* Move costs on/off (a theme opts in with moveCostToggle): the
+           circled numbers on the move markers. The glyph is one of those
+           badges, struck through while they're off. */}
+        {theme.moveCostToggle && (
+          <button
+            data-testid="costs-toggle"
+            aria-pressed={showCosts}
+            onClick={() => {
+              const next = !showCosts;
+              setShowCosts(next);
+              saveShowCosts(next);
+            }}
+            aria-label={showCosts ? "Hide move costs" : "Show move costs"}
+            title={showCosts ? "Hide move costs" : "Show move costs"}
+            style={{
+              position: "absolute",
+              right: theme.hasAudio ? 72 : 40,
+              bottom: 8,
+              width: 30,
+              height: 30,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "transparent",
+              border: "none",
+              color: COLORS.slate,
+              opacity: showCosts ? 0.85 : 0.45,
+              cursor: "pointer",
+              transition: "opacity 0.2s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.85; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = showCosts ? 0.85 : 0.45; }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M10 9.5l2.5-2v9" />
+              {!showCosts && <line x1="3" y1="21" x2="21" y2="3" />}
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Move Log popup — chassis-level (see ARCHITECTURE.md), shown via

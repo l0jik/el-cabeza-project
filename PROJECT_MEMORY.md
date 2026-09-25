@@ -1612,6 +1612,14 @@ direction). First pass, in the real game, both themes:
   the active laws (slide, diagonal slide, pivot, shoving), plus "More ›"
   to its MOVES tile. Text comes from `pieceCardInfo` in RulesCards.jsx.
   It stays while the piece is committed mid-turn.
+- **Move costs switch** (Neon, user request): a circled-"1" icon in the
+  dock's corner row, left of the points switch (`costs-toggle`). It hides
+  or shows the cost badges on the move markers. On by default, and
+  remembered in localStorage `el-cabeza:show-move-costs`. A theme opts
+  in with `export const moveCostToggle = true`; without it (Standard)
+  the badges always show. The chassis reads `costsOn`, and the marker
+  effect depends on it, so flipping it redraws the markers at once.
+  e2e-costs covers it.
 - **How to play** (`how-to-play`): always on screen beside the full-screen
   button and opens the Quick card. Below 560px wide only the "?" shows,
   keeping it clear of the points counter.
