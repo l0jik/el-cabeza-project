@@ -1390,6 +1390,12 @@ export const AI_DIFFICULTY = {
        to make Medium's positional judgment read as Hard's. */
     wall: 2.0,
     centrality: 0,
+    /* Room to run (see evaluatePosition): 8 per safe step square short
+       of three. From tests/ai-sim.mjs, scenario "rayo" (the reported
+       game's roster, Split Movement + Slides): with it on, the longest
+       run of Cabeza-only turns fell from 38 to 3, and this Medium beat
+       the previous one 7-0 (1 draw) across both sides, every win a crush. */
+    cabezaSafety: 8,
     /* Looks deeper into only its 8 best-ordered turns per position (24
        at the root). Measured with tests/ai-sim.mjs against the previous
        Medium: 11 of 12 games won on the classic board, 12 of 12 with
@@ -1440,6 +1446,7 @@ export const AI_DIFFICULTY = {
        this, same as the depth numbers above. */
     wall: 4,
     centrality: 0.8,
+    cabezaSafety: 8, // same as Medium; not separately simulated for Hard
     /* Wider than Medium's, with twice the time to use it. */
     beam: 12,
     /* Deliberately the smallest of the three. Hard's whole point is

@@ -1814,6 +1814,13 @@ Sumi, Vacío) each have a Title and an In-game phone board.
   points, so roll-to-line-up then roll-onto is the usual crush). In
   Split Movement games with pieces in contact Medium often only finishes
   depth 1, where the evaluation alone guards the Cabeza. A
-  `cabezaSafety` weight (safe step squares short of three) exists but is
-  off pending simulation. tests/ai-threats.smoke.mjs; ai-sim scenario
-  `rayo`.
+  `cabezaSafety` weight (8 per safe step square short of three) is on
+  for Medium and Hard, and the Cabeza/piece repeat biases now also apply
+  to turns that rescue a threatened Cabeza (only twoStepBias keeps that
+  waiver). ai-sim `rayo`: longest Cabeza-only run 38 -> 3, and new
+  Medium beat the old 7-0 (1 draw) across both sides. Hard's value is
+  Medium's, not separately simulated. tests/ai-threats.smoke.mjs.
+- **Undo after a game ends restores sound.** resetWindDown(true) also
+  resumes a suspended AudioContext (phones may suspend it in the
+  post-game silence); tests/e2e-undo-audio.mjs, probe
+  window.__EC_TEST_AUDIO__ / __EC_TEST_AUDIO_SUSPEND__ (Neon).
