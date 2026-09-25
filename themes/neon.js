@@ -6491,6 +6491,79 @@ export function createSoundscape() {
     choirEndTime = now + fadeSeconds + 0.1;
   }
 
+  /* The rules pop-up's own earcons, for every open, close and tab change
+     that isn't the ABOUT tab's (the choir owns ABOUT). The same glass
+     family as the rest of Neon: a sine and its bell-like 2.76x partial,
+     quick to fade, with a faint air of filtered noise on open/close.
+     Each has a few variants and small random shifts in pitch, level and
+     timing (the same variant never plays twice in a row), so repeats
+     never sound identical.
+       open  — a short rising two-note figure, a swish sweeping up
+       close — the same figure falling, a touch softer, swish sweeping down
+       tab   — one crystal tick whose pitch follows the tab's place in the
+               row (left low, right high), so the ear can follow it */
+  const RULES_FIGURES = [[0, 7], [0, 5], [2, 9], [-3, 4]];
+  let lastFigure = -1;
+  const cents = (c) => Math.pow(2, c / 1200);
+  const jitter = (amt) => (Math.random() * 2 - 1) * amt;
+  function glassNote(t0, freq, peak, decay) {
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    env(g, t0, 0.004, 0.01, decay, peak);
+    osc.connect(g).connect(sfxGain);
+    osc.start(t0); osc.stop(t0 + decay + 0.05);
+    const part = ctx.createOscillator();
+    part.type = "sine";
+    part.frequency.value = freq * (2.76 + jitter(0.04));
+    const pg = ctx.createGain();
+    env(pg, t0, 0.002, 0.004, decay * 0.45, peak * 0.35);
+    part.connect(pg).connect(sfxGain);
+    part.start(t0); part.stop(t0 + decay + 0.05);
+  }
+  function airSwish(t0, from, to, dur, peak) {
+    const len = Math.ceil(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass"; bp.Q.value = 1.4;
+    bp.frequency.setValueAtTime(from, t0);
+    bp.frequency.exponentialRampToValueAtTime(to, t0 + dur);
+    const g = ctx.createGain();
+    env(g, t0, dur * 0.35, 0, dur * 0.65, peak);
+    src.connect(bp).connect(g).connect(sfxGain);
+    src.start(t0); src.stop(t0 + dur + 0.02);
+  }
+  function pickFigure() {
+    let i = Math.floor(Math.random() * RULES_FIGURES.length);
+    if (i === lastFigure) i = (i + 1) % RULES_FIGURES.length;
+    lastFigure = i;
+    return RULES_FIGURES[i];
+  }
+  function rulesFigure(rising) {
+    if (!ctx) return;
+    const t0 = nowT() + 0.005;
+    const base = 1046.5 * cents(jitter(12)); // C6, give or take
+    const level = (rising ? 0.022 : 0.017) * (0.85 + Math.random() * 0.25);
+    const fig = pickFigure();
+    const notes = rising ? fig : [fig[1], fig[0]];
+    const gap = 0.055 + jitter(0.008);
+    notes.forEach((st, k) => glassNote(t0 + k * gap, base * Math.pow(2, st / 12), level * (k ? 0.8 : 1), 0.2 + jitter(0.03)));
+    airSwish(t0, rising ? 1800 : 6000, rising ? 6000 : 1800, 0.13 + jitter(0.02), level * 0.35);
+  }
+  const TAB_STEPS = [0, 2, 4, 7, 9, 12, 14];
+  function rulesTabTick(index) {
+    if (!ctx) return;
+    const t0 = nowT() + 0.003;
+    const step = TAB_STEPS[Math.max(0, Math.min(TAB_STEPS.length - 1, index | 0))];
+    const freq = 1318.5 * Math.pow(2, step / 12) * cents(jitter(8)); // from E6 up the pentatonic
+    glassNote(t0, freq, 0.012 * (0.85 + Math.random() * 0.25), 0.07 + jitter(0.012));
+  }
+
   function logMenuCue(name) {
     if (typeof window !== "undefined" && Array.isArray(window.__EC_MENU_CUES__)) window.__EC_MENU_CUES__.push(name);
   }
@@ -6791,6 +6864,9 @@ export function createSoundscape() {
     playMenu: () => { logMenuCue("play"); ensureGraph(); playChoirStab(); },
     fadeOutMenu: () => { logMenuCue("close"); ensureGraph(); fadeOutChoir(); },
     stopMenu: () => { logMenuCue("stop"); if (ctx) silenceChoir(); },
+    playRulesOpen: () => { logMenuCue("open"); ensureGraph(); rulesFigure(true); },
+    playRulesClose: () => { logMenuCue("shut"); ensureGraph(); rulesFigure(false); },
+    playRulesTab: (index) => { logMenuCue("tab"); ensureGraph(); rulesTabTick(index); },
     // ensureGraph() + an explicit resume, same self-contained pattern
     // as playDockOpen/playSingularityOpen below — beginGameFadeIn()
     // (called right before this on desktop) already builds the graph,

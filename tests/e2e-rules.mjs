@@ -84,13 +84,15 @@ for (const theme of ["neon", "standard"]) {
 }
 
 // The angelic choir and its closing cue belong to the ABOUT tab alone:
-// opening the rules on any other tab, switching between other tabs, and
-// closing from them are silent; switching to ABOUT sings, leaving it
-// silences the choir (no closing cue), closing from ABOUT plays the cue.
+// switching to ABOUT sings, leaving it silences the choir (no closing
+// cue), closing from ABOUT plays the cue. Every other open, close and tab
+// change plays its own small earcon (open / shut / tab) instead.
 {
   console.log("[menu audio]");
   const context = await browser.newContext({ viewport: { width: 900, height: 900 } });
   const page = await context.newPage();
+  const audioErrs = [];
+  page.on("pageerror", (e) => audioErrs.push(e.message));
   await page.addInitScript(() => { window.__EC_MENU_CUES__ = []; });
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
   await page.waitForTimeout(1500);
@@ -100,22 +102,22 @@ for (const theme of ["neon", "standard"]) {
 
   await page.locator('[data-testid="how-to-play"]').click();
   await page.waitForTimeout(300);
-  check("opening the rules on Quick plays nothing", (await cues()).length === 0);
+  check("opening the rules on Quick plays the open earcon, not the choir", (await cues()).join(",") === "open");
   await page.locator('[data-testid="rules-tab-costs"]').click();
   await page.waitForTimeout(150);
-  check("switching between other tabs plays nothing", (await cues()).length === 0);
+  check("switching between other tabs plays a tab tick", (await cues()).join(",") === "tab");
   await closeRules();
-  check("closing from another tab plays no closing cue", (await overlay.getAttribute("data-open")) === "false" && (await cues()).length === 0);
+  check("closing from another tab plays the close earcon, not the choir's cue", (await overlay.getAttribute("data-open")) === "false" && (await cues()).join(",") === "shut");
 
   await open(page, "moves", "slide");
   await page.waitForTimeout(300);
-  check("a rules card opened from elsewhere (not ABOUT) plays nothing", (await cues()).length === 0);
+  check("a rules card opened from elsewhere (not ABOUT) plays the open earcon", (await cues()).join(",") === "open");
   await page.locator('[data-testid="rules-tab-about"]').click();
   await page.waitForTimeout(150);
   check("switching to ABOUT plays the choir", (await cues()).join(",") === "play");
   await page.locator('[data-testid="rules-tab-quick"]').click();
   await page.waitForTimeout(150);
-  check("leaving ABOUT only silences it (no closing cue)", (await cues()).join(",") === "stop");
+  check("leaving ABOUT silences the choir and ticks (no closing cue)", (await cues()).join(",") === "stop,tab");
   await page.locator('[data-testid="rules-tab-about"]').click();
   await page.waitForTimeout(150);
   await cues();
@@ -127,6 +129,7 @@ for (const theme of ["neon", "standard"]) {
   check("opening straight onto ABOUT plays the choir", (await cues()).join(",") === "play");
   await closeRules();
   await cues();
+  check(`the earcons run without errors (${audioErrs.length})`, audioErrs.length === 0, audioErrs.join(" | "));
   await context.close();
 }
 

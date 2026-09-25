@@ -21,7 +21,7 @@ import {
   setGhostLineTarget,
 } from "../engine/geometry.js";
 import { cubeCount, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
-import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, pieceCardInfo } from "./RulesCards.jsx";
+import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
 // ABOUT's link returns to the original game. Inlined by the build.
@@ -1603,9 +1603,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   /* The choir (playMenu) and its closing tail (fadeOutMenu) belong to
      the ABOUT tab alone: the choir sounds when the rules open on ABOUT or
      the player switches to it, the tail when they close from ABOUT, and
-     leaving ABOUT for another tab just silences the choir (stopMenu).
-     Nothing else in the rules plays either. infoTabRef mirrors infoTab
-     for the close cleanup, which runs after the state has moved on. */
+     leaving ABOUT for another tab silences the choir (stopMenu). Every
+     other open, close and tab change has its own small earcon instead
+     (playRulesOpen / playRulesClose / playRulesTab — see themes/neon.js).
+     infoTabRef mirrors infoTab for the close cleanup, which runs after
+     the state has moved on. */
   const infoTabRef = useRef(infoTab);
   infoTabRef.current = infoTab;
   function openRulesAt(tab, focus = null) {
@@ -1613,10 +1615,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     setRulesFocus(focus);
     setShowInfoOverlay(true);
     if (tab === "about") audioRef.current.playMenu();
+    else audioRef.current.playRulesOpen();
   }
   function switchRulesTab(tab, focus = null) {
-    if (tab === "about" && infoTabRef.current !== "about") audioRef.current.playMenu();
-    if (tab !== "about" && infoTabRef.current === "about") audioRef.current.stopMenu();
+    const from = infoTabRef.current;
+    if (tab !== from) {
+      if (tab === "about") audioRef.current.playMenu();
+      else {
+        if (from === "about") audioRef.current.stopMenu();
+        audioRef.current.playRulesTab(Math.max(0, RULES_TABS.findIndex((t) => t.key === tab)));
+      }
+    }
     setInfoTab(tab);
     setRulesFocus(focus);
   }
@@ -1634,6 +1643,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // landed silently on a still-suspended context. It opens on the tab
     // last shown, so the choir only when that's ABOUT.
     if (infoTabRef.current === "about") audioRef.current.playMenu();
+    else audioRef.current.playRulesOpen();
   }
 
   useEffect(() => {
@@ -1670,7 +1680,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   // to showInfoOverlay flipping true (see the comment there for why).
   useEffect(() => {
     if (!showInfoOverlay) return;
-    return () => { if (infoTabRef.current === "about") audioRef.current.fadeOutMenu(); };
+    return () => {
+      if (infoTabRef.current === "about") audioRef.current.fadeOutMenu();
+      else audioRef.current.playRulesClose();
+    };
   }, [showInfoOverlay]);
 
   /* Escape dismisses whichever post-game overlay is currently showing —

@@ -1625,15 +1625,25 @@ nothing else:
   showing.
 - **Leaving ABOUT for another tab:** only silences the choir
   (`audio.stopMenu`, a 0.25 s fade with no tail).
-- **Every other open, switch or close is silent:** How to play, piece
-  card, unused-points note, variants flyout, sphere links, and tab
-  switches between non-ABOUT tabs.
+- **Every other open, switch or close gets its own small Neon earcon**
+  (user follow-up):
+  - `playRulesOpen`: a rising two-note glass figure around C6 with an
+    upward air swish.
+  - `playRulesClose`: the same figure falling, softer, with the swish
+    sweeping down.
+  - `playRulesTab(index)`: one crystal tick. Its pitch follows the tab's
+    place in `RULES_TABS` on a pentatonic scale from E6, low on the left
+    and high on the right.
+  - All three: four figure variants, never the same twice in a row, with
+    ±8–12 cents, level and timing jitter. The sound is a sine plus a
+    2.76× bell partial through `sfxGain`, so mute applies. Standard has
+    no-ops.
 
 In the chassis, `openRulesAt(tab, focus)` and `switchRulesTab(tab,
 focus)` are the only ways in. `infoTabRef` feeds the close cleanup. The
 masthead Info button opens on the last-shown tab and plays the choir only
 if that tab is ABOUT. Test hook: `window.__EC_MENU_CUES__ = []` logs
-`play`/`close`/`stop` (e2e-rules "[menu audio]").
+`play`/`close`/`stop`/`open`/`shut`/`tab` (e2e-rules "[menu audio]").
 
 ## MATTER menu: one list, 3D piece models (user request)
 

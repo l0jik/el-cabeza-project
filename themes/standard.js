@@ -308,7 +308,7 @@ export function createAudio() {
     ensureStarted, beginGameFadeIn() {}, setZoom() {}, setMuted,
     setTension() {}, beginFadeOut() {}, resetWindDown() {},
     playSelect() {}, playDeselect() {}, playBlocked() {}, playRollStart, playLanding, playCapture() {},
-    playWin() {}, playMenu() {}, fadeOutMenu() {}, stopMenu() {}, playPowerOn() {},
+    playWin() {}, playMenu() {}, fadeOutMenu() {}, stopMenu() {}, playRulesOpen() {}, playRulesClose() {}, playRulesTab() {}, playPowerOn() {},
     playPowerOff() {}, playFlicker() {}, playArc() {}, playGlitch() {},
     playSingularityOpen() {}, playSingularityClose() {},
     /* Singularity is a Neon-only feature, but the chassis calls every
