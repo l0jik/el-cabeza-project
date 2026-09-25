@@ -590,16 +590,22 @@ export function turnContinues(pieces, player, movedPieceIds, currentPieceState, 
   );
 }
 
+/* One row per full round, in play order: whoever opened the game (the
+   first entry's player) fills a row's first move, the other side its
+   second. Rows still carry `dark` / `light`, plus `opener`, so a table
+   can put the opener's column first. A game Light opens used to show a
+   "—" in Dark's column on row 1, which read as a skipped turn. */
 export function pairLog(entries) {
+  const opener = entries.length ? entries[0].player : "dark";
   const rows = [];
   let current = null;
   for (const entry of entries) {
-    if (entry.player === "dark") {
+    if (entry.player === opener || !current) {
       if (current) rows.push(current);
-      current = { n: rows.length + 1, dark: entry, light: null };
+      current = { n: rows.length + 1, opener, dark: null, light: null };
+      current[entry.player] = entry;
     } else {
-      if (!current) current = { n: rows.length + 1, dark: null, light: null };
-      current.light = entry;
+      current[entry.player] = entry;
       rows.push(current);
       current = null;
     }

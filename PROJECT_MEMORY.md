@@ -1800,3 +1800,20 @@ Sumi, Vacío) each have a Title and an In-game phone board.
   button/invite then breathes (ec-singularity-calm-halo/-text: a slow 5 s
   opacity/brightness pulse, no flicker or scaling) instead of standing
   still, and the MOVES tiles play at half speed.
+
+- **Move Log order follows the opener.** `pairLog` (engine/rules.js) pairs
+  each round from whoever made the log's first move and tags rows with
+  `opener`; the Move Log table puts the opener's column first and Copy
+  Move Log writes "1. Light: … | Dark: …" for a Light-opened game, and
+  drops the empty half of a round the game ended in. It used to show
+  "1. Dark: — | Light: …", which read as a skipped Dark turn. Tests:
+  engine.smoke.mjs ([log]) and tests/e2e-movelog.mjs (AI plays Light and
+  opens).
+- **AI sees two-roll crushes.** evaluatePosition and cabezaInDanger also
+  expand a second roll for blocks near an enemy Cabeza (a turn is two
+  points, so roll-to-line-up then roll-onto is the usual crush). In
+  Split Movement games with pieces in contact Medium often only finishes
+  depth 1, where the evaluation alone guards the Cabeza. A
+  `cabezaSafety` weight (safe step squares short of three) exists but is
+  off pending simulation. tests/ai-threats.smoke.mjs; ai-sim scenario
+  `rayo`.

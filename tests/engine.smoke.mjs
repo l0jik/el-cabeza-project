@@ -402,4 +402,18 @@ setActiveLaws({ splitMovement: false, threeActions: false });
   console.log("[pivot] one-cube stance only; both ways; swept diagonal blocks; 1-tall never blocks; stays on board; 1 point; exact inverse; AI sees it");
 }
 
+// ---- The move log pairs rounds in play order ----
+// Light opening must not leave a "—" in Dark's slot on round 1 (it read as
+// a skipped turn); a Light-opened log pairs Light-then-Dark.
+{
+  const e = (player, notation) => ({ player, notation });
+  const lightFirst = pairLog([e("light", "a"), e("dark", "b"), e("light", "c"), e("dark", "d"), e("light", "x")]);
+  if (lightFirst.length !== 3) throw new Error("Light-opened log: expected 3 rounds, got " + lightFirst.length);
+  if (lightFirst[0].opener !== "light" || lightFirst[0].light.notation !== "a" || lightFirst[0].dark.notation !== "b") throw new Error("Light-opened round 1 should be Light a, Dark b");
+  if (lightFirst[2].light.notation !== "x" || lightFirst[2].dark) throw new Error("A round the game ended in should hold only the opener's move");
+  const darkFirst = pairLog([e("dark", "a"), e("light", "b"), e("dark", "c")]);
+  if (darkFirst.length !== 2 || darkFirst[0].opener !== "dark" || darkFirst[0].light.notation !== "b" || darkFirst[1].light) throw new Error("Dark-opened log pairs Dark-then-Light, unchanged");
+  console.log("[log] rounds pair from whoever opened");
+}
+
 console.log("\nSMOKE TEST PASSED");

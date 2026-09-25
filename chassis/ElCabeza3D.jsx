@@ -5702,12 +5702,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      punctuation) rather than a structured format — nothing currently
      reads this back into the game, so there's no parser to satisfy,
      just a person or a paste target reading plain lines. */
+  // The Move Log's column order: whoever opened this game first (the log's
+  // first entry), or before any move, the side set to start.
+  const logOpener = log.length ? log[0].player : humanStartSide;
+  const logSides = logOpener === "light" ? ["light", "dark"] : ["dark", "light"];
+
   function handleCopyLog() {
     const rows = pairLog(log);
+    const cell = (e) => `${e.notation}${e.mark ? " " + e.mark : ""}`;
+    const name = (side) => (side === "dark" ? "Dark" : "Light");
+    // Whoever opened goes first on every line; a round the game ended in
+    // the middle of just stops after the last move made.
     const lines = rows.map((row) => {
-      const dark = row.dark ? `${row.dark.notation}${row.dark.mark ? " " + row.dark.mark : ""}` : "\u2014";
-      const light = row.light ? `${row.light.notation}${row.light.mark ? " " + row.light.mark : ""}` : "\u2014";
-      return `${row.n}. Dark: ${dark} | Light: ${light}`;
+      const [a, b] = row.opener === "light" ? ["light", "dark"] : ["dark", "light"];
+      const first = row[a] ? `${name(a)}: ${cell(row[a])}` : `${name(a)}: \u2014`;
+      return row[b] ? `${row.n}. ${first} | ${name(b)}: ${cell(row[b])}` : `${row.n}. ${first}`;
     });
     const summary =
       status === "finished" && winner
@@ -7472,21 +7481,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               >
                 <span>#</span>
                 {/* bodyDark/bodyLight — see the comment on the same
-                    pair in the dock's own inline table above. */}
-                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span
-                    aria-hidden="true"
-                    style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.bodyDark, border: `1px solid ${COLORS.charcoal}` }}
-                  />
-                  Dark
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span
-                    aria-hidden="true"
-                    style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.bodyLight, border: `1px solid ${COLORS.charcoal}` }}
-                  />
-                  Light
-                </span>
+                    pair in the dock's own inline table above. Whoever
+                    opened the game gets the first column (see pairLog). */}
+                {logSides.map((side) => (
+                  <span key={side} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span
+                      aria-hidden="true"
+                      style={{ width: 8, height: 8, borderRadius: "50%", background: side === "dark" ? COLORS.bodyDark : COLORS.bodyLight, border: `1px solid ${COLORS.charcoal}` }}
+                    />
+                    {side === "dark" ? "Dark" : "Light"}
+                  </span>
+                ))}
               </div>
               <div
                 ref={moveLogScrollRef}
@@ -7519,12 +7524,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                       }}
                     >
                       <span style={{ color: COLORS.slate }}>{String(row.n).padStart(2, "0")}</span>
-                      <span style={{ background: isLast && !row.light && row.dark ? COLORS.slateFaint : "transparent" }}>
-                        {row.dark ? `${row.dark.notation}${row.dark.mark ? " " + row.dark.mark : ""}` : "—"}
-                      </span>
-                      <span style={{ background: isLast && row.light ? COLORS.slateFaint : "transparent" }}>
-                        {row.light ? `${row.light.notation}${row.light.mark ? " " + row.light.mark : ""}` : ""}
-                      </span>
+                      {logSides.map((side, k) => {
+                        const e = row[side];
+                        // The latest move made gets the highlight: the
+                        // second cell once filled, else the first.
+                        const latest = isLast && e && (k === 1 || !row[logSides[1]]);
+                        return (
+                          <span key={side} style={{ background: latest ? COLORS.slateFaint : "transparent" }}>
+                            {e ? `${e.notation}${e.mark ? " " + e.mark : ""}` : k === 0 ? "—" : ""}
+                          </span>
+                        );
+                      })}
                     </div>
                   );
                 })}
