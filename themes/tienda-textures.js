@@ -95,7 +95,7 @@ export function floorTile(base, chips, seed) {
       const k = 0.96 + r() * 0.07;
       g.fillStyle = tone(base, k);
       g.fillRect(i * t, j * t, t, t);
-      speckle(g, i * t, j * t, t, t, t * t * 0.012, chips, r, 1.3 * (W / 1024));
+      speckle(g, i * t, j * t, t, t, t * t * 0.018, chips.map((c) => c + "88"), r, 0.9 * (W / 1024));
       // Directional marbling the tile makers put in, faint.
       g.fillStyle = `rgba(90,70,50,${0.02 + r() * 0.03})`;
       for (let m = 0; m < 3; m++) g.fillRect(i * t + r() * t, j * t, t * 0.08, t);

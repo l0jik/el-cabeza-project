@@ -7397,6 +7397,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       >
         <div
           onClick={(e) => e.stopPropagation()}
+          data-testid="movelog-sheet"
           style={{
             position: "relative",
             width: "clamp(280px, 90%, 460px)",
@@ -7810,6 +7811,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       >
         <div
           onClick={(e) => e.stopPropagation()}
+          data-testid="victory-placard"
           style={{
             position: "relative",
             width: "min(90%, 400px)",

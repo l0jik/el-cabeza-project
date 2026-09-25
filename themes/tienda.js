@@ -563,6 +563,28 @@ export const styleSheet = `
     border-radius: 3px !important;
   }
   [data-testid="piece-card"] { border: 1px solid rgba(46,33,24,0.5) !important; }
+  /* The move log is register tape: narrow, whiter paper, typed, torn off. */
+  [data-testid="movelog-sheet"] {
+    width: min(360px, 92vw) !important; background: #F4F0E4 !important; backdrop-filter: none !important;
+    background-image: var(--tienda-paper) !important; border: none !important; border-radius: 0 !important;
+    box-shadow: 0 18px 40px rgba(20,12,6,0.45) !important; padding-bottom: 34px !important;
+    -webkit-mask: linear-gradient(#000 0 0) top / 100% calc(100% - 10px) no-repeat, conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 14px 10px repeat-x;
+    mask: linear-gradient(#000 0 0) top / 100% calc(100% - 10px) no-repeat, conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 14px 10px repeat-x;
+  }
+  [data-testid="movelog-sheet"] h2 { font-family: 'Courier Prime', monospace !important; font-weight: 700 !important; letter-spacing: 0.2em !important; border-bottom: 1px dashed rgba(46,33,24,0.6); padding-bottom: 10px; }
+  [data-testid="movelog-sheet"] table, [data-testid="movelog-sheet"] td, [data-testid="movelog-sheet"] th { font-family: 'Courier Prime', monospace !important; }
+  /* The win card: a printed sign with a red band. */
+  [data-testid="victory-placard"] { background-image: var(--tienda-paper) !important; border-radius: 2px !important; border: 1px solid rgba(46,33,24,0.55) !important; overflow: hidden; }
+  [data-testid="victory-placard"]::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 12px; background: ${PERIOD.vinylRed}; }
+  /* Rules: the instruction leaflet folded into the box. */
+  [data-testid="info-overlay"] > div { border: 1px solid rgba(46,33,24,0.5) !important; box-shadow: 0 24px 60px rgba(20,12,6,0.45) !important; }
+  /* Fixed controls clear of a phone's notch and home bar (the page is
+     laid out edge to edge: viewport-fit=cover). */
+  [data-testid="dock-panel"] { margin-bottom: env(safe-area-inset-bottom); }
+  [data-testid="how-to-play"] { margin-bottom: env(safe-area-inset-bottom); margin-left: env(safe-area-inset-left); }
+  [data-testid="points-counter"], [data-testid="unused-points-note"] { margin-bottom: env(safe-area-inset-bottom); }
+  [data-testid="piece-card"] { margin-bottom: env(safe-area-inset-bottom); margin-left: env(safe-area-inset-left); }
+  .ec-title { margin-top: env(safe-area-inset-top); }
   @media (prefers-reduced-motion: reduce) { .ec-btn:active { transform: none; } }
 `;
 
