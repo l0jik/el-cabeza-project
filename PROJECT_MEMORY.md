@@ -1638,6 +1638,8 @@ nothing else:
     ±8–12 cents, level and timing jitter. The sound is a sine plus a
     2.76× bell partial through `sfxGain`, so mute applies. Standard has
     no-ops.
+  - Levels were cut 40% after the first pass (user): open peaks 0.0132,
+    close 0.0102, tab 0.0072.
 
 In the chassis, `openRulesAt(tab, focus)` and `switchRulesTab(tab,
 focus)` are the only ways in. `infoTabRef` feeds the close cleanup. The

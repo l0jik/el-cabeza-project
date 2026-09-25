@@ -6548,7 +6548,7 @@ export function createSoundscape() {
     if (!ctx) return;
     const t0 = nowT() + 0.005;
     const base = 1046.5 * cents(jitter(12)); // C6, give or take
-    const level = (rising ? 0.022 : 0.017) * (0.85 + Math.random() * 0.25);
+    const level = (rising ? 0.0132 : 0.0102) * (0.85 + Math.random() * 0.25); // 40% below the first pass, per feedback
     const fig = pickFigure();
     const notes = rising ? fig : [fig[1], fig[0]];
     const gap = 0.055 + jitter(0.008);
@@ -6561,7 +6561,7 @@ export function createSoundscape() {
     const t0 = nowT() + 0.003;
     const step = TAB_STEPS[Math.max(0, Math.min(TAB_STEPS.length - 1, index | 0))];
     const freq = 1318.5 * Math.pow(2, step / 12) * cents(jitter(8)); // from E6 up the pentatonic
-    glassNote(t0, freq, 0.012 * (0.85 + Math.random() * 0.25), 0.07 + jitter(0.012));
+    glassNote(t0, freq, 0.0072 * (0.85 + Math.random() * 0.25), 0.07 + jitter(0.012)); // 40% below the first pass, per feedback
   }
 
   function logMenuCue(name) {
