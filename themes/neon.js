@@ -3556,6 +3556,11 @@ export function useSetupExtras({
     // shown only once a game has actually begun (awaitingBegin cleared)
     // and is still in progress (isPlaying).
     isPlaying, awaitingBegin, currentVariants,
+    // The sphere's full-screen layer sits at 2000: while it is up, the
+    // chassis's corner controls (full screen, How to play) come above it
+    // so they still work, but stay under its menus (2100+). Not during
+    // the collapse or the cut to black.
+    cornerControlsZ: singularityCinematic.singularityPhase === "sphere" ? 2050 : undefined,
     ...singularityCinematic,
   };
 }

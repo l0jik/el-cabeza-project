@@ -1615,6 +1615,11 @@ direction). First pass, in the real game, both themes:
 - **How to play** (`how-to-play`): always on screen beside the full-screen
   button and opens the Quick card. Below 560px wide only the "?" shows,
   keeping it clear of the points counter.
+  - Both corner controls use `cornerControlsZ` (12 by default). Neon's
+    useSetupExtras returns 2050 while the SINGULARITY sphere is up: above
+    the sphere's full-screen layer (2000, which ate their taps; user
+    report), under its menus (2100+) and the rules overlay (2500). They
+    are not raised during the collapse or the cut to black.
 - **Custom rules** (`custom-rules`, Neon setup dock, under Anomaly/Begin
   Game): calls `revealSingularity`, the same reveal five masthead taps do
   (the taps still work).

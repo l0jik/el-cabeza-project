@@ -171,6 +171,20 @@ check("audio is silent by the time the sphere settles (cut at the black frame, n
 
 await page.screenshot({ path: "/tmp/neon-singularity-sphere.png" });
 
+// ---- the corner controls still work over the sphere: How to play
+// opens the rules over it, and Escape closes just the rules ----
+await page.locator('[data-testid="how-to-play"]').click();
+await page.waitForTimeout(450);
+check("How to play opens the rules over the sphere",
+  (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "true" &&
+    (await page.locator('[data-testid="rules-card-quick"]').count()) === 1 && (await cinematicPhase()) === "sphere");
+await page.keyboard.press("Escape");
+await page.waitForTimeout(500);
+check("...and Escape closes only the rules, leaving the sphere",
+  (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "false" && (await cinematicPhase()) === "sphere");
+check("the full-screen button sits above the sphere too",
+  await page.locator('button[aria-label$="full screen"]').evaluate((el) => Number(getComputedStyle(el).zIndex) > 2000));
+
 // ---- root label geometry setup. The drag-actually-rotates-it check
 // runs LATER (after the tap-driven overlay tests below), deliberately:
 // a drag doesn't return the sphere to its starting orientation when

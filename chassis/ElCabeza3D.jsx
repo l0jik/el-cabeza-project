@@ -1566,6 +1566,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // apply the chosen board size before placing the roster/holes.
     applyBoardResize,
   }) : null;
+  // A theme may raise the corner controls over a full-screen layer of
+  // its own (Neon's SINGULARITY sphere), so they stay usable there.
+  const cornerControlsZ = (setupExtras && setupExtras.cornerControlsZ) || 12;
 
   function handleTitleClick() {
     setInfoBtnVisible(true);
@@ -6348,7 +6351,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             position: "fixed",
             left: 18,
             bottom: 18,
-            zIndex: 12,
+            zIndex: cornerControlsZ,
             width: 38,
             height: 38,
             display: "flex",
@@ -6395,7 +6398,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           position: "fixed",
           left: (document.fullscreenEnabled || document.documentElement.requestFullscreen) ? 58 : 18,
           bottom: 18,
-          zIndex: 12,
+          zIndex: cornerControlsZ,
           height: 38,
           display: "flex",
           alignItems: "center",
