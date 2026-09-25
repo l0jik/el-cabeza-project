@@ -1634,7 +1634,7 @@ Results, new vs previous:
   old "?" is now a plain line; its text links "Game rules ›"). The INFO
   overlay is z-index 2500 so it covers the sphere; the sphere's Escape
   handler ignores Escape while it is open. MOVES has 16 animated SVG
-  tiles (CSS keyframes, off under prefers-reduced-motion); the black
+  tiles (CSS keyframes; under prefers-reduced-motion they play at half speed, 7.2 s); the black
   hole tile shows the same-side exit. Test: tests/e2e-rules.mjs.
 - **"The original El Cabeza" (built).** ABOUT ends with a link
   (`play-original`) that closes INFO and runs resetGame(false) (no laws,
@@ -1649,3 +1649,8 @@ Results, new vs previous:
   through a plain Audio element (volume 0.75; skipped when muted), so it
   survives Nova's theme switch. build/build.js inlines .mp3 files as data
   URLs.
+- **Reduced motion = calm, not frozen (built).** Windows with Animation
+  effects off makes Chrome report prefers-reduced-motion. The SINGULARITY
+  button/invite then breathes (ec-singularity-calm-halo/-text: a slow 5 s
+  opacity/brightness pulse, no flicker or scaling) instead of standing
+  still, and the MOVES tiles play at half speed.

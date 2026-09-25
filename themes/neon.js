@@ -3262,10 +3262,25 @@ export const styleSheet = `
     96%  { color: #82c3ce; text-shadow: 0 0 0.05em #82c3ce, 0 0 0.2em #82c3ce, 0 0 0.5em rgba(130,210,225,0.7), 0 0 1.1em rgba(130,210,225,0.45); }
     100% { color: #4de8ff; text-shadow: 0 0 0.06em #4de8ff, 0 0 0.22em #4de8ff, 0 0 0.55em rgba(77,232,255,0.9), 0 0 1.3em rgba(77,232,255,0.7), 0 0 2.6em rgba(77,232,255,0.5), 0 0 4.2em rgba(77,232,255,0.32); }
   }
+  /* Reduced motion (e.g. Windows with Animation effects off): the calm
+     version. No flicker, colour cycling, scaling or blur-in; the halo and
+     the word just breathe, slowly brightening and dimming together. */
   @media (prefers-reduced-motion: reduce) {
     .ec-singularity-btn { opacity: 1; animation: none; }
-    .ec-singularity-halo { animation: none; background: radial-gradient(circle, rgba(77,232,255,0.55) 0%, rgba(77,232,255,0.22) 16%, rgba(77,232,255,0) 30%, rgba(77,232,255,0) 46%, rgba(60,210,235,0.10) 54%, rgba(60,210,235,0) 66%); }
-    .ec-singularity-text { opacity: 1; filter: none; animation: none; }
+    .ec-singularity-halo {
+      background: radial-gradient(circle, rgba(77,232,255,0.55) 0%, rgba(77,232,255,0.22) 16%, rgba(77,232,255,0) 30%, rgba(77,232,255,0) 46%, rgba(60,210,235,0.10) 54%, rgba(60,210,235,0) 66%);
+      filter: blur(2px);
+      animation: ec-singularity-calm-halo 5s ease-in-out infinite;
+    }
+    .ec-singularity-text { opacity: 1; filter: none; animation: ec-singularity-calm-text 5s ease-in-out infinite; }
+  }
+  @keyframes ec-singularity-calm-halo {
+    0%, 100% { opacity: 0.45; }
+    50%      { opacity: 1; }
+  }
+  @keyframes ec-singularity-calm-text {
+    0%, 100% { opacity: 0.72; filter: brightness(0.85); }
+    50%      { opacity: 1; filter: brightness(1.15); }
   }
 
   /* ---- The full-screen SINGULARITY invite (revealed by 5 masthead taps) ----
