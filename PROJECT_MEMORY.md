@@ -1614,6 +1614,27 @@ direction). First pass, in the real game, both themes:
   in e2e-pivot); e2e-rules covers How to play and Custom rules;
   e2e-points expects the toggle to start on.
 
+## Rules pop-up audio: ABOUT tab only (user rule)
+
+The angelic choir (`audio.playMenu`) and its closing cue
+(`audio.fadeOutMenu`) belong to the ABOUT tab of the rules pop-up and
+nothing else:
+- **Choir:** plays when the rules open on ABOUT, or when the player
+  switches to ABOUT.
+- **Closing cue:** plays only when the pop-up closes while ABOUT is
+  showing.
+- **Leaving ABOUT for another tab:** only silences the choir
+  (`audio.stopMenu`, a 0.25 s fade with no tail).
+- **Every other open, switch or close is silent:** How to play, piece
+  card, unused-points note, variants flyout, sphere links, and tab
+  switches between non-ABOUT tabs.
+
+In the chassis, `openRulesAt(tab, focus)` and `switchRulesTab(tab,
+focus)` are the only ways in. `infoTabRef` feeds the close cleanup. The
+masthead Info button opens on the last-shown tab and plays the choir only
+if that tab is ABOUT. Test hook: `window.__EC_MENU_CUES__ = []` logs
+`play`/`close`/`stop` (e2e-rules "[menu audio]").
+
 ## MATTER menu: one list, 3D piece models (user request)
 
 The 1×3 and 2×3 Blocks were on/off checkboxes (the first MATTER pieces);

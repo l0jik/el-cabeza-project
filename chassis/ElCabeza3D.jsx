@@ -1600,6 +1600,27 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     return () => el.removeEventListener("click", onClick);
   }, []);
 
+  /* The choir (playMenu) and its closing tail (fadeOutMenu) belong to
+     the ABOUT tab alone: the choir sounds when the rules open on ABOUT or
+     the player switches to it, the tail when they close from ABOUT, and
+     leaving ABOUT for another tab just silences the choir (stopMenu).
+     Nothing else in the rules plays either. infoTabRef mirrors infoTab
+     for the close cleanup, which runs after the state has moved on. */
+  const infoTabRef = useRef(infoTab);
+  infoTabRef.current = infoTab;
+  function openRulesAt(tab, focus = null) {
+    setInfoTab(tab);
+    setRulesFocus(focus);
+    setShowInfoOverlay(true);
+    if (tab === "about") audioRef.current.playMenu();
+  }
+  function switchRulesTab(tab, focus = null) {
+    if (tab === "about" && infoTabRef.current !== "about") audioRef.current.playMenu();
+    if (tab !== "about" && infoTabRef.current === "about") audioRef.current.stopMenu();
+    setInfoTab(tab);
+    setRulesFocus(focus);
+  }
+
   function handleInfoButtonClick() {
     if (infoBtnTimerRef.current) clearTimeout(infoBtnTimerRef.current);
     setInfoBtnVisible(false);
@@ -1610,8 +1631,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // inside the original user-gesture call stack, and a React effect
     // runs one tick later, outside it. That gap is almost certainly
     // why this "seems to fail more than works": most calls simply
-    // landed silently on a still-suspended context.
-    audioRef.current.playMenu();
+    // landed silently on a still-suspended context. It opens on the tab
+    // last shown, so the choir only when that's ABOUT.
+    if (infoTabRef.current === "about") audioRef.current.playMenu();
   }
 
   useEffect(() => {
@@ -1625,10 +1647,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   useEffect(() => {
     const onOpen = (e) => {
       const d = (e && e.detail) || {};
-      setInfoTab(d.tab || "quick");
-      setRulesFocus(d.focus || null);
-      setShowInfoOverlay(true);
-      audioRef.current.playMenu();
+      openRulesAt(d.tab || "quick", d.focus || null);
     };
     window.addEventListener(OPEN_RULES_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_RULES_EVENT, onOpen);
@@ -1651,7 +1670,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   // to showInfoOverlay flipping true (see the comment there for why).
   useEffect(() => {
     if (!showInfoOverlay) return;
-    return () => audioRef.current.fadeOutMenu();
+    return () => { if (infoTabRef.current === "about") audioRef.current.fadeOutMenu(); };
   }, [showInfoOverlay]);
 
   /* Escape dismisses whichever post-game overlay is currently showing —
@@ -6262,7 +6281,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               <button
                 type="button"
                 data-testid="piece-card-more"
-                onClick={() => { setInfoTab("moves"); setRulesFocus(info.tile); setShowInfoOverlay(true); audioRef.current.playMenu(); }}
+                onClick={() => openRulesAt("moves", info.tile)}
                 style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: COLORS.slate, font: "600 11.5px 'IBM Plex Sans', sans-serif" }}
               >
                 More ›
@@ -6281,7 +6300,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           data-testid="unused-points-note"
           role="status"
           // Tapping it opens the "Your turn" rules card.
-          onClick={() => { setInfoTab("turn"); setRulesFocus(null); setShowInfoOverlay(true); audioRef.current.playMenu(); }}
+          onClick={() => openRulesAt("turn")}
           style={{
             position: "fixed",
             left: "50%",
@@ -6357,7 +6376,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         data-testid="how-to-play"
         aria-label="How to play"
         title="How to play"
-        onClick={() => { setInfoTab("quick"); setRulesFocus(null); setShowInfoOverlay(true); audioRef.current.playMenu(); }}
+        onClick={() => openRulesAt("quick")}
         style={{
           position: "fixed",
           left: (document.fullscreenEnabled || document.documentElement.requestFullscreen) ? 58 : 18,
@@ -7514,7 +7533,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                   margin: "0 auto 18px",
                 }}
               />
-              <RulesTabs tab={infoTab} onTab={(k) => { setInfoTab(k); setRulesFocus(null); }} C={COLORS} />
+              <RulesTabs tab={infoTab} onTab={(k) => switchRulesTab(k)} C={COLORS} />
             </div>
 
             <div data-testid="info-body" style={{ overflowY: "auto", padding: "0 34px 32px" }}>
@@ -7522,7 +7541,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
               <RulesCard
                 tab={infoTab}
                 focus={rulesFocus}
-                onFocus={(k) => { setInfoTab("moves"); setRulesFocus(k); }}
+                onFocus={(k) => switchRulesTab("moves", k)}
                 C={COLORS}
                 budget={turnBudget()}
                 game={{

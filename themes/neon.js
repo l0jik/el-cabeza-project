@@ -6491,6 +6491,24 @@ export function createSoundscape() {
     choirEndTime = now + fadeSeconds + 0.1;
   }
 
+  function logMenuCue(name) {
+    if (typeof window !== "undefined" && Array.isArray(window.__EC_MENU_CUES__)) window.__EC_MENU_CUES__.push(name);
+  }
+
+  /* Leaving the ABOUT tab for another rules tab: the opening stab, if
+     it's still sounding, fades out quickly and nothing else plays — the
+     closing tail belongs to closing from ABOUT only. */
+  function silenceChoir() {
+    if (!ctx || !choirMasterEnv) return;
+    const now = ctx.currentTime;
+    if (now >= choirEndTime) return;
+    const level = choirMasterEnv.gain.value;
+    choirMasterEnv.gain.cancelScheduledValues(now);
+    choirMasterEnv.gain.setValueAtTime(level, now);
+    choirMasterEnv.gain.linearRampToValueAtTime(0.0001, now + 0.25);
+    choirEndTime = now + 0.3;
+  }
+
   /* A piece landing: a short filtered-noise thud (the impact transient)
      plus a low pitched body tone, both driven through the same crunch
      shaper and a short reverb send — replaces what was a clean rising
@@ -6768,8 +6786,11 @@ export function createSoundscape() {
     // ensureStarted()'s own `!awaitingBegin` gate would normally have
     // built the audio graph, and playChoirStab/fadeOutChoir silently
     // no-op without it (both guard on `if (!ctx) return`).
-    playMenu: () => { ensureGraph(); playChoirStab(); },
-    fadeOutMenu: () => { ensureGraph(); fadeOutChoir(); },
+    // A test that sets window.__EC_MENU_CUES__ = [] sees each of these
+    // three logged (e2e-rules: the choir belongs to the ABOUT tab only).
+    playMenu: () => { logMenuCue("play"); ensureGraph(); playChoirStab(); },
+    fadeOutMenu: () => { logMenuCue("close"); ensureGraph(); fadeOutChoir(); },
+    stopMenu: () => { logMenuCue("stop"); if (ctx) silenceChoir(); },
     // ensureGraph() + an explicit resume, same self-contained pattern
     // as playDockOpen/playSingularityOpen below — beginGameFadeIn()
     // (called right before this on desktop) already builds the graph,

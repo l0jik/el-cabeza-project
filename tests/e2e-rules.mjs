@@ -83,6 +83,53 @@ for (const theme of ["neon", "standard"]) {
   await context.close();
 }
 
+// The angelic choir and its closing cue belong to the ABOUT tab alone:
+// opening the rules on any other tab, switching between other tabs, and
+// closing from them are silent; switching to ABOUT sings, leaving it
+// silences the choir (no closing cue), closing from ABOUT plays the cue.
+{
+  console.log("[menu audio]");
+  const context = await browser.newContext({ viewport: { width: 900, height: 900 } });
+  const page = await context.newPage();
+  await page.addInitScript(() => { window.__EC_MENU_CUES__ = []; });
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.waitForTimeout(1500);
+  const cues = () => page.evaluate(() => window.__EC_MENU_CUES__.splice(0));
+  const overlay = page.locator('[data-testid="info-overlay"]');
+  const closeRules = async () => { await page.mouse.click(6, 6); await page.waitForTimeout(400); };
+
+  await page.locator('[data-testid="how-to-play"]').click();
+  await page.waitForTimeout(300);
+  check("opening the rules on Quick plays nothing", (await cues()).length === 0);
+  await page.locator('[data-testid="rules-tab-costs"]').click();
+  await page.waitForTimeout(150);
+  check("switching between other tabs plays nothing", (await cues()).length === 0);
+  await closeRules();
+  check("closing from another tab plays no closing cue", (await overlay.getAttribute("data-open")) === "false" && (await cues()).length === 0);
+
+  await open(page, "moves", "slide");
+  await page.waitForTimeout(300);
+  check("a rules card opened from elsewhere (not ABOUT) plays nothing", (await cues()).length === 0);
+  await page.locator('[data-testid="rules-tab-about"]').click();
+  await page.waitForTimeout(150);
+  check("switching to ABOUT plays the choir", (await cues()).join(",") === "play");
+  await page.locator('[data-testid="rules-tab-quick"]').click();
+  await page.waitForTimeout(150);
+  check("leaving ABOUT only silences it (no closing cue)", (await cues()).join(",") === "stop");
+  await page.locator('[data-testid="rules-tab-about"]').click();
+  await page.waitForTimeout(150);
+  await cues();
+  await closeRules();
+  check("closing from ABOUT plays the closing cue", (await cues()).join(",") === "close");
+
+  await open(page, "about");
+  await page.waitForTimeout(300);
+  check("opening straight onto ABOUT plays the choir", (await cues()).join(",") === "play");
+  await closeRules();
+  await cues();
+  await context.close();
+}
+
 // Reduced motion (e.g. Windows with Animation effects off) gets the calm
 // versions, not a still image: the MOVES tiles at half speed, and the
 // SINGULARITY invite's slow glow instead of its flicker.
