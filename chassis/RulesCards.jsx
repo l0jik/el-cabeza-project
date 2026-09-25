@@ -462,7 +462,9 @@ const KEYFRAMES = `
 @keyframes ecRcRollS2 { 0%,45% { transform: translate(0,0) scaleY(1); opacity: 1 } 58% { transform: translate(0,8px) scaleY(.3) } 70%,82% { transform: translate(0,16px) scaleY(1); opacity: 1 } 90% { transform: translate(0,16px); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
 @keyframes ecRcApproach { 0%,12% { transform: translate(0,0) scaleX(1); opacity: 1 } 26% { transform: translate(8px,0) scaleX(.3) } 38% { transform: translate(16px,0) scaleX(1) } 46% { transform: translate(22px,0) } 54%,84% { transform: translate(16px,0); opacity: 1 } 92% { transform: translate(16px,0); opacity: 0 } 93% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
 @keyframes ecRcX { 0%,45% { opacity: 0 } 46%,51% { opacity: 1 } 52%,56% { opacity: 0 } 57%,62% { opacity: 1 } 63%,100% { opacity: 0 } }
-@media (prefers-reduced-motion: reduce) { .ec-rc-anim * { animation: none !important; } }
+/* Reduced motion: the calm version, the same moves at half speed (every
+   tile's parts share one duration, so they stay in step). */
+@media (prefers-reduced-motion: reduce) { .ec-rc-anim * { animation-duration: 7.2s !important; } }
 `;
 
 function MovesCard({ C, focus }) {

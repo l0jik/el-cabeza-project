@@ -58,6 +58,42 @@ for (const theme of ["neon", "standard"]) {
   await context.close();
 }
 
+// Reduced motion (e.g. Windows with Animation effects off) gets the calm
+// versions, not a still image: the MOVES tiles at half speed, and the
+// SINGULARITY invite's slow glow instead of its flicker.
+{
+  console.log("[reduced motion]");
+  const context = await browser.newContext({ viewport: { width: 1200, height: 800 }, reducedMotion: "reduce" });
+  const page = await context.newPage();
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.waitForTimeout(2000);
+  await open(page, "moves");
+  await page.waitForTimeout(400);
+  const tile = await page.evaluate(() => {
+    const g = document.querySelector('[data-testid="rules-tile-roll"] .ec-rc-rollT');
+    const cs = getComputedStyle(g);
+    return { name: cs.animationName, duration: cs.animationDuration };
+  });
+  check("MOVES tiles still move, at half speed", tile.name === "ecRcRollT" && tile.duration === "7.2s", JSON.stringify(tile));
+  await page.mouse.click(6, 6);
+  await page.waitForTimeout(500);
+  const box = await page.locator(".ec-title").first().boundingBox();
+  let shown = false;
+  for (let a = 0; a < 3 && !shown; a++) {
+    for (let i = 0; i < 5; i++) { await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); await page.waitForTimeout(140); }
+    await page.waitForTimeout(400);
+    shown = (await page.locator(".ec-singularity-invite-btn").count()) > 0;
+    if (!shown) await page.waitForTimeout(2700);
+  }
+  const invite = shown && await page.evaluate(() => {
+    const q = (sel) => getComputedStyle(document.querySelector(sel)).animationName;
+    return { halo: q(".ec-singularity-invite-btn .ec-singularity-halo"), text: q(".ec-singularity-invite-btn .ec-singularity-text") };
+  });
+  check("the SINGULARITY invite glows slowly instead of standing still",
+    !!invite && invite.halo === "ec-singularity-calm-halo" && invite.text === "ec-singularity-calm-text", JSON.stringify(invite));
+  await context.close();
+}
+
 await browser.close();
 console.log(failures === 0 ? "\nRULES CARDS E2E PASSED" : `\nRULES CARDS E2E FAILED (${failures})`);
 process.exit(failures === 0 ? 0 : 1);
