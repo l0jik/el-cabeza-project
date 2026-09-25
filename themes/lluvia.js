@@ -351,3 +351,6 @@ export function renderExtraOverlays(x) {
 
 export { mountAmbientEffects } from "./lluvia-fx.js";
 export { createAudio, hasAudio } from "./lluvia-audio.js";
+// The in-game menu offers a switch for the cost badges on the move
+// markers (chassis: theme.moveCostToggle, the costs-toggle button).
+export const moveCostToggle = true;

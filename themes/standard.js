@@ -229,6 +229,9 @@ export const canvasGradientEnd = "#E9E1D2";
    lets the chassis render the Sound On/Off control now that muting
    actually does something. */
 export const hasAudio = true;
+// The in-game menu offers a switch for the cost badges on the move
+// markers (chassis: theme.moveCostToggle, the costs-toggle button).
+export const moveCostToggle = true;
 export function createAudio() {
   let ctx = null;
   let master = null;

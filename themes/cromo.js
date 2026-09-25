@@ -499,6 +499,9 @@ export const styleSheet = `
    sees one theme module. */
 export { mountAmbientEffects } from "./cromo-fx.js";
 export { createAudio, hasAudio } from "./cromo-audio.js";
+// The in-game menu offers a switch for the cost badges on the move
+// markers (chassis: theme.moveCostToggle, the costs-toggle button).
+export const moveCostToggle = true;
 
 // For cromo-fx.js: re-dress the scene whenever the stone changes.
 export function onStoneChange(fn) {
