@@ -1854,5 +1854,17 @@ Sumi, Vacío) each have a Title and an In-game phone board.
   Rain streaks around the board, drop rings on it, a splash on landing,
   lightning synced to the score's thunder via lluvia-bus. Audio = the
   synth score (pads, rain, drone, far đàn bầu/zither/voice) + cues built
-  on its instruments. Stages 2 (descent opening) and 3 (city menu as
-  the custom-rules screen) to follow.
+  on its instruments.
+- **Lluvia opening + city menu (stages 2-3 built).** themes/lluvia-overlay.js
+  via useSetupExtras/renderExtraOverlays: on load a full-screen layer
+  ("THE RULES ARE MADE DOWN THERE", DESCEND / Straight to the board);
+  DESCEND runs the engine's descent (own score, captions, SKIP); on
+  arrival the city's billboards/buttons open terminal panels (MATTER
+  counts, LAWS toggles, TOPOLOGIES size/missing/random) plus an
+  OPPONENT cycle (Human -> CPU easy/medium/hard); BEGIN THE GAME applies
+  them (board resize, roster via generateAnomalySetup, setActiveLaws,
+  missing squares/black holes, variants) and triggers Begin. Non-default
+  rules register t.singularityGameActive + reapplySingularitySetup (New
+  Game keeps them) and reconfigureSingularitySetup (reopens the city).
+  The backdrop city pauses while the layer is open (lluvia-bus
+  "overlay"). The setup row gets CUSTOM RULES. Test: e2e-lluvia.mjs.
