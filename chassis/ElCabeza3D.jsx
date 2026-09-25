@@ -1808,6 +1808,23 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      the button's original spot back for reviewing the finished game
      and picking a new opponent — no separate state needed. */
   const declutter = !awaitingBegin && isPlaying;
+  /* The corner controls (full screen, How to play) and the open dock
+     panel share the bottom of the screen. On a phone the panel is
+     nearly as wide as the screen, so it lands on top of them and they
+     sit over its players line; on a wide screen the post-game panel
+     (880px) can reach them too. While the open panel covers their spot
+     they fade out, the way the points counter does, and come back the
+     moment it closes. */
+  const [viewportW, setViewportW] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setViewportW(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const dockPanelW = awaitingBegin ? Math.min(480, viewportW * 0.92) : declutter ? Math.min(560, viewportW * 0.92) : Math.min(880, viewportW * 0.96);
+  // How to play's right edge: "?" only under 560px, the label beside it above.
+  const cornerControlsRight = (viewportW <= 560 ? 88 : 170) + 8;
+  const cornerControlsCovered = dockView === "panel" && (viewportW - dockPanelW) / 2 < cornerControlsRight;
   /* Distinct from declutter above: declutter is specifically about
      hiding the Opponent row and Record section, true only during
      ACTIVE play. This is about whether a live action button sits up
@@ -6382,12 +6399,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             background: "transparent",
             border: "none",
             color: COLORS.slate,
-            opacity: 0.35,
+            opacity: cornerControlsCovered ? 0 : 0.35,
+            pointerEvents: cornerControlsCovered ? "none" : "auto",
             cursor: "pointer",
-            transition: "opacity 1.1s ease, transform 1.1s ease",
+            transition: "opacity 0.5s ease, transform 1.1s ease",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.8; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = 0.35; }}
+          onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 0.8; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : 0.35; }}
         >
           {isFullscreen ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -6429,17 +6447,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
           background: "transparent",
           border: "none",
           color: COLORS.charcoal,
-          opacity: 0.6,
+          opacity: cornerControlsCovered ? 0 : 0.6,
+          pointerEvents: cornerControlsCovered ? "none" : "auto",
           cursor: "pointer",
           fontFamily: "'IBM Plex Sans', sans-serif",
           fontSize: 12.5,
           fontWeight: 500,
-          transition: "opacity 0.2s ease",
+          transition: "opacity 0.5s ease",
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.opacity = 1; }}
-        onMouseLeave={(e) => { e.currentTarget.style.opacity = 0.6; }}
-        onFocus={(e) => { e.currentTarget.style.opacity = 1; }}
-        onBlur={(e) => { e.currentTarget.style.opacity = 0.6; }}
+        onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : 0.6; }}
+        onFocus={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
+        onBlur={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : 0.6; }}
       >
         {/* On a narrow screen only the "?" shows, clear of the points
             counter at the bottom centre. */}

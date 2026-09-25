@@ -1625,6 +1625,12 @@ direction). First pass, in the real game, both themes:
 - **How to play** (`how-to-play`): always on screen beside the full-screen
   button and opens the Quick card. Below 560px wide only the "?" shows,
   keeping it clear of the points counter.
+- **Corner controls under the dock**: while the open dock panel reaches
+  their spot (a phone, or the 880px post-game panel on a smaller
+  desktop), the full-screen and How to play buttons fade out and go
+  inert (`cornerControlsCovered` in the chassis, from the panel's width
+  rule and `window.innerWidth`), then return when it closes. Before this
+  they sat on top of the panel's DARK/LIGHT players line on phones.
   - Both corner controls use `cornerControlsZ` (12 by default). Neon's
     useSetupExtras returns 2050 while the SINGULARITY sphere is up: above
     the sphere's full-screen layer (2000, which ate their taps; user
