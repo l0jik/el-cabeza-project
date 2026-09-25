@@ -19,7 +19,7 @@
    imports this module's importer. */
 import React from "react";
 import * as THREE from "three";
-import { makeRoundedBox, makePolycubeGeometry, makePolycubeRounded } from "../engine/geometry.js";
+import { makeRoundedBox, makePolycubeGeometry, makePolycubeSmooth } from "../engine/geometry.js";
 import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constants.js";
 
 const POSES = {
@@ -88,7 +88,7 @@ function buildModel(type) {
     sharp = new THREE.CylinderGeometry(r * 1.002, r * 1.002, hgt * 1.002, 96);
   } else if (pose.vox) {
     const piece = { ...pose, type };
-    body = makePolycubeRounded(piece, PIECE_SCALE, 0.05);
+    body = makePolycubeSmooth(piece, PIECE_SCALE, 0.05); // one seamless solid, like the box pieces
     sharp = makePolycubeGeometry(piece, PIECE_SCALE);
   } else {
     body = makeRoundedBox(pose.w * PIECE_SCALE, pose.z * PIECE_SCALE, pose.h * PIECE_SCALE, 0.05);

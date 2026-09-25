@@ -6,7 +6,7 @@
 
 import * as THREE from "three";
 import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, DISC_DIAM, DISC_H, PIECE_SCALE, CABEZA_SCALE } from "../engine/constants.js";
-import { makeRoundedBox, makePolycubeRounded } from "../engine/geometry.js";
+import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
 import { createWoodImpactEngine } from "../scripts/wood-impact-synth.js";
 
 /* Outline thickness for the silhouette-shell technique below, in world
@@ -425,7 +425,7 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
         40
       )
     : piece.vox
-      ? makePolycubeRounded(piece, PIECE_SCALE, EDGE_RADIUS + OUTLINE_T, OUTLINE_T)
+      ? makePolycubeSmooth(piece, PIECE_SCALE, EDGE_RADIUS + OUTLINE_T, OUTLINE_T)
       : makeRoundedBox(
           piece.w * PIECE_SCALE + OUTLINE_T * 2,
           piece.z * PIECE_SCALE + OUTLINE_T * 2,

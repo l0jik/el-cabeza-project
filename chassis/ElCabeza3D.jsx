@@ -16,7 +16,7 @@ import {
 } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY } from "../engine/ai.js";
 import {
-  pieceCenter, restingY, makeRoundedBox, makePolycubeGeometry, rayHitBoardPlaneY0,
+  pieceCenter, restingY, makeRoundedBox, makePolycubeSmooth, rayHitBoardPlaneY0,
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
   setGhostLineTarget,
 } from "../engine/geometry.js";
@@ -2914,8 +2914,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
       const center = pieceCenter(p);
       const y = restingY(p);
 
-      // An odd-shaped piece (engine/shapes.js) is built from its own
-      // cubes, in the same box-centered frame as a box piece, so it
+      // An odd-shaped piece (engine/shapes.js) is one seamless solid
+      // with the same rounded edges as a box piece (the cubes only
+      // explain its size), in the same box-centered frame, so it
       // places and rolls identically.
       const geo = isDisc
         ? new THREE.CylinderGeometry(
@@ -2925,7 +2926,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
             40
           )
         : p.vox
-          ? makePolycubeGeometry(p, PIECE_SCALE)
+          ? makePolycubeSmooth(p, PIECE_SCALE, EDGE_RADIUS)
           : makeRoundedBox(
               p.w * PIECE_SCALE,
               p.z * PIECE_SCALE,

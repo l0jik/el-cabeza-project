@@ -1204,11 +1204,21 @@ pieces have no `vox` and behave exactly as before.
   or out from under an overhang (its top edge would swing through it).
   It can get there by a Cabeza step or a Slide.
 - `sameState` also compares `vox`; ai.js applyMove/undoMove copy `vox`.
-- Rendering: `makePolycubeGeometry` (outside faces only, so
-  EdgesGeometry traces just the real outline — Neon's shell) and
-  `makePolycubeRounded` (merged rounded cubes, optionally grown —
-  Standard's shell), in engine/geometry.js, both centered on the bbox
-  like makeRoundedBox. So pieceCenter/pivotFor/roll animation are unchanged.
+- Rendering (engine/geometry.js, all centered on the bbox like
+  makeRoundedBox, so pieceCenter/pivotFor/roll animation are unchanged):
+  - `makePolycubeSmooth(piece, unit, radius, grow)`: the body. ONE
+    seamless solid with the same rounded edges as a box piece: every
+    odd piece is flat (one cube thick), so it is the shape's outline
+    swept through its thickness, with exact normals. The cubes only
+    explain a piece's size; they must never show as seams (user). Used
+    for the chassis body (both themes, EDGE_RADIUS), Standard's grown
+    silhouette shell, and the MATTER models. A shape that isn't flat or
+    has a hole falls back to `makePolycubeRounded`.
+  - `makePolycubeGeometry`: outside faces only, so EdgesGeometry traces
+    just the real outline (Neon's shell, the MATTER models' edges).
+  - `makePolycubeRounded` (merged rounded cubes): fallback only. It
+    showed grooves at the seams, and as Standard's shell those grooves
+    cast thin self-shadow lines across the pieces.
 - `cubeCount` (weight for landing audio; "bigger" for Shoving).
 - Tests: `tests/shapes.smoke.mjs`.
 
@@ -1666,7 +1676,8 @@ Block, 2×3 Block, Codo, Arco, Rayo, Zeta.
   reads the counts.
 - **Models** (`themes/piece-showcase.js`):
   - Each type in its first starting pose, built from the engine
-    geometry: rounded cubes for polycubes and rounded boxes otherwise.
+    geometry: `makePolycubeSmooth` for odd pieces (one seamless solid)
+    and rounded boxes otherwise.
   - Look: dark clear-coated glass, a painted studio environment, cyan
     edges, and a glow pool.
   - `ensureThumbs` renders all the stills in ONE short-lived WebGL

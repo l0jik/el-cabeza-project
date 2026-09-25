@@ -274,6 +274,147 @@ export function makePolycubeRounded(piece, unit, radius, grow = 0) {
   return geo;
 }
 
+/* One seamless solid with rounded edges, like makeRoundedBox but for an
+   odd shape: no groove or seam where its cubes meet. Every odd piece is
+   flat (one cube thick along some axis), so the shape is its outline in
+   that plane, pushed out to the thickness: flat faces, a quarter-round
+   along every outside edge, a rounded corner at each outward corner and
+   a crisp one at each inward corner. Normals are exact, so the flat
+   faces shade flat and the rounds shade smooth. A shape that isn't flat
+   (or has a hole) falls back to makePolycubeRounded. `grow` works as
+   there: the solid is that much bigger on every side, with its rounds
+   that much wider (for Standard's silhouette shell). */
+export function makePolycubeSmooth(piece, unit, radius, grow = 0, seg = 6) {
+  const centers = voxCubeCenters(piece, unit);
+  const eq = (a, b) => Math.abs(a - b) < unit * 1e-3;
+  const flat = [0, 1, 2].find((ax) => centers.every((c) => eq(c[ax], centers[0][ax])));
+  if (flat === undefined) return makePolycubeRounded(piece, unit, radius, grow);
+  // In-plane axes, ordered so (u x v) points along +flat.
+  const [ua, va] = flat === 0 ? [1, 2] : flat === 1 ? [2, 0] : [0, 1];
+  const minU = Math.min(...centers.map((c) => c[ua])) - unit / 2;
+  const minV = Math.min(...centers.map((c) => c[va])) - unit / 2;
+  const cells = new Set(centers.map((c) => `${Math.round((c[ua] - minU) / unit - 0.5)},${Math.round((c[va] - minV) / unit - 0.5)}`));
+  const has = (i, j) => cells.has(`${i},${j}`);
+
+  // The outline, counter-clockwise: each cell side with no neighbour
+  // beyond it, directed so the cell is on its left.
+  const next = new Map();
+  let bad = false;
+  const addEdge = (a, b) => { const k = a.join(","); if (next.has(k)) bad = true; next.set(k, b); };
+  for (const key of cells) {
+    const [i, j] = key.split(",").map(Number);
+    if (!has(i, j - 1)) addEdge([i, j], [i + 1, j]);
+    if (!has(i + 1, j)) addEdge([i + 1, j], [i + 1, j + 1]);
+    if (!has(i, j + 1)) addEdge([i + 1, j + 1], [i, j + 1]);
+    if (!has(i - 1, j)) addEdge([i, j + 1], [i, j]);
+  }
+  const loop = [];
+  if (!bad) {
+    const startKey = next.keys().next().value;
+    let k = startKey;
+    do { loop.push(k.split(",").map(Number)); k = next.get(k).join(","); } while (k !== startKey && loop.length <= next.size);
+  }
+  if (bad || loop.length !== next.size) return makePolycubeRounded(piece, unit, radius, grow);
+  // Keep only the corners.
+  const corners = loop.filter((p, i) => {
+    const a = loop[(i + loop.length - 1) % loop.length], b = loop[(i + 1) % loop.length];
+    return (p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0]) !== 0;
+  });
+
+  // c: how far the flat core sits inside the cube faces; r: the
+  // round's radius (c + grow, so a grown shell shares the same core).
+  const c = Math.max(0, Math.min(radius - grow, unit / 2 - 1e-4));
+  const r = c + grow;
+  const inner = unit / 2 - c;
+  const mid = centers[0][flat];
+  // The contour to sweep: each corner of the outline pulled in by r,
+  // with the direction it is pushed back out along and its normal. An
+  // outward corner fans out into an arc; an inward corner is one point
+  // with two normals (a crease).
+  const contour = [];
+  const m = corners.length;
+  for (let i = 0; i < m; i++) {
+    const a = corners[(i + m - 1) % m], p = corners[i], b = corners[(i + 1) % m];
+    const d1 = [Math.sign(p[0] - a[0]), Math.sign(p[1] - a[1])];
+    const d2 = [Math.sign(b[0] - p[0]), Math.sign(b[1] - p[1])];
+    const n1 = [d1[1], -d1[0]], n2 = [d2[1], -d2[0]];
+    const at = [minU + p[0] * unit - (n1[0] + n2[0]) * c, minV + p[1] * unit - (n1[1] + n2[1]) * c];
+    const convex = d1[0] * d2[1] - d1[1] * d2[0] > 0;
+    if (convex) {
+      const a0 = Math.atan2(n1[1], n1[0]);
+      for (let k = 0; k <= seg; k++) {
+        const ang = a0 + (k / seg) * (Math.PI / 2);
+        const n = [Math.cos(ang), Math.sin(ang)];
+        contour.push({ at, dir: n, n });
+      }
+    } else {
+      const dir = [n1[0] + n2[0], n1[1] + n2[1]];
+      contour.push({ at, dir, n: n1 }, { at, dir, n: n2 });
+    }
+  }
+
+  const pos = [];
+  const nor = [];
+  const uv = [];
+  const idx = [];
+  const put = (u, v, h, nu, nv, nh) => {
+    const p = [0, 0, 0], n = [0, 0, 0];
+    p[ua] = u; p[va] = v; p[flat] = mid + h;
+    n[ua] = nu; n[va] = nv; n[flat] = nh;
+    pos.push(...p); nor.push(...n);
+    uv.push((u - minU) / unit, (v - minV) / unit);
+    return pos.length / 3 - 1;
+  };
+  // Rings from the top face's rim, round the edge, down the side and
+  // round the bottom edge.
+  const rings = [];
+  for (let k = 0; k <= seg; k++) rings.push((k / seg) * (Math.PI / 2));
+  const ringsBottom = rings.slice().reverse().map((t) => Math.PI - t);
+  const ringIdx = [...rings, ...ringsBottom].map((t) => {
+    const sn = Math.sin(t), cs = Math.cos(t);
+    const h = (cs >= 0 ? inner : -inner) + r * cs;
+    return contour.map(({ at, dir, n }) => put(at[0] + dir[0] * r * sn, at[1] + dir[1] * r * sn, h, n[0] * sn, n[1] * sn, cs));
+  });
+  const P = (i) => [pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]];
+  const N = (i) => [nor[i * 3], nor[i * 3 + 1], nor[i * 3 + 2]];
+  const tri = (a, b, c) => {
+    const pa = P(a), pb = P(b), pc = P(c);
+    const e1 = [pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]];
+    const e2 = [pc[0] - pa[0], pc[1] - pa[1], pc[2] - pa[2]];
+    const x = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    const len = Math.hypot(x[0], x[1], x[2]);
+    if (len < 1e-12) return;
+    const na = N(a), nb = N(b), nc = N(c);
+    const dot = x[0] * (na[0] + nb[0] + nc[0]) + x[1] * (na[1] + nb[1] + nc[1]) + x[2] * (na[2] + nb[2] + nc[2]);
+    if (dot >= 0) idx.push(a, b, c); else idx.push(a, c, b);
+  };
+  const L = contour.length;
+  for (let j = 0; j + 1 < ringIdx.length; j++) {
+    for (let e = 0; e < L; e++) {
+      const a = ringIdx[j][e], b = ringIdx[j][(e + 1) % L], c = ringIdx[j + 1][(e + 1) % L], d = ringIdx[j + 1][e];
+      tri(a, b, c); tri(a, c, d);
+    }
+  }
+  // The two flat faces.
+  const outline = corners.map((p, i) => {
+    const a = corners[(i + m - 1) % m], b = corners[(i + 1) % m];
+    const n1 = [Math.sign(p[1] - a[1]), -Math.sign(p[0] - a[0])], n2 = [Math.sign(b[1] - p[1]), -Math.sign(b[0] - p[0])];
+    return new THREE.Vector2(minU + p[0] * unit - (n1[0] + n2[0]) * c, minV + p[1] * unit - (n1[1] + n2[1]) * c);
+  });
+  const faces = THREE.ShapeUtils.triangulateShape(outline, []);
+  for (const side of [1, -1]) {
+    const ids = outline.map((q) => put(q.x, q.y, side * (inner + r), 0, 0, side));
+    for (const [a, b, c] of faces) tri(ids[a], ids[b], ids[c]);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  return geo;
+}
+
 /* Where a ray from (camY, camZ), in direction (dirY, dirZ), crosses the
    board's plane (Y=0), moving forward from the camera. Two genuinely
    different failure modes here, which must NOT be conflated:
