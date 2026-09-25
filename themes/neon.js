@@ -6506,79 +6506,32 @@ export function createSoundscape() {
                and a long quiet fall. It was a rising two-note glass
                figure with a swish, which read as too playful ("too much
                like a Nintendo game"); now austere, and 20% quieter.
-       close — the old figure falling, a touch softer, swish sweeping down
+       close — the same tone a fourth lower (A4), softer and shorter
        tab   — ONE tick for every tab (the one COSTS had, G#6), in ten
                near-identical takes: a few cents of pitch, the partial's
                ratio, the decay, and a trace of soft distortion differ. */
-  const RULES_FIGURES = [[0, 7], [0, 5], [2, 9], [-3, 4]];
-  let lastFigure = -1;
   const cents = (c) => Math.pow(2, c / 1200);
   const jitter = (amt) => (Math.random() * 2 - 1) * amt;
-  function glassNote(t0, freq, peak, decay) {
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = freq;
-    const g = ctx.createGain();
-    env(g, t0, 0.004, 0.01, decay, peak);
-    osc.connect(g).connect(sfxGain);
-    osc.start(t0); osc.stop(t0 + decay + 0.05);
-    const part = ctx.createOscillator();
-    part.type = "sine";
-    part.frequency.value = freq * (2.76 + jitter(0.04));
-    const pg = ctx.createGain();
-    env(pg, t0, 0.002, 0.004, decay * 0.45, peak * 0.35);
-    part.connect(pg).connect(sfxGain);
-    part.start(t0); part.stop(t0 + decay + 0.05);
-  }
-  function airSwish(t0, from, to, dur, peak) {
-    const len = Math.ceil(ctx.sampleRate * dur);
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass"; bp.Q.value = 1.4;
-    bp.frequency.setValueAtTime(from, t0);
-    bp.frequency.exponentialRampToValueAtTime(to, t0 + dur);
-    const g = ctx.createGain();
-    env(g, t0, dur * 0.35, 0, dur * 0.65, peak);
-    src.connect(bp).connect(g).connect(sfxGain);
-    src.start(t0); src.stop(t0 + dur + 0.02);
-  }
-  function pickFigure() {
-    let i = Math.floor(Math.random() * RULES_FIGURES.length);
-    if (i === lastFigure) i = (i + 1) % RULES_FIGURES.length;
-    lastFigure = i;
-    return RULES_FIGURES[i];
-  }
-  function rulesFigure(rising) {
+  // One plain struck tone: a sine with a faint octave, soft attack, long
+  // quiet fall. Open and close are the same sound at two pitches.
+  function rulesTone(base, level, decay) {
     if (!ctx) return;
     const t0 = nowT() + 0.005;
-    const base = 1046.5 * cents(jitter(12)); // C6, give or take
-    const level = (rising ? 0.01056 : 0.00816) * (0.85 + Math.random() * 0.25); // 40% then another 20% below the first pass, per feedback
-    const fig = pickFigure();
-    const notes = rising ? fig : [fig[1], fig[0]];
-    const gap = 0.055 + jitter(0.008);
-    notes.forEach((st, k) => glassNote(t0 + k * gap, base * Math.pow(2, st / 12), level * (k ? 0.8 : 1), 0.2 + jitter(0.03)));
-    airSwish(t0, rising ? 1800 : 6000, rising ? 6000 : 1800, 0.13 + jitter(0.02), level * 0.35);
-  }
-  function rulesOpenTone() {
-    if (!ctx) return;
-    const t0 = nowT() + 0.005;
-    const level = 0.00845 * (0.92 + Math.random() * 0.12); // the old open figure's 0.01056, less 20%
-    const f = 587.33 * cents(jitter(5)); // D5
-    const tone = (freq, attack, decay, peak) => {
+    const f = base * cents(jitter(5));
+    const peak = level * (0.92 + Math.random() * 0.12);
+    const tone = (freq, attack, fall, p) => {
       const o = ctx.createOscillator();
       o.type = "sine"; o.frequency.value = freq;
       const g = ctx.createGain();
-      env(g, t0, attack, 0.02, decay, peak);
+      env(g, t0, attack, 0.02, fall, p);
       o.connect(g).connect(sfxGain);
-      o.start(t0); o.stop(t0 + attack + decay + 0.08);
+      o.start(t0); o.stop(t0 + attack + fall + 0.08);
     };
-    tone(f, 0.012, 0.5 + jitter(0.04), level);
-    tone(f * 2, 0.008, 0.2, level * 0.2);
+    tone(f, 0.012, decay + jitter(0.04), peak);
+    tone(f * 2, 0.008, decay * 0.4, peak * 0.2);
   }
+  const rulesOpenTone = () => rulesTone(587.33, 0.00845, 0.5); // D5; the old open figure's 0.01056, less 20%
+  const rulesCloseTone = () => rulesTone(440, 0.0068, 0.42); // A4, a fourth below: settles rather than rises
   // Tab tick: the COSTS tick for every tab. [cents, partial ratio, decay s, grit]
   const TAB_FREQ = 1318.5 * Math.pow(2, 4 / 12); // G#6
   const TAB_TAKES = [
@@ -6926,7 +6879,7 @@ export function createSoundscape() {
     fadeOutMenu: () => { logMenuCue("close"); ensureGraph(); fadeOutChoir(); },
     stopMenu: () => { logMenuCue("stop"); if (ctx) silenceChoir(); },
     playRulesOpen: () => { logMenuCue("open"); ensureGraph(); rulesOpenTone(); },
-    playRulesClose: () => { logMenuCue("shut"); ensureGraph(); rulesFigure(false); },
+    playRulesClose: () => { logMenuCue("shut"); ensureGraph(); rulesCloseTone(); },
     playRulesTab: () => { logMenuCue("tab"); ensureGraph(); rulesTabTick(); },
     // ensureGraph() + an explicit resume, same self-contained pattern
     // as playDockOpen/playSingularityOpen below — beginGameFadeIn()

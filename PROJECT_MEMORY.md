@@ -1647,8 +1647,9 @@ nothing else:
     fall, peak 0.00845. It was a rising two-note glass figure with an
     air swish; the user found that "too much like a Nintendo game" and
     asked for something more austere and 20% quieter.
-  - `playRulesClose`: the old figure falling (four variants, never the
-    same twice, ±12 cents), softer, with the swish sweeping down.
+  - `playRulesClose`: the same plain tone a fourth lower (A4), softer
+    (0.0068) and shorter (0.42 s), so closing settles. Replaced the old
+    falling two-note figure at the user's request, to match the open.
   - `playRulesTab()`: the SAME tick for every tab (user: the one COSTS
     had, G#6, a sine plus a 2.76x bell partial), in ten near-identical
     takes (`TAB_TAKES`: a few cents, the partial's ratio, the decay and a
@@ -1656,8 +1657,7 @@ nothing else:
     longer follows the tab's position; the chassis still passes an index,
     which is ignored.
   - All go through `sfxGain`, so mute applies. Standard has no-ops.
-  - Levels: open 0.00845, close 0.00816, tab 0.00576 (after a 40% and
-    then a 20% cut on the originals; the swish follows the figure).
+  - Levels: open 0.00845, close 0.0068, tab 0.00576.
 
 In the chassis, `openRulesAt(tab, focus)` and `switchRulesTab(tab,
 focus)` are the only ways in. `infoTabRef` feeds the close cleanup. The
