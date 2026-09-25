@@ -16,12 +16,14 @@
    score with the game's cues built from its instruments
    (themes/lluvia-audio.js). */
 
+import React from "react";
 import * as THREE from "three";
 import {
   BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z,
   DISC_DIAM, DISC_H, PIECE_SCALE, CABEZA_SCALE,
 } from "../engine/constants.js";
 import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
+import { LluviaOverlay, defaultSelections } from "./lluvia-overlay.js";
 
 /* ------------------------------------------------------------ palette */
 
@@ -295,6 +297,57 @@ export const styleSheet = `
     letter-spacing: 0.02em;
   }
 `;
+
+/* ------------------------------------------------------------ the opening and the city */
+
+/* The opening (the descent) shows over a fresh page, and the city again
+   from the setup row's CUSTOM RULES button, or from a finished game's
+   "change the rules". The chosen settings live here so the city opens on
+   whatever was set last. */
+export function useSetupExtras(x) {
+  const [overlay, setOverlay] = React.useState(() => (x.awaitingBegin ? "ready" : null));
+  const selRef = React.useRef(null);
+  if (!selRef.current) selRef.current = defaultSelections();
+  React.useEffect(() => { if (!x.awaitingBegin && overlay) setOverlay(null); }, [x.awaitingBegin]);
+  const reopenCity = (sel) => { if (sel) selRef.current = sel; setOverlay("city"); };
+  return {
+    ...x,
+    lluviaOverlay: overlay,
+    openCity: () => setOverlay("city"),
+    closeOverlay: () => setOverlay(null),
+    reopenCity,
+    selRef,
+  };
+}
+
+export function renderSetupExtras({ beginGameButton, openCity }) {
+  const h = React.createElement;
+  return h(
+    "div",
+    { style: { display: "flex", gap: 8, flexShrink: 0, flexWrap: "nowrap", width: "100%" } },
+    h("button", {
+      key: "city", type: "button", className: "ec-btn ec-btn-invert", "data-testid": "lluvia-custom-rules",
+      title: "Go down into the city and buy the rules", onClick: openCity,
+      style: {
+        flex: "1 1 0", minWidth: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase",
+        color: "#ffd0ef", background: "rgba(255,61,187,0.08)", border: "1.5px solid rgba(255,61,187,0.8)", padding: "9px 12px", cursor: "pointer",
+      },
+    }, "Custom rules"),
+    beginGameButton
+  );
+}
+
+export function renderExtraOverlays(x) {
+  if (!x || !x.lluviaOverlay || !x.awaitingBegin) return null;
+  return React.createElement(LluviaOverlay, {
+    key: `lluvia-${x.lluviaOverlay}`,
+    start: x.lluviaOverlay,
+    x,
+    sel: x.selRef.current,
+    onSelChange: (s) => { x.selRef.current = s; },
+    onClose: x.closeOverlay,
+  });
+}
 
 export { mountAmbientEffects } from "./lluvia-fx.js";
 export { createAudio, hasAudio } from "./lluvia-audio.js";

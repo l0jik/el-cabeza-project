@@ -123,6 +123,9 @@ export function mountAmbientEffects(refs, { three, windingDownRef }) {
     changed.forEach((rec) => { rec.bulk = bulk; });
   }
 
+  // The opening/city layer runs its own city; this one rests meanwhile.
+  const offOverlay = bus.on("overlay", (open) => { if (city) city.setPaused(!!open); });
+
   /* ---- lightning ---- */
   let strikes = [];
   let hemi = null, hemiBase = 0;
@@ -182,7 +185,7 @@ export function mountAmbientEffects(refs, { three, windingDownRef }) {
       if (hemi) hemi.intensity = hemiBase * (1 + lit * 2.5);
     },
     dispose() {
-      offThunder();
+      offThunder(); offOverlay();
       rings.forEach((r) => { group.remove(r.m); r.m.geometry.dispose(); r.m.material.dispose(); });
       rainGeo.dispose(); rain.material.dispose();
       if (attachedTo) attachedTo.remove(group);
