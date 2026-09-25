@@ -21,7 +21,7 @@ import {
   setGhostLineTarget,
 } from "../engine/geometry.js";
 import { cubeCount, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
-import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT } from "./RulesCards.jsx";
+import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, pieceCardInfo } from "./RulesCards.jsx";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
 // ABOUT's link returns to the original game. Inlined by the build.
@@ -6222,6 +6222,52 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                 />
               ))}
             </span>
+          </div>
+        );
+      })()}
+
+      {/* Piece card: while it's your turn and a piece of yours is
+         selected, a small card in the lower left says what it is, how it
+         moves and what that costs in this game's rules (text from
+         RulesCards.jsx, pieceCardInfo). "More" opens its MOVES tile. */}
+      {isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && dockView !== "panel" && (() => {
+        const info = pieceCardInfo(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name);
+        return (
+          <div
+            data-testid="piece-card"
+            data-piece={selectedPiece.type}
+            role="status"
+            style={{
+              position: "fixed",
+              left: 18,
+              bottom: 66,
+              zIndex: 12,
+              width: "min(250px, calc(100vw - 36px))",
+              boxSizing: "border-box",
+              padding: "10px 12px 9px",
+              borderRadius: 8,
+              background: COLORS.cream,
+              border: `1px solid ${COLORS.slateSoft}`,
+              boxShadow: "0 6px 18px rgba(0,0,0,0.18)",
+              color: COLORS.charcoal,
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontSize: 12.5,
+              lineHeight: 1.45,
+              pointerEvents: "auto",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 3 }}>
+              <span style={{ fontFamily: theme.titleFontFamily || "'Fraunces', serif", fontSize: 15, fontWeight: 600 }}>{info.name}</span>
+              <button
+                type="button"
+                data-testid="piece-card-more"
+                onClick={() => { setInfoTab("moves"); setRulesFocus(info.tile); setShowInfoOverlay(true); audioRef.current.playMenu(); }}
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: COLORS.slate, font: "600 11.5px 'IBM Plex Sans', sans-serif" }}
+              >
+                More ›
+              </button>
+            </div>
+            <div data-testid="piece-card-text">{info.text}</div>
           </div>
         );
       })()}

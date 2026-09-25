@@ -1,8 +1,10 @@
-/* Cost badges on the move markers (chassis/ElCabeza3D.jsx,
-   buildCostBadge): selecting a piece puts a small round label on every
-   square it can reach saying what that move costs, and a move that
-   would put the board back as it was earlier this turn reads "free".
-   Checked in Neon and Standard. */
+/* Out in the open during play (chassis/ElCabeza3D.jsx): cost badges on
+   the move markers (buildCostBadge) — every square a selected piece can
+   reach says what that move costs, and a move that would put the board
+   back as it was earlier this turn reads "free" — and the piece card
+   (data-testid piece-card), which names the selected piece and says how
+   it moves, with a "More" link to its MOVES tile. Checked in Neon and
+   Standard. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -12,9 +14,9 @@ const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "
 
 const position = [
   { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 0, col: 4, w: 1, h: 1, z: 1 },
-  { id: "dark-turrito", type: "turrito", owner: "dark", row: 3, col: 3, w: 1, h: 1, z: 2 },
+  { id: "dark-turrito", type: "turrito", owner: "dark", row: 3, col: 3, w: 1, h: 1, z: 1 },
   { id: "light-cabeza", type: "cabeza", owner: "light", row: 9, col: 5, w: 1, h: 1, z: 1 },
-  { id: "light-turrito", type: "turrito", owner: "light", row: 8, col: 8, w: 1, h: 1, z: 2 },
+  { id: "light-turrito", type: "turrito", owner: "light", row: 8, col: 8, w: 1, h: 1, z: 1 },
 ];
 const badges = (page) => page.evaluate(() => window.__EC_TEST_COST_BADGES__());
 async function select(page, id) {
@@ -49,7 +51,13 @@ for (const theme of ["neon", "standard"]) {
   let b = await badges(page);
   check("selecting the Turrito badges each of its moves", b.length >= 4, JSON.stringify(b));
   check("each roll costs 1", b.length > 0 && b.every((x) => x.text === "1"), JSON.stringify(b));
+  const card = page.locator('[data-testid="piece-card"]');
+  check("the piece card names the selected piece", (await card.count()) === 1 && /Turrito/.test(await card.innerText()), await card.count() ? await card.innerText() : "none");
+  check("...and says how it moves and what it costs", /rolls one square.*1 point/i.test(await page.locator('[data-testid="piece-card-text"]').innerText()));
   await page.screenshot({ path: `/tmp/e2e-costs-${theme}-1.png` });
+  await page.mouse.click(500, 880);
+  await page.waitForTimeout(500);
+  check("deselecting hides the card and the badges", (await card.count()) === 0 && (await badges(page)).length === 0);
 
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
   await page.waitForTimeout(1600);
@@ -59,6 +67,14 @@ for (const theme of ["neon", "standard"]) {
   check("after a roll, rolling back reads free", back && back.text === "free", JSON.stringify(b));
   check("other rolls still cost 1", b.filter((x) => x.dir !== "N").every((x) => x.text === "1"), JSON.stringify(b));
   await page.screenshot({ path: `/tmp/e2e-costs-${theme}-2.png` });
+  await page.locator('[data-testid="piece-card-more"]').click();
+  await page.waitForTimeout(600);
+  const info = page.locator('[data-testid="info-overlay"]');
+  check("More opens the rules at the Moves tab", (await info.getAttribute("data-open")) === "true" &&
+    (await page.locator('[data-focus="true"]').count()) === 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(500);
+  check("the card stays with the piece for the rest of the turn", (await card.count()) === 1);
   check("no page errors", errs.length === 0, errs.join(" | "));
   await context.close();
 }
