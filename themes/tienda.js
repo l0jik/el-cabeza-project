@@ -82,8 +82,10 @@ export const COLORS = {
   inkOnAccent: PERIOD.ink,
 };
 
-// On the rules leaflet the gold is printed darker, to read on cream.
-export const rulesColors = { accentDark: "#7E540C" };
+// The rules leaflet is a newspaper circular (see styleSheet): black ink
+// and one spot red on newsprint.
+const NEWS = { paper: "#E2D8BD", ink: "#28231F", red: "#A8321F", redInk: "#B0382A" };
+export const rulesColors = { accentDark: NEWS.red, charcoal: NEWS.ink, slate: "#5A5046", slateSoft: "rgba(60,48,36,0.28)" };
 
 // The title is set like the game's own advertising: a high-contrast
 // serif, all capitals.
@@ -534,6 +536,45 @@ export function renderGlobalDefs() {
    typed or printed by a machine. The chassis draws its menus with IBM
    Plex; they are re-set here in these, and its glassy panels become
    card stock. */
+/* The leaflet's edge: brittle newsprint, flaked here and there, torn a
+   little where the folds meet the edge (a fold is where newsprint gives
+   first), and a corner gone. A clip-path polygon whose points are a
+   percentage of the sheet plus a few pixels, so the damage stays the
+   same size on a phone and a desktop. */
+function tornEdge() {
+  const r = rng(1975);
+  const P = (xp, xd, yp, yd) => `calc(${xp.toFixed(2)}% + ${xd.toFixed(1)}px) calc(${yp.toFixed(2)}% + ${yd.toFixed(1)}px)`;
+  // a: how far along the edge (%, in the direction of travel), s: px
+  // along it, i: px in from it. Clockwise from the top left.
+  const EDGES = [
+    ["top", (a, s2, i) => P(a, s2, 0, i)],
+    ["right", (a, s2, i) => P(100, -i, a, s2)],
+    ["bottom", (a, s2, i) => P(100 - a, -s2, 100, -i)],
+    ["left", (a, s2, i) => P(0, i, 100 - a, -s2)],
+  ];
+  // Tears at the fold ends: [a, depth px, lean px]. The folds run across
+  // at a third and two thirds, and down the middle.
+  const TEARS = { top: [[21, 4, 1], [50, 6, 2]], right: [[33.33, 4, -1], [66.67, 12, -3]], bottom: [[50, 8, -2], [83, 5, 1.5]], left: [[66.67, 9, 3]] };
+  const pts = [];
+  EDGES.forEach(([name, at]) => {
+    if (name === "bottom") { pts.push(EDGES[1][1](100, -7, 0.5), at(0, 6, 0.4)); } // the chipped corner
+    else pts.push(at(0, 0, 0.4));
+    const tears = TEARS[name].slice();
+    for (let a = 2; a < 100; a += 2) {
+      while (tears.length && tears[0][0] <= a) {
+        const [ta, depth, lean] = tears.shift();
+        pts.push(at(ta, -1.6, 0.2), at(ta, lean, depth), at(ta, 1.3, 0.2));
+      }
+      if (r() < 0.1) {
+        const d = 2 + r() * 2.2;
+        pts.push(at(a, -2.6, 0.3), at(a, -1.1, d), at(a, 1.3, d * 0.8), at(a, 2.6, 0.3));
+      } else pts.push(at(a, 0, r() * 1.2));
+    }
+  });
+  return `polygon(${pts.join(",")})`;
+}
+const TORN = tornEdge();
+
 export const styleSheet = `
   @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700;6..96,800&family=Libre+Franklin:wght@400;500;600;700;800;900&family=Courier+Prime:wght@400;700&display=swap');
   html, body { overscroll-behavior: none; background: #1a140f; }
@@ -599,8 +640,97 @@ export const styleSheet = `
   }
   [data-testid="how-to-play"] { padding: 0 10px 0 7px !important; height: 30px !important; bottom: 22px !important; }
   button[aria-label$="full screen"] { width: 30px !important; height: 30px !important; bottom: 22px !important; }
-  /* Rules: the instruction leaflet folded into the box. */
-  [data-testid="info-overlay"] > div { border: 1px solid rgba(46,33,24,0.5) !important; box-shadow: 0 24px 60px rgba(20,12,6,0.45) !important; }
+  /* Rules: a newspaper circular of 1975, the store's own insert from the
+     Sunday paper, folded in three to go in the box and handled since.
+     Groundwood newsprint gone yellow, browner and brittle at the edges;
+     soft black ink that spreads a little into the fibres, and one spot
+     red, a touch off register; a screened tint; the ad on the back
+     showing through; the folds worn where they cross. */
+  [data-testid="info-overlay"] > div {
+    background-color: ${NEWS.paper} !important;
+    background-image:
+      radial-gradient(ellipse 60% 45% at 88% 8%, rgba(176,128,52,0.16), transparent 70%),
+      radial-gradient(ellipse 55% 40% at 6% 94%, rgba(168,120,48,0.13), transparent 70%),
+      var(--tienda-newsprint, linear-gradient(transparent, transparent)) !important;
+    background-size: auto, auto, 320px 320px !important;
+    border: none !important; border-radius: 0 !important;
+    box-shadow: inset 0 0 0 1px rgba(128,90,40,0.22), inset 0 0 22px rgba(160,112,44,0.34), inset 0 0 70px rgba(176,132,62,0.16) !important;
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+    clip-path: ${TORN};
+    isolation: isolate;
+    text-shadow: 0 0 0.45px rgba(40,35,31,0.65);
+  }
+  /* The folds: a letter fold (two across, one a valley and one a ridge)
+     and then in half, down the middle. */
+  [data-testid="info-overlay"] > div::after {
+    content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background:
+      radial-gradient(circle 10px at 50% 33.33%, rgba(248,242,224,0.6), transparent),
+      radial-gradient(circle 9px at 50% 66.67%, rgba(248,242,224,0.55), transparent),
+      linear-gradient(90deg, transparent calc(50% - 12px), rgba(90,65,35,0.06) calc(50% - 1px), rgba(72,52,30,0.24) 50%, rgba(252,247,232,0.42) calc(50% + 1px), rgba(252,247,232,0.07) calc(50% + 4px), transparent calc(50% + 14px)),
+      linear-gradient(180deg,
+        transparent calc(33.33% - 14px), rgba(90,65,35,0.07) calc(33.33% - 1px), rgba(72,52,30,0.26) 33.33%, rgba(252,247,232,0.46) calc(33.33% + 1px), rgba(252,247,232,0.08) calc(33.33% + 4px), transparent calc(33.33% + 12px),
+        transparent calc(66.67% - 12px), rgba(252,247,232,0.08) calc(66.67% - 4px), rgba(252,247,232,0.42) calc(66.67% - 1px), rgba(72,52,30,0.24) 66.67%, rgba(90,65,35,0.07) calc(66.67% + 1px), transparent calc(66.67% + 14px)),
+      linear-gradient(180deg, rgba(255,252,240,0.035) 0 33.33%, rgba(80,58,28,0.04) 33.33% 66.67%, rgba(255,252,240,0.02) 66.67%);
+  }
+  /* The back of the sheet, showing through. */
+  [data-testid="info-overlay"] > div::before {
+    content: "SALE\\A$2.97\\A\\A  Men's Knit\\A  Shirts\\A\\ASAVE 30%\\A\\A  Prices good\\A  thru Sat.";
+    position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
+    padding: 30% 9% 0; white-space: pre; transform: scaleX(-1);
+    font: 900 44px/1.02 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif;
+    color: rgba(40,32,24,0.05); text-shadow: none; filter: blur(0.8px);
+  }
+  /* Masthead: a red band with the words reversed out of it, fading off in
+     a halftone screen; the name in heavy black with a red drop, not quite
+     on register; an Oxford rule (thick and thin) under it. */
+  [data-testid="info-overlay"] > div > div:first-child { padding-top: 20px !important; }
+  [data-testid="info-overlay"] > div > div:first-child::before {
+    content: "IN-STORE DEMONSTRATION  \\2022  HOW TO PLAY  \\2022  NO CHARGE";
+    display: block; margin: 0 -16px 14px; padding: 6px 8px 20px;
+    font: 800 10px/1.3 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif; letter-spacing: 0.18em; text-align: center;
+    color: ${NEWS.paper}; text-shadow: none;
+    background:
+      linear-gradient(${NEWS.redInk}, ${NEWS.redInk}) 0 0 / 100% calc(100% - 14px) no-repeat,
+      radial-gradient(circle, ${NEWS.redInk} 1.3px, transparent 1.55px) 0 calc(100% - 10px) / 4px 4px repeat-x,
+      radial-gradient(circle, ${NEWS.redInk} 0.9px, transparent 1.15px) 2px calc(100% - 6px) / 4px 4px repeat-x,
+      radial-gradient(circle, ${NEWS.redInk} 0.5px, transparent 0.75px) 0 calc(100% - 2px) / 4px 4px repeat-x;
+  }
+  [data-testid="info-overlay"] h2 {
+    font-family: 'Libre Franklin', 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif !important;
+    font-weight: 900 !important; font-size: clamp(30px, 8vw, 42px) !important; line-height: 0.92 !important;
+    letter-spacing: -0.015em !important; color: ${NEWS.ink} !important; margin: 0 0 2px !important;
+    text-shadow: 1.3px 1px 0 rgba(176,56,42,0.6), 0 0 0.5px rgba(40,35,31,0.7);
+  }
+  [data-testid="info-overlay"] h2::after {
+    content: "The Game of Unparalleled Intention";
+    display: block; margin-top: 7px; font: italic 600 13px/1.2 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.01em;
+    text-shadow: 0 0 0.45px rgba(40,35,31,0.65);
+  }
+  [data-testid="info-overlay"] h2 + div {
+    width: auto !important; height: 2px !important; background: transparent !important;
+    border-top: 3px solid ${NEWS.ink}; border-bottom: 1px solid ${NEWS.ink}; margin: 10px 0 12px !important;
+  }
+  [data-testid="info-overlay"] [role="tablist"] { gap: 2px 12px !important; margin-bottom: 16px !important; }
+  [data-testid="info-overlay"] [role="tab"] {
+    font-family: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; font-weight: 800 !important;
+    font-size: 11px !important; letter-spacing: 0.1em !important; color: ${NEWS.ink} !important; opacity: 0.6;
+  }
+  [data-testid="info-overlay"] [role="tab"][aria-selected="true"] { opacity: 1; border-bottom: 2px solid ${NEWS.redInk} !important; }
+  [data-testid="info-overlay"] [role="tab"]:focus-visible { outline: 1px dashed ${NEWS.ink}; outline-offset: 2px; }
+  /* The side heads in the copy: bold caps in the red. */
+  [data-testid="info-body"] [style*="IBM Plex Mono"] {
+    font-family: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; font-weight: 800 !important;
+    letter-spacing: 0.08em !important; font-variant-numeric: tabular-nums;
+  }
+  [data-testid="info-body"] { scrollbar-width: thin; scrollbar-color: rgba(40,32,24,0.35) transparent; }
+  [data-testid="info-body"]::-webkit-scrollbar { width: 6px; }
+  [data-testid="info-body"]::-webkit-scrollbar-thumb { background: rgba(40,32,24,0.3); }
+  @media (max-width: 480px) {
+    [data-testid="info-overlay"] > div > div { padding-left: 20px !important; padding-right: 20px !important; }
+    [data-testid="info-overlay"] > div > div:first-child::before { content: "HOW TO PLAY  \\2022  NO CHARGE"; margin: 0 -10px 12px; letter-spacing: 0.14em; }
+    [data-testid="info-overlay"] > div::before { font-size: 34px; }
+  }
   /* Fixed controls clear of a phone's notch and home bar (the page is
      laid out edge to edge: viewport-fit=cover). */
   [data-testid="dock-panel"] { margin-bottom: env(safe-area-inset-bottom); }

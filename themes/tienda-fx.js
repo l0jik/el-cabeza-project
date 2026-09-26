@@ -24,7 +24,7 @@ import { SLAB_X, SLAB_Z, SLAB_THICKNESS } from "../engine/constants.js";
 import { buildStore, buildTable, CEIL } from "./tienda-store.js";
 import { grainTurns, storeEnv } from "./tienda.js";
 import { quality } from "./tienda-quality.js";
-import { ensurePaper } from "./tienda-textures.js";
+import { ensurePaper, ensureNewsprint } from "./tienda-textures.js";
 
 const FONT_FACES = ["800 40px 'Libre Franklin'", "900 40px 'Libre Franklin'", "700 40px 'Libre Franklin'", "600 40px 'Libre Franklin'", "700 40px 'Courier Prime'", "400 40px 'Courier Prime'", "700 40px 'Bodoni Moda'", "italic 700 40px 'Libre Franklin'"];
 
@@ -62,6 +62,7 @@ export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
   let tuned = false;
   let fogBefore = null, farBefore = null;
   ensurePaper();
+  ensureNewsprint();
 
   /* ---- lettering in the period fonts, once they're here ---- */
   let fontsDone = false;

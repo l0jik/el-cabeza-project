@@ -621,3 +621,60 @@ export function ensurePaper() {
     root.style.setProperty("--tienda-paper", `url(${c.toDataURL("image/png")})`);
   } catch (e) { /* plain paper colour, then */ }
 }
+
+/* Newsprint, 1975: the paper of a Sunday circular. Groundwood pulp with
+   its lignin left in, so it's grey-cream gone yellow, with a cloudy
+   formation (the fibres clump), fine fibres, and the odd dark shive (a
+   splinter of wood the grinder missed). A seamless tile, set as the CSS
+   variable --tienda-newsprint for the rules leaflet. */
+export function ensureNewsprint() {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  if (root.style.getPropertyValue("--tienda-newsprint")) return;
+  try {
+    const S = 320;
+    const c = document.createElement("canvas");
+    c.width = c.height = S;
+    const g = c.getContext("2d");
+    const r = rng(1975);
+    // Drawn nine times over (the tile and its neighbours), so it wraps.
+    const wrap = (draw) => { for (let ox = -S; ox <= S; ox += S) for (let oy = -S; oy <= S; oy += S) draw(ox, oy); };
+    g.fillStyle = "#E2D8BD"; g.fillRect(0, 0, S, S);
+    // Formation: soft clouds, a shade darker and a shade lighter.
+    for (let i = 0; i < 70; i++) {
+      const x = r() * S, y = r() * S, rad = 14 + r() * 46, dark = r() < 0.55;
+      wrap((ox, oy) => {
+        const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, rad);
+        gr.addColorStop(0, dark ? `rgba(150,118,70,${0.03 + r() * 0.03})` : `rgba(255,251,238,${0.04 + r() * 0.04})`);
+        gr.addColorStop(1, "rgba(0,0,0,0)");
+        g.fillStyle = gr; g.fillRect(x + ox - rad, y + oy - rad, rad * 2, rad * 2);
+      });
+    }
+    // Grain.
+    for (let i = 0; i < 5200; i++) {
+      const x = r() * S, y = r() * S, dark = r() < 0.6;
+      g.fillStyle = dark ? `rgba(92,76,54,${0.04 + r() * 0.07})` : `rgba(255,252,242,${0.05 + r() * 0.08})`;
+      g.fillRect(x, y, 1, 1);
+    }
+    // Fibres.
+    for (let i = 0; i < 300; i++) {
+      const x = r() * S, y = r() * S, a = r() * 6.28, l = 3 + r() * 8, dark = r() < 0.7;
+      const col = dark ? `rgba(98,78,52,${0.07 + r() * 0.12})` : `rgba(255,252,240,${0.2 + r() * 0.2})`, w = 0.45 + r() * 0.5, bend = (r() - 0.5) * 1.6;
+      wrap((ox, oy) => {
+        g.strokeStyle = col; g.lineWidth = w;
+        g.beginPath(); g.moveTo(x + ox, y + oy);
+        g.quadraticCurveTo(x + ox + Math.cos(a + bend) * l * 0.5, y + oy + Math.sin(a + bend) * l * 0.5, x + ox + Math.cos(a) * l, y + oy + Math.sin(a) * l);
+        g.stroke();
+      });
+    }
+    // Shives: short dark-brown slivers.
+    for (let i = 0; i < 22; i++) {
+      const x = r() * S, y = r() * S, a = r() * 6.28, l = 1.5 + r() * 3.5, col = `rgba(84,56,30,${0.25 + r() * 0.25})`, w = 0.8 + r() * 0.7;
+      wrap((ox, oy) => {
+        g.strokeStyle = col; g.lineWidth = w; g.lineCap = "round";
+        g.beginPath(); g.moveTo(x + ox, y + oy); g.lineTo(x + ox + Math.cos(a) * l, y + oy + Math.sin(a) * l); g.stroke();
+      });
+    }
+    root.style.setProperty("--tienda-newsprint", `url(${c.toDataURL("image/png")})`);
+  } catch (e) { /* plain newsprint colour, then */ }
+}

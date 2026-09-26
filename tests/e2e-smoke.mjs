@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const target = process.argv[2]; // "standard" or "neon"
 if (!target) {
-  console.error("usage: node tests/e2e-smoke.mjs <standard|neon>");
+  console.error("usage: node tests/e2e-smoke.mjs <standard|neon|cromo|lluvia|tienda>");
   process.exit(1);
 }
 
@@ -33,6 +33,14 @@ if (!rootHasContent) {
   errors.forEach((e) => console.log("   " + e));
   await browser.close();
   process.exit(1);
+}
+
+// Themes that open on their own screen first (Lluvia's descent, Tienda's
+// boxed game): go straight to the board, as a player can.
+const OPENING = { lluvia: '[data-testid="lluvia-straight-to-board"]', tienda: '[data-testid="tienda-open-box"]' };
+if (OPENING[target]) {
+  await page.locator(OPENING[target]).click({ timeout: 30000 });
+  await page.waitForTimeout(1500);
 }
 
 const title = await page.textContent("h1");

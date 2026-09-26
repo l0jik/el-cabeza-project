@@ -1948,3 +1948,30 @@ box art and an ad standee (assets/tienda/*.jpg).
   recordings are the sandbox starving the audio thread while it renders
   the store on the CPU (they fall on 128-sample block edges and vanish
   with a tiny window), not the code.
+- **Rules leaflet = a 1975 newspaper circular (user request: "printed on a
+  newspaper advertisement flyer from that era. Creases, micro tears").**
+  All CSS in tienda.js styleSheet over the chassis's info-overlay card,
+  plus `ensureNewsprint()` (tienda-textures.js: a seamless canvas tile of
+  groundwood newsprint: yellowed grey-cream, cloudy formation, fibres,
+  dark shives) as `--tienda-newsprint`. Grounded in how the paper aged
+  (lignin left in groundwood oxidises: yellow, edges browner and brittle)
+  and how circulars were printed (soft black + one spot red, screened
+  halftone tints, plates slightly off register). Details: browned edges
+  (inset shadows) and two foxing blotches; a letter fold (creases at a
+  third and two thirds, one valley one ridge) then in half, drawn by
+  `::after` over the text (ink lighter on the ridges) with worn spots
+  where folds cross; a torn outline from `tornEdge()` = clip-path
+  polygon in `calc(% + px)` so damage is the same size on any screen:
+  flaked edges, tears where each fold meets the edge, a chipped corner;
+  the back page's ad mirrored and faint in `::before` (show-through); a
+  red masthead band with reversed-out type and a halftone fade (three
+  rows of shrinking dots); the name in heavy Franklin with an off-register
+  red drop; an Oxford rule; red bold side heads (`rulesColors`). No outer
+  shadow (clip-path would cut it); the dimmed store separates it.
+- **Smoke test and opening screens.** tests/e2e-smoke.mjs now passes
+  through a theme's own opening first (Lluvia: Straight to the board;
+  Tienda: Open the box). Lluvia's smoke had failed since the descent
+  opening landed (04ca297): its dock click hit DESCEND.
+- **Tape on file://.** The page doesn't try to fetch the tape when opened
+  straight from disk (the browser refuses and logs an error); it plays
+  the arrangements.

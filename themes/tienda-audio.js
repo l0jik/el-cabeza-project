@@ -592,7 +592,9 @@ export function createAudio({ tapeUrl = null } = {}) {
   // be had (the page opened on its own, offline), the arrangements play.
   const TAPE_RATE = 0.94;   // about a semitone flat, a touch slow
   const TAPE_LEVEL = 0.21;  // a little under the arrangements (measured through the chain)
-  let tape = null;          // { buffer } once decoded, { failed } if it can't be
+  // Opened straight from disk, the browser won't fetch a file beside the
+  // page at all: don't try (it would only log an error).
+  let tape = tapeUrl && typeof location !== "undefined" && location.protocol === "file:" ? { failed: true } : null; // { buffer } once decoded, { failed } if it can't be
   let tapeLoading = false, tapeIn = null, tapeRate = null, tapeSrc = null;
   let tapePos = 0, tapeOffset = 0, tapeStartedAt = 0, tapeEndsAt = 0, tapeGap = 5, tapeWaitUntil = 0;
   function tapeBytes(url) {
@@ -606,7 +608,7 @@ export function createAudio({ tapeUrl = null } = {}) {
   // and decoded when it's first wanted.
   let tapeFetch = null;
   const fetchTape = () => tapeFetch || (tapeFetch = tapeBytes(tapeUrl));
-  if (tapeUrl && typeof window !== "undefined") {
+  if (tapeUrl && !tape && typeof window !== "undefined") {
     const conn = window.navigator && window.navigator.connection;
     if (!(conn && conn.saveData)) setTimeout(() => { fetchTape().catch(() => {}); }, 2500);
   }
