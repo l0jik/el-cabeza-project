@@ -19,6 +19,7 @@ import {
 } from "./unifiedTransition.jsx";
 
 const THEMES = { standard: standardTheme, neon: neonTheme };
+const LAYOUT_KEY = "el-cabeza:nova-layout";
 const {
   MAX_WARP_SCALE, MAX_ABERRATION_PX, MAX_SCANLINE_OPACITY, MAX_STATIC_OPACITY,
   MAX_SHAKE_PX, MAX_WARP_PULSE, MAX_STROBE, SHAKE_FREQ_MIN, SHAKE_FREQ_MAX,
@@ -258,7 +259,18 @@ function UnifiedApp() {
      menu item there, since a four-second hold on the title is hard to
      find on a phone. It opens the same CONNECT / DISCONNECT prompt the
      hold ends in. */
+  /* Layout on a desktop: the classic dock (default) or the control bar
+     phones use. Phones always get the bar. Remembered in this browser. */
+  const [layoutPref, setLayoutPref] = useState(() => {
+    try { return localStorage.getItem(LAYOUT_KEY) === "bar" ? "bar" : "dock"; } catch (e) { return "dock"; }
+  });
+  const onLayoutChange = useCallback((v) => {
+    setLayoutPref(v);
+    try { localStorage.setItem(LAYOUT_KEY, v); } catch (e) { /* storage blocked: this visit only */ }
+  }, []);
   const mobileShell = useMemo(() => ({
+    preferBar: layoutPref === "bar",
+    onLayoutChange,
     menuItems: [{
       key: "switch-theme",
       testid: "shell-menu-switch-theme",
@@ -270,7 +282,7 @@ function UnifiedApp() {
         setConnectWord(themeName === "standard" ? "CONNECT" : "DISCONNECT");
       },
     }],
-  }), [themeName, transition]);
+  }), [themeName, transition, layoutPref, onLayoutChange]);
 
   // The browser's own toolbar colour follows the theme on phones.
   useEffect(() => {

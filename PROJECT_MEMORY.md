@@ -2216,3 +2216,23 @@ Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
   New Game, theme switch to Neon, Anomaly, Custom rules invite fits),
   landscape (bar on the right, title and board clear of it), and desktop
   Nova / Neon's own page on a phone keeping the dock.
+
+### Follow-up decisions (user answers)
+- **Desktop Nova: both layouts.** `apps/unified.jsx` keeps a layout
+  preference (`el-cabeza:nova-layout`, "dock" default | "bar") and passes
+  `mobileShell.preferBar` + `onLayoutChange`. The chassis shows the bar
+  when `phoneSized || preferBar`; phones always get the bar. The dock's
+  icon row gets a layout icon (`layout-toggle`, bar glyph) and the bar's
+  menu gets "Use the classic dock" (`shell-menu-layout`), both only off
+  phones. On a wide screen (> 700px, not short) the bar floats as a
+  centred 600px panel 16px above the bottom; the side bar is only for
+  short wide screens (height ≤ `SIDE_MAX_H` 520, MobileShell.jsx).
+- **Board facing (all themes).** The pre-game board now faces the side
+  that moves first (`boardNearSide = currentPlayer`), snapped on arriving
+  at setup; switching First move turns it on the usual damping. It used
+  to be a random roll.
+- **Neon's custom-rules emblem** (VariantsFlyout) only shows in a game
+  that has custom rules (`renderVariantsFlyout`).
+- **Standard's wood sounds:** the user will upload real recordings (the
+  sandbox reaches no free sound library; see §9 for the four rejected
+  synthesis attempts). Build every Standard cue from those files.

@@ -22,7 +22,7 @@ import {
 } from "../engine/geometry.js";
 import { cubeCount, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
-import MobileShell from "./MobileShell.jsx";
+import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
 // ABOUT's link returns to the original game. Inlined by the build.
@@ -763,15 +763,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      and corner icons give way to a top bar, a bottom control bar and a
      menu sheet, and the camera frames the board in the space between
      them (viewInsetsRef, see resize in the scene effect). */
-  const [shell, setShell] = useState(() => !!mobileShell && typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(SHELL_QUERY).matches);
+  // phoneSized: the screen needs the bar. A page can also ask for the
+  // bar on a bigger screen (mobileShell.preferBar: Nova's layout choice).
+  const [phoneSized, setPhoneSized] = useState(() => !!mobileShell && typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(SHELL_QUERY).matches);
   useEffect(() => {
     if (!mobileShell || !window.matchMedia) return undefined;
     const mq = window.matchMedia(SHELL_QUERY);
-    const on = () => setShell(mq.matches);
+    const on = () => setPhoneSized(mq.matches);
     on();
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, [!!mobileShell]);
+  const shell = !!mobileShell && (phoneSized || !!mobileShell.preferBar);
+  // Offered only where both layouts fit: not on a phone.
+  const layoutSwitch = mobileShell && mobileShell.onLayoutChange && !phoneSized ? mobileShell.onLayoutChange : null;
   const shellRef = useRef(shell);
   shellRef.current = shell;
   const viewInsetsRef = useRef(null);
@@ -838,9 +843,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [dockSessionPieceType, setDockSessionPieceType] = useState(
     () => carried("dockSessionPieceType", () => DOCK_PIECE_TYPES[Math.floor(Math.random() * DOCK_PIECE_TYPES.length)])
   );
-  const [boardNearSide, setBoardNearSide] = useState(
-    () => carried("boardNearSide", () => (Math.random() < 0.5 ? "dark" : "light"))
-  );
+  // The side that moves first sits nearest the viewer on the pre-game
+  // board (it used to be a random roll, which could show Light's pieces
+  // nearest you under "First move: Dark").
+  const boardNearSide = currentPlayer;
   const dockSessionColor = boardNearSide === "dark" ? "light" : "dark";
 
   /* Orients the pre-game board to match boardNearSide the moment a fresh
@@ -851,12 +857,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      directly to both cam.current and its eased view, not just the goal,
      so the very first frame already shows the rolled side near — a
      fresh setup screen should never visibly spin into place. */
+  // Snapped only on arriving at a setup screen; switching First move
+  // afterwards turns the board on the usual damping (toggleStartingPlayer).
   useEffect(() => {
     if (!awaitingBegin) return;
     const theta = boardNearSide === "dark" ? Math.PI : 0;
     cam.current.theta = theta;
     cam.current.view.theta = theta;
-  }, [boardNearSide, awaitingBegin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awaitingBegin]);
 
   useEffect(() => {
     if (awaitingBegin) setDockView("piece");
@@ -875,7 +884,6 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     }
     if (!awaitingBegin) return;
     setDockSessionPieceType(DOCK_PIECE_TYPES[Math.floor(Math.random() * DOCK_PIECE_TYPES.length)]);
-    setBoardNearSide(Math.random() < 0.5 ? "dark" : "light");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awaitingBegin]);
 
@@ -1447,7 +1455,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       const gapTop = titleEl.getBoundingClientRect().bottom + GAP_PADDING_PX;
       // On its side the phone's bar is down the right edge, so the board
       // has the whole height below the title.
-      const gapBottom = (shell && window.innerWidth > window.innerHeight ? window.innerHeight - 8 : dockEl.getBoundingClientRect().top) - GAP_PADDING_PX;
+      const gapBottom = (shell && window.innerWidth > window.innerHeight && window.innerHeight <= SHELL_SIDE_MAX_H ? window.innerHeight - 8 : dockEl.getBoundingClientRect().top) - GAP_PADDING_PX;
       const gapHeight = gapBottom - gapTop;
       if (gapHeight < 40) return;
       const { theta, phi, target } = cam.current;
@@ -1897,8 +1905,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  // The phone layout on its side: the bar runs down the right edge.
-  const shellLandscape = shell && viewportW > viewportH;
+  // The phone layout on its side (short and wide): the bar runs down the
+  // right edge.
+  const shellLandscape = shell && viewportW > viewportH && viewportH <= SHELL_SIDE_MAX_H;
   const dockPanelW = awaitingBegin ? Math.min(480, viewportW * 0.92) : declutter ? Math.min(560, viewportW * 0.92) : Math.min(880, viewportW * 0.96);
   // How to play's right edge: "?" only under 560px, the label beside it above.
   const cornerControlsRight = (viewportW <= 560 ? 88 : 170) + 8;
@@ -7505,7 +7514,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             style={{
               position: "absolute",
               left: 20,
-              right: (theme.hasAudio ? 76 : 44) + (theme.moveCostToggle ? 32 : 0),
+              right: (theme.hasAudio ? 76 : 44) + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0),
               bottom: 13,
               fontFamily: "'IBM Plex Mono', monospace",
               // Larger and in the dock's own text colour per feedback
@@ -7608,6 +7617,40 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             </svg>
           </button>
         )}
+        {/* Nova's other layout (the control bar), offered on a desktop:
+           the same quiet corner-icon treatment, left of the others. The
+           glyph is the bar itself: a panel with a strip along its foot. */}
+        {layoutSwitch && (
+          <button
+            data-testid="layout-toggle"
+            onClick={() => layoutSwitch("bar")}
+            aria-label="Use the control bar layout"
+            title="Use the control bar layout"
+            style={{
+              position: "absolute",
+              right: (theme.hasAudio ? 40 : 8) + 32 + (theme.moveCostToggle ? 32 : 0),
+              bottom: 8,
+              width: 30,
+              height: 30,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "transparent",
+              border: "none",
+              color: COLORS.slate,
+              opacity: 0.45,
+              cursor: "pointer",
+              transition: "opacity 0.2s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.85; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = 0.45; }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <rect x="6" y="14.5" width="12" height="3" rx="1" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Phone layout (see MobileShell.jsx and the shell state above). */}
@@ -7678,7 +7721,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             costsToggle: !!theme.moveCostToggle,
             showCosts,
             onToggleCosts: () => { const next = !showCosts; setShowCosts(next); saveShowCosts(next); },
-            pageItems: (mobileShell && mobileShell.menuItems) || [],
+            pageItems: [
+              ...((mobileShell && mobileShell.menuItems) || []),
+              ...(layoutSwitch ? [{ key: "layout", testid: "shell-menu-layout", label: "Use the classic dock", detail: "Desktop layout", onClick: () => layoutSwitch("dock") }] : []),
+            ],
             version: APP_VERSION,
           }}
         />

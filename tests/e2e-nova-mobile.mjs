@@ -183,6 +183,11 @@ async function waitFor(fn, ms = 8000) {
   check("Custom rules opens the SINGULARITY invite", await waitFor(async () => (await page.locator(".ec-singularity-invite-btn").count()) > 0));
   const inv = await page.evaluate(() => { const r = document.querySelector(".ec-singularity-invite-btn .ec-singularity-text").getBoundingClientRect(); return { l: r.left, r: r.right }; });
   check("SINGULARITY fits across the phone", inv.l >= 0 && inv.r <= 390, JSON.stringify(inv));
+  await page.mouse.click(8, 8);
+  check("a tap outside dismisses the invite", await waitFor(async () => (await page.locator(".ec-singularity-invite-btn").count()) === 0));
+  await q(page, "shell-begin").click();
+  await page.waitForTimeout(2500);
+  check("a plain Neon game shows no custom-rules emblem", (await page.locator('[data-testid="variants-flyout"]').count()) === 0);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -233,6 +238,29 @@ async function waitFor(fn, ms = 8000) {
   console.log("desktop Nova, phone Neon page");
   const d = await open(NOVA, { width: 1280, height: 800, touch: false });
   check("desktop Nova keeps the dock", !(await q(d.page, "shell-bar").count()) && (await q(d.page, "dock-piece-canvas").count()) > 0);
+  // Both layouts on a desktop: the dock's layout icon switches to the bar,
+  // the menu switches back, and the choice is remembered.
+  const dockBox = await q(d.page, "dock-piece-canvas").boundingBox();
+  await d.page.mouse.click(dockBox.x + dockBox.width / 2, dockBox.y + dockBox.height / 2);
+  await waitFor(async () => (await q(d.page, "dock-panel").getAttribute("data-open")) === "true");
+  await q(d.page, "layout-toggle").click();
+  check("the dock's layout icon switches to the bar", await waitFor(() => visible(d.page, "shell-bar")));
+  const bar = await q(d.page, "shell-bar").boundingBox();
+  check("on a desktop the bar floats, centred", bar.width <= 600 && Math.abs(bar.x + bar.width / 2 - 640) < 2 && bar.y + bar.height < 800 - 8, JSON.stringify(bar));
+  await d.page.reload();
+  await d.page.waitForTimeout(2500);
+  check("the bar layout is remembered", await visible(d.page, "shell-bar"));
+  // The side that moves first sits nearest the viewer before a game.
+  const near = await d.page.evaluate(() => {
+    const first = document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]').dataset.value;
+    const cab = window.__EC_TEST_SCREEN_POS__(`${first}-cabeza`), other = window.__EC_TEST_SCREEN_POS__(`${first === "dark" ? "light" : "dark"}-cabeza`);
+    return cab.y > other.y;
+  });
+  check("the first mover's side is nearest", near);
+  await q(d.page, "shell-menu-button").click();
+  await d.page.waitForTimeout(300);
+  await q(d.page, "shell-menu-layout").click();
+  check("the menu switches back to the dock", await waitFor(async () => !(await q(d.page, "shell-bar").count()) && (await visible(d.page, "dock-piece-canvas"))));
   await d.ctx.close();
   const n = await open("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html", { width: 390, height: 844 });
   check("Neon's own page keeps the dock on a phone", !(await q(n.page, "shell-bar").count()) && (await visible(n.page, "dock-piece-canvas")));

@@ -3924,6 +3924,10 @@ export function renderVariantsFlyout(setupExtras) {
   // (awaitingBegin), not through the Singularity cinematic, and not once
   // the game has ended (isPlaying goes false on a win).
   if (!setupExtras || !setupExtras.isPlaying || setupExtras.awaitingBegin) return null;
+  // Only a game with custom rules shows the emblem; a plain game has no
+  // variants to list, and three empty boxes just read as clutter.
+  const groups = setupExtras.currentVariants;
+  if (!Array.isArray(groups) || groups.length === 0) return null;
   return React.createElement(VariantsFlyout, { groups: setupExtras.currentVariants, key: "variants-flyout" });
 }
 

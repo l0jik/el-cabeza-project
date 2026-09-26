@@ -23,6 +23,11 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 const TOP_ROOM = 60; // title + menu button row, portrait
 const PLAY_BAR = 122; // the bar's fixed height in play (status + actions)
 const SIDE_MAX = 340; // the side bar's width, landscape
+// Below this height a wide screen (a phone on its side) puts the bar down
+// the right edge; taller wide screens (a desktop that chose the bar) keep
+// it at the bottom, floating as a centred panel.
+export const SIDE_MAX_H = 520;
+const WIDE = 700; // wider than this, the bottom bar floats
 
 function readSafeArea(el) {
   if (!el) return { top: 0, right: 0, bottom: 0, left: 0 };
@@ -48,7 +53,9 @@ function useViewport() {
 export default function MobileShell({ ctl }) {
   const { theme, COLORS } = ctl;
   const vp = useViewport();
-  const landscape = vp.w > vp.h;
+  const landscape = vp.w > vp.h && vp.h <= SIDE_MAX_H;
+  const wide = !landscape && vp.w > WIDE;
+  const float = wide ? 16 : 0; // the floating bar's gap from the bottom edge
   const probeRef = useRef(null);
   const [safe, setSafe] = useState({ top: 0, right: 0, bottom: 0, left: 0 });
   const [menuOpen, setMenuOpen] = useState(false);
@@ -71,9 +78,9 @@ export default function MobileShell({ ctl }) {
         ? null
         : landscape
         ? { top: 50 + safe.top, right: sideW, bottom: 8 + safe.bottom, left: safe.left }
-        : { top: TOP_ROOM + safe.top, right: 0, bottom: PLAY_BAR + safe.bottom, left: 0 }
+        : { top: TOP_ROOM + safe.top, right: 0, bottom: PLAY_BAR + float + safe.bottom, left: 0 }
     );
-  }, [ctl.fullFrame, landscape, sideW, safe.top, safe.right, safe.bottom, safe.left]);
+  }, [ctl.fullFrame, landscape, float, sideW, safe.top, safe.right, safe.bottom, safe.left]);
 
   // Page-wide hooks for theme CSS (Neon's rules flyout moves below the
   // top bar) and the bar's live height for the piece card and notes.
@@ -97,12 +104,12 @@ export default function MobileShell({ ctl }) {
     const el = ctl.barRef.current;
     if (!el) return undefined;
     const root = document.documentElement;
-    const set = () => root.style.setProperty("--ec-shell-bottom", landscape ? `${8 + safe.bottom}px` : `${el.offsetHeight}px`);
+    const set = () => root.style.setProperty("--ec-shell-bottom", landscape ? `${8 + safe.bottom}px` : `${el.offsetHeight + float}px`);
     set();
     const ro = new ResizeObserver(set);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [landscape, safe.bottom]);
+  }, [landscape, float, safe.bottom]);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -123,6 +130,14 @@ export default function MobileShell({ ctl }) {
         padding: `16px ${16 + safe.right}px ${14 + safe.bottom}px 16px`,
         borderLeft: `1px solid ${t.hair}`, borderTop: `1px solid ${t.hair}`, borderRadius: "22px 0 0 0",
         overflowY: "auto",
+      }
+    : wide
+    ? {
+        left: "50%", bottom: float + safe.bottom, width: "min(600px, calc(100vw - 32px))", transform: "translateX(-50%)",
+        boxSizing: "border-box", padding: "14px 18px",
+        minHeight: ctl.phase === "setup" ? undefined : PLAY_BAR,
+        border: `1px solid ${t.hair}`, borderRadius: 22,
+        maxHeight: "62vh", overflowY: "auto",
       }
     : {
         left: 0, right: 0, bottom: 0, boxSizing: "border-box",
