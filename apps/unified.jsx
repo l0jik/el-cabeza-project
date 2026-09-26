@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import ReactDOM from "react-dom/client";
 import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
@@ -254,6 +254,35 @@ function UnifiedApp() {
     return () => window.removeEventListener("el-cabeza:play-original", onOriginal);
   }, [themeName, transition, beginTransition]);
 
+  /* Phone layout (chassis/MobileShell.jsx): the theme switch is also a
+     menu item there, since a four-second hold on the title is hard to
+     find on a phone. It opens the same CONNECT / DISCONNECT prompt the
+     hold ends in. */
+  const mobileShell = useMemo(() => ({
+    menuItems: [{
+      key: "switch-theme",
+      testid: "shell-menu-switch-theme",
+      label: themeName === "standard" ? "Switch to Neon" : "Switch to Standard",
+      detail: "or hold the title",
+      onClick: () => {
+        if (transition) return;
+        sfxRef.current.holdComplete();
+        setConnectWord(themeName === "standard" ? "CONNECT" : "DISCONNECT");
+      },
+    }],
+  }), [themeName, transition]);
+
+  // The browser's own toolbar colour follows the theme on phones.
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "theme-color";
+      document.head.appendChild(meta);
+    }
+    meta.content = THEMES[themeName].canvasGradientEnd || THEMES[themeName].COLORS.creamAlt;
+  }, [themeName]);
+
   const contentStyle = transition
     ? { filter: `url(#${transition.filterId})`, pointerEvents: "none", overflow: "hidden" }
     : undefined;
@@ -268,6 +297,7 @@ function UnifiedApp() {
           <ElCabeza3D
             key={themeName}
             theme={THEMES[themeName]}
+            mobileShell={mobileShell}
             initialMuted={muted}
             onMutedChange={(m) => {
               setMuted(m);

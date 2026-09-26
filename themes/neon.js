@@ -3101,7 +3101,9 @@ export const styleSheet = `
     min-height: 0;
     background: transparent;
     border: none;
-    padding: clamp(20px, 6vmin, 72px) clamp(28px, 10vmin, 140px);
+    padding: clamp(20px, 6vmin, 72px) clamp(12px, 10vmin, 140px);
+    max-width: 100vw;
+    box-sizing: border-box;
     /* Its own quick fade/scale-in on top of the backdrop's fade. */
     animation: ec-singularity-invite-appear 420ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   }
@@ -3110,7 +3112,9 @@ export const styleSheet = `
     to   { opacity: 1; transform: scale(1); }
   }
   .ec-singularity-invite-btn .ec-singularity-text {
-    font-size: clamp(2.4rem, 13vmin, 9rem);
+    /* 9vw keeps all eleven letters (and their spacing) on a portrait
+       phone, where 13vmin ran past both edges. */
+    font-size: clamp(1.9rem, min(13vmin, 9vw), 9rem);
     letter-spacing: 0.14em;
   }
   .ec-singularity-invite-btn .ec-singularity-halo {
@@ -3429,6 +3433,20 @@ export function renderSetupExtras({ beginGameButton, handleAnomaly, revealSingul
       "Custom rules ›"
     )
   );
+}
+
+/* The same two setup buttons for the phone layout (chassis/MobileShell.jsx),
+   which draws its own buttons from this list: Anomaly beside Begin Game,
+   Custom rules on its own row below. */
+export function shellSetupActions({ handleAnomaly, revealSingularity }) {
+  const out = [];
+  if (handleAnomaly) {
+    out.push({ key: "anomaly", label: "Anomaly", onClick: handleAnomaly, testid: "shell-anomaly", title: "A random, rotationally-symmetric opening layout" });
+  }
+  if (revealSingularity) {
+    out.push({ key: "custom-rules", label: "Custom rules \u203a", onClick: revealSingularity, testid: "shell-custom-rules", placement: "below", title: "New pieces, laws and boards: SINGULARITY" });
+  }
+  return out;
 }
 
 /* The SINGULARITY invite: once five taps on the masthead reveal it, a

@@ -2153,3 +2153,66 @@ Test: `tests/e2e-lab.mjs` (state identical across all ten switches,
 mid-turn; play continues; switch during a step waits; the ten differ in
 faces/accents/HUD; every control; sound starts only after a gesture and
 releases its voices; phone compact HUD, no sideways scroll).
+
+## Nova on phones: the phone layout (chassis/MobileShell.jsx)
+
+User brief: "a premium mobile version of Nova ... full interactiveness and
+all options available, streamline and remove any cruft". Built as an
+opt-in chassis mode, so only Nova changes: `apps/unified.jsx` passes
+`mobileShell` to ElCabeza3D, and the chassis uses it when
+`SHELL_QUERY` matches (≤ 700px wide, or a coarse pointer ≤ 520px tall —
+a phone on its side). Desktop Nova and every other page (Neon, Standard,
+Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
+
+- **What goes (on phones only).** The floating 3D dock piece (its render
+  loop also pauses: `shellRef` in its tick), the dock panel
+  (`display:none`, still mounted so theme refs and effects are safe), the
+  ghosted full-screen and How to play corner icons, the Info pop-up
+  under the title, the floating points counter and the floating piece
+  card, the "AI Opponent: Dark" confirmation overlay.
+- **What replaces it.** A menu button top right; the title top centre in
+  setup and top left in play (`shellMastheadStyle`; smaller and centred
+  over the board's side in landscape). One bar along the bottom (down the
+  right side, bottom-anchored, in landscape) with three states:
+  setup (First move, Opponent Human/AI, AI plays Dark/Light, Level, Begin
+  Game, plus the theme's `shellSetupActions` — Neon: Anomaly beside
+  Begin, Custom rules below), play (turn dot + status + points dots;
+  Undo move / Stop here / Undo turn, or the chosen piece's description
+  (tap = its MOVES tile), or a hint; the one view toggle), over (result,
+  Move Log, New Game). A side's segment, once chosen, takes that side's
+  colours (and glow in Neon). The menu sheet: How to play, Rules in this
+  game, Move log, End game (second tap confirms) / New game / Take back
+  the last turn / Reset rules, Top-down / Player view, Full screen, Sound,
+  Points left, Move costs on the board, the page's own items (Nova:
+  "Switch to Neon / Standard", which opens the same CONNECT/DISCONNECT
+  prompt the 4 s title hold ends in — the hold still works), About,
+  version. Everything calls the chassis's own handlers via the `ctl`
+  object; nothing is reimplemented.
+- **Framing.** The bar reports fixed insets per orientation (portrait:
+  top 60, bottom 122, plus safe areas; landscape: right = bar width) and
+  the chassis's `resize` uses `camera.setViewOffset` to centre the
+  picture in the free area, widening the fov by the virtual image so a
+  camera distance draws the board the same size. `fitRadiusToCorners`
+  fits within the free area; Top-Down View uses 0.94 of it on phones.
+  An insets change mid-game (rotation) re-measures both views and
+  re-applies the one showing (`viewMode`). The pre-game framing fits
+  between the title and the bar's top (the whole height in landscape)
+  and refits when the bar grows (ResizeObserver).
+- **Theme hooks.** Neon's turn halo and glitch label refs move to the
+  bar's dot and status (the halo's `--ec-halo-intensity` now drives the
+  dot's glow). The bar and menu button fade out while a Singularity
+  phase is running (`ctl.hidden`); the camera insets are dropped only
+  from blackout on (`ctl.fullFrame`), so nothing shifts mid-collapse and
+  the sphere is framed on the whole screen. `html.ec-shell` moves Neon's rules flyout under the
+  title row. The rules overlay becomes a full-width bottom sheet with a
+  close button. Neon's SINGULARITY invite text now fits a portrait
+  phone on every page (`min(13vmin, 9vw)`).
+- **Page.** Nova is built with `viewport-fit=cover` (safe-area insets are
+  read from a probe element), and the browser's theme-color follows the
+  theme.
+- **Test.** `tests/e2e-nova-mobile.mjs`: portrait (dock gone, setup
+  choices, framing between the bars, piece description, Undo/Stop here,
+  view toggle, every menu row, switches, rules sheet, End game, Move Log,
+  New Game, theme switch to Neon, Anomaly, Custom rules invite fits),
+  landscape (bar on the right, title and board clear of it), and desktop
+  Nova / Neon's own page on a phone keeping the dock.

@@ -22,6 +22,7 @@ import {
 } from "../engine/geometry.js";
 import { cubeCount, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
+import MobileShell from "./MobileShell.jsx";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
 // ABOUT's link returns to the original game. Inlined by the build.
@@ -164,6 +165,11 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
 /*  (south), +y = up.                                                   */
 /* ------------------------------------------------------------------ */
 
+/* When a page that offers the phone layout (the mobileShell prop) uses
+   it: a narrow screen, or a touch screen too short for the dock (a phone
+   on its side). */
+const SHELL_QUERY = "(max-width: 700px), (pointer: coarse) and (max-height: 520px)";
+
 /* Opponent settings (Human/AI side, AI difficulty, Human-vs-Human starting
    side) persist in this browser across page reloads, not just across New
    Game. Every read/write is guarded — storage can be blocked or throw (a
@@ -212,7 +218,7 @@ function saveOpponentPrefs(prefs) {
    position, turn, history and log. The rules engine's own module state
    (board size, laws, holes, missing squares) lives in engine/ and is
    untouched by a remount, so only React state needs carrying. */
-export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null }) {
+export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null }) {
   const C = carry && typeof carry === "object" ? carry : null;
   const carried = (key, fallback) => (C && C[key] !== undefined ? C[key] : typeof fallback === "function" ? fallback() : fallback);
   const opponentPrefsRef = useRef(null);
@@ -752,6 +758,27 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // down and rebuild the whole mini scene on every dock open/close.
   const dockViewRef = useRef(dockView);
   dockViewRef.current = dockView;
+  /* Phone layout (MobileShell.jsx). A page opts in with the mobileShell
+     prop (Nova does); on a phone-sized screen the dock piece, dock panel
+     and corner icons give way to a top bar, a bottom control bar and a
+     menu sheet, and the camera frames the board in the space between
+     them (viewInsetsRef, see resize in the scene effect). */
+  const [shell, setShell] = useState(() => !!mobileShell && typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(SHELL_QUERY).matches);
+  useEffect(() => {
+    if (!mobileShell || !window.matchMedia) return undefined;
+    const mq = window.matchMedia(SHELL_QUERY);
+    const on = () => setShell(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [!!mobileShell]);
+  const shellRef = useRef(shell);
+  shellRef.current = shell;
+  const viewInsetsRef = useRef(null);
+  const shellBarRef = useRef(null);
+  // "top" | "player": which of the two framed views the camera was last
+  // sent to, for the shell's one view toggle.
+  const [viewMode, setViewMode] = useState("top");
   const dockPieceMountRef = useRef(null);
   const dockPieceRef = useRef(null); // { scene, camera, renderer, pieceGroup, spin, velocity, dragging, bouncing }
   const dockDragRef = useRef({ dragging: false, lastX: 0, lastY: 0, lastT: 0 });
@@ -1116,7 +1143,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // costs nothing visible (nobody can see it) and resumes cleanly:
       // dt is already clamped below, so however long "panel" was open
       // just becomes one ordinary clamped step once it closes.
-      if (dockViewRef.current === "panel") {
+      if (dockViewRef.current === "panel" || shellRef.current) {
         last = now;
         return;
       }
@@ -1401,7 +1428,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const preGameFitTargetYRef = useRef(null);
   useEffect(() => {
     if (!awaitingBegin) return;
-    const GAP_PADDING_PX = 28;
+    const GAP_PADDING_PX = shell ? 18 : 28;
     // The vertical-gap search alone leaves the board pinned edge-to-edge
     // on a narrow/tall viewport (a perspective camera's on-screen WIDTH
     // isn't part of that search at all) — per feedback/reference
@@ -1409,16 +1436,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // this caps the board at 84% of the viewport's width (~8% margin
     // each side, matching the reference) as a second, independent
     // constraint on top of the gap fit.
-    const MAX_BOARD_WIDTH_FRACTION = 0.84;
+    const MAX_BOARD_WIDTH_FRACTION = shell ? 0.9 : 0.84;
     function recompute() {
       const titleEl = titleRef.current;
-      const dockEl = dockPieceMountRef.current;
+      const dockEl = shell ? shellBarRef.current : dockPieceMountRef.current;
       const measure = three.current.measureBoardPx;
       const measureBox = three.current.measureBoxPx;
       const mountSize = three.current.getMountSize && three.current.getMountSize();
       if (!titleEl || !dockEl || !measure || !mountSize) return;
       const gapTop = titleEl.getBoundingClientRect().bottom + GAP_PADDING_PX;
-      const gapBottom = dockEl.getBoundingClientRect().top - GAP_PADDING_PX;
+      // On its side the phone's bar is down the right edge, so the board
+      // has the whole height below the title.
+      const gapBottom = (shell && window.innerWidth > window.innerHeight ? window.innerHeight - 8 : dockEl.getBoundingClientRect().top) - GAP_PADDING_PX;
       const gapHeight = gapBottom - gapTop;
       if (gapHeight < 40) return;
       const { theta, phi, target } = cam.current;
@@ -1450,7 +1479,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // (via measureBoxPx, which — unlike measureBoardPx above —
       // reports both axes) instead of its height.
       if (measureBox) {
-        const maxWidthPx = mountSize.w * MAX_BOARD_WIDTH_FRACTION;
+        const ins = viewInsetsRef.current;
+        const maxWidthPx = (ins ? mountSize.w - ins.left - ins.right : mountSize.w) * MAX_BOARD_WIDTH_FRACTION;
         const halfX = SLAB_X / 2, halfZ = SLAB_Z / 2;
         const corners = [[-halfX, -halfZ], [-halfX, halfZ], [halfX, -halfZ], [halfX, halfZ]];
         const heights = [0, 2 * PIECE_SCALE]; // same "tallest piece" reach as measureBoardPx's own TALLEST_PIECE_HEIGHT
@@ -1512,9 +1542,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     recompute();
     const settleTimer = setTimeout(recompute, 950);
     window.addEventListener("resize", recompute);
+    // The phone bar changes height as setup options open (AI side,
+    // level), which moves the space the board has to fit in.
+    const barRo = shell && shellBarRef.current ? new ResizeObserver(recompute) : null;
+    if (barRo) barRo.observe(shellBarRef.current);
     return () => {
       clearTimeout(settleTimer);
       window.removeEventListener("resize", recompute);
+      if (barRo) barRo.disconnect();
       if (preGameFitRadiusRef.current != null && cam.current.radius === preGameFitRadiusRef.current) {
         cam.current.radius = 17;
       }
@@ -1524,7 +1559,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       preGameFitRadiusRef.current = null;
       preGameFitTargetYRef.current = null;
     };
-  }, [awaitingBegin]);
+  }, [awaitingBegin, shell]);
 
   /* Move Log popup — a chassis-level feature (see ARCHITECTURE.md):
      generic post-game UI with no theme dependency, built once here
@@ -1856,11 +1891,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      they fade out, the way the points counter does, and come back the
      moment it closes. */
   const [viewportW, setViewportW] = useState(() => window.innerWidth);
+  const [viewportH, setViewportH] = useState(() => window.innerHeight);
   useEffect(() => {
-    const onResize = () => setViewportW(window.innerWidth);
+    const onResize = () => { setViewportW(window.innerWidth); setViewportH(window.innerHeight); };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+  // The phone layout on its side: the bar runs down the right edge.
+  const shellLandscape = shell && viewportW > viewportH;
   const dockPanelW = awaitingBegin ? Math.min(480, viewportW * 0.92) : declutter ? Math.min(560, viewportW * 0.92) : Math.min(880, viewportW * 0.96);
   // How to play's right edge: "?" only under 560px, the label beside it above.
   const cornerControlsRight = (viewportW <= 560 ? 88 : 170) + 8;
@@ -1942,7 +1980,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        resolve by 10x, which is where the spare precision actually goes.
        Doesn't touch any piece material/geometry — see themes/standard.js
        for why that surface was deliberately left alone before. */
-    const camera = new THREE.PerspectiveCamera(42, 1, 1, 200);
+    const BASE_FOV = 42;
+    const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 1, 200);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
@@ -2621,10 +2660,28 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          out of center, even though the camera was aiming at the exact
          center of its own (oversized) frame the whole time. */
       renderer.setSize(w, h);
-      camera.aspect = w / h;
+      /* Phone layout: the bars cover the top and bottom (or the right) of
+         the screen, so the picture is centred in the space between them.
+         setViewOffset renders a window of a larger virtual image whose
+         centre sits at the middle of that space; the fov grows with the
+         virtual image so a given camera distance still draws the board
+         at the same size. */
+      const ins = viewInsetsRef.current;
+      if (ins) {
+        const dx = (ins.left - ins.right) / 2, dy = (ins.top - ins.bottom) / 2;
+        const fw = w + 2 * Math.abs(dx), fh = h + 2 * Math.abs(dy);
+        camera.fov = 2 * Math.atan(Math.tan((BASE_FOV / 2) * (Math.PI / 180)) * (fh / h)) * (180 / Math.PI);
+        camera.aspect = fw / fh;
+        camera.setViewOffset(fw, fh, dx < 0 ? -2 * dx : 0, dy < 0 ? -2 * dy : 0, w, h);
+      } else {
+        camera.fov = BASE_FOV;
+        camera.aspect = w / h;
+        camera.clearViewOffset();
+      }
       camera.updateProjectionMatrix();
     }
     resize();
+    three.current.refreshViewport = resize;
     const ro = new ResizeObserver(resize);
     ro.observe(mount);
 
@@ -5214,8 +5271,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // want the fitted box to instead OVERFLOW the viewport (Current
     // Player View — see recenterView) pass a fraction above 1 here;
     // the bisection below is agnostic to which side of 1.0 this lands on.
-    const availW = size.w * fitFraction;
-    const availH = size.h * fitFraction;
+    const ins = viewInsetsRef.current;
+    const availW = (ins ? size.w - ins.left - ins.right : size.w) * fitFraction;
+    const availH = (ins ? size.h - ins.top - ins.bottom : size.h) * fitFraction;
     // Must be a real THREE.Vector3, not a plain {x,y,z} object: camera
     // .lookAt() checks target.isVector3 and silently corrupts its own
     // matrix with NaN (via Vector3.set(target, undefined, undefined))
@@ -5290,7 +5348,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     );
     const ZOOM_PCT = 0.7;
     const fallback = ZOOM_MAX_FOR_BOARD - ZOOM_PCT * (ZOOM_MAX_FOR_BOARD - ZOOM_MIN);
-    topDownViewRadiusRef.current = fitRadiusToBoard(0, 0.012) ?? fallback;
+    // The phone layout already keeps the bars out of the fit, so the board
+    // can nearly fill the space between them.
+    topDownViewRadiusRef.current = fitRadiusToBoard(0, 0.012, shellRef.current ? 0.94 : undefined) ?? fallback;
   }
 
   function recenterView() {
@@ -5303,6 +5363,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        centering (snapToCenter) is instant. */
     cam.current.theta = currentPlayer === "dark" ? Math.PI : 0;
     cam.current.phi = VIEW_PHI;
+    setViewMode("player");
     // Reads the ONE radius captured at this game's Begin Game press
     // (see captureViewBaselines) rather than re-fitting live against
     // the current window size — per feedback, a resize between two
@@ -5337,6 +5398,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        there's nothing to fit against yet. */
     cam.current.theta = facePlayer === "dark" ? Math.PI : 0;
     cam.current.phi = 0.012; // matches the drag clamp's near-vertical limit
+    setViewMode("top");
     // Reads the ONE radius captured at this game's Begin Game press
     // (see captureViewBaselines) — same reasoning as recenterView's
     // own comment: a resize between two presses must never change
@@ -5344,6 +5406,37 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (topDownViewRadiusRef.current == null) captureViewBaselines();
     cam.current.radius = topDownViewRadiusRef.current;
     snapToCenter();
+  }
+
+  /* The phone layout reports the room its bars take (MobileShell.jsx) and
+     the camera centres the board in what's left (see resize in the scene
+     effect). A change mid-game — a phone turned on its side — measures the
+     two framed views again and re-applies whichever one is showing. */
+  const onShellInsetsRef = useRef(null);
+  onShellInsetsRef.current = (ins) => {
+    const prev = viewInsetsRef.current;
+    if (!prev && !ins) return;
+    if (prev && ins && ["top", "right", "bottom", "left"].every((k) => prev[k] === ins[k])) return;
+    viewInsetsRef.current = ins;
+    if (three.current.refreshViewport) three.current.refreshViewport();
+    // Setup: the pre-game framing refits on a window resize.
+    if (awaitingBegin) window.dispatchEvent(new Event("resize"));
+    else {
+      captureViewBaselines();
+      if (viewMode === "top") topDownView();
+      else recenterView();
+    }
+  };
+  const handleShellInsets = useCallback((ins) => onShellInsetsRef.current(ins), []);
+  useEffect(() => {
+    if (!shell) handleShellInsets(null);
+  }, [shell, handleShellInsets]);
+
+  function toggleSound() {
+    const next = !audioMuted;
+    setAudioMuted(next);
+    audioRef.current.setMuted(next);
+    if (onMutedChange) onMutedChange(next);
   }
 
   /* The game carried across a theme change (see carry/carryRef at the
@@ -6033,6 +6126,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     cursor: "grab",
   };
 
+  /* Phone layout: the title opens at the top of the screen (not 6vh down)
+     and, once play starts, sits in the top bar's left end rather than
+     fading to a corner watermark. */
+  const shellMastheadStyle = !shell
+    ? null
+    : mastheadPhase === "relocated"
+    ? { top: "calc(env(safe-area-inset-top, 0px) + 13px)", left: 16, right: "auto", transformOrigin: "top left", textAlign: "left", zIndex: 31, opacity: 0.92 }
+    : shellLandscape
+    ? { top: "calc(env(safe-area-inset-top, 0px) + 10px)", left: "calc((100vw - var(--ec-shell-side, 0px)) / 2)" }
+    : { top: "calc(env(safe-area-inset-top, 0px) + 18px)" };
+
   return (
     <div
       style={{
@@ -6158,7 +6262,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       <div
         ref={titleWrapRef}
         className={mastheadPhase === "relocated" ? "ec-masthead-relocated" : undefined}
-        style={
+        style={{ ...(
           mastheadPhase === "relocated"
             ? {
                 position: "fixed",
@@ -6211,8 +6315,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 zIndex: 20,
                 transition: `opacity ${infoBtnVisible ? 0.3 : 1.1}s ease, transform 1.1s ease, top 1.1s ease, right 1.1s ease`,
                 textAlign: "center",
-              }
-        }
+              }), ...shellMastheadStyle }}
       >
         {/* Plain (unpositioned) inner wrapper — see titleFxRef's own
            comment above for why the glitch effects animate THIS
@@ -6297,7 +6400,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                `|| 1`). */
             fontSize:
               mastheadPhase === "relocated"
-                ? "clamp(16px, 2.8vw, 52px)"
+                ? shell ? 21 : "clamp(16px, 2.8vw, 52px)"
+                : shellLandscape
+                ? "clamp(20px, 9vh, 40px)"
                 : mastheadPhase === "setup"
                   ? mastheadClamp(20, 7, 131, theme.mastheadScale)
                   : isFullscreen
@@ -6345,6 +6450,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             marginTop: 6,
             opacity: infoBtnVisible ? 1 : 0,
             pointerEvents: infoBtnVisible ? "auto" : "none",
+            // The phone layout's menu has About; no pop-up button there.
+            display: shell ? "none" : undefined,
             transition: "opacity 0.3s ease, background-color 0.15s ease, color 0.15s ease",
           }}
         >
@@ -6375,7 +6482,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          the next game's setup begins (awaitingBegin): through the win/ended
          screens it holds the finished game's last turn (pointsFinal).
          Hidden while the dock panel is open (it would sit under it). */}
-      {showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && (() => {
+      {!shell && showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && (() => {
         const budget = turnBudget();
         const final = isPlaying ? null : pointsFinal;
         const player = final ? final.player : currentPlayer;
@@ -6436,7 +6543,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          selected, a small card in the lower left says what it is, how it
          moves and what that costs in this game's rules (text from
          RulesCards.jsx, pieceCardInfo). "More" opens its MOVES tile. */}
-      {pieceCardShown && (() => {
+      {pieceCardShown && !shell && (() => {
         const info = pieceCardInfo(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name);
         return (
           <div
@@ -6490,7 +6597,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           style={{
             position: "fixed",
             left: "50%",
-            bottom: showPoints ? 44 : 22,
+            bottom: shell ? "calc(var(--ec-shell-bottom, 0px) + 10px)" : showPoints ? 44 : 22,
             transform: "translateX(-50%)",
             zIndex: 12,
             pointerEvents: "auto",
@@ -6511,7 +6618,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         </div>
       )}
 
-      {(document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
+      {!shell && (document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
         <button
           onClick={toggleFullscreen}
           aria-label={isFullscreen ? "Exit full screen" : "Enter full screen"}
@@ -6558,6 +6665,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       {/* How to play: always on screen, beside the full-screen button,
          so the rules are never more than one tap away. Opens the rules
          at the Quick card. */}
+      {!shell && (
       <button
         type="button"
         data-testid="how-to-play"
@@ -6596,6 +6704,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         <span aria-hidden="true" style={{ width: 17, height: 17, borderRadius: "50%", border: "1.5px solid currentColor", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, boxSizing: "border-box" }}>?</span>
         <span className="ec-howto-label">How to play</span>
       </button>
+      )}
 
       {/* Dock piece — an idle, physically-interactive 3D preview of the
          player's own Cabeza (see the effects above), standing in for
@@ -6611,7 +6720,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         onPointerUp={handleDockPiecePointerUp}
         onPointerLeave={handleDockPiecePointerLeave}
         onPointerEnter={handleDockPieceHoverStart}
-        style={dockPieceStyle}
+        style={shell ? { ...dockPieceStyle, display: "none" } : dockPieceStyle}
       />
 
       {/* The dock — every non-board control, floating as one compact
@@ -6689,7 +6798,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           // the panel's own right edge (e.g. Full Screen during
           // declutter), regardless of which rows are showing.
           padding: theme.hasAudio ? "14px 20px 40px" : "14px 20px 16px",
-          display: "flex",
+          // The phone layout's bars replace the dock (MobileShell below).
+          display: shell ? "none" : "flex",
           flexDirection: "column",
         }}
       >
@@ -6829,7 +6939,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             }}
           >
             <span
-              ref={turnHaloRef}
+              ref={shell ? undefined : turnHaloRef}
               aria-hidden="true"
               style={{
                 width: 13,
@@ -6845,7 +6955,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               }}
             />
             <span
-              ref={turnLabelRef}
+              ref={shell ? undefined : turnLabelRef}
               style={{
                 fontFamily: "'IBM Plex Mono', monospace",
                 fontSize: 11.5,
@@ -7500,6 +7610,80 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         )}
       </div>
 
+      {/* Phone layout (see MobileShell.jsx and the shell state above). */}
+      {shell && (
+        <MobileShell
+          ctl={{
+            theme, COLORS,
+            barRef: shellBarRef,
+            onInsets: handleShellInsets,
+            turnHaloRef, turnLabelRef,
+            // A theme cinematic (Neon's Singularity) has the screen: the bars
+            // step aside, and once the screen has gone black the camera
+            // gets the whole screen back (no visible shift mid-collapse).
+            hidden: !!(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle"),
+            fullFrame: !!(setupExtras && (setupExtras.singularityPhase === "blackout" || setupExtras.singularityPhase === "sphere")),
+            cue: (name) => { try { const f = audioRef.current["play" + name]; if (f) f.call(audioRef.current); } catch (e) { /* audio not started */ } },
+            phase: awaitingBegin ? "setup" : isPlaying ? "playing" : "over",
+            statusText, currentPlayer, winner, aiPlayer, aiThinking,
+            aiTurn: isPlaying && currentPlayer === aiPlayer,
+            selectedOwn: !!selectedPiece && selectedPiece.owner === currentPlayer,
+            pieceInfo: isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer
+              ? { type: selectedPiece.type, ...pieceCardInfo(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name) }
+              : null,
+            // Setup
+            opponentLocked: busy || aiThinking || turnLocked,
+            aiDifficulty, AI_DIFFICULTY,
+            onToggleStart: toggleStartingPlayer,
+            onSelectOpponent: selectOpponent,
+            onSetDifficulty: setAiDifficulty,
+            onBegin: triggerBeginGame,
+            setupActions: theme.shellSetupActions && setupExtras ? theme.shellSetupActions(setupExtras) : [],
+            // Play
+            canUndoMove: isPlaying && turnLocked && currentPlayer !== aiPlayer,
+            canStopHere: isPlaying && turnLocked && currentPlayer !== aiPlayer && shadowEntries.length > 0,
+            canUndoTurn: isPlaying && !turnLocked && turnHistory.length > 0,
+            // After a game ends its last turn can still be taken back (the
+            // desktop dock's Undo turn does the same), from the menu.
+            canUndoAfter: !isPlaying && !awaitingBegin && turnHistory.length > 0,
+            undoTurnBusy: !!(busy || aiThinking || anim.current),
+            onUndoMove: handleUndoTurn,
+            onStopHere: handleStopHere,
+            onUndoTurn: handleUndoLastTurn,
+            points: showPoints && isPlaying ? { left: Math.max(0, turnBudget() - stepsUsed), budget: turnBudget() } : null,
+            pointsPulse,
+            viewMode,
+            onTopDown: () => topDownView(),
+            onPlayerView: recenterView,
+            // Menu
+            playersLine: ["dark", "light"]
+              .map((side) => `${side === "dark" ? "Dark" : "Light"}: ${aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : "Human"}`)
+              .join("  \u00b7  "),
+            onOpenRules: (tab, focus) => openRulesAt(tab, focus || null),
+            logCount: log.length,
+            onOpenMoveLog: openMoveLog,
+            onEndGame: handleEndActiveGame,
+            endBusy: !!(busy || anim.current),
+            onNewGame: handleNewGameClick,
+            canResetRules: !!currentVariants && status !== "playing",
+            onResetRules: handleResetRules,
+            canFullscreen: !!(document.fullscreenEnabled || document.documentElement.requestFullscreen),
+            isFullscreen,
+            onToggleFullscreen: toggleFullscreen,
+            hasAudio: !!theme.hasAudio,
+            muted: audioMuted,
+            onToggleSound: toggleSound,
+            showPoints,
+            onTogglePoints: () => { const next = !showPoints; setShowPoints(next); saveShowPoints(next); },
+            costsToggle: !!theme.moveCostToggle,
+            showCosts,
+            onToggleCosts: () => { const next = !showCosts; setShowCosts(next); saveShowCosts(next); },
+            pageItems: (mobileShell && mobileShell.menuItems) || [],
+            version: APP_VERSION,
+          }}
+        />
+      )}
+
       {/* Move Log popup — chassis-level (see ARCHITECTURE.md), shown via
           the "Move Log" button above once a game has concluded. Copy
           Move_Log lives inside it, replacing the old inline Copy Log
@@ -7711,9 +7895,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           inset: 0,
           background: modalBackdrop,
           display: "flex",
-          alignItems: "center",
+          // Phone layout: a sheet rising from the bottom edge, full width.
+          alignItems: shell ? "flex-end" : "center",
           justifyContent: "center",
-          padding: 24,
+          padding: shell ? (shellLandscape ? "12px 12px 0" : "0") : 24,
           boxSizing: "border-box",
           // Above the SINGULARITY sphere's own overlays (2000-2300), since
           // the rules cards open from there too.
@@ -7727,8 +7912,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             onClick={(e) => e.stopPropagation()}
             style={{
               position: "relative",
-              width: "clamp(280px, 75%, 560px)",
-              maxHeight: "88vh",
+              width: shell ? "min(620px, 100%)" : "clamp(280px, 75%, 560px)",
+              maxHeight: shell ? (shellLandscape ? "calc(100vh - 12px)" : "90vh") : "88vh",
+              borderRadius: shell ? "22px 22px 0 0" : undefined,
+              overflow: shell ? "hidden" : undefined,
               display: "flex",
               flexDirection: "column",
               background: modalSurface,
@@ -7741,7 +7928,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             {/* Masthead is pinned outside the scrolling body below so it
                 stays put while the rest of the page scrolls — the body,
                 not the header, owns overflowY and the available height. */}
-            <div style={{ padding: "40px 34px 0", flexShrink: 0 }}>
+            <div style={{ padding: shell ? "22px 20px 0" : "40px 34px 0", flexShrink: 0 }}>
+              {shell && (
+                <button
+                  type="button"
+                  className="ec-shell-iconbtn"
+                  aria-label="Close the rules"
+                  data-testid="info-close"
+                  onClick={() => setShowInfoOverlay(false)}
+                  style={{ position: "absolute", top: 12, right: 12, boxShadow: "none" }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                    <line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" />
+                  </svg>
+                </button>
+              )}
               <h2
                 style={{
                   margin: "0 0 10px",
@@ -7766,7 +7967,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               <RulesTabs tab={infoTab} onTab={(k) => switchRulesTab(k)} C={RULES_COLORS} />
             </div>
 
-            <div data-testid="info-body" style={{ overflowY: "auto", padding: "0 34px 32px" }}>
+            <div data-testid="info-body" style={{ overflowY: "auto", padding: shell ? "0 20px calc(24px + env(safe-area-inset-bottom, 0px))" : "0 34px 32px" }}>
             {infoTab !== "about" ? (
               <RulesCard
                 tab={infoTab}

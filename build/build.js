@@ -6,7 +6,7 @@ const targets = [
   { name: "neon", entry: "apps/neon.jsx", title: "Neon Cabeza" },
   { name: "cromo", entry: "apps/cromo.jsx", title: "Cromo Cabeza" },
   { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza" },
-  { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova" },
+  { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover" },
   // Tienda is built minified, and its page can draw under a phone's
   // notch and home bar (the theme keeps its controls clear of them).
   // Its one file beside the page: the store's Muzak tape, fetched once
