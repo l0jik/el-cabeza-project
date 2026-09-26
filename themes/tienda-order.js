@@ -297,15 +297,28 @@ export const SLIP_CSS = `
 const openRules = (tab, focus = null) => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab, focus } }));
 export function OrderSlip({ groups, audio }) {
   // Hovering shows it (with a mouse); a tap or click pins it open or
-  // unpins it.
+  // unpins it, and so does a press anywhere else on the page (or Escape).
   const [hovered, setHovered] = React.useState(false);
   const [pinned, setPinned] = React.useState(false);
   const open = hovered || pinned;
+  const rootRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!pinned) return undefined;
+    const onDown = (ev) => {
+      if (rootRef.current && ev.target && rootRef.current.contains(ev.target)) return;
+      setPinned(false);
+      setHovered(false);
+    };
+    const onKey = (ev) => { if (ev.key === "Escape") { setPinned(false); setHovered(false); } };
+    document.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("pointerdown", onDown, true); window.removeEventListener("keydown", onKey); };
+  }, [pinned]);
   const active = !!(groups && groups.length);
   const count = active ? groups.reduce((n, g) => n + g.items.length, 0) : 0;
   const hover = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(hover: hover)").matches;
   return h("div", {
-    className: "td-slip", "data-testid": "tienda-slip", "data-open": open ? "true" : "false",
+    ref: rootRef, className: "td-slip", "data-testid": "tienda-slip", "data-open": open ? "true" : "false",
     onMouseEnter: hover ? () => setHovered(true) : undefined, onMouseLeave: hover ? () => setHovered(false) : undefined,
   },
     h("style", null, SLIP_CSS),

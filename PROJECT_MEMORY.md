@@ -1612,6 +1612,13 @@ direction). First pass, in the real game, both themes:
   the active laws (slide, diagonal slide, pivot, shoving), plus "More ›"
   to its MOVES tile. Text comes from `pieceCardInfo` in RulesCards.jsx.
   It stays while the piece is committed mid-turn.
+  It closes on a press outside it (user report, Tienda & Lluvia; fixed in
+  the chassis for every theme): off the board it just goes; on an empty
+  square before a step it also deselects (as always); mid-turn the piece
+  stays selected and only the card goes (`pieceCardDismissed`, reset when
+  the selection or player changes). The unused-points note and Tienda's
+  tapped-open "Your order" slip (also Escape) close the same way.
+  Test: `tests/e2e-outside-dismiss.mjs` (neon, tienda, lluvia).
 - **Move costs switch** (user request, first Neon, now every theme): a
   circled-"1" icon in the dock's corner row, left of the points switch
   (`costs-toggle`). It hides or shows the cost badges on the move

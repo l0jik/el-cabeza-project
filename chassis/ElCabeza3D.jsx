@@ -722,7 +722,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   useEffect(() => {
     if (!unusedNote) return undefined;
     const id = setTimeout(() => setUnusedNote(null), 3600);
-    return () => clearTimeout(id);
+    // A press anywhere else clears it at once (a press on it opens the
+    // "Your turn" rules card, see its onClick).
+    const onDown = (ev) => {
+      if (ev.target && ev.target.closest && ev.target.closest('[data-testid="unused-points-note"]')) return;
+      setUnusedNote(null);
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => { clearTimeout(id); document.removeEventListener("pointerdown", onDown, true); };
   }, [unusedNote]);
   // Always-fresh reference to dockView, reassigned every render (same
   // pattern as commitRef/beginMoveRef) — read by the dock preview's own
@@ -1845,6 +1852,29 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   const showTopButton = !awaitingBegin && status !== "finished";
 
   const selectedPiece = pieces.find((p) => p.id === selectedId) || null;
+  /* The piece card (see its render) closes on a press outside it. Off
+     the board, or on an empty square before the turn has started, that
+     press also lets go of the piece; once a step has been taken the
+     piece stays selected (the turn is its), so only the card is put
+     away, until another piece is picked or the turn moves on. */
+  const [pieceCardDismissed, setPieceCardDismissed] = useState(false);
+  useEffect(() => { setPieceCardDismissed(false); }, [selectedId, currentPlayer]);
+  const pieceCardShown = isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && dockView !== "panel" && !pieceCardDismissed;
+  useEffect(() => {
+    if (!pieceCardShown) return undefined;
+    const onDown = (ev) => {
+      const tgt = ev.target;
+      if (!tgt || !tgt.closest) return;
+      if (tgt.closest('[data-testid="piece-card"]')) return;
+      // Presses on the board itself are judged on release, by the tap
+      // handler (a drag to turn the view is not a press outside).
+      const canvas = three.current && three.current.renderer && three.current.renderer.domElement;
+      if (canvas && (tgt === canvas || canvas.contains(tgt))) return;
+      setPieceCardDismissed(true);
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [pieceCardShown]);
   const hoveredPiece = pieces.find((p) => p.id === hoveredId) || null;
   const activePiece = selectedPiece || hoveredPiece;
 
@@ -5007,6 +5037,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         }
       } else if (!hit && !turnLocked) {
         setSelectedId(null);
+      } else if (!hit) {
+        // Mid-turn the piece stays selected; the tap just puts its card away.
+        setPieceCardDismissed(true);
       }
     }
 
@@ -6343,7 +6376,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
          selected, a small card in the lower left says what it is, how it
          moves and what that costs in this game's rules (text from
          RulesCards.jsx, pieceCardInfo). "More" opens its MOVES tile. */}
-      {isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && dockView !== "panel" && (() => {
+      {pieceCardShown && (() => {
         const info = pieceCardInfo(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name);
         return (
           <div
