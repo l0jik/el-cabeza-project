@@ -763,7 +763,9 @@ export function buildTable(slabX, slabZ) {
   const dimMats = [dimSide, dimSide, dimLid, dimSide, dimSide, dimSide];
   for (let n = 0; n < 4; n++) {
     const g = new THREE.BoxGeometry(bl, bh, bw); const m = mk(g, dimMats);
-    m.position.set(-W / 4 + (n % 2) * 9.5, FLOOR + 3.3 + bh / 2 + Math.floor(n / 2) * bh, (n % 2 ? 1 : -1) * 3 - BZ); m.rotation.y = n * 0.04 - 0.02;
+    // Stocked by hand: the front pair reads from one side of the table,
+    // the back pair from the other.
+    m.position.set(-W / 4 + (n % 2) * 9.5, FLOOR + 3.3 + bh / 2 + Math.floor(n / 2) * bh, (n % 2 ? 1 : -1) * 3 - BZ); m.rotation.y = (n % 2 ? Math.PI : 0) + n * 0.04 - 0.02;
   }
   // The tent card: two leaves leaning together, printed outside, blank
   // inside, facing the players.

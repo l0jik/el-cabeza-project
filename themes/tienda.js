@@ -31,6 +31,7 @@ import {
 } from "../engine/constants.js";
 import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
 import { quality } from "./tienda-quality.js";
+import { createAudio as createStoreAudio } from "./tienda-audio.js";
 
 /* ------------------------------------------------------------ period palette */
 
@@ -80,6 +81,9 @@ export const COLORS = {
   bodyLight: "#D9B77E",
   inkOnAccent: PERIOD.ink,
 };
+
+// On the rules leaflet the gold is printed darker, to read on cream.
+export const rulesColors = { accentDark: "#7E540C" };
 
 // The title is set like the game's own advertising: a high-contrast
 // serif, all capitals.
@@ -576,6 +580,25 @@ export const styleSheet = `
   /* The win card: a printed sign with a red band. */
   [data-testid="victory-placard"] { background-image: var(--tienda-paper) !important; border-radius: 2px !important; border: 1px solid rgba(46,33,24,0.55) !important; overflow: hidden; }
   [data-testid="victory-placard"]::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 12px; background: ${PERIOD.vinylRed}; }
+  /* Action points: a punched tally tag on the table, legible on wood. */
+  [data-testid="points-counter"] {
+    color: ${PERIOD.ink} !important; font-weight: 700;
+    background: #ece1c6; background-image: var(--tienda-paper);
+    padding: 5px 11px 5px 12px; border: 1px solid rgba(46,33,24,0.5); border-radius: 2px;
+    box-shadow: 0 3px 8px rgba(20,12,6,0.35);
+  }
+  [data-testid="points-counter"] > span:first-of-type { opacity: 0.8 !important; }
+  [data-testid="points-counter"] [data-filled] { box-shadow: none !important; border-color: ${PERIOD.ink} !important; }
+  [data-testid="points-counter"] [data-filled="true"] { background: ${PERIOD.ink} !important; opacity: 0.9 !important; }
+  [data-testid="points-counter"] [data-filled="false"] { background: transparent !important; opacity: 0.45 !important; }
+  /* The corner controls sit over wood, floor or the dark under the
+     table, so they're printed on a scrap of card to read on any of it. */
+  [data-testid="how-to-play"], button[aria-label$="full screen"] {
+    background: rgba(236,225,198,0.9) !important; color: ${PERIOD.ink} !important;
+    border-radius: 2px !important; box-shadow: 0 2px 6px rgba(20,12,6,0.3);
+  }
+  [data-testid="how-to-play"] { padding: 0 10px 0 7px !important; height: 30px !important; bottom: 22px !important; }
+  button[aria-label$="full screen"] { width: 30px !important; height: 30px !important; bottom: 22px !important; }
   /* Rules: the instruction leaflet folded into the box. */
   [data-testid="info-overlay"] > div { border: 1px solid rgba(46,33,24,0.5) !important; box-shadow: 0 24px 60px rgba(20,12,6,0.45) !important; }
   /* Fixed controls clear of a phone's notch and home bar (the page is
@@ -613,7 +636,12 @@ export function renderSetupExtras({ beginGameButton, openOrderForm }) {
 
 export { useSetupExtras, renderExtraOverlays } from "./tienda-overlay.js";
 export { mountAmbientEffects } from "./tienda-fx.js";
-export { createAudio, hasAudio } from "./tienda-audio.js";
+// The store's tape: a Muzak recording of the period (see tienda-audio.js).
+// It's a file beside the page (the build copies it there), not inside it,
+// so the page itself stays light on a phone; fetched once the store is
+// up. Without it the store plays only its own arrangements.
+export const createAudio = () => createStoreAudio({ tapeUrl: "el-cabeza-tienda-muzak.mp3" });
+export { hasAudio } from "./tienda-audio.js";
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).
 export const moveCostToggle = true;

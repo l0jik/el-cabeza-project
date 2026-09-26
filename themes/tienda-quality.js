@@ -51,7 +51,10 @@ function detect() {
   const shortSide = Math.min(window.screen ? window.screen.width : 800, window.screen ? window.screen.height : 800);
   const { name, maxTex } = gpuInfo();
   const weakGpu = /Mali-(4|T[0-9]|G3[0-9]|G5[0-9])|Adreno \(TM\) ?([2-5][0-9]{2}|60[0-9]|61[0-9])|PowerVR|SGX|Intel\(R\) HD Graphics ([2-5][0-9]{2,3})|GMA/i.test(name);
-  if (maxTex < 4096 || mem <= 2 || weakGpu || (coarse && (cores <= 4 || mem <= 3))) return "low";
+  // No GPU at all (a blocklisted driver, a virtual machine): the browser
+  // draws on the CPU.
+  const software = /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(name);
+  if (maxTex < 4096 || mem <= 2 || weakGpu || software || (coarse && (cores <= 4 || mem <= 3))) return "low";
   if (coarse || shortSide < 700) return "mid";
   return "high";
 }

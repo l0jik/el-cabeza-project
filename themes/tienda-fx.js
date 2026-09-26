@@ -181,7 +181,10 @@ export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
       attachedTo = t.boardGroup;
       if (t.scene) { fogBefore = t.scene.fog; t.scene.fog = new THREE.Fog(0xcbc3ad, 260, 1150); }
       if (t.camera) { farBefore = t.camera.far; t.camera.far = 1600; t.camera.updateProjectionMatrix(); }
-      if (typeof window !== "undefined") window.__TIENDA_STORE__ = true;
+      if (typeof window !== "undefined") {
+        window.__TIENDA_STORE__ = true;
+        if (window.__EC_TEST_HOOKS__) window.__TIENDA_THREE__ = t; // tests: read the scene
+      }
     }
     if (dims !== `${SLAB_X}x${SLAB_Z}`) build(t);
     return true;

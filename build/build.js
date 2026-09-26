@@ -1,5 +1,5 @@
 import * as esbuild from "esbuild";
-import { writeFileSync, mkdirSync } from "fs";
+import { writeFileSync, mkdirSync, copyFileSync } from "fs";
 
 const targets = [
   { name: "standard", entry: "apps/standard.jsx", title: "El Cabeza" },
@@ -9,7 +9,10 @@ const targets = [
   { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova" },
   // Tienda is built minified, and its page can draw under a phone's
   // notch and home bar (the theme keeps its controls clear of them).
-  { name: "tienda", entry: "apps/tienda.jsx", title: "El Cabeza · Tienda", minify: true, head: '<meta name="theme-color" content="#2B2219">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover" },
+  // Its one file beside the page: the store's Muzak tape, fetched once
+  // the store is up rather than weighing down the page (the page plays
+  // without it, see themes/tienda-audio.js).
+  { name: "tienda", entry: "apps/tienda.jsx", title: "El Cabeza · Tienda", minify: true, head: '<meta name="theme-color" content="#2B2219">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: { "el-cabeza-tienda-muzak.mp3": "assets/tienda/muzak-1974.mp3" } },
 ];
 
 mkdirSync("dist", { recursive: true });
@@ -63,6 +66,7 @@ for (const t of targets) {
   // reads its textContent and turns it into a real Worker via a Blob URL.
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="${t.viewport || "width=device-width,initial-scale=1"}">${t.head || ""}<meta name="robots" content="noindex, nofollow"><title>${t.title}</title></head><body style="margin:0"><div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script><script>${js}</script></body></html>`;
   writeFileSync(`dist/el-cabeza-${t.name}.html`, html);
+  Object.entries(t.files || {}).forEach(([to, from]) => copyFileSync(from, `dist/${to}`));
   console.log(`built dist/el-cabeza-${t.name}.html (${(js.length / 1024).toFixed(0)}kb JS, ${(workerJs.length / 1024).toFixed(0)}kb worker)`);
 }
 

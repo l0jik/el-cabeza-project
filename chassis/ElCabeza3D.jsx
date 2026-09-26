@@ -218,6 +218,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      (radians from straight down). A theme set in a room (Tienda) can
      look a little lower, so the room shows behind the board. */
   const VIEW_PHI = theme.viewPitch ?? 0.86;
+  // The rules cards' colours: the theme's own, with any overrides it
+  // gives for text on the rules sheet (a bright accent can be too light
+  // to read there).
+  const RULES_COLORS = theme.rulesColors ? { ...COLORS, ...theme.rulesColors } : COLORS;
 
   /* Style helpers — nested here (not module-level) so they close
      over the theme's own COLORS/HEX rather than needing them passed
@@ -5879,7 +5883,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // again. left's offset scales with it (~1.18x ratio kept at every
     // size change, see comment below) — 120 * 1.18 = 141.6, rounded.
     bottom: dockPieceIsCorner ? 18 : 8,
-    width: dockPieceIsCorner ? 120 : 260,
+    // On a narrow phone the pre-game piece narrows so its canvas stays
+    // clear of the How to play button in the lower left (which ends
+    // 87px in); the piece itself is centred and still fits.
+    width: dockPieceIsCorner ? 120 : "min(260px, calc(100vw - 184px))",
     height: dockPieceIsCorner ? 106 : 220,
     transform: dockPieceIsCorner ? "translateX(0) scale(1)" : "translateX(-50%) scale(1)",
     opacity: dockView === "panel" ? 0 : dockPieceIsCorner ? 0.35 : 1,
@@ -7637,7 +7644,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                   margin: "0 auto 18px",
                 }}
               />
-              <RulesTabs tab={infoTab} onTab={(k) => switchRulesTab(k)} C={COLORS} />
+              <RulesTabs tab={infoTab} onTab={(k) => switchRulesTab(k)} C={RULES_COLORS} />
             </div>
 
             <div data-testid="info-body" style={{ overflowY: "auto", padding: "0 34px 32px" }}>
@@ -7646,7 +7653,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
                 tab={infoTab}
                 focus={rulesFocus}
                 onFocus={(k) => switchRulesTab("moves", k)}
-                C={COLORS}
+                C={RULES_COLORS}
                 budget={turnBudget()}
                 game={{
                   laws: ACTIVE_LAWS,
