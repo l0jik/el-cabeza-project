@@ -1876,3 +1876,75 @@ Sumi, Vacío) each have a Title and an In-game phone board.
   Game keeps them) and reconfigureSingularitySetup (reopens the city).
   The backdrop city pauses while the layer is open (lluvia-bus
   "overlay"). The setup row gets CUSTOM RULES. Test: e2e-lluvia.mjs.
+
+## Tienda (built): a 1975 department store round the board
+
+User brief: re-theme the whole game as suburban America, 1974-75 (a
+discount department store, earth tones, fluorescent light, Muzak, a
+faintly liminal quiet but never horror; no disco, no parody; CRT only on
+real screens), and make it right on every phone, tablet, laptop and
+desktop. Built as its own theme and page (dist/el-cabeza-tienda.html);
+Nova and the other themes are untouched. The user's two posters are the
+box art and an ad standee (assets/tienda/*.jpg).
+
+- **Files.** themes/tienda.js (palette PERIOD/COLORS, board and
+  lacquered wood pieces with procedural grain that follows a roll
+  (grainTurns), gold move frames, the whole UI restyled as printed paper
+  via styleSheet), tienda-store.js (the store: baked vertex-colour
+  lighting on unlit materials, geometry merged by material, instanced
+  troffers/goods; the display table sized to the board), tienda-fx.js
+  (attaches store+table to boardGroup so turning the board is walking
+  round the table; fog; the frame-rate governor; the flickering tube),
+  tienda-textures.js (every sign, box, card and floor painted on
+  canvases), tienda-overlay.js (the box lid on load, the catalog ORDER
+  FORM = custom rules), tienda-audio.js, tienda-quality.js,
+  themes/rules-selections.js + engine/anomaly.js (the custom-rules model
+  shared with Lluvia).
+- **Chassis hooks added for it.** `theme.viewPitch` (camera pitch; the
+  store must show behind the table), `theme.rulesColors` (overrides for
+  the rules sheet's text: Tienda's harvest gold is too light on cream),
+  `movelog-sheet` / `victory-placard` test ids. On narrow phones the
+  pre-game dock piece narrows (`min(260px, 100vw - 184px)`) so it no
+  longer covers How to play (was untappable at 390px wide, all themes).
+- **Device fit.** tienda-quality.js picks low/mid/high once (coarse
+  pointer, cores, memory, GPU name, texture limit; software renderers
+  like SwiftShader/llvmpipe are low; `?quality=` forces one). The tier
+  sets the pixel-ratio cap, shadow and texture sizes, clearcoat, store
+  detail and the TV wall. The governor in tienda-fx.js lowers the pixel
+  ratio when frames run slow and raises it within the cap when they
+  don't. Page is edge to edge (viewport-fit=cover) with safe-area
+  margins. Built minified.
+- **Sound.** Store ambience (ballast hum, air, far-off carts, register,
+  PA chime and a voice you can't make out), wood/brass/paper SFX, and
+  the ceiling-speaker music. The music alternates between:
+  (1) **the tape**, the user's upload "Mall Music Muzak - Mall of 1974 -
+  03 Third Floor Spending Spree" (Internet Archive item
+  MallMusicMuzakMallOf1974), converted to mono 22 kHz 40 kbps MP3
+  (assets/tienda/muzak-1974.mp3). The user asked for "that backrooms
+  sound": it plays at 0.94 speed (a semitone flat) with tape wow,
+  lowpassed at 3.1 kHz, through the speaker chain with an extra send to
+  the long hall reverb. It's a file BESIDE the page
+  (dist/el-cabeza-tienda-muzak.mp3, copied by build.js `files`), not
+  inlined: inlining doubled the page to 2.2 MB. Prefetched 2.5 s after
+  load (not on save-data), decoded at the first store start; picks up
+  where it stopped after a game. Opened as a lone file (file://) the
+  fetch fails and only the arrangements play.
+  (2) **written arrangements**, composed live (compose(): 4 tunes, 7
+  keys). A wide chord with no voicing in range used to return null and
+  throw about one start in seven (silencing the music); fixed, and
+  tests/tienda-music.smoke.mjs now covers every key × 60 seeds.
+  Test flags: `__TIENDA_MUSIC_ONLY__ = "tape" | "arrangements" | "none"`,
+  `__TIENDA_AUDIO__()` (with `__EC_TEST_HOOKS__`). Levels were matched by
+  recording the master output: tape -25 dB, arrangements -24.7 dB,
+  ambience alone -39.5 dB.
+- **Tests.** tests/e2e-tienda.mjs serves dist/ over HTTP (like Pages):
+  ten screens 320×568 to 1920×1080 (lid fits and opens, store and tier,
+  sound starts on the tap, masthead on screen, How to play reachable, no
+  sideways scroll), the order form and a custom 12×12 game on a phone and
+  a laptop, a game to a win (points tag, placard, register-tape Move Log,
+  tape stops in place, New Game keeps one store), and the page alone
+  without its tape. The software renderer here is slow: clicks can take
+  20 s, so the test gives actions 30 s. Audio clicks heard in headless
+  recordings are the sandbox starving the audio thread while it renders
+  the store on the CPU (they fall on 128-sample block edges and vanish
+  with a tiny window), not the code.
