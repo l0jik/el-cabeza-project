@@ -128,6 +128,89 @@ function maxFootprintCells(type) {
   return Math.max(...PIECE_ORIENTATIONS[type].map((o) => o.w * o.h));
 }
 
+/* Can `roster` be set out in one side's two home rows on a board `cols`
+   wide (with `blockedKeys`, row * cols + col, kept clear)? A deterministic
+   search: biggest pieces first, every orientation that fits the band,
+   backtracking, identical pieces in order so no arrangement is tried
+   twice, and a cut-off when what's left can't fit in what's free.
+   Returns the placements ({ type, index, row, col, w, h, z, vox }) or
+   null. The menus use it to say an order won't fit before it's placed;
+   generateAnomalySetup uses it as its last try before giving up. */
+export function packHomeBand(roster, cols, blockedKeys = []) {
+  const instances = [];
+  (roster || []).forEach(({ type, count }) => { for (let i = 0; i < count; i++) instances.push({ type, index: i }); });
+  if (instances.some(({ type }) => !PIECE_ORIENTATIONS[type])) return null;
+  instances.sort((a, b) => maxFootprintCells(b.type) - maxFootprintCells(a.type) || (a.type < b.type ? -1 : a.type > b.type ? 1 : 0));
+  // Each type's poses that fit the band, one per footprint (the band
+  // only sees the footprint).
+  const poses = {};
+  instances.forEach(({ type }) => {
+    if (poses[type]) return;
+    const seen = new Set();
+    poses[type] = PIECE_ORIENTATIONS[type].filter((o) => {
+      const k = `${o.w}x${o.h}`;
+      if (o.h > 2 || o.w > cols || seen.has(k)) return false;
+      seen.add(k); return true;
+    });
+  });
+  const minArea = (type) => Math.min(...poses[type].map((o) => o.w * o.h));
+  if (instances.some(({ type }) => poses[type].length === 0)) return null;
+  const occupied = new Set(blockedKeys);
+  let free = 2 * cols - occupied.size;
+  const need = instances.map(({ type }) => minArea(type));
+  const needFrom = need.map((_, i) => need.slice(i).reduce((a, b) => a + b, 0));
+  if (needFrom[0] > free) return null;
+  const placed = [];
+  let budget = 200000; // search steps; far more than any real roster needs
+  const cellsOf = (o, row, col) => { const out = []; for (let r = row; r < row + o.h; r++) for (let c = col; c < col + o.w; c++) out.push(r * cols + c); return out; };
+  function rec(i, minSlot) {
+    if (i === instances.length) return true;
+    if (needFrom[i] > free || --budget < 0) return false;
+    const { type, index } = instances[i];
+    const same = i > 0 && instances[i - 1].type === type;
+    for (let slot = same ? minSlot : 0; slot < 2 * cols; slot++) {
+      const row = slot % 2, col = Math.floor(slot / 2);
+      for (const o of poses[type]) {
+        if (row + o.h > 2 || col + o.w > cols) continue;
+        const cells = cellsOf(o, row, col);
+        if (cells.some((k) => occupied.has(k))) continue;
+        cells.forEach((k) => occupied.add(k)); free -= cells.length;
+        placed.push({ type, index, row, col, w: o.w, h: o.h, z: o.z, vox: o.vox });
+        if (rec(i + 1, slot)) return true;
+        placed.pop(); cells.forEach((k) => occupied.delete(k)); free += cells.length;
+      }
+    }
+    return false;
+  }
+  return rec(0, 0) ? placed : null;
+}
+
+// Dark's placements, and Light's as their 180° mirror.
+function mirrorPlacements(placed) {
+  const pieces = [];
+  placed.forEach((p) => {
+    const suffix = p.index > 0 ? `-${p.index}` : "";
+    const dark = { id: `dark-${p.type}${suffix}`, type: p.type, owner: "dark", row: p.row, col: p.col, w: p.w, h: p.h, z: p.z };
+    const light = {
+      id: `light-${p.type}${suffix}`,
+      type: p.type,
+      owner: "light",
+      row: BOARD_ROWS - p.row - p.h,
+      col: BOARD_COLS - p.col - p.w,
+      w: p.w,
+      h: p.h,
+      z: p.z,
+    };
+    // An odd-shaped piece's cubes turn with the 180° mirror too.
+    if (p.vox) {
+      dark.vox = p.vox;
+      light.vox = mirrorVox(p);
+    }
+    pieces.push(dark, light);
+  });
+  return pieces;
+}
+
 /* theme: the ANOMALY button (setup-phase only, see its JSX) generates a
    fresh random opening layout that's rotationally symmetrical — each
    side's own pieces confined entirely to its own back two rows, and
@@ -202,34 +285,15 @@ export function generateAnomalySetup(roster, blocked = []) {
       }
       if (!placedThis) { ok = false; break; }
     }
-    if (ok) {
-      const pieces = [];
-      placed.forEach((p) => {
-        const suffix = p.index > 0 ? `-${p.index}` : "";
-        const dark = { id: `dark-${p.type}${suffix}`, type: p.type, owner: "dark", row: p.row, col: p.col, w: p.w, h: p.h, z: p.z };
-        const light = {
-          id: `light-${p.type}${suffix}`,
-          type: p.type,
-          owner: "light",
-          row: BOARD_ROWS - p.row - p.h,
-          col: BOARD_COLS - p.col - p.w,
-          w: p.w,
-          h: p.h,
-          z: p.z,
-        };
-        // An odd-shaped piece's cubes turn with the 180° mirror too.
-        if (p.vox) {
-          dark.vox = p.vox;
-          light.vox = mirrorVox(p);
-        }
-        pieces.push(dark, light);
-      });
-      return pieces;
-    }
+    if (ok) return mirrorPlacements(placed);
   }
-  // A custom roster heavy enough to never fit the 2-row home band in
-  // 300 shuffled attempts falls back to the always-fits classic five,
-  // same as the original single-roster version's own fallback —
-  // better than silently returning nothing.
+  // A tight roster the shuffles kept missing: pack it deterministically
+  // (it fits whenever any arrangement does). Only a roster that truly
+  // can't fit the 2-row home band falls back to the always-fits classic
+  // five, same as the original single-roster version's own fallback —
+  // better than silently returning nothing. (The menus check first with
+  // packHomeBand, so a player's order never gets here.)
+  const packed = packHomeBand(effectiveRoster, BOARD_COLS, blockedKeys);
+  if (packed) return mirrorPlacements(packed);
   return roster ? generateAnomalySetup(undefined, blocked) : createInitialPieces();
 }

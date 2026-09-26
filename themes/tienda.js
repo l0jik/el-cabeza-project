@@ -269,6 +269,10 @@ const WOOD = {
    across the middle. Colour, plus a roughness map (the lacquer is a
    touch duller in the seam and the stringing) hung on
    userData.roughnessMap for buildSlabMaterials. */
+// The squares are painted into the board's texture (below), so the chassis
+// paints it again when the board changes size.
+export const boardTextureFollowsSize = true;
+
 export function makeBoardTexture() {
   const q = quality();
   const RES = q.boardTexture; // 1024 on low-end devices, 2048 elsewhere
@@ -425,7 +429,7 @@ const WOOD_PARS = `
   }
 `;
 
-function woodMaterial({ isDark, pieceId }) {
+export function woodMaterial({ isDark, pieceId }) {
   const w = isDark ? WOODS.dark : WOODS.light;
   const q = quality();
   const mat = q.physical

@@ -1975,3 +1975,41 @@ box art and an ad standee (assets/tienda/*.jpg).
 - **Tape on file://.** The page doesn't try to fetch the tape when opened
   straight from disk (the browser refuses and logs an error); it plays
   the arrangements.
+- **Custom board size in the order form (user: "customize the board size,
+  not just three presets").** The rules model (themes/rules-selections.js,
+  shared with Lluvia) now holds `rows` and `cols` (6–20 each, `clampDim`),
+  not one `size`; Lluvia's square buttons set both. Tienda's Board section:
+  a live diagram (squares to scale, home rows shaded), Width (squares
+  across a home row) and Length steppers, and square quick picks
+  8/10/12/16/20 (`tienda-size-N`). Summary reads width × length.
+  - **Fit.** Each side starts in its two home rows, so the width limits
+    the order. `packHomeBand(roster, cols)` (engine/anomaly.js) is an exact
+    backtracking packer (largest first, identical pieces in order, area
+    cut-off; instant). The form uses `piecesFit`/`minColsFor`: if the
+    pieces won't fit it says so, disables Place order, and offers "Make
+    it N wide". generateAnomalySetup also packs deterministically before
+    its old fallback: the random placer alone used to swap some tight
+    orders for the classic five (e.g. 2 Opas, 2 Rayos, an Arco, a Flaco,
+    a Turrito and the Cabeza, 10 wide: 3 times in 10). Test:
+    tests/rules-selections.smoke.mjs.
+  - **Board texture on resize (a bug the presets already had).** Tienda
+    paints its squares into the board texture, and the chassis resize
+    rebuilt the plate but reused the material, so an 8×8/12×12/custom
+    board showed 10×10 squares stretched. New opt-in chassis hook
+    `theme.boardTextureFollowsSize`: resizeBoardPlate repaints the texture
+    and rebuilds the slab materials (disposing the old maps it no longer
+    uses). Other themes draw squares as a grid (already rebuilt), so they
+    don't opt in. e2e-tienda checks plate and paint proportions match.
+- **Sample the wares: 3-D wood pieces in the order form (user request,
+  like Neon's MATTER viewer).** themes/tienda-showcase.js, on the pattern
+  of piece-showcase.js (POSES now exported from there): catalog-photo
+  stills of each piece in walnut (one short-lived WebGL context for all),
+  a "3-D" tag; tapping one (`tienda-view-KEY`) raises the live model out
+  of the photo (`tienda-piece-viewer`), turning slowly, drag to turn,
+  Walnut / Olive ash buttons, catalog number, price and note; tap outside
+  or Escape puts it back into the photo (whose spot shows dashed while
+  it's out). The wood is the board's own: `woodMaterial` (now exported
+  from tienda.js), the store's light strengths (`lights`) and the
+  chassis's renderer settings (ACES, 1.15), so walnut matches the table
+  (brighter studio lights had made it orange). Test hook
+  `window.__TIENDA_PIECE_VIEWER__` (yaw, wood).

@@ -2117,7 +2117,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const boardTex = theme.makeBoardTexture();
     boardTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     const slabGeo = new THREE.BoxGeometry(SLAB_X, SLAB_THICKNESS, SLAB_Z);
-    const slabMats = theme.buildSlabMaterials(boardTex);
+    let slabMats = theme.buildSlabMaterials(boardTex);
     const slab = new THREE.Mesh(slabGeo, slabMats);
     slab.position.y = -SLAB_THICKNESS / 2;
     slab.receiveShadow = true;
@@ -2365,6 +2365,22 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
         if (!old) continue;
         boardGroup.remove(old);
         old.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+      }
+      // A theme that paints its squares into the board texture (Tienda)
+      // needs it painted again for the new size; the old one would be
+      // stretched over the new plate. The rest draw their squares as a
+      // grid (rebuilt below) over a size-free texture, and keep theirs.
+      if (theme.boardTextureFollowsSize) {
+        const old = slabMats;
+        const tex = theme.makeBoardTexture();
+        tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        slabMats = theme.buildSlabMaterials(tex);
+        const kept = new Set();
+        slabMats.forEach((m) => ["map", "roughnessMap", "envMap"].forEach((k) => m[k] && kept.add(m[k])));
+        old.forEach((m) => {
+          ["map", "roughnessMap"].forEach((k) => { if (m[k] && !kept.has(m[k])) m[k].dispose(); });
+          m.dispose();
+        });
       }
       const newSlab = new THREE.Mesh(new THREE.BoxGeometry(SLAB_X, SLAB_THICKNESS, SLAB_Z), slabMats);
       newSlab.position.y = -SLAB_THICKNESS / 2;

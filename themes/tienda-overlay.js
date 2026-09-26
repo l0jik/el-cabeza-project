@@ -6,7 +6,10 @@
      which is what a phone needs before it will play anything).
    - The order form, for custom rules: the kind of mail-order page the
      catalogs printed, with items to tick and quantities to fill in —
-     pieces for each side, the extra rules, the board. "Place order &
+     pieces for each side (each with its photograph: tap it to take the
+     piece up and turn it over in 3-D, tienda-showcase.js), the extra
+     rules, the board (any width and length from 6 to 20 squares, with a
+     diagram, and a plain warning if the pieces won't fit). "Place order &
      play" applies them for real (themes/rules-selections.js, shared with
      Lluvia) and begins the game; the rules then carry over to New Game
      until "Reset rules", and a finished game's "change the rules"
@@ -21,10 +24,11 @@
 
 import React from "react";
 import {
-  PIECE_OPTIONS, LAW_OPTIONS, SIZES, MAX_PIECES,
-  defaultSelections, cloneSelections, totalPieces, toggleLaw, beginCustomGame,
+  PIECE_OPTIONS, LAW_OPTIONS, MAX_PIECES, MIN_BOARD_DIM, MAX_BOARD_DIM,
+  defaultSelections, cloneSelections, totalPieces, toggleLaw, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
 } from "./rules-selections.js";
 import { ensurePaper } from "./tienda-textures.js";
+import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
 
 const h = React.createElement;
@@ -139,7 +143,30 @@ const CSS = `
   .td-sec-h { flex-wrap: wrap; }
   .td-sec-h small { font: 400 12px/1.3 ${COURIER}; letter-spacing: 0; text-transform: none; opacity: 0.85; }
   @media (max-width: 560px) { .td-sec-h small { flex: 1 1 100%; } }
-  .td-row { display: grid; grid-template-columns: 5.2em minmax(0, 1fr) 4em auto; align-items: center; gap: 10px; padding: 6px 4px; border-bottom: 1px solid rgba(46,33,24,0.3); min-height: 52px; }
+  .td-row { display: grid; grid-template-columns: 64px 5.2em minmax(0, 1fr) 4em auto; align-items: center; gap: 10px; padding: 6px 4px; border-bottom: 1px solid rgba(46,33,24,0.3); min-height: 52px; }
+  /* A piece's photograph: tap it to take the piece up in 3-D. */
+  .td-photo-btn { position: relative; width: 64px; height: 58px; padding: 0; border: none; background: transparent; cursor: zoom-in; border-radius: 2px; }
+  .td-photo-btn img { width: 100%; height: 100%; object-fit: contain; display: block; transition: transform 0.15s ease; }
+  .td-photo-btn .td-photo-wait { position: absolute; inset: 14px 16px; border: 1.5px dashed rgba(46,33,24,0.3); }
+  .td-photo-btn .td-3d { position: absolute; right: 0; bottom: 2px; font: 800 9px/1 ${FRANKLIN}; font-style: normal; letter-spacing: 0.06em; color: ${RED}; background: ${PAPER}; padding: 1px 2px; }
+  .td-photo-btn:focus-visible { outline: 3px solid ${RED}; outline-offset: 1px; }
+  @media (hover: hover) { .td-photo-btn:hover img { transform: translateY(-2px) scale(1.05); } }
+  /* Taken up: its place on the page is an empty, dashed spot. */
+  .td-photo-btn[data-viewing="true"] img, .td-photo-btn[data-viewing="true"] .td-3d { visibility: hidden; }
+  .td-photo-btn[data-viewing="true"] { outline: 1.5px dashed rgba(46,33,24,0.55); outline-offset: -5px; }
+  /* The board: a diagram, and its width and length. */
+  .td-board { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 18px; align-items: center; padding: 10px 4px 4px; }
+  .td-diagram { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 110px; }
+  .td-diagram-board { position: relative; box-sizing: content-box !important; border: 4px solid #4E2F1A; box-shadow: 0 1px 2px rgba(20,12,6,0.35);
+    background: repeating-conic-gradient(#C49A62 0 25%, #6E4428 0 50%); transition: width 0.2s ease, height 0.2s ease; }
+  .td-home { position: absolute; left: 0; right: 0; }
+  .td-home-far { top: 0; background: rgba(244,232,205,0.6); }
+  .td-home-near { bottom: 0; background: rgba(36,19,10,0.6); }
+  .td-diagram figcaption { font: 700 13px/1 ${COURIER}; }
+  .td-dim { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 52px; border-bottom: 1px solid rgba(46,33,24,0.3); }
+  .td-fit { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 4px 0; padding: 8px 10px;
+    border: 1.5px solid ${RED}; color: ${RED}; font: 700 13px/1.35 ${COURIER}; background: rgba(163,63,51,0.06); }
+  .td-fit .td-btn { min-height: 44px; color: ${RED}; border-color: ${RED}; font-size: 12px; }
   .td-cat { font: 400 12px/1.2 ${COURIER}; color: #6E5D4A; }
   .td-desc { font: 700 clamp(14px, 1.5vw, 16px)/1.25 ${FRANKLIN}; }
   .td-desc span { display: block; font: 400 12.5px/1.3 ${FRANKLIN}; color: #6E5D4A; }
@@ -166,8 +193,12 @@ const CSS = `
   .td-foot-btns { display: flex; flex-wrap: wrap; gap: 8px; }
   .td-stamp { position: absolute; top: 58px; right: clamp(14px, 4vw, 36px); transform: rotate(-8deg); border: 2px solid rgba(163,63,51,0.7); color: rgba(163,63,51,0.75);
     font: 800 11px/1.2 ${FRANKLIN}; letter-spacing: 0.16em; padding: 4px 8px; text-transform: uppercase; pointer-events: none; }
+  @media (max-width: 420px) {
+    .td-board { grid-template-columns: minmax(0, 1fr); }
+  }
   @media (max-width: 560px) {
-    .td-row { grid-template-columns: minmax(0, 1fr) auto; }
+    .td-row { grid-template-columns: 56px minmax(0, 1fr) auto; }
+    .td-photo-btn { width: 56px; height: 52px; }
     .td-cat, .td-price { display: none; }
     .td-foot-btns { width: 100%; }
     .td-foot-btns .td-btn { flex: 1 1 auto; }
@@ -235,22 +266,71 @@ const CATALOG = {
   zeta: ["49 T 4409", "55¢", "Five cubes, a Z."],
 };
 
+/* The board as the catalog drew it: squares to scale, the two sides'
+   home rows shaded (the far one light, the near one dark). */
+function BoardDiagram({ rows, cols }) {
+  const cell = Math.max(3, Math.min(92 / cols, 92 / rows));
+  return h("figure", { className: "td-diagram", "data-testid": "tienda-board-diagram", "data-rows": rows, "data-cols": cols, "aria-label": `The board: ${cols} squares wide, ${rows} long` },
+    h("div", { className: "td-diagram-board", style: { width: cell * cols, height: cell * rows, backgroundSize: `${cell * 2}px ${cell * 2}px` } },
+      h("i", { className: "td-home td-home-far", style: { height: cell * 2 } }),
+      h("i", { className: "td-home td-home-near", style: { height: cell * 2 } })),
+    h("figcaption", null, `${cols} × ${rows}`));
+}
+
+// Square sizes a tap away (any width and length can be set).
+const QUICK_SIZES = [8, 10, 12, 16, 20];
+
 function OrderForm({ initial, onChange, onCancel, onPlace, audio }) {
-  const [sel, setSel] = React.useState(() => cloneSelections(initial || defaultSelections()));
+  const [sel, setSel] = React.useState(() => {
+    const s = cloneSelections(initial || defaultSelections());
+    if (!s.rows || !s.cols) { s.rows = s.size || 10; s.cols = s.size || 10; delete s.size; }
+    return s;
+  });
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); onChange && onChange(n); return n; });
   const click = () => { audio && audio.playSelect && audio.playSelect(); };
   const total = totalPieces(sel), over = total > MAX_PIECES;
+  const fits = piecesFit(sel), need = fits ? null : minColsFor(sel);
+  // The piece taken up off the page, if any: { key, name, detail, cat, price, rect, closing }.
+  const [viewer, setViewer] = React.useState(null);
+  const [photos, setPhotos] = React.useState(() => PIECE_OPTIONS.every((p) => !hasWoodShowcase(p.key) || woodPhoto(p.key)));
   React.useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") onCancel(); };
+    const onKey = (e) => { if (e.key === "Escape" && !document.querySelector('[data-testid="tienda-piece-viewer"]')) onCancel(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+  // The photographs, once the form is on screen.
+  React.useEffect(() => {
+    if (photos) return undefined;
+    const id = setTimeout(() => { ensureWoodPhotos(PIECE_OPTIONS.map((p) => p.key)); setPhotos(true); }, 60);
+    return () => clearTimeout(id);
+  }, []);
+  const closeViewer = () => setViewer((v) => {
+    if (!v || v.closing) return v;
+    audio && audio.playDeselect && audio.playDeselect();
+    const still = document.querySelector(`[data-testid="tienda-view-${v.key}"]`);
+    return { ...v, rect: still ? still.getBoundingClientRect() : v.rect, closing: true };
+  });
 
   const pieceRows = PIECE_OPTIONS.map((p) => {
     const n = sel.counts[p.key];
     const [cat, price, note] = CATALOG[p.key] || ["", "", ""];
     const set = (v) => { click(); change((s) => { s.counts[p.key] = Math.max(p.min, Math.min(p.max, v)); }); };
+    const viewing = !!(viewer && viewer.key === p.key);
+    const photo = hasWoodShowcase(p.key)
+      ? h("button", {
+          type: "button", className: "td-photo-btn", "data-testid": `tienda-view-${p.key}`, "data-viewing": viewing ? "true" : "false",
+          "aria-label": `Take up the ${p.name} and turn it over in 3-D`,
+          onClick: (e) => {
+            if (viewer) return;
+            click();
+            setViewer({ key: p.key, name: p.name, detail: note, cat, price, rect: e.currentTarget.getBoundingClientRect(), closing: false });
+          },
+        },
+        woodPhoto(p.key) ? h("img", { src: woodPhoto(p.key), alt: "" }) : h("span", { className: "td-photo-wait" }),
+        h("i", { className: "td-3d", "aria-hidden": "true" }, "3-D"))
+      : h("span");
     return h("div", { key: p.key, className: "td-row", "data-testid": `tienda-piece-${p.key}` },
+      photo,
       h("span", { className: "td-cat" }, cat),
       h("span", { className: "td-desc" }, p.name, h("span", null, note)),
       h("span", { className: "td-price" }, price),
@@ -270,10 +350,31 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio }) {
 
   const lawRows = LAW_OPTIONS.map((l) => check(`law-${l.key}`, !!sel.laws[l.key], l.name, l.note, () => change((s) => toggleLaw(s, l.key))));
 
-  const sizeRow = h("div", { className: "td-sizes", role: "group", "aria-label": "Board size" },
-    SIZES.map((n) => h("button", { key: n, type: "button", className: "td-size", "aria-pressed": sel.size === n ? "true" : "false", "data-testid": `tienda-size-${n}`, onClick: () => { click(); change((s) => { s.size = n; }); } }, `${n} × ${n}`)));
+  const setDim = (k, v) => { click(); change((s) => { s[k] = clampDim(v); }); };
+  const dimRow = (k, label, note) => h("div", { className: "td-dim", "data-testid": `tienda-${k}` },
+    h("span", { className: "td-desc" }, label, h("span", null, note)),
+    h("span", { className: "td-qty" },
+      h("button", { type: "button", "aria-label": `${label}: one square less`, "data-testid": `tienda-${k}-dec`, disabled: sel[k] <= MIN_BOARD_DIM, onClick: () => setDim(k, sel[k] - 1) }, "−"),
+      h("output", { "aria-live": "polite", "data-testid": `tienda-${k}-value`, "aria-label": `${label}: ${sel[k]} squares` }, String(sel[k])),
+      h("button", { type: "button", "aria-label": `${label}: one square more`, "data-testid": `tienda-${k}-inc`, disabled: sel[k] >= MAX_BOARD_DIM, onClick: () => setDim(k, sel[k] + 1) }, "+"),
+    ),
+  );
+  const boardRows = h("div", { className: "td-board" },
+    h(BoardDiagram, { rows: sel.rows, cols: sel.cols }),
+    h("div", null,
+      dimRow("cols", "Width", `squares across a home row (${MIN_BOARD_DIM}–${MAX_BOARD_DIM})`),
+      dimRow("rows", "Length", `squares from your home row to the far one (${MIN_BOARD_DIM}–${MAX_BOARD_DIM})`),
+    ),
+  );
+  const sizeRow = h("div", { className: "td-sizes", role: "group", "aria-label": "Square boards" },
+    QUICK_SIZES.map((n) => h("button", { key: n, type: "button", className: "td-size", "aria-pressed": sel.rows === n && sel.cols === n ? "true" : "false", "data-testid": `tienda-size-${n}`, onClick: () => { click(); change((s) => { s.rows = n; s.cols = n; }); } }, `${n} × ${n}`)));
+  const fitNote = !fits && h("div", { className: "td-fit", role: "alert", "data-testid": "tienda-fit-warning" },
+    h("span", null, need
+      ? `These pieces won't fit in two home rows ${sel.cols} squares wide. They need a board at least ${need} wide.`
+      : `These pieces won't fit in two home rows, even ${MAX_BOARD_DIM} squares wide. Take some out.`),
+    need && h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-fit-fix", onClick: () => setDim("cols", need) }, `Make it ${need} wide`));
 
-  const place = () => { if (over) return; audio && audio.playPowerOn && audio.playPowerOn(); onPlace(sel); };
+  const place = () => { if (over || !fits) return; audio && audio.playPowerOn && audio.playPowerOn(); onPlace(sel); };
   const standard = () => { click(); const d = defaultSelections(); setSel(d); onChange && onChange(d); };
   const lawsOn = LAW_OPTIONS.filter((l) => sel.laws[l.key]).length;
 
@@ -295,26 +396,35 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio }) {
           h("div", { className: `td-total${over ? " over" : ""}`, "data-testid": "tienda-piece-total" },
             h("span", null, "Pieces per side"),
             h("span", null, over ? `${total} — ${MAX_PIECES} is the most a side can have` : `${total} of ${MAX_PIECES}`)),
+          fitNote,
         ),
         h("div", { className: "td-sec" },
           h("div", { className: "td-sec-h" }, "2 · Rules", h("small", null, "check each one you want")),
           lawRows,
         ),
         h("div", { className: "td-sec" },
-          h("div", { className: "td-sec-h" }, "3 · Board"),
+          h("div", { className: "td-sec-h" }, "3 · Board", h("small", null, "any width and length; each side starts in its two home rows")),
+          boardRows,
           sizeRow,
           check("missing", !!sel.missing, "Missing squares", "Two squares cut out of the board.", () => change((s) => { s.missing = !s.missing; })),
           check("random", !!sel.random, "Shuffled start", "Pieces set out at random in each side's home rows, mirrored.", () => change((s) => { s.random = !s.random; })),
         ),
       ),
       h("div", { className: "td-foot" },
-        h("div", { className: "td-foot-total" }, `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${sel.size} × ${sel.size}`, h("br"), h("b", null, "No charge — in-store demonstration")),
+        h("div", { className: "td-foot-total", "data-testid": "tienda-order-summary" }, `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board`, h("br"), h("b", null, fits ? "No charge — in-store demonstration" : "Won't fit this board — see Pieces")),
         h("div", { className: "td-foot-btns" },
           h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-cancel", onClick: onCancel }, "Cancel"),
           h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-standard", onClick: standard }, "Standard"),
-          h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-order-place", disabled: over, onClick: place }, "Place order & play"),
+          h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-order-place", disabled: over || !fits, onClick: place }, "Place order & play"),
         ),
       ),
     ),
+    viewer && h(WoodPieceViewer, {
+      key: viewer.key,
+      type: viewer.key, name: viewer.name, detail: viewer.detail, cat: viewer.cat, price: viewer.price,
+      fromRect: viewer.rect, closing: viewer.closing, audio,
+      onClose: closeViewer,
+      onClosed: () => setViewer(null),
+    }),
   );
 }

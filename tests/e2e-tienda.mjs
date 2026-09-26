@@ -10,8 +10,11 @@
    and it fits.
 
    On a phone and a laptop: the catalog order form (custom rules) fits,
-   its rules behave (Diagonal slide brings Slide), and placing the order
-   starts that game (a 12 × 12 board, six pieces a side). Then a game
+   its rules behave (Diagonal slide brings Slide), the board takes any
+   width and length, a piece's photograph takes it up in 3-D (turning,
+   dragged, in either wood, put back), pieces too many for the width are
+   refused with a fix, and placing the order starts that game on a board
+   painted for its size. Then a game
    played to a win: the points tag, the win placard, the register-tape
    Move Log, the sound winding down (the tape stopping, keeping its
    place), and New Game back to the table with one store, not two.
@@ -153,13 +156,75 @@ for (const size of [SIZES[2], SIZES[7]]) {
   }));
   check("checking Diagonal slide checks Slide too", laws.slide && laws.diag, JSON.stringify(laws));
   check("a Rayo makes six pieces a side", (await page.locator('[data-testid="tienda-piece-total"]').innerText()).includes("6 of"));
+
+  // The board: any width and length, not just the square sizes.
+  await press('[data-testid="tienda-size-12"]');
+  await press('[data-testid="tienda-cols-inc"]');
+  await press('[data-testid="tienda-cols-inc"]');
+  await page.waitForTimeout(300);
+  const diag = await page.evaluate(() => { const d = document.querySelector('[data-testid="tienda-board-diagram"]'); return { cols: d.dataset.cols, rows: d.dataset.rows }; });
+  const summary = await page.locator('[data-testid="tienda-order-summary"]').innerText();
+  check("width and length set apart: 14 across, 12 long (diagram and summary agree)", diag.cols === "14" && diag.rows === "12" && summary.includes("14 × 12"), `${JSON.stringify(diag)} ${summary}`);
+
+  // Sample the wares: a piece taken up off the page in 3-D.
+  await page.locator('[data-testid="tienda-view-opa"]').scrollIntoViewIfNeeded();
+  await press('[data-testid="tienda-view-opa"]');
+  await page.waitForTimeout(1500);
+  const viewer = page.locator('[data-testid="tienda-piece-viewer"]');
+  const yaw = () => page.evaluate(() => (window.__TIENDA_PIECE_VIEWER__ ? window.__TIENDA_PIECE_VIEWER__.yaw() : null));
+  const y0 = await yaw();
+  await page.waitForTimeout(900);
+  const y1 = await yaw();
+  check(`tapping the Opa's photograph takes it up in 3-D, turning by itself (${y0 && y0.toFixed(2)} → ${y1 && y1.toFixed(2)})`,
+    (await viewer.getAttribute("data-state")) === "open" && (await viewer.getAttribute("data-piece")) === "opa" && y1 > y0);
+  const vb = await page.locator('[data-testid="tienda-piece-viewer-canvas"]').boundingBox();
+  check("...large and on screen", vb && vb.width >= Math.min(size.w * 0.6, 280) && inView(vb, size, 1), JSON.stringify(vb));
+  await page.mouse.move(vb.x + vb.width * 0.3, vb.y + vb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(vb.x + vb.width * 0.5, vb.y + vb.height / 2, { steps: 4 });
+  await page.mouse.move(vb.x + vb.width * 0.7, vb.y + vb.height / 2, { steps: 4 });
+  await page.mouse.up();
+  const y2 = await yaw();
+  check(`...a drag turns it (${y1.toFixed(2)} → ${y2.toFixed(2)})`, y2 - y1 > 0.8);
+  await press('[data-testid="tienda-viewer-ash"]');
+  await page.waitForTimeout(300);
+  check("...and it comes in olive ash as well as walnut", (await page.evaluate(() => window.__TIENDA_PIECE_VIEWER__.wood())) === "ash");
+  await shot("4b-viewer");
+  await page.mouse.click(6, 6);
+  for (let i = 0; i < 12 && (await viewer.count()); i++) await page.waitForTimeout(250);
+  const formStays = (await page.locator('[data-testid="tienda-order"]').count()) === 1;
+  check("tapping outside puts it back; the order form stays", (await viewer.count()) === 0 && formStays, `viewer ${await viewer.count()}, form ${formStays}`);
+
+  // Pieces that won't fit the width: said plainly, and fixable.
+  await press('[data-testid="tienda-piece-opa-inc"]');
+  await press('[data-testid="tienda-piece-opa-inc"]');
+  for (let i = 0; i < 8; i++) await press('[data-testid="tienda-cols-dec"]');
+  await page.waitForTimeout(300);
+  const warn = page.locator('[data-testid="tienda-fit-warning"]');
+  check("8 pieces with 3 Opas on a 6-wide board: a warning, and no ordering",
+    (await warn.count()) === 1 && (await page.locator('[data-testid="tienda-order-place"]').isDisabled()), await warn.innerText().catch(() => "no warning"));
+  await press('[data-testid="tienda-fit-fix"]');
+  await page.waitForTimeout(300);
+  const width = +(await page.locator('[data-testid="tienda-cols-value"]').innerText());
+  check(`"Make it N wide" widens the board until they fit (${width})`, (await warn.count()) === 0 && width > 6 && !(await page.locator('[data-testid="tienda-order-place"]').isDisabled()));
   await page.locator('[data-testid="tienda-order-place"]').scrollIntoViewIfNeeded();
   await shot("4-order-filled");
   await press('[data-testid="tienda-order-place"]');
   await page.waitForTimeout(3500);
-  const game = await page.evaluate(() => ({ board: window.__EC_TEST_BOARD__, pieces: (window.__EC_TEST_PIECES__ || []).length }));
+  const game = await page.evaluate(() => {
+    const t = window.__TIENDA_THREE__, slab = t && t.boardGroup.getObjectByName("ec-slab");
+    const img = slab && slab.material[2].map && slab.material[2].map.image;
+    const pieces = window.__EC_TEST_PIECES__ || [];
+    return {
+      board: window.__EC_TEST_BOARD__, pieces: pieces.length, opas: pieces.filter((p) => p.type === "opa").length,
+      plate: slab ? +(slab.geometry.parameters.width / slab.geometry.parameters.depth).toFixed(3) : null,
+      paint: img ? +(img.width / img.height).toFixed(3) : null,
+    };
+  });
   const status = (await page.locator('[data-testid="turn-status"]').innerText()).trim();
-  check(`placing the order starts that game (${JSON.stringify(game)}, "${status}")`, game.board && game.board.rows === 12 && game.board.cols === 12 && game.pieces === 12 && /to move/i.test(status));
+  check(`placing the order starts that game (${JSON.stringify(game)}, "${status}")`,
+    game.board && game.board.rows === 12 && game.board.cols === width && game.pieces === 16 && game.opas === 6 && /to move/i.test(status));
+  check("...on a board painted for its size (the squares aren't stretched)", game.plate && Math.abs(game.plate - game.paint) < 0.03);
   await shot("5-custom-game");
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();

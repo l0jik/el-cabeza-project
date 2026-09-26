@@ -22,7 +22,7 @@ import * as THREE from "three";
 import { makeRoundedBox, makePolycubeGeometry, makePolycubeSmooth } from "../engine/geometry.js";
 import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constants.js";
 
-const POSES = {
+export const POSES = {
   cabeza: { disc: true },
   turrito: { w: 1, h: 1, z: 1 },
   flaco: { w: 1, h: 2, z: 1 },

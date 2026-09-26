@@ -103,8 +103,8 @@ function Panel({ panel, sel, change, onClose, sound }) {
       h("span", { key: "l", style: { display: "block", fontSize: 18, color: "#a8783a", padding: "6px 0" } }, "BOARD SIZE"),
       h("div", { key: "s", style: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, paddingBottom: 10 } },
         ...SIZES.map((n) => {
-          const on = sel.size === n;
-          return h("button", { key: n, type: "button", "data-testid": `lluvia-size-${n}`, "aria-pressed": on ? "true" : "false", onClick: () => { sound("key"); change((s) => { s.size = n; }); },
+          const on = sel.rows === n && sel.cols === n;
+          return h("button", { key: n, type: "button", "data-testid": `lluvia-size-${n}`, "aria-pressed": on ? "true" : "false", onClick: () => { sound("key"); change((s) => { s.rows = n; s.cols = n; }); },
             style: { height: 48, border: "1px solid", borderRadius: 3, font: "400 24px 'VT323', monospace", cursor: "pointer", ...(on ? { background: AMBER, color: "#140a04", borderColor: AMBER } : { background: "transparent", color: "#ffcf8a", borderColor: "rgba(255,179,71,0.5)" }) } }, `${n} × ${n}`);
         })),
       flag("missing", "Missing squares"),
@@ -215,7 +215,7 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose 
       h("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 } },
         signButton("matter", "MATTER", `${total} pieces`, "rgba(35,230,255,0.7)", "rgba(35,230,255,0.07)", "#c8f8ff", tooMany ? "#ff5a5a" : "#7fdcef"),
         signButton("laws", "LAWS", `${lawsOn} ${lawsOn === 1 ? "law" : "laws"}`, "rgba(255,61,187,0.7)", "rgba(255,61,187,0.07)", "#ffd0ef", "#ef8fcf"),
-        signButton("topologies", "TOPOLOGIES", `${sel.size}×${sel.size}`, "rgba(255,179,71,0.7)", "rgba(255,179,71,0.07)", "#ffe2b0", "#d9a45e")),
+        signButton("topologies", "TOPOLOGIES", `${sel.cols}×${sel.rows}`, "rgba(255,179,71,0.7)", "rgba(255,179,71,0.07)", "#ffe2b0", "#d9a45e")),
       h("button", { type: "button", "data-testid": "lluvia-opponent", onClick: cycleOpponent, style: { height: 40, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", background: "rgba(5,4,10,0.6)", border: "1px solid rgba(185,178,200,0.35)", borderRadius: 3, color: "#d9d2e6", font: `600 14px ${SAIRA}`, letterSpacing: "0.1em", cursor: "pointer" } },
         h("span", { style: { color: "#8d86a0" } }, "OPPONENT"), h("span", null, vsAi ? `CPU · ${diff.toUpperCase()}` : "HUMAN · PASS AND PLAY")),
       h("button", { type: "button", "data-testid": "lluvia-begin", disabled: tooMany, onClick: begin, style: { height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", border: `2px solid ${AMBER}`, borderRadius: 4, background: "rgba(255,179,71,0.12)", color: AMBER, cursor: tooMany ? "not-allowed" : "pointer", opacity: tooMany ? 0.5 : 1, boxShadow: "0 0 22px rgba(255,179,71,0.35)" } },
