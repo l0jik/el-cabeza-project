@@ -2228,9 +2228,11 @@ Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
   centred 600px panel 16px above the bottom; the side bar is only for
   short wide screens (height ≤ `SIDE_MAX_H` 520, MobileShell.jsx).
 - **Board facing (all themes).** The pre-game board now faces the side
-  that moves first (`boardNearSide = currentPlayer`), snapped on arriving
-  at setup; switching First move turns it on the usual damping. It used
-  to be a random roll.
+  that moves first (`boardNearSide` follows currentPlayer during setup
+  only, frozen in a game — following it every turn flipped the dock
+  piece's colour mid-game and broke the Lab's mid-step switch), snapped
+  on arriving at setup; switching First move turns it on the usual
+  damping. It used to be a random roll.
 - **Neon's custom-rules emblem** (VariantsFlyout) only shows in a game
   that has custom rules (`renderVariantsFlyout`).
 - **Standard's wood sounds:** the user will upload real recordings (the

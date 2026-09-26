@@ -846,7 +846,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // The side that moves first sits nearest the viewer on the pre-game
   // board (it used to be a random roll, which could show Light's pieces
   // nearest you under "First move: Dark").
-  const boardNearSide = currentPlayer;
+  // Follows First move during setup only; frozen once a game begins, so
+  // the dock piece's colour (the far side's, below) doesn't flip each turn.
+  const [boardNearSide, setBoardNearSide] = useState(() => carried("boardNearSide", currentPlayer));
   const dockSessionColor = boardNearSide === "dark" ? "light" : "dark";
 
   /* Orients the pre-game board to match boardNearSide the moment a fresh
@@ -861,11 +863,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // afterwards turns the board on the usual damping (toggleStartingPlayer).
   useEffect(() => {
     if (!awaitingBegin) return;
-    const theta = boardNearSide === "dark" ? Math.PI : 0;
+    const theta = currentPlayer === "dark" ? Math.PI : 0;
     cam.current.theta = theta;
     cam.current.view.theta = theta;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awaitingBegin]);
+  useEffect(() => {
+    if (awaitingBegin) setBoardNearSide(currentPlayer);
+  }, [awaitingBegin, currentPlayer]);
 
   useEffect(() => {
     if (awaitingBegin) setDockView("piece");
