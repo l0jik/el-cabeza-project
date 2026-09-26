@@ -190,7 +190,7 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
   for (const [, u0, l] of moving) reach = Math.max(reach, Math.hypot(Math.max(Math.abs(u0 - pivot), Math.abs(u0 + 1 - pivot)), l + 1));
   const obstacles = new Map();
   for (const other of pieces) {
-    if (other.id === piece.id || other === ignore) continue;
+    if (other.id === piece.id || other === ignore || (Array.isArray(ignore) && ignore.includes(other))) continue;
     // Clearance (user rule): a Cabeza is lower than a cube, so every
     // swing passes over it; and a piece sheltered under an overhang or
     // in an opening only gets in the way if it reaches the underside.

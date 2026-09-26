@@ -11,7 +11,7 @@ function check(name, ok) {
   if (!ok) failed++;
 }
 
-setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, threeActions: false, shoving: false, shoveFar: false, shoveOnRolls: false, cantileverPivot: false });
+setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, threeActions: false, shoving: false, cantileverPivot: false });
 setBlackHoles([]);
 setMissingSquares([]);
 

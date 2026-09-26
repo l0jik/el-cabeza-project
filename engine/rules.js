@@ -332,69 +332,86 @@ export function pickMissingSquarePairs(pieces, rows, cols, count, avoid = [], ex
   return out;
 }
 
-/* Shoving LAW. `mover` moving to `landing` runs into `hits` (the pieces
-   sharing a cube with the landing). It may push instead of being blocked
-   when:
-   - exactly one piece is in the way (no pushing a line of pieces), and
-   - the mover has more cubes than it (engine/shapes.js cubeCount).
-   The pushed piece slides `distance` squares in the move's direction:
-   1, or with the "as far as it travels" setting (ACTIVE_LAWS.shoveFar)
-   the `travel` the caller passes — how far the mover's leading edge
-   advances. Every square along the way must be on the board and not a
-   Missing Square, and must not hit another piece. It must end clear of
-   the mover's landing.
-   Only a Turrito or a Cabeza can be pushed into a Black Hole: it drops
-   in and comes out one square past the paired hole, the same exit a
-   wormhole move uses. Anything else reaching a hole is blocked.
-   Returns { id, row, col, teleports } for the pushed piece, or null.
-   Being pushed onto the far row never wins — only a Cabeza's own move
+/* Shoving LAW. `mover` moving to `landing` runs into `hits`: the pieces
+   in its way (sharing a cube with the landing). It pushes them instead of
+   being blocked when:
+   - its mass (cubes, engine/shapes.js cubeCount) is greater than the
+     combined mass of everything in its way. So an Opa (8) pushes a
+     standing Flaco (2), or a Turrito and a Cabeza side by side (1 + 1);
+   - each of those pieces has room to go: every square it is pushed over
+     is on the board, not a Missing Square and not taken by any other
+     piece. A piece behind one being pushed blocks the shove (lines are
+     never pushed), even if it is itself in the mover's way.
+   How far: a slide pushes exactly one square (`clearOfLanding` false). A
+   roll pushes each piece just clear of where the roller lands
+   (`clearOfLanding` true): a piece right against a rolling Opa goes two
+   squares, one in the far half of its landing goes one.
+   Only a Turrito or a Cabeza can be pushed into a Black Hole: it drops in
+   and comes out one square past the paired hole, the same exit a wormhole
+   move uses. Anything else reaching a hole is blocked.
+   Returns [{ id, row, col, teleports }], one per pushed piece, or null.
+   Being pushed onto the far row never wins: only a Cabeza's own move
    does. */
-function tryShove(pieces, mover, landing, hits, [dr, dc], travel) {
-  if (hits.length !== 1) return null;
-  const q = hits[0];
-  if (cubeCount(mover) <= cubeCount(q)) return null;
-  const distance = ACTIVE_LAWS.shoveFar ? Math.max(1, travel) : 1;
-  const others = pieces.filter((p) => p.id !== q.id && p.id !== mover.id);
-  let pos = q;
-  for (let k = 1; k <= distance; k++) {
-    pos = { ...q, row: q.row + dr * k, col: q.col + dc * k };
-    if (!inBounds(pos) || overlapsMissingSquare(pos)) return null;
-    const bh = blackHoleVerdict(pos);
-    if (bh.blocked) return null;
-    if (bh.teleportTo) {
-      if (q.type !== "turrito" && q.type !== "cabeza") return null;
-      const eject = { ...q, row: bh.teleportTo.row - dr, col: bh.teleportTo.col - dc };
-      if (!inBounds(eject) || overlapsMissingSquare(eject)) return null;
-      if (others.some((p) => piecesClash(eject, p)) || piecesClash(eject, landing)) return null;
-      return { id: q.id, row: eject.row, col: eject.col, teleports: true };
+function tryShove(pieces, mover, landing, hits, [dr, dc], clearOfLanding) {
+  if (!hits.length) return null;
+  const mass = hits.reduce((n, q) => n + cubeCount(q), 0);
+  if (cubeCount(mover) <= mass) return null;
+  const others = pieces.filter((p) => p.id !== mover.id);
+  // The furthest a roll can have to push: its landing's depth along the move.
+  const reach = clearOfLanding ? (dc ? landing.w : landing.h) : 1;
+  const out = [];
+  for (const q of hits) {
+    let end = null;
+    for (let k = 1; k <= reach && !end; k++) {
+      const pos = { ...q, row: q.row + dr * k, col: q.col + dc * k };
+      if (!inBounds(pos) || overlapsMissingSquare(pos)) return null;
+      const bh = blackHoleVerdict(pos);
+      if (bh.blocked) return null;
+      if (bh.teleportTo) {
+        if (q.type !== "turrito" && q.type !== "cabeza") return null;
+        const eject = { ...q, row: bh.teleportTo.row - dr, col: bh.teleportTo.col - dc };
+        if (!inBounds(eject) || overlapsMissingSquare(eject)) return null;
+        end = { pos: eject, teleports: true };
+        break;
+      }
+      if (others.some((p) => p.id !== q.id && piecesClash(pos, p))) return null;
+      if (!clearOfLanding || !piecesClash(pos, landing)) end = { pos, teleports: false };
     }
-    if (others.some((p) => piecesClash(pos, p))) return null;
+    if (!end) return null;
+    out.push({ q, ...end });
   }
-  if (piecesClash(pos, landing)) return null;
-  return { id: q.id, row: pos.row, col: pos.col, teleports: false };
+  // Where they end up: clear of the landing, of everything not pushed, and
+  // of each other.
+  for (let i = 0; i < out.length; i++) {
+    const a = out[i].pos;
+    if (piecesClash(a, landing) || others.some((p) => !hits.includes(p) && piecesClash(a, p))) return null;
+    for (let j = i + 1; j < out.length; j++) if (piecesClash(a, out[j].pos)) return null;
+  }
+  return out.map((m) => ({ id: m.q.id, row: m.pos.row, col: m.pos.col, teleports: m.teleports }));
 }
 
-/* A roll that runs into a smaller piece, under the Shoving LAW's "rolls
-   shove too" setting. The landing must be fine apart from that one
-   piece: on the board, not on a Missing Square or a Black Hole mouth
-   (no pushing and falling in at once). A lone enemy Cabeza isn't here —
-   a roll onto one is a crush (evaluateBlockLanding), as always. */
+/* A shove's result on the board: every pushed piece moved to where the
+   push put it (move.shoves, from tryShove). */
+export function applyShoves(pieces, shoves) {
+  if (!shoves || !shoves.length) return pieces;
+  const to = new Map(shoves.map((q) => [q.id, q]));
+  return pieces.map((p) => (to.has(p.id) ? { ...p, row: to.get(p.id).row, col: to.get(p.id).col } : p));
+}
+
+/* A roll that runs into lighter pieces, with the Shoving LAW on. The
+   landing must be fine apart from them: on the board, not on a Missing
+   Square or a Black Hole mouth (no pushing and falling in at once). A
+   lone enemy Cabeza isn't here: a roll onto one is a crush
+   (evaluateBlockLanding), as always. */
 function rollShove(pieces, piece, candidate, dir, sweep) {
   if (!inBounds(candidate) || overlapsMissingSquare(candidate)) return null;
   const bh = blackHoleVerdict(candidate);
   if (bh.blocked || bh.teleportTo) return null;
   const hits = pieces.filter((p) => p.id !== piece.id && piecesClash(candidate, p));
   if (!hits.length) return null;
-  const [dr, dc] = STEP_DIRS[dir];
-  // How far the leading edge advances — the "as far as it travels" push.
-  const travel =
-    dir === "E" ? candidate.col + candidate.w - (piece.col + piece.w)
-    : dir === "W" ? piece.col - candidate.col
-    : dir === "S" ? candidate.row + candidate.h - (piece.row + piece.h)
-    : piece.row - candidate.row;
-  const shoves = tryShove(pieces, piece, candidate, hits, [dr, dc], travel);
+  const shoves = tryShove(pieces, piece, candidate, hits, STEP_DIRS[dir], true);
   if (!shoves) return null;
-  if (sweep && rollSweepClashes(pieces, piece, dir, hits[0])) return null;
+  if (sweep && rollSweepClashes(pieces, piece, dir, hits)) return null;
   return { candidate, crushes: null, shoves };
 }
 
@@ -408,7 +425,7 @@ export function legalRolls(pieces, piece) {
     const candidate = rollBlock(piece, dir);
     const verdict = evaluateBlockLanding(pieces, candidate, STEP_DIRS[dir]);
     if (verdict.legal && sweep && rollSweepClashes(pieces, piece, dir, verdict.crushes)) continue;
-    if (!verdict.legal && ACTIVE_LAWS.shoving && ACTIVE_LAWS.shoveOnRolls) {
+    if (!verdict.legal && ACTIVE_LAWS.shoving) {
       const shoveMove = rollShove(pieces, piece, candidate, dir, sweep);
       if (shoveMove) out[dir] = shoveMove;
       continue;
@@ -452,9 +469,9 @@ function translatedCandidate(pieces, piece, dr, dc, allowShove = false) {
   }
   const hits = pieces.filter((p) => p.id !== piece.id && piecesClash(candidate, p));
   if (hits.length === 0) return { candidate, crushes: null, teleports: false };
-  // Shoving LAW: moving into a smaller piece pushes it along instead.
+  // Shoving LAW: sliding into lighter pieces pushes them one square instead.
   if (allowShove) {
-    const shoves = tryShove(pieces, piece, candidate, hits, [dr, dc], 1);
+    const shoves = tryShove(pieces, piece, candidate, hits, [dr, dc], false);
     if (shoves) return { candidate, crushes: null, teleports: false, shoves };
   }
   return null;

@@ -59,9 +59,13 @@ import("../themes/rules-selections.js").then(async (m) => {
   check("11 piece types, up to 4 each (Cabeza 1-2)", m.PIECE_OPTIONS.length === 11 && m.PIECE_OPTIONS.every((p) => p.max === (p.key === "cabeza" ? 2 : 4)));
   s.counts.arco = 1; s.arcoSize = "ancho";
   check("the Arco's size picks its piece type", m.pieceTypeOf("arco", s) === "arcoAncho");
-  s.laws.shoving = true; s.shove = { far: true, onRolls: false };
-  check("Shoving's settings reach the engine", m.lawsForEngine(s).shoveFar === true && m.lawsForEngine(s).shoveOnRolls === false);
-  check("...and a slides-only Shoving without Slide warns", m.lawWarnings(s).some((w) => w.testid === "shove-needs-slide"));
+  s.laws.shoving = true;
+  check("Shoving reaches the engine with no settings of its own", m.lawsForEngine(s).shoving === true && !("shoveFar" in m.lawsForEngine(s)) && !("shove" in s));
+  s.counts.opa = 1;
+  check("...and with an Opa but 2 points a turn it warns an Opa's shove needs 3", m.lawWarnings(s).some((w) => w.testid === "shove-opa-needs-three"));
+  s.laws.threeActions = true;
+  check("...which 3 actions per turn clears", !m.lawWarnings(s).some((w) => w.testid === "shove-opa-needs-three"));
+  s.laws.threeActions = false;
   s.laws.cantileverPivot = true;
   check("a pivot with nothing to pivot warns", m.lawWarnings(s).some((w) => w.testid === "law-warning-cantileverPivot"));
   m.toggleLaw(s, "blackHoleSquares");
@@ -85,8 +89,9 @@ import("../themes/rules-selections.js").then(async (m) => {
     if (!bad) clear++;
   }
   check(`hand-placed squares are used as marked (${honoured}/10), the pieces set out round them (${clear}/10)`, honoured === 10 && clear === 10);
-  const labelled = m.variantsOf({ ...t, laws: { ...t.laws, shoving: true }, shove: { far: false, onRolls: true } }, { laws: "RULES", matter: "PIECES", topologies: "BOARD" });
-  check("the summary uses the theme's words and names Shoving's settings", labelled[0].label === "RULES" && labelled[0].items.includes("Shoving (1 square, slides and rolls)"));
+  const labelled = m.variantsOf({ ...t, laws: { ...t.laws, shoving: true } }, { laws: "RULES", matter: "PIECES", topologies: "BOARD" });
+  check("the summary uses the theme's words and names Shoving", labelled[0].label === "RULES" && labelled[0].items.includes("Shoving"));
+  check("an old save's Shoving settings are dropped", !("shove" in m.normalizeSelections({ laws: { shoving: true }, shove: { far: true, onRolls: true } })));
   check("an old save normalises (size → rows × cols, counts clamped)", (() => { const n = m.normalizeSelections({ size: 12, counts: { opa: 9 } }); return n.rows === 12 && n.cols === 12 && n.counts.opa === 4 && n.missingSpots.length === 0; })());
   setBoardDimensions(10, 10);
   console.log(failures ? `\n${failures} check(s) failed` : "\nall rules-selections checks passed");

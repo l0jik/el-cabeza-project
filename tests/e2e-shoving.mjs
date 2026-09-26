@@ -4,9 +4,11 @@
    through the click path:
    1. A Chato slides into a Turrito and pushes it one square — both
       pieces end where the rules say, and the turn carries on.
-   2. With "slides and rolls" + "as far as it travels", a roll pushes a
-      piece two squares clear.
-   3. An AI turn with the law on runs without errors. */
+   2. A roll pushes the piece it tips into just past where it lands (two
+      squares for a piece right against it).
+   3. An Opa rolls into a Turrito and a Cabeza side by side (lighter all
+      together) and pushes both past its landing.
+   4. An AI turn with the law on runs without errors. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -52,9 +54,9 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   await page.close();
 }
 
-// ---- 2. a roll shoves, as far as it travels ----
+// ---- 2. a roll shoves, just past where it lands ----
 {
-  const { page, errs } = await openPage({ shoving: true, shoveOnRolls: true, shoveFar: true });
+  const { page, errs } = await openPage({ shoving: true });
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), [
     ...cabezas,
     P("dark-flaco", "flaco", "dark", 4, 3, 1, 1, 2), // standing, 2 tall: tips east across 2 squares
@@ -75,9 +77,34 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   await page.close();
 }
 
-// ---- 3. the AI plays with the law on ----
+// ---- 3. an Opa pushes two pieces side by side ----
 {
-  const { page, errs } = await openPage({ slide: true, threeActions: true, shoving: true, shoveOnRolls: true });
+  const { page, errs } = await openPage({ threeActions: true, shoving: true });
+  await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), [
+    ...cabezas,
+    P("dark-opa", "opa", "dark", 4, 2, 2, 2, 2),
+    P("light-turrito", "turrito", "light", 4, 4, 1, 1, 1),
+    P("dark-cabeza-2", "cabeza", "dark", 5, 4, 1, 1, 1),
+  ]);
+  await page.waitForTimeout(300);
+  await openDockPanel(page);
+  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-opa", "E"));
+  await page.waitForTimeout(1800);
+  const ps = await page.evaluate(() => window.__EC_TEST_PIECES__);
+  const at = (id) => ps.find((p) => p.id === id);
+  check("the Opa rolls two squares east", at("dark-opa") && at("dark-opa").col === 4, JSON.stringify(at("dark-opa")));
+  check("the Turrito and the Cabeza beside it are both pushed just past it", at("light-turrito").col === 6 && at("dark-cabeza-2").col === 6 && at("light-turrito").row === 4 && at("dark-cabeza-2").row === 5, JSON.stringify(ps));
+  const meshes = await page.evaluate(() => ["light-turrito", "dark-cabeza-2"].map((id) => { const p = window.__EC_TEST_SCREEN_POS__(id); return p && Number.isFinite(p.x); }));
+  check("both pushed pieces are back on the board after the animation", meshes.every(Boolean));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await page.close();
+}
+
+// ---- 4. the AI plays with the law on ----
+{
+  const { page, errs } = await openPage({ slide: true, threeActions: true, shoving: true });
   await openDockPanel(page);
   const aiBtn = page.locator('[data-testid="dock-panel"] button', { hasText: /^AI$/ }).first();
   if (await aiBtn.count()) { await aiBtn.click(); await page.waitForTimeout(300); }

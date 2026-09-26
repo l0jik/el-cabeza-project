@@ -102,7 +102,7 @@ function applyPlan(pieces, player, plan) {
     const c = move.candidate;
     Object.assign(piece, { row: c.row, col: c.col, w: c.w, h: c.h, z: c.z, vox: c.vox });
     if (move.crushes) { pieces.splice(pieces.indexOf(move.crushes), 1); result.crushed++; }
-    if (move.shoves) { const q = pieces.find((p) => p.id === move.shoves.id); if (q) { q.row = move.shoves.row; q.col = move.shoves.col; } result.shoves++; }
+    if (move.shoves) { for (const sh of move.shoves) { const q = pieces.find((p) => p.id === sh.id); if (q) { q.row = sh.row; q.col = sh.col; } } result.shoves++; }
     if (piece.type === "cabeza" && c.row === GOAL_ROW[piece.owner]) result.won = true;
   }
   return result;

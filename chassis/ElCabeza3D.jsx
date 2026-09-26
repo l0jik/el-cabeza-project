@@ -12,7 +12,7 @@ import {
   turnBudget, MAX_PIECES_PER_TURN,
 } from "../engine/constants.js";
 import {
-  createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues,
+  createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues, applyShoves,
 } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY } from "../engine/ai.js";
 import {
@@ -2911,7 +2911,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const residualE = smoothstep * smoothstep;
 
         // A piece being shoved (Shoving LAW) glides alongside.
-        if (a.push) a.push.carrier.position.lerpVectors(a.push.from, a.push.to, e);
+        if (a.push) a.push.forEach((pu) => pu.carrier.position.lerpVectors(pu.from, pu.to, e));
         if (a.kind === "roll") {
           a.pivot.setRotationFromAxisAngle(a.axis, a.angle * e);
           a.pivot.position.copy(a.base).addScaledVector(a.dirVec, a.residual * residualE);
@@ -3523,16 +3523,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       ...(piece.id === selectedId ? pendingSteps : []),
       // `shoved` marks a step that pushed another piece (Shoving LAW) — such
       // a turn always changed the board, even if the mover ends back home.
-      { pieceId: piece.id, label: PIECE_META[piece.type].label, dir, ...(move.shoves ? { shoved: move.shoves.id } : {}) },
+      { pieceId: piece.id, label: PIECE_META[piece.type].label, dir, ...(move.shoves ? { shoved: move.shoves.map((q) => q.id) } : {}) },
     ];
     // Distinct pieces moved this turn after this move — the Split Movement
     // 2-piece cap counts these, not the number of moves.
     const movedAfter = movedPieceIds.includes(piece.id) ? movedPieceIds : [...movedPieceIds, piece.id];
     let nextPieces = pieces.map((p) => (p.id === piece.id ? move.candidate : p));
-    // Shoving LAW: the pushed piece lands where the push put it.
-    if (move.shoves) {
-      nextPieces = nextPieces.map((p) => (p.id === move.shoves.id ? { ...p, row: move.shoves.row, col: move.shoves.col } : p));
-    }
+    // Shoving LAW: every pushed piece lands where the push put it.
+    if (move.shoves) nextPieces = applyShoves(nextPieces, move.shoves);
 
     if (move.crushes) {
       // Only a Cabeza can ever be `crushes` (see evaluateBlockLanding).
@@ -3748,27 +3746,27 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const animateStep = useCallback((state, dir, onDone, shove = null) => {
     const t = three.current;
     const parts = t.pieceGroup.children.filter((c) => c.userData.pieceId === state.id);
-    /* Shoving LAW: the pushed piece glides to where it's pushed over the
-       same time as the move, on its own carrier (see `push` in the anim
-       tick), and is handed back to the piece group when the move lands. */
-    let push = null;
-    if (shove) {
-      const shovedParts = t.pieceGroup.children.filter((c) => c.userData.pieceId === shove.id);
-      const shovedState = shove.state;
-      if (shovedParts.length && shovedState) {
-        const from = pieceCenter(shovedState);
-        const to = pieceCenter({ ...shovedState, row: shove.row, col: shove.col });
-        const fromVec = new THREE.Vector3(from.x, 0, from.z);
-        const carrier = new THREE.Object3D();
-        carrier.position.copy(fromVec);
-        t.boardGroup.add(carrier);
-        shovedParts.forEach((c) => {
-          c.position.sub(fromVec);
-          carrier.add(c);
-        });
-        push = { carrier, parts: shovedParts, from: fromVec.clone(), to: new THREE.Vector3(to.x, 0, to.z) };
-      }
-    }
+    /* Shoving LAW: each pushed piece (a shove can push several side by
+       side) glides to where it's pushed over the same time as the move,
+       on its own carrier (see `push` in the anim tick), and is handed
+       back to the piece group when the move lands. */
+    const push = [];
+    (shove || []).forEach((q) => {
+      const shovedParts = t.pieceGroup.children.filter((c) => c.userData.pieceId === q.id);
+      const shovedState = q.state;
+      if (!shovedParts.length || !shovedState) return;
+      const from = pieceCenter(shovedState);
+      const to = pieceCenter({ ...shovedState, row: q.row, col: q.col });
+      const fromVec = new THREE.Vector3(from.x, 0, from.z);
+      const carrier = new THREE.Object3D();
+      carrier.position.copy(fromVec);
+      t.boardGroup.add(carrier);
+      shovedParts.forEach((c) => {
+        c.position.sub(fromVec);
+        carrier.add(c);
+      });
+      push.push({ carrier, parts: shovedParts, from: fromVec.clone(), to: new THREE.Vector3(to.x, 0, to.z) });
+    });
     if (!parts.length) {
       onDone();
       return;
@@ -3839,12 +3837,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       carrier.updateMatrixWorld(true);
       parts.forEach((c) => t.pieceGroup.attach(c));
       t.boardGroup.remove(carrier);
-      if (push) {
-        push.carrier.position.copy(push.to);
-        push.carrier.updateMatrixWorld(true);
-        push.parts.forEach((c) => t.pieceGroup.attach(c));
-        t.boardGroup.remove(push.carrier);
-      }
+      push.forEach((pu) => {
+        pu.carrier.position.copy(pu.to);
+        pu.carrier.updateMatrixWorld(true);
+        pu.parts.forEach((c) => t.pieceGroup.attach(c));
+        t.boardGroup.remove(pu.carrier);
+      });
       if (landingFootprint) {
         t.pulseSquare && t.pulseSquare(landingFootprint.row, landingFootprint.col, landingFootprint.w, landingFootprint.h, "apply", accentColor);
         // Per Neon's own design, the Cabeza never gets the landing
@@ -4012,7 +4010,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (canContinue) {
         let afterStep = pieces.map((p) => (p.id === piece.id ? move.candidate : p));
         if (move.crushes) afterStep = afterStep.filter((p) => p.id !== move.crushes.id);
-        if (move.shoves) afterStep = afterStep.map((p) => (p.id === move.shoves.id ? { ...p, row: move.shoves.row, col: move.shoves.col } : p));
+        if (move.shoves) afterStep = applyShoves(afterStep, move.shoves);
         inFlightRef.current = {
           pieceId: piece.id,
           landing: move.candidate,
@@ -4026,7 +4024,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
       animateStep(
         piece, dir, () => commitRef.current(piece, dir, move),
-        move.shoves ? { ...move.shoves, state: pieces.find((p) => p.id === move.shoves.id) } : null
+        move.shoves ? move.shoves.map((q) => ({ ...q, state: pieces.find((p) => p.id === q.id) })) : null
       );
     },
     [pieces, busy, selectedId, stepsUsed, animateStep]
@@ -5681,7 +5679,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // session settings — cleared here for a plain game (both the engine
       // module state read by rules.js/the AI worker and the chassis's own
       // React copies).
-      setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveFar: false, shoveOnRolls: false });
+      setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false });
       setActiveBlackHoles([]);
       setBlackHoles([]);
       setActiveMissingSquares([]);

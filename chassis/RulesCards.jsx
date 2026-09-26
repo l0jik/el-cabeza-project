@@ -39,7 +39,7 @@ export const LAW_TEXT = {
   blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends." },
   cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 point." },
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 action points instead of 2." },
-  shoving: { name: "Shoving", text: "A piece moving into one with fewer cubes pushes it along, for 1 extra point." },
+  shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra point. A slide pushes them one square; a roll pushes them just past where it lands. Nothing may be behind them." },
 };
 
 const mono = "'IBM Plex Mono', monospace";
@@ -147,8 +147,7 @@ function GameCard({ C, game, onFocus }) {
         <div style={{ color: C.slate }}>No laws are on: this game plays the standard rules.</div>
       ) : (
         on.map((k) => {
-          let text = LAW_TEXT[k].text;
-          if (k === "shoving") text += ` Pushes ${game.laws.shoveFar ? "as far as the mover travels" : "1 square"}, on ${game.laws.shoveOnRolls ? "slides and rolls" : "slides only"}.`;
+          const text = LAW_TEXT[k].text;
           return (
             <button
               key={k}
@@ -336,7 +335,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "shoving", law: "shoving", title: "Shove", cost: <Dots n={1} C={C} plus />, text: "Moving into a piece with fewer cubes pushes it along, for 1 extra point.",
+      key: "shoving", law: "shoving", title: "Shove", cost: <Dots n={1} C={C} plus />, text: "Rolling or sliding into pieces with fewer cubes, all together, pushes them along, for 1 extra point: a slide one square, a roll just past where it lands. Anything behind them blocks.",
       svg: (
         <>
           {grid()}
@@ -619,7 +618,7 @@ export function pieceCardInfo(piece, laws = {}, name = piece.type) {
   }
   if (laws.cantileverPivot && PIVOTERS.includes(piece.type)) extra.push("Or pivot a quarter turn on one cube, 1 point.");
   if (laws.shoving && piece.type !== "cabeza") {
-    extra.push(`Moving into a smaller piece shoves it along, 1 point more${laws.shoveOnRolls ? "" : " (slides only)"}.`);
+    extra.push("Rolling or sliding into lighter pieces (fewer cubes, all together) shoves them along, 1 point more.");
   }
   return { name, text: [text, ...extra].join(" "), tile };
 }

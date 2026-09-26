@@ -100,14 +100,16 @@ function applyMove(pieces, piece, move) {
     removedIndex = pieces.indexOf(move.crushes);
     pieces.splice(removedIndex, 1);
   }
-  // Shoving LAW: the pushed piece moves too (never alongside a crush).
+  // Shoving LAW: every pushed piece moves too (never alongside a crush).
   let shoved = null;
   if (move.shoves) {
-    const q = pieces.find((p) => p.id === move.shoves.id);
-    if (q) {
-      shoved = { piece: q, row: q.row, col: q.col };
-      q.row = move.shoves.row;
-      q.col = move.shoves.col;
+    shoved = [];
+    for (const sh of move.shoves) {
+      const q = pieces.find((p) => p.id === sh.id);
+      if (!q) continue;
+      shoved.push({ piece: q, row: q.row, col: q.col });
+      q.row = sh.row;
+      q.col = sh.col;
     }
   }
   return { prevFields, removed: move.crushes || null, removedIndex, shoved };
@@ -122,8 +124,7 @@ function undoMove(pieces, piece, undo) {
   piece.z = p.z;
   piece.vox = p.vox;
   if (undo.shoved) {
-    undo.shoved.piece.row = undo.shoved.row;
-    undo.shoved.piece.col = undo.shoved.col;
+    for (const sh of undo.shoved) { sh.piece.row = sh.row; sh.piece.col = sh.col; }
   }
   if (undo.removed) pieces.splice(undo.removedIndex, 0, undo.removed);
 }
@@ -313,7 +314,7 @@ function generateSplitTurns(pieces, player, turns) {
       .sort()
       .join("|") + "|x" + steps.filter((st) => st.move.crushes).map((st) => st.move.crushes.id).sort().join(",") +
       // A shoved piece ends somewhere too — part of the end position.
-      "|s" + pieces.filter((p) => steps.some((st) => st.move.shoves && st.move.shoves.id === p.id)).map((p) => `${p.id}@${p.row},${p.col}`).sort().join(",");
+      "|s" + pieces.filter((p) => steps.some((st) => st.move.shoves && st.move.shoves.some((sh) => sh.id === p.id))).map((p) => `${p.id}@${p.row},${p.col}`).sort().join(",");
     if (seen.has(key)) return;
     seen.add(key);
     turns.push({

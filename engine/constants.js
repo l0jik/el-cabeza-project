@@ -305,14 +305,11 @@ export let ACTIVE_LAWS = {
   blackHoleSquares: false,
   cantileverPivot: false,
   threeActions: false,
-  // Shoving LAW: a bigger piece (more cubes) moving into a smaller one
-  // pushes it along instead of being blocked — see tryShove in rules.js.
-  // Its two game-start settings ride along here too: shoveFar = push as
-  // far as the shoving piece travels (else 1 square); shoveOnRolls =
-  // rolls shove as well as slides (else slides only).
+  // Shoving LAW: a piece rolling or sliding into lighter pieces (fewer
+  // cubes, all together) pushes them instead of being blocked; a slide
+  // pushes one square, a roll just clear of where it lands. See tryShove
+  // in rules.js.
   shoving: false,
-  shoveFar: false,
-  shoveOnRolls: false,
 };
 
 export function setActiveLaws(partial) {

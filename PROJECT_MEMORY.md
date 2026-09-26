@@ -1265,44 +1265,57 @@ every Arco in the game.
   `tests/e2e-odd-pieces.mjs` (renamed from e2e-codo.mjs), and the size
   control in `tests/e2e-singularity.mjs`.
 
-**Shoving LAW** (`laws.shoving`). Its two game-start settings live in
-`selections.shove = { far, onRolls }`. `lawsForEngine` turns them into
-`ACTIVE_LAWS.shoveFar` / `shoveOnRolls`, set at Begin and on replay. On
-the sphere they're a pair of segmented controls directly under the
-checkbox (`renderShoveSettingsRow`, testids `shove-far-on/off`,
-`shove-onRolls-on/off`).
+**Shoving LAW** (`laws.shoving`). Rewritten to the user's rule (user
+report: "an Opa could not displace a standing Flaco, it seems to judge by
+height"). It never judged by height; the Opa was refused for three other
+reasons: an Opa shove costs 3 points (above a 2-point turn), a roll lands
+2 deep so a 1-square push left the piece under the Opa, and only ONE piece
+could ever be in the way. The rule now, confirmed with the user:
 
-Rules (`tryShove` / `rollShove` in rules.js):
-- A move whose landing hits exactly ONE piece with fewer cubes
-  (`cubeCount`) pushes it in the move's direction, instead of being
-  blocked. That includes a Cabeza, and your own pieces.
-- Distance: 1 square, or with `shoveFar` as far as the mover's leading
-  edge advances.
-- Every square along the way must be on the board and not a Missing
-  Square, with no second piece in the way (no chains). The pushed piece
-  must end clear of the mover's landing.
-- Only a Turrito or a Cabeza can be pushed into a Black Hole. It comes
+- The pieces in the way are everything overlapping the mover's landing:
+  one, or several SIDE BY SIDE (a Turrito and a Cabeza abreast against an
+  Opa's face are both pushed).
+- Legal only when the mover's mass (cubes, `cubeCount`) is GREATER than
+  the COMBINED mass of the pieces in the way. Mass, never height (an Opa,
+  8, pushes a standing Flaco, 2, though they're equally tall).
+- A SLIDE pushes them exactly 1 square. A ROLL pushes each just clear of
+  where the roller lands (a piece right against a rolling Opa goes 2, one
+  in the far half of its landing goes 1). Rolls and slides both shove.
+- LINES ARE NEVER PUSHED: any piece in a pushed piece's path (even one
+  that's itself in the mover's way) blocks the shove. Every square passed
+  over must be on the board and not a Missing Square.
+- Only a Turrito or a Cabeza can be pushed into a Black Hole; it comes
   out one square past the paired hole.
-- Slides always shove when the law is on. Rolls shove only with
-  `shoveOnRolls`.
 - A roll onto a lone enemy Cabeza stays a crush, not a shove.
 - Being pushed onto the far row never wins.
-- Cost: `SHOVE_COST = 1` extra (`moveCost`), gated by `withinBudget` in
-  legalMovesFor. So a shoving slide costs 3 and needs 3 Actions Per
-  Turn; a shoving roll costs 2 (an Opa roll 3).
+- Cost unchanged (user's choice): `SHOVE_COST = 1` extra (`moveCost`),
+  gated by `withinBudget`. A shoving slide costs 3, a shoving roll 2, an
+  Opa shove 3: an Opa only shoves with 3 Actions Per Turn (the menus warn,
+  `shove-opa-needs-three`).
+- The old settings (push distance "1 square / as far as it travels",
+  "slides only / slides and rolls") are GONE everywhere (sphere, Tienda,
+  shared model, engine): the rule fixes both. `normalizeSelections` and
+  the sphere's loader drop an old save's `shove` key.
 
 Other pieces:
-- The move carries `shoves: { id, row, col, teleports }`.
-- ai.js applyMove/undoMove move the pushed piece. The net-zero checks and
-  the split-turn dedupe treat a shove as the turn doing something.
-- Chassis: commit applies it; step records carry `shoved`; settleTurn
-  never voids a turn that shoved.
-- Animation: `animateStep(..., shove)` glides the pushed piece on its own
-  carrier over the same duration (`anim.current.push`). Undo snaps it
-  back when the turn is restored.
-- Tests: the Shoving block in `tests/engine.smoke.mjs`,
-  `tests/e2e-shoving.mjs`, and the sphere settings in
-  `tests/e2e-singularity.mjs`.
+- The move carries `shoves: [{ id, row, col, teleports }]`, one per
+  pushed piece; `applyShoves(pieces, shoves)` (rules.js) moves them.
+- ai.js applyMove/undoMove move every pushed piece; the net-zero checks
+  and the split-turn dedupe treat a shove as the turn doing something.
+- Chassis: commit and the follow-up move preview use `applyShoves`; step
+  records carry `shoved: [ids]`; settleTurn never voids a turn that shoved.
+- Animation: `animateStep(..., shoves)` glides each pushed piece on its
+  own carrier over the same duration (`anim.current.push` is a list).
+  Undo snaps them back when the turn is restored.
+- `rollSweepClashes` (shapes.js) takes a list of pieces to ignore (the
+  pieces a roll pushes).
+- Tests: the Shoving block in `tests/engine.smoke.mjs` (Opa vs standing
+  Flaco on a roll and a slide, side by side, lines, mass sums, height
+  ignored, holes, edges, costs, crush, AI), `tests/e2e-shoving.mjs` (a
+  slide, a roll, the Opa pushing a Turrito and a Cabeza side by side in
+  the real game, an AI turn), and the no-settings checks in
+  `tests/e2e-singularity.mjs`, `tests/e2e-tienda.mjs` and
+  `tests/rules-selections.smoke.mjs`.
 
 Audio: the collapse roar's peak was trimmed from 0.022 to 0.018. At the
 end of the collapse the roar, the drone and the bell's tail sum; the
@@ -1764,16 +1777,16 @@ Sumi, Vacío) each have a Title and an In-game phone board.
   centre (`unusedNote`, data-testid `unused-points-note`), e.g. "1 point
   unused: an Opa moves only once per turn". Shown with or without the
   points counter; never for the AI's turns or a wormhole move.
-- **Shoving warnings (built).** SLIDES ONLY warns when Slide is off
-  (`shove-needs-slide`), and when Slide is on but 3 Actions is off
-  (`shove-needs-three`): a shoving slide costs 3 points.
+- **Shoving warnings.** The SLIDES ONLY warnings (`shove-needs-slide`,
+  `shove-needs-three`) went with the Shoving settings (see "Shoving LAW":
+  rolls and slides both shove now). Only `shove-opa-needs-three` remains.
 - **LAWS fixes (built).** Blurbs rewritten to match the engine (Slide
   costs 2, Black Holes are always two and exit on the same side, Split is
   up to two pieces, only a Codo/Rayo/Zeta can pivot). Warnings under a
   law's row (`lawWarning`, `law-warning-*`): Diagonal Slide without Slide;
   Cantilever Pivot with no Codo/Rayo/Zeta in the roster. Shoving adds
-  `shove-opa-needs-three` (slides-and-rolls, an Opa in the roster, no 3
-  Actions: an Opa shove costs 3).
+  `shove-opa-needs-three` (an Opa in the roster, no 3 Actions: an Opa
+  shove costs 3).
 - **Rayo and Zeta (built).** MATTER roster counters (0-4, default 0).
   Rayo: 4-cube S/Z (`rayo`, "Ra"); Zeta: 5-cube Z (`zeta`, "Ze"), which
   starts upright and can stand on one cube, so it can pivot (the Rayo can
@@ -2030,7 +2043,7 @@ lives now:
 | Singularity (Neon) | Tienda |
 |---|---|
 | MATTER: 11 pieces, counts 0–4 (Cabeza 1–2), Arco Chico/Alto/Ancho, 3-D models | Order form 1 · Pieces: same 11 with catalog numbers/prices, Arco size row (`tienda-arco-*`), wood photographs + 3-D viewer (the size's model) |
-| LAWS + Shoving's settings (far / on rolls) + warnings + "i" to rules cards | 2 · Rules: every law, "How it works ›" (`tienda-law-KEY-info`, opens the MOVES card over the form), Shoving's settings (`tienda-shove-far-on/off`, `-onRolls-`), warnings with a ☞ (`shove-needs-slide`, `shove-needs-three`, `shove-opa-needs-three`, `law-warning-cantileverPivot`) |
+| LAWS + warnings + "i" to rules cards | 2 · Rules: every law, "How it works ›" (`tienda-law-KEY-info`, opens the MOVES card over the form), warnings with a ☞ (`shove-opa-needs-three`, `law-warning-cantileverPivot`). Shoving has no settings any more. |
 | TOPOLOGY size, Missing Squares 1–5 pairs, Black Hole place, Select/Random/Done/Cancel pickers, back-row and wall-off rules | 3 · Board: size steppers + diagram (now shows X/O marks), Missing squares with Pairs 1–5 and Where + Select, Black holes' Where + Select; `SquarePicker` = "mark the board" (X / O, partner filled in, dots where pieces start, rolled marks dashed; tap a rolled mark to keep it; back rows hatched; wall-off cells red dash) |
 | Opponent/AI in the summary | 4 · Who's playing: A friend / The demonstrator plays Dark or Light, How well it plays (chassis state via setup extras) |
 | CONFIGURATIONS (saved presets) | 5 · Carbon copies: name + File a copy, pink slips with Use / Throw away (confirm); `localStorage["el-cabeza:tienda-orders"]`, rules only |

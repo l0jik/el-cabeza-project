@@ -1,5 +1,5 @@
 /* Custom rules as a set of choices: which pieces each side gets, which
-   laws are on (and how Shoving works), and the board (its size, missing
+   laws are on, and the board (its size, missing
    squares and the black holes' place, a shuffled start). The same
    choices Neon's Singularity sphere offers, shared by the themes whose
    menus set them (Lluvia's city, Tienda's order form); the menus only
@@ -48,17 +48,10 @@ export const LAW_OPTIONS = [
   { key: "diagonalSlide", name: "Diagonal slide", note: "Slides may go corner to corner. Needs Slide." },
   { key: "blackHoleSquares", name: "Black hole squares", note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn." },
   { key: "threeActions", name: "3 actions per turn", note: "3 points a turn instead of 2." },
-  { key: "shoving", name: "Shoving", note: "A piece moving into one with fewer cubes pushes it along. 1 point more." },
+  { key: "shoving", name: "Shoving", note: "Rolling or sliding into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. 1 point more." },
   { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 point." },
   { key: "splitMovement", name: "Split movement", note: "Spend a turn's points on up to two pieces." },
 ];
-// Shoving's two settings (as Neon's): how far a shove pushes, and which
-// moves shove.
-export const SHOVE_SETTINGS = [
-  { key: "far", name: "Push distance", options: [{ value: false, name: "1 square" }, { value: true, name: "As far as it travels" }] },
-  { key: "onRolls", name: "Shoves on", options: [{ value: false, name: "Slides only" }, { value: true, name: "Slides and rolls" }] },
-];
-
 // The board: rows (from one side's home row to the other's) and columns
 // (across, the width of a home row), each MIN_BOARD_DIM to MAX_BOARD_DIM.
 // SIZES are square quick picks.
@@ -70,7 +63,7 @@ export { MIN_BOARD_DIM, MAX_BOARD_DIM };
 export const clampDim = (v) => Math.max(MIN_BOARD_DIM, Math.min(MAX_BOARD_DIM, Math.round(v)));
 
 /* A selection:
-   { counts: {key: n}, arcoSize, laws: {key: bool}, shove: {far, onRolls},
+   { counts: {key: n}, arcoSize, laws: {key: bool},
      rows, cols, missing: bool, missingCount: 1..5,
      missingSpots: [{row, col, random}]   one square of each missing pair,
      holeSpot: {row, col, random} | null  one of the two black holes,
@@ -84,7 +77,7 @@ export function defaultSelections() {
   const laws = {};
   LAW_OPTIONS.forEach((l) => { laws[l.key] = false; });
   return {
-    counts, arcoSize: "chico", laws, shove: { far: false, onRolls: false },
+    counts, arcoSize: "chico", laws,
     rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM,
     missing: false, missingCount: 1, missingSpots: [], holeSpot: null,
     random: false,
@@ -106,7 +99,7 @@ export function normalizeSelections(sel) {
   });
   out.laws = { ...d.laws };
   LAW_OPTIONS.forEach((l) => { out.laws[l.key] = !!(sel.laws && sel.laws[l.key]); });
-  out.shove = { far: !!(sel.shove && sel.shove.far), onRolls: !!(sel.shove && sel.shove.onRolls) };
+  delete out.shove; // Shoving's old settings (distance, which moves): the rule now fixes both
   if (!ARCO_SIZES.some((a) => a.key === out.arcoSize)) out.arcoSize = "chico";
   if (!sel.rows || !sel.cols) { out.rows = sel.size || DEFAULT_BOARD_DIM; out.cols = sel.size || DEFAULT_BOARD_DIM; }
   out.rows = clampDim(out.rows); out.cols = clampDim(out.cols);
@@ -122,7 +115,6 @@ export function normalizeSelections(sel) {
 // What actually changes the game: settings of a feature that's off don't.
 function effective(sel) {
   const e = cloneSelections(sel);
-  if (!e.laws.shoving) e.shove = { far: false, onRolls: false };
   if (!e.counts.arco) e.arcoSize = "chico";
   if (!e.missing) { e.missingCount = 1; e.missingSpots = []; }
   if (!e.laws.blackHoleSquares) e.holeSpot = null;
@@ -266,10 +258,10 @@ export function toggleLaw(sel, key) {
   if (key === "blackHoleSquares" && on) fillSpots(sel, "hole");
   return sel;
 }
-// What the engine gets: the laws plus Shoving's settings.
+// What the engine gets: the laws (a diagonal slide only with Slide).
 export function lawsForEngine(sel) {
   const l = sel.laws;
-  return { ...l, diagonalSlide: l.diagonalSlide && l.slide, shoveFar: !!(l.shoving && sel.shove.far), shoveOnRolls: !!(l.shoving && sel.shove.onRolls) };
+  return { ...l, diagonalSlide: l.diagonalSlide && l.slide };
 }
 // Pieces that can ever stand balanced on one cube (so can pivot).
 const PIVOT_CAPABLE = ["codo", "rayo", "zeta"];
@@ -280,22 +272,14 @@ export function lawWarnings(sel) {
   const l = sel.laws;
   if (l.cantileverPivot && !PIVOT_CAPABLE.some((k) => sel.counts[k] > 0))
     out.push({ key: "cantileverPivot", testid: "law-warning-cantileverPivot", text: "Only a Codo, Rayo or Zeta can pivot. Order one under Pieces." });
-  if (l.shoving) {
-    if (sel.shove.onRolls) {
-      if (sel.counts.opa > 0 && !l.threeActions)
-        out.push({ key: "shoving", testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 points, so Opas only shove with 3 actions per turn." });
-    } else if (!l.slide) {
-      out.push({ key: "shoving", testid: "shove-needs-slide", text: "Slides only needs the Slide rule. Check Slide, or let rolls shove too." });
-    } else if (!l.threeActions) {
-      out.push({ key: "shoving", testid: "shove-needs-three", text: "A shoving slide costs 3 points, so slides only needs 3 actions per turn. Check it, or let rolls shove too." });
-    }
-  }
+  // Every Opa move costs 2 and a shove 1 more: an Opa only shoves with 3.
+  if (l.shoving && sel.counts.opa > 0 && !l.threeActions)
+    out.push({ key: "shoving", testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 points, so Opas only shove with 3 actions per turn." });
   return out;
 }
 
 /* ------------------------------------------------------------ the summary */
 
-const shovingName = (sel) => `Shoving (${sel.shove.far ? "as far as it travels" : "1 square"}, ${sel.shove.onRolls ? "slides and rolls" : "slides only"})`;
 const pieceName = (p, sel) => (p.key === "arco" ? `Arco ${(ARCO_SIZES.find((a) => a.key === sel.arcoSize) || ARCO_SIZES[0]).name}` : p.name);
 
 /* What the choices change, for the chassis's current-rules panel and its
@@ -305,7 +289,7 @@ export function variantsOf(sel, labels = {}) {
   const L = { laws: "LAWS", matter: "MATTER", topologies: "TOPOLOGY", ...labels };
   const groups = [];
   const lawsOn = LAW_OPTIONS.filter((l) => sel.laws[l.key]);
-  if (lawsOn.length) groups.push({ key: "laws", label: L.laws, items: lawsOn.map((l) => (l.key === "shoving" ? shovingName(sel) : l.name)), keys: lawsOn.map((l) => l.key) });
+  if (lawsOn.length) groups.push({ key: "laws", label: L.laws, items: lawsOn.map((l) => l.name), keys: lawsOn.map((l) => l.key) });
   const matter = PIECE_OPTIONS.filter((p) => sel.counts[p.key] !== p.def || (p.key === "arco" && sel.counts.arco && sel.arcoSize !== "chico")).map((p) => `${sel.counts[p.key]}× ${pieceName(p, sel)}`);
   if (sel.random) matter.unshift("Randomized start");
   if (matter.length) groups.push({ key: "matter", label: L.matter, items: matter });

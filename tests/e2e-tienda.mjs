@@ -316,16 +316,13 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await page.mouse.click(6, 6);
   for (let i = 0; i < 12 && (await count('[data-testid="tienda-piece-viewer"]')); i++) await page.waitForTimeout(250);
 
-  // Rules: Shoving's settings and the warnings, the rules cards.
+  // Rules: Shoving (no settings of its own) and its warning, the rules cards.
   await press('[data-testid="tienda-law-shoving"]');
-  check("Shoving shows its two settings", (await count('[data-testid="tienda-shove-settings"]')) === 1);
-  check("...and warns that slides only needs Slide", (await count('[data-testid="shove-needs-slide"]')) === 1);
+  check("Shoving has no settings of its own", (await count('[data-testid="tienda-shove-settings"], [data-testid^="tienda-shove-"]')) === 0);
+  check("...and warns that an Opa's shove needs 3 actions", (await count('[data-testid="shove-opa-needs-three"]')) === 1);
   await press('[data-testid="tienda-law-slide"]');
-  check("...then that a shoving slide needs 3 actions", (await count('[data-testid="shove-needs-three"]')) === 1 && (await count('[data-testid="shove-needs-slide"]')) === 0);
   await press('[data-testid="tienda-law-threeActions"]');
-  await press('[data-testid="tienda-shove-far-on"]');
-  await press('[data-testid="tienda-shove-onRolls-on"]');
-  check("...and with 3 actions no warning; far and on rolls set", (await count('.td-warn')) === 0 && (await attr('[data-testid="tienda-shove-far-on"]', "aria-pressed")) === "true" && (await attr('[data-testid="tienda-shove-onRolls-on"]', "aria-pressed")) === "true");
+  check("...which 3 actions per turn clears", (await count('.td-warn')) === 0);
   await press('[data-testid="tienda-law-cantileverPivot"]');
   check("Cantilever pivot with nothing that can pivot warns", (await count('[data-testid="law-warning-cantileverPivot"]')) === 1);
   await press('[data-testid="tienda-piece-codo-inc"]');
@@ -412,7 +409,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await slipTag.click({ timeout: 30000 });
   await page.waitForTimeout(400);
   const slip = await txt('[data-testid="tienda-slip-paper"]').catch(() => "");
-  check("...it unfolds to the order: rules, pieces, board", /RULES/.test(slip) && /PIECES/.test(slip) && /BOARD/.test(slip) && /Shoving \(as far as it travels, slides and rolls\)/.test(slip) && /Arco Alto/.test(slip), slip.replace(/\n/g, " | "));
+  check("...it unfolds to the order: rules, pieces, board", /RULES/.test(slip) && /PIECES/.test(slip) && /BOARD/.test(slip) && /Shoving/.test(slip) && !/as far as it travels/.test(slip) && /Arco Alto/.test(slip), slip.replace(/\n/g, " | "));
   await press('[data-testid="tienda-slip-law-shoving"]');
   await page.waitForTimeout(800);
   check("...and a rule on it opens that rule's card", (await attr('[data-testid="info-overlay"]', "data-open")) === "true");

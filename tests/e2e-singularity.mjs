@@ -767,54 +767,28 @@ if (state.activeCategory === "laws") {
       state.selections.blackHole.manual.col === Number(m[2]),
     JSON.stringify(state.selections.blackHole));
 
-  // Shoving: ticking the law reveals its two settings directly beneath
-  // it (push distance, which moves shove), defaulting to "1 square" and
-  // "slides only"; each choice is stored. Unticked again afterwards so
-  // the rest of this run plays without it.
-  check("the Shoving settings are hidden while the law is off",
-    (await page.locator('[data-testid="shove-settings"]').count()) === 0);
+  // Shoving has no settings of its own (a slide pushes one square, a roll
+  // just past where it lands; both shove). With an Opa in the roster and
+  // 2 points a turn it warns that an Opa's shove costs 3; 3 Actions Per
+  // Turn clears that. Unticked again afterwards so the rest of this run
+  // plays without it.
   await page.locator('[data-testid="law-shoving"]').click();
   await page.waitForTimeout(150);
   state = await sphereState();
-  check("Shoving toggles on, with its settings right beneath it at their defaults",
-    state.selections.laws.shoving === true &&
-      state.selections.shove.far === false && state.selections.shove.onRolls === false &&
-      (await page.evaluate(() => document.querySelector('[data-testid="law-shoving"]')?.nextElementSibling?.getAttribute("data-testid"))) === "shove-settings",
-    JSON.stringify(state.selections.shove));
-  // Slides-only shoving without the Slide law gets a one-line warning,
-  // which goes once Slide is on (or rolls shove too).
-  const slideWasOn = !!state.selections.laws.slide;
-  if (slideWasOn) { await page.locator('[data-testid="law-slide"]').click(); await page.waitForTimeout(150); }
-  check("slides-only shoving without Slide shows the warning",
-    (await page.locator('[data-testid="shove-needs-slide"]').count()) === 1);
-  await page.locator('[data-testid="law-slide"]').click();
-  await page.waitForTimeout(150);
-  check("...and turning Slide on clears it",
-    (await page.locator('[data-testid="shove-needs-slide"]').count()) === 0);
-  // With Slide on, a shoving slide still costs 3 points: without 3 Actions
-  // Per Turn a second warning says so, and ticking 3 Actions clears it.
-  state = await sphereState();
-  if (!state.selections.laws.threeActions) {
-    check("slides-only shoving without 3 Actions shows the 3-points warning",
-      (await page.locator('[data-testid="shove-needs-three"]').count()) === 1);
+  check("Shoving toggles on, with no settings of its own",
+    state.selections.laws.shoving === true && !("shove" in state.selections) &&
+      (await page.locator('[data-testid="shove-settings"], [data-testid^="shove-far-"], [data-testid^="shove-onRolls-"]').count()) === 0,
+    JSON.stringify(state.selections.laws));
+  if ((state.selections.matter.roster.opa || 0) > 0 && !state.selections.laws.threeActions) {
+    check("with an Opa and 2 points a turn it says an Opa's shove needs 3",
+      (await page.locator('[data-testid="shove-opa-needs-three"]').count()) === 1);
     await page.locator('[data-testid="law-threeActions"]').click();
     await page.waitForTimeout(150);
     check("...and turning 3 Actions on clears it",
-      (await page.locator('[data-testid="shove-needs-three"]').count()) === 0);
+      (await page.locator('[data-testid="shove-opa-needs-three"]').count()) === 0);
     await page.locator('[data-testid="law-threeActions"]').click();
     await page.waitForTimeout(150);
   }
-  if (!slideWasOn) { await page.locator('[data-testid="law-slide"]').click(); await page.waitForTimeout(150); }
-  await page.locator('[data-testid="shove-far-on"]').click();
-  await page.locator('[data-testid="shove-onRolls-on"]').click();
-  await page.waitForTimeout(150);
-  state = await sphereState();
-  check("choosing 'as far as it travels' and 'slides and rolls' stores both",
-    state.selections.shove.far === true && state.selections.shove.onRolls === true &&
-      (await page.locator('[data-testid="shove-far-on"]').getAttribute("aria-pressed")) === "true",
-    JSON.stringify(state.selections.shove));
-  check("slides and rolls shows neither warning",
-    (await page.locator('[data-testid="shove-needs-slide"], [data-testid="shove-needs-three"]').count()) === 0);
   await page.locator('[data-testid="law-shoving"]').click();
   await page.waitForTimeout(150);
 

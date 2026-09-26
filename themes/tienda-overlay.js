@@ -24,7 +24,7 @@
 
 import React from "react";
 import {
-  PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
+  PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
   defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
 } from "./rules-selections.js";
@@ -421,17 +421,6 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, x }) {
     const on = !!sel.laws[l.key];
     const info = h("button", { type: "button", className: "td-info", "data-testid": `tienda-law-${l.key}-info`, onClick: (e) => { e.preventDefault(); e.stopPropagation(); explain(l.key); } }, "How it works ›");
     const out = [check(`law-${l.key}`, on, l.name, l.note, () => change((s) => toggleLaw(s, l.key)), info)];
-    if (on && l.key === "shoving") {
-      out.push(h("div", { key: "shove", className: "td-sub", "data-testid": "tienda-shove-settings" },
-        ...SHOVE_SETTINGS.map((st) => h("div", { key: st.key, className: "td-sub-row" },
-          h("span", { className: "td-sub-h" }, st.name),
-          h("div", { className: "td-seg", role: "group", "aria-label": st.name },
-            ...st.options.map((o) => h("button", {
-              key: String(o.value), type: "button", "aria-pressed": !!sel.shove[st.key] === o.value ? "true" : "false",
-              "data-testid": `tienda-shove-${st.key}-${o.value ? "on" : "off"}`,
-              onClick: () => { click(); change((s) => { s.shove = { ...s.shove, [st.key]: o.value }; }); },
-            }, o.name)))))));
-    }
     if (on && l.key === "blackHoleSquares") {
       out.push(h("div", { key: "holes", className: "td-sub", "data-testid": "tienda-hole-settings" },
         h("span", { className: "td-sub-h" }, "Where"),

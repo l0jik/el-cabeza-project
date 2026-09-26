@@ -487,27 +487,12 @@ const LAWS_ITEMS = [
   { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
   { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 point." },
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 action points per turn instead of 2." },
-  { key: "shoving", label: "Shoving", blurb: "A piece moving into one with fewer cubes pushes it along. Costs 1 extra point." },
+  { key: "shoving", label: "Shoving", blurb: "Rolling or sliding into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Anything behind them blocks. Costs 1 extra point." },
 ];
 
-// The Shoving law's two game-start settings (selections.shove), shown
-// under its checkbox: how far a shove pushes, and which moves shove.
-const SHOVE_SETTINGS = [
-  { key: "far", label: "Push distance", options: [{ value: false, label: "1 square" }, { value: true, label: "As far as it travels" }] },
-  { key: "onRolls", label: "Shoves on", options: [{ value: false, label: "Slides only" }, { value: true, label: "Slides and rolls" }] },
-];
-// "Shoving (1 square, slides only)" etc. for the summary / variants.
-function shovingLabel(selections) {
-  const sh = selections.shove || {};
-  return `Shoving (${sh.far ? "as far as it travels" : "1 square"}, ${sh.onRolls ? "slides and rolls" : "slides only"})`;
-}
-function lawLabel(item, selections) {
-  return item.key === "shoving" ? shovingLabel(selections) : item.label;
-}
-// What setActiveLaws gets: the law checkboxes plus Shoving's settings.
+// What setActiveLaws gets: the law checkboxes.
 function lawsForEngine(selections) {
-  const sh = selections.shove || {};
-  return { ...selections.laws, shoveFar: !!sh.far, shoveOnRolls: !!sh.onRolls };
+  return { ...selections.laws };
 }
 
 // Footprints (col,row cells, all one layer) used only to draw the
@@ -610,8 +595,6 @@ function createDefaultSelections() {
     // of each placed pair ({row,col,random}), hand-picked or rolled at
     // random — each one's 180-degree mirror is its partner.
     missingSquare: { spots: [], count: 1 },
-    // The Shoving law's settings (only matter while it's on).
-    shove: { far: false, onRolls: false },
   };
 }
 
@@ -666,7 +649,7 @@ function missingSquaresLabel(count) {
 function buildVariantsSnapshot(selections) {
   const groups = [];
   const lawItems = LAWS_ITEMS.filter((i) => selections.laws[i.key]);
-  const laws = lawItems.map((i) => lawLabel(i, selections));
+  const laws = lawItems.map((i) => i.label);
   // keys: which rules card each item opens when tapped in the flyout.
   if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws, keys: lawItems.map((i) => i.key) });
 
@@ -893,10 +876,10 @@ function normalizeSelections(saved) {
     },
     topologies: pick(d.topologies, src.topologies),
     blackHole: { manual: cell(src.blackHole && src.blackHole.manual), random: !!(src.blackHole && src.blackHole.random) },
-    missingSquare: normalizeMissingSquare(src.missingSquare, cell),
     // Same key order as createDefaultSelections, so a loaded
     // configuration compares equal to the live selections it came from.
-    shove: pick(d.shove, src.shove),
+    // (An older save's `shove` settings are dropped: the rule fixes both.)
+    missingSquare: normalizeMissingSquare(src.missingSquare, cell),
   };
 }
 // Missing Squares' saved shape: { spots, count }. A configuration saved
@@ -2019,8 +2002,7 @@ function openRulesCard(tab, focus = null) {
 const PIVOT_CAPABLE_ROSTER = ["codo", "rayo", "zeta"];
 
 // A law that's on but can't do anything with the other settings, and
-// why: shown under the law's own row. Shoving's own cases live in
-// shoveWarning (under its settings).
+// why: shown under the law's own row.
 function lawWarning(key, sel) {
   const laws = sel.laws || {};
   if (!laws[key]) return null;
@@ -2030,6 +2012,12 @@ function lawWarning(key, sel) {
     const roster = (sel.matter && sel.matter.roster) || {};
     if (!PIVOT_CAPABLE_ROSTER.some((k) => roster[k] > 0))
       return { testid: "law-warning-cantileverPivot", text: "Only a Codo, Rayo or Zeta can pivot. Add one in MATTER." };
+  }
+  // Every Opa move costs 2 and a shove 1 more, so an Opa's shove is 3.
+  if (key === "shoving") {
+    const opas = (sel.matter && sel.matter.roster && sel.matter.roster.opa) || 0;
+    if (opas > 0 && !laws.threeActions)
+      return { testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 points, so Opas can only shove with 3 Actions Per Turn." };
   }
   return null;
 }
@@ -2043,95 +2031,6 @@ function renderLawWarning(w) {
       style: { margin: "0 0 8px 36px", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, lineHeight: 1.45, color: "rgba(255,214,150,0.85)", borderLeft: "2px solid rgba(255,196,110,0.55)", paddingLeft: 8 },
     },
     w.text
-  );
-}
-
-// Why the chosen Shoving settings can never shove, if they can't.
-function shoveWarning(sel) {
-  if (!sel.shove) return null;
-  const laws = sel.laws || {};
-  if (sel.shove.onRolls) {
-    // Rolls shove for 2, but an Opa's move already costs 2: its shove is 3.
-    const opas = (sel.matter && sel.matter.roster && sel.matter.roster.opa) || 0;
-    if (opas > 0 && !laws.threeActions)
-      return { testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 points, so Opas can only shove with 3 Actions Per Turn." };
-    return null;
-  }
-  if (!laws.slide) return { testid: "shove-needs-slide", text: "SLIDES ONLY requires the Slide law. Turn on Slide, or choose SLIDES AND ROLLS." };
-  if (!laws.threeActions) return { testid: "shove-needs-three", text: "A shoving slide costs 3 points, so SLIDES ONLY requires 3 Actions Per Turn. Turn it on, or choose SLIDES AND ROLLS." };
-  return null;
-}
-
-/* The Shoving law's two settings, directly under its checkbox (like
-   Black Hole placement under its own): push distance and which moves
-   shove. Each is a two-way segmented control. A note spells out the
-   point cost, since a slide (2) plus a shove (1) needs 3 points. */
-function renderShoveSettingsRow(t) {
-  const s = t.singularity;
-  const h = React.createElement;
-  const sel = s.selections;
-  if (!sel.shove) sel.shove = { far: false, onRolls: false };
-  const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-  return h(
-    "div",
-    {
-      key: "shove-settings",
-      "data-testid": "shove-settings",
-      style: { margin: "0 0 6px 36px", padding: "9px 11px", border: "1px solid rgba(102,217,255,0.22)", borderRadius: 4, background: "rgba(102,217,255,0.05)", display: "flex", flexDirection: "column", gap: 8 },
-    },
-    ...SHOVE_SETTINGS.map((setting) =>
-      h(
-        "div",
-        { key: setting.key, style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } },
-        h("div", { style: { ...mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(207,216,220,0.68)", minWidth: 96 } }, setting.label),
-        h(
-          "div",
-          { role: "group", "aria-label": setting.label, style: { display: "flex", border: "1px solid rgba(102,217,255,0.35)", borderRadius: 4, overflow: "hidden" } },
-          ...setting.options.map((opt, i) => {
-            const on = !!sel.shove[setting.key] === opt.value;
-            return h(
-              "button",
-              {
-                key: String(opt.value),
-                type: "button",
-                "data-testid": `shove-${setting.key}-${opt.value ? "on" : "off"}`,
-                "aria-pressed": on ? "true" : "false",
-                onClick: () => {
-                  sel.shove = { ...sel.shove, [setting.key]: opt.value };
-                  if (s.audio && s.audio.playSelect) s.audio.playSelect();
-                  s.labelsDirty = true; s.bump();
-                },
-                style: {
-                  ...mono, fontSize: 10, letterSpacing: "0.05em", textTransform: "uppercase",
-                  padding: "6px 10px", cursor: "pointer", border: "none",
-                  borderLeft: i ? "1px solid rgba(102,217,255,0.25)" : "none",
-                  background: on ? "rgba(102,217,255,0.22)" : "transparent",
-                  color: on ? "#dffaff" : "rgba(207,216,220,0.7)",
-                },
-              },
-              opt.label
-            );
-          })
-        )
-      )
-    ),
-    h(
-      "div",
-      { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.68)", lineHeight: 1.45 } },
-      "A shove adds 1 point: a shoving roll costs 2, a shoving slide 3, and an Opa shove 3 (its move already costs 2). Anything costing 3 needs 3 Actions Per Turn."
-    ),
-    // Slides-only shoving does nothing unless the Slide law is on, and
-    // even then a shoving slide costs 3 points, so it needs 3 Actions.
-    shoveWarning(sel) &&
-      h(
-        "div",
-        {
-          role: "status",
-          "data-testid": shoveWarning(sel).testid,
-          style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, lineHeight: 1.45, color: "rgba(255,214,150,0.85)", borderLeft: "2px solid rgba(255,196,110,0.55)", paddingLeft: 8 },
-        },
-        shoveWarning(sel).text
-      )
   );
 }
 
@@ -2805,9 +2704,6 @@ function renderCategoryOverlay(t) {
         if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares) {
           return [row, renderPairedSquarePlacementRow(t, "blackHole")];
         }
-        if (item.key === "shoving" && sel.laws.shoving) {
-          return [row, renderShoveSettingsRow(t)];
-        }
         const warning = lawWarning(item.key, sel);
         return warning ? [row, renderLawWarning(warning)] : [row];
       })
@@ -3106,7 +3002,7 @@ function renderSummaryPanel(setupExtras) {
         ? h("div", { "data-testid": "summary-loaded-config", style: { ...lineStyle, color: "#dffaff" } }, h("span", { style: tagStyle }, "CONFIGURATION  "), t.singularity.loadedConfigName)
         : null,
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "TOPOLOGY  "), boardLine),
-      h("div", { style: lineStyle }, h("span", { style: tagStyle }, "LAWS  "), lawsOn.length ? lawsOn.map((i) => lawLabel(i, sel)).join(", ") : "none"),
+      h("div", { style: lineStyle }, h("span", { style: tagStyle }, "LAWS  "), lawsOn.length ? lawsOn.map((i) => i.label).join(", ") : "none"),
       h("div", { style: lineStyle }, h("span", { style: tagStyle }, "MATTER  "), piecesChanged ? "custom pieces" : "the original five"),
       h("div", { style: { ...lineStyle, fontSize: 10.5, color: "rgba(207,216,220,0.58)", paddingLeft: 4 } }, rosterLine)
     ),
