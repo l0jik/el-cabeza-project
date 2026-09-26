@@ -5,7 +5,9 @@
    opened by tap or click; opening it puts the store round the board at
    a quality tier and pixel ratio the device can take, starts the store's
    sound (a user gesture), and leaves the masthead on screen and How to
-   play reachable; the page never scrolls sideways.
+   play reachable; the page never scrolls sideways. On a phone and a
+   laptop, How to play opens the rules leaflet (newsprint, torn edge)
+   and it fits.
 
    On a phone and a laptop: the catalog order form (custom rules) fits,
    its rules behave (Diagonal slide brings Slide), and placing the order
@@ -104,6 +106,21 @@ for (const size of SIZES) {
     let tape = null;
     for (let i = 0; i < 20; i++) { tape = await page.evaluate(() => window.__TIENDA_AUDIO__()); if (tape.playing === "tape" && tape.tapeTime > 1) break; await page.waitForTimeout(500); }
     check(`the store's tape is playing (${tape.tape}, ${tape.playing}, ${tape.tapeTime.toFixed(1)}s of ${tape.tapeLength.toFixed(0)}s)`, tape.tape === "ready" && tape.playing === "tape" && tape.tapeTime > 1 && tape.tapeLength > 150);
+  }
+  if (size === SIZES[0] || size === SIZES[7]) {
+    // How to play: the rules leaflet, on newsprint, torn at the edges.
+    await press('[data-testid="how-to-play"]');
+    await page.waitForTimeout(1200);
+    const leaf = await page.evaluate(() => {
+      const card = document.querySelector('[data-testid="info-overlay"] > div');
+      const cs = getComputedStyle(card), b = card.getBoundingClientRect();
+      return { open: document.querySelector('[data-testid="info-overlay"]').dataset.open, clip: cs.clipPath.slice(0, 8), paper: /data:image\/png/.test(cs.backgroundImage), x: b.x, w: b.width, y: b.y, h: b.height };
+    });
+    check("How to play opens the leaflet, printed on newsprint with a torn edge", leaf.open === "true" && leaf.clip === "polygon(" && leaf.paper, JSON.stringify(leaf));
+    check("...and it fits the screen", leaf.x >= 0 && leaf.x + leaf.w <= size.w + 1 && leaf.y >= 0 && leaf.y + leaf.h <= size.h + 1, JSON.stringify(leaf));
+    await shot("2b-leaflet");
+    await page.mouse.click(4, 4);
+    await page.waitForTimeout(700);
   }
   const title = await page.locator(".ec-title").first().boundingBox();
   check("the masthead is on screen", inView(title, size, 1), JSON.stringify(title));

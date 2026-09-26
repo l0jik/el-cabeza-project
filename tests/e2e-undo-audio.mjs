@@ -63,8 +63,14 @@ await win.locator("button", { hasText: "Begin Game" }).click();
 await win.waitForTimeout(3000);
 check("(win) sound is up while playing", ((await audioW()) || {}).gain > 0.1);
 await win.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "S"));
-await win.waitForTimeout(4500);
-const w1 = await audioW();
+// The fade starts when the move's animation lands, which on a loaded
+// machine can be late: wait for it (up to 12 s) rather than a fixed time.
+let w1 = null;
+for (let i = 0; i < 24; i++) {
+  await win.waitForTimeout(500);
+  w1 = await audioW();
+  if (w1 && w1.windingDown && w1.gain < 0.05) break;
+}
 console.log("  won:", JSON.stringify(w1));
 check("(win) Dark's Cabeza reached the far row and the sound faded", w1 && w1.gain < 0.05 && w1.windingDown);
 // A phone can suspend the context during the post-game silence.
