@@ -696,18 +696,18 @@ export const styleSheet = `
       radial-gradient(circle, ${NEWS.redInk} 0.9px, transparent 1.15px) 2px calc(100% - 6px) / 4px 4px repeat-x,
       radial-gradient(circle, ${NEWS.redInk} 0.5px, transparent 0.75px) 0 calc(100% - 2px) / 4px 4px repeat-x;
   }
-  [data-testid="info-overlay"] h2 {
+  [data-testid="info-overlay"] > div > div:first-child > h2 {
     font-family: 'Libre Franklin', 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif !important;
     font-weight: 900 !important; font-size: clamp(30px, 8vw, 42px) !important; line-height: 0.92 !important;
     letter-spacing: -0.015em !important; color: ${NEWS.ink} !important; margin: 0 0 2px !important;
     text-shadow: 1.3px 1px 0 rgba(176,56,42,0.6), 0 0 0.5px rgba(40,35,31,0.7);
   }
-  [data-testid="info-overlay"] h2::after {
+  [data-testid="info-overlay"] > div > div:first-child > h2::after {
     content: "The Game of Unparalleled Intention";
     display: block; margin-top: 7px; font: italic 600 13px/1.2 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.01em;
     text-shadow: 0 0 0.45px rgba(40,35,31,0.65);
   }
-  [data-testid="info-overlay"] h2 + div {
+  [data-testid="info-overlay"] > div > div:first-child > h2 + div {
     width: auto !important; height: 2px !important; background: transparent !important;
     border-top: 3px solid ${NEWS.ink}; border-bottom: 1px solid ${NEWS.ink}; margin: 10px 0 12px !important;
   }
