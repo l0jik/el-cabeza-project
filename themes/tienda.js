@@ -529,6 +529,120 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
   };
 }
 
+/* ------------------------------------------------------------ board features */
+
+/* A missing square: the square cut clean out of the board. Looking in,
+   the four walls show the board's plywood (its plies in stripes, the lit
+   wall lighter, the one in shadow darker) and at the bottom, in the
+   board's shadow, the display table's Formica. Painted on a flush square
+   (the board itself isn't cut), so it reads the same from every side. */
+let CUT_TEX = null;
+function cutTexture() {
+  if (CUT_TEX) return CUT_TEX;
+  const S = 256, d = Math.round(S * 0.17);
+  const c = document.createElement("canvas");
+  c.width = c.height = S;
+  const g = c.getContext("2d");
+  const r = rng(1975);
+  // The floor: the table's walnut-pattern Formica, deep in shadow.
+  g.fillStyle = "#2b1c11"; g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 26; i++) {
+    g.strokeStyle = `rgba(${95 + r() * 30},${62 + r() * 20},${36 + r() * 12},${0.25 + r() * 0.2})`;
+    g.lineWidth = 1 + r() * 2;
+    const y = d + r() * (S - 2 * d);
+    g.beginPath(); g.moveTo(d, y);
+    for (let x = d; x <= S - d; x += 12) g.lineTo(x, y + Math.sin(x * 0.05 + i) * 3);
+    g.stroke();
+  }
+  const floorShade = g.createRadialGradient(S / 2, S / 2, S * 0.08, S / 2, S / 2, S * 0.5);
+  floorShade.addColorStop(0, "rgba(0,0,0,0.15)"); floorShade.addColorStop(1, "rgba(0,0,0,0.6)");
+  g.fillStyle = floorShade; g.fillRect(d, d, S - 2 * d, S - 2 * d);
+  // The walls: plywood plies, stripes parallel to the board's face.
+  const plies = ["#C9A878", "#8E6A40", "#B99562", "#6E4E2C", "#C4A070", "#8A653A", "#B08A58"];
+  const wall = (pts, horizontal, shade) => {
+    g.save();
+    g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.clip();
+    const n = plies.length;
+    for (let k = 0; k < n; k++) {
+      g.fillStyle = plies[k];
+      const t0 = (k / n) * d, t1 = ((k + 1) / n) * d;
+      if (horizontal === "top") g.fillRect(0, t0, S, t1 - t0 + 0.5);
+      if (horizontal === "bottom") g.fillRect(0, S - t1, S, t1 - t0 + 0.5);
+      if (horizontal === "left") g.fillRect(t0, 0, t1 - t0 + 0.5, S);
+      if (horizontal === "right") g.fillRect(S - t1, 0, t1 - t0 + 0.5, S);
+    }
+    g.fillStyle = `rgba(20,12,6,${shade})`; g.fillRect(0, 0, S, S);
+    g.restore();
+  };
+  wall([[0, 0], [S, 0], [S - d, d], [d, d]], "top", 0.05);
+  wall([[S, 0], [S, S], [S - d, S - d], [S - d, d]], "right", 0.3);
+  wall([[0, 0], [d, d], [d, S - d], [0, S]], "left", 0.38);
+  wall([[0, S], [d, S - d], [S - d, S - d], [S, S]], "bottom", 0.55);
+  // The cut edge of the veneer: a bright lip where the light catches it.
+  g.strokeStyle = "rgba(255,236,200,0.55)"; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(1.5, S - 1.5); g.lineTo(1.5, 1.5); g.lineTo(S - 1.5, 1.5); g.stroke();
+  g.strokeStyle = "rgba(20,12,6,0.6)";
+  g.beginPath(); g.moveTo(S - 1.5, 1.5); g.lineTo(S - 1.5, S - 1.5); g.lineTo(1.5, S - 1.5); g.stroke();
+  CUT_TEX = new THREE.CanvasTexture(c);
+  return CUT_TEX;
+}
+export function buildMissingSquareVisual({ center }) {
+  const size = SQUARE_SIZE * 0.985;
+  const mat = new THREE.MeshBasicMaterial({ map: cutTexture(), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(center.x, 0.004, center.z);
+  m.name = "tienda-cut-square";
+  return m;
+}
+
+/* A black hole: a pocket let into the board, lined with black felt, with
+   a brass ring round its mouth, like the ball traps of the tabletop games
+   of the time. The two of a pair look alike. */
+let POCKET_TEX = null;
+function pocketTexture() {
+  if (POCKET_TEX) return POCKET_TEX;
+  const S = 256;
+  const c = document.createElement("canvas");
+  c.width = c.height = S;
+  const g = c.getContext("2d");
+  const r = rng(419);
+  g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 1, 0, Math.PI * 2); g.clip();
+  const felt = g.createRadialGradient(S * 0.46, S * 0.44, S * 0.04, S / 2, S / 2, S / 2);
+  felt.addColorStop(0, "#030202"); felt.addColorStop(0.65, "#0c0806"); felt.addColorStop(1, "#24170f");
+  g.fillStyle = felt; g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 2200; i++) {
+    g.fillStyle = `rgba(${60 + r() * 40},${40 + r() * 30},${30 + r() * 20},${0.04 + r() * 0.06})`;
+    g.fillRect(r() * S, r() * S, 1, 1);
+  }
+  // The far lip of the pocket catching a little light.
+  g.strokeStyle = "rgba(120,86,52,0.35)"; g.lineWidth = 6;
+  g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 6, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
+  POCKET_TEX = new THREE.CanvasTexture(c);
+  return POCKET_TEX;
+}
+export function buildBlackHoleVisual({ center, radius }) {
+  const q = quality();
+  const group = new THREE.Group();
+  group.name = "tienda-pocket";
+  const pocket = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 48),
+    new THREE.MeshBasicMaterial({ map: pocketTexture(), transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 })
+  );
+  pocket.rotation.x = -Math.PI / 2;
+  pocket.position.set(center.x, 0.004, center.z);
+  const brass = q.physical
+    ? new THREE.MeshStandardMaterial({ color: 0xc9a24a, metalness: 1, roughness: 0.34, envMap: storeEnv(), envMapIntensity: 1.1 })
+    : new THREE.MeshLambertMaterial({ color: 0xc9a24a });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(radius * 1.04, radius * 0.085, 12, 56), brass);
+  ring.rotation.x = -Math.PI / 2;
+  ring.scale.z = 0.55; // a low, flat ring
+  ring.position.set(center.x, 0.012, center.z);
+  ring.castShadow = true;
+  group.add(pocket, ring);
+  return group;
+}
+
 export function renderGlobalDefs() {
   return null;
 }

@@ -3022,18 +3022,29 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      engine/constants.js's BLACK_HOLES directly — that plain module
      state is invisible to React's render cycle, same reason `pieces`
      itself is a separate useState. */
+  // Empties a board-feature group (black holes, missing squares): every
+  // geometry and material in it, nested ones included. Textures are left
+  // alone: a theme's visuals may share cached ones.
+  function clearFeatureGroup(group) {
+    while (group.children.length) {
+      const c = group.children.pop();
+      c.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
+      });
+    }
+  }
   useEffect(() => {
     const t = three.current;
     if (!t.holeGroup) return;
     const group = t.holeGroup;
-    while (group.children.length) {
-      const c = group.children.pop();
-      c.geometry && c.geometry.dispose();
-      c.material && c.material.dispose();
-    }
+    clearFeatureGroup(group);
     const HOLE_RADIUS = 0.42;
-    blackHoles.forEach((hole) => {
+    blackHoles.forEach((hole, index) => {
       const center = pieceCenter({ row: hole.row, col: hole.col, w: 1, h: 1, z: 0 });
+      // A theme can dress the holes in its own world (Tienda: a brass-
+      // ringed pocket); otherwise the neutral orb below.
+      if (theme.buildBlackHoleVisual) { group.add(theme.buildBlackHoleVisual({ center, radius: HOLE_RADIUS, index })); return; }
       // A near-black glossy orb — an actual black hole, not the earlier
       // purple. A faint cool-grey emissive keeps it from vanishing into a
       // dark board while still reading as a void; a little metalness gives
@@ -3082,16 +3093,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     const t = three.current;
     if (!t.missingGroup) return;
     const group = t.missingGroup;
-    while (group.children.length) {
-      const c = group.children.pop();
-      c.geometry && c.geometry.dispose();
-      c.material && c.material.dispose();
-    }
+    clearFeatureGroup(group);
     const FOOT = SQUARE_SIZE * 0.96;
     const COLUMN_H = 21;
     const overlayMats = [];
     missingSquares.forEach((sq, idx) => {
       const center = pieceCenter({ row: sq.row, col: sq.col, w: 1, h: 1, z: 0 });
+      // A theme can show the square gone in its own way (Tienda: a hole
+      // cut through the wooden board); otherwise the static below.
+      if (theme.buildMissingSquareVisual) { group.add(theme.buildMissingSquareVisual({ center, size: FOOT, index: idx })); return; }
       const overlayMat = new THREE.ShaderMaterial({
         uniforms: { uTime: { value: 0 }, uSeed: { value: idx * 17.31 + 3.7 } },
         transparent: true,

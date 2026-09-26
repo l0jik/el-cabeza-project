@@ -52,5 +52,43 @@ for (let i = 0; i < 40; i++) {
 }
 check(`a tight order on a 10-wide board is set out as ordered, every time (${asOrdered}/40)`, asOrdered === 40);
 
-console.log(failures ? `\n${failures} check(s) failed` : "\nall rules-selections checks passed");
-process.exit(failures ? 1 : 0);
+// Everything Neon's sphere offers, in the shared model.
+import("../themes/rules-selections.js").then(async (m) => {
+  const { getBoardDimensions, ACTIVE_LAWS } = await import("../engine/constants.js");
+  const s = m.defaultSelections();
+  check("11 piece types, up to 4 each (Cabeza 1-2)", m.PIECE_OPTIONS.length === 11 && m.PIECE_OPTIONS.every((p) => p.max === (p.key === "cabeza" ? 2 : 4)));
+  s.counts.arco = 1; s.arcoSize = "ancho";
+  check("the Arco's size picks its piece type", m.pieceTypeOf("arco", s) === "arcoAncho");
+  s.laws.shoving = true; s.shove = { far: true, onRolls: false };
+  check("Shoving's settings reach the engine", m.lawsForEngine(s).shoveFar === true && m.lawsForEngine(s).shoveOnRolls === false);
+  check("...and a slides-only Shoving without Slide warns", m.lawWarnings(s).some((w) => w.testid === "shove-needs-slide"));
+  s.laws.cantileverPivot = true;
+  check("a pivot with nothing to pivot warns", m.lawWarnings(s).some((w) => w.testid === "law-warning-cantileverPivot"));
+  m.toggleLaw(s, "blackHoleSquares");
+  check("switching black holes on rolls their place, off the back rows", !!s.holeSpot && m.holeRowAllowed(s.holeSpot.row, s.rows));
+  check("a black hole in a back row is refused", m.spotProblem(s, "hole", 0, 4) === "backRow" && m.spotProblem(s, "hole", 9, 4) === "backRow");
+  s.missing = true; s.missingCount = 3; m.fillSpots(s, "missing");
+  check("3 missing pairs rolled, never on the black holes", s.missingSpots.length === 3 && !m.missingCellsOf(s).some((c) => m.holeCellsOf(s).some((h) => h.row === c.row && h.col === c.col)));
+  // A wall of missing squares across the board is refused.
+  const wallSel = { ...m.defaultSelections(), missing: true, missingCount: 5, rows: 6, cols: 6, missingSpots: [{ row: 2, col: 0 }, { row: 2, col: 1 }, { row: 2, col: 2 }] };
+  check("marking a square that would cut the board in two is refused", m.spotProblem(wallSel, "missing", 3, 3, wallSel.missingSpots) === "wall" || m.spotProblem(wallSel, "missing", 2, 3, wallSel.missingSpots) === "wall");
+  // Applying it: hand-placed squares are honoured, pieces set out round them.
+  const t = m.defaultSelections();
+  t.laws.blackHoleSquares = true; t.holeSpot = { row: 3, col: 2, random: false };
+  t.missing = true; t.missingCount = 1; t.missingSpots = [{ row: 1, col: 4, random: false }]; // in Dark's home rows, on the standard opening
+  const x = { applyBoardResize: (r, c) => setBoardDimensions(r, c) };
+  let honoured = 0, clear = 0;
+  for (let i = 0; i < 10; i++) {
+    const out = m.applySelections(t, x);
+    if (out.missing.some((q) => q.row === 1 && q.col === 4) && out.holes.some((q) => q.row === 3 && q.col === 2)) honoured++;
+    const bad = out.pieces.some((p) => [...out.missing, ...out.holes].some((q) => q.row >= p.row && q.row < p.row + p.h && q.col >= p.col && q.col < p.col + p.w));
+    if (!bad) clear++;
+  }
+  check(`hand-placed squares are used as marked (${honoured}/10), the pieces set out round them (${clear}/10)`, honoured === 10 && clear === 10);
+  const labelled = m.variantsOf({ ...t, laws: { ...t.laws, shoving: true }, shove: { far: false, onRolls: true } }, { laws: "RULES", matter: "PIECES", topologies: "BOARD" });
+  check("the summary uses the theme's words and names Shoving's settings", labelled[0].label === "RULES" && labelled[0].items.includes("Shoving (1 square, slides and rolls)"));
+  check("an old save normalises (size → rows × cols, counts clamped)", (() => { const n = m.normalizeSelections({ size: 12, counts: { opa: 9 } }); return n.rows === 12 && n.cols === 12 && n.counts.opa === 4 && n.missingSpots.length === 0; })());
+  setBoardDimensions(10, 10);
+  console.log(failures ? `\n${failures} check(s) failed` : "\nall rules-selections checks passed");
+  process.exit(failures ? 1 : 0);
+});

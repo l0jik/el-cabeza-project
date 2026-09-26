@@ -855,6 +855,22 @@ export function createAudio({ tapeUrl = null } = {}) {
       bell(t + 1.2, 1046.5, 0.035, sfxBus, 2.4);
     },
     playMenu() { ensureGraph(); if (!ctx) return; paper(now(), 0.25, 0.05); },
+    // An order filled, close by (Neon's toll, in this world): the rubber
+    // stamp coming down on the form, then the counter's register rings
+    // it up (a few keys, the bell, the drawer).
+    playOrderFilled() {
+      ensureStarted(); if (!ctx) return;
+      const t = now();
+      woodHit(t, { size: 3.2, level: 0.1, bright: 0.45, board: 0.9 });
+      paper(t + 0.005, 0.07, 0.06, 900);
+      [0.3, 0.4, 0.5].forEach((d, i) => tick(t + d, 950 + i * 120, 0.1, sfxBus, 0.03));
+      bell(t + 0.68, 2630, 0.07, sfxBus, 1.8);
+      const dr = noise(t + 0.76, 0.35), dlp = ctx.createBiquadFilter(); dlp.type = "lowpass"; dlp.frequency.value = 900;
+      const dg = ctx.createGain(); dg.gain.setValueAtTime(0.16, t + 0.76); dg.gain.exponentialRampToValueAtTime(0.001, t + 1.1);
+      dr.connect(dlp).connect(dg).connect(sfxBus);
+    },
+    // A square marked on the form's board with a pencil.
+    playMark() { ensureGraph(); if (!ctx) return; paper(now(), 0.09, 0.05, 2400); },
     fadeOutMenu() {}, stopMenu() {},
     playRulesOpen() { ensureGraph(); if (!ctx) return; const t = now(); paper(t, 0.32, 0.06); paper(t + 0.28, 0.2, 0.04, 1100); },
     playRulesClose() { ensureGraph(); if (!ctx) return; paper(now(), 0.24, 0.05, 1100); },

@@ -19,6 +19,13 @@
    Move Log, the sound winding down (the tape stopping, keeping its
    place), and New Game back to the table with one store, not two.
 
+   Everything Neon's Singularity sphere offers, in the order form: the
+   Blocks and Arco sizes, Shoving's settings and the warnings, each rule's
+   card, black holes and missing squares marked on the board by hand,
+   the opponent, carbon copies (saved setups), the stamp as it's placed,
+   the game it makes (cut squares, brass pockets), and the sales slip
+   of the order in play.
+
    The store's tape (a Muzak recording beside the page) is fetched and
    playing on a phone and a laptop; opened on its own, without the tape,
    the page plays its own arrangements instead.
@@ -278,6 +285,138 @@ for (const size of [SIZES[2], SIZES[7]]) {
   check("New Game sets the table again, in one store", after.stores === 1 && after.pieces > 0, JSON.stringify(after));
   check("the page doesn't scroll sideways (after the game)", await noSideScroll(page));
   await shot("9-new-game");
+  check("no page errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+/* ---- everything Neon's Singularity sphere offers, as the order form ---- */
+{
+  const size = SIZES[7];
+  console.log(`\n${size.name}: everything the Singularity offers`);
+  const { ctx, page, errs, press, shot } = await open(size);
+  const attr = (sel, a) => page.locator(sel).first().getAttribute(a);
+  const txt = (sel) => page.locator(sel).first().innerText();
+  const count = (sel) => page.locator(sel).count();
+  await press('[data-testid="tienda-lid-order"]');
+  await page.waitForTimeout(1500);
+
+  // Pieces: the 1×3 and 2×3 Blocks, counts to 4, the Arco's three sizes.
+  await press('[data-testid="tienda-piece-block1x3-inc"]');
+  await press('[data-testid="tienda-piece-block2x3-inc"]');
+  for (let i = 0; i < 3; i++) await press('[data-testid="tienda-piece-turrito-inc"]');
+  check("the Blocks are on the form, and a count goes to 4", (await txt('[data-testid="tienda-piece-block1x3"] output')) === "1" && (await txt('[data-testid="tienda-piece-turrito"] output')) === "4" && (await page.locator('[data-testid="tienda-piece-turrito-inc"]').isDisabled()));
+  for (let i = 0; i < 3; i++) await press('[data-testid="tienda-piece-turrito-dec"]');
+  await press('[data-testid="tienda-piece-arco-inc"]');
+  await press('[data-testid="tienda-arco-alto"]');
+  await page.waitForTimeout(300);
+  check("the Arco comes Chico, Alto or Ancho, and its photograph follows", (await attr('[data-testid="tienda-arco-alto"]', "aria-pressed")) === "true" && (await attr('[data-testid="tienda-view-arco"]', "data-type")) === "arcoAlto");
+  await press('[data-testid="tienda-view-arco"]');
+  await page.waitForTimeout(1200);
+  check("...and it takes up in 3-D in its size", (await attr('[data-testid="tienda-piece-viewer"]', "data-piece")) === "arcoAlto");
+  await page.mouse.click(6, 6);
+  for (let i = 0; i < 12 && (await count('[data-testid="tienda-piece-viewer"]')); i++) await page.waitForTimeout(250);
+
+  // Rules: Shoving's settings and the warnings, the rules cards.
+  await press('[data-testid="tienda-law-shoving"]');
+  check("Shoving shows its two settings", (await count('[data-testid="tienda-shove-settings"]')) === 1);
+  check("...and warns that slides only needs Slide", (await count('[data-testid="shove-needs-slide"]')) === 1);
+  await press('[data-testid="tienda-law-slide"]');
+  check("...then that a shoving slide needs 3 actions", (await count('[data-testid="shove-needs-three"]')) === 1 && (await count('[data-testid="shove-needs-slide"]')) === 0);
+  await press('[data-testid="tienda-law-threeActions"]');
+  await press('[data-testid="tienda-shove-far-on"]');
+  await press('[data-testid="tienda-shove-onRolls-on"]');
+  check("...and with 3 actions no warning; far and on rolls set", (await count('.td-warn')) === 0 && (await attr('[data-testid="tienda-shove-far-on"]', "aria-pressed")) === "true" && (await attr('[data-testid="tienda-shove-onRolls-on"]', "aria-pressed")) === "true");
+  await press('[data-testid="tienda-law-cantileverPivot"]');
+  check("Cantilever pivot with nothing that can pivot warns", (await count('[data-testid="law-warning-cantileverPivot"]')) === 1);
+  await press('[data-testid="tienda-piece-codo-inc"]');
+  check("...and a Codo clears it", (await count('[data-testid="law-warning-cantileverPivot"]')) === 0);
+  await press('[data-testid="tienda-law-slide-info"]');
+  await page.waitForTimeout(900);
+  check("\"How it works\" opens that rule's card over the form", (await attr('[data-testid="info-overlay"]', "data-open")) === "true" && (await count('[data-testid="rules-card-moves"]')) === 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(700);
+  check("...Escape closes the card and the form stays", (await attr('[data-testid="info-overlay"]', "data-open")) === "false" && (await count('[data-testid="tienda-order"]')) === 1);
+
+  // The board: black holes placed by hand, missing squares marked.
+  await press('[data-testid="tienda-law-blackHoleSquares"]');
+  check("Black holes get a place at once (at random)", /O row/.test(await txt('[data-testid="tienda-hole-where"]')));
+  await press('[data-testid="tienda-hole-select"]');
+  await page.waitForTimeout(500);
+  await press('[data-testid="tienda-cell-0-4"]');
+  check("the picker refuses a back row, and says why", /back rows/.test(await txt('[data-testid="tienda-picker-note"]')) && (await count('[data-testid="tienda-picker"]')) === 1);
+  await press('[data-testid="tienda-cell-3-2"]');
+  await page.waitForTimeout(400);
+  check("...a tap places the pair and closes", (await count('[data-testid="tienda-picker"]')) === 0 && (await txt('[data-testid="tienda-hole-where"]')).startsWith("O row 4, col 3") && !/random/.test(await txt('[data-testid="tienda-hole-where"]')));
+  await press('[data-testid="tienda-missing"]');
+  await press('[data-testid="tienda-missing-count-inc"]');
+  check("Missing squares: 2 pairs rolled at once", ((await txt('[data-testid="tienda-missing-where"]')).match(/X row/g) || []).length === 2);
+  await press('[data-testid="tienda-missing-select"]');
+  await page.waitForTimeout(500);
+  await press('[data-testid="tienda-picker-random"]');
+  const rolled = await count('[data-testid="tienda-picker"] [data-mark="rolled"]');
+  // Mark one of our own: the first empty square the picker allows.
+  const free = await page.evaluate(() => {
+    const cells = [...document.querySelectorAll('[data-testid="tienda-picker"] .td-cell')];
+    const c = cells.find((b) => !b.dataset.mark && !b.classList.contains("wall") && !b.classList.contains("piece") && !b.querySelector(".mk") && +b.dataset.row > 2 && +b.dataset.row < 7);
+    return c ? c.dataset.testid : null;
+  });
+  await press(`[data-testid="${free}"]`);
+  await page.waitForTimeout(300);
+  check(`...Random rolls them (${rolled} rolled), a tap marks one by hand`, rolled === 2 && (await attr(`[data-testid="${free}"]`, "data-mark")) === "hand");
+  await shot("9-picker");
+  await press('[data-testid="tienda-picker-done"]');
+  await page.waitForTimeout(400);
+  const where = await txt('[data-testid="tienda-missing-where"]');
+  check(`...Done keeps it (${where})`, (where.match(/X row/g) || []).length === 2 && /X row \d+, col \d+(?! \(random\))/.test(where));
+  check("the board diagram shows the marks (4 X, 2 O)", (await count('.td-diagram-mark')) === 6);
+
+  // Who's playing, and a carbon copy.
+  await press('[data-testid="tienda-opponent-light"]');
+  await page.waitForTimeout(300);
+  await press('[data-testid="tienda-skill-hard"]');
+  check("the demonstrator can take Light, playing hard", (await attr('[data-testid="tienda-opponent-light"]', "aria-pressed")) === "true" && (await attr('[data-testid="tienda-skill-hard"]', "aria-pressed")) === "true");
+  await page.locator('[data-testid="tienda-copy-name"]').fill("Test order");
+  await press('[data-testid="tienda-copy-save"]');
+  const copyId = await page.evaluate(() => { const c = document.querySelector('[data-testid^="tienda-copy-c"]'); return c && c.dataset.testid.replace("tienda-copy-", ""); });
+  check("a carbon copy is filed", !!copyId && (await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:tienda-orders") || "[]").length)) === 1);
+  await press('[data-testid="tienda-piece-block1x3-dec"]');
+  await press(`[data-testid="tienda-copy-use-${copyId}"]`);
+  await page.waitForTimeout(300);
+  check("...and using it brings the order back", (await txt('[data-testid="tienda-piece-block1x3"] output')) === "1");
+  await press('[data-testid="tienda-copy-name"]');
+  await page.locator('[data-testid="tienda-copy-name"]').fill("Spare");
+  await press('[data-testid="tienda-copy-save"]');
+  const spare = await page.evaluate(() => { const c = [...document.querySelectorAll('[data-testid^="tienda-copy-c"]')].find((e) => e.dataset.name === "Spare"); return c && c.dataset.testid.replace("tienda-copy-", ""); });
+  await press(`[data-testid="tienda-copy-toss-${spare}"]`);
+  await press('[data-testid="tienda-copy-toss-yes"]');
+  check("...and one can be thrown away (after asking)", (await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:tienda-orders") || "[]").map((c) => c.name).join(","))) === "Test order");
+  await shot("10-form-bottom");
+
+  // Placing it: the stamp, then that game.
+  const handSpot = (where.match(/X row (\d+), col (\d+)(?! \(random\))/) || []).slice(1).map((n) => +n - 1);
+  await page.locator('[data-testid="tienda-order-place"]').click({ timeout: 30000 });
+  check("placing the order stamps it filled", (await attr('[data-testid="tienda-order"]', "data-filled")) === "true" && (await count('[data-testid="tienda-order-stamp"]')) === 1);
+  await page.waitForTimeout(5000);
+  const game = await page.evaluate(() => {
+    const t = window.__TIENDA_THREE__;
+    let cuts = 0, pockets = 0;
+    t.boardGroup.traverse((o) => { if (o.name === "tienda-cut-square") cuts++; if (o.name === "tienda-pocket") pockets++; });
+    return { pieces: (window.__EC_TEST_PIECES__ || []).map((p) => p.type), missing: window.__EC_TEST_MISSING_SQUARES__ || [], cuts, pockets };
+  });
+  const types = new Set(game.pieces);
+  check(`the game has the pieces ordered (${[...types].sort().join(", ")})`, ["arcoAlto", "block1x3", "block2x3", "codo"].every((t) => types.has(t)));
+  check("...the hand-marked square cut out", game.missing.length === 4 && game.missing.some((m) => m.row === handSpot[0] && m.col === handSpot[1]), JSON.stringify({ handSpot, missing: game.missing }));
+  check("...cut squares and black holes drawn in the store's wood and brass", game.cuts === 4 && game.pockets === 2, JSON.stringify(game));
+  const slipTag = page.locator('[data-testid="tienda-slip-tag"]');
+  check("in the game, the sales slip shows at the top left", (await slipTag.count()) === 1 && inView(await slipTag.boundingBox(), size));
+  await slipTag.click({ timeout: 30000 });
+  await page.waitForTimeout(400);
+  const slip = await txt('[data-testid="tienda-slip-paper"]').catch(() => "");
+  check("...it unfolds to the order: rules, pieces, board", /RULES/.test(slip) && /PIECES/.test(slip) && /BOARD/.test(slip) && /Shoving \(as far as it travels, slides and rolls\)/.test(slip) && /Arco Alto/.test(slip), slip.replace(/\n/g, " | "));
+  await press('[data-testid="tienda-slip-law-shoving"]');
+  await page.waitForTimeout(800);
+  check("...and a rule on it opens that rule's card", (await attr('[data-testid="info-overlay"]', "data-open")) === "true");
+  await shot("11-slip");
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

@@ -24,9 +24,11 @@
 
 import React from "react";
 import {
-  PIECE_OPTIONS, LAW_OPTIONS, MAX_PIECES, MIN_BOARD_DIM, MAX_BOARD_DIM,
-  defaultSelections, cloneSelections, totalPieces, toggleLaw, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
+  PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
+  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
+  pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
 } from "./rules-selections.js";
+import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS } from "./tienda-order.js";
 import { ensurePaper } from "./tienda-textures.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
@@ -59,7 +61,10 @@ export function useSetupExtras(x) {
 }
 
 export function renderExtraOverlays(x) {
-  if (!x || !x.tiendaOverlay || !x.awaitingBegin) return null;
+  if (!x) return null;
+  // In a game: the sales slip of what was ordered.
+  if (x.isPlaying && !x.awaitingBegin) return h(OrderSlip, { key: "slip", groups: x.currentVariants, audio: x.audio });
+  if (!x.tiendaOverlay || !x.awaitingBegin) return null;
   if (x.tiendaOverlay === "lid") {
     return h(BoxLid, {
       key: "lid",
@@ -73,8 +78,9 @@ export function renderExtraOverlays(x) {
     initial: x.selRef.current,
     onChange: (s) => { x.selRef.current = s; },
     onCancel: () => { x.audio && x.audio.playRulesClose && x.audio.playRulesClose(); x.closeOverlay(); },
-    onPlace: (sel) => beginCustomGame(sel, x, (s) => x.reopenOrder && x.reopenOrder(s)),
+    onPlace: (sel) => beginCustomGame(sel, x, (s) => x.reopenOrder && x.reopenOrder(s), { labels: TIENDA_VARIANT_LABELS }),
     audio: x.audio,
+    x,
   });
 }
 
@@ -132,7 +138,7 @@ const CSS = `
   .td-form { position: relative; width: min(760px, 100%); max-height: calc(100dvh - 24px); display: flex; flex-direction: column;
     background-color: ${PAPER}; background-image: var(--tienda-paper); color: ${INK}; border-radius: 2px;
     box-shadow: 0 1px 0 #d8ccb0, 0 24px 60px rgba(10,6,3,0.55); }
-  .td-form-scroll { overflow: auto; -webkit-overflow-scrolling: touch; padding: clamp(14px, 3vw, 28px) clamp(14px, 3.4vw, 32px) 8px; }
+  .td-form-scroll { position: relative; overflow: auto; -webkit-overflow-scrolling: touch; padding: clamp(14px, 3vw, 28px) clamp(14px, 3.4vw, 32px) 8px; }
   .td-form-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 16px; border-bottom: 3px solid ${INK}; padding-bottom: 8px; }
   .td-form-title { margin: 0; font: 900 clamp(26px, 4.4vw, 40px)/0.95 ${FRANKLIN}; letter-spacing: 0.02em; }
   .td-form-sub { font: 700 clamp(10.5px, 1.2vw, 12px)/1.4 ${FRANKLIN}; letter-spacing: 0.14em; text-transform: uppercase; color: ${RED}; }
@@ -209,7 +215,33 @@ const CSS = `
     .td-opening .td-lid { transform: none; }
   }
 `;
-const Style = () => h("style", null, CSS);
+const MORE_CSS = `
+  .td-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 4px 44px; padding: 8px 10px; border-left: 2px solid rgba(46,33,24,0.45);
+    background: rgba(46,33,24,0.04); }
+  .td-sub-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; width: 100%; }
+  .td-sub-h { font: 700 11.5px/1.2 ${FRANKLIN}; letter-spacing: 0.12em; text-transform: uppercase; min-width: 7.5em; }
+  .td-sub-val { font: 400 12.5px/1.35 ${COURIER}; color: #1F3A6B; flex: 1 1 12em; }
+  .td-small-btn { min-height: 44px; padding: 0 14px; font-size: 12px; }
+  .td-info { display: inline-block; margin-top: 4px; padding: 6px 0; min-height: 32px; border: none; background: transparent; color: ${RED};
+    font: 700 12px/1.2 ${COURIER}; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+  .td-info:focus-visible { outline: 3px solid ${RED}; outline-offset: 2px; }
+  .td-warn { margin: 0 0 6px 44px; padding: 6px 10px; font: 700 12.5px/1.4 ${COURIER}; color: ${RED}; border-left: 2px solid ${RED}; background: rgba(163,63,51,0.06); }
+  .td-diagram-mark { position: absolute; display: flex; align-items: center; justify-content: center; font: 700 10px/1 ${COURIER}; font-style: normal; color: #1F3A6B;
+    background: rgba(239,230,205,0.8); }
+  .td-opponent .td-dim { border-bottom: none; }
+  /* The order going through: the stamp comes down, and the form goes. */
+  .td-filled-stamp { position: absolute; left: 50%; top: 42%; z-index: 5; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 10px 22px 8px; border: 4px double rgba(163,63,51,0.85); color: rgba(163,63,51,0.9); background: rgba(239,230,205,0.2);
+    transform: translate(-50%, -50%) rotate(-9deg); animation: tdStamp 0.22s cubic-bezier(0.3, 0, 0.4, 1) both; mix-blend-mode: multiply; }
+  .td-filled-stamp b { font: 900 clamp(26px, 6vw, 44px)/1 ${FRANKLIN}; letter-spacing: 0.08em; text-transform: uppercase; }
+  .td-filled-stamp span { font: 700 11px/1.2 ${COURIER}; letter-spacing: 0.12em; text-transform: uppercase; }
+  @keyframes tdStamp { 0% { transform: translate(-50%, -50%) rotate(-9deg) scale(1.7); opacity: 0; } 100% { transform: translate(-50%, -50%) rotate(-9deg) scale(1); opacity: 1; } }
+  .td-filled { animation: tdFormAway 0.5s ease 0.62s both; }
+  @keyframes tdFormAway { to { transform: translateY(24px); opacity: 0; } }
+  @media (max-width: 560px) { .td-sub, .td-warn { margin-left: 0; } }
+  @media (prefers-reduced-motion: reduce) { .td-filled-stamp, .td-filled { animation: none; } }
+`;
+const Style = () => h("style", null, CSS + MORE_CSS + ORDER_PARTS_CSS);
 
 /* ------------------------------------------------------------ the box lid */
 
@@ -260,48 +292,66 @@ const CATALOG = {
   flaco: ["49 T 4403", "30¢", "Two cubes, end to end."],
   chato: ["49 T 4404", "40¢", "Four cubes, flat."],
   opa: ["49 T 4405", "65¢", "Eight cubes. Heavy."],
-  codo: ["49 T 4406", "35¢", "Three cubes in an L."],
-  arco: ["49 T 4407", "55¢", "An arch of five."],
+  block1x3: ["49 T 4410", "35¢", "Three cubes in a row."],
+  block2x3: ["49 T 4411", "75¢", "Six cubes, a slab."],
+  codo: ["49 T 4406", "35¢", "Three cubes in an L. Its overhang can shelter a Cabeza."],
+  arco: ["49 T 4407", "55¢", "An arch. A Cabeza in its opening is sheltered."],
   rayo: ["49 T 4408", "45¢", "Four cubes, an S."],
   zeta: ["49 T 4409", "55¢", "Five cubes, a Z."],
 };
+// The Arco sizes as the catalog lists them.
+const ARCO_CATALOG = { chico: ["49 T 4407", "55¢"], alto: ["49 T 4412", "75¢"], ancho: ["49 T 4413", "65¢"] };
+// The summary's groups, in the store's words.
+export const TIENDA_VARIANT_LABELS = { laws: "RULES", matter: "PIECES", topologies: "BOARD" };
 
 /* The board as the catalog drew it: squares to scale, the two sides'
    home rows shaded (the far one light, the near one dark). */
-function BoardDiagram({ rows, cols }) {
+function BoardDiagram({ sel }) {
+  const { rows, cols } = sel;
   const cell = Math.max(3, Math.min(92 / cols, 92 / rows));
+  // Marked squares: X cut out, O black holes (drawn from Dark's side, as
+  // the picker is: row 0 at the bottom, column 0 on the right).
+  const mark = (c, ch, i) => h("i", { key: `${ch}${i}`, className: "td-diagram-mark", style: { left: (cols - 1 - c.col) * cell, top: (rows - 1 - c.row) * cell, width: cell, height: cell, fontSize: Math.max(7, cell * 0.9) } }, ch);
   return h("figure", { className: "td-diagram", "data-testid": "tienda-board-diagram", "data-rows": rows, "data-cols": cols, "aria-label": `The board: ${cols} squares wide, ${rows} long` },
     h("div", { className: "td-diagram-board", style: { width: cell * cols, height: cell * rows, backgroundSize: `${cell * 2}px ${cell * 2}px` } },
       h("i", { className: "td-home td-home-far", style: { height: cell * 2 } }),
-      h("i", { className: "td-home td-home-near", style: { height: cell * 2 } })),
+      h("i", { className: "td-home td-home-near", style: { height: cell * 2 } }),
+      ...missingCellsOf(sel).map((c, i) => mark(c, "X", i)),
+      ...holeCellsOf(sel).map((c, i) => mark(c, "O", i))),
     h("figcaption", null, `${cols} × ${rows}`));
 }
 
 // Square sizes a tap away (any width and length can be set).
 const QUICK_SIZES = [8, 10, 12, 16, 20];
 
-function OrderForm({ initial, onChange, onCancel, onPlace, audio }) {
-  const [sel, setSel] = React.useState(() => {
-    const s = cloneSelections(initial || defaultSelections());
-    if (!s.rows || !s.cols) { s.rows = s.size || 10; s.cols = s.size || 10; delete s.size; }
-    return s;
-  });
+function OrderForm({ initial, onChange, onCancel, onPlace, audio, x }) {
+  const [sel, setSel] = React.useState(() => normalizeSelections(cloneSelections(initial || defaultSelections())));
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); onChange && onChange(n); return n; });
+  const replace = (n) => { setSel(n); onChange && onChange(n); };
   const click = () => { audio && audio.playSelect && audio.playSelect(); };
   const total = totalPieces(sel), over = total > MAX_PIECES;
   const fits = piecesFit(sel), need = fits ? null : minColsFor(sel);
-  // The piece taken up off the page, if any: { key, name, detail, cat, price, rect, closing }.
+  const warnings = lawWarnings(sel);
+  // The piece taken up off the page, if any: { key, type, name, detail, cat, price, rect, closing }.
   const [viewer, setViewer] = React.useState(null);
-  const [photos, setPhotos] = React.useState(() => PIECE_OPTIONS.every((p) => !hasWoodShowcase(p.key) || woodPhoto(p.key)));
+  // The board being marked ("missing" | "hole"), if any.
+  const [picker, setPicker] = React.useState(null);
+  // The order going through: the stamp, the register, then the game.
+  const [filled, setFilled] = React.useState(false);
+  const photoTypes = [...PIECE_OPTIONS.map((p) => p.key), ...ARCO_SIZES.map((a) => a.type)];
+  const [photos, setPhotos] = React.useState(() => photoTypes.every((t) => !hasWoodShowcase(t) || woodPhoto(t)));
   React.useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape" && !document.querySelector('[data-testid="tienda-piece-viewer"]')) onCancel(); };
+    const onKey = (e) => {
+      if (e.key !== "Escape" || document.querySelector('[data-testid="tienda-piece-viewer"], [data-testid="tienda-picker"], [data-testid="info-overlay"][data-open="true"]')) return;
+      onCancel();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   // The photographs, once the form is on screen.
   React.useEffect(() => {
     if (photos) return undefined;
-    const id = setTimeout(() => { ensureWoodPhotos(PIECE_OPTIONS.map((p) => p.key)); setPhotos(true); }, 60);
+    const id = setTimeout(() => { ensureWoodPhotos(photoTypes); setPhotos(true); }, 60);
     return () => clearTimeout(id);
   }, []);
   const closeViewer = () => setViewer((v) => {
@@ -310,29 +360,36 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio }) {
     const still = document.querySelector(`[data-testid="tienda-view-${v.key}"]`);
     return { ...v, rect: still ? still.getBoundingClientRect() : v.rect, closing: true };
   });
+  // "How it works": the rules card for that law, over the form.
+  const explain = (key) => { click(); window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "moves", focus: key } })); };
 
   const pieceRows = PIECE_OPTIONS.map((p) => {
     const n = sel.counts[p.key];
-    const [cat, price, note] = CATALOG[p.key] || ["", "", ""];
+    const isArco = p.key === "arco";
+    const arco = isArco ? ARCO_SIZES.find((a) => a.key === sel.arcoSize) || ARCO_SIZES[0] : null;
+    const [cat0, price0, note] = CATALOG[p.key] || ["", "", ""];
+    const [cat, price] = isArco ? ARCO_CATALOG[arco.key] : [cat0, price0];
+    const type = pieceTypeOf(p.key, sel);
+    const name = isArco ? `Arco ${arco.name}` : p.name;
     const set = (v) => { click(); change((s) => { s.counts[p.key] = Math.max(p.min, Math.min(p.max, v)); }); };
     const viewing = !!(viewer && viewer.key === p.key);
-    const photo = hasWoodShowcase(p.key)
+    const photo = hasWoodShowcase(type)
       ? h("button", {
-          type: "button", className: "td-photo-btn", "data-testid": `tienda-view-${p.key}`, "data-viewing": viewing ? "true" : "false",
-          "aria-label": `Take up the ${p.name} and turn it over in 3-D`,
+          type: "button", className: "td-photo-btn", "data-testid": `tienda-view-${p.key}`, "data-viewing": viewing ? "true" : "false", "data-type": type,
+          "aria-label": `Take up the ${name} and turn it over in 3-D`,
           onClick: (e) => {
             if (viewer) return;
             click();
-            setViewer({ key: p.key, name: p.name, detail: note, cat, price, rect: e.currentTarget.getBoundingClientRect(), closing: false });
+            setViewer({ key: p.key, type, name, detail: isArco ? `${note} ${arco.note}.` : note, cat, price, rect: e.currentTarget.getBoundingClientRect(), closing: false });
           },
         },
-        woodPhoto(p.key) ? h("img", { src: woodPhoto(p.key), alt: "" }) : h("span", { className: "td-photo-wait" }),
+        woodPhoto(type) ? h("img", { src: woodPhoto(type), alt: "" }) : h("span", { className: "td-photo-wait" }),
         h("i", { className: "td-3d", "aria-hidden": "true" }, "3-D"))
       : h("span");
-    return h("div", { key: p.key, className: "td-row", "data-testid": `tienda-piece-${p.key}` },
+    const row = h("div", { key: p.key, className: "td-row", "data-testid": `tienda-piece-${p.key}` },
       photo,
       h("span", { className: "td-cat" }, cat),
-      h("span", { className: "td-desc" }, p.name, h("span", null, note)),
+      h("span", { className: "td-desc" }, name, h("span", null, note)),
       h("span", { className: "td-price" }, price),
       h("span", { className: "td-qty" },
         h("button", { type: "button", "aria-label": `Fewer ${p.name}`, "data-testid": `tienda-piece-${p.key}-dec`, disabled: n <= p.min, onClick: () => set(n - 1) }, "−"),
@@ -340,17 +397,51 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio }) {
         h("button", { type: "button", "aria-label": `More ${p.name}`, "data-testid": `tienda-piece-${p.key}-inc`, disabled: n >= p.max, onClick: () => set(n + 1) }, "+"),
       ),
     );
+    if (!isArco) return row;
+    // The Arco's size, for every Arco in the game.
+    return [row, h("div", { key: "arco-size", className: "td-sub", "data-testid": "tienda-arco-size" },
+      h("span", { className: "td-sub-h" }, "Size"),
+      h("div", { className: "td-seg", role: "group", "aria-label": "Arco size" },
+        ...ARCO_SIZES.map((a) => h("button", {
+          key: a.key, type: "button", "aria-pressed": sel.arcoSize === a.key ? "true" : "false", "data-testid": `tienda-arco-${a.key}`,
+          onClick: () => { click(); change((s) => { s.arcoSize = a.key; }); },
+        }, `${a.name} · ${a.note}`)),
+      ))];
   });
 
-  const check = (id, on, title, note, onToggle) => h("label", { key: id, className: "td-check", "data-testid": `tienda-${id}` },
+  const check = (id, on, title, note, onToggle, extra) => h("label", { key: id, className: "td-check", "data-testid": `tienda-${id}` },
     h("input", { type: "checkbox", checked: on, onChange: () => { click(); onToggle(); }, "data-testid": `tienda-${id}-input` }),
     h("span", { className: "td-box", "aria-hidden": "true" }, on ? "✕" : ""),
-    h("span", null, h("b", null, title), note ? h("span", null, note) : null),
+    h("span", null, h("b", null, title), note ? h("span", null, note) : null, extra || null),
   );
+  const warnFor = (key) => warnings.filter((w) => w.key === key).map((w) => h("div", { key: w.testid, className: "td-warn", role: "status", "data-testid": w.testid }, h("span", { "aria-hidden": "true" }, "☞ "), w.text));
+  const spotsLine = (list, mark) => (list.length ? list.map((p) => `${mark} row ${p.row + 1}, col ${p.col + 1}${p.random ? " (random)" : ""}`).join(" · ") : "none yet");
 
-  const lawRows = LAW_OPTIONS.map((l) => check(`law-${l.key}`, !!sel.laws[l.key], l.name, l.note, () => change((s) => toggleLaw(s, l.key))));
+  const lawRows = LAW_OPTIONS.flatMap((l) => {
+    const on = !!sel.laws[l.key];
+    const info = h("button", { type: "button", className: "td-info", "data-testid": `tienda-law-${l.key}-info`, onClick: (e) => { e.preventDefault(); e.stopPropagation(); explain(l.key); } }, "How it works ›");
+    const out = [check(`law-${l.key}`, on, l.name, l.note, () => change((s) => toggleLaw(s, l.key)), info)];
+    if (on && l.key === "shoving") {
+      out.push(h("div", { key: "shove", className: "td-sub", "data-testid": "tienda-shove-settings" },
+        ...SHOVE_SETTINGS.map((st) => h("div", { key: st.key, className: "td-sub-row" },
+          h("span", { className: "td-sub-h" }, st.name),
+          h("div", { className: "td-seg", role: "group", "aria-label": st.name },
+            ...st.options.map((o) => h("button", {
+              key: String(o.value), type: "button", "aria-pressed": !!sel.shove[st.key] === o.value ? "true" : "false",
+              "data-testid": `tienda-shove-${st.key}-${o.value ? "on" : "off"}`,
+              onClick: () => { click(); change((s) => { s.shove = { ...s.shove, [st.key]: o.value }; }); },
+            }, o.name)))))));
+    }
+    if (on && l.key === "blackHoleSquares") {
+      out.push(h("div", { key: "holes", className: "td-sub", "data-testid": "tienda-hole-settings" },
+        h("span", { className: "td-sub-h" }, "Where"),
+        h("span", { className: "td-sub-val", "data-testid": "tienda-hole-where" }, spotsLine(sel.holeSpot ? [sel.holeSpot] : [], "O")),
+        h("button", { type: "button", className: "td-btn td-plain td-small-btn", "data-testid": "tienda-hole-select", onClick: () => { click(); setPicker("hole"); } }, "Select")));
+    }
+    return [...out, ...warnFor(l.key)];
+  });
 
-  const setDim = (k, v) => { click(); change((s) => { s[k] = clampDim(v); }); };
+  const setDim = (k, v) => { click(); change((s) => { s[k] = clampDim(v); refreshSpots(s); }); };
   const dimRow = (k, label, note) => h("div", { className: "td-dim", "data-testid": `tienda-${k}` },
     h("span", { className: "td-desc" }, label, h("span", null, note)),
     h("span", { className: "td-qty" },
@@ -360,29 +451,48 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio }) {
     ),
   );
   const boardRows = h("div", { className: "td-board" },
-    h(BoardDiagram, { rows: sel.rows, cols: sel.cols }),
+    h(BoardDiagram, { sel }),
     h("div", null,
       dimRow("cols", "Width", `squares across a home row (${MIN_BOARD_DIM}–${MAX_BOARD_DIM})`),
       dimRow("rows", "Length", `squares from your home row to the far one (${MIN_BOARD_DIM}–${MAX_BOARD_DIM})`),
     ),
   );
   const sizeRow = h("div", { className: "td-sizes", role: "group", "aria-label": "Square boards" },
-    QUICK_SIZES.map((n) => h("button", { key: n, type: "button", className: "td-size", "aria-pressed": sel.rows === n && sel.cols === n ? "true" : "false", "data-testid": `tienda-size-${n}`, onClick: () => { click(); change((s) => { s.rows = n; s.cols = n; }); } }, `${n} × ${n}`)));
+    QUICK_SIZES.map((n) => h("button", { key: n, type: "button", className: "td-size", "aria-pressed": sel.rows === n && sel.cols === n ? "true" : "false", "data-testid": `tienda-size-${n}`, onClick: () => { click(); change((s) => { s.rows = n; s.cols = n; refreshSpots(s); }); } }, `${n} × ${n}`)));
   const fitNote = !fits && h("div", { className: "td-fit", role: "alert", "data-testid": "tienda-fit-warning" },
     h("span", null, need
-      ? `These pieces won't fit in two home rows ${sel.cols} squares wide. They need a board at least ${need} wide.`
+      ? `These pieces won't fit in two home rows ${sel.cols} squares wide${bandHasMarks(sel) ? " round the squares marked there" : ""}. They need a board at least ${need} wide.`
       : `These pieces won't fit in two home rows, even ${MAX_BOARD_DIM} squares wide. Take some out.`),
-    need && h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-fit-fix", onClick: () => setDim("cols", need) }, `Make it ${need} wide`));
+    need && need !== sel.cols && h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-fit-fix", onClick: () => setDim("cols", need) }, `Make it ${need} wide`));
+  const missingRows = sel.missing && h("div", { key: "missing", className: "td-sub", "data-testid": "tienda-missing-settings" },
+    h("div", { className: "td-sub-row" },
+      h("span", { className: "td-sub-h" }, "Pairs"),
+      h("span", { className: "td-qty" },
+        h("button", { type: "button", "aria-label": "One pair fewer", "data-testid": "tienda-missing-count-dec", disabled: sel.missingCount <= 1, onClick: () => { click(); change((s) => { s.missingCount -= 1; s.missingSpots = trimSpots(s.missingSpots, s.missingCount); }); } }, "−"),
+        h("output", { "aria-live": "polite", "data-testid": "tienda-missing-count-value" }, String(sel.missingCount)),
+        h("button", { type: "button", "aria-label": "One pair more", "data-testid": "tienda-missing-count-inc", disabled: sel.missingCount >= MAX_MISSING_PAIRS, onClick: () => { click(); change((s) => { s.missingCount += 1; fillSpots(s, "missing"); }); } }, "+"),
+      )),
+    h("div", { className: "td-sub-row" },
+      h("span", { className: "td-sub-h" }, "Where"),
+      h("span", { className: "td-sub-val", "data-testid": "tienda-missing-where" }, spotsLine(sel.missingSpots, "X")),
+      h("button", { type: "button", className: "td-btn td-plain td-small-btn", "data-testid": "tienda-missing-select", onClick: () => { click(); setPicker("missing"); } }, "Select")));
 
-  const place = () => { if (over || !fits) return; audio && audio.playPowerOn && audio.playPowerOn(); onPlace(sel); };
-  const standard = () => { click(); const d = defaultSelections(); setSel(d); onChange && onChange(d); };
+  const place = () => {
+    if (over || !fits || filled) return;
+    setFilled(true);
+    audio && audio.playOrderFilled && audio.playOrderFilled();
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setTimeout(() => onPlace(sel), reduced ? 250 : 1150);
+  };
+  const standard = () => { click(); replace(defaultSelections()); };
   const lawsOn = LAW_OPTIONS.filter((l) => sel.laws[l.key]).length;
+  const summary = `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board${sel.missing ? ` · ${sel.missingCount} cut ${sel.missingCount === 1 ? "pair" : "pairs"}` : ""}`;
 
-  return h("div", { className: "td-layer", "data-testid": "tienda-order", role: "dialog", "aria-modal": "true", "aria-label": "Order form: custom rules", onClick: (e) => { if (e.target === e.currentTarget) onCancel(); } },
+  return h("div", { className: "td-layer", "data-testid": "tienda-order", "data-filled": filled ? "true" : "false", role: "dialog", "aria-modal": "true", "aria-label": "Order form: custom rules", onClick: (e) => { if (e.target === e.currentTarget && !filled) onCancel(); } },
     h(Style),
-    h("div", { className: "td-form" },
-      h("div", { className: "td-stamp", "aria-hidden": "true" }, "Store use only"),
+    h("div", { className: `td-form${filled ? " td-filled" : ""}` },
       h("div", { className: "td-form-scroll" },
+        h("div", { className: "td-stamp", "aria-hidden": "true" }, "Store use only"),
         h("div", { className: "td-form-head" },
           h("div", null,
             h("div", { className: "td-form-sub" }, "Games & Hobby Dept. · Fall & Winter Catalog 1975"),
@@ -406,25 +516,54 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio }) {
           h("div", { className: "td-sec-h" }, "3 · Board", h("small", null, "any width and length; each side starts in its two home rows")),
           boardRows,
           sizeRow,
-          check("missing", !!sel.missing, "Missing squares", "Two squares cut out of the board.", () => change((s) => { s.missing = !s.missing; })),
+          check("missing", !!sel.missing, "Missing squares", "Pairs of squares cut clean out of the board; nothing can stand on them or pass over them.", () => change((s) => { s.missing = !s.missing; if (s.missing) fillSpots(s, "missing"); })),
+          missingRows,
           check("random", !!sel.random, "Shuffled start", "Pieces set out at random in each side's home rows, mirrored.", () => change((s) => { s.random = !s.random; })),
+        ),
+        h("div", { className: "td-sec" },
+          h("div", { className: "td-sec-h" }, "4 · Who's playing"),
+          h(OpponentSection, { x, audio }),
+        ),
+        h("div", { className: "td-sec" },
+          h("div", { className: "td-sec-h" }, "5 · Carbon copies", h("small", null, "keep this order to use again (this browser only; not the opponent)")),
+          h(CarbonCopies, { sel, audio, onLoad: (n) => replace(n) }),
         ),
       ),
       h("div", { className: "td-foot" },
-        h("div", { className: "td-foot-total", "data-testid": "tienda-order-summary" }, `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board`, h("br"), h("b", null, fits ? "No charge — in-store demonstration" : "Won't fit this board — see Pieces")),
+        h("div", { className: "td-foot-total", "data-testid": "tienda-order-summary" }, summary, h("br"), h("b", null, fits ? "No charge — in-store demonstration" : "Won't fit this board — see Pieces")),
         h("div", { className: "td-foot-btns" },
-          h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-cancel", onClick: onCancel }, "Cancel"),
-          h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-standard", onClick: standard }, "Standard"),
-          h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-order-place", disabled: over || !fits, onClick: place }, "Place order & play"),
+          h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-cancel", onClick: onCancel, disabled: filled }, "Cancel"),
+          h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-standard", onClick: standard, disabled: filled }, "Standard"),
+          h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-order-place", disabled: over || !fits || filled, onClick: place }, "Place order & play"),
         ),
       ),
+      filled && h("div", { className: "td-filled-stamp", "data-testid": "tienda-order-stamp", "aria-hidden": "true" }, h("b", null, "Order filled"), h("span", null, "Games & Hobby · Dept. 49")),
     ),
     viewer && h(WoodPieceViewer, {
       key: viewer.key,
-      type: viewer.key, name: viewer.name, detail: viewer.detail, cat: viewer.cat, price: viewer.price,
+      type: viewer.type, name: viewer.name, detail: viewer.detail, cat: viewer.cat, price: viewer.price,
       fromRect: viewer.rect, closing: viewer.closing, audio,
       onClose: closeViewer,
       onClosed: () => setViewer(null),
     }),
+    picker && h(SquarePicker, {
+      key: picker, sel, kind: picker, audio,
+      onDone: (d) => { replace(d); setPicker(null); },
+      onCancel: () => setPicker(null),
+    }),
   );
+}
+
+// Fewer missing pairs: rolled spots go first, then the last placed.
+function trimSpots(spots, count) {
+  const list = spots.slice();
+  while (list.length > count) {
+    const i = list.map((p) => p.random).lastIndexOf(true);
+    list.splice(i >= 0 ? i : list.length - 1, 1);
+  }
+  return list;
+}
+// Is anything marked in a side's two home rows?
+function bandHasMarks(sel) {
+  return [...missingCellsOf(sel), ...holeCellsOf(sel)].some((c) => c.row < 2 || c.row >= sel.rows - 2);
 }

@@ -38,7 +38,7 @@ const JP = "'Dela Gothic One', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'IPA
 
 /* The choices themselves, and applying them to a game, are shared with
    Tienda (themes/rules-selections.js); the city only adds its signs. */
-const SIGN = { cabeza: "頭", turrito: "塔", flaco: "細", chato: "平", opa: "重", codo: "肘", arco: "弧", rayo: "雷", zeta: "乙" };
+const SIGN = { cabeza: "頭", turrito: "塔", flaco: "細", chato: "平", opa: "重", block1x3: "棒", block2x3: "板", codo: "肘", arco: "弧", rayo: "雷", zeta: "乙" };
 // [key, name, sign, min, max, default]
 const PIECES = PIECE_OPTIONS.map((p) => [p.key, p.name, SIGN[p.key], p.min, p.max, p.def]);
 const LAWS = LAW_OPTIONS.map((l) => [l.key, l.name, l.note]);
