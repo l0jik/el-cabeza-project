@@ -639,6 +639,7 @@ export function createAudio({ tapeUrl = null } = {}) {
     src.playbackRate.value = TAPE_RATE;
     tapeRate.connect(src.playbackRate);
     src.connect(tapeIn);
+    src.onended = () => { try { tapeRate.disconnect(src.playbackRate); src.disconnect(); } catch (e) { /* gone */ } };
     tapeOffset = tapePos < tape.buffer.duration - 8 ? tapePos : 0;
     src.start(at, tapeOffset);
     tapeIn.gain.cancelScheduledValues(at);
@@ -693,6 +694,9 @@ export function createAudio({ tapeUrl = null } = {}) {
   function startMusic() {
     if (typeof window !== "undefined" && window.__TIENDA_MUSIC_ONLY__ === "none") return; // tests: the store without music
     loadTape();
+    // Back before the fade had finished (an undo at the end of a game):
+    // the tape's still running, so just bring it up again.
+    if (playing === "tape" && tapeSrc) ramp(tapeIn.gain, TAPE_LEVEL, 1.5);
     if (!playing) {
       if (tapeUrl && !(tape && tape.failed) && !(typeof window !== "undefined" && window.__TIENDA_MUSIC_ONLY__ === "arrangements")) { playing = "wait-tape"; tapeWaitUntil = ctx.currentTime + 8; }
       else nextPiece(ctx.currentTime + 1.2);
