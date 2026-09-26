@@ -12,6 +12,7 @@ const targets = [
   // Its one file beside the page: the store's Muzak tape, fetched once
   // the store is up rather than weighing down the page (the page plays
   // without it, see themes/tienda-audio.js).
+  { name: "lab", entry: "apps/lab.jsx", title: "El Cabeza · Theme Lab", minify: true, head: '<meta name="theme-color" content="#F8F9FA">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover" },
   { name: "tienda", entry: "apps/tienda.jsx", title: "El Cabeza · Tienda", minify: true, head: '<meta name="theme-color" content="#2B2219">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: { "el-cabeza-tienda-muzak.mp3": "assets/tienda/muzak-1974.mp3" } },
 ];
 

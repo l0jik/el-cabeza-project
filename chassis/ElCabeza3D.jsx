@@ -204,7 +204,17 @@ function saveOpponentPrefs(prefs) {
   try { window.localStorage.setItem(OPPONENT_PREFS_KEY, JSON.stringify(prefs)); } catch (e) { /* storage unavailable */ }
 }
 
-export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange }) {
+/* carry / carryRef: a game carried across a theme change (the Theme Lab,
+   apps/lab.jsx, remounts the chassis with a new theme). carryRef.current
+   is kept as a function returning a plain snapshot of the game (see
+   snapshotGame near the end of the component); handing that snapshot
+   back as `carry` on the next mount restarts the chassis on exactly that
+   position, turn, history and log. The rules engine's own module state
+   (board size, laws, holes, missing squares) lives in engine/ and is
+   untouched by a remount, so only React state needs carrying. */
+export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null }) {
+  const C = carry && typeof carry === "object" ? carry : null;
+  const carried = (key, fallback) => (C && C[key] !== undefined ? C[key] : typeof fallback === "function" ? fallback() : fallback);
   const opponentPrefsRef = useRef(null);
   if (opponentPrefsRef.current === null) opponentPrefsRef.current = loadOpponentPrefs();
   const savedOpponent = opponentPrefsRef.current;
@@ -409,14 +419,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      with no extra guard needed. */
   const resetTransitionUntilRef = useRef(0);
 
-  const [pieces, setPieces] = useState(createInitialPieces);
-  const [currentPlayer, setCurrentPlayer] = useState(savedOpponent.humanStartSide);
-  const [selectedId, setSelectedId] = useState(null);
+  const [pieces, setPieces] = useState(() => carried("pieces", createInitialPieces));
+  const [currentPlayer, setCurrentPlayer] = useState(() => carried("currentPlayer", savedOpponent.humanStartSide));
+  const [selectedId, setSelectedId] = useState(() => carried("selectedId", null));
   const [hoveredId, setHoveredId] = useState(null);
   const [hoverShadow, setHoverShadow] = useState(null);
-  const [stepsUsed, setStepsUsed] = useState(0);
-  const [turnSnapshot, setTurnSnapshot] = useState(null);
-  const [pendingNotation, setPendingNotation] = useState([]);
+  const [stepsUsed, setStepsUsed] = useState(() => carried("stepsUsed", 0));
+  const [turnSnapshot, setTurnSnapshot] = useState(() => carried("turnSnapshot", null));
+  const [pendingNotation, setPendingNotation] = useState(() => carried("pendingNotation", []));
   /* Split Movement bookkeeping (both empty except during a Split turn):
      the distinct pieces that have already moved this turn (capped at
      MAX_PIECES_PER_TURN), and a piece-tagged record of every step taken so
@@ -424,10 +434,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      moves in reverse. A normal one-piece turn leaves movedPieceIds with a
      single id and pendingSteps a single label group — identical output to
      before. Both reset wherever stepsUsed resets to 0. */
-  const [movedPieceIds, setMovedPieceIds] = useState([]);
-  const [pendingSteps, setPendingSteps] = useState([]);
-  const [log, setLog] = useState([]);
-  const [status, setStatus] = useState("playing");
+  const [movedPieceIds, setMovedPieceIds] = useState(() => carried("movedPieceIds", []));
+  const [pendingSteps, setPendingSteps] = useState(() => carried("pendingSteps", []));
+  const [log, setLog] = useState(() => carried("log", []));
+  const [status, setStatus] = useState(() => carried("status", "playing"));
   /* Every completed turn, oldest first, each entry holding full state
      from immediately BEFORE that turn started plus what's needed to
      animate it backward: which piece moved, the direction sequence it
@@ -444,7 +454,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      endTurn entirely) and trimmed from the end as entries are
      consumed by an undo — this is real history, not a single-slot
      snapshot. */
-  const [turnHistory, setTurnHistory] = useState([]);
+  const [turnHistory, setTurnHistory] = useState(() => carried("turnHistory", []));
   // Test-only mirror of the move log plus each turn's piece-tagged steps,
   // so e2e tests can read what a turn actually did (e.g. an AI Split
   // Movement turn moving two pieces) without parsing rendered text.
@@ -519,19 +529,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      (themes/neon-singularity.js) via the setter threaded through
      useSetupExtras below, alongside the constants.js copy every other
      consumer (rules.js, the AI worker) reads. */
-  const [blackHoles, setBlackHoles] = useState([]);
+  const [blackHoles, setBlackHoles] = useState(() => carried("blackHoles", []));
   /* Missing Squares TOPOLOGIES option — same cross-boundary React-state
      mirror of engine/constants.js's plain module state as blackHoles
      above (see its own comment), just for the impassable-void feature
      instead of the wormhole one. Populated by finalizeSingularityBegin
      via the setter threaded through useSetupExtras below. */
-  const [missingSquares, setMissingSquares] = useState([]);
+  const [missingSquares, setMissingSquares] = useState(() => carried("missingSquares", []));
   /* Snapshot of the specials (LAWS / MATTER / TOPOLOGY) chosen for the
      current game, captured by finalizeSingularityBegin for the in-game
      "Current Variants" flyout (themes/neon-singularity.js). null means a
      plain, non-Singularity game — the flyout then reads "Standard rules".
      Cleared on New Game (handleReset). */
-  const [currentVariants, setCurrentVariants] = useState(null);
+  const [currentVariants, setCurrentVariants] = useState(() => carried("currentVariants", null));
   /* On a real win with currentVariants set (a Singularity-originated
      game), New Game asks RETAIN vs RECONFIGURE instead of silently
      persisting — see handleNewGameClick below. */
@@ -546,15 +556,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      showing (status !== "finished"), so it doesn't need resetting on a
      fresh game — the next win just overwrites it via the effect below. */
   const lastPostGameOverlayRef = useRef("placard");
-  const [winner, setWinner] = useState(null);
-  const [winReason, setWinReason] = useState("");
+  const [winner, setWinner] = useState(() => carried("winner", null));
+  const [winReason, setWinReason] = useState(() => carried("winReason", ""));
   /* Opens automatically the moment a game ends (see the effect below),
      not on every render where status happens to already be "finished" —
      the dependency array means it only fires on the actual transition,
      so dismissing the placard (the X, backdrop click, or Escape) sticks
      until New Game, rather than being immediately forced open again. */
-  const [showVictoryPlacard, setShowVictoryPlacard] = useState(false);
+  const [showVictoryPlacard, setShowVictoryPlacard] = useState(() => carried("showVictoryPlacard", false));
+  // A game carried in already finished keeps the placard as it was left.
+  const carriedFinishRef = useRef(!!(C && C.status === "finished"));
   useEffect(() => {
+    if (carriedFinishRef.current) { carriedFinishRef.current = false; return; }
     if (status === "finished") {
       lastPostGameOverlayRef.current = "placard";
       setShowVictoryPlacard(true);
@@ -573,7 +586,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
   const [logCopyFailed, setLogCopyFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   /* null = two-player. "dark"/"light" = that color is AI-controlled. */
-  const [aiPlayer, setAiPlayer] = useState(savedOpponent.aiPlayer);
+  const [aiPlayer, setAiPlayer] = useState(() => carried("aiPlayer", savedOpponent.aiPlayer));
   /* Which of the opponent row's two sub-views is showing — decoupled
      from aiPlayer itself so the Back control can return to the
      Human/AI-side picker WITHOUT resetting the actual selection. Picking
@@ -582,7 +595,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      so the picker shows whichever side was actually chosen, still
      selected, letting a player go back purely to CONFIRM the choice
      rather than starting over. */
-  const [showOpponentPicker, setShowOpponentPicker] = useState(savedOpponent.aiPlayer === null);
+  const [showOpponentPicker, setShowOpponentPicker] = useState(() => carried("showOpponentPicker", savedOpponent.aiPlayer === null));
   /* Null, or "dark"/"light" for ~1.3s right after that side is picked —
      drives the brief confirmation overlay over the dock panel (see its
      own render below) so picking an AI side reads as an obvious,
@@ -602,8 +615,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      their existing fixed Dark-first behavior regardless of this. Left
      unreset by New Game itself — it's a standing preference, same as
      aiDifficulty. */
-  const [humanStartSide, setHumanStartSide] = useState(savedOpponent.humanStartSide);
-  const [aiDifficulty, setAiDifficulty] = useState(savedOpponent.aiDifficulty);
+  const [humanStartSide, setHumanStartSide] = useState(() => carried("humanStartSide", savedOpponent.humanStartSide));
+  const [aiDifficulty, setAiDifficulty] = useState(() => carried("aiDifficulty", savedOpponent.aiDifficulty));
   useEffect(() => {
     saveOpponentPrefs({ aiPlayer, aiDifficulty, humanStartSide });
   }, [aiPlayer, aiDifficulty, humanStartSide]);
@@ -614,7 +627,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      Dark moving first) until the person presses it — see selectOpponent
      and handleReset, which both re-arm this to false, and the Begin
      Game button itself, which is the only thing that sets it true. */
-  const [gameArmed, setGameArmed] = useState(false);
+  const [gameArmed, setGameArmed] = useState(() => carried("gameArmed", false));
   const awaitingBegin = !gameArmed;
 
   /* Easter egg: clicking the "EL CABEZA" title (only the text itself,
@@ -697,7 +710,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      before it relocates). A fresh game (awaitingBegin true again) snaps
      straight back to "piece" and re-rolls which piece/color represents
      the new session (see the dockSessionSeed effect below). */
-  const [dockView, setDockView] = useState("piece"); // "piece" | "panel" | "corner"
+  const [dockView, setDockView] = useState(() => (C && C.gameArmed ? "corner" : "piece")); // "piece" | "panel" | "corner"
   /* Points-left counter (user-requested, off by default, remembered per
      browser): a row of dots at the bottom centre showing how many of the
      current player's action points this turn has left — filled for
@@ -796,10 +809,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      building effect below), so dockSessionColor is only ever actually
      used while aiPlayer is null. */
   const [dockSessionPieceType, setDockSessionPieceType] = useState(
-    () => DOCK_PIECE_TYPES[Math.floor(Math.random() * DOCK_PIECE_TYPES.length)]
+    () => carried("dockSessionPieceType", () => DOCK_PIECE_TYPES[Math.floor(Math.random() * DOCK_PIECE_TYPES.length)])
   );
   const [boardNearSide, setBoardNearSide] = useState(
-    () => (Math.random() < 0.5 ? "dark" : "light")
+    () => carried("boardNearSide", () => (Math.random() < 0.5 ? "dark" : "light"))
   );
   const dockSessionColor = boardNearSide === "dark" ? "light" : "dark";
 
@@ -839,8 +852,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awaitingBegin]);
 
+  const skipArmedDockRef = useRef(!!(C && C.gameArmed));
   useEffect(() => {
     if (awaitingBegin) return; // handled by the effect above instead
+    // A carried game is already under way: the dock is in its corner.
+    if (skipArmedDockRef.current) { skipArmedDockRef.current = false; return; }
     // Begin Game just fired: remorph back to the piece, then — once
     // that's had a moment to actually read as "the panel became the
     // piece again" — relocate it to the corner watermark. Cut from 900ms
@@ -1348,7 +1364,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
      to a small badge tucked behind the board in the upper-right. Resets
      the instant awaitingBegin goes true again (a fresh game/reset), so
      the next round gets the same entrance. */
-  const [titleRelocated, setTitleRelocated] = useState(false);
+  const [titleRelocated, setTitleRelocated] = useState(() => !!(C && C.gameArmed));
   useEffect(() => {
     if (awaitingBegin) {
       setTitleRelocated(false);
@@ -1592,6 +1608,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     // TOPOLOGIES board resize: finalizeSingularityBegin calls this to
     // apply the chosen board size before placing the roster/holes.
     applyBoardResize,
+    // Read-only game facts for a theme's own HUD (the Theme Lab's
+    // editorial layouts): whose turn, points spent of the budget, the
+    // log, how it ended. Nothing here can change the game.
+    game: {
+      currentPlayer, stepsUsed, turnBudget: turnBudget(), log, status, winner, winReason,
+      turns: turnHistory.length, selectedId, hoveredId, aiPlayer, awaitingBegin, busy,
+      selectedType: (pieces.find((p) => p.id === selectedId) || {}).type || null,
+      pieceCount: { dark: pieces.filter((p) => p.owner === "dark").length, light: pieces.filter((p) => p.owner === "light").length },
+    },
   }) : null;
   // A theme may raise the corner controls over a full-screen layer of
   // its own (Neon's SINGULARITY sphere), so they stay usable there.
@@ -5322,6 +5347,43 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange 
     cam.current.radius = topDownViewRadiusRef.current;
     snapToCenter();
   }
+
+  /* The game carried across a theme change (see carry/carryRef at the
+     top). snapshotGame is what the next mount starts from; `settling` is
+     true while a step is still animating or the AI is thinking, and the
+     Theme Lab waits for it to clear before switching, so nothing is
+     caught half-done. */
+  function snapshotGame() {
+    const c = cam.current;
+    return {
+      pieces, currentPlayer, selectedId, stepsUsed, turnSnapshot, pendingNotation,
+      movedPieceIds, pendingSteps, log, status, turnHistory, blackHoles, missingSquares,
+      currentVariants, winner, winReason, showVictoryPlacard, aiPlayer, showOpponentPicker,
+      humanStartSide, aiDifficulty, gameArmed, dockSessionPieceType, boardNearSide,
+      cam: { theta: c.theta, phi: c.phi, radius: c.radius, target: [c.target.x, c.target.y, c.target.z] },
+      settling: !!(busy || aiThinking || anim.current),
+    };
+  }
+  if (carryRef) carryRef.current = snapshotGame;
+  // Starting from a carried game: the view as it was, the theme's own
+  // in-game ambience and sound armed as if Begin Game had just been
+  // pressed, but without replaying the opening.
+  useEffect(() => {
+    if (!C) return;
+    if (C.gameArmed) {
+      captureViewBaselines();
+      ambientRef.current && ambientRef.current.armOnBegin();
+      try { audioRef.current.beginGameFadeIn(); } catch (e) { /* audio not started yet */ }
+    }
+    if (C.gameArmed && !C.cam) topDownView(C.currentPlayer);
+    if (C.cam) {
+      const c = cam.current;
+      c.theta = C.cam.theta; c.phi = C.cam.phi; c.radius = C.cam.radius;
+      c.target.set(C.cam.target[0], C.cam.target[1], C.cam.target[2]);
+      c.view.theta = c.theta; c.view.phi = c.phi; c.view.radius = c.radius; c.view.target.copy(c.target);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleStopHere() {
     // Guards the human-facing entry point only — the AI's own orchestration

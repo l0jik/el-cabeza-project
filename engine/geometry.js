@@ -190,7 +190,7 @@ export function makeRoundedBox(sx, sy, sz, radius, seg = 6) {
    restingY/pivotFor place and roll either kind identically. Axes: x =
    columns, y = up (levels), z = rows. Each cube is `unit` on a side and
    they sit edge to edge, so the whole shape spans the box exactly. */
-function voxCubeCenters(piece, unit) {
+export function voxCubeCenters(piece, unit) {
   const cubes = parseVox(piece.vox);
   return cubes.map(([x, y, l]) => [
     (x + 0.5) * unit - (piece.w * unit) / 2,
