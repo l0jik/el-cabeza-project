@@ -37,6 +37,11 @@ const state = (page) => page.evaluate(() => ({
   focus: document.querySelector('[data-testid="lab-hud"]').dataset.focus,
 }));
 const labId = (page) => page.evaluate(() => window.__LAB__.id);
+// A piece's state, to see a step land. A step takes its time on the software
+// renderer these tests run on (about 4 frames a second: a roll lands 2-3 s
+// after it starts), so the next one waits for it rather than a fixed pause.
+const pieceOf = (page, id) => page.evaluate((i) => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === i)), id);
+const landed = async (page, id, before, ms = 10000) => !!(await poll(async () => (await pieceOf(page, id)) !== before, ms));
 async function waitSwitched(page, id) {
   return poll(() => page.evaluate((i) => window.__LAB__.id === i && !window.__LAB__.busy() && !!document.querySelector(`[data-testid="lab-hud"][data-lab="${i}"]`), id), 15000);
 }
@@ -65,8 +70,10 @@ async function waitSwitched(page, id) {
   const pos = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-flaco"));
   await page.mouse.click(pos.x, pos.y);
   await poll(() => page.evaluate(() => window.__EC_TEST_COST_BADGES__().length > 0), 4000);
+  const flaco0 = await pieceOf(page, "dark-flaco");
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "S"));
-  await page.waitForTimeout(1700);
+  await landed(page, "dark-flaco", flaco0);
+  await page.waitForTimeout(300);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "S"));
   check("a full turn passes play to Light", !!(await poll(async () => (await state(page)).player === "light", 6000)));
   check("sound started with the first gesture", (await page.evaluate(() => window.__LAB__.audio().started)) === true);
@@ -75,8 +82,10 @@ async function waitSwitched(page, id) {
   const lp = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-chato"));
   await page.mouse.click(lp.x, lp.y);
   await poll(() => page.evaluate(() => window.__EC_TEST_COST_BADGES__().length > 0), 4000);
+  const chato0 = await pieceOf(page, "light-chato");
   await page.evaluate(() => window.__EC_TEST_MOVE__("light-chato", "N"));
-  await page.waitForTimeout(1800);
+  await landed(page, "light-chato", chato0);
+  await poll(async () => (await state(page)).points === "1/2", 4000);
   const before = await state(page);
   check("mid-turn: Light has spent a point", before.points === "1/2" && before.player === "light", JSON.stringify(before));
 
@@ -129,8 +138,9 @@ async function waitSwitched(page, id) {
   const flacoBefore = await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === "dark-flaco")));
   await page.evaluate((d) => { window.__EC_TEST_MOVE__("dark-flaco", d); window.__LAB__.switchTo("brutalist"); }, dd);
   await waitSwitched(page, "brutalist");
-  await page.waitForTimeout(600);
-  const flacoAfter = await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === "dark-flaco")));
+  await landed(page, "dark-flaco", flacoBefore);
+  await poll(async () => (await state(page)).points === "1/2", 4000);
+  const flacoAfter = await pieceOf(page, "dark-flaco");
   const pts = (await state(page)).points;
   check("a switch during a step waits: the step lands and counts", flacoAfter !== flacoBefore && pts === "1/2", `${pts} ${flacoAfter}`);
 

@@ -151,7 +151,7 @@ function LabApp() {
     window.__LAB__ = { id: themeId, ids: THEMES.map((t) => t.labId), switchTo: (id) => switchTo(id), busy: () => switching.current, audio: () => labAudioState() };
   });
 
-  /* Switch direction, carrying the game over. Waits (up to 4 s) for a
+  /* Switch direction, carrying the game over. Waits (up to 8 s) for a
      step in flight or an AI turn in thought to settle, so the game is
      never caught half-way. */
   const switchTo = useCallback(async (id) => {
@@ -162,7 +162,11 @@ function LabApp() {
     setCurtain({ id, phase: "in" });
     const t0 = Date.now();
     let snap = carryRef.current ? carryRef.current() : null;
-    while (snap && snap.settling && Date.now() - t0 < 4000) {
+    // Up to 8 s: a step lands in well under one on a phone, but on a slow
+    // software renderer (the tests' SwiftShader, ~4 frames a second) one can
+    // take 3 s or more, and a switch that gave up waiting carried the game
+    // from before the step landed.
+    while (snap && snap.settling && Date.now() - t0 < 8000) {
       await new Promise((r) => setTimeout(r, 80));
       snap = carryRef.current ? carryRef.current() : null;
     }
