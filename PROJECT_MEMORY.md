@@ -2262,3 +2262,20 @@ moved. Now the floor is non-overlapping pieces at one height
 (`floorRect`: the aisle cross + the four areas around it), textured by
 WORLD position so tiles line up across piece edges. Don't lay coplanar
 floor layers again; cut the geometry instead.
+
+### Sound channels (user request: music off, pieces on)
+A theme can export `soundChannels` ([{ key, label, hint }]) and give its
+audio `setChannelMuted(key, off)`. Then the dock's speaker button
+(`sound-button`) opens a sound menu (`sound-menu`, fixed above the
+button, since the dock scrolls) instead of toggling mute: All sounds
+(the old master mute, `sound-all`) and each channel (`sound-ch-<key>`).
+The choice is kept in localStorage (`el-cabeza:sound-channels`) and
+applied when the audio is made. The speaker glyph shows a slash when all
+is off and one wave when some channels are. The dock's outside-press
+close ignores presses in the menu; closing the dock closes the menu.
+Tienda (tienda-audio.js): gates on music (after musicBus, and the tape's
+direct reverb send), store (ambBus, farBus) and pieces (sfxBus: wood,
+paper, register). The music keeps playing under its gate, so it picks up
+where it is. Note for tests: Chrome doesn't update a gain's `.value`
+readback while nothing sounds through it — play a move before reading
+the pieces gate. Test: tests/e2e-sound-channels.mjs.

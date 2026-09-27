@@ -187,6 +187,15 @@ function saveShowPoints(on) {
 }
 // The cost badges on the move markers (buildCostBadge), for a theme that
 // offers a switch for them (theme.moveCostToggle). On unless switched off.
+/* Per-channel sound switches (a theme opts in with soundChannels, e.g.
+   Tienda's music / store / pieces), remembered per browser: { key: off }. */
+const SOUND_CHANNELS_KEY = "el-cabeza:sound-channels";
+function loadChannelsOff() {
+  try { return JSON.parse(localStorage.getItem(SOUND_CHANNELS_KEY) || "{}") || {}; } catch (e) { return {}; }
+}
+function saveChannelsOff(v) {
+  try { localStorage.setItem(SOUND_CHANNELS_KEY, JSON.stringify(v)); } catch (e) { /* storage blocked */ }
+}
 const SHOW_COSTS_KEY = "el-cabeza:show-move-costs";
 function loadShowCosts() {
   try { return window.localStorage.getItem(SHOW_COSTS_KEY) !== "0"; } catch (e) { return true; }
@@ -668,6 +677,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // what initialMuted says, so that has to be applied explicitly
     // here, once, right when the engine is actually created.
     if (initialMuted) audioRef.current.setMuted(true);
+    if (theme.soundChannels && audioRef.current.setChannelMuted) {
+      const off = loadChannelsOff();
+      theme.soundChannels.forEach((c) => { if (off[c.key]) audioRef.current.setChannelMuted(c.key, true); });
+    }
   }
 
   /* Ambient visual FX (title flicker, VHS glitch, arcs, etc. — entirely
@@ -916,7 +929,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     prevDockViewRef.current = dockView;
     if (prev === dockView) return;
     if (dockView === "panel") audioRef.current.playDockOpen();
-    else if (prev === "panel") audioRef.current.playDockClose();
+    else if (prev === "panel") { audioRef.current.playDockClose(); setSoundMenuAt(null); }
   }, [dockView]);
 
   // The panel — however it got opened, double-tapping the pre-game
@@ -928,6 +941,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useEffect(() => {
     if (dockView !== "panel") return;
     const onPointerDown = (ev) => {
+      if (ev.target && ev.target.closest && ev.target.closest('[data-testid="sound-menu"]')) return;
       if (cardRef.current && !cardRef.current.contains(ev.target)) {
         setDockView(awaitingBegin ? "piece" : "corner");
       }
@@ -1341,6 +1355,29 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }, [awaitingBegin]);
 
   const [audioMuted, setAudioMuted] = useState(initialMuted);
+  const soundChannels = theme.soundChannels && theme.soundChannels.length ? theme.soundChannels : null;
+  const [channelsOff, setChannelsOff] = useState(loadChannelsOff);
+  // The dock's sound menu (only for a theme with soundChannels): where it
+  // floats, fixed above the speaker button, or null while closed.
+  const [soundMenuAt, setSoundMenuAt] = useState(null);
+  function toggleChannel(key) {
+    const next = { ...channelsOff, [key]: !channelsOff[key] };
+    setChannelsOff(next);
+    saveChannelsOff(next);
+    if (audioRef.current.setChannelMuted) audioRef.current.setChannelMuted(key, next[key]);
+  }
+  useEffect(() => {
+    if (!soundMenuAt) return undefined;
+    const onDown = (e) => {
+      const t = e.target;
+      if (t && t.closest && (t.closest('[data-testid="sound-menu"]') || t.closest('[data-testid="sound-button"]'))) return;
+      setSoundMenuAt(null);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setSoundMenuAt(null); };
+    document.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("pointerdown", onDown, true); window.removeEventListener("keydown", onKey); };
+  }, [soundMenuAt]);
 
   /* Audio must fall silent the instant this tab/window isn't the
      active, visible one, independent of the player's own mute
@@ -7483,7 +7520,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
            without needing per-theme redesign. */}
         {theme.hasAudio && (
           <button
-            onClick={() => {
+            data-testid="sound-button"
+            aria-haspopup={soundChannels ? "true" : undefined}
+            aria-expanded={soundChannels ? !!soundMenuAt : undefined}
+            onClick={(e) => {
+              // A theme with separate sound channels opens its sound menu
+              // (all sounds, and each channel on its own) instead.
+              if (soundChannels) {
+                if (soundMenuAt) { setSoundMenuAt(null); return; }
+                const r = e.currentTarget.getBoundingClientRect();
+                setSoundMenuAt({ right: Math.max(8, window.innerWidth - r.right - 6), bottom: window.innerHeight - r.top + 8 });
+                return;
+              }
               const next = !audioMuted;
               setAudioMuted(next);
               audioRef.current.setMuted(next);
@@ -7493,8 +7541,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               // outside the state that's about to be thrown away.
               if (onMutedChange) onMutedChange(next);
             }}
-            aria-label={audioMuted ? "Unmute ambience" : "Mute ambience"}
-            title={audioMuted ? "Unmute ambience" : "Mute ambience"}
+            aria-label={soundChannels ? "Sound" : audioMuted ? "Unmute ambience" : "Mute ambience"}
+            title={soundChannels ? "Sound" : audioMuted ? "Unmute ambience" : "Mute ambience"}
             style={{
               position: "absolute",
               right: 8,
@@ -7516,11 +7564,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              {audioMuted ? (
+              {audioMuted || (soundChannels && soundChannels.every((c) => channelsOff[c.key])) ? (
                 <>
                   <line x1="23" y1="9" x2="17" y2="15" />
                   <line x1="17" y1="9" x2="23" y2="15" />
                 </>
+              ) : soundChannels && soundChannels.some((c) => channelsOff[c.key]) ? (
+                // Some channels off: one wave, not two.
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
               ) : (
                 <>
                   <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
@@ -7680,6 +7731,67 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           </button>
         )}
       </div>
+
+      {/* The dock's sound menu (a theme with soundChannels): All sounds, and
+         each channel on its own, e.g. music off with the pieces still
+         knocking. Floats above the speaker button; a press outside it or
+         Escape closes it. */}
+      {soundChannels && soundMenuAt && (
+        <div
+          data-testid="sound-menu"
+          role="dialog"
+          aria-label="Sound"
+          style={{
+            position: "fixed",
+            right: soundMenuAt.right,
+            bottom: soundMenuAt.bottom,
+            zIndex: 1045,
+            width: "min(280px, calc(100vw - 16px))",
+            boxSizing: "border-box",
+            padding: "8px 0",
+            background: modalSurface,
+            border: `1px solid ${COLORS.slateSoft}`,
+            borderRadius: 10,
+            boxShadow: "0 12px 36px rgba(0,0,0,0.35)",
+            color: COLORS.charcoal,
+            fontFamily: "'IBM Plex Sans', sans-serif",
+          }}
+        >
+          {[{ key: "__all", label: "All sounds", on: !audioMuted, onToggle: toggleSound }]
+            .concat(soundChannels.map((c) => ({ key: c.key, label: c.label, hint: c.hint, on: !channelsOff[c.key], onToggle: () => toggleChannel(c.key), dim: audioMuted })))
+            .map((row, i) => (
+              <button
+                key={row.key}
+                type="button"
+                role="switch"
+                aria-checked={row.on}
+                data-testid={row.key === "__all" ? "sound-all" : `sound-ch-${row.key}`}
+                onClick={row.onToggle}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "9px 14px",
+                  background: "transparent", border: "none", borderTop: i === 1 ? `1px solid ${COLORS.slateSoft}` : "none",
+                  marginTop: i === 1 ? 6 : 0, paddingTop: i === 1 ? 12 : 9,
+                  color: "inherit", textAlign: "left", cursor: "pointer", opacity: row.dim ? 0.45 : 1, font: "inherit",
+                }}
+              >
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 14, fontWeight: row.key === "__all" ? 600 : 500 }}>{row.label}</span>
+                  {row.hint && <span style={{ display: "block", fontSize: 11.5, color: COLORS.slate, marginTop: 1 }}>{row.hint}</span>}
+                </span>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 38, height: 22, borderRadius: 11, flexShrink: 0, position: "relative", boxSizing: "border-box",
+                    background: row.on ? COLORS.charcoal : "transparent", border: `1.5px solid ${row.on ? COLORS.charcoal : COLORS.slateSoft}`,
+                    transition: "background 160ms ease",
+                  }}
+                >
+                  <span style={{ position: "absolute", top: 2, left: row.on ? 17 : 2, width: 15, height: 15, borderRadius: "50%", background: row.on ? COLORS.cream : COLORS.slate, transition: "left 160ms ease" }} />
+                </span>
+              </button>
+            ))}
+        </div>
+      )}
 
       {/* Phone layout (see MobileShell.jsx and the shell state above). */}
       {shell && (

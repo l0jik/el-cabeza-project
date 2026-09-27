@@ -231,6 +231,14 @@ export function createAudio({ tapeUrl = null } = {}) {
   let storeBus = null, musicBus = null, ambBus = null, farBus = null, sfxBus = null;
   let bigVerb = null, smallVerb = null, wow = null, noiseBuf = null, brownBuf = null;
   let muted = false, windingDown = false, storeOn = false;
+  /* Three switches the player can flip separately (the dock's sound
+     menu): the ceiling speakers' music, the store around you (hum, air,
+     far-off carts and announcements), and the game's own sounds (the
+     wood pieces, the paper, the register). Each is a gate on its own
+     path; muting one leaves the others, and the music keeps its place. */
+  const channelOff = { music: false, store: false, pieces: false };
+  const gates = { music: [], store: [], pieces: [] };
+  const gate = (ch) => { const g = ctx.createGain(); g.gain.value = channelOff[ch] ? 0 : 1; gates[ch].push(g); return g; };
   let humGain = null, buzzGain = null, hvacGain = null;
   let schedTimer = null, eventTimer = null, windTimer = null;
   let zoom = 0.5, tension = 0;
@@ -277,17 +285,18 @@ export function createAudio({ tapeUrl = null } = {}) {
 
       // Buses.
       storeBus = ctx.createGain(); storeBus.gain.value = 0; storeBus.connect(master);
-      ambBus = ctx.createGain(); ambBus.gain.value = 1; ambBus.connect(storeBus);
-      sfxBus = ctx.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
-      const sfxSend = ctx.createGain(); sfxSend.gain.value = 0.22; sfxBus.connect(sfxSend).connect(smallVerb);
-      const sfxBig = ctx.createGain(); sfxBig.gain.value = 0.1; sfxBus.connect(sfxBig).connect(bigVerb);
+      ambBus = ctx.createGain(); ambBus.gain.value = 1; ambBus.connect(gate("store")).connect(storeBus);
+      sfxBus = ctx.createGain(); sfxBus.gain.value = 1;
+      const sfxOut = gate("pieces"); sfxBus.connect(sfxOut); sfxOut.connect(master);
+      const sfxSend = ctx.createGain(); sfxSend.gain.value = 0.22; sfxOut.connect(sfxSend).connect(smallVerb);
+      const sfxBig = ctx.createGain(); sfxBig.gain.value = 0.1; sfxOut.connect(sfxBig).connect(bigVerb);
 
       // Far-off things: muffled, mostly room.
       farBus = ctx.createGain(); farBus.gain.value = 1;
       const farLp = ctx.createBiquadFilter(); farLp.type = "lowpass"; farLp.frequency.value = 1900;
       const farDry = ctx.createGain(); farDry.gain.value = 0.22;
       const farWet = ctx.createGain(); farWet.gain.value = 0.9;
-      farBus.connect(farLp); farLp.connect(farDry).connect(storeBus); farLp.connect(farWet).connect(bigVerb);
+      farBus.connect(gate("store")).connect(farLp); farLp.connect(farDry).connect(storeBus); farLp.connect(farWet).connect(bigVerb);
 
       // The ceiling speakers: thin (paper cones, no low end, rolled off
       // top), a slight crunch, several speakers at once down the aisle
@@ -300,7 +309,7 @@ export function createAudio({ tapeUrl = null } = {}) {
       for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; curve[i] = Math.tanh(x * 1.4) / Math.tanh(1.4); }
       shaper.curve = curve;
       const spk = ctx.createGain(); spk.gain.value = 1;
-      musicBus.connect(hp).connect(lp).connect(cone).connect(shaper).connect(spk);
+      musicBus.connect(gate("music")).connect(hp).connect(lp).connect(cone).connect(shaper).connect(spk);
       const musicOut = ctx.createGain(); musicOut.gain.value = 0.8; spk.connect(musicOut).connect(storeBus);
       [0.013, 0.027, 0.041].forEach((d, i) => {
         const dl = ctx.createDelay(0.1); dl.delayTime.value = d;
@@ -628,7 +637,7 @@ export function createAudio({ tapeUrl = null } = {}) {
     tapeIn.connect(dark).connect(musicBus);
     // More of the room: an extra send to the sales floor's long tail.
     const far = ctx.createGain(); far.gain.value = 0.6;
-    dark.connect(far).connect(bigVerb);
+    dark.connect(far).connect(gate("music")).connect(bigVerb);
     // The capstan's wow and flutter, from the same slow wobble as the
     // arrangements (it's in cents; here it bends the tape's speed).
     tapeRate = ctx.createGain(); tapeRate.gain.value = TAPE_RATE * 0.000578 * 1.6;
@@ -801,6 +810,12 @@ export function createAudio({ tapeUrl = null } = {}) {
       muted = m;
       if (ctx) ramp(master.gain, m ? 0 : 1, 0.15);
     },
+    // One of the three switches (see channelOff): "music", "store", "pieces".
+    setChannelMuted(ch, m) {
+      if (!(ch in channelOff)) return;
+      channelOff[ch] = !!m;
+      if (ctx) gates[ch].forEach((g) => ramp(g.gain, m ? 0 : 1, 0.15));
+    },
     setTension(v) {
       tension = v;
       // A position that's getting tight makes the lights hum a little louder.
@@ -890,7 +905,8 @@ export function createAudio({ tapeUrl = null } = {}) {
     // For tests: what's playing.
     debugState() {
       return {
-        ctx: !!ctx, storeOn, windingDown, music: !!schedTimer, playing, tune: tuneNo, key: keyNo, notes: piece ? piece.notes.length : 0,
+        ctx: !!ctx, ctxState: ctx ? ctx.state : null, storeOn, windingDown, channelsOff: { ...channelOff },
+        gates: Object.fromEntries(Object.entries(gates).map(([k, list]) => [k, list.map((g) => +g.gain.value.toFixed(3))])), music: !!schedTimer, playing, tune: tuneNo, key: keyNo, notes: piece ? piece.notes.length : 0,
         tape: tape ? (tape.failed ? "failed" : "ready") : tapeLoading ? "loading" : "none",
         tapeTime: ctx && playing === "tape" ? tapeOffset + Math.max(0, ctx.currentTime - tapeStartedAt) * TAPE_RATE : tapePos,
         tapeLength: tape && tape.buffer ? tape.buffer.duration : 0,

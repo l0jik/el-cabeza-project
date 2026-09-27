@@ -890,6 +890,13 @@ export { mountAmbientEffects } from "./tienda-fx.js";
 // up. Without it the store plays only its own arrangements.
 export const createAudio = () => createStoreAudio({ tapeUrl: "el-cabeza-tienda-muzak.mp3" });
 export { hasAudio } from "./tienda-audio.js";
+// The dock's sound button opens a menu of these, each switched on its own
+// (chassis: theme.soundChannels; tienda-audio.js setChannelMuted).
+export const soundChannels = [
+  { key: "music", label: "Music", hint: "The ceiling speakers" },
+  { key: "store", label: "Store sounds", hint: "Lights, air, the far-off shoppers" },
+  { key: "pieces", label: "Pieces", hint: "The wood, the paper, the register" },
+];
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).
 export const moveCostToggle = true;
