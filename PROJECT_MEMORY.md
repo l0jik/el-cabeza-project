@@ -2324,3 +2324,10 @@ cubes, or w*h). `landingSize = contact * cbrt(cubes)`: a cube is 1, a
 contact (older callers) it falls back to the cube count. Test:
 tests/e2e-wood-sounds.mjs (also renders every cue offline on both boards:
 audible, under full scale, bigger face = lower).
+
+### Tienda: fewer phone rings and PA announcements (user request)
+The store's random events (tienda-audio.js scheduleEvent) had the service
+desk phone at 12% and the PA at 14% of picks. Both halved (6%, 7%); the
+share they gave up is a quiet spell (no event), so carts, the register,
+steps and the door come exactly as often as before. The closing
+announcement at the end of a game is not random and is unchanged.

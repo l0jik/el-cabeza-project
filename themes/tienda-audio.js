@@ -391,12 +391,15 @@ export function createAudio({ tapeUrl = null } = {}) {
       if (!ctx || !storeOn) return;
       if (!muted && document.visibilityState === "visible") {
         const r = Math.random();
+        // The phone and the PA at half their old share (user request: 12%
+        // and 14% were too often); the share they gave up is a quiet spell,
+        // so everything else comes as often as before.
         if (r < 0.26) farCart();
         else if (r < 0.46) farRegister();
         else if (r < 0.64) farSteps();
-        else if (r < 0.76) farPhone();
-        else if (r < 0.9) paAnnouncement();
-        else farDoor();
+        else if (r < 0.70) farPhone();
+        else if (r < 0.77) paAnnouncement();
+        else if (r < 0.87) farDoor();
       }
       scheduleEvent(24000 + Math.random() * 38000);
     }, ms);
