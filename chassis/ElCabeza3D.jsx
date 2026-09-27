@@ -565,6 +565,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       const r = t.renderer.domElement.getBoundingClientRect();
       return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
     };
+    // Test-only: move the camera (theta, phi, radius) to look round a
+    // theme's room, as a drag and a pinch would.
+    window.__EC_TEST_CAM__ = (patch) => {
+      if (patch) {
+        const { target, ...rest } = patch;
+        Object.assign(cam.current, rest);
+        if (Array.isArray(target)) cam.current.target.set(target[0], target[1], target[2]);
+      }
+      const c = cam.current;
+      return { theta: c.theta, phi: c.phi, radius: c.radius };
+    };
   }, [pieces]);
   /* React-visible copy of the Black Hole Squares LAW's current
      placement — engine/constants.js's own BLACK_HOLES is plain mutable

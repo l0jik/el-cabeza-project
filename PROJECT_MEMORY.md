@@ -837,7 +837,9 @@ pieces).
 
 - **Standard**: opaque `MeshStandardMaterial` body + an inflated
   back-face silhouette shell (grown by `OUTLINE_T`, rendered `BackSide`)
-  for the outline.
+  for the outline. Since the den, Standard and Tienda build their board
+  and pieces from the same code, themes/wood-set.js (walnut and olive ash,
+  see "Standard: the den" below).
 - **Neon**: translucent body (`depthWrite: false`, deliberately — avoids
   a self-z-fighting bug on beveled edges) + a traced `EdgesGeometry`
   outline on a simplified sharp-cornered proxy. Trade-off, not an
@@ -1777,21 +1779,6 @@ Sumi, Vacío) each have a Title and an In-game phone board.
   user first. Related: Lluvia (themes/lluvia*.js) is already a rainy
   neon city round the board, so ask whether this grows out of Lluvia or
   is a version of its own.
-- **On hold (user paused, 2026-09-27; wait for their go-ahead).** Four
-  requests from one message: (1) bring back Shoving's "slides only /
-  slides and rolls" choice (history: commit cbdd46c removed it; the old
-  `shoveOnRolls` gate, Tienda's `tienda-shove-*` buttons and the sphere's
-  `renderShoveSettingsRow`); (2) a SIDE view beside every rolling or
-  tipping MOVES tile (chassis/RulesCards.jsx, shared by every version;
-  Flaco, Shelter and Pivot already have one; Cabeza steps and slides
-  don't need one; ask the user about the borderline tiles: Crush, Free
-  way back, Black hole, Missing squares); (3) a switch to hide the piece
-  card (desktop) and the phone bar's piece text and tap hints; (4) Standard
-  reworked as a 1970s den / family room / conversation pit (wood
-  paneling, shag, stone fireplace, amber lamps): "they bought a copy at
-  the store and took it home". The questions about (4) (which board and
-  pieces, which room, den sounds, menu look) were dismissed unanswered.
-
 - **Online play against another human.** GitHub Pages only serves static
   files, so this needs a small backend: a relay (WebSocket) service, or
   peer-to-peer WebRTC with a tiny signalling server. Invite by link or
@@ -2271,9 +2258,9 @@ Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
   damping. It used to be a random roll.
 - **Neon's custom-rules emblem** (VariantsFlyout) only shows in a game
   that has custom rules (`renderVariantsFlyout`).
-- **Standard's wood sounds:** the user will upload real recordings (the
-  sandbox reaches no free sound library; see §9 for the four rejected
-  synthesis attempts). Build every Standard cue from those files.
+- **Standard's wood sounds:** (superseded) the user once planned to
+  upload recordings; they later chose Tienda's synthesized knocks instead
+  (see "Wood sounds: Standard uses Tienda's").
 
 ### Undo after a black hole or a shove (user bug report, video)
 Undo turn replayed an AI Cabeza's wormhole step backwards as a plain
@@ -2325,8 +2312,8 @@ connects to `sfxGain`, which is now the interface gate; the piece cues
 are wrapped in `pieceCue`, which points `sfxGain` at the pieces gate for
 the (synchronous) call. The landing reverb sends to the pieces gate. Both
 gates feed `sfxOut` (the old 1.25 sfx level). `__EC_TEST_AUDIO__` reports
-`channelsOff` and `gates`. Standard has only piece sounds, so it keeps a
-single Sound switch. On a phone (MobileShell) the menu's Sound becomes
+`channelsOff` and `gates`. Standard (the den) has two channels, The room
+and Pieces. On a phone (MobileShell) the menu's Sound becomes
 "All sounds" with the channels indented under it
 (`shell-menu-sound-<key>`). The storage key is shared across pages, so
 "pieces" off carries between Tienda and Neon. Test:
@@ -2399,3 +2386,62 @@ back, a nested rotation about the landed cube's far edge). No side view,
 as the user said (nothing tips): Cabeza step, Reach the far row, Slide,
 Diagonal Slide, Shove (the slide one), 3 Actions. Test: e2e-rules checks
 which tiles carry SIDE (17 tiles now).
+
+### Standard: the den (user request: the game at home)
+The user: "they went to the store & ended up buying a copy and bringing
+it home and are now playing it in their den / family room / sitting room
+/ conversation pit" (three 1970s reference photos). The questions were
+dismissed, then "go ahead", so these are the defaults, open to change:
+Tienda's copy of the board and pieces, a sunken conversation pit, quiet
+fire/clock/rain sounds (switchable), den-coloured menus with the rules as
+the box's booklet. Landing knocks stay on the solid board (their earlier
+choice).
+- **Wood set:** themes/wood-set.js `createWoodSet({env, quality, lights})`
+  holds Tienda's board texture, slab, grid, pieces, markers, missing
+  squares, black holes, the brass frame, followGrain and woodSwatch.
+  tienda.js and standard.js each make one with their own lights and
+  environment panorama (store / den), so the wood reads right in each room.
+- **The room** (themes/den-room.js `buildDen(boardSpan)`): the board sits
+  on a walnut coffee table (`buildCoffeeTable`) in the middle of the pit:
+  sofas (rust corduroy, print pillows) on the north, south and west, steps
+  up on the east. North: fieldstone fireplace (a ShaderMaterial flame and
+  glow sprites), mantel, a sunburst clock showing the real time, books.
+  East: a sliding glass door onto a rainy night yard (the rain runs), drapes.
+  South: console TV (screen colour 0x070a09: anything brighter reads as
+  switched on), stereo, records, landscape, table lamp. West: floral paper,
+  credenza, two lamps, abstract painting, macramé hanger. Middle: velvet
+  chair, plaid ottoman, arc lamp, rubber plant; swag lamps overhead.
+  On the table: the closed box (the lid art), the leaflet, two iced teas
+  on coasters and a bowl of party mix. Textures are all canvas-painted
+  (themes/den-textures.js), no image files except the lid art.
+- **Lighting:** the room is unlit (`MeshBasicMaterial` + vertex colours
+  baked from `LAMPS` with falloff and wrap, world-planar UVs), merged per
+  material and group by `Builder`: about 120 draw calls for the whole
+  room. The table and what's on it are lit, so the board's shadow falls
+  on them and they match the pieces.
+- **Everything hangs off `boardGroup`**, so turning the board reads as
+  walking round the pit; rebuilt when the board size changes (table
+  `TW = span + 16`, pit half-width `PH = TW/2 + 22`). Fog 0x1c130c
+  150-420, background 0x140d08, camera far 900 (den-fx.js).
+- **Cutaway:** groups `den-sofaN/S/W`, `den-wallN/E/S/W`, `den-ceiling`.
+  `den.animate(now, camLocal)` hides a sofa when the sight line from the
+  camera to the table passes under its back or seat (a low camera pulled
+  back would otherwise be inside it), a wall once the camera is past it,
+  the ceiling once the camera is above it. Don't remove it.
+- **Device fit:** tienda-quality.js tiers (pixel-ratio cap, shadow map,
+  physical materials) and the same frame-rate governor as Tienda.
+- **Sound** (themes/den-audio.js): The room (fire bed, hiss and crackles;
+  the clock ticking the real seconds; rain, drops, rare far thunder) and
+  Pieces (wood-sfx.js on the solid board plus a small room reverb). The
+  room starts on the first gesture. Win: a marimba figure.
+- **Menus** (standard.js `styleSheet`, `COLORS`): cream masthead with a
+  warm glow, dock card and chips in den browns; the rules pop-up is the
+  box's booklet (double inset rule, Bodoni headings).
+- Games still open top-down (earlier user rule), so the room shows at
+  setup, in player view and when orbiting or zoomed out.
+- **Test hooks:** `__DEN_ROOM__` (true while mounted, false after
+  dispose), `__DEN_THREE__` (with `__EC_TEST_HOOKS__`), `__DEN_QUALITY__`,
+  `__DEN_PIXEL_RATIO__`, `__DEN_AUDIO__()`. The chassis's
+  `__EC_TEST_CAM__({theta, phi, radius, target})` moves the camera
+  (a wheel burst in a test switches views instead of zooming).
+  Test: tests/e2e-den.mjs.

@@ -1,499 +1,234 @@
-/* Standard theme: palette, piece-edge rounding, and board visuals.
-   Extracted from el_cabeza_3d.jsx. Everything here is intentionally
-   theme-owned rather than shared — Standard and Neon deliberately
-   render the board and pieces differently (see themes/neon.js for the
-   contrast: bloom textures, additive blending, a dark palette). */
+/* Standard theme: the game at home.
+
+   They went to the store, ended up buying a copy, and brought it home:
+   the same folding walnut-and-maple board and wooden blocks as on
+   Tienda's display table (themes/wood-set.js), now on a walnut coffee
+   table in the sunken conversation pit of a mid-seventies den, on a
+   rainy weeknight — paneled walls, shag, a fire going in the fieldstone
+   fireplace, amber swag lamps (themes/den-room.js, den-fx.js), and the
+   sound of the room (den-audio.js).
+
+   The menus are the room's: warm card stock and chocolate ink, the
+   title in a soft, heavy seventies serif, the rules set as the booklet
+   that came in the box. The side buttons wear the pieces' own wood.
+
+   Standard is also Nova's first theme (apps/unified.jsx), and its phone
+   layout takes its colours from COLORS here (chassis/MobileShell.jsx). */
 
 import * as THREE from "three";
-import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, DISC_DIAM, DISC_H, PIECE_SCALE, CABEZA_SCALE } from "../engine/constants.js";
-import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
-import { createWoodSfx } from "./wood-sfx.js";
+import { quality } from "./tienda-quality.js";
+import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_T } from "./wood-set.js";
+import { createAudio as createDenAudio } from "./den-audio.js";
+import { createDenEffects } from "./den-fx.js";
 
-/* Outline thickness for the silhouette-shell technique below, in world
-   units. Standard-only: Neon uses a different outline technique (see
-   themes/neon.js's buildPieceVisual) that needs no equivalent
-   constant. */
-const OUTLINE_T = 0.016;
+/* ------------------------------------------------------------ the room's colours */
 
-/* The chassis's roll animation strips this from a shell's Y position
-   before it enters a pivot rotation (the shell's at-rest offset would
-   otherwise rotate WITH the piece, dipping it below the board mid-roll
-   — see chassis/ElCabeza3D.jsx's animateStep). Neon's shell carries no
-   such offset (see themes/neon.js), so its value there is 0 — the
-   chassis always applies `theme.outlineYOffset ?? 0` unconditionally
-   rather than branching on which theme is active. */
-export const outlineYOffset = OUTLINE_T;
+// Avocado, harvest gold, burnt orange, walnut and cream: the colours of
+// the den, a little dimmed by lamplight.
+export const DEN = {
+  chocolate: "#3A2415",
+  walnut: "#5C3A21",
+  rust: "#9C4A26",
+  burntOrange: "#C0632C",
+  harvestGold: "#D3A13B",
+  avocado: "#6B7536",
+  cream: "#F3E7CD",
+  card: "#EADBBB",
+};
 
 export const COLORS = {
-  /* Lightened from #FDFBF7 — a deliberate, if necessarily small, push:
-     the starting value was already close to white, so there's limited
-     room to move without losing the warm ivory character entirely.
-     This is also the "Light" player's theme color throughout the UI
-     (buttons, indicators, the win placard), not just the board surface
-     — the two were always the same value and are kept that way here,
-     so the board and its own side's UI chrome don't drift apart into
-     two different creams. */
-  cream: "#FFFEFC",
-  creamAlt: "#F2ECDF",
-  charcoal: "#242424",
-  slate: "#4A5568",
-  slateSoft: "rgba(74, 85, 104, 0.22)",
-  slateFaint: "rgba(74, 85, 104, 0.12)",
-  /* Outer page background — the area outside the app card itself, NOT
-     the board. Deliberately a separate name from HEX.wood (the actual
-     3D board-edge color, still light): the two happened to be close in
-     value before, and giving this its own distinct name here removes
-     any risk of future confusion between "the board's own wood tone"
-     and "the backdrop behind the whole app," now that they're also
-     visually distinct (dark brownish-gray vs. the board's own light
-     wood). */
-  pageBg: "#4A4038",
-  pageBgDeep: "#332B24",
-  /* Player chip FILL colors — a theme-agnostic pair chassis reads for
-     any "which player is this" swatch (e.g. the move-log column
-     headers), so it never has to assume charcoal=dark/cream=light
-     itself. In Standard those literally are the ink/surface pair
-     above; Neon's own charcoal/cream are inverted for its dark UI, so
-     it defines this pair separately (see themes/neon.js). */
-  bodyDark: "#242424",
-  bodyLight: "#FFFEFC",
+  // The menus: warm card stock, chocolate ink.
+  cream: DEN.cream,
+  creamAlt: "#E6D5B2",
+  charcoal: DEN.chocolate,
+  slate: "#7A5A3C",
+  slateSoft: "rgba(122, 90, 60, 0.30)",
+  slateFaint: "rgba(122, 90, 60, 0.10)",
+  pageBg: "#2A1C12",
+  pageBgDeep: "#1A120B",
+  // The pieces: walnut for Dark, olive ash for Light.
+  bodyDark: "#4A2C1C",
+  bodyLight: "#D9B77E",
 };
 
-/* The masthead title and modal-header display face. Declared
-   explicitly (chassis would fall back to this same value anyway) so
-   both themes' font choice is visible in one place. */
+// The title: Fraunces at its softest and heaviest reads like the rounded
+// display faces of the period.
 export const titleFontFamily = "'Fraunces', serif";
+// The camera sits a little lower than the default (0.86), so the room
+// shows behind the pit; a little lower again on a tall screen.
+export const viewPitch = typeof window !== "undefined" && window.innerHeight > window.innerWidth * 1.25 ? 1.08 : 1.0;
 
 export const HEX = {
-  /* Kept identical to COLORS.cream, same reasoning as that comment —
-     currently unused by any actual Three.js material (the board
-     texture is drawn via Canvas 2D with the CSS string COLORS.cream
-     directly), but kept in sync regardless so the two never quietly
-     diverge if something starts reading this later. */
-  cream: 0xfffefc,
-  /* Light pieces are deliberately darker than the board cream: at
-     0xfdfbf7 they were the same value as the squares beneath them, so
-     neither their silhouette nor their shaded faces could register. */
-  /* 0xe4dac6 darkened 10% (each channel x0.9), then brightened 2%
-     (each channel x1.02) per feedback that the darkened tone read
-     slightly too dim against the board. */
-  pieceLight: 0xd1c8b6,
-  charcoal: 0x242424,
-  slate: 0x4a5568,
-  wood: 0xddceaf,
+  cream: 0xf3e7cd,
+  charcoal: 0x2a1a10, // the slab's edge lines: the board's dark edge
+  slate: 0x7a5a3c,
+  pieceLight: 0xd9b77e,
+  pieceDark: 0x4a2c1c,
+  // Pivot arrows and similar accents the chassis colours per side.
+  glowCyan: 0xd3a13b,
+  glowAmber: 0xf3e7cd,
+  structureEdge: 0xd3a13b,
 };
 
-/* Edge rounding, in board units where one square = 1 inch. 0.125 = a
-   1/8" roundover. This is the single number to tune. */
-export const EDGE_RADIUS = 0.0625;
+export const EDGE_RADIUS = SET_EDGE_RADIUS;
+export const outlineYOffset = OUTLINE_T;
 
-export function makeBoardTexture() {
-  const RES = 2048;
-  const canvas = document.createElement("canvas");
-  /* The canvas matches the slab's own ASPECT rather than always being
-     square: one pixels-per-world-unit scale is derived from the board's
-     longest side (so resolution stays bounded at 2048 whatever the
-     dimensions) and both axes then use it, which is what keeps a drawn
-     square actually square on a non-square board instead of stretching
-     with the plate. At 10x10 both sides are SLAB_MAX, so this is
-     exactly the old RES x RES canvas. */
-  const pxPerUnit = RES / SLAB_MAX;
-  canvas.width = Math.round(SLAB_X * pxPerUnit);
-  canvas.height = Math.round(SLAB_Z * pxPerUnit);
-  const ctx = canvas.getContext("2d");
-  const pad = MARGIN * pxPerUnit; // border thickness in pixels (uses the smaller MARGIN)
-  const squarePx = SQUARE_SIZE * pxPerUnit; // each drawn square is now SQUARE_SIZE units wide
+export const modalBackdrop = "rgba(20, 12, 6, 0.5)";
+export const modalSurface = "rgba(243, 231, 205, 0.98)";
+// Shown only until the room is up.
+export const canvasGradientStart = "#4A3322";
+export const canvasGradientEnd = "#1A120B";
 
-  ctx.fillStyle = COLORS.cream;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+/* Lamplight: warm and low, from above the pit (the swag lamps), with the
+   fire's orange coming in behind. Enough to play by, not more. */
+export const lights = {
+  ambient: { color: 0xfff0dc, intensity: 0.14 },
+  hemi: { sky: 0xffeedb, ground: 0x4a3420, intensity: 0.44 },
+  key: { color: 0xfff1de, intensity: 0.95 },
+  fill: { color: 0xffdcb4, intensity: 0.24 },
+  back: { color: 0xffb070, intensity: 0.22 },
+};
 
-  /* Every square is this same uniform cream — no alternating checker
-     fill here anymore. Goal-row tinting still runs per-square below,
-     but that's a different thing: a functional marker of the two
-     win-condition rows (every square within a goal row gets the same
-     tint as its neighbors), not a decorative light/dark pattern. */
-  for (let r = 0; r < BOARD_ROWS; r++) {
-    for (let c = 0; c < BOARD_COLS; c++) {
-      const isGoal = r === 0 || r === BOARD_ROWS - 1;
-      if (isGoal) {
-        ctx.fillStyle = "rgba(74, 85, 104, 0.055)";
-        ctx.fillRect(pad + c * squarePx, pad + r * squarePx, squarePx, squarePx);
-      }
-    }
-  }
+/* ------------------------------------------------------------ reflections */
 
-  /* Grid lines are drawn as real geometry, not painted here — at
-     grazing camera angles a mipmapped hairline disappears. Coordinate
-     labels (1-10 / A-J) have been removed from the border entirely. */
-
-  return new THREE.CanvasTexture(canvas);
+/* What the lacquer and the brass reflect: the den round the pit — lamp
+   glow in amber pools, dark paneling, the fire, the green shag, the
+   night in the glass door. A painted panorama, as Tienda's store. */
+let ENV = null;
+export function denEnv() {
+  if (ENV) return ENV;
+  const W = 1024, H = 512;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d");
+  const grad = g.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "#3C2E22"); // the popcorn ceiling, lamp-lit
+  grad.addColorStop(0.32, "#4A3424");
+  grad.addColorStop(0.44, "#2A190E"); // paneling at the horizon
+  grad.addColorStop(0.53, "#3A2413");
+  grad.addColorStop(0.6, "#3A4018"); // the shag
+  grad.addColorStop(1, "#22260E");
+  g.fillStyle = grad; g.fillRect(0, 0, W, H);
+  // The lamps, the fire and the swag globes round the horizon and above.
+  const blob = (x, y, r, col) => { const rg = g.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, col); rg.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = rg; g.fillRect(x - r, y - r, r * 2, r * 2); };
+  blob(W * 0.25, H * 0.44, 70, "rgba(255,150,70,0.9)"); // the fire
+  blob(W * 0.5, H * 0.38, 46, "rgba(255,210,150,0.8)");
+  blob(W * 0.62, H * 0.4, 40, "rgba(255,210,150,0.7)");
+  blob(W * 0.86, H * 0.39, 44, "rgba(255,205,145,0.75)");
+  blob(W * 0.1, H * 0.2, 36, "rgba(255,170,80,0.85)"); // the swags
+  blob(W * 0.6, H * 0.18, 36, "rgba(255,170,80,0.85)");
+  // The glass door: a dark blue pane.
+  g.fillStyle = "rgba(20,32,50,0.9)"; g.fillRect(W * 0.72, H * 0.3, W * 0.08, H * 0.2);
+  ENV = new THREE.CanvasTexture(c);
+  ENV.mapping = THREE.EquirectangularReflectionMapping;
+  return ENV;
 }
 
-/* Grid as line geometry: resolution-independent, so it stays crisp at
-   any zoom and any camera pitch. */
-export function makeGrid() {
-  const group = new THREE.Group();
-  const lines = [];
+/* ------------------------------------------------------------ the set */
 
-  /* Every internal line drawn at one uniform opacity — no separate
-     "major" tier for the center-bisecting lines or the two edge lines
-     (i = 0, i = the last index) the way an
-     earlier version had. The edges get their own distinct emphasis
-     from the charcoal border drawn below regardless, so a second,
-     heavier-opacity copy of the grid line sitting exactly underneath
-     it was never doing anything visible there anyway — it was only
-     ever the center cross that this bucketing was actually making
-     look heavier than the rest of the grid. */
-  /* Two loops, not one: on a non-square board the number of lines
-     running each way differs (COLS+1 verticals, ROWS+1 horizontals),
-     and each spans the OTHER axis's full extent. */
-  for (let i = 0; i <= BOARD_COLS; i++) {
-    const x = i * SQUARE_SIZE - OFF_X;
-    lines.push(x, 0, -OFF_Z, x, 0, OFF_Z);
-  }
-  for (let i = 0; i <= BOARD_ROWS; i++) {
-    const z = i * SQUARE_SIZE - OFF_Z;
-    lines.push(-OFF_X, 0, z, OFF_X, 0, z);
-  }
+/* The board, the blocks, the move markers and the board's features are
+   the store's copy (themes/wood-set.js), reflecting the den. */
+export const woodSet = createWoodSet({ env: denEnv, quality, lights });
+// The squares are painted into the board's texture, so the chassis paints
+// it again when the board changes size.
+export const boardTextureFollowsSize = true;
+export const makeBoardTexture = woodSet.makeBoardTexture;
+export const buildSlabMaterials = woodSet.buildSlabMaterials;
+export const makeGrid = woodSet.makeGrid;
+export const buildPieceVisual = woodSet.buildPieceVisual;
+export const buildMoveIndicator = woodSet.buildMoveIndicator;
+export const buildMissingSquareVisual = woodSet.buildMissingSquareVisual;
+export const buildBlackHoleVisual = woodSet.buildBlackHoleVisual;
 
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(lines, 3));
-  const gridLines = new THREE.LineSegments(
-    geo,
-    new THREE.LineBasicMaterial({ color: HEX.slate, transparent: true, opacity: 0.3 })
-  );
-  /* Raised from 0.004 — the slab's own top-face material carries a
-     view-angle-dependent polygonOffset push (see buildSlabMaterials'
-     own comment: ~0.012 world units overhead, up to ~0.03 at a grazing
-     angle) meant to guarantee these exact lines win the depth test
-     against it. 0.004 is comfortably UNDER even that smallest push, so
-     as phi swept through its range during a drag's own deceleration
-     ease, the two could cross — read as the grid flickering in and out
-     right at the board surface. Clearing the full range with margin,
-     not just the overhead case, removes the crossing entirely rather
-     than narrowing when it happens. */
-  gridLines.position.y = 0.05;
-  group.add(gridLines);
-
-  /* Crisp charcoal border around the playing area. */
-  const borderGeo = new THREE.BufferGeometry();
-  borderGeo.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(
-      [
-        -OFF_X, 0, -OFF_Z, OFF_X, 0, -OFF_Z,
-        OFF_X, 0, -OFF_Z, OFF_X, 0, OFF_Z,
-        OFF_X, 0, OFF_Z, -OFF_X, 0, OFF_Z,
-        -OFF_X, 0, OFF_Z, -OFF_X, 0, -OFF_Z,
-      ],
-      3
-    )
-  );
-  const border = new THREE.LineSegments(
-    borderGeo,
-    new THREE.LineBasicMaterial({ color: HEX.charcoal, transparent: true, opacity: 0.8 })
-  );
-  border.position.y = 0.06; // same reasoning as gridLines above, kept above it
-  group.add(border);
-
-  return group;
+/* The buttons and chips that stand for a side wear that side's wood, as
+   in Tienda (chassis: theme.sideSurface): cream ink on walnut, near-black
+   with a pale halo on olive ash. Flat colours without WebGL. */
+export function sideSurface(side) {
+  const dark = side === "dark";
+  const url = woodSet.woodSwatch(dark);
+  if (!url) return null;
+  return dark
+    ? { background: `url(${url}) center / cover no-repeat, ${COLORS.bodyDark}`, color: "#F6EAD2", textShadow: "0 1px 1px rgba(18,9,3,0.9), 0 0 4px rgba(18,9,3,0.55)" }
+    : { background: `url(${url}) center / cover no-repeat, ${COLORS.bodyLight}`, color: "#23150A", textShadow: "0 0 2px rgba(255,246,228,0.95), 0 0 5px rgba(255,246,228,0.6)" };
 }
 
-/* Builds a piece's body mesh and its outline shell, given the piece's
-   own edge radius (EDGE_RADIUS above) is already baked into `geo`
-   wherever the caller built it the same way. Kept as one hook per
-   ARCHITECTURE.md: Standard's opaque body + inflated back-face
-   silhouette shell is a genuinely different technique from Neon's
-   translucent body + traced-edge outline (see themes/neon.js), not
-   the same function with different colors. */
-/* Modal chrome (backdrop dimming, panel surface) for the chassis's
-   shared popups (Move Log, Info, Victory placard). A separate token
-   from COLORS.cream rather than deriving it inline, since these need
-   their own alpha and — for Neon — a materially different base color,
-   not just cream-with-opacity. */
-export const modalBackdrop = "rgba(36,24,10,0.45)";
-export const modalSurface = "rgba(253,251,247,0.96)";
+/* ------------------------------------------------------------ sound and the scene */
 
-/* Endpoints of the canvas mount's own radial-gradient background
-   (the middle stop is COLORS.creamAlt, already theme-derived). */
-export const canvasGradientStart = "#FFFDF9";
-export const canvasGradientEnd = "#E9E1D2";
-
-/* The pieces' sounds are Tienda's wood (themes/wood-sfx.js): select,
-   deselect, blocked, the roll, the landing and a capture, on a solid
-   slab rather than Tienda's hollow folding board. Only the pieces make
-   sound; every other cue is a no-op. */
 export const hasAudio = true;
+export const createAudio = () => createDenAudio();
+// The dock's sound button (and the phone menu) offers these, each switched
+// on its own (chassis: theme.soundChannels; den-audio.js setChannelMuted).
+export const soundChannels = [
+  { key: "room", label: "The room", hint: "The fire, the clock, the rain" },
+  { key: "pieces", label: "Pieces", hint: "The wood on the board" },
+];
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).
 export const moveCostToggle = true;
-export function createAudio() {
-  let ctx = null;
-  let master = null;
-  let wood = null;
-  let muted = false;
 
-  // Built lazily on the first gesture (ensureStarted); without Web Audio,
-  // ctx stays null and every cue is a silent no-op.
-  function ensureGraph() {
-    if (ctx) return;
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      ctx = new AC();
-      if (ctx.state === "suspended") ctx.resume();
-      master = ctx.createGain();
-      master.gain.value = muted ? 0 : 1;
-      // As Tienda's: a gentle compressor on the way out.
-      const comp = ctx.createDynamicsCompressor();
-      comp.threshold.value = -16; comp.ratio.value = 3; comp.attack.value = 0.005; comp.release.value = 0.25;
-      master.connect(comp).connect(ctx.destination);
-      // A small, short room (Tienda's near one), so a knock isn't bone dry.
-      const len = Math.floor(ctx.sampleRate * 0.6), ir = ctx.createBuffer(2, len, ctx.sampleRate), pre = Math.floor(ctx.sampleRate * 0.005);
-      for (let ch = 0; ch < 2; ch++) {
-        const d = ir.getChannelData(ch);
-        let lp = 0;
-        for (let i = pre; i < len; i++) { lp = lp * 0.35 + (Math.random() * 2 - 1) * 0.65; d[i] = lp * Math.pow(1 - (i - pre) / (len - pre), 2.2) * 2.2; }
-      }
-      const room = ctx.createConvolver(); room.buffer = ir;
-      const roomOut = ctx.createGain(); roomOut.gain.value = 0.35;
-      room.connect(roomOut).connect(master);
-      const sfx = ctx.createGain();
-      sfx.connect(master);
-      const send = ctx.createGain(); send.gain.value = 0.22;
-      sfx.connect(send).connect(room);
-      wood = createWoodSfx(ctx, sfx, { board: "solid" });
-    } catch (e) {
-      ctx = null;
-      wood = null;
-    }
-  }
+export const mountAmbientEffects = createDenEffects(woodSet);
 
-  function ensureStarted() {
-    ensureGraph();
-    if (ctx && ctx.state === "suspended") ctx.resume();
-  }
-
-  function setMuted(m) {
-    muted = m;
-    if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.08);
-  }
-
-  // Each cue builds the graph if a gesture hasn't yet (the chassis starts
-  // it on the first press, but a cue can come first).
-  const cue = (fn) => (...args) => { ensureGraph(); if (wood) fn(...args); };
-
-  return {
-    ensureStarted, beginGameFadeIn() {}, setZoom() {}, setMuted,
-    setTension() {}, beginFadeOut() {}, resetWindDown() {},
-    playSelect: cue(() => wood.select()),
-    playDeselect: cue(() => wood.deselect()),
-    playBlocked: cue(() => wood.blocked()),
-    // durationMs is the roll's own animation length (chassis animateStep).
-    playRollStart: cue((units, durationMs) => wood.rollStart(units, durationMs)),
-    // units: the piece's cubes; contact: the squares its landing face covers.
-    playLanding: cue((units, contact) => wood.landing(units, contact)),
-    playCapture: cue(() => wood.capture()),
-    playWin() {}, playMenu() {}, fadeOutMenu() {}, stopMenu() {}, playRulesOpen() {}, playRulesClose() {}, playRulesTab() {}, playPowerOn() {},
-    playPowerOff() {}, playFlicker() {}, playArc() {}, playGlitch() {},
-    playSingularityOpen() {}, playSingularityClose() {},
-    /* Singularity is a Neon-only feature, but the chassis calls every
-       audio method unconditionally rather than branching on theme (see
-       ARCHITECTURE.md), so these exist here as no-ops exactly like the
-       rest of this object. */
-    startSingularityHum() {}, updateSingularityHum() {}, stopSingularityHum() {},
-    playSingularityDismiss() {},
-    continueSingularityHumThroughCollapse() {}, startSingularityCollapseRoar() {},
-    cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
-    playDockOpen() {}, playDockClose() {},
-    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, muted }; },
-    dispose() {
-      ctx && ctx.close();
-    },
-  };
-}
-
-/* No ambient visual FX of its own — every hook is a no-op. The chassis
-   still calls these unconditionally at every lifecycle point. */
-export function mountAmbientEffects() {
-  return { armOnBegin() {}, restart() {}, tick() {}, dispose() {} };
-}
-
-/* Standard's own stylesheet is empty — its look needs no extra
-   keyframes or hover treatments beyond what the chassis already
-   provides. */
-export const styleSheet = "";
-
-/* No pre-game setup extras (Neon's Anomaly/Singularity have no
-   Standard equivalent). */
+/* No pre-game setup extras, and no SVG filter defs. */
 export function renderSetupExtras() {
   return null;
 }
-
-/* No global SVG filter defs (Neon's VHS-glitch warp filters have no
-   Standard equivalent). */
 export function renderGlobalDefs() {
   return null;
 }
 
-/* Scene lighting: color/intensity only. Every light's position, shadow
-   config, and cast/receive behavior is identical between themes and
-   lives in the chassis (see ARCHITECTURE.md) — this is a plain data
-   table, not a hook, because the chassis owns the light RIG and only
-   ever asks a theme for these per-light overrides. */
-export const lights = {
-  ambient: { color: 0xffffff, intensity: 0.19278 },
-  hemi: { sky: 0xffffff, ground: 0xa8946f, intensity: 0.273105 },
-  key: { color: 0xfff6e8, intensity: 1.08 },
-  fill: { color: 0xf4f7ff, intensity: 0.378 },
-  back: { color: 0xffffff, intensity: 0.18 },
-};
+/* ------------------------------------------------------------ the menus' look */
 
-/* The slab's six BoxGeometry face materials, given the already-built
-   board texture. A theme hook (not a shared function with parameters)
-   because Neon's top face uses MeshPhysicalMaterial's clearcoat layer
-   for a glossy sheen — a different material class, not just different
-   numbers — while Standard's is a plain MeshStandardMaterial throughout.
-   polygonOffset on the top face is chassis-owned tuning (it papers
-   over a z-fighting concern shared by both themes' slab geometry, not
-   a visual choice), so themes only ever set it exactly as shown here. */
-export function buildSlabMaterials(boardTex) {
-  const side = () => new THREE.MeshStandardMaterial({ color: HEX.wood, roughness: 0.85 });
-  return [
-    side(),
-    side(),
-    new THREE.MeshStandardMaterial({
-      map: boardTex,
-      roughness: 0.72,
-      polygonOffset: true,
-      polygonOffsetFactor: 0,
-      polygonOffsetUnits: 3,
-    }),
-    side(),
-    side(),
-    side(),
-  ];
-}
-
-export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
-  const mat = new THREE.MeshStandardMaterial({
-    color: isDark ? HEX.charcoal : HEX.pieceLight,
-    roughness: isDark ? 0.48 : 0.58,
-    metalness: 0.04,
-    /* No polygonOffset here. Biasing pieces forward was tried and
-       reverted: with every mesh pulled -8 and every shell -4, a
-       FARTHER piece's mesh could beat a NEARER piece's shell
-       wherever their depth difference was smaller than that 4-unit
-       gap, so pieces behind punched their outlines through pieces
-       in front. Offsets applied per-object break ordering BETWEEN
-       those objects; the board is the only surface here that every
-       piece must sort against but that never sorts against a
-       sibling, which is why the bias belongs there (see the slab's
-       top-face material) and not on the pieces. */
-  });
-
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(center.x, y, center.z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  mesh.userData = { pieceId: piece.id, kind: "piece" };
-
-  /* Silhouette shell: the same solid grown by OUTLINE_T and drawn
-     back-faces-only, so the piece itself covers all of it except a
-     thin rim. This is what separates two light pieces sitting side
-     by side — a rounded solid has no sharp edge for EdgesGeometry
-     to trace, so an outline has to come from the silhouette. */
-  const shellGeo = isDisc
-    ? new THREE.CylinderGeometry(
-        (DISC_DIAM * CABEZA_SCALE) / 2 + OUTLINE_T,
-        (DISC_DIAM * CABEZA_SCALE) / 2 + OUTLINE_T,
-        DISC_H * CABEZA_SCALE + OUTLINE_T * 2,
-        40
-      )
-    : piece.vox
-      ? makePolycubeSmooth(piece, PIECE_SCALE, EDGE_RADIUS + OUTLINE_T, OUTLINE_T)
-      : makeRoundedBox(
-          piece.w * PIECE_SCALE + OUTLINE_T * 2,
-          piece.z * PIECE_SCALE + OUTLINE_T * 2,
-          piece.h * PIECE_SCALE + OUTLINE_T * 2,
-          EDGE_RADIUS + OUTLINE_T
-        );
-
-  const shell = new THREE.Mesh(
-    shellGeo,
-    new THREE.MeshBasicMaterial({
-      color: isDark ? 0x6f6f6f : HEX.charcoal,
-      side: THREE.BackSide,
-      /* shadowSide must be set EXPLICITLY here, and must be
-         BackSide. This shell casts a shadow (below), and the
-         shadow map keeps whichever surface is nearest the light.
-         three.js derives shadowSide from `side` when it isn't
-         given, and for a BackSide material it picks FrontSide —
-         which would record this shell's NEAR surface, sitting
-         OUTLINE_T in front of the piece's own lit faces. Every
-         piece would then test as being inside its own shadow and
-         render fully dark. Recording the FAR surface instead puts
-         the occluder behind the piece's lit faces, so the piece
-         stays lit while the board beyond it is still shadowed.
-         The silhouette is identical either way — front and back
-         faces of a closed convex solid share one outline — which
-         is exactly the property being exploited. */
-      shadowSide: THREE.BackSide,
-    })
-  );
-  /* The shell casts, not just the mesh — see themes/standard.js's
-     original comment history for why (matches the shadow's drawn
-     silhouette to the outline, not just the mesh's own edge). */
-  shell.castShadow = true;
-  /* y + OUTLINE_T so the shell's symmetric growth sits entirely above
-     the piece, flush with y=0, rather than penetrating the board. */
-  shell.position.set(center.x, y + OUTLINE_T, center.z);
-  shell.userData = { pieceId: piece.id, kind: "shell" };
-
-  return { mesh, shell };
-}
-
-/* Move/legal-move indicator: a dashed square outline, reading as
-   drafting notation rather than competing with a piece's own cast
-   shadow (a filled patch would). The chassis owns WHEN this fades in,
-   out, or brightens on hover (see setGhostLineTarget/opacity in
-   chassis/ElCabeza3D.jsx) — this only owns HOW that opacity value gets
-   drawn, via the returned setOpacity(). Neon's own implementation (see
-   themes/neon.js) looks and animates entirely differently; this is the
-   plain, static baseline this theme has always used. */
-export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(
-      [
-        -hx, 0, -hz, hx, 0, -hz,
-        hx, 0, -hz, hx, 0, hz,
-        hx, 0, hz, -hx, 0, hz,
-        -hx, 0, hz, -hx, 0, -hz,
-      ],
-      3
-    )
-  );
-  const material = new THREE.LineDashedMaterial({
-    color: HEX.charcoal,
-    dashSize: isCrush ? 0.16 : 0.1,
-    gapSize: isCrush ? 0.05 : 0.075,
-    transparent: true,
-    opacity: 0,
-  });
-  const line = new THREE.LineSegments(geo, material);
-  line.computeLineDistances();
-  line.position.set(cx, 0.025, cz);
-
-  return {
-    root: line,
-    setOpacity(v) {
-      material.opacity = v;
-    },
-    tick() {},
-    dispose() {
-      geo.dispose();
-      material.dispose();
-    },
-  };
-}
+/* The chassis's menus in the room's colours: its panels are card stock
+   already (COLORS); here the title is set soft and heavy, what floats
+   over the room (the corner controls, the points, the notes) gets a
+   scrap of card to read against the dark, and the rules are the booklet
+   from the box: cream stock inside a printed double rule, the headings
+   in the box's own Bodoni. The box lid's lettering needs Bodoni Moda,
+   Libre Franklin and Courier Prime too (den-room.js paints it). */
+export const styleSheet = `
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0..100,0..1&family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Libre+Franklin:wght@500;700&family=Courier+Prime:wght@400;700&display=swap');
+  html, body { overscroll-behavior: none; background: #1a120b; }
+  [style*="Fraunces"] { font-variation-settings: "SOFT" 100, "WONK" 1; }
+  .ec-title {
+    color: #F3E2BE !important;
+    font-weight: 800 !important;
+    font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 144;
+    letter-spacing: 0.02em;
+    text-shadow: 0 2px 0 rgba(40, 22, 10, 0.55), 0 0 22px rgba(255, 160, 80, 0.35) !important;
+  }
+  [data-testid="dock-panel"] {
+    background-color: ${DEN.cream} !important;
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+    border: 1px solid rgba(58,36,21,0.35) !important;
+    box-shadow: 0 14px 34px rgba(12,6,2,0.55) !important;
+  }
+  /* Over the room: a scrap of card behind anything that floats on it. */
+  [data-testid="how-to-play"], button[aria-label$="full screen"] {
+    background: rgba(243,231,205,0.92) !important; color: ${DEN.chocolate} !important;
+    border-radius: 999px !important; box-shadow: 0 2px 8px rgba(12,6,2,0.4);
+  }
+  [data-testid="how-to-play"] { padding: 0 12px 0 8px !important; height: 30px !important; bottom: 22px !important; }
+  button[aria-label$="full screen"] { width: 30px !important; height: 30px !important; bottom: 22px !important; }
+  [data-testid="points-counter"] {
+    color: ${DEN.chocolate} !important;
+    background: rgba(243,231,205,0.92); padding: 5px 12px 5px 13px; border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(12,6,2,0.4);
+  }
+  [data-testid="unused-points-note"] {
+    color: ${DEN.chocolate} !important; background: rgba(243,231,205,0.94); padding: 6px 12px; border-radius: 999px;
+  }
+  /* The rules: the booklet that came in the box. */
+  [data-testid="info-overlay"] > div {
+    background: #F4E9CF !important;
+    border: none !important; border-radius: 2px !important;
+    box-shadow: inset 0 0 0 8px #F4E9CF, inset 0 0 0 9px rgba(58,36,21,0.6), inset 0 0 0 12px #F4E9CF, inset 0 0 0 13px rgba(58,36,21,0.35), 0 24px 60px rgba(8,4,1,0.55) !important;
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  }
+  [data-testid="info-overlay"] h2 {
+    font-family: 'Bodoni Moda', 'Didot', Georgia, serif !important; font-weight: 700 !important;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  [data-testid="movelog-sheet"], [data-testid="victory-placard"], [data-testid="new-game-choice"] {
+    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  }
+`;
