@@ -1756,6 +1756,29 @@ Sumi, Vacío) each have a Title and an In-game phone board.
 
 ## Future wishlist (user-requested, not started)
 
+- **REMIND THE USER: a city-block version (asked to be reminded,
+  2026-09-27).** Every piece is a building, or a row of buildings when it
+  lies flat, in a foggy, rainy future-noir city (think Blade Runner, or
+  the PC game Dystopika). When a piece rolls or turns it becomes a
+  different building on the block. Not started; flesh it out with the
+  user first. Related: Lluvia (themes/lluvia*.js) is already a rainy
+  neon city round the board, so ask whether this grows out of Lluvia or
+  is a version of its own.
+- **On hold (user paused, 2026-09-27; wait for their go-ahead).** Four
+  requests from one message: (1) bring back Shoving's "slides only /
+  slides and rolls" choice (history: commit cbdd46c removed it; the old
+  `shoveOnRolls` gate, Tienda's `tienda-shove-*` buttons and the sphere's
+  `renderShoveSettingsRow`); (2) a SIDE view beside every rolling or
+  tipping MOVES tile (chassis/RulesCards.jsx, shared by every version;
+  Flaco, Shelter and Pivot already have one; Cabeza steps and slides
+  don't need one; ask the user about the borderline tiles: Crush, Free
+  way back, Black hole, Missing squares); (3) a switch to hide the piece
+  card (desktop) and the phone bar's piece text and tap hints; (4) Standard
+  reworked as a 1970s den / family room / conversation pit (wood
+  paneling, shag, stone fireplace, amber lamps): "they bought a copy at
+  the store and took it home". The questions about (4) (which board and
+  pieces, which room, den sounds, menu look) were dismissed unanswered.
+
 - **Online play against another human.** GitHub Pages only serves static
   files, so this needs a small backend: a relay (WebSocket) service, or
   peer-to-peer WebRTC with a tiny signalling server. Invite by link or
