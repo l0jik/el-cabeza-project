@@ -178,6 +178,12 @@ both colours. But new vs new drew at 80 turns, safe and aimless, so:
   these fixes 9-3; classic rules vs the pre-change Medium 8-8 (with the
   24-game 15-9 above, even to slightly better). The first push (e177682)
   still had the put-back cost in the classic game.
+- Side effect: Easy's opening in the classic setup with Split Movement is
+  now a two-piece turn in about 12 games of 30 (it was about 20 of 30;
+  the attacked-square marks changed its taste, mostly for a Flaco W.W).
+  tests/e2e-ai-split.mjs waits for a two-piece opening, so it now tries
+  up to ten fresh games instead of four (four failed about one run in
+  eight).
 
 ## 3b. Board dimensions are a runtime parameter (TOPOLOGIES groundwork)
 

@@ -8,9 +8,10 @@
    first. The engine smoke test already proves the AI's plans are legal
    and that it does choose two-piece turns; this proves the real game
    plays one through: both pieces animate and land, the log names both,
-   and the turn passes to Light. The AI's choice has a little random
-   variety, so a fresh game is started (up to a few times) until its
-   opening turn is a two-piece one. */
+   and the turn passes to Light. The AI's choice has some random
+   variety (measured in Node: Easy opens with a two-piece turn in about
+   4 games of 10), so a fresh game is started, up to ten times, until
+   its opening turn is a two-piece one. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -19,7 +20,7 @@ let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
 
 let splitTurn = null, splitLog = null, statusAfter = null, errs = [], tries = 0, anyAiTurn = false;
-for (tries = 1; tries <= 4 && !splitTurn; tries++) {
+for (tries = 1; tries <= 10 && !splitTurn; tries++) {
   const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
   errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
