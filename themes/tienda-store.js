@@ -39,6 +39,14 @@ export const TABLE_H = 15;
 export const FLOOR = -SLAB_THICKNESS - TABLE_H;
 export const CEIL = FLOOR + 82;
 const XW = 430, ZB = 410, ZF = 300; // walls
+// Where the ceiling's troffers hang (x across, z deep): the store's grid,
+// shared by the store and the table's shadow, which is cast from them.
+function trofferCells() {
+  const cellsX = [], cellsZ = [];
+  for (let x = -XW + 26; x < XW - 20; x += 6 * FT) cellsX.push(x);
+  for (let z = -ZB + 26; z < ZF - 20; z += 8 * FT) cellsZ.push(z);
+  return { cellsX, cellsZ };
+}
 const COURT = 64, AISLE = 40;
 const GD = 20, GH = 33, SEC = 4 * FT, PITCH = GD + 34; // gondola depth/height, section length, run spacing
 
@@ -153,9 +161,7 @@ export function buildStore() {
   disposables.push(ctile);
   const trofTex = troffer(), spotTex = glowSpot();
   const trofGeo = new THREE.PlaneGeometry(4 * FT, 2 * FT); trofGeo.rotateX(Math.PI / 2);
-  const cellsX = [], cellsZ = [];
-  for (let x = -XW + 26; x < XW - 20; x += 6 * FT) cellsX.push(x);
-  for (let z = -ZB + 26; z < ZF - 20; z += 8 * FT) cellsZ.push(z);
+  const { cellsX, cellsZ } = trofferCells();
   const nT = cellsX.length * cellsZ.length;
   const trofMat = new THREE.MeshBasicMaterial({ map: trofTex, toneMapped: false, fog: true });
   const troffers = new THREE.InstancedMesh(trofGeo, trofMat, nT);
@@ -726,6 +732,94 @@ function buildCart() {
 
 /* ------------------------------------------------------------ the table */
 
+/* The table's shadow on the floor, worked out from the store's lights:
+   the user found the old one (a round blur, the same on every side and
+   rather dark) "off". Each troffer within reach is a small area light
+   (six points across its 4 x 2 ft face); for each spot on the floor, the
+   light that reaches it from each is weighed as a lamp overhead would
+   be (h² / d⁴), and blocked if the way up passes through the table's
+   top, the stock shelf low under it, or one of the four legs. The
+   shadow is the share of the light that's blocked, so it's deepest
+   under the shelf, spreads out farther on the sides away from the
+   nearest fixtures, and the legs leave faint streaks. SHADOW_MAX keeps
+   even the deepest part from going black: the store's light comes
+   back off the floor, the shelving and the walls too. */
+const SHADOW_MAX = 0.46;
+function tableShadow(W, D, legX, legZ) {
+  const pad = 26;
+  const w = W + pad * 2, d = D + pad * 2;
+  const RX = 160, RZ = Math.round((160 * d) / w);
+  const H = CEIL - 0.2 - FLOOR; // the troffers' height over the floor
+  const topH = TABLE_H - 0.9, shelfH = 3.3;
+  const { cellsX, cellsZ } = trofferCells();
+  const lights = [];
+  cellsZ.forEach((z) => cellsX.forEach((x) => {
+    if (Math.abs(x) > 110 || Math.abs(z) > 110) return;
+    for (let a = -1; a <= 1; a++) for (let b = -0.5; b <= 0.5; b += 1) lights.push([x + a * 1.33 * FT, z + b * FT]);
+  }));
+  const shade = new Float32Array(RX * RZ);
+  const inRect = (x, z, hx, hz) => Math.abs(x) < hx && Math.abs(z) < hz;
+  for (let j = 0; j < RZ; j++) {
+    const z = -d / 2 + ((j + 0.5) / RZ) * d;
+    for (let i = 0; i < RX; i++) {
+      const x = -w / 2 + ((i + 0.5) / RX) * w;
+      let all = 0, lit = 0;
+      for (let k = 0; k < lights.length; k++) {
+        const lx = lights[k][0] - x, lz = lights[k][1] - z;
+        const dd = lx * lx + lz * lz + H * H;
+        const wgt = (H * H) / (dd * dd);
+        all += wgt;
+        // Where the way up to this light crosses the top and the shelf...
+        let t = topH / H;
+        if (inRect(x + lx * t, z + lz * t, W / 2, D / 2)) continue;
+        t = shelfH / H;
+        if (inRect(x + lx * t, z + lz * t, W / 2 - 1, D / 2 - 1)) continue;
+        // ...and whether it passes a leg on the way (the legs' height).
+        t = topH / H;
+        const ex = lx * t, ez = lz * t, el = ex * ex + ez * ez;
+        let hit = false;
+        for (let q = 0; q < 4 && !hit; q++) {
+          const cx = (q & 1 ? 1 : -1) * legX - x, cz = (q & 2 ? 1 : -1) * legZ - z;
+          const u = el > 0 ? Math.max(0, Math.min(1, (cx * ex + cz * ez) / el)) : 0;
+          const px = ex * u - cx, pz = ez * u - cz;
+          if (px * px + pz * pz < 0.2) hit = true;
+        }
+        if (!hit) lit += wgt;
+      }
+      shade[j * RX + i] = all > 0 ? 1 - lit / all : 0;
+    }
+  }
+  // A light blur: the fixtures are bigger than six points.
+  const out = new Float32Array(RX * RZ);
+  for (let j = 0; j < RZ; j++) for (let i = 0; i < RX; i++) {
+    let sum = 0, n = 0;
+    for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) {
+      const ii = i + a, jj = j + b;
+      if (ii < 0 || jj < 0 || ii >= RX || jj >= RZ) continue;
+      sum += shade[jj * RX + ii]; n++;
+    }
+    out[j * RX + i] = sum / n;
+  }
+  const tex = canvasTexture(RX, RZ, (g, CW, CH) => {
+    const img = g.createImageData(CW, CH);
+    for (let j = 0; j < CH; j++) for (let i = 0; i < CW; i++) {
+      const v = out[Math.min(RZ - 1, Math.floor((j / CH) * RZ)) * RX + Math.min(RX - 1, Math.floor((i / CW) * RX))];
+      // Fade to nothing at the plane's rim, whatever's left there.
+      const ex = Math.min(i, CW - 1 - i) / (CW * 0.06), ez = Math.min(j, CH - 1 - j) / (CH * 0.06);
+      const o = (j * CW + i) * 4;
+      img.data[o] = 40; img.data[o + 1] = 30; img.data[o + 2] = 20;
+      img.data[o + 3] = Math.round(255 * SHADOW_MAX * v * Math.min(1, ex, ez));
+    }
+    g.putImageData(img, 0, 0);
+  }, { scale: false });
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+    // Tests: how deep the shadow is at the middle, and on each side.
+    const at = (x, z) => out[Math.min(RZ - 1, Math.max(0, Math.floor(((z + d / 2) / d) * RZ))) * RX + Math.min(RX - 1, Math.max(0, Math.floor(((x + w / 2) / w) * RX)))] * SHADOW_MAX;
+    window.__TIENDA_TABLE_SHADOW__ = { mid: at(0, 0), left: at(-W / 2 - 4, 0), right: at(W / 2 + 4, 0), back: at(0, -D / 2 - 4), front: at(0, D / 2 + 4) };
+  }
+  return { tex, w, d };
+}
+
 /* The display table under the board: a walnut-pattern Formica top with
    an aluminium edge, chrome legs, a lower shelf of boxed sets; on top, a
    stack of boxed games at one end and a tent card at the other. Lit like
@@ -765,7 +859,8 @@ export function buildTable(slabX, slabZ) {
   mk(box(W, 0.9, D, 0, topY - 0.45, -BZ), [edge, edge, topMat, edge, edge, edge], true);
   const chrome = lit({ color: 0xcfcdc6, roughness: 0.25, metalness: q.physical ? 0.8 : 0 });
   const legH = TABLE_H - 0.9;
-  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => mk(box(0.9, legH, 0.9, sx * (W / 2 - 1.2), FLOOR + legH / 2, sz * (D / 2 - 1.2) - BZ), chrome));
+  const legInsetX = W / 2 - 1.2, legInsetZ = D / 2 - 1.2;
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => mk(box(0.9, legH, 0.9, sx * legInsetX, FLOOR + legH / 2, sz * legInsetZ - BZ), chrome));
   // Lower shelf with boxed stock.
   // (Under the top it's in shadow, so it isn't lit at all.)
   const under = new THREE.MeshBasicMaterial({ color: 0x2b2119, toneMapped: false, fog: true }); disposables.push(under);
@@ -809,12 +904,57 @@ export function buildTable(slabX, slabZ) {
     m.rotateX(-0.34);
     const b = new THREE.Mesh(g, cardBack); b.position.copy(m.position); b.quaternion.copy(m.quaternion); group.add(b);
   });
-  // A soft shadow on the floor under the table.
-  const blob = shadowBlob(); disposables.push(blob);
-  const shadow = new THREE.Mesh(hplane(W + 10, D + 10, 0, FLOOR + 0.08, -BZ), new THREE.MeshBasicMaterial({ map: blob, transparent: true, opacity: 0.7, depthWrite: false, toneMapped: false, fog: true, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }));
+  // Its shadow on the floor, cast by the ceiling's troffers.
+  const { tex: shTex, w: shW, d: shD } = tableShadow(W, D, legInsetX, legInsetZ);
+  disposables.push(shTex);
+  const shadow = new THREE.Mesh(hplane(shW, shD, 0, FLOOR + 0.08, -BZ), new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false, toneMapped: false, fog: true, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }));
   group.add(shadow); disposables.push(shadow.geometry, shadow.material);
+  /* And its shadow from the key light, the one that lights the board and
+     throws the pieces' shadows on the top. That light stays put while
+     the board, the table and the store turn (the chassis turns the
+     board, not the camera), so this shadow is moved every frame to lie
+     where that light throws it (setKeyDir, from tienda-fx.js): the top's
+     and the shelf's, each its own shape moved away from the light by its
+     height, and the four legs' streaks to the top's corners. The user:
+     the shadow was "consistent no matter which way you spin it". */
+  const soft = canvasTexture(64, 64, (g, CW, CH) => {
+    const img = g.createImageData(CW, CH), m = 0.16;
+    for (let j = 0; j < CH; j++) for (let i = 0; i < CW; i++) {
+      const u = (i + 0.5) / CW, v = (j + 0.5) / CH;
+      const e = Math.min(u, 1 - u, v, 1 - v) / m;
+      const a = e >= 1 ? 1 : e * e * (3 - 2 * e);
+      const o = (j * CW + i) * 4;
+      img.data[o] = 40; img.data[o + 1] = 30; img.data[o + 2] = 20; img.data[o + 3] = Math.round(255 * a);
+    }
+    g.putImageData(img, 0, 0);
+  }, { scale: false });
+  disposables.push(soft);
+  const castMat = (opacity) => { const m = new THREE.MeshBasicMaterial({ map: soft, transparent: true, opacity, depthWrite: false, toneMapped: false, fog: true, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }); disposables.push(m); return m; };
+  const flatQuad = (w2, d2) => { const g = new THREE.PlaneGeometry(w2, d2); g.rotateX(-Math.PI / 2); disposables.push(g); return g; };
+  const topCast = new THREE.Mesh(flatQuad(W + 3, D + 3), castMat(0.24));
+  const shelfCast = new THREE.Mesh(flatQuad(W, D), castMat(0.2));
+  const legCasts = [0, 1, 2, 3].map(() => new THREE.Mesh(flatQuad(1, 1), castMat(0.18)));
+  [topCast, shelfCast, ...legCasts].forEach((m) => { m.position.y = FLOOR + 0.1; m.renderOrder = 1; group.add(m); });
+  const legFeet = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => [sx * legInsetX, sz * legInsetZ - BZ]);
+  function setKeyDir(dir) {
+    // dir: toward the light, in the table's own frame. Too low a light
+    // would stretch it across the floor; this one is well up.
+    const up = Math.max(0.35, dir.y);
+    const hx = -dir.x / up, hz = -dir.z / up;
+    topCast.position.set(hx * (TABLE_H - 0.9), FLOOR + 0.1, hz * (TABLE_H - 0.9) - BZ);
+    shelfCast.position.set(hx * 3.3, FLOOR + 0.1, hz * 3.3 - BZ);
+    const len = Math.hypot(hx, hz) * (TABLE_H - 0.9);
+    legCasts.forEach((m, n) => {
+      const [fx, fz] = legFeet[n];
+      m.position.set(fx + hx * (TABLE_H - 0.9) * 0.5, FLOOR + 0.1, fz + hz * (TABLE_H - 0.9) * 0.5);
+      m.rotation.y = Math.atan2(hx, hz);
+      m.scale.set(1.4, 1, Math.max(0.01, len + 1.2));
+    });
+  }
+  setKeyDir(new THREE.Vector3(9, 13, 5).normalize());
   return {
     group,
+    setKeyDir,
     repaint() { repaint(lid); repaint(card); },
     dispose() { disposables.forEach((d) => d && d.dispose && d.dispose()); },
   };

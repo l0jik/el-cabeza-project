@@ -109,6 +109,7 @@ export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
      and comes back once the view is clear. From further off its back is
      part of the room. */
   const camAhead = new THREE.Vector3(), camDir = new THREE.Vector3();
+  const keyDir = new THREE.Vector3(), keyQuat = new THREE.Quaternion();
   let asideLast = 0;
   function standeeAside(t, now) {
     const S = store.standee;
@@ -183,6 +184,15 @@ export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
         const above = camLocal.y > CEIL - 3;
         store.group.children.forEach((o) => { if (o.name === "tienda-ceiling" || o.name === "tienda-troffers") o.visible = !above; });
         standeeAside(t, now);
+      }
+      // The table's cast shadow follows the key light (fixed in the world)
+      // as the board, the table and the store turn under it.
+      const key = t.lights && t.lights.key;
+      if (table && table.setKeyDir && key) {
+        keyDir.copy(key.position).sub(key.target.position).normalize();
+        t.boardGroup.getWorldQuaternion(keyQuat).invert();
+        keyDir.applyQuaternion(keyQuat);
+        table.setKeyDir(keyDir);
       }
     },
     dispose() {

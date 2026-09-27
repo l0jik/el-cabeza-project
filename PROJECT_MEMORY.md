@@ -2518,6 +2518,27 @@ phone and a laptop but shrank it on squarer windows (1100x900: 547 px
 against 649) and broke the Singularity test's bare-sphere tap, so it's
 the fitted view's size instead.
 
+### Tienda: the table's shadow (user report, Sep 27)
+"The shadow underneath the tienda table is consistent no matter which
+way you spin it around. It's a little bit too dark... should be cast...
+not equally." It was a round blur (shadowBlob, 0.7) centred under the
+table, turning with it. But the key light (chassis, fixed in the world
+at (9, 13, 5)) stays put while the board, the table and the store turn
+(the board turns, not the camera), so the pieces' shadows on the top
+swung round as you spun and the floor's never did. Now two layers
+(tienda-store.js buildTable):
+- **From the ceiling** (`tableShadow`): baked once per table from the
+  store's own troffers within 110 (six points each over its 4 x 2 ft
+  face, weighed h²/d⁴), blocked by the top, the stock shelf and the
+  legs; SHADOW_MAX 0.46 (under the shelf), about 0.1 just outside. There's
+  a fixture almost straight overhead, so this layer is nearly even.
+- **From the key light** (`setKeyDir`, called every frame from
+  tienda-fx.js with the light's direction in the board's frame): the
+  top's shadow (0.24) and the shelf's (0.2), soft-edged rectangles
+  moved away from the light by their heights, and the four legs'
+  streaks to the top's corners (0.18). It lies where the pieces'
+  shadows point, and moves as the board turns.
+
 ### Tienda: the mall reels (user request, Sep 27)
 The user sent five tracks (Coupon Gloss Reverie, Twilight at the Atrium,
 Tuesday Morning At The Atrium, Tuesday Night at the Emporium, Midday
