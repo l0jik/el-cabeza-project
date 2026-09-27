@@ -880,6 +880,15 @@ export function createAudio({ tapeUrl = null } = {}) {
         tapeLength: tape && tape.buffer ? tape.buffer.duration : 0,
       };
     },
+    // Leaving the store (Nova's story, apps/novaStory.jsx): everything
+    // fades out over `secs` before the page moves on.
+    fadeOutAll(secs = 2) {
+      if (!ctx || !master) return;
+      const t = ctx.currentTime;
+      master.gain.cancelScheduledValues(t);
+      master.gain.setValueAtTime(master.gain.value, t);
+      master.gain.linearRampToValueAtTime(0, t + secs);
+    },
     dispose() {
       clearInterval(schedTimer); clearTimeout(eventTimer); clearTimeout(windTimer);
       if (tapeSrc) { try { tapeSrc.stop(); } catch (e) { /* stopped */ } tapeSrc = null; }

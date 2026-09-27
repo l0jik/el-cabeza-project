@@ -80,16 +80,15 @@ async function waitFor(fn, ms = 8000) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   // The control bar, chosen (a phone opens Nova with the floating piece).
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:nova-layout", "bar"); } catch (e) { /* none */ } });
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true })); localStorage.setItem("el-cabeza:nova-layout", "bar"); } catch (e) { /* none */ } }); // bought: Nova opens at home
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
   await page.waitForTimeout(2500);
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(300);
   check("Standard (the den): All sounds, The room, Music and Pieces", (await q(page, "shell-menu-sound").count()) === 1 && (await q(page, "shell-menu-sound-room").count()) === 1 && (await q(page, "shell-menu-sound-stereo").count()) === 1 && (await q(page, "shell-menu-sound-pieces").count()) === 1);
+  // Into Neon: at home the menu's switch turns on the TV.
   await q(page, "shell-menu-switch-theme").click();
-  await waitFor(async () => (await page.locator(".ec-hold-modal-word").count()) > 0);
-  await page.locator(".ec-hold-modal-word").click({ force: true });
-  await waitFor(async () => (await q(page, "shell-anomaly").count()) > 0, 12000);
+  await waitFor(async () => (await q(page, "shell-anomaly").count()) > 0, 30000);
   await page.waitForTimeout(800);
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(400);

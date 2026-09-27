@@ -149,6 +149,8 @@ export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
       if (brass) brass.dispose();
       if (t && t.scene) t.scene.fog = fogBefore;
       if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
+      // Gone with the store (Nova's story moves on to the den).
+      if (typeof window !== "undefined") { window.__TIENDA_STORE__ = false; delete window.__TIENDA_THREE__; }
     },
   };
 }

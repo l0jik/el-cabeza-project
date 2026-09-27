@@ -5296,10 +5296,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          handleNewGameClick) says which of the two it was. */
       /* A tap on one of the theme's things in the room (the den's record
          player or 8-track) opens the music panel, whenever it comes:
-         setup, play, the AI's turn, after the game. A piece or a move
-         marker under the tap comes first: that tap is the board's. */
+         setup, play, the AI's turn, after the game; one the theme handles
+         itself (the den's television: ambient sceneTap) is its own. A
+         piece or a move marker under the tap comes first: that tap is the
+         board's. */
       if (!wasAltPan && !wasDrag && ambientRef.current && ambientRef.current.pickScene && !pick(ev)) {
-        if (ambientRef.current.pickScene(t.raycaster)) { setSoundMenuAt(null); setMusicPanel(true); return; }
+        const what = ambientRef.current.pickScene(t.raycaster);
+        if (what && ambientRef.current.sceneTap && ambientRef.current.sceneTap(what)) return;
+        if (what) { setSoundMenuAt(null); setMusicPanel(true); return; }
       }
       if (!wasAltPan && !wasDrag && status === "finished") {
         if (lastPostGameOverlayRef.current === "choice") setShowNewGameChoice(true);

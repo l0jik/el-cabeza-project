@@ -886,6 +886,46 @@ export function createSwitcherSfx() {
     triangleBlip(c, time + 0.02, 1800, 0.12);
   };
 
+  /* Nova's story (apps/novaStory.jsx): the store's register ringing the
+     game up. The keys, the total bar and the ratchet of the mechanism
+     turning over, the bell and the drawer rolling out to its stop; then
+     the tape printing, a line of hammers every lineGap seconds from
+     printAt, and torn off. */
+  const playRegister = ({ printAt = 1.45, lines = 11, lineGap = 0.15 } = {}) => {
+    const c = getCtx();
+    const t0 = c.currentTime + 0.05;
+    [0, 0.13, 0.24].forEach((dt, i) => {
+      filteredNoiseBurst(c, t0 + dt, 0.035, "bandpass", 2300 + i * 170, 3, 0.2);
+      oscSweep(c, t0 + dt, 0.05, "sine", 190, 90, 0.16);
+    });
+    oscSweep(c, t0 + 0.42, 0.09, "sine", 140, 60, 0.28);
+    for (let i = 0; i < 9; i++) filteredNoiseBurst(c, t0 + 0.46 + i * 0.024, 0.012, "bandpass", 3500, 6, 0.09);
+    // A struck bell's inharmonic partials.
+    const bellAt = t0 + 0.7;
+    [[1, 0.13, 1.7], [2.76, 0.06, 1.0], [5.4, 0.03, 0.5]].forEach(([mult, peak, dur]) => {
+      const osc = c.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = 1760 * mult;
+      const g = c.createGain();
+      g.gain.setValueAtTime(1e-4, bellAt);
+      g.gain.linearRampToValueAtTime(peak, bellAt + 0.003);
+      g.gain.exponentialRampToValueAtTime(1e-4, bellAt + dur);
+      osc.connect(g).connect(getMaster());
+      osc.start(bellAt);
+      osc.stop(bellAt + dur + 0.05);
+    });
+    filteredNoiseBurst(c, bellAt + 0.05, 0.34, "lowpass", 420, 0.7, 0.22);
+    oscSweep(c, bellAt + 0.4, 0.14, "sine", 110, 55, 0.32);
+    const p0 = c.currentTime + printAt;
+    for (let line = 0; line < lines; line++) {
+      const lt = p0 + line * lineGap;
+      for (let k = 0; k < 6; k++) filteredNoiseBurst(c, lt + k * 0.018 + Math.random() * 0.004, 0.01, "bandpass", 1800 + Math.random() * 600, 4, 0.06);
+      filteredNoiseBurst(c, lt + lineGap * 0.8, 0.03, "bandpass", 900, 1.5, 0.04);
+    }
+    const tear = p0 + lines * lineGap + 0.25;
+    for (let k = 0; k < 7; k++) filteredNoiseBurst(c, tear + k * 0.03 + Math.random() * 0.01, 0.04, "highpass", 2400 + Math.random() * 1500, 0.7, 0.08);
+  };
+
   /* The hold-gesture's continuous "jibbering electronic morass": two
      detuned oscillators (square + sawtooth, through a moving bandpass
      filter) whose frequencies are re-randomized on a fast interval.
@@ -1016,6 +1056,10 @@ export function createSwitcherSfx() {
   return {
     click() {
       playClick();
+    },
+    // The store's register, for the story's purchase (see playRegister).
+    register(opts) {
+      playRegister(opts);
     },
     // Mutes this engine's own shared master gain — see its own comment
     // above for why this engine needed one added at all. Applies

@@ -308,7 +308,7 @@ export const SLIP_CSS = `
   .td-slip-rules { all: unset; display: inline-block; margin-top: 4px; min-height: 28px; cursor: pointer; font: 700 11.5px/28px ${COURIER}; color: ${RED}; text-decoration: underline; }
 `;
 const openRules = (tab, focus = null) => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab, focus } }));
-export function OrderSlip({ groups, audio }) {
+export function OrderSlip({ groups, audio, onPurchase = null }) {
   // Hovering shows it (with a mouse); a tap or click pins it open or
   // unpins it, and so does a press anywhere else on the page (or Escape).
   const [hovered, setHovered] = React.useState(false);
@@ -349,6 +349,8 @@ export function OrderSlip({ groups, audio }) {
               : `· ${it}`)))))
         : h("div", null, "Standard rules. Nothing changed."),
       h("button", { type: "button", className: "td-slip-rules", "data-testid": "tienda-slip-rules", onClick: () => openRules("game") }, "Rules for this game ›"),
+      // In Nova's story, the game can be bought from the slip mid-game.
+      onPurchase && h("button", { type: "button", className: "td-slip-rules", "data-testid": "tienda-slip-purchase", style: { display: "block" }, onClick: () => { audio && audio.playSelect && audio.playSelect(); onPurchase(); } }, "Purchase and bring home ›"),
     ),
   );
 }

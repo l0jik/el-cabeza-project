@@ -432,26 +432,61 @@ export const styleSheet = `
 
 /* Begin Game shares its row with the catalog's order form (custom rules,
    see tienda-overlay.js). */
-export function renderSetupExtras({ beginGameButton, openOrderForm }) {
+/* In Nova's story (story: apps/unified.jsx) the store's button opens the
+   catalog of the five pieces, and the game can be bought and taken home
+   from a row beneath; at home the row is Custom rules again, with the way
+   back to the store and a fresh start under it. */
+export function renderSetupExtras({ beginGameButton, openOrderForm, story }) {
   const h = React.createElement;
-  return h(
+  const store = !!story && story.mode === "store";
+  const home = !!story && story.mode === "home";
+  const quiet = {
+    flex: "1 1 0", minWidth: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase",
+    color: COLORS.charcoal, background: "transparent", border: `1.5px solid ${COLORS.charcoal}`, padding: "9px 10px", cursor: "pointer",
+    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+  };
+  const row = h(
     "div",
-    { style: { display: "flex", gap: 8, flexShrink: 0, flexWrap: "nowrap", width: "100%" } },
+    { key: "row", style: { display: "flex", gap: 8, flexShrink: 0, flexWrap: "nowrap", width: "100%" } },
     h("button", {
       key: "order", type: "button", className: "ec-btn ec-btn-invert", "data-testid": "tienda-order-form",
-      title: "Custom rules: order the pieces, laws and board you want from the catalog",
+      title: store ? "The catalog's page of the pieces in the box" : "Custom rules: order the pieces, laws and board you want from the catalog",
       onClick: openOrderForm,
-      style: {
-        flex: "1 1 0", minWidth: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase",
-        color: COLORS.charcoal, background: "transparent", border: `1.5px solid ${COLORS.charcoal}`, padding: "9px 10px", cursor: "pointer",
-        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-      },
-    }, "Custom rules"),
+      style: quiet,
+    }, store ? "See the pieces" : "Custom rules"),
     beginGameButton
   );
+  if (!store && !home) return row;
+  const link = (key, label, onClick, testid) => h("button", {
+    key, type: "button", "data-testid": testid, onClick,
+    style: { background: "transparent", border: "none", padding: "8px 4px", minHeight: 36, cursor: "pointer", color: COLORS.charcoal,
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.08em", textDecoration: "underline", textUnderlineOffset: 3 },
+  }, label);
+  const under = store
+    ? h("button", {
+        key: "buy", type: "button", className: "ec-btn", "data-testid": "story-purchase", onClick: story.onPurchase,
+        style: { ...quiet, flex: "0 0 auto", width: "100%", background: COLORS.charcoal, color: COLORS.cream || "#F4EEDC" },
+      }, "Purchase and bring home · $7.97")
+    : h("div", { key: "links", style: { display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", width: "100%" } },
+        link("store", "Back to the store", story.onBackToStore, "story-back-to-store"),
+        link("over", "Start the story over", story.onRestart, "story-restart"));
+  return h("div", { style: { display: "flex", flexDirection: "column", gap: 8, width: "100%" } }, row, under);
 }
 
-export { useSetupExtras, renderExtraOverlays } from "./tienda-overlay.js";
+/* The same buttons for the phone layout's control bar (chassis/MobileShell.jsx),
+   which Nova offers: the catalog (or, in the story's store, the page of
+   the pieces and the purchase) on rows of their own below Begin Game. */
+export function shellSetupActions({ openOrderForm, story }) {
+  if (story && story.mode === "store") {
+    return [
+      { key: "see-pieces", label: "See the pieces", onClick: openOrderForm, testid: "shell-see-pieces", placement: "below", title: "The catalog's page of the pieces in the box" },
+      { key: "purchase", label: "Purchase and bring home \u00b7 $7.97", onClick: story.onPurchase, testid: "shell-purchase", placement: "below" },
+    ];
+  }
+  return [{ key: "custom-rules", label: "Custom rules \u203a", onClick: openOrderForm, testid: "shell-custom-rules", placement: "below", title: "Order the pieces, laws and board you want from the catalog" }];
+}
+
+export { useSetupExtras, renderExtraOverlays, resetLid } from "./tienda-overlay.js";
 export { mountAmbientEffects } from "./tienda-fx.js";
 /* The buttons and chips that stand for a side wear that side's wood,
    the pieces' own grain (chassis: theme.sideSurface; the swatch is

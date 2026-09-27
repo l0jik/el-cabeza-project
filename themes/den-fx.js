@@ -21,7 +21,15 @@
      camera each frame, blending from the chassis's view to the console's
      and back); a tap on the record player or the 8-track (pickScene)
      opens that menu; the turntable and the 8-track play along
-     (setMusicPlaying). */
+     (setMusicPlaying).
+   - The television (den-tv.js): a tap on the set (pickScene "tv", then
+     sceneTap) turns its knob, on or off, and the picture comes up or goes.
+     In Nova (apps/unified.jsx hands in `tv`) it's the way into
+     Singularity: once the test pattern is up the camera goes over to the
+     set and into the picture, and Nova's own transition takes over
+     (tv.enter). Back out of Singularity (tv.returning) the den comes up
+     with the camera at the set, the pattern on it, and the set switches
+     off as the camera goes back to the board. */
 
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z, SLAB_MAX } from "../engine/constants.js";
@@ -31,7 +39,7 @@ import { quality } from "./tienda-quality.js";
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
 export function createDenEffects(woodSet) {
-  return function mountAmbientEffects(refs, { three, audio }) {
+  return function mountAmbientEffects(refs, { three, audio, tv: novaTv = null }) {
     const q = quality();
     let den = null, brass = null, attachedTo = null, dims = "";
     let tuned = false, fogBefore = null, farBefore = null, bgBefore = null;
@@ -133,6 +141,38 @@ export function createDenEffects(woodSet) {
     let focusGoal = 0, focusW = 0, playing = null;
     const eye = new THREE.Vector3(), aim = new THREE.Vector3(), look = new THREE.Vector3(), dir = new THREE.Vector3();
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_STEREO__ = () => ({ focus: focusW, goal: focusGoal, playing });
+
+    /* ---- the television ---- */
+    let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false;
+    let returning = !!(novaTv && novaTv.returning);
+    // How loud the snow hisses, by what's on the screen.
+    const HISS = { warming: 1, snow: 1, resolving: 0.5, pattern: 0.1, dive: 0.08 };
+    function pressTv() {
+      const set = den && den.tv;
+      if (!set) return false;
+      const now = performance.now();
+      if (set.isOn()) {
+        if (set.powerOff(now)) { tvGoal = 0; if (audio && audio.tvOff) audio.tvOff(); }
+        return true;
+      }
+      const portal = !!(novaTv && novaTv.portal && novaTv.portal());
+      // If Nova can't go after all (something else under way), the set
+      // goes off and the camera comes back.
+      const enter = () => {
+        if (novaTv.enter() !== false) return;
+        if (set.powerOff(performance.now(), true) && audio && audio.tvOff) audio.tvOff();
+        tvGoal = 0;
+      };
+      if (!set.powerOn(now, portal, portal ? enter : null)) return false;
+      if (portal) tvGoal = 1;
+      if (audio && audio.tvOn) audio.tvOn();
+      return true;
+    }
+    if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive });
+      window.__DEN_TV_PRESS__ = pressTv;
+    }
     return {
       armOnBegin() {},
       restart() {},
@@ -144,15 +184,58 @@ export function createDenEffects(woodSet) {
         if (t.camera) { camLocal.copy(t.camera.position); t.boardGroup.worldToLocal(camLocal); }
         den.animate(now, t.camera ? camLocal : null, { open: focusGoal > 0 && focusW > 0.6, playing });
         listen(t, now);
+        // The television.
+        const dt = lastTick ? Math.min(0.1, (now - lastTick) / 1000) : 0;
+        lastTick = now;
+        if (returning) {
+          // Back from Singularity: the set is on, the camera at it; then,
+          // once Nova's transition has finished showing the room (it ends
+          // about 0.6 s after this), off.
+          returning = false;
+          den.tv.showPattern(now);
+          tvGoal = tvW = 1;
+          offAt = now + 1800;
+        }
+        if (offAt && now >= offAt) {
+          offAt = 0;
+          if (den.tv.powerOff(now) && audio && audio.tvOff) audio.tvOff();
+          tvGoal = 0;
+        }
+        tvDive = den.tv.animate(now, dt);
+        // While the camera visits the set, the title and the dock's piece
+        // step aside (standard.js styleSheet, html.ec-tv-visit).
+        const visiting = tvGoal > 0 || tvW > 0.02;
+        if (visiting !== onStage && typeof document !== "undefined") { onStage = visiting; document.documentElement.classList.toggle("ec-tv-visit", visiting); }
+        const ph = den.tv.phase();
+        if (ph !== tvPhase) {
+          if (audio && audio.tvHiss) audio.tvHiss(HISS[ph] || 0);
+          if (ph === "pattern" && tvPhase === "resolving" && audio && audio.tvTone) audio.tvTone();
+          tvPhase = ph;
+        }
       },
       // The music menu opened (true) or closed: the camera goes over to the console, or back.
       setMusicFocus(on) { focusGoal = on ? 1 : 0; },
       setMusicPlaying(medium) { playing = medium || null; },
-      // A tap in the room: "record" or "8track" if it landed on one of the machines.
+      // A tap in the room: "record" or "8track" if it landed on one of the
+      // stereo's machines, "tv" on the television.
+      // The board and the coffee table stand in front of what's behind
+      // them: a tap on the board (an empty square) with the set beyond it
+      // is the board's, not the set's.
       pickScene(raycaster) {
         if (!den || !den.groups.wallS.visible) return null;
-        const hit = raycaster.intersectObjects(den.stereo.pickables, false)[0];
-        return hit ? hit.object.userData.music : null;
+        const hit = raycaster.intersectObjects(den.stereo.pickables.concat(den.tv.pickables), false)[0];
+        if (!hit) return null;
+        const t = three.current;
+        const slab = t && t.boardGroup && t.boardGroup.getObjectByName("ec-slab");
+        const nearer = raycaster.intersectObjects([slab, den.table.group].filter(Boolean), true)[0];
+        if (nearer && nearer.distance < hit.distance) return null;
+        return hit.object.userData.tv ? "tv" : hit.object.userData.music || null;
+      },
+      // What a tap on "tv" does is the room's own: the knob turns.
+      sceneTap(what) {
+        if (what !== "tv") return false;
+        pressTv();
+        return true;
       },
       /* After the chassis has set its camera: blend it toward the view of
          the console by how far into the visit it is (eased both ways). */
@@ -160,6 +243,27 @@ export function createDenEffects(woodSet) {
         const t = three.current;
         focusW += (focusGoal - focusW) * (1 - Math.exp(-(dtMs / 1000) * 2.4));
         if (Math.abs(focusGoal - focusW) < 0.001) focusW = focusGoal;
+        tvW += (tvGoal - tvW) * (1 - Math.exp(-(dtMs / 1000) * 2.2));
+        if (Math.abs(tvGoal - tvW) < 0.001) tvW = tvGoal;
+        if (den && t && t.boardGroup && tvW > 0) {
+          /* The television: far enough back to have the set in view (on a
+             tall screen its sides may go), a little above it; then, as the
+             picture pulls, right up to the glass. */
+          const f = den.tv.focus, dv = den.tv.dive;
+          const vt = Math.tan((camera.fov * Math.PI) / 360);
+          const d = Math.min(70, Math.max(f.halfH / vt, f.halfW / (vt * camera.aspect)));
+          const k = tvDive;
+          eye.set(f.target.x + (dv.x - f.target.x) * k, f.target.y + d * 0.1 * (1 - k) + (dv.y - f.target.y) * k, f.front - d + (dv.eyeZ - (f.front - d)) * k);
+          aim.copy(f.target).lerp(dv.target, k);
+          t.boardGroup.localToWorld(eye); t.boardGroup.localToWorld(aim);
+          const e = tvW * tvW * (3 - 2 * tvW);
+          camera.getWorldDirection(dir);
+          look.copy(camera.position).addScaledVector(dir, camera.position.length());
+          look.lerp(aim, e);
+          camera.position.lerp(eye, e);
+          camera.lookAt(look);
+          return true;
+        }
         if (!den || !t || !t.boardGroup || focusW <= 0) return false;
         const e = focusW * focusW * (3 - 2 * focusW);
         eye.copy(den.stereo.focus.eye); aim.copy(den.stereo.focus.target);
@@ -184,7 +288,9 @@ export function createDenEffects(woodSet) {
         if (brass) brass.dispose();
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
-        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; }
+        if (novaTv && novaTv.register) novaTv.register(null);
+        if (typeof document !== "undefined") document.documentElement.classList.remove("ec-tv-visit");
+        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; }
       },
     };
   };

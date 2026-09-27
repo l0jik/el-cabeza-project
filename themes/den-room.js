@@ -11,7 +11,8 @@
              the chimney (it keeps the real time), shelves either side
      east    the sliding glass door onto the dark yard, rain running down
              it, the drapes drawn back; a velvet club chair and an arc lamp
-     south   the television set (off); the stereo console (turntable and
+     south   the television, a walnut color console of 1975 (den-tv.js,
+             its power knob turns it on); the stereo console (turntable and
              8-track, cabinet speakers with woven grilles, trailing plants,
              an amber-glass ashtray; buildConsole), a landscape in oils over
              it, a lamp; left of it as you face it, the doorway out, its
@@ -42,6 +43,7 @@ import { quality } from "./tienda-quality.js";
 import { canvasTexture, repaint, lidPainter } from "./tienda-textures.js";
 import { paintWood } from "./wood-set.js";
 import * as TX from "./den-textures.js";
+import { buildTelevision } from "./den-tv.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
 
 export const FT = 6.1;
@@ -216,7 +218,6 @@ export function buildDen(boardSpan) {
     rain: tex(TX.rainStreaks(), true),
     sun: tex(TX.sunburst()),
     shade: tex(TX.lampShade()),
-    grille: tex(TX.grilleCloth(), true),
     glow: tex(TX.glow()),
     shadow: tex(TX.contactShadow()),
     sleeves: tex(TX.sleeves()),
@@ -253,7 +254,6 @@ export function buildDen(boardSpan) {
     ceramicGreen: baked(null, { color: 0x6b7536 }),
     leaf: baked(null, { color: 0x3e5a2a, side: THREE.DoubleSide }),
     pot: baked(null, { color: 0xb45a2a }),
-    grille: baked(T.grille),
     sleeves: baked(T.sleeves),
     pillowA: baked(T.pillowA),
     pillowB: baked(T.pillowB),
@@ -266,7 +266,6 @@ export function buildDen(boardSpan) {
     bulb: glowing({ color: 0xfff1d0 }),
     ember: glowing({ color: 0xff6a1a }),
     night: glowing({ map: T.night, color: 0xb0b8c8 }),
-    screen: glowing({ color: 0x070a09 }),
   };
 
   // The board's span sets the table and the pit.
@@ -464,26 +463,10 @@ export function buildDen(boardSpan) {
   // The door, swung open into the hall against its jamb; a brass knob.
   wallS(box(1, DH - 0.6, doorW - 0.8, DX0 + 0.9, yF + (DH - 0.6) / 2, HZ0 + (doorW - 0.8) / 2 + 0.2), M.walnut, 12);
   wallS(new THREE.SphereGeometry(0.55, 10, 8).translate(DX0 + 2, yF + 18.5, HZ0 + doorW - 3.2), M.brass, 4);
-  // The television: a walnut console on tapered legs, the screen (off),
-  // a speaker grille, two knobs, rabbit ears on top.
-  const tvX = -40, tvZ = RZ - 7;
-  wallS(box(34, 17, 11, tvX, yF + 3 + 8.5, tvZ), M.walnut, 16);
-  [[-15, -4], [15, -4], [-15, 4], [15, 4]].forEach(([dx, dz]) => wallS(cyl(0.5, 0.3, 3, tvX + dx, yF + 1.5, tvZ + dz, 8), M.darkWood, 4));
-  const screen = new THREE.Mesh(makeRoundedBox(16, 12, 0.6, 1.4, 3), M.screen);
-  screen.position.set(tvX - 6, yF + 12, tvZ - 5.6);
-  B.mesh(screen, "wallS");
-  const glare = new THREE.Mesh(new THREE.PlaneGeometry(10, 3), new THREE.MeshBasicMaterial({ color: 0xffe6c0, transparent: true, opacity: 0.08, depthWrite: false, fog: true }));
-  disposables.push(glare.geometry, glare.material);
-  glare.rotation.y = Math.PI; glare.rotation.z = 0.25; glare.position.set(tvX - 7, yF + 15, tvZ - 5.95);
-  B.mesh(glare, "wallS");
-  const grilleTV = new THREE.PlaneGeometry(9, 12); grilleTV.rotateY(Math.PI); grilleTV.translate(tvX + 9.5, yF + 12, tvZ - 5.55);
-  wallS(grilleTV, M.grille, null);
-  [yF + 15, yF + 11].forEach((y) => { const k = new THREE.CylinderGeometry(0.8, 0.8, 0.8, 12); k.rotateX(Math.PI / 2); k.translate(tvX + 3.2, y, tvZ - 5.8); wallS(k, M.chrome, 4); });
-  [-1, 1].forEach((s) => { const a = new THREE.CylinderGeometry(0.08, 0.08, 12, 5); a.rotateZ(s * 0.5); a.translate(tvX + 6 + s * 3, yF + 20 + 5, tvZ); wallS(a, M.chrome, 4); });
-  wallS(cyl(1.2, 1.2, 1.2, tvX + 6, yF + 20.6, tvZ, 10), M.black, 4);
-  // A trailing pothos on the set.
-  wallS(cyl(2, 1.5, 3, tvX - 11, yF + 21.5, tvZ, 12), M.ceramicGold, 6);
-  leafCluster(B, "wallS", M.leaf, tvX - 11, yF + 24, tvZ, 4, 5, 1);
+  // The television (den-tv.js): a 1975 color console, lit like the stereo
+  // and turned on by its power knob.
+  const tv = buildTelevision(yF, RZ);
+  B.groups.wallS.add(tv.group);
   // Records leaning on the east speaker's side.
   const rec = new THREE.BoxGeometry(0.7, 12.5, 12); rec.rotateZ(-0.13); rec.translate(51.4, yF + 6.25, RZ - 7.2);
   wallS(rec, M.sleeves, null);
@@ -621,6 +604,7 @@ export function buildDen(boardSpan) {
     TW, PH,
     table,
     stereo,
+    tv,
     // The fireplace's mouth, where its sound comes from (den-fx.js).
     firePoint: new THREE.Vector3(0, FLOOR + 8, -RZ + 3),
     /* Each frame: the fire, the lamps' breath, the rain, the clock, the
@@ -666,13 +650,14 @@ export function buildDen(boardSpan) {
         B.groups.ceiling.visible = camLocal.y < CEIL - 3;
       }
     },
-    repaint() { table.repaint(); },
+    repaint() { table.repaint(); tv.repaint(); },
     dispose() {
       // The merged meshes and the ones added whole (the fire, the globes...).
       group.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
       disposables.forEach((d) => d && d.dispose && d.dispose());
       table.dispose();
       stereo.dispose();
+      tv.dispose();
     },
   };
 }

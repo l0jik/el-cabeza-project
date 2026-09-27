@@ -4,6 +4,9 @@ import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
 import * as standardTheme from "../themes/standard.js";
 import * as neonTheme from "../themes/neon.js";
+import * as tiendaTheme from "../themes/tienda.js";
+import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS } from "../engine/constants.js";
+import { StoryCut, readOwned, saveOwned } from "./novaStory.jsx";
 import {
   TransitionStyles,
   HoldDegradeLayer,
@@ -18,7 +21,70 @@ import {
   HOLD_DEGRADE_TUNING,
 } from "./unifiedTransition.jsx";
 
-const THEMES = { standard: standardTheme, neon: neonTheme };
+/* The story (apps/novaStory.jsx): the store, home, and Singularity. The
+   store and home are Tienda and Standard with the story handed to
+   Tienda's printed matter (themes/tienda-overlay.js): in the store its
+   catalog shows only the five pieces and sells the game; at home it's the
+   whole mail-order catalog, with the way back to the store and a fresh
+   start. The chassis keeps its theme object for as long as it's mounted,
+   so these are fixed objects, and their buttons reach the app through
+   storyBridge, which the app keeps pointed at its current handlers. */
+const storyBridge = { purchase() {}, backToStore() {}, restart() {}, arrival: false, audio: null };
+// How the place just mounted was reached (read once): false for the page
+// opening there, "cut" by a scene change, "fresh" by the fresh start.
+const takeArrival = () => { const a = storyBridge.arrival; storyBridge.arrival = false; return a; };
+// The place's own sound engine, to fade out as the story leaves it.
+const bindAudio = (audio) => { storyBridge.audio = audio; };
+const STORE_STORY = { mode: "store", onPurchase: () => storyBridge.purchase(), arrived: takeArrival, bindAudio };
+const HOME_STORY = { mode: "home", onBackToStore: () => storyBridge.backToStore(), onRestart: () => storyBridge.restart(), arrived: takeArrival, bindAudio };
+const storeTheme = {
+  ...tiendaTheme,
+  useSetupExtras: (x) => tiendaTheme.useSetupExtras({ ...x, story: STORE_STORY }),
+  // A visit that opens in the store goes full screen at the first tap, as
+  // Tienda's own page does; one that opens at home leaves it to the player.
+  fullscreenOnFirstTap: !readOwned(),
+};
+/* The den's television (themes/den-tv.js, den-fx.js) is the way into
+   Singularity: turned on, its picture pulls the camera in and Nova's own
+   transition takes over (enter). Back out of Singularity, the den comes up
+   with the set on, and it switches off (returning, read once). The menu's
+   "Turn on the TV" presses the set's knob (press, from the den). */
+const tvBridge = { returning: false, press: null, portal: () => false, enter() {} };
+const homeTheme = {
+  ...standardTheme,
+  useSetupExtras: (x) => tiendaTheme.useSetupExtras({ ...x, story: HOME_STORY }),
+  renderSetupExtras: tiendaTheme.renderSetupExtras,
+  renderExtraOverlays: tiendaTheme.renderExtraOverlays,
+  shellSetupActions: tiendaTheme.shellSetupActions,
+  mountAmbientEffects: (refs, helpers) => {
+    const returning = tvBridge.returning;
+    tvBridge.returning = false;
+    return standardTheme.mountAmbientEffects(refs, {
+      ...helpers,
+      tv: {
+        returning,
+        portal: () => tvBridge.portal(),
+        enter: () => tvBridge.enter(),
+        register: (api) => { tvBridge.press = api ? api.press : null; },
+      },
+    });
+  },
+};
+const THEMES = { tienda: storeTheme, standard: homeTheme, neon: neonTheme };
+
+/* Every place starts with the classic game. The rules, board and squares
+   of a game ordered at home, or set up in Singularity, live in the
+   engine's module state, which a remount leaves alone (see carry/carryRef
+   in the chassis), so each change of place puts back what the page booted
+   with. */
+let bootRules = null;
+function restoreBootRules() {
+  if (!bootRules) return;
+  setActiveLaws(bootRules.laws);
+  setBlackHoles([]);
+  setMissingSquares([]);
+  setBoardDimensions(bootRules.board.rows, bootRules.board.cols);
+}
 const LAYOUT_KEY = "el-cabeza:nova-layout";
 const {
   MAX_WARP_SCALE, MAX_ABERRATION_PX, MAX_SCANLINE_OPACITY, MAX_STATIC_OPACITY,
@@ -27,7 +93,9 @@ const {
 } = HOLD_DEGRADE_TUNING;
 
 function UnifiedApp() {
-  const [themeName, setThemeName] = useState("standard");
+  // A first visit opens in the store; once the game is bought, at home.
+  const [themeName, setThemeName] = useState(() => (readOwned() ? "standard" : "tienda"));
+  const [cut, setCut] = useState(null); // a story scene change: { kind, caption, to, fresh?, swapped?, arrived? }
   const [connectWord, setConnectWord] = useState(null); // null | "CONNECT" | "DISCONNECT"
   const [transition, setTransition] = useState(null); // null | { direction: "in"|"out", filterId }
   // Lives here, above <ElCabeza3D key={themeName}> below, specifically
@@ -242,10 +310,66 @@ function UnifiedApp() {
     // The theme swap itself happens mid-transition, hidden by the
     // screen already being collapsed to a thin band/point at that
     // moment in the CSS animation timeline.
-    setTimeout(() => setThemeName(direction === "in" ? "neon" : "standard"), direction === "in" ? 380 : 1292);
+    setTimeout(() => {
+      restoreBootRules();
+      // Back out of Singularity, the den's set is on, and switches off.
+      if (direction === "out") tvBridge.returning = true;
+      setThemeName(direction === "in" ? "neon" : "standard");
+    }, direction === "in" ? 380 : 1292);
   }, [themeName]);
 
   const onTransitionDone = useCallback(() => setTransition(null), []);
+
+  /* The story's scene changes (StoryCut): bought and taken home, back to
+     the store, or the story from the top (the box back on the shelf, lid
+     and all). One at a time, and not over a CRT transition. */
+  const cutRef = useRef(null);
+  cutRef.current = cut;
+  const busyRef = useRef(false);
+  busyRef.current = !!(cut || transition);
+  const startCut = useCallback((c) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    // The place's sound goes as the screen does (over the tape, for the
+    // purchase).
+    const a = storyBridge.audio;
+    if (a && a.fadeOutAll) { try { a.fadeOutAll(c.kind === "purchase" ? 3.5 : 1.2); } catch (e) { /* no sound */ } }
+    setCut(c);
+  }, []);
+  storyBridge.purchase = () => {
+    if (busyRef.current) return;
+    saveOwned(true);
+    startCut({ kind: "purchase", caption: "Later, at home.", to: "standard" });
+  };
+  storyBridge.backToStore = () => startCut({ kind: "fade", caption: "Back at the store.", to: "tienda" });
+  storyBridge.restart = () => {
+    if (busyRef.current) return;
+    saveOwned(false);
+    startCut({ kind: "fade", caption: "Once more, from the shelf.", to: "tienda", fresh: true });
+  };
+  // The television: into Singularity when nothing else is under way.
+  tvBridge.portal = () => !busyRef.current && themeName === "standard";
+  tvBridge.enter = () => {
+    if (busyRef.current || themeName !== "standard") return false;
+    beginTransition();
+    return true;
+  };
+  // Under the black: the new place.
+  const onCutSwap = useCallback(() => {
+    const c = cutRef.current;
+    if (!c) return;
+    if (c.fresh) tiendaTheme.resetLid();
+    restoreBootRules();
+    storyBridge.arrival = c.fresh ? "fresh" : "cut";
+    setThemeName(c.to);
+    setCut({ ...c, swapped: true });
+  }, []);
+  // The new place has mounted (its room built in its mount effects, which
+  // run before this one): the cut can fade up on it.
+  useEffect(() => {
+    if (cut && cut.swapped && !cut.arrived) setCut({ ...cut, arrived: true });
+  }, [themeName, cut]);
+  const onCutDone = useCallback(() => { storyBridge.arrival = false; setCut(null); }, []);
 
   // ABOUT's "The original El Cabeza" link: the chassis has already reset
   // to a plain game; from Neon, go back to the Standard theme as well.
@@ -269,21 +393,35 @@ function UnifiedApp() {
     setLayoutPref(v);
     try { localStorage.setItem(LAYOUT_KEY, v); } catch (e) { /* storage blocked: this visit only */ }
   }, []);
-  const mobileShell = useMemo(() => ({
-    preferBar: layoutPref === "bar",
-    onLayoutChange,
-    menuItems: [{
+  /* The phone layout's menu, by place: in the store the purchase; at home
+     the switch into Neon, the way back to the store and the fresh start;
+     in Neon the switch back. */
+  const mobileShell = useMemo(() => {
+    // At home: the television's knob (the prompt the title hold ends in,
+    // if the set isn't there to turn). In Neon: back to the den.
+    const switchTheme = {
       key: "switch-theme",
       testid: "shell-menu-switch-theme",
-      label: themeName === "standard" ? "Switch to Neon" : "Switch to Standard",
-      detail: "or hold the title",
+      label: themeName === "standard" ? "Turn on the TV" : "Back to the den",
+      detail: themeName === "standard" ? "Into Singularity, or hold the title" : "or hold the title",
       onClick: () => {
-        if (transition) return;
+        if (transition || cut) return;
+        if (themeName === "standard" && tvBridge.press && tvBridge.press()) return;
         sfxRef.current.holdComplete();
         setConnectWord(themeName === "standard" ? "CONNECT" : "DISCONNECT");
       },
-    }],
-  }), [themeName, transition, layoutPref, onLayoutChange]);
+    };
+    const items = themeName === "tienda"
+      ? [{ key: "purchase", testid: "shell-menu-purchase", label: "Purchase and bring home", detail: "$7.97, and home to the den", onClick: () => storyBridge.purchase() }]
+      : themeName === "standard"
+        ? [
+            switchTheme,
+            { key: "back-to-store", testid: "shell-menu-back-to-store", label: "Back to the store", detail: "Where the game came from", onClick: () => storyBridge.backToStore() },
+            { key: "restart", testid: "shell-menu-restart", label: "Start the story over", detail: "From the store's shelf", onClick: () => storyBridge.restart() },
+          ]
+        : [switchTheme];
+    return { preferBar: layoutPref === "bar", onLayoutChange, menuItems: items };
+  }, [themeName, transition, cut, layoutPref, onLayoutChange]);
 
   // The browser's own toolbar colour follows the theme on phones.
   useEffect(() => {
@@ -318,13 +456,17 @@ function UnifiedApp() {
             }}
           />
         </div>
-        <MastheadHoldZone
-          zoneRef={holdZoneRef}
-          onBegin={beginHold}
-          onEnd={endHold}
-          onHoldComplete={onHoldComplete}
-          onTap={onMastheadTap}
-        />
+        {/* The title hold into Neon is the den's (and Neon's, back out);
+            the store has none. */}
+        {themeName !== "tienda" && (
+          <MastheadHoldZone
+            zoneRef={holdZoneRef}
+            onBegin={beginHold}
+            onEnd={endHold}
+            onHoldComplete={onHoldComplete}
+            onTap={onMastheadTap}
+          />
+        )}
       </div>
       {connectWord && (
         <ConnectModal word={connectWord} onConfirm={beginTransition} onDismiss={() => setConnectWord(null)} sfx={sfxRef.current} />
@@ -332,11 +474,13 @@ function UnifiedApp() {
       {transition && (
         <CrtTransitionOverlay direction={transition.direction} filterId={transition.filterId} onDone={onTransitionDone} sfx={sfxRef.current} />
       )}
+      {cut && <StoryCut key={cut.kind + cut.to} cut={cut} onSwap={onCutSwap} onDone={onCutDone} sfx={sfxRef.current} />}
     </>
   );
 }
 
 applyBootstrapBoardSize();
 applyBootstrapLaws();
+bootRules = { board: getBoardDimensions(), laws: { ...ACTIVE_LAWS } };
 
 ReactDOM.createRoot(document.getElementById("root")).render(<UnifiedApp />);

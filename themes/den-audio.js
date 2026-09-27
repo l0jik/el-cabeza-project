@@ -12,6 +12,9 @@
      drip from the eaves now and then. No wind, no thunder (user rule).
    - The stereo console: the record player or the 8-track, when a track
      is chosen (playMusic; the tracks themselves come later).
+   - The television (den-tv.js): its switch, the tube warming up, the
+     snow, the station's tone, the set going off (tvOn, tvHiss, tvTone,
+     tvOff), behind the Music switch with the stereo.
    - The pieces: Tienda's wood (wood-sfx.js), on a solid board (the
      player's choice for Standard), with a small room round them.
 
@@ -271,6 +274,62 @@ export function createAudio() {
     return true;
   }
 
+  /* ---------------- the television (den-tv.js) ---------------- */
+  // The set's own sounds, behind the Music switch with the stereo: the
+  // power switch's click, the tube coming up (the degauss coil's thump,
+  // the line whine high and faint), the snow's hiss, a station's tone, and
+  // the set going off.
+  let tv = null; // { bus, hissGain, whine, whineGain }
+  function tvGraph() {
+    ensureGraph();
+    if (!ctx) return null;
+    if (tv) return tv;
+    const bus = ctx.createGain();
+    bus.connect(gates.stereo);
+    const hissGain = ctx.createGain(); hissGain.gain.value = 0;
+    const hiss = ctx.createBufferSource(); hiss.buffer = noiseBuf; hiss.loop = true;
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3800; bp.Q.value = 0.5;
+    hiss.connect(bp).connect(hissGain).connect(bus);
+    hiss.start();
+    tv = { bus, hissGain, whine: null, whineGain: null };
+    return tv;
+  }
+  function tvClick(t) {
+    burst(t, tv.bus, 0.22, 0.035, [["bandpass", 2400, 2]]);
+    const o = ctx.createOscillator(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.09);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+    o.connect(g).connect(tv.bus); o.start(t); o.stop(t + 0.12);
+  }
+  function tvOn() {
+    if (!tvGraph()) return;
+    const t = now();
+    tvClick(t);
+    [60, 120, 180].forEach((f, i) => {
+      const o = ctx.createOscillator(); o.type = i ? "sine" : "triangle"; o.frequency.value = f;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t + 0.12); g.gain.linearRampToValueAtTime(0.16 / (i + 1), t + 0.16); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+      o.connect(g).connect(tv.bus); o.start(t + 0.12); o.stop(t + 1.2);
+    });
+    if (!tv.whine) {
+      const o = ctx.createOscillator(); o.frequency.value = 15734;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.006, t + 1.2);
+      o.connect(g).connect(tv.bus); o.start(t);
+      tv.whine = o; tv.whineGain = g;
+    }
+  }
+  function tvOff() {
+    if (!tvGraph()) return;
+    const t = now();
+    tvClick(t);
+    tv.hissGain.gain.setTargetAtTime(0, t, 0.05);
+    if (tv.whine) {
+      tv.whine.frequency.setTargetAtTime(9000, t, 0.4);
+      tv.whineGain.gain.setTargetAtTime(0.0001, t + 0.05, 0.25);
+      tv.whine.stop(t + 1.6);
+      tv.whine = tv.whineGain = null;
+    }
+    burst(t + 0.42, tv.bus, 0.08, 0.06, [["lowpass", 500]]);
+  }
+
   const cue = (fn) => (...args) => { ensureGraph(); if (wood) fn(...args); };
 
   return {
@@ -302,6 +361,18 @@ export function createAudio() {
     },
     playMusic,
     stopMusic,
+    tvOn,
+    tvOff,
+    // The snow's hiss, 0 (none) to 1 (a screen of it).
+    tvHiss(level) { if (tvGraph()) tv.hissGain.gain.setTargetAtTime(level * 0.07, now(), 0.12); },
+    // The station's tone as the test pattern comes up.
+    tvTone() {
+      if (!tvGraph()) return;
+      const t = now(), o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = 1000;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.022, t + 0.05); g.gain.setValueAtTime(0.022, t + 1.1); g.gain.linearRampToValueAtTime(0.0001, t + 1.4);
+      o.connect(g).connect(tv.bus); o.start(t); o.stop(t + 1.5);
+    },
     musicPlaying() { return music ? music.track.id : null; },
     setTension() {},
     // The end of a game: the room settles a little.
@@ -337,6 +408,14 @@ export function createAudio() {
     cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
     playDockOpen() {}, playDockClose() {},
     debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, muted, roomOn, channelsOff: { ...channelOff } }; },
+    // Leaving the den (Nova's story): everything fades out over `secs`.
+    fadeOutAll(secs = 2) {
+      if (!ctx || !master) return;
+      const t = now();
+      master.gain.cancelScheduledValues(t);
+      master.gain.setValueAtTime(master.gain.value, t);
+      master.gain.linearRampToValueAtTime(0, t + secs);
+    },
     dispose() {
       disposed = true;
       stopMusic();

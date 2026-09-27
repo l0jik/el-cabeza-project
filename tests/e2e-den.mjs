@@ -201,7 +201,7 @@ async function waitFor(fn, ms = 8000) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   // The control bar, chosen (a phone opens Nova with the floating piece).
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:nova-layout", "bar"); } catch (e) { /* none */ } });
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true })); localStorage.setItem("el-cabeza:nova-layout", "bar"); } catch (e) { /* none */ } }); // bought: Nova opens at home
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
   const denUp = () => page.evaluate(() => {
     const t = window.__DEN_THREE__;
@@ -221,18 +221,20 @@ async function waitFor(fn, ms = 8000) {
   check("...which puts the menu away and opens the music panel", (await q(page, "music-panel").count()) === 1);
   await q(page, "music-close").click();
   await page.waitForTimeout(300);
-  const switchTheme = async () => {
+  // Into Neon the menu turns on the TV (no prompt); back, the prompt.
+  const switchTheme = async (prompt) => {
     await q(page, "shell-menu-button").click();
     await page.waitForTimeout(300);
     await q(page, "shell-menu-switch-theme").click();
+    if (!prompt) return;
     await waitFor(async () => (await page.locator(".ec-hold-modal-word").count()) > 0);
     await page.locator(".ec-hold-modal-word").click({ force: true });
   };
-  await switchTheme();
-  check("switched to Neon", await waitFor(async () => (await q(page, "shell-anomaly").count()) > 0, 12000));
+  await switchTheme(false);
+  check("switched to Neon, through the TV", await waitFor(async () => (await q(page, "shell-anomaly").count()) > 0, 30000));
   check("...and the den has gone with Standard", await page.evaluate(() => window.__DEN_ROOM__ === false && !window.__DEN_THREE__));
   await page.waitForTimeout(1200);
-  await switchTheme();
+  await switchTheme(true);
   check("back to Standard: the den is built again", await waitFor(denUp, 15000));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();

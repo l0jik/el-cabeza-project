@@ -189,6 +189,14 @@ export function mountAmbientEffects(refs, helpers) {
   return { armOnBegin() {}, restart() {}, tick(now) {}, dispose() {} };
 }
 
+// A theme with things in its room can take taps on them. pickScene
+// (raycaster) says what a tap on the room landed on (the den: "record"
+// or "8track" open the chassis's music panel), and sceneTap(what), if
+// present, handles the ones that are the room's own and returns true
+// (the den's "tv": its knob turns). Nova hands the den's effects
+// `helpers.tv` ({ portal(), enter(), returning, register(api) }) so the
+// television is the way into Singularity (PROJECT_MEMORY, "Nova's story").
+
 // Move-triggered FX (weight-lift/landing glow, glitch bursts, landing
 // shockwave) are NOT a separate hook — they're plain properties
 // (pulseSquare, spawnGlitchBurst, spawnLandingShockwave) that

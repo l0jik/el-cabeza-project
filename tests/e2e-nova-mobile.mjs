@@ -30,7 +30,11 @@ async function open(url, { width, height, touch = true, bar = false }) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/ERR_CERT|ERR_CONNECTION|Failed to load resource/.test(m.text())) errs.push(m.text()); });
-  await page.addInitScript((bar) => { window.__EC_TEST_HOOKS__ = true; if (bar) try { localStorage.setItem("el-cabeza:nova-layout", "bar"); } catch (e) { /* none */ } }, bar);
+  // The game's bought, so Nova opens at home (apps/novaStory.jsx).
+  await page.addInitScript((bar) => {
+    window.__EC_TEST_HOOKS__ = true;
+    try { localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true })); if (bar) localStorage.setItem("el-cabeza:nova-layout", "bar"); } catch (e) { /* none */ }
+  }, bar);
   await page.goto(url);
   await page.waitForTimeout(2500);
   return { ctx, page, errs };
@@ -128,7 +132,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(400);
   const rows = ["shell-menu-rules", "shell-menu-game-rules", "shell-menu-movelog", "shell-menu-end", "shell-menu-top", "shell-menu-player",
-    "shell-menu-sound", "shell-menu-points", "shell-menu-costs", "shell-menu-switch-theme", "shell-menu-about"];
+    "shell-menu-sound", "shell-menu-points", "shell-menu-costs", "shell-menu-switch-theme", "shell-menu-back-to-store", "shell-menu-restart", "shell-menu-about"];
   const missing = [];
   for (const r of rows) if (!(await q(page, r).count())) missing.push(r);
   check("the menu has every option", missing.length === 0, missing.join(", "));
@@ -172,13 +176,14 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "shell-new-game").click();
   check("New Game returns to setup", await waitFor(async () => (await phase(page)) === "setup"));
 
-  // 2. Theme switch from the menu
+  // 2. Into Neon from the menu: at home it turns on the TV (den-tv.js),
+  // whose picture takes the page into Singularity.
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(300);
+  check("the menu's switch is the TV at home", /Turn on the TV/.test(await q(page, "shell-menu-switch-theme").innerText()));
   await q(page, "shell-menu-switch-theme").click();
-  check("the switch opens CONNECT", await waitFor(async () => (await page.locator(".ec-hold-modal-word").count()) > 0));
-  await page.locator(".ec-hold-modal-word").click({ force: true });
-  check("Neon comes up with its setup buttons", await waitFor(async () => (await visible(page, "shell-anomaly")) && (await visible(page, "shell-custom-rules")), 12000));
+  check("...which turns the set on", await waitFor(() => page.evaluate(() => { const tv = window.__DEN_TV__ && window.__DEN_TV__(); return !!tv && tv.phase !== "off"; }), 8000));
+  check("Neon comes up with its setup buttons", await waitFor(async () => (await visible(page, "shell-anomaly")) && (await visible(page, "shell-custom-rules")), 30000));
   const layout0 = await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.map((p) => [p.id, p.row, p.col])));
   await q(page, "shell-anomaly").click();
   await page.waitForTimeout(1500);

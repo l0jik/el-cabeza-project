@@ -41,36 +41,93 @@ const BODONI = "'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif";
 
 // The lid shows once per visit, not again after every New Game.
 let lidDone = false;
+// Nova's "Start the story over" (apps/unified.jsx): the box is back on the
+// shelf, lid and all.
+export function resetLid() { lidDone = false; }
 
 /* ------------------------------------------------------------ setup extras */
 
+/* In Nova's story (x.story, apps/unified.jsx) the same printed matter
+   serves two places. The store ("store"): the game on the shelf, only the
+   classic game; Custom rules becomes the catalog's page of the five
+   original pieces (PieceCatalog, look only), and the game can be bought
+   and taken home (story.onPurchase). Home ("home", the den): no box lid
+   (it's open on the coffee table), and the whole order form, every piece
+   and rule. Without x.story (Tienda's own page) nothing changes. */
 export function useSetupExtras(x) {
-  const [overlay, setOverlay] = React.useState(() => (x.awaitingBegin && !lidDone ? "lid" : null));
+  const story = x.story || null;
+  const store = !!story && story.mode === "store";
+  const home = !!story && story.mode === "home";
+  /* How this place was reached, read once: false for the page opening
+     here, "cut" by one of the story's scene changes, "fresh" by "Start
+     the story over". Only the story's start has the lid on the box: back
+     at the store the game is already out on the counter. */
+  const arrival = React.useRef(undefined);
+  if (arrival.current === undefined) arrival.current = story && story.arrived ? story.arrived() : false;
+  if (store && arrival.current === "cut") lidDone = true;
+  const [overlay, setOverlay] = React.useState(() => (x.awaitingBegin && !lidDone && !home ? "lid" : null));
   const selRef = React.useRef(null);
   if (!selRef.current) selRef.current = defaultSelections();
   React.useEffect(() => { if (!x.awaitingBegin && overlay) setOverlay(null); }, [x.awaitingBegin]);
   React.useEffect(() => { ensurePaper(); }, []);
+  // The story fades this place's sound out as it leaves (story.bindAudio).
+  React.useEffect(() => { if (story && story.bindAudio) story.bindAudio(x.audio); }, []);
+  /* Arriving by a scene change, the place's own sound comes up with it:
+     the store's (unless the lid is on, whose "Open the box" brings it, as
+     on the first visit) or the room's. If the browser holds the sound back
+     until a tap, the next tap brings it. */
+  React.useEffect(() => {
+    if (!arrival.current || arrival.current === "fresh" || !x.audio) return undefined;
+    const start = () => {
+      try {
+        if (store && x.audio.startStore) x.audio.startStore();
+        else if (home && x.audio.ensureStarted) x.audio.ensureStarted();
+      } catch (e) { /* no sound here */ }
+    };
+    start();
+    document.addEventListener("pointerdown", start, { once: true, capture: true });
+    return () => document.removeEventListener("pointerdown", start, { capture: true });
+  }, []);
   return {
     ...x,
+    story,
     tiendaOverlay: overlay,
-    openOrderForm: () => { x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen(); setOverlay("order"); },
+    openOrderForm: () => { x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen(); setOverlay(store ? "catalog" : "order"); },
     closeOverlay: () => setOverlay(null),
-    reopenOrder: (sel) => { if (sel) selRef.current = sel; setOverlay("order"); },
+    reopenOrder: (sel) => { if (sel) selRef.current = sel; setOverlay(store ? "catalog" : "order"); },
     selRef,
   };
 }
 
 export function renderExtraOverlays(x) {
   if (!x) return null;
-  // In a game: the sales slip of what was ordered.
-  if (x.isPlaying && !x.awaitingBegin) return h(OrderSlip, { key: "slip", groups: x.currentVariants, audio: x.audio });
+  const store = !!x.story && x.story.mode === "store";
+  // In a game: the sales slip of what was ordered. At home only for a game
+  // with rules ordered from the catalog (the carbon copy of the order); a
+  // classic game there has none.
+  if (x.isPlaying && !x.awaitingBegin) {
+    const home = !!x.story && x.story.mode === "home";
+    if (home && !(x.currentVariants && x.currentVariants.length)) return null;
+    return h(OrderSlip, { key: "slip", groups: x.currentVariants, audio: x.audio, onPurchase: store ? x.story.onPurchase : null });
+  }
+  // A game in the store played to the end (or ended): the clerk's offer.
+  if (store && !x.awaitingBegin && x.game && (x.game.status === "finished" || x.game.status === "ended")) return h(PurchaseOffer, { key: "offer", story: x.story, audio: x.audio });
   if (!x.tiendaOverlay || !x.awaitingBegin) return null;
   if (x.tiendaOverlay === "lid") {
     return h(BoxLid, {
       key: "lid",
       onOpen: () => { lidDone = true; x.audio && x.audio.startStore && x.audio.startStore(); x.closeOverlay(); },
       onOrder: () => { lidDone = true; x.audio && x.audio.startStore && x.audio.startStore(); x.openOrderForm(); },
+      orderLabel: store ? "See the pieces" : "Custom rules",
       audio: x.audio,
+    });
+  }
+  if (x.tiendaOverlay === "catalog") {
+    return h(PieceCatalog, {
+      key: "catalog",
+      audio: x.audio,
+      onClose: () => { x.audio && x.audio.playRulesClose && x.audio.playRulesClose(); x.closeOverlay(); },
+      onPurchase: () => { x.closeOverlay(); x.story.onPurchase(); },
     });
   }
   return h(OrderForm, {
@@ -241,11 +298,22 @@ const MORE_CSS = `
   @media (max-width: 560px) { .td-sub, .td-warn { margin-left: 0; } }
   @media (prefers-reduced-motion: reduce) { .td-filled-stamp, .td-filled { animation: none; } }
 `;
-const Style = () => h("style", null, CSS + MORE_CSS + ORDER_PARTS_CSS);
+const STORY_CSS = `
+  .td-row-look { grid-template-columns: 64px 5.2em minmax(0, 1fr) 4em; }
+  .td-offer { position: fixed; z-index: 1150; left: 50%; top: max(12px, env(safe-area-inset-top)); transform: translateX(-50%);
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: min(560px, calc(100vw - 24px));
+    padding: 10px 14px; background: #EFE6CD; color: ${INK}; border: 1px solid rgba(46,33,24,0.35); box-shadow: 0 10px 30px rgba(20,12,6,0.35);
+    font: 400 14px/1.3 ${COURIER}; }
+  .td-offer .td-btn { min-height: 44px; }
+  .td-offer-x { min-width: 44px; min-height: 44px; border: none; background: transparent; color: ${INK}; font: 400 22px/1 ${FRANKLIN}; cursor: pointer; }
+  html.ec-shell .td-offer { top: calc(env(safe-area-inset-top, 0px) + 64px); }
+  @media (max-width: 560px) { .td-row-look { grid-template-columns: 56px minmax(0, 1fr) auto; } }
+`;
+const Style = () => h("style", null, CSS + MORE_CSS + ORDER_PARTS_CSS + STORY_CSS);
 
 /* ------------------------------------------------------------ the box lid */
 
-function BoxLid({ onOpen, onOrder, audio }) {
+function BoxLid({ onOpen, onOrder, orderLabel = "Custom rules", audio }) {
   const [opening, setOpening] = React.useState(false);
   const [next, setNext] = React.useState(null);
   React.useEffect(() => {
@@ -274,12 +342,109 @@ function BoxLid({ onOpen, onOrder, audio }) {
         h("p", { className: "td-body", style: { margin: 0 } }, "Complete with folding hardwood board and ten hand-finished playing pieces. Move a piece, or two. Roll the blocks. Bring your head home."),
         h("div", { className: "td-lid-actions" },
           h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-open-box", onClick: () => go("open"), autoFocus: true }, "Open the box"),
-          h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-lid-order", onClick: () => go("order") }, "Custom rules"),
+          h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-lid-order", onClick: () => go("order") }, orderLabel),
         ),
         h("div", { className: "td-small", style: { color: "rgba(233,220,192,0.55)", letterSpacing: "0.1em" } }, "No. 4417 · Made in Argentina · © 1975"),
       ),
       h("div", { className: "td-sticker", "aria-label": "Price 7 dollars 97" }, "$7.97"),
     ),
+  );
+}
+
+/* ------------------------------------------------------------ the store's catalog page (Nova's story) */
+
+// The five pieces in the box, as the store sells it.
+const CLASSIC_PIECES = [
+  ["cabeza", "Cabeza"], ["turrito", "Turrito"], ["flaco", "Flaco"], ["chato", "Chato"], ["opa", "Opa"],
+];
+
+/* Before the game is bought, the catalog shows only what's in the box:
+   the five original pieces, each with its photograph (tap it to take the
+   piece up in 3-D, as on the order form) and what it does. Nothing to
+   change: a game in the store is the classic game. The rest (the other
+   pieces, the rules, the board) waits at home. */
+function PieceCatalog({ audio, onClose, onPurchase }) {
+  const [viewer, setViewer] = React.useState(null);
+  const types = CLASSIC_PIECES.map(([k]) => k);
+  const [photos, setPhotos] = React.useState(() => types.every((t) => !hasWoodShowcase(t) || woodPhoto(t)));
+  React.useEffect(() => {
+    if (photos) return undefined;
+    const id = setTimeout(() => { ensureWoodPhotos(types); setPhotos(true); }, 60);
+    return () => clearTimeout(id);
+  }, []);
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape" && !document.querySelector('[data-testid="tienda-piece-viewer"]')) onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  const click = () => { audio && audio.playSelect && audio.playSelect(); };
+  const closeViewer = () => setViewer((v) => {
+    if (!v || v.closing) return v;
+    audio && audio.playDeselect && audio.playDeselect();
+    const still = document.querySelector(`[data-testid="tienda-view-${v.key}"]`);
+    return { ...v, rect: still ? still.getBoundingClientRect() : v.rect, closing: true };
+  });
+  const rows = CLASSIC_PIECES.map(([key, name]) => {
+    const [cat, price, note] = CATALOG[key];
+    const photo = hasWoodShowcase(key)
+      ? h("button", {
+          type: "button", className: "td-photo-btn", "data-testid": `tienda-view-${key}`, "data-type": key,
+          "aria-label": `Take up the ${name} and turn it over in 3-D`,
+          onClick: (e) => { if (viewer) return; click(); setViewer({ key, type: key, name, detail: note, cat, price, rect: e.currentTarget.getBoundingClientRect(), closing: false }); },
+        },
+        woodPhoto(key) ? h("img", { src: woodPhoto(key), alt: "" }) : h("span", { className: "td-photo-wait" }),
+        h("i", { className: "td-3d", "aria-hidden": "true" }, "3-D"))
+      : h("span");
+    return h("div", { key, className: "td-row td-row-look", "data-testid": `tienda-catalog-${key}` },
+      photo,
+      h("span", { className: "td-cat" }, cat),
+      h("span", { className: "td-desc" }, name, h("span", null, note)),
+      h("span", { className: "td-price" }, price));
+  });
+  return h("div", { className: "td-layer", "data-testid": "tienda-catalog", role: "dialog", "aria-modal": "true", "aria-label": "Catalog: the pieces", onClick: (e) => { if (e.target === e.currentTarget) onClose(); } },
+    h(Style),
+    h("div", { className: "td-form" },
+      h("div", { className: "td-form-scroll" },
+        h("div", { className: "td-form-head" },
+          h("div", null,
+            h("div", { className: "td-form-sub" }, "Games & Hobby Dept. · Fall & Winter Catalog 1975"),
+            h("h2", { className: "td-form-title" }, "THE PIECES"),
+          ),
+          h("div", { className: "td-form-note" }, "In every box: five of each, a side apiece, and the folding board."),
+        ),
+        h("div", { className: "td-sec" },
+          h("div", { className: "td-sec-h" }, "El Cabeza · No. 4417", h("small", null, "tap a photograph to take the piece up")),
+          rows,
+        ),
+      ),
+      h("div", { className: "td-foot" },
+        h("div", { className: "td-foot-total" }, "The complete game, board and ten pieces", h("br"), h("b", null, "$7.97")),
+        h("div", { className: "td-foot-btns" },
+          h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-catalog-close", onClick: onClose }, "Close"),
+          h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-catalog-purchase", onClick: () => { click(); onPurchase(); } }, "Purchase and bring home"),
+        ),
+      ),
+    ),
+    viewer && h(WoodPieceViewer, {
+      key: viewer.key,
+      type: viewer.type, name: viewer.name, detail: viewer.detail, cat: viewer.cat, price: viewer.price,
+      fromRect: viewer.rect, closing: viewer.closing, audio,
+      onClose: closeViewer,
+      onClosed: () => setViewer(null),
+    }),
+  );
+}
+
+/* A game in the store played to the end: the clerk's offer, at the top of
+   the screen, clear of the win placard and the dock. */
+function PurchaseOffer({ story, audio }) {
+  const [gone, setGone] = React.useState(false);
+  if (gone) return null;
+  return h("div", { className: "td-offer", "data-testid": "tienda-offer", role: "status" },
+    h(Style),
+    h("span", null, "Like it? Take it home: ", h("b", null, "$7.97")),
+    h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-offer-purchase", onClick: () => { audio && audio.playSelect && audio.playSelect(); story.onPurchase(); } }, "Purchase and bring home"),
+    h("button", { type: "button", className: "td-offer-x", "aria-label": "No thanks", "data-testid": "tienda-offer-dismiss", onClick: () => setGone(true) }, "×"),
   );
 }
 

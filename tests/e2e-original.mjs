@@ -56,6 +56,8 @@ const theme = (page) => page.evaluate(() => {
   const page = await browser.newPage({ viewport: { width: 1000, height: 850 } });
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
+  // The game's bought, so Nova opens at home (apps/novaStory.jsx).
+  await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true })); } catch (e) { /* none */ } });
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
   await page.waitForTimeout(2000);
   check("Nova opens on the Standard theme", (await theme(page)) === "standard");
