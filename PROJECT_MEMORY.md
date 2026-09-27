@@ -2499,6 +2499,14 @@ share they gave up is a quiet spell (no event), so carts, the register,
 steps and the door come exactly as often as before. The closing
 announcement at the end of a game is not random and is unchanged.
 
+### Tienda: the ceiling speakers' music at half (user request, Sep 27)
+"Music over PA speakers in Tienda volume should be cut 50%": the music
+(the tape and the arrangements) now goes through `MUSIC_VOLUME` 0.5
+(tienda-audio.js), a gain after the speakers' crunch (so the sound is
+the same, only quieter), and the tape's extra send to the room's tail is
+halved with it. The PA announcements, the store and the pieces are
+unchanged.
+
 ### Piece guide switch (user request: helpers off for players who know the game)
 `showGuide` (chassis; localStorage `el-cabeza:piece-guide`, on unless
 "0") gates the piece card (`pieceCardShown`), and on a phone the bar's

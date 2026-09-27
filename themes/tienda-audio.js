@@ -30,6 +30,11 @@ import { createWoodSfx } from "./wood-sfx.js";
 
 export const hasAudio = true;
 
+// The ceiling speakers' volume: the music (the tape and the arrangements)
+// at half what it was (the user: "cut 50%"); the store and the pieces
+// as they were.
+const MUSIC_VOLUME = 0.5;
+
 /* ------------------------------------------------------------ music data */
 
 const CHORD = {
@@ -311,8 +316,11 @@ export function createAudio({ tapeUrl = null } = {}) {
       const shaper = ctx.createWaveShaper(); const curve = new Float32Array(1024);
       for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; curve[i] = Math.tanh(x * 1.4) / Math.tanh(1.4); }
       shaper.curve = curve;
-      const spk = ctx.createGain(); spk.gain.value = 1;
-      musicBus.connect(gate("music")).connect(hp).connect(lp).connect(cone).connect(shaper).connect(spk);
+      const shaped = ctx.createGain(); shaped.gain.value = 1;
+      musicBus.connect(gate("music")).connect(hp).connect(lp).connect(cone).connect(shaper).connect(shaped);
+      // The speakers' volume, after the crunch so the sound is the same.
+      const spk = ctx.createGain(); spk.gain.value = MUSIC_VOLUME;
+      shaped.connect(spk);
       const musicOut = ctx.createGain(); musicOut.gain.value = 0.8; spk.connect(musicOut).connect(storeBus);
       [0.013, 0.027, 0.041].forEach((d, i) => {
         const dl = ctx.createDelay(0.1); dl.delayTime.value = d;
@@ -642,7 +650,7 @@ export function createAudio({ tapeUrl = null } = {}) {
     const dark = ctx.createBiquadFilter(); dark.type = "lowpass"; dark.frequency.value = 3100; dark.Q.value = 0.5;
     tapeIn.connect(dark).connect(musicBus);
     // More of the room: an extra send to the sales floor's long tail.
-    const far = ctx.createGain(); far.gain.value = 0.6;
+    const far = ctx.createGain(); far.gain.value = 0.6 * MUSIC_VOLUME;
     dark.connect(far).connect(gate("music")).connect(bigVerb);
     // The capstan's wow and flutter, from the same slow wobble as the
     // arrangements (it's in cents; here it bends the tape's speed).
