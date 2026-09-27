@@ -964,8 +964,23 @@ function buildConfigLabel() {
   return { pivot, mesh, canvas, ctx, texture };
 }
 
+/* The sphere's size on screen. It sits at the board's middle, so left to
+   itself its size followed wherever the camera was when the cinematic
+   began: the board's fitted view, or far smaller if the player had
+   zoomed out (the user: "the sphere is much smaller now"). On arrival
+   and every frame after, its frame is scaled by how much farther (or
+   nearer) the camera is than at the board's fitted view on this screen
+   (the chassis's three.current.boardFitScale), so it always has the size
+   it has there, the size it was designed at. */
+const SPHERE_RADIUS = 6;
+function fitSphereToScreen(t, s) {
+  if (!s.sphereFrame) return;
+  const k = typeof t.boardFitScale === "function" ? t.boardFitScale() : 1;
+  s.sphereFrame.scale.setScalar(Number.isFinite(k) && k > 0 ? k : 1);
+}
+
 function buildSphere(markLabelsDirty) {
-  const geo = new THREE.SphereGeometry(6, 64, 48);
+  const geo = new THREE.SphereGeometry(SPHERE_RADIUS, 64, 48);
   const text = buildSphereTextTexture(markLabelsDirty);
   const uniforms = {
     uPulsePhase: { value: 0 },
@@ -1539,6 +1554,7 @@ export function advanceSingularityScene(t, now, chromeRefs) {
         // — see faceSphereNorthPole (the raycast goes through the
         // sphere's own on-screen center, not the viewport's, since UI
         // chrome can make the sphere sit off-center).
+        fitSphereToScreen(t, s);
         faceSphereNorthPole(t, s);
         // The blackout div is opaque and sits above the main canvas —
         // it has to fade back down for the sphere/starfield (already
@@ -1555,6 +1571,7 @@ export function advanceSingularityScene(t, now, chromeRefs) {
       break;
     }
     case PHASES.SPHERE: {
+      fitSphereToScreen(t, s); // follows a turned phone or a resized window
       updateSphereVisuals(t, dt);
       break;
     }

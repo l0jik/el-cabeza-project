@@ -205,7 +205,10 @@ export function mountAmbientEffects(refs, helpers) {
 // exactly like the original per-theme sources did before this
 // component was shared. The chassis's animateStep calls them with
 // `t.pulseSquare && t.pulseSquare(...)` guards — a no-op for a theme
-// that never sets them.
+// that never sets them. The other way, the chassis puts on it what a
+// theme may read: the scene, camera, renderer and groups, `lights`, and
+// `boardFitScale()` (the view's distance over the board's fitted one on
+// this screen; the Singularity sphere keeps its size by it).
 
 // JSX injection slot for theme-exclusive UI with no shared equivalent
 // (Neon's Anomaly button + Singularity easter egg — NOT YET PORTED,

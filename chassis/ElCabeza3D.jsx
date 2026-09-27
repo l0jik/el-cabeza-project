@@ -1655,6 +1655,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      so nothing still needs the board held back to fit between them. */
   const preGameFitRadiusRef = useRef(null);
   const preGameFitTargetYRef = useRef(null);
+  // The last fitted radius, kept after play starts (the ref above is
+  // cleared then): what "the board's own view" is on this screen, for
+  // three.current.boardFitScale below.
+  const lastBoardFitRadiusRef = useRef(null);
   useEffect(() => {
     if (!awaitingBegin) return;
     const GAP_PADDING_PX = shell ? 18 : 28;
@@ -1728,6 +1732,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       }
       cam.current.radius = hi;
       preGameFitRadiusRef.current = hi;
+      lastBoardFitRadiusRef.current = hi;
 
       // Center the fitted board vertically within the SAME masthead-
       // to-dock gap, not just make it fit — a symmetric gapHeight
@@ -2672,6 +2677,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // key/fill/back are otherwise local consts, unreachable outside
       // this mount effect's own closure.
       lights: { key, fill, back },
+      // How much farther the camera is than at the board's fitted view on
+      // this screen (1 there, 2 zoomed out to twice the distance). The
+      // Singularity sphere is scaled by it so it always has the size it
+      // has at the fitted view (neon-singularity.js fitSphereToScreen).
+      boardFitScale: () => (lastBoardFitRadiusRef.current ? cam.current.view.radius / lastBoardFitRadiusRef.current : 1),
     };
 
     /* Rebuild the board plate (slab + edges + top ring + grid) at the

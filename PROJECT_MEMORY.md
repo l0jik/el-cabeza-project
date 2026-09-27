@@ -2499,6 +2499,25 @@ share they gave up is a quiet spell (no event), so carts, the register,
 steps and the door come exactly as often as before. The closing
 announcement at the end of a game is not random and is unchanged.
 
+### Singularity: the sphere keeps its size (user report, Sep 27)
+"In SINGULARITY, the sphere is much smaller now...what happened?" The
+sphere (radius 6, at the board's middle) took its size from wherever the
+chassis's camera was when the cinematic began. Measured against the build
+before Sep 27 (the Neon page and Nova; phone, laptop and 1100x900; the TV
+path, the bar and the floating piece), the board's fitted view hadn't
+changed, but zoomed out (up to ZOOM_MAX_FOR_BOARD, 55) the sphere came
+out about half the size, the likely cause. Now the chassis keeps the last
+fitted radius (`lastBoardFitRadiusRef`, not cleared when play starts,
+unlike preGameFitRadiusRef) and gives themes
+`three.current.boardFitScale()` (the view's radius over it), and
+`fitSphereToScreen` (neon-singularity.js) scales the sphere's frame by
+it on arrival and every frame of the sphere phase: the size it has at
+the fitted view on that screen (phone 317 px of 390; 1100x900, 649 px),
+zoomed out or in. A first try at a fixed share of the screen matched a
+phone and a laptop but shrank it on squarer windows (1100x900: 547 px
+against 649) and broke the Singularity test's bare-sphere tap, so it's
+the fitted view's size instead.
+
 ### Tienda: the ceiling speakers' music at half (user request, Sep 27)
 "Music over PA speakers in Tienda volume should be cut 50%": the music
 (the tape and the arrangements) now goes through `MUSIC_VOLUME` 0.5
