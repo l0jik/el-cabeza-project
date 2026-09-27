@@ -476,6 +476,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useEffect(() => {
     if (typeof window === "undefined" || !window.__EC_TEST_HOOKS__) return;
     window.__EC_TEST_SET_PIECES__ = (list) => setPieces(list.map((p) => ({ ...p })));
+    // Two paired black holes, as a Singularity game places them.
+    window.__EC_TEST_SET_HOLES__ = (list) => { setActiveBlackHoles(list); setBlackHoles(list); };
     window.__EC_TEST_PIECES__ = pieces.map((p) => ({ ...p }));
     // Plays one move for a piece through the same path a click uses
     // (animation, commit, turn logic), and projects a piece's body to
@@ -3594,7 +3596,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       ...(piece.id === selectedId ? pendingSteps : []),
       // `shoved` marks a step that pushed another piece (Shoving LAW) — such
       // a turn always changed the board, even if the mover ends back home.
-      { pieceId: piece.id, label: PIECE_META[piece.type].label, dir, ...(move.shoves ? { shoved: move.shoves.map((q) => q.id) } : {}) },
+      {
+        pieceId: piece.id, label: PIECE_META[piece.type].label, dir,
+        ...(move.shoves ? { shoved: move.shoves.map((q) => q.id) } : {}),
+        // A move that can't be undone by rolling back the other way — a
+        // trip through a black hole, or a push — keeps where everything it
+        // touched started, so undo can put it back exactly (reverseStep).
+        ...(move.teleports || move.shoves
+          ? {
+              from: piece,
+              teleports: !!move.teleports,
+              ...(move.shoves ? { shovedFrom: move.shoves.map((q) => pieces.find((p) => p.id === q.id)).filter(Boolean) } : {}),
+            }
+          : {}),
+      },
     ];
     // Distinct pieces moved this turn after this move — the Split Movement
     // 2-piece cap counts these, not the number of moves.
@@ -5546,6 +5561,35 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return rollBlock(anchor, dir);
   }
 
+  /* Undoes one recorded step on the working board `stateOf` (id -> piece),
+     then calls done. An ordinary roll/slide/pivot plays backwards. A trip
+     through a black hole can't be played backwards (the piece would roll
+     off from the far hole), so the piece jumps straight back to where it
+     started; pushed pieces are put back the same way once the mover has
+     rolled home. Both undo buttons use this. */
+  function reverseStep(step, stateOf, done) {
+    const state = stateOf.get(step.pieceId);
+    if (!state) { done(); return; } // fail soft on malformed history
+    const putBack = (after) => {
+      if (step.shovedFrom) step.shovedFrom.forEach((q) => stateOf.set(q.id, q));
+      setPieces((prev) => prev.map((p) => stateOf.get(p.id) || p));
+      // Let the board rebuild the moved meshes before the next step animates.
+      setTimeout(done, after);
+    };
+    if (step.teleports && step.from) {
+      stateOf.set(step.pieceId, step.from);
+      audioRef.current.playLanding(cubeCount(step.from));
+      putBack(360);
+      return;
+    }
+    const dir = INVERSE_DIR[step.dir];
+    animateStep(state, dir, () => {
+      stateOf.set(step.pieceId, step.from || nextStateAfterDir(state, dir));
+      if (step.shovedFrom) putBack(80);
+      else done();
+    });
+  }
+
   function handleUndoTurn() {
     if (!turnSnapshot || busy || anim.current || currentPlayer === aiPlayer || awaitingBegin) return;
     pendingIntentRef.current = null; // whatever was queued for this turn no longer applies
@@ -5584,17 +5628,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         restore();
         return;
       }
-      const step = pendingSteps[i];
-      const state = stateOf.get(step.pieceId);
-      if (!state) {
-        run(i - 1);
-        return;
-      }
-      const dir = INVERSE_DIR[step.dir];
-      animateStep(state, dir, () => {
-        stateOf.set(step.pieceId, nextStateAfterDir(state, dir));
-        run(i - 1);
-      });
+      reverseStep(pendingSteps[i], stateOf, () => run(i - 1));
     };
 
     run(pendingSteps.length - 1);
@@ -5690,18 +5724,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             processEntry(idx + 1, basePieces.map((p) => stateOf.get(p.id) || p));
             return;
           }
-          const step = entrySteps[i];
-          const state = stateOf.get(step.pieceId);
-          if (!state) {
-            // Fail soft rather than throw on malformed history.
-            runStep(i - 1);
-            return;
-          }
-          const dir = INVERSE_DIR[step.dir];
-          animateStep(state, dir, () => {
-            stateOf.set(step.pieceId, nextStateAfterDir(state, dir));
-            runStep(i - 1);
-          });
+          reverseStep(entrySteps[i], stateOf, () => runStep(i - 1));
         };
         runStep(entrySteps.length - 1);
       };

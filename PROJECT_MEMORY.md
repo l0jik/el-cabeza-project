@@ -2238,3 +2238,17 @@ Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
 - **Standard's wood sounds:** the user will upload real recordings (the
   sandbox reaches no free sound library; see §9 for the four rejected
   synthesis attempts). Build every Standard cue from those files.
+
+### Undo after a black hole or a shove (user bug report, video)
+Undo turn replayed an AI Cabeza's wormhole step backwards as a plain
+step from the ejection square, so it slid off the board's edge and
+streaked across it. Steps that can't be played backwards now record
+where things started: `from` (the mover), `teleports`, `shovedFrom`
+(pushed pieces), set in commitRef. `reverseStep` (used by both Undo move
+and Undo turn) jumps a teleported piece straight back (a landing knock,
+no path) and puts pushed pieces back after the mover rolls home.
+Test: tests/e2e-undo-wormhole.mjs (hook `__EC_TEST_SET_HOLES__`); it
+fails on the old build (0.91 squares off the board).
+
+Tienda's box lid reads "No. 4417 · Made in Argentina · © 1975" (the
+game was conceived in Argentina; it said Made in U.S.A.).

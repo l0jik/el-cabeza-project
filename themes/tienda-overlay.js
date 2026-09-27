@@ -276,7 +276,7 @@ function BoxLid({ onOpen, onOrder, audio }) {
           h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-open-box", onClick: () => go("open"), autoFocus: true }, "Open the box"),
           h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-lid-order", onClick: () => go("order") }, "Custom rules"),
         ),
-        h("div", { className: "td-small", style: { color: "rgba(233,220,192,0.55)", letterSpacing: "0.1em" } }, "No. 4417 · Made in U.S.A. · © 1975"),
+        h("div", { className: "td-small", style: { color: "rgba(233,220,192,0.55)", letterSpacing: "0.1em" } }, "No. 4417 · Made in Argentina · © 1975"),
       ),
       h("div", { className: "td-sticker", "aria-label": "Price 7 dollars 97" }, "$7.97"),
     ),
