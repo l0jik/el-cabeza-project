@@ -6,7 +6,8 @@
 
      node tests/ai-sim.mjs [scenario] [darkTier] [lightTier] [games] [timeScale]
 
-   scenario: classic | rayo (Rayo + 1x3 + classic blocks, Split Movement + Slides) | matter (2 Cabezas, 2 Codos, an Arco Chico and the
+   scenario: classic | rayo (Rayo + 1x3 + classic blocks, Split Movement + Slides) | fast (the third reported game:
+   Rayo, 2x3, Chato, Turrito, 1x3; 3 Actions, Slides, Split Movement, Cantilever Pivot, Shoving by slides only) | matter (2 Cabezas, 2 Codos, an Arco Chico and the
    classic blocks, Split Movement + Shoving + Slides) | holes (classic
    pieces with Black Holes and Missing Squares). A tier may be
    easy/medium/hard, optionally suffixed ":old" to play it with another
@@ -19,7 +20,7 @@ import {
   setActiveLaws, setBlackHoles, setMissingSquares, GOAL_ROW, BOARD_ROWS, BOARD_COLS,
 } from "../engine/constants.js";
 import { createInitialPieces, pickBlackHoleSquares, pickMissingSquares } from "../engine/rules.js";
-import { findBestAiTurn, generateTurns, AI_DIFFICULTY, lastSearchInfo } from "../engine/ai.js";
+import { findBestAiTurn, generateTurns, AI_DIFFICULTY, lastSearchInfo, placeKey } from "../engine/ai.js";
 import { generateAnomalySetup } from "../themes/neon.js";
 
 const [scenario = "classic", darkTier = "medium", lightTier = "medium", gamesArg = "4", scaleArg = "1"] = process.argv.slice(2);
@@ -73,6 +74,15 @@ function setupScenario() {
       { type: "block1x3", count: 1 },
     ]);
   }
+  if (scenario === "fast") {
+    // The third reported game (Medium shuffled, then walked its Cabeza
+    // into a Turrito's three rolls).
+    setActiveLaws({ threeActions: true, slide: true, splitMovement: true, cantileverPivot: true, shoving: true, shoveOnRolls: false });
+    return generateAnomalySetup([
+      { type: "rayo", count: 1 }, { type: "block2x3", count: 1 }, { type: "chato", count: 1 },
+      { type: "turrito", count: 1 }, { type: "cabeza", count: 1 }, { type: "block1x3", count: 1 },
+    ]);
+  }
   if (scenario === "holes") {
     setActiveLaws({ blackHoleSquares: true });
     const pieces = createInitialPieces();
@@ -122,15 +132,20 @@ for (let g = 0; g < GAMES; g++) {
   let player = "dark";
   const streak = { dark: 0, light: 0 };
   const pieceStreaks = { dark: {}, light: {} };
+  const places = { dark: [], light: [] }; // start-of-turn snapshots, as the chassis keeps them
   let over = false;
   let t = 0;
   for (; t < TURN_CAP && !over; t++) {
     const start = performance.now();
-    const plan = await sides[player].find(pieces, player, sides[player], streak[player], Math.floor(t / 2), pieceStreaks[player]);
+    const recentPlaces = {};
+    for (const snap of places[player]) for (const id in snap) (recentPlaces[id] || (recentPlaces[id] = [])).push(snap[id]);
+    const plan = await sides[player].find(pieces, player, sides[player], streak[player], Math.floor(t / 2), pieceStreaks[player], recentPlaces);
+    { const snap = {}; for (const p of pieces) if (p.owner === player) snap[p.id] = placeKey(p); places[player] = [...places[player], snap].slice(-3); }
     stats[player].ms += performance.now() - start;
     stats[player].depth += sides[player].info.depth || 0;
     if (!plan) { over = true; stats[player === "dark" ? "light" : "dark"].wins++; endings.crush++; break; }
     const r = applyPlan(pieces, player, plan);
+    for (const id of r.ids) { const q = pieces.find((p) => p.id === id); if (q && recentPlaces[id] && recentPlaces[id].includes(placeKey(q))) stats[player].backtracks = (stats[player].backtracks || 0) + 1; }
     const s = stats[player];
     s.turns++;
     r.types.forEach((ty) => { s.types[ty] = (s.types[ty] || 0) + 1; });
@@ -168,6 +183,7 @@ for (const side of ["dark", "light"]) {
     longestSamePieceRun: s.maxSameRun || 0,
     longestCabezaOnlyRun: s.maxCabezaRun || 0,
     avgDepth: +(s.depth / Math.max(1, s.turns)).toFixed(1),
+    piecesPutBack: pct(s.backtracks || 0, s.turns),
   };
 }
 console.log(JSON.stringify(report, null, 1));

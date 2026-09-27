@@ -3553,11 +3553,13 @@ export function useSingularityPhase({
         ...(sel.topologies.missingSquares ? sel.missingSquare.spots.map((p) => ({ row: p.row, col: p.col })) : []),
         ...(sel.laws.blackHoleSquares && sel.blackHole.manual ? [sel.blackHole.manual] : []),
       ];
-      const placedPieces = (applyMatterRoster && applyMatterRoster(sel.matter, matterActive, chosenSpots)) || pieces;
       // LAWS: the sphere's checkboxes are plain booleans shaped like
       // ACTIVE_LAWS; this is where they actually take effect (and get
       // forwarded to the AI worker via setActiveLaws' shared mechanism).
+      // Before the pieces are set out: a random opening is checked against
+      // the laws it will be played under (engine/anomaly.js).
       const laws = setActiveLaws(lawsForEngine(sel));
+      const placedPieces = (applyMatterRoster && applyMatterRoster(sel.matter, matterActive, chosenSpots)) || pieces;
       // Missing Squares: resolved BEFORE Black Hole Squares below so the
       // two never land on the same cell — whichever is active second
       // treats the first's placement as reserved too (buildBlackHole-
@@ -3593,9 +3595,9 @@ export function useSingularityPhase({
         if (applyBoardResize) applyBoardResize(sel.topologies.rows, sel.topologies.cols);
         // A re-randomized opening avoids the previous squares; if a piece
         // still lands on one (e.g. the fixed formation), they re-resolve.
+        const replayLaws = setActiveLaws(lawsForEngine(sel));
         const replayPieces =
           (applyMatterRoster && applyMatterRoster(sel.matter, matterActive, [...lastSquares.missing, ...lastSquares.holes])) || pieces;
-        const replayLaws = setActiveLaws(lawsForEngine(sel));
         lastSquares = resolvePairedSquares(sel, replayLaws, replayPieces, lastSquares);
         setActiveMissingSquares(lastSquares.missing);
         if (setMissingSquares) setMissingSquares(lastSquares.missing);

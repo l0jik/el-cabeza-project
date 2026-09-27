@@ -112,6 +112,47 @@ similarly be grounded in a reconstructed real game, not a guessed weight
 bump — several of the numbers in this table are explicitly flagged in
 comments as "reasoned but unverified extrapolation," not measured.
 
+### Fast games: 3 Actions, Split Movement, Slides (third reported game)
+The user's record (Medium, Light; Dark human won by a Turrito crush):
+Rayo, 2x3, Chato, Turrito, 1x3 and a Cabeza a side, 3 Actions, Slides,
+Split Movement, Cantilever Pivot, Shoving by slides only. Medium shuffled
+all game (a Rayo slid north then south, a Chato south/north/south, the
+Cabeza south/north/south), then walked its Cabeza into the Turrito's
+three rolls south. What was wrong, and what changed (engine/ai.js):
+- **Every tier searched one turn.** Each side has 500-3000 turns, and
+  depth 2 orders the reply to every root turn it keeps (24 for Medium),
+  each as costly as all of depth 1: ~20 s. It ran to the deadline and was
+  thrown away. Now findBestAiTurn doesn't start depth 2 when
+  `0.35 * kept * depth1Ms` exceeds the time left (minimaxSearch returns
+  `width`); Medium answers in about 0.4 s there instead of 2.2 s.
+- **Threats stopped at two rolls.** `blockTurnReach` walks each enemy
+  block's whole turn (legalMovesFor with the points left: rolls, pivots,
+  slides, not past a shove), each place once, cutting lines that can't
+  end on or beside a target; crushes and roll landings feed `threatened`
+  and the attacked squares (route cost, room to run). cabezaInDanger
+  uses it too. Eval cost in these rules ~0.35 -> ~1.1 ms; in the classic
+  rules it got cheaper (in-place apply/undo instead of copying the board).
+- **A free walk home wasn't seen**: `walksHome` in evaluatePosition, the
+  side to move wins if a Cabeza of its is within `maxStepsFor("cabeza")`
+  plain steps of its goal row (attacked squares don't count).
+- **Exact reply check at depth 1** (`verifyReplies`, Medium and Hard; Easy
+  keeps its mistakes): minimaxSearch at the root, depth 1,
+  checks the best-scoring turns in order against every opponent turn
+  (generateTurns, so Split Movement pairings and shoves too) and plays the
+  first with no game-ending reply (at least three checked, up to 40).
+- **Shuffling**: `backtrackBias` (Easy 10, Medium 10, Hard 8) per piece
+  put back where it stood at the start of one of the AI's last 3 turns.
+  The chassis keeps `aiPlacesRef` (snapshots of `placeKey`), passes
+  `recentPlaces` through the worker to findBestAiTurn.
+- **Openings**: a shuffled opening could let the first move crush a
+  Cabeza (a standing 2x3 rolls three rows at a time; 2 of 30 openings in
+  these rules). generateAnomalySetup now rejects those (cabezaInDanger,
+  under the laws in force: Neon's sphere now sets the laws before the
+  pieces, like rules-selections.js).
+Tests: tests/ai-threats.smoke.mjs (three-roll threats, walk home, the
+one-turn decision judged by every Dark reply, the opening guard);
+tests/ai-sim.mjs scenario `fast` (reports `piecesPutBack`).
+
 ## 3b. Board dimensions are a runtime parameter (TOPOLOGIES groundwork)
 
 `BOARD_SIZE` no longer exists. `engine/constants.js` now owns

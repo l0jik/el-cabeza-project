@@ -23,10 +23,18 @@ export function opponentOf(player) {
   return player === "dark" ? "light" : "dark";
 }
 
+/* Where a piece stands and which way up, as one string: the chassis
+   records the AI's pieces with it at the start of each AI turn, so the
+   root can tell a piece being put straight back (see backtrackBias). */
+export function placeKey(p) {
+  return `${p.row},${p.col},${p.w},${p.h},${p.z},${p.vox || ""}`;
+}
+
 /* Can any of the opponent's blocks crush `owner`'s Cabeza THIS move,
    from this exact position? Factored out so both evaluatePosition's
    leaf scoring and minimaxSearch's tie-break (see below) share one
-   definition rather than two copies that could drift apart. */
+   definition rather than two copies that could drift apart. Each block
+   is walked through its whole turn (blockTurnReach). */
 export function cabezaInDanger(pieces, owner) {
   // MATTER's 2-Cabeza roster option means `owner` can have more than
   // one — true if ANY of them could be crushed this move. A normal
@@ -34,28 +42,88 @@ export function cabezaInDanger(pieces, owner) {
   // this behaves identically to the original single-Cabeza check.
   const cabezas = pieces.filter((p) => p.type === "cabeza" && p.owner === owner);
   if (cabezas.length === 0) return true; // none left at all — about as "in danger" as it gets
-  const cabezaIds = new Set(cabezas.map((c) => c.id));
   const oppPlayer = opponentOf(owner);
-  for (const p of pieces) {
+  for (const p of pieces.slice()) {
     if (p.owner !== oppPlayer || p.type === "cabeza") continue;
-    const budget = maxStepsFor(p.type);
-    const moves = legalMovesFor(pieces, p, budget);
-    for (const dir in moves) {
-      const m1 = moves[dir];
-      if (m1.crushes && cabezaIds.has(m1.crushes.id)) return true;
-      // A turn is two points or more, so a roll to line up and a second
-      // one down onto the Cabeza is a threat too (see evaluatePosition).
-      if (m1.crushes || m1.teleports || budget - moveCost(m1) < 1) continue;
-      const moved = { ...p, ...m1.candidate, id: p.id, type: p.type, owner: p.owner };
-      if (m1.shoves) continue; // a shove moves a second piece; not worth modelling here
-      const after = pieces.map((q) => (q === p ? moved : q));
-      const second = legalMovesFor(after, moved, budget - moveCost(m1));
-      for (const d2 in second) {
-        if (second[d2].crushes && cabezaIds.has(second[d2].crushes.id)) return true;
-      }
-    }
+    if (blockTurnReach(pieces, p, maxStepsFor(p.type), cabezas, null, null, true)) return true;
   }
   return false;
+}
+
+/* The squares a block's footprint covers on the ground (an odd shape's
+   overhang covers none), marked in `marks` (row * BOARD_COLS + col). */
+function markGround(marks, cand) {
+  for (let r = cand.row; r < cand.row + cand.h; r++) {
+    for (let c = cand.col; c < cand.col + cand.w; c++) {
+      if (r >= 0 && r < BOARD_ROWS && c >= 0 && c < BOARD_COLS && (!cand.vox || (maskAt(cand, r, c) & 1))) marks[r * BOARD_COLS + c] = 1;
+    }
+  }
+}
+
+/* One block's whole turn, as far as the enemy Cabezas in `targets` are
+   concerned: which of them it could crush (added to `threatened`) and
+   every square a roll of it could come down on (marked in `marks`), the
+   squares a Cabeza would be crushed on. It walks every line of moves the
+   turn's points pay for (legalMovesFor with the points left: rolls,
+   pivots, slides and shoves, each at its own cost), so with "3 Actions"
+   three rolls, a slide and a roll, or a pivot and two rolls. A slide or a
+   pivot never crushes, but it lines a roll up. Each step is applied in
+   place and undone after, the way the search walks its turns.
+
+   It used to stop at two rolls, and a reported Medium game (3 Actions,
+   Slides, Split Movement) was lost to exactly what that missed: a
+   Turrito's three rolls south onto a Cabeza the AI had just walked
+   within their reach.
+
+   Lines that can no longer end on or beside a target are cut: one point
+   moves a piece's footprint at most its longest side (a slide costs two
+   and moves one square), so a block further from every target than that
+   times its points left has nothing more to find. Returns true once it
+   has found a crush, stopping there when `stopAtCrush`. */
+function blockTurnReach(pieces, p, points, targets, marks, threatened, stopAtCrush) {
+  const span = Math.max(p.w, p.h, p.z || 1);
+  const slack = marks ? 1 : 0;
+  const within = (q, left) => {
+    for (const t of targets) {
+      const dr = Math.max(0, t.row - (q.row + q.h - 1), q.row - t.row);
+      const dc = Math.max(0, t.col - (q.col + q.w - 1), q.col - t.col);
+      if (Math.max(dr, dc) <= left * span + slack) return true;
+    }
+    return false;
+  };
+  let found = false;
+  // Rolls north then east often end where east then north does: each
+  // place (and way up) is walked once, with the most points it was
+  // reached with. A line isn't followed past a shove, which moves other
+  // pieces too (so the board behind it isn't this one).
+  const reached = new Map();
+  const walk = (left) => {
+    const key = `${p.row},${p.col},${p.w},${p.h},${p.z},${p.vox || ""}`;
+    const before = reached.get(key);
+    if (before !== undefined && before >= left) return;
+    reached.set(key, left);
+    const moves = legalMovesFor(pieces, p, left);
+    for (const dir in moves) {
+      const m = moves[dir];
+      if (m.crushes) {
+        if (targets.includes(m.crushes)) {
+          if (threatened) threatened.add(m.crushes.id);
+          found = true;
+          if (stopAtCrush) return;
+        }
+        continue;
+      }
+      if (marks && !m.isSlide && !m.isPivot) markGround(marks, m.candidate);
+      const rest = left - moveCost(m);
+      if (rest < 1 || m.teleports || m.shoves || !within(m.candidate, rest)) continue;
+      const undo = applyMove(pieces, p, m);
+      walk(rest);
+      undoMove(pieces, p, undo);
+      if (found && stopAtCrush) return;
+    }
+  };
+  if (targets.length && within(p, points)) walk(points);
+  return found;
 }
 
 /* A crush only actually ends the game if it removes the crushed
@@ -477,6 +545,14 @@ function cabezaRouteCost(cabeza, goalRow, blocked, attacked) {
   return unreachable;
 }
 
+// No square attacked: a Cabeza's plain walking distance (see walksHome in
+// evaluatePosition). Reused, like the route buffers above.
+let openBoardCells = null;
+function openBoard(n) {
+  if (!openBoardCells || openBoardCells.length !== n) openBoardCells = new Uint8Array(n);
+  return openBoardCells;
+}
+
 /* `toMove`: whose turn it is in this position (the search always knows).
    It decides what a crush threat means: a Cabeza the side ABOUT TO MOVE
    can crush is as good as gone, while a threat against the side to move
@@ -509,7 +585,7 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
   const threatened = new Set(); // Cabeza ids a block can crush next move
   let myMobility = 0;
   let oppMobility = 0;
-  const blockRolls = []; // [piece, its legal rolls] for the two-roll pass below
+  const blocks = []; // every non-Cabeza piece, for the whole-turn pass below
   for (const p of pieces) {
     // Rolls and Cabeza steps only: slides (and the shoves they carry)
     // never crush, and checking them for every piece at every leaf more
@@ -522,17 +598,11 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
       if (p.type === "cabeza") continue;
       const m = moves[dir];
       if (m.crushes && m.crushes.type === "cabeza") threatened.add(m.crushes.id);
-      const cand = m.candidate;
-      const marks = attackedBy[p.owner];
-      for (let r = cand.row; r < cand.row + cand.h; r++) {
-        for (let c = cand.col; c < cand.col + cand.w; c++) {
-          // A box's every square touches the board; an odd shape's only
-          // where it has a ground cube (an overhang crushes nothing).
-          if (r >= 0 && r < BOARD_ROWS && c >= 0 && c < BOARD_COLS && (!cand.vox || (maskAt(cand, r, c) & 1))) marks[r * BOARD_COLS + c] = 1;
-        }
-      }
+      // A box's every square touches the board; an odd shape's only
+      // where it has a ground cube (an overhang crushes nothing).
+      markGround(attackedBy[p.owner], m.candidate);
     }
-    if (p.type !== "cabeza") blockRolls.push([p, moves]);
+    if (p.type !== "cabeza") blocks.push(p);
     if (p.owner === forPlayer) myMobility += count;
     else oppMobility += count;
     if (p.type === "cabeza") continue; // a Cabeza's route steps around every OTHER piece
@@ -544,45 +614,18 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
   }
   for (const m of MISSING_SQUARES) blocked[m.row * BOARD_COLS + m.col] = 1;
 
-  /* Two-roll threats. A turn is two action points, so the usual crush is
-     a roll to line up and a second roll down onto the Cabeza (a reported
-     game was lost exactly so: Flaco west, then south onto it). The pass
-     above only sees one roll, so without this a Cabeza two rolls from a
-     block read as safe, and one walked alone into the enemy's blocks.
-     Only blocks near an enemy Cabeza are expanded — two rolls carry a
-     block at most about twice its longest side — which keeps the cost to
-     the few blocks that matter. Their second-roll landing squares join
-     the attacked squares too, so a Cabeza's route prices them in. */
+  /* Threats over the whole turn. A turn is two action points (three with
+     "3 Actions"), so the usual crush lines a block up first and brings it
+     down onto the Cabeza after: Flaco west, then south onto it, in one
+     reported game; a Turrito's three rolls south in another. The pass
+     above sees one roll; blockTurnReach walks each block's whole turn,
+     slides and pivots included, cutting every line that can't end on or
+     beside an enemy Cabeza (so a block far from one costs almost
+     nothing). Its roll landings join the attacked squares too, so a
+     Cabeza's route and its room to run price them in. */
   const cabezasOf = { [forPlayer]: myCabezas, [oppPlayer]: oppCabezas };
-  for (const [p, moves] of blockRolls) {
-    const targets = cabezasOf[opponentOf(p.owner)];
-    const reach = 2 * Math.max(p.w, p.h, p.z || 1) + 1;
-    let near = false;
-    for (const c of targets) {
-      const dr = Math.max(0, c.row - (p.row + p.h - 1), p.row - c.row);
-      const dc = Math.max(0, c.col - (p.col + p.w - 1), p.col - c.col);
-      if (dr <= reach && dc <= reach) { near = true; break; }
-    }
-    if (!near) continue;
-    const budget = maxStepsFor(p.type);
-    const marks = attackedBy[p.owner];
-    for (const dir in moves) {
-      const m1 = moves[dir];
-      if (m1.crushes || m1.teleports || m1.shoves || budget - moveCost(m1) < 1) continue;
-      const moved = { ...p, ...m1.candidate, id: p.id, type: p.type, owner: p.owner };
-      const after = pieces.map((q) => (q === p ? moved : q));
-      const second = legalRolls(after, moved);
-      for (const d2 in second) {
-        const m2 = second[d2];
-        if (m2.crushes && m2.crushes.type === "cabeza") threatened.add(m2.crushes.id);
-        const cand = m2.candidate;
-        for (let r = cand.row; r < cand.row + cand.h; r++) {
-          for (let c = cand.col; c < cand.col + cand.w; c++) {
-            if (r >= 0 && r < BOARD_ROWS && c >= 0 && c < BOARD_COLS && (!cand.vox || (maskAt(cand, r, c) & 1))) marks[r * BOARD_COLS + c] = 1;
-          }
-        }
-      }
-    }
+  for (const p of blocks) {
+    blockTurnReach(pieces, p, maxStepsFor(p.type), cabezasOf[opponentOf(p.owner)], attackedBy[p.owner], threatened, false);
   }
 
   // Cabezas block each other too (none may step onto another).
@@ -616,11 +659,26 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
   const myHit = myCabezas.filter((c) => threatened.has(c.id)).length;
   const oppHit = oppCabezas.filter((c) => threatened.has(c.id)).length;
   const hangingValue = (hit, total) => (hit === 0 ? 0 : hit >= total ? LAST_CABEZA_HANGING : CABEZA_VALUE * 0.9);
+  /* The side to move also wins outright if a Cabeza of its can walk onto
+     its goal row with the turn's points: attacked squares don't matter to
+     a Cabeza that ends the game before anything can land on it. With
+     Split Movement or 3 Actions every tier often has time to look at only
+     its own turn, so the evaluation has to see this reply itself, the way
+     it sees a crush — or it leaves the enemy Cabeza a free run home. */
+  const steps = maxStepsFor("cabeza");
+  const walksHome = (cabezas, route) => route <= steps || cabezas.some((c) => {
+    if (Math.abs(GOAL_ROW[c.owner] - c.row) > steps) return false;
+    const idx = c.row * BOARD_COLS + c.col;
+    blocked[idx] = 0;
+    const d = cabezaRouteCost(c, GOAL_ROW[c.owner], blocked, openBoard(n));
+    blocked[idx] = 1;
+    return d <= steps;
+  });
   if (mover === oppPlayer) {
-    score -= hangingValue(myHit, myCabezas.length);
+    score -= Math.max(hangingValue(myHit, myCabezas.length), walksHome(oppCabezas, oppRoute) ? LAST_CABEZA_HANGING : 0);
     if (oppHit) score += oppHit >= 2 ? CABEZA_VALUE * 0.8 : 25;
   } else {
-    score += hangingValue(oppHit, oppCabezas.length);
+    score += Math.max(hangingValue(oppHit, oppCabezas.length), walksHome(myCabezas, myRoute) ? LAST_CABEZA_HANGING : 0);
     if (myHit) score -= myHit >= 2 ? CABEZA_VALUE * 0.8 : 25;
   }
 
@@ -927,6 +985,8 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
   // it's computed on demand rather than for every candidate.
   let bestTurnSafe = null;
   let timedOut = false;
+  // Every root turn and its score, for a one-turn search's reply check below.
+  const rootScores = ply === 0 && depth === 1 && maximizing && weights.verifyReplies ? [] : null;
 
   /* Computed once, not per-turn: whether `player`'s own Cabeza is
      ALREADY in immediate danger before any of these candidates are
@@ -1012,6 +1072,23 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
               if (q.type !== "cabeza") score -= rootBias.pieceRepeatBias * (rootBias.pieceStreaks[q.id] || 0);
             }
           }
+
+          /* Putting a piece straight back where it stood at the start of
+             one of the AI's last few turns (the turn is still applied
+             here, so each moved piece is at its end). A reported Medium
+             game shuffled all game: a Rayo slid north and back south on
+             the next turn, a Chato south, north and south again, the
+             Cabeza south, north, south, while the human's Turrito walked
+             in and crushed it. Each piece put back costs backtrackBias:
+             more than the small positional differences a shuffle chases,
+             nothing beside a crush threat (LAST_CABEZA_HANGING). */
+          if (rootBias.backtrackBias && rootBias.recentPlaces) {
+            const moved = turn.steps ? new Set(turn.steps.map((st) => st.piece)) : new Set([turn.piece]);
+            for (const q of moved) {
+              const before = rootBias.recentPlaces[q.id];
+              if (before && before.includes(placeKey(q))) score -= rootBias.backtrackBias;
+            }
+          }
         }
 
         /* Root-only score noise, the fix for the AI opening with the
@@ -1039,6 +1116,8 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
         }
       }
     }
+
+    if (rootScores) rootScores.push({ turn, score });
 
     // Only a tie needs to know whether this turn leaves `player`'s own
     // Cabeza safe — worked out while the turn is still applied.
@@ -1090,7 +1169,29 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
     if (timedOut) break;
   }
 
-  return { score: bestScore, turn: bestTurn, timedOut };
+  /* A one-turn search checks its choice against every reply (Medium and
+     Hard: `verifyReplies`; Easy keeps its mistakes). At depth 1
+     the replies are only judged by the evaluation, which walks each enemy
+     block's own turn (blockTurnReach) but not every Split Movement pairing
+     or shove. So the best-scoring turns are checked in order against all
+     the opponent's turns (generateTurns, exact), and the first that
+     leaves no game-ending reply is played. Usually the first one passes,
+     and a narrow game goes on to depth 2 anyway, which sees the replies. */
+  if (rootScores && !timedOut && bestTurn && !bestTurn.endsGame) {
+    rootScores.sort((a, b) => b.score - a.score);
+    for (let i = 0; i < rootScores.length && i < 40 && (i < 3 || performance.now() < deadline); i++) {
+      const { turn, score } = rootScores[i];
+      let safe = !!turn.endsGame;
+      if (!safe) {
+        const undos = applyTurn(pieces, turn);
+        safe = !generateTurns(pieces, opponentOf(player)).some((r) => r.endsGame);
+        undoTurn(pieces, turn, undos);
+      }
+      if (safe) { bestTurn = turn; bestScore = score; break; }
+    }
+  }
+
+  return { score: bestScore, turn: bestTurn, timedOut, width: turns.length };
 }
 
 /* Iterative deepening: search depth 1, then 2, then 3… until either
@@ -1163,10 +1264,13 @@ export async function findBestAiTurn(
     earlyStop = true,
     jitter = 0,
     openingJitter = 0,
+    backtrackBias = 0,
+    verifyReplies = false,
   },
   cabezaStreak = 0,
   turnIndex = 0,
-  pieceStreaks = null
+  pieceStreaks = null,
+  recentPlaces = null
 ) {
   const deadline = performance.now() + timeBudgetMs;
   /* Openings get extra noise on top of the baseline. The opening is
@@ -1177,12 +1281,12 @@ export async function findBestAiTurn(
      game has its own shape. */
   const effectiveJitter = jitter + (turnIndex < AI_OPENING_TURNS ? openingJitter : 0);
   const rootBias =
-    twoStepBias || cabezaRepeatBias || pieceRepeatBias || effectiveJitter
-      ? { twoStepBias, cabezaRepeatBias, cabezaStreak, pieceRepeatBias, pieceStreaks, jitter: effectiveJitter }
+    twoStepBias || cabezaRepeatBias || pieceRepeatBias || effectiveJitter || (backtrackBias && recentPlaces)
+      ? { twoStepBias, cabezaRepeatBias, cabezaStreak, pieceRepeatBias, pieceStreaks, jitter: effectiveJitter, backtrackBias, recentPlaces }
       : null;
   // `beam` rides along with the evaluation weights since both thread
   // through every ply of the search (see minimaxSearch).
-  const weights = { blockAdvance, turritoBonus, wall, centrality, cabezaSafety, beam };
+  const weights = { blockAdvance, turritoBonus, wall, centrality, cabezaSafety, beam, verifyReplies };
   /* The ONLY pieces-array allocation in the whole search: everything
      below (generateTurns, minimaxSearch, their move-ordering pass) now
      mutates this one cloned array/objects in place via applyMove/
@@ -1217,10 +1321,22 @@ export async function findBestAiTurn(
        searches, the next depth took anywhere from 1.1x to 25x the last.)
        Timings wobble a little from run to run, so it waits for the last
        depth to have taken 25% MORE than the time left before stopping.
-       Measured saving with no depth ever lost: 4-13% of each think. */
+       Measured saving with no depth ever lost: 4-13% of each think.
+       From depth 1 to 2 there's a firmer bound: depth 2 orders the reply
+       to every root turn it keeps (the beam's, or all of them), and
+       ordering a reply costs about what all of depth 1 did when both sides
+       have about as many turns. Taken at a third of that, to allow for a
+       side with fewer turns. In a Split Movement or 3 Actions game, with
+       hundreds of turns a side, depth 2 would take ten times the budget:
+       it used to run to the deadline and be thrown away. */
     const depthMs = performance.now() - depthStart;
     lastSearchInfo.depthMs.push(depthMs);
-    if (earlyStop && depth > 1 && depthMs > 1.25 * (deadline - performance.now())) break;
+    const left = deadline - performance.now();
+    if (earlyStop && depth > 1 && depthMs > 1.25 * left) break;
+    if (earlyStop && depth === 1 && result.width) {
+      const kept = beam ? Math.min(result.width, beam * 3) : result.width;
+      if (0.35 * kept * depthMs > left) break;
+    }
   }
 
   // Only pieceId/dirs are ever actually a caller's contract (see
@@ -1328,6 +1444,12 @@ export const AI_DIFFICULTY = {
        nudged aside for near-equal alternatives. Easy, searching
        shallowest, fixated hardest (one piece in ~60% of its turns). */
     pieceRepeatBias: 8,
+    /* A piece put straight back where it stood a turn or two ago (see
+       minimaxSearch's root bias). */
+    backtrackBias: 10,
+    /* Easy doesn't check its one-turn choices against every reply (see
+       minimaxSearch): it can still leave a crush it didn't see. */
+    verifyReplies: false,
     blockAdvance: 0,
     turritoBonus: 0,
     wall: 0,
@@ -1362,6 +1484,12 @@ export const AI_DIFFICULTY = {
     twoStepBias: 0,
     cabezaRepeatBias: 11,
     pieceRepeatBias: 6,
+    /* From the reported game where Medium shuffled its Rayo, Chato and
+       Cabeza back and forth all game (see minimaxSearch's root bias). */
+    backtrackBias: 10,
+    /* When only a one-turn search fits (Split Movement, 3 Actions), its
+       choice is checked against every reply (see minimaxSearch). */
+    verifyReplies: true,
     blockAdvance: 0.8,
     /* Was 0.9: an extra reward for advancing the Turrito specifically,
        from before the MATTER pieces existed. With 3 actions it made the
@@ -1432,6 +1560,8 @@ export const AI_DIFFICULTY = {
     twoStepBias: 10,
     cabezaRepeatBias: 9,
     pieceRepeatBias: 5,
+    backtrackBias: 8,
+    verifyReplies: true,
     blockAdvance: 1.4,
     turritoBonus: 0, // was 1.6 — see Medium's note
 

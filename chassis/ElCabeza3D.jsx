@@ -14,7 +14,7 @@ import {
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues, applyShoves,
 } from "../engine/rules.js";
-import { findBestAiTurn, AI_DIFFICULTY } from "../engine/ai.js";
+import { findBestAiTurn, AI_DIFFICULTY, placeKey } from "../engine/ai.js";
 import {
   pieceCenter, restingY, makeRoundedBox, makePolycubeSmooth, rayHitBoardPlaneY0,
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
@@ -407,6 +407,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const aiCabezaStreakRef = useRef(0);
   // piece id -> consecutive AI turns it has moved in (see runAiSearch).
   const aiPieceStreaksRef = useRef({});
+  // Where the AI's pieces stood at the start of each of its last few
+  // turns ({ id: placeKey }), oldest first: putting a piece straight back
+  // costs it a little (engine/ai.js backtrackBias).
+  const aiPlacesRef = useRef([]);
   /* Lets a human queue their turn's second input (a continuation
      direction, or a "stop here") WHILE the first step's roll/slide
      animation is still playing, instead of that tap being silently
@@ -4232,9 +4236,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       aiWorkerRef.current = null;
     };
   }, []);
-  function runAiSearch(pieces, aiPlayer, config, cabezaStreak, turnIndex, pieceStreaks) {
+  function runAiSearch(pieces, aiPlayer, config, cabezaStreak, turnIndex, pieceStreaks, recentPlaces) {
     const worker = aiWorkerRef.current;
-    if (!worker) return findBestAiTurn(pieces, aiPlayer, config, cabezaStreak, turnIndex, pieceStreaks);
+    if (!worker) return findBestAiTurn(pieces, aiPlayer, config, cabezaStreak, turnIndex, pieceStreaks, recentPlaces);
     const requestId = ++aiRequestIdRef.current;
     return new Promise((resolve, reject) => {
       aiRequestsRef.current.set(requestId, { resolve, reject });
@@ -4243,7 +4247,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // separate module instance that this thread's setBoardDimensions()
       // can't reach. See engine/ai-worker.js.
       worker.postMessage({
-        requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex, pieceStreaks,
+        requestId, pieces, aiPlayer, config, cabezaStreak, turnIndex, pieceStreaks, recentPlaces,
         board: getBoardDimensions(),
         laws: ACTIVE_LAWS,
         // Same cross-boundary problem as `board`/`laws` above — the
@@ -4294,15 +4298,25 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // can't cancel a Promise already in flight.
       let cancelled = false;
       const timer = setTimeout(async () => {
+        const recentPlaces = {};
+        for (const snap of aiPlacesRef.current) {
+          for (const id in snap) (recentPlaces[id] || (recentPlaces[id] = [])).push(snap[id]);
+        }
         const turn = await runAiSearch(
           pieces,
           aiPlayer,
           AI_DIFFICULTY[aiDifficulty],
           aiCabezaStreakRef.current,
           log.length, // turns played so far — drives the opening jitter boost
-          aiPieceStreaksRef.current
+          aiPieceStreaksRef.current,
+          recentPlaces
         );
         if (cancelled) return;
+        {
+          const snap = {};
+          for (const p of pieces) if (p.owner === aiPlayer) snap[p.id] = placeKey(p);
+          aiPlacesRef.current = [...aiPlacesRef.current, snap].slice(-3);
+        }
         setAiThinking(false);
         if (!turn) return; // no legal turn at all — shouldn't normally happen
         // The plan as piece-tagged steps: a Split Movement turn names each
@@ -5979,6 +5993,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     aiDirsRef.current = null;
     aiCabezaStreakRef.current = 0;
     aiPieceStreaksRef.current = {};
+    aiPlacesRef.current = [];
     setAiThinking(false);
     // Opponent (Human / AI side) and AI difficulty carry over into every
     // new game, whichever reset path got here. The dock shows the

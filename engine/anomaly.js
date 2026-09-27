@@ -10,6 +10,7 @@
 import { BOARD_ROWS, BOARD_COLS } from "./constants.js";
 import { createInitialPieces } from "./rules.js";
 import { mirrorVox } from "./shapes.js";
+import { cabezaInDanger } from "./ai.js";
 
 export const PIECE_ORIENTATIONS = {
   flaco: [
@@ -252,6 +253,15 @@ export function generateAnomalySetup(roster, blocked = []) {
   });
   instances.sort((a, b) => maxFootprintCells(b.type) - maxFootprintCells(a.type));
 
+  /* No opening where the first move can crush a Cabeza. With 3 Actions a
+     big block covers the board in one turn (a standing 2x3 rolls three
+     rows at a time), and a shuffle could leave a Cabeza in its path: a
+     simulated game ended on the first move. The layout is a 180° mirror,
+     so one side's check covers both. Checked under the laws in force, so
+     callers set the laws first. If no shuffle comes out safe, the first
+     one that fits is still used. */
+  const safe = (pieces) => !pieces.some((p) => p.type === "cabeza" && p.owner === "light") || !cabezaInDanger(pieces, "light");
+  let fallback = null;
   for (let attempt = 0; attempt < 300; attempt++) {
     const occupied = new Set(blockedKeys);
     const placed = [];
@@ -285,7 +295,11 @@ export function generateAnomalySetup(roster, blocked = []) {
       }
       if (!placedThis) { ok = false; break; }
     }
-    if (ok) return mirrorPlacements(placed);
+    if (ok) {
+      const pieces = mirrorPlacements(placed);
+      if (safe(pieces)) return pieces;
+      if (!fallback) fallback = pieces;
+    }
   }
   // A tight roster the shuffles kept missing: pack it deterministically
   // (it fits whenever any arrangement does). Only a roster that truly
@@ -294,6 +308,8 @@ export function generateAnomalySetup(roster, blocked = []) {
   // better than silently returning nothing. (The menus check first with
   // packHomeBand, so a player's order never gets here.)
   const packed = packHomeBand(effectiveRoster, BOARD_COLS, blockedKeys);
-  if (packed) return mirrorPlacements(packed);
+  const packedPieces = packed && mirrorPlacements(packed);
+  if (packedPieces && (safe(packedPieces) || !fallback)) return packedPieces;
+  if (fallback) return fallback;
   return roster ? generateAnomalySetup(undefined, blocked) : createInitialPieces();
 }
