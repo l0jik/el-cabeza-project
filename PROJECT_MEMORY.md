@@ -886,6 +886,10 @@ since radius/phi can change independently afterward):
   yMin and yMax up and down, inside the room's walls), and pinch/wheel
   zoom go in to `zoomMin` instead of ZOOM_MIN. Every other theme (Neon,
   Cromo, Lluvia, the Lab's) keeps the 50%/75% clamp above unchanged.
+  A room may also let the camera further out than ZOOM_MAX_FOR_BOARD
+  (`freeCamera.zoomMax`, the larger of the two wins; the store's is 82,
+  "The store's standee and the den's chair" below); zoom-reactive audio
+  stays on the board's own range (clamped at 0 past it).
 
 Other camera facts: near plane raised `0.1 → 1` (fixes a depth-sort
 flicker during rotation, 10x tighter near:far ratio); max pitch capped at
@@ -2608,6 +2612,36 @@ choice).
   the other live pages have no law menus of their own.
 - **The rooms look around** (`freeCamera`, §5) and **the floating piece on
   phones** (Nova, "Follow-up decisions" above).
+
+### The store's standee, the den's chair and the ice (user reports, Sep 27)
+- **The store's standee** (user video: orbiting wide round the table,
+  "the camera goes behind it... blocks everything out with just a brown
+  color"; "zoom out a little bit more in the tienda"). Tienda's zoom now
+  goes out to 82 (`freeCamera.zoomMax`; the board's own limit was 55),
+  far enough to go round the advertisement's stand and see it from
+  behind. And the standee fades out of the way (0.25 s; back in 0.35 s)
+  when the camera is in it or behind it looking through it at the table
+  from close enough that it would cover about 45% of the screen's width
+  (tienda-fx.js `standeeAside`; tienda-store.js `standee`: the photo,
+  the stand, and its NOW IN STOCK card, now a mesh of its own rather
+  than part of the signs' one mesh, their materials transparent). From
+  the front, or behind but off to a side, it stays. Test hook:
+  `__TIENDA_STANDEE__` (its opacity).
+- **The den's club chair** ("the olive stairs structure is incorrect"):
+  the back was placed with the wrong sign across the chair (sin of the
+  turn where it needed minus sin), so it stood off to one side of the
+  seat, and with the low arms it read as steps. It's rebuilt in its own
+  frame (den-room.js, `part` about `chX, chZ, chR`): a skirted velvet
+  base on four walnut feet, the back and both arms standing on it the
+  full depth, a seat cushion between the arms and a back cushion
+  against the back; 15 wide, 14 deep, the back 14 high, facing the room.
+- **The ice in the scotch** ("needs to be more submerged", a close-up
+  of the coffee table's tumbler): the cubes sat on the surface, one
+  wholly above it. The whisky is a little deeper (0.9) and each cube
+  floats with 0.05–0.13 of its 0.58 above the surface. The ice is drawn
+  before the whisky and writes depth, so the whisky tints what's under
+  the surface and not the tops (it used to draw over the whisky, which
+  made the ice look as if it sat on it).
 
 ### The den, round 2 (user requests)
 - **Sound** (den-audio.js): rain is a steady patter with drops on the

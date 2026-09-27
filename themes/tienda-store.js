@@ -576,7 +576,10 @@ export function buildStore() {
   signPlane(standeeIdx, 16, 8, 0, 0, 0, 0); // placed with the stand below
   const standeeSign = signGeos.pop();
   standeeSign.rotateY(ad.rotation.y); standeeSign.translate(ad.position.x + Math.sin(ad.rotation.y) * 3.4, FLOOR + 5.5, ad.position.z + Math.cos(ad.rotation.y) * 3.4);
-  signGeos.push(standeeSign);
+  // The standee is its own meshes (its card on a mesh of its own too): it
+  // fades out of the way when the camera goes into it or right behind it
+  // (tienda-fx.js), so their materials may be see-through.
+  adMat.transparent = true; stand.material.transparent = true;
   disposables.push(adTex);
   // An empty shopping cart, left in the aisle.
   const cart = buildCart();
@@ -615,6 +618,13 @@ export function buildStore() {
 
   // Every sign, one mesh; rods and fixtures.
   add(merge(signGeos), flat(atlasTex));
+  const standeeCard = add(standeeSign, flat(atlasTex, { transparent: true }));
+  const standee = {
+    parts: [ad, stand, standeeCard],
+    x: ad.position.x, z: ad.position.z, ry: ad.rotation.y,
+    halfW: 8.5, yLo: FLOOR, yHi: ad.position.y + 17.5,
+    fade: 1,
+  };
   add(merge([...rodGeos, ...metalGeos]), flat(null, { color: 0xb9b5aa }));
 
   // Products: one instanced mesh for every box and shelf board.
@@ -642,6 +652,7 @@ export function buildStore() {
   const fl = { until: 0, next: performance.now() + 8000 + Math.random() * 8000 };
   return {
     group,
+    standee,
     flickerIndex,
     signTextures,
     // Called every frame: the clock, the TV picture, the flickering tube.

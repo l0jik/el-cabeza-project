@@ -1479,6 +1479,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // How close a pinch or the wheel may bring the camera: closer where the
   // theme has a room to look round (theme.freeCamera).
   const zoomMin = (theme.freeCamera && theme.freeCamera.zoomMin) || ZOOM_MIN;
+  // And how far out: a room may let the camera further back than the
+  // board alone would (the store's zoomMax). Read at use, since the
+  // board's own limit changes with its size.
+  const zoomMaxFor = () => Math.max(ZOOM_MAX_FOR_BOARD, (theme.freeCamera && theme.freeCamera.zoomMax) || 0);
   const [isFullscreen, setIsFullscreen] = useState(() => !!document.fullscreenElement);
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -3169,7 +3173,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // uses, so a theme's ambient audio can never disagree with what
       // "fully zoomed in" actually means. A no-op for a theme whose
       // audio doesn't react to zoom.
-      audioRef.current.setZoom(Math.min(1, (ZOOM_MAX_FOR_BOARD - view.radius) / (ZOOM_MAX_FOR_BOARD - ZOOM_MIN)));
+      audioRef.current.setZoom(Math.max(0, Math.min(1, (ZOOM_MAX_FOR_BOARD - view.radius) / (ZOOM_MAX_FOR_BOARD - ZOOM_MIN))));
 
       const a = anim.current;
       if (a) {
@@ -4951,7 +4955,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           if (pinchDist && d > 0) {
             cam.current.radius = Math.max(
               zoomMin,
-              Math.min(ZOOM_MAX_FOR_BOARD, cam.current.radius * (pinchDist / d))
+              Math.min(zoomMaxFor(), cam.current.radius * (pinchDist / d))
             );
           }
           pinchDist = d;
@@ -5477,7 +5481,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       }
       cam.current.radius = Math.max(
         zoomMin,
-        Math.min(ZOOM_MAX_FOR_BOARD, cam.current.radius + ev.deltaY * 0.014)
+        Math.min(zoomMaxFor(), cam.current.radius + ev.deltaY * 0.014)
       );
     }
 

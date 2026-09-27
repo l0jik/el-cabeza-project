@@ -101,6 +101,53 @@ export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
     if (fontsDone) table.repaint();
     dims = `${SLAB_X}x${SLAB_Z}`;
   }
+  /* The game's advertisement on its stand, by the table. Orbiting wide,
+     the camera could come round behind it and the back of the stand
+     filled the screen (the user's video: "just brown"). When the camera
+     is in it, or looking through it at the table from close enough that
+     it would cover about half the width of the screen, it fades away,
+     and comes back once the view is clear. From further off its back is
+     part of the room. */
+  const camAhead = new THREE.Vector3(), camDir = new THREE.Vector3();
+  let asideLast = 0;
+  function standeeAside(t, now) {
+    const S = store.standee;
+    if (!S) return;
+    t.camera.getWorldDirection(camDir);
+    camAhead.copy(t.camera.position).add(camDir);
+    t.boardGroup.worldToLocal(camAhead);
+    camDir.subVectors(camAhead, camLocal).normalize();
+    // The camera in the standee's frame: a across it, b out of its face.
+    const c = Math.cos(S.ry), s = Math.sin(S.ry);
+    const rx = camLocal.x - S.x, rz = camLocal.z - S.z;
+    const a = rx * c - rz * s, b = rx * s + rz * c;
+    const da = camDir.x * c - camDir.z * s, db = camDir.x * s + camDir.z * c;
+    const wide = S.halfW + 2;
+    let block = Math.abs(a) < wide && b > -5 && b < 6 && camLocal.y > S.yLo - 2 && camLocal.y < S.yHi + 2;
+    if (!block && b < 0 && db > 1e-4) {
+      const d = -b / db;
+      if (d > 0) {
+        const ha = a + da * d, hy = camLocal.y + camDir.y * d;
+        if (Math.abs(ha) < wide && hy > S.yLo && hy < S.yHi) {
+          const hfov = 2 * Math.atan(Math.tan((t.camera.fov * Math.PI) / 360) * t.camera.aspect);
+          block = (2 * wide) / (2 * d * Math.tan(hfov / 2)) > 0.45;
+        }
+      }
+    }
+    const dt = Math.min(0.1, Math.max(0, (now - (asideLast || now)) / 1000));
+    asideLast = now;
+    const was = S.fade;
+    S.fade = block ? Math.max(0, S.fade - dt / 0.25) : Math.min(1, S.fade + dt / 0.35);
+    if (S.fade === was && S.fadeSet) return;
+    S.fadeSet = true;
+    S.parts.forEach((m) => {
+      if (!m) return;
+      m.visible = S.fade > 0.01;
+      m.material.opacity = S.fade;
+      m.material.depthWrite = S.fade > 0.99;
+    });
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__TIENDA_STANDEE__ = S.fade;
+  }
   function attach() {
     const t = three.current;
     if (!t || !t.boardGroup) return false;
@@ -135,6 +182,7 @@ export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
         t.boardGroup.worldToLocal(camLocal);
         const above = camLocal.y > CEIL - 3;
         store.group.children.forEach((o) => { if (o.name === "tienda-ceiling" || o.name === "tienda-troffers") o.visible = !above; });
+        standeeAside(t, now);
       }
     },
     dispose() {

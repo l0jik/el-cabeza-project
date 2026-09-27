@@ -108,9 +108,11 @@ export const HEX = {
 export const EDGE_RADIUS = SET_EDGE_RADIUS;
 // The shell's at-rest lift, stripped before a roll (wood-set.js SHELL_LIFT).
 export const outlineYOffset = OUTLINE_Y_OFFSET;
-// The store to look round (as the den): closer zoom, and the camera may
-// wander off the board into the aisles (chassis: theme.freeCamera).
-export const freeCamera = { zoomMin: 4.5, reach: 60, yMin: -14, yMax: 30 };
+// The store to look round (as the den): closer zoom, further out (far
+// enough to go round the advertisement's stand and see it from behind),
+// and the camera may wander off the board into the aisles (chassis:
+// theme.freeCamera).
+export const freeCamera = { zoomMin: 4.5, zoomMax: 82, reach: 60, yMin: -14, yMax: 30 };
 
 export const modalBackdrop = "rgba(26, 18, 11, 0.55)";
 export const modalSurface = "rgba(236, 225, 198, 0.98)";

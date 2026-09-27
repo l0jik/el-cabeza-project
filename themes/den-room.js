@@ -501,10 +501,23 @@ export function buildDen(boardSpan) {
   leafCluster(B, "wallW", M.leaf, hx, yC - 20, hz, 7, 10, 2);
 
   /* ---- the room's middle: a club chair and an arc lamp by the door ---- */
-  const chX = 70, chZ = -40;
-  B.add(M.velvet, box(12, 5, 12, chX, yF + 3.5, chZ, { round: 1.6, ry: -0.5 }), { tile: 6 });
-  B.add(M.velvet, box(12, 11, 3.5, chX + Math.sin(-0.5) * 5.2, yF + 8, chZ + Math.cos(-0.5) * -5.2, { round: 1.4, ry: -0.5 }), { tile: 6 });
-  [-1, 1].forEach((s) => B.add(M.velvet, box(3, 8, 12, chX + Math.cos(-0.5) * s * 6.5, yF + 5, chZ - Math.sin(-0.5) * s * 6.5, { round: 1.2, ry: -0.5 }), { tile: 6 }));
+  // The chair is built in its own frame (x across, z out of its front,
+  // y from the floor), then turned `chR` to face the room: a skirted base
+  // on four walnut feet, the back and the two rolled arms standing on it
+  // the full depth, a seat cushion between the arms and a back cushion
+  // against the back.
+  const chX = 70, chZ = -40, chR = -0.5;
+  const cc = Math.cos(chR), cs = Math.sin(chR);
+  const part = (mat, w, h, d, lx, ly, lz, round, tile) =>
+    B.add(mat, box(w, h, d, chX + lx * cc + lz * cs, yF + ly, chZ - lx * cs + lz * cc, { round, ry: chR }), tile ? { tile } : undefined);
+  const CW = 15, CD = 14, AW = 3.2, BT = 3.2, FT = 0.7;
+  [-1, 1].forEach((sx) => [-1, 1].forEach((sz) => part(M.walnut, 1.2, FT, 1.2, sx * (CW / 2 - 1.2), FT / 2, sz * (CD / 2 - 1.2), 0)));
+  part(M.velvet, CW, 4.4, CD, 0, FT + 2.2, 0, 1.2, 6);
+  part(M.velvet, CW, 13.4, BT, 0, FT + 6.7, -CD / 2 + BT / 2, 1.5, 6);
+  [-1, 1].forEach((s) => part(M.velvet, AW, 9, CD, s * (CW / 2 - AW / 2), FT + 4.5, 0, 1.5, 6));
+  const inW = CW - AW * 2 - 0.2, inBack = -CD / 2 + BT;
+  part(M.velvet, inW, 2.2, CD / 2 - inBack + 0.4, 0, FT + 4.4 + 1.1, (CD / 2 + 0.4 + inBack) / 2, 1, 6);
+  part(M.velvet, inW, 6.6, 2.4, 0, FT + 6.6 + 3.3, inBack + 1.2, 1.1, 6);
   B.add(M.plaid, box(10, 5, 9, chX - 12, yF + 2.5, chZ + 12, { round: 1.4, ry: -0.3 }), { tile: TX.PLAID_TILE });
   // The arc lamp: a marble block, a chrome arc, a dome over the chair.
   const lampBase = [84, yF, -46];
@@ -1199,14 +1212,18 @@ function buildCoffeeTable(TW, boardSpan) {
     const wall = mk(new THREE.CylinderGeometry(0.9, 0.86, 1.95, 28, 1, true).translate(x, y0 + 0.975, z), tumbler, true);
     wall.renderOrder = 3;
     mk(new THREE.TorusGeometry(0.88, 0.045, 6, 28).rotateX(Math.PI / 2).translate(x, y0 + 1.95, z), glassMat({ color: 0xffffff, opacity: 0.4 })).renderOrder = 3;
-    // The scotch, amber, a finger and a half of it.
+    // The scotch, amber, a couple of fingers of it.
     const scotch = glassMat({ color: 0xb8651a, opacity: 0.78, roughness: 0.04 });
-    mk(new THREE.CylinderGeometry(0.82, 0.8, 0.72, 28).translate(x, y0 + 0.42 + 0.36, z), scotch).renderOrder = 1;
-    // Ice: three cubes, their tops above the whisky.
-    const ice = glassMat({ color: 0xeef4f8, opacity: 0.62, roughness: 0.18 });
-    [[0.3, 0.2, 0.35, 0.2], [-0.28, 0.12, -0.6, 0.35], [0.02, -0.34, 0.9, 0.52]].forEach(([dx, dz, ry, lift]) => {
-      const c = mk(makeRoundedBox(0.62, 0.58, 0.62, 0.08, 2).rotateY(ry).rotateX(0.2 * dx).translate(x + dx, y0 + 0.9 + lift, z + dz), ice);
-      c.renderOrder = 2;
+    const surf = 0.42 + 0.9; // the whisky's surface above the coaster
+    mk(new THREE.CylinderGeometry(0.82, 0.8, 0.9, 28).translate(x, y0 + 0.42 + 0.45, z), scotch).renderOrder = 1;
+    // Ice: three cubes floating in it, only their tops (a tenth of a cube
+    // to a quarter) above the surface (the user: "more submerged"). They're
+    // drawn first and write depth, so the whisky tints what's under the
+    // surface and not what's above it.
+    const ice = glassMat({ color: 0xeef4f8, opacity: 0.62, roughness: 0.18, depthWrite: true });
+    [[0.3, 0.2, 0.35, 0.08], [-0.28, 0.12, -0.6, 0.13], [0.02, -0.34, 0.9, 0.05]].forEach(([dx, dz, ry, above]) => {
+      const c = mk(makeRoundedBox(0.62, 0.58, 0.62, 0.08, 2).rotateY(ry).rotateX(0.2 * dx).translate(x + dx, y0 + surf + above - 0.29, z + dz), ice);
+      c.renderOrder = 0;
     });
   }
   // A teak bowl heaped with snack mix: peanuts, little pretzels, cereal
