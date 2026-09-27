@@ -11,8 +11,11 @@
              the chimney (it keeps the real time), shelves either side
      east    the sliding glass door onto the dark yard, rain running down
              it, the drapes drawn back; a velvet club chair and an arc lamp
-     south   the television set (off), the stereo console, a landscape in
-             oils over it, a lamp
+     south   the television set (off); the stereo console (turntable and
+             8-track, cabinet speakers with woven grilles, trailing plants,
+             an amber-glass ashtray; buildConsole), a landscape in oils over
+             it, a lamp; left of it as you face it, the doorway out, its
+             door open onto a dim hall
      west    the accent wall's flowered paper, a long credenza, two lamps,
              a big abstract, a macramé hanger in the corner
      up      popcorn plaster between walnut beams, two amber swag lamps
@@ -58,7 +61,8 @@ export const LAMPS = [
   { name: "swag-se", p: [23, FLOOR + 27, 25], c: AMBER, i: 0.95, r: 24 },
   { name: "credenza-n", p: [-90, FLOOR + 22, -26], c: WARM, i: 0.85, r: 20 },
   { name: "credenza-s", p: [-90, FLOOR + 22, 26], c: WARM, i: 0.85, r: 20 },
-  { name: "stereo", p: [44, FLOOR + 24, 81], c: WARM, i: 0.8, r: 18 },
+  { name: "stereo", p: [34, FLOOR + 26, 80], c: WARM, i: 0.8, r: 18 },
+  { name: "hall", p: [69, FLOOR + 40, RZ + 18], c: WARM, i: 0.55, r: 15 },
   { name: "arc", p: [66, FLOOR + 29, -31], c: WARM, i: 0.9, r: 22 },
   { name: "fire", p: [0, FLOOR + 8, -79], c: FIRE, i: 1.25, r: 28 },
   { name: "window", p: [104, FLOOR + 22, 0], c: MOON, i: 0.3, r: 46 },
@@ -421,10 +425,43 @@ export function buildDen(boardSpan) {
   wallE(rod, M.brass, 4);
   wallE(box(0.6, 2, RZ * 2, RX - 0.3, yF + 1, 0), M.darkWood, 16);
 
-  /* ---- the south wall: the television, the stereo, a landscape ---- */
+  /* ---- the south wall: the television, the stereo console, the doorway ---- */
   const wallS = (geo, mat, tile, opts = {}) => B.add(mat, geo, { group: "wallS", tile, ...opts });
-  wallS(rect(RX * 2, CEIL - FLOOR, "-z", 0, (yF + yC) / 2, RZ, 6), M.panel, TX.PANEL_TILE);
-  wallS(box(RX * 2, 2, 0.6, 0, yF + 1, RZ - 0.3), M.darkWood, 16);
+  // The doorway out of the den, to the left of the console as you face
+  // it from the pit (user: the opposite side of the room from the glass
+  // door), its door standing open onto a dim hall.
+  const DX0 = 60, DX1 = 78, DH = 41, WT = 5, doorW = DX1 - DX0, doorC = (DX0 + DX1) / 2;
+  wallS(rect(RX + DX0, CEIL - FLOOR, "-z", (-RX + DX0) / 2, (yF + yC) / 2, RZ, 6), M.panel, TX.PANEL_TILE);
+  wallS(rect(RX - DX1, CEIL - FLOOR, "-z", (DX1 + RX) / 2, (yF + yC) / 2, RZ, 6), M.panel, TX.PANEL_TILE);
+  wallS(rect(doorW, CEIL - FLOOR - DH, "-z", doorC, (yF + DH + yC) / 2, RZ, 6), M.panel, TX.PANEL_TILE);
+  wallS(box(RX + DX0, 2, 0.6, (-RX + DX0) / 2, yF + 1, RZ - 0.3), M.darkWood, 16);
+  wallS(box(RX - DX1, 2, 0.6, (DX1 + RX) / 2, yF + 1, RZ - 0.3), M.darkWood, 16);
+  // The wall's thickness in the opening, and a walnut casing round it.
+  wallS(rect(WT, DH, "+x", DX0, yF + DH / 2, RZ + WT / 2, 4), M.panel, TX.PANEL_TILE);
+  wallS(rect(WT, DH, "-x", DX1, yF + DH / 2, RZ + WT / 2, 4), M.panel, TX.PANEL_TILE);
+  wallS(rect(doorW, WT, "-y", doorC, yF + DH, RZ + WT / 2, 4), M.panel, TX.PANEL_TILE);
+  const cw = 1.4;
+  wallS(box(cw, DH + cw, 0.7, DX0 - cw / 2, yF + (DH + cw) / 2, RZ - 0.35), M.walnut, 16);
+  wallS(box(cw, DH + cw, 0.7, DX1 + cw / 2, yF + (DH + cw) / 2, RZ - 0.35), M.walnut, 16);
+  wallS(box(doorW + cw * 2, cw, 0.7, doorC, yF + DH + cw / 2, RZ - 0.35), M.walnut, 16);
+  // The hall beyond: the shag runs on, papered walls, a light overhead,
+  // a small framed print at the end.
+  const HZ0 = RZ + WT, HZ1 = RZ + 34, HX0 = 40, HX1 = RX;
+  wallS(rect(HX1 - HX0, HZ1 - HZ0, "+y", (HX0 + HX1) / 2, yF, (HZ0 + HZ1) / 2, 6), M.shagRoom, TX.SHAG_TILE);
+  wallS(rect(HX1 - HX0, CEIL - FLOOR, "-z", (HX0 + HX1) / 2, (yF + yC) / 2, HZ1, 6), M.paper, TX.PAPER_TILE);
+  wallS(rect(HX1 - HX0, HZ1 - HZ0, "-y", (HX0 + HX1) / 2, yC, (HZ0 + HZ1) / 2, 8), M.ceil, TX.CEIL_TILE, { floorShade: false });
+  wallS(rect(HZ1 - HZ0, CEIL - FLOOR, "+x", HX0, (yF + yC) / 2, (HZ0 + HZ1) / 2, 6), M.paper, TX.PAPER_TILE);
+  wallS(rect(HZ1 - HZ0, CEIL - FLOOR, "-x", HX1, (yF + yC) / 2, (HZ0 + HZ1) / 2, 6), M.paper, TX.PAPER_TILE);
+  wallS(box(HX1 - HX0, 2, 0.6, (HX0 + HX1) / 2, yF + 1, HZ1 - 0.3), M.darkWood, 16);
+  wallS(box(16, 12, 1, doorC + 4, yF + 24, HZ1 - 0.5), M.gold, 6);
+  const hallPrint = new THREE.PlaneGeometry(13.4, 9.4); hallPrint.rotateY(Math.PI); hallPrint.translate(doorC + 4, yF + 24, HZ1 - 1.05);
+  wallS(hallPrint, M.landscape, null, { k: 0.9 });
+  const hallLight = new THREE.Mesh(new THREE.CircleGeometry(2.6, 20), M.bulb);
+  hallLight.rotation.x = Math.PI / 2; hallLight.position.set(69, yC - 0.3, RZ + 18);
+  B.mesh(hallLight, "wallS");
+  // The door, swung open into the hall against its jamb; a brass knob.
+  wallS(box(1, DH - 0.6, doorW - 0.8, DX0 + 0.9, yF + (DH - 0.6) / 2, HZ0 + (doorW - 0.8) / 2 + 0.2), M.walnut, 12);
+  wallS(new THREE.SphereGeometry(0.55, 10, 8).translate(DX0 + 2, yF + 18.5, HZ0 + doorW - 3.2), M.brass, 4);
   // The television: a walnut console on tapered legs, the screen (off),
   // a speaker grille, two knobs, rabbit ears on top.
   const tvX = -40, tvZ = RZ - 7;
@@ -445,20 +482,18 @@ export function buildDen(boardSpan) {
   // A trailing pothos on the set.
   wallS(cyl(2, 1.5, 3, tvX - 11, yF + 21.5, tvZ, 12), M.ceramicGold, 6);
   leafCluster(B, "wallS", M.leaf, tvX - 11, yF + 24, tvZ, 4, 5, 1);
-  // The stereo console, its lid shut, records leaning at its end.
-  const stX = 24, stZ = RZ - 6.5;
-  wallS(box(46, 13, 10, stX, yF + 3 + 6.5, stZ), M.walnut, 16);
-  [-1, 1].forEach((s) => { const g = new THREE.PlaneGeometry(11, 9); g.rotateY(Math.PI); g.translate(stX + s * 16, yF + 9.5, stZ - 5.05); wallS(g, M.grille, null); });
-  wallS(box(20, 0.6, 9, stX, yF + 16.3, stZ), M.darkWood, 8); // the lid's seam
-  [[-21, -3.5], [21, -3.5], [-21, 3.5], [21, 3.5]].forEach(([dx, dz]) => wallS(cyl(0.5, 0.3, 3, stX + dx, yF + 1.5, stZ + dz, 8), M.darkWood, 4));
-  const rec = new THREE.BoxGeometry(12, 12.5, 0.6); rec.rotateX(-0.12); rec.translate(stX + 30, yF + 6.25, stZ - 2);
+  // Records leaning on the east speaker's side.
+  const rec = new THREE.BoxGeometry(0.7, 12.5, 12); rec.rotateZ(-0.13); rec.translate(51.4, yF + 6.25, RZ - 7.2);
   wallS(rec, M.sleeves, null);
-  // The landscape over it, in a gilt frame.
-  wallS(box(40, 28, 1.4, stX, yF + 31, RZ - 0.7), M.gold, 8);
-  const land = new THREE.PlaneGeometry(36, 24); land.rotateY(Math.PI); land.translate(stX, yF + 31, RZ - 1.45);
+  // The landscape over the console, in a gilt frame.
+  wallS(box(40, 28, 1.4, 18, yF + 31, RZ - 0.7), M.gold, 8);
+  const land = new THREE.PlaneGeometry(36, 24); land.rotateY(Math.PI); land.translate(18, yF + 31, RZ - 1.45);
   wallS(land, M.landscape, null, { k: 1.25 });
-  // The lamp at the stereo's end: a gourd-shaped ceramic base, a pleated shade.
-  tableLamp(B, "wallS", M, stX + 20, yF + 16.6, stZ);
+  // The lamp at the console's end: a gourd-shaped ceramic base, a pleated shade.
+  tableLamp(B, "wallS", M, 34, yF + 16, RZ - 8);
+  // The console itself (lit, and close enough to look at: buildConsole).
+  const stereo = buildConsole(yF, RZ);
+  B.groups.wallS.add(stereo.group);
 
   /* ---- the west wall: the flowered paper, the credenza, an abstract ---- */
   const wallW = (geo, mat, tile, opts = {}) => B.add(mat, geo, { group: "wallW", tile, ...opts });
@@ -528,7 +563,8 @@ export function buildDen(boardSpan) {
   };
   glowAt(LAMPS[0].p, 16, "ceiling"); glowAt(LAMPS[1].p, 16, "ceiling");
   glowAt([-RX + 5, FLOOR + 21, -26], 18, "wallW", 0.45); glowAt([-RX + 5, FLOOR + 21, 26], 18, "wallW", 0.45);
-  glowAt([44, FLOOR + 23.4, RZ - 6.5], 16, "wallS", 0.45);
+  glowAt([34, FLOOR + 26.8, RZ - 8], 16, "wallS", 0.45);
+  glowAt([69, CEIL - 2, RZ + 18], 12, "wallS", 0.4);
   glowAt([66, FLOOR + 29, -31], 14, "core", 0.5);
   const fireGlow = glowAt([0, FLOOR + 8, -RZ + 6], 26, "wallN", 0.5);
   fireGlow.material.color.set(0xff8a3a);
@@ -576,15 +612,23 @@ export function buildDen(boardSpan) {
   const table = buildCoffeeTable(TW, boardSpan);
   group.add(table.group);
 
+  let lastNow = 0;
   return {
     group,
     groups: B.groups,
     TW, PH,
     table,
-    /* Each frame: the fire, the lamps' breath, the rain, the clock, and
-       whichever walls the camera has gone behind stepping aside. */
-    animate(now, camLocal) {
+    stereo,
+    // The fireplace's mouth, where its sound comes from (den-fx.js).
+    firePoint: new THREE.Vector3(0, FLOOR + 8, -RZ + 3),
+    /* Each frame: the fire, the lamps' breath, the rain, the clock, the
+       stereo (`music`: { open, playing }), and whichever walls the camera
+       has gone behind stepping aside. */
+    animate(now, camLocal, music = {}) {
       const t = now / 1000;
+      const dt = lastNow ? Math.min(0.1, (now - lastNow) / 1000) : 0;
+      lastNow = now;
+      stereo.animate(dt, music);
       flameMat.uniforms.uTime.value = t;
       const flick = 0.85 + Math.sin(t * 7.3) * 0.06 + Math.sin(t * 13.1 + 1.3) * 0.05 + Math.sin(t * 2.1) * 0.04;
       fireGlow.material.opacity = 0.5 * flick;
@@ -626,8 +670,354 @@ export function buildDen(boardSpan) {
       group.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
       disposables.forEach((d) => d && d.dispose && d.dispose());
       table.dispose();
+      stereo.dispose();
     },
   };
+}
+
+/* The stereo console on the south wall, built to be looked at up close
+   (the camera comes over to it when music is chosen; den-fx.js): lit by
+   the scene's lights and its own lamp, not baked like the rest of the room.
+
+   A long walnut cabinet on tapered legs. Set into its top, a turntable
+   under a smoked acrylic lid that lifts when you come over; in its face,
+   the receiver's amber dial and the 8-track deck's slot with its four
+   program lights. Either side, a walnut cabinet speaker with a woven
+   grille, a pothos on one and a heartleaf philodendron on the other, their
+   vines trailing down over the cloth. On top, a heavy amber-glass ashtray
+   and the sleeve of the record on the turntable.
+
+   `focus`: where the camera looks from and at (den-local). `pickables`:
+   the machines, each carrying userData.music ("record" or "8track"), for
+   a tap in the room to open the music menu. */
+function buildConsole(yF, RZ) {
+  const q = quality();
+  const group = new THREE.Group();
+  group.name = "den-console";
+  const disposables = [];
+  const lit = (o) => { const m = q.physical ? new THREE.MeshStandardMaterial({ roughness: 0.5, ...o }) : new THREE.MeshLambertMaterial(o); disposables.push(m); return m; };
+  const add = (geo, mat, parent = group) => { const m = new THREE.Mesh(geo, mat); parent.add(m); disposables.push(geo); return m; };
+  const CX = 18, CZ = RZ - 7, FRONT = CZ - 5, TOP = yF + 16, WELL = yF + 14.8;
+
+  // Walnut with a straight grain, running along the cabinet.
+  const grain = canvasTexture(512, 256, (g, W, H) => paintWood(g, 0, 0, W, H, { base: "#5C3A22", grain: "#2C180C", figure: "#48301C", horizontal: true, seed: 71, density: 0.7 }));
+  grain.wrapS = grain.wrapT = THREE.RepeatWrapping;
+  disposables.push(grain);
+  const walnut = lit({ map: grain, color: 0xead6c2, roughness: 0.4 });
+  const walnutDark = lit({ color: 0x2e1b0f, roughness: 0.6 });
+  // Metals without much metalness: there's nothing in the room for them
+  // to mirror (no environment map), and a fully metallic surface with
+  // nothing to reflect renders black.
+  const brass = lit({ color: 0xd8b25a, roughness: 0.28, metalness: q.physical ? 0.35 : 0 });
+  const chrome = lit({ color: 0xdedcd6, roughness: 0.2, metalness: q.physical ? 0.3 : 0 });
+  const black = lit({ color: 0x151311, roughness: 0.45 });
+  // Brushed aluminium, for the receiver's face.
+  const brushed = canvasTexture(256, 128, (g, W, H) => {
+    g.fillStyle = "#BFBDB6"; g.fillRect(0, 0, W, H);
+    for (let y = 0; y < H; y++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? "255,255,255" : "40,38,34"},${0.03 + Math.random() * 0.06})`; g.fillRect(0, y, W, 1); }
+  });
+  disposables.push(brushed);
+  const alu = lit({ map: brushed, color: 0xf0eee8, roughness: 0.34, metalness: q.physical ? 0.25 : 0 });
+
+  /* ---- the cabinet ---- */
+  add(new THREE.BoxGeometry(46, 11.8, 10).translate(CX, yF + 3 + 5.9, CZ), walnut);
+  add(new THREE.BoxGeometry(13, 1.2, 10).translate(1.5, WELL + 0.6, CZ), walnut);
+  add(new THREE.BoxGeometry(17, 1.2, 10).translate(32.5, WELL + 0.6, CZ), walnut);
+  add(new THREE.BoxGeometry(16, 1.2, 1.5).translate(16, WELL + 0.6, FRONT + 0.75), walnut);
+  add(new THREE.BoxGeometry(16, 1.2, 1.5).translate(16, WELL + 0.6, CZ + 4.25), walnut);
+  [[-3, -3.6], [39, -3.6], [-3, 3.6], [39, 3.6]].forEach(([x, dz]) => add(new THREE.CylinderGeometry(0.55, 0.32, 3, 10).translate(x, yF + 1.5, CZ + dz), walnutDark));
+  // Two cabinet doors either side of the receiver, brass pulls.
+  [1.8, 34.2].forEach((x) => {
+    add(new THREE.BoxGeometry(13.4, 10.4, 0.4).translate(x, yF + 9, FRONT - 0.15), walnut);
+    add(new THREE.BoxGeometry(0.5, 2.6, 0.4).translate(x + (x < CX ? 5.4 : -5.4), yF + 9.4, FRONT - 0.5), brass);
+  });
+  /* ---- the receiver and the 8-track deck ---- */
+  add(new THREE.BoxGeometry(17, 10.4, 0.4).translate(CX, yF + 9, FRONT - 0.15), alu);
+  // The dial: an amber-lit window with its scale and a red pointer.
+  const dialTex = canvasTexture(512, 96, (g, W, H) => {
+    const grad = g.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, "#3B2206"); grad.addColorStop(0.5, "#6E4412"); grad.addColorStop(1, "#3B2206");
+    g.fillStyle = grad; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#F7D79A"; g.font = `600 ${Math.round(H * 0.2)}px 'IBM Plex Sans', Arial, sans-serif`; g.textAlign = "center";
+    ["88", "92", "96", "100", "104", "108"].forEach((t, i) => g.fillText(t, W * (0.08 + i * 0.168), H * 0.34));
+    ["530", "700", "900", "1100", "1400", "1600"].forEach((t, i) => g.fillText(t, W * (0.08 + i * 0.168), H * 0.9));
+    g.fillStyle = "rgba(247,215,154,0.75)";
+    for (let i = 0; i <= 50; i++) g.fillRect(W * (0.05 + i * 0.018), H * (i % 5 ? 0.46 : 0.42), 1.5, H * (i % 5 ? 0.08 : 0.16));
+    g.font = `700 ${Math.round(H * 0.14)}px 'IBM Plex Sans', Arial, sans-serif`; g.fillText("FM", W * 0.975, H * 0.34); g.fillText("AM", W * 0.975, H * 0.9);
+  }, { scale: false });
+  disposables.push(dialTex);
+  const dialMat = new THREE.MeshBasicMaterial({ map: dialTex, color: 0x6a5a48, fog: true });
+  disposables.push(dialMat);
+  add(new THREE.PlaneGeometry(14, 2.5).rotateY(Math.PI).translate(CX, yF + 12.4, FRONT - 0.38), dialMat);
+  add(new THREE.BoxGeometry(0.12, 2.3, 0.05).translate(CX + 2.6, yF + 12.4, FRONT - 0.43), lit({ color: 0xc8281c, roughness: 0.4 }));
+  [[0, 1.4, 14.6, 0.3], [0, -1.4, 14.6, 0.3], [-7.15, 0, 0.3, 3.1], [7.15, 0, 0.3, 3.1]].forEach(([dx, dy, w, h]) => add(new THREE.BoxGeometry(w, h, 0.2).translate(CX + dx, yF + 12.4 + dy, FRONT - 0.45), chrome));
+  // Knobs: volume, balance, bass, treble.
+  [11.6, 13.9, 22.1, 24.4].forEach((x) => {
+    add(new THREE.CylinderGeometry(0.72, 0.78, 0.7, 20).rotateX(Math.PI / 2).translate(x, yF + 9.1, FRONT - 0.7), chrome);
+    add(new THREE.BoxGeometry(0.1, 0.5, 0.05).translate(x, yF + 9.4, FRONT - 1.07), black);
+  });
+  // The 8-track slot in its chrome bezel, the PROGRAM button, the four lights.
+  add(new THREE.BoxGeometry(5.8, 1.9, 0.3).translate(CX, yF + 6.3, FRONT - 0.45), chrome);
+  add(new THREE.PlaneGeometry(5, 1.1).rotateY(Math.PI).translate(CX, yF + 6.3, FRONT - 0.61), black);
+  const button = add(new THREE.BoxGeometry(1.3, 0.8, 0.5).translate(CX - 5.2, yF + 6.3, FRONT - 0.55), black);
+  button.userData.music = "8track";
+  const progMats = [0, 1, 2, 3].map(() => { const m = new THREE.MeshBasicMaterial({ color: 0x3a1a0a, fog: true }); disposables.push(m); return m; });
+  progMats.forEach((m, i) => add(new THREE.PlaneGeometry(0.42, 0.34).rotateY(Math.PI).translate(CX + 3.9 + i * 0.62, yF + 6.3, FRONT - 0.37), m));
+  // An 8-track cartridge, in the slot while one plays.
+  const cartTex = canvasTexture(256, 128, (g, W, H) => {
+    g.fillStyle = "#16120F"; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#E8C466"; g.fillRect(W * 0.08, H * 0.18, W * 0.84, H * 0.64);
+    g.fillStyle = "#6B2A12"; g.font = `800 ${Math.round(H * 0.24)}px 'Bodoni Moda', Georgia, serif`; g.textAlign = "center"; g.fillText("STEREO 8", W / 2, H * 0.58);
+  }, { scale: false });
+  disposables.push(cartTex);
+  const cart = add(new THREE.BoxGeometry(4.6, 0.95, 5.2), [black, black, lit({ map: cartTex, roughness: 0.5 }), black, black, black]);
+  cart.position.set(CX, yF + 6.3, FRONT + 1.6);
+  cart.visible = false;
+  const faceplate = group.children.find((m) => m.material === alu);
+  if (faceplate) faceplate.userData.music = "8track";
+
+  /* ---- the turntable, in the well in the top ---- */
+  const tt = new THREE.Group();
+  group.add(tt);
+  add(new THREE.BoxGeometry(15.6, 0.7, 6.8).translate(16, WELL + 0.35, CZ), lit({ color: 0x1e1b18, roughness: 0.35 }), tt).userData.music = "record";
+  // The platter, its strobe edge, the record on it (the label's own
+  // colours, the grooves catching the light).
+  const platter = new THREE.Group();
+  platter.position.set(13.8, WELL + 0.7, CZ);
+  tt.add(platter);
+  add(new THREE.CylinderGeometry(3.05, 3.05, 0.5, 48, 1, true).translate(0, 0.25, 0), chrome, platter);
+  const recTex = canvasTexture(512, 512, (g, W) => {
+    const c = W / 2;
+    g.fillStyle = "#0C0B0B"; g.beginPath(); g.arc(c, c, c, 0, 6.28); g.fill();
+    for (let r = c * 0.36; r < c * 0.98; r += 1.6) { g.strokeStyle = `rgba(255,255,255,${0.025 + (Math.sin(r * 0.9) + 1) * 0.02})`; g.lineWidth = 0.8; g.beginPath(); g.arc(c, c, r, 0, 6.28); g.stroke(); }
+    [0.55, 0.72, 0.86].forEach((f) => { g.strokeStyle = "rgba(0,0,0,0.9)"; g.lineWidth = 2.5; g.beginPath(); g.arc(c, c, c * f, 0, 6.28); g.stroke(); });
+    const lg = g.createRadialGradient(c, c, 0, c, c, c * 0.33); lg.addColorStop(0, "#F0C04A"); lg.addColorStop(1, "#D08A1E");
+    g.fillStyle = lg; g.beginPath(); g.arc(c, c, c * 0.33, 0, 6.28); g.fill();
+    g.fillStyle = "#6B1E0E"; g.font = `700 ${Math.round(W * 0.045)}px 'Bodoni Moda', Georgia, serif`; g.textAlign = "center"; g.fillText("STEREO", c, c - W * 0.08);
+    g.font = `500 ${Math.round(W * 0.028)}px 'IBM Plex Sans', Arial, sans-serif`; g.fillText("33⅓ RPM", c, c + W * 0.11);
+    // A highlight across the vinyl, where the lamp's light falls.
+    const hl = g.createLinearGradient(0, 0, W, W); hl.addColorStop(0.35, "rgba(255,255,255,0)"); hl.addColorStop(0.5, "rgba(255,240,220,0.08)"); hl.addColorStop(0.65, "rgba(255,255,255,0)");
+    g.fillStyle = hl; g.beginPath(); g.arc(c, c, c * 0.98, 0, 6.28); g.arc(c, c, c * 0.34, 0, 6.28, true); g.fill();
+  }, { scale: false });
+  disposables.push(recTex);
+  const disc = add(new THREE.CircleGeometry(2.95, 48).rotateX(-Math.PI / 2).translate(0, 0.52, 0), lit({ map: recTex, roughness: 0.28 }), platter);
+  disc.userData.music = "record";
+  add(new THREE.CylinderGeometry(0.07, 0.07, 0.7, 8).translate(0, 0.8, 0), chrome, platter);
+  // The tonearm: a chrome tube on its pivot at the back right, the
+  // headshell at the end; it swings out over the record to play.
+  const pivot = new THREE.Vector3(19.8, WELL + 0.7, CZ + 2.4);
+  add(new THREE.CylinderGeometry(0.55, 0.65, 0.9, 16).translate(pivot.x, pivot.y + 0.45, pivot.z), black, tt);
+  const arm = new THREE.Group();
+  arm.position.set(pivot.x, pivot.y + 1.05, pivot.z);
+  tt.add(arm);
+  const ARM = 5.4;
+  add(new THREE.CylinderGeometry(0.09, 0.09, ARM, 10).rotateX(Math.PI / 2).translate(0, 0, -ARM / 2), chrome, arm);
+  add(new THREE.BoxGeometry(0.6, 0.18, 1.1).translate(0, -0.05, -ARM - 0.3), black, arm);
+  add(new THREE.CylinderGeometry(0.35, 0.35, 1.2, 12).rotateX(Math.PI / 2).translate(0, 0, 0.9), chrome, arm); // the counterweight
+  add(new THREE.CylinderGeometry(0.12, 0.12, 0.8, 8).translate(pivot.x - 0.1, pivot.y + 0.4, pivot.z - 3.2), chrome, tt); // the arm rest
+  // Swing angles: at rest by its post, and playing (the stylus in the
+  // record's lead-in, 2.7 from the spindle).
+  const REST = 0;
+  let PLAY = 0;
+  for (let a = 0; a < 1.2; a += 0.002) {
+    const tipX = pivot.x - Math.sin(a) * ARM, tipZ = pivot.z - Math.cos(a) * ARM;
+    if (Math.hypot(tipX - platter.position.x, tipZ - platter.position.z) < 2.7) { PLAY = a; break; }
+  }
+  // The smoked lid, hinged at the back.
+  const lidHinge = new THREE.Group();
+  lidHinge.position.set(16, TOP, CZ + 3.5);
+  tt.add(lidHinge);
+  const smoked = new THREE.MeshStandardMaterial({ color: 0x3a2a20, roughness: 0.06, metalness: 0, transparent: true, opacity: 0.32, depthWrite: false });
+  disposables.push(smoked);
+  const lid = add(new THREE.BoxGeometry(15.8, 1.6, 7).translate(0, 0.8, -3.5), smoked, lidHinge);
+  lid.renderOrder = 2;
+  lid.userData.music = "record";
+
+  /* ---- the speakers, the plants on them ---- */
+  const cloth = TX.grilleCloth(); cloth.wrapS = cloth.wrapT = THREE.RepeatWrapping; cloth.repeat.set(2, 4); disposables.push(cloth);
+  const clothMat = lit({ map: cloth, color: 0xe8d8c0, roughness: 0.95 });
+  const leafGeo = heartLeaf();
+  disposables.push(leafGeo);
+  const plants = [];
+  [[-10, "pothos"], [46, "philodendron"]].forEach(([sx, kind], si) => {
+    const sz = CZ + 0.5, sFront = sz - 3.75;
+    add(new THREE.BoxGeometry(7, 1, 6.5).translate(sx, yF + 0.5, sz), walnutDark);
+    add(new THREE.BoxGeometry(8, 16, 7.5).translate(sx, yF + 9, sz), walnut);
+    add(new THREE.PlaneGeometry(6.6, 14.4).rotateY(Math.PI).translate(sx, yF + 9, sFront - 0.03), clothMat);
+    // A thin walnut frame round the cloth.
+    [[0, 7.45, 8, 0.7], [0, -7.45, 8, 0.7], [-3.65, 0, 0.7, 15.6], [3.65, 0, 0.7, 15.6]].forEach(([dx, dy, w, h]) => add(new THREE.BoxGeometry(w, h, 0.4).translate(sx + dx, yF + 9 + dy, sFront - 0.12), walnut));
+    // The pot: glazed stoneware, a brown drip over teal on one, gold on the other.
+    const potPts = [[0, 0], [1.6, 0], [2.2, 0.4], [2.6, 2.6], [2.8, 3.3], [2.55, 3.35], [2.35, 2.9], [0, 2.9]].map(([r, h]) => new THREE.Vector2(r, h));
+    add(new THREE.LatheGeometry(potPts, 24).translate(sx, yF + 17, sz), lit({ color: si ? 0xb07a2a : 0x3d6b62, roughness: 0.28 }));
+    add(new THREE.CircleGeometry(2.45, 20).rotateX(-Math.PI / 2).translate(sx, yF + 17 + 2.95, sz), lit({ color: 0x3a2616, roughness: 0.95 }));
+    plants.push(trailingPlant({ x: sx, y: yF + 17 + 3, z: sz, front: sFront, kind, seed: 17 + si * 31, floorY: yF + 3, leafGeo, disposables }));
+  });
+  plants.forEach((p) => group.add(p));
+
+  /* ---- on top: the ashtray, the record's sleeve ---- */
+  const trayPts = [[0, 0], [1.9, 0], [2.2, 0.25], [2.25, 1.0], [2.1, 1.15], [1.35, 1.1], [1.1, 0.55], [0, 0.5]].map(([r, h]) => new THREE.Vector2(r, h));
+  const trayGeo = new THREE.LatheGeometry(trayPts, 40);
+  { // Four rests notched into the rim.
+    const pos = trayGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      if (y < 0.9) continue;
+      const a = Math.atan2(z, x), notch = Math.pow(Math.max(0, Math.cos(a * 4)), 24);
+      pos.setY(i, y - notch * 0.42);
+    }
+    trayGeo.computeVertexNormals();
+  }
+  const amber = new THREE.MeshStandardMaterial({ color: 0xc86f14, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.8, emissive: 0x3a1602, emissiveIntensity: 0.6 });
+  disposables.push(amber);
+  const tray = add(trayGeo.translate(1.8, TOP, CZ - 0.6), amber);
+  tray.renderOrder = 2;
+  const sleeveTex = canvasTexture(256, 256, (g, W) => {
+    const bg = g.createLinearGradient(0, 0, W, W); bg.addColorStop(0, "#D8742A"); bg.addColorStop(1, "#7A2E14");
+    g.fillStyle = bg; g.fillRect(0, 0, W, W);
+    g.strokeStyle = "rgba(250,220,160,0.85)"; g.lineWidth = W * 0.035;
+    for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(W * 0.5, W * 1.05, W * (0.25 + i * 0.12), Math.PI * 1.1, Math.PI * 1.9); g.stroke(); }
+    g.fillStyle = "#FBE7C0"; g.font = `700 ${Math.round(W * 0.1)}px 'Bodoni Moda', Georgia, serif`; g.textAlign = "center"; g.fillText("Sunset Drive", W / 2, W * 0.2);
+  }, { scale: false });
+  disposables.push(sleeveTex);
+  add(new THREE.BoxGeometry(6.3, 0.1, 6.3).rotateY(0.08).translate(27.6, TOP + 0.05, CZ - 0.2), [black, black, lit({ map: sleeveTex, roughness: 0.6 }), black, black, black]);
+
+  // The console's lamp, lighting it from the east end.
+  const lamp = new THREE.PointLight(0xffc27a, 1.15, 62, 2);
+  lamp.position.set(34, yF + 25, CZ - 3);
+  group.add(lamp);
+
+  // The parts that never move or change are merged, one mesh per material:
+  // the console is dozens of pieces but only a handful of draw calls.
+  {
+    const byMat = new Map();
+    group.children.filter((m) => m.isMesh && !m.userData.music && m !== cart && !Array.isArray(m.material)).forEach((m) => {
+      m.updateMatrix();
+      const g = m.geometry.clone().applyMatrix4(m.matrix);
+      const flat = g.index ? g.toNonIndexed() : g;
+      if (flat !== g) g.dispose();
+      Object.keys(flat.attributes).forEach((k) => { if (!["position", "normal", "uv"].includes(k)) flat.deleteAttribute(k); });
+      if (!byMat.has(m.material)) byMat.set(m.material, []);
+      byMat.get(m.material).push(flat);
+      group.remove(m);
+    });
+    byMat.forEach((geos, mat) => {
+      const merged = geos.length > 1 ? BufferGeometryUtils.mergeBufferGeometries(geos, false) : geos[0];
+      if (geos.length > 1) geos.forEach((g) => g.dispose());
+      disposables.push(merged);
+      group.add(new THREE.Mesh(merged, mat));
+    });
+  }
+  group.traverse((o) => { if (o.isMesh) { o.receiveShadow = false; o.castShadow = false; } });
+  const pickables = [];
+  group.traverse((o) => { if (o.isMesh && o.userData.music) pickables.push(o); });
+
+  let lidA = 0, armA = REST, spin = 0;
+  return {
+    group,
+    pickables,
+    // Where the camera goes to look (den-local): in front of the console,
+    // up above the pit's south sofa, the speakers either side in view.
+    focus: { target: new THREE.Vector3(CX, yF + 11, CZ), eye: new THREE.Vector3(CX, yF + 27, CZ - 58) },
+    /* Each frame: `open` (the camera is over here, or a record plays) lifts
+       the lid; `playing` ("record" or "8track") spins the platter and
+       swings the arm in, or seats a cartridge and lights its program. */
+    animate(dt, { open, playing }) {
+      const k = 1 - Math.exp(-dt * 3);
+      lidA += ((open || playing === "record" ? -1.15 : 0) - lidA) * k;
+      lidHinge.rotation.x = lidA;
+      armA += ((playing === "record" ? PLAY : REST) - armA) * k;
+      arm.rotation.y = armA;
+      if (playing === "record") { spin -= dt * (Math.PI * 2 * 33.333) / 60; platter.rotation.y = spin; }
+      cart.visible = playing === "8track";
+      progMats.forEach((m, i) => m.color.setHex(playing === "8track" && i === 0 ? 0xffb34a : 0x3a1a0a));
+      dialMat.color.setHex(playing ? 0xffffff : 0x6a5a48);
+    },
+    dispose() { disposables.forEach((d) => d && d.dispose && d.dispose()); },
+  };
+}
+
+/* A heart-shaped leaf, its stem at the origin and its tip along +y, a
+   little folded along the midrib. */
+function heartLeaf() {
+  const s = new THREE.Shape();
+  s.moveTo(0, 0.08);
+  s.bezierCurveTo(-0.12, -0.04, -0.46, 0.0, -0.46, 0.32);
+  s.bezierCurveTo(-0.46, 0.62, -0.18, 0.82, 0, 1.0);
+  s.bezierCurveTo(0.18, 0.82, 0.46, 0.62, 0.46, 0.32);
+  s.bezierCurveTo(0.46, 0.0, 0.12, -0.04, 0, 0.08);
+  const g = new THREE.ShapeGeometry(s, 6);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) p.setZ(i, -0.14 * Math.pow(p.getX(i) / 0.46, 2));
+  g.computeVertexNormals();
+  return g;
+}
+
+/* A trailing houseplant in its pot at (x, y, z): a crown of leaves, and
+   vines that run forward over the speaker's front edge (`front`) and hang
+   down the grille. The golden pothos is splashed with yellow; the
+   heartleaf philodendron is a deep glossy green with smaller leaves. */
+function trailingPlant({ x, y, z, front, kind, seed, floorY, leafGeo, disposables }) {
+  let s = seed;
+  const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const q = quality();
+  const pothos = kind === "pothos";
+  const mat = q.physical
+    ? new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: pothos ? 0.5 : 0.3 })
+    : new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
+  const stemMat = q.physical ? new THREE.MeshStandardMaterial({ color: 0x4d6a2a, roughness: 0.6 }) : new THREE.MeshLambertMaterial({ color: 0x4d6a2a });
+  disposables.push(mat, stemMat);
+  const plant = new THREE.Group();
+  plant.name = `den-${kind}`;
+  const leaves = []; // [position, direction the tip points, size]
+  const stems = [];
+  // Vines: out of the pot, over the front edge, down the cloth.
+  const vines = pothos ? 6 : 5;
+  for (let v = 0; v < vines; v++) {
+    const spread = (v / (vines - 1) - 0.5) * 6.4 + (rnd() - 0.5) * 0.8;
+    const drop = 5 + rnd() * (pothos ? 9 : 7);
+    const endY = Math.max(floorY, y - 1.5 - drop);
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(x + spread * 0.25, y + 0.2, z - 0.6),
+      new THREE.Vector3(x + spread * 0.6, y - 0.3, front + 0.4),
+      new THREE.Vector3(x + spread * 0.85, y - 2.2, front - 0.35),
+      new THREE.Vector3(x + spread + (rnd() - 0.5) * 1.2, (y - 2.2 + endY) / 2, front - 0.5 - rnd() * 0.3),
+      new THREE.Vector3(x + spread * 1.1 + (rnd() - 0.5) * 1.6, endY, front - 0.7 - rnd() * 0.5),
+    ]);
+    stems.push(new THREE.TubeGeometry(curve, 24, 0.055, 4, false));
+    const len = curve.getLength(), step = pothos ? 0.95 : 0.8;
+    for (let d = 0.6; d < len; d += step * (0.85 + rnd() * 0.3)) {
+      const t = d / len, p = curve.getPointAt(t), tan = curve.getTangentAt(t);
+      const side = (Math.floor(d / step) % 2 ? 1 : -1);
+      // Hanging leaves turn their faces to the room, tips down and out.
+      const dir = new THREE.Vector3(side * 0.7 + (rnd() - 0.5) * 0.4, -0.6 + tan.y * 0.3, -0.5 - rnd() * 0.4).normalize();
+      leaves.push([p, dir, (pothos ? 1.05 : 0.85) * (0.75 + rnd() * 0.45) * (1 - t * 0.25)]);
+    }
+  }
+  // The crown: leaves spraying up and out of the pot.
+  for (let i = 0; i < (pothos ? 16 : 14); i++) {
+    const a = rnd() * Math.PI * 2, r = rnd() * 1.8;
+    const p = new THREE.Vector3(x + Math.cos(a) * r, y + 0.3 + rnd() * 1.2, z + Math.sin(a) * r);
+    const dir = new THREE.Vector3(Math.cos(a) * 0.8, 0.5 + rnd() * 0.5, Math.sin(a) * 0.8 - 0.3).normalize();
+    leaves.push([p, dir, (pothos ? 1.15 : 0.9) * (0.8 + rnd() * 0.4)]);
+  }
+  const stemGeo = BufferGeometryUtils.mergeBufferGeometries(stems, false);
+  stems.forEach((g) => g.dispose());
+  disposables.push(stemGeo);
+  plant.add(new THREE.Mesh(stemGeo, stemMat));
+  const inst = new THREE.InstancedMesh(leafGeo, mat, leaves.length);
+  const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3(), col = new THREE.Color(), roll = new THREE.Quaternion();
+  leaves.forEach(([p, dir, size], i) => {
+    qt.setFromUnitVectors(up, dir);
+    roll.setFromAxisAngle(dir, (rnd() - 0.5) * 1.4);
+    qt.premultiply(roll);
+    sc.set(size, size, size);
+    m4.compose(p, qt, sc);
+    inst.setMatrixAt(i, m4);
+    if (pothos) { const gold = rnd(); col.setRGB(0.3 + gold * 0.45, 0.48 + gold * 0.28, 0.14 + gold * 0.08); }
+    else { const v = 0.8 + rnd() * 0.3; col.setRGB(0.2 * v, 0.42 * v, 0.14 * v); }
+    inst.setColorAt(i, col);
+  });
+  plant.add(inst);
+  return plant;
 }
 
 /* A table lamp: a gourd-shaped ceramic base and a pleated drum shade
@@ -665,9 +1055,9 @@ function leafCluster(B, group, mat, x, y, z, radius, count, seed) {
 
 /* The coffee table: a thick walnut top on a recessed plinth, lit by the
    scene's lights like the board, so the board's shadow falls on it. On
-   it, beside the board: the box the game came in, its lid set under it,
-   the rules leaflet, two glasses of iced tea on coasters, a bowl of
-   party mix. */
+   it, beside the board: the box the game came in, the rules leaflet, a
+   mug of coffee on its saucer (a spoon on the rim), a tumbler of scotch
+   on the rocks, a bowl of snack mix. */
 function buildCoffeeTable(TW, boardSpan) {
   const q = quality();
   const group = new THREE.Group();
@@ -726,44 +1116,98 @@ function buildCoffeeTable(TW, boardSpan) {
   const leaflet = mk(new THREE.PlaneGeometry(5.4, 4).rotateX(-Math.PI / 2), leafMat);
   leaflet.position.set(-mid + 0.4, topY + 0.03, -TW / 2 + bw + 6.4);
   leaflet.rotation.y = -0.35;
-  // Two glasses of iced tea on cork coasters.
+  // A mug of coffee on its saucer, a spoon laid on the saucer's rim; a
+  // tumbler of scotch on the rocks on a cork coaster.
   const cork = lit({ color: 0x9a7048, roughness: 0.9 });
-  const tea = lit({ color: 0x5e2a0a, roughness: 0.2 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0xf2ece0, roughness: 0.08, metalness: 0, transparent: true, opacity: 0.28, depthWrite: false });
-  disposables.push(glass);
-  const drink = (x, z) => {
+  const glassMat = (o) => { const m = new THREE.MeshStandardMaterial({ roughness: 0.06, metalness: 0, transparent: true, depthWrite: false, ...o }); disposables.push(m); return m; };
+  const stoneware = lit({ color: 0x6e3f1f, roughness: 0.32 }); // a brown drip glaze
+  const glazeLight = lit({ color: 0xd9b98a, roughness: 0.4 }); // the pale drip round the rim
+  const coffee = lit({ color: 0x2a1508, roughness: 0.12 });
+  const steel = lit({ color: 0xd4d2cc, roughness: 0.22, metalness: q.physical ? 0.3 : 0 });
+  {
+    const x = mid - 0.6, z = TW / 2 - 3.6;
+    // The saucer: a shallow dish with a well for the mug's foot.
+    const sp = [[0, 0], [0.62, 0], [0.66, 0.08], [0.72, 0.05], [1.38, 0.16], [1.52, 0.3], [1.46, 0.34], [1.3, 0.24], [0.7, 0.12], [0, 0.12]].map(([r, h]) => new THREE.Vector2(r, h));
+    mk(new THREE.LatheGeometry(sp, 32).translate(x, topY, z), glazeLight, true);
+    // The mug, glazed brown with a pale lip; its handle turned toward the board's edge.
+    const mp = [[0, 0.12], [0.62, 0.12], [0.7, 0.2], [0.72, 1.7], [0.76, 1.95], [0.7, 1.97], [0.66, 1.75], [0.64, 0.3], [0, 0.3]].map(([r, h]) => new THREE.Vector2(r, h));
+    mk(new THREE.LatheGeometry(mp, 32).translate(x, topY + 0.12, z), stoneware, true);
+    mk(new THREE.CylinderGeometry(0.765, 0.735, 0.22, 32, 1, true).translate(x, topY + 0.12 + 1.86, z), glazeLight);
+    const handle = new THREE.TorusGeometry(0.42, 0.1, 10, 20, Math.PI * 1.15);
+    handle.rotateZ(-Math.PI * 0.575); handle.translate(0.72, 1.12, 0); handle.rotateY(-0.9); handle.translate(x, topY + 0.12, z);
+    mk(handle, stoneware, true);
+    // The coffee, a little below the lip.
+    mk(new THREE.CircleGeometry(0.63, 28).rotateX(-Math.PI / 2).translate(x, topY + 0.12 + 1.62, z), coffee);
+    // The teaspoon on the saucer's rim: its bowl in the dish, its handle
+    // resting over the edge.
+    const spoon = new THREE.Group();
+    const bowlGeo = new THREE.SphereGeometry(0.22, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).scale(1, 0.35, 1.45);
+    const bowlM = new THREE.Mesh(bowlGeo, steel); bowlM.position.set(0, 0.08, 0); spoon.add(bowlM);
+    const handleGeo = new THREE.BoxGeometry(0.1, 0.04, 1.35).translate(0, 0.1, 0.95);
+    const handleM = new THREE.Mesh(handleGeo, steel); handleM.rotation.x = -0.1; spoon.add(handleM);
+    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.04, 12).translate(0, 0.1, 0), steel); tip.position.set(0, 0.135, 1.62); spoon.add(tip);
+    disposables.push(bowlGeo, handleGeo, tip.geometry);
+    spoon.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    spoon.position.set(x + 0.7, topY + 0.17, z + 0.25);
+    spoon.rotation.set(-0.08, 0.5, 0.03);
+    group.add(spoon);
+  }
+  {
+    const x = -mid + 1.2, z = TW / 2 - 4.6;
     mk(new THREE.CylinderGeometry(1.05, 1.05, 0.14, 24).translate(x, topY + 0.07, z), cork);
-    mk(new THREE.CylinderGeometry(0.62, 0.55, 2.1, 20).translate(x, topY + 0.14 + 1.05, z), tea);
-    const g = mk(new THREE.CylinderGeometry(0.72, 0.62, 2.9, 20, 1, true).translate(x, topY + 0.14 + 1.45, z), glass, true);
-    g.renderOrder = 2;
-    // Ice, a little above the tea.
-    const ice = lit({ color: 0xe8e4dc, roughness: 0.1 });
-    [[0.2, 0.1], [-0.18, -0.15]].forEach(([dx, dz]) => mk(new THREE.BoxGeometry(0.45, 0.4, 0.45).rotateY(dx * 3).translate(x + dx, topY + 2.35, z + dz), ice));
-  };
-  drink(mid - 0.5, TW / 2 - 3.2);
-  drink(-mid + 1.2, TW / 2 - 4.6);
-  // A teak bowl of party mix: pretzels, cereal squares, nuts.
+    const y0 = topY + 0.14;
+    // A heavy rocks glass: a thick base, straight sides.
+    const tumbler = glassMat({ color: 0xf4efe6, opacity: 0.22 });
+    const base = glassMat({ color: 0xe8e2d6, opacity: 0.55 });
+    mk(new THREE.CylinderGeometry(0.86, 0.84, 0.42, 28).translate(x, y0 + 0.21, z), base, true).renderOrder = 2;
+    const wall = mk(new THREE.CylinderGeometry(0.9, 0.86, 1.95, 28, 1, true).translate(x, y0 + 0.975, z), tumbler, true);
+    wall.renderOrder = 3;
+    mk(new THREE.TorusGeometry(0.88, 0.045, 6, 28).rotateX(Math.PI / 2).translate(x, y0 + 1.95, z), glassMat({ color: 0xffffff, opacity: 0.4 })).renderOrder = 3;
+    // The scotch, amber, a finger and a half of it.
+    const scotch = glassMat({ color: 0xb8651a, opacity: 0.78, roughness: 0.04 });
+    mk(new THREE.CylinderGeometry(0.82, 0.8, 0.72, 28).translate(x, y0 + 0.42 + 0.36, z), scotch).renderOrder = 1;
+    // Ice: three cubes, their tops above the whisky.
+    const ice = glassMat({ color: 0xeef4f8, opacity: 0.62, roughness: 0.18 });
+    [[0.3, 0.2, 0.35, 0.2], [-0.28, 0.12, -0.6, 0.35], [0.02, -0.34, 0.9, 0.52]].forEach(([dx, dz, ry, lift]) => {
+      const c = mk(makeRoundedBox(0.62, 0.58, 0.62, 0.08, 2).rotateY(ry).rotateX(0.2 * dx).translate(x + dx, y0 + 0.9 + lift, z + dz), ice);
+      c.renderOrder = 2;
+    });
+  }
+  // A teak bowl heaped with snack mix: peanuts, little pretzels, cereal
+  // squares and rye chips, each its own piece so it reads from the sofa.
   const teak = lit({ color: 0x8a5a30, roughness: 0.5, side: THREE.DoubleSide });
   const bowlPts = [[0, 0], [1.1, 0.04], [1.8, 0.45], [2.1, 1.1], [2.02, 1.14]].map(([r, h]) => new THREE.Vector2(r, h));
+  const bx = mid - 0.2, bz = -TW / 2 + 4.2;
   const bowl = mk(new THREE.LatheGeometry(bowlPts, 24), teak, true);
-  bowl.position.set(mid - 0.2, topY, -TW / 2 + 4.2);
-  const mixTex = canvasTexture(256, 256, (g, W) => {
-    let s = 5;
-    const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
-    g.fillStyle = "#7A5226"; g.fillRect(0, 0, W, W);
-    for (let i = 0; i < 260; i++) {
-      const x = rnd() * W, y = rnd() * W, k = rnd();
-      g.save(); g.translate(x, y); g.rotate(rnd() * 6.28);
-      if (k < 0.35) { g.fillStyle = ["#C9A060", "#B8894A", "#D8B474"][i % 3]; g.fillRect(-7, -7, 14, 14); g.strokeStyle = "rgba(90,60,25,0.6)"; g.lineWidth = 1.5; g.strokeRect(-7, -7, 14, 14); g.beginPath(); g.moveTo(-7, 0); g.lineTo(7, 0); g.moveTo(0, -7); g.lineTo(0, 7); g.stroke(); }
-      else if (k < 0.6) { g.strokeStyle = "#8A4E1E"; g.lineWidth = 4; g.beginPath(); g.arc(-4, 0, 5, 0, 6.28); g.arc(4, 0, 5, 0, 6.28); g.stroke(); }
-      else { g.fillStyle = ["#C08A4E", "#A8733C"][i % 2]; g.beginPath(); g.ellipse(0, 0, 6, 4, 0, 0, 6.28); g.fill(); }
-      g.restore();
-    }
-  }, { scale: false });
-  disposables.push(mixTex);
-  const mixMat = lit({ map: mixTex, roughness: 0.8 });
-  const mix = mk(new THREE.SphereGeometry(1.9, 20, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.28, 1), mixMat);
-  mix.position.set(mid - 0.2, topY + 0.95, -TW / 2 + 4.2);
+  bowl.position.set(bx, topY, bz);
+  {
+    let seed = 11;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    // A mound: the heap's height at a distance r from the middle.
+    const heapY = (r) => topY + 0.3 + 0.95 * Math.sqrt(Math.max(0, 1 - (r / 1.85) * (r / 1.85)));
+    const kinds = [
+      { n: 70, geo: new THREE.SphereGeometry(0.16, 8, 6).scale(1.55, 0.95, 1), mat: lit({ color: 0xc89a5c, roughness: 0.55 }), vary: 0.12 },
+      { n: 16, geo: new THREE.TorusKnotGeometry(0.16, 0.045, 32, 5, 2, 3).scale(1.5, 1, 0.55), mat: lit({ color: 0x7a3e14, roughness: 0.4 }), vary: 0.08 },
+      { n: 30, geo: new THREE.BoxGeometry(0.34, 0.1, 0.34), mat: lit({ color: 0xc9a060, roughness: 0.7 }), vary: 0.15 },
+      { n: 10, geo: new THREE.CylinderGeometry(0.26, 0.26, 0.06, 12), mat: lit({ color: 0x8f5a2c, roughness: 0.65 }), vary: 0.1 },
+    ];
+    const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), e = new THREE.Euler(), pos = new THREE.Vector3(), sc = new THREE.Vector3(), col = new THREE.Color();
+    kinds.forEach(({ n, geo, mat, vary }) => {
+      disposables.push(geo);
+      const inst = new THREE.InstancedMesh(geo, mat, n);
+      for (let i = 0; i < n; i++) {
+        const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * 1.75;
+        const x = bx + Math.cos(a) * r, z = bz + Math.sin(a) * r;
+        pos.set(x, heapY(r) - rnd() * 0.25, z);
+        e.set(rnd() * 6.28, rnd() * 6.28, rnd() * 6.28); qt.setFromEuler(e);
+        const s = 0.85 + rnd() * 0.3; sc.set(s, s, s);
+        m4.compose(pos, qt, sc); inst.setMatrixAt(i, m4);
+        const v = 1 - vary / 2 + rnd() * vary; col.setRGB(v, v, v); inst.setColorAt(i, col);
+      }
+      inst.castShadow = true; inst.receiveShadow = true;
+      group.add(inst);
+    });
+  }
 
   return {
     group,

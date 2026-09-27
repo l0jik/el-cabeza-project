@@ -20,7 +20,8 @@ for (const fn of ["makeBoardTexture", "buildSlabMaterials", "makeGrid", "buildPi
 }
 check("the wood set is Tienda's (walnut and olive ash, with followGrain and woodSwatch)", typeof standard.woodSet.followGrain === "function" && typeof standard.woodSet.woodSwatch === "function");
 const keys = standard.soundChannels.map((c) => c.key).join(",");
-check(`sound channels: The room and Pieces (${keys})`, keys === "room,pieces");
+check(`sound channels: The room, Music (the stereo) and Pieces (${keys})`, keys === "room,stereo,pieces");
+check("the stereo's music: a record player and an 8-track", standard.music && standard.music.sources.map((x) => x.key).join() === "record,8track" && Array.isArray(standard.music.tracks()));
 check("an edge radius and an outline offset", standard.EDGE_RADIUS > 0 && standard.outlineYOffset > 0);
 
 if (failures) { console.log(`\n${failures} failure(s)`); process.exit(1); }

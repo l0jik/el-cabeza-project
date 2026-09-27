@@ -7,15 +7,37 @@
       the ceiling when the camera is above it. Back in the pit, all of
       them are there again.
    3. The sound menu: The room and Pieces, each switched on its own.
-   4. Nova (phone menu): Standard (the den) to Neon, where the den is
-      gone, and back to Standard, where it's built again. */
+   4. The stereo console: "Choose music" in the sound menu opens the music
+      panel (both sources empty until the tracks come), the camera goes over
+      to the console and comes back when it closes; a track lent by the
+      test plays on the record player (the platter turns) and stops; a tap
+      on the turntable in the room opens the panel too.
+   5. The room's sound: the fire is louder from the fireplace's side of the
+      pit than from the far side; the clock's hour chime plays.
+   6. The south wall's doorway opens onto a hall; the coffee table has its
+      snack mix, piece by piece.
+   7. Nova (phone menu): its "Choose music" opens the music panel;
+      Standard (the den) to Neon, where the den is gone, and back to
+      Standard, where it's built again. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
+
+// A second of a soft tone, as a WAV data URL: the test's record.
+function toneWav() {
+  const rate = 22050, n = rate, data = Buffer.alloc(44 + n * 2);
+  data.write("RIFF", 0); data.writeUInt32LE(36 + n * 2, 4); data.write("WAVE", 8); data.write("fmt ", 12);
+  data.writeUInt32LE(16, 16); data.writeUInt16LE(1, 20); data.writeUInt16LE(1, 22); data.writeUInt32LE(rate, 24);
+  data.writeUInt32LE(rate * 2, 28); data.writeUInt16LE(2, 32); data.writeUInt16LE(16, 34); data.write("data", 36); data.writeUInt32LE(n * 2, 40);
+  for (let i = 0; i < n; i++) data.writeInt16LE(Math.round(Math.sin((i / rate) * 2 * Math.PI * 330) * 3000), 44 + i * 2);
+  return "data:audio/wav;base64," + data.toString("base64");
+}
+const TRACKS = [{ id: "t1", title: "Test tone", artist: "The tests", medium: "record", url: toneWav(), loop: true }];
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--autoplay-policy=no-user-gesture-required"] });
 let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
 const q = (page, id) => page.locator(`[data-testid="${id}"]`);
+const stereo2 = (page) => page.evaluate(() => window.__DEN_STEREO__ && window.__DEN_STEREO__().playing);
 async function waitFor(fn, ms = 8000) {
   const t0 = Date.now();
   while (Date.now() - t0 < ms) { if (await fn()) return true; await new Promise((r) => setTimeout(r, 150)); }
@@ -29,6 +51,7 @@ async function waitFor(fn, ms = 8000) {
   page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-standard.html");
+  const stereo = () => page.evaluate(() => window.__DEN_STEREO__ && window.__DEN_STEREO__());
   check("the room is up", await waitFor(() => page.evaluate(() => !!window.__DEN_ROOM__ && !!window.__DEN_THREE__)));
   const scene = () => page.evaluate(() => {
     const t = window.__DEN_THREE__;
@@ -76,7 +99,97 @@ async function waitFor(fn, ms = 8000) {
   check("The room off silences the fire, the clock and the rain", a && a.channelsOff.room === true && a.gates.room < 0.01, JSON.stringify(a));
   check("...and leaves the pieces", a && a.channelsOff.pieces === false, JSON.stringify(a));
   await q(page, "sound-ch-room").click();
+
+  // The stereo: the music panel from the sound menu, the camera's visit.
+  check("the sound menu offers the music", (await q(page, "sound-music").count()) === 1);
+  await q(page, "sound-music").click();
+  await page.waitForTimeout(400);
+  check("...which opens the music panel", (await q(page, "music-panel").count()) === 1);
+  check("...each source saying it's empty until the tracks come", (await q(page, "music-empty-record").count()) === 1 && (await q(page, "music-empty-8track").count()) === 1);
+  check("...and the dock steps aside", (await page.locator('[data-testid="sound-menu"]').count()) === 0);
+  await page.waitForTimeout(3200);
+  const near = await page.evaluate(() => {
+    const t = window.__DEN_THREE__;
+    let c = null; t.scene.traverse((o) => { if (o.name === "den-console") c = o; });
+    const box = new t.camera.position.constructor();
+    c.children[0].getWorldPosition(box);
+    return t.camera.position.distanceTo(box);
+  });
+  const s1 = await stereo();
+  check(`the camera has gone over to the console (${Math.round(near)} units from it, visit ${s1 && s1.focus.toFixed(2)})`, s1 && s1.focus > 0.9 && near < 75, JSON.stringify(s1));
+  await q(page, "music-close").click();
+  await waitFor(async () => { const st = await stereo(); return st && st.focus < 0.02; }, 12000);
+  const s2 = await stereo();
+  check("closing it brings the camera back", (await q(page, "music-panel").count()) === 0 && s2 && s2.focus < 0.02, JSON.stringify(s2));
+
+  // The room's sound from where the camera is, and the hour's chime.
+  const fireAt = async (theta) => { await page.evaluate((th) => window.__EC_TEST_CAM__({ theta: th, phi: 1.1, radius: 40 }), theta); await page.waitForTimeout(2600); return page.evaluate(() => window.__DEN_AUDIO__().fire.near); };
+  const fireSide = await fireAt(Math.PI), farSide = await fireAt(0);
+  check(`the fire is louder from its own side of the pit (${fireSide.toFixed(2)} vs ${farSide.toFixed(2)})`, fireSide > farSide * 1.4);
+  const chimes = await page.evaluate(() => window.__DEN_CHIME_NOW__ && window.__DEN_CHIME_NOW__());
+  check("the clock's hour chime plays", chimes >= 1, String(chimes));
+
+  // The doorway's hall, and the snack mix.
+  const room = await page.evaluate(() => {
+    const t = window.__DEN_THREE__;
+    let hall = false, snacks = 0;
+    t.scene.traverse((o) => {
+      if (o.isMesh && o.geometry && o.parent && o.parent.name === "den-wallS") { o.geometry.computeBoundingBox(); if (o.geometry.boundingBox.min.z > 92) hall = true; }
+      if (o.isInstancedMesh && o.parent && o.parent.name === "den-table") snacks += o.count;
+    });
+    return { hall, snacks };
+  });
+  check("the south wall's doorway opens onto a hall", room.hall);
+  check(`the bowl holds snack mix, piece by piece (${room.snacks})`, room.snacks >= 100);
   await page.keyboard.press("Escape");
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await page.close();
+}
+
+{
+  console.log("the den's stereo, with a record");
+  const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.addInitScript((tracks) => { window.__EC_TEST_HOOKS__ = true; window.__DEN_TEST_TRACKS__ = tracks; }, TRACKS);
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-standard.html");
+  await waitFor(() => page.evaluate(() => !!window.__DEN_ROOM__ && !!window.__DEN_THREE__));
+  await openDockPanel(page);
+  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.waitForTimeout(1500);
+  // A tap on the turntable, in the room, opens the panel (once the camera
+  // has settled where the test put it: the software renderer is slow).
+  await page.evaluate(() => window.__EC_TEST_CAM__({ theta: Math.PI, phi: 1.28, radius: 50 }));
+  const discAt = () => page.evaluate(() => {
+    const t = window.__DEN_THREE__;
+    let disc = null; t.scene.traverse((o) => { if (o.userData && o.userData.music === "record" && o.geometry && o.geometry.type === "CircleGeometry") disc = o; });
+    const v = new t.camera.position.constructor(); disc.getWorldPosition(v); v.project(t.camera);
+    const r = t.renderer.domElement.getBoundingClientRect();
+    return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+  });
+  let at = await discAt();
+  await waitFor(async () => { await page.waitForTimeout(400); const b = await discAt(); const still = Math.hypot(b.x - at.x, b.y - at.y) < 1.5; at = b; return still; }, 15000);
+  for (let i = 0; i < 2 && (await q(page, "music-panel").count()) === 0; i++) {
+    await page.mouse.click(at.x, at.y);
+    await page.waitForTimeout(500);
+    at = await discAt();
+  }
+  check("a tap on the turntable opens the music panel", (await q(page, "music-panel").count()) === 1);
+  check("...listing the record", (await q(page, "music-track-t1").count()) === 1);
+  await q(page, "music-track-t1").click();
+  await page.waitForTimeout(1500);
+  const spin = () => page.evaluate(() => { let p = null; window.__DEN_THREE__.scene.traverse((o) => { if (o.userData && o.userData.music === "record" && o.geometry && o.geometry.type === "CircleGeometry") p = o.parent; }); return p.rotation.y; });
+  const r1 = await spin();
+  await page.waitForTimeout(700);
+  const r2 = await spin();
+  const a1 = await page.evaluate(() => window.__DEN_AUDIO__());
+  check("it plays on the record player", a1.music && a1.music.id === "t1" && a1.music.medium === "record" && !a1.music.paused, JSON.stringify(a1.music));
+  check("...and the platter turns", Math.abs(r2 - r1) > 0.5, `${r1} -> ${r2}`);
+  check("...Stop is offered", (await q(page, "music-stop").count()) === 1);
+  await q(page, "music-stop").click();
+  await page.waitForTimeout(400);
+  const a2 = await page.evaluate(() => window.__DEN_AUDIO__());
+  check("Stop stops it", !a2.music && (await stereo2(page)) === null);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();
 }
@@ -96,6 +209,17 @@ async function waitFor(fn, ms = 8000) {
     return den;
   });
   check("Nova opens in the den", await waitFor(denUp));
+  // The phone menu's way to the music: "Choose music" opens the panel.
+  await q(page, "shell-menu-button").click();
+  await page.waitForTimeout(300);
+  const musicRow = q(page, "shell-menu-music");
+  check("the phone menu offers the music", (await musicRow.count()) === 1);
+  await musicRow.scrollIntoViewIfNeeded();
+  await musicRow.click();
+  await page.waitForTimeout(500);
+  check("...which puts the menu away and opens the music panel", (await q(page, "music-panel").count()) === 1);
+  await q(page, "music-close").click();
+  await page.waitForTimeout(300);
   const switchTheme = async () => {
     await q(page, "shell-menu-button").click();
     await page.waitForTimeout(300);

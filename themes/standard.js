@@ -160,8 +160,28 @@ export const createAudio = () => createDenAudio();
 // on its own (chassis: theme.soundChannels; den-audio.js setChannelMuted).
 export const soundChannels = [
   { key: "room", label: "The room", hint: "The fire, the clock, the rain" },
+  // Its own key: channel choices carry between pages, and Tienda's "music"
+  // is the store's ceiling speakers, not this.
+  { key: "stereo", label: "Music", hint: "The record player and the 8-track" },
   { key: "pieces", label: "Pieces", hint: "The wood on the board" },
 ];
+
+/* The stereo console's music (chassis: theme.music, the music panel). The
+   records and tapes are the user's to choose: they'll send the tracks.
+   Each track: { id, title, artist, medium: "record" | "8track", url },
+   the url an asset bundled with the page. Until then each source shows
+   that it's empty. Tests can lend a few (window.__DEN_TEST_TRACKS__). */
+const DEN_TRACKS = [];
+export const music = {
+  title: "The stereo",
+  hint: "Records and tapes on the console",
+  channel: "stereo", // picking a track switches this channel back on
+  sources: [
+    { key: "record", label: "Record player", empty: "No records yet" },
+    { key: "8track", label: "8-track", empty: "No tapes yet" },
+  ],
+  tracks: () => (typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && window.__DEN_TEST_TRACKS__) || DEN_TRACKS,
+};
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).
 export const moveCostToggle = true;
@@ -227,6 +247,14 @@ export const styleSheet = `
   [data-testid="info-overlay"] h2 {
     font-family: 'Bodoni Moda', 'Didot', Georgia, serif !important; font-weight: 700 !important;
     text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  /* The rule is drawn under the page's text (inset shadows), so the text
+     scrolls inside it, not over it into the margin: the scrolling part
+     stops short of the rule, its last lines fading as they reach it. */
+  [data-testid="info-overlay"] [data-testid="info-body"] {
+    margin-bottom: 18px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
   }
   [data-testid="movelog-sheet"], [data-testid="victory-placard"], [data-testid="new-game-choice"] {
     backdrop-filter: none !important; -webkit-backdrop-filter: none !important;

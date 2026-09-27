@@ -4,8 +4,8 @@
       speaker opens the menu; Ambience off silences the bed and leaves the
       pieces and the interface; Pieces off silences the game's own sounds;
       the choice holds across a reload; Escape closes the menu.
-   2. Nova on a phone: Standard (the den) offers All sounds, The room and
-      Pieces; after the switch to Neon the menu shows All sounds and Neon's
+   2. Nova on a phone: Standard (the den) offers All sounds, The room,
+      Music (the stereo) and Pieces; after the switch to Neon the menu shows All sounds and Neon's
       three channels, and each one switches on its own. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
@@ -84,7 +84,7 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(2500);
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(300);
-  check("Standard (the den): All sounds, The room and Pieces", (await q(page, "shell-menu-sound").count()) === 1 && (await q(page, "shell-menu-sound-room").count()) === 1 && (await q(page, "shell-menu-sound-pieces").count()) === 1);
+  check("Standard (the den): All sounds, The room, Music and Pieces", (await q(page, "shell-menu-sound").count()) === 1 && (await q(page, "shell-menu-sound-room").count()) === 1 && (await q(page, "shell-menu-sound-stereo").count()) === 1 && (await q(page, "shell-menu-sound-pieces").count()) === 1);
   await q(page, "shell-menu-switch-theme").click();
   await waitFor(async () => (await page.locator(".ec-hold-modal-word").count()) > 0);
   await page.locator(".ec-hold-modal-word").click({ force: true });

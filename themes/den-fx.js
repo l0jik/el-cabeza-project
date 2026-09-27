@@ -13,7 +13,15 @@
    - Wood grain that follows a roll (wood-set.js followGrain).
    - Device fit: the tier's pixel-ratio cap and shadow size at once, then
      a frame-rate governor lowers the pixel ratio if the device can't hold
-     a steady frame rate (and raises it again, within the cap, when it can). */
+     a steady frame rate (and raises it again, within the cap, when it can).
+   - The fire's sound follows the camera: how far the fireplace is and
+     which side it's on (audio.setFireListener).
+   - The stereo console: while the music menu is open the camera glides
+     over to it (cameraOverride, called by the chassis after its own
+     camera each frame, blending from the chassis's view to the console's
+     and back); a tap on the record player or the 8-track (pickScene)
+     opens that menu; the turntable and the 8-track play along
+     (setMusicPlaying). */
 
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z, SLAB_MAX } from "../engine/constants.js";
@@ -23,7 +31,7 @@ import { quality } from "./tienda-quality.js";
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
 export function createDenEffects(woodSet) {
-  return function mountAmbientEffects(refs, { three }) {
+  return function mountAmbientEffects(refs, { three, audio }) {
     const q = quality();
     let den = null, brass = null, attachedTo = null, dims = "";
     let tuned = false, fogBefore = null, farBefore = null, bgBefore = null;
@@ -111,6 +119,20 @@ export function createDenEffects(woodSet) {
     }
 
     const camLocal = new THREE.Vector3();
+    /* ---- the fire's sound, from where the camera is ---- */
+    const firePos = new THREE.Vector3(), fireCam = new THREE.Vector3();
+    let lastFire = 0;
+    function listen(t, now) {
+      if (!audio || !audio.setFireListener || !t.camera || now - lastFire < 100) return;
+      lastFire = now;
+      firePos.copy(den.firePoint); t.boardGroup.localToWorld(firePos);
+      fireCam.copy(firePos).applyMatrix4(t.camera.matrixWorldInverse);
+      audio.setFireListener(firePos.distanceTo(t.camera.position), fireCam.x / Math.max(1, Math.hypot(fireCam.x, fireCam.z)));
+    }
+    /* ---- the stereo console: the camera's visit, the machines ---- */
+    let focusGoal = 0, focusW = 0, playing = null;
+    const eye = new THREE.Vector3(), aim = new THREE.Vector3(), look = new THREE.Vector3(), dir = new THREE.Vector3();
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_STEREO__ = () => ({ focus: focusW, goal: focusGoal, playing });
     return {
       armOnBegin() {},
       restart() {},
@@ -120,7 +142,37 @@ export function createDenEffects(woodSet) {
         govern(now);
         woodSet.followGrain(t);
         if (t.camera) { camLocal.copy(t.camera.position); t.boardGroup.worldToLocal(camLocal); }
-        den.animate(now, t.camera ? camLocal : null);
+        den.animate(now, t.camera ? camLocal : null, { open: focusGoal > 0 && focusW > 0.6, playing });
+        listen(t, now);
+      },
+      // The music menu opened (true) or closed: the camera goes over to the console, or back.
+      setMusicFocus(on) { focusGoal = on ? 1 : 0; },
+      setMusicPlaying(medium) { playing = medium || null; },
+      // A tap in the room: "record" or "8track" if it landed on one of the machines.
+      pickScene(raycaster) {
+        if (!den || !den.groups.wallS.visible) return null;
+        const hit = raycaster.intersectObjects(den.stereo.pickables, false)[0];
+        return hit ? hit.object.userData.music : null;
+      },
+      /* After the chassis has set its camera: blend it toward the view of
+         the console by how far into the visit it is (eased both ways). */
+      cameraOverride(camera, dtMs) {
+        const t = three.current;
+        focusW += (focusGoal - focusW) * (1 - Math.exp(-(dtMs / 1000) * 2.4));
+        if (Math.abs(focusGoal - focusW) < 0.001) focusW = focusGoal;
+        if (!den || !t || !t.boardGroup || focusW <= 0) return false;
+        const e = focusW * focusW * (3 - 2 * focusW);
+        eye.copy(den.stereo.focus.eye); aim.copy(den.stereo.focus.target);
+        // A tall screen: step back and aim lower, so the console sits in the
+        // top of the frame, above the music panel.
+        if (camera.aspect < 0.9) { eye.z -= 14; eye.y += 3; aim.y -= 10; }
+        t.boardGroup.localToWorld(eye); t.boardGroup.localToWorld(aim);
+        camera.getWorldDirection(dir);
+        look.copy(camera.position).addScaledVector(dir, camera.position.length());
+        look.lerp(aim, e);
+        camera.position.lerp(eye, e);
+        camera.lookAt(look);
+        return true;
       },
       dispose() {
         const t = three.current;
@@ -132,7 +184,7 @@ export function createDenEffects(woodSet) {
         if (brass) brass.dispose();
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
-        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; }
+        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; }
       },
     };
   };

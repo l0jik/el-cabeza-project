@@ -712,6 +712,8 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
                 <Toggle label={c.label} hint={c.hint} testid={`shell-menu-sound-${c.key}`} on={c.on} onChange={c.onToggle} t={t} />
               </div>
             ))}
+            {/* A theme with a stereo (the den): its music panel. */}
+            {ctl.music && <Row label="Choose music" detail={ctl.music.hint} testid="shell-menu-music" onClick={run(ctl.onOpenMusic)} chevron t={t} />}
             <Toggle label="Points left" hint="Dots for the turn's action points" testid="shell-menu-points" on={ctl.showPoints} onChange={ctl.onTogglePoints} t={t} />
             <Toggle label="Piece guide" hint="What the chosen piece does, and tips on what to tap" testid="shell-menu-guide" on={ctl.showGuide !== false} onChange={ctl.onToggleGuide} t={t} />
             {ctl.costsToggle && <Toggle label="Move costs on the board" testid="shell-menu-costs" on={ctl.showCosts} onChange={ctl.onToggleCosts} t={t} />}

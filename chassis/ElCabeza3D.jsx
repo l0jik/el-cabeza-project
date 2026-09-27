@@ -1405,6 +1405,36 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // The dock's sound menu (only for a theme with soundChannels): where it
   // floats, fixed above the speaker button, or null while closed.
   const [soundMenuAt, setSoundMenuAt] = useState(null);
+  /* A theme with a stereo (theme.music: the den's record player and
+     8-track): the music panel, and the track playing. While the panel is
+     open the theme takes the camera over to the stereo (ambient
+     setMusicFocus / cameraOverride), and back when it closes. */
+  const music = theme.music || null;
+  const [musicPanel, setMusicPanel] = useState(false);
+  const [musicNow, setMusicNow] = useState(null);
+  useEffect(() => {
+    if (ambientRef.current && ambientRef.current.setMusicFocus) ambientRef.current.setMusicFocus(musicPanel);
+    if (!musicPanel) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setMusicPanel(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [musicPanel]);
+  const musicPlaying = (medium) => { if (ambientRef.current && ambientRef.current.setMusicPlaying) ambientRef.current.setMusicPlaying(medium); };
+  function playTrack(track) {
+    const a = audioRef.current;
+    if (!a.playMusic) return;
+    if (a.ensureStarted) a.ensureStarted();
+    // Choosing a record means wanting to hear it: its channel comes back on.
+    if (music.channel && channelsOff[music.channel]) toggleChannel(music.channel);
+    if (a.playMusic(track, () => { setMusicNow(null); musicPlaying(null); }) === false) return;
+    setMusicNow(track.id);
+    musicPlaying(track.medium);
+  }
+  function stopTrack() {
+    if (audioRef.current.stopMusic) audioRef.current.stopMusic();
+    setMusicNow(null);
+    musicPlaying(null);
+  }
   function toggleChannel(key) {
     const next = { ...channelsOff, [key]: !channelsOff[key] };
     setChannelsOff(next);
@@ -3120,6 +3150,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       }
 
       ambientRef.current && ambientRef.current.tick(now);
+      // A theme may take the camera for a moment (the den's stereo), after
+      // the chassis has placed it and before the frame is drawn.
+      if (ambientRef.current && ambientRef.current.cameraOverride) ambientRef.current.cameraOverride(camera, dt);
 
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);
@@ -5144,6 +5177,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          see the isPlaying check below), not just a miss. lastPostGame-
          OverlayRef (kept current by the win effect and
          handleNewGameClick) says which of the two it was. */
+      /* A tap on one of the theme's things in the room (the den's record
+         player or 8-track) opens the music panel, whenever it comes:
+         setup, play, the AI's turn, after the game. A piece or a move
+         marker under the tap comes first: that tap is the board's. */
+      if (!wasAltPan && !wasDrag && ambientRef.current && ambientRef.current.pickScene && !pick(ev)) {
+        if (ambientRef.current.pickScene(t.raycaster)) { setSoundMenuAt(null); setMusicPanel(true); return; }
+      }
       if (!wasAltPan && !wasDrag && status === "finished") {
         if (lastPostGameOverlayRef.current === "choice") setShowNewGameChoice(true);
         else setShowVictoryPlacard(true);
@@ -7884,6 +7924,103 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 </span>
               </button>
             ))}
+          {music && (
+            <button
+              type="button"
+              data-testid="sound-music"
+              // The dock steps aside too, so the stereo the camera goes to is in view.
+              onClick={() => { setSoundMenuAt(null); if (dockView === "panel") setDockView(awaitingBegin ? "piece" : "corner"); setMusicPanel(true); }}
+              style={{
+                width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px 9px", marginTop: 6,
+                background: "transparent", border: "none", borderTop: `1px solid ${COLORS.slateSoft}`,
+                color: "inherit", textAlign: "left", cursor: "pointer", font: "inherit",
+              }}
+            >
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: "block", fontSize: 14, fontWeight: 500 }}>Choose music</span>
+                <span style={{ display: "block", fontSize: 11.5, color: COLORS.slate, marginTop: 1 }}>{musicNow ? "Playing on the stereo" : music.hint}</span>
+              </span>
+              <span aria-hidden="true" style={{ fontSize: 18, color: COLORS.slate }}>›</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* The stereo's music (theme.music): a small panel, kept low and to
+         the side so the stereo the camera has gone over to stays in view.
+         Each source lists its tracks; a track plays at a tap, Stop stops
+         it. Escape or the close button put it away (the camera comes back). */}
+      {music && musicPanel && (
+        <div
+          data-testid="music-panel"
+          role="dialog"
+          aria-label={music.title}
+          style={{
+            position: "fixed",
+            zIndex: 1046,
+            ...(shell
+              ? { left: 12, right: 12, bottom: "calc(var(--ec-shell-bottom, 72px) + 8px)" }
+              : { right: 16, bottom: 16, width: "min(320px, calc(100vw - 32px))" }),
+            maxHeight: "45vh",
+            overflowY: "auto",
+            boxSizing: "border-box",
+            padding: "12px 0 8px",
+            background: modalSurface,
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            border: `1px solid ${COLORS.slateSoft}`,
+            borderRadius: 10,
+            boxShadow: "0 12px 36px rgba(0,0,0,0.35)",
+            color: COLORS.charcoal,
+            fontFamily: "'IBM Plex Sans', sans-serif",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", padding: "0 10px 6px 14px" }}>
+            <span style={{ flex: 1, fontFamily: titleFontFamily, fontSize: 17, fontWeight: 600 }}>{music.title}</span>
+            <button
+              type="button"
+              data-testid="music-close"
+              aria-label="Put the music away"
+              onClick={() => setMusicPanel(false)}
+              style={{ width: 30, height: 30, border: "none", background: "transparent", color: COLORS.slate, cursor: "pointer", fontSize: 20, lineHeight: 1 }}
+            >×</button>
+          </div>
+          {music.sources.map((src) => {
+            const tracks = music.tracks().filter((tr) => tr.medium === src.key);
+            return (
+              <div key={src.key} style={{ borderTop: `1px solid ${COLORS.slateSoft}`, padding: "8px 0 4px" }}>
+                <div style={{ padding: "0 14px 4px", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.slate }}>{src.label}</div>
+                {tracks.length === 0 && (
+                  <div data-testid={`music-empty-${src.key}`} style={{ padding: "4px 14px 8px", fontSize: 13, fontStyle: "italic", color: COLORS.slate }}>{src.empty}</div>
+                )}
+                {tracks.map((tr) => (
+                  <button
+                    key={tr.id}
+                    type="button"
+                    data-testid={`music-track-${tr.id}`}
+                    aria-pressed={musicNow === tr.id}
+                    onClick={() => (musicNow === tr.id ? stopTrack() : playTrack(tr))}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "7px 14px",
+                      background: musicNow === tr.id ? "rgba(58,36,21,0.08)" : "transparent", border: "none",
+                      color: "inherit", textAlign: "left", cursor: "pointer", font: "inherit",
+                    }}
+                  >
+                    <span aria-hidden="true" style={{ width: 14, fontSize: 12, color: COLORS.slate }}>{musicNow === tr.id ? "■" : "▶"}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: "block", fontSize: 14, fontWeight: 500 }}>{tr.title}</span>
+                      {tr.artist && <span style={{ display: "block", fontSize: 11.5, color: COLORS.slate }}>{tr.artist}</span>}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+          {musicNow && (
+            <div style={{ padding: "6px 14px 2px" }}>
+              <button type="button" data-testid="music-stop" onClick={stopTrack} style={{ padding: "6px 12px", borderRadius: 999, border: `1px solid ${COLORS.slateSoft}`, background: "transparent", color: "inherit", cursor: "pointer", font: "inherit", fontSize: 13 }}>Stop</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -7953,6 +8090,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             muted: audioMuted,
             onToggleSound: toggleSound,
             soundChannels: soundChannels ? soundChannels.map((c) => ({ ...c, on: !channelsOff[c.key], onToggle: () => toggleChannel(c.key) })) : null,
+            music: music ? { hint: musicNow ? "Playing on the stereo" : music.hint } : null,
+            onOpenMusic: () => setMusicPanel(true),
             showPoints,
             onTogglePoints: () => { const next = !showPoints; setShowPoints(next); saveShowPoints(next); },
             costsToggle: !!theme.moveCostToggle,
