@@ -225,9 +225,10 @@ function tiles(C) {
   // Two-panel tiles: seen from ABOVE on the left (a 12-unit grid), from the
   // SIDE on the right (ground at y = 48, 12-unit cubes, looking north).
   const MS = 12, MX = 4, MY = 12;
-  const miniGrid = (cols = 4, rows = 3) => {
+  // r0: the first row drawn (a one-row strip can sit in the middle).
+  const miniGrid = (cols = 4, rows = 3, r0 = 0) => {
     const out = [];
-    for (let r = 0; r < rows; r++)
+    for (let r = r0; r < r0 + rows; r++)
       for (let c = 0; c < cols; c++)
         out.push(<rect key={`m${r}-${c}`} x={MX + c * MS} y={MY + r * MS} width={MS} height={MS} fill="none" stroke={glow} strokeOpacity=".28" />);
     return out;
@@ -235,19 +236,54 @@ function tiles(C) {
   const mini = (c, r, w = 1, h = 1, extra = {}) => (
     <rect x={MX + c * MS + 1.5} y={MY + r * MS + 1.5} width={w * MS - 3} height={h * MS - 3} fill={ink} fillOpacity=".35" stroke={ink} strokeWidth="1.1" {...extra} />
   );
-  const panels = (
-    <>
-      <text x="28" y="7" fontFamily={mono} fontSize="5.5" letterSpacing=".6" fill={glow} fillOpacity=".75" textAnchor="middle">ABOVE</text>
-      <text x="90" y="7" fontFamily={mono} fontSize="5.5" letterSpacing=".6" fill={glow} fillOpacity=".75" textAnchor="middle">SIDE</text>
-      <line x1="59" y1="10" x2="59" y2="52" stroke={glow} strokeOpacity=".2" />
-      <line x1="64" y1="48.5" x2="116" y2="48.5" stroke={glow} strokeOpacity=".4" />
-    </>
-  );
+  // The two panels' labels, the divider and the SIDE panel's floor; gaps
+  // lists SIDE columns (see SX below) where the floor is open: a black
+  // hole, a missing square.
+  const panelsWith = (gaps = []) => {
+    const cuts = gaps.map((c) => [66 + c * MS, 66 + (c + 1) * MS]).sort((a, b) => a[0] - b[0]);
+    const floor = [];
+    let x = 64;
+    cuts.forEach(([a, b]) => { if (a > x) floor.push([x, a]); x = Math.max(x, b); });
+    if (x < 116) floor.push([x, 116]);
+    return (
+      <>
+        <text x="28" y="7" fontFamily={mono} fontSize="5.5" letterSpacing=".6" fill={glow} fillOpacity=".75" textAnchor="middle">ABOVE</text>
+        <text x="90" y="7" fontFamily={mono} fontSize="5.5" letterSpacing=".6" fill={glow} fillOpacity=".75" textAnchor="middle">SIDE</text>
+        <line x1="59" y1="10" x2="59" y2="52" stroke={glow} strokeOpacity=".2" />
+        {floor.map(([a, b]) => <line key={a} x1={a} y1="48.5" x2={b} y2="48.5" stroke={glow} strokeOpacity=".4" />)}
+      </>
+    );
+  };
+  const panels = panelsWith();
   const cube = (x, y, extra = {}) => <rect x={x} y={y} width={MS} height={MS} fill={ink} fillOpacity=".3" stroke={ink} strokeWidth="1.1" {...extra} />;
+  /* The SIDE panel's squares: column c from x = 66, ticked along the
+     floor, so a roll reads as squares crossed there too. A piece turns
+     about the floor edge it tips over (rot: a group rotated about a
+     point). */
+  const SX = (c) => 66 + c * MS;
+  const ticks = (n = 5) => (
+    <g stroke={glow} strokeOpacity=".35">
+      {Array.from({ length: n }, (_, i) => <line key={i} x1={SX(i)} y1="48.5" x2={SX(i)} y2="51.5" />)}
+    </g>
+  );
+  const sideGhost = (c, w = 1, h = 1) => <rect x={SX(c)} y={48 - h * MS} width={w * MS} height={h * MS} fill="none" stroke={glow} strokeOpacity=".45" strokeDasharray="2 2" />;
+  const rot = (cls, px, py, children) => <g className={cls} style={{ ...vb, transformOrigin: `${px}px ${py}px` }}>{children}</g>;
+  const miniGhost = (c, r, w = 1, h = 1) => <rect x={MX + c * MS + 1.5} y={MY + r * MS + 1.5} width={w * MS - 3} height={h * MS - 3} fill="none" stroke={glow} strokeOpacity=".45" strokeDasharray="2 2" />;
+  const miniDisc = (c, r, colour = C.charcoal) => <circle cx={MX + c * MS + 6} cy={MY + r * MS + 6} r="3.5" fill={colour} />;
   return [
     {
       key: "roll", title: "Roll", cost: <Dots n={1} C={C} />, text: "A block tips over one edge into the next square: north, south, east or west.",
-      svg: <>{grid()}{ghost(3, 1)}<g className="ec-rc-rollT" style={fb}>{piece(2, 1)}</g></>,
+      svg: (
+        <>
+          {panels}
+          {miniGrid()}
+          {miniGhost(2, 1)}
+          <g className="ec-rc-rollM" style={fb}>{mini(1, 1)}</g>
+          {ticks()}
+          {sideGhost(1)}
+          {rot("ec-rc-rotate", SX(1), 48, cube(SX(0), 36))}
+        </>
+      ),
     },
     {
       key: "flaco", title: "Tall pieces tumble", cost: <Dots n={1} C={C} />, text: "A standing Flaco tips over and lands lying down across the next two squares. Roll it on and it stands back up.",
@@ -275,15 +311,29 @@ function tiles(C) {
     },
     {
       key: "opa", title: "Opa", cost: <Dots n={2} C={C} />, text: "The big cube covers four squares and rolls two squares at once. Its move costs 2 points, and it moves only once per turn.",
-      svg: <>{grid()}{ghost(3, 0, 2, 2)}<g className="ec-rc-opaT" style={fb}>{piece(1, 0, 2, 2)}</g></>,
+      svg: (
+        <>
+          {panels}
+          {miniGrid()}
+          {miniGhost(2, 0, 2, 2)}
+          <g className="ec-rc-opaM" style={fb}>{mini(0, 0, 2, 2)}</g>
+          {ticks()}
+          {sideGhost(2, 2, 2)}
+          {rot("ec-rc-rotate", SX(2), 48, <rect x={SX(0)} y={48 - 2 * MS} width={2 * MS} height={2 * MS} fill={ink} fillOpacity=".3" stroke={ink} strokeWidth="1.1" />)}
+        </>
+      ),
     },
     {
       key: "crush", title: "Crush", cost: null, text: "Roll a block onto the enemy Cabeza's square to crush it. Crushing their last Cabeza wins.",
       svg: (
         <>
-          {grid()}
-          <g className="ec-rc-crushdisc" style={fb}>{disc(3, 1, warn)}</g>
-          <g className="ec-rc-rollT" style={fb}>{piece(2, 1)}</g>
+          {panels}
+          {miniGrid()}
+          <g className="ec-rc-crushdisc" style={fb}>{miniDisc(2, 1, warn)}</g>
+          <g className="ec-rc-rollM" style={fb}>{mini(1, 1)}</g>
+          {ticks()}
+          <g className="ec-rc-flatten" style={{ transformBox: "fill-box", transformOrigin: "center bottom" }}><rect x={SX(1) + 1.5} y="45" width={MS - 3} height="3" rx="1.5" fill={warn} /></g>
+          {rot("ec-rc-rotate", SX(1), 48, cube(SX(0), 36))}
         </>
       ),
     },
@@ -301,10 +351,13 @@ function tiles(C) {
       key: "free", title: "Free way back", cost: <span style={{ color: C.slate }}>free</span>, text: "Change your mind: moving back to where you already were this turn gives the points back.",
       svg: (
         <>
-          {grid()}
-          <g className="ec-rc-rollback" style={fb}>{piece(1, 1)}</g>
-          <circle cx="86" cy="14" r="3.5" fill={ink} opacity=".75" />
-          <circle className="ec-rc-refund" cx="96" cy="14" r="3.5" fill={ink} />
+          {panels}
+          {miniGrid()}
+          <g className="ec-rc-rollbackM" style={fb}>{mini(1, 1)}</g>
+          {ticks()}
+          {rot("ec-rc-rotback", SX(1), 48, cube(SX(0), 36))}
+          <circle cx="102" cy="20" r="3" fill={ink} opacity=".75" />
+          <circle className="ec-rc-refund" cx="110" cy="20" r="3" fill={ink} />
         </>
       ),
     },
@@ -352,6 +405,21 @@ function tiles(C) {
       ),
     },
     {
+      key: "shoveRoll", law: "shoving", title: "Shove by rolling", cost: <Dots n={1} C={C} plus />, text: "A roll shoves too (unless the game is set to slides only): the pieces go just past where it lands. Here a standing Flaco tips over and pushes a Turrito two squares.",
+      svg: (
+        <>
+          {panels}
+          {miniGrid()}
+          {miniGhost(1, 1, 2, 1)}
+          <g className="ec-rc-push2" style={fb}>{mini(1, 1)}</g>
+          <g className="ec-rc-tumbleM" style={fbLeft}>{mini(0, 1, 1, 1, { strokeWidth: 2 })}</g>
+          {ticks()}
+          <g className="ec-rc-push2" style={fb}>{cube(SX(1), 36)}</g>
+          {rot("ec-rc-rotate", SX(1), 48, <>{cube(SX(0), 24)}{cube(SX(0), 36)}</>)}
+        </>
+      ),
+    },
+    {
       key: "cantileverPivot", law: "cantileverPivot", title: "Pivot", cost: <Dots n={1} C={C} />, text: "A Codo, Rayo or Zeta balanced on one cube turns a quarter turn around it. Its arm is held up, so it swings right over a Cabeza.",
       svg: (
         <>
@@ -374,27 +442,47 @@ function tiles(C) {
       text: "Only a piece standing on one square can enter: a Cabeza, a Turrito, or an upright Flaco or 1×3. It comes out of the other hole on the same side it went in (here: in from the west, out to the west), and the turn ends.",
       svg: (
         <>
-          {grid(6, 1, 12, 22)}
-          <circle cx="36" cy="30" r="6" fill="#000" stroke={glow} strokeOpacity=".8" />
-          <circle cx="84" cy="30" r="6" fill="#000" stroke={glow} strokeOpacity=".8" />
-          <text x="20" y="16" fontFamily={mono} fontSize="7" fill={glow} textAnchor="middle">IN</text>
-          <text x="68" y="16" fontFamily={mono} fontSize="7" fill={glow} textAnchor="middle">OUT</text>
-          <path d="M13 45h14m-4-3 4 3-4 3" fill="none" stroke={glow} strokeWidth="1.2" />
-          <path d="M75 45H61m4-3-4 3 4 3" fill="none" stroke={glow} strokeWidth="1.2" />
-          <g className="ec-rc-bh-in" style={{ ...vb, transformOrigin: "36px 30px" }}><rect x="14" y="24" width="12" height="12" fill={ink} fillOpacity=".4" stroke={ink} /></g>
-          <g className="ec-rc-bh-out" style={{ ...vb, transformOrigin: "68px 30px" }}><rect x="62" y="24" width="12" height="12" fill={ink} fillOpacity=".4" stroke={ink} /></g>
+          {panelsWith([1, 3])}
+          {miniGrid(4, 1, 1)}
+          <circle cx={MX + MS + 6} cy={MY + 18} r="4.5" fill="#000" stroke={glow} strokeOpacity=".8" />
+          <circle cx={MX + 3 * MS + 6} cy={MY + 18} r="4.5" fill="#000" stroke={glow} strokeOpacity=".8" />
+          <text x={MX + MS + 6} y={MY + 9} fontFamily={mono} fontSize="5.5" fill={glow} textAnchor="middle">IN</text>
+          <text x={MX + 3 * MS + 6} y={MY + 9} fontFamily={mono} fontSize="5.5" fill={glow} textAnchor="middle">OUT</text>
+          {/* In: it moves onto the hole and shrinks into it (the move and the
+             shrink on separate groups, so it shrinks toward the hole). */}
+          <g className="ec-rc-bh-inS" style={{ ...vb, transformOrigin: `${MX + MS + 6}px ${MY + 18}px` }}>
+            <g className="ec-rc-bh-inT" style={fb}>{mini(0, 1)}</g>
+          </g>
+          {/* Out: it grows out of the other hole, then rolls back west. */}
+          <g className="ec-rc-bh-outS" style={{ ...vb, transformOrigin: `${MX + 3 * MS + 6}px ${MY + 18}px` }}>
+            <g className="ec-rc-bh-outT" style={fb}>{mini(3, 1)}</g>
+          </g>
+          {/* From the side: the holes are gaps in the floor. In it drops;
+             out of the other it rises and tips back the way it came in. */}
+          <rect x={SX(1)} y="48.5" width={MS} height="5" fill="#000" stroke={glow} strokeOpacity=".6" />
+          <rect x={SX(3)} y="48.5" width={MS} height="5" fill="#000" stroke={glow} strokeOpacity=".6" />
+          <g className="ec-rc-bh-drop" style={vb}>{rot("ec-rc-bh-tipIn", SX(1), 48, cube(SX(0), 36))}</g>
+          <g className="ec-rc-bh-rise" style={vb}>{rot("ec-rc-bh-tipOut", SX(3), 48, cube(SX(3), 36))}</g>
         </>
       ),
     },
     {
-      key: "splitMovement", law: "splitMovement", title: "Split Movement", cost: null, text: "Your points can be shared between up to two pieces. Here a Turrito rolls for 1 point, then a lying Flaco rolls over its long side, one square, for the other.",
+      key: "splitMovement", law: "splitMovement", title: "Split Movement", cost: null, text: "Your points can be shared between up to two pieces. Here a Turrito rolls for 1 point, then a lying Flaco rolls over its long side, one square, and stays lying down, for the other.",
       svg: (
         <>
-          {grid()}
-          <text x="7" y={cy(0) + 11} fontFamily={mono} fontSize="7" fill={glow} textAnchor="middle">1</text>
-          <text x="7" y={cy(1) + 11} fontFamily={mono} fontSize="7" fill={glow} textAnchor="middle">2</text>
-          <g className="ec-rc-rollT" style={fb}>{piece(1, 0)}</g>
-          <g className="ec-rc-rollS2" style={fb}>{piece(3, 1, 2, 1)}</g>
+          {panels}
+          {miniGrid()}
+          <text x={MX + 6} y={MY + 8} fontFamily={mono} fontSize="6" fill={glow} textAnchor="middle">1</text>
+          <text x={MX + 2 * MS + 6} y={MY + MS + 14} fontFamily={mono} fontSize="6" fill={glow} textAnchor="middle">2</text>
+          <g className="ec-rc-rollM" style={fb}>{mini(0, 0)}</g>
+          <g className="ec-rc-roll2M" style={fb}>{mini(2, 1, 1, 2)}</g>
+          {ticks()}
+          {/* Seen from the south the lying Flaco's end is one square: it
+             rolls over its long side and stays lying down. */}
+          {rot("ec-rc-rotate", SX(1), 48, cube(SX(0), 36))}
+          {rot("ec-rc-rotate2", SX(3), 48, cube(SX(2), 36, { fillOpacity: ".45" }))}
+          <text x={SX(0) + 6} y="32" fontFamily={mono} fontSize="6" fill={glow} textAnchor="middle">1</text>
+          <text x={SX(2) + 6} y="32" fontFamily={mono} fontSize="6" fill={glow} textAnchor="middle">2</text>
         </>
       ),
     },
@@ -412,10 +500,17 @@ function tiles(C) {
       key: "missing", title: "Missing squares", cost: null, text: "A topology option: nothing can stand on a missing square, though an overhang may reach over one. A piece can't move onto it.",
       svg: (
         <>
-          {grid(5, 3, 20, 6)}
-          <rect x="68" y="22" width="16" height="16" fill={C.cream} stroke={warn} strokeOpacity=".6" strokeDasharray="3 2" />
-          <g className="ec-rc-approach" style={fb}><rect x="38" y="24" width="12" height="12" fill={ink} fillOpacity=".4" stroke={ink} strokeWidth="1.2" /></g>
-          <g className="ec-rc-xflash" stroke={warn} strokeWidth="2" strokeLinecap="round"><path d="M71 25l10 10M81 25l-10 10" /></g>
+          {panelsWith([2])}
+          {miniGrid()}
+          <rect x={MX + 2 * MS} y={MY + MS} width={MS} height={MS} fill={C.cream} stroke={warn} strokeOpacity=".7" strokeDasharray="2 1.5" />
+          <g className="ec-rc-approachM" style={fb}>{mini(0, 1)}</g>
+          <g className="ec-rc-xflash" stroke={warn} strokeWidth="1.6" strokeLinecap="round"><path d={`M${MX + 2 * MS + 3} ${MY + MS + 3}l6 6M${MX + 2 * MS + 9} ${MY + MS + 3}l-6 6`} /></g>
+          {ticks()}
+          {/* The missing square is a gap in the floor: the block tips toward
+             it and settles back. */}
+          <rect x={SX(2)} y="48.5" width={MS} height="4" fill="none" stroke={warn} strokeOpacity=".7" strokeDasharray="2 1.5" />
+          {rot("ec-rc-rollA", SX(1), 48, rot("ec-rc-tipA", SX(1), 36, cube(SX(0), 36)))}
+          <g className="ec-rc-xflash" stroke={warn} strokeWidth="1.6" strokeLinecap="round"><path d={`M${SX(2) + 3} 38l6 6M${SX(2) + 9} 38l-6 6`} /></g>
         </>
       ),
     },
@@ -423,17 +518,30 @@ function tiles(C) {
 }
 
 const KEYFRAMES = `
-.ec-rc-anim .ec-rc-rollT { animation: ecRcRollT 3.2s ease-in-out infinite; }
-.ec-rc-anim .ec-rc-roll2T { animation: ecRcRoll2T 3.2s ease-in-out infinite; }
-.ec-rc-anim .ec-rc-opaT { animation: ecRcOpaT 3.2s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-tumbleM { animation: ecRcTumbleM 3.2s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-rotate { animation: ecRcRotate 3.2s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-shelterM { animation: ecRcShelterM 3.6s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-armGrow { animation: ecRcArmGrow 3.6s ease-in-out infinite; }
-.ec-rc-anim .ec-rc-rollS2 { animation: ecRcRollS2 3.2s ease-in-out infinite; }
-.ec-rc-anim .ec-rc-approach { animation: ecRcApproach 3.6s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-xflash { animation: ecRcX 3.6s linear infinite; }
-.ec-rc-anim .ec-rc-rollback { animation: ecRcRollBack 4s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-rollM { animation: ecRcRollM 3.2s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-roll2M { animation: ecRcRoll2M 3.2s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-opaM { animation: ecRcOpaM 3.2s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-rollbackM { animation: ecRcRollBackM 4s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-rotback { animation: ecRcRotBack 4s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-rotate2 { animation: ecRcRotate2 3.2s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-flatten { animation: ecRcFlatten 3.2s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-push2 { animation: ecRcPush2 3.2s linear infinite; }
+.ec-rc-anim .ec-rc-approachM { animation: ecRcApproachM 3.6s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-rollA { animation: ecRcRollA 3.6s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-tipA { animation: ecRcTipA 3.6s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-bh-inT { animation: ecRcBhInT 3.6s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-bh-inS { animation: ecRcBhInS 3.6s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-bh-outT { animation: ecRcBhOutT 3.6s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-bh-outS { animation: ecRcBhOutS 3.6s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-bh-tipIn { animation: ecRcBhTipIn 3.6s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-bh-drop { animation: ecRcBhDrop 3.6s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-bh-rise { animation: ecRcBhRise 3.6s ease-in-out infinite; }
+.ec-rc-anim .ec-rc-bh-tipOut { animation: ecRcBhTipOut 3.6s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-refund { animation: ecRcRefund 4s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-step { animation: ecRcStep 4.8s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-crushdisc { animation: ecRcCrush 3.2s ease-in-out infinite; }
@@ -442,15 +550,9 @@ const KEYFRAMES = `
 .ec-rc-anim .ec-rc-slideT { animation: ecRcSlideT 3.2s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-diag { animation: ecRcDiag 3.2s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-pivot { animation: ecRcPivot 3.6s ease-in-out infinite; }
-.ec-rc-anim .ec-rc-bh-in { animation: ecRcBhIn 3.6s ease-in-out infinite; }
-.ec-rc-anim .ec-rc-bh-out { animation: ecRcBhOut 3.6s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-dot0 { animation: ecRcDot 3s ease-in-out infinite; }
 .ec-rc-anim .ec-rc-dot1 { animation: ecRcDot 3s ease-in-out 0.25s infinite; }
 .ec-rc-anim .ec-rc-dot2 { animation: ecRcDot 3s ease-in-out 0.5s infinite; }
-@keyframes ecRcRollT { 0%,15% { transform: translate(0,0) scaleX(1); opacity: 1 } 30% { transform: translate(8px,0) scaleX(.3) } 45%,80% { transform: translate(16px,0) scaleX(1); opacity: 1 } 90% { transform: translate(16px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
-@keyframes ecRcRoll2T { 0%,45% { transform: translate(0,0) scaleX(1); opacity: 1 } 58% { transform: translate(8px,0) scaleX(.3) } 70%,82% { transform: translate(16px,0) scaleX(1); opacity: 1 } 90% { transform: translate(16px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
-@keyframes ecRcOpaT { 0%,15% { transform: translate(0,0) scaleX(1); opacity: 1 } 30% { transform: translate(16px,0) scaleX(.3) } 45%,80% { transform: translate(32px,0) scaleX(1); opacity: 1 } 90% { transform: translate(32px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
-@keyframes ecRcRollBack { 0%,10% { transform: translate(0,0) scaleX(1) } 22% { transform: translate(8px,0) scaleX(.3) } 35%,55% { transform: translate(16px,0) scaleX(1) } 67% { transform: translate(8px,0) scaleX(.3) } 80%,100% { transform: translate(0,0) scaleX(1) } }
 @keyframes ecRcRefund { 0%,20% { opacity: .75 } 35%,60% { opacity: .15 } 80%,100% { opacity: .75 } }
 @keyframes ecRcStep { 0%,8% { transform: translate(0,0) } 20%,30% { transform: translate(16px,0) } 42%,52% { transform: translate(0,0) } 64%,74% { transform: translate(-16px,-16px) } 86%,100% { transform: translate(0,0) } }
 @keyframes ecRcCrush { 0%,38% { transform: scale(1); opacity: 1 } 46%,82% { transform: scale(.35); opacity: .35 } 90% { opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
@@ -459,15 +561,33 @@ const KEYFRAMES = `
 @keyframes ecRcSlideT { 0%,15% { transform: translate(0,0); opacity: 1 } 45%,80% { transform: translate(16px,0); opacity: 1 } 90% { transform: translate(16px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
 @keyframes ecRcDiag { 0%,15% { transform: translate(0,0); opacity: 1 } 45%,80% { transform: translate(16px,-16px); opacity: 1 } 90% { opacity: 0; transform: translate(16px,-16px) } 91% { transform: translate(0,0); opacity: 0 } 100% { opacity: 1 } }
 @keyframes ecRcPivot { 0%,15% { transform: rotate(0) } 45%,80% { transform: rotate(90deg) } 100% { transform: rotate(0) } }
-@keyframes ecRcBhIn { 0%,10% { transform: translate(0,0) scale(1); opacity: 1 } 30% { transform: translate(16px,0) scale(1); opacity: 1 } 40% { transform: translate(16px,0) scale(.1); opacity: 0 } 92% { transform: translate(16px,0) scale(.1); opacity: 0 } 93% { transform: translate(0,0) scale(1); opacity: 0 } 100% { opacity: 1 } }
-@keyframes ecRcBhOut { 0%,40% { transform: translate(0,0) scale(.1); opacity: 0 } 44% { opacity: 1 } 55%,85% { transform: translate(0,0) scale(1); opacity: 1 } 92%,100% { opacity: 0 } }
 @keyframes ecRcDot { 0%,10% { opacity: .15 } 25%,85% { opacity: .85 } 100% { opacity: .15 } }
 @keyframes ecRcTumbleM { 0%,15% { transform: translate(0,0) scaleX(1); opacity: 1 } 30% { transform: translate(9px,0) scaleX(.35) } 45%,80% { transform: translate(12px,0) scaleX(2.333); opacity: 1 } 90% { transform: translate(12px,0) scaleX(2.333); opacity: 0 } 91% { transform: translate(0,0) scaleX(1); opacity: 0 } 100% { transform: translate(0,0) scaleX(1); opacity: 1 } }
 @keyframes ecRcRotate { 0%,15% { transform: rotate(0); opacity: 1 } 45%,80% { transform: rotate(90deg); opacity: 1 } 90% { transform: rotate(90deg); opacity: 0 } 91% { transform: rotate(0); opacity: 0 } 100% { transform: rotate(0); opacity: 1 } }
 @keyframes ecRcShelterM { 0%,10% { transform: translate(12px,0) } 45%,80% { transform: translate(0,0) } 100% { transform: translate(12px,0) } }
 @keyframes ecRcArmGrow { 0%,15% { transform: scaleX(0) } 45%,80% { transform: scaleX(1) } 100% { transform: scaleX(0) } }
-@keyframes ecRcRollS2 { 0%,45% { transform: translate(0,0) scaleY(1); opacity: 1 } 58% { transform: translate(0,8px) scaleY(.3) } 70%,82% { transform: translate(0,16px) scaleY(1); opacity: 1 } 90% { transform: translate(0,16px); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
-@keyframes ecRcApproach { 0%,12% { transform: translate(0,0) scaleX(1); opacity: 1 } 26% { transform: translate(8px,0) scaleX(.3) } 38% { transform: translate(16px,0) scaleX(1) } 46% { transform: translate(22px,0) } 54%,84% { transform: translate(16px,0); opacity: 1 } 92% { transform: translate(16px,0); opacity: 0 } 93% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
+@keyframes ecRcRollM { 0%,15% { transform: translate(0,0) scaleX(1); opacity: 1 } 30% { transform: translate(6px,0) scaleX(.3) } 45%,80% { transform: translate(12px,0) scaleX(1); opacity: 1 } 90% { transform: translate(12px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
+@keyframes ecRcRoll2M { 0%,45% { transform: translate(0,0) scaleX(1); opacity: 1 } 58% { transform: translate(6px,0) scaleX(.3) } 70%,82% { transform: translate(12px,0) scaleX(1); opacity: 1 } 90% { transform: translate(12px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
+@keyframes ecRcOpaM { 0%,15% { transform: translate(0,0) scaleX(1); opacity: 1 } 30% { transform: translate(12px,0) scaleX(.3) } 45%,80% { transform: translate(24px,0) scaleX(1); opacity: 1 } 90% { transform: translate(24px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
+@keyframes ecRcRollBackM { 0%,10% { transform: translate(0,0) scaleX(1) } 22% { transform: translate(6px,0) scaleX(.3) } 35%,55% { transform: translate(12px,0) scaleX(1) } 67% { transform: translate(6px,0) scaleX(.3) } 80%,100% { transform: translate(0,0) scaleX(1) } }
+@keyframes ecRcRotBack { 0%,10% { transform: rotate(0) } 35%,55% { transform: rotate(90deg) } 80%,100% { transform: rotate(0) } }
+@keyframes ecRcRotate2 { 0%,45% { transform: rotate(0); opacity: 1 } 70%,82% { transform: rotate(90deg); opacity: 1 } 90% { transform: rotate(90deg); opacity: 0 } 91% { transform: rotate(0); opacity: 0 } 100% { transform: rotate(0); opacity: 1 } }
+@keyframes ecRcFlatten { 0%,36% { transform: scaleY(1); opacity: 1 } 45%,82% { transform: scaleY(.3); opacity: .45 } 90% { opacity: 0 } 100% { transform: scaleY(1); opacity: 1 } }
+/* The pushed piece keeps just ahead of the tipping Flaco (ec-rc-rotate,
+   15% to 45%): its far corner sweeps 24 x sin(angle) along the floor, so
+   the push runs at an even pace, keyframe to keyframe, a step ahead. */
+@keyframes ecRcPush2 { 0%,15% { transform: translate(0,0); opacity: 1 } 24% { transform: translate(8px,0) } 30% { transform: translate(16px,0) } 36%,80% { transform: translate(24px,0); opacity: 1 } 90% { transform: translate(24px,0); opacity: 0 } 91% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
+@keyframes ecRcApproachM { 0%,12% { transform: translate(0,0) scaleX(1); opacity: 1 } 26% { transform: translate(6px,0) scaleX(.3) } 38% { transform: translate(12px,0) scaleX(1) } 46% { transform: translate(16px,0) } 54%,84% { transform: translate(12px,0); opacity: 1 } 92% { transform: translate(12px,0); opacity: 0 } 93% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
+@keyframes ecRcRollA { 0%,12% { transform: rotate(0); opacity: 1 } 38%,84% { transform: rotate(90deg); opacity: 1 } 92% { transform: rotate(90deg); opacity: 0 } 93% { transform: rotate(0); opacity: 0 } 100% { transform: rotate(0); opacity: 1 } }
+@keyframes ecRcTipA { 0%,38% { transform: rotate(0) } 46% { transform: rotate(22deg) } 54%,100% { transform: rotate(0) } }
+@keyframes ecRcBhInT { 0%,10% { transform: translate(0,0) } 30%,92% { transform: translate(12px,0) } 93%,100% { transform: translate(0,0) } }
+@keyframes ecRcBhInS { 0%,30% { transform: scale(1); opacity: 1 } 40%,92% { transform: scale(.1); opacity: 0 } 93% { transform: scale(1); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+@keyframes ecRcBhOutS { 0%,44% { transform: scale(.1); opacity: 0 } 50%,85% { transform: scale(1); opacity: 1 } 92%,100% { transform: scale(1); opacity: 0 } }
+@keyframes ecRcBhOutT { 0%,50% { transform: translate(0,0) scaleX(1) } 58% { transform: translate(-6px,0) scaleX(.3) } 68%,100% { transform: translate(-12px,0) scaleX(1) } }
+@keyframes ecRcBhTipIn { 0%,10% { transform: rotate(0) } 28%,92% { transform: rotate(90deg) } 93%,100% { transform: rotate(0) } }
+@keyframes ecRcBhDrop { 0%,28% { transform: translate(0,0); opacity: 1 } 40% { transform: translate(0,14px); opacity: 0 } 92% { transform: translate(0,14px); opacity: 0 } 93% { transform: translate(0,0); opacity: 0 } 100% { transform: translate(0,0); opacity: 1 } }
+@keyframes ecRcBhRise { 0%,44% { transform: translate(0,14px); opacity: 0 } 52% { transform: translate(0,0); opacity: 1 } 85% { transform: translate(0,0); opacity: 1 } 92%,100% { transform: translate(0,0); opacity: 0 } }
+@keyframes ecRcBhTipOut { 0%,54% { transform: rotate(0) } 68%,92% { transform: rotate(-90deg) } 93%,100% { transform: rotate(0) } }
 @keyframes ecRcX { 0%,45% { opacity: 0 } 46%,51% { opacity: 1 } 52%,56% { opacity: 0 } 57%,62% { opacity: 1 } 63%,100% { opacity: 0 } }
 /* Reduced motion: the calm version, the same moves at half speed (every
    tile's parts share one duration, so they stay in step). */
@@ -485,7 +605,7 @@ function MovesCard({ C, focus }) {
     <div className="ec-rc-anim" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8 }}>
       <style>{KEYFRAMES}</style>
       <div style={{ gridColumn: "1 / -1", fontFamily: mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.slate, textAlign: "center" }}>
-        Seen from above · a roll flips over the edge, a slide glides
+        From above, and from the side wherever a piece tips · a roll tips over an edge, a slide glides
       </div>
       {list.map((t) => {
         const hot = focus && (focus === t.key || focus === t.law);

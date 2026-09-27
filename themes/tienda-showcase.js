@@ -155,49 +155,6 @@ export function ensureWoodPhotos(types) {
 }
 export const woodPhoto = (type) => photos.get(type) || null;
 
-/* ---------- the side buttons' wood ---------- */
-/* A strip of each side's wood, for the buttons and chips that stand for a
-   side (chassis: theme.sideSurface): the long face of a block, square
-   on, in the pieces' own material under the store's lights and the
-   game's renderer settings, so the button is the piece's wood. Taken
-   once per side (one short-lived context each), as a data URL; null
-   without WebGL, and the buttons keep their flat colours. */
-const SWATCH_W = 480, SWATCH_H = 120;
-const swatches = {};
-export function woodSwatch(isDark) {
-  const k = isDark ? "dark" : "light";
-  if (k in swatches) return swatches[k];
-  swatches[k] = null;
-  let renderer = null, geo = null, mat = null;
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = SWATCH_W; canvas.height = SWATCH_H;
-    renderer = makeRenderer(canvas, SWATCH_W);
-    renderer.setSize(SWATCH_W, SWATCH_H, false);
-    const scene = makeStage();
-    // 2.4 x 0.6 of wood, lying where a block's front face would.
-    const aspect = SWATCH_W / SWATCH_H, hh = 0.3;
-    geo = new THREE.PlaneGeometry(hh * 2 * aspect, hh * 2);
-    geo.translate(0.35, 0.1, 0.4);
-    mat = woodMaterial({ isDark, pieceId: `swatch-${k}` });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(-0.35, -0.1, -0.4);
-    scene.add(mesh);
-    const camera = new THREE.OrthographicCamera(-hh * aspect, hh * aspect, hh, -hh, 0.1, 10);
-    camera.position.set(0, 0, 3);
-    camera.lookAt(0, 0, 0);
-    renderer.render(scene, camera);
-    swatches[k] = canvas.toDataURL("image/jpeg", 0.86);
-  } catch (e) {
-    swatches[k] = null;
-  } finally {
-    if (geo) geo.dispose();
-    if (mat) mat.dispose();
-    if (renderer) { renderer.dispose(); renderer.forceContextLoss(); }
-  }
-  return swatches[k];
-}
-
 /* ---------- the viewer ---------- */
 const OPEN_MS = 440;
 const PAPER = "#EFE6CD";

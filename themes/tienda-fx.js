@@ -11,7 +11,7 @@
      view, zoomed right out) the ceiling steps aside.
    - Lettering: the signs are painted once at once, and again when the
      period fonts have arrived.
-   - Wood grain that follows a roll (see grainTurns in tienda.js).
+   - Wood grain that follows a roll (wood-set.js followGrain).
    - Device fit: the tier's pixel-ratio cap and shadow size are applied
      at once, and a frame-rate governor then lowers the pixel ratio if
      the device can't hold a steady frame rate (and raises it again,
@@ -20,40 +20,13 @@
      buzzes with it (tienda-audio.js). */
 
 import * as THREE from "three";
-import { SLAB_X, SLAB_Z, SLAB_THICKNESS } from "../engine/constants.js";
+import { SLAB_X, SLAB_Z } from "../engine/constants.js";
 import { buildStore, buildTable, CEIL } from "./tienda-store.js";
-import { grainTurns, storeEnv } from "./tienda.js";
+import { woodSet } from "./tienda.js";
 import { quality } from "./tienda-quality.js";
 import { ensurePaper, ensureNewsprint } from "./tienda-textures.js";
 
 const FONT_FACES = ["800 40px 'Libre Franklin'", "900 40px 'Libre Franklin'", "700 40px 'Libre Franklin'", "600 40px 'Libre Franklin'", "700 40px 'Courier Prime'", "400 40px 'Courier Prime'", "700 40px 'Bodoni Moda'", "italic 700 40px 'Libre Franklin'"];
-
-// Brass on the board's frame: latch plates at the middle of the two long
-// edges, and the hinge barrels at the ends of the fold.
-function buildBrass() {
-  const q = quality();
-  const group = new THREE.Group();
-  group.name = "tienda-brass";
-  const mat = q.physical
-    ? new THREE.MeshStandardMaterial({ color: 0xc9a24a, metalness: 1, roughness: 0.34, envMap: storeEnv(), envMapIntensity: 1.1 })
-    : new THREE.MeshLambertMaterial({ color: 0xc9a24a });
-  const y = -SLAB_THICKNESS / 2;
-  const plate = (x, z, ry) => {
-    const g = new THREE.BoxGeometry(1.1, SLAB_THICKNESS * 0.62, 0.05);
-    const m = new THREE.Mesh(g, mat); m.position.set(x, y, z); m.rotation.y = ry; m.castShadow = false; group.add(m);
-    const k = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.09), mat); k.position.set(x, y + 0.02, z); k.rotation.y = ry; group.add(k);
-  };
-  plate(0, SLAB_Z / 2 + 0.025, 0);
-  plate(0, -SLAB_Z / 2 - 0.025, 0);
-  [-1, 1].forEach((s) => {
-    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 1.3, 12), mat);
-    c.rotation.x = Math.PI / 2; c.position.set(s * (SLAB_X / 2 + 0.07), y + SLAB_THICKNESS * 0.1, 0); group.add(c);
-  });
-  return {
-    group,
-    dispose() { group.traverse((o) => { if (o.geometry) o.geometry.dispose(); }); mat.dispose(); },
-  };
-}
 
 export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
   const q = quality();
@@ -117,57 +90,13 @@ export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
     else if (slow < 1000 / 56 && pr < Math.min(q.dprCap, window.devicePixelRatio || 1) - 0.01 && now - lastRaise > 8000) { lastRaise = now; setPixelRatio(pr + 0.15); }
   }
 
-  /* ---- wood grain that follows a roll ---- */
-  const seen = new Map(); // pieceId -> { mesh, rel: THREE.Quaternion }
-  const qBoard = new THREE.Quaternion(), qMesh = new THREE.Quaternion(), mTmp = new THREE.Matrix4(), m3 = new THREE.Matrix3();
-  function snapTurn(quat) {
-    mTmp.makeRotationFromQuaternion(quat);
-    const e = mTmp.elements;
-    // Round to the nearest quarter-turn rotation; identity means no roll.
-    let identity = true;
-    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-      const v = Math.round(e[c * 4 + r]);
-      e[c * 4 + r] = v;
-      if (v !== (r === c ? 1 : 0)) identity = false;
-    }
-    return identity ? null : m3.setFromMatrix4(mTmp).clone();
-  }
-  function followGrain(t) {
-    if (!t.pieceGroup || !t.boardGroup) return;
-    t.boardGroup.getWorldQuaternion(qBoard).invert();
-    const live = new Set();
-    t.pieceGroup.children.forEach((o) => {
-      if (!o.userData || o.userData.kind !== "piece") return;
-      const id = o.userData.pieceId;
-      live.add(id);
-      const rec = seen.get(id);
-      if (rec && rec.mesh !== o) {
-        // A new mesh for this piece: if the old one ended turned, the
-        // block rolled; carry the grain through the turn.
-        const R = snapTurn(rec.rel);
-        if (R) {
-          const prev = grainTurns.get(id) || new THREE.Matrix3();
-          const next = prev.clone().multiply(R.transpose());
-          grainTurns.set(id, next);
-          const u = o.material && o.material.userData && o.material.userData.wood;
-          if (u) u.uGrainTurn.value.copy(next);
-        }
-      }
-      o.getWorldQuaternion(qMesh);
-      const rel = qBoard.clone().multiply(qMesh);
-      seen.set(id, { mesh: o, rel });
-    });
-    // Pieces gone (crushed, or a new game): forget them.
-    seen.forEach((v, id) => { if (!live.has(id)) seen.delete(id); });
-  }
-
   /* ---- attach and size the store ---- */
   const camLocal = new THREE.Vector3();
   function build(t) {
     if (table) { t.boardGroup.remove(table.group); table.dispose(); }
     if (brass) { t.boardGroup.remove(brass.group); brass.dispose(); }
     table = buildTable(SLAB_X, SLAB_Z);
-    brass = buildBrass();
+    brass = woodSet.buildBrass();
     t.boardGroup.add(table.group, brass.group);
     if (fontsDone) table.repaint();
     dims = `${SLAB_X}x${SLAB_Z}`;
@@ -198,7 +127,7 @@ export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
       if (!attach()) return;
       const t = three.current;
       govern(now);
-      followGrain(t);
+      woodSet.followGrain(t); // the grain turns with the rolls (wood-set.js)
       store.animate(now, { onFlicker: (ms) => { if (audio && audio.playTubeFlicker && !(windingDownRef && windingDownRef.current)) audio.playTubeFlicker(ms); } });
       // Above the drop ceiling, it steps aside.
       if (t.camera) {

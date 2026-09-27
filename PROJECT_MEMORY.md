@@ -2378,3 +2378,24 @@ place left) and from the phone menu's Settings (`shell-menu-guide`). It
 doesn't touch the move markers (you move by tapping them) or the cost
 badges and points dots, which have their own switches. Every version
 uses the chassis, so all of them have it. Test: tests/e2e-piece-guide.mjs.
+
+### MOVES: a side view wherever a piece tips (user request)
+chassis/RulesCards.jsx (one MOVES card for every version). Every tile
+whose demo rolls or tips a piece now has two panels, ABOVE (a 4 x 3 mini
+grid) and SIDE (the floor at y = 48, 12-unit cubes, columns SX(c) = 66 +
+12c ticked along it), animated in step: Roll, Opa (the 2 x 2 turning about
+its edge, two squares), Tall pieces tumble, Crush (the disc flattens as
+the block lands), Free way back (tips there and back; the refund dots in
+SIDE's corner), Shelter, Shove by rolling (NEW tile `shoveRoll`, law
+shoving: a standing Flaco tips and pushes a Turrito two squares; the push
+runs linear, keyframed a step ahead of the tip, so they never overlap),
+Pivot, Black hole (holes are gaps in the SIDE floor, `panelsWith([1,3])`:
+it tips in and drops, rises out of the other and tips back west; ABOVE
+moves and shrinks on separate nested groups so it shrinks INTO the hole),
+Split Movement (both moves now east so the side view shows them: a
+Turrito, then a lying Flaco's end rolling over its long side), Missing
+squares (a gap in the floor; the block rolls, tips toward it and settles
+back, a nested rotation about the landed cube's far edge). No side view,
+as the user said (nothing tips): Cabeza step, Reach the far row, Slide,
+Diagonal Slide, Shove (the slide one), 3 Actions. Test: e2e-rules checks
+which tiles carry SIDE (17 tiles now).
