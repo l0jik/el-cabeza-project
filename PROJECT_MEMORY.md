@@ -2279,3 +2279,48 @@ paper, register). The music keeps playing under its gate, so it picks up
 where it is. Note for tests: Chrome doesn't update a gain's `.value`
 readback while nothing sounds through it — play a move before reading
 the pieces gate. Test: tests/e2e-sound-channels.mjs.
+
+### Nova's sound menu (user request: "the same sound menu" as Tienda)
+Neon exports `soundChannels`: Ambience (the hum/crackle bed and its
+far-off events: `ambienceGate` after introGain), Pieces (select,
+deselect, blocked, landing, capture, win) and Interface (menus, rules,
+dock, CONNECT, the Singularity, and the bell's own bus). Every Neon cue
+connects to `sfxGain`, which is now the interface gate; the piece cues
+are wrapped in `pieceCue`, which points `sfxGain` at the pieces gate for
+the (synchronous) call. The landing reverb sends to the pieces gate. Both
+gates feed `sfxOut` (the old 1.25 sfx level). `__EC_TEST_AUDIO__` reports
+`channelsOff` and `gates`. Standard has only piece sounds, so it keeps a
+single Sound switch. On a phone (MobileShell) the menu's Sound becomes
+"All sounds" with the channels indented under it
+(`shell-menu-sound-<key>`). The storage key is shared across pages, so
+"pieces" off carries between Tienda and Neon. Test:
+tests/e2e-nova-sound.mjs.
+
+### Side buttons in the side's material (user request, Tienda)
+Anything that stands for a side (Human / AI side buttons, Stop here /
+Begin, the AI-chosen pill, the turn and winner dots, the move log's
+column dots) takes its fill from chassis `sideFill(side)`: a theme's
+`sideSurface(side)` ({ background, color, textShadow }) or the flat body
+colours. Tienda's is the pieces' own wood: tienda-showcase.js
+`woodSwatch` renders a strip of `woodMaterial` square-on under the
+store's lights and renderer settings (one short-lived WebGL context per
+side, cached as a JPEG data URL). Ink: cream with a dark bed on walnut,
+near-black with a pale halo on olive ash. With a material, unpicked side
+buttons are NOT faded (the 0.35 fade washed the wood grey, which was the
+complaint); the pick gets an ink ring instead (`pickedMark`). The order
+form's "The demonstrator plays Dark/Light" buttons do the same (`td-wood`).
+
+### Wood sounds: Standard uses Tienda's (user request)
+themes/wood-sfx.js holds Tienda's block knocks (hit, select, deselect,
+blocked, rollStart, landing, capture), used by both themes. Tienda's
+board is "folding" (hollow knock + table thud, unchanged); Standard's is
+"solid" (tight filtered-noise knock + short thud, nothing hollow; the
+user's choice), with a compressor and Tienda's small 0.6s room. The old
+modal synth (scripts/wood-impact-synth.js) is no longer used.
+Landing pitch follows the face that lands (user rule): the chassis passes
+`playLanding(cubes, contactArea(landed))` (engine/shapes.js: bottom-level
+cubes, or w*h). `landingSize = contact * cbrt(cubes)`: a cube is 1, a
+2x2x2 flat 8 (as before), a 1x3 on end 1.44, on its side 4.33. Without a
+contact (older callers) it falls back to the cube count. Test:
+tests/e2e-wood-sounds.mjs (also renders every cue offline on both boards:
+audible, under full scale, bigger face = lower).

@@ -703,7 +703,14 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
           )}
 
           <Section label="Settings" t={t}>
-            {ctl.hasAudio && <Toggle label="Sound" testid="shell-menu-sound" on={!ctl.muted} onChange={ctl.onToggleSound} t={t} />}
+            {ctl.hasAudio && <Toggle label={ctl.soundChannels ? "All sounds" : "Sound"} testid="shell-menu-sound" on={!ctl.muted} onChange={ctl.onToggleSound} t={t} />}
+            {/* A theme with separate sound channels (Neon): each on its own,
+               indented under Sound and dimmed while all sound is off. */}
+            {ctl.hasAudio && ctl.soundChannels && ctl.soundChannels.map((c) => (
+              <div key={c.key} style={{ paddingLeft: 18, opacity: ctl.muted ? 0.45 : 1 }}>
+                <Toggle label={c.label} hint={c.hint} testid={`shell-menu-sound-${c.key}`} on={c.on} onChange={c.onToggle} t={t} />
+              </div>
+            ))}
             <Toggle label="Points left" hint="Dots for the turn's action points" testid="shell-menu-points" on={ctl.showPoints} onChange={ctl.onTogglePoints} t={t} />
             {ctl.costsToggle && <Toggle label="Move costs on the board" testid="shell-menu-costs" on={ctl.showCosts} onChange={ctl.onToggleCosts} t={t} />}
           </Section>

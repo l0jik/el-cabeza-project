@@ -418,6 +418,13 @@ export function cubeCount(piece) {
   return piece.vox ? parseVox(piece.vox).length : piece.w * piece.h * piece.z;
 }
 
+/* How many squares a piece stands on: the cubes on its lowest level (a
+   box, its footprint). What a landing sounds like follows this face (a
+   1x3 on its side lands lower than on end; themes/wood-sfx.js). */
+export function contactArea(piece) {
+  return piece.vox ? parseVox(piece.vox).filter(([, , l]) => l === 0).length : piece.w * piece.h;
+}
+
 /* The same shape turned 180° about the vertical axis (x -> w-1-x,
    y -> h-1-y, levels unchanged) — how Light's copy of a piece mirrors
    Dark's in a rotationally symmetric opening (see generateAnomalySetup

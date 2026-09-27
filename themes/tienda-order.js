@@ -18,6 +18,7 @@ import {
   cloneSelections, normalizeSelections, fillSpots, randomizeSpots, spotProblem, mirrorCell,
   missingCellsOf, holeCellsOf, boardLabel, totalPieces,
 } from "./rules-selections.js";
+import { sideSurface } from "./tienda.js";
 
 const h = React.createElement;
 const INK = "#2E2118", RED = "#A33F33", PAPER = "#EFE6CD", PENCIL = "#1F3A6B";
@@ -52,6 +53,10 @@ export const ORDER_PARTS_CSS = `
   .td-seg button { min-height: 44px; padding: 0 12px; border: 1.5px solid ${INK}; background: transparent; color: ${INK}; font: 700 13px/1.15 ${COURIER}; cursor: pointer; border-radius: 2px; }
   .td-seg button[aria-pressed="true"] { background: ${INK}; color: ${PAPER}; }
   .td-seg button:disabled { opacity: 0.45; cursor: default; }
+  /* A side's own wood, always at full strength (so it reads as that
+     side); the one chosen gets a double ink ring. */
+  .td-seg button.td-wood { border-color: rgba(46,33,24,0.55); }
+  .td-seg button.td-wood[aria-pressed="true"] { border-color: ${INK}; box-shadow: 0 0 0 2px ${PAPER}, 0 0 0 3.5px ${INK}; }
   .td-copy { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding: 8px 10px; margin: 6px 0;
     background: #F4D7DC; color: #4A2A33; border: 1px dashed rgba(74,42,51,0.5); font: 400 12.5px/1.35 ${COURIER}; }
   .td-copy b { font: 700 13.5px/1.25 ${COURIER}; display: block; color: #3A1E26; }
@@ -189,7 +194,15 @@ export function OpponentSection({ x, audio }) {
   if (!selectOpponent || !AI_DIFFICULTY) return null;
   const locked = !!(busy || aiThinking);
   const pick = (v) => { if (locked) return; audio && audio.playSelect && audio.playSelect(); selectOpponent(v); };
-  const opt = (v, label, testid) => h("button", { type: "button", "aria-pressed": aiPlayer === v ? "true" : "false", "data-testid": testid, disabled: locked, onClick: () => pick(v) }, label);
+  // The demonstrator's side is shown in that side's wood (see sideSurface).
+  const opt = (v, label, testid) => {
+    const wood = v && sideSurface(v);
+    return h("button", {
+      type: "button", "aria-pressed": aiPlayer === v ? "true" : "false", "data-testid": testid, disabled: locked, onClick: () => pick(v),
+      className: wood ? "td-wood" : undefined, "data-side": v || undefined,
+      style: wood ? { background: wood.background, color: wood.color, textShadow: wood.textShadow } : undefined,
+    }, label);
+  };
   return h("div", { className: "td-opponent" },
     h("div", { className: "td-dim" },
       h("span", { className: "td-desc" }, "Opponent", h("span", null, "a friend at the table, or the store's demonstrator")),

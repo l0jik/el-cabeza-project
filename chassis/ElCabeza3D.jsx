@@ -20,7 +20,7 @@ import {
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
   setGhostLineTarget,
 } from "../engine/geometry.js";
-import { cubeCount, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
+import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
 import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
@@ -261,6 +261,26 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     border: `1.5px solid ${COLORS.charcoal}`,
   };
 
+  /* The fill for anything that stands for a side (its buttons, chips and
+     dots). A theme can dress these in its own material (Tienda: the
+     pieces' woodgrain, theme.sideSurface); otherwise the flat body
+     colours. Returns { background, color, textShadow? }. */
+  function sideFill(side) {
+    const own = theme.sideSurface && theme.sideSurface(side);
+    if (own) return own;
+    const isDark = side === "dark";
+    return { background: isDark ? COLORS.bodyDark : COLORS.bodyLight, color: isDark ? COLORS.bodyLight : COLORS.bodyDark };
+  }
+
+  /* Which of a row of side buttons is the current pick. Flat colours fade
+     the others back; a material (theme.sideSurface) stays at full
+     strength, so the wood always reads as its side, and the pick gets an
+     ink ring instead. */
+  function pickedMark(active) {
+    if (!theme.sideSurface) return { opacity: active ? 1 : 0.35 };
+    return { opacity: 1, boxShadow: active ? `0 0 0 2px ${COLORS.cream}, 0 0 0 3.5px ${COLORS.charcoal}` : "none" };
+  }
+
   function playerButtonStyle(player) {
     const isDark = player === "dark";
     return {
@@ -270,8 +290,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // would otherwise swap which player's button reads as filled-
       // dark vs filled-light. See the same fix on the move-log column
       // headers.
-      background: isDark ? COLORS.bodyDark : COLORS.bodyLight,
-      color: isDark ? COLORS.bodyLight : COLORS.bodyDark,
+      ...sideFill(isDark ? "dark" : "light"),
     };
   }
 
@@ -334,8 +353,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       borderRadius: 999,
       border: `1.5px solid ${COLORS.charcoal}`,
       // bodyDark/bodyLight — see the comment on playerButtonStyle above.
-      background: isDark ? COLORS.bodyDark : COLORS.bodyLight,
-      color: isDark ? COLORS.bodyLight : COLORS.bodyDark,
+      ...sideFill(isDark ? "dark" : "light"),
     };
   }
 
@@ -3753,7 +3771,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       return;
     }
 
-    audioRef.current.playLanding(cubeCount(piece)); // cubes, not box volume — an odd shape weighs what it's made of
+    // Cubes, not box volume (an odd shape weighs what it's made of), and
+    // the face it came down on (how low a wood theme's knock is).
+    audioRef.current.playLanding(cubeCount(piece), contactArea(move.candidate));
 
     /* A move that puts the board back exactly how it was earlier this
        turn (rolling out and back, pivoting there and back, a Split turn's
@@ -5615,7 +5635,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
     if (step.teleports && step.from) {
       stateOf.set(step.pieceId, step.from);
-      audioRef.current.playLanding(cubeCount(step.from));
+      audioRef.current.playLanding(cubeCount(step.from), contactArea(step.from));
       putBack(360);
       return;
     }
@@ -6916,8 +6936,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 gap: 10,
                 padding: "12px 22px",
                 borderRadius: 999,
-                background: aiJustSelected === "dark" ? COLORS.bodyDark : COLORS.bodyLight,
-                color: aiJustSelected === "dark" ? COLORS.bodyLight : COLORS.bodyDark,
+                ...sideFill(aiJustSelected),
                 boxShadow: "0 8px 28px rgba(0,0,0,0.4)",
               }}
             >
@@ -6938,7 +6957,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                   // a border in the (contrasting) text color keeps the
                   // dot visible as its own distinct shape rather than
                   // blending into the pill it sits on.
-                  background: aiJustSelected === "dark" ? COLORS.bodyDark : COLORS.bodyLight,
+                  background: sideFill(aiJustSelected).background,
                   border: "1.5px solid currentColor",
                   boxSizing: "border-box",
                   flexShrink: 0,
@@ -7024,7 +7043,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 // tokens — see the same fix on the move-log column
                 // headers below for why (Neon's charcoal/cream are
                 // inverted for its own dark UI).
-                background: currentPlayer === "dark" ? COLORS.bodyDark : COLORS.bodyLight,
+                background: sideFill(currentPlayer).background,
                 border: `1.5px solid ${COLORS.charcoal}`,
               }}
             />
@@ -7279,7 +7298,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                      aiPlayer still set to a chosen AI side, so this
                      needs to correctly show as NOT the current pick
                      in that case rather than always reading as active. */
-                  opacity: aiPlayer === null ? 1 : 0.35,
+                  ...pickedMark(aiPlayer === null),
                   flexShrink: 0,
                   cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
                 }}
@@ -7307,7 +7326,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                       // Reads the current selection — see Human's own
                       // opacity comment just above for why this can no
                       // longer be a flat, always-inactive 0.35.
-                      opacity: isActive ? 1 : 0.35,
+                      ...pickedMark(isActive),
                       cursor: locked ? "default" : "pointer",
                       flexShrink: 0,
                     }}
@@ -7750,6 +7769,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             boxSizing: "border-box",
             padding: "8px 0",
             background: modalSurface,
+            // Blurs what's behind a see-through surface (Neon's glass).
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
             border: `1px solid ${COLORS.slateSoft}`,
             borderRadius: 10,
             boxShadow: "0 12px 36px rgba(0,0,0,0.35)",
@@ -7856,6 +7878,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             hasAudio: !!theme.hasAudio,
             muted: audioMuted,
             onToggleSound: toggleSound,
+            soundChannels: soundChannels ? soundChannels.map((c) => ({ ...c, on: !channelsOff[c.key], onToggle: () => toggleChannel(c.key) })) : null,
             showPoints,
             onTogglePoints: () => { const next = !showPoints; setShowPoints(next); saveShowPoints(next); },
             costsToggle: !!theme.moveCostToggle,
@@ -8007,7 +8030,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                   <span key={side} style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <span
                       aria-hidden="true"
-                      style={{ width: 8, height: 8, borderRadius: "50%", background: side === "dark" ? COLORS.bodyDark : COLORS.bodyLight, border: `1px solid ${COLORS.charcoal}` }}
+                      style={{ width: 8, height: 8, borderRadius: "50%", background: sideFill(side).background, border: `1px solid ${COLORS.charcoal}` }}
                     />
                     {side === "dark" ? "Dark" : "Light"}
                   </span>
@@ -8344,7 +8367,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               height: 28,
               borderRadius: "50%",
               // bodyDark/bodyLight — see the comment on playerButtonStyle.
-              background: winner === "dark" ? COLORS.bodyDark : COLORS.bodyLight,
+              background: sideFill(winner).background,
               border: `2px solid ${COLORS.charcoal}`,
               marginBottom: 18,
             }}

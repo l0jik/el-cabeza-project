@@ -884,6 +884,20 @@ export function renderSetupExtras({ beginGameButton, openOrderForm }) {
 
 export { useSetupExtras, renderExtraOverlays } from "./tienda-overlay.js";
 export { mountAmbientEffects } from "./tienda-fx.js";
+import { woodSwatch } from "./tienda-showcase.js";
+/* The buttons and chips that stand for a side wear that side's wood,
+   the pieces' own grain (chassis: theme.sideSurface; the swatch is
+   rendered from woodMaterial, tienda-showcase.js woodSwatch). The ink
+   is set for the wood: cream with a dark bed on walnut, near-black with
+   a pale halo on olive ash. Flat colours if WebGL can't take a swatch. */
+export function sideSurface(side) {
+  const dark = side === "dark";
+  const url = woodSwatch(dark);
+  if (!url) return null;
+  return dark
+    ? { background: `url(${url}) center / cover no-repeat, ${COLORS.bodyDark}`, color: "#F6EAD2", textShadow: "0 1px 1px rgba(18,9,3,0.9), 0 0 4px rgba(18,9,3,0.55)" }
+    : { background: `url(${url}) center / cover no-repeat, ${COLORS.bodyLight}`, color: "#23150A", textShadow: "0 0 2px rgba(255,246,228,0.95), 0 0 5px rgba(255,246,228,0.6)" };
+}
 // The store's tape: a Muzak recording of the period (see tienda-audio.js).
 // It's a file beside the page (the build copies it there), not inside it,
 // so the page itself stays light on a phone; fetched once the store is

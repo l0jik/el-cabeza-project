@@ -26,6 +26,7 @@
    comes back with the next. */
 
 import { quality } from "./tienda-quality.js";
+import { createWoodSfx } from "./wood-sfx.js";
 
 export const hasAudio = true;
 
@@ -230,6 +231,7 @@ export function createAudio({ tapeUrl = null } = {}) {
   let ctx = null, master = null, comp = null;
   let storeBus = null, musicBus = null, ambBus = null, farBus = null, sfxBus = null;
   let bigVerb = null, smallVerb = null, wow = null, noiseBuf = null, brownBuf = null;
+  let wood = null; // the blocks' knocks (wood-sfx.js)
   let muted = false, windingDown = false, storeOn = false;
   /* Three switches the player can flip separately (the dock's sound
      menu): the ceiling speakers' music, the store around you (hum, air,
@@ -288,6 +290,7 @@ export function createAudio({ tapeUrl = null } = {}) {
       ambBus = ctx.createGain(); ambBus.gain.value = 1; ambBus.connect(gate("store")).connect(storeBus);
       sfxBus = ctx.createGain(); sfxBus.gain.value = 1;
       const sfxOut = gate("pieces"); sfxBus.connect(sfxOut); sfxOut.connect(master);
+      wood = createWoodSfx(ctx, sfxBus, { board: "folding" });
       const sfxSend = ctx.createGain(); sfxSend.gain.value = 0.22; sfxOut.connect(sfxSend).connect(smallVerb);
       const sfxBig = ctx.createGain(); sfxBig.gain.value = 0.1; sfxOut.connect(sfxBig).connect(bigVerb);
 
@@ -743,29 +746,8 @@ export function createAudio({ tapeUrl = null } = {}) {
 
   /* ---------------- the game's own sounds ---------------- */
 
-  // A hardwood block struck: a few close modes, short, and a knock of
-  // the hollow board (and the table under it) below.
-  function woodHit(t, { size = 1, level = 0.12, bright = 1, board = 1 } = {}) {
-    const base = 1650 / Math.sqrt(size) * bright;
-    [[1, 1, 0.05], [1.58, 0.55, 0.035], [2.43, 0.3, 0.022], [3.6, 0.15, 0.015]].forEach(([k, a, d]) => {
-      const o = ctx.createOscillator(); o.frequency.value = base * k * (1 + (Math.random() - 0.5) * 0.03);
-      const g = ctx.createGain(); g.gain.setValueAtTime(level * a, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d * (0.8 + size * 0.15));
-      o.connect(g).connect(sfxBus); o.start(t); o.stop(t + 0.2);
-    });
-    // The contact click.
-    const c = noise(t, 0.02), chp = ctx.createBiquadFilter(); chp.type = "highpass"; chp.frequency.value = 2500;
-    const cg = ctx.createGain(); cg.gain.setValueAtTime(level * 0.6, t); cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.012);
-    c.connect(chp).connect(cg).connect(sfxBus);
-    if (board > 0) {
-      // The folding board: a hollow, boxy knock; the table, a low thud.
-      const o = ctx.createOscillator(); o.frequency.setValueAtTime(230 / Math.sqrt(size * 0.6 + 0.4), t); o.frequency.exponentialRampToValueAtTime(150, t + 0.08);
-      const g = ctx.createGain(); g.gain.setValueAtTime(level * 0.9 * board, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
-      o.connect(g).connect(sfxBus); o.start(t); o.stop(t + 0.15);
-      const th = ctx.createOscillator(); th.frequency.setValueAtTime(90, t); th.frequency.exponentialRampToValueAtTime(55, t + 0.1);
-      const tg = ctx.createGain(); tg.gain.setValueAtTime(level * 0.7 * board * Math.min(1.6, size * 0.5), t); tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-      th.connect(tg).connect(sfxBus); th.start(t); th.stop(t + 0.18);
-    }
-  }
+  // The blocks on the folding board (wood-sfx.js, shared with Standard).
+  const woodHit = (t, o) => wood.hit(t, o);
   function paper(t, dur, level, lo = 1500) {
     const n = noise(t, dur), bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = lo * 2; bp.Q.value = 0.6;
     const g = ctx.createGain(); g.gain.value = 0;
@@ -779,7 +761,6 @@ export function createAudio({ tapeUrl = null } = {}) {
     tick(t, 3200, level, sfxBus, 0.018);
     bell(t + 0.005, 4200, level * 0.25, sfxBus, 0.18);
   }
-  const mass = (v) => Math.max(1, Math.min(8, v || 1));
 
   /* ---------------- the flickering tube ---------------- */
   function playTubeFlicker(ms) {
@@ -839,29 +820,13 @@ export function createAudio({ tapeUrl = null } = {}) {
       if (ctx.state === "suspended") ctx.resume();
       if (restoreVolume === true) startStore();
     },
-    playSelect() { ensureGraph(); if (!ctx) return; woodHit(now(), { size: 0.8, level: 0.07, bright: 1.15, board: 0.2 }); },
-    playDeselect() { ensureGraph(); if (!ctx) return; woodHit(now(), { size: 0.9, level: 0.06, board: 0.5 }); },
-    playBlocked() { ensureGraph(); if (!ctx) return; const t = now(); woodHit(t, { size: 1.6, level: 0.06, bright: 0.7, board: 0.6 }); woodHit(t + 0.11, { size: 1.8, level: 0.05, bright: 0.65, board: 0.6 }); },
-    playRollStart(volumeUnits, durationMs) {
-      ensureGraph(); if (!ctx) return;
-      const m = mass(volumeUnits), t = now(), dur = Math.max(0.15, (durationMs || 350) / 1000);
-      // The edge dragging over the lacquer as it tips.
-      const n = noise(t, dur), bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 900 / Math.sqrt(m); bp.Q.value = 1.1;
-      const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.012 + m * 0.003, t + dur * 0.4); g.gain.linearRampToValueAtTime(0, t + dur);
-      n.connect(bp).connect(g).connect(sfxBus);
-    },
-    playLanding(volumeUnits) {
-      ensureGraph(); if (!ctx) return;
-      const m = mass(volumeUnits);
-      woodHit(now(), { size: m, level: 0.09 + 0.03 * Math.log2(m), bright: 1, board: 1 });
-    },
-    playCapture() {
-      ensureGraph(); if (!ctx) return;
-      const t = now();
-      woodHit(t, { size: 4, level: 0.2, board: 1.4 });
-      // The crushed piece knocked over: a few small bounces.
-      [0.09, 0.2, 0.28, 0.34].forEach((d, i) => woodHit(t + d, { size: 0.9, level: 0.06 / (i + 1), bright: 1.2, board: 0.3 }));
-    },
+    playSelect() { ensureGraph(); if (!ctx) return; wood.select(); },
+    playDeselect() { ensureGraph(); if (!ctx) return; wood.deselect(); },
+    playBlocked() { ensureGraph(); if (!ctx) return; wood.blocked(); },
+    playRollStart(volumeUnits, durationMs) { ensureGraph(); if (!ctx) return; wood.rollStart(volumeUnits, durationMs); },
+    // contact: the squares the landing face covers (wood-sfx.js landingSize).
+    playLanding(volumeUnits, contact) { ensureGraph(); if (!ctx) return; wood.landing(volumeUnits, contact); },
+    playCapture() { ensureGraph(); if (!ctx) return; wood.capture(); },
     playWin() {
       ensureStarted(); if (!ctx) return;
       const t = now();

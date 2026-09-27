@@ -7,7 +7,7 @@
 import * as THREE from "three";
 import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, DISC_DIAM, DISC_H, PIECE_SCALE, CABEZA_SCALE } from "../engine/constants.js";
 import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
-import { createWoodImpactEngine } from "../scripts/wood-impact-synth.js";
+import { createWoodSfx } from "./wood-sfx.js";
 
 /* Outline thickness for the silhouette-shell technique below, in world
    units. Standard-only: Neon uses a different outline technique (see
@@ -219,15 +219,10 @@ export const modalSurface = "rgba(253,251,247,0.96)";
 export const canvasGradientStart = "#FFFDF9";
 export const canvasGradientEnd = "#E9E1D2";
 
-/* Second wood-impact-audio attempt (see scripts/wood-impact-synth.js's
-   own header for the first, reverted one and why this one is
-   structurally different — a modal filter bank driven by a noise
-   exciter, not additive sine tones). Only the two motion-related cues
-   (playRollStart, playLanding) get real synthesis; every other method
-   stays a no-op exactly as before — this theme still has no menu
-   chimes, capture stingers, etc., and none were asked for. hasAudio
-   lets the chassis render the Sound On/Off control now that muting
-   actually does something. */
+/* The pieces' sounds are Tienda's wood (themes/wood-sfx.js): select,
+   deselect, blocked, the roll, the landing and a capture, on a solid
+   slab rather than Tienda's hollow folding board. Only the pieces make
+   sound; every other cue is a no-op. */
 export const hasAudio = true;
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).
@@ -235,17 +230,11 @@ export const moveCostToggle = true;
 export function createAudio() {
   let ctx = null;
   let master = null;
-  let engine = null;
+  let wood = null;
   let muted = false;
 
-  // Builds the real AudioContext + engine lazily, inside ensureStarted()
-  // — same reasoning as Neon's own ensureGraph(): browsers require a
-  // user gesture before audio can start, and this makes calling
-  // ensureStarted() from anywhere (it already fires unconditionally on
-  // the first pointer-down, see chassis) safe and idempotent. try/catch
-  // rather than a feature check: Web Audio unavailable just leaves ctx
-  // null and every play* call below a silent no-op, exactly like the
-  // no-audio state before this file was wired up.
+  // Built lazily on the first gesture (ensureStarted); without Web Audio,
+  // ctx stays null and every cue is a silent no-op.
   function ensureGraph() {
     if (ctx) return;
     try {
@@ -254,10 +243,28 @@ export function createAudio() {
       if (ctx.state === "suspended") ctx.resume();
       master = ctx.createGain();
       master.gain.value = muted ? 0 : 1;
-      master.connect(ctx.destination);
-      engine = createWoodImpactEngine(ctx, master);
+      // As Tienda's: a gentle compressor on the way out.
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -16; comp.ratio.value = 3; comp.attack.value = 0.005; comp.release.value = 0.25;
+      master.connect(comp).connect(ctx.destination);
+      // A small, short room (Tienda's near one), so a knock isn't bone dry.
+      const len = Math.floor(ctx.sampleRate * 0.6), ir = ctx.createBuffer(2, len, ctx.sampleRate), pre = Math.floor(ctx.sampleRate * 0.005);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = ir.getChannelData(ch);
+        let lp = 0;
+        for (let i = pre; i < len; i++) { lp = lp * 0.35 + (Math.random() * 2 - 1) * 0.65; d[i] = lp * Math.pow(1 - (i - pre) / (len - pre), 2.2) * 2.2; }
+      }
+      const room = ctx.createConvolver(); room.buffer = ir;
+      const roomOut = ctx.createGain(); roomOut.gain.value = 0.35;
+      room.connect(roomOut).connect(master);
+      const sfx = ctx.createGain();
+      sfx.connect(master);
+      const send = ctx.createGain(); send.gain.value = 0.22;
+      sfx.connect(send).connect(room);
+      wood = createWoodSfx(ctx, sfx, { board: "solid" });
     } catch (e) {
       ctx = null;
+      wood = null;
     }
   }
 
@@ -271,46 +278,21 @@ export function createAudio() {
     if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.08);
   }
 
-  // piece.w*piece.h*piece.z (what the chassis actually passes) ranges
-  // exactly over {1, 2, 4, 8} across every real piece type/orientation
-  // (Turrito/Cabeza=1 up to Opa=8 — see PIECE_ORIENTATIONS in
-  // themes/neon.js, shared game data even though it lives in that
-  // file) — mapped linearly onto the engine's own [0.1, 1.0] mass
-  // domain across that same [1, 8] span.
-  function massFromVolume(volumeUnits) {
-    const v = Math.max(1, Math.min(8, volumeUnits));
-    return 0.1 + ((v - 1) / 7) * 0.9;
-  }
-
-  // Fired the instant a roll/slide animation STARTS (see animateStep in
-  // chassis/ElCabeza3D.jsx) — durationMs is that same animation's own
-  // duration, so the tumbling sequence's own timeline lines up with the
-  // visual motion exactly. No trailing rest impact here (endWithRestImpact:
-  // false) — playLanding below fires its own single, precisely-timed
-  // impact right when the piece actually stops, which would otherwise
-  // land within a few frames of this sequence's own built-in ending and
-  // double up into one over-loud, cluttered hit.
-  function playRollStart(volumeUnits, durationMs) {
-    if (!engine) return;
-    engine.roll_sequence(durationMs / 1000, massFromVolume(volumeUnits), 0.8, { endWithRestImpact: false });
-  }
-
-  // Fired once, exactly when a piece's roll/slide animation completes —
-  // every real landing in this game comes to rest flat (pieces always
-  // settle on a full face, never balanced on a corner/edge — see
-  // engine/rules.js), so this is always a high-surface_area impact; only
-  // the rolling sequence above ever uses a low one, for the tumbling
-  // piece's edges/corners striking mid-roll.
-  function playLanding(volumeUnits) {
-    if (!engine) return;
-    const mass = massFromVolume(volumeUnits);
-    engine.impact_event(mass, 0.9, 0.5 + 0.15 * mass);
-  }
+  // Each cue builds the graph if a gesture hasn't yet (the chassis starts
+  // it on the first press, but a cue can come first).
+  const cue = (fn) => (...args) => { ensureGraph(); if (wood) fn(...args); };
 
   return {
     ensureStarted, beginGameFadeIn() {}, setZoom() {}, setMuted,
     setTension() {}, beginFadeOut() {}, resetWindDown() {},
-    playSelect() {}, playDeselect() {}, playBlocked() {}, playRollStart, playLanding, playCapture() {},
+    playSelect: cue(() => wood.select()),
+    playDeselect: cue(() => wood.deselect()),
+    playBlocked: cue(() => wood.blocked()),
+    // durationMs is the roll's own animation length (chassis animateStep).
+    playRollStart: cue((units, durationMs) => wood.rollStart(units, durationMs)),
+    // units: the piece's cubes; contact: the squares its landing face covers.
+    playLanding: cue((units, contact) => wood.landing(units, contact)),
+    playCapture: cue(() => wood.capture()),
     playWin() {}, playMenu() {}, fadeOutMenu() {}, stopMenu() {}, playRulesOpen() {}, playRulesClose() {}, playRulesTab() {}, playPowerOn() {},
     playPowerOff() {}, playFlicker() {}, playArc() {}, playGlitch() {},
     playSingularityOpen() {}, playSingularityClose() {},
@@ -323,8 +305,8 @@ export function createAudio() {
     continueSingularityHumThroughCollapse() {}, startSingularityCollapseRoar() {},
     cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
     playDockOpen() {}, playDockClose() {},
+    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, muted }; },
     dispose() {
-      engine && engine.dispose();
       ctx && ctx.close();
     },
   };

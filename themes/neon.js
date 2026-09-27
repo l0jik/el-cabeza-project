@@ -505,6 +505,13 @@ export const canvasGradientEnd = "#05070a";
    theme (see themes/standard.js's hasAudio for why this is declared
    metadata rather than a chassis branch). */
 export const hasAudio = true;
+// The dock's sound button (and the phone menu) offers these, each switched
+// on its own (chassis: theme.soundChannels; createSoundscape's channelOff).
+export const soundChannels = [
+  { key: "ambience", label: "Ambience", hint: "The hum, the static, the far-off sparks" },
+  { key: "pieces", label: "Pieces", hint: "Selecting, landing, capturing" },
+  { key: "interface", label: "Interface", hint: "Menus, the rules, connecting" },
+];
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).
 export const moveCostToggle = true;
@@ -4150,6 +4157,17 @@ export function createSoundscape() {
   let crackleHissGain = null; // brown-noise bed under the crackle, same zoom curve at ~5% of its peak
   let eventsGain = null; // random micro-events
   let sfxGain = null; // gameplay cues — stays audible above the ambience
+  /* The sound menu's three switches (chassis: theme.soundChannels):
+     "ambience" (the bed and its far-off events, gated after introGain),
+     "pieces" (select / deselect / blocked / landing / capture / win) and
+     "interface" (menus, rules, dock, connect, the Singularity). Every cue
+     connects to sfxGain, which is the interface gate; a piece cue runs
+     with sfxGain pointed at the pieces gate instead (pieceCue below).
+     Both gates feed sfxOut, the old sfxGain level. */
+  const channelOff = { ambience: false, pieces: false, interface: false };
+  let ambienceGate = null;
+  let piecesGate = null;
+  let interfaceGate = null;
   let reverbNode = null; // short synthetic impulse, for the landing thud
   let cathedralReverb = null; // long synthetic impulse, built lazily for the choir stab only
   // The SINGULARITY bell's own output path — its own long reverb into a
@@ -4627,7 +4645,7 @@ export function createSoundscape() {
   function ensureBellBus() {
     if (bellBus) return;
     bellBus = ctx.createGain();
-    bellBus.gain.value = muted ? 0 : BELL_BUS_GAIN;
+    bellBus.gain.value = muted || channelOff.interface ? 0 : BELL_BUS_GAIN;
     bellBus.connect(ctx.destination);
     bellReverb = ctx.createConvolver();
     bellReverb.buffer = makeImpulse(11.5, 1.25);
@@ -5623,7 +5641,7 @@ export function createSoundscape() {
       // Test-only: the live master level, the context state and the
       // wind-down flag (tests/e2e-undo-audio.mjs).
       if (typeof window !== "undefined") {
-        window.__EC_TEST_AUDIO__ = () => ({ gain: master ? master.gain.value : null, state: ctx ? ctx.state : null, windingDown, intro: introGain ? introGain.gain.value : null });
+        window.__EC_TEST_AUDIO__ = () => ({ gain: master ? master.gain.value : null, state: ctx ? ctx.state : null, windingDown, intro: introGain ? introGain.gain.value : null, channelsOff: { ...channelOff }, gates: ambienceGate ? { ambience: ambienceGate.gain.value, pieces: piecesGate.gain.value, interface: interfaceGate.gain.value } : null });
         window.__EC_TEST_AUDIO_SUSPEND__ = () => ctx && ctx.suspend(); // stands in for a phone suspending a silent context
       }
       // +14dB overall total (10^(14/20) ≈ 5.01) — a single multiplier on
@@ -5642,7 +5660,9 @@ export function createSoundscape() {
          included) stay at their normal, immediate volume. */
       introGain = ctx.createGain();
       introGain.gain.value = 1;
-      introGain.connect(master);
+      ambienceGate = ctx.createGain();
+      ambienceGate.gain.value = channelOff.ambience ? 0 : 1;
+      introGain.connect(ambienceGate).connect(master);
 
       ambientGain = ctx.createGain();
       ambientGain.gain.value = 0.03; // scaled live by setZoom below
@@ -5670,9 +5690,16 @@ export function createSoundscape() {
       eventsMuffle.Q.value = 0.4;
       eventsGain.connect(eventsShaper).connect(eventsMuffle).connect(introGain);
 
-      sfxGain = ctx.createGain();
-      sfxGain.gain.value = 1.25; // +25% per feedback ("maximize the overall gain across every audio channel")
-      sfxGain.connect(master);
+      const sfxOut = ctx.createGain();
+      sfxOut.gain.value = 1.25; // +25% per feedback ("maximize the overall gain across every audio channel")
+      sfxOut.connect(master);
+      interfaceGate = ctx.createGain();
+      interfaceGate.gain.value = channelOff.interface ? 0 : 1;
+      interfaceGate.connect(sfxOut);
+      piecesGate = ctx.createGain();
+      piecesGate.gain.value = channelOff.pieces ? 0 : 1;
+      piecesGate.connect(sfxOut);
+      sfxGain = interfaceGate;
 
       /* A short, dark synthetic impulse response for the piece-landing
          thud's "short reverb" — a burst of decaying noise, not a real
@@ -5684,7 +5711,7 @@ export function createSoundscape() {
       reverbNode.buffer = makeImpulse(0.32, 2.8);
       const reverbSend = ctx.createGain();
       reverbSend.gain.value = 0.3;
-      reverbNode.connect(reverbSend).connect(sfxGain);
+      reverbNode.connect(reverbSend).connect(piecesGate); // only the landing thud uses it
       thudShaper = ctx.createWaveShaper();
       thudShaper.curve = makeSoftClipCurve(7.5); // "considerably more crunch" per feedback (was 5.2)
       thudShaper.oversample = "4x";
@@ -5830,7 +5857,7 @@ export function createSoundscape() {
   function setMuted(m) {
     muted = m;
     if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : MASTER_GAIN, ctx.currentTime, 0.08);
-    if (bellBus && ctx) bellBus.gain.setTargetAtTime(muted ? 0 : BELL_BUS_GAIN, ctx.currentTime, 0.08);
+    if (bellBus && ctx) bellBus.gain.setTargetAtTime(muted || channelOff.interface ? 0 : BELL_BUS_GAIN, ctx.currentTime, 0.08);
   }
 
   /* Called once, right when a win fires OR the player manually ends the
@@ -6605,6 +6632,25 @@ export function createSoundscape() {
     });
   }
 
+  // Runs a piece cue with its connections going to the pieces gate (see
+  // channelOff). Every piece cue wires itself up synchronously.
+  function pieceCue(fn) {
+    return (...args) => {
+      const ui = sfxGain;
+      if (piecesGate) sfxGain = piecesGate;
+      try { return fn(...args); } finally { sfxGain = ui; }
+    };
+  }
+
+  function setChannelMuted(ch, off) {
+    if (!(ch in channelOff)) return;
+    channelOff[ch] = !!off;
+    if (!ctx) return;
+    const g = { ambience: ambienceGate, pieces: piecesGate, interface: interfaceGate }[ch];
+    if (g) g.gain.setTargetAtTime(off ? 0 : 1, ctx.currentTime, 0.05);
+    if (ch === "interface" && bellBus) bellBus.gain.setTargetAtTime(muted || off ? 0 : BELL_BUS_GAIN, ctx.currentTime, 0.05);
+  }
+
   function sfxClick(centerFreq, peak) {
     if (!ctx) return;
     const t0 = nowT();
@@ -6670,18 +6716,19 @@ export function createSoundscape() {
     resetWindDown,
     // Pitched down further and quieter still, per feedback — these
     // should now sit right at the edge of audible.
-    playSelect: tink, // replaced with an extremely high-pitched tonal "tink" per feedback (was a 600Hz filtered-noise click)
-    playDeselect: () => sfxClick(95, 0.009),
-    playBlocked,
+    setChannelMuted,
+    playSelect: pieceCue(tink), // replaced with an extremely high-pitched tonal "tink" per feedback (was a 600Hz filtered-noise click)
+    playDeselect: pieceCue(() => sfxClick(95, 0.009)),
+    playBlocked: pieceCue(playBlocked),
     // No-op: Neon has no wood-physical rolling cue of its own — this
     // theme's whole audio identity is synthesized/electronic, not
     // acoustic-material — but the shared chassis call site (animateStep,
     // fired the instant a roll/slide animation starts) calls this
     // unconditionally on every theme, same as every other method here.
     playRollStart() {},
-    playLanding,
-    playCapture: playCabezaCrush, // pitch sink / plunging formant / downward Doppler decay, per feedback
-    playWin: () => cue(440, 660, 0.5, "sine", 0.028), // halved, then -20% more per feedback (was 0.035)
+    playLanding: pieceCue(playLanding),
+    playCapture: pieceCue(playCabezaCrush), // pitch sink / plunging formant / downward Doppler decay, per feedback
+    playWin: pieceCue(() => cue(440, 660, 0.5, "sine", 0.028)), // halved, then -20% more per feedback (was 0.035)
     // ensureGraph() first, same reasoning as the Singularity sounds:
     // the Info overlay can be opened from the setup screen, before
     // ensureStarted()'s own `!awaitingBegin` gate would normally have
