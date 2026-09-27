@@ -502,8 +502,9 @@ function PlayPanel({ ctl, t }) {
     }
   }
   const info = !over && !actions.length ? ctl.pieceInfo : null;
-  // On the AI's turn the status line already says it's thinking.
-  const hint = over || ctl.aiThinking || ctl.aiTurn
+  // On the AI's turn the status line already says it's thinking. With the
+  // piece guide switched off, no tips either.
+  const hint = over || ctl.aiThinking || ctl.aiTurn || ctl.showGuide === false
     ? null
     : ctl.selectedOwn
     ? "Tap a marked square to move"
@@ -712,6 +713,7 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
               </div>
             ))}
             <Toggle label="Points left" hint="Dots for the turn's action points" testid="shell-menu-points" on={ctl.showPoints} onChange={ctl.onTogglePoints} t={t} />
+            <Toggle label="Piece guide" hint="What the chosen piece does, and tips on what to tap" testid="shell-menu-guide" on={ctl.showGuide !== false} onChange={ctl.onToggleGuide} t={t} />
             {ctl.costsToggle && <Toggle label="Move costs on the board" testid="shell-menu-costs" on={ctl.showCosts} onChange={ctl.onToggleCosts} t={t} />}
           </Section>
 

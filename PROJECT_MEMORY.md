@@ -2367,3 +2367,14 @@ desk phone at 12% and the PA at 14% of picks. Both halved (6%, 7%); the
 share they gave up is a quiet spell (no event), so carts, the register,
 steps and the door come exactly as often as before. The closing
 announcement at the end of a game is not random and is unchanged.
+
+### Piece guide switch (user request: helpers off for players who know the game)
+`showGuide` (chassis; localStorage `el-cabeza:piece-guide`, on unless
+"0") gates the piece card (`pieceCardShown`), and on a phone the bar's
+piece text (`pieceInfo`) and its "Tap one of your pieces / Tap a marked
+square" tips. Switched from the dock's corner (`guide-toggle`, a speech
+bubble glyph, struck through when off; the Nova layout icon moved one
+place left) and from the phone menu's Settings (`shell-menu-guide`). It
+doesn't touch the move markers (you move by tapping them) or the cost
+badges and points dots, which have their own switches. Every version
+uses the chassis, so all of them have it. Test: tests/e2e-piece-guide.mjs.

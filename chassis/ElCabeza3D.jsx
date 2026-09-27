@@ -196,6 +196,16 @@ function loadChannelsOff() {
 function saveChannelsOff(v) {
   try { localStorage.setItem(SOUND_CHANNELS_KEY, JSON.stringify(v)); } catch (e) { /* storage blocked */ }
 }
+/* The piece guide: the card that says what the chosen piece does (and,
+   on a phone, the bar's "tap a piece / tap a marked square" tips). On
+   unless the player has switched it off, once they know the game. */
+const PIECE_GUIDE_KEY = "el-cabeza:piece-guide";
+function loadPieceGuide() {
+  try { return window.localStorage.getItem(PIECE_GUIDE_KEY) !== "0"; } catch (e) { return true; }
+}
+function savePieceGuide(on) {
+  try { window.localStorage.setItem(PIECE_GUIDE_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
+}
 const SHOW_COSTS_KEY = "el-cabeza:show-move-costs";
 function loadShowCosts() {
   try { return window.localStorage.getItem(SHOW_COSTS_KEY) !== "0"; } catch (e) { return true; }
@@ -758,6 +768,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      commitRef's turn trail), replaying a short flash on the counter. */
   const [showPoints, setShowPoints] = useState(loadShowPoints);
   const [showCosts, setShowCosts] = useState(loadShowCosts);
+  const [showGuide, setShowGuide] = useState(loadPieceGuide);
+  const togglePieceGuide = () => { const next = !showGuide; setShowGuide(next); savePieceGuide(next); };
   // A theme without the switch always shows the badges.
   const costsOn = showCosts || !theme.moveCostToggle;
   const [pointsPulse, setPointsPulse] = useState(0);
@@ -1993,7 +2005,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      away, until another piece is picked or the turn moves on. */
   const [pieceCardDismissed, setPieceCardDismissed] = useState(false);
   useEffect(() => { setPieceCardDismissed(false); }, [selectedId, currentPlayer]);
-  const pieceCardShown = isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && dockView !== "panel" && !pieceCardDismissed;
+  const pieceCardShown = showGuide && isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && dockView !== "panel" && !pieceCardDismissed;
   useEffect(() => {
     if (!pieceCardShown) return undefined;
     const onDown = (ev) => {
@@ -7612,7 +7624,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             style={{
               position: "absolute",
               left: 20,
-              right: (theme.hasAudio ? 76 : 44) + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0),
+              right: (theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0),
               bottom: 13,
               fontFamily: "'IBM Plex Mono', monospace",
               // Larger and in the dock's own text colour per feedback
@@ -7715,6 +7727,40 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             </svg>
           </button>
         )}
+        {/* The piece guide on/off: the card that says what the chosen
+           piece does. The glyph is that card, a speech-bubble of text,
+           struck through while it's off. */}
+        <button
+          data-testid="guide-toggle"
+          aria-pressed={showGuide}
+          onClick={togglePieceGuide}
+          aria-label={showGuide ? "Hide the piece guide" : "Show the piece guide"}
+          title={showGuide ? "Hide the piece guide" : "Show the piece guide"}
+          style={{
+            position: "absolute",
+            right: (theme.hasAudio ? 40 : 8) + 32 + (theme.moveCostToggle ? 32 : 0),
+            bottom: 8,
+            width: 30,
+            height: 30,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "transparent",
+            border: "none",
+            color: COLORS.slate,
+            opacity: showGuide ? 0.85 : 0.45,
+            cursor: "pointer",
+            transition: "opacity 0.2s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = 0.85; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = showGuide ? 0.85 : 0.45; }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 5h16v10H10l-4 4v-4H4z" />
+            <path d="M8 9h8M8 12h5" />
+            {!showGuide && <line x1="3" y1="21" x2="21" y2="3" />}
+          </svg>
+        </button>
         {/* Nova's other layout (the control bar), offered on a desktop:
            the same quiet corner-icon treatment, left of the others. The
            glyph is the bar itself: a panel with a strip along its foot. */}
@@ -7726,7 +7772,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             title="Use the control bar layout"
             style={{
               position: "absolute",
-              right: (theme.hasAudio ? 40 : 8) + 32 + (theme.moveCostToggle ? 32 : 0),
+              right: (theme.hasAudio ? 40 : 8) + 64 + (theme.moveCostToggle ? 32 : 0),
               bottom: 8,
               width: 30,
               height: 30,
@@ -7833,9 +7879,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             statusText, currentPlayer, winner, aiPlayer, aiThinking,
             aiTurn: isPlaying && currentPlayer === aiPlayer,
             selectedOwn: !!selectedPiece && selectedPiece.owner === currentPlayer,
-            pieceInfo: isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer
+            pieceInfo: showGuide && isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer
               ? { type: selectedPiece.type, ...pieceCardInfo(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name) }
               : null,
+            showGuide,
+            onToggleGuide: togglePieceGuide,
             // Setup
             opponentLocked: busy || aiThinking || turnLocked,
             aiDifficulty, AI_DIFFICULTY,
