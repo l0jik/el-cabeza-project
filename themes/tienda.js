@@ -507,7 +507,17 @@ export function sideSurface(side) {
 // It's a file beside the page (the build copies it there), not inside it,
 // so the page itself stays light on a phone; fetched once the store is
 // up. Without it the store plays only its own arrangements.
-export const createAudio = () => createStoreAudio({ tapeUrl: "el-cabeza-tienda-muzak.mp3" });
+// The store's reels, files beside the page (build/build.js): the 1974
+// Muzak recording, then the user's five mall tracks (tienda-audio.js).
+export const STORE_REELS = [
+  "el-cabeza-tienda-muzak.mp3",
+  "el-cabeza-tienda-reel-2.mp3",
+  "el-cabeza-tienda-reel-3.mp3",
+  "el-cabeza-tienda-reel-4.mp3",
+  "el-cabeza-tienda-reel-5.mp3",
+  "el-cabeza-tienda-reel-6.mp3",
+];
+export const createAudio = () => createStoreAudio({ tapeUrls: STORE_REELS });
 export { hasAudio } from "./tienda-audio.js";
 // The dock's sound button opens a menu of these, each switched on its own
 // (chassis: theme.soundChannels; tienda-audio.js setChannelMuted).

@@ -231,7 +231,7 @@ function compose(tuneIndex, key, seed) {
 
 /* ------------------------------------------------------------ the engine */
 
-export function createAudio({ tapeUrl = null } = {}) {
+export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
   const q = quality();
   let ctx = null, master = null, comp = null;
   let storeBus = null, musicBus = null, ambBus = null, farBus = null, sfxBus = null;
@@ -605,44 +605,63 @@ export function createAudio({ tapeUrl = null } = {}) {
   }
 
   /* ---------------- the tape ---------------- */
-  // A real recording of the time (assets/tienda/muzak-1974.mp3), played
-  // the way the store would have had it: off a tape machine running a
-  // little slow and wavering, through the same ceiling speakers, and
-  // heard as if from across the empty sales floor (darker, and more of
-  // the room than the speaker). It takes turns with the arrangements
-  // written above, and picks up where it left off after a game.
-  // Decoded once, when the store's sound first starts; if the file can't
-  // be had (the page opened on its own, offline), the arrangements play.
+  // Real recordings played the way the store would have had them: off a
+  // tape machine running a little slow and wavering, through the same
+  // ceiling speakers, and heard as if from across the empty sales floor
+  // (darker, and more of the room than the speaker). The reels
+  // (`tapeUrls`): a Muzak recording of 1974 (assets/tienda/muzak-1974.mp3),
+  // then the user's five mall tracks, already worn to a 1975 PA tape
+  // (the user's muzak_1975_filter.py) and treated again here like the
+  // first ("Yes but treat them again"). A reel takes turns with the
+  // arrangements written above; the next time, the next reel. A reel
+  // stopped by a game's end picks up where it left off.
+  // Each reel is fetched when it's next up (the first a little after the
+  // page has drawn), decoded when wanted, and let go once played, so at
+  // most two are decoded at a time (a phone's memory). A reel that can't
+  // be had is skipped; with none (the page opened on its own, offline),
+  // the arrangements play.
   const TAPE_RATE = 0.94;   // about a semitone flat, a touch slow
   const TAPE_LEVEL = 0.21;  // a little under the arrangements (measured through the chain)
   // Opened straight from disk, the browser won't fetch a file beside the
   // page at all: don't try (it would only log an error).
-  let tape = tapeUrl && typeof location !== "undefined" && location.protocol === "file:" ? { failed: true } : null; // { buffer } once decoded, { failed } if it can't be
-  let tapeLoading = false, tapeIn = null, tapeRate = null, tapeSrc = null;
-  let tapePos = 0, tapeOffset = 0, tapeStartedAt = 0, tapeEndsAt = 0, tapeGap = 5, tapeWaitUntil = 0;
+  const fromDisk = typeof location !== "undefined" && location.protocol === "file:";
+  const reels = (tapeUrls || (tapeUrl ? [tapeUrl] : [])).map((url) => ({ url, bytes: null, buffer: null, failed: fromDisk, loading: false, pos: 0 }));
+  let reel = 0;
+  const cur = () => reels[reel] || null;
+  let tapeIn = null, tapeRate = null, tapeSrc = null;
+  let tapeOffset = 0, tapeStartedAt = 0, tapeEndsAt = 0, tapeGap = 5, tapeWaitUntil = 0;
   function tapeBytes(url) {
     if (!/^data:/.test(url)) return fetch(url).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
     const bin = atob(url.slice(url.indexOf(",") + 1)), out = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return Promise.resolve(out.buffer);
   }
-  // The file is fetched a little after the page has drawn (not at all on
-  // a connection asking to save data, until the store's sound starts),
-  // and decoded when it's first wanted.
-  let tapeFetch = null;
-  const fetchTape = () => tapeFetch || (tapeFetch = tapeBytes(tapeUrl));
-  if (tapeUrl && !tape && typeof window !== "undefined") {
+  const fetchReel = (r) => r.bytes || (r.bytes = tapeBytes(r.url));
+  if (reels.length && !reels[0].failed && typeof window !== "undefined") {
     const conn = window.navigator && window.navigator.connection;
-    if (!(conn && conn.saveData)) setTimeout(() => { fetchTape().catch(() => {}); }, 2500);
+    if (!(conn && conn.saveData)) setTimeout(() => { fetchReel(reels[0]).catch(() => {}); }, 2500);
   }
-  function loadTape() {
-    if (tape || tapeLoading || !tapeUrl || !ctx) return;
-    tapeLoading = true;
-    fetchTape()
+  function loadReel(r) {
+    if (!r || r.buffer || r.failed || r.loading || !ctx) return;
+    r.loading = true;
+    fetchReel(r)
       .then((bytes) => new Promise((res, rej) => ctx.decodeAudioData(bytes.slice(0), res, rej)))
-      .then((buffer) => { tape = { buffer }; })
-      .catch(() => { tape = { failed: true }; })
-      .then(() => { tapeLoading = false; });
+      .then((buffer) => { r.buffer = buffer; })
+      .catch(() => { r.failed = true; r.bytes = null; })
+      .then(() => { r.loading = false; });
+  }
+  const loadTape = () => loadReel(cur());
+  const anyReel = () => reels.some((r) => !r.failed);
+  // On to the next reel that can still be had (none: stays put).
+  function nextReel() {
+    if (reels.length < 2) return;
+    const done = cur();
+    for (let i = 1; i <= reels.length; i++) {
+      const k = (reel + i) % reels.length;
+      if (!reels[k].failed) { reel = k; break; }
+    }
+    if (done && done !== cur()) { done.buffer = null; done.bytes = null; done.pos = 0; } // played: let it go
+    loadTape();
   }
   function tapeGraph() {
     if (tapeIn) return;
@@ -660,43 +679,54 @@ export function createAudio({ tapeUrl = null } = {}) {
   function startTape(at) {
     tapeGraph();
     const src = ctx.createBufferSource();
-    src.buffer = tape.buffer;
+    const r = cur();
+    src.buffer = r.buffer;
     src.playbackRate.value = TAPE_RATE;
     tapeRate.connect(src.playbackRate);
     src.connect(tapeIn);
     src.onended = () => { try { tapeRate.disconnect(src.playbackRate); src.disconnect(); } catch (e) { /* gone */ } };
-    tapeOffset = tapePos < tape.buffer.duration - 8 ? tapePos : 0;
+    tapeOffset = r.pos < r.buffer.duration - 8 ? r.pos : 0;
     src.start(at, tapeOffset);
     tapeIn.gain.cancelScheduledValues(at);
     tapeIn.gain.setValueAtTime(0, at);
     tapeIn.gain.linearRampToValueAtTime(TAPE_LEVEL, at + (tapeOffset > 0 ? 1.5 : 0.05));
     tapeSrc = src; tapeStartedAt = at;
-    tapeEndsAt = at + (tape.buffer.duration - tapeOffset) / TAPE_RATE;
+    tapeEndsAt = at + (r.buffer.duration - tapeOffset) / TAPE_RATE;
     tapeGap = 4 + Math.random() * 3;
     playing = "tape";
+    // The next reel, fetched and decoded while this one plays.
+    if (reels.length > 1) {
+      for (let i = 1; i < reels.length; i++) {
+        const n = reels[(reel + i) % reels.length];
+        if (!n.failed) { loadReel(n); break; }
+      }
+    }
   }
   function stopTape(secs) {
     if (!tapeSrc) return;
     const t = ctx.currentTime;
-    tapePos = t >= tapeEndsAt ? 0 : tapeOffset + Math.max(0, t - tapeStartedAt) * TAPE_RATE;
+    if (cur()) cur().pos = t >= tapeEndsAt ? 0 : tapeOffset + Math.max(0, t - tapeStartedAt) * TAPE_RATE;
     ramp(tapeIn.gain, 0, secs);
     try { tapeSrc.stop(t + secs + 0.05); } catch (e) { /* already stopped */ }
     tapeSrc = null;
   }
-  const tapeReady = () => !!(tape && tape.buffer) && !(typeof window !== "undefined" && window.__TIENDA_MUSIC_ONLY__ === "arrangements");
+  const tapeReady = () => !!(cur() && cur().buffer) && !(typeof window !== "undefined" && window.__TIENDA_MUSIC_ONLY__ === "arrangements");
 
   function schedule() {
     if (!ctx) return;
     if (playing === "wait-tape") {
       // The first time, give the tape a moment to decode.
       if (tapeReady()) startTape(ctx.currentTime + 0.3);
-      else if ((tape && tape.failed) || !tapeUrl || ctx.currentTime > tapeWaitUntil) nextPiece(ctx.currentTime + 0.3);
+      else if (cur() && cur().failed && anyReel()) { nextReel(); tapeWaitUntil = Math.max(tapeWaitUntil, ctx.currentTime + 8); }
+      else if (!anyReel() || ctx.currentTime > tapeWaitUntil) nextPiece(ctx.currentTime + 0.3);
       return;
     }
     if (playing === "tape") {
       if (ctx.currentTime > tapeEndsAt + tapeGap) {
-        tapeSrc = null; tapePos = 0;
-        if (typeof window !== "undefined" && window.__TIENDA_MUSIC_ONLY__ === "tape") startTape(ctx.currentTime + 0.3);
+        tapeSrc = null;
+        if (cur()) cur().pos = 0;
+        nextReel();
+        if (typeof window !== "undefined" && window.__TIENDA_MUSIC_ONLY__ === "tape") { playing = "wait-tape"; tapeWaitUntil = ctx.currentTime + 8; }
         else nextPiece(ctx.currentTime + 0.3);
       }
       return;
@@ -711,9 +741,10 @@ export function createAudio({ tapeUrl = null } = {}) {
       if (t > ctx.currentTime - 0.05) voiceNote(n, Math.max(t, ctx.currentTime + 0.005), spb);
       nextIdx++;
     }
-    // A pause between arrangements, then the tape again, or the next one.
+    // A pause between arrangements, then the next reel, or the next one.
     if (nextIdx >= piece.notes.length && ctx.currentTime > pieceStart + piece.beats * spb + piece.gap) {
-      if (tapeReady()) { piece = null; startTape(ctx.currentTime + 0.3); } else nextPiece(ctx.currentTime + 0.3);
+      if (!tapeReady() && cur() && cur().failed && anyReel()) nextReel();
+      if (tapeReady()) { piece = null; startTape(ctx.currentTime + 0.3); } else { loadTape(); nextPiece(ctx.currentTime + 0.3); }
     }
   }
   function startMusic() {
@@ -723,7 +754,7 @@ export function createAudio({ tapeUrl = null } = {}) {
     // the tape's still running, so just bring it up again.
     if (playing === "tape" && tapeSrc) ramp(tapeIn.gain, TAPE_LEVEL, 1.5);
     if (!playing) {
-      if (tapeUrl && !(tape && tape.failed) && !(typeof window !== "undefined" && window.__TIENDA_MUSIC_ONLY__ === "arrangements")) { playing = "wait-tape"; tapeWaitUntil = ctx.currentTime + 8; }
+      if (anyReel() && !(typeof window !== "undefined" && window.__TIENDA_MUSIC_ONLY__ === "arrangements")) { playing = "wait-tape"; tapeWaitUntil = ctx.currentTime + 8; }
       else nextPiece(ctx.currentTime + 1.2);
     }
     clearInterval(schedTimer);
@@ -883,9 +914,11 @@ export function createAudio({ tapeUrl = null } = {}) {
       return {
         ctx: !!ctx, ctxState: ctx ? ctx.state : null, storeOn, windingDown, channelsOff: { ...channelOff },
         gates: Object.fromEntries(Object.entries(gates).map(([k, list]) => [k, list.map((g) => +g.gain.value.toFixed(3))])), music: !!schedTimer, playing, tune: tuneNo, key: keyNo, notes: piece ? piece.notes.length : 0,
-        tape: tape ? (tape.failed ? "failed" : "ready") : tapeLoading ? "loading" : "none",
-        tapeTime: ctx && playing === "tape" ? tapeOffset + Math.max(0, ctx.currentTime - tapeStartedAt) * TAPE_RATE : tapePos,
-        tapeLength: tape && tape.buffer ? tape.buffer.duration : 0,
+        tape: !cur() ? "none" : cur().failed ? "failed" : cur().buffer ? "ready" : cur().loading ? "loading" : "none",
+        tapeTime: ctx && playing === "tape" ? tapeOffset + Math.max(0, ctx.currentTime - tapeStartedAt) * TAPE_RATE : cur() ? cur().pos : 0,
+        tapeLength: cur() && cur().buffer ? cur().buffer.duration : 0,
+        reel, reels: reels.length, reelUrl: cur() ? cur().url : null,
+        reelsDecoded: reels.filter((r) => r.buffer).length,
       };
     },
     // Leaving the store (Nova's story, apps/novaStory.jsx): everything
@@ -900,13 +933,24 @@ export function createAudio({ tapeUrl = null } = {}) {
     dispose() {
       clearInterval(schedTimer); clearTimeout(eventTimer); clearTimeout(windTimer);
       if (tapeSrc) { try { tapeSrc.stop(); } catch (e) { /* stopped */ } tapeSrc = null; }
-      tape = null;
+      reels.forEach((r) => { r.buffer = null; r.bytes = null; });
       if (ctx) { try { ctx.close(); } catch (e) { /* closed */ } }
       ctx = null;
     },
   };
-  // Tests read the sound's state (see tests/e2e-tienda.mjs).
-  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__TIENDA_AUDIO__ = () => api.debugState();
+  // Tests read the sound's state (see tests/e2e-tienda.mjs), and can run
+  // the current reel out to hear the next.
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+    window.__TIENDA_AUDIO__ = () => api.debugState();
+    window.__TIENDA_NEXT_REEL__ = () => {
+      if (!ctx || playing !== "tape") return false;
+      stopTape(0.05);
+      if (cur()) cur().pos = 0;
+      nextReel();
+      playing = "wait-tape"; tapeWaitUntil = ctx.currentTime + 8;
+      return true;
+    };
+  }
   return api;
 }
 

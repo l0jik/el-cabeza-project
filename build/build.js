@@ -9,11 +9,19 @@ const targets = [
   { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover" },
   // Tienda is built minified, and its page can draw under a phone's
   // notch and home bar (the theme keeps its controls clear of them).
-  // Its one file beside the page: the store's Muzak tape, fetched once
-  // the store is up rather than weighing down the page (the page plays
-  // without it, see themes/tienda-audio.js).
+  // Its files beside the page: the store's reels (the 1974 Muzak tape and
+  // the user's five mall tracks), each fetched when it's next up rather
+  // than weighing down the page (the page plays without them, see
+  // themes/tienda-audio.js). Nova's store reads the same files.
   { name: "lab", entry: "apps/lab.jsx", title: "El Cabeza · Theme Lab", minify: true, head: '<meta name="theme-color" content="#F8F9FA">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover" },
-  { name: "tienda", entry: "apps/tienda.jsx", title: "El Cabeza · Tienda", minify: true, head: '<meta name="theme-color" content="#2B2219">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: { "el-cabeza-tienda-muzak.mp3": "assets/tienda/muzak-1974.mp3" } },
+  { name: "tienda", entry: "apps/tienda.jsx", title: "El Cabeza · Tienda", minify: true, head: '<meta name="theme-color" content="#2B2219">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: {
+    "el-cabeza-tienda-muzak.mp3": "assets/tienda/muzak-1974.mp3",
+    "el-cabeza-tienda-reel-2.mp3": "assets/tienda/reel-2-coupon-gloss-reverie.mp3",
+    "el-cabeza-tienda-reel-3.mp3": "assets/tienda/reel-3-twilight-at-the-atrium.mp3",
+    "el-cabeza-tienda-reel-4.mp3": "assets/tienda/reel-4-tuesday-morning-at-the-atrium.mp3",
+    "el-cabeza-tienda-reel-5.mp3": "assets/tienda/reel-5-tuesday-night-at-the-emporium.mp3",
+    "el-cabeza-tienda-reel-6.mp3": "assets/tienda/reel-6-midday-clearance-sale.mp3",
+  } },
 ];
 
 mkdirSync("dist", { recursive: true });

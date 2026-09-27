@@ -2518,6 +2518,37 @@ phone and a laptop but shrank it on squarer windows (1100x900: 547 px
 against 649) and broke the Singularity test's bare-sphere tap, so it's
 the fitted view's size instead.
 
+### Tienda: the mall reels (user request, Sep 27)
+The user sent five tracks (Coupon Gloss Reverie, Twilight at the Atrium,
+Tuesday Morning At The Atrium, Tuesday Night at the Emporium, Midday
+Clearance Sale) and asked for a Python script to wear them into a worn
+background-music tape over a 1975 mall PA: `tools/muzak_1975_filter.py`
+(pydub, scipy.signal, numpy; `input_tracks/` -> `mall_master_1975/`,
+natural sort, 1:30-3:00 held, 256 kbps). Its chain, in the order the
+sound travelled: mono fold-down; mid pre-emphasis, asymmetric tanh
+saturation, de-emphasis; hiss (white noise, 1st-order 5 kHz low-pass) 48
+dB under the programme; wow 0.6 Hz 0.25% and flutter 14 Hz 0.12% by
+resampling along a modulated read position; random -3.5 dB PA dips with
+200 ms linear ramps; 4th-order Butterworth band-pass 250-4500 Hz and a
++3.5 dB peak across 1.2-1.8 kHz; a 45 ms slapback at 15%; a synthesised
+stereo atrium impulse response (RT60 2.6 s, above 3 kHz 0.7 s, early
+reflections) at 22% wet; -19 dBFS RMS, peaks under -1 dBFS. Measured:
+under 120 Hz down 35-43 dB, nothing above 10 kHz. The treated tracks
+went to the user as files.
+Asked whether they should be the store's music, the user said "Yes but
+treat them again": so they're reels in the store's rotation, through
+the store's own tape machine (0.94 speed, its wow), ceiling speakers and
+room, like the 1974 recording. Store copies: assets/tienda/reel-2..6-*.mp3
+(mono, 22.05 kHz, 48 kbps, 0.7-1 MB, levelled to the 1974 reel's
+loudness), published beside the page as el-cabeza-tienda-reel-2..6.mp3
+(build.js `files`; Nova's store reads the same files). tienda.js
+`STORE_REELS`; tienda-audio.js `createAudio({ tapeUrls })`: the reels
+take turns with the arrangements, the next reel each time, round and
+round; each is fetched when it's next up and decoded ahead while the one
+before plays, and let go once played (two decoded at most); a reel that
+can't be had is skipped; a game's end keeps the current reel's place.
+Test hook `__TIENDA_NEXT_REEL__()`; e2e-tienda checks reel 2 follows.
+
 ### Tienda: the ceiling speakers' music at half (user request, Sep 27)
 "Music over PA speakers in Tienda volume should be cut 50%": the music
 (the tape and the arrangements) now goes through `MUSIC_VOLUME` 0.5

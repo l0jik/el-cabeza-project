@@ -116,6 +116,14 @@ for (const size of SIZES) {
     let tape = null;
     for (let i = 0; i < 20; i++) { tape = await page.evaluate(() => window.__TIENDA_AUDIO__()); if (tape.playing === "tape" && tape.tapeTime > 1) break; await page.waitForTimeout(500); }
     check(`the store's tape is playing (${tape.tape}, ${tape.playing}, ${tape.tapeTime.toFixed(1)}s of ${tape.tapeLength.toFixed(0)}s)`, tape.tape === "ready" && tape.playing === "tape" && tape.tapeTime > 1 && tape.tapeLength > 150);
+    // The reels take turns: run the 1974 tape out, and the next one plays
+    // (the user's mall tracks), with no more than two decoded at once.
+    if (tape.playing === "tape" && tape.reels > 1) {
+      await page.evaluate(() => window.__TIENDA_NEXT_REEL__());
+      let next = null;
+      for (let i = 0; i < 30; i++) { await page.waitForTimeout(500); next = await page.evaluate(() => window.__TIENDA_AUDIO__()); if (next.playing === "tape" && next.reel === 1 && next.tapeTime > 1) break; }
+      check(`...then the next reel (${next.reel + 1} of ${next.reels}, ${next.reelUrl}, ${next.tapeLength.toFixed(0)}s, ${next.reelsDecoded} decoded)`, next.playing === "tape" && next.reel === 1 && /reel-2/.test(next.reelUrl) && next.tapeLength > 90 && next.reelsDecoded <= 2, JSON.stringify(next));
+    }
   }
   if (size === SIZES[0] || size === SIZES[7]) {
     // How to play: the rules leaflet, on newsprint, torn at the edges.
