@@ -820,6 +820,26 @@ Top-Down View; two-finger double-tap toggles fullscreen; trackpad
 two-finger flick and a second `contextmenu` within the double-tap window
 get touch-gesture parity on desktop.
 
+**Full screen off the board, and at the first tap.** The canvas's gesture
+code only sees touches on the canvas, so anything covering it (Tienda's
+box lid and order form, the dock, pop-ups) swallowed the double-tap. A
+document listener (touch events, capture, passive) recognizes two-finger
+taps that start anywhere else, with the same thresholds (module-level
+`TWO_FINGER_TAP_MAX_MS` / `TWO_FINGER_TAP_MOVE_PX` /
+`TWO_FINGER_DOUBLE_TAP_MS`), and skips touches on the canvas so one
+double-tap never toggles twice. Both recognizers time taps by
+`ev.timeStamp` (when the fingers touched), not `performance.now()` in the
+handler: a busy frame delays handlers, not fingers. (In the tests, CDP
+touches each take ~0.5 s to be handled on SwiftShader, so
+tests/e2e-fullscreen.mjs gives them explicit timestamps.) Note a closed
+dock panel is `pointer-events: none`: touches over its buttons reach the
+board. `theme.fullscreenOnFirstTap` (Tienda): browsers only allow full
+screen from a tap/click/key, so the first trusted click anywhere requests
+it, once a visit (module-level `fullscreenOffered`), not if a
+fullscreenchange came first (the player chose), not on the full screen
+button itself (`data-fullscreen-toggle`), and not within 600 ms of a
+two-finger contact.
+
 **The board-visibility clamp is a hard product requirement** ("no more
 than 25% of the board may ever be fully out of view... at ANY tilt
 angle"), re-evaluated every frame on the `goal` (not just at pan time,
@@ -910,7 +930,8 @@ pieces).
 
 - **Standard**: opaque `MeshStandardMaterial` body + an inflated
   back-face silhouette shell (grown by `OUTLINE_T`, rendered `BackSide`)
-  for the outline. Since the den, Standard and Tienda build their board
+  for the outline; its floor sits `SHELL_LIFT` above the board, not flush
+  (see "Tienda piece-base outline flicker"). Since the den, Standard and Tienda build their board
   and pieces from the same code, themes/wood-set.js (walnut and olive ash,
   see "Standard: the den" below).
 - **Neon**: translucent body (`depthWrite: false`, deliberately — avoids
@@ -2364,6 +2385,30 @@ moved. Now the floor is non-overlapping pieces at one height
 (`floorRect`: the aisle cross + the four areas around it), textured by
 WORLD position so tiles line up across piece edges. Don't lay coplanar
 floor layers again; cut the geometry instead.
+
+### Tienda piece-base outline flicker (user bug report, video)
+The dark line under a piece (most visible under the Cabeza) broke into
+dashes that changed as the view turned, close and low. Cause: the outline
+shell's floor sat flush with the board top (`y + OUTLINE_T`, the original
+Standard's "zero gap" choice), and the strip of it in front of a piece's
+base IS the outline there. A cylinder cap is a fan of long thin wedges
+whose depth is only approximate at a low angle, so in patches the board
+won. Reproduced on SwiftShader (radius 9, phi 1.2, orbiting the Dark
+Cabeza) and isolated: hiding shells removed it; the shell's shadow, all
+shadows, and the board's constant offset (units 3 -> 12) changed nothing;
+a slope-scaled board offset (factor 1) fixed it but is the thing the
+chassis's slab notes warn against (a shell dipping below the board
+mid-roll would show through). Fix (themes/wood-set.js): the shell's floor
+is `SHELL_LIFT` (0.003) above the board, geometry not depth bias; 0.002
+and 0.004 also held close up (from across the table SwiftShader, with
+no MSAA, breaks the sub-pixel outline everywhere, top rim included, so
+far views there can't judge it). Themes export
+`outlineYOffset = OUTLINE_Y_OFFSET` (OUTLINE_T + SHELL_LIFT), so the
+chassis strips the whole lift before a roll and a rolling shell is
+centred as before. Test: tests/e2e-outline.mjs (Tienda and Standard: at
+rest every shell floor at SHELL_LIFT and every body on the board; mid-roll
+shell centred on the body; lifted again after). Cromo, Lluvia and the Lab
+scene build their shells the same flush way (not changed).
 
 ### Sound channels (user request: music off, pieces on)
 A theme can export `soundChannels` ([{ key, label, hint }]) and give its

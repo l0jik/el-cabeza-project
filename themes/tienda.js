@@ -26,7 +26,7 @@
 import React from "react";
 import * as THREE from "three";
 import { quality } from "./tienda-quality.js";
-import { createWoodSet, paintWood as setPaintWood, WOODS as SET_WOODS, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_T } from "./wood-set.js";
+import { createWoodSet, paintWood as setPaintWood, WOODS as SET_WOODS, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
 import { createAudio as createStoreAudio } from "./tienda-audio.js";
 
 /* ------------------------------------------------------------ period palette */
@@ -106,7 +106,8 @@ export const HEX = {
 };
 
 export const EDGE_RADIUS = SET_EDGE_RADIUS;
-export const outlineYOffset = OUTLINE_T;
+// The shell's at-rest lift, stripped before a roll (wood-set.js SHELL_LIFT).
+export const outlineYOffset = OUTLINE_Y_OFFSET;
 
 export const modalBackdrop = "rgba(26, 18, 11, 0.55)";
 export const modalSurface = "rgba(236, 225, 198, 0.98)";
@@ -478,3 +479,6 @@ export const soundChannels = [
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).
 export const moveCostToggle = true;
+// The visit goes full screen at the first tap, usually the one that opens
+// the box (chassis: theme.fullscreenOnFirstTap; browsers need a tap first).
+export const fullscreenOnFirstTap = true;

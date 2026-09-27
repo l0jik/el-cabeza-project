@@ -17,7 +17,7 @@
 
 import * as THREE from "three";
 import { quality } from "./tienda-quality.js";
-import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_T } from "./wood-set.js";
+import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
 import { createAudio as createDenAudio } from "./den-audio.js";
 import { createDenEffects } from "./den-fx.js";
 
@@ -71,7 +71,8 @@ export const HEX = {
 };
 
 export const EDGE_RADIUS = SET_EDGE_RADIUS;
-export const outlineYOffset = OUTLINE_T;
+// The shell's at-rest lift, stripped before a roll (wood-set.js SHELL_LIFT).
+export const outlineYOffset = OUTLINE_Y_OFFSET;
 
 export const modalBackdrop = "rgba(20, 12, 6, 0.5)";
 export const modalSurface = "rgba(243, 231, 205, 0.98)";

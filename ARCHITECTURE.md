@@ -146,7 +146,7 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
 // (Neon) sets this to 0; Standard's inflated-shell technique needs its
 // own OUTLINE_T. The chassis always applies `theme.outlineYOffset ?? 0`
 // when a shell enters a roll's pivot rotation, never branching on theme.
-export const outlineYOffset = 0; // or OUTLINE_T for Standard
+export const outlineYOffset = 0; // or OUTLINE_Y_OFFSET (OUTLINE_T + SHELL_LIFT) for Standard/Tienda
 
 // Declared capability, not a branch: lets the chassis skip an inert
 // Sound On/Off button for a theme with no audio.

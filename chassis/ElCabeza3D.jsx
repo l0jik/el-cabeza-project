@@ -170,6 +170,16 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
    on its side). */
 const SHELL_QUERY = "(max-width: 700px), (pointer: coarse) and (max-height: 520px)";
 
+/* A two-finger tap and double-tap, over the board (its pointer effect)
+   or anywhere else on the screen (the document's touch listener): a
+   double-tap toggles full screen. */
+const TWO_FINGER_TAP_MAX_MS = 300; // a two-finger contact shorter than this, with barely any movement, is a tap
+const TWO_FINGER_TAP_MOVE_PX = 12; // max cumulative midpoint travel still counted as a tap, not a drag
+const TWO_FINGER_DOUBLE_TAP_MS = 400; // max gap between two taps to count as a double-tap
+// A theme's first-tap full screen (theme.fullscreenOnFirstTap) is offered
+// once a visit, not again when the game remounts.
+let fullscreenOffered = false;
+
 /* Opponent settings (Human/AI side, AI difficulty, Human-vs-Human starting
    side) persist in this browser across page reloads, not just across New
    Game. Every read/write is guarded — storage can be blocked or throw (a
@@ -1485,6 +1495,104 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
+
+  /* The two-finger double-tap toggles full screen on every screen, not
+     just over the board: the board's own gesture code (the pointer
+     effect on the canvas, further down) only ever sees touches that
+     land on the canvas, and whatever covers it (Tienda's box lid and
+     order form, the dock, pop-ups, menus) kept the gesture from
+     working there. This listens on the document for two-finger
+     contacts that start anywhere else, with the same thresholds.
+     Touch events rather than pointer events: an overlay that scrolls
+     can take a two-finger contact over (pointercancel), but touchend
+     still arrives, and it's one of the events that lets a page go
+     full screen. `lastMultiTouchRef` notes when two fingers were last
+     down, anywhere, for the first-tap full screen below. */
+  const lastMultiTouchRef = useRef(0);
+  useEffect(() => {
+    let gesture = null; // { at, start, last, travel } while a clean two-finger contact off the board is down
+    let lastTapAt = 0;
+    const midOf = (list) => ({ x: (list[0].clientX + list[1].clientX) / 2, y: (list[0].clientY + list[1].clientY) / 2 });
+    const onBoard = (list) => {
+      const canvas = three.current.renderer && three.current.renderer.domElement;
+      return !!canvas && Array.from(list).some((t) => t.target instanceof Node && canvas.contains(t.target));
+    };
+    // Timed by the events' own timestamps (when the fingers touched),
+    // as the board's gesture is, so a busy frame can't stretch a tap.
+    const onStart = (ev) => {
+      const n = ev.touches.length;
+      if (n >= 2) lastMultiTouchRef.current = ev.timeStamp;
+      if (n === 2 && !onBoard(ev.touches)) {
+        const mid = midOf(ev.touches);
+        gesture = { at: ev.timeStamp, start: mid, last: mid, travel: 0 };
+      } else if (n !== 1) {
+        gesture = null; // a third finger, or two with one on the board (the board's gesture)
+      }
+    };
+    const onMoveTouch = (ev) => {
+      if (!gesture || ev.touches.length !== 2) return;
+      const mid = midOf(ev.touches);
+      gesture.travel += Math.hypot(mid.x - gesture.last.x, mid.y - gesture.last.y);
+      gesture.last = mid;
+    };
+    const onEnd = (ev) => {
+      if (!gesture || ev.touches.length >= 2) return;
+      const g = gesture;
+      gesture = null;
+      const now = ev.timeStamp;
+      lastMultiTouchRef.current = now;
+      if (ev.type !== "touchend" || now - g.at >= TWO_FINGER_TAP_MAX_MS || g.travel >= TWO_FINGER_TAP_MOVE_PX) return;
+      if (now - lastTapAt < TWO_FINGER_DOUBLE_TAP_MS) {
+        lastTapAt = 0;
+        toggleFullscreen();
+      } else {
+        lastTapAt = now;
+      }
+    };
+    const opts = { passive: true, capture: true };
+    document.addEventListener("touchstart", onStart, opts);
+    document.addEventListener("touchmove", onMoveTouch, opts);
+    document.addEventListener("touchend", onEnd, opts);
+    document.addEventListener("touchcancel", onEnd, opts);
+    return () => {
+      document.removeEventListener("touchstart", onStart, opts);
+      document.removeEventListener("touchmove", onMoveTouch, opts);
+      document.removeEventListener("touchend", onEnd, opts);
+      document.removeEventListener("touchcancel", onEnd, opts);
+    };
+  }, []);
+
+  /* A theme can open full screen (theme.fullscreenOnFirstTap: Tienda,
+     whose box lid opens the visit). Browsers never let a page go full
+     screen by itself, only from a tap, a click or a key, so it happens
+     on the first one, wherever it lands, and the tap still does what it
+     was for (the lid opens). Once a visit (fullscreenOffered, module
+     level), and not at all if the player has already chosen: entered or
+     left full screen another way first (the two-finger double-tap, the
+     full screen button, a key). A two-finger tap isn't a click, but
+     should a browser make one of it, it's skipped (lastMultiTouchRef). */
+  useEffect(() => {
+    if (!theme.fullscreenOnFirstTap || fullscreenOffered) return undefined;
+    const stop = () => {
+      fullscreenOffered = true;
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("fullscreenchange", stop);
+    };
+    function onClick(ev) {
+      if (!ev.isTrusted || ev.timeStamp - lastMultiTouchRef.current < 600) return;
+      const own = ev.target instanceof Element && ev.target.closest("[data-fullscreen-toggle]");
+      stop();
+      if (!own && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    }
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("fullscreenchange", stop);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("fullscreenchange", stop);
+    };
+  }, [theme]);
 
   /* Per feedback, the native right-click/long-press context menu must
      never appear ANYWHERE in the app, not just on the board (which
@@ -4484,9 +4592,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        both the tap and swipe thresholds below and is simply left as the
        live pinch/pan it already performed — nothing needs to actively
        rule those out. */
-    const TWO_FINGER_TAP_MAX_MS = 300; // a two-finger contact shorter than this, with barely any movement, is a tap
-    const TWO_FINGER_TAP_MOVE_PX = 12; // max cumulative midpoint travel still counted as a tap, not a drag
-    const TWO_FINGER_DOUBLE_TAP_MS = 400; // max gap between two taps to count as a double-tap
+    // The tap thresholds (TWO_FINGER_TAP_*, TWO_FINGER_DOUBLE_TAP_MS) are
+    // at module level, shared with the rest of the screen's listener.
     const TWO_FINGER_SWIPE_MAX_MS = 700; // longer than this reads as a deliberate pan, not a flick
     const TWO_FINGER_SWIPE_MIN_PX = 60; // minimum net vertical travel to count as a swipe
     let twoFingerStartTime = 0;
@@ -4813,7 +4920,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           // A clean two-finger contact starts here — see the field
           // comments above for how this feeds the tap/swipe
           // classification in onUp.
-          twoFingerStartTime = performance.now();
+          twoFingerStartTime = ev.timeStamp;
           twoFingerStartMid = panAnchor;
           twoFingerLastMid = panAnchor;
           twoFingerMoved = 0;
@@ -5106,13 +5213,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          finger pan simply fails both checks below and is left exactly
          as the live pinch/pan it already performed. */
       if (wasExactlyTwo && twoFingerStartMid) {
-        const elapsed = performance.now() - twoFingerStartTime;
+        // Timed by the touches' own timestamps, not when this handler got
+        // to run: a busy frame (a heavy scene on a slow phone) delays the
+        // handlers, not the fingers, and mustn't turn a tap into a hold.
+        const elapsed = ev.timeStamp - twoFingerStartTime;
         const mid = twoFingerLastMid || twoFingerStartMid;
         const netDx = mid.x - twoFingerStartMid.x;
         const netDy = mid.y - twoFingerStartMid.y;
 
         if (elapsed < TWO_FINGER_TAP_MAX_MS && twoFingerMoved < TWO_FINGER_TAP_MOVE_PX) {
-          const now = performance.now();
+          const now = ev.timeStamp;
           if (now - lastTwoFingerTapAt < TWO_FINGER_DOUBLE_TAP_MS) {
             lastTwoFingerTapAt = 0;
             toggleFullscreen();
@@ -6793,6 +6903,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       {!shell && (document.fullscreenEnabled || document.documentElement.requestFullscreen) && (
         <button
           onClick={toggleFullscreen}
+          data-fullscreen-toggle=""
           aria-label={isFullscreen ? "Exit full screen" : "Enter full screen"}
           title={isFullscreen ? "Exit full screen" : "Enter full screen"}
           style={{

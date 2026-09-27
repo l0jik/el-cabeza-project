@@ -21,6 +21,24 @@ import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
 
 export const EDGE_RADIUS = 0.055;
 export const OUTLINE_T = 0.009;
+/* The outline shell's floor sits a hair above the board, not flush with
+   it. Flush (y + OUTLINE_T, the original Standard's choice), the strip of
+   that floor showing in front of a piece's base (the outline there) was
+   the board's own plane, and a cylinder's floor is a fan of long thin
+   wedges whose depth is only approximate when the board is seen low: in
+   patches the board won, and the line under a Cabeza broke into dashes
+   that crawled as the view turned (the user's Tienda video; reproduced on
+   SwiftShader at a low, close view). The top face's constant polygon
+   offset can't reach it: 12 units did no better than 3, the error grows
+   with the depth slope. A slope-scaled factor did fix it but would also
+   let a shell dipping below the board mid-roll show through (the chassis's
+   slab notes warn off exactly that). This is geometry instead, no depth
+   bias: at ~0.3% of a square it is under a pixel at play zoom, the outline
+   still meets the base, and the chassis strips it with the rest of
+   outlineYOffset before a roll, so a rolling shell is centred as before. */
+export const SHELL_LIFT = 0.003;
+// What the themes export as outlineYOffset: the shell's whole at-rest lift.
+export const OUTLINE_Y_OFFSET = OUTLINE_T + SHELL_LIFT;
 
 /* ------------------------------------------------------------ small helpers */
 
@@ -321,7 +339,7 @@ export function createWoodSet({ env, quality, lights }) {
         : makeRoundedBox(piece.w * PIECE_SCALE + OUTLINE_T * 2, piece.z * PIECE_SCALE + OUTLINE_T * 2, piece.h * PIECE_SCALE + OUTLINE_T * 2, EDGE_RADIUS + OUTLINE_T);
     const shell = new THREE.Mesh(shellGeo, new THREE.MeshBasicMaterial({ color: isDark ? 0x120a05 : 0x2c1a0e, side: THREE.BackSide, shadowSide: THREE.BackSide }));
     shell.castShadow = true;
-    shell.position.set(center.x, y + OUTLINE_T, center.z);
+    shell.position.set(center.x, y + OUTLINE_Y_OFFSET, center.z); // floor SHELL_LIFT above the board
     shell.userData = { pieceId: piece.id, kind: "shell" };
     return { mesh, shell };
   }
