@@ -21,7 +21,7 @@
    so the theme stays importable in plain Node for the smoke tests. */
 
 import React from "react";
-import { PIECE_OPTIONS, LAW_OPTIONS, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame } from "./rules-selections.js";
+import { PIECE_OPTIONS, LAW_OPTIONS, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings } from "./rules-selections.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
 
@@ -79,9 +79,24 @@ function Panel({ panel, sel, change, onClose, sound }) {
       }),
     ];
   } else if (panel === "laws") {
-    body = LAWS.map(([k, name, note]) => {
+    const warnings = lawWarnings(sel);
+    body = LAWS.flatMap(([k, name, note]) => {
       const on = !!sel.laws[k];
-      return h("button", {
+      // A law that can't do anything with the other choices says why.
+      const warn = warnings.filter((w) => w.key === k).map((w) => h("div", { key: w.testid, role: "status", "data-testid": w.testid, style: { fontSize: 17, color: "#ffb347", padding: "4px 0 8px 14px", borderBottom: "1px solid rgba(255,179,71,0.12)" } }, "! ", w.text));
+      // Shoving's one setting, under its row while it's on: whether rolls
+      // shove too, or only slides.
+      const rolls = !(sel.shove && sel.shove.onRolls === false);
+      const shoveRow = k === "shoving" && on
+        ? h("div", { key: "shove", "data-testid": "lluvia-shove-settings", style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "6px 0 10px 14px", borderBottom: "1px solid rgba(255,179,71,0.12)" } },
+          h("span", { style: { fontSize: 17, color: "#a8783a", marginRight: 4 } }, "SHOVES ON"),
+          ...[[true, "SLIDES + ROLLS"], [false, "SLIDES ONLY"]].map(([v, label]) => h("button", {
+            key: String(v), type: "button", "data-testid": `lluvia-shove-onRolls-${v ? "on" : "off"}`, "aria-pressed": rolls === v ? "true" : "false",
+            onClick: () => { sound("key"); change((s) => { s.shove = { ...(s.shove || {}), onRolls: v }; }); },
+            style: { height: 38, padding: "0 10px", border: "1px solid", borderRadius: 3, font: "400 20px 'VT323', monospace", cursor: "pointer", ...(rolls === v ? { background: AMBER, color: "#140a04", borderColor: AMBER } : { background: "transparent", color: "#ffcf8a", borderColor: "rgba(255,179,71,0.5)" }) },
+          }, label)))
+        : null;
+      const row = h("button", {
         key: k, type: "button", "data-testid": `lluvia-law-${k}`, "aria-pressed": on ? "true" : "false",
         onClick: () => { sound("key"); change((s) => {
           s.laws[k] = !on;
@@ -92,6 +107,7 @@ function Panel({ panel, sel, change, onClose, sound }) {
       },
       h("span", { style: { display: "flex", flexDirection: "column" } }, h("span", { style: { fontSize: 22, color: "#ffe2b0" } }, name), h("span", { style: { fontSize: 16, color: "#a8783a" } }, note)),
       h("span", { style: { fontSize: 22, color: on ? "#fff27a" : "#7a6040", textShadow: on ? "0 0 8px rgba(255,242,122,0.7)" : "none" } }, on ? "[ ON ]" : "[OFF ]"));
+      return [row, ...(shoveRow ? [shoveRow] : []), ...warn];
     });
   } else {
     const flag = (k, label) => h("button", {

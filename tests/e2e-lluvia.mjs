@@ -58,6 +58,22 @@ await page.waitForTimeout(150);
 check("turning on Diagonal slide turns on Slide too",
   (await page.locator('[data-testid="lluvia-law-slide"]').getAttribute("aria-pressed")) === "true" &&
   (await page.locator('[data-testid="lluvia-law-diagonalSlide"]').getAttribute("aria-pressed")) === "true");
+// Shoving's one setting shows under it while it's on; slides only, with
+// Slide on but 2 points a turn, says a shoving slide needs 3.
+await page.locator('[data-testid="lluvia-law-shoving"]').click();
+await page.waitForTimeout(150);
+check("Shoving shows its setting, slides and rolls chosen",
+  (await page.locator('[data-testid="lluvia-shove-settings"]').count()) === 1 &&
+  (await page.locator('[data-testid="lluvia-shove-onRolls-on"]').getAttribute("aria-pressed")) === "true");
+await page.locator('[data-testid="lluvia-shove-onRolls-off"]').click();
+await page.waitForTimeout(150);
+check("...slides only can be chosen, and it says a shoving slide needs 3",
+  (await page.locator('[data-testid="lluvia-shove-onRolls-off"]').getAttribute("aria-pressed")) === "true" &&
+  (await page.locator('[data-testid="shove-needs-three"]').count()) === 1);
+await page.locator('[data-testid="lluvia-shove-onRolls-on"]').click();
+await page.locator('[data-testid="lluvia-law-shoving"]').click();
+await page.waitForTimeout(150);
+check("...and switching Shoving off hides it", (await page.locator('[data-testid="lluvia-shove-settings"]').count()) === 0);
 await shot(page, "5-laws");
 await page.locator('[data-testid="lluvia-panel-close"]').click();
 await page.locator('[data-testid="lluvia-open-topologies"]').click();

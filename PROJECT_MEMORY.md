@@ -1292,10 +1292,23 @@ could ever be in the way. The rule now, confirmed with the user:
   gated by `withinBudget`. A shoving slide costs 3, a shoving roll 2, an
   Opa shove 3: an Opa only shoves with 3 Actions Per Turn (the menus warn,
   `shove-opa-needs-three`).
-- The old settings (push distance "1 square / as far as it travels",
-  "slides only / slides and rolls") are GONE everywhere (sphere, Tienda,
-  shared model, engine): the rule fixes both. `normalizeSelections` and
-  the sphere's loader drop an old save's `shove` key.
+- Push distance is fixed by the rule (the old "1 square / as far as it
+  travels" setting is gone for good). WHICH MOVES SHOVE is a setting again
+  (user request, 2026-09-27): "Slides and rolls" (default, the rule above)
+  or "Slides only" (a roll into a piece is simply blocked, as without the
+  law). Engine: `ACTIVE_LAWS.shoveOnRolls` (default true) gates
+  `rollShove` in legalRolls. Shared model: `sel.shove = { onRolls }`
+  (`SHOVE_SETTINGS`, `lawsForEngine` passes `shoveOnRolls`,
+  `shovingName` "Shoving (slides only)" in the summary); a save without
+  it means slides and rolls, an old save's `onRolls: false` is kept, its
+  `far` dropped. UIs: Tienda `tienda-shove-settings` /
+  `tienda-shove-onRolls-on|off`; the sphere `shove-settings` /
+  `shove-onRolls-on|off` (+ cost note); Lluvia `lluvia-shove-settings` /
+  `lluvia-shove-onRolls-on|off`. Warnings: slides and rolls with an Opa and
+  no 3 Actions `shove-opa-needs-three`; slides only without Slide
+  `shove-needs-slide`, without 3 Actions `shove-needs-three`. Lluvia's LAWS
+  panel now shows all law warnings too. Rules text follows the setting
+  (RulesCards `shovingText`, the piece card).
 
 Other pieces:
 - The move carries `shoves: [{ id, row, col, teleports }]`, one per
@@ -1800,9 +1813,9 @@ Sumi, Vacío) each have a Title and an In-game phone board.
   centre (`unusedNote`, data-testid `unused-points-note`), e.g. "1 point
   unused: an Opa moves only once per turn". Shown with or without the
   points counter; never for the AI's turns or a wormhole move.
-- **Shoving warnings.** The SLIDES ONLY warnings (`shove-needs-slide`,
-  `shove-needs-three`) went with the Shoving settings (see "Shoving LAW":
-  rolls and slides both shove now). Only `shove-opa-needs-three` remains.
+- **Shoving warnings.** Back with the "slides only" setting (see
+  "Shoving LAW"): `shove-needs-slide`, `shove-needs-three`, and
+  `shove-opa-needs-three` for slides and rolls.
 - **LAWS fixes (built).** Blurbs rewritten to match the engine (Slide
   costs 2, Black Holes are always two and exit on the same side, Split is
   up to two pieces, only a Codo/Rayo/Zeta can pivot). Warnings under a

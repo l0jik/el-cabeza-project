@@ -316,10 +316,13 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await page.mouse.click(6, 6);
   for (let i = 0; i < 12 && (await count('[data-testid="tienda-piece-viewer"]')); i++) await page.waitForTimeout(250);
 
-  // Rules: Shoving (no settings of its own) and its warning, the rules cards.
+  // Rules: Shoving (its one setting) and its warnings, the rules cards.
   await press('[data-testid="tienda-law-shoving"]');
-  check("Shoving has no settings of its own", (await count('[data-testid="tienda-shove-settings"], [data-testid^="tienda-shove-"]')) === 0);
+  check("Shoving offers slides and rolls, or slides only (slides and rolls ticked)", (await count('[data-testid="tienda-shove-settings"]')) === 1 && (await attr('[data-testid="tienda-shove-onRolls-on"]', "aria-pressed")) === "true" && (await count('[data-testid^="tienda-shove-far-"]')) === 0);
   check("...and warns that an Opa's shove needs 3 actions", (await count('[data-testid="shove-opa-needs-three"]')) === 1);
+  await press('[data-testid="tienda-shove-onRolls-off"]');
+  check("Slides only, without the Slide rule, says nothing can shove", (await attr('[data-testid="tienda-shove-onRolls-off"]', "aria-pressed")) === "true" && (await count('[data-testid="shove-needs-slide"]')) === 1);
+  await press('[data-testid="tienda-shove-onRolls-on"]');
   await press('[data-testid="tienda-law-slide"]');
   await press('[data-testid="tienda-law-threeActions"]');
   check("...which 3 actions per turn clears", (await count('.td-warn')) === 0);

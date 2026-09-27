@@ -60,7 +60,18 @@ import("../themes/rules-selections.js").then(async (m) => {
   s.counts.arco = 1; s.arcoSize = "ancho";
   check("the Arco's size picks its piece type", m.pieceTypeOf("arco", s) === "arcoAncho");
   s.laws.shoving = true;
-  check("Shoving reaches the engine with no settings of its own", m.lawsForEngine(s).shoving === true && !("shoveFar" in m.lawsForEngine(s)) && !("shove" in s));
+  check("Shoving reaches the engine, rolls shoving by default", m.lawsForEngine(s).shoving === true && m.lawsForEngine(s).shoveOnRolls === true && !("shoveFar" in m.lawsForEngine(s)));
+  // Its one setting: slides only.
+  s.shove = { onRolls: false };
+  check("slides only reaches the engine", m.lawsForEngine(s).shoveOnRolls === false);
+  check("...and without Slide it warns that nothing can shove", m.lawWarnings(s).some((w) => w.testid === "shove-needs-slide"));
+  s.laws.slide = true;
+  check("...with Slide but 2 points a turn it warns a shoving slide needs 3", m.lawWarnings(s).some((w) => w.testid === "shove-needs-three"));
+  s.laws.threeActions = true;
+  check("...which 3 actions per turn clears", !m.lawWarnings(s).some((w) => w.key === "shoving"));
+  check("...and the summary says slides only", m.variantsOf(s)[0].items.includes("Shoving (slides only)"));
+  s.laws.threeActions = false; s.laws.slide = false;
+  s.shove = { onRolls: true };
   s.counts.opa = 1;
   check("...and with an Opa but 2 points a turn it warns an Opa's shove needs 3", m.lawWarnings(s).some((w) => w.testid === "shove-opa-needs-three"));
   s.laws.threeActions = true;
@@ -90,8 +101,9 @@ import("../themes/rules-selections.js").then(async (m) => {
   }
   check(`hand-placed squares are used as marked (${honoured}/10), the pieces set out round them (${clear}/10)`, honoured === 10 && clear === 10);
   const labelled = m.variantsOf({ ...t, laws: { ...t.laws, shoving: true } }, { laws: "RULES", matter: "PIECES", topologies: "BOARD" });
-  check("the summary uses the theme's words and names Shoving", labelled[0].label === "RULES" && labelled[0].items.includes("Shoving"));
-  check("an old save's Shoving settings are dropped", !("shove" in m.normalizeSelections({ laws: { shoving: true }, shove: { far: true, onRolls: true } })));
+  check("the summary uses the theme's words and names Shoving", labelled[0].label === "RULES" && labelled[0].items.includes("Shoving (slides and rolls)"));
+  check("an old save keeps its slides-only choice and drops the push distance", (() => { const n = m.normalizeSelections({ laws: { shoving: true }, shove: { far: true, onRolls: false } }); return n.shove.onRolls === false && !("far" in n.shove); })());
+  check("a save without the setting shoves on rolls too", m.normalizeSelections({ laws: { shoving: true } }).shove.onRolls === true);
   check("an old save normalises (size → rows × cols, counts clamped)", (() => { const n = m.normalizeSelections({ size: 12, counts: { opa: 9 } }); return n.rows === 12 && n.cols === 12 && n.counts.opa === 4 && n.missingSpots.length === 0; })());
   setBoardDimensions(10, 10);
   console.log(failures ? `\n${failures} check(s) failed` : "\nall rules-selections checks passed");

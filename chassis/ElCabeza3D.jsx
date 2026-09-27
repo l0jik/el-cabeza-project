@@ -5866,7 +5866,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // session settings — cleared here for a plain game (both the engine
       // module state read by rules.js/the AI worker and the chassis's own
       // React copies).
-      setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false });
+      setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true });
       setActiveBlackHoles([]);
       setBlackHoles([]);
       setActiveMissingSquares([]);

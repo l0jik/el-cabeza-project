@@ -342,6 +342,8 @@ export function pickMissingSquarePairs(pieces, rows, cols, count, avoid = [], ex
      is on the board, not a Missing Square and not taken by any other
      piece. A piece behind one being pushed blocks the shove (lines are
      never pushed), even if it is itself in the mover's way.
+   Rolls shove only while ACTIVE_LAWS.shoveOnRolls is on (the law's one
+   setting: "slides and rolls", or "slides only").
    How far: a slide pushes exactly one square (`clearOfLanding` false). A
    roll pushes each piece just clear of where the roller lands
    (`clearOfLanding` true): a piece right against a rolling Opa goes two
@@ -425,7 +427,8 @@ export function legalRolls(pieces, piece) {
     const candidate = rollBlock(piece, dir);
     const verdict = evaluateBlockLanding(pieces, candidate, STEP_DIRS[dir]);
     if (verdict.legal && sweep && rollSweepClashes(pieces, piece, dir, verdict.crushes)) continue;
-    if (!verdict.legal && ACTIVE_LAWS.shoving) {
+    // Rolls shove unless Shoving is set to slides only.
+    if (!verdict.legal && ACTIVE_LAWS.shoving && ACTIVE_LAWS.shoveOnRolls !== false) {
       const shoveMove = rollShove(pieces, piece, candidate, dir, sweep);
       if (shoveMove) out[dir] = shoveMove;
       continue;

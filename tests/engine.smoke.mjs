@@ -382,6 +382,16 @@ setActiveLaws({ splitMovement: false, threeActions: false });
   m = legalMovesFor([chatoTall, enemyCab], chatoTall, 2).E;
   shoveCheck("a roll onto a lone enemy Cabeza is still a crush", m && m.crushes && !m.shoves, JSON.stringify(m));
 
+  // Shoving's one setting: slides only. A roll into a lighter piece is
+  // blocked as without the law; a slide still shoves; crushes are intact.
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true, shoveOnRolls: false });
+  shoveCheck("slides only: the shoving roll isn't offered", !legalMovesFor([chatoTall, P("t3", "turrito", 4, 4, 1, 1, 1, "light")], chatoTall, 3).E);
+  m = legalMovesFor([chato, turrito], chato, 3)["slide-E"];
+  shoveCheck("slides only: a slide still shoves", m && moved(m, "tu").col === 5, JSON.stringify(m));
+  m = legalMovesFor([chatoTall, enemyCab], chatoTall, 2).E;
+  shoveCheck("slides only: a roll onto a lone enemy Cabeza is still a crush", m && m.crushes && !m.shoves, JSON.stringify(m));
+  setActiveLaws({ ...LAWS_OFF, shoving: true, threeActions: true, shoveOnRolls: true });
+
   // The AI sees shoves (several pieces at once too), and applying/undoing
   // them restores the board exactly.
   setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true });
@@ -392,8 +402,8 @@ setActiveLaws({ splitMovement: false, threeActions: false });
   shoveCheck("generating them leaves the board untouched", JSON.stringify(board) === before);
   const plan = await findBestAiTurn(board, "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 300 }, 0, 10);
   shoveCheck("the AI still finds a turn with Shoving on", !!plan);
-  setActiveLaws(LAWS_OFF);
-  console.log("[shoving] lighter-in-total pieces pushed; slide 1, roll clear of landing; side by side yes, lines no; mass not height; holes, edges, Missing Squares; +1 point; crushes intact; AI sees it");
+  setActiveLaws({ ...LAWS_OFF, shoveOnRolls: true });
+  console.log("[shoving] lighter-in-total pieces pushed; slide 1, roll clear of landing; side by side yes, lines no; mass not height; holes, edges, Missing Squares; +1 point; crushes intact; slides only blocks the roll; AI sees it");
 }
 
 // ---------- Cantilever Pivot LAW ----------

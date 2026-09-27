@@ -767,18 +767,31 @@ if (state.activeCategory === "laws") {
       state.selections.blackHole.manual.col === Number(m[2]),
     JSON.stringify(state.selections.blackHole));
 
-  // Shoving has no settings of its own (a slide pushes one square, a roll
-  // just past where it lands; both shove). With an Opa in the roster and
-  // 2 points a turn it warns that an Opa's shove costs 3; 3 Actions Per
-  // Turn clears that. Unticked again afterwards so the rest of this run
-  // plays without it.
+  // Shoving has one setting: which moves shove (slides and rolls, the
+  // default, or slides only). With an Opa in the roster and 2 points a
+  // turn it warns that an Opa's shove costs 3; 3 Actions Per Turn clears
+  // that. Slides only without Slide says nothing can shove. Unticked again
+  // afterwards so the rest of this run plays without it.
   await page.locator('[data-testid="law-shoving"]').click();
   await page.waitForTimeout(150);
   state = await sphereState();
-  check("Shoving toggles on, with no settings of its own",
-    state.selections.laws.shoving === true && !("shove" in state.selections) &&
-      (await page.locator('[data-testid="shove-settings"], [data-testid^="shove-far-"], [data-testid^="shove-onRolls-"]').count()) === 0,
-    JSON.stringify(state.selections.laws));
+  check("Shoving toggles on, with its one setting: slides and rolls",
+    state.selections.laws.shoving === true && state.selections.shove && state.selections.shove.onRolls === true &&
+      (await page.locator('[data-testid="shove-settings"]').count()) === 1 &&
+      (await page.locator('[data-testid="shove-onRolls-on"]').getAttribute("aria-pressed")) === "true" &&
+      (await page.locator('[data-testid^="shove-far-"]').count()) === 0,
+    JSON.stringify(state.selections));
+  await page.locator('[data-testid="shove-onRolls-off"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("...Slides only can be chosen", state.selections.shove.onRolls === false);
+  if (!state.selections.laws.slide) {
+    check("...and without Slide it says nothing can shove", (await page.locator('[data-testid="shove-needs-slide"]').count()) === 1);
+  }
+  await page.locator('[data-testid="shove-onRolls-on"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("...and back to slides and rolls", state.selections.shove.onRolls === true && (await page.locator('[data-testid="shove-needs-slide"]').count()) === 0);
   if ((state.selections.matter.roster.opa || 0) > 0 && !state.selections.laws.threeActions) {
     check("with an Opa and 2 points a turn it says an Opa's shove needs 3",
       (await page.locator('[data-testid="shove-opa-needs-three"]').count()) === 1);

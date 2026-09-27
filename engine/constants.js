@@ -310,6 +310,10 @@ export let ACTIVE_LAWS = {
   // pushes one square, a roll just clear of where it lands. See tryShove
   // in rules.js.
   shoving: false,
+  // Shoving's one setting: whether rolls shove as well as slides ("slides
+  // and rolls", the default) or only slides do ("slides only": a roll into
+  // a piece is simply blocked, as without the law).
+  shoveOnRolls: true,
 };
 
 export function setActiveLaws(partial) {
