@@ -87,20 +87,44 @@ setActiveLaws({ threeActions: true, slide: true, splitMovement: true, cantilever
 }
 setActiveLaws({ threeActions: false, slide: false, splitMovement: false, cantileverPivot: false, shoving: false });
 
-// Putting a piece straight back where it stood a turn ago costs it: the
-// same quiet opening, the same settings without noise, but the square
-// the first choice would put its piece on is one it just left.
+// A forced crush at a one-turn search: Light's Cabeza is cornered (two
+// missing squares above it), so after Dark's Turrito rolls west twice,
+// every Light reply leaves it in the Turrito's reach. The AI must see
+// that the threat can't be answered and play it.
+setActiveLaws({ splitMovement: false, slide: false, threeActions: false, shoving: false, cantileverPivot: false });
+setMissingSquares([{ row: 8, col: 0 }, { row: 8, col: 1 }]);
 {
+  const net = [cab("dark-cabeza", "dark", 0, 9), cube("dark-turrito", "dark", 9, 4), cab("light-cabeza", "light", 9, 0), cube("light-turrito", "light", 0, 0)];
+  // Threats and room to run weighed at nothing, so only the forced-crush
+  // search can tell W.W from any other turn.
+  const blind = { ...AI_DIFFICULTY.medium, maxDepth: 1, jitter: 0, openingJitter: 0, threatBonus: 0, cabezaSafety: 0 };
+  const without = await findBestAiTurn(net, "dark", { ...blind, forcedCrush: false }, 0, 10, {});
+  const plan = await findBestAiTurn(net, "dark", { ...blind, forcedCrush: true }, 0, 10, {});
+  check(`a threat with no answer is found and played (played ${plan.pieceId} ${plan.dirs.join(".")}; without the search, ${without.pieceId} ${without.dirs.join(".")})`,
+    plan.pieceId === "dark-turrito" && plan.dirs.join(".") === "W.W" && !(without.pieceId === "dark-turrito" && without.dirs.join(".") === "W.W"));
+}
+setMissingSquares([]);
+
+// Putting a piece straight back where it stood a turn ago costs it, in a
+// game where the AI searches one turn (here 3 Actions): the same quiet
+// opening, the same settings without noise, but the square the first
+// choice would put its piece on is one it just left. In the classic game
+// it costs nothing (it cost Medium strength there).
+for (const fast of [true, false]) {
+  setActiveLaws({ threeActions: fast });
   const opening = createInitialPieces();
-  const quiet = { ...AI_DIFFICULTY.medium, maxDepth: 2, jitter: 0, openingJitter: 0 };
+  const quiet = { ...AI_DIFFICULTY.medium, maxDepth: 1, jitter: 0, openingJitter: 0 };
   const first = await findBestAiTurn(opening, "dark", quiet, 0, 10, {});
   const board = opening.map((p) => ({ ...p }));
   const turn = generateTurns(board, "dark").find((t) => !t.steps && t.pieceId === first.pieceId && t.dirs.join() === first.dirs.join());
   for (const m of turn.moves) Object.assign(turn.piece, m.candidate);
   const again = await findBestAiTurn(opening, "dark", quiet, 0, 10, {}, { [first.pieceId]: [placeKey(turn.piece)] });
-  check(`a piece isn't put back where it just stood (${first.pieceId} ${first.dirs.join(".")}, then ${again.pieceId} ${again.dirs.join(".")})`,
-    !(again.pieceId === first.pieceId && again.dirs.join() === first.dirs.join()));
+  const same = again.pieceId === first.pieceId && again.dirs.join() === first.dirs.join();
+  check(fast
+    ? `3 Actions: a piece isn't put back where it just stood (${first.pieceId} ${first.dirs.join(".")}, then ${again.pieceId} ${again.dirs.join(".")})`
+    : `the classic game: no put-back cost (${first.pieceId} ${first.dirs.join(".")} both times)`, fast ? !same : same);
 }
+setActiveLaws({ threeActions: false });
 
 if (failed) { console.log(`AI THREATS: ${failed} FAILED`); process.exit(1); }
 console.log("AI THREATS PASSED");

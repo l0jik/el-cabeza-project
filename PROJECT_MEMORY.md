@@ -136,12 +136,14 @@ three rolls south. What was wrong, and what changed (engine/ai.js):
   side to move wins if a Cabeza of its is within `maxStepsFor("cabeza")`
   plain steps of its goal row (attacked squares don't count).
 - **Exact reply check at depth 1** (`verifyReplies`, Medium and Hard; Easy
-  keeps its mistakes): minimaxSearch at the root, depth 1,
-  checks the best-scoring turns in order against every opponent turn
-  (generateTurns, so Split Movement pairings and shoves too) and plays the
-  first with no game-ending reply (at least three checked, up to 40).
+  keeps its mistakes): when the search ended one turn deep, the
+  best-scoring turns are checked in order against every opponent turn
+  (generateTurns, so Split Movement pairings and shoves too) and the
+  first with no game-ending reply is played (at least three checked, up
+  to 40; checkOneTurnChoice).
 - **Shuffling**: `backtrackBias` (Easy 10, Medium 10, Hard 8) per piece
-  put back where it stood at the start of one of the AI's last 3 turns.
+  put back where it stood at the start of one of the AI's last 3 turns,
+  in fast games only (see below).
   The chassis keeps `aiPlacesRef` (snapshots of `placeKey`), passes
   `recentPlaces` through the worker to findBestAiTurn.
 - **Openings**: a shuffled opening could let the first move crush a
@@ -152,6 +154,30 @@ three rolls south. What was wrong, and what changed (engine/ai.js):
 Tests: tests/ai-threats.smoke.mjs (three-roll threats, walk home, the
 one-turn decision judged by every Dark reply, the opening guard);
 tests/ai-sim.mjs scenario `fast` (reports `piecesPutBack`).
+Measured (ai-sim `fast`, Medium new vs the previous Medium): 15-1 across
+both colours. But new vs new drew at 80 turns, safe and aimless, so:
+- **Forced crushes** (`forcedCrush`, Medium and Hard; findForcedCrush):
+  at a one-turn search, a turn after which the opponent's Cabeza is in
+  reach and every reply leaves it in reach is played (+5000). Its replies
+  that move their Cabeza are tried first. vs the pushed Medium: 13-4 (3
+  draws) over 20 games.
+- **`threatBonus`** (the value of a threat the side to move must answer,
+  25 as always): 60 measured no better (12-6, 2 draws), so it stays 25.
+- The attacked-square marks follow every first roll again, as the
+  two-roll check did.
+- **The put-back cost is for fast games only** (Split Movement or 3
+  Actions, where the AI searches one turn and the shuffling happened).
+  In the classic game it cost Medium strength: over 24 classic games
+  each against the pre-change Medium, 9-13 (2 draws) with it, 15-9
+  without. findBestAiTurn zeroes `backtrackBias` outside fast games.
+- The reply check and the forced-crush search (`checkOneTurnChoice`) run
+  only when the search ended one turn deep (findBestAiTurn, after the
+  loop, from depth 1's `rootScores`): a deeper search saw the replies
+  itself, and the checks were costing the classic game a little depth.
+- Final settings, confirmed: fast rules vs the first pushed version of
+  these fixes 9-3; classic rules vs the pre-change Medium 8-8 (with the
+  24-game 15-9 above, even to slightly better). The first push (e177682)
+  still had the put-back cost in the classic game.
 
 ## 3b. Board dimensions are a runtime parameter (TOPOLOGIES groundwork)
 
@@ -1812,6 +1838,12 @@ Sumi, Vacío) each have a Title and an In-game phone board.
 
 ## Future wishlist (user-requested, not started)
 
+- **REMIND THE USER: the den's music (asked to be reminded,
+  2026-09-27).** The stereo console's record player and 8-track are
+  built, and the music panel lists them, but the tracks are the user's
+  to send. When they arrive: bundle each as an asset and list it in
+  themes/standard.js `DEN_TRACKS` ({ id, title, artist, medium: "record"
+  | "8track", url }). See "The den, round 2" below.
 - **REMIND THE USER: a city-block version (asked to be reminded,
   2026-09-27).** Every piece is a building, or a row of buildings when it
   lies flat, in a foggy, rainy future-noir city (think Blade Runner, or
@@ -2486,3 +2518,53 @@ choice).
   `__EC_TEST_CAM__({theta, phi, radius, target})` moves the camera
   (a wheel burst in a test switches views instead of zooming).
   Test: tests/e2e-den.mjs.
+
+### The den, round 2 (user requests)
+- **Sound** (den-audio.js): rain is a steady patter with drops on the
+  glass and a drip from the eaves, no swells and no thunder (they read as
+  wind; user: "no wind noise"). The clock is a woody tick-tock (filtered
+  clicks, the tock lower), quiet, on the device's seconds; on the device's
+  hour it plays the Westminster hour chime, the four phrases only (no
+  counting strokes; user's choice), as a 1970s chime chip through a tiny
+  speaker, quietly ("these people are trying to concentrate"). The fire's
+  crackles are louder and have their own bus: den-fx.js calls
+  `audio.setFireListener(distance, pan)` from the camera every 100 ms
+  (nearer is louder, about twice as loud warming your hands as from the
+  pit's middle, and panned to its side). Test hooks: `__DEN_CHIME_NOW__`,
+  `__DEN_AUDIO__().fire`, `.chimes`, `.music`.
+- **The stereo console** (den-room.js `buildConsole`, lit, not baked, so
+  it holds up close): walnut cabinet, a turntable set into the top under a
+  smoked lid (the lid lifts while you're over there, the platter turns and
+  the arm swings in while a record plays), the receiver's amber dial and
+  knobs, the 8-track slot with its four program lights (a cartridge sits in
+  it while a tape plays), cabinet speakers with woven grilles, a golden
+  pothos and a heartleaf philodendron trailing over them (user's choice of
+  decor), a heavy amber-glass ashtray, a record sleeve. Its still parts are
+  merged by material. Metals have low metalness: nothing in the room to
+  reflect (fully metallic surfaces rendered black).
+- **Music** (theme.music in standard.js; chassis): the sound menu's
+  "Choose music" and the phone menu's "Choose music" open a small music
+  panel (`music-panel`), and so does a tap on the turntable or the 8-track
+  in the room (ambient `pickScene`, before the tap handler's play gates, so
+  it works in setup, play and after the game; a piece or marker under the
+  tap comes first). While the panel is open the camera glides to the
+  console (ambient `setMusicFocus`; the chassis calls ambient
+  `cameraOverride(camera, dt)` after placing its own camera each frame,
+  and the den blends toward its view and back) and the dock steps aside.
+  Each source lists its tracks or says it's empty; a track plays through
+  den-audio `playMusic` (a little surface noise for vinyl, hiss for tape),
+  on the den's own "stereo" channel (shown as Music; not Tienda's "music"
+  key, since channel choices carry between pages; picking a track switches
+  it back on). Tracks: themes/standard.js
+  `DEN_TRACKS`, empty until the user sends them (see the wishlist).
+- **Doorway**: in the south wall, left of the console as you face it from
+  the pit (east of it; user: "on the left side of the stereo console"),
+  its door standing open onto a hall with a light and a framed print. The
+  glass door stays (user).
+- **Table**: a stoneware mug of coffee on its saucer, a teaspoon on the
+  rim; a heavy tumbler of scotch on the rocks; the bowl heaped with snack
+  mix built piece by piece (peanuts, pretzels, cereal squares, rye chips,
+  instanced), so it reads from the sofa.
+- **The INFO booklet** (standard.js styleSheet): its double rule is inset
+  shadows under the text, so the scrolling part now stops short of the
+  rule and fades into it (user report: text scrolled into the margin).

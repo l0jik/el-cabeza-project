@@ -115,7 +115,11 @@ function blockTurnReach(pieces, p, points, targets, marks, threatened, stopAtCru
       }
       if (marks && !m.isSlide && !m.isPivot) markGround(marks, m.candidate);
       const rest = left - moveCost(m);
-      if (rest < 1 || m.teleports || m.shoves || !within(m.candidate, rest)) continue;
+      if (rest < 1 || m.teleports || m.shoves) continue;
+      // Every first roll is followed, as the two-roll check always did: its
+      // second-move landings are attacked squares a Cabeza's route prices
+      // in, near it or not. Anything else only while it can still reach.
+      if (!(marks && left === points && !m.isSlide && !m.isPivot) && !within(m.candidate, rest)) continue;
       const undo = applyMove(pieces, p, m);
       walk(rest);
       undoMove(pieces, p, undo);
@@ -455,6 +459,9 @@ export const DEFAULT_EVAL_WEIGHTS = {
   wall: 0,
   centrality: 0,
   cabezaSafety: 0,
+  // Not a 0-means-off term: a threat the side to move must answer has
+  // always been worth 25 (see evaluatePosition).
+  threatBonus: 25,
 };
 
 /* Scale of the evaluation's fixed terms (the difficulty-tunable ones
@@ -666,6 +673,11 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
      its own turn, so the evaluation has to see this reply itself, the way
      it sees a crush — or it leaves the enemy Cabeza a free run home. */
   const steps = maxStepsFor("cabeza");
+  /* A threat the side to move has to answer (a Cabeza in reach of a crush
+     next turn). Medium and Hard weigh it more than the 25 it always was
+     (threatBonus): a threat costs the other side its turn, and at a
+     one-turn search it's the only way the AI sees an attack coming. */
+  const threat = weights.threatBonus ?? 25;
   const walksHome = (cabezas, route) => route <= steps || cabezas.some((c) => {
     if (Math.abs(GOAL_ROW[c.owner] - c.row) > steps) return false;
     const idx = c.row * BOARD_COLS + c.col;
@@ -676,10 +688,10 @@ export function evaluatePosition(pieces, forPlayer, weights = DEFAULT_EVAL_WEIGH
   });
   if (mover === oppPlayer) {
     score -= Math.max(hangingValue(myHit, myCabezas.length), walksHome(oppCabezas, oppRoute) ? LAST_CABEZA_HANGING : 0);
-    if (oppHit) score += oppHit >= 2 ? CABEZA_VALUE * 0.8 : 25;
+    if (oppHit) score += oppHit >= 2 ? CABEZA_VALUE * 0.8 : threat;
   } else {
     score += Math.max(hangingValue(oppHit, oppCabezas.length), walksHome(myCabezas, myRoute) ? LAST_CABEZA_HANGING : 0);
-    if (myHit) score -= myHit >= 2 ? CABEZA_VALUE * 0.8 : 25;
+    if (myHit) score -= myHit >= 2 ? CABEZA_VALUE * 0.8 : threat;
   }
 
   /* Everything below is off unless a difficulty's config turns it on
@@ -985,7 +997,8 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
   // it's computed on demand rather than for every candidate.
   let bestTurnSafe = null;
   let timedOut = false;
-  // Every root turn and its score, for a one-turn search's reply check below.
+  // Every root turn and its score, for a one-turn search's reply check
+  // (checkOneTurnChoice, from findBestAiTurn).
   const rootScores = ply === 0 && depth === 1 && maximizing && weights.verifyReplies ? [] : null;
 
   /* Computed once, not per-turn: whether `player`'s own Cabeza is
@@ -1169,29 +1182,70 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
     if (timedOut) break;
   }
 
-  /* A one-turn search checks its choice against every reply (Medium and
-     Hard: `verifyReplies`; Easy keeps its mistakes). At depth 1
-     the replies are only judged by the evaluation, which walks each enemy
-     block's own turn (blockTurnReach) but not every Split Movement pairing
-     or shove. So the best-scoring turns are checked in order against all
-     the opponent's turns (generateTurns, exact), and the first that
-     leaves no game-ending reply is played. Usually the first one passes,
-     and a narrow game goes on to depth 2 anyway, which sees the replies. */
-  if (rootScores && !timedOut && bestTurn && !bestTurn.endsGame) {
-    rootScores.sort((a, b) => b.score - a.score);
-    for (let i = 0; i < rootScores.length && i < 40 && (i < 3 || performance.now() < deadline); i++) {
-      const { turn, score } = rootScores[i];
-      let safe = !!turn.endsGame;
-      if (!safe) {
-        const undos = applyTurn(pieces, turn);
-        safe = !generateTurns(pieces, opponentOf(player)).some((r) => r.endsGame);
-        undoTurn(pieces, turn, undos);
-      }
-      if (safe) { bestTurn = turn; bestScore = score; break; }
-    }
-  }
+  return { score: bestScore, turn: bestTurn, timedOut, width: turns.length, rootScores };
+}
 
-  return { score: bestScore, turn: bestTurn, timedOut, width: turns.length };
+/* When the search ends one turn deep (Split Movement, 3 Actions: nothing
+   deeper fits), its choice is checked against the replies (Medium and
+   Hard: `verifyReplies`; Easy keeps its mistakes). At depth 1 the replies
+   are only judged by the evaluation, which walks each enemy block's own
+   turn (blockTurnReach) but not every Split Movement pairing or shove.
+   First a forced crush is looked for (`forcedCrush`, findForcedCrush);
+   then the best-scoring turns are checked in order against all the
+   opponent's turns (generateTurns, exact) and the first that leaves no
+   game-ending reply is played. Usually the first one passes. A search
+   that got deeper saw the replies itself and skips this. */
+function checkOneTurnChoice(pieces, player, rootScores, deadline, weights) {
+  rootScores.sort((a, b) => b.score - a.score);
+  if (!rootScores.length || rootScores[0].turn.endsGame) return rootScores[0] || null;
+  const forced = weights.forcedCrush ? findForcedCrush(pieces, player, rootScores, deadline) : null;
+  if (forced) return { turn: forced.turn, score: forced.score + FORCED_CRUSH_VALUE };
+  for (let i = 0; i < rootScores.length && i < 40 && (i < 3 || performance.now() < deadline); i++) {
+    const { turn } = rootScores[i];
+    if (turn.endsGame) return rootScores[i];
+    const undos = applyTurn(pieces, turn);
+    const safe = !generateTurns(pieces, opponentOf(player)).some((r) => r.endsGame);
+    undoTurn(pieces, turn, undos);
+    if (safe) return rootScores[i];
+  }
+  return rootScores[0];
+}
+
+/* A turn that wins by force: after it the opponent's Cabeza is in reach
+   of a crush, and every reply they have still leaves it in reach (none
+   of them ends the game first). The net a hunting block throws round a
+   Cabeza, found at a one-turn search, which otherwise sees a threat only
+   as a threat. Checked best-scoring first, at most 30 turns that make a
+   threat and within the time left; each reply that moves their Cabeza is
+   tried first, since an escape is what ends the check soonest.
+   (Every block's own turn only, as in cabezaInDanger: a crush that takes
+   two pieces of a Split Movement turn isn't counted on.) */
+const FORCED_CRUSH_VALUE = 5000;
+function findForcedCrush(pieces, player, rootScores, deadline) {
+  const opp = opponentOf(player);
+  let tried = 0;
+  for (const { turn, score } of rootScores) {
+    if (tried >= 30 || performance.now() > deadline) break;
+    if (turn.endsGame) continue;
+    const undos = applyTurn(pieces, turn);
+    let forced = false;
+    if (cabezaInDanger(pieces, opp)) {
+      tried++;
+      const replies = generateTurns(pieces, opp);
+      const movesCabeza = (r) => (r.steps ? r.steps.some((st) => st.piece.type === "cabeza") : r.piece.type === "cabeza");
+      replies.sort((a, b) => movesCabeza(b) - movesCabeza(a));
+      forced = replies.length > 0 && replies.every((r) => {
+        if (r.endsGame) return false;
+        const u = applyTurn(pieces, r);
+        const still = cabezaInDanger(pieces, opp);
+        undoTurn(pieces, r, u);
+        return still;
+      });
+    }
+    undoTurn(pieces, turn, undos);
+    if (forced) return { turn, score };
+  }
+  return null;
 }
 
 /* Iterative deepening: search depth 1, then 2, then 3… until either
@@ -1266,6 +1320,8 @@ export async function findBestAiTurn(
     openingJitter = 0,
     backtrackBias = 0,
     verifyReplies = false,
+    forcedCrush = false,
+    threatBonus = 25,
   },
   cabezaStreak = 0,
   turnIndex = 0,
@@ -1280,13 +1336,20 @@ export async function findBestAiTurn(
      jitter buys the most variety. It decays to the baseline once the
      game has its own shape. */
   const effectiveJitter = jitter + (turnIndex < AI_OPENING_TURNS ? openingJitter : 0);
+  /* Putting a piece back only costs in the games where the AI searches
+     one turn (Split Movement, 3 Actions), where the reported shuffling
+     happened. In the classic game, searching several turns ahead, a step
+     back is often right: measured over 24 classic games each, Medium with
+     the penalty lost to the previous Medium 9-13, without it won 15-9. */
+  const fastGame = ACTIVE_LAWS.splitMovement || ACTIVE_LAWS.threeActions;
+  backtrackBias = fastGame ? backtrackBias : 0;
   const rootBias =
     twoStepBias || cabezaRepeatBias || pieceRepeatBias || effectiveJitter || (backtrackBias && recentPlaces)
       ? { twoStepBias, cabezaRepeatBias, cabezaStreak, pieceRepeatBias, pieceStreaks, jitter: effectiveJitter, backtrackBias, recentPlaces }
       : null;
   // `beam` rides along with the evaluation weights since both thread
   // through every ply of the search (see minimaxSearch).
-  const weights = { blockAdvance, turritoBonus, wall, centrality, cabezaSafety, beam, verifyReplies };
+  const weights = { blockAdvance, turritoBonus, wall, centrality, cabezaSafety, beam, verifyReplies, forcedCrush, threatBonus };
   /* The ONLY pieces-array allocation in the whole search: everything
      below (generateTurns, minimaxSearch, their move-ordering pass) now
      mutates this one cloned array/objects in place via applyMove/
@@ -1299,6 +1362,7 @@ export async function findBestAiTurn(
   const killers = [];
   const history = Object.create(null);
   let best = null;
+  let oneTurn = null; // depth 1's scored root turns, for checkOneTurnChoice
 
   lastSearchInfo.depth = 0;
   lastSearchInfo.depthMs = [];
@@ -1309,6 +1373,7 @@ export async function findBestAiTurn(
     const result = minimaxSearch(working, aiPlayer, aiPlayer, depth, -Infinity, Infinity, deadline, rootBias, weights, killers, history, 0);
     if (result.timedOut && depth > 1) break;
     if (result.turn) best = result.turn;
+    if (depth === 1) oneTurn = result.rootScores;
     lastSearchInfo.depth = depth;
     if (Math.abs(result.score) >= AI_WIN_SCORE) break; // forced win/loss found — deeper search can't change that
     /* Stop early when the next depth can't finish: an unfinished depth is
@@ -1337,6 +1402,11 @@ export async function findBestAiTurn(
       const kept = beam ? Math.min(result.width, beam * 3) : result.width;
       if (0.35 * kept * depthMs > left) break;
     }
+  }
+
+  if (lastSearchInfo.depth === 1 && oneTurn) {
+    const checked = checkOneTurnChoice(working, aiPlayer, oneTurn, deadline, weights);
+    if (checked) best = checked.turn;
   }
 
   // Only pieceId/dirs are ever actually a caller's contract (see
@@ -1445,10 +1515,10 @@ export const AI_DIFFICULTY = {
        shallowest, fixated hardest (one piece in ~60% of its turns). */
     pieceRepeatBias: 8,
     /* A piece put straight back where it stood a turn or two ago (see
-       minimaxSearch's root bias). */
+       minimaxSearch's root bias), in fast games only (findBestAiTurn). */
     backtrackBias: 10,
     /* Easy doesn't check its one-turn choices against every reply (see
-       minimaxSearch): it can still leave a crush it didn't see. */
+       checkOneTurnChoice): it can still leave a crush it didn't see. */
     verifyReplies: false,
     blockAdvance: 0,
     turritoBonus: 0,
@@ -1485,11 +1555,14 @@ export const AI_DIFFICULTY = {
     cabezaRepeatBias: 11,
     pieceRepeatBias: 6,
     /* From the reported game where Medium shuffled its Rayo, Chato and
-       Cabeza back and forth all game (see minimaxSearch's root bias). */
+       Cabeza back and forth all game (see minimaxSearch's root bias); in
+       fast games only, where that happened (findBestAiTurn). */
     backtrackBias: 10,
     /* When only a one-turn search fits (Split Movement, 3 Actions), its
-       choice is checked against every reply (see minimaxSearch). */
+       choice is checked against every reply, and a threat that no reply
+       answers is found and played (checkOneTurnChoice, findForcedCrush). */
     verifyReplies: true,
+    forcedCrush: true,
     blockAdvance: 0.8,
     /* Was 0.9: an extra reward for advancing the Turrito specifically,
        from before the MATTER pieces existed. With 3 actions it made the
@@ -1562,6 +1635,7 @@ export const AI_DIFFICULTY = {
     pieceRepeatBias: 5,
     backtrackBias: 8,
     verifyReplies: true,
+    forcedCrush: true,
     blockAdvance: 1.4,
     turritoBonus: 0, // was 1.6 — see Medium's note
 
