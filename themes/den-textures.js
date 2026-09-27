@@ -90,6 +90,35 @@ export function floralPaper() {
   }, { repeat: true });
 }
 
+/* The hall's paper, a different print from the room's daisies (user: the
+   paper through the open door shouldn't match the den's): 1970s mod
+   geometry, interlocking rings of avocado and harvest gold on a cream
+   ground, a small burnt-orange dot at each heart. */
+export const HALL_PAPER_TILE = 16;
+export function hallPaper() {
+  return canvasTexture(512, 512, (g, W, H) => {
+    const r = rng(1974);
+    g.fillStyle = "#EAE0C4"; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < 1200; i++) { g.fillStyle = `rgba(${r() < 0.5 ? "120,100,60" : "255,250,235"},0.07)`; g.fillRect(r() * W, r() * H, 2, 2); }
+    const N = 4, cell = W / N, R = cell * 0.62;
+    const ring = (cx, cy, rad, width, color) => wrapped(W, H, cx, cy, rad + width, (dx, dy) => {
+      g.strokeStyle = color; g.lineWidth = width;
+      g.beginPath(); g.arc(cx + dx, cy + dy, rad, 0, TAU); g.stroke();
+    });
+    // Two offset grids of rings, so each overlaps its neighbours.
+    for (let row = 0; row < N; row++) for (let col = 0; col < N; col++) {
+      const cx = (col + 0.5) * cell, cy = (row + 0.5) * cell;
+      ring(cx, cy, R, cell * 0.075, "#6B7A34");
+      ring(cx, cy, R * 0.72, cell * 0.05, "#C99A2E");
+    }
+    for (let row = 0; row < N; row++) for (let col = 0; col < N; col++) {
+      const cx = col * cell, cy = row * cell;
+      ring(cx, cy, R * 0.34, cell * 0.06, "#C99A2E");
+      wrapped(W, H, cx, cy, cell * 0.12, (dx, dy) => { g.fillStyle = "#B5562A"; g.beginPath(); g.arc(cx + dx, cy + dy, cell * 0.085, 0, TAU); g.fill(); });
+    }
+  }, { repeat: true });
+}
+
 /* Fieldstone: rounded stones of greys, tans and browns laid in dark
    mortar, each lit a little from above. */
 export const STONE_TILE = 22;

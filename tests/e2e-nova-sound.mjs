@@ -79,7 +79,8 @@ async function waitFor(fn, ms = 8000) {
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  // The control bar, chosen (a phone opens Nova with the floating piece).
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:nova-layout", "bar"); } catch (e) { /* none */ } });
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
   await page.waitForTimeout(2500);
   await q(page, "shell-menu-button").click();

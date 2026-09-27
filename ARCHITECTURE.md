@@ -148,6 +148,12 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
 // when a shell enters a roll's pivot rotation, never branching on theme.
 export const outlineYOffset = 0; // or OUTLINE_Y_OFFSET (OUTLINE_T + SHELL_LIFT) for Standard/Tienda
 
+// A theme set in a room (Standard's den, Tienda's store) can let the
+// camera look around it: closer zoom, and a reach from the board's
+// middle instead of the board-visibility clamp (PROJECT_MEMORY §5).
+// Absent, the clamp applies (every other theme).
+export const freeCamera = { zoomMin: 4.5, reach: 70, yMin: -8, yMax: 30 }; // or undefined
+
 // Declared capability, not a branch: lets the chassis skip an inert
 // Sound On/Off button for a theme with no audio.
 export const hasAudio = false; // or true for Neon

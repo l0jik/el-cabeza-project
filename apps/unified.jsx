@@ -259,8 +259,9 @@ function UnifiedApp() {
      menu item there, since a four-second hold on the title is hard to
      find on a phone. It opens the same CONNECT / DISCONNECT prompt the
      hold ends in. */
-  /* Layout on a desktop: the classic dock (default) or the control bar
-     phones use. Phones always get the bar. Remembered in this browser. */
+  /* Layout: the classic dock with its floating piece (the default, on
+     phones too, as the user asked) or the control bar. Remembered in this
+     browser. */
   const [layoutPref, setLayoutPref] = useState(() => {
     try { return localStorage.getItem(LAYOUT_KEY) === "bar" ? "bar" : "dock"; } catch (e) { return "dock"; }
   });

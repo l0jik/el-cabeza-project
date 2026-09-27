@@ -83,7 +83,8 @@ for (const theme of ["standard", "neon"]) {
   const page = await context.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  // The control bar, chosen (a phone opens Nova with the floating piece).
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:nova-layout", "bar"); } catch (e) { /* none */ } });
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
   await page.waitForTimeout(2500);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);

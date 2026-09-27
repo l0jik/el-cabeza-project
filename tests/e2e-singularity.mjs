@@ -805,18 +805,28 @@ if (state.activeCategory === "laws") {
   await page.locator('[data-testid="law-shoving"]').click();
   await page.waitForTimeout(150);
 
-  // Laws that can't act warn under their own row: Diagonal Slide without
-  // Slide; Cantilever Pivot with no Codo, Rayo or Zeta in the roster.
+  // Diagonal Slide brings Slide with it, and Slide off takes Diagonal
+  // Slide with it (the user's request; Tienda's order form and Lluvia's
+  // city menu already did), so it never sits there unable to act.
   state = await sphereState();
-  const slideOn = !!state.selections.laws.slide;
+  const slideOn = !!state.selections.laws.slide, diagOn = !!state.selections.laws.diagonalSlide;
+  if (diagOn) { await page.locator('[data-testid="law-diagonalSlide"]').click(); await page.waitForTimeout(120); }
   if (slideOn) { await page.locator('[data-testid="law-slide"]').click(); await page.waitForTimeout(120); }
   await page.locator('[data-testid="law-diagonalSlide"]').click();
   await page.waitForTimeout(150);
-  check("Diagonal Slide without Slide warns",
-    (await page.locator('[data-testid="law-warning-diagonalSlide"]').count()) === 1);
-  await page.locator('[data-testid="law-diagonalSlide"]').click();
-  if (slideOn) await page.locator('[data-testid="law-slide"]').click();
+  const both = (await sphereState()).selections.laws;
+  check("checking Diagonal Slide checks Slide too, and nothing warns",
+    both.diagonalSlide && both.slide && (await page.locator('[data-testid="law-warning-diagonalSlide"]').count()) === 0, JSON.stringify(both));
+  await page.locator('[data-testid="law-slide"]').click();
+  await page.waitForTimeout(150);
+  const neither = (await sphereState()).selections.laws;
+  check("...and unchecking Slide unchecks Diagonal Slide", !neither.slide && !neither.diagonalSlide, JSON.stringify(neither));
+  // Back as they were.
+  if (slideOn) { await page.locator('[data-testid="law-slide"]').click(); await page.waitForTimeout(120); }
+  if (diagOn) await page.locator('[data-testid="law-diagonalSlide"]').click();
   await page.waitForTimeout(120);
+  // A law that can't act warns under its own row: Cantilever Pivot with no
+  // Codo, Rayo or Zeta in the roster.
   const pivotWasOn = !!state.selections.laws.cantileverPivot;
   if (!pivotWasOn) { await page.locator('[data-testid="law-cantileverPivot"]').click(); await page.waitForTimeout(150); }
   const pivotCapable = ["codo", "rayo", "zeta"].some((k) => state.selections.matter.roster[k] > 0);

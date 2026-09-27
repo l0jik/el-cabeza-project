@@ -200,6 +200,7 @@ export function buildDen(boardSpan) {
   const T = {
     panel: tex(TX.paneling(), true),
     paper: tex(TX.floralPaper(), true),
+    hallPaper: tex(TX.hallPaper(), true),
     stone: tex(TX.fieldstone(), true),
     shagRoom: tex(TX.shag("avocado"), true),
     shagPit: tex(TX.shag("rust"), true),
@@ -227,6 +228,7 @@ export function buildDen(boardSpan) {
   const M = {
     panel: baked(T.panel),
     paper: baked(T.paper),
+    hallPaper: baked(T.hallPaper),
     stone: baked(T.stone),
     shagRoom: baked(T.shagRoom),
     shagPit: baked(T.shagPit),
@@ -448,10 +450,10 @@ export function buildDen(boardSpan) {
   // a small framed print at the end.
   const HZ0 = RZ + WT, HZ1 = RZ + 34, HX0 = 40, HX1 = RX;
   wallS(rect(HX1 - HX0, HZ1 - HZ0, "+y", (HX0 + HX1) / 2, yF, (HZ0 + HZ1) / 2, 6), M.shagRoom, TX.SHAG_TILE);
-  wallS(rect(HX1 - HX0, CEIL - FLOOR, "-z", (HX0 + HX1) / 2, (yF + yC) / 2, HZ1, 6), M.paper, TX.PAPER_TILE);
+  wallS(rect(HX1 - HX0, CEIL - FLOOR, "-z", (HX0 + HX1) / 2, (yF + yC) / 2, HZ1, 6), M.hallPaper, TX.HALL_PAPER_TILE);
   wallS(rect(HX1 - HX0, HZ1 - HZ0, "-y", (HX0 + HX1) / 2, yC, (HZ0 + HZ1) / 2, 8), M.ceil, TX.CEIL_TILE, { floorShade: false });
-  wallS(rect(HZ1 - HZ0, CEIL - FLOOR, "+x", HX0, (yF + yC) / 2, (HZ0 + HZ1) / 2, 6), M.paper, TX.PAPER_TILE);
-  wallS(rect(HZ1 - HZ0, CEIL - FLOOR, "-x", HX1, (yF + yC) / 2, (HZ0 + HZ1) / 2, 6), M.paper, TX.PAPER_TILE);
+  wallS(rect(HZ1 - HZ0, CEIL - FLOOR, "+x", HX0, (yF + yC) / 2, (HZ0 + HZ1) / 2, 6), M.hallPaper, TX.HALL_PAPER_TILE);
+  wallS(rect(HZ1 - HZ0, CEIL - FLOOR, "-x", HX1, (yF + yC) / 2, (HZ0 + HZ1) / 2, 6), M.hallPaper, TX.HALL_PAPER_TILE);
   wallS(box(HX1 - HX0, 2, 0.6, (HX0 + HX1) / 2, yF + 1, HZ1 - 0.3), M.darkWood, 16);
   wallS(box(16, 12, 1, doorC + 4, yF + 24, HZ1 - 0.5), M.gold, 6);
   const hallPrint = new THREE.PlaneGeometry(13.4, 9.4); hallPrint.rotateY(Math.PI); hallPrint.translate(doorC + 4, yF + 24, HZ1 - 1.05);
@@ -683,8 +685,10 @@ export function buildDen(boardSpan) {
    under a smoked acrylic lid that lifts when you come over; in its face,
    the receiver's amber dial and the 8-track deck's slot with its four
    program lights. Either side, a walnut cabinet speaker with a woven
-   grille, a pothos on one and a heartleaf philodendron on the other, their
-   vines trailing down over the cloth. On top, a heavy amber-glass ashtray
+   grille: on the left (as the player sees it) a studio-pottery bottle
+   vase, on the right a heartleaf philodendron, its vines trailing down
+   over the cloth. On top,
+   a heavy amber-glass ashtray
    and the sleeve of the record on the turntable.
 
    `focus`: where the camera looks from and at (den-local). `pickables`:
@@ -832,22 +836,35 @@ function buildConsole(yF, RZ) {
   lid.renderOrder = 2;
   lid.userData.music = "record";
 
-  /* ---- the speakers, the plants on them ---- */
+  /* ---- the speakers: pottery on the left, a plant on the right ---- */
   const cloth = TX.grilleCloth(); cloth.wrapS = cloth.wrapT = THREE.RepeatWrapping; cloth.repeat.set(2, 4); disposables.push(cloth);
   const clothMat = lit({ map: cloth, color: 0xe8d8c0, roughness: 0.95 });
   const leafGeo = heartLeaf();
   disposables.push(leafGeo);
   const plants = [];
-  [[-10, "pothos"], [46, "philodendron"]].forEach(([sx, kind], si) => {
+  // As the player sees the console (from the pit, facing the south wall),
+  // den x runs right to left: x 46 is the left-hand speaker, x -10 the
+  // right. The user asked for the pottery on the left, the plant on the right.
+  [[46, "pottery"], [-10, "philodendron"]].forEach(([sx, kind], si) => {
     const sz = CZ + 0.5, sFront = sz - 3.75;
     add(new THREE.BoxGeometry(7, 1, 6.5).translate(sx, yF + 0.5, sz), walnutDark);
     add(new THREE.BoxGeometry(8, 16, 7.5).translate(sx, yF + 9, sz), walnut);
     add(new THREE.PlaneGeometry(6.6, 14.4).rotateY(Math.PI).translate(sx, yF + 9, sFront - 0.03), clothMat);
     // A thin walnut frame round the cloth.
     [[0, 7.45, 8, 0.7], [0, -7.45, 8, 0.7], [-3.65, 0, 0.7, 15.6], [3.65, 0, 0.7, 15.6]].forEach(([dx, dy, w, h]) => add(new THREE.BoxGeometry(w, h, 0.4).translate(sx + dx, yF + 9 + dy, sFront - 0.12), walnut));
-    // The pot: glazed stoneware, a brown drip over teal on one, gold on the other.
+    if (kind === "pottery") {
+      // Not a second plant (the two read as the same one): a studio-
+      // pottery bottle vase of the period, a dark tenmoku glaze run down
+      // over a speckled oatmeal body, the foot left raw (glazeTexture).
+      const vasePts = [[0, 0], [1.25, 0], [1.45, 0.12], [1.5, 0.3], [2.05, 1.2], [2.35, 2.3], [2.3, 3.3], [1.95, 4.3], [1.3, 5.2], [0.75, 5.9], [0.6, 6.5], [0.62, 7.1], [0.82, 7.4], [0.72, 7.52], [0.48, 7.2], [0, 7.2]].map(([r, h]) => new THREE.Vector2(r, h));
+      const glaze = glazeTexture();
+      disposables.push(glaze);
+      add(new THREE.LatheGeometry(vasePts, 40).translate(sx - 0.4, yF + 17, sz + 0.4), lit({ map: glaze, roughness: 0.22 }));
+      return;
+    }
+    // The pot: glazed stoneware in harvest gold.
     const potPts = [[0, 0], [1.6, 0], [2.2, 0.4], [2.6, 2.6], [2.8, 3.3], [2.55, 3.35], [2.35, 2.9], [0, 2.9]].map(([r, h]) => new THREE.Vector2(r, h));
-    add(new THREE.LatheGeometry(potPts, 24).translate(sx, yF + 17, sz), lit({ color: si ? 0xb07a2a : 0x3d6b62, roughness: 0.28 }));
+    add(new THREE.LatheGeometry(potPts, 24).translate(sx, yF + 17, sz), lit({ color: 0xb07a2a, roughness: 0.28 }));
     add(new THREE.CircleGeometry(2.45, 20).rotateX(-Math.PI / 2).translate(sx, yF + 17 + 2.95, sz), lit({ color: 0x3a2616, roughness: 0.95 }));
     plants.push(trailingPlant({ x: sx, y: yF + 17 + 3, z: sz, front: sFront, kind, seed: 17 + si * 31, floorY: yF + 3, leafGeo, disposables }));
   });
@@ -955,6 +972,40 @@ function heartLeaf() {
    vines that run forward over the speaker's front edge (`front`) and hang
    down the grille. The golden pothos is splashed with yellow; the
    heartleaf philodendron is a deep glossy green with smaller leaves. */
+/* The bottle vase's glaze, painted along the lathe (u around, v up the
+   profile): the raw buff clay of the foot, a speckled oatmeal body, and a
+   dark tenmoku from the shoulder up, running down in drips with a rusty
+   edge where it thins. */
+function glazeTexture() {
+  return canvasTexture(256, 256, (g, W, H) => {
+    let s = 1975;
+    const r = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const y = (v) => (1 - v) * H; // the canvas runs top down, v bottom up
+    g.fillStyle = "#CDBB98"; g.fillRect(0, 0, W, H);
+    for (let i = 0; i < 1600; i++) { g.fillStyle = r() < 0.7 ? "rgba(92,64,40,0.5)" : "rgba(250,244,228,0.5)"; g.fillRect(r() * W, r() * H, 1.4, 1.4); }
+    g.fillStyle = "#B08E68"; g.fillRect(0, y(0.07), W, H);
+    // The dark glaze's lower edge: a slow wave with drips hanging from it.
+    const edge = [];
+    for (let x = 0; x <= W; x += 4) edge.push([x, 0.5 + Math.sin((x / W) * Math.PI * 6) * 0.03 + (r() - 0.5) * 0.02]);
+    const run = (color, drop) => {
+      g.fillStyle = color;
+      g.beginPath(); g.moveTo(0, 0);
+      edge.forEach(([x, v]) => g.lineTo(x, y(v - drop)));
+      g.lineTo(W, 0); g.closePath(); g.fill();
+    };
+    run("#9A5A22", 0.025);
+    run("#3B2314", 0);
+    for (let i = 0; i < 16; i++) {
+      const x = r() * W, v0 = 0.5, len = 0.06 + r() * 0.16, w = 3 + r() * 6;
+      g.fillStyle = "#8E4E1E"; g.beginPath(); g.ellipse(x, y(v0 - len), w * 0.7, w * 0.8, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "#3B2314"; g.fillRect(x - w / 2, y(v0), w, y(v0 - len) - y(v0));
+      g.beginPath(); g.ellipse(x, y(v0 - len), w / 2, w * 0.6, 0, 0, Math.PI * 2); g.fill();
+    }
+    // A glint of iron in the dark glaze.
+    for (let i = 0; i < 300; i++) { g.fillStyle = "rgba(170,110,50,0.35)"; g.fillRect(r() * W, r() * y(0.55), 1.2, 1.2); }
+  });
+}
+
 function trailingPlant({ x, y, z, front, kind, seed, floorY, leafGeo, disposables }) {
   let s = seed;
   const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);

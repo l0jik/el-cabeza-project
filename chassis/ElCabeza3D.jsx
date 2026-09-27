@@ -165,11 +165,6 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
 /*  (south), +y = up.                                                   */
 /* ------------------------------------------------------------------ */
 
-/* When a page that offers the phone layout (the mobileShell prop) uses
-   it: a narrow screen, or a touch screen too short for the dock (a phone
-   on its side). */
-const SHELL_QUERY = "(max-width: 700px), (pointer: coarse) and (max-height: 520px)";
-
 /* A two-finger tap and double-tap, over the board (its pointer effect)
    or anywhere else on the screen (the document's touch listener): a
    double-tap toggles full screen. */
@@ -829,24 +824,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const dockViewRef = useRef(dockView);
   dockViewRef.current = dockView;
   /* Phone layout (MobileShell.jsx). A page opts in with the mobileShell
-     prop (Nova does); on a phone-sized screen the dock piece, dock panel
-     and corner icons give way to a top bar, a bottom control bar and a
-     menu sheet, and the camera frames the board in the space between
-     them (viewInsetsRef, see resize in the scene effect). */
-  // phoneSized: the screen needs the bar. A page can also ask for the
-  // bar on a bigger screen (mobileShell.preferBar: Nova's layout choice).
-  const [phoneSized, setPhoneSized] = useState(() => !!mobileShell && typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(SHELL_QUERY).matches);
-  useEffect(() => {
-    if (!mobileShell || !window.matchMedia) return undefined;
-    const mq = window.matchMedia(SHELL_QUERY);
-    const on = () => setPhoneSized(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, [!!mobileShell]);
-  const shell = !!mobileShell && (phoneSized || !!mobileShell.preferBar);
-  // Offered only where both layouts fit: not on a phone.
-  const layoutSwitch = mobileShell && mobileShell.onLayoutChange && !phoneSized ? mobileShell.onLayoutChange : null;
+     prop (Nova does) and chooses it (mobileShell.preferBar): the dock
+     piece, dock panel and corner icons give way to a top bar, a bottom
+     control bar and a menu sheet, and the camera frames the board in the
+     space between them (viewInsetsRef, see resize in the scene effect).
+     The page's choice decides on every screen: a phone once always got
+     the bar, but the user wanted the floating piece's setup back there,
+     so the switch between the two is offered everywhere (Nova opens with
+     the floating piece and remembers a choice of the bar). */
+  const shell = !!mobileShell && !!mobileShell.preferBar;
+  const layoutSwitch = mobileShell && mobileShell.onLayoutChange ? mobileShell.onLayoutChange : null;
   const shellRef = useRef(shell);
   shellRef.current = shell;
   const viewInsetsRef = useRef(null);
@@ -1489,6 +1476,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      chassis per ARCHITECTURE.md rather than routed through a theme
      hook, since every theme wants it and none of it depends on visual
      identity. */
+  // How close a pinch or the wheel may bring the camera: closer where the
+  // theme has a room to look round (theme.freeCamera).
+  const zoomMin = (theme.freeCamera && theme.freeCamera.zoomMin) || ZOOM_MIN;
   const [isFullscreen, setIsFullscreen] = useState(() => !!document.fullscreenElement);
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -2944,197 +2934,214 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       const goal = cam.current;
       const view = goal.view;
 
-      /* At least 20% of the board must always stay within the visible
-         frame, at any pan position, any zoom level, any camera tilt,
-         and any spin — a fixed, unconditional floor, not just a limit
-         on how far a single drag can go. Enforced on the GOAL here,
-         every frame, rather than only at the moment of a pan: radius
-         and phi can change independently afterward (wheel, pinch,
-         drag-to-tilt), and a pan that satisfied this at one zoom/tilt
-         could otherwise become invalid at another without ever being
-         re-checked.
+      /* A room to look round (theme.freeCamera: the den, the store). The
+         user wanted to move about the room, and panning when zoomed in
+         felt far too tight: there the target may go anywhere within
+         `reach` of the board's centre and between yMin and yMax, and the
+         board may leave the screen (Current Player View and Top-Down View
+         bring it back). Every other theme keeps the board-visibility
+         clamp below, unchanged. */
+      const freeCam = theme.freeCamera;
+      if (freeCam) {
+        const d = Math.hypot(goal.target.x, goal.target.z);
+        if (d > freeCam.reach) {
+          goal.target.x *= freeCam.reach / d;
+          goal.target.z *= freeCam.reach / d;
+        }
+        goal.target.y = Math.min(freeCam.yMax, Math.max(freeCam.yMin, goal.target.y));
+      } else {
+        /* At least 20% of the board must always stay within the visible
+           frame, at any pan position, any zoom level, any camera tilt,
+           and any spin — a fixed, unconditional floor, not just a limit
+           on how far a single drag can go. Enforced on the GOAL here,
+           every frame, rather than only at the moment of a pan: radius
+           and phi can change independently afterward (wheel, pinch,
+           drag-to-tilt), and a pan that satisfied this at one zoom/tilt
+           could otherwise become invalid at another without ever being
+           re-checked.
 
-         The two axes are each solved independently below, but their
-         RESULTS are combined into one shared elliptical budget (see
-         the joint scaling after the vertical solve) rather than kept
-         as fully separate allowances. A real diagonal drag — the
-         common case, not the exception — used to be able to walk
-         each axis right up to its own independent 100% limit at the
-         same time, and satisfying "board visible" on the horizontal
-         axis alone and again on the vertical axis alone does not
-         imply the board stays visible under BOTH offsets at once.
-         Confirmed by instrumenting cam.current live during a
-         diagonal alt-drag: horizontal landed exactly on its clamp
-         boundary as intended, but vertical — evaluated as if
-         horizontal were still zero — kept climbing drag after drag to
-         several times the board's own half-extent, because a
-         wide-open frustum at that tilt reports high "overlap" on the
-         board's forward/back span regardless of how far the view has
-         already drifted sideways. The board ended up almost entirely
-         off-screen despite both individual checks reporting success.
-         The elliptical coupling below is the fix: once horizontal has
-         used up its own budget, vertical's independent limit is
-         scaled toward zero by the same amount, and vice versa is left
-         alone deliberately (horizontal keeps its full independent
-         limit unconditionally, since it was already correct in
-         isolation) — asymmetric, but minimal against a confirmed bug
-         rather than a symmetric rewrite of code that already worked.
+           The two axes are each solved independently below, but their
+           RESULTS are combined into one shared elliptical budget (see
+           the joint scaling after the vertical solve) rather than kept
+           as fully separate allowances. A real diagonal drag — the
+           common case, not the exception — used to be able to walk
+           each axis right up to its own independent 100% limit at the
+           same time, and satisfying "board visible" on the horizontal
+           axis alone and again on the vertical axis alone does not
+           imply the board stays visible under BOTH offsets at once.
+           Confirmed by instrumenting cam.current live during a
+           diagonal alt-drag: horizontal landed exactly on its clamp
+           boundary as intended, but vertical — evaluated as if
+           horizontal were still zero — kept climbing drag after drag to
+           several times the board's own half-extent, because a
+           wide-open frustum at that tilt reports high "overlap" on the
+           board's forward/back span regardless of how far the view has
+           already drifted sideways. The board ended up almost entirely
+           off-screen despite both individual checks reporting success.
+           The elliptical coupling below is the fix: once horizontal has
+           used up its own budget, vertical's independent limit is
+           scaled toward zero by the same amount, and vice versa is left
+           alone deliberately (horizontal keeps its full independent
+           limit unconditionally, since it was already correct in
+           isolation) — asymmetric, but minimal against a confirmed bug
+           rather than a symmetric rewrite of code that already worked.
 
-         HORIZONTAL (XZ): a circular clamp on the goal's distance from
-         the board's own center, which is the origin — the board is
-         square and centered there, so a symmetric radius is the
-         natural fit.
+           HORIZONTAL (XZ): a circular clamp on the goal's distance from
+           the board's own center, which is the origin — the board is
+           square and centered there, so a symmetric radius is the
+           natural fit.
 
-         groundHalfSpan approximates the ground-plane distance from
-         dead-center-of-view to the edge of the vertical FOV as if the
-         camera were looking straight down (radius * tan(halfFOV)).
-         That's the SMALLEST such span across the actual pitch range —
-         a grazing view shows MORE ground in the far direction, not
-         less — so applying it uniformly in every horizontal direction
-         is deliberately conservative: it can be somewhat stricter than
-         strictly necessary in some directions, but can never let the
-         board go further off-screen than intended in any of them.
+           groundHalfSpan approximates the ground-plane distance from
+           dead-center-of-view to the edge of the vertical FOV as if the
+           camera were looking straight down (radius * tan(halfFOV)).
+           That's the SMALLEST such span across the actual pitch range —
+           a grazing view shows MORE ground in the far direction, not
+           less — so applying it uniformly in every horizontal direction
+           is deliberately conservative: it can be somewhat stricter than
+           strictly necessary in some directions, but can never let the
+           board go further off-screen than intended in any of them.
 
-         maxPanDistance is solved from requiring the overlap between
-         the board's own span and the visible span to be at least
-         MIN_VISIBLE_FRACTION of the board's width:
-         boardHalfExtent*(1-2*MIN_VISIBLE_FRACTION), plus the visible
-         half-span itself.
+           maxPanDistance is solved from requiring the overlap between
+           the board's own span and the visible span to be at least
+           MIN_VISIBLE_FRACTION of the board's width:
+           boardHalfExtent*(1-2*MIN_VISIBLE_FRACTION), plus the visible
+           half-span itself.
 
-         Raised from 0.2 to 0.5 per feedback that the board was still
-         very easy to pan almost entirely out of view — confirmed via
-         a real alt-drag test: at 0.2, a sustained pan left barely a
-         sliver of the board in frame, which is exactly what "at least
-         20% visible" actually permits, just far too permissive to feel
-         like a floor at all. The vertical clamp below got the
-         equivalent tightening (0.45/0.15 -> a uniform 0.75) in an
-         earlier round of feedback; this axis was simply never brought
-         up to match. 0.5 specifically because it's the value at which
-         this formula's own boardHalfExtent term vanishes to exactly
-         zero (1 - 2*0.5 = 0) rather than going negative — the clamp
-         distance becomes purely groundHalfSpan, i.e. the visible
-         window's center can never leave the board's own silhouette,
-         which stays well-behaved at every zoom level without needing
-         a separate floor on the result. Matching the vertical case's
-         0.75 exactly was checked and would still stay positive across
-         the real zoom range (barely — 0.6 world units at the closest
-         zoom), but 0.5 leaves headroom against the same kind of edge
-         case rather than sitting right at the boundary of it. */
-      const MIN_VISIBLE_FRACTION = 0.5;
-      /* Per feedback, no more than 25% of the board may ever be fully
-         out of viewing range in the vertical direction, at ANY tilt
-         angle — so both vertical floors are now 0.75 (== 25% max out
-         of view), same value in both directions rather than the
-         previous asymmetric 0.45/0.15 split, which still let up to
-         85% of the board pan out of view toward the top. This calls
-         the exact numerically-validated model below (clampVerticalTarget)
-         at every phi, so the 75% floor holds across the whole tilt
-         range, not just at whatever angles were spot-checked before. */
-      const BOTTOM_MIN_VISIBLE_FRACTION = 0.75;
-      const TOP_MIN_VISIBLE_FRACTION = 0.75;
-      const halfFovRad = (camera.fov / 2) * (Math.PI / 180);
-      /* groundHalfSpan below must stay safe regardless of which way the
-         camera is currently oriented (theta) — a world-space XZ pan can
-         land on screen as a purely sideways, purely depth-wise, or
-         diagonal motion depending on heading, so "safe in every
-         direction" has to mean safe against the narrower of the two
-         on-screen axes. camera.fov is Three's VERTICAL fov; on a
-         narrow/tall viewport (aspect < 1 — a phone held in portrait,
-         the common case) the true horizontal fov is smaller than that,
-         so deriving groundHalfSpan from the vertical fov alone silently
-         permits far more pan than keeps the board's on-screen width
-         within the guaranteed fraction. Confirmed against a captured
-         mobile-portrait recording: a horizontal drag pushed the board
-         fully off-screen despite this clamp, on a device narrow enough
-         (aspect ~0.45) that the gap between the two fovs is large.
-         Taking the smaller of the two keeps the circle conservative on
-         any aspect ratio, the same way it's already deliberately
-         conservative across the pitch range (see above). */
-      const halfHFovRad = Math.atan(Math.tan(halfFovRad) * camera.aspect);
-      const groundHalfSpan = goal.radius * Math.tan(Math.min(halfFovRad, halfHFovRad));
-      const maxPanDistance = (SLAB_MIN / 2) * (1 - 2 * MIN_VISIBLE_FRACTION) + groundHalfSpan;
-      const panDistSq = goal.target.x * goal.target.x + goal.target.z * goal.target.z;
-      if (panDistSq > maxPanDistance * maxPanDistance) {
-        const panK = maxPanDistance / Math.sqrt(panDistSq);
-        goal.target.x *= panK;
-        goal.target.z *= panK;
+           Raised from 0.2 to 0.5 per feedback that the board was still
+           very easy to pan almost entirely out of view — confirmed via
+           a real alt-drag test: at 0.2, a sustained pan left barely a
+           sliver of the board in frame, which is exactly what "at least
+           20% visible" actually permits, just far too permissive to feel
+           like a floor at all. The vertical clamp below got the
+           equivalent tightening (0.45/0.15 -> a uniform 0.75) in an
+           earlier round of feedback; this axis was simply never brought
+           up to match. 0.5 specifically because it's the value at which
+           this formula's own boardHalfExtent term vanishes to exactly
+           zero (1 - 2*0.5 = 0) rather than going negative — the clamp
+           distance becomes purely groundHalfSpan, i.e. the visible
+           window's center can never leave the board's own silhouette,
+           which stays well-behaved at every zoom level without needing
+           a separate floor on the result. Matching the vertical case's
+           0.75 exactly was checked and would still stay positive across
+           the real zoom range (barely — 0.6 world units at the closest
+           zoom), but 0.5 leaves headroom against the same kind of edge
+           case rather than sitting right at the boundary of it. */
+        const MIN_VISIBLE_FRACTION = 0.5;
+        /* Per feedback, no more than 25% of the board may ever be fully
+           out of viewing range in the vertical direction, at ANY tilt
+           angle — so both vertical floors are now 0.75 (== 25% max out
+           of view), same value in both directions rather than the
+           previous asymmetric 0.45/0.15 split, which still let up to
+           85% of the board pan out of view toward the top. This calls
+           the exact numerically-validated model below (clampVerticalTarget)
+           at every phi, so the 75% floor holds across the whole tilt
+           range, not just at whatever angles were spot-checked before. */
+        const BOTTOM_MIN_VISIBLE_FRACTION = 0.75;
+        const TOP_MIN_VISIBLE_FRACTION = 0.75;
+        const halfFovRad = (camera.fov / 2) * (Math.PI / 180);
+        /* groundHalfSpan below must stay safe regardless of which way the
+           camera is currently oriented (theta) — a world-space XZ pan can
+           land on screen as a purely sideways, purely depth-wise, or
+           diagonal motion depending on heading, so "safe in every
+           direction" has to mean safe against the narrower of the two
+           on-screen axes. camera.fov is Three's VERTICAL fov; on a
+           narrow/tall viewport (aspect < 1 — a phone held in portrait,
+           the common case) the true horizontal fov is smaller than that,
+           so deriving groundHalfSpan from the vertical fov alone silently
+           permits far more pan than keeps the board's on-screen width
+           within the guaranteed fraction. Confirmed against a captured
+           mobile-portrait recording: a horizontal drag pushed the board
+           fully off-screen despite this clamp, on a device narrow enough
+           (aspect ~0.45) that the gap between the two fovs is large.
+           Taking the smaller of the two keeps the circle conservative on
+           any aspect ratio, the same way it's already deliberately
+           conservative across the pitch range (see above). */
+        const halfHFovRad = Math.atan(Math.tan(halfFovRad) * camera.aspect);
+        const groundHalfSpan = goal.radius * Math.tan(Math.min(halfFovRad, halfHFovRad));
+        const maxPanDistance = (SLAB_MIN / 2) * (1 - 2 * MIN_VISIBLE_FRACTION) + groundHalfSpan;
+        const panDistSq = goal.target.x * goal.target.x + goal.target.z * goal.target.z;
+        if (panDistSq > maxPanDistance * maxPanDistance) {
+          const panK = maxPanDistance / Math.sqrt(panDistSq);
+          goal.target.x *= panK;
+          goal.target.z *= panK;
+        }
+        /* How much of the horizontal budget the current position already
+           spends, 0 (dead center) to 1 (right at the circular clamp
+           above) — fed into the vertical solve below to couple the two
+           axes. maxPanDistance is 0 only in a degenerate zero-radius
+           case that never occurs in practice, but the guard keeps this
+           finite regardless. */
+        const horizUsage =
+          maxPanDistance > 0
+            ? Math.min(1, Math.sqrt(goal.target.x * goal.target.x + goal.target.z * goal.target.z) / maxPanDistance)
+            : 0;
+
+        /* VERTICAL (Y): panBy's vertical drag component moves target
+           along the camera's own tilted up-vector, not world-up, so it
+           can carry target.y off the board's actual plane (y=0) — a
+           failure mode the horizontal clamp above cannot see at all,
+           since it only looks at x/z.
+
+           This calls the exact, numerically-validated model (see
+           boardVerticalOverlapFraction / clampVerticalTarget, defined
+           near pivotFor) rather than a closed-form approximation. That
+           matters here specifically: an earlier attempt at a simple
+           formula (maxPanDistance / sin(phi), on the theory that a
+           vertical drift's on-screen effect scales with sin(phi)) was
+           checked against the real ray-plane geometry across a full
+           radius/phi grid and failed EVERY test — panning down always
+           reported 0% board visibility while the formula still called it
+           safe, because it had no way to notice the camera itself
+           descending to or below board level. The true relationship is
+           asymmetric between panning up and down and doesn't reduce to
+           one clean expression, which is exactly why this is solved
+           numerically per-frame against the actual geometry (24
+           bisection steps against a couple of trig calls each — trivial
+           cost) instead of approximated.
+
+           The required visible fraction is ALSO asymmetric, deliberately
+           — confirmed by directly projecting the board's center to
+           screen space: positive target.y moves the board toward the
+           BOTTOM of frame, negative toward the TOP.
+
+           TOP_MIN_VISIBLE_FRACTION (15%) replaces what used to be an
+           artificial camera-height floor. That floor was a workaround
+           for a genuine bug in rayHitBoardPlaneY0 (see its own comment):
+           at near-top-down pitch with a sufficiently negative target.y,
+           two failure modes that needed to be treated oppositely — a ray
+           genuinely reaching the horizon, versus a ray whose camera has
+           already passed below the board and is looking away from it —
+           were being conflated, which could make the board register as
+           100% visible while the camera looked directly away from it.
+           With that fixed at the root, the camera is free to go to or
+           below board level (confirmed acceptable), governed by nothing
+           but this function's own, now-correct output — no artificial
+           floor needed or present. BOTTOM_MIN_VISIBLE_FRACTION (45%)
+           applies only to the bottom direction, unchanged from before. */
+        const verticalMinFraction = goal.target.y > 0 ? BOTTOM_MIN_VISIBLE_FRACTION : TOP_MIN_VISIBLE_FRACTION;
+        /* clampVerticalTarget(goal.target.y, ...) would only clamp when
+           goal.target.y ITSELF already fails the visibility check — a
+           no-op whenever it's still within its own independent bound,
+           which is exactly the case a diagonal drag hits (see the joint
+           elliptical comment above): vertical looks individually fine
+           while horizontal is already maxed out. Probing with a value
+           far outside any real range instead (same sign as the current
+           target, since the two directions are asymmetric) finds the
+           TRUE independent boundary regardless of where goal.target.y
+           currently sits, so it can be scaled down by horizUsage below
+           rather than only being checked in isolation. 1000 world units
+           is far past anything boardVerticalOverlapFraction could ever
+           call visible at any real radius/phi, and 0 is always the
+           known-safe other end of the search per clampVerticalTarget's
+           own invariant, so the bisection still converges correctly. */
+        const verticalSign = goal.target.y >= 0 ? 1 : -1;
+        const verticalMaxMag = Math.abs(
+          clampVerticalTarget(verticalSign * 1000, goal.radius, goal.phi, halfFovRad, verticalMinFraction)
+        );
+        const verticalBudget = Math.sqrt(Math.max(0, 1 - horizUsage * horizUsage));
+        const verticalAllowedMag = verticalMaxMag * verticalBudget;
+        goal.target.y = verticalSign * Math.min(Math.abs(goal.target.y), verticalAllowedMag);
       }
-      /* How much of the horizontal budget the current position already
-         spends, 0 (dead center) to 1 (right at the circular clamp
-         above) — fed into the vertical solve below to couple the two
-         axes. maxPanDistance is 0 only in a degenerate zero-radius
-         case that never occurs in practice, but the guard keeps this
-         finite regardless. */
-      const horizUsage =
-        maxPanDistance > 0
-          ? Math.min(1, Math.sqrt(goal.target.x * goal.target.x + goal.target.z * goal.target.z) / maxPanDistance)
-          : 0;
-
-      /* VERTICAL (Y): panBy's vertical drag component moves target
-         along the camera's own tilted up-vector, not world-up, so it
-         can carry target.y off the board's actual plane (y=0) — a
-         failure mode the horizontal clamp above cannot see at all,
-         since it only looks at x/z.
-
-         This calls the exact, numerically-validated model (see
-         boardVerticalOverlapFraction / clampVerticalTarget, defined
-         near pivotFor) rather than a closed-form approximation. That
-         matters here specifically: an earlier attempt at a simple
-         formula (maxPanDistance / sin(phi), on the theory that a
-         vertical drift's on-screen effect scales with sin(phi)) was
-         checked against the real ray-plane geometry across a full
-         radius/phi grid and failed EVERY test — panning down always
-         reported 0% board visibility while the formula still called it
-         safe, because it had no way to notice the camera itself
-         descending to or below board level. The true relationship is
-         asymmetric between panning up and down and doesn't reduce to
-         one clean expression, which is exactly why this is solved
-         numerically per-frame against the actual geometry (24
-         bisection steps against a couple of trig calls each — trivial
-         cost) instead of approximated.
-
-         The required visible fraction is ALSO asymmetric, deliberately
-         — confirmed by directly projecting the board's center to
-         screen space: positive target.y moves the board toward the
-         BOTTOM of frame, negative toward the TOP.
-
-         TOP_MIN_VISIBLE_FRACTION (15%) replaces what used to be an
-         artificial camera-height floor. That floor was a workaround
-         for a genuine bug in rayHitBoardPlaneY0 (see its own comment):
-         at near-top-down pitch with a sufficiently negative target.y,
-         two failure modes that needed to be treated oppositely — a ray
-         genuinely reaching the horizon, versus a ray whose camera has
-         already passed below the board and is looking away from it —
-         were being conflated, which could make the board register as
-         100% visible while the camera looked directly away from it.
-         With that fixed at the root, the camera is free to go to or
-         below board level (confirmed acceptable), governed by nothing
-         but this function's own, now-correct output — no artificial
-         floor needed or present. BOTTOM_MIN_VISIBLE_FRACTION (45%)
-         applies only to the bottom direction, unchanged from before. */
-      const verticalMinFraction = goal.target.y > 0 ? BOTTOM_MIN_VISIBLE_FRACTION : TOP_MIN_VISIBLE_FRACTION;
-      /* clampVerticalTarget(goal.target.y, ...) would only clamp when
-         goal.target.y ITSELF already fails the visibility check — a
-         no-op whenever it's still within its own independent bound,
-         which is exactly the case a diagonal drag hits (see the joint
-         elliptical comment above): vertical looks individually fine
-         while horizontal is already maxed out. Probing with a value
-         far outside any real range instead (same sign as the current
-         target, since the two directions are asymmetric) finds the
-         TRUE independent boundary regardless of where goal.target.y
-         currently sits, so it can be scaled down by horizUsage below
-         rather than only being checked in isolation. 1000 world units
-         is far past anything boardVerticalOverlapFraction could ever
-         call visible at any real radius/phi, and 0 is always the
-         known-safe other end of the search per clampVerticalTarget's
-         own invariant, so the bisection still converges correctly. */
-      const verticalSign = goal.target.y >= 0 ? 1 : -1;
-      const verticalMaxMag = Math.abs(
-        clampVerticalTarget(verticalSign * 1000, goal.radius, goal.phi, halfFovRad, verticalMinFraction)
-      );
-      const verticalBudget = Math.sqrt(Math.max(0, 1 - horizUsage * horizUsage));
-      const verticalAllowedMag = verticalMaxMag * verticalBudget;
-      goal.target.y = verticalSign * Math.min(Math.abs(goal.target.y), verticalAllowedMag);
 
       /* Ease the rendered camera toward wherever input currently wants it.
          1 - e^(-dt/1000 * damping) is frame-rate independent: the same
@@ -3162,7 +3169,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // uses, so a theme's ambient audio can never disagree with what
       // "fully zoomed in" actually means. A no-op for a theme whose
       // audio doesn't react to zoom.
-      audioRef.current.setZoom((ZOOM_MAX_FOR_BOARD - view.radius) / (ZOOM_MAX_FOR_BOARD - ZOOM_MIN));
+      audioRef.current.setZoom(Math.min(1, (ZOOM_MAX_FOR_BOARD - view.radius) / (ZOOM_MAX_FOR_BOARD - ZOOM_MIN)));
 
       const a = anim.current;
       if (a) {
@@ -4943,7 +4950,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           const d = pinchSpan();
           if (pinchDist && d > 0) {
             cam.current.radius = Math.max(
-              ZOOM_MIN,
+              zoomMin,
               Math.min(ZOOM_MAX_FOR_BOARD, cam.current.radius * (pinchDist / d))
             );
           }
@@ -5465,7 +5472,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         return;
       }
       cam.current.radius = Math.max(
-        ZOOM_MIN,
+        zoomMin,
         Math.min(ZOOM_MAX_FOR_BOARD, cam.current.radius + ev.deltaY * 0.014)
       );
     }
@@ -8210,7 +8217,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             onToggleCosts: () => { const next = !showCosts; setShowCosts(next); saveShowCosts(next); },
             pageItems: [
               ...((mobileShell && mobileShell.menuItems) || []),
-              ...(layoutSwitch ? [{ key: "layout", testid: "shell-menu-layout", label: "Use the classic dock", detail: "Desktop layout", onClick: () => layoutSwitch("dock") }] : []),
+              ...(layoutSwitch ? [{ key: "layout", testid: "shell-menu-layout", label: "Use the classic dock", detail: "The floating piece", onClick: () => layoutSwitch("dock") }] : []),
             ],
             version: APP_VERSION,
           }}

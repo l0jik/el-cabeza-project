@@ -11,7 +11,10 @@
       buttons (Anomaly, Custom rules) in the bar.
    3. Landscape: the bar down the right side, the board left of it.
    4. The same page on a desktop, and Neon's own page on a phone, keep the
-      desktop dock (only Nova opts in). */
+      desktop dock (only Nova opts in).
+   5. A phone opens Nova with the floating piece (the user asked for it
+      back); the dock's layout icon switches to the bar, and the choice is
+      remembered. Sections 1-3 open with the bar chosen. */
 import { chromium } from "playwright";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
@@ -19,13 +22,15 @@ let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
 const NOVA = "file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html";
 
-async function open(url, { width, height, touch = true }) {
+// `bar`: open with the control bar chosen (Nova's own default, on phones
+// too, is the floating piece; the choice is remembered in localStorage).
+async function open(url, { width, height, touch = true, bar = false }) {
   const ctx = await browser.newContext({ viewport: { width, height }, isMobile: touch, hasTouch: touch });
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/ERR_CERT|ERR_CONNECTION|Failed to load resource/.test(m.text())) errs.push(m.text()); });
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  await page.addInitScript((bar) => { window.__EC_TEST_HOOKS__ = true; if (bar) try { localStorage.setItem("el-cabeza:nova-layout", "bar"); } catch (e) { /* none */ } }, bar);
   await page.goto(url);
   await page.waitForTimeout(2500);
   return { ctx, page, errs };
@@ -47,7 +52,7 @@ async function waitFor(fn, ms = 8000) {
 // ---- 1. portrait, Standard ----
 {
   console.log("portrait 390x844");
-  const { ctx, page, errs } = await open(NOVA, { width: 390, height: 844 });
+  const { ctx, page, errs } = await open(NOVA, { width: 390, height: 844, bar: true });
   check("the phone bar is up, in setup", (await phase(page)) === "setup");
   check("the dock panel is out of the way", !(await visible(page, "dock-panel")));
   check("the dock piece is out of the way", !(await visible(page, "dock-piece-canvas")));
@@ -195,7 +200,7 @@ async function waitFor(fn, ms = 8000) {
 // ---- 1b. a game against the AI ----
 {
   console.log("portrait, vs AI");
-  const { ctx, page, errs } = await open(NOVA, { width: 390, height: 844 });
+  const { ctx, page, errs } = await open(NOVA, { width: 390, height: 844, bar: true });
   await q(page, "shell-opponent").locator('button[data-value="true"]').click();
   await q(page, "shell-ai-level").locator('button[data-value="easy"]').click();
   const human = await page.evaluate(() => document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]').dataset.value);
@@ -216,7 +221,7 @@ async function waitFor(fn, ms = 8000) {
 // ---- 3. landscape ----
 {
   console.log("landscape 844x390");
-  const { ctx, page, errs } = await open(NOVA, { width: 844, height: 390 });
+  const { ctx, page, errs } = await open(NOVA, { width: 844, height: 390, bar: true });
   check("the phone bar is up", (await phase(page)) === "setup");
   const bar = await q(page, "shell-bar").boundingBox();
   check("the bar runs down the right side", bar && bar.x > 440 && bar.x + bar.width >= 843, JSON.stringify(bar));
@@ -265,6 +270,27 @@ async function waitFor(fn, ms = 8000) {
   const n = await open("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html", { width: 390, height: 844 });
   check("Neon's own page keeps the dock on a phone", !(await q(n.page, "shell-bar").count()) && (await visible(n.page, "dock-piece-canvas")));
   await n.ctx.close();
+}
+
+// ---- 5. a phone opens Nova with the floating piece ----
+{
+  console.log("phone default: the floating piece");
+  const p = await open(NOVA, { width: 390, height: 844 });
+  check("a phone opens Nova with the floating piece, no bar", !(await q(p.page, "shell-bar").count()) && (await visible(p.page, "dock-piece-canvas")));
+  const dockBox = await q(p.page, "dock-piece-canvas").boundingBox();
+  await p.page.touchscreen.tap(dockBox.x + dockBox.width / 2, dockBox.y + dockBox.height / 2);
+  await waitFor(async () => (await q(p.page, "dock-panel").getAttribute("data-open")) === "true");
+  check("the dock offers the bar on a phone too", (await q(p.page, "layout-toggle").count()) === 1);
+  await q(p.page, "layout-toggle").tap();
+  check("...and switches to it", await waitFor(() => visible(p.page, "shell-bar")));
+  await p.page.reload();
+  await p.page.waitForTimeout(2500);
+  check("the bar is remembered on the phone", await visible(p.page, "shell-bar"));
+  await q(p.page, "shell-menu-button").tap();
+  await p.page.waitForTimeout(300);
+  check("the phone's menu offers the classic dock", (await q(p.page, "shell-menu-layout").count()) === 1);
+  check(`no page errors (${p.errs.length})`, p.errs.length === 0, p.errs.join(" | "));
+  await p.ctx.close();
 }
 
 await browser.close();

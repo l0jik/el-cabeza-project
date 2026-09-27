@@ -73,6 +73,10 @@ export const HEX = {
 export const EDGE_RADIUS = SET_EDGE_RADIUS;
 // The shell's at-rest lift, stripped before a roll (wood-set.js SHELL_LIFT).
 export const outlineYOffset = OUTLINE_Y_OFFSET;
+// A room to look round (user: panning felt far too tight): the camera may
+// come in closer and wander off the board into the den, walls to the pit
+// floor (chassis: theme.freeCamera; other themes keep the board in view).
+export const freeCamera = { zoomMin: 4.5, reach: 70, yMin: -8, yMax: 30 };
 
 export const modalBackdrop = "rgba(20, 12, 6, 0.5)";
 export const modalSurface = "rgba(243, 231, 205, 0.98)";

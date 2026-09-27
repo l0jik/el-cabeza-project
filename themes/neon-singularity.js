@@ -2775,6 +2775,11 @@ function renderCategoryOverlay(t) {
           sel.laws[item.key],
           () => {
             sel.laws[item.key] = !sel.laws[item.key];
+            // Diagonal Slide needs Slide: turning it on turns Slide on, and
+            // turning Slide off takes it too (as Tienda's order form does,
+            // rules-selections.js toggleLaw).
+            if (item.key === "diagonalSlide" && sel.laws.diagonalSlide) sel.laws.slide = true;
+            if (item.key === "slide" && !sel.laws.slide) sel.laws.diagonalSlide = false;
             // Turning Black Holes on with no spot yet rolls a real one now.
             if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares && !sel.blackHole.manual) fillPairedSpots(s, "blackHole", false);
             s.labelsDirty = true; s.bump();

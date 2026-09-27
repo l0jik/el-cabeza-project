@@ -125,13 +125,15 @@ export function createAudio() {
   /* ---------------- the fire ---------------- */
   function startFire() {
     const t = now();
-    // The burning itself: a soft, low roar that breathes.
+    // The burning itself: a low, steady hearth rumble, well under the
+    // crackles. It used to breathe (its level and brightness drifting
+    // every second or so) and, louder and nearer since the fire follows
+    // the listener, that rise and fall read as wind (user: no wind), so
+    // it holds still now.
     const bed = ctx.createBufferSource(); bed.buffer = brownBuf; bed.loop = true;
-    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 520;
-    const bedGain = ctx.createGain(); bedGain.gain.value = 0.05;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 300;
+    const bedGain = ctx.createGain(); bedGain.gain.value = 0.022;
     bed.connect(lp).connect(bedGain).connect(fireBus); bed.start(t);
-    const breathe = () => { if (!ctx || disposed) return; bedGain.gain.setTargetAtTime(0.04 + Math.random() * 0.04, now(), 0.4); lp.frequency.setTargetAtTime(380 + Math.random() * 320, now(), 0.5); later(breathe, 600 + Math.random() * 900); };
-    breathe();
     // A faint hiss of sap.
     const hiss = ctx.createBufferSource(); hiss.buffer = noiseBuf; hiss.loop = true;
     const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 5200;

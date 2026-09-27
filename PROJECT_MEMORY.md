@@ -874,6 +874,18 @@ since radius/phi can change independently afterward):
   inert at aspect ≥ 1 (pixel-identical desktop screenshots before/after)
   — if this code is touched again, re-verify both a narrow-portrait
   viewport AND a square/desktop viewport, not just one.
+- **The rooms look around (user's explicit instruction, Sep 27):** "I
+  can't really move around in the room at all... panning feels far, far
+  too restrictive", and asked, the user chose to let the den and the store
+  look around: zoom closer, pan anywhere over the board and out into the
+  room, the board may leave the screen, Reset view brings it back; Neon
+  keeps its limits. A theme sets `freeCamera` (standard.js `{ zoomMin:
+  4.5, reach: 70, yMin: -8, yMax: 30 }`, tienda.js `{ zoomMin: 4.5,
+  reach: 60, yMin: -14, yMax: 30 }`): the per-frame clamp is then only a
+  reach (the target within `reach` of the board's middle across, between
+  yMin and yMax up and down, inside the room's walls), and pinch/wheel
+  zoom go in to `zoomMin` instead of ZOOM_MIN. Every other theme (Neon,
+  Cromo, Lluvia, the Lab's) keeps the 50%/75% clamp above unchanged.
 
 Other camera facts: near plane raised `0.1 → 1` (fixes a depth-sort
 flicker during rotation, 10x tighter near:far ratio); max pitch capped at
@@ -1208,7 +1220,8 @@ reason.
 - The 50%/75% board-visibility camera clamps are explicit, feedback-
   driven product requirements, not arbitrary defaults — don't loosen them
   without new explicit instruction, and don't "fix" a camera complaint by
-  quietly relaxing them.
+  quietly relaxing them. (The one exception is the user's own: the den
+  and the store look around, `theme.freeCamera`, §5.)
 - `npm test` must pass before any change is considered done.
 
 ## 14. Current stable baseline (commit `e58e182`)
@@ -2344,10 +2357,13 @@ Tienda, Lluvia, Cromo, Lab) keep the dock exactly as before.
 - **Desktop Nova: both layouts.** `apps/unified.jsx` keeps a layout
   preference (`el-cabeza:nova-layout`, "dock" default | "bar") and passes
   `mobileShell.preferBar` + `onLayoutChange`. The chassis shows the bar
-  when `phoneSized || preferBar`; phones always get the bar. The dock's
-  icon row gets a layout icon (`layout-toggle`, bar glyph) and the bar's
-  menu gets "Use the classic dock" (`shell-menu-layout`), both only off
-  phones. On a wide screen (> 700px, not short) the bar floats as a
+  only when `preferBar` (it used to force it on phones, `SHELL_QUERY`;
+  gone: the user wants the floating 3D piece on phones too, "Nova is
+  missing the non-mobile setup screen where you just have the floating 3D
+  piece", so the dock is the default everywhere and the bar a choice).
+  The dock's icon row has a layout icon (`layout-toggle`, bar glyph) and
+  the bar's menu "Use the classic dock" (`shell-menu-layout`, "The
+  floating piece"), on every screen. On a wide screen (> 700px, not short) the bar floats as a
   centred 600px panel 16px above the bottom; the side bar is only for
   short wide screens (height ≤ `SIDE_MAX_H` 520, MobileShell.jsx).
 - **Board facing (all themes).** The pre-game board now faces the side
@@ -2569,6 +2585,29 @@ choice).
   `__EC_TEST_CAM__({theta, phi, radius, target})` moves the camera
   (a wheel burst in a test switches views instead of zooming).
   Test: tests/e2e-den.mjs.
+
+### The den, round 3 (user requests, Sep 27)
+- **No wind, for real.** The "wind" the user still heard was the fire's
+  roar breathing: its bed was re-aimed every 0.6–1.5 s (random gain and
+  cutoff) and louder near the fireplace, which reads as gusts. It's now a
+  steady brown-noise bed (lowpass 300 Hz, gain 0.022) under the crackles
+  and pops, which still come and go (den-audio.js startFire).
+- **The stereo's speakers**: pottery on the left one, a plant on the right
+  (they had the same plant): a studio-pottery bottle vase (lathe, a dark
+  tenmoku glaze run over speckled oatmeal, the foot raw: `glazeTexture`)
+  on the left as the player faces the console (den x 46; den x runs right
+  to left from the pit), the heartleaf philodendron on the right (x -10).
+- **The hall's wallpaper** differs from the room's flowered accent wall:
+  `hallPaper()` (den-textures.js), a period geometric of interlocking
+  avocado and harvest-gold rings with orange dots on cream,
+  `HALL_PAPER_TILE` 16, on the hall's three walls.
+- **Diagonal Slide brings Slide** (Neon's sphere, neon-singularity.js):
+  checking Diagonal Slide checks Slide, and unchecking Slide unchecks
+  Diagonal Slide, as Tienda's order form (rules-selections.js
+  `toggleLaw`) and Lluvia's city menu (lluvia-overlay.js) already did;
+  the other live pages have no law menus of their own.
+- **The rooms look around** (`freeCamera`, §5) and **the floating piece on
+  phones** (Nova, "Follow-up decisions" above).
 
 ### The den, round 2 (user requests)
 - **Sound** (den-audio.js): rain is a steady patter with drops on the
