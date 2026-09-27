@@ -76,6 +76,15 @@ function hplane(w, d, x, y, z, down = false, su = 1, sv = 1) {
   g.rotateX(down ? Math.PI / 2 : -Math.PI / 2); g.translate(x, y, z);
   return g;
 }
+// A floor rectangle x0..x1 by z0..z1 at height y, its texture mapped by
+// WORLD position (one repeat per `per` units), so neighbouring pieces'
+// tiles line up across their shared edges.
+function floorRect(x0, x1, z0, z1, y, per) {
+  const g = hplane(x1 - x0, z1 - z0, (x0 + x1) / 2, y, (z0 + z1) / 2);
+  const pos = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getX(i) / per, -pos.getZ(i) / per);
+  return g;
+}
 function box(w, h, d, x, y, z, ry = 0) {
   const g = new THREE.BoxGeometry(w, h, d);
   if (ry) g.rotateY(ry);
@@ -122,13 +131,20 @@ export function buildStore() {
   const tileAisle = floorTile("#CDBA96", ["#8C7458", "#A98B66", "#6F604E", "#E0D0AC"], 5);
   const repPer = 8 * FT;
   const floorW = XW * 2, floorD = ZB + ZF;
-  add(bake(hplane(floorW, floorD, 0, FLOOR, (ZF - ZB) / 2, false, floorW / repPer, floorD / repPer), { top: 0.96 }), flat(tileMain), "tienda-floor");
-  // The main aisles' "racetrack": a tan tile band, a hair above the floor.
-  const aisleMat = flat(tileAisle, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+  /* The floor is laid as pieces that never overlap, all at the same
+     height: the main aisles' tan "racetrack" (a cross through the store)
+     and the plain tile in the four areas around it. It used to be one
+     big plane with two aisle bands laid on top of it, held apart only by
+     a depth offset; the two bands overlapped each other where they cross
+     (under the display table) with the same offset, and fought there,
+     tiles flickering in patches as the view moved. */
+  const A = AISLE;
   add(merge([
-    bake(hplane(floorW, AISLE * 2, 0, FLOOR, 0, false, floorW / repPer, (AISLE * 2) / repPer), { top: 0.96 }),
-    bake(hplane(AISLE * 2, floorD, 0, FLOOR, (ZF - ZB) / 2, false, (AISLE * 2) / repPer, floorD / repPer), { top: 0.96 }),
-  ]), aisleMat);
+    [-XW, -A, -ZB, -A], [A, XW, -ZB, -A], [-XW, -A, A, ZF], [A, XW, A, ZF],
+  ].map(([x0, x1, z0, z1]) => bake(floorRect(x0, x1, z0, z1, FLOOR, repPer), { top: 0.96 }))), flat(tileMain), "tienda-floor");
+  add(merge([
+    [-XW, XW, -A, A], [-A, A, -ZB, -A], [-A, A, A, ZF],
+  ].map(([x0, x1, z0, z1]) => bake(floorRect(x0, x1, z0, z1, FLOOR, repPer), { top: 0.96 }))), flat(tileAisle));
   disposables.push(tileMain, tileAisle);
 
   /* ---- ceiling, troffers, and their sheen on the waxed floor ---- */

@@ -2252,3 +2252,13 @@ fails on the old build (0.91 squares off the board).
 
 Tienda's box lid reads "No. 4417 · Made in Argentina · © 1975" (the
 game was conceived in Argentina; it said Made in U.S.A.).
+
+### Tienda floor flicker (user bug report, video)
+The floor was one big plane with the tan aisle "racetrack" laid on top as
+two coplanar bands held apart only by polygonOffset; the bands overlapped
+each other at the crossing (the court, under the display table) with the
+same offset and z-fought there, tiles flickering in patches as the view
+moved. Now the floor is non-overlapping pieces at one height
+(`floorRect`: the aisle cross + the four areas around it), textured by
+WORLD position so tiles line up across piece edges. Don't lay coplanar
+floor layers again; cut the geometry instead.
