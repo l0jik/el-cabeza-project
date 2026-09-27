@@ -2518,6 +2518,34 @@ phone and a laptop but shrank it on squarer windows (1100x900: 547 px
 against 649) and broke the Singularity test's bare-sphere tap, so it's
 the fitted view's size instead.
 
+### The den: zoom out to the ceiling, no snapping back (user report, Sep 27)
+"I want to be able to zoom out more at home... you pinch too far, it just
+suddenly snaps back... zoom literally all the way to the ceiling, and not
+have it act weird."
+- **The snap** was the two-finger swipe (a fast, mostly vertical move of
+  the fingers' midpoint, 60 px in under 0.7 s: up = Current Player View,
+  down = Top-Down View). A quick pinch with one finger still (the thumb
+  at the bottom, the index going up or down) moves the midpoint half as
+  far as the pinch, and was taken for a swipe. A swipe now also has to
+  keep the fingers' spacing (within 40 px or 25%); a pinch changes it.
+  All themes (chassis onUp).
+- **Out to the ceiling**: the den's `freeCamera` has zoomMax 140 and a
+  `room` box (board frame: 9 in from the walls, clear of the shelves,
+  console and fireplace; up to 4.2 under the ceiling, below its beams).
+  The chassis's applyCamera keeps the camera inside it, sliding in along
+  its line of sight to the target, and out again as the view turns away
+  from a wall; `roomLimitRef` is how far the box allows along the
+  current view, and a pinch or the wheel starts from the distance you
+  can see (min(radius, roomLimit)), so there's no hidden overshoot to
+  wind back. Tested with CDP touches stamped at a finger's pace
+  (`timestamp`; the test browser is too slow for the 0.7 s window
+  otherwise): a quick pinch with the thumb still and the index sweeping
+  360 px to it in 0.26 s now zooms 44 -> 81 with the tilt kept (before,
+  its 180 px of midpoint travel made it a downswipe: Top-Down View), and
+  a real two-finger downswipe still gives Top-Down View. e2e-den's
+  overhead check now expects the camera to stop under the ceiling (it
+  used to go above, the ceiling stepping aside).
+
 ### Tienda: the table's shadow (user report, Sep 27)
 "The shadow underneath the tienda table is consistent no matter which
 way you spin it around. It's a little bit too dark... should be cast...

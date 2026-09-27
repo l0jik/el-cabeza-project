@@ -20,6 +20,7 @@ import { quality } from "./tienda-quality.js";
 import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
 import { createAudio as createDenAudio } from "./den-audio.js";
 import { createDenEffects } from "./den-fx.js";
+import { RX as ROOM_RX, RZ as ROOM_RZ, CEIL as ROOM_CEIL, PIT_FLOOR as ROOM_PIT_FLOOR } from "./den-room.js";
 
 /* ------------------------------------------------------------ the room's colours */
 
@@ -76,7 +77,16 @@ export const outlineYOffset = OUTLINE_Y_OFFSET;
 // A room to look round (user: panning felt far too tight): the camera may
 // come in closer and wander off the board into the den, walls to the pit
 // floor (chassis: theme.freeCamera; other themes keep the board in view).
-export const freeCamera = { zoomMin: 4.5, reach: 70, yMin: -8, yMax: 30 };
+// And out as far as the room goes (the user: "zoom like literally all the
+// way to the ceiling, and not have it act weird"): the camera stops at the
+// walls and the ceiling (`room`, the den's box inside them),
+// sliding in along its line of sight rather than going through.
+export const freeCamera = {
+  zoomMin: 4.5, zoomMax: 140, reach: 70, yMin: -8, yMax: 30,
+  // Clear of what stands against the walls (the shelves, the console,
+  // the fireplace) and under the ceiling's beams (3 deep).
+  room: { x: [-ROOM_RX + 9, ROOM_RX - 9], y: [ROOM_PIT_FLOOR + 1.5, ROOM_CEIL - 4.2], z: [-ROOM_RZ + 9, ROOM_RZ - 9] },
+};
 
 export const modalBackdrop = "rgba(20, 12, 6, 0.5)";
 export const modalSurface = "rgba(243, 231, 205, 0.98)";

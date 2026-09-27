@@ -1483,6 +1483,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // board alone would (the store's zoomMax). Read at use, since the
   // board's own limit changes with its size.
   const zoomMaxFor = () => Math.max(ZOOM_MAX_FOR_BOARD, (theme.freeCamera && theme.freeCamera.zoomMax) || 0);
+  /* A room with walls and a ceiling (theme.freeCamera.room, a box in the
+     board's frame): the camera stops at them instead of going through,
+     sliding in along its line of sight to the target, and comes back out
+     as the view turns away from a wall. roomLimitRef is how far out the
+     box lets the camera go along the current view (Infinity: no room);
+     a pinch or the wheel starts from there, so zooming out past a wall
+     and back in doesn't have to wind back a distance you never saw. */
+  const roomLimitRef = useRef(Infinity);
+  const zoomBase = () => Math.min(cam.current.radius, roomLimitRef.current);
   const [isFullscreen, setIsFullscreen] = useState(() => !!document.fullscreenElement);
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -2787,7 +2796,26 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        whole fix. */
     function applyCamera() {
       const { phi, radius, target, theta } = cam.current.view;
-      camera.position.set(target.x, target.y + radius * Math.cos(phi), target.z + radius * Math.sin(phi));
+      const room = theme.freeCamera && theme.freeCamera.room;
+      let r = radius;
+      if (room) {
+        // The board turns by -theta about y, so the board's frame is the
+        // world turned by +theta: the target and the view's direction there.
+        const c = Math.cos(theta), sn = Math.sin(theta);
+        const a = [target.x * c + target.z * sn, target.y, -target.x * sn + target.z * c];
+        const u = [Math.sin(phi) * sn, Math.cos(phi), Math.sin(phi) * c];
+        const box = [room.x, room.y, room.z];
+        let exit = Infinity;
+        for (let i = 0; i < 3; i++) {
+          const [lo, hi] = box[i];
+          if (a[i] < lo || a[i] > hi) { exit = Infinity; break; } // the target's outside: leave it be
+          if (u[i] > 1e-9) exit = Math.min(exit, (hi - a[i]) / u[i]);
+          else if (u[i] < -1e-9) exit = Math.min(exit, (lo - a[i]) / u[i]);
+        }
+        roomLimitRef.current = exit;
+        r = Math.max(0.5, Math.min(radius, exit));
+      } else roomLimitRef.current = Infinity;
+      camera.position.set(target.x, target.y + r * Math.cos(phi), target.z + r * Math.sin(phi));
       camera.lookAt(target);
       boardGroup.rotation.y = -theta;
     }
@@ -4619,6 +4647,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const TWO_FINGER_SWIPE_MIN_PX = 60; // minimum net vertical travel to count as a swipe
     let twoFingerStartTime = 0;
     let twoFingerStartMid = null; // null whenever the current gesture isn't a clean two-finger contact (see onDown)
+    let twoFingerStartSpan = 0; // the fingers' spacing when it began: a swipe keeps it, a pinch doesn't
     let twoFingerLastMid = null;
     let twoFingerMoved = 0; // cumulative midpoint travel this gesture, for tap-vs-swipe
     let lastTwoFingerTapAt = 0; // wall-clock time of the previous qualifying tap, for double-tap detection
@@ -4942,6 +4971,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           // comments above for how this feeds the tap/swipe
           // classification in onUp.
           twoFingerStartTime = ev.timeStamp;
+          twoFingerStartSpan = pinchSpan();
           twoFingerStartMid = panAnchor;
           twoFingerLastMid = panAnchor;
           twoFingerMoved = 0;
@@ -4965,7 +4995,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           if (pinchDist && d > 0) {
             cam.current.radius = Math.max(
               zoomMin,
-              Math.min(zoomMaxFor(), cam.current.radius * (pinchDist / d))
+              Math.min(zoomMaxFor(), zoomBase() * (pinchDist / d))
             );
           }
           pinchDist = d;
@@ -5208,6 +5238,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // so classification below only ever fires for a clean two-finger
       // contact dropping back to one (or zero) fingers.
       const wasExactlyTwo = active.size === 2;
+      const twoFingerSpanNow = wasExactlyTwo ? pinchSpan() : 0;
       const wasAltPan = altPanning;
       active.delete(ev.pointerId);
       el.releasePointerCapture && el.releasePointerCapture(ev.pointerId);
@@ -5253,7 +5284,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         } else if (
           elapsed < TWO_FINGER_SWIPE_MAX_MS &&
           Math.abs(netDy) >= TWO_FINGER_SWIPE_MIN_PX &&
-          Math.abs(netDy) > Math.abs(netDx) * 1.5
+          Math.abs(netDy) > Math.abs(netDx) * 1.5 &&
+          /* ...with the fingers' spacing about the same: a quick pinch
+             with one finger still (the thumb at the bottom, the other
+             going up) moves the midpoint half as far as the pinch, and
+             was read as a swipe, snapping the view back to Current
+             Player View in the middle of zooming out (the user, in the
+             den: "you pinch too far, it just suddenly snaps back"). */
+          Math.abs(twoFingerSpanNow - twoFingerStartSpan) < Math.max(40, twoFingerStartSpan * 0.25)
         ) {
           // Screen-space Y grows downward, so a positive netDy is a
           // downswipe (-> Top-Down View) and a negative one is an
@@ -5491,7 +5529,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       }
       cam.current.radius = Math.max(
         zoomMin,
-        Math.min(zoomMaxFor(), cam.current.radius + ev.deltaY * 0.014)
+        Math.min(zoomMaxFor(), zoomBase() + ev.deltaY * 0.014)
       );
     }
 

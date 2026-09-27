@@ -150,8 +150,10 @@ export const outlineYOffset = 0; // or OUTLINE_Y_OFFSET (OUTLINE_T + SHELL_LIFT)
 
 // A theme set in a room (Standard's den, Tienda's store) can let the
 // camera look around it: closer zoom, and a reach from the board's
-// middle instead of the board-visibility clamp (PROJECT_MEMORY §5), and
-// optionally a zoomMax further out than the board's own limit (Tienda).
+// middle instead of the board-visibility clamp (PROJECT_MEMORY §5),
+// optionally a zoomMax further out than the board's own limit, and a
+// `room` box ({ x: [lo, hi], y: [lo, hi], z: [lo, hi] }, board frame) the
+// camera stops at, sliding in along its line of sight (the den).
 // Absent, the clamp applies (every other theme).
 export const freeCamera = { zoomMin: 4.5, reach: 70, yMin: -8, yMax: 30 }; // or undefined
 

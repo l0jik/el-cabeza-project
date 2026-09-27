@@ -82,8 +82,17 @@ async function waitFor(fn, ms = 8000) {
   s = await at({ theta: 0, phi: 1.33, radius: 44 });
   check("low and pulled back past the south sofa: it steps aside", vis(s, "den-sofaS") === false, JSON.stringify(s.groups));
   check("...while the far sofa and the far wall stay", vis(s, "den-sofaN") === true && vis(s, "den-wallN") === true, JSON.stringify(s.groups));
-  s = await at({ theta: 0, phi: 0.02, radius: 55 });
-  check("high above, top-down: the ceiling steps aside", vis(s, "den-ceiling") === false, JSON.stringify(s.groups));
+  // Pulled far out overhead, the camera stops under the ceiling (the
+  // room box, standard.js freeCamera.room), so the ceiling stays.
+  s = await at({ theta: 0, phi: 0.02, radius: 140 });
+  const camY = await page.evaluate(() => { const t = window.__DEN_THREE__; const p = t.camera.position.clone(); t.boardGroup.worldToLocal(p); return p.y; });
+  const ceilY = await page.evaluate(() => {
+    let y = null, g = null;
+    window.__DEN_THREE__.scene.traverse((o) => { if (o.name === "den-ceiling") g = o; });
+    if (g) g.traverse((m) => { if (m.isMesh && m.geometry) { m.geometry.computeBoundingBox(); const top = m.geometry.boundingBox.max.y + m.position.y; y = y == null ? top : Math.max(y, top); } });
+    return y;
+  });
+  check(`high above, top-down: the camera stops under the ceiling (${camY.toFixed(1)} under ${ceilY == null ? "?" : ceilY.toFixed(1)}), which stays`, vis(s, "den-ceiling") === true && (ceilY == null || camY < ceilY - 3), JSON.stringify({ camY, ceilY, groups: s.groups }));
   check("...and no sofa hides (none is in the way)", ["den-sofaN", "den-sofaS", "den-sofaW"].every((n) => vis(s, n) === true), JSON.stringify(s.groups));
   s = await at({ theta: 0, phi: 0.95, radius: 20 });
   check("back at the table, everything is there again", s.groups.every(([, v]) => v === true), JSON.stringify(s.groups));
