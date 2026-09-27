@@ -4640,8 +4640,11 @@ export function createSoundscape() {
   // (tests/audio-bell.mjs) that drove the toll to ~+9 dBFS, clipping for
   // its first ~6s. Most of the energy is the long reverb building up
   // under the strike. Scaled down to fit under full scale, with headroom
-  // left for the singularity hum sounding at the same time.
-  const BELL_BUS_GAIN = 1.25 * MASTER_GAIN * 0.24;
+  // left for the singularity hum sounding at the same time. Then 0.24 ->
+  // 0.21 (about -1.2 dB): the bell (its peaks 0.60-0.74) and the rest of
+  // the mix (0.65-0.76) are loudest at random moments, and once in about
+  // seventeen runs they met at 0.98, just short of clipping.
+  const BELL_BUS_GAIN = 1.25 * MASTER_GAIN * 0.21;
   function ensureBellBus() {
     if (bellBus) return;
     bellBus = ctx.createGain();
