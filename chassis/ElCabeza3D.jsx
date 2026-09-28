@@ -2126,11 +2126,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useLayoutEffect(() => {
     if (showInfoOverlay && infoTab === "about" && infoBodyRef.current) infoBodyRef.current.scrollTop = 0;
   }, [showInfoOverlay, infoTab]);
+  // ...and when it's asked for while it's already the tab showing (no
+  // state changes then, so the effect above doesn't run).
+  const aboutToTop = () => requestAnimationFrame(() => { if (infoBodyRef.current && infoTabRef.current === "about") infoBodyRef.current.scrollTop = 0; });
   function openRulesAt(tab, focus = null) {
     setInfoTab(tab);
     setRulesFocus(focus);
     setShowInfoOverlay(true);
-    if (tab === "about") audioRef.current.playMenu();
+    if (tab === "about") { audioRef.current.playMenu(); aboutToTop(); }
     else audioRef.current.playRulesOpen();
   }
   function switchRulesTab(tab, focus = null) {
@@ -2144,6 +2147,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     }
     setInfoTab(tab);
     setRulesFocus(focus);
+    if (tab === "about") aboutToTop();
   }
 
   function handleInfoButtonClick() {
@@ -2158,7 +2162,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // why this "seems to fail more than works": most calls simply
     // landed silently on a still-suspended context. It opens on the tab
     // last shown, so the choir only when that's ABOUT.
-    if (infoTabRef.current === "about") audioRef.current.playMenu();
+    if (infoTabRef.current === "about") { audioRef.current.playMenu(); aboutToTop(); }
     else audioRef.current.playRulesOpen();
   }
 
