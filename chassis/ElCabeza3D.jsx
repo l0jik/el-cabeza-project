@@ -9038,7 +9038,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 universe, by chance or misfortune, it has been relegated to
                 the dustbin of history. Regardless of the reasons one might
                 suggest to explain its obscurity, it remains ultimately
-                ineffable how Cabeza has languished in near-anonymity for
+                ineffable how El Cabeza has languished in near-anonymity for
                 almost 50 years.
               </p>
 
