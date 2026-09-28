@@ -94,7 +94,7 @@ export function createDenEffects(woodSet) {
     let tableVeil = null, tableLocal = null, tableMaskKey = "";
     const FOG = { color: new THREE.Color(0x1c130c), bg: new THREE.Color(0x140d08), near: 150, far: 420 };
     const DARK = new THREE.Color(0x070403);
-    const FOCUS_LIFT = 1.3; // how far the room drops under the board
+    const FOCUS_LIFT = 0.975; // how far the room drops under the board (75% of the first 1.3, user)
     const corner = new THREE.Vector3();
     const blurOk = q.physical && typeof CSS !== "undefined" && CSS.supports && (CSS.supports("backdrop-filter", "blur(2px)") || CSS.supports("-webkit-backdrop-filter", "blur(2px)"));
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_FOCUS__ = () => ({ on: focusOn, w: fw, lift: den ? -den.group.position.y : 0, fogNear: three.current && three.current.scene && three.current.scene.fog ? three.current.scene.fog.near : null });
