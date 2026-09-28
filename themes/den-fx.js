@@ -418,6 +418,13 @@ export function createDenEffects(woodSet) {
     /* ---- the television ---- */
     let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false;
     let returning = !!(novaTv && novaTv.returning);
+    // Back from Singularity, leaving the set (user: it cut away from the TV
+    // too quickly): a moment at the set once it's off, then a slow start
+    // that gathers speed toward the table and settles there (timed, not the
+    // exponential ease the other visits use, which is fastest at the start).
+    const TV_LEAVE_PAUSE = 700, TV_LEAVE_MS = 3400;
+    let tvLeaveAt = 0;
+    const easeInOutCubic = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
     // How loud the snow hisses, by what's on the screen.
     const HISS = { warming: 1, snow: 1, resolving: 0.5, pattern: 0.1, dive: 0.08 };
     function pressTv() {
@@ -475,6 +482,7 @@ export function createDenEffects(woodSet) {
           offAt = 0;
           if (den.tv.powerOff(now) && audio && audio.tvOff) audio.tvOff();
           tvGoal = 0;
+          tvLeaveAt = performance.now() + TV_LEAVE_PAUSE;
         }
         tvDive = den.tv.animate(now, dt);
         // While the camera visits the set, the title and the dock's piece
@@ -552,8 +560,15 @@ export function createDenEffects(woodSet) {
         const t = three.current;
         focusW += (focusGoal - focusW) * (1 - Math.exp(-(dtMs / 1000) * 2.4));
         if (Math.abs(focusGoal - focusW) < 0.001) focusW = focusGoal;
-        tvW += (tvGoal - tvW) * (1 - Math.exp(-(dtMs / 1000) * 2.2));
-        if (Math.abs(tvGoal - tvW) < 0.001) tvW = tvGoal;
+        if (tvLeaveAt && tvGoal === 0) {
+          const p = Math.max(0, Math.min(1, (performance.now() - tvLeaveAt) / TV_LEAVE_MS));
+          tvW = 1 - easeInOutCubic(p);
+          if (p >= 1) { tvLeaveAt = 0; tvW = 0; }
+        } else {
+          if (tvGoal > 0) tvLeaveAt = 0;
+          tvW += (tvGoal - tvW) * (1 - Math.exp(-(dtMs / 1000) * 2.2));
+          if (Math.abs(tvGoal - tvW) < 0.001) tvW = tvGoal;
+        }
         if (den && t && t.boardGroup && tvW > 0) {
           /* The television: far enough back to have the set in view (on a
              tall screen its sides may go), a little above it; then, as the
@@ -565,7 +580,8 @@ export function createDenEffects(woodSet) {
           eye.set(f.target.x + (dv.x - f.target.x) * k, f.target.y + d * 0.1 * (1 - k) + (dv.y - f.target.y) * k, f.front - d + (dv.eyeZ - (f.front - d)) * k);
           aim.copy(f.target).lerp(dv.target, k);
           t.boardGroup.localToWorld(eye); t.boardGroup.localToWorld(aim);
-          const e = tvW * tvW * (3 - 2 * tvW);
+          // (The timed leave is already eased; the others ease here.)
+          const e = tvLeaveAt ? tvW : tvW * tvW * (3 - 2 * tvW);
           camera.getWorldDirection(dir);
           look.copy(camera.position).addScaledVector(dir, camera.position.length());
           look.lerp(aim, e);
