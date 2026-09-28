@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
 import * as THREE from "three";
 
 import {
@@ -2120,6 +2120,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      the state has moved on. */
   const infoTabRef = useRef(infoTab);
   infoTabRef.current = infoTab;
+  // ABOUT always opens at its top (user), however far down it was left,
+  // whether the panel opens on it or a tab switches to it.
+  const infoBodyRef = useRef(null);
+  useLayoutEffect(() => {
+    if (showInfoOverlay && infoTab === "about" && infoBodyRef.current) infoBodyRef.current.scrollTop = 0;
+  }, [showInfoOverlay, infoTab]);
   function openRulesAt(tab, focus = null) {
     setInfoTab(tab);
     setRulesFocus(focus);
@@ -8995,7 +9001,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               <RulesTabs tab={infoTab} onTab={(k) => switchRulesTab(k)} C={RULES_COLORS} />
             </div>
 
-            <div data-testid="info-body" style={{ overflowY: "auto", padding: shell ? "0 20px calc(24px + env(safe-area-inset-bottom, 0px))" : "0 34px 32px" }}>
+            <div data-testid="info-body" ref={infoBodyRef} style={{ overflowY: "auto", padding: shell ? "0 20px calc(24px + env(safe-area-inset-bottom, 0px))" : "0 34px 32px" }}>
             {infoTab !== "about" ? (
               <RulesCard
                 tab={infoTab}
