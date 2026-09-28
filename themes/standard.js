@@ -336,6 +336,13 @@ export const styleSheet = `
   }
   .den-book-hint.on { opacity: 1; }
   .den-focus-veil.blur { background: rgba(7,4,3,0.36); backdrop-filter: blur(7px) saturate(0.7); -webkit-backdrop-filter: blur(7px) saturate(0.7); }
+  /* The coffee table's extra blur (den-fx.js shapes it: the table's
+     outline less the board and pieces). A blur alone: no darkening. */
+  .den-table-blur {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0; visibility: hidden; background: transparent;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  }
   [data-testid="points-counter"] {
     color: ${DEN.chocolate} !important;
     background: rgba(243,231,205,0.92); padding: 5px 12px 5px 13px; border-radius: 999px;

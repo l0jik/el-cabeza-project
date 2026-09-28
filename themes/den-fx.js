@@ -91,7 +91,8 @@ export function createDenEffects(woodSet) {
        (standard.js styleSheet, .den-focus-veil). The music visit and the
        set's visit bring the room back while they last. */
     let focusOn = false, fw = 0, lastFocusTick = 0, veil = null, flames = null, tableMats = null, lastE = 0;
-    let boardCaster = null;
+    let boardCaster = null, tableBlur = null, tableLocal = null, tableMaskKey = "";
+    const pieceBox = new THREE.Box3();
     const FOG = { color: new THREE.Color(0x1c130c), bg: new THREE.Color(0x140d08), near: 150, far: 420 };
     const DARK = new THREE.Color(0x070403);
     // How much of the first darkening focus keeps: 60% (user: 40% less),
@@ -155,11 +156,13 @@ export function createDenEffects(woodSet) {
       if (e <= 0) return;
       const r = t.renderer.domElement.getBoundingClientRect();
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      const boardPts = [];
       for (const [sx, sy, sz] of [[-1, 0, -1], [1, 0, -1], [-1, 0, 1], [1, 0, 1], [-1, 2.2, -1], [1, 2.2, -1], [-1, 2.2, 1], [1, 2.2, 1]]) {
         corner.set((sx * SLAB_X) / 2, sy, (sz * SLAB_Z) / 2);
         t.boardGroup.localToWorld(corner).project(t.camera);
         const px = ((corner.x + 1) / 2) * r.width, py = ((1 - corner.y) / 2) * r.height;
         x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+        boardPts.push([px, py]);
       }
       // The clear part: the board's whole outline on screen and a little
       // margin (an ellipse let the board's corners into the dark, user),
@@ -168,6 +171,84 @@ export function createDenEffects(woodSet) {
       const set = (k, v) => veil.style.setProperty(k, `${v.toFixed(1)}px`);
       set("--ix0", x0 - pad); set("--ix1", x1 + pad); set("--ox0", x0 - pad - soft); set("--ox1", x1 + pad + soft);
       set("--iy0", y0 - pad); set("--iy1", y1 + pad); set("--oy0", y0 - pad - soft); set("--oy1", y1 + pad + soft);
+      if (blurOk) tableBlurFrame(t, r, e, boardPts);
+    }
+
+    function hull(pts) {
+      const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+      const lo = [], up = [];
+      for (const q of p) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+      for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+      return lo.slice(0, -1).concat(up.slice(0, -1));
+    }
+    function grow(poly, by) {
+      const cx = poly.reduce((s, q) => s + q[0], 0) / poly.length, cy = poly.reduce((s, q) => s + q[1], 0) / poly.length;
+      return poly.map(([x, y]) => { const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) || 1; return [x + (dx / d) * by, y + (dy / d) * by]; });
+    }
+    /* The coffee table blurred more than the room (user: "blur the coffee
+       table more. Anything underneath the board. Not the board itself.
+       Don't add any additional shadows"): a blur alone, no darkening, in
+       the table's outline on screen, with the board and the pieces on it
+       cut out close. An SVG mask, rebuilt only when that shape moves. */
+    function tableBlurFrame(t, r, e, boardPts) {
+      if (!tableLocal) {
+        const box = new THREE.Box3(), b = new THREE.Box3();
+        den.table.group.updateMatrixWorld(true);
+        den.table.group.traverse((o) => {
+          if (!o.isMesh || !o.geometry || !o.visible) return;
+          const m = Array.isArray(o.material) ? o.material[0] : o.material;
+          if (!m || m.visible === false || m.isShaderMaterial) return;
+          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+          b.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
+          box.union(b);
+        });
+        if (box.isEmpty()) return;
+        const inv = new THREE.Matrix4().copy(den.table.group.matrixWorld).invert();
+        tableLocal = [];
+        for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) tableLocal.push(new THREE.Vector3(x, y, z).applyMatrix4(inv));
+      }
+      if (!tableBlur) {
+        const mount = t.renderer.domElement.parentNode;
+        if (!mount) return;
+        tableBlur = document.createElement("div");
+        tableBlur.className = "den-table-blur";
+        tableBlur.setAttribute("aria-hidden", "true");
+        mount.insertBefore(tableBlur, veil);
+      }
+      tableBlur.style.opacity = e.toFixed(3);
+      tableBlur.style.visibility = e > 0 ? "visible" : "hidden";
+      const toScreen = (v) => { v.project(t.camera); return [((v.x + 1) / 2) * r.width, ((1 - v.y) / 2) * r.height]; };
+      const q2 = (v) => Math.round(v / 2) * 2;
+      const tbl = hull(tableLocal.map((p) => toScreen(den.table.group.localToWorld(corner.copy(p)))).map(([x, y]) => [q2(x), q2(y)]));
+      // Kept sharp: the board's own shape, and each piece's (one outline
+      // round them all took in table behind the board too).
+      const boxHull = (bb, obj) => {
+        const out = [];
+        for (const x of [bb.min.x, bb.max.x]) for (const y of [bb.min.y, bb.max.y]) for (const z of [bb.min.z, bb.max.z]) {
+          corner.set(x, y, z); if (obj) obj.localToWorld(corner);
+          out.push(toScreen(corner));
+        }
+        return grow(hull(out.map(([x, y]) => [q2(x), q2(y)])), 2);
+      };
+      const cuts = [];
+      const slab = t.boardGroup.getObjectByName("ec-slab");
+      if (slab && slab.geometry) { if (!slab.geometry.boundingBox) slab.geometry.computeBoundingBox(); cuts.push(boxHull(slab.geometry.boundingBox, slab)); }
+      else cuts.push(grow(hull(boardPts), 2));
+      if (t.pieceGroup) t.pieceGroup.children.forEach((c) => { if (!c.visible) return; pieceBox.setFromObject(c); if (!pieceBox.isEmpty()) cuts.push(boxHull(pieceBox, null)); });
+      const W = Math.round(r.width), H = Math.round(r.height);
+      const key = `${W}x${H}|${tbl.join(" ")}|${cuts.map((c) => c.map(([x, y]) => [Math.round(x), Math.round(y)]).join(" ")).join("|")}`;
+      if (key === tableMaskKey) return;
+      tableMaskKey = key;
+      const pts = (poly) => poly.map(([x, y]) => `${x.toFixed(0)},${y.toFixed(0)}`).join(" ");
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}' viewBox='0 0 ${W} ${H}'>`
+        + `<defs><filter id='f' x='-30%' y='-30%' width='160%' height='160%'><feGaussianBlur stdDeviation='10'/></filter>`
+        + `<mask id='m' maskUnits='userSpaceOnUse' x='0' y='0' width='${W}' height='${H}'><rect width='${W}' height='${H}' fill='black'/>`
+        + `<polygon points='${pts(tbl)}' fill='white' filter='url(#f)'/>${cuts.map((c) => `<polygon points='${pts(c)}' fill='black'/>`).join("")}</mask></defs>`
+        + `<rect width='${W}' height='${H}' fill='black' mask='url(#m)'/></svg>`;
+      const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+      tableBlur.style.webkitMaskImage = url;
+      tableBlur.style.maskImage = url;
     }
 
     function boardShadow(t) {
@@ -527,6 +608,7 @@ export function createDenEffects(woodSet) {
         if (novaTv && novaTv.register) novaTv.register(null);
         if (hintEl) { hintEl.remove(); hintEl = null; }
         if (veil) { veil.remove(); veil = null; }
+        if (tableBlur) { tableBlur.remove(); tableBlur = null; }
         if (boardCaster) { boardCaster.parent && boardCaster.parent.remove(boardCaster); boardCaster.geometry.dispose(); boardCaster = null; }
         if (bookHint) { bookHint.remove(); bookHint = null; }
         if (bookListenersOn) {
