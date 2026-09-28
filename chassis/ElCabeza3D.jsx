@@ -1525,6 +1525,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const music = theme.music || null;
   const [musicPanel, setMusicPanel] = useState(false);
   const [musicNow, setMusicNow] = useState(null);
+  // Paused from the now-playing chip: the track keeps its place.
+  const [musicPaused, setMusicPaused] = useState(false);
   useEffect(() => {
     if (ambientRef.current && ambientRef.current.setMusicFocus) ambientRef.current.setMusicFocus(musicPanel);
     if (!musicPanel) return undefined;
@@ -1539,14 +1541,24 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (a.ensureStarted) a.ensureStarted();
     // Choosing a record means wanting to hear it: its channel comes back on.
     if (music.channel && channelsOff[music.channel]) toggleChannel(music.channel);
-    if (a.playMusic(track, () => { setMusicNow(null); musicPlaying(null); }) === false) return;
+    if (a.playMusic(track, () => { setMusicNow(null); setMusicPaused(false); musicPlaying(null); }) === false) return;
     setMusicNow(track.id);
+    setMusicPaused(false);
     musicPlaying(track.medium);
   }
   function stopTrack() {
     if (audioRef.current.stopMusic) audioRef.current.stopMusic();
     setMusicNow(null);
+    setMusicPaused(false);
     musicPlaying(null);
+  }
+  // The chip's pause: the needle up (the platter stops), and down again.
+  function pauseTrack(pause) {
+    const a = audioRef.current;
+    if (!musicNow || !a.pauseMusic || !a.resumeMusic) return;
+    const tr = music.tracks().find((t) => t.id === musicNow);
+    if (pause) { a.pauseMusic(); musicPlaying(null); } else { a.resumeMusic(); musicPlaying(tr ? tr.medium : null); }
+    setMusicPaused(!!pause);
   }
   function setChannelLevel(key, v) {
     const next = { ...channelLevels, [key]: Math.max(0, Math.min(1, v)) };
@@ -2173,6 +2185,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // way in (the den's lamps) sends FOCUS_EVENT ({ on } or a toggle).
   useEffect(() => {
     if (ambientRef.current && ambientRef.current.setFocus) ambientRef.current.setFocus(focusMode);
+    // The page's own furniture (the masthead) can go down with the lights.
+    document.documentElement.classList.toggle("ec-lights-down", focusMode);
+    return () => document.documentElement.classList.remove("ec-lights-down");
   }, [focusMode]);
   const focusKeysRef = useRef({});
   focusKeysRef.current = { focusable, focusMode, overlay: showInfoOverlay || showVictoryPlacard || showNewGameChoice };
@@ -2340,6 +2355,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const cornerStyle = (key) => { const c = cornerPlace(key); return { left: c.left, bottom: c.bottom, "--ec-corner-bottom": `${c.bottom}px` }; };
   const cornerControlsRight = cornerStack ? 56 + 8 : rulesInRoom ? (fullScreenCorner ? 96 : 56) + (theme.focusMode ? 40 : 0) + 8 : 170 + 8;
   const cornerControlsCovered = dockView === "panel" && (viewportW - dockPanelW) / 2 < cornerControlsRight;
+  // The now-playing chip (theme.music): just above the corner controls,
+  // stacked or in a row; on the phone shell, just above its bar.
+  const MUSIC_CHIP_W = 214;
+  const musicChipBottom = 18 + 38 * (cornerStack ? Math.max(1, cornerSlots.length) : 1) + 6;
+  const musicChipCovered = dockView === "panel" && (viewportW - dockPanelW) / 2 < 18 + MUSIC_CHIP_W;
   /* Distinct from declutter above: declutter is specifically about
      hiding the Opponent row and Record section, true only during
      ACTIVE play. This is about whether a live action button sits up
@@ -6840,6 +6860,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          switching between them animate instead of jumping. */}
       <div
         ref={titleWrapRef}
+        data-masthead=""
         className={mastheadPhase === "relocated" ? "ec-masthead-relocated" : undefined}
         style={{ ...(
           mastheadPhase === "relocated"
@@ -7201,6 +7222,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         <button
           onClick={toggleFullscreen}
           data-fullscreen-toggle=""
+          data-dim={focusMode ? "true" : "false"}
           aria-label={isFullscreen ? "Exit full screen" : "Enter full screen"}
           title={isFullscreen ? "Exit full screen" : "Enter full screen"}
           style={{
@@ -7215,13 +7237,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             background: "transparent",
             border: "none",
             color: COLORS.slate,
-            opacity: cornerControlsCovered ? 0 : 0.35,
+            opacity: cornerControlsCovered ? 0 : focusMode ? 0.2 : 0.35,
             pointerEvents: cornerControlsCovered ? "none" : "auto",
             cursor: "pointer",
             transition: "opacity 0.5s ease, transform 1.1s ease",
           }}
           onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 0.8; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : 0.35; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : focusMode ? 0.2 : 0.35; }}
         >
           {isFullscreen ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -7249,17 +7271,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         <button
           type="button"
           data-testid="room-view-corner"
+          data-active={viewMode === "room" ? "true" : "false"}
+          data-dim={focusMode ? "true" : "false"}
           onClick={roomView}
           aria-label="Room view"
           title="Room view: the whole room, the roof off"
           style={{
             position: "fixed", ...cornerStyle("room"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
-            color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : viewMode === "room" ? 0.85 : 0.5,
-            pointerEvents: cornerControlsCovered ? "none" : "auto", cursor: "pointer", transition: "opacity 0.5s ease",
+            color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5,
+            pointerEvents: cornerControlsCovered ? "none" : "auto", cursor: viewMode === "room" ? "default" : "pointer", transition: "opacity 0.5s ease",
           }}
-          onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : viewMode === "room" ? 0.85 : 0.5; }}
+          onMouseEnter={(e) => { if (!cornerControlsCovered && viewMode !== "room") e.currentTarget.style.opacity = 1; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5; }}
         >
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 10.5 12 4l9 6.5" strokeDasharray="2.2 2.2" />
@@ -7276,6 +7300,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           type="button"
           data-testid="focus-corner"
           data-on={focusMode ? "true" : "false"}
+          data-dim={focusMode ? "true" : "false"}
           onClick={toggleFocus}
           aria-pressed={focusMode}
           aria-label={focusMode ? "Leave focus" : "Focus on the board"}
@@ -7283,11 +7308,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           style={{
             position: "fixed", ...cornerStyle("focus"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
-            color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : focusMode ? 0.95 : 0.5,
+            color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : focusMode ? 0.4 : 0.5,
             pointerEvents: cornerControlsCovered ? "none" : "auto", cursor: "pointer", transition: "opacity 0.5s ease",
           }}
           onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : focusMode ? 0.95 : 0.5; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : focusMode ? 0.4 : 0.5; }}
         >
           {/* A light bulb (the user): the room's lights on, it shines, rays
               all round; focus on, the lights are down: the bulb alone, out. */}
@@ -7299,6 +7324,69 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         </button>
       )}
 
+      {/* Now playing (theme.music): while a record's on and the stereo's
+         panel is away, a small chip to pause it or turn it down without
+         going over to the stereo. The slider is the Music channel's own
+         (the sound menu's), so all the way left is off; the title opens
+         the stereo's panel. */}
+      {music && musicNow && !musicPanel && (() => {
+        const tr = music.tracks().find((t) => t.id === musicNow);
+        const ch = music.channel;
+        const vol = ch ? levelOf(ch) : 1;
+        const hidden = !shell && musicChipCovered;
+        return (
+          <div
+            data-testid="music-chip"
+            data-paused={musicPaused ? "true" : "false"}
+            data-dim={focusMode ? "true" : "false"}
+            role="group"
+            aria-label="Now playing"
+            style={{
+              position: "fixed",
+              zIndex: cornerControlsZ,
+              ...(shell ? { left: 12, bottom: "calc(var(--ec-shell-bottom, 72px) + 8px)" } : { left: 18, bottom: musicChipBottom }),
+              width: MUSIC_CHIP_W, boxSizing: "border-box", height: 32,
+              display: "flex", alignItems: "center", gap: 6, padding: "0 10px 0 3px",
+              background: modalSurface, border: `1px solid ${COLORS.slateSoft}`, borderRadius: 999,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.25)", color: COLORS.charcoal,
+              fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12,
+              opacity: hidden ? 0 : focusMode ? 0.4 : 0.92,
+              pointerEvents: hidden ? "none" : "auto", transition: "opacity 0.5s ease",
+            }}
+          >
+            <button
+              type="button"
+              data-testid="music-chip-toggle"
+              aria-label={musicPaused ? "Play the music" : "Pause the music"}
+              title={musicPaused ? "Play" : "Pause"}
+              onClick={() => pauseTrack(!musicPaused)}
+              style={{ flex: "none", width: 26, height: 26, borderRadius: 999, border: "none", background: "transparent", color: "inherit", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                {musicPaused ? <path d="M7 4.5v15l12.5-7.5z" /> : <path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z" />}
+              </svg>
+            </button>
+            <button
+              type="button"
+              data-testid="music-chip-title"
+              title="The stereo"
+              onClick={() => setMusicPanel(true)}
+              style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", color: "inherit", cursor: "pointer", font: "inherit", padding: 0, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: musicPaused ? 0.6 : 1 }}
+            >{tr ? tr.title : "Music"}</button>
+            <input
+              type="range"
+              data-testid="music-chip-volume"
+              aria-label="Music volume"
+              title="Music volume"
+              min={0} max={100} step={1}
+              value={Math.round(vol * 100)}
+              onChange={(e) => { if (ch) setChannelLevel(ch, Number(e.target.value) / 100); }}
+              style={{ flex: "none", width: 64, margin: 0, accentColor: COLORS.charcoal, cursor: "pointer" }}
+            />
+          </div>
+        );
+      })()}
+
       {/* How to play: always on screen, beside the full-screen button,
          so the rules are never more than one tap away. Opens the rules
          at the Quick card. Not where the rules lie in the room
@@ -7307,6 +7395,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       <button
         type="button"
         data-testid="how-to-play"
+        data-dim={focusMode ? "true" : "false"}
         aria-label="How to play"
         title="How to play"
         onClick={() => openRulesAt("quick")}

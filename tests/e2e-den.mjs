@@ -195,6 +195,30 @@ async function waitFor(fn, ms = 8000) {
   check("it plays on the record player", a1.music && a1.music.id === "t1" && a1.music.medium === "record" && !a1.music.paused, JSON.stringify(a1.music));
   check("...and the platter turns", Math.abs(r2 - r1) > 0.5, `${r1} -> ${r2}`);
   check("...Stop is offered", (await q(page, "music-stop").count()) === 1);
+  // The panel put away: a now-playing chip to pause it or turn it down.
+  check("no chip while the panel is open", (await q(page, "music-chip").count()) === 0);
+  await q(page, "music-close").click();
+  await page.waitForTimeout(600);
+  check("the panel away: the now-playing chip", await q(page, "music-chip").isVisible());
+  await q(page, "music-chip-toggle").click();
+  await page.waitForTimeout(400);
+  const p1 = await page.evaluate(() => window.__DEN_AUDIO__());
+  const s1 = await spin();
+  await page.waitForTimeout(600);
+  const s2 = await spin();
+  check("...its pause pauses the record, in its place", p1.music && p1.music.id === "t1" && p1.music.paused, JSON.stringify(p1.music));
+  check("...and the platter stops", Math.abs(s2 - s1) < 0.05, `${s1} -> ${s2}`);
+  await q(page, "music-chip-toggle").click();
+  await page.waitForTimeout(400);
+  check("...again: it plays on", !(await page.evaluate(() => window.__DEN_AUDIO__())).music.paused);
+  await q(page, "music-chip-volume").fill("30");
+  await page.waitForTimeout(400);
+  const g = (await page.evaluate(() => window.__DEN_AUDIO__())).gates.stereo;
+  check("...its slider turns the music down", Math.abs(g - 0.09) < 0.02, String(g));
+  await q(page, "music-chip-volume").fill("100");
+  await q(page, "music-chip-title").click();
+  await page.waitForTimeout(400);
+  check("...its title opens the stereo again", (await q(page, "music-panel").count()) === 1);
   await q(page, "music-stop").click();
   await page.waitForTimeout(400);
   const a2 = await page.evaluate(() => window.__DEN_AUDIO__());
@@ -360,6 +384,15 @@ async function waitFor(fn, ms = 8000) {
   const veil = await page.evaluate(() => { const v = document.querySelector('[data-testid="den-focus-veil"]'); return v ? { op: Number(v.style.opacity), vis: v.style.visibility, rx: v.style.getPropertyValue("--rx") } : null; });
   check("...the veil is over the room, round the board", veil && veil.op > 0.95 && veil.vis === "visible" && parseFloat(veil.rx) > 60, JSON.stringify(veil));
   check("...the button says so", (await q(page, "focus-corner").getAttribute("data-on")) === "true");
+  await page.mouse.move(600, 300); // a hover brings a dimmed one back up
+  await page.waitForTimeout(700);
+  const dimmed = await page.evaluate(() => ({
+    lights: document.documentElement.classList.contains("ec-lights-down"),
+    corner: [...document.querySelectorAll('[data-testid="room-view-corner"], [data-testid="focus-corner"], button[aria-label$="full screen"]')].map((b) => Number(getComputedStyle(b).opacity)),
+    masthead: getComputedStyle(document.querySelector("[data-masthead] > div")).filter,
+  }));
+  check("...the corner buttons dim with the lights", dimmed.lights && dimmed.corner.length >= 2 && dimmed.corner.every((o) => o < 0.5), JSON.stringify(dimmed));
+  check("...and so does the masthead", /brightness/.test(dimmed.masthead), dimmed.masthead);
   await page.keyboard.press("f");
   check("F leaves it", await settled(false));
   check("...the room back in place", (await focus()).lift < 0.01);
@@ -378,6 +411,8 @@ async function waitFor(fn, ms = 8000) {
   check("...on", (await sw.getAttribute("aria-checked")) === "true" && (await focus()).on);
   await q(page, "room-view").click();
   check("Room View leaves focus", !(await focus()).on && (await sw.getAttribute("aria-checked")) === "false");
+  check("...the corner's house goes grey while it's the view", (await q(page, "room-view-corner").getAttribute("data-active")) === "true");
+  check("...and the page's lights are back up", !(await page.evaluate(() => document.documentElement.classList.contains("ec-lights-down"))));
   await page.keyboard.press("Escape");
   await page.waitForTimeout(400);
   // The lamps: each of them toggles it on its own (the console's, the

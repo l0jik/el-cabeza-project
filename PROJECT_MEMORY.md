@@ -3253,3 +3253,30 @@ card centred on the chassis's 38 px spot). cornerControlsRight follows
   on): the bulb outline with rays all round; focus on (lights down): the
   bulb alone, no rays (outline, not filled: a filled cream bulb on the
   dark "on" card read as lit).
+
+### Lights down dims the page's furniture; Room view house greys; now-playing chip (user)
+- **Room view house greyed while it's the view:** `room-view-corner` has
+  `data-active` (viewMode === "room"); standard.js/tienda.js grey its card
+  (desaturated background, muted icon, no shadow, opacity 0.6); the chassis
+  default drops it to 0.22 and a plain cursor. Still clickable (re-frames
+  the room).
+- **Focus (lights down) dims the corner:** every corner control (full
+  screen, How to play, Room view, focus, the music chip) carries
+  `data-dim` while focus is on; standard.js dims `[data-dim="true"]` to
+  0.32 (!important, over the inline), a hover or keyboard focus brings one
+  back to 0.9. The chassis also toggles `html.ec-lights-down` with focus;
+  standard.js dims the masthead with it (`[data-masthead] > div`:
+  brightness 0.32, saturate 0.6, opacity 0.55, 0.9 s). The masthead
+  wrapper (titleWrapRef) has `data-masthead`.
+- **Now-playing chip** (chassis, any theme.music): while a track is on and
+  the music panel is away, `music-chip` just above the corner controls
+  (stacked: above the column; row: above the row; phone shell: above its
+  bar): pause/play (`music-chip-toggle`, den-audio `pauseMusic` /
+  `resumeMusic`: the element pauses in place, the room un-ducks, the
+  platter stops via setMusicPlaying(null)), the title (`music-chip-title`,
+  opens the panel), and a volume slider (`music-chip-volume`) that is the
+  Music channel's own level (setChannelLevel(music.channel), the same as
+  the sound menu's; all the way left is off). Hidden when the dock's
+  panel would cover it. den-audio roomLevel only ducks for music that's
+  actually playing. Tests: e2e-den stereo block (pause/platter/slider/
+  title), focus block (dim, masthead, grey house).

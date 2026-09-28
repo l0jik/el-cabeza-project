@@ -336,6 +336,8 @@ export const styleSheet = `
   [data-testid="how-to-play"] { padding: 0 10px 0 7px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 18px) + 4px) !important; }
   button[aria-label$="full screen"] { width: 30px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 18px) + 4px) !important; }
   [data-testid="room-view-corner"] { width: 30px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 60px) + 4px) !important; opacity: 0.85 !important; }
+  /* In the Room view already: the house goes grey, spent. */
+  [data-testid="room-view-corner"][data-active="true"] { background: rgba(160,152,138,0.6) !important; color: rgba(40,32,24,0.5) !important; box-shadow: none !important; opacity: 0.6 !important; }
   /* Rules: a newspaper circular of 1975, the store's own insert from the
      Sunday paper, folded in three to go in the box and handled since.
      Groundwood newsprint gone yellow, browner and brittle at the edges;

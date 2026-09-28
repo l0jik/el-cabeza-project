@@ -131,7 +131,7 @@ export function createAudio() {
   // plays, as it would for someone listening (user: the music was lost
   // under the room's hiss of rain and fire).
   const MUSIC_DUCK = 0.35;
-  const roomLevel = () => (windingDown ? 0.6 : 1) * (0.85 + 0.15 * (1 - zoom)) * (music ? MUSIC_DUCK : 1);
+  const roomLevel = () => (windingDown ? 0.6 : 1) * (0.85 + 0.15 * (1 - zoom)) * (music && !music.el.paused ? MUSIC_DUCK : 1);
   const roomFollowMusic = () => { if (ctx && roomOn && roomBus) roomBus.gain.setTargetAtTime(roomLevel(), now(), 0.9); };
 
   /* ---------------- the fire ---------------- */
@@ -289,6 +289,21 @@ export function createAudio() {
     return true;
   }
 
+  // The needle lifted and set down again (the now-playing chip's pause):
+  // the track keeps its place, and the room comes back up while it waits.
+  function pauseMusic() {
+    if (!music || music.el.paused) return;
+    try { music.el.pause(); } catch (e) { /* gone */ }
+    roomFollowMusic();
+  }
+  function resumeMusic() {
+    if (!music || !music.el.paused) return;
+    if (ctx && ctx.state === "suspended") ctx.resume();
+    const p = music.el.play();
+    if (p && p.catch) p.catch(() => { /* the next gesture */ });
+    roomFollowMusic();
+  }
+
   /* ---------------- the television (den-tv.js) ---------------- */
   // The set's own sounds, behind the Music switch with the stereo: the
   // power switch's click, the tube coming up (the degauss coil's thump,
@@ -383,6 +398,8 @@ export function createAudio() {
     },
     playMusic,
     stopMusic,
+    pauseMusic,
+    resumeMusic,
     tvOn,
     tvOff,
     // The snow's hiss, 0 (none) to 1 (a screen of it).

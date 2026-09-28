@@ -272,6 +272,23 @@ export const styleSheet = `
   button[aria-label$="full screen"] { width: 30px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 18px) + 4px) !important; }
   [data-testid="room-view-corner"], [data-testid="focus-corner"] { width: 30px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 18px) + 4px) !important; opacity: 0.85 !important; }
   [data-testid="focus-corner"][data-on="true"] { background: ${DEN.chocolate} !important; color: rgba(243,231,205,0.96) !important; opacity: 1 !important; }
+  /* In the Room view already: the house goes grey, spent, like a switch
+     that's been thrown. */
+  [data-testid="room-view-corner"][data-active="true"] { background: rgba(150,141,128,0.62) !important; color: rgba(58,44,34,0.55) !important; box-shadow: none !important; opacity: 0.6 !important; }
+  /* The lights down (focus): the corner goes down with them, every card
+     dimmed back into the dark; a hover brings one up to find it. */
+  [data-dim="true"] { opacity: 0.32 !important; box-shadow: none !important; }
+  [data-testid="room-view-corner"][data-active="true"][data-dim="true"] { opacity: 0.22 !important; }
+  [data-testid="focus-corner"][data-on="true"][data-dim="true"] { opacity: 0.45 !important; }
+  [data-dim="true"]:hover, [data-dim="true"]:focus-visible, [data-testid="focus-corner"][data-dim="true"]:hover { opacity: 0.9 !important; }
+  [data-testid="room-view-corner"][data-active="true"]:hover { opacity: 0.6 !important; }
+  /* The masthead goes down with the lights too (the chassis puts
+     ec-lights-down on the page while focus is on). */
+  [data-masthead] > div { transition: filter 0.9s ease, opacity 0.9s ease; }
+  html.ec-lights-down [data-masthead] > div { filter: brightness(0.32) saturate(0.6); opacity: 0.55; }
+  /* The now-playing chip: the same scrap of card as the corner. */
+  [data-testid="music-chip"] { background: rgba(243,231,205,0.92) !important; color: ${DEN.chocolate} !important; border-color: rgba(58,36,21,0.25) !important; box-shadow: 0 2px 8px rgba(12,6,2,0.4) !important; }
+  [data-testid="music-chip"] input[type="range"] { accent-color: ${DEN.chocolate}; }
   /* The rules leaflet's "?" (den-fx.js): a scrap of card that pops up
      over the leaflet on the coffee table under the mouse. */
   .den-rules-hint {
