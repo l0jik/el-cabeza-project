@@ -3037,3 +3037,7 @@ in; leaving Singularity, back in the den as the set switches off.
 - **Tests**: `tests/e2e-story.mjs` (the whole story on a desktop and a
   phone's bar); the Nova tests that expect the den set the story as owned
   in their init scripts. Test hooks: `__DEN_TV__()`, `__DEN_TV_PRESS__`.
+
+## The den's rules leaflet is the How to play (Standard / Nova at home)
+- The leaflet and the game box on the coffee table (den-room.js buildCoffeeTable, userData.rules) are a link: den-fx pickScene returns "rules", sceneTap dispatches the open-rules event at the Quick card. Under the mouse, the chassis calls the theme's `sceneHover(what)` (and shows a pointer for anything pickScene finds); den-fx pops a "?" card (`.den-rules-hint`, standard.js CSS) over the leaflet.
+- `theme.rulesInRoom` (standard.js) hides the corner How to play; the Room view house moves beside the full-screen button (bottom 18). Other themes keep the corner button. Tests: e2e-den "The rules leaflet on the coffee table", e2e-rules checks Standard has none.

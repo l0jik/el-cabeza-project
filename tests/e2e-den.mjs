@@ -204,6 +204,38 @@ async function waitFor(fn, ms = 8000) {
 }
 
 {
+  console.log("The rules leaflet on the coffee table");
+  const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-standard.html");
+  await waitFor(() => page.evaluate(() => !!window.__DEN_ROOM__ && !!window.__DEN_THREE__));
+  check("no How to play in the corner", (await q(page, "how-to-play").count()) === 0);
+  check("...the Room view house is there", await q(page, "room-view-corner").isVisible());
+  const leafAt = () => page.evaluate(() => {
+    const t = window.__DEN_THREE__;
+    let leaf = null; t.scene.traverse((o) => { if (o.userData && o.userData.rules && o.geometry && o.geometry.type === "PlaneGeometry") leaf = o; });
+    const v = new t.camera.position.constructor(); leaf.getWorldPosition(v); v.project(t.camera);
+    const r = t.renderer.domElement.getBoundingClientRect();
+    return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+  });
+  let at = await leafAt();
+  await waitFor(async () => { await page.waitForTimeout(400); const b = await leafAt(); const still = Math.hypot(b.x - at.x, b.y - at.y) < 1.5; at = b; return still; }, 15000);
+  const hintOn = () => page.evaluate(() => { const h = document.querySelector('[data-testid="den-rules-hint"]'); return !!h && h.classList.contains("on"); });
+  await page.mouse.move(at.x - 200, at.y - 200);
+  await page.mouse.move(at.x, at.y, { steps: 4 });
+  check("the mouse over the leaflet: a \"?\" pops up", await waitFor(hintOn, 4000));
+  check("...and the cursor points", (await page.evaluate(() => window.__DEN_THREE__.renderer.domElement.style.cursor)) === "pointer");
+  await page.mouse.click(at.x, at.y);
+  await page.waitForTimeout(500);
+  check("a tap on it opens the rules at the Quick card",
+    (await q(page, "info-overlay").getAttribute("data-open")) === "true" && (await q(page, "rules-card-quick").count()) === 1);
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await page.close();
+}
+
+{
   console.log("Nova: the den, Neon, and back");
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();

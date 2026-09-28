@@ -66,14 +66,19 @@ for (const theme of ["neon", "standard"]) {
   // Out in the open: an always-visible How to play button opens the
   // Quick card, and in Neon the setup dock's Custom rules button brings
   // up the SINGULARITY invite (the same one five masthead taps do).
+  // (Standard's den has none: its rules are the leaflet on the coffee
+  // table, see e2e-den.mjs.)
   const how = page.locator('[data-testid="how-to-play"]');
-  check("a How to play button is on screen", await how.isVisible());
-  await how.click();
-  await page.waitForTimeout(400);
-  check("...and opens the rules at the Quick card",
-    (await overlay.getAttribute("data-open")) === "true" && (await page.locator('[data-testid="rules-card-quick"]').count()) === 1);
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(500);
+  if (theme === "standard") check("no How to play in the den's corner", (await how.count()) === 0);
+  else {
+    check("a How to play button is on screen", await how.isVisible());
+    await how.click();
+    await page.waitForTimeout(400);
+    check("...and opens the rules at the Quick card",
+      (await overlay.getAttribute("data-open")) === "true" && (await page.locator('[data-testid="rules-card-quick"]').count()) === 1);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(500);
+  }
   if (theme === "neon") {
     const { openDockPanel } = await import("./dock-helpers.mjs");
     await openDockPanel(page);

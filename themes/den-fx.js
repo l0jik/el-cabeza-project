@@ -53,6 +53,32 @@ export function createDenEffects(woodSet) {
         .catch(() => { /* keep what's painted */ });
     }
 
+    /* ---- the rules leaflet's "?" ----
+       Under the mouse, over the leaflet on the coffee table (or the box):
+       a "?" pops up above the leaflet, where it lies on screen, to say
+       it's the rules, a tap away (standard.js styleSheet, .den-rules-hint). */
+    let rulesHover = false, hintEl = null;
+    const hintAt = new THREE.Vector3();
+    function showRulesHint(t) {
+      if (typeof document === "undefined") return;
+      if (!hintEl) {
+        if (!rulesHover) return;
+        hintEl = document.createElement("div");
+        hintEl.className = "den-rules-hint";
+        hintEl.setAttribute("data-testid", "den-rules-hint");
+        hintEl.setAttribute("aria-hidden", "true");
+        hintEl.innerHTML = "<span>?</span>";
+        document.body.appendChild(hintEl);
+      }
+      if (rulesHover && t.camera && t.renderer) {
+        const r = t.renderer.domElement.getBoundingClientRect();
+        den.table.rules.leaflet.getWorldPosition(hintAt).project(t.camera);
+        hintEl.style.left = `${r.left + ((hintAt.x + 1) / 2) * r.width}px`;
+        hintEl.style.top = `${r.top + ((1 - hintAt.y) / 2) * r.height}px`;
+      }
+      hintEl.classList.toggle("on", rulesHover && hintAt.z < 1);
+    }
+
     /* ---- device fit ---- */
     let pr = 1;
     const frames = [];
@@ -183,6 +209,7 @@ export function createDenEffects(woodSet) {
         woodSet.followGrain(t);
         if (t.camera) { camLocal.copy(t.camera.position); t.boardGroup.worldToLocal(camLocal); }
         den.animate(now, t.camera ? camLocal : null, { open: focusGoal > 0 && focusW > 0.6, playing });
+        showRulesHint(t);
         listen(t, now);
         // The television.
         const dt = lastTick ? Math.min(0.1, (now - lastTick) / 1000) : 0;
@@ -216,27 +243,40 @@ export function createDenEffects(woodSet) {
       // The music menu opened (true) or closed: the camera goes over to the console, or back.
       setMusicFocus(on) { focusGoal = on ? 1 : 0; },
       setMusicPlaying(medium) { playing = medium || null; },
-      // A tap in the room: "record" or "8track" if it landed on one of the
-      // stereo's machines, "tv" on the television.
+      // A tap in the room: "rules" on the leaflet or the box on the coffee
+      // table, "record" or "8track" if it landed on one of the stereo's
+      // machines, "tv" on the television.
       // The board and the coffee table stand in front of what's behind
       // them: a tap on the board (an empty square) with the set beyond it
       // is the board's, not the set's.
       pickScene(raycaster) {
-        if (!den || !den.groups.wallS.visible) return null;
-        const hit = raycaster.intersectObjects(den.stereo.pickables.concat(den.tv.pickables), false)[0];
-        if (!hit) return null;
+        if (!den) return null;
         const t = three.current;
         const slab = t && t.boardGroup && t.boardGroup.getObjectByName("ec-slab");
+        const onTable = raycaster.intersectObjects([slab].concat(den.table.rules.pickables).filter(Boolean), false)[0];
+        if (onTable && onTable.object.userData.rules) return "rules";
+        if (!den.groups.wallS.visible) return null;
+        const hit = raycaster.intersectObjects(den.stereo.pickables.concat(den.tv.pickables), false)[0];
+        if (!hit) return null;
         const nearer = raycaster.intersectObjects([slab, den.table.group].filter(Boolean), true)[0];
         if (nearer && nearer.distance < hit.distance) return null;
         return hit.object.userData.tv ? "tv" : hit.object.userData.music || null;
       },
-      // What a tap on "tv" does is the room's own: the knob turns.
+      // What a tap on "rules" or "tv" does is the room's own: the rules
+      // open at the Quick card (as How to play did; chassis/RulesCards.jsx
+      // listens for the event, the name its OPEN_RULES_EVENT), the knob turns.
       sceneTap(what) {
+        if (what === "rules") {
+          rulesHover = false;
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "quick", focus: null } }));
+          return true;
+        }
         if (what !== "tv") return false;
         pressTv();
         return true;
       },
+      // What's under the mouse: over the leaflet or the box, the "?".
+      sceneHover(what) { rulesHover = what === "rules"; },
       /* After the chassis has set its camera: blend it toward the view of
          the console by how far into the visit it is (eased both ways). */
       cameraOverride(camera, dtMs) {
@@ -289,6 +329,7 @@ export function createDenEffects(woodSet) {
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (novaTv && novaTv.register) novaTv.register(null);
+        if (hintEl) { hintEl.remove(); hintEl = null; }
         if (typeof document !== "undefined") document.documentElement.classList.remove("ec-tv-visit");
         if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; }
       },

@@ -1299,6 +1299,10 @@ function buildCoffeeTable(TW, boardSpan) {
   const leaflet = mk(new THREE.PlaneGeometry(5.4, 4).rotateX(-Math.PI / 2), leafMat);
   leaflet.position.set(-mid + 0.4, topY + 0.03, -TW / 2 + bw + 6.4);
   leaflet.rotation.y = -0.35;
+  // The rules are a link: a tap on the leaflet (or the box it came in)
+  // opens them (den-fx.js pickScene "rules"), a "?" over it under the mouse.
+  leaflet.userData.rules = true;
+  boxMesh.userData.rules = true;
   // A mug of coffee on its saucer, a spoon laid on the saucer's rim; a
   // tumbler of scotch on the rocks on a cork coaster.
   const cork = lit({ color: 0x9a7048, roughness: 0.9 });
@@ -1424,6 +1428,7 @@ function buildCoffeeTable(TW, boardSpan) {
 
   return {
     group,
+    rules: { pickables: [leaflet, boxMesh], leaflet },
     repaint() { repaint(lid); },
     dispose() { disposables.forEach((d) => d && d.dispose && d.dispose()); },
   };

@@ -2269,8 +2269,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // right edge.
   const shellLandscape = shell && viewportW > viewportH && viewportH <= SHELL_SIDE_MAX_H;
   const dockPanelW = awaitingBegin ? Math.min(480, viewportW * 0.92) : declutter ? Math.min(560, viewportW * 0.92) : Math.min(880, viewportW * 0.96);
+  /* A theme whose rules lie in the room (theme.rulesInRoom: the den's
+     leaflet on the coffee table, a tap opens them) has no How to play
+     in the corner; the Room view house takes its place beside the
+     full-screen button. */
+  const rulesInRoom = !!theme.rulesInRoom;
+  const fullScreenCorner = typeof document !== "undefined" && !!(document.fullscreenEnabled || document.documentElement.requestFullscreen);
   // How to play's right edge: "?" only under 560px, the label beside it above.
-  const cornerControlsRight = (viewportW <= 560 ? 88 : 170) + 8;
+  const cornerControlsRight = rulesInRoom ? (fullScreenCorner ? 96 : 56) + 8 : (viewportW <= 560 ? 88 : 170) + 8;
   const cornerControlsCovered = dockView === "panel" && (viewportW - dockPanelW) / 2 < cornerControlsRight;
   /* Distinct from declutter above: declutter is specifically about
      hiding the Opponent row and Record section, true only during
@@ -5328,6 +5334,23 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         return;
       }
 
+      /* The theme's things in the room that answer a tap (the den's rules
+         leaflet and the box, the record player, the set) show it under
+         the mouse, whenever it comes: a pointing hand, and whatever the
+         theme shows of its own (sceneHover: the leaflet's "?"). A piece
+         or a move marker under the mouse is the board's. */
+      if (ambientRef.current && ambientRef.current.pickScene && ev.pointerType === "mouse" && !active.size) {
+        const what = pick(ev) ? null : ambientRef.current.pickScene(t.raycaster);
+        if (ambientRef.current.sceneHover) ambientRef.current.sceneHover(what);
+        if (what) {
+          el.style.cursor = "pointer";
+          setHoverShadow((prev) => (prev === null ? prev : null));
+          if (!turnLocked) setHoveredId((prev) => (prev === null ? prev : null));
+          return;
+        }
+        if (el.style.cursor === "pointer") el.style.cursor = "grab";
+      }
+
       if (busy || !isPlaying || currentPlayer === aiPlayer || awaitingBegin) return;
       const hit = pick(ev, { respectDepth: true });
       if (hit && hit.type === "ghost") {
@@ -5727,8 +5750,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       }
     }
 
+    // The mouse gone off the canvas: nothing in the room is under it.
+    function onLeave() {
+      if (ambientRef.current && ambientRef.current.sceneHover) ambientRef.current.sceneHover(null);
+    }
+
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerleave", onLeave);
     el.addEventListener("pointerup", onUp);
     el.addEventListener("pointercancel", onCancel);
     el.addEventListener("wheel", onWheel, { passive: false });
@@ -5737,6 +5766,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return () => {
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("pointercancel", onCancel);
       el.removeEventListener("wheel", onWheel);
@@ -7197,8 +7227,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       )}
 
       {/* The Room view (a theme with freeCamera.dollhouse): a little house
-         above the full-screen button, any time, setup included: up over
-         the room, the roof off, the whole of it below. */}
+         above the full-screen button (beside it where the rules lie in
+         the room and there's no How to play), any time, setup included:
+         up over the room, the roof off, the whole of it below. */}
       {!shell && theme.freeCamera && theme.freeCamera.dollhouse && (
         <button
           type="button"
@@ -7207,7 +7238,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           aria-label="Room view"
           title="Room view: the whole room, the roof off"
           style={{
-            position: "fixed", left: 18, bottom: 60, zIndex: cornerControlsZ, width: 38, height: 38,
+            position: "fixed", left: rulesInRoom && fullScreenCorner ? 58 : 18, bottom: rulesInRoom ? 18 : 60, zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
             color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : viewMode === "room" ? 0.85 : 0.5,
             pointerEvents: cornerControlsCovered ? "none" : "auto", cursor: "pointer", transition: "opacity 0.5s ease",
@@ -7225,8 +7256,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
       {/* How to play: always on screen, beside the full-screen button,
          so the rules are never more than one tap away. Opens the rules
-         at the Quick card. */}
-      {!shell && (
+         at the Quick card. Not where the rules lie in the room
+         (rulesInRoom): there they're the leaflet on the table. */}
+      {!shell && !rulesInRoom && (
       <button
         type="button"
         data-testid="how-to-play"
@@ -7235,7 +7267,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         onClick={() => openRulesAt("quick")}
         style={{
           position: "fixed",
-          left: (document.fullscreenEnabled || document.documentElement.requestFullscreen) ? 58 : 18,
+          left: fullScreenCorner ? 58 : 18,
           bottom: 18,
           zIndex: cornerControlsZ,
           height: 38,
