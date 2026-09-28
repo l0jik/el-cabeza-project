@@ -92,7 +92,6 @@ export function createDenEffects(woodSet) {
        set's visit bring the room back while they last. */
     let focusOn = false, fw = 0, lastFocusTick = 0, veil = null, flames = null, tableMats = null, lastE = 0;
     let boardCaster = null, tableBlur = null, tableLocal = null, tableMaskKey = "";
-    const pieceBox = new THREE.Box3();
     const FOG = { color: new THREE.Color(0x1c130c), bg: new THREE.Color(0x140d08), near: 150, far: 420 };
     const DARK = new THREE.Color(0x070403);
     // How much of the first darkening focus keeps: 60% (user: 40% less),
@@ -127,7 +126,7 @@ export function createDenEffects(woodSet) {
       if (e !== lastE) {
         lastE = e;
         if (!tableMats) { tableMats = new Map(); den.table.group.traverse((o) => { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.color && !tableMats.has(m)) tableMats.set(m, m.color.clone()); }); }); }
-        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.78 * FOCUS_DARK * e));
+        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.5 * e)); // the coffee table at 50% (user)
       }
       // The board's own shadow: the slab doesn't cast one, so with the board
       // off the table the pieces' shadows went straight through it onto
@@ -235,7 +234,24 @@ export function createDenEffects(woodSet) {
       const slab = t.boardGroup.getObjectByName("ec-slab");
       if (slab && slab.geometry) { if (!slab.geometry.boundingBox) slab.geometry.computeBoundingBox(); cuts.push(boxHull(slab.geometry.boundingBox, slab)); }
       else cuts.push(grow(hull(boardPts), 2));
-      if (t.pieceGroup) t.pieceGroup.children.forEach((c) => { if (!c.visible) return; pieceBox.setFromObject(c); if (!pieceBox.isEmpty()) cuts.push(boxHull(pieceBox, null)); });
+      // Each piece by its own outline: its meshes' boxes in their own frames
+      // (a box squared to the room, round a piece turned with the board, is
+      // bigger than the piece and left patches of table sharp round it).
+      if (t.pieceGroup) t.pieceGroup.children.forEach((c) => {
+        if (!c.visible) return;
+        const outline = [];
+        c.traverse((o) => {
+          if (!o.isMesh || !o.geometry || !o.visible) return;
+          const m = Array.isArray(o.material) ? o.material[0] : o.material;
+          if (!m || m.visible === false || m.colorWrite === false) return;
+          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+          const bb = o.geometry.boundingBox;
+          for (const x of [bb.min.x, bb.max.x]) for (const y of [bb.min.y, bb.max.y]) for (const z of [bb.min.z, bb.max.z]) {
+            corner.set(x, y, z); o.localToWorld(corner); outline.push(toScreen(corner));
+          }
+        });
+        if (outline.length >= 3) cuts.push(grow(hull(outline.map(([x, y]) => [q2(x), q2(y)])), 1));
+      });
       const W = Math.round(r.width), H = Math.round(r.height);
       const key = `${W}x${H}|${tbl.join(" ")}|${cuts.map((c) => c.map(([x, y]) => [Math.round(x), Math.round(y)]).join(" ")).join("|")}`;
       if (key === tableMaskKey) return;
