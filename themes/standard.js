@@ -310,24 +310,13 @@ export const styleSheet = `
   @media (prefers-reduced-motion: reduce) { .den-rules-hint { transition: opacity 0.14s ease; } }
   /* Focus (den-fx.js): over the picture, everything outside an ellipse
      round the board darkened, and blurred where the device can take it
-     (.blur); den-fx sets the clear rectangle (--ix0 --ix1 --iy0 --iy1, and the soft edge --ox0 --ox1 --oy0 --oy1) and the
+     (.blur); den-fx sets the ellipse (--cx --cy --rx --ry) and the
      opacity each frame. */
   .den-focus-veil {
     position: absolute; inset: 0; pointer-events: none; opacity: 0; visibility: hidden;
-    /* Softer (user: too dark), and never over the board: the clear part
-       is the board's whole outline on screen (a rectangle, den-fx.js sets
-       its edges), not an ellipse its corners stuck out of (user: "the
-       shadows around the corners of the board"). Two soft bands, across
-       and down, laid over each other: dark outside either, clear inside
-       both. */
-    background: rgba(7,4,3,0.5);
-    -webkit-mask-image:
-      linear-gradient(to right, #000 var(--ox0, 0px), transparent var(--ix0, 30%), transparent var(--ix1, 70%), #000 var(--ox1, 100%)),
-      linear-gradient(to bottom, #000 var(--oy0, 0px), transparent var(--iy0, 30%), transparent var(--iy1, 70%), #000 var(--oy1, 100%));
-    mask-image:
-      linear-gradient(to right, #000 var(--ox0, 0px), transparent var(--ix0, 30%), transparent var(--ix1, 70%), #000 var(--ox1, 100%)),
-      linear-gradient(to bottom, #000 var(--oy0, 0px), transparent var(--iy0, 30%), transparent var(--iy1, 70%), #000 var(--oy1, 100%));
-    -webkit-mask-composite: source-over; mask-composite: add;
+    background: rgba(7,4,3,0.72);
+    -webkit-mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 58%, rgba(0,0,0,0.75) 82%, #000 100%);
+    mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 58%, rgba(0,0,0,0.75) 82%, #000 100%);
   }
   /* The book visit's way back (den-fx.js): a quiet line at the foot. */
   .den-book-hint {
@@ -337,7 +326,7 @@ export const styleSheet = `
     font: 500 12.5px/1.2 'IBM Plex Sans', sans-serif; letter-spacing: 0.02em; box-shadow: 0 2px 8px rgba(12,6,2,0.4);
   }
   .den-book-hint.on { opacity: 1; }
-  .den-focus-veil.blur { background: rgba(7,4,3,0.42); backdrop-filter: blur(4px) saturate(0.75); -webkit-backdrop-filter: blur(4px) saturate(0.75); }
+  .den-focus-veil.blur { background: rgba(7,4,3,0.6); backdrop-filter: blur(7px) saturate(0.7); -webkit-backdrop-filter: blur(7px) saturate(0.7); }
   [data-testid="points-counter"] {
     color: ${DEN.chocolate} !important;
     background: rgba(243,231,205,0.92); padding: 5px 12px 5px 13px; border-radius: 999px;

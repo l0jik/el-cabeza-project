@@ -110,7 +110,7 @@ export function createDenEffects(woodSet) {
         const camDist = camLocal.length();
         const reach = SLAB_MAX * 0.8;
         scene.fog.near = FOG.near + (camDist + reach - FOG.near) * e;
-        scene.fog.far = FOG.far + (camDist + reach + 80 - FOG.far) * e; // the room dim, still there (user)
+        scene.fog.far = FOG.far + (camDist + reach + 46 - FOG.far) * e;
         scene.fog.color.copy(FOG.color).lerp(DARK, e);
         if (scene.background && scene.background.isColor) scene.background.copy(FOG.bg).lerp(DARK, e);
       }
@@ -122,7 +122,7 @@ export function createDenEffects(woodSet) {
       if (e !== lastE) {
         lastE = e;
         if (!tableMats) { tableMats = new Map(); den.table.group.traverse((o) => { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.color && !tableMats.has(m)) tableMats.set(m, m.color.clone()); }); }); }
-        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.84 * e)); // the table evenly down, right up to the board (user)
+        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.78 * e));
       }
       // The board's own shadow: the slab doesn't cast one, so with the board
       // off the table the pieces' shadows went straight through it onto
@@ -134,7 +134,7 @@ export function createDenEffects(woodSet) {
       // The float: the room (and the table) a little way down under the
       // board, and a slow drift.
       den.group.position.y = -(FOCUS_LIFT + Math.sin(now * 0.0011) * 0.12) * e;
-      // The veil: the board's outline on screen stays clear.
+      // The veil: an ellipse round the board on screen stays clear.
       if (typeof document === "undefined" || !t.renderer || !t.camera) return;
       if (!veil) {
         if (e <= 0) return;
@@ -157,12 +157,10 @@ export function createDenEffects(woodSet) {
         const px = ((corner.x + 1) / 2) * r.width, py = ((1 - corner.y) / 2) * r.height;
         x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
       }
-      // The clear rectangle: the board's outline and a little margin, then
-      // a soft falloff into the veil (standard.js .den-focus-veil).
-      const w = x1 - x0, hgt = y1 - y0, pad = Math.max(10, Math.max(w, hgt) * 0.05), soft = Math.max(50, Math.max(w, hgt) * 0.3);
-      const set = (k, v) => veil.style.setProperty(k, `${v.toFixed(1)}px`);
-      set("--ix0", x0 - pad); set("--ix1", x1 + pad); set("--ox0", x0 - pad - soft); set("--ox1", x1 + pad + soft);
-      set("--iy0", y0 - pad); set("--iy1", y1 + pad); set("--oy0", y0 - pad - soft); set("--oy1", y1 + pad + soft);
+      veil.style.setProperty("--cx", `${((x0 + x1) / 2).toFixed(1)}px`);
+      veil.style.setProperty("--cy", `${((y0 + y1) / 2).toFixed(1)}px`);
+      veil.style.setProperty("--rx", `${Math.max(60, ((x1 - x0) / 2) * 1.3).toFixed(1)}px`);
+      veil.style.setProperty("--ry", `${Math.max(60, ((y1 - y0) / 2) * 1.45).toFixed(1)}px`);
     }
 
     function boardShadow(t) {
@@ -183,7 +181,6 @@ export function createDenEffects(woodSet) {
       boardCaster.userData.geo = slab.geometry;
       slab.add(boardCaster);
     }
-
 
     /* ---- device fit ---- */
     let pr = 1;
