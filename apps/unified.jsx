@@ -7,7 +7,7 @@ import * as neonTheme from "../themes/neon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS } from "../engine/constants.js";
 import { StoryCut, readOwned, saveOwned } from "./novaStory.jsx";
-import { forgetSingularity } from "../engine/journey.js";
+import { forgetSingularity, singularitySeen, onJourneyChange } from "../engine/journey.js";
 import {
   TransitionStyles,
   HoldDegradeLayer,
@@ -96,6 +96,12 @@ const {
 function UnifiedApp() {
   // A first visit opens in the store; once the game is bought, at home.
   const [themeName, setThemeName] = useState(() => (readOwned() ? "standard" : "tienda"));
+  // Before the first Singularity visit the way into Neon from the den is
+  // the television alone (user): no title hold there, no shortcut in the
+  // phone menu. After it (engine/journey.js), both; a story restart locks
+  // them again.
+  const [singularityOpen, setSingularityOpen] = useState(singularitySeen);
+  useEffect(() => onJourneyChange(setSingularityOpen), []);
   const [cut, setCut] = useState(null); // a story scene change: { kind, caption, to, fresh?, swapped?, arrived? }
   const [connectWord, setConnectWord] = useState(null); // null | "CONNECT" | "DISCONNECT"
   const [transition, setTransition] = useState(null); // null | { direction: "in"|"out", filterId }
@@ -406,10 +412,11 @@ function UnifiedApp() {
       key: "switch-theme",
       testid: "shell-menu-switch-theme",
       label: themeName === "standard" ? "Turn on the TV" : "Back to the den",
-      detail: themeName === "standard" ? "Into Singularity, or hold the title" : "or hold the title",
+      detail: themeName === "standard" ? (singularityOpen ? "Into Singularity, or hold the title" : "Into Singularity") : "or hold the title",
       onClick: () => {
         if (transition || cut) return;
         if (themeName === "standard" && tvBridge.press && tvBridge.press()) return;
+        if (themeName === "standard" && !singularityOpen) return; // the set, or nothing, the first time
         sfxRef.current.holdComplete();
         setConnectWord(themeName === "standard" ? "CONNECT" : "DISCONNECT");
       },
@@ -424,7 +431,7 @@ function UnifiedApp() {
           ]
         : [switchTheme];
     return { preferBar: layoutPref === "bar", onLayoutChange, menuItems: items };
-  }, [themeName, transition, cut, layoutPref, onLayoutChange]);
+  }, [themeName, transition, cut, layoutPref, onLayoutChange, singularityOpen]);
 
   // The browser's own toolbar colour follows the theme on phones.
   useEffect(() => {
@@ -460,8 +467,9 @@ function UnifiedApp() {
           />
         </div>
         {/* The title hold into Neon is the den's (and Neon's, back out);
-            the store has none. */}
-        {themeName !== "tienda" && (
+            the store has none, and the den none until the Singularity's
+            been visited (the television is the way in the first time). */}
+        {themeName !== "tienda" && (themeName !== "standard" || singularityOpen) && (
           <MastheadHoldZone
             zoneRef={holdZoneRef}
             onBegin={beginHold}
