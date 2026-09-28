@@ -100,7 +100,7 @@ export function createDenEffects(woodSet) {
     function focusFrame(t, now) {
       const dt = lastFocusTick ? Math.min(0.1, (now - lastFocusTick) / 1000) : 0;
       lastFocusTick = now;
-      const goal = focusOn && focusGoal === 0 && tvGoal === 0 ? 1 : 0;
+      const goal = focusOn && focusGoal === 0 && tvGoal === 0 && bookGoal === 0 ? 1 : 0;
       fw += (goal - fw) * (1 - Math.exp(-dt * 2.4));
       if (Math.abs(goal - fw) < 0.002) fw = goal;
       const e = fw * fw * (3 - 2 * fw);
@@ -245,6 +245,45 @@ export function createDenEffects(woodSet) {
     const eye = new THREE.Vector3(), aim = new THREE.Vector3(), look = new THREE.Vector3(), dir = new THREE.Vector3();
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_STEREO__ = () => ({ focus: focusW, goal: focusGoal, playing });
 
+    /* ---- the book by the chair ----
+       A tap on it takes the camera over to the end table, right above the
+       book and looking down on its cover, as close as the screen allows,
+       the page the right way up (the user: "very clearly see the book...
+       zoomed in as much as possible"). Any tap, or Escape, and it comes
+       back; that tap does nothing else. */
+    let bookGoal = 0, bookW = 0, bookHint = null, swallowUp = null;
+    const bookUp = new THREE.Vector3(), Y_UP = new THREE.Vector3(0, 1, 0);
+    function leaveBook() { if (bookGoal) { bookGoal = 0; return true; } return false; }
+    const onBookDown = (e) => {
+      if (!bookGoal || bookW < 0.3) return;
+      leaveBook();
+      swallowUp = e.pointerId;
+      e.stopImmediatePropagation(); e.preventDefault();
+    };
+    const onBookUp = (e) => { if (swallowUp !== null && e.pointerId === swallowUp) { swallowUp = null; e.stopImmediatePropagation(); e.preventDefault(); } };
+    const onBookKey = (e) => { if (e.key === "Escape" && leaveBook()) e.stopPropagation(); };
+    let bookListenersOn = null;
+    function bookListeners(t) {
+      if (bookListenersOn || !t.renderer || typeof window === "undefined") return;
+      bookListenersOn = t.renderer.domElement;
+      bookListenersOn.addEventListener("pointerdown", onBookDown, true);
+      bookListenersOn.addEventListener("pointerup", onBookUp, true);
+      window.addEventListener("keydown", onBookKey, true);
+    }
+    function showBookHint(on) {
+      if (typeof document === "undefined") return;
+      if (!bookHint) {
+        if (!on) return;
+        bookHint = document.createElement("div");
+        bookHint.className = "den-book-hint";
+        bookHint.setAttribute("data-testid", "den-book-hint");
+        bookHint.textContent = "Tap anywhere to go back to the game";
+        document.body.appendChild(bookHint);
+      }
+      bookHint.classList.toggle("on", on);
+    }
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_BOOK__ = () => ({ goal: bookGoal, w: bookW });
+
     /* ---- the television ---- */
     let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false;
     let returning = !!(novaTv && novaTv.returning);
@@ -309,7 +348,9 @@ export function createDenEffects(woodSet) {
         tvDive = den.tv.animate(now, dt);
         // While the camera visits the set, the title and the dock's piece
         // step aside (standard.js styleSheet, html.ec-tv-visit).
-        const visiting = tvGoal > 0 || tvW > 0.02;
+        bookListeners(t);
+        showBookHint(bookGoal === 1 && bookW > 0.6);
+        const visiting = tvGoal > 0 || tvW > 0.02 || bookGoal > 0 || bookW > 0.02;
         if (visiting !== onStage && typeof document !== "undefined") { onStage = visiting; document.documentElement.classList.toggle("ec-tv-visit", visiting); }
         const ph = den.tv.phase();
         if (ph !== tvPhase) {
@@ -319,7 +360,7 @@ export function createDenEffects(woodSet) {
         }
       },
       // The music menu opened (true) or closed: the camera goes over to the console, or back.
-      setMusicFocus(on) { focusGoal = on ? 1 : 0; },
+      setMusicFocus(on) { focusGoal = on ? 1 : 0; if (on) bookGoal = 0; },
       setMusicPlaying(medium) { playing = medium || null; },
       // A tap in the room: "rules" on the leaflet or the box on the coffee
       // table, "record" or "8track" if it landed on one of the stereo's
@@ -338,12 +379,13 @@ export function createDenEffects(woodSet) {
         // while the south wall is there, the stereo's machines and the
         // set: the nearest.
         const lamps = den.lamp.pickables.filter((m) => { const g = den.groups[m.userData.lampGroup]; return !g || g.visible; });
-        const things = lamps.concat(den.groups.wallS.visible ? den.stereo.pickables.concat(den.tv.pickables) : []);
+        const things = lamps.concat(den.book.pickables, den.groups.wallS.visible ? den.stereo.pickables.concat(den.tv.pickables) : []);
         const hit = raycaster.intersectObjects(things, false)[0];
         if (!hit) return null;
         const nearer = raycaster.intersectObjects([slab, den.table.group].filter(Boolean), true)[0];
         if (nearer && nearer.distance < hit.distance) return null;
         if (hit.object.userData.focusLamp) return "lamp";
+        if (hit.object.userData.book) return "book";
         return hit.object.userData.tv ? "tv" : hit.object.userData.music || null;
       },
       // What a tap on "rules" or "tv" does is the room's own: the rules
@@ -357,6 +399,10 @@ export function createDenEffects(woodSet) {
         }
         // A lamp: the room's lights down (focus) or up again; the chassis
         // keeps the state (its FOCUS_EVENT, a toggle).
+        if (what === "book") {
+          if (den && den.book.focus) bookGoal = bookGoal ? 0 : 1;
+          return true;
+        }
         if (what === "lamp") {
           if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("el-cabeza:focus", { detail: {} }));
           return true;
@@ -396,6 +442,30 @@ export function createDenEffects(woodSet) {
           camera.lookAt(look);
           return true;
         }
+        bookW += (bookGoal - bookW) * (1 - Math.exp(-(dtMs / 1000) * 2.0));
+        if (Math.abs(bookGoal - bookW) < 0.001) bookW = bookGoal;
+        if (den && t && t.boardGroup && bookW > 0 && den.book.focus) {
+          /* The book: straight over its cover, a touch toward its tail (where
+             a reader would be), as near as fits it on screen with a little
+             margin, turned so the cover reads the right way up. */
+          const f = den.book.focus;
+          const vt = Math.tan((camera.fov * Math.PI) / 360);
+          const d = Math.max(camera.near * 4, (f.halfL * 1.18) / vt, (f.halfW * 1.18) / (vt * camera.aspect));
+          den.group.updateWorldMatrix(true, false);
+          aim.copy(f.center);
+          eye.copy(f.center).addScaledVector(Y_UP, d).addScaledVector(f.head, -d * 0.1);
+          den.group.localToWorld(aim); den.group.localToWorld(eye);
+          bookUp.copy(f.head).transformDirection(den.group.matrixWorld);
+          const e = bookW * bookW * (3 - 2 * bookW);
+          camera.getWorldDirection(dir);
+          look.copy(camera.position).addScaledVector(dir, camera.position.length());
+          look.lerp(aim, e);
+          camera.position.lerp(eye, e);
+          camera.up.copy(Y_UP).lerp(bookUp, e).normalize();
+          camera.lookAt(look);
+          camera.up.copy(Y_UP);
+          return true;
+        }
         if (!den || !t || !t.boardGroup || focusW <= 0) return false;
         const e = focusW * focusW * (3 - 2 * focusW);
         eye.copy(den.stereo.focus.eye); aim.copy(den.stereo.focus.target);
@@ -423,6 +493,13 @@ export function createDenEffects(woodSet) {
         if (novaTv && novaTv.register) novaTv.register(null);
         if (hintEl) { hintEl.remove(); hintEl = null; }
         if (veil) { veil.remove(); veil = null; }
+        if (bookHint) { bookHint.remove(); bookHint = null; }
+        if (bookListenersOn) {
+          bookListenersOn.removeEventListener("pointerdown", onBookDown, true);
+          bookListenersOn.removeEventListener("pointerup", onBookUp, true);
+          window.removeEventListener("keydown", onBookKey, true);
+          bookListenersOn = null;
+        }
         if (typeof document !== "undefined") document.documentElement.classList.remove("ec-tv-visit");
         if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; }
       },

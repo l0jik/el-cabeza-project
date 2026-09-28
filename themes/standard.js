@@ -299,6 +299,14 @@ export const styleSheet = `
     -webkit-mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 58%, rgba(0,0,0,0.75) 82%, #000 100%);
     mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 58%, rgba(0,0,0,0.75) 82%, #000 100%);
   }
+  /* The book visit's way back (den-fx.js): a quiet line at the foot. */
+  .den-book-hint {
+    position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 30;
+    pointer-events: none; opacity: 0; transition: opacity 0.4s ease;
+    background: rgba(243,231,205,0.92); color: ${DEN.chocolate}; padding: 7px 14px; border-radius: 999px;
+    font: 500 12.5px/1.2 'IBM Plex Sans', sans-serif; letter-spacing: 0.02em; box-shadow: 0 2px 8px rgba(12,6,2,0.4);
+  }
+  .den-book-hint.on { opacity: 1; }
   .den-focus-veil.blur { background: rgba(7,4,3,0.6); backdrop-filter: blur(7px) saturate(0.7); -webkit-backdrop-filter: blur(7px) saturate(0.7); }
   [data-testid="points-counter"] {
     color: ${DEN.chocolate} !important;

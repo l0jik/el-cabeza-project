@@ -246,6 +246,59 @@ async function waitFor(fn, ms = 8000) {
 }
 
 {
+  console.log("The book by the chair: a tap takes the camera to it");
+  const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-standard.html");
+  await waitFor(() => page.evaluate(() => !!window.__DEN_ROOM__ && !!window.__DEN_BOOK__));
+  const book = () => page.evaluate(() => window.__DEN_BOOK__());
+  const bookWorld = () => page.evaluate(() => {
+    const t = window.__DEN_THREE__;
+    let bk = null; t.scene.traverse((o) => { if (o.userData && o.userData.book) bk = o; });
+    bk.geometry.computeBoundingSphere();
+    const v = bk.geometry.boundingSphere.center.clone(); bk.localToWorld(v);
+    const p = v.clone().project(t.camera);
+    const r = t.renderer.domElement.getBoundingClientRect();
+    return { w: [v.x, v.y, v.z], x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height, z: p.z };
+  });
+  let entered = false;
+  for (const theta of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    // The heading first (the board turns, the room with it), then the aim.
+    await page.evaluate((theta) => window.__EC_TEST_CAM__({ dollhouse: false, theta, phi: 1.1, radius: 40 }), theta);
+    await page.waitForTimeout(2500);
+    const w = (await bookWorld()).w;
+    await page.evaluate((w) => window.__EC_TEST_CAM__({ target: w }), w);
+    await page.waitForTimeout(2500);
+    const at = await bookWorld();
+    if (at.z >= 1 || at.x < 30 || at.x > 1070 || at.y < 60 || at.y > 680) continue;
+    await page.mouse.click(at.x, at.y);
+    entered = await waitFor(async () => { const b = await book(); return b.goal === 1 && b.w > 0.99; }, 6000);
+    if (entered) break;
+  }
+  check("a tap on the book takes the camera to it", entered);
+  const view = await page.evaluate(() => {
+    const t = window.__DEN_THREE__;
+    let bk = null; t.scene.traverse((o) => { if (o.userData && o.userData.book) bk = o; });
+    bk.geometry.computeBoundingBox();
+    const bb = bk.geometry.boundingBox; const pts = [];
+    for (const x of [bb.min.x, bb.max.x]) for (const z of [bb.min.z, bb.max.z]) { const v = new t.camera.position.constructor(x, bb.max.y, z); bk.localToWorld(v); v.project(t.camera); pts.push(v); }
+    const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+    // (The catcher is a little bigger than the book and squared to the room,
+    // so its box overstates it: the centre and the size are what count.)
+    const c = new t.camera.position.constructor(); bk.geometry.computeBoundingSphere(); c.copy(bk.geometry.boundingSphere.center); bk.localToWorld(c); c.project(t.camera);
+    return { cx: c.x, cy: c.y, spanX: Math.max(...xs) - Math.min(...xs), spanY: Math.max(...ys) - Math.min(...ys) };
+  });
+  check("...the book in the middle, filling the view", Math.abs(view.cx) < 0.15 && Math.abs(view.cy) < 0.15 && Math.max(view.spanX, view.spanY) > 1.4, JSON.stringify(view));
+  check("...with the way back shown", await page.evaluate(() => { const h = document.querySelector('[data-testid="den-book-hint"]'); return !!h && h.classList.contains("on"); }));
+  await page.mouse.click(550, 400);
+  check("a tap anywhere comes back", await waitFor(async () => (await book()).goal === 0, 3000));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await page.close();
+}
+
+{
   console.log("The rules leaflet on the coffee table");
   const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
   const errs = [];

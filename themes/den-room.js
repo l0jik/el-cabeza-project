@@ -543,6 +543,7 @@ export function buildDen(boardSpan) {
      the fore-edge) were squared up from it (assets/den/book-*.jpg). A
      hardcover about 7.5 x 9.5 in and 2 in thick, lying a little askew,
      its ribbon trailing out onto the table. */
+  let bookPlace = null, bookSize = null; // for the tap and the camera's visit (below)
   {
     const bookTex = (url) => { const t = tex(new THREE.TextureLoader().load(url)); t.anisotropy = 4; return t; };
     const coverMat = baked(bookTex(bookCoverUrl));
@@ -554,6 +555,7 @@ export function buildDen(boardSpan) {
     const bx = etX + 0.4, bz = etZ - 0.2;
     const place = new THREE.Matrix4().makeRotationY(chR + 0.32);
     place.setPosition(chX + bx * cc + bz * cs, yF + etTop + 0.005, chZ - bx * cs + bz * cc);
+    bookPlace = place.clone(); bookSize = { w: BW, l: BL, t: BT };
     const face = (geo, mat) => { geo.applyMatrix4(place); B.add(mat, geo); };
     face(new THREE.PlaneGeometry(BW, BL).rotateX(-Math.PI / 2).translate(0, BT, 0), coverMat);
     face(new THREE.PlaneGeometry(BW, BT).translate(0, BT / 2, BL / 2), tailMat);
@@ -680,6 +682,32 @@ export function buildDen(boardSpan) {
     LAMPS.filter((L) => L.name.startsWith("swag")).forEach((L) => catcher(new THREE.SphereGeometry(4.6, 12, 8), "ceiling", L.p[0], L.p[1], L.p[2]));
   }
 
+  /* ---- the book by the chair: a tap takes the camera to it (den-fx.js) ----
+     An unseen box a little bigger than it catches the tap; its pose (in
+     the room's frame) tells the camera where to look: the cover's centre,
+     which way is up on the page (the book's head, -z in its own frame: the
+     tail, with the ribbon, is +z) and how big it is. */
+  const bookPickables = [];
+  let bookFocus = null;
+  if (bookPlace) {
+    const hidden = new THREE.MeshBasicMaterial({ visible: false });
+    disposables.push(hidden);
+    const g = new THREE.BoxGeometry(bookSize.w + 0.5, bookSize.t + 0.5, bookSize.l + 0.5).translate(0, bookSize.t / 2, 0);
+    g.applyMatrix4(bookPlace);
+    disposables.push(g);
+    const m = new THREE.Mesh(g, hidden);
+    m.userData.book = true;
+    group.add(m);
+    bookPickables.push(m);
+    const rot = new THREE.Matrix4().extractRotation(bookPlace);
+    bookFocus = {
+      center: new THREE.Vector3(0, bookSize.t, 0).applyMatrix4(bookPlace),
+      head: new THREE.Vector3(0, 0, -1).applyMatrix4(rot).normalize(), // the cover's top, on the table
+      across: new THREE.Vector3(1, 0, 0).applyMatrix4(rot).normalize(),
+      halfW: bookSize.w / 2, halfL: bookSize.l / 2,
+    };
+  }
+
   /* ---- the coffee table and what's on it (lit like the board) ---- */
   const table = buildCoffeeTable(TW, boardSpan);
   group.add(table.group);
@@ -691,6 +719,7 @@ export function buildDen(boardSpan) {
     TW, PH,
     table,
     lamp: { pickables: lampPickables },
+    book: { pickables: bookPickables, focus: bookFocus },
     stereo,
     tv,
     // The fireplace's mouth, where its sound comes from (den-fx.js).

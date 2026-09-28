@@ -3222,3 +3222,19 @@ Test: e2e-den "The den's own record" (listed, plays, currentTime moves;
   -10.7 dB (source -15.2), hiss 53 dB under it. In the den (den-audio.js),
   the room (fire, clock, rain) ducks to 0.35 while a record or tape plays
   (`MUSIC_DUCK`, roomFollowMusic), back up when it stops.
+
+### The book by the chair: a tap takes the camera to it
+den-room.js: an unseen catcher box round the book (userData.book), and
+`book.focus` { center (the cover, room frame), head (the cover's top on the
+table, -z in the book's frame), halfW, halfL }. den-fx.js: pickScene
+"book", sceneTap toggles `bookGoal`; cameraOverride eases `bookW`
+(rate 2.0) and puts the camera straight over the cover, a touch toward
+its tail (d * 0.1), at the nearest distance that fits it with 18%
+margin (either axis, the screen's aspect), with camera.up blended to the
+book's head so the cover reads upright (restored to +Y after lookAt).
+Coming back: any pointerdown on the canvas (a capture listener that
+swallows that tap and its pointerup, so it does nothing else), Escape, or
+the music panel opening. A hint pill ("Tap anywhere to go back to the
+game", .den-book-hint) shows while there; the title and dock piece step
+aside (ec-tv-visit); focus mode waits. Hook `__DEN_BOOK__()` {goal, w}.
+Test: e2e-den "The book by the chair".
