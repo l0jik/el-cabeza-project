@@ -70,6 +70,10 @@ export function createScene(spec) {
   const P = spec.pieces;
   const EDGE_RADIUS = P.edgeRadius;
   const OUT = P.outline ? P.outline.t : 0;
+  /* The shell's floor sits SHELL_LIFT above the board, not flush (as
+     themes/wood-set.js: flush, a low view broke the line under a piece
+     into crawling dashes). outlineYOffset is the whole at-rest lift. */
+  const SHELL_LIFT = P.outline ? 0.003 : 0;
 
   /* ---------------- board */
   function makeBoardTexture() { return paintBoard(spec); }
@@ -205,7 +209,7 @@ export function createScene(spec) {
           : makeRoundedBox(piece.w * PIECE_SCALE + T * 2, piece.z * PIECE_SCALE + T * 2, piece.h * PIECE_SCALE + T * 2, EDGE_RADIUS + T);
       shell = new THREE.Mesh(shellGeo, new THREE.MeshBasicMaterial({ color: isDark ? P.outline.dark : P.outline.light, side: THREE.BackSide, shadowSide: THREE.BackSide }));
       shell.castShadow = true;
-      shell.position.set(center.x, y + T, center.z);
+      shell.position.set(center.x, y + T + SHELL_LIFT, center.z);
     } else {
       shell = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ visible: false }));
       shell.position.set(center.x, y, center.z);
@@ -444,7 +448,7 @@ export function createScene(spec) {
   }
 
   return {
-    EDGE_RADIUS, outlineYOffset: OUT,
+    EDGE_RADIUS, outlineYOffset: OUT + SHELL_LIFT,
     makeBoardTexture, buildSlabMaterials, makeGrid, buildPieceVisual, buildMoveIndicator,
     buildBlackHoleVisual, buildMissingSquareVisual, buildGround, boxesGeometry,
   };

@@ -816,9 +816,10 @@ vs. `view` (what's rendered) split with frame-rate-independent damping
 right-drag on desktop (`ev.pointerType !== "touch"`) — a plain mouse drag
 in a test will orbit, not pan, which looks like "nothing happened" if you
 forget this. Two-finger swipe up/down toggles Current Player View /
-Top-Down View; two-finger double-tap toggles fullscreen; trackpad
-two-finger flick and a second `contextmenu` within the double-tap window
-get touch-gesture parity on desktop.
+Top-Down View; two-finger double-tap toggles fullscreen; a second
+`contextmenu` within the double-tap window gets touch-gesture parity on
+desktop. (The trackpad two-finger flick, read from wheel bursts, is gone:
+the wheel only zooms, see "The wheel only zooms".)
 
 **Full screen off the board, and at the first tap.** The canvas's gesture
 code only sees touches on the canvas, so anything covering it (Tienda's
@@ -2825,7 +2826,7 @@ choice).
   dispose), `__DEN_THREE__` (with `__EC_TEST_HOOKS__`), `__DEN_QUALITY__`,
   `__DEN_PIXEL_RATIO__`, `__DEN_AUDIO__()`. The chassis's
   `__EC_TEST_CAM__({theta, phi, radius, target})` moves the camera
-  (a wheel burst in a test switches views instead of zooming).
+  (the wheel zooms, but slowly under SwiftShader).
   Test: tests/e2e-den.mjs.
 
 ### The den, round 3 (user requests, Sep 27)
@@ -3041,3 +3042,29 @@ in; leaving Singularity, back in the den as the set switches off.
 ## The den's rules leaflet is the How to play (Standard / Nova at home)
 - The leaflet and the game box on the coffee table (den-room.js buildCoffeeTable, userData.rules) are a link: den-fx pickScene returns "rules", sceneTap dispatches the open-rules event at the Quick card. Under the mouse, the chassis calls the theme's `sceneHover(what)` (and shows a pointer for anything pickScene finds); den-fx pops a "?" card (`.den-rules-hint`, standard.js CSS) over the leaflet.
 - `theme.rulesInRoom` (standard.js) hides the corner How to play; the Room view house moves beside the full-screen button (bottom 18). Other themes keep the corner button. Tests: e2e-den "The rules leaflet on the coffee table", e2e-rules checks Standard has none.
+
+### The wheel only zooms (user: the mouse-wheel issue "still happening")
+The wheel's trackpad-flick reading (a fast burst of scroll: down = Top-Down
+View, up = recentre) was narrowed once to bursts without a mouse notch,
+but a mouse with smooth, accelerated scrolling (a Mac's) sends a stream
+of small steps with no notch to tell it by, so a fast spin to zoom out
+still jumped to Top-Down, closer in. A fast scroll is a flick; there is
+no reliable telling. `onWheel` now only zooms (by a share of the
+distance). Touch screens keep their two-finger swipes; a trackpad's
+two-finger tap (contextmenu) is still read. Test: e2e-den "a fast spin of
+small wheel steps zooms out, no view jump".
+
+### Cromo, Lluvia and the Lab: the shell lift (outline fix)
+Their outline shells now sit SHELL_LIFT (0.003) above the board like
+wood-set.js's, `outlineYOffset` = OUTLINE_T + SHELL_LIFT (Lab: only for
+directions with an outline). tests/e2e-outline.mjs runs all five, reading
+the scene through the chassis's `__EC_TEST_THREE__()` (with
+`__EC_TEST_HOOKS__`); Lluvia via "Straight to the board".
+
+### Tienda's ball bin (user: "not obeying physics")
+The balls were two loose layers at the rim over an empty wire bin,
+overlapping and floating. Now dropped in one at a time (own seeded rng,
+so the store's other seeded layout is unchanged): each tries 48 spots and
+settles at the lowest resting height (floor, or a pocket on the balls
+under it, never overlapping, inside the wire), filling to the rim, then
+7 near the middle for a small heap; deeper balls shaded darker.

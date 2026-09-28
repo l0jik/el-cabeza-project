@@ -536,20 +536,51 @@ export function buildStore() {
   add(merge(fixGeos), flat(null)); add(merge(darkGeos), flat(null)); add(merge(metalGeos), flat(null));
 
   /* ---- the court ---- */
-  // The sale bin of rubber balls: a wire bin and a heap of balls.
-  const ballGeo = new THREE.SphereGeometry(1.6, 12, 8);
+  /* The sale bin of rubber balls: a wire bin full of them, heaped a
+     little over the rim. The balls are dropped in one at a time (seeded,
+     so the heap is the same every visit): each tries a few dozen spots
+     and settles at the lowest, resting on the bin's floor or in a pocket
+     among the balls under it, never overlapping one, inside the wire.
+     (They used to be two loose layers at the rim over an empty bin,
+     floating: the user's screenshot.) The last few are dropped near the
+     middle, for the heap. Deeper balls are in the heap's shade. */
+  const BR = 1.6, BD = BR * 2, binX = 44, binZ = -40, binR = 8.5, binH = 12;
+  const ballGeo = new THREE.SphereGeometry(BR, 12, 8);
   bake(ballGeo, { floorDark: 1, side: 0.9, bottom: 0.7 });
-  const balls = new THREE.InstancedMesh(ballGeo, new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false, fog: true }), 34);
+  const br = rng(57); // its own, so the rest of the store's seeded layout stays put
+  const placed = [];
+  const restY = (x, z) => {
+    let y = BR;
+    for (const p of placed) {
+      const d2 = (p.x - x) ** 2 + (p.z - z) ** 2;
+      if (d2 < BD * BD) y = Math.max(y, p.y + Math.sqrt(BD * BD - d2));
+    }
+    return y;
+  };
+  const drop = (reach) => {
+    let best = null;
+    for (let c = 0; c < 48; c++) {
+      const a = br() * Math.PI * 2, r = Math.sqrt(br()) * reach;
+      const x = Math.cos(a) * r, z = Math.sin(a) * r, y = restY(x, z);
+      if (!best || y < best.y) best = { x, z, y };
+    }
+    placed.push(best);
+    return best.y;
+  };
+  const inside = binR - BR - 0.25;
+  for (let n = 0; n < 400 && drop(inside) < binH - 0.6; n++);
+  for (let n = 0; n < 7; n++) drop(inside * 0.55);
+  const balls = new THREE.InstancedMesh(ballGeo, new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false, fog: true }), placed.length);
   const ballCols = ["#B8392E", "#2F5D8A", "#D3A13B", "#B8392E", "#3F7A4A"];
-  for (let n = 0; n < 34; n++) {
-    const a = rr() * 6.28, rad = rr() * 6.5, lvl = n < 20 ? 0 : 1;
-    m4.makeTranslation(44 + Math.cos(a) * rad, FLOOR + 11 + lvl * 2.6 + rr() * 1.2, -40 + Math.sin(a) * rad);
+  const topY = placed.reduce((m, p) => Math.max(m, p.y), 0);
+  placed.forEach((p, n) => {
+    m4.makeTranslation(binX + p.x, FLOOR + p.y, binZ + p.z);
     balls.setMatrixAt(n, m4);
-    balls.setColorAt(n, col.set(ballCols[n % ballCols.length]).multiplyScalar(0.92));
-  }
+    balls.setColorAt(n, col.set(ballCols[Math.floor(br() * ballCols.length)]).multiplyScalar(0.92 * (0.55 + 0.45 * (p.y / topY))));
+  });
   balls.frustumCulled = false;
   group.add(balls); disposables.push(ballGeo, balls.material);
-  const binGeo = new THREE.CylinderGeometry(8.5, 8.5, 12, 24, 1, true); binGeo.translate(44, FLOOR + 6, -40);
+  const binGeo = new THREE.CylinderGeometry(binR, binR, binH, 24, 1, true); binGeo.translate(binX, FLOOR + binH / 2, binZ);
   const binTex = canvasTexture(256, 64, (g, W2, H2) => { g.clearRect(0, 0, W2, H2); g.strokeStyle = "#C9C6BD"; g.lineWidth = 2; for (let x = 0; x < W2; x += 8) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H2); g.stroke(); } for (let y = 2; y < H2; y += 12) { g.beginPath(); g.moveTo(0, y); g.lineTo(W2, y); g.stroke(); } }, { scale: false });
   binTex.wrapS = THREE.RepeatWrapping; binTex.repeat.set(3, 1);
   add(bake(binGeo, { floorDark: 0.8 }), flat(binTex, { transparent: true, alphaTest: 0.3, side: THREE.DoubleSide }));

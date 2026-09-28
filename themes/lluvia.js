@@ -62,7 +62,12 @@ export const HEX = {
 
 export const EDGE_RADIUS = 0.08;
 const OUTLINE_T = 0.014;
-export const outlineYOffset = OUTLINE_T;
+/* The shell's floor sits SHELL_LIFT above the board, not flush (as
+   themes/wood-set.js, where a low view broke the line under a piece into
+   crawling dashes: the board won in patches over the shell's flush floor).
+   outlineYOffset is the whole at-rest lift, stripped before a roll. */
+const SHELL_LIFT = 0.003;
+export const outlineYOffset = OUTLINE_T + SHELL_LIFT;
 
 export const modalBackdrop = "rgba(3,2,6,0.62)";
 export const modalSurface = "rgba(14,9,4,0.95)";
@@ -242,7 +247,7 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
       : makeRoundedBox(piece.w * PIECE_SCALE + OUTLINE_T * 2, piece.z * PIECE_SCALE + OUTLINE_T * 2, piece.h * PIECE_SCALE + OUTLINE_T * 2, EDGE_RADIUS + OUTLINE_T);
   const shell = new THREE.Mesh(shellGeo, new THREE.MeshBasicMaterial({ color: isDark ? 0x7ff2ff : 0xff7fd6, side: THREE.BackSide, shadowSide: THREE.BackSide }));
   shell.castShadow = true;
-  shell.position.set(center.x, y + OUTLINE_T, center.z);
+  shell.position.set(center.x, y + OUTLINE_T + SHELL_LIFT, center.z);
   shell.userData = { pieceId: piece.id, kind: "shell" };
   return { mesh, shell };
 }

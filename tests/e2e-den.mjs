@@ -231,6 +231,17 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(500);
   check("a tap on it opens the rules at the Quick card",
     (await q(page, "info-overlay").getAttribute("data-open")) === "true" && (await q(page, "rules-card-quick").count()) === 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(600);
+  // A mouse wheel spun fast, in small smooth steps (a Mac's): it only
+  // zooms out, never jumps to a view (it once read as a trackpad flick).
+  const camDist = () => page.evaluate(() => { const t = window.__DEN_THREE__; const p = t.camera.position.clone(); t.boardGroup.worldToLocal(p); return p.length(); });
+  const d0 = await camDist();
+  await page.mouse.move(40, 400);
+  for (let i = 0; i < 24; i++) await page.mouse.wheel(0, 24);
+  await page.waitForTimeout(2500);
+  const d1 = await camDist();
+  check("a fast spin of small wheel steps zooms out, no view jump", d1 > d0 * 1.3, `${d0.toFixed(1)} -> ${d1.toFixed(1)}`);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();
 }

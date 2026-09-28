@@ -554,6 +554,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useEffect(() => {
     if (typeof window === "undefined" || !window.__EC_TEST_HOOKS__) return;
     window.__EC_TEST_SET_PIECES__ = (list) => setPieces(list.map((p) => ({ ...p })));
+    // The live scene (any theme), for tests that measure it.
+    window.__EC_TEST_THREE__ = () => three.current;
     // Two paired black holes, as a Singularity game places them.
     window.__EC_TEST_SET_HOLES__ = (list) => { setActiveBlackHoles(list); setBlackHoles(list); };
     window.__EC_TEST_PIECES__ = pieces.map((p) => ({ ...p }));
@@ -5657,68 +5659,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       el.style.cursor = "grab";
     }
 
-    /* Laptop trackpad equivalents of the touch-only two-finger gestures
-       above. Two of the four already work on a trackpad with no changes
-       at all: a single-finger click-drag is just a mouse drag (orbit),
-       and a trackpad's own pinch gesture reaches the browser as this
-       same wheel event with an inflated deltaY, so it already zooms.
-       The other two have no raw multi-touch events to read on a
-       trackpad — the OS/driver consumes them and only ever hands the
-       browser a wheel event (for a two-finger scroll) or a contextmenu
-       event (the standard "two-finger tap = right-click" convention),
-       never individual per-finger pointer events the way a touchscreen
-       does — so they're recovered here from those two events instead. */
-    let wheelBurstDy = 0;
-    let wheelBurstDx = 0;
-    let wheelBurstStart = 0;
-    let wheelSwipeCooldownUntil = 0;
-    let wheelBurstNotched = false; // a mouse wheel's notch (or a pinch) in this burst: never a flick
-    const WHEEL_SWIPE_WINDOW_MS = 160; // how long a burst of wheel events is treated as one gesture
-    const WHEEL_SWIPE_MIN_DY = 320; // net deltaY within that window to count as a flick, not a scroll/zoom
-    const WHEEL_SWIPE_COOLDOWN_MS = 500; // guards against the same flick re-triggering as it decays
-
+    /* The wheel (a mouse's, or a trackpad's two-finger scroll or pinch,
+       which the browser hands over as wheel events too) only ever zooms.
+       It used to read a fast burst as a trackpad flick (down: Top-Down
+       View, up: recentre), the touch screen's two-finger swipes; but a
+       mouse wheel spun fast to zoom out is exactly such a burst, and on a
+       mouse with smooth, accelerated scrolling (a Mac's) it comes as a
+       stream of small steps, no notches to tell it by: the view jumped to
+       Top-Down, closer in (the user, twice: "it stutters, and rezooms
+       in"). No telling the two apart reliably, so no flick. A trackpad's
+       two-finger tap is still read (the contextmenu event, below). */
     function onWheel(ev) {
       ev.preventDefault();
-      const now = performance.now();
-      if (now - wheelBurstStart > WHEEL_SWIPE_WINDOW_MS) {
-        wheelBurstStart = now;
-        wheelBurstDy = 0;
-        wheelBurstDx = 0;
-        wheelBurstNotched = false;
-      }
       // In pixels whatever the browser reports in (Firefox: lines).
       const unit = ev.deltaMode === 1 ? 33 : ev.deltaMode === 2 ? 800 : 1;
-      const dy = ev.deltaY * unit, dx = ev.deltaX * unit;
-      wheelBurstDy += dy;
-      wheelBurstDx += dx;
-      /* A mouse wheel turns in notches (about 100 px each; the browser's
-         wheelDeltaY in steps of 120, or lines in Firefox), a trackpad in
-         a stream of small fractions. Spun quickly to zoom out, four or
-         five notches land inside the flick window and passed for a
-         trackpad flick down: Top-Down View, closer in (the user: "it
-         stutters, and rezooms in"). A burst with a notch in it, or a
-         trackpad pinch (which comes with ctrlKey), only ever zooms. */
-      const wd = typeof ev.wheelDeltaY === "number" ? ev.wheelDeltaY : null;
-      if (ev.ctrlKey || ev.deltaMode !== 0 || (Math.abs(ev.deltaY) >= 50 && (wd === null || (wd !== 0 && wd % 120 === 0)))) wheelBurstNotched = true;
-      /* A trackpad flick piles up far more distance far faster than
-         either turning a mouse wheel or nudging the trackpad to zoom —
-         that gap is what tells the two apart here, the same way
-         TWO_FINGER_SWIPE_MIN_PX/MAX_MS do for an actual touchscreen.
-         Below this threshold every event still falls through and zooms
-         exactly as before, so ordinary scrolling is untouched. */
-      if (
-        !wheelBurstNotched &&
-        now >= wheelSwipeCooldownUntil &&
-        Math.abs(wheelBurstDy) >= WHEEL_SWIPE_MIN_DY &&
-        Math.abs(wheelBurstDy) > Math.abs(wheelBurstDx) * 1.5
-      ) {
-        if (wheelBurstDy > 0) topDownView();
-        else recenterView();
-        wheelSwipeCooldownUntil = now + WHEEL_SWIPE_COOLDOWN_MS;
-        wheelBurstDy = 0;
-        wheelBurstDx = 0;
-        return;
-      }
+      const dy = ev.deltaY * unit;
       // By a share of the distance (a notch: about 9%), so a room can be
       // crossed in a few turns of the wheel, not dozens.
       cam.current.radius = Math.max(

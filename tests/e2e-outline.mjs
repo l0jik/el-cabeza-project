@@ -1,5 +1,6 @@
-/* The wood pieces' outline shells sit a hair above the board, never flush
-   with it (Tienda and Standard, themes/wood-set.js SHELL_LIFT).
+/* The pieces' outline shells sit a hair above the board, never flush
+   with it (Tienda and Standard, themes/wood-set.js SHELL_LIFT; Cromo,
+   Lluvia and the Lab's outlined directions the same).
 
    Flush, the strip of the shell's floor that shows in front of a piece's
    base was the board's own plane, drawn from thin wedge triangles, and at
@@ -20,7 +21,7 @@ const check = (l, c, extra) => { if (!c) failures++; console.log(`  ${c ? "ok  "
 
 // Each piece's body and shell floor heights, in board space.
 const floors = (page, hook) => page.evaluate((hook) => {
-  const t = window[hook];
+  const t = typeof window[hook] === "function" ? window[hook]() : window[hook];
   const out = {};
   t.boardGroup.updateMatrixWorld(true);
   const inv = t.boardGroup.matrixWorld.clone().invert();
@@ -34,17 +35,21 @@ const floors = (page, hook) => page.evaluate((hook) => {
   return out;
 }, hook);
 
-async function run(name, hook) {
+async function run(name, hook, init = null) {
   console.log(`\n${name}`);
   const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; });
+  if (init) await page.addInitScript(init);
   await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-${name}.html`);
   await page.waitForTimeout(2500);
+  // Lluvia opens on its descent: straight to the board.
+  const straight = page.locator('[data-testid="lluvia-straight-to-board"]');
+  if (await straight.count()) { await straight.click(); await page.waitForTimeout(1200); }
   const lid = page.locator('[data-testid="tienda-open-box"]');
   if (await lid.count()) { await lid.click(); await page.waitForTimeout(2000); }
-  for (let i = 0; i < 40 && !(await page.evaluate((h) => !!window[h], hook)); i++) await page.waitForTimeout(250);
+  for (let i = 0; i < 40 && !(await page.evaluate((h) => !!window[h] && !!(typeof window[h] === "function" ? window[h]() : window[h]).pieceGroup, hook)); i++) await page.waitForTimeout(250);
 
   const rest = await floors(page, hook);
   const ids = Object.keys(rest);
@@ -65,7 +70,7 @@ async function run(name, hook) {
   let mid = null;
   for (let i = 0; i < 200 && !mid; i++) {
     mid = await page.evaluate(({ hook, id }) => {
-      const t = window[hook];
+      const t = typeof window[hook] === "function" ? window[hook]() : window[hook];
       let mesh = null, shell = null;
       t.boardGroup.traverse((o) => { if (o.userData && o.userData.pieceId === id) { if (o.userData.kind === "piece") mesh = o; if (o.userData.kind === "shell") shell = o; } });
       if (!mesh || !shell || mesh.parent === t.pieceGroup || shell.parent !== mesh.parent) return null;
@@ -84,6 +89,10 @@ async function run(name, hook) {
 
 await run("tienda", "__TIENDA_THREE__");
 await run("standard", "__DEN_THREE__");
+await run("cromo", "__EC_TEST_THREE__");
+await run("lluvia", "__EC_TEST_THREE__");
+// The Lab: De Stijl, one of its directions with an outline.
+await run("lab", "__EC_TEST_THREE__", () => { try { localStorage.setItem("el-cabeza:lab-theme", "destijl"); } catch (e) { /* none */ } });
 await browser.close();
 console.log(failures === 0 ? "\nOUTLINE E2E PASSED" : `\nOUTLINE E2E FAILED (${failures})`);
 process.exit(failures === 0 ? 0 : 1);
