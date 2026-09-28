@@ -603,7 +603,11 @@ export function buildDen(boardSpan) {
   // globes stay, their cords with them (user: they vanished).
   LAMPS.filter((L) => L.name.startsWith("swag")).forEach((L) => {
     const [x, y, z] = L.p;
-    B.add(M.black, cyl(0.12, 0.12, yC - y - 3, x, (yC + y + 3) / 2, z, 5), { group: "core", tile: 4, floorShade: false });
+    // The cord runs on up well past the ceiling (user: from high up with the
+    // ceiling stepped aside, it shouldn't be seen to stop), so the room
+    // reads as taller than it is; the fog takes its far end.
+    const cordTop = yC + 400;
+    B.add(M.black, cyl(0.12, 0.12, cordTop - y - 3, x, (cordTop + y + 3) / 2, z, 5), { group: "core", tile: 4, floorShade: false });
     const globe = new THREE.Mesh(new THREE.SphereGeometry(3.3, 20, 14), M.globe);
     globe.position.set(x, y, z);
     B.mesh(globe, "core");
