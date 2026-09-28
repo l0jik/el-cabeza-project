@@ -103,7 +103,7 @@ export function createAudio() {
           room: roomBus.gain.value,
           fire: { near: fireNear, gain: fireBus.gain.value, pan: firePan ? firePan.pan.value : 0 },
           chimes,
-          music: music ? { id: music.track.id, medium: music.track.medium, paused: music.el.paused } : null,
+          music: music ? { id: music.track.id, medium: music.track.medium, paused: music.el.paused, time: music.el.currentTime } : null,
         });
         if (window.__EC_TEST_HOOKS__) window.__DEN_CHIME_NOW__ = () => { ensureGraph(); if (ctx && roomOn) chime(); return chimes; };
       }
@@ -266,11 +266,15 @@ export function createAudio() {
     const tone = ctx.createBiquadFilter(); tone.type = "lowpass"; tone.frequency.value = track.medium === "8track" ? 9000 : 13000;
     src.connect(tone).connect(musicBus);
     const extra = [tone];
-    const bed = ctx.createBufferSource(); bed.buffer = noiseBuf; bed.loop = true;
-    const bf = ctx.createBiquadFilter(); bf.type = track.medium === "8track" ? "highpass" : "bandpass"; bf.frequency.value = track.medium === "8track" ? 6000 : 2400;
-    const bg = ctx.createGain(); bg.gain.value = track.medium === "8track" ? 0.0025 : 0.0018;
-    bed.connect(bf).connect(bg).connect(musicBus); bed.start();
-    extra.push(bed, bf, bg);
+    // A track already put through the console's treatment (track.treated:
+    // tools/console_1974_turntable.py) has its hiss and crackle in it.
+    if (!track.treated) {
+      const bed = ctx.createBufferSource(); bed.buffer = noiseBuf; bed.loop = true;
+      const bf = ctx.createBiquadFilter(); bf.type = track.medium === "8track" ? "highpass" : "bandpass"; bf.frequency.value = track.medium === "8track" ? 6000 : 2400;
+      const bg = ctx.createGain(); bg.gain.value = track.medium === "8track" ? 0.0025 : 0.0018;
+      bed.connect(bf).connect(bg).connect(musicBus); bed.start();
+      extra.push(bed, bf, bg);
+    }
     music = { el, src, extra, track };
     el.addEventListener("ended", () => { if (music && music.el === el) { stopMusic(); if (onEnd) onEnd(); } });
     const p = el.play();

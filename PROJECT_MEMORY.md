@@ -3183,3 +3183,31 @@ catalog too; apply it everywhere (standalone pages too), not only Nova.
   the flag on Tienda and Standard; the sphere sets it; Nova's restart
   clears it). Suites that exercise extras (e2e-rules, e2e-tienda,
   e2e-original) start with the flag set.
+
+### The den's first record: "Dangerous Dashing" through a 1974 console turntable
+The user's track (Suno, "influentialdistortion257"), put through
+`tools/console_1974_turntable.py` (pedalboard + numpy/scipy; ffmpeg via
+subprocess for MP3 in/out), the user's chain in order:
+1. 8th-order Butterworth band-pass 40 Hz - 11 kHz (zero-phase), then a
+   +3 dB PeakFilter at 150 Hz (q 0.9), the cabinet.
+2. LR4 split at 150 Hz: lows summed to mono; highs mid/side with side x0.5.
+3. Wow 0.55 Hz (0.14% peak) + flutter 4.5 Hz (0.05% peak) through a moving
+   fractional delay (A = pct / (2 pi f)).
+4. The amp: -3 dBFS nominal, +4% x|x| asymmetry, pedalboard
+   Distortion(drive 4 dB), gain back.
+5. Pink hiss at -45 dBFS RMS (FFT 1/f); a crackle bed band-limited like the
+   rest. The crackle download (Wikimedia URLs, --crackle-url, or --crackle
+   FILE) was blocked by this environment's network policy (403 at the
+   proxy; only package registries and GitHub raw reach out), so the run
+   used the modelled crackle (dust ticks partly out of phase, rarer pops, a
+   once-a-revolution scratch, the surface hash breathing at 33 1/3 rpm).
+   Re-run with --crackle recording.wav for a real one.
+Measured on the master vs the source: >12.5 kHz down ~10.6 dB relative
+(what's left is the hiss), 150 Hz vs 500 Hz +3.5 dB, highs side/mid
+0.650 -> 0.325, lows side/mid 0.136 -> 0.058.
+Output `assets/den/1974_console_master.mp3` (LAME V2, 4.7 MB), copied
+beside the Standard and Nova pages as `el-cabeza-den-record-1.mp3`
+(build.js DEN_RECORDS). `DEN_TRACKS` (standard.js) lists it as a record,
+`treated: true` (den-audio.js then adds no surface noise of its own).
+Test: e2e-den "The den's own record" (listed, plays, currentTime moves;
+`__DEN_AUDIO__().music.time`).

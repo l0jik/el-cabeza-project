@@ -185,11 +185,18 @@ export const soundChannels = [
 ];
 
 /* The stereo console's music (chassis: theme.music, the music panel). The
-   records and tapes are the user's to choose: they'll send the tracks.
-   Each track: { id, title, artist, medium: "record" | "8track", url },
-   the url an asset bundled with the page. Until then each source shows
-   that it's empty. Tests can lend a few (window.__DEN_TEST_TRACKS__). */
-const DEN_TRACKS = [];
+   records and tapes are the user's to choose. Each track: { id, title,
+   artist, medium: "record" | "8track", url }, the url a file beside the
+   page (build/build.js DEN_RECORDS: fetched when it's played, not inside
+   the page). A source with none shows that it's empty. Tests can lend a
+   few (window.__DEN_TEST_TRACKS__).
+   The records are already a record: each track is put through
+   tools/console_1974_turntable.py (a 1974 wooden console: 40 Hz-11 kHz,
+   the cabinet's 150 Hz, mono lows and half-width highs, wow and flutter,
+   the amp a little hot, the preamp's hiss and the surface's crackle). */
+const DEN_TRACKS = [
+  { id: "dangerous-dashing", title: "Dangerous Dashing", artist: "influentialdistortion257", medium: "record", url: "el-cabeza-den-record-1.mp3", treated: true },
+];
 export const music = {
   title: "The stereo",
   hint: "Records and tapes on the console",

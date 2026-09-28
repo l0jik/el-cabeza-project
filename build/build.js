@@ -1,12 +1,19 @@
 import * as esbuild from "esbuild";
 import { writeFileSync, mkdirSync, copyFileSync } from "fs";
 
+// The den's records: the user's tracks, each through tools/console_1974_turntable.py.
+const DEN_RECORDS = {
+  "el-cabeza-den-record-1.mp3": "assets/den/1974_console_master.mp3",
+};
+
 const targets = [
-  { name: "standard", entry: "apps/standard.jsx", title: "El Cabeza" },
+  // The den's records (themes/standard.js DEN_TRACKS), files beside the
+  // page like Tienda's reels: fetched when played. Nova's den reads the same.
+  { name: "standard", entry: "apps/standard.jsx", title: "El Cabeza", files: DEN_RECORDS },
   { name: "neon", entry: "apps/neon.jsx", title: "Neon Cabeza" },
   { name: "cromo", entry: "apps/cromo.jsx", title: "Cromo Cabeza" },
   { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza" },
-  { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover" },
+  { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: DEN_RECORDS },
   // Tienda is built minified, and its page can draw under a phone's
   // notch and home bar (the theme keeps its controls clear of them).
   // Its files beside the page: the store's reels (the 1974 Muzak tape and

@@ -114,7 +114,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "sound-music").click();
   await page.waitForTimeout(400);
   check("...which opens the music panel", (await q(page, "music-panel").count()) === 1);
-  check("...each source saying it's empty until the tracks come", (await q(page, "music-empty-record").count()) === 1 && (await q(page, "music-empty-8track").count()) === 1);
+  check("...the record player has its record, the 8-track says it's empty", (await q(page, "music-track-dangerous-dashing").count()) === 1 && (await q(page, "music-empty-record").count()) === 0 && (await q(page, "music-empty-8track").count()) === 1);
   check("...and the dock steps aside", (await page.locator('[data-testid="sound-menu"]').count()) === 0);
   await page.waitForTimeout(3200);
   const near = await page.evaluate(() => {
@@ -199,6 +199,48 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(400);
   const a2 = await page.evaluate(() => window.__DEN_AUDIO__());
   check("Stop stops it", !a2.music && (await stereo2(page)) === null);
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await page.close();
+}
+
+{
+  console.log("The den's own record: Dangerous Dashing, off the turntable");
+  const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; }); // no test tracks: the den's own
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-standard.html");
+  await waitFor(() => page.evaluate(() => !!window.__DEN_ROOM__ && !!window.__DEN_THREE__));
+  // A game under way, the title out of the way (as the stereo test above).
+  await openDockPanel(page);
+  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.__EC_TEST_CAM__({ theta: Math.PI, phi: 1.28, radius: 50 }));
+  const discAt = () => page.evaluate(() => {
+    const t = window.__DEN_THREE__;
+    let disc = null; t.scene.traverse((o) => { if (o.userData && o.userData.music === "record" && o.geometry && o.geometry.type === "CircleGeometry") disc = o; });
+    const v = new t.camera.position.constructor(); disc.getWorldPosition(v); v.project(t.camera);
+    const r = t.renderer.domElement.getBoundingClientRect();
+    return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+  });
+  let at = await discAt();
+  await waitFor(async () => { await page.waitForTimeout(400); const b = await discAt(); const still = Math.hypot(b.x - at.x, b.y - at.y) < 1.5; at = b; return still; }, 15000);
+  for (let i = 0; i < 2 && (await q(page, "music-panel").count()) === 0; i++) {
+    await page.mouse.click(at.x, at.y);
+    await page.waitForTimeout(500);
+    at = await discAt();
+  }
+  check("the music panel lists the record", (await q(page, "music-track-dangerous-dashing").count()) === 1);
+  await q(page, "music-track-dangerous-dashing").click();
+  const playing = await waitFor(async () => {
+    const a = await page.evaluate(() => window.__DEN_AUDIO__());
+    return a.music && a.music.id === "dangerous-dashing" && a.music.medium === "record" && !a.music.paused;
+  }, 10000);
+  check("...and it plays on the record player (the file beside the page)", playing);
+  const t0 = await page.evaluate(() => { const a = window.__DEN_AUDIO__(); return a.music && a.music.time; });
+  await page.waitForTimeout(1500);
+  const t1 = await page.evaluate(() => { const a = window.__DEN_AUDIO__(); return a.music && a.music.time; });
+  check("...the needle moving through it", typeof t1 === "number" && t1 > (t0 || 0), `${t0} -> ${t1}`);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();
 }
