@@ -109,7 +109,7 @@ export function createDenEffects(woodSet) {
         const camDist = camLocal.length();
         const reach = SLAB_MAX * 0.8;
         scene.fog.near = FOG.near + (camDist + reach - FOG.near) * e;
-        scene.fog.far = FOG.far + (camDist + reach + 95 - FOG.far) * e; // a long fade: the room dim, not gone (user)
+        scene.fog.far = FOG.far + (camDist + reach + 56 - FOG.far) * e; // near the first setting, a touch lighter (user)
         scene.fog.color.copy(FOG.color).lerp(DARK, e);
         if (scene.background && scene.background.isColor) scene.background.copy(FOG.bg).lerp(DARK, e);
       }
@@ -121,7 +121,7 @@ export function createDenEffects(woodSet) {
       if (e !== lastE) {
         lastE = e;
         if (!tableMats) { tableMats = new Map(); den.table.group.traverse((o) => { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.color && !tableMats.has(m)) tableMats.set(m, m.color.clone()); }); }); }
-        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.9 * e)); // deep, so the board stands out (user)
+        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.74 * e)); // near the first setting (0.78), a touch lighter (user)
       }
       // The float: the room (and the table) a little way down under the
       // board, and a slow drift.
