@@ -127,7 +127,12 @@ export function createAudio() {
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
     node.connect(g).connect(out);
   }
-  const roomLevel = () => (windingDown ? 0.6 : 1) * (0.85 + 0.15 * (1 - zoom));
+  // The room (fire, clock, rain) steps back while a record or a tape
+  // plays, as it would for someone listening (user: the music was lost
+  // under the room's hiss of rain and fire).
+  const MUSIC_DUCK = 0.35;
+  const roomLevel = () => (windingDown ? 0.6 : 1) * (0.85 + 0.15 * (1 - zoom)) * (music ? MUSIC_DUCK : 1);
+  const roomFollowMusic = () => { if (ctx && roomOn && roomBus) roomBus.gain.setTargetAtTime(roomLevel(), now(), 0.9); };
 
   /* ---------------- the fire ---------------- */
   function startFire() {
@@ -250,6 +255,7 @@ export function createAudio() {
     if (!music) return;
     const m = music;
     music = null;
+    roomFollowMusic();
     try { m.el.pause(); } catch (e) { /* gone */ }
     try { m.src.disconnect(); } catch (e) { /* gone */ }
     m.extra.forEach((n) => { try { n.stop ? n.stop() : null; n.disconnect(); } catch (e) { /* gone */ } });
@@ -276,6 +282,7 @@ export function createAudio() {
       extra.push(bed, bf, bg);
     }
     music = { el, src, extra, track };
+    roomFollowMusic();
     el.addEventListener("ended", () => { if (music && music.el === el) { stopMusic(); if (onEnd) onEnd(); } });
     const p = el.play();
     if (p && p.catch) p.catch(() => { /* the first gesture will start it */ });

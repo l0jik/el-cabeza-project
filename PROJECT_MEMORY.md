@@ -3211,3 +3211,14 @@ beside the Standard and Nova pages as `el-cabeza-den-record-1.mp3`
 `treated: true` (den-audio.js then adds no surface noise of its own).
 Test: e2e-den "The den's own record" (listed, plays, currentTime moves;
 `__DEN_AUDIO__().music.time`).
+- **Re-run (user: "the hiss is way too overpowering... 80% hiss and only
+  20% music"):** measured first: the file itself had the music ~30 dB
+  over the hiss, so in the den the music was also lost under the room's
+  own rain and fire. Both fixed: the script's hiss now defaults to -64
+  dBFS RMS (`--hiss-db`; the brief's -45 kept as the explanation) and is
+  band-limited 40 Hz-16 kHz, the crackle 10 dB under its first level
+  (`--crackle-db`), and the music is brought forward by a gentle limiter
+  (-5 dB threshold) to -1 dBFS before the noise goes on: master median
+  -10.7 dB (source -15.2), hiss 53 dB under it. In the den (den-audio.js),
+  the room (fire, clock, rain) ducks to 0.35 while a record or tape plays
+  (`MUSIC_DUCK`, roomFollowMusic), back up when it stops.

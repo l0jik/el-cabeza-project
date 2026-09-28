@@ -24,9 +24,13 @@ subprocess for the MP3 in and out):
     little past its headroom: driven about 4 dB into a soft tanh curve
     (pedalboard Distortion), with a slight asymmetry for its second
     harmonic, then brought back down.
- 5. Surface noise. A continuous bed of pink noise at -45 dBFS RMS (the
-    preamp's hiss), and a vinyl crackle/pop bed over the whole track,
-    band-limited like everything else the stylus reads.
+ 5. Surface noise. A continuous bed of pink noise (the preamp's hiss,
+    40 Hz - 16 kHz), and a vinyl crackle/pop bed over the whole track,
+    band-limited like everything else the stylus reads. The brief asked
+    for the hiss at -45 dBFS; heard in the den that buried the music, so it
+    now defaults to -64 dBFS (--hiss-db) and the crackle 10 dB under its
+    first level (--crackle-db), with the music brought forward by a gentle
+    limiter first.
 
     The crackle is meant to be a downloaded recording: pass --crackle with
     a local file, or --crackle-url (tried in turn). If none can be had
@@ -50,7 +54,7 @@ import urllib.request
 
 import numpy as np
 from scipy import signal
-from pedalboard import Pedalboard, PeakFilter, Distortion, Gain
+from pedalboard import Pedalboard, PeakFilter, Distortion, Gain, Limiter
 
 RPM = 100.0 / 3.0  # 33 1/3
 
@@ -180,15 +184,26 @@ def pink_noise(n, rng):
     return p / np.sqrt(np.mean(p ** 2))
 
 
-def hiss(n, rng, level_db=-45.0):
+def hiss(n, rng, sr, level_db=-45.0):
     a = pink_noise(n, rng)
     b = pink_noise(n, rng)
     # Each channel's own preamp, a little shared (the power supply).
     l = 0.85 * a + 0.15 * b
     r = 0.85 * b + 0.15 * a
     bed = np.stack([l, r])
+    # Only what a speaker can play: pink noise's 1/f runs on down below
+    # hearing, where it would only eat headroom (40 Hz - 16 kHz).
+    sos = signal.butter(4, [40.0, 16000.0], btype="bandpass", fs=sr, output="sos")
+    bed = signal.sosfiltfilt(sos, bed, axis=-1)
     bed /= np.sqrt(np.mean(bed ** 2))
     return (bed * db(level_db)).astype(np.float32)
+
+
+def bring_up(x, sr, threshold_db=-5.0):
+    """The music forward: a gentle limiter on the peaks, then up to -1 dBFS,
+    so the programme sits a few dB louder against the surface noise."""
+    y = Pedalboard([Limiter(threshold_db=threshold_db, release_ms=120.0)])(x.astype(np.float32), sr)
+    return (y / (np.max(np.abs(y)) + 1e-9) * db(-1.0)).astype(np.float32)
 
 
 def fetch_crackle(urls, sr):
@@ -316,6 +331,11 @@ def main():
     ap.add_argument("--crackle", help="a local vinyl crackle recording to use")
     ap.add_argument("--crackle-url", action="append", default=None, help="a crackle recording to download (repeatable)")
     ap.add_argument("--seed", type=int, default=1974)
+    # The first run used the brief's -45 dB hiss and the crackle at full
+    # strength: in the den it swamped the music (the user: "80% hiss"). The
+    # defaults now sit well under it.
+    ap.add_argument("--hiss-db", type=float, default=-64.0, help="the preamp hiss's RMS level, dBFS (the brief's -45 was too much)")
+    ap.add_argument("--crackle-db", type=float, default=-10.0, help="the crackle bed's level, relative to its natural one")
     a = ap.parse_args()
 
     sr, title, artist = probe(a.input)
@@ -328,13 +348,15 @@ def main():
     x = stereo_field(x, sr)                   # 2. mono lows, half-width highs
     x = wow_flutter(x, sr, seed=a.seed)       # 3. belt and motor
     x = amp_saturation(x, sr)                 # 4. the amp, a little hot
+    x = bring_up(x, sr)                       #    the music forward
     n = x.shape[1]
-    x = x + hiss(n, rng)                      # 5. the preamp's hiss
+    x = x + hiss(n, rng, sr, a.hiss_db)       # 5. the preamp's hiss
     crackle, kind = crackle_bed(n, sr, rng, a.crackle, a.crackle_url or DEFAULT_CRACKLE_URLS)
-    x = x + band_pass(crackle, sr)            #    the record's surface, read by the same stylus
+    x = x + band_pass(crackle, sr) * db(a.crackle_db)  # the record's surface, read by the same stylus
 
     peak = np.max(np.abs(x))
-    x = x / peak * db(-1.0)
+    if peak > db(-0.5):
+        x = x / peak * db(-0.5)
     encode_mp3(x, sr, a.output, title, artist)
     print(f"wrote {a.output} ({kind} crackle)")
 
