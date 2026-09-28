@@ -218,13 +218,15 @@ const CSS = `
       linear-gradient(90deg, rgba(120,86,44,0.16), rgba(120,86,44,0.05) 14px, transparent 34px),
       radial-gradient(ellipse 50% 32% at 100% 0%, rgba(170,120,52,0.16), transparent 72%),
       radial-gradient(ellipse 45% 30% at 0% 100%, rgba(160,114,50,0.12), transparent 72%),
-      var(--tienda-aged, linear-gradient(transparent, transparent)),
       var(--tienda-paper, linear-gradient(transparent, transparent));
-    background-size: auto, auto, auto, 384px 384px, auto;
+    background-size: auto, auto, auto, auto;
     box-shadow: inset 0 0 0 1px rgba(128,92,44,0.18), inset 0 0 26px rgba(168,122,56,0.30), inset 0 0 80px rgba(180,138,70,0.12),
       0 1px 0 #d2c19c, 0 24px 60px rgba(10,6,3,0.55);
     text-shadow: 0 0 0.5px rgba(46,33,24,0.55);
   }
+  /* The foxing and the uneven yellowing are in the paper, so they ride
+     with it as the page scrolls (attachment: local), not on the frame. */
+  .td-form .td-form-scroll { background-image: var(--tienda-aged, none); background-size: 384px 384px; background-attachment: local; }
   .td-form .td-sec-h { background-color: #33251B; background-image: var(--tienda-ink-wear, none); background-size: 160px 160px; text-shadow: none; }
   /* The foot of the page, where the totals and buttons stay: the same
      aged stock, toned at the bottom edge, not a clean new strip. */
