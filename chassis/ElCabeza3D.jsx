@@ -1531,8 +1531,28 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (ambientRef.current && ambientRef.current.setMusicFocus) ambientRef.current.setMusicFocus(musicPanel);
     if (!musicPanel) return undefined;
     const onKey = (e) => { if (e.key === "Escape") setMusicPanel(false); };
+    // A click anywhere outside the panel puts it away (user: no close
+    // button). A tap on the room itself only does that: it's swallowed,
+    // so it doesn't also pick a piece or a square.
+    let swallow = false;
+    const onDown = (e) => {
+      const t = e.target;
+      if (t && t.closest && (t.closest('[data-testid="music-panel"]') || t.closest('[data-testid="sound-menu"]') || t.closest('[data-testid="music-chip"]'))) return;
+      setMusicPanel(false);
+      if (t && t.tagName === "CANVAS") { swallow = true; e.stopPropagation(); e.preventDefault(); }
+    };
+    const onUp = (e) => { if (swallow) { e.stopPropagation(); e.preventDefault(); } };
+    const onClick = (e) => { if (swallow) { swallow = false; e.stopPropagation(); e.preventDefault(); } };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("pointerup", onUp, true);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown, true);
+      // Let the swallowed tap's pointerup and click go by first.
+      setTimeout(() => { document.removeEventListener("pointerup", onUp, true); document.removeEventListener("click", onClick, true); }, 400);
+    };
   }, [musicPanel]);
   const musicPlaying = (medium) => { if (ambientRef.current && ambientRef.current.setMusicPlaying) ambientRef.current.setMusicPlaying(medium); };
   function playTrack(track) {
@@ -8536,7 +8556,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       {/* The stereo's music (theme.music): a small panel, kept low and to
          the side so the stereo the camera has gone over to stays in view.
          Each source lists its tracks; a track plays at a tap, Stop stops
-         it. Escape or the close button put it away (the camera comes back). */}
+         it. Escape or a click anywhere outside it put it away (the camera
+         comes back). */}
       {music && musicPanel && (
         <div
           data-testid="music-panel"
@@ -8562,15 +8583,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             fontFamily: "'IBM Plex Sans', sans-serif",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", padding: "0 10px 6px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", padding: "0 14px 6px 14px", minHeight: 30 }}>
             <span style={{ flex: 1, fontFamily: titleFontFamily, fontSize: 17, fontWeight: 600 }}>{music.title}</span>
-            <button
-              type="button"
-              data-testid="music-close"
-              aria-label="Put the music away"
-              onClick={() => setMusicPanel(false)}
-              style={{ width: 30, height: 30, border: "none", background: "transparent", color: COLORS.slate, cursor: "pointer", fontSize: 20, lineHeight: 1 }}
-            >×</button>
           </div>
           {music.sources.map((src) => {
             const tracks = music.tracks().filter((tr) => tr.medium === src.key);

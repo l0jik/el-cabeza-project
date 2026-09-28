@@ -114,7 +114,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "sound-music").click();
   await page.waitForTimeout(400);
   check("...which opens the music panel", (await q(page, "music-panel").count()) === 1);
-  check("...the record player has its record, the 8-track its eight tapes", (await q(page, "music-track-dangerous-dashing").count()) === 1 && (await q(page, "music-empty-record").count()) === 0 && (await q(page, "music-empty-8track").count()) === 0 && (await page.locator('[data-testid^="music-track-tape-"]').count()) === 8);
+  check("...the record player has its record, the 8-track says it's empty", (await q(page, "music-track-dangerous-dashing").count()) === 1 && (await q(page, "music-empty-record").count()) === 0 && (await q(page, "music-empty-8track").count()) === 1);
   check("...and the dock steps aside", (await page.locator('[data-testid="sound-menu"]').count()) === 0);
   await page.waitForTimeout(3200);
   const near = await page.evaluate(() => {
@@ -126,7 +126,7 @@ async function waitFor(fn, ms = 8000) {
   });
   const s1 = await stereo();
   check(`the camera has gone over to the console (${Math.round(near)} units from it, visit ${s1 && s1.focus.toFixed(2)})`, s1 && s1.focus > 0.9 && near < 75, JSON.stringify(s1));
-  await q(page, "music-close").click();
+  await page.mouse.click(8, 300); // outside the panel puts it away
   await waitFor(async () => { const st = await stereo(); return st && st.focus < 0.02; }, 12000);
   const s2 = await stereo();
   check("closing it brings the camera back", (await q(page, "music-panel").count()) === 0 && s2 && s2.focus < 0.02, JSON.stringify(s2));
@@ -197,7 +197,7 @@ async function waitFor(fn, ms = 8000) {
   check("...Stop is offered", (await q(page, "music-stop").count()) === 1);
   // The panel put away: a now-playing chip to pause it or turn it down.
   check("no chip while the panel is open", (await q(page, "music-chip").count()) === 0);
-  await q(page, "music-close").click();
+  await page.mouse.click(8, 300); // outside the panel puts it away
   await page.waitForTimeout(600);
   check("the panel away: the now-playing chip", await q(page, "music-chip").isVisible());
   await q(page, "music-chip-toggle").click();
@@ -244,7 +244,7 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(500);
   await q(page, "music-track-t1").click();
   await page.waitForTimeout(500);
-  await q(page, "music-close").click();
+  await page.mouse.click(8, 300); // outside the panel puts it away
   await page.waitForTimeout(800);
   const chip = q(page, "music-chip");
   const w = async () => (await chip.boundingBox()).width;
@@ -519,7 +519,7 @@ async function waitFor(fn, ms = 8000) {
   await musicRow.click();
   await page.waitForTimeout(500);
   check("...which puts the menu away and opens the music panel", (await q(page, "music-panel").count()) === 1);
-  await q(page, "music-close").click();
+  await page.mouse.click(8, 300); // outside the panel puts it away
   await page.waitForTimeout(300);
   // Into Neon the menu turns on the TV (no prompt); back, the prompt.
   const switchTheme = async (prompt) => {

@@ -4,8 +4,6 @@ import { writeFileSync, mkdirSync, copyFileSync } from "fs";
 // The den's records: the user's tracks, each through tools/console_1974_turntable.py.
 const DEN_RECORDS = {
   "el-cabeza-den-record-1.mp3": "assets/den/1974_console_master.mp3",
-  // The 8-track's tapes (tools/den_8track_tapes.py).
-  ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8].map((n) => [`el-cabeza-den-tape-${n}.mp3`, `assets/den/8track_${n}.mp3`])),
 };
 
 const targets = [
