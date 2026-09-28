@@ -3116,3 +3116,23 @@ control bar's menu.
   each lamp (heading first, then the target: the board turns with theta).
 - Test hook `__DEN_FOCUS__()` ({ on, w, lift, fogNear }). Test: e2e-den
   "Focus: just the board".
+
+### The den's mug and spoon (user: the spoon "not sitting in there"; the mug redesigned from a photo)
+- **Spoon:** it sat with its bowl inside the mug's foot and its handle
+  through the saucer's rim (the tip floating past it). Now built along its
+  own +x (a half-ellipsoid bowl, rim at y 0, bottom 0.07 below; a flat
+  tapered extruded handle with a rounded end) and placed by the saucer's
+  real top profile (`saucerTop(r)`): the bowl down on the dish at r 1.1,
+  across from the mug's handle, the heading solved so the handle crosses
+  the rim (r 1.46, top 0.34) 1.32 along, the tilt so the handle's
+  underside rests on the rim there. The weight lies between its two
+  resting points; only the end is over the rim.
+- **Mug:** a mid-seventies stacking stoneware mug after the user's
+  photograph: straight sides in a speckled oatmeal glaze (canvas speckle,
+  color 0xd2bf86), a narrower stacking foot, a band (an open cylinder just
+  proud of the wall) of interlocking three-armed Ys on a hex lattice in
+  dark brown with a rust edge (11 round, seamless), rust lines at the rim
+  and foot, and a C-shaped strap handle (an extruded annulus sector, open
+  toward the mug, its ends into the wall), turned toward the board's edge
+  as before.
+- Den draw calls are 195 of the test's < 200: little room left.

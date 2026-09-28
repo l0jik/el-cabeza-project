@@ -1349,36 +1349,117 @@ function buildCoffeeTable(TW, boardSpan) {
   // tumbler of scotch on the rocks on a cork coaster.
   const cork = lit({ color: 0x9a7048, roughness: 0.9 });
   const glassMat = (o) => { const m = new THREE.MeshStandardMaterial({ roughness: 0.06, metalness: 0, transparent: true, depthWrite: false, ...o }); disposables.push(m); return m; };
-  const stoneware = lit({ color: 0x6e3f1f, roughness: 0.32 }); // a brown drip glaze
-  const glazeLight = lit({ color: 0xd9b98a, roughness: 0.4 }); // the pale drip round the rim
+  const glazeLight = lit({ color: 0xd9b98a, roughness: 0.4 }); // the saucer's pale glaze
   const coffee = lit({ color: 0x2a1508, roughness: 0.12 });
-  const steel = lit({ color: 0xd4d2cc, roughness: 0.22, metalness: q.physical ? 0.3 : 0 });
+  const steel = lit({ color: 0xd4d2cc, roughness: 0.22, metalness: q.physical ? 0.3 : 0, side: THREE.DoubleSide });
   {
     const x = mid - 0.6, z = TW / 2 - 3.6;
-    // The saucer: a shallow dish with a well for the mug's foot.
+    // The saucer: a shallow dish with a well for the mug's foot. Its top
+    // face (saucerTop below) is what the spoon lies on.
     const sp = [[0, 0], [0.62, 0], [0.66, 0.08], [0.72, 0.05], [1.38, 0.16], [1.52, 0.3], [1.46, 0.34], [1.3, 0.24], [0.7, 0.12], [0, 0.12]].map(([r, h]) => new THREE.Vector2(r, h));
     mk(new THREE.LatheGeometry(sp, 32).translate(x, topY, z), glazeLight, true);
-    // The mug, glazed brown with a pale lip; its handle turned toward the board's edge.
-    const mp = [[0, 0.12], [0.62, 0.12], [0.7, 0.2], [0.72, 1.7], [0.76, 1.95], [0.7, 1.97], [0.66, 1.75], [0.64, 0.3], [0, 0.3]].map(([r, h]) => new THREE.Vector2(r, h));
-    mk(new THREE.LatheGeometry(mp, 32).translate(x, topY + 0.12, z), stoneware, true);
-    mk(new THREE.CylinderGeometry(0.765, 0.735, 0.22, 32, 1, true).translate(x, topY + 0.12 + 1.86, z), glazeLight);
-    const handle = new THREE.TorusGeometry(0.42, 0.1, 10, 20, Math.PI * 1.15);
-    handle.rotateZ(-Math.PI * 0.575); handle.translate(0.72, 1.12, 0); handle.rotateY(-0.9); handle.translate(x, topY + 0.12, z);
-    mk(handle, stoneware, true);
+    const saucerTop = (r) => (r <= 0.7 ? 0.12 : r <= 1.3 ? 0.12 + ((r - 0.7) / 0.6) * 0.12 : 0.24 + ((r - 1.3) / 0.16) * 0.1);
+
+    /* The mug: a stacking stoneware mug of the mid-seventies (the user's
+       photograph): straight-sided in a speckled oatmeal glaze, a narrower
+       foot to stack on, a band round its middle of interlocking
+       three-armed Ys pressed in and glazed dark brown with a rust edge, a
+       rust glaze breaking at the rim and the foot, and a C-shaped strap
+       handle. Its handle is turned toward the board's edge. */
+    const speckle = canvasTexture(512, 256, (g, W, H) => {
+      let s = 11; const R = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+      g.fillStyle = "#D9CD97"; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 1400; i++) { g.fillStyle = `rgba(${60 + R() * 40},${40 + R() * 25},${20 + R() * 15},${0.25 + R() * 0.45})`; g.fillRect(R() * W, R() * H, 1 + R() * 1.6, 1 + R() * 1.6); }
+    }, { scale: false });
+    disposables.push(speckle);
+    speckle.wrapS = THREE.RepeatWrapping;
+    const oatmeal = lit({ map: speckle, color: 0xd2bf86, roughness: 0.38 });
+    const rust = lit({ color: 0xa4582a, roughness: 0.4 });
+    // The band: Ys packed on a hex lattice, alternately up and down so
+    // their arms interlock; 11 repeats round, seamless.
+    const band = canvasTexture(1024, 256, (g, W, H) => {
+      g.fillStyle = "#D9CD97"; g.fillRect(0, 0, W, H);
+      const cw = W / 11, ch = H / 2.6, arm = cw * 0.5, lw = cw * 0.2;
+      const y = (cx, cy, up) => {
+        for (const a of up ? [-90, 30, 150] : [90, -30, -150]) {
+          const r = (a * Math.PI) / 180;
+          g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(r) * arm, cy + Math.sin(r) * arm); g.stroke();
+        }
+      };
+      const pass = (style, width, dx, dy) => {
+        g.strokeStyle = style; g.lineWidth = width; g.lineCap = "butt"; g.lineJoin = "miter";
+        for (let row = -1; row < 5; row++) for (let col = -1; col <= 11; col++) {
+          const up = (row + col) % 2 === 0;
+          const cx = col * cw + (row % 2 ? cw / 2 : 0) + dx, cy = row * ch + ch * 0.35 + dy;
+          y(cx, cy, up);
+        }
+      };
+      pass("rgba(164,88,42,0.9)", lw * 1.55, 0, 0); // the rust where the glaze breaks at the edges
+      pass("#3B2A1C", lw, 0, 0); // the pressed-in arms, dark brown
+      pass("rgba(255,244,210,0.18)", lw * 0.35, -lw * 0.25, -lw * 0.25); // a glint on the ridge
+    }, { scale: false });
+    disposables.push(band);
+    band.wrapS = THREE.RepeatWrapping;
+    const bandMat = lit({ map: band, color: 0xd2bf86, roughness: 0.42 });
+    const y0 = topY + 0.12; // the saucer's well
+    // The body: the stacking foot (narrower), the step out, straight
+    // sides to a rolled rim, and the inside.
+    const mp = [[0, 0], [0.58, 0], [0.61, 0.04], [0.61, 0.3], [0.7, 0.36], [0.72, 0.42], [0.72, 1.9], [0.7, 1.96], [0.66, 1.94], [0.64, 1.7], [0.64, 0.46], [0, 0.46]].map(([r, h]) => new THREE.Vector2(r, h));
+    mk(new THREE.LatheGeometry(mp, 36).translate(x, y0, z), oatmeal, true);
+    // The band of Ys, standing just proud of the wall; a rust line at the
+    // rim and at the foot.
+    mk(new THREE.CylinderGeometry(0.735, 0.735, 1.0, 36, 1, true).translate(x, y0 + 1.08, z), bandMat);
+    mk(new THREE.CylinderGeometry(0.724, 0.724, 0.06, 36, 1, true).translate(x, y0 + 1.87, z), rust);
+    mk(new THREE.CylinderGeometry(0.614, 0.614, 0.05, 36, 1, true).translate(x, y0 + 0.06, z), rust);
+    // The handle: a flat strap bent into a C, its ends into the wall.
+    const cShape = new THREE.Shape();
+    const ro = 0.5, ri = 0.33, a0 = -1.95, a1 = 1.95;
+    cShape.absarc(0, 0, ro, a0, a1, false);
+    cShape.absarc(0, 0, ri, a1, a0, true);
+    const cGeo = new THREE.ExtrudeGeometry(cShape, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.025, bevelSegments: 2, curveSegments: 18 });
+    // Drawn upright in x-y, open toward -x (the mug), the strap's width
+    // along z: centred on that width, then set against the wall.
+    cGeo.translate(0, 0, -0.08);
+    cGeo.translate(0.72 + 0.12, 1.1, 0);
+    cGeo.rotateY(-0.9);
+    cGeo.translate(x, y0, z);
+    mk(cGeo, oatmeal, true);
     // The coffee, a little below the lip.
-    mk(new THREE.CircleGeometry(0.63, 28).rotateX(-Math.PI / 2).translate(x, topY + 0.12 + 1.62, z), coffee);
-    // The teaspoon on the saucer's rim: its bowl in the dish, its handle
-    // resting over the edge.
+    mk(new THREE.CircleGeometry(0.64, 32).rotateX(-Math.PI / 2).translate(x, y0 + 1.68, z), coffee);
+
+    /* The teaspoon, lying in the saucer beside the mug: its bowl down on
+       the dish's slope, its handle across to the rim and resting on it,
+       the end just over; the weight inside its two resting points, so it
+       lies as a spoon would (it used to sit with its bowl inside the
+       mug's foot and its handle through the rim). Built along its own +x:
+       the bowl's rim at y = 0 (its bottom 0.07 below), the handle a flat
+       tapered strip from the bowl to a rounded end. */
     const spoon = new THREE.Group();
-    const bowlGeo = new THREE.SphereGeometry(0.22, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).scale(1, 0.35, 1.45);
-    const bowlM = new THREE.Mesh(bowlGeo, steel); bowlM.position.set(0, 0.08, 0); spoon.add(bowlM);
-    const handleGeo = new THREE.BoxGeometry(0.1, 0.04, 1.35).translate(0, 0.1, 0.95);
-    const handleM = new THREE.Mesh(handleGeo, steel); handleM.rotation.x = -0.1; spoon.add(handleM);
-    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.04, 12).translate(0, 0.1, 0), steel); tip.position.set(0, 0.135, 1.62); spoon.add(tip);
-    disposables.push(bowlGeo, handleGeo, tip.geometry);
+    const bowlGeo = new THREE.SphereGeometry(0.2, 18, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).scale(1.55, 0.35, 1);
+    spoon.add(new THREE.Mesh(bowlGeo, steel));
+    const hs = new THREE.Shape();
+    hs.moveTo(0.26, -0.035); hs.lineTo(0.62, -0.03); hs.quadraticCurveTo(1.2, -0.05, 1.5, -0.075);
+    hs.absarc(1.5, 0, 0.075, -Math.PI / 2, Math.PI / 2, false);
+    hs.quadraticCurveTo(1.2, 0.05, 0.62, 0.03); hs.lineTo(0.26, 0.035); hs.closePath();
+    const handleGeo = new THREE.ExtrudeGeometry(hs, { depth: 0.028, bevelEnabled: false, curveSegments: 10 });
+    handleGeo.rotateX(Math.PI / 2); handleGeo.translate(0, 0.014, 0); // flat, its middle at the bowl's rim
+    spoon.add(new THREE.Mesh(handleGeo, steel));
+    disposables.push(bowlGeo, handleGeo);
     spoon.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-    spoon.position.set(x + 0.7, topY + 0.17, z + 0.25);
-    spoon.rotation.set(-0.08, 0.5, 0.03);
+    // Where it lies: the bowl's centre rb out from the mug's axis, at an
+    // angle round from the handle; the spoon crosses the rim (r 1.46) at
+    // its handle, sc along. From that, its heading and its slight tilt.
+    // (The mug's handle points at angle 0.9 in x-z; the spoon's bowl sits
+    // across from it.)
+    const rb = 1.1, sc = 1.32, rimR = 1.46, rimTop = 0.34, ab = 0.9 + Math.PI + 0.35;
+    const cb = new THREE.Vector2(Math.cos(ab), Math.sin(ab)).multiplyScalar(rb); // (x, z)
+    const cosB = (rimR * rimR - rb * rb - sc * sc) / (2 * sc * rb);
+    const beta = Math.acos(Math.max(-1, Math.min(1, cosB)));
+    const dir = new THREE.Vector2(Math.cos(ab + beta), Math.sin(ab + beta)); // (x, z)
+    const hB = saucerTop(rb); // the dish under the bowl
+    const tilt = Math.atan((rimTop - (hB + 0.07 - 0.014)) / sc); // the handle's underside on the rim
+    spoon.position.set(x + cb.x, topY + hB + 0.07, z + cb.y);
+    spoon.rotation.set(0, Math.atan2(-dir.y, dir.x), tilt);
     group.add(spoon);
   }
   {
