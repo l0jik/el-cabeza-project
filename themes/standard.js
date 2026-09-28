@@ -83,6 +83,9 @@ export const outlineYOffset = OUTLINE_Y_OFFSET;
 // sliding in along its line of sight rather than going through.
 export const freeCamera = {
   zoomMin: 4.5, zoomMax: 140, reach: 70, yMin: -8, yMax: 30,
+  // The Room view (a button, and the phone's menu): up above the den,
+  // the roof off, the whole room below (chassis roomView).
+  dollhouse: { radius: 150, phi: 0.68 },
   // Clear of what stands against the walls (the shelves, the console,
   // the fireplace) and under the ceiling's beams (3 deep).
   room: { x: [-ROOM_RX + 9, ROOM_RX - 9], y: [ROOM_PIT_FLOOR + 1.5, ROOM_CEIL - 4.2], z: [-ROOM_RZ + 9, ROOM_RZ - 9] },
@@ -242,12 +245,13 @@ export const styleSheet = `
     box-shadow: 0 14px 34px rgba(12,6,2,0.55) !important;
   }
   /* Over the room: a scrap of card behind anything that floats on it. */
-  [data-testid="how-to-play"], button[aria-label$="full screen"] {
+  [data-testid="how-to-play"], button[aria-label$="full screen"], [data-testid="room-view-corner"] {
     background: rgba(243,231,205,0.92) !important; color: ${DEN.chocolate} !important;
     border-radius: 999px !important; box-shadow: 0 2px 8px rgba(12,6,2,0.4);
   }
   [data-testid="how-to-play"] { padding: 0 12px 0 8px !important; height: 30px !important; bottom: 22px !important; }
   button[aria-label$="full screen"] { width: 30px !important; height: 30px !important; bottom: 22px !important; }
+  [data-testid="room-view-corner"] { width: 30px !important; height: 30px !important; bottom: 60px !important; left: 18px !important; opacity: 0.85 !important; }
   [data-testid="points-counter"] {
     color: ${DEN.chocolate} !important;
     background: rgba(243,231,205,0.92); padding: 5px 12px 5px 13px; border-radius: 999px;

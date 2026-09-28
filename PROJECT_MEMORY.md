@@ -2518,6 +2518,39 @@ phone and a laptop but shrank it on squarer windows (1100x900: 547 px
 against 649) and broke the Singularity test's bare-sphere tap, so it's
 the fitted view's size instead.
 
+### The Room view, and the camera left where you put it (Sep 28)
+The user: "I do want a dollhouse view... something that can just go to
+maximum zoom out... something keeps causing it to zoom back in", and
+asked for ideas.
+- **The Room view** (a theme with `freeCamera.dollhouse: { radius, phi
+  }`: the den 150 / 0.68, the store 82 / 0.6): up above the room at a
+  slant, the heading as it is, the target back at the middle; the den's
+  ceiling (and a wall the camera's past) steps aside as ever, so it's
+  the room with the roof off. `cam.current.dollhouse` sets the room box
+  aside until the camera, both where it's going and where it is, is back
+  inside it (applyCamera), so pinching or scrolling back in glides down
+  into the room without a jump (measured: the height falling 108, 99,
+  90 ... 40 in steady steps). Buttons: a little house above the
+  full-screen button (`room-view-corner`, any time, setup included; a
+  card-coloured disc like the others in the den and the store), "Room
+  View" beside Top-Down View in the dock during a game (`room-view`),
+  and "Room view" in the phone's menu (`shell-menu-room`).
+- **Zooming back in by itself**: before Begin Game the setup framing
+  refits the camera on every window resize, and on a phone the browser's
+  bars sliding in and out as you drag fire resizes. It now leaves a
+  camera the player has moved (zoomed, panned, turned, or in the Room
+  view) where they put it (`fitted` / `moved()` in the framing effect).
+
+### The snack bowl (user screenshot, Sep 28)
+"Snacks protruding from the exterior of the bowl": the pieces were
+strewn out to 1.75 from the middle, but the teak bowl narrows toward its
+foot (1.1 at the bottom, 1.8 at 0.45 up, 2.1 at the rim), so a piece near
+the edge sitting low went through the wall. Each piece now has a `reach`
+(how far it sticks out, turned any way) and is pulled in until it clears
+the wall at the height of its own lowest point (`wallR`, from the lathe
+profile, 0.06 inside); the heap rises toward the middle, so moving in only
+lifts it.
+
 ### A two-finger pan is never a swipe (user video, Sep 28)
 Panning with two fingers toward the den's fireplace, the view snapped to
 Top-Down View: a quick two-finger pan down the screen met every test of

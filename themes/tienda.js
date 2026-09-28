@@ -112,7 +112,7 @@ export const outlineYOffset = OUTLINE_Y_OFFSET;
 // enough to go round the advertisement's stand and see it from behind),
 // and the camera may wander off the board into the aisles (chassis:
 // theme.freeCamera).
-export const freeCamera = { zoomMin: 4.5, zoomMax: 82, reach: 60, yMin: -14, yMax: 30 };
+export const freeCamera = { zoomMin: 4.5, zoomMax: 82, reach: 60, yMin: -14, yMax: 30, dollhouse: { radius: 82, phi: 0.6 } };
 
 export const modalBackdrop = "rgba(26, 18, 11, 0.55)";
 export const modalSurface = "rgba(236, 225, 198, 0.98)";
@@ -323,12 +323,13 @@ export const styleSheet = `
   [data-testid="points-counter"] [data-filled="false"] { background: transparent !important; opacity: 0.45 !important; }
   /* The corner controls sit over wood, floor or the dark under the
      table, so they're printed on a scrap of card to read on any of it. */
-  [data-testid="how-to-play"], button[aria-label$="full screen"] {
+  [data-testid="how-to-play"], button[aria-label$="full screen"], [data-testid="room-view-corner"] {
     background: rgba(236,225,198,0.9) !important; color: ${PERIOD.ink} !important;
     border-radius: 2px !important; box-shadow: 0 2px 6px rgba(20,12,6,0.3);
   }
   [data-testid="how-to-play"] { padding: 0 10px 0 7px !important; height: 30px !important; bottom: 22px !important; }
   button[aria-label$="full screen"] { width: 30px !important; height: 30px !important; bottom: 22px !important; }
+  [data-testid="room-view-corner"] { width: 30px !important; height: 30px !important; bottom: 60px !important; left: 18px !important; opacity: 0.85 !important; }
   /* Rules: a newspaper circular of 1975, the store's own insert from the
      Sunday paper, folded in three to go in the box and handled since.
      Groundwood newsprint gone yellow, browner and brittle at the edges;

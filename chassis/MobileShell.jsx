@@ -695,10 +695,11 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
             {ctl.canResetRules && <Row label="Reset to the standard rules" testid="shell-menu-reset-rules" onClick={run(ctl.onResetRules)} t={t} />}
           </Section>
 
-          {(inGame || ctl.canFullscreen) && (
+          {(inGame || ctl.canFullscreen || ctl.onRoomView) && (
             <Section label="View" t={t}>
               {inGame && <Row label="Top-down view" testid="shell-menu-top" check={ctl.viewMode === "top"} onClick={run(ctl.onTopDown)} t={t} />}
               {inGame && <Row label="Player view" testid="shell-menu-player" check={ctl.viewMode === "player"} onClick={run(ctl.onPlayerView)} t={t} />}
+              {ctl.onRoomView && <Row label="Room view" detail="The whole room, the roof off" testid="shell-menu-room" check={ctl.viewMode === "room"} onClick={run(ctl.onRoomView)} t={t} />}
               {ctl.canFullscreen && <Toggle label="Full screen" testid="shell-menu-fullscreen" on={ctl.isFullscreen} onChange={ctl.onToggleFullscreen} t={t} />}
             </Section>
           )}

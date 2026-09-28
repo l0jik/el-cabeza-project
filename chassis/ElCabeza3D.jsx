@@ -1530,7 +1530,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // And how far out: a room may let the camera further back than the
   // board alone would (the store's zoomMax). Read at use, since the
   // board's own limit changes with its size.
-  const zoomMaxFor = () => Math.max(ZOOM_MAX_FOR_BOARD, (theme.freeCamera && theme.freeCamera.zoomMax) || 0);
+  const zoomMaxFor = () => Math.max(ZOOM_MAX_FOR_BOARD, (theme.freeCamera && theme.freeCamera.zoomMax) || 0, (cam.current.dollhouse && theme.freeCamera && theme.freeCamera.dollhouse && theme.freeCamera.dollhouse.radius) || 0);
   /* A room with walls and a ceiling (theme.freeCamera.room, a box in the
      board's frame): the camera stops at them instead of going through,
      sliding in along its line of sight to the target, and comes back out
@@ -1727,7 +1727,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // each side, matching the reference) as a second, independent
     // constraint on top of the gap fit.
     const MAX_BOARD_WIDTH_FRACTION = shell ? 0.9 : 0.84;
+    // What this effect last set the camera to: once the player has moved
+    // it (zoomed, panned, turned), a resize (on a phone, the browser's
+    // bars sliding in and out as you drag) leaves it where they put it
+    // instead of pulling it back to the fitted view.
+    let fitted = null;
+    const moved = () => {
+      if (!fitted) return false;
+      const c = cam.current;
+      return Math.abs(c.radius - fitted.radius) > 1e-6 || Math.abs(c.phi - fitted.phi) > 1e-6 || Math.abs(c.theta - fitted.theta) > 1e-6
+        || Math.abs(c.target.x - fitted.x) > 1e-6 || Math.abs(c.target.z - fitted.z) > 1e-6 || Math.abs(c.target.y - fitted.y) > 1e-6 || !!c.dollhouse;
+    };
     function recompute() {
+      if (moved()) return;
       const titleEl = titleRef.current;
       const dockEl = shell ? shellBarRef.current : dockPieceMountRef.current;
       const measure = three.current.measureBoardPx;
@@ -1829,6 +1841,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           }
         }
       }
+      const c = cam.current;
+      fitted = { radius: c.radius, phi: c.phi, theta: c.theta, x: c.target.x, y: c.target.y, z: c.target.z };
     }
     recompute();
     const settleTimer = setTimeout(recompute, 950);
@@ -2860,8 +2874,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           if (u[i] > 1e-9) exit = Math.min(exit, (hi - a[i]) / u[i]);
           else if (u[i] < -1e-9) exit = Math.min(exit, (lo - a[i]) / u[i]);
         }
-        roomLimitRef.current = exit;
-        r = Math.max(0.5, Math.min(radius, exit));
+        if (cam.current.dollhouse) {
+          // The Room view: above the room, the roof off, the box set aside
+          // until the camera (where it's going and where it is) is back
+          // inside it, so coming back down never jumps.
+          if (cam.current.radius <= exit && radius <= exit) cam.current.dollhouse = false;
+          roomLimitRef.current = Infinity;
+        } else {
+          roomLimitRef.current = exit;
+          r = Math.max(0.5, Math.min(radius, exit));
+        }
       } else roomLimitRef.current = Infinity;
       camera.position.set(target.x, target.y + r * Math.cos(phi), target.z + r * Math.sin(phi));
       camera.lookAt(target);
@@ -5797,6 +5819,22 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     snapToCenter();
   }
 
+  /* The Room view (a theme with freeCamera.dollhouse: the den, the store):
+     the user wanted "a dollhouse view... something that can just go to
+     maximum zoom out". Up above the room at a slant, the ceiling and the
+     near walls stepping aside, the whole room laid out; the heading as it
+     is. Pinch, pan and turn from there as ever; zooming back in comes down
+     into the room (applyCamera). */
+  function roomView() {
+    const d = theme.freeCamera && theme.freeCamera.dollhouse;
+    if (!d) return;
+    cam.current.dollhouse = true;
+    cam.current.phi = d.phi;
+    cam.current.radius = d.radius;
+    setViewMode("room");
+    snapToCenter();
+  }
+
   function topDownView(facePlayer = currentPlayer) {
     /* Same heading rule as Current Player View: snap to whichever of the
        two canonical facings — Dark-top/Light-bottom (0) or
@@ -5846,6 +5884,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     else {
       captureViewBaselines();
       if (viewMode === "top") topDownView();
+      else if (viewMode === "room") roomView();
       else recenterView();
     }
   };
@@ -7094,6 +7133,33 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         </button>
       )}
 
+      {/* The Room view (a theme with freeCamera.dollhouse): a little house
+         above the full-screen button, any time, setup included: up over
+         the room, the roof off, the whole of it below. */}
+      {!shell && theme.freeCamera && theme.freeCamera.dollhouse && (
+        <button
+          type="button"
+          data-testid="room-view-corner"
+          onClick={roomView}
+          aria-label="Room view"
+          title="Room view: the whole room, the roof off"
+          style={{
+            position: "fixed", left: 18, bottom: 60, zIndex: cornerControlsZ, width: 38, height: 38,
+            display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
+            color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : viewMode === "room" ? 0.85 : 0.5,
+            pointerEvents: cornerControlsCovered ? "none" : "auto", cursor: "pointer", transition: "opacity 0.5s ease",
+          }}
+          onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : viewMode === "room" ? 0.85 : 0.5; }}
+        >
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 10.5 12 4l9 6.5" strokeDasharray="2.2 2.2" />
+            <path d="M5 10v9.5h14V10" />
+            <path d="M9.5 19.5v-5h5v5" />
+          </svg>
+        </button>
+      )}
+
       {/* How to play: always on screen, beside the full-screen button,
          so the rules are never more than one tap away. Opens the rules
          at the Quick card. */}
@@ -7502,6 +7568,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                   Top-Down View
                 </button>
               </>
+            )}
+            {/* The whole room, the roof off: any time, setup included. */}
+            {theme.freeCamera && theme.freeCamera.dollhouse && (
+              <button className="ec-btn" data-testid="room-view" onClick={roomView} style={ghostButtonStyle()}>
+                Room View
+              </button>
             )}
             {/* New Game now carries the previous game's Singularity rules
                forward (see resetGame). This clears them back to a plain
@@ -8330,6 +8402,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             viewMode,
             onTopDown: () => topDownView(),
             onPlayerView: recenterView,
+            onRoomView: theme.freeCamera && theme.freeCamera.dollhouse ? roomView : null,
             // Menu
             playersLine: ["dark", "light"]
               .map((side) => `${side === "dark" ? "Dark" : "Light"}: ${aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : "Human"}`)

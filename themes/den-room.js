@@ -1327,22 +1327,48 @@ function buildCoffeeTable(TW, boardSpan) {
     const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
     // A mound: the heap's height at a distance r from the middle.
     const heapY = (r) => topY + 0.3 + 0.95 * Math.sqrt(Math.max(0, 1 - (r / 1.85) * (r / 1.85)));
+    // `reach`: how far a piece sticks out from its middle, turned any way.
     const kinds = [
-      { n: 70, geo: new THREE.SphereGeometry(0.16, 8, 6).scale(1.55, 0.95, 1), mat: lit({ color: 0xc89a5c, roughness: 0.55 }), vary: 0.12 },
-      { n: 16, geo: new THREE.TorusKnotGeometry(0.16, 0.045, 32, 5, 2, 3).scale(1.5, 1, 0.55), mat: lit({ color: 0x7a3e14, roughness: 0.4 }), vary: 0.08 },
-      { n: 30, geo: new THREE.BoxGeometry(0.34, 0.1, 0.34), mat: lit({ color: 0xc9a060, roughness: 0.7 }), vary: 0.15 },
-      { n: 10, geo: new THREE.CylinderGeometry(0.26, 0.26, 0.06, 12), mat: lit({ color: 0x8f5a2c, roughness: 0.65 }), vary: 0.1 },
+      { n: 70, geo: new THREE.SphereGeometry(0.16, 8, 6).scale(1.55, 0.95, 1), mat: lit({ color: 0xc89a5c, roughness: 0.55 }), vary: 0.12, reach: 0.25 },
+      { n: 16, geo: new THREE.TorusKnotGeometry(0.16, 0.045, 32, 5, 2, 3).scale(1.5, 1, 0.55), mat: lit({ color: 0x7a3e14, roughness: 0.4 }), vary: 0.08, reach: 0.32 },
+      { n: 30, geo: new THREE.BoxGeometry(0.34, 0.1, 0.34), mat: lit({ color: 0xc9a060, roughness: 0.7 }), vary: 0.15, reach: 0.25 },
+      { n: 10, geo: new THREE.CylinderGeometry(0.26, 0.26, 0.06, 12), mat: lit({ color: 0x8f5a2c, roughness: 0.65 }), vary: 0.1, reach: 0.26 },
     ];
+    // The bowl's inside at a height h above its foot (its lathe profile):
+    // it narrows toward the foot, so a piece near the edge sitting low
+    // went through the wall (the user: "snacks protruding from the
+    // exterior of the bowl"). Each piece stays inside the wall at the
+    // height of its own lowest point.
+    const wallR = (h) => {
+      if (h <= bowlPts[0].y) return 0;
+      for (let k = 1; k < bowlPts.length; k++) {
+        const a = bowlPts[k - 1], b = bowlPts[k];
+        if (h <= b.y) return a.x + ((b.x - a.x) * (h - a.y)) / Math.max(1e-6, b.y - a.y);
+      }
+      return bowlPts[bowlPts.length - 1].x;
+    };
     const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), e = new THREE.Euler(), pos = new THREE.Vector3(), sc = new THREE.Vector3(), col = new THREE.Color();
-    kinds.forEach(({ n, geo, mat, vary }) => {
+    kinds.forEach(({ n, geo, mat, vary, reach }) => {
       disposables.push(geo);
       const inst = new THREE.InstancedMesh(geo, mat, n);
       for (let i = 0; i < n; i++) {
-        const a = rnd() * Math.PI * 2, r = Math.sqrt(rnd()) * 1.75;
+        const a = rnd() * Math.PI * 2;
+        let r = Math.sqrt(rnd()) * 1.75;
+        const sink = rnd() * 0.25;
+        const s = 0.85 + rnd() * 0.3;
+        const ext = reach * s;
+        // Pulled in until it clears the wall at its lowest point (the heap
+        // rises toward the middle, so moving in only lifts it).
+        for (let k = 0; k < 6; k++) {
+          const low = heapY(r) - sink - topY - ext;
+          const room = wallR(Math.max(0, low)) - 0.06 - ext;
+          if (r <= room) break;
+          r = Math.max(0, Math.min(r - 0.05, room));
+        }
         const x = bx + Math.cos(a) * r, z = bz + Math.sin(a) * r;
-        pos.set(x, heapY(r) - rnd() * 0.25, z);
+        pos.set(x, heapY(r) - sink, z);
         e.set(rnd() * 6.28, rnd() * 6.28, rnd() * 6.28); qt.setFromEuler(e);
-        const s = 0.85 + rnd() * 0.3; sc.set(s, s, s);
+        sc.set(s, s, s);
         m4.compose(pos, qt, sc); inst.setMatrixAt(i, m4);
         const v = 1 - vary / 2 + rnd() * vary; col.setRGB(v, v, v); inst.setColorAt(i, col);
       }

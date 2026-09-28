@@ -153,7 +153,9 @@ export const outlineYOffset = 0; // or OUTLINE_Y_OFFSET (OUTLINE_T + SHELL_LIFT)
 // middle instead of the board-visibility clamp (PROJECT_MEMORY §5),
 // optionally a zoomMax further out than the board's own limit, and a
 // `room` box ({ x: [lo, hi], y: [lo, hi], z: [lo, hi] }, board frame) the
-// camera stops at, sliding in along its line of sight (the den).
+// camera stops at, sliding in along its line of sight (the den), and
+// `dollhouse` ({ radius, phi }): the Room view, up over the room with the
+// roof off (a corner button, the dock, the phone's menu).
 // Absent, the clamp applies (every other theme).
 export const freeCamera = { zoomMin: 4.5, reach: 70, yMin: -8, yMax: 30 }; // or undefined
 
