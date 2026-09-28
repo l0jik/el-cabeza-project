@@ -3280,3 +3280,9 @@ card centred on the chassis's 38 px spot). cornerControlsRight follows
   panel would cover it. den-audio roomLevel only ducks for music that's
   actually playing. Tests: e2e-den stereo block (pause/platter/slider/
   title), focus block (dim, masthead, grey house).
+- **The chip folds on a phone (user):** `musicChipCompact` (cornerStack or
+  the phone shell). While the record plays it's one 30 px round pause
+  button at the top of the corner column (`data-folded`); a tap pauses and
+  it opens out (width transition) to play, the title and the volume
+  slider; play resumes and it folds back. Desktop keeps the full bar.
+  Test: e2e-den "On a phone the now-playing chip folds down".

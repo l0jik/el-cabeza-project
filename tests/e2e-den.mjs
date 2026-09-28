@@ -228,6 +228,45 @@ async function waitFor(fn, ms = 8000) {
 }
 
 {
+  console.log("On a phone the now-playing chip folds down to a pause button");
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.addInitScript((tracks) => { window.__EC_TEST_HOOKS__ = true; window.__DEN_TEST_TRACKS__ = tracks; }, TRACKS);
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-standard.html");
+  await waitFor(() => page.evaluate(() => !!window.__DEN_ROOM__ && !!window.__DEN_THREE__));
+  await openDockPanel(page);
+  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.waitForTimeout(1500);
+  await openDockPanel(page);
+  await q(page, "sound-button").click();
+  await q(page, "sound-music").click();
+  await page.waitForTimeout(500);
+  await q(page, "music-track-t1").click();
+  await page.waitForTimeout(500);
+  await q(page, "music-close").click();
+  await page.waitForTimeout(800);
+  const chip = q(page, "music-chip");
+  const w = async () => (await chip.boundingBox()).width;
+  const pausedNow = async () => (await page.evaluate(() => window.__DEN_AUDIO__())).music.paused;
+  check("playing: just a round pause button", (await chip.getAttribute("data-folded")) === "true" && (await w()) < 36 && (await q(page, "music-chip-volume").count()) === 0, String(await w()));
+  const col = await q(page, "focus-corner").boundingBox(), cb = await chip.boundingBox();
+  check("...at the top of the corner column", Math.abs(cb.x - col.x) < 3 && cb.y < col.y, JSON.stringify({ cb, col }));
+  await q(page, "music-chip-toggle").click();
+  await page.waitForTimeout(600);
+  check("a tap pauses it and it opens out: what's playing, the volume", (await pausedNow()) && (await w()) > 150 && (await q(page, "music-chip-title").textContent()) === "Test tone" && (await q(page, "music-chip-volume").isVisible()));
+  await q(page, "music-chip-volume").fill("40");
+  await page.waitForTimeout(300);
+  const g = (await page.evaluate(() => window.__DEN_AUDIO__())).gates.stereo;
+  check("...the volume turns", Math.abs(g - 0.16) < 0.03, String(g));
+  await q(page, "music-chip-toggle").click();
+  await page.waitForTimeout(600);
+  check("play: it plays on and folds back down", !(await pausedNow()) && (await chip.getAttribute("data-folded")) === "true" && (await w()) < 36);
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await page.close();
+}
+
+{
   console.log("The den's own record: Dangerous Dashing, off the turntable");
   const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
   const errs = [];

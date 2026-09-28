@@ -2358,7 +2358,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // The now-playing chip (theme.music): just above the corner controls,
   // stacked or in a row; on the phone shell, just above its bar.
   const MUSIC_CHIP_W = 214;
-  const musicChipBottom = 18 + 38 * (cornerStack ? Math.max(1, cornerSlots.length) : 1) + 6;
+  // On a phone it's a single round pause button at the top of the corner
+  // column (user): a tap pauses and it opens out (what's playing, the
+  // volume, play); play and it folds back down.
+  const musicChipCompact = cornerStack || shell;
+  const musicChipBottom = 18 + 38 * (cornerStack ? Math.max(1, cornerSlots.length) : 1) + (cornerStack ? 4 : 6);
   const musicChipCovered = dockView === "panel" && (viewportW - dockPanelW) / 2 < 18 + MUSIC_CHIP_W;
   /* Distinct from declutter above: declutter is specifically about
      hiding the Opponent row and Record section, true only during
@@ -7334,10 +7338,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const ch = music.channel;
         const vol = ch ? levelOf(ch) : 1;
         const hidden = !shell && musicChipCovered;
+        const folded = musicChipCompact && !musicPaused;
         return (
           <div
             data-testid="music-chip"
             data-paused={musicPaused ? "true" : "false"}
+            data-folded={folded ? "true" : "false"}
             data-dim={focusMode ? "true" : "false"}
             role="group"
             aria-label="Now playing"
@@ -7345,13 +7351,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               position: "fixed",
               zIndex: cornerControlsZ,
               ...(shell ? { left: 12, bottom: "calc(var(--ec-shell-bottom, 72px) + 8px)" } : { left: 18, bottom: musicChipBottom }),
-              width: MUSIC_CHIP_W, boxSizing: "border-box", height: 32,
-              display: "flex", alignItems: "center", gap: 6, padding: "0 10px 0 3px",
+              width: folded ? 30 : musicChipCompact ? Math.min(MUSIC_CHIP_W, viewportW - 36) : MUSIC_CHIP_W,
+              boxSizing: "border-box", height: musicChipCompact ? 30 : 32, overflow: "hidden",
+              display: "flex", alignItems: "center", gap: 6, padding: folded ? "0 1px" : "0 10px 0 2px",
               background: modalSurface, border: `1px solid ${COLORS.slateSoft}`, borderRadius: 999,
               boxShadow: "0 2px 8px rgba(0,0,0,0.25)", color: COLORS.charcoal,
               fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12,
               opacity: hidden ? 0 : focusMode ? 0.4 : 0.92,
-              pointerEvents: hidden ? "none" : "auto", transition: "opacity 0.5s ease",
+              pointerEvents: hidden ? "none" : "auto", transition: "opacity 0.5s ease, width 0.28s ease",
             }}
           >
             <button
@@ -7366,13 +7373,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 {musicPaused ? <path d="M7 4.5v15l12.5-7.5z" /> : <path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z" />}
               </svg>
             </button>
+            {!folded && (
             <button
               type="button"
               data-testid="music-chip-title"
               title="The stereo"
               onClick={() => setMusicPanel(true)}
-              style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", color: "inherit", cursor: "pointer", font: "inherit", padding: 0, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: musicPaused ? 0.6 : 1 }}
+              style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", color: "inherit", cursor: "pointer", font: "inherit", padding: 0, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: musicPaused && !musicChipCompact ? 0.6 : 1 }}
             >{tr ? tr.title : "Music"}</button>
+            )}
+            {!folded && (
             <input
               type="range"
               data-testid="music-chip-volume"
@@ -7383,6 +7393,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               onChange={(e) => { if (ch) setChannelLevel(ch, Number(e.target.value) / 100); }}
               style={{ flex: "none", width: 64, margin: 0, accentColor: COLORS.charcoal, cursor: "pointer" }}
             />
+            )}
           </div>
         );
       })()}
