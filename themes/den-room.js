@@ -253,6 +253,8 @@ export function buildDen(boardSpan) {
     ceramicOrange: baked(null, { color: 0xc0632c }),
     ceramicGreen: baked(null, { color: 0x6b7536 }),
     leaf: baked(null, { color: 0x3e5a2a, side: THREE.DoubleSide }),
+    rubberLeaf: baked(null, { color: 0x3c6a2e, side: THREE.DoubleSide }),
+    sheath: baked(null, { color: 0xa2473c }),
     pot: baked(null, { color: 0xb45a2a }),
     sleeves: baked(T.sleeves),
     pillowA: baked(T.pillowA),
@@ -530,9 +532,8 @@ export function buildDen(boardSpan) {
   const arcBulb = new THREE.Mesh(new THREE.CircleGeometry(3.6, 18), M.bulb);
   arcBulb.position.set(66, yF + 30.45, -31); arcBulb.rotation.x = Math.PI / 2;
   B.mesh(arcBulb);
-  // A rubber plant by the glass.
-  B.add(M.pot, cyl(4, 3, 7, RX - 10, yF + 3.5, 38, 16));
-  leafCluster(B, "core", M.leaf, RX - 10, yF + 13, 38, 9, 14, 3);
+  // A rubber plant by the glass (rubberPlant below).
+  rubberPlant(B, M, RX - 10, yF, 38);
 
   /* ---- the ceiling, its beams, the swag lamps ---- */
   const ceil = (geo, mat, tile, opts = {}) => B.add(mat, geo, { group: "ceiling", tile, ...opts });
@@ -683,9 +684,9 @@ export function buildDen(boardSpan) {
    under a smoked acrylic lid that lifts when you come over; in its face,
    the receiver's amber dial and the 8-track deck's slot with its four
    program lights. Either side, a walnut cabinet speaker with a woven
-   grille: on the left (as the player sees it) a studio-pottery bottle
-   vase, on the right a heartleaf philodendron, its vines trailing down
-   over the cloth. On top,
+   grille: on the left (as the player sees it, by the arc lamp) a heartleaf
+   philodendron, its vines trailing down over the cloth, on the right a
+   studio-pottery bottle vase. On top,
    a heavy amber-glass ashtray
    and the sleeve of the record on the turntable.
 
@@ -834,7 +835,7 @@ function buildConsole(yF, RZ) {
   lid.renderOrder = 2;
   lid.userData.music = "record";
 
-  /* ---- the speakers: pottery on the left, a plant on the right ---- */
+  /* ---- the speakers: a plant on the left, pottery on the right ---- */
   const cloth = TX.grilleCloth(); cloth.wrapS = cloth.wrapT = THREE.RepeatWrapping; cloth.repeat.set(2, 4); disposables.push(cloth);
   const clothMat = lit({ map: cloth, color: 0xe8d8c0, roughness: 0.95 });
   const leafGeo = heartLeaf();
@@ -842,8 +843,10 @@ function buildConsole(yF, RZ) {
   const plants = [];
   // As the player sees the console (from the pit, facing the south wall),
   // den x runs right to left: x 46 is the left-hand speaker, x -10 the
-  // right. The user asked for the pottery on the left, the plant on the right.
-  [[46, "pottery"], [-10, "philodendron"]].forEach(([sx, kind], si) => {
+  // right. The user first asked for the pottery on the left, then to swap
+  // them: the arc lamp and the vase side by side threw the room's balance
+  // off, so the plant is on the left (by the lamp) and the vase on the right.
+  [[46, "philodendron"], [-10, "pottery"]].forEach(([sx, kind], si) => {
     const sz = CZ + 0.5, sFront = sz - 3.75;
     add(new THREE.BoxGeometry(7, 1, 6.5).translate(sx, yF + 0.5, sz), walnutDark);
     add(new THREE.BoxGeometry(8, 16, 7.5).translate(sx, yF + 9, sz), walnut);
@@ -1086,6 +1089,83 @@ function tableLamp(B, group, M, x, y, z) {
 
 /* A plant: a clump of leaves, each a small bent blade, spraying up and
    out from (x, y, z). */
+/* A rubber plant (Ficus elastica) in an avocado-glazed pot on its saucer:
+   the user found the old one (a pot with a cluster of blades floating
+   over it, nothing joining them) wrong. Three woody stems rise out of the
+   soil, leaning a little apart; big oval leaves, dark and glossy, stand
+   off them one after another round the stem (the golden angle), largest
+   low down, each on a short stalk, cupped and drooping at the tip; at
+   each stem's top, the rosy sheath of the next leaf unfurling. */
+function ovalLeaf(L, W) {
+  const g = new THREE.PlaneGeometry(1, 1, 4, 10);
+  const p = g.attributes.position;
+  for (let k = 0; k < p.count; k++) {
+    const u = p.getX(k) + 0.5, v = p.getY(k) + 0.5;
+    // A short stalk, then the blade: widest just below the middle, a
+    // blunt point at the tip.
+    const blade = v < 0.08 ? 0.07 : Math.pow(Math.sin(Math.PI * Math.min(1, (v - 0.08) / 0.92) * 0.97 + 0.05), 0.7);
+    const x = (u - 0.5) * W * blade;
+    const across = (u - 0.5) * 2;
+    p.setXYZ(k, x, v * L, -across * across * W * 0.09 * blade - v * v * L * 0.14);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+function rubberPlant(B, M, x, yF, z) {
+  // The pot and its saucer, the soil.
+  const saucer = [[0, 0], [4.3, 0], [4.8, 0.55], [4.6, 0.65], [4.1, 0.3], [0, 0.3]].map(([r, h]) => new THREE.Vector2(r, h));
+  B.add(M.ceramicGreen, new THREE.LatheGeometry(saucer, 28).translate(x, yF, z));
+  const potPts = [[0, 0], [2.9, 0], [3.05, 0.25], [3.7, 6.3], [4.3, 6.5], [4.35, 7.35], [3.95, 7.45], [3.8, 6.95], [0, 6.95]].map(([r, h]) => new THREE.Vector2(r, h));
+  B.add(M.ceramicGreen, new THREE.LatheGeometry(potPts, 28).translate(x, yF + 0.3, z));
+  const soilY = yF + 0.3 + 6.7;
+  B.add(M.soot, new THREE.CircleGeometry(3.78, 24).rotateX(-Math.PI / 2).translate(x, soilY, z));
+  let s = 7;
+  const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const stems = [
+    { h: 26, a: 0.3, lean: 0.12, base: [0.4, -0.3] },
+    { h: 20, a: 2.4, lean: 0.2, base: [-0.8, 0.6] },
+    { h: 15, a: 4.4, lean: 0.26, base: [0.6, 0.9] },
+  ];
+  const m4 = new THREE.Matrix4(), up = new THREE.Vector3(0, 1, 0);
+  let turn = rnd() * Math.PI * 2;
+  stems.forEach((st) => {
+    const bx = x + st.base[0], bz = z + st.base[1];
+    const ox = Math.cos(st.a) * st.lean, oz = Math.sin(st.a) * st.lean;
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(bx, soilY - 0.5, bz),
+      new THREE.Vector3(bx + ox * st.h * 0.25, soilY + st.h * 0.3, bz + oz * st.h * 0.25),
+      new THREE.Vector3(bx + ox * st.h * 0.6, soilY + st.h * 0.7, bz + oz * st.h * 0.6),
+      new THREE.Vector3(bx + ox * st.h * 0.8, soilY + st.h, bz + oz * st.h * 0.8),
+    ]);
+    // The stem, thinner as it rises (two tubes: the woody foot, the rest).
+    const len = curve.getLength();
+    B.add(M.bark, new THREE.TubeGeometry(curve, 20, 0.3, 6, false), { tile: 3 });
+    // The sheath at the top: a slim rosy spike along the stem's way.
+    const top = curve.getPointAt(1), tan = curve.getTangentAt(1);
+    const sheath = new THREE.ConeGeometry(0.28, 2.2, 8);
+    sheath.translate(0, 1.1, 0);
+    sheath.applyMatrix4(m4.makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(up, tan)));
+    sheath.translate(top.x, top.y, top.z);
+    B.add(M.sheath, sheath);
+    // Leaves up the upper two-thirds of the stem.
+    for (let d = len * 0.25; d < len - 0.6; d += 1.15 + rnd() * 0.4) {
+      const t = d / len, p = curve.getPointAt(t);
+      turn += 2.4 + (rnd() - 0.5) * 0.3;
+      const rise = 0.6 + t * 0.5 + (rnd() - 0.5) * 0.2; // the higher, the more upright
+      const dir = new THREE.Vector3(Math.cos(turn) * Math.cos(rise), Math.sin(rise), Math.sin(turn) * Math.cos(rise)).normalize();
+      // The face: up off the leaf's line, then turned a little about it,
+      // so the blades show their faces round the room, not their edges.
+      const nrm = up.clone().addScaledVector(dir, -dir.y).normalize().applyAxisAngle(dir, (rnd() - 0.5) * 1.3);
+      const right = new THREE.Vector3().crossVectors(dir, nrm).normalize();
+      const L = (6.2 - t * 2.6) * (0.85 + rnd() * 0.25);
+      const leaf = ovalLeaf(L, L * 0.5);
+      leaf.applyMatrix4(m4.makeBasis(right, dir, nrm));
+      leaf.translate(p.x, p.y, p.z);
+      B.add(M.rubberLeaf, leaf, { tile: 4, floorShade: false });
+    }
+  });
+}
+
 function leafCluster(B, group, mat, x, y, z, radius, count, seed) {
   let s = seed * 97 + 13;
   const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);

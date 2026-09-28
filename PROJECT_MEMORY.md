@@ -2518,6 +2518,22 @@ phone and a laptop but shrank it on squarer windows (1100x900: 547 px
 against 649) and broke the Singularity test's bare-sphere tap, so it's
 the fitted view's size instead.
 
+### The den: the rubber plant, and the speakers swapped (user report, Sep 27)
+- **The rubber plant by the glass** ("needs to be fixed", a screenshot):
+  it was an orange cylinder with a cluster of flat blades (leafCluster)
+  floating 2 above its rim, nothing joining them. Now `rubberPlant`
+  (den-room.js): an avocado-glazed pot with a rolled rim on its saucer,
+  soil, three woody stems (15, 20, 26 high) leaning a little apart, and
+  big oval leaves (`ovalLeaf`: a short stalk, widest below the middle,
+  cupped, the tip drooping) one after another up them at the golden
+  angle, largest low down, each face turned a little about its line so
+  the blades show round the room; at each stem's top, the rosy sheath
+  of the next leaf. Materials M.rubberLeaf (0x3c6a2e), M.sheath.
+- **The speakers swapped**: the vase beside the lamp threw the room's
+  balance off, so now the philodendron is on the left-hand speaker (x 46,
+  by the lamp) and the bottle vase on the right (x -10), across from the
+  ashtray.
+
 ### The den: zoom out to the ceiling, no snapping back (user report, Sep 27)
 "I want to be able to zoom out more at home... you pinch too far, it just
 suddenly snaps back... zoom literally all the way to the ceiling, and not
@@ -2708,6 +2724,7 @@ choice).
   tenmoku glaze run over speckled oatmeal, the foot raw: `glazeTexture`)
   on the left as the player faces the console (den x 46; den x runs right
   to left from the pit), the heartleaf philodendron on the right (x -10).
+  (Later swapped, "The den: the rubber plant, and the speakers swapped".)
 - **The hall's wallpaper** differs from the room's flowered accent wall:
   `hallPaper()` (den-textures.js), a period geometric of interlocking
   avocado and harvest-gold rings with orange dots on cream,
