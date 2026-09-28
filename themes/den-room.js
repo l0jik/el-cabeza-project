@@ -1503,10 +1503,33 @@ function buildCoffeeTable(TW, boardSpan) {
     const cosB = (rimR * rimR - rb * rb - sc * sc) / (2 * sc * rb);
     const beta = Math.acos(Math.max(-1, Math.min(1, cosB)));
     const dir = new THREE.Vector2(Math.cos(ab + beta), Math.sin(ab + beta)); // (x, z)
-    const hB = saucerTop(rb); // the dish under the bowl
-    const tilt = Math.atan((rimTop - (hB + 0.07 - 0.014)) / sc); // the handle's underside on the rim
-    spoon.position.set(x + cb.x, topY + hB + 0.07, z + cb.y);
-    spoon.rotation.set(0, Math.atan2(-dir.y, dir.x), tilt);
+    /* Settle it: the dish slopes across the bowl's width too, so placing
+       it by the bowl's centre alone left an edge of the bowl a hair under
+       the glaze (the saucer showed through it: the user's screenshot).
+       For each tilt, lift it by exactly what keeps every vertex of it on
+       or above the saucer's top (saucerTop, the rim's outer fall past
+       1.46, the table beyond), then keep the tilt at which its balance
+       point, 0.55 along, sits lowest: where a spoon comes to rest, on two
+       points. (The saucer's facets lie on the profile at their edges and
+       inside it between, so the profile is the highest the glaze gets.) */
+    const surfaceAt = (r) => (r <= 1.46 ? saucerTop(r) : r <= 1.52 ? rimTop - ((r - 1.46) / 0.06) * 0.04 : 0);
+    const verts = [];
+    [bowlGeo, handleGeo].forEach((g) => { const p = g.attributes.position; for (let i = 0; i < p.count; i++) verts.push(new THREE.Vector3().fromBufferAttribute(p, i)); });
+    const yaw = Math.atan2(-dir.y, dir.x);
+    const e = new THREE.Euler(), m4 = new THREE.Matrix4(), w = new THREE.Vector3(), bal = new THREE.Vector3();
+    let best = null;
+    for (let tl = -0.12; tl <= 0.3; tl += 0.004) {
+      m4.makeRotationFromEuler(e.set(0, yaw, tl));
+      let lift = -Infinity;
+      for (const v of verts) {
+        w.copy(v).applyMatrix4(m4);
+        lift = Math.max(lift, surfaceAt(Math.hypot(cb.x + w.x, cb.y + w.z)) - w.y);
+      }
+      const balY = lift + bal.set(0.55, 0, 0).applyMatrix4(m4).y;
+      if (!best || balY < best.balY - 1e-6) best = { tl, lift, balY };
+    }
+    spoon.position.set(x + cb.x, topY + best.lift + 0.002, z + cb.y);
+    spoon.rotation.set(0, yaw, best.tl);
     group.add(spoon);
   }
   {

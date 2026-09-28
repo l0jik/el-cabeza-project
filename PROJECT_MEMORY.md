@@ -3145,3 +3145,13 @@ control bar's menu.
   rise, alpha at most 0.26, no depth write) turned to face the camera in
   `table.animate(t, camLocal)`, which den.animate now calls. Draw calls
   196 of < 200.
+- **The spoon settled (user: "clipping through the mug and saucer"):**
+  placing it by the bowl's centre left the bowl's edge 0.019 under the
+  glaze where the dish slopes across its width (the saucer showed through
+  the bowl). Now solved at build: for tilts -0.12..0.3 (step 0.004) it's
+  lifted by exactly what keeps every vertex of bowl and handle on or above
+  the saucer's surface (`surfaceAt`: the profile, the rim's outer fall,
+  the table past it), and the tilt where its balance point (0.55 along)
+  sits lowest is kept: resting on two points. Measured in the page:
+  no vertex below the glaze (closest +0.0017, the handle on the rim), and
+  0.9 from the mug's axis (mug 0.735).
