@@ -520,6 +520,19 @@ export function buildDen(boardSpan) {
   const inW = CW - AW * 2 - 0.2, inBack = -CD / 2 + BT;
   part(M.velvet, inW, 2.2, CD / 2 - inBack + 0.4, 0, FT + 4.4 + 1.1, (CD / 2 + 0.4 + inBack) / 2, 1, 6);
   part(M.velvet, inW, 6.6, 2.4, 0, FT + 6.6 + 3.3, inBack + 1.2, 1.1, 6);
+  // Beside it (the side away from the lamp): a walnut end table of the
+  // period, the user's ask, "a small, era correct table next to the
+  // chair": a square top with a softened edge a little over the arm's
+  // height, four round tapered legs, a shelf low down between them.
+  const etX = -(CW / 2 + 6), etZ = 0.8, etTop = 10.8;
+  part(M.walnut, 9.2, 0.8, 9.2, etX, etTop - 0.4, etZ, 0.3, 5);
+  part(M.walnut, 7.4, 0.45, 7.4, etX, 3.2, etZ, 0.15, 5);
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+    const lx = etX + sx * 3.7, lz = etZ + sz * 3.7;
+    const leg = new THREE.CylinderGeometry(0.34, 0.2, etTop - 0.8, 10);
+    leg.translate(chX + lx * cc + lz * cs, yF + (etTop - 0.8) / 2, chZ - lx * cs + lz * cc);
+    B.add(M.walnut, leg, { tile: 4 });
+  });
   B.add(M.plaid, box(10, 5, 9, chX - 12, yF + 2.5, chZ + 12, { round: 1.4, ry: -0.3 }), { tile: TX.PLAID_TILE });
   // The arc lamp: a marble block, a chrome arc, a dome over the chair.
   const lampBase = [84, yF, -46];

@@ -85,7 +85,7 @@ export const freeCamera = {
   zoomMin: 4.5, zoomMax: 140, reach: 70, yMin: -8, yMax: 30,
   // The Room view (a button, and the phone's menu): up above the den,
   // the roof off, the whole room below (chassis roomView).
-  dollhouse: { radius: 150, phi: 0.68 },
+  dollhouse: { radius: 118, phi: 0.78 },
   // Clear of what stands against the walls (the shelves, the console,
   // the fireplace) and under the ceiling's beams (3 deep).
   room: { x: [-ROOM_RX + 9, ROOM_RX - 9], y: [ROOM_PIT_FLOOR + 1.5, ROOM_CEIL - 4.2], z: [-ROOM_RZ + 9, ROOM_RZ - 9] },

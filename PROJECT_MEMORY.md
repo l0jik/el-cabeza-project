@@ -2541,6 +2541,20 @@ asked for ideas.
   camera the player has moved (zoomed, panned, turned, or in the Room
   view) where they put it (`fitted` / `moved()` in the framing effect).
 
+### The chair's end table; the Room view lower (Sep 28)
+- "A small, era correct table next to the chair with a book on it": a
+  walnut end table beside the club chair on the side away from the lamp
+  (den-room.js, in the chair's frame: 6 out from its side, top 10.8 up,
+  a little over the arm): a 9.2 square top with a softened edge, four
+  round tapered legs, a shelf at 3.2. The book is to be the user's own
+  image of "Abstract Strategy: How the Masses Are Demanding the
+  Future... Now!" by Dr. Alistair Finch-Hatton, exactly ("it must be
+  this exact book"): it came only as an inline picture, not a file, so
+  it waits for the file.
+- "Dollhouse view is a tad too high": the den's Room view from 150 /
+  0.68 (116 up) to 118 / 0.78 (about 83 up, still well over the ceiling
+  at about 40).
+
 ### The floating piece's hit area is its outline (user report, Sep 28)
 "The 3D floating button is a hitbox, but it's still too large... no
 matter the piece size, they're all defaulting to the OPA hitbox size.
