@@ -3068,3 +3068,14 @@ so the store's other seeded layout is unchanged): each tries 48 spots and
 settles at the lowest resting height (floor, or a pocket on the balls
 under it, never overlapping, inside the wire), filling to the rim, then
 7 near the middle for a small heap; deeper balls shaded darker.
+
+### The den's coffee table: earth-tone ceramic mosaic (user's pick)
+Eleven mid-1970s tops were rendered in the room (preview only: travertine,
+olive-ash burl, smoked bronze glass, harvest-gold tile, oak parquet,
+cleft slate, end-grain maple, rosewood + brass, chocolate lacquer,
+tessellated fossil stone, ceramic mosaic); the user chose number 11. The
+top (den-room.js buildCoffeeTable) is 40x40 small glazed tiles on cream
+grout, harvest gold at the middle through orange and rust to brown at the
+edges (seeded scatter), a glaze glint on each, in a teak frame
+(`mosaicTop` color 0xb4a690 roughness 0.3; `teakSide` 0x5c3b22). The
+walnut planks it replaces are gone.

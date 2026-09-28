@@ -2,7 +2,7 @@
    the mid-seventies on a weeknight, the lamps on and rain on the glass.
 
    Scale as Tienda's: one board square is one unit, about 5 cm (a foot is
-   6.1 units). The board sits on a low walnut coffee table in the middle
+   6.1 units). The board sits on a low mosaic-topped coffee table in the middle
    of a sunken conversation pit: built-in sofas in rust corduroy round
    three sides, two steps up on the fourth, burnt-orange shag underfoot.
    Up at the room's floor, avocado shag and walls of walnut paneling:
@@ -1231,7 +1231,9 @@ function leafCluster(B, group, mat, x, y, z, radius, count, seed) {
   }
 }
 
-/* The coffee table: a thick walnut top on a recessed plinth, lit by the
+/* The coffee table: a thick top of earth-tone ceramic mosaic in a teak
+   frame (the user's pick, number 11 of eleven 1970s tops rendered in the
+   room) on a recessed plinth, lit by the
    scene's lights like the board, so the board's shadow falls on it. On
    it, beside the board: the box the game came in, the rules leaflet, a
    mug of coffee on its saucer (a spoon on the rim), a tumbler of scotch
@@ -1244,19 +1246,30 @@ function buildCoffeeTable(TW, boardSpan) {
   const lit = (o) => { const m = q.physical ? new THREE.MeshStandardMaterial({ roughness: 0.5, ...o }) : new THREE.MeshLambertMaterial(o); disposables.push(m); return m; };
   const mk = (geo, mat, cast = false) => { const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; m.castShadow = cast; group.add(m); disposables.push(geo); return m; };
   const topY = -SLAB_THICKNESS;
-  // Walnut planks, the grain running across, book-matched at the joints.
+  /* Small glazed ceramic tiles in earth tones, 40 by 40 on cream grout,
+     shading from harvest gold at the middle through orange and rust to
+     brown at the edges (a little scatter, seeded, so the rings aren't
+     hard), each with a glint of glaze along its top; a teak frame round
+     them. The board covers the middle; the gold shows round it. */
   const topTex = canvasTexture(1024, 1024, (g, W) => {
-    const planks = 4, pw = W / planks;
-    const tones = [{ base: "#5A3A24", grain: "#2E1A0E", figure: "#47301C" }, { base: "#553621", grain: "#2A170C", figure: "#43291A" }];
-    for (let i = 0; i < planks; i++) {
-      paintWood(g, 0, i * pw, W, pw + 1, { ...tones[i % 2], horizontal: true, seed: 40 + (i % 2), density: 0.6 });
-      g.fillStyle = "rgba(18,10,4,0.55)"; g.fillRect(0, i * pw, W, Math.max(1.5, W * 0.0015));
+    let seed = 7;
+    const R = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const n = 40, m = W * 0.043, c = (W - 2 * m) / n, gap = c * 0.055;
+    g.fillStyle = "#5C3B22"; g.fillRect(0, 0, W, W);
+    g.fillStyle = "#D8CDB6"; g.fillRect(m, m, W - 2 * m, W - 2 * m);
+    const pal = ["#6B6B2E", "#8A7A2C", "#C98A2A", "#C2622A", "#8E3B1E", "#5A3420"];
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const d = Math.hypot(i - n / 2 + 0.5, j - n / 2 + 0.5) / (n * 0.7);
+      const k = Math.max(0, Math.min(pal.length - 1, Math.floor(d * pal.length + (R() - 0.5) * 1.6)));
+      const x = m + i * c + gap, y = m + j * c + gap, w = c - gap * 2;
+      g.fillStyle = pal[k]; g.fillRect(x, y, w, w);
+      g.fillStyle = "rgba(255,255,255,0.10)"; g.fillRect(x, y, w, w * 0.35);
     }
   });
   disposables.push(topTex);
-  const walnutTop = lit({ map: topTex, color: 0xe8d8c4, roughness: 0.36 });
-  const walnutSide = lit({ color: 0x4a2c18, roughness: 0.55 });
-  mk(new THREE.BoxGeometry(TW, 1.1, TW).translate(0, topY - 0.55, 0), [walnutSide, walnutSide, walnutTop, walnutSide, walnutSide, walnutSide]);
+  const mosaicTop = lit({ map: topTex, color: 0xb4a690, roughness: 0.3 });
+  const teakSide = lit({ color: 0x5c3b22, roughness: 0.55 });
+  mk(new THREE.BoxGeometry(TW, 1.1, TW).translate(0, topY - 0.55, 0), [teakSide, teakSide, mosaicTop, teakSide, teakSide, teakSide]);
   // The plinth, always in the top's shade: a little darker, and it takes no
   // shadows from the key light, whose shadow map (kept tight round the
   // board) ends partway across it and cut the top's shadow off in a hard
