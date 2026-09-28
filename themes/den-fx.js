@@ -121,7 +121,7 @@ export function createDenEffects(woodSet) {
       if (e !== lastE) {
         lastE = e;
         if (!tableMats) { tableMats = new Map(); den.table.group.traverse((o) => { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.color && !tableMats.has(m)) tableMats.set(m, m.color.clone()); }); }); }
-        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.55 * e));
+        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.8 * e)); // deep, so the board stands out (user)
       }
       // The float: the room (and the table) a little way down under the
       // board, and a slow drift.
