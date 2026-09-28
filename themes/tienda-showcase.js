@@ -114,6 +114,18 @@ function makeRenderer(canvas, px) {
   return r;
 }
 
+/* Every piece framed as if it were the Opa (the eight-cube, the biggest
+   of the set), so each shows at its true size beside the others: the
+   Turrito a small cube, not blown up to the Opa's size (user). A piece
+   longer than the Opa (the blocks, the Zeta) is framed on its own. */
+let opaRadius = 0;
+function frameRadius(model) {
+  if (!opaRadius) {
+    try { const m = buildWoodModel("opa", true); opaRadius = m.radius; m.dispose(); } catch (e) { opaRadius = model.radius; }
+  }
+  return Math.max(model.radius, opaRadius);
+}
+
 function aim(camera, radius, az, el) {
   const dist = (radius / Math.sin((camera.fov * Math.PI) / 360)) * 1.12;
   camera.position.set(dist * Math.cos(el) * Math.sin(az), dist * Math.sin(el), dist * Math.cos(el) * Math.cos(az));
@@ -140,7 +152,7 @@ export function ensureWoodPhotos(types) {
     todo.forEach((type) => {
       const model = buildWoodModel(type, true);
       scene.add(model.group);
-      aim(camera, model.radius, START_AZ, START_EL);
+      aim(camera, frameRadius(model), START_AZ, START_EL);
       renderer.render(scene, camera);
       photos.set(type, canvas.toDataURL("image/png"));
       scene.remove(model.group);
@@ -208,7 +220,7 @@ export function WoodPieceViewer({ type, name, detail, cat, price, fromRect, clos
     modelRef.current = model;
     scene.add(model.group);
     const camera = new THREE.PerspectiveCamera(26, 1, 0.05, 100);
-    aim(camera, model.radius, START_AZ, START_EL);
+    aim(camera, frameRadius(model), START_AZ, START_EL);
     const st = { yaw: 0, pitch: 0, vy: 0, vp: 0, drag: null, last: performance.now(), raf: 0 };
     const spin = 0.32;
     function frame(now) {

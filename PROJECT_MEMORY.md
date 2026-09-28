@@ -3299,3 +3299,9 @@ bottom-left corner, edge toning (inset shadows), ink spread
 ink-wear), the photos faded warm (sepia 0.28); the foot strip (`.td-foot`)
 on the same aged stock, toned at its bottom edge; the red button a shade
 duller.
+
+### The 3D piece viewer shows true relative sizes (user: the Turrito looked as big as the Opa)
+tienda-showcase.js `frameRadius(model)`: every piece is framed as if it
+were the Opa (max of its own radius and the Opa's, cached), in the viewer
+and the row photographs alike, so the Turrito is a small cube beside the
+Opa's big one; pieces longer than the Opa are framed on their own.
