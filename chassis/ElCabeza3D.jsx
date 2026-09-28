@@ -1060,6 +1060,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // open-trigger checks below, not the drag physics.
   const isInsideDockHitbox = useCallback((ev) => {
     const rect = ev.currentTarget.getBoundingClientRect();
+    // The piece's own outline (clipToPiece), when it's been worked out.
+    const hull = dockPieceRef.current && dockPieceRef.current.hitHull;
+    const el = ev.currentTarget;
+    if (hull && hull.length >= 3 && el.clientWidth) {
+      const sx = rect.width / el.clientWidth, sy = rect.height / el.clientHeight;
+      const px = (ev.clientX - rect.left) / sx, py = (ev.clientY - rect.top) / sy;
+      let inside = false;
+      for (let i = 0, j = hull.length - 1; i < hull.length; j = i++) {
+        const [xi, yi] = hull[i], [xj, yj] = hull[j];
+        if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+      }
+      return inside;
+    }
     const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
     const halfW = (rect.width * dockHitFraction) / 2, halfH = (rect.height * dockHitFraction) / 2;
     return Math.abs(ev.clientX - cx) <= halfW && Math.abs(ev.clientY - cy) <= halfH;
@@ -1267,8 +1280,58 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       pieceGroup.rotation.y += state.velocity.y * dt;
       pieceGroup.rotation.z += state.velocity.z * dt;
       renderer.render(scene, camera);
+      clipToPiece();
     }
     raf = requestAnimationFrame(tick);
+
+    /* The piece's own outline is its hit area. The canvas is a fixed
+       frame sized for the largest piece (and larger than Opa itself), and
+       every tap anywhere on it went to the piece, whatever piece it was:
+       the user found the hitbox "still too large... all defaulting to the
+       OPA hitbox size". Each frame the piece's points are projected to
+       the screen, wrapped in their convex hull, grown a little (more for
+       a finger), and the frame is clipped to that: a clip-path is where
+       the browser delivers pointer events, so a tap beside the piece goes
+       on to the board beneath, and the piece is always drawn inside its
+       own hull. A drag keeps the pointer (captured) once it's begun. */
+    const hv = new THREE.Vector3();
+    let lastClip = "";
+    function clipToPiece() {
+      const w = mount.clientWidth, h = mount.clientHeight;
+      if (!w || !h) return;
+      const pts = [];
+      pieceGroup.updateMatrixWorld(true);
+      pieceGroup.traverse((o) => {
+        if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+        if (o.material && o.material.colorWrite === false) return;
+        const pos = o.geometry.attributes.position;
+        const step = Math.max(1, Math.floor(pos.count / 160));
+        for (let i = 0; i < pos.count; i += step) {
+          hv.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).project(camera);
+          pts.push([((hv.x + 1) / 2) * w, ((1 - hv.y) / 2) * h]);
+        }
+      });
+      if (pts.length < 3) return;
+      // Andrew's monotone chain.
+      pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+      const lower = [], upper = [];
+      for (const p of pts) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); }
+      for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
+      const hull = lower.slice(0, -1).concat(upper.slice(0, -1));
+      let cx = 0, cy = 0;
+      hull.forEach((p) => { cx += p[0]; cy += p[1]; });
+      cx /= hull.length; cy /= hull.length;
+      // A little room round it: more for a finger than a mouse.
+      const grow = window.matchMedia && window.matchMedia("(pointer: coarse)").matches ? 9 : 4;
+      const out = hull.map(([x, y]) => {
+        const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) || 1;
+        return [x + (dx / d) * grow, y + (dy / d) * grow];
+      });
+      state.hitHull = out;
+      const clip = `polygon(${out.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ")})`;
+      if (clip !== lastClip) { mount.style.clipPath = clip; mount.style.webkitClipPath = clip; lastClip = clip; }
+    }
 
     return () => {
       cancelAnimationFrame(raf);

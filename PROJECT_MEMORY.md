@@ -2541,6 +2541,22 @@ asked for ideas.
   camera the player has moved (zoomed, panned, turned, or in the Room
   view) where they put it (`fitted` / `moved()` in the framing effect).
 
+### The floating piece's hit area is its outline (user report, Sep 28)
+"The 3D floating button is a hitbox, but it's still too large... no
+matter the piece size, they're all defaulting to the OPA hitbox size.
+But even the OPA itself might be too large." The dock piece's canvas is a
+fixed frame (260 x 220 on a laptop) sized for the largest piece, and
+every pointer event on it went to the piece (dockHitFraction only
+narrowed what a click opened). Now `clipToPiece` (the dock piece's loop)
+projects the piece's points each frame, wraps them in their convex hull
+grown 4 px (9 px for a finger), and clips the frame's mount to it
+(clip-path decides where the browser delivers pointer events): a tap
+beside the piece reaches the board beneath, and the piece is always drawn
+inside its own hull. `isInsideDockHitbox` tests the same hull. Measured
+over three sessions: hit shapes 130 x 97, 69 x 75 and 60 x 37 against the
+260 x 220 frame; the frame's corner hits the board; a tap beside the piece
+doesn't open the dock, one on it does. A drag keeps its captured pointer.
+
 ### The snack bowl (user screenshot, Sep 28)
 "Snacks protruding from the exterior of the bowl": the pieces were
 strewn out to 1.75 from the middle, but the teak bowl narrows toward its
