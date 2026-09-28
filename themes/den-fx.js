@@ -91,7 +91,7 @@ export function createDenEffects(woodSet) {
        (standard.js styleSheet, .den-focus-veil). The music visit and the
        set's visit bring the room back while they last. */
     let focusOn = false, fw = 0, lastFocusTick = 0, veil = null, flames = null, tableMats = null, lastE = 0;
-    let tableVeil = null, tableLocal = null, tableMaskKey = "", boardCaster = null;
+    let boardCaster = null;
     const FOG = { color: new THREE.Color(0x1c130c), bg: new THREE.Color(0x140d08), near: 150, far: 420 };
     const DARK = new THREE.Color(0x070403);
     const FOCUS_LIFT = 0.975; // how far the room drops under the board (75% of the first 1.3, user)
@@ -122,7 +122,7 @@ export function createDenEffects(woodSet) {
       if (e !== lastE) {
         lastE = e;
         if (!tableMats) { tableMats = new Map(); den.table.group.traverse((o) => { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.color && !tableMats.has(m)) tableMats.set(m, m.color.clone()); }); }); }
-        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.78 * e)); // the table down, the board standing out (user)
+        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.84 * e)); // the table evenly down, right up to the board (user)
       }
       // The board's own shadow: the slab doesn't cast one, so with the board
       // off the table the pieces' shadows went straight through it onto
@@ -151,13 +151,11 @@ export function createDenEffects(woodSet) {
       if (e <= 0) return;
       const r = t.renderer.domElement.getBoundingClientRect();
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-      const boardPts = [];
       for (const [sx, sy, sz] of [[-1, 0, -1], [1, 0, -1], [-1, 0, 1], [1, 0, 1], [-1, 2.2, -1], [1, 2.2, -1], [-1, 2.2, 1], [1, 2.2, 1]]) {
         corner.set((sx * SLAB_X) / 2, sy, (sz * SLAB_Z) / 2);
         t.boardGroup.localToWorld(corner).project(t.camera);
         const px = ((corner.x + 1) / 2) * r.width, py = ((1 - corner.y) / 2) * r.height;
         x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
-        boardPts.push([px, py]);
       }
       // The clear rectangle: the board's outline and a little margin, then
       // a soft falloff into the veil (standard.js .den-focus-veil).
@@ -165,14 +163,8 @@ export function createDenEffects(woodSet) {
       const set = (k, v) => veil.style.setProperty(k, `${v.toFixed(1)}px`);
       set("--ix0", x0 - pad); set("--ix1", x1 + pad); set("--ox0", x0 - pad - soft); set("--ox1", x1 + pad + soft);
       set("--iy0", y0 - pad); set("--iy1", y1 + pad); set("--oy0", y0 - pad - soft); set("--oy1", y1 + pad + soft);
-      if (blurOk) tableVeilFrame(t, r, e, boardPts, pad);
     }
 
-    /* The coffee table blurred and darkened more than the room (user: the
-       table darker and blurrier, the room not so blurred): a second veil
-       whose shape is the table's outline on screen with the board's cut
-       out of it, as an SVG mask (a feathered polygon less the board's).
-       Rebuilt only when the shape moves by a few pixels. */
     function boardShadow(t) {
       const slab = t.boardGroup && t.boardGroup.getObjectByName("ec-slab");
       if (!slab || !slab.geometry) return;
@@ -192,68 +184,6 @@ export function createDenEffects(woodSet) {
       slab.add(boardCaster);
     }
 
-    function hull(pts) {
-      const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-      const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-      const lo = [], up = [];
-      for (const q of p) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
-      for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
-      return lo.slice(0, -1).concat(up.slice(0, -1));
-    }
-    function grow(poly, by) {
-      const cx = poly.reduce((s, q) => s + q[0], 0) / poly.length, cy = poly.reduce((s, q) => s + q[1], 0) / poly.length;
-      return poly.map(([x, y]) => { const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) || 1; return [x + (dx / d) * by, y + (dy / d) * by]; });
-    }
-    function tableVeilFrame(t, r, e, boardPts, pad) {
-      if (!tableLocal) {
-        // The table's box (its top, frame and what's on it; not the steam
-        // or the unseen tap targets), in the table's own frame.
-        const box = new THREE.Box3(), b = new THREE.Box3();
-        den.table.group.updateMatrixWorld(true);
-        den.table.group.traverse((o) => {
-          if (!o.isMesh || !o.geometry || !o.visible) return;
-          const m = Array.isArray(o.material) ? o.material[0] : o.material;
-          if (!m || m.visible === false || m.isShaderMaterial) return;
-          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
-          b.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld);
-          box.union(b);
-        });
-        if (box.isEmpty()) return;
-        const inv = new THREE.Matrix4().copy(den.table.group.matrixWorld).invert();
-        tableLocal = [];
-        for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) tableLocal.push(new THREE.Vector3(x, y, z).applyMatrix4(inv));
-      }
-      if (!tableVeil) {
-        const mount = t.renderer.domElement.parentNode;
-        if (!mount) return;
-        tableVeil = document.createElement("div");
-        tableVeil.className = "den-table-veil";
-        tableVeil.setAttribute("aria-hidden", "true");
-        mount.insertBefore(tableVeil, veil);
-      }
-      tableVeil.style.opacity = e.toFixed(3);
-      tableVeil.style.visibility = e > 0 ? "visible" : "hidden";
-      const q3 = (v) => Math.round(v / 3) * 3;
-      const tbl = hull(tableLocal.map((p) => {
-        corner.copy(p); den.table.group.localToWorld(corner).project(t.camera);
-        return [q3(((corner.x + 1) / 2) * r.width), q3(((1 - corner.y) / 2) * r.height)];
-      }));
-      const brd = grow(hull(boardPts.map(([x, y]) => [q3(x), q3(y)])), pad);
-      const W = Math.round(r.width), H = Math.round(r.height);
-      const key = `${W}x${H}|${tbl.join(" ")}|${brd.map(([x, y]) => [Math.round(x), Math.round(y)]).join(" ")}`;
-      if (key === tableMaskKey) return;
-      tableMaskKey = key;
-      const pts = (poly) => poly.map(([x, y]) => `${x.toFixed(0)},${y.toFixed(0)}`).join(" ");
-      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}' viewBox='0 0 ${W} ${H}'>`
-        + `<defs><filter id='f' x='-30%' y='-30%' width='160%' height='160%'><feGaussianBlur stdDeviation='14'/></filter>`
-        + `<filter id='g' x='-10%' y='-10%' width='120%' height='120%'><feGaussianBlur stdDeviation='3'/></filter>`
-        + `<mask id='m' maskUnits='userSpaceOnUse' x='0' y='0' width='${W}' height='${H}'><rect width='${W}' height='${H}' fill='black'/>`
-        + `<polygon points='${pts(tbl)}' fill='white' filter='url(#f)'/><polygon points='${pts(brd)}' fill='black' filter='url(#g)'/></mask></defs>`
-        + `<rect width='${W}' height='${H}' fill='black' mask='url(#m)'/></svg>`;
-      const url = `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
-      tableVeil.style.webkitMaskImage = url;
-      tableVeil.style.maskImage = url;
-    }
 
     /* ---- device fit ---- */
     let pr = 1;
@@ -593,7 +523,6 @@ export function createDenEffects(woodSet) {
         if (novaTv && novaTv.register) novaTv.register(null);
         if (hintEl) { hintEl.remove(); hintEl = null; }
         if (veil) { veil.remove(); veil = null; }
-        if (tableVeil) { tableVeil.remove(); tableVeil = null; }
         if (boardCaster) { boardCaster.parent && boardCaster.parent.remove(boardCaster); boardCaster.geometry.dispose(); boardCaster = null; }
         if (bookHint) { bookHint.remove(); bookHint = null; }
         if (bookListenersOn) {

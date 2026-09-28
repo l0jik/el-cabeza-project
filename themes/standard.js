@@ -337,14 +337,7 @@ export const styleSheet = `
     font: 500 12.5px/1.2 'IBM Plex Sans', sans-serif; letter-spacing: 0.02em; box-shadow: 0 2px 8px rgba(12,6,2,0.4);
   }
   .den-book-hint.on { opacity: 1; }
-  .den-focus-veil.blur { background: rgba(7,4,3,0.42); backdrop-filter: blur(2.5px) saturate(0.75); -webkit-backdrop-filter: blur(2.5px) saturate(0.75); }
-  /* The coffee table under the board, blurred and darkened more than the
-     room (den-fx.js shapes it: the table's outline less the board's). */
-  .den-table-veil {
-    position: absolute; inset: 0; pointer-events: none; opacity: 0; visibility: hidden;
-    background: rgba(7,4,3,0.18); backdrop-filter: blur(7px) saturate(0.75); -webkit-backdrop-filter: blur(7px) saturate(0.7);
-    -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-  }
+  .den-focus-veil.blur { background: rgba(7,4,3,0.42); backdrop-filter: blur(4px) saturate(0.75); -webkit-backdrop-filter: blur(4px) saturate(0.75); }
   [data-testid="points-counter"] {
     color: ${DEN.chocolate} !important;
     background: rgba(243,231,205,0.92); padding: 5px 12px 5px 13px; border-radius: 999px;
