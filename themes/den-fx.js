@@ -127,7 +127,7 @@ export function createDenEffects(woodSet) {
       if (e !== lastE) {
         lastE = e;
         if (!tableMats) { tableMats = new Map(); den.table.group.traverse((o) => { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.color && !tableMats.has(m)) tableMats.set(m, m.color.clone()); }); }); }
-        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.74 * e)); // the mosaic table darker than the room (user: another 15%): to 26%
+        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.6 * e)); // the table a little darker than the room (user settled here, after trying 31% and 26%): to 40%
       }
       // The board's own shadow: the slab doesn't cast one, so with the board
       // off the table the pieces' shadows went straight through it onto
