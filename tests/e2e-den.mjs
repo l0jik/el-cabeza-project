@@ -418,7 +418,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "focus-corner").click();
   check("...a tap: focus comes on and settles", await settled(true));
   const f1 = await focus();
-  check("...the room drops away under the board", f1.lift > 1, JSON.stringify(f1));
+  check("...the room drops away under the board", f1.lift > 0.7, JSON.stringify(f1));
   check("...the fog closes in to just past the board", f1.fogNear < 80, JSON.stringify(f1));
   const veil = await page.evaluate(() => { const v = document.querySelector('[data-testid="den-focus-veil"]'); return v ? { op: Number(v.style.opacity), vis: v.style.visibility, rx: parseFloat(v.style.getPropertyValue("--ix1")) - parseFloat(v.style.getPropertyValue("--ix0")) } : null; });
   check("...the veil is over the room, round the board", veil && veil.op > 0.95 && veil.vis === "visible" && veil.rx > 120, JSON.stringify(veil));

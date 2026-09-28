@@ -91,7 +91,7 @@ export function createDenEffects(woodSet) {
        (standard.js styleSheet, .den-focus-veil). The music visit and the
        set's visit bring the room back while they last. */
     let focusOn = false, fw = 0, lastFocusTick = 0, veil = null, flames = null, tableMats = null, lastE = 0;
-    let tableVeil = null, tableLocal = null, tableMaskKey = "";
+    let tableVeil = null, tableLocal = null, tableMaskKey = "", boardCaster = null;
     const FOG = { color: new THREE.Color(0x1c130c), bg: new THREE.Color(0x140d08), near: 150, far: 420 };
     const DARK = new THREE.Color(0x070403);
     const FOCUS_LIFT = 0.975; // how far the room drops under the board (75% of the first 1.3, user)
@@ -122,8 +122,15 @@ export function createDenEffects(woodSet) {
       if (e !== lastE) {
         lastE = e;
         if (!tableMats) { tableMats = new Map(); den.table.group.traverse((o) => { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.color && !tableMats.has(m)) tableMats.set(m, m.color.clone()); }); }); }
-        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.86 * e)); // the table well down, so the board stands out (user)
+        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.9 * e)); // the table well down, so the board stands out (user)
       }
+      // The board's own shadow: the slab doesn't cast one, so with the board
+      // off the table the pieces' shadows went straight through it onto
+      // the table (user: "as if the board is transparent"). An unseen
+      // block just under the board's face casts the whole board's shadow
+      // instead, and so stops the pieces' (their shadows still fall on the
+      // board's face, above it).
+      boardShadow(t);
       // The float: the room (and the table) a little way down under the
       // board, and a slow drift.
       den.group.position.y = -(FOCUS_LIFT + Math.sin(now * 0.0011) * 0.12) * e;
@@ -166,6 +173,25 @@ export function createDenEffects(woodSet) {
        whose shape is the table's outline on screen with the board's cut
        out of it, as an SVG mask (a feathered polygon less the board's).
        Rebuilt only when the shape moves by a few pixels. */
+    function boardShadow(t) {
+      const slab = t.boardGroup && t.boardGroup.getObjectByName("ec-slab");
+      if (!slab || !slab.geometry) return;
+      if (boardCaster && boardCaster.parent === slab && boardCaster.userData.geo === slab.geometry) return;
+      if (boardCaster) { boardCaster.parent && boardCaster.parent.remove(boardCaster); boardCaster.geometry.dispose(); }
+      if (!slab.geometry.boundingBox) slab.geometry.computeBoundingBox();
+      const bb = slab.geometry.boundingBox, top = bb.max.y - 0.15, h = Math.max(0.1, top - bb.min.y);
+      const geo = new THREE.BoxGeometry(bb.max.x - bb.min.x, h, bb.max.z - bb.min.z);
+      geo.translate((bb.max.x + bb.min.x) / 2, bb.min.y + h / 2, (bb.max.z + bb.min.z) / 2);
+      if (!boardShadow.mat) boardShadow.mat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+      boardCaster = new THREE.Mesh(geo, boardShadow.mat);
+      boardCaster.name = "den-board-shadow";
+      boardCaster.castShadow = true;
+      boardCaster.receiveShadow = false;
+      boardCaster.raycast = () => {};
+      boardCaster.userData.geo = slab.geometry;
+      slab.add(boardCaster);
+    }
+
     function hull(pts) {
       const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
       const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -568,6 +594,7 @@ export function createDenEffects(woodSet) {
         if (hintEl) { hintEl.remove(); hintEl = null; }
         if (veil) { veil.remove(); veil = null; }
         if (tableVeil) { tableVeil.remove(); tableVeil = null; }
+        if (boardCaster) { boardCaster.parent && boardCaster.parent.remove(boardCaster); boardCaster.geometry.dispose(); boardCaster = null; }
         if (bookHint) { bookHint.remove(); bookHint = null; }
         if (bookListenersOn) {
           bookListenersOn.removeEventListener("pointerdown", onBookDown, true);
