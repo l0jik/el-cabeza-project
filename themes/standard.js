@@ -314,9 +314,11 @@ export const styleSheet = `
      opacity each frame. */
   .den-focus-veil {
     position: absolute; inset: 0; pointer-events: none; opacity: 0; visibility: hidden;
-    background: rgba(7,4,3,0.72);
-    -webkit-mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 58%, rgba(0,0,0,0.75) 82%, #000 100%);
-    mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 58%, rgba(0,0,0,0.75) 82%, #000 100%);
+    /* Softer (user: the corners were too dark): a lighter veil, the clear
+       ellipse a little wider, and a longer, gentler falloff to the edges. */
+    background: rgba(7,4,3,0.5);
+    -webkit-mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 64%, rgba(0,0,0,0.5) 90%, rgba(0,0,0,0.85) 120%);
+    mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 64%, rgba(0,0,0,0.5) 90%, rgba(0,0,0,0.85) 120%);
   }
   /* The book visit's way back (den-fx.js): a quiet line at the foot. */
   .den-book-hint {
@@ -326,7 +328,7 @@ export const styleSheet = `
     font: 500 12.5px/1.2 'IBM Plex Sans', sans-serif; letter-spacing: 0.02em; box-shadow: 0 2px 8px rgba(12,6,2,0.4);
   }
   .den-book-hint.on { opacity: 1; }
-  .den-focus-veil.blur { background: rgba(7,4,3,0.6); backdrop-filter: blur(7px) saturate(0.7); -webkit-backdrop-filter: blur(7px) saturate(0.7); }
+  .den-focus-veil.blur { background: rgba(7,4,3,0.42); backdrop-filter: blur(7px) saturate(0.7); -webkit-backdrop-filter: blur(7px) saturate(0.7); }
   [data-testid="points-counter"] {
     color: ${DEN.chocolate} !important;
     background: rgba(243,231,205,0.92); padding: 5px 12px 5px 13px; border-radius: 999px;
