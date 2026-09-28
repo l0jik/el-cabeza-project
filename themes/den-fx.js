@@ -110,7 +110,7 @@ export function createDenEffects(woodSet) {
         const camDist = camLocal.length();
         const reach = SLAB_MAX * 0.8;
         scene.fog.near = FOG.near + (camDist + reach - FOG.near) * e;
-        scene.fog.far = FOG.far + (camDist + reach + 56 - FOG.far) * e; // near the first setting, a touch lighter (user)
+        scene.fog.far = FOG.far + (camDist + reach + 80 - FOG.far) * e; // the room dim, still there (user)
         scene.fog.color.copy(FOG.color).lerp(DARK, e);
         if (scene.background && scene.background.isColor) scene.background.copy(FOG.bg).lerp(DARK, e);
       }
@@ -122,7 +122,7 @@ export function createDenEffects(woodSet) {
       if (e !== lastE) {
         lastE = e;
         if (!tableMats) { tableMats = new Map(); den.table.group.traverse((o) => { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.color && !tableMats.has(m)) tableMats.set(m, m.color.clone()); }); }); }
-        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.9 * e)); // the table well down, so the board stands out (user)
+        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.78 * e)); // the table down, the board standing out (user)
       }
       // The board's own shadow: the slab doesn't cast one, so with the board
       // off the table the pieces' shadows went straight through it onto

@@ -320,7 +320,7 @@ export const styleSheet = `
        shadows around the corners of the board"). Two soft bands, across
        and down, laid over each other: dark outside either, clear inside
        both. */
-    background: rgba(7,4,3,0.64);
+    background: rgba(7,4,3,0.5);
     -webkit-mask-image:
       linear-gradient(to right, #000 var(--ox0, 0px), transparent var(--ix0, 30%), transparent var(--ix1, 70%), #000 var(--ox1, 100%)),
       linear-gradient(to bottom, #000 var(--oy0, 0px), transparent var(--iy0, 30%), transparent var(--iy1, 70%), #000 var(--oy1, 100%));
@@ -337,12 +337,12 @@ export const styleSheet = `
     font: 500 12.5px/1.2 'IBM Plex Sans', sans-serif; letter-spacing: 0.02em; box-shadow: 0 2px 8px rgba(12,6,2,0.4);
   }
   .den-book-hint.on { opacity: 1; }
-  .den-focus-veil.blur { background: rgba(7,4,3,0.54); backdrop-filter: blur(2.5px) saturate(0.75); -webkit-backdrop-filter: blur(2.5px) saturate(0.75); }
+  .den-focus-veil.blur { background: rgba(7,4,3,0.42); backdrop-filter: blur(2.5px) saturate(0.75); -webkit-backdrop-filter: blur(2.5px) saturate(0.75); }
   /* The coffee table under the board, blurred and darkened more than the
      room (den-fx.js shapes it: the table's outline less the board's). */
   .den-table-veil {
     position: absolute; inset: 0; pointer-events: none; opacity: 0; visibility: hidden;
-    background: rgba(7,4,3,0.3); backdrop-filter: blur(7px) saturate(0.7); -webkit-backdrop-filter: blur(7px) saturate(0.7);
+    background: rgba(7,4,3,0.18); backdrop-filter: blur(7px) saturate(0.75); -webkit-backdrop-filter: blur(7px) saturate(0.7);
     -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   }
   [data-testid="points-counter"] {
