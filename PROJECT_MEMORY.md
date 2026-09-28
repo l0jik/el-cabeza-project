@@ -45,6 +45,12 @@ track changes and should not be read as a changelog signal.
 
 ## 2. Build & verification model
 
+- **Testing policy (user, standing): small tweaks skip the full test
+  suites** unless the user says otherwise. Colours, sizes, wording, CSS,
+  a cushion or a texture: build, look at a screenshot, commit, push. The
+  full e2e suites (e2e-tienda ~10-12 min, e2e-den ~8 min on the software
+  renderer) are for real behaviour changes, or when asked. Never rebuild
+  `dist/` while a test run is using it.
 - `npm run build` → `build/build.js`: three esbuild passes (one per app
   entry) plus one shared pass for `engine/ai-worker.js`, embedded as
   **inert script text** (`type="application/x-ai-worker"`, not a JS
