@@ -598,13 +598,16 @@ export function buildDen(boardSpan) {
   ceil(rect(RX * 2, RZ * 2, "-y", 0, yC, 0, 8), M.ceil, TX.CEIL_TILE, { floorShade: false });
   for (let z = -66; z <= 66; z += 22) ceil(box(RX * 2, 3, 3.6, 0, yC - 1.5, z, { step: 16 }), M.walnut, 16, { floorShade: false });
   const swags = [];
+  // The swag lamps hang in the room, not in the ceiling's group: when the
+  // camera rises past the ceiling and it steps aside (the roof off), the
+  // globes stay, their cords with them (user: they vanished).
   LAMPS.filter((L) => L.name.startsWith("swag")).forEach((L) => {
     const [x, y, z] = L.p;
-    ceil(cyl(0.12, 0.12, yC - y - 3, x, (yC + y + 3) / 2, z, 5), M.black, 4);
+    B.add(M.black, cyl(0.12, 0.12, yC - y - 3, x, (yC + y + 3) / 2, z, 5), { group: "core", tile: 4, floorShade: false });
     const globe = new THREE.Mesh(new THREE.SphereGeometry(3.3, 20, 14), M.globe);
     globe.position.set(x, y, z);
-    B.mesh(globe, "ceiling");
-    ceil(cyl(1.2, 0.8, 1.2, x, y + 3.6, z, 10), M.brass, 4);
+    B.mesh(globe, "core");
+    B.add(M.brass, cyl(1.2, 0.8, 1.2, x, y + 3.6, z, 10), { group: "core", tile: 4, floorShade: false });
     swags.push(globe);
   });
 
@@ -618,7 +621,7 @@ export function buildDen(boardSpan) {
     glows.push({ s, base: strength });
     return s;
   };
-  glowAt(LAMPS[0].p, 16, "ceiling"); glowAt(LAMPS[1].p, 16, "ceiling");
+  glowAt(LAMPS[0].p, 16, "core"); glowAt(LAMPS[1].p, 16, "core");
   glowAt([-RX + 5, FLOOR + 21, -26], 18, "wallW", 0.45); glowAt([-RX + 5, FLOOR + 21, 26], 18, "wallW", 0.45);
   glowAt([34, FLOOR + 26.8, RZ - 8], 16, "wallS", 0.45);
   glowAt([69, CEIL - 2, RZ + 18], 12, "wallS", 0.4);
@@ -690,7 +693,7 @@ export function buildDen(boardSpan) {
     tableLampAt("wallS", 34, yF + 16, RZ - 8);
     tableLampAt("wallW", crX, yF + 14.5, -26);
     tableLampAt("wallW", crX, yF + 14.5, 26);
-    LAMPS.filter((L) => L.name.startsWith("swag")).forEach((L) => catcher(new THREE.SphereGeometry(4.6, 12, 8), "ceiling", L.p[0], L.p[1], L.p[2]));
+    LAMPS.filter((L) => L.name.startsWith("swag")).forEach((L) => catcher(new THREE.SphereGeometry(4.6, 12, 8), "core", L.p[0], L.p[1], L.p[2]));
   }
 
   /* ---- the book by the chair: a tap takes the camera to it (den-fx.js) ----
