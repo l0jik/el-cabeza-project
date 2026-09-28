@@ -24,7 +24,7 @@
 
 import React from "react";
 import {
-  PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
+  PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
   defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
 } from "./rules-selections.js";
@@ -36,13 +36,23 @@ import { singularitySeen, CLASSIC_PIECE_KEYS } from "../engine/journey.js";
 
 /* The classic game's order (engine/journey.js: the extras wait for the
    Singularity's first visit): the five pieces only, no laws, no cut
-   squares or holes. Board size and a shuffled start stay. */
+   squares or holes, and the one board, 10 x 10 (other boards wait for
+   the Singularity too, user). */
 function classicSelections(sel) {
-  const n = cloneSelections(sel);
+  const n = storeSelections(sel);
   PIECE_OPTIONS.forEach((p) => { if (!CLASSIC_PIECE_KEYS.includes(p.key)) n.counts[p.key] = 0; });
   Object.keys(n.laws || {}).forEach((k) => { n.laws[k] = false; });
   n.missing = false;
+  n.rows = n.cols = DEFAULT_BOARD_DIM;
   return normalizeSelections(n);
+}
+/* Any order in the store (and the den): never a shuffled start. That's
+   Neon's anomaly, and Neon's alone (user). A carbon copy that had one
+   comes back without it. */
+function storeSelections(sel) {
+  const n = cloneSelections(sel);
+  n.random = false;
+  return n;
 }
 
 const h = React.createElement;
@@ -541,10 +551,10 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, x }) {
   const classic = React.useMemo(() => !singularitySeen(), []);
   const [sel, setSel] = React.useState(() => {
     const s0 = normalizeSelections(cloneSelections(initial || defaultSelections()));
-    return classic ? classicSelections(s0) : s0;
+    return classic ? classicSelections(s0) : normalizeSelections(storeSelections(s0));
   });
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); onChange && onChange(n); return n; });
-  const replace = (n0) => { const n = classic ? classicSelections(n0) : n0; setSel(n); onChange && onChange(n); };
+  const replace = (n0) => { const n = classic ? classicSelections(n0) : normalizeSelections(storeSelections(n0)); setSel(n); onChange && onChange(n); };
   const click = () => { audio && audio.playSelect && audio.playSelect(); };
   const total = totalPieces(sel), over = total > MAX_PIECES;
   const fits = piecesFit(sel), need = fits ? null : minColsFor(sel);
@@ -733,12 +743,13 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, x }) {
           fitNote,
         ),
         !classic && sec("Rules", "check each one you want", lawRows),
-        sec("Board", "any width and length; each side starts in its two home rows",
+        // The board's size (and cut squares) wait for the Singularity; the
+        // classic page has the one 10 x 10 board and no Board section.
+        !classic && sec("Board", "any width and length; each side starts in its two home rows",
           boardRows,
           sizeRow,
-          !classic && check("missing", !!sel.missing, "Missing squares", "Pairs of squares cut clean out of the board; nothing can stand on them or pass over them.", () => change((s) => { s.missing = !s.missing; if (s.missing) fillSpots(s, "missing"); })),
-          !classic && missingRows,
-          check("random", !!sel.random, "Shuffled start", "Pieces set out at random in each side's home rows, mirrored.", () => change((s) => { s.random = !s.random; })),
+          check("missing", !!sel.missing, "Missing squares", "Pairs of squares cut clean out of the board; nothing can stand on them or pass over them.", () => change((s) => { s.missing = !s.missing; if (s.missing) fillSpots(s, "missing"); })),
+          missingRows,
         ),
         sec("Who's playing", null, h(OpponentSection, { x, audio })),
         sec("Carbon copies", "keep this order to use again (this browser only; not the opponent)",

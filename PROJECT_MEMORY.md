@@ -3330,3 +3330,15 @@ seam; the middle ones and the seats are unchanged.
 e2e-tienda: the square picker step waits for the picker to close (up to
 6 s) instead of a fixed 400 ms; on the software renderer a click there
 can take seconds to resolve.
+
+### Board sizes wait for the Singularity; a shuffled start is Neon's alone (user)
+tienda-overlay.js OrderForm (the store's and the den's Custom rules, in
+Tienda and Nova): `storeSelections()` forces `random: false` on every
+order and carbon copy (the Shuffled start checkbox is gone from the form;
+Neon's anomaly is the only shuffled start). `classicSelections()` (before
+the first Singularity visit) also fixes the board at DEFAULT_BOARD_DIM
+(10 x 10) and the classic page has no Board section at all; after the
+Singularity the Board section (sizes, missing squares) is there, still
+without a shuffled start. Tests updated (e2e-journey, e2e-story's home
+order is now an extra Turrito) but not run (user: skip full suites for
+quick changes).

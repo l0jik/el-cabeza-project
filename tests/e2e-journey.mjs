@@ -67,7 +67,7 @@ async function page(url, init) {
   check("...as the classic page", (await q(p, "tienda-order").getAttribute("data-classic")) === "true");
   check("...the five pieces", (await has(p, "tienda-piece-cabeza")) && (await has(p, "tienda-piece-opa")) && !(await has(p, "tienda-piece-codo")) && !(await has(p, "tienda-piece-block1x3")));
   check("...no rules, no missing squares", !(await has(p, "tienda-law-slide")) && !(await has(p, "tienda-missing")));
-  check("...the board's size is still there", await has(p, "tienda-cols"));
+  check("...and no board sizes or shuffled start either", !(await has(p, "tienda-cols")) && !/Shuffled start/.test(await q(p, "tienda-order").innerText()));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

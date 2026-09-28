@@ -155,13 +155,14 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...and no purchase (it's bought)", !(await has(page, "story-purchase")));
   await q(page, "tienda-order-form").click();
   check("Custom rules is the whole order form", await poll(() => has(page, "tienda-order"), 8000));
-  await q(page, "tienda-size-12").click();
-  await q(page, "tienda-cols-inc").click();
-  await q(page, "tienda-cols-inc").click();
+  // Before the Singularity the board's size waits (the one 10 x 10), and
+  // there's no shuffled start (Neon's alone): an extra Turrito, then.
+  check("...no Board section and no shuffled start before the Singularity", !(await has(page, "tienda-cols")) && !/Shuffled start/.test(await q(page, "tienda-order").innerText()));
+  await q(page, "tienda-piece-turrito-inc").click();
   await q(page, "tienda-order-place").scrollIntoViewIfNeeded();
   await q(page, "tienda-order-place").click();
-  const wide = await poll(async () => { const r = await plate(page); return r && r > 1.05 ? r : null; }, 15000);
-  check(`a game ordered at home: 14 x 12 (plate ${wide})`, !!wide);
+  const orderedN = await poll(async () => { const n = await page.evaluate(() => (window.__EC_TEST_PIECES__ || []).length); return n === 12 ? n : null; }, 15000);
+  check(`a game ordered at home: two Turritos a side (${orderedN} pieces)`, orderedN === 12);
   check("...with its carbon copy of the order", await poll(() => has(page, "tienda-slip-tag"), 8000));
 
   // Back to the store: the classic game again.
