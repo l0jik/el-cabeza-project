@@ -131,7 +131,8 @@ async function waitFor(fn, ms = 8000) {
   // Menu
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(400);
-  const rows = ["shell-menu-rules", "shell-menu-game-rules", "shell-menu-movelog", "shell-menu-end", "shell-menu-top", "shell-menu-player",
+  // (No "Rules in this game" in the store or the den: theme.rulesTabsHidden.)
+  const rows = ["shell-menu-rules", "shell-menu-movelog", "shell-menu-end", "shell-menu-top", "shell-menu-player",
     "shell-menu-sound", "shell-menu-points", "shell-menu-costs", "shell-menu-switch-theme", "shell-menu-back-to-store", "shell-menu-restart", "shell-menu-about"];
   const missing = [];
   for (const r of rows) if (!(await q(page, r).count())) missing.push(r);

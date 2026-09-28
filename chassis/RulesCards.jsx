@@ -677,10 +677,10 @@ function TurnCard({ C, budget, classic }) {
 
 /* The tab row plus the chosen card. `game` describes the game in play
    (laws, board size, missing squares, new piece types) for "This game". */
-export function RulesTabs({ tab, onTab, C }) {
+export function RulesTabs({ tab, onTab, C, hidden = [] }) {
   return (
     <div role="tablist" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "4px 14px", margin: "0 0 20px" }}>
-      {RULES_TABS.map((t) => (
+      {RULES_TABS.filter((t) => !hidden.includes(t.key)).map((t) => (
         <button
           key={t.key}
           type="button"

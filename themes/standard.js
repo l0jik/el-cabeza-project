@@ -215,6 +215,8 @@ export const mountAmbientEffects = createDenEffects(woodSet);
 // The rules lie in the room: the leaflet on the coffee table opens them
 // (den-fx.js), so there's no How to play in the corner.
 export const rulesInRoom = true;
+// No "This game" tab in the rules here (user): the classic game's own.
+export const rulesTabsHidden = ["game"];
 // Focus: the room dims and blurs away round the floating board (den-fx.js);
 // the chassis gives the ways in and out (corner button, F, the dock's and
 // the phone menu's switches), the den its own (a tap on a lamp: the

@@ -348,7 +348,6 @@ export function OrderSlip({ groups, audio, onPurchase = null }) {
               ? h("button", { type: "button", "data-testid": `tienda-slip-law-${g.keys[i]}`, onClick: () => openRules("moves", g.keys[i]) }, `· ${it}`)
               : `· ${it}`)))))
         : h("div", null, "Standard rules. Nothing changed."),
-      h("button", { type: "button", className: "td-slip-rules", "data-testid": "tienda-slip-rules", onClick: () => openRules("game") }, "Rules for this game ›"),
       // In Nova's story, the game can be bought from the slip mid-game.
       onPurchase && h("button", { type: "button", className: "td-slip-rules", "data-testid": "tienda-slip-purchase", style: { display: "block" }, onClick: () => { audio && audio.playSelect && audio.playSelect(); onPurchase(); } }, "Purchase and bring home ›"),
     ),

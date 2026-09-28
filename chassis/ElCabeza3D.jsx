@@ -2129,7 +2129,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // ...and when it's asked for while it's already the tab showing (no
   // state changes then, so the effect above doesn't run).
   const aboutToTop = () => requestAnimationFrame(() => { if (infoBodyRef.current && infoTabRef.current === "about") infoBodyRef.current.scrollTop = 0; });
+  // A theme can leave tabs out (theme.rulesTabsHidden: the store and the
+  // den have no "This game"); a call for one opens the Quick card instead.
+  const hiddenRulesTabs = theme.rulesTabsHidden || [];
+  const shownTab = (tab) => (hiddenRulesTabs.includes(tab) ? "quick" : tab);
   function openRulesAt(tab, focus = null) {
+    tab = shownTab(tab);
     setInfoTab(tab);
     setRulesFocus(focus);
     setShowInfoOverlay(true);
@@ -2137,6 +2142,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     else audioRef.current.playRulesOpen();
   }
   function switchRulesTab(tab, focus = null) {
+    tab = shownTab(tab);
     const from = infoTabRef.current;
     if (tab !== from) {
       if (tab === "about") audioRef.current.playMenu();
@@ -8690,6 +8696,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               .map((side) => `${side === "dark" ? "Dark" : "Light"}: ${aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : "Human"}`)
               .join("  \u00b7  "),
             onOpenRules: (tab, focus) => openRulesAt(tab, focus || null),
+            rulesTabsHidden: hiddenRulesTabs,
             logCount: log.length,
             onOpenMoveLog: openMoveLog,
             onEndGame: handleEndActiveGame,
@@ -9002,7 +9009,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                   margin: "0 auto 18px",
                 }}
               />
-              <RulesTabs tab={infoTab} onTab={(k) => switchRulesTab(k)} C={RULES_COLORS} />
+              <RulesTabs tab={infoTab} onTab={(k) => switchRulesTab(k)} C={RULES_COLORS} hidden={hiddenRulesTabs} />
             </div>
 
             <div data-testid="info-body" ref={infoBodyRef} style={{ overflowY: "auto", padding: shell ? "0 20px calc(24px + env(safe-area-inset-bottom, 0px))" : "0 34px 32px" }}>

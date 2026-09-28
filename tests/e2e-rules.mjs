@@ -29,7 +29,10 @@ for (const theme of ["neon", "standard"]) {
   check("the open-rules event opens it on the asked-for tab",
     (await overlay.getAttribute("data-open")) === "true" && (await page.locator('[data-testid="rules-card-quick"]').count()) === 1);
 
-  for (const tab of ["costs", "game", "moves", "turn", "about"]) {
+  // The den (standard) has no "This game" tab (theme.rulesTabsHidden).
+  const hasGame = theme !== "standard";
+  if (!hasGame) check("no This game tab in the den", (await page.locator('[data-testid="rules-tab-game"]').count()) === 0);
+  for (const tab of ["costs", ...(hasGame ? ["game"] : []), "moves", "turn", "about"]) {
     await page.locator(`[data-testid="rules-tab-${tab}"]`).click();
     await page.waitForTimeout(200);
     const shown = tab === "about"
@@ -42,14 +45,19 @@ for (const theme of ["neon", "standard"]) {
     }
   }
 
-  await page.locator('[data-testid="rules-tab-game"]').click();
-  await page.waitForTimeout(200);
-  const lawButtons = await page.locator('[data-testid^="rules-game-law-"]').evaluateAll((els) => els.map((e) => e.dataset.testid.replace("rules-game-law-", "")).sort());
-  check("This game lists exactly the laws in play", lawButtons.join(",") === "slide,threeActions", lawButtons.join(","));
-  await page.locator('[data-testid="rules-game-law-slide"]').click();
-  await page.waitForTimeout(500);
-  check("tapping a law there jumps to its MOVES tile",
-    (await page.locator('[data-testid="rules-tile-slide"]').getAttribute("data-focus")) === "true");
+  if (hasGame) {
+    await page.locator('[data-testid="rules-tab-game"]').click();
+    await page.waitForTimeout(200);
+    const lawButtons = await page.locator('[data-testid^="rules-game-law-"]').evaluateAll((els) => els.map((e) => e.dataset.testid.replace("rules-game-law-", "")).sort());
+    check("This game lists exactly the laws in play", lawButtons.join(",") === "slide,threeActions", lawButtons.join(","));
+    await page.locator('[data-testid="rules-game-law-slide"]').click();
+    await page.waitForTimeout(500);
+    check("tapping a law there jumps to its MOVES tile",
+      (await page.locator('[data-testid="rules-tile-slide"]').getAttribute("data-focus")) === "true");
+  } else {
+    await page.locator('[data-testid="rules-tab-moves"]').click();
+    await page.waitForTimeout(500);
+  }
   const tiles = await page.locator('[data-testid^="rules-tile-"]').count();
   check("MOVES has a tile for every move and law (17)", tiles === 17, String(tiles));
   // Every move that tips a piece over an edge is shown from the side too;

@@ -674,7 +674,7 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
 
           <Section label="Game" t={t}>
             <Row label="How to play" testid="shell-menu-rules" onClick={run(() => ctl.onOpenRules("quick"))} chevron t={t} />
-            <Row label="Rules in this game" testid="shell-menu-game-rules" onClick={run(() => ctl.onOpenRules("game"))} chevron t={t} />
+            {!(ctl.rulesTabsHidden || []).includes("game") && <Row label="Rules in this game" testid="shell-menu-game-rules" onClick={run(() => ctl.onOpenRules("game"))} chevron t={t} />}
             <Row label="Move log" testid="shell-menu-movelog" disabled={!ctl.logCount} detail={ctl.logCount ? `${ctl.logCount} move${ctl.logCount === 1 ? "" : "s"}` : "No moves yet"} onClick={run(ctl.onOpenMoveLog)} chevron t={t} />
             {ctl.phase === "playing" && (
               <Row

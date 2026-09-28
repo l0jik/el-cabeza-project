@@ -112,6 +112,8 @@ export const outlineYOffset = OUTLINE_Y_OFFSET;
 // Singularity's first visit (engine/journey.js): the rules cards and the
 // order form offer the classic game until then.
 export const lockExtrasUntilSingularity = true;
+// No "This game" tab in the rules in the store (user).
+export const rulesTabsHidden = ["game"];
 // The store to look round (as the den): closer zoom, further out (far
 // enough to go round the advertisement's stand and see it from behind),
 // and the camera may wander off the board into the aisles (chassis:
