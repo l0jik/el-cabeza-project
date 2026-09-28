@@ -219,7 +219,7 @@ const CSS = `
   .td-sec-h small { font: 400 12px/1.3 ${COURIER}; letter-spacing: 0; text-transform: none; opacity: 0.85; }
   @media (max-width: 560px) { .td-sec-h small { flex: 1 1 100%; } }
   .td-row { display: grid; grid-template-columns: 64px 5.2em minmax(0, 1fr) 4em auto; align-items: center; gap: 10px; padding: 6px 4px; border-bottom: 1px solid rgba(46,33,24,0.3); min-height: 52px; }
-  /* A piece's photograph: tap it to take the piece up in 3-D. */
+  /* A piece's photograph: tap it to inspect the piece in 3-D. */
   .td-photo-btn { position: relative; width: 64px; height: 58px; padding: 0; border: none; background: transparent; cursor: zoom-in; border-radius: 2px; }
   .td-photo-btn img { width: 100%; height: 100%; object-fit: contain; display: block; transition: transform 0.15s ease; }
   .td-photo-btn .td-photo-wait { position: absolute; inset: 14px 16px; border: 1.5px dashed rgba(46,33,24,0.3); }
@@ -425,7 +425,7 @@ function PieceCatalog({ audio, onClose, onPurchase }) {
           h("div", { className: "td-form-note" }, "In every box: five of each, a side apiece, and the folding board."),
         ),
         h("div", { className: "td-sec" },
-          h("div", { className: "td-sec-h" }, "El Cabeza · No. 4417", h("small", null, "tap a photograph to take the piece up")),
+          h("div", { className: "td-sec-h" }, "El Cabeza · No. 4417", h("small", null, "tap a photograph to inspect the piece")),
           rows,
         ),
       ),
