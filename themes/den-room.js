@@ -45,6 +45,9 @@ import { paintWood } from "./wood-set.js";
 import * as TX from "./den-textures.js";
 import { buildTelevision } from "./den-tv.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
+import bookCoverUrl from "../assets/den/book-cover.jpg";
+import bookTailUrl from "../assets/den/book-tail.jpg";
+import bookForeUrl from "../assets/den/book-fore.jpg";
 
 export const FT = 6.1;
 export const TABLE_H = 8.4; // pit floor to the coffee table's top (17 in)
@@ -533,6 +536,35 @@ export function buildDen(boardSpan) {
     leg.translate(chX + lx * cc + lz * cs, yF + (etTop - 0.8) / 2, chZ - lx * cs + lz * cc);
     B.add(M.walnut, leg, { tile: 4 });
   });
+  /* On it, the book the user asked for, from their own photograph:
+     "Abstract Strategy: How the Masses Are Demanding the Future... Now!",
+     by Dr. Alistair Finch-Hatton. The photo shows it at an angle; the
+     cover and the two page edges it shows (the tail with its red ribbon,
+     the fore-edge) were squared up from it (assets/den/book-*.jpg). A
+     hardcover about 7.5 x 9.5 in and 2 in thick, lying a little askew,
+     its ribbon trailing out onto the table. */
+  {
+    const bookTex = (url) => { const t = tex(new THREE.TextureLoader().load(url)); t.anisotropy = 4; return t; };
+    const coverMat = baked(bookTex(bookCoverUrl));
+    const tailMat = baked(bookTex(bookTailUrl));
+    const foreMat = baked(bookTex(bookForeUrl));
+    const spineMat = baked(null, { color: 0xc98a3a });
+    const ribbonMat = baked(null, { color: 0xb3262b, side: THREE.DoubleSide });
+    const BW = 3.8, BL = 4.75, BT = 1.0;
+    const bx = etX + 0.4, bz = etZ - 0.2;
+    const place = new THREE.Matrix4().makeRotationY(chR + 0.32);
+    place.setPosition(chX + bx * cc + bz * cs, yF + etTop + 0.005, chZ - bx * cs + bz * cc);
+    const face = (geo, mat) => { geo.applyMatrix4(place); B.add(mat, geo); };
+    face(new THREE.PlaneGeometry(BW, BL).rotateX(-Math.PI / 2).translate(0, BT, 0), coverMat);
+    face(new THREE.PlaneGeometry(BW, BT).translate(0, BT / 2, BL / 2), tailMat);
+    face(new THREE.PlaneGeometry(BW, BT).rotateY(Math.PI).translate(0, BT / 2, -BL / 2), tailMat);
+    const fore = new THREE.PlaneGeometry(BL, BT);
+    { const uv = fore.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, 1 - uv.getX(i)); } // head at the image's left
+    face(fore.rotateY(Math.PI / 2).translate(BW / 2, BT / 2, 0), foreMat);
+    face(new THREE.PlaneGeometry(BL, BT).rotateY(-Math.PI / 2).translate(-BW / 2, BT / 2, 0), spineMat);
+    // The ribbon, out of the tail's pages about a fifth of the way from the spine.
+    face(new THREE.PlaneGeometry(0.28, 1.2).rotateX(-Math.PI / 2).rotateY(0.25).translate(-BW / 2 + 0.95, 0.012, BL / 2 + 0.5), ribbonMat);
+  }
   B.add(M.plaid, box(10, 5, 9, chX - 12, yF + 2.5, chZ + 12, { round: 1.4, ry: -0.3 }), { tile: TX.PLAID_TILE });
   // The arc lamp: a marble block, a chrome arc, a dome over the chair.
   const lampBase = [84, yF, -46];

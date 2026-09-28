@@ -2549,8 +2549,17 @@ asked for ideas.
   round tapered legs, a shelf at 3.2. The book is to be the user's own
   image of "Abstract Strategy: How the Masses Are Demanding the
   Future... Now!" by Dr. Alistair Finch-Hatton, exactly ("it must be
-  this exact book"): it came only as an inline picture, not a file, so
-  it waits for the file.
+  this exact book"). The photo (the book lying at an angle) was squared
+  up with a perspective warp from its four cover corners (242,36),
+  (636,98), (410,450), (12,356) of 649 x 563: assets/den/book-cover.jpg
+  (512 x 640), and the two page faces it shows the same way,
+  book-tail.jpg (with the red ribbon) and book-fore.jpg (brightened,
+  it's in shadow in the photo). On the table (den-room.js): a 3.8 x 4.75
+  x 1.0 block of faces (cover up, tail, head from the tail's pages,
+  fore-edge, the spine in the cover's orange wrap), turned 0.32 off the
+  chair's line, its ribbon trailing out onto the walnut. (An inline
+  picture reaches the session only to look at; this one came as a file,
+  images/21.webp.)
 - "Dollhouse view is a tad too high": the den's Room view from 150 /
   0.68 (116 up) to 118 / 0.78 (about 83 up, still well over the ceiling
   at about 40).
