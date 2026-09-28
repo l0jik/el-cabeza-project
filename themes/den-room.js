@@ -652,6 +652,25 @@ export function buildDen(boardSpan) {
   group.name = "den-room";
   Object.values(B.groups).forEach((g) => group.add(g));
 
+  /* ---- the arc lamp is a switch: focus (den-fx.js) ----
+     Unseen shapes round its dome and its marble block to catch a tap
+     (the lamp itself is baked into the room's merged meshes). */
+  const lampPickables = [];
+  {
+    const hidden = new THREE.MeshBasicMaterial({ visible: false });
+    disposables.push(hidden);
+    const catcher = (geo, x, y, z) => {
+      const m = new THREE.Mesh(geo, hidden);
+      m.position.set(x, y, z);
+      m.userData.focusLamp = true;
+      disposables.push(geo);
+      group.add(m);
+      lampPickables.push(m);
+    };
+    catcher(new THREE.SphereGeometry(5.2, 12, 8), 66, yF + 30, -31);
+    catcher(new THREE.BoxGeometry(7, 6, 7), lampBase[0], yF + 3, lampBase[2]);
+  }
+
   /* ---- the coffee table and what's on it (lit like the board) ---- */
   const table = buildCoffeeTable(TW, boardSpan);
   group.add(table.group);
@@ -662,6 +681,7 @@ export function buildDen(boardSpan) {
     groups: B.groups,
     TW, PH,
     table,
+    lamp: { pickables: lampPickables },
     stereo,
     tv,
     // The fireplace's mouth, where its sound comes from (den-fx.js).

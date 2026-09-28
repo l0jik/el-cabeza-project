@@ -79,6 +79,82 @@ export function createDenEffects(woodSet) {
       hintEl.classList.toggle("on", rulesHover && hintAt.z < 1);
     }
 
+    /* ---- focus: just the board ----
+       The room's lights go down round the board and it floats: the fog
+       closes in to just past the board, going near-black, so the room
+       sinks into the dark from the table's far edge out (every surface
+       in it, the lamps' glows too, is fogged; the fire's flames, which
+       aren't, go out); the room and the table drop a little away under
+       the board, which hangs over its own shadow, drifting slowly; and a
+       veil over the picture darkens (and, where the device can take it,
+       blurs) everything outside an ellipse round the board on screen
+       (standard.js styleSheet, .den-focus-veil). The music visit and the
+       set's visit bring the room back while they last. */
+    let focusOn = false, fw = 0, lastFocusTick = 0, veil = null, flames = null, tableMats = null, lastE = 0;
+    const FOG = { color: new THREE.Color(0x1c130c), bg: new THREE.Color(0x140d08), near: 150, far: 420 };
+    const DARK = new THREE.Color(0x070403);
+    const FOCUS_LIFT = 1.3; // how far the room drops under the board
+    const corner = new THREE.Vector3();
+    const blurOk = q.physical && typeof CSS !== "undefined" && CSS.supports && (CSS.supports("backdrop-filter", "blur(2px)") || CSS.supports("-webkit-backdrop-filter", "blur(2px)"));
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_FOCUS__ = () => ({ on: focusOn, w: fw, lift: den ? -den.group.position.y : 0, fogNear: three.current && three.current.scene && three.current.scene.fog ? three.current.scene.fog.near : null });
+    function focusFrame(t, now) {
+      const dt = lastFocusTick ? Math.min(0.1, (now - lastFocusTick) / 1000) : 0;
+      lastFocusTick = now;
+      const goal = focusOn && focusGoal === 0 && tvGoal === 0 ? 1 : 0;
+      fw += (goal - fw) * (1 - Math.exp(-dt * 2.4));
+      if (Math.abs(goal - fw) < 0.002) fw = goal;
+      const e = fw * fw * (3 - 2 * fw);
+      const scene = t.scene;
+      if (scene && scene.fog && scene.fog.isFog) {
+        const camDist = camLocal.length();
+        const reach = SLAB_MAX * 0.8;
+        scene.fog.near = FOG.near + (camDist + reach - FOG.near) * e;
+        scene.fog.far = FOG.far + (camDist + reach + 46 - FOG.far) * e;
+        scene.fog.color.copy(FOG.color).lerp(DARK, e);
+        if (scene.background && scene.background.isColor) scene.background.copy(FOG.bg).lerp(DARK, e);
+      }
+      // The fire's flames (unfogged, drawn additively) go out with the room.
+      if (!flames) { flames = []; den.groups.wallN.traverse((o) => { if (o.isMesh && o.material && o.material.isShaderMaterial && o.material.blending === THREE.AdditiveBlending) flames.push({ o, v: o.visible }); }); }
+      flames.forEach((f) => { f.o.visible = f.v && e < 0.45; });
+      // The table and what's on it (too near for the fog) go down into the
+      // dark with the room; the board, lit as ever, stays.
+      if (e !== lastE) {
+        lastE = e;
+        if (!tableMats) { tableMats = new Map(); den.table.group.traverse((o) => { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.color && !tableMats.has(m)) tableMats.set(m, m.color.clone()); }); }); }
+        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.78 * e));
+      }
+      // The float: the room (and the table) a little way down under the
+      // board, and a slow drift.
+      den.group.position.y = -(FOCUS_LIFT + Math.sin(now * 0.0011) * 0.12) * e;
+      // The veil: an ellipse round the board on screen stays clear.
+      if (typeof document === "undefined" || !t.renderer || !t.camera) return;
+      if (!veil) {
+        if (e <= 0) return;
+        const mount = t.renderer.domElement.parentNode;
+        if (!mount) return;
+        veil = document.createElement("div");
+        veil.className = `den-focus-veil${blurOk ? " blur" : ""}`;
+        veil.setAttribute("data-testid", "den-focus-veil");
+        veil.setAttribute("aria-hidden", "true");
+        mount.appendChild(veil);
+      }
+      veil.style.opacity = e.toFixed(3);
+      veil.style.visibility = e > 0 ? "visible" : "hidden";
+      if (e <= 0) return;
+      const r = t.renderer.domElement.getBoundingClientRect();
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const [sx, sy, sz] of [[-1, 0, -1], [1, 0, -1], [-1, 0, 1], [1, 0, 1], [-1, 2.2, -1], [1, 2.2, -1], [-1, 2.2, 1], [1, 2.2, 1]]) {
+        corner.set((sx * SLAB_X) / 2, sy, (sz * SLAB_Z) / 2);
+        t.boardGroup.localToWorld(corner).project(t.camera);
+        const px = ((corner.x + 1) / 2) * r.width, py = ((1 - corner.y) / 2) * r.height;
+        x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+      }
+      veil.style.setProperty("--cx", `${((x0 + x1) / 2).toFixed(1)}px`);
+      veil.style.setProperty("--cy", `${((y0 + y1) / 2).toFixed(1)}px`);
+      veil.style.setProperty("--rx", `${Math.max(60, ((x1 - x0) / 2) * 1.3).toFixed(1)}px`);
+      veil.style.setProperty("--ry", `${Math.max(60, ((y1 - y0) / 2) * 1.45).toFixed(1)}px`);
+    }
+
     /* ---- device fit ---- */
     let pr = 1;
     const frames = [];
@@ -125,6 +201,7 @@ export function createDenEffects(woodSet) {
       if (den) { t.boardGroup.remove(den.group); den.dispose(); }
       if (brass) { t.boardGroup.remove(brass.group); brass.dispose(); }
       den = buildDen(SLAB_MAX);
+      flames = null; tableMats = null; lastE = -1; // focus finds the new room's fire and table
       brass = woodSet.buildBrass();
       t.boardGroup.add(den.group, brass.group);
       if (fontsDone) den.repaint();
@@ -210,6 +287,7 @@ export function createDenEffects(woodSet) {
         if (t.camera) { camLocal.copy(t.camera.position); t.boardGroup.worldToLocal(camLocal); }
         den.animate(now, t.camera ? camLocal : null, { open: focusGoal > 0 && focusW > 0.6, playing });
         showRulesHint(t);
+        focusFrame(t, now);
         listen(t, now);
         // The television.
         const dt = lastTick ? Math.min(0.1, (now - lastTick) / 1000) : 0;
@@ -255,11 +333,14 @@ export function createDenEffects(woodSet) {
         const slab = t && t.boardGroup && t.boardGroup.getObjectByName("ec-slab");
         const onTable = raycaster.intersectObjects([slab].concat(den.table.rules.pickables).filter(Boolean), false)[0];
         if (onTable && onTable.object.userData.rules) return "rules";
-        if (!den.groups.wallS.visible) return null;
-        const hit = raycaster.intersectObjects(den.stereo.pickables.concat(den.tv.pickables), false)[0];
+        // The arc lamp by the chair (focus), and, while the south wall is
+        // there, the stereo's machines and the set: the nearest.
+        const things = den.lamp.pickables.concat(den.groups.wallS.visible ? den.stereo.pickables.concat(den.tv.pickables) : []);
+        const hit = raycaster.intersectObjects(things, false)[0];
         if (!hit) return null;
         const nearer = raycaster.intersectObjects([slab, den.table.group].filter(Boolean), true)[0];
         if (nearer && nearer.distance < hit.distance) return null;
+        if (hit.object.userData.focusLamp) return "lamp";
         return hit.object.userData.tv ? "tv" : hit.object.userData.music || null;
       },
       // What a tap on "rules" or "tv" does is the room's own: the rules
@@ -271,10 +352,18 @@ export function createDenEffects(woodSet) {
           if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "quick", focus: null } }));
           return true;
         }
+        // The arc lamp: the room's lights down (focus) or up again; the
+        // chassis keeps the state (its FOCUS_EVENT, a toggle).
+        if (what === "lamp") {
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("el-cabeza:focus", { detail: {} }));
+          return true;
+        }
         if (what !== "tv") return false;
         pressTv();
         return true;
       },
+      // Focus on (the chassis's switch, button, F key, or the lamp).
+      setFocus(on) { focusOn = !!on; },
       // What's under the mouse: over the leaflet or the box, the "?".
       sceneHover(what) { rulesHover = what === "rules"; },
       /* After the chassis has set its camera: blend it toward the view of
@@ -330,6 +419,7 @@ export function createDenEffects(woodSet) {
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (novaTv && novaTv.register) novaTv.register(null);
         if (hintEl) { hintEl.remove(); hintEl = null; }
+        if (veil) { veil.remove(); veil = null; }
         if (typeof document !== "undefined") document.documentElement.classList.remove("ec-tv-visit");
         if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; }
       },

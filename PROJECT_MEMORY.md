@@ -3079,3 +3079,34 @@ grout, harvest gold at the middle through orange and rust to brown at the
 edges (seeded scatter), a glaze glint on each, in a teak frame
 (`mosaicTop` color 0xb4a690 roughness 0.3; `teakSide` 0x5c3b22). The
 walnut planks it replaces are gone.
+
+### Focus mode in the den (user: "everything but the board... blurred out... the board kind of floating")
+Seven ideas were offered; the user took the recommendation: the arc lamp
+by the chair as the den's own switch, plus a corner button and F / Esc,
+and (asked for) a switch in the dock (a phone's menu) and in the phone
+control bar's menu.
+- **Chassis:** `theme.focusMode` turns it on for a theme. State
+  `focusMode`, passed to the theme's ambient `setFocus(on)`. Ways in/out:
+  corner button `focus-corner` (beside the Room view house, `data-on`),
+  F toggles, Escape leaves (not while the rules / placard / new-game card
+  is open), the dock's `focus-switch` (role=switch, next to Room View),
+  the phone menu's `shell-menu-focus` Toggle (View section), and the
+  theme's own through the window event `el-cabeza:focus` ({ on } or a
+  toggle). Room View leaves focus.
+- **Den (den-fx.js focusFrame):** eased (about 1 s). Fog closes in to just
+  past the board (near = camera distance + 0.8 SLAB_MAX, far +46) and
+  goes near-black, background too, so the room sinks into the dark from
+  the table's far edge (the lamps' glow sprites are fogged; the fire's
+  unfogged additive flames are hidden past 45%). The room and the table
+  drop 1.3 units under the board (den.group.position.y) with a slow 0.12
+  drift, so the board floats over its own shadow. A veil
+  (`.den-focus-veil`, standard.js CSS) appended in the canvas's mount:
+  dark outside an ellipse round the board's screen box (--cx/--cy/--rx/
+  --ry set each frame), with backdrop-filter blur where the tier is
+  physical and the browser supports it (`.blur`). The music visit and the
+  TV visit bring the room back while they last.
+- **The lamp:** unseen pick shapes round the arc lamp's dome and marble
+  block (den-room.js `lamp.pickables`, userData.focusLamp); pickScene
+  returns "lamp", sceneTap sends the toggle event.
+- Test hook `__DEN_FOCUS__()` ({ on, w, lift, fogNear }). Test: e2e-den
+  "Focus: just the board".

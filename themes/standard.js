@@ -208,6 +208,10 @@ export const mountAmbientEffects = createDenEffects(woodSet);
 // The rules lie in the room: the leaflet on the coffee table opens them
 // (den-fx.js), so there's no How to play in the corner.
 export const rulesInRoom = true;
+// Focus: the room dims and blurs away round the floating board (den-fx.js);
+// the chassis gives the ways in and out (corner button, F, the dock's and
+// the phone menu's switches), the den its own (the arc lamp).
+export const focusMode = true;
 
 /* No pre-game setup extras, and no SVG filter defs. */
 export function renderSetupExtras() {
@@ -248,12 +252,13 @@ export const styleSheet = `
     box-shadow: 0 14px 34px rgba(12,6,2,0.55) !important;
   }
   /* Over the room: a scrap of card behind anything that floats on it. */
-  button[aria-label$="full screen"], [data-testid="room-view-corner"] {
+  button[aria-label$="full screen"], [data-testid="room-view-corner"], [data-testid="focus-corner"] {
     background: rgba(243,231,205,0.92) !important; color: ${DEN.chocolate} !important;
     border-radius: 999px !important; box-shadow: 0 2px 8px rgba(12,6,2,0.4);
   }
   button[aria-label$="full screen"] { width: 30px !important; height: 30px !important; bottom: 22px !important; }
-  [data-testid="room-view-corner"] { width: 30px !important; height: 30px !important; bottom: 22px !important; opacity: 0.85 !important; }
+  [data-testid="room-view-corner"], [data-testid="focus-corner"] { width: 30px !important; height: 30px !important; bottom: 22px !important; opacity: 0.85 !important; }
+  [data-testid="focus-corner"][data-on="true"] { background: ${DEN.chocolate} !important; color: rgba(243,231,205,0.96) !important; opacity: 1 !important; }
   /* The rules leaflet's "?" (den-fx.js): a scrap of card that pops up
      over the leaflet on the coffee table under the mouse. */
   .den-rules-hint {
@@ -273,6 +278,17 @@ export const styleSheet = `
     transform: rotate(45deg);
   }
   @media (prefers-reduced-motion: reduce) { .den-rules-hint { transition: opacity 0.14s ease; } }
+  /* Focus (den-fx.js): over the picture, everything outside an ellipse
+     round the board darkened, and blurred where the device can take it
+     (.blur); den-fx sets the ellipse (--cx --cy --rx --ry) and the
+     opacity each frame. */
+  .den-focus-veil {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0; visibility: hidden;
+    background: rgba(7,4,3,0.72);
+    -webkit-mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 58%, rgba(0,0,0,0.75) 82%, #000 100%);
+    mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 58%, rgba(0,0,0,0.75) 82%, #000 100%);
+  }
+  .den-focus-veil.blur { background: rgba(7,4,3,0.6); backdrop-filter: blur(7px) saturate(0.7); -webkit-backdrop-filter: blur(7px) saturate(0.7); }
   [data-testid="points-counter"] {
     color: ${DEN.chocolate} !important;
     background: rgba(243,231,205,0.92); padding: 5px 12px 5px 13px; border-radius: 999px;

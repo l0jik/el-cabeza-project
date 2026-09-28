@@ -247,6 +247,77 @@ async function waitFor(fn, ms = 8000) {
 }
 
 {
+  console.log("Focus: just the board");
+  const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-standard.html");
+  await waitFor(() => page.evaluate(() => !!window.__DEN_ROOM__ && !!window.__DEN_THREE__ && !!window.__DEN_FOCUS__));
+  const focus = () => page.evaluate(() => window.__DEN_FOCUS__());
+  const settled = (on) => waitFor(async () => { const f = await focus(); return f.on === on && (on ? f.w > 0.99 : f.w < 0.01); }, 12000);
+  check("the focus button is in the corner", await q(page, "focus-corner").isVisible());
+  await q(page, "focus-corner").click();
+  check("...a tap: focus comes on and settles", await settled(true));
+  const f1 = await focus();
+  check("...the room drops away under the board", f1.lift > 1, JSON.stringify(f1));
+  check("...the fog closes in to just past the board", f1.fogNear < 80, JSON.stringify(f1));
+  const veil = await page.evaluate(() => { const v = document.querySelector('[data-testid="den-focus-veil"]'); return v ? { op: Number(v.style.opacity), vis: v.style.visibility, rx: v.style.getPropertyValue("--rx") } : null; });
+  check("...the veil is over the room, round the board", veil && veil.op > 0.95 && veil.vis === "visible" && parseFloat(veil.rx) > 60, JSON.stringify(veil));
+  check("...the button says so", (await q(page, "focus-corner").getAttribute("data-on")) === "true");
+  await page.keyboard.press("f");
+  check("F leaves it", await settled(false));
+  check("...the room back in place", (await focus()).lift < 0.01);
+  await page.keyboard.press("f");
+  check("F again: back in", await settled(true));
+  await page.keyboard.press("Escape");
+  check("Escape leaves it", await settled(false));
+  // The dock's switch (with the camera views, once a game is under way).
+  await openDockPanel(page);
+  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.waitForTimeout(1500);
+  await openDockPanel(page);
+  const sw = q(page, "focus-switch");
+  check("the dock has a Focus switch", await sw.isVisible());
+  await sw.click();
+  check("...on", (await sw.getAttribute("aria-checked")) === "true" && (await focus()).on);
+  await q(page, "room-view").click();
+  check("Room View leaves focus", !(await focus()).on && (await sw.getAttribute("aria-checked")) === "false");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  // The arc lamp by the chair: a tap there toggles it. From the Room
+  // view (the whole room below), its dome or its marble block.
+  const lampAt = (geo) => page.evaluate((geo) => {
+    const t = window.__DEN_THREE__;
+    let lamp = null; t.scene.traverse((o) => { if (o.userData && o.userData.focusLamp && o.geometry.type === geo) lamp = o; });
+    const v = new t.camera.position.constructor(); lamp.getWorldPosition(v); v.project(t.camera);
+    const r = t.renderer.domElement.getBoundingClientRect();
+    return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height, z: v.z };
+  }, geo);
+  await q(page, "room-view-corner").click();
+  await page.waitForTimeout(2000);
+  let lampOn = false;
+  for (const theta of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+    // Aimed at the lamp's dome, from across the room.
+    await page.evaluate((theta) => {
+      const t = window.__DEN_THREE__;
+      let lamp = null; t.scene.traverse((o) => { if (o.userData && o.userData.focusLamp && o.geometry.type === "SphereGeometry") lamp = o; });
+      const v = new t.camera.position.constructor(); lamp.getWorldPosition(v);
+      window.__EC_TEST_CAM__({ theta, phi: 1.1, radius: 55, target: [v.x, v.y, v.z] });
+    }, theta);
+    await page.waitForTimeout(3000);
+    const at = await lampAt("SphereGeometry");
+    if (at.z >= 1 || at.x < 30 || at.x > 1070 || at.y < 30 || at.y > 700) continue;
+    await page.mouse.click(at.x, at.y);
+    lampOn = await waitFor(async () => (await focus()).on, 3000);
+    if (lampOn) break;
+  }
+  check("a tap on the arc lamp turns focus on", lampOn);
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await page.close();
+}
+
+{
   console.log("Nova: the den, Neon, and back");
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();

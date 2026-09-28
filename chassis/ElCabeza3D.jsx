@@ -22,6 +22,8 @@ import {
 } from "../engine/geometry.js";
 import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
+// A theme's own way into focus (the den's arc lamp): { on }, or a toggle.
+const FOCUS_EVENT = "el-cabeza:focus";
 import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
@@ -821,6 +823,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [showCosts, setShowCosts] = useState(loadShowCosts);
   const [showGuide, setShowGuide] = useState(loadPieceGuide);
   const togglePieceGuide = () => { const next = !showGuide; setShowGuide(next); savePieceGuide(next); };
+  /* Focus (a theme with theme.focusMode: the den): the room goes dark and
+     soft round the board, and the board floats, just the game. The theme
+     draws it (its ambient setFocus); the ways in and out are here: the
+     corner button, F (Escape leaves), the dock's switch, the phone menu's,
+     and the theme's own (the den's arc lamp) through FOCUS_EVENT. Room
+     View leaves it. */
+  const focusable = !!theme.focusMode;
+  const [focusMode, setFocusMode] = useState(false);
+  const toggleFocus = () => setFocusMode((v) => !v);
   // A theme without the switch always shows the badges.
   const costsOn = showCosts || !theme.moveCostToggle;
   const [pointsPulse, setPointsPulse] = useState(0);
@@ -2150,6 +2161,33 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      the placard, or the RETAIN/RECONFIGURE dialog it can hand off to
      (see handleNewGameClick) — treating the two as the one conceptual
      overlay the board's own tap-to-reopen handler does. */
+  // Focus: the theme draws it; F toggles, Escape leaves (when no card is
+  // open over the board, whose own Escape comes first); the theme's own
+  // way in (the den's lamp) sends FOCUS_EVENT ({ on } or a toggle).
+  useEffect(() => {
+    if (ambientRef.current && ambientRef.current.setFocus) ambientRef.current.setFocus(focusMode);
+  }, [focusMode]);
+  const focusKeysRef = useRef({});
+  focusKeysRef.current = { focusable, focusMode, overlay: showInfoOverlay || showVictoryPlacard || showNewGameChoice };
+  useEffect(() => {
+    const onEvent = (e) => {
+      if (!focusKeysRef.current.focusable) return;
+      const d = (e && e.detail) || {};
+      setFocusMode((v) => (typeof d.on === "boolean" ? d.on : !v));
+    };
+    const onKey = (e) => {
+      const k = focusKeysRef.current;
+      if (!k.focusable || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if ((e.key === "f" || e.key === "F") && !e.repeat) setFocusMode((v) => !v);
+      else if (e.key === "Escape" && k.focusMode && !k.overlay) setFocusMode(false);
+    };
+    window.addEventListener(FOCUS_EVENT, onEvent);
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener(FOCUS_EVENT, onEvent); window.removeEventListener("keydown", onKey); };
+  }, []);
+
   useEffect(() => {
     if (!showVictoryPlacard && !showNewGameChoice) return;
     const onKey = (e) => {
@@ -2278,7 +2316,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const rulesInRoom = !!theme.rulesInRoom;
   const fullScreenCorner = typeof document !== "undefined" && !!(document.fullscreenEnabled || document.documentElement.requestFullscreen);
   // How to play's right edge: "?" only under 560px, the label beside it above.
-  const cornerControlsRight = rulesInRoom ? (fullScreenCorner ? 96 : 56) + 8 : (viewportW <= 560 ? 88 : 170) + 8;
+  const cornerControlsRight = rulesInRoom ? (fullScreenCorner ? 96 : 56) + (theme.focusMode ? 40 : 0) + 8 : (viewportW <= 560 ? 88 : 170) + 8;
   const cornerControlsCovered = dockView === "panel" && (viewportW - dockPanelW) / 2 < cornerControlsRight;
   /* Distinct from declutter above: declutter is specifically about
      hiding the Opponent row and Record section, true only during
@@ -5876,6 +5914,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   function roomView() {
     const d = theme.freeCamera && theme.freeCamera.dollhouse;
     if (!d) return;
+    setFocusMode(false);
     cam.current.dollhouse = true;
     cam.current.phi = d.phi;
     cam.current.radius = d.radius;
@@ -7209,6 +7248,33 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         </button>
       )}
 
+      {/* Focus (theme.focusMode): a circle in a frame of corners, beside
+         the Room view house; filled while it's on. */}
+      {!shell && focusable && (
+        <button
+          type="button"
+          data-testid="focus-corner"
+          data-on={focusMode ? "true" : "false"}
+          onClick={toggleFocus}
+          aria-pressed={focusMode}
+          aria-label={focusMode ? "Leave focus" : "Focus on the board"}
+          title={focusMode ? "Leave focus (F or Esc)" : "Focus: just the board (F)"}
+          style={{
+            position: "fixed", left: rulesInRoom ? (fullScreenCorner ? 98 : 58) : 18, bottom: rulesInRoom ? 18 : 102, zIndex: cornerControlsZ, width: 38, height: 38,
+            display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
+            color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : focusMode ? 0.95 : 0.5,
+            pointerEvents: cornerControlsCovered ? "none" : "auto", cursor: "pointer", transition: "opacity 0.5s ease",
+          }}
+          onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : focusMode ? 0.95 : 0.5; }}
+        >
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4" />
+            <circle cx="12" cy="12" r={focusMode ? 3.4 : 2.6} fill={focusMode ? "currentColor" : "none"} />
+          </svg>
+        </button>
+      )}
+
       {/* How to play: always on screen, beside the full-screen button,
          so the rules are never more than one tap away. Opens the rules
          at the Quick card. Not where the rules lie in the room
@@ -7623,6 +7689,23 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             {theme.freeCamera && theme.freeCamera.dollhouse && (
               <button className="ec-btn" data-testid="room-view" onClick={roomView} style={ghostButtonStyle()}>
                 Room View
+              </button>
+            )}
+            {/* Focus: a switch beside the camera views (on a phone the
+               dock is the menu, so this is its way in). */}
+            {focusable && (
+              <button
+                className="ec-btn"
+                role="switch"
+                aria-checked={focusMode}
+                data-testid="focus-switch"
+                onClick={toggleFocus}
+                style={{ ...ghostButtonStyle(), display: "inline-flex", alignItems: "center", gap: 8 }}
+              >
+                Focus
+                <span aria-hidden="true" style={{ width: 26, height: 15, borderRadius: 8, boxSizing: "border-box", position: "relative", flexShrink: 0, border: "1.5px solid currentColor", opacity: focusMode ? 1 : 0.55, transition: "opacity 180ms ease" }}>
+                  <span style={{ position: "absolute", top: 1.5, left: focusMode ? 12.5 : 1.5, width: 9, height: 9, borderRadius: "50%", background: "currentColor", transition: "left 180ms ease" }} />
+                </span>
               </button>
             )}
             {/* New Game now carries the previous game's Singularity rules
@@ -8453,6 +8536,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             onTopDown: () => topDownView(),
             onPlayerView: recenterView,
             onRoomView: theme.freeCamera && theme.freeCamera.dollhouse ? roomView : null,
+            focusMode,
+            onToggleFocus: focusable ? toggleFocus : null,
             // Menu
             playersLine: ["dark", "light"]
               .map((side) => `${side === "dark" ? "Dark" : "Light"}: ${aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : "Human"}`)
