@@ -893,8 +893,24 @@ export function buildTable(slabX, slabZ) {
   const legInsetX = W / 2 - 1.2, legInsetZ = D / 2 - 1.2;
   [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => mk(box(0.9, legH, 0.9, sx * legInsetX, FLOOR + legH / 2, sz * legInsetZ - BZ), chrome));
   // Lower shelf with boxed stock.
-  // (Under the top it's in shadow, so it isn't lit at all.)
-  const under = new THREE.MeshBasicMaterial({ color: 0x2b2119, toneMapped: false, fog: true }); disposables.push(under);
+  // In the top's shade, not lit by the key (whose shadow would black it
+  // out), but not dark either (user: "practically pitch black" in a
+  // bright store): the troffers' light comes in from every side and back
+  // up off the pale floor, so it's a shaded walnut brown, lightest at the
+  // rim where that light gets in and a shade deeper toward the middle.
+  const shelfShade = canvasTexture(64, 64, (g, CW, CH) => {
+    const img = g.createImageData(CW, CH);
+    for (let j = 0; j < CH; j++) for (let i = 0; i < CW; i++) {
+      const u = (i + 0.5) / CW, v = (j + 0.5) / CH;
+      const e = Math.min(u, 1 - u, v, 1 - v) * 2; // 0 at the rim, 1 in the middle
+      const k = 1 - 0.22 * Math.min(1, e * 1.6);
+      const o = (j * CW + i) * 4;
+      img.data[o] = img.data[o + 1] = img.data[o + 2] = Math.round(255 * k); img.data[o + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }, { scale: false });
+  disposables.push(shelfShade);
+  const under = new THREE.MeshBasicMaterial({ color: 0x8c6c50, map: shelfShade, toneMapped: false, fog: true }); disposables.push(under);
   mk(box(W - 2, 0.6, D - 2, 0, FLOOR + 3, -BZ), under);
   const boxImg = new Image();
   const lid = canvasTexture(512, 256, lidPainter(boxImg), { scale: false });
@@ -911,7 +927,7 @@ export function buildTable(slabX, slabZ) {
   const bxEnd = slabX / 2 + 1 + bw / 2;
   addBox(bxEnd, topY + bh / 2, 0.4, -Math.PI / 2 + 0.03);
   addBox(bxEnd + 0.15, topY + bh * 1.5, 0.2, -Math.PI / 2 - 0.05);
-  const dimLid = new THREE.MeshBasicMaterial({ map: lid, color: 0x6a625a, toneMapped: false, fog: true }), dimSide = new THREE.MeshBasicMaterial({ color: 0x21170f, toneMapped: false, fog: true });
+  const dimLid = new THREE.MeshBasicMaterial({ map: lid, color: 0xb4aa9c, toneMapped: false, fog: true }), dimSide = new THREE.MeshBasicMaterial({ color: 0x55402e, toneMapped: false, fog: true });
   disposables.push(dimLid, dimSide);
   const dimMats = [dimSide, dimSide, dimLid, dimSide, dimSide, dimSide];
   for (let n = 0; n < 4; n++) {

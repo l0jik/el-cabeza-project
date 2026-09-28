@@ -3305,3 +3305,22 @@ tienda-showcase.js `frameRadius(model)`: every piece is framed as if it
 were the Opa (max of its own radius and the Opa's, cached), in the viewer
 and the row photographs alike, so the Turrito is a small cube beside the
 Opa's big one; pieces longer than the Opa are framed on their own.
+
+### The store table's lower shelf isn't black (user: "practically pitch black")
+tienda-store.js buildTable: the lower shelf and its stock stay unlit
+(MeshBasicMaterial: the key's shadow map would black them out) but at
+shaded, not dark, values: the shelf 0x8c6c50 times a 64 px falloff map
+(full at the rim where the troffers' light gets in, 22% deeper in the
+middle), the stock boxes' lids 0xb4aa9c times the lid art, their sides
+0x55402e. (Was 0x2b2119 / 0x6a625a / 0x21170f.)
+
+### Den: the side sofa's back cushions reach the corners (user)
+den-room.js: the west run of back cushions was a seat's depth (SD) short
+of each corner (as its seat cushions are), leaving a gap against the
+north and south backs. Its two end cushions now reach on into the
+corner (by SD - backD - 0.7), up to the other backs with the usual 0.4
+seam; the middle ones and the seats are unchanged.
+
+e2e-tienda: the square picker step waits for the picker to close (up to
+6 s) instead of a fixed 400 ms; on the software renderer a click there
+can take seconds to resolve.

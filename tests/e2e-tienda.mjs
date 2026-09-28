@@ -354,7 +354,9 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await press('[data-testid="tienda-cell-0-4"]');
   check("the picker refuses a back row, and says why", /back rows/.test(await txt('[data-testid="tienda-picker-note"]')) && (await count('[data-testid="tienda-picker"]')) === 1);
   await press('[data-testid="tienda-cell-3-2"]');
-  await page.waitForTimeout(400);
+  // The software renderer can hold the store's frame for a while: wait
+  // for the picker to go, up to a few seconds, not a fixed moment.
+  for (let i = 0; i < 30 && (await count('[data-testid="tienda-picker"]')); i++) await page.waitForTimeout(200);
   check("...a tap places the pair and closes", (await count('[data-testid="tienda-picker"]')) === 0 && (await txt('[data-testid="tienda-hole-where"]')).startsWith("O row 4, col 3") && !/random/.test(await txt('[data-testid="tienda-hole-where"]')));
   await press('[data-testid="tienda-missing"]');
   await press('[data-testid="tienda-missing-count-inc"]');

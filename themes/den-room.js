@@ -318,7 +318,18 @@ export function buildDen(boardSpan) {
   const backH = 10, backD = 4;
   cushionRun(PH * 2, (u, w) => B.add(M.cord, box(w, backH, backD, u, seatTop + backH / 2 - 0.4, -PH + backD / 2 + 0.3, { round: 1.4 }), { group: "sofaN", tile: TX.CORD_TILE }));
   cushionRun(PH * 2, (u, w) => B.add(M.cord, box(w, backH, backD, u, seatTop + backH / 2 - 0.4, PH - backD / 2 - 0.3, { round: 1.4 }), { group: "sofaS", tile: TX.CORD_TILE }));
-  cushionRun(PH * 2 - SD * 2, (u, w) => B.add(M.cord, box(backD, backH, w, -PH + backD / 2 + 0.3, seatTop + backH / 2 - 0.4, u, { round: 1.4 }), { group: "sofaW", tile: TX.CORD_TILE }));
+  // The west side's run is a seat's depth short of each corner (its seats
+  // are); its two end cushions reach on into the corner, up to the north
+  // and south backs, so there's no gap there (user).
+  {
+    const len = PH * 2 - SD * 2, reach = SD - backD - 0.3 - 0.4;
+    const n = Math.max(2, Math.round(len / 15)), w0 = len / n;
+    for (let i = 0; i < n; i++) {
+      const end = i === 0 ? -1 : i === n - 1 ? 1 : 0;
+      const w = w0 - 0.4 + (end ? reach : 0), u = -len / 2 + w0 * (i + 0.5) + end * reach / 2;
+      B.add(M.cord, box(backD, backH, w, -PH + backD / 2 + 0.3, seatTop + backH / 2 - 0.4, u, { round: 1.4 }), { group: "sofaW", tile: TX.CORD_TILE });
+    }
+  }
   // Throw pillows, tossed.
   // The print is laid on the pillow's own faces (UVs from its local
   // x and y) before it's turned and set down.
