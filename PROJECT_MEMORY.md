@@ -3249,3 +3249,7 @@ themes' card-style overrides use (standard.js, tienda.js:
 `bottom: calc(var(--ec-corner-bottom) + 4px) !important`, the smaller
 card centred on the chassis's 38 px spot). cornerControlsRight follows
 (56 + 8 when stacked).
+- **Focus button icon (user):** a light bulb. Focus off (the room's lights
+  on): the bulb outline with rays all round; focus on (lights down): the
+  bulb alone, no rays (outline, not filled: a filled cream bulb on the
+  dark "on" card read as lit).

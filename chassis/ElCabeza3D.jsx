@@ -7289,9 +7289,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : focusMode ? 0.95 : 0.5; }}
         >
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4" />
-            <circle cx="12" cy="12" r={focusMode ? 3.4 : 2.6} fill={focusMode ? "currentColor" : "none"} />
+          {/* A light bulb (the user): the room's lights on, it shines, rays
+              all round; focus on, the lights are down: the bulb alone, out. */}
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 6.2a4.6 4.6 0 0 0-2.7 8.3c.6.5 1 1.1 1 1.8v.7h3.4v-.7c0-.7.4-1.3 1-1.8A4.6 4.6 0 0 0 12 6.2z" />
+            <path d="M10.4 19.3h3.2M10.9 21.2h2.2" />
+            {!focusMode && <path d="M12 1.6v2M5.1 4.4l1.4 1.4M18.9 4.4l-1.4 1.4M2.6 10.8h2M19.4 10.8h2M4.9 16.9l1.4-1.2M19.1 16.9l-1.4-1.2" />}
           </svg>
         </button>
       )}
