@@ -703,6 +703,7 @@ export function buildDen(boardSpan) {
       const dt = lastNow ? Math.min(0.1, (now - lastNow) / 1000) : 0;
       lastNow = now;
       stereo.animate(dt, music);
+      table.animate(t, camLocal);
       flameMat.uniforms.uTime.value = t;
       const flick = 0.85 + Math.sin(t * 7.3) * 0.06 + Math.sin(t * 13.1 + 1.3) * 0.05 + Math.sin(t * 2.1) * 0.04;
       fireGlow.material.opacity = 0.5 * flick;
@@ -1275,6 +1276,7 @@ function buildCoffeeTable(TW, boardSpan) {
   const lit = (o) => { const m = q.physical ? new THREE.MeshStandardMaterial({ roughness: 0.5, ...o }) : new THREE.MeshLambertMaterial(o); disposables.push(m); return m; };
   const mk = (geo, mat, cast = false) => { const m = new THREE.Mesh(geo, mat); m.receiveShadow = true; m.castShadow = cast; group.add(m); disposables.push(geo); return m; };
   const topY = -SLAB_THICKNESS;
+  let steamRef = null; // the coffee's steam (below)
   /* Small glazed ceramic tiles in earth tones, 40 by 40 on cream grout,
      shading from harvest gold at the middle through orange and rust to
      brown at the edges (a little scatter, seeded, so the rings aren't
@@ -1349,7 +1351,22 @@ function buildCoffeeTable(TW, boardSpan) {
   // tumbler of scotch on the rocks on a cork coaster.
   const cork = lit({ color: 0x9a7048, roughness: 0.9 });
   const glassMat = (o) => { const m = new THREE.MeshStandardMaterial({ roughness: 0.06, metalness: 0, transparent: true, depthWrite: false, ...o }); disposables.push(m); return m; };
-  const glazeLight = lit({ color: 0xd9b98a, roughness: 0.4 }); // the saucer's pale glaze
+  /* The saucer's glaze: avocado, darker on the rim, with rings of harvest
+     gold and cream round the inside of the dish (a seventies set). Painted
+     along the lathe's profile (its v runs point to point, i / 9: the
+     underside to 0.44, the outer rim to 0.56, the rim's top to 0.67, its
+     inner slope to 0.78, the dish to 0.89, the well to 1). */
+  const saucerTex = canvasTexture(8, 512, (g, W, H) => {
+    const band = (v0, v1, c) => { g.fillStyle = c; g.fillRect(0, (1 - v1) * H, W, (v1 - v0) * H + 1); };
+    band(0, 1, "#56631F"); // avocado
+    band(0.44, 0.67, "#434E19"); // the rim, darker
+    band(0.79, 0.805, "#C99A2E"); // harvest gold
+    band(0.818, 0.828, "#E6D8AE"); // cream
+    band(0.84, 0.855, "#C99A2E");
+    band(0.889, 1, "#5F6D24"); // the well, a touch lighter
+  }, { scale: false });
+  disposables.push(saucerTex);
+  const saucerGlaze = lit({ map: saucerTex, roughness: 0.34 });
   const coffee = lit({ color: 0x2a1508, roughness: 0.12 });
   const steel = lit({ color: 0xd4d2cc, roughness: 0.22, metalness: q.physical ? 0.3 : 0, side: THREE.DoubleSide });
   {
@@ -1357,7 +1374,7 @@ function buildCoffeeTable(TW, boardSpan) {
     // The saucer: a shallow dish with a well for the mug's foot. Its top
     // face (saucerTop below) is what the spoon lies on.
     const sp = [[0, 0], [0.62, 0], [0.66, 0.08], [0.72, 0.05], [1.38, 0.16], [1.52, 0.3], [1.46, 0.34], [1.3, 0.24], [0.7, 0.12], [0, 0.12]].map(([r, h]) => new THREE.Vector2(r, h));
-    mk(new THREE.LatheGeometry(sp, 32).translate(x, topY, z), glazeLight, true);
+    mk(new THREE.LatheGeometry(sp, 32).translate(x, topY, z), saucerGlaze, true);
     const saucerTop = (r) => (r <= 0.7 ? 0.12 : r <= 1.3 ? 0.12 + ((r - 0.7) / 0.6) * 0.12 : 0.24 + ((r - 1.3) / 0.16) * 0.1);
 
     /* The mug: a stacking stoneware mug of the mid-seventies (the user's
@@ -1368,17 +1385,17 @@ function buildCoffeeTable(TW, boardSpan) {
        handle. Its handle is turned toward the board's edge. */
     const speckle = canvasTexture(512, 256, (g, W, H) => {
       let s = 11; const R = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-      g.fillStyle = "#D9CD97"; g.fillRect(0, 0, W, H);
+      g.fillStyle = "#E4CF72"; g.fillRect(0, 0, W, H);
       for (let i = 0; i < 1400; i++) { g.fillStyle = `rgba(${60 + R() * 40},${40 + R() * 25},${20 + R() * 15},${0.25 + R() * 0.45})`; g.fillRect(R() * W, R() * H, 1 + R() * 1.6, 1 + R() * 1.6); }
     }, { scale: false });
     disposables.push(speckle);
     speckle.wrapS = THREE.RepeatWrapping;
-    const oatmeal = lit({ map: speckle, color: 0xd2bf86, roughness: 0.38 });
+    const oatmeal = lit({ map: speckle, color: 0xe2cc78, roughness: 0.38 }); // a mustard-yellow oatmeal
     const rust = lit({ color: 0xa4582a, roughness: 0.4 });
     // The band: Ys packed on a hex lattice, alternately up and down so
     // their arms interlock; 11 repeats round, seamless.
     const band = canvasTexture(1024, 256, (g, W, H) => {
-      g.fillStyle = "#D9CD97"; g.fillRect(0, 0, W, H);
+      g.fillStyle = "#E4CF72"; g.fillRect(0, 0, W, H);
       const cw = W / 11, ch = H / 2.6, arm = cw * 0.5, lw = cw * 0.2;
       const y = (cx, cy, up) => {
         for (const a of up ? [-90, 30, 150] : [90, -30, -150]) {
@@ -1400,7 +1417,7 @@ function buildCoffeeTable(TW, boardSpan) {
     }, { scale: false });
     disposables.push(band);
     band.wrapS = THREE.RepeatWrapping;
-    const bandMat = lit({ map: band, color: 0xd2bf86, roughness: 0.42 });
+    const bandMat = lit({ map: band, color: 0xe2cc78, roughness: 0.42 });
     const y0 = topY + 0.12; // the saucer's well
     // The body: the stacking foot (narrower), the step out, straight
     // sides to a rolled rim, and the inside.
@@ -1426,6 +1443,36 @@ function buildCoffeeTable(TW, boardSpan) {
     mk(cGeo, oatmeal, true);
     // The coffee, a little below the lip.
     mk(new THREE.CircleGeometry(0.64, 32).rotateX(-Math.PI / 2).translate(x, y0 + 1.68, z), coffee);
+    /* Steam off it, just a hint: it's hot. One upright sheet, turned to
+       face the camera each frame (table.animate), a small shader of
+       drifting wisps: faint, thinning as they rise, gone at the sheet's
+       edges. */
+    const steamMat = new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 } },
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
+      fragmentShader: `
+        uniform float uTime; varying vec2 vUv;
+        float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+        float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+          return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
+        void main(){
+          float t = uTime * 0.35, y = vUv.y;
+          // Two wisps winding up, each swaying and breaking as it rises.
+          float sway = (n(vec2(y * 2.2 - t, 3.1)) - 0.5) * 0.5 * y;
+          float w1 = exp(-pow((vUv.x - 0.42 - sway) / (0.07 + y * 0.12), 2.0));
+          float w2 = exp(-pow((vUv.x - 0.6 + sway * 0.8) / (0.06 + y * 0.1), 2.0));
+          float breakup = smoothstep(0.35, 0.75, n(vec2(vUv.x * 5.0, y * 4.0 - t * 2.4)));
+          float a = (w1 + w2 * 0.8) * breakup * smoothstep(0.0, 0.12, y) * (1.0 - smoothstep(0.45, 1.0, y));
+          gl_FragColor = vec4(vec3(0.94, 0.92, 0.88), a * 0.26);
+        }`,
+    });
+    const steam = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.4).translate(0, 1.2, 0), steamMat);
+    steam.position.set(x, y0 + 1.7, z);
+    steam.renderOrder = 2;
+    group.add(steam);
+    disposables.push(steamMat, steam.geometry);
+    steamRef = { mesh: steam, x, z };
 
     /* The teaspoon, lying in the saucer beside the mug: its bowl down on
        the dish's slope, its handle across to the rim and resting on it,
@@ -1552,6 +1599,13 @@ function buildCoffeeTable(TW, boardSpan) {
   return {
     group,
     rules: { pickables: [leaflet, boxMesh], leaflet },
+    // Each frame: the steam drifts, and turns to face the camera (camLocal:
+    // the camera in the board's frame, the table's too but for focus's drop).
+    animate(t, camLocal) {
+      if (!steamRef) return;
+      steamRef.mesh.material.uniforms.uTime.value = t;
+      if (camLocal) steamRef.mesh.rotation.y = Math.atan2(camLocal.x - steamRef.x, camLocal.z - steamRef.z);
+    },
     repaint() { repaint(lid); },
     dispose() { disposables.forEach((d) => d && d.dispose && d.dispose()); },
   };

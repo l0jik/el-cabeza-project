@@ -3136,3 +3136,12 @@ control bar's menu.
   toward the mug, its ends into the wall), turned toward the board's edge
   as before.
 - Den draw calls are 195 of the test's < 200: little room left.
+- **Then (user):** the mug more yellow (speckle base #E4CF72, color
+  0xe2cc78, the band's ground the same); the saucer a seventies avocado
+  glaze (canvas painted along the lathe profile's v: avocado, the rim
+  darker, rings of harvest gold / cream / gold inside the dish, the well a
+  touch lighter; `saucerGlaze`); and a hint of steam off the coffee: one
+  upright sheet (ShaderMaterial, two swaying wisps breaking up as they
+  rise, alpha at most 0.26, no depth write) turned to face the camera in
+  `table.animate(t, camLocal)`, which den.animate now calls. Draw calls
+  196 of < 200.
