@@ -333,9 +333,12 @@ export function createDenEffects(woodSet) {
         const slab = t && t.boardGroup && t.boardGroup.getObjectByName("ec-slab");
         const onTable = raycaster.intersectObjects([slab].concat(den.table.rules.pickables).filter(Boolean), false)[0];
         if (onTable && onTable.object.userData.rules) return "rules";
-        // The arc lamp by the chair (focus), and, while the south wall is
-        // there, the stereo's machines and the set: the nearest.
-        const things = den.lamp.pickables.concat(den.groups.wallS.visible ? den.stereo.pickables.concat(den.tv.pickables) : []);
+        // The lamps (focus: the console's, the credenza's two, the ceiling's
+        // two globes), each while its wall or the ceiling is there, and,
+        // while the south wall is there, the stereo's machines and the
+        // set: the nearest.
+        const lamps = den.lamp.pickables.filter((m) => { const g = den.groups[m.userData.lampGroup]; return !g || g.visible; });
+        const things = lamps.concat(den.groups.wallS.visible ? den.stereo.pickables.concat(den.tv.pickables) : []);
         const hit = raycaster.intersectObjects(things, false)[0];
         if (!hit) return null;
         const nearer = raycaster.intersectObjects([slab, den.table.group].filter(Boolean), true)[0];
@@ -352,8 +355,8 @@ export function createDenEffects(woodSet) {
           if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "quick", focus: null } }));
           return true;
         }
-        // The arc lamp: the room's lights down (focus) or up again; the
-        // chassis keeps the state (its FOCUS_EVENT, a toggle).
+        // A lamp: the room's lights down (focus) or up again; the chassis
+        // keeps the state (its FOCUS_EVENT, a toggle).
         if (what === "lamp") {
           if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("el-cabeza:focus", { detail: {} }));
           return true;
@@ -362,7 +365,7 @@ export function createDenEffects(woodSet) {
         pressTv();
         return true;
       },
-      // Focus on (the chassis's switch, button, F key, or the lamp).
+      // Focus on (the chassis's switch, button, F key, or a lamp).
       setFocus(on) { focusOn = !!on; },
       // What's under the mouse: over the leaflet or the box, the "?".
       sceneHover(what) { rulesHover = what === "rules"; },

@@ -22,7 +22,7 @@ import {
 } from "../engine/geometry.js";
 import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
-// A theme's own way into focus (the den's arc lamp): { on }, or a toggle.
+// A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
 import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
@@ -827,7 +827,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      soft round the board, and the board floats, just the game. The theme
      draws it (its ambient setFocus); the ways in and out are here: the
      corner button, F (Escape leaves), the dock's switch, the phone menu's,
-     and the theme's own (the den's arc lamp) through FOCUS_EVENT. Room
+     and the theme's own (the den's lamps) through FOCUS_EVENT. Room
      View leaves it. */
   const focusable = !!theme.focusMode;
   const [focusMode, setFocusMode] = useState(false);
@@ -2163,7 +2163,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      overlay the board's own tap-to-reopen handler does. */
   // Focus: the theme draws it; F toggles, Escape leaves (when no card is
   // open over the board, whose own Escape comes first); the theme's own
-  // way in (the den's lamp) sends FOCUS_EVENT ({ on } or a toggle).
+  // way in (the den's lamps) sends FOCUS_EVENT ({ on } or a toggle).
   useEffect(() => {
     if (ambientRef.current && ambientRef.current.setFocus) ambientRef.current.setFocus(focusMode);
   }, [focusMode]);

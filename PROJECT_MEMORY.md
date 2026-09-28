@@ -3081,8 +3081,9 @@ edges (seeded scatter), a glaze glint on each, in a teak frame
 walnut planks it replaces are gone.
 
 ### Focus mode in the den (user: "everything but the board... blurred out... the board kind of floating")
-Seven ideas were offered; the user took the recommendation: the arc lamp
-by the chair as the den's own switch, plus a corner button and F / Esc,
+Seven ideas were offered; the user took the recommendation: a lamp as
+the den's own switch (the lamps on the console and credenza and the
+ceiling globes, each one), plus a corner button and F / Esc,
 and (asked for) a switch in the dock (a phone's menu) and in the phone
 control bar's menu.
 - **Chassis:** `theme.focusMode` turns it on for a theme. State
@@ -3105,8 +3106,13 @@ control bar's menu.
   --ry set each frame), with backdrop-filter blur where the tier is
   physical and the browser supports it (`.blur`). The music visit and the
   TV visit bring the room back while they last.
-- **The lamp:** unseen pick shapes round the arc lamp's dome and marble
-  block (den-room.js `lamp.pickables`, userData.focusLamp); pickScene
-  returns "lamp", sceneTap sends the toggle event.
+- **The lamps:** each is its own switch: the stereo console's table
+  lamp, the credenza's two, and the two amber ceiling globes. NOT the arc
+  lamp by the chair (the first cut used it; the user: "I don't want it to
+  be that lamp"). Unseen pick shapes round each (den-room.js
+  `lamp.pickables`, userData.focusLamp + lampGroup); pickScene skips a
+  lamp whose group (wallS / wallW / ceiling) has stepped aside, returns
+  "lamp", and sceneTap sends the toggle event. Tests aim the camera at
+  each lamp (heading first, then the target: the board turns with theta).
 - Test hook `__DEN_FOCUS__()` ({ on, w, lift, fogNear }). Test: e2e-den
   "Focus: just the board".

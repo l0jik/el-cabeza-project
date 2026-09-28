@@ -285,34 +285,42 @@ async function waitFor(fn, ms = 8000) {
   check("Room View leaves focus", !(await focus()).on && (await sw.getAttribute("aria-checked")) === "false");
   await page.keyboard.press("Escape");
   await page.waitForTimeout(400);
-  // The arc lamp by the chair: a tap there toggles it. From the Room
-  // view (the whole room below), its dome or its marble block.
-  const lampAt = (geo) => page.evaluate((geo) => {
+  // The lamps: each of them toggles it on its own (the console's, the
+  // credenza's two, the two ceiling globes; not the arc lamp by the chair).
+  const lampCount = await page.evaluate(() => { let n = 0; window.__DEN_THREE__.scene.traverse((o) => { if (o.userData && o.userData.focusLamp) n++; }); return n; });
+  check("five lamps are switches", lampCount === 5, String(lampCount));
+  const lampAt = (k) => page.evaluate((k) => {
     const t = window.__DEN_THREE__;
-    let lamp = null; t.scene.traverse((o) => { if (o.userData && o.userData.focusLamp && o.geometry.type === geo) lamp = o; });
-    const v = new t.camera.position.constructor(); lamp.getWorldPosition(v); v.project(t.camera);
+    const lamps = []; t.scene.traverse((o) => { if (o.userData && o.userData.focusLamp) lamps.push(o); });
+    const v = new t.camera.position.constructor(); lamps[k].getWorldPosition(v); v.project(t.camera);
     const r = t.renderer.domElement.getBoundingClientRect();
     return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height, z: v.z };
-  }, geo);
-  await q(page, "room-view-corner").click();
-  await page.waitForTimeout(2000);
-  let lampOn = false;
-  for (const theta of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
-    // Aimed at the lamp's dome, from across the room.
-    await page.evaluate((theta) => {
-      const t = window.__DEN_THREE__;
-      let lamp = null; t.scene.traverse((o) => { if (o.userData && o.userData.focusLamp && o.geometry.type === "SphereGeometry") lamp = o; });
-      const v = new t.camera.position.constructor(); lamp.getWorldPosition(v);
-      window.__EC_TEST_CAM__({ theta, phi: 1.1, radius: 55, target: [v.x, v.y, v.z] });
-    }, theta);
-    await page.waitForTimeout(3000);
-    const at = await lampAt("SphereGeometry");
-    if (at.z >= 1 || at.x < 30 || at.x > 1070 || at.y < 30 || at.y > 700) continue;
-    await page.mouse.click(at.x, at.y);
-    lampOn = await waitFor(async () => (await focus()).on, 3000);
-    if (lampOn) break;
+  }, k);
+  const toggled = [];
+  for (let k = 0; k < lampCount; k++) {
+    let ok = false;
+    for (const theta of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+      // Aimed at the lamp, from across the room, inside it: the heading
+      // first (the board turns, and the room with it), then the aim.
+      await page.evaluate((theta) => window.__EC_TEST_CAM__({ dollhouse: false, theta, phi: 1.3, radius: 40 }), theta);
+      await page.waitForTimeout(2500);
+      await page.evaluate((k) => {
+        const t = window.__DEN_THREE__;
+        const lamps = []; t.scene.traverse((o) => { if (o.userData && o.userData.focusLamp) lamps.push(o); });
+        const v = new t.camera.position.constructor(); lamps[k].getWorldPosition(v);
+        window.__EC_TEST_CAM__({ target: [v.x, v.y, v.z] });
+      }, k);
+      await page.waitForTimeout(2500);
+      const at = await lampAt(k);
+      if (at.z >= 1 || at.x < 30 || at.x > 1070 || at.y < 30 || at.y > 700) continue;
+      const before = (await focus()).on;
+      await page.mouse.click(at.x, at.y);
+      ok = await waitFor(async () => (await focus()).on !== before, 3000);
+      if (ok) break;
+    }
+    toggled.push(ok);
   }
-  check("a tap on the arc lamp turns focus on", lampOn);
+  check("a tap on any one of the lamps toggles focus", toggled.length === 5 && toggled.every(Boolean), JSON.stringify(toggled));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();
 }

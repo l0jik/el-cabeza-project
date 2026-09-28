@@ -652,23 +652,32 @@ export function buildDen(boardSpan) {
   group.name = "den-room";
   Object.values(B.groups).forEach((g) => group.add(g));
 
-  /* ---- the arc lamp is a switch: focus (den-fx.js) ----
-     Unseen shapes round its dome and its marble block to catch a tap
-     (the lamp itself is baked into the room's merged meshes). */
+  /* ---- the lamps are switches: focus (den-fx.js) ----
+     Each of them on its own: the lamp on the stereo console, the two on
+     the credenza, and the two amber globes hanging from the ceiling (not
+     the arc lamp by the chair: the user's word). Unseen shapes round each
+     to catch a tap (the lamps are baked into the room's merged meshes);
+     each knows the group it stands in, so a lamp whose wall or ceiling
+     has stepped aside out of the camera's way can't be tapped. */
   const lampPickables = [];
   {
     const hidden = new THREE.MeshBasicMaterial({ visible: false });
     disposables.push(hidden);
-    const catcher = (geo, x, y, z) => {
+    const catcher = (geo, lampGroup, x, y, z) => {
       const m = new THREE.Mesh(geo, hidden);
       m.position.set(x, y, z);
       m.userData.focusLamp = true;
+      m.userData.lampGroup = lampGroup;
       disposables.push(geo);
       group.add(m);
       lampPickables.push(m);
     };
-    catcher(new THREE.SphereGeometry(5.2, 12, 8), 66, yF + 30, -31);
-    catcher(new THREE.BoxGeometry(7, 6, 7), lampBase[0], yF + 3, lampBase[2]);
+    // A table lamp (tableLamp: its base from y, its shade up to y + 13.8).
+    const tableLampAt = (lampGroup, x, y, z) => catcher(new THREE.BoxGeometry(10.5, 14.5, 10.5), lampGroup, x, y + 7, z);
+    tableLampAt("wallS", 34, yF + 16, RZ - 8);
+    tableLampAt("wallW", crX, yF + 14.5, -26);
+    tableLampAt("wallW", crX, yF + 14.5, 26);
+    LAMPS.filter((L) => L.name.startsWith("swag")).forEach((L) => catcher(new THREE.SphereGeometry(4.6, 12, 8), "ceiling", L.p[0], L.p[1], L.p[2]));
   }
 
   /* ---- the coffee table and what's on it (lit like the board) ---- */

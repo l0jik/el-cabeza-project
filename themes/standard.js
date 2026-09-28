@@ -210,7 +210,8 @@ export const mountAmbientEffects = createDenEffects(woodSet);
 export const rulesInRoom = true;
 // Focus: the room dims and blurs away round the floating board (den-fx.js);
 // the chassis gives the ways in and out (corner button, F, the dock's and
-// the phone menu's switches), the den its own (the arc lamp).
+// the phone menu's switches), the den its own (a tap on a lamp: the
+// console's, the credenza's two, or a ceiling globe).
 export const focusMode = true;
 
 /* No pre-game setup extras, and no SVG filter defs. */
