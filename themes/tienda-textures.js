@@ -622,6 +622,71 @@ export function ensurePaper() {
   } catch (e) { /* plain paper colour, then */ }
 }
 
+/* Catalog stock kept since 1975 (the order form and catalog pages): the
+   age that sits on top of --tienda-paper. Uneven yellowing in soft
+   clouds, foxing (the small rust-brown spots old paper takes where damp
+   and iron in the pulp meet, a pale halo round each), and here and there
+   a faint water tide line. Transparent between, a seamless tile, set as
+   --tienda-aged. Also --tienda-ink-wear: paper-coloured specks where a
+   solid of ink didn't quite take, for the black bars. */
+export function ensureAgedPaper() {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  if (root.style.getPropertyValue("--tienda-aged")) return;
+  try {
+    const S = 384;
+    const c = document.createElement("canvas");
+    c.width = c.height = S;
+    const g = c.getContext("2d");
+    const r = rng(1975 + 4417);
+    const wrap = (draw) => { for (let ox = -S; ox <= S; ox += S) for (let oy = -S; oy <= S; oy += S) draw(ox, oy); };
+    const blot = (x, y, rad, inner, outer = "rgba(0,0,0,0)") => {
+      const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+      gr.addColorStop(0, inner); gr.addColorStop(1, outer);
+      g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    };
+    // Yellowing, not even: warm clouds.
+    for (let i = 0; i < 26; i++) {
+      const x = r() * S, y = r() * S, rad = 40 + r() * 90, a = 0.035 + r() * 0.05;
+      wrap((ox, oy) => blot(x + ox, y + oy, rad, `rgba(196,150,70,${a})`));
+    }
+    // Foxing: a rusty spot with a pale halo, some in little clusters.
+    for (let i = 0; i < 16; i++) {
+      const cx = r() * S, cy = r() * S, n = r() < 0.35 ? 2 + Math.floor(r() * 4) : 1;
+      for (let k = 0; k < n; k++) {
+        const x = cx + (r() - 0.5) * 22, y = cy + (r() - 0.5) * 22, rad = 0.8 + r() * 2.6, a = 0.16 + r() * 0.2;
+        wrap((ox, oy) => {
+          blot(x + ox, y + oy, rad * 3.2, `rgba(176,120,52,${a * 0.28})`);
+          blot(x + ox, y + oy, rad, `rgba(138,80,32,${a})`, `rgba(150,92,40,${a * 0.2})`);
+        });
+      }
+    }
+    // A tide line or two: the faint brown edge of a dried drop.
+    for (let i = 0; i < 2; i++) {
+      const x = r() * S, y = r() * S, rad = 16 + r() * 26;
+      wrap((ox, oy) => {
+        g.strokeStyle = "rgba(150,104,44,0.09)"; g.lineWidth = 1.4;
+        g.beginPath(); g.ellipse(x + ox, y + oy, rad, rad * (0.7 + r() * 0.3), r() * 3, 0.3, 5.6); g.stroke();
+        blot(x + ox, y + oy, rad, "rgba(190,150,80,0.035)");
+      });
+    }
+    root.style.setProperty("--tienda-aged", `url(${c.toDataURL("image/png")})`);
+    // Ink wear.
+    const w = document.createElement("canvas");
+    w.width = w.height = 160;
+    const h = w.getContext("2d");
+    for (let i = 0; i < 260; i++) {
+      h.fillStyle = `rgba(239,230,205,${0.05 + r() * 0.12})`;
+      h.fillRect(r() * 160, r() * 160, 0.6 + r() * 1.6, 0.6 + r() * 1.2);
+    }
+    for (let i = 0; i < 18; i++) {
+      h.strokeStyle = `rgba(239,230,205,${0.06 + r() * 0.08})`; h.lineWidth = 0.6;
+      const x = r() * 160, y = r() * 160; h.beginPath(); h.moveTo(x, y); h.lineTo(x + 4 + r() * 14, y + (r() - 0.5) * 1.5); h.stroke();
+    }
+    root.style.setProperty("--tienda-ink-wear", `url(${w.toDataURL("image/png")})`);
+  } catch (e) { /* new paper, then */ }
+}
+
 /* Newsprint, 1975: the paper of a Sunday circular. Groundwood pulp with
    its lignin left in, so it's grey-cream gone yellow, with a cloudy
    formation (the fibres clump), fine fibres, and the odd dark shive (a

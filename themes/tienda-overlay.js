@@ -29,7 +29,7 @@ import {
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
 } from "./rules-selections.js";
 import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS } from "./tienda-order.js";
-import { ensurePaper } from "./tienda-textures.js";
+import { ensurePaper, ensureAgedPaper } from "./tienda-textures.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
 import { singularitySeen, CLASSIC_PIECE_KEYS } from "../engine/journey.js";
@@ -81,7 +81,7 @@ export function useSetupExtras(x) {
   const selRef = React.useRef(null);
   if (!selRef.current) selRef.current = defaultSelections();
   React.useEffect(() => { if (!x.awaitingBegin && overlay) setOverlay(null); }, [x.awaitingBegin]);
-  React.useEffect(() => { ensurePaper(); }, []);
+  React.useEffect(() => { ensurePaper(); ensureAgedPaper(); }, []);
   // The story fades this place's sound out as it leaves (story.bindAudio).
   React.useEffect(() => { if (story && story.bindAudio) story.bindAudio(x.audio); }, []);
   /* Arriving by a scene change, the place's own sound comes up with it:
@@ -207,6 +207,39 @@ const CSS = `
   .td-form { position: relative; width: min(760px, 100%); max-height: calc(100dvh - 24px); display: flex; flex-direction: column;
     background-color: ${PAPER}; background-image: var(--tienda-paper); color: ${INK}; border-radius: 2px;
     box-shadow: 0 1px 0 #d8ccb0, 0 24px 60px rgba(10,6,3,0.55); }
+  /* Kept since 1975 (user: "a slightly dated look"): the stock gone
+     cream-yellow, darker toward the edges where the air got at it (and
+     the top corner that was thumbed), foxed here and there, the gutter's
+     shadow down the bound side; the ink soft and a touch spread into the
+     fibres, the solids not quite solid, the photographs faded warm. */
+  .td-form {
+    background-color: #EBDDBC;
+    background-image:
+      linear-gradient(90deg, rgba(120,86,44,0.16), rgba(120,86,44,0.05) 14px, transparent 34px),
+      radial-gradient(ellipse 50% 32% at 100% 0%, rgba(170,120,52,0.16), transparent 72%),
+      radial-gradient(ellipse 45% 30% at 0% 100%, rgba(160,114,50,0.12), transparent 72%),
+      var(--tienda-aged, linear-gradient(transparent, transparent)),
+      var(--tienda-paper, linear-gradient(transparent, transparent));
+    background-size: auto, auto, auto, 384px 384px, auto;
+    box-shadow: inset 0 0 0 1px rgba(128,92,44,0.18), inset 0 0 26px rgba(168,122,56,0.30), inset 0 0 80px rgba(180,138,70,0.12),
+      0 1px 0 #d2c19c, 0 24px 60px rgba(10,6,3,0.55);
+    text-shadow: 0 0 0.5px rgba(46,33,24,0.55);
+  }
+  .td-form .td-sec-h { background-color: #33251B; background-image: var(--tienda-ink-wear, none); background-size: 160px 160px; text-shadow: none; }
+  /* The foot of the page, where the totals and buttons stay: the same
+     aged stock, toned at the bottom edge, not a clean new strip. */
+  .td-form .td-foot {
+    background-color: rgba(233,219,186,0.97);
+    background-image:
+      linear-gradient(90deg, rgba(120,86,44,0.14), transparent 34px),
+      radial-gradient(ellipse 48% 90% at 0% 100%, rgba(160,114,50,0.14), transparent 72%),
+      var(--tienda-aged, linear-gradient(transparent, transparent));
+    background-size: auto, auto, 384px 384px;
+    background-position: 0 0, 0 0, 0 100%;
+    box-shadow: inset 0 -16px 24px -14px rgba(160,112,48,0.32);
+  }
+  .td-form .td-primary { background-color: #9A3B30; text-shadow: none; }
+  .td-form .td-photo-btn img { filter: sepia(0.28) saturate(0.82) contrast(0.94) brightness(1.02); }
   .td-form-scroll { position: relative; overflow: auto; -webkit-overflow-scrolling: touch; padding: clamp(14px, 3vw, 28px) clamp(14px, 3.4vw, 32px) 8px; }
   .td-form-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 16px; border-bottom: 3px solid ${INK}; padding-bottom: 8px; }
   .td-form-title { margin: 0; font: 900 clamp(26px, 4.4vw, 40px)/0.95 ${FRANKLIN}; letter-spacing: 0.02em; }

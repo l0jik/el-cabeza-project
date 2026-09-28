@@ -3286,3 +3286,16 @@ card centred on the chassis's 38 px spot). cornerControlsRight follows
   it opens out (width transition) to play, the title and the volume
   slider; play resumes and it folds back. Desktop keeps the full bar.
   Test: e2e-den "On a phone the now-playing chip folds down".
+
+### The catalog and order form on aged stock (user: "a slightly dated look")
+tienda-textures.js `ensureAgedPaper()` (called with ensurePaper in the
+overlay): `--tienda-aged`, a 384 px seamless tile of uneven yellowing
+clouds, foxing (rust spots with pale halos, some clustered) and a faint
+tide line or two; `--tienda-ink-wear`, paper-coloured specks for solids.
+tienda-overlay.js `.td-form` (catalog, order form): yellowed #EBDDBC,
+the gutter's shadow down the left, a toned top-right (thumbed) and
+bottom-left corner, edge toning (inset shadows), ink spread
+(text-shadow 0.5 px); the black section bars worn (`.td-sec-h` with
+ink-wear), the photos faded warm (sepia 0.28); the foot strip (`.td-foot`)
+on the same aged stock, toned at its bottom edge; the red button a shade
+duller.
