@@ -96,7 +96,7 @@ export function createDenEffects(woodSet) {
     const DARK = new THREE.Color(0x070403);
     // How much of the first darkening focus keeps: 60% (user: 40% less),
     // on the fog, the table and (standard.js) the veil alike.
-    const FOCUS_DARK = 0.6;
+    const FOCUS_DARK = 0.72; // (was 0.6; user: the room a little darker, the blur mostly gone)
     const FOCUS_LIFT = 0.975; // how far the room drops under the board (75% of the first 1.3, user)
     const corner = new THREE.Vector3();
     const blurOk = q.physical && typeof CSS !== "undefined" && CSS.supports && (CSS.supports("backdrop-filter", "blur(2px)") || CSS.supports("-webkit-backdrop-filter", "blur(2px)"));
@@ -126,7 +126,7 @@ export function createDenEffects(woodSet) {
       if (e !== lastE) {
         lastE = e;
         if (!tableMats) { tableMats = new Map(); den.table.group.traverse((o) => { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.color && !tableMats.has(m)) tableMats.set(m, m.color.clone()); }); }); }
-        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.5 * e)); // the coffee table at 50% (user)
+        tableMats.forEach((base, m) => m.color.copy(base).multiplyScalar(1 - 0.58 * e)); // the coffee table at 42% (user: a little darker)
       }
       // The board's own shadow: the slab doesn't cast one, so with the board
       // off the table the pieces' shadows went straight through it onto

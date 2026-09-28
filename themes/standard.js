@@ -316,11 +316,12 @@ export const styleSheet = `
      opacity each frame. */
   .den-focus-veil {
     position: absolute; inset: 0; pointer-events: none; opacity: 0; visibility: hidden;
-    /* 60% of the first darkening (user: 40% less; den-fx FOCUS_DARK),
+    /* 72% of the first darkening (user: 40% less, then a little darker;
+       den-fx FOCUS_DARK); the blur at a fifth of what it was (user),
        and the clear part is the board's outline (den-fx sets its edges):
        two soft bands, across and down, laid over each other; dark outside
        either, clear inside both, so the board's corners stay clear. */
-    background: rgba(7,4,3,0.432);
+    background: rgba(7,4,3,0.518);
     -webkit-mask-image:
       linear-gradient(to right, #000 var(--ox0, 0px), transparent var(--ix0, 30%), transparent var(--ix1, 70%), #000 var(--ox1, 100%)),
       linear-gradient(to bottom, #000 var(--oy0, 0px), transparent var(--iy0, 30%), transparent var(--iy1, 70%), #000 var(--oy1, 100%));
@@ -337,12 +338,12 @@ export const styleSheet = `
     font: 500 12.5px/1.2 'IBM Plex Sans', sans-serif; letter-spacing: 0.02em; box-shadow: 0 2px 8px rgba(12,6,2,0.4);
   }
   .den-book-hint.on { opacity: 1; }
-  .den-focus-veil.blur { background: rgba(7,4,3,0.36); backdrop-filter: blur(7px) saturate(0.7); -webkit-backdrop-filter: blur(7px) saturate(0.7); }
+  .den-focus-veil.blur { background: rgba(7,4,3,0.432); backdrop-filter: blur(1.4px) saturate(0.7); -webkit-backdrop-filter: blur(1.4px) saturate(0.7); }
   /* The coffee table's extra blur (den-fx.js shapes it: the table's
      outline less the board and pieces). A blur alone: no darkening. */
   .den-table-blur {
     position: absolute; inset: 0; pointer-events: none; opacity: 0; visibility: hidden; background: transparent;
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(1.2px); -webkit-backdrop-filter: blur(1.2px);
     -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   }
   [data-testid="points-counter"] {
