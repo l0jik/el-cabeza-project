@@ -4691,11 +4691,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        rule those out. */
     // The tap thresholds (TWO_FINGER_TAP_*, TWO_FINGER_DOUBLE_TAP_MS) are
     // at module level, shared with the rest of the screen's listener.
-    const TWO_FINGER_SWIPE_MAX_MS = 700; // longer than this reads as a deliberate pan, not a flick
-    const TWO_FINGER_SWIPE_MIN_PX = 60; // minimum net vertical travel to count as a swipe
+    /* A flick, not a pan: short, and still moving fast when the fingers
+       lift. It was 700 ms with no speed asked, and a quick two-finger pan
+       across the den (toward the fireplace) passed for a downswipe and
+       snapped the view to Top-Down View (the user's video). A pan settles
+       as you arrive where you meant to look; a flick is thrown. */
+    const TWO_FINGER_SWIPE_MAX_MS = 350; // longer than this reads as a deliberate pan, not a flick
+    const TWO_FINGER_SWIPE_MIN_PX = 70; // minimum net vertical travel to count as a swipe
+    const TWO_FINGER_SWIPE_RELEASE_PX_MS = 0.7; // how fast it's still going over its last 100 ms
     let twoFingerStartTime = 0;
     let twoFingerStartMid = null; // null whenever the current gesture isn't a clean two-finger contact (see onDown)
     let twoFingerStartSpan = 0; // the fingers' spacing when it began: a swipe keeps it, a pinch doesn't
+    let twoFingerTrail = []; // the midpoint's recent { t, x, y }: how fast it's going at the end
     let twoFingerLastMid = null;
     let twoFingerMoved = 0; // cumulative midpoint travel this gesture, for tap-vs-swipe
     let lastTwoFingerTapAt = 0; // wall-clock time of the previous qualifying tap, for double-tap detection
@@ -4843,6 +4850,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (nearestGhost) return { type: "ghost", dir: nearestGhost.object.userData.dir };
       if (nearestPiece) return { type: "piece", id: nearestPiece.object.userData.pieceId };
       return null;
+    }
+
+    // The two-finger midpoint's vertical speed over its last 100 ms (px/ms).
+    function releaseSpeed(now) {
+      const tr = twoFingerTrail.filter((p) => now - p.t <= 100);
+      const pts = tr.length >= 2 ? tr : twoFingerTrail.slice(-2);
+      if (pts.length < 2) return 0;
+      const a = pts[0], b = pts[pts.length - 1];
+      const dt = Math.max(1, b.t - a.t);
+      return Math.abs(b.y - a.y) / dt;
     }
 
     function pinchSpan() {
@@ -5020,6 +5037,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           // classification in onUp.
           twoFingerStartTime = ev.timeStamp;
           twoFingerStartSpan = pinchSpan();
+          twoFingerTrail = [{ t: ev.timeStamp, x: panAnchor.x, y: panAnchor.y }];
           twoFingerStartMid = panAnchor;
           twoFingerLastMid = panAnchor;
           twoFingerMoved = 0;
@@ -5062,6 +5080,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             twoFingerMoved += Math.hypot(mid.x - twoFingerLastMid.x, mid.y - twoFingerLastMid.y);
           }
           twoFingerLastMid = mid;
+          twoFingerTrail.push({ t: ev.timeStamp, x: mid.x, y: mid.y });
+          while (twoFingerTrail.length > 2 && ev.timeStamp - twoFingerTrail[0].t > 140) twoFingerTrail.shift();
         }
         return;
       }
@@ -5339,7 +5359,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
              was read as a swipe, snapping the view back to Current
              Player View in the middle of zooming out (the user, in the
              den: "you pinch too far, it just suddenly snaps back"). */
-          Math.abs(twoFingerSpanNow - twoFingerStartSpan) < Math.max(40, twoFingerStartSpan * 0.25)
+          Math.abs(twoFingerSpanNow - twoFingerStartSpan) < Math.max(40, twoFingerStartSpan * 0.25) &&
+          releaseSpeed(ev.timeStamp) >= TWO_FINGER_SWIPE_RELEASE_PX_MS
         ) {
           // Screen-space Y grows downward, so a positive netDy is a
           // downswipe (-> Top-Down View) and a negative one is an

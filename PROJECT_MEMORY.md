@@ -2518,6 +2518,17 @@ phone and a laptop but shrank it on squarer windows (1100x900: 547 px
 against 649) and broke the Singularity test's bare-sphere tap, so it's
 the fitted view's size instead.
 
+### A two-finger pan is never a swipe (user video, Sep 28)
+Panning with two fingers toward the den's fireplace, the view snapped to
+Top-Down View: a quick two-finger pan down the screen met every test of
+the two-finger downswipe (60 px, mostly vertical, the spacing kept,
+under 700 ms). A swipe is now a flick: under 350 ms, at least 70 px, and
+still moving at 0.7 px/ms or more over its last 100 ms when the fingers
+lift (chassis `releaseSpeed`, `twoFingerTrail`); a pan settles as it
+arrives. Checked with timestamped CDP touches: a flick (220 px in 0.24
+s) still gives Top-Down View; a steady pan (260 px in 0.6 s) and a quick
+pan easing out (200 px in 0.32 s) leave the view where it is.
+
 ### Sliders for the sound, the mouse wheel, the den's sofas and table (Sep 28)
 - **Sound sliders** ("sliders instead of toggles to balance sounds mixing,
   with a slide all the way to the left muting that channel"): the dock's
