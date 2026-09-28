@@ -3342,3 +3342,28 @@ Singularity the Board section (sizes, missing squares) is there, still
 without a shuffled start. Tests updated (e2e-journey, e2e-story's home
 order is now an extra Turrito) but not run (user: skip full suites for
 quick changes).
+
+### The den's 8-track: eight original tapes (user: "make eight of them")
+tools/den_8track_tapes.py composes and synthesizes eight instrumentals in
+code (a small numpy synth: FM Rhodes, stiff-string piano, tonewheel organ
++ Leslie, Karplus-Strong nylon/electric guitar and clav, bass, detuned-saw
+strings/pads, brass, flute, vibes, analogue lead/arp/bass, and a drum kit)
+and gives each an 8-track treatment (program-change clunk at the top,
+50 Hz-10.5 kHz with a head bump, soft tape saturation, wow 0.4 Hz /
+flutter 7.5 Hz / scrape flutter, crosstalk from the next program at
+-40 dB, a dropout or two, hiss at -62 dB, narrowed stereo). Seeded, so a
+re-run gives the same tapes. Output assets/den/8track_1..8.mp3 (~70-84 s,
+~1 MB each, VBR ~100 kbps, cut at 11 kHz); build.js DEN_RECORDS ships them
+as el-cabeza-den-tape-N.mp3 beside the standard and Nova pages;
+standard.js DEN_TRACKS lists them (medium "8track", treated, loop: an
+endless cartridge). The eight (all fictional acts):
+1 Sunday Drive on Route 9 / The Del Mar Easy Strings (easy listening, F)
+2 Mirrorball Boulevard / Tony Varela Orchestra (disco, A dorian)
+3 Harvest Moon Motel / Cedar & Pine (soft rock ballad, D)
+4 Lanai at Dusk / Trio Mendes Alvarado (bossa nova, C)
+5 Stone Fox Strut / The Velvet Hustle Band (funk, E dorian)
+6 Catalina Crossing / Lindqvist & Shore (West Coast pop, Eb)
+7 Cassiopeia Relay / The Cassiopeia Ensemble (space synth, A minor)
+8 Last Call at the Tiki Room / The Sam Kellerman Combo (organ lounge blues, F)
+e2e-den's stereo check now expects the eight tapes (not run: quick-change
+policy).

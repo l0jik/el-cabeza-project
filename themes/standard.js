@@ -196,6 +196,18 @@ export const soundChannels = [
    the amp a little hot, the preamp's hiss and the surface's crackle). */
 const DEN_TRACKS = [
   { id: "dangerous-dashing", title: "Dangerous Dashing", artist: "influentialdistortion257", medium: "record", url: "el-cabeza-den-record-1.mp3", treated: true },
+  // The 8-track's tapes: eight originals composed and played for the den
+  // (tools/den_8track_tapes.py), each with a cartridge's treatment. A
+  // cartridge is an endless loop, so each plays round again, its
+  // program-change clunk and all, until it's stopped.
+  { id: "tape-sunday-drive-on-route-9", title: "Sunday Drive on Route 9", artist: "The Del Mar Easy Strings", medium: "8track", url: "el-cabeza-den-tape-1.mp3", treated: true, loop: true },
+  { id: "tape-mirrorball-boulevard", title: "Mirrorball Boulevard", artist: "Tony Varela Orchestra", medium: "8track", url: "el-cabeza-den-tape-2.mp3", treated: true, loop: true },
+  { id: "tape-harvest-moon-motel", title: "Harvest Moon Motel", artist: "Cedar & Pine", medium: "8track", url: "el-cabeza-den-tape-3.mp3", treated: true, loop: true },
+  { id: "tape-lanai-at-dusk", title: "Lanai at Dusk", artist: "Trio Mendes Alvarado", medium: "8track", url: "el-cabeza-den-tape-4.mp3", treated: true, loop: true },
+  { id: "tape-stone-fox-strut", title: "Stone Fox Strut", artist: "The Velvet Hustle Band", medium: "8track", url: "el-cabeza-den-tape-5.mp3", treated: true, loop: true },
+  { id: "tape-catalina-crossing", title: "Catalina Crossing", artist: "Lindqvist & Shore", medium: "8track", url: "el-cabeza-den-tape-6.mp3", treated: true, loop: true },
+  { id: "tape-cassiopeia-relay", title: "Cassiopeia Relay", artist: "The Cassiopeia Ensemble", medium: "8track", url: "el-cabeza-den-tape-7.mp3", treated: true, loop: true },
+  { id: "tape-last-call-at-the-tiki-room", title: "Last Call at the Tiki Room", artist: "The Sam Kellerman Combo", medium: "8track", url: "el-cabeza-den-tape-8.mp3", treated: true, loop: true },
 ];
 export const music = {
   title: "The stereo",
