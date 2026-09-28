@@ -310,15 +310,24 @@ export const styleSheet = `
   @media (prefers-reduced-motion: reduce) { .den-rules-hint { transition: opacity 0.14s ease; } }
   /* Focus (den-fx.js): over the picture, everything outside an ellipse
      round the board darkened, and blurred where the device can take it
-     (.blur); den-fx sets the ellipse (--cx --cy --rx --ry) and the
+     (.blur); den-fx sets the clear rectangle (--ix0 --ix1 --iy0 --iy1, and the soft edge --ox0 --ox1 --oy0 --oy1) and the
      opacity each frame. */
   .den-focus-veil {
     position: absolute; inset: 0; pointer-events: none; opacity: 0; visibility: hidden;
-    /* Softer (user: the corners were too dark): a lighter veil, the clear
-       ellipse a little wider, and a longer, gentler falloff to the edges. */
+    /* Softer (user: too dark), and never over the board: the clear part
+       is the board's whole outline on screen (a rectangle, den-fx.js sets
+       its edges), not an ellipse its corners stuck out of (user: "the
+       shadows around the corners of the board"). Two soft bands, across
+       and down, laid over each other: dark outside either, clear inside
+       both. */
     background: rgba(7,4,3,0.5);
-    -webkit-mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 64%, rgba(0,0,0,0.5) 90%, rgba(0,0,0,0.85) 120%);
-    mask-image: radial-gradient(ellipse var(--rx, 40vw) var(--ry, 40vh) at var(--cx, 50%) var(--cy, 50%), transparent 64%, rgba(0,0,0,0.5) 90%, rgba(0,0,0,0.85) 120%);
+    -webkit-mask-image:
+      linear-gradient(to right, #000 var(--ox0, 0px), transparent var(--ix0, 30%), transparent var(--ix1, 70%), #000 var(--ox1, 100%)),
+      linear-gradient(to bottom, #000 var(--oy0, 0px), transparent var(--iy0, 30%), transparent var(--iy1, 70%), #000 var(--oy1, 100%));
+    mask-image:
+      linear-gradient(to right, #000 var(--ox0, 0px), transparent var(--ix0, 30%), transparent var(--ix1, 70%), #000 var(--ox1, 100%)),
+      linear-gradient(to bottom, #000 var(--oy0, 0px), transparent var(--iy0, 30%), transparent var(--iy1, 70%), #000 var(--oy1, 100%));
+    -webkit-mask-composite: source-over; mask-composite: add;
   }
   /* The book visit's way back (den-fx.js): a quiet line at the foot. */
   .den-book-hint {

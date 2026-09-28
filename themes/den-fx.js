@@ -126,7 +126,7 @@ export function createDenEffects(woodSet) {
       // The float: the room (and the table) a little way down under the
       // board, and a slow drift.
       den.group.position.y = -(FOCUS_LIFT + Math.sin(now * 0.0011) * 0.12) * e;
-      // The veil: an ellipse round the board on screen stays clear.
+      // The veil: the board's outline on screen stays clear.
       if (typeof document === "undefined" || !t.renderer || !t.camera) return;
       if (!veil) {
         if (e <= 0) return;
@@ -149,10 +149,12 @@ export function createDenEffects(woodSet) {
         const px = ((corner.x + 1) / 2) * r.width, py = ((1 - corner.y) / 2) * r.height;
         x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
       }
-      veil.style.setProperty("--cx", `${((x0 + x1) / 2).toFixed(1)}px`);
-      veil.style.setProperty("--cy", `${((y0 + y1) / 2).toFixed(1)}px`);
-      veil.style.setProperty("--rx", `${Math.max(60, ((x1 - x0) / 2) * 1.3).toFixed(1)}px`);
-      veil.style.setProperty("--ry", `${Math.max(60, ((y1 - y0) / 2) * 1.45).toFixed(1)}px`);
+      // The clear rectangle: the board's outline and a little margin, then
+      // a soft falloff into the veil (standard.js .den-focus-veil).
+      const w = x1 - x0, hgt = y1 - y0, pad = Math.max(10, Math.max(w, hgt) * 0.05), soft = Math.max(50, Math.max(w, hgt) * 0.3);
+      const set = (k, v) => veil.style.setProperty(k, `${v.toFixed(1)}px`);
+      set("--ix0", x0 - pad); set("--ix1", x1 + pad); set("--ox0", x0 - pad - soft); set("--ox1", x1 + pad + soft);
+      set("--iy0", y0 - pad); set("--iy1", y1 + pad); set("--oy0", y0 - pad - soft); set("--oy1", y1 + pad + soft);
     }
 
     /* ---- device fit ---- */
