@@ -3238,3 +3238,14 @@ the music panel opening. A hint pill ("Tap anywhere to go back to the
 game", .den-book-hint) shows while there; the title and dock piece step
 aside (ec-tv-visit); focus mode waits. Hook `__DEN_BOOK__()` {goal, w}.
 Test: e2e-den "The book by the chair".
+
+### The bottom-left corner's buttons stack on a phone (user)
+Chassis: `cornerStack` (viewportW <= 560) → full screen, How to play,
+Room view, Focus (whichever the page has) in one column at left 18, 38 px
+apart, full screen at the foot; wider, the old row / above-full-screen
+places. `cornerPlace(key)` / `cornerStyle(key)` give each its left/bottom
+and pass the bottom as the CSS variable `--ec-corner-bottom`, which the
+themes' card-style overrides use (standard.js, tienda.js:
+`bottom: calc(var(--ec-corner-bottom) + 4px) !important`, the smaller
+card centred on the chassis's 38 px spot). cornerControlsRight follows
+(56 + 8 when stacked).

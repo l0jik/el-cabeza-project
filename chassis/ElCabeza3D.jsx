@@ -2323,7 +2323,22 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const rulesInRoom = !!theme.rulesInRoom;
   const fullScreenCorner = typeof document !== "undefined" && !!(document.fullscreenEnabled || document.documentElement.requestFullscreen);
   // How to play's right edge: "?" only under 560px, the label beside it above.
-  const cornerControlsRight = rulesInRoom ? (fullScreenCorner ? 96 : 56) + (theme.focusMode ? 40 : 0) + 8 : (viewportW <= 560 ? 88 : 170) + 8;
+  /* The bottom-left corner's buttons (full screen, How to play, Room view,
+     Focus): in a row on a wide screen; on a phone (560 px or less across)
+     stacked in a column, full screen at the foot (the user). Each one's
+     place: { left, bottom }; the bottom also goes to the theme's CSS as
+     --ec-corner-bottom (its card-style buttons sit 4 px higher). */
+  const cornerStack = viewportW <= 560;
+  const cornerSlots = [fullScreenCorner && "fs", !rulesInRoom && "howto", theme.freeCamera && theme.freeCamera.dollhouse && "room", theme.focusMode && "focus"].filter(Boolean);
+  const cornerPlace = (key) => {
+    if (cornerStack) return { left: 18, bottom: 18 + 38 * Math.max(0, cornerSlots.indexOf(key)) };
+    if (key === "fs") return { left: 18, bottom: 18 };
+    if (key === "howto") return { left: fullScreenCorner ? 58 : 18, bottom: 18 };
+    if (key === "room") return { left: rulesInRoom && fullScreenCorner ? 58 : 18, bottom: rulesInRoom ? 18 : 60 };
+    return { left: rulesInRoom ? (fullScreenCorner ? 98 : 58) : 18, bottom: rulesInRoom ? 18 : 102 };
+  };
+  const cornerStyle = (key) => { const c = cornerPlace(key); return { left: c.left, bottom: c.bottom, "--ec-corner-bottom": `${c.bottom}px` }; };
+  const cornerControlsRight = cornerStack ? 56 + 8 : rulesInRoom ? (fullScreenCorner ? 96 : 56) + (theme.focusMode ? 40 : 0) + 8 : 170 + 8;
   const cornerControlsCovered = dockView === "panel" && (viewportW - dockPanelW) / 2 < cornerControlsRight;
   /* Distinct from declutter above: declutter is specifically about
      hiding the Opponent row and Record section, true only during
@@ -7190,8 +7205,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           title={isFullscreen ? "Exit full screen" : "Enter full screen"}
           style={{
             position: "fixed",
-            left: 18,
-            bottom: 18,
+            ...cornerStyle("fs"),
             zIndex: cornerControlsZ,
             width: 38,
             height: 38,
@@ -7239,7 +7253,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           aria-label="Room view"
           title="Room view: the whole room, the roof off"
           style={{
-            position: "fixed", left: rulesInRoom && fullScreenCorner ? 58 : 18, bottom: rulesInRoom ? 18 : 60, zIndex: cornerControlsZ, width: 38, height: 38,
+            position: "fixed", ...cornerStyle("room"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
             color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : viewMode === "room" ? 0.85 : 0.5,
             pointerEvents: cornerControlsCovered ? "none" : "auto", cursor: "pointer", transition: "opacity 0.5s ease",
@@ -7267,7 +7281,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           aria-label={focusMode ? "Leave focus" : "Focus on the board"}
           title={focusMode ? "Leave focus (F or Esc)" : "Focus: just the board (F)"}
           style={{
-            position: "fixed", left: rulesInRoom ? (fullScreenCorner ? 98 : 58) : 18, bottom: rulesInRoom ? 18 : 102, zIndex: cornerControlsZ, width: 38, height: 38,
+            position: "fixed", ...cornerStyle("focus"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
             color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : focusMode ? 0.95 : 0.5,
             pointerEvents: cornerControlsCovered ? "none" : "auto", cursor: "pointer", transition: "opacity 0.5s ease",
@@ -7295,8 +7309,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         onClick={() => openRulesAt("quick")}
         style={{
           position: "fixed",
-          left: fullScreenCorner ? 58 : 18,
-          bottom: 18,
+          ...cornerStyle("howto"),
           zIndex: cornerControlsZ,
           height: 38,
           display: "flex",

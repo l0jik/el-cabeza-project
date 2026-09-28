@@ -267,8 +267,10 @@ export const styleSheet = `
     background: rgba(243,231,205,0.92) !important; color: ${DEN.chocolate} !important;
     border-radius: 999px !important; box-shadow: 0 2px 8px rgba(12,6,2,0.4);
   }
-  button[aria-label$="full screen"] { width: 30px !important; height: 30px !important; bottom: 22px !important; }
-  [data-testid="room-view-corner"], [data-testid="focus-corner"] { width: 30px !important; height: 30px !important; bottom: 22px !important; opacity: 0.85 !important; }
+  /* Where the chassis puts each (--ec-corner-bottom: in a row, or stacked
+     on a phone), 4 px up to centre the smaller card on it. */
+  button[aria-label$="full screen"] { width: 30px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 18px) + 4px) !important; }
+  [data-testid="room-view-corner"], [data-testid="focus-corner"] { width: 30px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 18px) + 4px) !important; opacity: 0.85 !important; }
   [data-testid="focus-corner"][data-on="true"] { background: ${DEN.chocolate} !important; color: rgba(243,231,205,0.96) !important; opacity: 1 !important; }
   /* The rules leaflet's "?" (den-fx.js): a scrap of card that pops up
      over the leaflet on the coffee table under the mouse. */
