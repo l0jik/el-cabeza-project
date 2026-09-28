@@ -7,6 +7,7 @@ import * as neonTheme from "../themes/neon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS } from "../engine/constants.js";
 import { StoryCut, readOwned, saveOwned } from "./novaStory.jsx";
+import { forgetSingularity } from "../engine/journey.js";
 import {
   TransitionStyles,
   HoldDegradeLayer,
@@ -345,6 +346,8 @@ function UnifiedApp() {
   storyBridge.restart = () => {
     if (busyRef.current) return;
     saveOwned(false);
+    // The extras go back behind the Singularity (engine/journey.js).
+    forgetSingularity();
     startCut({ kind: "fade", caption: "Once more, from the top shelf.", to: "tienda", fresh: true });
   };
   // The television: into Singularity when nothing else is under way.

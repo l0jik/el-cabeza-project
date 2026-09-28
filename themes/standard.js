@@ -213,6 +213,9 @@ export const rulesInRoom = true;
 // the phone menu's switches), the den its own (a tap on a lamp: the
 // console's, the credenza's two, or a ceiling globe).
 export const focusMode = true;
+// The extras (pieces past the five, laws, the board's cuts) wait for the
+// Singularity's first visit (engine/journey.js).
+export const lockExtrasUntilSingularity = true;
 
 /* No pre-game setup extras, and no SVG filter defs. */
 export function renderSetupExtras() {

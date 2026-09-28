@@ -35,6 +35,7 @@ import {
 } from "../engine/constants.js";
 import { pickBlackHoleSquares, pickMissingSquares, blackHoleRowAllowed, initialPiecesFor, missingSquaresKeepPath } from "../engine/rules.js";
 import { ensureThumbs, pieceThumb, PieceViewer } from "./piece-showcase.js";
+import { markSingularitySeen } from "../engine/journey.js";
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
 // SINGULARITY invite: the cathedral bell tolls and a black curtain fades
@@ -3315,6 +3316,8 @@ export function useSingularityPhase({
   applyBoardResize,
 }) {
   const [phase, setPhase] = React.useState(PHASES.IDLE);
+  // The sphere's first opening unlocks the extras everywhere (engine/journey.js).
+  React.useEffect(() => { if (phase === PHASES.SPHERE) markSingularitySeen(); }, [phase]);
   const blackDivRef = React.useRef(null);
   const tollTimerRef = React.useRef(null); // the toll -> collapse handoff timer
   const phaseSetterRef = React.useRef(setPhase);

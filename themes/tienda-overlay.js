@@ -32,6 +32,18 @@ import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS
 import { ensurePaper } from "./tienda-textures.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
+import { singularitySeen, CLASSIC_PIECE_KEYS } from "../engine/journey.js";
+
+/* The classic game's order (engine/journey.js: the extras wait for the
+   Singularity's first visit): the five pieces only, no laws, no cut
+   squares or holes. Board size and a shuffled start stay. */
+function classicSelections(sel) {
+  const n = cloneSelections(sel);
+  PIECE_OPTIONS.forEach((p) => { if (!CLASSIC_PIECE_KEYS.includes(p.key)) n.counts[p.key] = 0; });
+  Object.keys(n.laws || {}).forEach((k) => { n.laws[k] = false; });
+  n.missing = false;
+  return normalizeSelections(n);
+}
 
 const h = React.createElement;
 const INK = "#2E2118", RED = "#A33F33", PAPER = "#EFE6CD";
@@ -490,9 +502,14 @@ function BoardDiagram({ sel }) {
 const QUICK_SIZES = [8, 10, 12, 16, 20];
 
 function OrderForm({ initial, onChange, onCancel, onPlace, audio, x }) {
-  const [sel, setSel] = React.useState(() => normalizeSelections(cloneSelections(initial || defaultSelections())));
+  // Before the Singularity's first visit, the page of the classic game.
+  const classic = React.useMemo(() => !singularitySeen(), []);
+  const [sel, setSel] = React.useState(() => {
+    const s0 = normalizeSelections(cloneSelections(initial || defaultSelections()));
+    return classic ? classicSelections(s0) : s0;
+  });
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); onChange && onChange(n); return n; });
-  const replace = (n) => { setSel(n); onChange && onChange(n); };
+  const replace = (n0) => { const n = classic ? classicSelections(n0) : n0; setSel(n); onChange && onChange(n); };
   const click = () => { audio && audio.playSelect && audio.playSelect(); };
   const total = totalPieces(sel), over = total > MAX_PIECES;
   const fits = piecesFit(sel), need = fits ? null : minColsFor(sel);
@@ -528,7 +545,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, x }) {
   // "How it works": the rules card for that law, over the form.
   const explain = (key) => { click(); window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "moves", focus: key } })); };
 
-  const pieceRows = PIECE_OPTIONS.map((p) => {
+  const pieceRows = (classic ? PIECE_OPTIONS.filter((p) => CLASSIC_PIECE_KEYS.includes(p.key)) : PIECE_OPTIONS).map((p) => {
     const n = sel.counts[p.key];
     const isArco = p.key === "arco";
     const arco = isArco ? ARCO_SIZES.find((a) => a.key === sel.arcoSize) || ARCO_SIZES[0] : null;
@@ -652,9 +669,16 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, x }) {
   };
   const standard = () => { click(); replace(defaultSelections()); };
   const lawsOn = LAW_OPTIONS.filter((l) => sel.laws[l.key]).length;
-  const summary = `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board${sel.missing ? ` · ${sel.missingCount} cut ${sel.missingCount === 1 ? "pair" : "pairs"}` : ""}`;
+  const summary = classic
+    ? `${total} pieces a side · ${boardLabel(sel)} board`
+    : `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board${sel.missing ? ` · ${sel.missingCount} cut ${sel.missingCount === 1 ? "pair" : "pairs"}` : ""}`;
+  // The form's sections, numbered as they come (the classic page has no Rules).
+  let secNo = 0;
+  const sec = (title, note, ...body) => h("div", { className: "td-sec" },
+    h("div", { className: "td-sec-h" }, `${++secNo} · ${title}`, note ? h("small", null, note) : null),
+    ...body);
 
-  return h("div", { className: "td-layer", "data-testid": "tienda-order", "data-filled": filled ? "true" : "false", role: "dialog", "aria-modal": "true", "aria-label": "Order form: custom rules", onClick: (e) => { if (e.target === e.currentTarget && !filled) onCancel(); } },
+  return h("div", { className: "td-layer", "data-testid": "tienda-order", "data-classic": classic ? "true" : "false", "data-filled": filled ? "true" : "false", role: "dialog", "aria-modal": "true", "aria-label": "Order form: custom rules", onClick: (e) => { if (e.target === e.currentTarget && !filled) onCancel(); } },
     h(Style),
     h("div", { className: `td-form${filled ? " td-filled" : ""}` },
       h("div", { className: "td-form-scroll" },
@@ -666,32 +690,23 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, x }) {
           ),
           h("div", { className: "td-form-note" }, "Please print. Mark boxes with an X."),
         ),
-        h("div", { className: "td-sec" },
-          h("div", { className: "td-sec-h" }, "1 · Pieces", h("small", null, "quantity for each side — the other side gets the same")),
+        sec("Pieces", "quantity for each side — the other side gets the same",
           pieceRows,
           h("div", { className: `td-total${over ? " over" : ""}`, "data-testid": "tienda-piece-total" },
             h("span", null, "Pieces per side"),
             h("span", null, over ? `${total} — ${MAX_PIECES} is the most a side can have` : `${total} of ${MAX_PIECES}`)),
           fitNote,
         ),
-        h("div", { className: "td-sec" },
-          h("div", { className: "td-sec-h" }, "2 · Rules", h("small", null, "check each one you want")),
-          lawRows,
-        ),
-        h("div", { className: "td-sec" },
-          h("div", { className: "td-sec-h" }, "3 · Board", h("small", null, "any width and length; each side starts in its two home rows")),
+        !classic && sec("Rules", "check each one you want", lawRows),
+        sec("Board", "any width and length; each side starts in its two home rows",
           boardRows,
           sizeRow,
-          check("missing", !!sel.missing, "Missing squares", "Pairs of squares cut clean out of the board; nothing can stand on them or pass over them.", () => change((s) => { s.missing = !s.missing; if (s.missing) fillSpots(s, "missing"); })),
-          missingRows,
+          !classic && check("missing", !!sel.missing, "Missing squares", "Pairs of squares cut clean out of the board; nothing can stand on them or pass over them.", () => change((s) => { s.missing = !s.missing; if (s.missing) fillSpots(s, "missing"); })),
+          !classic && missingRows,
           check("random", !!sel.random, "Shuffled start", "Pieces set out at random in each side's home rows, mirrored.", () => change((s) => { s.random = !s.random; })),
         ),
-        h("div", { className: "td-sec" },
-          h("div", { className: "td-sec-h" }, "4 · Who's playing"),
-          h(OpponentSection, { x, audio }),
-        ),
-        h("div", { className: "td-sec" },
-          h("div", { className: "td-sec-h" }, "5 · Carbon copies", h("small", null, "keep this order to use again (this browser only; not the opponent)")),
+        sec("Who's playing", null, h(OpponentSection, { x, audio })),
+        sec("Carbon copies", "keep this order to use again (this browser only; not the opponent)",
           h(CarbonCopies, { sel, audio, onLoad: (n) => replace(n) }),
         ),
       ),

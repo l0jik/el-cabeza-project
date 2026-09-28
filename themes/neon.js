@@ -489,6 +489,10 @@ export function makeGrid() {
    deliberately has none" rather than "this theme forgot to declare
    one." */
 export const outlineYOffset = 0;
+// The extras wait for the sphere's first opening (engine/journey.js): the
+// rules cards tell the classic game (Anomaly only shuffles the five) until
+// then.
+export const lockExtrasUntilSingularity = true;
 
 /* Modal chrome — see themes/standard.js's modalBackdrop/modalSurface
    for why these are dedicated tokens rather than derived from

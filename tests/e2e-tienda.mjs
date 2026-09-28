@@ -58,6 +58,7 @@ const check = (l, c, extra) => { if (!c) failures++; console.log(`  ${c ? "ok  "
 async function open(size) {
   const ctx = await browser.newContext({ viewport: { width: size.w, height: size.h }, deviceScaleFactor: size.touch ? 2 : 1, isMobile: !!size.touch, hasTouch: !!size.touch });
   const page = await ctx.newPage();
+  await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } }); // been to the Singularity: the extras are open (engine/journey.js; e2e-journey.mjs tests the lock)
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/ERR_CERT|ERR_CONNECTION|ERR_TUNNEL|Failed to load resource|fonts\.g/.test(m.text())) errs.push(m.text()); });
@@ -434,6 +435,7 @@ console.log("\nthe page alone, without its tape");
 {
   const ctx = await browser.newContext({ viewport: { width: 800, height: 600 } });
   const page = await ctx.newPage();
+  await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } }); // been to the Singularity: the extras are open (engine/journey.js; e2e-journey.mjs tests the lock)
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });

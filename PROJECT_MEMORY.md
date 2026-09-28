@@ -3155,3 +3155,31 @@ control bar's menu.
   sits lowest is kept: resting on two points. Measured in the page:
   no vertex below the glaze (closest +0.0017, the handle on the rim), and
   0.9 from the mug's axis (mug 0.735).
+
+### The extras wait for the Singularity (user: the info panel in the store and the den shows no Anomaly/Singularity/extra pieces/laws until the first Singularity)
+Agreed with the user (asked): lock by the Singularity sphere, not by
+reaching Neon (Neon's Anomaly only shuffles the five); lock the den's
+catalog too; apply it everywhere (standalone pages too), not only Nova.
+- `engine/journey.js`: `singularitySeen()` (localStorage
+  `el-cabeza:singularity-seen`, shared by every page of the site; a
+  blocked storage lasts the visit), `markSingularitySeen()` (the sphere's
+  first opening: neon-singularity.js effect on phase SPHERE),
+  `forgetSingularity()` (Nova's "Start the story over", unified.jsx),
+  `onJourneyChange(cb)` (JOURNEY_EVENT + storage), `CLASSIC_PIECE_KEYS`.
+- A theme opts in with `lockExtrasUntilSingularity` (tienda.js,
+  standard.js, neon.js; Nova's wrappers inherit). Cromo, Lluvia and the Lab
+  don't (their own custom rules).
+- Chassis: `classicRules` → `RulesCard classic` (data-classic): MOVES
+  drops every law tile plus `shelter` and `missing`; COSTS drops the law
+  rows and "3 Actions"; THIS GAME says "classic rules", no laws/new pieces/
+  cut squares; YOUR TURN loses Split Movement/slide/pivot/shove and the
+  3-Actions example; ABOUT's note drops "ANOMALY and SINGULARITY".
+- Order form (tienda-overlay.js OrderForm, the store/den/Tienda page):
+  `classic` (read at open) → the five pieces only, no Rules section, no
+  Missing squares; board size and Shuffled start stay; sections renumber;
+  any selection loaded (carbon copy, Standard) is made classic
+  (`classicSelections`). data-classic on tienda-order.
+- Tests: e2e-journey.mjs (locked by default on Tienda and Neon; open with
+  the flag on Tienda and Standard; the sphere sets it; Nova's restart
+  clears it). Suites that exercise extras (e2e-rules, e2e-tienda,
+  e2e-original) start with the flag set.

@@ -15,6 +15,7 @@ for (const theme of ["neon", "standard"]) {
   console.log(`[${theme}]`);
   const context = await browser.newContext({ viewport: { width: 900, height: 900 } });
   const page = await context.newPage();
+  await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } }); // been to the Singularity: the extras are open (engine/journey.js; e2e-journey.mjs tests the lock)
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript(() => { window.__EC_LAWS__ = { threeActions: true, slide: true }; });
@@ -103,6 +104,7 @@ for (const theme of ["neon", "standard"]) {
   console.log("[menu audio]");
   const context = await browser.newContext({ viewport: { width: 900, height: 900 } });
   const page = await context.newPage();
+  await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } }); // been to the Singularity: the extras are open (engine/journey.js; e2e-journey.mjs tests the lock)
   const audioErrs = [];
   page.on("pageerror", (e) => audioErrs.push(e.message));
   await page.addInitScript(() => { window.__EC_MENU_CUES__ = []; });
@@ -152,6 +154,7 @@ for (const theme of ["neon", "standard"]) {
   console.log("[reduced motion]");
   const context = await browser.newContext({ viewport: { width: 1200, height: 800 }, reducedMotion: "reduce" });
   const page = await context.newPage();
+  await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } }); // been to the Singularity: the extras are open (engine/journey.js; e2e-journey.mjs tests the lock)
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
   await page.waitForTimeout(2000);
   await open(page, "moves");

@@ -22,6 +22,7 @@ import {
 } from "../engine/geometry.js";
 import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
+import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
 import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
@@ -830,6 +831,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      and the theme's own (the den's lamps) through FOCUS_EVENT. Room
      View leaves it. */
   const focusable = !!theme.focusMode;
+  /* The extras kept back until the Singularity's first visit (engine/
+     journey.js; a theme opts in with lockExtrasUntilSingularity): while
+     locked, the rules cards tell the classic game alone. */
+  const [singularityVisited, setSingularityVisited] = useState(singularitySeen);
+  useEffect(() => onJourneyChange(setSingularityVisited), []);
+  const classicRules = !!theme.lockExtrasUntilSingularity && !singularityVisited;
   const [focusMode, setFocusMode] = useState(false);
   const toggleFocus = () => setFocusMode((v) => !v);
   // A theme without the switch always shows the badges.
@@ -8866,6 +8873,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 onFocus={(k) => switchRulesTab("moves", k)}
                 C={RULES_COLORS}
                 budget={turnBudget()}
+                classic={classicRules}
                 game={{
                   laws: ACTIVE_LAWS,
                   rows: BOARD_ROWS,
@@ -8968,8 +8976,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 >
                   The original El Cabeza
                 </button>{" "}
-                is played with its basic rules alone; everything from ANOMALY
-                and SINGULARITY was added later.
+                {classicRules
+                  ? "is played with its basic rules alone."
+                  : "is played with its basic rules alone; everything from ANOMALY and SINGULARITY was added later."}
               </p>
             </div>
 

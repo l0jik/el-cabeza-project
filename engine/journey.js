@@ -1,0 +1,67 @@
+/* The journey: the extras are kept back until the player has been into
+   the Singularity once (the user: the store and the den, and Neon before
+   its sphere, are the classic game; the sphere unlocks the rest, for good,
+   until Nova's "Start the story over").
+
+   "The extras" are everything past the classic game: the pieces beyond
+   the five, the laws, and the board's holes and cut squares. While they're
+   locked, the rules cards (chassis/RulesCards.jsx, via ElCabeza3D.jsx)
+   describe only the classic game, and the catalog's order form
+   (themes/tienda-overlay.js) offers only the five pieces and the board's
+   size. A theme opts in with `lockExtrasUntilSingularity` (Tienda,
+   Standard and Neon, on their own pages and in Nova alike).
+
+   Kept in localStorage, so it's the same on every page of the site: a
+   visit to the sphere anywhere unlocks them everywhere. If storage is
+   blocked, it lasts the visit. A change is announced on JOURNEY_EVENT (and
+   another tab's, by the browser's own storage event). */
+
+export const SINGULARITY_SEEN_KEY = "el-cabeza:singularity-seen";
+export const JOURNEY_EVENT = "el-cabeza:journey";
+
+// The classic game's pieces: the five in the box.
+export const CLASSIC_PIECE_KEYS = ["cabeza", "turrito", "flaco", "chato", "opa"];
+
+let seenThisVisit = false;
+
+export function singularitySeen() {
+  if (seenThisVisit) return true;
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem(SINGULARITY_SEEN_KEY) === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+function announce() {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(JOURNEY_EVENT));
+}
+
+// The sphere has opened (themes/neon-singularity.js): the extras unlock.
+export function markSingularitySeen() {
+  if (singularitySeen()) return;
+  seenThisVisit = true;
+  try { localStorage.setItem(SINGULARITY_SEEN_KEY, "1"); } catch (e) { /* this visit only */ }
+  announce();
+}
+
+// Nova's "Start the story over" (apps/unified.jsx): locked again.
+export function forgetSingularity() {
+  seenThisVisit = false;
+  try { localStorage.removeItem(SINGULARITY_SEEN_KEY); } catch (e) { /* nothing kept */ }
+  announce();
+}
+
+// Calls back with singularitySeen() whenever it may have changed; returns
+// the unsubscribe.
+export function onJourneyChange(cb) {
+  if (typeof window === "undefined") return () => {};
+  const onEvent = () => cb(singularitySeen());
+  const onStorage = (e) => { if (!e || e.key === null || e.key === SINGULARITY_SEEN_KEY) onEvent(); };
+  window.addEventListener(JOURNEY_EVENT, onEvent);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(JOURNEY_EVENT, onEvent);
+    window.removeEventListener("storage", onStorage);
+  };
+}

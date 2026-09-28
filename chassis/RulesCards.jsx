@@ -104,8 +104,8 @@ function QuickCard({ C, budget }) {
 }
 
 /* ---------------------------------------------------------------- B */
-function CostsCard({ C }) {
-  const rows = [
+function CostsCard({ C, classic }) {
+  const all = [
     ["Roll a block", "Tip it over one edge", <Dots n={1} C={C} />],
     ["Cabeza step", "Any of 8 directions", <Dots n={1} C={C} />],
     ["Opa move", "Roll or slide; once per turn", <Dots n={2} C={C} />],
@@ -114,11 +114,13 @@ function CostsCard({ C }) {
     ["Shove", "Added to the move that pushes", <Dots n={1} C={C} plus />, true],
     ["Back to an earlier spot", "This turn only", <span style={{ color: C.slate }}>free</span>],
   ];
+  // The classic game (engine/journey.js): no laws.
+  const rows = classic ? all.filter((r) => !r[3]) : all;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontFamily: mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", border: `1px solid ${C.slateSoft}`, background: C.slateFaint, padding: "8px 10px" }}>
         <span>Points per turn</span>
-        <span>2 <span style={{ color: C.slate }}>· 3 with 3 Actions</span></span>
+        <span>2{!classic && <span style={{ color: C.slate }}> · 3 with 3 Actions</span>}</span>
       </div>
       <div>
         {rows.map(([name, sub, cost, law]) => (
@@ -135,23 +137,23 @@ function CostsCard({ C }) {
         ))}
       </div>
       <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: C.slate, textAlign: "center" }}>
-        Anything costing 3 needs 3 Actions · points don't carry over
+        {classic ? "Points don't carry over" : "Anything costing 3 needs 3 Actions · points don't carry over"}
       </div>
     </div>
   );
 }
 
 /* ---------------------------------------------------------------- C */
-function GameCard({ C, game, onFocus }) {
-  const on = Object.keys(LAW_TEXT).filter((k) => game.laws[k]);
+function GameCard({ C, game, onFocus, classic }) {
+  const on = classic ? [] : Object.keys(LAW_TEXT).filter((k) => game.laws[k]);
   const extras = [];
   if (game.rows !== 10 || game.cols !== 10) extras.push(`${game.rows} × ${game.cols} board`);
-  if (game.missing) extras.push(`${game.missing} missing squares`);
-  if (game.newTypes.length) extras.push(...game.newTypes);
+  if (game.missing && !classic) extras.push(`${game.missing} missing squares`);
+  if (game.newTypes.length && !classic) extras.push(...game.newTypes);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {on.length === 0 ? (
-        <div style={{ color: C.slate }}>No laws are on: this game plays the standard rules.</div>
+        <div style={{ color: C.slate }}>{classic ? "This game plays the classic rules." : "No laws are on: this game plays the standard rules."}</div>
       ) : (
         on.map((k) => {
           const text = k === "shoving" ? shovingText(game.laws) : LAW_TEXT[k].text;
@@ -182,7 +184,7 @@ function GameCard({ C, game, onFocus }) {
           ))}
         </div>
       )}
-      <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: C.slate, textAlign: "center" }}>Tap a law to see it move</div>
+      {on.length > 0 && <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: C.slate, textAlign: "center" }}>Tap a law to see it move</div>}
     </div>
   );
 }
@@ -594,13 +596,16 @@ const KEYFRAMES = `
 @media (prefers-reduced-motion: reduce) { .ec-rc-anim * { animation-duration: 7.2s !important; } }
 `;
 
-function MovesCard({ C, focus }) {
+// Tiles that belong to the extras (pieces past the five, the board's cuts),
+// besides every law's: hidden while the classic game is all there is.
+const EXTRA_TILES = ["shelter", "missing"];
+function MovesCard({ C, focus, classic }) {
   const refs = useRef({});
   useEffect(() => {
     const el = focus && refs.current[focus];
     if (el && el.scrollIntoView) el.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [focus]);
-  const list = tiles(C);
+  const list = classic ? tiles(C).filter((t) => !t.law && !EXTRA_TILES.includes(t.key)) : tiles(C);
   return (
     <div className="ec-rc-anim" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8 }}>
       <style>{KEYFRAMES}</style>
@@ -640,11 +645,13 @@ function MovesCard({ C, focus }) {
 }
 
 /* ---------------------------------------------------------------- E */
-function TurnCard({ C, budget }) {
+function TurnCard({ C, budget, classic }) {
   const steps = [
     <><b>You must move at least 1 piece, 1 time.</b> Skipping your turn is not allowed.</>,
-    <>Pick <b>one piece</b>. (With Split Movement, up to two.)</>,
-    <>Spend your points <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, a slide or any Opa move is 2, a pivot 1, a shove 1 more.</>,
+    classic ? <>Pick <b>one piece</b>.</> : <>Pick <b>one piece</b>. (With Split Movement, up to two.)</>,
+    classic
+      ? <>Spend your points <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, an Opa move is 2.</>
+      : <>Spend your points <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, a slide or any Opa move is 2, a pivot 1, a shove 1 more.</>,
     <>Changed your mind? Moving back to where you were this turn gives the points back.</>,
     <>The turn ends when the points run out, when nothing left can use them, or when you stop early after your first move: tap the piece again, or press Stop here.</>,
   ];
@@ -659,7 +666,10 @@ function TurnCard({ C, budget }) {
         ))}
       </ol>
       <div style={{ fontSize: 13, borderLeft: `2px solid ${C.accentLight || C.slate}`, padding: "8px 10px", background: C.slateFaint }}>
-        <b style={{ color: C.accentLight || C.charcoal }}>Example:</b> with 3 Actions, an Opa roll spends 2. The last point goes unused, because an Opa moves only once per turn. (With Split Movement, another piece could use it.)
+        <b style={{ color: C.accentLight || C.charcoal }}>Example:</b>{" "}
+        {classic
+          ? "an Opa roll spends both your points, so it's the turn's one move. A Turrito could roll twice instead."
+          : "with 3 Actions, an Opa roll spends 2. The last point goes unused, because an Opa moves only once per turn. (With Split Movement, another piece could use it.)"}
       </div>
     </div>
   );
@@ -693,14 +703,17 @@ export function RulesTabs({ tab, onTab, C }) {
   );
 }
 
-export function RulesCard({ tab, focus, onFocus, C, budget, game }) {
+/* `classic`: the extras are still locked (engine/journey.js): every card
+   tells the classic game alone, no laws, no pieces past the five, no
+   holes or cuts, no Anomaly or Singularity. */
+export function RulesCard({ tab, focus, onFocus, C, budget, game, classic = false }) {
   return (
-    <div data-testid={`rules-card-${tab}`} style={{ fontFamily: sans, fontSize: 14, lineHeight: 1.55, color: C.charcoal }}>
+    <div data-testid={`rules-card-${tab}`} data-classic={classic ? "true" : "false"} style={{ fontFamily: sans, fontSize: 14, lineHeight: 1.55, color: C.charcoal }}>
       {tab === "quick" && <QuickCard C={C} budget={budget} />}
-      {tab === "costs" && <CostsCard C={C} />}
-      {tab === "game" && <GameCard C={C} game={game} onFocus={onFocus} />}
-      {tab === "moves" && <MovesCard C={C} focus={focus} />}
-      {tab === "turn" && <TurnCard C={C} budget={budget} />}
+      {tab === "costs" && <CostsCard C={C} classic={classic} />}
+      {tab === "game" && <GameCard C={C} game={game} onFocus={onFocus} classic={classic} />}
+      {tab === "moves" && <MovesCard C={C} focus={focus} classic={classic} />}
+      {tab === "turn" && <TurnCard C={C} budget={budget} classic={classic} />}
     </div>
   );
 }

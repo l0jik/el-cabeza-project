@@ -28,6 +28,7 @@ const theme = (page) => page.evaluate(() => {
 {
   console.log("[neon page]");
   const page = await browser.newPage({ viewport: { width: 1000, height: 850 } });
+  await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } }); // been to the Singularity: the extras are open (engine/journey.js; e2e-journey.mjs tests the lock)
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   await page.addInitScript(() => { window.__EC_LAWS__ = { threeActions: true, slide: true, shoving: true }; });
@@ -54,6 +55,7 @@ const theme = (page) => page.evaluate(() => {
 {
   console.log("[nova]");
   const page = await browser.newPage({ viewport: { width: 1000, height: 850 } });
+  await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } }); // been to the Singularity: the extras are open (engine/journey.js; e2e-journey.mjs tests the lock)
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   // The game's bought, so Nova opens at home (apps/novaStory.jsx).
