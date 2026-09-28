@@ -244,8 +244,12 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
      wood pieces, the paper, the register). Each is a gate on its own
      path; muting one leaves the others, and the music keeps its place. */
   const channelOff = { music: false, store: false, pieces: false };
+  // Each channel's level on the sound menu's slider (0..1; 0 is off), heard
+  // as its square so the slider moves about evenly in loudness.
+  const channelLevel = { music: 1, store: 1, pieces: 1 };
+  const chGain = (ch) => (channelOff[ch] ? 0 : channelLevel[ch] * channelLevel[ch]);
   const gates = { music: [], store: [], pieces: [] };
-  const gate = (ch) => { const g = ctx.createGain(); g.gain.value = channelOff[ch] ? 0 : 1; gates[ch].push(g); return g; };
+  const gate = (ch) => { const g = ctx.createGain(); g.gain.value = chGain(ch); gates[ch].push(g); return g; };
   let humGain = null, buzzGain = null, hvacGain = null;
   let schedTimer = null, eventTimer = null, windTimer = null;
   let zoom = 0.5, tension = 0;
@@ -837,7 +841,14 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
     setChannelMuted(ch, m) {
       if (!(ch in channelOff)) return;
       channelOff[ch] = !!m;
-      if (ctx) gates[ch].forEach((g) => ramp(g.gain, m ? 0 : 1, 0.15));
+      if (ctx) gates[ch].forEach((g) => ramp(g.gain, chGain(ch), 0.15));
+    },
+    // The sound menu's slider for a channel: 0 (off) .. 1.
+    setChannelLevel(ch, v) {
+      if (!(ch in channelOff)) return;
+      channelLevel[ch] = Math.max(0, Math.min(1, v));
+      channelOff[ch] = channelLevel[ch] <= 0;
+      if (ctx) gates[ch].forEach((g) => ramp(g.gain, chGain(ch), 0.08));
     },
     setTension(v) {
       tension = v;
@@ -912,7 +923,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
     // For tests: what's playing.
     debugState() {
       return {
-        ctx: !!ctx, ctxState: ctx ? ctx.state : null, storeOn, windingDown, channelsOff: { ...channelOff },
+        ctx: !!ctx, ctxState: ctx ? ctx.state : null, storeOn, windingDown, channelsOff: { ...channelOff }, channelLevels: { ...channelLevel },
         gates: Object.fromEntries(Object.entries(gates).map(([k, list]) => [k, list.map((g) => +g.gain.value.toFixed(3))])), music: !!schedTimer, playing, tune: tuneNo, key: keyNo, notes: piece ? piece.notes.length : 0,
         tape: !cur() ? "none" : cur().failed ? "failed" : cur().buffer ? "ready" : cur().loading ? "loading" : "none",
         tapeTime: ctx && playing === "tape" ? tapeOffset + Math.max(0, ctx.currentTime - tapeStartedAt) * TAPE_RATE : cur() ? cur().pos : 0,

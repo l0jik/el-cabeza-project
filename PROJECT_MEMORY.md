@@ -2518,6 +2518,38 @@ phone and a laptop but shrank it on squarer windows (1100x900: 547 px
 against 649) and broke the Singularity test's bare-sphere tap, so it's
 the fitted view's size instead.
 
+### Sliders for the sound, the mouse wheel, the den's sofas and table (Sep 28)
+- **Sound sliders** ("sliders instead of toggles to balance sounds mixing,
+  with a slide all the way to the left muting that channel"): the dock's
+  sound menu and the phone's menu sheet have a slider per channel (Tienda:
+  music, store, pieces; the den: the room, music, pieces; Neon: ambience,
+  pieces, interface) and "All sounds" over them. A channel's level is 0..1
+  (localStorage `el-cabeza:sound-levels`; a switch left off before
+  carries over as 0), heard as its square (`chGain` in tienda-audio.js,
+  den-audio.js, neon.js: `setChannelLevel`), so halfway is a quarter of
+  the gain, about evenly spaced by ear. All sounds is a master level
+  (`el-cabeza:sound-master`) multiplying every channel; all the way left
+  is the mute it always was (audioMuted, onMutedChange). The inputs keep
+  the old testids (`sound-all`, `sound-ch-<key>`, `shell-menu-sound`,
+  `shell-menu-sound-<key>`) with `data-level` 0..100. Themes with no
+  channels keep their single Sound switch.
+- **The mouse wheel** ("scroll out quickly... it stutters, and rezooms
+  in"): the wheel's trackpad-flick gesture (320 px of scroll within 160
+  ms: down = Top-Down View, up = Current Player View) caught a mouse wheel
+  spun quickly (four or five 100 px notches), jumping to Top-Down View,
+  closer in. A burst with a mouse notch in it (deltaMode not pixels, or
+  |deltaY| >= 50 with wheelDeltaY a multiple of 120) or a trackpad pinch
+  (ctrlKey) never counts as a flick. And the wheel zooms by a share of
+  the distance (exp(0.0009 x deltaY): a notch is about 9%), with Firefox's
+  lines counted as 33 px, so a room is crossed in a few turns.
+- **The den's sofas** (user video: far out, circling, the near sofa
+  vanished): a sofa side steps aside only when the camera is within 22 of
+  its back (den-room.js `blocks`); from across the room it stays.
+- **The coffee table's plinth**: no key-light shadow (the shadow map's
+  tight ±9.5 frustum ended partway across it, cutting the top's shadow off
+  in a line that slid about as the view turned), a shade darker instead.
+- **Starting the story over** now reads "Once more, from the top shelf."
+
 ### The den: the rubber plant, and the speakers swapped (user report, Sep 27)
 - **The rubber plant by the glass** ("needs to be fixed", a screenshot):
   it was an orange cylinder with a cluster of flat blades (leafCluster)
@@ -2863,7 +2895,7 @@ in; leaving Singularity, back in the den as the set switches off.
   for it (`cut.arrived`, set by the app's effect after the new chassis's
   mount effects) plus two frames and a moment to read, then fades up.
   "Back to the store" ("Back at the store.") and "Start the story over"
-  ("Once more, from the shelf.": the purchase forgotten, the lid back on,
+  ("Once more, from the top shelf.": the purchase forgotten, the lid back on,
   `tiendaTheme.resetLid()`) are the same fade without the register.
   Arriving by a cut, the place's sound comes up (the store's; the den's
   room), or at the next tap if the browser holds it back

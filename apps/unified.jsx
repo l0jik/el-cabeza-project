@@ -345,7 +345,7 @@ function UnifiedApp() {
   storyBridge.restart = () => {
     if (busyRef.current) return;
     saveOwned(false);
-    startCut({ kind: "fade", caption: "Once more, from the shelf.", to: "tienda", fresh: true });
+    startCut({ kind: "fade", caption: "Once more, from the top shelf.", to: "tienda", fresh: true });
   };
   // The television: into Singularity when nothing else is under way.
   tvBridge.portal = () => !busyRef.current && themeName === "standard";

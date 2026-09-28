@@ -140,10 +140,14 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "shell-menu-points").click();
   await page.waitForTimeout(200);
   check("Points left switches off", (await q(page, "shell-menu-points").getAttribute("aria-checked")) === "false");
-  const snd = await q(page, "shell-menu-sound").getAttribute("aria-checked");
-  await q(page, "shell-menu-sound").click();
+  // All sounds is a slider at home (the den's channels under it): all the
+  // way left is off, and back up again.
+  await q(page, "shell-menu-sound").fill("0");
   await page.waitForTimeout(200);
-  check("Sound switches", (await q(page, "shell-menu-sound").getAttribute("aria-checked")) !== snd);
+  const sndOff = await q(page, "shell-menu-sound").getAttribute("data-level");
+  await q(page, "shell-menu-sound").fill("100");
+  await page.waitForTimeout(200);
+  check("All sounds slides off and back up", sndOff === "0" && (await q(page, "shell-menu-sound").getAttribute("data-level")) === "100");
   await q(page, "shell-menu-close").click();
   await page.waitForTimeout(400);
   check("the menu closes", !(await q(page, "shell-menu").count()));

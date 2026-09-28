@@ -37,17 +37,17 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "sound-button").click();
   check("the speaker opens the sound menu", (await q(page, "sound-menu").count()) === 1);
   for (const k of ["sound-all", "sound-ch-ambience", "sound-ch-pieces", "sound-ch-interface"]) {
-    check(`...with ${k}, on`, (await q(page, k).getAttribute("aria-checked")) === "true");
+    check(`...with ${k}, all the way up`, (await q(page, k).getAttribute("data-level")) === "100");
   }
   const audio = () => page.evaluate(() => window.__EC_TEST_AUDIO__());
-  await q(page, "sound-ch-ambience").click();
+  await q(page, "sound-ch-ambience").fill("0");
   await page.waitForTimeout(700);
   let a = await audio();
   check("Ambience off silences the bed", a.gates && a.gates.ambience < 0.01, JSON.stringify(a.gates));
   check("...and leaves the pieces and the interface", a.channelsOff.pieces === false && a.channelsOff.interface === false, JSON.stringify(a.channelsOff));
   check("...with all sound still on", a.gain > 0.1, String(a.gain));
   check("the dock stays open while you use the menu", (await q(page, "dock-panel").getAttribute("data-open")) === "true");
-  await q(page, "sound-ch-pieces").click();
+  await q(page, "sound-ch-pieces").fill("0");
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
   check("Escape closes the menu", (await q(page, "sound-menu").count()) === 0);
@@ -62,9 +62,9 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(1500);
   await openDockPanel(page);
   await q(page, "sound-button").click();
-  check("after a reload, Ambience is still off", (await q(page, "sound-ch-ambience").getAttribute("aria-checked")) === "false");
-  check("...Pieces still off", (await q(page, "sound-ch-pieces").getAttribute("aria-checked")) === "false");
-  check("...Interface on", (await q(page, "sound-ch-interface").getAttribute("aria-checked")) === "true");
+  check("after a reload, Ambience is still off", (await q(page, "sound-ch-ambience").getAttribute("data-level")) === "0");
+  check("...Pieces still off", (await q(page, "sound-ch-pieces").getAttribute("data-level")) === "0");
+  check("...Interface all the way up", (await q(page, "sound-ch-interface").getAttribute("data-level")) === "100");
   await page.mouse.click(500, 60);
   await page.waitForTimeout(300);
   check("a press outside closes the menu", (await q(page, "sound-menu").count()) === 0);
@@ -92,17 +92,17 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(800);
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(400);
-  check("Neon: All sounds and the three channels", (await page.locator("[data-testid=shell-menu-sound] >> text=All sounds").count()) === 1
+  check("Neon: All sounds and the three channels", (await q(page, "shell-menu-sound").getAttribute("aria-label")) === "All sounds volume"
     && (await page.locator('[data-testid^="shell-menu-sound-"]').count()) === 3);
   const sw = q(page, "shell-menu-sound-ambience");
   await sw.scrollIntoViewIfNeeded();
-  await sw.click();
+  await sw.fill("0");
   await page.waitForTimeout(200);
-  check("Ambience switches off on its own", (await sw.getAttribute("aria-checked")) === "false" && (await q(page, "shell-menu-sound-pieces").getAttribute("aria-checked")) === "true");
-  check("...and All sounds stays on", (await q(page, "shell-menu-sound").getAttribute("aria-checked")) === "true");
-  await sw.click();
+  check("Ambience slides off on its own", (await sw.getAttribute("data-level")) === "0" && (await q(page, "shell-menu-sound-pieces").getAttribute("data-level")) === "100");
+  check("...and All sounds stays up", (await q(page, "shell-menu-sound").getAttribute("data-level")) === "100");
+  await sw.fill("60");
   await page.waitForTimeout(200);
-  check("...and back on", (await sw.getAttribute("aria-checked")) === "true");
+  check("...and back up part way", (await sw.getAttribute("data-level")) === "60");
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

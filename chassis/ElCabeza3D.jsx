@@ -198,8 +198,40 @@ const SOUND_CHANNELS_KEY = "el-cabeza:sound-channels";
 function loadChannelsOff() {
   try { return JSON.parse(localStorage.getItem(SOUND_CHANNELS_KEY) || "{}") || {}; } catch (e) { return {}; }
 }
-function saveChannelsOff(v) {
-  try { localStorage.setItem(SOUND_CHANNELS_KEY, JSON.stringify(v)); } catch (e) { /* storage blocked */ }
+/* ...now sliders (the user: "sliders instead of toggles to balance the
+   sounds, a slide all the way to the left muting that channel"): each
+   channel's level 0..1 ({ key: level }, 0 is off; a switch left off
+   before carries over as 0), and "All sounds", a master level over them
+   all (all the way left is the old mute). */
+const SOUND_LEVELS_KEY = "el-cabeza:sound-levels";
+const SOUND_MASTER_KEY = "el-cabeza:sound-master";
+function loadChannelLevels() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SOUND_LEVELS_KEY) || "null");
+    if (saved && typeof saved === "object") return saved;
+    const off = loadChannelsOff(), out = {};
+    Object.keys(off).forEach((k) => { if (off[k]) out[k] = 0; });
+    return out;
+  } catch (e) { return {}; }
+}
+function saveChannelLevels(v) {
+  try { localStorage.setItem(SOUND_LEVELS_KEY, JSON.stringify(v)); } catch (e) { /* storage blocked */ }
+}
+function loadMasterLevel() {
+  try { const v = parseFloat(localStorage.getItem(SOUND_MASTER_KEY)); return Number.isFinite(v) && v > 0 ? Math.min(1, v) : 1; } catch (e) { return 1; }
+}
+function saveMasterLevel(v) {
+  try { localStorage.setItem(SOUND_MASTER_KEY, String(v)); } catch (e) { /* storage blocked */ }
+}
+// Hands the levels to a theme's sound (setChannelLevel; an older engine
+// with only setChannelMuted gets on or off).
+function applyChannelLevels(audio, channels, levels, master) {
+  if (!audio || !channels) return;
+  channels.forEach((c) => {
+    const v = (levels[c.key] == null ? 1 : levels[c.key]) * master;
+    if (audio.setChannelLevel) audio.setChannelLevel(c.key, v);
+    else if (audio.setChannelMuted) audio.setChannelMuted(c.key, v <= 0);
+  });
 }
 /* The piece guide: the card that says what the chosen piece does (and,
    on a phone, the bar's "tap a piece / tap a marked square" tips). On
@@ -725,10 +757,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // what initialMuted says, so that has to be applied explicitly
     // here, once, right when the engine is actually created.
     if (initialMuted) audioRef.current.setMuted(true);
-    if (theme.soundChannels && audioRef.current.setChannelMuted) {
-      const off = loadChannelsOff();
-      theme.soundChannels.forEach((c) => { if (off[c.key]) audioRef.current.setChannelMuted(c.key, true); });
-    }
+    if (theme.soundChannels) applyChannelLevels(audioRef.current, theme.soundChannels, loadChannelLevels(), loadMasterLevel());
   }
 
   /* Ambient visual FX (title flicker, VHS glitch, arcs, etc. — entirely
@@ -1398,7 +1427,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
   const [audioMuted, setAudioMuted] = useState(initialMuted);
   const soundChannels = theme.soundChannels && theme.soundChannels.length ? theme.soundChannels : null;
-  const [channelsOff, setChannelsOff] = useState(loadChannelsOff);
+  const [channelLevels, setChannelLevels] = useState(loadChannelLevels);
+  const [masterLevel, setMasterLevel] = useState(loadMasterLevel);
+  const levelOf = (k) => (channelLevels[k] == null ? 1 : channelLevels[k]);
+  const channelsOff = {};
+  if (soundChannels) soundChannels.forEach((c) => { channelsOff[c.key] = levelOf(c.key) <= 0; });
   // The dock's sound menu (only for a theme with soundChannels): where it
   // floats, fixed above the speaker button, or null while closed.
   const [soundMenuAt, setSoundMenuAt] = useState(null);
@@ -1432,11 +1465,26 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     setMusicNow(null);
     musicPlaying(null);
   }
-  function toggleChannel(key) {
-    const next = { ...channelsOff, [key]: !channelsOff[key] };
-    setChannelsOff(next);
-    saveChannelsOff(next);
-    if (audioRef.current.setChannelMuted) audioRef.current.setChannelMuted(key, next[key]);
+  function setChannelLevel(key, v) {
+    const next = { ...channelLevels, [key]: Math.max(0, Math.min(1, v)) };
+    setChannelLevels(next);
+    saveChannelLevels(next);
+    applyChannelLevels(audioRef.current, soundChannels, next, masterLevel);
+  }
+  // On or off (the record player turning its channel back on).
+  function toggleChannel(key) { setChannelLevel(key, levelOf(key) > 0 ? 0 : 1); }
+  // "All sounds": all the way left is the mute it always was; up from
+  // there, every channel at its own level times this one.
+  function setMasterSound(v) {
+    v = Math.max(0, Math.min(1, v));
+    if (v <= 0) {
+      if (!audioMuted) toggleSound();
+      return;
+    }
+    setMasterLevel(v);
+    saveMasterLevel(v);
+    applyChannelLevels(audioRef.current, soundChannels, channelLevels, v);
+    if (audioMuted) toggleSound();
   }
   useEffect(() => {
     if (!soundMenuAt) return undefined;
@@ -5495,6 +5543,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     let wheelBurstDx = 0;
     let wheelBurstStart = 0;
     let wheelSwipeCooldownUntil = 0;
+    let wheelBurstNotched = false; // a mouse wheel's notch (or a pinch) in this burst: never a flick
     const WHEEL_SWIPE_WINDOW_MS = 160; // how long a burst of wheel events is treated as one gesture
     const WHEEL_SWIPE_MIN_DY = 320; // net deltaY within that window to count as a flick, not a scroll/zoom
     const WHEEL_SWIPE_COOLDOWN_MS = 500; // guards against the same flick re-triggering as it decays
@@ -5506,9 +5555,22 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         wheelBurstStart = now;
         wheelBurstDy = 0;
         wheelBurstDx = 0;
+        wheelBurstNotched = false;
       }
-      wheelBurstDy += ev.deltaY;
-      wheelBurstDx += ev.deltaX;
+      // In pixels whatever the browser reports in (Firefox: lines).
+      const unit = ev.deltaMode === 1 ? 33 : ev.deltaMode === 2 ? 800 : 1;
+      const dy = ev.deltaY * unit, dx = ev.deltaX * unit;
+      wheelBurstDy += dy;
+      wheelBurstDx += dx;
+      /* A mouse wheel turns in notches (about 100 px each; the browser's
+         wheelDeltaY in steps of 120, or lines in Firefox), a trackpad in
+         a stream of small fractions. Spun quickly to zoom out, four or
+         five notches land inside the flick window and passed for a
+         trackpad flick down: Top-Down View, closer in (the user: "it
+         stutters, and rezooms in"). A burst with a notch in it, or a
+         trackpad pinch (which comes with ctrlKey), only ever zooms. */
+      const wd = typeof ev.wheelDeltaY === "number" ? ev.wheelDeltaY : null;
+      if (ev.ctrlKey || ev.deltaMode !== 0 || (Math.abs(ev.deltaY) >= 50 && (wd === null || (wd !== 0 && wd % 120 === 0)))) wheelBurstNotched = true;
       /* A trackpad flick piles up far more distance far faster than
          either turning a mouse wheel or nudging the trackpad to zoom —
          that gap is what tells the two apart here, the same way
@@ -5516,6 +5578,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          Below this threshold every event still falls through and zooms
          exactly as before, so ordinary scrolling is untouched. */
       if (
+        !wheelBurstNotched &&
         now >= wheelSwipeCooldownUntil &&
         Math.abs(wheelBurstDy) >= WHEEL_SWIPE_MIN_DY &&
         Math.abs(wheelBurstDy) > Math.abs(wheelBurstDx) * 1.5
@@ -5527,9 +5590,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         wheelBurstDx = 0;
         return;
       }
+      // By a share of the distance (a notch: about 9%), so a room can be
+      // crossed in a few turns of the wheel, not dozens.
       cam.current.radius = Math.max(
         zoomMin,
-        Math.min(zoomMaxFor(), zoomBase() + ev.deltaY * 0.014)
+        Math.min(zoomMaxFor(), zoomBase() * Math.exp(dy * 0.0009))
       );
     }
 
@@ -8065,38 +8130,37 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             fontFamily: "'IBM Plex Sans', sans-serif",
           }}
         >
-          {[{ key: "__all", label: "All sounds", on: !audioMuted, onToggle: toggleSound }]
-            .concat(soundChannels.map((c) => ({ key: c.key, label: c.label, hint: c.hint, on: !channelsOff[c.key], onToggle: () => toggleChannel(c.key), dim: audioMuted })))
+          {[{ key: "__all", label: "All sounds", level: audioMuted ? 0 : masterLevel, onLevel: setMasterSound }]
+            .concat(soundChannels.map((c) => ({ key: c.key, label: c.label, hint: c.hint, level: levelOf(c.key), onLevel: (v) => setChannelLevel(c.key, v), dim: audioMuted })))
             .map((row, i) => (
-              <button
+              <label
                 key={row.key}
-                type="button"
-                role="switch"
-                aria-checked={row.on}
-                data-testid={row.key === "__all" ? "sound-all" : `sound-ch-${row.key}`}
-                onClick={row.onToggle}
                 style={{
-                  width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "9px 14px",
-                  background: "transparent", border: "none", borderTop: i === 1 ? `1px solid ${COLORS.slateSoft}` : "none",
+                  width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "9px 14px", boxSizing: "border-box",
+                  borderTop: i === 1 ? `1px solid ${COLORS.slateSoft}` : "none",
                   marginTop: i === 1 ? 6 : 0, paddingTop: i === 1 ? 12 : 9,
-                  color: "inherit", textAlign: "left", cursor: "pointer", opacity: row.dim ? 0.45 : 1, font: "inherit",
+                  opacity: row.dim ? 0.45 : 1, cursor: "pointer",
                 }}
               >
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: "block", fontSize: 14, fontWeight: row.key === "__all" ? 600 : 500 }}>{row.label}</span>
                   {row.hint && <span style={{ display: "block", fontSize: 11.5, color: COLORS.slate, marginTop: 1 }}>{row.hint}</span>}
                 </span>
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: 38, height: 22, borderRadius: 11, flexShrink: 0, position: "relative", boxSizing: "border-box",
-                    background: row.on ? COLORS.charcoal : "transparent", border: `1.5px solid ${row.on ? COLORS.charcoal : COLORS.slateSoft}`,
-                    transition: "background 160ms ease",
-                  }}
-                >
-                  <span style={{ position: "absolute", top: 2, left: row.on ? 17 : 2, width: 15, height: 15, borderRadius: "50%", background: row.on ? COLORS.cream : COLORS.slate, transition: "left 160ms ease" }} />
-                </span>
-              </button>
+                {/* A slider: all the way left is off. */}
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={Math.round(row.level * 100)}
+                  onChange={(e) => row.onLevel(Number(e.target.value) / 100)}
+                  aria-label={`${row.label} volume`}
+                  aria-valuetext={row.level <= 0 ? "off" : `${Math.round(row.level * 100)}%`}
+                  data-testid={row.key === "__all" ? "sound-all" : `sound-ch-${row.key}`}
+                  data-level={Math.round(row.level * 100)}
+                  style={{ width: 112, flexShrink: 0, margin: 0, accentColor: COLORS.charcoal, cursor: "pointer" }}
+                />
+              </label>
             ))}
           {music && (
             <button
@@ -8263,7 +8327,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             hasAudio: !!theme.hasAudio,
             muted: audioMuted,
             onToggleSound: toggleSound,
-            soundChannels: soundChannels ? soundChannels.map((c) => ({ ...c, on: !channelsOff[c.key], onToggle: () => toggleChannel(c.key) })) : null,
+            soundChannels: soundChannels ? soundChannels.map((c) => ({ ...c, on: !channelsOff[c.key], level: levelOf(c.key), onLevel: (v) => setChannelLevel(c.key, v), onToggle: () => toggleChannel(c.key) })) : null,
+            masterLevel: audioMuted ? 0 : masterLevel,
+            onMasterLevel: setMasterSound,
             music: music ? { hint: musicNow ? "Playing on the stereo" : music.hint } : null,
             onOpenMusic: () => setMusicPanel(true),
             showPoints,

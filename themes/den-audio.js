@@ -40,6 +40,10 @@ export function createAudio() {
   let zoom = 0.5, fireNear = 1, lastChimeHour = null, chimes = 0;
   let music = null; // { el, src, extra: [nodes], track }
   const channelOff = { room: false, stereo: false, pieces: false };
+  // Each channel's level on the sound menu's slider (0..1; 0 is off), heard
+  // as its square so the slider moves about evenly in loudness.
+  const channelLevel = { room: 1, stereo: 1, pieces: 1 };
+  const chGain = (ch) => (channelOff[ch] ? 0 : channelLevel[ch] * channelLevel[ch]);
   const gates = { room: null, stereo: null, pieces: null };
   const timers = new Set();
   const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (!disposed) fn(); }, ms); timers.add(id); return id; };
@@ -73,18 +77,18 @@ export function createAudio() {
       const verbOut = ctx.createGain(); verbOut.gain.value = 0.3;
       verb.connect(verbOut).connect(master);
       // The room (fire, clock, rain), the music and the pieces, each behind its switch.
-      gates.room = ctx.createGain(); gates.room.gain.value = channelOff.room ? 0 : 1;
+      gates.room = ctx.createGain(); gates.room.gain.value = chGain("room");
       roomBus = ctx.createGain(); roomBus.gain.value = 0;
       roomBus.connect(gates.room).connect(master);
       fireBus = ctx.createGain(); fireBus.gain.value = fireNear;
       firePan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
       if (firePan) fireBus.connect(firePan).connect(roomBus); else fireBus.connect(roomBus);
-      gates.stereo = ctx.createGain(); gates.stereo.gain.value = channelOff.stereo ? 0 : 1;
+      gates.stereo = ctx.createGain(); gates.stereo.gain.value = chGain("stereo");
       musicBus = ctx.createGain(); musicBus.gain.value = 0.9;
       musicBus.connect(gates.stereo).connect(master);
       const musicRoom = ctx.createGain(); musicRoom.gain.value = 0.12;
       gates.stereo.connect(musicRoom).connect(verb);
-      gates.pieces = ctx.createGain(); gates.pieces.gain.value = channelOff.pieces ? 0 : 1;
+      gates.pieces = ctx.createGain(); gates.pieces.gain.value = chGain("pieces");
       sfxBus = ctx.createGain();
       sfxBus.connect(gates.pieces);
       gates.pieces.connect(master);
@@ -346,7 +350,14 @@ export function createAudio() {
     setChannelMuted(ch, off) {
       if (!(ch in channelOff)) return;
       channelOff[ch] = !!off;
-      if (ctx && gates[ch]) gates[ch].gain.setTargetAtTime(off ? 0 : 1, now(), 0.05);
+      if (ctx && gates[ch]) gates[ch].gain.setTargetAtTime(chGain(ch), now(), 0.05);
+    },
+    // The sound menu's slider for a channel: 0 (off) .. 1.
+    setChannelLevel(ch, v) {
+      if (!(ch in channelOff)) return;
+      channelLevel[ch] = Math.max(0, Math.min(1, v));
+      channelOff[ch] = channelLevel[ch] <= 0;
+      if (ctx && gates[ch]) gates[ch].gain.setTargetAtTime(chGain(ch), now(), 0.04);
     },
     /* Where the fire is from the camera (den-fx.js, every frame): its
        distance in board units and which side it's on (-1 left .. 1 right).
@@ -407,7 +418,7 @@ export function createAudio() {
     continueSingularityHumThroughCollapse() {}, startSingularityCollapseRoar() {},
     cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
     playDockOpen() {}, playDockClose() {},
-    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, muted, roomOn, channelsOff: { ...channelOff } }; },
+    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, muted, roomOn, channelsOff: { ...channelOff }, channelLevels: { ...channelLevel } }; },
     // Leaving the den (Nova's story): everything fades out over `secs`.
     fadeOutAll(secs = 2) {
       if (!ctx || !master) return;

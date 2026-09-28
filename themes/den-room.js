@@ -649,6 +649,10 @@ export function buildDen(boardSpan) {
         // board crosses the plane `along = a` at a / along of the way.
         const blocks = (along, across) => {
           if (along <= PH - SD) return false; // the camera's over the pit, this side of the seats
+          // Only close behind it, where its back would fill the view. From
+          // across the room (zoomed out, circling), it's part of the room:
+          // taking it away left a hole in the pit (the user's video).
+          if (along - backFront > 22) return false;
           const hAt = (a) => camLocal.y * (a / along);
           const within = (a) => Math.abs(across * (a / along)) < PH + 2;
           if (along > backFront && hAt(backFront) < backTop && within(backFront)) return true;
@@ -1208,7 +1212,12 @@ function buildCoffeeTable(TW, boardSpan) {
   const walnutTop = lit({ map: topTex, color: 0xe8d8c4, roughness: 0.36 });
   const walnutSide = lit({ color: 0x4a2c18, roughness: 0.55 });
   mk(new THREE.BoxGeometry(TW, 1.1, TW).translate(0, topY - 0.55, 0), [walnutSide, walnutSide, walnutTop, walnutSide, walnutSide, walnutSide]);
-  mk(new THREE.BoxGeometry(TW - 6, TABLE_H - 1.1, TW - 6).translate(0, PIT_FLOOR + (TABLE_H - 1.1) / 2, 0), walnutSide);
+  // The plinth, always in the top's shade: a little darker, and it takes no
+  // shadows from the key light, whose shadow map (kept tight round the
+  // board) ends partway across it and cut the top's shadow off in a hard
+  // line that slid about as the view turned (the user's video).
+  const plinthMat = lit({ color: 0x3d2414, roughness: 0.6 });
+  mk(new THREE.BoxGeometry(TW - 6, TABLE_H - 1.1, TW - 6).translate(0, PIT_FLOOR + (TABLE_H - 1.1) / 2, 0), plinthMat).receiveShadow = false;
   // A soft shadow on the shag under the table.
   const blob = TX.contactShadow(); disposables.push(blob);
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(TW + 8, TW + 8).rotateX(-Math.PI / 2).translate(0, PIT_FLOOR + 0.1, 0), new THREE.MeshBasicMaterial({ map: blob, transparent: true, depthWrite: false, fog: true }));

@@ -38,10 +38,16 @@ await page.waitForTimeout(4000);
 await openDock();
 await page.locator('[data-testid="sound-button"]').click();
 check("the speaker opens the sound menu", (await page.locator('[data-testid="sound-menu"]').count()) === 1);
+// Sliders (all the way left is off): each starts all the way up.
 for (const k of ["sound-all", "sound-ch-music", "sound-ch-store", "sound-ch-pieces"]) {
-  check(`...with ${k}, on`, (await page.locator(`[data-testid="${k}"]`).getAttribute("aria-checked")) === "true");
+  check(`...with ${k}, all the way up`, (await page.locator(`[data-testid="${k}"]`).getAttribute("data-level")) === "100");
 }
-await page.locator('[data-testid="sound-ch-music"]').click();
+await page.locator('[data-testid="sound-ch-store"]').fill("50");
+await page.waitForTimeout(500);
+let half = await audio();
+check("the store's slider at half: its path at a quarter (heard as the square)", half.gates.store.every((g) => Math.abs(g - 0.25) < 0.02), JSON.stringify(half.gates.store));
+await page.locator('[data-testid="sound-ch-store"]').fill("100");
+await page.locator('[data-testid="sound-ch-music"]').fill("0");
 await page.waitForTimeout(500);
 let a = await audio();
 check("Music off silences the music's path", a.gates.music.every((g) => g === 0), JSON.stringify(a.gates));
@@ -52,7 +58,7 @@ await page.keyboard.press("Escape");
 await page.waitForTimeout(300);
 check("Escape closes the menu", (await page.locator('[data-testid="sound-menu"]').count()) === 0);
 await page.locator('[data-testid="sound-button"]').click();
-await page.locator('[data-testid="sound-ch-pieces"]').click();
+await page.locator('[data-testid="sound-ch-pieces"]').fill("0");
 // A path reads its new level once something sounds through it: a move.
 await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "S"));
 await page.waitForTimeout(1500);
@@ -60,7 +66,7 @@ a = await audio();
 check("Pieces off silences the game's own sounds", a.gates.pieces.every((g) => g === 0), JSON.stringify(a.gates));
 await openDock();
 if (!(await page.locator('[data-testid="sound-menu"]').count())) await page.locator('[data-testid="sound-button"]').click();
-await page.locator('[data-testid="sound-ch-pieces"]').click();
+await page.locator('[data-testid="sound-ch-pieces"]').fill("100");
 await page.mouse.click(40, 300);
 await page.waitForTimeout(400);
 check("a press outside closes it", (await page.locator('[data-testid="sound-menu"]').count()) === 0);

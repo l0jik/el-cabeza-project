@@ -102,12 +102,12 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "sound-button").click();
   check("the speaker opens the sound menu: All sounds, The room, Pieces",
     (await q(page, "sound-menu").count()) === 1 && (await q(page, "sound-ch-room").count()) === 1 && (await q(page, "sound-ch-pieces").count()) === 1);
-  await q(page, "sound-ch-room").click();
+  await q(page, "sound-ch-room").fill("0");
   await page.waitForTimeout(700);
   const a = await page.evaluate(() => window.__DEN_AUDIO__ && window.__DEN_AUDIO__());
   check("The room off silences the fire, the clock and the rain", a && a.channelsOff.room === true && a.gates.room < 0.01, JSON.stringify(a));
   check("...and leaves the pieces", a && a.channelsOff.pieces === false, JSON.stringify(a));
-  await q(page, "sound-ch-room").click();
+  await q(page, "sound-ch-room").fill("100");
 
   // The stereo: the music panel from the sound menu, the camera's visit.
   check("the sound menu offers the music", (await q(page, "sound-music").count()) === 1);

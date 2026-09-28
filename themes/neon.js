@@ -4165,6 +4165,10 @@ export function createSoundscape() {
      with sfxGain pointed at the pieces gate instead (pieceCue below).
      Both gates feed sfxOut, the old sfxGain level. */
   const channelOff = { ambience: false, pieces: false, interface: false };
+  // Each channel's level on the sound menu's slider (0..1; 0 is off), heard
+  // as its square so the slider moves about evenly in loudness.
+  const channelLevel = { ambience: 1, pieces: 1, interface: 1 };
+  const chGain = (ch) => (channelOff[ch] ? 0 : channelLevel[ch] * channelLevel[ch]);
   let ambienceGate = null;
   let piecesGate = null;
   let interfaceGate = null;
@@ -4648,7 +4652,7 @@ export function createSoundscape() {
   function ensureBellBus() {
     if (bellBus) return;
     bellBus = ctx.createGain();
-    bellBus.gain.value = muted || channelOff.interface ? 0 : BELL_BUS_GAIN;
+    bellBus.gain.value = muted ? 0 : BELL_BUS_GAIN * chGain("interface");
     bellBus.connect(ctx.destination);
     bellReverb = ctx.createConvolver();
     bellReverb.buffer = makeImpulse(11.5, 1.25);
@@ -5644,7 +5648,7 @@ export function createSoundscape() {
       // Test-only: the live master level, the context state and the
       // wind-down flag (tests/e2e-undo-audio.mjs).
       if (typeof window !== "undefined") {
-        window.__EC_TEST_AUDIO__ = () => ({ gain: master ? master.gain.value : null, state: ctx ? ctx.state : null, windingDown, intro: introGain ? introGain.gain.value : null, channelsOff: { ...channelOff }, gates: ambienceGate ? { ambience: ambienceGate.gain.value, pieces: piecesGate.gain.value, interface: interfaceGate.gain.value } : null });
+        window.__EC_TEST_AUDIO__ = () => ({ gain: master ? master.gain.value : null, state: ctx ? ctx.state : null, windingDown, intro: introGain ? introGain.gain.value : null, channelsOff: { ...channelOff }, channelLevels: { ...channelLevel }, gates: ambienceGate ? { ambience: ambienceGate.gain.value, pieces: piecesGate.gain.value, interface: interfaceGate.gain.value } : null });
         window.__EC_TEST_AUDIO_SUSPEND__ = () => ctx && ctx.suspend(); // stands in for a phone suspending a silent context
       }
       // +14dB overall total (10^(14/20) ≈ 5.01) — a single multiplier on
@@ -5664,7 +5668,7 @@ export function createSoundscape() {
       introGain = ctx.createGain();
       introGain.gain.value = 1;
       ambienceGate = ctx.createGain();
-      ambienceGate.gain.value = channelOff.ambience ? 0 : 1;
+      ambienceGate.gain.value = chGain("ambience");
       introGain.connect(ambienceGate).connect(master);
 
       ambientGain = ctx.createGain();
@@ -5697,10 +5701,10 @@ export function createSoundscape() {
       sfxOut.gain.value = 1.25; // +25% per feedback ("maximize the overall gain across every audio channel")
       sfxOut.connect(master);
       interfaceGate = ctx.createGain();
-      interfaceGate.gain.value = channelOff.interface ? 0 : 1;
+      interfaceGate.gain.value = chGain("interface");
       interfaceGate.connect(sfxOut);
       piecesGate = ctx.createGain();
-      piecesGate.gain.value = channelOff.pieces ? 0 : 1;
+      piecesGate.gain.value = chGain("pieces");
       piecesGate.connect(sfxOut);
       sfxGain = interfaceGate;
 
@@ -5860,7 +5864,7 @@ export function createSoundscape() {
   function setMuted(m) {
     muted = m;
     if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : MASTER_GAIN, ctx.currentTime, 0.08);
-    if (bellBus && ctx) bellBus.gain.setTargetAtTime(muted || channelOff.interface ? 0 : BELL_BUS_GAIN, ctx.currentTime, 0.08);
+    if (bellBus && ctx) bellBus.gain.setTargetAtTime(muted ? 0 : BELL_BUS_GAIN * chGain("interface"), ctx.currentTime, 0.08);
   }
 
   /* Called once, right when a win fires OR the player manually ends the
@@ -6650,8 +6654,14 @@ export function createSoundscape() {
     channelOff[ch] = !!off;
     if (!ctx) return;
     const g = { ambience: ambienceGate, pieces: piecesGate, interface: interfaceGate }[ch];
-    if (g) g.gain.setTargetAtTime(off ? 0 : 1, ctx.currentTime, 0.05);
-    if (ch === "interface" && bellBus) bellBus.gain.setTargetAtTime(muted || off ? 0 : BELL_BUS_GAIN, ctx.currentTime, 0.05);
+    if (g) g.gain.setTargetAtTime(chGain(ch), ctx.currentTime, 0.05);
+    if (ch === "interface" && bellBus) bellBus.gain.setTargetAtTime(muted ? 0 : BELL_BUS_GAIN * chGain("interface"), ctx.currentTime, 0.05);
+  }
+  // The sound menu's slider for a channel: 0 (off) .. 1.
+  function setChannelLevel(ch, v) {
+    if (!(ch in channelOff)) return;
+    channelLevel[ch] = Math.max(0, Math.min(1, v));
+    setChannelMuted(ch, channelLevel[ch] <= 0);
   }
 
   function sfxClick(centerFreq, peak) {
@@ -6720,6 +6730,7 @@ export function createSoundscape() {
     // Pitched down further and quieter still, per feedback — these
     // should now sit right at the edge of audible.
     setChannelMuted,
+    setChannelLevel,
     playSelect: pieceCue(tink), // replaced with an extremely high-pitched tonal "tink" per feedback (was a 600Hz filtered-noise click)
     playDeselect: pieceCue(() => sfxClick(95, 0.009)),
     playBlocked: pieceCue(playBlocked),
