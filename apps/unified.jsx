@@ -75,6 +75,9 @@ const homeTheme = {
         returning,
         commercial,
         portal: () => tvBridge.portal(),
+        // Home before the first Singularity: the set waits to be noticed
+        // (den-fx.js's lure: not for the first 40 s, then it stirs).
+        lure: () => !singularitySeen(),
         enter: () => tvBridge.enter(),
         register: (api) => { tvBridge.press = api ? api.press : null; },
       },

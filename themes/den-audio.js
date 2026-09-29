@@ -370,6 +370,38 @@ export function createAudio() {
     burst(t + 0.42, tv.bus, 0.08, 0.06, [["lowpass", 500]]);
   }
 
+  /* The set, off, stirring (den-tv.js haunt, den-fx.js's lure): the
+     sounds of a set that shouldn't be making any, faint, through its own
+     small speaker, and part of the room (the Room channel, so it's heard
+     with the music off). kind: flicker (a tick of static), pilot (a relay
+     chattering), static (a breath of snow), roll (the hum of a vertical
+     hold slipping), ghost (a far-off warble, as if from another station),
+     phantom (a swell of static and a shimmer rising). strength 0 to 1. */
+  let hauntBus = null;
+  function tvHaunt(kind, strength = 0.5) {
+    ensureGraph();
+    if (!ctx) return;
+    if (!hauntBus) {
+      hauntBus = ctx.createGain(); hauntBus.gain.value = 0.9;
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1800; bp.Q.value = 0.35;
+      hauntBus.connect(bp).connect(gates.room);
+    }
+    const t = now(), k = 0.35 + 0.65 * strength;
+    const tone = (f, f2, dur, level, type = "sine", vib = 0) => {
+      const o = ctx.createOscillator(); o.type = type;
+      o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+      if (vib) { const l = ctx.createOscillator(); l.frequency.value = 5.5; const lg = ctx.createGain(); lg.gain.value = vib; l.connect(lg).connect(o.frequency); l.start(t); l.stop(t + dur + 0.1); }
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level * k, t + dur * 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(hauntBus); o.start(t); o.stop(t + dur + 0.05);
+    };
+    if (kind === "flicker") burst(t, hauntBus, 0.03 * k, 0.05, [["bandpass", 3600, 1.2]]);
+    else if (kind === "pilot") { for (let i = 0; i < 4; i++) burst(t + i * (0.09 + Math.random() * 0.12), hauntBus, 0.02 * k, 0.012, [["bandpass", 5200, 3]]); }
+    else if (kind === "static") { burst(t, hauntBus, 0.05 * k, 0.25 + 0.4 * strength, [["bandpass", 3400, 0.7]], 0.04); burst(t, hauntBus, 0.025 * k, 0.02, [["highpass", 2000]]); }
+    else if (kind === "roll") { tone(60, 0, 1.4, 0.05, "triangle"); tone(120, 0, 1.2, 0.02); tone(15734, 15400, 1.3, 0.004); }
+    else if (kind === "ghost") { tone(523, 494, 1.2, 0.012, "sine", 9); tone(659, 622, 1.1, 0.008, "sine", 7); burst(t, hauntBus, 0.03 * k, 0.4, [["bandpass", 2800, 0.8]], 0.08); }
+    else if (kind === "phantom") { burst(t, hauntBus, 0.06 * k, 0.7, [["bandpass", 3000, 0.6]], 0.15); tone(220, 1760, 1.8, 0.014, "sine", 14); tone(330, 2640, 1.6, 0.008, "triangle", 10); }
+  }
+
   /* The late-night commercial's sound (den-commercial.js, cued to its
      CUES): a home organ with its rhythm box on the bossa nova preset, a
      sad trombone for chess, the stamp, a slide whistle, a cymbal, bells
@@ -578,6 +610,7 @@ export function createAudio() {
     tvOn,
     tvOff,
     tvCommercial,
+    tvHaunt,
     // The snow's hiss, 0 (none) to 1 (a screen of it).
     tvHiss(level) { if (tvGraph()) tv.hissGain.gain.setTargetAtTime(level * 0.07, now(), 0.12); },
     // The station's tone as the test pattern comes up.

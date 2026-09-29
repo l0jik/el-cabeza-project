@@ -87,6 +87,11 @@ function screenMaterial(pattern) {
       uDive: { value: 0 },
       uGlow: { value: 0 },
       uDot: { value: 0 },
+      // The set, off, haunted (the lure, below): a bright bar rolling down,
+      // the picture torn sideways.
+      uLine: { value: -1 },
+      uLineAmt: { value: 0 },
+      uTear: { value: 0 },
     },
     vertexShader: `
       varying vec2 vUv;
@@ -94,11 +99,14 @@ function screenMaterial(pattern) {
     `,
     fragmentShader: `
       uniform sampler2D uTex;
-      uniform float uTime, uRaster, uSnow, uPattern, uDive, uGlow, uDot;
+      uniform float uTime, uRaster, uSnow, uPattern, uDive, uGlow, uDot, uLine, uLineAmt, uTear;
       varying vec2 vUv;
       float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
       void main() {
         vec2 c = vUv - 0.5;
+        // Torn: each band of lines pushed sideways by its own amount.
+        float band = floor(vUv.y * 38.0 + floor(uTime * 9.0) * 3.0);
+        c.x += uTear * (fract(sin(band * 91.7) * 4375.5) - 0.5) * 0.12;
         // The dead tube: dark glass, grey-green, a sheen of the room on it.
         vec3 col = vec3(0.055, 0.065, 0.06) + 0.05 * smoothstep(0.55, 0.0, length(c * vec2(1.0, 1.3)));
         col += 0.09 * smoothstep(0.07, 0.0, abs(c.x * 0.55 + c.y - 0.2)) * smoothstep(0.5, 0.2, abs(c.x));
@@ -122,6 +130,7 @@ function screenMaterial(pattern) {
         float squeeze = 1.0 + 2.5 * (1.0 - rx * ry);
         col += inside * pic * scan * vig * uGlow * squeeze;
         col += vec3(0.85, 0.92, 1.0) * uDot * (1.0 - smoothstep(0.004, 0.03, length(c * vec2(1.0, 1.33))));
+        col += vec3(0.7, 0.85, 1.0) * uLineAmt * smoothstep(0.035, 0.0, abs(vUv.y - uLine)) * vig;
         gl_FragColor = vec4(col, 1.0);
       }
     `,
@@ -363,6 +372,101 @@ export function buildTelevision(yF, RZ, X = -40) {
   const since = (now) => now - t0;
   function set(p, now) { phase = p; t0 = now; }
 
+  /* ---- the set, off, haunted (Nova, the first time home: den-fx.js's
+     lure, until the knob's turned) ----
+     Now and then, more often and more strongly as `level` rises (0 to 1),
+     something happens on the dead tube: a breath of snow, a bright bar
+     rolling down, the picture torn, a ghost of a strange piece on the
+     glass, the pilot light stuttering; and, stronger, pieces made of light
+     drifting out of the screen into the room and fading. Each event says
+     what it is (onEvent) for its sound. */
+  const ghosts = [];
+  const ghostTex = (seed) => canvasTexture(512, 384, (g, CW, CH) => {
+    g.setTransform(CW / 512, 0, 0, CH / 384, 0, 0);
+    g.fillStyle = "#050608"; g.fillRect(0, 0, 512, 384);
+    let r = seed;
+    const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+    // A piece of cubes seen from above and to one side, drawn in light,
+    // the red and the blue a little apart (a set's convergence off).
+    const cells = [];
+    const n = 3 + Math.floor(rnd() * 4);
+    let cx = 0, cy = 0, cz = 0;
+    for (let i = 0; i < n; i++) { cells.push([cx, cy, cz]); const d = Math.floor(rnd() * 3); if (d === 0) cx += rnd() < 0.5 ? 1 : -1; else if (d === 1) cy += 1; else cz += rnd() < 0.5 ? 1 : -1; }
+    const S = 44, ox = 256, oy = 230;
+    const iso = (x, y, z) => [ox + (x - z) * S * 0.87, oy + (x + z) * S * 0.5 - y * S];
+    const cube = (x, y, z) => {
+      const P = (a, b, c) => iso(x + a, y + b, z + c);
+      const faces = [[P(0, 1, 0), P(1, 1, 0), P(1, 1, 1), P(0, 1, 1)], [P(1, 0, 0), P(1, 1, 0), P(1, 1, 1), P(1, 0, 1)], [P(0, 0, 1), P(1, 0, 1), P(1, 1, 1), P(0, 1, 1)]];
+      faces.forEach((f) => { g.beginPath(); f.forEach(([px, py], k) => (k ? g.lineTo(px, py) : g.moveTo(px, py))); g.closePath(); g.fill(); g.stroke(); });
+    };
+    [["rgba(255,60,120,0.55)", -4], ["rgba(60,220,255,0.75)", 4], ["rgba(235,245,255,0.9)", 0]].forEach(([c, dx]) => {
+      g.save(); g.translate(dx, 0);
+      g.strokeStyle = c; g.lineWidth = dx ? 3 : 2; g.fillStyle = "rgba(90,200,255,0.06)";
+      cells.slice().sort((a, b) => a[0] + a[2] - (b[0] + b[2]) || a[1] - b[1]).forEach(([x, y, z]) => cube(x, y, z));
+      g.restore();
+    });
+  }, { scale: false });
+  const ghostTexs = [ghostTex(1975), ghostTex(4411), ghostTex(9001)];
+  ghostTexs.forEach((t) => disposables.push(t));
+  // The pieces of light that come out of the screen.
+  const phantomMat = (color) => { const m = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: true }); disposables.push(m); return m; };
+  const PHANTOM_SHAPES = [[[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]], [[0, 0, 0], [0, 1, 0], [1, 0, 0]], [[0, 0, 0], [1, 0, 0], [1, 1, 0], [2, 1, 0]], [[0, 0, 0], [0, 1, 0], [0, 2, 0]], [[0, 0, 0], [2, 0, 0], [0, 1, 0], [1, 1, 0], [2, 1, 0]]];
+  function makePhantom(shape, color) {
+    const geos = shape.map(([x, y, z]) => new THREE.EdgesGeometry(new THREE.BoxGeometry(1.3, 1.3, 1.3).translate(x * 1.3, y * 1.3, z * 1.3)));
+    const merged = BufferGeometryUtils.mergeBufferGeometries(geos, false);
+    geos.forEach((gg) => gg.dispose());
+    merged.center();
+    disposables.push(merged);
+    const lines = new THREE.LineSegments(merged, phantomMat(color));
+    lines.visible = false;
+    lines.renderOrder = 4;
+    group.add(lines);
+    return { lines, born: 0, life: 0, from: new THREE.Vector3(), to: new THREE.Vector3(), spin: new THREE.Vector3(), peak: 0 };
+  }
+  const phantoms = PHANTOM_SHAPES.map((sh, i) => makePhantom(sh, [0x5ad8ff, 0xff5aa8, 0x9dffcf, 0xb89bff, 0x5ad8ff][i]));
+  let haunt = null; // the event on the tube now: { kind, at, dur, strength, tex }
+  let nextHaunt = 0, pilotStutter = 0;
+  function spawnPhantom(now, strength) {
+    const p = phantoms.find((x) => !x.lines.visible);
+    if (!p) return;
+    p.born = now; p.life = 1800 + Math.random() * 1400; p.peak = 0.3 + 0.55 * strength;
+    p.from.set(SX + (Math.random() - 0.5) * 9, SY + (Math.random() - 0.5) * 6, FRONT - 0.8);
+    p.to.set(p.from.x + (Math.random() - 0.5) * 10, p.from.y + (Math.random() - 0.3) * 6, FRONT - 7 - Math.random() * 9);
+    p.spin.set((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3);
+    p.lines.position.copy(p.from);
+    p.lines.visible = true;
+  }
+  function stepPhantoms(now) {
+    for (const p of phantoms) {
+      if (!p.lines.visible) continue;
+      const k = (now - p.born) / p.life;
+      if (k >= 1) { p.lines.visible = false; p.lines.material.opacity = 0; continue; }
+      const e = 1 - (1 - k) * (1 - k);
+      p.lines.position.lerpVectors(p.from, p.to, e);
+      p.lines.rotation.set(p.spin.x * k * 2, p.spin.y * k * 2, p.spin.z * k * 2);
+      p.lines.scale.setScalar(0.5 + 1.1 * e);
+      // In fast, out slowly, with a flicker.
+      const env = Math.min(1, k / 0.12) * (1 - Math.max(0, (k - 0.35) / 0.65));
+      p.lines.material.opacity = p.peak * env * (0.75 + 0.25 * Math.random());
+    }
+  }
+  // Pick the next event, weighted by how far the lure has come.
+  function nextEvent(now, level, onEvent) {
+    const strength = 0.3 + 0.7 * level;
+    const kinds = [["flicker", 1], ["pilot", 0.6]];
+    if (level > 0.15) kinds.push(["static", 1], ["roll", 0.8]);
+    if (level > 0.3) kinds.push(["ghost", 0.9 * level]);
+    if (level > 0.45) kinds.push(["phantom", 1.2 * level]);
+    const total = kinds.reduce((a, [, w]) => a + w, 0);
+    let r = Math.random() * total, kind = kinds[0][0];
+    for (const [k, w] of kinds) { if ((r -= w) <= 0) { kind = k; break; } }
+    const dur = { flicker: 140, pilot: 900, static: 260 + 500 * level, roll: 1400, ghost: 420 + 500 * level, phantom: 700 }[kind];
+    if (kind === "pilot") pilotStutter = now + dur;
+    else haunt = { kind, at: now, dur, strength, tex: ghostTexs[Math.floor(Math.random() * ghostTexs.length)] };
+    if (kind === "phantom") { spawnPhantom(now, strength); if (level > 0.7 && Math.random() < 0.6) spawnPhantom(now + 120, strength); }
+    if (onEvent) onEvent(kind, strength);
+  }
+
   return {
     group,
     pickables,
@@ -377,6 +481,7 @@ export function buildTelevision(yF, RZ, X = -40) {
        pattern is up and calls enter() partway into the dive. */
     powerOn(now, withPortal = false, enter = null) {
       if (phase !== "off" && phase !== "closing") return false;
+      haunt = null;
       u.uTex.value = pattern;
       portal = !!withPortal; onEnter = enter; entered = false;
       knobGoal = -0.9 + 0.75;
@@ -409,6 +514,18 @@ export function buildTelevision(yF, RZ, X = -40) {
       commercial.draw(0);
       u.uTex.value = commercial.texture;
       set("commercial", now + delay);
+    },
+    /* The lure (den-fx.js): called each frame while the set's off and
+       waiting to be noticed, with how far along it is (0 to 1). Quiet at
+       first (one small thing every quarter-minute or so), then more
+       often and more strongly (every few seconds). */
+    haunt(now, level, onEvent) {
+      if (phase !== "off") return;
+      if (!nextHaunt) { nextHaunt = now + 400; return; }
+      if (now < nextHaunt || haunt) return;
+      nextEvent(now, level, onEvent);
+      const gap = (15000 - 11500 * level) * (0.7 + Math.random() * 0.6);
+      nextHaunt = now + gap;
     },
     // How far into the commercial (ms), or null if it isn't on.
     commercialAt: (now) => (phase === "commercial" ? Math.max(0, since(now)) : null),
@@ -449,13 +566,32 @@ export function buildTelevision(yF, RZ, X = -40) {
         if (c >= 1) glow = 0;
         if (s >= TV_TIMES.collapse + TV_TIMES.afterglow) set("off", now);
       }
+      // Off, and haunted: the event on the tube now.
+      let line = -1, lineAmt = 0, tear = 0;
+      if (phase === "off" && haunt) {
+        const k = (now - haunt.at) / haunt.dur;
+        if (k >= 1) {
+          haunt = null;
+          u.uTex.value = pattern;
+        } else {
+          const h = haunt, env = Math.sin(Math.PI * Math.min(1, k)) * h.strength;
+          raster = 1;
+          if (h.kind === "flicker") { snow = 1; glow = 0.16 * env * (Math.random() < 0.5 ? 1 : 0.3); }
+          else if (h.kind === "static" || h.kind === "phantom") { snow = 1; glow = 0.34 * env; tear = 0.25 * env; }
+          else if (h.kind === "roll") { snow = 1; glow = 0.07 * env; line = 1 - k; lineAmt = 0.55 * env; }
+          else if (h.kind === "ghost") { u.uTex.value = h.tex; pat = 0.85; snow = 0.6; glow = 0.42 * env; tear = 0.5 * env * (Math.random() < 0.3 ? 1 : 0.2); }
+        }
+      }
+      u.uLine.value = line; u.uLineAmt.value = lineAmt; u.uTear.value = tear;
+      stepPhantoms(now);
       // The picture flickers a little, the snow more.
       const flick = glow * (0.94 + 0.06 * Math.sin(now * 0.05) * Math.sin(now * 0.013)) * (1 + snow * 0.08 * (Math.random() - 0.5));
       u.uRaster.value = raster; u.uSnow.value = snow; u.uPattern.value = pat; u.uDive.value = dive; u.uGlow.value = flick; u.uDot.value = dot;
       const light = Math.max(dot * 0.5, flick * (0.55 + 0.45 * raster));
       if (screenLight) screenLight.intensity = light * 0.9;
       halo.material.opacity = light * 0.16;
-      pilotMat.color.setHex(phase === "off" || (phase === "closing" && s > TV_TIMES.collapse) ? 0x3a0d08 : 0xff3a1c);
+      const stutter = phase === "off" && now < pilotStutter && Math.sin(now * 0.09) * Math.sin(now * 0.023) > 0.2;
+      pilotMat.color.setHex(stutter || !(phase === "off" || (phase === "closing" && s > TV_TIMES.collapse)) ? 0xff3a1c : 0x3a0d08);
       return dive;
     },
     // The panel's printing and the pattern's caption, again once their

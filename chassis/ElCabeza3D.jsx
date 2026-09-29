@@ -1538,7 +1538,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const r = el.getBoundingClientRect();
     clearTimeout(toggleHintTimer.current);
     setToggleHint({ text, x: r.left + r.width / 2, y: r.top, key: Date.now() });
-    toggleHintTimer.current = setTimeout(() => setToggleHint(null), 2400);
+    toggleHintTimer.current = setTimeout(() => setToggleHint(null), 4400); // (two seconds longer, user: time to read it)
   };
   /* A theme with a stereo (theme.music: the den's record player and
      8-track): the music panel, and the track playing. While the panel is
@@ -8736,7 +8736,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             lineHeight: 1.35,
             textAlign: "center",
             pointerEvents: "none",
-            animation: "ec-toggle-hint 2.4s ease both",
+            animation: "ec-toggle-hint 4.4s ease both",
           }}
         >
           <style>{"@keyframes ec-toggle-hint { 0% { opacity: 0; transform: translate(-50%, 6px); } 10% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; } }"}</style>

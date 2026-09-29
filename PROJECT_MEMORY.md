@@ -3612,3 +3612,19 @@ phone menu until "Start the story over" (which clears it).
   arriving (tienda-overlay useSetupExtras); "Stay a while" leaves a
   "Nobody here has heard of it. / Go home, confused." slip at the top
   (tienda-leave), the only way out.
+- The TV's lure (Nova, home before the first Singularity; unified.jsx
+  tv.lure = !singularitySeen()): den-fx.js locks the set for 40 s (press
+  returns false, pickScene skips it, so the menu's "Turn on the TV" does
+  nothing either); then, until it's turned on, den-tv.js haunt(now, level)
+  fires events on the dead tube, level 0 -> 1 over the next 100 s, gaps
+  ~15 s -> ~3.5 s: flicker, pilot stutter, static (+tear), roll (bright bar,
+  uLine), ghost (a voxel piece drawn in light on the glass, uTex swapped),
+  phantom (wireframe neon pieces drifting out of the screen, fading). Sounds
+  den-audio tvHaunt(kind, strength) on the Room channel. Tests:
+  tests/e2e-tv-lure.mjs; __DEN_LURE_SKIP__(ms) moves its clock (other TV
+  tests skip 41 s), __DEN_TV_LOOK__(on) puts the camera at the set.
+- Dock switch notes (toggle-hint) stay 4.4 s (user: two seconds longer).
+- Games-counter scene paging: one step per 500 ms at most (a double tap
+  took two panels), Back button (hidden on the first shot), swipe left/
+  right on the panel, arrow keys, and a dot per frame under the panel
+  (frames already seen can be tapped).

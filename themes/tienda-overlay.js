@@ -509,6 +509,14 @@ const STORY_CSS = `
     box-shadow: 3px 3px 0 #17110D; font: 400 21px/1 'Bangers', ${FRANKLIN}; letter-spacing: 0.07em; text-transform: uppercase;
     transition: transform 0.08s ease, box-shadow 0.08s ease; }
   .td-clerk-actions .td-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #17110D; }
+  .td-clerk-actions .td-clerk-back { font-size: 17px; padding: 6px 12px 4px; }
+  .td-clerk-actions .td-clerk-back:disabled { visibility: hidden; }
+  .td-clerk-pages { display: flex; justify-content: center; gap: 2px; padding: 10px 0 0; }
+  .td-clerk-page { width: 22px; height: 22px; padding: 0; border: none; background: transparent; cursor: pointer; display: grid; place-items: center; }
+  .td-clerk-page::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #17110D; background: #FBF6E6; }
+  .td-clerk-page[data-on="true"]::before { background: #17110D; }
+  .td-clerk-page:disabled { cursor: default; }
+  .td-clerk-page:disabled::before { opacity: 0.3; }
   .td-clerk-actions .td-primary, .td-clerk-actions .td-primary:hover { background: #F3D85A; color: #17110D; }
   .td-clerk-actions .td-plain:hover { background: #FFFDF3; color: #17110D; }
   .td-clerk-actions .td-plain { background: #FBF6E6; color: #17110D; }
@@ -725,12 +733,15 @@ const PA_CAPTION = "Ding-dong. \u201cManager to Games, please. Manager to Games.
 
 function ClerkScene({ audio, onStay, onGoHome }) {
   const [step, setStep] = React.useState(0);
+  const [seen, setSeen] = React.useState(0); // the furthest shot reached
   const [failed, setFailed] = React.useState(() => new Set());
   const s = CLERK_STEPS[step];
   const last = step === CLERK_STEPS.length - 1;
-  const prev = step > 0 ? CLERK_STEPS[step - 1] : null;
-  // Within a frame, the slow crossfade; frame to frame, a quick one.
-  const fade = prev && prev.frame === s.frame ? "slow" : "quick";
+  // Where it came from (forward or back): within a frame, the slow
+  // crossfade; frame to frame, a quick one.
+  const fromRef = React.useRef(-1);
+  const from = fromRef.current >= 0 ? CLERK_STEPS[fromRef.current] : null;
+  const fade = from && from.frame === s.frame ? "slow" : "quick";
   // Fetch them all as the scene opens, so no tap waits on one.
   React.useEffect(() => {
     ensureComicFonts();
@@ -751,12 +762,46 @@ function ClerkScene({ audio, onStay, onGoHome }) {
       window.dispatchEvent(new CustomEvent("el-cabeza:clerk-done"));
     }
   }, [last]);
-  const next = () => {
-    if (!last) { audio && audio.playSelect && audio.playSelect(); setStep(step + 1); }
+  /* Paging, forward and back (user: a double tap jumped two panels, and
+     there was no way back to reread one). A step is taken at most every
+     half second, so a double tap or a bounce of the finger takes one; back
+     goes a shot at a time (◂ Back, a swipe right, the left arrow key), and
+     the dots under the panel go straight to any frame already seen. */
+  const lastGo = React.useRef(0);
+  const go = (to) => {
+    const t = performance.now();
+    if (to < 0 || to >= CLERK_STEPS.length || to === step || t - lastGo.current < 500) return;
+    lastGo.current = t;
+    audio && audio.playSelect && audio.playSelect();
+    fromRef.current = step;
+    setStep(to);
+    setSeen((m) => Math.max(m, to));
   };
+  const next = () => { if (!last) go(step + 1); };
+  const back = () => go(step - 1);
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "ArrowLeft") { e.preventDefault(); back(); }
+      else if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") { if (e.target && e.target.tagName === "BUTTON" && e.key !== "ArrowRight") return; e.preventDefault(); next(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+  // A swipe across the panel: left for on, right for back (and not also
+  // the tap that goes on).
+  const swipe = React.useRef(null);
+  const onDown = (e) => { swipe.current = { x: e.clientX, y: e.clientY }; };
+  const onUp = (e) => {
+    const d = swipe.current; swipe.current = null;
+    if (!d) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) { swipe.swiped = true; if (dx < 0) next(); else back(); }
+  };
+  const onLayerClick = () => { if (swipe.swiped) { swipe.swiped = false; return; } next(); };
+  const frameOfSeen = CLERK_STEPS[seen].frame;
   const said = s.line || s.alt || "";
   const lost = failed.has(s.shot);
-  return h("div", { className: "td-layer td-clerk-layer", "data-testid": "tienda-clerk", "data-step": step, "data-frame": s.frame, onClick: next },
+  return h("div", { className: "td-layer td-clerk-layer", "data-testid": "tienda-clerk", "data-step": step, "data-frame": s.frame, onClick: onLayerClick, onPointerDown: onDown, onPointerUp: onUp },
     h(Style),
     h("div", { className: "td-clerk", role: "dialog", "aria-label": "At the Games counter" },
       // A panel clipped out of a 1975 comic book and kept: yellowed
@@ -776,9 +821,21 @@ function ClerkScene({ audio, onStay, onGoHome }) {
           s.narration && h("p", { key: `n${s.frame}`, className: "td-clerk-narration" }, s.narration),
           s.page && pagedOut && h("p", { className: "td-clerk-pa" }, PA_CAPTION),
           lost && h("p", { className: "td-clerk-fallback" }, said ? `\u201c${said}\u201d` : "\u2026")),
+        // Where it's got to: a dot a frame, the ones seen can be gone back to.
+        h("div", { className: "td-clerk-pages", role: "group", "aria-label": "Panels" },
+          CLERK_FRAMES.map((f, fi) => {
+            const first = CLERK_STEPS.findIndex((c) => c.frame === fi);
+            const reached = fi <= frameOfSeen;
+            return h("button", {
+              key: fi, type: "button", className: "td-clerk-page", "data-on": fi === s.frame ? "true" : "false", disabled: !reached,
+              "aria-label": `Panel ${fi + 1}`, "data-testid": `tienda-clerk-page-${fi + 1}`,
+              onClick: (e) => { e.stopPropagation(); if (reached) go(fi === s.frame ? step : first); },
+            });
+          })),
         // In the clipping's bottom margin (clear of the dock's piece on
         // a phone, which floats over the bottom of the screen).
         h("div", { className: "td-clerk-actions" },
+        h("button", { key: "back", type: "button", className: "td-btn td-plain td-clerk-back", "data-testid": "tienda-clerk-back", disabled: step === 0, onClick: (e) => { e.stopPropagation(); back(); } }, "\u25c2 Back"),
         last
           ? [
               h("button", { key: "stay", type: "button", className: "td-btn td-plain", "data-testid": "tienda-clerk-stay", onClick: (e) => { e.stopPropagation(); onStay(); } }, "Stay a while"),

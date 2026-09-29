@@ -94,11 +94,35 @@ for (const phone of [false, true]) {
     }
     if (!(await has(page, "tienda-clerk-next"))) break;
     await q(page, "tienda-clerk-next").click();
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(600);
   }
   check(`fifteen shots in twelve frames (${lines.length} shots, ${frames.size} frames)`, lines.length === 15 && frames.size === 12);
   check("the lines are the user's, verbatim", lines[0].includes("Hi there! Can I help you with something?") && lines[7].includes("Afternoon! El Cabeza, you said?") && lines[14].includes("Is there anything else I can help you with today?"));
   check("the PA page's caption comes up with the phone call", paCaption);
+  // Back through it: a shot at a time, a swipe, the dots; and a double
+  // tap takes only one step.
+  const stepNow = () => page.evaluate(() => +document.querySelector('[data-testid="tienda-clerk"]').dataset.step);
+  await q(page, "tienda-clerk-back").click();
+  await page.waitForTimeout(600);
+  check("Back goes back a shot", (await stepNow()) === 13);
+  await q(page, "tienda-clerk-page-1").click();
+  await page.waitForTimeout(600);
+  check("the first dot goes back to the first panel", (await stepNow()) === 0);
+  await q(page, "tienda-clerk-next").dblclick();
+  await page.waitForTimeout(600);
+  check("a double tap takes one step, not two", (await stepNow()) === 1, String(await stepNow()));
+  const box = await page.locator(".td-clerk-shots").boundingBox();
+  await page.mouse.move(box.x + box.width * 0.7, box.y + box.height / 2);
+  await page.mouse.down(); await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2, { steps: 5 }); await page.mouse.up();
+  await page.waitForTimeout(600);
+  check("a swipe left goes on", (await stepNow()) === 2, String(await stepNow()));
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2);
+  await page.mouse.down(); await page.mouse.move(box.x + box.width * 0.7, box.y + box.height / 2, { steps: 5 }); await page.mouse.up();
+  await page.waitForTimeout(600);
+  check("a swipe right goes back", (await stepNow()) === 1, String(await stepNow()));
+  await q(page, "tienda-clerk-page-12").click();
+  await page.waitForTimeout(600);
+  check("the last dot (seen already) goes to the end", (await stepNow()) === 14);
   check("it ends with Stay a while and Go home, confused.", (await has(page, "tienda-clerk-stay")) && (await has(page, "tienda-clerk-go-home")));
   await q(page, "tienda-clerk-stay").click();
   check("stay a while: a slip with the way home", await poll(() => has(page, "tienda-leave-go-home"), 4000) && !(await has(page, "tienda-clerk")));

@@ -417,7 +417,7 @@ export function createDenEffects(woodSet) {
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_BOOK__ = () => ({ goal: bookGoal, w: bookW });
 
     /* ---- the television ---- */
-    let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false;
+    let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false, lureEvents = 0;
     let returning = !!(novaTv && novaTv.returning);
     // The first time back, the late-night commercial is on (den-commercial.js):
     // the camera comes in close enough to read it (tvWatch), and the set
@@ -434,10 +434,23 @@ export function createDenEffects(woodSet) {
     const easeInOutCubic = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
     // How loud the snow hisses, by what's on the screen.
     const HISS = { warming: 1, snow: 1, resolving: 0.5, pattern: 0.1, dive: 0.08, commercial: 0.03, aired: 0.9 };
+    /* The lure (Nova, home before the first Singularity, novaTv.lure): the
+       set can't be turned on for the first 40 s (look round the room
+       first). After that, left alone, it starts to stir, quietly at first
+       and more insistently as time goes on (den-tv.js haunt: static, a
+       rolling bar, ghost pieces on the glass, pieces of light drifting out
+       of it, with the set's crackles, pops and a far-off warble), until
+       it's turned on. */
+    const lure = !!(novaTv && novaTv.lure && novaTv.lure());
+    const LURE_WAIT = 40000, LURE_RAMP = 100000;
+    let lureStart = 0, lureDone = false;
+    const tvLocked = (now) => lure && !lureDone && (!lureStart || now - lureStart < LURE_WAIT);
     function pressTv() {
       const set = den && den.tv;
       if (!set) return false;
       const now = performance.now();
+      if (tvLocked(now)) return false;
+      lureDone = true;
       if (set.isOn()) {
         if (set.powerOff(now)) {
           // (Off in the middle of the commercial: the camera goes back the
@@ -463,7 +476,11 @@ export function createDenEffects(woodSet) {
     }
     if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null });
+      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents });
+      // Test-only: move the lure's clock on (ms).
+      window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
+      // Test-only: the camera over at the set (or back), the set left as it is.
+      window.__DEN_TV_LOOK__ = (on) => { tvGoal = on ? 1 : 0; };
       window.__DEN_TV_PRESS__ = pressTv;
     }
     return {
@@ -508,6 +525,14 @@ export function createDenEffects(woodSet) {
           tvGoal = 0;
           tvLeaveAt = performance.now() + TV_LEAVE_PAUSE;
         }
+        if (lure && !lureDone) {
+          if (!lureStart) lureStart = now;
+          const waited = now - lureStart - LURE_WAIT;
+          if (waited >= 0) {
+            const level = Math.min(1, waited / LURE_RAMP);
+            den.tv.haunt(now, level, (kind, strength) => { lureEvents++; if (audio && audio.tvHaunt) audio.tvHaunt(kind, strength); });
+          }
+        }
         tvDive = den.tv.animate(now, dt);
         {
           const on = den.tv.phase() === "commercial";
@@ -547,7 +572,7 @@ export function createDenEffects(woodSet) {
         // while the south wall is there, the stereo's machines and the
         // set: the nearest.
         const lamps = den.lamp.pickables.filter((m) => { const g = den.groups[m.userData.lampGroup]; return !g || g.visible; });
-        const things = lamps.concat(den.book.pickables, den.groups.wallS.visible ? den.stereo.pickables.concat(den.tv.pickables) : []);
+        const things = lamps.concat(den.book.pickables, den.groups.wallS.visible ? den.stereo.pickables.concat(tvLocked(performance.now()) ? [] : den.tv.pickables) : []);
         const hit = raycaster.intersectObjects(things, false)[0];
         if (!hit) return null;
         const nearer = raycaster.intersectObjects([slab, den.table.group].filter(Boolean), true)[0];
