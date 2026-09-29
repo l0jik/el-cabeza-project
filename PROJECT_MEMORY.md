@@ -3412,3 +3412,11 @@ may supply one. __DEN_TV__() now reports watch and ad (ms into it).
   (9.5 s), gain 0.5; tvOff pauses it. The king scene now runs 9.2-14.4 with
   no rhythm box or organ under the voice; its words read "EL CABEZA / IS
   THE NEW KING!". Everything after shifted +2 s; COMMERCIAL_MS 35900.
+- Voice redone (user: too forward, wanted lower fidelity, pitch a hair
+  lower): asetrate x0.965 (about -0.6 semitone, tape-style), 340 Hz-3.1 kHz
+  double-pole band, heavy compression, tanh soft clip, down to 11 kHz with a
+  light 9-bit crush, a small slapback, -18 LUFS; played at gain 0.3 (was
+  0.5). NEW FOR 1975 is now a big starburst beside the (shrunk, shoved-left)
+  price tag, strobing blue/yellow/red/green at 6 Hz with chaser bulbs,
+  flashing rays and zaps in time; the price scene runs 2.3 s longer for it
+  (COMMERCIAL_MS 36800).

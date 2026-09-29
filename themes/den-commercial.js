@@ -20,13 +20,13 @@
 
 import * as THREE from "three";
 
-export const COMMERCIAL_MS = 35900;
+export const COMMERCIAL_MS = 36800;
 
 // The scenes, in seconds from the top (the sound follows these).
 export const CUES = {
   slate: 0, title: 2.2, chess: 5.6, stamp: 7.0, flee: 7.6, king: 9.2, voice: 9.5, orders: 14.4,
   items: [15.2, 16.0, 16.8], assembly: 17.8, best: 19.0, sortOf: 21.5, dealer: 22.6, standing: 24.0,
-  price: 26.8, only: 27.9, brandNew: 28.9, close: 30.3, never: 31.9, credit: 34.0, snow: 35.3,
+  price: 26.8, only: 27.9, brandNew: 28.9, close: 31.2, never: 32.8, credit: 34.9, snow: 36.2,
 };
 
 const W = 512, H = 384, FPS = 12;
@@ -253,7 +253,9 @@ function price(g, t, f) {
   if (o > 0) {
     // The price tag, slammed down.
     const k = o < 0.18 ? 2.2 - (o / 0.18) * 1.2 : 1 + Math.sin(o * 7) * 0.02;
-    g.save(); g.translate(W * 0.5, H * 0.58); g.rotate(-0.08); g.scale(k, k);
+    // (It shoves over for NEW FOR 1975.)
+    const side = easeOut((t - (CUES.brandNew - CUES.price)) / 0.3);
+    g.save(); g.translate(W * (0.5 - 0.22 * side), H * (0.58 - 0.02 * side)); g.rotate(-0.08); g.scale(k * (1 - 0.18 * side), k * (1 - 0.18 * side));
     g.fillStyle = "#d0101a"; star(g, 0, 0, 118, 16, 0.84, 0); g.fill();
     g.strokeStyle = "#fff"; g.lineWidth = 4; star(g, 0, 0, 104, 16, 0.84, 0); g.stroke();
     g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
@@ -263,17 +265,33 @@ function price(g, t, f) {
     g.fillRect(28, 12, 34, 4);
     g.restore();
   }
+  // NEW FOR 1975: a big starburst that strobes through every colour the
+  // station's character generator had, with a ring of chaser bulbs.
   const b = t - (CUES.brandNew - CUES.price);
   if (b > 0) {
-    g.save(); g.translate(W * 0.83, H * 0.83); g.rotate(-0.3 + Math.sin(b * 5) * 0.04);
-    const pop = b < 0.15 ? b / 0.15 : 1;
-    g.scale(pop, pop);
-    g.fillStyle = "#1438c8"; star(g, 0, 0, 62, 12, 0.78); g.fill();
-    g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
-    g.font = `900 14px ${SANS}`; g.fillText("BRAND NEW", 0, -14);
-    g.font = `900 13px ${SANS}`; g.fillText("FOR", 0, 2);
-    g.font = `900 22px ${SANS}`; g.fillText("1975!", 0, 20);
+    const strobe = Math.floor(b * 6) % 4;
+    const [fill, ink, ring] = [["#1438c8", "#ffffff", "#ffe23a"], ["#ffe23a", "#d0101a", "#1438c8"], ["#d0101a", "#ffe23a", "#ffffff"], ["#1fae3a", "#ffffff", "#d0101a"]][strobe];
+    const pop = b < 0.22 ? easeBack(b / 0.22) : 1 + Math.sin(b * 18) * 0.05;
+    g.save(); g.translate(W * 0.7, H * 0.62); g.rotate(-0.18 + Math.sin(b * 6) * 0.07); g.scale(pop, pop);
+    // Flashing rays behind it.
+    if (strobe % 2 === 0) { g.fillStyle = "rgba(255,255,255,0.55)"; star(g, 0, 0, 175, 12, 0.35, b); g.fill(); }
+    g.fillStyle = ring; star(g, 0, 0, 132, 18, 0.8); g.fill();
+    g.fillStyle = fill; star(g, 0, 0, 120, 18, 0.8); g.fill();
+    // The chaser bulbs.
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2, on = (i + Math.floor(b * 12)) % 3 === 0;
+      g.fillStyle = on ? "#fffbe0" : "rgba(60,40,0,0.5)";
+      g.beginPath(); g.arc(Math.cos(a) * 92, Math.sin(a) * 92, on ? 5 : 3.5, 0, Math.PI * 2); g.fill();
+    }
+    g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "rgba(0,0,0,0.35)"; g.font = `900 28px ${SANS}`; g.fillText("NEW", 3, -38 + 3);
+    g.fillStyle = ink; g.fillText("NEW", 0, -38);
+    g.font = `900 17px ${SANS}`; g.fillText("FOR", 0, -12);
+    g.fillStyle = "rgba(0,0,0,0.35)"; g.font = `900 54px ${SANS}`; g.fillText("1975!", 4, 28 + 4);
+    g.fillStyle = ink; g.fillText("1975!", 0, 28);
     g.restore();
+    // And the whole screen blinks with it, now and then.
+    if (strobe === 1) { g.fillStyle = "rgba(255,255,255,0.10)"; g.fillRect(0, 0, W, H); }
   }
   if (hash(f * 0.3) < 0.1) { g.fillStyle = "rgba(255,255,255,0.12)"; g.fillRect(0, 0, W, H); }
 }

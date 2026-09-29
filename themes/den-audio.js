@@ -445,7 +445,7 @@ export function createAudio() {
     {
       const el = new Audio();
       el.src = AD_VOICE_URL; el.preload = "auto";
-      const vg = ctx.createGain(); vg.gain.value = 0.5;
+      const vg = ctx.createGain(); vg.gain.value = 0.3;
       ctx.createMediaElementSource(el).connect(vg).connect(out);
       tv.adVoice = el;
       setTimeout(() => { if (tv && tv.ad === out) { const p = el.play(); if (p && p.catch) p.catch(() => { /* no sound, then */ }); } }, Math.max(0, (T + AD.voice - now()) * 1000));
@@ -466,7 +466,9 @@ export function createAudio() {
     // "El Cabeza... only $7.97": the cash register (the key, the bell, the
     // drawer), and a fanfare stab for brand new for 1975.
     { const t = T + AD.only; burst(t, out, 0.12, 0.05, [["bandpass", 1800, 2]]); bell(t + 0.06, 100, 0.06); bell(t + 0.07, 105, 0.03); burst(t + 0.18, out, 0.08, 0.35, [["bandpass", 700, 1.2]]); }
-    organ(T + AD.brandNew, [60, 64, 67, 72], 0.14, 0.04); organ(T + AD.brandNew + 0.16, [62, 65, 69, 74], 0.14, 0.04); organ(T + AD.brandNew + 0.32, [64, 67, 72, 76], 0.9, 0.04);
+    organ(T + AD.brandNew, [60, 64, 67, 72], 0.14, 0.04); organ(T + AD.brandNew + 0.16, [62, 65, 69, 74], 0.14, 0.04); organ(T + AD.brandNew + 0.32, [64, 67, 72, 76], 1.4, 0.04);
+    // ...and the strobe's zaps, in time with its colours.
+    for (let i = 0; i < 12; i++) { const t = T + AD.brandNew + 0.25 + i / 6; if (t >= T + AD.close - 0.1) break; const o = tone(t, 1600, 0.07, 0.012, "square"); o.frequency.exponentialRampToValueAtTime(700, t + 0.06); }
     // "Get yours now...": the organ runs up; "if not, you never will!":
     // it drops away to something low and minor, a little too sincere.
     for (let i = 0; i < 8; i++) organ(T + AD.close + i * 0.07, [60 + [0, 2, 4, 5, 7, 9, 11, 12][i]], 0.09, 0.03);
