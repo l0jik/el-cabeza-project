@@ -1518,6 +1518,28 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // The dock's sound menu (only for a theme with soundChannels): where it
   // floats, fixed above the speaker button, or null while closed.
   const [soundMenuAt, setSoundMenuAt] = useState(null);
+  /* The dock footer's icon switches (points, costs, piece guide, layout)
+     say what they are in a tooltip, which a touch screen never shows: so
+     a tap there (or anywhere a pointer can't hover) brings up a brief
+     note over the switch saying what was just turned on or off. */
+  const [toggleHint, setToggleHint] = useState(null); // { text, x, y, key }
+  const toggleHintTimer = useRef(null);
+  const lastPointerType = useRef("mouse");
+  useEffect(() => {
+    const onDown = (e) => { lastPointerType.current = e.pointerType || "mouse"; };
+    window.addEventListener("pointerdown", onDown, true);
+    return () => { window.removeEventListener("pointerdown", onDown, true); clearTimeout(toggleHintTimer.current); };
+  }, []);
+  const showToggleHint = (e, text) => {
+    const noHover = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(hover: none)").matches;
+    if (lastPointerType.current === "mouse" && !noHover) return; // the tooltip does it
+    const el = e && e.currentTarget;
+    if (!el || !el.getBoundingClientRect) return;
+    const r = el.getBoundingClientRect();
+    clearTimeout(toggleHintTimer.current);
+    setToggleHint({ text, x: r.left + r.width / 2, y: r.top, key: Date.now() });
+    toggleHintTimer.current = setTimeout(() => setToggleHint(null), 2400);
+  };
   /* A theme with a stereo (theme.music: the den's record player and
      8-track): the music panel, and the track playing. While the panel is
      open the theme takes the camera over to the stereo (ambient
@@ -8346,10 +8368,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         <button
           data-testid="points-toggle"
           aria-pressed={showPoints}
-          onClick={() => {
+          onClick={(e) => {
             const next = !showPoints;
             setShowPoints(next);
             saveShowPoints(next);
+            showToggleHint(e, next ? "Points left: shown. The dots count the points you have left this turn." : "Points left: hidden.");
           }}
           aria-label={showPoints ? "Hide points left" : "Show points left"}
           title={showPoints ? "Hide points left" : "Show points left"}
@@ -8386,10 +8409,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           <button
             data-testid="costs-toggle"
             aria-pressed={showCosts}
-            onClick={() => {
+            onClick={(e) => {
               const next = !showCosts;
               setShowCosts(next);
               saveShowCosts(next);
+              showToggleHint(e, next ? "Move costs: shown. Each move marker shows what it costs." : "Move costs: hidden.");
             }}
             aria-label={showCosts ? "Hide move costs" : "Show move costs"}
             title={showCosts ? "Hide move costs" : "Show move costs"}
@@ -8425,7 +8449,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         <button
           data-testid="guide-toggle"
           aria-pressed={showGuide}
-          onClick={togglePieceGuide}
+          onClick={(e) => { showToggleHint(e, showGuide ? "Piece guide: off." : "Piece guide: on. A card says what the chosen piece does."); togglePieceGuide(); }}
           aria-label={showGuide ? "Hide the piece guide" : "Show the piece guide"}
           title={showGuide ? "Hide the piece guide" : "Show the piece guide"}
           style={{
@@ -8459,7 +8483,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         {layoutSwitch && (
           <button
             data-testid="layout-toggle"
-            onClick={() => layoutSwitch("bar")}
+            onClick={(e) => { showToggleHint(e, "Layout: the control bar. Switch back from its menu."); layoutSwitch("bar"); }}
             aria-label="Use the control bar layout"
             title="Use the control bar layout"
             style={{
@@ -8488,6 +8512,42 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           </button>
         )}
       </div>
+
+      {/* The switch just tapped, in words (showToggleHint). */}
+      {toggleHint && (
+        <div
+          key={toggleHint.key}
+          data-testid="toggle-hint"
+          role="status"
+          style={{
+            position: "fixed",
+            left: Math.max(138, Math.min(toggleHint.x, (typeof window !== "undefined" ? window.innerWidth : 400) - 138)),
+            bottom: (typeof window !== "undefined" ? window.innerHeight : 800) - toggleHint.y + 10,
+            transform: "translateX(-50%)",
+            zIndex: 1100,
+            width: "max-content",
+            maxWidth: 260,
+            boxSizing: "border-box",
+            padding: "8px 12px",
+            background: modalSurface,
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            border: `1px solid ${COLORS.slateSoft}`,
+            borderRadius: 8,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+            color: COLORS.charcoal,
+            fontFamily: "'IBM Plex Sans', sans-serif",
+            fontSize: 12.5,
+            lineHeight: 1.35,
+            textAlign: "center",
+            pointerEvents: "none",
+            animation: "ec-toggle-hint 2.4s ease both",
+          }}
+        >
+          <style>{"@keyframes ec-toggle-hint { 0% { opacity: 0; transform: translate(-50%, 6px); } 10% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; } }"}</style>
+          {toggleHint.text}
+        </div>
+      )}
 
       {/* The dock's sound menu (a theme with soundChannels): All sounds, and
          each channel on its own, e.g. music off with the pieces still

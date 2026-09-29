@@ -3447,3 +3447,12 @@ may supply one. __DEN_TV__() now reports watch and ad (ms into it).
   edge-on disc in Neon cyan/violet, lensed far side, photon ring, shadow,
   "S I N G U L A R I T Y" in Chakra Petch). The sound drops almost to
   silence for exactly those frames (den-audio.js, the tear gain, no buzz).
+
+### Dock icon switches say what they did on touch (2026-09-29)
+The dock footer's icon switches (points left, move costs, piece guide,
+Nova's layout) show a brief note over the switch when tapped where there's
+no hover tooltip (the last pointer wasn't a mouse, or the device reports
+hover: none): chassis showToggleHint / toggleHint, data-testid
+"toggle-hint", 2.4 s, e.g. "Piece guide: on. A card says what the chosen
+piece does." / "Move costs: hidden." A mouse click shows nothing (the
+tooltip covers it). The speaker opens its own labelled menu, so no note.
