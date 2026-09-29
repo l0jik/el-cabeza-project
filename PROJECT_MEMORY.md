@@ -3683,3 +3683,9 @@ phone menu until "Start the story over" (which clears it).
   then 5-8 s apart while watching (15-23 s otherwise); sound tvHaunt
   "flash" (sub push + glint). Hooks: __DEN_TV__().flashes,
   __DEN_TV_FLASH__(ms). The watch hint is two lines, no dot.
+- Den fire rebuilt (user: the hiss was distracting, made no sense):
+  no sap hiss; brown-noise hearth rumble (lp 260) + flame flutter (brown,
+  bp 420 / lp 900), both steady; crackle = 2-6 ms knocks (bp 900-2600,
+  Q 4-8, lp 3600) in runs, pops (knock + low thump), a log settling every
+  22-52 s. Rain wash softened (hp 500 / lp 2600, 0.0045) and its patter
+  duller. Measured at the output: >4 kHz energy ~80x lower, 0.8-4 kHz ~3x.

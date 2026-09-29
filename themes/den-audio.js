@@ -1,14 +1,15 @@
 /* The den's sound: a quiet room on a wet evening, and the game's wood.
 
-   - The fire: a low roar of burning, and crackles and pops, never on a
-     beat. It's where it is: nearer the camera, louder, and off to the
+   - The fire: a low roar of burning and the flutter of flames, dry wood
+     ticking in little runs, a pop now and then, a log settling; never on
+     a beat, and no hiss. It's where it is: nearer the camera, louder, and off to the
      side it's on (setFireListener, from den-fx.js every frame).
    - The mantel clock: tick, tock, quietly, on the device's own seconds;
      on the hour its chime plays the Westminster melody (the four phrases,
      no counting strokes) the way a 1970s electronic clock did it, a
      little chip through a tiny speaker, soft enough not to break anyone's
      concentration.
-   - Rain against the glass door: a steady patter, drops on the glass, a
+   - Rain against the glass door: a soft wash, a patter, drops on the glass, a
      drip from the eaves now and then. No wind, no thunder (user rule).
    - The stereo console: the record player or the 8-track, when a track
      is chosen (playMusic; the tracks themselves come later).
@@ -143,35 +144,59 @@ export function createAudio() {
   const roomFollowMusic = () => { if (ctx && roomOn && roomBus) roomBus.gain.setTargetAtTime(roomLevel(), now(), 0.9); };
 
   /* ---------------- the fire ---------------- */
+  /* Logs burning in the grate, and nothing hissing (user: the steady hiss
+     made no sense there). The burning: a low hearth rumble and, over it,
+     the soft flutter of the flames, both steady (a rise and fall read as
+     wind). The crackle: dry wood ticking, each tick a few milliseconds of
+     knock in the wood's own middle register, in little runs with quiet
+     between; a pop now and then (a knock and a thump); and, every half
+     minute or so, a log settling in the grate. */
   function startFire() {
     const t = now();
-    // The burning itself: a low, steady hearth rumble, well under the
-    // crackles. It used to breathe (its level and brightness drifting
-    // every second or so) and, louder and nearer since the fire follows
-    // the listener, that rise and fall read as wind (user: no wind), so
-    // it holds still now.
     const bed = ctx.createBufferSource(); bed.buffer = brownBuf; bed.loop = true;
-    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 300;
-    const bedGain = ctx.createGain(); bedGain.gain.value = 0.022;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 260;
+    const bedGain = ctx.createGain(); bedGain.gain.value = 0.024;
     bed.connect(lp).connect(bedGain).connect(fireBus); bed.start(t);
-    // A faint hiss of sap.
-    const hiss = ctx.createBufferSource(); hiss.buffer = noiseBuf; hiss.loop = true;
-    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 5200;
-    const hissGain = ctx.createGain(); hissGain.gain.value = 0.005;
-    hiss.connect(hp).connect(hissGain).connect(fireBus); hiss.start(t);
-    // Crackles, now one, now a run of them; a pop now and then. A little
-    // louder than they were (user: "hear the crackle a bit more").
+    const flame = ctx.createBufferSource(); flame.buffer = brownBuf; flame.loop = true;
+    const fb = ctx.createBiquadFilter(); fb.type = "bandpass"; fb.frequency.value = 420; fb.Q.value = 0.7;
+    const fl = ctx.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = 900;
+    const flameGain = ctx.createGain(); flameGain.gain.value = 0.02;
+    flame.connect(fb).connect(fl).connect(flameGain).connect(fireBus); flame.start(t, 1.3);
+    // One tick of the wood: a knock, not a spit.
+    const tick = (at, level) => {
+      const f = 900 + Math.random() * 1700;
+      burst(at, fireBus, level, 0.002 + Math.random() * 0.004, [["bandpass", f, 4 + Math.random() * 4], ["lowpass", 3600]], 0.0003);
+    };
     const crackle = () => {
       if (!ctx || disposed) return;
-      const t0 = now(), n = Math.random() < 0.3 ? 2 + Math.floor(Math.random() * 5) : 1;
-      for (let i = 0; i < n; i++) {
-        const at = t0 + i * (0.015 + Math.random() * 0.06), big = Math.random() < 0.12;
-        const f = big ? 700 + Math.random() * 500 : 1800 + Math.random() * 3200;
-        burst(at, fireBus, big ? 0.14 : 0.035 + Math.random() * 0.07, big ? 0.05 : 0.012 + Math.random() * 0.02, [["bandpass", f, big ? 3 : 1.2]], 0.0008);
+      const t0 = now() + 0.01;
+      const r = Math.random();
+      if (r < 0.1) {
+        // A pop: the knock, and the thump of the log under it.
+        burst(t0, fireBus, 0.16, 0.006, [["bandpass", 1300 + Math.random() * 600, 3]], 0.0003);
+        burst(t0, fireBus, 0.22, 0.05, [["lowpass", 320]], 0.001);
+        for (let i = 1; i < 4; i++) tick(t0 + 0.02 + i * (0.02 + Math.random() * 0.05), 0.04 + Math.random() * 0.04);
+      } else {
+        // A run of ticks, or one.
+        const n = r < 0.55 ? 1 : 2 + Math.floor(Math.random() * 7);
+        let at = t0;
+        for (let i = 0; i < n; i++) { tick(at, 0.05 + Math.random() * 0.09); at += 0.008 + Math.random() * 0.045; }
       }
-      later(crackle, 110 + Math.random() * (Math.random() < 0.2 ? 2000 : 650));
+      later(crackle, 140 + Math.random() * (Math.random() < 0.3 ? 1600 : 520));
     };
     crackle();
+    // A log settling: a soft, low shift and a few ticks after it.
+    const settle = () => {
+      if (!ctx || disposed) return;
+      const at = now() + 0.02;
+      const s = noise(at, 0.7, true);
+      const slp = ctx.createBiquadFilter(); slp.type = "lowpass"; slp.frequency.value = 240;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(0.12, at + 0.08); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.65);
+      s.connect(slp).connect(g).connect(fireBus);
+      for (let i = 0; i < 5; i++) tick(at + 0.1 + Math.random() * 0.5, 0.03 + Math.random() * 0.05);
+      later(settle, 22000 + Math.random() * 30000);
+    };
+    later(settle, 9000 + Math.random() * 12000);
   }
 
   /* ---------------- the clock ---------------- */
@@ -224,17 +249,18 @@ export function createAudio() {
   /* ---------------- the rain ---------------- */
   function startRain() {
     const t = now();
-    // A steady hiss of rain on the patio: it doesn't rise and fall (that
-    // read as wind).
+    // A soft, steady wash of rain on the patio beyond the glass: it
+    // doesn't rise and fall (that read as wind), and the glass takes the
+    // top off it (it was a hiss, user).
     const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
-    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 1300;
-    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 7200;
-    const g = ctx.createGain(); g.gain.value = 0.008;
+    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 500;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2600;
+    const g = ctx.createGain(); g.gain.value = 0.0045;
     src.connect(hp).connect(lp).connect(g).connect(roomBus); src.start(t);
     // Patter on the glass: many small clicks.
     const patter = () => {
       if (!ctx || disposed) return;
-      burst(now() + 0.01, roomBus, 0.006 + Math.random() * 0.01, 0.006 + Math.random() * 0.008, [["bandpass", 2600 + Math.random() * 4200, 2.5]], 0.0005);
+      burst(now() + 0.01, roomBus, 0.006 + Math.random() * 0.009, 0.004 + Math.random() * 0.006, [["bandpass", 1800 + Math.random() * 2600, 3]], 0.0005);
       later(patter, 25 + Math.random() * 110);
     };
     patter();
