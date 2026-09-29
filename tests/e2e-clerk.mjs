@@ -99,12 +99,10 @@ for (const phone of [false, true]) {
   check(`fifteen shots in twelve frames (${lines.length} shots, ${frames.size} frames)`, lines.length === 15 && frames.size === 12);
   check("the lines are the user's, verbatim", lines[0].includes("Hi there! Can I help you with something?") && lines[7].includes("Afternoon! El Cabeza, you said?") && lines[14].includes("Is there anything else I can help you with today?"));
   check("the PA page's caption comes up with the phone call", paCaption);
-  // Back through it: a shot at a time, a swipe, the dots; and a double
+  // Back through it: a swipe, the dots; and a double
   // tap takes only one step.
   const stepNow = () => page.evaluate(() => +document.querySelector('[data-testid="tienda-clerk"]').dataset.step);
-  await q(page, "tienda-clerk-back").click();
-  await page.waitForTimeout(600);
-  check("Back goes back a shot", (await stepNow()) === 13);
+  check("no Back button (the dots go back)", !(await has(page, "tienda-clerk-back")));
   await q(page, "tienda-clerk-page-1").click();
   await page.waitForTimeout(600);
   check("the first dot goes back to the first panel", (await stepNow()) === 0);

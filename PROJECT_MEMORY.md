@@ -3625,6 +3625,6 @@ phone menu until "Start the story over" (which clears it).
   tests skip 41 s), __DEN_TV_LOOK__(on) puts the camera at the set.
 - Dock switch notes (toggle-hint) stay 4.4 s (user: two seconds longer).
 - Games-counter scene paging: one step per 500 ms at most (a double tap
-  took two panels), Back button (hidden on the first shot), swipe left/
+  took two panels), no Back button (user: just the dots), swipe left/
   right on the panel, arrow keys, and a dot per frame under the panel
   (frames already seen can be tapped).

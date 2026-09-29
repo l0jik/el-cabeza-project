@@ -509,8 +509,6 @@ const STORY_CSS = `
     box-shadow: 3px 3px 0 #17110D; font: 400 21px/1 'Bangers', ${FRANKLIN}; letter-spacing: 0.07em; text-transform: uppercase;
     transition: transform 0.08s ease, box-shadow 0.08s ease; }
   .td-clerk-actions .td-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #17110D; }
-  .td-clerk-actions .td-clerk-back { font-size: 17px; padding: 6px 12px 4px; }
-  .td-clerk-actions .td-clerk-back:disabled { visibility: hidden; }
   .td-clerk-pages { display: flex; justify-content: center; gap: 2px; padding: 10px 0 0; }
   .td-clerk-page { width: 22px; height: 22px; padding: 0; border: none; background: transparent; cursor: pointer; display: grid; place-items: center; }
   .td-clerk-page::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #17110D; background: #FBF6E6; }
@@ -765,7 +763,7 @@ function ClerkScene({ audio, onStay, onGoHome }) {
   /* Paging, forward and back (user: a double tap jumped two panels, and
      there was no way back to reread one). A step is taken at most every
      half second, so a double tap or a bounce of the finger takes one; back
-     goes a shot at a time (◂ Back, a swipe right, the left arrow key), and
+     goes a shot at a time (a swipe right, the left arrow key), and
      the dots under the panel go straight to any frame already seen. */
   const lastGo = React.useRef(0);
   const go = (to) => {
@@ -835,7 +833,6 @@ function ClerkScene({ audio, onStay, onGoHome }) {
         // In the clipping's bottom margin (clear of the dock's piece on
         // a phone, which floats over the bottom of the screen).
         h("div", { className: "td-clerk-actions" },
-        h("button", { key: "back", type: "button", className: "td-btn td-plain td-clerk-back", "data-testid": "tienda-clerk-back", disabled: step === 0, onClick: (e) => { e.stopPropagation(); back(); } }, "\u25c2 Back"),
         last
           ? [
               h("button", { key: "stay", type: "button", className: "td-btn td-plain", "data-testid": "tienda-clerk-stay", onClick: (e) => { e.stopPropagation(); onStay(); } }, "Stay a while"),
