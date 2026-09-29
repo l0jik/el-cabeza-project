@@ -449,10 +449,13 @@ export const styleSheet = `
    catalog of the five pieces, and the game can be bought and taken home
    from a row beneath; at home the row is Custom rules again, with the way
    back to the store and a fresh start under it. */
-export function renderSetupExtras({ beginGameButton, openOrderForm, story }) {
+export function renderSetupExtras({ beginGameButton, openOrderForm, story, specialOpen }) {
   const h = React.createElement;
   const store = !!story && story.mode === "store";
   const home = !!story && story.mode === "home";
+  // Until the Singularity's been visited, the catalog's page (look only)
+  // stands in for Custom rules everywhere (tienda-overlay.js).
+  const catalogOnly = store || !specialOpen;
   const quiet = {
     flex: "1 1 0", minWidth: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase",
     color: COLORS.charcoal, background: "transparent", border: `1.5px solid ${COLORS.charcoal}`, padding: "9px 10px", cursor: "pointer",
@@ -463,10 +466,10 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story }) {
     { key: "row", style: { display: "flex", gap: 8, flexShrink: 0, flexWrap: "nowrap", width: "100%" } },
     h("button", {
       key: "order", type: "button", className: "ec-btn ec-btn-invert", "data-testid": "tienda-order-form",
-      title: store ? "The catalog's page of the pieces in the box" : "Custom rules: order the pieces, laws and board you want from the catalog",
+      title: catalogOnly ? "The catalog's page of the pieces in the box" : "Custom rules: order the pieces, laws and board you want from the catalog",
       onClick: openOrderForm,
       style: quiet,
-    }, store ? "See the pieces" : "Custom rules"),
+    }, catalogOnly ? "See the pieces" : "Custom rules"),
     beginGameButton
   );
   if (!store && !home) return row;
@@ -489,13 +492,14 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story }) {
 /* The same buttons for the phone layout's control bar (chassis/MobileShell.jsx),
    which Nova offers: the catalog (or, in the story's store, the page of
    the pieces and the purchase) on rows of their own below Begin Game. */
-export function shellSetupActions({ openOrderForm, story }) {
+export function shellSetupActions({ openOrderForm, story, specialOpen }) {
   if (story && story.mode === "store") {
     return [
       { key: "see-pieces", label: "See the pieces", onClick: openOrderForm, testid: "shell-see-pieces", placement: "below", title: "The catalog's page of the pieces in the box" },
       { key: "purchase", label: "Purchase and bring home \u00b7 $7.97", onClick: story.onPurchase, testid: "shell-purchase", placement: "below" },
     ];
   }
+  if (!specialOpen) return [{ key: "see-pieces", label: "See the pieces", onClick: openOrderForm, testid: "shell-see-pieces", placement: "below", title: "The catalog's page of the pieces in the box" }];
   return [{ key: "custom-rules", label: "Custom rules \u203a", onClick: openOrderForm, testid: "shell-custom-rules", placement: "below", title: "Order the pieces, laws and board you want from the catalog" }];
 }
 

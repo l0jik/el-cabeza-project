@@ -8,7 +8,7 @@
    game, the offer after one) rings it up: the receipt prints, the screen
    goes to black with "Later, at home.", and the den comes up, remembered
    (localStorage el-cabeza:story). At home the whole order form is back
-   ("Custom rules"), with "Back to the store" and "Start the story over";
+   ("See the pieces" until the Singularity, then "Custom rules"), with "Back to the store" and "Start the story over";
    a game ordered there (a 14 x 12 board) doesn't follow the player back to
    the store, which is the classic game again. A reload opens at home; the
    fresh start clears the purchase and puts the lid back on. On a phone
@@ -150,14 +150,25 @@ console.log("\ndesktop: the store, the purchase, home");
   // Home: everything.
   check("no lid at home", !(await has(page, "tienda-lid")));
   check("the dock's panel opens at home", await openDockPanel(page));
-  check("the setup row has Custom rules", /Custom rules/i.test(await q(page, "tienda-order-form").innerText()));
+  // Before the Singularity there are no custom rules anywhere: the row
+  // offers the catalog's page (look only), whose foot line is faded.
+  check("the setup row has See the pieces (no custom rules yet)", /See the pieces/i.test(await q(page, "tienda-order-form").innerText()));
   check("...Back to the store and Start the story over", (await has(page, "story-back-to-store")) && (await has(page, "story-restart")));
   check("...and no purchase (it's bought)", !(await has(page, "story-purchase")));
   await q(page, "tienda-order-form").click();
+  check("See the pieces is the catalog, not the order form", await poll(() => has(page, "tienda-catalog"), 8000) && !(await has(page, "tienda-order")));
+  check("...special orders by arrangement, faded and not a link", /by arrangement/i.test(await q(page, "tienda-special-order").innerText()) && (await q(page, "tienda-special-order").evaluate((e) => e.tagName)) === "DIV");
+  check("...and nothing to buy at home", !(await has(page, "tienda-catalog-purchase")));
+  await q(page, "tienda-catalog-close").click();
+  await poll(async () => !(await has(page, "tienda-catalog")), 5000);
+  // The sphere's been visited (as markSingularitySeen does it): special
+  // orders open, once announced, and the row says Custom rules.
+  await page.evaluate(() => { localStorage.setItem("el-cabeza:singularity-seen", "1"); window.dispatchEvent(new CustomEvent("el-cabeza:journey")); });
+  check("after the Singularity: the note that special orders are open", await poll(() => has(page, "tienda-special-note"), 5000));
+  check("...and the row has Custom rules", await poll(async () => /Custom rules/i.test(await q(page, "tienda-order-form").innerText()), 5000));
+  await q(page, "tienda-order-form").click();
   check("Custom rules is the whole order form", await poll(() => has(page, "tienda-order"), 8000));
-  // Before the Singularity the board's size waits (the one 10 x 10), and
-  // there's no shuffled start (Neon's alone): an extra Turrito, then.
-  check("...no Board section and no shuffled start before the Singularity", !(await has(page, "tienda-cols")) && !/Shuffled start/.test(await q(page, "tienda-order").innerText()));
+  check("...with the board's size now, and still no shuffled start (Neon's alone)", (await has(page, "tienda-cols")) && !/Shuffled start/.test(await q(page, "tienda-order").innerText()));
   await q(page, "tienda-piece-turrito-inc").click();
   await q(page, "tienda-order-place").scrollIntoViewIfNeeded();
   await q(page, "tienda-order-place").click();
@@ -262,7 +273,7 @@ console.log("\nphone with the control bar: the store and home");
   await q(page, "shell-menu-purchase").tap();
   const went = await throughCut(page, "home");
   check("buying from the menu takes it home", went.gone && went.there, JSON.stringify(went));
-  check("home's bar has Custom rules", await poll(() => has(page, "shell-custom-rules"), 10000));
+  check("home's bar has See the pieces (before the Singularity)", await poll(() => has(page, "shell-see-pieces"), 10000) && !(await has(page, "shell-custom-rules")));
   await q(page, "shell-menu-button").tap().catch(() => {});
   check("...and its menu the way back, the fresh start and Neon", await poll(async () => (await has(page, "shell-menu-back-to-store")) && (await has(page, "shell-menu-restart")) && (await has(page, "shell-menu-switch-theme")), 8000));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));

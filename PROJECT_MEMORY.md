@@ -3350,3 +3350,17 @@ will upload music for it. Don't generate music for the den again unless
 asked. The music panel has no close button now: Escape or a click
 anywhere outside it puts it away (a tap on the room that does so is
 swallowed, so it doesn't also select a piece).
+
+### No custom rules before the Singularity (the user's "option 4")
+Until the first Singularity visit nothing is alterable anywhere (not even
+the counts of the five pieces): Tienda's lid, setup row and phone bar, and
+Nova's store and den, all say "See the pieces" and open the look-only
+catalog (PieceCatalog; its purchase row only in Nova's store). The
+catalog's foot has a faded "Special orders — by arrangement." After the
+Singularity (engine/journey.js, live via onJourneyChange) that foot line
+becomes a link into the order form, the buttons read "Custom rules" again
+(store keeps "See the pieces"), and a note ("Special orders ... open now")
+shows once, 7 s, tap to dismiss (localStorage
+`el-cabeza:special-order-noted`, cleared by forgetSingularity with the
+rest). Standalone den (standard.js) has no custom rules at all. Tests
+updated (e2e-journey, e2e-story, e2e-fullscreen wording), not run.

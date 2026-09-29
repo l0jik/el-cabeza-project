@@ -103,12 +103,12 @@ console.log("\nTienda, phone: full screen at the first tap");
   check("the middle of the screen is the board", (await under(spot.x, spot.y)) === "canvas", await under(spot.x, spot.y));
   await doubleTap(spot.x, spot.y);
   check("a two-finger double-tap on the board restores (toggled once, not twice)", !(await full()));
-  // Something over the board: the setup row's Custom rules button, once
+  // Something over the board: the setup row's See the pieces button, once
   // the dock's panel is open (closed, it lets touches through to the board).
   check("the dock's panel opens", await openDockPanel(page));
   await page.waitForTimeout(600);
   const orderBtn = await centre('[data-testid="tienda-order-form"]');
-  check("Custom rules is over the board, not the canvas", orderBtn && (await under(orderBtn.x, orderBtn.y)) !== "canvas", orderBtn && await under(orderBtn.x, orderBtn.y));
+  check("See the pieces is over the board, not the canvas", orderBtn && (await under(orderBtn.x, orderBtn.y)) !== "canvas", orderBtn && await under(orderBtn.x, orderBtn.y));
   await doubleTap(orderBtn.x, orderBtn.y);
   check("a two-finger double-tap over a button maximizes again", await full());
   check("...without pressing it (no order form)", (await page.locator(".td-layer").count()) === 0);

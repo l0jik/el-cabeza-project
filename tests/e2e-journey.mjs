@@ -2,10 +2,11 @@
    laws, the board's holes and cut squares) are kept back until the
    Singularity's first visit, everywhere that opts in (Tienda, Standard,
    Neon, and Nova's store and den). Before it: the rules cards tell the
-   classic game alone and the catalog's order form offers only the five
-   pieces and the board. The sphere's first opening unlocks them
-   everywhere (localStorage, shared by the site's pages); Nova's "Start the
-   story over" locks them again. */
+   classic game alone and there are no custom rules: the catalog's page
+   of the five pieces, look only, with special orders "by arrangement".
+   The sphere's first opening unlocks them everywhere (localStorage,
+   shared by the site's pages); Nova's "Start the story over" locks them
+   again. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -60,14 +61,15 @@ async function page(url, init) {
   check("MOVES tells the classic game: the roll, no laws, no shelter", r.moves.classic === "true" && r.moves.roll && !r.moves.slide && !r.moves.pivot && !r.moves.hole && !r.moves.shelter, JSON.stringify(r.moves));
   check("COSTS has no laws", !r.costsMentionLaws);
   check("ABOUT doesn't mention Anomaly or Singularity", !r.aboutMentions);
-  // The order form, from the lid.
-  if (await has(p, "tienda-lid-order")) await q(p, "tienda-lid-order").click();
-  else { await openDockPanel(p); await q(p, "tienda-order-form").click(); }
-  check("the order form opens", await poll(() => has(p, "tienda-order"), 8000));
-  check("...as the classic page", (await q(p, "tienda-order").getAttribute("data-classic")) === "true");
-  check("...the five pieces", (await has(p, "tienda-piece-cabeza")) && (await has(p, "tienda-piece-opa")) && !(await has(p, "tienda-piece-codo")) && !(await has(p, "tienda-piece-block1x3")));
-  check("...no rules, no missing squares", !(await has(p, "tienda-law-slide")) && !(await has(p, "tienda-missing")));
-  check("...and no board sizes or shuffled start either", !(await has(p, "tienda-cols")) && !/Shuffled start/.test(await q(p, "tienda-order").innerText()));
+  // No custom rules before it: the lid's second button is the catalog's
+  // page (look only), with special orders "by arrangement", faded.
+  check("the lid offers See the pieces", /See the pieces/i.test(await q(p, "tienda-lid-order").innerText()));
+  await q(p, "tienda-lid-order").click();
+  check("...the catalog opens, not the order form", await poll(() => has(p, "tienda-catalog"), 8000) && !(await has(p, "tienda-order")));
+  check("...the five pieces", (await has(p, "tienda-catalog-cabeza")) && (await has(p, "tienda-catalog-opa")) && !(await has(p, "tienda-catalog-codo")));
+  check("...special orders by arrangement, not a link", (await q(p, "tienda-special-order").evaluate((e) => e.tagName)) === "DIV");
+  check("...no purchase outside Nova's store", !(await has(p, "tienda-catalog-purchase")));
+  check("...and no note that they're open", !(await has(p, "tienda-special-note")));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -80,7 +82,9 @@ async function page(url, init) {
     check(`${url}: MOVES has the laws and the shelter`, r.moves.classic === "false" && r.moves.slide && r.moves.pivot && r.moves.hole && r.moves.shelter, JSON.stringify(r.moves));
     check(`${url}: ABOUT mentions them again`, r.aboutMentions);
     if (url === "el-cabeza-tienda.html") {
-      if (await has(p, "tienda-lid-order")) await q(p, "tienda-lid-order").click();
+      check("the note that special orders are open", await has(p, "tienda-special-note"));
+      check("...and the lid offers Custom rules", /Custom rules/i.test(await q(p, "tienda-lid-order").innerText()));
+      await q(p, "tienda-lid-order").click();
       await poll(() => has(p, "tienda-order"), 8000);
       check("the whole order form", (await q(p, "tienda-order").getAttribute("data-classic")) === "false" && (await has(p, "tienda-piece-codo")) && (await has(p, "tienda-law-slide")));
     }

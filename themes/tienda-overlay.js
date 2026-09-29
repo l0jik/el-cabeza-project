@@ -32,7 +32,7 @@ import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS
 import { ensurePaper, ensureAgedPaper } from "./tienda-textures.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
-import { singularitySeen, CLASSIC_PIECE_KEYS } from "../engine/journey.js";
+import { singularitySeen, onJourneyChange, CLASSIC_PIECE_KEYS, SPECIAL_ORDER_NOTED_KEY } from "../engine/journey.js";
 
 /* The classic game's order (engine/journey.js: the extras wait for the
    Singularity's first visit): the five pieces only, no laws, no cut
@@ -88,6 +88,26 @@ export function useSetupExtras(x) {
   if (arrival.current === undefined) arrival.current = story && story.arrived ? story.arrived() : false;
   if (store && arrival.current === "cut") lidDone = true;
   const [overlay, setOverlay] = React.useState(() => (x.awaitingBegin && !lidDone && !home ? "lid" : null));
+  /* Special orders (user): until the Singularity's first visit nothing can
+     be changed anywhere; the catalog's page of the five pieces stands in
+     for Custom rules, a faded "Special orders: by arrangement" at its
+     foot. After it (engine/journey.js, until the story starts over) the
+     order form is open: the button is Custom rules again (the story's
+     store keeps its catalog, whose foot line is then the way in), and a
+     note says so once. */
+  const [specialOpen, setSpecialOpen] = React.useState(singularitySeen);
+  React.useEffect(() => onJourneyChange(setSpecialOpen), []);
+  const [specialNote, setSpecialNote] = React.useState(false);
+  React.useEffect(() => {
+    if (!specialOpen) return undefined;
+    let noted = true;
+    try { noted = !!localStorage.getItem(SPECIAL_ORDER_NOTED_KEY); } catch (e) { /* no storage: no note */ }
+    if (noted) return undefined;
+    try { localStorage.setItem(SPECIAL_ORDER_NOTED_KEY, "1"); } catch (e) { /* once this visit, then */ }
+    setSpecialNote(true);
+    const id = setTimeout(() => setSpecialNote(false), 7000);
+    return () => clearTimeout(id);
+  }, [specialOpen]);
   const selRef = React.useRef(null);
   if (!selRef.current) selRef.current = defaultSelections();
   React.useEffect(() => { if (!x.awaitingBegin && overlay) setOverlay(null); }, [x.awaitingBegin]);
@@ -114,9 +134,13 @@ export function useSetupExtras(x) {
     ...x,
     story,
     tiendaOverlay: overlay,
-    openOrderForm: () => { x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen(); setOverlay(store ? "catalog" : "order"); },
+    openOrderForm: () => { x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen(); setOverlay(store || !specialOpen ? "catalog" : "order"); },
+    openCustomRules: () => { if (specialOpen) setOverlay("order"); },
     closeOverlay: () => setOverlay(null),
-    reopenOrder: (sel) => { if (sel) selRef.current = sel; setOverlay(store ? "catalog" : "order"); },
+    reopenOrder: (sel) => { if (sel) selRef.current = sel; setOverlay(store || !specialOpen ? "catalog" : "order"); },
+    specialOpen,
+    specialNote,
+    dismissSpecialNote: () => setSpecialNote(false),
     selRef,
   };
 }
@@ -134,22 +158,28 @@ export function renderExtraOverlays(x) {
   }
   // A game in the store played to the end (or ended): the clerk's offer.
   if (store && !x.awaitingBegin && x.game && (x.game.status === "finished" || x.game.status === "ended")) return h(PurchaseOffer, { key: "offer", story: x.story, audio: x.audio });
-  if (!x.tiendaOverlay || !x.awaitingBegin) return null;
+  const note = x.specialNote && x.awaitingBegin && (!x.tiendaOverlay || x.tiendaOverlay === "lid")
+    ? h("div", { key: "special-note", className: "td-special-note", "data-testid": "tienda-special-note", role: "status", onClick: x.dismissSpecialNote },
+        h(Style), h("b", null, "Special orders"), " The catalog's order form is open now: Custom rules.")
+    : null;
+  if (!x.tiendaOverlay || !x.awaitingBegin) return note;
   if (x.tiendaOverlay === "lid") {
-    return h(BoxLid, {
+    return [h(BoxLid, {
       key: "lid",
       onOpen: () => { lidDone = true; x.audio && x.audio.startStore && x.audio.startStore(); x.closeOverlay(); },
       onOrder: () => { lidDone = true; x.audio && x.audio.startStore && x.audio.startStore(); x.openOrderForm(); },
-      orderLabel: store ? "See the pieces" : "Custom rules",
+      orderLabel: store || !x.specialOpen ? "See the pieces" : "Custom rules",
       audio: x.audio,
-    });
+    }), note];
   }
   if (x.tiendaOverlay === "catalog") {
     return h(PieceCatalog, {
       key: "catalog",
       audio: x.audio,
       onClose: () => { x.audio && x.audio.playRulesClose && x.audio.playRulesClose(); x.closeOverlay(); },
-      onPurchase: () => { x.closeOverlay(); x.story.onPurchase(); },
+      onPurchase: store ? () => { x.closeOverlay(); x.story.onPurchase(); } : null,
+      specialOpen: !!x.specialOpen,
+      onSpecialOrder: () => { x.audio && x.audio.playSelect && x.audio.playSelect(); x.openCustomRules(); },
     });
   }
   return h(OrderForm, {
@@ -252,6 +282,20 @@ const CSS = `
   }
   .td-form .td-primary { background-color: #9A3B30; text-shadow: none; }
   .td-form .td-photo-btn img { filter: sepia(0.28) saturate(0.82) contrast(0.94) brightness(1.02); }
+  /* Special orders at the catalog's foot: faded type until they open. */
+  .td-special { display: block; margin: 16px 4px 6px; padding: 10px 0 2px; border-top: 1px dashed rgba(46,33,24,0.35);
+    font: 400 12.5px/1.45 ${COURIER}; color: rgba(46,33,24,0.42); text-align: left; background: transparent; }
+  .td-special b { font-weight: 700; letter-spacing: 0.04em; }
+  button.td-special-open { all: unset; display: block; box-sizing: border-box; width: calc(100% - 8px); margin: 16px 4px 6px; padding: 10px 0 2px;
+    border-top: 1px dashed rgba(163,63,51,0.5); font: 400 12.5px/1.45 ${COURIER}; color: ${INK}; cursor: pointer; }
+  button.td-special-open u { color: ${RED}; font-weight: 700; }
+  button.td-special-open:focus-visible { outline: 3px solid ${RED}; outline-offset: 2px; }
+  /* The one-time note that special orders are open. */
+  .td-special-note { position: fixed; left: 50%; top: calc(14px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 1250;
+    max-width: min(92vw, 460px); padding: 9px 14px; background: #EFE6CD; color: ${INK}; border: 1.5px solid ${INK};
+    box-shadow: 0 6px 18px rgba(10,6,3,0.4); font: 400 13px/1.4 ${COURIER}; cursor: pointer; animation: tdNoteIn 0.5s ease both; }
+  .td-special-note b { color: ${RED}; margin-right: 6px; letter-spacing: 0.06em; text-transform: uppercase; font-family: ${FRANKLIN}; font-size: 12px; }
+  @keyframes tdNoteIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
   .td-form-scroll { position: relative; overflow: auto; -webkit-overflow-scrolling: touch; padding: clamp(14px, 3vw, 28px) clamp(14px, 3.4vw, 32px) 8px; }
   .td-form-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 16px; border-bottom: 3px solid ${INK}; padding-bottom: 8px; }
   .td-form-title { margin: 0; font: 900 clamp(26px, 4.4vw, 40px)/0.95 ${FRANKLIN}; letter-spacing: 0.02em; }
@@ -420,7 +464,7 @@ const CLASSIC_PIECES = [
    piece up in 3-D, as on the order form) and what it does. Nothing to
    change: a game in the store is the classic game. The rest (the other
    pieces, the rules, the board) waits at home. */
-function PieceCatalog({ audio, onClose, onPurchase }) {
+function PieceCatalog({ audio, onClose, onPurchase, specialOpen = false, onSpecialOrder }) {
   const [viewer, setViewer] = React.useState(null);
   const types = CLASSIC_PIECES.map(([k]) => k);
   const [photos, setPhotos] = React.useState(() => types.every((t) => !hasWoodShowcase(t) || woodPhoto(t)));
@@ -473,12 +517,19 @@ function PieceCatalog({ audio, onClose, onPurchase }) {
           h("div", { className: "td-sec-h" }, "El Cabeza · No. 4417", h("small", null, "tap a photograph to inspect the piece")),
           rows,
         ),
+        // Special orders: faded until the Singularity's been visited, then
+        // the way into the order form (Custom rules).
+        specialOpen
+          ? h("button", { type: "button", className: "td-special td-special-open", "data-testid": "tienda-special-order", onClick: onSpecialOrder },
+              h("b", null, "Special orders"), " \u2014 other pieces, rules and boards to order. ", h("u", null, "Custom rules \u203a"))
+          : h("div", { className: "td-special", "data-testid": "tienda-special-order", "aria-disabled": "true" },
+              h("b", null, "Special orders"), " \u2014 by arrangement."),
       ),
       h("div", { className: "td-foot" },
         h("div", { className: "td-foot-total" }, "The complete game, board and ten pieces", h("br"), h("b", null, "$7.97")),
         h("div", { className: "td-foot-btns" },
           h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-catalog-close", onClick: onClose }, "Close"),
-          h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-catalog-purchase", onClick: () => { click(); onPurchase(); } }, "Purchase and bring home"),
+          onPurchase && h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-catalog-purchase", onClick: () => { click(); onPurchase(); } }, "Purchase and bring home"),
         ),
       ),
     ),

@@ -46,9 +46,12 @@ export function markSingularitySeen() {
 }
 
 // Nova's "Start the story over" (apps/unified.jsx): locked again.
+// The one-time note that the catalog's special orders are open (the
+// store's printed matter, themes/tienda-overlay.js), shown once per unlock.
+export const SPECIAL_ORDER_NOTED_KEY = "el-cabeza:special-order-noted";
 export function forgetSingularity() {
   seenThisVisit = false;
-  try { localStorage.removeItem(SINGULARITY_SEEN_KEY); } catch (e) { /* nothing kept */ }
+  try { localStorage.removeItem(SINGULARITY_SEEN_KEY); localStorage.removeItem(SPECIAL_ORDER_NOTED_KEY); } catch (e) { /* nothing kept */ }
   announce();
 }
 
