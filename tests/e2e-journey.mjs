@@ -37,9 +37,11 @@ async function rulesView(page) {
   const costs = await q(page, "rules-card-costs").innerText();
   await q(page, "rules-tab-about").click();
   await page.waitForTimeout(300);
-  const about = await q(page, "info-original-note").innerText();
+  // (The "original El Cabeza" note isn't there at all before the Singularity.)
+  const noteThere = await has(page, "info-original-note");
+  const about = noteThere ? await q(page, "info-original-note").innerText() : "";
   await closeRules(page);
-  return { moves, costsMentionLaws: /3 Actions|Pivot|Shove|Slide/.test(costs), aboutMentions: /ANOMALY|SINGULARITY/.test(about) };
+  return { moves, costsMentionLaws: /3 Actions|Pivot|Shove|Slide/.test(costs), aboutMentions: /ANOMALY|SINGULARITY/.test(about), noteThere };
 }
 
 async function page(url, init) {
@@ -61,6 +63,7 @@ async function page(url, init) {
   check("MOVES tells the classic game: the roll, no laws, no shelter", r.moves.classic === "true" && r.moves.roll && !r.moves.slide && !r.moves.pivot && !r.moves.hole && !r.moves.shelter, JSON.stringify(r.moves));
   check("COSTS has no laws", !r.costsMentionLaws);
   check("ABOUT doesn't mention Anomaly or Singularity", !r.aboutMentions);
+  check("...nor the original El Cabeza's basic rules (nothing past them yet)", !r.noteThere);
   // No custom rules before it: the lid's second button is the catalog's
   // page (look only), with special orders "by arrangement", faded.
   check("the lid offers See the pieces", /See the pieces/i.test(await q(p, "tienda-lid-order").innerText()));

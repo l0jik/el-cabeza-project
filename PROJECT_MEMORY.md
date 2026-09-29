@@ -3478,3 +3478,7 @@ store's button (and menu) is "Go home, confused." (clerkConfused, event
 localStorage ({owned, storeGone}; novaStory.jsx) with the caption "Home
 again. Confused.", and "Back to the store" is gone from the den's row and
 phone menu until "Start the story over" (which clears it).
+- ABOUT's "The original El Cabeza is played with its basic rules alone"
+  note (and its play-original link) isn't shown at all until the
+  Singularity's first visit (classicRules), everywhere that locks the
+  extras: it gave away that there's more. e2e-journey checks it's absent.

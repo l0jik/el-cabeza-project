@@ -9169,6 +9169,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 puzzle arriving almost every turn.
               </p>
 
+              {/* Not before the Singularity's first visit (the user): until
+                 then there's nothing past the basic rules to set apart, and
+                 saying so gives away that there is. */}
+              {!classicRules && (
               <p
                 data-testid="info-original-note"
                 style={{
@@ -9185,10 +9189,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 >
                   The original El Cabeza
                 </button>{" "}
-                {classicRules
-                  ? "is played with its basic rules alone."
-                  : "is played with its basic rules alone; everything from ANOMALY and SINGULARITY was added later."}
+                is played with its basic rules alone; everything from ANOMALY and SINGULARITY was added later.
               </p>
+              )}
             </div>
 
             <div
