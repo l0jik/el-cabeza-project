@@ -8,7 +8,9 @@
 
    It says what just happened (the Singularity opened the special
    orders) and where to go for them (the store). The sound for it is
-   den-audio.js's tvCommercial, cued to CUES below.
+   den-audio.js's tvCommercial, cued to CUES below; the king's line is
+   the user's own recording (assets/den/commercial-king.mp3, played at
+   CUES.voice).
 
    Drawn in a 512 x 384 frame (the screen's 4:3) on a power-of-two canvas,
    at 12 frames a second (it's videotape, and not good videotape), with
@@ -18,13 +20,13 @@
 
 import * as THREE from "three";
 
-export const COMMERCIAL_MS = 33900;
+export const COMMERCIAL_MS = 35900;
 
 // The scenes, in seconds from the top (the sound follows these).
 export const CUES = {
-  slate: 0, title: 2.2, chess: 5.6, stamp: 7.0, flee: 7.6, king: 9.2, orders: 12.4,
-  items: [13.2, 14.0, 14.8], assembly: 15.8, best: 17.0, sortOf: 19.5, dealer: 20.6, standing: 22.0,
-  price: 24.8, only: 25.9, brandNew: 26.9, close: 28.3, never: 29.9, credit: 32.0, snow: 33.3,
+  slate: 0, title: 2.2, chess: 5.6, stamp: 7.0, flee: 7.6, king: 9.2, voice: 9.5, orders: 14.4,
+  items: [15.2, 16.0, 16.8], assembly: 17.8, best: 19.0, sortOf: 21.5, dealer: 22.6, standing: 24.0,
+  price: 26.8, only: 27.9, brandNew: 28.9, close: 30.3, never: 31.9, credit: 34.0, snow: 35.3,
 };
 
 const W = 512, H = 384, FPS = 12;
@@ -170,8 +172,9 @@ function king(g, t, f) {
   g.fillStyle = "#c9c9c9"; g.fillRect(-8, 2, 16, 8); // the tape
   g.restore();
   const flick = Math.floor(t * 6) % 2;
-  say(g, "CABEZA", W / 2, H * 0.14, { font: `900 44px ${SERIF}`, color: flick ? "#ffe23a" : "#ffffff", shadow: "#000", shadowAt: [4, 5] });
-  say(g, "IS KING!", W / 2, H * 0.9, { font: `900 38px ${SERIF}`, color: flick ? "#ffffff" : "#ffe23a", shadow: "#000", shadowAt: [4, 5] });
+  say(g, "EL CABEZA", W / 2, H * 0.14, { font: `900 44px ${SERIF}`, color: flick ? "#ffe23a" : "#ffffff", shadow: "#000", shadowAt: [4, 5] });
+  // (The words come up with the voice's: "...is the new king!")
+  if (t > 1.9) say(g, "IS THE NEW KING!", W / 2, H * 0.9, { font: `900 34px ${SERIF}`, color: flick ? "#ffffff" : "#ffe23a", shadow: "#000", shadowAt: [4, 5] });
   for (let i = 0; i < 6; i++) {
     if (hash(i * 13 + f) < 0.5) continue;
     g.fillStyle = "#fff9c0"; star(g, W * (0.12 + 0.76 * hash(i + 21)), H * (0.25 + 0.5 * hash(i + 44)), 7, 4, 0.28); g.fill();

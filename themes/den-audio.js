@@ -25,6 +25,8 @@
 
 import { createWoodSfx } from "./wood-sfx.js";
 import { CUES as AD, COMMERCIAL_MS } from "./den-commercial.js";
+// The commercial's voice-over, beside the page (build/build.js).
+const AD_VOICE_URL = "el-cabeza-den-ad-voice.mp3";
 
 export const hasAudio = true;
 
@@ -322,7 +324,7 @@ export function createAudio() {
     const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3800; bp.Q.value = 0.5;
     hiss.connect(bp).connect(hissGain).connect(bus);
     hiss.start();
-    tv = { bus, hissGain, whine: null, whineGain: null, ad: null };
+    tv = { bus, hissGain, whine: null, whineGain: null, ad: null, adVoice: null };
     return tv;
   }
   function tvClick(t) {
@@ -352,6 +354,7 @@ export function createAudio() {
     const t = now();
     tvClick(t);
     if (tv.ad) { tv.ad.gain.setTargetAtTime(0, t, 0.015); tv.ad = null; }
+    if (tv.adVoice) { try { tv.adVoice.pause(); } catch (e) { /* gone */ } tv.adVoice = null; }
     tv.hissGain.gain.setTargetAtTime(0, t, 0.05);
     if (tv.whine) {
       tv.whine.frequency.setTargetAtTime(9000, t, 0.4);
@@ -371,6 +374,7 @@ export function createAudio() {
   function tvCommercial(delay = 0) {
     if (!tvGraph()) return;
     if (tv.ad) { tv.ad.gain.setTargetAtTime(0, now(), 0.02); tv.ad = null; }
+    if (tv.adVoice) { try { tv.adVoice.pause(); } catch (e) { /* gone */ } tv.adVoice = null; }
     const T = now() + 0.05 + delay;
     const out = ctx.createGain(); out.gain.value = 1;
     // The speaker: no lows, no highs, a little crunch.
@@ -413,7 +417,9 @@ export function createAudio() {
         [0.5, 1.5, 2.5, 3.5].forEach((k) => { if (t0 + k * beat < to) organ(T + t0 + k * beat, [root + 12, root + 16, root + 19].map((m) => (m > 72 ? m - 12 : m)), beat * 0.35, 0.018); });
       }
     };
-    box(AD.title + 0.5, AD.best);
+    // (Not under the king's line: the voice has the scene to itself.)
+    box(AD.title + 0.5, AD.king);
+    box(AD.orders, AD.best);
     box(AD.dealer, AD.never);
     // "El Ca-be-za!" on the organ: G A C . E, at the top and at the end.
     const motif = (t) => [[67, 0, 0.22], [69, 0.25, 0.22], [72, 0.5, 0.22], [76, 0.8, 0.7]].forEach(([m, d, l]) => organ(T + t + d, [m, m - 12], l, 0.05));
@@ -433,10 +439,18 @@ export function createAudio() {
     // The stamp, and the pawn run off on a slide whistle.
     { const t = T + AD.stamp; burst(t, out, 0.22, 0.12, [["lowpass", 900]]); const o = tone(t, 120, 0.25, 0.12); o.frequency.exponentialRampToValueAtTime(50, t + 0.2); }
     { const t = T + AD.flee; const o = ctx.createOscillator(); o.frequency.setValueAtTime(700, t); o.frequency.exponentialRampToValueAtTime(2300, t + 0.55); const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.035, t + 0.05); g.gain.linearRampToValueAtTime(0.0001, t + 0.6); o.connect(g).connect(out); o.start(t); o.stop(t + 0.65); }
-    // The king: a cymbal, a chord, sparkle.
+    // The king: a cymbal, then the voice (the user's recording, a file
+    // beside the page: build/build.js), and a sparkle as it trails off.
     burst(T + AD.king, out, 0.06, 1.4, [["highpass", 5000]]);
-    organ(T + AD.king + 0.02, [53, 57, 60, 65], 1.6, 0.035);
-    [0.8, 1.4, 2.1, 2.6].forEach((d, i) => bell(T + AD.king + d, 88 + (i % 2) * 3, 0.018));
+    {
+      const el = new Audio();
+      el.src = AD_VOICE_URL; el.preload = "auto";
+      const vg = ctx.createGain(); vg.gain.value = 0.5;
+      ctx.createMediaElementSource(el).connect(vg).connect(out);
+      tv.adVoice = el;
+      setTimeout(() => { if (tv && tv.ad === out) { const p = el.play(); if (p && p.catch) p.catch(() => { /* no sound, then */ }); } }, Math.max(0, (T + AD.voice - now()) * 1000));
+    }
+    [4.4, 4.9].forEach((d, i) => bell(T + AD.voice + d, 88 + i * 3, 0.018));
     // Special orders: ta-daa, and a bell for each.
     organ(T + AD.orders, [55, 59, 62], 0.18, 0.04); organ(T + AD.orders + 0.2, [60, 64, 67, 72], 0.8, 0.04);
     AD.items.forEach((t, i) => bell(T + t, [79, 83, 86][i], 0.045));

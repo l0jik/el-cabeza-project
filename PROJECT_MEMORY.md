@@ -3404,3 +3404,11 @@ off early. Once per story (engine/journey.js COMMERCIAL_AIRED_KEY, cleared
 by forgetSingularity); the catalog's "special orders open" note waits for
 it (setCommercialOn). No voice-over (no TTS available offline); the user
 may supply one. __DEN_TV__() now reports watch and ad (ms into it).
+- Commercial voice-over (2026-09-29): the user's recording "El Cabeza is
+  the new king" (6.4 s) -> assets/den/commercial-king.mp3 (first 0.6 s of
+  silence trimmed, mono, 180 Hz-5.5 kHz, compressed, -16 LUFS; the source
+  isn't kept). build.js ships it as el-cabeza-den-ad-voice.mp3 (standard and
+  Nova); den-audio.js plays it through the TV speaker chain at CUES.voice
+  (9.5 s), gain 0.5; tvOff pauses it. The king scene now runs 9.2-14.4 with
+  no rhythm box or organ under the voice; its words read "EL CABEZA / IS
+  THE NEW KING!". Everything after shifted +2 s; COMMERCIAL_MS 35900.
