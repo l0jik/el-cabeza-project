@@ -7,7 +7,7 @@ import * as neonTheme from "../themes/neon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS } from "../engine/constants.js";
 import { StoryCut, readOwned, saveOwned } from "./novaStory.jsx";
-import { forgetSingularity, singularitySeen, onJourneyChange } from "../engine/journey.js";
+import { forgetSingularity, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn } from "../engine/journey.js";
 import {
   TransitionStyles,
   HoldDegradeLayer,
@@ -50,7 +50,7 @@ const storeTheme = {
    transition takes over (enter). Back out of Singularity, the den comes up
    with the set on, and it switches off (returning, read once). The menu's
    "Turn on the TV" presses the set's knob (press, from the den). */
-const tvBridge = { returning: false, press: null, portal: () => false, enter() {} };
+const tvBridge = { returning: false, commercial: false, press: null, portal: () => false, enter() {}, back: () => false };
 const homeTheme = {
   ...standardTheme,
   useSetupExtras: (x) => tiendaTheme.useSetupExtras({ ...x, story: HOME_STORY }),
@@ -59,11 +59,13 @@ const homeTheme = {
   shellSetupActions: tiendaTheme.shellSetupActions,
   mountAmbientEffects: (refs, helpers) => {
     const returning = tvBridge.returning;
-    tvBridge.returning = false;
+    const commercial = returning && tvBridge.commercial;
+    tvBridge.returning = tvBridge.commercial = false;
     return standardTheme.mountAmbientEffects(refs, {
       ...helpers,
       tv: {
         returning,
+        commercial,
         portal: () => tvBridge.portal(),
         enter: () => tvBridge.enter(),
         register: (api) => { tvBridge.press = api ? api.press : null; },
@@ -71,7 +73,15 @@ const homeTheme = {
     });
   },
 };
-const THEMES = { tienda: storeTheme, standard: homeTheme, neon: neonTheme };
+/* Singularity's BACK, in Nova, goes home: straight to the den through
+   Nova's own transition (not back to Neon's board), where the set is on
+   and, the first time, showing the late-night commercial that says what
+   just opened and where to get it (themes/den-commercial.js). */
+const novaNeonTheme = {
+  ...neonTheme,
+  useSetupExtras: (x) => ({ ...neonTheme.useSetupExtras(x), onSingularityBack: () => tvBridge.back() }),
+};
+const THEMES = { tienda: storeTheme, standard: homeTheme, neon: novaNeonTheme };
 
 /* Every place starts with the classic game. The rules, board and squares
    of a game ordered at home, or set up in Singularity, live in the
@@ -320,7 +330,12 @@ function UnifiedApp() {
     setTimeout(() => {
       restoreBootRules();
       // Back out of Singularity, the den's set is on, and switches off.
-      if (direction === "out") tvBridge.returning = true;
+      // The first time home after the Singularity's been seen (BACK, or
+      // the title's hold), the commercial's on first.
+      if (direction === "out") {
+        tvBridge.returning = true;
+        if (singularitySeen() && !commercialAired()) { markCommercialAired(); tvBridge.commercial = true; setCommercialOn(true); }
+      }
       setThemeName(direction === "in" ? "neon" : "standard");
     }, direction === "in" ? 380 : 1292);
   }, [themeName]);
@@ -360,6 +375,11 @@ function UnifiedApp() {
   tvBridge.portal = () => !busyRef.current && themeName === "standard";
   tvBridge.enter = () => {
     if (busyRef.current || themeName !== "standard") return false;
+    beginTransition();
+    return true;
+  };
+  tvBridge.back = () => {
+    if (busyRef.current || themeName !== "neon" || transition) return false;
     beginTransition();
     return true;
   };

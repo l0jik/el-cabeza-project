@@ -49,9 +49,30 @@ export function markSingularitySeen() {
 // The one-time note that the catalog's special orders are open (the
 // store's printed matter, themes/tienda-overlay.js), shown once per unlock.
 export const SPECIAL_ORDER_NOTED_KEY = "el-cabeza:special-order-noted";
+// The den's late-night commercial (themes/den-commercial.js): shown once,
+// back out of Singularity the first time, in Nova.
+export const COMMERCIAL_AIRED_KEY = "el-cabeza:commercial-aired";
 export function forgetSingularity() {
   seenThisVisit = false;
-  try { localStorage.removeItem(SINGULARITY_SEEN_KEY); localStorage.removeItem(SPECIAL_ORDER_NOTED_KEY); } catch (e) { /* nothing kept */ }
+  try { [SINGULARITY_SEEN_KEY, SPECIAL_ORDER_NOTED_KEY, COMMERCIAL_AIRED_KEY].forEach((k) => localStorage.removeItem(k)); } catch (e) { /* nothing kept */ }
+  announce();
+}
+let airedThisVisit = false;
+export function commercialAired() {
+  if (airedThisVisit) return true;
+  try { return localStorage.getItem(COMMERCIAL_AIRED_KEY) === "1"; } catch (e) { return false; }
+}
+export function markCommercialAired() {
+  airedThisVisit = true;
+  try { localStorage.setItem(COMMERCIAL_AIRED_KEY, "1"); } catch (e) { /* this visit only */ }
+}
+/* While the commercial is on, the catalog's own note that special orders
+   are open waits (it would say the same thing over the top of it). */
+let commercialOn = false;
+export function isCommercialOn() { return commercialOn; }
+export function setCommercialOn(on) {
+  if (commercialOn === !!on) return;
+  commercialOn = !!on;
   announce();
 }
 

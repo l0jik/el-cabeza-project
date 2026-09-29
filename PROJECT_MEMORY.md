@@ -3379,3 +3379,28 @@ record), the program-change clunk at the top. Writes
 assets/den/8track_<n>.mp3; build.js copies them as el-cabeza-den-tape-<n>.mp3;
 DEN_TRACKS lists them with loop: true. Sources aren't kept in the repo
 (re-upload to re-run).
+
+### BACK from Singularity goes home, and the late-night commercial (2026-09-29)
+In Nova, the sphere's BACK button goes straight to the den through Nova's
+DISCONNECT transition (apps/unified.jsx wraps neonTheme.useSetupExtras to
+add `onSingularityBack` -> tvBridge.back(); neon-singularity.js's BACK uses
+it when present, else exitSingularity as before; standalone Neon unchanged;
+Escape in the sphere still goes to Neon's board). The first time home after
+the Singularity's been seen (BACK or the title hold), the den's set shows
+a community-access infomercial (themes/den-commercial.js, 26.5 s, drawn at
+12 fps on the TV's screen texture with rolls/tracking/dropouts): paid
+programming slate, star wipe to hand-cut "EL CABEZA!", "Tired of chess?"
+pawn + red stamp "GET OUTTA HERE, CHESS!", crowned Cabeza "CABEZA IS
+KING!", "NOW TAKING SPECIAL ORDERS! new pieces/laws/boards (some assembly
+required)", "The best thing you didn't know existed ...sort of!!", the
+dealer card held up with a thumb in shot ("Games & Hobby Dept.", KLondike
+5-0199, "Operators are standing by* / *Operator is Dale"), "Paid for by the
+Friends of El Cabeza", snow; then the set goes off and the camera leaves
+slowly. Sound: den-audio.js tvCommercial (organ + bossa rhythm box, sad
+trombone, stamp, slide whistle, bells, typewriter, boing, phone bell, tape
+hum) through the TV's speaker; tvOff stops it. The camera frames the
+picture itself while it plays (den-fx tvWatch). Tapping the set turns it
+off early. Once per story (engine/journey.js COMMERCIAL_AIRED_KEY, cleared
+by forgetSingularity); the catalog's "special orders open" note waits for
+it (setCommercialOn). No voice-over (no TTS available offline); the user
+may supply one. __DEN_TV__() now reports watch and ad (ms into it).

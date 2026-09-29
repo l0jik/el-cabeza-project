@@ -32,7 +32,7 @@ import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS
 import { ensurePaper, ensureAgedPaper } from "./tienda-textures.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
-import { singularitySeen, onJourneyChange, CLASSIC_PIECE_KEYS, SPECIAL_ORDER_NOTED_KEY } from "../engine/journey.js";
+import { singularitySeen, onJourneyChange, isCommercialOn, CLASSIC_PIECE_KEYS, SPECIAL_ORDER_NOTED_KEY } from "../engine/journey.js";
 
 /* The classic game's order (engine/journey.js: the extras wait for the
    Singularity's first visit): the five pieces only, no laws, no cut
@@ -96,18 +96,20 @@ export function useSetupExtras(x) {
      store keeps its catalog, whose foot line is then the way in), and a
      note says so once. */
   const [specialOpen, setSpecialOpen] = React.useState(singularitySeen);
-  React.useEffect(() => onJourneyChange(setSpecialOpen), []);
+  // (The den's commercial says it first: the note waits for it to end.)
+  const [adOn, setAdOn] = React.useState(isCommercialOn);
+  React.useEffect(() => onJourneyChange((seen) => { setSpecialOpen(seen); setAdOn(isCommercialOn()); }), []);
   const [specialNote, setSpecialNote] = React.useState(false);
   React.useEffect(() => {
-    if (!specialOpen) return undefined;
+    if (!specialOpen || adOn) return undefined;
     let noted = true;
     try { noted = !!localStorage.getItem(SPECIAL_ORDER_NOTED_KEY); } catch (e) { /* no storage: no note */ }
     if (noted) return undefined;
     try { localStorage.setItem(SPECIAL_ORDER_NOTED_KEY, "1"); } catch (e) { /* once this visit, then */ }
     setSpecialNote(true);
     const id = setTimeout(() => setSpecialNote(false), 7000);
-    return () => clearTimeout(id);
-  }, [specialOpen]);
+    return () => { clearTimeout(id); setSpecialNote(false); };
+  }, [specialOpen, adOn]);
   const selRef = React.useRef(null);
   if (!selRef.current) selRef.current = defaultSelections();
   React.useEffect(() => { if (!x.awaitingBegin && overlay) setOverlay(null); }, [x.awaitingBegin]);

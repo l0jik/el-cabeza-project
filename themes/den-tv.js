@@ -25,6 +25,7 @@ import { canvasTexture, repaint } from "./tienda-textures.js";
 import { paintWood } from "./wood-set.js";
 import { quality } from "./tienda-quality.js";
 import * as TX from "./den-textures.js";
+import { createCommercial, COMMERCIAL_MS } from "./den-commercial.js";
 
 // The timeline, in ms from the moment the knob turns.
 export const TV_TIMES = {
@@ -353,6 +354,9 @@ export function buildTelevision(yF, RZ, X = -40) {
   power.traverse((o) => { if (o.isMesh) { o.userData.tv = "power"; pickables.push(o); } });
 
   /* ---- the set's life ---- */
+  // The late-night commercial (den-commercial.js), made when it's first
+  // shown.
+  let commercial = null;
   let phase = "off", t0 = 0, portal = false, entered = false, onEnter = null;
   let knobA = -0.9, knobGoal = -0.9;
   const u = screen.uniforms;
@@ -373,6 +377,7 @@ export function buildTelevision(yF, RZ, X = -40) {
        pattern is up and calls enter() partway into the dive. */
     powerOn(now, withPortal = false, enter = null) {
       if (phase !== "off" && phase !== "closing") return false;
+      u.uTex.value = pattern;
       portal = !!withPortal; onEnter = enter; entered = false;
       knobGoal = -0.9 + 0.75;
       set("warming", now);
@@ -390,8 +395,23 @@ export function buildTelevision(yF, RZ, X = -40) {
     showPattern(now) {
       knobA = knobGoal = -0.9 + 0.75;
       portal = false;
+      u.uTex.value = pattern;
       set("pattern", now - TV_TIMES.resolve);
     },
+    /* Already on (back out of Singularity the first time, in Nova), and
+       the late-night commercial is on: then snow ("aired"), for den-fx.js
+       to switch it off. */
+    showCommercial(now, delay = 0) {
+      knobA = knobGoal = -0.9 + 0.75;
+      portal = false;
+      if (!commercial) { commercial = createCommercial(); disposables.push(commercial); }
+      commercial.reset();
+      commercial.draw(0);
+      u.uTex.value = commercial.texture;
+      set("commercial", now + delay);
+    },
+    // How far into the commercial (ms), or null if it isn't on.
+    commercialAt: (now) => (phase === "commercial" ? Math.max(0, since(now)) : null),
     // Each frame: the knob, the pilot light and the picture. Returns the
     // dive's progress (0 to 1), for the camera.
     animate(now, dt) {
@@ -416,6 +436,12 @@ export function buildTelevision(yF, RZ, X = -40) {
         raster = 1; glow = 1; pat = 1; snow = 0.1;
         dive = ease(clamp01(s / TV_TIMES.dive));
         if (!entered && s >= TV_TIMES.enterAt) { entered = true; if (onEnter) onEnter(); }
+      } else if (phase === "commercial") {
+        raster = 1; glow = 1; pat = 1; snow = 0.06;
+        commercial.draw(Math.max(0, s) / 1000);
+        if (s >= COMMERCIAL_MS) set("aired", now);
+      } else if (phase === "aired") {
+        raster = 1; glow = 1; snow = 1;
       } else if (phase === "closing") {
         const c = clamp01(s / TV_TIMES.collapse);
         raster = 1 - ease(c); pat = 1; snow = 0.3; glow = 1;

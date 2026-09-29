@@ -35,6 +35,7 @@ import * as THREE from "three";
 import { SLAB_X, SLAB_Z, SLAB_MAX } from "../engine/constants.js";
 import { buildDen } from "./den-room.js";
 import { quality } from "./tienda-quality.js";
+import { setCommercialOn } from "../engine/journey.js";
 
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
@@ -418,6 +419,12 @@ export function createDenEffects(woodSet) {
     /* ---- the television ---- */
     let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false;
     let returning = !!(novaTv && novaTv.returning);
+    // The first time back, the late-night commercial is on (den-commercial.js):
+    // the camera comes in close enough to read it (tvWatch), and the set
+    // goes off once it's aired (or when it's tapped).
+    let commercialNext = !!(novaTv && novaTv.commercial);
+    let tvWatch = 0;
+    const AD_DELAY = 1000;
     // Back from Singularity, leaving the set (user: it cut away from the TV
     // too quickly): a moment at the set once it's off, then a slow start
     // that gathers speed toward the table and settles there (timed, not the
@@ -426,13 +433,19 @@ export function createDenEffects(woodSet) {
     let tvLeaveAt = 0;
     const easeInOutCubic = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
     // How loud the snow hisses, by what's on the screen.
-    const HISS = { warming: 1, snow: 1, resolving: 0.5, pattern: 0.1, dive: 0.08 };
+    const HISS = { warming: 1, snow: 1, resolving: 0.5, pattern: 0.1, dive: 0.08, commercial: 0.03, aired: 0.9 };
     function pressTv() {
       const set = den && den.tv;
       if (!set) return false;
       const now = performance.now();
       if (set.isOn()) {
-        if (set.powerOff(now)) { tvGoal = 0; if (audio && audio.tvOff) audio.tvOff(); }
+        if (set.powerOff(now)) {
+          // (Off in the middle of the commercial: the camera goes back the
+          // slow way, as it does after it.)
+          if (tvGoal && tvW > 0.9) tvLeaveAt = performance.now() + TV_LEAVE_PAUSE;
+          tvGoal = 0; offAt = 0;
+          if (audio && audio.tvOff) audio.tvOff();
+        }
         return true;
       }
       const portal = !!(novaTv && novaTv.portal && novaTv.portal());
@@ -450,7 +463,7 @@ export function createDenEffects(woodSet) {
     }
     if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive });
+      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null });
       window.__DEN_TV_PRESS__ = pressTv;
     }
     return {
@@ -472,12 +485,23 @@ export function createDenEffects(woodSet) {
         if (returning) {
           // Back from Singularity: the set is on, the camera at it; then,
           // once Nova's transition has finished showing the room (it ends
-          // about 0.6 s after this), off.
+          // about 0.6 s after this), off. The first time, the commercial
+          // is on instead, and the set goes off after it.
           returning = false;
-          den.tv.showPattern(now);
           tvGoal = tvW = 1;
-          offAt = now + 1800;
+          if (commercialNext) {
+            commercialNext = false;
+            // (A second in, once Nova's transition has shown the room.)
+            den.tv.showCommercial(now, AD_DELAY);
+            tvWatch = 1;
+            setCommercialOn(true);
+            if (audio && audio.tvCommercial) audio.tvCommercial(AD_DELAY / 1000);
+          } else {
+            den.tv.showPattern(now);
+            offAt = now + 1800;
+          }
         }
+        if (den.tv.phase() === "aired" && !offAt) offAt = now + 650;
         if (offAt && now >= offAt) {
           offAt = 0;
           if (den.tv.powerOff(now) && audio && audio.tvOff) audio.tvOff();
@@ -485,6 +509,11 @@ export function createDenEffects(woodSet) {
           tvLeaveAt = performance.now() + TV_LEAVE_PAUSE;
         }
         tvDive = den.tv.animate(now, dt);
+        {
+          const on = den.tv.phase() === "commercial";
+          if (!on) setCommercialOn(false);
+          tvWatch += ((on ? 1 : 0) - tvWatch) * (1 - Math.exp(-dt * 1.2));
+        }
         // While the camera visits the set, the title and the dock's piece
         // step aside (standard.js styleSheet, html.ec-tv-visit).
         bookListeners(t);
@@ -575,10 +604,16 @@ export function createDenEffects(woodSet) {
              picture pulls, right up to the glass. */
           const f = den.tv.focus, dv = den.tv.dive;
           const vt = Math.tan((camera.fov * Math.PI) / 360);
-          const d = Math.min(70, Math.max(f.halfH / vt, f.halfW / (vt * camera.aspect)));
-          const k = tvDive;
-          eye.set(f.target.x + (dv.x - f.target.x) * k, f.target.y + d * 0.1 * (1 - k) + (dv.y - f.target.y) * k, f.front - d + (dv.eyeZ - (f.front - d)) * k);
-          aim.copy(f.target).lerp(dv.target, k);
+          // Watching the commercial: in close, on the picture itself.
+          const w = tvWatch * tvWatch * (3 - 2 * tvWatch);
+          const halfH = f.halfH + (8.2 - f.halfH) * w, halfW = f.halfW + (10.6 - f.halfW) * w;
+          const d = Math.min(70, Math.max(halfH / vt, halfW / (vt * camera.aspect)));
+          const k = Math.max(tvDive, w);
+          const lift = d * 0.1 * (1 - k);
+          eye.set(f.target.x + (dv.x - f.target.x) * k, f.target.y + lift + (dv.y - f.target.y) * k, f.front - d);
+          if (tvDive > 0) eye.z = f.front - d + (dv.eyeZ - (f.front - d)) * tvDive;
+          aim.set(f.target.x + (dv.x - f.target.x) * k, f.target.y + (dv.y - f.target.y) * k, f.front);
+          if (tvDive > 0) aim.lerp(dv.target, tvDive);
           t.boardGroup.localToWorld(eye); t.boardGroup.localToWorld(aim);
           // (The timed leave is already eased; the others ease here.)
           const e = tvLeaveAt ? tvW : tvW * tvW * (3 - 2 * tvW);
@@ -650,6 +685,7 @@ export function createDenEffects(woodSet) {
           bookListenersOn = null;
         }
         if (typeof document !== "undefined") document.documentElement.classList.remove("ec-tv-visit");
+        setCommercialOn(false);
         if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; }
       },
     };

@@ -4098,7 +4098,13 @@ export function renderSingularityOverlay(setupExtras) {
       ref: blackDivRef,
       style: { position: "absolute", inset: 0, background: "#000", opacity: 0 },
     }),
-    phase === PHASES.SPHERE && renderBackButton(exitSingularity),
+    // BACK: out to Neon's board; in Nova, home to the den instead
+    // (setupExtras.onSingularityBack, apps/unified.jsx: its transition
+    // takes the whole page, sphere and all, so the sphere isn't torn down
+    // first unless it can't go).
+    phase === PHASES.SPHERE && renderBackButton(setupExtras.onSingularityBack
+      ? () => { if (!setupExtras.onSingularityBack()) exitSingularity(); }
+      : exitSingularity),
     phase === PHASES.SPHERE && stage === "labels" && h(LabelsHint, { key: "sphere-help" }),
     phase === PHASES.SPHERE && stage === "labels" && t && t.singularity.configHover &&
       h("div", {
