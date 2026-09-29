@@ -3569,3 +3569,12 @@ phone menu until "Start the story over" (which clears it).
   standee shows assets/tienda/ad-housewares.jpg ("Come home to Harvest
   Gold!", made by tools/tienda_housewares_ad.py from the same spread, fonts
   in tools/fonts), its card "Housewares · Aisle 4". The board stays.
+- Games-counter scene dressed as a panel clipped from a 1975 comic (user:
+  "reminiscing... a real-life pull-out of a comic book"): yellowed
+  newsprint with a scissor-cut clip-path edge, two strips of tape, ink
+  border, Ben-Day dot overlay + warm vignette, yellow narration boxes
+  ("Later that same day..." on the first frame, "Moments later..." when the
+  manager arrives), the PA as a caption box, Bangers/Comic Neue buttons.
+- Music chip (now playing): above the floating dock piece (z 16 > 15) with
+  a firmer shadow; paused before a game on a phone, the piece covered its
+  volume slider.

@@ -7566,15 +7566,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             aria-label="Now playing"
             style={{
               position: "fixed",
-              zIndex: cornerControlsZ,
+              // In front of the floating dock piece (15): paused, the chip
+              // opens out to its slider, which the spinning piece covered
+              // on a phone before a game (user). A firmer shadow sets it
+              // in front.
+              zIndex: Math.max(cornerControlsZ, 16),
               ...(shell ? { left: 12, bottom: "calc(var(--ec-shell-bottom, 72px) + 8px)" } : { left: 18, bottom: musicChipBottom }),
               width: folded ? 30 : musicChipCompact ? Math.min(MUSIC_CHIP_W, viewportW - 36) : MUSIC_CHIP_W,
               boxSizing: "border-box", height: musicChipCompact ? 30 : 32, overflow: "hidden",
               display: "flex", alignItems: "center", gap: 6, padding: folded ? "0 1px" : "0 10px 0 2px",
               background: modalSurface, border: `1px solid ${COLORS.slateSoft}`, borderRadius: 999,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.25)", color: COLORS.charcoal,
+              boxShadow: "0 4px 14px rgba(0,0,0,0.38), 0 1px 3px rgba(0,0,0,0.3)", color: COLORS.charcoal,
               fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12,
-              opacity: hidden ? 0 : focusMode ? 0.4 : 0.92,
+              opacity: hidden ? 0 : focusMode ? 0.4 : musicPaused ? 1 : 0.92,
               pointerEvents: hidden ? "none" : "auto", transition: "opacity 0.5s ease, width 0.28s ease",
             }}
           >

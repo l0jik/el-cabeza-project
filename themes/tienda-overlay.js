@@ -453,25 +453,53 @@ const STORY_CSS = `
   .td-clerk { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: default; animation: tdClerkIn 0.4s ease both;
     width: min(420px, 100%); }
   @keyframes tdClerkIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-  /* A drugstore print: the photograph in its white border, a little
-     askew, the caption along the wide bottom margin. */
-  .td-clerk-print { margin: 0; padding: 10px 10px 0; background: #F4EFE3; border-radius: 3px; transform: rotate(-0.8deg);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 18px 50px rgba(10,6,3,0.55), 0 2px 6px rgba(10,6,3,0.35);
-    width: min(100%, calc((100dvh - 150px) * 368 / 474 + 20px)); cursor: pointer; }
-  .td-clerk-shots { position: relative; aspect-ratio: 368 / 474; background: #2A1F16; overflow: hidden; }
+  /* A panel clipped out of a 1975 comic book: yellowed newsprint, cut by
+     hand (the ragged edge is a clip-path, the shadow a drop-shadow on the
+     figure so it follows the cut), taped down at two corners. */
+  .td-clerk-print { position: relative; margin: 0; transform: rotate(-1.1deg); cursor: pointer;
+    filter: drop-shadow(0 18px 26px rgba(8, 4, 2, 0.6)) drop-shadow(0 2px 3px rgba(8, 4, 2, 0.45));
+    width: min(100%, calc((100dvh - 170px) * 368 / 474 + 32px)); }
+  .td-clerk-paper { padding: 16px 16px 0; background-color: #E9DCB6;
+    background-image: var(--tienda-aged, none), radial-gradient(ellipse at 30% 20%, rgba(255, 250, 230, 0.35), transparent 60%),
+      linear-gradient(160deg, rgba(160, 110, 40, 0.12), rgba(120, 80, 30, 0.2)); background-size: 384px 384px, auto, auto; }
+  .td-clerk-tape { position: absolute; z-index: 2; width: 74px; height: 24px; top: -9px; background: rgba(226, 208, 160, 0.72);
+    box-shadow: 0 1px 2px rgba(60, 40, 10, 0.25); border-left: 1px dashed rgba(150, 120, 70, 0.35); border-right: 1px dashed rgba(150, 120, 70, 0.35); }
+  .td-clerk-tape-l { left: -14px; transform: rotate(-32deg); }
+  .td-clerk-tape-r { right: -14px; transform: rotate(28deg); }
+  /* The panel: heavy ink border, the photograph printed in dots and
+     faded warm at the edges, as remembered. */
+  .td-clerk-shots { position: relative; aspect-ratio: 368 / 474; background: #2A1F16; overflow: hidden;
+    outline: 4px solid #17110D; outline-offset: 0; box-shadow: 0 0 0 1px #17110D; }
   .td-clerk-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; user-select: none;
-    transition: opacity 0.32s ease; }
+    filter: sepia(0.22) saturate(1.12) contrast(1.06) brightness(1.02); transition: opacity 0.32s ease; }
   .td-clerk-print[data-fade="slow"] .td-clerk-shot { transition-duration: 0.9s; }
   .td-clerk-shot[data-on="true"] { opacity: 1; }
-  .td-clerk-fallback { position: absolute; inset: auto 12px 12px; margin: 0; padding: 12px 14px; background: #FBF8F0; color: ${INK};
-    border-radius: 14px; font: 400 16px/1.4 ${COURIER}; }
-  .td-clerk-caption { min-height: 10px; display: flex; align-items: center; justify-content: center; padding: 8px 8px 0;
-    font: 400 12px/1.3 ${COURIER}; letter-spacing: 0.06em; color: rgba(46,33,24,0.62); text-align: center; }
-  .td-clerk-pa { font: italic 400 14px/1.35 ${BODONI}; letter-spacing: 0; color: rgba(46,33,24,0.85); animation: tdClerkIn 0.5s ease both; }
+  .td-clerk-dots { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background-image: radial-gradient(rgba(70, 40, 20, 0.5) 0.9px, transparent 1.4px), radial-gradient(rgba(200, 60, 50, 0.22) 0.8px, transparent 1.3px);
+    background-size: 4px 4px, 4px 4px; background-position: 0 0, 2px 2px; mix-blend-mode: multiply; opacity: 0.42;
+    box-shadow: inset 0 0 42px rgba(90, 50, 15, 0.45), inset 0 0 0 1px rgba(0, 0, 0, 0.4); }
+  .td-clerk-dots::after { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(255, 228, 170, 0.1), rgba(160, 100, 40, 0.14)); mix-blend-mode: multiply; }
+  /* The narrator's box and the PA, lettered as the comics were. */
+  .td-clerk-narration, .td-clerk-pa { position: absolute; z-index: 2; margin: 0; padding: 5px 9px 4px; background: #F3D85A; color: #17110D;
+    border: 2px solid #17110D; box-shadow: 2px 2px 0 rgba(23, 17, 13, 0.85);
+    font: 700 12px/1.25 'Comic Neue', 'Comic Sans MS', ${COURIER}; letter-spacing: 0.04em; text-transform: uppercase;
+    animation: tdClerkIn 0.35s ease both; }
+  .td-clerk-narration { top: 8px; left: 8px; max-width: 55%; }
+  .td-clerk-pa { left: 8px; right: 8px; bottom: 8px; text-align: center; background: #FBF6E6; }
+  .td-clerk-fallback { position: absolute; z-index: 2; inset: auto 12px 12px; margin: 0; padding: 12px 14px; background: #FBF8F0; color: ${INK};
+    border: 2px solid #17110D; border-radius: 16px; font: 700 15px/1.35 'Comic Neue', ${COURIER}; }
   .td-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  @media (prefers-reduced-motion: reduce) { .td-clerk-shot, .td-clerk-print[data-fade="slow"] .td-clerk-shot { transition-duration: 0.01s; } }
-  .td-clerk-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; padding: 10px 6px 12px; }
-  .td-clerk-actions .td-btn { min-height: 44px; }
+  /* The buttons, lettered too. */
+  .td-clerk-actions .td-btn { min-height: 44px; padding: 6px 16px 4px; border: 2.5px solid #17110D; border-radius: 2px;
+    box-shadow: 3px 3px 0 #17110D; font: 400 21px/1 'Bangers', ${FRANKLIN}; letter-spacing: 0.07em; text-transform: uppercase;
+    transition: transform 0.08s ease, box-shadow 0.08s ease; }
+  .td-clerk-actions .td-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #17110D; }
+  .td-clerk-actions .td-primary, .td-clerk-actions .td-primary:hover { background: #F3D85A; color: #17110D; }
+  .td-clerk-actions .td-plain:hover { background: #FFFDF3; color: #17110D; }
+  .td-clerk-actions .td-plain { background: #FBF6E6; color: #17110D; }
+  .td-clerk-actions [data-testid="tienda-clerk-go-home"], .td-clerk-actions [data-testid="tienda-clerk-go-home"]:hover { background: #C8392B; color: #FBF6E6; }
+  @media (prefers-reduced-motion: reduce) { .td-clerk-shot, .td-clerk-print[data-fade="slow"] .td-clerk-shot { transition-duration: 0.01s; } .td-clerk-narration, .td-clerk-pa { animation: none; } }
+  .td-clerk-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; padding: 14px 6px 16px; }
   .td-offer { position: fixed; z-index: 1150; left: 50%; top: max(12px, env(safe-area-inset-top)); transform: translateX(-50%);
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: min(560px, calc(100vw - 24px));
     padding: 10px 14px; background: #EFE6CD; color: ${INK}; border: 1px solid rgba(46,33,24,0.35); box-shadow: 0 10px 30px rgba(20,12,6,0.35);
@@ -640,11 +668,11 @@ function PurchaseOffer({ story, audio }) {
    files beside the page (build/build.js), fetched as the scene opens; if
    one can't load, its line is printed instead. */
 const CLERK_FRAMES = [
-  { shots: ["clerk-hello", "clerk-sure"], lines: ["Hi there! Can I help you with something?", "Sure thing! I'd be happy to help you find that."] },
+  { shots: ["clerk-hello", "clerk-sure"], narration: "Later that same day\u2026", lines: ["Hi there! Can I help you with something?", "Sure thing! I'd be happy to help you find that."] },
   { shots: ["clerk-go", "clerk-back"], lines: ["I'll go check on that for you real quick!", "One minute! I'll see if we have it in the back!"] },
   { shots: ["clerk-hmm", "clerk-sorry"], lines: ["Hmm\u2026 I couldn't find it. I checked the aisle and also the back room.", "Yeah, I'm sorry. I don't see it anywhere right now."] },
   { shots: ["clerk-phone"], lines: ["Okay, let me call my manager and see if they can help us with this."], page: true },
-  { shots: ["manager-1"], lines: ["Afternoon! El Cabeza, you said?"] },
+  { shots: ["manager-1"], narration: "Moments later\u2026", lines: ["Afternoon! El Cabeza, you said?"] },
   { shots: ["manager-2"], lines: ["No\u2026 no. We've never sold a game by that name."] },
   { shots: ["manager-3"], lines: ["You say you were in here about an hour ago, huh?"] },
   { shots: ["manager-4"], lines: ["Hmm\u2026 That's strange."] },
@@ -654,7 +682,29 @@ const CLERK_FRAMES = [
   { shots: ["manager-8"], lines: ["Is there anything else I can help you with today?"] },
 ];
 // Every shot in order, with its frame.
-const CLERK_STEPS = CLERK_FRAMES.flatMap((f, fi) => f.shots.map((shot, si) => ({ shot, frame: fi, line: f.lines[si], alt: f.alt, page: !!f.page && si === 0 })));
+const CLERK_STEPS = CLERK_FRAMES.flatMap((f, fi) => f.shots.map((shot, si) => ({ shot, frame: fi, line: f.lines[si], alt: f.alt, narration: f.narration, page: !!f.page && si === 0 })));
+/* The clipping's edge: cut by hand with scissors, a little off true, so
+   each side wanders in and out by a few pixels (the same cut every
+   time). */
+const CLIP_EDGE = (() => {
+  let seed = 1975;
+  const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const pts = [], n = 14;
+  const at = (x, y) => pts.push(`calc(${x}% ${x > 50 ? "-" : "+"} ${(r() * 4).toFixed(1)}px) calc(${y}% ${y > 50 ? "-" : "+"} ${(r() * 4).toFixed(1)}px)`);
+  for (let i = 0; i < n; i++) at((i / n) * 100, 0);
+  for (let i = 0; i < n; i++) at(100, (i / n) * 100);
+  for (let i = n; i > 0; i--) at((i / n) * 100, 100);
+  for (let i = n; i > 0; i--) at(0, (i / n) * 100);
+  return `polygon(${pts.join(", ")})`;
+})();
+// Comic lettering for the clipping (Google Fonts, once).
+function ensureComicFonts() {
+  if (typeof document === "undefined" || document.getElementById("td-comic-fonts")) return;
+  const l = document.createElement("link");
+  l.id = "td-comic-fonts"; l.rel = "stylesheet";
+  l.href = "https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@700&display=swap";
+  document.head.appendChild(l);
+}
 export const CLERK_SHOT_FILES = CLERK_STEPS.map((s) => `el-cabeza-${s.shot}.jpg`);
 const PA_CAPTION = "Ding-dong. \u201cManager to Games, please. Manager to Games.\u201d";
 
@@ -668,6 +718,7 @@ function ClerkScene({ audio, onStay, onGoHome }) {
   const fade = prev && prev.frame === s.frame ? "slow" : "quick";
   // Fetch them all as the scene opens, so no tap waits on one.
   React.useEffect(() => {
+    ensureComicFonts();
     CLERK_SHOT_FILES.forEach((src) => { const im = new Image(); im.src = src; });
   }, []);
   // The page goes out a beat after he picks up the phone.
@@ -693,17 +744,24 @@ function ClerkScene({ audio, onStay, onGoHome }) {
   return h("div", { className: "td-layer td-clerk-layer", "data-testid": "tienda-clerk", "data-step": step, "data-frame": s.frame, onClick: next },
     h(Style),
     h("div", { className: "td-clerk", role: "dialog", "aria-label": "At the Games counter" },
+      // A panel clipped out of a 1975 comic book and kept: yellowed
+      // newsprint cut by hand, two strips of old tape, the panel in its
+      // ink border, printed in Ben-Day dots, a little faded.
       h("figure", { className: "td-clerk-print", "data-fade": fade },
+        h("span", { className: "td-clerk-tape td-clerk-tape-l", "aria-hidden": "true" }),
+        h("span", { className: "td-clerk-tape td-clerk-tape-r", "aria-hidden": "true" }),
+        h("div", { className: "td-clerk-paper", style: { clipPath: CLIP_EDGE, WebkitClipPath: CLIP_EDGE } },
         h("div", { className: "td-clerk-shots" },
           CLERK_STEPS.map((c, i) => h("img", {
             key: c.shot, src: CLERK_SHOT_FILES[i], alt: "", "aria-hidden": "true", draggable: false,
             className: "td-clerk-shot", "data-on": i === step ? "true" : "false",
             onError: () => setFailed((f) => { const n = new Set(f); n.add(c.shot); return n; }),
           })),
+          h("i", { className: "td-clerk-dots", "aria-hidden": "true" }),
+          s.narration && h("p", { key: `n${s.frame}`, className: "td-clerk-narration" }, s.narration),
+          s.page && pagedOut && h("p", { className: "td-clerk-pa" }, PA_CAPTION),
           lost && h("p", { className: "td-clerk-fallback" }, said ? `\u201c${said}\u201d` : "\u2026")),
-        h("figcaption", { className: "td-clerk-caption" },
-          s.page && pagedOut ? h("i", { className: "td-clerk-pa" }, PA_CAPTION) : null),
-        // In the print's wide bottom margin (clear of the dock's piece on
+        // In the clipping's bottom margin (clear of the dock's piece on
         // a phone, which floats over the bottom of the screen).
         h("div", { className: "td-clerk-actions" },
         last
@@ -711,7 +769,7 @@ function ClerkScene({ audio, onStay, onGoHome }) {
               h("button", { key: "stay", type: "button", className: "td-btn td-plain", "data-testid": "tienda-clerk-stay", onClick: (e) => { e.stopPropagation(); onStay(); } }, "Stay a while"),
               h("button", { key: "home", type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-go-home", onClick: (e) => { e.stopPropagation(); audio && audio.playSelect && audio.playSelect(); onGoHome(); } }, "Go home, confused."),
             ]
-          : h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-next", onClick: (e) => { e.stopPropagation(); next(); } }, "Continue \u203a"))),
+          : h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-next", onClick: (e) => { e.stopPropagation(); next(); } }, "Continue \u25b8")))),
       // The line, for a screen reader (the photograph carries it on screen).
       h("p", { className: "td-sr", "data-testid": "tienda-clerk-line", "aria-live": "polite" }, s.line ? `\u201c${s.line}\u201d` : s.alt)));
 }
