@@ -3420,3 +3420,19 @@ may supply one. __DEN_TV__() now reports watch and ad (ms into it).
   price tag, strobing blue/yellow/red/green at 6 Hz with chaser bulbs,
   flashing rays and zaps in time; the price scene runs 2.3 s longer for it
   (COMMERCIAL_MS 36800).
+- Round 3 (user: voice still too forward; add cheap echo; "the new king!"
+  x3 somewhere; VHS audio tearing/wow/flutter): voice gain 0.17 and a
+  tape echo (210/420 ms) on it; commercial-new-king.mp3 is "the new king!"
+  cut from the recording (orig 2.685-4.7 s) three times, 1.5 s apart,
+  fading, same lo-fi chain + echo; shipped as el-cabeza-den-ad-voice-2.mp3,
+  played over the sign-off (CUES.kings 35.2) while the credit card shows
+  three fading "the new king!" captions; the credit holds to snow at 41.6
+  (COMMERCIAL_MS 42200). The whole commercial's sound now runs through a
+  wandering delay (wow 0.47 Hz, flutter 6.8 and 13.1 Hz) and a "tear" gain
+  that drops out with a 59.94 Hz buzz and a hiss burst at the picture's
+  rolls and a few random spots.
+- The special-orders note (tienda-overlay.js) no longer times out: it stays
+  until a tap anywhere else dismisses it (then remembered, noted key set on
+  dismissal, not on showing), and a tap on it ("Order from the catalog ›")
+  opens the order form straight away (from the box lid too). Waits for the
+  den's commercial as before.

@@ -27,6 +27,8 @@ import { createWoodSfx } from "./wood-sfx.js";
 import { CUES as AD, COMMERCIAL_MS } from "./den-commercial.js";
 // The commercial's voice-over, beside the page (build/build.js).
 const AD_VOICE_URL = "el-cabeza-den-ad-voice.mp3";
+const AD_KINGS_URL = "el-cabeza-den-ad-voice-2.mp3"; // "the new king!" x3, at the sign-off
+const AD_VOICE_GAIN = 0.17;
 
 export const hasAudio = true;
 
@@ -324,7 +326,7 @@ export function createAudio() {
     const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3800; bp.Q.value = 0.5;
     hiss.connect(bp).connect(hissGain).connect(bus);
     hiss.start();
-    tv = { bus, hissGain, whine: null, whineGain: null, ad: null, adVoice: null };
+    tv = { bus, hissGain, whine: null, whineGain: null, ad: null, adVoices: [] };
     return tv;
   }
   function tvClick(t) {
@@ -354,7 +356,8 @@ export function createAudio() {
     const t = now();
     tvClick(t);
     if (tv.ad) { tv.ad.gain.setTargetAtTime(0, t, 0.015); tv.ad = null; }
-    if (tv.adVoice) { try { tv.adVoice.pause(); } catch (e) { /* gone */ } tv.adVoice = null; }
+    tv.adVoices.forEach((el) => { try { el.pause(); } catch (e) { /* gone */ } });
+    tv.adVoices = [];
     tv.hissGain.gain.setTargetAtTime(0, t, 0.05);
     if (tv.whine) {
       tv.whine.frequency.setTargetAtTime(9000, t, 0.4);
@@ -374,7 +377,8 @@ export function createAudio() {
   function tvCommercial(delay = 0) {
     if (!tvGraph()) return;
     if (tv.ad) { tv.ad.gain.setTargetAtTime(0, now(), 0.02); tv.ad = null; }
-    if (tv.adVoice) { try { tv.adVoice.pause(); } catch (e) { /* gone */ } tv.adVoice = null; }
+    tv.adVoices.forEach((el) => { try { el.pause(); } catch (e) { /* gone */ } });
+    tv.adVoices = [];
     const T = now() + 0.05 + delay;
     const out = ctx.createGain(); out.gain.value = 1;
     // The speaker: no lows, no highs, a little crunch.
@@ -383,9 +387,41 @@ export function createAudio() {
     const sh = ctx.createWaveShaper(); const curve = new Float32Array(256);
     for (let i = 0; i < 256; i++) { const x = i / 127.5 - 1; curve[i] = Math.tanh(x * 1.8) / Math.tanh(1.8); }
     sh.curve = curve;
-    out.connect(hp).connect(lp).connect(sh).connect(tv.bus);
+    // The station's videotape: wow and flutter (a delay line whose length
+    // wanders, so the pitch does), and tearing (the sound dropping out and
+    // buzzing where the picture rolls or the tracking goes).
+    const wob = ctx.createDelay(0.1); wob.delayTime.value = 0.03;
+    [[0.47, 0.0024], [6.8, 0.00035], [13.1, 0.00012]].forEach(([f, d]) => {
+      const l = ctx.createOscillator(); l.frequency.value = f; const lg = ctx.createGain(); lg.gain.value = d;
+      l.connect(lg).connect(wob.delayTime); l.start(T - 0.05); l.stop(T + COMMERCIAL_MS / 1000 + 1);
+    });
+    const tear = ctx.createGain(); tear.gain.value = 1;
+    out.connect(wob).connect(tear).connect(hp).connect(lp).connect(sh).connect(tv.bus);
     tv.ad = out;
     const end = T + COMMERCIAL_MS / 1000;
+    {
+      // Where it tears: the picture's rolls (every other cut, as the
+      // picture does it), and now and then where the tracking band is.
+      const cuts = [AD.title, AD.chess, AD.king, AD.orders, AD.best, AD.dealer, AD.price, AD.close, AD.credit].filter((_, i) => i % 2 === 0);
+      const at = cuts.map((c) => [c, 0.22]);
+      for (let k = 0.6; k < AD.snow; k += 9) at.push([k + 0.4 + Math.random() * 1.6, 0.08 + Math.random() * 0.1]);
+      for (let k = 3; k < AD.snow - 1; k += 4 + Math.random() * 4) at.push([k, 0.05 + Math.random() * 0.06]);
+      at.sort((a, b) => a[0] - b[0]);
+      let last = -1;
+      at.forEach(([c, d]) => {
+        if (c < last + 0.1) return;
+        last = c + d;
+        const t = T + c;
+        tear.gain.setValueAtTime(1, t); tear.gain.linearRampToValueAtTime(0.12 + Math.random() * 0.2, t + 0.012);
+        tear.gain.setValueAtTime(0.25, t + d * 0.6); tear.gain.linearRampToValueAtTime(1, t + d);
+        // The head's buzz: the field rate, raspy.
+        const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = 59.94;
+        const bf = ctx.createBiquadFilter(); bf.type = "bandpass"; bf.frequency.value = 1400; bf.Q.value = 0.8;
+        const bg = ctx.createGain(); bg.gain.setValueAtTime(0.0001, t); bg.gain.linearRampToValueAtTime(0.035, t + 0.004); bg.gain.exponentialRampToValueAtTime(0.0001, t + 0.004 + d);
+        o.connect(bf).connect(bg).connect(hp); o.start(t); o.stop(t + d + 0.05);
+        burst(t, hp, 0.03, d * 0.8, [["highpass", 2500]]);
+      });
+    }
     const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
     const env = (g, t, a, peak, d) => { g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); };
     // The home organ: square and triangle, a vibrato, keyed on and off.
@@ -442,14 +478,16 @@ export function createAudio() {
     // The king: a cymbal, then the voice (the user's recording, a file
     // beside the page: build/build.js), and a sparkle as it trails off.
     burst(T + AD.king, out, 0.06, 1.4, [["highpass", 5000]]);
-    {
+    const voice = (url, at) => {
       const el = new Audio();
-      el.src = AD_VOICE_URL; el.preload = "auto";
-      const vg = ctx.createGain(); vg.gain.value = 0.3;
+      el.src = url; el.preload = "auto";
+      const vg = ctx.createGain(); vg.gain.value = AD_VOICE_GAIN;
       ctx.createMediaElementSource(el).connect(vg).connect(out);
-      tv.adVoice = el;
-      setTimeout(() => { if (tv && tv.ad === out) { const p = el.play(); if (p && p.catch) p.catch(() => { /* no sound, then */ }); } }, Math.max(0, (T + AD.voice - now()) * 1000));
-    }
+      tv.adVoices.push(el);
+      setTimeout(() => { if (tv && tv.ad === out) { const p = el.play(); if (p && p.catch) p.catch(() => { /* no sound, then */ }); } }, Math.max(0, (T + at - now()) * 1000));
+    };
+    voice(AD_VOICE_URL, AD.voice);
+    voice(AD_KINGS_URL, AD.kings);
     [4.4, 4.9].forEach((d, i) => bell(T + AD.voice + d, 88 + i * 3, 0.018));
     // Special orders: ta-daa, and a bell for each.
     organ(T + AD.orders, [55, 59, 62], 0.18, 0.04); organ(T + AD.orders + 0.2, [60, 64, 67, 72], 0.8, 0.04);

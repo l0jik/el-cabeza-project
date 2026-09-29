@@ -100,16 +100,26 @@ export function useSetupExtras(x) {
   const [adOn, setAdOn] = React.useState(isCommercialOn);
   React.useEffect(() => onJourneyChange((seen) => { setSpecialOpen(seen); setAdOn(isCommercialOn()); }), []);
   const [specialNote, setSpecialNote] = React.useState(false);
+  // The note stays until it's dismissed (a tap anywhere else) or taken up
+  // (a tap on it: the order form), and only then is it remembered as seen.
   React.useEffect(() => {
     if (!specialOpen || adOn) return undefined;
     let noted = true;
     try { noted = !!localStorage.getItem(SPECIAL_ORDER_NOTED_KEY); } catch (e) { /* no storage: no note */ }
     if (noted) return undefined;
-    try { localStorage.setItem(SPECIAL_ORDER_NOTED_KEY, "1"); } catch (e) { /* once this visit, then */ }
     setSpecialNote(true);
-    const id = setTimeout(() => setSpecialNote(false), 7000);
-    return () => { clearTimeout(id); setSpecialNote(false); };
+    return () => setSpecialNote(false);
   }, [specialOpen, adOn]);
+  const dismissSpecialNote = React.useCallback(() => {
+    setSpecialNote(false);
+    try { localStorage.setItem(SPECIAL_ORDER_NOTED_KEY, "1"); } catch (e) { /* this visit, then */ }
+  }, []);
+  React.useEffect(() => {
+    if (!specialNote) return undefined;
+    const onDown = (e) => { if (!(e.target && e.target.closest && e.target.closest(".td-special-note"))) dismissSpecialNote(); };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [specialNote, dismissSpecialNote]);
   const selRef = React.useRef(null);
   if (!selRef.current) selRef.current = defaultSelections();
   React.useEffect(() => { if (!x.awaitingBegin && overlay) setOverlay(null); }, [x.awaitingBegin]);
@@ -142,7 +152,7 @@ export function useSetupExtras(x) {
     reopenOrder: (sel) => { if (sel) selRef.current = sel; setOverlay(store || !specialOpen ? "catalog" : "order"); },
     specialOpen,
     specialNote,
-    dismissSpecialNote: () => setSpecialNote(false),
+    dismissSpecialNote,
     selRef,
   };
 }
@@ -161,8 +171,21 @@ export function renderExtraOverlays(x) {
   // A game in the store played to the end (or ended): the clerk's offer.
   if (store && !x.awaitingBegin && x.game && (x.game.status === "finished" || x.game.status === "ended")) return h(PurchaseOffer, { key: "offer", story: x.story, audio: x.audio });
   const note = x.specialNote && x.awaitingBegin && (!x.tiendaOverlay || x.tiendaOverlay === "lid")
-    ? h("div", { key: "special-note", className: "td-special-note", "data-testid": "tienda-special-note", role: "status", onClick: x.dismissSpecialNote },
-        h(Style), h("b", null, "Special orders"), " The catalog's order form is open now: Custom rules.")
+    ? h("button", {
+        type: "button", key: "special-note", className: "td-special-note", "data-testid": "tienda-special-note",
+        title: "Open the catalog's order form",
+        // Taken up: straight to the order form (from the box's lid too).
+        onClick: () => {
+          x.dismissSpecialNote();
+          if (x.tiendaOverlay === "lid") { lidDone = true; x.audio && x.audio.startStore && x.audio.startStore(); }
+          x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen();
+          x.openCustomRules();
+        },
+      },
+        h(Style),
+        h("b", null, "Special orders now open"),
+        h("span", null, "New pieces, new laws, new boards, from the catalog."),
+        h("span", { className: "td-special-go" }, "Order from the catalog \u203a"))
     : null;
   if (!x.tiendaOverlay || !x.awaitingBegin) return note;
   if (x.tiendaOverlay === "lid") {
@@ -296,7 +319,11 @@ const CSS = `
   .td-special-note { position: fixed; left: 50%; top: calc(14px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 1250;
     max-width: min(92vw, 460px); padding: 9px 14px; background: #EFE6CD; color: ${INK}; border: 1.5px solid ${INK};
     box-shadow: 0 6px 18px rgba(10,6,3,0.4); font: 400 13px/1.4 ${COURIER}; cursor: pointer; animation: tdNoteIn 0.5s ease both; }
-  .td-special-note b { color: ${RED}; margin-right: 6px; letter-spacing: 0.06em; text-transform: uppercase; font-family: ${FRANKLIN}; font-size: 12px; }
+  .td-special-note { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
+  .td-special-note b { color: ${RED}; letter-spacing: 0.06em; text-transform: uppercase; font-family: ${FRANKLIN}; font-size: 13px; }
+  .td-special-note .td-special-go { margin-top: 4px; padding: 5px 12px; border: 1.5px solid ${INK}; background: ${INK}; color: #EFE6CD;
+    font: 700 11px/1 ${FRANKLIN}; letter-spacing: 0.1em; text-transform: uppercase; }
+  .td-special-note:hover .td-special-go, .td-special-note:focus-visible .td-special-go { background: ${RED}; border-color: ${RED}; }
   @keyframes tdNoteIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
   .td-form-scroll { position: relative; overflow: auto; -webkit-overflow-scrolling: touch; padding: clamp(14px, 3vw, 28px) clamp(14px, 3.4vw, 32px) 8px; }
   .td-form-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 16px; border-bottom: 3px solid ${INK}; padding-bottom: 8px; }

@@ -20,13 +20,13 @@
 
 import * as THREE from "three";
 
-export const COMMERCIAL_MS = 36800;
+export const COMMERCIAL_MS = 42200;
 
 // The scenes, in seconds from the top (the sound follows these).
 export const CUES = {
   slate: 0, title: 2.2, chess: 5.6, stamp: 7.0, flee: 7.6, king: 9.2, voice: 9.5, orders: 14.4,
   items: [15.2, 16.0, 16.8], assembly: 17.8, best: 19.0, sortOf: 21.5, dealer: 22.6, standing: 24.0,
-  price: 26.8, only: 27.9, brandNew: 28.9, close: 31.2, never: 32.8, credit: 34.9, snow: 36.2,
+  price: 26.8, only: 27.9, brandNew: 28.9, close: 31.2, never: 32.8, credit: 34.9, kings: 35.2, snow: 41.6,
 };
 
 const W = 512, H = 384, FPS = 12;
@@ -321,8 +321,18 @@ function close(g, t, f) {
 
 function credit(g, t) {
   g.fillStyle = "#07070a"; g.fillRect(0, 0, W, H);
-  say(g, "Paid for by the Friends of El Cabeza", W / 2, H * 0.46, { font: `700 16px ${MONO}`, color: "#d8d4c6" });
-  say(g, "CANAL 99", W / 2, H * 0.56, { font: `700 13px ${MONO}`, color: "#9a9688" });
+  say(g, "Paid for by the Friends of El Cabeza", W / 2, H * 0.36, { font: `700 16px ${MONO}`, color: "#d8d4c6" });
+  say(g, "CANAL 99", W / 2, H * 0.46, { font: `700 13px ${MONO}`, color: "#9a9688" });
+  // "The new king!" three times over it, each a little further gone (the
+  // character generator's echo, to go with the voice's).
+  const k = CUES.kings - CUES.credit;
+  [0, 1.5, 3.0].forEach((d, i) => {
+    const u = t - k - d - 0.35;
+    if (u <= 0) return;
+    g.globalAlpha = Math.max(0, (1 - i * 0.3) * Math.min(1, u * 4) * (1 - Math.max(0, u - 2.2) * 0.5));
+    say(g, "the new king!", W / 2 + (i - 1) * 30, H * (0.6 + i * 0.1), { font: `italic 700 ${24 - i * 3}px ${SERIF}`, color: "#f5c518", smear: 1.6 + i * 1.4 });
+    g.globalAlpha = 1;
+  });
 }
 
 /* ------------------------------------------------------ the whole thing */
