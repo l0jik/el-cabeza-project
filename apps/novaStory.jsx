@@ -27,6 +27,26 @@ export function readOwned() {
   }
 }
 
+/* After the whole story (the Singularity seen), a trip back to the store
+   ends with the clerk and the manager never having heard of the game, and
+   "Go home, confused." From then until the story starts over, there's no
+   way back to the store (storeGone). */
+export function readStoreGone() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORY_KEY) || "null");
+    return !!(s && s.storeGone);
+  } catch (e) {
+    return false;
+  }
+}
+let storeGoneThisVisit = false;
+export function saveStoreGone() {
+  storeGoneThisVisit = true;
+  try { localStorage.setItem(STORY_KEY, JSON.stringify({ owned: true, storeGone: true })); } catch (e) { /* this visit only */ }
+}
+export const storeGone = () => storeGoneThisVisit || readStoreGone();
+export function forgetStoreGone() { storeGoneThisVisit = false; }
+
 export function saveOwned(owned) {
   try {
     if (owned) localStorage.setItem(STORY_KEY, JSON.stringify({ owned: true }));

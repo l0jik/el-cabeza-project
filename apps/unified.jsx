@@ -6,7 +6,7 @@ import * as standardTheme from "../themes/standard.js";
 import * as neonTheme from "../themes/neon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS } from "../engine/constants.js";
-import { StoryCut, readOwned, saveOwned } from "./novaStory.jsx";
+import { StoryCut, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone } from "./novaStory.jsx";
 import { forgetSingularity, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn } from "../engine/journey.js";
 import {
   TransitionStyles,
@@ -30,14 +30,17 @@ import {
    start. The chassis keeps its theme object for as long as it's mounted,
    so these are fixed objects, and their buttons reach the app through
    storyBridge, which the app keeps pointed at its current handlers. */
-const storyBridge = { purchase() {}, backToStore() {}, restart() {}, arrival: false, audio: null };
+const storyBridge = { purchase() {}, backToStore() {}, restart() {}, goHomeConfused() {}, arrival: false, audio: null };
 // How the place just mounted was reached (read once): false for the page
 // opening there, "cut" by a scene change, "fresh" by the fresh start.
 const takeArrival = () => { const a = storyBridge.arrival; storyBridge.arrival = false; return a; };
 // The place's own sound engine, to fade out as the story leaves it.
 const bindAudio = (audio) => { storyBridge.audio = audio; };
-const STORE_STORY = { mode: "store", onPurchase: () => storyBridge.purchase(), arrived: takeArrival, bindAudio };
-const HOME_STORY = { mode: "home", onBackToStore: () => storyBridge.backToStore(), onRestart: () => storyBridge.restart(), arrived: takeArrival, bindAudio };
+// After the whole story (bought, and the Singularity seen) the store has
+// never heard of the game (tienda-overlay.js ClerkScene).
+const storeAfter = () => readOwned() && singularitySeen();
+const STORE_STORY = { mode: "store", onPurchase: () => storyBridge.purchase(), onGoHomeConfused: () => storyBridge.goHomeConfused(), after: storeAfter, arrived: takeArrival, bindAudio };
+const HOME_STORY = { mode: "home", onBackToStore: () => storyBridge.backToStore(), onRestart: () => storyBridge.restart(), storeGone, arrived: takeArrival, bindAudio };
 const storeTheme = {
   ...tiendaTheme,
   useSetupExtras: (x) => tiendaTheme.useSetupExtras({ ...x, story: STORE_STORY }),
@@ -111,6 +114,10 @@ function UnifiedApp() {
   // phone menu. After it (engine/journey.js), both; a story restart locks
   // them again.
   const [singularityOpen, setSingularityOpen] = useState(singularitySeen);
+  // The clerk's scene played out (tienda-overlay.js): the menu's purchase
+  // becomes "Go home, confused."
+  const [clerkTick, setClerkTick] = useState(0);
+  useEffect(() => { const on = () => setClerkTick((n) => n + 1); window.addEventListener("el-cabeza:clerk-done", on); return () => window.removeEventListener("el-cabeza:clerk-done", on); }, []);
   useEffect(() => onJourneyChange(setSingularityOpen), []);
   const [cut, setCut] = useState(null); // a story scene change: { kind, caption, to, fresh?, swapped?, arrived? }
   const [connectWord, setConnectWord] = useState(null); // null | "CONNECT" | "DISCONNECT"
@@ -360,13 +367,21 @@ function UnifiedApp() {
   }, []);
   storyBridge.purchase = () => {
     if (busyRef.current) return;
+    // Another copy, after all that: the clerk (and then the manager).
+    if (storeAfter()) { window.dispatchEvent(new CustomEvent("el-cabeza:clerk")); return; }
     saveOwned(true);
     startCut({ kind: "purchase", caption: "Later, at home.", to: "standard" });
   };
-  storyBridge.backToStore = () => startCut({ kind: "fade", caption: "Back at the store.", to: "tienda" });
+  storyBridge.backToStore = () => { if (!storeGone()) startCut({ kind: "fade", caption: "Back at the store.", to: "tienda" }); };
+  storyBridge.goHomeConfused = () => {
+    if (busyRef.current) return;
+    saveStoreGone();
+    startCut({ kind: "fade", caption: "Home again. Confused.", to: "standard" });
+  };
   storyBridge.restart = () => {
     if (busyRef.current) return;
     saveOwned(false);
+    forgetStoreGone();
     // The extras go back behind the Singularity (engine/journey.js).
     forgetSingularity();
     startCut({ kind: "fade", caption: "Once more, from the top shelf.", to: "tienda", fresh: true });
@@ -441,17 +456,20 @@ function UnifiedApp() {
         setConnectWord(themeName === "standard" ? "CONNECT" : "DISCONNECT");
       },
     };
+    const after = storeAfter();
     const items = themeName === "tienda"
-      ? [{ key: "purchase", testid: "shell-menu-purchase", label: "Purchase and bring home", detail: "$7.97, and home to the den", onClick: () => storyBridge.purchase() }]
+      ? [tiendaTheme.clerkConfused()
+          ? { key: "confused", testid: "shell-menu-go-home-confused", label: "Go home, confused.", detail: "Nobody here has heard of it", onClick: () => storyBridge.goHomeConfused() }
+          : { key: "purchase", testid: "shell-menu-purchase", label: after ? "Purchase another copy" : "Purchase and bring home", detail: after ? "$7.97, at the register" : "$7.97, and home to the den", onClick: () => storyBridge.purchase() }]
       : themeName === "standard"
         ? [
             switchTheme,
-            { key: "back-to-store", testid: "shell-menu-back-to-store", label: "Back to the store", detail: "Where the game came from", onClick: () => storyBridge.backToStore() },
+            !storeGone() && { key: "back-to-store", testid: "shell-menu-back-to-store", label: "Back to the store", detail: "Where the game came from", onClick: () => storyBridge.backToStore() },
             { key: "restart", testid: "shell-menu-restart", label: "Start the story over", detail: "From the store's shelf", onClick: () => storyBridge.restart() },
-          ]
+          ].filter(Boolean)
         : [switchTheme];
     return { preferBar: layoutPref === "bar", onLayoutChange, menuItems: items };
-  }, [themeName, transition, cut, layoutPref, onLayoutChange, singularityOpen]);
+  }, [themeName, transition, cut, layoutPref, onLayoutChange, singularityOpen, clerkTick]);
 
   // The browser's own toolbar colour follows the theme on phones.
   useEffect(() => {

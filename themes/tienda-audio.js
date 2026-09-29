@@ -874,6 +874,8 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
       if (restoreVolume === true) startStore();
     },
     playSelect() { ensureGraph(); if (!ctx) return; wood.select(); },
+    // The public address, on cue (the clerk calling the manager).
+    playPage() { ensureGraph(); if (!ctx || muted) return; if (ctx.state === "suspended") ctx.resume(); paAnnouncement(false); },
     playDeselect() { ensureGraph(); if (!ctx) return; wood.deselect(); },
     playBlocked() { ensureGraph(); if (!ctx) return; wood.blocked(); },
     playRollStart(volumeUnits, durationMs) { ensureGraph(); if (!ctx) return; wood.rollStart(volumeUnits, durationMs); },

@@ -478,13 +478,19 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
     style: { background: "transparent", border: "none", padding: "8px 4px", minHeight: 36, cursor: "pointer", color: COLORS.charcoal,
       fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.08em", textDecoration: "underline", textUnderlineOffset: 3 },
   }, label);
+  // After the whole story the store has never heard of the game: another
+  // copy is the clerk's scene, and then all that's left is to go home.
+  const after = store && story.after && story.after();
+  const confused = after && clerkConfusedNow();
+  const gone = home && story.storeGone && story.storeGone();
   const under = store
     ? h("button", {
-        key: "buy", type: "button", className: "ec-btn", "data-testid": "story-purchase", onClick: story.onPurchase,
+        key: "buy", type: "button", className: "ec-btn", "data-testid": confused ? "story-go-home-confused" : "story-purchase",
+        onClick: confused ? story.onGoHomeConfused : story.onPurchase,
         style: { ...quiet, flex: "0 0 auto", width: "100%", background: COLORS.charcoal, color: COLORS.cream || "#F4EEDC" },
-      }, "Purchase and bring home · $7.97")
+      }, confused ? "Go home, confused." : after ? "Purchase another copy · $7.97" : "Purchase and bring home · $7.97")
     : h("div", { key: "links", style: { display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", width: "100%" } },
-        link("store", "Back to the store", story.onBackToStore, "story-back-to-store"),
+        !gone && link("store", "Back to the store", story.onBackToStore, "story-back-to-store"),
         link("over", "Start the story over", story.onRestart, "story-restart"));
   return h("div", { style: { display: "flex", flexDirection: "column", gap: 8, width: "100%" } }, row, under);
 }
@@ -496,14 +502,17 @@ export function shellSetupActions({ openOrderForm, story, specialOpen }) {
   if (story && story.mode === "store") {
     return [
       { key: "see-pieces", label: "See the pieces", onClick: openOrderForm, testid: "shell-see-pieces", placement: "below", title: "The catalog's page of the pieces in the box" },
-      { key: "purchase", label: "Purchase and bring home \u00b7 $7.97", onClick: story.onPurchase, testid: "shell-purchase", placement: "below" },
+      clerkConfusedNow()
+        ? { key: "confused", label: "Go home, confused.", onClick: story.onGoHomeConfused, testid: "shell-go-home-confused", placement: "below" }
+        : { key: "purchase", label: `${story.after && story.after() ? "Purchase another copy" : "Purchase and bring home"} \u00b7 $7.97`, onClick: story.onPurchase, testid: "shell-purchase", placement: "below" },
     ];
   }
   if (!specialOpen) return [{ key: "see-pieces", label: "See the pieces", onClick: openOrderForm, testid: "shell-see-pieces", placement: "below", title: "The catalog's page of the pieces in the box" }];
   return [{ key: "custom-rules", label: "Custom rules \u203a", onClick: openOrderForm, testid: "shell-custom-rules", placement: "below", title: "Order the pieces, laws and board you want from the catalog" }];
 }
 
-export { useSetupExtras, renderExtraOverlays, resetLid } from "./tienda-overlay.js";
+export { useSetupExtras, renderExtraOverlays, resetLid, clerkConfused } from "./tienda-overlay.js";
+import { clerkConfused as clerkConfusedNow } from "./tienda-overlay.js";
 export { mountAmbientEffects } from "./tienda-fx.js";
 /* The buttons and chips that stand for a side wear that side's wood,
    the pieces' own grain (chassis: theme.sideSurface; the swatch is

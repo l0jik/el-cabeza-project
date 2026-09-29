@@ -65,7 +65,13 @@ const BODONI = "'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif";
 let lidDone = false;
 // Nova's "Start the story over" (apps/unified.jsx): the box is back on the
 // shelf, lid and all.
-export function resetLid() { lidDone = false; }
+export function resetLid() { lidDone = false; confusedAtClerk = false; }
+/* After the whole story, back at the store: another copy, please. The
+   clerk has never heard of it, the manager has never heard of it
+   (ClerkScene), and the store's purchase becomes "Go home, confused."
+   (tienda.js). */
+let confusedAtClerk = false;
+export const clerkConfused = () => confusedAtClerk;
 
 /* ------------------------------------------------------------ setup extras */
 
@@ -122,7 +128,13 @@ export function useSetupExtras(x) {
   }, [specialNote, dismissSpecialNote]);
   const selRef = React.useRef(null);
   if (!selRef.current) selRef.current = defaultSelections();
-  React.useEffect(() => { if (!x.awaitingBegin && overlay) setOverlay(null); }, [x.awaitingBegin]);
+  React.useEffect(() => { if (!x.awaitingBegin && overlay && overlay !== "clerk") setOverlay(null); }, [x.awaitingBegin]);
+  React.useEffect(() => {
+    if (!store) return undefined;
+    const onClerk = () => setOverlay("clerk");
+    window.addEventListener("el-cabeza:clerk", onClerk);
+    return () => window.removeEventListener("el-cabeza:clerk", onClerk);
+  }, []);
   React.useEffect(() => { ensurePaper(); ensureAgedPaper(); }, []);
   // The story fades this place's sound out as it leaves (story.bindAudio).
   React.useEffect(() => { if (story && story.bindAudio) story.bindAudio(x.audio); }, []);
@@ -167,6 +179,13 @@ export function renderExtraOverlays(x) {
     const home = !!x.story && x.story.mode === "home";
     if (home && !(x.currentVariants && x.currentVariants.length)) return null;
     return h(OrderSlip, { key: "slip", groups: x.currentVariants, audio: x.audio, onPurchase: store ? x.story.onPurchase : null });
+  }
+  if (store && x.tiendaOverlay === "clerk") {
+    return h(ClerkScene, {
+      key: "clerk", audio: x.audio,
+      onStay: () => x.closeOverlay(),
+      onGoHome: () => { x.closeOverlay(); x.story.onGoHomeConfused(); },
+    });
   }
   // A game in the store played to the end (or ended): the clerk's offer.
   if (store && !x.awaitingBegin && x.game && (x.game.status === "finished" || x.game.status === "ended")) return h(PurchaseOffer, { key: "offer", story: x.story, audio: x.audio });
@@ -430,6 +449,17 @@ const MORE_CSS = `
 `;
 const STORY_CSS = `
   .td-row-look { grid-template-columns: 64px 5.2em minmax(0, 1fr) 4em; }
+  .td-clerk-layer { cursor: pointer; }
+  .td-clerk { width: min(470px, 100%); padding: clamp(18px, 4vw, 26px); background: var(--tienda-aged, ${PAPER}); background-color: ${PAPER};
+    color: ${INK}; border: 1px solid rgba(46,33,24,0.4); box-shadow: 0 18px 50px rgba(10,6,3,0.5); cursor: default; animation: tdClerkIn 0.4s ease both; }
+  @keyframes tdClerkIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .td-clerk-who { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; border-bottom: 1.5px solid ${INK}; padding-bottom: 8px; }
+  .td-clerk-who b { font: 800 14px/1 ${FRANKLIN}; letter-spacing: 0.12em; text-transform: uppercase; color: ${RED}; }
+  .td-clerk-who span { font: 400 11px/1 ${COURIER}; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
+  .td-clerk-line { margin: 0; min-height: 3.3em; font: 400 clamp(15px, 1.2vw + 11px, 18px)/1.45 ${COURIER}; }
+  .td-clerk-caret { opacity: 0.6; }
+  .td-clerk-dir { margin: 10px 0 0; font: italic 400 14px/1.4 ${BODONI}; color: rgba(46,33,24,0.72); }
+  .td-clerk-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 18px; }
   .td-offer { position: fixed; z-index: 1150; left: 50%; top: max(12px, env(safe-area-inset-top)); transform: translateX(-50%);
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: min(560px, calc(100vw - 24px));
     padding: 10px 14px; background: #EFE6CD; color: ${INK}; border: 1px solid rgba(46,33,24,0.35); box-shadow: 0 10px 30px rgba(20,12,6,0.35);
@@ -580,9 +610,57 @@ function PurchaseOffer({ story, audio }) {
   return h("div", { className: "td-offer", "data-testid": "tienda-offer", role: "status" },
     h(Style),
     h("span", null, "Like it? Take it home: ", h("b", null, "$7.97")),
-    h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-offer-purchase", onClick: () => { audio && audio.playSelect && audio.playSelect(); story.onPurchase(); } }, "Purchase and bring home"),
+    h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-offer-purchase", onClick: () => { audio && audio.playSelect && audio.playSelect(); if (confusedAtClerk) story.onGoHomeConfused(); else story.onPurchase(); } },
+      confusedAtClerk ? "Go home, confused." : story.after && story.after() ? "Purchase another copy" : "Purchase and bring home"),
     h("button", { type: "button", className: "td-offer-x", "aria-label": "No thanks", "data-testid": "tienda-offer-dismiss", onClick: () => setGone(true) }, "×"),
   );
+}
+
+/* Back at the store after the whole story: nobody has heard of it. The
+   clerk looks, calls the manager over the public address, and the manager
+   is very sorry. Each line types out; a tap finishes it or goes on. */
+const CLERK_SCRIPT = [
+  { who: "Clerk", tag: "Games Dept.", line: "Another El Cabeza? Sure thing. Let me just check in the back.", dir: "She's gone a while. Somewhere, a cart wheel squeaks." },
+  { who: "Clerk", tag: "Games Dept.", line: "El\u2026 Cabeza? Hm. That's not ringing any bells. It's not in the book, either.", dir: "She looks at the game on the table, then back at you." },
+  { who: "Clerk", tag: "Games Dept.", line: "Let me get my manager.", dir: "Ding-dong. \u201cMr. Pruitt to Games, please. Mr. Pruitt to Games.\u201d", page: true },
+  { who: "Mr. Pruitt", tag: "Store Manager", line: "Afternoon! El Cabeza, you said? No\u2026 no. We've never sold a game by that name." },
+  { who: "Mr. Pruitt", tag: "Store Manager", line: "We're very sorry, but we'd love to help you if we could\u2026", dir: "He smiles. Nobody looks at the table." },
+];
+function ClerkScene({ audio, onStay, onGoHome }) {
+  const [step, setStep] = React.useState(0);
+  const [shown, setShown] = React.useState(0);
+  const s = CLERK_SCRIPT[step];
+  const last = step === CLERK_SCRIPT.length - 1;
+  const typed = shown >= s.line.length;
+  React.useEffect(() => {
+    setShown(0);
+    if (s.page && audio && audio.playPage) audio.playPage();
+    const id = setInterval(() => setShown((n) => { if (n >= s.line.length) { clearInterval(id); return n; } return n + 1; }), 34);
+    return () => clearInterval(id);
+  }, [step]);
+  React.useEffect(() => {
+    if (last && typed && !confusedAtClerk) {
+      confusedAtClerk = true;
+      window.dispatchEvent(new CustomEvent("el-cabeza:clerk-done"));
+    }
+  }, [last, typed]);
+  const next = () => {
+    if (!typed) { setShown(s.line.length); return; }
+    if (!last) { audio && audio.playSelect && audio.playSelect(); setStep(step + 1); }
+  };
+  return h("div", { className: "td-layer td-clerk-layer", "data-testid": "tienda-clerk", "data-step": step, onClick: next },
+    h(Style),
+    h("div", { className: "td-clerk", role: "dialog", "aria-label": "At the register" },
+      h("div", { className: "td-clerk-who" }, h("b", null, s.who), s.tag && h("span", null, s.tag)),
+      h("p", { className: "td-clerk-line", "data-testid": "tienda-clerk-line" }, "\u201c", s.line.slice(0, shown), typed ? "\u201d" : h("span", { className: "td-clerk-caret" }, "\u258c")),
+      s.dir && typed && h("p", { className: "td-clerk-dir" }, s.dir),
+      h("div", { className: "td-clerk-actions" },
+        last && typed
+          ? [
+              h("button", { key: "stay", type: "button", className: "td-btn td-plain", "data-testid": "tienda-clerk-stay", onClick: (e) => { e.stopPropagation(); onStay(); } }, "Stay a while"),
+              h("button", { key: "home", type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-go-home", onClick: (e) => { e.stopPropagation(); audio && audio.playSelect && audio.playSelect(); onGoHome(); } }, "Go home, confused."),
+            ]
+          : h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-clerk-next", onClick: (e) => { e.stopPropagation(); next(); } }, typed ? "Continue \u203a" : "\u2026"))));
 }
 
 /* ------------------------------------------------------------ the order form */

@@ -3462,3 +3462,19 @@ tooltip covers it). The speaker opens its own labelled menu, so no note.
   panel. The chassis now also sets visibility: hidden (and no pointer
   events) on every corner button while the panel covers them; themes don't
   style visibility, so it holds everywhere.
+
+### After the whole story, the store has never heard of it (2026-09-29)
+Owned and the Singularity seen (apps/unified.jsx storeAfter): back at the
+store the purchase reads "Purchase another copy · $7.97", and any purchase
+there (row, phone bar and menu, the catalog, the offer after a game)
+brings up tienda-overlay.js ClerkScene instead (event "el-cabeza:clerk"):
+five typed lines, tap to finish/continue. The clerk checks the back, it's
+"not in the book", she pages the manager (tienda-audio playPage: the PA
+chime and murmur), and Mr. Pruitt, Store Manager: "We've never sold a game
+by that name." / "We're very sorry, but we'd love to help you if we
+could..." Ends with "Stay a while" / "Go home, confused." From then the
+store's button (and menu) is "Go home, confused." (clerkConfused, event
+"el-cabeza:clerk-done"). Going home saves storeGone in the story's
+localStorage ({owned, storeGone}; novaStory.jsx) with the caption "Home
+again. Confused.", and "Back to the store" is gone from the den's row and
+phone menu until "Start the story over" (which clears it).
