@@ -3343,7 +3343,7 @@ without a shuffled start. Tests updated (e2e-journey, e2e-story's home
 order is now an extra Turrito) but not run (user: skip full suites for
 quick changes).
 
-### The den's 8-track: empty, waiting for the user's own tapes
+### The den's 8-track: the user's own tapes (the eight composed ones are gone)
 Eight synthesized tapes were made and then deleted at the user's word
 ("We are not going to keep any of those eight tracks. Period."); the user
 will upload music for it. Don't generate music for the den again unless
@@ -3364,3 +3364,18 @@ shows once, 7 s, tap to dismiss (localStorage
 `el-cabeza:special-order-noted`, cleared by forgetSingularity with the
 rest). Standalone den (standard.js) has no custom rules at all. Tests
 updated (e2e-journey, e2e-story, e2e-fullscreen wording), not run.
+
+### The 8-track's five tapes (the user's uploads)
+The user uploaded five tracks for the 8-track (2026-09-29): Interesting
+Plus (Charlie C. & the Fresh Heaven Denizens), Late Night Chef the
+Ultimate Grilling Machine (Weiss Haus Trio), The Longest Song (Seven
+Minutes of Euphoria), Permafrost in your Bed (Subtle Silence Serenity),
+Parse (Rudimentary Pennies). tools/den_8track_treatment.py (IN... in that
+order) puts each on a cartridge: 3 3/4 ips band + head bump, tape
+saturation, 75% width with mono lows, crosstalk from the next tape at
+-40 dB, wow/flutter, a dropout or two, mastered by a limiter to -10 LUFS
+(record is -9.1), hiss at -64 dBFS (the level the user accepted on the
+record), the program-change clunk at the top. Writes
+assets/den/8track_<n>.mp3; build.js copies them as el-cabeza-den-tape-<n>.mp3;
+DEN_TRACKS lists them with loop: true. Sources aren't kept in the repo
+(re-upload to re-run).

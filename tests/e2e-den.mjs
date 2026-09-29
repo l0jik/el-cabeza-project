@@ -114,7 +114,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "sound-music").click();
   await page.waitForTimeout(400);
   check("...which opens the music panel", (await q(page, "music-panel").count()) === 1);
-  check("...the record player has its record, the 8-track says it's empty", (await q(page, "music-track-dangerous-dashing").count()) === 1 && (await q(page, "music-empty-record").count()) === 0 && (await q(page, "music-empty-8track").count()) === 1);
+  check("...the record player has its record, the 8-track its five tapes", (await q(page, "music-track-dangerous-dashing").count()) === 1 && (await q(page, "music-track-tape-parse").count()) === 1 && (await q(page, "music-empty-record").count()) === 0 && (await q(page, "music-empty-8track").count()) === 0);
   check("...and the dock steps aside", (await page.locator('[data-testid="sound-menu"]').count()) === 0);
   await page.waitForTimeout(3200);
   const near = await page.evaluate(() => {

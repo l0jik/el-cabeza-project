@@ -196,6 +196,16 @@ export const soundChannels = [
    the amp a little hot, the preamp's hiss and the surface's crackle). */
 const DEN_TRACKS = [
   { id: "dangerous-dashing", title: "Dangerous Dashing", artist: "influentialdistortion257", medium: "record", url: "el-cabeza-den-record-1.mp3", treated: true },
+  // The 8-track's tapes: the user's tracks, each put on a cartridge by
+  // tools/den_8track_treatment.py (3 3/4 ips band and head bump, tape
+  // saturation, wow and flutter, crosstalk, a dropout, low hiss, the
+  // program-change clunk). A cartridge is an endless loop, so each plays
+  // round again, clunk and all, until it's stopped.
+  { id: "tape-interesting-plus", title: "Interesting Plus", artist: "Charlie C. & the Fresh Heaven Denizens", medium: "8track", url: "el-cabeza-den-tape-1.mp3", treated: true, loop: true },
+  { id: "tape-late-night-chef", title: "Late Night Chef the Ultimate Grilling Machine", artist: "Weiss Haus Trio", medium: "8track", url: "el-cabeza-den-tape-2.mp3", treated: true, loop: true },
+  { id: "tape-the-longest-song", title: "The Longest Song", artist: "Seven Minutes of Euphoria", medium: "8track", url: "el-cabeza-den-tape-3.mp3", treated: true, loop: true },
+  { id: "tape-permafrost-in-your-bed", title: "Permafrost in your Bed", artist: "Subtle Silence Serenity", medium: "8track", url: "el-cabeza-den-tape-4.mp3", treated: true, loop: true },
+  { id: "tape-parse", title: "Parse", artist: "Rudimentary Pennies", medium: "8track", url: "el-cabeza-den-tape-5.mp3", treated: true, loop: true },
 ];
 export const music = {
   title: "The stereo",
