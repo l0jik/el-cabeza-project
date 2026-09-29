@@ -5454,13 +5454,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           const rect = el.getBoundingClientRect();
           dragFlipTheta = ev.clientY - rect.top < rect.height / 2;
         }
-        /* The Room view (freeCamera.dollhouse: the store, the den) isn't
-           grabbing the board: it's looking round a room from above, and
-           the user found left/right backwards there. So in it, a sideways
-           drag turns the view the other way, and the same way wherever
-           the finger is (no half-screen flip). Up/down is as everywhere
-           (the user: tried flipped, it was wrong). */
-        const roomLook = !!cam.current.dollhouse;
+        /* Looking round the room (a theme with a free camera: the store,
+           the den), rather than at the board: the Room view, or the view
+           panned off the board or pulled out past it. That isn't grabbing
+           the board, and the user found both directions backwards there
+           (their screen recording: panned over to the standee and
+           tilting). So then a drag turns and tilts the view the other way,
+           and the same way wherever the finger is (no half-screen flip).
+           On the board, as ever. */
+        const tgt = cam.current.target;
+        const offBoard = Math.hypot(tgt.x, tgt.z) > Math.max(SLAB_X, SLAB_Z) * 0.6 || cam.current.radius > ZOOM_MAX_FOR_BOARD * 1.05;
+        const roomLook = !!cam.current.dollhouse || (!!theme.freeCamera && offBoard);
         cam.current.theta -= dx * ORBIT_SENS_THETA * (roomLook ? -1 : dragFlipTheta ? -1 : 1);
         /* Lower bound is a hair above zero rather than zero itself: at
            exactly vertical the view direction is parallel to the camera's
@@ -5480,7 +5484,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
            angles where that showed up in testing. */
         cam.current.phi = Math.max(
           0.012,
-          Math.min(1.25, cam.current.phi - dy * ORBIT_SENS_PHI)
+          Math.min(1.25, cam.current.phi - dy * ORBIT_SENS_PHI * (roomLook ? -1 : 1))
         );
         return;
       }

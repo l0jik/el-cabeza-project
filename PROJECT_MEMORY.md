@@ -3507,3 +3507,10 @@ phone menu until "Start the story over" (which clears it).
   flipped too, then put back (user: "left/right is right now, up/down is
   still backwards"). The board views are unchanged; every Room view.
   __EC_TEST_CAM__() now also reports dollhouse.
+- Then (user's screen recording: panned over to the standee, tilting still
+  backwards): the room-look rule isn't only the Room view. roomLook =
+  dollhouse, or a free-camera theme with the view panned off the board
+  (target more than 0.6 x the slab's size from its middle) or pulled out
+  past ZOOM_MAX_FOR_BOARD. Then both axes run the other way to the board's
+  rule (up/down flipped again, left/right as the far-half flip, the same
+  anywhere). On the board, unchanged.
