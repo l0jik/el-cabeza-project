@@ -3605,3 +3605,10 @@ phone menu until "Start the story over" (which clears it).
   off, two layers 2.6 px / 4 px). The shell (radius 30-55) surrounds the
   camera (~44 out on a phone), so distance-scaled stars near the camera
   blew up into bright blobs.
+- Revisited store, round 3 (user: hide both, start the clerk scene
+  automatically): with setupExtras.noGame the chassis hides the masthead
+  ([data-masthead]), the floating dock piece ([data-dock-piece]), the dock
+  panel and the phone bar. The clerk scene opens by itself 3.2 s after
+  arriving (tienda-overlay useSetupExtras); "Stay a while" leaves a
+  "Nobody here has heard of it. / Go home, confused." slip at the top
+  (tienda-leave), the only way out.

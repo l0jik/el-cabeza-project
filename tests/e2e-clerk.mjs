@@ -68,10 +68,11 @@ for (const phone of [false, true]) {
   });
   check(`the appliances on the table (${table.appliances} parts)`, table.appliances >= 20);
   check("the standee shows the housewares ad", table.ad >= 1, JSON.stringify(table));
+  const hiddenChrome = await page.evaluate(() => [...document.querySelectorAll("[data-masthead], [data-dock-piece]")].every((e) => getComputedStyle(e).display === "none"));
+  check("no title and no dock piece (El Cabeza is nowhere to be seen)", hiddenChrome);
   if (shots) await page.screenshot({ path: `${shots}/${phone ? "phone" : "desk"}-store.png` });
-  // Another copy: the clerk.
-  await page.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:clerk")));
-  check("the Games counter scene", await poll(() => has(page, "tienda-clerk"), 8000));
+  // The clerk comes over on his own.
+  check("the Games counter scene opens by itself", await poll(() => has(page, "tienda-clerk"), 10000));
   const loaded = await poll(() => page.evaluate(() => {
     const ims = [...document.querySelectorAll(".td-clerk-shot")];
     return ims.length === 15 && ims.every((i) => i.complete && i.naturalWidth === 368 && i.naturalHeight === 474) ? ims.length : null;
@@ -99,6 +100,8 @@ for (const phone of [false, true]) {
   check("the lines are the user's, verbatim", lines[0].includes("Hi there! Can I help you with something?") && lines[7].includes("Afternoon! El Cabeza, you said?") && lines[14].includes("Is there anything else I can help you with today?"));
   check("the PA page's caption comes up with the phone call", paCaption);
   check("it ends with Stay a while and Go home, confused.", (await has(page, "tienda-clerk-stay")) && (await has(page, "tienda-clerk-go-home")));
+  await q(page, "tienda-clerk-stay").click();
+  check("stay a while: a slip with the way home", await poll(() => has(page, "tienda-leave-go-home"), 4000) && !(await has(page, "tienda-clerk")));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

@@ -133,7 +133,11 @@ export function useSetupExtras(x) {
     if (!store) return undefined;
     const onClerk = () => setOverlay("clerk");
     window.addEventListener("el-cabeza:clerk", onClerk);
-    return () => window.removeEventListener("el-cabeza:clerk", onClerk);
+    // Back after the whole story there's no game here to play: the clerk
+    // comes over on his own a moment after you walk in (once the scene
+    // change has faded up).
+    const auto = story.after && story.after() && !confusedAtClerk ? setTimeout(onClerk, 3200) : null;
+    return () => { window.removeEventListener("el-cabeza:clerk", onClerk); if (auto) clearTimeout(auto); };
   }, []);
   React.useEffect(() => { ensurePaper(); ensureAgedPaper(); }, []);
   // The story fades this place's sound out as it leaves (story.bindAudio).
@@ -189,6 +193,14 @@ export function renderExtraOverlays(x) {
       onStay: () => x.closeOverlay(),
       onGoHome: () => { x.closeOverlay(); x.story.onGoHomeConfused(); },
     });
+  }
+  // Stayed a while after the scene, in the store with no game in it: the
+  // way home, a slip at the top.
+  if (store && x.story.after && x.story.after() && confusedAtClerk && !x.tiendaOverlay) {
+    return h("div", { key: "leave", className: "td-offer", "data-testid": "tienda-leave", role: "status" },
+      h(Style),
+      h("span", null, "Nobody here has heard of it."),
+      h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-leave-go-home", onClick: () => { x.audio && x.audio.playSelect && x.audio.playSelect(); x.story.onGoHomeConfused(); } }, "Go home, confused."));
   }
   // A game in the store played to the end (or ended): the clerk's offer.
   if (store && !x.awaitingBegin && x.game && (x.game.status === "finished" || x.game.status === "ended")) return h(PurchaseOffer, { key: "offer", story: x.story, audio: x.audio });

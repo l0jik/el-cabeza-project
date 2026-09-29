@@ -2098,6 +2098,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // A theme may raise the corner controls over a full-screen layer of
   // its own (Neon's SINGULARITY sphere), so they stay usable there.
   const cornerControlsZ = (setupExtras && setupExtras.cornerControlsZ) || 12;
+  const noGame = !!(setupExtras && setupExtras.noGame);
   /* The dock panel's corner switches sit in the strip its bottom padding
      keeps for them. When the panel is taller than it may be (a small
      phone) it scrolls, and absolutely placed children stay where the
@@ -7705,6 +7706,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          momentum are never reset by opening or closing the dock. */}
       <div
         ref={dockPieceMountRef}
+        data-dock-piece=""
         onPointerDown={handleDockPiecePointerDown}
         onPointerMove={handleDockPiecePointerMove}
         onPointerUp={handleDockPiecePointerUp}
@@ -8896,8 +8898,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         </div>
       )}
 
+      {/* No game here (a theme's say, setupExtras.noGame: Nova's store
+         after the story, where the game is nowhere to be seen): no title,
+         no dock or its piece, no phone bar. */}
+      {noGame && (
+        <style>{'[data-masthead], [data-dock-piece], [data-testid="dock-panel"] { display: none !important; }'}</style>
+      )}
+
       {/* Phone layout (see MobileShell.jsx and the shell state above). */}
-      {shell && (
+      {shell && !noGame && (
         <MobileShell
           ctl={{
             theme, COLORS,
