@@ -7437,8 +7437,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       {/* How to play: always on screen, beside the full-screen button,
          so the rules are never more than one tap away. Opens the rules
          at the Quick card. Not where the rules lie in the room
-         (rulesInRoom): there they're the leaflet on the table. */}
-      {!shell && !rulesInRoom && (
+         (rulesInRoom): there they're the leaflet on the table, nor while
+         a theme asks it away (setupExtras.hideHowToPlay: Neon's
+         Singularity). */}
+      {!shell && !rulesInRoom && !(setupExtras && setupExtras.hideHowToPlay) && (
       <button
         type="button"
         data-testid="how-to-play"

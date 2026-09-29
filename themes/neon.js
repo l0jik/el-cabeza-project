@@ -3354,10 +3354,12 @@ export function useSetupExtras({
     // and is still in progress (isPlaying).
     isPlaying, awaitingBegin, currentVariants,
     // The sphere's full-screen layer sits at 2000: while it is up, the
-    // chassis's corner controls (full screen, How to play) come above it
-    // so they still work, but stay under its menus (2100+). Not during
-    // the collapse or the cut to black.
+    // chassis's full-screen button comes above it so it still works, but
+    // stays under its menus (2100+). Not during the collapse or the cut
+    // to black. How to play isn't there at all in the Singularity (the
+    // user: it shouldn't be in the corner when you arrive).
     cornerControlsZ: singularityCinematic.singularityPhase === "sphere" ? 2050 : undefined,
+    hideHowToPlay: singularityCinematic.singularityPhase !== "idle",
     ...singularityCinematic,
   };
 }
