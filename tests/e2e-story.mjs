@@ -172,28 +172,30 @@ console.log("\ndesktop: the store, the purchase, home");
   check("Custom rules is the whole order form", await poll(() => has(page, "tienda-order"), 8000));
   check("...with the board's size now, and still no shuffled start (Neon's alone)", (await has(page, "tienda-cols")) && !/Shuffled start/.test(await q(page, "tienda-order").innerText()));
   await q(page, "tienda-piece-turrito-inc").click();
+  // The first time through, the order is a special order to take to the
+  // store (tienda-overlay.js guided).
+  check("the first time through, the button takes it to the store", /Order it at Big Glutts/i.test(await q(page, "tienda-order-place").innerText()));
+  check("...and the foot says where", /Special order: at your Big Glutts/.test(await q(page, "tienda-order-summary").innerText()));
   await q(page, "tienda-order-place").scrollIntoViewIfNeeded();
   await q(page, "tienda-order-place").click();
+  check("the stamp: Take to store", await poll(async () => /Take to store/i.test(await q(page, "tienda-order-stamp").innerText()), 3000));
+  await page.waitForTimeout(1600);
+  check("...still there to read a moment later", await has(page, "tienda-order-stamp"));
+  const capStore = await poll(async () => { const t = (await has(page, "story-caption")) ? await q(page, "story-caption").innerText() : ""; return /Big Glutts, order in hand/.test(t) ? t : null; }, 8000, 100);
+  check("black, and \"Back at Big Glutts, order in hand.\"", !!capStore);
+  const toStore = await throughCut(page, "store");
+  check("...then the store", toStore.gone && toStore.there, JSON.stringify(toStore));
+  check("the clerk comes over by himself", await poll(() => has(page, "tienda-clerk"), 10000));
+  check("...you hand over the order form", await has(page, "tienda-clerk-handover"));
+  for (let i = 0; i < 20 && (await has(page, "tienda-clerk-next")); i++) { await q(page, "tienda-clerk-next").click(); await page.waitForTimeout(600); }
+  check("...and at the end: Go home, confused… with your form", /with your form/i.test(await q(page, "tienda-clerk-go-home").innerText()));
+  await q(page, "tienda-clerk-go-home").click();
+  const capHome = await poll(async () => { const t = (await has(page, "story-caption")) ? await q(page, "story-caption").innerText() : ""; return /already on the table/.test(t) ? t : null; }, 8000, 100);
+  check("home again, confused: the new pieces already on the table", !!capHome);
+  const toHome = await throughCut(page, "home");
+  check("...and home", toHome.gone && toHome.there, JSON.stringify(toHome));
   const orderedN = await poll(async () => { const n = await page.evaluate(() => (window.__EC_TEST_PIECES__ || []).length); return n === 12 ? n : null; }, 15000);
-  check(`a game ordered at home: two Turritos a side (${orderedN} pieces)`, orderedN === 12);
-  check("...with its carbon copy of the order", await poll(() => has(page, "tienda-slip-tag"), 8000));
-
-  // Back to the store: the classic game again.
-  const corner2 = await waitForDockCorner(page);
-  check("the dock reopens mid-game at home", !!corner2 && (await reopenDockPanelFromCorner(page, corner2)));
-  const end2 = page.locator('[data-testid="dock-panel"] button', { hasText: "End Active Game" });
-  for (let i = 0; i < 20 && (await end2.count()) > 0; i++) { await end2.click().catch(() => {}); await page.waitForTimeout(500); }
-  const again2 = page.locator('[data-testid="dock-panel"] button', { hasText: /^New Game$/ });
-  if (await again2.count()) await again2.first().evaluate((b) => b.click());
-  await poll(() => has(page, "story-back-to-store"), 10000);
-  await openDockPanel(page);
-  await q(page, "story-back-to-store").click();
-  const back = await throughCut(page, "store");
-  check("Back to the store: a fade, and the store", back.came && back.gone && back.there, JSON.stringify(back));
-  check("...no lid this time (the game's on the counter)", !(await has(page, "tienda-lid")));
-  const p2 = await poll(() => plate(page), 10000);
-  check(`...and the classic board (plate ${p2})`, p2 === 1);
-  check("...with the ten classic pieces", await page.evaluate(() => { const p = window.__EC_TEST_PIECES__ || []; return p.length === 10 && p.every((x) => ["cabeza", "turrito", "flaco", "chato", "opa"].includes(x.type)); }));
+  check(`...the game set up from the order: two Turritos a side (${orderedN} pieces)`, orderedN === 12);
   check("...still owned", (await owned(page) || {}).owned === true);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
 
@@ -236,6 +238,7 @@ console.log("\ndesktop: the den's television, into Singularity and back");
     return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height, onScreen: Math.abs(v.x) < 0.9 && Math.abs(v.y) < 0.9 };
   });
   check("the set is in view", !!at && at.onScreen, JSON.stringify(at));
+  await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(41000)); // (past the set's 40 s wait, den-fx.js lure)
   if (at) await page.mouse.click(at.x, at.y);
   check("a tap on the set turns it on", !!(await poll(async () => { const s = await tv(); return s && s.phase !== "off"; }, 5000, 100)));
   check("...the camera goes over to it", !!(await poll(async () => ((await tv()) || {}).focus > 0.6, 8000, 100)));

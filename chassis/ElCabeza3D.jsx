@@ -8534,7 +8534,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               position: "absolute",
               left: 20,
               right: (theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0),
-              bottom: 13,
+              // (With the corner switches, into the strip at the end of the
+              // panel's content when it scrolls: --ec-dock-overflow.)
+              bottom: "calc(13px - var(--ec-dock-overflow, 0px))",
               fontFamily: "'IBM Plex Mono', monospace",
               // Larger and in the dock's own text colour per feedback
               // (was 9px slate at 0.75 — too dim and small to read).

@@ -65,13 +65,27 @@ const BODONI = "'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif";
 let lidDone = false;
 // Nova's "Start the story over" (apps/unified.jsx): the box is back on the
 // shelf, lid and all.
-export function resetLid() { lidDone = false; confusedAtClerk = false; }
+export function resetLid() { lidDone = false; confusedAtClerk = false; orderInHand = null; keptOrder = null; deliverHome = null; }
 /* After the whole story, back at the store: another copy, please. The
    clerk has never heard of it, the manager has never heard of it
    (ClerkScene), and the store's purchase becomes "Go home, confused."
    (tienda.js). */
 let confusedAtClerk = false;
 export const clerkConfused = () => confusedAtClerk;
+/* The first time through (after the commercial, until the story starts
+   over; story.guided), the order form at home is a special order to take
+   to the store: "Order it at Big Glutts ›" stamps it and goes (with the
+   order in hand: orderInHand), where the clerk has never heard of it.
+   Going home confused with it (deliverHome), the pieces are somehow on
+   the table already, the game set up from the order; the form keeps what
+   was ordered (keptOrder) from then on. */
+let orderInHand = null, keptOrder = null, deliverHome = null;
+// Home from the clerk: with the order in hand, it's waiting on the table.
+function goHomeConfused(story) {
+  const withOrder = !!orderInHand;
+  if (withOrder) { deliverHome = orderInHand; orderInHand = null; }
+  story.onGoHomeConfused({ withOrder });
+}
 
 /* ------------------------------------------------------------ setup extras */
 
@@ -127,7 +141,17 @@ export function useSetupExtras(x) {
     return () => document.removeEventListener("pointerdown", onDown, true);
   }, [specialNote, dismissSpecialNote]);
   const selRef = React.useRef(null);
-  if (!selRef.current) selRef.current = defaultSelections();
+  if (!selRef.current) selRef.current = keptOrder ? cloneSelections(keptOrder) : defaultSelections();
+  // Home, confused, with the order: the pieces are on the table already
+  // (as if they'd been in the box all along): the game set up from it,
+  // once the scene change has faded up.
+  React.useEffect(() => {
+    if (!home || !deliverHome) return undefined;
+    const sel = deliverHome;
+    deliverHome = null;
+    const id = setTimeout(() => beginCustomGame(sel, x, (s2) => { selRef.current = s2; setOverlay("order"); }, { labels: TIENDA_VARIANT_LABELS }), 2400);
+    return () => clearTimeout(id);
+  }, []);
   React.useEffect(() => { if (!x.awaitingBegin && overlay && overlay !== "clerk") setOverlay(null); }, [x.awaitingBegin]);
   React.useEffect(() => {
     if (!store) return undefined;
@@ -191,7 +215,7 @@ export function renderExtraOverlays(x) {
     return h(ClerkScene, {
       key: "clerk", audio: x.audio,
       onStay: () => x.closeOverlay(),
-      onGoHome: () => { x.closeOverlay(); x.story.onGoHomeConfused(); },
+      onGoHome: () => { x.closeOverlay(); goHomeConfused(x.story); },
     });
   }
   // Stayed a while after the scene, in the store with no game in it: the
@@ -200,7 +224,7 @@ export function renderExtraOverlays(x) {
     return h("div", { key: "leave", className: "td-offer", "data-testid": "tienda-leave", role: "status" },
       h(Style),
       h("span", null, "Nobody here has heard of it."),
-      h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-leave-go-home", onClick: () => { x.audio && x.audio.playSelect && x.audio.playSelect(); x.story.onGoHomeConfused(); } }, "Go home, confused."));
+      h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-leave-go-home", onClick: () => { x.audio && x.audio.playSelect && x.audio.playSelect(); goHomeConfused(x.story); } }, orderInHand ? "Go home, confused\u2026 with your form" : "Go home, confused."));
   }
   // A game in the store played to the end (or ended): the clerk's offer.
   if (store && !x.awaitingBegin && x.game && (x.game.status === "finished" || x.game.status === "ended")) return h(PurchaseOffer, { key: "offer", story: x.story, audio: x.audio });
@@ -241,13 +265,20 @@ export function renderExtraOverlays(x) {
       onSpecialOrder: () => { x.audio && x.audio.playSelect && x.audio.playSelect(); x.openCustomRules(); },
     });
   }
+  // Where the order goes: the first time through, to the store (guided);
+  // after that, at home, it's delivered; in the store, the demonstration.
+  const guided = !!(x.story && x.story.mode === "home" && x.story.guided && x.story.guided() && x.story.onOrderAtStore);
+  const where = guided ? "guided" : x.story && x.story.mode === "home" ? "home" : "store";
   return h(OrderForm, {
     key: "order",
     initial: x.selRef.current,
     onChange: (s) => { x.selRef.current = s; },
     onCancel: () => { x.audio && x.audio.playRulesClose && x.audio.playRulesClose(); x.closeOverlay(); },
-    onPlace: (sel) => beginCustomGame(sel, x, (s) => x.reopenOrder && x.reopenOrder(s), { labels: TIENDA_VARIANT_LABELS }),
+    onPlace: guided
+      ? (sel) => { orderInHand = cloneSelections(sel); keptOrder = cloneSelections(sel); x.story.onOrderAtStore(); }
+      : (sel) => { if (where === "home") keptOrder = cloneSelections(sel); beginCustomGame(sel, x, (s) => x.reopenOrder && x.reopenOrder(s), { labels: TIENDA_VARIANT_LABELS }); },
     audio: x.audio,
+    where,
     x,
   });
 }
@@ -457,7 +488,7 @@ const MORE_CSS = `
   .td-filled-stamp b { font: 900 clamp(26px, 6vw, 44px)/1 ${FRANKLIN}; letter-spacing: 0.08em; text-transform: uppercase; }
   .td-filled-stamp span { font: 700 11px/1.2 ${COURIER}; letter-spacing: 0.12em; text-transform: uppercase; }
   @keyframes tdStamp { 0% { transform: translate(-50%, -50%) rotate(-9deg) scale(1.7); opacity: 0; } 100% { transform: translate(-50%, -50%) rotate(-9deg) scale(1); opacity: 1; } }
-  .td-filled { animation: tdFormAway 0.5s ease 0.62s both; }
+  .td-filled { animation: tdFormAway 0.5s ease 2.1s both; }
   @keyframes tdFormAway { to { transform: translateY(24px); opacity: 0; } }
   @media (max-width: 560px) { .td-sub, .td-warn { margin-left: 0; } }
   @media (prefers-reduced-motion: reduce) { .td-filled-stamp, .td-filled { animation: none; } }
@@ -500,6 +531,10 @@ const STORY_CSS = `
     font: 700 12px/1.25 'Comic Neue', 'Comic Sans MS', ${COURIER}; letter-spacing: 0.04em; text-transform: uppercase;
     animation: tdClerkIn 0.35s ease both; }
   .td-clerk-narration { top: 8px; left: 8px; max-width: 55%; }
+  .td-clerk-narrations { position: absolute; z-index: 2; top: 8px; left: 8px; max-width: 55%; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+  .td-clerk-narrations .td-clerk-narration { position: static; max-width: none; }
+  /* The time, quietly: a smaller, paler box. */
+  .td-clerk-narration.td-clerk-when { font-size: 9.5px; padding: 3px 7px 2px; background: #F7EBB8; border-width: 1.5px; box-shadow: 1.5px 1.5px 0 rgba(23, 17, 13, 0.6); opacity: 0.85; }
   .td-clerk-pa { left: 8px; right: 8px; bottom: 8px; text-align: center; background: #FBF6E6; }
   .td-clerk-fallback { position: absolute; z-index: 2; inset: auto 12px 12px; margin: 0; padding: 12px 14px; background: #FBF8F0; color: ${INK};
     border: 2px solid #17110D; border-radius: 16px; font: 700 15px/1.35 'Comic Neue', ${COURIER}; }
@@ -689,7 +724,7 @@ function PurchaseOffer({ story, audio }) {
    files beside the page (build/build.js), fetched as the scene opens; if
    one can't load, its line is printed instead. */
 const CLERK_FRAMES = [
-  { shots: ["clerk-hello", "clerk-sure"], narration: "Later that same day\u2026", lines: ["Hi there! Can I help you with something?", "Sure thing! I'd be happy to help you find that."] },
+  { shots: ["clerk-hello", "clerk-sure"], narration: "Later that day\u2026", handover: true, lines: ["Hi there! Can I help you with something?", "Sure thing! I'd be happy to help you find that."] },
   { shots: ["clerk-go", "clerk-back"], lines: ["I'll go check on that for you real quick!", "One minute! I'll see if we have it in the back!"] },
   { shots: ["clerk-hmm", "clerk-sorry"], lines: ["Hmm\u2026 I couldn't find it. I checked the aisle and also the back room.", "Yeah, I'm sorry. I don't see it anywhere right now."] },
   { shots: ["clerk-phone"], lines: ["Okay, let me call my manager and see if they can help us with this."], page: true },
@@ -703,7 +738,7 @@ const CLERK_FRAMES = [
   { shots: ["manager-8"], lines: ["Is there anything else I can help you with today?"] },
 ];
 // Every shot in order, with its frame.
-const CLERK_STEPS = CLERK_FRAMES.flatMap((f, fi) => f.shots.map((shot, si) => ({ shot, frame: fi, line: f.lines[si], alt: f.alt, narration: f.narration, page: !!f.page && si === 0 })));
+const CLERK_STEPS = CLERK_FRAMES.flatMap((f, fi) => f.shots.map((shot, si) => ({ shot, frame: fi, line: f.lines[si], alt: f.alt, narration: f.narration, handover: !!f.handover, page: !!f.page && si === 0 })));
 /* The clipping's edge: cut by hand with scissors, a little off true, so
    each side wanders in and out by a few pixels (the same cut every
    time). */
@@ -730,6 +765,8 @@ export const CLERK_SHOT_FILES = CLERK_STEPS.map((s) => `el-cabeza-${s.shot}.jpg`
 const PA_CAPTION = "Ding-dong. \u201cManager to Games, please. Manager to Games.\u201d";
 
 function ClerkScene({ audio, onStay, onGoHome }) {
+  // Come with the special order from home (the first time through).
+  const withOrder = !!orderInHand;
   const [step, setStep] = React.useState(0);
   const [seen, setSeen] = React.useState(0); // the furthest shot reached
   const [failed, setFailed] = React.useState(() => new Set());
@@ -816,7 +853,13 @@ function ClerkScene({ audio, onStay, onGoHome }) {
             onError: () => setFailed((f) => { const n = new Set(f); n.add(c.shot); return n; }),
           })),
           h("i", { className: "td-clerk-dots", "aria-hidden": "true" }),
-          s.narration && h("p", { key: `n${s.frame}`, className: "td-clerk-narration" }, s.narration),
+          // The first panel: the time, quietly; and, come with the order
+          // form, what you do (walking you through it: user).
+          s.narration && (s.handover
+            ? h("div", { key: `n${s.frame}`, className: "td-clerk-narrations" },
+                h("p", { className: "td-clerk-narration td-clerk-when" }, s.narration),
+                withOrder && h("p", { className: "td-clerk-narration", "data-testid": "tienda-clerk-handover" }, "You hand over the order form\u2026"))
+            : h("p", { key: `n${s.frame}`, className: "td-clerk-narration" }, s.narration)),
           s.page && pagedOut && h("p", { className: "td-clerk-pa" }, PA_CAPTION),
           lost && h("p", { className: "td-clerk-fallback" }, said ? `\u201c${said}\u201d` : "\u2026")),
         // Where it's got to: a dot a frame, the ones seen can be gone back to.
@@ -836,7 +879,7 @@ function ClerkScene({ audio, onStay, onGoHome }) {
         last
           ? [
               h("button", { key: "stay", type: "button", className: "td-btn td-plain", "data-testid": "tienda-clerk-stay", onClick: (e) => { e.stopPropagation(); onStay(); } }, "Stay a while"),
-              h("button", { key: "home", type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-go-home", onClick: (e) => { e.stopPropagation(); audio && audio.playSelect && audio.playSelect(); onGoHome(); } }, "Go home, confused."),
+              h("button", { key: "home", type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-go-home", onClick: (e) => { e.stopPropagation(); audio && audio.playSelect && audio.playSelect(); onGoHome(); } }, withOrder ? "Go home, confused\u2026 with your form" : "Go home, confused."),
             ]
           : h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-next", onClick: (e) => { e.stopPropagation(); next(); } }, "Continue \u25b8")))),
       // The line, for a screen reader (the photograph carries it on screen).
@@ -884,7 +927,7 @@ function BoardDiagram({ sel }) {
 // Square sizes a tap away (any width and length can be set).
 const QUICK_SIZES = [8, 10, 12, 16, 20];
 
-function OrderForm({ initial, onChange, onCancel, onPlace, audio, x }) {
+function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store", x }) {
   // Before the Singularity's first visit, the page of the classic game.
   const classic = React.useMemo(() => !singularitySeen(), []);
   const [sel, setSel] = React.useState(() => {
@@ -1048,7 +1091,8 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, x }) {
     setFilled(true);
     audio && audio.playOrderFilled && audio.playOrderFilled();
     const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    setTimeout(() => onPlace(sel), reduced ? 250 : 1150);
+    // (The stamp stays long enough to read before the form goes: user.)
+    setTimeout(() => onPlace(sel), reduced ? 900 : 2700);
   };
   const standard = () => { click(); replace(defaultSelections()); };
   const lawsOn = LAW_OPTIONS.filter((l) => sel.laws[l.key]).length;
@@ -1095,14 +1139,15 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, x }) {
         ),
       ),
       h("div", { className: "td-foot" },
-        h("div", { className: "td-foot-total", "data-testid": "tienda-order-summary" }, summary, h("br"), h("b", null, fits ? "No charge — in-store demonstration" : "Won't fit this board — see Pieces")),
+        h("div", { className: "td-foot-total", "data-testid": "tienda-order-summary" }, summary, h("br"), h("b", null, !fits ? "Won't fit this board — see Pieces" : where === "guided" ? "Special order: at your Big Glutts, Games Dept." : where === "home" ? "Delivered to your home" : "No charge — in-store demonstration")),
         h("div", { className: "td-foot-btns" },
           h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-cancel", onClick: onCancel, disabled: filled }, "Cancel"),
           h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-standard", onClick: standard, disabled: filled }, "Standard"),
-          h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-order-place", disabled: over || !fits || filled, onClick: place }, "Place order & play"),
+          h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-order-place", disabled: over || !fits || filled, onClick: place }, where === "guided" ? "Order it at Big Glutts \u203a" : "Place order & play"),
         ),
       ),
-      filled && h("div", { className: "td-filled-stamp", "data-testid": "tienda-order-stamp", "aria-hidden": "true" }, h("b", null, "Order filled"), h("span", null, "Games & Hobby · Dept. 49")),
+      filled && h("div", { className: "td-filled-stamp", "data-testid": "tienda-order-stamp", "aria-hidden": "true" },
+        where === "guided" ? [h("b", { key: "b" }, "Take to store"), h("span", { key: "s" }, "Special order · Big Glutts · Dept. 49")] : [h("b", { key: "b" }, "Order filled"), h("span", { key: "s" }, "Games & Hobby · Dept. 49")]),
     ),
     viewer && h(WoodPieceViewer, {
       key: viewer.key,

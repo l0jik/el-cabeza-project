@@ -116,6 +116,7 @@ const CSS = `
   .ns-caption { position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-50%); text-align: center; color: #EFE4CB;
     font: 500 clamp(24px, 4.6vw, 44px)/1.2 'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif; letter-spacing: 0.02em; opacity: 0; text-wrap: balance; }
   .ns-caption.on { animation: ns-in 0.6s ease both; }
+  .ns-sub { display: block; max-width: 30em; margin: 0.9em auto 0; font: italic 400 clamp(14px, 2.2vw, 19px)/1.45 'Bodoni Moda', 'Didot', Georgia, serif; color: #CDBF9E; letter-spacing: 0.01em; }
   .ns-caption.off { animation: ns-out 0.5s ease both; }
   @media (prefers-reduced-motion: reduce) {
     .ns-tape, .ns-paper, .ns-slot { transition-duration: 0.01s; }
@@ -177,7 +178,8 @@ export function StoryCut({ cut, onSwap, onDone, sfx }) {
     if (!cut.arrived) return undefined;
     let raf = requestAnimationFrame(() => {
       raf = requestAnimationFrame(() => {
-        const read = Math.max(0, (reduced ? 400 : 1700) - (performance.now() - captionAt.current));
+        // (A second line takes longer to read.)
+        const read = Math.max(0, (reduced ? 400 : cut.sub ? 3600 : 1700) - (performance.now() - captionAt.current));
         after(read, () => setCaption("off"));
         after(read + (reduced ? 50 : 500), () => setStage("reveal"));
         after(read + (reduced ? 100 : 1650), () => onDone());
@@ -224,6 +226,7 @@ export function StoryCut({ cut, onSwap, onDone, sfx }) {
       <div className={"ns-black" + (stage === "dark" ? " on" : stage === "reveal" ? " off" : "")} />
       <div className={"ns-caption" + (caption ? " " + caption : "")} data-testid="story-caption" role="status" aria-live="polite">
         {caption ? cut.caption : ""}
+        {caption && cut.sub ? <span className="ns-sub">{cut.sub}</span> : null}
       </div>
     </div>
   );

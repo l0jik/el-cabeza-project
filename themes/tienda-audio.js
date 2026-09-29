@@ -874,20 +874,14 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
       if (restoreVolume === true) startStore();
     },
     playSelect() { ensureGraph(); if (!ctx) return; wood.select(); },
-    // The public address, on cue (the clerk calling the manager).
-    /* The clerk paging the manager: the chime and the voice through the
-       ceiling speakers, clearly, not the far-off murmur of the ones the
-       store makes on its own (and whether or not the store's air is up
-       yet: straight to the Store switch, not through the store's fade). */
+    // The public address, on cue (the clerk calling the manager): the
+    // store's own PA, as it sounds from the ceiling speakers far off
+    // (user: the louder, nearer one made for this didn't sound right).
     playPage() {
       ensureGraph();
       if (!ctx || muted) return;
       if (ctx.state === "suspended") ctx.resume();
-      const out = ctx.createGain(); out.gain.value = 0.55;
-      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 3400;
-      out.connect(lp).connect(gate("store")).connect(master);
-      const send = ctx.createGain(); send.gain.value = 0.35; lp.connect(send).connect(bigVerb);
-      paAnnouncement(false, out);
+      paAnnouncement();
     },
     playDeselect() { ensureGraph(); if (!ctx) return; wood.deselect(); },
     playBlocked() { ensureGraph(); if (!ctx) return; wood.blocked(); },

@@ -30,7 +30,7 @@ import {
    start. The chassis keeps its theme object for as long as it's mounted,
    so these are fixed objects, and their buttons reach the app through
    storyBridge, which the app keeps pointed at its current handlers. */
-const storyBridge = { purchase() {}, backToStore() {}, restart() {}, goHomeConfused() {}, arrival: false, audio: null };
+const storyBridge = { purchase() {}, backToStore() {}, restart() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null };
 // How the place just mounted was reached (read once): false for the page
 // opening there, "cut" by a scene change, "fresh" by the fresh start.
 const takeArrival = () => { const a = storyBridge.arrival; storyBridge.arrival = false; return a; };
@@ -39,8 +39,15 @@ const bindAudio = (audio) => { storyBridge.audio = audio; };
 // After the whole story (bought, and the Singularity seen) the store has
 // never heard of the game (tienda-overlay.js ClerkScene).
 const storeAfter = () => readOwned() && singularitySeen();
-const STORE_STORY = { mode: "store", onPurchase: () => storyBridge.purchase(), onGoHomeConfused: () => storyBridge.goHomeConfused(), after: storeAfter, arrived: takeArrival, bindAudio };
-const HOME_STORY = { mode: "home", onBackToStore: () => storyBridge.backToStore(), onRestart: () => storyBridge.restart(), storeGone, arrived: takeArrival, bindAudio };
+const STORE_STORY = { mode: "store", onPurchase: () => storyBridge.purchase(), onGoHomeConfused: (o) => storyBridge.goHomeConfused(o), after: storeAfter, arrived: takeArrival, bindAudio };
+/* The first time through (the commercial seen, the store not yet gone
+   strange; until the story starts over), the order form at home is a
+   special order to take to the store (guided, onOrderAtStore). */
+const HOME_STORY = {
+  mode: "home", onBackToStore: () => storyBridge.backToStore(), onRestart: () => storyBridge.restart(), storeGone, arrived: takeArrival, bindAudio,
+  guided: () => singularitySeen() && !storeGone(),
+  onOrderAtStore: () => storyBridge.orderAtStore(),
+};
 const storeTheme = {
   ...tiendaTheme,
   useSetupExtras: (x) => {
@@ -381,10 +388,19 @@ function UnifiedApp() {
     startCut({ kind: "purchase", caption: "Later, at home.", to: "standard" });
   };
   storyBridge.backToStore = () => { if (!storeGone()) startCut({ kind: "fade", caption: "Back at the store.", to: "tienda" }); };
-  storyBridge.goHomeConfused = () => {
+  storyBridge.goHomeConfused = (o) => {
     if (busyRef.current) return;
     saveStoreGone();
-    startCut({ kind: "fade", caption: "Home again. Confused.", to: "standard" });
+    // With the special order: the new pieces are on the table already
+    // (tienda-overlay.js sets the game up from the order at home).
+    startCut(o && o.withOrder
+      ? { kind: "fade", caption: "Home again. Confused.", sub: "The new pieces are already on the table, as if they'd been in the box all along.", to: "standard" }
+      : { kind: "fade", caption: "Home again. Confused.", to: "standard" });
+  };
+  // The special order, stamped at home: off to the store with it.
+  storyBridge.orderAtStore = () => {
+    if (busyRef.current) return;
+    startCut({ kind: "fade", caption: "Back at Big Glutts, order in hand.", to: "tienda" });
   };
   storyBridge.restart = () => {
     if (busyRef.current) return;

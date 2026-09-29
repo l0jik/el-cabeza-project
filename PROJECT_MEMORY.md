@@ -3628,3 +3628,24 @@ phone menu until "Start the story over" (which clears it).
   took two panels), no Back button (user: just the dots), swipe left/
   right on the panel, arrow keys, and a dot per frame under the panel
   (frames already seen can be tapped).
+- Guided first run (user; only until the story is restarted): after the
+  first Singularity, home's order form (from the TV commercial) is the
+  way back to the store. HOME_STORY.guided() = singularitySeen() &&
+  !storeGone(). The form's button reads "Order it at Big Glutts ›", the
+  footer "Delivered to your home", the stamp "Take to store / Special
+  order · Big Glutts · Dept. 49", and the form now lingers 2.1 s on the
+  stamp before it goes (onPlace 2700 ms). Then the cut "Back at Big
+  Glutts, order in hand." (storyBridge.orderAtStore) into the revisited
+  store; tienda-overlay keeps the order (orderInHand/keptOrder). The
+  clerk scene's first frame narrates a smaller "Later that day…" and
+  "You hand over the order form…"; the way out reads "Go home,
+  confused… with your form". Home's cut carries a sub-line (novaStory
+  cut.sub, read 3.6 s): "The new pieces are already on the table, as if
+  they'd been in the box all along." and deliverHome starts the ordered
+  game 2.4 s after arriving. Later visits: keptOrder seeds the form.
+  resetLid() (story restart) clears it all.
+- The manager call's PA is the store's own ambient announcement
+  (tienda-audio playPage -> paAnnouncement), not a separate voice.
+- Dock panel on phones: the players line ("Dark: … | Light: …") sits
+  with the footer icons at calc(13px - var(--ec-dock-overflow)) so it
+  never lands on Move Log / New Game when the panel scrolls.
