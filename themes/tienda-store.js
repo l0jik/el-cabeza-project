@@ -395,8 +395,10 @@ export function buildStore() {
   });
   const standeeIdx = S(256, 128, (g, w, h) => {
     g.fillStyle = "#EFE4CB"; g.fillRect(0, 0, w, h);
-    text(g, "NOW IN STOCK", w / 2, h * 0.3, { font: SIGN_FONT, size: h * 0.2, weight: 800, color: "#A33F33", spacing: 0.12 });
-    text(g, "Games Dept. · Aisle 9", w / 2, h * 0.68, { font: TYPE_FONT, size: h * 0.16, weight: 700, color: "#3B2618" });
+    // (Both kept well inside the card: the typewriter face runs wide, and
+    // the line used to reach past the card's edges.)
+    text(g, "NOW IN STOCK", w / 2, h * 0.32, { font: SIGN_FONT, size: h * 0.19, weight: 800, color: "#A33F33", spacing: 0.1, maxWidth: w * 0.82 });
+    text(g, "Games Dept. · Aisle 9", w / 2, h * 0.68, { font: TYPE_FONT, size: h * 0.14, weight: 700, color: "#3B2618", spacing: -0.05, maxWidth: w * 0.76 });
   });
   const { tex: atlasTex, uv: signUv } = signAtlas(signs, 2048);
   signTextures.push(atlasTex);
