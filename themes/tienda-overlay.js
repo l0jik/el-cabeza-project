@@ -530,9 +530,19 @@ const STORY_CSS = `
     border: 2px solid #17110D; box-shadow: 2px 2px 0 rgba(23, 17, 13, 0.85);
     font: 700 12px/1.25 'Comic Neue', 'Comic Sans MS', ${COURIER}; letter-spacing: 0.04em; text-transform: uppercase;
     animation: tdClerkIn 0.35s ease both; }
-  .td-clerk-narration { top: 8px; left: 8px; max-width: 55%; }
-  .td-clerk-narrations { position: absolute; z-index: 2; top: 8px; left: 8px; max-width: 55%; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
-  .td-clerk-narrations .td-clerk-narration { position: static; max-width: none; }
+  /* The narrator's caption sits in the margin under the panel, as a box
+     pasted there, and the Next beside it, small, at the right. */
+  .td-clerk-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; padding: 10px 2px 16px; }
+  .td-clerk-captions { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; transform: rotate(0.6deg); }
+  .td-clerk-captions .td-clerk-narration { position: static; max-width: 100%; }
+  .td-clerk-next { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 3px 10px 1px 12px; cursor: pointer;
+    background: #F3D85A; color: #17110D; border: 2px solid #17110D; border-radius: 2px; box-shadow: 2px 2px 0 #17110D;
+    font: 400 17px/1 'Bangers', ${FRANKLIN}; letter-spacing: 0.08em; text-transform: uppercase; transform: rotate(1.2deg);
+    transition: transform 0.08s ease, box-shadow 0.08s ease; }
+  .td-clerk-next i { width: 0; height: 0; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 11px solid #17110D; margin-top: -1px; }
+  .td-clerk-next:hover i { transform: translateX(2px); }
+  .td-clerk-next:active { transform: rotate(1.2deg) translate(2px, 2px); box-shadow: 0 0 0 #17110D; }
+  .td-clerk-next:focus-visible { outline: 2px dashed #17110D; outline-offset: 3px; }
   /* The time, quietly: a smaller, paler box. */
   .td-clerk-narration.td-clerk-when { font-size: 9.5px; padding: 3px 7px 2px; background: #F7EBB8; border-width: 1.5px; box-shadow: 1.5px 1.5px 0 rgba(23, 17, 13, 0.6); opacity: 0.85; }
   .td-clerk-pa { left: 8px; right: 8px; bottom: 8px; text-align: center; background: #FBF6E6; }
@@ -853,13 +863,6 @@ function ClerkScene({ audio, onStay, onGoHome }) {
             onError: () => setFailed((f) => { const n = new Set(f); n.add(c.shot); return n; }),
           })),
           h("i", { className: "td-clerk-dots", "aria-hidden": "true" }),
-          // The first panel: the time, quietly; and, come with the order
-          // form, what you do (walking you through it: user).
-          s.narration && (s.handover
-            ? h("div", { key: `n${s.frame}`, className: "td-clerk-narrations" },
-                h("p", { className: "td-clerk-narration td-clerk-when" }, s.narration),
-                withOrder && h("p", { className: "td-clerk-narration", "data-testid": "tienda-clerk-handover" }, "You hand over the order form\u2026"))
-            : h("p", { key: `n${s.frame}`, className: "td-clerk-narration" }, s.narration)),
           s.page && pagedOut && h("p", { className: "td-clerk-pa" }, PA_CAPTION),
           lost && h("p", { className: "td-clerk-fallback" }, said ? `\u201c${said}\u201d` : "\u2026")),
         // Where it's got to: a dot a frame, the ones seen can be gone back to.
@@ -874,14 +877,22 @@ function ClerkScene({ audio, onStay, onGoHome }) {
             });
           })),
         // In the clipping's bottom margin (clear of the dock's piece on
-        // a phone, which floats over the bottom of the screen).
-        h("div", { className: "td-clerk-actions" },
+        // a phone, which floats over the bottom of the screen): the
+        // narrator's caption under the panel, off the faces (user), and a
+        // small Next at the right; at the end, the two ways out.
         last
-          ? [
+          ? h("div", { className: "td-clerk-actions" }, [
               h("button", { key: "stay", type: "button", className: "td-btn td-plain", "data-testid": "tienda-clerk-stay", onClick: (e) => { e.stopPropagation(); onStay(); } }, "Stay a while"),
               h("button", { key: "home", type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-go-home", onClick: (e) => { e.stopPropagation(); audio && audio.playSelect && audio.playSelect(); onGoHome(); } }, withOrder ? "Go home, confused\u2026 with your form" : "Go home, confused."),
-            ]
-          : h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-next", onClick: (e) => { e.stopPropagation(); next(); } }, "Continue \u25b8")))),
+            ])
+          : h("div", { className: "td-clerk-foot" },
+              h("div", { key: `n${s.frame}`, className: "td-clerk-captions" },
+                s.narration && h("p", { className: s.handover && withOrder ? "td-clerk-narration td-clerk-when" : "td-clerk-narration" }, s.narration),
+                // The first panel, come with the order form: what you do
+                // (walking you through it: user).
+                s.handover && withOrder && h("p", { className: "td-clerk-narration", "data-testid": "tienda-clerk-handover" }, "You hand over the order form\u2026")),
+              h("button", { type: "button", className: "td-clerk-next", "data-testid": "tienda-clerk-next", "aria-label": "Next panel", onClick: (e) => { e.stopPropagation(); next(); } },
+                h("span", null, "Next"), h("i", { "aria-hidden": "true" }))))),
       // The line, for a screen reader (the photograph carries it on screen).
       h("p", { className: "td-sr", "data-testid": "tienda-clerk-line", "aria-live": "polite" }, s.line ? `\u201c${s.line}\u201d` : s.alt)));
 }

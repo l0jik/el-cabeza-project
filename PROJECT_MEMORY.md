@@ -3689,3 +3689,9 @@ phone menu until "Start the story over" (which clears it).
   Q 4-8, lp 3600) in runs, pops (knock + low thump), a log settling every
   22-52 s. Rain wash softened (hp 500 / lp 2600, 0.0045) and its patter
   duller. Measured at the output: >4 kHz energy ~80x lower, 0.8-4 kHz ~3x.
+- Clerk scene narration (user: the handover box sat on the clerk's face):
+  the narrator's boxes ("Later that day…" small + "You hand over the order
+  form…", "Moments later…") moved out of the photo into the clipping's
+  bottom margin (.td-clerk-foot: .td-clerk-captions left, rotate 0.6deg);
+  Continue is now a small .td-clerk-next "NEXT ▸" (Bangers 17px, 34px tall,
+  CSS triangle) at the right. Last frame keeps the two big buttons.
