@@ -2098,6 +2098,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // A theme may raise the corner controls over a full-screen layer of
   // its own (Neon's SINGULARITY sphere), so they stay usable there.
   const cornerControlsZ = (setupExtras && setupExtras.cornerControlsZ) || 12;
+  /* The dock panel's corner switches sit in the strip its bottom padding
+     keeps for them. When the panel is taller than it may be (a small
+     phone) it scrolls, and absolutely placed children stay where the
+     unscrolled box ends, over the rows (user's screenshot: "Start the
+     story over" under them). So they're lowered by however much the
+     panel overflows, to the strip at the end of its content. */
+  useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const over = Math.max(0, el.scrollHeight - el.clientHeight);
+    const v = `${over}px`;
+    if (el.style.getPropertyValue("--ec-dock-overflow") !== v) el.style.setProperty("--ec-dock-overflow", v);
+  });
 
   function handleTitleClick() {
     setInfoBtnVisible(true);
@@ -8454,7 +8467,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             style={{
               position: "absolute",
               right: 8,
-              bottom: 8,
+              bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
               width: 30,
               height: 30,
               display: "flex",
@@ -8542,7 +8555,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           style={{
             position: "absolute",
             right: theme.hasAudio ? 40 : 8,
-            bottom: 8,
+            bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
             width: 30,
             height: 30,
             display: "flex",
@@ -8583,7 +8596,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             style={{
               position: "absolute",
               right: theme.hasAudio ? 72 : 40,
-              bottom: 8,
+              bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
               width: 30,
               height: 30,
               display: "flex",
@@ -8618,7 +8631,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           style={{
             position: "absolute",
             right: (theme.hasAudio ? 40 : 8) + 32 + (theme.moveCostToggle ? 32 : 0),
-            bottom: 8,
+            bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
             width: 30,
             height: 30,
             display: "flex",
@@ -8652,7 +8665,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             style={{
               position: "absolute",
               right: (theme.hasAudio ? 40 : 8) + 64 + (theme.moveCostToggle ? 32 : 0),
-              bottom: 8,
+              bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
               width: 30,
               height: 30,
               display: "flex",

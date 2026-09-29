@@ -3578,3 +3578,9 @@ phone menu until "Start the story over" (which clears it).
 - Music chip (now playing): above the floating dock piece (z 16 > 15) with
   a firmer shadow; paused before a game on a phone, the piece covered its
   volume slider.
+- Dock panel on phones (user's screenshot: "Start the story over" under the
+  corner switches): the story links stay on one line (nowrap, type
+  min(11px, 2.9vw)); and when the panel must scroll (max-height
+  calc(42vh - 56px) before a game) the five corner switches drop by the
+  overflow (--ec-dock-overflow, set every render) into the padding strip
+  at the end of the content, instead of floating over the rows.

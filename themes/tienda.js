@@ -475,8 +475,8 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
   if (!store && !home) return row;
   const link = (key, label, onClick, testid) => h("button", {
     key, type: "button", "data-testid": testid, onClick,
-    style: { background: "transparent", border: "none", padding: "8px 4px", minHeight: 36, cursor: "pointer", color: COLORS.charcoal,
-      fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.08em", textDecoration: "underline", textUnderlineOffset: 3 },
+    style: { background: "transparent", border: "none", padding: "8px 2px", minHeight: 36, cursor: "pointer", color: COLORS.charcoal, whiteSpace: "nowrap",
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: "min(11px, 2.9vw)", letterSpacing: "0.03em", textDecoration: "underline", textUnderlineOffset: 3 },
   }, label);
   // After the whole story the store has never heard of the game: another
   // copy is the clerk's scene, and then all that's left is to go home.
@@ -489,7 +489,10 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
         onClick: confused ? story.onGoHomeConfused : story.onPurchase,
         style: { ...quiet, flex: "0 0 auto", width: "100%", background: COLORS.charcoal, color: COLORS.cream || "#F4EEDC" },
       }, confused ? "Go home, confused." : after ? "Purchase another copy · $7.97" : "Purchase and bring home · $7.97")
-    : h("div", { key: "links", style: { display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", width: "100%" } },
+    // One line, however narrow the phone (the type shrinks a little): on
+    // two, the dock's panel ran past its height and scrolled, and the
+    // second line slid under its corner switches (user's screenshot).
+    : h("div", { key: "links", style: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "nowrap", width: "100%" } },
         !gone && link("store", "Back to the store", story.onBackToStore, "story-back-to-store"),
         link("over", "Start the story over", story.onRestart, "story-restart"));
   return h("div", { style: { display: "flex", flexDirection: "column", gap: 8, width: "100%" } }, row, under);
