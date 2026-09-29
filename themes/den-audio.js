@@ -414,7 +414,7 @@ export function createAudio() {
       }
     };
     box(AD.title + 0.5, AD.best);
-    box(AD.dealer, AD.credit - 0.2);
+    box(AD.dealer, AD.never);
     // "El Ca-be-za!" on the organ: G A C . E, at the top and at the end.
     const motif = (t) => [[67, 0, 0.22], [69, 0.25, 0.22], [72, 0.5, 0.22], [76, 0.8, 0.7]].forEach(([m, d, l]) => organ(T + t + d, [m, m - 12], l, 0.05));
     motif(AD.title + 0.05);
@@ -449,8 +449,18 @@ export function createAudio() {
     // The dealer's card: the motif again; Dale's telephone.
     motif(AD.dealer + 0.1);
     { const t = T + AD.standing + 0.2, d = 1.1; const o = ctx.createOscillator(); o.frequency.value = 1150; const o2 = ctx.createOscillator(); o2.frequency.value = 1420; const am = ctx.createOscillator(); am.type = "square"; am.frequency.value = 20; const amg = ctx.createGain(); amg.gain.value = 0.5; const g = ctx.createGain(); g.gain.value = 0.5; am.connect(amg).connect(g.gain); const e = ctx.createGain(); e.gain.setValueAtTime(0.0001, t); e.gain.linearRampToValueAtTime(0.03, t + 0.02); e.gain.setValueAtTime(0.03, t + d - 0.05); e.gain.linearRampToValueAtTime(0.0001, t + d); o.connect(g); o2.connect(g); g.connect(e).connect(out); [o, o2, am].forEach((x) => { x.start(t); x.stop(t + d + 0.02); }); }
+    // "El Cabeza... only $7.97": the cash register (the key, the bell, the
+    // drawer), and a fanfare stab for brand new for 1975.
+    { const t = T + AD.only; burst(t, out, 0.12, 0.05, [["bandpass", 1800, 2]]); bell(t + 0.06, 100, 0.06); bell(t + 0.07, 105, 0.03); burst(t + 0.18, out, 0.08, 0.35, [["bandpass", 700, 1.2]]); }
+    organ(T + AD.brandNew, [60, 64, 67, 72], 0.14, 0.04); organ(T + AD.brandNew + 0.16, [62, 65, 69, 74], 0.14, 0.04); organ(T + AD.brandNew + 0.32, [64, 67, 72, 76], 0.9, 0.04);
+    // "Get yours now...": the organ runs up; "if not, you never will!":
+    // it drops away to something low and minor, a little too sincere.
+    for (let i = 0; i < 8; i++) organ(T + AD.close + i * 0.07, [60 + [0, 2, 4, 5, 7, 9, 11, 12][i]], 0.09, 0.03);
+    organ(T + AD.close + 0.6, [48, 60, 64, 67], 1.0, 0.03);
+    { const t = T + AD.never - 0.1; const o = tone(t, 660, 0.7, 0.03, "triangle"); o.frequency.exponentialRampToValueAtTime(90, t + 0.6); }
+    organ(T + AD.never + 0.5, [40, 47, 52, 55, 59], 1.9, 0.03);
     // The sign-off: the big chord, held to the credit.
-    organ(T + AD.credit - 0.2, [48, 60, 64, 67, 72], 1.2, 0.035);
+    organ(T + AD.credit + 0.1, [48, 60, 64, 67, 72], 1.1, 0.03);
     setTimeout(() => { if (tv && tv.ad === out) tv.ad = null; }, (end - now()) * 1000 + 500);
   }
 

@@ -18,12 +18,13 @@
 
 import * as THREE from "three";
 
-export const COMMERCIAL_MS = 26500;
+export const COMMERCIAL_MS = 33900;
 
 // The scenes, in seconds from the top (the sound follows these).
 export const CUES = {
   slate: 0, title: 2.2, chess: 5.6, stamp: 7.0, flee: 7.6, king: 9.2, orders: 12.4,
-  items: [13.2, 14.0, 14.8], assembly: 15.8, best: 17.0, sortOf: 19.5, dealer: 20.6, standing: 22.0, credit: 24.8, snow: 25.9,
+  items: [13.2, 14.0, 14.8], assembly: 15.8, best: 17.0, sortOf: 19.5, dealer: 20.6, standing: 22.0,
+  price: 24.8, only: 25.9, brandNew: 26.9, close: 28.3, never: 29.9, credit: 32.0, snow: 33.3,
 };
 
 const W = 512, H = 384, FPS = 12;
@@ -236,6 +237,67 @@ function dealer(g, t, f) {
   if (hash(f) < 0.08) { g.fillStyle = "rgba(255,255,255,0.06)"; g.fillRect(0, 0, W, H); }
 }
 
+// "El Cabeza... only $7.97... brand new for 1975!"
+function price(g, t, f) {
+  g.fillStyle = "#ffd400"; g.fillRect(0, 0, W, H);
+  // Sunburst stripes from behind the tag, the cheapest way to say "value".
+  g.save(); g.translate(W * 0.5, H * 0.58); g.rotate(-t * 0.25);
+  for (let i = 0; i < 20; i++) if (i % 2) { g.fillStyle = "rgba(255,120,0,0.35)"; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, 460, (i * Math.PI) / 10, ((i + 1) * Math.PI) / 10); g.closePath(); g.fill(); }
+  g.restore();
+  const dots = Math.min(3, Math.floor(t * 3));
+  say(g, "EL CABEZA" + ".".repeat(dots), W / 2, H * 0.15, { font: `900 38px ${SERIF}`, color: "#b8141c", shadow: "#5a2a00", shadowAt: [3, 4] });
+  const o = t - (CUES.only - CUES.price);
+  if (o > 0) {
+    // The price tag, slammed down.
+    const k = o < 0.18 ? 2.2 - (o / 0.18) * 1.2 : 1 + Math.sin(o * 7) * 0.02;
+    g.save(); g.translate(W * 0.5, H * 0.58); g.rotate(-0.08); g.scale(k, k);
+    g.fillStyle = "#d0101a"; star(g, 0, 0, 118, 16, 0.84, 0); g.fill();
+    g.strokeStyle = "#fff"; g.lineWidth = 4; star(g, 0, 0, 104, 16, 0.84, 0); g.stroke();
+    g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.font = `900 20px ${SANS}`; g.fillText("ONLY", 0, -44);
+    g.font = `900 64px ${SANS}`; g.fillText("$7", -18, 10);
+    g.font = `900 32px ${SANS}`; g.fillText("97", 44, -4);
+    g.fillRect(28, 12, 34, 4);
+    g.restore();
+  }
+  const b = t - (CUES.brandNew - CUES.price);
+  if (b > 0) {
+    g.save(); g.translate(W * 0.83, H * 0.83); g.rotate(-0.3 + Math.sin(b * 5) * 0.04);
+    const pop = b < 0.15 ? b / 0.15 : 1;
+    g.scale(pop, pop);
+    g.fillStyle = "#1438c8"; star(g, 0, 0, 62, 12, 0.78); g.fill();
+    g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.font = `900 14px ${SANS}`; g.fillText("BRAND NEW", 0, -14);
+    g.font = `900 13px ${SANS}`; g.fillText("FOR", 0, 2);
+    g.font = `900 22px ${SANS}`; g.fillText("1975!", 0, 20);
+    g.restore();
+  }
+  if (hash(f * 0.3) < 0.1) { g.fillStyle = "rgba(255,255,255,0.12)"; g.fillRect(0, 0, W, H); }
+}
+
+// "Get yours now... if not, you never will!" (it goes a bit dark there).
+function close(g, t, f) {
+  const n = t - (CUES.never - CUES.close);
+  if (n < 0) {
+    g.fillStyle = Math.floor(t * 4) % 2 ? "#c8101a" : "#e8141f"; g.fillRect(0, 0, W, H);
+    const dots = Math.min(3, Math.floor(t * 2.4));
+    say(g, "GET YOURS", W / 2, H * 0.4, { font: `900 46px ${SANS}`, color: "#fff", shadow: "#400", shadowAt: [4, 5] });
+    say(g, "NOW" + ".".repeat(dots), W / 2, H * 0.58, { font: `900 56px ${SANS}`, color: "#ffe23a", shadow: "#400", shadowAt: [4, 5] });
+    return;
+  }
+  // The turn: black, a slow push in, the words as if someone meant them.
+  g.fillStyle = "#030303"; g.fillRect(0, 0, W, H);
+  const z = 1 + n * 0.06;
+  g.save(); g.translate(W / 2, H / 2); g.scale(z, z);
+  say(g, "IF NOT,", 0, -34, { font: `700 26px ${SERIF}`, color: "#cfc8b8", smear: 1 });
+  if (n > 0.55) say(g, "YOU NEVER WILL!", 0, 12, { font: `900 34px ${SERIF}`, color: "#e8e2d2", smear: 2.4 });
+  g.restore();
+  const v = g.createRadialGradient(W / 2, H / 2, 60, W / 2, H / 2, 300);
+  v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,0.75)");
+  g.fillStyle = v; g.fillRect(0, 0, W, H);
+  if (hash(f * 1.9) < 0.15) { g.fillStyle = "rgba(160,0,0,0.12)"; g.fillRect(0, 0, W, H); }
+}
+
 function credit(g, t) {
   g.fillStyle = "#07070a"; g.fillRect(0, 0, W, H);
   say(g, "Paid for by the Friends of El Cabeza", W / 2, H * 0.46, { font: `700 16px ${MONO}`, color: "#d8d4c6" });
@@ -271,7 +333,9 @@ export function createCommercial() {
     else if (t < CUES.orders) king(s, t - CUES.king, f);
     else if (t < CUES.best) orders(s, t - CUES.orders);
     else if (t < CUES.dealer) best(s, t - CUES.best);
-    else if (t < CUES.credit) dealer(s, t - CUES.dealer, f);
+    else if (t < CUES.price) dealer(s, t - CUES.dealer, f);
+    else if (t < CUES.close) price(s, t - CUES.price, f);
+    else if (t < CUES.credit) close(s, t - CUES.close, f);
     else credit(s, t - CUES.credit);
     s.restore();
   }
@@ -291,7 +355,7 @@ export function createCommercial() {
     }
     paintScene(t, f);
     // The picture rolls at the cuts (vertical hold), then settles.
-    const cuts = [CUES.title, CUES.chess, CUES.king, CUES.orders, CUES.best, CUES.dealer, CUES.credit];
+    const cuts = [CUES.title, CUES.chess, CUES.king, CUES.orders, CUES.best, CUES.dealer, CUES.price, CUES.close, CUES.credit];
     let roll = t < 0.6 ? (1 - t / 0.6) * H * 0.7 : 0;
     cuts.forEach((k, i) => { const d = t - k; if (d >= 0 && d < 0.35 && i % 2 === 0) roll = Math.max(roll, (1 - d / 0.35) * H * 0.25); });
     const oy = Math.round(roll) % H;

@@ -3387,7 +3387,7 @@ add `onSingularityBack` -> tvBridge.back(); neon-singularity.js's BACK uses
 it when present, else exitSingularity as before; standalone Neon unchanged;
 Escape in the sphere still goes to Neon's board). The first time home after
 the Singularity's been seen (BACK or the title hold), the den's set shows
-a community-access infomercial (themes/den-commercial.js, 26.5 s, drawn at
+a community-access infomercial (themes/den-commercial.js, about 34 s, drawn at
 12 fps on the TV's screen texture with rolls/tracking/dropouts): paid
 programming slate, star wipe to hand-cut "EL CABEZA!", "Tired of chess?"
 pawn + red stamp "GET OUTTA HERE, CHESS!", crowned Cabeza "CABEZA IS
@@ -3395,7 +3395,7 @@ KING!", "NOW TAKING SPECIAL ORDERS! new pieces/laws/boards (some assembly
 required)", "The best thing you didn't know existed ...sort of!!", the
 dealer card held up with a thumb in shot ("Games & Hobby Dept.", KLondike
 5-0199, "Operators are standing by* / *Operator is Dale"), "Paid for by the
-Friends of El Cabeza", snow; then the set goes off and the camera leaves
+Friends of El Cabeza", snow (since extended: "EL CABEZA... ONLY $7.97" price tag, "BRAND NEW FOR 1975!" badge, "GET YOURS NOW..." then a dark turn "IF NOT, YOU NEVER WILL!", before the credit); then the set goes off and the camera leaves
 slowly. Sound: den-audio.js tvCommercial (organ + bossa rhythm box, sad
 trombone, stamp, slide whistle, bells, typewriter, boing, phone bell, tape
 hum) through the TV's speaker; tvOff stops it. The camera frames the
