@@ -512,6 +512,8 @@ export function shellSetupActions({ openOrderForm, story, specialOpen }) {
 }
 
 export { useSetupExtras, renderExtraOverlays, resetLid, clerkConfused } from "./tienda-overlay.js";
+// Nova: the store after the whole story (appliances on the table, their ad on the standee).
+export { setStoreRevisited } from "./tienda-store.js";
 import { clerkConfused as clerkConfusedNow } from "./tienda-overlay.js";
 export { mountAmbientEffects } from "./tienda-fx.js";
 /* The buttons and chips that stand for a side wear that side's wood,

@@ -13,6 +13,9 @@ const DEN_RECORDS = {
   ...Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`el-cabeza-den-tape-${n}.mp3`, `assets/den/8track_${n}.mp3`])),
 };
 
+// The Games counter's photographs (themes/tienda-overlay.js ClerkScene).
+const CLERK_SHOTS = ["clerk-hello", "clerk-sure", "clerk-go", "clerk-back", "clerk-hmm", "clerk-sorry", "clerk-phone",
+  "manager-1", "manager-2", "manager-3", "manager-4", "manager-5", "manager-6", "manager-7", "manager-8"];
 const targets = [
   // The den's records (themes/standard.js DEN_TRACKS), files beside the
   // page like Tienda's reels: fetched when played. Nova's den reads the same.
@@ -35,6 +38,9 @@ const targets = [
     "el-cabeza-tienda-reel-4.mp3": "assets/tienda/reel-4-tuesday-morning-at-the-atrium.mp3",
     "el-cabeza-tienda-reel-5.mp3": "assets/tienda/reel-5-tuesday-night-at-the-emporium.mp3",
     "el-cabeza-tienda-reel-6.mp3": "assets/tienda/reel-6-midday-clearance-sale.mp3",
+    // The revisited store's scene at the Games counter (the photographs,
+    // tools/tienda_clerk_frames.py; Nova's store reads them too).
+    ...Object.fromEntries(CLERK_SHOTS.map((n) => [`el-cabeza-${n}.jpg`, `assets/tienda/clerk/${n}.jpg`])),
   } },
 ];
 

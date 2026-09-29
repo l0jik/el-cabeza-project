@@ -3519,13 +3519,17 @@ phone menu until "Start the story over" (which clears it).
   finger moves the way the finger moves - left, right, up (looking up),
   down (looking down) - in every case, at any zoom. All the fixed rules
   (dragFlipTheta, roomLook, the Room view flips) are gone. grabFollow
-  (chassis): at the press, and again every 50 ms / 14 px, raycast for the
-  solid visible point under the pointer (else the ground plane through the
-  target), then finite-difference where that point would land on screen for
-  a small turn and a small tilt, using the exact camera pose (cameraDistance
-  models the room clamp on r; applyCamera shares it). The sign of each rate
-  sets that axis's direction; a hysteresis margin (0.04 x height px/rad)
-  keeps it from flickering on the turning line. Fallbacks: the half-screen
+  (chassis): at touch-down, raycast for the solid visible point under the
+  pointer (else the ground plane through the target) and keep it, in the
+  board's frame, for the whole drag (re-picking under the moving finger
+  grabbed the floor behind the board and flipped the tilt; picking at the
+  drag's start, after the dead zone, grabbed the wrong thing too). Every
+  50 ms / 14 px: where that point lands on screen for the view turned and
+  tilted a step (0.06 rad) each way, from the exact camera pose
+  (cameraDistance models the room clamp on r; applyCamera shares it); each
+  axis takes the sign that carries it the finger's way (both sides tried:
+  near the pivot a tilt either way moves it the same way). Once chosen, a
+  sign changes only past a margin (0.04 x height px/rad, flip at 2x). Fallbacks: the half-screen
   rule for turn, finger-up-tilts-to-horizon for tilt. Test:
   tests/e2e-drag-follow.mjs [page] [phone|desktop] drags from a 3x3 grid in
   four directions across play, zoomed out, top-down, low, panned off (x2)
@@ -3538,3 +3542,30 @@ phone menu until "Start the story over" (which clears it).
   out), louder and nearer than the ambient PA (tienda-audio playPage).
   User wants the revisited store to sell something else on the same table
   with the standee advertising it; ideas offered, awaiting the pick.
+- The Games-counter scene (revisited store, Nova, after the story) is now
+  the user's storyboard as photographs. Source sheets in
+  assets/tienda/storyboard (clerk-sheet.jpg, manager-sheet.png, 4x2 cells
+  of 384x512); tools/tienda_clerk_frames.py writes assets/tienda/clerk/*.jpg
+  (368x474). The user's marker boxes meant "merge these cells": 1+2, 3+4,
+  5+6 (each one frame, a tap crossfades 0.9 s to the second cell); cell 7
+  (scribbled) dropped; cell 8 the phone call; then the 8 manager cells.
+  Their rule: table and props identical in every frame. So one appliance
+  spread (coffee maker, can opener + gadget, crock-pot, toaster, blender,
+  mixer), cut from the "Yeah, I'm sorry" cell by hand polygons + everything
+  below y 400, is laid over every frame at the same place (manager cells
+  cropped 22 px higher, spread 22 px higher in them). The El Cabeza demo
+  on the manager sheet is covered by it (user: appliances only). Marker
+  strokes are filled from the merged partner cell (ORB homography), the
+  SAVE sign slid/whole from the partner (parallax), bubbles crossed by a
+  stroke closed by mirroring their left end. Lines verbatim in bubbles
+  (screen reader copy in .td-sr); PA caption "Manager to Games" + playPage
+  0.9 s after the phone frame shows. Frames ship beside the page
+  (build.js CLERK_SHOTS -> dist/el-cabeza-<shot>.jpg), text fallback if one
+  fails. Test: tests/e2e-clerk.mjs.
+- The revisited store itself (tienda-store.js setStoreRevisited, set from
+  unified.jsx storeTheme.useSetupExtras = storeAfter()): the same six
+  appliances as 3D models at the table's ends (0.85 life size), "Kitchen
+  Magic" cartons on the lower shelf, no game boxes or tent card; the
+  standee shows assets/tienda/ad-housewares.jpg ("Come home to Harvest
+  Gold!", made by tools/tienda_housewares_ad.py from the same spread, fonts
+  in tools/fonts), its card "Housewares · Aisle 4". The board stays.

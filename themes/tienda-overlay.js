@@ -450,16 +450,28 @@ const MORE_CSS = `
 const STORY_CSS = `
   .td-row-look { grid-template-columns: 64px 5.2em minmax(0, 1fr) 4em; }
   .td-clerk-layer { cursor: pointer; }
-  .td-clerk { width: min(470px, 100%); padding: clamp(18px, 4vw, 26px); background: var(--tienda-aged, ${PAPER}); background-color: ${PAPER};
-    color: ${INK}; border: 1px solid rgba(46,33,24,0.4); box-shadow: 0 18px 50px rgba(10,6,3,0.5); cursor: default; animation: tdClerkIn 0.4s ease both; }
+  .td-clerk { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: default; animation: tdClerkIn 0.4s ease both;
+    width: min(420px, 100%); }
   @keyframes tdClerkIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-  .td-clerk-who { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; border-bottom: 1.5px solid ${INK}; padding-bottom: 8px; }
-  .td-clerk-who b { font: 800 14px/1 ${FRANKLIN}; letter-spacing: 0.12em; text-transform: uppercase; color: ${RED}; }
-  .td-clerk-who span { font: 400 11px/1 ${COURIER}; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
-  .td-clerk-line { margin: 0; min-height: 3.3em; font: 400 clamp(15px, 1.2vw + 11px, 18px)/1.45 ${COURIER}; }
-  .td-clerk-caret { opacity: 0.6; }
-  .td-clerk-dir { margin: 10px 0 0; font: italic 400 14px/1.4 ${BODONI}; color: rgba(46,33,24,0.72); }
-  .td-clerk-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 18px; }
+  /* A drugstore print: the photograph in its white border, a little
+     askew, the caption along the wide bottom margin. */
+  .td-clerk-print { margin: 0; padding: 10px 10px 0; background: #F4EFE3; border-radius: 3px; transform: rotate(-0.8deg);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 18px 50px rgba(10,6,3,0.55), 0 2px 6px rgba(10,6,3,0.35);
+    width: min(100%, calc((100dvh - 150px) * 368 / 474 + 20px)); cursor: pointer; }
+  .td-clerk-shots { position: relative; aspect-ratio: 368 / 474; background: #2A1F16; overflow: hidden; }
+  .td-clerk-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; user-select: none;
+    transition: opacity 0.32s ease; }
+  .td-clerk-print[data-fade="slow"] .td-clerk-shot { transition-duration: 0.9s; }
+  .td-clerk-shot[data-on="true"] { opacity: 1; }
+  .td-clerk-fallback { position: absolute; inset: auto 12px 12px; margin: 0; padding: 12px 14px; background: #FBF8F0; color: ${INK};
+    border-radius: 14px; font: 400 16px/1.4 ${COURIER}; }
+  .td-clerk-caption { min-height: 10px; display: flex; align-items: center; justify-content: center; padding: 8px 8px 0;
+    font: 400 12px/1.3 ${COURIER}; letter-spacing: 0.06em; color: rgba(46,33,24,0.62); text-align: center; }
+  .td-clerk-pa { font: italic 400 14px/1.35 ${BODONI}; letter-spacing: 0; color: rgba(46,33,24,0.85); animation: tdClerkIn 0.5s ease both; }
+  .td-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (prefers-reduced-motion: reduce) { .td-clerk-shot, .td-clerk-print[data-fade="slow"] .td-clerk-shot { transition-duration: 0.01s; } }
+  .td-clerk-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; padding: 10px 6px 12px; }
+  .td-clerk-actions .td-btn { min-height: 44px; }
   .td-offer { position: fixed; z-index: 1150; left: 50%; top: max(12px, env(safe-area-inset-top)); transform: translateX(-50%);
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: min(560px, calc(100vw - 24px));
     padding: 10px 14px; background: #EFE6CD; color: ${INK}; border: 1px solid rgba(46,33,24,0.35); box-shadow: 0 10px 30px rgba(20,12,6,0.35);
@@ -617,54 +629,91 @@ function PurchaseOffer({ story, audio }) {
 }
 
 /* Back at the store after the whole story: nobody has heard of it. The
-   clerk looks, calls the manager over the public address, and the manager
-   is very sorry. Each line types out; a tap finishes it or goes on. */
-const CLERK_SCRIPT = [
-  { who: "Clerk", tag: "Games Dept.", line: "Another El Cabeza? Sure thing. Let me just check in the back.", dir: "He's gone a while. Somewhere, a cart wheel squeaks." },
-  { who: "Clerk", tag: "Games Dept.", line: "El\u2026 Cabeza? Hm. That's not ringing any bells. It's not in the book, either.", dir: "He looks at the game on the table, then back at you." },
-  { who: "Clerk", tag: "Games Dept.", line: "Let me get my manager.", dir: "Ding-dong. \u201cMr. Pruitt to Games, please. Mr. Pruitt to Games.\u201d", page: true },
-  { who: "Mr. Pruitt", tag: "Store Manager", line: "Afternoon! El Cabeza, you said? No\u2026 no. We've never sold a game by that name." },
-  { who: "Mr. Pruitt", tag: "Store Manager", line: "We're very sorry, but we'd love to help you if we could\u2026", dir: "He smiles. Nobody looks at the table." },
+   user's storyboard, as photographs (assets/tienda/clerk, made by
+   tools/tienda_clerk_frames.py from their two sheets: one spread of
+   appliances on the table in every frame). Steve B. offers to help, goes
+   to look, comes back empty-handed, and phones for the manager (the PA
+   pages him as the phone frame comes up); the manager has never heard of
+   it either. A tap goes on. Where the user merged two cells into one
+   frame, the tap crossfades the first into the second (the lines are in
+   the bubbles, and read aloud to a screen reader). The photographs are
+   files beside the page (build/build.js), fetched as the scene opens; if
+   one can't load, its line is printed instead. */
+const CLERK_FRAMES = [
+  { shots: ["clerk-hello", "clerk-sure"], lines: ["Hi there! Can I help you with something?", "Sure thing! I'd be happy to help you find that."] },
+  { shots: ["clerk-go", "clerk-back"], lines: ["I'll go check on that for you real quick!", "One minute! I'll see if we have it in the back!"] },
+  { shots: ["clerk-hmm", "clerk-sorry"], lines: ["Hmm\u2026 I couldn't find it. I checked the aisle and also the back room.", "Yeah, I'm sorry. I don't see it anywhere right now."] },
+  { shots: ["clerk-phone"], lines: ["Okay, let me call my manager and see if they can help us with this."], page: true },
+  { shots: ["manager-1"], lines: ["Afternoon! El Cabeza, you said?"] },
+  { shots: ["manager-2"], lines: ["No\u2026 no. We've never sold a game by that name."] },
+  { shots: ["manager-3"], lines: ["You say you were in here about an hour ago, huh?"] },
+  { shots: ["manager-4"], lines: ["Hmm\u2026 That's strange."] },
+  { shots: ["manager-5"], lines: ["We're very sorry, but we've never carried a game by that name."] },
+  { shots: ["manager-6"], lines: [""], alt: "The clerk and the manager look at each other." },
+  { shots: ["manager-7"], lines: ["But we'd love to help you if we could\u2026"] },
+  { shots: ["manager-8"], lines: ["Is there anything else I can help you with today?"] },
 ];
+// Every shot in order, with its frame.
+const CLERK_STEPS = CLERK_FRAMES.flatMap((f, fi) => f.shots.map((shot, si) => ({ shot, frame: fi, line: f.lines[si], alt: f.alt, page: !!f.page && si === 0 })));
+export const CLERK_SHOT_FILES = CLERK_STEPS.map((s) => `el-cabeza-${s.shot}.jpg`);
+const PA_CAPTION = "Ding-dong. \u201cManager to Games, please. Manager to Games.\u201d";
+
 function ClerkScene({ audio, onStay, onGoHome }) {
   const [step, setStep] = React.useState(0);
-  const [shown, setShown] = React.useState(0);
-  const s = CLERK_SCRIPT[step];
-  const last = step === CLERK_SCRIPT.length - 1;
-  const typed = shown >= s.line.length;
+  const [failed, setFailed] = React.useState(() => new Set());
+  const s = CLERK_STEPS[step];
+  const last = step === CLERK_STEPS.length - 1;
+  const prev = step > 0 ? CLERK_STEPS[step - 1] : null;
+  // Within a frame, the slow crossfade; frame to frame, a quick one.
+  const fade = prev && prev.frame === s.frame ? "slow" : "quick";
+  // Fetch them all as the scene opens, so no tap waits on one.
   React.useEffect(() => {
-    setShown(0);
-    const id = setInterval(() => setShown((n) => { if (n >= s.line.length) { clearInterval(id); return n; } return n + 1; }), 34);
-    return () => clearInterval(id);
-  }, [step]);
-  // The page goes out as he finishes saying he'll get the manager.
+    CLERK_SHOT_FILES.forEach((src) => { const im = new Image(); im.src = src; });
+  }, []);
+  // The page goes out a beat after he picks up the phone.
   const paged = React.useRef(false);
+  const [pagedOut, setPagedOut] = React.useState(false);
   React.useEffect(() => {
-    if (s.page && typed && !paged.current) { paged.current = true; if (audio && audio.playPage) audio.playPage(); }
-  }, [step, typed]);
+    if (!s.page || paged.current) return undefined;
+    paged.current = true;
+    const id = setTimeout(() => { setPagedOut(true); if (audio && audio.playPage) audio.playPage(); }, 900);
+    return () => clearTimeout(id);
+  }, [step]);
   React.useEffect(() => {
-    if (last && typed && !confusedAtClerk) {
+    if (last && !confusedAtClerk) {
       confusedAtClerk = true;
       window.dispatchEvent(new CustomEvent("el-cabeza:clerk-done"));
     }
-  }, [last, typed]);
+  }, [last]);
   const next = () => {
-    if (!typed) { setShown(s.line.length); return; }
     if (!last) { audio && audio.playSelect && audio.playSelect(); setStep(step + 1); }
   };
-  return h("div", { className: "td-layer td-clerk-layer", "data-testid": "tienda-clerk", "data-step": step, onClick: next },
+  const said = s.line || s.alt || "";
+  const lost = failed.has(s.shot);
+  return h("div", { className: "td-layer td-clerk-layer", "data-testid": "tienda-clerk", "data-step": step, "data-frame": s.frame, onClick: next },
     h(Style),
-    h("div", { className: "td-clerk", role: "dialog", "aria-label": "At the register" },
-      h("div", { className: "td-clerk-who" }, h("b", null, s.who), s.tag && h("span", null, s.tag)),
-      h("p", { className: "td-clerk-line", "data-testid": "tienda-clerk-line" }, "\u201c", s.line.slice(0, shown), typed ? "\u201d" : h("span", { className: "td-clerk-caret" }, "\u258c")),
-      s.dir && typed && h("p", { className: "td-clerk-dir" }, s.dir),
-      h("div", { className: "td-clerk-actions" },
-        last && typed
+    h("div", { className: "td-clerk", role: "dialog", "aria-label": "At the Games counter" },
+      h("figure", { className: "td-clerk-print", "data-fade": fade },
+        h("div", { className: "td-clerk-shots" },
+          CLERK_STEPS.map((c, i) => h("img", {
+            key: c.shot, src: CLERK_SHOT_FILES[i], alt: "", "aria-hidden": "true", draggable: false,
+            className: "td-clerk-shot", "data-on": i === step ? "true" : "false",
+            onError: () => setFailed((f) => { const n = new Set(f); n.add(c.shot); return n; }),
+          })),
+          lost && h("p", { className: "td-clerk-fallback" }, said ? `\u201c${said}\u201d` : "\u2026")),
+        h("figcaption", { className: "td-clerk-caption" },
+          s.page && pagedOut ? h("i", { className: "td-clerk-pa" }, PA_CAPTION) : null),
+        // In the print's wide bottom margin (clear of the dock's piece on
+        // a phone, which floats over the bottom of the screen).
+        h("div", { className: "td-clerk-actions" },
+        last
           ? [
               h("button", { key: "stay", type: "button", className: "td-btn td-plain", "data-testid": "tienda-clerk-stay", onClick: (e) => { e.stopPropagation(); onStay(); } }, "Stay a while"),
               h("button", { key: "home", type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-go-home", onClick: (e) => { e.stopPropagation(); audio && audio.playSelect && audio.playSelect(); onGoHome(); } }, "Go home, confused."),
             ]
-          : h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-clerk-next", onClick: (e) => { e.stopPropagation(); next(); } }, typed ? "Continue \u203a" : "\u2026"))));
+          : h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-clerk-next", onClick: (e) => { e.stopPropagation(); next(); } }, "Continue \u203a"))),
+      // The line, for a screen reader (the photograph carries it on screen).
+      h("p", { className: "td-sr", "data-testid": "tienda-clerk-line", "aria-live": "polite" }, s.line ? `\u201c${s.line}\u201d` : s.alt)));
 }
 
 /* ------------------------------------------------------------ the order form */

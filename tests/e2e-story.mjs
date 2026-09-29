@@ -161,6 +161,8 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...and nothing to buy at home", !(await has(page, "tienda-catalog-purchase")));
   await q(page, "tienda-catalog-close").click();
   await poll(async () => !(await has(page, "tienda-catalog")), 5000);
+  // (Closing the catalog puts the dock's panel away, as in the store.)
+  await openDockPanel(page);
   // The sphere's been visited (as markSingularitySeen does it): special
   // orders open, once announced, and the row says Custom rules.
   await page.evaluate(() => { localStorage.setItem("el-cabeza:singularity-seen", "1"); window.dispatchEvent(new CustomEvent("el-cabeza:journey")); });

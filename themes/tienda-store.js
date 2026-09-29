@@ -33,6 +33,17 @@ import {
 } from "./tienda-textures.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
 import adUrl from "../assets/tienda/ad-couple.jpg";
+import housewaresAdUrl from "../assets/tienda/ad-housewares.jpg";
+
+/* The store the player comes back to after the whole story (Nova): the
+   same table and the same standee, but no game on either. The table
+   carries the six appliances of the Games-counter photographs (the same
+   ones, in the same colours) and the standee their 1975 advertisement
+   (assets/tienda/ad-housewares.jpg, tools/tienda_housewares_ad.py). The
+   board stays: it's how the store is played. Set before the store is
+   built (apps/unified.jsx). */
+let revisited = false;
+export function setStoreRevisited(v) { revisited = !!v; }
 
 export const FT = 6.1;
 export const TABLE_H = 15;
@@ -398,7 +409,7 @@ export function buildStore() {
     // (Both kept well inside the card: the typewriter face runs wide, and
     // the line used to reach past the card's edges.)
     text(g, "NOW IN STOCK", w / 2, h * 0.32, { font: SIGN_FONT, size: h * 0.19, weight: 800, color: "#A33F33", spacing: 0.1, maxWidth: w * 0.82 });
-    text(g, "Games Dept. · Aisle 9", w / 2, h * 0.68, { font: TYPE_FONT, size: h * 0.14, weight: 700, color: "#3B2618", spacing: -0.05, maxWidth: w * 0.76 });
+    text(g, revisited ? "Housewares · Aisle 4" : "Games Dept. · Aisle 9", w / 2, h * 0.68, { font: TYPE_FONT, size: h * 0.14, weight: 700, color: "#3B2618", spacing: -0.05, maxWidth: w * 0.76 });
   });
   const { tex: atlasTex, uv: signUv } = signAtlas(signs, 2048);
   signTextures.push(atlasTex);
@@ -602,7 +613,7 @@ export function buildStore() {
   for (let n = 0; n < 20; n++) products.push({ x: 42 + n * 1.05, y: FLOOR + 12.5, z: 48, w: 0.35, h: 7, d: 7.4, ry: Math.PI / 2 + (rr() - 0.5) * 0.12, tile: 9, tint: SLEEVE[n % SLEEVE.length] });
   signPlane(saleIdx[1], 9, 6.75, 52, FLOOR + 19, 48 - 6.2, Math.PI, true);
   // The display stand of the game's advertisement, facing the table.
-  const adImg = loadImage(adUrl, () => { adTex.needsUpdate = true; });
+  const adImg = loadImage(revisited ? housewaresAdUrl : adUrl, () => { adTex.needsUpdate = true; });
   const adTex = new THREE.Texture(adImg);
   const adMat = new THREE.MeshBasicMaterial({ map: adTex, toneMapped: false, fog: true, color: 0xf2eee4 });
   const ad = add(vplane(15, 33.4, 0, 0, 0, 0), adMat);
@@ -927,17 +938,27 @@ export function buildTable(slabX, slabZ) {
   const boxMats = [sideMat, sideMat, lidMat, sideMat, sideMat, sideMat];
   const addBox = (x, y, z, ry) => { const g = new THREE.BoxGeometry(bl, bh, bw); const m = mk(g, boxMats, true); m.position.set(x, y, z); m.rotation.y = ry; return m; };
   const bxEnd = slabX / 2 + 1 + bw / 2;
-  addBox(bxEnd, topY + bh / 2, 0.4, -Math.PI / 2 + 0.03);
-  addBox(bxEnd + 0.15, topY + bh * 1.5, 0.2, -Math.PI / 2 - 0.05);
+  if (!revisited) {
+    addBox(bxEnd, topY + bh / 2, 0.4, -Math.PI / 2 + 0.03);
+    addBox(bxEnd + 0.15, topY + bh * 1.5, 0.2, -Math.PI / 2 - 0.05);
+  }
   const dimLid = new THREE.MeshBasicMaterial({ map: lid, color: 0xb4aa9c, toneMapped: false, fog: true }), dimSide = new THREE.MeshBasicMaterial({ color: 0x55402e, toneMapped: false, fog: true });
   disposables.push(dimLid, dimSide);
-  const dimMats = [dimSide, dimSide, dimLid, dimSide, dimSide, dimSide];
+  // (Come back after the story: the appliances' cartons instead.)
+  const carton = revisited ? canvasTexture(512, 256, cartonPainter, { scale: false }) : null;
+  if (carton) disposables.push(carton);
+  const dimCarton = carton && new THREE.MeshBasicMaterial({ map: carton, color: 0xb4aa9c, toneMapped: false, fog: true });
+  if (dimCarton) disposables.push(dimCarton);
+  const dimMats = carton ? [dimSide, dimSide, dimCarton, dimSide, dimSide, dimSide] : [dimSide, dimSide, dimLid, dimSide, dimSide, dimSide];
   for (let n = 0; n < 4; n++) {
-    const g = new THREE.BoxGeometry(bl, bh, bw); const m = mk(g, dimMats);
+    const g = revisited ? new THREE.BoxGeometry(bl * 0.62, bh * 2.6, bw * 1.1) : new THREE.BoxGeometry(bl, bh, bw); const m = mk(g, dimMats);
     // Stocked by hand: the front pair reads from one side of the table,
     // the back pair from the other.
-    m.position.set(-W / 4 + (n % 2) * 9.5, FLOOR + 3.3 + bh / 2 + Math.floor(n / 2) * bh, (n % 2 ? 1 : -1) * 3 - BZ); m.rotation.y = (n % 2 ? Math.PI : 0) + n * 0.04 - 0.02;
+    if (revisited) m.position.set(-W / 3 + n * 6.2, FLOOR + 3.3 + bh * 1.3, (n % 2 ? 1 : -1) * 2.6 - BZ);
+    else m.position.set(-W / 4 + (n % 2) * 9.5, FLOOR + 3.3 + bh / 2 + Math.floor(n / 2) * bh, (n % 2 ? 1 : -1) * 3 - BZ);
+    m.rotation.y = (n % 2 ? Math.PI : 0) + n * 0.04 - 0.02;
   }
+  if (revisited) buildAppliances({ group, mk, lit, topY, slabX, D, disposables });
   // The tent card: two leaves leaning together, printed outside, blank
   // inside, facing the players.
   const card = canvasTexture(256, 192, tentCard, { scale: false });
@@ -945,7 +966,7 @@ export function buildTable(slabX, slabZ) {
   const cardMat = lit({ map: card, roughness: 0.85 });
   const cardBack = lit({ color: 0xe9e0c8, roughness: 0.9, side: THREE.BackSide });
   const cx = -(slabX / 2 + 1.1 + 2.0), cz = 0;
-  [1, -1].forEach((s) => {
+  if (!revisited) [1, -1].forEach((s) => {
     const g = new THREE.PlaneGeometry(3.4, 2.55);
     const m = mk(g, cardMat, true);
     m.position.set(cx, topY + 1.16, cz + s * 0.42);
@@ -1004,7 +1025,121 @@ export function buildTable(slabX, slabZ) {
   return {
     group,
     setKeyDir,
-    repaint() { repaint(lid); repaint(card); },
+    repaint() { repaint(lid); repaint(card); if (carton) repaint(carton); },
     dispose() { disposables.forEach((d) => d && d.dispose && d.dispose()); },
   };
+}
+
+/* ------------------------------------------------------------ the appliances */
+
+/* The six appliances of the Games-counter photographs, at their real sizes
+   (FT units to the foot: about two to the inch), at the table's two open
+   ends where the board never turns into them: the coffeemaker, can opener
+   and slow cooker at one end, the blender, toaster and hand mixer at the
+   other. Burnt orange, almond, the flowered brown pot, chrome, glass, and
+   avocado, as in the pictures. */
+function buildAppliances({ group, mk, lit, topY, slabX, D, disposables }) {
+  // (A touch under life size: at full size the pot and the toaster
+  // crowded the edges of the play view.)
+  const IN = (FT / 12) * 0.85;
+  const q = quality();
+  const glassMat = (color, opacity) => {
+    const m = q.physical
+      ? new THREE.MeshStandardMaterial({ color, roughness: 0.08, metalness: 0, transparent: true, opacity, depthWrite: false })
+      : new THREE.MeshLambertMaterial({ color, transparent: true, opacity, depthWrite: false });
+    disposables.push(m); return m;
+  };
+  const orange = lit({ color: 0xc4502a, roughness: 0.45 });
+  const almond = lit({ color: 0xe8ddc2, roughness: 0.5 });
+  const black = lit({ color: 0x1e1814, roughness: 0.6 });
+  const chrome = lit({ color: 0xd4d2cc, roughness: 0.18, metalness: q.physical ? 0.85 : 0 });
+  const avocado = lit({ color: 0x7d8233, roughness: 0.5 });
+  const brown = lit({ color: 0x6e3f22, roughness: 0.45 });
+  const flowers = canvasTexture(512, 128, flowerBand, { scale: false });
+  disposables.push(flowers);
+  const flowered = lit({ map: flowers, roughness: 0.45 });
+  const carafe = glassMat(0x3b2616, 0.78);
+  const glass = glassMat(0xe8eee8, 0.32);
+  const at = (geo, mat, x, y, z, ry = 0) => { const m = mk(geo, mat, true); m.name = "tienda-appliance"; m.position.set(x, y, z); m.rotation.y = ry; return m; };
+  const B = (w, h, d) => new THREE.BoxGeometry(w * IN, h * IN, d * IN);
+  const C = (rt, rb, h, n = 28) => new THREE.CylinderGeometry(rt * IN, rb * IN, h * IN, n);
+  const y0 = topY; // the table's top
+  const xA = slabX / 2 + 1.1 + 3.6 * IN * 2, xB = -xA;
+  const zs = Math.min(1, (D - 1) / 13.5); // the ends' room along the table
+  // One end: the coffeemaker, the can opener, the slow cooker.
+  {
+    const z = -4.2 * zs, x = xA;
+    at(B(7, 1, 9), black, x, y0 + 0.5 * IN, z);
+    at(B(7, 9.5, 3.4), orange, x, y0 + 5.75 * IN, z - 2.8 * IN);
+    at(B(7, 2.2, 9), orange, x, y0 + 11.5 * IN, z);
+    at(C(2.7, 3.1, 5.2), carafe, x, y0 + 3.6 * IN, z + 1.4 * IN);
+    at(C(2.75, 2.75, 0.5), chrome, x, y0 + 6.3 * IN, z + 1.4 * IN);
+    at(B(0.7, 3.6, 1.2), black, x, y0 + 3.8 * IN, z + 4.6 * IN);
+  }
+  {
+    const z = 0.1 * zs, x = xA + 0.4;
+    at(B(4, 8.5, 4.6), almond, x, y0 + 4.25 * IN, z);
+    at(B(1, 3.2, 0.9), chrome, x + 1.2 * IN, y0 + 7.1 * IN, z + 2.6 * IN);
+    at(C(0.9, 0.9, 0.6, 16), chrome, x, y0 + 6.2 * IN, z + 2.45 * IN).rotation.x = Math.PI / 2;
+  }
+  {
+    const z = 4.4 * zs, x = xA;
+    at(C(4.5, 4.5, 1, 32), black, x, y0 + 0.5 * IN, z);
+    at(C(4.6, 4.4, 6.6, 36), flowered, x, y0 + 4.3 * IN, z);
+    at(C(4.7, 4.7, 0.4, 36), brown, x, y0 + 7.8 * IN, z);
+    const lidG = new THREE.SphereGeometry(4.6 * IN, 32, 12, 0, Math.PI * 2, 0, Math.PI * 0.32); lidG.scale(1, 0.55, 1);
+    at(lidG, glass, x, y0 + 7.4 * IN, z);
+    at(C(0.8, 1, 0.9, 16), black, x, y0 + 9.5 * IN, z);
+  }
+  // The other end: the blender, the toaster, the hand mixer.
+  {
+    const z = -4.4 * zs, x = xB;
+    at(B(6, 4.5, 6), chrome, x, y0 + 2.25 * IN, z);
+    at(C(2.6, 3, 1.2), black, x, y0 + 5.1 * IN, z);
+    at(C(3.1, 2.3, 8.5), glass, x, y0 + 10 * IN, z);
+    at(C(3.2, 3.2, 0.9), black, x, y0 + 14.7 * IN, z);
+  }
+  {
+    const z = -0.2 * zs, x = xB - 0.2;
+    at(B(6, 7.4, 10.5), chrome, x, y0 + 3.9 * IN, z);
+    at(B(6.2, 0.6, 10.7), black, x, y0 + 0.3 * IN, z);
+    [-1.2, 1.2].forEach((dx) => at(B(1, 0.3, 8), black, x + dx * IN, y0 + 7.62 * IN, z));
+    at(B(0.8, 1.6, 0.8), black, x, y0 + 5 * IN, z + 5.6 * IN);
+  }
+  {
+    // (Lying crosswise, its beaters toward the board.)
+    const mixer = new THREE.Group();
+    mixer.position.set(xB, y0, 4.6 * zs); mixer.rotation.y = -1.3;
+    group.add(mixer);
+    const part = (geo, mat, x, y, z) => { const m = mk(geo, mat, true); m.name = "tienda-appliance"; m.position.set(x, y, z); mixer.add(m); return m; };
+    part(B(3.6, 3.8, 8), avocado, 0, 1.9 * IN, 0);
+    part(B(3.2, 1.2, 5), avocado, 0, 4.6 * IN, 0.4 * IN);
+    [-0.8, 0.8].forEach((dx) => { part(C(0.35, 0.35, 5, 10), chrome, dx * IN, 0.6 * IN, -6.3 * IN).rotation.x = Math.PI / 2; });
+  }
+}
+
+// The slow cooker's side: brown, a band of harvest-gold and orange flowers.
+function flowerBand(g, W, H) {
+  g.fillStyle = "#6E3F22"; g.fillRect(0, 0, W, H);
+  const r = rng(1975);
+  for (let n = 0; n < 26; n++) {
+    const x = (n / 26) * W + (r() - 0.5) * 10, y = H * (0.38 + r() * 0.3), s = H * (0.1 + r() * 0.08);
+    const c = ["#E3AE45", "#D2702E", "#C4502A", "#F0C860"][n % 4];
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2 + n;
+      g.fillStyle = c; g.beginPath(); g.ellipse(x + Math.cos(a) * s * 0.7, y + Math.sin(a) * s * 0.7, s * 0.55, s * 0.32, a, 0, Math.PI * 2); g.fill();
+    }
+    g.fillStyle = "#4A2A14"; g.beginPath(); g.arc(x, y, s * 0.3, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "#8A8A3A"; g.lineWidth = 3; g.beginPath(); g.moveTo(x + s, y + s * 0.4); g.quadraticCurveTo(x + s * 2, y - s * 0.5, x + s * 2.6, y + s * 0.3); g.stroke();
+  }
+}
+
+// The appliances' cartons on the shelf below: harvest gold, brown print.
+function cartonPainter(g, W, H) {
+  g.fillStyle = "#D9A33B"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#3B2618"; g.fillRect(0, H * 0.72, W, H * 0.28);
+  g.fillStyle = "#C4502A"; g.fillRect(0, H * 0.66, W, H * 0.06);
+  text(g, "Kitchen Magic", W / 2, H * 0.3, { font: SERIF, size: H * 0.26, weight: 800, color: "#3B2618", italic: true, maxWidth: W * 0.88 });
+  text(g, "COUNTERTOP COLLECTION", W / 2, H * 0.53, { font: SIGN_FONT, size: H * 0.1, weight: 800, color: "#3B2618", spacing: 0.1, maxWidth: W * 0.86 });
+  text(g, "HARVEST GOLD", W / 2, H * 0.86, { font: SIGN_FONT, size: H * 0.1, weight: 800, color: "#E3AE45", spacing: 0.14, maxWidth: W * 0.8 });
 }

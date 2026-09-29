@@ -43,7 +43,12 @@ const STORE_STORY = { mode: "store", onPurchase: () => storyBridge.purchase(), o
 const HOME_STORY = { mode: "home", onBackToStore: () => storyBridge.backToStore(), onRestart: () => storyBridge.restart(), storeGone, arrived: takeArrival, bindAudio };
 const storeTheme = {
   ...tiendaTheme,
-  useSetupExtras: (x) => tiendaTheme.useSetupExtras({ ...x, story: STORE_STORY }),
+  useSetupExtras: (x) => {
+    // Back after the whole story, the store has moved on: set before the
+    // store is built (at mount, after this first render).
+    tiendaTheme.setStoreRevisited(storeAfter());
+    return tiendaTheme.useSetupExtras({ ...x, story: STORE_STORY });
+  },
   // A visit that opens in the store goes full screen at the first tap, as
   // Tienda's own page does; one that opens at home leaves it to the player.
   fullscreenOnFirstTap: !readOwned(),
