@@ -2435,6 +2435,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const musicChipCompact = cornerStack || shell;
   const musicChipBottom = 18 + 38 * (cornerStack ? Math.max(1, cornerSlots.length) : 1) + (cornerStack ? 4 : 6);
   const musicChipCovered = dockView === "panel" && (viewportW - dockPanelW) / 2 < 18 + MUSIC_CHIP_W;
+  /* On a phone the chip stays a small round button until tapped; tapped,
+     it opens out to the title and the volume slider, and a tap anywhere
+     else folds it back (user: it stayed open over the dock's piece). */
+  const [musicChipOpen, setMusicChipOpen] = useState(false);
+  const musicChipRef = useRef(null);
+  useEffect(() => {
+    if (!musicChipOpen) return undefined;
+    const away = (e) => { if (musicChipRef.current && !musicChipRef.current.contains(e.target)) setMusicChipOpen(false); };
+    document.addEventListener("pointerdown", away, true);
+    return () => document.removeEventListener("pointerdown", away, true);
+  }, [musicChipOpen]);
   /* Distinct from declutter above: declutter is specifically about
      hiding the Opponent row and Record section, true only during
      ACTIVE play. This is about whether a live action button sits up
@@ -7567,10 +7578,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const tr = music.tracks().find((t) => t.id === musicNow);
         const ch = music.channel;
         const vol = ch ? levelOf(ch) : 1;
-        const hidden = !shell && musicChipCovered;
-        const folded = musicChipCompact && !musicPaused;
+        // Away under the dock's open panel (on a phone it would sit on the
+        // panel's rows, seen through its frosted glass); in the phone
+        // layout, under its open menu sheet (a rule below, on the page's
+        // ec-shell-menu-open).
+        const hidden = !shell && (musicChipCovered || (musicChipCompact && dockView === "panel"));
+        const folded = musicChipCompact && !musicChipOpen;
         return (
           <div
+            ref={musicChipRef}
             data-testid="music-chip"
             data-paused={musicPaused ? "true" : "false"}
             data-folded={folded ? "true" : "false"}
@@ -7595,12 +7611,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               pointerEvents: hidden ? "none" : "auto", transition: "opacity 0.5s ease, width 0.28s ease",
             }}
           >
+            <style>{'html.ec-shell-menu-open [data-testid="music-chip"] { opacity: 0 !important; pointer-events: none !important; }'}</style>
             <button
               type="button"
               data-testid="music-chip-toggle"
-              aria-label={musicPaused ? "Play the music" : "Pause the music"}
-              title={musicPaused ? "Play" : "Pause"}
-              onClick={() => pauseTrack(!musicPaused)}
+              aria-label={folded ? "Now playing: pause or turn it down" : musicPaused ? "Play the music" : "Pause the music"}
+              title={folded ? "Music" : musicPaused ? "Play" : "Pause"}
+              onClick={() => { if (folded) setMusicChipOpen(true); else pauseTrack(!musicPaused); }}
               style={{ flex: "none", width: 26, height: 26, borderRadius: 999, border: "none", background: "transparent", color: "inherit", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">

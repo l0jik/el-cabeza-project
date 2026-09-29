@@ -254,14 +254,25 @@ async function waitFor(fn, ms = 8000) {
   check("...at the top of the corner column", Math.abs(cb.x - col.x) < 3 && cb.y < col.y, JSON.stringify({ cb, col }));
   await q(page, "music-chip-toggle").click();
   await page.waitForTimeout(600);
-  check("a tap pauses it and it opens out: what's playing, the volume", (await pausedNow()) && (await w()) > 150 && (await q(page, "music-chip-title").textContent()) === "Test tone" && (await q(page, "music-chip-volume").isVisible()));
+  check("a tap opens it out (still playing): what's playing, the volume", !(await pausedNow()) && (await w()) > 150 && (await q(page, "music-chip-title").textContent()) === "Test tone" && (await q(page, "music-chip-volume").isVisible()));
+  await q(page, "music-chip-toggle").click();
+  await page.waitForTimeout(400);
+  check("...then its button pauses it, and it stays open", (await pausedNow()) && (await chip.getAttribute("data-folded")) === "false");
   await q(page, "music-chip-volume").fill("40");
   await page.waitForTimeout(300);
   const g = (await page.evaluate(() => window.__DEN_AUDIO__())).gates.stereo;
   check("...the volume turns", Math.abs(g - 0.16) < 0.03, String(g));
-  await q(page, "music-chip-toggle").click();
+  await page.mouse.click(300, 200);
   await page.waitForTimeout(600);
-  check("play: it plays on and folds back down", !(await pausedNow()) && (await chip.getAttribute("data-folded")) === "true" && (await w()) < 36);
+  check("a tap anywhere else folds it back (still paused)", (await pausedNow()) && (await chip.getAttribute("data-folded")) === "true" && (await w()) < 36);
+  await q(page, "music-chip-toggle").click();
+  await page.waitForTimeout(400);
+  await q(page, "music-chip-toggle").click();
+  await page.waitForTimeout(400);
+  check("open again, play: it plays on", !(await pausedNow()));
+  await openDockPanel(page);
+  await page.waitForTimeout(700);
+  check("the dock's panel open: the chip steps away", await chip.evaluate((e) => getComputedStyle(e).opacity === "0" && getComputedStyle(e).pointerEvents === "none"));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();
 }

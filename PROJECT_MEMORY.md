@@ -3584,3 +3584,8 @@ phone menu until "Start the story over" (which clears it).
   calc(42vh - 56px) before a game) the five corner switches drop by the
   overflow (--ec-dock-overflow, set every render) into the padding strip
   at the end of the content, instead of floating over the rows.
+- Now-playing chip on phones: stays a round button until tapped (a tap
+  on it opens it, not pause); open, its button plays/pauses and the
+  slider turns; any tap elsewhere folds it (musicChipOpen, pointerdown
+  capture). Hidden under the dock's open panel on phones, and under the
+  phone layout's open menu sheet (MobileShell sets html.ec-shell-menu-open).

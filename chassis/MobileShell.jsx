@@ -111,6 +111,13 @@ export default function MobileShell({ ctl }) {
     return () => ro.disconnect();
   }, [landscape, float, safe.bottom]);
 
+  // Said on the page, so what floats over the bar (the now-playing chip)
+  // can step out of the way of the open sheet.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("ec-shell-menu-open", menuOpen);
+    return () => root.classList.remove("ec-shell-menu-open");
+  }, [menuOpen]);
   useEffect(() => {
     if (!menuOpen) return undefined;
     const onKey = (e) => { if (e.key === "Escape") setMenuOpen(false); };
