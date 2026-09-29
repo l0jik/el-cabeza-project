@@ -3695,3 +3695,8 @@ phone menu until "Start the story over" (which clears it).
   bottom margin (.td-clerk-foot: .td-clerk-captions left, rotate 0.6deg);
   Continue is now a small .td-clerk-next "NEXT ▸" (Bangers 17px, 34px tall,
   CSS triangle) at the right. Last frame keeps the two big buttons.
+- Full screen during the clerk scene (user: couldn't maximize): the
+  .td-layer (z 1200) covered the corner switches; Tienda's useSetupExtras
+  returns cornerControlsZ 1250 while overlay === "clerk", and STORY_CSS
+  hides the room/focus/how-to corner buttons there (body:has(.td-clerk-layer)),
+  leaving the full-screen switch. e2e-clerk checks it's the top element.

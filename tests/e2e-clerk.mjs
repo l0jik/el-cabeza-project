@@ -73,6 +73,15 @@ for (const phone of [false, true]) {
   if (shots) await page.screenshot({ path: `${shots}/${phone ? "phone" : "desk"}-store.png` });
   // The clerk comes over on his own.
   check("the Games counter scene opens by itself", await poll(() => has(page, "tienda-clerk"), 10000));
+  await page.waitForTimeout(500);
+  const fsOnTop = await page.evaluate(() => {
+    const b = document.querySelector("[data-fullscreen-toggle]");
+    if (!b) return "no switch";
+    const r = b.getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    const help = document.querySelector('[data-testid="how-to-play"]');
+    return (b === top || b.contains(top)) && (!help || getComputedStyle(help).visibility === "hidden") ? true : `top: ${top && (top.className || top.tagName)}`;
+  });
+  check(`...with the full-screen switch still on top, the other corner buttons hidden (${fsOnTop})`, fsOnTop === true);
   const loaded = await poll(() => page.evaluate(() => {
     const ims = [...document.querySelectorAll(".td-clerk-shot")];
     return ims.length === 15 && ims.every((i) => i.complete && i.naturalWidth === 368 && i.naturalHeight === 474) ? ims.length : null;

@@ -188,6 +188,10 @@ export function useSetupExtras(x) {
     // Back at the store after the story: no game on the table (the phone
     // bar shows only the purchase).
     noGame: !!(store && story.after && story.after()),
+    // Over the clerk's scene the corner's full-screen switch still works
+    // (user: couldn't maximize during the dialogue); the other corner
+    // buttons are hidden there (STORY_CSS).
+    cornerControlsZ: overlay === "clerk" ? 1250 : undefined,
     tiendaOverlay: overlay,
     openOrderForm: () => { x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen(); setOverlay(store || !specialOpen ? "catalog" : "order"); },
     openCustomRules: () => { if (specialOpen) setOverlay("order"); },
@@ -494,6 +498,9 @@ const MORE_CSS = `
   @media (prefers-reduced-motion: reduce) { .td-filled-stamp, .td-filled { animation: none; } }
 `;
 const STORY_CSS = `
+  body:has(.td-clerk-layer) [data-testid="room-view-corner"], body:has(.td-clerk-layer) [data-testid="how-to-play"],
+  body:has(.td-clerk-layer) [data-testid="focus-corner"] { visibility: hidden !important; pointer-events: none !important; }
+  body:has(.td-clerk-layer) [data-fullscreen-toggle] { opacity: 0.85 !important; }
   .td-row-look { grid-template-columns: 64px 5.2em minmax(0, 1fr) 4em; }
   .td-clerk-layer { cursor: pointer; }
   .td-clerk { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: default; animation: tdClerkIn 0.4s ease both;
