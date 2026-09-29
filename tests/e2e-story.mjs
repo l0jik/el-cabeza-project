@@ -239,10 +239,14 @@ console.log("\ndesktop: the den's television, into Singularity and back");
     return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height, onScreen: Math.abs(v.x) < 0.9 && Math.abs(v.y) < 0.9 };
   });
   check("the set is in view", !!at && at.onScreen, JSON.stringify(at));
-  await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(41000)); // (past the set's 40 s wait, den-fx.js lure)
+  // The first time, a tap takes the camera over to watch it (den-fx.js
+  // lure); the next turns it on.
   if (at) await page.mouse.click(at.x, at.y);
-  check("a tap on the set turns it on", !!(await poll(async () => { const s = await tv(); return s && s.phase !== "off"; }, 5000, 100)));
-  check("...the camera goes over to it", !!(await poll(async () => ((await tv()) || {}).focus > 0.6, 8000, 100)));
+  check("a tap on the set: the camera goes over to it", !!(await poll(async () => { const s = await tv(); return s && s.looking && s.focus > 0.95; }, 8000, 100)));
+  check("...still off", ((await tv()) || {}).phase === "off");
+  await page.waitForTimeout(400);
+  { const c = await page.locator("canvas").first().boundingBox(); await page.mouse.click(c.x + c.width / 2, c.y + c.height / 2); }
+  check("another tap turns it on", !!(await poll(async () => { const s = await tv(); return s && s.phase !== "off"; }, 5000, 100)));
   check("...snow, then the test pattern", !!(await poll(async () => ["pattern", "dive"].includes(((await tv()) || {}).phase), 12000, 100)));
   check("...and the picture pulls the camera in", !!(await poll(async () => ((await tv()) || {}).dive > 0.3, 10000, 100)));
   check("into Singularity (Neon)", !!(await poll(async () => (await place(page)) === "neon", 30000)));

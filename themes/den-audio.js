@@ -109,6 +109,7 @@ export function createAudio() {
           gates: { room: gates.room.gain.value, stereo: gates.stereo.gain.value, pieces: gates.pieces.gain.value },
           room: roomBus.gain.value,
           fire: { near: fireNear, gain: fireBus.gain.value, pan: firePan ? firePan.pan.value : 0 },
+          haunt: { near: hauntNear, pan: hauntSide, distance: hauntDist },
           chimes,
           music: music ? { id: music.track.id, medium: music.track.medium, paused: music.el.paused, time: music.el.currentTime } : null,
         });
@@ -371,35 +372,79 @@ export function createAudio() {
   }
 
   /* The set, off, stirring (den-tv.js haunt, den-fx.js's lure): the
-     sounds of a set that shouldn't be making any, faint, through its own
-     small speaker, and part of the room (the Room channel, so it's heard
-     with the music off). kind: flicker (a tick of static), pilot (a relay
-     chattering), static (a breath of snow), roll (the hum of a vertical
-     hold slipping), ghost (a far-off warble, as if from another station),
-     phantom (a swell of static and a shimmer rising). strength 0 to 1. */
-  let hauntBus = null;
+     sounds of a set that shouldn't be making any, through its own small
+     speaker, and part of the room (the Room channel, so it's heard with
+     the music off). Placed at the set (setTvListener: louder near it, from
+     its side of the room), so a player looking elsewhere turns to it
+     (user). kind: flicker (a tick of static), pilot (a relay chattering),
+     thump (the degauss coil kicking, a buzz), static (a breath of snow),
+     roll (the hum of a vertical hold slipping), tune (a dial being turned:
+     the band swept, a heterodyne whistle), ghost (a far-off warble, as if
+     from another station), voice (a garbled announcer, words that aren't
+     quite), phantom (a swell of static and a shimmer rising). strength
+     0 to 1. */
+  let hauntBus = null, hauntPan = null, hauntNear = 1, hauntSide = 0, hauntDist = 0;
   function tvHaunt(kind, strength = 0.5) {
     ensureGraph();
     if (!ctx) return;
     if (!hauntBus) {
-      hauntBus = ctx.createGain(); hauntBus.gain.value = 0.9;
-      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1800; bp.Q.value = 0.35;
-      hauntBus.connect(bp).connect(gates.room);
+      hauntBus = ctx.createGain(); hauntBus.gain.value = hauntNear;
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1600; bp.Q.value = 0.3;
+      hauntPan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      if (hauntPan) { hauntPan.pan.value = hauntSide; hauntBus.connect(bp).connect(hauntPan).connect(gates.room); }
+      else hauntBus.connect(bp).connect(gates.room);
     }
-    const t = now(), k = 0.35 + 0.65 * strength;
-    const tone = (f, f2, dur, level, type = "sine", vib = 0) => {
+    const t = now(), k = 0.5 + 0.5 * strength;
+    const tone = (f, f2, dur, level, type = "sine", vib = 0, at = t) => {
       const o = ctx.createOscillator(); o.type = type;
-      o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
-      if (vib) { const l = ctx.createOscillator(); l.frequency.value = 5.5; const lg = ctx.createGain(); lg.gain.value = vib; l.connect(lg).connect(o.frequency); l.start(t); l.stop(t + dur + 0.1); }
-      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level * k, t + dur * 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      o.connect(g).connect(hauntBus); o.start(t); o.stop(t + dur + 0.05);
+      o.frequency.setValueAtTime(f, at); if (f2) o.frequency.exponentialRampToValueAtTime(f2, at + dur);
+      if (vib) { const l = ctx.createOscillator(); l.frequency.value = 5.5; const lg = ctx.createGain(); lg.gain.value = vib; l.connect(lg).connect(o.frequency); l.start(at); l.stop(at + dur + 0.1); }
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(level * k, at + dur * 0.3); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      o.connect(g).connect(hauntBus); o.start(at); o.stop(at + dur + 0.05);
+      return o;
     };
-    if (kind === "flicker") burst(t, hauntBus, 0.03 * k, 0.05, [["bandpass", 3600, 1.2]]);
-    else if (kind === "pilot") { for (let i = 0; i < 4; i++) burst(t + i * (0.09 + Math.random() * 0.12), hauntBus, 0.02 * k, 0.012, [["bandpass", 5200, 3]]); }
-    else if (kind === "static") { burst(t, hauntBus, 0.05 * k, 0.25 + 0.4 * strength, [["bandpass", 3400, 0.7]], 0.04); burst(t, hauntBus, 0.025 * k, 0.02, [["highpass", 2000]]); }
-    else if (kind === "roll") { tone(60, 0, 1.4, 0.05, "triangle"); tone(120, 0, 1.2, 0.02); tone(15734, 15400, 1.3, 0.004); }
-    else if (kind === "ghost") { tone(523, 494, 1.2, 0.012, "sine", 9); tone(659, 622, 1.1, 0.008, "sine", 7); burst(t, hauntBus, 0.03 * k, 0.4, [["bandpass", 2800, 0.8]], 0.08); }
-    else if (kind === "phantom") { burst(t, hauntBus, 0.06 * k, 0.7, [["bandpass", 3000, 0.6]], 0.15); tone(220, 1760, 1.8, 0.014, "sine", 14); tone(330, 2640, 1.6, 0.008, "triangle", 10); }
+    if (kind === "flicker") burst(t, hauntBus, 0.08 * k, 0.06, [["bandpass", 3600, 1.2]]);
+    else if (kind === "pilot") { for (let i = 0; i < 5; i++) burst(t + i * (0.07 + Math.random() * 0.1), hauntBus, 0.06 * k, 0.014, [["bandpass", 4200, 3]]); }
+    else if (kind === "thump") {
+      tone(70, 38, 0.32, 0.3, "sine");
+      tone(120, 90, 0.28, 0.07, "sawtooth");
+      burst(t, hauntBus, 0.12 * k, 0.12, [["lowpass", 900]]);
+      burst(t + 0.02, hauntBus, 0.05 * k, 0.2, [["bandpass", 3000, 0.8]], 0.01);
+    } else if (kind === "static") { burst(t, hauntBus, 0.13 * k, 0.3 + 0.45 * strength, [["bandpass", 3200, 0.7]], 0.03); burst(t, hauntBus, 0.06 * k, 0.02, [["highpass", 2000]]); }
+    else if (kind === "roll") { tone(60, 0, 1.4, 0.13, "triangle"); tone(120, 0, 1.2, 0.05); tone(15734, 15400, 1.3, 0.006); }
+    else if (kind === "tune") {
+      // The band swept by hand: noise through a moving filter, a whistle
+      // that slides with it, a station almost caught.
+      const s = noise(t, 1.3);
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 4;
+      bp.frequency.setValueAtTime(500, t); bp.frequency.exponentialRampToValueAtTime(3200, t + 0.55); bp.frequency.exponentialRampToValueAtTime(900, t + 1.25);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.16 * k, t + 0.08); g.gain.setValueAtTime(0.16 * k, t + 1.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+      s.connect(bp).connect(g).connect(hauntBus);
+      const w = tone(1100, 0, 1.25, 0.035, "sine");
+      w.frequency.exponentialRampToValueAtTime(3400, t + 0.55); w.frequency.exponentialRampToValueAtTime(700, t + 1.25);
+      tone(392, 0, 0.35, 0.03, "square", 0, t + 0.5);
+    } else if (kind === "ghost") { tone(523, 494, 1.3, 0.04, "sine", 9); tone(659, 622, 1.2, 0.026, "sine", 7); burst(t, hauntBus, 0.07 * k, 0.45, [["bandpass", 2800, 0.8]], 0.08); }
+    else if (kind === "voice") {
+      // An announcer from nowhere: a low buzz through two formants that
+      // jump from vowel to vowel, in syllables, the pitch sagging.
+      const dur = 1.4, o = ctx.createOscillator(); o.type = "sawtooth";
+      o.frequency.setValueAtTime(128, t); o.frequency.linearRampToValueAtTime(96, t + dur);
+      const f1 = ctx.createBiquadFilter(), f2 = ctx.createBiquadFilter();
+      f1.type = f2.type = "bandpass"; f1.Q.value = 7; f2.Q.value = 9;
+      const vowels = [[730, 1090], [270, 2290], [570, 840], [300, 870], [660, 1720], [440, 1020]];
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t);
+      let at = t;
+      while (at < t + dur - 0.1) {
+        const [a, b] = vowels[Math.floor(Math.random() * vowels.length)], syl = 0.09 + Math.random() * 0.13;
+        f1.frequency.setValueAtTime(a, at); f2.frequency.setValueAtTime(b, at);
+        g.gain.linearRampToValueAtTime(0.22 * k, at + 0.02); g.gain.linearRampToValueAtTime(0.03 * k, at + syl);
+        at += syl + (Math.random() < 0.25 ? 0.08 : 0.015);
+      }
+      g.gain.linearRampToValueAtTime(0.0001, t + dur);
+      o.connect(f1).connect(g); o.connect(f2).connect(g); g.connect(hauntBus);
+      o.start(t); o.stop(t + dur + 0.05);
+      burst(t, hauntBus, 0.05 * k, dur, [["bandpass", 3000, 0.6]], 0.1);
+    } else if (kind === "phantom") { burst(t, hauntBus, 0.14 * k, 0.8, [["bandpass", 3000, 0.6]], 0.15); tone(220, 1760, 1.9, 0.04, "sine", 14); tone(330, 2640, 1.7, 0.024, "triangle", 10); }
   }
 
   /* The late-night commercial's sound (den-commercial.js, cued to its
@@ -602,6 +647,17 @@ export function createAudio() {
       if (!ctx) return;
       fireBus.gain.setTargetAtTime(fireNear, now(), 0.25);
       if (firePan) firePan.pan.setTargetAtTime(Math.max(-0.8, Math.min(0.8, pan)), now(), 0.25);
+    },
+    /* Where the set is from the camera (den-fx.js, every frame, like the
+       fire's): its stirring is loud beside it and faint across the room,
+       and comes from its side. */
+    setTvListener(distance, pan) {
+      hauntDist = distance;
+      hauntNear = Math.max(0.3, Math.min(2.2, Math.pow(55 / Math.max(distance, 10), 1.25)));
+      hauntSide = Math.max(-0.9, Math.min(0.9, pan));
+      if (!ctx || !hauntBus) return;
+      hauntBus.gain.setTargetAtTime(hauntNear, now(), 0.2);
+      if (hauntPan) hauntPan.pan.setTargetAtTime(hauntSide, now(), 0.2);
     },
     playMusic,
     stopMusic,

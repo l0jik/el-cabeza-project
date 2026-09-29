@@ -186,7 +186,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(300);
   check("the menu's switch is the TV at home", /Turn on the TV/.test(await q(page, "shell-menu-switch-theme").innerText()));
-  await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(41000)); // (past the set's 40 s wait, den-fx.js lure)
+  await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(41000)); // (past the set's 25 s wait, den-fx.js lure)
   await q(page, "shell-menu-switch-theme").click();
   check("...which turns the set on", await waitFor(() => page.evaluate(() => { const tv = window.__DEN_TV__ && window.__DEN_TV__(); return !!tv && tv.phase !== "off"; }), 8000));
   check("Neon comes up with its setup buttons", await waitFor(async () => (await visible(page, "shell-anomaly")) && (await visible(page, "shell-custom-rules")), 30000));

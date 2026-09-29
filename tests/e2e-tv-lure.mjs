@@ -1,8 +1,8 @@
 /* Nova, home before the first Singularity: the set waits to be noticed
-   (den-fx.js lure, den-tv.js haunt). For the first 40 s it can't be
-   turned on (a tap on it, or the menu, does nothing); after that, left
-   alone, it stirs, more and more (static, a rolling bar, ghosts on the
-   glass, pieces of light drifting out); turned on, it goes into Neon.
+   (den-fx.js lure, den-tv.js haunt). For 25 s nothing; then, left alone,
+   it stirs, more and more, heard loudest near it. A tap on it takes the
+   camera over to watch (still off, stirring more often); a tap anywhere
+   else goes back; a second tap on it turns it on, into Neon.
    The test moves the lure's clock on (__DEN_LURE_SKIP__).
 
    node tests/e2e-tv-lure.mjs [--shots DIR] */
@@ -33,25 +33,47 @@ await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
 check("home, in the den", await poll(() => page.evaluate(() => !!window.__DEN_TV__), 30000));
 await page.waitForTimeout(1500);
 const tv = () => page.evaluate(() => window.__DEN_TV__());
+const near = () => page.evaluate(() => (window.__DEN_AUDIO__ && window.__DEN_AUDIO__().haunt.near) || 0);
 let s = await tv();
-check("the set waits: locked at first", s.lure && s.locked, JSON.stringify(s));
-check("...a press does nothing", (await page.evaluate(() => window.__DEN_TV_PRESS__())) === false && (await tv()).phase === "off");
+check("the set waits at first", s.lure && s.locked, JSON.stringify(s));
+check("...the menu's Turn on the TV does nothing yet", (await page.evaluate(() => window.__DEN_TV_PRESS_MENU__())) === false && (await tv()).phase === "off");
 await page.waitForTimeout(3000);
 check("...and nothing stirs yet", (await tv()).lureEvents === 0);
-await page.evaluate(() => window.__DEN_LURE_SKIP__(41000));
-check("after 40 s it can be turned on", !(await tv()).locked);
+await page.evaluate(() => window.__DEN_LURE_SKIP__(26000));
+check("after 25 s it stirs", !!(await poll(async () => (await tv()).lureEvents >= 1, 15000)), JSON.stringify(await tv()));
+await page.waitForTimeout(400);
+const far = await near();
 // Left alone a good while: it stirs, often.
-await page.evaluate(() => window.__DEN_LURE_SKIP__(100000));
+await page.evaluate(() => window.__DEN_LURE_SKIP__(60000));
 if (shots) {
-  // Face the set (behind the sofa's side of the room), close.
   await page.evaluate(() => window.__DEN_TV_LOOK__(true));
   await page.waitForTimeout(2500);
   for (let i = 0; i < 24; i++) { await page.waitForTimeout(650); await page.screenshot({ path: `${shots}/lure-${String(i).padStart(2, "0")}.png` }); }
+  await page.evaluate(() => window.__DEN_TV_LOOK__(false)); await page.waitForTimeout(3500);
 }
-const n = await poll(async () => { const t = await tv(); return t.lureEvents >= 3 ? t.lureEvents : null; }, 30000);
-check(`...it stirs, more and more (${n || 0} events)`, !!n);
-if (shots) { await page.evaluate(() => window.__DEN_TV_LOOK__(false)); await page.waitForTimeout(1500); }
-check("turned on now, it goes", (await page.evaluate(() => window.__DEN_TV_PRESS__())) === true && (await tv()).phase !== "off");
+const n0 = (await tv()).lureEvents;
+const n = await poll(async () => { const t = await tv(); return t.lureEvents >= n0 + 3 ? t.lureEvents - n0 : null; }, 30000);
+check(`...more and more (${n || 0} more events)`, !!n);
+// A tap on the set: over to watch it, still off.
+check("a tap on the set takes the camera over to it", (await page.evaluate(() => window.__DEN_TV_PRESS__())) === true);
+check("...to watch", !!(await poll(async () => { const t = await tv(); return t.looking && t.focus > 0.9; }, 8000, 100)));
+check("...and it's still off", (await tv()).phase === "off");
+check("...with the hint", await page.locator('[data-testid="den-tv-hint"].on').count() === 1);
+check(`...its sounds louder there (${far.toFixed(2)} -> ${(await near()).toFixed(2)})`, (await near()) > far * 1.3);
+const w0 = (await tv()).lureEvents;
+await page.waitForTimeout(6000);
+check(`...where it keeps stirring (${(await tv()).lureEvents - w0} in 6 s)`, (await tv()).lureEvents - w0 >= 2);
+// A tap elsewhere: back.
+const box = await page.locator("canvas").first().boundingBox();
+await page.mouse.click(box.x + 12, box.y + box.height - 12);
+check("a tap off the set goes back", !!(await poll(async () => { const t = await tv(); return !t.looking && t.goal === 0 && t.phase === "off"; }, 3000, 100)));
+await page.waitForTimeout(4200);
+// Over again, and a tap on the set (the middle of the screen) turns it on.
+await page.evaluate(() => window.__DEN_TV_PRESS__());
+await poll(async () => (await tv()).focus > 0.95, 8000, 100);
+await page.waitForTimeout(500);
+await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+check("the second tap turns it on", !!(await poll(async () => (await tv()).phase !== "off", 3000, 100)), JSON.stringify(await tv()));
 check("...into Neon", await poll(() => page.evaluate(() => !window.__DEN_TV__ && !!document.querySelector(".ec-title") && /Chakra/.test(getComputedStyle(document.querySelector(".ec-title")).fontFamily)), 30000));
 check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
 await browser.close();

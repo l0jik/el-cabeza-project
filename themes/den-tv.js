@@ -377,7 +377,9 @@ export function buildTelevision(yF, RZ, X = -40) {
      Now and then, more often and more strongly as `level` rises (0 to 1),
      something happens on the dead tube: a breath of snow, a bright bar
      rolling down, the picture torn, a ghost of a strange piece on the
-     glass, the pilot light stuttering; and, stronger, pieces made of light
+     glass, the pilot light stuttering, a thump that lights the tube, the
+     picture rolling as if a dial were being turned, a garbled voice with
+     the ghost; and, stronger, pieces made of light
      drifting out of the screen into the room and fading. Each event says
      what it is (onEvent) for its sound. */
   const ghosts = [];
@@ -450,17 +452,21 @@ export function buildTelevision(yF, RZ, X = -40) {
       p.lines.material.opacity = p.peak * env * (0.75 + 0.25 * Math.random());
     }
   }
-  // Pick the next event, weighted by how far the lure has come.
+  // Pick the next event, weighted by how far the lure has come (and never
+  // the same one twice running: it keeps changing, user).
+  let lastKind = "";
   function nextEvent(now, level, onEvent) {
-    const strength = 0.3 + 0.7 * level;
-    const kinds = [["flicker", 1], ["pilot", 0.6]];
-    if (level > 0.15) kinds.push(["static", 1], ["roll", 0.8]);
-    if (level > 0.3) kinds.push(["ghost", 0.9 * level]);
-    if (level > 0.45) kinds.push(["phantom", 1.2 * level]);
-    const total = kinds.reduce((a, [, w]) => a + w, 0);
-    let r = Math.random() * total, kind = kinds[0][0];
-    for (const [k, w] of kinds) { if ((r -= w) <= 0) { kind = k; break; } }
-    const dur = { flicker: 140, pilot: 900, static: 260 + 500 * level, roll: 1400, ghost: 420 + 500 * level, phantom: 700 }[kind];
+    const strength = 0.45 + 0.55 * level;
+    const kinds = [["flicker", 0.7], ["pilot", 0.4], ["thump", 1], ["static", 1], ["roll", 0.7]];
+    if (level > 0.12) kinds.push(["tune", 1]);
+    if (level > 0.25) kinds.push(["ghost", 0.6 + 0.6 * level], ["voice", 0.5 + 0.7 * level]);
+    if (level > 0.4) kinds.push(["phantom", 1.3 * level]);
+    const pool = kinds.filter(([k]) => k !== lastKind);
+    const total = pool.reduce((a, [, w]) => a + w, 0);
+    let r = Math.random() * total, kind = pool[0][0];
+    for (const [k, w] of pool) { if ((r -= w) <= 0) { kind = k; break; } }
+    lastKind = kind;
+    const dur = { flicker: 160, pilot: 900, thump: 380, static: 320 + 500 * level, roll: 1400, tune: 1300, ghost: 520 + 600 * level, voice: 1500, phantom: 800 }[kind];
     if (kind === "pilot") pilotStutter = now + dur;
     else haunt = { kind, at: now, dur, strength, tex: ghostTexs[Math.floor(Math.random() * ghostTexs.length)] };
     if (kind === "phantom") { spawnPhantom(now, strength); if (level > 0.7 && Math.random() < 0.6) spawnPhantom(now + 120, strength); }
@@ -516,17 +522,24 @@ export function buildTelevision(yF, RZ, X = -40) {
       set("commercial", now + delay);
     },
     /* The lure (den-fx.js): called each frame while the set's off and
-       waiting to be noticed, with how far along it is (0 to 1). Quiet at
-       first (one small thing every quarter-minute or so), then more
-       often and more strongly (every few seconds). */
-    haunt(now, level, onEvent) {
+       waiting to be noticed, with how far along it is (0 to 1), and
+       whether the camera's come over to look (`watched`). Something every
+       9 s or so at first, then more often and more strongly (every few
+       seconds, in flurries). */
+    haunt(now, level, onEvent, watched = false) {
       if (phase !== "off") return;
       if (!nextHaunt) { nextHaunt = now + 400; return; }
       if (now < nextHaunt || haunt) return;
       nextEvent(now, level, onEvent);
-      const gap = (15000 - 11500 * level) * (0.7 + Math.random() * 0.6);
-      nextHaunt = now + gap;
+      // Every 9 s or so at first, every 2.5 s at the end; now and then (more
+      // as it goes on) another straight after, a flurry. Watched close up,
+      // twice as often.
+      let gap = (9000 - 6500 * level) * (0.7 + Math.random() * 0.6);
+      if (Math.random() < 0.15 + 0.45 * level) gap = 350 + Math.random() * 500;
+      nextHaunt = now + gap * (watched ? 0.5 : 1);
     },
+    // Something soon (the camera's just come over to look).
+    hauntSoon(now, ms = 600) { if (!nextHaunt || nextHaunt > now + ms) nextHaunt = now + ms; },
     // How far into the commercial (ms), or null if it isn't on.
     commercialAt: (now) => (phase === "commercial" ? Math.max(0, since(now)) : null),
     // Each frame: the knob, the pilot light and the picture. Returns the
@@ -576,10 +589,12 @@ export function buildTelevision(yF, RZ, X = -40) {
         } else {
           const h = haunt, env = Math.sin(Math.PI * Math.min(1, k)) * h.strength;
           raster = 1;
-          if (h.kind === "flicker") { snow = 1; glow = 0.16 * env * (Math.random() < 0.5 ? 1 : 0.3); }
-          else if (h.kind === "static" || h.kind === "phantom") { snow = 1; glow = 0.34 * env; tear = 0.25 * env; }
-          else if (h.kind === "roll") { snow = 1; glow = 0.07 * env; line = 1 - k; lineAmt = 0.55 * env; }
-          else if (h.kind === "ghost") { u.uTex.value = h.tex; pat = 0.85; snow = 0.6; glow = 0.42 * env; tear = 0.5 * env * (Math.random() < 0.3 ? 1 : 0.2); }
+          if (h.kind === "flicker") { snow = 1; glow = 0.28 * env * (Math.random() < 0.5 ? 1 : 0.3); }
+          else if (h.kind === "thump") { snow = 1; glow = 0.62 * Math.pow(1 - k, 2) * h.strength; tear = 0.4 * (1 - k); }
+          else if (h.kind === "static" || h.kind === "phantom") { snow = 1; glow = 0.48 * env; tear = 0.3 * env; }
+          else if (h.kind === "roll") { snow = 1; glow = 0.14 * env; line = 1 - k; lineAmt = 0.6 * env; }
+          else if (h.kind === "tune") { snow = 1; glow = 0.36 * env; tear = 0.35 * env * (Math.random() < 0.4 ? 1 : 0.3); line = (k * 2.3) % 1; lineAmt = 0.45 * env; }
+          else if (h.kind === "ghost" || h.kind === "voice") { u.uTex.value = h.tex; pat = 0.85; snow = 0.6; glow = 0.42 * env; tear = 0.5 * env * (Math.random() < 0.3 ? 1 : 0.2); }
         }
       }
       u.uLine.value = line; u.uLineAmt.value = lineAmt; u.uTear.value = tear;

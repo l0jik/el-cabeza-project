@@ -87,7 +87,7 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(300);
   check("Standard (the den): All sounds, The room, Music and Pieces", (await q(page, "shell-menu-sound").count()) === 1 && (await q(page, "shell-menu-sound-room").count()) === 1 && (await q(page, "shell-menu-sound-stereo").count()) === 1 && (await q(page, "shell-menu-sound-pieces").count()) === 1);
   // Into Neon: at home the menu's switch turns on the TV.
-  await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(41000)); // (past the set's 40 s wait, den-fx.js lure)
+  await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(41000)); // (past the set's 25 s wait, den-fx.js lure)
   await q(page, "shell-menu-switch-theme").click();
   await waitFor(async () => (await q(page, "shell-anomaly").count()) > 0, 30000);
   await page.waitForTimeout(800);

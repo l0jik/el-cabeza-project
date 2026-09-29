@@ -3653,3 +3653,21 @@ phone menu until "Start the story over" (which clears it).
   only being tried, not bought): theme.beginLabel(setupExtras) in the
   chassis (dock and MobileShell ctl.beginLabel); tienda.js returns null at
   home, so the den keeps Begin Game. Tests match /Begin Game|Try a Game/.
+- TV lure, round 2 (user: sooner, more happening, weird noises from
+  its corner, first tap only looks): LURE_WAIT 25 s, LURE_RAMP 60 s;
+  den-tv haunt gaps ~9 s -> ~2.5 s, with flurries (a follow-up 0.35-0.85 s
+  later, likelier as it goes on), never the same kind twice running; new
+  kinds thump (degauss kick, tube lights), tune (dial sweep + heterodyne
+  whistle, rolling bar), voice (formant babble, with the ghost). Sounds
+  louder and placed: den-audio setTvListener(distance, pan) -> hauntBus
+  gain + StereoPanner, fed by den-fx hearTv(camera) from cameraOverride
+  (api.cameraOverride wraps placeCamera: the camera as finally placed;
+  listen() in tick sees the chassis's camera before visits). A tap on
+  the set while it lures only looks (lureLook: camera over, hint
+  den-tv-hint, haunt at level >= 0.55, twice as often, starts at once
+  even inside the 25 s); a tap off the set or Escape goes back (capture
+  pointerdown raycasts the set's pickables); a second tap turns it on.
+  The menu's "Turn on the TV" (tvBridge.press -> pressTv(true)) still
+  turns it straight on after the 25 s. Hooks: __DEN_TV_PRESS__ (tap),
+  __DEN_TV_PRESS_MENU__, __DEN_TV__().looking/lastHaunt,
+  __DEN_AUDIO__().haunt {near, pan, distance}.

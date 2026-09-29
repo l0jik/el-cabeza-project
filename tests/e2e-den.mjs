@@ -536,7 +536,7 @@ async function waitFor(fn, ms = 8000) {
   const switchTheme = async (prompt) => {
     await q(page, "shell-menu-button").click();
     await page.waitForTimeout(300);
-    await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(41000)); // (past the set's 40 s wait, den-fx.js lure)
+    await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(41000)); // (past the set's 25 s wait, den-fx.js lure)
     await q(page, "shell-menu-switch-theme").click();
     if (!prompt) return;
     await waitFor(async () => (await page.locator(".ec-hold-modal-word").count()) > 0);

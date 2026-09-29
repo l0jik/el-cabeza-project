@@ -372,6 +372,19 @@ export function createDenEffects(woodSet) {
       fireCam.copy(firePos).applyMatrix4(t.camera.matrixWorldInverse);
       audio.setFireListener(firePos.distanceTo(t.camera.position), fireCam.x / Math.max(1, Math.hypot(fireCam.x, fireCam.z)));
     }
+    // And the set's, while it stirs (the lure, below): from the camera as
+    // it's finally placed (after cameraOverride's visits).
+    const tvPos = new THREE.Vector3(), tvCam = new THREE.Vector3();
+    let lastTvEar = 0;
+    function hearTv(camera) {
+      const t = three.current, now = performance.now();
+      if (!audio || !audio.setTvListener || !lure || lureDone || !den || !den.tv || !t || !t.boardGroup || now - lastTvEar < 100) return;
+      lastTvEar = now;
+      camera.updateMatrixWorld();
+      tvPos.copy(den.tv.focus.target); t.boardGroup.localToWorld(tvPos);
+      tvCam.copy(tvPos).applyMatrix4(camera.matrixWorldInverse);
+      audio.setTvListener(tvPos.distanceTo(camera.position), tvCam.x / Math.max(1, Math.hypot(tvCam.x, tvCam.z)));
+    }
     /* ---- the stereo console: the camera's visit, the machines ---- */
     let focusGoal = 0, focusW = 0, playing = null;
     const eye = new THREE.Vector3(), aim = new THREE.Vector3(), look = new THREE.Vector3(), dir = new THREE.Vector3();
@@ -417,7 +430,7 @@ export function createDenEffects(woodSet) {
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_BOOK__ = () => ({ goal: bookGoal, w: bookW });
 
     /* ---- the television ---- */
-    let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false, lureEvents = 0;
+    let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false, lureEvents = 0, lastHaunt = null;
     let returning = !!(novaTv && novaTv.returning);
     // The first time back, the late-night commercial is on (den-commercial.js):
     // the camera comes in close enough to read it (tvWatch), and the set
@@ -434,23 +447,84 @@ export function createDenEffects(woodSet) {
     const easeInOutCubic = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
     // How loud the snow hisses, by what's on the screen.
     const HISS = { warming: 1, snow: 1, resolving: 0.5, pattern: 0.1, dive: 0.08, commercial: 0.03, aired: 0.9 };
-    /* The lure (Nova, home before the first Singularity, novaTv.lure): the
-       set can't be turned on for the first 40 s (look round the room
-       first). After that, left alone, it starts to stir, quietly at first
-       and more insistently as time goes on (den-tv.js haunt: static, a
-       rolling bar, ghost pieces on the glass, pieces of light drifting out
-       of it, with the set's crackles, pops and a far-off warble), until
-       it's turned on. */
+    /* The lure (Nova, home before the first Singularity, novaTv.lure):
+       25 s in, left alone, the set starts to stir, and more often and more
+       insistently as time goes on (den-tv.js haunt: static, a thump, a
+       rolling bar, a dial turning, ghost pieces on the glass, a garbled
+       voice, pieces of light drifting out of it), heard from its corner
+       (audio.setTvListener) so the player turns to look, until it's turned
+       on. The first tap on it only takes the camera over to watch (lureLook:
+       it stirs at once and twice as often there); the second turns it on.
+       A tap anywhere else, or Escape, and the camera goes back. */
     const lure = !!(novaTv && novaTv.lure && novaTv.lure());
-    const LURE_WAIT = 40000, LURE_RAMP = 100000;
-    let lureStart = 0, lureDone = false;
+    const LURE_WAIT = 25000, LURE_RAMP = 60000;
+    let lureStart = 0, lureDone = false, lureLook = false, tvHint = null, lookSwallow = null;
     const tvLocked = (now) => lure && !lureDone && (!lureStart || now - lureStart < LURE_WAIT);
-    function pressTv() {
+    function lookAtTv(on) {
+      if (on === lureLook) return;
+      lureLook = on;
+      if (on) {
+        tvGoal = 1; tvLeaveAt = 0;
+        const now = performance.now();
+        // (Looked at before it's begun: it begins.)
+        if (!lureStart || now - lureStart < LURE_WAIT) lureStart = now - LURE_WAIT;
+        if (den && den.tv) den.tv.hauntSoon(now, 700);
+      } else {
+        tvGoal = 0; tvLeaveAt = performance.now() + 200;
+      }
+      showTvHint(on);
+    }
+    function showTvHint(on) {
+      if (typeof document === "undefined") return;
+      if (!tvHint) {
+        if (!on) return;
+        tvHint = document.createElement("div");
+        tvHint.className = "den-book-hint";
+        tvHint.setAttribute("data-testid", "den-tv-hint");
+        tvHint.textContent = "Tap the set to turn it on \u00b7 anywhere else to go back";
+        document.body.appendChild(tvHint);
+      }
+      tvHint.classList.toggle("on", on);
+    }
+    // While watching: a tap off the set (or Escape) goes back, and does
+    // nothing else; a tap on it goes through (pickScene, pressTv).
+    const tvRay = new THREE.Raycaster(), tvNdc = new THREE.Vector2();
+    const onLookDown = (e) => {
+      if (!lureLook || tvW < 0.3) return;
+      const t = three.current, el = t && t.renderer && t.renderer.domElement;
+      if (el && t.camera && den && den.tv) {
+        const r = el.getBoundingClientRect();
+        tvNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+        tvRay.setFromCamera(tvNdc, t.camera);
+        if (tvRay.intersectObjects(den.tv.pickables, false)[0]) return;
+      }
+      lookAtTv(false);
+      lookSwallow = e.pointerId;
+      e.stopImmediatePropagation(); e.preventDefault();
+    };
+    const onLookUp = (e) => { if (lookSwallow !== null && e.pointerId === lookSwallow) { lookSwallow = null; e.stopImmediatePropagation(); e.preventDefault(); } };
+    const onLookKey = (e) => { if (e.key === "Escape" && lureLook) { lookAtTv(false); e.stopPropagation(); } };
+    let lookListenersOn = null;
+    function lookListeners(t) {
+      if (!lure || lookListenersOn || !t.renderer || typeof window === "undefined") return;
+      lookListenersOn = t.renderer.domElement;
+      lookListenersOn.addEventListener("pointerdown", onLookDown, true);
+      lookListenersOn.addEventListener("pointerup", onLookUp, true);
+      window.addEventListener("keydown", onLookKey, true);
+    }
+    // (fromMenu: the menu's "Turn on the TV" does just that, once the set's
+    // 25 s are up; a tap on the set looks first.)
+    function pressTv(fromMenu = false) {
       const set = den && den.tv;
       if (!set) return false;
       const now = performance.now();
-      if (tvLocked(now)) return false;
+      if (lure && !lureDone && !set.isOn()) {
+        // The lure's first tap: over to the set, to watch.
+        if (!fromMenu && !lureLook) { lookAtTv(true); return true; }
+        if (fromMenu && !lureLook && tvLocked(now)) return false;
+      }
       lureDone = true;
+      if (lureLook) { lureLook = false; showTvHint(false); }
       if (set.isOn()) {
         if (set.powerOff(now)) {
           // (Off in the middle of the commercial: the camera goes back the
@@ -474,16 +548,17 @@ export function createDenEffects(woodSet) {
       if (audio && audio.tvOn) audio.tvOn();
       return true;
     }
-    if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
+    if (novaTv && novaTv.register) novaTv.register({ press: () => pressTv(true) });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents });
+      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook });
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
       // Test-only: the camera over at the set (or back), the set left as it is.
       window.__DEN_TV_LOOK__ = (on) => { tvGoal = on ? 1 : 0; };
-      window.__DEN_TV_PRESS__ = pressTv;
+      window.__DEN_TV_PRESS__ = () => pressTv();
+      window.__DEN_TV_PRESS_MENU__ = () => pressTv(true);
     }
-    return {
+    const api = {
       armOnBegin() {},
       restart() {},
       tick(now) {
@@ -530,7 +605,7 @@ export function createDenEffects(woodSet) {
           const waited = now - lureStart - LURE_WAIT;
           if (waited >= 0) {
             const level = Math.min(1, waited / LURE_RAMP);
-            den.tv.haunt(now, level, (kind, strength) => { lureEvents++; if (audio && audio.tvHaunt) audio.tvHaunt(kind, strength); });
+            den.tv.haunt(now, lureLook ? Math.max(level, 0.55) : level, (kind, strength) => { lureEvents++; lastHaunt = kind; if (audio && audio.tvHaunt) audio.tvHaunt(kind, strength); }, lureLook);
           }
         }
         tvDive = den.tv.animate(now, dt);
@@ -542,6 +617,7 @@ export function createDenEffects(woodSet) {
         // While the camera visits the set, the title and the dock's piece
         // step aside (standard.js styleSheet, html.ec-tv-visit).
         bookListeners(t);
+        lookListeners(t);
         showBookHint(bookGoal === 1 && bookW > 0.6);
         const visiting = tvGoal > 0 || tvW > 0.02 || bookGoal > 0 || bookW > 0.02;
         if (visiting !== onStage && typeof document !== "undefined") { onStage = visiting; document.documentElement.classList.toggle("ec-tv-visit", visiting); }
@@ -572,7 +648,7 @@ export function createDenEffects(woodSet) {
         // while the south wall is there, the stereo's machines and the
         // set: the nearest.
         const lamps = den.lamp.pickables.filter((m) => { const g = den.groups[m.userData.lampGroup]; return !g || g.visible; });
-        const things = lamps.concat(den.book.pickables, den.groups.wallS.visible ? den.stereo.pickables.concat(tvLocked(performance.now()) ? [] : den.tv.pickables) : []);
+        const things = lamps.concat(den.book.pickables, den.groups.wallS.visible ? den.stereo.pickables.concat(den.tv.pickables) : []);
         const hit = raycaster.intersectObjects(things, false)[0];
         if (!hit) return null;
         const nearer = raycaster.intersectObjects([slab, den.table.group].filter(Boolean), true)[0];
@@ -610,7 +686,7 @@ export function createDenEffects(woodSet) {
       sceneHover(what) { rulesHover = what === "rules"; },
       /* After the chassis has set its camera: blend it toward the view of
          the console by how far into the visit it is (eased both ways). */
-      cameraOverride(camera, dtMs) {
+      placeCamera(camera, dtMs) {
         const t = three.current;
         focusW += (focusGoal - focusW) * (1 - Math.exp(-(dtMs / 1000) * 2.4));
         if (Math.abs(focusGoal - focusW) < 0.001) focusW = focusGoal;
@@ -711,8 +787,24 @@ export function createDenEffects(woodSet) {
         }
         if (typeof document !== "undefined") document.documentElement.classList.remove("ec-tv-visit");
         setCommercialOn(false);
-        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; }
+        if (tvHint) { tvHint.remove(); tvHint = null; }
+        if (lookListenersOn) {
+          lookListenersOn.removeEventListener("pointerdown", onLookDown, true);
+          lookListenersOn.removeEventListener("pointerup", onLookUp, true);
+          window.removeEventListener("keydown", onLookKey, true);
+          lookListenersOn = null;
+        }
+        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; delete window.__DEN_TV_PRESS_MENU__; }
       },
     };
+    /* After the chassis has set its camera: blend it toward the view of
+       the console, the set or the book (placeCamera); then the set's
+       stirring is heard from where the camera ended up. */
+    api.cameraOverride = (camera, dtMs) => {
+      const placed = api.placeCamera(camera, dtMs);
+      hearTv(camera);
+      return placed;
+    };
+    return api;
   };
 }
