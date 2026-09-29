@@ -3440,3 +3440,10 @@ may supply one. __DEN_TV__() now reports watch and ad (ms into it).
   now pitched down with rubberband (pitch 0.8, tempo kept) before the tape
   x0.965, so about 4.5 semitones below the recording in all; the band's
   low edge moved to 210 Hz so the depth comes through; AD_VOICE_GAIN 0.12.
+- Subliminal frames (user): CUES.flash [6.45, 16.35, 20.25, 33.55, 37.95]
+  (chess, special orders, "the best thing...", "you never will!", between
+  the last "new king"s): one 12 fps frame each (the last two, two frames)
+  of the Singularity's black hole (den-commercial.js blackHole: starfield,
+  edge-on disc in Neon cyan/violet, lensed far side, photon ring, shadow,
+  "S I N G U L A R I T Y" in Chakra Petch). The sound drops almost to
+  silence for exactly those frames (den-audio.js, the tear gain, no buzz).

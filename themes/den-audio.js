@@ -406,12 +406,15 @@ export function createAudio() {
       const at = cuts.map((c) => [c, 0.22]);
       for (let k = 0.6; k < AD.snow; k += 9) at.push([k + 0.4 + Math.random() * 1.6, 0.08 + Math.random() * 0.1]);
       for (let k = 3; k < AD.snow - 1; k += 4 + Math.random() * 4) at.push([k, 0.05 + Math.random() * 0.06]);
+      // The subliminal frames: the sound just stops for them, no buzz.
+      AD.flash.forEach((c, i) => at.push([c, i >= 3 ? 0.17 : 0.09, true]));
       at.sort((a, b) => a[0] - b[0]);
       let last = -1;
-      at.forEach(([c, d]) => {
-        if (c < last + 0.1) return;
+      at.forEach(([c, d, quiet]) => {
+        if (c < last + 0.1 && !quiet) return;
         last = c + d;
         const t = T + c;
+        if (quiet) { tear.gain.setValueAtTime(1, t - 0.005); tear.gain.linearRampToValueAtTime(0.03, t); tear.gain.setValueAtTime(0.03, t + d - 0.005); tear.gain.linearRampToValueAtTime(1, t + d); return; }
         tear.gain.setValueAtTime(1, t); tear.gain.linearRampToValueAtTime(0.12 + Math.random() * 0.2, t + 0.012);
         tear.gain.setValueAtTime(0.25, t + d * 0.6); tear.gain.linearRampToValueAtTime(1, t + d);
         // The head's buzz: the field rate, raspy.

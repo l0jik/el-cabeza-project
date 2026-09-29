@@ -27,6 +27,9 @@ export const CUES = {
   slate: 0, title: 2.2, chess: 5.6, stamp: 7.0, flee: 7.6, king: 9.2, voice: 9.5, orders: 14.4,
   items: [15.2, 16.0, 16.8], assembly: 17.8, best: 19.0, sortOf: 21.5, dealer: 22.6, standing: 24.0,
   price: 26.8, only: 27.9, brandNew: 28.9, close: 31.2, never: 32.8, credit: 34.9, kings: 35.2, snow: 41.6,
+  // Subliminal frames of the Singularity's black hole, one frame each (the
+  // last two), spliced into the tape where nobody at Canal 99 put them.
+  flash: [6.45, 16.35, 20.25, 33.55, 37.95],
 };
 
 const W = 512, H = 384, FPS = 12;
@@ -335,6 +338,37 @@ function credit(g, t) {
   });
 }
 
+/* The Singularity, for one frame: a black hole on the starfield, its
+   photon ring and the lensed disc in Neon's colours, and the word. */
+function blackHole(g, f) {
+  g.fillStyle = "#010103"; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 90; i++) {
+    const b = hash(i * 3.3 + 1);
+    g.fillStyle = `rgba(${200 + b * 55},${210 + b * 45},255,${0.25 + b * 0.6})`;
+    g.fillRect(hash(i * 7.1) * W, hash(i * 1.9 + 4) * H, b > 0.85 ? 2 : 1, b > 0.85 ? 2 : 1);
+  }
+  const cx = W / 2 + (hash(f) - 0.5) * 16, cy = H * 0.46, R = 58;
+  g.save(); g.translate(cx, cy);
+  // The disc, edge-on, brighter on the side coming toward us.
+  const disc = g.createLinearGradient(-190, 0, 190, 0);
+  disc.addColorStop(0, "rgba(102,217,255,0.95)"); disc.addColorStop(0.5, "rgba(170,110,255,0.75)"); disc.addColorStop(1, "rgba(90,60,200,0.35)");
+  g.strokeStyle = disc;
+  [[190, 26, 10], [160, 20, 6], [226, 32, 3]].forEach(([rx, ry, lw]) => { g.lineWidth = lw; g.beginPath(); g.ellipse(0, 0, rx, ry, -0.08, 0, Math.PI * 2); g.stroke(); });
+  // The far side of the disc, bent up over the top by the hole.
+  g.lineWidth = 9; g.strokeStyle = "rgba(150,120,255,0.7)";
+  g.beginPath(); g.ellipse(0, -4, R * 1.55, R * 1.3, 0, Math.PI * 1.05, Math.PI * 1.95); g.stroke();
+  // The photon ring, and the shadow inside it.
+  const ring = g.createRadialGradient(0, 0, R * 0.9, 0, 0, R * 1.35);
+  ring.addColorStop(0, "rgba(220,240,255,0)"); ring.addColorStop(0.25, "rgba(220,240,255,0.95)"); ring.addColorStop(0.5, "rgba(102,217,255,0.5)"); ring.addColorStop(1, "rgba(102,217,255,0)");
+  g.fillStyle = ring; g.beginPath(); g.arc(0, 0, R * 1.35, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#000"; g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2); g.fill();
+  // The near side of the disc, across the front of the shadow.
+  g.lineWidth = 7; g.strokeStyle = disc;
+  g.beginPath(); g.ellipse(0, 0, 190, 26, -0.08, 0.05, Math.PI - 0.05); g.stroke();
+  g.restore();
+  say(g, "S I N G U L A R I T Y", W / 2, H * 0.86, { font: `600 22px 'Chakra Petch', ${MONO}`, color: "#66d9ff", smear: 2.4 });
+}
+
 /* ------------------------------------------------------ the whole thing */
 
 export function createCommercial() {
@@ -368,6 +402,8 @@ export function createCommercial() {
     else if (t < CUES.close) price(s, t - CUES.price, f);
     else if (t < CUES.credit) close(s, t - CUES.close, f);
     else credit(s, t - CUES.credit);
+    // A frame that shouldn't be there.
+    if (CUES.flash.some((c, i) => f === Math.floor(c * FPS) || (i >= 3 && f === Math.floor(c * FPS) + 1))) blackHole(s, f);
     s.restore();
   }
 
