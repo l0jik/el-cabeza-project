@@ -168,10 +168,11 @@ console.log("\ndesktop: the store, the purchase, home");
   // orders open, once announced, and the row says Custom rules.
   await page.evaluate(() => { localStorage.setItem("el-cabeza:singularity-seen", "1"); window.dispatchEvent(new CustomEvent("el-cabeza:journey")); });
   check("after the Singularity: the note that special orders are open", await poll(() => has(page, "tienda-special-note"), 5000));
-  check("...lit in the Singularity's blue the first time through", /td-sing-glow/.test(await q(page, "tienda-special-note").getAttribute("class")));
+  check("...not lit at first", !/td-sing-glow/.test(await q(page, "tienda-special-note").getAttribute("class")));
   await page.mouse.click(8, 300);
   await page.waitForTimeout(400);
-  check("...and a tap elsewhere doesn't put it away (it's the way in)", await has(page, "tienda-special-note"));
+  check("...a tap elsewhere doesn't put it away (it's the way in)", await has(page, "tienda-special-note"));
+  check("...but lights it in the Singularity's blue", /td-sing-glow/.test(await q(page, "tienda-special-note").getAttribute("class")));
   await openDockPanel(page); // (that tap on the board folded the dock's panel)
   check("...and the row has Custom rules", await poll(async () => /Custom rules/i.test(await q(page, "tienda-order-form").innerText()), 5000));
   await q(page, "tienda-order-form").click();

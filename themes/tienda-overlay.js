@@ -120,6 +120,7 @@ export function useSetupExtras(x) {
   const [adOn, setAdOn] = React.useState(isCommercialOn);
   React.useEffect(() => onJourneyChange((seen) => { setSpecialOpen(seen); setAdOn(isCommercialOn()); }), []);
   const [specialNote, setSpecialNote] = React.useState(false);
+  const [noteGlow, setNoteGlow] = React.useState(false);
   // The note stays until it's dismissed (a tap anywhere else) or taken up
   // (a tap on it: the order form), and only then is it remembered as seen.
   React.useEffect(() => {
@@ -138,9 +139,12 @@ export function useSetupExtras(x) {
     if (!specialNote) return undefined;
     // (The first time through, it's the way into the whole special-order
     // scene: it stays until it's taken up, user.)
+    // A tap off it then lights it in the Singularity's blue, to show where
+    // to go (user: only then; a tap straight on it needs no prompting).
     const onDown = (e) => {
-      if (home && story.guided && story.guided()) return;
-      if (!(e.target && e.target.closest && e.target.closest(".td-special-note"))) dismissSpecialNote();
+      const onNote = e.target && e.target.closest && e.target.closest(".td-special-note");
+      if (home && story.guided && story.guided()) { if (!onNote) setNoteGlow(true); return; }
+      if (!onNote) dismissSpecialNote();
     };
     document.addEventListener("pointerdown", onDown, true);
     return () => document.removeEventListener("pointerdown", onDown, true);
@@ -204,6 +208,7 @@ export function useSetupExtras(x) {
     reopenOrder: (sel) => { if (sel) selRef.current = sel; setOverlay(store || !specialOpen ? "catalog" : "order"); },
     specialOpen,
     specialNote,
+    noteGlow,
     dismissSpecialNote,
     selRef,
   };
@@ -240,9 +245,9 @@ export function renderExtraOverlays(x) {
   const note = x.specialNote && x.awaitingBegin && (!x.tiendaOverlay || x.tiendaOverlay === "lid")
     ? h("button", {
         type: "button", key: "special-note", "data-testid": "tienda-special-note",
-        // The first time through, lit in the Singularity's blue: it's where
-        // the special-order scene starts (user).
-        className: x.story && x.story.mode === "home" && x.story.guided && x.story.guided() ? "td-special-note td-sing-glow" : "td-special-note",
+        // The first time through, lit in the Singularity's blue once a tap
+        // has missed it: it's where the special-order scene starts (user).
+        className: x.noteGlow ? "td-special-note td-sing-glow" : "td-special-note",
         title: "Open the catalog's order form",
         // Taken up: straight to the order form (from the box's lid too).
         onClick: () => {
@@ -404,7 +409,7 @@ const CSS = `
   @keyframes tdNoteIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
   /* The Singularity's blue, round what leads into the special order the
      first time through (the note, the form's button): a halo that breathes. */
-  .td-special-note.td-sing-glow { animation: tdNoteIn 0.5s ease both, tdSingGlow 2.4s ease-in-out 0.5s infinite; }
+  .td-special-note.td-sing-glow { animation: tdSingGlow 2.4s ease-in-out infinite; }
   button.td-btn.td-sing-glow { animation: tdSingGlow 2.4s ease-in-out infinite; }
   @keyframes tdSingGlow {
     0%, 100% { box-shadow: 0 0 0 1.5px rgba(102,217,255,0.75), 0 0 10px 2px rgba(102,217,255,0.45), 0 0 26px 6px rgba(140,110,255,0.22), 0 6px 18px rgba(10,6,3,0.4); }

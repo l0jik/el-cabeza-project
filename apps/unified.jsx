@@ -5,7 +5,7 @@ import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js
 import * as standardTheme from "../themes/standard.js";
 import * as neonTheme from "../themes/neon.js";
 import * as tiendaTheme from "../themes/tienda.js";
-import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS } from "../engine/constants.js";
+import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { StoryCut, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone } from "./novaStory.jsx";
 import { forgetSingularity, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn } from "../engine/journey.js";
 import {
@@ -114,6 +114,18 @@ function restoreBootRules() {
   setMissingSquares([]);
   setBoardDimensions(bootRules.board.rows, bootRules.board.cols);
 }
+/* A game in the den left through the television (or the title's hold)
+   for Neon comes back exactly as it was, when that trip is straight back
+   (user): its rules as the engine held them, and the chassis's own game
+   (carryRef's snapshot, handed back as `carry`). A story scene change
+   starts the new place fresh, as before. */
+const rulesNow = () => ({ board: getBoardDimensions(), laws: { ...ACTIVE_LAWS }, holes: BLACK_HOLES.slice(), missing: MISSING_SQUARES.slice() });
+function putRules(r) {
+  setActiveLaws(r.laws);
+  setBlackHoles(r.holes);
+  setMissingSquares(r.missing);
+  setBoardDimensions(r.board.rows, r.board.cols);
+}
 const LAYOUT_KEY = "el-cabeza:nova-layout";
 const {
   MAX_WARP_SCALE, MAX_ABERRATION_PX, MAX_SCANLINE_OPACITY, MAX_STATIC_OPACITY,
@@ -134,6 +146,11 @@ function UnifiedApp() {
   const [clerkTick, setClerkTick] = useState(0);
   useEffect(() => { const on = () => setClerkTick((n) => n + 1); window.addEventListener("el-cabeza:clerk-done", on); return () => window.removeEventListener("el-cabeza:clerk-done", on); }, []);
   useEffect(() => onJourneyChange(setSingularityOpen), []);
+  // The den's game while Neon's up (see putRules above), and the one
+  // handed to the chassis as it mounts.
+  const carryRef = useRef(null);
+  const denSaveRef = useRef(null);
+  const [carry, setCarry] = useState(null);
   const [cut, setCut] = useState(null); // a story scene change: { kind, caption, to, fresh?, swapped?, arrived? }
   const [connectWord, setConnectWord] = useState(null); // null | "CONNECT" | "DISCONNECT"
   const [transition, setTransition] = useState(null); // null | { direction: "in"|"out", filterId }
@@ -350,7 +367,20 @@ function UnifiedApp() {
     // screen already being collapsed to a thin band/point at that
     // moment in the CSS animation timeline.
     setTimeout(() => {
-      restoreBootRules();
+      // Leaving the den: keep its game. Back to it: put that game back.
+      if (direction === "in") {
+        const snap = carryRef.current;
+        denSaveRef.current = snap ? { game: snap(), rules: rulesNow() } : null;
+        restoreBootRules();
+        setCarry(null);
+      } else if (denSaveRef.current) {
+        putRules(denSaveRef.current.rules);
+        setCarry(denSaveRef.current.game);
+        denSaveRef.current = null;
+      } else {
+        restoreBootRules();
+        setCarry(null);
+      }
       // Back out of Singularity, the den's set is on, and switches off.
       // The first time home after the Singularity's been seen (BACK, or
       // the title's hold), the commercial's on first.
@@ -428,6 +458,8 @@ function UnifiedApp() {
     if (!c) return;
     if (c.fresh) tiendaTheme.resetLid();
     restoreBootRules();
+    denSaveRef.current = null;
+    setCarry(null);
     storyBridge.arrival = c.fresh ? "fresh" : "cut";
     setThemeName(c.to);
     setCut({ ...c, swapped: true });
@@ -520,6 +552,8 @@ function UnifiedApp() {
           <ElCabeza3D
             key={themeName}
             theme={THEMES[themeName]}
+            carry={carry}
+            carryRef={carryRef}
             mobileShell={mobileShell}
             initialMuted={muted}
             onMutedChange={(m) => {

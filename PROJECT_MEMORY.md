@@ -3758,3 +3758,13 @@ phone menu until "Start the story over" (which clears it).
   for 3.8 s. Tests tap it with force (aria-disabled).
 - den-audio: on file:// the fire goes straight to the <audio> element
   (fetch there logs a CORS error that failed the tests' console check).
+- Special-orders note glow (user): NOT lit at first; a tap outside it in
+  the guided run sets noteGlow (tienda-overlay useSetupExtras) and only
+  then .td-sing-glow pulses on it. The form's place button keeps its glow.
+- Den game survives a trip to Neon (user): unified.jsx passes carry /
+  carryRef to ElCabeza3D; beginTransition "in" (den -> Neon) saves
+  { game: carryRef.current(), rules: rulesNow() } (board, laws, black
+  holes, missing squares) in denSaveRef; "out" puts the rules back
+  (putRules) and hands the game as `carry`. Story cuts clear it (fresh).
+  tests/e2e-den-return.mjs (fails without the fix: piece reset, turn
+  reset, Begin Game waiting).
