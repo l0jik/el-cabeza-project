@@ -620,7 +620,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         if (Array.isArray(target)) cam.current.target.set(target[0], target[1], target[2]);
       }
       const c = cam.current;
-      return { theta: c.theta, phi: c.phi, radius: c.radius };
+      return { theta: c.theta, phi: c.phi, radius: c.radius, dollhouse: !!c.dollhouse };
     };
   }, [pieces]);
   /* React-visible copy of the Black Hole Squares LAW's current
@@ -5456,9 +5456,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         }
         /* The Room view (freeCamera.dollhouse: the store, the den) isn't
            grabbing the board: it's looking round a room from above, and
-           the user found both directions backwards there. So in it, a
-           drag turns and tilts the view the other way on both axes, and
-           the same way wherever the finger is (no half-screen flip). */
+           the user found left/right backwards there. So in it, a sideways
+           drag turns the view the other way, and the same way wherever
+           the finger is (no half-screen flip). Up/down is as everywhere
+           (the user: tried flipped, it was wrong). */
         const roomLook = !!cam.current.dollhouse;
         cam.current.theta -= dx * ORBIT_SENS_THETA * (roomLook ? -1 : dragFlipTheta ? -1 : 1);
         /* Lower bound is a hair above zero rather than zero itself: at
@@ -5479,7 +5480,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
            angles where that showed up in testing. */
         cam.current.phi = Math.max(
           0.012,
-          Math.min(1.25, cam.current.phi - dy * ORBIT_SENS_PHI * (roomLook ? -1 : 1))
+          Math.min(1.25, cam.current.phi - dy * ORBIT_SENS_PHI)
         );
         return;
       }

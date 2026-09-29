@@ -3501,7 +3501,9 @@ phone menu until "Start the story over" (which clears it).
   is run off at 11.8. King onward +0.6 s; COMMERCIAL_MS 45400. The user's
   note trailed off ("and then the uh,"): asked what comes next.
 - Room view drag (user: in Tienda's Room view the X and Y felt inverted
-  compared with play): while cam.current.dollhouse, a drag turns the view
-  the opposite way on both axes to the board view's near-side rule, and
-  the same way anywhere on screen (no half-screen dragFlipTheta). The board
-  views are unchanged. Applies to every Room view (store and den).
+  compared with play): while cam.current.dollhouse, a sideways drag turns
+  the view the opposite way to the board view's near-side rule, and the
+  same way anywhere on screen (no half-screen dragFlipTheta). Up/down was
+  flipped too, then put back (user: "left/right is right now, up/down is
+  still backwards"). The board views are unchanged; every Room view.
+  __EC_TEST_CAM__() now also reports dollhouse.
