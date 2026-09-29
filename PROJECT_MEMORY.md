@@ -3436,3 +3436,7 @@ may supply one. __DEN_TV__() now reports watch and ad (ms into it).
   dismissal, not on showing), and a tap on it ("Order from the catalog ›")
   opens the order form straight away (from the box lid too). Waits for the
   den's commercial as before.
+- Round 4 (user: voice lower still, pitch much deeper): both voice files
+  now pitched down with rubberband (pitch 0.8, tempo kept) before the tape
+  x0.965, so about 4.5 semitones below the recording in all; the band's
+  low edge moved to 210 Hz so the depth comes through; AD_VOICE_GAIN 0.12.

@@ -28,7 +28,7 @@ import { CUES as AD, COMMERCIAL_MS } from "./den-commercial.js";
 // The commercial's voice-over, beside the page (build/build.js).
 const AD_VOICE_URL = "el-cabeza-den-ad-voice.mp3";
 const AD_KINGS_URL = "el-cabeza-den-ad-voice-2.mp3"; // "the new king!" x3, at the sign-off
-const AD_VOICE_GAIN = 0.17;
+const AD_VOICE_GAIN = 0.12;
 
 export const hasAudio = true;
 
