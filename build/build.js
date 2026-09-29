@@ -7,6 +7,8 @@ const DEN_RECORDS = {
   // The late-night commercial's voice-over (the user's recording, treated).
   "el-cabeza-den-ad-voice.mp3": "assets/den/commercial-king.mp3",
   "el-cabeza-den-ad-voice-2.mp3": "assets/den/commercial-new-king.mp3",
+  "el-cabeza-den-ad-voice-3.mp3": "assets/den/commercial-chess.mp3",
+  "el-cabeza-den-ad-voice-4.mp3": "assets/den/commercial-checkers.mp3",
   // The 8-track's tapes: the user's tracks through tools/den_8track_treatment.py.
   ...Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`el-cabeza-den-tape-${n}.mp3`, `assets/den/8track_${n}.mp3`])),
 };

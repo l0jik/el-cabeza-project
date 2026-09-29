@@ -28,6 +28,8 @@ import { CUES as AD, COMMERCIAL_MS } from "./den-commercial.js";
 // The commercial's voice-over, beside the page (build/build.js).
 const AD_VOICE_URL = "el-cabeza-den-ad-voice.mp3";
 const AD_KINGS_URL = "el-cabeza-den-ad-voice-2.mp3"; // "the new king!" x3, at the sign-off
+const AD_CHESS_URL = "el-cabeza-den-ad-voice-3.mp3"; // "Take a hike, chess!"
+const AD_CHECKERS_URL = "el-cabeza-den-ad-voice-4.mp3"; // "Get outta here, Checkers!"
 const AD_VOICE_GAIN = 0.12;
 
 export const hasAudio = true;
@@ -457,7 +459,7 @@ export function createAudio() {
       }
     };
     // (Not under the king's line: the voice has the scene to itself.)
-    box(AD.title + 0.5, AD.king);
+    box(AD.title + 0.5, AD.stamp);
     box(AD.orders, AD.best);
     box(AD.dealer, AD.never);
     // "El Ca-be-za!" on the organ: G A C . E, at the top and at the end.
@@ -467,8 +469,8 @@ export function createAudio() {
     // The letters popping up.
     for (let i = 0; i < 9; i++) { const t = T + AD.title + 0.35 + i * 0.12; const o = tone(t, 500 + i * 70, 0.09, 0.03, "triangle"); o.frequency.exponentialRampToValueAtTime(900 + i * 90, t + 0.06); }
     // Chess: the sad trombone.
-    [[55, 0], [54, 0.32], [53, 0.64], [52, 0.96]].forEach(([m, d], i) => {
-      const t = T + AD.chess + 0.3 + d, l = i === 3 ? 0.9 : 0.3;
+    [[55, 0], [54, 0.22], [53, 0.44], [52, 0.66]].forEach(([m, d], i) => {
+      const t = T + AD.chess + 0.1 + d, l = i === 3 ? 0.4 : 0.2;
       const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = hz(m);
       if (i === 3) { const w = ctx.createOscillator(); w.frequency.value = 5; const wg = ctx.createGain(); wg.gain.value = 5; w.connect(wg).connect(o.frequency); w.start(t); w.stop(t + l); }
       const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 900; f.Q.value = 4;
@@ -476,8 +478,10 @@ export function createAudio() {
       o.connect(f).connect(g).connect(out); o.start(t); o.stop(t + l + 0.02);
     });
     // The stamp, and the pawn run off on a slide whistle.
-    { const t = T + AD.stamp; burst(t, out, 0.22, 0.12, [["lowpass", 900]]); const o = tone(t, 120, 0.25, 0.12); o.frequency.exponentialRampToValueAtTime(50, t + 0.2); }
-    { const t = T + AD.flee; const o = ctx.createOscillator(); o.frequency.setValueAtTime(700, t); o.frequency.exponentialRampToValueAtTime(2300, t + 0.55); const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.035, t + 0.05); g.gain.linearRampToValueAtTime(0.0001, t + 0.6); o.connect(g).connect(out); o.start(t); o.stop(t + 0.65); }
+    [[AD.stamp], [AD.stamp2]].forEach(([at]) => { const t = T + at; burst(t, out, 0.22, 0.12, [["lowpass", 900]]); const o = tone(t, 120, 0.25, 0.12); o.frequency.exponentialRampToValueAtTime(50, t + 0.2); });
+    [[AD.flee, 700, 2300], [AD.flee2, 2300, 600]].forEach(([at, f0, f1]) => { const t = T + at; const o = ctx.createOscillator(); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + 0.55); const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.035, t + 0.05); g.gain.linearRampToValueAtTime(0.0001, t + 0.6); o.connect(g).connect(out); o.start(t); o.stop(t + 0.65); });
+    // The checker slides in: a felt-on-board scrape.
+    burst(T + AD.checker, out, 0.05, 0.3, [["bandpass", 900, 0.8]], 0.08);
     // The king: a cymbal, then the voice (the user's recording, a file
     // beside the page: build/build.js), and a sparkle as it trails off.
     burst(T + AD.king, out, 0.06, 1.4, [["highpass", 5000]]);
@@ -489,9 +493,11 @@ export function createAudio() {
       tv.adVoices.push(el);
       setTimeout(() => { if (tv && tv.ad === out) { const p = el.play(); if (p && p.catch) p.catch(() => { /* no sound, then */ }); } }, Math.max(0, (T + at - now()) * 1000));
     };
+    voice(AD_CHESS_URL, AD.chessVoice);
+    voice(AD_CHECKERS_URL, AD.checkersVoice);
     voice(AD_VOICE_URL, AD.voice);
     voice(AD_KINGS_URL, AD.kings);
-    [4.4, 4.9].forEach((d, i) => bell(T + AD.voice + d, 88 + i * 3, 0.018));
+    [3.2, 3.7].forEach((d, i) => bell(T + AD.voice + d, 88 + i * 3, 0.018));
     // Special orders: ta-daa, and a bell for each.
     organ(T + AD.orders, [55, 59, 62], 0.18, 0.04); organ(T + AD.orders + 0.2, [60, 64, 67, 72], 0.8, 0.04);
     AD.items.forEach((t, i) => bell(T + t, [79, 83, 86][i], 0.045));

@@ -3482,3 +3482,15 @@ phone menu until "Start the story over" (which clears it).
   note (and its play-original link) isn't shown at all until the
   Singularity's first visit (classicRules), everywhere that locks the
   extras: it gave away that there's more. e2e-journey checks it's absent.
+- New voice-over (user's cab_comm.mp3, 9.3 s): "Take a hike, chess!"
+  (1.02-2.62 s), "Get outta here, Checkers!" (3.12-4.88), "El Cabeza is the
+  new king!" (5.55-7.95; "the new king!" is 6.86-7.95). Same chain as
+  before (rubberband pitch 0.8, tape x0.965, 210 Hz-3.1 kHz, compression,
+  soft clip, 11 kHz 9-bit crush, echo, -18 LUFS). Files: commercial-chess
+  (ad-voice-3, at CUES.chessVoice 6.9), commercial-checkers (ad-voice-4, at
+  checkersVoice 9.2), commercial-king (ad-voice, at voice 12.1),
+  commercial-new-king x3 (ad-voice-2, at kings 37.8). The chess scene now
+  runs 5.6-11.8: pawn stamped "TAKE A HIKE, CHESS!" and run off, then "AND...
+  CHECKERS?" a red checker slides in, is stamped "GET OUTTA HERE, CHECKERS!"
+  and run off the other way. Everything after moved +2.6 s; COMMERCIAL_MS
+  44800. The rhythm box stops at the first stamp; the trombone is shorter.

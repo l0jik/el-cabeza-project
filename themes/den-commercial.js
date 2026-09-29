@@ -20,16 +20,18 @@
 
 import * as THREE from "three";
 
-export const COMMERCIAL_MS = 42200;
+export const COMMERCIAL_MS = 44800;
 
 // The scenes, in seconds from the top (the sound follows these).
 export const CUES = {
-  slate: 0, title: 2.2, chess: 5.6, stamp: 7.0, flee: 7.6, king: 9.2, voice: 9.5, orders: 14.4,
-  items: [15.2, 16.0, 16.8], assembly: 17.8, best: 19.0, sortOf: 21.5, dealer: 22.6, standing: 24.0,
-  price: 26.8, only: 27.9, brandNew: 28.9, close: 31.2, never: 32.8, credit: 34.9, kings: 35.2, snow: 41.6,
+  slate: 0, title: 2.2, chess: 5.6, stamp: 6.8, chessVoice: 6.9, flee: 8.6,
+  checker: 9.0, checkersVoice: 9.2, stamp2: 9.35, flee2: 11.1,
+  king: 11.8, voice: 12.1, orders: 17.0,
+  items: [17.8, 18.6, 19.4], assembly: 20.4, best: 21.6, sortOf: 24.1, dealer: 25.2, standing: 26.6,
+  price: 29.4, only: 30.5, brandNew: 31.5, close: 33.8, never: 35.4, credit: 37.5, kings: 37.8, snow: 44.2,
   // Subliminal frames of the Singularity's black hole, one frame each (the
   // last two), spliced into the tape where nobody at Canal 99 put them.
-  flash: [6.45, 16.35, 20.25, 33.55, 37.95],
+  flash: [6.45, 18.95, 22.85, 36.15, 40.55],
 };
 
 const W = 512, H = 384, FPS = 12;
@@ -125,33 +127,71 @@ function pawn(g, x, y, s) {
   g.restore();
 }
 
+// A red checker, as cheaply drawn as the pawn.
+function checker(g, x, y, s) {
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = "#6e0f12"; g.beginPath(); g.ellipse(0, 12, 70, 24, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = "#c21f26"; g.beginPath(); g.ellipse(0, 0, 70, 24, 0, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = "rgba(60,0,0,0.55)"; g.lineWidth = 3;
+  [52, 36].forEach((r) => { g.beginPath(); g.ellipse(0, 0, r, r * 0.34, 0, 0, Math.PI * 2); g.stroke(); });
+  g.fillStyle = "rgba(255,255,255,0.25)"; g.beginPath(); g.ellipse(-24, -8, 14, 4, -0.2, 0, Math.PI * 2); g.fill();
+  g.restore();
+}
+
+// The rubber stamp, slammed down: a red circle and a slash.
+function stampMark(g, st, y) {
+  const s = st < 0.15 ? 1.8 - st * 5.3 : 1;
+  g.save(); g.translate(W / 2, y); g.rotate(-0.18); g.scale(s, s);
+  g.strokeStyle = "rgba(214,30,30,0.9)"; g.lineWidth = 14;
+  g.beginPath(); g.arc(0, 0, 92, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.moveTo(-64, -64); g.lineTo(64, 64); g.stroke();
+  g.restore();
+}
+
+// "Take a hike, chess!" (the pawn run off), then "Get outta here,
+// Checkers!" (a checker slides in, is stamped, and goes the same way).
 function chess(g, t) {
   g.fillStyle = "#cfc9b8"; g.fillRect(0, 0, W, H);
   // The checkerboard backdrop, a bedsheet with squares painted on.
   for (let r = 0; r < 6; r++) for (let c = 0; c < 8; c++) { if ((r + c) % 2) { g.fillStyle = "#8f8876"; g.fillRect(c * 64, r * 64, 64, 64); } }
   g.fillStyle = "rgba(20,16,10,0.25)"; g.fillRect(0, 0, W, H);
   const T = CUES.chess;
-  say(g, "TIRED OF...", W / 2, H * 0.14, { font: `900 30px ${SANS}`, color: "#fff", shadow: "#000", shadowAt: [3, 4] });
-  // The pawn: sits there, smug; then it's run off the screen.
-  const flee = t - (CUES.flee - T);
-  const px = flee > 0 ? W * 0.5 - Math.pow(flee, 2) * 900 : W * 0.5;
-  if (px > -80) {
-    pawn(g, px, H * 0.58, 1.25);
-    if (flee > 0) { g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 3; for (let i = 0; i < 4; i++) { const yy = H * 0.42 + i * 22; g.beginPath(); g.moveTo(px + 50, yy); g.lineTo(px + 50 + 60 + i * 12, yy); g.stroke(); } }
+  const at = (k) => t - (CUES[k] - T);
+  const lines = (a, b, shake) => {
+    say(g, a, W / 2 + shake, H * 0.83, { font: `900 32px ${SANS}`, color: "#ffe23a", shadow: "#000", shadowAt: [4, 4] });
+    say(g, b, W / 2 - shake, H * 0.93, { font: `900 34px ${SANS}`, color: "#ffe23a", shadow: "#000", shadowAt: [4, 4] });
+  };
+  if (at("checker") < 0) {
+    say(g, "TIRED OF...", W / 2, H * 0.14, { font: `900 30px ${SANS}`, color: "#fff", shadow: "#000", shadowAt: [3, 4] });
+    // The pawn: sits there, smug; then it's run off the screen.
+    const flee = at("flee");
+    const px = flee > 0 ? W * 0.5 - Math.pow(flee, 2) * 900 : W * 0.5;
+    if (px > -80) {
+      pawn(g, px, H * 0.58, 1.25);
+      if (flee > 0) { g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 3; for (let i = 0; i < 4; i++) { const yy = H * 0.42 + i * 22; g.beginPath(); g.moveTo(px + 50, yy); g.lineTo(px + 50 + 60 + i * 12, yy); g.stroke(); } }
+    }
+    const st = at("stamp");
+    if (st <= 0) say(g, "CHESS?", W / 2, H * 0.3, { font: `900 34px ${SERIF}`, color: "#fff", shadow: "#000", shadowAt: [3, 3] });
+    else {
+      if (flee <= 0) stampMark(g, st, H * 0.52);
+      lines("TAKE A HIKE,", "CHESS!", st < 0.5 ? (hash(Math.floor(st * 30)) - 0.5) * 8 : 0);
+    }
+    return;
   }
-  if (t < CUES.stamp - T) say(g, "CHESS?", W / 2, H * 0.3, { font: `900 34px ${SERIF}`, color: "#fff", shadow: "#000", shadowAt: [3, 3] });
-  // The stamp.
-  const st = t - (CUES.stamp - T);
-  if (st > 0) {
-    const s = st < 0.15 ? 1.8 - st * 5.3 : 1;
-    g.save(); g.translate(W / 2, H * 0.52); g.rotate(-0.18); g.scale(s, s);
-    g.strokeStyle = "rgba(214,30,30,0.9)"; g.lineWidth = 14;
-    g.beginPath(); g.arc(0, 0, 92, 0, Math.PI * 2); g.stroke();
-    g.beginPath(); g.moveTo(-64, -64); g.lineTo(64, 64); g.stroke();
-    g.restore();
-    const shake = st < 0.5 ? (hash(Math.floor(st * 30)) - 0.5) * 8 : 0;
-    say(g, "GET OUTTA HERE,", W / 2 + shake, H * 0.83, { font: `900 32px ${SANS}`, color: "#ffe23a", shadow: "#000", shadowAt: [4, 4] });
-    say(g, "CHESS!", W / 2 - shake, H * 0.93, { font: `900 34px ${SANS}`, color: "#ffe23a", shadow: "#000", shadowAt: [4, 4] });
+  // ...and checkers.
+  say(g, "AND...", W / 2, H * 0.14, { font: `900 30px ${SANS}`, color: "#fff", shadow: "#000", shadowAt: [3, 4] });
+  const inn = easeOut(at("checker") / 0.35);
+  const flee2 = at("flee2");
+  const cx = flee2 > 0 ? W * 0.5 + Math.pow(flee2, 2) * 900 : W * 0.5 - (1 - inn) * 360;
+  if (cx < W + 90) {
+    checker(g, cx, H * 0.6, 1.2);
+    if (flee2 > 0) { g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 3; for (let i = 0; i < 4; i++) { const yy = H * 0.52 + i * 16; g.beginPath(); g.moveTo(cx - 95, yy); g.lineTo(cx - 95 - 60 - i * 12, yy); g.stroke(); } }
+  }
+  const st2 = at("stamp2");
+  if (st2 <= 0) say(g, "CHECKERS?", W / 2, H * 0.3, { font: `900 34px ${SERIF}`, color: "#fff", shadow: "#000", shadowAt: [3, 3] });
+  else {
+    if (flee2 <= 0) stampMark(g, st2, H * 0.56);
+    lines("GET OUTTA HERE,", "CHECKERS!", st2 < 0.5 ? (hash(Math.floor(st2 * 30)) - 0.5) * 8 : 0);
   }
 }
 
@@ -177,7 +217,7 @@ function king(g, t, f) {
   const flick = Math.floor(t * 6) % 2;
   say(g, "EL CABEZA", W / 2, H * 0.14, { font: `900 44px ${SERIF}`, color: flick ? "#ffe23a" : "#ffffff", shadow: "#000", shadowAt: [4, 5] });
   // (The words come up with the voice's: "...is the new king!")
-  if (t > 1.9) say(g, "IS THE NEW KING!", W / 2, H * 0.9, { font: `900 34px ${SERIF}`, color: flick ? "#ffffff" : "#ffe23a", shadow: "#000", shadowAt: [4, 5] });
+  if (t > 1.7) say(g, "IS THE NEW KING!", W / 2, H * 0.9, { font: `900 34px ${SERIF}`, color: flick ? "#ffffff" : "#ffe23a", shadow: "#000", shadowAt: [4, 5] });
   for (let i = 0; i < 6; i++) {
     if (hash(i * 13 + f) < 0.5) continue;
     g.fillStyle = "#fff9c0"; star(g, W * (0.12 + 0.76 * hash(i + 21)), H * (0.25 + 0.5 * hash(i + 44)), 7, 4, 0.28); g.fill();
