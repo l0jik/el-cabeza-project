@@ -136,7 +136,12 @@ export function useSetupExtras(x) {
   }, []);
   React.useEffect(() => {
     if (!specialNote) return undefined;
-    const onDown = (e) => { if (!(e.target && e.target.closest && e.target.closest(".td-special-note"))) dismissSpecialNote(); };
+    // (The first time through, it's the way into the whole special-order
+    // scene: it stays until it's taken up, user.)
+    const onDown = (e) => {
+      if (home && story.guided && story.guided()) return;
+      if (!(e.target && e.target.closest && e.target.closest(".td-special-note"))) dismissSpecialNote();
+    };
     document.addEventListener("pointerdown", onDown, true);
     return () => document.removeEventListener("pointerdown", onDown, true);
   }, [specialNote, dismissSpecialNote]);
@@ -193,8 +198,8 @@ export function useSetupExtras(x) {
     // buttons are hidden there (STORY_CSS).
     cornerControlsZ: overlay === "clerk" ? 1250 : undefined,
     tiendaOverlay: overlay,
-    openOrderForm: () => { x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen(); setOverlay(store || !specialOpen ? "catalog" : "order"); },
-    openCustomRules: () => { if (specialOpen) setOverlay("order"); },
+    openOrderForm: () => { x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen(); if (specialNote && !store && specialOpen) dismissSpecialNote(); setOverlay(store || !specialOpen ? "catalog" : "order"); },
+    openCustomRules: () => { if (specialOpen) { if (specialNote) dismissSpecialNote(); setOverlay("order"); } },
     closeOverlay: () => setOverlay(null),
     reopenOrder: (sel) => { if (sel) selRef.current = sel; setOverlay(store || !specialOpen ? "catalog" : "order"); },
     specialOpen,
@@ -234,7 +239,10 @@ export function renderExtraOverlays(x) {
   if (store && !x.awaitingBegin && x.game && (x.game.status === "finished" || x.game.status === "ended")) return h(PurchaseOffer, { key: "offer", story: x.story, audio: x.audio });
   const note = x.specialNote && x.awaitingBegin && (!x.tiendaOverlay || x.tiendaOverlay === "lid")
     ? h("button", {
-        type: "button", key: "special-note", className: "td-special-note", "data-testid": "tienda-special-note",
+        type: "button", key: "special-note", "data-testid": "tienda-special-note",
+        // The first time through, lit in the Singularity's blue: it's where
+        // the special-order scene starts (user).
+        className: x.story && x.story.mode === "home" && x.story.guided && x.story.guided() ? "td-special-note td-sing-glow" : "td-special-note",
         title: "Open the catalog's order form",
         // Taken up: straight to the order form (from the box's lid too).
         onClick: () => {
@@ -394,6 +402,20 @@ const CSS = `
     font: 700 11px/1 ${FRANKLIN}; letter-spacing: 0.1em; text-transform: uppercase; }
   .td-special-note:hover .td-special-go, .td-special-note:focus-visible .td-special-go { background: ${RED}; border-color: ${RED}; }
   @keyframes tdNoteIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  /* The Singularity's blue, round what leads into the special order the
+     first time through (the note, the form's button): a halo that breathes. */
+  .td-special-note.td-sing-glow { animation: tdNoteIn 0.5s ease both, tdSingGlow 2.4s ease-in-out 0.5s infinite; }
+  button.td-btn.td-sing-glow { animation: tdSingGlow 2.4s ease-in-out infinite; }
+  @keyframes tdSingGlow {
+    0%, 100% { box-shadow: 0 0 0 1.5px rgba(102,217,255,0.75), 0 0 10px 2px rgba(102,217,255,0.45), 0 0 26px 6px rgba(140,110,255,0.22), 0 6px 18px rgba(10,6,3,0.4); }
+    50% { box-shadow: 0 0 0 2px rgba(150,232,255,0.95), 0 0 18px 5px rgba(102,217,255,0.7), 0 0 42px 12px rgba(140,110,255,0.36), 0 6px 18px rgba(10,6,3,0.4); }
+  }
+  /* Waiting for something to be ordered: dimmer, the glow slower. */
+  button.td-btn.td-wait { opacity: 0.62; cursor: not-allowed; animation-duration: 4s; }
+  .td-nudge { flex-basis: 100%; margin: 8px 0 0; padding: 7px 10px; background: #FFF6D8; color: ${INK}; border: 1.5px solid ${RED};
+    font: 700 12.5px/1.35 ${FRANKLIN}; text-align: center; animation: tdNudge 0.35s ease both; }
+  @keyframes tdNudge { 0% { opacity: 0; transform: translateX(0); } 20% { opacity: 1; transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 100% { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .td-special-note.td-sing-glow, button.td-btn.td-sing-glow { animation: none; box-shadow: 0 0 0 2px rgba(102,217,255,0.9), 0 0 16px 4px rgba(102,217,255,0.55); } .td-nudge { animation: none; } }
   .td-form-scroll { position: relative; overflow: auto; -webkit-overflow-scrolling: touch; padding: clamp(14px, 3vw, 28px) clamp(14px, 3.4vw, 32px) 8px; }
   .td-form-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 16px; border-bottom: 3px solid ${INK}; padding-bottom: 8px; }
   .td-form-title { margin: 0; font: 900 clamp(26px, 4.4vw, 40px)/0.95 ${FRANKLIN}; letter-spacing: 0.02em; }
@@ -1104,7 +1126,16 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
       h("span", { className: "td-sub-val", "data-testid": "tienda-missing-where" }, spotsLine(sel.missingSpots, "X")),
       h("button", { type: "button", className: "td-btn td-plain td-small-btn", "data-testid": "tienda-missing-select", onClick: () => { click(); setPicker("missing"); } }, "Select")));
 
+  /* The first time through (guided), the order has to be something
+     special: until anything on the form changes, the button waits, and a
+     tap on it says so (user). */
+  const startSel = React.useMemo(() => JSON.stringify(sel), []);
+  const waiting = where === "guided" && JSON.stringify(sel) === startSel;
+  const [nudge, setNudge] = React.useState(0);
+  React.useEffect(() => { if (!nudge) return undefined; const id = setTimeout(() => setNudge(0), 3800); return () => clearTimeout(id); }, [nudge]);
+  React.useEffect(() => { if (!waiting) setNudge(0); }, [waiting]);
   const place = () => {
+    if (waiting) { click(); setNudge((n) => n + 1); return; }
     if (over || !fits || filled) return;
     setFilled(true);
     audio && audio.playOrderFilled && audio.playOrderFilled();
@@ -1161,8 +1192,13 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
         h("div", { className: "td-foot-btns" },
           h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-cancel", onClick: onCancel, disabled: filled }, "Cancel"),
           h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-standard", onClick: standard, disabled: filled }, "Standard"),
-          h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-order-place", disabled: over || !fits || filled, onClick: place }, where === "guided" ? "Order it at Big Glutts \u203a" : "Place order & play"),
+          h("button", {
+            type: "button", "data-testid": "tienda-order-place", disabled: over || !fits || filled, onClick: place,
+            className: `td-btn td-primary${where === "guided" ? " td-sing-glow" : ""}${waiting ? " td-wait" : ""}`,
+            "aria-disabled": waiting ? "true" : undefined, "data-waiting": waiting ? "true" : "false",
+          }, where === "guided" ? "Order it at Big Glutts \u203a" : "Place order & play"),
         ),
+        nudge ? h("p", { key: nudge, className: "td-nudge", role: "alert", "data-testid": "tienda-order-nudge" }, "Be sure to order some new special pieces first \u2014 or new rules, or a new board.") : null,
       ),
       filled && h("div", { className: "td-filled-stamp", "data-testid": "tienda-order-stamp", "aria-hidden": "true" },
         where === "guided" ? [h("b", { key: "b" }, "Take to store"), h("span", { key: "s" }, "Special order · Big Glutts · Dept. 49")] : [h("b", { key: "b" }, "Order filled"), h("span", { key: "s" }, "Games & Hobby · Dept. 49")]),

@@ -3746,3 +3746,15 @@ phone menu until "Start the story over" (which clears it).
   Baked k 1.15. Checked by rendering the scene from a camera placed in
   den-local coordinates (FLOOR -1.575, RZ 88) via __DEN_THREE__.
 - Singularity starfield: 240 + 36 stars (was 700 + 100; user: fewer).
+- Guided run prompts (user): the "Special orders now open" note gets
+  .td-sing-glow (Singularity cyan/violet halo, tdSingGlow 2.4 s) while
+  HOME_STORY.guided(), and a tap elsewhere doesn't put it away then (it's
+  the way into the scene); opening the order form by any route dismisses
+  it (openOrderForm / openCustomRules). In the form, where === "guided":
+  the place button glows too and waits (data-waiting, aria-disabled,
+  .td-wait dimmed) until anything differs from the form's starting
+  selections (JSON compare); a tap while waiting shows .td-nudge "Be sure
+  to order some new special pieces first — or new rules, or a new board."
+  for 3.8 s. Tests tap it with force (aria-disabled).
+- den-audio: on file:// the fire goes straight to the <audio> element
+  (fetch there logs a CORS error that failed the tests' console check).

@@ -168,11 +168,25 @@ console.log("\ndesktop: the store, the purchase, home");
   // orders open, once announced, and the row says Custom rules.
   await page.evaluate(() => { localStorage.setItem("el-cabeza:singularity-seen", "1"); window.dispatchEvent(new CustomEvent("el-cabeza:journey")); });
   check("after the Singularity: the note that special orders are open", await poll(() => has(page, "tienda-special-note"), 5000));
+  check("...lit in the Singularity's blue the first time through", /td-sing-glow/.test(await q(page, "tienda-special-note").getAttribute("class")));
+  await page.mouse.click(8, 300);
+  await page.waitForTimeout(400);
+  check("...and a tap elsewhere doesn't put it away (it's the way in)", await has(page, "tienda-special-note"));
+  await openDockPanel(page); // (that tap on the board folded the dock's panel)
   check("...and the row has Custom rules", await poll(async () => /Custom rules/i.test(await q(page, "tienda-order-form").innerText()), 5000));
   await q(page, "tienda-order-form").click();
   check("Custom rules is the whole order form", await poll(() => has(page, "tienda-order"), 8000));
   check("...with the board's size now, and still no shuffled start (Neon's alone)", (await has(page, "tienda-cols")) && !/Shuffled start/.test(await q(page, "tienda-order").innerText()));
+  check("the note's gone once the form is open", !(await has(page, "tienda-special-note")));
+  // Nothing ordered yet: the button waits, glowing, and says so if tapped.
+  const place0 = q(page, "tienda-order-place");
+  check("the button glows and waits for an order", /td-sing-glow/.test(await place0.getAttribute("class")) && (await place0.getAttribute("data-waiting")) === "true");
+  await place0.scrollIntoViewIfNeeded();
+  await place0.click({ force: true }); // (aria-disabled, but a tap still reaches it: that's the point)
+  check("...a tap says to order something special first", await poll(async () => /new special pieces/i.test((await has(page, "tienda-order-nudge")) ? await q(page, "tienda-order-nudge").innerText() : ""), 2000));
+  check("...and nothing's stamped", !(await has(page, "tienda-order-stamp")));
   await q(page, "tienda-piece-turrito-inc").click();
+  check("an order made: the button's ready", (await q(page, "tienda-order-place").getAttribute("data-waiting")) === "false");
   // The first time through, the order is a special order to take to the
   // store (tienda-overlay.js guided).
   check("the first time through, the button takes it to the store", /Order it at Big Glutts/i.test(await q(page, "tienda-order-place").innerText()));

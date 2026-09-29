@@ -170,6 +170,9 @@ export function createAudio() {
       el.addEventListener("canplay", () => { if (disposed || firePlaying) return; try { begin(ctx.createMediaElementSource(el)); } catch (e) { return; } const p = el.play(); if (p && p.catch) p.catch(() => {}); }, { once: true });
       fireEl = el;
     };
+    // (A page opened from disk can't fetch at all, and says so in the
+    // console: straight to the element there.)
+    if (typeof location !== "undefined" && location.protocol === "file:") { fromElement(); return; }
     fetch(FIRE_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
       if (disposed || !ctx) return;
       const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
