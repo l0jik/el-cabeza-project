@@ -66,7 +66,7 @@ for (const { theme, rows, cols, label } of CASES) {
   const sizeOk = applied && applied.rows === rows && applied.cols === cols;
 
   await openDockPanel(page);
-  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   await page.waitForTimeout(1000);
 
   const box = await page.locator('canvas[data-testid="board-canvas"]').boundingBox();

@@ -33,7 +33,7 @@ for (tries = 1; tries <= 10 && !splitTurn; tries++) {
   if (await aiBtn.count()) { await aiBtn.click(); await page.waitForTimeout(400); }
   const easy = page.locator('[data-testid="dock-panel"] button', { hasText: /^Easy$/i }).first();
   if (await easy.count()) { await easy.click(); await page.waitForTimeout(200); }
-  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
 
   // Wait for the AI's first turn to finish (Easy searches ~0.5s, plus the
   // 500ms beat before each step and the roll animations).

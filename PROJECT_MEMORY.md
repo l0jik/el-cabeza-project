@@ -3649,3 +3649,7 @@ phone menu until "Start the story over" (which clears it).
 - Dock panel on phones: the players line ("Dark: … | Light: …") sits
   with the footer icons at calc(13px - var(--ec-dock-overflow)) so it
   never lands on Move Log / New Game when the panel scrolls.
+- Tienda's store says "Try a Game" on the Begin Game button (user: it's
+  only being tried, not bought): theme.beginLabel(setupExtras) in the
+  chassis (dock and MobileShell ctl.beginLabel); tienda.js returns null at
+  home, so the den keeps Begin Game. Tests match /Begin Game|Try a Game/.

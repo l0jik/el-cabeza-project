@@ -47,7 +47,7 @@ async function openPage() {
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   await page.waitForTimeout(1200);
   const shown = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-codo"));
   check("the Codo is on the board (its mesh is drawn)", !!shown);
@@ -80,7 +80,7 @@ async function openPage() {
   if (await easy.count()) { await easy.click(); await page.waitForTimeout(200); }
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
-  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   let turns = [];
   for (let i = 0; i < 40 && !turns.length; i++) {
     await page.waitForTimeout(400);
@@ -107,7 +107,7 @@ async function openPage() {
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), arcoPosition);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   await page.waitForTimeout(1200);
   check("the Arco is on the board (its mesh is drawn)", !!(await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-arcoChico"))));
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-arcoChico", "S"));

@@ -64,7 +64,7 @@ for (const theme of ["neon", "standard"]) {
 
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
-  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   await closeDock(page);
   await page.waitForTimeout(1500);
   check("in play, the counter shows 2 points left", (await left(page)) === 2, String(await left(page)));
@@ -89,7 +89,7 @@ for (const theme of ["neon", "standard"]) {
   await page.waitForTimeout(1500);
   await openDockPanel(page);
   check("the setting is remembered after a reload", (await page.locator('[data-testid="points-toggle"]').getAttribute("aria-pressed")) === "true");
-  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   await closeDock(page);
   await page.waitForTimeout(2200); // the dock folds away first (it hides the counter while open)
   check("...and the counter shows in the next game", (await left(page)) === 2,
@@ -105,7 +105,7 @@ for (const theme of ["neon", "standard"]) {
   ]);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   await closeDock(page);
   await page.waitForTimeout(1500);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "S"));
@@ -139,7 +139,7 @@ for (const theme of ["neon", "standard"]) {
   ]);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   await closeDock(page);
   await page.waitForTimeout(1200);
   const note = page.locator('[data-testid="unused-points-note"]');

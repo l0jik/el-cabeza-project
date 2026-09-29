@@ -35,7 +35,7 @@ async function startGame(theme, laws) {
   await openDockPanel(page);
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
-  await page.locator("button", { hasText: "Begin Game" }).first().click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
   await page.mouse.move(4, 400);
   await page.waitForTimeout(2000);
   if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") { await page.mouse.click(4, 400); await page.waitForTimeout(600); }

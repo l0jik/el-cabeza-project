@@ -24,7 +24,7 @@ await page.waitForTimeout(1000);
 const dockOpened = await openDockPanel(page);
 console.log("dock panel opened:", dockOpened);
 
-await page.locator("button", { hasText: "Begin Game" }).click();
+await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
 
 // Begin Game closes the dock panel behind it — it remorphs into the
 // piece and relocates to the bottom-right corner watermark on a 900ms

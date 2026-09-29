@@ -30,7 +30,7 @@ async function setup(laws) {
   const b = await dock.boundingBox();
   await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   await page.waitForTimeout(600);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: "Begin Game" }).click();
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).click();
   await page.waitForTimeout(1500);
   return { page, errs };
 }
@@ -94,7 +94,7 @@ async function watchStray(page, ms) {
   let b = await dock.boundingBox();
   await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   await page.waitForTimeout(600);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: "Begin Game" }).click();
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).click();
   await page.waitForTimeout(1500);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-chato", "slide-E"));
   await page.waitForTimeout(1600);

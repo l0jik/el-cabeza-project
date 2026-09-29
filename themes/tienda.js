@@ -443,6 +443,12 @@ export const styleSheet = `
 
 /* ------------------------------------------------------------ setup row */
 
+/* In the store the game isn't bought yet, only tried on the demonstration
+   table (user): "Try a Game". At home it's Begin Game again. */
+export function beginLabel(x) {
+  return x && x.story && x.story.mode === "home" ? null : "Try a Game";
+}
+
 /* Begin Game shares its row with the catalog's order form (custom rules,
    see tienda-overlay.js). */
 /* In Nova's story (story: apps/unified.jsx) the store's button opens the

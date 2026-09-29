@@ -114,7 +114,8 @@ console.log("\ndesktop: the store, the purchase, home");
 
   // A game in the store: the classic game, and the slip sells it too.
   check("the dock's panel opens again", await openDockPanel(page));
-  await page.locator('[data-testid="dock-panel"] button', { hasText: "Begin Game" }).first().click();
+  check("...where the game is only tried: Try a Game", (await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Game" }).count()) === 1 && (await page.locator('[data-testid="dock-panel"] button', { hasText: "Begin Game" }).count()) === 0);
+  await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Game" }).first().click();
   check("a game begins", await poll(() => has(page, "tienda-slip-tag"), 10000));
   check("...with the ten classic pieces", await page.evaluate(() => { const p = window.__EC_TEST_PIECES__ || []; return p.length === 10 && p.every((x) => ["cabeza", "turrito", "flaco", "chato", "opa"].includes(x.type)); }));
   await q(page, "tienda-slip-tag").click();

@@ -60,7 +60,7 @@ const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w &&
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
   await openDockPanel(page);
-  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   await page.waitForTimeout(1200);
 
   // ---- 1. blocked one way, free the other ----
@@ -171,7 +171,7 @@ const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w &&
   if (await easy.count()) { await easy.click(); await page.waitForTimeout(200); }
   await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
   await page.waitForTimeout(300);
-  await page.locator("button", { hasText: "Begin Game" }).click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   let turns = [];
   for (let i = 0; i < 40 && !turns.length; i++) {
     await page.waitForTimeout(400);

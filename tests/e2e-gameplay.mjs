@@ -48,7 +48,7 @@ const toggleOk =
 console.log(`[${target}] turn pill toggles first player: ${toggleOk ? "ok" : "FAIL"} (${pillBefore.text} -> ${pillToggled.text} -> ${pillBack.text})`);
 if (!toggleOk) errors.push(`turn pill toggle failed: ${JSON.stringify([pillBefore, pillToggled, pillBack])}`);
 
-await page.locator("button", { hasText: "Begin Game" }).click();
+await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
 await page.waitForTimeout(600);
 
 const statusText = () => page.evaluate(() => {

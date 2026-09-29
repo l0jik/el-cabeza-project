@@ -61,7 +61,7 @@ async function run(name, hook, init = null) {
 
   // A roll: the Chato (two squares long) rolls forward.
   await openDockPanel(page);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: "Begin Game" }).first().click();
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game|Try a Game/ }).first().click();
   await page.waitForTimeout(1500);
   const mover = await page.evaluate(() => (window.__EC_TEST_PIECES__ || []).find((p) => p.owner === "dark" && p.type === "chato"));
   const moved = await page.evaluate((id) => window.__EC_TEST_MOVE__(id, "S"), mover.id);

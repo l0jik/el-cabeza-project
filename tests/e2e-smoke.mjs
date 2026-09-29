@@ -55,7 +55,7 @@ const dockOpened = await openDockPanel(page);
 console.log(`[${target}] dock panel opened:`, dockOpened);
 
 // Click Begin Game.
-const beginBtn = page.locator("button", { hasText: "Begin Game" });
+const beginBtn = page.locator("button", { hasText: /Begin Game|Try a Game/ });
 const hasBegin = await beginBtn.count();
 console.log(`[${target}] Begin Game button present:`, hasBegin > 0);
 if (hasBegin > 0) {

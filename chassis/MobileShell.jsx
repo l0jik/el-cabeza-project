@@ -455,7 +455,7 @@ function SetupPanel({ ctl, t }) {
           onClick={ctl.onBegin}
           style={{ flex: 1, height: 52, fontSize: 13 }}
         >
-          Begin Game
+          {ctl.beginLabel || "Begin Game"}
         </button>
       </div>
       {below.map((a) => (

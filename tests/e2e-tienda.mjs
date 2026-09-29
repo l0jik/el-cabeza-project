@@ -257,7 +257,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
     { id: "light-turrito", type: "turrito", owner: "light", row: 9, col: 9, w: 1, h: 1, z: 1 },
   ]));
   await page.waitForTimeout(300);
-  await page.locator('button:has-text("Begin Game")').first().click({ timeout: 30000 });
+  await page.locator('button:text-matches("Begin Game|Try a Game")').first().click({ timeout: 30000 });
   await page.waitForTimeout(2500);
   if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") { await page.mouse.click(4, Math.round(size.h * 0.4)); await page.waitForTimeout(800); }
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "S"));

@@ -1160,7 +1160,7 @@ await page.waitForTimeout(300);
 // Human-default picker.
 check("New Game keeps the AI opponent selection",
   (await page.locator('[data-testid="dock-panel"] [aria-label="Back to opponent selection"]').count()) > 0);
-await page.locator("button", { hasText: "Begin Game" }).first().click();
+await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
 const cornerBox2 = await waitForDockCorner(page, { timeoutMs: 8000 });
 await reopenDockPanelFromCorner(page, cornerBox2);
 await page.waitForTimeout(400);

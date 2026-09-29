@@ -34,7 +34,7 @@ let failures = 0;
 const check = (l, c) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}`); };
 check("AI opponent button present", count > 0);
 
-await page.locator("button", { hasText: "Begin Game" }).click();
+await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
 // Hard difficulty can take seconds; give the search room to run.
 await page.waitForTimeout(9000);
 

@@ -2095,6 +2095,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       pieceCount: { dark: pieces.filter((p) => p.owner === "dark").length, light: pieces.filter((p) => p.owner === "light").length },
     },
   }) : null;
+  // The Begin Game button's words, which a theme may change for where the
+  // game is (Tienda's store: "Try a Game", it isn't bought yet).
+  const beginLabel = (theme.beginLabel && theme.beginLabel(setupExtras)) || "Begin Game";
   // A theme may raise the corner controls over a full-screen layer of
   // its own (Neon's SINGULARITY sphere), so they stay usable there.
   const cornerControlsZ = (setupExtras && setupExtras.cornerControlsZ) || 12;
@@ -8358,7 +8361,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                     minWidth: theme.renderSetupExtras ? 0 : undefined,
                   }}
                 >
-                  Begin Game
+                  {beginLabel}
                 </button>
               );
               const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras });
@@ -8938,6 +8941,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             onSetDifficulty: setAiDifficulty,
             onBegin: triggerBeginGame,
             setupActions: theme.shellSetupActions && setupExtras ? theme.shellSetupActions(setupExtras) : [],
+            beginLabel,
             noGame: !!(setupExtras && setupExtras.noGame),
             // Play
             canUndoMove: isPlaying && turnLocked && currentPlayer !== aiPlayer,

@@ -143,11 +143,11 @@ console.log("\nStandard, phone: the gesture off the board, no full screen by its
   check("a first tap doesn't go full screen (not asked for)", !(await full()));
   check("the dock's panel opens", await openDockPanel(page));
   await page.waitForTimeout(600);
-  const begin = await centre('[data-testid="dock-panel"] button:has-text("Begin Game")');
+  const begin = await centre('[data-testid="dock-panel"] button:text-matches("Begin Game|Try a Game")');
   check("Begin Game is over the board, not the canvas", begin && (await under(begin.x, begin.y)) !== "canvas", begin && await under(begin.x, begin.y));
   await doubleTap(begin.x, begin.y);
   check("a two-finger double-tap over Begin Game goes full screen", await full());
-  check("...without beginning the game", (await page.locator('button:has-text("Begin Game")').count()) >= 1 && await page.evaluate(() => !(window.__EC_TEST_TURNS__ || []).length));
+  check("...without beginning the game", (await page.locator('button:text-matches("Begin Game|Try a Game")').count()) >= 1 && await page.evaluate(() => !(window.__EC_TEST_TURNS__ || []).length));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

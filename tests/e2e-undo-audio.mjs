@@ -19,7 +19,7 @@ await page.waitForTimeout(1500);
 await openDockPanel(page);
 await page.locator('[data-testid="dock-panel"] button', { hasText: /^AI$/ }).first().click();
 await page.waitForTimeout(400);
-await page.locator("button", { hasText: "Begin Game" }).click();
+await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
 for (let i = 0; i < 40 && !(await page.evaluate(() => (window.__EC_TEST_LOG__ || []).length)); i++) await page.waitForTimeout(500);
 await page.waitForTimeout(2500);
 const playing = await audio();
@@ -59,7 +59,7 @@ await win.evaluate(() => window.__EC_TEST_SET_PIECES__([
   { id: "light-turrito", type: "turrito", owner: "light", row: 9, col: 9, w: 1, h: 1, z: 1 },
 ]));
 await win.waitForTimeout(300);
-await win.locator("button", { hasText: "Begin Game" }).click();
+await win.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
 await win.waitForTimeout(3000);
 check("(win) sound is up while playing", ((await audioW()) || {}).gain > 0.1);
 await win.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "S"));

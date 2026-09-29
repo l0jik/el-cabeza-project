@@ -60,7 +60,7 @@ async function waitSwitched(page, id) {
   check("sound waits for a gesture", (await page.evaluate(() => window.__LAB__.audio().started)) === false);
 
   await openDockPanel(page);
-  await page.locator("button", { hasText: "Begin Game" }).first().click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
   await page.mouse.move(1276, 400);
   await page.waitForTimeout(2200);
   if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") { await page.mouse.click(640, 796); await page.waitForTimeout(500); }
@@ -199,7 +199,7 @@ async function waitSwitched(page, id) {
   page.on("pageerror", (e) => errs.push(e.message));
   await openLab(page, "corporateSwiss");
   await openDockPanel(page);
-  await page.locator("button", { hasText: "Begin Game" }).first().click();
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).first().click();
   await page.waitForTimeout(2500);
   for (const id of ["corporateSwiss", "neoBrutalist", "newTypography"]) {
     if ((await labId(page)) !== id) { await page.evaluate((x) => window.__LAB__.switchTo(x), id); await waitSwitched(page, id); await page.waitForTimeout(600); }

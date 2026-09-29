@@ -10,7 +10,7 @@ const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromi
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
 await page.goto(`file://${file}`);
 await page.waitForTimeout(1200);
-await page.locator("button", { hasText: "Begin Game" }).click();
+await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
 await page.waitForTimeout(800);
 await page.screenshot({ path: `/tmp/${target}-begin.png` });
 console.log(`saved /tmp/${target}-begin.png`);

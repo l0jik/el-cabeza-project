@@ -23,7 +23,7 @@ await page.waitForTimeout(500);
 const pill = page.locator('[data-testid="turn-status"]');
 for (let i = 0; i < 2 && !/light/i.test(await pill.textContent()); i++) { await pill.click(); await page.waitForTimeout(300); }
 check("Light is set to open", /light/i.test(await pill.textContent()));
-await page.locator("button", { hasText: "Begin Game" }).click();
+await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
 for (let i = 0; i < 40 && !(await page.evaluate(() => (window.__EC_TEST_LOG__ || []).length)); i++) await page.waitForTimeout(500);
 const log = await page.evaluate(() => (window.__EC_TEST_LOG__ || []).map((e) => e.player));
 check(`the AI (Light) moved first (log: ${log.join(",")})`, log[0] === "light");
