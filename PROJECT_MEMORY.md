@@ -3700,3 +3700,17 @@ phone menu until "Start the story over" (which clears it).
   returns cornerControlsZ 1250 while overlay === "clerk", and STORY_CSS
   hides the room/focus/how-to corner buttons there (body:has(.td-clerk-layer)),
   leaving the full-screen switch. e2e-clerk checks it's the top element.
+- Den fire is now a recording (user's pick: freesound_community "Aachen
+  burning fireplace crackling fire", 11:54, 24 kHz): tools/den_fire_loop.py
+  cuts 70 s from 4:50 (steadiest full fire), mono, warm EQ (hp 50, +1.5 dB
+  @180, -2 dB @3k, -6 dB shelf 4.5k, lp 7.5k), gentle compression, a small
+  damped room reverb, -20 dBFS RMS, 3 s equal-power loop crossfade, 0.25 s
+  of wrap padding each side -> assets/den/fire_loop.mp3 (0.7 MB), shipped
+  as dist/el-cabeza-den-fire.mp3 (build DEN_RECORDS). den-audio startFire:
+  fetch+decode, looping BufferSource (loop 0.25..70.25, random start) at
+  FIRE_LEVEL 0.2 into fireBus (placement kept); the made fire plays until
+  then and fades out (startMadeFire); on file:// an <audio loop> element
+  stands in. __DEN_AUDIO__().fire.recording = "buffer" | "element" | null.
+  The source mp3 isn't in the repo (14 MB); re-run the tool with it.
+- Rain sound removed (user: for now). Sound menu hint "The fire and the
+  clock". The rain on the glass (visual) stays.

@@ -1,16 +1,15 @@
 /* The den's sound: a quiet room on a wet evening, and the game's wood.
 
-   - The fire: a low roar of burning and the flutter of flames, dry wood
-     ticking in little runs, a pop now and then, a log settling; never on
-     a beat, and no hiss. It's where it is: nearer the camera, louder, and off to the
+   - The fire: a recorded fireplace (the user's choice), looped and made
+     warm, with a small room round it (tools/den_fire_loop.py). Until it
+     has loaded, or if it can't be, a made one: a low roar, the flutter of
+     flames, dry wood ticking, a pop now and then; never a hiss. It's where it is: nearer the camera, louder, and off to the
      side it's on (setFireListener, from den-fx.js every frame).
    - The mantel clock: tick, tock, quietly, on the device's own seconds;
      on the hour its chime plays the Westminster melody (the four phrases,
      no counting strokes) the way a 1970s electronic clock did it, a
      little chip through a tiny speaker, soft enough not to break anyone's
      concentration.
-   - Rain against the glass door: a soft wash, a patter, drops on the glass, a
-     drip from the eaves now and then. No wind, no thunder (user rule).
    - The stereo console: the record player or the 8-track, when a track
      is chosen (playMusic; the tracks themselves come later).
    - The television (den-tv.js): its switch, the tube warming up, the
@@ -20,7 +19,7 @@
      player's choice for Standard), with a small room round them.
 
    Three switches for the sound menu (standard.js soundChannels): "room"
-   (the fire, the clock, the rain), "stereo" (shown as Music) and "pieces". Everything but
+   (the fire, the clock), "stereo" (shown as Music) and "pieces". Everything but
    the music is made here, in the browser. Built on the first gesture; the
    room starts then, so the fire is already going on the setup screen. */
 
@@ -84,7 +83,7 @@ export function createAudio() {
       const verb = ctx.createConvolver(); verb.buffer = ir;
       const verbOut = ctx.createGain(); verbOut.gain.value = 0.3;
       verb.connect(verbOut).connect(master);
-      // The room (fire, clock, rain), the music and the pieces, each behind its switch.
+      // The room (fire, clock), the music and the pieces, each behind its switch.
       gates.room = ctx.createGain(); gates.room.gain.value = chGain("room");
       roomBus = ctx.createGain(); roomBus.gain.value = 0;
       roomBus.connect(gates.room).connect(master);
@@ -109,7 +108,7 @@ export function createAudio() {
           channelsOff: { ...channelOff },
           gates: { room: gates.room.gain.value, stereo: gates.stereo.gain.value, pieces: gates.pieces.gain.value },
           room: roomBus.gain.value,
-          fire: { near: fireNear, gain: fireBus.gain.value, pan: firePan ? firePan.pan.value : 0 },
+          fire: { near: fireNear, gain: fireBus.gain.value, pan: firePan ? firePan.pan.value : 0, recording: firePlaying ? (fireSrc ? "buffer" : "element") : null },
           haunt: { near: hauntNear, pan: hauntSide, distance: hauntDist },
           chimes,
           music: music ? { id: music.track.id, medium: music.track.medium, paused: music.el.paused, time: music.el.currentTime } : null,
@@ -136,9 +135,8 @@ export function createAudio() {
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
     node.connect(g).connect(out);
   }
-  // The room (fire, clock, rain) steps back while a record or a tape
-  // plays, as it would for someone listening (user: the music was lost
-  // under the room's hiss of rain and fire).
+  // The room (fire, clock) steps back while a record or a tape plays, as
+  // it would for someone listening (user: the music was lost under it).
   const MUSIC_DUCK = 0.35;
   const roomLevel = () => (windingDown ? 0.6 : 1) * (0.85 + 0.15 * (1 - zoom)) * (music && !music.el.paused ? MUSIC_DUCK : 1);
   const roomFollowMusic = () => { if (ctx && roomOn && roomBus) roomBus.gain.setTargetAtTime(roomLevel(), now(), 0.9); };
@@ -151,30 +149,67 @@ export function createAudio() {
      knock in the wood's own middle register, in little runs with quiet
      between; a pop now and then (a knock and a thump); and, every half
      minute or so, a log settling in the grate. */
+  // The recording: seamless between FIRE_LOOP's two points (the file
+  // carries a quarter second of the loop either side, for the decoder).
+  const FIRE_URL = "el-cabeza-den-fire.mp3", FIRE_LOOP = [0.25, 70.25], FIRE_LEVEL = 0.2;
+  let madeFire = null; // the made fire's gain, faded out once the recording plays
   function startFire() {
+    startMadeFire();
+    const begin = (node, fade = 2.5) => {
+      const g = ctx.createGain(), t = now();
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(FIRE_LEVEL, t + fade);
+      node.connect(g).connect(fireBus);
+      if (madeFire) { madeFire.gain.setTargetAtTime(0, t, fade / 3); madeFire.stopped = true; madeFire.sources.forEach((x) => x.stop(t + fade * 2)); }
+      firePlaying = true;
+    };
+    // Decoded whole, it loops without a gap; where it can't be fetched (a
+    // page opened from disk), an <audio> element, looping, stands in.
+    const fromElement = () => {
+      if (disposed || typeof Audio === "undefined") return;
+      const el = new Audio(FIRE_URL); el.loop = true;
+      el.addEventListener("canplay", () => { if (disposed || firePlaying) return; try { begin(ctx.createMediaElementSource(el)); } catch (e) { return; } const p = el.play(); if (p && p.catch) p.catch(() => {}); }, { once: true });
+      fireEl = el;
+    };
+    fetch(FIRE_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+      if (disposed || !ctx) return;
+      const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
+      [s.loopStart, s.loopEnd] = [FIRE_LOOP[0], Math.min(FIRE_LOOP[1], buf.duration)];
+      s.start(now(), FIRE_LOOP[0] + Math.random() * (FIRE_LOOP[1] - FIRE_LOOP[0] - 1));
+      begin(s);
+      fireSrc = s;
+    }).catch(fromElement);
+  }
+  let firePlaying = false, fireSrc = null, fireEl = null;
+  /* The made fire, for the moments before the recording plays (or if it
+     can't): its own gain, so it can fade away under it. */
+  function startMadeFire() {
     const t = now();
+    const out = ctx.createGain(); out.connect(fireBus);
+    madeFire = out;
     const bed = ctx.createBufferSource(); bed.buffer = brownBuf; bed.loop = true;
     const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 260;
     const bedGain = ctx.createGain(); bedGain.gain.value = 0.024;
-    bed.connect(lp).connect(bedGain).connect(fireBus); bed.start(t);
+    bed.connect(lp).connect(bedGain).connect(out); bed.start(t);
+    out.sources = [bed];
     const flame = ctx.createBufferSource(); flame.buffer = brownBuf; flame.loop = true;
     const fb = ctx.createBiquadFilter(); fb.type = "bandpass"; fb.frequency.value = 420; fb.Q.value = 0.7;
     const fl = ctx.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = 900;
     const flameGain = ctx.createGain(); flameGain.gain.value = 0.02;
-    flame.connect(fb).connect(fl).connect(flameGain).connect(fireBus); flame.start(t, 1.3);
+    flame.connect(fb).connect(fl).connect(flameGain).connect(out); flame.start(t, 1.3);
+    out.sources.push(flame);
     // One tick of the wood: a knock, not a spit.
     const tick = (at, level) => {
       const f = 900 + Math.random() * 1700;
-      burst(at, fireBus, level, 0.002 + Math.random() * 0.004, [["bandpass", f, 4 + Math.random() * 4], ["lowpass", 3600]], 0.0003);
+      burst(at, out, level, 0.002 + Math.random() * 0.004, [["bandpass", f, 4 + Math.random() * 4], ["lowpass", 3600]], 0.0003);
     };
     const crackle = () => {
-      if (!ctx || disposed) return;
+      if (!ctx || disposed || out.stopped) return;
       const t0 = now() + 0.01;
       const r = Math.random();
       if (r < 0.1) {
         // A pop: the knock, and the thump of the log under it.
-        burst(t0, fireBus, 0.16, 0.006, [["bandpass", 1300 + Math.random() * 600, 3]], 0.0003);
-        burst(t0, fireBus, 0.22, 0.05, [["lowpass", 320]], 0.001);
+        burst(t0, out, 0.16, 0.006, [["bandpass", 1300 + Math.random() * 600, 3]], 0.0003);
+        burst(t0, out, 0.22, 0.05, [["lowpass", 320]], 0.001);
         for (let i = 1; i < 4; i++) tick(t0 + 0.02 + i * (0.02 + Math.random() * 0.05), 0.04 + Math.random() * 0.04);
       } else {
         // A run of ticks, or one.
@@ -187,12 +222,12 @@ export function createAudio() {
     crackle();
     // A log settling: a soft, low shift and a few ticks after it.
     const settle = () => {
-      if (!ctx || disposed) return;
+      if (!ctx || disposed || out.stopped) return;
       const at = now() + 0.02;
       const s = noise(at, 0.7, true);
       const slp = ctx.createBiquadFilter(); slp.type = "lowpass"; slp.frequency.value = 240;
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.linearRampToValueAtTime(0.12, at + 0.08); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.65);
-      s.connect(slp).connect(g).connect(fireBus);
+      s.connect(slp).connect(g).connect(out);
       for (let i = 0; i < 5; i++) tick(at + 0.1 + Math.random() * 0.5, 0.03 + Math.random() * 0.05);
       later(settle, 22000 + Math.random() * 30000);
     };
@@ -246,41 +281,11 @@ export function createAudio() {
     later(beat, 1000 - (Date.now() % 1000) + 2);
   }
 
-  /* ---------------- the rain ---------------- */
-  function startRain() {
-    const t = now();
-    // A soft, steady wash of rain on the patio beyond the glass: it
-    // doesn't rise and fall (that read as wind), and the glass takes the
-    // top off it (it was a hiss, user).
-    const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
-    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 500;
-    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2600;
-    const g = ctx.createGain(); g.gain.value = 0.0045;
-    src.connect(hp).connect(lp).connect(g).connect(roomBus); src.start(t);
-    // Patter on the glass: many small clicks.
-    const patter = () => {
-      if (!ctx || disposed) return;
-      burst(now() + 0.01, roomBus, 0.006 + Math.random() * 0.009, 0.004 + Math.random() * 0.006, [["bandpass", 1800 + Math.random() * 2600, 3]], 0.0005);
-      later(patter, 25 + Math.random() * 110);
-    };
-    patter();
-    // A drip from the eaves onto the patio now and then.
-    const drip = () => {
-      if (!ctx || disposed) return;
-      const at = now() + 0.01;
-      const o = ctx.createOscillator(); o.frequency.setValueAtTime(1300 + Math.random() * 500, at); o.frequency.exponentialRampToValueAtTime(650, at + 0.045);
-      const dg = ctx.createGain(); dg.gain.setValueAtTime(0.004 + Math.random() * 0.004, at); dg.gain.exponentialRampToValueAtTime(0.0001, at + 0.06);
-      o.connect(dg).connect(roomBus); o.start(at); o.stop(at + 0.08);
-      later(drip, 900 + Math.random() * 3200);
-    };
-    later(drip, 1200);
-  }
-
   function startRoom() {
     ensureGraph();
     if (!ctx || roomOn) return;
     roomOn = true;
-    startFire(); startClock(); startRain();
+    startFire(); startClock(); // (No rain any more: user.)
     roomBus.gain.setTargetAtTime(roomLevel(), now(), 1.2);
   }
 
@@ -754,6 +759,7 @@ export function createAudio() {
     dispose() {
       disposed = true;
       stopMusic();
+      if (fireEl) { try { fireEl.pause(); } catch (e) { /* gone */ } fireEl = null; }
       timers.forEach((id) => clearTimeout(id)); timers.clear();
       if (ctx) { try { ctx.close(); } catch (e) { /* already closed */ } }
     },

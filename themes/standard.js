@@ -177,7 +177,7 @@ export const createAudio = () => createDenAudio();
 // The dock's sound button (and the phone menu) offers these, each switched
 // on its own (chassis: theme.soundChannels; den-audio.js setChannelMuted).
 export const soundChannels = [
-  { key: "room", label: "The room", hint: "The fire, the clock, the rain" },
+  { key: "room", label: "The room", hint: "The fire and the clock" },
   // Its own key: channel choices carry between pages, and Tienda's "music"
   // is the store's ceiling speakers, not this.
   { key: "stereo", label: "Music", hint: "The record player and the 8-track" },
