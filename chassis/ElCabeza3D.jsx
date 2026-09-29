@@ -5454,7 +5454,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           const rect = el.getBoundingClientRect();
           dragFlipTheta = ev.clientY - rect.top < rect.height / 2;
         }
-        cam.current.theta -= dx * ORBIT_SENS_THETA * (dragFlipTheta ? -1 : 1);
+        /* The Room view (freeCamera.dollhouse: the store, the den) isn't
+           grabbing the board: it's looking round a room from above, and
+           the user found both directions backwards there. So in it, a
+           drag turns and tilts the view the other way on both axes, and
+           the same way wherever the finger is (no half-screen flip). */
+        const roomLook = !!cam.current.dollhouse;
+        cam.current.theta -= dx * ORBIT_SENS_THETA * (roomLook ? -1 : dragFlipTheta ? -1 : 1);
         /* Lower bound is a hair above zero rather than zero itself: at
            exactly vertical the view direction is parallel to the camera's
            up vector and lookAt has no defined roll, which snaps the view.
@@ -5473,7 +5479,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
            angles where that showed up in testing. */
         cam.current.phi = Math.max(
           0.012,
-          Math.min(1.25, cam.current.phi - dy * ORBIT_SENS_PHI)
+          Math.min(1.25, cam.current.phi - dy * ORBIT_SENS_PHI * (roomLook ? -1 : 1))
         );
         return;
       }
