@@ -29,7 +29,8 @@ const file = path.join(__dirname, "..", "dist", "el-cabeza-neon.html");
 const RECORD_MS = 26000; // toll 2s + collapse ~3.2s + the bell's ~21s ring-out
 // Before the output stage (neon.js outStage) this sequence peaked at up to
 // 0.98 with 15% of the mix under 30 Hz on the gauge below; after it,
-// 0.5-0.65 and 3-4%.
+// 0.5-0.65 and 3-4%; with the bell revoiced for small speakers (its
+// strike was 77% under 80 Hz), 0.49-0.63 and 1.1-1.5%.
 const HEADROOM_PEAK = 0.8;
 const SUBSONIC_MAX = 0.06;
 

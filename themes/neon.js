@@ -4663,7 +4663,7 @@ export function createSoundscape() {
   // 0.21 (about -1.2 dB): the bell (its peaks 0.60-0.74) and the rest of
   // the mix (0.65-0.76) are loudest at random moments, and once in about
   // seventeen runs they met at 0.98, just short of clipping.
-  const BELL_BUS_GAIN = 1.25 * MASTER_GAIN * 0.21;
+  const BELL_BUS_GAIN = 1.25 * MASTER_GAIN * 0.21 * 1.26; // (+2 dB since its lows were cut: about as present on a phone as before)
   /* The last stage before the speakers, for master and the bell's own bus
      alike (user: the way into the Singularity clipped). Measured at the
      destination the toll -> collapse sequence peaked at 0.87 with 88% of
@@ -4740,24 +4740,35 @@ export function createSoundscape() {
     wet.gain.value = 1.0;
     tone.connect(lp);
     lp.connect(dry).connect(bellBus);
-    lp.connect(wet).connect(bellReverb);
+    // The reverb gets nothing under 110 Hz (user: the toll crunched): a
+    // long low boom is what a phone's speaker can't play and chokes on.
+    const wetHp = ctx.createBiquadFilter();
+    wetHp.type = "highpass"; wetHp.frequency.value = 110; wetHp.Q.value = -3; // dB
+    lp.connect(wet).connect(wetHp).connect(bellReverb);
 
     const PRIME = 66; // Hz — a deep, subterranean strike tone
     // { ratio to prime, peak, decay seconds }. Inharmonic, stretched
     // series; upper partials quieter and shorter-lived.
+    /* Revoiced for small speakers (user: the toll still crunched on the
+       phone). Measured at its bus, 77% of the strike's energy was under
+       80 Hz, 44% under 50: the hum partial at 33 Hz and the 32 Hz swell
+       (both gone or nearly), and the prime at 66 Hz with its beating twin
+       (turned down). The same pitch and depth are carried by the octave,
+       fifth and twelfth over the prime, which a phone can play (turned
+       up); the ear hears the missing fundamental from them. */
     const partials = [
-      { r: 0.5, g: 0.20, d: 9.5 },  // hum (octave below) — rings longest
-      { r: 1.0, g: 0.22, d: 8.0 },  // prime / strike tone
+      { r: 0.5, g: 0.04, d: 9.5 },  // hum (octave below), a trace: 33 Hz
+      { r: 1.0, g: 0.14, d: 8.0 },  // prime / strike tone
       { r: 1.19, g: 0.12, d: 5.5 }, // tierce (minor third) — the funereal color
-      { r: 1.5, g: 0.10, d: 5.0 },  // quint (fifth)
-      { r: 2.0, g: 0.13, d: 5.5 },  // nominal (octave)
+      { r: 1.5, g: 0.14, d: 5.0 },  // quint (fifth)
+      { r: 2.0, g: 0.2, d: 6.0 },   // nominal (octave): now the bell's body
       { r: 2.55, g: 0.06, d: 3.0 }, // stretched upper partials, faster decay
-      { r: 3.0, g: 0.055, d: 2.4 },
+      { r: 3.0, g: 0.09, d: 3.2 },  // the twelfth, carrying the prime's pitch
       { r: 4.1, g: 0.035, d: 1.6 },
       { r: 5.43, g: 0.022, d: 1.0 },
       // Disharmonic partials: each clashes with a clean one above, so
       // the ring sours and wobbles instead of settling into a chord.
-      { r: 1.013, g: 0.11, d: 7.5 }, // a hair above the prime: a slow ~0.9Hz throb as the two beat
+      { r: 1.013, g: 0.07, d: 7.5 }, // a hair above the prime: a slow ~0.9Hz throb as the two beat
       { r: 1.414, g: 0.09, d: 6.5 }, // tritone over the prime — the "devil's interval"
       { r: 2.12, g: 0.07, d: 4.5 },  // a minor second above the nominal, rubbing against it
       { r: 3.37, g: 0.03, d: 2.0 },  // a stray, cracked-metal overtone off every series
@@ -4767,9 +4778,12 @@ export function createSoundscape() {
       o.type = "sine";
       o.frequency.value = PRIME * p.r;
       const g = ctx.createGain();
-      // Fast strike attack, then a long exponential ring-down.
+      // Strike attack, then a long exponential ring-down. The low
+      // partials come in over 12 ms rather than 6 (a punch that low is
+      // what bottoms a small speaker out); the clang and the clapper's
+      // noise below keep the hit sharp.
       g.gain.setValueAtTime(0, t0);
-      g.gain.linearRampToValueAtTime(p.g, t0 + 0.006);
+      g.gain.linearRampToValueAtTime(p.g, t0 + (p.r < 1.6 ? 0.012 : 0.006));
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + p.d);
       o.connect(g).connect(tone);
       o.start(t0);
@@ -4801,20 +4815,8 @@ export function createSoundscape() {
       o.stop(t0 + 3.3);
     });
 
-    // Sub-bass rumble — a slow swell (not a strike) that gives the toll
-    // its physical, imposing weight underneath the partials. Kept
-    // noticeably lighter than the tonal partials/bong above it, so the
-    // toll reads less like a subwoofer hit and more like a struck bell.
-    const sub = ctx.createOscillator();
-    sub.type = "sine";
-    sub.frequency.value = 32;
-    const subG = ctx.createGain();
-    subG.gain.setValueAtTime(0, t0);
-    subG.gain.linearRampToValueAtTime(0.12, t0 + 0.35);
-    subG.gain.exponentialRampToValueAtTime(0.0001, t0 + 8.5);
-    sub.connect(subG).connect(tone); // through the same lp/reverb path
-    sub.start(t0);
-    sub.stop(t0 + 8.7);
+    // (The 32 Hz sub-bass swell that sat under all this is gone: nothing
+    // a speaker can play, and it took the headroom the toll needed.)
 
     // The dark metallic clapper impact: a short band-limited noise burst.
     const strike = noiseSource();
@@ -4831,7 +4833,7 @@ export function createSoundscape() {
     strike.stop(t0 + 0.4);
 
     setTimeout(() => {
-      try { tone.disconnect(); lp.disconnect(); dry.disconnect(); wet.disconnect(); } catch (e) { /* disposed */ }
+      try { tone.disconnect(); lp.disconnect(); dry.disconnect(); wet.disconnect(); wetHp.disconnect(); } catch (e) { /* disposed */ }
     }, 11000);
   }
 

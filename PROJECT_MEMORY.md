@@ -3728,3 +3728,10 @@ phone menu until "Start the story over" (which clears it).
   tests/audio-bell.mjs meters buses feeding a node flagged __ecOutput,
   HEADROOM_PEAK 0.8, subsonic gauge (4th-order LP 30 Hz) < 6% (old code
   15%, new 3-4.6%).
+- Bell toll revoiced (user: still crunched at the toll on the phone): at
+  its bus the strike was 77% under 80 Hz (44% under 50). Now: 32 Hz sub
+  swell removed, hum partial (33 Hz) 0.2 -> 0.04, prime 0.22 -> 0.14 and
+  its beating twin 0.11 -> 0.07, quint 0.10 -> 0.14, nominal 0.13 -> 0.2
+  (d 6), twelfth 0.055 -> 0.09 (d 3.2); low partials (r < 1.6) attack
+  12 ms; reverb send high-passed at 110 Hz; BELL_BUS_GAIN +2 dB. Strike now
+  16-25% under 80 Hz, 70-80% in 80-400 Hz; mix subsonic gauge 1.1-1.5%.
