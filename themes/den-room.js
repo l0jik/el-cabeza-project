@@ -40,7 +40,7 @@ import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtil
 import { SLAB_THICKNESS } from "../engine/constants.js";
 import { makeRoundedBox } from "../engine/geometry.js";
 import { quality } from "./tienda-quality.js";
-import { canvasTexture, repaint, lidPainter } from "./tienda-textures.js";
+import { canvasTexture, repaint, lidPainter, rng } from "./tienda-textures.js";
 import { paintWood } from "./wood-set.js";
 import * as TX from "./den-textures.js";
 import { buildTelevision } from "./den-tv.js";
@@ -263,6 +263,9 @@ export function buildDen(boardSpan) {
     pillowA: baked(T.pillowA),
     pillowB: baked(T.pillowB),
     bark: baked(null, { color: 0x3a2618 }),
+    // The fire's logs: bark, charred underneath, and their cut ends.
+    logBark: baked(tex(TX.barkLog(), true), { color: 0xc8b8a8 }),
+    logEnd: baked(tex(TX.logEnd()), { color: 0xd0bca8 }),
     rope: baked(null, { color: 0xd8c8a0 }),
     marble: baked(null, { color: 0xe6e0d4 }),
     // Glowing: lit from within, not by the lamps.
@@ -370,10 +373,49 @@ export function buildDen(boardSpan) {
   wallN(rect(5, fbH, "+x", -fbW / 2 + 0.05, yF + hearthH + fbH / 2, cz, 3), M.soot, 8, { k: 1.3 });
   wallN(rect(5, fbH, "-x", fbW / 2 - 0.05, yF + hearthH + fbH / 2, cz, 3), M.soot, 8, { k: 1.3 });
   wallN(rect(fbW, 5, "-y", 0, yF + hearthH + fbH - 0.05, cz, 3), M.soot, 8);
-  const log = (x, y, z, len, ry, rz) => { const g = new THREE.CylinderGeometry(0.9, 1, len, 10); g.rotateZ(Math.PI / 2 + rz); g.rotateY(ry); g.translate(x, y, z); wallN(g, M.bark, 4, { k: 1.3 }); };
-  log(0, yF + hearthH + 1.4, -RZ + 3, 13, 0.08, 0);
-  log(-1, yF + hearthH + 3, -RZ + 2.4, 12, -0.12, 0.12);
-  log(2, yF + hearthH + 2.6, -RZ + 3.8, 9, 0.5, -0.1);
+  /* The logs (user: make them look like wood): not tubes but split
+     cordwood, lumpy and a little bent, bark in furrows (TX.barkLog, its
+     charred half turned down to the fire), and cut ends showing their
+     rings (TX.logEnd), each end the same outline as the bark it caps. */
+  const log = (x, y, z, len, ry, rz, r0, seed) => {
+    const rr = rng(seed), A = 16, L = 8;
+    const ph = [rr() * 6.3, rr() * 6.3, rr() * 6.3], bend = (rr() - 0.5) * 0.5;
+    // Radius round the log (a) and along it (t, -1..1): lumps, a flat
+    // where it was split, a slight taper.
+    const rad = (a, t) => r0 * (1 - 0.06 * t + 0.07 * Math.sin(a * 2 + ph[0]) + 0.05 * Math.sin(a * 3 + ph[1] + t * 1.5) + 0.03 * Math.sin(a * 7 + ph[2]) - 0.12 * Math.max(0, Math.cos(a - ph[0])) ** 4);
+    const side = new THREE.CylinderGeometry(1, 1, len, A, L, true, 0, Math.PI * 2);
+    const P = side.attributes.position, U = side.attributes.uv;
+    for (let i = 0; i < P.count; i++) {
+      const a = U.getX(i) * Math.PI * 2, t = P.getY(i) / (len / 2), k = rad(a, t);
+      P.setX(i, Math.sin(a) * k + bend * (1 - t * t)); P.setZ(i, Math.cos(a) * k);
+      U.setY(i, U.getY(i) * (len / 11)); // the bark's scale, whatever the log's length
+    }
+    side.computeVertexNormals();
+    const cap = (t) => {
+      const c = new THREE.CircleGeometry(1, A, 0, Math.PI * 2);
+      const cp = c.attributes.position;
+      // Laid across the log's end, the circle's (x, y) lands at the side's
+      // (x, -z) at the top end and (x, z) at the bottom: its rim takes the
+      // same radius as the bark there.
+      for (let i = 1; i < cp.count; i++) {
+        const cx = cp.getX(i), cy = cp.getY(i), d = Math.hypot(cx, cy) || 1;
+        let a = t > 0 ? Math.atan2(cx, -cy) : Math.atan2(cx, cy);
+        if (a < 0) a += Math.PI * 2;
+        const k = rad(a, t);
+        cp.setX(i, (cx / d) * k); cp.setY(i, (cy / d) * k);
+      }
+      c.rotateX(t > 0 ? -Math.PI / 2 : Math.PI / 2);
+      c.translate(0, (t * len) / 2, 0);
+      c.computeVertexNormals();
+      return c;
+    };
+    const place = (g) => { g.rotateZ(Math.PI / 2 + rz); g.rotateY(ry); g.translate(x, y, z); return g; };
+    wallN(place(side), M.logBark, null, { k: 1.15 });
+    [1, -1].forEach((t) => wallN(place(cap(t)), M.logEnd, null, { k: 1.15 }));
+  };
+  log(0, yF + hearthH + 1.4, -RZ + 3, 13, 0.08, 0, 1, 7);
+  log(-1, yF + hearthH + 3.1, -RZ + 2.4, 12, -0.12, 0.12, 0.92, 19);
+  log(2, yF + hearthH + 2.7, -RZ + 3.8, 9, 0.5, -0.1, 0.85, 31);
   const embers = new THREE.Mesh(new THREE.PlaneGeometry(14, 3.6), M.ember);
   embers.rotation.x = -Math.PI / 2; embers.position.set(0, yF + hearthH + 0.35, -RZ + 3);
   B.mesh(embers, "wallN");

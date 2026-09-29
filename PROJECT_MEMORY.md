@@ -3735,3 +3735,14 @@ phone menu until "Start the story over" (which clears it).
   (d 6), twelfth 0.055 -> 0.09 (d 3.2); low partials (r < 1.6) attack
   12 ms; reverb send high-passed at 110 Hz; BELL_BUS_GAIN +2 dB. Strike now
   16-25% under 80 Hz, 70-80% in 80-400 Hz; mix subsonic gauge 1.1-1.5%.
+- Fireplace logs (user: look like actual wood): den-room log() builds each
+  from an open CylinderGeometry (16 x 8) with a lumpy, split-flat, tapered
+  radius rad(a, t) and a slight bend, its own UVs (v scaled len/11), in
+  M.logBark (TX.barkLog: 14 wavy ridges in long plates over dark fissures,
+  grey-brown; u 0.55-0.95 charred with glowing cracks, which faces DOWN
+  once laid on its side), plus two CircleGeometry end caps whose rims take
+  the same radius (cap (x, y) -> side (x, -z) at the top end, (x, z) at the
+  bottom) in M.logEnd (TX.logEnd: rings, cracks, pith, charred bark rim).
+  Baked k 1.15. Checked by rendering the scene from a camera placed in
+  den-local coordinates (FLOOR -1.575, RZ 88) via __DEN_THREE__.
+- Singularity starfield: 240 + 36 stars (was 700 + 100; user: fewer).

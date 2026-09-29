@@ -393,7 +393,9 @@ function buildStarfield() {
     return new THREE.Points(geo, material);
   };
   const stars = new THREE.Group();
-  stars.add(layer(700, 2.6, 0.7), layer(100, 4, 0.85));
+  // About a third of the first field (700 + 100): space round the sphere
+  // should read as emptier (user: fewer stars).
+  stars.add(layer(240, 2.6, 0.7), layer(36, 4, 0.85));
   stars.visible = false;
   return stars;
 }

@@ -490,3 +490,97 @@ export function sleeves() {
     }
   });
 }
+
+/* ------------------------------------------------------------ the fire's logs */
+
+/* Bark for the logs in the grate (user: make them look like wood): wavy
+   ridges running along the log, broken into plates, grey-brown with worn
+   tops, dark fissures between them, a little lichen; and round
+   the half that sits over the fire (u 0.55-0.95, the underside once
+   den-room.js lays the log down) charred black, crazed into scales, with
+   a few cracks still glowing. Wraps round the log (u) and repeats along
+   it (v). */
+export function barkLog() {
+  return canvasTexture(256, 512, (g, W, H) => {
+    const r = rng(1971);
+    // The fissures' dark first; the bark's ridges laid over it.
+    g.fillStyle = "#211812"; g.fillRect(0, 0, W, H);
+    const ridges = 14;
+    g.lineCap = "round"; g.lineJoin = "round";
+    for (let i = 0; i < ridges; i++) {
+      const x0 = ((i + 0.5 + (r() - 0.5) * 0.4) / ridges) * W;
+      const amp = 3 + r() * 5, f = (2 + Math.floor(r() * 3)) * (Math.PI * 2) / H, ph = r() * 6.3;
+      const wide = (W / ridges) * (0.62 + r() * 0.22);
+      const tone = [58 + r() * 12, 49 + r() * 9, 40 + r() * 7];
+      // Each ridge in plates: segments broken by a crack across now and then.
+      let y = 0;
+      while (y < H) {
+        const len = 90 + r() * 170, y1 = Math.min(H, y + len);
+        const w = wide * (0.75 + r() * 0.35);
+        [0, W, -W].forEach((ox) => {
+          const path = (ww, col) => {
+            g.strokeStyle = col; g.lineWidth = ww;
+            g.beginPath();
+            for (let yy = y + 2; yy <= y1 - 2; yy += 4) { const x = x0 + ox + amp * Math.sin(yy * f + ph) + (r() - 0.5) * 1.2; yy === y + 2 ? g.moveTo(x, yy) : g.lineTo(x, yy); }
+            g.stroke();
+          };
+          path(w, `rgb(${tone[0]},${tone[1]},${tone[2]})`);
+          path(w * 0.5, `rgba(${tone[0] + 12},${tone[1] + 10},${tone[2] + 8},0.4)`); // the ridge's worn top
+          path(w * 0.14, "rgba(140,128,112,0.12)");
+        });
+        y = y1 + 2 + r() * 5;
+      }
+    }
+    // Fine grit and a little grey lichen, sparingly.
+    for (let i = 0; i < 700; i++) { g.fillStyle = `rgba(${r() < 0.85 ? "0,0,0" : "120,124,100"},${0.08 + r() * 0.14})`; g.fillRect(r() * W, r() * H, 1 + r() * 2, 1 + r() * 3); }
+    // The side over the fire: charred, crazed into scales, a few cracks glowing.
+    const c0 = 0.55 * W, c1 = 0.95 * W;
+    const cg = g.createLinearGradient(c0 - 20, 0, c1 + 20, 0);
+    cg.addColorStop(0, "rgba(8,6,5,0)"); cg.addColorStop(0.22, "rgba(8,6,5,0.92)"); cg.addColorStop(0.78, "rgba(8,6,5,0.92)"); cg.addColorStop(1, "rgba(8,6,5,0)");
+    g.fillStyle = cg; g.fillRect(c0 - 20, 0, c1 - c0 + 40, H);
+    for (let y = 0; y < H; y += 8 + r() * 6) for (let x = c0; x < c1; x += 9 + r() * 7) {
+      g.strokeStyle = `rgba(0,0,0,${0.5 + r() * 0.4})`; g.lineWidth = 1.1;
+      g.strokeRect(x, y, 8 + r() * 5, 6 + r() * 4);
+      if (r() < 0.045) { g.fillStyle = `rgba(255,${90 + r() * 70},20,${0.6 + r() * 0.4})`; g.fillRect(x, y + 3, 5 + r() * 9, 1.4); }
+      else if (r() < 0.2) { g.fillStyle = "rgba(92,88,82,0.3)"; g.fillRect(x + 2, y + 2, 4, 3); } // grey ash on a scale
+    }
+  }, { repeat: true });
+}
+
+/* A log's cut end: pale heartwood darkening to the sapwood, growth rings
+   a little off-round, drying cracks out from the pith, then the bark's
+   dark rim, charred at the edge. */
+export function logEnd() {
+  return canvasTexture(256, 256, (g, W, H) => {
+    const r = rng(1972);
+    const cx = W / 2 + (r() - 0.5) * 10, cy = H / 2 + (r() - 0.5) * 10, R = W / 2;
+    g.fillStyle = "#1A120C"; g.fillRect(0, 0, W, H);
+    const face = g.createRadialGradient(cx, cy, 2, cx, cy, R * 0.86);
+    face.addColorStop(0, "#9A6E44"); face.addColorStop(0.5, "#B98C5E"); face.addColorStop(0.85, "#A5774B"); face.addColorStop(1, "#6E4A2C");
+    g.fillStyle = face; g.beginPath(); g.arc(W / 2, H / 2, R * 0.86, 0, TAU); g.fill();
+    // Growth rings.
+    for (let i = 1; i < 30; i++) {
+      const rr = (i / 30) * R * 0.84;
+      g.strokeStyle = `rgba(90,56,28,${0.25 + r() * 0.3})`; g.lineWidth = 0.8 + r() * 1.4;
+      g.beginPath();
+      for (let k = 0; k <= 48; k++) { const a = (k / 48) * TAU, w = rr * (1 + 0.035 * Math.sin(a * 3 + i) + 0.02 * Math.sin(a * 5)); const x = cx + Math.cos(a) * w, y = cy + Math.sin(a) * w; k ? g.lineTo(x, y) : g.moveTo(x, y); }
+      g.stroke();
+    }
+    // Drying cracks from the pith.
+    for (let i = 0; i < 5; i++) {
+      const a = r() * TAU, len = R * (0.35 + r() * 0.45);
+      g.strokeStyle = "rgba(30,18,10,0.85)"; g.lineWidth = 1.5 + r() * 1.5;
+      g.beginPath(); g.moveTo(cx, cy);
+      let x = cx, y = cy;
+      for (let s = 1; s <= 6; s++) { const aa = a + (r() - 0.5) * 0.25; x = cx + Math.cos(aa) * (len * s) / 6; y = cy + Math.sin(aa) * (len * s) / 6; g.lineTo(x, y); }
+      g.stroke();
+    }
+    // The pith.
+    g.fillStyle = "#4A2E18"; g.beginPath(); g.arc(cx, cy, 3, 0, TAU); g.fill();
+    // The bark's rim, charred at its edge, and soot creeping in.
+    g.strokeStyle = "#2A1C12"; g.lineWidth = R * 0.14; g.beginPath(); g.arc(W / 2, H / 2, R * 0.92, 0, TAU); g.stroke();
+    const soot = g.createRadialGradient(W / 2, H / 2, R * 0.55, W / 2, H / 2, R);
+    soot.addColorStop(0, "rgba(10,6,4,0)"); soot.addColorStop(0.8, "rgba(10,6,4,0.45)"); soot.addColorStop(1, "rgba(5,3,2,0.95)");
+    g.fillStyle = soot; g.fillRect(0, 0, W, H);
+  });
+}
