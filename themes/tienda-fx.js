@@ -21,18 +21,19 @@
 
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z } from "../engine/constants.js";
-import { buildStore, buildTable, CEIL } from "./tienda-store.js";
+import { buildStore, buildTable, CEIL, storeRevisited } from "./tienda-store.js";
 import { woodSet } from "./tienda.js";
 import { quality } from "./tienda-quality.js";
 import { ensurePaper, ensureNewsprint } from "./tienda-textures.js";
 
 const FONT_FACES = ["800 40px 'Libre Franklin'", "900 40px 'Libre Franklin'", "700 40px 'Libre Franklin'", "600 40px 'Libre Franklin'", "700 40px 'Courier Prime'", "400 40px 'Courier Prime'", "700 40px 'Bodoni Moda'", "italic 700 40px 'Libre Franklin'"];
 
-export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
+export function mountAmbientEffects(refs, { three, cam, windingDownRef, audio }) {
   const q = quality();
   let store = null, table = null, brass = null;
   let attachedTo = null, dims = "";
   let tuned = false;
+  let revisitUntil = 0;
   let fogBefore = null, farBefore = null;
   ensurePaper();
   ensureNewsprint();
@@ -156,6 +157,9 @@ export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
     if (attachedTo !== t.boardGroup) {
       if (!store) store = buildStore();
       t.boardGroup.add(store.group);
+      // Back after the story there's no board to frame, only the table
+      // and its appliances: the view steps back to take in the table.
+      if (storeRevisited()) revisitUntil = performance.now() + 3000;
       attachedTo = t.boardGroup;
       if (t.scene) { fogBefore = t.scene.fog; t.scene.fog = new THREE.Fog(0xcbc3ad, 260, 1150); }
       if (t.camera) { farBefore = t.camera.far; t.camera.far = 1600; t.camera.updateProjectionMatrix(); }
@@ -176,6 +180,18 @@ export function mountAmbientEffects(refs, { three, windingDownRef, audio }) {
       const t = three.current;
       govern(now);
       woodSet.followGrain(t); // the grain turns with the rolls (wood-set.js)
+      /* Back after the whole story, El Cabeza is nowhere to be seen: the
+         board, its pieces, their markers and the brass all go; only the
+         store and the table (with its appliances) stay. Every frame, so
+         anything the chassis adds to the board later goes too. */
+      if (storeRevisited()) t.boardGroup.children.forEach((o) => { o.visible = o === store.group || (table && o === table.group); });
+      // (Held through the first moments: the opening framing, fitted to
+      // the board, runs after the store is up and would pull it back in.
+      // After that the player zooms as they like.)
+      if (now < revisitUntil && cam && cam.current) {
+        if (cam.current.radius < 62) cam.current.radius = 62;
+        if (cam.current.phi > 0.95) cam.current.phi = 0.95;
+      }
       store.animate(now, { onFlicker: (ms) => { if (audio && audio.playTubeFlicker && !(windingDownRef && windingDownRef.current)) audio.playTubeFlicker(ms); } });
       // Above the drop ceiling, it steps aside.
       if (t.camera) {

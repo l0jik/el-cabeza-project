@@ -157,6 +157,9 @@ export function useSetupExtras(x) {
   return {
     ...x,
     story,
+    // Back at the store after the story: no game on the table (the phone
+    // bar shows only the purchase).
+    noGame: !!(store && story.after && story.after()),
     tiendaOverlay: overlay,
     openOrderForm: () => { x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen(); setOverlay(store || !specialOpen ? "catalog" : "order"); },
     openCustomRules: () => { if (specialOpen) setOverlay("order"); },

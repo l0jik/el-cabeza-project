@@ -495,6 +495,9 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
     : h("div", { key: "links", style: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "nowrap", width: "100%" } },
         !gone && link("store", "Back to the store", story.onBackToStore, "story-back-to-store"),
         link("over", "Start the story over", story.onRestart, "story-restart"));
+  // Back after the story the table has no game on it: only the purchase
+  // (which is the clerk's scene), no Custom rules or Begin Game.
+  if (after) return h("div", { style: { display: "flex", flexDirection: "column", gap: 8, width: "100%" } }, under);
   return h("div", { style: { display: "flex", flexDirection: "column", gap: 8, width: "100%" } }, row, under);
 }
 
@@ -503,6 +506,12 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
    the pieces and the purchase) on rows of their own below Begin Game. */
 export function shellSetupActions({ openOrderForm, story, specialOpen }) {
   if (story && story.mode === "store") {
+    // Back after the story: no game on the table, only the purchase.
+    if (story.after && story.after()) {
+      return [clerkConfusedNow()
+        ? { key: "confused", label: "Go home, confused.", onClick: story.onGoHomeConfused, testid: "shell-go-home-confused", placement: "below" }
+        : { key: "purchase", label: "Purchase another copy \u00b7 $7.97", onClick: story.onPurchase, testid: "shell-purchase", placement: "below" }];
+    }
     return [
       { key: "see-pieces", label: "See the pieces", onClick: openOrderForm, testid: "shell-see-pieces", placement: "below", title: "The catalog's page of the pieces in the box" },
       clerkConfusedNow()

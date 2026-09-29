@@ -3589,3 +3589,19 @@ phone menu until "Start the story over" (which clears it).
   slider turns; any tap elsewhere folds it (musicChipOpen, pointerdown
   capture). Hidden under the dock's open panel on phones, and under the
   phone layout's open menu sheet (MobileShell sets html.ec-shell-menu-open).
+- Revisited store, round 2 (user: "Cabeza is nowhere to be seen"): the
+  board, pieces, markers and brass are hidden every frame
+  (tienda-fx.js: every boardGroup child but the store and the table), and
+  the six appliances are laid across the whole table in the photographs'
+  order (coffeemaker, can opener + label gadget, slow cooker, toaster
+  behind, blender, mixer lying front right), life size, facing the
+  store's opening view. The view is held out at radius 62 / phi <= 0.95
+  for its first 3 s (the board-fitted opening framing would pull it in).
+  No game to set up: the dock row is just the purchase (-> the clerk);
+  the phone bar hides setup + Begin Game via setupExtras.noGame
+  (MobileShell ctl.noGame). The chassis now passes `cam` to
+  mountAmbientEffects helpers.
+- Singularity starfield: stars are a fixed pixel size (sizeAttenuation
+  off, two layers 2.6 px / 4 px). The shell (radius 30-55) surrounds the
+  camera (~44 out on a phone), so distance-scaled stars near the camera
+  blew up into bright blobs.

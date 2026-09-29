@@ -44,6 +44,7 @@ import housewaresAdUrl from "../assets/tienda/ad-housewares.jpg";
    built (apps/unified.jsx). */
 let revisited = false;
 export function setStoreRevisited(v) { revisited = !!v; }
+export const storeRevisited = () => revisited;
 
 export const FT = 6.1;
 export const TABLE_H = 15;
@@ -958,7 +959,7 @@ export function buildTable(slabX, slabZ) {
     else m.position.set(-W / 4 + (n % 2) * 9.5, FLOOR + 3.3 + bh / 2 + Math.floor(n / 2) * bh, (n % 2 ? 1 : -1) * 3 - BZ);
     m.rotation.y = (n % 2 ? Math.PI : 0) + n * 0.04 - 0.02;
   }
-  if (revisited) buildAppliances({ group, mk, lit, topY, slabX, D, disposables });
+  if (revisited) buildAppliances({ group, mk, lit, topY, disposables });
   // The tent card: two leaves leaning together, printed outside, blank
   // inside, facing the players.
   const card = canvasTexture(256, 192, tentCard, { scale: false });
@@ -1033,15 +1034,14 @@ export function buildTable(slabX, slabZ) {
 /* ------------------------------------------------------------ the appliances */
 
 /* The six appliances of the Games-counter photographs, at their real sizes
-   (FT units to the foot: about two to the inch), at the table's two open
-   ends where the board never turns into them: the coffeemaker, can opener
-   and slow cooker at one end, the blender, toaster and hand mixer at the
-   other. Burnt orange, almond, the flowered brown pot, chrome, glass, and
-   avocado, as in the pictures. */
-function buildAppliances({ group, mk, lit, topY, slabX, D, disposables }) {
-  // (A touch under life size: at full size the pot and the toaster
-  // crowded the edges of the play view.)
-  const IN = (FT / 12) * 0.85;
+   (FT units to the foot: about two to the inch), laid out across the table
+   as the photographs have them, from the customer's side: the coffeemaker,
+   the can opener (a little gadget behind it), the flowered slow cooker,
+   the chrome toaster behind it, the blender, and the hand mixer lying at
+   the front on the right. Burnt orange, almond, brown, chrome, glass and
+   avocado. The board is gone from the table (tienda-fx.js hides it). */
+function buildAppliances({ group, mk, lit, topY, disposables }) {
+  const IN = FT / 12;
   const q = quality();
   const glassMat = (color, opacity) => {
     const m = q.physical
@@ -1055,66 +1055,78 @@ function buildAppliances({ group, mk, lit, topY, slabX, D, disposables }) {
   const chrome = lit({ color: 0xd4d2cc, roughness: 0.18, metalness: q.physical ? 0.85 : 0 });
   const avocado = lit({ color: 0x7d8233, roughness: 0.5 });
   const brown = lit({ color: 0x6e3f22, roughness: 0.45 });
+  const red = lit({ color: 0xb23a2c, roughness: 0.5 });
   const flowers = canvasTexture(512, 128, flowerBand, { scale: false });
   disposables.push(flowers);
   const flowered = lit({ map: flowers, roughness: 0.45 });
   const carafe = glassMat(0x3b2616, 0.78);
   const glass = glassMat(0xe8eee8, 0.32);
-  const at = (geo, mat, x, y, z, ry = 0) => { const m = mk(geo, mat, true); m.name = "tienda-appliance"; m.position.set(x, y, z); m.rotation.y = ry; return m; };
   const B = (w, h, d) => new THREE.BoxGeometry(w * IN, h * IN, d * IN);
   const C = (rt, rb, h, n = 28) => new THREE.CylinderGeometry(rt * IN, rb * IN, h * IN, n);
-  const y0 = topY; // the table's top
-  const xA = slabX / 2 + 1.1 + 3.6 * IN * 2, xB = -xA;
-  const zs = Math.min(1, (D - 1) / 13.5); // the ends' room along the table
-  // One end: the coffeemaker, the can opener, the slow cooker.
+  // The spread: its own frame, the table's top at y 0, the customer on +z
+  // (turned below to face the store's opening view). Each appliance its
+  // own group; parts placed in inches from its foot.
+  const spread = new THREE.Group();
+  spread.name = "tienda-appliances";
+  spread.position.y = topY;
+  // The store opens looking at the board from its -z side: face that way.
+  spread.rotation.y = Math.PI;
+  group.add(spread);
+  const item = (x, z, ry = 0) => { const g = new THREE.Group(); g.position.set(x * IN, 0, z * IN); g.rotation.y = ry; spread.add(g); return g; };
+  const part = (g, geo, mat, x, y, z) => { const m = mk(geo, mat, true); m.name = "tienda-appliance"; m.position.set(x * IN, y * IN, z * IN); g.add(m); return m; };
+  // The coffeemaker (inches from the spread's middle: -x left, +z front).
   {
-    const z = -4.2 * zs, x = xA;
-    at(B(7, 1, 9), black, x, y0 + 0.5 * IN, z);
-    at(B(7, 9.5, 3.4), orange, x, y0 + 5.75 * IN, z - 2.8 * IN);
-    at(B(7, 2.2, 9), orange, x, y0 + 11.5 * IN, z);
-    at(C(2.7, 3.1, 5.2), carafe, x, y0 + 3.6 * IN, z + 1.4 * IN);
-    at(C(2.75, 2.75, 0.5), chrome, x, y0 + 6.3 * IN, z + 1.4 * IN);
-    at(B(0.7, 3.6, 1.2), black, x, y0 + 3.8 * IN, z + 4.6 * IN);
+    const g = item(-17, 0);
+    part(g, B(7, 1, 9), black, 0, 0.5, 0);
+    part(g, B(7, 9.5, 3.4), orange, 0, 5.75, -2.8);
+    part(g, B(7, 2.2, 9), orange, 0, 11.5, 0);
+    part(g, C(2.7, 3.1, 5.2), carafe, 0, 3.6, 1.4);
+    part(g, C(2.75, 2.75, 0.5), chrome, 0, 6.3, 1.4);
+    part(g, B(0.7, 3.6, 1.2), black, 0, 3.8, 4.6);
   }
+  // The can opener, the little label gadget behind it.
   {
-    const z = 0.1 * zs, x = xA + 0.4;
-    at(B(4, 8.5, 4.6), almond, x, y0 + 4.25 * IN, z);
-    at(B(1, 3.2, 0.9), chrome, x + 1.2 * IN, y0 + 7.1 * IN, z + 2.6 * IN);
-    at(C(0.9, 0.9, 0.6, 16), chrome, x, y0 + 6.2 * IN, z + 2.45 * IN).rotation.x = Math.PI / 2;
+    const g = item(-10.2, 1.5);
+    part(g, B(4, 8.5, 4.6), almond, 0, 4.25, 0);
+    part(g, B(1, 3.2, 0.9), chrome, 1.2, 7.1, 2.6);
+    part(g, C(0.9, 0.9, 0.6, 16), chrome, 0, 6.2, 2.45).rotation.x = Math.PI / 2;
+    const k = item(-9.6, -3.5);
+    part(k, B(4, 3.4, 4.5), almond, 0, 1.7, 0);
+    part(k, B(2.2, 0.3, 1.4), red, 0, 3.55, 0.6);
   }
+  // The slow cooker, in front.
   {
-    const z = 4.4 * zs, x = xA;
-    at(C(4.5, 4.5, 1, 32), black, x, y0 + 0.5 * IN, z);
-    at(C(4.6, 4.4, 6.6, 36), flowered, x, y0 + 4.3 * IN, z);
-    at(C(4.7, 4.7, 0.4, 36), brown, x, y0 + 7.8 * IN, z);
+    const g = item(-2, 2);
+    part(g, C(4.5, 4.5, 1, 32), black, 0, 0.5, 0);
+    part(g, C(4.6, 4.4, 6.6, 36), flowered, 0, 4.3, 0);
+    part(g, C(4.7, 4.7, 0.4, 36), brown, 0, 7.8, 0);
     const lidG = new THREE.SphereGeometry(4.6 * IN, 32, 12, 0, Math.PI * 2, 0, Math.PI * 0.32); lidG.scale(1, 0.55, 1);
-    at(lidG, glass, x, y0 + 7.4 * IN, z);
-    at(C(0.8, 1, 0.9, 16), black, x, y0 + 9.5 * IN, z);
+    part(g, lidG, glass, 0, 7.4, 0);
+    part(g, C(0.8, 1, 0.9, 16), black, 0, 9.5, 0);
   }
-  // The other end: the blender, the toaster, the hand mixer.
+  // The toaster behind it, long side to the customer.
   {
-    const z = -4.4 * zs, x = xB;
-    at(B(6, 4.5, 6), chrome, x, y0 + 2.25 * IN, z);
-    at(C(2.6, 3, 1.2), black, x, y0 + 5.1 * IN, z);
-    at(C(3.1, 2.3, 8.5), glass, x, y0 + 10 * IN, z);
-    at(C(3.2, 3.2, 0.9), black, x, y0 + 14.7 * IN, z);
+    const g = item(6, -4.5, Math.PI / 2);
+    part(g, B(6, 7.4, 10.5), chrome, 0, 3.9, 0);
+    part(g, B(6.2, 0.6, 10.7), black, 0, 0.3, 0);
+    [-1.2, 1.2].forEach((dx) => part(g, B(1, 0.3, 8), black, dx, 7.62, 0));
+    part(g, B(0.8, 1.6, 0.8), black, 3.3, 5, 3);
   }
+  // The blender.
   {
-    const z = -0.2 * zs, x = xB - 0.2;
-    at(B(6, 7.4, 10.5), chrome, x, y0 + 3.9 * IN, z);
-    at(B(6.2, 0.6, 10.7), black, x, y0 + 0.3 * IN, z);
-    [-1.2, 1.2].forEach((dx) => at(B(1, 0.3, 8), black, x + dx * IN, y0 + 7.62 * IN, z));
-    at(B(0.8, 1.6, 0.8), black, x, y0 + 5 * IN, z + 5.6 * IN);
+    const g = item(13.5, -1.5);
+    part(g, B(6, 4.5, 6), chrome, 0, 2.25, 0);
+    part(g, C(2.6, 3, 1.2), black, 0, 5.1, 0);
+    part(g, C(3.1, 2.3, 8.5), glass, 0, 10, 0);
+    part(g, C(3.2, 3.2, 0.9), black, 0, 14.7, 0);
   }
+  // The hand mixer, lying at the front on the right, beaters toward the
+  // middle.
   {
-    // (Lying crosswise, its beaters toward the board.)
-    const mixer = new THREE.Group();
-    mixer.position.set(xB, y0, 4.6 * zs); mixer.rotation.y = -1.3;
-    group.add(mixer);
-    const part = (geo, mat, x, y, z) => { const m = mk(geo, mat, true); m.name = "tienda-appliance"; m.position.set(x, y, z); mixer.add(m); return m; };
-    part(B(3.6, 3.8, 8), avocado, 0, 1.9 * IN, 0);
-    part(B(3.2, 1.2, 5), avocado, 0, 4.6 * IN, 0.4 * IN);
-    [-0.8, 0.8].forEach((dx) => { part(C(0.35, 0.35, 5, 10), chrome, dx * IN, 0.6 * IN, -6.3 * IN).rotation.x = Math.PI / 2; });
+    const g = item(15, 6, Math.PI / 2 + 0.2);
+    part(g, B(3.6, 3.8, 8), avocado, 0, 1.9, 0);
+    part(g, B(3.2, 1.2, 5), avocado, 0, 4.6, 0.4);
+    [-0.8, 0.8].forEach((dx) => { part(g, C(0.35, 0.35, 5, 10), chrome, dx, 0.6, -6.3).rotation.x = Math.PI / 2; });
   }
 }
 

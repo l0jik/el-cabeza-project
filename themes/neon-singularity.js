@@ -359,39 +359,43 @@ function spawnDebrisBurst(s, now, strength, count) {
 }
 
 function buildStarfield() {
-  const COUNT = 800;
   const RADIUS_MIN = 30, RADIUS_MAX = 55;
-  const positions = new Float32Array(COUNT * 3);
-  for (let i = 0; i < COUNT; i++) {
-    const r = RADIUS_MIN + Math.random() * (RADIUS_MAX - RADIUS_MIN);
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-    positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-    positions[i * 3 + 2] = r * Math.cos(phi);
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  // A bare PointsMaterial with no sprite map draws every point as a
-  // hard-edged square, not a soft dot — normally too small to notice,
-  // but sizeAttenuation means a star that happens to land close to the
-  // camera renders large enough for that square edge to actually read
-  // as a small gray box. The same soft radial-gradient sprite the
-  // streaks already use (makeGlowTexture) rounds every point off
-  // regardless of how big any single one gets.
-  const material = new THREE.PointsMaterial({
-    map: makeGlowTexture(),
-    color: 0xdbe9ff,
-    size: 0.18,
-    sizeAttenuation: true,
-    transparent: true,
-    opacity: 0.85,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-  const points = new THREE.Points(geo, material);
-  points.visible = false;
-  return points;
+  const glow = makeGlowTexture();
+  /* Stars a fixed size on screen (sizeAttenuation off: size in pixels),
+     never by distance. The shell's radius (30-55) is about where the
+     camera stands (a phone's view is ~44 out), so with sizes that grew
+     as they neared the camera, a star that happened to fall close to it
+     swelled into a bright blown-out blob (user's screenshot: two of
+     them round the sphere). Two layers, a few brighter, for depth. The
+     soft sprite keeps each a round dot, not a square. */
+  const layer = (count, size, opacity) => {
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const r = RADIUS_MIN + Math.random() * (RADIUS_MAX - RADIUS_MIN);
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = r * Math.cos(phi);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({
+      map: glow,
+      color: 0xdbe9ff,
+      size,
+      sizeAttenuation: false,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    return new THREE.Points(geo, material);
+  };
+  const stars = new THREE.Group();
+  stars.add(layer(700, 2.6, 0.7), layer(100, 4, 0.85));
+  stars.visible = false;
+  return stars;
 }
 
 /* MATTER / LAWS / TOPOLOGIES, distributed equally around the sphere's

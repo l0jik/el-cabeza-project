@@ -371,6 +371,20 @@ function SetupPanel({ ctl, t }) {
   ];
   const secondary = ctl.setupActions.filter((a) => a.placement !== "below");
   const below = ctl.setupActions.filter((a) => a.placement === "below");
+  // No game to set up here (a theme's say, setupExtras.noGame: Nova's
+  // store after the story, the board gone from the table): its own
+  // actions only.
+  if (ctl.noGame) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }} data-testid="shell-setup">
+        {ctl.setupActions.map((a) => (
+          <button key={a.key} type="button" className="ec-shell-btn ec-shell-primary" data-testid={a.testid} title={a.title} onClick={a.onClick} style={{ width: "100%", height: 52, fontSize: 13 }}>
+            {a.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }} data-testid="shell-setup">
       <Field label="First move">

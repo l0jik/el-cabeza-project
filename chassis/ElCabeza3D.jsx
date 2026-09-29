@@ -3075,7 +3075,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // then clearing the inline value stranded the panel visible after
       // the game began (React never re-applies an unchanged opacity:0).
       { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, dockPieceMountRef, fxOverlayRef },
-      { three, windingDownRef, awaitingBeginRef, audio: audioRef.current }
+      { three, cam, windingDownRef, awaitingBeginRef, audio: audioRef.current }
     );
 
     /* ---- camera positioning ---- */
@@ -8927,6 +8927,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             onSetDifficulty: setAiDifficulty,
             onBegin: triggerBeginGame,
             setupActions: theme.shellSetupActions && setupExtras ? theme.shellSetupActions(setupExtras) : [],
+            noGame: !!(setupExtras && setupExtras.noGame),
             // Play
             canUndoMove: isPlaying && turnLocked && currentPlayer !== aiPlayer,
             canStopHere: isPlaying && turnLocked && currentPlayer !== aiPlayer && shadowEntries.length > 0,
