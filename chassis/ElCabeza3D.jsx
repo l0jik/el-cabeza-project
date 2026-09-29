@@ -7300,7 +7300,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             border: "none",
             color: COLORS.slate,
             opacity: cornerControlsCovered ? 0 : focusMode ? 0.2 : 0.35,
-            pointerEvents: cornerControlsCovered ? "none" : "auto",
+            pointerEvents: cornerControlsCovered ? "none" : "auto", visibility: cornerControlsCovered ? "hidden" : "visible",
             cursor: "pointer",
             transition: "opacity 0.5s ease, transform 1.1s ease",
           }}
@@ -7342,7 +7342,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             position: "fixed", ...cornerStyle("room"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
             color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5,
-            pointerEvents: cornerControlsCovered ? "none" : "auto", cursor: viewMode === "room" ? "default" : "pointer", transition: "opacity 0.5s ease",
+            pointerEvents: cornerControlsCovered ? "none" : "auto", visibility: cornerControlsCovered ? "hidden" : "visible", cursor: viewMode === "room" ? "default" : "pointer", transition: "opacity 0.5s ease",
           }}
           onMouseEnter={(e) => { if (!cornerControlsCovered && viewMode !== "room") e.currentTarget.style.opacity = 1; }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5; }}
@@ -7371,7 +7371,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             position: "fixed", ...cornerStyle("focus"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
             color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : focusMode ? 0.4 : 0.5,
-            pointerEvents: cornerControlsCovered ? "none" : "auto", cursor: "pointer", transition: "opacity 0.5s ease",
+            pointerEvents: cornerControlsCovered ? "none" : "auto", visibility: cornerControlsCovered ? "hidden" : "visible", cursor: "pointer", transition: "opacity 0.5s ease",
           }}
           onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : focusMode ? 0.4 : 0.5; }}
@@ -7483,7 +7483,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           border: "none",
           color: COLORS.charcoal,
           opacity: cornerControlsCovered ? 0 : 0.6,
-          pointerEvents: cornerControlsCovered ? "none" : "auto",
+          pointerEvents: cornerControlsCovered ? "none" : "auto", visibility: cornerControlsCovered ? "hidden" : "visible",
           cursor: "pointer",
           fontFamily: "'IBM Plex Sans', sans-serif",
           fontSize: 12.5,

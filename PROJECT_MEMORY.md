@@ -3456,3 +3456,9 @@ hover: none): chassis showToggleHint / toggleHint, data-testid
 "toggle-hint", 2.4 s, e.g. "Piece guide: on. A card says what the chosen
 piece does." / "Move costs: hidden." A mouse click shows nothing (the
 tooltip covers it). The speaker opens its own labelled menu, so no note.
+- Corner buttons under the open dock (fix): the den's CSS forces the
+  focus/room buttons' opacity with !important, which beat the chassis's
+  "covered" opacity 0, so on a phone the lamp and house sat over the dock's
+  panel. The chassis now also sets visibility: hidden (and no pointer
+  events) on every corner button while the panel covers them; themes don't
+  style visibility, so it holds everywhere.
