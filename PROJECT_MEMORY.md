@@ -3714,3 +3714,17 @@ phone menu until "Start the story over" (which clears it).
   The source mp3 isn't in the repo (14 MB); re-run the tool with it.
 - Rain sound removed (user: for now). Sound menu hint "The fire and the
   clock". The rain on the glass (visual) stays.
+- Singularity entry "clipping" (user): measured at the destination the
+  toll -> collapse peaked 0.87-0.98 with 88% of energy under 80 Hz (21%
+  under 30 Hz by FFT) - no digital overs, but phone speakers crunch on
+  that. Fix in neon.js: outStage() shared by master AND bellBus: 40 Hz
+  4th-order Butterworth high-pass, then a WaveShaper ceiling (linear to
+  0.7, tanh to 0.97; not DynamicsCompressor, which adds make-up gain) ->
+  destination. Hum: 45 Hz 4th-order high-pass after its lowpass (lp Q 3
+  -> 1 dB), stutter ramps 6 -> 15 ms. Roar: bandpass from 90 Hz (was 55),
+  soft-clip drive 5.5 -> 1.8 (x1.8 gain), 4x oversample. NOTE: Web Audio
+  lowpass/highpass Q is in dB (Butterworth pair = -5.33 / +2.33 dB).
+  After: peak 0.47-0.65, 0 samples over 0.7, FFT under 30 Hz 1-2%.
+  tests/audio-bell.mjs meters buses feeding a node flagged __ecOutput,
+  HEADROOM_PEAK 0.8, subsonic gauge (4th-order LP 30 Hz) < 6% (old code
+  15%, new 3-4.6%).

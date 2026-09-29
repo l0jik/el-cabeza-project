@@ -4300,8 +4300,13 @@ export function createSoundscape() {
     const lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
     lp.frequency.value = 70;
-    lp.Q.value = 3;
-    lp.connect(gate);
+    lp.Q.value = 1; // dB (was 3 dB: less resonant peak on the voices)
+    // The voices' fundamentals sit at 19.5-46 Hz, under anything a
+    // speaker can play: cut below 45 Hz (24 dB/oct) so the drone is heard
+    // through its harmonics instead of shoving the speaker around.
+    const hpA = ctx.createBiquadFilter(), hpB = ctx.createBiquadFilter();
+    hpA.type = hpB.type = "highpass"; hpA.frequency.value = hpB.frequency.value = 45; hpA.Q.value = -5.33; hpB.Q.value = 2.33; // (Butterworth, Q in dB)
+    lp.connect(hpA).connect(hpB).connect(gate);
     gate.connect(dry);
     gate.connect(wetSend);
 
@@ -4412,9 +4417,10 @@ export function createSoundscape() {
     const at = now + 0.01;
     const dur = 0.03 + Math.random() * 0.07;
     const depth = 0.55 - 0.45 * bite; // ducks toward near-silence late on
+    // (15 ms edges: 6 ms chopped the low drone hard enough to click.)
     g.setValueAtTime(1, at);
-    g.linearRampToValueAtTime(depth, at + 0.006);
-    g.linearRampToValueAtTime(1, at + dur);
+    g.linearRampToValueAtTime(depth, at + 0.015);
+    g.linearRampToValueAtTime(1, at + dur + 0.015);
     // Gaps shrink from ~0.5s down to ~0.07s as the hold tightens.
     humNodes.nextGateAt = at + dur + 0.06 + Math.random() * (0.45 * (1 - bite));
   }
@@ -4459,11 +4465,13 @@ export function createSoundscape() {
     const src = brownNoiseSource();
     const bp = ctx.createBiquadFilter();
     bp.type = "bandpass";
-    bp.frequency.value = 55;
+    bp.frequency.value = 90;
     bp.Q.value = 0.6;
+    // Driven gently (was 5.5, which read as clipping, user): it thickens
+    // rather than crunches.
     const shaper = ctx.createWaveShaper();
-    shaper.curve = makeSoftClipCurve(5.5);
-    shaper.oversample = "2x";
+    shaper.curve = makeSoftClipCurve(1.8);
+    shaper.oversample = "4x";
     const g = ctx.createGain();
     g.gain.value = 0;
     src.connect(bp).connect(shaper).connect(g).connect(sfxGain);
@@ -4492,8 +4500,9 @@ export function createSoundscape() {
        end of the collapse the roar, the drone and the bell's ringing tail
        all sound together, and tests/audio-bell.mjs measured that moment
        reaching 0.96-0.98 of full scale in some runs. */
-    collapseRoar.g.gain.setTargetAtTime(0.0015 + 0.018 * Math.pow(c, 1.8), now, S);
-    collapseRoar.bp.frequency.setTargetAtTime(55 + 1500 * Math.pow(c, 1.4), now, S);
+    // (x1.8 for the gentler drive: about the same loudness, far less grit.)
+    collapseRoar.g.gain.setTargetAtTime(0.0027 + 0.032 * Math.pow(c, 1.8), now, S);
+    collapseRoar.bp.frequency.setTargetAtTime(90 + 1500 * Math.pow(c, 1.4), now, S);
     collapseRoar.bp.Q.setTargetAtTime(0.6 + 2.2 * c, now, S);
     /* Irregular lurches in the filter — the roar keeps breaking pitch
        instead of sweeping smoothly, which is most of what "uncontrolled"
@@ -4655,11 +4664,45 @@ export function createSoundscape() {
   // the mix (0.65-0.76) are loudest at random moments, and once in about
   // seventeen runs they met at 0.98, just short of clipping.
   const BELL_BUS_GAIN = 1.25 * MASTER_GAIN * 0.21;
+  /* The last stage before the speakers, for master and the bell's own bus
+     alike (user: the way into the Singularity clipped). Measured at the
+     destination the toll -> collapse sequence peaked at 0.87 with 88% of
+     its energy under 80 Hz (21% under 30 Hz): a phone's speaker can't
+     play any of that, and pushed that hard it crunches. So: a 24 dB/oct
+     subsonic cut at 40 Hz (nothing a speaker can play is lost), then a
+     limiter just under full scale so no sum of layers can ever clip. */
+  let outIn = null;
+  function outStage() {
+    if (outIn) return outIn;
+    const hp1 = ctx.createBiquadFilter(), hp2 = ctx.createBiquadFilter();
+    // (Butterworth, 4th order: Q 0.541 and 1.307, given in dB, as Web
+    // Audio's high- and low-pass Q is: -5.33 and +2.33.)
+    hp1.type = hp2.type = "highpass"; hp1.frequency.value = hp2.frequency.value = 40; hp1.Q.value = -5.33; hp2.Q.value = 2.33;
+    // A ceiling, not a compressor (DynamicsCompressorNode adds make-up
+    // gain of its own, which turned everything up): untouched below 0.7,
+    // then a smooth curve to 0.97, so no sum can reach full scale.
+    const lim = ctx.createWaveShaper();
+    const n = 4096, curve = new Float32Array(n), K = 0.7, TOP = 0.97;
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 4 - 2, ax = Math.abs(x);
+      curve[i] = Math.sign(x) * (ax <= K ? ax : K + (TOP - K) * Math.tanh((ax - K) / (TOP - K)));
+    }
+    lim.curve = curve; lim.oversample = "4x";
+    // (The curve covers signals of -2..2, the shaper's input -1..1: in at
+    // half, and the curve gives the level itself back.)
+    const inS = ctx.createGain();
+    inS.gain.value = 0.5;
+    hp1.connect(hp2).connect(inS).connect(lim).connect(ctx.destination);
+    hp1.__ecOutput = true; // (tests/audio-bell.mjs meters what feeds it)
+    outIn = hp1;
+    return outIn;
+  }
+
   function ensureBellBus() {
     if (bellBus) return;
     bellBus = ctx.createGain();
     bellBus.gain.value = muted ? 0 : BELL_BUS_GAIN * chGain("interface");
-    bellBus.connect(ctx.destination);
+    bellBus.connect(outStage());
     bellReverb = ctx.createConvolver();
     bellReverb.buffer = makeImpulse(11.5, 1.25);
     bellReverb.connect(bellBus);
@@ -5661,7 +5704,7 @@ export function createSoundscape() {
       // the final stage, so every sound is raised by the same factor and
       // nothing shifts relative to anything else.
       master.gain.value = muted ? 0 : MASTER_GAIN;
-      master.connect(ctx.destination);
+      master.connect(outStage());
 
       /* theme: sits between the ambient bed (hum/crackle, and the
          random micro-events) and master, at 1 (no effect) by default.

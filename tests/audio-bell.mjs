@@ -15,8 +15,10 @@
    (bellBus, straight to the destination), so it is measured on its own
    as well as in the mix.
 
-   Pass = zero clipped samples in the final mix, and the peak stays under
-   HEADROOM_PEAK (about -0.5 dBFS). */
+   Pass = zero clipped samples in the final mix, the peak stays under
+   HEADROOM_PEAK (about -2 dBFS), and little of the mix is subsonic
+   (under 30 Hz: nothing a speaker plays, only what makes a phone's
+   speaker crunch; the user heard it as clipping). */
 
 import { chromium } from "playwright";
 import path from "path";
@@ -25,7 +27,11 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const file = path.join(__dirname, "..", "dist", "el-cabeza-neon.html");
 const RECORD_MS = 26000; // toll 2s + collapse ~3.2s + the bell's ~21s ring-out
-const HEADROOM_PEAK = 0.95;
+// Before the output stage (neon.js outStage) this sequence peaked at up to
+// 0.98 with 15% of the mix under 30 Hz on the gauge below; after it,
+// 0.5-0.65 and 3-4%.
+const HEADROOM_PEAK = 0.8;
+const SUBSONIC_MAX = 0.06;
 
 const browser = await chromium.launch({
   executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
@@ -41,7 +47,7 @@ await page.addInitScript(() => {
   window.__EC_AUDIO_TAPS__ = taps;
   const makeMeter = (ctx, label) => {
     const sp = ctx.createScriptProcessor(4096, 2, 2);
-    const m = { label, kind: "", connectedAt: performance.now(), peak: 0, clipped: 0, samples: 0, sumSq: 0, buckets: [], t0: null };
+    const m = { label, kind: "", connectedAt: performance.now(), peak: 0, clipped: 0, samples: 0, sumSq: 0, buckets: [], t0: null, raw: label === "mix" ? [] : null, rawN: 0, sr: 0 };
     sp.onaudioprocess = (e) => {
       if (m.t0 === null) m.t0 = e.playbackTime;
       const n = e.inputBuffer.length;
@@ -56,6 +62,9 @@ await page.addInitScript(() => {
           if (!(m.buckets[b] >= a)) m.buckets[b] = a;
         }
         m.samples += n;
+        // The mix's first 8 s (the toll and the collapse), kept whole for
+        // the subsonic check below.
+        if (m.raw && ch === 0 && m.rawN < e.inputBuffer.sampleRate * 8) { m.raw.push(Float32Array.from(d)); m.rawN += n; m.sr = e.inputBuffer.sampleRate; }
       }
     };
     sp.connect(ctx.destination);
@@ -64,6 +73,16 @@ await page.addInitScript(() => {
   };
   const origConnect = AudioNode.prototype.connect;
   AudioNode.prototype.connect = function (dest, ...rest) {
+    // The theme's own last stage (neon.js outStage: subsonic cut and
+    // limiter) is what master and the bell's bus feed: meter each of
+    // them there, and leave the path through that stage as it is.
+    if (dest && dest.__ecOutput && !this.__isTap) {
+      const sp = makeMeter(this.context, `source${taps.length}`);
+      sp.__isTap = true;
+      taps[taps.length - 1].kind = this.constructor.name;
+      origConnect.call(this, sp);
+      return origConnect.call(this, dest, ...rest);
+    }
     if (dest instanceof AudioDestinationNode && !this.__isTap) {
       const ctx = this.context;
       if (!ctx.__sum) {
@@ -106,6 +125,26 @@ const b = await page.locator(".ec-singularity-invite-btn").boundingBox();
 await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
 await page.waitForTimeout(RECORD_MS);
 
+const sub = await page.evaluate(() => {
+  const m = window.__EC_AUDIO_TAPS__.find((x) => x.label === "mix");
+  if (!m || !m.raw.length) return null;
+  // Energy under 30 Hz against all of it: a 4th-order low-pass (two RBJ
+  // biquads, Q 0.54 / 1.31) run over the samples.
+  const sr = m.sr, w = (2 * Math.PI * 30) / sr;
+  const coeffs = [0.54, 1.31].map((q) => {
+    const a = Math.sin(w) / (2 * q), c = Math.cos(w), a0 = 1 + a;
+    return { b0: (1 - c) / 2 / a0, b1: (1 - c) / a0, b2: (1 - c) / 2 / a0, a1: (-2 * c) / a0, a2: (1 - a) / a0 };
+  });
+  const st = coeffs.map(() => ({ x1: 0, x2: 0, y1: 0, y2: 0 }));
+  let all = 0, low = 0;
+  for (const block of m.raw) for (let i = 0; i < block.length; i++) {
+    let v = block[i];
+    all += v * v;
+    coeffs.forEach((k, j) => { const s = st[j]; const y = k.b0 * v + k.b1 * s.x1 + k.b2 * s.x2 - k.a1 * s.y1 - k.a2 * s.y2; s.x2 = s.x1; s.x1 = v; s.y2 = s.y1; s.y1 = y; v = y; });
+    low += v * v;
+  }
+  return all ? low / all : null;
+});
 const taps = await page.evaluate(() =>
   window.__EC_AUDIO_TAPS__.map((m) => ({
     label: m.label, kind: m.kind, connectedAt: m.connectedAt, peak: m.peak, clipped: m.clipped,
@@ -148,6 +187,7 @@ check(`final-mix peak stays under ${HEADROOM_PEAK} (headroom)`, mix && mix.peak 
 // well after the rest of the mix went silent (~5.2s in).
 const tail = bell ? bell.buckets.slice(40, 48).reduce((a, x) => Math.max(a, x || 0), 0) : 0;
 check("the bell is still ringing out 10-12s after the click", tail > 0.001, `tailPeak=${tail}`);
+check(`little of the mix is subsonic (under 30 Hz: ${sub === null ? "?" : (100 * sub).toFixed(1)}%, want under ${100 * SUBSONIC_MAX}%)`, sub !== null && sub < SUBSONIC_MAX);
 check("no page errors", errors.length === 0, errors.join(" | "));
 
 if (failures) {
