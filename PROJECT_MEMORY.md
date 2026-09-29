@@ -3515,3 +3515,26 @@ phone menu until "Start the story over" (which clears it).
   counting zoom turned play backwards on phones (user caught it). Then both axes run the other way to the board's
   rule (up/down flipped again, left/right as the far-half flip, the same
   anywhere). On the board, unchanged.
+- The user's final word on drag ("last chance"): whatever is behind the
+  finger moves the way the finger moves - left, right, up (looking up),
+  down (looking down) - in every case, at any zoom. All the fixed rules
+  (dragFlipTheta, roomLook, the Room view flips) are gone. grabFollow
+  (chassis): at the press, and again every 50 ms / 14 px, raycast for the
+  solid visible point under the pointer (else the ground plane through the
+  target), then finite-difference where that point would land on screen for
+  a small turn and a small tilt, using the exact camera pose (cameraDistance
+  models the room clamp on r; applyCamera shares it). The sign of each rate
+  sets that axis's direction; a hysteresis margin (0.04 x height px/rad)
+  keeps it from flickering on the turning line. Fallbacks: the half-screen
+  rule for turn, finger-up-tilts-to-horizon for tilt. Test:
+  tests/e2e-drag-follow.mjs [page] [phone|desktop] drags from a 3x3 grid in
+  four directions across play, zoomed out, top-down, low, panned off (x2)
+  and the Room view, and checks the grabbed point moved with the finger.
+  Hooks __EC_TEST_GRAB__(x,y) and __EC_TEST_LOCAL_SCREEN__(local).
+- Den focus mode: the "YOUR ORDER ... change" slip dims to 0.3 with the
+  lights (html.ec-lights-down), full again when opened (or hovered).
+- The revisited store: the clerk is a he. The PA "manager to the front"
+  page plays when he says he'll get his manager (once the line has typed
+  out), louder and nearer than the ambient PA (tienda-audio playPage).
+  User wants the revisited store to sell something else on the same table
+  with the standee advertising it; ideas offered, awaiting the pick.

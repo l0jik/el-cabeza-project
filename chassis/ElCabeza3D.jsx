@@ -3069,24 +3069,39 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        formula did, so this preserves the exact drag direction that was
        already tuned — if it ever feels backwards, this one sign is the
        whole fix. */
+    /* How far along the view's line the camera can go before leaving
+       the room's box (theme.freeCamera.room), or Infinity. The board turns
+       by -theta about y, so the board's frame is the world turned by
+       +theta: the target and the view's direction there. */
+    function roomExit(theta, phi, target) {
+      const room = theme.freeCamera && theme.freeCamera.room;
+      if (!room) return Infinity;
+      const c = Math.cos(theta), sn = Math.sin(theta);
+      const a = [target.x * c + target.z * sn, target.y, -target.x * sn + target.z * c];
+      const u = [Math.sin(phi) * sn, Math.cos(phi), Math.sin(phi) * c];
+      const box = [room.x, room.y, room.z];
+      let exit = Infinity;
+      for (let i = 0; i < 3; i++) {
+        const [lo, hi] = box[i];
+        if (a[i] < lo || a[i] > hi) return Infinity; // the target's outside: leave it be
+        if (u[i] > 1e-9) exit = Math.min(exit, (hi - a[i]) / u[i]);
+        else if (u[i] < -1e-9) exit = Math.min(exit, (lo - a[i]) / u[i]);
+      }
+      return exit;
+    }
+    // The camera's distance from the target for a view: the radius, kept
+    // inside the room (except in the Room view).
+    function cameraDistance(theta, phi, radius, target, dollhouse) {
+      if (!(theme.freeCamera && theme.freeCamera.room) || dollhouse) return radius;
+      return Math.max(0.5, Math.min(radius, roomExit(theta, phi, target)));
+    }
+    three.current.cameraDistance = cameraDistance;
     function applyCamera() {
       const { phi, radius, target, theta } = cam.current.view;
       const room = theme.freeCamera && theme.freeCamera.room;
       let r = radius;
       if (room) {
-        // The board turns by -theta about y, so the board's frame is the
-        // world turned by +theta: the target and the view's direction there.
-        const c = Math.cos(theta), sn = Math.sin(theta);
-        const a = [target.x * c + target.z * sn, target.y, -target.x * sn + target.z * c];
-        const u = [Math.sin(phi) * sn, Math.cos(phi), Math.sin(phi) * c];
-        const box = [room.x, room.y, room.z];
-        let exit = Infinity;
-        for (let i = 0; i < 3; i++) {
-          const [lo, hi] = box[i];
-          if (a[i] < lo || a[i] > hi) { exit = Infinity; break; } // the target's outside: leave it be
-          if (u[i] > 1e-9) exit = Math.min(exit, (hi - a[i]) / u[i]);
-          else if (u[i] < -1e-9) exit = Math.min(exit, (lo - a[i]) / u[i]);
-        }
+        const exit = roomExit(theta, phi, target);
         if (cam.current.dollhouse) {
           // The Room view: above the room, the roof off, the box set aside
           // until the camera (where it's going and where it is) is back
@@ -3095,7 +3110,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           roomLimitRef.current = Infinity;
         } else {
           roomLimitRef.current = exit;
-          r = Math.max(0.5, Math.min(radius, exit));
+          r = cameraDistance(theta, phi, radius, target, false);
         }
       } else roomLimitRef.current = Infinity;
       camera.position.set(target.x, target.y + r * Math.cos(phi), target.z + r * Math.sin(phi));
@@ -4881,18 +4896,162 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        two gestures mutually exclusive. */
     const active = new Map();
     let dragging = false;
-    /* Yaw arcball flip, recomputed from the CURRENT pointer position on
-       every move (NOT latched at pointerdown): the board is viewed
-       obliquely, so spinning it one way sends its far edge and near edge
-       in OPPOSITE screen directions. To make a horizontal drag feel like
-       grabbing the board and turning it — the edge under the finger
-       follows the finger — the yaw sign has to depend on which half of
-       the canvas the finger is in right now. A finger above the vertical
-       midline (grabbing the far edge) turns it one way; below (the near
-       edge) the other. Recomputing per move is what lets a drag that
-       crosses the midline keep following the finger instead of inverting.
-       true = pointer in the upper (far) half. */
-    let dragFlipTheta = false;
+    /* Which way a drag turns and tilts the view. The user's rule, for
+       every case (on the board or looking round the room, zoomed in or
+       out, the Room view, top-down): whatever is behind the finger moves
+       the way the finger moves. Finger left, it goes left; right, right;
+       up, up; down, down. No fixed sign can do that: a board seen at a
+       slant has its near edge and far edge going opposite ways under the
+       same turn, and under the same tilt; something tall near the middle
+       goes the other way from the floor beyond it; and panned off the
+       board, the room turns about the board's middle, not about what's in
+       view. So each drag takes hold of what is actually under the finger
+       where it touched down (the nearest solid, shown thing in the scene; past
+       the room's edge, the floor's plane), keeps hold of that same thing
+       for the whole drag, and works out, by moving the view a step each way,
+       which way that point goes on screen as the view turns (theta) and
+       as it tilts (phi). Each axis then takes the sign that carries the
+       point with the finger. The amount stays the usual sensitivity, but
+       a turn is slowed (never quickened) when the point would race ahead
+       of the finger. Re-worked every few frames as the view moves, with
+       a margin before a sign may change (a point where the view's turn
+       hardly moves it can't flip it back and forth). */
+    const grab = { theta: 0, phi: 0, at: -Infinity, x: 0, y: 0, rates: null, local: null };
+    const grabRay = new THREE.Raycaster();
+    const grabNdc = new THREE.Vector2();
+    const grabPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const grabV = new THREE.Vector3(), grabW = new THREE.Vector3(), grabO = new THREE.Vector3();
+    let grabCam = null;
+    const grabShown = (o) => { for (let p = o; p; p = p.parent) if (p.visible === false) return false; return true; };
+    // A hit on something that's really there to see: a shown mesh, drawn,
+    // not a glow, a halo or an invisible catcher.
+    function grabSolid(h) {
+      const o = h.object;
+      if (!o || !o.isMesh || !grabShown(o)) return false;
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      const m = (ms.length > 1 && h.face && ms[h.face.materialIndex]) || ms[0];
+      if (!m || m.visible === false || m.colorWrite === false) return false;
+      if (m.transparent && (m.opacity < 0.35 || m.blending === THREE.AdditiveBlending)) return false;
+      return true;
+    }
+    // The world point under the finger.
+    function grabUnder(clientX, clientY, rect) {
+      grabNdc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+      grabRay.setFromCamera(grabNdc, t.camera);
+      const hits = grabRay.intersectObject(t.scene, true);
+      for (const h of hits) if (grabSolid(h)) return h.point.clone();
+      const T = cam.current.view.target;
+      grabPlane.constant = -T.y;
+      const p = new THREE.Vector3();
+      if (grabRay.ray.intersectPlane(grabPlane, p) && p.distanceTo(t.camera.position) < 5000) return p;
+      return grabRay.ray.at(t.camera.position.distanceTo(T), p);
+    }
+    /* Where the point W goes on screen, in pixels, if the view turns a
+       little each way (theta +/- GRAB_STEP: the board, and the room with
+       it, turns about the board's upright axis by -theta) and tilts a
+       little each way (phi +/- GRAB_STEP: the camera swings up and over
+       the target). A step each way, the size of a short stretch of drag,
+       not a slope: near the point the view pivots on, a turn or tilt
+       either way can carry it the same way, and only trying both says
+       which is better for the way the finger's going. */
+    const GRAB_STEP = 0.06;
+    function grabRates(W, rect) {
+      const v = cam.current.view;
+      if (!grabCam) grabCam = t.camera.clone();
+      // Where W lands on screen for a view (theta, phi), the camera placed
+      // exactly as applyCamera places it (kept inside the room: its
+      // distance changes as the view turns and tilts), the board (and the
+      // room with it) turned by -theta about its upright axis. The tilt
+      // is held at its stops, as the drag holds it.
+      t.boardGroup.getWorldPosition(grabO);
+      const at = (theta, phi) => {
+        phi = Math.max(0.012, Math.min(1.25, phi));
+        grabCam.copy(t.camera);
+        const T = v.target;
+        const r = t.cameraDistance ? t.cameraDistance(theta, phi, v.radius, T, !!cam.current.dollhouse) : v.radius;
+        grabCam.position.set(T.x, T.y + r * Math.cos(phi), T.z + r * Math.sin(phi));
+        grabCam.lookAt(T);
+        grabCam.updateMatrixWorld(true);
+        const da = -(theta - v.theta), c = Math.cos(da), sn = Math.sin(da);
+        const rx = W.x - grabO.x, rz = W.z - grabO.z;
+        grabW.set(grabO.x + rx * c + rz * sn, W.y, grabO.z - rx * sn + rz * c).project(grabCam);
+        return { x: (grabW.x * rect.width) / 2, y: (-grabW.y * rect.height) / 2 };
+      };
+      const e = GRAB_STEP;
+      const base = at(v.theta, v.phi);
+      const tp = at(v.theta + e, v.phi), tn = at(v.theta - e, v.phi);
+      const pp = at(v.theta, v.phi + e), pn = at(v.theta, v.phi - e);
+      return {
+        turnP: tp.x - base.x, turnN: tn.x - base.x, // right positive
+        tiltP: pp.y - base.y, tiltN: pn.y - base.y, // down positive
+        turn: (tp.x - tn.x) / 2 / e, tilt: (pp.y - pn.y) / 2 / e,
+      };
+    }
+    /* Which sign carries the point the finger's way: with sign s the view
+       moves by s * (finger's move) * sensitivity, so a finger going u (+1
+       right or down, -1 left or up) moves the view s * u, and the point by
+       that side's step. The better of the two, and by how much (px per
+       radian) it beats the other. */
+    function grabPick(P, N, u) {
+      const plus = (u > 0 ? P : N) * u, minus = (u > 0 ? N : P) * u;
+      return { s: plus >= minus ? 1 : -1, by: Math.abs(plus - minus) / 2 / GRAB_STEP, gain: Math.max(plus, minus) / GRAB_STEP };
+    }
+    // The drag's turn and tilt factors now (signed), for the finger here,
+    // going (dx, dy).
+    function grabFollow(clientX, clientY, dx, dy) {
+      const now = performance.now();
+      const rect = el.getBoundingClientRect();
+      if (!grab.rates || now - grab.at >= 50 || Math.hypot(clientX - grab.x, clientY - grab.y) >= 14) {
+        grab.at = now; grab.x = clientX; grab.y = clientY;
+        try {
+          // The point taken hold of at the start of the drag, kept in the
+          // board's own frame (it turns with the board and the room), so
+          // it's that same thing followed all the way, not whatever the
+          // finger happens to be over now.
+          if (!grab.local) grab.local = t.boardGroup.worldToLocal(grabUnder(clientX, clientY, rect));
+          grab.rates = grabRates(t.boardGroup.localToWorld(grab.local.clone()), rect);
+        } catch (e) { grab.rates = null; }
+      }
+      const rates = grab.rates;
+      // Once a way is chosen, it changes only by a clear margin (a point
+      // the view hardly moves can't flip it back and forth).
+      const floor = 0.04 * rect.height;
+      if (dx) {
+        const k = rates && grabPick(rates.turnP, rates.turnN, Math.sign(dx));
+        if (k && (k.by > floor || (!grab.theta && k.by > 0.5))) {
+          if (!grab.theta || k.s === Math.sign(grab.theta) || k.by > 2 * floor) {
+            grab.theta = k.s * Math.min(1, 1 / (Math.max(Math.abs(rates.turn), 1e-6) * ORBIT_SENS_THETA));
+          }
+        } else if (!grab.theta) {
+          grab.theta = clientY - rect.top < rect.height / 2 ? 1 : -1; // the board's own rule: far half one way, near half the other
+        }
+      }
+      if (dy) {
+        const k = rates && grabPick(rates.tiltP, rates.tiltN, Math.sign(dy));
+        if (k && (k.by > floor || (!grab.phi && k.by > 0.5))) {
+          if (!grab.phi || k.s === grab.phi || k.by > 2 * floor) grab.phi = k.s;
+        } else if (!grab.phi) {
+          grab.phi = -1; // finger up, the view toward the horizon
+        }
+      }
+      return { theta: grab.theta || (clientY - rect.top < rect.height / 2 ? 1 : -1), phi: grab.phi || -1 };
+    }
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+      // Test-only: the point under (x, y) in the board's own frame (it
+      // turns with the board), and its rates.
+      window.__EC_TEST_GRAB__ = (x, y) => {
+        const rect = el.getBoundingClientRect();
+        const W = grabUnder(x, y, rect);
+        const r = grabRates(W, rect);
+        const L = t.boardGroup.worldToLocal(W.clone());
+        return { local: [L.x, L.y, L.z], world: [W.x, W.y, W.z], ...r };
+      };
+      window.__EC_TEST_LOCAL_SCREEN__ = (l) => {
+        const v = t.boardGroup.localToWorld(new THREE.Vector3(l[0], l[1], l[2])).project(t.camera);
+        const rect = el.getBoundingClientRect();
+        return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height, z: v.z };
+      };
+    }
     /* Stays false until cumulative pointer travel since the down event
        crosses DRAG_DEAD_ZONE_PX — see onMove. Every touch carries a few
        pixels of contact-point jitter even when the finger is meant to be
@@ -5143,6 +5302,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (active.size === 1) {
         dragging = true;
         dragArmed = false;
+        grab.theta = 0; grab.phi = 0; grab.at = -Infinity; grab.rates = null; grab.local = null;
+        // Take hold of what's under the finger where it touched down (the
+        // drag only starts once it's gone a few pixels, over something
+        // else by then).
+        try { grab.local = t.boardGroup.worldToLocal(grabUnder(ev.clientX, ev.clientY, el.getBoundingClientRect())); } catch (e) { grab.local = null; }
         /* pointerType check is belt-and-braces: a touch contact won't
            carry altKey anyway, so excluding it here simply guarantees
            the touch paths below are reached in exactly the same states
@@ -5446,31 +5610,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         /* These only move the GOAL (cam.current); the render loop damps
            the actual view toward it every frame, which is what removes
            the raw, sample-for-sample twitchiness a direct 1:1 mapping had.
-           Yaw follows the finger from either half of the board: the flip
-           is recomputed from the pointer's CURRENT vertical position each
-           move (see dragFlipTheta's own comment) so the edge under the
-           finger always tracks it, including across the midline. */
-        {
-          const rect = el.getBoundingClientRect();
-          dragFlipTheta = ev.clientY - rect.top < rect.height / 2;
-        }
-        /* Looking round the room (a theme with a free camera: the store,
-           the den), rather than at the board: the Room view, or the view
-           panned off the board. That isn't grabbing
-           the board, and the user found both directions backwards there
-           (their screen recording: panned over to the standee and
-           tilting). "Off the board" is panned away from it only; zooming
-           out doesn't count (a phone's play view is already far back, and
-           counting it turned play backwards). So then a drag turns and
-           tilts the view the other way,
-           and the same way wherever the finger is (no half-screen flip).
-           On the board, as ever. */
-        const tgt = cam.current.target;
-        // (Panned off, not pulled out: a phone's own play view sits well
-        // back from the board, and that's still the board.)
-        const offBoard = Math.hypot(tgt.x, tgt.z) > Math.max(SLAB_X, SLAB_Z) * 0.6;
-        const roomLook = !!cam.current.dollhouse || (!!theme.freeCamera && offBoard);
-        cam.current.theta -= dx * ORBIT_SENS_THETA * (roomLook ? -1 : dragFlipTheta ? -1 : 1);
+           Which way each goes: what's behind the finger moves with the
+           finger, everywhere (grabFollow, above). */
+        const follow = grabFollow(ev.clientX, ev.clientY, dx, dy);
+        cam.current.theta += follow.theta * dx * ORBIT_SENS_THETA;
         /* Lower bound is a hair above zero rather than zero itself: at
            exactly vertical the view direction is parallel to the camera's
            up vector and lookAt has no defined roll, which snaps the view.
@@ -5489,7 +5632,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
            angles where that showed up in testing. */
         cam.current.phi = Math.max(
           0.012,
-          Math.min(1.25, cam.current.phi - dy * ORBIT_SENS_PHI * (roomLook ? -1 : 1))
+          Math.min(1.25, cam.current.phi + follow.phi * dy * ORBIT_SENS_PHI)
         );
         return;
       }

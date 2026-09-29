@@ -296,6 +296,11 @@ export const SLIP_CSS = `
     background: #3a2a1d; box-shadow: inset 0 0 0 1.5px #c9a24a; }
   .td-slip-tag small { font: 700 11px/1 ${COURIER}; letter-spacing: 0; text-transform: none; color: ${RED}; }
   .td-slip[data-open="true"] .td-slip-tag { opacity: 1; }
+  /* The den's lights down (focus mode, html.ec-lights-down): the tag
+     dims with the room; a tap on it (it opens) brings it up again. */
+  .td-slip { transition: opacity 0.6s ease; }
+  html.ec-lights-down .td-slip:not([data-open="true"]) { opacity: 0.3; }
+  @media (hover: hover) { html.ec-lights-down .td-slip:not([data-open="true"]):hover { opacity: 0.9; } }
   .td-slip-tag:focus-visible { outline: 3px solid ${RED}; outline-offset: 2px; }
   .td-slip-paper { min-width: 200px; max-width: min(280px, calc(100vw - 24px)); padding: 12px 14px 12px; background: #F4F0E4; background-image: var(--tienda-paper);
     color: ${INK}; font: 400 12px/1.5 ${COURIER}; box-shadow: 0 10px 26px rgba(20,12,6,0.45);

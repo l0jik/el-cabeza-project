@@ -497,11 +497,11 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
     tick(t + 0.05, 1500, 0.12, pan, 0.02);
   }
   // The public-address chime, and a voice you can't quite make out.
-  function paAnnouncement(closing = false) {
+  function paAnnouncement(closing = false, dest = null) {
     const t0 = now();
     const pa = ctx.createGain(); pa.gain.value = 1;
     const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1300; bp.Q.value = 0.7;
-    pa.connect(bp).connect(farBus);
+    pa.connect(bp).connect(dest || farBus);
     bell(t0, 783.99, 0.1, pa, 1.8); // G
     bell(t0 + 0.62, 622.25, 0.1, pa, 2.2); // E-flat
     // The voice: a buzz through three moving formants, in syllables.
@@ -875,7 +875,20 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
     },
     playSelect() { ensureGraph(); if (!ctx) return; wood.select(); },
     // The public address, on cue (the clerk calling the manager).
-    playPage() { ensureGraph(); if (!ctx || muted) return; if (ctx.state === "suspended") ctx.resume(); paAnnouncement(false); },
+    /* The clerk paging the manager: the chime and the voice through the
+       ceiling speakers, clearly, not the far-off murmur of the ones the
+       store makes on its own (and whether or not the store's air is up
+       yet: straight to the Store switch, not through the store's fade). */
+    playPage() {
+      ensureGraph();
+      if (!ctx || muted) return;
+      if (ctx.state === "suspended") ctx.resume();
+      const out = ctx.createGain(); out.gain.value = 0.55;
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 3400;
+      out.connect(lp).connect(gate("store")).connect(master);
+      const send = ctx.createGain(); send.gain.value = 0.35; lp.connect(send).connect(bigVerb);
+      paAnnouncement(false, out);
+    },
     playDeselect() { ensureGraph(); if (!ctx) return; wood.deselect(); },
     playBlocked() { ensureGraph(); if (!ctx) return; wood.blocked(); },
     playRollStart(volumeUnits, durationMs) { ensureGraph(); if (!ctx) return; wood.rollStart(volumeUnits, durationMs); },

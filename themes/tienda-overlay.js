@@ -620,8 +620,8 @@ function PurchaseOffer({ story, audio }) {
    clerk looks, calls the manager over the public address, and the manager
    is very sorry. Each line types out; a tap finishes it or goes on. */
 const CLERK_SCRIPT = [
-  { who: "Clerk", tag: "Games Dept.", line: "Another El Cabeza? Sure thing. Let me just check in the back.", dir: "She's gone a while. Somewhere, a cart wheel squeaks." },
-  { who: "Clerk", tag: "Games Dept.", line: "El\u2026 Cabeza? Hm. That's not ringing any bells. It's not in the book, either.", dir: "She looks at the game on the table, then back at you." },
+  { who: "Clerk", tag: "Games Dept.", line: "Another El Cabeza? Sure thing. Let me just check in the back.", dir: "He's gone a while. Somewhere, a cart wheel squeaks." },
+  { who: "Clerk", tag: "Games Dept.", line: "El\u2026 Cabeza? Hm. That's not ringing any bells. It's not in the book, either.", dir: "He looks at the game on the table, then back at you." },
   { who: "Clerk", tag: "Games Dept.", line: "Let me get my manager.", dir: "Ding-dong. \u201cMr. Pruitt to Games, please. Mr. Pruitt to Games.\u201d", page: true },
   { who: "Mr. Pruitt", tag: "Store Manager", line: "Afternoon! El Cabeza, you said? No\u2026 no. We've never sold a game by that name." },
   { who: "Mr. Pruitt", tag: "Store Manager", line: "We're very sorry, but we'd love to help you if we could\u2026", dir: "He smiles. Nobody looks at the table." },
@@ -634,10 +634,14 @@ function ClerkScene({ audio, onStay, onGoHome }) {
   const typed = shown >= s.line.length;
   React.useEffect(() => {
     setShown(0);
-    if (s.page && audio && audio.playPage) audio.playPage();
     const id = setInterval(() => setShown((n) => { if (n >= s.line.length) { clearInterval(id); return n; } return n + 1; }), 34);
     return () => clearInterval(id);
   }, [step]);
+  // The page goes out as he finishes saying he'll get the manager.
+  const paged = React.useRef(false);
+  React.useEffect(() => {
+    if (s.page && typed && !paged.current) { paged.current = true; if (audio && audio.playPage) audio.playPage(); }
+  }, [step, typed]);
   React.useEffect(() => {
     if (last && typed && !confusedAtClerk) {
       confusedAtClerk = true;
