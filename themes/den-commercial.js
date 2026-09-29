@@ -20,18 +20,18 @@
 
 import * as THREE from "three";
 
-export const COMMERCIAL_MS = 44800;
+export const COMMERCIAL_MS = 45400;
 
 // The scenes, in seconds from the top (the sound follows these).
 export const CUES = {
   slate: 0, title: 2.2, chess: 5.6, stamp: 6.8, chessVoice: 6.9, flee: 8.6,
-  checker: 9.0, checkersVoice: 9.2, stamp2: 9.35, flee2: 11.1,
-  king: 11.8, voice: 12.1, orders: 17.0,
-  items: [17.8, 18.6, 19.4], assembly: 20.4, best: 21.6, sortOf: 24.1, dealer: 25.2, standing: 26.6,
-  price: 29.4, only: 30.5, brandNew: 31.5, close: 33.8, never: 35.4, credit: 37.5, kings: 37.8, snow: 44.2,
+  checker: 9.0, checkersVoice: 10.0, stamp2: 10.1, flee2: 11.8,
+  king: 12.4, voice: 12.7, orders: 17.6,
+  items: [18.4, 19.2, 20], assembly: 21, best: 22.2, sortOf: 24.7, dealer: 25.8, standing: 27.2,
+  price: 30, only: 31.1, brandNew: 32.1, close: 34.4, never: 36, credit: 38.1, kings: 38.4, snow: 44.8,
   // Subliminal frames of the Singularity's black hole, one frame each (the
   // last two), spliced into the tape where nobody at Canal 99 put them.
-  flash: [6.45, 18.95, 22.85, 36.15, 40.55],
+  flash: [6.45, 19.55, 23.45, 36.75, 41.15],
 };
 
 const W = 512, H = 384, FPS = 12;
@@ -138,6 +138,40 @@ function checker(g, x, y, s) {
   g.restore();
 }
 
+// Two people at a card table over a checkerboard, both asleep, Z's rising.
+function sleepers(g, x, y, t) {
+  g.save(); g.translate(x, y);
+  // The table and the board on it.
+  g.fillStyle = "#6b4526"; g.fillRect(-120, 34, 240, 14); g.fillRect(-104, 48, 10, 70); g.fillRect(94, 48, 10, 70);
+  g.save(); g.translate(0, 22); g.scale(1, 0.4);
+  for (let r = 0; r < 6; r++) for (let c = 0; c < 6; c++) { g.fillStyle = (r + c) % 2 ? "#1c1c1c" : "#b3261e"; g.fillRect(-60 + c * 20, -60 + r * 20, 20, 20); }
+  [[-50, -50], [-10, -30], [30, -50], [-30, 30], [10, 10], [50, 50]].forEach(([cx, cy], i) => { g.fillStyle = i < 3 ? "#e8e0d0" : "#d0282c"; g.beginPath(); g.arc(cx, cy, 7, 0, Math.PI * 2); g.fill(); });
+  g.restore();
+  // The two of them, slumped over it, breathing slowly.
+  [[-1, "#d9772b", "#8a8a8a"], [1, "#2f7f7a", "#5a3a22"]].forEach(([side, shirt, hair], i) => {
+    const breathe = Math.sin(t * 2 + i * 1.7) * 2;
+    const bx = side * 95;
+    g.fillStyle = shirt;
+    g.beginPath(); g.moveTo(bx - 30, 118); g.lineTo(bx - 24, 40 + breathe); g.quadraticCurveTo(bx, 28 + breathe, bx + 24, 40 + breathe); g.lineTo(bx + 30, 118); g.closePath(); g.fill();
+    // The arm on the table, the head down on it.
+    g.fillStyle = shirt; g.fillRect(bx - side * 40 - 22, 26 + breathe, 44, 12);
+    const hx = bx - side * 26, hy = 14 + breathe;
+    g.fillStyle = "#e8b48a"; g.beginPath(); g.ellipse(hx, hy, 17, 15, side * 0.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = hair; g.beginPath(); g.ellipse(hx + side * 6, hy - 7, 15, 9, side * 0.5, 0, Math.PI * 2); g.fill();
+    // Closed eyes.
+    g.strokeStyle = "#3a2418"; g.lineWidth = 2; g.beginPath(); g.arc(hx - side * 6, hy + 2, 3.5, 0.2, Math.PI - 0.2); g.stroke();
+    // Z's, rising and drifting, one after another.
+    for (let k = 0; k < 3; k++) {
+      const u = ((t * 0.55 + k / 3 + i * 0.17) % 1);
+      const zx = hx + side * (10 + u * 34) + Math.sin(u * 6 + k) * 6, zy = hy - 22 - u * 90;
+      g.globalAlpha = Math.min(1, u * 4) * (1 - u);
+      say(g, "Z", zx, zy, { font: `900 ${14 + u * 18}px ${SANS}`, color: "#ffffff", shadow: "#000", shadowAt: [2, 2], smear: 1 });
+      g.globalAlpha = 1;
+    }
+  });
+  g.restore();
+}
+
 // The rubber stamp, slammed down: a red circle and a slash.
 function stampMark(g, st, y) {
   const s = st < 0.15 ? 1.8 - st * 5.3 : 1;
@@ -180,12 +214,13 @@ function chess(g, t) {
   }
   // ...and checkers.
   say(g, "AND...", W / 2, H * 0.14, { font: `900 30px ${SANS}`, color: "#fff", shadow: "#000", shadowAt: [3, 4] });
+  // A couple over a game of checkers, both of them fast asleep.
   const inn = easeOut(at("checker") / 0.35);
   const flee2 = at("flee2");
-  const cx = flee2 > 0 ? W * 0.5 + Math.pow(flee2, 2) * 900 : W * 0.5 - (1 - inn) * 360;
-  if (cx < W + 90) {
-    checker(g, cx, H * 0.6, 1.2);
-    if (flee2 > 0) { g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 3; for (let i = 0; i < 4; i++) { const yy = H * 0.52 + i * 16; g.beginPath(); g.moveTo(cx - 95, yy); g.lineTo(cx - 95 - 60 - i * 12, yy); g.stroke(); } }
+  const cx = flee2 > 0 ? W * 0.5 + Math.pow(flee2, 2) * 1100 : W * 0.5 - (1 - inn) * 400;
+  if (cx < W + 170) {
+    sleepers(g, cx, H * 0.57, Math.max(0, at("checker")));
+    if (flee2 > 0) { g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 3; for (let i = 0; i < 4; i++) { const yy = H * 0.5 + i * 18; g.beginPath(); g.moveTo(cx - 140, yy); g.lineTo(cx - 140 - 60 - i * 12, yy); g.stroke(); } }
   }
   const st2 = at("stamp2");
   if (st2 <= 0) say(g, "CHECKERS?", W / 2, H * 0.3, { font: `900 34px ${SERIF}`, color: "#fff", shadow: "#000", shadowAt: [3, 3] });

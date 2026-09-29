@@ -3494,3 +3494,9 @@ phone menu until "Start the story over" (which clears it).
   CHECKERS?" a red checker slides in, is stamped "GET OUTTA HERE, CHECKERS!"
   and run off the other way. Everything after moved +2.6 s; COMMERCIAL_MS
   44800. The rhythm box stops at the first stamp; the trombone is shorter.
+- Checkers beat (user): instead of a lone checker, a couple at a card table
+  over a checkerboard, both asleep, breathing, Z's rising and fading
+  (den-commercial.js sleepers), two snores in turn (den-audio.js); the
+  stamp lands on them at 10.1 with the voice at 10.0, and the whole table
+  is run off at 11.8. King onward +0.6 s; COMMERCIAL_MS 45400. The user's
+  note trailed off ("and then the uh,"): asked what comes next.

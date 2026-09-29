@@ -480,8 +480,16 @@ export function createAudio() {
     // The stamp, and the pawn run off on a slide whistle.
     [[AD.stamp], [AD.stamp2]].forEach(([at]) => { const t = T + at; burst(t, out, 0.22, 0.12, [["lowpass", 900]]); const o = tone(t, 120, 0.25, 0.12); o.frequency.exponentialRampToValueAtTime(50, t + 0.2); });
     [[AD.flee, 700, 2300], [AD.flee2, 2300, 600]].forEach(([at, f0, f1]) => { const t = T + at; const o = ctx.createOscillator(); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + 0.55); const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.035, t + 0.05); g.gain.linearRampToValueAtTime(0.0001, t + 0.6); o.connect(g).connect(out); o.start(t); o.stop(t + 0.65); });
-    // The checker slides in: a felt-on-board scrape.
-    burst(T + AD.checker, out, 0.05, 0.3, [["bandpass", 900, 0.8]], 0.08);
+    // The sleepers: two snores, in turn, before the stamp wakes nobody.
+    [0.25, 0.6].forEach((d, i) => {
+      const t = T + AD.checker + d;
+      const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(i ? 70 : 92, t); o.frequency.linearRampToValueAtTime(i ? 58 : 76, t + 0.35);
+      const am = ctx.createOscillator(); am.frequency.value = 26; const amg = ctx.createGain(); amg.gain.value = 0.5;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.03, t + 0.12); g.gain.linearRampToValueAtTime(0.0001, t + 0.4);
+      const lpf = ctx.createBiquadFilter(); lpf.type = "lowpass"; lpf.frequency.value = 700;
+      am.connect(amg).connect(g.gain);
+      o.connect(lpf).connect(g).connect(out); o.start(t); am.start(t); o.stop(t + 0.45); am.stop(t + 0.45);
+    });
     // The king: a cymbal, then the voice (the user's recording, a file
     // beside the page: build/build.js), and a sparkle as it trails off.
     burst(T + AD.king, out, 0.06, 1.4, [["highpass", 5000]]);
