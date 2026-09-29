@@ -444,6 +444,18 @@ function blackHole(g, f) {
   say(g, "S I N G U L A R I T Y", W / 2, H * 0.86, { font: `600 22px 'Chakra Petch', ${MONO}`, color: "#66d9ff", smear: 2.4 });
 }
 
+/* The same frame on its own (den-tv.js: flashed on the dead set while it
+   lures, before the commercial has ever aired), as the tube's texture. */
+export function createSingularityFrame() {
+  const c = document.createElement("canvas");
+  c.width = 512; c.height = 512;
+  const g = c.getContext("2d");
+  g.setTransform(c.width / W, 0, 0, c.height / H, 0, 0);
+  blackHole(g, 3);
+  const texture = new THREE.CanvasTexture(c);
+  return { texture, dispose: () => texture.dispose() };
+}
+
 /* ------------------------------------------------------ the whole thing */
 
 export function createCommercial() {

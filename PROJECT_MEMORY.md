@@ -3675,3 +3675,11 @@ phone menu until "Start the story over" (which clears it).
   time home it goes over to watch first, the second press turns it on
   (pressTv has no fromMenu case any more; __DEN_TV_PRESS_MENU__ removed).
   e2e-den / nova-mobile / nova-sound press the menu again when looking.
+- Lure flashes (user: the commercial's subliminal Singularity, three
+  times, briefer): den-commercial createSingularityFrame() (its blackHole
+  frame as a texture); den-tv flash(now, 45 ms, at least one rendered
+  frame) on the dead tube; den-fx schedules FLASHES = 3: first 12-18 s
+  after it starts stirring, 2.5-4 s after the camera comes over to look,
+  then 5-8 s apart while watching (15-23 s otherwise); sound tvHaunt
+  "flash" (sub push + glint). Hooks: __DEN_TV__().flashes,
+  __DEN_TV_FLASH__(ms). The watch hint is two lines, no dot.

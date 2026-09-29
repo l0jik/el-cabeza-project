@@ -381,7 +381,8 @@ export function createAudio() {
      roll (the hum of a vertical hold slipping), tune (a dial being turned:
      the band swept, a heterodyne whistle), ghost (a far-off warble, as if
      from another station), voice (a garbled announcer, words that aren't
-     quite), phantom (a swell of static and a shimmer rising). strength
+     quite), phantom (a swell of static and a shimmer rising), flash (the
+     Singularity's frame: a push of sub-bass and a glint). strength
      0 to 1. */
   let hauntBus = null, hauntPan = null, hauntNear = 1, hauntSide = 0, hauntDist = 0;
   function tvHaunt(kind, strength = 0.5) {
@@ -444,6 +445,10 @@ export function createAudio() {
       o.connect(f1).connect(g); o.connect(f2).connect(g); g.connect(hauntBus);
       o.start(t); o.stop(t + dur + 0.05);
       burst(t, hauntBus, 0.05 * k, dur, [["bandpass", 3000, 0.6]], 0.1);
+    } else if (kind === "flash") {
+      // The Singularity for an instant: a sub-bass push and a glint, gone.
+      tone(55, 40, 0.12, 0.22, "sine");
+      tone(2400, 5200, 0.06, 0.025, "sine");
     } else if (kind === "phantom") { burst(t, hauntBus, 0.14 * k, 0.8, [["bandpass", 3000, 0.6]], 0.15); tone(220, 1760, 1.9, 0.04, "sine", 14); tone(330, 2640, 1.7, 0.024, "triangle", 10); }
   }
 

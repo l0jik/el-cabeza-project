@@ -25,7 +25,7 @@ import { canvasTexture, repaint } from "./tienda-textures.js";
 import { paintWood } from "./wood-set.js";
 import { quality } from "./tienda-quality.js";
 import * as TX from "./den-textures.js";
-import { createCommercial, COMMERCIAL_MS } from "./den-commercial.js";
+import { createCommercial, createSingularityFrame, COMMERCIAL_MS } from "./den-commercial.js";
 
 // The timeline, in ms from the moment the knob turns.
 export const TV_TIMES = {
@@ -427,6 +427,9 @@ export function buildTelevision(yF, RZ, X = -40) {
   }
   const phantoms = PHANTOM_SHAPES.map((sh, i) => makePhantom(sh, [0x5ad8ff, 0xff5aa8, 0x9dffcf, 0xb89bff, 0x5ad8ff][i]));
   let haunt = null; // the event on the tube now: { kind, at, dur, strength, tex }
+  // The Singularity for an instant (the commercial's subliminal frame,
+  // den-commercial.js), shown for at least one rendered frame.
+  let flashTex = null, flashUntil = 0, flashShown = true;
   let nextHaunt = 0, pilotStutter = 0;
   function spawnPhantom(now, strength) {
     const p = phantoms.find((x) => !x.lines.visible);
@@ -538,6 +541,14 @@ export function buildTelevision(yF, RZ, X = -40) {
       if (Math.random() < 0.15 + 0.45 * level) gap = 350 + Math.random() * 500;
       nextHaunt = now + gap * (watched ? 0.5 : 1);
     },
+    // The Singularity on the dead tube for an instant (den-fx.js: three
+    // times in all while it lures).
+    flash(now, ms = 45) {
+      if (phase !== "off") return false;
+      if (!flashTex) { flashTex = createSingularityFrame(); disposables.push(flashTex); }
+      flashUntil = now + ms; flashShown = false;
+      return true;
+    },
     // Something soon (the camera's just come over to look).
     hauntSoon(now, ms = 600) { if (!nextHaunt || nextHaunt > now + ms) nextHaunt = now + ms; },
     // How far into the commercial (ms), or null if it isn't on.
@@ -597,6 +608,11 @@ export function buildTelevision(yF, RZ, X = -40) {
           else if (h.kind === "ghost" || h.kind === "voice") { u.uTex.value = h.tex; pat = 0.85; snow = 0.6; glow = 0.42 * env; tear = 0.5 * env * (Math.random() < 0.3 ? 1 : 0.2); }
         }
       }
+      if (phase === "off" && flashTex && (now < flashUntil || !flashShown)) {
+        flashShown = true;
+        u.uTex.value = flashTex.texture;
+        raster = 1; pat = 1; snow = 0.12; glow = 0.85; line = -1; tear = 0;
+      } else if (flashTex && u.uTex.value === flashTex.texture && !(haunt && (haunt.kind === "ghost" || haunt.kind === "voice"))) u.uTex.value = pattern;
       u.uLine.value = line; u.uLineAmt.value = lineAmt; u.uTear.value = tear;
       stepPhantoms(now);
       // The picture flickers a little, the snow more.

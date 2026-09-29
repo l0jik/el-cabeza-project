@@ -460,6 +460,12 @@ export function createDenEffects(woodSet) {
     const lure = !!(novaTv && novaTv.lure && novaTv.lure());
     const LURE_WAIT = 25000, LURE_RAMP = 60000;
     let lureStart = 0, lureDone = false, lureLook = false, tvHint = null, lookSwallow = null;
+    /* And three times in all, for an instant, the Singularity itself on the
+       dead tube (the commercial's subliminal frame): once a while after it
+       starts stirring, and, once the camera's come over, soon after, then
+       again (user: three times, briefer than the commercial's). */
+    const FLASHES = 3;
+    let flashes = 0, nextFlashAt = 0;
     const tvLocked = (now) => lure && !lureDone && (!lureStart || now - lureStart < LURE_WAIT);
     function lookAtTv(on) {
       if (on === lureLook) return;
@@ -470,6 +476,7 @@ export function createDenEffects(woodSet) {
         // (Looked at before it's begun: it begins.)
         if (!lureStart || now - lureStart < LURE_WAIT) lureStart = now - LURE_WAIT;
         if (den && den.tv) den.tv.hauntSoon(now, 700);
+        if (flashes < FLASHES) nextFlashAt = Math.min(nextFlashAt || Infinity, now + 2500 + Math.random() * 1500);
       } else {
         tvGoal = 0; tvLeaveAt = performance.now() + 200;
       }
@@ -482,7 +489,9 @@ export function createDenEffects(woodSet) {
         tvHint = document.createElement("div");
         tvHint.className = "den-book-hint";
         tvHint.setAttribute("data-testid", "den-tv-hint");
-        tvHint.textContent = "Tap the set to turn it on \u00b7 anywhere else to go back";
+        tvHint.textContent = "Tap the set to turn it on\nanywhere else to go back";
+        tvHint.style.whiteSpace = "pre-line";
+        tvHint.style.textAlign = "center";
         document.body.appendChild(tvHint);
       }
       tvHint.classList.toggle("on", on);
@@ -547,12 +556,14 @@ export function createDenEffects(woodSet) {
     }
     if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook });
+      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes });
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
       // Test-only: the camera over at the set (or back), the set left as it is.
       window.__DEN_TV_LOOK__ = (on) => { tvGoal = on ? 1 : 0; };
       window.__DEN_TV_PRESS__ = pressTv;
+      // Test-only: the lure's Singularity frame on the set, held (ms).
+      window.__DEN_TV_FLASH__ = (ms) => !!(den && den.tv && den.tv.flash(performance.now(), ms));
     }
     const api = {
       armOnBegin() {},
@@ -602,6 +613,12 @@ export function createDenEffects(woodSet) {
           if (waited >= 0) {
             const level = Math.min(1, waited / LURE_RAMP);
             den.tv.haunt(now, lureLook ? Math.max(level, 0.55) : level, (kind, strength) => { lureEvents++; lastHaunt = kind; if (audio && audio.tvHaunt) audio.tvHaunt(kind, strength); }, lureLook);
+            if (!nextFlashAt && flashes < FLASHES) nextFlashAt = now + 12000 + Math.random() * 6000;
+            if (nextFlashAt && now >= nextFlashAt && flashes < FLASHES && den.tv.flash(now)) {
+              flashes++;
+              if (audio && audio.tvHaunt) audio.tvHaunt("flash", 1);
+              nextFlashAt = flashes < FLASHES ? now + (lureLook ? 5000 + Math.random() * 3000 : 15000 + Math.random() * 8000) : 0;
+            }
           }
         }
         tvDive = den.tv.animate(now, dt);

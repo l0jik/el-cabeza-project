@@ -57,10 +57,13 @@ check(`...more and more (${n || 0} more events)`, !!n);
 check("a tap on the set takes the camera over to it", (await page.evaluate(() => window.__DEN_TV_PRESS__())) === true);
 check("...to watch", !!(await poll(async () => { const t = await tv(); return t.looking && t.focus > 0.9; }, 8000, 100)));
 check("...and it's still off", (await tv()).phase === "off");
-check("...with the hint", await page.locator('[data-testid="den-tv-hint"].on').count() === 1);
+check("...with the hint, on two lines, no dot", await page.locator('[data-testid="den-tv-hint"].on').count() === 1 && !/\u00b7/.test(await page.locator('[data-testid="den-tv-hint"]').innerText()));
+check("...and soon the Singularity flashes on the dead tube", !!(await poll(async () => (await tv()).flashes >= 1, 6000, 50)), JSON.stringify(await tv()));
 check(`...its sounds louder there (${far.toFixed(2)} -> ${(await near()).toFixed(2)})`, (await near()) > far * 1.3);
 const w0 = (await tv()).lureEvents;
+if (shots) { await page.evaluate(() => window.__DEN_TV_FLASH__(1500)); await page.waitForTimeout(200); await page.screenshot({ path: `${shots}/flash.png` }); }
 await page.waitForTimeout(6000);
+check(`...no more than three times (${(await tv()).flashes})`, (await tv()).flashes <= 3);
 check(`...where it keeps stirring (${(await tv()).lureEvents - w0} in 6 s)`, (await tv()).lureEvents - w0 >= 2);
 // A tap elsewhere: back.
 const box = await page.locator("canvas").first().boundingBox();
