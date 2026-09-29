@@ -3671,3 +3671,7 @@ phone menu until "Start the story over" (which clears it).
   turns it straight on after the 25 s. Hooks: __DEN_TV_PRESS__ (tap),
   __DEN_TV_PRESS_MENU__, __DEN_TV__().looking/lastHaunt,
   __DEN_AUDIO__().haunt {near, pan, distance}.
+- The menu's "Turn on the TV" now presses like a tap (user): the first
+  time home it goes over to watch first, the second press turns it on
+  (pressTv has no fromMenu case any more; __DEN_TV_PRESS_MENU__ removed).
+  e2e-den / nova-mobile / nova-sound press the menu again when looking.

@@ -1,7 +1,7 @@
 /* Nova, home before the first Singularity: the set waits to be noticed
    (den-fx.js lure, den-tv.js haunt). For 25 s nothing; then, left alone,
-   it stirs, more and more, heard loudest near it. A tap on it takes the
-   camera over to watch (still off, stirring more often); a tap anywhere
+   it stirs, more and more, heard loudest near it. A tap on it (or the
+   menu's Turn on the TV, the same press) takes the camera over to watch (still off, stirring more often); a tap anywhere
    else goes back; a second tap on it turns it on, into Neon.
    The test moves the lure's clock on (__DEN_LURE_SKIP__).
 
@@ -36,7 +36,6 @@ const tv = () => page.evaluate(() => window.__DEN_TV__());
 const near = () => page.evaluate(() => (window.__DEN_AUDIO__ && window.__DEN_AUDIO__().haunt.near) || 0);
 let s = await tv();
 check("the set waits at first", s.lure && s.locked, JSON.stringify(s));
-check("...the menu's Turn on the TV does nothing yet", (await page.evaluate(() => window.__DEN_TV_PRESS_MENU__())) === false && (await tv()).phase === "off");
 await page.waitForTimeout(3000);
 check("...and nothing stirs yet", (await tv()).lureEvents === 0);
 await page.evaluate(() => window.__DEN_LURE_SKIP__(26000));

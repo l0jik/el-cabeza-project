@@ -453,7 +453,8 @@ export function createDenEffects(woodSet) {
        rolling bar, a dial turning, ghost pieces on the glass, a garbled
        voice, pieces of light drifting out of it), heard from its corner
        (audio.setTvListener) so the player turns to look, until it's turned
-       on. The first tap on it only takes the camera over to watch (lureLook:
+       on. The first tap on it (or the menu's Turn on the TV) only takes the
+       camera over to watch (lureLook:
        it stirs at once and twice as often there); the second turns it on.
        A tap anywhere else, or Escape, and the camera goes back. */
     const lure = !!(novaTv && novaTv.lure && novaTv.lure());
@@ -512,17 +513,13 @@ export function createDenEffects(woodSet) {
       lookListenersOn.addEventListener("pointerup", onLookUp, true);
       window.addEventListener("keydown", onLookKey, true);
     }
-    // (fromMenu: the menu's "Turn on the TV" does just that, once the set's
-    // 25 s are up; a tap on the set looks first.)
-    function pressTv(fromMenu = false) {
+    // (A tap on the set and the menu's "Turn on the TV" alike.)
+    function pressTv() {
       const set = den && den.tv;
       if (!set) return false;
       const now = performance.now();
-      if (lure && !lureDone && !set.isOn()) {
-        // The lure's first tap: over to the set, to watch.
-        if (!fromMenu && !lureLook) { lookAtTv(true); return true; }
-        if (fromMenu && !lureLook && tvLocked(now)) return false;
-      }
+      // The lure's first press: over to the set, to watch.
+      if (lure && !lureDone && !set.isOn() && !lureLook) { lookAtTv(true); return true; }
       lureDone = true;
       if (lureLook) { lureLook = false; showTvHint(false); }
       if (set.isOn()) {
@@ -548,15 +545,14 @@ export function createDenEffects(woodSet) {
       if (audio && audio.tvOn) audio.tvOn();
       return true;
     }
-    if (novaTv && novaTv.register) novaTv.register({ press: () => pressTv(true) });
+    if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
       window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook });
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
       // Test-only: the camera over at the set (or back), the set left as it is.
       window.__DEN_TV_LOOK__ = (on) => { tvGoal = on ? 1 : 0; };
-      window.__DEN_TV_PRESS__ = () => pressTv();
-      window.__DEN_TV_PRESS_MENU__ = () => pressTv(true);
+      window.__DEN_TV_PRESS__ = pressTv;
     }
     const api = {
       armOnBegin() {},
@@ -794,7 +790,7 @@ export function createDenEffects(woodSet) {
           window.removeEventListener("keydown", onLookKey, true);
           lookListenersOn = null;
         }
-        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; delete window.__DEN_TV_PRESS_MENU__; }
+        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; }
       },
     };
     /* After the chassis has set its camera: blend it toward the view of

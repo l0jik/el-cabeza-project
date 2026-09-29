@@ -538,6 +538,13 @@ async function waitFor(fn, ms = 8000) {
     await page.waitForTimeout(300);
     await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(41000)); // (past the set's 25 s wait, den-fx.js lure)
     await q(page, "shell-menu-switch-theme").click();
+    // (The first press, the first time home, only goes over to watch: den-fx.js lure.)
+    if (await page.waitForFunction(() => { const t = window.__DEN_TV__ && window.__DEN_TV__(); return !t || t.phase !== "off" || t.looking; }, null, { timeout: 5000 }).then(() => page.evaluate(() => { const t = window.__DEN_TV__ && window.__DEN_TV__(); return !!(t && t.looking); })).catch(() => false)) {
+      await page.waitForTimeout(600);
+      await q(page, "shell-menu-button").click();
+      await page.waitForTimeout(300);
+      await q(page, "shell-menu-switch-theme").click();
+    }
     if (!prompt) return;
     await waitFor(async () => (await page.locator(".ec-hold-modal-word").count()) > 0);
     await page.locator(".ec-hold-modal-word").click({ force: true });
