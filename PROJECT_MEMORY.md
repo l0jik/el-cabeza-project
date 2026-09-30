@@ -3851,3 +3851,12 @@ phone menu until "Start the story over" (which clears it).
   (clerk-back) is out (user); frame 2 is just clerk-go. 14 shots in 12
   frames (build.js CLERK_SHOTS, tests/e2e-clerk.mjs updated; the jpg stays
   in assets/tienda/clerk unused).
+- Summons singularity now looks like the Singularity's own sphere (user):
+  the sphere uses neon-singularity.js's SPHERE_FRAGMENT look (Fresnel
+  rim pow 2.5, blue 0.4/0.85/1.0, 22% breathing at 1.1 rad/s, faded in
+  with the ring's uOpen), still transparent-at-opacity-1, no depth,
+  renderOrder 10; the ring is a halo right on the disk's edge (additive,
+  renderOrder 9, geometry R*0.9..1.9, a thin line exp(-(d/0.045)^2) at
+  d = (r-R)/R = 0 plus glow exp(-d/0.16)*0.55 outside, slow 3/7-lobe arcs,
+  same breathing), fixed size (no more growing from 0.6). RING (1.25 R)
+  is now only the glow's reach for the title check.

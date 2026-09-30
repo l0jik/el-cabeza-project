@@ -60,40 +60,57 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
     top = slab.position.y + bb.max.y * slab.scale.y;
   }
   const R = S * 0.42; // the sphere
-  const RING = R * 1.45; // the ring's middle, a little out from it
+  const RING = R * 1.25; // (how far its glow reaches, for keeping it under the title)
 
-  /* ---- the singularity: a sphere of pure black ---- */
+  /* ---- the singularity: the Singularity's own sphere (user: "make it
+     look like when you go to the singularity sphere"): black, its edge
+     glowing blue in a thin Fresnel "photon ring" that breathes slowly
+     (neon-singularity.js SPHERE_FRAGMENT: pow 2.5, the same blue, 22%
+     breathing at 1.1 rad/s), and a halo hugging that edge just outside
+     it (user: the ring sits directly on the edge of the black disk). ---- */
   const group = new THREE.Group();
   group.name = "ec-summon";
-  // Completely black, like a black hole (user): no rim, nothing through
-  // it, drawn last over the ring and the pieces. (Marked transparent, at
-  // full opacity, so it's sorted with the see-through pieces, which three
-  // draws after everything solid; its renderOrder then puts it last.)
-  const sphereMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 1, depthTest: false, depthWrite: false });
+  // Nothing shows through it and nothing covers it: drawn last. (Marked
+  // transparent, at full opacity, so it's sorted with the see-through
+  // pieces, which three draws after everything solid; its renderOrder then
+  // puts it last.)
+  const sphereMat = new THREE.ShaderMaterial({
+    uniforms: { uPulsePhase: { value: 0 }, uOpen: { value: 0 } },
+    vertexShader: `varying vec3 vN; varying vec3 vV;
+      void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform float uPulsePhase, uOpen; varying vec3 vN; varying vec3 vV;
+      void main() {
+        float rim = pow(1.0 - max(dot(normalize(vN), normalize(vV)), 0.0), 2.5);
+        gl_FragColor = vec4(vec3(0.4, 0.85, 1.0) * rim * (1.0 + 0.22 * sin(uPulsePhase)) * uOpen, 1.0);
+      }`,
+    transparent: true, depthTest: false, depthWrite: false,
+  });
   sphereMat.toneMapped = false;
-  const sphere = new THREE.Mesh(new THREE.SphereGeometry(R, 40, 28), sphereMat);
+  const sphere = new THREE.Mesh(new THREE.SphereGeometry(R, 48, 32), sphereMat);
   sphere.renderOrder = 10;
   disposables.push(sphere.geometry, sphereMat);
   group.add(sphere);
 
-  /* ---- the wormhole ring: one soft blue band, brighter in places so its
-     slow turning shows, breathing a little ---- */
+  /* ---- the halo on its edge: a thin bright line right at the disk's
+     edge and a soft glow falling away outside it, turning slowly (a
+     little brighter in places, so the turning shows) ---- */
   const ringMat = new THREE.ShaderMaterial({
-    uniforms: { uOpen: { value: 0 }, uRot: { value: 0 }, uPulse: { value: 0 }, uRc: { value: RING }, uW: { value: R * 0.16 } },
+    uniforms: { uOpen: { value: 0 }, uRot: { value: 0 }, uPulsePhase: { value: 0 }, uR: { value: R } },
     vertexShader: `varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform float uOpen, uRot, uPulse, uRc, uW; varying vec2 vP;
+    fragmentShader: `uniform float uOpen, uRot, uPulsePhase, uR; varying vec2 vP;
       void main() {
         float r = length(vP), a = atan(vP.y, vP.x);
-        float x = (r - uRc) / uW;
-        float band = exp(-x * x) + 0.35 * exp(-x * x * 0.12);
-        float arcs = 0.72 + 0.2 * sin(a * 3.0 + uRot) + 0.08 * sin(a * 7.0 - uRot * 1.6);
-        float k = band * arcs * uOpen * (0.82 + 0.18 * uPulse);
-        gl_FragColor = vec4(vec3(0.38, 0.84, 1.0) * k, k);
+        float d = (r - uR) / uR;                       // 0 at the edge
+        float line = exp(-pow(d / 0.045, 2.0));        // the edge itself
+        float glow = d > 0.0 ? exp(-d / 0.16) * 0.55 : 0.0; // falling away outside
+        float arcs = 0.84 + 0.11 * sin(a * 3.0 + uRot) + 0.05 * sin(a * 7.0 - uRot * 1.6);
+        float k = (line + glow) * arcs * uOpen * (1.0 + 0.22 * sin(uPulsePhase));
+        gl_FragColor = vec4(vec3(0.4, 0.85, 1.0) * k, k);
       }`,
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
   });
-  const ring = new THREE.Mesh(new THREE.RingGeometry(RING - R * 1.1, RING + R * 1.1, 160, 1), ringMat);
-  ring.renderOrder = 5;
+  const ring = new THREE.Mesh(new THREE.RingGeometry(R * 0.9, R * 1.9, 160, 1), ringMat);
+  ring.renderOrder = 9;
   disposables.push(ring.geometry, ringMat);
   group.add(ring);
   group.visible = false;
@@ -313,8 +330,8 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
       group.scale.setScalar(Math.max(0.001, appear));
       ringMat.uniforms.uOpen.value = ease((tau - RING_AT) / RING_S);
       ringMat.uniforms.uRot.value = tau * 0.35;
-      ringMat.uniforms.uPulse.value = Math.sin(tau * Math.PI * 2 * 0.45);
-      ring.scale.setScalar(0.6 + 0.4 * ringMat.uniforms.uOpen.value + 0.03 * Math.sin(tau * Math.PI * 2 * 0.45));
+      ringMat.uniforms.uPulsePhase.value = sphereMat.uniforms.uPulsePhase.value = tau * 1.1; // the Singularity's breathing
+      sphereMat.uniforms.uOpen.value = ringMat.uniforms.uOpen.value;
       // Facing the camera, whatever the board's turn.
       t.camera.getWorldQuaternion(qFace); group.getWorldQuaternion(qT);
       ring.quaternion.copy(qT.invert()).multiply(qFace);
