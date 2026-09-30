@@ -10,9 +10,9 @@
      the picture), for about five seconds.
    - The ring: once a game is under way (a while after it begins, and after
      the thought), the avocado desk set on the credenza (den-room.js) rings:
-     a Western Electric bell, two small gongs struck in turn by one clapper
-     twenty times a second, two seconds on, four off, from where the phone
-     is (den-audio.js phoneOutput / setPhoneListener). "Pick up" on the
+     the user's recording of a Stromberg-Carlson 1543 (its first three rings,
+     lo-fi as recorded, one after another; a synthesized two-gong bell if
+     it can't load), two seconds on, four off, from where the phone is (den-audio.js phoneOutput / setPhoneListener). "Pick up" on the
      slip that comes up, or a tap on the phone itself, answers it. Left
      ringing, it gives up after eight rings and tries again a while later.
    - The call: the receiver lifted (a clunk), the line open (a faint hiss),
@@ -125,10 +125,58 @@ export function createDenCall({ audio, awaitingBegin }) {
   }
   const track = (list, n) => { list.push(n); return n; };
 
-  // One ring: both gongs, the clapper's twenty strikes a second. (Measured
+  /* The bell itself: the user's recording of a Stromberg-Carlson 1543
+     (assets/den/phone_ring.mp3: its first three rings, 6 s apart, as
+     recorded, hiss and all; the talk at the end of the recording cut).
+     Each ring plays one of the three in turn, so no two in a row are the
+     same. Until it's loaded (or if it can't be), the synthesized bell
+     below stands in. */
+  const RING_URL = "el-cabeza-den-phone-ring.mp3", RING_SLOT = 6, RING_TAKES = 3, RING_LEVEL = 0.4;
+  let ringBuf = null, ringLoading = false, takes = 0, ringEl = null, ringElGain = null, ringElStop = 0;
+  function loadRing() {
+    const o = output();
+    if (ringBuf || ringEl || ringLoading || !o) return;
+    ringLoading = true;
+    // (A page opened from disk can't fetch: an <audio> element there,
+    // sent through the same way, seeking to each ring's slot.)
+    if (typeof location !== "undefined" && location.protocol === "file:") {
+      if (typeof Audio === "undefined") return;
+      const el = new Audio(RING_URL); el.preload = "auto";
+      el.addEventListener("canplay", () => {
+        if (ringEl) return;
+        try { ringElGain = o.ctx.createGain(); ringElGain.gain.value = RING_LEVEL; o.ctx.createMediaElementSource(el).connect(ringElGain).connect(o.ring); ringEl = el; } catch (e) { /* the synthesized bell */ }
+      }, { once: true });
+      el.load();
+      return;
+    }
+    if (typeof fetch === "undefined") return;
+    fetch(RING_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b)).then((buf) => { ringBuf = buf; }).catch(() => { /* the synthesized bell, then */ });
+  }
+  function ring(t) {
+    const o = output();
+    if (!o) return;
+    if (ringBuf) {
+      const src = o.ctx.createBufferSource(); src.buffer = ringBuf;
+      const g = o.ctx.createGain(); g.gain.value = RING_LEVEL;
+      src.connect(g).connect(o.ring);
+      const k = takes++ % RING_TAKES;
+      src.start(t, k * RING_SLOT, Math.min(RING_SLOT, ringBuf.duration - k * RING_SLOT));
+      track(ringNodes, src); track(ringNodes, g);
+      return;
+    }
+    if (ringEl) {
+      const k = takes++ % RING_TAKES;
+      try { ringElGain.gain.cancelScheduledValues(o.ctx.currentTime); ringElGain.gain.setValueAtTime(RING_LEVEL, o.ctx.currentTime); ringEl.currentTime = k * RING_SLOT; const pl = ringEl.play(); if (pl && pl.catch) pl.catch(() => {}); } catch (e) { /* fine */ }
+      clearTimeout(ringElStop);
+      ringElStop = setTimeout(() => { try { ringEl.pause(); } catch (e) { /* fine */ } }, RING_SLOT * 1000 - 60);
+      return;
+    }
+    synthRing(t);
+  }
+  // A synthesized ring: both gongs, the clapper's twenty strikes a second. (Measured
   // near the phone at about -25 dB RMS: a ringer is meant to be heard
   // across the house; the caller in the ear about -22.)
-  function ring(t) {
+  function synthRing(t) {
     const o = output();
     if (!o) return;
     const { ctx } = o;
@@ -162,6 +210,7 @@ export function createDenCall({ audio, awaitingBegin }) {
   function stopRinging() {
     const o = output();
     const now = o ? o.ctx.currentTime : 0;
+    if (ringEl && ringElGain) { ringElGain.gain.setTargetAtTime(0, now, 0.05); clearTimeout(ringElStop); ringElStop = setTimeout(() => { try { ringEl.pause(); } catch (e) { /* fine */ } }, 300); }
     ringNodes.forEach((n) => {
       try {
         if (n.gain) { n.gain.cancelScheduledValues(now); n.gain.setTargetAtTime(0, now, 0.05); } else n.stop(now + 0.3);
@@ -391,6 +440,7 @@ export function createDenCall({ audio, awaitingBegin }) {
       return;
     }
     if (stage === "wait") {
+      loadRing(); // (the bell's recording, ahead of its moment)
       const playing = !awaitingBegin();
       if (!playing) { playSince = 0; return; }
       if (!playSince) playSince = now;
@@ -436,6 +486,8 @@ export function createDenCall({ audio, awaitingBegin }) {
     answer,
     dispose() {
       timers.forEach(clearTimeout); timers = [];
+      clearTimeout(ringElStop);
+      if (ringEl) { try { ringEl.pause(); ringEl.removeAttribute("src"); } catch (e) { /* fine */ } }
       stopRinging();
       callNodes.forEach((n) => { try { n.stop(); } catch (e) { /* done */ } });
       if (tel) { try { tel.outG.disconnect(); } catch (e) { /* fine */ } }

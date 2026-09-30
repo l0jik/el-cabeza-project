@@ -27,7 +27,7 @@
    full-range mix on a computer, a phone-speaker mix on a phone. */
 
 import * as THREE from "three";
-import { getBoardDimensions } from "../engine/constants.js";
+import { getBoardDimensions, ORBIT_SENS_THETA, ORBIT_SENS_PHI } from "../engine/constants.js";
 import { createSummonSound, summonMixFor } from "./neon-summon-audio.js";
 
 // Set by Nova's Neon (apps/unified.jsx) each render: Neon's own reveal.
@@ -37,7 +37,7 @@ const WAVES = 6;
 const APPEAR_AT = 0.4, TURN_AT = 1.3, TURN_S = 2.0, LIFT_AT = 1.7, LIFT_S = 2.0, RING_AT = 1.7, RING_S = 1.6, WAVES_AT = 3.6;
 const ease = (x) => { const c = Math.max(0, Math.min(1, x)); return c * c * (3 - 2 * c); };
 
-export function mountSummon(three, { delay = 1200, audio = null } = {}) {
+export function mountSummon(three, { delay = 1200, audio = null, cam = null } = {}) {
   const t = three.current;
   if (!t || !t.boardGroup || !t.pieceGroup || !t.renderer) return null;
   // Its sound, through the soundscape's interface channel.
@@ -60,6 +60,99 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
     top = slab.position.y + bb.max.y * slab.scale.y;
   }
   const R = S * 0.42; // the sphere
+
+  /* ---- the gravity well (user: the board's grid itself warping, "like a
+     sheet of spacetime pulled up toward the singularity"): while the
+     summons is up, the grid's lines, its border and its glow are drawn
+     by finely subdivided copies whose vertices are lifted toward the
+     singularity above the board's middle (a soft peak, 1 / (1 + (r/sig)^2),
+     drawn in a little as it rises), breathing slowly; growing with the
+     build; and each thunderclap sends a ripple out across it from the
+     middle. The real grid is hidden meanwhile and comes back, the sheet
+     having eased flat, when the summons ends. ---- */
+  const WELL_VERT = `uniform float uA, uSig, uPull, uRw; uniform vec2 uW[6];
+    vec3 well(vec3 p) {
+      float r = length(p.xz);
+      float k = 1.0 / (1.0 + (r * r) / (uSig * uSig));
+      vec3 q = p;
+      q.xz *= 1.0 - uPull * k;
+      float y = uA * k;
+      for (int i = 0; i < 6; i++) { float d = (r - uW[i].x) / uRw; y += uW[i].y * exp(-d * d) * cos(d * 2.2); }
+      q.y += y;
+      return q;
+    }`;
+  let well = null;
+  function buildWell() {
+    const grid = t.boardGroup.getObjectByName("ec-grid");
+    if (!grid) return null;
+    const lines = grid.getObjectByName("ec-grid-lines"), border = grid.getObjectByName("ec-grid-border"), glow = grid.getObjectByName("ec-grid-glow");
+    if (!lines) return null;
+    const box = new THREE.Box3().setFromObject(lines);
+    const ext = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / Math.max(1e-6, grid.getWorldScale(new THREE.Vector3()).x);
+    const uniforms = { uA: { value: 0 }, uSig: { value: ext * 0.3 }, uPull: { value: 0 }, uRw: { value: S * 0.7 }, uW: { value: Array.from({ length: 6 }, () => new THREE.Vector2(-100, 0)) } };
+    const parts = [];
+    // A line object, each segment cut into many, under the well.
+    const lineCopy = (src, n) => {
+      if (!src || !src.geometry) return;
+      const a = src.geometry.getAttribute("position"), out = [];
+      for (let i = 0; i + 1 < a.count; i += 2) {
+        const x0 = a.getX(i), y0 = a.getY(i), z0 = a.getZ(i), x1 = a.getX(i + 1), y1 = a.getY(i + 1), z1 = a.getZ(i + 1);
+        for (let j = 0; j < n; j++) {
+          const u = j / n, v = (j + 1) / n;
+          out.push(x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, z0 + (z1 - z0) * u, x0 + (x1 - x0) * v, y0 + (y1 - y0) * v, z0 + (z1 - z0) * v);
+        }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(out, 3));
+      const m = src.material;
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { ...uniforms, uColor: { value: m.color.clone() }, uOpacity: { value: m.opacity } },
+        vertexShader: WELL_VERT + `void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(well(position), 1.0); }`,
+        fragmentShader: `uniform vec3 uColor; uniform float uOpacity; void main() { gl_FragColor = vec4(uColor, uOpacity); }`,
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      });
+      mat.toneMapped = m.toneMapped;
+      const o = new THREE.LineSegments(g, mat);
+      o.position.copy(src.position); o.renderOrder = src.renderOrder;
+      disposables.push(g, mat);
+      parts.push({ src, o });
+    };
+    lineCopy(lines, 36);
+    lineCopy(border, 48);
+    if (glow && glow.geometry && glow.geometry.parameters) {
+      const { width, height } = glow.geometry.parameters;
+      const g = new THREE.PlaneGeometry(width, height, 64, 64); g.rotateX(-Math.PI / 2);
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { ...uniforms, uMap: { value: glow.material.map }, uOpacity: { value: glow.material.opacity } },
+        vertexShader: WELL_VERT + `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(well(position), 1.0); }`,
+        fragmentShader: `uniform sampler2D uMap; uniform float uOpacity; varying vec2 vUv; void main() { vec4 c = texture2D(uMap, vUv); gl_FragColor = vec4(c.rgb, c.a * uOpacity); }`,
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      });
+      const o = new THREE.Mesh(g, mat);
+      o.position.set(glow.position.x, glow.position.y, glow.position.z); o.renderOrder = glow.renderOrder;
+      disposables.push(g, mat);
+      parts.push({ src: glow, o });
+    }
+    parts.forEach(({ src, o }) => { o.userData.wasVisible = src.visible; src.visible = false; grid.add(o); });
+    return { grid, parts, uniforms, ext };
+  }
+  function wellOff() {
+    if (!well) return;
+    const w = well; well = null;
+    w.parts.forEach(({ src, o }) => { src.visible = o.userData.wasVisible; if (o.parent) o.parent.remove(o); });
+  }
+  // The sheet eased flat, then the real grid back.
+  function relaxWell(ms = 900) {
+    if (!well) return;
+    const u = well.uniforms, a0 = u.uA.value, p0 = u.uPull.value, t1 = performance.now();
+    const step = () => {
+      if (!well) return;
+      const k = Math.min(1, (performance.now() - t1) / ms), e = 1 - (1 - k) * (1 - k) * (1 - k);
+      u.uA.value = a0 * (1 - e); u.uPull.value = p0 * (1 - e);
+      u.uW.value.forEach((v) => { v.y *= 1 - e; });
+      if (k < 1) requestAnimationFrame(step); else wellOff();
+    };
+    requestAnimationFrame(step);
+  }
   const RING = R * 1.25; // (how far its glow reaches, for keeping it under the title)
 
   /* ---- the singularity: the Singularity's own sphere (user: "make it
@@ -177,13 +270,21 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
   const gather = () => t.pieceGroup.children.forEach((o) => {
     const id = o.userData && o.userData.pieceId;
     if (!id) return;
-    if (!pieces.has(id)) pieces.set(id, { parts: [], c: null, f: 0.35 + Math.random() * 0.35, ph: Math.random() * Math.PI * 2 });
+    const R = () => Math.random();
+    if (!pieces.has(id)) pieces.set(id, {
+      parts: [], c: null,
+      // (Slow, and never quite repeating: two rising-and-falling rates, a
+      // sideways wander on each axis, and a lazy tilt.)
+      f: 0.1 + R() * 0.07, f2: 0.23 + R() * 0.09, fx: 0.05 + R() * 0.05, fz: 0.06 + R() * 0.05, fw: 0.08 + R() * 0.06,
+      ph: R() * 6.28, ph2: R() * 6.28, phx: R() * 6.28, phz: R() * 6.28, phw: R() * 6.28,
+    });
     const e = pieces.get(id);
     e.parts.push({ obj: o, pos: o.position.clone(), quat: o.quaternion.clone() });
     if (o.userData.kind === "piece" || !e.c) e.c = o.position.clone();
   });
   const Y = new THREE.Vector3(0, 1, 0), qFace = new THREE.Quaternion(), qT = new THREE.Quaternion(), qI = new THREE.Quaternion();
   const sLocal = new THREE.Vector3(), dir = new THREE.Vector3(), off = new THREE.Vector3();
+  const qW = new THREE.Quaternion(), eW = new THREE.Euler(), drift = new THREE.Vector3();
   function placePieces(tau) {
     const turn = ease((tau - TURN_AT) / TURN_S), lift = ease((tau - LIFT_AT) / LIFT_S);
     // The singularity in the pieces' own frame.
@@ -192,14 +293,21 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
       dir.copy(sLocal).sub(e.c).normalize();
       qFace.setFromUnitVectors(Y, dir);
       qT.copy(qI).slerp(qFace, 0.55 * turn);
-      // (Bobbing more than it did, user: 0.07 -> 0.16 of a square, and
-      // lifted a little higher, 0.3 -> 0.4, so the low of a bob stays
-      // clear of the board.)
-      const bob = reduceMotion ? 0 : Math.sin(tau * Math.PI * 2 * e.f + e.ph) * S * 0.16 * lift;
+      /* Adrift, like ghosts (user: slower, "more ghosty drifty", and a
+         little sideways too): a slow rise and fall (about 0.1-0.17 Hz,
+         with a faster, smaller one over it, so it never quite repeats),
+         up to 0.16 of a square; a wander of up to 0.12 of a square to
+         each side; and a lazy tilt of a few degrees. Lifted 0.4 of a
+         square, so the low of a bob stays clear of the board. */
+      const T = Math.PI * 2 * tau;
+      const bob = reduceMotion ? 0 : (0.7 * Math.sin(T * e.f + e.ph) + 0.3 * Math.sin(T * e.f2 + e.ph2)) * S * 0.16 * lift;
       const up = lift * S * 0.4 + bob;
+      if (reduceMotion) drift.set(0, 0, 0);
+      else drift.set(Math.sin(T * e.fx + e.phx) * S * 0.12 * lift, 0, Math.sin(T * e.fz + e.phz) * S * 0.12 * lift);
+      if (!reduceMotion) { eW.set(Math.sin(T * e.fw + e.phw) * 0.07 * lift, 0, Math.cos(T * e.fw * 0.8 + e.phx) * 0.06 * lift); qT.multiply(qW.setFromEuler(eW)); }
       e.parts.forEach((p) => {
         off.copy(p.pos).sub(e.c).applyQuaternion(qT);
-        p.obj.position.copy(e.c).add(off); p.obj.position.y += up;
+        p.obj.position.copy(e.c).add(off).add(drift); p.obj.position.y += up;
         p.obj.quaternion.copy(qT).multiply(p.quat);
       });
     });
@@ -294,14 +402,66 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
     return ray.ray.distanceToPoint(world) < R * 2.6 * group.scale.x;
   };
   const swallow = (e) => { e.stopPropagation(); if (e.cancelable && e.type !== "pointermove") e.preventDefault(); };
-  const onMove = (e) => { swallow(e); shield.style.cursor = performance.now() >= readyAt && hit(e) ? "pointer" : "default"; };
+  /* The board can be looked round while it waits (user: a little pinch in
+     and out, and turning the board): a drag turns it and tilts the view a
+     little, two fingers (or the wheel) zoom, within limits round where it
+     started; all on the chassis's own camera goals (cam.current), which
+     its view eases toward. The pieces can't be touched: the shield keeps
+     every event from the board. A tap (no drag) on the sphere opens the
+     way in. */
+  const ptrs = new Map();
+  let gesture = null; // { moved, span, r0 } for this touch
+  let home = null; // { radius, phi } where the view started
+  const camOk = () => !!(cam && cam.current && !reduceMotion);
+  const clampR = (r) => Math.max(home.radius * 0.6, Math.min(home.radius * 1.7, r));
+  const pinchSpan = () => { const p = [...ptrs.values()]; return p.length < 2 ? 0 : Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); };
+  const onMove = (e) => {
+    swallow(e);
+    const prev = ptrs.get(e.pointerId);
+    if (!prev) { shield.style.cursor = performance.now() >= readyAt && hit(e) ? "pointer" : "default"; return; }
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: prev.x0, y0: prev.y0 });
+    if (!gesture || !camOk()) return;
+    if (ptrs.size >= 2) {
+      const d = pinchSpan();
+      if (gesture.span && d > 0) cam.current.radius = clampR(gesture.r0 * (gesture.span / d));
+      gesture.moved = true;
+      return;
+    }
+    if (!gesture.moved && Math.hypot(e.clientX - prev.x0, e.clientY - prev.y0) < 7) return;
+    gesture.moved = true;
+    cam.current.theta += (e.clientX - prev.x) * ORBIT_SENS_THETA;
+    cam.current.phi = Math.max(home.phi - 0.3, Math.min(Math.min(1.2, home.phi + 0.25), cam.current.phi + (e.clientY - prev.y) * ORBIT_SENS_PHI));
+  };
   const onDown = (e) => {
     swallow(e);
     if (sound) sound.resume(); // (a phone starts the sound suspended until a tap)
+    try { shield.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
+    if (camOk() && !home) home = { radius: cam.current.radius, phi: cam.current.phi };
+    if (ptrs.size === 1) gesture = { moved: false, span: 0, r0: camOk() ? cam.current.radius : 0, at: e.timeStamp };
+    else if (gesture) { gesture.moved = true; gesture.span = pinchSpan(); gesture.r0 = camOk() ? cam.current.radius : 0; }
+  };
+  const onUp = (e) => {
+    swallow(e);
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.delete(e.pointerId);
+    if (ptrs.size === 1 && gesture) { gesture.span = 0; }
+    if (ptrs.size) return;
+    const g = gesture; gesture = null;
+    if (!g || g.moved || e.type === "pointercancel") return;
     if (performance.now() < readyAt || !hit(e)) return;
     if (summonBridge.reveal) summonBridge.reveal();
   };
-  ["pointerup", "click", "dblclick", "contextmenu", "wheel", "touchstart", "touchmove", "touchend"].forEach((ev) => shield.addEventListener(ev, swallow, { passive: false }));
+  const onWheel = (e) => {
+    swallow(e);
+    if (!camOk()) return;
+    if (!home) home = { radius: cam.current.radius, phi: cam.current.phi };
+    cam.current.radius = clampR(cam.current.radius * Math.exp(Math.max(-60, Math.min(60, e.deltaY)) * 0.0018));
+  };
+  ["click", "dblclick", "contextmenu", "touchstart", "touchmove", "touchend"].forEach((ev) => shield.addEventListener(ev, swallow, { passive: false }));
+  shield.addEventListener("wheel", onWheel, { passive: false });
+  shield.addEventListener("pointerup", onUp);
+  shield.addEventListener("pointercancel", onUp);
   // (A phone counts a touch as a tap for starting sound only at its end:
   // wake the sound then too.)
   ["pointerup", "touchend", "click"].forEach((ev) => shield.addEventListener(ev, () => { if (sound) sound.resume(); }));
@@ -318,6 +478,7 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
     if (!active) return;
     active = false;
     if (sound) sound.end(fade, opts);
+    if (opts && opts.last === false) wellOff(); else relaxWell();
     restorePieces();
     group.visible = false;
     if (group.parent) group.parent.remove(group);
@@ -403,6 +564,22 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
       }
       postMat.uniforms.uPinch.value = reduceMotion ? 0 : 0.004 * ease((tau - WAVES_AT) / 20);
       postMat.uniforms.uMelt.value = reduceMotion ? 0 : 0.003 * ease((tau - LIFT_AT) / 5);
+      // The well: up with the sphere's appearing, deeper as the build
+      // goes on (0.45 of a square at first, 1.8 at full), breathing, and
+      // each clap's ripple running out across it and dying away.
+      if (!well) well = buildWell();
+      if (well) {
+        const u = well.uniforms, kb = Math.min(1, Math.max(0, (tau - WAVES_AT) / 45)), on = ease((tau - APPEAR_AT) / 3);
+        const breathe = reduceMotion ? 1 : 1 + 0.12 * Math.sin(tau * 0.9) + 0.05 * Math.sin(tau * 2.3);
+        u.uA.value = S * (0.45 + 1.35 * kb) * on * breathe * (reduceMotion ? 0.5 : 1);
+        u.uPull.value = (0.05 + 0.07 * kb) * on;
+        for (let i = 0; i < WAVES; i++) {
+          const w = waves[i], v = u.uW.value[i];
+          if (!w) { v.set(-100, 0); continue; }
+          const age = tau - w.born;
+          v.set(age * well.ext * 0.42, S * 0.4 * w.strength * Math.exp(-age * 0.8) * Math.min(1, age / 0.1));
+        }
+      }
       postMat.uniforms.uTime.value = tau;
       postMat.uniforms.uCenter.value.set((ndc.x + 1) / 2, (ndc.y + 1) / 2);
     },
@@ -421,6 +598,7 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
     },
     dispose() {
       end(0.3, { last: false });
+      wellOff();
       disposables.forEach((d) => d && d.dispose && d.dispose());
     },
   };

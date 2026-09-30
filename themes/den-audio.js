@@ -311,22 +311,36 @@ export function createAudio() {
     if (!ctx || !music || !music.duck) return;
     const t = now();
     music.duck.gain.setTargetAtTime(pullGain(p), t, 0.6);
-    music.wobG.gain.setTargetAtTime(0.0035 * p, t, 0.8);
+    music.wobG.gain.setTargetAtTime(0.009 * p, t, 0.8);
+    if (music.wowG) music.wowG.gain.setTargetAtTime(0.006 * p, t, 0.8);
+    if (music.flutG) music.flutG.gain.setTargetAtTime(0.0007 * p, t, 0.8);
+    if (music.crushG) { music.crushG.gain.setTargetAtTime(0.7 * p, t, 0.8); music.cleanG.gain.setTargetAtTime(1 - 0.5 * p, t, 0.8); }
   }
   function musicGlitch(kind, strength) {
     if (!ctx || !music || !music.duck || tvPull <= 0 || music.el.paused) return;
     const t = now(), s = Math.max(0.3, Math.min(1, strength || 0.5));
-    if (kind === "thump" || kind === "static" || kind === "phantom" || kind === "flash" || kind === "flicker") {
-      // A dropout: the music all but gone for a moment.
-      const d = music.drop.gain, hold = 0.06 + 0.25 * s;
+    // (All of it harder than it was, user: the music should freak out.)
+    if (kind === "thump" || kind === "static" || kind === "phantom" || kind === "flash" || kind === "flicker" || kind === "surge") {
+      // A dropout: the music gone for a moment; and, from the static,
+      // the thump and the surge, stuttering back in, chopped.
+      const d = music.drop.gain, hold = 0.08 + 0.35 * s;
       d.cancelScheduledValues(t); d.setValueAtTime(d.value, t);
-      d.linearRampToValueAtTime(0.06, t + 0.03); d.setValueAtTime(0.06, t + 0.03 + hold); d.linearRampToValueAtTime(1, t + 0.15 + hold);
+      d.linearRampToValueAtTime(0.0, t + 0.02); d.setValueAtTime(0.0, t + 0.02 + hold);
+      let at = t + 0.02 + hold;
+      if (kind === "static" || kind === "thump" || kind === "surge") {
+        for (let i = 0; i < 3 + Math.floor(3 * s); i++) { d.setValueAtTime(1, at); d.setValueAtTime(0.05, at + 0.04 + Math.random() * 0.05); at += 0.07 + Math.random() * 0.08; }
+      }
+      d.linearRampToValueAtTime(1, at + 0.12);
     }
-    if (kind === "roll" || kind === "tune" || kind === "ghost" || kind === "voice" || kind === "flash" || kind === "pilot") {
-      // The warp: the pitch sags (the delay drawn out) and comes back.
+    if (kind === "roll" || kind === "tune" || kind === "ghost" || kind === "voice" || kind === "flash" || kind === "pilot" || kind === "knob" || kind === "surge") {
+      /* The warp: the pitch sags a long way (the delay drawn out: -8% at
+         full strength) and comes back, sometimes overshooting into a
+         lurch sharp, like a turntable grabbed and let go. */
       const w = music.warp.delayTime, base = 0.03;
       w.cancelScheduledValues(t); w.setValueAtTime(base, t);
-      w.linearRampToValueAtTime(base + 0.014 * s, t + 0.2 + 0.15 * s); w.linearRampToValueAtTime(base, t + 0.7 + 0.3 * s);
+      w.linearRampToValueAtTime(base + 0.04 * s, t + 0.25 + 0.2 * s);
+      if (Math.random() < 0.5) { w.linearRampToValueAtTime(Math.max(0.004, base - 0.02 * s), t + 0.55 + 0.3 * s); w.linearRampToValueAtTime(base, t + 1.0 + 0.35 * s); }
+      else w.linearRampToValueAtTime(base, t + 0.8 + 0.35 * s);
     }
   }
   function stopMusic() {
@@ -350,13 +364,32 @@ export function createAudio() {
     const tone = ctx.createBiquadFilter(); tone.type = "lowpass"; tone.frequency.value = track.medium === "8track" ? 9000 : 13000;
     // (Then the set's pull: a warping delay, its duck, its dropouts.)
     const warp = ctx.createDelay(0.2); warp.delayTime.value = 0.03;
+    /* The set's pull on it: a wow (0.55 Hz, and a slower 0.13 Hz under
+       it, so it never settles), a flutter (7 Hz), all deeper as the pull
+       grows (about 3% of pitch at full); and the sound itself going bad,
+       crossfaded in with the pull: overdriven and squeezed into a
+       telephone's band, like a set picking it up badly. */
     const wob = ctx.createOscillator(); wob.frequency.value = 0.55;
-    const wobG = ctx.createGain(); wobG.gain.value = 0.0035 * tvPull;
+    const wobG = ctx.createGain(); wobG.gain.value = 0.009 * tvPull;
     wob.connect(wobG).connect(warp.delayTime); wob.start();
+    const wow = ctx.createOscillator(); wow.frequency.value = 0.13;
+    const wowG = ctx.createGain(); wowG.gain.value = 0.006 * tvPull;
+    wow.connect(wowG).connect(warp.delayTime); wow.start();
+    const flut = ctx.createOscillator(); flut.frequency.value = 7;
+    const flutG = ctx.createGain(); flutG.gain.value = 0.0007 * tvPull;
+    flut.connect(flutG).connect(warp.delayTime); flut.start();
+    const cleanG = ctx.createGain(); cleanG.gain.value = 1 - 0.5 * tvPull;
+    const crush = ctx.createWaveShaper();
+    crush.curve = Float32Array.from({ length: 1024 }, (_, i) => Math.tanh(((i / 1023) * 2 - 1) * 5) * 0.6);
+    const cbp = ctx.createBiquadFilter(); cbp.type = "bandpass"; cbp.frequency.value = 1300; cbp.Q.value = 0.9;
+    const crushG = ctx.createGain(); crushG.gain.value = 0.7 * tvPull;
     const duck = ctx.createGain(); duck.gain.value = pullGain(tvPull);
     const drop = ctx.createGain(); drop.gain.value = 1;
-    src.connect(tone).connect(warp).connect(duck).connect(drop).connect(musicBus);
-    const extra = [tone, warp, wob, wobG, duck, drop];
+    src.connect(tone).connect(warp);
+    warp.connect(cleanG).connect(duck);
+    warp.connect(crush).connect(cbp).connect(crushG).connect(duck);
+    duck.connect(drop).connect(musicBus);
+    const extra = [tone, warp, wob, wobG, wow, wowG, flut, flutG, cleanG, crush, cbp, crushG, duck, drop];
     // A track already put through the console's treatment (track.treated:
     // tools/console_1974_turntable.py) has its hiss and crackle in it.
     if (!track.treated) {
@@ -366,7 +399,7 @@ export function createAudio() {
       bed.connect(bf).connect(bg).connect(musicBus); bed.start();
       extra.push(bed, bf, bg);
     }
-    music = { el, src, extra, track, warp, wobG, duck, drop };
+    music = { el, src, extra, track, warp, wobG, wowG, flutG, cleanG, crushG, duck, drop };
     roomFollowMusic();
     el.addEventListener("ended", () => { if (music && music.el === el) { stopMusic(); if (onEnd) onEnd(); } });
     const p = el.play();
@@ -528,6 +561,19 @@ export function createAudio() {
       tone(55, 40, 0.12, 0.22, "sine");
       tone(2400, 5200, 0.06, 0.025, "sine");
     } else if (kind === "phantom") { burst(t, hauntBus, 0.14 * k, 0.8, [["bandpass", 3000, 0.6]], 0.15); tone(220, 1760, 1.9, 0.04, "sine", 14); tone(330, 2640, 1.7, 0.024, "triangle", 10); }
+    else if (kind === "knob") {
+      // The knob turning by itself: the detent's clicks, a little way and
+      // back, and the set's thump as if it nearly came on.
+      for (let i = 0; i < 6; i++) burst(t + i * (0.06 + Math.random() * 0.05) + (i > 2 ? 0.25 : 0), hauntBus, 0.09 * k, 0.012, [["bandpass", 2600, 2.5]]);
+      tone(62, 40, 0.35, 0.18, "sine", 0, t + 0.12);
+    } else if (kind === "surge") {
+      // A surge through the dead set: a whine climbing to the flyback's
+      // pitch, static rising under it, and a thump as it lets go.
+      tone(180, 3200, 1.6, 0.05, "sawtooth", 18);
+      tone(15734, 15500, 1.6, 0.012);
+      burst(t, hauntBus, 0.16 * k, 1.6, [["bandpass", 2600, 0.6]], 0.9);
+      tone(70, 36, 0.4, 0.28, "sine", 0, t + 1.55);
+    }
   }
 
   /* The late-night commercial's sound (den-commercial.js, cued to its

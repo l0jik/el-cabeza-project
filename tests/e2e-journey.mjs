@@ -81,11 +81,12 @@ async function page(url, init) {
   console.log("Tienda and Standard, after it (the flag set, as the sphere sets it)");
   for (const url of ["el-cabeza-tienda.html", "el-cabeza-standard.html"]) {
     const { p, ctx, errs } = await page(url, () => { try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } });
+    // (The note first: a tap elsewhere, as opening the rules is, puts it away.)
+    if (url === "el-cabeza-tienda.html") check("the note that special orders are open", await has(p, "tienda-special-note"));
     const r = await rulesView(p);
     check(`${url}: MOVES has the laws and the shelter`, r.moves.classic === "false" && r.moves.slide && r.moves.pivot && r.moves.hole && r.moves.shelter, JSON.stringify(r.moves));
     check(`${url}: ABOUT mentions them again`, r.aboutMentions);
     if (url === "el-cabeza-tienda.html") {
-      check("the note that special orders are open", await has(p, "tienda-special-note"));
       check("...and the lid offers Custom rules", /Custom rules/i.test(await q(p, "tienda-lid-order").innerText()));
       await q(p, "tienda-lid-order").click();
       await poll(() => has(p, "tienda-order"), 8000);
@@ -121,7 +122,9 @@ async function page(url, init) {
 {
   console.log("Nova: Start the story over locks them again");
   const { p, ctx, errs } = await page("el-cabeza-nova.html", () => {
-    try { localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true })); localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ }
+    // (The special-orders note seen: the first time through it's the only
+    // thing on the screen that takes a tap, e2e-story.)
+    try { localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true })); localStorage.setItem("el-cabeza:singularity-seen", "1"); localStorage.setItem("el-cabeza:special-order-noted", "1"); } catch (e) { /* none */ }
   });
   await p.waitForTimeout(2000);
   const r = await rulesView(p);

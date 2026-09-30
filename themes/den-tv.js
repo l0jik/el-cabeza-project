@@ -430,7 +430,7 @@ export function buildTelevision(yF, RZ, X = -40) {
   // The Singularity for an instant (the commercial's subliminal frame,
   // den-commercial.js), shown for at least one rendered frame.
   let flashTex = null, flashUntil = 0, flashShown = true;
-  let nextHaunt = 0, pilotStutter = 0;
+  let nextHaunt = 0, pilotStutter = 0, knobWiggle = 0, surgeLight = 0;
   function spawnPhantom(now, strength) {
     const p = phantoms.find((x) => !x.lines.visible);
     if (!p) return;
@@ -459,20 +459,24 @@ export function buildTelevision(yF, RZ, X = -40) {
   // the same one twice running: it keeps changing, user).
   let lastKind = "";
   function nextEvent(now, level, onEvent) {
-    const strength = 0.45 + 0.55 * level;
-    const kinds = [["flicker", 0.7], ["pilot", 0.4], ["thump", 1], ["static", 1], ["roll", 0.7]];
-    if (level > 0.12) kinds.push(["tune", 1]);
-    if (level > 0.25) kinds.push(["ghost", 0.6 + 0.6 * level], ["voice", 0.5 + 0.7 * level]);
-    if (level > 0.4) kinds.push(["phantom", 1.3 * level]);
+    /* (Weirder and stronger than it was, user: the ghosts and the pieces
+       of light come sooner and more often, and two more: the knob
+       turning by itself, and a surge that floods the room with the
+       tube's light.) */
+    const strength = 0.6 + 0.4 * level;
+    const kinds = [["flicker", 0.6], ["pilot", 0.4], ["thump", 1], ["static", 1], ["roll", 0.7], ["knob", 0.5 + 0.5 * level]];
+    if (level > 0.05) kinds.push(["tune", 1], ["ghost", 0.7 + 0.8 * level]);
+    if (level > 0.12) kinds.push(["voice", 0.6 + 0.8 * level], ["surge", 0.4 + 0.8 * level]);
+    if (level > 0.2) kinds.push(["phantom", 0.6 + 1.4 * level]);
     const pool = kinds.filter(([k]) => k !== lastKind);
     const total = pool.reduce((a, [, w]) => a + w, 0);
     let r = Math.random() * total, kind = pool[0][0];
     for (const [k, w] of pool) { if ((r -= w) <= 0) { kind = k; break; } }
     lastKind = kind;
-    const dur = { flicker: 160, pilot: 900, thump: 380, static: 320 + 500 * level, roll: 1400, tune: 1300, ghost: 520 + 600 * level, voice: 1500, phantom: 800 }[kind];
+    const dur = { flicker: 160, pilot: 900, thump: 380, static: 320 + 500 * level, roll: 1400, tune: 1300, ghost: 700 + 900 * level, voice: 1500, phantom: 900, knob: 900, surge: 1650 }[kind];
     if (kind === "pilot") pilotStutter = now + dur;
     else haunt = { kind, at: now, dur, strength, tex: ghostTexs[Math.floor(Math.random() * ghostTexs.length)] };
-    if (kind === "phantom") { spawnPhantom(now, strength); if (level > 0.7 && Math.random() < 0.6) spawnPhantom(now + 120, strength); }
+    if (kind === "phantom") { spawnPhantom(now, strength); if (level > 0.35 && Math.random() < 0.7) spawnPhantom(now + 120, strength); if (level > 0.7 && Math.random() < 0.6) spawnPhantom(now + 260, strength); }
     if (onEvent) onEvent(kind, strength);
   }
 
@@ -537,8 +541,8 @@ export function buildTelevision(yF, RZ, X = -40) {
       // Every 9 s or so at first, every 2.5 s at the end; now and then (more
       // as it goes on) another straight after, a flurry. Watched close up,
       // twice as often.
-      let gap = (9000 - 6500 * level) * (0.7 + Math.random() * 0.6);
-      if (Math.random() < 0.15 + 0.45 * level) gap = 350 + Math.random() * 500;
+      let gap = (6500 - 4700 * level) * (0.7 + Math.random() * 0.6);
+      if (Math.random() < 0.25 + 0.5 * level) gap = 300 + Math.random() * 450;
       nextHaunt = now + gap * (watched ? 0.5 : 1);
     },
     // The Singularity on the dead tube for an instant (den-fx.js: three
@@ -557,7 +561,8 @@ export function buildTelevision(yF, RZ, X = -40) {
     // dive's progress (0 to 1), for the camera.
     animate(now, dt) {
       knobA += (knobGoal - knobA) * (1 - Math.exp(-dt * 18));
-      power.rotation.z = knobA;
+      power.rotation.z = knobA + knobWiggle;
+      knobWiggle = 0;
       u.uTime.value = now / 1000;
       const s = since(now);
       let raster = 0, snow = 0, pat = 0, dive = 0, glow = 0, dot = 0;
@@ -600,12 +605,28 @@ export function buildTelevision(yF, RZ, X = -40) {
         } else {
           const h = haunt, env = Math.sin(Math.PI * Math.min(1, k)) * h.strength;
           raster = 1;
-          if (h.kind === "flicker") { snow = 1; glow = 0.28 * env * (Math.random() < 0.5 ? 1 : 0.3); }
-          else if (h.kind === "thump") { snow = 1; glow = 0.62 * Math.pow(1 - k, 2) * h.strength; tear = 0.4 * (1 - k); }
-          else if (h.kind === "static" || h.kind === "phantom") { snow = 1; glow = 0.48 * env; tear = 0.3 * env; }
-          else if (h.kind === "roll") { snow = 1; glow = 0.14 * env; line = 1 - k; lineAmt = 0.6 * env; }
-          else if (h.kind === "tune") { snow = 1; glow = 0.36 * env; tear = 0.35 * env * (Math.random() < 0.4 ? 1 : 0.3); line = (k * 2.3) % 1; lineAmt = 0.45 * env; }
-          else if (h.kind === "ghost" || h.kind === "voice") { u.uTex.value = h.tex; pat = 0.85; snow = 0.6; glow = 0.42 * env; tear = 0.5 * env * (Math.random() < 0.3 ? 1 : 0.2); }
+          if (h.kind === "flicker") { snow = 1; glow = 0.4 * env * (Math.random() < 0.5 ? 1 : 0.3); }
+          else if (h.kind === "thump") { snow = 1; glow = 0.85 * Math.pow(1 - k, 2) * h.strength; tear = 0.6 * (1 - k); }
+          else if (h.kind === "static" || h.kind === "phantom") { snow = 1; glow = 0.62 * env; tear = 0.45 * env; }
+          else if (h.kind === "roll") { snow = 1; glow = 0.24 * env; line = 1 - k; lineAmt = 0.8 * env; }
+          else if (h.kind === "tune") { snow = 1; glow = 0.5 * env; tear = 0.5 * env * (Math.random() < 0.4 ? 1 : 0.3); line = (k * 2.3) % 1; lineAmt = 0.6 * env; }
+          else if (h.kind === "ghost" || h.kind === "voice") {
+            // The ghost of a piece, and now and then it jumps, rolls and
+            // doubles: the set half catching something.
+            u.uTex.value = h.tex; pat = 0.95; snow = 0.5; glow = 0.6 * env;
+            tear = 0.7 * env * (Math.random() < 0.35 ? 1 : 0.2);
+            if (Math.random() < 0.25) { line = Math.random(); lineAmt = 0.7 * env; }
+          } else if (h.kind === "knob") {
+            // The knob turns a little way by itself, clicking, and back;
+            // the tube nearly lights.
+            snow = 0.8; glow = 0.3 * env; tear = 0.25 * env;
+            knobWiggle = 0.32 * Math.sin(Math.PI * Math.min(1, k * 1.6)) * (k < 0.62 ? 1 : 0) + 0.06 * Math.sin(k * 40) * env;
+          } else if (h.kind === "surge") {
+            // Building to a glare that floods the room, then gone.
+            const up = Math.min(1, k / 0.85);
+            snow = 1; glow = (0.3 + 1.1 * up * up) * h.strength * (k < 0.9 ? 1 : (1 - k) * 10); tear = 0.8 * up; line = (k * 5.3) % 1; lineAmt = 0.5 * up;
+            surgeLight = 1.8 * up * up * h.strength * (k < 0.9 ? 1 : (1 - k) * 10);
+          }
         }
       }
       if (phase === "off" && flashTex && (now < flashUntil || !flashShown)) {
@@ -619,7 +640,8 @@ export function buildTelevision(yF, RZ, X = -40) {
       const flick = glow * (0.94 + 0.06 * Math.sin(now * 0.05) * Math.sin(now * 0.013)) * (1 + snow * 0.08 * (Math.random() - 0.5));
       u.uRaster.value = raster; u.uSnow.value = snow; u.uPattern.value = pat; u.uDive.value = dive; u.uGlow.value = flick; u.uDot.value = dot;
       const light = Math.max(dot * 0.5, flick * (0.55 + 0.45 * raster));
-      if (screenLight) screenLight.intensity = light * 0.9;
+      if (screenLight) screenLight.intensity = light * 0.9 + surgeLight;
+      surgeLight = 0;
       halo.material.opacity = light * 0.16;
       const stutter = phase === "off" && now < pilotStutter && Math.sin(now * 0.09) * Math.sin(now * 0.023) > 0.2;
       pilotMat.color.setHex(stutter || !(phase === "off" || (phase === "closing" && s > TV_TIMES.collapse)) ? 0xff3a1c : 0x3a0d08);

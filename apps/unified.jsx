@@ -113,7 +113,7 @@ const novaNeonTheme = {
      shows itself over the board (themes/neon-summon.js, the user's pick). */
   mountAmbientEffects: (refs, helpers) => {
     const base = neonTheme.mountAmbientEffects(refs, helpers);
-    const summon = !singularitySeen() && helpers && helpers.three ? mountSummon(helpers.three, { audio: helpers.audio }) : null;
+    const summon = !singularitySeen() && helpers && helpers.three ? mountSummon(helpers.three, { audio: helpers.audio, cam: helpers.cam }) : null;
     if (!summon) return base;
     return {
       ...base,
@@ -546,7 +546,7 @@ function UnifiedApp() {
         ? [
             switchTheme,
             !storeGone() && { key: "back-to-store", testid: "shell-menu-back-to-store", label: "Back to the store", detail: "Where the game came from", onClick: () => storyBridge.backToStore() },
-            { key: "restart", testid: "shell-menu-restart", label: "Start the story over", detail: "From the store's shelf", onClick: () => storyBridge.restart() },
+            { key: "restart", testid: "shell-menu-restart", label: "Restart story", detail: "From the store's shelf", onClick: () => storyBridge.restart() },
           ].filter(Boolean)
         : [switchTheme];
     return { preferBar: layoutPref === "bar", onLayoutChange, menuItems: items };

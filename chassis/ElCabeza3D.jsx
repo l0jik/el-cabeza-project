@@ -1667,7 +1667,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // And how far out: a room may let the camera further back than the
   // board alone would (the store's zoomMax). Read at use, since the
   // board's own limit changes with its size.
-  const zoomMaxFor = () => Math.max(ZOOM_MAX_FOR_BOARD, (theme.freeCamera && theme.freeCamera.zoomMax) || 0, (cam.current.dollhouse && theme.freeCamera && theme.freeCamera.dollhouse && theme.freeCamera.dollhouse.radius) || 0);
+  // (And never less than 1.8x the board's own fitted view: on a phone that
+  // fit sits close to the fixed limit, and a pinch out barely moved,
+  // user: "pinch zooming in works pretty well, but pinch zooming out...
+  // just does not work very well". Measured on a phone in Neon: start
+  // 41.8, limit 53, against 12.8 at the closest.)
+  const zoomMaxFor = () => Math.max(ZOOM_MAX_FOR_BOARD, (theme.freeCamera && theme.freeCamera.zoomMax) || 0, (cam.current.dollhouse && theme.freeCamera && theme.freeCamera.dollhouse && theme.freeCamera.dollhouse.radius) || 0, (lastBoardFitRadiusRef.current || 0) * 1.8);
   /* A room with walls and a ceiling (theme.freeCamera.room, a box in the
      board's frame): the camera stops at them instead of going through,
      sliding in along its line of sight to the target, and comes back out

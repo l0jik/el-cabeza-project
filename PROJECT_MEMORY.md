@@ -4031,3 +4031,51 @@ phone menu until "Start the story over" (which clears it).
     Then the caller's click, and the receiver down (clunk, the bells'
     tinkle). Test hooks: __DEN_CALL__(), __DEN_CALL_NOW__(). e2e-story
     checks the thought, the rings, answering and every line to the end.
+- "Start the story over" is "Restart story" (user), on the story links
+  (tienda.js) and the phone menu (unified.jsx).
+- Pinch out (user: in works, out barely): on a phone Neon's fitted view
+  (41.8) sat close to the fixed limit (ZOOM_MAX_FOR_BOARD, 53) while in
+  went to 12.8. zoomMaxFor() is now also at least 1.8x the board's fitted
+  radius (lastBoardFitRadiusRef); the wheel shares it.
+- The summons can be looked round (user: pinch a little, turn the board):
+  the shield (which keeps every event from the board, so no piece is
+  touched) drives the chassis's camera goals itself (mountSummon gets
+  `cam`): one finger/mouse drags turn (theta) and tilt (phi, -0.3/+0.25 of
+  where it started, at most 1.2), two fingers or the wheel zoom within
+  0.6-1.7x the starting radius. A tap (no drag) on the sphere still opens
+  the invite; the reveal is now on pointerup, so a drag starting on the
+  sphere doesn't.
+- Summons pieces adrift, ghostly (user: slower, drifting, sideways too):
+  rise and fall at 0.1-0.17 Hz with a 0.23-0.32 Hz ripple on it (0.16 of
+  a square), a sideways wander on x and z (0.05-0.11 Hz, 0.12 of a
+  square), a lazy tilt (about 4 degrees); lifted 0.4.
+- The gravity well (user's pick for "the grid board warping"): while the
+  summons is up, the grid's lines (each segment cut into 36), border (48)
+  and glow (a 64x64 plane with the glow texture) are drawn by copies
+  under a vertex shader (WELL_VERT): lifted by uA / (1 + (r/sig)^2),
+  sig 0.3 of the grid, drawn in by uPull; 0.45 of a square at first to
+  1.8 at full build, breathing; each thunderclap a ripple (radius 0.42 of
+  the grid a second, 0.4 of a square x strength, dying at 0.8/s). The
+  real grid is hidden meanwhile; at the summons' end the sheet eases flat
+  (0.9 s) and the grid comes back (at once if the theme's left).
+- The sphere's arrival (user's pick: recede while it fades in): at
+  BLACKOUT -> SPHERE, s.sphereArriveAt; fitSphereToScreen puts the
+  sphereFrame 55% of the way toward the camera and eases it back (cubic)
+  over SPHERE_FADE_IN_MS. e2e-summon: 343 px on arrival, 158 settled.
+- The den's lure, weirder (user): events every (6.5 - 4.7 level) s (was
+  9 - 6.5), flurries 25-75%; ghosts and tuning from the start, voices and
+  surges from 0.12, phantoms from 0.2 (up to three at once); everything
+  brighter and more torn; the ghost jumps and rolls; new: "knob" (the power
+  knob turns a little way by itself, clicking, and back) and "surge" (a
+  whine climbing to the flyback, a glare flooding the room through the
+  screen light, a thump). The music under it (den-audio.js): wow 0.55 Hz
+  at 0.009 x pull (was 0.0035) plus 0.13 Hz at 0.006 and a 7 Hz flutter;
+  a crossfade into an overdriven, 1.3 kHz band-squeezed copy (0.7 x pull);
+  dropouts to silence and, for static/thump/surge, stuttering back;
+  pitch sags to +0.04 s of delay, half of them lurching sharp after.
+- The phone's bell is the user's recording (assets/den/phone_ring.mp3,
+  el-cabeza-den-phone-ring.mp3 beside the page): a Stromberg-Carlson 1543,
+  its first three rings (3.60-21.60 s of the file, mono, 10 ms fades, the
+  talk at the end cut, lo-fi as recorded), each ring playing the next of
+  the three 6 s slots at 0.4; the synthesized bell stands in until it's
+  loaded; from disk (file:), an <audio> element seeking to each slot.

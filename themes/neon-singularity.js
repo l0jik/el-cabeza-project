@@ -984,6 +984,20 @@ function fitSphereToScreen(t, s) {
   if (!s.sphereFrame) return;
   const k = typeof t.boardFitScale === "function" ? t.boardFitScale() : 1;
   s.sphereFrame.scale.setScalar(Number.isFinite(k) && k > 0 ? k : 1);
+  /* Its arrival (user: out of the wormhole it's big and close, and
+     moves away from you to where it rests): it comes up 55% of the way
+     from its place toward the camera, and eases back (cubic) over the
+     same ~2 s it fades in. The camera stays put; only the sphere moves,
+     along the line between them, so it shrinks toward the same spot. */
+  const age = s.sphereArriveAt ? (performance.now() - s.sphereArriveAt) / SPHERE_FADE_IN_MS : 1;
+  const reduced = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (age < 1 && t.camera && !reduced) {
+    const e = 1 - Math.pow(1 - Math.max(0, age), 3);
+    s.sphereFrame.position.copy(t.camera.position).multiplyScalar(0.55 * (1 - e));
+  } else {
+    s.sphereFrame.position.set(0, 0, 0);
+    s.sphereArriveAt = 0;
+  }
 }
 
 function buildSphere(markLabelsDirty) {
@@ -1546,6 +1560,7 @@ export function advanceSingularityScene(t, now, chromeRefs) {
     case PHASES.BLACKOUT: {
       if (now - s.blackoutStartedAt >= BLACKOUT_DWELL_MS) {
         s.phase = PHASES.SPHERE;
+        s.sphereArriveAt = performance.now();
         /* Faces the checklist toward wherever the camera actually ends
            up, rather than assuming a fixed "u=0.5 is front-facing"
            longitude. That assumption doesn't hold: the sphere's own

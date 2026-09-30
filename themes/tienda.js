@@ -500,7 +500,7 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
     // second line slid under its corner switches (user's screenshot).
     : h("div", { key: "links", style: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "nowrap", width: "100%" } },
         !gone && link("store", "Back to the store", story.onBackToStore, "story-back-to-store"),
-        link("over", "Start the story over", story.onRestart, "story-restart"));
+        link("over", "Restart story", story.onRestart, "story-restart"));
   // Back after the story the table has no game on it: only the purchase
   // (which is the clerk's scene), no Custom rules or Begin Game.
   if (after) return h("div", { style: { display: "flex", flexDirection: "column", gap: 8, width: "100%" } }, under);

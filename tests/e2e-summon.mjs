@@ -79,10 +79,13 @@ console.log("the first arrival");
   // Then the way in: the Singularity's sphere at its own size, not huge
   // (the summons once hid the dock outright, the board went unfitted, and
   // the sphere came up filling the screen).
-  const sphereR = await poll(() => page.evaluate(() => {
+  const radius = (settled) => page.evaluate((settled) => {
     const t = window.__EC_TEST_THREE__ && window.__EC_TEST_THREE__();
     const f = t && t.singularity && t.singularity.sphereFrame;
     if (!f || !f.visible || !f.parent) return null;
+    // (It arrives big and close and eases back to its place: settled,
+    // once that's over.)
+    if (settled && t.singularity.sphereArriveAt) return null;
     const ph = document.querySelector("[data-singularity-phase]");
     if (!ph || ph.getAttribute("data-singularity-phase") !== "sphere") return null;
     const V = t.camera.position.constructor, c = new V(), up = new V(0, 1, 0);
@@ -90,7 +93,10 @@ console.log("the first arrival");
     up.applyQuaternion(t.camera.quaternion).multiplyScalar(6 * s.y).add(c);
     c.project(t.camera); up.project(t.camera);
     return Math.hypot((up.x - c.x) * innerWidth / 2, (up.y - c.y) * innerHeight / 2);
-  }), 15000);
+  }, settled);
+  const arriveR = await poll(() => radius(false), 15000);
+  const sphereR = await poll(() => radius(true), 15000);
+  check(`...arriving big and close, then easing back (${arriveR && arriveR.toFixed(0)} px -> ${sphereR && sphereR.toFixed(0)} px)`, !!arriveR && !!sphereR && arriveR > sphereR * 1.4);
   check(`the Singularity's sphere at its own size (radius ${sphereR && sphereR.toFixed(0)} px of ${await page.evaluate(() => innerWidth)})`, !!sphereR && sphereR < 0.5 * (await page.evaluate(() => innerWidth)));
   // BACK: home, the late-night commercial on the set; a drag across the
   // screen while it plays must not move the board's camera underneath

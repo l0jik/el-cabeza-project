@@ -13,6 +13,9 @@ const DEN_RECORDS = {
   ...Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`el-cabeza-den-tape-${n}.mp3`, `assets/den/8track_${n}.mp3`])),
   // The fireplace: a recording, looped and warmed (tools/den_fire_loop.py).
   "el-cabeza-den-fire.mp3": "assets/den/fire_loop.mp3",
+  // The telephone's bell (themes/den-call.js): the user's recording of a
+  // Stromberg-Carlson 1543, its first three rings (the talk at its end cut).
+  "el-cabeza-den-phone-ring.mp3": "assets/den/phone_ring.mp3",
 };
 
 // The Games counter's photographs (themes/tienda-overlay.js ClerkScene).
