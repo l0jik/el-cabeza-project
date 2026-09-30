@@ -4,9 +4,9 @@
    down 7 semitones, fading in from silence and growing steadily louder
    over the build (gain = build^2) and never moving in pitch; and under it
    the lower, muffled thunder (9H: a dull thump and a low rumble, one hit
-   with a long dark reverb, no sweep), which plays on a growing share of
-   the shock waves: about one in six or seven at first, every one at full
-   strength.
+   with a long dark reverb, no sweep). When it claps is the scene's
+   (neon-summon.js): on a growing share of its beats, each clap bringing
+   a shock wave.
 
    Two mixes, chosen by device (summonMixFor):
    - "full" (a computer: headphones or real speakers): the whole range,
@@ -95,7 +95,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
   const room = ctx.createConvolver(); room.buffer = makeImpulse(ctx, phone ? 2.4 : 3.2, 2.6);
   chain(room, bus);
 
-  let t0 = 0, started = false, ended = false, lastUpdate = -1, acc = 0.5;
+  let t0 = 0, started = false, ended = false, lastUpdate = -1;
   // The whole: faded in as the sphere appears, then its trim (-1.6 dB).
   const whole = G(0), trim = G(dB(-1.6)), send = G(0.3);
   chain(whole, trim, bus); trim.connect(send); send.connect(room);
@@ -156,12 +156,11 @@ export function createSummonSound(out, { mix = "full" } = {}) {
       hum.gain.linearRampToValueAtTime(b * b, when + 0.1);
       thBed.gain.setTargetAtTime(0.08 + 0.07 * k, when, 0.4);
     },
-    // A shock wave: thunder on a growing share of them, spread evenly.
-    wave(strength, k, when = ctx.currentTime) {
-      if (!started || ended) return false;
-      acc += 0.15 + 0.85 * Math.pow(k, 1.6);
-      if (acc < 1) return false;
-      acc -= 1; thunderHit(when, strength); return true;
+    // A clap of thunder (the scene decides when: neon-summon.js, where it
+    // brings a shock wave with it).
+    hit(strength, when = ctx.currentTime) {
+      if (!started || ended) return;
+      thunderHit(when, strength);
     },
     resume() { if (out.resume) out.resume(); },
     end(fade = 1.5) {

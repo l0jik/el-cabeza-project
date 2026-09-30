@@ -63,7 +63,8 @@ console.log("the first arrival");
   check("the dock is put away", dockHidden);
   const atTitle = await page.evaluate(() => { const t = document.querySelector(".ec-title").getBoundingClientRect(); const el = document.elementFromPoint(t.left + t.width / 2, t.top + t.height / 2); return el && (el.getAttribute("data-testid") || el.className); });
   check(`the title's hold is still within reach (${atTitle})`, /hold-zone/.test(String(atTitle)));
-  check("shock waves are running", !!(await poll(async () => (await S()).waves >= 2, 12000)));
+  // (The first clap of thunder, and its shock wave, comes about 12 s in.)
+  check("a clap of thunder, and its shock wave", !!(await poll(async () => { const s = await S(); return s.waves >= 1 && s.sound && s.sound.thunder >= 1; }, 30000)), JSON.stringify(await S()));
   // A tap on the board does nothing.
   await page.mouse.click(110, 560);
   await page.waitForTimeout(600);

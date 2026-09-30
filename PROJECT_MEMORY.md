@@ -3811,7 +3811,8 @@ phone menu until "Start the story over" (which clears it).
   of its own (5 s IR, lp 1200) - user: reverb, NOT echo/repeats, and no
   upsweep) on a growing share of the waves: density 0.15 + 0.85 k^1.6
   through an accumulator (starts 0.5), so thunder at ~12, 20, 26, 30,
-  34 s ... then every wave. Trims as on the page: hum -9.5 dB, thunder
+  34 s ... then every wave. (Since the next change the share is decided
+  in neon-summon.js and sound.hit() just claps.) Trims as on the page: hum -9.5 dB, thunder
   +10, whole -1.6, 0.3 send into a 3.2 s room.
   Two mixes (summonMixFor: "(hover: none) and (pointer: coarse)" ->
   "phone", else "full"; localStorage "ec:summon-mix" overrides): full is
@@ -3830,3 +3831,13 @@ phone menu until "Start the story over" (which clears it).
   stopped 5 s later), end(0.3) on dispose. __EC_SUMMON__().sound =
   { mix, state, thunder }. tests/e2e-summon.mjs checks phone mix on a
   phone, full mix + thunder on a computer.
+- Summons: shock waves only with the thunder (user). neon-summon.js keeps
+  the beat (every 3 s -> 1.1 s over 45 s) and the density accumulator
+  (0.15 + 0.85 k^1.6, from 0.5); a beat that makes it through claps the
+  thunder (sound.hit) and spawns the visible shock wave (skipped under
+  reduced motion; the thunder still plays). Between claps, and from the
+  lift on, the whole frame melts: the post shader's uMelt (0.003 UV,
+  eased in over 5 s from LIFT_AT) x a two-sine wobble of the uv (spatial
+  ~1 cycle per screen, uTime * 0.13..0.23 rad/s, i.e. ~30 s swells;
+  x scaled by 1/aspect so it's even in pixels). First clap ~12 s after
+  the waves' start, so e2e-summon waits 30 s for waves >= 1.

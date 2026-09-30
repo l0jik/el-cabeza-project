@@ -7,11 +7,13 @@
    round it, a little larger than the sphere, blue, pulsing gently and
    slowly turning (nothing else orbits it: user). The pieces lift a
    little off the board and hover facing it, each bobbing on its own
-   (they don't go to it). Then the singularity starts to send out shock
-   waves, compression rings that run out across the whole screen and warp
-   it as they pass, more and more strongly (render(): the frame drawn to
-   a texture and redrawn displaced, see the chassis's ambient render
-   hook).
+   (they don't go to it). All the while the whole screen melts, very
+   slowly and very slightly. Then, with each clap of thunder (user: the
+   shock waves only blast out when the thunder hits), the singularity
+   sends out a shock wave, a compression ring that runs out across the
+   whole screen and warps it as it passes: seldom at first, then more
+   often and more strongly (render(): the frame drawn to a texture and
+   redrawn displaced, see the chassis's ambient render hook).
 
    Meanwhile the board takes no input (a shield over the canvas) and the
    dock is put away: the one thing that answers is the singularity. A
@@ -21,7 +23,7 @@
    back as they were for the collapse.
 
    Its sound (themes/neon-summon-audio.js, the user's "C6"): a low hum
-   growing from silence, and thunder on a growing share of the waves; a
+   growing from silence, and the thunder that brings each wave; a
    full-range mix on a computer, a phone-speaker mix on a phone. */
 
 import * as THREE from "three";
@@ -173,10 +175,11 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
     uniforms: {
       tDiffuse: { value: rt.texture }, uCenter: { value: new THREE.Vector2(0.5, 0.5) }, uAspect: { value: 1 },
       uR: { value: new Array(WAVES).fill(-1) }, uS: { value: new Array(WAVES).fill(0) }, uPinch: { value: 0 },
+      uMelt: { value: 0 }, uTime: { value: 0 },
     },
     vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
     fragmentShader: `precision highp float;
-      uniform sampler2D tDiffuse; uniform vec2 uCenter; uniform float uAspect, uPinch; uniform float uR[${WAVES}]; uniform float uS[${WAVES}];
+      uniform sampler2D tDiffuse; uniform vec2 uCenter; uniform float uAspect, uPinch, uMelt, uTime; uniform float uR[${WAVES}]; uniform float uS[${WAVES}];
       varying vec2 vUv;
       void main() {
         vec2 d = vUv - uCenter; d.x *= uAspect;
@@ -192,9 +195,14 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
         }
         off -= uPinch * exp(-dist * 7.0); // the space round it, drawn in a little
         vec2 o = dir * off; o.x /= uAspect;
-        vec4 c = texture2D(tDiffuse, vUv - o);
-        c.r = texture2D(tDiffuse, vUv - o * 1.12).r;
-        c.b = texture2D(tDiffuse, vUv - o * 0.88).b;
+        // The melt: a broad, slow wobble of the whole frame (a few pixels,
+        // each swell taking half a minute or so).
+        vec2 m = vec2(sin(vUv.y * 5.0 + uTime * 0.23 + 1.3 * sin(vUv.x * 3.0 + uTime * 0.17)),
+                      cos(vUv.x * 4.0 - uTime * 0.19 + 1.3 * sin(vUv.y * 3.5 - uTime * 0.13))) * uMelt;
+        m.x /= uAspect;
+        vec4 c = texture2D(tDiffuse, vUv - o - m);
+        c.r = texture2D(tDiffuse, vUv - o * 1.12 - m).r;
+        c.b = texture2D(tDiffuse, vUv - o * 0.88 - m).b;
         float k = clamp(front * 9.0, 0.0, 0.22);
         gl_FragColor = c + vec4(vec3(0.3, 0.75, 1.0) * k, k); // a faint blue at the fronts
       }`,
@@ -208,7 +216,7 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
   const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   disposables.push(quad.geometry, postMat);
   const waves = []; // { born, strength }
-  let thunder = 0; // (how many waves have had thunder: the test hook)
+  let thunder = 0, acc = 0.5; // (thunder so far: the test hook; the share's running sum)
   let nextWave = WAVES_AT;
 
   /* ---- the shield over the board, and the dock put away ---- */
@@ -313,13 +321,18 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
       ring.quaternion.copy(qT.invert()).multiply(qFace);
       if (!pieces.size) gather();
       placePieces(tau);
-      // The waves: more often and stronger as it goes on.
-      if (!reduceMotion && tau >= nextWave) {
-        const k = Math.min(1, (tau - WAVES_AT) / 45);
-        waves.push({ born: tau, strength: 0.35 + 0.65 * k });
-        if (sound && sound.wave(0.35 + 0.65 * k, k)) thunder++;
-        if (waves.length > WAVES) waves.shift();
+      // The beats (every 3 s at first, every 1.1 s at full strength), and
+      // on a growing share of them, spread evenly, thunder and its shock
+      // wave: about one in six or seven at first, every one at full.
+      if (tau >= nextWave) {
+        const k = Math.min(1, (tau - WAVES_AT) / 45), strength = 0.35 + 0.65 * k;
         nextWave = tau + (3.0 - 1.9 * k);
+        acc += 0.15 + 0.85 * Math.pow(k, 1.6);
+        if (acc >= 1) {
+          acc -= 1; thunder++;
+          if (sound) sound.hit(strength);
+          if (!reduceMotion) { waves.push({ born: tau, strength }); if (waves.length > WAVES) waves.shift(); }
+        }
       }
       const uR = postMat.uniforms.uR.value, uS = postMat.uniforms.uS.value;
       for (let i = 0; i < WAVES; i++) {
@@ -330,6 +343,8 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
         uR[i] = r; uS[i] = 0.022 * w.strength * fade * Math.min(1, r / 0.08);
       }
       postMat.uniforms.uPinch.value = reduceMotion ? 0 : 0.004 * ease((tau - WAVES_AT) / 20);
+      postMat.uniforms.uMelt.value = reduceMotion ? 0 : 0.003 * ease((tau - LIFT_AT) / 5);
+      postMat.uniforms.uTime.value = tau;
       postMat.uniforms.uCenter.value.set((ndc.x + 1) / 2, (ndc.y + 1) / 2);
     },
     // The frame, drawn through the waves (the chassis's render hook).
