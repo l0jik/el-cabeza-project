@@ -3941,3 +3941,13 @@ phone menu until "Start the story over" (which clears it).
   glowing more toward the middle, glowing cracks, fine ash; transparent
   at the ragged edges; fog: false (fog tinted the ash blue); its colour
   breathes with the flame flicker.
+- Clerk scene: the time captions (a frame's `narration`: "Later that
+  day...", "Moments later...") sit up top, above the clipping (user), in
+  the cream .td-clerk-when style (absolute, top -46px, so the panel doesn't
+  move); the yellow "You hand over the order form..." stays in the foot.
+- Den telephone (user): on the west credenza, a little left of the
+  abstract's middle (z 7.5): a Western Electric 2500 Touch-Tone desk set
+  in avocado (M.phone 0x7d8b3e, M.phoneKey cream), 1.3x life so it reads
+  from the pit; base, raised back, a sloped front with a dark bezel and
+  twelve keys (4 x 3), the cradle's two horns and the handset across them.
+  No cord (user: don't draw it; placed so it'd run off behind).

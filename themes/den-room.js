@@ -257,6 +257,8 @@ export function buildDen(boardSpan) {
     ceramicGold: baked(null, { color: 0xd3a13b }),
     ceramicOrange: baked(null, { color: 0xc0632c }),
     ceramicGreen: baked(null, { color: 0x6b7536 }),
+    phone: baked(null, { color: 0x7d8b3e }),      // avocado
+    phoneKey: baked(null, { color: 0xeee5cb }),
     leaf: baked(null, { color: 0x3e5a2a, side: THREE.DoubleSide }),
     rubberLeaf: baked(null, { color: 0x3c6a2e, side: THREE.DoubleSide }),
     sheath: baked(null, { color: 0xa2473c }),
@@ -562,6 +564,35 @@ export function buildDen(boardSpan) {
   [[-30, -4], [30, -4], [-30, 4], [30, 4]].forEach(([dz, dx]) => wallW(cyl(0.5, 0.3, 2.5, crX + dx, yF + 1.25, dz, 8), M.darkWood, 4));
   tableLamp(B, "wallW", M, crX, yF + 14.5, -26);
   tableLamp(B, "wallW", M, crX, yF + 14.5, 26);
+  /* On the credenza, a little left of the abstract's middle (user): the
+     telephone, a Western Electric 2500 desk set of 1975 in avocado, Touch-
+     Tone (the buttons on its sloped front, the handset across the cradle
+     on the raised back). Its cord isn't drawn: set this way it runs off
+     behind, to the wall (user: no cord, don't let it show). Its front
+     faces the room (+x); its width runs along the wall (z). */
+  {
+    // (1.3 times life: at life size it was lost from the pit.)
+    const S = 1.3, px = crX + 0.2, yT = yF + 14.5, pz = 7.5, th = 0.38;
+    const P = (x, y, z) => [px + S * x, yT + S * y, pz + S * z];
+    const put = (w, h, d, [x, y, z], mat, round) => wallW(box(w * S, h * S, d * S, x, y, z, { round: round * S }), mat, null);
+    const tilted = (w, h, d, [x, y, z], mat) => { const g = new THREE.BoxGeometry(w * S, h * S, d * S); g.rotateZ(-th); g.translate(x, y, z); wallW(g, mat, null); };
+    put(3.2, 0.8, 3.8, P(0, 0.4, 0), M.phone, 0.28);               // the base
+    put(1.7, 0.75, 3.8, P(-0.75, 1.17, 0), M.phone, 0.26);         // the raised back
+    // The sloped front: a panel leaning back from its front edge, the
+    // keypad's dark bezel on it, twelve cream keys in four rows of three.
+    tilted(1.8, 0.3, 3.5, P(0.6, 0.92, 0), M.phone);
+    const dX = Math.cos(th), dY = -Math.sin(th), nX = Math.sin(th), nY = Math.cos(th); // along the slope (to the front), and its face
+    tilted(1.5, 0.05, 1.45, P(0.6 + nX * 0.16, 0.92 + nY * 0.16, 0), M.black);
+    [-0.5, -0.17, 0.17, 0.5].forEach((sAlong) => [-0.44, 0, 0.44].forEach((sz) => {
+      const sx = -sAlong; // (the top row at the back of the slope)
+      tilted(0.24, 0.1, 0.3, P(0.6 + dX * sx + nX * 0.22, 0.92 + dY * sx + nY * 0.22, sz), M.phoneKey);
+    }));
+    // The cradle's two horns, and the handset resting on them: the grip
+    // across the top, the ear and mouth cups dropping at its ends.
+    [-1.25, 1.25].forEach((dz) => put(0.62, 0.34, 0.52, P(-0.75, 1.72, dz), M.phone, 0.12));
+    put(0.62, 0.5, 3.3, P(-0.72, 2.14, 0), M.phone, 0.22);
+    [-1, 1].forEach((s2) => put(1.05, 0.78, 0.95, P(-0.62, 1.72, s2 * 1.9), M.phone, 0.34));
+  }
   wallW(box(1.2, 42, 42, -RX + 0.6, yF + 33, 0), M.darkWood, 8);
   const abs = new THREE.PlaneGeometry(40, 40); abs.rotateY(Math.PI / 2); abs.translate(-RX + 1.25, yF + 33, 0);
   wallW(abs, M.abstract, null, { k: 1.15 });
