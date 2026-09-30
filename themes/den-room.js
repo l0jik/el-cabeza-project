@@ -207,6 +207,7 @@ export function buildDen(boardSpan) {
     paper: tex(TX.floralPaper(), true),
     hallPaper: tex(TX.hallPaper(), true),
     stone: tex(TX.fieldstone(), true),
+    beam: tex(TX.beam(), true),
     shagRoom: tex(TX.shag("avocado"), true),
     shagPit: tex(TX.shag("rust"), true),
     ceil: tex(TX.popcorn(), true),
@@ -234,6 +235,7 @@ export function buildDen(boardSpan) {
     paper: baked(T.paper),
     hallPaper: baked(T.hallPaper),
     stone: baked(T.stone),
+    beam: baked(T.beam),
     shagRoom: baked(T.shagRoom),
     shagPit: baked(T.shagPit),
     ceil: baked(T.ceil),
@@ -420,7 +422,8 @@ export function buildDen(boardSpan) {
   embers.rotation.x = -Math.PI / 2; embers.position.set(0, yF + hearthH + 0.35, -RZ + 3);
   B.mesh(embers, "wallN");
   // The mantel, and what's on it.
-  wallN(box(52, 2.6, 4.5, 0, yF + 21.3, -RZ + 7.2), M.walnut, 16);
+  // (A rough-hewn beam, not paneling: user.)
+  wallN(box(52, 2.6, 4.5, 0, yF + 21.3, -RZ + 7.2), M.beam, TX.BEAM_TILE);
   const vase = (x, h, r, mat) => wallN(cyl(r * 0.7, r, h, x, yF + 22.6 + h / 2, -RZ + 7, 14), mat, 6);
   vase(-20, 5, 1.2, M.ceramicGold); vase(-16.5, 3, 1.4, M.ceramicOrange); vase(18, 6.5, 0.9, M.ceramicGreen);
   wallN(cyl(0.35, 0.35, 4, 14, yF + 24.6, -RZ + 7, 8), M.marble, 4);

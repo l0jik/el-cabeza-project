@@ -119,36 +119,160 @@ export function hallPaper() {
   }, { repeat: true });
 }
 
-/* Fieldstone: rounded stones of greys, tans and browns laid in dark
-   mortar, each lit a little from above. */
-export const STONE_TILE = 22;
+/* Fieldstone (user: the rock and the mortar looked ridiculous): painted
+   pixel by pixel. Irregular stones of mixed sizes (a jittered, warped
+   Voronoi, so their outlines wander), each its own rock: greys, tans,
+   browns, a little rust and blue-grey slate, mottled at two scales,
+   speckled like granite, some with pale quartz veins, and rounded, lit
+   from above and darker into the joints. Between them a sandy grey
+   mortar with its grit showing, sunk back: shadowed under each stone's
+   edge and lighter above it. Everything periodic, so it tiles. */
+export const STONE_TILE = 20;
+const STONES = [
+  [138, 134, 128], [112, 109, 104], [154, 150, 142], [96, 94, 91], [124, 122, 118], // greys
+  [160, 148, 128], [142, 132, 116], [176, 166, 148],                               // buff
+  [118, 102, 86], [102, 90, 78],                                                   // browns
+  [140, 104, 80],                                                                  // rust
+  [100, 106, 112], [86, 91, 98],                                                   // slate
+  [190, 184, 172],                                                                 // pale
+];
 export function fieldstone() {
+  // (512 on every device: painted pixel by pixel, a bigger one costs too
+  // long on a phone, and 512 already holds the detail at this repeat.)
   return canvasTexture(512, 512, (g, W, H) => {
     const r = rng(1968);
-    g.fillStyle = "#3F3831"; g.fillRect(0, 0, W, H);
-    for (let i = 0; i < 2500; i++) { g.fillStyle = `rgba(${r() < 0.5 ? "20,16,12" : "110,100,88"},0.25)`; g.fillRect(r() * W, r() * H, 1.5, 1.5); }
-    const tones = ["#8E857A", "#A39A8C", "#7A6E62", "#B3A48E", "#6E655B", "#9C8A74", "#857563", "#A89078", "#6A5E52"];
-    const N = 5, cell = W / N;
-    for (let row = 0; row < N; row++) for (let col = 0; col < N; col++) {
-      const cx = (col + 0.5 + (r() - 0.5) * 0.3 + (row % 2) * 0.4) * cell, cy = (row + 0.5 + (r() - 0.5) * 0.25) * cell;
-      const R = cell * (0.42 + r() * 0.08), sq = 0.75 + r() * 0.35;
-      const pts = [];
-      for (let i = 0; i < 11; i++) { const a = (i / 11) * TAU; const rr = R * (0.82 + r() * 0.2); pts.push([Math.cos(a) * rr, Math.sin(a) * rr * sq]); }
-      const tone = tones[Math.floor(r() * tones.length)];
-      wrapped(W, H, cx, cy, R * 1.1, (dx, dy) => {
-        g.save(); g.translate(cx + dx, cy + dy);
-        g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath();
-        g.fillStyle = tone; g.fill();
-        g.save(); g.clip();
-        const lg = g.createLinearGradient(-R, -R, R * 0.6, R);
-        lg.addColorStop(0, "rgba(255,240,215,0.22)"); lg.addColorStop(0.55, "rgba(0,0,0,0)"); lg.addColorStop(1, "rgba(0,0,0,0.35)");
-        g.fillStyle = lg; g.fillRect(-R * 1.2, -R * 1.2, R * 2.4, R * 2.4);
-        for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(${r() < 0.5 ? "30,24,18" : "220,210,190"},${0.08 + r() * 0.1})`; g.fillRect((r() - 0.5) * R * 2, (r() - 0.5) * R * 2, 2, 2); }
-        g.restore();
-        g.strokeStyle = "rgba(20,16,12,0.6)"; g.lineWidth = 2.5; g.stroke();
-        g.restore();
+    // Periodic value noise on a lattice of `P` per side (P a power of two,
+    // so wrapping is a mask).
+    const perm = new Uint8Array(512); for (let i = 0; i < 256; i++) perm[i] = i;
+    for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const t = perm[i]; perm[i] = perm[j]; perm[j] = t; }
+    for (let i = 0; i < 256; i++) perm[i + 256] = perm[i];
+    const lat = (x, y, P) => perm[(perm[x & (P - 1)] + (y & (P - 1))) & 255] / 255;
+    const vn = (u, v, P) => {
+      const x = (u + 16) * P, y = (v + 16) * P, x0 = x | 0, y0 = y | 0; // (+16: whole periods, keeping it positive past the stones' offsets of up to 10)
+      let fx = x - x0, fy = y - y0; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+      const a = lat(x0, y0, P), b = lat(x0 + 1, y0, P), c = lat(x0, y0 + 1, P), d = lat(x0 + 1, y0 + 1, P);
+      return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+    };
+    const fbm = (u, v, P, oct) => { let s = 0, amp = 0.5, n = 0; for (let o = 0; o < oct; o++) { s += vn(u, v, P) * amp; n += amp; amp *= 0.5; P *= 2; } return s / n; };
+    // The stones: a jittered grid, N per side, each with its own rock.
+    const N = 7, sites = [];
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const base = STONES[Math.floor(r() * STONES.length)], j2 = (r() - 0.5) * 18;
+      sites.push({
+        x: (i + 0.5 + (r() - 0.5) * 0.7) / N, y: (j + 0.5 + (r() - 0.5) * 0.7) / N,
+        c: [base[0] + j2, base[1] + j2 * 0.9, base[2] + j2 * 0.8],
+        vein: r() < 0.22 ? { a: r() * Math.PI, f: 30 + r() * 40, ph: r() * 6.3 } : null,
+        mot: 0.10 + r() * 0.10, seed: r() * 10,
+        // (Weighted: some stones bigger than others, their edges curved.
+        // Kept under the closest two sites can come, 0.3 of a cell, or a
+        // heavy stone would claim a little ring inside its neighbour.)
+        w: r() * r() * 0.02,
       });
     }
+    const img = g.createImageData(W, H), px = img.data, L = [-0.45, -0.89];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const u0 = x / W, v0 = y / H;
+      // Warp, so the outlines wander rather than run straight.
+      const u = u0 + (fbm(u0, v0, 4, 2) - 0.5) * 0.06, v = v0 + (fbm(u0 + 0.37, v0 + 0.71, 4, 2) - 0.5) * 0.06;
+      let d1 = 9, d2 = 9, d3 = 9, s1 = null, dx1 = 0, dy1 = 0;
+      const ci = Math.floor(u * N), cj = Math.floor(v * N);
+      for (let oj = -1; oj <= 1; oj++) for (let oi = -1; oi <= 1; oi++) {
+        const ii = ci + oi, jj = cj + oj, wi = ((ii % N) + N) % N, wj = ((jj % N) + N) % N;
+        const st = sites[wj * N + wi], sx = st.x + (ii - wi) / N, sy = st.y + (jj - wj) / N;
+        const dx = u - sx, dy = v - sy, d = Math.sqrt(dx * dx + dy * dy) - st.w;
+        if (d < d1) { d3 = d2; d2 = d1; d1 = d; s1 = st; dx1 = dx; dy1 = dy; } else if (d < d2) { d3 = d2; d2 = d; } else if (d < d3) d3 = d;
+      }
+      // Distance to the joint, the corners rounded (a smooth minimum of the
+      // distances to the two nearest joints).
+      const ea = (d2 - d1) * 0.5, eb = (d3 - d1) * 0.5, sk = 0.012;
+      const e = -sk * Math.log(Math.exp(-ea / sk) + Math.exp(-eb / sk));
+      const mw = 0.0045 + 0.004 * vn(u0 + 0.2, v0 + 0.9, 16);  // half the joint's width
+      const len = d1 || 1, ox = dx1 / len, oy = dy1 / len;     // outward from the stone's middle
+      const lit = ox * L[0] + oy * L[1];                        // facing the light (up and a little left)
+      const grit = (perm[(x * 7 + y * 131 + ((x * y) & 1023)) & 511] / 255 - 0.5);
+      // The mortar, and (where it isn't) the stone, blended over about a
+      // pixel at the join so the edge doesn't step.
+      const aa = 1.2 / W, sm = Math.min(1, Math.max(0, (e - (mw - aa)) / (2 * aa)));
+      let R = 0, G = 0, B = 0;
+      if (sm < 1) {
+        const t = Math.min(1, Math.max(0, e) / mw), n = fbm(u0, v0, 32, 2);
+        let k = 0.78 + (n - 0.5) * 0.2 + grit * 0.22;
+        k *= 0.42 + 0.4 * (1 - t * t);                         // sunk back, darkest against the stone
+        k *= 1 + 0.25 * lit * t;                                // (lit above a stone, shadowed below)
+        R = 128 * k * (1 - sm); G = 122 * k * (1 - sm); B = 112 * k * (1 - sm);
+      }
+      if (sm > 0) {
+        // Stone: its colour, mottled, speckled, veined; rounded and lit.
+        const c = s1.c, t = Math.min(1, Math.max(0, e - mw) / 0.035);
+        const m = (fbm(u0 + s1.seed, v0 - s1.seed, 16, 3) - 0.5) * 2 * s1.mot * 2.2 + (fbm(u0, v0, 64, 2) - 0.5) * 0.12;
+        let k = 1 + m + grit * 0.12;
+        if (s1.vein) {
+          const w = Math.cos(s1.vein.a) * u0 + Math.sin(s1.vein.a) * v0;
+          const q = Math.abs(Math.sin(w * s1.vein.f + (fbm(u0, v0, 16, 2) - 0.5) * 6 + s1.vein.ph));
+          if (q < 0.06) k += 0.28 * (1 - q / 0.06);
+        }
+        const edge = 1 - t;                                     // near the joint
+        k *= 1 + 0.30 * lit * edge;                             // the rounded shoulder, lit or not
+        k *= 1 - 0.34 * edge * edge;                            // falling away into the joint
+        k *= 0.94 + 0.12 * t;                                   // the crown a little brighter
+        R += c[0] * k * sm; G += c[1] * k * sm; B += c[2] * k * sm;
+      }
+      const o = (y * W + x) * 4;
+      px[o] = R < 0 ? 0 : R > 255 ? 255 : R; px[o + 1] = G < 0 ? 0 : G > 255 ? 255 : G; px[o + 2] = B < 0 ? 0 : B > 255 ? 255 : B; px[o + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }, { repeat: true, scale: false });
+}
+
+/* The mantel (user: it looked ridiculous as paneling): one rough-hewn
+   timber beam, dark-stained, its grain running the length of it, adze
+   scallops across its face, and a few long checks (drying cracks) along
+   the grain. Horizontal, so it reads along the beam's front and top;
+   repeats across. (Square: the room maps every texture square, and a
+   long one came out stretched four times upright.) */
+export const BEAM_TILE = 16;
+export function beam() {
+  return canvasTexture(1024, 1024, (gOut, W, H) => {
+    // Painted a band wider than the texture, and that extra band folded
+    // back over the start: the last column carries straight on into the
+    // first, so where the repeat falls (the mantel's middle) there's no seam.
+    const band = Math.round(W * 0.2), WB = W + band;
+    const big = document.createElement("canvas"); big.width = WB; big.height = H;
+    const g = big.getContext("2d"), r = rng(1971);
+    paintWood(g, 0, 0, WB, H, { base: "#5C3B22", grain: "#24140A", figure: "#4A301A", horizontal: true, seed: 412, density: 0.8 });
+    // Adze marks: small shallow dents along the grain, each a darker
+    // hollow with a lit edge (not bands: those read as planks).
+    for (let i = 0; i < 500; i++) {
+      const x = r() * WB, y = r() * H, w = W * (0.012 + r() * 0.02), h = H * (0.004 + r() * 0.007);
+      g.fillStyle = `rgba(18,9,3,${0.08 + r() * 0.1})`; g.beginPath(); g.ellipse(x, y, w, h, 0, 0, TAU); g.fill();
+      g.fillStyle = `rgba(255,220,170,${0.04 + r() * 0.05})`; g.beginPath(); g.ellipse(x + w * 0.5, y - h * 0.2, w * 0.35, h * 0.7, 0, 0, TAU); g.fill();
+    }
+    // Knots: dark, with their grain swirling round.
+    for (let i = 0; i < 3; i++) {
+      const x = r() * WB, y = H * (0.1 + r() * 0.8), kr = H * (0.006 + r() * 0.006);
+      for (let q = 5; q >= 1; q--) { g.strokeStyle = `rgba(30,15,6,${0.12 + 0.1 * (5 - q) / 4})`; g.lineWidth = 1.2; g.beginPath(); g.ellipse(x, y, kr * q * 1.8, kr * q * 0.7, 0, 0, TAU); g.stroke(); }
+      g.fillStyle = "rgba(24,12,4,0.8)"; g.beginPath(); g.ellipse(x, y, kr * 1.3, kr * 0.8, 0, 0, TAU); g.fill();
+    }
+    // Checks: long thin cracks along the grain, dark with a lit lip.
+    for (let i = 0; i < 12; i++) {
+      const y0 = H * (0.05 + r() * 0.9), x0 = r() * WB * 0.8, len = W * (0.12 + r() * 0.3);
+      for (const [col, off, lw] of [["rgba(12,6,2,0.75)", 0, 2], ["rgba(255,215,160,0.12)", 2, 1]]) {
+        g.strokeStyle = col; g.lineWidth = lw;
+        g.beginPath();
+        for (let t = 0; t <= 1.0001; t += 0.05) {
+          const xx = x0 + t * len, yy = y0 + off + Math.sin(t * 9 + i) * H * 0.003 + (r() - 0.5) * 1.2;
+          t === 0 ? g.moveTo(xx, yy) : g.lineTo(xx, yy);
+        }
+        g.stroke();
+      }
+    }
+    // Old wax and handling: darker toward the edges.
+    const sh = g.createLinearGradient(0, 0, 0, H);
+    sh.addColorStop(0, "rgba(10,5,2,0.22)"); sh.addColorStop(0.45, "rgba(255,225,180,0.05)"); sh.addColorStop(1, "rgba(10,5,2,0.18)");
+    g.fillStyle = sh; g.fillRect(0, 0, WB, H);
+    gOut.drawImage(big, 0, 0, W, H, 0, 0, W, H);
+    for (let x = 0; x < band; x++) { gOut.globalAlpha = 1 - x / band; gOut.drawImage(big, W + x, 0, 1, H, x, 0, 1, H); }
+    gOut.globalAlpha = 1;
   }, { repeat: true });
 }
 

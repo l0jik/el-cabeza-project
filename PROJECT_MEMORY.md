@@ -3881,3 +3881,20 @@ phone menu until "Start the story over" (which clears it).
   without the autoplay flag, real touch taps) the toll, hum and roar all
   play at -17..-19 dB RMS through Neon's context; the den's context stays
   alive (silent) while in Neon.
+- Den fireplace (user: the rock, mortar and mantel looked ridiculous):
+  den-textures.js fieldstone() now paints per pixel (512, scale: false -
+  ~150 ms desktop; 1024 would cost seconds on a phone): a 7x7 jittered
+  (0.7), additively weighted (w <= 0.02, below the closest sites' spacing,
+  or a heavy stone claims a ring inside its neighbour) Voronoi, domain-
+  warped, corners rounded by a smooth-min of the two nearest joints;
+  STONES palette of greys/buff/brown/rust/slate/pale; stones mottled at two
+  scales, granite grit, 22% with quartz veins, rounded and lit from above,
+  darkening into the joint; mortar sand-grey, gritty, sunk back (darkest
+  against the stones), anti-aliased over ~1 px. Periodic value noise on
+  power-of-two lattices (mask wrap, +16 offset keeps it positive).
+  STONE_TILE 22 -> 20. The mantel is M.beam: beam() a square (the room
+  maps textures square; a 4:1 one came out stretched upright) rough-hewn
+  timber, horizontal grain, adze dents along the grain, knots, checks;
+  painted 20% wider and the extra folded over the start so it repeats
+  with no seam. e2e-den's draw-call line 200 -> 210 (the beam's material
+  made 200).
