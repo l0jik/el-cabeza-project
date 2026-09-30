@@ -119,24 +119,27 @@ export function hallPaper() {
   }, { repeat: true });
 }
 
-/* Flagstone (user: flat, like flagstones, not round river rock): flat
-   slabs of split stone laid in rough courses, wider than they are tall,
-   their edges straight and chipped; each slab's face flat (just tilted a
-   little, so each catches the light its own way), with the layers it was
-   split along running across it, the odd cleft step, and iron staining
-   here and there. Grey-buff, sandstone, bluestone, rust and brown. The
-   joints narrow, grey mortar sunk back, shadowed under each slab's edge.
-   Painted pixel by pixel (512 on every device: a bigger one costs too long
-   on a phone); everything periodic, so it tiles. */
+/* Fieldstone (user: the rock and the mortar looked ridiculous; flat
+   flagstone was tried and the user went back to this): painted
+   pixel by pixel. Irregular stones of mixed sizes (a jittered, warped
+   Voronoi, so their outlines wander), each its own rock: greys, tans,
+   browns, a little rust and blue-grey slate, mottled at two scales,
+   speckled like granite, some with pale quartz veins, and rounded, lit
+   from above and darker into the joints. Between them a sandy grey
+   mortar with its grit showing, sunk back: shadowed under each stone's
+   edge and lighter above it. Everything periodic, so it tiles. */
 export const STONE_TILE = 20;
 const STONES = [
-  [150, 142, 128], [168, 154, 130], [136, 128, 118], [120, 116, 110], // grey-buff, buff, greys
-  [178, 162, 134], [160, 140, 112],                                  // sandstone
-  [106, 110, 116], [92, 96, 102],                                    // bluestone
-  [146, 108, 80], [128, 98, 76],                                     // rust, brown
-  [112, 102, 92],                                                    // dark
+  [138, 134, 128], [112, 109, 104], [154, 150, 142], [96, 94, 91], [124, 122, 118], // greys
+  [160, 148, 128], [142, 132, 116], [176, 166, 148],                               // buff
+  [118, 102, 86], [102, 90, 78],                                                   // browns
+  [140, 104, 80],                                                                  // rust
+  [100, 106, 112], [86, 91, 98],                                                   // slate
+  [190, 184, 172],                                                                 // pale
 ];
 export function fieldstone() {
+  // (512 on every device: painted pixel by pixel, a bigger one costs too
+  // long on a phone, and 512 already holds the detail at this repeat.)
   return canvasTexture(512, 512, (g, W, H) => {
     const r = rng(1968);
     // Periodic value noise on a lattice of `P` per side (P a power of two,
@@ -146,83 +149,74 @@ export function fieldstone() {
     for (let i = 0; i < 256; i++) perm[i + 256] = perm[i];
     const lat = (x, y, P) => perm[(perm[x & (P - 1)] + (y & (P - 1))) & 255] / 255;
     const vn = (u, v, P) => {
-      const x = (u + 16) * P, y = (v + 16) * P, x0 = x | 0, y0 = y | 0; // (+16: whole periods, keeping it positive past the stones' offsets)
+      const x = (u + 16) * P, y = (v + 16) * P, x0 = x | 0, y0 = y | 0; // (+16: whole periods, keeping it positive past the stones' offsets of up to 10)
       let fx = x - x0, fy = y - y0; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
       const a = lat(x0, y0, P), b = lat(x0 + 1, y0, P), c = lat(x0, y0 + 1, P), d = lat(x0 + 1, y0 + 1, P);
       return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
     };
     const fbm = (u, v, P, oct) => { let s = 0, amp = 0.5, n = 0; for (let o = 0; o < oct; o++) { s += vn(u, v, P) * amp; n += amp; amp *= 0.5; P *= 2; } return s / n; };
-    // The slabs: courses of NX across, NY up, each course shifted half a
-    // slab (as laid), jittered along it more than across it. Distances are
-    // measured with x squeezed by AX, so the slabs come out wide.
-    const NX = 4, NY = 9, AX = 0.5, sites = [];
-    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
-      const base = STONES[Math.floor(r() * STONES.length)], j2 = (r() - 0.5) * 16;
+    // The stones: a jittered grid, N per side, each with its own rock.
+    const N = 7, sites = [];
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const base = STONES[Math.floor(r() * STONES.length)], j2 = (r() - 0.5) * 18;
       sites.push({
-        x: (i + 0.5 + (j % 2) * 0.5 + (r() - 0.5) * 0.7) / NX, y: (j + 0.5 + (r() - 0.5) * 0.35) / NY,
-        c: [base[0] + j2, base[1] + j2 * 0.92, base[2] + j2 * 0.85],
-        tilt: [(r() - 0.5) * 1.6, (r() - 0.5) * 1.2],        // the face's slight lean
-        bedF: 40 + r() * 40, ph: r() * 6.3,  // its layers
-        iron: r() < 0.3, seed: r() * 10,
+        x: (i + 0.5 + (r() - 0.5) * 0.7) / N, y: (j + 0.5 + (r() - 0.5) * 0.7) / N,
+        c: [base[0] + j2, base[1] + j2 * 0.9, base[2] + j2 * 0.8],
+        vein: r() < 0.22 ? { a: r() * Math.PI, f: 30 + r() * 40, ph: r() * 6.3 } : null,
+        mot: 0.10 + r() * 0.10, seed: r() * 10,
+        // (Weighted: some stones bigger than others, their edges curved.
+        // Kept under the closest two sites can come, 0.3 of a cell, or a
+        // heavy stone would claim a little ring inside its neighbour.)
+        w: r() * r() * 0.02,
       });
     }
     const img = g.createImageData(W, H), px = img.data, L = [-0.45, -0.89];
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const u0 = x / W, v0 = y / H;
-      // A little ragged: the edges are split stone, not sawn.
-      const u = u0 + (fbm(u0, v0, 16, 2) - 0.5) * 0.012, v = v0 + (fbm(u0 + 0.37, v0 + 0.71, 16, 2) - 0.5) * 0.012;
-      const us = u * AX; // (the squeezed x)
-      let d1 = 9, d2 = 9, s1 = null, a1x = 0, a1y = 0, a2x = 0, a2y = 0;
-      const ci = Math.floor(u * NX), cj = Math.floor(v * NY);
-      for (let oj = -1; oj <= 1; oj++) for (let oi = -2; oi <= 2; oi++) {
-        const ii = ci + oi, jj = cj + oj, wi = ((ii % NX) + NX) % NX, wj = ((jj % NY) + NY) % NY;
-        const st = sites[wj * NX + wi], sx = (st.x + Math.floor(ii / NX) + (st.x > 1 ? -1 : 0)) * AX, sy = st.y + Math.floor(jj / NY);
-        const dx = us - sx, dy = v - sy, d2s = dx * dx + dy * dy;
-        if (d2s < d1) { d2 = d1; a2x = a1x; a2y = a1y; d1 = d2s; s1 = st; a1x = dx; a1y = dy; }
-        else if (d2s < d2) { d2 = d2s; a2x = dx; a2y = dy; }
+      // Warp, so the outlines wander rather than run straight.
+      const u = u0 + (fbm(u0, v0, 4, 2) - 0.5) * 0.06, v = v0 + (fbm(u0 + 0.37, v0 + 0.71, 4, 2) - 0.5) * 0.06;
+      let d1 = 9, d2 = 9, d3 = 9, s1 = null, dx1 = 0, dy1 = 0;
+      const ci = Math.floor(u * N), cj = Math.floor(v * N);
+      for (let oj = -1; oj <= 1; oj++) for (let oi = -1; oi <= 1; oi++) {
+        const ii = ci + oi, jj = cj + oj, wi = ((ii % N) + N) % N, wj = ((jj % N) + N) % N;
+        const st = sites[wj * N + wi], sx = st.x + (ii - wi) / N, sy = st.y + (jj - wj) / N;
+        const dx = u - sx, dy = v - sy, d = Math.sqrt(dx * dx + dy * dy) - st.w;
+        if (d < d1) { d3 = d2; d2 = d1; d1 = d; s1 = st; dx1 = dx; dy1 = dy; } else if (d < d2) { d3 = d2; d2 = d; } else if (d < d3) d3 = d;
       }
-      // True distance to the joint (the bisector of the nearest two, back
-      // in unsqueezed units, so joints are the same width either way).
-      const lx = a1x - a2x, ly = a1y - a2y, Lp = Math.sqrt(lx * lx + ly * ly) || 1;
-      const Dp = (d2 - d1) / (2 * Lp), mx = AX * lx / Lp, my = ly / Lp;
-      const e = Dp / (Math.sqrt(mx * mx + my * my) || 1);
-      const nx = -mx, ny = -my; // (toward the stone from the joint: the edge's facing)
-      const mw = 0.0065 + 0.004 * vn(u0 + 0.2, v0 + 0.9, 16);
+      // Distance to the joint, the corners rounded (a smooth minimum of the
+      // distances to the two nearest joints).
+      const ea = (d2 - d1) * 0.5, eb = (d3 - d1) * 0.5, sk = 0.012;
+      const e = -sk * Math.log(Math.exp(-ea / sk) + Math.exp(-eb / sk));
+      const mw = 0.0045 + 0.004 * vn(u0 + 0.2, v0 + 0.9, 16);  // half the joint's width
+      const len = d1 || 1, ox = dx1 / len, oy = dy1 / len;     // outward from the stone's middle
+      const lit = ox * L[0] + oy * L[1];                        // facing the light (up and a little left)
       const grit = (perm[(x * 7 + y * 131 + ((x * y) & 1023)) & 511] / 255 - 0.5);
+      // The mortar, and (where it isn't) the stone, blended over about a
+      // pixel at the join so the edge doesn't step.
       const aa = 1.2 / W, sm = Math.min(1, Math.max(0, (e - (mw - aa)) / (2 * aa)));
-      const lit = -(nx * L[0] + ny * L[1]) / (Math.hypot(nx, ny) || 1); // an edge facing up-left catches the light
       let R = 0, G = 0, B = 0;
       if (sm < 1) {
-        // Mortar: grey, gritty, sunk back; darkest in under a slab.
         const t = Math.min(1, Math.max(0, e) / mw), n = fbm(u0, v0, 32, 2);
-        let k = 0.8 + (n - 0.5) * 0.2 + grit * 0.22;
-        k *= 0.6 + 0.32 * (1 - t * t);
-        k *= 1 - 0.2 * lit * t;
-        R = 138 * k * (1 - sm); G = 134 * k * (1 - sm); B = 126 * k * (1 - sm);
+        let k = 0.78 + (n - 0.5) * 0.2 + grit * 0.22;
+        k *= 0.42 + 0.4 * (1 - t * t);                         // sunk back, darkest against the stone
+        k *= 1 + 0.25 * lit * t;                                // (lit above a stone, shadowed below)
+        R = 128 * k * (1 - sm); G = 122 * k * (1 - sm); B = 112 * k * (1 - sm);
       }
       if (sm > 0) {
-        const c = s1.c, t = Math.max(0, e - mw);
-        // The face: flat, leaning a little; its layers and the odd cleft.
-        let k = 1 + s1.tilt[0] * (a1x / AX) + s1.tilt[1] * a1y;
-        k += (fbm(u0 + s1.seed, v0 - s1.seed, 16, 3) - 0.5) * 0.22 + (fbm(u0, v0, 64, 2) - 0.5) * 0.08 + grit * 0.1;
-        // (Level layers: a slant would break the repeat where a slab
-        // crosses the tile's edge.)
-        const along = v0 + (fbm(u0, v0 + s1.seed, 8, 2) - 0.5) * 0.03;
-        const layerAmp = 0.055 * fbm(u0 + s1.seed, v0, 8, 2);             // fading in and out
-        k += Math.sin(along * s1.bedF * Math.PI * 2 + s1.ph + (fbm(u0, v0, 16, 2) - 0.5) * 9) * layerAmp; // the layers, wandering
-        const cleft = Math.sin(along * s1.bedF * 0.5 + s1.ph * 2);
-        if (cleft > 0.985) k -= 0.16;                                        // a step where a layer broke away
-        // Pits and weathering: small dark hollows here and there.
-        const pit = vn(u0, v0, 128);
-        if (pit > 0.86) k -= (pit - 0.86) * 1.6;
-        // Iron staining: a rusty wash in some.
-        let cr = c[0], cg = c[1], cb = c[2];
-        if (s1.iron) { const ir = Math.max(0, fbm(u0 + s1.seed, v0, 8, 3) - 0.55) * 2.4; cr += 40 * ir; cg += 8 * ir; cb -= 22 * ir; }
-        // The edge: a thin chipped arris, lit on the side toward the light.
-        const arris = t < 0.006 ? 1 - t / 0.006 : 0;
-        k *= 1 + 0.22 * lit * arris;
-        k *= 1 - 0.1 * arris * arris;
-        R += cr * k * sm; G += cg * k * sm; B += cb * k * sm;
+        // Stone: its colour, mottled, speckled, veined; rounded and lit.
+        const c = s1.c, t = Math.min(1, Math.max(0, e - mw) / 0.035);
+        const m = (fbm(u0 + s1.seed, v0 - s1.seed, 16, 3) - 0.5) * 2 * s1.mot * 2.2 + (fbm(u0, v0, 64, 2) - 0.5) * 0.12;
+        let k = 1 + m + grit * 0.12;
+        if (s1.vein) {
+          const w = Math.cos(s1.vein.a) * u0 + Math.sin(s1.vein.a) * v0;
+          const q = Math.abs(Math.sin(w * s1.vein.f + (fbm(u0, v0, 16, 2) - 0.5) * 6 + s1.vein.ph));
+          if (q < 0.06) k += 0.28 * (1 - q / 0.06);
+        }
+        const edge = 1 - t;                                     // near the joint
+        k *= 1 + 0.30 * lit * edge;                             // the rounded shoulder, lit or not
+        k *= 1 - 0.34 * edge * edge;                            // falling away into the joint
+        k *= 0.94 + 0.12 * t;                                   // the crown a little brighter
+        R += c[0] * k * sm; G += c[1] * k * sm; B += c[2] * k * sm;
       }
       const o = (y * W + x) * 4;
       px[o] = R < 0 ? 0 : R > 255 ? 255 : R; px[o + 1] = G < 0 ? 0 : G > 255 ? 255 : G; px[o + 2] = B < 0 ? 0 : B > 255 ? 255 : B; px[o + 3] = 255;

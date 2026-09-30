@@ -3921,3 +3921,7 @@ phone menu until "Start the story over" (which clears it).
   pitch sag (delay drawn out 14 ms x strength and back). __DEN_AUDIO__ now
   has tvPull and music.duck/wobble; __DEN_TEST_PLAY__(url) (test hooks
   only) starts a track; e2e-tv-lure checks the record backs off and warps.
+- Fireplace: back to the river-rock fieldstone (user: "never mind, go back
+  to this one", after seeing the flagstone). fieldstone() is again the
+  version from c40fb1e (weighted, rounded stones in sunken mortar); the
+  beam mantel and the TV's pull on the music stay.
