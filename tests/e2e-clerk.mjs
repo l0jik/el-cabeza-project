@@ -84,9 +84,9 @@ for (const phone of [false, true]) {
   check(`...with the full-screen switch still on top, the other corner buttons hidden (${fsOnTop})`, fsOnTop === true);
   const loaded = await poll(() => page.evaluate(() => {
     const ims = [...document.querySelectorAll(".td-clerk-shot")];
-    return ims.length === 15 && ims.every((i) => i.complete && i.naturalWidth === 368 && i.naturalHeight === 474) ? ims.length : null;
+    return ims.length === 14 && ims.every((i) => i.complete && i.naturalWidth === 368 && i.naturalHeight === 474) ? ims.length : null;
   }), 15000);
-  check(`every photograph loads (${loaded || 0} of 15)`, loaded === 15);
+  check(`every photograph loads (${loaded || 0} of 14)`, loaded === 14);
   const lines = [];
   let paCaption = false, frames = new Set();
   for (let i = 0; i < 20; i++) {
@@ -97,7 +97,7 @@ for (const phone of [false, true]) {
     });
     if (!st) break;
     lines.push(st.line); frames.add(st.frame);
-    if (shots && [0, 1, 6, 7, 14].includes(st.step)) { await page.waitForTimeout(1100); await page.screenshot({ path: `${shots}/${phone ? "phone" : "desk"}-step${st.step}.png` }); }
+    if (shots && [0, 1, 5, 6, 13].includes(st.step)) { await page.waitForTimeout(1100); await page.screenshot({ path: `${shots}/${phone ? "phone" : "desk"}-step${st.step}.png` }); }
     if (st.shot && st.shot.includes("clerk-phone")) {
       paCaption = !!(await poll(() => page.evaluate(() => !!document.querySelector(".td-clerk-pa")), 4000));
     }
@@ -105,8 +105,8 @@ for (const phone of [false, true]) {
     await q(page, "tienda-clerk-next").click();
     await page.waitForTimeout(600);
   }
-  check(`fifteen shots in twelve frames (${lines.length} shots, ${frames.size} frames)`, lines.length === 15 && frames.size === 12);
-  check("the lines are the user's, verbatim", lines[0].includes("Hi there! Can I help you with something?") && lines[7].includes("Afternoon! El Cabeza, you said?") && lines[14].includes("Is there anything else I can help you with today?"));
+  check(`fourteen shots in twelve frames (${lines.length} shots, ${frames.size} frames)`, lines.length === 14 && frames.size === 12);
+  check("the lines are the user's, verbatim", lines[0].includes("Hi there! Can I help you with something?") && lines[6].includes("Afternoon! El Cabeza, you said?") && lines[13].includes("Is there anything else I can help you with today?"));
   check("the PA page's caption comes up with the phone call", paCaption);
   // Back through it: a swipe, the dots; and a double
   // tap takes only one step.
@@ -129,7 +129,7 @@ for (const phone of [false, true]) {
   check("a swipe right goes back", (await stepNow()) === 1, String(await stepNow()));
   await q(page, "tienda-clerk-page-12").click();
   await page.waitForTimeout(600);
-  check("the last dot (seen already) goes to the end", (await stepNow()) === 14);
+  check("the last dot (seen already) goes to the end", (await stepNow()) === 13);
   check("it ends with Stay a while and Go home, confused.", (await has(page, "tienda-clerk-stay")) && (await has(page, "tienda-clerk-go-home")));
   await q(page, "tienda-clerk-stay").click();
   check("stay a while: a slip with the way home", await poll(() => has(page, "tienda-leave-go-home"), 4000) && !(await has(page, "tienda-clerk")));

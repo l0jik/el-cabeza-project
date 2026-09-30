@@ -16,7 +16,7 @@ const DEN_RECORDS = {
 };
 
 // The Games counter's photographs (themes/tienda-overlay.js ClerkScene).
-const CLERK_SHOTS = ["clerk-hello", "clerk-sure", "clerk-go", "clerk-back", "clerk-hmm", "clerk-sorry", "clerk-phone",
+const CLERK_SHOTS = ["clerk-hello", "clerk-sure", "clerk-go", "clerk-hmm", "clerk-sorry", "clerk-phone",
   "manager-1", "manager-2", "manager-3", "manager-4", "manager-5", "manager-6", "manager-7", "manager-8"];
 const targets = [
   // The den's records (themes/standard.js DEN_TRACKS), files beside the

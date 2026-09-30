@@ -769,7 +769,9 @@ function PurchaseOffer({ story, audio }) {
    one can't load, its line is printed instead. */
 const CLERK_FRAMES = [
   { shots: ["clerk-hello", "clerk-sure"], narration: "Later that day\u2026", handover: true, lines: ["Hi there! Can I help you with something?", "Sure thing! I'd be happy to help you find that."] },
-  { shots: ["clerk-go", "clerk-back"], lines: ["I'll go check on that for you real quick!", "One minute! I'll see if we have it in the back!"] },
+  // (The "One minute! I'll see if we have it in the back!" shot, clerk-back,
+  // is out: user.)
+  { shots: ["clerk-go"], lines: ["I'll go check on that for you real quick!"] },
   { shots: ["clerk-hmm", "clerk-sorry"], lines: ["Hmm\u2026 I couldn't find it. I checked the aisle and also the back room.", "Yeah, I'm sorry. I don't see it anywhere right now."] },
   { shots: ["clerk-phone"], lines: ["Okay, let me call my manager and see if they can help us with this."], page: true },
   { shots: ["manager-1"], narration: "Moments later\u2026", lines: ["Afternoon! El Cabeza, you said?"] },

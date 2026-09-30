@@ -3841,3 +3841,13 @@ phone menu until "Start the story over" (which clears it).
   ~1 cycle per screen, uTime * 0.13..0.23 rad/s, i.e. ~30 s swells;
   x scaled by 1/aspect so it's even in pixels). First clap ~12 s after
   the waves' start, so e2e-summon waits 30 s for waves >= 1.
+- Summons sphere: pure black (user: "completely black, like a black
+  hole"): MeshBasicMaterial black, no rim, depthTest/depthWrite off,
+  renderOrder 10, and transparent: true at opacity 1 so three sorts it
+  into the transparent list with the see-through Neon pieces (renderOrder
+  only orders within a list; opaque draws first) and it's drawn last,
+  over the ring and any piece behind it.
+- Clerk scene: the "One minute! I'll see if we have it in the back!" shot
+  (clerk-back) is out (user); frame 2 is just clerk-go. 14 shots in 12
+  frames (build.js CLERK_SHOTS, tests/e2e-clerk.mjs updated; the jpg stays
+  in assets/tienda/clerk unused).

@@ -62,17 +62,17 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
   const R = S * 0.42; // the sphere
   const RING = R * 1.45; // the ring's middle, a little out from it
 
-  /* ---- the singularity: a black sphere with a faint rim ---- */
+  /* ---- the singularity: a sphere of pure black ---- */
   const group = new THREE.Group();
   group.name = "ec-summon";
-  const sphereMat = new THREE.ShaderMaterial({
-    uniforms: { uRim: { value: 0 } },
-    vertexShader: `varying vec3 vN; varying vec3 vV;
-      void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
-    fragmentShader: `uniform float uRim; varying vec3 vN; varying vec3 vV;
-      void main() { float f = pow(1.0 - max(dot(vN, vV), 0.0), 3.0); gl_FragColor = vec4(vec3(0.4, 0.85, 1.0) * f * uRim, 1.0); }`,
-  });
+  // Completely black, like a black hole (user): no rim, nothing through
+  // it, drawn last over the ring and the pieces. (Marked transparent, at
+  // full opacity, so it's sorted with the see-through pieces, which three
+  // draws after everything solid; its renderOrder then puts it last.)
+  const sphereMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 1, depthTest: false, depthWrite: false });
+  sphereMat.toneMapped = false;
   const sphere = new THREE.Mesh(new THREE.SphereGeometry(R, 40, 28), sphereMat);
+  sphere.renderOrder = 10;
   disposables.push(sphere.geometry, sphereMat);
   group.add(sphere);
 
@@ -311,7 +311,6 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
       // Appearing: out of nothing, then the ring opens as the pieces turn.
       const appear = ease((tau - APPEAR_AT) / 0.9);
       group.scale.setScalar(Math.max(0.001, appear));
-      sphereMat.uniforms.uRim.value = 0.55 * appear;
       ringMat.uniforms.uOpen.value = ease((tau - RING_AT) / RING_S);
       ringMat.uniforms.uRot.value = tau * 0.35;
       ringMat.uniforms.uPulse.value = Math.sin(tau * Math.PI * 2 * 0.45);
