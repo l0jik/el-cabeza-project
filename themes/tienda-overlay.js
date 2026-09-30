@@ -579,6 +579,12 @@ const STORY_CSS = `
   .td-clerk-next:focus-visible { outline: 2px dashed #17110D; outline-offset: 3px; }
   /* The time, quietly: a smaller, paler box. */
   .td-clerk-narration.td-clerk-when { font-size: 9.5px; padding: 3px 7px 2px; background: #F7EBB8; border-width: 1.5px; box-shadow: 1.5px 1.5px 0 rgba(23, 17, 13, 0.6); opacity: 0.85; }
+  /* The time ("Later that day...", "Moments later..."): up top, above
+     the clipping (user), apart from it; held there on its own so the
+     panel doesn't move on the frames that have one. */
+  .td-clerk-narration.td-clerk-when.td-clerk-top { top: -46px; left: 50%; transform: translateX(-50%) rotate(-1.4deg); white-space: nowrap;
+    font-size: 11px; padding: 4px 9px 3px; opacity: 0.92; animation: tdClerkTopIn 0.35s ease both; }
+  @keyframes tdClerkTopIn { from { opacity: 0; transform: translateX(-50%) translateY(-4px) rotate(-1.4deg); } to { opacity: 0.92; transform: translateX(-50%) rotate(-1.4deg); } }
   .td-clerk-pa { left: 8px; right: 8px; bottom: 8px; text-align: center; background: #FBF6E6; }
   .td-clerk-fallback { position: absolute; z-index: 2; inset: auto 12px 12px; margin: 0; padding: 12px 14px; background: #FBF8F0; color: ${INK};
     border: 2px solid #17110D; border-radius: 16px; font: 700 15px/1.35 'Comic Neue', ${COURIER}; }
@@ -598,7 +604,7 @@ const STORY_CSS = `
   .td-clerk-actions .td-plain:hover { background: #FFFDF3; color: #17110D; }
   .td-clerk-actions .td-plain { background: #FBF6E6; color: #17110D; }
   .td-clerk-actions [data-testid="tienda-clerk-go-home"], .td-clerk-actions [data-testid="tienda-clerk-go-home"]:hover { background: #C8392B; color: #FBF6E6; }
-  @media (prefers-reduced-motion: reduce) { .td-clerk-shot, .td-clerk-print[data-fade="slow"] .td-clerk-shot { transition-duration: 0.01s; } .td-clerk-narration, .td-clerk-pa { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .td-clerk-shot, .td-clerk-print[data-fade="slow"] .td-clerk-shot { transition-duration: 0.01s; } .td-clerk-narration, .td-clerk-pa, .td-clerk-narration.td-clerk-when.td-clerk-top { animation: none; } }
   .td-clerk-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; padding: 14px 6px 16px; }
   .td-offer { position: fixed; z-index: 1150; left: 50%; top: max(12px, env(safe-area-inset-top)); transform: translateX(-50%);
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: min(560px, calc(100vw - 24px));
@@ -889,6 +895,7 @@ function ClerkScene({ audio, onStay, onGoHome }) {
       // newsprint cut by hand, two strips of old tape, the panel in its
       // ink border, printed in Ben-Day dots, a little faded.
       h("figure", { className: "td-clerk-print", "data-fade": fade },
+        s.narration && h("p", { key: `w${s.frame}`, className: "td-clerk-narration td-clerk-when td-clerk-top", "data-testid": "tienda-clerk-when" }, s.narration),
         h("span", { className: "td-clerk-tape td-clerk-tape-l", "aria-hidden": "true" }),
         h("span", { className: "td-clerk-tape td-clerk-tape-r", "aria-hidden": "true" }),
         h("div", { className: "td-clerk-paper", style: { clipPath: CLIP_EDGE, WebkitClipPath: CLIP_EDGE } },
@@ -923,7 +930,6 @@ function ClerkScene({ audio, onStay, onGoHome }) {
             ])
           : h("div", { className: "td-clerk-foot" },
               h("div", { key: `n${s.frame}`, className: "td-clerk-captions" },
-                s.narration && h("p", { className: s.handover && withOrder ? "td-clerk-narration td-clerk-when" : "td-clerk-narration" }, s.narration),
                 // The first panel, come with the order form: what you do
                 // (walking you through it: user).
                 s.handover && withOrder && h("p", { className: "td-clerk-narration", "data-testid": "tienda-clerk-handover" }, "You hand over the order form\u2026")),
