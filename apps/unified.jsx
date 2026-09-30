@@ -4,6 +4,7 @@ import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
 import * as standardTheme from "../themes/standard.js";
 import * as neonTheme from "../themes/neon.js";
+import { mountSummon, summonBridge } from "../themes/neon-summon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { StoryCut, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone } from "./novaStory.jsx";
@@ -97,7 +98,25 @@ const homeTheme = {
    just opened and where to get it (themes/den-commercial.js). */
 const novaNeonTheme = {
   ...neonTheme,
-  useSetupExtras: (x) => ({ ...neonTheme.useSetupExtras(x), onSingularityBack: () => tvBridge.back() }),
+  useSetupExtras: (x) => {
+    const e = { ...neonTheme.useSetupExtras(x), onSingularityBack: () => tvBridge.back() };
+    // The summons' way in (themes/neon-summon.js): Neon's own reveal.
+    summonBridge.reveal = e.revealSingularity || null;
+    return e;
+  },
+  /* The first arrival, until the Singularity's been visited: the way in
+     shows itself over the board (themes/neon-summon.js, the user's pick). */
+  mountAmbientEffects: (refs, helpers) => {
+    const base = neonTheme.mountAmbientEffects(refs, helpers);
+    const summon = !singularitySeen() && helpers && helpers.three ? mountSummon(helpers.three) : null;
+    if (!summon) return base;
+    return {
+      ...base,
+      tick(now) { base.tick(now); summon.tick(now); },
+      render: (r, scene, camera) => summon.render(r, scene, camera),
+      dispose() { summon.dispose(); base.dispose && base.dispose(); },
+    };
+  },
 };
 const THEMES = { tienda: storeTheme, standard: homeTheme, neon: novaNeonTheme };
 

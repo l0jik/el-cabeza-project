@@ -3637,7 +3637,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // the chassis has placed it and before the frame is drawn.
       if (ambientRef.current && ambientRef.current.cameraOverride) ambientRef.current.cameraOverride(camera, dt);
 
-      renderer.render(scene, camera);
+      // A theme may draw the frame itself (Nova's Neon summons: the frame
+      // through its shock waves), returning true when it has.
+      if (!(ambientRef.current && ambientRef.current.render && ambientRef.current.render(renderer, scene, camera))) renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);
     }
     raf = requestAnimationFrame(tick);

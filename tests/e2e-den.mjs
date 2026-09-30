@@ -551,6 +551,7 @@ async function waitFor(fn, ms = 8000) {
   };
   await switchTheme(false);
   check("switched to Neon, through the TV", await waitFor(async () => (await q(page, "shell-anomaly").count()) > 0, 30000));
+  await page.waitForFunction(() => window.__EC_SUMMON__ && window.__EC_SUMMON__().active, null, { timeout: 30000 }).catch(() => {}); await page.evaluate(() => window.__EC_SUMMON_END__ && window.__EC_SUMMON_END__()); // (the first arrival's summons, themes/neon-summon.js: its own test)
   check("...and the den has gone with Standard", await page.evaluate(() => window.__DEN_ROOM__ === false && !window.__DEN_THREE__));
   await page.waitForTimeout(1200);
   await switchTheme(true);

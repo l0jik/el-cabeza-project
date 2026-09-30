@@ -97,6 +97,7 @@ async function waitFor(fn, ms = 8000) {
     await q(page, "shell-menu-switch-theme").click();
   }
   await waitFor(async () => (await q(page, "shell-anomaly").count()) > 0, 30000);
+  await page.waitForFunction(() => window.__EC_SUMMON__ && window.__EC_SUMMON__().active, null, { timeout: 30000 }).catch(() => {}); await page.evaluate(() => window.__EC_SUMMON_END__ && window.__EC_SUMMON_END__()); // (the first arrival's summons, themes/neon-summon.js: its own test)
   await page.waitForTimeout(800);
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(400);

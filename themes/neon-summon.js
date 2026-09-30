@@ -1,0 +1,339 @@
+/* The summons (Nova, the first arrival in Neon from the den's television,
+   until the Singularity has been visited; user's choice, idea 5 of the
+   mock-ups): the way in shows itself.
+
+   Over the middle of the board, a small black sphere, the singularity.
+   The pieces turn to face it; as they do, a small wormhole ring opens
+   round it, a little larger than the sphere, blue, pulsing gently and
+   slowly turning (nothing else orbits it: user). The pieces lift a
+   little off the board and hover facing it, each bobbing on its own
+   (they don't go to it). Then the singularity starts to send out shock
+   waves, compression rings that run out across the whole screen and warp
+   it as they pass, more and more strongly (render(): the frame drawn to
+   a texture and redrawn displaced, see the chassis's ambient render
+   hook).
+
+   Meanwhile the board takes no input (a shield over the canvas) and the
+   dock is put away: the one thing that answers is the singularity. A
+   tap on it opens the SINGULARITY invite (summonBridge.reveal, Neon's
+   revealSingularity); the invite taken up, the toll begins, and this
+   stands down (t.singularity.phase leaves "idle"), putting the pieces
+   back as they were for the collapse. */
+
+import * as THREE from "three";
+import { getBoardDimensions } from "../engine/constants.js";
+
+// Set by Nova's Neon (apps/unified.jsx) each render: Neon's own reveal.
+export const summonBridge = { reveal: null };
+
+const WAVES = 6;
+const APPEAR_AT = 0.4, TURN_AT = 1.3, TURN_S = 2.0, LIFT_AT = 1.7, LIFT_S = 2.0, RING_AT = 1.7, RING_S = 1.6, WAVES_AT = 3.6;
+const ease = (x) => { const c = Math.max(0, Math.min(1, x)); return c * c * (3 - 2 * c); };
+
+export function mountSummon(three, { delay = 1200 } = {}) {
+  const t = three.current;
+  if (!t || !t.boardGroup || !t.pieceGroup || !t.renderer) return null;
+  const reduceMotion = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const disposables = [];
+  let active = true, t0 = 0, readyAt = Infinity;
+
+  /* ---- the board's measure ---- */
+  const slab = t.boardGroup.getObjectByName("ec-slab");
+  let span = 10, S = 1, top = 0;
+  if (slab && slab.geometry) {
+    slab.geometry.computeBoundingBox();
+    const bb = slab.geometry.boundingBox;
+    const w = (bb.max.x - bb.min.x) * slab.scale.x, d = (bb.max.z - bb.min.z) * slab.scale.z;
+    span = Math.max(w, d);
+    const { cols } = getBoardDimensions();
+    S = w / Math.max(1, cols);
+    top = slab.position.y + bb.max.y * slab.scale.y;
+  }
+  const R = S * 0.42; // the sphere
+  const RING = R * 1.45; // the ring's middle, a little out from it
+
+  /* ---- the singularity: a black sphere with a faint rim ---- */
+  const group = new THREE.Group();
+  group.name = "ec-summon";
+  const sphereMat = new THREE.ShaderMaterial({
+    uniforms: { uRim: { value: 0 } },
+    vertexShader: `varying vec3 vN; varying vec3 vV;
+      void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform float uRim; varying vec3 vN; varying vec3 vV;
+      void main() { float f = pow(1.0 - max(dot(vN, vV), 0.0), 3.0); gl_FragColor = vec4(vec3(0.4, 0.85, 1.0) * f * uRim, 1.0); }`,
+  });
+  const sphere = new THREE.Mesh(new THREE.SphereGeometry(R, 40, 28), sphereMat);
+  disposables.push(sphere.geometry, sphereMat);
+  group.add(sphere);
+
+  /* ---- the wormhole ring: one soft blue band, brighter in places so its
+     slow turning shows, breathing a little ---- */
+  const ringMat = new THREE.ShaderMaterial({
+    uniforms: { uOpen: { value: 0 }, uRot: { value: 0 }, uPulse: { value: 0 }, uRc: { value: RING }, uW: { value: R * 0.16 } },
+    vertexShader: `varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `uniform float uOpen, uRot, uPulse, uRc, uW; varying vec2 vP;
+      void main() {
+        float r = length(vP), a = atan(vP.y, vP.x);
+        float x = (r - uRc) / uW;
+        float band = exp(-x * x) + 0.35 * exp(-x * x * 0.12);
+        float arcs = 0.72 + 0.2 * sin(a * 3.0 + uRot) + 0.08 * sin(a * 7.0 - uRot * 1.6);
+        float k = band * arcs * uOpen * (0.82 + 0.18 * uPulse);
+        gl_FragColor = vec4(vec3(0.38, 0.84, 1.0) * k, k);
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(RING - R * 1.1, RING + R * 1.1, 160, 1), ringMat);
+  ring.renderOrder = 5;
+  disposables.push(ring.geometry, ringMat);
+  group.add(ring);
+  group.visible = false;
+  t.boardGroup.add(group);
+
+  // Where it hangs: over the board's middle, high enough to stand clear
+  // above the far pieces and well below the title (held about 60% of the
+  // way up the screen, checked against the camera each frame).
+  let height = span * 0.42;
+  // (Where the title leaves little room, as on a wide screen, it may come
+  // down low over the empty middle of the board, clear of both rows.)
+  const minH = S * 0.9, maxH = span * 1.2;
+  const world = new THREE.Vector3(), ndc = new THREE.Vector3(), ndcTop = new THREE.Vector3(), camUp = new THREE.Vector3(), wScale = new THREE.Vector3();
+  let firstFit = true, lastNow = 0;
+  function fits(h) {
+    world.set(0, top + h, 0); t.boardGroup.localToWorld(world); ndc.copy(world).project(t.camera);
+    if (ndc.y > 0.6) return false;
+    if (titleLim >= 1) return true;
+    ndcTop.copy(world).add(camUp).project(t.camera);
+    return ndcTop.y <= titleLim;
+  }
+  let titleLim = 1; // the title's bottom (and a margin), in NDC
+  function measureTitle() {
+    titleLim = 1;
+    const title = document.querySelector(".ec-title");
+    if (!title) return;
+    const cr = canvas.getBoundingClientRect(), tb = title.getBoundingClientRect().bottom + 14;
+    if (tb <= cr.top || cr.height <= 0) return;
+    titleLim = 1 - (2 * (tb - cr.top)) / cr.height;
+    t.boardGroup.getWorldScale(wScale);
+    camUp.set(0, 1, 0).applyQuaternion(t.camera.quaternion).multiplyScalar(RING * 1.3 * wScale.y);
+  }
+
+  /* ---- the pieces: turned toward it, lifted, bobbing ---- */
+  const pieces = new Map(); // pieceId -> { parts: [{ obj, pos, quat }], c: Vector3, f, ph }
+  // (Gathered once they're there: the pieces are built after this mounts.)
+  const gather = () => t.pieceGroup.children.forEach((o) => {
+    const id = o.userData && o.userData.pieceId;
+    if (!id) return;
+    if (!pieces.has(id)) pieces.set(id, { parts: [], c: null, f: 0.35 + Math.random() * 0.35, ph: Math.random() * Math.PI * 2 });
+    const e = pieces.get(id);
+    e.parts.push({ obj: o, pos: o.position.clone(), quat: o.quaternion.clone() });
+    if (o.userData.kind === "piece" || !e.c) e.c = o.position.clone();
+  });
+  const Y = new THREE.Vector3(0, 1, 0), qFace = new THREE.Quaternion(), qT = new THREE.Quaternion(), qI = new THREE.Quaternion();
+  const sLocal = new THREE.Vector3(), dir = new THREE.Vector3(), off = new THREE.Vector3();
+  function placePieces(tau) {
+    const turn = ease((tau - TURN_AT) / TURN_S), lift = ease((tau - LIFT_AT) / LIFT_S);
+    // The singularity in the pieces' own frame.
+    sLocal.set(0, top + height, 0); t.boardGroup.localToWorld(sLocal); t.pieceGroup.worldToLocal(sLocal);
+    pieces.forEach((e) => {
+      dir.copy(sLocal).sub(e.c).normalize();
+      qFace.setFromUnitVectors(Y, dir);
+      qT.copy(qI).slerp(qFace, 0.55 * turn);
+      const bob = reduceMotion ? 0 : Math.sin(tau * Math.PI * 2 * e.f + e.ph) * S * 0.07 * lift;
+      const up = lift * S * 0.3 + bob;
+      e.parts.forEach((p) => {
+        off.copy(p.pos).sub(e.c).applyQuaternion(qT);
+        p.obj.position.copy(e.c).add(off); p.obj.position.y += up;
+        p.obj.quaternion.copy(qT).multiply(p.quat);
+      });
+    });
+  }
+  function restorePieces() {
+    pieces.forEach((e) => e.parts.forEach((p) => { p.obj.position.copy(p.pos); p.obj.quaternion.copy(p.quat); }));
+  }
+
+  /* ---- the shock waves: the frame redrawn, pushed outward in rings ---- */
+  const renderer = t.renderer;
+  const size = new THREE.Vector2();
+  renderer.getDrawingBufferSize(size);
+  const isGL2 = renderer.capabilities && renderer.capabilities.isWebGL2;
+  const rt = isGL2 && THREE.WebGLMultisampleRenderTarget
+    ? new THREE.WebGLMultisampleRenderTarget(size.x, size.y, { format: THREE.RGBAFormat })
+    : new THREE.WebGLRenderTarget(size.x, size.y, { format: THREE.RGBAFormat });
+  if (rt.samples !== undefined) rt.samples = window.devicePixelRatio > 2 ? 2 : 4;
+  disposables.push(rt);
+  const postMat = new THREE.ShaderMaterial({
+    uniforms: {
+      tDiffuse: { value: rt.texture }, uCenter: { value: new THREE.Vector2(0.5, 0.5) }, uAspect: { value: 1 },
+      uR: { value: new Array(WAVES).fill(-1) }, uS: { value: new Array(WAVES).fill(0) }, uPinch: { value: 0 },
+    },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+    fragmentShader: `precision highp float;
+      uniform sampler2D tDiffuse; uniform vec2 uCenter; uniform float uAspect, uPinch; uniform float uR[${WAVES}]; uniform float uS[${WAVES}];
+      varying vec2 vUv;
+      void main() {
+        vec2 d = vUv - uCenter; d.x *= uAspect;
+        float dist = length(d);
+        vec2 dir = dist > 1e-5 ? d / dist : vec2(0.0);
+        float off = 0.0, front = 0.0;
+        for (int i = 0; i < ${WAVES}; i++) {
+          float w = 0.035 + max(uR[i], 0.0) * 0.06;
+          float x = (dist - uR[i]) / w;
+          float g = exp(-x * x);
+          off += uS[i] * x * g;       // compressed ahead of the front, drawn out behind it
+          front += uS[i] * g;
+        }
+        off -= uPinch * exp(-dist * 7.0); // the space round it, drawn in a little
+        vec2 o = dir * off; o.x /= uAspect;
+        vec4 c = texture2D(tDiffuse, vUv - o);
+        c.r = texture2D(tDiffuse, vUv - o * 1.12).r;
+        c.b = texture2D(tDiffuse, vUv - o * 0.88).b;
+        float k = clamp(front * 9.0, 0.0, 0.22);
+        gl_FragColor = c + vec4(vec3(0.3, 0.75, 1.0) * k, k); // a faint blue at the fronts
+      }`,
+    depthTest: false, depthWrite: false,
+  });
+  postMat.toneMapped = false;
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat);
+  quad.frustumCulled = false;
+  const postScene = new THREE.Scene();
+  postScene.add(quad);
+  const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  disposables.push(quad.geometry, postMat);
+  const waves = []; // { born, strength }
+  let nextWave = WAVES_AT;
+
+  /* ---- the shield over the board, and the dock put away ---- */
+  const canvas = renderer.domElement;
+  const shield = document.createElement("div");
+  shield.setAttribute("data-testid", "summon-shield");
+  Object.assign(shield.style, { position: "fixed", zIndex: "3", touchAction: "none", background: "transparent", cursor: "default" });
+  document.body.appendChild(shield);
+  const style = document.createElement("style");
+  style.textContent = "html.ec-summon [data-dock-piece], html.ec-summon [data-testid=\"dock-panel\"], html.ec-summon .ec-shell-bar { display: none !important; }";
+  document.head.appendChild(style);
+  document.documentElement.classList.add("ec-summon");
+  const ray = new THREE.Raycaster(), p2 = new THREE.Vector2();
+  const hit = (e) => {
+    if (!group.visible || !t.camera) return false;
+    const r = canvas.getBoundingClientRect();
+    p2.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(p2, t.camera);
+    sphere.getWorldPosition(world);
+    // Generous: the sphere is small on a phone.
+    return ray.ray.distanceToPoint(world) < R * 2.6 * group.scale.x;
+  };
+  const swallow = (e) => { e.stopPropagation(); if (e.cancelable && e.type !== "pointermove") e.preventDefault(); };
+  const onMove = (e) => { swallow(e); shield.style.cursor = performance.now() >= readyAt && hit(e) ? "pointer" : "default"; };
+  const onDown = (e) => {
+    swallow(e);
+    if (performance.now() < readyAt || !hit(e)) return;
+    if (summonBridge.reveal) summonBridge.reveal();
+  };
+  ["pointerup", "click", "dblclick", "contextmenu", "wheel", "touchstart", "touchmove", "touchend"].forEach((ev) => shield.addEventListener(ev, swallow, { passive: false }));
+  shield.addEventListener("pointermove", onMove);
+  shield.addEventListener("pointerdown", onDown);
+  function fitShield() {
+    const r = canvas.getBoundingClientRect();
+    shield.style.left = `${r.left}px`; shield.style.top = `${r.top}px`; shield.style.width = `${r.width}px`; shield.style.height = `${r.height}px`;
+  }
+
+  function end() {
+    if (!active) return;
+    active = false;
+    restorePieces();
+    group.visible = false;
+    if (group.parent) group.parent.remove(group);
+    shield.remove();
+    style.remove();
+    document.documentElement.classList.remove("ec-summon");
+    if (typeof window !== "undefined") window.__EC_SUMMON__ = () => ({ active: false });
+  }
+
+  if (typeof window !== "undefined") {
+    // Test-only: stand it down (the tests that need Neon's own menus).
+    if (window.__EC_TEST_HOOKS__) window.__EC_SUMMON_END__ = () => end();
+    window.__EC_SUMMON__ = () => {
+      if (!active) return { active: false };
+      sphere.getWorldPosition(world); ndc.copy(world).project(t.camera);
+      const r = canvas.getBoundingClientRect();
+      return {
+        active, ready: performance.now() >= readyAt, waves: waves.length, height, S,
+        screen: { x: r.left + ((ndc.x + 1) / 2) * r.width, y: r.top + ((1 - ndc.y) / 2) * r.height },
+        lifted: [...pieces.values()].map((e) => +(e.parts[0].obj.position.y - e.parts[0].pos.y).toFixed(3)),
+      };
+    };
+  }
+
+  let tau = 0;
+  return {
+    get active() { return active; },
+    end,
+    tick(now) {
+      if (!active) return;
+      // The Singularity itself has begun: stand down, pieces back.
+      if (t.singularity && t.singularity.phase && t.singularity.phase !== "idle") { end(); return; }
+      if (!t0) { t0 = now + delay; readyAt = t0 + TURN_AT * 1000; }
+      fitShield();
+      tau = Math.max(0, (now - t0) / 1000);
+      if (now < t0) return;
+      group.visible = true;
+      // Its height: about 60% of the way up the screen, and (on a wide
+      // screen, where the camera stands back and 60% up is the title
+      // itself) with the ring's top edge under the title's. Solved each
+      // frame, eased toward.
+      measureTitle();
+      let lo = minH, hi = maxH;
+      for (let i = 0; i < 14; i++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
+      height = firstFit ? lo : height + (lo - height) * Math.min(1, (now - lastNow) / 300);
+      firstFit = false; lastNow = now;
+      group.position.set(0, top + height, 0);
+      // Appearing: out of nothing, then the ring opens as the pieces turn.
+      const appear = ease((tau - APPEAR_AT) / 0.9);
+      group.scale.setScalar(Math.max(0.001, appear));
+      sphereMat.uniforms.uRim.value = 0.55 * appear;
+      ringMat.uniforms.uOpen.value = ease((tau - RING_AT) / RING_S);
+      ringMat.uniforms.uRot.value = tau * 0.35;
+      ringMat.uniforms.uPulse.value = Math.sin(tau * Math.PI * 2 * 0.45);
+      ring.scale.setScalar(0.6 + 0.4 * ringMat.uniforms.uOpen.value + 0.03 * Math.sin(tau * Math.PI * 2 * 0.45));
+      // Facing the camera, whatever the board's turn.
+      t.camera.getWorldQuaternion(qFace); group.getWorldQuaternion(qT);
+      ring.quaternion.copy(qT.invert()).multiply(qFace);
+      if (!pieces.size) gather();
+      placePieces(tau);
+      // The waves: more often and stronger as it goes on.
+      if (!reduceMotion && tau >= nextWave) {
+        const k = Math.min(1, (tau - WAVES_AT) / 45);
+        waves.push({ born: tau, strength: 0.35 + 0.65 * k });
+        if (waves.length > WAVES) waves.shift();
+        nextWave = tau + (3.0 - 1.9 * k);
+      }
+      const uR = postMat.uniforms.uR.value, uS = postMat.uniforms.uS.value;
+      for (let i = 0; i < WAVES; i++) {
+        const w = waves[i];
+        if (!w) { uR[i] = -1; uS[i] = 0; continue; }
+        const r = (tau - w.born) * 0.5;
+        const fade = Math.max(0, 1 - r / 1.7);
+        uR[i] = r; uS[i] = 0.022 * w.strength * fade * Math.min(1, r / 0.08);
+      }
+      postMat.uniforms.uPinch.value = reduceMotion ? 0 : 0.004 * ease((tau - WAVES_AT) / 20);
+      postMat.uniforms.uCenter.value.set((ndc.x + 1) / 2, (ndc.y + 1) / 2);
+    },
+    // The frame, drawn through the waves (the chassis's render hook).
+    render(r, scene, camera) {
+      if (!active || !group.visible) return false;
+      r.getDrawingBufferSize(size);
+      if (rt.width !== size.x || rt.height !== size.y) rt.setSize(size.x, size.y);
+      postMat.uniforms.uAspect.value = size.x / Math.max(1, size.y);
+      r.setRenderTarget(rt);
+      r.clear();
+      r.render(scene, camera);
+      r.setRenderTarget(null);
+      r.render(postScene, postCam);
+      return true;
+    },
+    dispose() {
+      end();
+      disposables.forEach((d) => d && d.dispose && d.dispose());
+    },
+  };
+}

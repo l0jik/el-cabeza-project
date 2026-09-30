@@ -196,6 +196,7 @@ async function waitFor(fn, ms = 8000) {
     await q(page, "shell-menu-switch-theme").click();
   }
   check("...which turns the set on", await waitFor(() => page.evaluate(() => { const tv = window.__DEN_TV__ && window.__DEN_TV__(); return !!tv && tv.phase !== "off"; }), 8000));
+  await page.waitForFunction(() => window.__EC_SUMMON__ && window.__EC_SUMMON__().active, null, { timeout: 30000 }).catch(() => {}); await page.evaluate(() => window.__EC_SUMMON_END__ && window.__EC_SUMMON_END__()); // (the first arrival's summons, themes/neon-summon.js: its own test)
   check("Neon comes up with its setup buttons", await waitFor(async () => (await visible(page, "shell-anomaly")) && (await visible(page, "shell-custom-rules")), 30000));
   const layout0 = await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.map((p) => [p.id, p.row, p.col])));
   await q(page, "shell-anomaly").click();

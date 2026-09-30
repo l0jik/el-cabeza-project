@@ -3775,3 +3775,27 @@ phone menu until "Start the story over" (which clears it).
   ceiling speakers, 40% lower); PA_VOLUME 0.8 on paAnnouncement's gain
   (chime + voice, 20% lower; also the clerk scene's page); store ambience
   and pieces unchanged.
+- The summons (user's "idea 5"): Nova's first arrival in Neon from the den
+  TV (!singularitySeen()) mounts themes/neon-summon.js inside
+  novaNeonTheme.mountAmbientEffects (apps/unified.jsx). A small black
+  sphere (Fresnel rim) with a slightly larger, gently pulsing cyan ring
+  (billboarded, varied arcs so its slow turn shows) appears over the
+  board's middle; the pieces turn partway toward it (slerp 0.55), lift
+  S*0.3 and bob asynchronously (0.35-0.7 Hz); compression shock waves
+  (post pass: scene -> multisample RT -> full-screen quad, radial
+  x*exp(-x^2) displacement, slight RGB split) come ever faster and
+  stronger over 45 s. Height is solved each frame (binary search): screen
+  NDC y <= 0.6 and the ring's top under .ec-title's bottom + 14 px
+  (desktop's big title), eased toward, minH S*0.9.
+  Board is non-interactive: a fixed div (data-testid summon-shield) over
+  the canvas swallows everything; a tap within R*2.6 of the sphere (after
+  TURN_AT) calls summonBridge.reveal = the theme's revealSingularity (the
+  invite, then the toll). html.ec-summon hides the dock piece/panel and
+  the shell bar. It ends itself when three.singularity.phase leaves
+  "idle" (pieces restored). Reduced motion: no waves, no bob.
+  Chassis: the ambient object may have render(renderer, scene, camera)
+  returning true when it drew the frame itself.
+  Test hooks: __EC_SUMMON__() {active, ready, waves, height, S, screen,
+  lifted}; __EC_SUMMON_END__ (only with __EC_TEST_HOOKS__) - tests that
+  arrive in Neon through the TV (nova-mobile, nova-sound, den) end it
+  first. tests/e2e-summon.mjs covers it.
