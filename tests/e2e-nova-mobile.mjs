@@ -275,6 +275,8 @@ async function waitFor(fn, ms = 8000) {
   await d.page.waitForTimeout(2500);
   check("the bar layout is remembered", await visible(d.page, "shell-bar"));
   // The side that moves first sits nearest the viewer before a game.
+  // (Waits for the page to be ready: a fixed pause can fall short on a busy machine.)
+  await d.page.waitForFunction(() => document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]') && window.__EC_TEST_SCREEN_POS__ && window.__EC_TEST_SCREEN_POS__("dark-cabeza") && window.__EC_TEST_SCREEN_POS__("light-cabeza"), null, { timeout: 20000 });
   const near = await d.page.evaluate(() => {
     const first = document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]').dataset.value;
     const cab = window.__EC_TEST_SCREEN_POS__(`${first}-cabeza`), other = window.__EC_TEST_SCREEN_POS__(`${first === "dark" ? "light" : "dark"}-cabeza`);
