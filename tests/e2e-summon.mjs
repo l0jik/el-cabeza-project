@@ -3,8 +3,9 @@
    singularity over the board, the pieces turned to it and hovering, shock
    waves running out; the board and the dock out of reach, the title's hold
    still there; a tap on the singularity opens the SINGULARITY invite, and
-   the toll puts it all away. Once the Singularity's been visited, no
-   summons.
+   the toll puts it all away. Its sound: the phone mix on a phone, the
+   full-range mix on a computer, thunder on the waves. Once the
+   Singularity's been visited, no summons.
 
    node tests/e2e-summon.mjs */
 import { chromium } from "playwright";
@@ -21,8 +22,8 @@ const poll = async (fn, ms = 20000, step = 200) => {
     await new Promise((r) => setTimeout(r, step));
   }
 };
-async function throughTheSet(seen) {
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+async function throughTheSet(seen, desktop) {
+  const ctx = await browser.newContext(desktop ? { viewport: { width: 1280, height: 800 } } : { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await ctx.addInitScript((seen) => {
     window.__EC_TEST_HOOKS__ = true;
     try {
@@ -53,6 +54,8 @@ console.log("the first arrival");
   check("into Neon through the television", !!inNeon);
   const S = () => page.evaluate(() => (window.__EC_SUMMON__ ? window.__EC_SUMMON__() : { active: false }));
   check("the summons is up", !!(await poll(async () => (await S()).active, 10000)));
+  const snd = (await S()).sound;
+  check("its sound: the phone mix, playing", !!snd && snd.mix === "phone" && snd.state === "running", JSON.stringify(snd));
   const s1 = await poll(async () => { const s = await S(); return s.ready && s.lifted.length && s.lifted.every((y) => y > 0.1) ? s : null; }, 12000);
   check("the pieces have lifted off the board, facing it", !!s1, JSON.stringify(await S()));
   check("the singularity sits between the title and the board", !!s1 && s1.screen.y > 110 && s1.screen.y < 420, JSON.stringify(s1 && s1.screen));
@@ -72,6 +75,19 @@ console.log("the first arrival");
   const b = await page.locator(".ec-singularity-invite-btn").boundingBox();
   await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   check("the toll puts the summons away", !!(await poll(async () => !(await S()).active, 6000)));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+console.log("on a computer");
+{
+  const { ctx, page, errs, inNeon } = await throughTheSet(false, true);
+  check("into Neon through the television", !!inNeon);
+  const S = () => page.evaluate(() => (window.__EC_SUMMON__ ? window.__EC_SUMMON__() : { active: false }));
+  check("the summons is up", !!(await poll(async () => (await S()).active, 10000)));
+  const snd = (await S()).sound;
+  check("its sound: the full-range mix, playing", !!snd && snd.mix === "full" && snd.state === "running", JSON.stringify(snd));
+  check("thunder comes with the waves", !!(await poll(async () => { const s = await S(); return s.sound && s.sound.thunder >= 1; }, 30000)), JSON.stringify(await S()));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

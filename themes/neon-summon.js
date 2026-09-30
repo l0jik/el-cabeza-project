@@ -18,10 +18,15 @@
    tap on it opens the SINGULARITY invite (summonBridge.reveal, Neon's
    revealSingularity); the invite taken up, the toll begins, and this
    stands down (t.singularity.phase leaves "idle"), putting the pieces
-   back as they were for the collapse. */
+   back as they were for the collapse.
+
+   Its sound (themes/neon-summon-audio.js, the user's "C6"): a low hum
+   growing from silence, and thunder on a growing share of the waves; a
+   full-range mix on a computer, a phone-speaker mix on a phone. */
 
 import * as THREE from "three";
 import { getBoardDimensions } from "../engine/constants.js";
+import { createSummonSound, summonMixFor } from "./neon-summon-audio.js";
 
 // Set by Nova's Neon (apps/unified.jsx) each render: Neon's own reveal.
 export const summonBridge = { reveal: null };
@@ -30,9 +35,12 @@ const WAVES = 6;
 const APPEAR_AT = 0.4, TURN_AT = 1.3, TURN_S = 2.0, LIFT_AT = 1.7, LIFT_S = 2.0, RING_AT = 1.7, RING_S = 1.6, WAVES_AT = 3.6;
 const ease = (x) => { const c = Math.max(0, Math.min(1, x)); return c * c * (3 - 2 * c); };
 
-export function mountSummon(three, { delay = 1200 } = {}) {
+export function mountSummon(three, { delay = 1200, audio = null } = {}) {
   const t = three.current;
   if (!t || !t.boardGroup || !t.pieceGroup || !t.renderer) return null;
+  // Its sound, through the soundscape's interface channel.
+  let sound = null;
+  try { const o = audio && audio.summonOutput && audio.summonOutput(); if (o) sound = createSummonSound(o, { mix: summonMixFor() }); } catch (e) { sound = null; }
   const reduceMotion = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const disposables = [];
   let active = true, t0 = 0, readyAt = Infinity;
@@ -200,6 +208,7 @@ export function mountSummon(three, { delay = 1200 } = {}) {
   const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   disposables.push(quad.geometry, postMat);
   const waves = []; // { born, strength }
+  let thunder = 0; // (how many waves have had thunder: the test hook)
   let nextWave = WAVES_AT;
 
   /* ---- the shield over the board, and the dock put away ---- */
@@ -226,6 +235,7 @@ export function mountSummon(three, { delay = 1200 } = {}) {
   const onMove = (e) => { swallow(e); shield.style.cursor = performance.now() >= readyAt && hit(e) ? "pointer" : "default"; };
   const onDown = (e) => {
     swallow(e);
+    if (sound) sound.resume(); // (a phone starts the sound suspended until a tap)
     if (performance.now() < readyAt || !hit(e)) return;
     if (summonBridge.reveal) summonBridge.reveal();
   };
@@ -237,9 +247,10 @@ export function mountSummon(three, { delay = 1200 } = {}) {
     shield.style.left = `${r.left}px`; shield.style.top = `${r.top}px`; shield.style.width = `${r.width}px`; shield.style.height = `${r.height}px`;
   }
 
-  function end() {
+  function end(fade = 1.5) {
     if (!active) return;
     active = false;
+    if (sound) sound.end(fade);
     restorePieces();
     group.visible = false;
     if (group.parent) group.parent.remove(group);
@@ -258,6 +269,7 @@ export function mountSummon(three, { delay = 1200 } = {}) {
       const r = canvas.getBoundingClientRect();
       return {
         active, ready: performance.now() >= readyAt, waves: waves.length, height, S,
+        sound: sound ? { mix: sound.mix, state: sound.ctx.state, thunder } : null,
         screen: { x: r.left + ((ndc.x + 1) / 2) * r.width, y: r.top + ((1 - ndc.y) / 2) * r.height },
         lifted: [...pieces.values()].map((e) => +(e.parts[0].obj.position.y - e.parts[0].pos.y).toFixed(3)),
       };
@@ -277,6 +289,7 @@ export function mountSummon(three, { delay = 1200 } = {}) {
       tau = Math.max(0, (now - t0) / 1000);
       if (now < t0) return;
       group.visible = true;
+      if (sound) { sound.start(tau); sound.update(tau); }
       // Its height: about 60% of the way up the screen, and (on a wide
       // screen, where the camera stands back and 60% up is the title
       // itself) with the ring's top edge under the title's. Solved each
@@ -304,6 +317,7 @@ export function mountSummon(three, { delay = 1200 } = {}) {
       if (!reduceMotion && tau >= nextWave) {
         const k = Math.min(1, (tau - WAVES_AT) / 45);
         waves.push({ born: tau, strength: 0.35 + 0.65 * k });
+        if (sound && sound.wave(0.35 + 0.65 * k, k)) thunder++;
         if (waves.length > WAVES) waves.shift();
         nextWave = tau + (3.0 - 1.9 * k);
       }
@@ -332,7 +346,7 @@ export function mountSummon(three, { delay = 1200 } = {}) {
       return true;
     },
     dispose() {
-      end();
+      end(0.3);
       disposables.forEach((d) => d && d.dispose && d.dispose());
     },
   };

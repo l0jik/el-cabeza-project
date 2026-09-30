@@ -3799,3 +3799,34 @@ phone menu until "Start the story over" (which clears it).
   lifted}; __EC_SUMMON_END__ (only with __EC_TEST_HOOKS__) - tests that
   arrive in Neon through the TV (nova-mobile, nova-sound, den) end it
   first. tests/e2e-summon.mjs covers it.
+- The summons' sound (user's pick "C6" from the sound mock-ups page,
+  https://claude.ai/artifact/4ewUuJvPKeGSa9pbpoDYAs, source in the session
+  scratchpad): themes/neon-summon-audio.js. The Monks' Hum "10G" (E minor
+  from E1: 41.2 61.74 82.41 98 123.47 Hz, 3 detuned saws each with their
+  own vibrato and breath, top two -6 dB, no whistle, lowpass 380) pitched
+  -7 semitones, gain = build^2 (build: 0 at the sphere appearing, 1 at full
+  wave strength, 45 s ramp), never moving in pitch (user: no up/down); the
+  thunder "9H" (brown-noise bed lp 80; ring roll; each hit a dull crack
+  lp 250 + rumble lp 300->70 over 2.2 s, one hit and a long dark reverb
+  of its own (5 s IR, lp 1200) - user: reverb, NOT echo/repeats, and no
+  upsweep) on a growing share of the waves: density 0.15 + 0.85 k^1.6
+  through an accumulator (starts 0.5), so thunder at ~12, 20, 26, 30,
+  34 s ... then every wave. Trims as on the page: hum -9.5 dB, thunder
+  +10, whole -1.6, 0.3 send into a 3.2 s room.
+  Two mixes (summonMixFor: "(hover: none) and (pointer: coarse)" ->
+  "phone", else "full"; localStorage "ec:summon-mix" overrides): full is
+  the whole range; phone takes out < 120 Hz (4th-order Butterworth, where
+  most of this sound's energy is and a phone speaker can't play it; it
+  only drives the speaker/OS limiter into crunch), soft ceiling (knee
+  0.18, top 0.26 in page units), +3 dB after, shorter reverbs. Measured
+  through the game's chain (interface gate -> sfxOut 1.25 -> master
+  +17 dB -> outStage): full peak -5.4 dBFS, rms -20.6 at full; phone peak
+  -9.9, rms -23.8; neither reaches the outStage ceiling (0.7).
+  Routing: soundscape.summonOutput() (themes/neon.js) = { ctx, dest:
+  interfaceGate, resume } (ensureGraph; the sound menu's interface slider
+  and mute apply). neon-summon.js: sound.start/update each tick, wave()
+  on each shock wave, resume() on any tap on the shield (a phone starts
+  the context suspended), end(1.5) with the scene (reverbs ring out, all
+  stopped 5 s later), end(0.3) on dispose. __EC_SUMMON__().sound =
+  { mix, state, thunder }. tests/e2e-summon.mjs checks phone mix on a
+  phone, full mix + thunder on a computer.

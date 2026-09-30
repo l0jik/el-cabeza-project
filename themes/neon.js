@@ -6871,6 +6871,14 @@ export function createSoundscape() {
     resumeAudioAfterSingularity,
     playSingularityDismiss,
     playSingularityBell,
+    // The summons (Nova's first arrival, themes/neon-summon-audio.js):
+    // the context and the interface channel it plays through, and a
+    // way to wake the context from a tap (a phone starts it suspended).
+    summonOutput() {
+      ensureGraph();
+      if (!ctx || !interfaceGate) return null;
+      return { ctx, dest: interfaceGate, resume: () => { if (ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); } } };
+    },
     /* Dock open/close — a very subtle low "vrrrt": a short, low,
        buzzy sawtooth descent (not a clean sine — the harmonics are
        what read as a mechanical whirr rather than a chime) and its

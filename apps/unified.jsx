@@ -108,7 +108,7 @@ const novaNeonTheme = {
      shows itself over the board (themes/neon-summon.js, the user's pick). */
   mountAmbientEffects: (refs, helpers) => {
     const base = neonTheme.mountAmbientEffects(refs, helpers);
-    const summon = !singularitySeen() && helpers && helpers.three ? mountSummon(helpers.three) : null;
+    const summon = !singularitySeen() && helpers && helpers.three ? mountSummon(helpers.three, { audio: helpers.audio }) : null;
     if (!summon) return base;
     return {
       ...base,
