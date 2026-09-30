@@ -1137,6 +1137,15 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const startSel = React.useMemo(() => JSON.stringify(sel), []);
   const waiting = where === "guided" && JSON.stringify(sel) === startSel;
   const [nudge, setNudge] = React.useState(0);
+  // Its Singularity glow, as the special-orders note's (user: same rule):
+  // not at first; once a tap lands anywhere but on it, it lights.
+  const [btnGlow, setBtnGlow] = React.useState(false);
+  React.useEffect(() => {
+    if (where !== "guided" || btnGlow) return undefined;
+    const onDown = (e) => { if (!(e.target && e.target.closest && e.target.closest('[data-testid="tienda-order-place"]'))) setBtnGlow(true); };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [where, btnGlow]);
   React.useEffect(() => { if (!nudge) return undefined; const id = setTimeout(() => setNudge(0), 3800); return () => clearTimeout(id); }, [nudge]);
   React.useEffect(() => { if (!waiting) setNudge(0); }, [waiting]);
   const place = () => {
@@ -1199,7 +1208,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
           h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-standard", onClick: standard, disabled: filled }, "Standard"),
           h("button", {
             type: "button", "data-testid": "tienda-order-place", disabled: over || !fits || filled, onClick: place,
-            className: `td-btn td-primary${where === "guided" ? " td-sing-glow" : ""}${waiting ? " td-wait" : ""}`,
+            className: `td-btn td-primary${btnGlow ? " td-sing-glow" : ""}${waiting ? " td-wait" : ""}`,
             "aria-disabled": waiting ? "true" : undefined, "data-waiting": waiting ? "true" : "false",
           }, where === "guided" ? "Order it at Big Glutts \u203a" : "Place order & play"),
         ),

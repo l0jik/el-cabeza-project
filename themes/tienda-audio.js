@@ -31,9 +31,11 @@ import { createWoodSfx } from "./wood-sfx.js";
 export const hasAudio = true;
 
 // The ceiling speakers' volume: the music (the tape and the arrangements)
-// at half what it was (the user: "cut 50%"); the store and the pieces
-// as they were.
-const MUSIC_VOLUME = 0.5;
+// at half what it was (the user: "cut 50%"), then 40% lower again (0.5 ->
+// 0.3, user); the store's own sounds and the pieces as they were.
+const MUSIC_VOLUME = 0.3;
+// The PA's announcements (chime and voice), 20% lower than they were (user).
+const PA_VOLUME = 0.8;
 
 /* ------------------------------------------------------------ music data */
 
@@ -499,7 +501,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
   // The public-address chime, and a voice you can't quite make out.
   function paAnnouncement(closing = false, dest = null) {
     const t0 = now();
-    const pa = ctx.createGain(); pa.gain.value = 1;
+    const pa = ctx.createGain(); pa.gain.value = PA_VOLUME;
     const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1300; bp.Q.value = 0.7;
     pa.connect(bp).connect(dest || farBus);
     bell(t0, 783.99, 0.1, pa, 1.8); // G

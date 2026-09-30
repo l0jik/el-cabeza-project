@@ -181,13 +181,15 @@ console.log("\ndesktop: the store, the purchase, home");
   check("the note's gone once the form is open", !(await has(page, "tienda-special-note")));
   // Nothing ordered yet: the button waits, glowing, and says so if tapped.
   const place0 = q(page, "tienda-order-place");
-  check("the button glows and waits for an order", /td-sing-glow/.test(await place0.getAttribute("class")) && (await place0.getAttribute("data-waiting")) === "true");
+  check("the button waits for an order, not lit at first", !/td-sing-glow/.test(await place0.getAttribute("class")) && (await place0.getAttribute("data-waiting")) === "true");
   await place0.scrollIntoViewIfNeeded();
   await place0.click({ force: true }); // (aria-disabled, but a tap still reaches it: that's the point)
+  check("...a tap straight on it doesn't light it", !/td-sing-glow/.test(await place0.getAttribute("class")));
   check("...a tap says to order something special first", await poll(async () => /new special pieces/i.test((await has(page, "tienda-order-nudge")) ? await q(page, "tienda-order-nudge").innerText() : ""), 2000));
   check("...and nothing's stamped", !(await has(page, "tienda-order-stamp")));
   await q(page, "tienda-piece-turrito-inc").click();
   check("an order made: the button's ready", (await q(page, "tienda-order-place").getAttribute("data-waiting")) === "false");
+  check("...and, a tap having landed elsewhere, lit in the Singularity's blue", /td-sing-glow/.test(await q(page, "tienda-order-place").getAttribute("class")));
   // The first time through, the order is a special order to take to the
   // store (tienda-overlay.js guided).
   check("the first time through, the button takes it to the store", /Order it at Big Glutts/i.test(await q(page, "tienda-order-place").innerText()));

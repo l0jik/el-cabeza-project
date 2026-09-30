@@ -3768,3 +3768,10 @@ phone menu until "Start the story over" (which clears it).
   (putRules) and hands the game as `carry`. Story cuts clear it (fresh).
   tests/e2e-den-return.mjs (fails without the fix: piece reset, turn
   reset, Begin Game waiting).
+- Order button glow: same rule as the note (user) - btnGlow set by the
+  first pointerdown that isn't on the button (in practice the first
+  choice made on the form); a tap straight on it only nudges.
+- Store levels (user): MUSIC_VOLUME 0.5 -> 0.3 (tape + arrangements,
+  ceiling speakers, 40% lower); PA_VOLUME 0.8 on paAnnouncement's gain
+  (chime + voice, 20% lower; also the clerk scene's page); store ambience
+  and pieces unchanged.
