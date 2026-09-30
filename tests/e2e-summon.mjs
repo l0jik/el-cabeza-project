@@ -92,6 +92,20 @@ console.log("the first arrival");
     return Math.hypot((up.x - c.x) * innerWidth / 2, (up.y - c.y) * innerHeight / 2);
   }), 15000);
   check(`the Singularity's sphere at its own size (radius ${sphereR && sphereR.toFixed(0)} px of ${await page.evaluate(() => innerWidth)})`, !!sphereR && sphereR < 0.5 * (await page.evaluate(() => innerWidth)));
+  // BACK: home, the late-night commercial on the set; a drag across the
+  // screen while it plays must not move the board's camera underneath
+  // (user: after the set went off the view was of the carpet), so once it
+  // goes off the camera comes back to the board.
+  await page.locator('[data-testid="singularity-back-button"]').click({ force: true });
+  check("BACK: home, the commercial on the set", !!(await poll(() => page.evaluate(() => window.__DEN_TV__ && window.__DEN_TV__().phase === "commercial"), 30000)));
+  await page.waitForTimeout(3000);
+  await page.mouse.move(200, 600); await page.mouse.down(); await page.mouse.move(200, 200, { steps: 12 }); await page.mouse.move(60, 250, { steps: 8 }); await page.mouse.up();
+  await page.mouse.wheel(0, 900);
+  check("...then off, and the camera back from the set", !!(await poll(() => page.evaluate(() => { const s = window.__DEN_TV__ && window.__DEN_TV__(); return s && s.phase === "off" && s.focus < 0.01; }), 90000, 500)));
+  await page.waitForTimeout(1500);
+  const view = await page.evaluate(() => { const p = window.__EC_TEST_SCREEN_POS__("dark-cabeza"), q = window.__EC_TEST_SCREEN_POS__("light-cabeza"), c = window.__EC_TEST_THREE__().camera.position; return { p, q, cy: c.y }; });
+  const onScreen = (p) => p && p.x > 0 && p.x < 390 && p.y > 0 && p.y < 844;
+  check(`...on the board, as it was (${JSON.stringify(view)})`, onScreen(view.p) && onScreen(view.q) && view.cy < 30);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

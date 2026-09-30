@@ -3925,3 +3925,19 @@ phone menu until "Start the story over" (which clears it).
   to this one", after seeing the flagstone). fieldstone() is again the
   version from c40fb1e (weighted, rounded stones in sunken mortar); the
   beam mantel and the TV's pull on the music stay.
+- Den: while the set holds the camera (tvW > 0.02 or tvGoal > 0: the lure's
+  look, the commercial, the way in and out), den-fx.js swallows drags,
+  wheel and touchmove on the canvas at window capture (ahead of the
+  chassis's document-level two-finger gestures and the canvas's orbit);
+  taps still go through. Before, a swipe during the commercial moved the
+  board's camera underneath and the set let go onto the carpet (user;
+  without the guard the same drag ends at camera y 43, top-down).
+  e2e-summon now goes BACK into the commercial, drags, and checks the
+  board is on screen after the set goes off.
+- Den fire bed (user: the orange slab under the logs made no sense): a
+  cast-iron grate (5 bars front to back, rails, the front rail's ends
+  turned up; M.black, so no new draw call) and TX.emberBed(): dark warm
+  ash, a deep orange heat pool under the logs, charcoal chunks and coals
+  glowing more toward the middle, glowing cracks, fine ash; transparent
+  at the ragged edges; fog: false (fog tinted the ash blue); its colour
+  breathes with the flame flicker.

@@ -515,6 +515,29 @@ export function createDenEffects(woodSet) {
     const onLookUp = (e) => { if (lookSwallow !== null && e.pointerId === lookSwallow) { lookSwallow = null; e.stopImmediatePropagation(); e.preventDefault(); } };
     const onLookKey = (e) => { if (e.key === "Escape" && lureLook) { lookAtTv(false); e.stopPropagation(); } };
     let lookListenersOn = null;
+    /* While the set has the camera (watching it, the commercial, the way
+       in and out), a drag, a pinch, a two-finger swipe or the wheel on the
+       scene goes nowhere: the board's own camera underneath would take it,
+       and when the set let go the view came back wherever that had been
+       left (user: after the commercial, looking at the carpet). Taps still
+       go through (to the set). Window, capture: ahead of the chassis's
+       document-level gesture listeners and the canvas's own. */
+    const holdsCamera = () => tvW > 0.02 || tvGoal > 0;
+    const onHoldMove = (e) => {
+      const t = three.current, el = t && t.renderer && t.renderer.domElement;
+      if (!el || e.target !== el || !holdsCamera()) return;
+      if (e.type === "pointermove" && !e.buttons && e.pointerType === "mouse") return; // (just hovering)
+      e.stopImmediatePropagation();
+      if (e.cancelable && e.type !== "pointermove") e.preventDefault();
+    };
+    let holdOn = false;
+    function holdListeners() {
+      if (holdOn || typeof window === "undefined") return;
+      holdOn = true;
+      window.addEventListener("pointermove", onHoldMove, true);
+      window.addEventListener("wheel", onHoldMove, { capture: true, passive: false });
+      window.addEventListener("touchmove", onHoldMove, { capture: true, passive: false });
+    }
     function lookListeners(t) {
       if (!lure || lookListenersOn || !t.renderer || typeof window === "undefined") return;
       lookListenersOn = t.renderer.domElement;
@@ -644,6 +667,7 @@ export function createDenEffects(woodSet) {
         // step aside (standard.js styleSheet, html.ec-tv-visit).
         bookListeners(t);
         lookListeners(t);
+        holdListeners();
         showBookHint(bookGoal === 1 && bookW > 0.6);
         const visiting = tvGoal > 0 || tvW > 0.02 || bookGoal > 0 || bookW > 0.02;
         if (visiting !== onStage && typeof document !== "undefined") { onStage = visiting; document.documentElement.classList.toggle("ec-tv-visit", visiting); }
@@ -814,6 +838,12 @@ export function createDenEffects(woodSet) {
         if (typeof document !== "undefined") document.documentElement.classList.remove("ec-tv-visit");
         setCommercialOn(false);
         if (tvHint) { tvHint.remove(); tvHint = null; }
+        if (holdOn) {
+          holdOn = false;
+          window.removeEventListener("pointermove", onHoldMove, true);
+          window.removeEventListener("wheel", onHoldMove, { capture: true });
+          window.removeEventListener("touchmove", onHoldMove, { capture: true });
+        }
         if (lookListenersOn) {
           lookListenersOn.removeEventListener("pointerdown", onLookDown, true);
           lookListenersOn.removeEventListener("pointerup", onLookUp, true);

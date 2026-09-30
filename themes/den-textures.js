@@ -585,6 +585,74 @@ export function grilleCloth() {
 }
 
 // A soft round glow, for lamps and the fire (drawn additively).
+/* The fire's bed (user: an orange slab under the logs made no sense):
+   what's under a fire that's been going a while. Grey ash, black
+   charcoal, and coals glowing through it, hottest in the middle under the
+   logs, with glowing cracks; the edges ragged and fading into the firebox
+   floor (transparent), not a rectangle. */
+export function emberBed() {
+  return canvasTexture(512, 256, (g, W, H) => {
+    const r = rng(451);
+    g.clearRect(0, 0, W, H);
+    // Hotter toward the middle, under the logs.
+    const heat = (x, y) => Math.max(0, 1 - Math.hypot((x - W / 2) / (W * 0.42), (y - H * 0.5) / (H * 0.42)));
+    // The ash: many soft grey patches, the bed's ragged outline their sum.
+    for (let i = 0; i < 260; i++) {
+      const a = r() * TAU, rr = Math.sqrt(r());
+      const x = W / 2 + Math.cos(a) * rr * W * 0.44, y = H / 2 + Math.sin(a) * rr * H * 0.4, R = W * (0.03 + r() * 0.05);
+      const v = 20 + r() * 22; // (dark, and warm: it's lit by the fire)
+      const rg = g.createRadialGradient(x, y, 0, x, y, R);
+      rg.addColorStop(0, `rgba(${v + 16},${v + 7},${v},${0.6 + r() * 0.3})`); rg.addColorStop(1, `rgba(${v + 10},${v + 4},${v - 2},0)`);
+      g.fillStyle = rg; g.beginPath(); g.arc(x, y, R, 0, TAU); g.fill();
+    }
+    // The heat pooled under the logs: a deep orange glow through the ash.
+    g.save(); g.translate(W / 2, H / 2); g.scale(1, H / W * 1.15);
+    const pool = g.createRadialGradient(0, 0, 0, 0, 0, W * 0.36);
+    pool.addColorStop(0, "rgba(255,120,32,0.62)"); pool.addColorStop(0.45, "rgba(214,70,16,0.4)"); pool.addColorStop(1, "rgba(120,30,8,0)");
+    g.fillStyle = pool; g.beginPath(); g.arc(0, 0, W * 0.36, 0, TAU); g.fill(); g.restore();
+    // Charcoal chunks, and coals: some glowing through, most in the middle.
+    for (let i = 0; i < 300; i++) {
+      const a = r() * TAU, rr = Math.pow(r(), 0.8);
+      const x = W / 2 + Math.cos(a) * rr * W * 0.4, y = H / 2 + Math.sin(a) * rr * H * 0.36;
+      const s = W * (0.01 + r() * 0.022), h = heat(x, y), n = 5 + Math.floor(r() * 3);
+      const pts = []; for (let k = 0; k < n; k++) { const b = (k / n) * TAU + r() * 0.5; pts.push([x + Math.cos(b) * s * (0.6 + r() * 0.5), y + Math.sin(b) * s * (0.5 + r() * 0.4)]); }
+      const path = () => { g.beginPath(); pts.forEach(([px, py], k) => (k ? g.lineTo(px, py) : g.moveTo(px, py))); g.closePath(); };
+      const lit = r() < 0.15 + 0.75 * h;
+      path();
+      g.fillStyle = lit ? `rgb(${40 + 20 * r()},${18 + 8 * r()},${10})` : `rgb(${18 + 10 * r()},${15 + 8 * r()},${13 + 6 * r()})`;
+      g.fill();
+      if (lit) {
+        // The glow in its cracks and underside: orange to yellow as it's hotter.
+        const k = 0.35 + 0.65 * h * (0.6 + 0.4 * r());
+        const rg = g.createRadialGradient(x, y + s * 0.2, 0, x, y, s * 1.1);
+        rg.addColorStop(0, `rgba(255,${Math.round(90 + 110 * k * k)},${Math.round(20 + 50 * k * k)},${0.5 + 0.45 * k})`);
+        rg.addColorStop(0.6, `rgba(200,${Math.round(46 + 40 * k)},12,${0.35 * k + 0.12})`);
+        rg.addColorStop(1, "rgba(120,30,8,0)");
+        g.save(); path(); g.clip(); g.fillStyle = rg; g.fillRect(x - s * 1.2, y - s * 1.2, s * 2.4, s * 2.4); g.restore();
+        // Its dark crust, broken by the glowing cracks.
+        g.strokeStyle = "rgba(20,10,6,0.7)"; g.lineWidth = 1; path(); g.stroke();
+      } else {
+        g.strokeStyle = "rgba(90,86,80,0.35)"; g.lineWidth = 0.8; path(); g.stroke(); // a grey ash rim
+      }
+    }
+    // Glowing cracks through the ash, near the middle.
+    for (let i = 0; i < 40; i++) {
+      let x = W / 2 + (r() - 0.5) * W * 0.55, y = H / 2 + (r() - 0.5) * H * 0.45;
+      const h = heat(x, y); if (h < 0.2) continue;
+      g.strokeStyle = `rgba(255,${Math.round(110 + 80 * h)},40,${0.3 + 0.5 * h})`; g.lineWidth = 0.8 + r() * 1.2;
+      g.beginPath(); g.moveTo(x, y);
+      for (let k = 0; k < 6; k++) { x += (r() - 0.5) * W * 0.03; y += (r() - 0.5) * H * 0.06; g.lineTo(x, y); }
+      g.stroke();
+    }
+    // White ash on top, finest.
+    for (let i = 0; i < 900; i++) {
+      const a = r() * TAU, rr = Math.sqrt(r());
+      g.fillStyle = `rgba(${150 + r() * 40},${138 + r() * 34},${124 + r() * 30},${0.08 + r() * 0.16})`;
+      g.fillRect(W / 2 + Math.cos(a) * rr * W * 0.42, H / 2 + Math.sin(a) * rr * H * 0.38, 1.2, 1.2);
+    }
+  }, { scale: false });
+}
+
 export function glow() {
   return canvasTexture(128, 128, (g, W) => {
     const rg = g.createRadialGradient(W / 2, W / 2, 0, W / 2, W / 2, W / 2);

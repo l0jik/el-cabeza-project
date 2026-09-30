@@ -274,7 +274,7 @@ export function buildDen(boardSpan) {
     shade: glowing({ map: T.shade, color: 0xffe2b0, side: THREE.DoubleSide }),
     globe: glowing({ color: 0xffa24a }),
     bulb: glowing({ color: 0xfff1d0 }),
-    ember: glowing({ color: 0xff6a1a }),
+    ember: glowing({ map: tex(TX.emberBed()), transparent: true, depthWrite: false, fog: false }), // (no fog: it tinted the ash blue)
     night: glowing({ map: T.night, color: 0xb0b8c8 }),
   };
 
@@ -418,8 +418,18 @@ export function buildDen(boardSpan) {
   log(0, yF + hearthH + 1.4, -RZ + 3, 13, 0.08, 0, 1, 7);
   log(-1, yF + hearthH + 3.1, -RZ + 2.4, 12, -0.12, 0.12, 0.92, 19);
   log(2, yF + hearthH + 2.7, -RZ + 3.8, 9, 0.5, -0.1, 0.85, 31);
-  const embers = new THREE.Mesh(new THREE.PlaneGeometry(14, 3.6), M.ember);
-  embers.rotation.x = -Math.PI / 2; embers.position.set(0, yF + hearthH + 0.35, -RZ + 3);
+  /* Under them (user: the orange slab made no sense): a cast-iron grate
+     they rest on - bars front to back, rails front and back, the front
+     rail's ends turned up - and the bed of ash and glowing coals it
+     stands in (TX.emberBed), its edges fading into the firebox floor. */
+  const gy = yF + hearthH + 0.25, gz0 = -RZ + 1.2, gz1 = -RZ + 5.4;
+  [-5, -2.5, 0, 2.5, 5].forEach((x) => wallN(box(0.32, 0.3, gz1 - gz0, x, gy, (gz0 + gz1) / 2), M.black, null));
+  wallN(box(11.6, 0.34, 0.34, 0, gy + 0.05, gz1), M.black, null);
+  wallN(box(11.6, 0.3, 0.3, 0, gy, gz0), M.black, null);
+  [-5.8, 5.8].forEach((x) => wallN(box(0.36, 1.5, 0.36, x, gy + 0.75, gz1), M.black, null));
+  const embers = new THREE.Mesh(new THREE.PlaneGeometry(16, 5.2), M.ember);
+  embers.rotation.x = -Math.PI / 2; embers.position.set(0, yF + hearthH + 0.13, -RZ + 3.2);
+  embers.renderOrder = 1;
   B.mesh(embers, "wallN");
   // The mantel, and what's on it.
   // (A rough-hewn beam, not paneling: user.)
@@ -799,7 +809,7 @@ export function buildDen(boardSpan) {
       flameMat.uniforms.uTime.value = t;
       const flick = 0.85 + Math.sin(t * 7.3) * 0.06 + Math.sin(t * 13.1 + 1.3) * 0.05 + Math.sin(t * 2.1) * 0.04;
       fireGlow.material.opacity = 0.5 * flick;
-      embers.material.color.setRGB(1, 0.36 + 0.08 * flick, 0.08);
+      embers.material.color.setScalar(0.72 + 0.5 * (flick - 0.7)); // (the coals breathing with the flames)
       T.rain.offset.y = (T.rain.offset.y + 0.0016) % 1;
       const d = new Date();
       const mins = d.getMinutes() + d.getSeconds() / 60;
