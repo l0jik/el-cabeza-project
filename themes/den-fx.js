@@ -621,6 +621,19 @@ export function createDenEffects(woodSet) {
             }
           }
         }
+        // The set's pull on the music (den-audio.js setTvPull): nothing
+        // until it starts stirring, then more as the lure goes on; all of
+        // it while you're over watching, or it's on.
+        {
+          let pull = 0;
+          if (lure && !lureDone && lureStart) {
+            const waited = now - lureStart - LURE_WAIT;
+            if (waited >= 0) pull = Math.max(0.4, Math.min(1, waited / LURE_RAMP));
+            if (lureLook) pull = 1;
+          }
+          if (den.tv.isOn()) pull = 1;
+          if (audio && audio.setTvPull) audio.setTvPull(pull);
+        }
         tvDive = den.tv.animate(now, dt);
         {
           const on = den.tv.phase() === "commercial";

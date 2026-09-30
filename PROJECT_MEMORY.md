@@ -3898,3 +3898,26 @@ phone menu until "Start the story over" (which clears it).
   painted 20% wider and the extra folded over the start so it repeats
   with no seam. e2e-den's draw-call line 200 -> 210 (the beam's material
   made 200).
+- Den fireplace, again (user: flat, like flagstones, not round river
+  rock): fieldstone() is now flagstone. Courses of NX 4 x NY 9 sites, odd
+  rows shifted half a slab, distance with x squeezed by AX 0.5 (slabs
+  twice as wide as tall), plain nearest-two Voronoi (straight, sharp edges;
+  a little high-frequency warp for split, ragged edges); the joint distance
+  is the true one (the squeezed bisector mapped back: D'/|A^T n'|), so
+  joints are the same width either way; mw 0.0065..0.0105; grey gritty
+  mortar sunk back. Each slab's face flat with a slight tilt, level
+  layers that wander and fade (sin with a noise-warped phase and noise
+  amplitude), a cleft step now and then, pits, iron staining in 30%, a
+  thin chipped arris lit toward the light. Everything periodic (no u
+  scaling or slant: they seamed at the tile edge). ~0.2 s at 512.
+- The TV's pull on the music (user: a record at full blast drowned the
+  set acting up): den-audio.js setTvPull(p) from den-fx.js each frame - 0
+  until the lure's first stir (LURE_WAIT), then max(0.4, waited/LURE_RAMP),
+  1 while looking at it or while it's on. Music chain: tone -> warp (delay
+  0.03 s, 0.55 Hz wobble of 0.0035 s x pull, ~1% pitch) -> duck (1 -
+  0.85 sqrt(p): -6.7 dB at 0.4, -16.5 dB at 1) -> drop -> musicBus. Each
+  haunt knocks it (musicGlitch): thump/static/phantom/flash/flicker a
+  dropout to 0.06 for 60-310 ms; roll/tune/ghost/voice/flash/pilot a
+  pitch sag (delay drawn out 14 ms x strength and back). __DEN_AUDIO__ now
+  has tvPull and music.duck/wobble; __DEN_TEST_PLAY__(url) (test hooks
+  only) starts a track; e2e-tv-lure checks the record backs off and warps.

@@ -38,8 +38,17 @@ let s = await tv();
 check("the set waits at first", s.lure && s.locked, JSON.stringify(s));
 await page.waitForTimeout(3000);
 check("...and nothing stirs yet", (await tv()).lureEvents === 0);
+// A record on, at full: the set's stirring mustn't be lost under it.
+await poll(() => page.evaluate(() => !!window.__DEN_TEST_PLAY__), 10000);
+await page.evaluate(() => window.__DEN_TEST_PLAY__("el-cabeza-den-record-1.mp3"));
+await page.waitForTimeout(800);
+const mus = () => page.evaluate(() => { const a = window.__DEN_AUDIO__(); return { pull: a.tvPull, duck: a.music && a.music.duck, wobble: a.music && a.music.wobble }; });
+const m0 = await mus();
+check(`a record plays at full before the set stirs (${JSON.stringify(m0)})`, m0.pull === 0 && m0.duck > 0.95);
 await page.evaluate(() => window.__DEN_LURE_SKIP__(26000));
 check("after 25 s it stirs", !!(await poll(async () => (await tv()).lureEvents >= 1, 15000)), JSON.stringify(await tv()));
+const m1 = await poll(async () => { const m = await mus(); return m.duck < 0.55 && m.wobble > 0 ? m : null; }, 6000);
+check(`...and the record backs off and warps (${JSON.stringify(m1 || (await mus()))})`, !!m1);
 await page.waitForTimeout(400);
 const far = await near();
 // Left alone a good while: it stirs, often.

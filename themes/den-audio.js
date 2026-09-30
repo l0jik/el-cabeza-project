@@ -111,7 +111,8 @@ export function createAudio() {
           fire: { near: fireNear, gain: fireBus.gain.value, pan: firePan ? firePan.pan.value : 0, recording: firePlaying ? (fireSrc ? "buffer" : "element") : null },
           haunt: { near: hauntNear, pan: hauntSide, distance: hauntDist },
           chimes,
-          music: music ? { id: music.track.id, medium: music.track.medium, paused: music.el.paused, time: music.el.currentTime } : null,
+          music: music ? { id: music.track.id, medium: music.track.medium, paused: music.el.paused, time: music.el.currentTime, duck: music.duck ? music.duck.gain.value : null, wobble: music.wobG ? music.wobG.gain.value : null } : null,
+          tvPull,
         });
         if (window.__EC_TEST_HOOKS__) window.__DEN_CHIME_NOW__ = () => { ensureGraph(); if (ctx && roomOn) chime(); return chimes; };
       }
@@ -293,6 +294,40 @@ export function createAudio() {
   }
 
   /* ---------------- the stereo console ---------------- */
+  /* The set's pull on the music (user: a record at full blast drowned the
+     television acting up). tvPull, 0 to 1, from den-fx.js each frame: 0
+     until the set starts stirring, then from 0.4 up to 1 as the lure goes
+     on, and 1 while it's on. The music drops (to about -7 dB at 0.4, -16 dB
+     at 1) and starts to wander in pitch like a warped tape (a slow wobble
+     of a short delay, about 1% at full); and each stir of the set knocks it
+     (musicGlitch: a dropout, or the pitch sagging and coming back). */
+  let tvPull = 0;
+  const pullGain = (p) => 1 - 0.85 * Math.sqrt(Math.max(0, Math.min(1, p)));
+  function setTvPull(p) {
+    p = Math.max(0, Math.min(1, p || 0));
+    if (Math.abs(p - tvPull) < 0.02 && !(p === 0 && tvPull !== 0)) return;
+    tvPull = p;
+    if (!ctx || !music || !music.duck) return;
+    const t = now();
+    music.duck.gain.setTargetAtTime(pullGain(p), t, 0.6);
+    music.wobG.gain.setTargetAtTime(0.0035 * p, t, 0.8);
+  }
+  function musicGlitch(kind, strength) {
+    if (!ctx || !music || !music.duck || tvPull <= 0 || music.el.paused) return;
+    const t = now(), s = Math.max(0.3, Math.min(1, strength || 0.5));
+    if (kind === "thump" || kind === "static" || kind === "phantom" || kind === "flash" || kind === "flicker") {
+      // A dropout: the music all but gone for a moment.
+      const d = music.drop.gain, hold = 0.06 + 0.25 * s;
+      d.cancelScheduledValues(t); d.setValueAtTime(d.value, t);
+      d.linearRampToValueAtTime(0.06, t + 0.03); d.setValueAtTime(0.06, t + 0.03 + hold); d.linearRampToValueAtTime(1, t + 0.15 + hold);
+    }
+    if (kind === "roll" || kind === "tune" || kind === "ghost" || kind === "voice" || kind === "flash" || kind === "pilot") {
+      // The warp: the pitch sags (the delay drawn out) and comes back.
+      const w = music.warp.delayTime, base = 0.03;
+      w.cancelScheduledValues(t); w.setValueAtTime(base, t);
+      w.linearRampToValueAtTime(base + 0.014 * s, t + 0.2 + 0.15 * s); w.linearRampToValueAtTime(base, t + 0.7 + 0.3 * s);
+    }
+  }
   function stopMusic() {
     if (!music) return;
     const m = music;
@@ -312,8 +347,15 @@ export function createAudio() {
     el.src = track.url; el.loop = !!track.loop; el.preload = "auto";
     const src = ctx.createMediaElementSource(el);
     const tone = ctx.createBiquadFilter(); tone.type = "lowpass"; tone.frequency.value = track.medium === "8track" ? 9000 : 13000;
-    src.connect(tone).connect(musicBus);
-    const extra = [tone];
+    // (Then the set's pull: a warping delay, its duck, its dropouts.)
+    const warp = ctx.createDelay(0.2); warp.delayTime.value = 0.03;
+    const wob = ctx.createOscillator(); wob.frequency.value = 0.55;
+    const wobG = ctx.createGain(); wobG.gain.value = 0.0035 * tvPull;
+    wob.connect(wobG).connect(warp.delayTime); wob.start();
+    const duck = ctx.createGain(); duck.gain.value = pullGain(tvPull);
+    const drop = ctx.createGain(); drop.gain.value = 1;
+    src.connect(tone).connect(warp).connect(duck).connect(drop).connect(musicBus);
+    const extra = [tone, warp, wob, wobG, duck, drop];
     // A track already put through the console's treatment (track.treated:
     // tools/console_1974_turntable.py) has its hiss and crackle in it.
     if (!track.treated) {
@@ -323,7 +365,7 @@ export function createAudio() {
       bed.connect(bf).connect(bg).connect(musicBus); bed.start();
       extra.push(bed, bf, bg);
     }
-    music = { el, src, extra, track };
+    music = { el, src, extra, track, warp, wobG, duck, drop };
     roomFollowMusic();
     el.addEventListener("ended", () => { if (music && music.el === el) { stopMusic(); if (onEnd) onEnd(); } });
     const p = el.play();
@@ -422,6 +464,7 @@ export function createAudio() {
   function tvHaunt(kind, strength = 0.5) {
     ensureGraph();
     if (!ctx) return;
+    musicGlitch(kind, strength);
     if (!hauntBus) {
       hauntBus = ctx.createGain(); hauntBus.gain.value = hauntNear;
       const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1600; bp.Q.value = 0.3;
@@ -653,6 +696,8 @@ export function createAudio() {
 
   const cue = (fn) => (...args) => { ensureGraph(); if (wood) fn(...args); };
 
+  // Test-only: a track straight on (the panel's taps aside).
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_TEST_PLAY__ = (url) => playMusic({ id: "test", url, medium: "record", loop: true, treated: true });
   return {
     ensureStarted() {
       ensureGraph();
@@ -706,6 +751,9 @@ export function createAudio() {
     tvOff,
     tvCommercial,
     tvHaunt,
+    setTvPull,
+    // (Test-only reading: the pull, and the music's level under it.)
+    tvPullNow() { return { pull: tvPull, duck: music && music.duck ? music.duck.gain.value : null }; },
     // The snow's hiss, 0 (none) to 1 (a screen of it).
     tvHiss(level) { if (tvGraph()) tv.hissGain.gain.setTargetAtTime(level * 0.07, now(), 0.12); },
     // The station's tone as the test pattern comes up.
