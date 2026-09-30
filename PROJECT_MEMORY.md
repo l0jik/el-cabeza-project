@@ -3860,3 +3860,11 @@ phone menu until "Start the story over" (which clears it).
   d = (r-R)/R = 0 plus glow exp(-d/0.16)*0.55 outside, slow 3/7-lobe arcs,
   same breathing), fixed size (no more growing from 0.6). RING (1.25 R)
   is now only the glow's reach for the title check.
+- Summons halo alive (user: pulsating and vibrating, plasma jets from a
+  vast distance): uTime on both shaders (0 under reduced motion). Pulse =
+  1 + 0.26 sin(breath) + 0.08 sin(7.3t) sin(2.9t), on the sphere's rim
+  and the halo. Halo: the edge radius shivers (0.010 sin(9a + 23t) +
+  0.012 noise), the edge line flickers along its length (value noise on
+  the circle, dir = (cos a, sin a), so no seam), and sparse thin jets
+  (noise over 0.58, ^2.5) of varying length (0.18..0.68 R) ripple outward
+  (0.75 + 0.25 sin(60d - 9t)), cut off by d 0.9 (ring geometry to 1.9 R).

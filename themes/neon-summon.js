@@ -75,13 +75,15 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
   // pieces, which three draws after everything solid; its renderOrder then
   // puts it last.)
   const sphereMat = new THREE.ShaderMaterial({
-    uniforms: { uPulsePhase: { value: 0 }, uOpen: { value: 0 } },
+    uniforms: { uPulsePhase: { value: 0 }, uOpen: { value: 0 }, uTime: { value: 0 } },
     vertexShader: `varying vec3 vN; varying vec3 vV;
       void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
-    fragmentShader: `uniform float uPulsePhase, uOpen; varying vec3 vN; varying vec3 vV;
+    fragmentShader: `uniform float uPulsePhase, uOpen, uTime; varying vec3 vN; varying vec3 vV;
       void main() {
         float rim = pow(1.0 - max(dot(normalize(vN), normalize(vV)), 0.0), 2.5);
-        gl_FragColor = vec4(vec3(0.4, 0.85, 1.0) * rim * (1.0 + 0.22 * sin(uPulsePhase)) * uOpen, 1.0);
+        // (Throbbing with the halo: the slow breath and the quick unsteady beat.)
+        float pulse = 1.0 + 0.26 * sin(uPulsePhase) + 0.08 * sin(uTime * 7.3) * sin(uTime * 2.9);
+        gl_FragColor = vec4(vec3(0.4, 0.85, 1.0) * rim * pulse * uOpen, 1.0);
       }`,
     transparent: true, depthTest: false, depthWrite: false,
   });
@@ -95,17 +97,42 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
      edge and a soft glow falling away outside it, turning slowly (a
      little brighter in places, so the turning shows) ---- */
   const ringMat = new THREE.ShaderMaterial({
-    uniforms: { uOpen: { value: 0 }, uRot: { value: 0 }, uPulsePhase: { value: 0 }, uR: { value: R } },
+    uniforms: { uOpen: { value: 0 }, uRot: { value: 0 }, uPulsePhase: { value: 0 }, uR: { value: R }, uTime: { value: 0 } },
     vertexShader: `varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform float uOpen, uRot, uPulsePhase, uR; varying vec2 vP;
+    /* Alive (user: pulsating and vibrating, as if plasma jets were
+       coming off it from a vast astronomical distance): the edge trembles
+       (its radius shivers a percent or so) and flickers along its length;
+       and here and there a thin jet flares out from it, ripples outward
+       and dies away, the pattern drifting so no two moments match. All
+       fine and faint: far off, not close. */
+    fragmentShader: `precision highp float;
+      uniform float uOpen, uRot, uPulsePhase, uR, uTime; varying vec2 vP;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float vnoise(vec2 p) {
+        vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+      }
       void main() {
         float r = length(vP), a = atan(vP.y, vP.x);
-        float d = (r - uR) / uR;                       // 0 at the edge
-        float line = exp(-pow(d / 0.045, 2.0));        // the edge itself
-        float glow = d > 0.0 ? exp(-d / 0.16) * 0.55 : 0.0; // falling away outside
+        vec2 dir = vec2(cos(a), sin(a)); // (noise on the circle: no seam)
+        // The tremble: the edge's radius shivering, finely and fast.
+        float shiver = 0.010 * sin(a * 9.0 + uTime * 23.0) + 0.012 * (vnoise(dir * 7.0 + vec2(uTime * 6.0, 0.0)) - 0.5);
+        float d = (r - uR * (1.0 + shiver)) / uR;    // 0 at the edge
+        // The edge line, flickering along its length.
+        float flick = 0.7 + 0.6 * vnoise(dir * 5.0 + vec2(0.0, uTime * 2.3));
+        float line = exp(-pow(d / 0.045, 2.0)) * flick;
+        float glow = d > 0.0 ? exp(-d / 0.16) * 0.55 : 0.0;
+        // The jets: sparse, thin, of changing length, rippling outward.
+        float j = vnoise(dir * 11.0 + vec2(uTime * 0.35, -uTime * 0.21));
+        float jet = pow(max(0.0, j - 0.58) / 0.42, 2.5);
+        float len = 0.18 + 0.5 * vnoise(dir * 3.0 + vec2(uTime * 0.5, 1.7));
+        float streak = d > 0.0 ? jet * exp(-d / len) * (0.75 + 0.25 * sin(d * 60.0 - uTime * 9.0)) * 1.1 : 0.0;
+        streak *= smoothstep(0.9, 0.55, d);
         float arcs = 0.84 + 0.11 * sin(a * 3.0 + uRot) + 0.05 * sin(a * 7.0 - uRot * 1.6);
-        float k = (line + glow) * arcs * uOpen * (1.0 + 0.22 * sin(uPulsePhase));
-        gl_FragColor = vec4(vec3(0.4, 0.85, 1.0) * k, k);
+        // The pulse: the slow breath, and a quicker unsteady throb on it.
+        float pulse = 1.0 + 0.26 * sin(uPulsePhase) + 0.08 * sin(uTime * 7.3) * sin(uTime * 2.9);
+        float k = (line + glow + streak) * arcs * uOpen * pulse;
+        gl_FragColor = vec4(vec3(0.4, 0.85, 1.0) * k + vec3(0.25, 0.3, 0.35) * streak * 0.4 * uOpen, k);
       }`,
     transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
   });
@@ -331,6 +358,7 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
       ringMat.uniforms.uOpen.value = ease((tau - RING_AT) / RING_S);
       ringMat.uniforms.uRot.value = tau * 0.35;
       ringMat.uniforms.uPulsePhase.value = sphereMat.uniforms.uPulsePhase.value = tau * 1.1; // the Singularity's breathing
+      ringMat.uniforms.uTime.value = sphereMat.uniforms.uTime.value = reduceMotion ? 0 : tau;
       sphereMat.uniforms.uOpen.value = ringMat.uniforms.uOpen.value;
       // Facing the camera, whatever the board's turn.
       t.camera.getWorldQuaternion(qFace); group.getWorldQuaternion(qT);
