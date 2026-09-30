@@ -3868,3 +3868,16 @@ phone menu until "Start the story over" (which clears it).
   the circle, dir = (cos a, sin a), so no seam), and sparse thin jets
   (noise over 0.58, ^2.5) of varying length (0.18..0.68 R) ripple outward
   (0.75 + 0.25 sin(60d - 9t)), cut off by d 0.9 (ring geometry to 1.9 R).
+- Summons: the dock is hidden with visibility (not display: none). The
+  chassis's pre-game fit (recompute) measures the dock's top; a
+  display:none dock has no box, so it bailed, the board was never fitted
+  (lastBoardFitRadiusRef null), and the Singularity sphere arrived filling
+  the phone (user; the browser's Back re-ran the fit). e2e-summon now
+  checks the sphere's on-screen radius (< half the width; 158 px of 390).
+  Also: the shield wakes the sound on pointerup/touchend/click as well as
+  pointerdown (a touch counts as a user activation only at its end).
+- Unresolved (asked the user): a "global sound dampening" on some boards,
+  and no sound for the wormhole on their phone. In Chromium (with and
+  without the autoplay flag, real touch taps) the toll, hum and roar all
+  play at -17..-19 dB RMS through Neon's context; the den's context stays
+  alive (silent) while in Neon.

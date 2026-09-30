@@ -270,7 +270,11 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
   Object.assign(shield.style, { position: "fixed", zIndex: "3", touchAction: "none", background: "transparent", cursor: "default" });
   document.body.appendChild(shield);
   const style = document.createElement("style");
-  style.textContent = "html.ec-summon [data-dock-piece], html.ec-summon [data-testid=\"dock-panel\"], html.ec-summon .ec-shell-bar { display: none !important; }";
+  // Hidden but still taking their space (visibility, not display: the
+  // chassis fits the board between the title and the dock by measuring
+  // the dock, and a dock with no box leaves the board unfitted, which is
+  // what the Singularity's sphere sizes itself by: it came up huge).
+  style.textContent = "html.ec-summon [data-dock-piece], html.ec-summon [data-testid=\"dock-panel\"], html.ec-summon .ec-shell-bar { visibility: hidden !important; pointer-events: none !important; }";
   document.head.appendChild(style);
   document.documentElement.classList.add("ec-summon");
   const ray = new THREE.Raycaster(), p2 = new THREE.Vector2();
@@ -292,6 +296,9 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
     if (summonBridge.reveal) summonBridge.reveal();
   };
   ["pointerup", "click", "dblclick", "contextmenu", "wheel", "touchstart", "touchmove", "touchend"].forEach((ev) => shield.addEventListener(ev, swallow, { passive: false }));
+  // (A phone counts a touch as a tap for starting sound only at its end:
+  // wake the sound then too.)
+  ["pointerup", "touchend", "click"].forEach((ev) => shield.addEventListener(ev, () => { if (sound) sound.resume(); }));
   shield.addEventListener("pointermove", onMove);
   shield.addEventListener("pointerdown", onDown);
   function fitShield() {

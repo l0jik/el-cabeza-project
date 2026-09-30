@@ -59,7 +59,7 @@ console.log("the first arrival");
   const s1 = await poll(async () => { const s = await S(); return s.ready && s.lifted.length && s.lifted.every((y) => y > 0.1) ? s : null; }, 12000);
   check("the pieces have lifted off the board, facing it", !!s1, JSON.stringify(await S()));
   check("the singularity sits between the title and the board", !!s1 && s1.screen.y > 110 && s1.screen.y < 420, JSON.stringify(s1 && s1.screen));
-  const dockHidden = await page.evaluate(() => [...document.querySelectorAll('[data-dock-piece], [data-testid="dock-panel"]')].every((d) => getComputedStyle(d).display === "none"));
+  const dockHidden = await page.evaluate(() => [...document.querySelectorAll('[data-dock-piece], [data-testid="dock-panel"]')].every((d) => getComputedStyle(d).visibility === "hidden"));
   check("the dock is put away", dockHidden);
   const atTitle = await page.evaluate(() => { const t = document.querySelector(".ec-title").getBoundingClientRect(); const el = document.elementFromPoint(t.left + t.width / 2, t.top + t.height / 2); return el && (el.getAttribute("data-testid") || el.className); });
   check(`the title's hold is still within reach (${atTitle})`, /hold-zone/.test(String(atTitle)));
@@ -76,6 +76,22 @@ console.log("the first arrival");
   const b = await page.locator(".ec-singularity-invite-btn").boundingBox();
   await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   check("the toll puts the summons away", !!(await poll(async () => !(await S()).active, 6000)));
+  // Then the way in: the Singularity's sphere at its own size, not huge
+  // (the summons once hid the dock outright, the board went unfitted, and
+  // the sphere came up filling the screen).
+  const sphereR = await poll(() => page.evaluate(() => {
+    const t = window.__EC_TEST_THREE__ && window.__EC_TEST_THREE__();
+    const f = t && t.singularity && t.singularity.sphereFrame;
+    if (!f || !f.visible || !f.parent) return null;
+    const ph = document.querySelector("[data-singularity-phase]");
+    if (!ph || ph.getAttribute("data-singularity-phase") !== "sphere") return null;
+    const V = t.camera.position.constructor, c = new V(), up = new V(0, 1, 0);
+    f.getWorldPosition(c); const s = new V(); f.getWorldScale(s);
+    up.applyQuaternion(t.camera.quaternion).multiplyScalar(6 * s.y).add(c);
+    c.project(t.camera); up.project(t.camera);
+    return Math.hypot((up.x - c.x) * innerWidth / 2, (up.y - c.y) * innerHeight / 2);
+  }), 15000);
+  check(`the Singularity's sphere at its own size (radius ${sphereR && sphereR.toFixed(0)} px of ${await page.evaluate(() => innerWidth)})`, !!sphereR && sphereR < 0.5 * (await page.evaluate(() => innerWidth)));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
