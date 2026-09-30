@@ -3978,3 +3978,16 @@ phone menu until "Start the story over" (which clears it).
 - Summons: thunder earlier (acc starts at 0.7, first clap on the third
   beat, ~6.6 s; was ~12 s) and the pieces bob more (0.07 -> 0.16 of a
   square, lifted 0.3 -> 0.4 so a bob's low stays clear of the board).
+- The special-orders note, the first time through (guided; user: only it
+  can be tapped, and a tap elsewhere should make its blue throb harder):
+  tienda-overlay.js, while the note is up and story.guided(), stops every
+  pointer/touch/mouse/click/wheel event (and keys but Tab, and Enter/Space
+  on the note) at window capture unless it's on the note, so the board,
+  the camera, the dock, the room and the corner buttons see nothing. The
+  camera therefore stays square on the board, as the set left it (the
+  user's angled shot came from taps and drags that got through). Each
+  stray tap adds .td-throb (restarted each time, two frames after
+  React's render): tdSingThrob, 1 s, scale to 1.09 with a halo to 34 px +
+  90 px, a rebound, then back to the tdSingGlow breathing. e2e-story now
+  drags and wheels with the note up (camera unchanged, td-throb set) and
+  opens the order form from the note (the dock's Custom rules is blocked).

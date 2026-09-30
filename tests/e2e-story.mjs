@@ -173,10 +173,16 @@ console.log("\ndesktop: the store, the purchase, home");
   await page.waitForTimeout(400);
   check("...a tap elsewhere doesn't put it away (it's the way in)", await has(page, "tienda-special-note"));
   check("...but lights it in the Singularity's blue", /td-sing-glow/.test(await q(page, "tienda-special-note").getAttribute("class")));
-  await openDockPanel(page); // (that tap on the board folded the dock's panel)
-  check("...and the row has Custom rules", await poll(async () => /Custom rules/i.test(await q(page, "tienda-order-form").innerText()), 5000));
-  await q(page, "tienda-order-form").click();
-  check("Custom rules is the whole order form", await poll(() => has(page, "tienda-order"), 8000));
+  // (The first time through it's the only thing on the screen that takes
+  // a tap, user: the dock, the board and the camera don't.)
+  const cam0 = await page.evaluate(() => { const p = window.__EC_TEST_THREE__().camera.position; return [p.x, p.y, p.z].map((v) => v.toFixed(2)).join(); });
+  await page.mouse.move(200, 500); await page.mouse.down(); await page.mouse.move(420, 380, { steps: 8 }); await page.mouse.up();
+  await page.mouse.wheel(0, 500);
+  await page.waitForTimeout(900);
+  check("...nothing else takes a tap or a drag: the camera stays", cam0 === await page.evaluate(() => { const p = window.__EC_TEST_THREE__().camera.position; return [p.x, p.y, p.z].map((v) => v.toFixed(2)).join(); }));
+  check("...and each tap off it makes it throb", /td-throb/.test(await q(page, "tienda-special-note").getAttribute("class")));
+  await q(page, "tienda-special-note").click();
+  check("the note is the whole order form", await poll(() => has(page, "tienda-order"), 8000));
   check("...with the board's size now, and still no shuffled start (Neon's alone)", (await has(page, "tienda-cols")) && !/Shuffled start/.test(await q(page, "tienda-order").innerText()));
   check("the note's gone once the form is open", !(await has(page, "tienda-special-note")));
   // Nothing ordered yet: the button waits, glowing, and says so if tapped.

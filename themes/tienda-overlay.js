@@ -141,13 +141,49 @@ export function useSetupExtras(x) {
     // scene: it stays until it's taken up, user.)
     // A tap off it then lights it in the Singularity's blue, to show where
     // to go (user: only then; a tap straight on it needs no prompting).
+    const guidedNow = () => home && story.guided && story.guided();
+    const onNote = (e) => !!(e.target && e.target.closest && e.target.closest(".td-special-note"));
+    /* The first time through, nothing else on the screen can be touched
+       while it's up (user: only the order form): every tap, drag, wheel
+       and key off it is stopped at the window, before the board, the
+       camera, the room or the corner buttons see it; and each tap off it
+       makes it throb, harder than its breathing, to say where to go
+       (user). (The camera stays square on the board, as the set left it:
+       taps that got through had been turning it.) */
+    const throb = () => {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const el = document.querySelector(".td-special-note");
+        if (!el) return;
+        el.classList.remove("td-throb"); void el.offsetWidth; el.classList.add("td-throb");
+      }));
+    };
+    const block = (e) => {
+      if (!guidedNow() || onNote(e)) return;
+      e.stopImmediatePropagation(); e.stopPropagation();
+      if (e.cancelable && e.type !== "pointermove") e.preventDefault();
+      if (e.type === "pointerdown" || (e.type === "touchstart" && !window.PointerEvent)) { setNoteGlow(true); throb(); }
+    };
+    const blockKey = (e) => {
+      if (!guidedNow()) return;
+      const a = document.activeElement;
+      if (a && a.closest && a.closest(".td-special-note") && (e.key === "Enter" || e.key === " " || e.key === "Tab")) return;
+      if (e.key === "Tab") return;
+      e.stopImmediatePropagation(); e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+    };
+    const BLOCK = ["pointerdown", "pointerup", "pointermove", "click", "dblclick", "contextmenu", "touchstart", "touchmove", "touchend", "wheel", "mousedown", "mouseup", "gesturestart"];
+    BLOCK.forEach((ev) => window.addEventListener(ev, block, { capture: true, passive: false }));
+    window.addEventListener("keydown", blockKey, true);
     const onDown = (e) => {
-      const onNote = e.target && e.target.closest && e.target.closest(".td-special-note");
-      if (home && story.guided && story.guided()) { if (!onNote) setNoteGlow(true); return; }
-      if (!onNote) dismissSpecialNote();
+      if (guidedNow()) return;
+      if (!onNote(e)) dismissSpecialNote();
     };
     document.addEventListener("pointerdown", onDown, true);
-    return () => document.removeEventListener("pointerdown", onDown, true);
+    return () => {
+      BLOCK.forEach((ev) => window.removeEventListener(ev, block, { capture: true }));
+      window.removeEventListener("keydown", blockKey, true);
+      document.removeEventListener("pointerdown", onDown, true);
+    };
   }, [specialNote, dismissSpecialNote]);
   const selRef = React.useRef(null);
   if (!selRef.current) selRef.current = keptOrder ? cloneSelections(keptOrder) : defaultSelections();
@@ -411,6 +447,16 @@ const CSS = `
      first time through (the note, the form's button): a halo that breathes. */
   .td-special-note.td-sing-glow { animation: tdSingGlow 2.4s ease-in-out infinite; }
   button.td-btn.td-sing-glow { animation: tdSingGlow 2.4s ease-in-out infinite; }
+  /* A tap anywhere else, the first time through: a throb, higher and
+     brighter than the breathing (user), then back to breathing. */
+  .td-special-note.td-sing-glow.td-throb { animation: tdSingThrob 1s cubic-bezier(0.2, 0.7, 0.3, 1) both, tdSingGlow 2.4s ease-in-out 1s infinite; }
+  @keyframes tdSingThrob {
+    0% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 2px rgba(150,232,255,0.95), 0 0 18px 5px rgba(102,217,255,0.7), 0 0 42px 12px rgba(140,110,255,0.36), 0 6px 18px rgba(10,6,3,0.4); }
+    22% { transform: translateX(-50%) scale(1.09); box-shadow: 0 0 0 4px rgba(200,244,255,1), 0 0 34px 12px rgba(102,217,255,0.95), 0 0 90px 34px rgba(140,110,255,0.6), 0 10px 24px rgba(10,6,3,0.45); }
+    48% { transform: translateX(-50%) scale(0.985); }
+    68% { transform: translateX(-50%) scale(1.03); box-shadow: 0 0 0 2.5px rgba(170,236,255,0.95), 0 0 24px 8px rgba(102,217,255,0.8), 0 0 56px 18px rgba(140,110,255,0.42), 0 6px 18px rgba(10,6,3,0.4); }
+    100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 1.5px rgba(102,217,255,0.75), 0 0 10px 2px rgba(102,217,255,0.45), 0 0 26px 6px rgba(140,110,255,0.22), 0 6px 18px rgba(10,6,3,0.4); }
+  }
   @keyframes tdSingGlow {
     0%, 100% { box-shadow: 0 0 0 1.5px rgba(102,217,255,0.75), 0 0 10px 2px rgba(102,217,255,0.45), 0 0 26px 6px rgba(140,110,255,0.22), 0 6px 18px rgba(10,6,3,0.4); }
     50% { box-shadow: 0 0 0 2px rgba(150,232,255,0.95), 0 0 18px 5px rgba(102,217,255,0.7), 0 0 42px 12px rgba(140,110,255,0.36), 0 6px 18px rgba(10,6,3,0.4); }
@@ -420,7 +466,7 @@ const CSS = `
   .td-nudge { flex-basis: 100%; margin: 8px 0 0; padding: 7px 10px; background: #FFF6D8; color: ${INK}; border: 1.5px solid ${RED};
     font: 700 12.5px/1.35 ${FRANKLIN}; text-align: center; animation: tdNudge 0.35s ease both; }
   @keyframes tdNudge { 0% { opacity: 0; transform: translateX(0); } 20% { opacity: 1; transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 100% { transform: none; } }
-  @media (prefers-reduced-motion: reduce) { .td-special-note.td-sing-glow, button.td-btn.td-sing-glow { animation: none; box-shadow: 0 0 0 2px rgba(102,217,255,0.9), 0 0 16px 4px rgba(102,217,255,0.55); } .td-nudge { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .td-special-note.td-sing-glow, .td-special-note.td-sing-glow.td-throb, button.td-btn.td-sing-glow { animation: none; box-shadow: 0 0 0 2px rgba(102,217,255,0.9), 0 0 16px 4px rgba(102,217,255,0.55); } .td-nudge { animation: none; } }
   .td-form-scroll { position: relative; overflow: auto; -webkit-overflow-scrolling: touch; padding: clamp(14px, 3vw, 28px) clamp(14px, 3.4vw, 32px) 8px; }
   .td-form-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 6px 16px; border-bottom: 3px solid ${INK}; padding-bottom: 8px; }
   .td-form-title { margin: 0; font: 900 clamp(26px, 4.4vw, 40px)/0.95 ${FRANKLIN}; letter-spacing: 0.02em; }
