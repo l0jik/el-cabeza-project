@@ -192,8 +192,11 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
       dir.copy(sLocal).sub(e.c).normalize();
       qFace.setFromUnitVectors(Y, dir);
       qT.copy(qI).slerp(qFace, 0.55 * turn);
-      const bob = reduceMotion ? 0 : Math.sin(tau * Math.PI * 2 * e.f + e.ph) * S * 0.07 * lift;
-      const up = lift * S * 0.3 + bob;
+      // (Bobbing more than it did, user: 0.07 -> 0.16 of a square, and
+      // lifted a little higher, 0.3 -> 0.4, so the low of a bob stays
+      // clear of the board.)
+      const bob = reduceMotion ? 0 : Math.sin(tau * Math.PI * 2 * e.f + e.ph) * S * 0.16 * lift;
+      const up = lift * S * 0.4 + bob;
       e.parts.forEach((p) => {
         off.copy(p.pos).sub(e.c).applyQuaternion(qT);
         p.obj.position.copy(e.c).add(off); p.obj.position.y += up;
@@ -260,7 +263,10 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
   const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   disposables.push(quad.geometry, postMat);
   const waves = []; // { born, strength }
-  let thunder = 0, acc = 0.5; // (thunder so far: the test hook; the share's running sum)
+  // (thunder so far: the test hook; the share's running sum, started at
+  // 0.7 so the first clap comes on the third beat, about 6.6 s in: the
+  // user wanted them to start earlier. It was 0.5, about 12 s.)
+  let thunder = 0, acc = 0.7;
   let nextWave = WAVES_AT;
 
   /* ---- the shield over the board, and the dock put away ---- */
@@ -306,10 +312,12 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
     shield.style.left = `${r.left}px`; shield.style.top = `${r.top}px`; shield.style.width = `${r.width}px`; shield.style.height = `${r.height}px`;
   }
 
-  function end(fade = 1.5) {
+  // (fade: how fast its hum goes; opts.last: the closing clap of thunder,
+  // whose tail rings on into the sphere, neon-summon-audio.js.)
+  function end(fade = 0.35, opts) {
     if (!active) return;
     active = false;
-    if (sound) sound.end(fade);
+    if (sound) sound.end(fade, opts);
     restorePieces();
     group.visible = false;
     if (group.parent) group.parent.remove(group);
@@ -412,7 +420,7 @@ export function mountSummon(three, { delay = 1200, audio = null } = {}) {
       return true;
     },
     dispose() {
-      end(0.3);
+      end(0.3, { last: false });
       disposables.forEach((d) => d && d.dispose && d.dispose());
     },
   };

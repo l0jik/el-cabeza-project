@@ -18,12 +18,24 @@
      reverbs. (Measured through the game's chain: full peaks -5.4 dBFS, phone
      about -10; neither reaches the output ceiling.)
 
-   It plays through the soundscape's interface channel (the sound menu's
-   slider and mute apply) and is levelled to the mock-up page: that page
-   ran at 0.716 into its output; the interface path here is sfxOut 1.25 x
-   master 7.08 (themes/neon.js), so the same level needs 0.716 / 8.85. */
+   It plays at the soundscape's interface channel level (the sound
+   menu's slider and mute apply) but on a way out of its own, outside
+   master (themes/neon.js summonOutput), and is levelled to the mock-up
+   page: that page ran at 0.716 into its output; the interface path is
+   sfxOut 1.25 x master 7.08, so the same level needs 0.716 / 8.85.
+
+   Its end (the player takes the invite): the hum and the thunder's bed
+   go quickly (user: the fade was too slow), and one last clap of thunder
+   answers, into a long reverb of its own that rings on through the toll,
+   the fall into the wormhole and the cut to black (which silences master,
+   not this), and dies away naturally as the sphere comes up. (User: "the
+   reverb from the last thunderclap needs to continue until its cessation
+   naturally".) */
 
 const APPEAR_AT = 0.4, RING_AT = 1.7, WAVES_AT = 3.6, RAMP = 45;
+// The last clap's reverb: toll 2 s + fall 3.6 s + black 0.9 s + the
+// sphere's fade 2 s is 8.5 s; this runs a little past that.
+const LAST_TAIL_S = 10;
 const TO_GAME = 0.716 / (1.25 * Math.pow(10, 17 / 20));
 const dB = (x) => Math.pow(10, x / 20);
 
@@ -97,8 +109,10 @@ export function createSummonSound(out, { mix = "full" } = {}) {
 
   let t0 = 0, started = false, ended = false, lastUpdate = -1;
   // The whole: faded in as the sphere appears, then its trim (-1.6 dB).
-  const whole = G(0), trim = G(dB(-1.6)), send = G(0.3);
-  chain(whole, trim, bus); trim.connect(send); send.connect(room);
+  // The thunder's claps have their own fader (thWhole), so that at the
+  // end the hum can go while the last clap rings on.
+  const whole = G(0), thWhole = G(0), trim = G(dB(-1.6)), send = G(0.3);
+  chain(whole, trim, bus); thWhole.connect(trim); trim.connect(send); send.connect(room);
 
   /* ---- the hum (10G at -7 semitones) ---- */
   const hum = G(0), humOut = G(dB(-9.5));
@@ -121,7 +135,8 @@ export function createSummonSound(out, { mix = "full" } = {}) {
   /* ---- the thunder (9H) ---- */
   const thBed = G(0.08), thOut = G(dB(10)), thVerb = G(1);
   function startThunder(t) {
-    chain(loop(brown, t), F("lowpass", 80), thBed, thOut, whole);
+    chain(thOut, thWhole);
+    chain(loop(brown, t), F("lowpass", 80), thBed, G(dB(10)), whole);
     const cv = ctx.createConvolver(); cv.buffer = makeImpulse(ctx, phone ? 3.5 : 5, 2.2);
     chain(thVerb, cv, F("lowpass", 1200), G(0.9), thOut);
   }
@@ -134,6 +149,15 @@ export function createSummonSound(out, { mix = "full" } = {}) {
     const lp = F("lowpass", 300); lp.frequency.setValueAtTime(300, t); lp.frequency.exponentialRampToValueAtTime(70, t + 2.2);
     const rum = chain(shot(brown, t, 2.7), lp, env(t, 0.06, 0.32 * s, 2.6), PAN(Math.random() * 0.8 - 0.4));
     crack.connect(thOut); rum.connect(thOut); crack.connect(thVerb); rum.connect(thVerb);
+    return [crack, rum];
+  }
+  // The last clap: a full one, and into a long, dark reverb of its own
+  // (as well as the usual one), so it carries into the sphere.
+  function lastClap(t) {
+    const cv = ctx.createConvolver(); cv.buffer = makeImpulse(ctx, LAST_TAIL_S, 1.7);
+    const verb = G(1.1);
+    chain(verb, cv, F("lowpass", 900), G(1), thOut);
+    thunderHit(t, 1).forEach((n) => n.connect(verb));
   }
 
   return {
@@ -144,7 +168,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
       if (started) return;
       started = true; t0 = when - tau;
       const a = Math.max(when, t0 + APPEAR_AT);
-      whole.gain.setValueAtTime(0, a); whole.gain.linearRampToValueAtTime(1, Math.max(a + 0.05, t0 + APPEAR_AT + 0.9));
+      [whole, thWhole].forEach((w) => { w.gain.setValueAtTime(0, a); w.gain.linearRampToValueAtTime(1, Math.max(a + 0.05, t0 + APPEAR_AT + 0.9)); });
       startHum(when); startThunder(when);
       if (t0 + RING_AT >= when) thunderRing(t0 + RING_AT);
     },
@@ -163,16 +187,23 @@ export function createSummonSound(out, { mix = "full" } = {}) {
       thunderHit(when, strength);
     },
     resume() { if (out.resume) out.resume(); },
-    end(fade = 1.5) {
+    // fade: how fast the hum goes. last: the closing clap and its long
+    // tail (the Singularity taking over); without it (leaving the theme)
+    // everything goes together.
+    end(fade = 0.35, { last = true } = {}) {
       if (ended) return;
       ended = true;
-      const now = ctx.currentTime, g = whole.gain;
-      g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.setTargetAtTime(0, now, fade / 4);
+      const now = ctx.currentTime;
+      const out = (g) => { g.cancelScheduledValues(now); g.setValueAtTime(g.value, now); g.setTargetAtTime(0, now, fade / 4); };
+      out(whole.gain);
+      const clap = last && started && thWhole.gain.value > 0.01;
+      if (clap) { const g = thWhole.gain; g.cancelScheduledValues(now); g.setValueAtTime(Math.max(g.value, 0.5), now); lastClap(now + 0.02); }
+      else out(thWhole.gain);
       // The reverbs ring out, then it all goes.
       setTimeout(() => {
         srcs.forEach((s) => { try { s.stop(); } catch (e) {} });
         try { toGame.disconnect(); } catch (e) {}
-      }, (fade + 5) * 1000);
+      }, ((clap ? LAST_TAIL_S : 5) + fade + 0.5) * 1000);
     },
   };
 }

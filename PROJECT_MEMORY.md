@@ -3951,3 +3951,30 @@ phone menu until "Start the story over" (which clears it).
   from the pit; base, raised back, a sloped front with a dark bezel and
   twelve keys (4 x 3), the cradle's two horns and the handset across them.
   No cord (user: don't draw it; placed so it'd run off behind).
+- The wormhole's sound on a phone (user: still missing). Measured through
+  the game (a 300 Hz high-pass meter on the output), the toll and the
+  collapse were -17 dB RMS full-band but -33 dB above 300 Hz: the drone
+  and the roar live under 150 Hz, which a phone speaker can't play. So
+  startSingularityCollapseRoar adds "the pull": white noise, HP 250, a
+  bandpass rising 500 Hz -> 3 kHz (Q 0.7) with a flutter 5 -> 22 Hz, gain
+  0.028 + 0.014 c^1.2; and a riser, three detuned saws (110/165/220 Hz)
+  climbing two octaves, LP 500 -> 3500, gain 0.008 + 0.005 c^1.1. Both
+  through a soft tanh ceiling of their own (0.014, ~0.12 at the output),
+  or the noise's peaks cost audio-bell its headroom (0.72-0.78 without
+  it). The roar trimmed 0.032 -> 0.026 (its lows are inaudible on a phone
+  anyway). Above 300 Hz the collapse now climbs -32 -> -24 dB (was -33
+  flat); audio-bell peaks 0.53-0.60 (baseline 0.47-0.60).
+- The summons' way out (user: the last thunderclap's reverb should carry
+  all the way through to the sphere, and the fade was too slow/stark):
+  neon.js summonOutput() now hands it summonTail, a bus straight to
+  outStage at the interface path's level (1.25 x MASTER_GAIN x
+  chGain("interface"); mute and the slider follow it), outside master,
+  so the event-horizon cut doesn't touch it. neon-summon-audio.js: the
+  claps have their own fader (thWhole); end(fade = 0.35, { last }) takes
+  the hum and the bed down in ~0.35 s and fires one last full clap into
+  its own 10 s reverb (LP 900) as well as the usual one, ringing through
+  toll 2 s + fall 3.6 s + black 0.9 s + the sphere's fade; it all stops
+  after 10.85 s. Leaving the theme (dispose) passes last: false.
+- Summons: thunder earlier (acc starts at 0.7, first clap on the third
+  beat, ~6.6 s; was ~12 s) and the pieces bob more (0.07 -> 0.16 of a
+  square, lifted 0.3 -> 0.4 so a bob's low stays clear of the board).

@@ -4186,6 +4186,13 @@ export function createSoundscape() {
   // silences everything else while the toll keeps ringing and its
   // reverb decays naturally all the way to nothing. See ensureBellBus.
   let bellBus = null;
+  // The summons' own way out (themes/neon-summon-audio.js), outside
+  // master for the same reason: its last clap of thunder rings on
+  // through the toll, the fall and the cut to black into the sphere.
+  // At the interface path's level (sfxOut 1.25 x master); see
+  // ensureSummonTail.
+  let summonTail = null;
+  const summonTailLevel = () => (muted ? 0 : 1.25 * MASTER_GAIN * chGain("interface"));
   let bellReverb = null;
   let choirMasterEnv = null; // the active choir stab's master gain, so an early close can cut it short
   let choirEndTime = 0; // ctx.currentTime at which the active choir stab naturally finishes
@@ -4476,7 +4483,48 @@ export function createSoundscape() {
     g.gain.value = 0;
     src.connect(bp).connect(shaper).connect(g).connect(sfxGain);
     src.start();
-    collapseRoar = { src, bp, g, nextLurchAt: 0 };
+    /* The pull (user: "the audio that is supposed to accompany the
+       transition when you go into the wormhole is still missing"). The
+       drone and the roar above live almost entirely under 150 Hz, which
+       a phone's speaker can't play: measured through the game, the toll
+       and the collapse were 16 dB quieter above 300 Hz than in full.
+       So a layer that lives where a phone speaker does: a rush of air
+       (white noise, a bandpass rising 500 Hz -> 3 kHz with the
+       collapse, fluttering faster as it goes) and a riser (three
+       detuned saws climbing two octaves from 110 Hz, the lowpass
+       opening after them) — the sound of being drawn in. */
+    const t0 = ctx.currentTime;
+    // Both through a soft ceiling of their own (tanh, at 0.014 here: about
+    // 0.12 at the output), so the noise's stray peaks never cost the
+    // mix its headroom (tests/audio-bell.mjs).
+    // (Unity gain for small signals: the input scaled by 1/0.042 into a
+    // curve of tanh(3x)/tanh(3), then by 0.014 back out.)
+    const pullIn = ctx.createGain(); pullIn.gain.value = 1 / 0.042;
+    const pullCeil = ctx.createWaveShaper();
+    pullCeil.curve = Float32Array.from({ length: 2048 }, (_, i) => Math.tanh(((i / 2047) * 2 - 1) * 3) / Math.tanh(3));
+    pullCeil.oversample = "2x";
+    const pullOut = ctx.createGain(); pullOut.gain.value = 0.014;
+    pullIn.connect(pullCeil).connect(pullOut).connect(sfxGain);
+    const air = noiseSource();
+    const airHp = ctx.createBiquadFilter(); airHp.type = "highpass"; airHp.frequency.value = 250; airHp.Q.value = -3;
+    const airBp = ctx.createBiquadFilter(); airBp.type = "bandpass"; airBp.frequency.value = 500; airBp.Q.value = 0.7;
+    const airG = ctx.createGain(); airG.gain.value = 0;
+    const flutter = ctx.createGain(); flutter.gain.value = 1;
+    const flut = ctx.createOscillator(); flut.type = "sine"; flut.frequency.value = 5;
+    const flutDepth = ctx.createGain(); flutDepth.gain.value = 0.25;
+    flut.connect(flutDepth).connect(flutter.gain);
+    air.connect(airHp).connect(airBp).connect(flutter).connect(airG).connect(pullIn);
+    air.start(t0); flut.start(t0);
+    const riseLp = ctx.createBiquadFilter(); riseLp.type = "lowpass"; riseLp.frequency.value = 500; riseLp.Q.value = 2;
+    const riseG = ctx.createGain(); riseG.gain.value = 0;
+    riseLp.connect(riseG).connect(pullIn);
+    const risers = [110, 110 * 1.5, 220].map((f, i) => {
+      const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.detune.value = (i - 1) * 9;
+      const g = ctx.createGain(); g.gain.value = 1 / 3;
+      o.connect(g).connect(riseLp); o.start(t0);
+      return o;
+    });
+    collapseRoar = { src, bp, g, nextLurchAt: 0, pullOut, air, airBp, airG, flut, riseLp, riseG, risers, riseBase: [110, 165, 220] };
   }
 
   function updateSingularityCollapseRoar(u) {
@@ -4501,9 +4549,19 @@ export function createSoundscape() {
        all sound together, and tests/audio-bell.mjs measured that moment
        reaching 0.96-0.98 of full scale in some runs. */
     // (x1.8 for the gentler drive: about the same loudness, far less grit.)
-    collapseRoar.g.gain.setTargetAtTime(0.0027 + 0.032 * Math.pow(c, 1.8), now, S);
+    // (0.032 -> 0.026 to make room for the pull below: this layer is
+    // mostly under 150 Hz, where a phone hears nothing of it anyway.)
+    collapseRoar.g.gain.setTargetAtTime(0.0027 + 0.026 * Math.pow(c, 1.8), now, S);
     collapseRoar.bp.frequency.setTargetAtTime(90 + 1500 * Math.pow(c, 1.4), now, S);
     collapseRoar.bp.Q.setTargetAtTime(0.6 + 2.2 * c, now, S);
+    // The pull: in from the start (the roar arrives late; this is what
+    // a phone hears all through the fall), rising, then tearing.
+    collapseRoar.airG.gain.setTargetAtTime(0.028 + 0.014 * Math.pow(c, 1.2), now, S);
+    collapseRoar.airBp.frequency.setTargetAtTime(500 * Math.pow(6, Math.pow(c, 1.3)), now, S);
+    collapseRoar.flut.frequency.setTargetAtTime(5 + 17 * c, now, S);
+    collapseRoar.riseG.gain.setTargetAtTime(0.008 + 0.005 * Math.pow(c, 1.1), now, S);
+    collapseRoar.riseLp.frequency.setTargetAtTime(500 + 3000 * Math.pow(c, 1.5), now, S);
+    collapseRoar.risers.forEach((o, i) => o.frequency.setTargetAtTime(collapseRoar.riseBase[i] * Math.pow(4, Math.pow(c, 1.4)), now, S));
     /* Irregular lurches in the filter — the roar keeps breaking pitch
        instead of sweeping smoothly, which is most of what "uncontrolled"
        actually sounds like. */
@@ -4520,6 +4578,8 @@ export function createSoundscape() {
     collapseRoar = null;
     try { r.src.stop(); } catch (e) { /* already stopped — harmless */ }
     try { r.src.disconnect(); r.bp.disconnect(); r.g.disconnect(); } catch (e) { /* fine either way */ }
+    [r.air, r.flut, ...r.risers].forEach((o) => { try { o.stop(); } catch (e) { /* fine */ } });
+    try { r.airG.disconnect(); r.riseG.disconnect(); r.pullOut.disconnect(); } catch (e) { /* fine either way */ }
   }
 
   /* The event-horizon hard cut: "the instant the black screen is
@@ -4696,6 +4756,13 @@ export function createSoundscape() {
     hp1.__ecOutput = true; // (tests/audio-bell.mjs meters what feeds it)
     outIn = hp1;
     return outIn;
+  }
+
+  function ensureSummonTail() {
+    if (summonTail) return;
+    summonTail = ctx.createGain();
+    summonTail.gain.value = summonTailLevel();
+    summonTail.connect(outStage());
   }
 
   function ensureBellBus() {
@@ -5916,6 +5983,7 @@ export function createSoundscape() {
     muted = m;
     if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : MASTER_GAIN, ctx.currentTime, 0.08);
     if (bellBus && ctx) bellBus.gain.setTargetAtTime(muted ? 0 : BELL_BUS_GAIN * chGain("interface"), ctx.currentTime, 0.08);
+    if (summonTail && ctx) summonTail.gain.setTargetAtTime(summonTailLevel(), ctx.currentTime, 0.08);
   }
 
   /* Called once, right when a win fires OR the player manually ends the
@@ -6707,6 +6775,7 @@ export function createSoundscape() {
     const g = { ambience: ambienceGate, pieces: piecesGate, interface: interfaceGate }[ch];
     if (g) g.gain.setTargetAtTime(chGain(ch), ctx.currentTime, 0.05);
     if (ch === "interface" && bellBus) bellBus.gain.setTargetAtTime(muted ? 0 : BELL_BUS_GAIN * chGain("interface"), ctx.currentTime, 0.05);
+    if (ch === "interface" && summonTail) summonTail.gain.setTargetAtTime(summonTailLevel(), ctx.currentTime, 0.05);
   }
   // The sound menu's slider for a channel: 0 (off) .. 1.
   function setChannelLevel(ch, v) {
@@ -6872,12 +6941,15 @@ export function createSoundscape() {
     playSingularityDismiss,
     playSingularityBell,
     // The summons (Nova's first arrival, themes/neon-summon-audio.js):
-    // the context and the interface channel it plays through, and a
-    // way to wake the context from a tap (a phone starts it suspended).
+    // the context, its way out (at the interface channel's level, but
+    // outside master, so its last thunder outlives the event-horizon
+    // cut), and a way to wake the context from a tap (a phone starts it
+    // suspended).
     summonOutput() {
       ensureGraph();
       if (!ctx || !interfaceGate) return null;
-      return { ctx, dest: interfaceGate, resume: () => { if (ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); } } };
+      ensureSummonTail();
+      return { ctx, dest: summonTail, resume: () => { if (ctx.state === "suspended") { unlockIosAudio(); ctx.resume(); } } };
     },
     /* Dock open/close — a very subtle low "vrrrt": a short, low,
        buzzy sawtooth descent (not a clean sine — the harmonics are
