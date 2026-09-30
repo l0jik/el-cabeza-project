@@ -31,7 +31,7 @@ import {
    start. The chassis keeps its theme object for as long as it's mounted,
    so these are fixed objects, and their buttons reach the app through
    storyBridge, which the app keeps pointed at its current handlers. */
-const storyBridge = { purchase() {}, backToStore() {}, restart() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null };
+const storyBridge = { purchase() {}, backToStore() {}, restart() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false };
 // How the place just mounted was reached (read once): false for the page
 // opening there, "cut" by a scene change, "fresh" by the fresh start.
 const takeArrival = () => { const a = storyBridge.arrival; storyBridge.arrival = false; return a; };
@@ -77,6 +77,10 @@ const homeTheme = {
     const returning = tvBridge.returning;
     const commercial = returning && tvBridge.commercial;
     tvBridge.returning = tvBridge.commercial = false;
+    // Home with the special order: the thought, then Big Glutts on the
+    // phone (themes/den-call.js). Read once.
+    const call = storyBridge.callNext;
+    storyBridge.callNext = false;
     return standardTheme.mountAmbientEffects(refs, {
       ...helpers,
       tv: {
@@ -88,6 +92,7 @@ const homeTheme = {
         lure: () => !singularitySeen(),
         enter: () => tvBridge.enter(),
         register: (api) => { tvBridge.press = api ? api.press : null; },
+        call,
       },
     });
   },
@@ -440,6 +445,7 @@ function UnifiedApp() {
   storyBridge.goHomeConfused = (o) => {
     if (busyRef.current) return;
     saveStoreGone();
+    storyBridge.callNext = !!(o && o.withOrder);
     // With the special order: the new pieces are on the table already
     // (tienda-overlay.js sets the game up from the order at home).
     startCut(o && o.withOrder

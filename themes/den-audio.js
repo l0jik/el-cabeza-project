@@ -41,7 +41,8 @@ const HOUR_CHIME = [[E, GS, FS, B], [E, FS, GS, E], [GS, E, FS, B], [B, FS, GS, 
 
 export function createAudio() {
   let ctx = null, master = null, comp = null, roomBus = null, sfxBus = null, wood = null;
-  let fireBus = null, firePan = null, musicBus = null;
+  let fireBus = null, firePan = null, musicBus = null, verb = null;
+  let phoneBus = null, phonePan = null, earBus = null, phoneNear = 1, phoneSide = 0;
   let noiseBuf = null, brownBuf = null;
   let muted = false, windingDown = false, roomOn = false, disposed = false;
   let zoom = 0.5, fireNear = 1, lastChimeHour = null, chimes = 0;
@@ -80,7 +81,7 @@ export function createAudio() {
         let lp = 0;
         for (let i = pre; i < len; i++) { lp = lp * 0.45 + (Math.random() * 2 - 1) * 0.55; d[i] = lp * Math.pow(1 - (i - pre) / (len - pre), 2.4) * 2; }
       }
-      const verb = ctx.createConvolver(); verb.buffer = ir;
+      verb = ctx.createConvolver(); verb.buffer = ir;
       const verbOut = ctx.createGain(); verbOut.gain.value = 0.3;
       verb.connect(verbOut).connect(master);
       // The room (fire, clock), the music and the pieces, each behind its switch.
@@ -742,6 +743,38 @@ export function createAudio() {
       if (!ctx || !hauntBus) return;
       hauntBus.gain.setTargetAtTime(hauntNear, now(), 0.2);
       if (hauntPan) hauntPan.pan.setTargetAtTime(hauntSide, now(), 0.2);
+    },
+    /* The telephone (den-call.js): the context, where its bell rings in
+       the room (behind the room's switch, panned and levelled from where
+       the camera is: setPhoneListener), and the earpiece (the caller, in
+       your ear: straight to the master). null until there's sound. */
+    phoneOutput() {
+      ensureGraph();
+      if (!ctx) return null;
+      if (!phoneBus) {
+        phoneBus = ctx.createGain(); phoneBus.gain.value = phoneNear;
+        phonePan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+        if (phonePan) { phonePan.pan.value = phoneSide; phoneBus.connect(phonePan).connect(gates.room); } else phoneBus.connect(gates.room);
+        const send = ctx.createGain(); send.gain.value = 0.35;
+        phoneBus.connect(send).connect(verb);
+        earBus = ctx.createGain(); earBus.gain.value = 1;
+        earBus.connect(master);
+      }
+      if (ctx.state === "suspended") ctx.resume();
+      return { ctx, ring: phoneBus, ear: earBus, noise: noiseBuf };
+    },
+    // Where the phone is from the camera (den-call.js, every few frames).
+    setPhoneListener(distance, pan) {
+      phoneNear = Math.max(0.35, Math.min(2, Math.pow(60 / Math.max(distance, 10), 1.1)));
+      phoneSide = Math.max(-0.85, Math.min(0.85, pan));
+      if (!ctx || !phoneBus) return;
+      phoneBus.gain.setTargetAtTime(phoneNear, now(), 0.2);
+      if (phonePan) phonePan.pan.setTargetAtTime(phoneSide, now(), 0.2);
+    },
+    // On the phone: the record turned down under it (and back after).
+    duckForCall(on) {
+      if (!ctx || !musicBus) return;
+      musicBus.gain.setTargetAtTime(on ? 0.22 : 0.9, now(), on ? 0.4 : 1.2);
     },
     playMusic,
     stopMusic,

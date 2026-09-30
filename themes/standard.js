@@ -221,7 +221,7 @@ export const music = {
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).
 export const moveCostToggle = true;
 
-export const mountAmbientEffects = createDenEffects(woodSet);
+export const mountAmbientEffects = createDenEffects(woodSet, { viewPitch });
 // The rules lie in the room: the leaflet on the coffee table opens them
 // (den-fx.js), so there's no How to play in the corner.
 export const rulesInRoom = true;

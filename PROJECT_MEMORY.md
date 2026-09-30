@@ -3991,3 +3991,43 @@ phone menu until "Start the story over" (which clears it).
   90 px, a rebound, then back to the tdSingGlow breathing. e2e-story now
   drags and wheels with the note up (camera unchanged, td-throb set) and
   opens the order form from the note (the dock's Custom rules is blocked).
+- Den: the set lets go onto the board square on (user: after the
+  commercial it came back at an angle). The board's heading (cam theta:
+  a sideways drag turns the board, not the camera) comes along from
+  Neon; when the den mounts returning from Singularity, den-fx.js (now
+  given `cam` and, from standard.js, `viewPitch` via createDenEffects's
+  options) snaps cam.current.theta to the nearest quarter turn and phi to
+  viewPitch; the chassis eases its view there unseen under the set's
+  hold. (Drag the den to -2.60 rad, through the TV and back: -pi.)
+- Home with the special order (user): themes/den-call.js, created by
+  den-fx.js when Nova hands tv.call (apps/unified.jsx storyBridge.callNext,
+  set by goHomeConfused with the order, read once by homeTheme's mount).
+  - The thought: once the story cut's gone, +1.2 s, a cloud (SVG: ellipse
+    ringed by 15 puffs, all stroked then all filled so only the outer edge
+    is outlined; three trail puffs dropping toward the bottom of the
+    screen) with "Finally... now I can play a game in peace." for 5.4 s.
+  - The ring: a game under way (awaitingBeginRef false; the ordered game
+    begins itself) 14 s, and 6 s after the thought. A Western Electric
+    ringer: two gongs (1070 / 1290 Hz, partials 1, 2.32, 4.25, 6.63; about -25 dB RMS near it) struck
+    alternately by a 20 Hz clapper (env jumps to 1, decays to 0.42, tau 28
+    ms; a filtered noise tick per strike), 2 s on / 4 s off, ringing out
+    (tau 0.32 s). From the phone (den-room.js phone.point; an unseen hit box
+    phone.pickables, pickScene "phone"): den-audio.js phoneOutput() (ring
+    bus -> pan -> the room gate, and a send to the room's reverb; ear bus
+    -> master) and setPhoneListener(distance, pan) every 120 ms. The slip
+    "The phone is ringing / Pick up", or a tap on the phone, answers; 8
+    rings unanswered and it tries again in 45 s.
+  - The call: the receiver's clunk, the line's hiss and click, the record
+    ducked (duckForCall: musicBus 0.9 -> 0.22). The caller is babble():
+    a sawtooth glottis (205 Hz, 5.5 Hz jitter) into three formant
+    bandpasses (Q 9/12/14) set per syllable to random vowels, syllables
+    counted from the words, a consonant's noise burst ahead of 55% of
+    them, pauses at commas/ellipses/stops, pitch falling through each
+    sentence (up at a question's end); all down a telephone line (HP 400
+    x2, +5 dB at 1.8 kHz, tanh crunch, LP 3 kHz x2) into the ear. The slip
+    shows each line (SCRIPT: You "Hello?"; Big Glutts found the pieces;
+    you already have them; "Oh. You do?"; a pause "..."; come get these
+    for free, sorry for any inconvenience; "Okay. I'll be there."; Click.).
+    Then the caller's click, and the receiver down (clunk, the bells'
+    tinkle). Test hooks: __DEN_CALL__(), __DEN_CALL_NOW__(). e2e-story
+    checks the thought, the rings, answering and every line to the end.

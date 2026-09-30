@@ -36,12 +36,16 @@ import { SLAB_X, SLAB_Z, SLAB_MAX } from "../engine/constants.js";
 import { buildDen } from "./den-room.js";
 import { quality } from "./tienda-quality.js";
 import { setCommercialOn } from "../engine/journey.js";
+import { createDenCall } from "./den-call.js";
 
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
-export function createDenEffects(woodSet) {
-  return function mountAmbientEffects(refs, { three, audio, tv: novaTv = null }) {
+export function createDenEffects(woodSet, { viewPitch = null } = {}) {
+  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, tv: novaTv = null }) {
     const q = quality();
+    // Home with the special order (Nova): the thought, then the telephone
+    // call from Big Glutts (den-call.js).
+    const call = novaTv && novaTv.call ? createDenCall({ audio, awaitingBegin: () => !!(awaitingBeginRef && awaitingBeginRef.current) }) : null;
     let den = null, brass = null, attachedTo = null, dims = "";
     let tuned = false, fogBefore = null, farBefore = null, bgBefore = null;
 
@@ -601,6 +605,7 @@ export function createDenEffects(woodSet) {
         showRulesHint(t);
         focusFrame(t, now);
         listen(t, now);
+        if (call) call.tick(now, t, den);
         // The television.
         const dt = lastTick ? Math.min(0.1, (now - lastTick) / 1000) : 0;
         lastTick = now;
@@ -611,6 +616,16 @@ export function createDenEffects(woodSet) {
           // is on instead, and the set goes off after it.
           returning = false;
           tvGoal = tvW = 1;
+          /* Under the set's hold, the board's own camera squares up, so
+             the set lets go onto the board square on, at the usual
+             pitch (user: it came back at an angle; the heading had come
+             along from Neon): the nearest side's heading. The chassis
+             eases its view there unseen while the set has the camera. */
+          if (cam && cam.current) {
+            const q = Math.PI / 2;
+            cam.current.theta = Math.round(cam.current.theta / q) * q;
+            if (viewPitch != null) cam.current.phi = viewPitch;
+          }
           if (commercialNext) {
             commercialNext = false;
             // (A second in, once Nova's transition has shown the room.)
@@ -698,13 +713,15 @@ export function createDenEffects(woodSet) {
         // while the south wall is there, the stereo's machines and the
         // set: the nearest.
         const lamps = den.lamp.pickables.filter((m) => { const g = den.groups[m.userData.lampGroup]; return !g || g.visible; });
-        const things = lamps.concat(den.book.pickables, den.groups.wallS.visible ? den.stereo.pickables.concat(den.tv.pickables) : []);
+        const things = lamps.concat(den.book.pickables, den.groups.wallS.visible ? den.stereo.pickables.concat(den.tv.pickables) : [],
+          call && call.ringing() && den.groups.wallW.visible && den.phone ? den.phone.pickables : []);
         const hit = raycaster.intersectObjects(things, false)[0];
         if (!hit) return null;
         const nearer = raycaster.intersectObjects([slab, den.table.group].filter(Boolean), true)[0];
         if (nearer && nearer.distance < hit.distance) return null;
         if (hit.object.userData.focusLamp) return "lamp";
         if (hit.object.userData.book) return "book";
+        if (hit.object.userData.phone) return "phone";
         return hit.object.userData.tv ? "tv" : hit.object.userData.music || null;
       },
       // What a tap on "rules" or "tv" does is the room's own: the rules
@@ -726,6 +743,8 @@ export function createDenEffects(woodSet) {
           if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("el-cabeza:focus", { detail: {} }));
           return true;
         }
+        // The telephone, ringing: picked up.
+        if (what === "phone") return call ? call.answer() : false;
         if (what !== "tv") return false;
         pressTv();
         return true;
@@ -821,6 +840,7 @@ export function createDenEffects(woodSet) {
         }
         if (den) den.dispose();
         if (brass) brass.dispose();
+        if (call) call.dispose();
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (novaTv && novaTv.register) novaTv.register(null);

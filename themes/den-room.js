@@ -558,6 +558,7 @@ export function buildDen(boardSpan) {
   wallW(rect(RZ * 2, CEIL - FLOOR, "+x", -RX, (yF + yC) / 2, 0, 6), M.paper, TX.PAPER_TILE);
   wallW(box(0.6, 2, RZ * 2, -RX + 0.3, yF + 1, 0), M.darkWood, 16);
   const crX = -RX + 5;
+  let phonePoint = null, phoneHit = null;
   wallW(box(10, 12, 66, crX, yF + 2.5 + 6, 0), M.walnut, 16);
   for (let i = -2; i <= 2; i++) wallW(box(0.2, 10, 0.3, crX + 5.05, yF + 8.5, i * 13.2), M.darkWood, 8);
   [-19.8, -6.6, 6.6, 19.8].forEach((z) => wallW(box(0.3, 2.2, 0.6, crX + 5.15, yF + 9, z), M.brass, 4));
@@ -592,6 +593,15 @@ export function buildDen(boardSpan) {
     [-1.25, 1.25].forEach((dz) => put(0.62, 0.34, 0.52, P(-0.75, 1.72, dz), M.phone, 0.12));
     put(0.62, 0.5, 3.3, P(-0.72, 2.14, 0), M.phone, 0.22);
     [-1, 1].forEach((s2) => put(1.05, 0.78, 0.95, P(-0.62, 1.72, s2 * 1.9), M.phone, 0.34));
+    // Where it rings from, and a generous unseen box to tap it by
+    // (den-call.js: the call that comes after the special order).
+    phonePoint = new THREE.Vector3(px, yT + S * 1.4, pz);
+    const hitM = new THREE.MeshBasicMaterial({ visible: false }); disposables.push(hitM);
+    const hitG = new THREE.BoxGeometry(6 * S, 4 * S, 7 * S); disposables.push(hitG);
+    phoneHit = new THREE.Mesh(hitG, hitM);
+    phoneHit.position.set(px, yT + S * 1.3, pz);
+    phoneHit.userData.phone = true;
+    B.mesh(phoneHit, "wallW");
   }
   wallW(box(1.2, 42, 42, -RX + 0.6, yF + 33, 0), M.darkWood, 8);
   const abs = new THREE.PlaneGeometry(40, 40); abs.rotateY(Math.PI / 2); abs.translate(-RX + 1.25, yF + 33, 0);
@@ -824,6 +834,7 @@ export function buildDen(boardSpan) {
     table,
     lamp: { pickables: lampPickables },
     book: { pickables: bookPickables, focus: bookFocus },
+    phone: { point: phonePoint, pickables: phoneHit ? [phoneHit] : [] },
     stereo,
     tv,
     // The fireplace's mouth, where its sound comes from (den-fx.js).
