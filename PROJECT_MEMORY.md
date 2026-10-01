@@ -4392,3 +4392,16 @@ phone menu until "Start the story over" (which clears it).
   little slower to match (0.075-0.125 Hz, was 0.1-0.17; the faster ripple
   over it 0.17-0.24, was 0.23-0.32). The sphere sits ~0.42 of the board's
   span up, well clear.
+- The commercial's analog look back (user: more analog TV distortion, but
+  never so you can't see what's going on). The scenes stay drawn clean;
+  createCommercial composes each frame into `pic`, then analog(t, f)
+  shows it: a 1.5 px composite smear (0.3), a faint ghost 13 px over
+  (0.07), red and blue bleeding 2 px either side (screen-tinted copies,
+  0.16/0.14), scanlines every other line (0.16), light snow (0.07, four
+  pre-made fields), a soft tracking band drifting up for 3.5 s in every
+  9, a line slipping 3-7 px now and then (12% of quarter-seconds), a hair
+  of vertical-hold jitter, the tube's dark corners.
+  The checkers beat (user): the camera opens in close on the two of them
+  asleep (2.15x, a slow push in to 2.27x), and from 0.55 s in it pulls out
+  over a second to the whole table; the words and the stamp are overlays
+  (the character generator), so they don't zoom.

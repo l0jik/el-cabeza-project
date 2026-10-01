@@ -14,9 +14,12 @@
    voice, kings).
 
    Drawn in a 512 x 384 frame (the screen's 4:3) on a power-of-two canvas,
-   at 24 frames a second, clean (user: it had got too dirty, too messy,
-   too garbled): no tape faults, no colour fringing, no random flicker;
-   one drop shadow throughout; a quick dissolve at each cut. The jokes
+   at 24 frames a second, the picture clean (user: it had got too dirty,
+   too messy, too garbled): one drop shadow throughout, a quick dissolve
+   at each cut; then shown through an analog set (user: more of that, but
+   never so you can't see what's going on): smear, ghost, a little colour
+   bleed, scanlines, light snow, a soft tracking band, the odd slipping
+   line, dark corners (createCommercial's analog()). The jokes
    stay (the thumb, Dale, the stamp); so do the Singularity's subliminal
    frames. */
 
@@ -219,16 +222,29 @@ function chess(g, t) {
     }
     return;
   }
-  // ...and checkers.
-  say(g, "AND...", W / 2, H * 0.14, { font: `900 30px ${SANS}`, color: "#fff", shadow: "#000", shadowAt: [3, 4] });
+  /* ...and checkers. The camera: in close on the two of them asleep over
+     their game (and a slow push in), then, over a second, out to the
+     whole table (user). The words are laid over the picture, as the
+     station's character generator did: they don't zoom with it. */
+  const ck = at("checker");
+  const zo = clamp01((ck - 0.55) / 1.0), ze = zo * zo * (3 - 2 * zo);
+  const zoom = (2.15 + 0.12 * clamp01(ck / 0.55)) * (1 - ze) + ze;
+  const fx = W * 0.5, fy = H * 0.57 + 6; // (between their heads)
+  g.save();
+  g.translate(W / 2, H / 2); g.scale(zoom, zoom);
+  g.translate(-(fx + (W / 2 - fx) * ze), -(fy + (H / 2 - fy) * ze));
+  g.fillStyle = "#cfc9b8"; g.fillRect(0, 0, W, H);
+  for (let r = 0; r < 6; r++) for (let c = 0; c < 8; c++) { if ((r + c) % 2) { g.fillStyle = "#8f8876"; g.fillRect(c * 64, r * 64, 64, 64); } }
+  g.fillStyle = "rgba(20,16,10,0.25)"; g.fillRect(0, 0, W, H);
   // A couple over a game of checkers, both of them fast asleep.
-  const inn = easeOut(at("checker") / 0.35);
   const flee2 = at("flee2");
-  const cx = flee2 > 0 ? W * 0.5 + Math.pow(flee2, 2) * 1100 : W * 0.5 - (1 - inn) * 400;
+  const cx = flee2 > 0 ? W * 0.5 + Math.pow(flee2, 2) * 1100 : W * 0.5;
   if (cx < W + 170) {
-    sleepers(g, cx, H * 0.57, Math.max(0, at("checker")));
+    sleepers(g, cx, H * 0.57, Math.max(0, ck));
     if (flee2 > 0) { g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 3; for (let i = 0; i < 4; i++) { const yy = H * 0.5 + i * 18; g.beginPath(); g.moveTo(cx - 140, yy); g.lineTo(cx - 140 - 60 - i * 12, yy); g.stroke(); } }
   }
+  g.restore();
+  say(g, "AND...", W / 2, H * 0.14, { font: `900 30px ${SANS}`, color: "#fff", shadow: "#000" });
   const st2 = at("stamp2");
   if (st2 <= 0) say(g, "CHECKERS?", W / 2, H * 0.3, { font: `900 34px ${SERIF}`, color: "#fff", shadow: "#000", shadowAt: [3, 3] });
   else {
@@ -472,6 +488,54 @@ export function createCommercial() {
   const s = scene.getContext("2d");
   const texture = new THREE.CanvasTexture(c);
   let lastFrame = -1;
+  /* The analog set (user: more of it, but never so much you can't see
+     what's going on): the picture composed first (pic), then shown with
+     a little composite smear and a faint ghost, red and blue bleeding a
+     pixel or two either side, scanlines, a light snow, a soft tracking
+     band drifting up now and then, the odd line slipping, and the tube's
+     darker corners. */
+  const mk = (w, h) => { const k = document.createElement("canvas"); k.width = w; k.height = h; return k; };
+  const pic = mk(W, H), pg = pic.getContext("2d");
+  const tint = mk(W, H), tg = tint.getContext("2d");
+  const scan = mk(W, H);
+  { const q = scan.getContext("2d"); q.fillStyle = "rgba(0,0,0,0.16)"; for (let y = 0; y < H; y += 2) q.fillRect(0, y, W, 1); }
+  const snows = [0, 1, 2, 3].map((n) => {
+    const k = mk(W / 2, H / 2), q = k.getContext("2d"), im = q.createImageData(W / 2, H / 2);
+    for (let i = 0; i < im.data.length; i += 4) { const v = Math.floor(hash(i * 0.013 + n * 91.7) * 255); im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+    q.putImageData(im, 0, 0); return k;
+  });
+  const vig = (() => { const k = mk(W, H), q = k.getContext("2d"); const r = q.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.68); r.addColorStop(0, "rgba(0,0,0,0)"); r.addColorStop(1, "rgba(0,0,0,0.42)"); q.fillStyle = r; q.fillRect(0, 0, W, H); return k; })();
+  function bleed(color, dx, alpha) {
+    tg.globalCompositeOperation = "copy"; tg.drawImage(pic, 0, 0);
+    tg.globalCompositeOperation = "multiply"; tg.fillStyle = color; tg.fillRect(0, 0, W, H);
+    tg.globalCompositeOperation = "source-over";
+    g.globalCompositeOperation = "screen"; g.globalAlpha = alpha; g.drawImage(tint, dx, 0);
+    g.globalCompositeOperation = "source-over"; g.globalAlpha = 1;
+  }
+  function analog(t, f) {
+    // (The hold: a hair of jitter, now and then.)
+    const jy = hash(Math.floor(t * 3)) < 0.18 ? (hash(f * 1.3) < 0.5 ? 1 : -1) : 0;
+    g.drawImage(pic, 0, jy);
+    g.globalAlpha = 0.3; g.drawImage(pic, 1.5, jy); // the smear
+    g.globalAlpha = 0.07; g.drawImage(pic, 13, jy); // the ghost
+    g.globalAlpha = 1;
+    bleed("#ff2a2a", 2, 0.16);
+    bleed("#2a6cff", -2, 0.14);
+    g.drawImage(scan, 0, 0);
+    g.globalAlpha = 0.07; g.drawImage(snows[f % 4], 0, 0, W, H); g.globalAlpha = 1;
+    // The tracking band, drifting up: soft, a few seconds in every nine.
+    if (t % 9 > 5.5) {
+      const by = H - ((t % 9) - 5.5) / 3.5 * (H + 30);
+      g.globalAlpha = 0.16; g.drawImage(snows[(f + 1) % 4], 0, 0, W / 2, 6, 0, by, W, 12);
+      g.globalAlpha = 1; g.fillStyle = "rgba(255,255,255,0.05)"; g.fillRect(0, by - 6, W, 24);
+    }
+    // A line slipping sideways, rarely, briefly.
+    if (hash(Math.floor(t * 4) * 1.7) < 0.12) {
+      const y = Math.floor(hash(Math.floor(t * 4) * 3.1) * (H - 8)), dx = (hash(f) < 0.5 ? -1 : 1) * (3 + hash(f * 2.3) * 4);
+      g.drawImage(pic, 0, y, W, 3, dx, y + jy, W, 3);
+    }
+    g.drawImage(vig, 0, 0);
+  }
 
   // Which scene, and how far into it (s), for t in seconds.
   function paintScene(t, f) {
@@ -518,13 +582,14 @@ export function createCommercial() {
     const cuts = [CUES.chess, CUES.king, CUES.orders, CUES.best, CUES.dealer, CUES.price, CUES.close, CUES.credit];
     const cut = cuts.find((k) => t >= k && t - k < DISSOLVE);
     paintScene(t, f);
-    g.drawImage(scene, 0, 0);
+    pg.drawImage(scene, 0, 0);
     if (cut != null) {
       paintScene(cut - 0.001, f);
-      g.globalAlpha = 1 - (t - cut) / DISSOLVE;
-      g.drawImage(scene, 0, 0);
-      g.globalAlpha = 1;
+      pg.globalAlpha = 1 - (t - cut) / DISSOLVE;
+      pg.drawImage(scene, 0, 0);
+      pg.globalAlpha = 1;
     }
+    analog(t, f);
     texture.needsUpdate = true;
   }
 
