@@ -8,9 +8,9 @@
 
    It says what just happened (the Singularity opened the special
    orders) and where to go for them (the store). The sound for it is
-   den-audio.js's tvCommercial, cued to CUES below; the king's line is
-   the user's own recording (assets/den/commercial-king.mp3, played at
-   CUES.voice).
+   den-ad-audio.js (played by den-audio.js's tvCommercial), cued to CUES
+   below; the voices are the user's own recordings, each starting with
+   its words on screen (CUES.chessVoice, checkersVoice, voice, kings).
 
    Drawn in a 512 x 384 frame (the screen's 4:3) on a power-of-two canvas,
    at 12 frames a second (it's videotape, and not good videotape), with
@@ -24,9 +24,9 @@ export const COMMERCIAL_MS = 45400;
 
 // The scenes, in seconds from the top (the sound follows these).
 export const CUES = {
-  slate: 0, title: 2.2, chess: 5.6, stamp: 6.8, chessVoice: 6.9, flee: 8.6,
-  checker: 9.0, checkersVoice: 10.0, stamp2: 10.1, flee2: 11.8,
-  king: 12.4, voice: 12.7, orders: 17.6,
+  slate: 0, title: 2.2, chess: 5.6, stamp: 6.8, chessVoice: 6.75, flee: 8.6,
+  checker: 9.0, checkersVoice: 10.05, stamp2: 10.1, flee2: 11.8,
+  king: 12.4, voice: 12.55, orders: 17.6,
   items: [18.4, 19.2, 20], assembly: 21, best: 22.2, sortOf: 24.7, dealer: 25.8, standing: 27.2,
   price: 30, only: 31.1, brandNew: 32.1, close: 34.4, never: 36, credit: 38.1, kings: 38.4, snow: 44.8,
   // Subliminal frames of the Singularity's black hole, one frame each (the

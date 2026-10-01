@@ -24,13 +24,7 @@
    room starts then, so the fire is already going on the setup screen. */
 
 import { createWoodSfx } from "./wood-sfx.js";
-import { CUES as AD, COMMERCIAL_MS } from "./den-commercial.js";
-// The commercial's voice-over, beside the page (build/build.js).
-const AD_VOICE_URL = "el-cabeza-den-ad-voice.mp3";
-const AD_KINGS_URL = "el-cabeza-den-ad-voice-2.mp3"; // "the new king!" x3, at the sign-off
-const AD_CHESS_URL = "el-cabeza-den-ad-voice-3.mp3"; // "Take a hike, chess!"
-const AD_CHECKERS_URL = "el-cabeza-den-ad-voice-4.mp3"; // "Get outta here, Checkers!"
-const AD_VOICE_GAIN = 0.12;
+import { playCommercial, loadAdVoices } from "./den-ad-audio.js";
 
 export const hasAudio = true;
 
@@ -445,7 +439,8 @@ export function createAudio() {
     const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 3800; bp.Q.value = 0.5;
     hiss.connect(bp).connect(hissGain).connect(bus);
     hiss.start();
-    tv = { bus, hissGain, whine: null, whineGain: null, ad: null, adVoices: [] };
+    tv = { bus, hissGain, whine: null, whineGain: null, ad: null };
+    loadAdVoices(ctx); // (the commercial's voices, decoded before it airs)
     return tv;
   }
   function tvClick(t) {
@@ -474,9 +469,7 @@ export function createAudio() {
     if (!tvGraph()) return;
     const t = now();
     tvClick(t);
-    if (tv.ad) { tv.ad.gain.setTargetAtTime(0, t, 0.015); tv.ad = null; }
-    tv.adVoices.forEach((el) => { try { el.pause(); } catch (e) { /* gone */ } });
-    tv.adVoices = [];
+    if (tv.ad) { tv.ad.stop(); tv.ad = null; }
     tv.hissGain.gain.setTargetAtTime(0, t, 0.05);
     if (tv.whine) {
       tv.whine.frequency.setTargetAtTime(9000, t, 0.4);
@@ -582,188 +575,15 @@ export function createAudio() {
     }
   }
 
-  /* The late-night commercial's sound (den-commercial.js, cued to its
-     CUES): a home organ with its rhythm box on the bossa nova preset, a
-     sad trombone for chess, the stamp, a slide whistle, a cymbal, bells
-     for the special orders, the typewriter, a boing, the telephone for
-     Dale, and the hum of the station's tape machine under it all. Through
-     the set's own small speaker, and all of it stopped by tvOff. */
+  /* The late-night commercial's sound: den-ad-audio.js (the jingle, the
+     user's voices, the jokes, the set's small speaker), through the set's
+     bus; tvOff (or another commercial) stops it. */
   function tvCommercial(delay = 0) {
     if (!tvGraph()) return;
-    if (tv.ad) { tv.ad.gain.setTargetAtTime(0, now(), 0.02); tv.ad = null; }
-    tv.adVoices.forEach((el) => { try { el.pause(); } catch (e) { /* gone */ } });
-    tv.adVoices = [];
-    const T = now() + 0.05 + delay;
-    const out = ctx.createGain(); out.gain.value = 1;
-    // The speaker: no lows, no highs, a little crunch.
-    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 260;
-    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 4200;
-    const sh = ctx.createWaveShaper(); const curve = new Float32Array(256);
-    for (let i = 0; i < 256; i++) { const x = i / 127.5 - 1; curve[i] = Math.tanh(x * 1.8) / Math.tanh(1.8); }
-    sh.curve = curve;
-    // The station's videotape: wow and flutter (a delay line whose length
-    // wanders, so the pitch does), and tearing (the sound dropping out and
-    // buzzing where the picture rolls or the tracking goes).
-    const wob = ctx.createDelay(0.1); wob.delayTime.value = 0.03;
-    [[0.47, 0.0024], [6.8, 0.00035], [13.1, 0.00012]].forEach(([f, d]) => {
-      const l = ctx.createOscillator(); l.frequency.value = f; const lg = ctx.createGain(); lg.gain.value = d;
-      l.connect(lg).connect(wob.delayTime); l.start(T - 0.05); l.stop(T + COMMERCIAL_MS / 1000 + 1);
-    });
-    const tear = ctx.createGain(); tear.gain.value = 1;
-    out.connect(wob).connect(tear).connect(hp).connect(lp).connect(sh).connect(tv.bus);
-    tv.ad = out;
-    const end = T + COMMERCIAL_MS / 1000;
-    {
-      // Where it tears: the picture's rolls (every other cut, as the
-      // picture does it), and now and then where the tracking band is.
-      const cuts = [AD.title, AD.chess, AD.king, AD.orders, AD.best, AD.dealer, AD.price, AD.close, AD.credit].filter((_, i) => i % 2 === 0);
-      const at = cuts.map((c) => [c, 0.22]);
-      for (let k = 0.6; k < AD.snow; k += 9) at.push([k + 0.4 + Math.random() * 1.6, 0.08 + Math.random() * 0.1]);
-      for (let k = 3; k < AD.snow - 1; k += 4 + Math.random() * 4) at.push([k, 0.05 + Math.random() * 0.06]);
-      // The subliminal frames: the sound just stops for them, no buzz.
-      AD.flash.forEach((c, i) => at.push([c, i >= 3 ? 0.17 : 0.09, true]));
-      at.sort((a, b) => a[0] - b[0]);
-      let last = -1;
-      at.forEach(([c, d, quiet]) => {
-        if (c < last + 0.1 && !quiet) return;
-        last = c + d;
-        const t = T + c;
-        if (quiet) { tear.gain.setValueAtTime(1, t - 0.005); tear.gain.linearRampToValueAtTime(0.03, t); tear.gain.setValueAtTime(0.03, t + d - 0.005); tear.gain.linearRampToValueAtTime(1, t + d); return; }
-        tear.gain.setValueAtTime(1, t); tear.gain.linearRampToValueAtTime(0.12 + Math.random() * 0.2, t + 0.012);
-        tear.gain.setValueAtTime(0.25, t + d * 0.6); tear.gain.linearRampToValueAtTime(1, t + d);
-        // The head's buzz: the field rate, raspy.
-        const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = 59.94;
-        const bf = ctx.createBiquadFilter(); bf.type = "bandpass"; bf.frequency.value = 1400; bf.Q.value = 0.8;
-        const bg = ctx.createGain(); bg.gain.setValueAtTime(0.0001, t); bg.gain.linearRampToValueAtTime(0.035, t + 0.004); bg.gain.exponentialRampToValueAtTime(0.0001, t + 0.004 + d);
-        o.connect(bf).connect(bg).connect(hp); o.start(t); o.stop(t + d + 0.05);
-        burst(t, hp, 0.03, d * 0.8, [["highpass", 2500]]);
-      });
-    }
-    const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
-    const env = (g, t, a, peak, d) => { g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); };
-    // The home organ: square and triangle, a vibrato, keyed on and off.
-    const organ = (t, notes, dur, level = 0.045, dest = out) => {
-      notes.forEach((m) => {
-        const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level, t + 0.012); g.gain.setValueAtTime(level, t + dur - 0.03); g.gain.linearRampToValueAtTime(0.0001, t + dur);
-        const vib = ctx.createOscillator(); vib.frequency.value = 6.2; const vg = ctx.createGain(); vg.gain.value = hz(m) * 0.006; vib.connect(vg);
-        [["square", 0.35], ["triangle", 1]].forEach(([type, k]) => {
-          const o = ctx.createOscillator(); o.type = type; o.frequency.value = hz(m); vg.connect(o.frequency);
-          const og = ctx.createGain(); og.gain.value = k; o.connect(og).connect(g); o.start(t); o.stop(t + dur + 0.02);
-        });
-        vib.start(t); vib.stop(t + dur + 0.02);
-        g.connect(dest);
-      });
-    };
-    const tone = (t, f, d, level, type = "sine", dest = out) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; const g = ctx.createGain(); env(g, t, 0.003, level, d); o.connect(g).connect(dest); o.start(t); o.stop(t + d + 0.05); return o; };
-    const bell = (t, m, level = 0.05) => { tone(t, hz(m), 1.1, level); tone(t, hz(m) * 2.76, 0.4, level * 0.35); tone(t, hz(m) * 5.4, 0.18, level * 0.15); };
-    // The tape machine's hum, the whole way through.
-    [60, 120, 180].forEach((f, i) => { const o = ctx.createOscillator(); o.frequency.value = f; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, T); g.gain.linearRampToValueAtTime(0.008 / (i + 1), T + 0.3); g.gain.setValueAtTime(0.008 / (i + 1), T + AD.snow - 0.05); g.gain.linearRampToValueAtTime(0.0001, T + AD.snow); o.connect(g).connect(out); o.start(T); o.stop(T + AD.snow + 0.1); });
-    // The rhythm box (bossa nova preset) and the organ's pedals, C F G C,
-    // on a bed of its own, the whole way through, from the title to "you
-    // never will!" (user: it dropped out where it used to stop for the
-    // voices, once they came in earlier), and down under each voice.
-    const bed = ctx.createGain(); bed.gain.value = 1; bed.connect(out);
-    const beat = 0.5, bar = beat * 4;
-    const box = (from, to) => {
-      for (let b = 0; from + b * bar < to - 0.01; b++) {
-        const t0 = from + b * bar, root = [48, 53, 55, 48][b % 4];
-        [0, 1.5, 2, 3.5].forEach((k) => { const t = T + t0 + k * beat; if (t0 + k * beat >= to) return; const o = ctx.createOscillator(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.12); const g = ctx.createGain(); env(g, t, 0.002, 0.07, 0.16); o.connect(g).connect(bed); o.start(t); o.stop(t + 0.2); });
-        [0, 0.75, 1.5, 2.5, 3].forEach((k) => { if (t0 + k * beat < to) tone(T + t0 + k * beat, 2500, 0.03, 0.02, "sine", bed); });
-        for (let k = 0; k < 8; k++) if (t0 + k * beat * 0.5 < to) burst(T + t0 + k * beat * 0.5, bed, 0.012, 0.03, [["highpass", 7000]]);
-        [0, 2].forEach((k) => { if (t0 + k * beat < to) organ(T + t0 + k * beat, [root - 12], beat * 1.6, 0.05, bed); });
-        [0.5, 1.5, 2.5, 3.5].forEach((k) => { if (t0 + k * beat < to) organ(T + t0 + k * beat, [root + 12, root + 16, root + 19].map((m) => (m > 72 ? m - 12 : m)), beat * 0.35, 0.018, bed); });
-      }
-    };
-    box(AD.title + 0.5, AD.never);
-    // "El Ca-be-za!" on the organ: G A C . E, at the top and at the end.
-    const motif = (t) => [[67, 0, 0.22], [69, 0.25, 0.22], [72, 0.5, 0.22], [76, 0.8, 0.7]].forEach(([m, d, l]) => organ(T + t + d, [m, m - 12], l, 0.05));
-    motif(AD.title + 0.05);
-    organ(T + AD.title + 0.9, [60, 64, 67, 72], 0.9, 0.035);
-    // The letters popping up.
-    for (let i = 0; i < 9; i++) { const t = T + AD.title + 0.35 + i * 0.12; const o = tone(t, 500 + i * 70, 0.09, 0.03, "triangle"); o.frequency.exponentialRampToValueAtTime(900 + i * 90, t + 0.06); }
-    // Chess: the sad trombone.
-    [[55, 0], [54, 0.22], [53, 0.44], [52, 0.66]].forEach(([m, d], i) => {
-      const t = T + AD.chess + 0.1 + d, l = i === 3 ? 0.4 : 0.2;
-      const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = hz(m);
-      if (i === 3) { const w = ctx.createOscillator(); w.frequency.value = 5; const wg = ctx.createGain(); wg.gain.value = 5; w.connect(wg).connect(o.frequency); w.start(t); w.stop(t + l); }
-      const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 900; f.Q.value = 4;
-      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.05, t + 0.05); g.gain.setValueAtTime(0.05, t + l - 0.08); g.gain.linearRampToValueAtTime(0.0001, t + l);
-      o.connect(f).connect(g).connect(out); o.start(t); o.stop(t + l + 0.02);
-    });
-    // The stamp, and the pawn run off on a slide whistle.
-    [[AD.stamp], [AD.stamp2]].forEach(([at]) => { const t = T + at; burst(t, out, 0.22, 0.12, [["lowpass", 900]]); const o = tone(t, 120, 0.25, 0.12); o.frequency.exponentialRampToValueAtTime(50, t + 0.2); });
-    [[AD.flee, 700, 2300], [AD.flee2, 2300, 600]].forEach(([at, f0, f1]) => { const t = T + at; const o = ctx.createOscillator(); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + 0.55); const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.035, t + 0.05); g.gain.linearRampToValueAtTime(0.0001, t + 0.6); o.connect(g).connect(out); o.start(t); o.stop(t + 0.65); });
-    // The sleepers: two snores, in turn, before the stamp wakes nobody.
-    [0.25, 0.6].forEach((d, i) => {
-      const t = T + AD.checker + d;
-      const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(i ? 70 : 92, t); o.frequency.linearRampToValueAtTime(i ? 58 : 76, t + 0.35);
-      const am = ctx.createOscillator(); am.frequency.value = 26; const amg = ctx.createGain(); amg.gain.value = 0.5;
-      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.03, t + 0.12); g.gain.linearRampToValueAtTime(0.0001, t + 0.4);
-      const lpf = ctx.createBiquadFilter(); lpf.type = "lowpass"; lpf.frequency.value = 700;
-      am.connect(amg).connect(g.gain);
-      o.connect(lpf).connect(g).connect(out); o.start(t); am.start(t); o.stop(t + 0.45); am.stop(t + 0.45);
-    });
-    // The king: a cymbal, then the voice (the user's recording, a file
-    // beside the page: build/build.js), and a sparkle as it trails off.
-    burst(T + AD.king, out, 0.06, 1.4, [["highpass", 5000]]);
-    // (Each voice 1.5 s ahead of its cue, user: the dialogue came in late;
-    // 0.5 s first, then a second more.)
-    const VOICE_LEAD = 1.5;
-    const spoken = [];
-    const voice = (url, at, len) => {
-      at -= VOICE_LEAD;
-      spoken.push([T + at, T + at + len]);
-      const el = new Audio();
-      el.src = url; el.preload = "auto";
-      const vg = ctx.createGain(); vg.gain.value = AD_VOICE_GAIN;
-      ctx.createMediaElementSource(el).connect(vg).connect(out);
-      tv.adVoices.push(el);
-      setTimeout(() => { if (tv && tv.ad === out) { const p = el.play(); if (p && p.catch) p.catch(() => { /* no sound, then */ }); } }, Math.max(0, (T + at - now()) * 1000));
-    };
-    // (With each recording's length: the chess and checkers lines run into
-    // each other and the king's, so the bed stays down across all three.)
-    voice(AD_CHESS_URL, AD.chessVoice, 3.3);
-    voice(AD_CHECKERS_URL, AD.checkersVoice, 3.5);
-    voice(AD_VOICE_URL, AD.voice, 4.15);
-    voice(AD_KINGS_URL, AD.kings, 5.8);
-    // The bed down to half while anyone speaks (lines that touch
-    // or overlap taken as one, so it doesn't bob up between them).
-    spoken.sort((p, q) => p[0] - q[0]).reduce((m, w) => {
-      const l = m[m.length - 1];
-      if (l && w[0] <= l[1] + 0.6) l[1] = Math.max(l[1], w[1]); else m.push([w[0], w[1]]);
-      return m;
-    }, []).forEach(([a, z]) => {
-      bed.gain.setValueAtTime(1, a - 0.25); bed.gain.linearRampToValueAtTime(0.5, a);
-      bed.gain.setValueAtTime(0.5, z); bed.gain.linearRampToValueAtTime(1, z + 0.4);
-    });
-    [3.2, 3.7].forEach((d, i) => bell(T + AD.voice + d, 88 + i * 3, 0.018));
-    // Special orders: ta-daa, and a bell for each.
-    organ(T + AD.orders, [55, 59, 62], 0.18, 0.04); organ(T + AD.orders + 0.2, [60, 64, 67, 72], 0.8, 0.04);
-    AD.items.forEach((t, i) => bell(T + t, [79, 83, 86][i], 0.045));
-    { const t = T + AD.assembly; const o = tone(t, 380, 0.45, 0.04, "triangle"); o.frequency.exponentialRampToValueAtTime(160, t + 0.4); }
-    // The best thing: the typewriter, its bell at the end of the line.
-    for (let i = 0; i < 37; i++) burst(T + AD.best + i / 18 + Math.random() * 0.012, out, 0.05, 0.025, [["bandpass", 2600, 1.4]]);
-    bell(T + AD.best + 37 / 18 + 0.1, 96, 0.04);
-    // ...sort of!!: boing.
-    { const t = T + AD.sortOf; const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(440, t + 0.08); o.frequency.exponentialRampToValueAtTime(180, t + 0.5); const w = ctx.createOscillator(); w.frequency.value = 14; const wg = ctx.createGain(); wg.gain.value = 30; w.connect(wg).connect(o.frequency); const g = ctx.createGain(); env(g, t, 0.01, 0.05, 0.55); o.connect(g).connect(out); o.start(t); w.start(t); o.stop(t + 0.6); w.stop(t + 0.6); }
-    // The dealer's card: the motif again; Dale's telephone.
-    motif(AD.dealer + 0.1);
-    { const t = T + AD.standing + 0.2, d = 1.1; const o = ctx.createOscillator(); o.frequency.value = 1150; const o2 = ctx.createOscillator(); o2.frequency.value = 1420; const am = ctx.createOscillator(); am.type = "square"; am.frequency.value = 20; const amg = ctx.createGain(); amg.gain.value = 0.5; const g = ctx.createGain(); g.gain.value = 0.5; am.connect(amg).connect(g.gain); const e = ctx.createGain(); e.gain.setValueAtTime(0.0001, t); e.gain.linearRampToValueAtTime(0.03, t + 0.02); e.gain.setValueAtTime(0.03, t + d - 0.05); e.gain.linearRampToValueAtTime(0.0001, t + d); o.connect(g); o2.connect(g); g.connect(e).connect(out); [o, o2, am].forEach((x) => { x.start(t); x.stop(t + d + 0.02); }); }
-    // "El Cabeza... only $7.97": the cash register (the key, the bell, the
-    // drawer), and a fanfare stab for brand new for 1975.
-    { const t = T + AD.only; burst(t, out, 0.12, 0.05, [["bandpass", 1800, 2]]); bell(t + 0.06, 100, 0.06); bell(t + 0.07, 105, 0.03); burst(t + 0.18, out, 0.08, 0.35, [["bandpass", 700, 1.2]]); }
-    organ(T + AD.brandNew, [60, 64, 67, 72], 0.14, 0.04); organ(T + AD.brandNew + 0.16, [62, 65, 69, 74], 0.14, 0.04); organ(T + AD.brandNew + 0.32, [64, 67, 72, 76], 1.4, 0.04);
-    // ...and the strobe's zaps, in time with its colours.
-    for (let i = 0; i < 12; i++) { const t = T + AD.brandNew + 0.25 + i / 6; if (t >= T + AD.close - 0.1) break; const o = tone(t, 1600, 0.07, 0.012, "square"); o.frequency.exponentialRampToValueAtTime(700, t + 0.06); }
-    // "Get yours now...": the organ runs up; "if not, you never will!":
-    // it drops away to something low and minor, a little too sincere.
-    for (let i = 0; i < 8; i++) organ(T + AD.close + i * 0.07, [60 + [0, 2, 4, 5, 7, 9, 11, 12][i]], 0.09, 0.03);
-    organ(T + AD.close + 0.6, [48, 60, 64, 67], 1.0, 0.03);
-    { const t = T + AD.never - 0.1; const o = tone(t, 660, 0.7, 0.03, "triangle"); o.frequency.exponentialRampToValueAtTime(90, t + 0.6); }
-    organ(T + AD.never + 0.5, [40, 47, 52, 55, 59], 1.9, 0.03);
-    // The sign-off: the big chord, held to the credit.
-    organ(T + AD.credit + 0.1, [48, 60, 64, 67, 72], 1.1, 0.03);
-    setTimeout(() => { if (tv && tv.ad === out) tv.ad = null; }, (end - now()) * 1000 + 500);
+    if (tv.ad) { tv.ad.stop(); tv.ad = null; }
+    const ad = playCommercial(ctx, tv.bus, { delay, noiseBuf });
+    tv.ad = ad;
+    setTimeout(() => { if (tv && tv.ad === ad) tv.ad = null; }, (ad.end - now()) * 1000 + 500);
   }
 
   const cue = (fn) => (...args) => { ensureGraph(); if (wood) fn(...args); };

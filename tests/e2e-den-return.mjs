@@ -29,6 +29,8 @@ await ctx.addInitScript(() => {
       localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true }));
       localStorage.setItem("el-cabeza:singularity-seen", "1");
       localStorage.setItem("el-cabeza:commercial-aired", "1");
+      // (and the special-orders note already seen: it holds every tap)
+      localStorage.setItem("el-cabeza:special-order-noted", "1");
     }
   } catch (e) { /* none */ }
 });

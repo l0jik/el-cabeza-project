@@ -4218,3 +4218,42 @@ phone menu until "Start the story over" (which clears it).
   way (it was reversed). tests/e2e-drag-follow.mjs replaced by
   tests/e2e-drag-latch.mjs (drags across the middle both ways, every step
   the first step's sign; play view and Room view).
+- The commercial's sound, redone from scratch (user: "it's just gotten
+  too messed up"; chose: keep all four voices, each on its own scene, a
+  cheesy 70s jingle, light TV damage). New module themes/den-ad-audio.js
+  (playCommercial(ctx, tv.bus, {delay, noiseBuf}) -> {stop, end};
+  loadAdVoices(ctx)); den-audio.js's tvCommercial just calls it, tvOff
+  stops it; the old tvCommercial (tears, buzzes, VOICE_LEAD, the gapped
+  rhythm box) is gone.
+  - Voices: decoded to AudioBuffers ahead of time (loadAdVoices from
+    tvGraph) and started on the audio clock; from file: (no fetch), a
+    preloaded <audio> element through one MediaElementSource each, its
+    currentTime put forward if it starts late. The old lateness was the
+    element started by a timer, loading as it went. Cues set to the words
+    on screen: chessVoice 6.75 (TAKE A HIKE, CHESS! at the stamp, 6.8),
+    checkersVoice 10.05 (stamp2 10.1), voice 12.55 (IS THE NEW KING! at
+    king + 1.7), kings 38.4. Speech lengths 2.0/2.2/2.9/4.5 s (measured:
+    each file is speech from 0, then silence). VOICE_LEVEL 0.45.
+  - Music: a bossa nova home organ, one continuous 8-bar tune (C: C Am
+    Dm G7 | C Am F-G7 C) with bass (an octave up for the small speaker),
+    offbeat chords, kick/rim clave/hats; the "El Ca-be-za!" motif at the
+    title and the credit. Bars from G0 = title + 1.4 (AD.orders falls on
+    bar 7): bar 0 groove, bars 1-6 the tune, special orders up a step
+    (D) with a ta-daa, back to C at the dealer, stops dead for "only
+    $7.97" (cash register alone), fanfare + the cadence bar at brandNew,
+    the run-up at close, a minor "too sincere" turn at never, the motif
+    and a big chord fading under "the new king!" by about 43 s. Lead
+    (tune) and band on their own buses: under each voice the tune to
+    0.18 and the band to 0.55 (windows merged when close).
+  - Jokes kept, cleaned: sad trombone, stamps, slide whistles, snores,
+    cymbal swell, item bells, assembly bonk, typewriter, boing, Dale's
+    phone, cash register, falling whistle.
+  - TV: HP 170 / +3 dB at 1.7 kHz / LP 5.2 kHz, gentle tanh, 60+120 Hz hum,
+    a slow 0.31 Hz wow; no dropouts; only the hidden frames (CUES.flash)
+    cut it, for one frame (two for the last two).
+  Measured in Chromium (an analyser on the destination): no gaps but the
+  slate, the "only" stop and the frames; voices ~0.18-0.23 rms over the
+  ducked band ~0.03-0.05; the tune ~0.08-0.13.
+- tests/e2e-den-return.mjs seeds el-cabeza:special-order-noted too (the
+  guided special-orders note holds every tap, so the dock couldn't be
+  reached; it failed before this change as well).
