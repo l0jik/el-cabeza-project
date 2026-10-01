@@ -558,7 +558,7 @@ export function buildDen(boardSpan) {
   wallW(rect(RZ * 2, CEIL - FLOOR, "+x", -RX, (yF + yC) / 2, 0, 6), M.paper, TX.PAPER_TILE);
   wallW(box(0.6, 2, RZ * 2, -RX + 0.3, yF + 1, 0), M.darkWood, 16);
   const crX = -RX + 5;
-  let phonePoint = null, phoneHit = null, phoneHandset = null;
+  let phonePoint = null, phoneHit = null, phoneHandset = null, phoneCordUpdate = null;
   wallW(box(10, 12, 66, crX, yF + 2.5 + 6, 0), M.walnut, 16);
   for (let i = -2; i <= 2; i++) wallW(box(0.2, 10, 0.3, crX + 5.05, yF + 8.5, i * 13.2), M.darkWood, 8);
   [-19.8, -6.6, 6.6, 19.8].forEach((z) => wallW(box(0.3, 2.2, 0.6, crX + 5.15, yF + 9, z), M.brass, 4));
@@ -570,10 +570,10 @@ export function buildDen(boardSpan) {
      moss green, rotary (the dial on its sloped front: the clear finger
      wheel over the number plate, white numerals and letters round it,
      the white card in the middle, the chrome finger stop), the handset
-     across the top on the cradle's two prongs. Its cord isn't drawn: set
-     this way it runs off behind, to the wall (user: no cord, don't let it
-     show). Its front faces the room (+x); its width runs along the wall
-     (z). Units about 5.7 cm each (the 500: 21 cm wide, 23 deep). */
+     across the top on the cradle's two prongs, its coiled cord looping
+     on the credenza as in the photo (the line cord to the wall isn't
+     drawn: it runs off behind). Its front faces the room (+x); its width
+     runs along the wall (z). Units about 5.7 cm each (the 500: 21 cm wide, 23 deep). */
   {
     // (1.3 times life: at life size it was lost from the pit.)
     const S = 1.3, px = crX + 0.2, yT = yF + 14.5, pz = 7.5;
@@ -734,6 +734,46 @@ export function buildDen(boardSpan) {
       phoneHandset.userData.rest = { position: pivot.clone(), quaternion: phoneHandset.quaternion.clone() };
       phoneHandset.userData.phone = true;
       B.mesh(phoneHandset, "wallW");
+    }
+    /* The cord (user: the coiled cord, like the photo): from under the
+       handset's left end (yours, facing it: +z) down off the side, a loose
+       loop lying on the credenza in front, and back into the base's left
+       side near the back. Its coils wind round a line through those
+       points; the line's first point rides with the handset, so lifted,
+       the cord stretches out after it, coils and all. Rebuilt only when
+       the handset has moved (den-call.js calls phone.cordUpdate). */
+    {
+      const rest = phoneHandset.userData.rest;
+      const anchor = new THREE.Vector3(...P(HS_AT[0], HS_AT[1] + 0.06, HS_AT[2] + CAP_Z + 0.3)).sub(rest.position);
+      const fixed = [[0.15, 1.05, 2.3], [0.6, 0.16, 2.55], [1.45, 0.15, 2.8], [1.2, 0.15, 3.45], [0.2, 0.15, 3.55], [-0.7, 0.17, 3.0], [-1.1, 0.3, 2.15], [-1.15, 0.36, 1.72]]
+        .map((q) => new THREE.Vector3(...P(...q)));
+      const PITCH = 0.1 * S, RC = 0.11 * S, WIRE = 0.046 * S;
+      const cord = new THREE.Mesh(new THREE.BufferGeometry(), M.phone);
+      const lastPos = new THREE.Vector3(Infinity, 0, 0), lastQ = new THREE.Quaternion();
+      const tip = new THREE.Vector3();
+      function cordUpdate() {
+        const h = phoneHandset;
+        if (h.position.equals(lastPos) && h.quaternion.equals(lastQ)) return;
+        lastPos.copy(h.position); lastQ.copy(h.quaternion);
+        tip.copy(anchor).applyQuaternion(h.quaternion).add(h.position);
+        const line = new THREE.CatmullRomCurve3([tip.clone(), ...fixed]);
+        const turns = Math.max(20, Math.round(line.getLength() / PITCH));
+        const N = turns * 10;
+        const fr = line.computeFrenetFrames(N, false);
+        const pts = [];
+        for (let i = 0; i <= N; i++) {
+          const t = i / N, c = line.getPointAt(t), th = 2 * Math.PI * turns * t;
+          pts.push(c.addScaledVector(fr.normals[i], RC * Math.cos(th)).addScaledVector(fr.binormals[i], RC * Math.sin(th)));
+        }
+        const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), N, WIRE, 5, false);
+        bake(g, {});
+        cord.geometry.dispose();
+        cord.geometry = g;
+      }
+      cordUpdate();
+      B.mesh(cord, "wallW");
+      disposables.push({ dispose: () => cord.geometry.dispose() });
+      phoneCordUpdate = cordUpdate;
     }
     // Where it rings from, and a generous unseen box to tap it by
     // (den-call.js: the call that comes after the special order).
@@ -976,7 +1016,7 @@ export function buildDen(boardSpan) {
     table,
     lamp: { pickables: lampPickables },
     book: { pickables: bookPickables, focus: bookFocus },
-    phone: { point: phonePoint, pickables: phoneHit ? [phoneHit] : [], handset: phoneHandset },
+    phone: { point: phonePoint, pickables: phoneHit ? [phoneHit] : [], handset: phoneHandset, cordUpdate: () => phoneCordUpdate && phoneCordUpdate() },
     stereo,
     tv,
     // The fireplace's mouth, where its sound comes from (den-fx.js).

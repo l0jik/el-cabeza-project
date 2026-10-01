@@ -2294,6 +2294,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // way in (the den's lamps) sends FOCUS_EVENT ({ on } or a toggle).
   useEffect(() => {
     if (ambientRef.current && ambientRef.current.setFocus) ambientRef.current.setFocus(focusMode);
+    // Focus is on the game (user: the camera goes to the board as if
+    // you're about to play): the lights going down bring the camera in to
+    // the current player's view, as its button does.
+    if (focusMode) recenterView();
     // The page's own furniture (the masthead) can go down with the lights.
     document.documentElement.classList.toggle("ec-lights-down", focusMode);
     return () => document.documentElement.classList.remove("ec-lights-down");

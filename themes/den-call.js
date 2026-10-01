@@ -607,6 +607,8 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
 
   function tick(now, t, den) {
     animateHandset(now, t, den);
+    // (Its cord after it, when it's moved: den-room.js.)
+    if (den && den.phone && den.phone.cordUpdate) den.phone.cordUpdate();
     if (stage === "done") return;
     // (Hurried along by the test hook.)
     const R = rushed ? 0.02 : 1;

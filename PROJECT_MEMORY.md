@@ -4503,3 +4503,19 @@ phone menu until "Start the story over" (which clears it).
   loadVoice (fetch + decode, or an <audio> element from file:) with the
   ring; voice(k, t) plays line k down the telephone line (L.input,
   VOICE_LEVEL 0.42); babble only if it isn't there. __DEN_CALL__().voice.
+- The phone's coiled cord (user: like the photo): den-room.js. From
+  inside the handset's +z cap (your left, facing it) down off the side, a
+  loose loop on the credenza in front, back into the housing's left side
+  near the back. A centre line (CatmullRom through the handset point and
+  eight fixed ones) with coils wound round it (pitch 0.1, radius 0.11,
+  wire 0.046, in set units x S; Frenet frames), a TubeGeometry baked like
+  the room, in M.phone. Its first point rides with the handset: rebuilt
+  when the handset has moved (phone.cordUpdate, called each tick by
+  den-call.js; cheap when nothing moved), so lifted to your ear it
+  stretches out after it.
+- Focus mode brings the camera to the board (user: as if you're going to
+  start to play): the chassis's focus effect calls recenterView (Current
+  Player View: the current player's side, the play pitch and radius)
+  whenever focus comes on, however it came on (F, the corner button, the
+  switches, a lamp). e2e-den checks the camera comes in from out in the
+  room.

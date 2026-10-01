@@ -427,8 +427,13 @@ async function waitFor(fn, ms = 8000) {
   const focus = () => page.evaluate(() => window.__DEN_FOCUS__());
   const settled = (on) => waitFor(async () => { const f = await focus(); return f.on === on && (on ? f.w > 0.99 : f.w < 0.01); }, 12000);
   check("the focus button is in the corner", await q(page, "focus-corner").isVisible());
+  // (Out in the room first: focus brings the camera in to the board.)
+  const camOut = await page.evaluate(() => window.__EC_TEST_CAM__({ radius: 160, phi: 0.6, theta: 1.2 }));
+  await page.waitForTimeout(400);
   await q(page, "focus-corner").click();
   check("...a tap: focus comes on and settles", await settled(true));
+  const camIn = await page.evaluate(() => window.__EC_TEST_CAM__());
+  check("...and the camera comes in to the board, the player's view", camIn.radius < camOut.radius - 30 && Math.abs(camIn.phi - 0.6) > 0.05, JSON.stringify({ camOut, camIn }));
   const f1 = await focus();
   check("...the room drops away under the board", f1.lift > 0.7, JSON.stringify(f1));
   check("...the fog closes in to just past the board", f1.fogNear < 80, JSON.stringify(f1));
