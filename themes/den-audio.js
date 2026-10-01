@@ -642,7 +642,7 @@ export function createAudio() {
     const hz = (m) => 440 * Math.pow(2, (m - 69) / 12);
     const env = (g, t, a, peak, d) => { g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); };
     // The home organ: square and triangle, a vibrato, keyed on and off.
-    const organ = (t, notes, dur, level = 0.045) => {
+    const organ = (t, notes, dur, level = 0.045, dest = out) => {
       notes.forEach((m) => {
         const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(level, t + 0.012); g.gain.setValueAtTime(level, t + dur - 0.03); g.gain.linearRampToValueAtTime(0.0001, t + dur);
         const vib = ctx.createOscillator(); vib.frequency.value = 6.2; const vg = ctx.createGain(); vg.gain.value = hz(m) * 0.006; vib.connect(vg);
@@ -651,29 +651,30 @@ export function createAudio() {
           const og = ctx.createGain(); og.gain.value = k; o.connect(og).connect(g); o.start(t); o.stop(t + dur + 0.02);
         });
         vib.start(t); vib.stop(t + dur + 0.02);
-        g.connect(out);
+        g.connect(dest);
       });
     };
-    const tone = (t, f, d, level, type = "sine") => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; const g = ctx.createGain(); env(g, t, 0.003, level, d); o.connect(g).connect(out); o.start(t); o.stop(t + d + 0.05); return o; };
+    const tone = (t, f, d, level, type = "sine", dest = out) => { const o = ctx.createOscillator(); o.type = type; o.frequency.value = f; const g = ctx.createGain(); env(g, t, 0.003, level, d); o.connect(g).connect(dest); o.start(t); o.stop(t + d + 0.05); return o; };
     const bell = (t, m, level = 0.05) => { tone(t, hz(m), 1.1, level); tone(t, hz(m) * 2.76, 0.4, level * 0.35); tone(t, hz(m) * 5.4, 0.18, level * 0.15); };
     // The tape machine's hum, the whole way through.
     [60, 120, 180].forEach((f, i) => { const o = ctx.createOscillator(); o.frequency.value = f; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, T); g.gain.linearRampToValueAtTime(0.008 / (i + 1), T + 0.3); g.gain.setValueAtTime(0.008 / (i + 1), T + AD.snow - 0.05); g.gain.linearRampToValueAtTime(0.0001, T + AD.snow); o.connect(g).connect(out); o.start(T); o.stop(T + AD.snow + 0.1); });
-    // The rhythm box (bossa nova preset) and the organ's pedals, C F G C.
+    // The rhythm box (bossa nova preset) and the organ's pedals, C F G C,
+    // on a bed of its own, the whole way through, from the title to "you
+    // never will!" (user: it dropped out where it used to stop for the
+    // voices, once they came in earlier), and down under each voice.
+    const bed = ctx.createGain(); bed.gain.value = 1; bed.connect(out);
     const beat = 0.5, bar = beat * 4;
     const box = (from, to) => {
       for (let b = 0; from + b * bar < to - 0.01; b++) {
         const t0 = from + b * bar, root = [48, 53, 55, 48][b % 4];
-        [0, 1.5, 2, 3.5].forEach((k) => { const t = T + t0 + k * beat; if (t0 + k * beat >= to) return; const o = ctx.createOscillator(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.12); const g = ctx.createGain(); env(g, t, 0.002, 0.07, 0.16); o.connect(g).connect(out); o.start(t); o.stop(t + 0.2); });
-        [0, 0.75, 1.5, 2.5, 3].forEach((k) => { if (t0 + k * beat < to) tone(T + t0 + k * beat, 2500, 0.03, 0.02); });
-        for (let k = 0; k < 8; k++) if (t0 + k * beat * 0.5 < to) burst(T + t0 + k * beat * 0.5, out, 0.012, 0.03, [["highpass", 7000]]);
-        [0, 2].forEach((k) => { if (t0 + k * beat < to) organ(T + t0 + k * beat, [root - 12], beat * 1.6, 0.05); });
-        [0.5, 1.5, 2.5, 3.5].forEach((k) => { if (t0 + k * beat < to) organ(T + t0 + k * beat, [root + 12, root + 16, root + 19].map((m) => (m > 72 ? m - 12 : m)), beat * 0.35, 0.018); });
+        [0, 1.5, 2, 3.5].forEach((k) => { const t = T + t0 + k * beat; if (t0 + k * beat >= to) return; const o = ctx.createOscillator(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.12); const g = ctx.createGain(); env(g, t, 0.002, 0.07, 0.16); o.connect(g).connect(bed); o.start(t); o.stop(t + 0.2); });
+        [0, 0.75, 1.5, 2.5, 3].forEach((k) => { if (t0 + k * beat < to) tone(T + t0 + k * beat, 2500, 0.03, 0.02, "sine", bed); });
+        for (let k = 0; k < 8; k++) if (t0 + k * beat * 0.5 < to) burst(T + t0 + k * beat * 0.5, bed, 0.012, 0.03, [["highpass", 7000]]);
+        [0, 2].forEach((k) => { if (t0 + k * beat < to) organ(T + t0 + k * beat, [root - 12], beat * 1.6, 0.05, bed); });
+        [0.5, 1.5, 2.5, 3.5].forEach((k) => { if (t0 + k * beat < to) organ(T + t0 + k * beat, [root + 12, root + 16, root + 19].map((m) => (m > 72 ? m - 12 : m)), beat * 0.35, 0.018, bed); });
       }
     };
-    // (Not under the king's line: the voice has the scene to itself.)
-    box(AD.title + 0.5, AD.stamp);
-    box(AD.orders, AD.best);
-    box(AD.dealer, AD.never);
+    box(AD.title + 0.5, AD.never);
     // "El Ca-be-za!" on the organ: G A C . E, at the top and at the end.
     const motif = (t) => [[67, 0, 0.22], [69, 0.25, 0.22], [72, 0.5, 0.22], [76, 0.8, 0.7]].forEach(([m, d, l]) => organ(T + t + d, [m, m - 12], l, 0.05));
     motif(AD.title + 0.05);
@@ -708,8 +709,10 @@ export function createAudio() {
     // (Each voice 1.5 s ahead of its cue, user: the dialogue came in late;
     // 0.5 s first, then a second more.)
     const VOICE_LEAD = 1.5;
-    const voice = (url, at) => {
+    const spoken = [];
+    const voice = (url, at, len) => {
       at -= VOICE_LEAD;
+      spoken.push([T + at, T + at + len]);
       const el = new Audio();
       el.src = url; el.preload = "auto";
       const vg = ctx.createGain(); vg.gain.value = AD_VOICE_GAIN;
@@ -717,10 +720,22 @@ export function createAudio() {
       tv.adVoices.push(el);
       setTimeout(() => { if (tv && tv.ad === out) { const p = el.play(); if (p && p.catch) p.catch(() => { /* no sound, then */ }); } }, Math.max(0, (T + at - now()) * 1000));
     };
-    voice(AD_CHESS_URL, AD.chessVoice);
-    voice(AD_CHECKERS_URL, AD.checkersVoice);
-    voice(AD_VOICE_URL, AD.voice);
-    voice(AD_KINGS_URL, AD.kings);
+    // (With each recording's length: the chess and checkers lines run into
+    // each other and the king's, so the bed stays down across all three.)
+    voice(AD_CHESS_URL, AD.chessVoice, 3.3);
+    voice(AD_CHECKERS_URL, AD.checkersVoice, 3.5);
+    voice(AD_VOICE_URL, AD.voice, 4.15);
+    voice(AD_KINGS_URL, AD.kings, 5.8);
+    // The bed down to half while anyone speaks (lines that touch
+    // or overlap taken as one, so it doesn't bob up between them).
+    spoken.sort((p, q) => p[0] - q[0]).reduce((m, w) => {
+      const l = m[m.length - 1];
+      if (l && w[0] <= l[1] + 0.6) l[1] = Math.max(l[1], w[1]); else m.push([w[0], w[1]]);
+      return m;
+    }, []).forEach(([a, z]) => {
+      bed.gain.setValueAtTime(1, a - 0.25); bed.gain.linearRampToValueAtTime(0.5, a);
+      bed.gain.setValueAtTime(0.5, z); bed.gain.linearRampToValueAtTime(1, z + 0.4);
+    });
     [3.2, 3.7].forEach((d, i) => bell(T + AD.voice + d, 88 + i * 3, 0.018));
     // Special orders: ta-daa, and a bell for each.
     organ(T + AD.orders, [55, 59, 62], 0.18, 0.04); organ(T + AD.orders + 0.2, [60, 64, 67, 72], 0.8, 0.04);

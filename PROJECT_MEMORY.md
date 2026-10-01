@@ -4193,3 +4193,13 @@ phone menu until "Start the story over" (which clears it).
   StoryHint card comes up. Open the box closes the lid into the store's
   game (no catalog on the way). The standalone Tienda page's lid keeps
   both buttons. e2e-story and e2e-journey go in by Open the box.
+- The commercial's music, continuous (user: since the voices moved 1.5 s
+  earlier, the music dropped out several times): the rhythm box and organ
+  used to stop in three places (6.8-17.6, 22.2-25.8 s) for the voices to
+  have the scene alone; with the voices earlier, those became silences
+  (measured: only the tape hum left). den-audio.js tvCommercial now runs
+  box() on its own `bed` gain from the title to AD.never without a break,
+  and ducks the bed to 0.5 under each voice (windows from the recordings'
+  lengths, VOICE_LEAD applied; touching or overlapping lines merged so it
+  doesn't bob up between chess, checkers and the king). The tears and the
+  subliminal frames' brief quiet still cut everything, as the picture does.
