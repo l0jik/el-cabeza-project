@@ -250,6 +250,8 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...okay, I'll be there", await poll(async () => /be there/.test((await page.evaluate(() => window.__DEN_CALL__().text)) || ""), 20000));
   check("...and they hang up", await poll(async () => (await page.evaluate(() => window.__DEN_CALL__().stage)) === "done" && !(await has(page, "den-call")), 12000));
   check("...and the handset's back on the cradle", (await page.evaluate(() => window.__DEN_CALL_HANDSET__ ? window.__DEN_CALL_HANDSET__() : "rest")) === "rest");
+  const hsColor = await page.evaluate(() => window.__DEN_CALL_HANDSET_COLOR__ ? window.__DEN_CALL_HANDSET_COLOR__() : null);
+  check("...still avocado, not cream", hsColor === "7d8b3e", String(hsColor));
   check("...still owned", (await owned(page) || {}).owned === true);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
 

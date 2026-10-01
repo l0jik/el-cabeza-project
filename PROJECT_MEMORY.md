@@ -4295,3 +4295,10 @@ phone menu until "Start the story over" (which clears it).
   pieces are already on the table...") fades in 2 s after the first
   (.ns-caption.on .ns-sub: ns-in 0.8s, 2s delay); the caption now holds
   6.8 s when there's a second line (was 3.6) so it can be read.
+- The phone's handset back to avocado (user: it showed cream on the
+  cradle). den-call.js animateHandset set material.color to white
+  (setScalar(1), and 1 + 0.75e while lifted), which wiped the material's
+  own 0x7d8b3e (den-room.js M.phone, cloned for the handset); it ran every
+  frame at rest, so it was cream all along. tint(hand, k) now keeps the
+  base colour (userData.baseColor) and scales it. Hook
+  __DEN_CALL_HANDSET_COLOR__; e2e-story checks it's 7d8b3e after the call.

@@ -443,9 +443,21 @@ export function createDenCall({ audio, awaitingBegin }) {
     const pq = new Quaternion(); parent.getWorldQuaternion(pq);
     outQuat.copy(pq.invert().multiply(wq));
   }
+  /* The handset's own avocado (its material's colour, kept the first
+     time), brightened by k as it comes up out of the credenza's shade.
+     (It was set to white x k, which lost the green: it showed cream, user.) */
+  function tint(hand, k) {
+    const c = hand.material && hand.material.color;
+    if (!c) return;
+    if (!hand.userData.baseColor) hand.userData.baseColor = c.clone();
+    c.copy(hand.userData.baseColor).multiplyScalar(k);
+  }
+  let lastHand = null;
+
   function animateHandset(now, t, den) {
     const hand = den && den.phone && den.phone.handset;
     if (!hand || !t || !t.camera) return;
+    lastHand = hand;
     if (!hsV.ctor) { const V = hand.position.constructor, Q = hand.quaternion.constructor; hsV.ctor = { Vector3: V, Quaternion: Q, Euler: hand.rotation.constructor }; hsV.a = new V(); hsV.q = new Q(); }
     const rest = hand.userData.rest;
     const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
@@ -463,11 +475,11 @@ export function createDenCall({ audio, awaitingBegin }) {
         }
       }
       hand.position.copy(rest.position); hand.quaternion.copy(rest.quaternion);
-      if (hand.material && hand.material.color) hand.material.color.setScalar(1);
+      tint(hand, 1);
       return;
     }
     earPose(hand, t.camera, hsV.a, hsV.q);
-    const light = (e) => { if (hand.material && hand.material.color) hand.material.color.setScalar(1 + 0.75 * e); };
+    const light = (e) => tint(hand, 1 + 0.75 * e);
     if (hs.mode === "held") { hand.position.lerp(hsV.a, 0.25); hand.quaternion.slerp(hsV.q, 0.25); light(1); return; }
     const dur = hs.mode === "lift" ? 950 : 750;
     const k = Math.min(1, (now - hs.t0) / dur), e = ease(hs.mode === "lift" ? k : 1 - k);
@@ -548,6 +560,7 @@ export function createDenCall({ audio, awaitingBegin }) {
     // den-fx.js pickScene/sceneTap to answer() too.)
     window.__DEN_CALL_PICKUP__ = () => answer();
     window.__DEN_CALL_HANDSET__ = () => hs.mode;
+    window.__DEN_CALL_HANDSET_COLOR__ = () => (lastHand && lastHand.material && lastHand.material.color ? lastHand.material.color.getHexString() : null);
   }
 
   return {
@@ -565,7 +578,7 @@ export function createDenCall({ audio, awaitingBegin }) {
       if (box) box.remove();
       if (thoughtEl) thoughtEl.remove();
       if (styleEl) styleEl.remove();
-      if (typeof window !== "undefined") { delete window.__DEN_CALL__; delete window.__DEN_CALL_NOW__; delete window.__DEN_CALL_PICKUP__; delete window.__DEN_CALL_HANDSET__; }
+      if (typeof window !== "undefined") { delete window.__DEN_CALL__; delete window.__DEN_CALL_NOW__; delete window.__DEN_CALL_PICKUP__; delete window.__DEN_CALL_HANDSET__; delete window.__DEN_CALL_HANDSET_COLOR__; }
     },
   };
 }
