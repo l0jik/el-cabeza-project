@@ -433,13 +433,12 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
     }
     if (!gesture.moved && Math.hypot(e.clientX - prev.x0, e.clientY - prev.y0) < 7) return;
     gesture.moved = true;
-    // (Which way it turns: the board's own rule, as the chassis's drag:
-    // what's under the finger moves with it, so a touch that began on the
-    // board's far half (above its middle on screen) turns it one way and on
-    // its near half the other. It was one way everywhere: reversed below,
-    // user.)
+    // (Which way: the board's original rule, as the chassis's drag, user:
+    // a touch begun on the upper half of the screen turns it one way and
+    // on the lower half the other, kept for the whole drag even across the
+    // middle; finger up tilts toward the horizon.)
     cam.current.theta += gesture.turn * (e.clientX - prev.x) * ORBIT_SENS_THETA;
-    cam.current.phi = Math.max(home.phi - 0.3, Math.min(Math.min(1.2, home.phi + 0.25), cam.current.phi + (e.clientY - prev.y) * ORBIT_SENS_PHI));
+    cam.current.phi = Math.max(home.phi - 0.3, Math.min(Math.min(1.2, home.phi + 0.25), cam.current.phi - (e.clientY - prev.y) * ORBIT_SENS_PHI));
   };
   const onDown = (e) => {
     swallow(e);
@@ -452,9 +451,8 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
     if (ptrs.size === 1) {
       let turn = 1;
       try {
-        const r = canvas.getBoundingClientRect(), c = new THREE.Vector3();
-        t.boardGroup.getWorldPosition(c); c.project(t.camera);
-        turn = e.clientY < r.top + ((1 - c.y) / 2) * r.height ? 1 : -1;
+        const r = canvas.getBoundingClientRect();
+        turn = e.clientY - r.top < r.height / 2 ? 1 : -1;
       } catch (err) { /* the top half's way, then */ }
       gesture = { moved: false, span: 0, r0: camOk() ? cam.current.radius : 0, at: e.timeStamp, turn };
     }

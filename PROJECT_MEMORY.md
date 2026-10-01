@@ -4203,3 +4203,18 @@ phone menu until "Start the story over" (which clears it).
   lengths, VOICE_LEAD applied; touching or overlapping lines merged so it
   doesn't bob up between chess, checkers and the king). The tears and the
   subliminal frames' brief quiet still cut everything, as the picture does.
+- Drag turn and tilt back to the original rule (user: "reset directional
+  spin and tilt to original settings, and ensure the original move intent
+  is kept even if crossing meridians or equators"). Chassis: the grab-
+  follow machinery (ff503e3: the point under the finger tracked, the sign
+  re-picked every few frames, so it could reverse mid-drag) is gone;
+  grabLatch at touch-down fixes both signs for the whole drag. Board
+  views: begun on the screen's upper half theta += dx, lower half
+  theta -= dx (the original dragFlipTheta turntable rule); phi -= dy
+  (finger up, toward the horizon). Room view (dollhouse, the user's own
+  later ask): both axes reversed, the same anywhere on screen. The Neon
+  summons' drag follows the same rule: its turn by the screen's half (not
+  the board centre's projection), latched, and its tilt now the board's
+  way (it was reversed). tests/e2e-drag-follow.mjs replaced by
+  tests/e2e-drag-latch.mjs (drags across the middle both ways, every step
+  the first step's sign; play view and Room view).
