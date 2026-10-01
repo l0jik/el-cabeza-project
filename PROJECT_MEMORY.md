@@ -4257,3 +4257,15 @@ phone menu until "Start the story over" (which clears it).
 - tests/e2e-den-return.mjs seeds el-cabeza:special-order-noted too (the
   guided special-orders note holds every tap, so the dock couldn't be
   reached; it failed before this change as well).
+- "Sure thing!" frame (clerk-sure; user): the clerk now holds the order
+  form you handed him. tools/tienda_clerk_frames.py: order_form_art draws
+  a prop of the game's own form (aged cream paper, "GAMES & HOBBY DEPT. ·
+  1975" in red, ORDER FORM heavy black over a rule, the dark "1 · PIECES"
+  band, five ruled rows with blue quantities, a blue signature, a faint
+  red STORE ORDER stamp); hold_order_form warps it onto FORM_QUAD (upright
+  in his palm, leaning back a little), lit from above, softened to the
+  photo, with a drop shadow on him and a contact line on the palm, and
+  his thumb (skin in THUMB_BOX) put back in front of it. Everything else
+  in the frame (and every other frame) unchanged; re-running the script
+  rewrites the others with identical pixels (only the JPEG bytes differ,
+  so they were left as committed). Fonts: Liberation Sans/Mono Bold.

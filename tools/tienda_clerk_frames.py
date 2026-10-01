@@ -362,6 +362,131 @@ def over(dst, layer, dx=0, dy=0, scale=1.0):
     return np.array(Image.alpha_composite(base, canvas).convert("RGB"))
 
 
+# The order form you hand over, in the clerk's hand in "Sure thing!"
+# (user): a prop of the game's own form (themes/tienda-overlay.js
+# OrderForm: aged cream paper, the department line in red, ORDER FORM in
+# heavy black over a rule, the dark section band, the ruled rows with their
+# quantities in blue, the red stamp), drawn large, then set into the frame
+# standing up in his palm, leaning back a little, his thumb in front of it.
+FONT = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+MONO = "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf"
+# The sheet's corners in the frame (after CROP): top-left, top-right,
+# bottom-right, bottom-left; the bottom edge along his palm.
+FORM_QUAD = [(91, 216), (144, 223), (137, 298), (84, 290)]
+# His thumb (in front of the sheet): where to look for it.
+THUMB_BOX = (76, 278, 102, 295)
+
+
+def order_form_art(w=448, h=592):
+    from PIL import ImageFont
+    rng = np.random.default_rng(1975)
+    paper = np.zeros((h, w, 3), np.float32) + np.array([240, 230, 206], np.float32)
+    # Age: a soft mottle, a couple of foxing spots, darker toward the edges.
+    mott = cv2.GaussianBlur(rng.normal(0, 1, (h, w)).astype(np.float32), (0, 0), 24)
+    paper += (mott / (np.abs(mott).max() + 1e-6))[..., None] * np.array([6, 7, 10], np.float32)
+    yy, xx = np.mgrid[0:h, 0:w]
+    edge = np.minimum.reduce([xx, yy, w - 1 - xx, h - 1 - yy]).astype(np.float32)
+    paper -= (np.clip(1 - edge / 36, 0, 1) ** 2)[..., None] * np.array([16, 20, 28], np.float32)
+    for cx, cy, r in [(380, 120, 9), (70, 430, 7)]:
+        d = np.hypot(xx - cx, yy - cy)
+        paper -= (np.clip(1 - d / r, 0, 1) ** 0.7)[..., None] * np.array([16, 24, 36], np.float32)
+    im = Image.fromarray(np.clip(paper, 0, 255).astype(np.uint8))
+    g = ImageDraw.Draw(im)
+    INK, RED, BLUE = (40, 30, 24), (154, 59, 48), (38, 58, 140)
+    TYPE, FINE, RULE = (92, 78, 66), (168, 154, 134), (176, 160, 134)
+    f = lambda path, size: ImageFont.truetype(path, size)
+    m = 30
+    g.text((m, 26), "GAMES & HOBBY DEPT. \u00b7 1975", font=f(FONT, 19), fill=RED)
+    g.text((m - 3, 50), "ORDER FORM", font=f(FONT, 60), fill=INK)
+    g.rectangle([m, 122, w - m, 127], fill=INK)
+    # The section band.
+    g.rectangle([m, 142, w - m, 176], fill=(51, 37, 27))
+    g.text((m + 12, 148), "1 \u00b7 PIECES", font=f(FONT, 20), fill=(236, 226, 204))
+    # The rows: the item (type too small to read, as a line of grey), the
+    # quantity box with a figure in blue ink.
+    names = [0.36, 0.30, 0.26, 0.32, 0.28]
+    qty = ["1", "1", "2", "1", "3"]
+    for i, (nw, q) in enumerate(zip(names, qty)):
+        y = 188 + i * 50
+        g.rectangle([m + 4, y + 12, m + 50, y + 17], fill=FINE)  # stock no.
+        g.rectangle([m + 66, y + 9, m + 66 + int(nw * w), y + 18], fill=TYPE)  # name
+        g.rectangle([m + 66, y + 27, m + 66 + int(nw * w * 1.25), y + 31], fill=FINE)  # description
+        bx = w - m - 58
+        g.rectangle([bx, y + 6, bx + 50, y + 40], outline=INK, width=3)
+        g.text((bx + 15, y + 6), q, font=f(MONO, 30), fill=BLUE)
+        g.line([m, y + 48, w - m, y + 48], fill=RULE, width=2)
+    # The foot: the rule, a signature in blue.
+    g.rectangle([m, h - 104, w - m, h - 100], fill=INK)
+    g.text((m, h - 90), "SIGNED", font=f(FONT, 16), fill=RED)
+    pts = [(m + 84 + i * 8, h - 66 + 8 * np.sin(i * 1.3) - i * 0.5) for i in range(22)]
+    g.line(pts, fill=BLUE, width=4, joint="curve")
+    # The red stamp by the signature, at a slant, faint and uneven.
+    st = Image.new("L", (250, 74), 0)
+    sd = ImageDraw.Draw(st)
+    sd.rectangle([4, 4, 245, 69], outline=255, width=6)
+    sd.text((18, 14), "STORE ORDER", font=f(FONT, 37), fill=255)
+    st = st.rotate(9, expand=True, resample=Image.BICUBIC)
+    a = np.array(st).astype(np.float32) / 255 * (0.5 + 0.35 * rng.random(st.size[::-1]))
+    a = np.clip(cv2.GaussianBlur(a, (0, 0), 1.0), 0, 1)
+    arr = np.array(im).astype(np.float32)
+    ox, oy = w - st.size[0] - 22, h - st.size[1] - 18
+    region = arr[oy:oy + st.size[1], ox:ox + st.size[0]]
+    region[:] = region * (1 - a[..., None]) + np.array(RED, np.float32) * a[..., None]
+    return arr.astype(np.uint8)
+
+
+def hold_order_form(img):
+    """The order form, in his hand: the sheet warped onto FORM_QUAD, lit a
+    little from above (the store's ceiling), softened to the photo's
+    focus, with a soft shadow on him behind it; then his thumb back over
+    it."""
+    H_, W_ = img.shape[:2]
+    art = order_form_art()
+    ah, aw = art.shape[:2]
+    # Lit from above: a touch darker toward the bottom, warmer overall.
+    shade = np.linspace(1.0, 0.88, ah, dtype=np.float32)[:, None, None]
+    art = np.clip(art.astype(np.float32) * shade * np.array([1.0, 0.98, 0.94], np.float32), 0, 255)
+    src = np.float32([[0, 0], [aw, 0], [aw, ah], [0, ah]])
+    dst = np.float32(FORM_QUAD)
+    # Down to about the frame's scale first (no shimmer), then warped.
+    k = 4
+    small = cv2.resize(art, (aw // k, ah // k), interpolation=cv2.INTER_AREA)
+    M = cv2.getPerspectiveTransform(src / k, dst)
+    sheet = cv2.warpPerspective(small, M, (W_, H_), flags=cv2.INTER_LINEAR)
+    alpha = cv2.warpPerspective(np.ones(small.shape[:2], np.float32), M, (W_, H_), flags=cv2.INTER_LINEAR)
+    # The photo's softness.
+    sheet = cv2.GaussianBlur(sheet, (0, 0), 0.55)
+    alpha = cv2.GaussianBlur(alpha, (0, 0), 0.5)
+    out = img.astype(np.float32)
+    # Its shadow on him, down and to the right.
+    sh = np.roll(np.roll(alpha, 3, axis=1), 2, axis=0)
+    sh = cv2.GaussianBlur(sh, (0, 0), 2.2) * 0.38
+    # ...and where it rests in his palm, a darker line just under its edge.
+    contact = np.clip(np.roll(alpha, 3, axis=0) - alpha, 0, 1)
+    sh = np.maximum(sh, cv2.GaussianBlur(contact, (0, 0), 1.2) * 0.5)
+    out *= (1 - sh)[..., None]
+    out = out * (1 - alpha[..., None]) + sheet * alpha[..., None]
+    # His thumb, in front: the original's skin in THUMB_BOX, above the
+    # sheet's bottom edge.
+    x0, y0, x1, y1 = THUMB_BOX
+    reg = img[y0:y1, x0:x1].astype(int)
+    R, G, B = reg[..., 0], reg[..., 1], reg[..., 2]
+    skin = (R > 150) & (R - G > 32) & (R - B > 45)
+    sk = np.zeros((H_, W_), np.uint8)
+    sk[y0:y1, x0:x1] = skin
+    n, lab, st, _ = cv2.connectedComponentsWithStats(sk, 8)
+    if n > 1:
+        big = 1 + int(np.argmax(st[1:, cv2.CC_STAT_AREA]))
+        sk = (lab == big).astype(np.uint8)
+    sk = cv2.morphologyEx(sk, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    thumb = cv2.GaussianBlur(sk.astype(np.float32), (0, 0), 0.6)
+    # Its shadow on the sheet, just below it.
+    ts = np.roll(cv2.GaussianBlur(sk.astype(np.float32), (0, 0), 1.4), 2, axis=0) * alpha * 0.35
+    out *= (1 - ts)[..., None]
+    out = out * (1 - thumb[..., None]) + img.astype(np.float32) * thumb[..., None]
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--debug")
@@ -374,6 +499,8 @@ def main():
         sheet = CELLS[name][0]
         out = over(img, layer, dy=SPREAD_DY[sheet])
         im = Image.fromarray(out).crop(CROP[sheet])
+        if name == "clerk-sure":
+            im = Image.fromarray(hold_order_form(np.array(im)))
         im.save(os.path.join(OUT, f"{name}.jpg"), quality=86, optimize=True, progressive=True)
         if a.debug:
             os.makedirs(a.debug, exist_ok=True)
