@@ -4725,5 +4725,7 @@ phone menu until "Start the story over" (which clears it).
   - Rules cards in a standard game under way (no law on, the classic five
     only, no cut squares or holes: chassis standardGame) tell the classic
     game alone: the Moves card shows no law moves (user: Standard
-    Cabeza never shows a move that doesn't apply). Before a game begins,
-    and in a custom game, everything as before.
+    Cabeza never shows a move that doesn't apply), before it begins too
+    (user). Opened on an extra on purpose (an order form's "How it works
+    ›", a law on the slip: chassis EXTRA_FOCUS) the card shows them all,
+    so the one asked for is there. A custom game's cards show everything.

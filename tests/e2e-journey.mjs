@@ -84,7 +84,13 @@ async function page(url, init) {
     // (The note first: a tap elsewhere, as opening the rules is, puts it away.)
     if (url === "el-cabeza-tienda.html") check("the note that special orders are open", await has(p, "tienda-special-note"));
     const r = await rulesView(p);
-    check(`${url}: MOVES has the laws and the shelter`, r.moves.classic === "false" && r.moves.slide && r.moves.pivot && r.moves.hole && r.moves.shelter, JSON.stringify(r.moves));
+    // (A standard game, still to begin: its Moves card tells the classic
+    // game alone, user; opened on a law, it has them all.)
+    check(`${url}: a standard game's MOVES: the classic moves`, r.moves.classic === "true" && r.moves.roll && !r.moves.slide, JSON.stringify(r.moves));
+    await p.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "moves", focus: "slide" } })));
+    await p.waitForTimeout(500);
+    check(`${url}: opened on a law, MOVES has the laws and the shelter`, (await q(p, "rules-card-moves").getAttribute("data-classic")) === "false" && (await has(p, "rules-tile-slide")) && (await has(p, "rules-tile-cantileverPivot")) && (await has(p, "rules-tile-blackHoleSquares")) && (await has(p, "rules-tile-shelter")));
+    await closeRules(p);
     check(`${url}: ABOUT mentions them again`, r.aboutMentions);
     if (url === "el-cabeza-tienda.html") {
       check("...and the lid offers Custom rules", /Custom rules/i.test(await q(p, "tienda-lid-order").innerText()));
@@ -128,7 +134,8 @@ async function page(url, init) {
   });
   await p.waitForTimeout(2000);
   const r = await rulesView(p);
-  check("at home, after the Singularity: everything", r.moves.classic === "false" && r.moves.slide, JSON.stringify(r.moves));
+  check("at home, after the Singularity, a standard game: the classic moves", r.moves.classic === "true" && !r.moves.slide, JSON.stringify(r.moves));
+  check("...and the rest of the extras unlocked (ABOUT mentions them)", r.aboutMentions);
   await openDockPanel(p);
   await q(p, "story-restart").click();
   check("Restart story asks first", await poll(() => has(p, "restart-confirm"), 4000));

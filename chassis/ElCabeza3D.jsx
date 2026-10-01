@@ -861,13 +861,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [singularityVisited, setSingularityVisited] = useState(singularitySeen);
   useEffect(() => onJourneyChange(setSingularityVisited), []);
   const classicRules = !!theme.lockExtrasUntilSingularity && !singularityVisited;
-  /* A standard game under way (Standard Cabeza, or simply nothing
-     changed): no law on, only the classic five on the board, no cut
-     squares or black holes. Its rules cards tell the classic game alone
-     (user: the Moves card should never show a move that doesn't apply to
-     it). Before a game begins they show everything, as before. */
+  /* A standard game (Standard Cabeza, or simply nothing changed), under
+     way or still to begin: no law on, only the classic five on the board,
+     no cut squares or black holes. Its rules cards tell the classic game
+     alone (user: the Moves card should never show a move that doesn't
+     apply to it; before the game starts too). */
   const CLASSIC_TYPES = ["cabeza", "turrito", "opa", "flaco", "chato"];
-  const standardGame = gameArmed && !["splitMovement", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving"].some((k) => ACTIVE_LAWS[k])
+  // (Opened on one of the extras on purpose, an order form's "How it
+  // works ›" or a law on the order slip, the card shows them all, so the
+  // one asked for is there.)
+  const EXTRA_FOCUS = ["splitMovement", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving", "shoveRoll", "shelter", "missing"];
+  const standardGame = !["splitMovement", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving"].some((k) => ACTIVE_LAWS[k])
     && pieces.every((p) => CLASSIC_TYPES.includes(p.type)) && !MISSING_SQUARES.length && !(blackHoles && blackHoles.length);
   const [focusMode, setFocusMode] = useState(false);
   const toggleFocus = () => setFocusMode((v) => !v);
@@ -9284,7 +9288,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 onFocus={(k) => switchRulesTab("moves", k)}
                 C={RULES_COLORS}
                 budget={turnBudget()}
-                classic={classicRules || standardGame}
+                classic={classicRules || (standardGame && !EXTRA_FOCUS.includes(rulesFocus))}
                 game={{
                   laws: ACTIVE_LAWS,
                   rows: BOARD_ROWS,
