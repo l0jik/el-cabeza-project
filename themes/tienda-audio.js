@@ -904,7 +904,13 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
     // it up (a few keys, the bell, the drawer).
     playOrderFilled() {
       ensureStarted(); if (!ctx) return;
-      const t = now();
+      // (A whoosh as it comes down, and the smack as it lands with the
+      // stamp, 0.21 s in: tienda-overlay.js tdStamp.)
+      const t0 = now(), t = t0 + 0.21;
+      { const w = noise(t0, 0.26), wb = ctx.createBiquadFilter(); wb.type = "bandpass"; wb.Q.value = 0.9;
+        wb.frequency.setValueAtTime(500, t0); wb.frequency.exponentialRampToValueAtTime(2400, t);
+        const wg = ctx.createGain(); wg.gain.setValueAtTime(0.0001, t0); wg.gain.exponentialRampToValueAtTime(0.06, t - 0.02); wg.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
+        w.connect(wb).connect(wg).connect(sfxBus); }
       woodHit(t, { size: 3.2, level: 0.1, bright: 0.45, board: 0.9 });
       paper(t + 0.005, 0.07, 0.06, 900);
       [0.3, 0.4, 0.5].forEach((d, i) => tick(t + d, 950 + i * 120, 0.1, sfxBus, 0.03));

@@ -558,7 +558,7 @@ export function buildDen(boardSpan) {
   wallW(rect(RZ * 2, CEIL - FLOOR, "+x", -RX, (yF + yC) / 2, 0, 6), M.paper, TX.PAPER_TILE);
   wallW(box(0.6, 2, RZ * 2, -RX + 0.3, yF + 1, 0), M.darkWood, 16);
   const crX = -RX + 5;
-  let phonePoint = null, phoneHit = null;
+  let phonePoint = null, phoneHit = null, phoneHandset = null;
   wallW(box(10, 12, 66, crX, yF + 2.5 + 6, 0), M.walnut, 16);
   for (let i = -2; i <= 2; i++) wallW(box(0.2, 10, 0.3, crX + 5.05, yF + 8.5, i * 13.2), M.darkWood, 8);
   [-19.8, -6.6, 6.6, 19.8].forEach((z) => wallW(box(0.3, 2.2, 0.6, crX + 5.15, yF + 9, z), M.brass, 4));
@@ -591,8 +591,34 @@ export function buildDen(boardSpan) {
     // The cradle's two horns, and the handset resting on them: the grip
     // across the top, the ear and mouth cups dropping at its ends.
     [-1.25, 1.25].forEach((dz) => put(0.62, 0.34, 0.52, P(-0.75, 1.72, dz), M.phone, 0.12));
-    put(0.62, 0.5, 3.3, P(-0.72, 2.14, 0), M.phone, 0.22);
-    [-1, 1].forEach((s2) => put(1.05, 0.78, 0.95, P(-0.62, 1.72, s2 * 1.9), M.phone, 0.34));
+    /* The handset its own mesh (den-call.js: it shakes as the bell rings,
+       and lifts toward you when you answer): the same grip and cups, lit
+       (baked) where they lie, then about its middle as a pivot. */
+    {
+      const parts = [
+        box(0.62 * S, 0.5 * S, 3.3 * S, ...P(-0.72, 2.14, 0), { round: 0.22 * S }),
+        ...[-1, 1].map((s2) => box(1.05 * S, 0.78 * S, 0.95 * S, ...P(-0.62, 1.72, s2 * 1.9), { round: 0.34 * S })),
+      ].map((g) => {
+        const n = g.index ? g.toNonIndexed() : g;
+        if (n !== g) g.dispose();
+        bake(n, {});
+        Object.keys(n.attributes).forEach((k) => { if (!["position", "normal", "color"].includes(k)) n.deleteAttribute(k); });
+        return n;
+      });
+      const hg = BufferGeometryUtils.mergeBufferGeometries(parts, false);
+      parts.forEach((g) => g.dispose());
+      const pivot = new THREE.Vector3(...P(-0.68, 1.95, 0));
+      hg.translate(-pivot.x, -pivot.y, -pivot.z);
+      disposables.push(hg);
+      // (Its own copy of the avocado: lifted toward you, out of the
+      // credenza's shade, it brightens: den-call.js.)
+      const hm = M.phone.clone(); disposables.push(hm);
+      phoneHandset = new THREE.Mesh(hg, hm);
+      phoneHandset.position.copy(pivot);
+      phoneHandset.userData.rest = { position: pivot.clone(), quaternion: phoneHandset.quaternion.clone() };
+      phoneHandset.userData.phone = true;
+      B.mesh(phoneHandset, "wallW");
+    }
     // Where it rings from, and a generous unseen box to tap it by
     // (den-call.js: the call that comes after the special order).
     phonePoint = new THREE.Vector3(px, yT + S * 1.4, pz);
@@ -834,7 +860,7 @@ export function buildDen(boardSpan) {
     table,
     lamp: { pickables: lampPickables },
     book: { pickables: bookPickables, focus: bookFocus },
-    phone: { point: phonePoint, pickables: phoneHit ? [phoneHit] : [] },
+    phone: { point: phonePoint, pickables: phoneHit ? [phoneHit] : [], handset: phoneHandset },
     stereo,
     tv,
     // The fireplace's mouth, where its sound comes from (den-fx.js).

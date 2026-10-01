@@ -702,7 +702,10 @@ export function createAudio() {
     // The king: a cymbal, then the voice (the user's recording, a file
     // beside the page: build/build.js), and a sparkle as it trails off.
     burst(T + AD.king, out, 0.06, 1.4, [["highpass", 5000]]);
+    // (Each voice 0.5 s ahead of its cue, user: the dialogue came in late.)
+    const VOICE_LEAD = 0.5;
     const voice = (url, at) => {
+      at -= VOICE_LEAD;
       const el = new Audio();
       el.src = url; el.preload = "auto";
       const vg = ctx.createGain(); vg.gain.value = AD_VOICE_GAIN;
@@ -824,6 +827,25 @@ export function createAudio() {
     duckForCall(on) {
       if (!ctx || !musicBus) return;
       musicBus.gain.setTargetAtTime(on ? 0.22 : 0.9, now(), on ? 0.4 : 1.2);
+    },
+    /* The order stamped (the special order's "Take to store", the form's
+       stamp landing 0.22 s into its fall, tienda-overlay.js tdStamp): a
+       quick whoosh of air as it comes down, then the rubber smacking the
+       paper (a dull thud, the paper's slap). */
+    playOrderFilled() {
+      ensureGraph();
+      if (!ctx) return;
+      if (ctx.state === "suspended") ctx.resume();
+      const t = now(), land = t + 0.21;
+      const w = noise(t, 0.26), wb = ctx.createBiquadFilter(); wb.type = "bandpass"; wb.Q.value = 0.9;
+      wb.frequency.setValueAtTime(500, t); wb.frequency.exponentialRampToValueAtTime(2400, land);
+      const wg = ctx.createGain(); wg.gain.setValueAtTime(0.0001, t); wg.gain.exponentialRampToValueAtTime(0.07, land - 0.02); wg.gain.exponentialRampToValueAtTime(0.0001, land + 0.02);
+      w.connect(wb).connect(wg).connect(sfxBus);
+      const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(130, land); o.frequency.exponentialRampToValueAtTime(52, land + 0.12);
+      const og = ctx.createGain(); og.gain.setValueAtTime(0.0001, land); og.gain.linearRampToValueAtTime(0.4, land + 0.004); og.gain.exponentialRampToValueAtTime(0.0001, land + 0.16);
+      o.connect(og).connect(sfxBus); o.start(land); o.stop(land + 0.2);
+      burst(land, sfxBus, 0.3, 0.07, [["lowpass", 700]]);
+      burst(land + 0.002, sfxBus, 0.12, 0.035, [["bandpass", 1900, 1.1]]);
     },
     playMusic,
     stopMusic,

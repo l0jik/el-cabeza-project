@@ -177,6 +177,9 @@ const TWO_FINGER_DOUBLE_TAP_MS = 400; // max gap between two taps to count as a 
 // The player took the page out of full screen themselves (the button or the
 // two-finger double-tap): it stays out until they put it back.
 let fullscreenDeclined = false;
+// The stereo's running order (records and tapes, shuffled once a visit:
+// nextMusicTrack), so the pattern repeats.
+let musicOrder = null;
 
 /* Opponent settings (Human/AI side, AI difficulty, Human-vs-Human starting
    side) persist in this browser across page reloads, not just across New
@@ -1589,12 +1592,32 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (a.ensureStarted) a.ensureStarted();
     // Choosing a record means wanting to hear it: its channel comes back on.
     if (music.channel && channelsOff[music.channel]) toggleChannel(music.channel);
-    if (a.playMusic(track, () => { setMusicNow(null); setMusicPaused(false); musicPlaying(null); }) === false) return;
+    if (a.playMusic(track, () => {
+      // Then the next (user: never the same song twice running): every
+      // track, records and tapes, in an order shuffled once a visit and
+      // played round again from the top; at the level this one had.
+      const next = nextMusicTrack(track);
+      if (next) { playTrackRef.current(next); return; }
+      setMusicNow(null); setMusicPaused(false); musicPlaying(null);
+    }) === false) return;
     setMusicNow(track.id);
     setMusicPaused(false);
     musicPlaying(track.medium);
   }
   playTrackRef.current = playTrack;
+  function nextMusicTrack(track) {
+    const list = music ? music.tracks() : [];
+    if (list.length < 2) return null;
+    const ids = list.map((t) => t.id);
+    if (!musicOrder || musicOrder.length !== ids.length || !ids.every((id) => musicOrder.includes(id))) {
+      musicOrder = ids.slice();
+      for (let i = musicOrder.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [musicOrder[i], musicOrder[j]] = [musicOrder[j], musicOrder[i]]; }
+    }
+    const i = musicOrder.indexOf(track.id);
+    const nextId = musicOrder[(i + 1) % musicOrder.length];
+    const next = list.find((t) => t.id === nextId);
+    return next ? { ...next, level: track.level } : null;
+  }
   function stopTrack() {
     if (audioRef.current.stopMusic) audioRef.current.stopMusic();
     setMusicNow(null);

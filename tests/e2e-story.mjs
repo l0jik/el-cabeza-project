@@ -243,14 +243,17 @@ console.log("\ndesktop: the store, the purchase, home");
   // The thought, and then Big Glutts on the phone (themes/den-call.js).
   check("a thought: finally, a game in peace", await poll(async () => (await has(page, "den-thought")) && /in peace/.test(await q(page, "den-thought").innerText()), 12000));
   await page.evaluate(() => window.__DEN_CALL_NOW__ && window.__DEN_CALL_NOW__());
-  check("the game under way (it began itself, from the order), the phone rings", await poll(async () => (await page.evaluate(() => window.__DEN_CALL__ && window.__DEN_CALL__())) && (await page.evaluate(() => window.__DEN_CALL__().stage)) === "ringing" && (await has(page, "den-call-answer")), 15000));
+  check("the game under way (it began itself, from the order), the phone rings", await poll(async () => (await page.evaluate(() => window.__DEN_CALL__ && window.__DEN_CALL__())) && (await page.evaluate(() => window.__DEN_CALL__().stage)) === "ringing" && (await has(page, "den-call")), 15000));
   check("...ring after ring", await poll(async () => (await page.evaluate(() => window.__DEN_CALL__().rings)) >= 2, 12000));
-  await q(page, "den-call-answer").click();
+  check("...no button: the phone itself is picked up", !(await page.locator('[data-testid="den-call"] button').count()));
+  await page.evaluate(() => window.__DEN_CALL_PICKUP__());
+  check("...the handset lifts toward you", await poll(async () => (await page.evaluate(() => window.__DEN_CALL_HANDSET__())) === "held", 4000));
   check("picked up: Big Glutts, found the pieces", await poll(async () => /found the pieces/.test((await page.evaluate(() => window.__DEN_CALL__().text)) || ""), 8000));
   check("...you already have them", await poll(async () => /already have them/.test((await page.evaluate(() => window.__DEN_CALL__().text)) || ""), 15000));
   check("...free, if you like; sorry for any inconvenience", await poll(async () => /inconvenience/.test((await page.evaluate(() => window.__DEN_CALL__().text)) || ""), 20000));
   check("...okay, I'll be there", await poll(async () => /be there/.test((await page.evaluate(() => window.__DEN_CALL__().text)) || ""), 20000));
   check("...and they hang up", await poll(async () => (await page.evaluate(() => window.__DEN_CALL__().stage)) === "done" && !(await has(page, "den-call")), 12000));
+  check("...and the handset's back on the cradle", (await page.evaluate(() => window.__DEN_CALL_HANDSET__ ? window.__DEN_CALL_HANDSET__() : "rest")) === "rest");
   check("...still owned", (await owned(page) || {}).owned === true);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
 

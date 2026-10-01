@@ -4132,3 +4132,28 @@ phone menu until "Start the story over" (which clears it).
 - e2e-fullscreen: Standard now goes full screen at the first tap; the
   two-finger double-tap over Begin Game comes out, and a later tap
   leaves it out (fullscreenDeclined).
+- The commercial's voices 0.5 s earlier (user: the dialogue was late):
+  den-audio.js tvCommercial's voice() plays each at its cue - VOICE_LEAD.
+- The order's stamp (user: a quick whoosh-thunk, a rubber stamp smacking
+  the paper, on the Order it at Big Glutts form): den-audio.js has its own
+  playOrderFilled (the den had none): a bandpassed whoosh rising 500 ->
+  2400 Hz over 0.21 s, then at the landing (tdStamp's 0.22 s) a 130 -> 52
+  Hz thud, a lowpassed burst and a paper slap. Tienda's playOrderFilled
+  gets the same whoosh, its smack and the register moved to land with it.
+- The phone answered by picking it up (user): no "Pick up" button (the
+  slip: "The phone is ringing / on the credenza"); a tap on the phone
+  (pickScene "phone") answers. The handset is its own mesh now (den-room.js
+  phone.handset: grip and cups baked where they lie, merged, about a pivot,
+  userData.rest; its own clone of M.phone). den-call.js animateHandset:
+  ringing, it shivers and hops on the cradle in each ring's window (the
+  same 6 s cycle as the recording's rings); answered, it lifts (950 ms, up
+  off the cradle then toward you) to low right of the view, upright and
+  turned in (earPose: camera + 8.5 forward, -3.3 up, +3.1 right), brightening
+  to x1.75 out of the credenza's shade, and follows the camera through the
+  call; 0.75 s before the hang-up clunk it goes back down. Test hooks:
+  __DEN_CALL_PICKUP__(), __DEN_CALL_HANDSET__() (rest/lift/held/down).
+- The stereo never plays the same song twice running (user): the 8-tracks
+  no longer loop; when a track ends the chassis plays the next in a
+  running order of every track (records and tapes), shuffled once a visit
+  (module-level musicOrder) and gone round again in the same order, at the
+  level the last one had (the first visit's 30%).

@@ -12,9 +12,12 @@
      the thought), the avocado desk set on the credenza (den-room.js) rings:
      the user's recording of a Stromberg-Carlson 1543 (its first three rings,
      lo-fi as recorded, one after another; a synthesized two-gong bell if
-     it can't load), two seconds on, four off, from where the phone is (den-audio.js phoneOutput / setPhoneListener). "Pick up" on the
-     slip that comes up, or a tap on the phone itself, answers it. Left
-     ringing, it gives up after eight rings and tries again a while later.
+     it can't load), two seconds on, four off, from where the phone is
+     (den-audio.js phoneOutput / setPhoneListener), its handset shaking on
+     the cradle with each ring. A tap on the phone itself answers it (user:
+     you go over and pick it up; the slip only says it's ringing): the
+     handset lifts and swings up toward you. Left ringing, it gives up
+     after eight rings and tries again a while later.
    - The call: the receiver lifted (a clunk), the line open (a faint hiss),
      and the caller in your ear, down a telephone line (400 Hz - 3 kHz,
      a little crunch): a voice made of formants, vowel after vowel with a
@@ -68,6 +71,7 @@ const CSS = `
 .den-call.ringing { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
 .den-call.ringing .said { font: 700 13px/1.3 ${FRANKLIN}; letter-spacing: 0.06em; text-transform: uppercase; animation: denCallShake 0.1s linear infinite; }
 .den-call.ringing.quiet .said { animation: none; }
+.den-call .hint { font: italic 400 12px/1.3 ${COURIER}; opacity: 0.7; }
 .den-call button { all: unset; cursor: pointer; padding: 7px 14px; background: ${INK}; color: ${PAPER}; font: 700 11.5px/1 ${FRANKLIN};
   letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
 .den-call button:hover, .den-call button:focus-visible { background: ${RED}; }
@@ -348,10 +352,11 @@ export function createDenCall({ audio, awaitingBegin }) {
     box.setAttribute("data-stage", kind);
     if (kind === "ringing") {
       box.innerHTML = "";
+      // (No button: you go over and pick it up, user: a tap on the phone,
+      // on the credenza, answers.)
       const said = doc.createElement("span"); said.className = "said"; said.textContent = "The phone is ringing";
-      const b = doc.createElement("button"); b.type = "button"; b.textContent = "Pick up"; b.setAttribute("data-testid", "den-call-answer");
-      b.addEventListener("click", (e) => { e.stopPropagation(); answer(); });
-      box.append(said, b);
+      const hint = doc.createElement("span"); hint.className = "hint"; hint.textContent = "on the credenza";
+      box.append(said, hint);
     } else {
       box.innerHTML = "";
       const who = doc.createElement("span"); who.className = "who";
@@ -383,6 +388,7 @@ export function createDenCall({ audio, awaitingBegin }) {
     if (stage !== "ringing") return false;
     stopRinging();
     stage = "call";
+    hs = { mode: "lift", t0: performance.now() };
     const o = output();
     if (!o) { stage = "done"; hideBox(); return true; }
     if (audio && audio.duckForCall) audio.duckForCall(true);
@@ -408,12 +414,72 @@ export function createDenCall({ audio, awaitingBegin }) {
     });
     // The receiver back on the cradle.
     const down = t - 0.2;
+    at(down - 0.75, () => { hs = { mode: "down", t0: performance.now() }; });
     at(down, () => { clunk(output().ctx.currentTime + 0.02, true); if (audio && audio.duckForCall) audio.duckForCall(false); });
     at(down + 0.9, () => { stage = "done"; hideBox(); });
     return true;
   }
 
+  /* ---- the handset (den-room.js phone.handset) ----
+     Ringing, it shakes on the cradle with each ring (the bell's two
+     seconds on, as the recording's rings sound: the same 6 s cycle);
+     answered, it lifts and swings up toward you, as if to your ear and
+     mouth, and stays there (low and to the right, following the camera)
+     through the call; at the end it goes back down onto the cradle as
+     the clunk sounds. */
+  let hs = { mode: "rest", t0: 0 };
+  const hsV = { a: null, b: null, c: null, q: null, q2: null, e: null };
+  function earPose(hand, cam, outPos, outQuat) {
+    const { Vector3, Quaternion, Euler } = hsV.ctor;
+    const parent = hand.parent;
+    parent.updateMatrixWorld();
+    const fwd = new Vector3(0, 0, -1).applyQuaternion(cam.quaternion);
+    const up = new Vector3(0, 1, 0).applyQuaternion(cam.quaternion);
+    const right = new Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+    outPos.copy(cam.position).addScaledVector(fwd, 8.5).addScaledVector(up, -3.3).addScaledVector(right, 3.1);
+    parent.worldToLocal(outPos);
+    // Upright beside the face, the mouthpiece low, turned a little in.
+    const wq = cam.quaternion.clone().multiply(new Quaternion().setFromEuler(new Euler(-1.25, 0.5, 0.35)));
+    const pq = new Quaternion(); parent.getWorldQuaternion(pq);
+    outQuat.copy(pq.invert().multiply(wq));
+  }
+  function animateHandset(now, t, den) {
+    const hand = den && den.phone && den.phone.handset;
+    if (!hand || !t || !t.camera) return;
+    if (!hsV.ctor) { const V = hand.position.constructor, Q = hand.quaternion.constructor; hsV.ctor = { Vector3: V, Quaternion: Q, Euler: hand.rotation.constructor }; hsV.a = new V(); hsV.q = new Q(); }
+    const rest = hand.userData.rest;
+    const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+    if (hs.mode === "rest") {
+      if (stage === "ringing") {
+        const phase = (now - ringStart) % (RING_CYCLE * 1000);
+        if (ringsDone > 0 && phase > 80 && phase < RING_ON * 1000 + 250) {
+          // The bell's clapper rattling it: a fast, small shiver and hop.
+          hand.position.copy(rest.position);
+          hand.position.x += (Math.random() - 0.5) * 0.07; hand.position.z += (Math.random() - 0.5) * 0.09;
+          hand.position.y += Math.abs(Math.sin(now * 0.125)) * 0.07;
+          hand.quaternion.copy(rest.quaternion);
+          hand.rotateX((Math.random() - 0.5) * 0.07); hand.rotateZ((Math.random() - 0.5) * 0.05);
+          return;
+        }
+      }
+      hand.position.copy(rest.position); hand.quaternion.copy(rest.quaternion);
+      if (hand.material && hand.material.color) hand.material.color.setScalar(1);
+      return;
+    }
+    earPose(hand, t.camera, hsV.a, hsV.q);
+    const light = (e) => { if (hand.material && hand.material.color) hand.material.color.setScalar(1 + 0.75 * e); };
+    if (hs.mode === "held") { hand.position.lerp(hsV.a, 0.25); hand.quaternion.slerp(hsV.q, 0.25); light(1); return; }
+    const dur = hs.mode === "lift" ? 950 : 750;
+    const k = Math.min(1, (now - hs.t0) / dur), e = ease(hs.mode === "lift" ? k : 1 - k);
+    hand.position.copy(rest.position).lerp(hsV.a, e);
+    hand.position.y += Math.sin(Math.PI * e) * 1.6; // (up off the cradle first)
+    hand.quaternion.copy(rest.quaternion).slerp(hsV.q, e);
+    light(e);
+    if (k >= 1) hs = { mode: hs.mode === "lift" ? "held" : "rest", t0: now };
+  }
+
   function tick(now, t, den) {
+    animateHandset(now, t, den);
     if (stage === "done") return;
     // (Hurried along by the test hook.)
     const R = rushed ? 0.02 : 1;
@@ -478,6 +544,10 @@ export function createDenCall({ audio, awaitingBegin }) {
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
     window.__DEN_CALL__ = () => ({ stage, rings: ringsDone, line, text: line >= 0 ? SCRIPT[line].text : null, thought: !!(doc && doc.querySelector("[data-testid='den-thought']")) });
     window.__DEN_CALL_NOW__ = () => { rushed = true; if (stage === "wait") ringAt = 1; };
+    // (A tap on the phone, for the tests: the room's own tap goes through
+    // den-fx.js pickScene/sceneTap to answer() too.)
+    window.__DEN_CALL_PICKUP__ = () => answer();
+    window.__DEN_CALL_HANDSET__ = () => hs.mode;
   }
 
   return {
@@ -495,7 +565,7 @@ export function createDenCall({ audio, awaitingBegin }) {
       if (box) box.remove();
       if (thoughtEl) thoughtEl.remove();
       if (styleEl) styleEl.remove();
-      if (typeof window !== "undefined") { delete window.__DEN_CALL__; delete window.__DEN_CALL_NOW__; }
+      if (typeof window !== "undefined") { delete window.__DEN_CALL__; delete window.__DEN_CALL_NOW__; delete window.__DEN_CALL_PICKUP__; delete window.__DEN_CALL_HANDSET__; }
     },
   };
 }
