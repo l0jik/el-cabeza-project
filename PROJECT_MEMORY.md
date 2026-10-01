@@ -4365,3 +4365,22 @@ phone menu until "Start the story over" (which clears it).
   it's dark or away. Hooks: __DEN_TRIP__() {stage: idle|leaving|store|
   home|done, t}, __DEN_TRIP_PIN__(ms) (test-only: hold it there).
   e2e-story follows it through to the Room view.
+- The commercial redone clean (user: too dirty, too messy, too garbled;
+  more consistent; dialogue a little ahead; the 1975 flash a second
+  longer). den-commercial.js: 24 fps (was 12); no tape faults (no roll at
+  cuts, torn lines, tracking band, dropout flecks), no colour fringing on
+  text (say(): one hard drop shadow, 4 px down-right, everywhere), no
+  random flicker frames; the title's letters bob steadily, the glitter
+  and the king's stars twinkle on smooth beats; a 0.22 s dissolve at
+  each cut (the scene before painted as it was the moment before). The
+  NEW FOR 1975 card strobes its colours at 3 Hz (was 6), no screen blink,
+  and holds a second longer: close 35.4, never 37, credit 39.1, snow 45.8,
+  COMMERCIAL_MS 46400; the last two subliminal frames 37.75 and 42.15
+  (two frames each at 24 fps, the last two four). Voices a little ahead
+  of their words: chessVoice 6.45, checkersVoice 9.75, voice 12.25,
+  kings 38.75. den-tv.js: no snow on the tube during it. den-ad-audio.js:
+  a gentler speaker (HP 120, LP 7500, +1.5 dB at 1.7 kHz, tanh 1.05),
+  fainter hum and wow, the frames' dips only to 0.25; the band vamps a
+  bar more across the longer 1975 card.
+  (The commercial airs once, on the first return from the Singularity;
+  Restart story resets that: engine/journey.js COMMERCIAL_AIRED_KEY.)

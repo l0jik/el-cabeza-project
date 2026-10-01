@@ -658,7 +658,7 @@ export function buildTelevision(yF, RZ, X = -40) {
         dive = ease(clamp01(s / TV_TIMES.dive));
         if (!entered && s >= TV_TIMES.enterAt) { entered = true; if (onEnter) onEnter(); }
       } else if (phase === "commercial") {
-        raster = 1; glow = 1; pat = 1; snow = 0.06;
+        raster = 1; glow = 1; pat = 1; snow = 0; // (a clean picture, user)
         commercial.draw(Math.max(0, s) / 1000);
         if (s >= COMMERCIAL_MS) set("aired", now);
       } else if (phase === "aired") {

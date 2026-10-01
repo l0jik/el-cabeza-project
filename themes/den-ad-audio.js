@@ -16,9 +16,10 @@
    - A few sound effects for the jokes: the stamp, the slide whistle, the
      snores, a cymbal, bells, the typewriter, a boing, Dale's phone, the
      cash register, the fanfare.
-   - Light TV: the set's small speaker (no lows, no highs, a little
-     crunch), a faint hum and a slow wow. No dropouts; the sound only
-     cuts, for a frame, at the hidden Singularity frames (CUES.flash).
+   - Clean TV (redone again, user: too dirty): the set's speaker only
+     gently (a little low end off, the top a touch soft, barely any
+     crunch), the faintest hum and wow. No dropouts; the sound only dips,
+     for the frame, at the hidden Singularity frames (CUES.flash).
 
    All of it through `out`; stop() fades it at once. */
 
@@ -75,23 +76,23 @@ export function playCommercial(ctx, dest, { delay = 0, noiseBuf = null } = {}) {
   const out = ctx.createGain(); out.gain.value = 1;
   const cut = ctx.createGain(); cut.gain.value = 1; // the hidden frames
   const wow = ctx.createDelay(0.05); wow.delayTime.value = 0.012;
-  { const l = keep(ctx.createOscillator()); l.frequency.value = 0.31; const lg = ctx.createGain(); lg.gain.value = 0.0007; l.connect(lg).connect(wow.delayTime); l.start(T - 0.05); l.stop(END + 1); }
-  const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 170; hp.Q.value = 0.6;
-  const pk = ctx.createBiquadFilter(); pk.type = "peaking"; pk.frequency.value = 1700; pk.Q.value = 0.8; pk.gain.value = 3;
-  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 5200; lp.Q.value = 0.5;
+  { const l = keep(ctx.createOscillator()); l.frequency.value = 0.31; const lg = ctx.createGain(); lg.gain.value = 0.00025; l.connect(lg).connect(wow.delayTime); l.start(T - 0.05); l.stop(END + 1); }
+  const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 120; hp.Q.value = 0.6;
+  const pk = ctx.createBiquadFilter(); pk.type = "peaking"; pk.frequency.value = 1700; pk.Q.value = 0.8; pk.gain.value = 1.5;
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 7500; lp.Q.value = 0.5;
   const sh = ctx.createWaveShaper();
-  { const c = new Float32Array(512); for (let i = 0; i < 512; i++) { const x = i / 255.5 - 1; c[i] = Math.tanh(x * 1.4) / Math.tanh(1.4); } sh.curve = c; }
+  { const c = new Float32Array(512); for (let i = 0; i < 512; i++) { const x = i / 255.5 - 1; c[i] = Math.tanh(x * 1.05) / Math.tanh(1.05); } sh.curve = c; }
   out.connect(wow).connect(hp).connect(pk).connect(lp).connect(sh).connect(cut).connect(dest);
   // The hum under it, faint, the whole way.
-  [[60, 0.004], [120, 0.002]].forEach(([f, l]) => {
+  [[60, 0.0018], [120, 0.0008]].forEach(([f, l]) => {
     const o = keep(ctx.createOscillator()); o.frequency.value = f; const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, T); g.gain.linearRampToValueAtTime(l, T + 0.2); g.gain.setValueAtTime(l, T + AD.snow - 0.1); g.gain.linearRampToValueAtTime(0.0001, T + AD.snow);
     o.connect(g).connect(out); o.start(T); o.stop(T + AD.snow + 0.1);
   });
   // The hidden frames: the sound gone for the frame (or two), then back.
   AD.flash.forEach((c, i) => {
-    const a = T + c, d = i >= 3 ? 2 / 12 : 1 / 12;
-    cut.gain.setValueAtTime(1, a - 0.004); cut.gain.linearRampToValueAtTime(0.06, a); cut.gain.setValueAtTime(0.06, a + d - 0.004); cut.gain.linearRampToValueAtTime(1, a + d);
+    const a = T + c, d = i >= 3 ? 4 / 24 : 2 / 24;
+    cut.gain.setValueAtTime(1, a - 0.004); cut.gain.linearRampToValueAtTime(0.25, a); cut.gain.setValueAtTime(0.25, a + d - 0.004); cut.gain.linearRampToValueAtTime(1, a + d);
   });
 
   // ---------------- the band ----------------
@@ -206,7 +207,10 @@ export function playCommercial(ctx, dest, { delay = 0, noiseBuf = null } = {}) {
   organ(T + AD.brandNew, [60, 64, 67, 72], 0.14, 0.035, lead);
   organ(T + AD.brandNew + 0.16, [62, 65, 69, 74], 0.14, 0.035, lead);
   organ(T + AD.brandNew + 0.32, [64, 67, 72, 76], 1.2, 0.035, lead);
-  playBar(T + AD.brandNew + 0.3, 6, 0, { until: T + AD.close + 0.05 }); // (the tune's cadence, F to G7, home on the big chord)
+  // (The tune's cadence, F to G7, then a bar of the band vamping on the big
+  // chord, across the 1975 card, a second longer now.)
+  playBar(T + AD.brandNew + 0.3, 6, 0, { until: T + AD.close + 0.05 });
+  playBar(T + AD.brandNew + 2.3, 7, 0, { tune: false, until: T + AD.close + 0.05 });
   // "Get yours now...": the organ runs up to the big chord; "if not, you
   // never will!": it drops to something minor and a little too sincere.
   for (let i = 0; i < 8; i++) organ(T + AD.close + i * 0.07, [60 + [0, 2, 4, 5, 7, 9, 11, 12][i]], 0.09, 0.03, lead);
