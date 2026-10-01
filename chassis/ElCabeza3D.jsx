@@ -177,9 +177,9 @@ const TWO_FINGER_DOUBLE_TAP_MS = 400; // max gap between two taps to count as a 
 // The player took the page out of full screen themselves (the button or the
 // two-finger double-tap): it stays out until they put it back.
 let fullscreenDeclined = false;
-// The stereo's running order (records and tapes, shuffled once a visit:
-// nextMusicTrack), so the pattern repeats.
-let musicOrder = null;
+// The stereo's running orders, one per medium (records, tapes), each
+// shuffled once a visit (nextMusicTrack), so the pattern repeats.
+const musicOrder = {};
 
 /* Opponent settings (Human/AI side, AI difficulty, Human-vs-Human starting
    side) persist in this browser across page reloads, not just across New
@@ -1593,9 +1593,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // Choosing a record means wanting to hear it: its channel comes back on.
     if (music.channel && channelsOff[music.channel]) toggleChannel(music.channel);
     if (a.playMusic(track, () => {
-      // Then the next (user: never the same song twice running): every
-      // track, records and tapes, in an order shuffled once a visit and
-      // played round again from the top; at the level this one had.
+      // Then the next (user: never the same song twice running): the
+      // medium's tracks in an order shuffled once a visit and played round
+      // again from the top; at the level this one had.
       const next = nextMusicTrack(track);
       if (next) { playTrackRef.current(next); return; }
       setMusicNow(null); setMusicPaused(false); musicPlaying(null);
@@ -1606,15 +1606,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
   playTrackRef.current = playTrack;
   function nextMusicTrack(track) {
-    const list = music ? music.tracks() : [];
+    // (Records and tapes each keep to their own, user: a record moves on
+    // to another record, a tape to another tape; alone in its medium, a
+    // track just ends.)
+    const list = music ? music.tracks().filter((t) => t.medium === track.medium) : [];
     if (list.length < 2) return null;
     const ids = list.map((t) => t.id);
-    if (!musicOrder || musicOrder.length !== ids.length || !ids.every((id) => musicOrder.includes(id))) {
-      musicOrder = ids.slice();
-      for (let i = musicOrder.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [musicOrder[i], musicOrder[j]] = [musicOrder[j], musicOrder[i]]; }
+    let order = musicOrder[track.medium];
+    if (!order || order.length !== ids.length || !ids.every((id) => order.includes(id))) {
+      order = musicOrder[track.medium] = ids.slice();
+      for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
     }
-    const i = musicOrder.indexOf(track.id);
-    const nextId = musicOrder[(i + 1) % musicOrder.length];
+    const i = order.indexOf(track.id);
+    const nextId = order[(i + 1) % order.length];
     const next = list.find((t) => t.id === nextId);
     return next ? { ...next, level: track.level } : null;
   }

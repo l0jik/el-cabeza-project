@@ -4153,7 +4153,9 @@ phone menu until "Start the story over" (which clears it).
   call; 0.75 s before the hang-up clunk it goes back down. Test hooks:
   __DEN_CALL_PICKUP__(), __DEN_CALL_HANDSET__() (rest/lift/held/down).
 - The stereo never plays the same song twice running (user): the 8-tracks
-  no longer loop; when a track ends the chassis plays the next in a
-  running order of every track (records and tapes), shuffled once a visit
-  (module-level musicOrder) and gone round again in the same order, at the
-  level the last one had (the first visit's 30%).
+  no longer loop; when a track ends the chassis plays the next in its own
+  medium's running order (records and tapes kept apart, user), shuffled
+  once a visit (module-level musicOrder[medium]) and gone round again in
+  the same order, at the level the last one had (the first visit's 30%).
+  Alone in its medium (one record, for now: more to come), a track just
+  ends.
