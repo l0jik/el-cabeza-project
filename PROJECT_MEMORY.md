@@ -4079,3 +4079,17 @@ phone menu until "Start the story over" (which clears it).
   talk at the end cut, lo-fi as recorded), each ring playing the next of
   the three 6 s slots at 0.4; the synthesized bell stands in until it's
   loaded; from disk (file:), an <audio> element seeking to each slot.
+- The story's first moment (Nova, the box lid in the store; user): only
+  "See the pieces" (tienda-lid-order) and the corner's full-screen switch
+  ([data-fullscreen-toggle]) take a tap. tienda-overlay.js (lidLocked:
+  store && story && overlay === "lid") stops every other pointer/touch/
+  mouse/click/wheel event and key at window capture; "Open the box" is
+  dimmed (td-locked, aria-disabled). Each miss lights See the pieces in
+  the Singularity's neon (td-sing-glow) and throbs it (td-throb,
+  tdBtnThrob, restarted per miss); from the third, StoryHint: "There's a
+  story here... if you're interested." on a 1975 paperback-rack card
+  (Caprasimo, a Cooper Black, loaded on demand; brown/rust/orange/mustard
+  stripes; tilted, popping in with a bounce, again at each miss), up top
+  over the box's photo so it never covers the button, taking no taps. The
+  first-tap full screen still happens on a missed tap (lidFsTried).
+  e2e-story now goes in by See the pieces (catalog, then Close).

@@ -63,6 +63,8 @@ const BODONI = "'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif";
 
 // The lid shows once per visit, not again after every New Game.
 let lidDone = false;
+// (The story's lid: a tap that missed still takes the page full screen, once.)
+let lidFsTried = false;
 // Nova's "Start the story over" (apps/unified.jsx): the box is back on the
 // shelf, lid and all.
 export function resetLid() { lidDone = false; confusedAtClerk = false; orderInHand = null; keptOrder = null; deliverHome = null; }
@@ -185,6 +187,48 @@ export function useSetupExtras(x) {
       document.removeEventListener("pointerdown", onDown, true);
     };
   }, [specialNote, dismissSpecialNote]);
+  /* The story's first moment (Nova, the box lid on the store's counter):
+     "See the pieces" is the only thing that takes a tap, besides the
+     corner's full-screen switch (user). Every other tap, drag, wheel and
+     key is stopped at the window; each one lights "See the pieces" in the
+     Singularity's neon and makes it throb; and from the third, a card
+     comes up, in a 1970s way: "There's a story here... if you're
+     interested." (The first-tap full screen still happens, on whichever
+     tap comes first.) */
+  const [lidNudges, setLidNudges] = React.useState(0);
+  const lidLocked = store && !!story && overlay === "lid";
+  React.useEffect(() => {
+    if (!lidLocked) return undefined;
+    const allowed = (e) => !!(e.target && e.target.closest && e.target.closest('[data-testid="tienda-lid-order"], [data-fullscreen-toggle]'));
+    const throb = () => requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = document.querySelector('[data-testid="tienda-lid-order"]');
+      if (!el) return;
+      el.classList.remove("td-throb"); void el.offsetWidth; el.classList.add("td-throb");
+    }));
+    const block = (e) => {
+      if (allowed(e)) return;
+      e.stopImmediatePropagation(); e.stopPropagation();
+      if (e.cancelable && e.type !== "pointermove") e.preventDefault();
+      if (e.type === "click" && e.isTrusted && !lidFsTried && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+        lidFsTried = true;
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+      if (e.type === "pointerdown" || (e.type === "touchstart" && !window.PointerEvent)) { setLidNudges((n) => n + 1); throb(); }
+    };
+    const blockKey = (e) => {
+      const a = document.activeElement;
+      if (e.key === "Tab" || (a && a.closest && a.closest('[data-testid="tienda-lid-order"], [data-fullscreen-toggle]'))) return;
+      e.stopImmediatePropagation(); e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+    };
+    const EVENTS = ["pointerdown", "pointerup", "pointermove", "click", "dblclick", "contextmenu", "touchstart", "touchmove", "touchend", "wheel", "mousedown", "mouseup", "gesturestart"];
+    EVENTS.forEach((ev) => window.addEventListener(ev, block, { capture: true, passive: false }));
+    window.addEventListener("keydown", blockKey, true);
+    return () => {
+      EVENTS.forEach((ev) => window.removeEventListener(ev, block, { capture: true }));
+      window.removeEventListener("keydown", blockKey, true);
+    };
+  }, [lidLocked]);
   const selRef = React.useRef(null);
   if (!selRef.current) selRef.current = keptOrder ? cloneSelections(keptOrder) : defaultSelections();
   // Home, confused, with the order: the pieces are on the table already
@@ -245,6 +289,8 @@ export function useSetupExtras(x) {
     specialOpen,
     specialNote,
     noteGlow,
+    lidLocked,
+    lidNudges,
     dismissSpecialNote,
     selRef,
   };
@@ -302,6 +348,8 @@ export function renderExtraOverlays(x) {
   if (x.tiendaOverlay === "lid") {
     return [h(BoxLid, {
       key: "lid",
+      locked: !!x.lidLocked,
+      nudges: x.lidNudges || 0,
       onOpen: () => { lidDone = true; x.audio && x.audio.startStore && x.audio.startStore(); x.closeOverlay(); },
       onOrder: () => { lidDone = true; x.audio && x.audio.startStore && x.audio.startStore(); x.openOrderForm(); },
       orderLabel: store || !x.specialOpen ? "See the pieces" : "Custom rules",
@@ -447,6 +495,31 @@ const CSS = `
      first time through (the note, the form's button): a halo that breathes. */
   .td-special-note.td-sing-glow { animation: tdSingGlow 2.4s ease-in-out infinite; }
   button.td-btn.td-sing-glow { animation: tdSingGlow 2.4s ease-in-out infinite; }
+  /* The story's lid: "Open the box" waits (a tap on it is a tap that
+     missed); "See the pieces", lit, throbs at each miss. */
+  button.td-btn.td-locked { opacity: 0.45; cursor: not-allowed; }
+  button.td-btn.td-sing-glow.td-throb { animation: tdBtnThrob 1s cubic-bezier(0.2, 0.7, 0.3, 1) both, tdSingGlow 2.4s ease-in-out 1s infinite; }
+  @keyframes tdBtnThrob {
+    0% { transform: scale(1); box-shadow: 0 0 0 2px rgba(150,232,255,0.95), 0 0 18px 5px rgba(102,217,255,0.7), 0 0 42px 12px rgba(140,110,255,0.36); }
+    22% { transform: scale(1.1); box-shadow: 0 0 0 4px rgba(200,244,255,1), 0 0 30px 10px rgba(102,217,255,0.95), 0 0 80px 28px rgba(140,110,255,0.6); }
+    48% { transform: scale(0.98); }
+    68% { transform: scale(1.03); }
+    100% { transform: scale(1); box-shadow: 0 0 0 1.5px rgba(102,217,255,0.75), 0 0 10px 2px rgba(102,217,255,0.45), 0 0 26px 6px rgba(140,110,255,0.22); }
+  }
+  .td-story-hint { position: fixed; left: 50%; top: calc(9% + env(safe-area-inset-top)); z-index: 1300; transform: translateX(-50%);
+    width: min(88vw, 420px); pointer-events: none; }
+  .td-story-card { position: relative; overflow: hidden; padding: 18px 22px 16px 22px; background: #F6E7C1; color: #4A2412;
+    border-radius: 22px; border: 3px solid #4A2412; box-shadow: 6px 7px 0 #C2561A, 0 14px 30px rgba(20,10,4,0.5);
+    transform: rotate(-2.2deg); animation: tdStoryPop 0.7s cubic-bezier(0.18, 1.5, 0.4, 1) both; }
+  .td-story-stripes { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; }
+  .td-story-stripes i { display: block; height: 6px; }
+  .td-story-stripes i:nth-child(1) { background: #5A2E14; } .td-story-stripes i:nth-child(2) { background: #B4441C; }
+  .td-story-stripes i:nth-child(3) { background: #E58A1F; } .td-story-stripes i:nth-child(4) { background: #E9B52C; }
+  .td-story-card p { margin: 22px 0 0; text-align: center; font: 400 clamp(22px, 6.4vw, 30px)/1.12 'Caprasimo', 'Cooper Black', 'Bookman Old Style', Georgia, serif;
+    letter-spacing: 0.005em; text-shadow: 2px 2px 0 rgba(229,138,31,0.35); text-wrap: balance; }
+  .td-story-card p span { display: inline-block; margin-top: 6px; font-size: 0.72em; color: #9A3A14; }
+  @keyframes tdStoryPop { 0% { opacity: 0; transform: rotate(-2.2deg) translateY(24px) scale(0.82); } 100% { opacity: 1; transform: rotate(-2.2deg) translateY(0) scale(1); } }
+  @media (prefers-reduced-motion: reduce) { .td-story-card { animation: none; } button.td-btn.td-sing-glow.td-throb { animation: none; } }
   /* A tap anywhere else, the first time through: a throb, higher and
      brighter than the breathing (user), then back to breathing. */
   .td-special-note.td-sing-glow.td-throb { animation: tdSingThrob 1s cubic-bezier(0.2, 0.7, 0.3, 1) both, tdSingGlow 2.4s ease-in-out 1s infinite; }
@@ -665,7 +738,7 @@ const Style = () => h("style", null, CSS + MORE_CSS + ORDER_PARTS_CSS + STORY_CS
 
 /* ------------------------------------------------------------ the box lid */
 
-function BoxLid({ onOpen, onOrder, orderLabel = "Custom rules", audio }) {
+function BoxLid({ onOpen, onOrder, orderLabel = "Custom rules", audio, locked = false, nudges = 0 }) {
   const [opening, setOpening] = React.useState(false);
   const [next, setNext] = React.useState(null);
   React.useEffect(() => {
@@ -693,14 +766,36 @@ function BoxLid({ onOpen, onOrder, orderLabel = "Custom rules", audio }) {
         h("div", { className: "td-tag" }, "A Game of Unparalleled Intention"),
         h("p", { className: "td-body", style: { margin: 0 } }, "Complete with folding hardwood board and ten hand-finished playing pieces. Move a piece, or two. Roll the blocks. Bring your head home."),
         h("div", { className: "td-lid-actions" },
-          h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-open-box", onClick: () => go("open"), autoFocus: true }, "Open the box"),
-          h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-lid-order", onClick: () => go("order") }, orderLabel),
+          h("button", { type: "button", className: "td-btn td-primary" + (locked ? " td-locked" : ""), "data-testid": "tienda-open-box", onClick: () => go("open"), autoFocus: !locked, "aria-disabled": locked ? "true" : undefined, tabIndex: locked ? -1 : undefined }, "Open the box"),
+          h("button", { type: "button", className: "td-btn td-plain" + (locked && nudges ? " td-sing-glow" : ""), "data-testid": "tienda-lid-order", onClick: () => go("order"), autoFocus: locked }, orderLabel),
         ),
         h("div", { className: "td-small", style: { color: "rgba(233,220,192,0.55)", letterSpacing: "0.1em" } }, "No. 4417 · Made in Argentina · © 1975"),
       ),
       h("div", { className: "td-sticker", "aria-label": "Price 7 dollars 97" }, "$7.97"),
     ),
+    locked && nudges >= 3 && !opening && h(StoryHint, { key: "hint", n: nudges }),
   );
+}
+
+/* "There's a story here... if you're interested." (the box lid's tap
+   that missed, the third time): a card from a 1975 paperback rack, in
+   chunky Caprasimo (a Cooper Black, the decade's own face) over the
+   decade's stripes (brown, rust, orange, mustard), popping up with a
+   bounce and nudged again by each tap that misses after. It points the
+   way and takes no taps itself. */
+let hintFontAsked = false;
+function StoryHint({ n }) {
+  React.useEffect(() => {
+    if (hintFontAsked || typeof document === "undefined") return;
+    hintFontAsked = true;
+    const l = document.createElement("link"); l.rel = "stylesheet";
+    l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap";
+    document.head.appendChild(l);
+  }, []);
+  return h("div", { className: "td-story-hint", "data-testid": "tienda-story-hint", role: "status", "aria-live": "polite" },
+    h("div", { className: "td-story-card", key: `n${n}` },
+      h("div", { className: "td-story-stripes", "aria-hidden": "true" }, h("i"), h("i"), h("i"), h("i")),
+      h("p", null, "There\u2019s a story here\u2026", h("br"), h("span", null, "if you\u2019re interested."))));
 }
 
 /* ------------------------------------------------------------ the store's catalog page (Nova's story) */
