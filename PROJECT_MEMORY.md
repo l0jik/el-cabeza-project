@@ -4459,3 +4459,15 @@ phone menu until "Start the story over" (which clears it).
   __DEN_PHONE_AT__ (the phone on screen), __DEN_CALL_HELD__. e2e-story
   plays a record, taps the slip, then the phone itself (a real click), and
   checks the record paused and back on near where it was.
+- The phone's handset, redone (user: the receiver didn't look believable;
+  look at photos of the era). den-room.js: a G-type handset, as on every
+  Western Electric 2500 of 1975 (the G3: 21.5 cm long, 6 wide, 6.5 high;
+  here ~5.7 cm a unit, 1.3x life): two round caps (LatheGeometry: flat
+  face, rounded rim, short wall, domed back; radius 0.5, 0.44 deep),
+  faces down in the cradle and turned 0.24 rad in toward each other; a
+  handle swept along an arch (custom sweep, oval section 0.29 x 0.2,
+  flaring over its last stretch into the caps' backs); smooth normals,
+  baked as before. The cradle's horns became two saddles under the caps
+  (z = +-CAP_Z). Pivot at the middle, 0.45 above the faces. The phone
+  visit (above) now eases on the clock, 1.6 s each way (PHONE_MS), not
+  per frame (slow frames had held it at the phone).

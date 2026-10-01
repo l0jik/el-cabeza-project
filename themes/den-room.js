@@ -588,17 +588,61 @@ export function buildDen(boardSpan) {
       const sx = -sAlong; // (the top row at the back of the slope)
       tilted(0.24, 0.1, 0.3, P(0.6 + dX * sx + nX * 0.22, 0.92 + dY * sx + nY * 0.22, sz), M.phoneKey);
     }));
-    // The cradle's two horns, and the handset resting on them: the grip
-    // across the top, the ear and mouth cups dropping at its ends.
-    [-1.25, 1.25].forEach((dz) => put(0.62, 0.34, 0.52, P(-0.75, 1.72, dz), M.phone, 0.12));
+    /* The cradle's two saddles, and the handset resting in them: a
+       G-type handset (Western Electric's, on every 2500 of the day; the
+       G3 is 21.5 cm long, 6 wide and 6.5 high; user: the boxy one didn't
+       look like a real one). Two round caps, the receiver's and the
+       transmitter's, flat faces down in the saddles and turned a little
+       in toward each other; between them a slim handle, oval in section,
+       arching up and flaring into the domed backs of the caps. Built in
+       the set's units (about 5.7 cm each, its length along z), then 1.3
+       times life like the rest. */
+    const HS_L = 3.78, CAP_R = 0.5, CAP_Z = HS_L / 2 - CAP_R, CAP_TILT = 0.24;
+    const HS_AT = [-0.7, 1.88, 0]; // the middle between the caps' faces, at rest
+    [-1, 1].forEach((sz) => put(0.95, 0.36, 0.7, P(-0.7, 1.58, sz * CAP_Z), M.phone, 0.14));
     /* The handset its own mesh (den-call.js: it shakes as the bell rings,
-       and lifts toward you when you answer): the same grip and cups, lit
-       (baked) where they lie, then about its middle as a pivot. */
+       and lifts toward you when you answer): lit (baked) where it lies,
+       then about its middle as a pivot. */
     {
-      const parts = [
-        box(0.62 * S, 0.5 * S, 3.3 * S, ...P(-0.72, 2.14, 0), { round: 0.22 * S }),
-        ...[-1, 1].map((s2) => box(1.05 * S, 0.78 * S, 0.95 * S, ...P(-0.62, 1.72, s2 * 1.9), { round: 0.34 * S })),
-      ].map((g) => {
+      const capPts = [[0, 0], [0.4, 0], [0.47, 0.025], [0.5, 0.08], [0.5, 0.2], [0.47, 0.3], [0.39, 0.38], [0.25, 0.43], [0.0001, 0.44]]
+        .map(([r, y]) => new THREE.Vector2(r * (CAP_R / 0.5), y));
+      const caps = [-1, 1].map((sz) => {
+        const g = new THREE.LatheGeometry(capPts, 28);
+        g.rotateX(sz * CAP_TILT);
+        g.translate(0, 0, sz * CAP_Z);
+        return g;
+      });
+      // The handle: swept along its arch, wider than it is deep, flaring
+      // over its last stretch into each cap (its ends hidden in the domes).
+      const arch = new THREE.CatmullRomCurve3([
+        [-CAP_Z * 0.92, 0.3], [-1.0, 0.6], [-0.45, 0.7], [0, 0.72], [0.45, 0.7], [1.0, 0.6], [CAP_Z * 0.92, 0.3],
+      ].map(([z, y]) => new THREE.Vector3(0, y, z)));
+      const SEG = 40, RAD = 18, pos = [], idx = [];
+      const T = new THREE.Vector3(), side = new THREE.Vector3(1, 0, 0), up = new THREE.Vector3();
+      for (let i = 0; i <= SEG; i++) {
+        const t = i / SEG, c = arch.getPointAt(t);
+        arch.getTangentAt(t, T);
+        up.crossVectors(T, side).normalize();
+        const u = Math.abs(2 * t - 1), f = u < 0.55 ? 0 : ((u - 0.55) / 0.45) ** 2 * (3 - 2 * ((u - 0.55) / 0.45));
+        const rx = 0.29 * (1 + 0.55 * f), ry = 0.2 * (1 + 0.7 * f);
+        for (let j = 0; j <= RAD; j++) {
+          const a = (j / RAD) * Math.PI * 2;
+          pos.push(c.x + side.x * Math.cos(a) * rx + up.x * Math.sin(a) * ry,
+            c.y + side.y * Math.cos(a) * rx + up.y * Math.sin(a) * ry,
+            c.z + side.z * Math.cos(a) * rx + up.z * Math.sin(a) * ry);
+        }
+      }
+      for (let i = 0; i < SEG; i++) for (let j = 0; j < RAD; j++) {
+        const a = i * (RAD + 1) + j, b = a + RAD + 1;
+        idx.push(a, a + 1, b, b, a + 1, b + 1);
+      }
+      const handle = new THREE.BufferGeometry();
+      handle.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      handle.setIndex(idx);
+      const parts = [...caps, handle].map((g) => {
+        g.scale(S, S, S);
+        g.translate(...P(...HS_AT));
+        if (!g.attributes.normal) g.computeVertexNormals(); // (smooth, while it's indexed)
         const n = g.index ? g.toNonIndexed() : g;
         if (n !== g) g.dispose();
         bake(n, {});
@@ -607,7 +651,7 @@ export function buildDen(boardSpan) {
       });
       const hg = BufferGeometryUtils.mergeBufferGeometries(parts, false);
       parts.forEach((g) => g.dispose());
-      const pivot = new THREE.Vector3(...P(-0.68, 1.95, 0));
+      const pivot = new THREE.Vector3(...P(HS_AT[0], HS_AT[1] + 0.45, HS_AT[2]));
       hg.translate(-pivot.x, -pivot.y, -pivot.z);
       disposables.push(hg);
       // (Its own copy of the avocado: lifted toward you, out of the

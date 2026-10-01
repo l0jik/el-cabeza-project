@@ -464,8 +464,15 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        It stays through the call and comes back as the receiver goes down;
        a tap anywhere but the phone, or Escape, comes back sooner (that tap
        does nothing else). */
-    let phoneGoal = 0, phoneW = 0, phoneSwallow = null;
-    function phoneVisit(on) { phoneGoal = on ? 1 : 0; if (on) bookGoal = 0; }
+    // (Eased on the clock, 1.6 s each way, the same on a slow device.)
+    let phoneGoal = 0, phoneW = 0, phoneFrom = 0, phoneT0 = 0, phoneSwallow = null;
+    const PHONE_MS = 1600;
+    function phoneVisit(on) {
+      const g = on ? 1 : 0;
+      if (g === phoneGoal) return;
+      phoneFrom = phoneW; phoneT0 = performance.now(); phoneGoal = g;
+      if (on) bookGoal = 0;
+    }
     const phoneRay = new THREE.Raycaster(), phoneNdc = new THREE.Vector2();
     const onPhoneDown = (e) => {
       if (!phoneGoal || phoneW < 0.3) return;
@@ -926,8 +933,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           camera.lookAt(look);
           return true;
         }
-        phoneW += (phoneGoal - phoneW) * (1 - Math.exp(-(dtMs / 1000) * 2.0));
-        if (Math.abs(phoneGoal - phoneW) < 0.001) phoneW = phoneGoal;
+        if (phoneW !== phoneGoal) phoneW = phoneFrom + (phoneGoal - phoneFrom) * Math.min(1, (performance.now() - phoneT0) / PHONE_MS);
         if (den && t && den.phone && den.phone.point && phoneW > 0) {
           /* The phone: from the room, in front of it and a little above,
              the phone and some of the credenza round it in the frame (a
