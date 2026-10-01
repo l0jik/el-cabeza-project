@@ -67,8 +67,8 @@ async function waitFor(fn, ms = 8000) {
   check("the pit's sofas, the four walls, the ceiling and the coffee table are all there", s.groups.every(([, v]) => v === true), JSON.stringify(s.groups));
   check("a fire burns in the fireplace", s.fire >= 1, String(s.fire));
   // (Under 210: the mantel beam took the room to 200, one draw call over the old line.)
-  // (216: the phone's cord and the set's channel dial, which turns, after the story's end.)
-  check(`the whole room is a few dozen draw calls (${s.meshes})`, s.meshes > 20 && s.meshes < 216, String(s.meshes));
+  // (185 since the plain colours were folded together, den-room.js foldKey; was 212.)
+  check(`the whole room is a few dozen draw calls (${s.meshes})`, s.meshes > 20 && s.meshes < 196, String(s.meshes));
 
   await openDockPanel(page);
   await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();

@@ -158,13 +158,28 @@ function bake(geo, { k = 1, tint = [1, 1, 1], floorShade = true } = {}) {
   return geo;
 }
 
-/* Geometry is gathered into buckets (one per material, per group) and
-   merged, so the whole room is a few dozen draw calls. */
+/* A plain baked material (a colour and the lamps' light, no picture,
+   opaque, nothing else of its own) can be folded into the vertex colours:
+   unlit, the colour only multiplies them, so the room looks exactly the
+   same with one such material per group instead of one per colour (the
+   den was near its draw-call budget: 36 meshes became about 6). Its key:
+   the settings that still have to match; null when it can't be folded. */
+function foldKey(m) {
+  if (!m.isMeshBasicMaterial || !m.vertexColors || m.map || m.alphaMap || m.envMap || m.lightMap || m.aoMap || m.specularMap) return null;
+  if (m.transparent || m.opacity !== 1 || m.alphaTest !== 0 || m.blending !== THREE.NormalBlending || !m.colorWrite || m.wireframe) return null;
+  if (Object.prototype.hasOwnProperty.call(m, "onBeforeCompile")) return null;
+  return [m.side, m.fog, m.depthWrite, m.depthTest, m.polygonOffset, m.polygonOffsetFactor, m.polygonOffsetUnits, m.toneMapped].join(",");
+}
+
+/* Geometry is gathered into buckets (one per material, per group; the
+   plain colours folded together, foldKey) and merged, so the whole room
+   is a few dozen draw calls. */
 class Builder {
   constructor() {
     this.groups = {};
     ["core", "wallN", "wallE", "wallS", "wallW", "ceiling", "sofaN", "sofaS", "sofaW"].forEach((n) => { const g = new THREE.Group(); g.name = `den-${n}`; this.groups[n] = g; });
     this.buckets = new Map();
+    this.plain = new Map();
     this.disposables = [];
   }
   // Adds geometry drawn in `mat`: tile = world-UV repeat (null keeps the
@@ -173,6 +188,21 @@ class Builder {
     if (tile) planarUV(geo, tile);
     if (!geo.attributes.uv) planarUV(geo, 10);
     if (mat.vertexColors) bake(geo, { k, tint, floorShade });
+    const fk = foldKey(mat);
+    if (fk !== null) {
+      // Its colour into the baked light; drawn in the shared white one.
+      const c = geo.attributes.color, r = mat.color.r, g = mat.color.g, b = mat.color.b;
+      for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * r, c.getY(i) * g, c.getZ(i) * b);
+      if (!this.plain.has(fk)) {
+        const p = new THREE.MeshBasicMaterial({
+          vertexColors: true, side: mat.side, fog: mat.fog, depthWrite: mat.depthWrite, depthTest: mat.depthTest,
+          polygonOffset: mat.polygonOffset, polygonOffsetFactor: mat.polygonOffsetFactor, polygonOffsetUnits: mat.polygonOffsetUnits, toneMapped: mat.toneMapped,
+        });
+        this.plain.set(fk, p);
+        this.disposables.push(p);
+      }
+      mat = this.plain.get(fk);
+    }
     const key = group + "|" + mat.uuid;
     if (!this.buckets.has(key)) this.buckets.set(key, { mat, group, geos: [] });
     this.buckets.get(key).geos.push(geo.index ? geo.toNonIndexed() : geo);

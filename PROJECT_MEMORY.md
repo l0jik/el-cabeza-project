@@ -4684,3 +4684,23 @@ phone menu until "Start the story over" (which clears it).
     you grab follows the finger in every view (user: no preference).
   - The restart's caption ("Once more, from the top… shelf.") stays
     0.75 s longer: StoryCut's cut.linger (ms).
+
+### Den draw calls, the clerk's page, the home order form (2026-10-01)
+  - den-room.js Builder folds plain baked materials (MeshBasic, vertex
+    colours, no map, opaque, nothing else of its own: foldKey) into one
+    white vertex-colour material per group and settings: the colour is
+    multiplied into the baked vertex colours at add(), so it looks the
+    same (checked: block-averaged screenshots before/after match; only
+    the spinning dock piece differs). 4-12 fewer draw calls per view
+    (e.g. 133 -> 121); the rest are the table's, the console's and the
+    set's own lit meshes. A plain material whose colour is changed at
+    run time must NOT go through B.add (it would be folded): give it a
+    map, or its own mesh (B.mesh).
+  - The clerk paging the manager (ClerkScene, page step): louder (x2.6
+    into the far bus) and the store music ducks to 40% under it
+    (tienda-audio.js musicDuck); and it plays each time you come to that
+    panel (paging back and forward again replays it; it was once only).
+  - The special order at home (guided, before the trip to Big Glutts):
+    anything on the form can be chosen now, rules and board too, the
+    square picker, the 3-D views, the rules card from "How it works";
+    only Cancel and Standard stay locked, and everything off the form.

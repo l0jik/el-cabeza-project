@@ -972,12 +972,13 @@ function ClerkScene({ audio, onStay, onGoHome }) {
     ensureComicFonts();
     CLERK_SHOT_FILES.forEach((src) => { const im = new Image(); im.src = src; });
   }, []);
-  // The page goes out a beat after he picks up the phone.
-  const paged = React.useRef(false);
+  // The page goes out a beat after he picks up the phone: each time you
+  // come to that panel (user: paging back and forward again, it didn't
+  // play again), its caption with it.
   const [pagedOut, setPagedOut] = React.useState(false);
   React.useEffect(() => {
-    if (!s.page || paged.current) return undefined;
-    paged.current = true;
+    setPagedOut(false);
+    if (!s.page) return undefined;
     const id = setTimeout(() => { setPagedOut(true); if (audio && audio.playPage) audio.playPage(); }, 900);
     return () => clearTimeout(id);
   }, [step]);
@@ -1286,17 +1287,19 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   // Its Singularity glow, as the special-orders note's (user: same rule):
   // not at first; once a tap lands anywhere but on it, it lights.
   const [btnGlow, setBtnGlow] = React.useState(false);
-  /* The first time through (until the story starts over), the form is only
-     for choosing pieces (user): the pieces' − and + and the button to take
-     it to Big Glutts are all that take a tap, and the form scrolls; every
-     other control on it (Cancel, Standard, the 3-D views, the rules, the
-     board), and everything off it (the board, the dock, the corner's
-     buttons), is stopped at the window. Each tap that misses lights the
-     button (as before) and throbs it. */
+  /* The first time through (until the story starts over), the form is for
+     filling in and taking to Big Glutts: anything on it can be chosen, the
+     pieces, the rules and the board (user: "anything should be able to be
+     selected, including rules and board layouts"; it had been the pieces
+     only), with the square picker and the 3-D views; but not Cancel or
+     Standard, and nothing off it (the board, the dock, the corner's
+     buttons): those are stopped at the window. Each tap that misses
+     lights the button (as before) and throbs it. */
   React.useEffect(() => {
     if (where !== "guided") return undefined;
-    const OK = '[data-testid^="tienda-piece-"][data-testid$="-inc"], [data-testid^="tienda-piece-"][data-testid$="-dec"], [data-testid="tienda-order-place"], [data-fullscreen-toggle]';
-    const CONTROL = 'button, input, select, textarea, label, a, summary, [role="button"], [role="checkbox"], [role="switch"], [role="radio"], [tabindex]';
+    const NO = '[data-testid="tienda-order-cancel"], [data-testid="tienda-order-standard"]';
+    // (The rules card a rule's "How it works ›" opens, too, open or closing.)
+    const OK = '[data-testid="tienda-order"], [data-testid="tienda-picker"], [data-testid="tienda-piece-viewer"], [data-testid="info-overlay"][data-open="true"], [data-fullscreen-toggle]';
     const throb = () => requestAnimationFrame(() => requestAnimationFrame(() => {
       const el = document.querySelector('[data-testid="tienda-order-place"]');
       if (!el) return;
@@ -1304,12 +1307,11 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     }));
     const missed = (e) => {
       const el = e.target && e.target.closest ? e.target : null;
-      if (!el || el.closest(OK)) return false;
-      const form = el.closest('[data-testid="tienda-order"]');
-      // On the paper itself (not a control): let it be, it scrolls.
-      // (The backdrop round it is a miss: a tap there would put the form away.)
-      if (form && el !== form && !el.closest(CONTROL)) return false;
-      return true;
+      if (!el) return false;
+      if (el.closest(NO)) return true;
+      // (The backdrop round the form is a miss: a tap there would put it away.)
+      if (el.matches('[data-testid="tienda-order"]')) return true;
+      return !el.closest(OK);
     };
     const block = (e) => {
       if (!missed(e)) {

@@ -236,7 +236,7 @@ function compose(tuneIndex, key, seed) {
 export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
   const q = quality();
   let ctx = null, master = null, comp = null;
-  let storeBus = null, musicBus = null, ambBus = null, farBus = null, sfxBus = null;
+  let storeBus = null, musicBus = null, ambBus = null, farBus = null, sfxBus = null, musicDuck = null;
   let bigVerb = null, smallVerb = null, wow = null, noiseBuf = null, brownBuf = null;
   let wood = null; // the blocks' knocks (wood-sfx.js)
   let muted = false, windingDown = false, storeOn = false;
@@ -324,9 +324,11 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
       shaper.curve = curve;
       const shaped = ctx.createGain(); shaped.gain.value = 1;
       musicBus.connect(gate("music")).connect(hp).connect(lp).connect(cone).connect(shaper).connect(shaped);
-      // The speakers' volume, after the crunch so the sound is the same.
+      // The speakers' volume, after the crunch so the sound is the same;
+      // ducked under the clerk's page (playPage).
       const spk = ctx.createGain(); spk.gain.value = MUSIC_VOLUME;
-      shaped.connect(spk);
+      musicDuck = ctx.createGain(); musicDuck.gain.value = 1;
+      shaped.connect(musicDuck).connect(spk);
       const musicOut = ctx.createGain(); musicOut.gain.value = 0.8; spk.connect(musicOut).connect(storeBus);
       [0.013, 0.027, 0.041].forEach((d, i) => {
         const dl = ctx.createDelay(0.1); dl.delayTime.value = d;
@@ -879,11 +881,24 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
     // The public address, on cue (the clerk calling the manager): the
     // store's own PA, as it sounds from the ceiling speakers far off
     // (user: the louder, nearer one made for this didn't sound right).
+    /* The clerk paging the manager to the games department (ClerkScene):
+       louder than the store's own far-off announcements, and the music
+       dips under it (user: it was drowned out by the music). */
     playPage() {
       ensureGraph();
       if (!ctx || muted) return;
       if (ctx.state === "suspended") ctx.resume();
-      paAnnouncement();
+      const t = now();
+      if (musicDuck) {
+        const g = musicDuck.gain;
+        g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+        g.linearRampToValueAtTime(0.4, t + 0.5);
+        g.setValueAtTime(0.4, t + 6.6);
+        g.linearRampToValueAtTime(1, t + 8.4);
+      }
+      const louder = ctx.createGain(); louder.gain.value = 2.6;
+      louder.connect(farBus);
+      paAnnouncement(false, louder);
     },
     playDeselect() { ensureGraph(); if (!ctx) return; wood.deselect(); },
     playBlocked() { ensureGraph(); if (!ctx) return; wood.blocked(); },
