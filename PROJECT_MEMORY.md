@@ -4166,3 +4166,9 @@ phone menu until "Start the story over" (which clears it).
   bottom half spun the wrong way): a touch beginning above the board's
   middle on screen (its far half) turns it one way, below the other, as
   the chassis's grabFollow fallback.
+- Clerk scene, manager-1 ("Afternoon! El Cabeza, you said?"): Steve B.
+  now looks where the manager does, out to the front-left (user). The
+  photo itself, warped (tools/clerk_gaze_warp.py, args 11 4 2.0): his head
+  turned 11 degrees clockwise about the neck under a soft mask (stopping
+  short of the speech bubble and the manager), the face's middle drawn 4 px
+  left (a little turn), the irises 2 px left and a touch down.
