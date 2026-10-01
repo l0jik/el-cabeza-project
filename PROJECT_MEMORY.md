@@ -4550,3 +4550,64 @@ phone menu until "Start the story over" (which clears it).
   __DEN_TRIP__().arrival; e2e-story checks both.
 - Restart story's card now reads "Once more, from the top… shelf." (user:
   an ellipsis before "shelf"; apps/unified.jsx startCut caption).
+- THE END OF THE STORY (user; Nova). Home from the closed Big Glutts (the
+  trip's return: den-fx roomView, then tv.hall.arm() saves hallDue in the
+  story record, apps/novaStory.jsx hallDue/saveHallDue), the game goes on.
+  - The hall (themes/den-hall.js, createHall): four moves later (the
+    chassis now hands themes `moves()`, the move log's length: a completed
+    turn is one entry, both sides counted; FIRST_AFTER 4), when nothing
+    else is under way (busy: the call, the trip, the set, the camera's
+    visits, a cut), the hallway doorway (den-room HALL: x 60-78, the hall
+    to RZ+34, its west end x 40) starts throwing out light: drawn, the den
+    being baked: a swirl filling the doorway, its spill on the den's floor,
+    the wall round the door and the ceiling (additive planes, soft-edged),
+    sparks drifting into the room, a strobe and a violet flash over the
+    screen; slow booms (a sub thump and a rolling rumble), a hum, crackle.
+    The camera goes over to look (LOOK, eased 1.8 s on the clock); "Oh
+    no… now what?" (the trip's comic bubble); the choice card:
+    Investigate / Just keep playing — this day's been weird enough
+    already. Keep playing: it dies down over 2.6 s and comes back 3 moves
+    later (AGAIN_AFTER), again and again. The page's controls (the corner
+    buttons, the points pill, the music chip, the phone's bar) hide while
+    it's on (html.ec-hall-scene; user: a distraction then); taps on the
+    board are blocked while the choice is up.
+  - Investigate: the camera walks (WALK: to the door, through it, on past
+    the open door's edge, turns right, a few steps toward the rift; a
+    step bob), the den keeping the hall drawn (den.keepHall). It's died
+    down to a glow round a small rift (a ragged vertical tear, shader) at
+    the hall's west end; calm until 12.6 s; then the eruption (2.6 s: the
+    rift grows, strobe, shake, a rising roar) to white, and onEnding.
+  - The void (themes/den-ending.js, createEnding): its own canvas and
+    renderer over everything (z 1500; Nova's cut at 3000 covers it when
+    you pick a place). A lean faceless figure built of lathes, spheres and
+    cylinders, near black with a violet-cyan rim shader lit from the
+    sphere, pulled chest first (head thrown back, arms and legs trailing)
+    toward the black sphere and its ring (Neon's look), stars, a haze,
+    dust streaking; slowing to a drift, the camera easing round. The
+    den's sounds step out (awayFromDen), a low drone comes in. Then
+    REVELATION, one line at a time (PLACEHOLDERS: the user's writing them;
+    replace the array), then the realities menu; the story's over
+    (tv.ending.finish -> saveStoryEnded, `ended` in the story record).
+  - The realities (themes/realities.js): WORLDS, the Den, Neon and Big
+    Glutts (Nova's own places: a fade cut with a caption) and Lluvia,
+    Cromo and the Lab's ten (their pages; the Lab with ?theme=<id>), each
+    with its picture (assets/den/channels/<id>.jpg, tools/channel_shots.mjs
+    then channel_shots.py, from the built pages; beside the page as
+    el-cabeza-channel-<id>.jpg). createRealitiesMenu: cards, "You are
+    here", Stay in the den / Escape.
+  - After the story: Restart story still starts it all over (clears the
+    record); "Other realities" in the den's setup links, the phone menu
+    (every place) and a corner button (theme.cornerAction, new in the
+    chassis: a ringed planet, beside Focus; works mid-game). The set: the
+    channel dial (the big knob with the numbers; user) glows, breathing;
+    a turn of it clicks the set to the next reality (den-tv showChannel:
+    the picture with an on-screen channel number and the world's name, a
+    burst of snow, the dial a notch round; the camera over to watch, the
+    hint saying what does what); the power knob is just on and off; a
+    tap on the picture (the glass itself) goes there (the den: you're
+    here). Knob taps beat the set's tap-anywhere box (pickScene).
+  - Hooks: __DEN_HALL__ / _NOW__ / _PICK__ / _SKIP__, __DEN_ENDING__ /
+    _SKIP__, __DEN_CHANNEL__, __DEN_TV_CHANNEL__. tests/e2e-ending.mjs
+    walks it all (seeded hallDue; --allow-file-access-from-files so the
+    pictures load from disk). e2e-den's draw-call guard is now < 216 (the
+    phone's cord and the turning dial).

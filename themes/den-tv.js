@@ -430,8 +430,25 @@ export function buildTelevision(yF, RZ, X = -40) {
   hit.userData.tv = "set";
   const pickables = [hit];
   power.traverse((o) => { if (o.isMesh) { o.userData.tv = "power"; pickables.push(o); } });
-  // (The channel dial: after the story, the channels; den-fx.js.)
-  vhf.traverse((o) => { if (o.isMesh) { o.userData.tv = "channel"; pickables.push(o); } });
+  // (The channel dial: after the story, the channels; den-fx.js. Its
+  // parts merged by material, two draw calls, turning as one.)
+  {
+    const byMat = new Map();
+    vhf.children.slice().forEach((m) => {
+      if (!m.isMesh) return;
+      const g = m.geometry.clone(); m.updateMatrix(); g.applyMatrix4(m.matrix);
+      if (!byMat.has(m.material)) byMat.set(m.material, []);
+      byMat.get(m.material).push(g);
+      vhf.remove(m); m.geometry.dispose();
+    });
+    byMat.forEach((geos, mat) => {
+      const keepAttrs = ["position", "normal", "uv"];
+      geos.forEach((gg) => Object.keys(gg.attributes).forEach((k) => { if (!keepAttrs.includes(k)) gg.deleteAttribute(k); }));
+      const merged = BufferGeometryUtils.mergeBufferGeometries(geos.map((gg) => (gg.index ? gg.toNonIndexed() : gg)), false);
+      disposables.push(merged);
+      const mm = new THREE.Mesh(merged, mat); mm.userData.tv = "channel"; vhf.add(mm); pickables.push(mm);
+    });
+  }
 
   /* ---- the set's life ---- */
   // The late-night commercial (den-commercial.js), made when it's first
