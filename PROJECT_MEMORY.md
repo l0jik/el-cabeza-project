@@ -4169,3 +4169,11 @@ phone menu until "Start the story over" (which clears it).
 - Clerk scene, manager-1: Steve B.'s gaze was warped to match the
   manager's (0e48759), then undone at the user's word: the photo is the
   original again.
+- While the set holds the camera, a touch that begins on the canvas starts
+  nothing (den-fx.js onHoldDown, window capture, pointerdown/up/cancel),
+  except a tap on the set itself, and not during the commercial (a tap on
+  the picture had switched it off half-way). The lure's look keeps its own
+  tap-elsewhere-to-go-back. (Chasing the user's "camera on the carpet after
+  the commercial": not reproduced; taps all over during the commercial, a
+  pinch and turn in the summons, and a finger moving through the release all
+  leave it square on the board.)

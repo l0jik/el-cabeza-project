@@ -544,10 +544,37 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       e.stopImmediatePropagation();
       if (e.cancelable && e.type !== "pointermove") e.preventDefault();
     };
+    /* And a touch that begins while the set has the camera starts nothing
+       on the board either (user: after the commercial, the camera was left
+       looking at the carpet): a finger put down then, still moving as the
+       set let go, handed the board's camera all its travel in one jump.
+       Only a tap on the set itself goes through (to turn its knob), and not
+       during the commercial (a tap there switched it off half-way). */
+    const holdSwallowed = new Set();
+    const onHoldDown = (e) => {
+      const t = three.current, el = t && t.renderer && t.renderer.domElement;
+      if (!el || e.target !== el) return;
+      if (e.type === "pointerdown") {
+        // (Looking at the set as it stirs, a tap elsewhere goes back:
+        // onLookDown's, so left to it.)
+        if (!holdsCamera() || lureLook) return;
+        if (den && den.tv && den.tv.phase() !== "commercial" && t.camera) {
+          const r = el.getBoundingClientRect();
+          tvNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+          tvRay.setFromCamera(tvNdc, t.camera);
+          if (tvRay.intersectObjects(den.tv.pickables, false)[0]) return;
+        }
+        holdSwallowed.add(e.pointerId);
+      } else if (!holdSwallowed.has(e.pointerId)) return;
+      else if (e.type === "pointerup" || e.type === "pointercancel") holdSwallowed.delete(e.pointerId);
+      e.stopImmediatePropagation();
+      if (e.cancelable) e.preventDefault();
+    };
     let holdOn = false;
     function holdListeners() {
       if (holdOn || typeof window === "undefined") return;
       holdOn = true;
+      ["pointerdown", "pointerup", "pointercancel"].forEach((ev) => window.addEventListener(ev, onHoldDown, true));
       window.addEventListener("pointermove", onHoldMove, true);
       window.addEventListener("wheel", onHoldMove, { capture: true, passive: false });
       window.addEventListener("touchmove", onHoldMove, { capture: true, passive: false });
@@ -882,6 +909,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           window.removeEventListener("pointermove", onHoldMove, true);
           window.removeEventListener("wheel", onHoldMove, { capture: true });
           window.removeEventListener("touchmove", onHoldMove, { capture: true });
+          ["pointerdown", "pointerup", "pointercancel"].forEach((ev) => window.removeEventListener(ev, onHoldDown, true));
         }
         if (lookListenersOn) {
           lookListenersOn.removeEventListener("pointerdown", onLookDown, true);
