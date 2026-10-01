@@ -355,7 +355,8 @@ export function createHall({ audio, onEnding }) {
       if (s >= ENDING_AT && !ended) {
         ended = true; state = "done";
         stopSound(0.2);
-        if (onEnding) onEnding({ white: whiteEl, clear: () => cleanupDom() });
+        // (The page's controls stay away till it's all over: finish().)
+        if (onEnding) onEnding({ white: whiteEl, clear: () => cleanupDom(true) });
       }
     }
     // The strobe: hard flashes, now and then a burst of them.
@@ -436,8 +437,8 @@ export function createHall({ audio, onEnding }) {
     return true;
   }
 
-  function cleanupDom() {
-    sceneClass(false);
+  function cleanupDom(keepScene = false) {
+    if (!keepScene) sceneClass(false);
     [flashEl, whiteEl, blockEl].forEach((el) => el && el.remove());
     flashEl = whiteEl = blockEl = null;
     showSay(false); showChoice(false);

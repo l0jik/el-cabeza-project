@@ -4983,14 +4983,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        far side), a drag right turns it one way; begun on the lower half
        (its near side), the other. Finger up tilts the view toward the
        horizon, down toward overhead. In the Room view (freeCamera.
-       dollhouse: looking round a room from above, user) both axes go the
-       other way, and the same anywhere on screen. */
+       dollhouse: looking round a room from above, user) the turn is the
+       same turntable rule (user: begun low it had been the other way from
+       the board view's, so home from the trip, in the Room view, the lower
+       half felt reversed until the view changed), and the tilt goes the
+       other way. */
     const grab = { theta: 0, phi: 0 };
     function grabLatch(clientY) {
       const rect = el.getBoundingClientRect();
-      if (cam.current.dollhouse) { grab.theta = 1; grab.phi = 1; return; }
       grab.theta = clientY - rect.top < rect.height / 2 ? 1 : -1;
-      grab.phi = -1;
+      grab.phi = cam.current.dollhouse ? 1 : -1;
     }
     /* Stays false until cumulative pointer travel since the down event
        crosses DRAG_DEAD_ZONE_PX — see onMove. Every touch carries a few
@@ -6870,7 +6872,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     width: dockPieceIsCorner ? 120 : "min(260px, calc(100vw - 184px))",
     height: dockPieceIsCorner ? 106 : 220,
     transform: dockPieceIsCorner ? "translateX(0) scale(1)" : "translateX(-50%) scale(1)",
-    opacity: dockView === "panel" ? 0 : dockPieceIsCorner ? 0.35 : 1,
+    // (theme.dockCornerOpacity: the den's dark room lost it at 0.35, user.)
+    opacity: dockView === "panel" ? 0 : dockPieceIsCorner ? (theme.dockCornerOpacity != null ? theme.dockCornerOpacity : 0.35) : 1,
     pointerEvents: dockView === "panel" ? "none" : "auto",
     zIndex: dockPieceIsCorner ? 2 : 15,
     /* Position/size cut from 900ms linear-feeling ease to a shorter,

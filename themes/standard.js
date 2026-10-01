@@ -55,6 +55,9 @@ export const COLORS = {
 // The title: Fraunces at its softest and heaviest reads like the rounded
 // display faces of the period.
 export const titleFontFamily = "'Fraunces', serif";
+// The dock's piece, in the corner during a game: more of it, against the
+// den's dark panelling (user: hard to see at the chassis's 0.35).
+export const dockCornerOpacity = 0.6;
 // The camera sits a little lower than the default (0.86), so the room
 // shows behind the pit; a little lower again on a tall screen.
 export const viewPitch = typeof window !== "undefined" && window.innerHeight > window.innerWidth * 1.25 ? 1.08 : 1.0;

@@ -2,8 +2,8 @@
    for the whole drag, even one that crosses the screen's middle either
    way. Board views: begun on the upper half, a drag right turns the board
    one way (theta up); begun on the lower half, the other (theta down);
-   finger up tilts toward the horizon (phi up). The Room view: both axes
-   the other way, the same anywhere on screen.
+   finger up tilts toward the horizon (phi up). The Room view: the same
+   turn, the tilt the other way.
 
    Each drag here runs across the middle, horizontally and vertically, and
    every step of it must move the view the same way as its first.
@@ -63,10 +63,10 @@ for (const [name, state, room] of VIEWS) {
   check("begun high, right and down across the middle: the turn keeps its way", steady(s, 0, 1), JSON.stringify(s.map((v) => v[0].toFixed(3))));
   await reset();
   s = await drag(x + W * 0.5, H * 0.72, x, H * 0.3);
-  check(`begun low, left and up across the middle: the turn keeps its way`, steady(s, 0, room ? -1 : 1), JSON.stringify(s.map((v) => v[0].toFixed(3))));
+  check(`begun low, left and up across the middle: the turn keeps its way`, steady(s, 0, 1), JSON.stringify(s.map((v) => v[0].toFixed(3))));
   await reset();
   s = await drag(x, H * 0.7, x + W * 0.5, H * 0.3);
-  check("begun low, right and up across the middle", steady(s, 0, room ? 1 : -1), JSON.stringify(s.map((v) => v[0].toFixed(3))));
+  check("begun low, right and up across the middle", steady(s, 0, -1), JSON.stringify(s.map((v) => v[0].toFixed(3))));
   await reset();
   s = await drag(x, H * 0.3, x, H * 0.45);
   check(`finger down: the tilt ${room ? "toward the horizon" : "toward overhead"}`, steady(s, 1, room ? 1 : -1), JSON.stringify(s.map((v) => v[1].toFixed(3))));

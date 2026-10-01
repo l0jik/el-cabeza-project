@@ -4585,8 +4585,8 @@ phone menu until "Start the story over" (which clears it).
     toward the black sphere and its ring (Neon's look), stars, a haze,
     dust streaking; slowing to a drift, the camera easing round. The
     den's sounds step out (awayFromDen), a low drone comes in. Then
-    REVELATION, one line at a time (PLACEHOLDERS: the user's writing them;
-    replace the array), then the realities menu; the story's over
+    REVELATION, one line at a time (now the user's own words, and the
+    stars, haze and drone are gone: see "The void, round 2" below), then the realities menu; the story's over
     (tv.ending.finish -> saveStoryEnded, `ended` in the story record).
   - The realities (themes/realities.js): WORLDS, the Den, Neon and Big
     Glutts (Nova's own places: a fade cut with a caption) and Lluvia,
@@ -4611,3 +4611,31 @@ phone menu until "Start the story over" (which clears it).
     walks it all (seeded hallDue; --allow-file-access-from-files so the
     pictures load from disk). e2e-den's draw-call guard is now < 216 (the
     phone's cord and the turning dial).
+
+### The void, round 2: the user's words, the sphere alone, the chord, the merge (2026-10-01)
+  - REVELATION (den-ending.js) is the user's own seven lines, verbatim
+    ("....my...... god......!" through "....It was.....*always*......
+    El Cabeza."); md() turns *x* into <em> and **x** into <strong>. Keep
+    the dots and spacing exactly as written.
+  - The void is ONLY the black sphere with its pulsing plasma ring and
+    blue halo (user: "There is nothing else"): no stars, haze or dust,
+    whichever way you look (drag to look round; it eases back).
+  - The sound: a monks'-hum chord (D, D6/9, Bm7, Gmaj7, A), five voices
+    of detuned saws through vowel formants and a long generated reverb
+    (impulse 9 s); one voice glides at a time, 3.1 s apart, a new chord
+    every 16 s, so nothing perceptibly changes for ~5 s (user: "a melody
+    played over eternity", optimistic but low, haunting, forbidding).
+  - The end: after the last line the body drifts into the sphere and is
+    gone (one with it); the sound swells, the camera zooms in
+    crescendoing, cut to black (silence), then the realities menu.
+  - The page's corner buttons and points pill stay hidden (ec-hall-scene)
+    from the hall's flare to the very end: only Stay in the den
+    (hall.finish) or a world pick (the den disposed) brings them back.
+  - Drag in the Room view (user: home from the closed store, in the den,
+    the lower half's left/right was reversed until focus on and off):
+    grabLatch now turns the Room view by the same screen-half rule as the
+    board views (upper +, lower -); only the tilt stays reversed there.
+    e2e-drag-latch expects that.
+  - The dock piece in the corner mid-game: theme.dockCornerOpacity
+    (standard.js 0.6; the chassis default stays 0.35) so it's seen in the
+    dark den.
