@@ -4471,3 +4471,35 @@ phone menu until "Start the story over" (which clears it).
   (z = +-CAP_Z). Pivot at the middle, 0.45 above the faces. The phone
   visit (above) now eases on the clock, 1.6 s each way (PHONE_MS), not
   per frame (slow frames had held it at the phone).
+- The phone, after the user's photo (a Western Electric 500 rotary desk
+  set in moss green; "this is what the phone should look like"):
+  den-room.js. The housing is an extruded side profile (sloped front for
+  the dial, flat top, rounded back) with bevelled edges, merged and
+  smoothed, narrowing 22% toward the top; a dark base plate under it.
+  The dial on the slope (R 0.9): one painted disc (canvasTexture: the
+  number plate in the housing's green, white digits and letters round the
+  outside, OPERATOR by the 0, the clear finger wheel's sheen and ten holes
+  with their rims of light, the white AREA CODE card), a clear rim (its
+  own transparent mesh), the chrome finger stop at about four o'clock.
+  The cradle: two prongs on the top behind the dial; the handset (the
+  same sweep and lathe caps, longer and broader: 3.9 long, caps 0.55,
+  tilted 0.36, a flatter top) rests on them. M.phone 0x587658 (the
+  photo's green, a little brighter for the den's warm light; e2e-story
+  checks the handset keeps it); M.chromePhone for the stop; the Touch-Tone
+  keys (M.phoneKey) are gone. Still no cord (the user's earlier word),
+  though the photo has one.
+- The caller's voice (user: their recording of indistinct chatter, cut up
+  and altered, more unintelligible, to the conversation's cadence):
+  tools/den_call_voice.py from assets/den/src/call-chatter.ogg (2 s, ~1.2 s
+  of voice): syllable grains at the loudness dips plus overlapping 110-190
+  ms windows (16 in all); each of the caller's three lines built to its
+  words' syllable counts (the same rule as den-call.js), grains picked at
+  random, half reversed, repitched (falling through the line, rising at a
+  question's end), stressed syllables louder, gaps 20-60 ms between words,
+  0.24 at commas, 0.32 at stops, 0.42 at an ellipsis; muffled (2.6 kHz),
+  a 21 ms smear; one file, a line every 8 s: assets/den/call-voice.mp3
+  (dist el-cabeza-den-call-voice.mp3), lengths 3.78, 0.78, 4.13 s
+  (VOICE_LENS in den-call.js: regenerate both together). den-call.js
+  loadVoice (fetch + decode, or an <audio> element from file:) with the
+  ring; voice(k, t) plays line k down the telephone line (L.input,
+  VOICE_LEVEL 0.42); babble only if it isn't there. __DEN_CALL__().voice.

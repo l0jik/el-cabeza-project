@@ -257,6 +257,7 @@ console.log("\ndesktop: the store, the purchase, home");
   const at = await page.evaluate(() => window.__DEN_PHONE_AT__());
   await page.mouse.click(at.x, at.y);
   check("a tap on the phone: the handset lifts toward you", await poll(async () => (await page.evaluate(() => window.__DEN_CALL_HANDSET__())) === "held", 4000));
+  check("...the caller in the user's recording, cut up (not the formant voice)", !!(await page.evaluate(() => window.__DEN_CALL__().voice)));
   check("picked up: Big Glutts, found the pieces", await poll(async () => /found the pieces/.test((await page.evaluate(() => window.__DEN_CALL__().text)) || ""), 8000));
   check("...you already have them", await poll(async () => /already have them/.test((await page.evaluate(() => window.__DEN_CALL__().text)) || ""), 15000));
   check("...free, if you like; sorry for any inconvenience", await poll(async () => /inconvenience/.test((await page.evaluate(() => window.__DEN_CALL__().text)) || ""), 20000));
@@ -271,7 +272,7 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...and it goes", await poll(async () => !(await has(page, "den-yay")), 9000));
   check("...and the handset's back on the cradle", (await page.evaluate(() => window.__DEN_CALL_HANDSET__ ? window.__DEN_CALL_HANDSET__() : "rest")) === "rest");
   const hsColor = await page.evaluate(() => window.__DEN_CALL_HANDSET_COLOR__ ? window.__DEN_CALL_HANDSET_COLOR__() : null);
-  check("...still avocado, not cream", hsColor === "7d8b3e", String(hsColor));
+  check("...still its green, not cream", hsColor === "587658", String(hsColor));
   // The trip back to Big Glutts (user): the car away, black, the store at
   // day, "What the...!??", merging into dusk with the sphere, "Time to get
   // the heck out of here!", black, and home in the Room view.

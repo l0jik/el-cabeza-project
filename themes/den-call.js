@@ -9,7 +9,7 @@
      room, its trail of little puffs dropping toward you (the player, below
      the picture), for about five seconds.
    - The ring: once a game is under way (a while after it begins, and after
-     the thought), the avocado desk set on the credenza (den-room.js) rings:
+     the thought), the moss-green 500 desk set on the credenza (den-room.js) rings:
      the user's recording of a Stromberg-Carlson 1543 (its first three rings,
      lo-fi as recorded, one after another; a synthesized two-gong bell if
      it can't load), two seconds on, four off, from where the phone is
@@ -24,7 +24,9 @@
      a little crunch): a voice made of formants, vowel after vowel with a
      consonant's hiss here and there, syllables to the words' own counts
      and pauses at their commas and stops, the pitch falling through each
-     sentence (rising for a question). Nobody could make out a word; the
+     sentence (rising for a question); since the user's recording, the
+     voice is theirs, cut up and put back together (loadVoice / voice),
+     the formant voice only standing in. Nobody could make out a word; the
      slip says what's said, line by line, the caller's and yours. The
      record, if one's on, is paused through the call.
    - The end: the caller hangs up (a click in your ear), you put the
@@ -195,7 +197,8 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     if (ringEl) {
       const k = takes++ % RING_TAKES;
       try { ringElGain.gain.cancelScheduledValues(o.ctx.currentTime); ringElGain.gain.setValueAtTime(RING_LEVEL, o.ctx.currentTime); ringEl.currentTime = k * RING_SLOT; const pl = ringEl.play(); if (pl && pl.catch) pl.catch(() => {}); } catch (e) { /* fine */ }
-      clearTimeout(ringElStop);
+      clearTimeout(ringElStop); clearTimeout(voiceElStop);
+      if (voiceEl) { try { voiceEl.pause(); voiceEl.removeAttribute("src"); } catch (e) { /* fine */ } }
       ringElStop = setTimeout(() => { try { ringEl.pause(); } catch (e) { /* fine */ } }, RING_SLOT * 1000 - 60);
       return;
     }
@@ -262,6 +265,56 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
       const e = ctx.createGain(); e.gain.setValueAtTime(0.0001, t + 0.02 + i * 0.03); e.gain.exponentialRampToValueAtTime(peak, t + 0.025 + i * 0.03); e.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
       osc.connect(e).connect(o.ring); osc.start(t + 0.02); osc.stop(t + 0.65);
     });
+  }
+
+  /* The caller's voice: the user's recording of indistinct chatter, cut
+     into syllables and put back together to each line's words and pauses
+     (tools/den_call_voice.py: grains shuffled, half of them backwards,
+     the pitch falling through a line, rising for a question). One file,
+     a line every VOICE_SLOT seconds, VOICE_LENS long; played down the
+     line like everything else the caller says. Until it's loaded (or if
+     it can't be), the synthesized voice (babble) stands in. */
+  const VOICE_URL = "el-cabeza-den-call-voice.mp3", VOICE_SLOT = 8, VOICE_LENS = [3.78, 0.78, 4.13], VOICE_LEVEL = 0.42;
+  let voiceBuf = null, voiceLoading = false, voiceEl = null, voiceElGain = null, voiceElStop = 0;
+  function loadVoice() {
+    const o = output(), L = line_();
+    if (voiceBuf || voiceEl || voiceLoading || !o || !L) return;
+    voiceLoading = true;
+    if (typeof location !== "undefined" && location.protocol === "file:") {
+      if (typeof Audio === "undefined") return;
+      const el = new Audio(VOICE_URL); el.preload = "auto";
+      el.addEventListener("canplay", () => {
+        if (voiceEl) return;
+        try { voiceElGain = o.ctx.createGain(); voiceElGain.gain.value = VOICE_LEVEL; o.ctx.createMediaElementSource(el).connect(voiceElGain).connect(L.input); voiceEl = el; } catch (e) { /* the synthesized voice */ }
+      }, { once: true });
+      el.load();
+      return;
+    }
+    if (typeof fetch === "undefined") return;
+    fetch(VOICE_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b)).then((buf) => { voiceBuf = buf; }).catch(() => { /* the synthesized voice, then */ });
+  }
+  // Line k of the caller's at audio time t; how long it is, or null.
+  function voice(k, t) {
+    const o = output(), L = line_(), len = VOICE_LENS[k];
+    if (!o || !L || len == null) return null;
+    if (voiceBuf) {
+      const src = o.ctx.createBufferSource(); src.buffer = voiceBuf;
+      const g = o.ctx.createGain(); g.gain.value = VOICE_LEVEL;
+      src.connect(g).connect(L.input);
+      src.start(t, k * VOICE_SLOT, len);
+      track(callNodes, src);
+      return len;
+    }
+    if (voiceEl) {
+      const ms = Math.max(0, (t - o.ctx.currentTime) * 1000);
+      later(ms, () => {
+        try { voiceEl.currentTime = k * VOICE_SLOT; const p = voiceEl.play(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* fine */ }
+        clearTimeout(voiceElStop);
+        voiceElStop = setTimeout(() => { try { voiceEl.pause(); } catch (e) { /* fine */ } }, len * 1000);
+      });
+      return len;
+    }
+    return null;
   }
 
   /* The line: everything the caller says (and the line's own hiss and
@@ -462,11 +515,12 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     const base = performance.now() - ctx.currentTime * 1000;
     const at = (audioT, fn) => later(Math.max(0, (audioT * 1000 + base) - performance.now()), fn);
     t += 0.7;
+    let said = 0; // (the caller's lines, in order: the voice's slots)
     SCRIPT.forEach((s, i) => {
       const start = t;
       let dur;
       if (s.who === "them" && s.pause) dur = s.pause;
-      else if (s.who === "them") dur = babble(s.text, start) + 0.35;
+      else if (s.who === "them") { const v = voice(said++, start); dur = (v != null ? v : babble(s.text, start)) + 0.35; }
       else if (s.who === "you") dur = 0.55 + s.text.split(/\s+/).length * 0.32;
       else { lineClick(start, 0.8); if (L) L.hiss.gain.setTargetAtTime(0, start + 0.02, 0.02); dur = 1.6; }
       at(start, () => say(i));
@@ -504,7 +558,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     const pq = new Quaternion(); parent.getWorldQuaternion(pq);
     outQuat.copy(pq.invert().multiply(wq));
   }
-  /* The handset's own avocado (its material's colour, kept the first
+  /* The handset's own green (its material's colour, kept the first
      time), brightened by k as it comes up out of the credenza's shade.
      (It was set to white x k, which lost the green: it showed cream, user.) */
   function tint(hand, k) {
@@ -580,6 +634,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     }
     if (stage === "wait") {
       loadRing(); // (the bell's recording, ahead of its moment)
+      loadVoice(); // (and the caller's)
       const playing = !awaitingBegin();
       if (!playing) { playSince = 0; return; }
       if (!playSince) playSince = now;
@@ -617,7 +672,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
   }
 
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-    window.__DEN_CALL__ = () => ({ stage, rings: ringsDone, line, text: line >= 0 ? SCRIPT[line].text : null, thought: !!(doc && doc.querySelector("[data-testid='den-thought']")) });
+    window.__DEN_CALL__ = () => ({ stage, rings: ringsDone, line, text: line >= 0 ? SCRIPT[line].text : null, thought: !!(doc && doc.querySelector("[data-testid='den-thought']")), voice: voiceBuf ? "recording" : voiceEl ? "element" : null });
     window.__DEN_CALL_NOW__ = () => { rushed = true; if (stage === "wait") ringAt = 1; };
     // (A tap on the phone, for the tests: the room's own tap goes through
     // den-fx.js pickScene/sceneTap to answer() too.)

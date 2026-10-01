@@ -257,8 +257,8 @@ export function buildDen(boardSpan) {
     ceramicGold: baked(null, { color: 0xd3a13b }),
     ceramicOrange: baked(null, { color: 0xc0632c }),
     ceramicGreen: baked(null, { color: 0x6b7536 }),
-    phone: baked(null, { color: 0x7d8b3e }),      // avocado
-    phoneKey: baked(null, { color: 0xeee5cb }),
+    phone: baked(null, { color: 0x587658 }),      // moss green (the user's photo of a 500)
+    chromePhone: baked(null, { color: 0xc9c8c0 }),
     leaf: baked(null, { color: 0x3e5a2a, side: THREE.DoubleSide }),
     rubberLeaf: baked(null, { color: 0x3c6a2e, side: THREE.DoubleSide }),
     sheath: baked(null, { color: 0xa2473c }),
@@ -566,70 +566,142 @@ export function buildDen(boardSpan) {
   tableLamp(B, "wallW", M, crX, yF + 14.5, -26);
   tableLamp(B, "wallW", M, crX, yF + 14.5, 26);
   /* On the credenza, a little left of the abstract's middle (user): the
-     telephone, a Western Electric 2500 desk set of 1975 in avocado, Touch-
-     Tone (the buttons on its sloped front, the handset across the cradle
-     on the raised back). Its cord isn't drawn: set this way it runs off
-     behind, to the wall (user: no cord, don't let it show). Its front
-     faces the room (+x); its width runs along the wall (z). */
+     telephone, after the user's photo: a Western Electric 500 desk set in
+     moss green, rotary (the dial on its sloped front: the clear finger
+     wheel over the number plate, white numerals and letters round it,
+     the white card in the middle, the chrome finger stop), the handset
+     across the top on the cradle's two prongs. Its cord isn't drawn: set
+     this way it runs off behind, to the wall (user: no cord, don't let it
+     show). Its front faces the room (+x); its width runs along the wall
+     (z). Units about 5.7 cm each (the 500: 21 cm wide, 23 deep). */
   {
     // (1.3 times life: at life size it was lost from the pit.)
-    const S = 1.3, px = crX + 0.2, yT = yF + 14.5, pz = 7.5, th = 0.38;
+    const S = 1.3, px = crX + 0.2, yT = yF + 14.5, pz = 7.5;
     const P = (x, y, z) => [px + S * x, yT + S * y, pz + S * z];
     const put = (w, h, d, [x, y, z], mat, round) => wallW(box(w * S, h * S, d * S, x, y, z, { round: round * S }), mat, null);
-    const tilted = (w, h, d, [x, y, z], mat) => { const g = new THREE.BoxGeometry(w * S, h * S, d * S); g.rotateZ(-th); g.translate(x, y, z); wallW(g, mat, null); };
-    put(3.2, 0.8, 3.8, P(0, 0.4, 0), M.phone, 0.28);               // the base
-    put(1.7, 0.75, 3.8, P(-0.75, 1.17, 0), M.phone, 0.26);         // the raised back
-    // The sloped front: a panel leaning back from its front edge, the
-    // keypad's dark bezel on it, twelve cream keys in four rows of three.
-    tilted(1.8, 0.3, 3.5, P(0.6, 0.92, 0), M.phone);
-    const dX = Math.cos(th), dY = -Math.sin(th), nX = Math.sin(th), nY = Math.cos(th); // along the slope (to the front), and its face
-    tilted(1.5, 0.05, 1.45, P(0.6 + nX * 0.16, 0.92 + nY * 0.16, 0), M.black);
-    [-0.5, -0.17, 0.17, 0.5].forEach((sAlong) => [-0.44, 0, 0.44].forEach((sz) => {
-      const sx = -sAlong; // (the top row at the back of the slope)
-      tilted(0.24, 0.1, 0.3, P(0.6 + dX * sx + nX * 0.22, 0.92 + dY * sx + nY * 0.22, sz), M.phoneKey);
-    }));
-    /* The cradle's two saddles, and the handset resting in them: a
-       G-type handset (Western Electric's, on every 2500 of the day; the
-       G3 is 21.5 cm long, 6 wide and 6.5 high; user: the boxy one didn't
-       look like a real one). Two round caps, the receiver's and the
-       transmitter's, flat faces down in the saddles and turned a little
-       in toward each other; between them a slim handle, oval in section,
-       arching up and flaring into the domed backs of the caps. Built in
-       the set's units (about 5.7 cm each, its length along z), then 1.3
-       times life like the rest. */
-    const HS_L = 3.78, CAP_R = 0.5, CAP_Z = HS_L / 2 - CAP_R, CAP_TILT = 0.24;
-    const HS_AT = [-0.7, 1.88, 0]; // the middle between the caps' faces, at rest
-    [-1, 1].forEach((sz) => put(0.95, 0.36, 0.7, P(-0.7, 1.58, sz * CAP_Z), M.phone, 0.14));
-    /* The handset its own mesh (den-call.js: it shakes as the bell rings,
-       and lifts toward you when you answer): lit (baked) where it lies,
-       then about its middle as a pivot. */
+    // The housing: its side profile (front to the right, x; up, y),
+    // extruded across its width with rounded edges, narrowing a little
+    // toward the top as the 500's does.
+    const BEV = 0.22, LIFT = 0.08 + BEV;
+    const prof = new THREE.Shape();
+    prof.moveTo(-1.65, 0); prof.lineTo(1.65, 0); prof.lineTo(1.72, 0.08); prof.lineTo(1.68, 0.16);
+    prof.lineTo(0.26, 1.44);                                     // the sloped front (the dial's)
+    prof.quadraticCurveTo(0.1, 1.56, -0.15, 1.56);
+    prof.lineTo(-1.05, 1.55);
+    prof.quadraticCurveTo(-1.62, 1.5, -1.68, 0.9);
+    prof.lineTo(-1.66, 0); prof.closePath();
+    const HW = 3.1; // its width less the rounding
+    let hous = new THREE.ExtrudeGeometry(prof, { depth: HW, bevelEnabled: true, bevelThickness: 0.25, bevelSize: BEV, bevelSegments: 4, curveSegments: 8 });
+    hous.translate(0, LIFT, -HW / 2);
     {
-      const capPts = [[0, 0], [0.4, 0], [0.47, 0.025], [0.5, 0.08], [0.5, 0.2], [0.47, 0.3], [0.39, 0.38], [0.25, 0.43], [0.0001, 0.44]]
-        .map(([r, y]) => new THREE.Vector2(r * (CAP_R / 0.5), y));
+      const a = hous.attributes.position, top = 1.56 + LIFT + BEV;
+      for (let i = 0; i < a.count; i++) a.setZ(i, a.getZ(i) * (1 - 0.22 * Math.max(0, a.getY(i)) / top));
+      hous.deleteAttribute("uv"); hous.deleteAttribute("normal");
+      const merged = BufferGeometryUtils.mergeVertices(hous, 1e-4);
+      hous.dispose(); hous = merged;
+      hous.computeVertexNormals();
+      hous.scale(S, S, S); hous.translate(...P(0, 0, 0));
+      wallW(hous, M.phone, null);
+    }
+    put(3.3, 0.08, 3.4, P(0, 0.04, 0), M.black, 0.03);              // the dark base plate under it
+    const TOP = 1.56 + LIFT + BEV;                                  // the top of the housing
+    /* The dial: on the slope, its face along the slope's normal. One
+       painted disc (the number plate, the clear wheel and its ten holes,
+       the card), a clear rim catching the light, the finger stop. */
+    {
+      const sl = new THREE.Vector2(0.26 - 1.68, 1.44 - 0.16).normalize();   // up the slope
+      const n = new THREE.Vector3(sl.y, -sl.x, 0);                          // its face (front and up)
+      const up = new THREE.Vector3(sl.x, sl.y, 0);
+      const right = new THREE.Vector3(0, 0, -1);                            // (your right, facing it)
+      const mid = new THREE.Vector3((0.26 + 1.68) / 2, (1.44 + 0.16) / 2 + LIFT, 0).addScaledVector(n, BEV + 0.012);
+      const R = 0.9;
+      const basis = new THREE.Matrix4().makeBasis(right, up, n);
+      const place = (g, lift = 0) => { g.applyMatrix4(basis); g.translate(mid.x + n.x * lift, mid.y + n.y * lift, mid.z); g.scale(S, S, S); g.translate(...P(0, 0, 0)); return g; };
+      const dialTex = canvasTexture(512, 512, (g, W) => {
+        const c = W / 2, r = (f) => f * c;
+        g.fillStyle = "#587658"; g.fillRect(0, 0, W, W);
+        // The number plate: the housing's green, a shallow dish, a shade
+        // darker just inside its rim.
+        const dish = g.createRadialGradient(c, c, r(0.3), c, c, r(1)); dish.addColorStop(0, "#5e7c5d"); dish.addColorStop(0.92, "#557253"); dish.addColorStop(1, "#465f45");
+        g.fillStyle = dish; g.beginPath(); g.arc(c, c, r(0.99), 0, Math.PI * 2); g.fill();
+        // Digits and letters round the outside of the wheel (white).
+        const LET = ["", "ABC", "DEF", "GHI", "JKL", "MNO", "PRS", "TUV", "WXY", "OPERATOR"];
+        g.fillStyle = "#F2EFE4"; g.textAlign = "center"; g.textBaseline = "middle";
+        for (let k = 0; k < 10; k++) {
+          const a = ((15 + k * 30) * Math.PI) / 180, x = c + Math.cos(a) * r(0.9), y = c - Math.sin(a) * r(0.9);
+          g.save(); g.translate(x, y); g.rotate(Math.PI / 2 - a);
+          g.font = `700 ${Math.round(r(0.11))}px Arial, Helvetica, sans-serif`;
+          g.fillText(String((k + 1) % 10), 0, LET[k] ? r(0.035) : 0);
+          if (LET[k]) { g.font = `700 ${Math.round(r(k === 9 ? 0.05 : 0.075))}px Arial, Helvetica, sans-serif`; g.fillText(LET[k], 0, -r(0.07)); }
+          g.restore();
+        }
+        // The clear finger wheel: a faint sheen over its band, each hole
+        // a ring of light and a little shadow, the plate seen through.
+        g.fillStyle = "rgba(240,244,236,0.22)"; g.beginPath(); g.arc(c, c, r(0.8), 0, Math.PI * 2); g.arc(c, c, r(0.33), 0, Math.PI * 2, true); g.fill();
+        for (let k = 0; k < 10; k++) {
+          const a = ((15 + k * 30) * Math.PI) / 180, x = c + Math.cos(a) * r(0.6), y = c - Math.sin(a) * r(0.6);
+          g.fillStyle = "rgba(40,52,32,0.22)"; g.beginPath(); g.arc(x + r(0.01), y + r(0.014), r(0.112), 0, Math.PI * 2); g.fill();
+          g.fillStyle = "#5a785a"; g.beginPath(); g.arc(x, y, r(0.105), 0, Math.PI * 2); g.fill();
+          g.strokeStyle = "rgba(250,252,246,0.75)"; g.lineWidth = r(0.016); g.beginPath(); g.arc(x, y, r(0.108), Math.PI * 0.9, Math.PI * 1.9); g.stroke();
+          g.strokeStyle = "rgba(250,252,246,0.3)"; g.lineWidth = r(0.01); g.beginPath(); g.arc(x, y, r(0.108), Math.PI * 1.9, Math.PI * 2.9); g.stroke();
+        }
+        g.strokeStyle = "rgba(250,252,246,0.55)"; g.lineWidth = r(0.014);
+        g.beginPath(); g.arc(c, c, r(0.8), 0, Math.PI * 2); g.stroke();
+        g.beginPath(); g.arc(c, c, r(0.33), 0, Math.PI * 2); g.stroke();
+        // The card in the middle: white, AREA CODE.
+        g.fillStyle = "#EEEDE6"; g.beginPath(); g.arc(c, c, r(0.29), 0, Math.PI * 2); g.fill();
+        g.strokeStyle = "rgba(0,0,0,0.25)"; g.lineWidth = r(0.012); g.beginPath(); g.arc(c, c, r(0.29), 0, Math.PI * 2); g.stroke();
+        g.fillStyle = "#3a3a36"; g.font = `700 ${Math.round(r(0.055))}px Arial, Helvetica, sans-serif`;
+        g.fillText("AREA", c, c - r(0.035)); g.fillText("CODE", c, c + r(0.035));
+      }, { scale: false });
+      disposables.push(dialTex);
+      const dialMat = baked(dialTex);
+      wallW(place(new THREE.CircleGeometry(R, 48)), dialMat, null);
+      // The wheel's clear rim, and the finger stop (chrome) at about four
+      // o'clock, reaching in over the wheel.
+      const rimM = new THREE.MeshBasicMaterial({ color: 0xf4f6ee, transparent: true, opacity: 0.3, fog: true, depthWrite: false }); disposables.push(rimM);
+      const rim = new THREE.Mesh(place(new THREE.TorusGeometry(R * 0.8, 0.022, 6, 48), 0.02), rimM); disposables.push(rim.geometry);
+      B.mesh(rim, "wallW");
+      const fs = new THREE.BoxGeometry(0.06, 0.24, 0.05); fs.translate(0, R * 0.74, 0.04); fs.rotateZ(-((90 + 40) * Math.PI) / 180);
+      wallW(place(fs), M.chromePhone, null);
+    }
+    // The cradle: two prongs rising from the top behind the dial.
+    const HS_L = 3.9, CAP_R = 0.55, CAP_Z = HS_L / 2 - CAP_R, CAP_TILT = 0.36;
+    const HS_AT = [-0.4, TOP - 0.02, 0]; // the middle between the caps' faces, at rest
+    [-1, 1].forEach((sz) => put(0.5, 0.55, 0.3, P(-0.4, TOP + 0.2, sz * 0.58), M.phone, 0.1));
+    /* The handset its own mesh (den-call.js: it shakes as the bell rings,
+       and lifts toward you when you answer): the 500's, two round caps,
+       the receiver's and the transmitter's, faces down and turned in
+       toward each other, at the ends of a broad, nearly flat-topped
+       handle that rests on the prongs; lit (baked) where it lies, then
+       about its middle as a pivot. */
+    {
+      const capPts = [[0, 0], [0.42, 0], [0.5, 0.03], [0.55, 0.1], [0.55, 0.24], [0.52, 0.34], [0.44, 0.43], [0.28, 0.49], [0.0001, 0.5]]
+        .map(([r, y]) => new THREE.Vector2(r * (CAP_R / 0.55), y));
       const caps = [-1, 1].map((sz) => {
         const g = new THREE.LatheGeometry(capPts, 28);
         g.rotateX(sz * CAP_TILT);
         g.translate(0, 0, sz * CAP_Z);
         return g;
       });
-      // The handle: swept along its arch, wider than it is deep, flaring
-      // over its last stretch into each cap (its ends hidden in the domes).
+      // The handle: swept along its line, broad and shallow, flaring over
+      // its last stretch into each cap (its ends hidden in the domes).
       const arch = new THREE.CatmullRomCurve3([
-        [-CAP_Z * 0.92, 0.3], [-1.0, 0.6], [-0.45, 0.7], [0, 0.72], [0.45, 0.7], [1.0, 0.6], [CAP_Z * 0.92, 0.3],
+        [-CAP_Z * 0.92, 0.36], [-1.0, 0.64], [-0.45, 0.69], [0, 0.7], [0.45, 0.69], [1.0, 0.64], [CAP_Z * 0.92, 0.36],
       ].map(([z, y]) => new THREE.Vector3(0, y, z)));
       const SEG = 40, RAD = 18, pos = [], idx = [];
-      const T = new THREE.Vector3(), side = new THREE.Vector3(1, 0, 0), up = new THREE.Vector3();
+      const Tg = new THREE.Vector3(), side = new THREE.Vector3(1, 0, 0), upv = new THREE.Vector3();
       for (let i = 0; i <= SEG; i++) {
         const t = i / SEG, c = arch.getPointAt(t);
-        arch.getTangentAt(t, T);
-        up.crossVectors(T, side).normalize();
-        const u = Math.abs(2 * t - 1), f = u < 0.55 ? 0 : ((u - 0.55) / 0.45) ** 2 * (3 - 2 * ((u - 0.55) / 0.45));
-        const rx = 0.29 * (1 + 0.55 * f), ry = 0.2 * (1 + 0.7 * f);
+        arch.getTangentAt(t, Tg);
+        upv.crossVectors(Tg, side).normalize();
+        const u = Math.abs(2 * t - 1), w = u < 0.55 ? 0 : (u - 0.55) / 0.45, f = w * w * (3 - 2 * w);
+        const rx = 0.34 * (1 + 0.45 * f), ry = 0.17 * (1 + 0.8 * f);
         for (let j = 0; j <= RAD; j++) {
           const a = (j / RAD) * Math.PI * 2;
-          pos.push(c.x + side.x * Math.cos(a) * rx + up.x * Math.sin(a) * ry,
-            c.y + side.y * Math.cos(a) * rx + up.y * Math.sin(a) * ry,
-            c.z + side.z * Math.cos(a) * rx + up.z * Math.sin(a) * ry);
+          pos.push(c.x + side.x * Math.cos(a) * rx + upv.x * Math.sin(a) * ry,
+            c.y + side.y * Math.cos(a) * rx + upv.y * Math.sin(a) * ry,
+            c.z + side.z * Math.cos(a) * rx + upv.z * Math.sin(a) * ry);
         }
       }
       for (let i = 0; i < SEG; i++) for (let j = 0; j < RAD; j++) {
@@ -643,15 +715,15 @@ export function buildDen(boardSpan) {
         g.scale(S, S, S);
         g.translate(...P(...HS_AT));
         if (!g.attributes.normal) g.computeVertexNormals(); // (smooth, while it's indexed)
-        const n = g.index ? g.toNonIndexed() : g;
-        if (n !== g) g.dispose();
-        bake(n, {});
-        Object.keys(n.attributes).forEach((k) => { if (!["position", "normal", "color"].includes(k)) n.deleteAttribute(k); });
-        return n;
+        const nI = g.index ? g.toNonIndexed() : g;
+        if (nI !== g) g.dispose();
+        bake(nI, {});
+        Object.keys(nI.attributes).forEach((k) => { if (!["position", "normal", "color"].includes(k)) nI.deleteAttribute(k); });
+        return nI;
       });
       const hg = BufferGeometryUtils.mergeBufferGeometries(parts, false);
       parts.forEach((g) => g.dispose());
-      const pivot = new THREE.Vector3(...P(HS_AT[0], HS_AT[1] + 0.45, HS_AT[2]));
+      const pivot = new THREE.Vector3(...P(HS_AT[0], HS_AT[1] + 0.5, HS_AT[2]));
       hg.translate(-pivot.x, -pivot.y, -pivot.z);
       disposables.push(hg);
       // (Its own copy of the avocado: lifted toward you, out of the
