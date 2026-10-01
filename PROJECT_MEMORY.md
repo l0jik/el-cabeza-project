@@ -4339,3 +4339,29 @@ phone menu until "Start the story over" (which clears it).
   - clerk-go: the form's top corner pinched in his own hand's gap
     (HANG_SHEET), hanging below, turned a little; the hand composited
     back over it with lift_hand's matte (only where there's paper).
+- The trip back to Big Glutts (user, after the call's card): themes/
+  den-trip.js (createTrip({ audio, onReturn }), made by den-fx.js in any
+  Nova den, started by den-call.js's card as it fades: onTrip). The
+  user's two pictures, split from their upload: assets/den/trip/
+  glutts-day.jpg and glutts-dusk.jpg (beside the page as el-cabeza-trip-
+  day/dusk.jpg, build/build.js; loaded when the call is due). Timeline
+  (ms from the card's fade): a car starts and drives off (starter cranking,
+  a V8 catching and revving, idling, pulling away through a shift into the
+  distance, tyres); to black 2600-4200 (the den's room/stereo/pieces step
+  out: den-audio awayFromDen); the car arriving from 5200 (approach, a
+  mild tired-brake squeal, the tyres, rocking to a stop, the column
+  shifter into park, the key, the engine dying), heard through the
+  fade-up 5600-9600; a wind outside. The camera (user: a horizontal
+  sweep, taking it in; then, as it merges, up and out, dramatic): close
+  and eye level, sweeping the storefront left to right 5000-11900; then
+  tilting up and pulling back to the whole picture, toward the sphere,
+  11700-17600 (quintic ease; less zoom on a tall screen). "What the...!??"
+  10000-13200; the dusk picture comes through in wavering bands 11600-
+  16400 (the bands never past the picture's edge), a low drone swelling;
+  "Time to get the heck out of here!" 15200-17800 (comic speech bubbles,
+  Patrick Hand); to black 17400-18900; home at 19000 in the Room view
+  (its button clicked, else the camera set as standard.js's dollhouse);
+  up from black by 21000. The overlay (den-trip, z 1350) takes taps while
+  it's dark or away. Hooks: __DEN_TRIP__() {stage: idle|leaving|store|
+  home|done, t}, __DEN_TRIP_PIN__(ms) (test-only: hold it there).
+  e2e-story follows it through to the Room view.

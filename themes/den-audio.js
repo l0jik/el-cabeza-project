@@ -45,7 +45,9 @@ export function createAudio() {
   // Each channel's level on the sound menu's slider (0..1; 0 is off), heard
   // as its square so the slider moves about evenly in loudness.
   const channelLevel = { room: 1, stereo: 1, pieces: 1 };
-  const chGain = (ch) => (channelOff[ch] ? 0 : channelLevel[ch] * channelLevel[ch]);
+  // (away: out of the den for a while, den-trip.js: its sounds fade out.)
+  let away = false;
+  const chGain = (ch) => (away || channelOff[ch] ? 0 : channelLevel[ch] * channelLevel[ch]);
   const gates = { room: null, stereo: null, pieces: null };
   const timers = new Set();
   const later = (fn, ms) => { const id = setTimeout(() => { timers.delete(id); if (!disposed) fn(); }, ms); timers.add(id); return id; };
@@ -681,6 +683,15 @@ export function createAudio() {
       if (!ctx || !phoneBus) return;
       phoneBus.gain.setTargetAtTime(phoneNear, now(), 0.2);
       if (phonePan) phonePan.pan.setTargetAtTime(phoneSide, now(), 0.2);
+    },
+    /* Out of the den (den-trip.js: the drive to the store and back): the
+       room, the stereo and the pieces fade right out over `secs`, and come
+       back the same way. The trip's own sounds go straight to the master
+       (phoneOutput's ear). */
+    awayFromDen(on, secs = 1.5) {
+      away = !!on;
+      if (!ctx) return;
+      ["room", "stereo", "pieces"].forEach((ch) => { if (gates[ch]) gates[ch].gain.setTargetAtTime(chGain(ch), now(), secs / 3); });
     },
     // On the phone: the record turned down under it (and back after).
     duckForCall(on) {

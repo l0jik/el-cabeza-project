@@ -124,7 +124,7 @@ function cloudSvg() {
 const VOWELS = [[730, 1090, 2440], [270, 2290, 3010], [300, 870, 2240], [530, 1840, 2480], [570, 840, 2410], [660, 1720, 2410], [520, 1190, 2390], [440, 1020, 2240], [390, 1990, 2550]];
 const syllables = (w) => Math.max(1, (w.toLowerCase().replace(/[^a-z]/g, "").replace(/e$/, "").match(/[aeiouy]+/g) || []).length);
 
-export function createDenCall({ audio, awaitingBegin }) {
+export function createDenCall({ audio, awaitingBegin, onTrip = null }) {
   let stage = "cut"; // cut -> thought -> wait -> ringing -> call -> done
   let thoughtAt = 0, thoughtEnd = 0, playSince = 0, ringAt = 0, ringsDone = 0, ringStart = 0;
   let line = -1, lineEls = null, box = null, thoughtEl = null, styleEl = null;
@@ -420,7 +420,8 @@ export function createDenCall({ audio, awaitingBegin }) {
       + '<span class="l1">Free pieces?! Nice!\u2026</span><span class="l2">Thank you, Big Glutts!</span></div>';
     doc.body.appendChild(yayEl);
     const el = yayEl;
-    later(YAY_MS, () => { el.classList.add("off"); later(800, () => { el.remove(); if (yayEl === el) yayEl = null; }); });
+    // (It fades as the car starts up: the trip back to the store, den-trip.js.)
+    later(YAY_MS, () => { el.classList.add("off"); if (onTrip) onTrip(); later(800, () => { el.remove(); if (yayEl === el) yayEl = null; }); });
   }
   function answer() {
     if (stage !== "ringing") return false;

@@ -37,6 +37,7 @@ import { buildDen } from "./den-room.js";
 import { quality } from "./tienda-quality.js";
 import { setCommercialOn } from "../engine/journey.js";
 import { createDenCall } from "./den-call.js";
+import { createTrip } from "./den-trip.js";
 
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
@@ -45,7 +46,20 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     const q = quality();
     // Home with the special order (Nova): the thought, then the telephone
     // call from Big Glutts (den-call.js).
-    const call = novaTv && novaTv.call ? createDenCall({ audio, awaitingBegin: () => !!(awaitingBeginRef && awaitingBeginRef.current) }) : null;
+    /* ...and after it, the trip back to the store for the free pieces and
+       home again (den-trip.js), ending in the Room view (as its button:
+       standard.js freeCamera.dollhouse). */
+    const roomView = () => {
+      const btn = typeof document !== "undefined" && (document.querySelector('[data-testid="room-view-corner"]') || document.querySelector('[data-testid="room-view"]'));
+      if (btn) { btn.click(); return; }
+      if (!cam || !cam.current) return;
+      cam.current.dollhouse = true; cam.current.phi = 0.78; cam.current.radius = 118;
+      if (cam.current.target) cam.current.target.set(0, 0, 0);
+      if (cam.current.view && cam.current.view.target) cam.current.view.target.set(0, 0, 0);
+    };
+    const trip = novaTv ? createTrip({ audio, onReturn: roomView }) : null;
+    if (trip && novaTv.call) trip.load(); // (its pictures, well ahead of time)
+    const call = novaTv && novaTv.call ? createDenCall({ audio, awaitingBegin: () => !!(awaitingBeginRef && awaitingBeginRef.current), onTrip: () => trip && trip.start() }) : null;
     /* Home before the Singularity (Nova, the set still to lure you): a
        record or a tape already on, a random one, at 40% (user: normal
        music to hear before the set starts getting at it, low in the mix
@@ -640,6 +654,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
+      window.__DEN_TRIP__ = () => (trip ? trip.state() : null);
+      window.__DEN_TRIP_PIN__ = (ms) => trip && trip.pin(ms);
       window.__DEN_TV_BLAST_PIN__ = (b) => den && den.tv && den.tv.blastPinAt && den.tv.blastPinAt(b);
       // Test-only: the camera over at the set (or back), the set left as it is.
       window.__DEN_TV_LOOK__ = (on) => { tvGoal = on ? 1 : 0; };
@@ -911,6 +927,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (den) den.dispose();
         if (brass) brass.dispose();
         if (call) call.dispose();
+        if (trip) trip.dispose();
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (novaTv && novaTv.register) novaTv.register(null);
@@ -941,7 +958,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           window.removeEventListener("keydown", onLookKey, true);
           lookListenersOn = null;
         }
-        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; delete window.__DEN_TV_BLAST_PIN__; }
+        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; delete window.__DEN_TV_BLAST_PIN__; delete window.__DEN_TRIP__; delete window.__DEN_TRIP_PIN__; }
         if (whiteEl) { whiteEl.remove(); whiteEl = null; }
       },
     };
