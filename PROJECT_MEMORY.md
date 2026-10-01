@@ -4269,3 +4269,29 @@ phone menu until "Start the story over" (which clears it).
   in the frame (and every other frame) unchanged; re-running the script
   rewrites the others with identical pixels (only the JPEG bytes differ,
   so they were left as committed). Fonts: Liberation Sans/Mono Bold.
+- The handed-over form, round 2 (user: his hand closed round it, redrawn
+  as realistically as possible; and seen in his hand as he walks away):
+  tools/tienda_clerk_frames.py.
+  - clerk-sure (hold_order_form): the open hand taken out (skin in
+    OPEN_HAND below y 274); behind it the "Hi there" frame's own pixels
+    (same camera, identity alignment) where it shows no hand, the rest
+    inpainted. A right fist painted in its place (paint_fist: drawn 6x on
+    a 44 grid, scaled to FIST_SIZE 48 at FIST_AT): the hand's mass with
+    the heel of the palm low right, four curled fingers stacked (index on
+    top) with creases, knuckle sheen and tips curling in, the thumb across
+    the top with its nail; lit from upper left; his own palm's grain
+    (a 26x24 patch, high-passed) multiplied in; softened to the photo
+    (blur 0.75) with grain. Its skin tone: the palm's median x 0.97. The
+    sheet (sheet_in_fist) fans up from the fist: full width (SHEET_X_TOP)
+    to 70% down, then gathered into SHEET_X_BOT with fold shading, tilted
+    -4 degrees about the fist; its shadow on him; the fist's on it.
+    (A real grip borrowed from clerk-phone was tried: the hand there is
+    mostly wrist behind the handset, and its colours don't separate.)
+  - clerk-go (hang_order_form): the form hanging from his right hand by
+    its top edge (HANG_QUAD), printed side out, in his shadow a little;
+    his fingertips (skin in HANG_FINGERS) back in front of it.
+  The other frames are left byte-for-byte as committed.
+- "Home again. Confused." (novaStory.jsx): the second line ("The new
+  pieces are already on the table...") fades in 2 s after the first
+  (.ns-caption.on .ns-sub: ns-in 0.8s, 2s delay); the caption now holds
+  6.8 s when there's a second line (was 3.6) so it can be read.

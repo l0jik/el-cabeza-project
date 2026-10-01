@@ -370,11 +370,19 @@ def over(dst, layer, dx=0, dy=0, scale=1.0):
 # standing up in his palm, leaning back a little, his thumb in front of it.
 FONT = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
 MONO = "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf"
-# The sheet's corners in the frame (after CROP): top-left, top-right,
-# bottom-right, bottom-left; the bottom edge along his palm.
-FORM_QUAD = [(91, 216), (144, 223), (137, 298), (84, 290)]
-# His thumb (in front of the sheet): where to look for it.
-THUMB_BOX = (76, 278, 102, 295)
+# "Sure thing!": his open hand taken out and a fist painted in its place,
+# closed round the sheet's bunched bottom edge, the sheet fanning up out of
+# it toward you. (Frame coordinates, after CROP.)
+FIST_AT = (88, 268)        # the fist's little canvas, top-left
+FIST_SIZE = 48
+OPEN_HAND = (74, 266, 152, 326)  # where the open hand was (skin in here goes)
+SHEET_TOP, SHEET_BOT = 212, 284  # the sheet's rows, top to where it enters the fist
+SHEET_X_TOP = (84, 146)    # its width up top
+SHEET_X_BOT = (97, 131)    # gathered into the fist
+SHEET_TILT = -4.0          # degrees, about the fist
+# "I'll go check on that...": the sheet hanging from his hand as he walks.
+HANG_FINGERS = (108, 224, 134, 246)  # his fingers (in front of its top edge)
+HANG_QUAD = [(104, 235), (137, 238), (134, 283), (99, 279)]
 
 
 def order_form_art(w=448, h=592):
@@ -435,55 +443,204 @@ def order_form_art(w=448, h=592):
     return arr.astype(np.uint8)
 
 
-def hold_order_form(img):
-    """The order form, in his hand: the sheet warped onto FORM_QUAD, lit a
-    little from above (the store's ceiling), softened to the photo's
-    focus, with a soft shadow on him behind it; then his thumb back over
-    it."""
-    H_, W_ = img.shape[:2]
-    art = order_form_art()
+def _skin(reg):
+    R, G, B = reg[..., 0].astype(int), reg[..., 1].astype(int), reg[..., 2].astype(int)
+    return (R > 140) & (R - G > 30) & (R - B > 40)
+
+
+def _capsule(xx, yy, p0, p1, r):
+    """Signed distance to a capsule from p0 to p1, radius r."""
+    (x0, y0), (x1, y1) = p0, p1
+    dx, dy = x1 - x0, y1 - y0
+    t = np.clip(((xx - x0) * dx + (yy - y0) * dy) / (dx * dx + dy * dy + 1e-9), 0, 1)
+    return np.hypot(xx - (x0 + t * dx), yy - (y0 + t * dy)) - r
+
+
+def paint_fist(skin, tex, size=FIST_SIZE, ss=6, k=FIST_SIZE / 44):
+    """A right fist closed round something upright, seen from the curled
+    fingers' side: four fingers stacked (index on top), each rounded, with
+    its crease and its knuckle at the left (the back of the hand turning
+    away), the fingertips curled into the palm on the right over the heel
+    of the hand; the thumb across the top of them, nail and all. Lit from
+    above and to the left, and carrying the real skin's grain and blotch
+    (tex, a patch of his own palm). Painted ss times over size and brought
+    down (RGBA, size x size)."""
+    n = size * ss
+    yy, xx = (np.mgrid[0:n, 0:n].astype(np.float32) + 0.5) / ss / k  # (drawn on a 44 grid)
+    skin = np.array(skin, np.float32)
+    # His skin's own variation: the palm patch, mirrored to fill, kept only
+    # for its detail (divided by its own blur).
+    t = tex.astype(np.float32)
+    t = np.concatenate([t, t[:, ::-1]], 1); t = np.concatenate([t, t[::-1]], 0)
+    reps = (int(np.ceil(size / t.shape[0])) + 1, int(np.ceil(size / t.shape[1])) + 1, 1)
+    t = np.tile(t, reps)[:size, :size]
+    detail = t / (cv2.GaussianBlur(t, (0, 0), 3) + 1)
+    detail = cv2.resize(np.clip(detail, 0.8, 1.2), (n, n), interpolation=cv2.INTER_CUBIC)
+    col = np.zeros((n, n, 3), np.float32)
+    a = np.zeros((n, n), np.float32)
+    occ = np.zeros((n, n), np.float32)
+    def lay(d, rgb, soft=0.7):
+        m = np.clip(0.5 - d / soft, 0, 1)
+        # (a shadow just round each part, on what's under it)
+        occ[:] = np.maximum(occ * (1 - m), np.exp(-np.maximum(d, 0) / 1.1) * (d > 0) * a)
+        col[:] = col * (1 - m[..., None]) + rgb * m[..., None]
+        a[:] = np.maximum(a, m)
+        return m
+    light = np.clip(1.07 - 0.008 * (xx - 6) - 0.011 * (yy - 6), 0.8, 1.1)[..., None]
+    def rrect(cx, cy, hw, hh, r):
+        qx, qy = np.maximum(np.abs(xx - cx) - (hw - r), 0), np.maximum(np.abs(yy - cy) - (hh - r), 0)
+        return np.hypot(qx, qy) - r
+    # The hand's mass behind the fingers, with the heel of the palm low on
+    # the right, where the fingertips curl in.
+    lay(np.minimum(rrect(21, 21, 15, 15.5, 8), rrect(31, 30, 7, 6, 5)), skin * 0.8 * light)
+    fingers = [((7.6, 12.0), (33.0, 12.8), 3.7), ((7.0, 18.6), (34.2, 19.3), 3.8),
+               ((7.8, 25.2), (33.4, 25.8), 3.6), ((9.6, 31.3), (30.4, 31.8), 3.1)]
+    for i, (p0, p1, r) in enumerate(fingers):
+        d = _capsule(xx, yy, p0, p1, r)
+        cy = (p0[1] + p1[1]) / 2
+        v = np.clip((yy - cy) / r, -1, 1)
+        u = np.clip((xx - p0[0]) / (p1[0] - p0[0]), 0, 1)
+        shade = 1.0 + 0.15 * (-v) - 0.28 * np.clip(v, 0, 1) ** 1.5
+        shade *= 1.0 - 0.24 * np.clip((u - 0.74) / 0.26, 0, 1) ** 1.3   # tips curling in
+        shade *= 1.0 + 0.10 * np.exp(-((u - 0.06) / 0.08) ** 2) * (v < 0.3)  # knuckle
+        shade *= 1.0 - 0.05 * np.exp(-((u - 0.45) / 0.05) ** 2)            # the middle joint's line
+        tint = np.array([1.0, 0.985 - 0.01 * i, 0.985 - 0.01 * i], np.float32)
+        m = lay(d, skin * tint * shade[..., None] * light)
+        crease = np.exp(-((d + 0.25) / 0.6) ** 2) * (v > 0.15)
+        col[:] *= (1 - 0.38 * crease * m)[..., None]
+    # The thumb across the top, from its base on the left to its tip on the
+    # middle finger; its nail.
+    t0, t1 = (3.6, 13.5), (26.5, 9.3)
+    d = _capsule(xx, yy, t0, t1, 4.3)
+    v = np.clip((yy - 11.4) / 4.3, -1, 1)
+    m = lay(d, skin * np.array([1.01, 0.965, 0.96], np.float32) * (1.0 + 0.16 * (-v) - 0.25 * np.clip(v, 0, 1) ** 1.5)[..., None] * light)
+    col[:] *= (1 - 0.4 * np.exp(-((d + 0.2) / 0.65) ** 2) * (v > 0.05) * m)[..., None]
+    ang = np.arctan2(t1[1] - t0[1], t1[0] - t0[0])
+    rx, ry = (xx - 24.0) * np.cos(ang) + (yy - 9.6) * np.sin(ang), -(xx - 24.0) * np.sin(ang) + (yy - 9.6) * np.cos(ang)
+    nm = np.clip((1 - (rx / 2.6) ** 2 - (ry / 2.1) ** 2) * 3, 0, 1) * m
+    col[:] = col * (1 - 0.5 * nm[..., None]) + np.array([236, 206, 196], np.float32) * 0.5 * nm[..., None]
+    # The real skin's grain; the shadows where parts meet; the rim turning away.
+    col *= detail
+    col *= (1 - 0.16 * occ)[..., None]
+    edge = np.clip(1 - np.abs(cv2.GaussianBlur(a, (0, 0), 1.0 * ss) - 0.5) * 2, 0, 1) * (a > 0.5)
+    col *= (1 - 0.07 * edge)[..., None]
+    rgba = np.dstack([np.clip(col, 0, 255), a * 255])
+    return cv2.resize(rgba, (size, size), interpolation=cv2.INTER_AREA)
+
+
+def sheet_in_fist(art, W_, H_):
+    """The order form, its bottom edge bunched into his fist and fanning
+    up: each row of the sheet as wide as SHEET_X_TOP up top, narrowing
+    into SHEET_X_BOT over the last part, with the folds of the gathering;
+    tilted a little. Returns (rgb, alpha) at frame size."""
     ah, aw = art.shape[:2]
-    # Lit from above: a touch darker toward the bottom, warmer overall.
-    shade = np.linspace(1.0, 0.88, ah, dtype=np.float32)[:, None, None]
-    art = np.clip(art.astype(np.float32) * shade * np.array([1.0, 0.98, 0.94], np.float32), 0, 255)
-    src = np.float32([[0, 0], [aw, 0], [aw, ah], [0, ah]])
-    dst = np.float32(FORM_QUAD)
-    # Down to about the frame's scale first (no shimmer), then warped.
-    k = 4
-    small = cv2.resize(art, (aw // k, ah // k), interpolation=cv2.INTER_AREA)
-    M = cv2.getPerspectiveTransform(src / k, dst)
-    sheet = cv2.warpPerspective(small, M, (W_, H_), flags=cv2.INTER_LINEAR)
-    alpha = cv2.warpPerspective(np.ones(small.shape[:2], np.float32), M, (W_, H_), flags=cv2.INTER_LINEAR)
-    # The photo's softness.
-    sheet = cv2.GaussianBlur(sheet, (0, 0), 0.55)
+    small = cv2.resize(art.astype(np.float32), (aw // 4, ah // 4), interpolation=cv2.INTER_AREA)
+    sh, sw = small.shape[:2]
+    yy, xx = np.mgrid[0:H_, 0:W_].astype(np.float32)
+    t = (yy - SHEET_TOP) / (SHEET_BOT - SHEET_TOP)
+    g = np.clip((t - 0.7) / 0.3, 0, 1)
+    g = g * g * (3 - 2 * g)  # gathering, over the last part
+    L = SHEET_X_TOP[0] + (SHEET_X_BOT[0] - SHEET_X_TOP[0]) * g
+    R = SHEET_X_TOP[1] + (SHEET_X_BOT[1] - SHEET_X_TOP[1]) * g
+    u = (xx - L) / (R - L)
+    inside = (t >= 0) & (t <= 1.08) & (u >= 0) & (u <= 1)
+    mapx = (u * (sw - 1)).astype(np.float32)
+    mapy = (np.clip(t, 0, 1) * (sh - 1)).astype(np.float32)
+    rgb = cv2.remap(small, mapx, mapy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    # The folds where it's gathered: ridges and valleys running into the fist.
+    folds = 1 + 0.16 * g * np.sin(u * np.pi * 7 + 0.6) - 0.05 * g
+    # And the light: a touch darker toward the fist.
+    rgb *= (folds * (1.0 - 0.10 * np.clip(t, 0, 1)))[..., None]
+    alpha = inside.astype(np.float32)
+    # Tilted about the fist.
+    cx, cy = (SHEET_X_BOT[0] + SHEET_X_BOT[1]) / 2, SHEET_BOT
+    M = cv2.getRotationMatrix2D((cx, cy), SHEET_TILT, 1.0)
+    rgb = cv2.warpAffine(rgb, M, (W_, H_), flags=cv2.INTER_LINEAR)
+    alpha = cv2.warpAffine(alpha, M, (W_, H_), flags=cv2.INTER_LINEAR)
+    return rgb, alpha
+
+
+def hold_order_form(img, partner=None):
+    """'Sure thing!': the open hand out, the sheet in, the fist over it."""
+    H_, W_ = img.shape[:2]
+    base = img.copy()
+    # Its skin, from the palm, for the fist.
+    x0, y0, x1, y1 = OPEN_HAND
+    reg = base[y0:y1, x0:x1]
+    sk = _skin(reg)
+    skin = np.median(reg[sk].reshape(-1, 3), axis=0) if sk.any() else np.array([222, 160, 145])
+    tex = base[284:308, 102:128].copy()  # (his palm, for the grain)
+    # The open hand out (its skin in OPEN_HAND below the wrist), the
+    # background painted back from round it.
+    hand = np.zeros((H_, W_), np.uint8)
+    hand[y0:y1, x0:x1] = sk
+    hand[:274] = 0  # (the forearm stays; the sheet and the fist cover the wrist)
+    hand = cv2.dilate(hand, np.ones((3, 3), np.uint8), iterations=2) > 0
+    # What was behind it: the "Hi there" frame (the same camera) where it
+    # shows no hand of its own; the rest painted in from round it.
+    if partner is not None:
+        pr = partner[y0:y1, x0:x1]
+        ok = np.zeros((H_, W_), bool)
+        ok[y0:y1, x0:x1] = ~cv2.dilate(_skin(pr).astype(np.uint8), np.ones((5, 5), np.uint8), iterations=2).astype(bool)
+        take = hand & ok
+        base[take] = partner[take]
+        hand &= ~take
+    base = cv2.inpaint(base, hand.astype(np.uint8) * 255, 5, cv2.INPAINT_TELEA)
+    art = order_form_art()
+    ah = art.shape[0]
+    art = np.clip(art.astype(np.float32) * np.linspace(1.0, 0.9, ah, dtype=np.float32)[:, None, None] * np.array([1.0, 0.98, 0.94], np.float32), 0, 255)
+    sheet, alpha = sheet_in_fist(art, W_, H_)
+    sheet = cv2.GaussianBlur(sheet, (0, 0), 0.5)
     alpha = cv2.GaussianBlur(alpha, (0, 0), 0.5)
-    out = img.astype(np.float32)
-    # Its shadow on him, down and to the right.
-    sh = np.roll(np.roll(alpha, 3, axis=1), 2, axis=0)
-    sh = cv2.GaussianBlur(sh, (0, 0), 2.2) * 0.38
-    # ...and where it rests in his palm, a darker line just under its edge.
-    contact = np.clip(np.roll(alpha, 3, axis=0) - alpha, 0, 1)
-    sh = np.maximum(sh, cv2.GaussianBlur(contact, (0, 0), 1.2) * 0.5)
+    out = base.astype(np.float32)
+    # The sheet's shadow on him, down and to the right.
+    sh = cv2.GaussianBlur(np.roll(np.roll(alpha, 3, axis=1), 2, axis=0), (0, 0), 2.2) * 0.36
     out *= (1 - sh)[..., None]
     out = out * (1 - alpha[..., None]) + sheet * alpha[..., None]
-    # His thumb, in front: the original's skin in THUMB_BOX, above the
-    # sheet's bottom edge.
-    x0, y0, x1, y1 = THUMB_BOX
-    reg = img[y0:y1, x0:x1].astype(int)
-    R, G, B = reg[..., 0], reg[..., 1], reg[..., 2]
-    skin = (R > 150) & (R - G > 32) & (R - B > 45)
+    # The fist, over the sheet's gathered end.
+    fist = paint_fist(skin * 0.97, tex)
+    fx, fy = FIST_AT
+    fa = cv2.GaussianBlur(fist[..., 3] / 255.0, (0, 0), 0.6)
+    frgb = cv2.GaussianBlur(fist[..., :3], (0, 0), 0.75)
+    frgb += np.random.default_rng(7).normal(0, 2.5, frgb.shape)  # the photo's grain
+    F = np.zeros((H_, W_), np.float32); F[fy:fy + FIST_SIZE, fx:fx + FIST_SIZE] = fa
+    C = np.zeros((H_, W_, 3), np.float32); C[fy:fy + FIST_SIZE, fx:fx + FIST_SIZE] = frgb
+    # Its shadow on the sheet and on him.
+    fs = cv2.GaussianBlur(np.roll(np.roll(F, 2, axis=1), 2, axis=0), (0, 0), 1.8) * 0.4
+    out *= (1 - fs * (1 - F))[..., None]
+    out = out * (1 - F[..., None]) + C * F[..., None]
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
+def hang_order_form(img):
+    """'I'll go check on that...': the form hanging from his right hand as
+    he walks off, held by its top edge in his curled fingers (which stay
+    in front of it), a little in his own shadow; its shadow on the floor
+    beside it."""
+    H_, W_ = img.shape[:2]
+    art = order_form_art().astype(np.float32)
+    ah, aw = art.shape[:2]
+    art *= np.linspace(0.97, 0.84, ah, dtype=np.float32)[:, None, None] * np.array([0.97, 0.94, 0.88], np.float32)
+    small = cv2.resize(art, (aw // 6, ah // 6), interpolation=cv2.INTER_AREA)
+    sh_, sw_ = small.shape[:2]
+    M = cv2.getPerspectiveTransform(np.float32([[0, 0], [sw_, 0], [sw_, sh_], [0, sh_]]), np.float32(HANG_QUAD))
+    sheet = cv2.warpPerspective(small, M, (W_, H_), flags=cv2.INTER_LINEAR)
+    alpha = cv2.warpPerspective(np.ones((sh_, sw_), np.float32), M, (W_, H_), flags=cv2.INTER_LINEAR)
+    sheet = cv2.GaussianBlur(sheet, (0, 0), 0.6)
+    alpha = cv2.GaussianBlur(alpha, (0, 0), 0.55)
+    out = img.astype(np.float32)
+    sh = cv2.GaussianBlur(np.roll(np.roll(alpha, 4, axis=1), 3, axis=0), (0, 0), 2.5) * 0.3
+    out *= (1 - sh)[..., None]
+    out = out * (1 - alpha[..., None]) + sheet * alpha[..., None]
+    # His fingers back over its top edge.
+    x0, y0, x1, y1 = HANG_FINGERS
     sk = np.zeros((H_, W_), np.uint8)
-    sk[y0:y1, x0:x1] = skin
-    n, lab, st, _ = cv2.connectedComponentsWithStats(sk, 8)
-    if n > 1:
-        big = 1 + int(np.argmax(st[1:, cv2.CC_STAT_AREA]))
-        sk = (lab == big).astype(np.uint8)
+    sk[y0:y1, x0:x1] = _skin(img[y0:y1, x0:x1])
     sk = cv2.morphologyEx(sk, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
-    thumb = cv2.GaussianBlur(sk.astype(np.float32), (0, 0), 0.6)
-    # Its shadow on the sheet, just below it.
-    ts = np.roll(cv2.GaussianBlur(sk.astype(np.float32), (0, 0), 1.4), 2, axis=0) * alpha * 0.35
-    out *= (1 - ts)[..., None]
-    out = out * (1 - thumb[..., None]) + img.astype(np.float32) * thumb[..., None]
+    f = cv2.GaussianBlur(sk.astype(np.float32), (0, 0), 0.6)
+    fs = np.roll(cv2.GaussianBlur(sk.astype(np.float32), (0, 0), 1.3), 2, axis=0) * alpha * 0.35
+    out *= (1 - fs)[..., None]
+    out = out * (1 - f[..., None]) + img.astype(np.float32) * f[..., None]
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
@@ -500,7 +657,10 @@ def main():
         out = over(img, layer, dy=SPREAD_DY[sheet])
         im = Image.fromarray(out).crop(CROP[sheet])
         if name == "clerk-sure":
-            im = Image.fromarray(hold_order_form(np.array(im)))
+            partner = np.array(Image.fromarray(over(cleaned["clerk-hello"], layer, dy=SPREAD_DY[sheet])).crop(CROP[sheet]))
+            im = Image.fromarray(hold_order_form(np.array(im), partner))
+        if name == "clerk-go":
+            im = Image.fromarray(hang_order_form(np.array(im)))
         im.save(os.path.join(OUT, f"{name}.jpg"), quality=86, optimize=True, progressive=True)
         if a.debug:
             os.makedirs(a.debug, exist_ok=True)

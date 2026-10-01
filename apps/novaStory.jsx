@@ -118,9 +118,12 @@ const CSS = `
   .ns-caption.on { animation: ns-in 0.6s ease both; }
   .ns-sub { display: block; max-width: 30em; margin: 0.9em auto 0; font: italic 400 clamp(14px, 2.2vw, 19px)/1.45 'Bodoni Moda', 'Didot', Georgia, serif; color: #CDBF9E; letter-spacing: 0.01em; }
   .ns-caption.off { animation: ns-out 0.5s ease both; }
+  /* (The second line comes up on its own, two seconds after the first, user.) */
+  .ns-caption.on .ns-sub { animation: ns-in 0.8s ease 2s both; }
   @media (prefers-reduced-motion: reduce) {
     .ns-tape, .ns-paper, .ns-slot { transition-duration: 0.01s; }
     .ns-dim, .ns-black.on, .ns-black.off, .ns-caption.on, .ns-caption.off { animation-duration: 0.01s; }
+    .ns-caption.on .ns-sub { animation-duration: 0.01s; animation-delay: 0s; }
   }
 `;
 
@@ -178,8 +181,9 @@ export function StoryCut({ cut, onSwap, onDone, sfx }) {
     if (!cut.arrived) return undefined;
     let raf = requestAnimationFrame(() => {
       raf = requestAnimationFrame(() => {
-        // (A second line takes longer to read.)
-        const read = Math.max(0, (reduced ? 400 : cut.sub ? 3600 : 1700) - (performance.now() - captionAt.current));
+        // (A second line takes longer to read, and comes up 2 s after the
+        // first: 2 s, its fade, and about four seconds on it.)
+        const read = Math.max(0, (reduced ? 400 : cut.sub ? 6800 : 1700) - (performance.now() - captionAt.current));
         after(read, () => setCaption("off"));
         after(read + (reduced ? 50 : 500), () => setStage("reveal"));
         after(read + (reduced ? 100 : 1650), () => onDone());
