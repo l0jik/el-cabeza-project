@@ -34,7 +34,7 @@ import { createSummonSound, summonMixFor } from "./neon-summon-audio.js";
 export const summonBridge = { reveal: null };
 
 const WAVES = 6;
-const APPEAR_AT = 0.4, TURN_AT = 1.3, TURN_S = 2.0, LIFT_AT = 1.7, LIFT_S = 2.0, RING_AT = 1.7, RING_S = 1.6, WAVES_AT = 3.6;
+const APPEAR_AT = 0.4, TURN_AT = 1.3, TURN_S = 2.0, LIFT_AT = 1.7, LIFT_S = 4.5, RING_AT = 1.7, RING_S = 1.6, WAVES_AT = 3.6;
 const ease = (x) => { const c = Math.max(0, Math.min(1, x)); return c * c * (3 - 2 * c); };
 
 export function mountSummon(three, { delay = 1200, audio = null, cam = null } = {}) {
@@ -275,7 +275,7 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
       parts: [], c: null,
       // (Slow, and never quite repeating: two rising-and-falling rates, a
       // sideways wander on each axis, and a lazy tilt.)
-      f: 0.1 + R() * 0.07, f2: 0.23 + R() * 0.09, fx: 0.05 + R() * 0.05, fz: 0.06 + R() * 0.05, fw: 0.08 + R() * 0.06,
+      f: 0.075 + R() * 0.05, f2: 0.17 + R() * 0.07, fx: 0.05 + R() * 0.05, fz: 0.06 + R() * 0.05, fw: 0.08 + R() * 0.06,
       ph: R() * 6.28, ph2: R() * 6.28, phx: R() * 6.28, phz: R() * 6.28, phw: R() * 6.28,
     });
     const e = pieces.get(id);
@@ -294,14 +294,16 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
       qFace.setFromUnitVectors(Y, dir);
       qT.copy(qI).slerp(qFace, 0.55 * turn);
       /* Adrift, like ghosts (user: slower, "more ghosty drifty", and a
-         little sideways too): a slow rise and fall (about 0.1-0.17 Hz,
-         with a faster, smaller one over it, so it never quite repeats),
-         up to 0.16 of a square; a wander of up to 0.12 of a square to
-         each side; and a lazy tilt of a few degrees. Lifted 0.4 of a
-         square, so the low of a bob stays clear of the board. */
+         little sideways too): a slow rise and fall (about 0.075-0.125 Hz,
+         with a faster, smaller one over it, so it never quite repeats); a
+         wander of up to 0.12 of a square to each side; and a lazy tilt of
+         a few degrees. They rise slowly (LIFT_S, 4.5 s; user: more slowly)
+         and drift between 0.24 of a square above the board (the floor, as
+         it was) and a full square (the ceiling, raised: user, more
+         travel up and down): lifted 0.62, bobbing up to 0.38 each way. */
       const T = Math.PI * 2 * tau;
-      const bob = reduceMotion ? 0 : (0.7 * Math.sin(T * e.f + e.ph) + 0.3 * Math.sin(T * e.f2 + e.ph2)) * S * 0.16 * lift;
-      const up = lift * S * 0.4 + bob;
+      const bob = reduceMotion ? 0 : (0.7 * Math.sin(T * e.f + e.ph) + 0.3 * Math.sin(T * e.f2 + e.ph2)) * S * 0.38 * lift;
+      const up = lift * S * 0.62 + bob;
       if (reduceMotion) drift.set(0, 0, 0);
       else drift.set(Math.sin(T * e.fx + e.phx) * S * 0.12 * lift, 0, Math.sin(T * e.fz + e.phz) * S * 0.12 * lift);
       if (!reduceMotion) { eW.set(Math.sin(T * e.fw + e.phw) * 0.07 * lift, 0, Math.cos(T * e.fw * 0.8 + e.phx) * 0.06 * lift); qT.multiply(qW.setFromEuler(eW)); }

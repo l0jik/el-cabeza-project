@@ -4384,3 +4384,11 @@ phone menu until "Start the story over" (which clears it).
   bar more across the longer 1975 card.
   (The commercial airs once, on the first return from the Singularity;
   Restart story resets that: engine/journey.js COMMERCIAL_AIRED_KEY.)
+- The summons' pieces (first visit to Neon; user: rise more slowly; the
+  ceiling higher, the floor where it was, more travel): neon-summon.js
+  LIFT_S 2.0 -> 4.5 s; lifted 0.62 of a square (was 0.4), bobbing up to
+  0.38 each way (was 0.16): between 0.24 (the old floor) and 1.0 of a
+  square above the board (the old ceiling was 0.56); the rise-and-fall a
+  little slower to match (0.075-0.125 Hz, was 0.1-0.17; the faster ripple
+  over it 0.17-0.24, was 0.23-0.32). The sphere sits ~0.42 of the board's
+  span up, well clear.
