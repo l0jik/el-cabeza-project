@@ -4548,3 +4548,5 @@ phone menu until "Start the story over" (which clears it).
   T.arrive (9.8 s): the stop ~13.7, engine off ~14.3, the door shut ~17.1,
   as the store finishes fading up and just before "What the...!??".
   __DEN_TRIP__().arrival; e2e-story checks both.
+- Restart story's card now reads "Once more, from the top… shelf." (user:
+  an ellipsis before "shelf"; apps/unified.jsx startCut caption).

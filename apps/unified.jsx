@@ -469,7 +469,7 @@ function UnifiedApp() {
     forgetStoreGone();
     // The extras go back behind the Singularity (engine/journey.js).
     forgetSingularity();
-    startCut({ kind: "fade", caption: "Once more, from the top shelf.", to: "tienda", fresh: true });
+    startCut({ kind: "fade", caption: "Once more, from the top\u2026 shelf.", to: "tienda", fresh: true });
   };
   // The television: into Singularity when nothing else is under way.
   tvBridge.portal = () => !busyRef.current && themeName === "standard";
