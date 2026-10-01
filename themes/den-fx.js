@@ -59,7 +59,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     };
     const trip = novaTv ? createTrip({ audio, onReturn: roomView }) : null;
     if (trip && novaTv.call) trip.load(); // (its pictures, well ahead of time)
-    const call = novaTv && novaTv.call ? createDenCall({ audio, awaitingBegin: () => !!(awaitingBeginRef && awaitingBeginRef.current), onTrip: () => trip && trip.start() }) : null;
+    const call = novaTv && novaTv.call ? createDenCall({ audio, awaitingBegin: () => !!(awaitingBeginRef && awaitingBeginRef.current), onTrip: () => trip && trip.start(), onGoToPhone: () => phoneVisit(true), onPhoneDone: () => phoneVisit(false) }) : null;
     /* Home before the Singularity (Nova, the set still to lure you): a
        record or a tape already on, a random one, at 40% (user: normal
        music to hear before the set starts getting at it, low in the mix
@@ -133,7 +133,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     function focusFrame(t, now) {
       const dt = lastFocusTick ? Math.min(0.1, (now - lastFocusTick) / 1000) : 0;
       lastFocusTick = now;
-      const goal = focusOn && focusGoal === 0 && tvGoal === 0 && bookGoal === 0 ? 1 : 0;
+      const goal = focusOn && focusGoal === 0 && tvGoal === 0 && bookGoal === 0 && phoneGoal === 0 ? 1 : 0;
       fw += (goal - fw) * (1 - Math.exp(-dt * 2.4));
       if (Math.abs(goal - fw) < 0.002) fw = goal;
       const e = fw * fw * (3 - 2 * fw);
@@ -457,6 +457,51 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     }
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_BOOK__ = () => ({ goal: bookGoal, w: bookW });
 
+    /* ---- the telephone, ringing ----
+       A tap on the ringing slip (den-call.js) takes the camera over to the
+       credenza, in front of the phone and a little above it (user: right
+       to where the phone is; then a tap on the phone lifts the receiver).
+       It stays through the call and comes back as the receiver goes down;
+       a tap anywhere but the phone, or Escape, comes back sooner (that tap
+       does nothing else). */
+    let phoneGoal = 0, phoneW = 0, phoneSwallow = null;
+    function phoneVisit(on) { phoneGoal = on ? 1 : 0; if (on) bookGoal = 0; }
+    const phoneRay = new THREE.Raycaster(), phoneNdc = new THREE.Vector2();
+    const onPhoneDown = (e) => {
+      if (!phoneGoal || phoneW < 0.3) return;
+      const t = three.current, el = t && t.renderer && t.renderer.domElement;
+      if (el && t.camera && den && den.phone && call && call.ringing()) {
+        const r = el.getBoundingClientRect();
+        phoneNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+        phoneRay.setFromCamera(phoneNdc, t.camera);
+        if (phoneRay.intersectObjects(den.phone.pickables, false)[0]) return;
+      }
+      phoneVisit(false);
+      phoneSwallow = e.pointerId;
+      e.stopImmediatePropagation(); e.preventDefault();
+    };
+    const onPhoneUp = (e) => { if (phoneSwallow !== null && e.pointerId === phoneSwallow) { phoneSwallow = null; e.stopImmediatePropagation(); e.preventDefault(); } };
+    const onPhoneKey = (e) => { if (e.key === "Escape" && phoneGoal) { phoneVisit(false); e.stopPropagation(); } };
+    let phoneListenersOn = null;
+    function phoneListeners(t) {
+      if (phoneListenersOn || !t.renderer || typeof window === "undefined") return;
+      phoneListenersOn = t.renderer.domElement;
+      phoneListenersOn.addEventListener("pointerdown", onPhoneDown, true);
+      phoneListenersOn.addEventListener("pointerup", onPhoneUp, true);
+      window.addEventListener("keydown", onPhoneKey, true);
+    }
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+      window.__DEN_PHONE_VISIT__ = () => ({ goal: phoneGoal, w: phoneW });
+      // (Where the phone is on screen, for a real tap on it.)
+      window.__DEN_PHONE_AT__ = () => {
+        const t = three.current, m = den && den.phone && den.phone.pickables[0];
+        if (!t || !t.camera || !t.renderer || !m) return null;
+        const v = new THREE.Vector3(); m.getWorldPosition(v); v.project(t.camera);
+        const r = t.renderer.domElement.getBoundingClientRect();
+        return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+      };
+    }
+
     /* ---- the television ---- */
     let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false, lureEvents = 0, lastHaunt = null;
     let returning = !!(novaTv && novaTv.returning);
@@ -767,10 +812,11 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         // While the camera visits the set, the title and the dock's piece
         // step aside (standard.js styleSheet, html.ec-tv-visit).
         bookListeners(t);
+        phoneListeners(t);
         lookListeners(t);
         holdListeners();
         showBookHint(bookGoal === 1 && bookW > 0.6);
-        const visiting = tvGoal > 0 || tvW > 0.02 || bookGoal > 0 || bookW > 0.02;
+        const visiting = tvGoal > 0 || tvW > 0.02 || bookGoal > 0 || bookW > 0.02 || phoneGoal > 0 || phoneW > 0.02;
         if (visiting !== onStage && typeof document !== "undefined") { onStage = visiting; document.documentElement.classList.toggle("ec-tv-visit", visiting); }
         const ph = den.tv.phase();
         if (ph !== tvPhase) {
@@ -880,6 +926,26 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           camera.lookAt(look);
           return true;
         }
+        phoneW += (phoneGoal - phoneW) * (1 - Math.exp(-(dtMs / 1000) * 2.0));
+        if (Math.abs(phoneGoal - phoneW) < 0.001) phoneW = phoneGoal;
+        if (den && t && den.phone && den.phone.point && phoneW > 0) {
+          /* The phone: from the room, in front of it and a little above,
+             the phone and some of the credenza round it in the frame (a
+             tall screen steps back to keep its width). */
+          const vt = Math.tan((camera.fov * Math.PI) / 360);
+          const d = Math.min(60, Math.max(7 / vt, 10 / (vt * camera.aspect)));
+          den.group.updateWorldMatrix(true, false);
+          aim.copy(den.phone.point); aim.y -= 0.8;
+          eye.copy(den.phone.point); eye.x += d * 0.93; eye.y += d * 0.37;
+          den.group.localToWorld(aim); den.group.localToWorld(eye);
+          const e = phoneW * phoneW * (3 - 2 * phoneW);
+          camera.getWorldDirection(dir);
+          look.copy(camera.position).addScaledVector(dir, camera.position.length());
+          look.lerp(aim, e);
+          camera.position.lerp(eye, e);
+          camera.lookAt(look);
+          return true;
+        }
         bookW += (bookGoal - bookW) * (1 - Math.exp(-(dtMs / 1000) * 2.0));
         if (Math.abs(bookGoal - bookW) < 0.001) bookW = bookGoal;
         if (den && t && t.boardGroup && bookW > 0 && den.book.focus) {
@@ -942,6 +1008,13 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           window.removeEventListener("keydown", onBookKey, true);
           bookListenersOn = null;
         }
+        if (phoneListenersOn) {
+          phoneListenersOn.removeEventListener("pointerdown", onPhoneDown, true);
+          phoneListenersOn.removeEventListener("pointerup", onPhoneUp, true);
+          window.removeEventListener("keydown", onPhoneKey, true);
+          phoneListenersOn = null;
+        }
+        if (typeof window !== "undefined") { delete window.__DEN_PHONE_VISIT__; delete window.__DEN_PHONE_AT__; }
         if (typeof document !== "undefined") document.documentElement.classList.remove("ec-tv-visit");
         setCommercialOn(false);
         if (tvHint) { tvHint.remove(); tvHint = null; }

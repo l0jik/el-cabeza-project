@@ -402,6 +402,74 @@ def offer_order_form(img):
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
+# "I'll go check on that for you real quick!" (user, from their own
+# pictures, storyboard/clerk-go-photos.jpg: three shots of him walking off
+# with the form; they picked the wide one, the left panel, with the same
+# table and SAVE sign as the other frames). The panel, cropped to the
+# frame's shape (GO_PHOTO_CROP: x, y, width in the panel), and the line in
+# a bubble over the dark window, upper left, its tail to him: the bubble
+# drawn fresh (cream, ink outline, rounded), its lettering the old frame's
+# own (lifted off its bubble, GO_TEXT_BOX, so the font is every frame's).
+GO_PHOTO_PANEL = (0, 0, 824, 1024)
+GO_PHOTO_CROP = (28, 0, 794)
+GO_TEXT_BOX = (257, 17, 368, 84)
+GO_BUBBLE = (88, 50)          # its centre
+GO_TAIL = (186, 84)           # where its tail points: by his head
+BUBBLE_PAPER = np.array([246, 240, 228], np.float32)
+BUBBLE_INK = np.array([22, 20, 20], np.float32)
+
+
+def bubble_text(frame):
+    """The lettering of a frame's bubble (GO_TEXT_BOX) as coverage, 0..1."""
+    x0, y0, x1, y1 = GO_TEXT_BOX
+    lum = frame[y0:y1, x0:x1].astype(np.float32).mean(2)
+    paper, ink = np.percentile(lum, 90), np.percentile(lum, 2)
+    t = np.clip((paper - lum) / (paper - ink), 0, 1)
+    t[t < 0.12] = 0
+    ys, xs = np.nonzero(t > 0.3)
+    t = t[max(ys.min() - 1, 0):ys.max() + 2, max(xs.min() - 1, 0):xs.max() + 2]
+    th, tw = t.shape
+    t[int(th * 0.68):, int(tw * 0.72):] = 0  # (the old bubble's own edge there, not lettering)
+    return t
+
+
+def speech_bubble(img, text, centre, tail):
+    H_, W_ = img.shape[:2]
+    th, tw = text.shape
+    cx, cy = centre
+    bw, bh = tw + 26, th + 22
+    S = 4
+    m = Image.new("L", (W_ * S, H_ * S), 0)
+    d = ImageDraw.Draw(m)
+    d.rounded_rectangle([(cx - bw / 2) * S, (cy - bh / 2) * S, (cx + bw / 2) * S, (cy + bh / 2) * S],
+                        radius=int(min(bw, bh) * 0.48 * S), fill=255)
+    vx, vy = tail[0] - cx, tail[1] - cy
+    n = np.hypot(vx, vy); ux, uy = vx / n, vy / n; px, py = -uy, ux
+    bx, by = cx + ux * bh * 0.25, cy + uy * bh * 0.25
+    d.polygon([((bx + px * 9) * S, (by + py * 9) * S), (tail[0] * S, tail[1] * S),
+               ((bx - px * 1.8) * S, (by - py * 1.8) * S)], fill=255)
+    fill = np.array(m.resize((W_, H_), Image.LANCZOS)).astype(np.float32) / 255
+    edge = np.array(m.filter(ImageFilter.MaxFilter(11)).resize((W_, H_), Image.LANCZOS)).astype(np.float32) / 255
+    out = img.astype(np.float32)
+    out = out * (1 - edge[..., None]) + BUBBLE_INK * edge[..., None]
+    out = out * (1 - fill[..., None]) + BUBBLE_PAPER * fill[..., None]
+    t = np.zeros((H_, W_), np.float32)
+    ox, oy = int(round(cx - tw / 2)), int(round(cy - th / 2)) - 1
+    t[oy:oy + th, ox:ox + tw] = text
+    out = out * (1 - t[..., None]) + BUBBLE_INK * t[..., None]
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
+def go_from_photo(old_frame):
+    W_, H_ = old_frame.shape[1], old_frame.shape[0]
+    px0, py0, _, _ = GO_PHOTO_PANEL
+    x0, y0, w = GO_PHOTO_CROP
+    h = w * H_ / W_
+    photo = Image.open(os.path.join(SB, "clerk-go-photos.jpg")).convert("RGB")
+    shot = np.array(photo.crop((px0 + x0, py0 + y0, px0 + x0 + w, py0 + y0 + h)).resize((W_, H_), Image.LANCZOS))
+    return speech_bubble(shot, bubble_text(old_frame), GO_BUBBLE, GO_TAIL)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--debug")
@@ -416,6 +484,8 @@ def main():
         im = Image.fromarray(out).crop(CROP[sheet])
         if name == "clerk-sure":
             im = Image.fromarray(offer_order_form(np.array(im)))
+        if name == "clerk-go":
+            im = Image.fromarray(go_from_photo(np.array(im)))
         im.save(os.path.join(OUT, f"{name}.jpg"), quality=86, optimize=True, progressive=True)
         if a.debug:
             os.makedirs(a.debug, exist_ok=True)

@@ -14,9 +14,10 @@
      lo-fi as recorded, one after another; a synthesized two-gong bell if
      it can't load), two seconds on, four off, from where the phone is
      (den-audio.js phoneOutput / setPhoneListener), its handset shaking on
-     the cradle with each ring. A tap on the phone itself answers it (user:
-     you go over and pick it up; the slip only says it's ringing): the
-     handset lifts and swings up toward you. Left ringing, it gives up
+     the cradle with each ring. A tap on the slip takes the camera over to
+     the phone and pauses the record (a fast fade; den-audio holdForPhone);
+     a tap on the phone itself answers it (user): the handset lifts and
+     swings up toward you. Hung up, the record fades back in where it was. Left ringing, it gives up
      after eight rings and tries again a while later.
    - The call: the receiver lifted (a clunk), the line open (a faint hiss),
      and the caller in your ear, down a telephone line (400 Hz - 3 kHz,
@@ -25,7 +26,7 @@
      and pauses at their commas and stops, the pitch falling through each
      sentence (rising for a question). Nobody could make out a word; the
      slip says what's said, line by line, the caller's and yours. The
-     record, if one's on, goes down under the call.
+     record, if one's on, is paused through the call.
    - The end: the caller hangs up (a click in your ear), you put the
      receiver down (a clunk and the bells' little tinkle).
 
@@ -71,6 +72,9 @@ const CSS = `
 .den-call.ringing { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
 .den-call.ringing .said { font: 700 13px/1.3 ${FRANKLIN}; letter-spacing: 0.06em; text-transform: uppercase; animation: denCallShake 0.1s linear infinite; }
 .den-call.ringing.quiet .said { animation: none; }
+.den-call.tap { cursor: pointer; }
+.den-call.tap:hover { background: #F6EEDA; }
+.den-call.tap:focus-visible { outline: 2px solid ${RED}; outline-offset: 2px; }
 .den-call .hint { font: italic 400 12px/1.3 ${COURIER}; opacity: 0.7; }
 .den-call button { all: unset; cursor: pointer; padding: 7px 14px; background: ${INK}; color: ${PAPER}; font: 700 11.5px/1 ${FRANKLIN};
   letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
@@ -124,12 +128,14 @@ function cloudSvg() {
 const VOWELS = [[730, 1090, 2440], [270, 2290, 3010], [300, 870, 2240], [530, 1840, 2480], [570, 840, 2410], [660, 1720, 2410], [520, 1190, 2390], [440, 1020, 2240], [390, 1990, 2550]];
 const syllables = (w) => Math.max(1, (w.toLowerCase().replace(/[^a-z]/g, "").replace(/e$/, "").match(/[aeiouy]+/g) || []).length);
 
-export function createDenCall({ audio, awaitingBegin, onTrip = null }) {
+export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone = null, onPhoneDone = null }) {
   let stage = "cut"; // cut -> thought -> wait -> ringing -> call -> done
   let thoughtAt = 0, thoughtEnd = 0, playSince = 0, ringAt = 0, ringsDone = 0, ringStart = 0;
   let line = -1, lineEls = null, box = null, thoughtEl = null, styleEl = null;
   let out = null, ringNodes = [], callNodes = [], timers = [];
-  let lastEar = 0, rushed = false;
+  let lastEar = 0, rushed = false, held = false;
+  // The record paused for the phone (den-audio holdForPhone), and back after.
+  const hold = (on) => { if (held === on) return; held = on; if (audio && audio.holdForPhone) audio.holdForPhone(on); };
   const later = (ms, fn) => { timers.push(setTimeout(fn, ms)); };
   const doc = typeof document !== "undefined" ? document : null;
 
@@ -370,13 +376,22 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null }) {
     box.setAttribute("data-stage", kind);
     if (kind === "ringing") {
       box.innerHTML = "";
-      // (No button: you go over and pick it up, user: a tap on the phone,
-      // on the credenza, answers.)
+      // A tap on the slip takes you over to the phone, on the credenza
+      // (den-fx.js), and the record pauses; a tap on the phone answers it.
       const said = doc.createElement("span"); said.className = "said"; said.textContent = "The phone is ringing";
-      const hint = doc.createElement("span"); hint.className = "hint"; hint.textContent = "on the credenza";
+      const hint = doc.createElement("span"); hint.className = "hint"; hint.textContent = "tap to go to it";
       box.append(said, hint);
+      box.classList.add("tap");
+      box.setAttribute("role", "button");
+      box.setAttribute("tabindex", "0");
+      box.setAttribute("aria-label", "The phone is ringing. Go to it");
+      box.onclick = () => goToPhone();
+      box.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goToPhone(); } };
     } else {
       box.innerHTML = "";
+      box.classList.remove("tap");
+      box.setAttribute("role", "status"); box.removeAttribute("tabindex"); box.removeAttribute("aria-label");
+      box.onclick = null; box.onkeydown = null;
       const who = doc.createElement("span"); who.className = "who";
       const said = doc.createElement("span"); said.className = "said"; said.setAttribute("data-testid", "den-call-line");
       box.append(who, said);
@@ -398,6 +413,12 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null }) {
   }
 
   /* ---- the call ---- */
+  function goToPhone() {
+    if (stage !== "ringing") return;
+    hold(true);
+    if (box) { const h = box.querySelector(".hint"); if (h) h.textContent = "tap the phone to pick it up"; }
+    if (onGoToPhone) onGoToPhone();
+  }
   function startRinging(now) {
     stage = "ringing"; ringStart = now; ringsDone = 0;
     showBox("ringing");
@@ -429,8 +450,8 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null }) {
     stage = "call";
     hs = { mode: "lift", t0: performance.now() };
     const o = output();
-    if (!o) { stage = "done"; hideBox(); return true; }
-    if (audio && audio.duckForCall) audio.duckForCall(true);
+    if (!o) { stage = "done"; hideBox(); if (onPhoneDone) onPhoneDone(); return true; }
+    hold(true);
     const { ctx } = o;
     let t = ctx.currentTime + 0.05;
     clunk(t, false);
@@ -454,8 +475,8 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null }) {
     // The receiver back on the cradle.
     const down = t - 0.2;
     at(down - 0.75, () => { hs = { mode: "down", t0: performance.now() }; });
-    at(down, () => { clunk(output().ctx.currentTime + 0.02, true); if (audio && audio.duckForCall) audio.duckForCall(false); });
-    at(down + 0.9, () => { stage = "done"; hideBox(); });
+    at(down, () => { clunk(output().ctx.currentTime + 0.02, true); hold(false); });
+    at(down + 0.9, () => { stage = "done"; hideBox(); if (onPhoneDone) onPhoneDone(); });
     at(down + 1.5, () => yay());
     return true;
   }
@@ -581,6 +602,8 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null }) {
         // Nobody's home: it tries again later.
         stopRinging(); hideBox();
         stage = "wait"; ringAt = now + CALL_BACK;
+        hold(false);
+        if (onPhoneDone) onPhoneDone();
       }
     }
     // The bell heard from where the camera is (every few frames).
@@ -599,6 +622,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null }) {
     // (A tap on the phone, for the tests: the room's own tap goes through
     // den-fx.js pickScene/sceneTap to answer() too.)
     window.__DEN_CALL_PICKUP__ = () => answer();
+    window.__DEN_CALL_HELD__ = () => held;
     window.__DEN_CALL_HANDSET__ = () => hs.mode;
     window.__DEN_CALL_HANDSET_COLOR__ = () => (lastHand && lastHand.material && lastHand.material.color ? lastHand.material.color.getHexString() : null);
   }
@@ -615,11 +639,11 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null }) {
       stopRinging();
       callNodes.forEach((n) => { try { n.stop(); } catch (e) { /* done */ } });
       if (tel) { try { tel.outG.disconnect(); } catch (e) { /* fine */ } }
-      if (stage === "call" && audio && audio.duckForCall) audio.duckForCall(false);
+      hold(false);
       if (box) box.remove();
       if (thoughtEl) thoughtEl.remove();
       if (styleEl) styleEl.remove();
-      if (typeof window !== "undefined") { delete window.__DEN_CALL__; delete window.__DEN_CALL_NOW__; delete window.__DEN_CALL_PICKUP__; delete window.__DEN_CALL_HANDSET__; delete window.__DEN_CALL_HANDSET_COLOR__; }
+      if (typeof window !== "undefined") { delete window.__DEN_CALL__; delete window.__DEN_CALL_NOW__; delete window.__DEN_CALL_PICKUP__; delete window.__DEN_CALL_HELD__; delete window.__DEN_CALL_HANDSET__; delete window.__DEN_CALL_HANDSET_COLOR__; }
     },
   };
 }

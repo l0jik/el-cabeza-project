@@ -4432,3 +4432,30 @@ phone menu until "Start the story over" (which clears it).
   sweep, then pulls back up and out through the rise. e2e-story's trip
   waits raised to 20 s. The car sounds are still synthesized; the user
   is uploading real ones to replace driveAway/arrive.
+- "I'll go check on that for you real quick!" (clerk-go; user): from the
+  user's own pictures (assets/tienda/storyboard/clerk-go-photos.jpg, three
+  panels of him walking off with the form; nine versions were offered,
+  three from each panel, and the user picked A1): the wide left panel,
+  same table and SAVE sign as the other frames, cropped to the frame
+  (GO_PHOTO_CROP 28, 0, 794 wide), the bubble drawn fresh over the dark
+  window upper left (GO_BUBBLE, tail toward his head, GO_TAIL) with the
+  old frame's own lettering lifted off its bubble (bubble_text,
+  GO_TEXT_BOX), so the font matches. tools/tienda_clerk_frames.py
+  go_from_photo / speech_bubble.
+- The phone in the den, answering (user): the ringing slip (den-call.js)
+  is now a button ("tap to go to it"): a tap takes the camera over to the
+  credenza, in front of the phone and a little above it (den-fx.js
+  phoneGoal/phoneW in placeCamera, like the book and the set; html gets
+  ec-tv-visit meanwhile), and the slip says "tap the phone to pick it up";
+  the tap on the phone answers as before (pickScene "phone"). A tap
+  anywhere else, or Escape, comes back; otherwise it stays through the
+  call and comes back as it ends (onPhoneDone, also when the ringing gives
+  up). The record: paused for the phone, not ducked (den-audio
+  holdForPhone: the stereo bus fades out over 0.35 s, then the track
+  pauses in its place; on hanging up it plays on from there and the bus
+  comes back up over 2.2 s). Held from the slip's tap, or from answering
+  if the phone was tapped directly; a track paused, played or changed by
+  hand meanwhile is left as the user left it. Hooks: __DEN_PHONE_VISIT__,
+  __DEN_PHONE_AT__ (the phone on screen), __DEN_CALL_HELD__. e2e-story
+  plays a record, taps the slip, then the phone itself (a real click), and
+  checks the record paused and back on near where it was.

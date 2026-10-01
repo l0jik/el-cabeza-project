@@ -356,6 +356,7 @@ export function createAudio() {
   function playMusic(track, onEnd) {
     ensureGraph();
     if (!ctx || !track || !track.url) return false;
+    handOverHold();
     stopMusic();
     const el = new Audio();
     el.src = track.url; el.loop = !!track.loop; el.preload = "auto";
@@ -412,16 +413,63 @@ export function createAudio() {
   // The needle lifted and set down again (the now-playing chip's pause):
   // the track keeps its place, and the room comes back up while it waits.
   function pauseMusic() {
+    heldResume = false; // (paused by hand on the phone: it stays paused after)
     if (!music || music.el.paused) return;
     try { music.el.pause(); } catch (e) { /* gone */ }
     roomFollowMusic();
   }
   function resumeMusic() {
+    handOverHold();
     if (!music || !music.el.paused) return;
     if (ctx && ctx.state === "suspended") ctx.resume();
     const p = music.el.play();
     if (p && p.catch) p.catch(() => { /* the next gesture */ });
     roomFollowMusic();
+  }
+
+  /* The phone (den-call.js; user: going to answer it, the music pauses,
+     a fast fade out; hung up, it fades back in from where it was). The
+     stereo's bus fades out over a third of a second and the track pauses
+     at its place; on release it plays on from there and the bus comes back
+     up over about two seconds. A track paused, played or changed by hand
+     meanwhile is left as it was. */
+  let phoneHeld = false, heldResume = false, heldTimer = null;
+  const HELD_OUT = 0.35, HELD_IN = 2.2;
+  // (A track started by hand while it's held: it's heard; the hold lets go of it.)
+  function handOverHold() {
+    heldResume = false;
+    if (!phoneHeld || !ctx || !musicBus) return;
+    clearTimeout(heldTimer);
+    const g = musicBus.gain, t = now();
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0.9, t + 0.6);
+  }
+  function holdForPhone(on) {
+    if (!ctx || !musicBus) return;
+    const g = musicBus.gain, t = now();
+    if (on) {
+      if (phoneHeld) return;
+      phoneHeld = true;
+      heldResume = !!(music && !music.el.paused);
+      if (!heldResume) return;
+      g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + HELD_OUT);
+      const el = music.el;
+      clearTimeout(heldTimer);
+      heldTimer = setTimeout(() => {
+        if (phoneHeld && heldResume && music && music.el === el && !el.paused) { try { el.pause(); } catch (e) { /* gone */ } roomFollowMusic(); }
+      }, HELD_OUT * 1000 + 40);
+      return;
+    }
+    if (!phoneHeld) return;
+    phoneHeld = false;
+    clearTimeout(heldTimer);
+    if (heldResume && music && music.el.paused) {
+      if (ctx.state === "suspended") ctx.resume();
+      const p = music.el.play();
+      if (p && p.catch) p.catch(() => { /* the next gesture */ });
+      roomFollowMusic();
+    }
+    heldResume = false;
+    g.cancelScheduledValues(t); g.setValueAtTime(Math.min(g.value, 0.9), t); g.linearRampToValueAtTime(0.9, t + HELD_IN);
   }
 
   /* ---------------- the television (den-tv.js) ---------------- */
@@ -693,6 +741,8 @@ export function createAudio() {
       if (!ctx) return;
       ["room", "stereo", "pieces"].forEach((ch) => { if (gates[ch]) gates[ch].gain.setTargetAtTime(chGain(ch), now(), secs / 3); });
     },
+    holdForPhone,
+    phoneHeld: () => phoneHeld,
     // On the phone: the record turned down under it (and back after).
     duckForCall(on) {
       if (!ctx || !musicBus) return;
