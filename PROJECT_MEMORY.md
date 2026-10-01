@@ -4101,7 +4101,8 @@ phone menu until "Start the story over" (which clears it).
   own player (new ambient helper `music`: { tracks, play, playing }, via
   playTrackRef, so the chip and the turntable/8-track show it), unless
   something is already playing. den-audio.js playMusic takes track.level
-  (a gain after the drop, before musicBus; 0.3 here); __DEN_AUDIO__ shows
+  (a gain after the drop, before musicBus; 0.4 here, user: was 0.3); the
+  room's own sounds at 87% on that visit (setRoomTrim, in roomLevel); __DEN_AUDIO__ shows
   music.level.
 - Full screen everywhere (user: every screen should always be maximized
   if possible; the button stays, to come out): the chassis's first-tap

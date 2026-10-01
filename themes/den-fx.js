@@ -47,12 +47,15 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     // call from Big Glutts (den-call.js).
     const call = novaTv && novaTv.call ? createDenCall({ audio, awaitingBegin: () => !!(awaitingBeginRef && awaitingBeginRef.current) }) : null;
     /* Home before the Singularity (Nova, the set still to lure you): a
-       record or a tape already on, a random one, at 30% (user: normal
+       record or a tape already on, a random one, at 40% (user: normal
        music to hear before the set starts getting at it, low in the mix
-       but heard), once the scene change has faded up. Through the
+       but heard; 40%, user), once the scene change has faded up. Through the
        stereo's own player (the chassis's `music`), so the chip and the
        turntable or the 8-track show it. Not if something's already on. */
     let autoMusic = !!(music && novaTv && novaTv.lure && novaTv.lure() && !novaTv.returning), autoMusicAt = 0;
+    // (And the room's own sounds, the fire, the clock, the rain, at 87% on
+    // that visit, user; otherwise as ever.)
+    if (audio && audio.setRoomTrim) audio.setRoomTrim(autoMusic ? 0.87 : 1);
     let den = null, brass = null, attachedTo = null, dims = "";
     let tuned = false, fogBefore = null, farBefore = null, bgBefore = null;
 
@@ -619,7 +622,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           else if (now >= autoMusicAt) {
             autoMusic = false;
             const list = music.tracks().filter((tr) => tr.medium === "record" || tr.medium === "8track");
-            if (list.length && !music.playing()) music.play({ ...list[Math.floor(Math.random() * list.length)], level: 0.3 });
+            if (list.length && !music.playing()) music.play({ ...list[Math.floor(Math.random() * list.length)], level: 0.4 });
           }
         }
         // The television.

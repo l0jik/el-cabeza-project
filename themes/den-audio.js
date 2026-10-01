@@ -140,7 +140,10 @@ export function createAudio() {
   // The room (fire, clock) steps back while a record or a tape plays, as
   // it would for someone listening (user: the music was lost under it).
   const MUSIC_DUCK = 0.35;
-  const roomLevel = () => (windingDown ? 0.6 : 1) * (0.85 + 0.15 * (1 - zoom)) * (music && !music.el.paused ? MUSIC_DUCK : 1);
+  // (A trim on the room's sounds, set by the room: den-fx.js's first
+  // visit, 87%, user.)
+  let roomTrim = 1;
+  const roomLevel = () => roomTrim * (windingDown ? 0.6 : 1) * (0.85 + 0.15 * (1 - zoom)) * (music && !music.el.paused ? MUSIC_DUCK : 1);
   const roomFollowMusic = () => { if (ctx && roomOn && roomBus) roomBus.gain.setTargetAtTime(roomLevel(), now(), 0.9); };
 
   /* ---------------- the fire ---------------- */
@@ -389,7 +392,7 @@ export function createAudio() {
     warp.connect(cleanG).connect(duck);
     warp.connect(crush).connect(cbp).connect(crushG).connect(duck);
     // (track.level: a track put on by the room itself, below its usual
-    // level: den-fx.js's first visit, at 30%.)
+    // level: den-fx.js's first visit, at 40%.)
     const lvl = ctx.createGain(); lvl.gain.value = track.level != null ? track.level : 1;
     duck.connect(drop).connect(lvl).connect(musicBus);
     const extra = [tone, warp, wob, wobG, wow, wowG, flut, flutG, cleanG, crush, cbp, crushG, duck, drop, lvl];
@@ -759,6 +762,7 @@ export function createAudio() {
       startRoom();
     },
     beginGameFadeIn() { windingDown = false; startRoom(); if (ctx) roomBus.gain.setTargetAtTime(roomLevel(), now(), 0.8); },
+    setRoomTrim(v) { roomTrim = Math.max(0, Math.min(1, v)); roomFollowMusic(); },
     setZoom(z) { zoom = z; if (ctx && roomOn) roomBus.gain.setTargetAtTime(roomLevel(), now(), 0.5); },
     setMuted(m) { muted = m; if (ctx) master.gain.setTargetAtTime(m ? 0 : 1, now(), 0.08); },
     // One of the switches: "room", "stereo" or "pieces".
