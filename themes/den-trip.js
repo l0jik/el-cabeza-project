@@ -30,7 +30,7 @@ const CAR_LEVEL = 0.9;
 // The timeline (ms from the card starting to fade).
 // (All of it 1.75 times as long as it was, user: it went by too fast.)
 const T = {
-  blackIn: [4550, 7350],     // to black, the car pulling away
+  blackIn: [1500, 6400],     // to black, the car pulling away (sooner and slower, user: it hovered on the board too long; den-fx.js pulls the camera back meanwhile)
   arrive: 9800,              // the car coming in (heard through the fade-in)
   fadeUp: [10200, 17000],    // up from black onto the store
   sweep: [10200, 20800],     // the look round: from the whole storefront, in close and along it

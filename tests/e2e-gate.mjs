@@ -43,6 +43,9 @@ console.log("Cromo, after the story");
   check("Standard: the game begins at once", !!(await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000)));
   check("...the five pieces each, 10 × 10", await p.evaluate(() => window.__EC_TEST_PIECES__.length === 10 && (!window.__EC_TEST_BOARD__ || (window.__EC_TEST_BOARD__.rows === 10 && window.__EC_TEST_BOARD__.cols === 10))));
   check("...and the gate's gone", (await p.locator('[data-testid="reality-gate"]').count()) === 0);
+  await p.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "moves" } })));
+  check("its Moves card: the classic moves only", !!(await poll(async () => (await p.locator('[data-testid="rules-card-moves"]').getAttribute("data-classic")) === "true", 4000)));
+  await p.keyboard.press("Escape");
   check("Other realities in the corner", (await p.locator('[data-testid="action-corner"]').count()) > 0);
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
@@ -57,6 +60,7 @@ console.log("Cabeza Nova: the one menu");
   check("...who's playing, pieces, rules, board, Reset and Play", (await p.locator('[data-testid="gate-opponent-human"]').count()) > 0 && (await p.locator('[data-testid="gate-count-codo-plus"]').count()) > 0
     && (await p.locator('[data-testid="gate-law-slide"]').count()) > 0 && (await p.locator('[data-testid="gate-size-12"]').count()) > 0
     && (await p.locator('[data-testid="gate-reset"]').count()) > 0 && (await p.locator('[data-testid="gate-play"]').count()) > 0);
+  check("...each piece pictured, as Cromo draws it", !!(await poll(async () => (await p.locator('[data-testid^="gate-pic-"]').count()) === 11, 6000)));
   await p.waitForTimeout(600); await shot(p, "sheet-phone");
   await p.locator('[data-testid="gate-opponent-human"]').click();
   await p.locator('[data-testid="gate-count-codo-plus"]').click();
@@ -79,6 +83,8 @@ console.log("Cabeza Nova: the one menu");
   await p.locator('[data-testid="gate-play"]').click();
   check("Play: the game begins", !!(await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000)));
   check("...with a Codo each, on 12 × 12", !!(await poll(() => p.evaluate(() => window.__EC_TEST_PIECES__.filter((x) => x.type === "codo").length === 2 && window.__EC_TEST_BOARD__ && window.__EC_TEST_BOARD__.rows === 12 && window.__EC_TEST_BOARD__.cols === 12), 4000)));
+  await p.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "moves" } })));
+  check("...its Moves card has the rest too (Slide's on)", !!(await poll(async () => (await p.locator('[data-testid="rules-card-moves"]').getAttribute("data-classic")) === "false", 4000)));
   check("...remembered for next time", await p.evaluate(() => { const s = JSON.parse(localStorage.getItem("el-cabeza:nova-setup")); return s.counts.codo === 1 && s.laws.slide === true; }));
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();

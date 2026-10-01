@@ -27,6 +27,8 @@ import { FLOOR, CEIL, RZ, HALL } from "./den-room.js";
 const FIRST_AFTER = 4;   // moves after coming home (user: at least four)
 const AGAIN_AFTER = 3;   // after "just keep playing": a few moves later
 const LINE = "Oh no… now what?";
+// ...and when it comes back, having kept playing (user).
+const LINE_AGAIN = "Oh, for the love of…";
 const INVESTIGATE = "Investigate";
 const KEEP = "Just keep playing — this day's been weird enough already";
 
@@ -253,7 +255,7 @@ export function createHall({ audio, onEnding }) {
   /* ---- the words and the choice ---- */
   function showSay(on) {
     if (!doc) return;
-    if (on && !sayEl) { style(); sayEl = div("den-hall-say"); sayEl.setAttribute("role", "status"); sayEl.setAttribute("data-testid", "den-hall-say"); sayEl.textContent = LINE; requestAnimationFrame(() => requestAnimationFrame(() => sayEl && sayEl.classList.add("on"))); }
+    if (on && !sayEl) { style(); sayEl = div("den-hall-say"); sayEl.setAttribute("role", "status"); sayEl.setAttribute("data-testid", "den-hall-say"); sayEl.textContent = flares > 1 ? LINE_AGAIN : LINE; requestAnimationFrame(() => requestAnimationFrame(() => sayEl && sayEl.classList.add("on"))); }
     if (!on && sayEl) { const el = sayEl; sayEl = null; el.classList.remove("on"); setTimeout(() => el.remove(), 400); }
   }
   function showChoice(on) {
@@ -281,8 +283,9 @@ export function createHall({ audio, onEnding }) {
     state = "walk"; t0 = performance.now(); walkFrom = null;
   }
 
+  let flares = 0; // (how many times it's come)
   function flare(now, moves) {
-    state = "flare"; t0 = now; base = moves; nextBoom = now + 600;
+    state = "flare"; t0 = now; base = moves; nextBoom = now + 600; flares++;
     camTo(1);
     startHum();
     if (doc && !flashEl) { style(); flashEl = div("den-hall-flash"); }

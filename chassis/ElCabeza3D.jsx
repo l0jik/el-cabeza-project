@@ -861,6 +861,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [singularityVisited, setSingularityVisited] = useState(singularitySeen);
   useEffect(() => onJourneyChange(setSingularityVisited), []);
   const classicRules = !!theme.lockExtrasUntilSingularity && !singularityVisited;
+  /* A standard game under way (Standard Cabeza, or simply nothing
+     changed): no law on, only the classic five on the board, no cut
+     squares or black holes. Its rules cards tell the classic game alone
+     (user: the Moves card should never show a move that doesn't apply to
+     it). Before a game begins they show everything, as before. */
+  const CLASSIC_TYPES = ["cabeza", "turrito", "opa", "flaco", "chato"];
+  const standardGame = gameArmed && !["splitMovement", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving"].some((k) => ACTIVE_LAWS[k])
+    && pieces.every((p) => CLASSIC_TYPES.includes(p.type)) && !MISSING_SQUARES.length && !(blackHoles && blackHoles.length);
   const [focusMode, setFocusMode] = useState(false);
   const toggleFocus = () => setFocusMode((v) => !v);
   // A theme without the switch always shows the badges.
@@ -9276,7 +9284,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 onFocus={(k) => switchRulesTab("moves", k)}
                 C={RULES_COLORS}
                 budget={turnBudget()}
-                classic={classicRules}
+                classic={classicRules || standardGame}
                 game={{
                   laws: ACTIVE_LAWS,
                   rows: BOARD_ROWS,
@@ -9647,6 +9655,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           stage={gate.stage}
           sel={gate.sel}
           novaGo={gateCfg.novaGo || null}
+          pieceLook={{ buildPieceVisual: theme.buildPieceVisual, EDGE_RADIUS: theme.EDGE_RADIUS }}
           onClose={() => setGate(null)}
           api={{
             three, setPieces, setBlackHoles, setMissingSquares, setCurrentVariants, applyBoardResize, triggerBeginGame,

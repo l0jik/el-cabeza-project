@@ -59,6 +59,7 @@ check("...and waits a few more moves", (await page.evaluate(() => window.__DEN_H
 
 await page.evaluate(() => window.__DEN_HALL_NOW__());
 await poll(async () => (await page.locator('[data-testid="den-hall-investigate"]').count()) > 0, 6000);
+check("again: \"Oh, for the love of…\"", /Oh, for the love of…/.test(await page.locator('[data-testid="den-hall-say"]').innerText()));
 await page.waitForTimeout(500);
 await page.locator('[data-testid="den-hall-investigate"]').click();
 check("investigate: the walk in", (await page.evaluate(() => window.__DEN_HALL__().state)) === "walk");

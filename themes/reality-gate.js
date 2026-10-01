@@ -23,11 +23,15 @@
    so it imports in plain Node. */
 
 import React from "react";
+import * as THREE from "three";
 import { initialPiecesFor } from "../engine/rules.js";
+import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
+import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constants.js";
+import { POSES } from "./piece-showcase.js";
 import {
   PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
   defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, lawWarnings, piecesFit, minColsFor,
-  beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim,
+  beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
 } from "./rules-selections.js";
 import { WORLDS, createRealitiesMenu, goToWorld } from "./realities.js";
 
@@ -144,6 +148,10 @@ const CSS = `
 .rg-sec h3 { margin: 0 0 8px; font: 700 12px/1.2 var(--rg-body); letter-spacing: 0.16em; text-transform: uppercase; color: var(--rg-muted); }
 .rg-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 46px; padding: 3px 0; }
 .rg-name { font: 600 15px/1.25 var(--rg-body); }
+.rg-piece-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rg-pic { flex: none; width: 66px; height: 50px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--rg-radius); background: radial-gradient(ellipse at 50% 60%, color-mix(in srgb, var(--rg-ink) 14%, transparent), transparent 70%); }
+.rg-pic img { width: 66px; height: 50px; object-fit: contain; display: block; }
 .rg-note { display: block; font: 400 12.5px/1.35 var(--rg-body); color: var(--rg-muted); margin-top: 2px; }
 .rg-step { display: inline-flex; align-items: center; gap: 2px; }
 .rg-step button { appearance: none; width: 40px; height: 40px; border: var(--rg-line-w) solid var(--rg-line); border-radius: var(--rg-radius); background: transparent; color: var(--rg-ink);
@@ -313,10 +321,83 @@ function SpotPicker({ sel, kind, onDone, onCancel }) {
         h("button", { type: "button", className: "rg-small", "data-testid": "gate-picker-done", onClick: () => onDone(isHole ? draft : fillSpots(cloneSelections(draft), kind)) }, "Done"))));
 }
 
+/* ------------------------------------------------------------ the pieces' pictures */
+
+/* Each piece as this reality draws it (user: so people know what they're
+   choosing, and in that theme's own look): built by the theme's own
+   buildPieceVisual (as the board's and the dock's are), lit as the dock
+   piece is, and taken at a three-quarter angle into a still. All of them
+   in one short-lived WebGL context, released straight after (as Neon's
+   MATTER stills, piece-showcase.js). Light's pieces; the poses are the
+   pieces' first starting ones (POSES). Sizes stay true to each other,
+   only the smallest brought up a little to be seen. */
+const pictures = new Map(); // `${world}|${type}` -> data URL
+const PIC_W = 132, PIC_H = 100;
+function piecePictures(world, look, types) {
+  const todo = types.filter((t) => POSES[t] && !pictures.has(`${world}|${t}`));
+  if (!todo.length || !look || !look.buildPieceVisual || typeof document === "undefined") return false;
+  let renderer = null;
+  try {
+    const canvas = document.createElement("canvas");
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(1); renderer.setSize(PIC_W, PIC_H, false); renderer.setClearColor(0x000000, 0);
+    const scene = new THREE.Scene();
+    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+    const key = new THREE.DirectionalLight(0xffffff, 1.15); key.position.set(3, 4, 3); scene.add(key);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.3); fill.position.set(-3, 1.5, -2); scene.add(fill);
+    const camera = new THREE.PerspectiveCamera(26, PIC_W / PIC_H, 0.05, 100);
+    const edge = look.EDGE_RADIUS || 0.06;
+    const built = todo.map((type) => {
+      const pose = POSES[type], g = new THREE.Group();
+      const isDisc = !!pose.disc;
+      const piece = isDisc ? { id: `pic-${type}`, type, owner: "light", w: 1, h: 1, z: 1 } : { id: `pic-${type}`, type, owner: "light", ...pose };
+      const geo = isDisc
+        ? new THREE.CylinderGeometry((DISC_DIAM * CABEZA_SCALE) / 2, (DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, 40)
+        : pose.vox ? makePolycubeSmooth(piece, PIECE_SCALE, edge) : makeRoundedBox(pose.w * PIECE_SCALE, pose.z * PIECE_SCALE, pose.h * PIECE_SCALE, edge);
+      const { mesh, shell } = look.buildPieceVisual({ piece, isDark: false, isDisc, geo, center: { x: 0, z: 0 }, y: 0 });
+      // (A see-through body that doesn't write depth: a depth pass first,
+      // so its outline's far edges are hidden, as the dock does.)
+      if (mesh.material && mesh.material.transparent && mesh.material.depthWrite === false) {
+        const d = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ colorWrite: false })); d.position.copy(mesh.position); d.renderOrder = 0; g.add(d);
+      }
+      g.add(mesh); if (shell) g.add(shell);
+      const box = new THREE.Box3().setFromObject(g), c = new THREE.Vector3(), size = new THREE.Vector3();
+      box.getCenter(c); box.getSize(size);
+      g.position.sub(c);
+      return { type, g, geo, r: size.length() / 2 };
+    });
+    const rMax = Math.max(...built.map((b) => b.r));
+    built.forEach(({ type, g, geo, r }) => {
+      scene.add(g);
+      const dist = (Math.max(r, rMax * 0.62) / Math.sin((camera.fov * Math.PI) / 360)) * 1.05;
+      const az = 0.72, el = 0.48;
+      camera.position.set(dist * Math.cos(el) * Math.sin(az), dist * Math.sin(el), dist * Math.cos(el) * Math.cos(az));
+      camera.lookAt(0, 0, 0);
+      renderer.render(scene, camera);
+      pictures.set(`${world}|${type}`, canvas.toDataURL("image/png"));
+      scene.remove(g);
+      geo.dispose(); // (the theme's own materials and outlines may be shared with the board: left be)
+    });
+    return true;
+  } catch (e) {
+    return false;
+  } finally {
+    if (renderer) { renderer.dispose(); renderer.forceContextLoss(); }
+  }
+}
+const PICTURE_TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "codo", "arcoChico", "arcoAlto", "arcoAncho", "rayo", "zeta"];
+
 /* ------------------------------------------------------------ the sheet */
 
-function NovaSheet({ api, initial, onBack, onPlay }) {
+function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const [sel, setSel] = React.useState(() => normalizeSelections(cloneSelections(initial || readKept())));
+  // The pieces' pictures, once the sheet is up (not to hold up its slide).
+  const [, setPicsReady] = React.useState(0);
+  React.useEffect(() => {
+    const id = setTimeout(() => { if (piecePictures(world, pieceLook, PICTURE_TYPES)) setPicsReady((n) => n + 1); }, 450);
+    return () => clearTimeout(id);
+  }, []);
+  const picOf = (key) => pictures.get(`${world}|${pieceTypeOf(key, sel)}`) || null;
   const [picker, setPicker] = React.useState(null); // null | "missing" | "hole"
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); return n; });
   const total = totalPieces(sel), tooMany = total > MAX_PIECES;
@@ -341,8 +422,10 @@ function NovaSheet({ api, initial, onBack, onPlay }) {
   const pieces = h("section", { className: "rg-sec", "aria-label": "Pieces" },
     h("h3", null, "Pieces, each side"),
     PIECE_OPTIONS.map((p) => h(React.Fragment, { key: p.key },
-      h("div", { className: "rg-row", "data-testid": `gate-piece-${p.key}` },
-        h("span", { className: "rg-name" }, p.name, p.def ? h("span", { className: "rg-note" }, "In the classic game") : null),
+      h("div", { className: "rg-row rg-piece", "data-testid": `gate-piece-${p.key}` },
+        h("span", { className: "rg-piece-id" },
+          h("span", { className: "rg-pic", "aria-hidden": "true" }, picOf(p.key) ? h("img", { src: picOf(p.key), alt: "", "data-testid": `gate-pic-${p.key}` }) : null),
+          h("span", { className: "rg-name" }, p.name, p.def ? h("span", { className: "rg-note" }, "In the classic game") : null)),
         h(Stepper, { value: sel.counts[p.key], min: p.min, max: p.max, label: p.name, testid: `gate-count-${p.key}`, onChange: (v) => change((n) => { n.counts[p.key] = v; }) })),
       p.key === "arco" && sel.counts.arco > 0 && h("div", { className: "rg-sub" },
         h(Seg, { label: "Arco size" }, ARCO_SIZES.map((a) => segBtn(a.key, sel.arcoSize === a.key, `${a.name} · ${a.note}`, () => change((n) => { n.arcoSize = a.key; }), `gate-arco-${a.key}`)))))),
@@ -404,8 +487,10 @@ function NovaSheet({ api, initial, onBack, onPlay }) {
 /* `api`: the chassis's own setters and game start (as a theme's setup
    extras get them). `world`: this reality's id (realities.js). `stage`:
    "choose" (the two buttons) or "nova" (the sheet, with `sel`).
-   `novaGo`: in Nova, its own places switch in place. onClose(): it's done. */
-export function RealityGate({ api, world, stage: initialStage = "choose", sel: initialSel = null, novaGo = null, onClose }) {
+   `novaGo`: in Nova, its own places switch in place. `pieceLook`: the
+   theme's { buildPieceVisual, EDGE_RADIUS }, for the pieces' pictures.
+   onClose(): it's done. */
+export function RealityGate({ api, world, stage: initialStage = "choose", sel: initialSel = null, novaGo = null, pieceLook = null, onClose }) {
   ensureCss();
   const [stage, setStage] = React.useState(initialStage);
   const [hidden, setHidden] = React.useState(false);
@@ -433,5 +518,5 @@ export function RealityGate({ api, world, stage: initialStage = "choose", sel: i
         h("span", { className: "rg-big-t" }, "Cabeza Nova"),
         h("span", { className: "rg-big-s" }, "Every piece, rule and board. Set it up, then play.")),
       h("button", { type: "button", className: "rg-link", "data-testid": "gate-realities", onClick: realities }, "Other realities"))
-    : h(NovaSheet, { api, initial: initialSel, onBack: () => setStage("choose"), onPlay: play }));
+    : h(NovaSheet, { api, initial: initialSel, onBack: () => setStage("choose"), onPlay: play, world, pieceLook }));
 }

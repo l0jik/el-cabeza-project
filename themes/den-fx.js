@@ -60,6 +60,26 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (cam.current.target) cam.current.target.set(0, 0, 0);
       if (cam.current.view && cam.current.view.target) cam.current.view.target.set(0, 0, 0);
     };
+    /* The trip's leaving (user: it hovered close on the board too long):
+       from the card going, the camera draws back and up toward the Room
+       view while the picture fades, as far as it gets before the black.
+       Into the Room view proper (the roof off) as it passes the room's
+       walls, so it doesn't stop at them. */
+    let pull = null;
+    const PULL_MS = 6200;
+    function tripPull(t, now) {
+      if (!trip || !cam || !cam.current || trip.state().stage !== "leaving") { pull = null; return; }
+      const c = cam.current;
+      if (!pull) pull = { t0: now, r: c.radius, phi: c.phi, tgt: c.target.clone() };
+      const x = Math.min(1, (now - pull.t0) / PULL_MS), k = x * x * (3 - 2 * x);
+      c.radius = pull.r + (118 - pull.r) * k;
+      c.phi = pull.phi + (0.78 - pull.phi) * k;
+      c.target.copy(pull.tgt).multiplyScalar(1 - k);
+      if (!c.dollhouse && c.view && t.cameraDistance) {
+        const v = c.view, wall = t.cameraDistance(v.theta, v.phi, 1e6, v.target, false);
+        if (v.radius >= wall - 0.05) c.dollhouse = true;
+      }
+    }
     // (Home from the trip, the hall's due: den-hall.js, below.)
     const trip = novaTv ? createTrip({ audio, onReturn: () => { roomView(); if (novaTv.hall) novaTv.hall.arm(); if (hall) hall.arm(movesNow()); } }) : null;
     if (trip && novaTv.call) trip.load(); // (its pictures, well ahead of time)
@@ -829,6 +849,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         focusFrame(t, now);
         listen(t, now);
         if (call) call.tick(now, t, den);
+        tripPull(t, now);
         if (hall) {
           const ts = trip ? trip.state().stage : "idle";
           const busy = !!(awaitingBeginRef && awaitingBeginRef.current) || !!(call && call.busy && call.busy()) || (ts !== "idle" && ts !== "done")

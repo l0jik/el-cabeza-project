@@ -4704,3 +4704,26 @@ phone menu until "Start the story over" (which clears it).
     anything on the form can be chosen now, rules and board too, the
     square picker, the 3-D views, the rules card from "How it works";
     only Cancel and Standard stay locked, and everything off the form.
+
+### Trip leaving, the hall's second line, the Nova sheet's pictures, classic Moves (2026-10-01)
+  - The trip (den-trip.js T.blackIn now [1500, 6400]): the fade starts
+    1.5 s after the card goes (was 4.55 s) and takes ~5 s; meanwhile
+    den-fx.js tripPull draws the camera back and up toward the Room view
+    (radius to 118, phi to 0.78, smoothstep over 6.2 s), switching to
+    the Room view (dollhouse) as it passes the room's walls so it isn't
+    stopped by them; wherever it is at the black is where it stops
+    (user). Home, the Room view as before.
+  - The hall (den-hall.js): the first time "Oh no… now what?"; when it
+    comes back after "just keep playing", "Oh, for the love of…" (user).
+    Counted per page load (flares).
+  - The Cabeza Nova sheet: each piece row has a picture of that piece as
+    the reality draws it: the theme's own buildPieceVisual, lit as the
+    dock piece, a three-quarter still, all thirteen (Arco's three sizes)
+    in one short-lived WebGL context after the sheet slides up
+    (reality-gate.js piecePictures; the chassis passes pieceLook). Sizes
+    true to each other, the small ones brought up a little.
+  - Rules cards in a standard game under way (no law on, the classic five
+    only, no cut squares or holes: chassis standardGame) tell the classic
+    game alone: the Moves card shows no law moves (user: Standard
+    Cabeza never shows a move that doesn't apply). Before a game begins,
+    and in a custom game, everything as before.
