@@ -456,7 +456,14 @@ function UnifiedApp() {
     if (busyRef.current) return;
     startCut({ kind: "fade", caption: "Back at Big Glutts, order in hand.", to: "tienda" });
   };
+  // "Restart story" asks first (user: an "Are you sure?").
+  const [confirmRestart, setConfirmRestart] = useState(false);
   storyBridge.restart = () => {
+    if (busyRef.current) return;
+    setConfirmRestart(true);
+  };
+  const restartStory = () => {
+    setConfirmRestart(false);
     if (busyRef.current) return;
     saveOwned(false);
     forgetStoreGone();
@@ -606,7 +613,36 @@ function UnifiedApp() {
         <CrtTransitionOverlay direction={transition.direction} filterId={transition.filterId} onDone={onTransitionDone} sfx={sfxRef.current} />
       )}
       {cut && <StoryCut key={cut.kind + cut.to} cut={cut} onSwap={onCutSwap} onDone={onCutDone} sfx={sfxRef.current} />}
+      {confirmRestart && <RestartConfirm onConfirm={restartStory} onCancel={() => setConfirmRestart(false)} />}
     </>
+  );
+}
+
+/* "Are you sure?" before the story starts over (user): a card off the
+   same paper as the store's printed matter, over a dimmed screen. A tap
+   outside it, Escape or "Keep playing" leaves things as they are. */
+function RestartConfirm({ onConfirm, onCancel }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); onCancel(); } };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onCancel]);
+  const INK = "#2E2118", RED = "#A8321F", PAPER = "#EFE6CD";
+  const FRANKLIN = "'Libre Franklin', 'Franklin Gothic Medium', 'Helvetica Neue', Arial, sans-serif";
+  const btn = { font: `700 12px/1 ${FRANKLIN}`, letterSpacing: "0.1em", textTransform: "uppercase", padding: "11px 16px", cursor: "pointer", border: `1.5px solid ${INK}` };
+  return (
+    <div data-testid="restart-confirm" role="dialog" aria-modal="true" aria-labelledby="restart-confirm-title"
+      onPointerDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+      style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(20,12,6,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ width: "min(92vw, 360px)", background: PAPER, color: INK, border: `1.5px solid ${INK}`, boxShadow: "0 10px 28px rgba(10,6,3,0.5)", padding: "20px 20px 16px", display: "flex", flexDirection: "column", gap: 10, textAlign: "center" }}>
+        <b id="restart-confirm-title" style={{ font: `800 16px/1.2 ${FRANKLIN}`, letterSpacing: "0.06em", textTransform: "uppercase", color: RED }}>Restart the story?</b>
+        <span style={{ font: "400 14px/1.45 'Courier Prime', 'Courier New', monospace" }}>Back to the store's shelf, the game unbought. Everything since is forgotten.</span>
+        <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+          <button type="button" data-testid="restart-confirm-cancel" autoFocus onClick={onCancel} style={{ ...btn, flex: 1, background: "transparent", color: INK }}>Keep playing</button>
+          <button type="button" data-testid="restart-confirm-yes" onClick={onConfirm} style={{ ...btn, flex: 1, background: RED, borderColor: RED, color: PAPER }}>Restart story</button>
+        </div>
+      </div>
+    </div>
   );
 }
 

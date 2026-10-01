@@ -131,8 +131,15 @@ async function page(url, init) {
   check("at home, after the Singularity: everything", r.moves.classic === "false" && r.moves.slide, JSON.stringify(r.moves));
   await openDockPanel(p);
   await q(p, "story-restart").click();
+  check("Restart story asks first", await poll(() => has(p, "restart-confirm"), 4000));
+  await q(p, "restart-confirm-yes").click();
   check("Start the story over forgets it", await poll(async () => (await p.evaluate((k) => localStorage.getItem(k), SEEN)) === null, 8000));
   await poll(() => has(p, "tienda-lid"), 15000);
+  // (The story's lid takes only See the pieces: in by it, then the rules.)
+  await q(p, "tienda-lid-order").click();
+  await poll(() => has(p, "tienda-catalog"), 8000);
+  await q(p, "tienda-catalog-close").click();
+  await poll(async () => !(await has(p, "tienda-catalog")), 8000);
   const r2 = await rulesView(p);
   check("...the store: the classic game again", r2.moves.classic === "true" && !r2.moves.slide, JSON.stringify(r2.moves));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));

@@ -4177,3 +4177,10 @@ phone menu until "Start the story over" (which clears it).
   the commercial": not reproduced; taps all over during the commercial, a
   pinch and turn in the summons, and a finger moving through the release all
   leave it square on the board.)
+- "Restart story" asks first (user): storyBridge.restart (the dock's link
+  and the phone menu alike) opens RestartConfirm (apps/unified.jsx): a
+  cream card over a dimmed screen, "Restart the story?" with "Keep
+  playing" (focused) and "Restart story"; a tap outside or Escape keeps
+  playing. Only "Restart story" (restart-confirm-yes) does it. e2e-story
+  checks Keep playing leaves it be; e2e-journey goes in by the lid's See
+  the pieces after the restart (the story's lid takes nothing else).

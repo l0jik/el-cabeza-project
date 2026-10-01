@@ -265,6 +265,12 @@ console.log("\ndesktop: the store, the purchase, home");
   // The fresh start.
   check("the dock's panel opens", await openDockPanel(page));
   await q(page, "story-restart").click();
+  check("Restart story asks first", await poll(() => has(page, "restart-confirm"), 4000));
+  await q(page, "restart-confirm-cancel").click();
+  check("...Keep playing leaves it be (still home)", !(await has(page, "restart-confirm")) && (await place(page)) === "home");
+  check("the dock's panel opens", await openDockPanel(page));
+  await q(page, "story-restart").click();
+  await q(page, "restart-confirm-yes").click();
   const fresh = await throughCut(page, "store");
   check("Start the story over: the store", fresh.gone && fresh.there, JSON.stringify(fresh));
   check("...with the lid back on the box", await poll(() => has(page, "tienda-lid"), 10000));
