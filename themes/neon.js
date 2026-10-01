@@ -4908,10 +4908,19 @@ export function createSoundscape() {
      recording — for a ConvolverNode. Gives a percussive hit a sense
      of a small, hard room around it ("short reverb") without needing
      any external audio asset. */
+  /* On a phone (touch only, as the summons' "phone" mix) the reverbs are
+     one channel and the long ones shorter (11.5 s -> about 5, 6.5 -> 3):
+     the tap into the wormhole starts three at once, and on an Android
+     phone the audio thread couldn't keep up and the sound dropped out
+     (user; measured in neon-summon-audio.js). A phone's speaker is all but
+     mono, and can't play the long low tails anyway. */
+  const lightReverbs = typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
   function makeImpulse(duration, decay) {
+    if (lightReverbs) duration = Math.min(duration, 0.4 * duration + 0.5);
+    const chans = lightReverbs ? 1 : 2;
     const len = Math.floor(ctx.sampleRate * duration);
-    const buf = ctx.createBuffer(2, len, ctx.sampleRate);
-    for (let ch = 0; ch < 2; ch++) {
+    const buf = ctx.createBuffer(chans, len, ctx.sampleRate);
+    for (let ch = 0; ch < chans; ch++) {
       const data = buf.getChannelData(ch);
       for (let i = 0; i < len; i++) {
         data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);

@@ -4745,3 +4745,24 @@ phone menu until "Start the story over" (which clears it).
     look it started with), turning onto the rift round the bend; a step's
     rise and sway (STRIDE), and footsteps (carpet, then the hall's boards
     with the odd creak). Then the calm, then the eruption, as before.
+
+### The wormhole's sound on a phone (2026-10-01)
+  - User (Android phone, the first arrival's summons): from the tap on
+    the singularity's button through the fall to the sphere, no sound at
+    all. Headless Chrome plays it all through (measured at the output,
+    by band, phone mix and full), so not the graph's routing. The tap
+    starts three long stereo reverbs at once (the toll's 11.5 s bell
+    reverb, the Singularity hum's 6.5 s, the summons' last clap's 10 s)
+    on top of the summons' own: offline, the reverbs went from 8% of a
+    desktop core's real time to ~30%; a phone's audio thread can't keep
+    that up beside the wormhole's GPU load, so its sound drops out.
+  - Fix: on a touch-only device (hover: none, pointer: coarse; the same
+    test as summonMixFor) every reverb is one channel and the long ones
+    shorter (neon.js makeImpulse: min(d, 0.4d + 0.5): 11.5 -> 5.1, 6.5 ->
+    3.1; neon-summon-audio.js: its room and thunder reverbs one channel,
+    the last clap's tail 5.5 s mono, LAST_TAIL_PHONE_S). ~10% now, near
+    the 8% before the tap. Desktops unchanged. A phone speaker is all but
+    mono and doesn't play the long low tails anyway.
+  - Not verifiable here (no real phone): if it still drops out, next
+    suspects: the phone mix's 4x-oversampled shaper, and the collapse's
+    GPU load starving the page.

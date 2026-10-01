@@ -36,6 +36,15 @@ const APPEAR_AT = 0.4, RING_AT = 1.7, WAVES_AT = 3.6, RAMP = 45;
 // The last clap's reverb: toll 2 s + fall 3.6 s + black 0.9 s + the
 // sphere's fade 2 s is 8.5 s; this runs a little past that.
 const LAST_TAIL_S = 10;
+/* On a phone (the "phone" mix) every reverb here is one channel and the
+   last clap's tail shorter (user, an Android phone: the sound stopped dead
+   at the tap into the wormhole). The tap starts three long reverbs at once
+   (this tail, the toll's, the Singularity hum's) on top of the summons'
+   own: measured, the reverbs went from 8% of a desktop core's real time to
+   about 30%, which a phone's audio thread can't keep up with while the
+   wormhole loads its GPU, so its sound drops out; this way about 10%
+   (with neon.js's own reverbs lightened the same way). */
+const LAST_TAIL_PHONE_S = 5.5;
 const TO_GAME = 0.716 / (1.25 * Math.pow(10, 17 / 20));
 const dB = (x) => Math.pow(10, x / 20);
 
@@ -60,9 +69,11 @@ function makeNoise(ctx, brown) {
   for (let i = 0; i < len; i++) d[i] *= 0.9 / peak;
   return b;
 }
-function makeImpulse(ctx, secs, decay) {
-  const len = Math.floor(ctx.sampleRate * secs), b = ctx.createBuffer(2, len, ctx.sampleRate);
-  for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
+// (chans 1 on a phone: a phone's speaker is all but mono, and a one-channel
+// reverb costs half: see LAST_TAIL_S.)
+function makeImpulse(ctx, secs, decay, chans = 2) {
+  const len = Math.floor(ctx.sampleRate * secs), b = ctx.createBuffer(chans, len, ctx.sampleRate);
+  for (let ch = 0; ch < chans; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
   return b;
 }
 
@@ -104,7 +115,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
   } else chain(bus, toGame, dest);
 
   // The mock-up's shared room (its "send" of 0.3 on the mix).
-  const room = ctx.createConvolver(); room.buffer = makeImpulse(ctx, phone ? 2.4 : 3.2, 2.6);
+  const room = ctx.createConvolver(); room.buffer = makeImpulse(ctx, phone ? 2.4 : 3.2, 2.6, phone ? 1 : 2);
   chain(room, bus);
 
   let t0 = 0, started = false, ended = false, lastUpdate = -1;
@@ -137,7 +148,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
   function startThunder(t) {
     chain(thOut, thWhole);
     chain(loop(brown, t), F("lowpass", 80), thBed, G(dB(10)), whole);
-    const cv = ctx.createConvolver(); cv.buffer = makeImpulse(ctx, phone ? 3.5 : 5, 2.2);
+    const cv = ctx.createConvolver(); cv.buffer = makeImpulse(ctx, phone ? 3.5 : 5, 2.2, phone ? 1 : 2);
     chain(thVerb, cv, F("lowpass", 1200), G(0.9), thOut);
   }
   function thunderRing(t) {
@@ -154,7 +165,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
   // The last clap: a full one, and into a long, dark reverb of its own
   // (as well as the usual one), so it carries into the sphere.
   function lastClap(t) {
-    const cv = ctx.createConvolver(); cv.buffer = makeImpulse(ctx, LAST_TAIL_S, 1.7);
+    const cv = ctx.createConvolver(); cv.buffer = phone ? makeImpulse(ctx, LAST_TAIL_PHONE_S, 1.5, 1) : makeImpulse(ctx, LAST_TAIL_S, 1.7);
     const verb = G(1.1);
     chain(verb, cv, F("lowpass", 900), G(1), thOut);
     thunderHit(t, 1).forEach((n) => n.connect(verb));
@@ -203,7 +214,7 @@ export function createSummonSound(out, { mix = "full" } = {}) {
       setTimeout(() => {
         srcs.forEach((s) => { try { s.stop(); } catch (e) {} });
         try { toGame.disconnect(); } catch (e) {}
-      }, ((clap ? LAST_TAIL_S : 5) + fade + 0.5) * 1000);
+      }, ((clap ? (phone ? LAST_TAIL_PHONE_S : LAST_TAIL_S) : 5) + fade + 0.5) * 1000);
     },
   };
 }
