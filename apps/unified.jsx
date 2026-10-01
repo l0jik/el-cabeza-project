@@ -32,6 +32,11 @@ import {
    start. The chassis keeps its theme object for as long as it's mounted,
    so these are fixed objects, and their buttons reach the app through
    storyBridge, which the app keeps pointed at its current handlers. */
+// From another page's realities menu (realities.js goToWorld): ?world=
+// <place>, after the story.
+const WORLD_PARAM = (() => {
+  try { const w = new URLSearchParams(window.location.search).get("world"); return storyEnded() && ["standard", "neon", "tienda"].includes(w) ? w : null; } catch (e) { return null; }
+})();
 const storyBridge = { purchase() {}, backToStore() {}, restart() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };
 // How the place just mounted was reached (read once): false for the page
 // opening there, "cut" by a scene change, "fresh" by the fresh start.
@@ -40,8 +45,12 @@ const takeArrival = () => { const a = storyBridge.arrival; storyBridge.arrival =
 const bindAudio = (audio) => { storyBridge.audio = audio; };
 // After the whole story (bought, and the Singularity seen) the store has
 // never heard of the game (tienda-overlay.js ClerkScene).
-const storeAfter = () => readOwned() && singularitySeen();
-const STORE_STORY = { mode: "store", onPurchase: () => storyBridge.purchase(), onGoHomeConfused: (o) => storyBridge.goHomeConfused(o), after: storeAfter, arrived: takeArrival, bindAudio };
+// Once the story's over (den-ending.js) it's one of the other realities
+// instead: Big Glutts "the day you found it", the game on the counter
+// (realities.js), and the way into a game there is the gate
+// (reality-gate.js).
+const storeAfter = () => readOwned() && singularitySeen() && !storyEnded();
+const STORE_STORY = { mode: "store", onPurchase: () => storyBridge.purchase(), onGoHomeConfused: (o) => storyBridge.goHomeConfused(o), after: storeAfter, arrived: takeArrival, bindAudio, realities: () => storyEnded() };
 /* The first time through (the commercial seen, the store not yet gone
    strange; until the story starts over), the order form at home is a
    special order to take to the store (guided, onOrderAtStore). */
@@ -63,6 +72,9 @@ const storeTheme = {
   },
   // Full screen at the first tap (as every screen now is: the chassis).
   fullscreenOnFirstTap: true,
+  // After the story: the gate as it comes up, and the other realities.
+  realityGate: { world: "store", novaGo: (to, w) => storyBridge.goWorld(w) },
+  cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
 };
 /* The den's television (themes/den-tv.js, den-fx.js) is the way into
    Singularity: turned on, its picture pulls the camera in and Nova's own
@@ -79,6 +91,8 @@ const homeTheme = {
   // After the story: Other realities in the corner too (any time, games
   // and all).
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
+  // ...and the way into a game as it comes up (themes/reality-gate.js).
+  realityGate: { world: "den", novaGo: (to, w) => storyBridge.goWorld(w) },
   mountAmbientEffects: (refs, helpers) => {
     const returning = tvBridge.returning;
     const commercial = returning && tvBridge.commercial;
@@ -116,6 +130,9 @@ const homeTheme = {
    just opened and where to get it (themes/den-commercial.js). */
 const novaNeonTheme = {
   ...neonTheme,
+  // After the story: the gate as it comes up, and the other realities.
+  realityGate: { world: "neon", novaGo: (to, w) => storyBridge.goWorld(w) },
+  cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
   useSetupExtras: (x) => {
     const e = { ...neonTheme.useSetupExtras(x), onSingularityBack: () => tvBridge.back() };
     // The summons' way in (themes/neon-summon.js): Neon's own reveal.
@@ -172,7 +189,7 @@ const {
 
 function UnifiedApp() {
   // A first visit opens in the store; once the game is bought, at home.
-  const [themeName, setThemeName] = useState(() => (readOwned() ? "standard" : "tienda"));
+  const [themeName, setThemeName] = useState(() => WORLD_PARAM || (readOwned() ? "standard" : "tienda"));
   // Before the first Singularity visit the way into Neon from the den is
   // the television alone (user): no title hold there, no shortcut in the
   // phone menu. After it (engine/journey.js), both; a story restart locks
@@ -500,7 +517,7 @@ function UnifiedApp() {
     setEnded(false);
     // The extras go back behind the Singularity (engine/journey.js).
     forgetSingularity();
-    startCut({ kind: "fade", caption: "Once more, from the top\u2026 shelf.", to: "tienda", fresh: true });
+    startCut({ kind: "fade", caption: "Once more, from the top\u2026 shelf.", to: "tienda", fresh: true, linger: 750 });
   };
   // The television: into Singularity when nothing else is under way.
   tvBridge.portal = () => !busyRef.current && themeName === "standard";

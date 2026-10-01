@@ -203,7 +203,8 @@ export function StoryCut({ cut, onSwap, onDone, sfx }) {
       raf = requestAnimationFrame(() => {
         // (A second line takes longer to read, and comes up 2 s after the
         // first: 2 s, its fade, and about four seconds on it.)
-        const read = Math.max(0, (reduced ? 400 : cut.sub ? 6800 : 1700) - (performance.now() - captionAt.current));
+        // (cut.linger: longer on it, ms; the restart's, user.)
+        const read = Math.max(0, (reduced ? 400 : (cut.sub ? 6800 : 1700) + (cut.linger || 0)) - (performance.now() - captionAt.current));
         after(read, () => setCaption("off"));
         after(read + (reduced ? 50 : 500), () => setStage("reveal"));
         after(read + (reduced ? 100 : 1650), () => onDone());

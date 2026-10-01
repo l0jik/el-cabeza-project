@@ -26,6 +26,7 @@ import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
 import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
+import { RealityGate, storyOver, GATE_EVENT } from "../themes/reality-gate.js";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
 // ABOUT's link returns to the original game. Inlined by the build.
@@ -737,6 +738,23 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      Game button itself, which is the only thing that sets it true. */
   const [gameArmed, setGameArmed] = useState(() => carried("gameArmed", false));
   const awaitingBegin = !gameArmed;
+  /* The way into a game in a reality, after the story (theme.realityGate,
+     themes/reality-gate.js): Standard Cabeza or Cabeza Nova, shown as the
+     reality comes up with no game under way, or when asked (a deferred
+     one: Lluvia, after its descent; a finished game's "change the
+     rules"). Gone once a game begins. */
+  const gateCfg = theme.realityGate || null;
+  const [gate, setGate] = useState(() => (gateCfg && !gateCfg.deferred && !gameArmed && storyOver() && (!gateCfg.when || gateCfg.when()) ? { stage: "choose", n: 0 } : null));
+  useEffect(() => {
+    if (!gateCfg) return undefined;
+    const on = (e) => { if (storyOver()) setGate({ stage: (e.detail && e.detail.stage) || "choose", sel: (e.detail && e.detail.sel) || null, n: Date.now() }); };
+    window.addEventListener(GATE_EVENT, on);
+    return () => window.removeEventListener(GATE_EVENT, on);
+  }, []);
+  useEffect(() => {
+    if (gameArmed && gate) setGate(null);
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_ARMED__ = gameArmed; // tests: a game under way
+  }, [gameArmed]);
 
   /* Easter egg: clicking the "EL CABEZA" title (only the text itself,
      not the header around it) reveals a small INFO button that fades in
@@ -4987,11 +5005,29 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        same turntable rule (user: begun low it had been the other way from
        the board view's, so home from the trip, in the Room view, the lower
        half felt reversed until the view changed), and the tilt goes the
-       other way. */
+       other way.
+       "Upper" and "lower" are measured from where the turning axis (the
+       board's centre) actually is on screen, through the camera as it
+       really is, not the screen's middle: the user still found the lower
+       half reversed coming back from the other realities, where the
+       camera (panned, a theme's own camera, the Room view) needn't have
+       the board in the middle. Above the axis is its far side, below its
+       near side; an axis behind the camera means everything seen is
+       beyond it. So the spot you grab always goes with your finger. */
     const grab = { theta: 0, phi: 0 };
+    const axisAt = new THREE.Vector3();
     function grabLatch(clientY) {
       const rect = el.getBoundingClientRect();
-      grab.theta = clientY - rect.top < rect.height / 2 ? 1 : -1;
+      let mid = rect.height / 2;
+      const { camera: c, boardGroup: g } = three.current;
+      if (c && g) {
+        g.getWorldPosition(axisAt);
+        c.updateMatrixWorld();
+        axisAt.applyMatrix4(c.matrixWorldInverse);
+        if (axisAt.z >= -1e-3) mid = Infinity; // behind the camera: all of it's beyond
+        else { axisAt.applyMatrix4(c.projectionMatrix); mid = (1 - axisAt.y) / 2 * rect.height; }
+      }
+      grab.theta = clientY - rect.top < mid ? 1 : -1;
       grab.phi = cam.current.dollhouse ? 1 : -1;
     }
     /* Stays false until cumulative pointer travel since the down event
@@ -9604,6 +9640,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       </div>
 
       {theme.renderExtraOverlays && theme.renderExtraOverlays(setupExtras)}
+      {gate && (
+        <RealityGate
+          key={gate.n}
+          world={gateCfg.world}
+          stage={gate.stage}
+          sel={gate.sel}
+          novaGo={gateCfg.novaGo || null}
+          onClose={() => setGate(null)}
+          api={{
+            three, setPieces, setBlackHoles, setMissingSquares, setCurrentVariants, applyBoardResize, triggerBeginGame,
+            aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking,
+          }}
+        />
+      )}
     </div>
   );
 }

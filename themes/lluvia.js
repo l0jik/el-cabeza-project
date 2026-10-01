@@ -24,6 +24,7 @@ import {
 } from "../engine/constants.js";
 import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
 import { LluviaOverlay, defaultSelections } from "./lluvia-overlay.js";
+import { storyOver, openRealityGate } from "./reality-gate.js";
 
 /* ------------------------------------------------------------ palette */
 
@@ -314,11 +315,18 @@ export function useSetupExtras(x) {
   const selRef = React.useRef(null);
   if (!selRef.current) selRef.current = defaultSelections();
   React.useEffect(() => { if (!x.awaitingBegin && overlay) setOverlay(null); }, [x.awaitingBegin]);
-  const reopenCity = (sel) => { if (sel) selRef.current = sel; setOverlay("city"); };
+  /* After the story the gate (reality-gate.js) is the way into a game
+     here: the descent still opens the page, then its two buttons; the
+     city's settings are the gate's Cabeza Nova sheet. */
+  const reopenCity = (sel) => {
+    if (sel) selRef.current = sel;
+    if (storyOver()) openRealityGate({ stage: "nova", sel: sel || null });
+    else setOverlay("city");
+  };
   return {
     ...x,
     lluviaOverlay: overlay,
-    openCity: () => setOverlay("city"),
+    openCity: () => (storyOver() ? openRealityGate({ stage: "nova" }) : setOverlay("city")),
     closeOverlay: () => setOverlay(null),
     reopenCity,
     selRef,

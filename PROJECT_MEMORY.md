@@ -4639,3 +4639,48 @@ phone menu until "Start the story over" (which clears it).
   - The dock piece in the corner mid-game: theme.dockCornerOpacity
     (standard.js 0.6; the chassis default stays 0.35) so it's seen in the
     dark den.
+
+### Every reality: Standard Cabeza or Cabeza Nova; the switcher everywhere (2026-10-01)
+  - User: the Lab's pages, Lluvia, Cromo (every reality) couldn't play the
+    non-standard pieces, rules and boards. Answers: every reality, Nova's
+    own three too; the same words everywhere, each drawn in its own look;
+    only after the story; Lluvia keeps its descent, then the buttons.
+  - themes/reality-gate.js. RealityGate (rendered by the chassis when a
+    theme has `realityGate: { world, deferred?, when?, novaGo? }`, the
+    story's over (localStorage el-cabeza:story .ended) and no game is
+    under way; gone once one begins; GATE_EVENT / openRealityGate() opens
+    it, e.g. a deferred one): two buttons, "Standard Cabeza" (begins the
+    classic game at once: beginCustomGame(defaultSelections())) and
+    "Cabeza Nova" (the sheet), and "Other realities". The sheet is one
+    scrolling menu of everything Nova's places offer: who's playing
+    (the chassis's own opponent/difficulty), pieces (counts, Arco size,
+    the 10 cap, the fit check), rules (switches with their notes,
+    Shoving's setting, lawWarnings, black holes' place), board (quick
+    sizes, width, length, shuffled start, missing squares + pairs + a
+    themed square picker). Reset and Play at the bottom (a bottom sheet
+    on phones). Last choices kept in el-cabeza:nova-setup. A finished
+    game's "change the rules" reopens the sheet (beginCustomGame's
+    reopen). LOOKS: den, neon, store, lluvia, cromo, and the Lab's ten
+    from their own CSS variables (--surface, --accent-primary, ...).
+  - Wired: apps/cromo.jsx, lluvia.jsx (deferred: the overlay hands over
+    at the city cue or "Straight to the board"; Custom rules and
+    reopenCity open the sheet), lab.jsx (each direction lab-<id>),
+    unified.jsx (den / store / neon, novaGo switching in place); neon,
+    tienda and standard's own pages get just the corner button.
+    realitiesCorner(world) = theme.cornerAction "Other realities" after
+    the story. realities.js: currentId for "You are here", and Nova's
+    places from another page open el-cabeza-nova.html?world=<place>
+    (unified.jsx WORLD_PARAM, after the story only).
+  - After the story Big Glutts is a reality ("the day you found it"):
+    storeAfter() is false once ended (no clerk scene, no "never heard of
+    it"), no box lid (STORE_STORY.realities), the gate instead.
+  - Chassis test hook __EC_TEST_ARMED__ (a game under way). tests/
+    e2e-gate.mjs walks it (Cromo, the sheet on a phone, before the story,
+    the Lab, Lluvia's descent, Nova's three by ?world=).
+  - Drag (user: still reversed on the lower half coming back from the
+    realities): grabLatch now takes "upper/lower" from the turning axis
+    (boardGroup's origin) projected through the live camera, not the
+    screen's middle; an axis behind the camera = all far side. Whatever
+    you grab follows the finger in every view (user: no preference).
+  - The restart's caption ("Once more, from the top… shelf.") stays
+    0.75 s longer: StoryCut's cut.linger (ms).

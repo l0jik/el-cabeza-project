@@ -21,12 +21,15 @@ import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
 import { LAB_SPECS } from "../themes/lab/specs.js";
 import { makeLabTheme } from "../themes/lab/factory.js";
+import { realitiesCorner } from "../themes/reality-gate.js";
 import { playLabVoice, setLabMuted, setLabVolume, labAudioState, onLabAudio, startLabAudio } from "../themes/lab/audio.js";
 
 applyBootstrapBoardSize();
 applyBootstrapLaws();
 
-const THEMES = LAB_SPECS.map(makeLabTheme);
+// After the story, each direction is a reality: the way into a game there
+// (the gate) and back to the others (the corner button). reality-gate.js.
+const THEMES = LAB_SPECS.map(makeLabTheme).map((t) => ({ ...t, realityGate: { world: `lab-${t.labId}` }, cornerAction: realitiesCorner(`lab-${t.labId}`) }));
 const byId = Object.fromEntries(THEMES.map((t) => [t.labId, t]));
 const STORE_KEY = "el-cabeza:lab-theme";
 

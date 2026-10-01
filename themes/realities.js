@@ -59,7 +59,7 @@ const CSS = `
 /* The menu. `current`: the Nova place you're in (marked "You are here");
    onPick(world); onStay() for "Stay here" (and Escape). `title` / `sub`
    say what it is. Returns { el, close }. */
-export function createRealitiesMenu({ current = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", stayLabel = "Stay in the den" } = {}) {
+export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", stayLabel = "Stay in the den" } = {}) {
   if (typeof document === "undefined") return { el: null, close() {} };
   if (!document.querySelector("style[data-ec-realities]")) {
     const st = document.createElement("style"); st.setAttribute("data-ec-realities", ""); st.textContent = CSS; document.head.appendChild(st);
@@ -82,7 +82,7 @@ export function createRealitiesMenu({ current = null, onPick, onStay, title = "O
     const name = document.createElement("span"); name.className = "name"; name.textContent = w.name;
     const line = document.createElement("span"); line.className = "line"; line.textContent = w.line;
     txt.append(name, line);
-    if (current && w.nova === current) { const here = document.createElement("span"); here.className = "here"; here.textContent = "You are here"; txt.append(here); }
+    if ((current && w.nova === current) || (currentId && w.id === currentId)) { const here = document.createElement("span"); here.className = "here"; here.textContent = "You are here"; txt.append(here); }
     b.append(shot, txt);
     b.onclick = () => { close(); if (onPick) onPick(w); };
     li.append(b); ul.append(li);
@@ -107,9 +107,11 @@ export function createRealitiesMenu({ current = null, onPick, onStay, title = "O
   return { el, close };
 }
 
-// Where a world goes: Nova's own places in place (go(novaTheme)), the
+// Where a world goes: Nova's own places in place (go(novaTheme)) when in
+// Nova, or Nova's page opened there (?world=) from another page; the
 // others by changing page.
 export function goToWorld(w, novaGo) {
-  if (w.nova) { if (novaGo) novaGo(w.nova, w); return; }
-  if (typeof window !== "undefined" && w.href) window.location.href = w.href;
+  if (w.nova && novaGo) { novaGo(w.nova, w); return; }
+  const href = w.nova ? `el-cabeza-nova.html?world=${w.nova}` : w.href;
+  if (typeof window !== "undefined" && href) window.location.href = href;
 }

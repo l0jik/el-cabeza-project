@@ -108,7 +108,9 @@ export function useSetupExtras(x) {
      at the store the game is already out on the counter. */
   const arrival = React.useRef(undefined);
   if (arrival.current === undefined) arrival.current = story && story.arrived ? story.arrived() : false;
-  if (store && arrival.current === "cut") lidDone = true;
+  // (After the story's end the store is one of the realities, the game
+  // out on the counter: no lid either, and the gate's two buttons.)
+  if (store && (arrival.current === "cut" || (story.realities && story.realities()))) lidDone = true;
   const [overlay, setOverlay] = React.useState(() => (x.awaitingBegin && !lidDone && !home ? "lid" : null));
   /* Special orders (user): until the Singularity's first visit nothing can
      be changed anywhere; the catalog's page of the five pieces stands in

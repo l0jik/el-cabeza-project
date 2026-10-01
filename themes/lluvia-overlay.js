@@ -24,6 +24,7 @@ import React from "react";
 import { PIECE_OPTIONS, LAW_OPTIONS, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings } from "./rules-selections.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
+import { storyOver, openRealityGate } from "./reality-gate.js";
 
 const h = React.createElement;
 const PINK = "#ff3dbb", CYAN = "#23e6ff", AMBER = "#ffb347";
@@ -160,7 +161,10 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose 
     const ctl = LLUVIA.mount(canvas, {
       mode: start === "city" ? "city" : "descent",
       onCue: (n) => {
-        if (n === "city") { setPhase("city"); setCaption(""); }
+        // (After the story: down in the city, the gate's two buttons
+        // instead of the signs, over the board.)
+        if (n === "city" && gateNext) { setCaption(""); leave(() => openRealityGate()); }
+        else if (n === "city") { setPhase("city"); setCaption(""); }
         else if (CAPTIONS[n]) { setPhase("flight"); setCaption(CAPTIONS[n]); }
       },
       onPick: (k) => { ctl.select(k); setPanel(k); },
@@ -174,6 +178,7 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose 
   const wakeSound = () => { if (!soundStarted.current) { soundStarted.current = true; ctlRef.current && ctlRef.current.start(); } };
   const openPanel = (k) => { wakeSound(); sound("select"); ctlRef.current && ctlRef.current.select(k); setPanel(k); };
   const closePanel = () => { sound("close"); ctlRef.current && ctlRef.current.select(null); setPanel(null); };
+  const gateNext = storyOver();
   // Leaving: fade the layer and the city's score, then let go of it.
   const leave = (then) => {
     setLeaving(true);
@@ -206,7 +211,7 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose 
       h("button", { type: "button", "data-testid": "lluvia-descend", onClick: () => { ctlRef.current && ctlRef.current.start(); setPhase("flight"); },
         style: { height: 66, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", border: `2px solid ${PINK}`, borderRadius: 4, background: "rgba(255,61,187,0.12)", color: "#ffe2f4", cursor: "pointer", boxShadow: "0 0 26px rgba(255,61,187,0.45), inset 0 0 20px rgba(255,61,187,0.18)" } },
         h("span", { style: { fontFamily: SAIRA_X, fontWeight: 800, fontSize: 30, letterSpacing: "0.12em" } }, "DESCEND"), ICON.down),
-      h("button", { type: "button", "data-testid": "lluvia-straight-to-board", onClick: () => leave(),
+      h("button", { type: "button", "data-testid": "lluvia-straight-to-board", onClick: () => leave(gateNext ? () => openRealityGate() : null),
         style: { alignSelf: "center", padding: "10px 12px", background: "transparent", border: "none", color: "#b9b2c8", font: `600 15px ${SAIRA}`, letterSpacing: "0.06em", cursor: "pointer" } }, "Straight to the board ›")));
 
   const flight = phase === "flight" && h("div", { key: "flight", style: { position: "absolute", inset: 0 } },
