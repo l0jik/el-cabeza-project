@@ -135,11 +135,10 @@ async function page(url, init) {
   await q(p, "restart-confirm-yes").click();
   check("Start the story over forgets it", await poll(async () => (await p.evaluate((k) => localStorage.getItem(k), SEEN)) === null, 8000));
   await poll(() => has(p, "tienda-lid"), 15000);
-  // (The story's lid takes only See the pieces: in by it, then the rules.)
-  await q(p, "tienda-lid-order").click();
-  await poll(() => has(p, "tienda-catalog"), 8000);
-  await q(p, "tienda-catalog-close").click();
-  await poll(async () => !(await has(p, "tienda-catalog")), 8000);
+  // (The story's lid takes only Open the box: in by it, then the rules.)
+  check("...the lid has only Open the box", !(await has(p, "tienda-lid-order")));
+  await q(p, "tienda-open-box").click();
+  await poll(async () => !(await has(p, "tienda-lid")), 8000);
   const r2 = await rulesView(p);
   check("...the store: the classic game again", r2.moves.classic === "true" && !r2.moves.slide, JSON.stringify(r2.moves));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));

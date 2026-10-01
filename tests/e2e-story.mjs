@@ -82,23 +82,19 @@ console.log("\ndesktop: the store, the purchase, home");
   const { ctx, page, errs } = await open();
   check("a first visit opens in the store", (await place(page)) === "store");
   check("...with the lid on the box", await poll(() => has(page, "tienda-lid"), 10000));
-  check("...offering the pieces, not the order form", /See the pieces/i.test(await q(page, "tienda-lid-order").innerText()));
+  check("...Open the box its one button", (await has(page, "tienda-open-box")) && !(await has(page, "tienda-lid-order")));
+  check("...plain, not dimmed or lit", !/td-locked|td-sing-glow/.test(await q(page, "tienda-open-box").getAttribute("class")) && (await q(page, "tienda-open-box").getAttribute("aria-disabled")) === null);
   check("nothing is owned yet", (await owned(page)) === null);
-  // The story's first moment: See the pieces is the only way on (user).
-  await q(page, "tienda-open-box").click({ force: true });
-  await page.waitForTimeout(500);
-  check("Open the box waits: the lid stays on", await has(page, "tienda-lid"));
-  check("...and See the pieces lights up in neon", /td-sing-glow/.test(await q(page, "tienda-lid-order").getAttribute("class")));
-  check("...no story card yet", !(await has(page, "tienda-story-hint")));
+  // The story's first moment: Open the box is the only way on (user).
   await page.mouse.click(30, 400); await page.waitForTimeout(250);
-  await page.mouse.click(1200, 700); await page.waitForTimeout(500);
+  check("a tap that misses: the lid stays on", await has(page, "tienda-lid"));
+  check("...no story card yet", !(await has(page, "tienda-story-hint")));
+  await page.mouse.click(1200, 700); await page.waitForTimeout(250);
+  await page.mouse.click(30, 700); await page.waitForTimeout(500);
   check("a third tap that misses: \"There's a story here... if you're interested.\"", await poll(async () => (await has(page, "tienda-story-hint")) && /story here/i.test(await q(page, "tienda-story-hint").innerText()), 3000));
   check("...and still the lid", await has(page, "tienda-lid"));
-  await q(page, "tienda-lid-order").click();
-  check("See the pieces: the catalog's page", await poll(() => has(page, "tienda-catalog"), 8000));
-  check("...the card gone, the lid off", !(await has(page, "tienda-story-hint")) && !(await has(page, "tienda-lid")));
-  await q(page, "tienda-catalog-close").click();
-  await poll(async () => !(await has(page, "tienda-catalog")), 8000);
+  await q(page, "tienda-open-box").click();
+  check("Open the box: the card gone, the lid off", await poll(async () => !(await has(page, "tienda-story-hint")) && !(await has(page, "tienda-lid")), 8000));
   check("no hold on the title in the store (the title is itself under a tap)", await page.evaluate(() => {
     const t = document.querySelector(".ec-title"); if (!t) return false;
     const r = t.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
@@ -336,12 +332,7 @@ console.log("\nphone with the control bar: the store and home");
 {
   const { ctx, page, errs } = await open({ phone: true, bar: true });
   check("the phone opens in the store", (await place(page)) === "store");
-  if (await has(page, "tienda-lid-order")) {
-    await page.locator('[data-testid="tienda-lid-order"]').tap();
-    await poll(() => has(page, "tienda-catalog"), 8000);
-    await q(page, "tienda-catalog-close").tap();
-    await poll(async () => !(await has(page, "tienda-catalog")), 8000);
-  }
+  if (await has(page, "tienda-open-box")) await page.locator('[data-testid="tienda-open-box"]').tap();
   await poll(async () => !(await has(page, "tienda-lid")), 10000);
   check("the bar's setup has See the pieces and the purchase", await poll(async () => (await has(page, "shell-see-pieces")) && (await has(page, "shell-purchase")), 10000));
   await q(page, "shell-menu-button").tap().catch(() => {});

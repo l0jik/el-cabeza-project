@@ -4184,3 +4184,12 @@ phone menu until "Start the story over" (which clears it).
   playing. Only "Restart story" (restart-confirm-yes) does it. e2e-story
   checks Keep playing leaves it be; e2e-journey goes in by the lid's See
   the pieces after the restart (the story's lid takes nothing else).
+- The story's lid, revised (user: "Open the box" is the intended first
+  button, "See the pieces" gone): in story lock (lidLocked), BoxLid shows
+  only "Open the box" (tienda-open-box, autofocus), plain (no td-locked,
+  no aria-disabled, no glow or throb); tienda-lid-order isn't rendered.
+  The window-capture blocker now lets through only tienda-open-box and
+  [data-fullscreen-toggle]; misses still count, and from the third the
+  StoryHint card comes up. Open the box closes the lid into the store's
+  game (no catalog on the way). The standalone Tienda page's lid keeps
+  both buttons. e2e-story and e2e-journey go in by Open the box.

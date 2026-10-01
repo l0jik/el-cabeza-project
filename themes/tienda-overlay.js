@@ -188,23 +188,17 @@ export function useSetupExtras(x) {
     };
   }, [specialNote, dismissSpecialNote]);
   /* The story's first moment (Nova, the box lid on the store's counter):
-     "See the pieces" is the only thing that takes a tap, besides the
-     corner's full-screen switch (user). Every other tap, drag, wheel and
-     key is stopped at the window; each one lights "See the pieces" in the
-     Singularity's neon and makes it throb; and from the third, a card
-     comes up, in a 1970s way: "There's a story here... if you're
+     "Open the box" is the lid's only button and the only thing that takes
+     a tap, besides the corner's full-screen switch (user); it's plain,
+     not dimmed or lit. Every other tap, drag, wheel and key is stopped at
+     the window; and from the third, a card comes up, in a 1970s way: "There's a story here... if you're
      interested." (The first-tap full screen still happens, on whichever
      tap comes first.) */
   const [lidNudges, setLidNudges] = React.useState(0);
   const lidLocked = store && !!story && overlay === "lid";
   React.useEffect(() => {
     if (!lidLocked) return undefined;
-    const allowed = (e) => !!(e.target && e.target.closest && e.target.closest('[data-testid="tienda-lid-order"], [data-fullscreen-toggle]'));
-    const throb = () => requestAnimationFrame(() => requestAnimationFrame(() => {
-      const el = document.querySelector('[data-testid="tienda-lid-order"]');
-      if (!el) return;
-      el.classList.remove("td-throb"); void el.offsetWidth; el.classList.add("td-throb");
-    }));
+    const allowed = (e) => !!(e.target && e.target.closest && e.target.closest('[data-testid="tienda-open-box"], [data-fullscreen-toggle]'));
     const block = (e) => {
       if (allowed(e)) return;
       e.stopImmediatePropagation(); e.stopPropagation();
@@ -213,11 +207,11 @@ export function useSetupExtras(x) {
         lidFsTried = true;
         document.documentElement.requestFullscreen().catch(() => {});
       }
-      if (e.type === "pointerdown" || (e.type === "touchstart" && !window.PointerEvent)) { setLidNudges((n) => n + 1); throb(); }
+      if (e.type === "pointerdown" || (e.type === "touchstart" && !window.PointerEvent)) setLidNudges((n) => n + 1);
     };
     const blockKey = (e) => {
       const a = document.activeElement;
-      if (e.key === "Tab" || (a && a.closest && a.closest('[data-testid="tienda-lid-order"], [data-fullscreen-toggle]'))) return;
+      if (e.key === "Tab" || (a && a.closest && a.closest('[data-testid="tienda-open-box"], [data-fullscreen-toggle]'))) return;
       e.stopImmediatePropagation(); e.stopPropagation();
       if (e.cancelable) e.preventDefault();
     };
@@ -766,8 +760,9 @@ function BoxLid({ onOpen, onOrder, orderLabel = "Custom rules", audio, locked = 
         h("div", { className: "td-tag" }, "A Game of Unparalleled Intention"),
         h("p", { className: "td-body", style: { margin: 0 } }, "Complete with folding hardwood board and ten hand-finished playing pieces. Move a piece, or two. Roll the blocks. Bring your head home."),
         h("div", { className: "td-lid-actions" },
-          h("button", { type: "button", className: "td-btn td-primary" + (locked ? " td-locked" : ""), "data-testid": "tienda-open-box", onClick: () => go("open"), autoFocus: !locked, "aria-disabled": locked ? "true" : undefined, tabIndex: locked ? -1 : undefined }, "Open the box"),
-          h("button", { type: "button", className: "td-btn td-plain" + (locked && nudges ? " td-sing-glow" : ""), "data-testid": "tienda-lid-order", onClick: () => go("order"), autoFocus: locked }, orderLabel),
+          h("button", { type: "button", className: "td-btn td-primary", "data-testid": "tienda-open-box", onClick: () => go("open"), autoFocus: true }, "Open the box"),
+          // A new story's lid has the one way in: the box itself.
+          !locked && h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-lid-order", onClick: () => go("order") }, orderLabel),
         ),
         h("div", { className: "td-small", style: { color: "rgba(233,220,192,0.55)", letterSpacing: "0.1em" } }, "No. 4417 · Made in Argentina · © 1975"),
       ),
