@@ -133,21 +133,25 @@ console.log("\nTienda, laptop: full screen at the first click");
   await ctx.close();
 }
 
-/* ---- Standard: no first-tap full screen, the gesture off the board ---- */
-console.log("\nStandard, phone: the gesture off the board, no full screen by itself");
+/* ---- Standard: full screen at the first tap (every screen now, user),
+   the gesture off the board to come out ---- */
+console.log("\nStandard, phone: full screen at the first tap, the gesture off the board");
 {
   const { ctx, page, errs, doubleTap, full, under, centre } = await open("standard");
   const vp = page.viewportSize();
   await page.touchscreen.tap(vp.width / 2, vp.height * 0.45);
   await page.waitForTimeout(600);
-  check("a first tap doesn't go full screen (not asked for)", !(await full()));
+  check("a first tap goes full screen (every screen, user)", await full());
   check("the dock's panel opens", await openDockPanel(page));
   await page.waitForTimeout(600);
   const begin = await centre('[data-testid="dock-panel"] button:text-matches("Begin Game|Try a Game")');
   check("Begin Game is over the board, not the canvas", begin && (await under(begin.x, begin.y)) !== "canvas", begin && await under(begin.x, begin.y));
   await doubleTap(begin.x, begin.y);
-  check("a two-finger double-tap over Begin Game goes full screen", await full());
+  check("a two-finger double-tap over Begin Game comes out of full screen", !(await full()));
   check("...without beginning the game", (await page.locator('button:text-matches("Begin Game|Try a Game")').count()) >= 1 && await page.evaluate(() => !(window.__EC_TEST_TURNS__ || []).length));
+  await page.touchscreen.tap(vp.width / 2, vp.height * 0.45);
+  await page.waitForTimeout(900);
+  check("...and, having come out themselves, a later tap leaves it so", !(await full()));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

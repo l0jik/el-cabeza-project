@@ -208,6 +208,14 @@ console.log("\ndesktop: the store, the purchase, home");
   await q(page, "tienda-piece-turrito-inc").click();
   check("an order made: the button's ready", (await q(page, "tienda-order-place").getAttribute("data-waiting")) === "false");
   check("...and, a tap having landed elsewhere, lit in the Singularity's blue", /td-sing-glow/.test(await q(page, "tienda-order-place").getAttribute("class")));
+  // The first time through, only the pieces' counts and the button work
+  // (user): Cancel and Standard don't, and the order stays as it is.
+  const turritos = await page.locator('[data-testid="tienda-piece-turrito"]').innerText();
+  await q(page, "tienda-order-cancel").click({ force: true });
+  await q(page, "tienda-order-standard").click({ force: true });
+  await page.waitForTimeout(500);
+  check("...Cancel and Standard do nothing (the form stays, the order kept)", (await has(page, "tienda-order")) && (await page.locator('[data-testid="tienda-piece-turrito"]').innerText()) === turritos);
+  check("...and the button throbs at a miss", /td-throb/.test(await q(page, "tienda-order-place").getAttribute("class")));
   // The first time through, the order is a special order to take to the
   // store (tienda-overlay.js guided).
   check("the first time through, the button takes it to the store", /Order it at Big Glutts/i.test(await q(page, "tienda-order-place").innerText()));

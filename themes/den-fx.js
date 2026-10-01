@@ -41,11 +41,18 @@ import { createDenCall } from "./den-call.js";
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
 export function createDenEffects(woodSet, { viewPitch = null } = {}) {
-  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, tv: novaTv = null }) {
+  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null }) {
     const q = quality();
     // Home with the special order (Nova): the thought, then the telephone
     // call from Big Glutts (den-call.js).
     const call = novaTv && novaTv.call ? createDenCall({ audio, awaitingBegin: () => !!(awaitingBeginRef && awaitingBeginRef.current) }) : null;
+    /* Home before the Singularity (Nova, the set still to lure you): a
+       record or a tape already on, a random one, at 30% (user: normal
+       music to hear before the set starts getting at it, low in the mix
+       but heard), once the scene change has faded up. Through the
+       stereo's own player (the chassis's `music`), so the chip and the
+       turntable or the 8-track show it. Not if something's already on. */
+    let autoMusic = !!(music && novaTv && novaTv.lure && novaTv.lure() && !novaTv.returning), autoMusicAt = 0;
     let den = null, brass = null, attachedTo = null, dims = "";
     let tuned = false, fogBefore = null, farBefore = null, bgBefore = null;
 
@@ -606,6 +613,15 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         focusFrame(t, now);
         listen(t, now);
         if (call) call.tick(now, t, den);
+        if (autoMusic) {
+          if (typeof document !== "undefined" && document.querySelector("[data-testid='story-cut']")) autoMusicAt = 0;
+          else if (!autoMusicAt) autoMusicAt = now + 1200;
+          else if (now >= autoMusicAt) {
+            autoMusic = false;
+            const list = music.tracks().filter((tr) => tr.medium === "record" || tr.medium === "8track");
+            if (list.length && !music.playing()) music.play({ ...list[Math.floor(Math.random() * list.length)], level: 0.3 });
+          }
+        }
         // The television.
         const dt = lastTick ? Math.min(0.1, (now - lastTick) / 1000) : 0;
         lastTick = now;

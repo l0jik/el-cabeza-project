@@ -112,7 +112,7 @@ export function createAudio() {
           fire: { near: fireNear, gain: fireBus.gain.value, pan: firePan ? firePan.pan.value : 0, recording: firePlaying ? (fireSrc ? "buffer" : "element") : null },
           haunt: { near: hauntNear, pan: hauntSide, distance: hauntDist },
           chimes,
-          music: music ? { id: music.track.id, medium: music.track.medium, paused: music.el.paused, time: music.el.currentTime, duck: music.duck ? music.duck.gain.value : null, wobble: music.wobG ? music.wobG.gain.value : null } : null,
+          music: music ? { id: music.track.id, medium: music.track.medium, paused: music.el.paused, time: music.el.currentTime, duck: music.duck ? music.duck.gain.value : null, wobble: music.wobG ? music.wobG.gain.value : null, level: music.lvl ? music.lvl.gain.value : null } : null,
           tvPull,
         });
         if (window.__EC_TEST_HOOKS__) window.__DEN_CHIME_NOW__ = () => { ensureGraph(); if (ctx && roomOn) chime(); return chimes; };
@@ -388,8 +388,11 @@ export function createAudio() {
     src.connect(tone).connect(warp);
     warp.connect(cleanG).connect(duck);
     warp.connect(crush).connect(cbp).connect(crushG).connect(duck);
-    duck.connect(drop).connect(musicBus);
-    const extra = [tone, warp, wob, wobG, wow, wowG, flut, flutG, cleanG, crush, cbp, crushG, duck, drop];
+    // (track.level: a track put on by the room itself, below its usual
+    // level: den-fx.js's first visit, at 30%.)
+    const lvl = ctx.createGain(); lvl.gain.value = track.level != null ? track.level : 1;
+    duck.connect(drop).connect(lvl).connect(musicBus);
+    const extra = [tone, warp, wob, wobG, wow, wowG, flut, flutG, cleanG, crush, cbp, crushG, duck, drop, lvl];
     // A track already put through the console's treatment (track.treated:
     // tools/console_1974_turntable.py) has its hiss and crackle in it.
     if (!track.treated) {
@@ -399,7 +402,7 @@ export function createAudio() {
       bed.connect(bf).connect(bg).connect(musicBus); bed.start();
       extra.push(bed, bf, bg);
     }
-    music = { el, src, extra, track, warp, wobG, wowG, flutG, cleanG, crushG, duck, drop };
+    music = { el, src, extra, track, warp, wobG, wowG, flutG, cleanG, crushG, duck, drop, lvl };
     roomFollowMusic();
     el.addEventListener("ended", () => { if (music && music.el === el) { stopMusic(); if (onEnd) onEnd(); } });
     const p = el.play();

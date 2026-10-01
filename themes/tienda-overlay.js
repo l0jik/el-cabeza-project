@@ -1289,12 +1289,55 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   // Its Singularity glow, as the special-orders note's (user: same rule):
   // not at first; once a tap lands anywhere but on it, it lights.
   const [btnGlow, setBtnGlow] = React.useState(false);
+  /* The first time through (until the story starts over), the form is only
+     for choosing pieces (user): the pieces' − and + and the button to take
+     it to Big Glutts are all that take a tap, and the form scrolls; every
+     other control on it (Cancel, Standard, the 3-D views, the rules, the
+     board), and everything off it (the board, the dock, the corner's
+     buttons), is stopped at the window. Each tap that misses lights the
+     button (as before) and throbs it. */
   React.useEffect(() => {
-    if (where !== "guided" || btnGlow) return undefined;
-    const onDown = (e) => { if (!(e.target && e.target.closest && e.target.closest('[data-testid="tienda-order-place"]'))) setBtnGlow(true); };
-    document.addEventListener("pointerdown", onDown, true);
-    return () => document.removeEventListener("pointerdown", onDown, true);
-  }, [where, btnGlow]);
+    if (where !== "guided") return undefined;
+    const OK = '[data-testid^="tienda-piece-"][data-testid$="-inc"], [data-testid^="tienda-piece-"][data-testid$="-dec"], [data-testid="tienda-order-place"], [data-fullscreen-toggle]';
+    const CONTROL = 'button, input, select, textarea, label, a, summary, [role="button"], [role="checkbox"], [role="switch"], [role="radio"], [tabindex]';
+    const throb = () => requestAnimationFrame(() => requestAnimationFrame(() => {
+      const el = document.querySelector('[data-testid="tienda-order-place"]');
+      if (!el) return;
+      el.classList.remove("td-throb"); void el.offsetWidth; el.classList.add("td-throb");
+    }));
+    const missed = (e) => {
+      const el = e.target && e.target.closest ? e.target : null;
+      if (!el || el.closest(OK)) return false;
+      const form = el.closest('[data-testid="tienda-order"]');
+      // On the paper itself (not a control): let it be, it scrolls.
+      // (The backdrop round it is a miss: a tap there would put the form away.)
+      if (form && el !== form && !el.closest(CONTROL)) return false;
+      return true;
+    };
+    const block = (e) => {
+      if (!missed(e)) {
+        // (Any tap but on the button itself lights it, as before.)
+        if (e.type === "pointerdown" && !(e.target && e.target.closest && e.target.closest('[data-testid="tienda-order-place"]'))) setBtnGlow(true);
+        return;
+      }
+      e.stopImmediatePropagation(); e.stopPropagation();
+      if (e.cancelable && e.type !== "pointermove" && e.type !== "touchmove" && e.type !== "wheel") e.preventDefault();
+      if (e.type === "pointerdown" || (e.type === "touchstart" && !window.PointerEvent)) { setBtnGlow(true); throb(); }
+    };
+    const EVENTS = ["pointerdown", "pointerup", "click", "dblclick", "contextmenu", "touchstart", "touchend", "mousedown", "mouseup", "change", "input"];
+    // (Drags and the wheel off the form are stopped too: the board stays put.)
+    const offForm = (e) => { const el = e.target && e.target.closest ? e.target : null; if (el && !el.closest('[data-testid="tienda-order"]')) { e.stopImmediatePropagation(); e.stopPropagation(); if (e.cancelable && e.type === "wheel") e.preventDefault(); } };
+    // (And Escape doesn't put it away.)
+    const onKey = (e) => { if (e.key === "Escape") { e.stopImmediatePropagation(); e.stopPropagation(); if (e.cancelable) e.preventDefault(); } };
+    window.addEventListener("keydown", onKey, true);
+    EVENTS.forEach((ev) => window.addEventListener(ev, block, { capture: true, passive: false }));
+    ["pointermove", "touchmove", "wheel"].forEach((ev) => window.addEventListener(ev, offForm, { capture: true, passive: false }));
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      EVENTS.forEach((ev) => window.removeEventListener(ev, block, { capture: true }));
+      ["pointermove", "touchmove", "wheel"].forEach((ev) => window.removeEventListener(ev, offForm, { capture: true }));
+    };
+  }, [where]);
   React.useEffect(() => { if (!nudge) return undefined; const id = setTimeout(() => setNudge(0), 3800); return () => clearTimeout(id); }, [nudge]);
   React.useEffect(() => { if (!waiting) setNudge(0); }, [waiting]);
   const place = () => {
@@ -1353,8 +1396,8 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
       h("div", { className: "td-foot" },
         h("div", { className: "td-foot-total", "data-testid": "tienda-order-summary" }, summary, h("br"), h("b", null, !fits ? "Won't fit this board — see Pieces" : where === "guided" ? "Special order: at your Big Glutts, Games Dept." : where === "home" ? "Delivered to your home" : "No charge — in-store demonstration")),
         h("div", { className: "td-foot-btns" },
-          h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-cancel", onClick: onCancel, disabled: filled }, "Cancel"),
-          h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-order-standard", onClick: standard, disabled: filled }, "Standard"),
+          h("button", { type: "button", className: "td-btn td-plain" + (where === "guided" ? " td-locked" : ""), "data-testid": "tienda-order-cancel", onClick: onCancel, disabled: filled, "aria-disabled": where === "guided" ? "true" : undefined }, "Cancel"),
+          h("button", { type: "button", className: "td-btn td-plain" + (where === "guided" ? " td-locked" : ""), "data-testid": "tienda-order-standard", onClick: standard, disabled: filled, "aria-disabled": where === "guided" ? "true" : undefined }, "Standard"),
           h("button", {
             type: "button", "data-testid": "tienda-order-place", disabled: over || !fits || filled, onClick: place,
             className: `td-btn td-primary${btnGlow ? " td-sing-glow" : ""}${waiting ? " td-wait" : ""}`,

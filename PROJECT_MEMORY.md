@@ -4093,3 +4093,42 @@ phone menu until "Start the story over" (which clears it).
   over the box's photo so it never covers the button, taking no taps. The
   first-tap full screen still happens on a missed tap (lidFsTried).
   e2e-story now goes in by See the pieces (catalog, then Close).
+- The den's music on the first visit (user: a random track already on, so
+  there's normal music to hear before the set starts getting at it, at
+  about 30%): den-fx.js, when the den mounts in Nova with the lure on (the
+  Singularity not yet seen, not back from it), once no story cut is on
+  screen + 1.2 s, plays a random record or 8-track through the chassis's
+  own player (new ambient helper `music`: { tracks, play, playing }, via
+  playTrackRef, so the chip and the turntable/8-track show it), unless
+  something is already playing. den-audio.js playMusic takes track.level
+  (a gain after the drop, before musicBus; 0.3 here); __DEN_AUDIO__ shows
+  music.level.
+- Full screen everywhere (user: every screen should always be maximized
+  if possible; the button stays, to come out): the chassis's first-tap
+  full screen is now every theme's (unless fullscreenOnFirstTap: false)
+  and not once a visit: any trusted click finding the page out of full
+  screen puts it back, unless the player came out themselves with the
+  button or the two-finger double-tap (fullscreenDeclined, module level,
+  cleared when they go back in). Nova's store sets it true always.
+- The summons (Neon's first visit) hides the corner's How to play ("?")
+  and full-screen buttons (user), and a tap on it (at the tap's end: a
+  touch is a gesture only then) goes full screen if it isn't.
+- Pinch out (user's video: close over the den's steps, fingers a thumb's
+  width apart closing a little, it barely moved): the pinch is measured
+  from its start (pinchSpan0, pinchR0 = zoomBase() when the second finger
+  lands), and coming together goes by the ratio's 1.8th power (apart, as
+  before, by the ratio). Measured per step, a two-finger pan's jitter in
+  the spread ratcheted the view outward; from the start it doesn't. A
+  150 -> 90 px pinch now takes the camera out 2.5x (was 1.7x).
+  __EC_TEST_CAM__() also reports target and roomLimit.
+- The order form the first time through (guided; user: only Order it at
+  Big Glutts, the pieces' counts and scrolling): OrderForm stops, at
+  window capture, every control but the pieces' - and + (tienda-piece-*-
+  inc/dec), the button (tienda-order-place) and the full-screen switch,
+  the backdrop (a tap there would cancel), and Escape; drags and the wheel
+  off the form; taps on the paper itself pass (it scrolls). Cancel and
+  Standard are dimmed (td-locked). Any tap off the button lights it (as
+  before); a miss also throbs it.
+- e2e-fullscreen: Standard now goes full screen at the first tap; the
+  two-finger double-tap over Begin Game comes out, and a later tap
+  leaves it out (fullscreenDeclined).

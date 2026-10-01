@@ -57,9 +57,8 @@ const storeTheme = {
     tiendaTheme.setStoreRevisited(storeAfter());
     return tiendaTheme.useSetupExtras({ ...x, story: STORE_STORY });
   },
-  // A visit that opens in the store goes full screen at the first tap, as
-  // Tienda's own page does; one that opens at home leaves it to the player.
-  fullscreenOnFirstTap: !readOwned(),
+  // Full screen at the first tap (as every screen now is: the chassis).
+  fullscreenOnFirstTap: true,
 };
 /* The den's television (themes/den-tv.js, den-fx.js) is the way into
    Singularity: turned on, its picture pulls the camera in and Nova's own

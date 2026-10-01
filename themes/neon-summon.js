@@ -388,7 +388,11 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
   // chassis fits the board between the title and the dock by measuring
   // the dock, and a dock with no box leaves the board unfitted, which is
   // what the Singularity's sphere sizes itself by: it came up huge).
-  style.textContent = "html.ec-summon [data-dock-piece], html.ec-summon [data-testid=\"dock-panel\"], html.ec-summon .ec-shell-bar { visibility: hidden !important; pointer-events: none !important; }";
+  // (And the corner's How to play and full-screen buttons gone, user: none
+  // of that on the story's first visit; it goes full screen by itself,
+  // onDown below.)
+  style.textContent = "html.ec-summon [data-dock-piece], html.ec-summon [data-testid=\"dock-panel\"], html.ec-summon .ec-shell-bar { visibility: hidden !important; pointer-events: none !important; }"
+    + " html.ec-summon [data-testid=\"how-to-play\"], html.ec-summon [data-fullscreen-toggle] { display: none !important; }";
   document.head.appendChild(style);
   document.documentElement.classList.add("ec-summon");
   const ray = new THREE.Raycaster(), p2 = new THREE.Vector2();
@@ -435,6 +439,8 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
   const onDown = (e) => {
     swallow(e);
     if (sound) sound.resume(); // (a phone starts the sound suspended until a tap)
+    // (Full screen, if it isn't, at the tap's end below: there's no
+    // button for it here, and a touch is a user's gesture only at its end.)
     try { shield.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
     if (camOk() && !home) home = { radius: cam.current.radius, phi: cam.current.phi };
@@ -464,7 +470,10 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
   shield.addEventListener("pointercancel", onUp);
   // (A phone counts a touch as a tap for starting sound only at its end:
   // wake the sound then too.)
-  ["pointerup", "touchend", "click"].forEach((ev) => shield.addEventListener(ev, () => { if (sound) sound.resume(); }));
+  ["pointerup", "touchend", "click"].forEach((ev) => shield.addEventListener(ev, (e) => {
+    if (sound) sound.resume();
+    if (e.isTrusted && !document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+  }));
   shield.addEventListener("pointermove", onMove);
   shield.addEventListener("pointerdown", onDown);
   function fitShield() {

@@ -174,9 +174,9 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
 const TWO_FINGER_TAP_MAX_MS = 300; // a two-finger contact shorter than this, with barely any movement, is a tap
 const TWO_FINGER_TAP_MOVE_PX = 12; // max cumulative midpoint travel still counted as a tap, not a drag
 const TWO_FINGER_DOUBLE_TAP_MS = 400; // max gap between two taps to count as a double-tap
-// A theme's first-tap full screen (theme.fullscreenOnFirstTap) is offered
-// once a visit, not again when the game remounts.
-let fullscreenOffered = false;
+// The player took the page out of full screen themselves (the button or the
+// two-finger double-tap): it stays out until they put it back.
+let fullscreenDeclined = false;
 
 /* Opponent settings (Human/AI side, AI difficulty, Human-vs-Human starting
    side) persist in this browser across page reloads, not just across New
@@ -620,7 +620,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         if (Array.isArray(target)) cam.current.target.set(target[0], target[1], target[2]);
       }
       const c = cam.current;
-      return { theta: c.theta, phi: c.phi, radius: c.radius, dollhouse: !!c.dollhouse };
+      return { theta: c.theta, phi: c.phi, radius: c.radius, dollhouse: !!c.dollhouse, target: [c.target.x, c.target.y, c.target.z], roomLimit: roomLimitRef.current };
     };
   }, [pieces]);
   /* React-visible copy of the Black Hole Squares LAW's current
@@ -1576,6 +1576,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       setTimeout(() => { document.removeEventListener("pointerup", onUp, true); document.removeEventListener("click", onClick, true); }, 400);
     };
   }, [musicPanel]);
+  // (For the room itself to put a track on: the den's first visit,
+  // through the same player as the music menu's, so the chip and the
+  // turntable show it. See the ambient helpers' `music`.)
+  const playTrackRef = useRef(null);
+  const musicNowRef = useRef(null);
+  musicNowRef.current = musicNow;
   const musicPlaying = (medium) => { if (ambientRef.current && ambientRef.current.setMusicPlaying) ambientRef.current.setMusicPlaying(medium); };
   function playTrack(track) {
     const a = audioRef.current;
@@ -1588,6 +1594,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     setMusicPaused(false);
     musicPlaying(track.medium);
   }
+  playTrackRef.current = playTrack;
   function stopTrack() {
     if (audioRef.current.stopMusic) audioRef.current.stopMusic();
     setMusicNow(null);
@@ -1755,36 +1762,29 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
   }, []);
 
-  /* A theme can open full screen (theme.fullscreenOnFirstTap: Tienda,
-     whose box lid opens the visit). Browsers never let a page go full
-     screen by itself, only from a tap, a click or a key, so it happens
-     on the first one, wherever it lands, and the tap still does what it
-     was for (the lid opens). Once a visit (fullscreenOffered, module
-     level), and not at all if the player has already chosen: entered or
-     left full screen another way first (the two-finger double-tap, the
-     full screen button, a key). A two-finger tap isn't a click, but
-     should a browser make one of it, it's skipped (lastMultiTouchRef). */
+  /* Full screen by itself (every theme, unless fullscreenOnFirstTap is
+     false). Browsers never let a page go full screen by itself, only from
+     a tap, a click or a key, so it happens on the first one, wherever it
+     lands, and the tap still does what it was for (the lid opens). A
+     two-finger tap isn't a click, but should a browser make one of it,
+     it's skipped (lastMultiTouchRef). */
+  /* (Now every screen, user: "every screen should always automatically be
+     maximized if possible", the button there to come back out. So it's
+     not once a visit any more: any tap finds the page out of full screen
+     puts it back, unless the player came out of it themselves with the
+     button or the two-finger double-tap (fullscreenDeclined), until they
+     go back in. A theme can still opt out: fullscreenOnFirstTap: false.) */
   useEffect(() => {
-    if (!theme.fullscreenOnFirstTap || fullscreenOffered) return undefined;
-    const stop = () => {
-      fullscreenOffered = true;
-      document.removeEventListener("click", onClick, true);
-      document.removeEventListener("fullscreenchange", stop);
-    };
+    if (theme.fullscreenOnFirstTap === false) return undefined;
     function onClick(ev) {
       if (!ev.isTrusted || ev.timeStamp - lastMultiTouchRef.current < 600) return;
       const own = ev.target instanceof Element && ev.target.closest("[data-fullscreen-toggle]");
-      stop();
-      if (!own && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+      if (!own && !fullscreenDeclined && !document.fullscreenElement && document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
     }
     document.addEventListener("click", onClick, true);
-    document.addEventListener("fullscreenchange", stop);
-    return () => {
-      document.removeEventListener("click", onClick, true);
-      document.removeEventListener("fullscreenchange", stop);
-    };
+    return () => document.removeEventListener("click", onClick, true);
   }, [theme]);
 
   /* Per feedback, the native right-click/long-press context menu must
@@ -1807,8 +1807,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
   function toggleFullscreen() {
     if (document.fullscreenElement) {
+      fullscreenDeclined = true;
       document.exitFullscreen && document.exitFullscreen().catch(() => {});
     } else if (document.documentElement.requestFullscreen) {
+      fullscreenDeclined = false;
       document.documentElement.requestFullscreen().catch(() => {});
     }
   }
@@ -3084,7 +3086,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // then clearing the inline value stranded the panel visible after
       // the game began (React never re-applies an unchanged opacity:0).
       { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, dockPieceMountRef, fxOverlayRef },
-      { three, cam, windingDownRef, awaitingBeginRef, audio: audioRef.current }
+      {
+        three, cam, windingDownRef, awaitingBeginRef, audio: audioRef.current,
+        music: music ? { tracks: () => music.tracks(), play: (track) => playTrackRef.current && playTrackRef.current(track), playing: () => !!musicNowRef.current } : null,
+      }
     );
 
     /* ---- camera positioning ---- */
@@ -5106,6 +5111,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     let lastX = 0;
     let lastY = 0;
     let pinchDist = 0;
+    // The pinch measured from where it began: its starting spread and the
+    // distance the camera was at (see onMove).
+    let pinchSpan0 = 0, pinchR0 = 0;
     let panAnchor = null;
     /* Two-finger gesture recognition — a double-tap toggles full screen,
        a fast mostly-vertical swipe jumps to Current Player View (up) or
@@ -5464,6 +5472,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         dragging = false;
         altPanning = false;
         pinchDist = active.size === 2 ? pinchSpan() : 0;
+        pinchSpan0 = pinchDist; pinchR0 = active.size === 2 ? zoomBase() : 0;
         panAnchor = active.size === 2 ? pinchMid() : null;
         if (active.size === 2) {
           // A clean two-finger contact starts here — see the field
@@ -5492,10 +5501,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (active.size >= 2) {
         if (active.size === 2) {
           const d = pinchSpan();
-          if (pinchDist && d > 0) {
+          if (pinchSpan0 && d > 0) {
+            /* Out (the fingers coming together) goes further than in, by
+               the ratio's 1.8th power (user: zooming in worked, out hardly
+               at all: in their video, close over the den's steps, fingers
+               a thumb's width apart closing a little barely moved it; from
+               there to the whole room is 18 times the distance). Measured
+               from the pinch's start, not step by step: per step, a pan's
+               jitter in the spread (one finger's move arriving before the
+               other's) would ratchet outward. */
+            const ratio = pinchSpan0 / d;
             cam.current.radius = Math.max(
               zoomMin,
-              Math.min(zoomMaxFor(), zoomBase() * (pinchDist / d))
+              Math.min(zoomMaxFor(), pinchR0 * (ratio > 1 ? Math.pow(ratio, 1.8) : ratio))
             );
           }
           pinchDist = d;
@@ -5762,6 +5780,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          stale anchor — that produced a jump. */
       if (active.size < 2) {
         pinchDist = 0;
+        pinchSpan0 = 0;
         panAnchor = null;
       }
       if (active.size === 0) {
