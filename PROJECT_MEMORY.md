@@ -4160,3 +4160,9 @@ phone menu until "Start the story over" (which clears it).
   the same order, at the level the last one had (the first visit's 30%).
   Alone in its medium (one record, for now: more to come), a track just
   ends.
+- The commercial's voices now 1.5 s ahead of their cues (VOICE_LEAD; user:
+  a second earlier again).
+- The summons' drag turns the board by the board's own rule (user: the
+  bottom half spun the wrong way): a touch beginning above the board's
+  middle on screen (its far half) turns it one way, below the other, as
+  the chassis's grabFollow fallback.

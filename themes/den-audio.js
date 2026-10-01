@@ -705,8 +705,9 @@ export function createAudio() {
     // The king: a cymbal, then the voice (the user's recording, a file
     // beside the page: build/build.js), and a sparkle as it trails off.
     burst(T + AD.king, out, 0.06, 1.4, [["highpass", 5000]]);
-    // (Each voice 0.5 s ahead of its cue, user: the dialogue came in late.)
-    const VOICE_LEAD = 0.5;
+    // (Each voice 1.5 s ahead of its cue, user: the dialogue came in late;
+    // 0.5 s first, then a second more.)
+    const VOICE_LEAD = 1.5;
     const voice = (url, at) => {
       at -= VOICE_LEAD;
       const el = new Audio();
