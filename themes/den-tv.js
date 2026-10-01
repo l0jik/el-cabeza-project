@@ -340,6 +340,23 @@ export function buildTelevision(yF, RZ, X = -40) {
   // faces the room, so its left is +x).
   const power = knob(PX + 2.2, at(0.88), 0.95, 1.1);
   power.rotation.z = -0.9;
+  /* After the story (Nova, den-fx.js): the channel dial (the big knob
+     with the numbers round it; user) glows, and each turn of it clicks
+     the set over to another channel, another reality. The glow: a soft
+     disc of light round it, breathing. */
+  const knobGlowTex = (() => {
+    if (typeof document === "undefined") return null;
+    const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d");
+    const g = x.createRadialGradient(64, 64, 10, 64, 64, 64); g.addColorStop(0, "rgba(255,236,190,1)"); g.addColorStop(0.35, "rgba(255,190,110,0.55)"); g.addColorStop(1, "rgba(255,150,60,0)");
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
+  })();
+  const knobGlowMat = new THREE.MeshBasicMaterial({ map: knobGlowTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+  disposables.push(knobGlowMat); if (knobGlowTex) disposables.push(knobGlowTex);
+  const knobGlow = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 7.4).rotateY(Math.PI), knobGlowMat);
+  knobGlow.position.set(PX, at(0.37), FRONT - 1.9); knobGlow.renderOrder = 4; knobGlow.visible = false;
+  disposables.push(knobGlow.geometry);
+  group.add(knobGlow);
+  let knobGlowOn = false, chanAt = 0, chanBlip = 0;
   const pilotMat = new THREE.MeshBasicMaterial({ color: 0x3a0d08, fog: true });
   disposables.push(pilotMat);
   add(new THREE.CircleGeometry(0.28, 16).rotateY(Math.PI).translate(PX - 2.6, at(0.88), FRONT - 0.45), pilotMat);
@@ -377,10 +394,12 @@ export function buildTelevision(yF, RZ, X = -40) {
 
   /* The parts that never move or change, merged by material: dozens of
      pieces, a dozen draw calls. The screen, its halo, the printing (drawn
-     over the panel) and the power knob (it turns) stay as they are. */
+     over the panel), the power knob and the channel dial (they turn) stay
+     as they are. */
   {
     const keep = new Set([glass, halo, print, cone]); // (and the blast's cone, which moves)
     power.traverse((o) => keep.add(o));
+    vhf.traverse((o) => keep.add(o)); // (the channel dial turns, after the story)
     group.updateMatrixWorld(true);
     const byMat = new Map();
     const statics = [];
@@ -411,6 +430,8 @@ export function buildTelevision(yF, RZ, X = -40) {
   hit.userData.tv = "set";
   const pickables = [hit];
   power.traverse((o) => { if (o.isMesh) { o.userData.tv = "power"; pickables.push(o); } });
+  // (The channel dial: after the story, the channels; den-fx.js.)
+  vhf.traverse((o) => { if (o.isMesh) { o.userData.tv = "channel"; pickables.push(o); } });
 
   /* ---- the set's life ---- */
   // The late-night commercial (den-commercial.js), made when it's first
@@ -548,6 +569,8 @@ export function buildTelevision(yF, RZ, X = -40) {
   return {
     group,
     pickables,
+    // The glass itself (a tap on the picture, after the story: den-fx.js).
+    screen: glass,
     // Where the camera goes to look (den-local): the screen's middle, and
     // how much of the set must be in view (half its width and height).
     focus: { target: new THREE.Vector3(SX - 3, SY + 0.5, FRONT), halfW: 22, halfH: 15, front: FRONT },
@@ -628,6 +651,19 @@ export function buildTelevision(yF, RZ, X = -40) {
     blastState,
     // Test-only: hold the blast at b (0..1), or null to let it go.
     blastPinAt(b) { blastPin = b; if (b == null) blastAt = blastAt || 1; },
+    // After the story: the knob glowing, and the set on a channel (a
+    // picture: `tex`), its dial turned to channel n; off from a channel
+    // with powerOff as ever.
+    glowKnob(on) { knobGlowOn = !!on; },
+    showChannel(now, tex, n = 0) {
+      if (phase === "warming" || phase === "dive") return false;
+      haunt = null; portal = false;
+      knobA = knobGoal = -0.9 + 0.75;
+      u.uTex.value = tex;
+      vhf.rotation.z = ((3 + n) / 12) * Math.PI * 2;
+      set("channel", now);
+      return true;
+    },
     // Something soon (the camera's just come over to look).
     hauntSoon(now, ms = 600) { if (!nextHaunt || nextHaunt > now + ms) nextHaunt = now + ms; },
     // How far into the commercial (ms), or null if it isn't on.
@@ -661,6 +697,12 @@ export function buildTelevision(yF, RZ, X = -40) {
         raster = 1; glow = 1; pat = 1; snow = 0; // (a clean picture, user)
         commercial.draw(Math.max(0, s) / 1000);
         if (s >= COMMERCIAL_MS) set("aired", now);
+      } else if (phase === "channel") {
+        // Another reality on the set (after the story): a clean picture,
+        // a burst of snow as it clicks over.
+        raster = 1; glow = 1; pat = 1;
+        chanBlip = s < 320 ? 1 - s / 320 : 0;
+        snow = 0.04 + 0.95 * chanBlip;
       } else if (phase === "aired") {
         raster = 1; glow = 1; snow = 1;
       } else if (phase === "closing") {
@@ -724,6 +766,10 @@ export function buildTelevision(yF, RZ, X = -40) {
         u.uTex.value = flashTex.texture;
         raster = 1; pat = 1; snow = 0.12; glow = 0.85; line = -1; tear = 0;
       } else if (flashTex && u.uTex.value === flashTex.texture && !(haunt && (haunt.kind === "ghost" || haunt.kind === "voice"))) u.uTex.value = pattern;
+      if (phase === "channel" && chanBlip > 0) { tear = Math.max(tear, 0.7 * chanBlip); line = (now * 0.003) % 1; lineAmt = 0.5 * chanBlip; }
+      // The knob's glow, breathing.
+      knobGlow.visible = knobGlowOn;
+      if (knobGlowOn) knobGlowMat.opacity = 0.55 + 0.35 * Math.sin(now * 0.004);
       u.uLine.value = line; u.uLineAmt.value = lineAmt; u.uTear.value = tear;
       stepPhantoms(now);
       // The picture flickers a little, the snow more.

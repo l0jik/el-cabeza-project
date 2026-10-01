@@ -7,7 +7,8 @@ import * as neonTheme from "../themes/neon.js";
 import { mountSummon, summonBridge } from "../themes/neon-summon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
-import { StoryCut, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone } from "./novaStory.jsx";
+import { StoryCut, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
+import { createRealitiesMenu, goToWorld } from "../themes/realities.js";
 import { forgetSingularity, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn } from "../engine/journey.js";
 import {
   TransitionStyles,
@@ -31,7 +32,7 @@ import {
    start. The chassis keeps its theme object for as long as it's mounted,
    so these are fixed objects, and their buttons reach the app through
    storyBridge, which the app keeps pointed at its current handlers. */
-const storyBridge = { purchase() {}, backToStore() {}, restart() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false };
+const storyBridge = { purchase() {}, backToStore() {}, restart() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };
 // How the place just mounted was reached (read once): false for the page
 // opening there, "cut" by a scene change, "fresh" by the fresh start.
 const takeArrival = () => { const a = storyBridge.arrival; storyBridge.arrival = false; return a; };
@@ -48,6 +49,9 @@ const HOME_STORY = {
   mode: "home", onBackToStore: () => storyBridge.backToStore(), onRestart: () => storyBridge.restart(), storeGone, arrived: takeArrival, bindAudio,
   guided: () => singularitySeen() && !storeGone(),
   onOrderAtStore: () => storyBridge.orderAtStore(),
+  // After the story's end (themes/den-ending.js): the other realities.
+  realities: () => storyEnded(),
+  onRealities: () => storyBridge.openRealities(),
 };
 const storeTheme = {
   ...tiendaTheme,
@@ -72,6 +76,9 @@ const homeTheme = {
   renderSetupExtras: tiendaTheme.renderSetupExtras,
   renderExtraOverlays: tiendaTheme.renderExtraOverlays,
   shellSetupActions: tiendaTheme.shellSetupActions,
+  // After the story: Other realities in the corner too (any time, games
+  // and all).
+  cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
   mountAmbientEffects: (refs, helpers) => {
     const returning = tvBridge.returning;
     const commercial = returning && tvBridge.commercial;
@@ -92,6 +99,13 @@ const homeTheme = {
         enter: () => tvBridge.enter(),
         register: (api) => { tvBridge.press = api ? api.press : null; },
         call,
+        /* The end of the story (themes/den-hall.js, den-ending.js): the
+           hall's due from the trip's return; then the void and the other
+           realities, and the story's over (ended: the set's channels). */
+        hall: { due: () => hallDue() && !storyEnded(), arm: () => saveHallDue(true) },
+        ended: () => storyEnded(),
+        ending: { finish: () => storyBridge.finishStory(), go: (w) => storyBridge.goWorld(w) },
+        realities: { go: (w) => storyBridge.goWorld(w) },
       },
     });
   },
@@ -456,6 +470,21 @@ function UnifiedApp() {
     if (busyRef.current) return;
     startCut({ kind: "fade", caption: "Back at Big Glutts, order in hand.", to: "tienda" });
   };
+  /* The end of the story (den-ending.js): over, and the other realities
+     open: Nova's own places by a cut, the site's other pages by going to
+     them (realities.js). "Other realities" (the den's dock, the phone's
+     menu) opens the same menu over wherever you are. */
+  const [ended, setEnded] = useState(() => storyEnded());
+  const CUT_CAPTIONS = { standard: "The den, 1975.", neon: "Neon.", tienda: "Big Glutts, Games & Hobby Dept." };
+  storyBridge.finishStory = () => { saveStoryEnded(); setEnded(true); };
+  storyBridge.goWorld = (w) => goToWorld(w, (to) => {
+    if (busyRef.current || to === themeName) return;
+    startCut({ kind: "fade", caption: CUT_CAPTIONS[to] || "", to });
+  });
+  storyBridge.openRealities = () => {
+    if (busyRef.current) return;
+    createRealitiesMenu({ current: themeName, onPick: (w) => storyBridge.goWorld(w), stayLabel: themeName === "standard" ? "Stay in the den" : "Stay here" });
+  };
   // "Restart story" asks first (user: an "Are you sure?").
   const [confirmRestart, setConfirmRestart] = useState(false);
   storyBridge.restart = () => {
@@ -467,6 +496,8 @@ function UnifiedApp() {
     if (busyRef.current) return;
     saveOwned(false);
     forgetStoreGone();
+    forgetStoryEnd();
+    setEnded(false);
     // The extras go back behind the Singularity (engine/journey.js).
     forgetSingularity();
     startCut({ kind: "fade", caption: "Once more, from the top\u2026 shelf.", to: "tienda", fresh: true });
@@ -547,16 +578,18 @@ function UnifiedApp() {
     const items = themeName === "tienda"
       ? [tiendaTheme.clerkConfused()
           ? { key: "confused", testid: "shell-menu-go-home-confused", label: "Go home, confused.", detail: "Nobody here has heard of it", onClick: () => storyBridge.goHomeConfused() }
-          : { key: "purchase", testid: "shell-menu-purchase", label: after ? "Purchase another copy" : "Purchase and bring home", detail: after ? "$7.97, at the register" : "$7.97, and home to the den", onClick: () => storyBridge.purchase() }]
+          : { key: "purchase", testid: "shell-menu-purchase", label: after ? "Purchase another copy" : "Purchase and bring home", detail: after ? "$7.97, at the register" : "$7.97, and home to the den", onClick: () => storyBridge.purchase() },
+        ended && { key: "realities", testid: "shell-menu-realities", label: "Other realities", detail: "Every version of the game", onClick: () => storyBridge.openRealities() }].filter(Boolean)
       : themeName === "standard"
         ? [
             switchTheme,
+            ended && { key: "realities", testid: "shell-menu-realities", label: "Other realities", detail: "Every version of the game", onClick: () => storyBridge.openRealities() },
             !storeGone() && { key: "back-to-store", testid: "shell-menu-back-to-store", label: "Back to the store", detail: "Where the game came from", onClick: () => storyBridge.backToStore() },
             { key: "restart", testid: "shell-menu-restart", label: "Restart story", detail: "From the store's shelf", onClick: () => storyBridge.restart() },
           ].filter(Boolean)
-        : [switchTheme];
+        : [switchTheme, ended && { key: "realities", testid: "shell-menu-realities", label: "Other realities", detail: "Every version of the game", onClick: () => storyBridge.openRealities() }].filter(Boolean);
     return { preferBar: layoutPref === "bar", onLayoutChange, menuItems: items };
-  }, [themeName, transition, cut, layoutPref, onLayoutChange, singularityOpen, clerkTick]);
+  }, [themeName, transition, cut, layoutPref, onLayoutChange, singularityOpen, clerkTick, ended]);
 
   // The browser's own toolbar colour follows the theme on phones.
   useEffect(() => {

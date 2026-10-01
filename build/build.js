@@ -22,6 +22,10 @@ const DEN_RECORDS = {
   // The trip back to Big Glutts after the call (den-trip.js; the user's pictures).
   "el-cabeza-trip-day.jpg": "assets/den/trip/glutts-day.jpg",
   "el-cabeza-trip-dusk.jpg": "assets/den/trip/glutts-dusk.jpg",
+  // The other realities' pictures (themes/realities.js: the den's set after
+  // the story, and the realities menu; tools/channel_shots.mjs).
+  ...Object.fromEntries(["den", "neon", "store", "lluvia", "cromo", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-elementarism", "lab-brutalist",
+    "lab-newTypography", "lab-corporateSwiss", "lab-neoBrutalist", "lab-minimalMono", "lab-ultimateFusion"].map((id) => [`el-cabeza-channel-${id}.jpg`, `assets/den/channels/${id}.jpg`])),
 };
 
 // The Games counter's photographs (themes/tienda-overlay.js ClerkScene).

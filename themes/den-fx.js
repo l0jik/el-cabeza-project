@@ -38,11 +38,14 @@ import { quality } from "./tienda-quality.js";
 import { setCommercialOn } from "../engine/journey.js";
 import { createDenCall } from "./den-call.js";
 import { createTrip } from "./den-trip.js";
+import { createHall } from "./den-hall.js";
+import { createEnding } from "./den-ending.js";
+import { WORLDS } from "./realities.js";
 
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
 export function createDenEffects(woodSet, { viewPitch = null } = {}) {
-  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null }) {
+  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null, moves = null }) {
     const q = quality();
     // Home with the special order (Nova): the thought, then the telephone
     // call from Big Glutts (den-call.js).
@@ -57,9 +60,31 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (cam.current.target) cam.current.target.set(0, 0, 0);
       if (cam.current.view && cam.current.view.target) cam.current.view.target.set(0, 0, 0);
     };
-    const trip = novaTv ? createTrip({ audio, onReturn: roomView }) : null;
+    // (Home from the trip, the hall's due: den-hall.js, below.)
+    const trip = novaTv ? createTrip({ audio, onReturn: () => { roomView(); if (novaTv.hall) novaTv.hall.arm(); if (hall) hall.arm(movesNow()); } }) : null;
     if (trip && novaTv.call) trip.load(); // (its pictures, well ahead of time)
     const call = novaTv && novaTv.call ? createDenCall({ audio, awaitingBegin: () => !!(awaitingBeginRef && awaitingBeginRef.current), onTrip: () => trip && trip.start(), onGoToPhone: () => phoneVisit(true), onPhoneDone: () => phoneVisit(false) }) : null;
+    /* The end of the story (Nova). Home from the closed Big Glutts, four
+       moves into the game the hall starts up (den-hall.js); investigated,
+       it ends in the void (den-ending.js) and the other realities. After
+       that (postStory) the set's knob glows and clicks through them, a
+       picture of each on its screen. */
+    let postStory = !!(novaTv && novaTv.ended && novaTv.ended());
+    const movesNow = () => (moves ? moves() : 0);
+    let ending = null;
+    const hall = novaTv && novaTv.hall && !postStory ? createHall({ audio, onEnding: (h) => startEnding(h) }) : null;
+    if (hall && novaTv.hall.due()) hall.arm(movesNow());
+    function startEnding(h) {
+      ending = createEnding({
+        audio,
+        onFinish: () => { postStory = true; if (novaTv.ending) novaTv.ending.finish(); },
+        // (Another place: Nova's cut takes over from the void.)
+        onPick: (w) => { if (novaTv.ending) novaTv.ending.go(w); },
+        onStay: () => { ending = null; if (hall) hall.finish(); roomView(); },
+      });
+      ending.start();
+      if (typeof requestAnimationFrame !== "undefined") requestAnimationFrame(() => h && h.clear && h.clear());
+    }
     /* Home before the Singularity (Nova, the set still to lure you): a
        record or a tape already on, a random one, at 40% (user: normal
        music to hear before the set starts getting at it, low in the mix
@@ -587,10 +612,15 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         tvHint.className = "den-book-hint";
         tvHint.setAttribute("data-testid", "den-tv-hint");
         tvHint.textContent = "Tap the set to turn it on\nanywhere else to go back";
+        tvHint.setAttribute("data-default", "1");
         tvHint.style.whiteSpace = "pre-line";
         tvHint.style.textAlign = "center";
         document.body.appendChild(tvHint);
       }
+      // After the story: what the knob and the picture do.
+      if (postStory) tvHint.textContent = chan >= 0
+        ? `Channel ${String(chan + 2).padStart(2, "0")}: ${WORLDS[chan].name}\nthe dial: next channel \u00b7 the picture: go there`
+        : "The dial: the channels\nanywhere else to go back";
       tvHint.classList.toggle("on", on);
     }
     // While watching: a tap off the set (or Escape) goes back, and does
@@ -670,10 +700,71 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       window.addEventListener("keydown", onLookKey, true);
     }
     // (A tap on the set and the menu's "Turn on the TV" alike.)
+    /* The channels: each world's picture (realities.js WORLDS, files beside
+       the page) with the set's on-screen channel number and the world's
+       name along the bottom. A picture the page may not draw from (opened
+       from disk) leaves the card plain. */
+    let chan = -1;
+    const chanCache = [];
+    function drawChannel(c, w, i, img) {
+      const g = c.getContext("2d"), W = c.width, H = c.height;
+      g.fillStyle = "#0c0915"; g.fillRect(0, 0, W, H);
+      if (img) g.drawImage(img, 0, 0, W, H);
+      else { g.fillStyle = "#2a1f3d"; g.fillRect(W * 0.08, H * 0.2, W * 0.84, H * 0.5); }
+      g.fillStyle = "rgba(0,0,0,0.55)"; g.fillRect(0, H * 0.8, W, H * 0.2);
+      g.textBaseline = "middle"; g.fillStyle = "#f4f0e6"; g.textAlign = "left";
+      g.font = `700 ${Math.round(H * 0.075)}px 'IBM Plex Sans', Arial, sans-serif`;
+      g.fillText(w.name, W * 0.05, H * 0.9);
+      g.textAlign = "right"; g.fillStyle = "#7dff86";
+      g.font = `700 ${Math.round(H * 0.12)}px 'Courier Prime', 'Courier New', monospace`;
+      g.fillText(String(i + 2).padStart(2, "0"), W * 0.95, H * 0.11);
+    }
+    function channelTex(i) {
+      if (chanCache[i]) return chanCache[i];
+      const w = WORLDS[i];
+      const c = document.createElement("canvas"); c.width = 512; c.height = 384;
+      drawChannel(c, w, i, null);
+      const tex = new THREE.CanvasTexture(c);
+      chanCache[i] = tex;
+      const img = new Image();
+      img.onload = () => {
+        // (Only if the picture can go on the screen: a probe first.)
+        try { const pc = document.createElement("canvas"); pc.width = pc.height = 2; const pg = pc.getContext("2d"); pg.drawImage(img, 0, 0, 2, 2); pg.getImageData(0, 0, 1, 1); } catch (e) { return; }
+        drawChannel(c, w, i, img); tex.needsUpdate = true;
+      };
+      img.src = w.shot;
+      return tex;
+    }
+    // The channel dial (after the story): the next reality, round and
+    // round; the set comes on if it was off, and the camera over to watch.
+    function nextChannel() {
+      const set = den && den.tv;
+      if (!set) return;
+      if (!lureLook) lookAtTv(true);
+      chan = (chan + 1) % WORLDS.length;
+      const wasOn = set.isOn();
+      if (set.showChannel(performance.now(), channelTex(chan), chan) && !wasOn && audio && audio.tvOn) audio.tvOn();
+      showTvHint(true);
+    }
+    function goChannel() {
+      const w = WORLDS[chan];
+      if (!w) return;
+      if (w.nova === "standard") { lookAtTv(false); return; } // (you're here)
+      if (novaTv && novaTv.realities) novaTv.realities.go(w);
+    }
     function pressTv() {
       const set = den && den.tv;
       if (!set) return false;
       const now = performance.now();
+      /* After the story the power knob is just that: on (to the channel
+         it was on, or the first) and off. The dial does the channels. */
+      if (postStory) {
+        if (!lureLook) lookAtTv(true);
+        if (set.isOn()) { if (set.powerOff(now) && audio && audio.tvOff) audio.tvOff(); }
+        else { if (chan < 0) chan = 0; if (set.showChannel(now, channelTex(chan), chan) && audio && audio.tvOn) audio.tvOn(); }
+        showTvHint(true);
+        return true;
+      }
       // The lure's first press: over to the set, to watch.
       if (lure && !lureDone && !set.isOn() && !lureLook) { lookAtTv(true); return true; }
       lureDone = true;
@@ -707,6 +798,15 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
       window.__DEN_TRIP__ = () => (trip ? trip.state() : null);
+      // The end of the story: the hall, the void, the channels after.
+      window.__DEN_HALL__ = () => (hall ? hall.state() : null);
+      window.__DEN_HALL_NOW__ = () => hall && hall.now(movesNow());
+      window.__DEN_HALL_PICK__ = (which) => hall && hall.pick(which);
+      window.__DEN_HALL_SKIP__ = (ms) => hall && hall.skipWalk(ms);
+      window.__DEN_ENDING__ = () => (ending ? ending.state() : null);
+      window.__DEN_ENDING_SKIP__ = (ms) => ending && ending.skip(ms);
+      window.__DEN_TV_CHANNEL__ = () => nextChannel();
+      window.__DEN_CHANNEL__ = () => ({ post: postStory, chan, name: chan >= 0 ? WORLDS[chan].name : null, phase: den && den.tv ? den.tv.phase() : null });
       window.__DEN_TRIP_PIN__ = (ms) => trip && trip.pin(ms);
       window.__DEN_TV_BLAST_PIN__ = (b) => den && den.tv && den.tv.blastPinAt && den.tv.blastPinAt(b);
       // Test-only: the camera over at the set (or back), the set left as it is.
@@ -729,6 +829,14 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         focusFrame(t, now);
         listen(t, now);
         if (call) call.tick(now, t, den);
+        if (hall) {
+          const ts = trip ? trip.state().stage : "idle";
+          const busy = !!(awaitingBeginRef && awaitingBeginRef.current) || !!(call && call.busy && call.busy()) || (ts !== "idle" && ts !== "done")
+            || !!(den.tv && den.tv.isOn()) || tvGoal > 0 || phoneGoal > 0 || bookGoal > 0 || focusGoal > 0 || !!ending
+            || (typeof document !== "undefined" && !!document.querySelector("[data-testid='story-cut']"));
+          hall.tick(now, t, den, { moves: movesNow, busy });
+        }
+        if (den.tv && den.tv.glowKnob) den.tv.glowKnob(postStory);
         if (autoMusic) {
           if (typeof document !== "undefined" && document.querySelector("[data-testid='story-cut']")) autoMusicAt = 0;
           else if (!autoMusicAt) autoMusicAt = now + 1200;
@@ -823,7 +931,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         lookListeners(t);
         holdListeners();
         showBookHint(bookGoal === 1 && bookW > 0.6);
-        const visiting = tvGoal > 0 || tvW > 0.02 || bookGoal > 0 || bookW > 0.02 || phoneGoal > 0 || phoneW > 0.02;
+        const visiting = tvGoal > 0 || tvW > 0.02 || bookGoal > 0 || bookW > 0.02 || phoneGoal > 0 || phoneW > 0.02 || !!(hall && hall.active());
         if (visiting !== onStage && typeof document !== "undefined") { onStage = visiting; document.documentElement.classList.toggle("ec-tv-visit", visiting); }
         const ph = den.tv.phase();
         if (ph !== tvPhase) {
@@ -854,14 +962,25 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         const lamps = den.lamp.pickables.filter((m) => { const g = den.groups[m.userData.lampGroup]; return !g || g.visible; });
         const things = lamps.concat(den.book.pickables, den.groups.wallS.visible ? den.stereo.pickables.concat(den.tv.pickables) : [],
           call && call.ringing() && den.groups.wallW.visible && den.phone ? den.phone.pickables : []);
-        const hit = raycaster.intersectObjects(things, false)[0];
+        const hits = raycaster.intersectObjects(things, false);
+        let hit = hits[0];
         if (!hit) return null;
+        // (The set's knobs sit just behind its tap-anywhere box: a tap on
+        // one is the knob's.)
+        const knob = hits.find((h) => h.object.userData.tv === "power" || h.object.userData.tv === "channel");
+        if (knob && hit.object.userData.tv === "set" && knob.distance - hit.distance < 4) hit = knob;
         const nearer = raycaster.intersectObjects([slab, den.table.group].filter(Boolean), true)[0];
         if (nearer && nearer.distance < hit.distance) return null;
         if (hit.object.userData.focusLamp) return "lamp";
         if (hit.object.userData.book) return "book";
         if (hit.object.userData.phone) return "phone";
-        return hit.object.userData.tv ? "tv" : hit.object.userData.music || null;
+        if (hit.object.userData.tv) {
+          if (postStory && hit.object.userData.tv === "channel") return "tvChannel";
+          // (The picture: a tap on the glass itself.)
+          const onGlass = den.tv.screen && raycaster.intersectObject(den.tv.screen, false).length > 0;
+          return postStory && hit.object.userData.tv === "set" && onGlass && den.tv.phase() === "channel" && chan >= 0 ? "tvScreen" : "tv";
+        }
+        return hit.object.userData.music || null;
       },
       // What a tap on "rules" or "tv" does is the room's own: the rules
       // open at the Quick card (as How to play did; chassis/RulesCards.jsx
@@ -884,6 +1003,9 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         }
         // The telephone, ringing: picked up.
         if (what === "phone") return call ? call.answer() : false;
+        // After the story: the picture on the set is a way there.
+        if (what === "tvScreen") { goChannel(); return true; }
+        if (what === "tvChannel") { nextChannel(); return true; }
         if (what !== "tv") return false;
         pressTv();
         return true;
@@ -896,6 +1018,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
          the console by how far into the visit it is (eased both ways). */
       placeCamera(camera, dtMs) {
         const t = three.current;
+        // The hall first (the doorway, the walk in): over everything else.
+        if (hall && hall.placeCamera(camera, t, den)) return true;
         focusW += (focusGoal - focusW) * (1 - Math.exp(-(dtMs / 1000) * 2.4));
         if (Math.abs(focusGoal - focusW) < 0.001) focusW = focusGoal;
         if (tvLeaveAt && tvGoal === 0) {
@@ -999,6 +1123,9 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (den) den.dispose();
         if (brass) brass.dispose();
         if (call) call.dispose();
+        if (hall) hall.dispose();
+        if (ending) { ending.dispose(); ending = null; }
+        chanCache.forEach((tx) => tx && tx.dispose());
         if (trip) trip.dispose();
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
@@ -1037,7 +1164,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           window.removeEventListener("keydown", onLookKey, true);
           lookListenersOn = null;
         }
-        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; delete window.__DEN_TV_BLAST_PIN__; delete window.__DEN_TRIP__; delete window.__DEN_TRIP_PIN__; }
+        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; delete window.__DEN_TV_BLAST_PIN__; delete window.__DEN_TRIP__; delete window.__DEN_TRIP_PIN__; ["__DEN_TV_CHANNEL__", "__DEN_HALL__", "__DEN_HALL_NOW__", "__DEN_HALL_PICK__", "__DEN_HALL_SKIP__", "__DEN_ENDING__", "__DEN_ENDING_SKIP__", "__DEN_CHANNEL__"].forEach((k) => { delete window[k]; }); }
         if (whiteEl) { whiteEl.remove(); whiteEl = null; }
       },
     };

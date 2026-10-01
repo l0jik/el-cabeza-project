@@ -47,6 +47,26 @@ export function saveStoreGone() {
 export const storeGone = () => storeGoneThisVisit || readStoreGone();
 export function forgetStoreGone() { storeGoneThisVisit = false; }
 
+/* The end of the story (themes/den-hall.js, den-ending.js): home from
+   the closed Big Glutts, the hall is due (hallDue, from the trip's return
+   until it happens); once it's happened and the realities are open, the
+   story's over (ended: the den's set and Nova's "Other realities" from
+   then on). Both kept in the story's record, and gone with it when the
+   story starts over. */
+const storyThisVisit = {};
+function readStory() {
+  try { return JSON.parse(localStorage.getItem(STORY_KEY) || "null") || {}; } catch (e) { return {}; }
+}
+function patchStory(p) {
+  Object.assign(storyThisVisit, p);
+  try { localStorage.setItem(STORY_KEY, JSON.stringify({ ...readStory(), ...p })); } catch (e) { /* this visit only */ }
+}
+export const hallDue = () => !!("hallDue" in storyThisVisit ? storyThisVisit.hallDue : readStory().hallDue);
+export const saveHallDue = (on) => patchStory({ hallDue: !!on });
+export const storyEnded = () => !!("ended" in storyThisVisit ? storyThisVisit.ended : readStory().ended);
+export const saveStoryEnded = () => patchStory({ ended: true, hallDue: false });
+export function forgetStoryEnd() { delete storyThisVisit.hallDue; delete storyThisVisit.ended; }
+
 export function saveOwned(owned) {
   try {
     if (owned) localStorage.setItem(STORY_KEY, JSON.stringify({ owned: true }));

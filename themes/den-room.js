@@ -56,6 +56,10 @@ export const PIT_FLOOR = -SLAB_THICKNESS - TABLE_H;
 export const FLOOR = PIT_FLOOR + PIT_DEPTH;
 export const CEIL = FLOOR + 49; // 8 ft
 export const RX = 100, RZ = 88; // the walls: |x| = RX, |z| = RZ
+/* The doorway in the south wall and the hall beyond it (den-hall.js
+   reads these): the opening's x span and height, the wall's thickness, the
+   hall's far end (RZ + HALL_DEPTH) and its west end (x = HX0). */
+export const HALL = { DX0: 60, DX1: 78, DH: 41, WT: 5, DEPTH: 34, HX0: 40 };
 
 /* The lamps, in the board's frame: where each is, its colour and
    strength, and its reach (the distance at which its light has fallen to
@@ -504,7 +508,7 @@ export function buildDen(boardSpan) {
   // The doorway out of the den, to the left of the console as you face
   // it from the pit (user: the opposite side of the room from the glass
   // door), its door standing open onto a dim hall.
-  const DX0 = 60, DX1 = 78, DH = 41, WT = 5, doorW = DX1 - DX0, doorC = (DX0 + DX1) / 2;
+  const { DX0, DX1, DH, WT } = HALL, doorW = DX1 - DX0, doorC = (DX0 + DX1) / 2;
   wallS(rect(RX + DX0, CEIL - FLOOR, "-z", (-RX + DX0) / 2, (yF + yC) / 2, RZ, 6), M.panel, TX.PANEL_TILE);
   wallS(rect(RX - DX1, CEIL - FLOOR, "-z", (DX1 + RX) / 2, (yF + yC) / 2, RZ, 6), M.panel, TX.PANEL_TILE);
   wallS(rect(doorW, CEIL - FLOOR - DH, "-z", doorC, (yF + DH + yC) / 2, RZ, 6), M.panel, TX.PANEL_TILE);
@@ -520,7 +524,7 @@ export function buildDen(boardSpan) {
   wallS(box(doorW + cw * 2, cw, 0.7, doorC, yF + DH + cw / 2, RZ - 0.35), M.walnut, 16);
   // The hall beyond: the shag runs on, papered walls, a light overhead,
   // a small framed print at the end.
-  const HZ0 = RZ + WT, HZ1 = RZ + 34, HX0 = 40, HX1 = RX;
+  const HZ0 = RZ + WT, HZ1 = RZ + HALL.DEPTH, HX0 = HALL.HX0, HX1 = RX;
   wallS(rect(HX1 - HX0, HZ1 - HZ0, "+y", (HX0 + HX1) / 2, yF, (HZ0 + HZ1) / 2, 6), M.shagRoom, TX.SHAG_TILE);
   wallS(rect(HX1 - HX0, CEIL - FLOOR, "-z", (HX0 + HX1) / 2, (yF + yC) / 2, HZ1, 6), M.hallPaper, TX.HALL_PAPER_TILE);
   wallS(rect(HX1 - HX0, HZ1 - HZ0, "-y", (HX0 + HX1) / 2, yC, (HZ0 + HZ1) / 2, 8), M.ceil, TX.CEIL_TILE, { floorShade: false });
@@ -1008,10 +1012,12 @@ export function buildDen(boardSpan) {
   const table = buildCoffeeTable(TW, boardSpan);
   group.add(table.group);
 
-  let lastNow = 0;
+  let lastNow = 0, keepHall = false;
   return {
     group,
     groups: B.groups,
+    // The hall stays when the camera's in it (den-hall.js: walking in).
+    keepHall(on) { keepHall = !!on; },
     TW, PH,
     table,
     lamp: { pickables: lampPickables },
@@ -1063,7 +1069,8 @@ export function buildDen(boardSpan) {
         B.groups.sofaS.visible = !blocks(camLocal.z, camLocal.x);
         B.groups.sofaW.visible = !blocks(-camLocal.x, camLocal.z);
         B.groups.wallN.visible = camLocal.z > -RZ + 6;
-        B.groups.wallS.visible = camLocal.z < RZ - 6;
+        // (In the hall itself, walking in: den-hall.js keeps it there.)
+        B.groups.wallS.visible = keepHall || camLocal.z < RZ - 6;
         B.groups.wallE.visible = camLocal.x < RX - 6;
         B.groups.wallW.visible = camLocal.x > -RX + 6;
         B.groups.ceiling.visible = camLocal.y < CEIL - 3;

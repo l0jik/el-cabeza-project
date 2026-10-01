@@ -687,6 +687,8 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
   return {
     tick,
     ringing: () => stage === "ringing",
+    // The phone's under way (ringing, or the call), or its card's up.
+    busy: () => stage === "ringing" || stage === "call" || !!yayEl,
     answer,
     dispose() {
       timers.forEach(clearTimeout); timers = [];

@@ -527,6 +527,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [movedPieceIds, setMovedPieceIds] = useState(() => carried("movedPieceIds", []));
   const [pendingSteps, setPendingSteps] = useState(() => carried("pendingSteps", []));
   const [log, setLog] = useState(() => carried("log", []));
+  // (The log's length, for a theme counting the moves made: the den's hall.)
+  const logRef = useRef(log);
+  logRef.current = log;
   const [status, setStatus] = useState(() => carried("status", "playing"));
   /* Every completed turn, oldest first, each entry holding full state
      from immediately BEFORE that turn started plus what's needed to
@@ -2457,16 +2460,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      place: { left, bottom }; the bottom also goes to the theme's CSS as
      --ec-corner-bottom (its card-style buttons sit 4 px higher). */
   const cornerStack = viewportW <= 560;
-  const cornerSlots = [fullScreenCorner && "fs", !rulesInRoom && "howto", theme.freeCamera && theme.freeCamera.dollhouse && "room", theme.focusMode && "focus"].filter(Boolean);
+  // A theme's own corner action (theme.cornerAction(): { label, onClick }
+  // or null; Nova's den after the story: Other realities).
+  const cornerAction = theme.cornerAction ? theme.cornerAction() : null;
+  const cornerSlots = [fullScreenCorner && "fs", !rulesInRoom && "howto", theme.freeCamera && theme.freeCamera.dollhouse && "room", theme.focusMode && "focus", cornerAction && "action"].filter(Boolean);
   const cornerPlace = (key) => {
     if (cornerStack) return { left: 18, bottom: 18 + 38 * Math.max(0, cornerSlots.indexOf(key)) };
     if (key === "fs") return { left: 18, bottom: 18 };
     if (key === "howto") return { left: fullScreenCorner ? 58 : 18, bottom: 18 };
     if (key === "room") return { left: rulesInRoom && fullScreenCorner ? 58 : 18, bottom: rulesInRoom ? 18 : 60 };
+    if (key === "action") return { left: rulesInRoom ? (fullScreenCorner ? 98 : 58) + (theme.focusMode ? 40 : 0) : 18, bottom: rulesInRoom ? 18 : 144 };
     return { left: rulesInRoom ? (fullScreenCorner ? 98 : 58) : 18, bottom: rulesInRoom ? 18 : 102 };
   };
   const cornerStyle = (key) => { const c = cornerPlace(key); return { left: c.left, bottom: c.bottom, "--ec-corner-bottom": `${c.bottom}px` }; };
-  const cornerControlsRight = cornerStack ? 56 + 8 : rulesInRoom ? (fullScreenCorner ? 96 : 56) + (theme.focusMode ? 40 : 0) + 8 : 170 + 8;
+  const cornerControlsRight = cornerStack ? 56 + 8 : rulesInRoom ? (fullScreenCorner ? 96 : 56) + (theme.focusMode ? 40 : 0) + (cornerAction ? 40 : 0) + 8 : 170 + 8;
   const cornerControlsCovered = dockView === "panel" && (viewportW - dockPanelW) / 2 < cornerControlsRight;
   // The now-playing chip (theme.music): just above the corner controls,
   // stacked or in a row; on the phone shell, just above its bar.
@@ -3119,6 +3126,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       { titleRef, titleWrapRef, titleFxRef, turnHaloRef, turnLabelRef, cardRef, dockPieceMountRef, fxOverlayRef },
       {
         three, cam, windingDownRef, awaitingBeginRef, audio: audioRef.current,
+        moves: () => (logRef.current ? logRef.current.length : 0),
         music: music ? { tracks: () => music.tracks(), play: (track) => playTrackRef.current && playTrackRef.current(track), playing: () => !!musicNowRef.current } : null,
       }
     );
@@ -7451,6 +7459,31 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             <path d="M3 10.5 12 4l9 6.5" strokeDasharray="2.2 2.2" />
             <path d="M5 10v9.5h14V10" />
             <path d="M9.5 19.5v-5h5v5" />
+          </svg>
+        </button>
+      )}
+
+      {/* The theme's own corner action (theme.cornerAction): a ringed
+         planet, the other realities. */}
+      {!shell && cornerAction && (
+        <button
+          type="button"
+          data-testid="action-corner"
+          onClick={cornerAction.onClick}
+          aria-label={cornerAction.label}
+          title={cornerAction.label}
+          style={{
+            position: "fixed", ...cornerStyle("action"), zIndex: cornerControlsZ, width: 38, height: 38,
+            display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
+            color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : focusMode ? 0.25 : 0.5,
+            pointerEvents: cornerControlsCovered ? "none" : "auto", visibility: cornerControlsCovered ? "hidden" : "visible", cursor: "pointer", transition: "opacity 0.5s ease",
+          }}
+          onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : focusMode ? 0.25 : 0.5; }}
+        >
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="5" />
+            <ellipse cx="12" cy="12" rx="10.5" ry="3.6" transform="rotate(-22 12 12)" />
           </svg>
         </button>
       )}
