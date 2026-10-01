@@ -258,9 +258,9 @@ console.log("\ndesktop: the store, the purchase, home");
   // day, "What the...!??", merging into dusk with the sphere, "Time to get
   // the heck out of here!", black, and home in the Room view.
   check("the trip: off to the store", !!(await poll(async () => (await page.evaluate(() => window.__DEN_TRIP__ && window.__DEN_TRIP__().stage)) === "store", 9000, 100)));
-  check("...\"What the...!??\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-1"].on').count()) === 1, 9000, 100)));
-  check("...\"Time to get the heck out of here!\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-2"].on').count()) === 1, 9000, 100)));
-  check("...home, in the Room view", !!(await poll(async () => { const s = await page.evaluate(() => window.__DEN_TRIP__().stage); const c = await page.evaluate(() => window.__EC_TEST_CAM__()); return (s === "home" || s === "done") && c.dollhouse; }, 8000, 100)));
+  check("...\"What the...!??\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-1"].on').count()) === 1, 20000, 100)));
+  check("...\"Time to get the heck out of here!\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-2"].on').count()) === 1, 20000, 100)));
+  check("...home, in the Room view", !!(await poll(async () => { const s = await page.evaluate(() => window.__DEN_TRIP__().stage); const c = await page.evaluate(() => window.__EC_TEST_CAM__()); return (s === "home" || s === "done") && c.dollhouse; }, 20000, 100)));
   check("...and the trip's gone", !!(await poll(async () => !(await has(page, "den-trip")), 6000, 100)));
   check("...still owned", (await owned(page) || {}).owned === true);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));

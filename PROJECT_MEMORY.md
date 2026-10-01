@@ -4405,3 +4405,30 @@ phone menu until "Start the story over" (which clears it).
   asleep (2.15x, a slow push in to 2.27x), and from 0.55 s in it pulls out
   over a second to the whole table; the words and the stamp are overlays
   (the character generator), so they don't zoom.
+- The clerk's hands, round 4 (user: atrocious; back to the original
+  frames). Every hand edit is gone: clerk-go is the original again
+  (from 09555fe), and clerk-sure is the original with one thing over it:
+  the user's own photo of your hand holding the order form out to him
+  (assets/tienda/storyboard/offer-hand.png, RGBA cut-out, source only,
+  not shipped). tools/tienda_clerk_frames.py offer_order_form: the
+  photo's form corners (OFFER_SRC) mapped by one homography onto
+  OFFER_DST (top edge just under his open palm at y ~300, bottom ~430),
+  so the photo's own lean carries on, the form foreshortened, and the
+  hand below comes on larger toward the lens with the wrist off the
+  bottom of the shot. Shrunk 3x (area) before the warp; softer toward
+  the bottom (blur 1.3 below y 360); warmed and dimmed to the store
+  (x 1.0/0.94/0.84, 0.93); a faint shadow on the table under it. Laid
+  over the finished frame (in front of the spread). lift_hand, the
+  painted form (order_form_art) and the rest of rounds 1-3 are removed.
+  After running the script, check out every other frame again (JPEG
+  bytes differ even with identical pixels).
+- The trip, round 2 (user: a little zoomed in; start out wider, then zoom
+  and pan; everything 0.75x slower again): den-trip.js T is 1.75x the
+  old timeline (blackIn 4550-7350, arrive 9800, fadeUp 10200-17000,
+  sweep 10200-20800, say1 17500-23100, morph 20300-28700, rise 20500-
+  30800, say2 26600-31200, blackOut 30500-33100, home 33300, fadeHome
+  33600-36800). The camera opens on the whole storefront (zoom 1), zooms
+  in (to 1.5, 1.18 on a tall screen) while panning right through the
+  sweep, then pulls back up and out through the rise. e2e-story's trip
+  waits raised to 20 s. The car sounds are still synthesized; the user
+  is uploading real ones to replace driveAway/arrive.

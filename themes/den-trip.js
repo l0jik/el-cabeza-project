@@ -19,18 +19,19 @@ const DAY_URL = "el-cabeza-trip-day.jpg";
 const DUSK_URL = "el-cabeza-trip-dusk.jpg";
 
 // The timeline (ms from the card starting to fade).
+// (All of it 1.75 times as long as it was, user: it went by too fast.)
 const T = {
-  blackIn: [2600, 4200],     // to black, the car pulling away
-  arrive: 5200,              // the car coming in (heard through the fade-in)
-  fadeUp: [5600, 9600],      // up from black onto the store
-  sweep: [5000, 11900],      // the look round: a slow sweep along the front, close, eye level
-  rise: [11700, 17600],      // then up and out, to the sky and the sphere behind the building
-  say1: [10000, 13200],      // "What the...!??"
-  morph: [11600, 16400],     // into dusk, the sphere in the sky
-  say2: [15200, 17800],      // "Time to get the heck out of here!"
-  blackOut: [17400, 18900],  // to black
-  home: 19000,               // the den, the Room view
-  fadeHome: [19200, 21000],  // up from black, home
+  blackIn: [4550, 7350],     // to black, the car pulling away
+  arrive: 9800,              // the car coming in (heard through the fade-in)
+  fadeUp: [10200, 17000],    // up from black onto the store
+  sweep: [10200, 20800],     // the look round: from the whole storefront, in close and along it
+  rise: [20500, 30800],      // then up and out, to the sky and the sphere behind the building
+  say1: [17500, 23100],      // "What the...!??"
+  morph: [20300, 28700],     // into dusk, the sphere in the sky
+  say2: [26600, 31200],      // "Time to get the heck out of here!"
+  blackOut: [30500, 33100],  // to black
+  home: 33300,               // the den, the Room view
+  fadeHome: [33600, 36800],  // up from black, home
 };
 const LINES = ["What the…!??", "Time to get the heck out of here!"];
 
@@ -214,8 +215,8 @@ export function createTrip({ audio, onReturn }) {
     const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   }
-  /* One frame. The camera: first close and at eye level, sweeping slowly
-     along the storefront from left to right (taking it in); then, as the
+  /* One frame. The camera: first the whole storefront, then in close and
+     along it, to the right, down to eye level (taking it in); then, as the
      day turns to dusk and the sphere comes through behind the building,
      it tilts up and pulls back, slow and wide, until the sphere looms
      over the store. (Framing in the picture's own terms: a zoom over
@@ -233,9 +234,12 @@ export function createTrip({ audio, onReturn }) {
     const sw = sm(span(t, T.sweep));
     const ri = span(t, T.rise), r = ri * ri * ri * (ri * (ri * 6 - 15) + 10); // (smoother still: slow out, slow in)
     // (A tall screen already crops the picture's sides: less zoom there.)
-    const tall = W < H, z0 = tall ? 1.12 : 1.6;
-    const zoom = z0 + 0.06 * sw - (z0 - 1) * r;             // close, a touch closer, then out to the whole
-    let cx = 0.14 + 0.72 * sw, cy = 0.66 - 0.02 * sw;       // along the front, eye level
+    // (User: zoomed out at first, then zoom and pan.) The whole storefront
+    // as it fades up; then in, closer, and along it to the right; then
+    // up and out again. (A tall screen already crops the sides: less zoom.)
+    const tall = W < H, zs = tall ? 1.18 : 1.5;
+    const zoom = 1 + (zs - 1) * sw - (zs - 1) * r;
+    let cx = 0.36 + 0.46 * sw, cy = 0.5 + 0.14 * sw;        // from the middle, in and along the front, down to eye level
     cx += ((tall ? 0.3 : 0.36) - cx) * r; cy += (0.4 - cy) * r; // up, and toward the sphere
     const s = cover * zoom, dw = iw * s, dh = ih * s;
     const x = Math.min(0, Math.max(W - dw, W / 2 - cx * dw));
