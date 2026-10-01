@@ -4302,3 +4302,40 @@ phone menu until "Start the story over" (which clears it).
   frame at rest, so it was cream all along. tint(hand, k) now keeps the
   base colour (userData.baseColor) and scales it. Hook
   __DEN_CALL_HANDSET_COLOR__; e2e-story checks it's 7d8b3e after the call.
+- After the call (user): den-call.js yay() puts up a 1975 card (as the
+  store's StoryHint: Caprasimo, brown/rust/orange/mustard stripes, tilted,
+  bouncing in), "Free pieces?! Nice!..." then, a beat later, "Thank you,
+  Big Glutts!"; 1.5 s after the hang-up, 5.6 s up (YAY_MS), no taps.
+  testid den-yay; e2e-story checks it comes and goes.
+- The set's blast (user: more extreme; a cone of light from the screen's
+  edges until everything goes white for a second, then back, and weirder
+  after). den-tv.js: a frustum mesh (cone, ShaderMaterial: the tube's
+  outline flaring BLAST_SPREAD 5.2x over uLen, additive, rays, brightest at
+  the glass) kept out of the static merge (it was swallowed by it at
+  first: keep set); blast(now) once, blastState(now) -> {cone, reach,
+  white} over BLAST_MS 5600 (white full 0.5-0.68, gone by 1); the tube
+  glares, the room light surges, the halo floods. den-fx.js triggers it
+  16 s into the haunting (5 s if you're over watching), lays a white
+  overlay (den-whiteout) from blastState.white, and from then on the lure
+  level is at least 0.85. den-audio.js tvHaunt("blast"): a whine and a
+  roar climbing to the white, a boom and burst, a high ring after; the
+  record drops out for it. Hooks: __DEN_TV__().blasted / .white,
+  __DEN_TV_BLAST_PIN__(b) (test-only: hold it at a moment). e2e-tv-lure
+  checks it goes white and fades back.
+- The clerk's hands, round 3 (user: not convincing; try a lot harder).
+  The painted fist is gone. tools/tienda_clerk_frames.py:
+  - lift_hand(go): his real curled right hand from the walk-away frame
+    (GO_HAND), matted off the floor by projecting each pixel between the
+    floor's colour and his skin's (so the gap between thumb and fingers
+    stays floor), solid core, edges unmixed, ringed with skin colour (no
+    halo after scaling).
+  - clerk-sure: the open hand out (lent from "Hi there" + inpaint); the
+    form (perspective quad SURE_SHEET) with its left edge running through
+    that thumb-finger gap, rising up behind his forearm (his own forearm
+    pixels back in front); his lifted hand scaled 1.65x, turned 6 degrees
+    about GO_WRIST onto SURE_WRIST, colour matched to his forearm here,
+    sharpened a touch, grain; shadows each way. Done before the table's
+    spread is laid over (the appliances stay in front of his hand).
+  - clerk-go: the form's top corner pinched in his own hand's gap
+    (HANG_SHEET), hanging below, turned a little; the hand composited
+    back over it with lift_hand's matte (only where there's paper).

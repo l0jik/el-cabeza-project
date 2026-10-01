@@ -479,6 +479,23 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        starts stirring, and, once the camera's come over, soon after, then
        again (user: three times, briefer than the commercial's). */
     const FLASHES = 3;
+    /* The blast (user: more extreme): once, a while into the lure (sooner
+       if you're over watching), the set pours a cone of light out of its
+       screen until everything goes white for a second, then fades back;
+       and from then on it stirs harder and more often than before. */
+    const BLAST_AFTER = 16000, BLAST_AFTER_LOOK = 5000;
+    let blasted = false, whiteEl = null;
+    function whiteOut(a) {
+      if (typeof document === "undefined") return;
+      if (a <= 0.002) { if (whiteEl) { whiteEl.remove(); whiteEl = null; } return; }
+      if (!whiteEl) {
+        whiteEl = document.createElement("div");
+        whiteEl.setAttribute("data-testid", "den-whiteout");
+        whiteEl.style.cssText = "position:fixed;inset:0;z-index:1400;pointer-events:none;background:radial-gradient(ellipse at 50% 45%, #ffffff 0%, #f6f9ff 55%, #e9efff 100%);opacity:0";
+        document.body.appendChild(whiteEl);
+      }
+      whiteEl.style.opacity = String(Math.min(1, a));
+    }
     let flashes = 0, nextFlashAt = 0;
     const tvLocked = (now) => lure && !lureDone && (!lureStart || now - lureStart < LURE_WAIT);
     function lookAtTv(on) {
@@ -620,9 +637,10 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     }
     if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes });
+      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
+      window.__DEN_TV_BLAST_PIN__ = (b) => den && den.tv && den.tv.blastPinAt && den.tv.blastPinAt(b);
       // Test-only: the camera over at the set (or back), the set left as it is.
       window.__DEN_TV_LOOK__ = (on) => { tvGoal = on ? 1 : 0; };
       window.__DEN_TV_PRESS__ = pressTv;
@@ -695,7 +713,12 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           if (!lureStart) lureStart = now;
           const waited = now - lureStart - LURE_WAIT;
           if (waited >= 0) {
-            const level = Math.min(1, waited / LURE_RAMP);
+            if (!blasted && waited >= (lureLook ? BLAST_AFTER_LOOK : BLAST_AFTER) && den.tv.blast(now)) {
+              blasted = true; lureEvents++; lastHaunt = "blast";
+              if (audio && audio.tvHaunt) audio.tvHaunt("blast", 1);
+            }
+            // (After the blast, it's never quite settled again.)
+            const level = Math.max(Math.min(1, waited / LURE_RAMP), blasted ? 0.85 : 0);
             den.tv.haunt(now, lureLook ? Math.max(level, 0.55) : level, (kind, strength) => { lureEvents++; lastHaunt = kind; if (audio && audio.tvHaunt) audio.tvHaunt(kind, strength); }, lureLook);
             if (!nextFlashAt && flashes < FLASHES) nextFlashAt = now + 12000 + Math.random() * 6000;
             if (nextFlashAt && now >= nextFlashAt && flashes < FLASHES && den.tv.flash(now)) {
@@ -719,6 +742,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           if (audio && audio.setTvPull) audio.setTvPull(pull);
         }
         tvDive = den.tv.animate(now, dt);
+        whiteOut(den.tv.blastState ? den.tv.blastState(now).white : 0);
         {
           const on = den.tv.phase() === "commercial";
           if (!on) setCommercialOn(false);
@@ -917,7 +941,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           window.removeEventListener("keydown", onLookKey, true);
           lookListenersOn = null;
         }
-        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; }
+        if (typeof window !== "undefined") { window.__DEN_ROOM__ = false; delete window.__DEN_THREE__; delete window.__DEN_STEREO__; delete window.__DEN_TV__; delete window.__DEN_TV_PRESS__; delete window.__DEN_TV_BLAST_PIN__; }
+        if (whiteEl) { whiteEl.remove(); whiteEl = null; }
       },
     };
     /* After the chassis has set its camera: blend it toward the view of

@@ -317,7 +317,7 @@ export function createAudio() {
     if (!ctx || !music || !music.duck || tvPull <= 0 || music.el.paused) return;
     const t = now(), s = Math.max(0.3, Math.min(1, strength || 0.5));
     // (All of it harder than it was, user: the music should freak out.)
-    if (kind === "thump" || kind === "static" || kind === "phantom" || kind === "flash" || kind === "flicker" || kind === "surge") {
+    if (kind === "thump" || kind === "static" || kind === "phantom" || kind === "flash" || kind === "flicker" || kind === "surge" || kind === "blast") {
       // A dropout: the music gone for a moment; and, from the static,
       // the thump and the surge, stuttering back in, chopped.
       const d = music.drop.gain, hold = 0.08 + 0.35 * s;
@@ -565,6 +565,25 @@ export function createAudio() {
       // back, and the set's thump as if it nearly came on.
       for (let i = 0; i < 6; i++) burst(t + i * (0.06 + Math.random() * 0.05) + (i > 2 ? 0.25 : 0), hauntBus, 0.09 * k, 0.012, [["bandpass", 2600, 2.5]]);
       tone(62, 40, 0.35, 0.18, "sine", 0, t + 0.12);
+    } else if (kind === "blast") {
+      /* The blast (den-tv.js, 5.6 s, the white full at 2.8 s and held a
+         second): a whine climbing out of the set and a roar swelling with
+         the cone of light; at the white, a deep boom and a burst, then a
+         high ring that fades as the room comes back. */
+      const W = t + 2.8;
+      { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(5200, W);
+        const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 6000;
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07 * k, W - 0.05); g.gain.linearRampToValueAtTime(0.0001, W + 0.03);
+        o.connect(lp).connect(g).connect(hauntBus); o.start(t); o.stop(W + 0.1); }
+      { const n = noise(t, 2.9); const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.7;
+        bp.frequency.setValueAtTime(260, t); bp.frequency.exponentialRampToValueAtTime(2600, W);
+        const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.32 * k, W - 0.02); g.gain.linearRampToValueAtTime(0.0001, W + 0.04);
+        n.connect(bp).connect(g).connect(hauntBus); }
+      tone(64, 26, 2.2, 0.5, "sine", 0, W);
+      tone(110, 40, 1.2, 0.12, "triangle", 0, W);
+      burst(W, hauntBus, 0.42 * k, 1.6, [["lowpass", 1400]], 0.004);
+      burst(W, hauntBus, 0.16 * k, 0.9, [["highpass", 3000]], 0.002);
+      tone(3950, 3900, 2.8, 0.02, "sine", 0, W + 0.1);
     } else if (kind === "surge") {
       // A surge through the dead set: a whine climbing to the flyback's
       // pitch, static rising under it, and a thump as it lets go.

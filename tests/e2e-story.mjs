@@ -249,6 +249,8 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...free, if you like; sorry for any inconvenience", await poll(async () => /inconvenience/.test((await page.evaluate(() => window.__DEN_CALL__().text)) || ""), 20000));
   check("...okay, I'll be there", await poll(async () => /be there/.test((await page.evaluate(() => window.__DEN_CALL__().text)) || ""), 20000));
   check("...and they hang up", await poll(async () => (await page.evaluate(() => window.__DEN_CALL__().stage)) === "done" && !(await has(page, "den-call")), 12000));
+  check("...then: \"Free pieces?! Nice!... Thank you, Big Glutts!\"", await poll(async () => (await has(page, "den-yay")) && /Free pieces\?! Nice!/.test(await q(page, "den-yay").innerText()) && /Thank you, Big Glutts!/.test(await q(page, "den-yay").innerText()), 4000));
+  check("...and it goes", await poll(async () => !(await has(page, "den-yay")), 9000));
   check("...and the handset's back on the cradle", (await page.evaluate(() => window.__DEN_CALL_HANDSET__ ? window.__DEN_CALL_HANDSET__() : "rest")) === "rest");
   const hsColor = await page.evaluate(() => window.__DEN_CALL_HANDSET_COLOR__ ? window.__DEN_CALL_HANDSET_COLOR__() : null);
   check("...still avocado, not cream", hsColor === "7d8b3e", String(hsColor));

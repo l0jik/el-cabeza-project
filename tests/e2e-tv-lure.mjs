@@ -53,6 +53,11 @@ await page.waitForTimeout(400);
 const far = await near();
 // Left alone a good while: it stirs, often.
 await page.evaluate(() => window.__DEN_LURE_SKIP__(60000));
+// The blast (user): once, a cone of light out of the set until all goes
+// white for a second, then back.
+check("the blast: once, a while in", !!(await poll(async () => (await tv()).blasted, 8000, 50)), JSON.stringify(await tv()));
+check("...everything goes white", !!(await poll(async () => (await tv()).white > 0.97, 6000, 30)));
+check("...and fades back", !!(await poll(async () => (await tv()).white === 0 && !(await page.locator('[data-testid="den-whiteout"]').count()), 8000, 100)));
 if (shots) {
   await page.evaluate(() => window.__DEN_TV_LOOK__(true));
   await page.waitForTimeout(2500);

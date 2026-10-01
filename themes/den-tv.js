@@ -227,6 +227,56 @@ export function buildTelevision(yF, RZ, X = -40) {
   // can afford another light.
   const screenLight = q.physical ? new THREE.PointLight(0xa8c0ff, 0, 46, 2) : null;
   if (screenLight) { screenLight.position.set(SX, SY, FRONT - 7); group.add(screenLight); }
+  /* The blast (den-fx.js, once while it lures, user): a cone of light
+     pouring out from the screen's edges into the room, growing until all
+     goes white. A frustum from the tube's outline (v 0) flaring out to
+     BLAST_SPREAD times it (v 1), uLen long; brightest at the glass and
+     along its edges, with rays through it. */
+  const BLAST_SPREAD = 5.2;
+  const coneGeo = new THREE.BufferGeometry();
+  {
+    const HW = 8.8, HH = 6.5, NV = 24, pos = [], uv = [], idx = [];
+    const corners = [[-HW, -HH], [HW, -HH], [HW, HH], [-HW, HH]];
+    for (let side = 0; side < 4; side++) {
+      const a = corners[side], b = corners[(side + 1) % 4], base = pos.length / 3;
+      for (let j = 0; j <= NV; j++) for (let i = 0; i <= 1; i++) {
+        const c = i ? b : a;
+        pos.push(c[0], c[1], 0); uv.push(side + i, j / NV);
+      }
+      for (let j = 0; j < NV; j++) { const r0 = base + j * 2, r1 = r0 + 2; idx.push(r0, r0 + 1, r1, r0 + 1, r1 + 1, r1); }
+    }
+    coneGeo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    coneGeo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    coneGeo.setIndex(idx);
+  }
+  const coneMat = new THREE.ShaderMaterial({
+    uniforms: { uAmt: { value: 0 }, uLen: { value: 1 }, uTime: { value: 0 }, uSpread: { value: BLAST_SPREAD } },
+    vertexShader: `
+      uniform float uLen, uSpread; varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        vec3 p = position;
+        p.xy *= mix(1.0, uSpread, uv.y);
+        p.z = -uv.y * uLen;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+      }`,
+    fragmentShader: `
+      uniform float uAmt, uTime; varying vec2 vUv;
+      void main() {
+        float along = pow(1.0 - vUv.y, 0.9);
+        float u = fract(vUv.x);
+        float edge = 0.8 + 0.2 * pow(abs(u - 0.5) * 2.0, 2.0);
+        float rays = 0.55 + 0.45 * abs(sin(vUv.x * 23.0 + uTime * 2.3) * sin(vUv.x * 9.0 - uTime * 1.3 + vUv.y * 2.0));
+        float a = clamp(uAmt * along * edge * rays, 0.0, 1.0);
+        gl_FragColor = vec4(vec3(0.86, 0.91, 1.0) * a, a);
+      }`,
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false,
+  });
+  const cone = new THREE.Mesh(coneGeo, coneMat);
+  cone.position.set(SX, SY, FRONT - 0.6);
+  cone.visible = false; cone.renderOrder = 4; cone.frustumCulled = false;
+  group.add(cone);
+  disposables.push(coneGeo, coneMat);
 
   /* ---- the control panel ---- */
   add(new THREE.BoxGeometry(9.6, 13.2, 0.4).translate(PX, SY, FRONT - 0.2), gold);
@@ -329,7 +379,7 @@ export function buildTelevision(yF, RZ, X = -40) {
      pieces, a dozen draw calls. The screen, its halo, the printing (drawn
      over the panel) and the power knob (it turns) stay as they are. */
   {
-    const keep = new Set([glass, halo, print]);
+    const keep = new Set([glass, halo, print, cone]); // (and the blast's cone, which moves)
     power.traverse((o) => keep.add(o));
     group.updateMatrixWorld(true);
     const byMat = new Map();
@@ -431,6 +481,21 @@ export function buildTelevision(yF, RZ, X = -40) {
   // den-commercial.js), shown for at least one rendered frame.
   let flashTex = null, flashUntil = 0, flashShown = true;
   let nextHaunt = 0, pilotStutter = 0, knobWiggle = 0, surgeLight = 0;
+  let blastAt = 0, blastPin = null; // (the blast's start, once; a test can hold it at a moment)
+  const BLAST_MS = 5600;
+  // The blast's shape at time now: the cone (0..1), its reach (0..1), and
+  // the white (0..1) that den-fx.js lays over everything.
+  function blastState(now) {
+    if (!blastAt) return { on: false, cone: 0, reach: 0, white: 0 };
+    const b = (now - blastAt) / BLAST_MS;
+    if (b >= 1 || b < 0) return { on: false, cone: 0, reach: 0, white: 0 };
+    const sm = (x) => { x = clamp01(x); return x * x * (3 - 2 * x); };
+    const cone = b < 0.62 ? Math.pow(sm(b / 0.5), 1.6) : 1 - sm((b - 0.62) / 0.3);
+    const reach = sm(b / 0.48);
+    // White: in from 0.36, full by 0.5, held about a second, gone by 1.
+    const white = b < 0.5 ? Math.pow(sm((b - 0.36) / 0.14), 1.5) : b < 0.68 ? 1 : 1 - sm((b - 0.68) / 0.32);
+    return { on: true, b, cone, reach, white };
+  }
   function spawnPhantom(now, strength) {
     const p = phantoms.find((x) => !x.lines.visible);
     if (!p) return;
@@ -553,6 +618,16 @@ export function buildTelevision(yF, RZ, X = -40) {
       flashUntil = now + ms; flashShown = false;
       return true;
     },
+    // The blast (once): the cone of light out of the dead set, building to
+    // white (den-fx.js lays the white over everything, from blastState).
+    blast(now) {
+      if (phase !== "off" || blastAt) return false;
+      blastAt = now; haunt = null;
+      return true;
+    },
+    blastState,
+    // Test-only: hold the blast at b (0..1), or null to let it go.
+    blastPinAt(b) { blastPin = b; if (b == null) blastAt = blastAt || 1; },
     // Something soon (the camera's just come over to look).
     hauntSoon(now, ms = 600) { if (!nextHaunt || nextHaunt > now + ms) nextHaunt = now + ms; },
     // How far into the commercial (ms), or null if it isn't on.
@@ -629,6 +704,21 @@ export function buildTelevision(yF, RZ, X = -40) {
           }
         }
       }
+      // The blast: the tube flaring to a glare, the cone of light pouring
+      // out of it, the room flooded; then fading back.
+      if (blastPin != null) blastAt = now - blastPin * BLAST_MS;
+      const B = blastState(now);
+      cone.visible = B.on && B.cone > 0.002;
+      if (B.on) {
+        const jit = 0.85 + 0.15 * Math.random();
+        coneMat.uniforms.uAmt.value = 1.6 * B.cone * jit;
+        coneMat.uniforms.uLen.value = 12 + 150 * B.reach;
+        coneMat.uniforms.uTime.value = now / 1000;
+        raster = 1; snow = 1 - 0.7 * B.cone; glow = Math.max(glow, 0.6 + 2.6 * B.cone * jit);
+        tear = Math.max(tear, 0.7 * (1 - B.cone) * (B.b < 0.5 ? 1 : 0.4));
+        line = (now * 0.0021) % 1; lineAmt = 0.4 * (1 - B.cone);
+        surgeLight = Math.max(surgeLight, 9 * B.cone * jit);
+      }
       if (phase === "off" && flashTex && (now < flashUntil || !flashShown)) {
         flashShown = true;
         u.uTex.value = flashTex.texture;
@@ -642,7 +732,7 @@ export function buildTelevision(yF, RZ, X = -40) {
       const light = Math.max(dot * 0.5, flick * (0.55 + 0.45 * raster));
       if (screenLight) screenLight.intensity = light * 0.9 + surgeLight;
       surgeLight = 0;
-      halo.material.opacity = light * 0.16;
+      halo.material.opacity = Math.min(1, light * 0.16 + (B.on ? 0.8 * B.cone : 0));
       const stutter = phase === "off" && now < pilotStutter && Math.sin(now * 0.09) * Math.sin(now * 0.023) > 0.2;
       pilotMat.color.setHex(stutter || !(phase === "off" || (phase === "closing" && s > TV_TIMES.collapse)) ? 0xff3a1c : 0x3a0d08);
       return dive;

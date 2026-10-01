@@ -78,8 +78,26 @@ const CSS = `
 .den-call button:focus-visible { outline: 2px solid ${RED}; outline-offset: 2px; }
 @keyframes denCallIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes denCallShake { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(1.2px); } }
-@media (prefers-reduced-motion: reduce) { .den-thought, .den-call, .den-call.ringing .said { transition: none; animation: none; } }
+/* After the call: "Free pieces?! Nice!... Thank you, Big Glutts!" on a
+   1975 card (as the store's "There's a story here..."): chunky Caprasimo
+   over the decade's stripes, popping up with a bounce, the second line a
+   beat after the first; it takes no taps and goes after a while. */
+.den-yay { position: fixed; left: 50%; top: 22%; z-index: 1195; transform: translateX(-50%); pointer-events: none; width: min(86vw, 400px); }
+.den-yay .card { position: relative; padding: 18px 22px 20px; background: #F3E6C4; border: 3px solid #4A2A14; border-radius: 16px;
+  box-shadow: 6px 7px 0 #4A2A14, 0 14px 30px rgba(20,10,4,0.45); text-align: center; color: #4A2A14; transform: rotate(-3deg);
+  animation: denYayIn 0.75s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+.den-yay .stripes { display: flex; height: 14px; margin: -18px -22px 14px; border-radius: 13px 13px 0 0; overflow: hidden; }
+.den-yay .stripes i { flex: 1; } .den-yay .stripes i:nth-child(1) { background: #6B3A1E; } .den-yay .stripes i:nth-child(2) { background: #B4451F; }
+.den-yay .stripes i:nth-child(3) { background: #E07B22; } .den-yay .stripes i:nth-child(4) { background: #E9B23A; }
+.den-yay .l1 { display: block; font: 400 clamp(26px, 8vw, 38px)/1.05 'Caprasimo', 'Cooper Black', Georgia, serif; color: #B4451F; text-shadow: 2px 2px 0 #E9B23A; }
+.den-yay .l2 { display: block; margin-top: 10px; font: 400 clamp(19px, 5.6vw, 26px)/1.15 'Caprasimo', 'Cooper Black', Georgia, serif;
+  animation: denYayLine 0.6s cubic-bezier(0.2, 1.5, 0.4, 1) 1.1s both; }
+.den-yay.off { transition: opacity 0.7s ease, transform 0.7s ease; opacity: 0; transform: translateX(-50%) translateY(-10px); }
+@keyframes denYayIn { from { opacity: 0; transform: rotate(-3deg) scale(0.5); } to { opacity: 1; transform: rotate(-3deg) scale(1); } }
+@keyframes denYayLine { from { opacity: 0; transform: translateY(8px) scale(0.85); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .den-thought, .den-call, .den-call.ringing .said, .den-yay .card, .den-yay .l2 { transition: none; animation: none; } }
 `;
+const YAY_MS = 5600;
 
 // The cloud: an ellipse ringed with puffs, outlined only on the outside
 // (every shape stroked, then every shape filled over the strokes), and a
@@ -384,6 +402,26 @@ export function createDenCall({ audio, awaitingBegin }) {
     stage = "ringing"; ringStart = now; ringsDone = 0;
     showBox("ringing");
   }
+  // "Free pieces?! Nice!... Thank you, Big Glutts!" (user).
+  let yayEl = null;
+  function yay() {
+    if (!doc || yayEl) return;
+    style();
+    if (!doc.querySelector("link[data-caprasimo]")) {
+      const l = doc.createElement("link"); l.rel = "stylesheet"; l.setAttribute("data-caprasimo", "");
+      l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap";
+      doc.head.appendChild(l);
+    }
+    yayEl = doc.createElement("div");
+    yayEl.className = "den-yay";
+    yayEl.setAttribute("data-testid", "den-yay");
+    yayEl.setAttribute("role", "status");
+    yayEl.innerHTML = '<div class="card"><div class="stripes" aria-hidden="true"><i></i><i></i><i></i><i></i></div>'
+      + '<span class="l1">Free pieces?! Nice!\u2026</span><span class="l2">Thank you, Big Glutts!</span></div>';
+    doc.body.appendChild(yayEl);
+    const el = yayEl;
+    later(YAY_MS, () => { el.classList.add("off"); later(800, () => { el.remove(); if (yayEl === el) yayEl = null; }); });
+  }
   function answer() {
     if (stage !== "ringing") return false;
     stopRinging();
@@ -417,6 +455,7 @@ export function createDenCall({ audio, awaitingBegin }) {
     at(down - 0.75, () => { hs = { mode: "down", t0: performance.now() }; });
     at(down, () => { clunk(output().ctx.currentTime + 0.02, true); if (audio && audio.duckForCall) audio.duckForCall(false); });
     at(down + 0.9, () => { stage = "done"; hideBox(); });
+    at(down + 1.5, () => yay());
     return true;
   }
 
@@ -569,6 +608,7 @@ export function createDenCall({ audio, awaitingBegin }) {
     answer,
     dispose() {
       timers.forEach(clearTimeout); timers = [];
+      if (yayEl) { yayEl.remove(); yayEl = null; }
       clearTimeout(ringElStop);
       if (ringEl) { try { ringEl.pause(); ringEl.removeAttribute("src"); } catch (e) { /* fine */ } }
       stopRinging();
