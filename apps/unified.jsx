@@ -7,7 +7,7 @@ import * as neonTheme from "../themes/neon.js";
 import { mountSummon, summonBridge } from "../themes/neon-summon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
-import { StoryCut, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
+import { StoryCut, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, hallFlares, saveHallFlares, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
 import { createRealitiesMenu, goToWorld } from "../themes/realities.js";
 import { forgetSingularity, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn } from "../engine/journey.js";
 import {
@@ -116,7 +116,7 @@ const homeTheme = {
         /* The end of the story (themes/den-hall.js, den-ending.js): the
            hall's due from the trip's return; then the void and the other
            realities, and the story's over (ended: the set's channels). */
-        hall: { due: () => hallDue() && !storyEnded(), arm: () => saveHallDue(true) },
+        hall: { due: () => hallDue() && !storyEnded(), arm: () => saveHallDue(true), flares: { get: hallFlares, set: saveHallFlares } },
         ended: () => storyEnded(),
         ending: { finish: () => storyBridge.finishStory(), go: (w) => storyBridge.goWorld(w) },
         realities: { go: (w) => storyBridge.goWorld(w) },

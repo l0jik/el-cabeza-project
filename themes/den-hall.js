@@ -6,10 +6,14 @@
    (this day's been weird enough already), in which case it dies down and
    comes back a few moves later.
 
-   Investigating: the camera walks you to the doorway, through it, and
-   turns right, down the hall, where it's died down to a glow round a small
-   rift hanging in the air, enough to feel safe going nearer; then all of a
-   sudden it goes crazy again, to white (onEnding: den-ending.js, the void).
+   Investigating: the camera walks you (steps, sway, footsteps) to the
+   doorway, through it, and round to the right, down the hall, where it's
+   died down to a glow round a small rift hanging in the air, enough to
+   feel safe going nearer; then all of a sudden it goes crazy again, to
+   white (onEnding: den-ending.js, the void). The second time it comes
+   (having kept playing) it's "Oh, for the love of…"; the third, no choice:
+   you're dragged in, faster, straight on to the eruption (user). The
+   count's kept with the story (`flares`: { get, set }).
 
    The den's lighting is baked, so the light here is drawn: a swirl filling
    the doorway, its spill on the floor, the wall round the door and the
@@ -18,7 +22,7 @@
    (the den's phoneOutput: straight to the master): booms, a hum, crackle,
    the roar at the end.
 
-   createHall({ audio, onEnding }) -> { arm(moves), tick(now, t, den, ctx),
+   createHall({ audio, onEnding, flares }) -> { arm(moves), tick(now, t, den, ctx),
    placeCamera(camera, t, den), state(), dispose() }. den-fx.js runs it. */
 
 import * as THREE from "three";
@@ -37,14 +41,24 @@ const EY = FLOOR + 31; // eye height standing (8 ft = 49)
 const RIFT = new THREE.Vector3(HALL.HX0 + 7, FLOOR + 24, RZ + 26);
 // Looking at the doorway from the room, and the walk in.
 const LOOK = { eye: new THREE.Vector3(34, FLOOR + 37, 22), at: new THREE.Vector3(DC, FLOOR + 19, RZ + 6) };
-const WALK = [
-  // [ms from the click, eye, looking at]
-  [2600, new THREE.Vector3(DC, EY, RZ - 26), new THREE.Vector3(DC, EY - 4, RZ + 30)],
-  [4700, new THREE.Vector3(DC, EY, RZ + 8), new THREE.Vector3(DC, EY - 3, RZ + 40)],
-  [6100, new THREE.Vector3(DC + 2, EY, RZ + 25), new THREE.Vector3(DC + 2, EY - 3, RZ + 60)],
-  [7600, new THREE.Vector3(DC + 2, EY, RZ + 25), RIFT.clone()],                           // turned right
-  [10200, new THREE.Vector3(DC - 3, EY - 0.6, RZ + 26), RIFT.clone()],                    // a few steps nearer
+/* The walk in (user: the old one flew from point to point, stopping at
+   each and turning on the spot, "stilted"; walk instead): one smooth path
+   through these points, from wherever the camera is (the look at the
+   doorway) down to standing eye height, across the floor, through the
+   doorway, curving right along the hall toward the rift and a few steps
+   nearer it, at a walking pace (easing off at the start and the end), the
+   head looking where it's going and turning toward the rift as the path
+   does, a step's rise and sway, and the footsteps. */
+const PATH = [
+  new THREE.Vector3(52, EY, 44),
+  new THREE.Vector3(67, EY, 66),
+  new THREE.Vector3(69, EY, 86),        // the doorway
+  new THREE.Vector3(69.5, EY, 102),
+  new THREE.Vector3(67.5, EY, 110.5),   // turning right
+  new THREE.Vector3(64.5, EY - 0.6, 113.5), // a few steps nearer the rift
 ];
+const WALK_END = 10200;                 // ms from the click: standing still there
+const STRIDE = 4.6;                     // a step, in the den's units (about 9 in)
 const CALM_UNTIL = 12600, ERUPT_MS = 2600; // then the eruption, to white
 const ENDING_AT = CALM_UNTIL + ERUPT_MS;
 
@@ -125,13 +139,13 @@ function additive(frag, uniforms) {
   return new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: frag, uniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false });
 }
 
-export function createHall({ audio, onEnding }) {
+export function createHall({ audio, onEnding, flares: flareStore = null }) {
   const doc = typeof document !== "undefined" ? document : null;
   let state = "idle", base = 0, need = FIRST_AFTER, t0 = 0, choiceAt = 0;
   let built = null, builtFor = null;
   let flashEl = null, whiteEl = null, sayEl = null, choiceEl = null, blockEl = null, styleEl = null;
   let amt = 0, camW = 0, camGoal = 0, camFrom = 0, camT0 = 0;
-  let nodes = [], hum = null, nextBoom = 0, walkFrom = null, ended = false;
+  let nodes = [], hum = null, nextBoom = 0, walkFrom = null, ended = false, path = null, nextStep = 0;
   const colA = new THREE.Color(0x8a5cff), colB = new THREE.Color(0x5ce1ff);
 
   function style() {
@@ -214,6 +228,24 @@ export function createHall({ audio, onEnding }) {
     const ng = ctx.createGain(); ng.gain.setValueAtTime(0.0001, t); ng.gain.linearRampToValueAtTime(0.42 * s, t + 0.3); ng.gain.exponentialRampToValueAtTime(0.0001, t + 4.1);
     n.connect(lp).connect(ng).connect(o.ear);
   }
+  // A footstep: the carpet's soft thud, or in the hall the floorboards'
+  // a little brighter, now and then a creak.
+  function step(hall) {
+    const o = out(); if (!o) return;
+    const { ctx } = o, t = ctx.currentTime + 0.01;
+    const n = noise(o, t, 0.16), lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = hall ? 900 : 380;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(hall ? 0.16 : 0.12, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+    n.connect(lp).connect(g).connect(o.ear);
+    const th = keep(ctx.createOscillator()); th.type = "sine"; th.frequency.setValueAtTime(hall ? 110 : 80, t); th.frequency.exponentialRampToValueAtTime(50, t + 0.1);
+    const tg = ctx.createGain(); tg.gain.setValueAtTime(0.0001, t); tg.gain.linearRampToValueAtTime(0.14, t + 0.008); tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    th.connect(tg).connect(o.ear); th.start(t); th.stop(t + 0.15);
+    if (hall && Math.random() < 0.3) {
+      const c = keep(ctx.createOscillator()); c.type = "sawtooth"; c.frequency.setValueAtTime(320 + Math.random() * 140, t + 0.05); c.frequency.linearRampToValueAtTime(260, t + 0.32);
+      const cb = ctx.createBiquadFilter(); cb.type = "bandpass"; cb.frequency.value = 700; cb.Q.value = 6;
+      const cg = ctx.createGain(); cg.gain.setValueAtTime(0.0001, t + 0.05); cg.gain.linearRampToValueAtTime(0.025, t + 0.12); cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+      c.connect(cb).connect(cg).connect(o.ear); c.start(t + 0.05); c.stop(t + 0.36);
+    }
+  }
   function crackle(level) {
     const o = out(); if (!o) return;
     const { ctx } = o, t = ctx.currentTime + 0.01;
@@ -280,12 +312,24 @@ export function createHall({ audio, onEnding }) {
       if (blockEl) { blockEl.remove(); blockEl = null; }
       return;
     }
-    state = "walk"; t0 = performance.now(); walkFrom = null;
+    state = "walk"; t0 = performance.now(); walkFrom = null; path = null; nextStep = 0;
+  }
+  /* The walk's clock: as it is; dragged, the walk itself goes 1.7 times
+     as fast and, there, straight on to the eruption (no standing calm). */
+  const DRAG = 1.7, DRAG_WALK = WALK_END / DRAG;
+  function walkClock(now) {
+    const r = now - t0;
+    if (!dragged) return r;
+    return r < DRAG_WALK ? r * DRAG : CALM_UNTIL - 400 + (r - DRAG_WALK);
   }
 
-  let flares = 0; // (how many times it's come)
+  // How many times it's come (kept with the story, so a visit later counts
+  // on): the second time it says something else; the third there's no
+  // choice, you're dragged in (user).
+  let flares = flareStore ? flareStore.get() : 0, dragged = false;
   function flare(now, moves) {
-    state = "flare"; t0 = now; base = moves; nextBoom = now + 600; flares++;
+    state = "flare"; t0 = now; base = moves; nextBoom = now + 600; flares++; dragged = false;
+    if (flareStore) flareStore.set(flares);
     camTo(1);
     startHum();
     if (doc && !flashEl) { style(); flashEl = div("den-hall-flash"); }
@@ -330,14 +374,19 @@ export function createHall({ audio, onEnding }) {
       if (!built) return;
     }
     if (!built || builtFor !== den) build(den);
-    const s = now - t0;
+    const s = state === "walk" ? walkClock(now) : now - t0;
     // How much light: up as it flares, a strobe on top; down if left
     // alone; in the hall, calm, then the eruption.
     let level = 0, wild = 0, grow = 0;
     if (state === "flare") {
       level = smooth(s / 1400) * (1 + 0.15 * Math.sin(now * 0.004)); wild = 1;
-      if (s > 1100) showSay(true);
-      if (s > 2400 && !choiceAt) { choiceAt = now; showChoice(true); }
+      if (flares >= 3) {
+        // The third time: no words, no choice: pulled in.
+        if (s > 2600) { pick("investigate"); dragged = true; }
+      } else {
+        if (s > 1100) showSay(true);
+        if (s > 2400 && !choiceAt) { choiceAt = now; showChoice(true); }
+      }
       if (now >= nextBoom) { boom(0.8 + Math.random() * 0.4); nextBoom = now + 3200 + Math.random() * 3200; }
     } else if (state === "settle") {
       level = 1 - smooth(s / 2600); wild = level;
@@ -403,23 +452,45 @@ export function createHall({ audio, onEnding }) {
     const now = performance.now();
     if (camGoal !== camW) camW = camFrom + (camGoal - camFrom) * smooth((now - camT0) / 1800);
     if (state === "walk" || (state === "done" && walkFrom)) {
-      const s = state === "done" ? ENDING_AT : now - t0;
+      const s = state === "done" ? ENDING_AT : walkClock(now);
       if (!walkFrom) {
         // Where the camera is now (and what it's looking at), in the den.
         tmpA.copy(camera.position); den.group.worldToLocal(tmpA);
         camera.getWorldDirection(dir); tmpB.copy(camera.position).addScaledVector(dir, 40); den.group.worldToLocal(tmpB);
         walkFrom = { eye: tmpA.clone(), at: tmpB.clone() };
       }
-      let prevT = 0, pe = walkFrom.eye, pa = walkFrom.at;
-      wEye.copy(pe); wAt.copy(pa);
-      for (let i = 0; i < WALK.length; i++) {
-        const [tm, e, a] = WALK[i];
-        if (s <= tm) { const k = smooth((s - prevT) / (tm - prevT)); wEye.copy(pe).lerp(e, k); wAt.copy(pa).lerp(a, k); break; }
-        prevT = tm; pe = e; pa = a; wEye.copy(e); wAt.copy(a);
+      if (!path) {
+        const curve = new THREE.CatmullRomCurve3([walkFrom.eye.clone(), ...PATH.map((p) => p.clone())], false, "centripetal");
+        path = { curve, L: curve.getLength() };
       }
-      // Steps: a little bob while walking; the shake at the end.
-      const walking = s > 300 && s < WALK[2][0] || (s > WALK[3][0] && s < WALK[4][0]);
-      if (walking) wEye.y += Math.abs(Math.sin(s * 0.0062)) * 0.55 - 0.25;
+      // How far along: easing off at the start and the end, a steady walk
+      // between.
+      const { curve, L } = path, TA = 900, TD = 1600, v = L / (WALK_END - TA / 2 - TD / 2);
+      const tt = Math.min(s, WALK_END);
+      const d = tt < TA ? 0.5 * v * tt * tt / TA : tt < WALK_END - TD ? v * (tt - TA / 2) : L - 0.5 * v * (WALK_END - tt) * (WALK_END - tt) / TD;
+      const pace = tt < TA ? tt / TA : tt < WALK_END - TD ? 1 : Math.max(0, (WALK_END - tt) / TD);
+      const u = clamp01(d / L);
+      curve.getPointAt(u, wEye);
+      // Looking where it's going (a little ahead, a little down), from
+      // wherever it was looking; round the turn, at the rift.
+      curve.getPointAt(Math.min(1, u + 16 / L), wAt);
+      if (u + 16 / L > 1) { curve.getTangentAt(1, dir); wAt.addScaledVector(dir, (u + 16 / L - 1) * L); }
+      wAt.y = EY - 3;
+      wAt.lerp(walkFrom.at, 1 - smooth(s / 1400));
+      wAt.lerp(RIFT, smooth((d - (L - 26)) / 20));
+      // The steps: a rise and fall with each, a sway from foot to foot,
+      // as much as it's walking; dragged, none (pulled along, a tremble).
+      const phase = (d / STRIDE) * Math.PI;
+      if (!dragged) {
+        dir.copy(wAt).sub(wEye).setY(0).normalize();
+        const k = pace;
+        wEye.y += (Math.abs(Math.sin(phase)) - 0.5) * 0.7 * k;
+        wEye.x += -dir.z * Math.sin(phase) * 0.22 * k; wEye.z += dir.x * Math.sin(phase) * 0.22 * k;
+        const n = Math.floor(d / STRIDE);
+        if (state === "walk" && n > nextStep && pace > 0.15) { nextStep = n; step(wEye.z > RZ); }
+      } else if (s < WALK_END) {
+        wEye.x += (Math.random() - 0.5) * 0.25; wEye.y += (Math.random() - 0.5) * 0.25;
+      }
       if (s > CALM_UNTIL) { const e = clamp01((s - CALM_UNTIL) / ERUPT_MS), j = 1.6 * e * e; wEye.x += (Math.random() - 0.5) * j; wEye.y += (Math.random() - 0.5) * j; wAt.x += (Math.random() - 0.5) * j * 2; }
       den.group.updateWorldMatrix(true, false);
       den.group.localToWorld(wEye); den.group.localToWorld(wAt);
@@ -454,7 +525,7 @@ export function createHall({ audio, onEnding }) {
     placeCamera,
     // Is it showing (the camera's, the screen's)?
     active: () => state === "flare" || state === "settle" || state === "walk",
-    state: () => ({ state, need, base, amt, cam: camW, t: state === "idle" || state === "armed" ? 0 : performance.now() - t0 }),
+    state: () => ({ state, need, base, amt, cam: camW, flares, dragged, t: state === "idle" || state === "armed" ? 0 : performance.now() - t0 }),
     // Test-only: now (as if the moves were made), and the choice.
     now(moves = 0) { if (state === "idle" || state === "armed") flare(performance.now(), moves); },
     pick,
@@ -466,7 +537,7 @@ export function createHall({ audio, onEnding }) {
       unbuild();
     },
     // Test-only: skip the walk on to just before the eruption (or `ms`).
-    skipWalk(ms = CALM_UNTIL - 300) { if (state === "walk") t0 = performance.now() - ms; },
+    skipWalk(ms = CALM_UNTIL - 300) { if (state === "walk") { dragged = false; t0 = performance.now() - ms; } },
     dispose() {
       stopSound(0.1);
       nodes.forEach((n) => { try { n.stop(); } catch (e) { /* done */ } });

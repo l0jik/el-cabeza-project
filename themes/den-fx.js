@@ -92,7 +92,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     let postStory = !!(novaTv && novaTv.ended && novaTv.ended());
     const movesNow = () => (moves ? moves() : 0);
     let ending = null;
-    const hall = novaTv && novaTv.hall && !postStory ? createHall({ audio, onEnding: (h) => startEnding(h) }) : null;
+    const hall = novaTv && novaTv.hall && !postStory ? createHall({ audio, onEnding: (h) => startEnding(h), flares: novaTv.hall.flares || null }) : null;
     if (hall && novaTv.hall.due()) hall.arm(movesNow());
     function startEnding(h) {
       ending = createEnding({

@@ -65,7 +65,11 @@ export const hallDue = () => !!("hallDue" in storyThisVisit ? storyThisVisit.hal
 export const saveHallDue = (on) => patchStory({ hallDue: !!on });
 export const storyEnded = () => !!("ended" in storyThisVisit ? storyThisVisit.ended : readStory().ended);
 export const saveStoryEnded = () => patchStory({ ended: true, hallDue: false });
-export function forgetStoryEnd() { delete storyThisVisit.hallDue; delete storyThisVisit.ended; }
+// How many times the hall's come (den-hall.js: the second time says
+// something else, the third drags you in), kept across visits.
+export const hallFlares = () => Number(("hallFlares" in storyThisVisit ? storyThisVisit.hallFlares : readStory().hallFlares) || 0);
+export const saveHallFlares = (n) => patchStory({ hallFlares: n });
+export function forgetStoryEnd() { delete storyThisVisit.hallDue; delete storyThisVisit.ended; delete storyThisVisit.hallFlares; }
 
 export function saveOwned(owned) {
   try {

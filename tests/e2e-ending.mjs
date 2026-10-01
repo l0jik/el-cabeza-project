@@ -56,6 +56,7 @@ await shot(page, "hall-1-flare");
 await page.locator('[data-testid="den-hall-keep"]').click();
 check("keep playing: it dies down, the camera comes back", !!(await poll(async () => { const h = await page.evaluate(() => window.__DEN_HALL__()); return h.state === "armed" && h.cam < 0.02 ? h : null; }, 8000)));
 check("...and waits a few more moves", (await page.evaluate(() => window.__DEN_HALL__().need)) === 3);
+check("...the time it came, kept with the story", await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:story")).hallFlares === 1));
 
 await page.evaluate(() => window.__DEN_HALL_NOW__());
 await poll(async () => (await page.locator('[data-testid="den-hall-investigate"]').count()) > 0, 6000);
@@ -63,6 +64,8 @@ check("again: \"Oh, for the love of…\"", /Oh, for the love of…/.test(await p
 await page.waitForTimeout(500);
 await page.locator('[data-testid="den-hall-investigate"]').click();
 check("investigate: the walk in", (await page.evaluate(() => window.__DEN_HALL__().state)) === "walk");
+await page.waitForTimeout(1800); await shot(page, "hall-walk-1");
+await page.waitForTimeout(2200); await shot(page, "hall-walk-2");
 const inHall = await poll(async () => {
   const z = await page.evaluate(() => { const t = window.__DEN_THREE__; let g = null; t.scene.traverse((o) => { if (o.name === "den-hall") g = o.parent; }); const v = t.camera.position.clone(); g.worldToLocal(v); return v.z; });
   return z > 92 ? z : null;
@@ -123,6 +126,33 @@ await page.locator('[data-testid="reality-store"]').click();
 check("...and Big Glutts: the cut, then the store", !!(await poll(async () => (await page.locator('[data-testid="story-cut"]').count()) > 0, 4000)));
 check("...where it is", !!(await poll(() => page.evaluate(() => !window.__DEN_TV__ && !!document.querySelector('[data-testid="dock-panel"], [data-testid="dock-corner"], .ec-title')), 20000)));
 check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+
+console.log("the third time");
+{
+  const c3 = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  await c3.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true;
+    if (!sessionStorage.getItem("seeded")) {
+      sessionStorage.setItem("seeded", "1");
+      // It's come twice already (a visit before): the next is the third.
+      localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true, storeGone: true, hallDue: true, hallFlares: 2 }));
+      localStorage.setItem("el-cabeza:singularity-seen", "1"); localStorage.setItem("el-cabeza:commercial-aired", "1"); localStorage.setItem("el-cabeza:special-order-noted", "1");
+    }
+  });
+  const p3 = await c3.newPage();
+  const errs3 = [];
+  p3.on("pageerror", (e) => errs3.push(e.message));
+  await p3.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
+  await poll(() => p3.evaluate(() => !!window.__DEN_TV__), 30000);
+  await p3.waitForTimeout(1500);
+  check("the count from before (two)", (await p3.evaluate(() => window.__DEN_HALL__().flares)) === 2);
+  await p3.evaluate(() => window.__DEN_HALL_NOW__());
+  check("the third time: no choice, dragged in", !!(await poll(async () => { const h = await p3.evaluate(() => window.__DEN_HALL__()); return h.state === "walk" && h.dragged; }, 8000)) && (await p3.locator('[data-testid="den-hall-choice"]').count()) === 0);
+  await p3.waitForTimeout(2200); await shot(p3, "hall-dragged");
+  check("...and on into the void, without a tap", !!(await poll(async () => (await p3.evaluate(() => window.__DEN_ENDING__ && window.__DEN_ENDING__() && window.__DEN_ENDING__().stage)) === "void", 20000)));
+  check("no page errors (third time)", errs3.length === 0, errs3.slice(0, 3).join(" | "));
+  await c3.close();
+}
 await browser.close();
 console.log(fails ? `\nENDING E2E FAILED (${fails})` : "\nENDING E2E PASSED");
 process.exit(fails ? 1 : 0);

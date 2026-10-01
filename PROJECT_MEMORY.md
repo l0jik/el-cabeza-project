@@ -4729,3 +4729,19 @@ phone menu until "Start the story over" (which clears it).
     (user). Opened on an extra on purpose (an order form's "How it works
     ›", a law on the slip: chassis EXTRA_FOCUS) the card shows them all,
     so the one asked for is there. A custom game's cards show everything.
+
+### The hall: kept count, the third time, a real walk (2026-10-01)
+  - The hall's count is kept with the story (story record hallFlares;
+    novaTv.hall.flares {get,set}; cleared with the rest on Restart story),
+    so a reload doesn't start it over: 1st "Oh no… now what?", 2nd "Oh,
+    for the love of…", 3rd no words and no choice: dragged in (user),
+    the walk at 1.7x, no steps (a tremble), straight on to the eruption
+    and the void (walkClock).
+  - The walk (user: the turn was stilted; walk, don't fly): one centripetal
+    Catmull-Rom path (PATH) from wherever the camera is, down to standing
+    eye height, across the floor, through the doorway and round to the
+    right, walked at an even pace (eased off at the start and end, in
+    WALK_END 10.2 s), looking a little ahead along the path (from the
+    look it started with), turning onto the rift round the bend; a step's
+    rise and sway (STRIDE), and footsteps (carpet, then the hall's boards
+    with the odd creak). Then the calm, then the eruption, as before.
