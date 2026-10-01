@@ -11,17 +11,21 @@
 
    den-fx.js makes it (createTrip) and starts it from den-call.js's card
    (onTrip). The pictures are files beside the page (build/build.js). The
-   car leaving is the user's recording (CAR_AWAY_URL); the car arriving
-   and the wind are made here, through the den's audio (phoneOutput's
+   car leaving and arriving are the user's recordings (CAR_URLS); the
+   wind and the drone are made here, through the den's audio (phoneOutput's
    ear: straight to the master), while the den's own sounds step out
    (awayFromDen). */
 
 const DAY_URL = "el-cabeza-trip-day.jpg";
 const DUSK_URL = "el-cabeza-trip-dusk.jpg";
-// The car leaving: the user's recording, tightened and faded right after
-// the first acceleration (tools/den_car_away.py), 9.4 s from the card's
-// fade; driveAway below stands in until it's loaded, or if it can't be.
-const CAR_AWAY_URL = "el-cabeza-den-car-away.mp3", CAR_AWAY_LEVEL = 0.9;
+// The car, the user's recordings: leaving (tightened and faded right
+// after the first acceleration, tools/den_car_away.py; 9.4 s from the
+// card's fade) and arriving (faded in half way through, then the stop,
+// the engine off, the door; tools/den_car_arrive.py; from T.arrive).
+// driveAway / arrive below stand in until they're loaded, or if they
+// can't be.
+const CAR_URLS = { away: "el-cabeza-den-car-away.mp3", arrive: "el-cabeza-den-car-arrive.mp3" };
+const CAR_LEVEL = 0.9;
 
 // The timeline (ms from the card starting to fade).
 // (All of it 1.75 times as long as it was, user: it went by too fast.)
@@ -66,7 +70,7 @@ export function createTrip({ audio, onReturn }) {
   let root = null, canvas = null, g = null, black = null, says = [], raf = 0, t0 = 0, stage = "idle", returned = false;
   const imgs = { day: null, dusk: null };
   let nodes = [], timers = [], pinned = null;
-  let carBuf = null, carLoading = false, carEl = null, carElSrc = null;
+  const cars = { away: {}, arrive: {} }; // each { buf, loading, el, src }
   const later = (ms, fn) => { timers.push(setTimeout(fn, ms)); };
 
   function load() {
@@ -90,33 +94,40 @@ export function createTrip({ audio, onReturn }) {
     const o = audio && audio.phoneOutput ? audio.phoneOutput() : null;
     return o && o.ctx ? o : null;
   }
-  // The recording of the car leaving (fetched and decoded; from disk, an
-  // <audio> element, sent the same way when it plays).
+  // The recordings of the car (fetched and decoded; from disk, <audio>
+  // elements, sent the same way when they play).
   function loadCar() {
-    if (carBuf || carEl || carLoading) return;
-    carLoading = true;
-    if (typeof location !== "undefined" && location.protocol === "file:") {
-      if (typeof Audio === "undefined") return;
-      carEl = new Audio(CAR_AWAY_URL); carEl.preload = "auto"; carEl.load();
-      return;
-    }
-    const o = out();
-    if (!o || typeof fetch === "undefined") { carLoading = false; return; }
-    fetch(CAR_AWAY_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b)).then((buf) => { carBuf = buf; }).catch(() => { /* driveAway, then */ });
+    const fromDisk = typeof location !== "undefined" && location.protocol === "file:";
+    Object.keys(cars).forEach((k) => {
+      const c = cars[k];
+      if (c.buf || c.el || c.loading) return;
+      c.loading = true;
+      if (fromDisk) {
+        if (typeof Audio === "undefined") return;
+        c.el = new Audio(CAR_URLS[k]); c.el.preload = "auto"; c.el.load();
+        return;
+      }
+      const o = out();
+      if (!o || typeof fetch === "undefined") { c.loading = false; return; }
+      fetch(CAR_URLS[k]).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => o.ctx.decodeAudioData(b)).then((buf) => { c.buf = buf; }).catch(() => { /* the made one, then */ });
+    });
   }
-  // The car leaving at t: the recording if it's here (true), else nothing.
-  function carAway(o, t) {
-    if (carBuf) {
-      const src = keep(o.ctx.createBufferSource()); src.buffer = carBuf;
-      const gg = o.ctx.createGain(); gg.gain.value = CAR_AWAY_LEVEL;
+  const carReady = (k) => !!(cars[k].buf || (cars[k].el && cars[k].el.readyState >= 2));
+  // Recording k at audio time t, if it's here (true); else nothing.
+  function car(k, o, t) {
+    const c = cars[k];
+    if (c.buf) {
+      const src = keep(o.ctx.createBufferSource()); src.buffer = c.buf;
+      const gg = o.ctx.createGain(); gg.gain.value = CAR_LEVEL;
       src.connect(gg).connect(o.ear); src.start(t);
       return true;
     }
-    if (carEl && carEl.readyState >= 2) {
+    if (c.el && c.el.readyState >= 2) {
       try {
-        if (!carElSrc) { carElSrc = o.ctx.createMediaElementSource(carEl); const gg = o.ctx.createGain(); gg.gain.value = CAR_AWAY_LEVEL; carElSrc.connect(gg).connect(o.ear); }
-        carEl.currentTime = 0;
-        const p = carEl.play(); if (p && p.catch) p.catch(() => {});
+        if (!c.src) { c.src = o.ctx.createMediaElementSource(c.el); const gg = o.ctx.createGain(); gg.gain.value = CAR_LEVEL; c.src.connect(gg).connect(o.ear); }
+        const go = () => { try { c.el.currentTime = 0; const p = c.el.play(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* fine */ } };
+        const ms = (t - o.ctx.currentTime) * 1000;
+        if (ms > 30) later(ms, go); else go();
         return true;
       } catch (e) { return false; }
     }
@@ -352,16 +363,16 @@ export function createTrip({ audio, onReturn }) {
       const o = out();
       if (o) {
         const ct = o.ctx.currentTime + 0.05, at = (ms) => ct + ms / 1000;
-        if (!carAway(o, ct)) driveAway(o, ct);
+        if (!car("away", o, ct)) driveAway(o, ct);
         later(T.blackIn[0], () => audio && audio.awayFromDen && audio.awayFromDen(true, (T.blackIn[1] - T.blackIn[0]) / 1000));
-        arrive(o, at(T.arrive));
+        if (!car("arrive", o, at(T.arrive))) arrive(o, at(T.arrive));
         wind(o, at(T.arrive + 1500), (T.blackOut[1] - T.arrive - 1500) / 1000);
         drone(o, at(T.morph[0]), (T.blackOut[1] - T.morph[0]) / 1000);
       } else later(T.blackIn[0], () => audio && audio.awayFromDen && audio.awayFromDen(true));
       raf = requestAnimationFrame(frame);
       return true;
     },
-    state: () => ({ stage, t: stage === "idle" ? 0 : performance.now() - t0, car: carBuf ? "recording" : carEl && carEl.readyState >= 2 ? "element" : null }),
+    state: () => ({ stage, t: stage === "idle" ? 0 : performance.now() - t0, car: carReady("away") ? "recording" : null, arrival: carReady("arrive") ? "recording" : null }),
     // Test-only: hold it at ms in (starting it if need be), or null to go on.
     pin(ms) { if (stage === "idle") this.start(); pinned = ms; },
     dispose() {
@@ -370,7 +381,7 @@ export function createTrip({ audio, onReturn }) {
       nodes = [];
       if (raf) cancelAnimationFrame(raf);
       if (root) { root.remove(); root = null; }
-      if (carEl) { try { carEl.pause(); } catch (e) { /* fine */ } }
+      Object.values(cars).forEach((c) => { if (c.el) { try { c.el.pause(); } catch (e) { /* fine */ } } });
       if (stage !== "idle" && stage !== "done" && audio && audio.awayFromDen) audio.awayFromDen(false, 0.3);
     },
   };

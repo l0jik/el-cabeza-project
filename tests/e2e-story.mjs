@@ -276,7 +276,7 @@ console.log("\ndesktop: the store, the purchase, home");
   // The trip back to Big Glutts (user): the car away, black, the store at
   // day, "What the...!??", merging into dusk with the sphere, "Time to get
   // the heck out of here!", black, and home in the Room view.
-  check("the car leaving: the user's recording, not the made one", !!(await poll(async () => (await page.evaluate(() => window.__DEN_TRIP__ && window.__DEN_TRIP__().stage !== "idle" && window.__DEN_TRIP__().car)), 9000, 100)));
+  check("the car leaving and arriving: the user's recordings, not the made ones", !!(await poll(async () => (await page.evaluate(() => { const d = window.__DEN_TRIP__ && window.__DEN_TRIP__(); return d && d.stage !== "idle" && d.car && d.arrival; })), 9000, 100)));
   check("the trip: off to the store", !!(await poll(async () => (await page.evaluate(() => window.__DEN_TRIP__ && window.__DEN_TRIP__().stage)) === "store", 9000, 100)));
   check("...\"What the...!??\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-1"].on').count()) === 1, 20000, 100)));
   check("...\"Time to get the heck out of here!\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-2"].on').count()) === 1, 20000, 100)));

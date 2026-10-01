@@ -4534,3 +4534,17 @@ phone menu until "Start the story over" (which clears it).
   carAway(o, t) at the trip's start into the ear (level 0.9); driveAway
   only if it isn't there. __DEN_TRIP__().car says which; e2e-story checks.
   The arrival is still made (arrive); the user may send a recording for it.
+- The car arriving, the user's recording (assets/den/src/car-arrive-stop-
+  door.mp3, freesound.org community: driving up and accelerating, slowing
+  to a stop ~10 s, engine off ~11, door open ~12.4, shut ~13.8). User:
+  not so much of the first part, fade in to about half way, keep it to
+  the end, make it fit. tools/den_car_arrive.py: from 6.5 s, fading in to
+  full by 8.3 (half way), duller to brighter as it nears (the leaving
+  one's distance in reverse), then all of it to the end; same band and
+  level as the leaving one; 9.33 s. assets/den/car-arrive.mp3 -> dist
+  el-cabeza-den-car-arrive.mp3. den-trip.js: both recordings in `cars`
+  (CAR_URLS), loadCar loads both, car(k, o, t) plays one (an <audio>
+  element from file:, timed with later()); arrive() only stands in. From
+  T.arrive (9.8 s): the stop ~13.7, engine off ~14.3, the door shut ~17.1,
+  as the store finishes fading up and just before "What the...!??".
+  __DEN_TRIP__().arrival; e2e-story checks both.
