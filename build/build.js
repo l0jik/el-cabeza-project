@@ -17,6 +17,7 @@ const DEN_RECORDS = {
   // Stromberg-Carlson 1543, its first three rings (the talk at its end cut).
   "el-cabeza-den-phone-ring.mp3": "assets/den/phone_ring.mp3",
   "el-cabeza-den-call-voice.mp3": "assets/den/call-voice.mp3",
+  "el-cabeza-den-car-away.mp3": "assets/den/car-away.mp3",
   // The trip back to Big Glutts after the call (den-trip.js; the user's pictures).
   "el-cabeza-trip-day.jpg": "assets/den/trip/glutts-day.jpg",
   "el-cabeza-trip-dusk.jpg": "assets/den/trip/glutts-dusk.jpg",

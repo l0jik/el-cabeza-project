@@ -4519,3 +4519,18 @@ phone menu until "Start the story over" (which clears it).
   whenever focus comes on, however it came on (F, the corner button, the
   switches, a lamp). e2e-den checks the camera comes in from out in the
   room.
+- The car leaving, the user's recording (assets/den/src/car-start-drive-
+  away.mp3, freesound.org community: door, getting in, door shut, key,
+  starter, catch and revs, idle, pulling away through first and on).
+  User: fade it off right after the first acceleration; treat it to fit.
+  tools/den_car_away.py: source 1.0-3.5 s (door, in, shut), 3.7-8.1
+  (key, cranking, the catch and its revs into idle), 9.0-11.6 (idle's end,
+  the first acceleration away), 60 ms crossfades; from 10.5 s the highs
+  roll off (crossfade to a 1.5 kHz-lowpassed copy: distance) as it fades,
+  gone by 11.6; band 50 Hz-9 kHz; loud parts ~-16 dBFS rms, peaks < -1 dB.
+  9.38 s in all (black by 7.35 s, the arrival from 9.8 s). assets/den/
+  car-away.mp3 -> dist el-cabeza-den-car-away.mp3. den-trip.js loadCar
+  (with the pictures: fetch + decode, or an <audio> element from file:),
+  carAway(o, t) at the trip's start into the ear (level 0.9); driveAway
+  only if it isn't there. __DEN_TRIP__().car says which; e2e-story checks.
+  The arrival is still made (arrive); the user may send a recording for it.
