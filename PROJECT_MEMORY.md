@@ -5119,3 +5119,10 @@ phone menu until "Start the story over" (which clears it).
     just before the car pulls in; what comes before is skipped, the rest
     of the sounds scheduled from there). Nothing's kept: no hall armed on
     the way home.
+
+### Gate sheet: Computer plays Light in the right column (2026-10-02)
+  - User: on a phone "Computer plays Light" wrapped to the left under
+    "Two humans"; put it in the right column. reality-gate.js: the
+    opponent Seg gets .rg-opp, a two-column grid (auto auto), the third
+    button in column 2, so Dark and Light stack, same width, edges lined
+    up (phone and laptop alike).

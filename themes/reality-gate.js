@@ -160,6 +160,11 @@ const CSS = `
 .rg-step button:disabled { opacity: 0.3; cursor: default; }
 .rg-step output { min-width: 34px; text-align: center; font: 700 17px/1 var(--rg-body); font-variant-numeric: tabular-nums; }
 .rg-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Who's playing: two columns, the computer's two sides one under the other
+   in the right one (user: Computer plays Light in the right column, under
+   Dark, not wrapped to the left). */
+.rg-seg.rg-opp { display: grid; grid-template-columns: auto auto; justify-content: start; }
+.rg-seg.rg-opp button:nth-child(3) { grid-column: 2; }
 .rg-seg button { appearance: none; min-height: 40px; padding: 0 12px; border: var(--rg-line-w) solid var(--rg-line); border-radius: var(--rg-radius); background: transparent;
   color: var(--rg-ink); font: 600 14px/1.15 var(--rg-body); cursor: pointer; }
 .rg-seg button[aria-pressed="true"] { background: var(--rg-ink); color: var(--rg-surface); border-color: var(--rg-ink); }
@@ -225,7 +230,7 @@ function Stepper({ value, min, max, onChange, label, testid }) {
     h("button", { type: "button", "aria-label": `More: ${label}`, "data-testid": testid && `${testid}-plus`, disabled: value >= max, onClick: () => onChange(value + 1) }, "+"));
 }
 const Switch = ({ on, onClick, label, testid }) => h("button", { type: "button", role: "switch", className: "rg-switch", "aria-checked": on ? "true" : "false", "aria-label": label, "data-testid": testid, onClick });
-const Seg = ({ label, children }) => h("div", { className: "rg-seg", role: "group", "aria-label": label }, children);
+const Seg = ({ label, children, className = "" }) => h("div", { className: `rg-seg${className ? " " + className : ""}`, role: "group", "aria-label": label }, children);
 const segBtn = (key, on, text, onClick, testid, disabled = false) => h("button", { key, type: "button", "aria-pressed": on ? "true" : "false", "data-testid": testid, onClick, disabled }, text);
 
 /* ------------------------------------------------------------ the square picker */
@@ -418,7 +423,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
 
   const opponent = selectOpponent && AI_DIFFICULTY ? h("section", { className: "rg-sec", "aria-label": "Who's playing" },
     h("h3", null, "Who's playing"),
-    h(Seg, { label: "Opponent" },
+    h(Seg, { label: "Opponent", className: "rg-opp" },
       segBtn("h", aiPlayer == null, "Two humans", () => !locked && selectOpponent(null), "gate-opponent-human", locked),
       segBtn("d", aiPlayer === "dark", "Computer plays Dark", () => !locked && selectOpponent("dark"), "gate-opponent-dark", locked),
       segBtn("l", aiPlayer === "light", "Computer plays Light", () => !locked && selectOpponent("light"), "gate-opponent-light", locked)),
