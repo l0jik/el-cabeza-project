@@ -545,7 +545,7 @@ const PIECE_FOOTPRINTS = {
 // checkboxes; they are counts like the rest now (a saved configuration
 // with a box ticked loads as a count of 1 — see normalizeSelections).
 // `view` is the model the row's 3D still and viewer show
-// (themes/piece-showcase.js); the Arco's follows the chosen size.
+// (themes/piece-showcase.js).
 // `detail` is the row's one-line description.
 const MATTER_ROSTER = [
   { key: "cabeza", label: "Cabeza", min: 1, max: 2, default: 1, icon: "cabeza", view: "cabeza", detail: "The one to protect. Steps one square any way." },
@@ -558,9 +558,11 @@ const MATTER_ROSTER = [
   // The Codo: MATTER's first odd-shaped piece (a 3-cube L — see
   // engine/shapes.js).
   { key: "codo", label: "Codo", min: 0, max: 4, default: 0, icon: "codo", view: "codo", detail: "3 cubes in an L. Its overhang can shelter a Cabeza." },
-  // The Arco (an arch — see engine/constants.js): one counter, and a
-  // size choice (matter.arcoSize) that applies to every Arco in the game.
-  { key: "arco", label: "Arco", min: 0, max: 4, default: 0, icon: "arch", view: "arco", detail: "An arch. A Cabeza in its opening is sheltered." },
+  // The Arco (an arch — see engine/constants.js), in each of its three
+  // sizes, each its own row (user): any mix of them in a game.
+  { key: "arcoChico", label: "Arco Chico", min: 0, max: 4, default: 0, icon: "arch", view: "arcoChico", detail: "5 cubes · 3 wide, 2 tall · opening 1 wide. A Cabeza in its opening is sheltered." },
+  { key: "arcoAlto", label: "Arco Alto", min: 0, max: 4, default: 0, icon: "arch", view: "arcoAlto", detail: "7 cubes · 3 wide, 3 tall · opening 1 wide, 2 tall. A Cabeza in its opening is sheltered." },
+  { key: "arcoAncho", label: "Arco Ancho", min: 0, max: 4, default: 0, icon: "arch", view: "arcoAncho", detail: "6 cubes · 4 wide, 2 tall · opening 2 wide. A Cabeza in its opening is sheltered." },
   // The Rayo (4-cube S/Z) and the Zeta (5-cube Z).
   { key: "rayo", label: "Rayo", min: 0, max: 4, default: 0, icon: "rayo", view: "rayo", detail: "4 cubes in an S." },
   { key: "zeta", label: "Zeta", min: 0, max: 4, default: 0, icon: "zeta", view: "zeta", detail: "5 cubes in a Z." },
@@ -569,20 +571,9 @@ const MATTER_ROSTER = [
 // end of the roster at game start (themes/neon.js, buildRosterFromSelections).
 const MAX_PIECES_PER_SIDE = 10;
 
-const ARCO_DESCRIBE = {
-  chico: "5 cubes · 3 wide, 2 tall · opening 1 wide",
-  alto: "7 cubes · 3 wide, 3 tall · opening 1 wide, 2 tall",
-  ancho: "6 cubes · 4 wide, 2 tall · opening 2 wide",
-};
-
-// "Arco Alto" etc. for the summary / variants — the counter's label plus
-// the chosen size.
-function arcoLabel(selections) {
-  const size = ARCO_SIZES.find((a) => a.key === selections.matter.arcoSize) || ARCO_SIZES[0];
-  return `Arco ${size.label}`;
-}
-function rosterItemLabel(p, selections) {
-  return p.key === "arco" ? arcoLabel(selections) : p.label;
+// The roster's names for the summary / variants.
+function rosterItemLabel(p) {
+  return p.label;
 }
 
 function createDefaultSelections() {
@@ -593,8 +584,6 @@ function createDefaultSelections() {
       // Opt-in random opening layout (Anomaly-style). Off = the standard
       // fixed formation; on = a fresh randomized placement at Begin Game.
       randomizeStart: false,
-      // Which Arco every Arco in the game is (ARCO_SIZES key).
-      arcoSize: "chico",
     },
     // missingSquares (the enable toggle) lives here, in topologies, not
     // as its own LAW — it changes the board's physical shape/playable
@@ -873,6 +862,11 @@ function migrateRoster(roster, matterSrc) {
   ["block1x3", "block2x3"].forEach((k) => {
     if (old && old[k] === true && !(saved && typeof saved[k] === "number")) roster[k] = 1;
   });
+  // (Before each Arco size had its own row: one Arco count, of one size.)
+  if (saved && typeof saved.arco === "number" && saved.arco > 0) {
+    const type = (ARCO_SIZES.find((a) => a.key === matterSrc.arcoSize) || ARCO_SIZES[0]).type;
+    if (typeof saved[type] !== "number") roster[type] = Math.max(0, Math.min(4, saved.arco));
+  }
   return roster;
 }
 function normalizeSelections(saved) {
@@ -892,7 +886,6 @@ function normalizeSelections(saved) {
     matter: {
       roster: migrateRoster(pick(d.matter.roster, matterSrc.roster), matterSrc),
       randomizeStart: typeof matterSrc.randomizeStart === "boolean" ? matterSrc.randomizeStart : d.matter.randomizeStart,
-      arcoSize: ARCO_SIZES.some((a) => a.key === matterSrc.arcoSize) ? matterSrc.arcoSize : d.matter.arcoSize,
     },
     topologies: pick(d.topologies, src.topologies),
     blackHole: { manual: cell(src.blackHole && src.blackHole.manual), random: !!(src.blackHole && src.blackHole.random) },
@@ -2154,51 +2147,6 @@ function renderLawWarning(w) {
   );
 }
 
-/* The Arco's size choice, under the roster counters: Chico / Alto /
-   Ancho, one for every Arco in the game. A small segmented control; the
-   chosen size is lit, with its shape spelled out beneath. */
-function renderArcoSizeRow(t) {
-  const s = t.singularity;
-  const h = React.createElement;
-  const sel = s.selections;
-  const describe = ARCO_DESCRIBE;
-  return h(
-    "div",
-    { "data-testid": "arco-size", style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 5, marginTop: 8 } },
-    h("div", { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(207,216,220,0.68)" } }, "Arco size"),
-    h(
-      "div",
-      { role: "group", "aria-label": "Arco size", style: { display: "flex", border: "1px solid rgba(102,217,255,0.35)", borderRadius: 4, overflow: "hidden" } },
-      ...ARCO_SIZES.map((a, i) => {
-        const on = sel.matter.arcoSize === a.key;
-        return h(
-          "button",
-          {
-            key: a.key,
-            type: "button",
-            "data-testid": `arco-size-${a.key}`,
-            "aria-pressed": on ? "true" : "false",
-            onClick: () => {
-              sel.matter.arcoSize = a.key;
-              if (s.audio && s.audio.playSelect) s.audio.playSelect();
-              s.labelsDirty = true; s.bump();
-            },
-            style: {
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.06em", textTransform: "uppercase",
-              padding: "6px 12px", cursor: "pointer", border: "none",
-              borderLeft: i ? "1px solid rgba(102,217,255,0.25)" : "none",
-              background: on ? "rgba(102,217,255,0.22)" : "transparent",
-              color: on ? "#dffaff" : "rgba(207,216,220,0.7)",
-            },
-          },
-          a.label
-        );
-      })
-    ),
-    h("div", { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.68)" } }, describe[sel.matter.arcoSize] || describe.chico)
-  );
-}
-
 function renderPairedSquarePlacementRow(t, kind) {
   const k = PAIRED_SQUARE_KINDS[kind];
   const s = t.singularity;
@@ -2836,9 +2784,8 @@ function renderCategoryOverlay(t) {
     );
   } else if (category === "matter") {
     // One row per piece type: its 3D still (tap to see it in 3D), what
-    // it is, and how many a side fields. The Arco's size sits under it.
-    const arcoType = (ARCO_SIZES.find((a) => a.key === sel.matter.arcoSize) || ARCO_SIZES[0]).type;
-    const viewOf = (p) => (p.view === "arco" ? arcoType : p.view);
+    // it is, and how many a side fields.
+    const viewOf = (p) => p.view;
     ensureThumbs(MATTER_ROSTER.map(viewOf));
     const total = MATTER_ROSTER.reduce((n, p) => n + sel.matter.roster[p.key], 0);
     const over = total > MAX_PIECES_PER_SIDE;
@@ -2852,10 +2799,7 @@ function renderCategoryOverlay(t) {
         h("div", { "data-testid": "matter-total", "data-total": String(total), style: { ...sectionLabelStyle, margin: 0, color: over ? "#ffb454" : "rgba(223,250,255,0.85)" } }, `${total} of ${MAX_PIECES_PER_SIDE}`)
       ),
       over && h("div", { "data-testid": "matter-over", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, color: "#ffcf8a", margin: "0 2px 6px" } }, `A side fields at most ${MAX_PIECES_PER_SIDE}: the last ${total - MAX_PIECES_PER_SIDE} won't be placed.`),
-      ...MATTER_ROSTER.flatMap((p) => {
-        const row = renderRosterRow(t, p, viewOf(p));
-        return p.key === "arco" ? [row, renderArcoSizeRow(t)] : [row];
-      }),
+      ...MATTER_ROSTER.map((p) => renderRosterRow(t, p, viewOf(p))),
       h("div", { style: { ...sectionLabelStyle, marginTop: 14 } }, "Setup"),
       renderCheckboxRow(
         { key: "randomizeStart", label: "Randomized Start", blurb: "Begin with a random Anomaly-style layout instead of the standard formation." },
@@ -2980,7 +2924,7 @@ function renderRosterRow(t, p, viewType) {
   const thumb = pieceThumb(viewType);
   const viewing = !!(s.pieceViewer && s.pieceViewer.key === p.key);
   const label = rosterItemLabel(p, sel);
-  const detail = p.key === "arco" ? `${ARCO_DESCRIBE[sel.matter.arcoSize] || ARCO_DESCRIBE.chico}. ${p.detail}` : p.detail;
+  const detail = p.detail;
   return h(
     "div",
     {

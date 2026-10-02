@@ -1129,12 +1129,13 @@ const CATALOG = {
   block1x3: ["49 T 4410", "35¢", "Three cubes in a row."],
   block2x3: ["49 T 4411", "75¢", "Six cubes, a slab."],
   codo: ["49 T 4406", "35¢", "Three cubes in an L. Its overhang can shelter a Cabeza."],
-  arco: ["49 T 4407", "55¢", "An arch. A Cabeza in its opening is sheltered."],
+  // (The Arco in its three sizes, each its own line, user.)
+  arcoChico: ["49 T 4407", "55¢", "An arch, 3 wide and 2 tall. A Cabeza in its opening is sheltered."],
+  arcoAlto: ["49 T 4412", "75¢", "A tall arch, 3 wide and 3 tall. A Cabeza in its opening is sheltered."],
+  arcoAncho: ["49 T 4413", "65¢", "A wide arch, 4 wide and 2 tall. A Cabeza in its opening is sheltered."],
   rayo: ["49 T 4408", "45¢", "Four cubes, an S."],
   zeta: ["49 T 4409", "55¢", "Five cubes, a Z."],
 };
-// The Arco sizes as the catalog lists them.
-const ARCO_CATALOG = { chico: ["49 T 4407", "55¢"], alto: ["49 T 4412", "75¢"], ancho: ["49 T 4413", "65¢"] };
 // The summary's groups, in the store's words.
 export const TIENDA_VARIANT_LABELS = { laws: "RULES", matter: "PIECES", topologies: "BOARD" };
 
@@ -1177,7 +1178,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const [picker, setPicker] = React.useState(null);
   // The order going through: the stamp, the register, then the game.
   const [filled, setFilled] = React.useState(false);
-  const photoTypes = [...PIECE_OPTIONS.map((p) => p.key), ...ARCO_SIZES.map((a) => a.type)];
+  const photoTypes = PIECE_OPTIONS.map((p) => p.key);
   const [photos, setPhotos] = React.useState(() => photoTypes.every((t) => !hasWoodShowcase(t) || woodPhoto(t)));
   React.useEffect(() => {
     const onKey = (e) => {
@@ -1204,12 +1205,9 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
 
   const pieceRows = (classic ? PIECE_OPTIONS.filter((p) => CLASSIC_PIECE_KEYS.includes(p.key)) : PIECE_OPTIONS).map((p) => {
     const n = sel.counts[p.key];
-    const isArco = p.key === "arco";
-    const arco = isArco ? ARCO_SIZES.find((a) => a.key === sel.arcoSize) || ARCO_SIZES[0] : null;
-    const [cat0, price0, note] = CATALOG[p.key] || ["", "", ""];
-    const [cat, price] = isArco ? ARCO_CATALOG[arco.key] : [cat0, price0];
-    const type = pieceTypeOf(p.key, sel);
-    const name = isArco ? `Arco ${arco.name}` : p.name;
+    const [cat, price, note] = CATALOG[p.key] || ["", "", ""];
+    const type = pieceTypeOf(p.key);
+    const name = p.name;
     const set = (v) => { click(); change((s) => { s.counts[p.key] = Math.max(p.min, Math.min(p.max, v)); }); };
     const viewing = !!(viewer && viewer.key === p.key);
     const photo = hasWoodShowcase(type)
@@ -1219,7 +1217,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
           onClick: (e) => {
             if (viewer) return;
             click();
-            setViewer({ key: p.key, type, name, detail: isArco ? `${note} ${arco.note}.` : note, cat, price, rect: e.currentTarget.getBoundingClientRect(), closing: false });
+            setViewer({ key: p.key, type, name, detail: note, cat, price, rect: e.currentTarget.getBoundingClientRect(), closing: false });
           },
         },
         woodPhoto(type) ? h("img", { src: woodPhoto(type), alt: "" }) : h("span", { className: "td-photo-wait" }),
@@ -1236,16 +1234,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
         h("button", { type: "button", "aria-label": `More ${p.name}`, "data-testid": `tienda-piece-${p.key}-inc`, disabled: n >= p.max, onClick: () => set(n + 1) }, "+"),
       ),
     );
-    if (!isArco) return row;
-    // The Arco's size, for every Arco in the game.
-    return [row, h("div", { key: "arco-size", className: "td-sub", "data-testid": "tienda-arco-size" },
-      h("span", { className: "td-sub-h" }, "Size"),
-      h("div", { className: "td-seg", role: "group", "aria-label": "Arco size" },
-        ...ARCO_SIZES.map((a) => h("button", {
-          key: a.key, type: "button", "aria-pressed": sel.arcoSize === a.key ? "true" : "false", "data-testid": `tienda-arco-${a.key}`,
-          onClick: () => { click(); change((s) => { s.arcoSize = a.key; }); },
-        }, `${a.name} · ${a.note}`)),
-      ))];
+    return row;
   });
 
   const check = (id, on, title, note, onToggle, extra) => h("label", { key: id, className: "td-check", "data-testid": `tienda-${id}` },

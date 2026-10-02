@@ -26,21 +26,23 @@ export const PIECE_OPTIONS = [
   { key: "block1x3", name: "1×3 Block", min: 0, max: 4, def: 0 },
   { key: "block2x3", name: "2×3 Block", min: 0, max: 4, def: 0 },
   { key: "codo", name: "Codo", min: 0, max: 4, def: 0 },
-  { key: "arco", name: "Arco", min: 0, max: 4, def: 0 },
+  // (The Arco in each of its three sizes, each its own row, user; any mix.)
+  { key: "arcoChico", name: "Arco Chico", note: "3 wide, 2 tall", min: 0, max: 4, def: 0 },
+  { key: "arcoAlto", name: "Arco Alto", note: "3 wide, 3 tall", min: 0, max: 4, def: 0 },
+  { key: "arcoAncho", name: "Arco Ancho", note: "4 wide, 2 tall", min: 0, max: 4, def: 0 },
   { key: "rayo", name: "Rayo", min: 0, max: 4, def: 0 },
   { key: "zeta", name: "Zeta", min: 0, max: 4, def: 0 },
 ];
-// The Arco comes in three sizes; every Arco in a game is the same size.
+// The Arco's three sizes (each a piece of its own above; an older save's
+// one Arco count and size, `arco` and `arcoSize`, is read as that size's).
 export const ARCO_SIZES = [
   { key: "chico", name: "Chico", type: "arcoChico", note: "3 wide, 2 tall" },
   { key: "alto", name: "Alto", type: "arcoAlto", note: "3 wide, 3 tall" },
   { key: "ancho", name: "Ancho", type: "arcoAncho", note: "4 wide, 2 tall" },
 ];
-// The engine's piece type for an option.
-export function pieceTypeOf(key, sel) {
-  if (key !== "arco") return key;
-  const size = ARCO_SIZES.find((a) => a.key === (sel && sel.arcoSize)) || ARCO_SIZES[0];
-  return size.type;
+// The engine's piece type for an option (each option is one).
+export function pieceTypeOf(key) {
+  return key;
 }
 
 export const LAW_OPTIONS = [
@@ -68,7 +70,7 @@ export { MIN_BOARD_DIM, MAX_BOARD_DIM };
 export const clampDim = (v) => Math.max(MIN_BOARD_DIM, Math.min(MAX_BOARD_DIM, Math.round(v)));
 
 /* A selection:
-   { counts: {key: n}, arcoSize, laws: {key: bool}, shove: {onRolls},
+   { counts: {key: n}, laws: {key: bool}, shove: {onRolls},
      rows, cols, missing: bool, missingCount: 1..5,
      missingSpots: [{row, col, random}]   one square of each missing pair,
      holeSpot: {row, col, random} | null  one of the two black holes,
@@ -82,7 +84,7 @@ export function defaultSelections() {
   const laws = {};
   LAW_OPTIONS.forEach((l) => { laws[l.key] = false; });
   return {
-    counts, arcoSize: "chico", laws, shove: { onRolls: true },
+    counts, laws, shove: { onRolls: true },
     rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM,
     missing: false, missingCount: 1, missingSpots: [], holeSpot: null,
     random: false,
@@ -98,8 +100,12 @@ export function normalizeSelections(sel) {
   if (!sel || typeof sel !== "object") return d;
   const out = { ...d, ...sel };
   out.counts = { ...d.counts };
+  // (An older save: one Arco count, of one size.)
+  const oldArco = sel.counts && Number.isFinite(sel.counts.arco) && sel.counts.arco > 0
+    ? (ARCO_SIZES.find((a) => a.key === sel.arcoSize) || ARCO_SIZES[0]).type : null;
   PIECE_OPTIONS.forEach((p) => {
-    const v = sel.counts && Number.isFinite(sel.counts[p.key]) ? sel.counts[p.key] : p.def;
+    let v = sel.counts && Number.isFinite(sel.counts[p.key]) ? sel.counts[p.key] : p.def;
+    if (p.key === oldArco && !(sel.counts && Number.isFinite(sel.counts[p.key]))) v = sel.counts.arco;
     out.counts[p.key] = Math.max(p.min, Math.min(p.max, Math.round(v)));
   });
   out.laws = { ...d.laws };
@@ -107,7 +113,7 @@ export function normalizeSelections(sel) {
   // Which moves shove (a save from before the setting came back has none:
   // slides and rolls). An older save's push distance is dropped.
   out.shove = { onRolls: !(sel.shove && sel.shove.onRolls === false) };
-  if (!ARCO_SIZES.some((a) => a.key === out.arcoSize)) out.arcoSize = "chico";
+  delete out.arcoSize;
   if (!sel.rows || !sel.cols) { out.rows = sel.size || DEFAULT_BOARD_DIM; out.cols = sel.size || DEFAULT_BOARD_DIM; }
   out.rows = clampDim(out.rows); out.cols = clampDim(out.cols);
   delete out.size;
@@ -122,7 +128,6 @@ export function normalizeSelections(sel) {
 // What actually changes the game: settings of a feature that's off don't.
 function effective(sel) {
   const e = cloneSelections(sel);
-  if (!e.counts.arco) e.arcoSize = "chico";
   if (!e.laws.shoving) e.shove = { onRolls: true };
   if (!e.missing) { e.missingCount = 1; e.missingSpots = []; }
   if (!e.laws.blackHoleSquares) e.holeSpot = null;
@@ -301,7 +306,7 @@ export function lawWarnings(sel) {
 
 // "Shoving (slides only)" or "Shoving (slides and rolls)", for the summary.
 export const shovingName = (sel) => `Shoving (${sel.shove && sel.shove.onRolls === false ? "slides only" : "slides and rolls"})`;
-const pieceName = (p, sel) => (p.key === "arco" ? `Arco ${(ARCO_SIZES.find((a) => a.key === sel.arcoSize) || ARCO_SIZES[0]).name}` : p.name);
+const pieceName = (p) => p.name;
 
 /* What the choices change, for the chassis's current-rules panel and its
    "Reset rules" state (a null list is a plain game). `labels` names the
@@ -311,7 +316,7 @@ export function variantsOf(sel, labels = {}) {
   const groups = [];
   const lawsOn = LAW_OPTIONS.filter((l) => sel.laws[l.key]);
   if (lawsOn.length) groups.push({ key: "laws", label: L.laws, items: lawsOn.map((l) => (l.key === "shoving" ? shovingName(sel) : l.name)), keys: lawsOn.map((l) => l.key) });
-  const matter = PIECE_OPTIONS.filter((p) => sel.counts[p.key] !== p.def || (p.key === "arco" && sel.counts.arco && sel.arcoSize !== "chico")).map((p) => `${sel.counts[p.key]}× ${pieceName(p, sel)}`);
+  const matter = PIECE_OPTIONS.filter((p) => sel.counts[p.key] !== p.def).map((p) => `${sel.counts[p.key]}× ${pieceName(p)}`);
   if (sel.random) matter.unshift("Randomized start");
   if (matter.length) groups.push({ key: "matter", label: L.matter, items: matter });
   const topo = [];

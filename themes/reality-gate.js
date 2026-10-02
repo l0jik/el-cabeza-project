@@ -397,7 +397,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
     const id = setTimeout(() => { if (piecePictures(world, pieceLook, PICTURE_TYPES)) setPicsReady((n) => n + 1); }, 450);
     return () => clearTimeout(id);
   }, []);
-  const picOf = (key) => pictures.get(`${world}|${pieceTypeOf(key, sel)}`) || null;
+  const picOf = (key) => pictures.get(`${world}|${pieceTypeOf(key)}`) || null;
   const [picker, setPicker] = React.useState(null); // null | "missing" | "hole"
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); return n; });
   const total = totalPieces(sel), tooMany = total > MAX_PIECES;
@@ -425,10 +425,8 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
       h("div", { className: "rg-row rg-piece", "data-testid": `gate-piece-${p.key}` },
         h("span", { className: "rg-piece-id" },
           h("span", { className: "rg-pic", "aria-hidden": "true" }, picOf(p.key) ? h("img", { src: picOf(p.key), alt: "", "data-testid": `gate-pic-${p.key}` }) : null),
-          h("span", { className: "rg-name" }, p.name, p.def ? h("span", { className: "rg-note" }, "In the classic game") : null)),
-        h(Stepper, { value: sel.counts[p.key], min: p.min, max: p.max, label: p.name, testid: `gate-count-${p.key}`, onChange: (v) => change((n) => { n.counts[p.key] = v; }) })),
-      p.key === "arco" && sel.counts.arco > 0 && h("div", { className: "rg-sub" },
-        h(Seg, { label: "Arco size" }, ARCO_SIZES.map((a) => segBtn(a.key, sel.arcoSize === a.key, `${a.name} · ${a.note}`, () => change((n) => { n.arcoSize = a.key; }), `gate-arco-${a.key}`)))))),
+          h("span", { className: "rg-name" }, p.name, p.def ? h("span", { className: "rg-note" }, "In the classic game") : p.note ? h("span", { className: "rg-note" }, p.note) : null)),
+        h(Stepper, { value: sel.counts[p.key], min: p.min, max: p.max, label: p.name, testid: `gate-count-${p.key}`, onChange: (v) => change((n) => { n.counts[p.key] = v; }) })))),
     h("div", { className: `rg-total${tooMany ? " bad" : ""}`, "data-testid": "gate-total" },
       tooMany ? `${total} pieces a side: ${MAX_PIECES} at most.` : `${total} ${total === 1 ? "piece" : "pieces"} a side (up to ${MAX_PIECES}).`),
     !fits && !tooMany && h("div", { className: "rg-warn", "data-testid": "gate-fit" },

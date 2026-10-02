@@ -14,7 +14,6 @@
 
 import React from "react";
 import * as THREE from "three";
-import { ARCO_SIZES } from "../engine/constants.js";
 import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z, GRID_EXTENT_X, GRID_EXTENT_Z, GOAL_ROW, PIECE_SCALE, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { opponentOf, cabezaInDanger } from "../engine/ai.js";
 import { createInitialPieces } from "../engine/rules.js";
@@ -191,10 +190,11 @@ function buildRosterFromSelections(matterSelections) {
     if (count > 0) roster.push({ type, count });
   });
   if (matterSelections.roster.codo > 0) roster.push({ type: "codo", count: matterSelections.roster.codo });
-  if (matterSelections.roster.arco > 0) {
-    const size = ARCO_SIZES.find((a) => a.key === matterSelections.arcoSize) || ARCO_SIZES[0];
-    roster.push({ type: size.type, count: matterSelections.roster.arco });
-  }
+  // (Each Arco size its own row and count.)
+  ["arcoChico", "arcoAlto", "arcoAncho"].forEach((type) => {
+    const count = matterSelections.roster[type] || 0;
+    if (count > 0) roster.push({ type, count });
+  });
   if (matterSelections.roster.rayo > 0) roster.push({ type: "rayo", count: matterSelections.roster.rayo });
   if (matterSelections.roster.zeta > 0) roster.push({ type: "zeta", count: matterSelections.roster.zeta });
   ["block1x3", "block2x3"].forEach((type) => {

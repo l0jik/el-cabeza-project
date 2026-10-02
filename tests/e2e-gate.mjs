@@ -60,7 +60,8 @@ console.log("Cabeza Nova: the one menu");
   check("...who's playing, pieces, rules, board, Reset and Play", (await p.locator('[data-testid="gate-opponent-human"]').count()) > 0 && (await p.locator('[data-testid="gate-count-codo-plus"]').count()) > 0
     && (await p.locator('[data-testid="gate-law-slide"]').count()) > 0 && (await p.locator('[data-testid="gate-size-12"]').count()) > 0
     && (await p.locator('[data-testid="gate-reset"]').count()) > 0 && (await p.locator('[data-testid="gate-play"]').count()) > 0);
-  check("...each piece pictured, as Cromo draws it", !!(await poll(async () => (await p.locator('[data-testid^="gate-pic-"]').count()) === 11, 6000)));
+  check("...each piece pictured, as Cromo draws it (13, each Arco size its own)", !!(await poll(async () => (await p.locator('[data-testid^="gate-pic-"]').count()) === 13, 6000)));
+  check("...the Arco Chico, Alto and Ancho each in a row of their own, no size switch", (await p.locator('[data-testid="gate-piece-arcoChico"]').count()) === 1 && (await p.locator('[data-testid="gate-piece-arcoAlto"]').count()) === 1 && (await p.locator('[data-testid="gate-piece-arcoAncho"]').count()) === 1 && (await p.locator('[data-testid^="gate-arco-"]').count()) === 0);
   await p.waitForTimeout(600); await shot(p, "sheet-phone");
   await p.locator('[data-testid="gate-opponent-human"]').click();
   await p.locator('[data-testid="gate-count-codo-plus"]').click();

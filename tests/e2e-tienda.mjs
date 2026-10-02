@@ -315,13 +315,16 @@ for (const size of [SIZES[2], SIZES[7]]) {
   for (let i = 0; i < 3; i++) await press('[data-testid="tienda-piece-turrito-inc"]');
   check("the Blocks are on the form, and a count goes to 4", (await txt('[data-testid="tienda-piece-block1x3"] output')) === "1" && (await txt('[data-testid="tienda-piece-turrito"] output')) === "4" && (await page.locator('[data-testid="tienda-piece-turrito-inc"]').isDisabled()));
   for (let i = 0; i < 3; i++) await press('[data-testid="tienda-piece-turrito-dec"]');
-  await press('[data-testid="tienda-piece-arco-inc"]');
-  await press('[data-testid="tienda-arco-alto"]');
+  // (Each Arco size its own line, user: any mix.)
+  check("the Arco Chico, Alto and Ancho each have their own line, and no size switch", (await count('[data-testid="tienda-piece-arcoChico"]')) === 1 && (await count('[data-testid="tienda-piece-arcoAlto"]')) === 1 && (await count('[data-testid="tienda-piece-arcoAncho"]')) === 1 && (await count('[data-testid="tienda-arco-size"]')) === 0);
+  await press('[data-testid="tienda-piece-arcoAlto-inc"]');
+  await press('[data-testid="tienda-piece-arcoAncho-inc"]');
   await page.waitForTimeout(300);
-  check("the Arco comes Chico, Alto or Ancho, and its photograph follows", (await attr('[data-testid="tienda-arco-alto"]', "aria-pressed")) === "true" && (await attr('[data-testid="tienda-view-arco"]', "data-type")) === "arcoAlto");
-  await press('[data-testid="tienda-view-arco"]');
+  check("...ordered side by side, each with its own photograph", (await txt('[data-testid="tienda-piece-arcoAlto"] output')) === "1" && (await txt('[data-testid="tienda-piece-arcoAncho"] output')) === "1" && (await attr('[data-testid="tienda-view-arcoAlto"]', "data-type")) === "arcoAlto");
+  await press('[data-testid="tienda-piece-arcoAncho-dec"]');
+  await press('[data-testid="tienda-view-arcoAlto"]');
   await page.waitForTimeout(1200);
-  check("...and it takes up in 3-D in its size", (await attr('[data-testid="tienda-piece-viewer"]', "data-piece")) === "arcoAlto");
+  check("...and the Alto takes up in 3-D in its size", (await attr('[data-testid="tienda-piece-viewer"]', "data-piece")) === "arcoAlto");
   await page.mouse.click(6, 6);
   for (let i = 0; i < 12 && (await count('[data-testid="tienda-piece-viewer"]')); i++) await page.waitForTimeout(250);
 

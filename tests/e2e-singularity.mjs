@@ -362,7 +362,7 @@ check("dragging brings MATTER into view regardless of the shuffled arrangement",
 // on/off checkboxes) ----
 const rowKeys = await page.locator('[data-testid^="matter-row-"]').evaluateAll((els) => els.map((e) => e.dataset.testid.replace("matter-row-", "")));
 check("MATTER lists every piece type as the same kind of row (11)",
-  rowKeys.join(",") === "cabeza,turrito,flaco,chato,opa,block1x3,block2x3,codo,arco,rayo,zeta", rowKeys.join(","));
+  rowKeys.join(",") === "cabeza,turrito,flaco,chato,opa,block1x3,block2x3,codo,arcoChico,arcoAlto,arcoAncho,rayo,zeta", rowKeys.join(","));
 check("no checkbox rows are left for pieces", (await page.locator('[data-testid^="matter-piece-"]').count()) === 0);
 check("each row's still is a rendered 3D image",
   (await page.locator('[data-testid^="matter-view-"] img').count()) === 11);
@@ -458,19 +458,18 @@ await page.locator('[data-testid="roster-codo-dec"]').click();
 await page.waitForTimeout(120);
 state = await sphereState();
 
-// The Arco: its own counter (off by default) plus a size choice that
-// defaults to Chico; picking Alto lights it and stores it.
-check("the Arco counter starts at 0 with the Chico size, and the old Arch checkbox is gone",
-  state.selections.matter.roster.arco === 0 && state.selections.matter.arcoSize === "chico" &&
+// The Arco: each size its own row and counter (off by default), no size
+// switch (user: any mix).
+check("the Arco Chico, Alto and Ancho rows start at 0, with no size switch and no old Arch checkbox",
+  state.selections.matter.roster.arcoChico === 0 && state.selections.matter.roster.arcoAlto === 0 && state.selections.matter.roster.arcoAncho === 0 &&
+    !("arcoSize" in state.selections.matter) && (await page.locator('[data-testid="arco-size"]').count()) === 0 &&
     (await page.locator('[data-testid="matter-piece-arch"]').count()) === 0,
   JSON.stringify(state.selections.matter));
-await page.locator('[data-testid="arco-size-alto"]').click();
+await page.locator('[data-testid="roster-arcoAlto-inc"]').click();
 await page.waitForTimeout(120);
 state = await sphereState();
-check("choosing the Alto size stores it and marks it pressed",
-  state.selections.matter.arcoSize === "alto" &&
-    (await page.locator('[data-testid="arco-size-alto"]').getAttribute("aria-pressed")) === "true");
-await page.locator('[data-testid="arco-size-chico"]').click();
+check("the Arco Alto counts on its own", state.selections.matter.roster.arcoAlto === 1 && state.selections.matter.roster.arcoChico === 0, JSON.stringify(state.selections.matter.roster));
+await page.locator('[data-testid="roster-arcoAlto-dec"]').click();
 await page.waitForTimeout(120);
 state = await sphereState();
 

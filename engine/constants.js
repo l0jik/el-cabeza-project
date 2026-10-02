@@ -208,9 +208,9 @@ export const PIECE_META = {
   // square, and crushes a Cabeza only with a cube that comes down ON it.
   codo: { label: "Co", name: "Codo", shape: "block", maxSteps: 2 },
   // The Arco: an arch with an opening that whatever fits can stand in
-  // (a Cabeza under it is sheltered, like under a Codo's overhang). One
-  // MATTER counter plus a size choice for the whole game; each size is
-  // its own shape, so its own type. One point per roll.
+  // (a Cabeza under it is sheltered, like under a Codo's overhang). Each
+  // size is its own shape, so its own type, and its own row and count in
+  // every menu (any mix in a game). One point per roll.
   //   Chico: 5 cubes, 3 wide x 2 tall, opening 1 wide
   //   Alto:  7 cubes, 3 wide x 3 tall, opening 1 wide x 2 tall
   //   Ancho: 6 cubes, 4 wide x 2 tall, opening 2 wide
@@ -226,8 +226,8 @@ export const PIECE_META = {
   zeta: { label: "Ze", name: "Zeta", shape: "block", maxSteps: 2 },
 };
 
-/* The Arco's three sizes, in MATTER's size choice: the key stored in
-   the sphere's selections -> the piece type it places. */
+/* The Arco's three sizes: the key an older save's one size choice
+   stored -> the piece type it places (read when such a save loads). */
 export const ARCO_SIZES = [
   { key: "chico", type: "arcoChico", label: "Chico" },
   { key: "alto", type: "arcoAlto", label: "Alto" },

@@ -4851,3 +4851,22 @@ phone menu until "Start the story over" (which clears it).
   - The full-screen switch (user: it stuck out): chassis opacity 0.22
     (0.12 in focus), hover still 0.8; over the store's lid and clerk
     0.28 (was 0.85); the den's focus dim 0.14 for it.
+
+### Every Arco size its own row, in every menu (2026-10-02)
+  - User: every Nova menu must offer all three arches, each in its own
+    row (no size drop-down/switch), and every piece type must be there.
+  - Shared model (rules-selections.js): PIECE_OPTIONS has arcoChico,
+    arcoAlto, arcoAncho (each 0-4, with a size note) in place of arco +
+    arcoSize; option key = engine type (pieceTypeOf is identity). An older
+    save's counts.arco + arcoSize normalizes to that size's count.
+    ARCO_SIZES kept for that reading. Any mix of sizes plays (the engine
+    was always per type).
+  - Menus: the reality gate's Cabeza Nova sheet (rows from PIECE_OPTIONS,
+    the size Seg gone, the size as the row's note), Tienda's order form
+    (CATALOG lines per size, 49 T 4407/4412/4413; the size switch gone),
+    Lluvia's city (signs 弧/拱/橋), Neon's sphere MATTER (MATTER_ROSTER
+    rows arcoChico/Alto/Ancho; matter.arcoSize gone, migrateRoster reads
+    an old save; neon.js buildRosterFromSelections per type).
+  - rules-selections smoke: every PIECE_META type is offered; a mix of
+    all three sets out; an old save migrates. e2e-gate (13 pictures, the
+    three rows), e2e-tienda, e2e-singularity updated.

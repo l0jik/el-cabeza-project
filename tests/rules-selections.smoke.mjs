@@ -56,9 +56,25 @@ check(`a tight order on a 10-wide board is set out as ordered, every time (${asO
 import("../themes/rules-selections.js").then(async (m) => {
   const { getBoardDimensions, ACTIVE_LAWS } = await import("../engine/constants.js");
   const s = m.defaultSelections();
-  check("11 piece types, up to 4 each (Cabeza 1-2)", m.PIECE_OPTIONS.length === 11 && m.PIECE_OPTIONS.every((p) => p.max === (p.key === "cabeza" ? 2 : 4)));
-  s.counts.arco = 1; s.arcoSize = "ancho";
-  check("the Arco's size picks its piece type", m.pieceTypeOf("arco", s) === "arcoAncho");
+  check("13 piece types (each Arco size its own), up to 4 each (Cabeza 1-2)", m.PIECE_OPTIONS.length === 13 && m.PIECE_OPTIONS.every((p) => p.max === (p.key === "cabeza" ? 2 : 4)));
+  {
+    const { PIECE_META: PIECE_TYPES } = await import("../engine/constants.js");
+    const offered = m.PIECE_OPTIONS.map((p) => m.pieceTypeOf(p.key));
+    const all = Object.keys(PIECE_TYPES || {});
+    check(`every piece type the engine has is offered (${all.length})`, all.length > 0 && all.every((k) => offered.includes(k)), all.filter((k) => !offered.includes(k)).join(","));
+  }
+  {
+    // An older save's one Arco count and size: read as that size's row.
+    const old = m.normalizeSelections({ counts: { cabeza: 1, arco: 2 }, arcoSize: "alto" });
+    check("an older save's Arco (2, Alto) loads as 2 Arco Alto", old.counts.arcoAlto === 2 && old.counts.arcoChico === 0 && !("arcoSize" in old));
+    // Any mix of the three.
+    const mix = m.defaultSelections();
+    mix.counts.arcoChico = 1; mix.counts.arcoAlto = 1; mix.counts.arcoAncho = 1; mix.cols = 12; mix.rows = 12;
+    const got = m.applySelections(mix, {});
+    const dark = got.pieces.filter((p) => p.owner === "dark").map((p) => p.type);
+    check(`a mix of all three Arcos sets out (${dark.join(",")})`, ["arcoChico", "arcoAlto", "arcoAncho"].every((t) => dark.includes(t)));
+    check("...and the summary names each", JSON.stringify(m.variantsOf(mix)).includes("1× Arco Alto") && JSON.stringify(m.variantsOf(mix)).includes("1× Arco Ancho"));
+  }
   s.laws.shoving = true;
   check("Shoving reaches the engine, rolls shoving by default", m.lawsForEngine(s).shoving === true && m.lawsForEngine(s).shoveOnRolls === true && !("shoveFar" in m.lawsForEngine(s)));
   // Its one setting: slides only.
