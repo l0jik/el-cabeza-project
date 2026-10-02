@@ -5289,3 +5289,10 @@ phone menu until "Start the story over" (which clears it).
     off for it (it covered the summons after a finished story).
   - Reality gate, Standard Cabeza: "...five pieces each, the standard 10x10
     board." (was "the usual board", user).
+
+### Realities menu: a line for each Lab world (2026-10-02)
+  - User: drop "From the Theme Lab." under the ten Lab worlds in the
+    realities picker; a very brief one-liner on what each is instead.
+    realities.js LAB: [id, name, line], e.g. Swiss Design "A rational grid,
+    one red, nothing extra.", Corporate Swiss "A 1960s information system,
+    consoles and all.", Minimal Mono "Black, white, and almost nothing else."

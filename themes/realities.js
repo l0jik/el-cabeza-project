@@ -12,10 +12,19 @@
    createRealitiesMenu: the menu itself, over the void at the end
    (den-ending.js) or over the den (Nova's "Other realities"). */
 
+// The Lab's ten, each with a one-line description (user: not "From the
+// Theme Lab", a very brief line on what the theme is).
 const LAB = [
-  ["swiss", "Swiss Design"], ["bauhaus", "Bauhaus"], ["destijl", "De Stijl"], ["elementarism", "Elementarism"],
-  ["brutalist", "Brutalism"], ["newTypography", "New Typography"], ["corporateSwiss", "Corporate Swiss"],
-  ["neoBrutalist", "Neo-Brutalism"], ["minimalMono", "Minimal Mono"], ["ultimateFusion", "Ultimate Fusion"],
+  ["swiss", "Swiss Design", "A rational grid, one red, nothing extra."],
+  ["bauhaus", "Bauhaus", "Circle, square, triangle, in primary paint."],
+  ["destijl", "De Stijl", "Mondrian's black lines and primary fields."],
+  ["elementarism", "Elementarism", "The grid set against a 45° diagonal."],
+  ["brutalist", "Brutalism", "Raw concrete: poured, cast, stencilled."],
+  ["newTypography", "New Typography", "The board set like a Tschichold page."],
+  ["corporateSwiss", "Corporate Swiss", "A 1960s information system, consoles and all."],
+  ["neoBrutalist", "Neo-Brutalism", "Flat paint, thick outlines, hard shadows."],
+  ["minimalMono", "Minimal Mono", "Black, white, and almost nothing else."],
+  ["ultimateFusion", "Ultimate Fusion", "Swiss, De Stijl and Brutalism in one machine."],
 ];
 
 export const WORLDS = [
@@ -24,7 +33,7 @@ export const WORLDS = [
   { id: "store", name: "Big Glutts", line: "Games & Hobby Dept., the day you found it.", nova: "tienda" },
   { id: "lluvia", name: "Lluvia", line: "A city in the rain, far below.", href: "el-cabeza-lluvia.html" },
   { id: "cromo", name: "Cromo", line: "Steel and stone, quiet and exact.", href: "el-cabeza-cromo.html" },
-  ...LAB.map(([id, name]) => ({ id: `lab-${id}`, name, line: "From the Theme Lab.", href: `el-cabeza-lab.html?theme=${id}` })),
+  ...LAB.map(([id, name, line]) => ({ id: `lab-${id}`, name, line, href: `el-cabeza-lab.html?theme=${id}` })),
 ].map((w) => ({ ...w, shot: `el-cabeza-channel-${w.id}.jpg` }));
 
 const CSS = `
