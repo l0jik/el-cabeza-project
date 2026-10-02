@@ -5359,3 +5359,12 @@ phone menu until "Start the story over" (which clears it).
     home (orderInHand) always brings the clerk, whatever the record says.
   - e2e-summon follows it through: home, the commercial, the note, the
     order, Take to store, the clerk, the handover; nothing saved.
+
+### The sphere's ring trails off longer (2026-10-02)
+  - User: the ring should trail off a little longer, slightly more reverb,
+    "maybe another second and a half". neon-unease.js: the heartbeat on its
+    own gain (beatG); stop(fadeS, ringTailS) fades the heartbeat over fadeS,
+    the ring's tone over fadeS + 0.6 * ringTailS, and the bus (the room's
+    tail with it) over the last 0.5 s. Room 3.6 -> 4.6 s, wet 1.6 -> 1.9.
+    LostNudge: stop(1.4, 1.5) at 1.6 s: heartbeat gone at 3.0 s, the ring
+    silent at 4.5 s (offline render confirms).

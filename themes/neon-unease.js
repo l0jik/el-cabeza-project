@@ -27,7 +27,8 @@ export function createUnease(audio) {
   bus.gain.setTargetAtTime(1, ctx.currentTime, 0.6);
 
   // The ring: two sines 2.5 Hz apart (a slow beating), lower than it was
-  // (5.2 kHz, 6 Hz apart), sent mostly into a 3.6 s room.
+  // (5.2 kHz, 6 Hz apart), sent mostly into a long room (4.6 s, a touch
+  // wetter than it was: user, it should trail off a little longer).
   const ringG = ctx.createGain(); ringG.gain.value = 0;
   const rings = [2640, 2642.5].map((f) => {
     const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
@@ -38,7 +39,7 @@ export function createUnease(audio) {
   });
   const room = ctx.createConvolver();
   {
-    const len = Math.floor(ctx.sampleRate * 3.6), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    const len = Math.floor(ctx.sampleRate * 4.6), ir = ctx.createBuffer(2, len, ctx.sampleRate);
     for (let ch = 0; ch < 2; ch++) {
       const d = ir.getChannelData(ch); let lp = 0;
       for (let i = 0; i < len; i++) { lp = lp * 0.55 + (Math.random() * 2 - 1) * 0.45; d[i] = lp * Math.pow(1 - i / len, 2.4); }
@@ -46,12 +47,15 @@ export function createUnease(audio) {
     room.buffer = ir;
   }
   const dry = ctx.createGain(); dry.gain.value = 0.35;
-  const wet = ctx.createGain(); wet.gain.value = 1.6;
+  const wet = ctx.createGain(); wet.gain.value = 1.9;
   ringG.connect(dry).connect(bus);
   ringG.connect(room); room.connect(wet).connect(bus);
 
+  // The heartbeat on its own fader, so it can stop before the ring does.
+  const beatG = ctx.createGain(); beatG.gain.value = 1;
+  beatG.connect(bus);
   const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 520; lp.Q.value = 0.8;
-  lp.connect(bus);
+  lp.connect(beatG);
   function thump(t, k) {
     const amp = (0.06 + 0.5 * level) * k;
     const o = ctx.createOscillator(); o.type = "sine";
@@ -83,20 +87,31 @@ export function createUnease(audio) {
   return {
     set,
     level: () => level,
-    stop(fadeS = 1.2) {
+    /* fadeS: the heartbeat fades out over it; ringTailS: the ring goes on
+       that much longer, its tone fading over fadeS + ringTailS while the
+       room rings on after it, the whole of it ramped to silence over the
+       last half second. Straight ramps, so it's really silent at the end. */
+    stop(fadeS = 1.2, ringTailS = 0) {
       if (stopped) return;
       stopped = true;
       clearTimeout(timer);
       const t = ctx.currentTime;
-      // A straight ramp, so it's really silent at the end (the reverb's
-      // tail comes through the same bus).
-      bus.gain.cancelScheduledValues(t);
-      bus.gain.setValueAtTime(bus.gain.value, t);
-      bus.gain.linearRampToValueAtTime(0, t + fadeS);
+      const ramp = (param, at, to) => { param.cancelScheduledValues(t); param.setValueAtTime(param.value, t); param.linearRampToValueAtTime(to, at); };
+      const end = t + fadeS + ringTailS;
+      ramp(beatG.gain, t + fadeS, 0);
+      if (ringTailS > 0) {
+        ramp(ringG.gain, t + fadeS + ringTailS * 0.6, 0);
+        bus.gain.cancelScheduledValues(t);
+        bus.gain.setValueAtTime(bus.gain.value, t);
+        bus.gain.setValueAtTime(bus.gain.value, Math.max(t, end - 0.5));
+        bus.gain.linearRampToValueAtTime(0, end);
+      } else {
+        ramp(bus.gain, end, 0);
+      }
       setTimeout(() => {
         rings.forEach((o) => { try { o.stop(); } catch (e) { /* done */ } });
         try { bus.disconnect(); } catch (e) { /* gone */ }
-      }, fadeS * 1000 + 400);
+      }, (fadeS + ringTailS) * 1000 + 400);
     },
   };
 }
