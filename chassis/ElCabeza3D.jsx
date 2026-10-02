@@ -26,6 +26,7 @@ import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
 const FOCUS_EVENT = "el-cabeza:focus";
 import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
+import VolumeFader from "./VolumeFader.jsx";
 import { RealityGate, storyOver, GATE_EVENT } from "../themes/reality-gate.js";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
@@ -223,6 +224,9 @@ function loadChannelLevels() {
 }
 function saveChannelLevels(v) {
   try { localStorage.setItem(SOUND_LEVELS_KEY, JSON.stringify(v)); } catch (e) { /* storage blocked */ }
+}
+function hasSavedMasterLevel() {
+  try { return localStorage.getItem(SOUND_MASTER_KEY) != null; } catch (e) { return false; }
 }
 function loadMasterLevel() {
   try { const v = parseFloat(localStorage.getItem(SOUND_MASTER_KEY)); return Number.isFinite(v) && v > 0 ? Math.min(1, v) : 1; } catch (e) { return 1; }
@@ -831,6 +835,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // here, once, right when the engine is actually created.
     if (initialMuted) audioRef.current.setMuted(true);
     if (theme.soundChannels) applyChannelLevels(audioRef.current, theme.soundChannels, loadChannelLevels(), loadMasterLevel());
+    else if (audioRef.current.setVolume && hasSavedMasterLevel()) audioRef.current.setVolume(loadMasterLevel());
   }
 
   /* Ambient visual FX (title flicker, VHS glitch, arcs, etc. — entirely
@@ -1732,6 +1737,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     setMasterLevel(v);
     saveMasterLevel(v);
     applyChannelLevels(audioRef.current, soundChannels, channelLevels, v);
+    // A theme with one sound (Cromo, Lluvia, the Lab): its volume.
+    if (!soundChannels && audioRef.current.setVolume) audioRef.current.setVolume(v);
     if (audioMuted) toggleSound();
   }
   useEffect(() => {
@@ -7055,7 +7062,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // 118 -> 59 (halved) then, per feedback that read as "way too
     // small," back up to 177 (300% of that halved size — 50*3=150,
     // 150*1.18=177).
-    left: dockPieceIsCorner ? "calc(100% - 142px)" : "50%",
+    // (Then 12px further right and 10 lower, user: "slightly more toward
+    // the bottom right corner".)
+    left: dockPieceIsCorner ? "calc(100% - 130px)" : "50%",
     // Piece-view (pre-game) bottom lowered from 20 -> 8 per feedback that
     // it sat slightly too high; corner (post-game watermark) is unrelated
     // and keeps its own value. Corner size went 100x88 -> 50x44 (halved)
@@ -7064,7 +7073,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // 120x105.6) per feedback that the corner badge had grown too large
     // again. left's offset scales with it (~1.18x ratio kept at every
     // size change, see comment below) — 120 * 1.18 = 141.6, rounded.
-    bottom: dockPieceIsCorner ? 18 : 8,
+    bottom: 8, // (the corner was 18; down 10 with the move right above)
     // On a narrow phone the pre-game piece narrows so its canvas stays
     // clear of the How to play button in the lower left (which ends
     // 87px in); the piece itself is centred and still fits.
@@ -8483,7 +8492,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         </div>
         )}
 
-        {/* Sound On/Off — per feedback, a small icon-only toggle tucked
+        {/* The speaker (it opens the volume faders, below) — per feedback, a small icon-only button tucked
            into the dock's own bottom-right corner instead of a text
            button competing for space in the centered rows above (which
            are re-centered/rebalanced automatically just by this no
@@ -8497,28 +8506,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         {theme.hasAudio && (
           <button
             data-testid="sound-button"
-            aria-haspopup={soundChannels ? "true" : undefined}
-            aria-expanded={soundChannels ? !!soundMenuAt : undefined}
+            aria-haspopup="true"
+            aria-expanded={!!soundMenuAt}
             onClick={(e) => {
-              // A theme with separate sound channels opens its sound menu
-              // (all sounds, and each channel on its own) instead.
-              if (soundChannels) {
-                if (soundMenuAt) { setSoundMenuAt(null); return; }
-                const r = e.currentTarget.getBoundingClientRect();
-                setSoundMenuAt({ right: Math.max(8, window.innerWidth - r.right - 6), bottom: window.innerHeight - r.top + 8 });
-                return;
-              }
-              const next = !audioMuted;
-              setAudioMuted(next);
-              audioRef.current.setMuted(next);
-              // Lets a host (the unified app's theme switcher, which
-              // remounts this whole component on every theme change —
-              // see initialMuted's own comment above) mirror this
-              // outside the state that's about to be thrown away.
-              if (onMutedChange) onMutedChange(next);
+              // The sound popover: the volume, standing up (user: always a
+              // slider, all the way down is off), and a theme's separate
+              // channels beside it.
+              if (soundMenuAt) { setSoundMenuAt(null); return; }
+              const r = e.currentTarget.getBoundingClientRect();
+              setSoundMenuAt({ right: Math.max(8, window.innerWidth - r.right - 6), bottom: window.innerHeight - r.top + 8 });
             }}
-            aria-label={soundChannels ? "Sound" : audioMuted ? "Unmute ambience" : "Mute ambience"}
-            title={soundChannels ? "Sound" : audioMuted ? "Unmute ambience" : "Mute ambience"}
+            aria-label={soundChannels ? "Sound" : "Volume"}
+            title={soundChannels ? "Sound" : "Volume"}
             style={{
               position: "absolute",
               right: 8,
@@ -8786,7 +8785,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          each channel on its own, e.g. music off with the pieces still
          knocking. Floats above the speaker button; a press outside it or
          Escape closes it. */}
-      {soundChannels && soundMenuAt && (
+      {theme.hasAudio && soundMenuAt && (
         <div
           data-testid="sound-menu"
           role="dialog"
@@ -8796,7 +8795,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             right: soundMenuAt.right,
             bottom: soundMenuAt.bottom,
             zIndex: 1045,
-            width: "min(280px, calc(100vw - 16px))",
+            maxWidth: "calc(100vw - 16px)",
             boxSizing: "border-box",
             padding: "8px 0",
             background: modalSurface,
@@ -8810,38 +8809,31 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             fontFamily: "'IBM Plex Sans', sans-serif",
           }}
         >
-          {[{ key: "__all", label: "All sounds", level: audioMuted ? 0 : masterLevel, onLevel: setMasterSound }]
-            .concat(soundChannels.map((c) => ({ key: c.key, label: c.label, hint: c.hint, level: levelOf(c.key), onLevel: (v) => setChannelLevel(c.key, v), dim: audioMuted })))
-            .map((row, i) => (
-              <label
-                key={row.key}
-                style={{
-                  width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "9px 14px", boxSizing: "border-box",
-                  borderTop: i === 1 ? `1px solid ${COLORS.slateSoft}` : "none",
-                  marginTop: i === 1 ? 6 : 0, paddingTop: i === 1 ? 12 : 9,
-                  opacity: row.dim ? 0.45 : 1, cursor: "pointer",
-                }}
-              >
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: "block", fontSize: 14, fontWeight: row.key === "__all" ? 600 : 500 }}>{row.label}</span>
-                  {row.hint && <span style={{ display: "block", fontSize: 11.5, color: COLORS.slate, marginTop: 1 }}>{row.hint}</span>}
-                </span>
-                {/* A slider: all the way left is off. */}
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={Math.round(row.level * 100)}
-                  onChange={(e) => row.onLevel(Number(e.target.value) / 100)}
-                  aria-label={`${row.label} volume`}
-                  aria-valuetext={row.level <= 0 ? "off" : `${Math.round(row.level * 100)}%`}
-                  data-testid={row.key === "__all" ? "sound-all" : `sound-ch-${row.key}`}
-                  data-level={Math.round(row.level * 100)}
-                  style={{ width: 112, flexShrink: 0, margin: 0, accentColor: COLORS.charcoal, cursor: "pointer" }}
-                />
-              </label>
+          {/* The faders, standing up, all the way down off: All sounds
+             and each channel beside it like a mixing desk, or one Volume
+             for a theme with a single sound. */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "center", gap: 2, padding: "6px 12px 4px", flexWrap: "wrap" }}>
+            <VolumeFader
+              label={soundChannels ? "All sounds" : "Volume"}
+              testid="sound-all"
+              level={audioMuted ? 0 : masterLevel}
+              onLevel={setMasterSound}
+              accent={COLORS.charcoal} color={COLORS.charcoal} muted={COLORS.slate}
+            />
+            {soundChannels && <span aria-hidden="true" style={{ alignSelf: "stretch", width: 1, margin: "4px 8px", background: COLORS.slateSoft }} />}
+            {soundChannels && soundChannels.map((c) => (
+              <VolumeFader
+                key={c.key}
+                label={c.label}
+                hint={c.hint}
+                testid={`sound-ch-${c.key}`}
+                level={levelOf(c.key)}
+                onLevel={(v) => setChannelLevel(c.key, v)}
+                dim={audioMuted}
+                accent={COLORS.charcoal} color={COLORS.charcoal} muted={COLORS.slate}
+              />
             ))}
+          </div>
           {music && (
             <button
               type="button"
@@ -9326,6 +9318,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 C={RULES_COLORS}
                 budget={turnBudget()}
                 classic={classicRules || (standardGame && !EXTRA_FOCUS.includes(rulesFocus))}
+                reality={theme.realityName || null}
                 game={{
                   laws: ACTIVE_LAWS,
                   rows: BOARD_ROWS,

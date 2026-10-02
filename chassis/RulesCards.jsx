@@ -144,7 +144,7 @@ function CostsCard({ C, classic }) {
 }
 
 /* ---------------------------------------------------------------- C */
-function GameCard({ C, game, onFocus, classic }) {
+function GameCard({ C, game, onFocus, classic, reality }) {
   const on = classic ? [] : Object.keys(LAW_TEXT).filter((k) => game.laws[k]);
   const extras = [];
   if (game.rows !== 10 || game.cols !== 10) extras.push(`${game.rows} × ${game.cols} board`);
@@ -152,6 +152,13 @@ function GameCard({ C, game, onFocus, classic }) {
   if (game.newTypes.length && !classic) extras.push(...game.newTypes);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Where this game is being played (user: always at the top). */}
+      {reality && (
+        <div data-testid="game-reality" style={{ paddingBottom: 10, marginBottom: 2, borderBottom: `1px solid ${C.slateSoft || C.slate}` }}>
+          <div style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: "0.14em", textTransform: "uppercase", color: C.slate }}>Playing in</div>
+          <div style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.3, marginTop: 2 }}>{reality}</div>
+        </div>
+      )}
       {on.length === 0 ? (
         <div style={{ color: C.slate }}>{classic ? "This game plays the classic rules." : "No laws are on: this game plays the standard rules."}</div>
       ) : (
@@ -706,12 +713,12 @@ export function RulesTabs({ tab, onTab, C, hidden = [] }) {
 /* `classic`: the extras are still locked (engine/journey.js): every card
    tells the classic game alone, no laws, no pieces past the five, no
    holes or cuts, no Anomaly or Singularity. */
-export function RulesCard({ tab, focus, onFocus, C, budget, game, classic = false }) {
+export function RulesCard({ tab, focus, onFocus, C, budget, game, classic = false, reality = null }) {
   return (
     <div data-testid={`rules-card-${tab}`} data-classic={classic ? "true" : "false"} style={{ fontFamily: sans, fontSize: 14, lineHeight: 1.55, color: C.charcoal }}>
       {tab === "quick" && <QuickCard C={C} budget={budget} />}
       {tab === "costs" && <CostsCard C={C} classic={classic} />}
-      {tab === "game" && <GameCard C={C} game={game} onFocus={onFocus} classic={classic} />}
+      {tab === "game" && <GameCard C={C} game={game} onFocus={onFocus} classic={classic} reality={reality} />}
       {tab === "moves" && <MovesCard C={C} focus={focus} classic={classic} />}
       {tab === "turn" && <TurnCard C={C} budget={budget} classic={classic} />}
     </div>

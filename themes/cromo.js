@@ -521,6 +521,9 @@ export const styleSheet = `
    audio live in their own files; both are re-exported here so the app
    sees one theme module. */
 export { mountAmbientEffects } from "./cromo-fx.js";
+// The reality's name, at the top of the info panel's This game tab (user);
+// the same names as the Other realities menu (themes/realities.js WORLDS).
+export const realityName = "Cromo";
 export { createAudio, hasAudio } from "./cromo-audio.js";
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).

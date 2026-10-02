@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import VolumeFader from "./VolumeFader.jsx";
 
 /* The phone layout (a page opts in with ElCabeza3D's mobileShell prop;
    Nova does). On a phone-sized screen the desktop dock — the floating 3D
@@ -727,18 +728,34 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
           )}
 
           <Section label="Settings" t={t}>
-            {ctl.hasAudio && !ctl.soundChannels && <Toggle label="Sound" testid="shell-menu-sound" on={!ctl.muted} onChange={ctl.onToggleSound} t={t} />}
-            {/* A theme with separate sound channels: sliders to balance them
-               (all the way left is off), All sounds over them all; the
-               channels indented under it and dimmed while it's off. */}
-            {ctl.hasAudio && ctl.soundChannels && (
-              <Slider label="All sounds" testid="shell-menu-sound" level={ctl.masterLevel != null ? ctl.masterLevel : ctl.muted ? 0 : 1} onLevel={ctl.onMasterLevel} t={t} />
-            )}
-            {ctl.hasAudio && ctl.soundChannels && ctl.soundChannels.map((c) => (
-              <div key={c.key} style={{ paddingLeft: 18, opacity: ctl.muted ? 0.45 : 1 }}>
-                <Slider label={c.label} hint={c.hint} testid={`shell-menu-sound-${c.key}`} level={c.level != null ? c.level : c.on ? 1 : 0} onLevel={c.onLevel} t={t} />
+            {/* Sound: volume faders standing up (user: always a slider,
+               vertical; all the way down is off). One for a theme with a
+               single sound, else All sounds and each channel beside it, the
+               channels dimmed while All sounds is off. */}
+            {ctl.hasAudio && (
+              <div className="ec-shell-row" data-testid="shell-menu-mixer" style={{ cursor: "default", justifyContent: "center", alignItems: "flex-start", gap: 2, flexWrap: "wrap", paddingTop: 12, paddingBottom: 12 }}>
+                <VolumeFader
+                  label={ctl.soundChannels ? "All sounds" : "Volume"}
+                  testid="shell-menu-sound"
+                  level={ctl.masterLevel != null ? ctl.masterLevel : ctl.muted ? 0 : 1}
+                  onLevel={(v) => (ctl.onMasterLevel ? ctl.onMasterLevel(v) : (v <= 0) !== !!ctl.muted && ctl.onToggleSound())}
+                  accent={t.ink} color={t.ink} muted={t.muted} labelFont={t.sans} height={104}
+                />
+                {ctl.soundChannels && <span aria-hidden="true" style={{ alignSelf: "stretch", width: 1, margin: "4px 8px", background: t.hair }} />}
+                {ctl.soundChannels && ctl.soundChannels.map((c) => (
+                  <VolumeFader
+                    key={c.key}
+                    label={c.label}
+                    hint={c.hint}
+                    testid={`shell-menu-sound-${c.key}`}
+                    level={c.level != null ? c.level : c.on ? 1 : 0}
+                    onLevel={c.onLevel}
+                    dim={ctl.muted}
+                    accent={t.ink} color={t.ink} muted={t.muted} labelFont={t.sans} height={104}
+                  />
+                ))}
               </div>
-            ))}
+            )}
             {/* A theme with a stereo (the den): its music panel. */}
             {ctl.music && <Row label="Choose music" detail={ctl.music.hint} testid="shell-menu-music" onClick={run(ctl.onOpenMusic)} chevron t={t} />}
             <Toggle label="Points left" hint="Dots for the turn's action points" testid="shell-menu-points" on={ctl.showPoints} onChange={ctl.onTogglePoints} t={t} />
@@ -789,28 +806,6 @@ function Row({ label, detail, onClick, chevron, check, danger, disabled, testid,
         </svg>
       )}
     </button>
-  );
-}
-
-// A level, 0 (off, all the way left) to 1: the sound menu's channels.
-function Slider({ label, hint, level, onLevel, testid, t }) {
-  const pct = Math.round((level || 0) * 100);
-  return (
-    <label className="ec-shell-row" style={{ cursor: "pointer" }}>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        {label}
-        {hint && <span style={{ display: "block", font: `400 12px/1.3 ${t.sans}`, color: t.muted, marginTop: 2 }}>{hint}</span>}
-      </span>
-      <input
-        type="range" min={0} max={100} step={1} value={pct}
-        onChange={(e) => onLevel && onLevel(Number(e.target.value) / 100)}
-        aria-label={`${label} volume`}
-        aria-valuetext={pct <= 0 ? "off" : `${pct}%`}
-        data-testid={testid}
-        data-level={pct}
-        style={{ width: 128, flexShrink: 0, margin: 0, accentColor: t.ink, cursor: "pointer", touchAction: "pan-x" }}
-      />
-    </label>
   );
 }
 

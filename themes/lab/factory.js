@@ -70,6 +70,7 @@ export function makeLabTheme(spec) {
     // Identity, for the lab.
     labId: spec.id,
     labSpec: spec,
+    realityName: spec.name, // (the info panel's This game tab)
 
     COLORS, HEX,
     EDGE_RADIUS: scene.EDGE_RADIUS,

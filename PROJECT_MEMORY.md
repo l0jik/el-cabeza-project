@@ -5171,3 +5171,30 @@ phone menu until "Start the story over" (which clears it).
   - Fix: cam.current.placed. onTheBoard sets it; the fit's moved() reads
     it as moved; the fit clears it when it starts over (a fresh setup
     screen fits as before).
+
+### Volume faders, the corner piece, the reality's name (2026-10-02)
+  - User (Cromo phone screenshot, the dock's speaker circled): the speaker
+    should always be a volume slider, all the way down mutes and shows the
+    speaker with the X ("a quick way to... make a volume adjustment" when a
+    world's tones are abrasive), and "make the slider vertical on all of
+    them". chassis/VolumeFader.jsx: a native range input turned a quarter
+    anticlockwise (so fill(), keyboard and screen readers still treat it as
+    a slider, and every phone browser draws it the same), 0-100, a speaker
+    glyph under it. The dock's speaker now always opens the popover (no
+    plain mute toggle any more): one "Volume" fader for a theme with a
+    single sound (Cromo, Lluvia, the Lab), else All sounds and each channel
+    side by side like a mixing desk. The phone menu's Sound section is the
+    same row of faders. Same testids (sound-all, sound-ch-*, shell-menu-
+    sound*) and the same storage (el-cabeza:sound-master).
+  - A single-sound theme's audio got setVolume: a gain after its
+    compressor (cromo-audio.js; lluvia-city.js createScore's volume(), via
+    lluvia-audio.js); the Lab's goes to setLabVolume. The saved level is
+    applied on mount only if one was saved (the Lab keeps its own 0.8
+    default otherwise).
+  - The corner (minimized, rotating) dock piece: 12px further right and
+    10px lower (user: "slightly more toward the bottom right corner"); 10px
+    from the right edge, 8 from the bottom.
+  - The info panel's This game tab starts with "Playing in <reality>"
+    (user: always say which theme or reality is being played):
+    theme.realityName, the names the Other realities menu uses (The Den,
+    1975 · Neon · Big Glutts · Lluvia · Cromo · the Lab's spec names).

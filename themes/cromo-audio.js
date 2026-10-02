@@ -29,6 +29,8 @@ export function createAudio() {
   let muted = false, windingDown = false, ambRunning = false;
   let bowlTimer = null, menuVoice = null;
   let zoom = 0.5;
+  // The player's volume (the dock's fader), after everything else.
+  let volume = 1, vol = null;
   let droneLp = null, ambGain = null;
 
   function ensureGraph() {
@@ -41,7 +43,8 @@ export function createAudio() {
       master.gain.value = muted ? 0 : 1;
       const comp = ctx.createDynamicsCompressor();
       comp.threshold.value = -14; comp.ratio.value = 3; comp.attack.value = 0.004; comp.release.value = 0.2;
-      master.connect(comp).connect(ctx.destination);
+      vol = ctx.createGain(); vol.gain.value = volume;
+      master.connect(comp).connect(vol).connect(ctx.destination);
       sfx = ctx.createGain(); sfx.gain.value = 1; sfx.connect(master);
       intro = ctx.createGain(); intro.gain.value = 0; intro.connect(master);
       amb = ctx.createGain(); amb.gain.value = 1; amb.connect(intro);
@@ -181,6 +184,10 @@ export function createAudio() {
     muted = m;
     if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.08);
   }
+  function setVolume(v) {
+    volume = Math.max(0, Math.min(1, v));
+    if (vol && ctx) vol.gain.setTargetAtTime(volume, ctx.currentTime, 0.05);
+  }
   function beginFadeOut(seconds) {
     if (windingDown) return;
     windingDown = true;
@@ -313,7 +320,7 @@ export function createAudio() {
 
   const noop = () => {};
   return {
-    ensureStarted, beginGameFadeIn, setZoom, setMuted, setTension, beginFadeOut, resetWindDown,
+    ensureStarted, beginGameFadeIn, setZoom, setMuted, setVolume, setTension, beginFadeOut, resetWindDown,
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose, playStone,

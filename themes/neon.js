@@ -508,6 +508,9 @@ export const canvasGradientEnd = "#05070a";
 /* True: the chassis's Sound On/Off control is meaningful for this
    theme (see themes/standard.js's hasAudio for why this is declared
    metadata rather than a chassis branch). */
+// The reality's name, at the top of the info panel's This game tab (user);
+// the same names as the Other realities menu (themes/realities.js WORLDS).
+export const realityName = "Neon";
 export const hasAudio = true;
 // The dock's sound button (and the phone menu) offers these, each switched
 // on its own (chassis: theme.soundChannels; createSoundscape's channelOff).

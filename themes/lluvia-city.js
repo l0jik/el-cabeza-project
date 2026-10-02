@@ -641,7 +641,9 @@ import * as THREE from "three";
     if (!AC) return null;
     var ctx = new AC(), master = ctx.createGain(), comp = ctx.createDynamicsCompressor();
     master.gain.value = 0.9; comp.threshold.value = -16; comp.ratio.value = 3;
-    master.connect(comp).connect(ctx.destination);
+    // The player's volume (the dock's fader), after everything else.
+    var vol = ctx.createGain();
+    master.connect(comp).connect(vol).connect(ctx.destination);
     // A long dark hall for everything to ring in.
     var rev = ctx.createConvolver(), len = Math.floor(ctx.sampleRate * 4.2), ir = ctx.createBuffer(2, len, ctx.sampleRate), ch, i;
     for (ch = 0; ch < 2; ch++) { var d = ir.getChannelData(ch), lp = 0; for (i = 0; i < len; i++) { lp = lp * 0.6 + (Math.random() * 2 - 1) * 0.4; d[i] = lp * Math.pow(1 - i / len, 2.6); } }
@@ -892,6 +894,7 @@ import * as THREE from "three";
         rainG: rainG, droneG: droneG, CHORDS: CHORDS },
       resume: function () { if (ctx.state !== "running") ctx.resume(); },
       mute: function (m) { master.gain.setTargetAtTime(m ? 0 : 0.9, now(), 0.08); },
+      volume: function (v) { vol.gain.setTargetAtTime(Math.max(0, Math.min(1, v)), now(), 0.05); },
       // "oan": the Vietnamese ensemble. "synth": the synth pads and brass,
       // the Vietnamese instruments only as colour from the street.
       setProfile: function (p) {

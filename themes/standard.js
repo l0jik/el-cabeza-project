@@ -175,6 +175,9 @@ export function sideSurface(side) {
 
 /* ------------------------------------------------------------ sound and the scene */
 
+// The reality's name, at the top of the info panel's This game tab (user);
+// the same names as the Other realities menu (themes/realities.js WORLDS).
+export const realityName = "The Den, 1975";
 export const hasAudio = true;
 export const createAudio = () => createDenAudio();
 // The dock's sound button (and the phone menu) offers these, each switched

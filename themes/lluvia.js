@@ -384,6 +384,9 @@ export function renderExtraOverlays(x) {
 }
 
 export { mountAmbientEffects } from "./lluvia-fx.js";
+// The reality's name, at the top of the info panel's This game tab (user);
+// the same names as the Other realities menu (themes/realities.js WORLDS).
+export const realityName = "Lluvia";
 export { createAudio, hasAudio } from "./lluvia-audio.js";
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).

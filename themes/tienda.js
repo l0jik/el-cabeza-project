@@ -585,6 +585,9 @@ export const STORE_REELS = [
   "el-cabeza-tienda-reel-6.mp3",
 ];
 export const createAudio = () => createStoreAudio({ tapeUrls: STORE_REELS });
+// The reality's name, at the top of the info panel's This game tab (user);
+// the same names as the Other realities menu (themes/realities.js WORLDS).
+export const realityName = "Big Glutts";
 export { hasAudio } from "./tienda-audio.js";
 // The dock's sound button opens a menu of these, each switched on its own
 // (chassis: theme.soundChannels; tienda-audio.js setChannelMuted).

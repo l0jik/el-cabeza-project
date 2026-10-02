@@ -21,7 +21,7 @@ const LEVEL = 0.9; // the score's own master level
 
 export function createAudio() {
   let score = null, I = null;
-  let muted = false, windingDown = false;
+  let muted = false, windingDown = false, volume = 1;
 
   function ensureGraph() {
     if (score) return;
@@ -29,6 +29,7 @@ export function createAudio() {
       score = createScore({ onThunder: (delay, level) => bus.emit("thunder", delay, level) });
       I = score && score.inst;
       if (score && muted) score.mute(true);
+      if (score && volume < 1) score.volume(volume);
     } catch (e) {
       score = null; I = null;
     }
@@ -81,6 +82,11 @@ export function createAudio() {
       bedsOff();
     }
   }
+  // The player's volume (the dock's fader).
+  function setVolume(v) {
+    volume = Math.max(0, Math.min(1, v));
+    if (score) score.volume(volume);
+  }
   function setMuted(m) {
     muted = m;
     if (score) score.mute(m);
@@ -118,7 +124,7 @@ export function createAudio() {
   const mass = (v) => Math.max(1, Math.min(8, v || 1));
 
   return {
-    ensureStarted, beginGameFadeIn, setZoom, setMuted, setTension, beginFadeOut, resetWindDown,
+    ensureStarted, beginGameFadeIn, setZoom, setMuted, setVolume, setTension, beginFadeOut, resetWindDown,
     playSelect() { if (ready()) score.select(); },
     playDeselect() { if (ready()) score.close(); },
     playBlocked() { if (!ready()) return; const t = at(); blip(t, [180], 0.03, 0.06); blip(t + 0.1, [150], 0.03, 0.06); },

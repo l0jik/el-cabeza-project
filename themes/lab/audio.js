@@ -312,6 +312,7 @@ export function createLabAudio(voiceId) {
     ensureStarted() { startLabAudio(); },
     beginGameFadeIn() {}, setZoom() {}, setTension() {}, beginFadeOut() {}, resetWindDown() {},
     setMuted(m) { setLabMuted(m); },
+    setVolume(v) { setLabVolume(v); }, // (the dock's fader)
     playSelect: guard(() => play("select")),
     playDeselect: guard(() => play("deselect")),
     playBlocked: guard(() => play("blocked")),
