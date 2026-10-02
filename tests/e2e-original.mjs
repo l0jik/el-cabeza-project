@@ -56,6 +56,10 @@ const theme = (page) => page.evaluate(() => {
   console.log("[nova]");
   const page = await browser.newPage({ viewport: { width: 1000, height: 850 } });
   await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } }); // been to the Singularity: the extras are open (engine/journey.js; e2e-journey.mjs tests the lock)
+  // ...and past the commercial and its special order (as the other den
+  // tests seed it): otherwise the den holds everything but the order card
+  // until it's answered, the masthead's hold included.
+  await page.addInitScript(() => { try { localStorage.setItem("el-cabeza:commercial-aired", "1"); localStorage.setItem("el-cabeza:special-order-noted", "1"); } catch (e) { /* none */ } });
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   // The game's bought, so Nova opens at home (apps/novaStory.jsx).
