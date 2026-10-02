@@ -63,11 +63,36 @@ const BODONI = "'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif";
 
 // The lid shows once per visit, not again after every New Game.
 let lidDone = false;
-// (The story's lid: a tap that missed still takes the page full screen, once.)
-let lidFsTried = false;
+/* The story's first visit to the store: the lid off and nothing tried
+   for a while (looking round doesn't count), the dock's turning piece
+   lights in the Singularity's blue, then, once it's opened, Try a Game
+   does, until it's pressed (user). Once a story. */
+let idleNudgeDone = false;
+const IDLE_NUDGE_MS = 30000;
+const NUDGE_CSS = `
+  html.td-idle-nudge [data-dock-piece] canvas { animation: tdPieceHalo 2.4s ease-in-out infinite; }
+  .td-dock-aura { position: fixed; z-index: 14; pointer-events: none; border-radius: 50%;
+    background: radial-gradient(circle, rgba(170,238,255,0.78) 0%, rgba(102,217,255,0.5) 28%, rgba(140,110,255,0.2) 50%, rgba(102,217,255,0) 70%);
+    animation: tdPieceAura 2.4s ease-in-out infinite; transition: opacity 320ms ease; }
+  @keyframes tdPieceAura { 0%, 100% { opacity: 0.4; transform: scale(0.86); } 50% { opacity: 1; transform: scale(1.06); } }
+  html.td-idle-nudge button.td-try-game, html.td-idle-nudge [data-testid="shell-begin"] { animation: tdTryGlow 2.4s ease-in-out infinite; }
+  @keyframes tdPieceHalo {
+    0%, 100% { filter: brightness(1) drop-shadow(0 0 1.5px rgba(150,232,255,0.8)); }
+    50% { filter: brightness(1.14) drop-shadow(0 0 3px rgba(210,246,255,1)); }
+  }
+  @keyframes tdTryGlow {
+    0%, 100% { box-shadow: 0 0 0 1.5px rgba(102,217,255,0.75), 0 0 10px 2px rgba(102,217,255,0.45), 0 0 26px 6px rgba(140,110,255,0.22); }
+    50% { box-shadow: 0 0 0 2.5px rgba(170,236,255,1), 0 0 20px 6px rgba(102,217,255,0.8), 0 0 46px 14px rgba(140,110,255,0.4); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .td-dock-aura { animation: none; }
+    html.td-idle-nudge [data-dock-piece] canvas { animation: none; filter: drop-shadow(0 0 2px rgba(150,232,255,0.95)); }
+    html.td-idle-nudge button.td-try-game, html.td-idle-nudge [data-testid="shell-begin"] { animation: none; box-shadow: 0 0 0 2px rgba(102,217,255,0.9), 0 0 16px 4px rgba(102,217,255,0.55); }
+  }
+`;
 // Nova's "Start the story over" (apps/unified.jsx): the box is back on the
 // shelf, lid and all.
-export function resetLid() { lidDone = false; confusedAtClerk = false; orderInHand = null; keptOrder = null; deliverHome = null; }
+export function resetLid() { lidDone = false; idleNudgeDone = false; confusedAtClerk = false; orderInHand = null; keptOrder = null; deliverHome = null; }
 /* After the whole story, back at the store: another copy, please. The
    clerk has never heard of it, the manager has never heard of it
    (ClerkScene), and the store's purchase becomes "Go home, confused."
@@ -193,10 +218,8 @@ export function useSetupExtras(x) {
      "Open the box" is the lid's only button and the only thing that takes
      a tap, besides the corner's full-screen switch (user); it's plain,
      not dimmed or lit. Every other tap, drag, wheel and key is stopped at
-     the window; and from the third, a card comes up, in a 1970s way: "There's a story here... if you're
-     interested." (The first-tap full screen still happens, on whichever
-     tap comes first.) */
-  const [lidNudges, setLidNudges] = React.useState(0);
+     the window. (A tap anywhere still takes the page full screen, and the
+     corner's switch sits over the lid, user.) */
   const lidLocked = store && !!story && overlay === "lid";
   React.useEffect(() => {
     if (!lidLocked) return undefined;
@@ -205,11 +228,13 @@ export function useSetupExtras(x) {
       if (allowed(e)) return;
       e.stopImmediatePropagation(); e.stopPropagation();
       if (e.cancelable && e.type !== "pointermove") e.preventDefault();
-      if (e.type === "click" && e.isTrusted && !lidFsTried && !document.fullscreenElement && document.documentElement.requestFullscreen) {
-        lidFsTried = true;
+      /* (A touch stopped at its start never becomes a click, so on a
+         phone the page is asked to go full screen at the touch's end, a
+         moment the browser lets it; a mouse, at its click.) */
+      const activation = e.type === "click" || e.type === "touchend" || (e.type === "pointerup" && e.pointerType !== "mouse");
+      if (activation && e.isTrusted && !document.fullscreenElement && document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
-      if (e.type === "pointerdown" || (e.type === "touchstart" && !window.PointerEvent)) setLidNudges((n) => n + 1);
     };
     const blockKey = (e) => {
       const a = document.activeElement;
@@ -225,6 +250,54 @@ export function useSetupExtras(x) {
       window.removeEventListener("keydown", blockKey, true);
     };
   }, [lidLocked]);
+  /* The idle nudge (idleNudgeDone above): the clock runs while the lid's
+     off, nothing's open over the table and the dock is shut; opening the
+     dock first, or a game, means it isn't needed. Once lit, it stays
+     until a game begins: on the piece while the dock is shut, on Try a
+     Game while it's open (and on the phone bar's button). */
+  const [idleNudge, setIdleNudge] = React.useState(false);
+  const nudgeHere = store && arrival.current !== "cut" && !(story.after && story.after()) && !(story.realities && story.realities());
+  const dockOpen = x.dockView === "panel";
+  React.useEffect(() => {
+    if (!nudgeHere || idleNudgeDone || idleNudge) return undefined;
+    if (!x.awaitingBegin || dockOpen) { if (lidDone) idleNudgeDone = true; return undefined; }
+    if (overlay) return undefined;
+    const ms = typeof window.__EC_TEST_NUDGE_MS__ === "number" ? window.__EC_TEST_NUDGE_MS__ : IDLE_NUDGE_MS;
+    const id = setTimeout(() => setIdleNudge(true), ms);
+    return () => clearTimeout(id);
+  }, [nudgeHere, idleNudge, x.awaitingBegin, dockOpen, overlay]);
+  React.useEffect(() => {
+    if (idleNudge && !x.awaitingBegin) { idleNudgeDone = true; setIdleNudge(false); }
+  }, [idleNudge, x.awaitingBegin]);
+  React.useEffect(() => {
+    if (!idleNudge) return undefined;
+    let css = document.getElementById("td-nudge-css");
+    if (!css) { css = document.createElement("style"); css.id = "td-nudge-css"; css.textContent = NUDGE_CSS; document.head.appendChild(css); }
+    document.documentElement.classList.add("td-idle-nudge");
+    /* The halo: the dock's mount is clipped to the piece's outline (for
+       taps), so the glow round it is its own layer just behind, kept on
+       the piece as it moves and gone while the dock is open. */
+    const aura = document.createElement("div");
+    aura.className = "td-dock-aura";
+    aura.dataset.testid = "tienda-dock-aura";
+    document.body.appendChild(aura);
+    let raf = 0;
+    const follow = () => {
+      const m = document.querySelector("[data-dock-piece]");
+      const r = m && m.getBoundingClientRect();
+      if (r && r.width) {
+        const d = Math.min(r.width, r.height) * 0.92;
+        aura.style.left = `${r.left + r.width / 2 - d / 2}px`;
+        aura.style.top = `${r.top + r.height / 2 - d / 2}px`;
+        aura.style.width = aura.style.height = `${d}px`;
+        const ms = getComputedStyle(m);
+        aura.style.visibility = +ms.opacity > 0.5 && ms.display !== "none" ? "visible" : "hidden";
+      } else aura.style.visibility = "hidden";
+      raf = requestAnimationFrame(follow);
+    };
+    follow();
+    return () => { cancelAnimationFrame(raf); aura.remove(); document.documentElement.classList.remove("td-idle-nudge"); };
+  }, [idleNudge]);
   const selRef = React.useRef(null);
   if (!selRef.current) selRef.current = keptOrder ? cloneSelections(keptOrder) : defaultSelections();
   // Home, confused, with the order: the pieces are on the table already
@@ -276,7 +349,8 @@ export function useSetupExtras(x) {
     // Over the clerk's scene the corner's full-screen switch still works
     // (user: couldn't maximize during the dialogue); the other corner
     // buttons are hidden there (STORY_CSS).
-    cornerControlsZ: overlay === "clerk" ? 1250 : undefined,
+    // (Over the box lid too: it's the one other thing there that takes a tap.)
+    cornerControlsZ: overlay === "clerk" || overlay === "lid" ? 1250 : undefined,
     tiendaOverlay: overlay,
     openOrderForm: () => { x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen(); if (specialNote && !store && specialOpen) dismissSpecialNote(); setOverlay(store || !specialOpen ? "catalog" : "order"); },
     openCustomRules: () => { if (specialOpen) { if (specialNote) dismissSpecialNote(); setOverlay("order"); } },
@@ -286,7 +360,6 @@ export function useSetupExtras(x) {
     specialNote,
     noteGlow,
     lidLocked,
-    lidNudges,
     dismissSpecialNote,
     selRef,
   };
@@ -345,7 +418,6 @@ export function renderExtraOverlays(x) {
     return [h(BoxLid, {
       key: "lid",
       locked: !!x.lidLocked,
-      nudges: x.lidNudges || 0,
       onOpen: () => { lidDone = true; x.audio && x.audio.startStore && x.audio.startStore(); x.closeOverlay(); },
       onOrder: () => { lidDone = true; x.audio && x.audio.startStore && x.audio.startStore(); x.openOrderForm(); },
       orderLabel: store || !x.specialOpen ? "See the pieces" : "Custom rules",
@@ -502,20 +574,7 @@ const CSS = `
     68% { transform: scale(1.03); }
     100% { transform: scale(1); box-shadow: 0 0 0 1.5px rgba(102,217,255,0.75), 0 0 10px 2px rgba(102,217,255,0.45), 0 0 26px 6px rgba(140,110,255,0.22); }
   }
-  .td-story-hint { position: fixed; left: 50%; top: calc(9% + env(safe-area-inset-top)); z-index: 1300; transform: translateX(-50%);
-    width: min(88vw, 420px); pointer-events: none; }
-  .td-story-card { position: relative; overflow: hidden; padding: 18px 22px 16px 22px; background: #F6E7C1; color: #4A2412;
-    border-radius: 22px; border: 3px solid #4A2412; box-shadow: 6px 7px 0 #C2561A, 0 14px 30px rgba(20,10,4,0.5);
-    transform: rotate(-2.2deg); animation: tdStoryPop 0.7s cubic-bezier(0.18, 1.5, 0.4, 1) both; }
-  .td-story-stripes { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; }
-  .td-story-stripes i { display: block; height: 6px; }
-  .td-story-stripes i:nth-child(1) { background: #5A2E14; } .td-story-stripes i:nth-child(2) { background: #B4441C; }
-  .td-story-stripes i:nth-child(3) { background: #E58A1F; } .td-story-stripes i:nth-child(4) { background: #E9B52C; }
-  .td-story-card p { margin: 22px 0 0; text-align: center; font: 400 clamp(22px, 6.4vw, 30px)/1.12 'Caprasimo', 'Cooper Black', 'Bookman Old Style', Georgia, serif;
-    letter-spacing: 0.005em; text-shadow: 2px 2px 0 rgba(229,138,31,0.35); text-wrap: balance; }
-  .td-story-card p span { display: inline-block; margin-top: 6px; font-size: 0.72em; color: #9A3A14; }
-  @keyframes tdStoryPop { 0% { opacity: 0; transform: rotate(-2.2deg) translateY(24px) scale(0.82); } 100% { opacity: 1; transform: rotate(-2.2deg) translateY(0) scale(1); } }
-  @media (prefers-reduced-motion: reduce) { .td-story-card { animation: none; } button.td-btn.td-sing-glow.td-throb { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { button.td-btn.td-sing-glow.td-throb { animation: none; } }
   /* A tap anywhere else, the first time through: a throb, higher and
      brighter than the breathing (user), then back to breathing. */
   .td-special-note.td-sing-glow.td-throb { animation: tdSingThrob 1s cubic-bezier(0.2, 0.7, 0.3, 1) both, tdSingGlow 2.4s ease-in-out 1s infinite; }
@@ -642,7 +701,9 @@ const MORE_CSS = `
 const STORY_CSS = `
   body:has(.td-clerk-layer) [data-testid="room-view-corner"], body:has(.td-clerk-layer) [data-testid="how-to-play"],
   body:has(.td-clerk-layer) [data-testid="focus-corner"] { visibility: hidden !important; pointer-events: none !important; }
-  body:has(.td-clerk-layer) [data-fullscreen-toggle] { opacity: 0.85 !important; }
+  body:has([data-testid="tienda-lid"]) [data-testid="room-view-corner"], body:has([data-testid="tienda-lid"]) [data-testid="how-to-play"],
+  body:has([data-testid="tienda-lid"]) [data-testid="focus-corner"], body:has([data-testid="tienda-lid"]) [data-testid="action-corner"] { visibility: hidden !important; pointer-events: none !important; }
+  body:has(.td-clerk-layer) [data-fullscreen-toggle], body:has([data-testid="tienda-lid"]) [data-fullscreen-toggle] { opacity: 0.85 !important; }
   .td-row-look { grid-template-columns: 64px 5.2em minmax(0, 1fr) 4em; }
   .td-clerk-layer { cursor: pointer; }
   .td-clerk { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: default; animation: tdClerkIn 0.4s ease both;
@@ -734,7 +795,7 @@ const Style = () => h("style", null, CSS + MORE_CSS + ORDER_PARTS_CSS + STORY_CS
 
 /* ------------------------------------------------------------ the box lid */
 
-function BoxLid({ onOpen, onOrder, orderLabel = "Custom rules", audio, locked = false, nudges = 0 }) {
+function BoxLid({ onOpen, onOrder, orderLabel = "Custom rules", audio, locked = false }) {
   const [opening, setOpening] = React.useState(false);
   const [next, setNext] = React.useState(null);
   React.useEffect(() => {
@@ -770,29 +831,7 @@ function BoxLid({ onOpen, onOrder, orderLabel = "Custom rules", audio, locked = 
       ),
       h("div", { className: "td-sticker", "aria-label": "Price 7 dollars 97" }, "$7.97"),
     ),
-    locked && nudges >= 3 && !opening && h(StoryHint, { key: "hint", n: nudges }),
   );
-}
-
-/* "There's a story here... if you're interested." (the box lid's tap
-   that missed, the third time): a card from a 1975 paperback rack, in
-   chunky Caprasimo (a Cooper Black, the decade's own face) over the
-   decade's stripes (brown, rust, orange, mustard), popping up with a
-   bounce and nudged again by each tap that misses after. It points the
-   way and takes no taps itself. */
-let hintFontAsked = false;
-function StoryHint({ n }) {
-  React.useEffect(() => {
-    if (hintFontAsked || typeof document === "undefined") return;
-    hintFontAsked = true;
-    const l = document.createElement("link"); l.rel = "stylesheet";
-    l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap";
-    document.head.appendChild(l);
-  }, []);
-  return h("div", { className: "td-story-hint", "data-testid": "tienda-story-hint", role: "status", "aria-live": "polite" },
-    h("div", { className: "td-story-card", key: `n${n}` },
-      h("div", { className: "td-story-stripes", "aria-hidden": "true" }, h("i"), h("i"), h("i"), h("i")),
-      h("p", null, "There\u2019s a story here\u2026", h("br"), h("span", null, "if you\u2019re interested."))));
 }
 
 /* ------------------------------------------------------------ the store's catalog page (Nova's story) */

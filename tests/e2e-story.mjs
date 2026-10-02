@@ -88,13 +88,17 @@ console.log("\ndesktop: the store, the purchase, home");
   // The story's first moment: Open the box is the only way on (user).
   await page.mouse.click(30, 400); await page.waitForTimeout(250);
   check("a tap that misses: the lid stays on", await has(page, "tienda-lid"));
-  check("...no story card yet", !(await has(page, "tienda-story-hint")));
   await page.mouse.click(1200, 700); await page.waitForTimeout(250);
   await page.mouse.click(30, 700); await page.waitForTimeout(500);
-  check("a third tap that misses: \"There's a story here... if you're interested.\"", await poll(async () => (await has(page, "tienda-story-hint")) && /story here/i.test(await q(page, "tienda-story-hint").innerText()), 3000));
-  check("...and still the lid", await has(page, "tienda-lid"));
+  check("taps that miss bring no story card (user: not needed)", !(await page.locator(".td-story-hint").count()) && (await has(page, "tienda-lid")));
+  check("the full-screen switch sits over the lid, the other corner buttons hidden", await page.evaluate(() => {
+    const t = document.querySelector("[data-fullscreen-toggle]"); if (!t) return false;
+    const r = t.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    const how = document.querySelector('[data-testid="how-to-play"]');
+    return !!el && t.contains(el) && (!how || getComputedStyle(how).visibility === "hidden");
+  }));
   await q(page, "tienda-open-box").click();
-  check("Open the box: the card gone, the lid off", await poll(async () => !(await has(page, "tienda-story-hint")) && !(await has(page, "tienda-lid")), 8000));
+  check("Open the box: the lid off", await poll(async () => !(await has(page, "tienda-lid")), 8000));
   check("no hold on the title in the store (the title is itself under a tap)", await page.evaluate(() => {
     const t = document.querySelector(".ec-title"); if (!t) return false;
     const r = t.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);

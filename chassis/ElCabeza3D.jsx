@@ -2133,6 +2133,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
     busy, aiThinking, triggerBeginGame,
+    // Which of the dock's views is showing ("piece" | "panel" | "corner"),
+    // read only (Tienda's store nudges toward the piece, then Try a Game).
+    dockView,
     // Black Hole Squares LAW: the chassis-local React state, threaded
     // through so finalizeSingularityBegin (themes/neon-singularity.js)
     // can populate it with the same placement it hands to

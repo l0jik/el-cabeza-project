@@ -476,7 +476,8 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
       onClick: openOrderForm,
       style: quiet,
     }, catalogOnly ? "See the pieces" : "Custom rules"),
-    beginGameButton
+    // (td-try-game: what the store's idle nudge lights, tienda-overlay.js.)
+    store ? React.cloneElement(beginGameButton, { className: `${beginGameButton.props.className || ""} td-try-game`, "data-testid": "tienda-try-game" }) : beginGameButton
   );
   if (!store && !home) return row;
   const link = (key, label, onClick, testid) => h("button", {

@@ -4793,3 +4793,26 @@ phone menu until "Start the story over" (which clears it).
     el-cabeza:home-line). The hall arms (counts its four moves) only once
     it's put away; the hall's "due" is still saved at the return, so a
     reload before the tap arms it without the card.
+
+### The store's idle nudge; the lid without its card (2026-10-02)
+  - First visit to the store (story start, not arrived by a cut, not
+    after the story): once the lid's off, 30 s with the dock shut and
+    nothing open over the table (looking round doesn't count) lights the
+    dock's turning piece in the Singularity's blue (html.td-idle-nudge; a
+    brightness/outline pulse on its canvas plus .td-dock-aura, a radial
+    glow layer at z 14 that follows the mount by rAF, since the chassis
+    clips the mount to the piece's outline for taps). Opened, "Try a
+    Game" (tienda.js clones the begin button with .td-try-game,
+    testid tienda-try-game; the phone bar's shell-begin too) breathes the
+    same blue until a game begins. Opening the dock before the 30 s means
+    no nudge. Once a story (idleNudgeDone, reset by resetLid). The chassis
+    now hands useSetupExtras dockView (read only).
+    window.__EC_TEST_NUDGE_MS__ shortens the wait (tests/e2e-store-nudge).
+  - "There's a story here... if you're interested." is gone (user: not
+    needed any more), StoryHint and its CSS with it.
+  - Full screen on the lid (user, Android: couldn't maximize): the
+    corner switch was under the lid's layer (z 1200); over the lid the
+    corner controls now sit at 1250 with only the switch showing
+    (STORY_CSS hides the others), and a stopped tap asks for full screen
+    at its touchend/pointerup, since a touch stopped at touchstart never
+    becomes a click.
