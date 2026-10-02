@@ -1261,6 +1261,10 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     /* After the chassis has set its camera: blend it toward the view of
        the console, the set or the book (placeCamera); then the set's
        stirring is heard from where the camera ended up. */
+    /* While the ending covers the screen, the den underneath isn't drawn
+       (the chassis skips its own render when this says it's done): two
+       full scenes a frame had been too much for a phone. */
+    api.render = () => !!(ending && ending.covering && ending.covering());
     api.cameraOverride = (camera, dtMs) => {
       const placed = api.placeCamera(camera, dtMs);
       hearTv(camera);

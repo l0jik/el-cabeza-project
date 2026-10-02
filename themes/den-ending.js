@@ -9,8 +9,12 @@
    story's over, and every other version of the game is there to go to,
    or stay in the den.
 
-   Its own canvas and renderer over everything (the den goes on drawing
-   underneath, unseen); a drag looks round (there's nothing to find). The
+   Its own canvas and renderer over everything; while it covers the
+   screen the den underneath stops drawing (covering(), den-fx.js's
+   render hook: drawing both had been halving the frame rate on a
+   phone). A drag looks round (there's nothing to find), and the picture's
+   resolution steps down by itself if frames run slow, so it stays smooth
+   (user: keep it rotatable, but the frame rate high). The
    figure is built here: a lean, faceless body, near black, its edges lit
    by the light ahead (a rim shader). The sound: the den's own sounds step
    out (awayFromDen) and a chord comes in (the Monks' Hum's kind of voice,
@@ -151,6 +155,9 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   let renderer = null, scene = null, camera = null, raf = 0, t0 = 0, stage = "idle", menu = null, finished = false;
   let fig = null, figMat = null, disposables = [], chord = null, skipMs = 0;
   let look = { yaw: 0, pitch: 0, goalYaw: 0, goalPitch: 0 }, dragAt = null;
+  // Resolution held to the frame rate: an average of frame times; slow for
+  // a while, a step down (never below 1).
+  let pixelRatio = 1, frameAvg = 16.7, slowFor = 0;
   const sphereAt = new THREE.Vector3(0, 6, -420);
 
   /* ---- the sound: the chord ---- */
@@ -223,6 +230,8 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     veil = doc.createElement("div"); veil.className = "veil"; root.appendChild(veil);
     doc.body.appendChild(root);
     // A drag looks round (and eases back when let go).
+    // (Kept here: the den's own page-wide listeners have nothing to do.)
+    ["pointerdown", "pointermove", "pointerup", "touchstart", "touchmove", "wheel"].forEach((ev) => root.addEventListener(ev, (e) => e.stopPropagation()));
     root.addEventListener("pointerdown", (e) => { dragAt = { x: e.clientX, y: e.clientY, yaw: look.goalYaw, pitch: look.goalPitch }; root.setPointerCapture && root.setPointerCapture(e.pointerId); });
     root.addEventListener("pointermove", (e) => {
       if (!dragAt) return;
@@ -232,7 +241,11 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const up = () => { dragAt = null; };
     root.addEventListener("pointerup", up); root.addEventListener("pointercancel", up);
     try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" }); } catch (e) { renderer = null; }
-    if (renderer) { renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.setClearColor(0x000000, 1); }
+    // (A phone starts a little under its full density; frames that run
+    // slow step it down further, see frame().)
+    const coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    pixelRatio = Math.min(coarse ? 1.5 : 2, window.devicePixelRatio || 1);
+    if (renderer) { renderer.setPixelRatio(pixelRatio); renderer.setClearColor(0x000000, 1); }
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(55, 1, 0.5, 4000);
     // The sphere: black; round it a halo and the plasma ring, pulsing blue.
@@ -278,8 +291,16 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   let mergeFrom = null, lastNow = 0;
   function frame() {
     raf = requestAnimationFrame(frame);
-    const now = performance.now(), s = now - t0 + skipMs, dt = Math.min(0.05, lastNow ? (now - lastNow) / 1000 : 0.016);
+    const now = performance.now(), s = now - t0 + skipMs, rawMs = lastNow ? now - lastNow : 16.7, dt = Math.min(0.05, rawMs / 1000);
     lastNow = now;
+    if (rawMs < 250) {
+      frameAvg += (rawMs - frameAvg) * 0.1;
+      slowFor = frameAvg > 24 ? slowFor + rawMs : 0;
+      if (slowFor > 900 && pixelRatio > 1 && renderer) {
+        pixelRatio = Math.max(1, Math.round((pixelRatio - 0.25) * 100) / 100);
+        renderer.setPixelRatio(pixelRatio); resize(); slowFor = 0; frameAvg = 16.7;
+      }
+    }
     const T1 = s / 1000;
     moveChord(now);
     // The pull: from just ahead of you, away toward the sphere, fast and
@@ -393,7 +414,9 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       raf = requestAnimationFrame(frame);
       return true;
     },
-    state: () => ({ stage, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null }),
+    // Whether it covers the screen (the den needn't draw underneath).
+    covering: () => !!root && (stage === "void" || stage === "black" || stage === "menu" || stage === "going"),
+    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null }),
     // Test-only: on by ms.
     skip(ms) { skipMs += ms; },
     dispose() {

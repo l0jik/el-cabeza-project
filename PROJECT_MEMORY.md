@@ -4936,3 +4936,20 @@ phone menu until "Start the story over" (which clears it).
     in Node, so theme-neon.smoke now runs with the hooks); the button (singularity-lost-out) leaves as Back does. A tap
     elsewhere puts the card away (Back keeps throbbing); opening a
     category hides it. Once a visit. Checked in e2e-summon (9 s there).
+
+### The revelation scene: rotatable, but light (2026-10-02)
+  - User: the floating-body ending ran at a low frame rate when looked
+    round; keep it rotatable if the frame rate can stay high.
+  - Cause: the ending draws its own scene on its own canvas over
+    everything, while the den underneath (the heaviest scene in the game)
+    went on drawing every frame, unseen: two full renders a frame.
+  - den-ending.js covering() (void/black/menu/going) + den-fx.js
+    api.render, the chassis's existing "theme drew the frame" hook: the den
+    isn't drawn while the ending covers it (comes back on "Stay in the
+    den"). The ending's pointer events stop at its root (the den's
+    page-wide listeners stay idle). Its own resolution: a phone starts at
+    1.5x (not 2x), and if the frame-time average stays over ~24 ms for
+    ~0.9 s it steps down 0.25 at a time to 1x. Drag-to-look kept.
+  - e2e-ending: the den's renderer.info.render.frame doesn't move while
+    the void shows; a drag still turns the look. state() has pixelRatio and
+    look. Not measurable here on a real phone.

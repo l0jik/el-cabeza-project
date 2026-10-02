@@ -75,9 +75,23 @@ await page.waitForTimeout(3500);
 await shot(page, "hall-2-in-the-hall");
 check("down the hall it's died down (calm)", (await page.evaluate(() => window.__DEN_HALL__().amt)) < 0.5);
 await page.evaluate(() => window.__DEN_HALL_SKIP__());
-check("then it erupts, to white, and the void", !!(await poll(async () => (await page.evaluate(() => window.__DEN_ENDING__ && window.__DEN_ENDING__() && window.__DEN_ENDING__().stage)) === "void", 8000)));
+check("then it erupts, to white, and the void", !!(await poll(async () => (await page.evaluate(() => window.__DEN_ENDING__ && window.__DEN_ENDING__() && window.__DEN_ENDING__().stage)) === "void", 8000)), JSON.stringify(await page.evaluate(() => { try { return window.__DEN_ENDING__ && window.__DEN_ENDING__(); } catch (e) { return String(e); } })));
 console.log("the void");
 await page.waitForTimeout(2600);
+{
+  // The den underneath isn't drawn while the void covers it (user: the
+  // frame rate dropped); a drag still looks round.
+  const before = await page.evaluate(() => window.__DEN_THREE__.renderer.info.render.frame);
+  await page.waitForTimeout(1000);
+  const after = await page.evaluate(() => window.__DEN_THREE__.renderer.info.render.frame);
+  check(`...the den underneath not drawn meanwhile (${after - before} frames)`, after - before === 0);
+  const vp = page.viewportSize();
+  await page.mouse.move(vp.width / 2, vp.height / 2); await page.mouse.down();
+  await page.mouse.move(vp.width / 2 + 160, vp.height / 2 + 60, { steps: 8 }); await page.waitForTimeout(400);
+  const look = await page.evaluate(() => window.__DEN_ENDING__().look);
+  await page.mouse.up();
+  check("...a drag still looks round", !!look && Math.abs(look.yaw) > 0.2, JSON.stringify(look));
+}
 await shot(page, "end-1-pulled");
 await page.evaluate(() => window.__DEN_ENDING_SKIP__(6000));
 await page.waitForTimeout(1500);
