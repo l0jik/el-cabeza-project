@@ -5377,3 +5377,10 @@ phone menu until "Start the story over" (which clears it).
     ringS, then the bus lets go over 0.6 s. LostNudge stop(1.4, 3.4) at
     1.6 s: heartbeat gone at 3.0 s, the ring declining steadily to silence
     at about 5.2-5.6 s (offline render at 0.1 s steps: monotonic).
+
+### "I want out of here" centred in its button (2026-10-02)
+  - User (screenshot): the text ran out past the button's right edge. It
+    was nowrap in a button narrower than the words on a phone. Now it
+    wraps to two balanced lines, centred (text-wrap: balance), with a
+    0.08em indent to offset the last letter's letter-spacing; measured at
+    360/390 px: equal space each side to within 2 px.

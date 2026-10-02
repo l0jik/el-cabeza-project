@@ -3439,7 +3439,12 @@ html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !importan
   opacity: 0; animation: ecLostSweep 2.6s cubic-bezier(.3,.1,.3,1) forwards 0.5s; }
 @keyframes ecLostSweep { 0% { left: 0; opacity: 1; } 95% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
 .ec-lost button { flex: 1; min-width: 0; padding: 12px 8px; cursor: pointer; font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: clamp(11px, 3.3vw, 14px);
-  white-space: nowrap; letter-spacing: 0.08em; text-transform: uppercase; color: #e9fbff; background: rgba(102,217,255,0.08); border: 1px solid #66d9ff;
+  /* Centred in its box (user): on a narrow phone it doesn't fit on one
+     line, so it wraps to two balanced ones rather than running out past
+     the right edge; the indent puts back the letter-spacing the last
+     letter carries, so the words sit truly in the middle. */
+  white-space: normal; text-wrap: balance; text-align: center; line-height: 1.25; text-indent: 0.08em;
+  letter-spacing: 0.08em; text-transform: uppercase; color: #e9fbff; background: rgba(102,217,255,0.08); border: 1px solid #66d9ff;
   box-shadow: 0 0 12px rgba(102,217,255,0.4), inset 0 0 10px rgba(102,217,255,0.15); animation: ecLostPress 1.6s ease infinite 3.4s; }
 @keyframes ecLostPress { 0%, 30%, 70%, 100% { background: rgba(102,217,255,0.08); } 42%, 55% { background: rgba(102,217,255,0.32); box-shadow: 0 0 22px rgba(102,217,255,0.8), inset 0 0 14px rgba(102,217,255,0.4); } }
 .ec-lost button:hover, .ec-lost button:focus-visible { background: rgba(102,217,255,0.28); outline: none; }
