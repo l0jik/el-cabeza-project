@@ -25,6 +25,10 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
+      # The fast Node checks (rules, AI, shapes, saved story; seconds):
+      # nothing ships if the engine is broken. (The browser tests take
+      # too long for every push: npm run test:e2e.)
+      - run: npm run test:engine
       - run: npm run build
       - name: Add landing page
         run: |

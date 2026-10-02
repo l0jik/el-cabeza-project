@@ -41,6 +41,11 @@ for (const phone of [false, true]) {
         sessionStorage.setItem("clerk-test-seeded", "1");
         localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true }));
         localStorage.setItem("el-cabeza:singularity-seen", "1");
+        // (Past the commercial and its special order, as the other den
+        // tests seed it: otherwise the den holds everything but the order
+        // card until it's answered, and the dock won't open.)
+        localStorage.setItem("el-cabeza:commercial-aired", "1");
+        localStorage.setItem("el-cabeza:special-order-noted", "1");
       }
     } catch (e) { /* none */ }
   });

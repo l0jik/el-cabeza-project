@@ -383,17 +383,23 @@ function UnifiedApp() {
      bounding rect every frame and keep the (otherwise invisible) hold
      zone glued to it, inflated a little for a comfortable hit area. */
   useEffect(() => {
-    let raf;
+    let raf, lastZone = null, lastKey = "";
     const sync = () => {
       const titleEl = document.querySelector(".ec-title");
       const zone = holdZoneRef.current;
       if (titleEl && zone) {
         const r = titleEl.getBoundingClientRect();
         const pad = 16;
-        zone.style.top = (r.top - pad) + "px";
-        zone.style.left = (r.left - pad) + "px";
-        zone.style.width = (r.width + pad * 2) + "px";
-        zone.style.height = (r.height + pad * 2) + "px";
+        // Written only when the title has moved (or the zone is new):
+        // writing every frame dirtied the page's layout every frame.
+        const key = `${r.top},${r.left},${r.width},${r.height}`;
+        if (zone !== lastZone || key !== lastKey) {
+          lastZone = zone; lastKey = key;
+          zone.style.top = (r.top - pad) + "px";
+          zone.style.left = (r.left - pad) + "px";
+          zone.style.width = (r.width + pad * 2) + "px";
+          zone.style.height = (r.height + pad * 2) + "px";
+        }
       }
       raf = requestAnimationFrame(sync);
     };

@@ -42,7 +42,9 @@ export function readStoreGone() {
 let storeGoneThisVisit = false;
 export function saveStoreGone() {
   storeGoneThisVisit = true;
-  try { localStorage.setItem(STORY_KEY, JSON.stringify({ owned: true, storeGone: true })); } catch (e) { /* this visit only */ }
+  // Merged into the record, as every later writer is (patchStory): a
+  // replace would drop whatever else it holds.
+  patchStory({ owned: true, storeGone: true });
 }
 export const storeGone = () => storeGoneThisVisit || readStoreGone();
 export function forgetStoreGone() { storeGoneThisVisit = false; }

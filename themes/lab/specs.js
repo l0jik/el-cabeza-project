@@ -495,4 +495,3 @@ export const LAB_SPECS = [
 ];
 
 export const LAB_IDS = LAB_SPECS.map((s) => s.id);
-export const specById = (id) => LAB_SPECS.find((s) => s.id === id) || LAB_SPECS[0];

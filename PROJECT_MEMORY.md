@@ -5126,3 +5126,25 @@ phone menu until "Start the story over" (which clears it).
     opponent Seg gets .rg-opp, a two-column grid (auto auto), the third
     button in column 2, so Dark and Light stack, same width, edges lined
     up (phone and laptop alike).
+
+### Codebase audit (2026-10-02)
+  - User asked for a full audit, then the justified fixes. Report:
+    AUDIT.md (findings by severity, what's good and should stay, the
+    debt, the plan). No critical issues.
+  - Done: tests/run-e2e.mjs (the browser tests in one list, every one
+    run, a pass/fail table; `npm run test:e2e` uses it; `node
+    tests/run-e2e.mjs story den` for some); 8 tests that lived in tests/
+    but never ran now registered (gate, ending, summon, den-return,
+    drag-latch, journey, tv-lure, clerk; the clerk test's seed brought up
+    to date with the special-order lock); e2e-gameplay given real checks
+    and an exit code (it always exited 0); tests/story-save.smoke.mjs
+    (the story's save record) in test:engine; CI runs test:engine before
+    every deploy. novaStory.jsx saveStoreGone merges into the record
+    (patchStory) instead of replacing it. Nova's hold-zone loop writes
+    the zone's style only when the title moves (it wrote 4 styles a frame
+    forever). Three dead exports removed (hasShowcase, specById,
+    labSession). ARCHITECTURE.md's header corrected; README written.
+  - Not done (see AUDIT.md): splitting chassis/ElCabeza3D.jsx (9.7k
+    lines), documenting all 43 theme hooks, minifying every page (Nova
+    3.9 MB -> 2.5 MB raw, 1.27 -> 1.11 MB gzip; wants a full e2e run),
+    moving the chassis's reality-gate import behind a hook.

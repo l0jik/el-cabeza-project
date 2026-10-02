@@ -18,7 +18,6 @@ import React from "react";
 const h = React.createElement;
 
 const SESSION = { startedAt: null, initial: null, gameKey: 0 };
-export function labSession() { return SESSION; }
 
 const pad2 = (n) => String(n).padStart(2, "0");
 const clock = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`; };

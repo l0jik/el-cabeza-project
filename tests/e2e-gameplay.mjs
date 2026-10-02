@@ -93,6 +93,7 @@ await page.screenshot({ path: `/tmp/${target}-selected.png` });
 // via selectedAt whenever the previous attempt lost the selection —
 // a plain sweep across many points otherwise dooms itself the moment
 // its first miss (long before it reaches the real target) deselects.
+let moved = false;
 if (selected) {
   // Games now open in Top-Down View by default (was Current Player
   // View), which reframes the whole board in canvas space, so this
@@ -122,6 +123,7 @@ if (selected) {
     // miss before ever reaching a candidate that really lands.
     if (s === "Light to move" || /finished/i.test(s || "")) {
       console.log(`[${target}] move completed via (${fx},${fy}), status now:`, s);
+      moved = true;
       break;
     }
   }
@@ -150,11 +152,13 @@ await page.waitForTimeout(400);
 // text match alone still resolves both, so this scopes to the one
 // actually reachable from a manual End Active Game.
 const moveLogBtn = page.locator('[data-testid="move-log"]');
-console.log(`[${target}] Move Log button present after End Active Game:`, await moveLogBtn.count());
-if (await moveLogBtn.count()) {
+const moveLogCount = await moveLogBtn.count();
+let popupText = null;
+console.log(`[${target}] Move Log button present after End Active Game:`, moveLogCount);
+if (moveLogCount) {
   await moveLogBtn.click();
   await page.waitForTimeout(300);
-  const popupText = await page.evaluate(() => {
+  popupText = await page.evaluate(() => {
     const h2 = [...document.querySelectorAll("h2")].find((h) => h.textContent.includes("MOVE LOG"));
     return h2 ? h2.parentElement.textContent : null;
   });
@@ -166,3 +170,21 @@ console.log(`[${target}] total errors:`, errors.length);
 errors.forEach((e) => console.log("   " + e));
 
 await browser.close();
+
+/* Pass or fail (it used to only print, and always exit 0, so the suite
+   could never see it fail). The sandbox's blocked font fetches are
+   environment noise, not page errors. */
+const realErrors = errors.filter((e) => !/ERR_CERT|ERR_CONNECTION|ERR_TUNNEL|Failed to load resource|fonts\.g/.test(e));
+const results = [
+  ["the dock opens", dockOpened],
+  ["the turn pill toggles the first player", toggleOk],
+  ["a piece can be selected", selected],
+  ["a move completes", moved],
+  ["the dock settles in its corner and reopens", !!cornerBox && !!reopened],
+  ["Move Log after End game", moveLogCount > 0 && /MOVE LOG/.test(popupText || "")],
+  [`no page errors (${realErrors.length})`, realErrors.length === 0],
+];
+const failed = results.filter(([, ok]) => !ok);
+results.forEach(([label, ok]) => console.log(`  ${ok ? "ok  " : "FAIL"} [${target}] ${label}`));
+console.log(failed.length ? `\nGAMEPLAY ${target} FAILED (${failed.length})` : `\nGAMEPLAY ${target} PASSED`);
+process.exit(failed.length ? 1 : 0);

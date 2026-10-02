@@ -37,7 +37,6 @@ export const POSES = {
   rayo: { w: 3, h: 1, z: 2, vox: "0,0,0;1,0,0;1,0,1;2,0,1" },
   zeta: { w: 3, h: 1, z: 3, vox: "0,0,0;0,0,1;1,0,1;2,0,1;2,0,2" },
 };
-export function hasShowcase(type) { return !!POSES[type]; }
 
 // The angle the still is taken from; the viewer opens at the same one,
 // so the model leaves the list without a jump.

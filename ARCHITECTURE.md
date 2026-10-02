@@ -1,9 +1,13 @@
 # El Cabeza — shared-engine architecture
 
-This documents the target architecture for the deduplication refactor.
-Phases 1–2 (below) are done and merged. Phase 3 (the theme plugin
-interface) is a design sketch, not yet implemented — nothing in
-`components/` exists yet, and none of this is wired up.
+This documents the architecture that came out of the deduplication
+refactor. All three phases are done and in use: `engine/` (phase 1),
+`themes/` (phase 2) and the shared React component in `chassis/`
+(phase 3, the theme plugin interface; see "The theme plugin interface
+(as built)" below). Every page in `apps/` is a chassis plus one theme.
+(The early sketch's `components/` directory was never created; the
+chassis took its place.) For the decisions since, see PROJECT_MEMORY.md;
+for the 2026-10 health check, AUDIT.md.
 
 ## Three layers, not two
 
