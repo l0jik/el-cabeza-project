@@ -50,11 +50,24 @@ const RING_FRAG = `
   }
 `;
 
+/* Light added on top, the canvas's own see-through left alone. The page
+   draws Cromo's dark gradient behind a transparent canvas, and plain
+   AdditiveBlending adds the shader's alpha (1.0) to the canvas's alpha as
+   well: wherever a landing ring's square plane hung off the board's edge
+   (a back-row or side piece), it punched an opaque black square into the
+   background (user's screenshot). Colour adds as before (alpha was 1);
+   the canvas's alpha is kept as it was. */
+const ADD_LIGHT = {
+  blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+  blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+  blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+};
+
 function sweepMaterial() {
   return new THREE.ShaderMaterial({
     uniforms: { uPos: { value: -3 }, uStr: { value: 0 }, uWidth: { value: 0.06 }, uDir: { value: new THREE.Vector2(0.8, 0.6) } },
     vertexShader: SWEEP_VERT, fragmentShader: SWEEP_FRAG,
-    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+    transparent: true, ...ADD_LIGHT, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -6,
   });
 }
@@ -135,7 +148,7 @@ export function mountAmbientEffects(refs, { three, windingDownRef }) {
     const mat = new THREE.ShaderMaterial({
       uniforms: { uR: { value: 0 }, uStr: { value: 0 } },
       vertexShader: SWEEP_VERT, fragmentShader: RING_FRAG,
-      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+      transparent: true, ...ADD_LIGHT, depthWrite: false,
       polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -8,
     });
     const reach = size * 1.1 + 0.9;

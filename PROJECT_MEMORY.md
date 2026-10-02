@@ -5229,3 +5229,20 @@ phone menu until "Start the story over" (which clears it).
     peaks ~4-5 dB lower and is down 40 dB in 0.5 s instead of 3; capture
     3.5 dB lower, 0.9 s instead of 4. The far "bowl" in the ambience and
     the About card's chord got the smaller room and sends too.
+
+### Cromo: black squares behind back-row pieces (2026-10-02)
+  - User (phone screenshot): black L/rectangle shapes behind pieces in the
+    back row, against the background, on several pieces. Cause: the
+    landing ring (cromo-fx.js spawnRipple) is a square plane around the
+    piece drawn with plain AdditiveBlending and alpha 1.0. The page paints
+    Cromo's dark gradient behind a TRANSPARENT canvas (renderer alpha:
+    true), and AdditiveBlending adds the shader's alpha to the canvas's
+    alpha too, so wherever that square hung off the board's edge it turned
+    the canvas opaque black there. Over the board it was invisible (already
+    opaque). Fix: ADD_LIGHT, a CustomBlending that adds colour (One, One)
+    and leaves the canvas's alpha alone (Zero, One); the board sweeps use
+    it too. Reproduced on a phone viewport (a piece set at row 9 col 9,
+    stepped W): before, pure black just behind the back edge; after, the
+    background's own grey.
+  - Worth remembering anywhere a canvas is transparent: an additive
+    effect that writes alpha will darken whatever the page shows behind.
