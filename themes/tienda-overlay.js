@@ -67,23 +67,31 @@ let lidDone = false;
 /* The story's first visit to the store: the lid off and nothing tried
    for a while (looking round doesn't count), the dock's turning piece
    lights in the Singularity's blue, then, once it's opened, Try a Game
-   does, until it's pressed (user). Once a story. */
+   does, until it's pressed (user). Once a story.
+   A look in the dock doesn't count as trying it either (user: they tapped
+   it once, went back out to look round, and it never lit): only a game
+   begun ends it. The clock keeps what it had counted across the dock, the
+   catalog and the rest, and once lit the blue grows the longer it's left
+   (user: "the more that should... pulse larger"), over NUDGE_GROW_MS. */
 let idleNudgeDone = false;
+let idleSpent = 0; // ms of the clock already run (kept across pauses)
 const IDLE_NUDGE_MS = 30000;
+const NUDGE_GROW_MS = 90000;
 const NUDGE_CSS = `
+  html.td-idle-nudge { --td-nudge-g: 0; }
   html.td-idle-nudge [data-dock-piece] canvas { animation: tdPieceHalo 2.4s ease-in-out infinite; }
   .td-dock-aura { position: fixed; z-index: 14; pointer-events: none; border-radius: 50%;
     background: radial-gradient(circle, rgba(170,238,255,0.78) 0%, rgba(102,217,255,0.5) 28%, rgba(140,110,255,0.2) 50%, rgba(102,217,255,0) 70%);
     animation: tdPieceAura 2.4s ease-in-out infinite; transition: opacity 320ms ease; }
-  @keyframes tdPieceAura { 0%, 100% { opacity: 0.4; transform: scale(0.86); } 50% { opacity: 1; transform: scale(1.06); } }
+  @keyframes tdPieceAura { 0%, 100% { opacity: 0.4; transform: scale(0.86); } 50% { opacity: 1; transform: scale(calc(1.06 + 0.22 * var(--td-nudge-g, 0))); } }
   html.td-idle-nudge button.td-try-game, html.td-idle-nudge [data-testid="shell-begin"] { animation: tdTryGlow 2.4s ease-in-out infinite; }
   @keyframes tdPieceHalo {
     0%, 100% { filter: brightness(1) drop-shadow(0 0 1.5px rgba(150,232,255,0.8)); }
-    50% { filter: brightness(1.14) drop-shadow(0 0 3px rgba(210,246,255,1)); }
+    50% { filter: brightness(calc(1.14 + 0.12 * var(--td-nudge-g, 0))) drop-shadow(0 0 calc(3px + 5px * var(--td-nudge-g, 0)) rgba(210,246,255,1)); }
   }
   @keyframes tdTryGlow {
     0%, 100% { box-shadow: 0 0 0 1.5px rgba(102,217,255,0.75), 0 0 10px 2px rgba(102,217,255,0.45), 0 0 26px 6px rgba(140,110,255,0.22); }
-    50% { box-shadow: 0 0 0 2.5px rgba(170,236,255,1), 0 0 20px 6px rgba(102,217,255,0.8), 0 0 46px 14px rgba(140,110,255,0.4); }
+    50% { box-shadow: 0 0 0 calc(2.5px + 1.5px * var(--td-nudge-g, 0)) rgba(170,236,255,1), 0 0 calc(20px + 16px * var(--td-nudge-g, 0)) calc(6px + 6px * var(--td-nudge-g, 0)) rgba(102,217,255,0.8), 0 0 calc(46px + 34px * var(--td-nudge-g, 0)) calc(14px + 12px * var(--td-nudge-g, 0)) rgba(140,110,255,0.4); }
   }
   @media (prefers-reduced-motion: reduce) {
     .td-dock-aura { animation: none; }
@@ -93,7 +101,7 @@ const NUDGE_CSS = `
 `;
 // Nova's "Start the story over" (apps/unified.jsx): the box is back on the
 // shelf, lid and all.
-export function resetLid() { lidDone = false; idleNudgeDone = false; confusedAtClerk = false; orderInHand = null; keptOrder = null; deliverHome = null; }
+export function resetLid() { lidDone = false; idleNudgeDone = false; idleSpent = 0; confusedAtClerk = false; orderInHand = null; keptOrder = null; deliverHome = null; }
 /* After the whole story, back at the store: another copy, please. The
    clerk has never heard of it, the manager has never heard of it
    (ClerkScene), and the store's purchase becomes "Go home, confused."
@@ -252,21 +260,22 @@ export function useSetupExtras(x) {
     };
   }, [lidLocked]);
   /* The idle nudge (idleNudgeDone above): the clock runs while the lid's
-     off, nothing's open over the table and the dock is shut; opening the
-     dock first, or a game, means it isn't needed. Once lit, it stays
-     until a game begins: on the piece while the dock is shut, on Try a
-     Game while it's open (and on the phone bar's button). */
+     off and nothing's open over the table (the dock open or shut alike),
+     keeping what it had counted through any pause; only a game begun
+     means it isn't needed. Once lit, it stays (and grows) until a game
+     begins: on the piece while the dock is shut, on Try a Game while it's
+     open (and on the phone bar's button). */
   const [idleNudge, setIdleNudge] = React.useState(false);
   const nudgeHere = store && arrival.current !== "cut" && !(story.after && story.after()) && !(story.realities && story.realities());
-  const dockOpen = x.dockView === "panel";
   React.useEffect(() => {
     if (!nudgeHere || idleNudgeDone || idleNudge) return undefined;
-    if (!x.awaitingBegin || dockOpen) { if (lidDone) idleNudgeDone = true; return undefined; }
+    if (!x.awaitingBegin) { if (lidDone) idleNudgeDone = true; return undefined; }
     if (overlay) return undefined;
     const ms = typeof window.__EC_TEST_NUDGE_MS__ === "number" ? window.__EC_TEST_NUDGE_MS__ : IDLE_NUDGE_MS;
-    const id = setTimeout(() => setIdleNudge(true), ms);
-    return () => clearTimeout(id);
-  }, [nudgeHere, idleNudge, x.awaitingBegin, dockOpen, overlay]);
+    const t0 = performance.now();
+    const id = setTimeout(() => setIdleNudge(true), Math.max(0, ms - idleSpent));
+    return () => { clearTimeout(id); idleSpent += performance.now() - t0; };
+  }, [nudgeHere, idleNudge, x.awaitingBegin, overlay]);
   React.useEffect(() => {
     if (idleNudge && !x.awaitingBegin) { idleNudgeDone = true; setIdleNudge(false); }
   }, [idleNudge, x.awaitingBegin]);
@@ -283,11 +292,18 @@ export function useSetupExtras(x) {
     aura.dataset.testid = "tienda-dock-aura";
     document.body.appendChild(aura);
     let raf = 0;
+    const litAt = performance.now();
+    const growMs = typeof window.__EC_TEST_NUDGE_GROW_MS__ === "number" ? window.__EC_TEST_NUDGE_GROW_MS__ : NUDGE_GROW_MS;
+    const root = document.documentElement;
+    let lastG = -1;
     const follow = () => {
+      // How far it's grown (0 when lit, 1 after growMs), eased in.
+      const u = Math.min(1, (performance.now() - litAt) / growMs), g = u * u * (3 - 2 * u);
+      if (Math.abs(g - lastG) > 0.005) { lastG = g; root.style.setProperty("--td-nudge-g", g.toFixed(3)); aura.dataset.grow = g.toFixed(2); }
       const m = document.querySelector("[data-dock-piece]");
       const r = m && m.getBoundingClientRect();
       if (r && r.width) {
-        const d = Math.min(r.width, r.height) * 0.92;
+        const d = Math.min(r.width, r.height) * (0.92 + 0.95 * g);
         aura.style.left = `${r.left + r.width / 2 - d / 2}px`;
         aura.style.top = `${r.top + r.height / 2 - d / 2}px`;
         aura.style.width = aura.style.height = `${d}px`;
@@ -297,7 +313,7 @@ export function useSetupExtras(x) {
       raf = requestAnimationFrame(follow);
     };
     follow();
-    return () => { cancelAnimationFrame(raf); aura.remove(); document.documentElement.classList.remove("td-idle-nudge"); };
+    return () => { cancelAnimationFrame(raf); aura.remove(); root.classList.remove("td-idle-nudge"); root.style.removeProperty("--td-nudge-g"); };
   }, [idleNudge]);
   const selRef = React.useRef(null);
   if (!selRef.current) selRef.current = keptOrder ? cloneSelections(keptOrder) : defaultSelections();

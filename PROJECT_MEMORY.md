@@ -5246,3 +5246,18 @@ phone menu until "Start the story over" (which clears it).
     background's own grey.
   - Worth remembering anywhere a canvas is transparent: an additive
     effect that writes alpha will darken whatever the page shows behind.
+
+### Store nudge: a look in the dock no longer cancels it; it grows (2026-10-02)
+  - User: restarted the story, in the store tapped the piece once, went
+    into the menu, back out, looked round more, and the piece never went
+    blue (no prompt to try a game). Cause: tienda-overlay.js marked the
+    nudge done for the story whenever the dock opened before the 30 s
+    clock ran out. Now only a game begun ends it; the clock runs with the
+    dock open or shut (paused only under an overlay: the lid, catalog...)
+    and keeps what it had counted across pauses (idleSpent, reset by
+    resetLid with the story).
+  - And "the longer that goes on, the more that blue should pulse larger":
+    once lit, --td-nudge-g grows 0 -> 1 over NUDGE_GROW_MS (90 s, eased):
+    the aura behind the piece from 0.92x to ~1.9x the piece and its pulse
+    reaching further, the piece's own halo and Try a Game's glow wider and
+    brighter. aura.dataset.grow for tests (__EC_TEST_NUDGE_GROW_MS__).
