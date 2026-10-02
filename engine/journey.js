@@ -81,6 +81,9 @@ export function isCommercialOn() { return commercialOn; }
 export function setCommercialOn(on) {
   if (commercialOn === !!on) return;
   commercialOn = !!on;
+  // (The page's own controls ghost while it plays: html.ec-commercial,
+  // themes/standard.js.)
+  if (typeof document !== "undefined") document.documentElement.classList.toggle("ec-commercial", commercialOn);
   announce();
 }
 

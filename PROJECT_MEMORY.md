@@ -5333,3 +5333,11 @@ phone menu until "Start the story over" (which clears it).
     on the bare sphere) it went straight to the card. Now a category menu
     opens by itself first (LAWS, MATTER or TOPOLOGIES), stays 1.4 s, and
     comes apart; then the card.
+
+### The den's corner buttons ghost during the commercial (2026-10-02)
+  - User (screenshot, the lamp and the house circled): these should be
+    ghosted while the television's commercial plays. journey.js
+    setCommercialOn now also toggles html.ec-commercial; standard.js ghosts
+    room-view-corner, focus-corner (and action-corner) under it: opacity
+    0.32, no shadow, pointer-events none. e2e-summon checks it on the way
+    home from the sphere, and that they come back after.

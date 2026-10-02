@@ -315,6 +315,11 @@ export const styleSheet = `
   button[aria-label$="full screen"][data-dim="true"] { opacity: 0.14 !important; }
   [data-dim="true"]:hover, [data-dim="true"]:focus-visible, [data-testid="focus-corner"][data-dim="true"]:hover { opacity: 0.9 !important; }
   [data-testid="room-view-corner"][data-active="true"]:hover { opacity: 0.6 !important; }
+  /* While the set's late-night commercial plays (engine/journey.js
+     setCommercialOn puts ec-commercial on the page; user): the lamp and
+     the house ghost, and taps on them go nowhere until it's over. */
+  html.ec-commercial [data-testid="room-view-corner"], html.ec-commercial [data-testid="focus-corner"], html.ec-commercial [data-testid="action-corner"] {
+    opacity: 0.32 !important; box-shadow: none !important; pointer-events: none !important; transition: opacity 0.5s ease !important; }
   /* The masthead goes down with the lights too (the chassis puts
      ec-lights-down on the page while focus is on). */
   [data-masthead] > div { transition: filter 0.9s ease, opacity 0.9s ease; }

@@ -180,6 +180,17 @@ console.log("on a computer");
   if (process.env.EC_SHOTS) await page.screenshot({ path: `${process.env.EC_SHOTS}/unravel-lost.png` });
   await page.locator('[data-testid="singularity-lost-out"]').click();
   check("out: home, and the heartbeat goes", !!(await poll(async () => { const u = await U(); return !!(await page.evaluate(() => !!window.__DEN_TV__)) && (!u || u.stopped); }, 30000)));
+  // Home, the commercial plays (the first time back): the lamp and the
+  // house ghost, and don't answer, until it's over.
+  const ghost = () => page.evaluate(() => {
+    const on = document.documentElement.classList.contains("ec-commercial");
+    const els = ['[data-testid="room-view-corner"]', '[data-testid="focus-corner"]'].map((q) => document.querySelector(q)).filter(Boolean);
+    return { on, n: els.length, ghosted: els.length > 0 && els.every((e) => { const cs = getComputedStyle(e); return +cs.opacity < 0.5 && cs.pointerEvents === "none"; }) };
+  });
+  const g1 = await poll(async () => { const g = await ghost(); return g.on ? g : null; }, 20000);
+  check(`the commercial: the lamp and the house ghosted (${JSON.stringify(g1)})`, !!g1 && g1.ghosted);
+  const g2 = await poll(async () => { const g = await ghost(); return !g.on ? g : null; }, 60000);
+  check("...and back once it's over", !!g2 && !g2.ghosted);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
