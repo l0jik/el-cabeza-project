@@ -121,6 +121,10 @@ check("...every version of the game (15)", (await page.locator('[data-testid^="r
 check("the story's over (remembered)", await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:story")).ended === true));
 await page.waitForTimeout(1200);
 await shot(page, "end-4-realities");
+// Restart story, at the very bottom (user); a first tap only asks.
+check("Restart story is the menu's last button", (await page.evaluate(() => { const m = document.querySelector('[data-testid="realities"]'); return m && m.lastElementChild && m.lastElementChild.dataset.testid; })) === "realities-restart");
+await page.locator('[data-testid="realities-restart"]').click();
+check("...and a first tap asks before it does it", /again/i.test(await page.locator('[data-testid="realities-restart"]').innerText()) && (await page.locator('[data-testid="realities"]').count()) === 1);
 await page.locator('[data-testid="realities-stay"]').click();
 check("(the controls back after, once it's faded)", !!(await poll(async () => !(await page.evaluate(() => document.documentElement.classList.contains("ec-hall-scene"))), 4000)));
 check("Stay in the den: back in the den", !!(await poll(async () => !(await page.locator('[data-testid="den-ending"]').count()) && !(await page.locator('[data-testid="realities"]').count()), 6000)));

@@ -5198,3 +5198,22 @@ phone menu until "Start the story over" (which clears it).
     (user: always say which theme or reality is being played):
     theme.realityName, the names the Other realities menu uses (The Den,
     1975 · Neon · Big Glutts · Lluvia · Cromo · the Lab's spec names).
+
+### Restart story in the realities menu (2026-10-02)
+  - User (screenshot of the bottom of the realities menu, "Stay here"):
+    "there should be a pill button... to restart story mode" at the very
+    bottom. realities.js: a quieter "Restart story" pill under Stay here,
+    on every realities menu (the ending, Nova's, every reality page's). A
+    first tap asks ("Tap again to restart the story", 4 s), the second does
+    it: in Nova, restartStory in place (onStoryRestart, registered by
+    apps/unified.jsx; the menu has already asked, so no second dialog);
+    from any other page, el-cabeza-nova.html?restart=story, which clears
+    the story (owned, store gone, ended, the Singularity) before Nova
+    decides where to open, and drops the parameter from the address.
+    touch-action: manipulation on it, so a quick second tap isn't eaten by
+    a double-tap zoom. e2e-ending checks it's last and that a tap asks.
+  - Also: apps/lab.jsx's switch looks again for a step under way after its
+    settle pause; e2e-wood-sounds polls for each Flaco step instead of a
+    fixed 1.5 s (missed the second landing in the store under load).
+    e2e-lab's "a switch during a step waits" still failed now and then (3
+    of 7 runs, under load); its failure now prints the carried state.

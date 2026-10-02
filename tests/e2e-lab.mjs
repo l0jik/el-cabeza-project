@@ -142,7 +142,7 @@ async function waitSwitched(page, id) {
   await poll(async () => (await state(page)).points === "1/2", 4000);
   const flacoAfter = await pieceOf(page, "dark-flaco");
   const pts = (await state(page)).points;
-  check("a switch during a step waits: the step lands and counts", flacoAfter !== flacoBefore && pts === "1/2", `${pts} ${flacoAfter}`);
+  check("a switch during a step waits: the step lands and counts", flacoAfter !== flacoBefore && pts === "1/2", `${pts} ${flacoAfter} lab ${await page.evaluate(() => JSON.stringify({ id: window.__LAB__.id, busy: window.__LAB__.busy(), n: document.querySelectorAll("canvas").length }))} ${JSON.stringify(await state(page))}`);
 
   // The lab's own controls.
   await page.locator('[data-testid="lab-open"]').click();

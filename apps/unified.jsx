@@ -8,7 +8,7 @@ import { mountSummon, summonBridge } from "../themes/neon-summon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { StoryCut, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, hallFlares, saveHallFlares, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
-import { createRealitiesMenu, goToWorld } from "../themes/realities.js";
+import { createRealitiesMenu, goToWorld, onStoryRestart } from "../themes/realities.js";
 import { forgetSingularity, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn } from "../engine/journey.js";
 import { prepareCommercial } from "../themes/den-ad-audio.js";
 import {
@@ -33,6 +33,21 @@ import {
    start. The chassis keeps its theme object for as long as it's mounted,
    so these are fixed objects, and their buttons reach the app through
    storyBridge, which the app keeps pointed at its current handlers. */
+// Restart story from another page's realities menu (?restart=story): the
+// story starts over here, in the store, the same fresh start as Nova's own
+// Restart story (restartStory below). Read before anything else, once.
+(() => {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("restart") !== "story") return;
+    saveOwned(false);
+    forgetStoreGone();
+    forgetStoryEnd();
+    forgetSingularity();
+    url.searchParams.delete("restart");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  } catch (e) { /* no URL or storage: nothing to clear */ }
+})();
 // From another page's realities menu (realities.js goToWorld): ?world=
 // <place>, after the story.
 const WORLD_PARAM = (() => {
@@ -45,7 +60,9 @@ let SCENE_PARAM = (() => {
   try { const v = new URLSearchParams(window.location.search).get("scene"); return ["revelation", "glutts"].includes(v) ? v : null; } catch (e) { return null; }
 })();
 const takeScene = () => { const r = SCENE_PARAM; SCENE_PARAM = null; return r; };
-const storyBridge = { purchase() {}, backToStore() {}, restart() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };
+const storyBridge = { purchase() {}, backToStore() {}, restart() {}, restartNow() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };
+// The realities menu's Restart story starts over here, in place.
+onStoryRestart(() => storyBridge.restartNow());
 // How the place just mounted was reached (read once): false for the page
 // opening there, "cut" by a scene change, "fresh" by the fresh start.
 const takeArrival = () => { const a = storyBridge.arrival; storyBridge.arrival = false; return a; };
@@ -538,6 +555,8 @@ function UnifiedApp() {
     forgetSingularity();
     startCut({ kind: "fade", caption: "Once more, from the top\u2026 shelf.", to: "tienda", fresh: true, linger: 750 });
   };
+  // The realities menu's Restart story (it has already asked).
+  storyBridge.restartNow = restartStory;
   // The television: into Singularity when nothing else is under way.
   tvBridge.portal = () => !busyRef.current && themeName === "standard";
   tvBridge.enter = () => {

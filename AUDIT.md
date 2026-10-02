@@ -145,8 +145,11 @@ None.
   `e2e-nova-mobile.mjs` "the bar layout is remembered" waits a fixed
   2.5 s after reload). They fail under machine load, which looks like a
   regression and isn't. Prefer `poll` over fixed waits when touched.
-- **`e2e-clerk.mjs` fails** (timeout); see "Problems found but not
-  changed".
+- **Stale tests (fixed):** `e2e-clerk.mjs` and the Nova half of
+  `e2e-original.mjs` predated the special-order lock (seeded now);
+  `e2e-sound-channels`/`e2e-wood-sounds` looked for "begin" where the
+  store says Try a Game; `e2e-nova-mobile` and `e2e-wood-sounds` used fixed
+  waits that missed under load (they poll now).
 
 ## Maintainability
 
@@ -199,3 +202,43 @@ None.
    sources to `reference/`.
 5. **Polish:** guard the remaining test hooks; fold `poll` into the
    shared test helpers; prefer polling over fixed waits in tests.
+
+## Changes made
+
+| Area | Change |
+|---|---|
+| Tests | `tests/run-e2e.mjs` (one list, every test run, pass/fail table, filters); 8 orphaned tests registered; `e2e-gameplay` given real checks and an exit code; `tests/story-save.smoke.mjs` added to `test:engine`; stale seeds, labels and fixed waits fixed (clerk, original, sound-channels, wood-sounds, nova-mobile) |
+| CI | `deploy-pages.yml` runs `npm run test:engine` before building |
+| Story save | `saveStoreGone` merges into the record instead of replacing it |
+| Performance | Nova's hold-zone loop writes styles only when the title moves; every page and the AI worker minified (M3) |
+| Dead code | `hasShowcase`, `specById`, `labSession` removed |
+| Docs | README written; ARCHITECTURE.md header corrected |
+| Bug: camera after the den's TV | After coming back from Singularity, the setup fit could pull the camera off the board ~0.3 s after the den placed it (a remount left the fit with nothing to compare against). Den-placed cameras are now marked, and the fit leaves them be. Was the intermittent `e2e-story` "re-centred" failure. |
+| Bug: Lab switch mid-step | A switch re-checks for a step under way after its settle pause (a step asked for in the same instant hadn't rendered yet) |
+
+## Verification
+
+- `npm run test:engine`: all 9 suites pass. `npm run build`: all pages, no
+  warnings.
+- `e2e-story`: reproduced the recentre failure with logging (radius 21.87
+  vs 19.84, target.y -1.02); with the fix, three runs pass with the camera
+  on the board's own framing every time.
+- Targeted browser runs after each change (smoke ×5, outside-dismiss,
+  rules, nova-mobile, sound-channels, nova-sound, wood-sounds, den,
+  den-return, ending, gate, journey, story, lab, gameplay, clerk,
+  original): all pass; the last run of each passed, `e2e-lab` with the
+  caveat below.
+- Browser tests must not run side by side on this machine: two at once
+  made `e2e-lab` and `e2e-outside-dismiss` miss their timings.
+
+## Problems found but not changed
+
+- **`e2e-lab` "a switch during a step waits"** failed intermittently (3
+  of 7 runs: under load, or straight after a build; the last 4 in a row
+  passed).
+  The switch's re-check above is a real improvement but did not remove it
+  entirely; the check now prints the carried state when it fails, so the
+  next failure says what was carried. Not yet root-caused.
+- The god component (H3), the undocumented theme hook surface (M4), the
+  chassis's gate import: deliberate larger refactors, see the plan above.
+

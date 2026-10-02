@@ -164,17 +164,25 @@ function LabApp() {
     startLabAudio();
     setCurtain({ id, phase: "in" });
     const t0 = Date.now();
-    let snap = carryRef.current ? carryRef.current() : null;
     // Up to 8 s: a step lands in well under one on a phone, but on a slow
     // software renderer (the tests' SwiftShader, ~4 frames a second) one can
     // take 3 s or more, and a switch that gave up waiting carried the game
     // from before the step landed.
-    while (snap && snap.settling && Date.now() - t0 < 8000) {
-      await new Promise((r) => setTimeout(r, 80));
-      snap = carryRef.current ? carryRef.current() : null;
-    }
+    const settled = async () => {
+      let s = carryRef.current ? carryRef.current() : null;
+      while (s && s.settling && Date.now() - t0 < 8000) {
+        await new Promise((r) => setTimeout(r, 80));
+        s = carryRef.current ? carryRef.current() : null;
+      }
+      return s;
+    };
+    let snap = await settled();
+    // Then look again a moment later, and wait again if a step is under way
+    // by then: one asked for in the same instant as the switch hasn't
+    // rendered yet, so at first nothing reads as moving (the switch then
+    // carried the game mid-step, the piece back where it started).
     await new Promise((r) => setTimeout(r, 170));
-    snap = carryRef.current ? carryRef.current() : snap;
+    snap = (await settled()) || snap;
     setThemeId(id);
     setMount((m) => ({ key: m.key + 1, carry: snap }));
     playLabVoice(next.audio, "theme");

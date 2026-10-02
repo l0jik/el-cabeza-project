@@ -53,12 +53,21 @@ const CSS = `
   border: 1px solid rgba(214,190,255,0.7); letter-spacing: 0.16em; text-transform: uppercase; font-size: 13px; }
 .ec-realities .stay:hover, .ec-realities .stay:focus-visible { background: rgba(205,180,255,0.16); }
 .ec-realities .stay:focus-visible { outline: 2px solid #cdb4ff; outline-offset: 3px; }
+/* Restart story, at the very bottom (user): quieter than Stay here, and
+   it asks once more before it does it. */
+.ec-realities .restart { all: unset; cursor: pointer; margin-top: 14px; padding: 9px 22px; border-radius: 999px;
+  border: 1px solid rgba(214,190,255,0.32); letter-spacing: 0.14em; text-transform: uppercase; font-size: 11.5px; opacity: 0.8;
+  touch-action: manipulation; /* (the second tap mustn't read as a double-tap zoom) */
+  transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease; }
+.ec-realities .restart:hover, .ec-realities .restart:focus-visible { opacity: 1; background: rgba(205,180,255,0.1); }
+.ec-realities .restart:focus-visible { outline: 2px solid #cdb4ff; outline-offset: 3px; }
+.ec-realities .restart.sure { opacity: 1; border-color: rgba(255,170,190,0.85); color: #ffd6df; background: rgba(255,120,150,0.12); }
 /* Held a moment before anything can be picked (lockMs: after the
    revelation, user: taps still coming from the scene picked a world before
    the words above had been read): the choices dim and the taps go nowhere,
    a hairline under the words filling until they're live. */
 .ec-realities ul, .ec-realities .stay { transition: opacity 0.9s ease, filter 0.9s ease; }
-.ec-realities.locked ul, .ec-realities.locked .stay { pointer-events: none; opacity: 0.32; filter: saturate(0.4); }
+.ec-realities.locked ul, .ec-realities.locked .stay, .ec-realities.locked .restart { pointer-events: none; opacity: 0.32; filter: saturate(0.4); }
 .ec-realities .hold { width: min(60vw, 240px); height: 1px; margin: -12px 0 20px; background: rgba(205,180,255,0.18); overflow: hidden; }
 .ec-realities .hold i { display: block; height: 100%; width: 100%; background: rgba(205,180,255,0.75); transform-origin: left; transform: scaleX(0); }
 .ec-realities.locked .hold i { animation: ecRealHold var(--hold-ms, 3500ms) linear forwards; }
@@ -66,6 +75,16 @@ const CSS = `
 @keyframes ecRealHold { to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .ec-realities, .ec-realities li button { transition: none; } }
 `;
+
+/* Restart story (the menu's last button): Nova starts the story over in
+   place (it registers how with onStoryRestart); any other page goes to
+   Nova's page to do it there (?restart=story, apps/unified.jsx). */
+let restartHere = null;
+export function onStoryRestart(fn) {
+  restartHere = fn;
+  return () => { if (restartHere === fn) restartHere = null; };
+}
+export const RESTART_HREF = "el-cabeza-nova.html?restart=story";
 
 /* The menu. `current`: the Nova place you're in (marked "You are here");
    onPick(world); onStay() for "Stay here" (and Escape). `title` / `sub`
@@ -102,6 +121,25 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
   stay.type = "button"; stay.className = "stay"; stay.textContent = stayLabel;
   stay.setAttribute("data-testid", "realities-stay");
   stay.onclick = () => { if (locked) return; close(); if (onStay) onStay(); };
+  // Restart story: a first tap asks ("Tap again to restart"), a second
+  // within four seconds does it.
+  const restart = document.createElement("button");
+  restart.type = "button"; restart.className = "restart"; restart.textContent = "Restart story";
+  restart.setAttribute("data-testid", "realities-restart");
+  let sureTimer = null;
+  restart.onclick = () => {
+    if (locked) return;
+    if (!restart.classList.contains("sure")) {
+      restart.classList.add("sure"); restart.textContent = "Tap again to restart the story";
+      clearTimeout(sureTimer);
+      sureTimer = setTimeout(() => { restart.classList.remove("sure"); restart.textContent = "Restart story"; }, 4000);
+      return;
+    }
+    clearTimeout(sureTimer);
+    close();
+    if (restartHere) restartHere();
+    else if (typeof window !== "undefined") window.location.href = RESTART_HREF;
+  };
   let locked = lockMs > 0;
   if (locked) {
     el.classList.add("locked");
@@ -110,7 +148,7 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     setTimeout(() => { locked = false; el.classList.remove("locked"); el.setAttribute("data-locked", "false"); }, lockMs);
   }
   const hold = document.createElement("div"); hold.className = "hold"; hold.setAttribute("aria-hidden", "true"); hold.appendChild(document.createElement("i"));
-  el.append(h, p, ...(lockMs > 0 ? [hold] : []), ul, stay);
+  el.append(h, p, ...(lockMs > 0 ? [hold] : []), ul, stay, restart);
   const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (locked) return; close(); if (onStay) onStay(); } };
   window.addEventListener("keydown", onKey, true);
   document.body.appendChild(el);
@@ -120,6 +158,7 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     if (closed) return;
     closed = true;
     window.removeEventListener("keydown", onKey, true);
+    clearTimeout(sureTimer);
     el.classList.remove("on");
     setTimeout(() => el.remove(), 700);
   }

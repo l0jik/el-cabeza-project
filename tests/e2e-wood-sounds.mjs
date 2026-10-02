@@ -39,12 +39,19 @@ async function run(theme) {
   await page.waitForTimeout(theme === "tienda" ? 4000 : 2000);
   const flaco = () => page.evaluate(() => { const p = window.__EC_TEST_PIECES__.find((q) => q.id === "dark-flaco"); return { w: p.w, h: p.h, z: p.z, row: p.row }; });
   const f0 = await flaco();
+  // Each step polled until the piece has moved (a fixed 1.5 s missed the
+  // second landing in the store under load), then a moment for its sound.
+  const stepped = async (before) => {
+    const t0 = Date.now();
+    let f = await flaco();
+    while (JSON.stringify(f) === JSON.stringify(before) && Date.now() - t0 < 10000) { await page.waitForTimeout(150); f = await flaco(); }
+    await page.waitForTimeout(400);
+    return f;
+  };
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "S"));
-  await page.waitForTimeout(1500);
-  const f1 = await flaco();
+  const f1 = await stepped(f0);
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "S"));
-  await page.waitForTimeout(1500);
-  const f2 = await flaco();
+  const f2 = await stepped(f1);
   const L = await page.evaluate(() => window.__EC_TEST_LANDINGS__);
   console.log("  flaco:", JSON.stringify([f0, f1, f2]), "landings:", JSON.stringify(L));
   check("Flaco stood on end, then lay back down", f1.z === 2 && f2.z === 1, JSON.stringify([f1, f2]));
