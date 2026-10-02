@@ -3,9 +3,17 @@
    Everything is synthesized. A piece landing is a struck block: a few
    inharmonic partials (the modes of a bar), each with its own decay, a
    short contact click, and a low thump for the heavier pieces. The
-   partials depend on the board's stone: on TUNGSTEN they ring (long,
-   bright decays), on SHUNGITE they are short and dry, closer to a stone
-   clack. A small, bright room adds the space.
+   partials depend on the board's stone: on TUNGSTEN they are a steel
+   clank (many close, uneven partials like a plate's, all short, and a
+   metallic scrape on the contact), on SHUNGITE short and dry, closer to
+   a stone clack. A small, dry room adds a little space.
+
+   (User: they sounded "too much like bells or chimes... metallic, but
+   not so much reverb", and a bit quieter. Tungsten used to be a free
+   bar's four sine modes ringing up to 5 s into a 1.6 s room: a bell.
+   Now ~0.1-0.3 s decays, a 0.6 s room at under half the level, sends
+   cut to about a third, and the cues a little quieter: rendered offline,
+   a landing peaks ~4-5 dB lower and is silent (-40 dB) in 0.5 s, not 3.)
 
    The game's ambience is almost nothing: a low room tone, two drone
    partials beating slowly, and now and then a single far-off bowl
@@ -18,10 +26,11 @@ import { getStone } from "./cromo.js";
 export const hasAudio = true;
 
 const MODES = {
-  // Free bar modes (1 : 2.76 : 5.40 : 8.93), long and bright.
-  tungsten: { ratios: [1, 2.756, 5.404, 8.933], decays: [1.25, 0.62, 0.34, 0.2], amps: [1, 0.55, 0.3, 0.16], click: 0.5 },
+  // Steel plate: many close, uneven partials, all damped fast (a clank,
+  // not a ring), and a metallic scrape on the contact.
+  tungsten: { ratios: [1, 1.47, 2.09, 2.56, 3.39, 4.18, 5.43], decays: [0.2, 0.13, 0.1, 0.075, 0.055, 0.042, 0.032], amps: [1, 0.75, 0.62, 0.48, 0.36, 0.26, 0.18], click: 1, scrape: 0.62 },
   // Stone: denser, closer partials, heavily damped.
-  shungite: { ratios: [1, 2.31, 3.87, 6.12], decays: [0.28, 0.13, 0.08, 0.05], amps: [1, 0.5, 0.32, 0.18], click: 0.9 },
+  shungite: { ratios: [1, 2.31, 3.87, 6.12], decays: [0.22, 0.1, 0.065, 0.04], amps: [1, 0.5, 0.32, 0.18], click: 0.9, scrape: 0 },
 };
 
 export function createAudio() {
@@ -45,19 +54,20 @@ export function createAudio() {
       comp.threshold.value = -14; comp.ratio.value = 3; comp.attack.value = 0.004; comp.release.value = 0.2;
       vol = ctx.createGain(); vol.gain.value = volume;
       master.connect(comp).connect(vol).connect(ctx.destination);
-      sfx = ctx.createGain(); sfx.gain.value = 1; sfx.connect(master);
+      sfx = ctx.createGain(); sfx.gain.value = 0.7; sfx.connect(master); // (30% down, user)
       intro = ctx.createGain(); intro.gain.value = 0; intro.connect(master);
       amb = ctx.createGain(); amb.gain.value = 1; amb.connect(intro);
-      // A small bright room: 1.6 s of filtered noise, smoothly decaying.
+      // A small, dry room: 0.6 s of darker filtered noise, dying fast
+      // (was 1.6 s and bright, which rang every hit out like a chime).
       rev = ctx.createConvolver();
-      const len = Math.floor(ctx.sampleRate * 1.6), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+      const len = Math.floor(ctx.sampleRate * 0.6), ir = ctx.createBuffer(2, len, ctx.sampleRate);
       for (let ch = 0; ch < 2; ch++) {
         const d = ir.getChannelData(ch);
         let lp = 0;
-        for (let i = 0; i < len; i++) { lp = lp * 0.35 + (Math.random() * 2 - 1) * 0.65; d[i] = lp * Math.pow(1 - i / len, 3.2); }
+        for (let i = 0; i < len; i++) { lp = lp * 0.6 + (Math.random() * 2 - 1) * 0.4; d[i] = lp * Math.pow(1 - i / len, 4.5); }
       }
       rev.buffer = ir;
-      wet = ctx.createGain(); wet.gain.value = 0.28;
+      wet = ctx.createGain(); wet.gain.value = 0.12;
       rev.connect(wet).connect(master);
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const nd = noiseBuf.getChannelData(0);
@@ -102,14 +112,24 @@ export function createAudio() {
       o.connect(g).connect(sum);
       o.start(t0); o.stop(t0 + d * 4 + 0.05);
     });
-    out(sum, 1, opts.send != null ? opts.send : 0.5, opts.bus);
+    out(sum, 1, opts.send != null ? opts.send : 0.15, opts.bus);
+    // The metal in it: a narrow band of noise up among the partials,
+    // gone in a few hundredths of a second (a scrape, not a tone).
+    if (m.scrape) {
+      const sc = noise(t0, 0.06), sbp = ctx.createBiquadFilter(), sg = ctx.createGain();
+      sbp.type = "bandpass"; sbp.frequency.value = Math.min(11000, f0 * 3.3); sbp.Q.value = 7;
+      sg.gain.setValueAtTime(level * m.scrape * 2.2, t0);
+      sg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05 * sus + 0.01);
+      sc.connect(sbp).connect(sg);
+      out(sg, 1, 0.05, opts.bus);
+    }
     // Contact click: a few ms of noise, band-passed high.
     const c = noise(t0, 0.012), bp = ctx.createBiquadFilter(), cg = ctx.createGain();
     bp.type = "bandpass"; bp.frequency.value = Math.min(9000, f0 * 5.5); bp.Q.value = 1.4;
     cg.gain.setValueAtTime(level * 0.9 * m.click, t0);
     cg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.012);
     c.connect(bp).connect(cg);
-    out(cg, 1, 0.2, opts.bus);
+    out(cg, 1, 0.06, opts.bus);
   }
   // The low body of a heavy piece meeting the monolith.
   function thump(t0, f, level, dur) {
@@ -157,7 +177,7 @@ export function createAudio() {
     bowlTimer = setTimeout(() => {
       if (!ctx || windingDown) return;
       const notes = [110, 123.5, 146.8, 164.8];
-      strike(now(), notes[Math.floor(Math.random() * notes.length)], 0.02, { stone: "tungsten", sustain: 4, send: 2.2, bus: amb });
+      strike(now(), notes[Math.floor(Math.random() * notes.length)], 0.02, { stone: "tungsten", sustain: 3, send: 1.2, bus: amb });
       scheduleBowl();
     }, 22000 + Math.random() * 26000);
   }
@@ -221,8 +241,8 @@ export function createAudio() {
 
   /* ---- cues ---- */
   const massOf = (v) => Math.max(1, Math.min(8, v || 1));
-  function playSelect() { ensureGraph(); if (!ctx) return; strike(now(), 2900, 0.035, { stone: "tungsten", sustain: 0.12, send: 0.25 }); }
-  function playDeselect() { ensureGraph(); if (!ctx) return; strike(now(), 2150, 0.026, { stone: "tungsten", sustain: 0.1, send: 0.25 }); }
+  function playSelect() { ensureGraph(); if (!ctx) return; strike(now(), 2900, 0.035, { stone: "tungsten", sustain: 0.5, send: 0.08 }); }
+  function playDeselect() { ensureGraph(); if (!ctx) return; strike(now(), 2150, 0.026, { stone: "tungsten", sustain: 0.45, send: 0.08 }); }
   function playBlocked() {
     ensureGraph(); if (!ctx) return;
     const t = now();
@@ -244,17 +264,17 @@ export function createAudio() {
   function playCapture() {
     ensureGraph(); if (!ctx) return;
     const t = now();
-    strike(t, 98, 0.09, { stone: "tungsten", sustain: 1.8, send: 0.9 });
+    strike(t, 98, 0.09, { stone: "tungsten", sustain: 1.8, send: 0.3 });
     thump(t, 42, 0.16, 0.5);
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.frequency.setValueAtTime(880, t + 0.05); o.frequency.exponentialRampToValueAtTime(330, t + 1.4);
     g.gain.setValueAtTime(0, t + 0.05); g.gain.linearRampToValueAtTime(0.01, t + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.5);
-    o.connect(g); out(g, 0.6, 1); o.start(t + 0.05); o.stop(t + 1.6);
+    o.connect(g); out(g, 0.6, 0.35); o.start(t + 0.05); o.stop(t + 1.6);
   }
   function playWin() {
     ensureGraph(); if (!ctx) return;
     const t = now();
-    [220, 329.6, 440, 659.3].forEach((f, i) => strike(t + i * 0.19, f, 0.04, { stone: "tungsten", sustain: 2.2, send: 0.9 }));
+    [220, 329.6, 440, 659.3].forEach((f, i) => strike(t + i * 0.19, f, 0.04, { stone: "tungsten", sustain: 1.6, send: 0.3 }));
   }
   function playPowerOn() {
     ensureStarted(); if (!ctx) return;
@@ -264,12 +284,12 @@ export function createAudio() {
     lp.type = "lowpass"; lp.frequency.setValueAtTime(120, t); lp.frequency.exponentialRampToValueAtTime(1800, t + 0.9);
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.018, t + 0.8); g.gain.linearRampToValueAtTime(0, t + 1.05);
     o.connect(lp).connect(g); out(g, 1, 0.5); o.start(t); o.stop(t + 1.1);
-    strike(t + 0.95, 440, 0.035, { stone: "tungsten", sustain: 1.6, send: 0.8 });
+    strike(t + 0.95, 440, 0.035, { stone: "tungsten", sustain: 1.3, send: 0.25 });
   }
   function playPowerOff() {
     ensureStarted(); if (!ctx) return;
     const t = now();
-    strike(t, 330, 0.03, { stone: "tungsten", sustain: 1.4, send: 0.8 });
+    strike(t, 330, 0.03, { stone: "tungsten", sustain: 1.2, send: 0.25 });
     const o = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
     o.type = "sawtooth"; o.frequency.value = 55;
     lp.type = "lowpass"; lp.frequency.setValueAtTime(1600, t + 0.1); lp.frequency.exponentialRampToValueAtTime(110, t + 1.1);
@@ -278,9 +298,9 @@ export function createAudio() {
   }
   function playDockOpen() { ensureGraph(); if (ctx) airSlide(now(), 0.24, 520, 1500, 0.014); }
   function playDockClose() { ensureGraph(); if (ctx) airSlide(now(), 0.22, 1400, 480, 0.012); }
-  function playRulesOpen() { ensureGraph(); if (ctx) strike(now(), 1318.5, 0.022, { stone: "tungsten", sustain: 0.6, send: 0.6 }); }
-  function playRulesClose() { ensureGraph(); if (ctx) strike(now(), 987.8, 0.018, { stone: "tungsten", sustain: 0.5, send: 0.6 }); }
-  function playRulesTab() { ensureGraph(); if (ctx) strike(now(), 2637 * (1 + (Math.random() - 0.5) * 0.02), 0.014, { stone: "tungsten", sustain: 0.1, send: 0.3 }); }
+  function playRulesOpen() { ensureGraph(); if (ctx) strike(now(), 1318.5, 0.022, { stone: "tungsten", sustain: 0.7, send: 0.2 }); }
+  function playRulesClose() { ensureGraph(); if (ctx) strike(now(), 987.8, 0.018, { stone: "tungsten", sustain: 0.6, send: 0.2 }); }
+  function playRulesTab() { ensureGraph(); if (ctx) strike(now(), 2637 * (1 + (Math.random() - 0.5) * 0.02), 0.014, { stone: "tungsten", sustain: 0.45, send: 0.1 }); }
   // The About card's "menu" voice: a quiet sustained chord of struck bars.
   function playMenu() {
     ensureGraph(); if (!ctx) return;
@@ -293,7 +313,7 @@ export function createAudio() {
       o.frequency.value = f * (1 + i * 0.0007);
       og.gain.setValueAtTime(0, t); og.gain.linearRampToValueAtTime(0.008, t + 1.2);
       o.connect(og).connect(g); o.start(t);
-      const snd = ctx.createGain(); snd.gain.value = 0.6; og.connect(snd).connect(rev);
+      const snd = ctx.createGain(); snd.gain.value = 0.25; og.connect(snd).connect(rev);
       g._oscs = (g._oscs || []).concat(o);
     });
   }
@@ -314,8 +334,8 @@ export function createAudio() {
   function playStone(key) {
     ensureGraph(); if (!ctx) return;
     const t = now();
-    if (key === "shungite") { strike(t, 260, 0.06, { stone: "shungite", send: 0.3 }); thump(t, 70, 0.05, 0.12); }
-    else strike(t, 392, 0.05, { stone: "tungsten", sustain: 1.2, send: 0.6 });
+    if (key === "shungite") { strike(t, 260, 0.06, { stone: "shungite", send: 0.1 }); thump(t, 70, 0.05, 0.12); }
+    else strike(t, 392, 0.05, { stone: "tungsten", sustain: 1.2, send: 0.2 });
   }
 
   const noop = () => {};

@@ -5217,3 +5217,15 @@ phone menu until "Start the story over" (which clears it).
     fixed 1.5 s (missed the second landing in the store under load).
     e2e-lab's "a switch during a step waits" still failed now and then (3
     of 7 runs, under load); its failure now prints the carried state.
+
+### Cromo's sounds: metal, not bells (2026-10-02)
+  - User: Cromo's sounds "sound too much like bells or chimes... metallic,
+    but not so much reverb", and a bit quieter. cromo-audio.js: tungsten's
+    four free-bar sine modes (ringing up to ~5 s) became a steel plate's
+    seven close, uneven partials with 0.03-0.2 s decays plus a narrow-band
+    noise scrape on contact; the room went from a bright 1.6 s at 0.28 to
+    a darker 0.6 s at 0.12; every send cut to about a third; the sfx bus to
+    0.7. Rendered offline (OfflineAudioContext, old vs new): a landing
+    peaks ~4-5 dB lower and is down 40 dB in 0.5 s instead of 3; capture
+    3.5 dB lower, 0.9 s instead of 4. The far "bowl" in the ambience and
+    the About card's chord got the smaller room and sends too.
