@@ -5368,3 +5368,12 @@ phone menu until "Start the story over" (which clears it).
     tail with it) over the last 0.5 s. Room 3.6 -> 4.6 s, wet 1.6 -> 1.9.
     LostNudge: stop(1.4, 1.5) at 1.6 s: heartbeat gone at 3.0 s, the ring
     silent at 4.5 s (offline render confirms).
+  - Then (user): get rid of the vibrato/"bouncing", more reverb so it
+    trails off gradually, a straight line down, about a second longer. The
+    bouncing was the two sines 2.5 Hz apart beating: now one steady sine.
+    The room: smoothed noise with an exponential decay (RT60 ~2.6 s), dry
+    0.62 / wet 2.3. stop(fadeS, ringS): the ring's tone slides
+    exponentially (a straight line down in dB, ~9 dB/s) to -30 dB over
+    ringS, then the bus lets go over 0.6 s. LostNudge stop(1.4, 3.4) at
+    1.6 s: heartbeat gone at 3.0 s, the ring declining steadily to silence
+    at about 5.2-5.6 s (offline render at 0.1 s steps: monotonic).

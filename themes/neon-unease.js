@@ -6,8 +6,8 @@
    summons' way out (neon.js summonOutput: past the master the event horizon
    zeroes, at the interface channel's level, muted with everything else).
    Lub-dub thumps a phone's speaker can still carry (a falling 150 -> 52 Hz
-   body, not just sub-bass), and for the ring two close sines near 2.6 kHz
-   beating slowly (2.5 Hz), most of it heard through a long, dark room.
+   body, not just sub-bass), and for the ring one steady sine at 2.64 kHz
+   (no beating: user), most of it heard through a smooth, dark room.
 
    createUnease(audio) -> { set(level 0..1), level(), stop(fadeS) } */
 
@@ -26,28 +26,30 @@ export function createUnease(audio) {
   bus.connect(dest);
   bus.gain.setTargetAtTime(1, ctx.currentTime, 0.6);
 
-  // The ring: two sines 2.5 Hz apart (a slow beating), lower than it was
-  // (5.2 kHz, 6 Hz apart), sent mostly into a long room (4.6 s, a touch
-  // wetter than it was: user, it should trail off a little longer).
+  // The ring: one steady sine (user: no vibrato, no bouncing; it was two
+  // sines 2.5 Hz apart, beating), into a smooth room whose tail dies away
+  // evenly (an exponential decay, RT60 about 2.6 s, its noise smoothed),
+  // so the whole thing goes down in a straight line when it fades.
   const ringG = ctx.createGain(); ringG.gain.value = 0;
-  const rings = [2640, 2642.5].map((f) => {
+  const rings = [2640].map((f) => {
     const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
-    const g = ctx.createGain(); g.gain.value = 0.5;
+    const g = ctx.createGain(); g.gain.value = 1;
     o.connect(g).connect(ringG);
     o.start();
     return o;
   });
   const room = ctx.createConvolver();
   {
-    const len = Math.floor(ctx.sampleRate * 4.6), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    const RT60 = 2.6, len = Math.floor(ctx.sampleRate * 3.2), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    const k = 6.9 / (RT60 * ctx.sampleRate);
     for (let ch = 0; ch < 2; ch++) {
       const d = ir.getChannelData(ch); let lp = 0;
-      for (let i = 0; i < len; i++) { lp = lp * 0.55 + (Math.random() * 2 - 1) * 0.45; d[i] = lp * Math.pow(1 - i / len, 2.4); }
+      for (let i = 0; i < len; i++) { lp = lp * 0.7 + (Math.random() * 2 - 1) * 0.3; d[i] = lp * Math.exp(-k * i); }
     }
     room.buffer = ir;
   }
-  const dry = ctx.createGain(); dry.gain.value = 0.35;
-  const wet = ctx.createGain(); wet.gain.value = 1.9;
+  const dry = ctx.createGain(); dry.gain.value = 0.62;
+  const wet = ctx.createGain(); wet.gain.value = 2.3;
   ringG.connect(dry).connect(bus);
   ringG.connect(room); room.connect(wet).connect(bus);
 
@@ -87,31 +89,37 @@ export function createUnease(audio) {
   return {
     set,
     level: () => level,
-    /* fadeS: the heartbeat fades out over it; ringTailS: the ring goes on
-       that much longer, its tone fading over fadeS + ringTailS while the
-       room rings on after it, the whole of it ramped to silence over the
-       last half second. Straight ramps, so it's really silent at the end. */
-    stop(fadeS = 1.2, ringTailS = 0) {
+    /* fadeS: the heartbeat fades out over it. ringS: the ring fades over
+       that long, a steady exponential slide (a straight line down in
+       loudness, about 9 dB a second) to -30 dB, the room's own tail dying away with it; the
+       last of it is let go over a further 0.6 s. Without ringS, all of it
+       ramps straight to silence over fadeS. */
+    stop(fadeS = 1.2, ringS = 0) {
       if (stopped) return;
       stopped = true;
       clearTimeout(timer);
       const t = ctx.currentTime;
       const ramp = (param, at, to) => { param.cancelScheduledValues(t); param.setValueAtTime(param.value, t); param.linearRampToValueAtTime(to, at); };
-      const end = t + fadeS + ringTailS;
       ramp(beatG.gain, t + fadeS, 0);
-      if (ringTailS > 0) {
-        ramp(ringG.gain, t + fadeS + ringTailS * 0.6, 0);
+      let total = fadeS;
+      if (ringS > 0) {
+        const g = ringG.gain, from = Math.max(0.0005, g.value);
+        g.cancelScheduledValues(t);
+        g.setValueAtTime(from, t);
+        g.exponentialRampToValueAtTime(from * 0.03, t + ringS);
+        g.setValueAtTime(0, t + ringS + 0.01);
+        total = Math.max(fadeS, ringS) + 0.6;
         bus.gain.cancelScheduledValues(t);
         bus.gain.setValueAtTime(bus.gain.value, t);
-        bus.gain.setValueAtTime(bus.gain.value, Math.max(t, end - 0.5));
-        bus.gain.linearRampToValueAtTime(0, end);
+        bus.gain.setValueAtTime(bus.gain.value, t + total - 0.6);
+        bus.gain.linearRampToValueAtTime(0, t + total);
       } else {
-        ramp(bus.gain, end, 0);
+        ramp(bus.gain, t + fadeS, 0);
       }
       setTimeout(() => {
         rings.forEach((o) => { try { o.stop(); } catch (e) { /* done */ } });
         try { bus.disconnect(); } catch (e) { /* gone */ }
-      }, (fadeS + ringTailS) * 1000 + 400);
+      }, total * 1000 + 400);
     },
   };
 }

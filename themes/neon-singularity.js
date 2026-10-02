@@ -3392,7 +3392,7 @@ function BackButton({ onExit }) {
 
    Before it, something going wrong (user picked three of the ideas): the
    menus open and work, so they're known for menus; a heartbeat and a
-   ringing as the sphere comes up, the heartbeat gone in about three seconds, the ring trailing off in the room until about four and a half
+   ringing as the sphere comes up, the heartbeat gone in about three seconds, the ring sliding away in the room until about five and a half
    (neon-unease.js; user, who also had the wireframe fingertip each touch
    used to leave taken out); and then the menu won't
    hold: its words scramble, its rows drift and tear, it flickers and folds
@@ -3576,7 +3576,7 @@ function LostNudge({ stage, onExit, sing }) {
     const G = g.current;
     G.unease = createUnease(sing && sing.audio);
     G.unease.set(0.08);
-    const fade = setTimeout(() => { if (G.unease) G.unease.stop(1.4, 1.5); }, 1600); // (the heartbeat gone at 3.0 s, the ring trailing off in the room until 4.5 s)
+    const fade = setTimeout(() => { if (G.unease) G.unease.stop(1.4, 3.4); }, 1600); // (the heartbeat gone at 3.0 s; the ring sliding away, its room with it, until about 5.6 s)
     return () => {
       clearTimeout(fade);
       G.timers.forEach((id) => { clearTimeout(id); clearInterval(id); });
