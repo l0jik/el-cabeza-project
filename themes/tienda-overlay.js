@@ -22,6 +22,7 @@
    and home bar kept clear (safe-area insets), every control at least
    44 px tall, and scroll inside the sheet when a short screen needs it. */
 
+import { usePivotGuide } from "./pivot-guide.js";
 import React from "react";
 import {
   PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
@@ -1172,6 +1173,9 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const total = totalPieces(sel), over = total > MAX_PIECES;
   const fits = piecesFit(sel), need = fits ? null : minColsFor(sel);
   const warnings = lawWarnings(sel);
+  // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then the
+  // three (together at the end of the pieces) flash (pivot-guide.js).
+  const showPivots = usePivotGuide(warnings.some((w) => w.key === "cantileverPivot"), { warnSel: '[data-testid="law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="tienda-piece-${k}"]` });
   // The piece taken up off the page, if any: { key, type, name, detail, cat, price, rect, closing }.
   const [viewer, setViewer] = React.useState(null);
   // The board being marked ("missing" | "hole"), if any.
@@ -1242,7 +1246,10 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     h("span", { className: "td-box", "aria-hidden": "true" }, on ? "✕" : ""),
     h("span", null, h("b", null, title), note ? h("span", null, note) : null, extra || null),
   );
-  const warnFor = (key) => warnings.filter((w) => w.key === key).map((w) => h("div", { key: w.testid, className: "td-warn", role: "status", "data-testid": w.testid }, h("span", { "aria-hidden": "true" }, "☞ "), w.text));
+  const warnFor = (key) => warnings.filter((w) => w.key === key).map((w) => h("div", {
+    key: w.testid, className: "td-warn", role: "status", "data-testid": w.testid,
+    ...(w.key === "cantileverPivot" ? { onClick: showPivots, style: { cursor: "pointer" }, title: "Show me" } : {}),
+  }, h("span", { "aria-hidden": "true" }, "☞ "), w.text));
   const spotsLine = (list, mark) => (list.length ? list.map((p) => `${mark} row ${p.row + 1}, col ${p.col + 1}${p.random ? " (random)" : ""}`).join(" · ") : "none yet");
 
   const lawRows = LAW_OPTIONS.flatMap((l) => {

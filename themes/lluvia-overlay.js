@@ -20,6 +20,7 @@
    renderExtraOverlays. Written with createElement, like Neon's overlays,
    so the theme stays importable in plain Node for the smoke tests. */
 
+import { usePivotGuide } from "./pivot-guide.js";
 import React from "react";
 import { PIECE_OPTIONS, LAW_OPTIONS, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings } from "./rules-selections.js";
 import { LLUVIA } from "./lluvia-city.js";
@@ -60,8 +61,11 @@ const ICON = {
 const column = { position: "absolute", left: "50%", transform: "translateX(-50%)", width: "min(100%, 460px)", boxSizing: "border-box" };
 const termButton = (extra) => ({ height: 38, background: "rgba(255,179,71,0.08)", border: "1px solid rgba(255,179,71,0.5)", borderRadius: 3, color: "#ffcf8a", font: "400 22px 'VT323', monospace", cursor: "pointer", ...extra });
 
-function Panel({ panel, sel, change, onClose, sound, pieceLook }) {
+function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
   const total = totalOf(sel);
+  // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then over to
+  // MATTER, where the three flash (pivot-guide.js).
+  const showPivots = usePivotGuide(lawWarnings(sel).some((w) => w.key === "cantileverPivot"), { warnSel: '[data-testid="law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="lluvia-matter-${k}"]`, goTo: () => onGoTo && onGoTo("matter") });
   // Each piece pictured as the city draws it (made once, a beat after the
   // panel opens; the sign stands in till then).
   const [, setPics] = React.useState(0);
@@ -95,7 +99,7 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook }) {
     body = LAWS.flatMap(([k, name, note]) => {
       const on = !!sel.laws[k];
       // A law that can't do anything with the other choices says why.
-      const warn = warnings.filter((w) => w.key === k).map((w) => h("div", { key: w.testid, role: "status", "data-testid": w.testid, style: { fontSize: 17, color: "#ffb347", padding: "4px 0 8px 14px", borderBottom: "1px solid rgba(255,179,71,0.12)" } }, "! ", w.text));
+      const warn = warnings.filter((w) => w.key === k).map((w) => h("div", { key: w.testid, role: "status", "data-testid": w.testid, ...(w.key === "cantileverPivot" ? { onClick: showPivots, title: "Show me" } : {}), style: { fontSize: 17, color: "#ffb347", padding: "4px 0 8px 14px", borderBottom: "1px solid rgba(255,179,71,0.12)", cursor: w.key === "cantileverPivot" ? "pointer" : "default" } }, "! ", w.text));
       // Shoving's one setting, under its row while it's on: whether rolls
       // shove too, or only slides.
       const rolls = !(sel.shove && sel.shove.onRolls === false);
@@ -142,7 +146,7 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook }) {
   return h("div", {
     "data-testid": `lluvia-panel-${panel}`,
     onPointerDown: (e) => e.stopPropagation(),
-    style: { ...column, bottom: 10, maxHeight: "74vh", display: "flex", flexDirection: "column", borderRadius: 8, background: "#0e0904", border: "1px solid rgba(255,179,71,0.55)", boxShadow: "inset 0 0 40px rgba(255,140,40,0.14), 0 0 40px rgba(0,0,0,0.8)", overflow: "hidden", ...TERM, width: "min(calc(100% - 20px), 460px)" },
+    style: { "--ec-guide": "#ffb347", "--ec-guide-glow": "rgba(255,179,71,0.45)", "--ec-guide-bg": "rgba(255,179,71,0.14)", ...column, bottom: 10, maxHeight: "74vh", display: "flex", flexDirection: "column", borderRadius: 8, background: "#0e0904", border: "1px solid rgba(255,179,71,0.55)", boxShadow: "inset 0 0 40px rgba(255,140,40,0.14), 0 0 40px rgba(0,0,0,0.8)", overflow: "hidden", ...TERM, width: "min(calc(100% - 20px), 460px)" },
   },
   h("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderBottom: "1px dashed rgba(255,179,71,0.4)" } },
     h("span", { style: { fontSize: 16, color: "#a8783a", whiteSpace: "nowrap" } }, "KV-OS >"),
@@ -253,7 +257,7 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose,
       h("button", { type: "button", "data-testid": "lluvia-begin", disabled: tooMany, onClick: begin, style: { height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", border: `2px solid ${AMBER}`, borderRadius: 4, background: "rgba(255,179,71,0.12)", color: AMBER, cursor: tooMany ? "not-allowed" : "pointer", opacity: tooMany ? 0.5 : 1, boxShadow: "0 0 22px rgba(255,179,71,0.35)" } },
         h("span", { style: { fontFamily: SAIRA_X, fontWeight: 800, fontSize: 26, letterSpacing: "0.12em" } }, tooMany ? "TOO MANY PIECES" : "BEGIN THE GAME"), ICON.arrow)),
     panel && h("div", { style: { position: "absolute", inset: 0, pointerEvents: "auto" }, onPointerDown: closePanel },
-      h(Panel, { panel, sel, change, onClose: closePanel, sound, pieceLook })));
+      h(Panel, { panel, sel, change, onClose: closePanel, sound, pieceLook, onGoTo: (k) => { ctlRef.current && ctlRef.current.select(k); setPanel(k); } })));
 
   return h("div", {
     "data-testid": "lluvia-overlay",

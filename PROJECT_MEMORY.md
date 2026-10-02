@@ -5048,3 +5048,24 @@ phone menu until "Start the story over" (which clears it).
     stretch is at the dot alone.
   - Test-only window.__EC_TEST_COLLAPSE_U__ holds the collapse at a point
     (pictures of the way in).
+
+### The pivot pieces together, and the warning that shows them (2026-10-02)
+  - User: move the Codo down with the Rayo and Zeta so every pivot-capable
+    piece is grouped; when the "only pivot pieces" warning shows, it
+    flashes, then jumps to where they are and flashes them.
+  - Order everywhere: ... 2x3 Block, Arco Chico, Alto, Ancho, Codo, Rayo,
+    Zeta (rules-selections.js PIECE_OPTIONS, which Tienda's order form,
+    the gate's sheet and Lluvia's MATTER read; Neon's MATTER_ROSTER;
+    reality-gate's PICTURE_TYPES). PIVOT_CAPABLE is exported.
+  - themes/pivot-guide.js: guideToPivots({ warnSel, rowSel, goTo }) - the
+    warning flashes twice (.ec-guide-flash, 0.6 s each), then (goTo to the
+    pieces panel where they're elsewhere: Lluvia, Neon) the middle row is
+    scrolled to the centre and the three flash three times. Colour from
+    --ec-guide on an ancestor (Tienda's rust default, Lluvia amber, Neon
+    cyan). usePivotGuide(active, opts) for the React menus: runs when the
+    warning comes up (not when a menu opens with it already there), stops
+    if it goes; returns a replay. A tap on the warning replays it.
+    Neon: showPivotPieces(s) from the law's toggle and the warning's tap;
+    switches to MATTER only if still on LAWS with the warning standing.
+  - tests/e2e-pivot-guide.mjs (Tienda, gate, Lluvia); e2e-singularity
+    (Neon: flash, over to MATTER, the three last and lit).

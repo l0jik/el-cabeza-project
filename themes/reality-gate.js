@@ -22,6 +22,7 @@
    after its descent). React through createElement, as the other overlays,
    so it imports in plain Node. */
 
+import { usePivotGuide } from "./pivot-guide.js";
 import React from "react";
 import * as THREE from "three";
 import { initialPiecesFor } from "../engine/rules.js";
@@ -388,7 +389,7 @@ function piecePictures(world, look, types) {
 // (Other menus' rows use them too: Lluvia's city.)
 export const piecePicture = (world, type) => pictures.get(`${world}|${type}`) || null;
 export const piecePicturesReady = (world, look) => piecePictures(world, look, PICTURE_TYPES) || PICTURE_TYPES.every((t) => !POSES[t] || pictures.has(`${world}|${t}`));
-const PICTURE_TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "codo", "arcoChico", "arcoAlto", "arcoAncho", "rayo", "zeta"];
+const PICTURE_TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "arcoChico", "arcoAlto", "arcoAncho", "codo", "rayo", "zeta"];
 
 /* ------------------------------------------------------------ the sheet */
 
@@ -407,6 +408,9 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const fits = piecesFit(sel);
   const narrowest = fits ? null : minColsFor(sel);
   const warnings = lawWarnings(sel);
+  // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then the
+  // three flash where they sit (pivot-guide.js).
+  const showPivots = usePivotGuide(warnings.some((w) => w.key === "cantileverPivot"), { warnSel: '[data-testid="gate-law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="gate-piece-${k}"]` });
   const { aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking } = api || {};
   const locked = !!(busy || aiThinking);
   const resize = (rows, cols) => change((n) => { n.rows = clampDim(rows); n.cols = clampDim(cols); refreshSpots(n); });
@@ -447,7 +451,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
         h("div", { className: "rg-row" },
           h("span", { className: "rg-note" }, sel.holeSpot ? (sel.holeSpot.random ? "Placed at random." : "Placed by hand.") : "Placed at random."),
           h("button", { type: "button", className: "rg-small", "data-testid": "gate-place-holes", onClick: () => setPicker("hole") }, "Place them"))))),
-    warnings.map((w) => h("div", { key: w.testid, className: "rg-warn", "data-testid": `gate-${w.testid}` }, w.text)));
+    warnings.map((w) => h("div", { key: w.testid, className: "rg-warn", "data-testid": `gate-${w.testid}`, ...(w.key === "cantileverPivot" ? { onClick: showPivots, style: { cursor: "pointer" }, title: "Show me" } : {}) }, w.text)));
 
   const board = h("section", { className: "rg-sec", "aria-label": "Board" },
     h("h3", null, "Board"),

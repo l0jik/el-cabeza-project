@@ -54,6 +54,7 @@ page.on("pageerror", (e) => errors.push(e.message));
 // sandbox's TLS-intercepting proxy reports it — an environment limit.
 page.on("console", (m) => { if (m.type() === "error" && !/ERR_CONNECTION_RESET|ERR_CERT_AUTHORITY_INVALID/.test(m.text())) errors.push(m.text()); });
 
+const poll = async (fn, ms = 20000, step = 200) => { const end = Date.now() + ms; for (;;) { const v = await fn().catch(() => null); if (v) return v; if (Date.now() > end) return null; await new Promise((r) => setTimeout(r, step)); } };
 let failures = 0;
 const check = (label, cond, detail) => {
   if (!cond) failures++;
@@ -362,7 +363,7 @@ check("dragging brings MATTER into view regardless of the shuffled arrangement",
 // on/off checkboxes) ----
 const rowKeys = await page.locator('[data-testid^="matter-row-"]').evaluateAll((els) => els.map((e) => e.dataset.testid.replace("matter-row-", "")));
 check("MATTER lists every piece type as the same kind of row (13, each Arco size its own)",
-  rowKeys.join(",") === "cabeza,turrito,flaco,chato,opa,block1x3,block2x3,codo,arcoChico,arcoAlto,arcoAncho,rayo,zeta", rowKeys.join(","));
+  rowKeys.join(",") === "cabeza,turrito,flaco,chato,opa,block1x3,block2x3,arcoChico,arcoAlto,arcoAncho,codo,rayo,zeta", rowKeys.join(","));
 check("no checkbox rows are left for pieces", (await page.locator('[data-testid^="matter-piece-"]').count()) === 0);
 check("each row's still is a rendered 3D image",
   (await page.locator('[data-testid^="matter-view-"] img').count()) === 13);
@@ -824,6 +825,20 @@ if (state.activeCategory === "laws") {
   const pivotCapable = ["codo", "rayo", "zeta"].some((k) => state.selections.matter.roster[k] > 0);
   check("Cantilever Pivot warns when no piece in the roster can pivot",
     (await page.locator('[data-testid="law-warning-cantileverPivot"]').count()) === (pivotCapable ? 0 : 1));
+  if (!pivotCapable && !pivotWasOn) {
+    // ...and shows where they are (pivot-guide.js): the warning flashes,
+    // then over to MATTER, the Codo, Rayo and Zeta together and lit.
+    const flashing = (sel) => page.evaluate((sel) => { const e = document.querySelector(sel); return !!e && e.classList.contains("ec-guide-flash"); }, sel);
+    check("...the warning flashes", !!(await poll(() => flashing('[data-testid="law-warning-cantileverPivot"]'), 1500, 60)));
+    check("...then over to MATTER", !!(await poll(async () => (await sphereState()).activeCategory === "matter", 3000, 100)));
+    check("...the Codo, Rayo and Zeta together at the end, lit", !!(await poll(() => page.evaluate(() => {
+      const rows = [...document.querySelectorAll('[data-testid^="matter-row-"]')].map((e) => e.getAttribute("data-testid").replace("matter-row-", ""));
+      const lit = ["codo", "rayo", "zeta"].every((k) => document.querySelector(`[data-testid="matter-row-${k}"]`).classList.contains("ec-guide-flash"));
+      return lit && rows.slice(-3).join(",") === "codo,rayo,zeta";
+    }), 3000, 80)));
+    await closeOverlay();
+    await navigateToCategory("laws");
+  }
   if (!pivotWasOn) { await page.locator('[data-testid="law-cantileverPivot"]').click(); await page.waitForTimeout(120); }
   // Each law's "i" opens its rules card: the MOVES tab, that law's tile.
   await page.locator('[data-testid="law-blackHoleSquares-info"]').click();

@@ -25,11 +25,13 @@ export const PIECE_OPTIONS = [
   { key: "opa", name: "Opa", min: 0, max: 4, def: 1 },
   { key: "block1x3", name: "1×3 Block", min: 0, max: 4, def: 0 },
   { key: "block2x3", name: "2×3 Block", min: 0, max: 4, def: 0 },
-  { key: "codo", name: "Codo", min: 0, max: 4, def: 0 },
   // (The Arco in each of its three sizes, each its own row, user; any mix.)
   { key: "arcoChico", name: "Arco Chico", note: "3 wide, 2 tall", min: 0, max: 4, def: 0 },
   { key: "arcoAlto", name: "Arco Alto", note: "3 wide, 3 tall", min: 0, max: 4, def: 0 },
   { key: "arcoAncho", name: "Arco Ancho", note: "4 wide, 2 tall", min: 0, max: 4, def: 0 },
+  // The pieces that can pivot (Codo, Rayo, Zeta) together at the end,
+  // so the pivot warning can point at one place (user).
+  { key: "codo", name: "Codo", min: 0, max: 4, def: 0 },
   { key: "rayo", name: "Rayo", min: 0, max: 4, def: 0 },
   { key: "zeta", name: "Zeta", min: 0, max: 4, def: 0 },
 ];
@@ -278,7 +280,7 @@ export function lawsForEngine(sel) {
   return { ...l, diagonalSlide: l.diagonalSlide && l.slide, shoveOnRolls: !(sel.shove && sel.shove.onRolls === false) };
 }
 // Pieces that can ever stand balanced on one cube (so can pivot).
-const PIVOT_CAPABLE = ["codo", "rayo", "zeta"];
+export const PIVOT_CAPABLE = ["codo", "rayo", "zeta"];
 /* A law that's on but can't do anything with the other choices, and why
    (as Neon's sphere warns): { key, testid, text } for each. */
 export function lawWarnings(sel) {

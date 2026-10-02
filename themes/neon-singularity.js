@@ -42,6 +42,7 @@ import lostHandWireUrl from "../assets/neon/lost-hand-wire.webp";
 import lostHandSkinUrl from "../assets/neon/lost-hand-skin.webp";
 import lostTipWireUrl from "../assets/neon/lost-tip-wire.webp";
 import { createUnease } from "./neon-unease.js";
+import { guideToPivots } from "./pivot-guide.js";
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
 // SINGULARITY invite: the cathedral bell tolls and a black curtain fades
@@ -610,14 +611,16 @@ const MATTER_ROSTER = [
   { key: "opa", label: "Opa", min: 0, max: 4, default: 1, icon: "opa", view: "opa", detail: "The big 2×2×2 cube. Rolls two squares; 2 points." },
   { key: "block1x3", label: "1×3 Block", min: 0, max: 4, default: 0, icon: "block1x3", view: "block1x3", detail: "3 cubes in a row." },
   { key: "block2x3", label: "2×3 Block", min: 0, max: 4, default: 0, icon: "block2x3", view: "block2x3", detail: "A 2×3 slab of 6 cubes." },
-  // The Codo: MATTER's first odd-shaped piece (a 3-cube L — see
-  // engine/shapes.js).
-  { key: "codo", label: "Codo", min: 0, max: 4, default: 0, icon: "codo", view: "codo", detail: "3 cubes in an L. Its overhang can shelter a Cabeza." },
   // The Arco (an arch — see engine/constants.js), in each of its three
   // sizes, each its own row (user): any mix of them in a game.
   { key: "arcoChico", label: "Arco Chico", min: 0, max: 4, default: 0, icon: "arch", view: "arcoChico", detail: "5 cubes · 3 wide, 2 tall · opening 1 wide. A Cabeza in its opening is sheltered." },
   { key: "arcoAlto", label: "Arco Alto", min: 0, max: 4, default: 0, icon: "arch", view: "arcoAlto", detail: "7 cubes · 3 wide, 3 tall · opening 1 wide, 2 tall. A Cabeza in its opening is sheltered." },
   { key: "arcoAncho", label: "Arco Ancho", min: 0, max: 4, default: 0, icon: "arch", view: "arcoAncho", detail: "6 cubes · 4 wide, 2 tall · opening 2 wide. A Cabeza in its opening is sheltered." },
+  // (The pieces that can pivot, together at the end: the pivot warning
+  // points at them, user.)
+  // The Codo: MATTER's first odd-shaped piece (a 3-cube L — see
+  // engine/shapes.js).
+  { key: "codo", label: "Codo", min: 0, max: 4, default: 0, icon: "codo", view: "codo", detail: "3 cubes in an L. Its overhang can shelter a Cabeza." },
   // The Rayo (4-cube S/Z) and the Zeta (5-cube Z).
   { key: "rayo", label: "Rayo", min: 0, max: 4, default: 0, icon: "rayo", view: "rayo", detail: "4 cubes in an S." },
   { key: "zeta", label: "Zeta", min: 0, max: 4, default: 0, icon: "zeta", view: "zeta", detail: "5 cubes in a Z." },
@@ -2246,6 +2249,22 @@ function renderShoveSettingsRow(t) {
     )
   );
 }
+// The pivot pieces shown: the warning, then MATTER with the three lit.
+function showPivotPieces(s) {
+  if (s.pivotGuideCancel) s.pivotGuideCancel();
+  s.pivotGuideCancel = guideToPivots({
+    warnSel: '[data-testid="law-warning-cantileverPivot"]',
+    rowSel: (k) => `[data-testid="matter-row-${k}"]`,
+    goTo: () => {
+      // (Not if it's been put right meanwhile, or the menu's gone.)
+      if (s.sphereMenuStage !== "overlay" || s.activeCategory !== "laws" || !lawWarning("cantileverPivot", s.selections)) return;
+      s.activeCategory = "matter";
+      s.labelsDirty = true;
+      s.bump();
+    },
+  });
+}
+
 function renderLawWarning(w) {
   return React.createElement(
     "div",
@@ -2253,7 +2272,8 @@ function renderLawWarning(w) {
       key: w.testid,
       role: "status",
       "data-testid": w.testid,
-      style: { margin: "0 0 8px 36px", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, lineHeight: 1.45, color: "rgba(255,214,150,0.85)", borderLeft: "2px solid rgba(255,196,110,0.55)", paddingLeft: 8 },
+      ...(w.onTap ? { onClick: w.onTap, title: "Show me" } : {}),
+      style: { cursor: w.onTap ? "pointer" : "default", margin: "0 0 8px 36px", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, lineHeight: 1.45, color: "rgba(255,214,150,0.85)", borderLeft: "2px solid rgba(255,196,110,0.55)", paddingLeft: 8 },
     },
     w.text
   );
@@ -2882,6 +2902,9 @@ function renderCategoryOverlay(t) {
             // Turning Black Holes on with no spot yet rolls a real one now.
             if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares && !sel.blackHole.manual) fillPairedSpots(s, "blackHole", false);
             s.labelsDirty = true; s.bump();
+            // Pivot on with no Codo, Rayo or Zeta: the warning flashes,
+            // then over to MATTER, where the three flash (pivot-guide.js).
+            if (item.key === "cantileverPivot" && lawWarning("cantileverPivot", sel)) showPivotPieces(s);
           },
           `law-${item.key}`,
           () => openRulesCard("moves", item.key)
@@ -2890,6 +2913,7 @@ function renderCategoryOverlay(t) {
           return [row, renderPairedSquarePlacementRow(t, "blackHole")];
         }
         const warning = lawWarning(item.key, sel);
+        if (warning && item.key === "cantileverPivot") warning.onTap = () => showPivotPieces(s);
         const settings = item.key === "shoving" && sel.laws.shoving ? [renderShoveSettingsRow(t)] : [];
         return [row, ...settings, ...(warning ? [renderLawWarning(warning)] : [])];
       })
@@ -2995,6 +3019,7 @@ function renderCategoryOverlay(t) {
         "data-category": category,
         onPointerDown: (e) => e.stopPropagation(),
         style: {
+          "--ec-guide": "#66d9ff", "--ec-guide-glow": "rgba(102,217,255,0.45)", "--ec-guide-bg": "rgba(102,217,255,0.12)",
           width: "clamp(280px, 84%, 440px)",
           maxHeight: "72vh",
           overflowY: "auto",
