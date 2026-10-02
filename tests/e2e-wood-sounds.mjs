@@ -35,7 +35,7 @@ async function run(theme) {
     await page.waitForTimeout(5000);
   }
   await openDockPanel(page);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: /begin/i }).first().click();
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /begin|try a game/i }).first().click(); // (the store's says Try a Game)
   await page.waitForTimeout(theme === "tienda" ? 4000 : 2000);
   const flaco = () => page.evaluate(() => { const p = window.__EC_TEST_PIECES__.find((q) => q.id === "dark-flaco"); return { w: p.w, h: p.h, z: p.z, row: p.row }; });
   const f0 = await flaco();

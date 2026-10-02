@@ -33,7 +33,7 @@ const audio = () => page.evaluate(() => window.__TIENDA_AUDIO__());
 
 await openGame();
 await openDock();
-await page.locator('[data-testid="dock-panel"] button', { hasText: /begin/i }).first().click();
+await page.locator('[data-testid="dock-panel"] button', { hasText: /begin|try a game/i }).first().click(); // (the store's says Try a Game)
 await page.waitForTimeout(4000);
 await openDock();
 await page.locator('[data-testid="sound-button"]').click();
