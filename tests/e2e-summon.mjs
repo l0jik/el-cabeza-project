@@ -22,10 +22,11 @@ const poll = async (fn, ms = 20000, step = 200) => {
     await new Promise((r) => setTimeout(r, step));
   }
 };
-async function throughTheSet(seen, desktop) {
+async function throughTheSet(seen, desktop, lostMs = null) {
   const ctx = await browser.newContext(desktop ? { viewport: { width: 1280, height: 800 } } : { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  await ctx.addInitScript((seen) => {
+  await ctx.addInitScript(([seen, lostMs]) => {
     window.__EC_TEST_HOOKS__ = true;
+    if (lostMs) window.__EC_TEST_LOST_MS__ = lostMs;
     try {
       if (!sessionStorage.getItem("seeded")) {
         sessionStorage.setItem("seeded", "1");
@@ -33,7 +34,7 @@ async function throughTheSet(seen, desktop) {
         if (seen) { localStorage.setItem("el-cabeza:singularity-seen", "1"); localStorage.setItem("el-cabeza:commercial-aired", "1"); }
       }
     } catch (e) { /* none */ }
-  }, seen);
+  }, [seen, lostMs]);
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
@@ -50,7 +51,7 @@ async function throughTheSet(seen, desktop) {
 
 console.log("the first arrival");
 {
-  const { ctx, page, errs, inNeon } = await throughTheSet(false);
+  const { ctx, page, errs, inNeon } = await throughTheSet(false, false, 9000);
   check("into Neon through the television", !!inNeon);
   const S = () => page.evaluate(() => (window.__EC_SUMMON__ ? window.__EC_SUMMON__() : { active: false }));
   check("the summons is up", !!(await poll(async () => (await S()).active, 10000)));
@@ -102,7 +103,13 @@ console.log("the first arrival");
   // screen while it plays must not move the board's camera underneath
   // (user: after the set went off the view was of the carpet), so once it
   // goes off the camera comes back to the board.
-  await page.locator('[data-testid="singularity-back-button"]').click({ force: true });
+  // The story's first visit, left untouched a while (9 s here): the Back
+  // button wakes, and the wireframe hand reaches for the way out.
+  check("lingering: lost in the Singularity, a way out", !!(await poll(() => page.locator('[data-testid="singularity-lost"]').count(), 20000)));
+  check("...the Back button glowing, throbbing", await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="singularity-back-button"]')).animationName === "ecLostThrob"));
+  check("...\"I want out of here\"", /I want out of here/i.test(await page.locator('[data-testid="singularity-lost-out"]').innerText()));
+  if (process.env.EC_SHOTS) { await page.waitForTimeout(4200); await page.screenshot({ path: `${process.env.EC_SHOTS}/lost.png` }); }
+  await page.locator('[data-testid="singularity-lost-out"]').click();
   check("BACK: home, the commercial on the set", !!(await poll(() => page.evaluate(() => window.__DEN_TV__ && window.__DEN_TV__().phase === "commercial"), 30000)));
   await page.waitForTimeout(3000);
   await page.mouse.move(200, 600); await page.mouse.down(); await page.mouse.move(200, 200, { steps: 12 }); await page.mouse.move(60, 250, { steps: 8 }); await page.mouse.up();

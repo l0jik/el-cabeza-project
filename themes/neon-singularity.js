@@ -35,7 +35,7 @@ import {
 } from "../engine/constants.js";
 import { pickBlackHoleSquares, pickMissingSquares, blackHoleRowAllowed, initialPiecesFor, missingSquaresKeepPath } from "../engine/rules.js";
 import { ensureThumbs, pieceThumb, PieceViewer } from "./piece-showcase.js";
-import { markSingularitySeen } from "../engine/journey.js";
+import { markSingularitySeen, singularitySeen } from "../engine/journey.js";
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
 // SINGULARITY invite: the cathedral bell tolls and a black curtain fades
@@ -3245,6 +3245,107 @@ function BackButton({ onExit }) {
     "Back"
   );
 }
+/* Lost in the Singularity (user): the story's first visit, and nothing
+   touched for a while on the sphere: the Back button wakes, glowing and
+   throbbing, and a card comes up in the sphere's own neon, wireframe: the
+   player's own hand, its skin falling away into lines as they watch,
+   reaching for a button that says I want out of here (which does). Their
+   own astonishment, a line or two. A tap anywhere else puts the card away
+   (the Back button keeps throbbing). Once a visit. */
+const LOST_MS = 25000;
+const LOST_CSS = `
+html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !important; animation: ecLostThrob 1.5s ease-in-out infinite; }
+@keyframes ecLostThrob {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(102,217,255,0.6), 0 0 10px 2px rgba(102,217,255,0.45); transform: scale(1); color: #9ff0ff; }
+  50% { box-shadow: 0 0 0 2px rgba(180,245,255,1), 0 0 26px 9px rgba(102,217,255,0.85), 0 0 60px 18px rgba(140,110,255,0.4); transform: scale(1.09); color: #ffffff; }
+}
+.ec-lost { position: absolute; left: 50%; bottom: calc(15% + env(safe-area-inset-bottom)); z-index: 2150; width: min(360px, calc(100vw - 32px)); transform: translateX(-50%);
+  box-sizing: border-box; padding: 14px 16px 16px; color: #cfeff7; pointer-events: auto;
+  background: repeating-linear-gradient(0deg, rgba(102,217,255,0.05) 0 1px, transparent 1px 4px), rgba(3,8,14,0.86);
+  border: 1px solid rgba(102,217,255,0.7); box-shadow: 0 0 22px rgba(102,217,255,0.35), inset 0 0 18px rgba(102,217,255,0.12);
+  font-family: 'IBM Plex Mono', monospace; animation: ecLostIn 0.9s steps(6) both; }
+.ec-lost::before, .ec-lost::after { content: ""; position: absolute; width: 12px; height: 12px; border: 2px solid #8ef3ff; }
+.ec-lost::before { left: -3px; top: -3px; border-right: none; border-bottom: none; }
+.ec-lost::after { right: -3px; bottom: -3px; border-left: none; border-top: none; }
+@keyframes ecLostIn { 0% { opacity: 0; clip-path: inset(0 0 100% 0); } 60% { opacity: 1; } 100% { opacity: 1; clip-path: inset(0 0 0 0); } }
+.ec-lost .l1 { font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 19px; letter-spacing: 0.04em; color: #e9fbff;
+  text-shadow: -1.5px 0 rgba(255,60,140,0.7), 1.5px 0 rgba(60,220,255,0.8); animation: ecLostGlitch 2.6s steps(1) infinite 1s; }
+.ec-lost .l2, .ec-lost .l3 { margin-top: 5px; font-size: 12.5px; line-height: 1.45; opacity: 0; animation: ecLostLine 0.6s ease both; }
+.ec-lost .l2 { animation-delay: 1.1s; }
+.ec-lost .l3 { animation-delay: 2.4s; color: rgba(142,243,255,0.8); font-style: italic; }
+@keyframes ecLostLine { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes ecLostGlitch { 0%, 88%, 100% { transform: none; } 90% { transform: translateX(2px) skewX(-8deg); } 93% { transform: translateX(-2px); } 96% { transform: translateX(1px) skewX(6deg); } }
+.ec-lost .row { display: flex; align-items: center; margin-top: 12px; }
+.ec-lost svg { flex: none; width: 128px; height: 88px; overflow: visible; margin-right: -6px; animation: ecLostReach 1.6s cubic-bezier(.5,0,.3,1) infinite 3.4s; }
+@keyframes ecLostReach { 0%, 100% { transform: translateX(0); } 40% { transform: translateX(9px); } 55% { transform: translateX(7px); } }
+.ec-lost .skin { fill: #d6a083; stroke: none; animation: ecLostSkin 3.2s steps(9) both 0.4s; }
+@keyframes ecLostSkin { 0% { opacity: 0.95; } 30% { opacity: 0.7; } 45% { opacity: 0.85; } 70% { opacity: 0.3; } 85% { opacity: 0.5; } 100% { opacity: 0; } }
+.ec-lost .wire { fill: none; stroke: #66d9ff; stroke-width: 1.1; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 0 2px rgba(102,217,255,0.9));
+  stroke-dasharray: 400; stroke-dashoffset: 400; animation: ecLostDraw 3s ease-out forwards 0.3s; }
+.ec-lost .wire.mesh { stroke-width: 0.7; opacity: 0.75; animation-delay: 1s; }
+@keyframes ecLostDraw { to { stroke-dashoffset: 0; } }
+.ec-lost .dot { fill: #c8f8ff; opacity: 0; animation: ecLostLine 0.4s ease both 2.6s; }
+.ec-lost button { flex: 1; min-width: 0; padding: 12px 10px; cursor: pointer; font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 14px;
+  letter-spacing: 0.12em; text-transform: uppercase; color: #e9fbff; background: rgba(102,217,255,0.08); border: 1px solid #66d9ff;
+  box-shadow: 0 0 12px rgba(102,217,255,0.4), inset 0 0 10px rgba(102,217,255,0.15); animation: ecLostPress 1.6s ease infinite 3.4s; }
+@keyframes ecLostPress { 0%, 30%, 70%, 100% { background: rgba(102,217,255,0.08); } 42%, 55% { background: rgba(102,217,255,0.32); box-shadow: 0 0 22px rgba(102,217,255,0.8), inset 0 0 14px rgba(102,217,255,0.4); } }
+.ec-lost button:hover, .ec-lost button:focus-visible { background: rgba(102,217,255,0.28); outline: none; }
+@media (prefers-reduced-motion: reduce) {
+  html.ec-lost-urge [data-testid="singularity-back-button"], .ec-lost, .ec-lost *, .ec-lost svg { animation: none !important; }
+  .ec-lost .skin { opacity: 0; } .ec-lost .wire { stroke-dashoffset: 0; } .ec-lost .l2, .ec-lost .l3, .ec-lost .dot { opacity: 1; }
+}
+`;
+// The player's own hand, pointing right: its outline, and the mesh of
+// lines its skin is falling away into.
+const HAND_OUTLINE = "M8 48 L44 33 Q50 22 60 18 Q68 15 72 21 L66 31 L126 29 Q138 29 138 37 Q138 44 126 44 L76 46 Q84 49 82 56 Q80 61 72 61 Q78 65 75 71 Q72 76 64 75 Q68 80 64 85 Q60 89 52 88 L36 88 L8 80 Z";
+const HAND_MESH = "M44 33 L36 88 M66 31 L52 88 M76 46 L64 75 M8 48 L44 88 M8 80 L44 33 M26 41 L22 84 M44 33 L66 31 M76 46 L44 60 L66 31 M44 60 L52 88 M44 60 L8 64 M90 29 L90 45 M104 29 L104 45 M117 29 L117 44 M76 46 L90 29 L104 45 L117 29 L126 44 M72 61 L56 66 M64 75 L48 76";
+const HAND_DOTS = [[44, 33], [66, 31], [76, 46], [90, 29], [104, 45], [117, 29], [138, 37], [44, 60], [8, 48], [8, 80], [52, 88], [72, 61], [64, 75]];
+function LostNudge({ stage, onExit }) {
+  const h = React.createElement;
+  const [lost, setLost] = React.useState(false);
+  const [card, setCard] = React.useState(false);
+  const shown = React.useRef(false);
+  React.useEffect(() => {
+    if (typeof document === "undefined" || document.getElementById("ec-lost-css")) return;
+    const st = document.createElement("style"); st.id = "ec-lost-css"; st.textContent = LOST_CSS; document.head.appendChild(st);
+  }, []);
+  // The clock: anything touched or pressed on the sphere starts it again;
+  // the card, once up, goes at a tap anywhere else.
+  React.useEffect(() => {
+    if (lost) return undefined;
+    const ms = typeof window.__EC_TEST_LOST_MS__ === "number" ? window.__EC_TEST_LOST_MS__ : LOST_MS;
+    let id = 0;
+    const arm = () => { clearTimeout(id); id = setTimeout(() => { setLost(true); if (!shown.current) { shown.current = true; setCard(true); } }, ms); };
+    const EV = ["pointerdown", "keydown", "wheel"];
+    EV.forEach((e) => window.addEventListener(e, arm, true));
+    arm();
+    return () => { clearTimeout(id); EV.forEach((e) => window.removeEventListener(e, arm, true)); };
+  }, [lost]);
+  React.useEffect(() => { if (stage !== "labels") setCard(false); }, [stage]);
+  React.useEffect(() => {
+    if (!card) return undefined;
+    const away = (e) => { if (!(e.target && e.target.closest && e.target.closest(".ec-lost, [data-testid=\"singularity-back-button\"]"))) setCard(false); };
+    window.addEventListener("pointerdown", away, true);
+    return () => window.removeEventListener("pointerdown", away, true);
+  }, [card]);
+  React.useEffect(() => {
+    document.documentElement.classList.toggle("ec-lost-urge", lost);
+    return () => document.documentElement.classList.remove("ec-lost-urge");
+  }, [lost]);
+  if (!card) return null;
+  return h("div", { className: "ec-lost", "data-testid": "singularity-lost", role: "dialog", "aria-label": "Lost in the Singularity", onPointerDown: (e) => e.stopPropagation() },
+    h("div", { className: "l1" }, "Wait… where am I?"),
+    h("div", { className: "l2" }, "My hand. It's coming apart into lines."),
+    h("div", { className: "l3" }, "I can see straight through it…"),
+    h("div", { className: "row" },
+      h("svg", { viewBox: "0 0 140 92", "aria-hidden": "true" },
+        h("path", { className: "skin", d: HAND_OUTLINE }),
+        h("path", { className: "wire", d: HAND_OUTLINE }),
+        h("path", { className: "wire mesh", d: HAND_MESH }),
+        ...HAND_DOTS.map(([x, y], i) => h("circle", { key: i, className: "dot", cx: x, cy: y, r: 1.4 }))),
+      h("button", { type: "button", "data-testid": "singularity-lost-out", onClick: (e) => { e.stopPropagation(); onExit(); } }, "I want out of here")));
+}
+
 function renderBackButton(exitSingularity) {
   return React.createElement(BackButton, { key: "singularity-back", onExit: exitSingularity });
 }
@@ -3281,6 +3382,11 @@ export function useSingularityPhase({
   applyBoardResize,
 }) {
   const [phase, setPhase] = React.useState(PHASES.IDLE);
+  // Whether this is the very first time in the sphere (read before the
+  // line below marks it seen): the story's first visit gets a way out if
+  // it lingers (LostNudge).
+  const firstVisitRef = React.useRef(null);
+  if (phase === PHASES.SPHERE && firstVisitRef.current === null) firstVisitRef.current = !singularitySeen();
   // The sphere's first opening unlocks the extras everywhere (engine/journey.js).
   React.useEffect(() => { if (phase === PHASES.SPHERE) markSingularitySeen(); }, [phase]);
   const blackDivRef = React.useRef(null);
@@ -3788,6 +3894,7 @@ export function useSingularityPhase({
 
   return {
     singularityPhase: phase,
+    singularityFirstVisit: !!firstVisitRef.current,
     startSingularityToll,
     startCollapse,
     exitSingularity,
@@ -4070,6 +4177,12 @@ export function renderSingularityOverlay(setupExtras) {
     phase === PHASES.SPHERE && renderBackButton(setupExtras.onSingularityBack
       ? () => { if (!setupExtras.onSingularityBack()) exitSingularity(); }
       : exitSingularity),
+    // The story's first visit, lingering: the way out, lit (LostNudge).
+    phase === PHASES.SPHERE && setupExtras.onSingularityBack && setupExtras.singularityFirstVisit && h(LostNudge, {
+      key: "lost",
+      stage,
+      onExit: () => { if (!setupExtras.onSingularityBack()) exitSingularity(); },
+    }),
     phase === PHASES.SPHERE && stage === "labels" && h(LabelsHint, { key: "sphere-help" }),
     phase === PHASES.SPHERE && stage === "labels" && t && t.singularity.configHover &&
       h("div", {

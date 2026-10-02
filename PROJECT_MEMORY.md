@@ -4913,3 +4913,21 @@ phone menu until "Start the story over" (which clears it).
     opens the same panel: a tap, then Info). theme.howToPlayCorner would
     bring it back; without it the corner icons sit in a row (noHowTo, as
     rulesInRoom did). The phone bar never had it (its menu has the rules).
+
+### Lost in the Singularity (2026-10-02)
+  - User: the story's first visit to the sphere, lingering, needs a way
+    back: the Back button glowing and throbbing, and a neon wireframe
+    card: the player's own hand turned to wireframe, pressing "I want out
+    of here", astonished, not knowing where they are.
+  - neon-singularity.js LostNudge: shown only in Nova (onSingularityBack)
+    on the first visit (useSingularityPhase reads !singularitySeen() as the
+    sphere opens, before marking it; singularityFirstVisit). After 25 s
+    with no pointer/key/wheel (window.__EC_TEST_LOST_MS__ for tests):
+    html.ec-lost-urge (Back: full opacity, ecLostThrob) and the card
+    (.ec-lost, testid singularity-lost): "Wait… where am I?" / "My hand.
+    It's coming apart into lines." / "I can see straight through it…";
+    an SVG hand whose skin fill flickers away while its outline and mesh
+    draw in (stroke-dashoffset), then reaches and taps the button in a
+    loop; the button (singularity-lost-out) leaves as Back does. A tap
+    elsewhere puts the card away (Back keeps throbbing); opening a
+    category hides it. Once a visit. Checked in e2e-summon (9 s there).
