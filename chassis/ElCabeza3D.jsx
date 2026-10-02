@@ -540,6 +540,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      normal interactive damping is what's active the rest of the time
      with no extra guard needed. */
   const resetTransitionUntilRef = useRef(0);
+  /* A view jump (Current Player View, Top-Down View, the Room view: a
+     two-finger flick or their buttons) glides there on an ease-in-out
+     curve instead of the damping's lurch (user: "the camera should move
+     more gracefully. It's a bit too abrupt"): the damping covers 60% of
+     the way in the first tenth of a second. Armed by glideCamera(); the
+     tick fills in from/to on its next frame and drops it if a finger or
+     the wheel moves the goal meanwhile (the damping takes over from
+     wherever the view is). */
+  const glideRef = useRef(null);
 
   const [pieces, setPieces] = useState(() => carried("pieces", createInitialPieces));
   const [currentPlayer, setCurrentPlayer] = useState(() => carried("currentPlayer", savedOpponent.humanStartSide));
@@ -3688,8 +3697,33 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          across devices. damping itself isn't always the same constant
          — see RESET_CAMERA_DAMPING above for why a reset briefly uses a
          slower one. */
+      const g = glideRef.current;
+      if (g && !g.to) {
+        const wrapTo = (d) => ((d % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+        g.from = { theta: view.theta, phi: view.phi, radius: view.radius, target: view.target.clone() };
+        g.to = { theta: goal.theta, phi: goal.phi, radius: goal.radius, target: goal.target.clone() };
+        g.dTheta = wrapTo(goal.theta - view.theta);
+        g.start = now;
+        const turn = Math.abs(g.dTheta) / Math.PI, tilt = Math.abs(goal.phi - view.phi), reach = Math.abs(goal.radius - view.radius) / Math.max(1, view.radius);
+        const slow = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        g.dur = slow ? 450 : Math.min(1600, 900 + 450 * turn + 300 * tilt + 350 * Math.min(1, reach) + 10 * view.target.distanceTo(goal.target));
+        // A half turn of the board lifts away a touch on the way round.
+        g.lift = 0.06 * turn;
+      } else if (g && (Math.abs(goal.theta - g.to.theta) > 1e-6 || Math.abs(goal.phi - g.to.phi) > 1e-6 || Math.abs(goal.radius - g.to.radius) > 1e-6 || goal.target.distanceToSquared(g.to.target) > 1e-8)) {
+        glideRef.current = null;
+      }
+      if (glideRef.current) {
+        const u = Math.min(1, (now - g.start) / g.dur);
+        const e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+        view.theta = g.from.theta + g.dTheta * e;
+        view.phi = g.from.phi + (g.to.phi - g.from.phi) * e;
+        view.radius = (g.from.radius + (g.to.radius - g.from.radius) * e) * (1 + g.lift * Math.sin(Math.PI * u));
+        view.target.lerpVectors(g.from.target, g.to.target, e);
+        if (u >= 1) glideRef.current = null;
+      }
       const damping = now < resetTransitionUntilRef.current ? RESET_CAMERA_DAMPING : CAMERA_DAMPING;
-      const k = 1 - Math.exp((-dt / 1000) * damping);
+      // (Gliding: the damping stands still this frame.)
+      const k = glideRef.current ? 0 : 1 - Math.exp((-dt / 1000) * damping);
       /* Theta accumulates without bound as the board is spun, so a
          plain (goal - view) difference could be several full turns —
          e.g. recentring after a long session would spin past the target
@@ -6134,6 +6168,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     cam.current.view.target.set(0, 0, 0);
   }
 
+  // The view jumps glide (see glideRef); the pan comes home with them.
+  function glideCamera() {
+    cam.current.target.set(0, 0, 0);
+    glideRef.current = {};
+  }
+
   /* Shared bisection core behind fitRadiusToBoard below: smallest
      radius, at the given heading/pitch, whose on-screen
      projection of an arbitrary set of board-local (x,z) corners still
@@ -6268,7 +6308,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // reached before that capture has run once.
     if (currentPlayerViewRadiusRef.current == null) captureViewBaselines();
     cam.current.radius = currentPlayerViewRadiusRef.current;
-    snapToCenter();
+    glideCamera();
   }
 
   /* The Room view (a theme with freeCamera.dollhouse: the den, the store):
@@ -6285,7 +6325,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     cam.current.phi = d.phi;
     cam.current.radius = d.radius;
     setViewMode("room");
-    snapToCenter();
+    glideCamera();
   }
 
   function topDownView(facePlayer = currentPlayer) {
@@ -6318,7 +6358,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // what this button resets to.
     if (topDownViewRadiusRef.current == null) captureViewBaselines();
     cam.current.radius = topDownViewRadiusRef.current;
-    snapToCenter();
+    glideCamera();
   }
 
   /* The phone layout reports the room its bars take (MobileShell.jsx) and

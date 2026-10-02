@@ -162,18 +162,44 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     let postStory = !!(novaTv && novaTv.ended && novaTv.ended());
     const movesNow = () => (moves ? moves() : 0);
     let ending = null;
-    const hall = novaTv && novaTv.hall && !postStory ? createHall({ audio, onEnding: (h) => startEnding(h), flares: novaTv.hall.flares || null }) : null;
+    /* A look at the revelation without the story (Nova's
+       ?scene=revelation, read once): a tap (the sound needs one) and
+       straight into the void. Nothing's kept: the story stays where it
+       was, and no hall. */
+    const preview = !!(novaTv && novaTv.preview && novaTv.preview());
+    const hall = novaTv && novaTv.hall && !postStory && !preview ? createHall({ audio, onEnding: (h) => startEnding(h), flares: novaTv.hall.flares || null }) : null;
     if (hall && novaTv.hall.due()) hall.arm(movesNow());
     function startEnding(h) {
       ending = createEnding({
         audio,
-        onFinish: () => { postStory = true; if (novaTv.ending) novaTv.ending.finish(); },
+        onFinish: () => { if (preview) return; postStory = true; if (novaTv.ending) novaTv.ending.finish(); },
         // (Another place: Nova's cut takes over from the void.)
         onPick: (w) => { if (novaTv.ending) novaTv.ending.go(w); },
         onStay: () => { ending = null; if (hall) hall.finish(); roomView(); },
       });
       ending.start();
       if (typeof requestAnimationFrame !== "undefined") requestAnimationFrame(() => h && h.clear && h.clear());
+    }
+    let previewEl = null;
+    if (preview && typeof document !== "undefined") {
+      const d = document;
+      previewEl = d.createElement("button");
+      previewEl.type = "button";
+      previewEl.setAttribute("data-testid", "den-revelation-preview");
+      previewEl.style.cssText = "position:fixed;inset:0;z-index:3000;border:0;margin:0;background:#000;color:#cfd6e6;cursor:pointer;" +
+        "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font:400 clamp(20px,5vw,30px)/1.3 Georgia,serif;letter-spacing:0.04em;-webkit-tap-highlight-color:transparent;";
+      previewEl.innerHTML = '<span>The revelation</span><small style="font:600 12px/1 Arial,sans-serif;letter-spacing:0.22em;text-transform:uppercase;opacity:0.55">Tap to begin</small>';
+      // (Its taps stay its own.)
+      ["pointerdown", "pointerup", "touchstart", "touchend", "mousedown", "wheel"].forEach((t) => previewEl.addEventListener(t, (e) => e.stopPropagation()));
+      previewEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (audio && audio.ensureStarted) { try { audio.ensureStarted(); } catch (err) { /* no sound */ } }
+        const fs = d.documentElement.requestFullscreen;
+        if (fs && !d.fullscreenElement && window.matchMedia && window.matchMedia("(pointer: coarse)").matches) { try { fs.call(d.documentElement).catch(() => {}); } catch (err) { /* stays as it is */ } }
+        previewEl.remove(); previewEl = null;
+        startEnding(null);
+      });
+      d.body.appendChild(previewEl);
     }
     /* Home before the Singularity (Nova, the set still to lure you): a
        record or a tape already on, a random one, at 40% (user: normal
@@ -1213,6 +1239,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (call) call.dispose();
         if (hall) hall.dispose();
         if (ending) { ending.dispose(); ending = null; }
+        if (previewEl) { previewEl.remove(); previewEl = null; }
         chanCache.forEach((tx) => tx && tx.dispose());
         if (trip) trip.dispose();
         clearTimeout(homeCardTimer);

@@ -4971,3 +4971,21 @@ phone menu until "Start the story over" (which clears it).
     (data-locked true/false). den-ending.js passes 3500 ms
     (__EC_TEST_REALITIES_LOCK__ overrides); the gate and Lab menus pass none.
     Checked in e2e-ending.
+
+### The view jumps glide; a link straight to the revelation (2026-10-02)
+  - User: a two-finger flick up/down (Current Player View / Top-Down View)
+    and their buttons moved the camera too abruptly. The render loop's
+    damping (CAMERA_DAMPING 9: 1 - e^(-9t)) covers ~65% in the first
+    0.12 s and the pan target snapped (snapToCenter).
+  - chassis glideRef/glideCamera(): recenterView, topDownView and roomView
+    arm a glide; the tick takes from/to on its next frame and eases with a
+    cubic in-out over 0.9-1.6 s (longer for a half turn, a big tilt or
+    zoom; 0.45 s with reduced motion), the pan coming home with it, a half
+    turn lifting away ~6% on the way round. Any input that moves the goal
+    meanwhile drops it (the damping goes on from where the view is).
+    snapToCenter stays for the new-game reset. tests/e2e-camera-glide.mjs.
+  - Nova ?scene=revelation (apps/unified.jsx takeRevelation, read once ->
+    tv.preview): opens in the den, a black "The revelation / Tap to
+    begin" (the tap starts the sound; full screen on a phone), then
+    straight into den-ending's void. No hall; onFinish keeps nothing (the
+    story stays where it was). Realities and Stay work as ever.

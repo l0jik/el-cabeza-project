@@ -38,6 +38,12 @@ import {
 const WORLD_PARAM = (() => {
   try { const w = new URLSearchParams(window.location.search).get("world"); return storyEnded() && ["standard", "neon", "tienda"].includes(w) ? w : null; } catch (e) { return null; }
 })();
+// A look at the revelation (den-ending.js) without playing the story
+// there: ?scene=revelation opens in the den, straight into it. Read once.
+let REVELATION_PARAM = (() => {
+  try { return new URLSearchParams(window.location.search).get("scene") === "revelation"; } catch (e) { return false; }
+})();
+const takeRevelation = () => { const r = REVELATION_PARAM; REVELATION_PARAM = false; return r; };
 const storyBridge = { purchase() {}, backToStore() {}, restart() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };
 // How the place just mounted was reached (read once): false for the page
 // opening there, "cut" by a scene change, "fresh" by the fresh start.
@@ -119,6 +125,7 @@ const homeTheme = {
            realities, and the story's over (ended: the set's channels). */
         hall: { due: () => hallDue() && !storyEnded(), arm: () => saveHallDue(true), flares: { get: hallFlares, set: saveHallFlares } },
         ended: () => storyEnded(),
+        preview: takeRevelation,
         ending: { finish: () => storyBridge.finishStory(), go: (w) => storyBridge.goWorld(w) },
         realities: { go: (w) => storyBridge.goWorld(w) },
       },
@@ -190,7 +197,7 @@ const {
 
 function UnifiedApp() {
   // A first visit opens in the store; once the game is bought, at home.
-  const [themeName, setThemeName] = useState(() => WORLD_PARAM || (readOwned() ? "standard" : "tienda"));
+  const [themeName, setThemeName] = useState(() => WORLD_PARAM || (REVELATION_PARAM || readOwned() ? "standard" : "tienda"));
   // Before the first Singularity visit the way into Neon from the den is
   // the television alone (user): no title hold there, no shortcut in the
   // phone menu. After it (engine/journey.js), both; a story restart locks
