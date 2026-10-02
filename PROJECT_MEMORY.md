@@ -4926,8 +4926,13 @@ phone menu until "Start the story over" (which clears it).
     html.ec-lost-urge (Back: full opacity, ecLostThrob) and the card
     (.ec-lost, testid singularity-lost): "Wait… where am I?" / "My hand.
     It's coming apart into lines." / "I can see straight through it…";
-    an SVG hand whose skin fill flickers away while its outline and mesh
-    draw in (stroke-dashoffset), then reaches and taps the button in a
-    loop; the button (singularity-lost-out) leaves as Back does. A tap
+    the user's own wireframe hand (assets/neon/lost-hand-wire.webp, cut
+    from their picture by tools/lost_hand.py: cropped, black to alpha,
+    recoloured toward the sphere's cyan; lost-hand-skin.webp, the same
+    hand as a skin-toned silhouette): a scan line sweeps the lines in
+    while the skin flickers and falls away over them, the wrist fading
+    out to the left; then it reaches and taps the button in a loop
+    (.webp bundled as dataurl, build.js; tests/asset-hooks.mjs loads it
+    in Node, so theme-neon.smoke now runs with the hooks); the button (singularity-lost-out) leaves as Back does. A tap
     elsewhere puts the card away (Back keeps throbbing); opening a
     category hides it. Once a visit. Checked in e2e-summon (9 s there).

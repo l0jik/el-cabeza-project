@@ -89,7 +89,7 @@ for (const t of targets) {
     format: "iife",
     // Sound files (assets/) are inlined as data: URLs, keeping each page a
     // single self-contained file.
-    loader: { ".js": "jsx", ".mp3": "dataurl", ".jpg": "dataurl" },
+    loader: { ".js": "jsx", ".mp3": "dataurl", ".jpg": "dataurl", ".webp": "dataurl" },
     minify: !!t.minify,
     jsx: "automatic",
     jsxImportSource: "react",
