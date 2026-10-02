@@ -5404,3 +5404,7 @@ phone menu until "Start the story over" (which clears it).
     the card itself still work. The menu that opens by itself is up 1.8 s
     (was 1.4) before it goes. e2e-summon: stray taps mid-decay don't
     shut it.
+  - Hall, second time (user): the keep-playing button reads "I should
+    probably call an electrician about that tomorrow. Let me just finish
+    one game!" (den-hall.js KEEP_AGAIN, when flares > 1); the first time
+    it's still "Just keep playing — this day's been weird enough already".

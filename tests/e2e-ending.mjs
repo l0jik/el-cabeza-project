@@ -61,6 +61,7 @@ check("...the time it came, kept with the story", await page.evaluate(() => JSON
 await page.evaluate(() => window.__DEN_HALL_NOW__());
 await poll(async () => (await page.locator('[data-testid="den-hall-investigate"]').count()) > 0, 6000);
 check("again: \"Oh, for the love of…\"", /Oh, for the love of…/.test(await page.locator('[data-testid="den-hall-say"]').innerText()));
+check("...and keep playing's now the electrician", /call an electrician about that tomorrow\. Let me just finish one game!/.test(await page.locator('[data-testid="den-hall-keep"]').innerText()));
 await page.waitForTimeout(500);
 await page.locator('[data-testid="den-hall-investigate"]').click();
 check("investigate: the walk in", (await page.evaluate(() => window.__DEN_HALL__().state)) === "walk");

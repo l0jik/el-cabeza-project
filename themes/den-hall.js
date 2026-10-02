@@ -35,6 +35,8 @@ const LINE = "Oh no… now what?";
 const LINE_AGAIN = "Oh, for the love of…";
 const INVESTIGATE = "Investigate";
 const KEEP = "Just keep playing — this day's been weird enough already";
+// ...and the second time (user).
+const KEEP_AGAIN = "I should probably call an electrician about that tomorrow. Let me just finish one game!";
 
 const DC = (HALL.DX0 + HALL.DX1) / 2, DW = HALL.DX1 - HALL.DX0, DH = HALL.DH;
 const EY = FLOOR + 31; // eye height standing (8 ft = 49)
@@ -296,7 +298,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       style();
       choiceEl = div("den-hall-choice"); choiceEl.setAttribute("data-testid", "den-hall-choice"); choiceEl.setAttribute("role", "group"); choiceEl.setAttribute("aria-label", "The hall");
       const go = doc.createElement("button"); go.type = "button"; go.className = "go"; go.textContent = INVESTIGATE; go.setAttribute("data-testid", "den-hall-investigate"); go.onclick = () => pick("investigate");
-      const stay = doc.createElement("button"); stay.type = "button"; stay.className = "stay"; stay.textContent = KEEP; stay.setAttribute("data-testid", "den-hall-keep"); stay.onclick = () => pick("keep");
+      const stay = doc.createElement("button"); stay.type = "button"; stay.className = "stay"; stay.textContent = flares > 1 ? KEEP_AGAIN : KEEP; stay.setAttribute("data-testid", "den-hall-keep"); stay.onclick = () => pick("keep");
       choiceEl.append(go, stay);
       requestAnimationFrame(() => requestAnimationFrame(() => choiceEl && choiceEl.classList.add("on")));
       setTimeout(() => { try { go.focus({ preventScroll: true }); } catch (e) { /* fine */ } }, 60);
