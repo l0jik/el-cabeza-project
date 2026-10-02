@@ -5092,7 +5092,9 @@ phone menu until "Start the story over" (which clears it).
     0.92x, heavier) at 0.1/1.9/3.7 s; the run (source 116.95-119.55 +
     122.0-123.05, ~0.2 s a step, slowing) at 7.3; the door (handle, yanked
     open, slammed) at 10.9; the car (car-start-drive-away.mp3 3.9-7.4 and
-    9.3-14.2 at 1.15x) from 12.6, a made tyre squeal at the pull-away,
+    9.3-14.2 at 1.15x) from 12.6, the tyres peeling out at the pull-away
+    (the user's burnout recording, assets/den/src/burnout.mp3, its 2-4 s
+    faded in and out, the squeal breaking at the pull-away; was a made one),
     darker and gone by ~19.9. No track: the made driveAway in the black.
   - e2e-story: the getaway recording loaded; the steps 100 ms after the
     track and 1.8 s apart.

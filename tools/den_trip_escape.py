@@ -1,8 +1,9 @@
 """Getting out of the closed Big Glutts (themes/den-trip.js), from the
 user's recordings (freesound.org community): footsteps on debris
 (assets/den/src/steps-on-debris.mp3), a car door opened and shut
-(car-door-open-close.mp3), and the car starting and pulling away
-(car-start-drive-away.mp3, as tools/den_car_away.py).
+(car-door-open-close.mp3), the car starting and pulling away
+(car-start-drive-away.mp3, as tools/den_car_away.py), and a burnout's
+peel-out (burnout.mp3, a Nissan Maxima: its 2-4 s, the user's pick).
 
 One track, started with the first step back (TRACK_AT in den-trip.js), so
 it can't drift from the camera:
@@ -15,8 +16,10 @@ it can't drift from the camera:
   10.9 - 12.5 s     the door: the handle, yanked open, in, slammed
   12.6 - 15.6 s     the key, the starter, the catch and a rev (1.15x:
                     in a hurry)
-  15.6 - 19.9 s     away, hard: a tyre squeal (made here) and the
-                    acceleration, duller and gone with distance
+  15.6 - 19.9 s     away, hard: the tyres peeling out (the burnout's
+                    2-4 s, faded in and out, its squeal landing as the
+                    car pulls away) and the acceleration, duller and
+                    gone with distance
 
 Everything levelled to the trip's other sounds; peaks under -1 dB.
 Written to assets/den/trip-escape.mp3.
@@ -98,21 +101,15 @@ def place(track, seg, at):
     return track
 
 
-def squeal(dur=0.95):
-    t = np.arange(int(dur * SR)) / SR
-    f = 1450 - 300 * (t / dur) + 25 * np.sin(2 * np.pi * 7 * t)
-    tone = np.sin(2 * np.pi * np.cumsum(f) / SR) + 0.35 * np.sin(2 * np.pi * np.cumsum(2 * f) / SR)
-    rng = np.random.default_rng(7)
-    hiss = sosfiltfilt(butter(2, [1100, 2600], "band", fs=SR, output="sos"), rng.standard_normal(len(t)))
-    env = np.minimum(1, t / 0.06) * np.exp(-2.2 * t / dur)
-    s = (0.7 * tone + 0.5 * hiss / np.abs(hiss).max()) * env
-    return np.stack([s, s], 1).astype(np.float32)
+BURNOUT = (2.0, 4.0)   # the user's pick: the rev building, then the tyres
+BURNOUT_PEEL = 1.1     # where in that the squeal breaks (source 3.1 s)
 
 
 def main():
     steps = load("steps-on-debris.mp3")
     door = load("car-door-open-close.mp3")
     car = load("car-start-drive-away.mp3")
+    burn = load("burnout.mp3")
     track = np.zeros((int(20.5 * SR), 2), np.float32)
 
     # Backwards: each crunch alone, slower and heavier, a little quieter
@@ -139,7 +136,10 @@ def main():
     away = (away * (1 - k) + dark * k) * ((1 - k) ** 1.6)
     c = join([fades(start, 0.05, 0.03), away], 0.08)
     track = place(track, level(c, -16), CAR_AT)
-    track = place(track, level(squeal(), -24), CAR_AT + len(start) / SR + 0.05)
+    # The peel-out: faded in over its rev, out over its last 0.6 s, the
+    # squeal breaking just as the car pulls away.
+    peel = fades(cut(burn, *BURNOUT), 0.35, 0.6)
+    track = place(track, level(peel, -19), CAR_AT + len(start) / SR + 0.1 - BURNOUT_PEEL)
 
     out = sosfiltfilt(butter(2, 45, "high", fs=SR, output="sos"), track, axis=0)
     out = sosfiltfilt(butter(2, 10000, "low", fs=SR, output="sos"), out, axis=0)
