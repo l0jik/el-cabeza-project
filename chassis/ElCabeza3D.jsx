@@ -1882,6 +1882,49 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return () => document.removeEventListener("click", onClick, true);
   }, [theme]);
 
+  /* The screen stays on while the game's on screen (user: a Pixel dimmed
+     and slept mid-game; a web page has to ask, a Screen Wake Lock), but
+     after ten minutes with no touch, click, key or wheel it's let go, so a
+     phone left on a table still sleeps; the next touch asks again. The
+     browser drops the lock when the page is hidden; coming back asks
+     again. Where it isn't offered, nothing happens. */
+  useEffect(() => {
+    const nav = typeof navigator !== "undefined" ? navigator : null;
+    if (!nav || !nav.wakeLock || typeof document === "undefined") return undefined;
+    const IDLE_MS = typeof window.__EC_TEST_WAKE_IDLE_MS__ === "number" ? window.__EC_TEST_WAKE_IDLE_MS__ : 10 * 60 * 1000;
+    let lock = null, asking = false, idle = false, timer = 0, gone = false;
+    const ask = async () => {
+      if (gone || lock || asking || idle || document.visibilityState !== "visible") return;
+      asking = true;
+      try {
+        const l = await nav.wakeLock.request("screen");
+        if (gone || idle) { l.release().catch(() => {}); }
+        else { lock = l; l.addEventListener("release", () => { if (lock === l) lock = null; }); }
+      } catch (e) { /* refused (power saving, no permission): the phone's own timeout */ }
+      asking = false;
+    };
+    const letGo = () => { if (lock) { const l = lock; lock = null; l.release().catch(() => {}); } };
+    const touched = () => {
+      idle = false;
+      clearTimeout(timer);
+      timer = setTimeout(() => { idle = true; letGo(); }, IDLE_MS);
+      ask();
+    };
+    const onVisible = () => { if (document.visibilityState === "visible" && !idle) ask(); };
+    const EV = ["pointerdown", "keydown", "wheel", "touchstart"];
+    EV.forEach((ev) => window.addEventListener(ev, touched, { capture: true, passive: true }));
+    document.addEventListener("visibilitychange", onVisible);
+    if (window.__EC_TEST_HOOKS__) window.__EC_WAKE__ = () => ({ held: !!lock, idle });
+    touched();
+    return () => {
+      gone = true;
+      clearTimeout(timer);
+      EV.forEach((ev) => window.removeEventListener(ev, touched, { capture: true }));
+      document.removeEventListener("visibilitychange", onVisible);
+      letGo();
+    };
+  }, []);
+
   /* Per feedback, the native right-click/long-press context menu must
      never appear ANYWHERE in the app, not just on the board (which
      already had its own contextmenu preventDefault — see the pointer-

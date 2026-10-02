@@ -108,6 +108,16 @@ check("then to black", !!(await poll(async () => /black|menu/.test(await page.ev
 check("...the controls still away", await page.evaluate(() => document.documentElement.classList.contains("ec-hall-scene")));
 check("then the other realities", !!(await poll(async () => (await page.locator('[data-testid="realities"]').count()) > 0, 8000)));
 check("...every version of the game (15)", (await page.locator('[data-testid^="reality-"]').count()) === 15);
+{
+  // A moment to read it first (user: taps still coming from the scene
+  // picked a world): the choices held, a tap goes nowhere.
+  check("...held a moment before anything can be picked", (await page.locator('[data-testid="realities"]').getAttribute("data-locked")) === "true");
+  const b = await page.locator('[data-testid="reality-neon"]').boundingBox();
+  if (b) await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  await page.waitForTimeout(400);
+  check("...a tap meanwhile picks nothing", (await page.locator('[data-testid="realities"]').count()) === 1 && (await page.evaluate(() => window.__DEN_ENDING__().stage)) === "menu");
+  check("...then the choices are live", !!(await poll(async () => (await page.locator('[data-testid="realities"]').getAttribute("data-locked")) === "false", 6000)));
+}
 check("the story's over (remembered)", await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:story")).ended === true));
 await page.waitForTimeout(1200);
 await shot(page, "end-4-realities");

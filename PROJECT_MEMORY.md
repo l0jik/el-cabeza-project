@@ -4953,3 +4953,21 @@ phone menu until "Start the story over" (which clears it).
   - e2e-ending: the den's renderer.info.render.frame doesn't move while
     the void shows; a drag still turns the look. state() has pixelRatio and
     look. Not measurable here on a real phone.
+
+### Awake while playing; a pause before the realities (2026-10-02)
+  - User: a Pixel 10 dimmed/timed out mid-game; keep it awake, but let a
+    phone left on a table sleep after ~10 minutes with no touches.
+  - chassis/ElCabeza3D.jsx: a Screen Wake Lock (navigator.wakeLock
+    "screen") on every page, asked again on any pointerdown/keydown/wheel/
+    touchstart and on coming back visible (the browser drops it when the
+    page hides). 10 minutes with no input lets it go (the phone's own
+    timeout then applies); the next touch takes it again. No API: nothing.
+    window.__EC_TEST_WAKE_IDLE_MS__ shortens the idle; __EC_WAKE__() reads
+    { held, idle }. tests/e2e-wake.mjs.
+  - User: after the revelation, a player tapping away picked a random
+    reality before reading the "story's over" words. realities.js
+    createRealitiesMenu({ lockMs }): the choices dimmed and untappable, a
+    hairline fills under the heading, clicks/Escape ignored, then live
+    (data-locked true/false). den-ending.js passes 3500 ms
+    (__EC_TEST_REALITIES_LOCK__ overrides); the gate and Lab menus pass none.
+    Checked in e2e-ending.

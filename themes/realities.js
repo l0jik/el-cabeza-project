@@ -53,13 +53,24 @@ const CSS = `
   border: 1px solid rgba(214,190,255,0.7); letter-spacing: 0.16em; text-transform: uppercase; font-size: 13px; }
 .ec-realities .stay:hover, .ec-realities .stay:focus-visible { background: rgba(205,180,255,0.16); }
 .ec-realities .stay:focus-visible { outline: 2px solid #cdb4ff; outline-offset: 3px; }
+/* Held a moment before anything can be picked (lockMs: after the
+   revelation, user: taps still coming from the scene picked a world before
+   the words above had been read): the choices dim and the taps go nowhere,
+   a hairline under the words filling until they're live. */
+.ec-realities ul, .ec-realities .stay { transition: opacity 0.9s ease, filter 0.9s ease; }
+.ec-realities.locked ul, .ec-realities.locked .stay { pointer-events: none; opacity: 0.32; filter: saturate(0.4); }
+.ec-realities .hold { width: min(60vw, 240px); height: 1px; margin: -12px 0 20px; background: rgba(205,180,255,0.18); overflow: hidden; }
+.ec-realities .hold i { display: block; height: 100%; width: 100%; background: rgba(205,180,255,0.75); transform-origin: left; transform: scaleX(0); }
+.ec-realities.locked .hold i { animation: ecRealHold var(--hold-ms, 3500ms) linear forwards; }
+.ec-realities:not(.locked) .hold { opacity: 0; transition: opacity 0.6s ease; }
+@keyframes ecRealHold { to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .ec-realities, .ec-realities li button { transition: none; } }
 `;
 
 /* The menu. `current`: the Nova place you're in (marked "You are here");
    onPick(world); onStay() for "Stay here" (and Escape). `title` / `sub`
    say what it is. Returns { el, close }. */
-export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", stayLabel = "Stay in the den" } = {}) {
+export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", stayLabel = "Stay in the den", lockMs = 0 } = {}) {
   if (typeof document === "undefined") return { el: null, close() {} };
   if (!document.querySelector("style[data-ec-realities]")) {
     const st = document.createElement("style"); st.setAttribute("data-ec-realities", ""); st.textContent = CSS; document.head.appendChild(st);
@@ -84,15 +95,23 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     txt.append(name, line);
     if ((current && w.nova === current) || (currentId && w.id === currentId)) { const here = document.createElement("span"); here.className = "here"; here.textContent = "You are here"; txt.append(here); }
     b.append(shot, txt);
-    b.onclick = () => { close(); if (onPick) onPick(w); };
+    b.onclick = () => { if (locked) return; close(); if (onPick) onPick(w); };
     li.append(b); ul.append(li);
   });
   const stay = document.createElement("button");
   stay.type = "button"; stay.className = "stay"; stay.textContent = stayLabel;
   stay.setAttribute("data-testid", "realities-stay");
-  stay.onclick = () => { close(); if (onStay) onStay(); };
-  el.append(h, p, ul, stay);
-  const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); if (onStay) onStay(); } };
+  stay.onclick = () => { if (locked) return; close(); if (onStay) onStay(); };
+  let locked = lockMs > 0;
+  if (locked) {
+    el.classList.add("locked");
+    el.setAttribute("data-locked", "true");
+    el.style.setProperty("--hold-ms", `${lockMs}ms`);
+    setTimeout(() => { locked = false; el.classList.remove("locked"); el.setAttribute("data-locked", "false"); }, lockMs);
+  }
+  const hold = document.createElement("div"); hold.className = "hold"; hold.setAttribute("aria-hidden", "true"); hold.appendChild(document.createElement("i"));
+  el.append(h, p, ...(lockMs > 0 ? [hold] : []), ul, stay);
+  const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (locked) return; close(); if (onStay) onStay(); } };
   window.addEventListener("keydown", onKey, true);
   document.body.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("on")));
