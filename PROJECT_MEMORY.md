@@ -4924,8 +4924,8 @@ phone menu until "Start the story over" (which clears it).
     sphere opens, before marking it; singularityFirstVisit). After 25 s
     with no pointer/key/wheel (window.__EC_TEST_LOST_MS__ for tests):
     html.ec-lost-urge (Back: full opacity, ecLostThrob) and the card
-    (.ec-lost, testid singularity-lost): "Wait… where am I?" / "My hand.
-    It's coming apart into lines." / "I can see straight through it…";
+    (.ec-lost, testid singularity-lost): "Wait… where am I?" / "My hand......!   Wha.........?!"
+    (user's words) / "I can see straight through it…";
     the user's own wireframe hand (assets/neon/lost-hand-wire.webp, cut
     from their picture by tools/lost_hand.py: cropped, black to alpha,
     recoloured toward the sphere's cyan; lost-hand-skin.webp, the same

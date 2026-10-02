@@ -3340,7 +3340,8 @@ function LostNudge({ stage, onExit }) {
   if (!card) return null;
   return h("div", { className: "ec-lost", "data-testid": "singularity-lost", role: "dialog", "aria-label": "Lost in the Singularity", onPointerDown: (e) => e.stopPropagation() },
     h("div", { className: "l1" }, "Wait… where am I?"),
-    h("div", { className: "l2" }, "My hand. It's coming apart into lines."),
+    // (user's words, spacing and all)
+    h("div", { className: "l2", style: { whiteSpace: "pre-wrap" } }, "My hand......!   Wha.........?!"),
     h("div", { className: "l3" }, "I can see straight through it…"),
     h("div", { className: "row" },
       h("div", { className: "hand", "aria-hidden": "true" },
