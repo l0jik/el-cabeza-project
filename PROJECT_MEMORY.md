@@ -5069,3 +5069,30 @@ phone menu until "Start the story over" (which clears it).
     switches to MATTER only if still on LAWS with the warning standing.
   - tests/e2e-pivot-guide.mjs (Tienda, gate, Lluvia); e2e-singularity
     (Neon: flash, over to MATTER, the three last and lit).
+
+### The closed Big Glutts: a slower look, three steps back, the getaway (2026-10-02)
+  - User: at the closed store the pan should start 2 s later, go slower
+    and all the way right; going back left it should tilt up a little and
+    push back, as 2-3 steps backwards, then the protagonist heard running
+    for the car and speeding away. Their recordings: footsteps on debris
+    (assets/den/src/steps-on-debris.mp3), a car door opened and shut
+    (car-door-open-close.mp3).
+  - den-trip.js T: sweep [12200, 24800] (was 10200-20800), the picture's
+    point cx 0.3 -> 1.0 (clamped: the far right edge). The old "rise" is
+    now the steps: footfalls at 25600, 27400, 29200, each a third of the
+    way back (left, up to cy 0.4, out to zoom 1) over [f-450, f+650],
+    eased, with a small dip as the foot lands. say2 [30400, 34000]; the
+    run [32700, 35600]: a quick turn to the right (+0.55 cx, +0.12 zoom),
+    a canvas blur peaking mid-turn, bobbing at ~3 steps/s; blackOut
+    [33100, 35500]; home 44000 (was 33300), fadeHome [44300, 47500].
+    Wind runs on 2 s into the black.
+  - tools/den_trip_escape.py -> assets/den/trip-escape.mp3 (dist
+    el-cabeza-den-trip-escape.mp3), one track started at TRACK_AT 25500 so
+    nothing drifts: three isolated crunches (source 10.11, 24.00, 34.07 s;
+    0.92x, heavier) at 0.1/1.9/3.7 s; the run (source 116.95-119.55 +
+    122.0-123.05, ~0.2 s a step, slowing) at 7.3; the door (handle, yanked
+    open, slammed) at 10.9; the car (car-start-drive-away.mp3 3.9-7.4 and
+    9.3-14.2 at 1.15x) from 12.6, a made tyre squeal at the pull-away,
+    darker and gone by ~19.9. No track: the made driveAway in the black.
+  - e2e-story: the getaway recording loaded; the steps 100 ms after the
+    track and 1.8 s apart.

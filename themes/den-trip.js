@@ -6,8 +6,12 @@
    past it (the user's picture, assets/den/trip/glutts-day.jpg).
    "What the...!??" The scene starts to warp and merge into the same
    place at a burning dusk with the Singularity's black sphere in the sky
-   (glutts-dusk.jpg); nearly there: "Time to get the heck out of here!"
-   Black again, and back home: the den, in the Room view.
+   (glutts-dusk.jpg); three slow steps backwards, the camera taking each
+   one (back, up and out, as the sphere comes into view); "Time to get the
+   heck out of here!"; a turn, and in the black the run for the car, the
+   door, the engine, away hard (the user's recordings, one track timed to
+   the first step: trip-escape.mp3, tools/den_trip_escape.py). Then home:
+   the den, in the Room view.
 
    den-fx.js makes it (createTrip) and starts it from den-call.js's card
    (onTrip). The pictures are files beside the page (build/build.js). The
@@ -24,24 +28,29 @@ const DUSK_URL = "el-cabeza-trip-dusk.jpg";
 // the engine off, the door; tools/den_car_arrive.py; from T.arrive).
 // driveAway / arrive below stand in until they're loaded, or if they
 // can't be.
-const CAR_URLS = { away: "el-cabeza-den-car-away.mp3", arrive: "el-cabeza-den-car-arrive.mp3" };
+const CAR_URLS = { away: "el-cabeza-den-car-away.mp3", arrive: "el-cabeza-den-car-arrive.mp3", escape: "el-cabeza-den-trip-escape.mp3" };
 const CAR_LEVEL = 0.9;
 
 // The timeline (ms from the card starting to fade).
-// (All of it 1.75 times as long as it was, user: it went by too fast.)
+// (All of it 1.75 times as long as it was, user: it went by too fast. Then
+// the user again: the pan along the store 2 s later and slower, all the
+// way to the right; the steps back; the run for the car.)
 const T = {
   blackIn: [1500, 6400],     // to black, the car pulling away (sooner and slower, user: it hovered on the board too long; den-fx.js pulls the camera back meanwhile)
   arrive: 9800,              // the car coming in (heard through the fade-in)
   fadeUp: [10200, 17000],    // up from black onto the store
-  sweep: [10200, 20800],     // the look round: from the whole storefront, in close and along it
-  rise: [20500, 30800],      // then up and out, to the sky and the sphere behind the building
-  say1: [17500, 23100],      // "What the...!??"
-  morph: [20300, 28700],     // into dusk, the sphere in the sky
-  say2: [26600, 31200],      // "Time to get the heck out of here!"
-  blackOut: [30500, 33100],  // to black
-  home: 33300,               // the den, the Room view
-  fadeHome: [33600, 36800],  // up from black, home
+  sweep: [12200, 24800],     // the look round: from the whole storefront, in close and along it, all the way right
+  say1: [18800, 24400],      // "What the...!??"
+  morph: [23400, 31500],     // into dusk, the sphere in the sky
+  steps: [25600, 27400, 29200], // three steps backwards (the footfalls): back, up and out, toward the sphere
+  say2: [30400, 34000],      // "Time to get the heck out of here!"
+  run: [32700, 35600],       // a turn, and running for the car
+  blackOut: [33100, 35500],  // to black (the run, the door, the engine, away: heard)
+  home: 44000,               // the den, the Room view
+  fadeHome: [44300, 47500],  // up from black, home
 };
+// The escape track starts here: its first step lands 0.1 s in (T.steps[0]).
+const TRACK_AT = 25500;
 const LINES = ["What the…!??", "Time to get the heck out of here!"];
 
 const CSS = `
@@ -70,7 +79,7 @@ export function createTrip({ audio, onReturn }) {
   let root = null, canvas = null, g = null, black = null, says = [], raf = 0, t0 = 0, stage = "idle", returned = false;
   const imgs = { day: null, dusk: null };
   let nodes = [], timers = [], pinned = null;
-  const cars = { away: {}, arrive: {} }; // each { buf, loading, el, src }
+  const cars = { away: {}, arrive: {}, escape: {} }; // each { buf, loading, el, src }
   const later = (ms, fn) => { timers.push(setTimeout(fn, ms)); };
 
   function load() {
@@ -265,15 +274,19 @@ export function createTrip({ audio, onReturn }) {
     const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   }
-  /* One frame. The camera: first the whole storefront, then in close and
-     along it, to the right, down to eye level (taking it in); then, as the
-     day turns to dusk and the sphere comes through behind the building,
-     it tilts up and pulls back, slow and wide, until the sphere looms
-     over the store. (Framing in the picture's own terms: a zoom over
-     "cover the screen", and the point of the picture at the screen's
-     middle; kept inside the picture.) The dusk picture comes through the
-     day one in wavering bands, the day one wavering out; both are the
-     same place from the same spot, so they line up. */
+  /* One frame. The camera: first the whole storefront (held a while), then
+     in close and along it, slowly, all the way to the right, down to eye
+     level (taking it in); then, as the day turns to dusk and the sphere
+     comes through behind the building, three steps backwards, each its
+     own move (back to the left, up and out: the camera is the one
+     stepping, a little dip as each foot lands), until the sphere looms
+     over the store; then a turn away, quick and blurred and bobbing, as
+     the run for the car starts and it goes to black. (Framing in the
+     picture's own terms: a zoom over "cover the screen", and the point of
+     the picture at the screen's middle; kept inside the picture.) The
+     dusk picture comes through the day one in wavering bands, the day one
+     wavering out; both are the same place from the same spot, so they
+     line up. */
   function draw(now) {
     if (!g || !imgs.day || !imgs.day.complete) return;
     size();
@@ -282,18 +295,27 @@ export function createTrip({ audio, onReturn }) {
     const iw = imgs.day.naturalWidth || 1312, ih = imgs.day.naturalHeight || 597;
     const cover = Math.max(W / iw, H / ih);
     const sw = sm(span(t, T.sweep));
-    const ri = span(t, T.rise), r = ri * ri * ri * (ri * (ri * 6 - 15) + 10); // (smoother still: slow out, slow in)
+    // The steps back: a third of the way each, eased; the dip as it lands.
+    let back = 0, dip = 0;
+    T.steps.forEach((f) => { const k = span(t, [f - 450, f + 650]); back += sm(k) / 3; dip += Math.sin(Math.PI * k); });
     // (A tall screen already crops the picture's sides: less zoom there.)
-    // (User: zoomed out at first, then zoom and pan.) The whole storefront
-    // as it fades up; then in, closer, and along it to the right; then
-    // up and out again. (A tall screen already crops the sides: less zoom.)
     const tall = W < H, zs = tall ? 1.18 : 1.5;
-    const zoom = 1 + (zs - 1) * sw - (zs - 1) * r;
-    let cx = 0.36 + 0.46 * sw, cy = 0.5 + 0.14 * sw;        // from the middle, in and along the front, down to eye level
-    cx += ((tall ? 0.3 : 0.36) - cx) * r; cy += (0.4 - cy) * r; // up, and toward the sphere
+    let zoom = 1 + (zs - 1) * sw - (zs - 1) * back;
+    let cx = 0.3 + 0.7 * sw, cy = 0.5 + 0.14 * sw;           // from the middle, in and along the front, all the way right, down to eye level
+    cx += ((tall ? 0.3 : 0.36) - cx) * back; cy += (0.4 - cy) * back; // stepping back: left, up, out
+    cy += 0.012 * dip;
+    // The turn and the run: away to the right, quick, bobbing, blurred.
+    const ru = span(t, T.run), turn = sm(Math.min(1, ru * 2.2));
+    if (ru > 0 && ru < 1) {
+      cx += 0.55 * turn;
+      zoom += 0.12 * turn;
+      cy += 0.014 * Math.sin((t - T.run[0]) / 330 * 2 * Math.PI) * turn;
+    }
     const s = cover * zoom, dw = iw * s, dh = ih * s;
     const x = Math.min(0, Math.max(W - dw, W / 2 - cx * dw));
     const y = Math.min(0, Math.max(H - dh, H / 2 - cy * dh));
+    const blurPx = ru > 0 && ru < 1 ? Math.round(10 * Math.sin(Math.PI * Math.min(1, ru * 2.2)) * (W / 1000)) : 0;
+    if ("filter" in g) g.filter = blurPx > 0 ? `blur(${blurPx}px)` : "none";
     const m = sm(span(t, T.morph));
     const wob = Math.sin(Math.PI * m); // the warp: none at either end, most in the middle
     const band = Math.max(3, Math.round(H / 140));
@@ -312,6 +334,7 @@ export function createTrip({ audio, onReturn }) {
     layer(imgs.day, 1, 0);
     layer(imgs.dusk, m, 2.1);
     g.globalAlpha = 1;
+    if ("filter" in g) g.filter = "none";
     // A darkening and a vignette as it turns.
     const vg = g.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.2, W / 2, H * 0.5, Math.max(W, H) * 0.75);
     vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, `rgba(0,0,0,${0.35 + 0.25 * m})`);
@@ -366,13 +389,17 @@ export function createTrip({ audio, onReturn }) {
         if (!car("away", o, ct)) driveAway(o, ct);
         later(T.blackIn[0], () => audio && audio.awayFromDen && audio.awayFromDen(true, (T.blackIn[1] - T.blackIn[0]) / 1000));
         if (!car("arrive", o, at(T.arrive))) arrive(o, at(T.arrive));
-        wind(o, at(T.arrive + 1500), (T.blackOut[1] - T.arrive - 1500) / 1000);
+        // The steps back, the run, the door, the car away (one track); if
+        // it isn't here, the made car's leaving, in the black.
+        if (!car("escape", o, at(TRACK_AT))) driveAway(o, at(T.blackOut[1] + 2500));
+        // (The wind still there under the run.)
+        wind(o, at(T.arrive + 1500), (T.blackOut[1] + 2000 - T.arrive - 1500) / 1000);
         drone(o, at(T.morph[0]), (T.blackOut[1] - T.morph[0]) / 1000);
       } else later(T.blackIn[0], () => audio && audio.awayFromDen && audio.awayFromDen(true));
       raf = requestAnimationFrame(frame);
       return true;
     },
-    state: () => ({ stage, t: stage === "idle" ? 0 : performance.now() - t0, car: carReady("away") ? "recording" : null, arrival: carReady("arrive") ? "recording" : null }),
+    state: () => ({ stage, t: stage === "idle" ? 0 : performance.now() - t0, car: carReady("away") ? "recording" : null, arrival: carReady("arrive") ? "recording" : null, escape: carReady("escape") ? "recording" : null, steps: T.steps.slice(), trackAt: TRACK_AT }),
     // Test-only: hold it at ms in (starting it if need be), or null to go on.
     pin(ms) { if (stage === "idle") this.start(); pinned = ms; },
     dispose() {

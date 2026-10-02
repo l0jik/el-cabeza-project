@@ -22,6 +22,9 @@ const DEN_RECORDS = {
   "el-cabeza-den-call-voice.mp3": "assets/den/call-voice.mp3",
   "el-cabeza-den-car-away.mp3": "assets/den/car-away.mp3",
   "el-cabeza-den-car-arrive.mp3": "assets/den/car-arrive.mp3",
+  // (Getting out of the closed store: the steps back, the run, the door,
+  // the car away; tools/den_trip_escape.py.)
+  "el-cabeza-den-trip-escape.mp3": "assets/den/trip-escape.mp3",
   // The trip back to Big Glutts after the call (den-trip.js; the user's pictures).
   "el-cabeza-trip-day.jpg": "assets/den/trip/glutts-day.jpg",
   "el-cabeza-trip-dusk.jpg": "assets/den/trip/glutts-dusk.jpg",
