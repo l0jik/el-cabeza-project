@@ -4870,3 +4870,12 @@ phone menu until "Start the story over" (which clears it).
   - rules-selections smoke: every PIECE_META type is offered; a mix of
     all three sets out; an old save migrates. e2e-gate (13 pictures, the
     three rows), e2e-tienda, e2e-singularity updated.
+  - Pictures for every piece, in every menu (user): the gate's sheet
+    (13, themed), Tienda's order form (a wood photograph per line), Neon's
+    MATTER (a 3D still per row) already had all three Arcos once they were
+    rows; Lluvia's city MATTER showed only a sign, so its rows now carry
+    the city's own picture of each piece (reality-gate.js piecePicture /
+    piecePicturesReady, made from lluvia.js's buildPieceVisual, passed in
+    as pieceLook), the sign in the corner. Tests check the pictures in
+    each (e2e-gate 13, e2e-lluvia 13, e2e-tienda the three Arcos,
+    e2e-singularity three different stills).

@@ -359,6 +359,8 @@ export function renderExtraOverlays(x) {
     sel: x.selRef.current,
     onSelChange: (s) => { x.selRef.current = s; },
     onClose: x.closeOverlay,
+    // (Each piece as the city draws it, for the MATTER rows.)
+    pieceLook: { buildPieceVisual, EDGE_RADIUS },
   });
 }
 

@@ -465,6 +465,7 @@ check("the Arco Chico, Alto and Ancho rows start at 0, with no size switch and n
     !("arcoSize" in state.selections.matter) && (await page.locator('[data-testid="arco-size"]').count()) === 0 &&
     (await page.locator('[data-testid="matter-piece-arch"]').count()) === 0,
   JSON.stringify(state.selections.matter));
+check("...each with its own 3D still", (await page.locator('[data-testid="matter-row-arcoChico"] img, [data-testid="matter-row-arcoAlto"] img, [data-testid="matter-row-arcoAncho"] img').evaluateAll((els) => new Set(els.map((e) => e.getAttribute("src")).filter((v) => v && v.startsWith("data:image"))).size)) === 3);
 await page.locator('[data-testid="roster-arcoAlto-inc"]').click();
 await page.waitForTimeout(120);
 state = await sphereState();

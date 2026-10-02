@@ -321,6 +321,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await press('[data-testid="tienda-piece-arcoAncho-inc"]');
   await page.waitForTimeout(300);
   check("...ordered side by side, each with its own photograph", (await txt('[data-testid="tienda-piece-arcoAlto"] output')) === "1" && (await txt('[data-testid="tienda-piece-arcoAncho"] output')) === "1" && (await attr('[data-testid="tienda-view-arcoAlto"]', "data-type")) === "arcoAlto");
+  check("...and each of the three has its photograph", (await page.locator('[data-testid="tienda-view-arcoChico"] img, [data-testid="tienda-view-arcoAlto"] img, [data-testid="tienda-view-arcoAncho"] img').evaluateAll((els) => els.filter((e) => (e.getAttribute("src") || "").startsWith("data:image")).length)) === 3);
   await press('[data-testid="tienda-piece-arcoAncho-dec"]');
   await press('[data-testid="tienda-view-arcoAlto"]');
   await page.waitForTimeout(1200);

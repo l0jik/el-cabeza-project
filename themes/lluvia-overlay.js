@@ -24,7 +24,7 @@ import React from "react";
 import { PIECE_OPTIONS, LAW_OPTIONS, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings } from "./rules-selections.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
-import { storyOver, openRealityGate } from "./reality-gate.js";
+import { storyOver, openRealityGate, piecePicture, piecePicturesReady } from "./reality-gate.js";
 
 const h = React.createElement;
 const PINK = "#ff3dbb", CYAN = "#23e6ff", AMBER = "#ffb347";
@@ -60,8 +60,16 @@ const ICON = {
 const column = { position: "absolute", left: "50%", transform: "translateX(-50%)", width: "min(100%, 460px)", boxSizing: "border-box" };
 const termButton = (extra) => ({ height: 38, background: "rgba(255,179,71,0.08)", border: "1px solid rgba(255,179,71,0.5)", borderRadius: 3, color: "#ffcf8a", font: "400 22px 'VT323', monospace", cursor: "pointer", ...extra });
 
-function Panel({ panel, sel, change, onClose, sound }) {
+function Panel({ panel, sel, change, onClose, sound, pieceLook }) {
   const total = totalOf(sel);
+  // Each piece pictured as the city draws it (made once, a beat after the
+  // panel opens; the sign stands in till then).
+  const [, setPics] = React.useState(0);
+  React.useEffect(() => {
+    if (panel !== "matter" || !pieceLook) return undefined;
+    const id = setTimeout(() => { if (piecePicturesReady("lluvia", pieceLook)) setPics((n) => n + 1); }, 120);
+    return () => clearTimeout(id);
+  }, [panel]);
   const title = { matter: ["MATTER", "物質", CYAN, "#e6fdff"], laws: ["LAWS", "法則", PINK, "#fff0fa"], topologies: ["TOPOLOGIES", "位相", AMBER, "#fff4e0"] }[panel];
   let body;
   if (panel === "matter") {
@@ -71,8 +79,11 @@ function Panel({ panel, sel, change, onClose, sound }) {
       ...PIECES.map(([k, name, sign, min, max]) => {
         const n = sel.counts[k];
         const set = (v) => { sound("key"); change((s) => { s.counts[k] = Math.max(min, Math.min(max, v)); }); };
-        return h("div", { key: k, "data-testid": `lluvia-matter-${k}`, style: { display: "grid", gridTemplateColumns: "30px minmax(0, 1fr) 44px 30px 44px", alignItems: "center", gap: 6, minHeight: 46, borderBottom: "1px solid rgba(255,179,71,0.12)", color: n ? "#ffe2b0" : "#8a6a3e" } },
-          h("span", { style: { fontFamily: JP, fontSize: 17, color: CYAN } }, sign),
+        const pic = piecePicture("lluvia", k);
+        return h("div", { key: k, "data-testid": `lluvia-matter-${k}`, style: { display: "grid", gridTemplateColumns: "58px minmax(0, 1fr) 44px 30px 44px", alignItems: "center", gap: 6, minHeight: 50, borderBottom: "1px solid rgba(255,179,71,0.12)", color: n ? "#ffe2b0" : "#8a6a3e" } },
+          h("span", { style: { position: "relative", width: 58, height: 44, display: "flex", alignItems: "center", justifyContent: "center" } },
+            pic ? h("img", { src: pic, alt: "", "data-testid": `lluvia-pic-${k}`, style: { width: 58, height: 44, objectFit: "contain", filter: n ? "none" : "saturate(0.6) brightness(0.8)" } }) : null,
+            h("span", { style: { position: pic ? "absolute" : "static", right: -2, bottom: -2, fontFamily: JP, fontSize: pic ? 12 : 17, color: CYAN, textShadow: "0 0 4px #000" } }, sign)),
           h("span", { style: { fontSize: 22 } }, name),
           h("button", { type: "button", "aria-label": `Fewer ${name}`, "data-testid": `lluvia-matter-${k}-dec`, onClick: () => set(n - 1), style: termButton() }, "−"),
           h("span", { style: { textAlign: "center", fontSize: 24, color: "#fff27a" } }, String(n)),
@@ -144,7 +155,7 @@ function Panel({ panel, sel, change, onClose, sound }) {
 
 const CAPTIONS = { clouds: "Above the clouds, the air is still clean.", below: "Below them, it never stops raining.", street: "Down here, every rule has a price." };
 
-export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose }) {
+export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose, pieceLook = null }) {
   const canvasRef = React.useRef(null);
   const ctlRef = React.useRef(null);
   const [phase, setPhase] = React.useState(start === "city" ? "city" : "ready");
@@ -242,7 +253,7 @@ export function LluviaOverlay({ start, x, sel: initialSel, onSelChange, onClose 
       h("button", { type: "button", "data-testid": "lluvia-begin", disabled: tooMany, onClick: begin, style: { height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 22px", border: `2px solid ${AMBER}`, borderRadius: 4, background: "rgba(255,179,71,0.12)", color: AMBER, cursor: tooMany ? "not-allowed" : "pointer", opacity: tooMany ? 0.5 : 1, boxShadow: "0 0 22px rgba(255,179,71,0.35)" } },
         h("span", { style: { fontFamily: SAIRA_X, fontWeight: 800, fontSize: 26, letterSpacing: "0.12em" } }, tooMany ? "TOO MANY PIECES" : "BEGIN THE GAME"), ICON.arrow)),
     panel && h("div", { style: { position: "absolute", inset: 0, pointerEvents: "auto" }, onPointerDown: closePanel },
-      h(Panel, { panel, sel, change, onClose: closePanel, sound })));
+      h(Panel, { panel, sel, change, onClose: closePanel, sound, pieceLook })));
 
   return h("div", {
     "data-testid": "lluvia-overlay",

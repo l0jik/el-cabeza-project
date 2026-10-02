@@ -46,6 +46,9 @@ await shot(page, "3-city");
 await page.locator('[data-testid="lluvia-open-matter"]').click();
 await page.waitForTimeout(300);
 check("MATTER opens its panel", (await page.locator('[data-testid="lluvia-panel-matter"]').count()) === 1);
+// Every piece pictured as the city draws it, each Arco size its own row.
+check("...every piece pictured (13, each Arco size its own row)", !!(await (async () => { for (let i = 0; i < 40; i++) { const n = await page.locator('[data-testid^="lluvia-pic-"]').evaluateAll((els) => els.filter((e) => (e.getAttribute("src") || "").startsWith("data:image/png")).length); if (n === 13) return true; await page.waitForTimeout(150); } return false; })()));
+check("...the Arco Chico, Alto and Ancho each with a picture", (await page.locator('[data-testid="lluvia-pic-arcoChico"]').count()) === 1 && (await page.locator('[data-testid="lluvia-pic-arcoAlto"]').count()) === 1 && (await page.locator('[data-testid="lluvia-pic-arcoAncho"]').count()) === 1);
 await page.locator('[data-testid="lluvia-matter-rayo-inc"]').click();
 await page.waitForTimeout(150);
 check("...a Rayo is added (6 pieces)", (await page.locator('[data-testid="lluvia-matter-total"]').textContent()).startsWith("6 /"));

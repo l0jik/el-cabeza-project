@@ -385,6 +385,9 @@ function piecePictures(world, look, types) {
     if (renderer) { renderer.dispose(); renderer.forceContextLoss(); }
   }
 }
+// (Other menus' rows use them too: Lluvia's city.)
+export const piecePicture = (world, type) => pictures.get(`${world}|${type}`) || null;
+export const piecePicturesReady = (world, look) => piecePictures(world, look, PICTURE_TYPES) || PICTURE_TYPES.every((t) => !POSES[t] || pictures.has(`${world}|${t}`));
 const PICTURE_TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "codo", "arcoChico", "arcoAlto", "arcoAncho", "rayo", "zeta"];
 
 /* ------------------------------------------------------------ the sheet */
