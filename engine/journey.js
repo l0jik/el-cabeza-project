@@ -28,7 +28,7 @@ let seenThisVisit = false;
    what happens in memory only, so the player's real journey (stored) is
    neither read nor changed. */
 let preview = false;
-export function journeyPreview() { preview = true; seenThisVisit = false; airedThisVisit = false; }
+export function journeyPreview() { preview = true; seenThisVisit = false; airedThisVisit = false; notedThisVisit = false; }
 
 export function singularitySeen() {
   if (seenThisVisit) return true;
@@ -61,8 +61,21 @@ export const SPECIAL_ORDER_NOTED_KEY = "el-cabeza:special-order-noted";
 export const COMMERCIAL_AIRED_KEY = "el-cabeza:commercial-aired";
 export function forgetSingularity() {
   seenThisVisit = false;
+  notedThisVisit = false;
   try { [SINGULARITY_SEEN_KEY, SPECIAL_ORDER_NOTED_KEY, COMMERCIAL_AIRED_KEY].forEach((k) => localStorage.removeItem(k)); } catch (e) { /* nothing kept */ }
   announce();
+}
+// The catalog's note that special orders are open (tienda-overlay.js),
+// seen; a preview keeps it in memory only.
+let notedThisVisit = false;
+export function specialOrderNoted() {
+  if (notedThisVisit) return true;
+  if (preview) return false;
+  try { return !!localStorage.getItem(SPECIAL_ORDER_NOTED_KEY); } catch (e) { return true; }
+}
+export function markSpecialOrderNoted() {
+  notedThisVisit = true;
+  if (!preview) try { localStorage.setItem(SPECIAL_ORDER_NOTED_KEY, "1"); } catch (e) { /* this visit, then */ }
 }
 let airedThisVisit = false;
 export function commercialAired() {

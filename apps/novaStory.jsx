@@ -18,13 +18,21 @@ import React, { useEffect, useRef, useState } from "react";
 
 export const STORY_KEY = "el-cabeza:story";
 
+/* A preview (Nova's ?scene=summons, with engine/journey.js's): the story
+   reads as the first trip (bought, not over, the store still there),
+   whatever the player's own record says, and everything written is kept
+   in memory only (user: an order stamped there went to a store that
+   thought the story long over, and no clerk came). */
+let previewRec = null;
+export function storyPreview() { previewRec = { owned: true }; }
+function stored() {
+  if (previewRec) return previewRec;
+  try { return JSON.parse(localStorage.getItem(STORY_KEY) || "null"); } catch (e) { return null; }
+}
+
 export function readOwned() {
-  try {
-    const s = JSON.parse(localStorage.getItem(STORY_KEY) || "null");
-    return !!(s && s.owned);
-  } catch (e) {
-    return false;
-  }
+  const s = stored();
+  return !!(s && s.owned);
 }
 
 /* After the whole story (the Singularity seen), a trip back to the store
@@ -32,12 +40,8 @@ export function readOwned() {
    "Go home, confused." From then until the story starts over, there's no
    way back to the store (storeGone). */
 export function readStoreGone() {
-  try {
-    const s = JSON.parse(localStorage.getItem(STORY_KEY) || "null");
-    return !!(s && s.storeGone);
-  } catch (e) {
-    return false;
-  }
+  const s = stored();
+  return !!(s && s.storeGone);
 }
 let storeGoneThisVisit = false;
 export function saveStoreGone() {
@@ -57,10 +61,11 @@ export function forgetStoreGone() { storeGoneThisVisit = false; }
    story starts over. */
 const storyThisVisit = {};
 function readStory() {
-  try { return JSON.parse(localStorage.getItem(STORY_KEY) || "null") || {}; } catch (e) { return {}; }
+  return stored() || {};
 }
 function patchStory(p) {
   Object.assign(storyThisVisit, p);
+  if (previewRec) { Object.assign(previewRec, p); return; }
   try { localStorage.setItem(STORY_KEY, JSON.stringify({ ...readStory(), ...p })); } catch (e) { /* this visit only */ }
 }
 export const hallDue = () => !!("hallDue" in storyThisVisit ? storyThisVisit.hallDue : readStory().hallDue);
@@ -74,6 +79,7 @@ export const saveHallFlares = (n) => patchStory({ hallFlares: n });
 export function forgetStoryEnd() { delete storyThisVisit.hallDue; delete storyThisVisit.ended; delete storyThisVisit.hallFlares; }
 
 export function saveOwned(owned) {
+  if (previewRec) { previewRec = owned ? { owned: true } : {}; return; }
   try {
     if (owned) localStorage.setItem(STORY_KEY, JSON.stringify({ owned: true }));
     else localStorage.removeItem(STORY_KEY);

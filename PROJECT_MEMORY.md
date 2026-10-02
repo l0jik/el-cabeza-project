@@ -5341,3 +5341,21 @@ phone menu until "Start the story over" (which clears it).
     room-view-corner, focus-corner (and action-corner) under it: opacity
     0.32, no shadow, pointer-events none. e2e-summon checks it on the way
     home from the sphere, and that they come back after.
+
+### The summons link now plays the whole first trip; the clerk always takes a stamped order (2026-10-02)
+  - User: filled out the order form, stamped "Take to store", landed in
+    Tienda, and no clerk. Likely via ?scene=summons: the journey preview
+    played the sphere as new, but the story's own record (a finished
+    story) still applied, so the den offered the guided order (seen, store
+    not gone) while the store's storeAfter() (owned, seen, NOT ended) was
+    false and the clerk never came.
+  - novaStory.jsx storyPreview(): the record reads as the first trip
+    ({owned: true}, not ended, store still there), writes in memory only;
+    called with journeyPreview() for ?scene=summons. The reality gate is
+    off in all three of Nova's places for it (reality-gate.js reads the
+    stored record itself). The special-order note's "seen" moved into
+    journey.js (specialOrderNoted / markSpecialOrderNoted, preview-aware).
+  - tienda-overlay.js: walking into the store with an order stamped at
+    home (orderInHand) always brings the clerk, whatever the record says.
+  - e2e-summon follows it through: home, the commercial, the note, the
+    order, Take to store, the clerk, the handover; nothing saved.

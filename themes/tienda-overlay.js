@@ -33,7 +33,7 @@ import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS
 import { ensurePaper, ensureAgedPaper } from "./tienda-textures.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
-import { singularitySeen, onJourneyChange, isCommercialOn, CLASSIC_PIECE_KEYS, SPECIAL_ORDER_NOTED_KEY } from "../engine/journey.js";
+import { singularitySeen, onJourneyChange, isCommercialOn, CLASSIC_PIECE_KEYS, specialOrderNoted, markSpecialOrderNoted } from "../engine/journey.js";
 
 /* The classic game's order (engine/journey.js: the extras wait for the
    Singularity's first visit): the five pieces only, no laws, no cut
@@ -163,15 +163,13 @@ export function useSetupExtras(x) {
   // (a tap on it: the order form), and only then is it remembered as seen.
   React.useEffect(() => {
     if (!specialOpen || adOn) return undefined;
-    let noted = true;
-    try { noted = !!localStorage.getItem(SPECIAL_ORDER_NOTED_KEY); } catch (e) { /* no storage: no note */ }
-    if (noted) return undefined;
+    if (specialOrderNoted()) return undefined;
     setSpecialNote(true);
     return () => setSpecialNote(false);
   }, [specialOpen, adOn]);
   const dismissSpecialNote = React.useCallback(() => {
     setSpecialNote(false);
-    try { localStorage.setItem(SPECIAL_ORDER_NOTED_KEY, "1"); } catch (e) { /* this visit, then */ }
+    markSpecialOrderNoted();
   }, []);
   React.useEffect(() => {
     if (!specialNote) return undefined;
@@ -335,7 +333,9 @@ export function useSetupExtras(x) {
     // Back after the whole story there's no game here to play: the clerk
     // comes over on his own a moment after you walk in (once the scene
     // change has faded up).
-    const auto = story.after && story.after() && !confusedAtClerk ? setTimeout(onClerk, 3200) : null;
+    // (And always when you walk in with a special order stamped at home:
+    // that trip is for him, whatever else the story's record says.)
+    const auto = ((story.after && story.after()) || orderInHand) && !confusedAtClerk ? setTimeout(onClerk, 3200) : null;
     return () => { window.removeEventListener("el-cabeza:clerk", onClerk); if (auto) clearTimeout(auto); };
   }, []);
   React.useEffect(() => { ensurePaper(); ensureAgedPaper(); }, []);

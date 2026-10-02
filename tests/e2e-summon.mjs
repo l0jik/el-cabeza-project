@@ -261,7 +261,7 @@ console.log("the link straight to it (?scene=summons): Begin Game doesn't skip t
   await page.mouse.click(60, 700);
   await page.waitForTimeout(1500);
   check("...another: still there, nothing opened behind it", (await lostCard(page).count()) === 1 && (await page.locator('[data-testid="category-overlay"]').count()) === 0);
-  const wrote = await page.evaluate(() => window.__WROTE__.filter((k) => /singularity-seen|commercial-aired|special-order/.test(k)));
+  const wrote = await page.evaluate(() => window.__WROTE__.filter((k) => /singularity-seen|commercial-aired|special-order|el-cabeza:story/.test(k)));
   check(`...and none of it saved (${wrote.join(", ") || "nothing"})`, wrote.length === 0);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
@@ -275,6 +275,21 @@ console.log("the link straight to it: left alone, a menu opens by itself and com
   check("...then the hand", !!(await poll(async () => (await lostCard(page).count()) > 0, 8000)));
   await lostCard(page).click();
   check("\"I want out of here\": home", !!(await poll(() => page.evaluate(() => !!window.__DEN_TV__), 30000)));
+  // Home from a finished story, the link still plays the first trip: the
+  // commercial, the special order, and at the store the clerk (user: the
+  // stamped order went to a store that thought the story was over).
+  const q = (id) => page.locator(`[data-testid="${id}"]`);
+  check("...the special order note, after the commercial", !!(await poll(async () => (await q("tienda-special-note").count()) > 0, 90000)));
+  await q("tienda-special-note").click();
+  check("...the order form", !!(await poll(async () => (await q("tienda-order").count()) > 0, 8000)));
+  await q("tienda-piece-turrito-inc").click();
+  await q("tienda-order-place").scrollIntoViewIfNeeded();
+  await q("tienda-order-place").click();
+  check("...stamped: Take to store", !!(await poll(async () => (await q("tienda-order-stamp").count()) > 0 && /Take to store/i.test(await q("tienda-order-stamp").innerText()), 3000)));
+  check("...at the store, the clerk comes over", !!(await poll(async () => (await q("tienda-clerk").count()) > 0, 40000)));
+  check("...and you hand over the order form", (await q("tienda-clerk-handover").count()) > 0);
+  const wrote = await page.evaluate(() => window.__WROTE__.filter((k) => /singularity-seen|commercial-aired|special-order|el-cabeza:story/.test(k)));
+  check(`...none of it saved (${wrote.join(", ") || "nothing"})`, wrote.length === 0);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
