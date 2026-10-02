@@ -1,12 +1,13 @@
 /* The Singularity's first visit in the story (LostNudge, neon-singularity.js):
-   the silence there isn't quite silence. A heartbeat, faint at first, and a
-   thin ringing in the ears, rising the more the player pokes around, at its
-   height when they see their own hand going to wireframe. Out through the
+   the silence there isn't quite silence at first. A heartbeat and a ringing
+   in the ears as the sphere comes up, gone again in about three seconds
+   (user: the ring with more reverb and lower, and both fading to silence
+   after about three seconds; the caller stops it). Out through the
    summons' way out (neon.js summonOutput: past the master the event horizon
    zeroes, at the interface channel's level, muted with everything else).
    Lub-dub thumps a phone's speaker can still carry (a falling 150 -> 52 Hz
-   body, not just sub-bass), and two close sines above 5 kHz beating slowly
-   for the ring.
+   body, not just sub-bass), and for the ring two close sines near 2.6 kHz
+   beating slowly (2.5 Hz), most of it heard through a long, dark room.
 
    createUnease(audio) -> { set(level 0..1), level(), stop(fadeS) } */
 
@@ -25,16 +26,29 @@ export function createUnease(audio) {
   bus.connect(dest);
   bus.gain.setTargetAtTime(1, ctx.currentTime, 0.6);
 
-  // The ring: two sines 6 Hz apart (a slow beating), barely there at first.
+  // The ring: two sines 2.5 Hz apart (a slow beating), lower than it was
+  // (5.2 kHz, 6 Hz apart), sent mostly into a 3.6 s room.
   const ringG = ctx.createGain(); ringG.gain.value = 0;
-  const rings = [5180, 5186].map((f) => {
+  const rings = [2640, 2642.5].map((f) => {
     const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
     const g = ctx.createGain(); g.gain.value = 0.5;
     o.connect(g).connect(ringG);
     o.start();
     return o;
   });
-  ringG.connect(bus);
+  const room = ctx.createConvolver();
+  {
+    const len = Math.floor(ctx.sampleRate * 3.6), ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch); let lp = 0;
+      for (let i = 0; i < len; i++) { lp = lp * 0.55 + (Math.random() * 2 - 1) * 0.45; d[i] = lp * Math.pow(1 - i / len, 2.4); }
+    }
+    room.buffer = ir;
+  }
+  const dry = ctx.createGain(); dry.gain.value = 0.35;
+  const wet = ctx.createGain(); wet.gain.value = 1.6;
+  ringG.connect(dry).connect(bus);
+  ringG.connect(room); room.connect(wet).connect(bus);
 
   const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 520; lp.Q.value = 0.8;
   lp.connect(bus);
@@ -74,8 +88,11 @@ export function createUnease(audio) {
       stopped = true;
       clearTimeout(timer);
       const t = ctx.currentTime;
+      // A straight ramp, so it's really silent at the end (the reverb's
+      // tail comes through the same bus).
       bus.gain.cancelScheduledValues(t);
-      bus.gain.setTargetAtTime(0, t, fadeS / 3);
+      bus.gain.setValueAtTime(bus.gain.value, t);
+      bus.gain.linearRampToValueAtTime(0, t + fadeS);
       setTimeout(() => {
         rings.forEach((o) => { try { o.stop(); } catch (e) { /* done */ } });
         try { bus.disconnect(); } catch (e) { /* gone */ }

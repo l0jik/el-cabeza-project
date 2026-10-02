@@ -5261,3 +5261,19 @@ phone menu until "Start the story over" (which clears it).
     the aura behind the piece from 0.92x to ~1.9x the piece and its pulse
     reaching further, the piece's own halo and Try a Game's glow wider and
     brighter. aura.dataset.grow for tests (__EC_TEST_NUDGE_GROW_MS__).
+
+### Singularity first visit: ring and heartbeat fade; no fingertips (2026-10-02)
+  - User: after the wormhole, at the sphere, "the ringing needs more
+    reverb, a slower frequency, and both it and the heartbeat need to fade
+    out to silence after about three seconds"; and "I don't like the
+    wireframe finger tap. We need to get rid of that."
+  - neon-unease.js: the ring is two sines at 2640/2642.5 Hz (was
+    5180/5186: lower, and beating at 2.5 Hz instead of 6), dry 0.35 plus a
+    3.6 s dark convolver room at 1.6; stop() ramps the bus linearly to 0
+    (reverb tail included). LostNudge starts it as the sphere comes up and
+    stops it at 1.6 s over 1.4 s: silent at 3.0 s, and it no longer climbs
+    with taps or time (set() after stop is a no-op).
+  - The fingertip each touch drew (.ec-tip, TIP_HTML) is gone, with its
+    image (assets/neon/lost-tip-wire.webp) and tools/lost_hand.py's lines
+    making it. Touches still count toward the menu coming apart.
+    e2e-summon checks no fingertip and that the sound stops by itself.

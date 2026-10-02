@@ -84,12 +84,6 @@ soft = blur(mask.astype(np.float32), 1.1)
 skin = np.dstack([skin_rgb, soft[..., None] * 255]).astype(np.uint8)
 Image.fromarray(skin, "RGBA").save("assets/neon/lost-hand-skin.webp", quality=86, method=6)
 
-# The fingertip: the index finger's end, turned to point up.
-fy, fx = np.where(lum_full[:, 1100:] > 0.25)
-tipx = 1100 + fx.max()
-tipy = int(np.median(fy[fx > fx.max() - 25]))
-crop = lum_full[tipy - 75:tipy + 75, tipx - 330:tipx + 12]
-tip = Image.fromarray(wire_rgba(crop), "RGBA").rotate(90, expand=True)
-tip = tip.resize((round(tip.width * 200 / tip.height), 200), Image.LANCZOS)
-tip.save("assets/neon/lost-tip-wire.webp", quality=86, method=6)
-print("hand", W, H, "tip", tip.size, "tip at", tipx, tipy)
+# (The fingertip each touch used to leave, lost-tip-wire.webp, was taken
+# out at the user's request; only the hand and its skin are made now.)
+print("hand", W, H)

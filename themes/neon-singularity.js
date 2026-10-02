@@ -40,7 +40,6 @@ import { markSingularitySeen, singularitySeen } from "../engine/journey.js";
 // (tools/lost_hand.py).
 import lostHandWireUrl from "../assets/neon/lost-hand-wire.webp";
 import lostHandSkinUrl from "../assets/neon/lost-hand-skin.webp";
-import lostTipWireUrl from "../assets/neon/lost-tip-wire.webp";
 import { createUnease } from "./neon-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
 
@@ -3392,10 +3391,10 @@ function BackButton({ onExit }) {
    (the Back button keeps throbbing). Once a visit.
 
    Before it, something going wrong (user picked three of the ideas): the
-   menus open and work, so they're known for menus; but every touch leaves
-   a wireframe fingertip where it landed, faint at first, plainer each time
-   (their body, before they see it); a heartbeat and a ringing in the
-   silence rise as they go on (neon-unease.js); and then the menu won't
+   menus open and work, so they're known for menus; a heartbeat and a
+   ringing as the sphere comes up, fading to silence in about three seconds
+   (neon-unease.js; user, who also had the wireframe fingertip each touch
+   used to leave taken out); and then the menu won't
    hold: its words scramble, its rows drift and tear, it flickers and folds
    shut by itself, and the card comes up. The unravelling comes at the
    first of: a menu open a few seconds (6 s), three taps inside menus,
@@ -3444,16 +3443,6 @@ html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !importan
   box-shadow: 0 0 12px rgba(102,217,255,0.4), inset 0 0 10px rgba(102,217,255,0.15); animation: ecLostPress 1.6s ease infinite 3.4s; }
 @keyframes ecLostPress { 0%, 30%, 70%, 100% { background: rgba(102,217,255,0.08); } 42%, 55% { background: rgba(102,217,255,0.32); box-shadow: 0 0 22px rgba(102,217,255,0.8), inset 0 0 14px rgba(102,217,255,0.4); } }
 .ec-lost button:hover, .ec-lost button:focus-visible { background: rgba(102,217,255,0.28); outline: none; }
-/* A touch's wireframe fingertip (the hand's own): the tip where it
-   landed, the finger running off toward the bottom right and fading out. */
-.ec-tip { position: fixed; z-index: 2300; width: 31px; height: 70px; margin: -3px 0 0 -15.5px; pointer-events: none; transform-origin: 50% 3px;
-  transform: rotate(-20deg); filter: drop-shadow(0 0 3px rgba(102,217,255,0.9));
-  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 96%); mask-image: linear-gradient(to bottom, #000 45%, transparent 96%);
-  animation: ecTip 1.25s ease-out forwards; }
-.ec-tip img { width: 100%; height: 100%; display: block; }
-.ec-tip.strong { animation: ecTip 1.6s ease-out forwards, ecTipFlick 0.18s steps(2) 3; }
-@keyframes ecTip { 0% { opacity: 0; transform: rotate(-20deg) translateY(10px) scale(0.92); } 14% { opacity: var(--a, 0.4); transform: rotate(-20deg); } 55% { opacity: var(--a, 0.4); } 100% { opacity: 0; transform: rotate(-20deg) translateY(4px); } }
-@keyframes ecTipFlick { 50% { filter: drop-shadow(0 0 7px rgba(255,80,160,0.9)); } }
 /* The menu coming apart: it flickers and tears, its rows drift off true,
    its words go to noise; then it folds shut like a set switched off. */
 [data-testid="category-overlay"].ec-unravel { animation: ecUnFlick 0.9s steps(1) infinite, ecUnTear 0.42s steps(1) infinite; pointer-events: none !important;
@@ -3465,16 +3454,12 @@ html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !importan
 [data-testid="category-overlay"].ec-unravel.ec-fold { animation: ecUnFold 0.55s cubic-bezier(.6,0,.9,.4) forwards; }
 @keyframes ecUnFold { 0% { transform: none; opacity: 1; filter: none; } 55% { transform: scale(1, 0.012); opacity: 1; filter: brightness(2.4); } 100% { transform: scale(0, 0.012); opacity: 0; filter: brightness(3); } }
 @media (prefers-reduced-motion: reduce) {
-  .ec-tip { animation: ecTip 1.25s linear forwards; }
   [data-testid="category-overlay"].ec-unravel { animation: none; }
   [data-testid="category-overlay"].ec-unravel .ec-drift { transition: none; transform: none; }
   html.ec-lost-urge [data-testid="singularity-back-button"], .ec-lost, .ec-lost *, .ec-lost .hand::after { animation: none !important; }
   .ec-lost .hand .skin { opacity: 0; } .ec-lost .hand .wire { clip-path: none; } .ec-lost .l2, .ec-lost .l3 { opacity: 1; }
 }
 `;
-// The fingertip: the index finger's end from the user's wireframe hand,
-// turned to point up (tools/lost_hand.py).
-const TIP_HTML = `<img src="${lostTipWireUrl}" alt="" draggable="false">`;
 const GLITCH = "\u2588\u2593\u2592\u2591#%&@<>/\\|=+*\u00a7\u00a4";
 
 function LostNudge({ stage, onExit, sing }) {
@@ -3549,47 +3534,31 @@ function LostNudge({ stage, onExit, sing }) {
   const unravelRef = React.useRef(unravel);
   unravelRef.current = unravel;
 
-  // The sound in the silence: from the first moment, rising as they go on.
+  // The sound as the sphere comes up: a heartbeat and a ringing, fading
+  // to silence by about three seconds in (user).
   React.useEffect(() => {
     const G = g.current;
     G.unease = createUnease(sing && sing.audio);
     G.unease.set(0.08);
-    const climb = setInterval(() => {
-      if (G.gone) return;
-      const secs = (Date.now() - G.t0) / 1000;
-      G.unease.set(Math.min(0.72, 0.08 + 0.09 * G.taps + 0.006 * secs));
-    }, 1000);
+    const fade = setTimeout(() => { if (G.unease) G.unease.stop(1.4); }, 1600); // (silent at 3.0 s)
     return () => {
-      clearInterval(climb);
+      clearTimeout(fade);
       G.timers.forEach((id) => { clearTimeout(id); clearInterval(id); });
       if (G.unease) G.unease.stop(0.8);
     };
   }, []);
 
-  // Every touch: a fingertip, plainer each time; and the counts.
+  // Every touch counts (toward the menu coming apart).
   React.useEffect(() => {
-    const doc = typeof document !== "undefined" ? document : null;
-    if (!doc) return undefined;
     const onDown = (e) => {
       if (e.target && e.target.closest && e.target.closest(".ec-lost")) return;
       const G = g.current;
       G.taps += 1;
       if (stageRef.current === "overlay") G.menuTaps += 1;
-      const a = Math.min(0.95, 0.2 + 0.13 * G.taps);
-      const tip = doc.createElement("div");
-      tip.className = `ec-tip${G.taps >= 4 ? " strong" : ""}`;
-      tip.setAttribute("data-testid", "singularity-fingertip");
-      tip.setAttribute("aria-hidden", "true");
-      tip.style.left = `${e.clientX}px`; tip.style.top = `${e.clientY}px`;
-      tip.style.setProperty("--a", String(a));
-      tip.dataset.strength = a.toFixed(2);
-      tip.innerHTML = TIP_HTML;
-      doc.body.appendChild(tip);
-      setTimeout(() => tip.remove(), 1700);
       if (G.menuTaps >= 3 || G.taps >= 8) unravelRef.current();
     };
     window.addEventListener("pointerdown", onDown, true);
-    return () => { window.removeEventListener("pointerdown", onDown, true); doc.querySelectorAll(".ec-tip").forEach((el) => el.remove()); };
+    return () => window.removeEventListener("pointerdown", onDown, true);
   }, []);
 
   // A menu open a while: it comes apart.

@@ -143,9 +143,9 @@ console.log("on a computer");
   check("its sound: the full-range mix, playing", !!snd && snd.mix === "full" && snd.state === "running", JSON.stringify(snd));
   check("thunder comes with the waves", !!(await poll(async () => { const s = await S(); return s.sound && s.sound.thunder >= 1; }, 30000)), JSON.stringify(await S()));
   // Into the sphere, and something going wrong there (the story's first
-  // visit): a heartbeat and a ring in the silence, a wireframe fingertip
-  // at every touch, plainer each time, and a menu that comes apart (3 s
-  // here) and folds shut, then the hand.
+  // visit): a heartbeat and a ring as the sphere comes up, gone in about
+  // three seconds; no fingertips (taken out); and a menu that comes apart
+  // (3 s here) and folds shut, then the hand.
   const at = (await S()).screen;
   await page.mouse.click(at.x, at.y);
   await poll(async () => (await page.locator(".ec-singularity-invite-btn").count()) > 0, 4000);
@@ -156,7 +156,6 @@ console.log("on a computer");
   const U = () => page.evaluate(() => (window.__EC_UNEASE__ ? window.__EC_UNEASE__() : null));
   const u0 = await U();
   check(`a heartbeat in the silence, faint (${u0 && u0.level.toFixed(2)})`, !!u0 && u0.sound && u0.level > 0 && u0.level < 0.3, JSON.stringify(u0));
-  const tips = () => page.evaluate(() => [...document.querySelectorAll('[data-testid="singularity-fingertip"]')].map((e) => +e.dataset.strength));
   // The sphere's middle on screen: its front label.
   const mid = await page.evaluate(() => {
     const t = window.__EC_TEST_THREE__(), f = t.singularity.sphereFrame, V = t.camera.position.constructor, c = new V();
@@ -164,23 +163,20 @@ console.log("on a computer");
     return { x: (c.x + 1) / 2 * innerWidth, y: (1 - c.y) / 2 * innerHeight };
   });
   await page.mouse.click(mid.x, mid.y);
-  const tip1 = await tips();
-  check(`a touch: a wireframe fingertip where it landed (${tip1})`, tip1.length >= 1);
+  check("a touch leaves no fingertip", (await page.locator('[data-testid="singularity-fingertip"], .ec-tip').count()) === 0);
   // (The sphere comes up turned any way: LAWS, as a tap on its label.)
   await page.waitForTimeout(500);
   await page.evaluate(() => window.__EC_TEST_OPEN_CATEGORY__("laws"));
   check("a menu opens, and works as a menu", !!(await poll(async () => (await page.locator('[data-testid="category-overlay"]').count()) > 0, 4000)));
   const h3 = await page.locator('[data-testid="category-overlay"] h3').boundingBox();
   await page.mouse.click(h3.x + 10, h3.y + h3.height / 2);
-  const tip2 = await tips();
-  check(`...each fingertip plainer than the last (${tip2})`, tip2.length >= 2 && tip2[tip2.length - 1] > tip2[0]);
-  check("...the heartbeat rising", !!(await poll(async () => (await U()).level > u0.level, 3000)));
+  check("...the heartbeat and ring fade out by themselves (about 3 s)", !!(await poll(async () => { const u = await U(); return !!u && u.stopped; }, 6000)));
   check("then the menu comes apart", !!(await poll(() => page.evaluate(() => { const p = document.querySelector('[data-testid="category-overlay"]'); return !!p && p.getAttribute("data-unravel") === "on"; }), 6000)));
   await page.waitForTimeout(900);
   check("...its words to noise", await page.evaluate(() => /[\u2588\u2593\u2592\u2591]/.test((document.querySelector('[data-testid="category-overlay"]') || {}).textContent || "")));
   check("...folds shut by itself", !!(await poll(async () => (await page.locator('[data-testid="category-overlay"]').count()) === 0, 6000)));
   check("...and the hand: \"I want out of here\"", !!(await poll(async () => (await page.locator('[data-testid="singularity-lost-out"]').count()) > 0, 4000)));
-  check("...the Back button throbbing, the heartbeat at its height", (await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="singularity-back-button"]')).animationName)) === "ecLostThrob" && (await U()).level === 1);
+  check("...the Back button throbbing", (await page.evaluate(() => getComputedStyle(document.querySelector('[data-testid="singularity-back-button"]')).animationName)) === "ecLostThrob");
   if (process.env.EC_SHOTS) await page.screenshot({ path: `${process.env.EC_SHOTS}/unravel-lost.png` });
   await page.locator('[data-testid="singularity-lost-out"]').click();
   check("out: home, and the heartbeat goes", !!(await poll(async () => { const u = await U(); return !!(await page.evaluate(() => !!window.__DEN_TV__)) && (!u || u.stopped); }, 30000)));
