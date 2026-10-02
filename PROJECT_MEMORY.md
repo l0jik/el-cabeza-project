@@ -4816,3 +4816,22 @@ phone menu until "Start the story over" (which clears it).
     (STORY_CSS hides the others), and a stopped tap asks for full screen
     at its touchend/pointerup, since a touch stopped at touchstart never
     becomes a click.
+
+### The den's cards: one style, askance, movable (2026-10-02)
+  - User: the thought cloud ("Finally… now I can play a game in peace.")
+    into the newer 1975 card style, and the cards askance, clear of
+    what matters, movable. Asked: the card style (not the comic
+    balloon), and only the cards (the car's and hallway's speech
+    balloons stay as they are, cutscenes).
+  - themes/den-cards.js dealCard(doc, {testid, l1, l2, hint, loud, side,
+    onTap, role, label}) -> {el, remove(ms)}: cream card, the decade's
+    stripes, Caprasimo, hard brown shadow; tilted 3deg in the upper right
+    (top 17%, clear of the title, the call's slip, the dock and the
+    variants flyout at top left); a drag moves it (kept a third on
+    screen), a tap that hardly moved is onTap; its pointer events never
+    reach the board.
+  - Users: the thought (den-call.js, testid den-thought, the cloud SVG
+    gone), "Free pieces?! Nice!…" (den-yay, loud), and the home-again
+    card (den-fx.js, den-home-card): no dimmed backdrop over the screen
+    any more; a tap on it or the first tap anywhere else (which still
+    does what it was for) puts it away and arms the hall.

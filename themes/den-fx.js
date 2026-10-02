@@ -34,6 +34,7 @@
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z, SLAB_MAX } from "../engine/constants.js";
 import { buildDen } from "./den-room.js";
+import { dealCard } from "./den-cards.js";
 import { quality } from "./tienda-quality.js";
 import { setCommercialOn } from "../engine/journey.js";
 import { createDenCall } from "./den-call.js";
@@ -97,55 +98,33 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       "Note to self: never answer the phone again. Now, where was I?",
       "Peace and quiet, a warm fire, and a game nobody else has ever heard of. Perfect.",
     ];
-    const HOME_CARD_CSS = `
-.den-home-card { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 16px;
-  background: rgba(14,8,4,0.32); cursor: pointer; opacity: 0; transition: opacity 0.5s ease; -webkit-tap-highlight-color: transparent; }
-.den-home-card.on { opacity: 1; }
-.den-home-card .card { position: relative; width: min(86vw, 420px); padding: 18px 22px 16px; background: #F3E6C4; border: 3px solid #4A2A14; border-radius: 16px;
-  box-shadow: 5px 6px 0 rgba(40,20,8,0.55); transform: translateY(10px) rotate(-1deg); transition: transform 0.5s cubic-bezier(.2,1.4,.4,1); }
-.den-home-card.on .card { transform: translateY(0) rotate(-1deg); }
-.den-home-card .stripes { display: flex; height: 14px; margin: -18px -22px 14px; border-radius: 13px 13px 0 0; overflow: hidden; }
-.den-home-card .stripes i { flex: 1; } .den-home-card .stripes i:nth-child(1) { background: #6B3A1E; } .den-home-card .stripes i:nth-child(2) { background: #B4451F; }
-.den-home-card .stripes i:nth-child(3) { background: #E07B22; } .den-home-card .stripes i:nth-child(4) { background: #E9B23A; }
-.den-home-card p { margin: 0; font: 400 clamp(20px, 5.6vw, 26px)/1.22 'Caprasimo', 'Cooper Black', Georgia, serif; color: #4A2A14; text-wrap: balance; }
-.den-home-card small { display: block; margin-top: 14px; text-align: right; font: 700 12px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #B4451F; }
-@media (prefers-reduced-motion: reduce) { .den-home-card, .den-home-card .card { transition: none; } }
-`;
     const HOME_LINE_KEY = "el-cabeza:home-line";
     function homeCard(onDone) {
       const doc = typeof document !== "undefined" ? document : null;
       if (!doc) { onDone(); return; }
-      if (!doc.querySelector("style[data-den-home-card]")) { const st = doc.createElement("style"); st.setAttribute("data-den-home-card", ""); st.textContent = HOME_CARD_CSS; doc.head.appendChild(st); }
-      // (Its face: the den's cards', Caprasimo, if the call's not brought it already.)
-      if (!doc.querySelector('link[href*="family=Caprasimo"]')) { const l = doc.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap"; doc.head.appendChild(l); }
       let last = -1;
       try { last = Number(localStorage.getItem(HOME_LINE_KEY)); } catch (e) { /* none */ }
       let i = Math.floor(Math.random() * HOME_LINES.length);
       if (i === last) i = (i + 1 + Math.floor(Math.random() * (HOME_LINES.length - 1))) % HOME_LINES.length;
       try { localStorage.setItem(HOME_LINE_KEY, String(i)); } catch (e) { /* this time only */ }
-      const el = doc.createElement("div");
-      el.className = "den-home-card"; el.setAttribute("data-testid", "den-home-card"); el.setAttribute("data-line", String(i));
-      el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Home again");
-      const card = doc.createElement("div"); card.className = "card";
-      const stripes = doc.createElement("div"); stripes.className = "stripes"; stripes.innerHTML = "<i></i><i></i><i></i><i></i>";
-      const p = doc.createElement("p"); p.textContent = HOME_LINES[i];
-      const hint = doc.createElement("small"); hint.textContent = "Tap to play";
-      card.append(stripes, p, hint); el.append(card);
-      doc.body.appendChild(el);
-      requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("on")));
-      let done = false;
-      const close = (e) => {
-        if (e) { e.preventDefault(); e.stopPropagation(); }
+      /* One of the den's cards (den-cards.js), askance in the upper right
+         and movable; a tap on it, or the first tap anywhere else (which
+         goes on to do what it was for), puts it away. */
+      let done = false, c = null;
+      const close = () => {
         if (done) return;
         done = true;
-        el.classList.remove("on");
-        setTimeout(() => el.remove(), 550);
+        doc.removeEventListener("pointerdown", elsewhere, true);
+        c.remove(550);
         onDone();
       };
-      el.addEventListener("pointerdown", (e) => e.stopPropagation());
-      el.addEventListener("click", close);
+      const elsewhere = (e) => { if (!(e.target instanceof Element && c.el.contains(e.target))) close(); };
+      c = dealCard(doc, { testid: "den-home-card", l1: HOME_LINES[i], hint: "Tap to play", role: "dialog", label: "Home again", onTap: close });
+      c.el.setAttribute("data-line", String(i));
+      homeCardDrop = () => { done = true; doc.removeEventListener("pointerdown", elsewhere, true); c.el.remove(); };
+      doc.addEventListener("pointerdown", elsewhere, true);
     }
-    let homeCardTimer = 0;
+    let homeCardTimer = 0, homeCardDrop = null;
     const trip = novaTv ? createTrip({ audio, onReturn: () => {
       roomView();
       if (novaTv.hall) novaTv.hall.arm();
@@ -1219,7 +1198,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         chanCache.forEach((tx) => tx && tx.dispose());
         if (trip) trip.dispose();
         clearTimeout(homeCardTimer);
-        if (typeof document !== "undefined") document.querySelectorAll("[data-testid='den-home-card']").forEach((e) => e.remove());
+        if (homeCardDrop) homeCardDrop();
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (novaTv && novaTv.register) novaTv.register(null);

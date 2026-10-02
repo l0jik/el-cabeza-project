@@ -5,9 +5,9 @@
    it's Big Glutts on the line: indiscernible talking, with pauses, and the
    words in pop-up text.)
 
-   - The thought: once the scene change has faded up, a cloud over the
-     room, its trail of little puffs dropping toward you (the player, below
-     the picture), for about five seconds.
+   - The thought: once the scene change has faded up, one of the den's
+     1975 cards (den-cards.js: askance in the upper right, movable), for
+     about five seconds.
    - The ring: once a game is under way (a while after it begins, and after
      the thought), the moss-green 500 desk set on the credenza (den-room.js) rings:
      the user's recording of a Stromberg-Carlson 1543 (its first three rings,
@@ -35,6 +35,8 @@
    Test hooks (window.__EC_TEST_HOOKS__): __DEN_CALL__() reads the state;
    __DEN_CALL_NOW__() skips the waits. */
 
+import { dealCard } from "./den-cards.js";
+
 const INK = "#2E2118", RED = "#A8321F", PAPER = "#EFE6CD";
 const FRANKLIN = "'Libre Franklin', 'Franklin Gothic Medium', 'Helvetica Neue', Arial, sans-serif";
 const COURIER = "'Courier Prime', 'Courier New', Courier, monospace";
@@ -58,12 +60,6 @@ const SCRIPT = [
 ];
 
 const CSS = `
-.den-thought { position: fixed; left: 50%; bottom: calc(24% + env(safe-area-inset-bottom)); z-index: 1180; width: min(82vw, 360px);
-  transform: translateX(-50%); pointer-events: none; opacity: 0; transition: opacity 0.6s ease, transform 0.6s ease; }
-.den-thought.on { opacity: 1; transform: translateX(-50%) translateY(-6px); }
-.den-thought svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 6px 14px rgba(10,6,3,0.45)); }
-.den-thought p { position: absolute; left: 16%; right: 16%; top: 13%; height: 50%; margin: 0; display: flex; align-items: center; justify-content: center;
-  text-align: center; color: ${INK}; font: italic 600 clamp(14px, 4.3vw, 17px)/1.3 ${FRANKLIN}; text-wrap: balance; }
 .den-call { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 1190; width: min(92vw, 440px);
   transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; padding: 10px 14px 11px; background: ${PAPER}; color: ${INK};
   border: 1.5px solid ${INK}; box-shadow: 0 6px 18px rgba(10,6,3,0.45); font: 400 14px/1.45 ${COURIER}; animation: denCallIn 0.35s ease both; }
@@ -84,47 +80,9 @@ const CSS = `
 .den-call button:focus-visible { outline: 2px solid ${RED}; outline-offset: 2px; }
 @keyframes denCallIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes denCallShake { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(1.2px); } }
-/* After the call: "Free pieces?! Nice!... Thank you, Big Glutts!" on a
-   1975 card (as the store's "There's a story here..."): chunky Caprasimo
-   over the decade's stripes, popping up with a bounce, the second line a
-   beat after the first; it takes no taps and goes after a while. */
-.den-yay { position: fixed; left: 50%; top: 22%; z-index: 1195; transform: translateX(-50%); pointer-events: none; width: min(86vw, 400px); }
-.den-yay .card { position: relative; padding: 18px 22px 20px; background: #F3E6C4; border: 3px solid #4A2A14; border-radius: 16px;
-  box-shadow: 6px 7px 0 #4A2A14, 0 14px 30px rgba(20,10,4,0.45); text-align: center; color: #4A2A14; transform: rotate(-3deg);
-  animation: denYayIn 0.75s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
-.den-yay .stripes { display: flex; height: 14px; margin: -18px -22px 14px; border-radius: 13px 13px 0 0; overflow: hidden; }
-.den-yay .stripes i { flex: 1; } .den-yay .stripes i:nth-child(1) { background: #6B3A1E; } .den-yay .stripes i:nth-child(2) { background: #B4451F; }
-.den-yay .stripes i:nth-child(3) { background: #E07B22; } .den-yay .stripes i:nth-child(4) { background: #E9B23A; }
-.den-yay .l1 { display: block; font: 400 clamp(26px, 8vw, 38px)/1.05 'Caprasimo', 'Cooper Black', Georgia, serif; color: #B4451F; text-shadow: 2px 2px 0 #E9B23A; }
-.den-yay .l2 { display: block; margin-top: 10px; font: 400 clamp(19px, 5.6vw, 26px)/1.15 'Caprasimo', 'Cooper Black', Georgia, serif;
-  animation: denYayLine 0.6s cubic-bezier(0.2, 1.5, 0.4, 1) 1.1s both; }
-.den-yay.off { transition: opacity 0.7s ease, transform 0.7s ease; opacity: 0; transform: translateX(-50%) translateY(-10px); }
-@keyframes denYayIn { from { opacity: 0; transform: rotate(-3deg) scale(0.5); } to { opacity: 1; transform: rotate(-3deg) scale(1); } }
-@keyframes denYayLine { from { opacity: 0; transform: translateY(8px) scale(0.85); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .den-thought, .den-call, .den-call.ringing .said, .den-yay .card, .den-yay .l2 { transition: none; animation: none; } }
+@media (prefers-reduced-motion: reduce) { .den-call, .den-call.ringing .said { transition: none; animation: none; } }
 `;
 const YAY_MS = 5600;
-
-// The cloud: an ellipse ringed with puffs, outlined only on the outside
-// (every shape stroked, then every shape filled over the strokes), and a
-// trail of three puffs dropping toward the bottom of the screen.
-function cloudSvg() {
-  const shapes = [];
-  const cx = 180, cy = 82, rx = 146, ry = 58, N = 15;
-  shapes.push(`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/>`);
-  for (let i = 0; i < N; i++) {
-    const a = (i / N) * Math.PI * 2 + 0.2;
-    const r = 25 + 7 * Math.sin(i * 2.3) + 4 * Math.cos(i * 1.7);
-    shapes.push(`<circle cx="${(cx + Math.cos(a) * rx * 0.93).toFixed(1)}" cy="${(cy + Math.sin(a) * ry * 0.9).toFixed(1)}" r="${r.toFixed(1)}"/>`);
-  }
-  const trail = [[170, 172, 12], [160, 196, 7.5], [154, 214, 4.5]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`);
-  const all = shapes.join("");
-  return `<svg viewBox="0 0 360 224" aria-hidden="true">
-    <g fill="none" stroke="${INK}" stroke-width="5">${all}</g>
-    <g fill="#FBF6E8">${all}</g>
-    <g fill="#FBF6E8" stroke="${INK}" stroke-width="3.5">${trail.join("")}</g>
-  </svg>`;
-}
 
 // Vowels (F1, F2, F3 in Hz), a speaker's own.
 const VOWELS = [[730, 1090, 2440], [270, 2290, 3010], [300, 870, 2240], [530, 1840, 2480], [570, 840, 2410], [660, 1720, 2410], [520, 1190, 2390], [440, 1020, 2240], [390, 1990, 2550]];
@@ -133,7 +91,7 @@ const syllables = (w) => Math.max(1, (w.toLowerCase().replace(/[^a-z]/g, "").rep
 export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone = null, onPhoneDone = null }) {
   let stage = "cut"; // cut -> thought -> wait -> ringing -> call -> done
   let thoughtAt = 0, thoughtEnd = 0, playSince = 0, ringAt = 0, ringsDone = 0, ringStart = 0;
-  let line = -1, lineEls = null, box = null, thoughtEl = null, styleEl = null;
+  let line = -1, lineEls = null, box = null, thoughtCard = null, styleEl = null;
   let out = null, ringNodes = [], callNodes = [], timers = [];
   let lastEar = 0, rushed = false, held = false;
   // The record paused for the phone (den-audio holdForPhone), and back after.
@@ -477,25 +435,15 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     showBox("ringing");
   }
   // "Free pieces?! Nice!... Thank you, Big Glutts!" (user).
-  let yayEl = null;
+  /* (After the call, on one of the den's cards, den-cards.js: loud, the
+     second line a beat after the first; it fades as the car starts up,
+     the trip back to the store, den-trip.js.) */
+  let yayCard = null;
   function yay() {
-    if (!doc || yayEl) return;
-    style();
-    if (!doc.querySelector("link[data-caprasimo]")) {
-      const l = doc.createElement("link"); l.rel = "stylesheet"; l.setAttribute("data-caprasimo", "");
-      l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap";
-      doc.head.appendChild(l);
-    }
-    yayEl = doc.createElement("div");
-    yayEl.className = "den-yay";
-    yayEl.setAttribute("data-testid", "den-yay");
-    yayEl.setAttribute("role", "status");
-    yayEl.innerHTML = '<div class="card"><div class="stripes" aria-hidden="true"><i></i><i></i><i></i><i></i></div>'
-      + '<span class="l1">Free pieces?! Nice!\u2026</span><span class="l2">Thank you, Big Glutts!</span></div>';
-    doc.body.appendChild(yayEl);
-    const el = yayEl;
-    // (It fades as the car starts up: the trip back to the store, den-trip.js.)
-    later(YAY_MS, () => { el.classList.add("off"); if (onTrip) onTrip(); later(800, () => { el.remove(); if (yayEl === el) yayEl = null; }); });
+    if (!doc || yayCard) return;
+    const c = dealCard(doc, { testid: "den-yay", l1: "Free pieces?! Nice!\u2026", l2: "Thank you, Big Glutts!", loud: true });
+    yayCard = c;
+    later(YAY_MS, () => { c.remove(700); if (onTrip) onTrip(); later(800, () => { if (yayCard === c) yayCard = null; }); });
   }
   function answer() {
     if (stage !== "ringing") return false;
@@ -617,19 +565,11 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
       stage = "thought"; thoughtAt = now + 1200 * R; thoughtEnd = thoughtAt + THOUGHT_MS * (rushed ? 0.1 : 1);
     }
     if (stage === "thought") {
-      if (now >= thoughtAt && !thoughtEl && doc && now < thoughtEnd) {
-        style();
-        thoughtEl = doc.createElement("div");
-        thoughtEl.className = "den-thought";
-        thoughtEl.setAttribute("data-testid", "den-thought");
-        thoughtEl.setAttribute("role", "status");
-        thoughtEl.innerHTML = cloudSvg();
-        const p = doc.createElement("p"); p.textContent = THOUGHT; thoughtEl.appendChild(p);
-        doc.body.appendChild(thoughtEl);
-        requestAnimationFrame(() => requestAnimationFrame(() => thoughtEl && thoughtEl.classList.add("on")));
+      if (now >= thoughtAt && !thoughtCard && doc && now < thoughtEnd) {
+        thoughtCard = dealCard(doc, { testid: "den-thought", l1: THOUGHT });
       }
       if (now >= thoughtEnd) {
-        if (thoughtEl) { const el = thoughtEl; thoughtEl = null; el.classList.remove("on"); setTimeout(() => el.remove(), 700); }
+        if (thoughtCard) { thoughtCard.remove(700); thoughtCard = null; }
         stage = "wait";
       }
       return;
@@ -688,11 +628,11 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     tick,
     ringing: () => stage === "ringing",
     // The phone's under way (ringing, or the call), or its card's up.
-    busy: () => stage === "ringing" || stage === "call" || !!yayEl,
+    busy: () => stage === "ringing" || stage === "call" || !!yayCard,
     answer,
     dispose() {
       timers.forEach(clearTimeout); timers = [];
-      if (yayEl) { yayEl.remove(); yayEl = null; }
+      if (yayCard) { yayCard.el.remove(); yayCard = null; }
       clearTimeout(ringElStop);
       if (ringEl) { try { ringEl.pause(); ringEl.removeAttribute("src"); } catch (e) { /* fine */ } }
       stopRinging();
@@ -700,7 +640,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
       if (tel) { try { tel.outG.disconnect(); } catch (e) { /* fine */ } }
       hold(false);
       if (box) box.remove();
-      if (thoughtEl) thoughtEl.remove();
+      if (thoughtCard) thoughtCard.el.remove();
       if (styleEl) styleEl.remove();
       if (typeof window !== "undefined") { delete window.__DEN_CALL__; delete window.__DEN_CALL_NOW__; delete window.__DEN_CALL_PICKUP__; delete window.__DEN_CALL_HELD__; delete window.__DEN_CALL_HANDSET__; delete window.__DEN_CALL_HANDSET_COLOR__; }
     },
