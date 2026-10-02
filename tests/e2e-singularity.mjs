@@ -361,11 +361,11 @@ check("dragging brings MATTER into view regardless of the shuffled arrangement",
 // roller on the right — the 1×3 and 2×3 blocks included (they used to be
 // on/off checkboxes) ----
 const rowKeys = await page.locator('[data-testid^="matter-row-"]').evaluateAll((els) => els.map((e) => e.dataset.testid.replace("matter-row-", "")));
-check("MATTER lists every piece type as the same kind of row (11)",
+check("MATTER lists every piece type as the same kind of row (13, each Arco size its own)",
   rowKeys.join(",") === "cabeza,turrito,flaco,chato,opa,block1x3,block2x3,codo,arcoChico,arcoAlto,arcoAncho,rayo,zeta", rowKeys.join(","));
 check("no checkbox rows are left for pieces", (await page.locator('[data-testid^="matter-piece-"]').count()) === 0);
 check("each row's still is a rendered 3D image",
-  (await page.locator('[data-testid^="matter-view-"] img').count()) === 11);
+  (await page.locator('[data-testid^="matter-view-"] img').count()) === 13);
 check("the 1×3 Block starts at 0", state.selections.matter.roster.block1x3 === 0, JSON.stringify(state.selections.matter.roster));
 await page.locator('[data-testid="roster-block1x3-inc"]').click();
 await page.waitForTimeout(150);
