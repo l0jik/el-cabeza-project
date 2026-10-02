@@ -40,7 +40,7 @@ check("home, in the den", !!(await poll(() => page.evaluate(() => !!window.__DEN
 await page.waitForTimeout(1500);
 check("the hall is armed (home from the trip)", (await page.evaluate(() => window.__DEN_HALL__ && window.__DEN_HALL__().state)) === "armed");
 await openDockPanel(page);
-const human = page.locator('[data-testid="dock-panel"] button', { hasText: /^Human$/ }).first();
+const human = page.locator('[data-testid="dock-panel"] button', { hasText: /^Two humans$/ }).first();
 if (await human.count()) { await human.click(); await page.waitForTimeout(300); }
 await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game/ }).first().click();
 await page.waitForTimeout(2500);

@@ -49,7 +49,7 @@ const state = () => page.evaluate(() => ({
 
 // Two players at the table, and a move made.
 await openDockPanel(page);
-const human = page.locator('[data-testid="dock-panel"] button', { hasText: /^Human$/ }).first();
+const human = page.locator('[data-testid="dock-panel"] button', { hasText: /^Two humans$/ }).first();
 if (await human.count()) { await human.click(); await page.waitForTimeout(300); }
 await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game/ }).first().click();
 await page.waitForTimeout(2200);

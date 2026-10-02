@@ -208,7 +208,7 @@ export function OpponentSection({ x, audio }) {
       h("span", { className: "td-desc" }, "Opponent", h("span", null, "a friend at the table, or the store's demonstrator")),
     ),
     h("div", { className: "td-seg", role: "group", "aria-label": "Opponent", style: { padding: "10px 4px" } },
-      opt(null, "A friend", "tienda-opponent-human"),
+      opt(null, "Two humans", "tienda-opponent-human"),
       opt("dark", "The demonstrator plays Dark", "tienda-opponent-dark"),
       opt("light", "The demonstrator plays Light", "tienda-opponent-light"),
     ),

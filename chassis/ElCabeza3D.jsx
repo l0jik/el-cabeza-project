@@ -8206,7 +8206,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 onClick={() => setNextOpen((v) => !v)}
                 style={dockLinkStyle()}
               >
-                {dockWords.nextGame}: {aiPlayer ? `You vs ${AI_DIFFICULTY[aiDifficulty].label} AI` : "Two players"} {nextOpen ? "\u25B4" : "\u25BE"}
+                {dockWords.nextGame}: {aiPlayer ? `You vs ${AI_DIFFICULTY[aiDifficulty].label} AI` : "Two humans"} {nextOpen ? "\u25B4" : "\u25BE"}
               </button>
             </div>
           </div>
@@ -8333,7 +8333,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                   cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
                 }}
               >
-                Human
+                Two humans
               </button>
               {[
                 { label: "AI", value: "dark", side: "dark" },

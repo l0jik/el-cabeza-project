@@ -47,10 +47,10 @@ for (const [name, opening, w] of PAGES) {
   check(`after: its line ("${w.caption}")`, (await txt(page, "dock-caption")).includes(w.caption), await txt(page, "dock-caption").catch(() => ""));
   check("after: no Reset Game, no players read-out, no End game", (await page.locator('[data-testid="dock-panel"] button', { hasText: /^Reset Game$/i }).count()) === 0 && !(await has(page, "dock-players")) && !(await has(page, "end-game")));
   check("after: the move log and the next game as quiet links", (await has(page, "move-log")) && (await has(page, "next-game")));
-  check("after: the opponent folded away", (await page.locator('[data-testid="dock-panel"] button', { hasText: /^Human$/ }).count()) === 0 && (await page.locator('[data-testid="dock-panel"] [aria-label="Back to opponent selection"]').count()) === 0);
+  check("after: the opponent folded away", (await page.locator('[data-testid="dock-panel"] button', { hasText: /^Two humans$/ }).count()) === 0 && (await page.locator('[data-testid="dock-panel"] [aria-label="Back to opponent selection"]').count()) === 0);
   await page.locator('[data-testid="next-game"]').click();
   await page.waitForTimeout(300);
-  check("...Next game unfolds it", (await page.locator('[data-testid="dock-panel"] button', { hasText: /^Human$/ }).count()) + (await page.locator('[data-testid="dock-panel"] [aria-label="Back to opponent selection"]').count()) > 0);
+  check("...Next game unfolds it", (await page.locator('[data-testid="dock-panel"] button', { hasText: /^Two humans$/ }).count()) + (await page.locator('[data-testid="dock-panel"] [aria-label="Back to opponent selection"]').count()) > 0);
   await page.locator('[data-testid="move-log"]').click();
   await page.waitForTimeout(500);
   check("...the move log opens", await page.evaluate(() => { const el = document.querySelector('[data-testid="movelog-sheet"]'); return !!el && +getComputedStyle(el).opacity > 0.5; }));

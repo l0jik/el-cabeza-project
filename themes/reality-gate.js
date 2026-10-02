@@ -419,7 +419,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const opponent = selectOpponent && AI_DIFFICULTY ? h("section", { className: "rg-sec", "aria-label": "Who's playing" },
     h("h3", null, "Who's playing"),
     h(Seg, { label: "Opponent" },
-      segBtn("h", aiPlayer == null, "Two players", () => !locked && selectOpponent(null), "gate-opponent-human", locked),
+      segBtn("h", aiPlayer == null, "Two humans", () => !locked && selectOpponent(null), "gate-opponent-human", locked),
       segBtn("d", aiPlayer === "dark", "Computer plays Dark", () => !locked && selectOpponent("dark"), "gate-opponent-dark", locked),
       segBtn("l", aiPlayer === "light", "Computer plays Light", () => !locked && selectOpponent("light"), "gate-opponent-light", locked)),
     aiPlayer != null && h("div", { className: "rg-row" },

@@ -5098,3 +5098,14 @@ phone menu until "Start the story over" (which clears it).
     darker and gone by ~19.9. No track: the made driveAway in the black.
   - e2e-story: the getaway recording loaded; the steps 100 ms after the
     track and 1.8 s apart.
+
+### "Two humans" in every opponent menu (2026-10-02)
+  - User (on the gate's "Two players"): replace it, and the similar
+    options in every menu, with "Two humans". Now: the gate's sheet,
+    Tienda's order form (was "A friend"), Neon's sphere pill (was
+    "Human"), the dock's opponent row (was "Human"; fits a 390 px phone),
+    the phone menu's Opponent switch (was "Human"), the dock's "Next game:
+    Two humans", Lluvia's readout "TWO HUMANS · PASS AND PLAY". The
+    per-side readouts ("Dark: Human" vs "AI (Medium)") and the box
+    lettering ("For 2 players", "TWO PLAYERS · ONE BOARD") are left: not
+    menus. Tests now look for /^Two humans$/.
