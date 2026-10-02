@@ -4879,3 +4879,37 @@ phone menu until "Start the story over" (which clears it).
     as pieceLook), the sign in the corner. Tests check the pictures in
     each (e2e-gate 13, e2e-lluvia 13, e2e-tienda the three Arcos,
     e2e-singularity three different stills).
+
+### The dock by the moment, in each theme's words; no "?" (2026-10-02)
+  - User: the post-game panel was a cluttered relic; chose "by the
+    moment", each theme with its own evocations.
+  - Chassis: setup unchanged. In play: the status row, then one row: the
+    camera views as a small segmented control (view-player, view-top,
+    room-view; aria-pressed from viewMode), Focus beside them, End game
+    as a quiet link at the end (testid end-game). After a game: a caption
+    line (dock-caption: endedCaption / wonCaption), one big button
+    (new-game, data-dock-role="primary"), quiet links: move-log, reset-rules
+    (after a custom game), next-game ("Next game: You vs Medium AI ▾",
+    unfolding the old opponent/difficulty row; nextOpen resets when the
+    game state changes). Gone: Reset Game (New game covers it), the
+    duplicate bottom row, the players read-out after a game (in play it
+    stays). The panel is 560px wide in play and after.
+  - Words: chassis DOCK_WORDS, theme.dockWords overrides (views, focus,
+    endGame, newGame, moveLog, plainRules, nextGame, endedCaption,
+    wonCaption); the phone bar's Move Log / New Game / End game use them
+    too (ctl.words). Den "Set them up again" / "Call it a night" / "Score
+    pad"; store "Set up the demo again" / "Put them down" / "Register
+    tape" / "Please leave pieces on the board."; Neon "Reboot" /
+    "Disconnect" / "Trace log" / "> session closed█"; Cromo "Set the
+    stones" / "Lay down"; Lluvia "Another round" / "Walk away" / "Mưa vẫn
+    rơi."; each Lab direction its own (specs.js words -> factory
+    dockWords). Style: each theme's styleSheet dresses
+    [data-dock-role="primary"|"caption"] (den: chocolate pill, Caprasimo;
+    store: price-tag red; Neon: lit tube, prompt cursor; Cromo: polished
+    chrome; Lluvia: pink neon, typewriter; Lab: accent + display face).
+  - Tests find these by testid now (end-game, new-game, move-log), not
+    wording; tests/e2e-dock-moments.mjs walks five themes through it.
+  - The corner "?" (How to play) is gone everywhere (user: the masthead
+    opens the same panel: a tap, then Info). theme.howToPlayCorner would
+    bring it back; without it the corner icons sit in a row (noHowTo, as
+    rulesInRoom did). The phone bar never had it (its menu has the rules).

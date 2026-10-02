@@ -128,7 +128,7 @@ for (const size of SIZES) {
   }
   if (size === SIZES[0] || size === SIZES[7]) {
     // How to play: the rules leaflet, on newsprint, torn at the edges.
-    await press('[data-testid="how-to-play"]');
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "quick" } })));
     await page.waitForTimeout(1200);
     const leaf = await page.evaluate(() => {
       const card = document.querySelector('[data-testid="info-overlay"] > div');
@@ -143,7 +143,7 @@ for (const size of SIZES) {
   }
   const title = await page.locator(".ec-title").first().boundingBox();
   check("the masthead is on screen", inView(title, size, 1), JSON.stringify(title));
-  check("How to play isn't covered", await reachable(page, '[data-testid="how-to-play"]'));
+  check("no \"?\" in the corner (the masthead opens the rules)", (await page.locator('[data-testid="how-to-play"]').count()) === 0);
   check("the page doesn't scroll sideways (table)", await noSideScroll(page));
   await shot("2-table");
   check("no page errors", errs.length === 0, errs.join(" | "));

@@ -488,6 +488,18 @@ export function renderGlobalDefs() {
 
 /* Fonts, and the chrome-lettered title (Michroma, a cold steel
    gradient). */
+/* The dock, said in chrome (chassis DOCK_WORDS). */
+export const dockWords = {
+  views: ["Stance", "Plan", "Hall"],
+  endGame: "Lay down",
+  newGame: "Set the stones",
+  moveLog: "Engraved record",
+  plainRules: "Bare rules",
+  nextGame: "Next sitting",
+  endedCaption: "The stones rest.",
+  wonCaption: "Cut clean.",
+};
+
 export const styleSheet = `
   @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Barlow:wght@400;500;600;700&display=swap');
   .ec-title {
@@ -495,6 +507,12 @@ export const styleSheet = `
     -webkit-background-clip: text; background-clip: text; color: transparent;
     letter-spacing: 0.06em;
   }
+
+  /* The dock by the moment: polished chrome for the big button. */
+  [data-dock-role="primary"] { font-family: 'Michroma', 'Barlow', sans-serif !important; letter-spacing: 0.22em !important; color: #0D0E10 !important;
+    background: linear-gradient(180deg, #ffffff 0%, #d7dae0 44%, #8e939c 54%, #eceef2 100%) !important; border: 1px solid #8e939c !important;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 6px 18px rgba(0,0,0,0.45) !important; }
+  [data-dock-role="caption"] { font-family: 'Barlow', sans-serif !important; font-style: normal !important; letter-spacing: 0.24em; text-transform: uppercase; font-size: 11px !important; color: #B7AD9C !important; }
 `;
 
 /* ------------------------------------------------------------ scene life */

@@ -24,6 +24,8 @@ const FONT = (q) => `https://fonts.googleapis.com/css2?${q}&display=swap`;
 export const LAB_SPECS = [
   {
     id: "swiss",
+    // The dock in this direction's voice (chassis DOCK_WORDS).
+    words: {"views": ["Player", "Plan", "Room"], "endGame": "End", "newGame": "Restart", "moveLog": "Record", "plainRules": "Default rules", "nextGame": "Next", "endedCaption": "Game ended.", "wonCaption": "Result recorded."},
     num: "01",
     name: "Swiss Design",
     short: "SWISS",
@@ -69,6 +71,8 @@ export const LAB_SPECS = [
   },
   {
     id: "bauhaus",
+    // The dock in this direction's voice (chassis DOCK_WORDS).
+    words: {"views": ["Player", "Plan", "Room"], "endGame": "Stop work", "newGame": "Build again", "moveLog": "Workshop log", "plainRules": "First principles", "nextGame": "Next", "endedCaption": "Form follows function.", "wonCaption": "Less, but better."},
     num: "02",
     name: "Bauhaus",
     short: "BAUHAUS",
@@ -114,6 +118,8 @@ export const LAB_SPECS = [
   },
   {
     id: "destijl",
+    // The dock in this direction's voice (chassis DOCK_WORDS).
+    words: {"views": ["Player", "Plane", "Room"], "endGame": "Close the plane", "newGame": "Recompose", "moveLog": "Composition", "plainRules": "Pure rules", "nextGame": "Next", "endedCaption": "Equilibrium.", "wonCaption": "Balance achieved."},
     num: "03",
     name: "De Stijl",
     short: "DE STIJL",
@@ -159,6 +165,8 @@ export const LAB_SPECS = [
   },
   {
     id: "elementarism",
+    // The dock in this direction's voice (chassis DOCK_WORDS).
+    words: {"views": ["Player", "Plan", "Room"], "endGame": "Break off", "newGame": "New vector", "moveLog": "Vectors", "plainRules": "Bare elements", "nextGame": "Next", "endedCaption": "The diagonal holds.", "wonCaption": "Counter-composition complete."},
     num: "04",
     name: "Elementarism",
     short: "ELEMENTARISM",
@@ -204,6 +212,8 @@ export const LAB_SPECS = [
   },
   {
     id: "brutalist",
+    // The dock in this direction's voice (chassis DOCK_WORDS).
+    words: {"views": ["Player", "Plan", "Room"], "endGame": "Demolish", "newGame": "Pour again", "moveLog": "Cast log", "plainRules": "Raw rules", "nextGame": "Next", "endedCaption": "Set. Cured.", "wonCaption": "Mass prevails."},
     num: "05",
     name: "Brutalism",
     short: "BRUTALISM",
@@ -249,6 +259,8 @@ export const LAB_SPECS = [
   },
   {
     id: "newTypography",
+    // The dock in this direction's voice (chassis DOCK_WORDS).
+    words: {"views": ["Player", "Plan", "Room"], "endGame": "Close the page", "newGame": "New page", "moveLog": "Colophon", "plainRules": "Plain setting", "nextGame": "Next", "endedCaption": "Set in type.", "wonCaption": "Printed."},
     num: "06",
     name: "New Typography",
     short: "NEW TYPOGRAPHY",
@@ -294,6 +306,8 @@ export const LAB_SPECS = [
   },
   {
     id: "corporateSwiss",
+    // The dock in this direction's voice (chassis DOCK_WORDS).
+    words: {"views": ["Player", "Plan", "Room"], "endGame": "Cancel service", "newGame": "Next departure", "moveLog": "Departure board", "plainRules": "Standard timetable", "nextGame": "Next service", "endedCaption": "Service ended.", "wonCaption": "Arrived on time."},
     num: "07",
     name: "Corporate Swiss",
     short: "CORPORATE SWISS",
@@ -339,6 +353,8 @@ export const LAB_SPECS = [
   },
   {
     id: "neoBrutalist",
+    // The dock in this direction's voice (chassis DOCK_WORDS).
+    words: {"views": ["Me", "Above", "Room"], "endGame": "Bail", "newGame": "Go again!", "moveLog": "Receipts", "plainRules": "Plain rules", "nextGame": "Next", "endedCaption": "Bold move.", "wonCaption": "Nailed it."},
     num: "08",
     name: "Neo-Brutalism",
     short: "NEO-BRUTALISM",
@@ -384,6 +400,8 @@ export const LAB_SPECS = [
   },
   {
     id: "minimalMono",
+    // The dock in this direction's voice (chassis DOCK_WORDS).
+    words: {"views": ["player", "top", "room"], "endGame": "end", "newGame": "again", "moveLog": "log", "plainRules": "plain", "nextGame": "next", "endedCaption": "—", "wonCaption": "done."},
     num: "09",
     name: "Minimal Mono",
     short: "MINIMAL MONO",
@@ -429,6 +447,8 @@ export const LAB_SPECS = [
   },
   {
     id: "ultimateFusion",
+    // The dock in this direction's voice (chassis DOCK_WORDS).
+    words: {"views": ["Player", "Plan", "Room"], "endGame": "Shut down", "newGame": "Run the machine", "moveLog": "Machine log", "plainRules": "Base rules", "nextGame": "Next", "endedCaption": "The machine rests.", "wonCaption": "Measure, structure, mass."},
     num: "10",
     name: "Ultimate Fusion",
     short: "ULTIMATE FUSION",

@@ -66,6 +66,12 @@ function chromeCss(spec) {
   [data-testid="victory-placard"] h2, [data-testid="victory-placard"] [style*="font-size"] { font-family: var(--font-display) !important; }
   [data-testid="points-counter"] { color: var(--text-primary) !important; font-family: var(--font-mono) !important; letter-spacing: var(--label-tracking) !important; }
   [data-testid="how-to-play"], button[aria-label$="full screen"] { color: var(--text-primary) !important; }
+  /* The dock by the moment: the big button in the direction's accent and
+     display face, its line in the display face too. */
+  [data-dock-role="primary"] { background: var(--accent-primary) !important; border-color: var(--accent-primary) !important; color: var(--surface) !important;
+    font-family: var(--font-display) !important; font-weight: var(--display-weight) !important; letter-spacing: var(--label-tracking) !important; box-shadow: var(--shadow) !important; }
+  [data-dock-role="caption"] { font-family: var(--font-display) !important; font-style: normal !important; color: var(--panel-ink) !important; opacity: 0.75; }
+  [data-dock-role="views"] { border-radius: var(--radius) !important; border-color: var(--border-color) !important; }
   [data-testid="unused-points-note"] { color: var(--text-secondary) !important; }
   [data-testid="dock-panel"] { margin-bottom: env(safe-area-inset-bottom); }
   [data-testid="how-to-play"], [data-testid="piece-card"] { margin-left: env(safe-area-inset-left); }

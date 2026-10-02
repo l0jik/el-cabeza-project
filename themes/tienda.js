@@ -270,6 +270,18 @@ function tornEdge() {
 }
 const TORN = tornEdge();
 
+/* The dock, said in the store (chassis DOCK_WORDS). */
+export const dockWords = {
+  views: ["Your side", "From above", "The aisle"],
+  endGame: "Put them down",
+  newGame: "Set up the demo again",
+  moveLog: "Register tape",
+  plainRules: "Plain rules",
+  nextGame: "Next customer",
+  endedCaption: "Please leave pieces on the board.",
+  wonCaption: "Nice game. Complete set $7.97, aisle 9.",
+};
+
 export const styleSheet = `
   @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700;6..96,800&family=Libre+Franklin:wght@400;500;600;700;800;900&family=Courier+Prime:wght@400;700&display=swap');
   html, body { overscroll-behavior: none; background: #1a140f; }
@@ -439,6 +451,14 @@ export const styleSheet = `
   [data-testid="piece-card"] { margin-bottom: env(safe-area-inset-bottom); margin-left: env(safe-area-inset-left); }
   .ec-title { margin-top: env(safe-area-inset-top); }
   @media (prefers-reduced-motion: reduce) { .ec-btn:active { transform: none; } }
+
+  /* The dock by the moment: a price-tag red for the big button, the
+     register's typewriter for its line. */
+  [data-dock-role="primary"] { background: #A8321F !important; color: #F6EEDA !important; border: 2px solid #2E2118 !important;
+    font-family: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif !important; font-weight: 800 !important; letter-spacing: 0.14em !important;
+    box-shadow: 3px 3px 0 #2E2118 !important; border-radius: 2px !important; }
+  [data-dock-role="caption"] { font-family: 'Courier Prime', 'Courier New', monospace !important; font-style: normal !important; color: #2E2118 !important; font-size: 13px !important; }
+  [data-dock-role="link"] { font-family: 'IBM Plex Mono', monospace !important; }
 `;
 
 /* ------------------------------------------------------------ setup row */

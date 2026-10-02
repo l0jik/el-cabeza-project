@@ -2420,6 +2420,19 @@ export function mountAmbientEffects(refs, helpers) {
    provides (box-sizing, .ec-btn transitions, .ec-btn-invert:hover).
    The Singularity button's own CSS is NOT included here — see
    renderSetupExtras below for why that's still pending. */
+/* The dock, said by the terminal (chassis DOCK_WORDS). */
+export const dockWords = {
+  views: ["POV", "Orbit", "Room"],
+  focus: "Dim",
+  endGame: "Disconnect",
+  newGame: "Reboot",
+  moveLog: "Trace log",
+  plainRules: "Purge rules",
+  nextGame: "Next link",
+  endedCaption: "session closed",
+  wonCaption: "transmission complete",
+};
+
 export const styleSheet = `
   /* Chakra Petch is the masthead/UI display face this theme is built
      around (see the "EL CABEZA" h1 and button labels below) — it was
@@ -3136,6 +3149,18 @@ export const styleSheet = `
     .ec-singularity-invite-backdrop { animation: none; opacity: 1; }
     .ec-singularity-invite-btn { animation: none; opacity: 1; transform: none; }
   }
+
+  /* The dock by the moment: a lit tube for the big button, a prompt for
+     its line. */
+  [data-dock-role="primary"] { font-family: 'Chakra Petch', sans-serif !important; font-weight: 700 !important; letter-spacing: 0.3em !important;
+    background: rgba(102,217,255,0.08) !important; color: #DFFAFF !important; border: 1px solid rgba(102,217,255,0.8) !important;
+    box-shadow: 0 0 12px rgba(102,217,255,0.45), inset 0 0 10px rgba(102,217,255,0.18) !important; text-shadow: 0 0 6px rgba(102,217,255,0.9) !important; }
+  [data-dock-role="primary"]:hover { box-shadow: 0 0 20px rgba(102,217,255,0.7), inset 0 0 14px rgba(102,217,255,0.28) !important; }
+  [data-dock-role="caption"] { font-family: 'IBM Plex Mono', monospace !important; font-style: normal !important; letter-spacing: 0.08em; color: rgba(102,217,255,0.75) !important; }
+  [data-dock-role="caption"]::before { content: "> "; }
+  [data-dock-role="caption"]::after { content: "\\2588"; margin-left: 4px; animation: ecDockCursor 1.1s steps(1) infinite; }
+  @keyframes ecDockCursor { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { [data-dock-role="caption"]::after { animation: none; } }
 `;
 
 /* The two per-pixel warp filters (video-turbulence/wavy-raster VHS

@@ -257,6 +257,19 @@ export function renderGlobalDefs() {
    from the box: cream stock inside a printed double rule, the headings
    in the box's own Bodoni. The box lid's lettering needs Bodoni Moda,
    Libre Franklin and Courier Prime too (den-room.js paints it). */
+/* The dock, said in the den (chassis DOCK_WORDS). */
+export const dockWords = {
+  views: ["My side", "Overhead", "The room"],
+  focus: "Lights low",
+  endGame: "Call it a night",
+  newGame: "Set them up again",
+  moveLog: "Score pad",
+  plainRules: "Back to the box rules",
+  nextGame: "Next game",
+  endedCaption: "We'll finish it some other time.",
+  wonCaption: "That's the game. Good one.",
+};
+
 export const styleSheet = `
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0..100,0..1&family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Libre+Franklin:wght@500;700&family=Courier+Prime:wght@400;700&display=swap');
   /* The television's visit (den-fx.js): the title and the dock's piece
@@ -391,4 +404,12 @@ export const styleSheet = `
   [data-testid="movelog-sheet"], [data-testid="victory-placard"], [data-testid="new-game-choice"] {
     backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
   }
+
+  /* The dock by the moment (chassis DOCK_WORDS): the den's own way of
+     putting it, a cream card with the decade's stripes for the big button. */
+  [data-dock-role="primary"] { font-family: 'Caprasimo', 'Cooper Black', Georgia, serif !important; font-size: 18px !important; letter-spacing: 0.02em !important;
+    text-transform: none !important; background: #4A2A14 !important; color: #F3E6C4 !important; border: none !important; border-radius: 999px !important;
+    box-shadow: 0 4px 0 #B4451F, 0 6px 14px rgba(12,6,2,0.35) !important; padding: 11px 18px 12px !important; }
+  [data-dock-role="primary"]:active { transform: translateY(2px); box-shadow: 0 2px 0 #B4451F !important; }
+  [data-dock-role="caption"] { font-family: 'Caprasimo', 'Cooper Black', Georgia, serif !important; font-style: normal !important; font-size: 15px !important; color: #B4451F !important; }
 `;

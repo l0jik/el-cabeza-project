@@ -281,6 +281,20 @@ function saveOpponentPrefs(prefs) {
    position, turn, history and log. The rules engine's own module state
    (board size, laws, holes, missing squares) lives in engine/ and is
    untouched by a remount, so only React state needs carrying. */
+/* The dock's words by default (theme.dockWords overrides any of them). */
+const DOCK_WORDS = {
+  views: ["Player", "Top", "Room"],
+  focus: "Focus",
+  endGame: "End game",
+  newGame: "New game",
+  moveLog: "Move log",
+  plainRules: "Plain rules",
+  nextGame: "Next game",
+  // The line under the result: a manual end, a win.
+  endedCaption: "Game over.",
+  wonCaption: "Well played.",
+};
+
 export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null }) {
   const C = carry && typeof carry === "object" ? carry : null;
   const carried = (key, fallback) => (C && C[key] !== undefined ? C[key] : typeof fallback === "function" ? fallback() : fallback);
@@ -348,6 +362,23 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
   }
 
+  // A quiet text control in the dock (its links): small, underlined.
+  function dockLinkStyle() {
+    return {
+      fontFamily: "'IBM Plex Mono', monospace",
+      fontSize: 10.5,
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      color: COLORS.charcoal,
+      background: "transparent",
+      border: "none",
+      padding: "6px 2px",
+      textDecoration: "underline",
+      textUnderlineOffset: 3,
+      textDecorationColor: COLORS.slateSoft,
+      cursor: "pointer",
+    };
+  }
   function ghostButtonStyle() {
     return {
       ...MINI_BUTTON_BASE,
@@ -704,6 +735,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      so the picker shows whichever side was actually chosen, still
      selected, letting a player go back purely to CONFIRM the choice
      rather than starting over. */
+  // After a game: the opponent and difficulty for the next, folded under
+  // one link ("Next game: ...") until asked for.
+  const [nextOpen, setNextOpen] = useState(false);
   const [showOpponentPicker, setShowOpponentPicker] = useState(() => carried("showOpponentPicker", savedOpponent.aiPlayer === null));
   /* Null, or "dark"/"light" for ~1.3s right after that side is picked —
      drives the brief confirmation overlay over the dock panel (see its
@@ -738,6 +772,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      Game button itself, which is the only thing that sets it true. */
   const [gameArmed, setGameArmed] = useState(() => carried("gameArmed", false));
   const awaitingBegin = !gameArmed;
+  useEffect(() => { setNextOpen(false); }, [status, awaitingBegin]);
   /* The way into a game in a reality, after the story (theme.realityGate,
      themes/reality-gate.js): Standard Cabeza or Cabeza Nova, shown as the
      reality comes up with no game under way, or when asked (a deferred
@@ -2168,6 +2203,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // The Begin Game button's words, which a theme may change for where the
   // game is (Tienda's store: "Try a Game", it isn't bought yet).
   const beginLabel = (theme.beginLabel && theme.beginLabel(setupExtras)) || "Begin Game";
+  /* The dock's words, which a theme may say in its own voice (user: each
+     menu with its own evocations), by the moment: in play the views and
+     End game; after it a caption under the result, the one big button,
+     and its quiet links. */
+  const dockWords = { ...DOCK_WORDS, ...(theme.dockWords || {}) };
   // A theme may raise the corner controls over a full-screen layer of
   // its own (Neon's SINGULARITY sphere), so they stay usable there.
   const cornerControlsZ = (setupExtras && setupExtras.cornerControlsZ) || 12;
@@ -2485,6 +2525,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      in the corner; the Room view house takes its place beside the
      full-screen button. */
   const rulesInRoom = !!theme.rulesInRoom;
+  /* The corner's How to play ("?") only where the masthead can't be
+     tapped for the same panel (user: redundant beside it). The masthead is
+     on every page, so no theme asks for it now (theme.howToPlayCorner);
+     without it the corner's icons sit in a row, as with rulesInRoom. */
+  const noHowTo = rulesInRoom || !theme.howToPlayCorner;
   const fullScreenCorner = typeof document !== "undefined" && !!(document.fullscreenEnabled || document.documentElement.requestFullscreen);
   // How to play's right edge: "?" only under 560px, the label beside it above.
   /* The bottom-left corner's buttons (full screen, How to play, Room view,
@@ -2496,17 +2541,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // A theme's own corner action (theme.cornerAction(): { label, onClick }
   // or null; Nova's den after the story: Other realities).
   const cornerAction = theme.cornerAction ? theme.cornerAction() : null;
-  const cornerSlots = [fullScreenCorner && "fs", !rulesInRoom && "howto", theme.freeCamera && theme.freeCamera.dollhouse && "room", theme.focusMode && "focus", cornerAction && "action"].filter(Boolean);
+  const cornerSlots = [fullScreenCorner && "fs", !noHowTo && "howto", theme.freeCamera && theme.freeCamera.dollhouse && "room", theme.focusMode && "focus", cornerAction && "action"].filter(Boolean);
   const cornerPlace = (key) => {
     if (cornerStack) return { left: 18, bottom: 18 + 38 * Math.max(0, cornerSlots.indexOf(key)) };
     if (key === "fs") return { left: 18, bottom: 18 };
     if (key === "howto") return { left: fullScreenCorner ? 58 : 18, bottom: 18 };
-    if (key === "room") return { left: rulesInRoom && fullScreenCorner ? 58 : 18, bottom: rulesInRoom ? 18 : 60 };
-    if (key === "action") return { left: rulesInRoom ? (fullScreenCorner ? 98 : 58) + (theme.focusMode ? 40 : 0) : 18, bottom: rulesInRoom ? 18 : 144 };
-    return { left: rulesInRoom ? (fullScreenCorner ? 98 : 58) : 18, bottom: rulesInRoom ? 18 : 102 };
+    if (key === "room") return { left: noHowTo && fullScreenCorner ? 58 : 18, bottom: noHowTo ? 18 : 60 };
+    if (key === "action") return { left: noHowTo ? (fullScreenCorner ? 98 : 58) + (theme.focusMode ? 40 : 0) : 18, bottom: noHowTo ? 18 : 144 };
+    return { left: noHowTo ? (fullScreenCorner ? 98 : 58) : 18, bottom: noHowTo ? 18 : 102 };
   };
   const cornerStyle = (key) => { const c = cornerPlace(key); return { left: c.left, bottom: c.bottom, "--ec-corner-bottom": `${c.bottom}px` }; };
-  const cornerControlsRight = cornerStack ? 56 + 8 : rulesInRoom ? (fullScreenCorner ? 96 : 56) + (theme.focusMode ? 40 : 0) + (cornerAction ? 40 : 0) + 8 : 170 + 8;
+  const cornerControlsRight = cornerStack ? 56 + 8 : noHowTo ? (fullScreenCorner ? 96 : 56) + (theme.focusMode ? 40 : 0) + (cornerAction ? 40 : 0) + 8 : 170 + 8;
   const cornerControlsCovered = dockView === "panel" && (viewportW - dockPanelW) / 2 < cornerControlsRight;
   // The now-playing chip (theme.music): just above the corner controls,
   // stacked or in a row; on the phone shell, just above its bar.
@@ -7673,7 +7718,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          (rulesInRoom): there they're the leaflet on the table, nor while
          a theme asks it away (setupExtras.hideHowToPlay: Neon's
          Singularity). */}
-      {!shell && !rulesInRoom && !(setupExtras && setupExtras.hideHowToPlay) && (
+      {!shell && !noHowTo && !(setupExtras && setupExtras.hideHowToPlay) && (
       <button
         type="button"
         data-testid="how-to-play"
@@ -7776,9 +7821,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           // large at the full 880px.
           width: awaitingBegin
             ? "min(480px, 92vw)"
-            : declutter
-            ? "min(560px, 92vw)"
-            : "min(880px, 96vw)",
+            : "min(560px, 92vw)",
           /* Pre-game only: shrunk by roughly the row (button + its
              marginTop/paddingTop/border) that Begin Game and Neon's
              Anomaly used to occupy on their own line below the Opponent
@@ -8029,160 +8072,126 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           </div>
         </div>
 
-        {/* View controls — entirely empty (and so entirely skipped) pre-
-           game: the two view buttons below require !awaitingBegin, Full
-           Screen no longer lives here at all (it's the floating corner
-           icon now, see near the masthead above), and showTopButton is
-           unconditionally false while awaitingBegin (see its own
-           definition). Without this guard the row would still render as
-           an empty, marginTop:8-tall gap between the status bar and the
-           Opponent row below, pre-game only. */}
+        {/* By the moment (user: the old panel was a relic, cluttered).
+           After a game: a line under the result in the theme's own voice,
+           one big button for the next game, and quiet links for the rest
+           (the move log, plain rules after a custom game, and the next
+           game's opponent folded under one link). In play and after: the
+           camera views as one small segmented row, Focus beside them, and
+           in play End game as a quiet link at its end. */}
+        {!awaitingBegin && !declutter && (
+          <div data-dock-moment="over" style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4, flexShrink: 0 }}>
+            <div data-testid="dock-caption" data-dock-role="caption" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontStyle: "italic", fontSize: 13, color: COLORS.slate, textAlign: "center", lineHeight: 1.3 }}>
+              {status === "finished" ? dockWords.wonCaption : dockWords.endedCaption}
+            </div>
+            <button
+              className="ec-btn"
+              data-testid="new-game"
+              data-dock-role="primary"
+              title="New game"
+              onClick={handleNewGameClick}
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 12.5,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: COLORS.cream,
+                background: COLORS.charcoal,
+                border: `1.5px solid ${COLORS.charcoal}`,
+                padding: "12px 16px",
+                width: "100%",
+                cursor: "pointer",
+              }}
+            >
+              {dockWords.newGame}
+            </button>
+            <div data-dock-role="links" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", columnGap: 14, rowGap: 4 }}>
+              <button className="ec-btn" data-testid="move-log" data-dock-role="link" title="Move log" onClick={openMoveLog} style={dockLinkStyle()}>
+                {dockWords.moveLog}
+              </button>
+              {currentVariants && (
+                <button className="ec-btn" data-testid="reset-rules" data-dock-role="link" title="Plain rules for the next game" onClick={handleResetRules} style={dockLinkStyle()}>
+                  {dockWords.plainRules}
+                </button>
+              )}
+              <button
+                className="ec-btn"
+                data-testid="next-game"
+                data-dock-role="link"
+                aria-expanded={nextOpen}
+                title="Who plays the next game"
+                onClick={() => setNextOpen((v) => !v)}
+                style={dockLinkStyle()}
+              >
+                {dockWords.nextGame}: {aiPlayer ? `You vs ${AI_DIFFICULTY[aiDifficulty].label} AI` : "Two players"} {nextOpen ? "\u25B4" : "\u25BE"}
+              </button>
+            </div>
+          </div>
+        )}
         {!awaitingBegin && (
-        <div
-          style={{
-            display: "grid",
-            /* Single column normally; a second auto-sized one opens up
-               whenever showTopButton has a live action button to show
-               here (End Active Game while playing, Reset Game once
-               manually ended — see declutter/showTopButton above for
-               why those aren't quite the same condition). Grid over
-               absolute positioning specifically because grid cells
-               can't overlap by construction — an absolutely positioned
-               button vertically centered via top:50% reads its
-               position off the row's OWN height, which changes if
-               Current Player View / Top-Down View ever wrap onto two
-               lines on a narrow screen, and centering against a moving
-               target is exactly how "zero overlap" stops being
-               guaranteed. A grid's second column simply reserves this
-               button its own space up front instead. */
-            gridTemplateColumns: showTopButton ? "1fr auto" : "1fr",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 8,
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8 }}>
-            {/* Per feedback, the dock's INITIAL (pre-game) button set is
-               exactly Sound/Full Screen/Opponent/Anomaly/Begin Game
-               (plus the hidden Singularity) — these two camera-view
-               buttons have nothing to act on yet (no piece has ever
-               moved, there's no "current player's" board state worth
-               a dedicated view), so they wait for Begin Game same as
-               the Opponent row already does via declutter below. */}
-            {!awaitingBegin && (
-              <>
-                <button className="ec-btn" onClick={recenterView} style={ghostButtonStyle()}>
-                  Current Player View
+          <div data-dock-role="view-row" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: declutter ? "space-between" : "center", gap: 8, marginTop: 10, flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <div role="group" aria-label="Camera" data-dock-role="views" style={{ display: "inline-flex", border: `1.5px solid ${COLORS.slateSoft}`, borderRadius: 4, overflow: "hidden" }}>
+                {[
+                  { key: "player", label: dockWords.views[0], title: "Current player's view", on: recenterView, testid: "view-player" },
+                  { key: "top", label: dockWords.views[1], title: "Top-down view", on: () => topDownView(), testid: "view-top" },
+                  ...(theme.freeCamera && theme.freeCamera.dollhouse ? [{ key: "room", label: dockWords.views[2], title: "Room view: the whole room, the roof off", on: roomView, testid: "room-view" }] : []),
+                ].map((v, i) => (
+                  <button
+                    key={v.key}
+                    className="ec-btn"
+                    data-testid={v.testid}
+                    data-dock-role="view"
+                    aria-pressed={viewMode === v.key}
+                    title={v.title}
+                    onClick={v.on}
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 10.5,
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      padding: "7px 11px",
+                      border: "none",
+                      borderLeft: i ? `1px solid ${COLORS.slateSoft}` : "none",
+                      background: viewMode === v.key ? hexToRgba(COLORS.charcoal, 0.1) : "transparent",
+                      color: COLORS.charcoal,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+              {/* Focus: a switch beside the camera views (on a phone the
+                 dock is the menu, so this is its way in). */}
+              {focusable && (
+                <button
+                  className="ec-btn"
+                  role="switch"
+                  aria-checked={focusMode}
+                  data-testid="focus-switch"
+                  data-dock-role="focus"
+                  title="Focus: the room dims, the board stays lit"
+                  onClick={toggleFocus}
+                  style={{ ...dockLinkStyle(), display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none" }}
+                >
+                  {dockWords.focus}
+                  <span aria-hidden="true" style={{ width: 24, height: 14, borderRadius: 8, boxSizing: "border-box", position: "relative", flexShrink: 0, border: "1.5px solid currentColor", opacity: focusMode ? 1 : 0.55, transition: "opacity 180ms ease" }}>
+                    <span style={{ position: "absolute", top: 1.5, left: focusMode ? 11.5 : 1.5, width: 8, height: 8, borderRadius: "50%", background: "currentColor", transition: "left 180ms ease" }} />
+                  </span>
                 </button>
-                <button className="ec-btn" onClick={() => topDownView()} style={ghostButtonStyle()}>
-                  Top-Down View
-                </button>
-              </>
-            )}
-            {/* The whole room, the roof off: any time, setup included. */}
-            {theme.freeCamera && theme.freeCamera.dollhouse && (
-              <button className="ec-btn" data-testid="room-view" onClick={roomView} style={ghostButtonStyle()}>
-                Room View
-              </button>
-            )}
-            {/* Focus: a switch beside the camera views (on a phone the
-               dock is the menu, so this is its way in). */}
-            {focusable && (
-              <button
-                className="ec-btn"
-                role="switch"
-                aria-checked={focusMode}
-                data-testid="focus-switch"
-                onClick={toggleFocus}
-                style={{ ...ghostButtonStyle(), display: "inline-flex", alignItems: "center", gap: 8 }}
-              >
-                Focus
-                <span aria-hidden="true" style={{ width: 26, height: 15, borderRadius: 8, boxSizing: "border-box", position: "relative", flexShrink: 0, border: "1.5px solid currentColor", opacity: focusMode ? 1 : 0.55, transition: "opacity 180ms ease" }}>
-                  <span style={{ position: "absolute", top: 1.5, left: focusMode ? 12.5 : 1.5, width: 9, height: 9, borderRadius: "50%", background: "currentColor", transition: "left 180ms ease" }} />
-                </span>
-              </button>
-            )}
-            {/* New Game now carries the previous game's Singularity rules
-               forward (see resetGame). This clears them back to a plain
-               game on demand — shown only once a game has ended (not
-               mid-play, where End Active Game comes first) and only while a
-               Singularity config is actually active (currentVariants set;
-               null = already a plain game). */}
-            {currentVariants && status !== "playing" && (
-              <button
-                className="ec-btn"
-                onClick={handleResetRules}
-                style={ghostButtonStyle()}
-                data-testid="reset-rules"
-              >
-                Reset Rules
+              )}
+            </div>
+            {declutter && (
+              <button className="ec-btn" data-testid="end-game" data-dock-role="link" title="End this game" onClick={handleEndActiveGame} style={dockLinkStyle()}>
+                {dockWords.endGame}{" \u203A"}
               </button>
             )}
           </div>
-          {showTopButton && (
-            /* Relocated from the Record row below (hidden while
-               declutter is true — see there). The grid's second
-               column lands it at the row's right edge, the same
-               horizontal endpoint the Record row's own
-               justifyContent:"space-between" always gave it — a
-               vertical relocation, not a horizontal one. Stays in this
-               same spot through both "playing" and "ended" — it's the
-               SAME button morphing from one action to the next, not a
-               different control appearing — only actually
-               disappearing once a real win hands the reset action off
-               to the bottom row + victory placard instead.
-
-               Full Screen used to relocate to sit directly under this
-               button during declutter — now that entering/exiting full
-               screen is always the floating corner icon (see near the
-               masthead above), this button stands alone in both
-               "playing" and "ended," same shape as Reset Game below. */
-            declutter ? (
-              <button
-                className="ec-btn ec-btn-invert"
-                onClick={handleEndActiveGame}
-                style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: 11,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: COLORS.charcoal,
-                  background: "transparent",
-                  border: `1.5px solid ${COLORS.charcoal}`,
-                  padding: "9px 16px",
-                  cursor: "pointer",
-                  justifySelf: "end",
-                }}
-              >
-                End Active Game
-              </button>
-            ) : (
-              <button
-                className="ec-btn ec-btn-invert"
-                onClick={handleReset}
-                style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: 11,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: COLORS.charcoal,
-                  background: "transparent",
-                  border: `1.5px solid ${COLORS.charcoal}`,
-                  padding: "9px 16px",
-                  cursor: "pointer",
-                  justifySelf: "end",
-                }}
-              >
-                Reset Game
-              </button>
-            )
-          )}
-        </div>
         )}
 
-        {/* Opponent settings — hidden while declutter is true, see there */}
-        {!declutter && (
+        {/* Opponent settings — in setup, and after a game under "Next game" */}
+        {!declutter && (awaitingBegin || nextOpen) && (
         <div
           style={{
             display: "flex",
@@ -8384,86 +8393,6 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         </div>
         )}
 
-        {/* Setup/post-game action row — hidden while declutter is true
-            (its own button relocates up next to Top-Down View in that
-            state; see above). Per feedback, the inline running move
-            log that used to live here (a Dark/Light table, visible
-            during setup and mid-game) is gone entirely — it was a
-            substantial contributor to the dock's own height, and every
-            move it recorded is already available afterward in the
-            Move Log popup below, the only place a finished game's
-            history actually needs to be read. This row is now just
-            whichever action button set belongs in this state (Begin
-            Game/Anomaly pre-game, Move Log/New Game post-game). */}
-        {/* Post-game action row only now — the pre-game Begin Game (and
-            Neon's Anomaly) buttons moved up into the Opponent row above,
-            so this row no longer renders at all while awaitingBegin;
-            see the popup's own maxHeight below for the matching height
-            reduction that frees up. The dock's own Move Log button is
-            now only needed for a manual End Active Game (status
-            "ended") — a real win (status "finished") opens the Victory
-            placard instead, whose own Move Log button opens this same
-            popup, making a second entry point here genuinely redundant
-            for that case only. */}
-        {!declutter && !awaitingBegin && (
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "flex-start",
-            justifyContent: "flex-end",
-            gap: 16,
-            marginTop: 10,
-            paddingTop: 10,
-            borderTop: `1px solid ${COLORS.slateSoft}`,
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-            {status === "ended" && (
-              <button
-                key="movelog"
-                className="ec-btn ec-btn-invert"
-                onClick={openMoveLog}
-                style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: 11,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: COLORS.charcoal,
-                  background: "transparent",
-                  border: `1.5px solid ${COLORS.charcoal}`,
-                  padding: "9px 16px",
-                  cursor: "pointer",
-                  flex: "1 0 auto",
-                }}
-              >
-                Move Log
-              </button>
-            )}
-            <button
-              key="newgame"
-              className="ec-btn ec-btn-invert"
-              onClick={handleNewGameClick}
-              style={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 11,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: COLORS.charcoal,
-                background: "transparent",
-                border: `1.5px solid ${COLORS.charcoal}`,
-                padding: "9px 16px",
-                cursor: "pointer",
-                flex: "1 0 auto",
-              }}
-            >
-              New Game
-            </button>
-          </div>
-        </div>
-        )}
-
         {/* Sound On/Off — per feedback, a small icon-only toggle tucked
            into the dock's own bottom-right corner instead of a text
            button competing for space in the centered rows above (which
@@ -8544,7 +8473,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
            it's under way (and after, for the game just played). Absolutely
            placed, so it never makes the dock any bigger; it gives way
            (ellipsis) to the corner icons on a narrow screen. */}
-        {!awaitingBegin && (
+        {declutter && (
           <div
             data-testid="dock-players"
             style={{
@@ -8956,6 +8885,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             onBegin: triggerBeginGame,
             setupActions: theme.shellSetupActions && setupExtras ? theme.shellSetupActions(setupExtras) : [],
             beginLabel,
+            words: dockWords,
             noGame: !!(setupExtras && setupExtras.noGame),
             // Play
             canUndoMove: isPlaying && turnLocked && currentPlayer !== aiPlayer,

@@ -115,7 +115,7 @@ for (const theme of ["neon", "standard"]) {
   check("after the win the counter stays up, holding the last turn (1 point left)", (await left(page)) === 1, String(await left(page)));
   if (theme === "neon") await page.screenshot({ path: "/tmp/e2e-points-won.png" });
   await openDockPanel(page);
-  await page.locator('[data-testid="dock-panel"] button', { hasText: /^New Game$/ }).click();
+  await page.locator('[data-testid="new-game"]').click();
   await page.waitForTimeout(1500);
   check("a new game's setup clears it", (await left(page)) === null, String(await left(page)));
 

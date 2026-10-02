@@ -29,9 +29,9 @@ const log = await page.evaluate(() => (window.__EC_TEST_LOG__ || []).map((e) => 
 check(`the AI (Light) moved first (log: ${log.join(",")})`, log[0] === "light");
 
 await openDockPanel(page).catch(() => {});
-await page.locator("button", { hasText: "End Active Game" }).click();
+await page.locator('[data-testid="end-game"]').click();
 await page.waitForTimeout(800);
-await page.locator('[data-testid="dock-panel"] button', { hasText: /^Move Log$/ }).click();
+await page.locator('[data-testid="move-log"]').click();
 await page.waitForTimeout(800);
 const headers = await page.evaluate(() => [...document.querySelectorAll("span")].map((s) => s.textContent.trim()).filter((t) => t === "Dark" || t === "Light"));
 check(`the Move Log's first column is Light (${headers.join(", ")})`, headers[0] === "Light" && headers[1] === "Dark");

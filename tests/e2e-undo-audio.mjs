@@ -27,7 +27,7 @@ console.log("  playing:", JSON.stringify(playing));
 check("sound is up while playing", playing && playing.gain > 0.1);
 
 await openDockPanel(page).catch(() => {});
-await page.locator("button", { hasText: "End Active Game" }).click();
+await page.locator('[data-testid="end-game"]').click();
 await page.waitForTimeout(2600);
 const ended = await audio();
 console.log("  ended:", JSON.stringify(ended));

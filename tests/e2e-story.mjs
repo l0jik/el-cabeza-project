@@ -136,7 +136,7 @@ console.log("\ndesktop: the store, the purchase, home");
   // End it: the clerk's offer.
   const corner = await waitForDockCorner(page);
   check("the dock reopens mid-game", !!corner && (await reopenDockPanelFromCorner(page, corner)));
-  const end = page.locator('[data-testid="dock-panel"] button', { hasText: "End Active Game" });
+  const end = page.locator('[data-testid="end-game"]');
   for (let i = 0; i < 20 && (await end.count()) > 0; i++) { await end.click().catch(() => {}); await page.waitForTimeout(500); }
   check("after the game, the clerk's offer", await poll(() => has(page, "tienda-offer"), 8000));
   const offerBox = await q(page, "tienda-offer").boundingBox();
@@ -145,7 +145,7 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...and No thanks puts it away", await poll(async () => !(await has(page, "tienda-offer")), 5000));
 
   // Bought, from the dock after New Game.
-  const again = page.locator('[data-testid="dock-panel"] button', { hasText: /^New Game$/ });
+  const again = page.locator('[data-testid="new-game"]');
   // (The panel folds away after a game; a direct click on the button.)
   if (await again.count()) await again.first().evaluate((b) => b.click());
   check("New Game brings the setup row back", await poll(() => has(page, "story-purchase"), 10000) || (await openDockPanel(page) && await has(page, "story-purchase")));

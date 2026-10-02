@@ -485,10 +485,10 @@ function PlayPanel({ ctl, t }) {
   if (over) {
     actions.push(
       <button key="log" type="button" className="ec-shell-btn ec-shell-ghost" data-testid="shell-movelog" onClick={ctl.onOpenMoveLog} style={{ flex: 1 }}>
-        Move Log
+        {(ctl.words && ctl.words.moveLog) || "Move Log"}
       </button>,
       <button key="new" type="button" className="ec-shell-btn ec-shell-primary" data-testid="shell-new-game" onClick={ctl.onNewGame} style={{ flex: 1.3 }}>
-        New Game
+        {(ctl.words && ctl.words.newGame) || "New Game"}
       </button>
     );
   } else {
@@ -699,7 +699,7 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
             <Row label="Move log" testid="shell-menu-movelog" disabled={!ctl.logCount} detail={ctl.logCount ? `${ctl.logCount} move${ctl.logCount === 1 ? "" : "s"}` : "No moves yet"} onClick={run(ctl.onOpenMoveLog)} chevron t={t} />
             {ctl.phase === "playing" && (
               <Row
-                label={confirmEnd ? "Tap again to end the game" : "End game"}
+                label={confirmEnd ? "Tap again to end the game" : (ctl.words && ctl.words.endGame) || "End game"}
                 testid="shell-menu-end"
                 danger={confirmEnd}
                 disabled={ctl.endBusy}

@@ -108,7 +108,7 @@ async function clickInvite() {
 // game that can be the AI's own move — so keep pressing until the game has
 // actually ended (the button swaps to Reset Game).
 async function endActiveGame() {
-  const btn = page.locator('[data-testid="dock-panel"] button', { hasText: "End Active Game" });
+  const btn = page.locator('[data-testid="end-game"]');
   for (let i = 0; i < 20 && (await btn.count()) > 0; i++) {
     await btn.click().catch(() => {});
     await page.waitForTimeout(500);
@@ -1128,7 +1128,7 @@ check("Reset Rules control appears once a Singularity game has ended",
 // (status "ended", no winner), so the new RETAIN/RECONFIGURE dialog
 // (only for a real Singularity win — see handleNewGameClick) must NOT
 // appear; New Game has to still reset in one click exactly as before.
-await page.locator('[data-testid="dock-panel"] button', { hasText: /^New Game$/ }).click();
+await page.locator('[data-testid="new-game"]').click();
 await page.waitForTimeout(400);
 // Always-mounted (opacity-faded, like the Move Log popup and Victory
 // placard) — real visibility, not DOM presence, is what proves it stayed

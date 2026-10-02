@@ -77,14 +77,16 @@ for (const theme of ["neon", "standard"]) {
   // up the SINGULARITY invite (the same one five masthead taps do).
   // (Standard's den has none: its rules are the leaflet on the coffee
   // table, see e2e-den.mjs.)
+  // No "?" in the corner (user: redundant): the masthead opens the same
+  // panel, a tap on it bringing up Info.
   const how = page.locator('[data-testid="how-to-play"]');
-  if (theme === "standard") check("no How to play in the den's corner", (await how.count()) === 0);
-  else {
-    check("a How to play button is on screen", await how.isVisible());
-    await how.click();
+  check("no How to play \"?\" in the corner", (await how.count()) === 0);
+  {
+    await page.locator(".ec-title").first().click();
     await page.waitForTimeout(400);
-    check("...and opens the rules at the Quick card",
-      (await overlay.getAttribute("data-open")) === "true" && (await page.locator('[data-testid="rules-card-quick"]').count()) === 1);
+    await page.locator("button", { hasText: /^Info$/ }).first().click();
+    await page.waitForTimeout(400);
+    check("...the masthead opens the rules instead (a tap, then Info)", (await overlay.getAttribute("data-open")) === "true");
     await page.keyboard.press("Escape");
     await page.waitForTimeout(500);
   }
@@ -122,7 +124,7 @@ for (const theme of ["neon", "standard"]) {
   const overlay = page.locator('[data-testid="info-overlay"]');
   const closeRules = async () => { await page.mouse.click(6, 6); await page.waitForTimeout(400); };
 
-  await page.locator('[data-testid="how-to-play"]').click();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "quick" } })));
   await page.waitForTimeout(300);
   check("opening the rules on Quick plays the open earcon, not the choir", (await cues()).join(",") === "open");
   await page.locator('[data-testid="rules-tab-costs"]').click();
