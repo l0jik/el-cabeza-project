@@ -166,12 +166,19 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     let ending = null;
     /* A look at one scene without the story (Nova's ?scene=, read once):
        "revelation", straight into the void; "glutts", the trip back to
-       the closed Big Glutts from the black just before the car pulls in.
-       A tap first (the sound needs one). Nothing's kept: the story stays
-       where it was, and no hall. */
+       the closed Big Glutts from the black just before the car pulls in;
+       "hall", the hallway lighting up (its count kept in memory only, and
+       after "keep playing" back in a few seconds, not a few moves, so the
+       second time's words and the third's pull can be seen too). A tap
+       first (the sound needs one). Nothing's kept: the story stays where
+       it was, and no hall otherwise. */
     const preview = (novaTv && novaTv.preview && novaTv.preview()) || null;
-    const hall = novaTv && novaTv.hall && !postStory && !preview ? createHall({ audio, onEnding: (h) => startEnding(h), flares: novaTv.hall.flares || null }) : null;
-    if (hall && novaTv.hall.due()) hall.arm(movesNow());
+    const hallPreview = preview === "hall";
+    const previewFlares = (() => { let n = 0; return { get: () => n, set: (v) => { n = v; } }; })();
+    const hall = novaTv && (hallPreview || (novaTv.hall && !postStory && !preview))
+      ? createHall({ audio, onEnding: (h) => startEnding(h), flares: hallPreview ? previewFlares : novaTv.hall.flares || null }) : null;
+    let hallAgainAt = 0;
+    if (hall && !hallPreview && novaTv.hall.due()) hall.arm(movesNow());
     function startEnding(h) {
       ending = createEnding({
         audio,
@@ -188,11 +195,11 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       const d = document;
       previewEl = d.createElement("button");
       previewEl.type = "button";
-      previewEl.setAttribute("data-testid", preview === "glutts" ? "den-glutts-preview" : "den-revelation-preview");
+      previewEl.setAttribute("data-testid", `den-${preview}-preview`);
       if (preview === "glutts" && trip) trip.load();
       previewEl.style.cssText = "position:fixed;inset:0;z-index:3000;border:0;margin:0;background:#000;color:#cfd6e6;cursor:pointer;" +
         "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font:400 clamp(20px,5vw,30px)/1.3 Georgia,serif;letter-spacing:0.04em;-webkit-tap-highlight-color:transparent;";
-      previewEl.innerHTML = '<span>' + (preview === "glutts" ? "Back to Big Glutts" : "The revelation") + '</span><small style="font:600 12px/1 Arial,sans-serif;letter-spacing:0.22em;text-transform:uppercase;opacity:0.55">Tap to begin</small>';
+      previewEl.innerHTML = '<span>' + ({ glutts: "Back to Big Glutts", hall: "The hallway" }[preview] || "The revelation") + '</span><small style="font:600 12px/1 Arial,sans-serif;letter-spacing:0.22em;text-transform:uppercase;opacity:0.55">Tap to begin</small>';
       // (Its taps stay its own.)
       ["pointerdown", "pointerup", "touchstart", "touchend", "mousedown", "wheel"].forEach((t) => previewEl.addEventListener(t, (e) => e.stopPropagation()));
       previewEl.addEventListener("click", (e) => {
@@ -202,6 +209,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (fs && !d.fullscreenElement && window.matchMedia && window.matchMedia("(pointer: coarse)").matches) { try { fs.call(d.documentElement).catch(() => {}); } catch (err) { /* stays as it is */ } }
         previewEl.remove(); previewEl = null;
         if (preview === "glutts") { if (trip) trip.start({ from: 8300 }); }
+        else if (hallPreview) { if (hall) hall.now(movesNow()); }
         else startEnding(null);
       });
       d.body.appendChild(previewEl);
@@ -957,6 +965,13 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
             || !!(den.tv && den.tv.isOn()) || tvGoal > 0 || phoneGoal > 0 || bookGoal > 0 || focusGoal > 0 || !!ending
             || (typeof document !== "undefined" && !!document.querySelector("[data-testid='story-cut']"));
           hall.tick(now, t, den, { moves: movesNow, busy });
+          // (?scene=hall: kept playing, it's back in a few seconds.)
+          if (hallPreview) {
+            const hs = hall.state();
+            if (hs.state !== "armed" || !hs.flares) hallAgainAt = 0;
+            else if (!hallAgainAt) hallAgainAt = now + 4000;
+            else if (now >= hallAgainAt) { hallAgainAt = 0; hall.now(movesNow()); }
+          }
         }
         if (den.tv && den.tv.glowKnob) den.tv.glowKnob(postStory);
         if (autoMusic) {

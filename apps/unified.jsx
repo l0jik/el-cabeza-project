@@ -54,10 +54,11 @@ const WORLD_PARAM = (() => {
   try { const w = new URLSearchParams(window.location.search).get("world"); return storyEnded() && ["standard", "neon", "tienda"].includes(w) ? w : null; } catch (e) { return null; }
 })();
 // A look at one of the den's scenes without playing the story there:
-// ?scene=revelation (den-ending.js) or ?scene=glutts (the trip back to
-// the closed Big Glutts, den-trip.js). Opens in the den. Read once.
+// ?scene=revelation (den-ending.js), ?scene=glutts (the trip back to
+// the closed Big Glutts, den-trip.js) or ?scene=hall (the hallway lighting
+// up, den-hall.js). Opens in the den. Read once.
 let SCENE_PARAM = (() => {
-  try { const v = new URLSearchParams(window.location.search).get("scene"); return ["revelation", "glutts"].includes(v) ? v : null; } catch (e) { return null; }
+  try { const v = new URLSearchParams(window.location.search).get("scene"); return ["revelation", "glutts", "hall"].includes(v) ? v : null; } catch (e) { return null; }
 })();
 // ?scene=summons: straight into Neon as if just through the den's set the
 // first time: the summons over the board, then the sphere's first visit

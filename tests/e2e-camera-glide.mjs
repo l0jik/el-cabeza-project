@@ -72,6 +72,31 @@ console.log("\nNova ?scene=revelation");
   await ctx.close();
 }
 
+console.log("\nNova ?scene=hall");
+{
+  const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?scene=hall");
+  check("a fresh visitor: the den, and a tap to begin", !!(await poll(async () => (await page.locator('[data-testid="den-hall-preview"]').count()) > 0, 30000)));
+  await page.waitForTimeout(800);
+  await page.locator('[data-testid="den-hall-preview"]').click();
+  const keep = page.locator('[data-testid="den-hall-keep"]');
+  check("...the hallway lights up, and the choice", !!(await poll(async () => (await keep.count()) > 0 && /weird enough already/.test(await keep.innerText()), 8000)));
+  await page.waitForTimeout(500);
+  await keep.click();
+  check("kept playing: back in a few seconds, \"Oh, for the love of…\"", !!(await poll(async () => (await keep.count()) > 0 && /Oh, for the love of…/.test(await page.locator('[data-testid="den-hall-say"]').innerText()), 15000)));
+  check("...and keep playing's the electrician", /call an electrician about that tomorrow\. Let me just finish one game!/.test(await keep.innerText()));
+  await page.waitForTimeout(500);
+  await keep.click();
+  check("the third time: pulled in", !!(await poll(async () => { const h = await page.evaluate(() => window.__DEN_HALL__()); return h.state === "walk" && h.dragged; }, 15000)));
+  check("...and nothing kept", await page.evaluate(() => { const s = JSON.parse(localStorage.getItem("el-cabeza:story") || "null"); return !s || (!s.hallFlares && !s.ended); }));
+  check("no page errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failures ? `\nCAMERA GLIDE FAILED (${failures})` : "\nCAMERA GLIDE PASSED");
 process.exit(failures ? 1 : 0);

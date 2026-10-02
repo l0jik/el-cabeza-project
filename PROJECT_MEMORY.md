@@ -5408,3 +5408,10 @@ phone menu until "Start the story over" (which clears it).
     probably call an electrician about that tomorrow. Let me just finish
     one game!" (den-hall.js KEEP_AGAIN, when flares > 1); the first time
     it's still "Just keep playing — this day's been weird enough already".
+  - Nova ?scene=hall (as ?scene=revelation/glutts; den-fx.js preview
+    "hall"): opens in the den, "The hallway / Tap to begin", then the
+    hall flares at once. Its count is in memory only (previewFlares);
+    after "keep playing" it's back 4 s later instead of 3 moves, so the
+    second time ("Oh, for the love of…", the electrician line) and the
+    third (pulled in, on to the void) can be seen. Nothing saved.
+    tests/e2e-camera-glide.mjs.
