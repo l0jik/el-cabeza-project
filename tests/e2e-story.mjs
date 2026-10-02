@@ -286,6 +286,12 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...\"Time to get the heck out of here!\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-2"].on').count()) === 1, 20000, 100)));
   check("...home, in the Room view", !!(await poll(async () => { const s = await page.evaluate(() => window.__DEN_TRIP__().stage); const c = await page.evaluate(() => window.__EC_TEST_CAM__()); return (s === "home" || s === "done") && c.dollhouse; }, 20000, 100)));
   check("...and the trip's gone", !!(await poll(async () => !(await has(page, "den-trip")), 6000, 100)));
+  // Home: a card, one of the user's ten lines, a tap and it's gone (and
+  // the hall counts its moves from then).
+  check("home: the card (one of the ten lines)", !!(await poll(async () => (await has(page, "den-home-card")) && (await q(page, "den-home-card").innerText()).length > 20, 8000)));
+  await page.screenshot({ path: process.env.EC_SHOTS ? `${process.env.EC_SHOTS}/home-card.png` : "/dev/null" }).catch(() => {});
+  await q(page, "den-home-card").click();
+  check("...a tap puts it away", !!(await poll(async () => !(await has(page, "den-home-card")), 3000)));
   check("...still owned", (await owned(page) || {}).owned === true);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
 

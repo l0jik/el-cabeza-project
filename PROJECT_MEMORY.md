@@ -4784,3 +4784,12 @@ phone menu until "Start the story over" (which clears it).
     from where it should be by then. From disk (tests), or if it can't be
     had, the score is built live as before. After changing the score:
     build, run the tool, build again.
+
+### Home from the trip: the card (2026-10-02)
+  - After the trip back to the closed Big Glutts, once the den's faded up
+    (3.8 s after onReturn): a tap-to-dismiss card (den-fx.js homeCard,
+    the den's 1970s card look, "Tap to play") with one of the user's ten
+    lines at random, never the one shown last time (localStorage
+    el-cabeza:home-line). The hall arms (counts its four moves) only once
+    it's put away; the hall's "due" is still saved at the return, so a
+    reload before the tap arms it without the card.

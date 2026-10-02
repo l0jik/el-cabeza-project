@@ -81,7 +81,77 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       }
     }
     // (Home from the trip, the hall's due: den-hall.js, below.)
-    const trip = novaTv ? createTrip({ audio, onReturn: () => { roomView(); if (novaTv.hall) novaTv.hall.arm(); if (hall) hall.arm(movesNow()); } }) : null;
+    /* Home from the trip (user): a card, one of the user's ten lines at
+       random (not the one shown last time), and a tap puts it away; the
+       game's then yours, and the hall (den-hall.js) counts its moves only
+       from there. */
+    const HOME_LINES = [
+      "Okay. I think I've had enough for one day. I'm just going to sit here and play my game.",
+      "No more stores. No more phone calls. Just me, the fire, and El Cabeza.",
+      "That was… weird. Whatever. I'm not leaving this room again tonight. Let's play.",
+      "I don't know what happened over there, and I don't want to know. Game time.",
+      "Enough adventure for one day. Feet up, game on.",
+      "Big Glutts can stay closed. I've got everything I need right here.",
+      "Deep breath. Nothing strange is going to happen in my own den. Let's just play.",
+      "Some days you go looking for answers. Today I'm going looking for a win.",
+      "Note to self: never answer the phone again. Now, where was I?",
+      "Peace and quiet, a warm fire, and a game nobody else has ever heard of. Perfect.",
+    ];
+    const HOME_CARD_CSS = `
+.den-home-card { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(14,8,4,0.32); cursor: pointer; opacity: 0; transition: opacity 0.5s ease; -webkit-tap-highlight-color: transparent; }
+.den-home-card.on { opacity: 1; }
+.den-home-card .card { position: relative; width: min(86vw, 420px); padding: 18px 22px 16px; background: #F3E6C4; border: 3px solid #4A2A14; border-radius: 16px;
+  box-shadow: 5px 6px 0 rgba(40,20,8,0.55); transform: translateY(10px) rotate(-1deg); transition: transform 0.5s cubic-bezier(.2,1.4,.4,1); }
+.den-home-card.on .card { transform: translateY(0) rotate(-1deg); }
+.den-home-card .stripes { display: flex; height: 14px; margin: -18px -22px 14px; border-radius: 13px 13px 0 0; overflow: hidden; }
+.den-home-card .stripes i { flex: 1; } .den-home-card .stripes i:nth-child(1) { background: #6B3A1E; } .den-home-card .stripes i:nth-child(2) { background: #B4451F; }
+.den-home-card .stripes i:nth-child(3) { background: #E07B22; } .den-home-card .stripes i:nth-child(4) { background: #E9B23A; }
+.den-home-card p { margin: 0; font: 400 clamp(20px, 5.6vw, 26px)/1.22 'Caprasimo', 'Cooper Black', Georgia, serif; color: #4A2A14; text-wrap: balance; }
+.den-home-card small { display: block; margin-top: 14px; text-align: right; font: 700 12px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #B4451F; }
+@media (prefers-reduced-motion: reduce) { .den-home-card, .den-home-card .card { transition: none; } }
+`;
+    const HOME_LINE_KEY = "el-cabeza:home-line";
+    function homeCard(onDone) {
+      const doc = typeof document !== "undefined" ? document : null;
+      if (!doc) { onDone(); return; }
+      if (!doc.querySelector("style[data-den-home-card]")) { const st = doc.createElement("style"); st.setAttribute("data-den-home-card", ""); st.textContent = HOME_CARD_CSS; doc.head.appendChild(st); }
+      // (Its face: the den's cards', Caprasimo, if the call's not brought it already.)
+      if (!doc.querySelector('link[href*="family=Caprasimo"]')) { const l = doc.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap"; doc.head.appendChild(l); }
+      let last = -1;
+      try { last = Number(localStorage.getItem(HOME_LINE_KEY)); } catch (e) { /* none */ }
+      let i = Math.floor(Math.random() * HOME_LINES.length);
+      if (i === last) i = (i + 1 + Math.floor(Math.random() * (HOME_LINES.length - 1))) % HOME_LINES.length;
+      try { localStorage.setItem(HOME_LINE_KEY, String(i)); } catch (e) { /* this time only */ }
+      const el = doc.createElement("div");
+      el.className = "den-home-card"; el.setAttribute("data-testid", "den-home-card"); el.setAttribute("data-line", String(i));
+      el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Home again");
+      const card = doc.createElement("div"); card.className = "card";
+      const stripes = doc.createElement("div"); stripes.className = "stripes"; stripes.innerHTML = "<i></i><i></i><i></i><i></i>";
+      const p = doc.createElement("p"); p.textContent = HOME_LINES[i];
+      const hint = doc.createElement("small"); hint.textContent = "Tap to play";
+      card.append(stripes, p, hint); el.append(card);
+      doc.body.appendChild(el);
+      requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("on")));
+      let done = false;
+      const close = (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        if (done) return;
+        done = true;
+        el.classList.remove("on");
+        setTimeout(() => el.remove(), 550);
+        onDone();
+      };
+      el.addEventListener("pointerdown", (e) => e.stopPropagation());
+      el.addEventListener("click", close);
+    }
+    let homeCardTimer = 0;
+    const trip = novaTv ? createTrip({ audio, onReturn: () => {
+      roomView();
+      if (novaTv.hall) novaTv.hall.arm();
+      // (Once the den's faded up from the black.)
+      homeCardTimer = setTimeout(() => homeCard(() => { if (hall) hall.arm(movesNow()); }), 3800);
+    } }) : null;
     if (trip && novaTv.call) trip.load(); // (its pictures, well ahead of time)
     const call = novaTv && novaTv.call ? createDenCall({ audio, awaitingBegin: () => !!(awaitingBeginRef && awaitingBeginRef.current), onTrip: () => trip && trip.start(), onGoToPhone: () => phoneVisit(true), onPhoneDone: () => phoneVisit(false) }) : null;
     /* The end of the story (Nova). Home from the closed Big Glutts, four
@@ -1148,6 +1218,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (ending) { ending.dispose(); ending = null; }
         chanCache.forEach((tx) => tx && tx.dispose());
         if (trip) trip.dispose();
+        clearTimeout(homeCardTimer);
+        if (typeof document !== "undefined") document.querySelectorAll("[data-testid='den-home-card']").forEach((e) => e.remove());
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (novaTv && novaTv.register) novaTv.register(null);
