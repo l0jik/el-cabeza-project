@@ -9,7 +9,7 @@ import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { StoryCut, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, hallFlares, saveHallFlares, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
 import { createRealitiesMenu, goToWorld, onStoryRestart } from "../themes/realities.js";
-import { forgetSingularity, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn } from "../engine/journey.js";
+import { forgetSingularity, journeyPreview, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn } from "../engine/journey.js";
 import { prepareCommercial } from "../themes/den-ad-audio.js";
 import {
   TransitionStyles,
@@ -59,6 +59,15 @@ const WORLD_PARAM = (() => {
 let SCENE_PARAM = (() => {
   try { const v = new URLSearchParams(window.location.search).get("scene"); return ["revelation", "glutts"].includes(v) ? v : null; } catch (e) { return null; }
 })();
+// ?scene=summons: straight into Neon as if just through the den's set the
+// first time: the summons over the board, then the sphere's first visit
+// (the ring and heartbeat, the menu coming apart, the hand). The journey
+// plays it as never seen and keeps this visit in memory only
+// (engine/journey.js journeyPreview), so nothing of it is saved.
+const SUMMONS_PARAM = (() => {
+  try { return new URLSearchParams(window.location.search).get("scene") === "summons"; } catch (e) { return false; }
+})();
+if (SUMMONS_PARAM) journeyPreview();
 const takeScene = () => { const r = SCENE_PARAM; SCENE_PARAM = null; return r; };
 const storyBridge = { purchase() {}, backToStore() {}, restart() {}, restartNow() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };
 // The realities menu's Restart story starts over here, in place.
@@ -157,7 +166,8 @@ const homeTheme = {
 const novaNeonTheme = {
   ...neonTheme,
   // After the story: the gate as it comes up, and the other realities.
-  realityGate: { world: "neon", novaGo: (to, w) => storyBridge.goWorld(w) },
+  // (Not over the summons opened by its own link, ?scene=summons.)
+  realityGate: SUMMONS_PARAM ? null : { world: "neon", novaGo: (to, w) => storyBridge.goWorld(w) },
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
   useSetupExtras: (x) => {
     const e = { ...neonTheme.useSetupExtras(x), onSingularityBack: () => tvBridge.back() };
@@ -215,7 +225,7 @@ const {
 
 function UnifiedApp() {
   // A first visit opens in the store; once the game is bought, at home.
-  const [themeName, setThemeName] = useState(() => WORLD_PARAM || (SCENE_PARAM || readOwned() ? "standard" : "tienda"));
+  const [themeName, setThemeName] = useState(() => (SUMMONS_PARAM ? "neon" : WORLD_PARAM || (SCENE_PARAM || readOwned() ? "standard" : "tienda")));
   // Before the first Singularity visit the way into Neon from the den is
   // the television alone (user): no title hold there, no shortcut in the
   // phone menu. After it (engine/journey.js), both; a story restart locks

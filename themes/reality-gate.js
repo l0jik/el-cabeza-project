@@ -5,7 +5,7 @@
 
    - The gate: two buttons, the same words everywhere, each reality
      drawing them in its own look (user). Standard Cabeza begins the
-     classic game at once: the five pieces, the usual board, no changes.
+     classic game at once: the five pieces, the standard 10x10 board, no changes.
      Cabeza Nova opens the sheet. "Other realities" under them is the way
      back to the switcher (realities.js).
    - The sheet: everything Nova's places offer (Tienda's order form,
@@ -523,7 +523,7 @@ export function RealityGate({ api, world, stage: initialStage = "choose", sel: i
       w && h("div", { className: "rg-kicker" }, w.name),
       h("button", { type: "button", className: "rg-big", "data-testid": "gate-standard", onClick: standard },
         h("span", { className: "rg-big-t" }, "Standard Cabeza"),
-        h("span", { className: "rg-big-s" }, "The classic game: five pieces each, the usual board.")),
+        h("span", { className: "rg-big-s" }, "The classic game: five pieces each, the standard 10x10 board.")),
       h("button", { type: "button", className: "rg-big rg-nova", "data-testid": "gate-nova", onClick: () => setStage("nova") },
         h("span", { className: "rg-big-t" }, "Cabeza Nova"),
         h("span", { className: "rg-big-s" }, "Every piece, rule and board. Set it up, then play.")),

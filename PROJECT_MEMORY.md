@@ -5277,3 +5277,15 @@ phone menu until "Start the story over" (which clears it).
     image (assets/neon/lost-tip-wire.webp) and tools/lost_hand.py's lines
     making it. Touches still count toward the menu coming apart.
     e2e-summon checks no fingertip and that the sound stops by itself.
+
+### ?scene=summons, and the gate's wording (2026-10-02)
+  - User asked for a link straight to the summons and sphere scene. Nova's
+    ?scene=summons (apps/unified.jsx SUMMONS_PARAM) opens in Neon as if just
+    through the den's set the first time: the summons, then the sphere's
+    first visit (ring and heartbeat, the menu coming apart, the hand).
+    engine/journey.js journeyPreview(): the Singularity reads as never seen
+    and seen/commercial-aired are kept in memory only, so nothing is saved
+    (e2e-summon checks no journey key is written). The reality gate is left
+    off for it (it covered the summons after a finished story).
+  - Reality gate, Standard Cabeza: "...five pieces each, the standard 10x10
+    board." (was "the usual board", user).

@@ -194,6 +194,44 @@ console.log("once the Singularity's been visited");
   await ctx.close();
 }
 
+console.log("the link straight to it (?scene=summons), after the whole story");
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await ctx.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true;
+    window.__EC_TEST_LOST_MS__ = 9000;
+    try {
+      if (!sessionStorage.getItem("seeded")) {
+        sessionStorage.setItem("seeded", "1");
+        localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true, storeGone: true, ended: true }));
+        localStorage.setItem("el-cabeza:singularity-seen", "1");
+        localStorage.setItem("el-cabeza:commercial-aired", "1");
+      }
+    } catch (e) { /* none */ }
+    // Every key the page writes, to see that the preview writes none of the journey's.
+    window.__WROTE__ = [];
+    const set = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) { window.__WROTE__.push(k); return set.call(this, k, v); };
+  });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?scene=summons");
+  const S = () => page.evaluate(() => (window.__EC_SUMMON__ ? window.__EC_SUMMON__() : { active: false }));
+  check("it opens in Neon with the summons up, though the sphere's been seen", !!(await poll(async () => (await S()).active, 30000)));
+  const s1 = await poll(async () => { const s = await S(); return s.ready && s.screen ? s : null; }, 15000);
+  await page.mouse.click(s1.screen.x, s1.screen.y);
+  check("...a tap on the singularity: the invite", !!(await poll(async () => (await page.locator(".ec-singularity-invite-btn").count()) > 0, 4000)));
+  const b = await page.locator(".ec-singularity-invite-btn").boundingBox();
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  check("...into the sphere", !!(await poll(() => page.evaluate(() => { const ph = document.querySelector("[data-singularity-phase]"); return !!ph && ph.getAttribute("data-singularity-phase") === "sphere"; }), 25000)));
+  check("...as a first visit (the ring and heartbeat)", !!(await poll(() => page.evaluate(() => !!(window.__EC_UNEASE__ && window.__EC_UNEASE__().sound)), 5000)));
+  const wrote = await page.evaluate(() => window.__WROTE__.filter((k) => /singularity-seen|commercial-aired|special-order/.test(k)));
+  check(`...and none of it saved (${wrote.join(", ") || "nothing"})`, wrote.length === 0);
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);

@@ -23,9 +23,16 @@ export const JOURNEY_EVENT = "el-cabeza:journey";
 export const CLASSIC_PIECE_KEYS = ["cabeza", "turrito", "flaco", "chato", "opa"];
 
 let seenThisVisit = false;
+/* A preview (Nova's ?scene=summons): this visit plays the first trip
+   through the set as if the sphere had never been seen, and remembers
+   what happens in memory only, so the player's real journey (stored) is
+   neither read nor changed. */
+let preview = false;
+export function journeyPreview() { preview = true; seenThisVisit = false; airedThisVisit = false; }
 
 export function singularitySeen() {
   if (seenThisVisit) return true;
+  if (preview) return false;
   try {
     return typeof localStorage !== "undefined" && localStorage.getItem(SINGULARITY_SEEN_KEY) === "1";
   } catch (e) {
@@ -41,7 +48,7 @@ function announce() {
 export function markSingularitySeen() {
   if (singularitySeen()) return;
   seenThisVisit = true;
-  try { localStorage.setItem(SINGULARITY_SEEN_KEY, "1"); } catch (e) { /* this visit only */ }
+  if (!preview) try { localStorage.setItem(SINGULARITY_SEEN_KEY, "1"); } catch (e) { /* this visit only */ }
   announce();
 }
 
@@ -60,11 +67,12 @@ export function forgetSingularity() {
 let airedThisVisit = false;
 export function commercialAired() {
   if (airedThisVisit) return true;
+  if (preview) return false;
   try { return localStorage.getItem(COMMERCIAL_AIRED_KEY) === "1"; } catch (e) { return false; }
 }
 export function markCommercialAired() {
   airedThisVisit = true;
-  try { localStorage.setItem(COMMERCIAL_AIRED_KEY, "1"); } catch (e) { /* this visit only */ }
+  if (!preview) try { localStorage.setItem(COMMERCIAL_AIRED_KEY, "1"); } catch (e) { /* this visit only */ }
 }
 /* While the commercial is on, the catalog's own note that special orders
    are open waits (it would say the same thing over the top of it). */
