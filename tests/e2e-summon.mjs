@@ -226,6 +226,15 @@ console.log("the link straight to it (?scene=summons), after the whole story");
   await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   check("...into the sphere", !!(await poll(() => page.evaluate(() => { const ph = document.querySelector("[data-singularity-phase]"); return !!ph && ph.getAttribute("data-singularity-phase") === "sphere"; }), 25000)));
   check("...as a first visit (the ring and heartbeat)", !!(await poll(() => page.evaluate(() => !!(window.__EC_UNEASE__ && window.__EC_UNEASE__().sound)), 5000)));
+  // Straight to the summary and Begin Game (the user got into a game this
+  // way and never saw the hand): the menu comes apart, then the hand.
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => { const s = window.__EC_TEST_THREE__().singularity; s.sphereMenuStage = "summary"; s.bump(); });
+  check("...the summary with Begin Game", !!(await poll(async () => (await page.locator('[data-testid="singularity-begin-game"]').count()) > 0, 4000)));
+  await page.locator('[data-testid="singularity-begin-game"]').click({ force: true });
+  check("...Begin Game: the summary comes apart instead", !!(await poll(() => page.evaluate(() => { const p = document.querySelector('[data-testid="singularity-summary-menu"]'); return !!p && p.classList.contains("ec-unravel"); }), 3000)));
+  check("...folds shut, and the hand: \"I want out of here\"", !!(await poll(async () => (await page.locator('[data-testid="singularity-lost-out"]').count()) > 0, 8000)));
+  check("...and no game began (still at the sphere)", await page.evaluate(() => { const ph = document.querySelector("[data-singularity-phase]"); return !!ph && ph.getAttribute("data-singularity-phase") === "sphere"; }));
   const wrote = await page.evaluate(() => window.__WROTE__.filter((k) => /singularity-seen|commercial-aired|special-order/.test(k)));
   check(`...and none of it saved (${wrote.join(", ") || "nothing"})`, wrote.length === 0);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));

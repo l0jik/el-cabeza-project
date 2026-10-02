@@ -3445,17 +3445,23 @@ html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !importan
 .ec-lost button:hover, .ec-lost button:focus-visible { background: rgba(102,217,255,0.28); outline: none; }
 /* The menu coming apart: it flickers and tears, its rows drift off true,
    its words go to noise; then it folds shut like a set switched off. */
-[data-testid="category-overlay"].ec-unravel { animation: ecUnFlick 0.9s steps(1) infinite, ecUnTear 0.42s steps(1) infinite; pointer-events: none !important;
+.ec-unravel { animation: ecUnFlick 0.9s steps(1) infinite, ecUnTear 0.42s steps(1) infinite; pointer-events: none !important;
   text-shadow: -2px 0 rgba(255,60,140,0.75), 2px 0 rgba(60,220,255,0.85); }
-[data-testid="category-overlay"].ec-unravel .ec-drift { transition: transform 2.2s cubic-bezier(.4,0,.6,1), opacity 2.2s ease; transform: translate(var(--dx), var(--dy)) rotate(var(--dr)); opacity: 0.75; }
+.ec-unravel .ec-drift { transition: transform 2.2s cubic-bezier(.4,0,.6,1), opacity 2.2s ease; transform: translate(var(--dx), var(--dy)) rotate(var(--dr)); opacity: 0.75; }
 @keyframes ecUnFlick { 0%, 100% { opacity: 1; } 12% { opacity: 0.55; } 15% { opacity: 1; } 47% { opacity: 0.3; } 49% { opacity: 0.95; } 71% { opacity: 0.7; } }
 @keyframes ecUnTear { 0%, 100% { clip-path: none; transform: none; } 20% { clip-path: polygon(0 0, 100% 0, 100% 38%, 0 38%, 0 41%, 100% 41%, 100% 100%, 0 100%); transform: translateX(-4px) skewX(-2deg); }
   45% { clip-path: none; transform: translateX(3px); } 70% { clip-path: polygon(0 0, 100% 0, 100% 64%, 0 64%, 0 70%, 100% 70%, 100% 100%, 0 100%); transform: skewX(3deg); } }
-[data-testid="category-overlay"].ec-unravel.ec-fold { animation: ecUnFold 0.55s cubic-bezier(.6,0,.9,.4) forwards; }
+.ec-unravel.ec-fold { animation: ecUnFold 0.55s cubic-bezier(.6,0,.9,.4) forwards; }
 @keyframes ecUnFold { 0% { transform: none; opacity: 1; filter: none; } 55% { transform: scale(1, 0.012); opacity: 1; filter: brightness(2.4); } 100% { transform: scale(0, 0.012); opacity: 0; filter: brightness(3); } }
+/* (The summary menu is centred by its transform; the same, kept centred.) */
+.ec-unravel.ec-centred { animation: ecUnFlick 0.9s steps(1) infinite, ecUnTearC 0.42s steps(1) infinite; }
+.ec-unravel.ec-centred.ec-fold { animation: ecUnFoldC 0.55s cubic-bezier(.6,0,.9,.4) forwards; }
+@keyframes ecUnTearC { 0%, 100% { clip-path: none; transform: translate(-50%, -50%); } 20% { clip-path: polygon(0 0, 100% 0, 100% 38%, 0 38%, 0 41%, 100% 41%, 100% 100%, 0 100%); transform: translate(calc(-50% - 4px), -50%) skewX(-2deg); }
+  45% { clip-path: none; transform: translate(calc(-50% + 3px), -50%); } 70% { clip-path: polygon(0 0, 100% 0, 100% 64%, 0 64%, 0 70%, 100% 70%, 100% 100%, 0 100%); transform: translate(-50%, -50%) skewX(3deg); } }
+@keyframes ecUnFoldC { 0% { transform: translate(-50%, -50%); opacity: 1; filter: none; } 55% { transform: translate(-50%, -50%) scale(1, 0.012); opacity: 1; filter: brightness(2.4); } 100% { transform: translate(-50%, -50%) scale(0, 0.012); opacity: 0; filter: brightness(3); } }
 @media (prefers-reduced-motion: reduce) {
-  [data-testid="category-overlay"].ec-unravel { animation: none; }
-  [data-testid="category-overlay"].ec-unravel .ec-drift { transition: none; transform: none; }
+  .ec-unravel, .ec-unravel.ec-centred { animation: none; }
+  .ec-unravel .ec-drift { transition: none; transform: none; }
   html.ec-lost-urge [data-testid="singularity-back-button"], .ec-lost, .ec-lost *, .ec-lost .hand::after { animation: none !important; }
   .ec-lost .hand .skin { opacity: 0; } .ec-lost .hand .wire { clip-path: none; } .ec-lost .l2, .ec-lost .l3 { opacity: 1; }
 }
@@ -3480,6 +3486,13 @@ function LostNudge({ stage, onExit, sing }) {
   const showCard = () => {
     if (shown.current) return;
     shown.current = true;
+    // (The card shows over the sphere's labels: whatever menu was up goes.)
+    if (sing && sing.sphereMenuStage !== "labels") {
+      sing.activeCategory = null;
+      sing.sphereMenuStage = "labels";
+      sing.labelsDirty = true;
+      if (sing.bump) sing.bump();
+    }
     setCard(true);
     if (g.current.unease) g.current.unease.set(1);
   };
@@ -3491,9 +3504,14 @@ function LostNudge({ stage, onExit, sing }) {
     G.gone = true;
     setLost(true);
     if (G.unease) G.unease.set(0.85);
-    const panel = typeof document !== "undefined" ? document.querySelector('[data-testid="category-overlay"]') : null;
-    if (!panel || !sing || sing.sphereMenuStage !== "overlay") { showCard(); return; }
+    // Whichever menu is up: a category's, or the summary with Begin Game
+    // (user: they got through to a game and never saw the hand).
+    const menuStage = sing && sing.sphereMenuStage;
+    const sel = menuStage === "overlay" ? '[data-testid="category-overlay"]' : menuStage === "summary" ? '[data-testid="singularity-summary-menu"]' : null;
+    const panel = sel && typeof document !== "undefined" ? document.querySelector(sel) : null;
+    if (!panel) { showCard(); return; }
     panel.classList.add("ec-unravel");
+    if (menuStage === "summary") panel.classList.add("ec-centred");
     panel.setAttribute("data-unravel", "on");
     const kids = [...panel.querySelectorAll(":scope > *, :scope > div > *")];
     kids.forEach((el, i) => {
@@ -3520,7 +3538,7 @@ function LostNudge({ stage, onExit, sing }) {
       if (!panel.isConnected) { showCard(); return; }
       panel.classList.add("ec-fold");
       G.timers.push(setTimeout(() => {
-        if (sing && sing.sphereMenuStage === "overlay") {
+        if (sing && (sing.sphereMenuStage === "overlay" || sing.sphereMenuStage === "summary")) {
           sing.activeCategory = null;
           sing.sphereMenuStage = "labels";
           sing.labelsDirty = true;
@@ -3561,9 +3579,23 @@ function LostNudge({ stage, onExit, sing }) {
     return () => window.removeEventListener("pointerdown", onDown, true);
   }, []);
 
-  // A menu open a while: it comes apart.
+  // Begin Game on this first visit doesn't begin: the menu comes apart
+  // instead (the hand has to be seen first; after it, the way out).
   React.useEffect(() => {
-    if (stage !== "overlay" || g.current.gone) return undefined;
+    const block = (e) => {
+      if (shown.current || !(e.target && e.target.closest && e.target.closest('[data-testid="singularity-begin-game"]'))) return;
+      e.stopImmediatePropagation(); e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      if (e.type === "click") unravelRef.current();
+    };
+    const EV = ["pointerdown", "pointerup", "click"];
+    EV.forEach((ev) => window.addEventListener(ev, block, true));
+    return () => EV.forEach((ev) => window.removeEventListener(ev, block, true));
+  }, []);
+
+  // A menu open a while (a category's, or the summary): it comes apart.
+  React.useEffect(() => {
+    if ((stage !== "overlay" && stage !== "summary") || g.current.gone) return undefined;
     const ms = typeof window.__EC_TEST_UNRAVEL_MS__ === "number" ? window.__EC_TEST_UNRAVEL_MS__ : UNRAVEL_MS;
     const id = setTimeout(() => unravelRef.current(), ms);
     return () => clearTimeout(id);

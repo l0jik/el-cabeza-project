@@ -5296,3 +5296,18 @@ phone menu until "Start the story over" (which clears it).
     realities.js LAB: [id, name, line], e.g. Swiss Design "A rational grid,
     one red, nothing extra.", Corporate Swiss "A 1960s information system,
     consoles and all.", Minimal Mono "Black, white, and almost nothing else."
+
+### Singularity first visit: Begin Game can't skip the hand (2026-10-02)
+  - User (via ?scene=summons): made selections, triple-tapped to the
+    summary, Begin Game, and was in a game; only the Back button throbbed,
+    no hand, no "I want out of here". Cause: LostNudge's unravel only knew
+    the category overlay; with the summary up it went straight to showCard,
+    which marked the card shown but the card only renders at stage
+    "labels", so it never appeared; and Begin Game still worked.
+  - Now: the unravel takes the summary menu too (.ec-unravel generalized;
+    .ec-centred keeps its translate(-50%,-50%) while it tears and folds),
+    then back to the labels and the card; showCard always drops whatever
+    menu is up first; the summary open 6 s comes apart like a category's;
+    and on the first visit, until the hand's been shown, Begin Game is
+    caught (capture listener) and brings the unravel on instead. After the
+    hand, Begin Game works as before. e2e-summon covers it.
