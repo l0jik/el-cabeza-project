@@ -242,6 +242,55 @@ function buildWarpMesh() {
   return mesh;
 }
 
+/* The singularity itself, at the bottom of the funnel (user: the dive
+   into the funnel's centre should look like a black dot that rapidly
+   becomes larger): an opaque black ball (it hides the funnel's lines
+   behind it; no fog, which greyed it) with a thin glowing ring round its edge, so it reads
+   against the funnel's dark blue. Sunk with the throat, swelling as it
+   swallows; the camera ends up so close it fills the frame, and the
+   event-horizon cut to black lands on black. */
+function buildHorizon() {
+  const group = new THREE.Group();
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 18), new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide, fog: false }));
+  // (Both sides: at the very end the camera near plane cuts into it, and
+  // its inside is as black.)
+  group.add(ball);
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  // (The ball's edge sits at 0.74 of the ring's radius.)
+  grad.addColorStop(0, "rgba(160,230,255,0)");
+  grad.addColorStop(0.7, "rgba(160,230,255,0)");
+  grad.addColorStop(0.75, "rgba(225,250,255,1)");
+  grad.addColorStop(0.82, "rgba(110,200,255,0.55)");
+  grad.addColorStop(1, "rgba(80,120,255,0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  const ringMat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, fog: false });
+  const ring = new THREE.Sprite(ringMat);
+  group.add(ring);
+  group.visible = false;
+  return { group, ball, ring, ringMat };
+}
+// Where it is and how big, at collapse progress u.
+function horizonAt(s, u) {
+  const depth = s.warpMesh ? s.warpMesh.material.uniforms.uThroatDepth.value : 20;
+  const top = s.warpMesh ? s.warpMesh.position.y : 0;
+  return { y: top - depth * 0.9 * u, r: 0.3 + 1.25 * u * u };
+}
+function updateHorizon(s, u, now) {
+  const hz = s.horizon;
+  if (!hz) return;
+  const { y, r } = horizonAt(s, u);
+  hz.group.visible = true;
+  hz.group.position.set(0, y, 0);
+  hz.ball.scale.setScalar(r);
+  hz.ring.scale.setScalar(r / 0.37);
+  hz.ringMat.opacity = Math.min(1, u * 3) * (0.75 + 0.25 * Math.sin(now / 85));
+}
+
 function makeGlowTexture() {
   const size = 64;
   const canvas = document.createElement("canvas");
@@ -1033,6 +1082,8 @@ function ensureSingularityObjects(t) {
      of these is radially symmetric about the throat. */
   s.warpMesh = buildWarpMesh();
   t.scene.add(s.warpMesh);
+  s.horizon = buildHorizon();
+  t.scene.add(s.horizon.group);
   s.streaks = buildStreaks();
   t.scene.add(s.streaks.group);
   s.blastRings = buildBlastRings();
@@ -1083,6 +1134,7 @@ function updateCollapseVisuals(t, u, dt, now) {
 
   updateBlastRings(s, u, now);
   updateDebris(s, dt, now);
+  updateHorizon(s, u, now);
   updateBoardFold(t, u);
   updateCollapseCamera(t, u, now);
   updateChromeSuction(s, u);
@@ -1199,37 +1251,87 @@ function updateDebris(s, dt, now) {
 function updateBoardFold(t, u) {
   const g = t.boardGroup;
   if (!g) return;
-  const bite = Math.pow(u, 1.7);
+  // All of it gone into the singularity by three quarters of the way, so
+  // the dive's last stretch is at the dot alone (it would otherwise hang
+  // between the diving camera and the dot).
+  const k = Math.min(1, u / 0.75);
+  const bite = Math.pow(k, 1.7);
   // Squashed harder across X than Z, so it creases rather than simply
   // shrinking — a plate buckling as it goes in, not a dissolve.
-  g.scale.set(1 - 0.92 * bite, 1 - 0.6 * bite, 1 - 0.78 * bite);
+  g.scale.set(Math.max(0.01, 1 - 0.99 * bite), Math.max(0.01, 1 - 0.8 * bite), Math.max(0.01, 1 - 0.99 * Math.pow(k, 1.4)));
   g.rotation.x = 0.9 * bite;
   g.rotation.z = -0.55 * bite;
-  g.position.y = -14 * Math.pow(u, 2.4);
+  g.position.y = (t.singularity ? horizonAt(t.singularity, u).y : -14) * Math.pow(k, 1.8);
 }
 
+/* The way in (user: swing out wider to the left, then dive on a
+   straighter path into the funnel's centre, the singularity a black dot
+   that rapidly grows). From wherever the camera was: first a wide swing
+   round to the screen's left, out and up, banking into the turn, the
+   look easing from the board down to the dot; at the top of it, a moment
+   hung over the mouth of the funnel, then the dive: a straight line down
+   at the dot, quickening, rolling a little as it goes, to just short of
+   its edge (where it fills the frame) for the cut to black. The judder is
+   scaled to how far the dot is, so it never knocks the line off course. */
+const DIVE_SWING_END = 0.42; // of the collapse: the swing, then the dive
+const DIVE_SWING = -1.3; // radians round to the left
+const DIVE_TOP_ELEVATION = 1.36; // nearly overhead at the top of the swing
 function updateCollapseCamera(t, u, now) {
   const camera = t.camera;
-  if (!camera) return;
-  const bite = Math.pow(u, 1.8);
-  /* Flown down INTO the throat, but deliberately not through it. An
-     earlier pass dove far harder (0.9 / -9) and the camera came out the
-     far side into empty space, so the last ~0.5s before the cut — the
-     climax — played as a blank black frame. This lands it just under
-     the board's plane with the funnel walls wrapping the frame, and
-     holds it there. */
-  camera.position.multiplyScalar(1 - 0.72 * bite);
-  camera.position.y -= 5.5 * Math.pow(u, 2);
-  const shake = 0.35 + 2.4 * Math.pow(u, 2.6);
-  camera.position.x += (Math.random() - 0.5) * shake;
-  camera.position.y += (Math.random() - 0.5) * shake;
-  camera.position.z += (Math.random() - 0.5) * shake;
-  // Roll off-axis, with a judder that gets coarser as it goes — the
-  // horizon stops being level, which is what sells "being pulled in"
-  // over "zooming in".
-  const roll = 1.5 * bite + Math.sin(now / 55) * 0.16 * bite + (Math.random() - 0.5) * 0.09 * bite;
-  camera.up.set(Math.sin(roll), Math.cos(roll), 0);
-  camera.lookAt(0, -3.5 * bite, 0);
+  const s = t.singularity;
+  if (!camera || !s) return;
+  const V3 = THREE.Vector3;
+  if (!s.diveCam || s.diveCam.at !== s.collapseStartedAt) {
+    const p = camera.position;
+    const r0 = Math.max(1, p.length());
+    s.diveCam = { at: s.collapseStartedAt, r0, az0: Math.atan2(p.x, p.z), el0: Math.asin(Math.max(-1, Math.min(1, p.y / r0))) };
+  }
+  const c = s.diveCam;
+  const smooth = (k) => k * k * (3 - 2 * k);
+  const swingAt = (k) => {
+    const e = smooth(k);
+    const az = c.az0 + DIVE_SWING * e;
+    const el = c.el0 + (DIVE_TOP_ELEVATION - c.el0) * e;
+    const r = c.r0 * (1 + 0.3 * e + 0.25 * Math.sin(Math.PI * k));
+    return new V3(r * Math.cos(el) * Math.sin(az), r * Math.sin(el), r * Math.cos(el) * Math.cos(az));
+  };
+  const hz = horizonAt(s, u);
+  const dot = new V3(0, hz.y, 0);
+  let pos, target, roll;
+  if (u < DIVE_SWING_END) {
+    const k = u / DIVE_SWING_END;
+    pos = swingAt(k);
+    // The look lags the swing (it's carried out to the left with the
+    // camera and only comes round to the dot at the top), so the board
+    // and its funnel slide across the frame as the camera sweeps out.
+    const start = swingAt(0);
+    const drift = new V3(pos.x - start.x, 0, pos.z - start.z).multiplyScalar(0.5 * Math.sin(Math.PI * Math.min(1, k * 1.15)));
+    target = new V3(0, 0, 0).lerp(dot, smooth(k)).add(drift);
+    roll = -0.22 * Math.sin(Math.PI * k);
+  } else {
+    const k = (u - DIVE_SWING_END) / (1 - DIVE_SWING_END);
+    const top = swingAt(1);
+    const end = horizonAt(s, 1);
+    const endDot = new V3(0, end.y, 0);
+    const stop = endDot.clone().add(top.clone().sub(endDot).normalize().multiplyScalar(end.r * 1.12));
+    pos = top.lerp(stop, Math.pow(k, 2.1));
+    target = dot;
+    roll = 0.9 * Math.pow(k, 1.6) + Math.sin(now / 70) * 0.04 * k;
+  }
+  const shake = 0.012 * pos.distanceTo(dot) * (0.35 + 1.6 * u * u);
+  pos.x += (Math.random() - 0.5) * shake;
+  pos.y += (Math.random() - 0.5) * shake;
+  pos.z += (Math.random() - 0.5) * shake;
+  camera.position.copy(pos);
+  // Up: the world's up as seen along the look (well defined even looking
+  // nearly straight down), turned by the roll about the look itself.
+  const f = target.clone().sub(pos).normalize();
+  const up0 = new V3(0, 1, 0).addScaledVector(f, -f.y);
+  if (up0.lengthSq() < 1e-6) up0.set(Math.sin(c.az0), 0, Math.cos(c.az0));
+  up0.normalize();
+  const side = new V3().crossVectors(f, up0);
+  camera.up.copy(up0.multiplyScalar(Math.cos(roll)).addScaledVector(side, Math.sin(roll)));
+  camera.lookAt(target);
 }
 
 /* camera.up is persistent state, unlike camera.position — applyCamera()
@@ -1407,6 +1509,7 @@ function teardownSingularityScene(t) {
   const s = t.singularity;
   if (!s) return;
   if (s.warpMesh) s.warpMesh.visible = false;
+  if (s.horizon) s.horizon.group.visible = false;
   if (s.streaks) s.streaks.group.visible = false;
   if (s.sphere) s.sphere.group.visible = false;
   if (s.starfield) s.starfield.visible = false;
@@ -1530,7 +1633,9 @@ export function advanceSingularityScene(t, now, chromeRefs) {
 
   switch (s.phase) {
     case PHASES.COLLAPSING: {
-      const u = Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS);
+      // (Test-only: held at a given point, for pictures of the way in.)
+      const held = typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && typeof window.__EC_TEST_COLLAPSE_U__ === "number" ? window.__EC_TEST_COLLAPSE_U__ : null;
+      const u = held != null ? held : Math.min(1, (now - s.collapseStartedAt) / COLLAPSE_DURATION_MS);
       updateCollapseVisuals(t, u, dt, now);
       updateScreenChaos(s, u);
       if (u >= 1) {
@@ -1542,6 +1647,7 @@ export function advanceSingularityScene(t, now, chromeRefs) {
         s.blackoutStartedAt = now;
         t.boardGroup.visible = false;
         s.warpMesh.visible = false;
+        if (s.horizon) s.horizon.group.visible = false;
         s.streaks.group.visible = false;
         s.blastRings.group.visible = false;
         s.debris.group.visible = false;

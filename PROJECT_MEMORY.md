@@ -5025,3 +5025,26 @@ phone menu until "Start the story over" (which clears it).
     faint knuckle folds) for the skin to flicker away from; and the index
     fingertip turned to point up (lost-tip-wire.webp), now the fingertip a
     touch leaves (replacing a drawn SVG). The card's hand box 170x105.
+
+### The way into the wormhole: a wide swing, then a straight dive (2026-10-02)
+  - User: the camera should swing out to the left more widely, then dive
+    on a straighter path into the funnel's centre, the singularity a black
+    dot that rapidly grows.
+  - neon-singularity.js updateCollapseCamera: from wherever the camera
+    was (captured per collapse, s.diveCam), the first 42% swings 1.3 rad
+    round to the screen's left, out (+30%, bulging +25% mid-way) and up to
+    ~78 degrees, banking into the turn; the look lags the swing (carried
+    left with the camera) so the board slides across the frame, coming
+    round to the dot at the top. Then a straight line down at the dot
+    (ease-in k^2.1), rolling up to ~0.9 rad, to 1.12x its radius from its
+    centre, where it fills the frame for the cut. Up is the world's up
+    projected across the look (fine looking nearly straight down); the
+    judder scales with the distance to the dot.
+  - buildHorizon/horizonAt: an opaque black ball (DoubleSide: the near
+    plane cuts into it at the end; fog off, which greyed it) with a thin
+    additive ring sprite at its edge, sunk with the throat (0.9 of its
+    depth) and swelling 0.3 -> 1.55. The board now folds, shrinks to
+    nothing and drops into the ball by 75% of the way, so the dive's last
+    stretch is at the dot alone.
+  - Test-only window.__EC_TEST_COLLAPSE_U__ holds the collapse at a point
+    (pictures of the way in).
