@@ -45,14 +45,14 @@ const targets = [
   { name: "cromo", entry: "apps/cromo.jsx", title: "Cromo Cabeza" },
   { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza" },
   { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: DEN_RECORDS },
-  // Tienda is built minified, and its page can draw under a phone's
+  // Tienda's page can draw under a phone's
   // notch and home bar (the theme keeps its controls clear of them).
   // Its files beside the page: the store's reels (the 1974 Muzak tape and
   // the user's five mall tracks), each fetched when it's next up rather
   // than weighing down the page (the page plays without them, see
   // themes/tienda-audio.js). Nova's store reads the same files.
-  { name: "lab", entry: "apps/lab.jsx", title: "El Cabeza · Theme Lab", minify: true, head: '<meta name="theme-color" content="#F8F9FA">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover" },
-  { name: "tienda", entry: "apps/tienda.jsx", title: "El Cabeza · Tienda", minify: true, head: '<meta name="theme-color" content="#2B2219">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: {
+  { name: "lab", entry: "apps/lab.jsx", title: "El Cabeza · Theme Lab", head: '<meta name="theme-color" content="#F8F9FA">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover" },
+  { name: "tienda", entry: "apps/tienda.jsx", title: "El Cabeza · Tienda", head: '<meta name="theme-color" content="#2B2219">', viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: {
     "el-cabeza-tienda-muzak.mp3": "assets/tienda/muzak-1974.mp3",
     "el-cabeza-tienda-reel-2.mp3": "assets/tienda/reel-2-coupon-gloss-reverie.mp3",
     "el-cabeza-tienda-reel-3.mp3": "assets/tienda/reel-3-twilight-at-the-atrium.mp3",
@@ -77,6 +77,7 @@ const workerResult = await esbuild.build({
   bundle: true,
   write: false,
   format: "iife",
+  minify: true,
   logLevel: "warning",
 });
 const workerJs = workerResult.outputFiles[0].text;
@@ -93,7 +94,11 @@ for (const t of targets) {
     // Sound files (assets/) are inlined as data: URLs, keeping each page a
     // single self-contained file.
     loader: { ".js": "jsx", ".mp3": "dataurl", ".jpg": "dataurl", ".webp": "dataurl" },
-    minify: !!t.minify,
+    // Every page minified (2026-10 audit): Nova's script went from 3.9 MB
+    // to 2.5 MB (1.27 to 1.11 MB gzipped), less for a phone to download
+    // and parse. The code's long comments are what it mostly sheds; no
+    // code here depends on function or class names.
+    minify: true,
     jsx: "automatic",
     jsxImportSource: "react",
     logLevel: "warning",
