@@ -4766,3 +4766,21 @@ phone menu until "Start the story over" (which clears it).
   - Not verifiable here (no real phone): if it still drops out, next
     suspects: the phone mix's 4x-oversampled shaper, and the collapse's
     GPU load starving the page.
+
+### The commercial's sound: one recording (2026-10-02)
+  - User (Android phone): the commercial's first five seconds silent,
+    then garbled, then clearing. The score (den-ad-audio.js) was built at
+    the moment it played: every note, hit and effect of ~48 s, a few
+    thousand nodes at once, during Nova's transition back from the
+    Singularity; a phone's audio thread couldn't keep up until the early
+    ones had played out.
+  - Now the score (compose) is rendered once, offline, voices mixed in,
+    into assets/den/ad-soundtrack.mp3 (tools/den_ad_render.mjs: serves
+    dist, renders in Chromium via window.__EC_AD_RENDER_SCORE__, ffmpeg
+    128k), shipped as el-cabeza-den-ad.mp3. prepareCommercial() fetches
+    and decodes it well ahead (Nova, whenever the commercial is still to
+    come; den-audio.js again at play time if need be); playCommercial
+    plays the one buffer from T - 0.05 (its lead-in), or, if it's late,
+    from where it should be by then. From disk (tests), or if it can't be
+    had, the score is built live as before. After changing the score:
+    build, run the tool, build again.

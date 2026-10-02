@@ -24,7 +24,7 @@
    room starts then, so the fire is already going on the setup screen. */
 
 import { createWoodSfx } from "./wood-sfx.js";
-import { playCommercial, loadAdVoices } from "./den-ad-audio.js";
+import { playCommercial, loadAdVoices, prepareCommercial } from "./den-ad-audio.js";
 
 export const hasAudio = true;
 
@@ -650,6 +650,7 @@ export function createAudio() {
   function tvCommercial(delay = 0) {
     if (!tvGraph()) return;
     if (tv.ad) { tv.ad.stop(); tv.ad = null; }
+    prepareCommercial(); // (if it isn't on its way already: late, then)
     const ad = playCommercial(ctx, tv.bus, { delay, noiseBuf });
     tv.ad = ad;
     setTimeout(() => { if (tv && tv.ad === ad) tv.ad = null; }, (ad.end - now()) * 1000 + 500);

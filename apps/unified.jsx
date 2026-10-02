@@ -10,6 +10,7 @@ import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, s
 import { StoryCut, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, hallFlares, saveHallFlares, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
 import { createRealitiesMenu, goToWorld } from "../themes/realities.js";
 import { forgetSingularity, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn } from "../engine/journey.js";
+import { prepareCommercial } from "../themes/den-ad-audio.js";
 import {
   TransitionStyles,
   HoldDegradeLayer,
@@ -200,6 +201,10 @@ function UnifiedApp() {
   const [clerkTick, setClerkTick] = useState(0);
   useEffect(() => { const on = () => setClerkTick((n) => n + 1); window.addEventListener("el-cabeza:clerk-done", on); return () => window.removeEventListener("el-cabeza:clerk-done", on); }, []);
   useEffect(() => onJourneyChange(setSingularityOpen), []);
+  // The late-night commercial's soundtrack (a recording beside the page,
+  // den-ad-audio.js), fetched and decoded well ahead, while it's still to
+  // come; it's played on the way home from the Singularity.
+  useEffect(() => { if (!commercialAired()) prepareCommercial(); }, [singularityOpen]);
   // The den's game while Neon's up (see putRules above), and the one
   // handed to the chassis as it mounts.
   const carryRef = useRef(null);

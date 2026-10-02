@@ -62,9 +62,104 @@ export function loadAdVoices(ctx) {
   });
 }
 
+/* The commercial, played (user: on a phone, five seconds of nothing, then
+   garbled, then it cleared). It used to be built at the moment it began:
+   the whole forty-odd seconds, every organ note, drum hit and effect, a
+   few thousand nodes at once, while Nova's transition back from the
+   Singularity was busy drawing; a phone couldn't keep up. Now the score
+   (compose, below) is rendered once, offline, into a recording beside the
+   page (tools/den_ad_render.mjs: TRACK_URL, the voices mixed in), fetched
+   and decoded well before it's needed (prepareCommercial), and playing it
+   is one buffer: as clean on a phone as anywhere. If it's not ready yet it
+   picks up from where it should be once it is; if it can't be had (a page
+   from disk, no fetch), the score is built live as before. */
+const TRACK_URL = "el-cabeza-den-ad.mp3";
+const rendered = { buffer: null, promise: null };
+const PRE = 0.05; // (the score's own lead-in: compose's T, and the recording's)
+const decode = (c, ab) => new Promise((res, rej) => { const p = c.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); });
+export function prepareCommercial() {
+  if (rendered.buffer || rendered.promise) return rendered.promise;
+  if (typeof OfflineAudioContext === "undefined" || typeof fetch === "undefined" || (typeof location !== "undefined" && location.protocol === "file:")) return null;
+  rendered.promise = (async () => {
+    const r = await fetch(TRACK_URL);
+    if (!r.ok) throw new Error(String(r.status));
+    // (Decoded on a context of its own: a buffer plays on any.)
+    rendered.buffer = await decode(new OfflineAudioContext(2, 1, 44100), await r.arrayBuffer());
+    return rendered.buffer;
+  })().catch(() => { rendered.promise = null; return null; });
+  return rendered.promise;
+}
+/* The score rendered offline, voices and all (tools/den_ad_render.mjs
+   makes TRACK_URL from it). */
+export async function renderCommercialScore(sr = 44100) {
+  const oc = new OfflineAudioContext(2, Math.ceil(sr * (COMMERCIAL_MS / 1000 + 1.5)), sr);
+  const bufs = {};
+  await Promise.all(Object.entries(VOICES).map(async ([k, url]) => {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${url}: ${r.status}`);
+    bufs[k] = await decode(oc, await r.arrayBuffer());
+  }));
+  const noise = oc.createBuffer(1, sr * 2, sr), nd = noise.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  compose(oc, oc.destination, PRE, noise, { voiceBufs: bufs, live: false });
+  return oc.startRendering();
+}
+// (Test-only: is the recording here, or on its way? And the score's
+// render for the tool.)
+if (typeof window !== "undefined") {
+  window.__EC_AD__ = () => ({ rendered: !!rendered.buffer, pending: !!rendered.promise && !rendered.buffer, seconds: rendered.buffer ? rendered.buffer.duration : 0 });
+  window.__EC_AD_RENDER_SCORE__ = async () => {
+    const b = await renderCommercialScore();
+    // 16-bit stereo WAV, base64.
+    const n = b.length, L = b.getChannelData(0), R = b.getChannelData(1), dv = new DataView(new ArrayBuffer(44 + n * 4));
+    const w = (o, str) => { for (let i = 0; i < str.length; i++) dv.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, "RIFF"); dv.setUint32(4, 36 + n * 4, true); w(8, "WAVE"); w(12, "fmt "); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 2, true);
+    dv.setUint32(24, b.sampleRate, true); dv.setUint32(28, b.sampleRate * 4, true); dv.setUint16(32, 4, true); dv.setUint16(34, 16, true); w(36, "data"); dv.setUint32(40, n * 4, true);
+    let peak = 0;
+    for (let i = 0; i < n; i++) { peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i])); dv.setInt16(44 + i * 4, Math.max(-1, Math.min(1, L[i])) * 32767, true); dv.setInt16(46 + i * 4, Math.max(-1, Math.min(1, R[i])) * 32767, true); }
+    const bytes = new Uint8Array(dv.buffer); let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return { wav: btoa(bin), peak, seconds: b.duration };
+  };
+}
+
 export function playCommercial(ctx, dest, { delay = 0, noiseBuf = null } = {}) {
+  const T = ctx.currentTime + PRE + delay;
+  const END = T + COMMERCIAL_MS / 1000;
+  if (rendered.buffer || rendered.promise) {
+    // The recording: from T (its own lead-in before it), or, if it's still
+    // being made, as soon as it is, from where it should be by then.
+    const g = ctx.createGain(); g.connect(dest);
+    let src = null, stopped = false;
+    const go = (buf) => {
+      if (stopped) return;
+      if (!buf) { const live = compose(ctx, dest, Math.max(T, ctx.currentTime + PRE), noiseBuf, { live: true }); stopLive = live.stop; return; }
+      src = ctx.createBufferSource(); src.buffer = buf; src.connect(g);
+      const at = T - PRE, now = ctx.currentTime;
+      if (at >= now) src.start(at); else src.start(now, now - at);
+    };
+    let stopLive = null;
+    if (rendered.buffer) go(rendered.buffer); else rendered.promise.then(go);
+    return {
+      stop() {
+        if (stopped) return;
+        stopped = true;
+        if (stopLive) stopLive();
+        const t = ctx.currentTime;
+        g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(0, t, 0.015);
+        setTimeout(() => { try { if (src) src.stop(); } catch (e) { /* done */ } try { g.disconnect(); } catch (e) { /* gone */ } }, 200);
+      },
+      end: END,
+    };
+  }
   loadAdVoices(ctx);
-  const T = ctx.currentTime + 0.05 + delay;
+  return compose(ctx, dest, T, noiseBuf, { live: true });
+}
+
+/* The score itself, on any context (live, or offline to be rendered),
+   from T. Live, the voices come from loadAdVoices (decoded, or <audio>
+   elements); offline, from voiceBufs. */
+function compose(ctx, dest, T, noiseBuf, { voiceBufs = null, live = true } = {}) {
   const END = T + COMMERCIAL_MS / 1000;
   const nodes = [];
   const timers = [];
@@ -300,11 +395,12 @@ export function playCommercial(ctx, dest, { delay = 0, noiseBuf = null } = {}) {
   const vbus = ctx.createGain(); vbus.gain.value = VOICE_LEVEL; vbus.connect(out);
   LINES.forEach(([k, c]) => {
     const when = T + c;
-    const buf = voiceStore.buffers[k];
+    const buf = (voiceBufs || voiceStore.buffers)[k];
     if (buf) {
       const s = keep(ctx.createBufferSource()); s.buffer = buf; s.connect(vbus); s.start(when);
       return;
     }
+    if (!live) return;
     const el = voiceStore.elements[k];
     if (!el) return;
     let src = voiceStore.sources.get(el);

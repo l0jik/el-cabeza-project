@@ -9,6 +9,9 @@ const DEN_RECORDS = {
   "el-cabeza-den-ad-voice-2.mp3": "assets/den/commercial-new-king.mp3",
   "el-cabeza-den-ad-voice-3.mp3": "assets/den/commercial-chess.mp3",
   "el-cabeza-den-ad-voice-4.mp3": "assets/den/commercial-checkers.mp3",
+  // ...and the whole soundtrack, voices and all, rendered once
+  // (tools/den_ad_render.mjs; themes/den-ad-audio.js plays it).
+  "el-cabeza-den-ad.mp3": "assets/den/ad-soundtrack.mp3",
   // The 8-track's tapes: the user's tracks through tools/den_8track_treatment.py.
   ...Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`el-cabeza-den-tape-${n}.mp3`, `assets/den/8track_${n}.mp3`])),
   // The fireplace: a recording, looped and warmed (tools/den_fire_loop.py).
