@@ -247,16 +247,10 @@ console.log("\ndesktop: the store, the purchase, home");
   // The thought, and then Big Glutts on the phone (themes/den-call.js).
   check("a thought: finally, a game in peace", await poll(async () => (await has(page, "den-thought")) && /in peace/.test(await q(page, "den-thought").innerText()), 12000));
   {
-    // On one of the den's 1975 cards (den-cards.js): tilted, up and to the right, clear of the board's middle; a drag moves it.
+    // On one of the den's 1975 cards (den-cards.js): tilted, up and to the right, clear of the board's middle.
     const r0 = await q(page, "den-thought").boundingBox();
     const look = await page.evaluate(() => { const e = document.querySelector('[data-testid="den-thought"]'); return { card: !!e.querySelector(".stripes"), tf: getComputedStyle(e).transform }; });
     check("...on a 1975 card, askance in the upper right", !!r0 && look.card && look.tf !== "none" && r0.x + r0.width / 2 > 640 && r0.y < 400, JSON.stringify({ r0, look }));
-    if (r0) {
-      await page.mouse.move(r0.x + r0.width / 2, r0.y + r0.height / 2);
-      await page.mouse.down(); await page.mouse.move(r0.x + r0.width / 2 - 300, r0.y + r0.height / 2 + 120, { steps: 10 }); await page.mouse.up();
-      const r1 = await q(page, "den-thought").boundingBox().catch(() => null);
-      check("...and a drag moves it", !!r1 && r1.x < r0.x - 200 && r1.y > r0.y + 80, JSON.stringify({ r0, r1 }));
-    }
   }
   await page.evaluate(() => window.__DEN_CALL_NOW__ && window.__DEN_CALL_NOW__());
   check("the game under way (it began itself, from the order), the phone rings", await poll(async () => (await page.evaluate(() => window.__DEN_CALL__ && window.__DEN_CALL__())) && (await page.evaluate(() => window.__DEN_CALL__().stage)) === "ringing" && (await has(page, "den-call")), 15000));
@@ -306,6 +300,17 @@ console.log("\ndesktop: the store, the purchase, home");
   // the hall counts its moves from then).
   check("home: the card (one of the ten lines)", !!(await poll(async () => (await has(page, "den-home-card")) && (await q(page, "den-home-card").innerText()).length > 20, 8000)));
   await page.screenshot({ path: process.env.EC_SHOTS ? `${process.env.EC_SHOTS}/home-card.png` : "/dev/null" }).catch(() => {});
+  {
+    // (The same card, askance; a drag moves it and doesn't put it away.)
+    const r0 = await q(page, "den-home-card").boundingBox();
+    if (r0) {
+      await page.mouse.move(r0.x + r0.width / 2, r0.y + r0.height / 2);
+      await page.mouse.down(); await page.mouse.move(r0.x + r0.width / 2 - 300, r0.y + r0.height / 2 + 120, { steps: 10 }); await page.mouse.up();
+    }
+    await page.waitForTimeout(300);
+    const r1 = await q(page, "den-home-card").boundingBox().catch(() => null);
+    check("...a drag moves it, and it stays", !!r0 && !!r1 && r1.x < r0.x - 200 && r1.y > r0.y + 80, JSON.stringify({ r0, r1 }));
+  }
   await q(page, "den-home-card").click();
   check("...a tap puts it away", !!(await poll(async () => !(await has(page, "den-home-card")), 3000)));
   check("...still owned", (await owned(page) || {}).owned === true);
