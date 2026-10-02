@@ -5311,3 +5311,16 @@ phone menu until "Start the story over" (which clears it).
     and on the first visit, until the hand's been shown, Begin Game is
     caught (capture listener) and brings the unravel on instead. After the
     hand, Begin Game works as before. e2e-summon covers it.
+
+### The rules leaflet's paper scrolls with the words (2026-10-02)
+  - User (Tienda rules leaflet, phone screenshot): the creasing and aging
+    didn't move with the words; the text just scrolled behind them. All of
+    it was painted on the fixed panel (info-overlay > div). Now the panel
+    keeps only what a sheet sliding under the thumb would: the vertical
+    middle fold and the browned edges (its ::after, an inset box-shadow
+    now). The masthead (doesn't scroll) has its own fibres and stain. The
+    scrolling body (info-body) carries the rest with background-attachment:
+    local: fibres, stains, the letter fold's two creases across at its
+    content's thirds and their crossings, so they move with the text; the
+    back of the sheet showing through is info-body::before, positioned in
+    the scrolled content.

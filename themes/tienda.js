@@ -357,39 +357,64 @@ export const styleSheet = `
      Groundwood newsprint gone yellow, browner and brittle at the edges;
      soft black ink that spreads a little into the fibres, and one spot
      red, a touch off register; a screened tint; the ad on the back
-     showing through; the folds worn where they cross. */
+     showing through; the folds worn where they cross.
+     The sheet's own marks (fibres, stains, the folds across it, the back
+     showing through) are on the part that scrolls and travel with the
+     words (user: the creases stayed put while the text slid behind
+     them); what holds still is what a sheet sliding under the thumb
+     keeps: the fold down the middle and the browned edges. */
   [data-testid="info-overlay"] > div {
     background-color: ${NEWS.paper} !important;
-    background-image:
-      radial-gradient(ellipse 60% 45% at 88% 8%, rgba(176,128,52,0.16), transparent 70%),
-      radial-gradient(ellipse 55% 40% at 6% 94%, rgba(168,120,48,0.13), transparent 70%),
-      var(--tienda-newsprint, linear-gradient(transparent, transparent)) !important;
-    background-size: auto, auto, 320px 320px !important;
+    background-image: none !important;
     border: none !important; border-radius: 0 !important;
-    box-shadow: inset 0 0 0 1px rgba(128,90,40,0.22), inset 0 0 22px rgba(160,112,44,0.34), inset 0 0 70px rgba(176,132,62,0.16) !important;
+    box-shadow: none !important;
     backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
     clip-path: ${TORN};
     isolation: isolate;
     text-shadow: 0 0 0.45px rgba(40,35,31,0.65);
   }
-  /* The folds: a letter fold (two across, one a valley and one a ridge)
-     and then in half, down the middle. */
+  /* Held still over it all: the fold down the middle (a straight line,
+     the same wherever the sheet is), and the browned, handled edges. */
   [data-testid="info-overlay"] > div::after {
     content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
     background:
+      linear-gradient(90deg, transparent calc(50% - 12px), rgba(90,65,35,0.06) calc(50% - 1px), rgba(72,52,30,0.24) 50%, rgba(252,247,232,0.42) calc(50% + 1px), rgba(252,247,232,0.07) calc(50% + 4px), transparent calc(50% + 14px));
+    box-shadow: inset 0 0 0 1px rgba(128,90,40,0.22), inset 0 0 22px rgba(160,112,44,0.34), inset 0 0 70px rgba(176,132,62,0.16);
+  }
+  /* The masthead's paper (it doesn't scroll): fibres and a stain. */
+  [data-testid="info-overlay"] > div > div:first-child {
+    background-image:
+      radial-gradient(ellipse 60% 120% at 88% 8%, rgba(176,128,52,0.16), transparent 70%),
+      var(--tienda-newsprint, linear-gradient(transparent, transparent));
+    background-size: auto, 320px 320px;
+  }
+  /* The rest of the sheet, which scrolls: its fibres, its stains, the
+     letter fold's two creases across it (a valley, then a ridge, at its
+     thirds) and where they cross the middle fold, all painted on the
+     scrolled content (background-attachment: local), so they move with
+     the words. */
+  [data-testid="info-body"] {
+    position: relative; isolation: isolate;
+    background-color: ${NEWS.paper};
+    background-image:
       radial-gradient(circle 10px at 50% 33.33%, rgba(248,242,224,0.6), transparent),
       radial-gradient(circle 9px at 50% 66.67%, rgba(248,242,224,0.55), transparent),
-      linear-gradient(90deg, transparent calc(50% - 12px), rgba(90,65,35,0.06) calc(50% - 1px), rgba(72,52,30,0.24) 50%, rgba(252,247,232,0.42) calc(50% + 1px), rgba(252,247,232,0.07) calc(50% + 4px), transparent calc(50% + 14px)),
       linear-gradient(180deg,
         transparent calc(33.33% - 14px), rgba(90,65,35,0.07) calc(33.33% - 1px), rgba(72,52,30,0.26) 33.33%, rgba(252,247,232,0.46) calc(33.33% + 1px), rgba(252,247,232,0.08) calc(33.33% + 4px), transparent calc(33.33% + 12px),
         transparent calc(66.67% - 12px), rgba(252,247,232,0.08) calc(66.67% - 4px), rgba(252,247,232,0.42) calc(66.67% - 1px), rgba(72,52,30,0.24) 66.67%, rgba(90,65,35,0.07) calc(66.67% + 1px), transparent calc(66.67% + 14px)),
-      linear-gradient(180deg, rgba(255,252,240,0.035) 0 33.33%, rgba(80,58,28,0.04) 33.33% 66.67%, rgba(255,252,240,0.02) 66.67%);
+      linear-gradient(180deg, rgba(255,252,240,0.035) 0 33.33%, rgba(80,58,28,0.04) 33.33% 66.67%, rgba(255,252,240,0.02) 66.67%),
+      radial-gradient(ellipse 55% 30% at 6% 92%, rgba(168,120,48,0.13), transparent 70%),
+      radial-gradient(ellipse 40% 18% at 80% 46%, rgba(176,128,52,0.07), transparent 70%),
+      var(--tienda-newsprint, linear-gradient(transparent, transparent));
+    background-size: auto, auto, auto, auto, auto, auto, 320px 320px;
+    background-attachment: local;
   }
-  /* The back of the sheet, showing through. */
-  [data-testid="info-overlay"] > div::before {
+  /* The back of the sheet, showing through: placed in the scrolled
+     content, so it goes by with it. */
+  [data-testid="info-body"]::before {
     content: "SALE\\A$2.97\\A\\A  Men's Knit\\A  Shirts\\A\\ASAVE 30%\\A\\A  Prices good\\A  thru Sat.";
-    position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden;
-    padding: 30% 9% 0; white-space: pre; transform: scaleX(-1);
+    position: absolute; left: 0; right: 0; top: 40px; z-index: -1; pointer-events: none; overflow: hidden;
+    padding: 0 9%; white-space: pre; transform: scaleX(-1);
     font: 900 44px/1.02 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif;
     color: rgba(40,32,24,0.05); text-shadow: none; filter: blur(0.8px);
   }
@@ -441,7 +466,7 @@ export const styleSheet = `
   @media (max-width: 480px) {
     [data-testid="info-overlay"] > div > div { padding-left: 20px !important; padding-right: 20px !important; }
     [data-testid="info-overlay"] > div > div:first-child::before { content: "HOW TO PLAY  \\2022  NO CHARGE"; margin: 0 -10px 12px; letter-spacing: 0.14em; }
-    [data-testid="info-overlay"] > div::before { font-size: 34px; }
+    [data-testid="info-body"]::before { font-size: 34px; }
   }
   /* Fixed controls clear of a phone's notch and home bar (the page is
      laid out edge to edge: viewport-fit=cover). */
