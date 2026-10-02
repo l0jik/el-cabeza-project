@@ -5384,3 +5384,13 @@ phone menu until "Start the story over" (which clears it).
     wraps to two balanced lines, centred (text-wrap: balance), with a
     0.08em indent to offset the last letter's letter-spacing; measured at
     360/390 px: equal space each side to within 2 px.
+  - Commercial, chess segment (user: "the word chess never shows up...
+    bag on chess more... looks like you're just bagging on the pawn"):
+    the old segment hid "CHESS?" the instant the stamp landed. Now a rook,
+    the king and a pawn sit under a bigger "CHESS?" (46px serif) that
+    stays up the whole segment; the stamp strikes a red bar through the
+    word (strikeOut) and one ring covers the whole set; then the set runs
+    off left (flee * 700 + flee^2 * 3000, gone inside the 0.4 s before
+    the checkers cut). CUES timeline unchanged (voice clips are cued to
+    it). The yellow two-line captions sit a little lower (0.855/0.95 H),
+    shared with the checkers half.

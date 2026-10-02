@@ -137,6 +137,29 @@ function pawn(g, x, y, s) {
   g.restore();
 }
 
+// The rest of the set, as cheaply drawn: a rook and the king.
+function rook(g, x, y, s) {
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = "#1c1c1c";
+  g.fillRect(-24, -62, 48, 14);
+  [-24, -6, 12].forEach((cx) => g.fillRect(cx, -76, 12, 14));
+  g.beginPath(); g.moveTo(-18, -48); g.lineTo(18, -48); g.lineTo(24, 30); g.lineTo(-24, 30); g.closePath(); g.fill();
+  g.fillRect(-36, 30, 72, 14); g.fillRect(-42, 44, 84, 10);
+  g.fillStyle = "rgba(255,255,255,0.22)"; g.fillRect(-12, -44, 5, 60);
+  g.restore();
+}
+function kingPiece(g, x, y, s) {
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = "#1c1c1c";
+  g.fillRect(-4, -118, 8, 30); g.fillRect(-14, -108, 28, 8); // the cross
+  g.beginPath(); g.moveTo(-26, -86); g.quadraticCurveTo(0, -100, 26, -86); g.lineTo(18, -60); g.lineTo(-18, -60); g.closePath(); g.fill();
+  g.fillRect(-28, -62, 56, 9);
+  g.beginPath(); g.moveTo(-16, -53); g.lineTo(16, -53); g.lineTo(26, 30); g.lineTo(-26, 30); g.closePath(); g.fill();
+  g.fillRect(-38, 30, 76, 14); g.fillRect(-44, 44, 88, 10);
+  g.fillStyle = "rgba(255,255,255,0.22)"; g.fillRect(-10, -50, 5, 70);
+  g.restore();
+}
+
 // A red checker, as cheaply drawn as the pawn.
 function checker(g, x, y, s) {
   g.save(); g.translate(x, y); g.scale(s, s);
@@ -182,17 +205,27 @@ function sleepers(g, x, y, t) {
   g.restore();
 }
 
-// The rubber stamp, slammed down: a red circle and a slash.
-function stampMark(g, st, y) {
+// The rubber stamp, slammed down: a red circle and a slash. (size: its
+// radius; the chess set's is big enough to take in the whole set.)
+function stampMark(g, st, y, size = 92) {
   const s = st < 0.15 ? 1.8 - st * 5.3 : 1;
   g.save(); g.translate(W / 2, y); g.rotate(-0.18); g.scale(s, s);
-  g.strokeStyle = "rgba(214,30,30,0.9)"; g.lineWidth = 14;
-  g.beginPath(); g.arc(0, 0, 92, 0, Math.PI * 2); g.stroke();
-  g.beginPath(); g.moveTo(-64, -64); g.lineTo(64, 64); g.stroke();
+  g.strokeStyle = "rgba(214,30,30,0.9)"; g.lineWidth = 14 * size / 92;
+  g.beginPath(); g.arc(0, 0, size, 0, Math.PI * 2); g.stroke();
+  const d = size * 0.7;
+  g.beginPath(); g.moveTo(-d, -d); g.lineTo(d, d); g.stroke();
+  g.restore();
+}
+// The same stamp's bar, slammed across a word to strike it out.
+function strikeOut(g, st, x, y, w) {
+  const s = st < 0.15 ? 1.6 - st * 4 : 1;
+  g.save(); g.translate(x, y); g.rotate(-0.08); g.scale(s, s);
+  g.strokeStyle = "rgba(214,30,30,0.92)"; g.lineWidth = 9; g.lineCap = "round";
+  g.beginPath(); g.moveTo(-w / 2, 2); g.lineTo(w / 2, -2); g.stroke();
   g.restore();
 }
 
-// "Take a hike, chess!" (the pawn run off), then "Get outta here,
+// "Take a hike, chess!" (the set run off), then "Get outta here,
 // Checkers!" (a checker slides in, is stamped, and goes the same way).
 function chess(g, t) {
   g.fillStyle = "#cfc9b8"; g.fillRect(0, 0, W, H);
@@ -202,22 +235,29 @@ function chess(g, t) {
   const T = CUES.chess;
   const at = (k) => t - (CUES[k] - T);
   const lines = (a, b, shake) => {
-    say(g, a, W / 2 + shake, H * 0.83, { font: `900 32px ${SANS}`, color: "#ffe23a", shadow: "#000", shadowAt: [4, 4] });
-    say(g, b, W / 2 - shake, H * 0.93, { font: `900 34px ${SANS}`, color: "#ffe23a", shadow: "#000", shadowAt: [4, 4] });
+    say(g, a, W / 2 + shake, H * 0.855, { font: `900 32px ${SANS}`, color: "#ffe23a", shadow: "#000", shadowAt: [4, 4] });
+    say(g, b, W / 2 - shake, H * 0.95, { font: `900 34px ${SANS}`, color: "#ffe23a", shadow: "#000", shadowAt: [4, 4] });
   };
   if (at("checker") < 0) {
     say(g, "TIRED OF...", W / 2, H * 0.14, { font: `900 30px ${SANS}`, color: "#fff", shadow: "#000", shadowAt: [3, 4] });
-    // The pawn: sits there, smug; then it's run off the screen.
+    /* The whole of chess, not just a pawn (user: "bag on chess more"): a
+       rook, the king and the pawn, sitting there smug; the stamp comes
+       down over the lot and through the word itself; then the set's run
+       off the screen. CHESS? stays up the whole time. */
     const flee = at("flee");
-    const px = flee > 0 ? W * 0.5 - Math.pow(flee, 2) * 900 : W * 0.5;
-    if (px > -80) {
-      pawn(g, px, H * 0.58, 1.25);
-      if (flee > 0) { g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 3; for (let i = 0; i < 4; i++) { const yy = H * 0.42 + i * 22; g.beginPath(); g.moveTo(px + 50, yy); g.lineTo(px + 50 + 60 + i * 12, yy); g.stroke(); } }
-    }
+    const off = flee > 0 ? flee * 700 + Math.pow(flee, 2) * 3000 : 0;
+    const set = [[W * 0.32, rook, 0.8], [W * 0.5, kingPiece, 0.74], [W * 0.68, pawn, 0.85]];
+    set.forEach(([x, draw, sc], i) => {
+      const px = x - off * (1 + i * 0.12);
+      if (px < -90) return;
+      draw(g, px, H * 0.6, sc);
+      if (flee > 0) { g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 3; for (let k = 0; k < 3; k++) { const yy = H * 0.44 + k * 20 + i * 4; g.beginPath(); g.moveTo(px + 46, yy); g.lineTo(px + 46 + 50 + k * 12, yy); g.stroke(); } }
+    });
+    say(g, "CHESS?", W / 2, H * 0.27, { font: `900 46px ${SERIF}`, color: "#fff", shadow: "#000", shadowAt: [3, 3] });
     const st = at("stamp");
-    if (st <= 0) say(g, "CHESS?", W / 2, H * 0.3, { font: `900 34px ${SERIF}`, color: "#fff", shadow: "#000", shadowAt: [3, 3] });
-    else {
-      if (flee <= 0) stampMark(g, st, H * 0.52);
+    if (st > 0) {
+      strikeOut(g, st, W / 2, H * 0.27, 190);
+      if (flee <= 0) stampMark(g, st, H * 0.61, 90);
       lines("TAKE A HIKE,", "CHESS!", 0);
     }
     return;
