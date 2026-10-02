@@ -5109,3 +5109,13 @@ phone menu until "Start the story over" (which clears it).
     per-side readouts ("Dark: Human" vs "AI (Medium)") and the box
     lettering ("For 2 players", "TWO PLAYERS · ONE BOARD") are left: not
     menus. Tests now look for /^Two humans$/.
+
+### A link to the closed Big Glutts scene alone (2026-10-02)
+  - Nova ?scene=glutts (as ?scene=revelation; apps/unified.jsx
+    SCENE_PARAM/takeScene -> tv.preview(), now "revelation" | "glutts" |
+    null): opens in the den, "Back to Big Glutts / Tap to begin" (testid
+    den-glutts-preview; the trip's recordings start loading then), and
+    the trip starts at 8.3 s in (den-trip.js start({ from }): the black
+    just before the car pulls in; what comes before is skipped, the rest
+    of the sounds scheduled from there). Nothing's kept: no hall armed on
+    the way home.

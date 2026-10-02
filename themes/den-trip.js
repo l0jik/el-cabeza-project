@@ -371,7 +371,9 @@ export function createTrip({ audio, onReturn }) {
 
   return {
     load,
-    start() {
+    // `from`: ms into the timeline to begin at (a look at the store scene
+    // alone, Nova's ?scene=glutts); what comes before it is skipped.
+    start({ from = 0 } = {}) {
       if (!doc || stage !== "idle") return false;
       load();
       if (!doc.querySelector("style[data-den-trip]")) { const st = doc.createElement("style"); st.setAttribute("data-den-trip", ""); st.textContent = CSS; doc.head.appendChild(st); }
@@ -382,12 +384,13 @@ export function createTrip({ audio, onReturn }) {
       root.appendChild(canvas); root.appendChild(black);
       LINES.forEach((txt, i) => { const el = doc.createElement("div"); el.className = "say" + (i ? " two" : ""); el.setAttribute("data-testid", `den-trip-say-${i + 1}`); el.setAttribute("role", "status"); el.textContent = txt; root.appendChild(el); says.push(el); });
       doc.body.appendChild(root);
-      t0 = performance.now(); stage = "leaving";
+      t0 = performance.now() - from; stage = "leaving";
       const o = out();
       if (o) {
-        const ct = o.ctx.currentTime + 0.05, at = (ms) => ct + ms / 1000;
-        if (!car("away", o, ct)) driveAway(o, ct);
-        later(T.blackIn[0], () => audio && audio.awayFromDen && audio.awayFromDen(true, (T.blackIn[1] - T.blackIn[0]) / 1000));
+        const ct = o.ctx.currentTime + 0.05, at = (ms) => ct + (ms - from) / 1000;
+        if (!from) { if (!car("away", o, ct)) driveAway(o, ct); }
+        if (from >= T.blackIn[0]) { if (audio && audio.awayFromDen) audio.awayFromDen(true, 0.4); }
+        else later(T.blackIn[0] - from, () => audio && audio.awayFromDen && audio.awayFromDen(true, (T.blackIn[1] - T.blackIn[0]) / 1000));
         if (!car("arrive", o, at(T.arrive))) arrive(o, at(T.arrive));
         // The steps back, the run, the door, the car away (one track); if
         // it isn't here, the made car's leaving, in the black.
@@ -395,7 +398,7 @@ export function createTrip({ audio, onReturn }) {
         // (The wind still there under the run.)
         wind(o, at(T.arrive + 1500), (T.blackOut[1] + 2000 - T.arrive - 1500) / 1000);
         drone(o, at(T.morph[0]), (T.blackOut[1] - T.morph[0]) / 1000);
-      } else later(T.blackIn[0], () => audio && audio.awayFromDen && audio.awayFromDen(true));
+      } else later(Math.max(0, T.blackIn[0] - from), () => audio && audio.awayFromDen && audio.awayFromDen(true));
       raf = requestAnimationFrame(frame);
       return true;
     },

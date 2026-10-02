@@ -148,7 +148,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     let homeCardTimer = 0, homeCardDrop = null;
     const trip = novaTv ? createTrip({ audio, onReturn: () => {
       roomView();
-      if (novaTv.hall) novaTv.hall.arm();
+      // (Not on a look at the scene alone: nothing's kept.)
+      if (novaTv.hall && !preview) novaTv.hall.arm();
       // (Once the den's faded up from the black.)
       homeCardTimer = setTimeout(() => homeCard(() => { if (hall) hall.arm(movesNow()); }), 3800);
     } }) : null;
@@ -162,11 +163,12 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     let postStory = !!(novaTv && novaTv.ended && novaTv.ended());
     const movesNow = () => (moves ? moves() : 0);
     let ending = null;
-    /* A look at the revelation without the story (Nova's
-       ?scene=revelation, read once): a tap (the sound needs one) and
-       straight into the void. Nothing's kept: the story stays where it
-       was, and no hall. */
-    const preview = !!(novaTv && novaTv.preview && novaTv.preview());
+    /* A look at one scene without the story (Nova's ?scene=, read once):
+       "revelation", straight into the void; "glutts", the trip back to
+       the closed Big Glutts from the black just before the car pulls in.
+       A tap first (the sound needs one). Nothing's kept: the story stays
+       where it was, and no hall. */
+    const preview = (novaTv && novaTv.preview && novaTv.preview()) || null;
     const hall = novaTv && novaTv.hall && !postStory && !preview ? createHall({ audio, onEnding: (h) => startEnding(h), flares: novaTv.hall.flares || null }) : null;
     if (hall && novaTv.hall.due()) hall.arm(movesNow());
     function startEnding(h) {
@@ -185,10 +187,11 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       const d = document;
       previewEl = d.createElement("button");
       previewEl.type = "button";
-      previewEl.setAttribute("data-testid", "den-revelation-preview");
+      previewEl.setAttribute("data-testid", preview === "glutts" ? "den-glutts-preview" : "den-revelation-preview");
+      if (preview === "glutts" && trip) trip.load();
       previewEl.style.cssText = "position:fixed;inset:0;z-index:3000;border:0;margin:0;background:#000;color:#cfd6e6;cursor:pointer;" +
         "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font:400 clamp(20px,5vw,30px)/1.3 Georgia,serif;letter-spacing:0.04em;-webkit-tap-highlight-color:transparent;";
-      previewEl.innerHTML = '<span>The revelation</span><small style="font:600 12px/1 Arial,sans-serif;letter-spacing:0.22em;text-transform:uppercase;opacity:0.55">Tap to begin</small>';
+      previewEl.innerHTML = '<span>' + (preview === "glutts" ? "Back to Big Glutts" : "The revelation") + '</span><small style="font:600 12px/1 Arial,sans-serif;letter-spacing:0.22em;text-transform:uppercase;opacity:0.55">Tap to begin</small>';
       // (Its taps stay its own.)
       ["pointerdown", "pointerup", "touchstart", "touchend", "mousedown", "wheel"].forEach((t) => previewEl.addEventListener(t, (e) => e.stopPropagation()));
       previewEl.addEventListener("click", (e) => {
@@ -197,7 +200,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         const fs = d.documentElement.requestFullscreen;
         if (fs && !d.fullscreenElement && window.matchMedia && window.matchMedia("(pointer: coarse)").matches) { try { fs.call(d.documentElement).catch(() => {}); } catch (err) { /* stays as it is */ } }
         previewEl.remove(); previewEl = null;
-        startEnding(null);
+        if (preview === "glutts") { if (trip) trip.start({ from: 8300 }); }
+        else startEnding(null);
       });
       d.body.appendChild(previewEl);
     }
