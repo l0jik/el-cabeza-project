@@ -296,6 +296,7 @@ export const styleSheet = `
   [data-dim="true"] { opacity: 0.32 !important; box-shadow: none !important; }
   [data-testid="room-view-corner"][data-active="true"][data-dim="true"] { opacity: 0.22 !important; }
   [data-testid="focus-corner"][data-on="true"][data-dim="true"] { opacity: 0.45 !important; }
+  button[aria-label$="full screen"][data-dim="true"] { opacity: 0.14 !important; }
   [data-dim="true"]:hover, [data-dim="true"]:focus-visible, [data-testid="focus-corner"][data-dim="true"]:hover { opacity: 0.9 !important; }
   [data-testid="room-view-corner"][data-active="true"]:hover { opacity: 0.6 !important; }
   /* The masthead goes down with the lights too (the chassis puts

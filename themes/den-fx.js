@@ -61,6 +61,27 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (cam.current.target) cam.current.target.set(0, 0, 0);
       if (cam.current.view && cam.current.view.target) cam.current.view.target.set(0, 0, 0);
     };
+    /* Back on the board when the set lets the camera go (after the
+       commercial, or any watch of the set; user: always the coffee table
+       with the game on it, not too close, not too far): square on to the
+       nearest side, the board's own pitch and distance (Current Player
+       View's, chassis boardView), its centre, out of the Room view. Set
+       while the set still has the camera, so it's eased to unseen and
+       the set lets go straight onto it. */
+    function onTheBoard() {
+      if (!cam || !cam.current) return;
+      const c = cam.current, t = three.current, q = Math.PI / 2;
+      const bv = t && t.boardView ? t.boardView() : null;
+      c.theta = Math.round(c.theta / q) * q;
+      c.phi = bv ? bv.phi : viewPitch != null ? viewPitch : c.phi;
+      if (bv && bv.radius) c.radius = bv.radius;
+      if (c.target) c.target.set(0, 0, 0);
+      c.dollhouse = false;
+      if (c.view) {
+        c.view.theta = c.theta; c.view.phi = c.phi; c.view.radius = c.radius;
+        if (c.view.target) c.view.target.set(0, 0, 0);
+      }
+    }
     /* The trip's leaving (user: it hovered close on the board too long):
        from the card going, the camera draws back and up toward the Room
        view while the picture fades, as far as it gets before the black.
@@ -842,7 +863,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (set.powerOff(now)) {
           // (Off in the middle of the commercial: the camera goes back the
           // slow way, as it does after it.)
-          if (tvGoal && tvW > 0.9) tvLeaveAt = performance.now() + TV_LEAVE_PAUSE;
+          if (tvGoal && tvW > 0.9) { tvLeaveAt = performance.now() + TV_LEAVE_PAUSE; onTheBoard(); }
           tvGoal = 0; offAt = 0;
           if (audio && audio.tvOff) audio.tvOff();
         }
@@ -931,11 +952,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
              pitch (user: it came back at an angle; the heading had come
              along from Neon): the nearest side's heading. The chassis
              eases its view there unseen while the set has the camera. */
-          if (cam && cam.current) {
-            const q = Math.PI / 2;
-            cam.current.theta = Math.round(cam.current.theta / q) * q;
-            if (viewPitch != null) cam.current.phi = viewPitch;
-          }
+          onTheBoard();
           if (commercialNext) {
             commercialNext = false;
             // (A second in, once Nova's transition has shown the room.)
@@ -951,6 +968,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (den.tv.phase() === "aired" && !offAt) offAt = now + 650;
         if (offAt && now >= offAt) {
           offAt = 0;
+          onTheBoard();
           if (den.tv.powerOff(now) && audio && audio.tvOff) audio.tvOff();
           tvGoal = 0;
           tvLeaveAt = performance.now() + TV_LEAVE_PAUSE;

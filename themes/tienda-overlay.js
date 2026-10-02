@@ -703,7 +703,7 @@ const STORY_CSS = `
   body:has(.td-clerk-layer) [data-testid="focus-corner"] { visibility: hidden !important; pointer-events: none !important; }
   body:has([data-testid="tienda-lid"]) [data-testid="room-view-corner"], body:has([data-testid="tienda-lid"]) [data-testid="how-to-play"],
   body:has([data-testid="tienda-lid"]) [data-testid="focus-corner"], body:has([data-testid="tienda-lid"]) [data-testid="action-corner"] { visibility: hidden !important; pointer-events: none !important; }
-  body:has(.td-clerk-layer) [data-fullscreen-toggle], body:has([data-testid="tienda-lid"]) [data-fullscreen-toggle] { opacity: 0.85 !important; }
+  body:has(.td-clerk-layer) [data-fullscreen-toggle], body:has([data-testid="tienda-lid"]) [data-fullscreen-toggle] { opacity: 0.28 !important; }
   .td-row-look { grid-template-columns: 64px 5.2em minmax(0, 1fr) 4em; }
   .td-clerk-layer { cursor: pointer; }
   .td-clerk { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: default; animation: tdClerkIn 0.4s ease both;

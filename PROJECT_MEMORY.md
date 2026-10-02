@@ -4835,3 +4835,19 @@ phone menu until "Start the story over" (which clears it).
     card (den-fx.js, den-home-card): no dimmed backdrop over the screen
     any more; a tap on it or the first tap anywhere else (which still
     does what it was for) puts it away and arms the hall.
+
+### After the commercial: back on the coffee table; a fainter full-screen switch (2026-10-02)
+  - User: after the commercial the camera must always come back to the
+    board on the coffee table, not too close, not too far. den-fx.js
+    onTheBoard(): square on to the nearest side, the board's own pitch and
+    distance (chassis three.current.boardView(): Current Player View's
+    radius, the captured one or the same fit), target the board's centre,
+    out of the Room view, view snapped too. Called while the set still
+    has the camera: on the return from Singularity, when the set goes off
+    after the commercial/pattern (offAt), and when it's switched off
+    while watched. Tests: e2e-summon (the commercial) and e2e-story (the
+    TV visit, which first turns the camera to the set) check the target
+    is 0, the radius is boardView's, and the board's middle is on screen.
+  - The full-screen switch (user: it stuck out): chassis opacity 0.22
+    (0.12 in focus), hover still 0.8; over the store's lid and clerk
+    0.28 (was 0.85); the den's focus dim 0.14 for it.

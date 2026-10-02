@@ -112,6 +112,15 @@ console.log("the first arrival");
   const view = await page.evaluate(() => { const p = window.__EC_TEST_SCREEN_POS__("dark-cabeza"), q = window.__EC_TEST_SCREEN_POS__("light-cabeza"), c = window.__EC_TEST_THREE__().camera.position; return { p, q, cy: c.y }; });
   const onScreen = (p) => p && p.x > 0 && p.x < 390 && p.y > 0 && p.y < 844;
   check(`...on the board, as it was (${JSON.stringify(view)})`, onScreen(view.p) && onScreen(view.q) && view.cy < 30);
+  {
+    // Re-centred on the coffee table (user: always, not too close, not too far): the board's centre, its own distance, out of the Room view, the board's middle near the screen's.
+    const v = await page.evaluate(() => {
+      const c = window.__EC_TEST_CAM__(), t = window.__DEN_THREE__ || window.__EC_TEST_THREE__(), bv = t.boardView ? t.boardView() : null;
+      const p = t.boardGroup.position.clone(); t.boardGroup.getWorldPosition(p); p.project(t.camera);
+      return { c, bv, sx: p.x, sy: p.y };
+    });
+    check(`...re-centred on the coffee table (${JSON.stringify(v)})`, !!v.bv && !v.c.dollhouse && Math.hypot(...v.c.target) < 0.5 && Math.abs(v.c.radius - v.bv.radius) < 0.5 && Math.abs(v.sx) < 0.25 && Math.abs(v.sy) < 0.4);
+  }
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

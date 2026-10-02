@@ -6148,6 +6148,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     topDownViewRadiusRef.current = fitRadiusToBoard(0, 0.012, shellRef.current ? 0.94 : undefined) ?? fallback;
   }
 
+  /* The board's own framing, for a theme that has to put the camera
+     back on the board by itself (the den, after the television's
+     commercial): Current Player View's pitch and distance, square on to
+     the board's centre. Read only; nothing is cached by asking. */
+  three.current.boardView = () => {
+    let radius = currentPlayerViewRadiusRef.current;
+    if (radius == null) {
+      const fitted = fitRadiusToBoard(0, VIEW_PHI, 1.1);
+      radius = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX_FOR_BOARD, (fitted ?? 12.5) * (isCoarsePointer() ? 1 : 1.4)));
+    }
+    return { radius, phi: VIEW_PHI };
+  };
+
   function recenterView() {
     /* Pitch and distance are still camera moves. Heading (theta) is now
        applied to the board's own rotation instead of the camera's orbit
@@ -7461,13 +7474,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             background: "transparent",
             border: "none",
             color: COLORS.slate,
-            opacity: cornerControlsCovered ? 0 : focusMode ? 0.2 : 0.35,
+            // (Faint, user: it stuck out; still there, and a hover lifts it.)
+            opacity: cornerControlsCovered ? 0 : focusMode ? 0.12 : 0.22,
             pointerEvents: cornerControlsCovered ? "none" : "auto", visibility: cornerControlsCovered ? "hidden" : "visible",
             cursor: "pointer",
             transition: "opacity 0.5s ease, transform 1.1s ease",
           }}
           onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 0.8; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : focusMode ? 0.2 : 0.35; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : focusMode ? 0.12 : 0.22; }}
         >
           {isFullscreen ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
