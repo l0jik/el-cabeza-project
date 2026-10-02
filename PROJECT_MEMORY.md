@@ -5145,6 +5145,29 @@ phone menu until "Start the story over" (which clears it).
     forever). Three dead exports removed (hasShowcase, specById,
     labSession). ARCHITECTURE.md's header corrected; README written.
   - Not done (see AUDIT.md): splitting chassis/ElCabeza3D.jsx (9.7k
-    lines), documenting all 43 theme hooks, minifying every page (Nova
-    3.9 MB -> 2.5 MB raw, 1.27 -> 1.11 MB gzip; wants a full e2e run),
-    moving the chassis's reality-gate import behind a hook.
+    lines), documenting all 43 theme hooks, moving the chassis's
+    reality-gate import behind a hook.
+  - Then (user: "minify all the pages too"): build.js minifies every
+    target and the worker (Nova 3.9 -> 2.5 MB, Standard 2.6 -> 1.5 MB,
+    worker 56 -> 24 KB). Stale tests found on the way: e2e-original's
+    Nova part and e2e-clerk needed the commercial-aired and
+    special-order-noted seeds; sound-channels and wood-sounds looked for
+    "begin" (the store's button reads Try a Game); e2e-nova-mobile's
+    remembered-bar check now polls instead of a fixed 2.5 s pause.
+  - Don't run browser tests side by side (two at once on this machine
+    made e2e-lab and outside-dismiss miss their timings). A scratch copy
+    of the project needs its tests' URL pointed at its own dist: they
+    load file:///home/user/el-cabeza-project/dist/ by absolute path.
+
+### The camera after the den's television (2026-10-02)
+  - e2e-story's "re-centred on the coffee table" failed now and then
+    (radius 21.87, target.y -1.02, against the board's own 19.84, 0).
+    Logged it: coming back from Singularity remounts the chassis, so the
+    setup fit (chassis, [awaitingBegin, shell] effect) starts over; its
+    first try bails (the page still laying out), so it has no "fitted"
+    to compare against; den-fx's onTheBoard then puts the camera on the
+    board, and the next resize event (~0.3 s later) let the fit pull it
+    off, since with nothing fitted yet nothing counted as "moved".
+  - Fix: cam.current.placed. onTheBoard sets it; the fit's moved() reads
+    it as moved; the fit clears it when it starts over (a fresh setup
+    screen fits as before).

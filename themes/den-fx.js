@@ -77,6 +77,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (bv && bv.radius) c.radius = bv.radius;
       if (c.target) c.target.set(0, 0, 0);
       c.dollhouse = false;
+      c.placed = true; // (the chassis's setup fit leaves it here)
       if (c.view) {
         c.view.theta = c.theta; c.view.phi = c.phi; c.view.radius = c.radius;
         if (c.view.target) c.view.target.set(0, 0, 0);

@@ -85,7 +85,7 @@ None.
 |---|---|---|---|---|
 | M1 | `apps/unified.jsx` (hold-zone sync) | An endless rAF loop does a `querySelector`, a `getBoundingClientRect` and **four style writes every frame** for the life of Nova, invalidating layout each frame even when the title hasn't moved. | Write only when the rect changed. **[fixed]** | XS |
 | M2 | `apps/novaStory.jsx` `saveStoreGone`, `saveOwned` | Two writers replace the whole story record while every other writer merges (`patchStory`). Harmless in today's story order, but one reorder away from wiping `hallDue`/`hallFlares`/`ended`. | `saveStoreGone` merges. **[fixed]** `saveOwned(true)` stays a deliberate fresh start (a purchase always follows a cleared record). | XS |
-| M3 | Build: 5 of 7 pages unminified | Nova ships 3.9 MB of JS (1.27 MB gzip); minified it is 2.5 MB (1.11 MB gzip). Parse cost on phones scales with raw size. Tienda and Lab are already minified with no issues. | Minify all targets, then run the full e2e suite. Left for a deliberate step because it needs the multi-hour e2e run to verify. | S |
+| M3 | Build: 5 of 7 pages unminified | Nova ships 3.9 MB of JS (1.27 MB gzip); minified it is 2.5 MB (1.11 MB gzip). Parse cost on phones scales with raw size. Tienda and Lab are already minified with no issues. | Minify all targets, then run the full e2e suite. **[fixed]** Every page and the worker now minified: Nova 2.5 MB, Standard 1.5 MB, Neon 1.4 MB, Tienda 1.6 MB, Lab 1.1 MB, Lluvia 1.1 MB, Cromo 1.0 MB, worker 24 KB (was 56 KB). | S |
 | M4 | Theme interface | 43 `theme.*` hooks read by the chassis are documented only partly (ARCHITECTURE.md lists the early ones). | A table of every hook (name, when called, return shape) in ARCHITECTURE.md. | S |
 | M5 | `ARCHITECTURE.md` header | Says phase 3 "is a design sketch, not yet implemented … none of this is wired up", contradicting its own "as built" section and the code. | Correct the header. **[fixed]** | XS |
 | M6 | `README.md` | Empty. A newcomer can't find how to build, test, or where anything is. | Short README: layout, commands, test runner, docs. **[fixed]** | XS |
@@ -126,7 +126,7 @@ None.
   after every cheaper condition has failed.
 - **Covered rendering (GOOD):** the revelation scene stops the den from
   drawing underneath it, and adapts its resolution to frame time.
-- **M1** (fixed) and **M3** (open) above are the measurable items.
+- **M1** and **M3** (both fixed) above are the measurable items.
 - No polling loops, no leaked intervals (every `setInterval` has a
   matching clear), no per-frame `localStorage`/JSON work.
 
@@ -165,7 +165,7 @@ None.
 | God component | Features added where the state was | Slows changes; no failures | Rising | Incrementally, with features | L |
 | Implicit theme interface | Grew hook by hook | Mildly | Medium | Next ARCHITECTURE pass | S |
 | Orphaned/chain-run tests | Tests added without registering | Yes (hidden failure) | Medium | Now **[fixed runner]** | S |
-| Unminified pages | Readability in early debugging | Load/parse time on phones | Low-medium | Soon (needs full e2e) | S |
+| Unminified pages | Readability in early debugging | Load/parse time on phones | Low-medium | Done **[fixed]** | S |
 | Theme-named shared modules | Den reused the store's code | No | Low | When touched | S |
 | three r128 | Pinned at start | No | Low (no security exposure) | Only with a reason | L |
 
@@ -192,8 +192,8 @@ None.
 2. **High-value refactors:** extract self-contained effects from the
    chassis into hooks, one per PR, each verified by the existing e2e
    tests (H3). Document the theme hook contract (M4).
-3. **Performance:** the hold-zone loop (M1, done); minify all pages
-   (M3) followed by a full e2e run.
+3. **Performance:** the hold-zone loop (M1) and minifying every page
+   (M3). *Done.*
 4. **Structural cleanup:** move the chassis's gate import behind a theme
    or app hook; rename shared `tienda-*` utilities; move the legacy
    sources to `reference/`.

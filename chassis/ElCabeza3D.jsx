@@ -2023,7 +2023,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // bars sliding in and out as you drag) leaves it where they put it
     // instead of pulling it back to the fitted view.
     let fitted = null;
+    // A theme that puts the camera somewhere itself (the den, back on the
+    // board after the television) marks it placed; that counts as moved
+    // too. Without it, a fit that hadn't landed yet (the page still laying
+    // out after a remount, so nothing to compare against) took the next
+    // resize as its cue and pulled the camera off the den's framing.
+    cam.current.placed = false;
     const moved = () => {
+      if (cam.current.placed) return true;
       if (!fitted) return false;
       const c = cam.current;
       return Math.abs(c.radius - fitted.radius) > 1e-6 || Math.abs(c.phi - fitted.phi) > 1e-6 || Math.abs(c.theta - fitted.theta) > 1e-6
