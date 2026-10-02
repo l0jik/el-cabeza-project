@@ -5394,3 +5394,13 @@ phone menu until "Start the story over" (which clears it).
     the checkers cut). CUES timeline unchanged (voice clips are cued to
     it). The yellow two-line captions sit a little lower (0.855/0.95 H),
     shared with the checkers half.
+  - Sphere's coming-apart menu (user: "too many taps or taps in the wrong
+    places makes it go away too quickly... more resilient"): the
+    unravelling panel is pointer-events: none, so a tap fell through to
+    the category backdrop, whose pointerdown closes the menu, and the
+    decay jumped straight to the card. LostNudge now holds touches
+    (window capture: pointer/mouse/click swallowed) from the menu opening
+    by itself, or starting to come apart, until the card is up. Back and
+    the card itself still work. The menu that opens by itself is up 1.8 s
+    (was 1.4) before it goes. e2e-summon: stray taps mid-decay don't
+    shut it.

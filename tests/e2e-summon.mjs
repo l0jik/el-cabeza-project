@@ -172,7 +172,12 @@ console.log("on a computer");
   await page.mouse.click(h3.x + 10, h3.y + h3.height / 2);
   check("...the heartbeat and ring fade out by themselves (about 3 s)", !!(await poll(async () => { const u = await U(); return !!u && u.stopped; }, 6000)));
   check("then the menu comes apart", !!(await poll(() => page.evaluate(() => { const p = document.querySelector('[data-testid="category-overlay"]'); return !!p && p.getAttribute("data-unravel") === "on"; }), 6000)));
-  await page.waitForTimeout(900);
+  // Stray taps (on the backdrop, on the menu itself, a burst of them)
+  // don't cut it short (user: it went away too quickly).
+  const vp = page.viewportSize();
+  for (const [x, y] of [[8, vp.height - 8], [vp.width - 8, 8], [vp.width / 2, vp.height / 2], [vp.width / 2, vp.height / 2], [20, vp.height / 2]]) await page.mouse.click(x, y);
+  check("...stray taps don't shut it", (await page.locator('[data-testid="category-overlay"][data-unravel="on"]').count()) === 1 && (await page.locator('[data-testid="singularity-lost-out"]').count()) === 0);
+  await page.waitForTimeout(500);
   check("...its words to noise", await page.evaluate(() => /[\u2588\u2593\u2592\u2591]/.test((document.querySelector('[data-testid="category-overlay"]') || {}).textContent || "")));
   check("...folds shut by itself", !!(await poll(async () => (await page.locator('[data-testid="category-overlay"]').count()) === 0, 6000)));
   check("...and the hand: \"I want out of here\"", !!(await poll(async () => (await page.locator('[data-testid="singularity-lost-out"]').count()) > 0, 4000)));

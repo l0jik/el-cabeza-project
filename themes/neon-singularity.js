@@ -3496,6 +3496,7 @@ function LostNudge({ stage, onExit, sing }) {
   const showCard = () => {
     if (shown.current) return;
     shown.current = true;
+    g.current.holding = false; // (the card's own shield takes over)
     // (The card shows over the sphere's labels: whatever menu was up goes.)
     if (sing && sing.sphereMenuStage !== "labels") {
       sing.activeCategory = null;
@@ -3521,15 +3522,17 @@ function LostNudge({ stage, onExit, sing }) {
     // decaying wasn't seen; it went straight to the card).
     if (!panel && !G.forced && sing && sing.bump && menuStage === "labels") {
       G.forced = true;
+      G.holding = true;
       sing.activeCategory = ["laws", "matter", "topologies"][(Math.random() * 3) | 0];
       sing.sphereMenuStage = "overlay";
       sing.tapTimestamps = [];
       sing.categorySawPointerDown = false;
       sing.bump();
-      G.timers.push(setTimeout(() => unravelRef.current(), 1400));
+      G.timers.push(setTimeout(() => unravelRef.current(), 1800));
       return;
     }
     G.gone = true;
+    G.holding = true;
     setLost(true);
     if (G.unease) G.unease.set(0.85);
     if (!panel) { showCard(); return; }
@@ -3587,6 +3590,25 @@ function LostNudge({ stage, onExit, sing }) {
       G.timers.forEach((id) => { clearTimeout(id); clearInterval(id); });
       if (G.unease) G.unease.stop(0.8);
     };
+  }, []);
+
+  /* Once it starts coming apart it plays out to the end (user: too many
+     taps, or taps in the wrong places, made it go away too quickly). The
+     coming-apart menu lets touches through to its backdrop, and a tap
+     there used to shut it on the spot, straight to the card. Now, from
+     the menu opening by itself to the card, touches are held: nothing
+     shuts it, opens another or turns the sphere. Back still works. */
+  React.useEffect(() => {
+    const hold = (e) => {
+      if (!g.current.holding || shown.current) return;
+      const el = e.target;
+      if (el && el.closest && el.closest('[data-testid="singularity-back-button"], .ec-lost')) return;
+      e.stopImmediatePropagation(); e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+    };
+    const EV = ["pointerdown", "pointerup", "mousedown", "mouseup", "click", "dblclick", "contextmenu"];
+    EV.forEach((ev) => window.addEventListener(ev, hold, true));
+    return () => EV.forEach((ev) => window.removeEventListener(ev, hold, true));
   }, []);
 
   // Every touch counts (toward the menu coming apart).
