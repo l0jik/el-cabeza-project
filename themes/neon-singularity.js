@@ -40,6 +40,8 @@ import { markSingularitySeen, singularitySeen } from "../engine/journey.js";
 // (tools/lost_hand.py).
 import lostHandWireUrl from "../assets/neon/lost-hand-wire.webp";
 import lostHandSkinUrl from "../assets/neon/lost-hand-skin.webp";
+import lostTipWireUrl from "../assets/neon/lost-tip-wire.webp";
+import { createUnease } from "./neon-unease.js";
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
 // SINGULARITY invite: the cathedral bell tolls and a black curtain fades
@@ -3256,8 +3258,19 @@ function BackButton({ onExit }) {
    reaching for a button that says I want out of here (which does). The hand
    is the user's own picture of it (assets/neon, tools/lost_hand.py). Their
    own astonishment, a line or two. A tap anywhere else puts the card away
-   (the Back button keeps throbbing). Once a visit. */
+   (the Back button keeps throbbing). Once a visit.
+
+   Before it, something going wrong (user picked three of the ideas): the
+   menus open and work, so they're known for menus; but every touch leaves
+   a wireframe fingertip where it landed, faint at first, plainer each time
+   (their body, before they see it); a heartbeat and a ringing in the
+   silence rise as they go on (neon-unease.js); and then the menu won't
+   hold: its words scramble, its rows drift and tear, it flickers and folds
+   shut by itself, and the card comes up. The unravelling comes at the
+   first of: a menu open a few seconds (6 s), three taps inside menus,
+   eight touches in all, or the old 25 s with nothing touched. */
 const LOST_MS = 25000;
+const UNRAVEL_MS = 6000;
 const LOST_CSS = `
 html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !important; animation: ecLostThrob 1.5s ease-in-out infinite; }
 @keyframes ecLostThrob {
@@ -3281,10 +3294,10 @@ html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !importan
 @keyframes ecLostLine { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes ecLostGlitch { 0%, 88%, 100% { transform: none; } 90% { transform: translateX(2px) skewX(-8deg); } 93% { transform: translateX(-2px); } 96% { transform: translateX(1px) skewX(6deg); } }
 .ec-lost .row { display: flex; align-items: center; margin-top: 12px; }
-.ec-lost .hand { position: relative; flex: none; width: 150px; height: 68px; margin-right: -10px; z-index: 1;
+.ec-lost .hand { position: relative; flex: none; width: 170px; height: 105px; margin-right: -16px; z-index: 1;
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 26%); mask-image: linear-gradient(to right, transparent 0, #000 26%); animation: ecLostReach 1.6s cubic-bezier(.5,0,.3,1) infinite 3.6s; }
 @keyframes ecLostReach { 0%, 100% { transform: translateX(0); } 40% { transform: translateX(9px); } 55% { transform: translateX(7px); } }
-.ec-lost .hand img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; user-select: none; }
+.ec-lost .hand img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; user-select: none; }
 /* The lines come in as a scan sweeps over the hand; the skin flickers and
    falls away over them. */
 .ec-lost .hand .wire { filter: drop-shadow(0 0 3px rgba(102,217,255,0.75)); clip-path: inset(0 100% 0 0); animation: ecLostScan 2.6s cubic-bezier(.3,.1,.3,1) forwards 0.5s, ecLostHum 3.2s ease-in-out infinite 3.2s; }
@@ -3300,33 +3313,175 @@ html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !importan
   box-shadow: 0 0 12px rgba(102,217,255,0.4), inset 0 0 10px rgba(102,217,255,0.15); animation: ecLostPress 1.6s ease infinite 3.4s; }
 @keyframes ecLostPress { 0%, 30%, 70%, 100% { background: rgba(102,217,255,0.08); } 42%, 55% { background: rgba(102,217,255,0.32); box-shadow: 0 0 22px rgba(102,217,255,0.8), inset 0 0 14px rgba(102,217,255,0.4); } }
 .ec-lost button:hover, .ec-lost button:focus-visible { background: rgba(102,217,255,0.28); outline: none; }
+/* A touch's wireframe fingertip (the hand's own): the tip where it
+   landed, the finger running off toward the bottom right and fading out. */
+.ec-tip { position: fixed; z-index: 2300; width: 31px; height: 70px; margin: -3px 0 0 -15.5px; pointer-events: none; transform-origin: 50% 3px;
+  transform: rotate(-20deg); filter: drop-shadow(0 0 3px rgba(102,217,255,0.9));
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 96%); mask-image: linear-gradient(to bottom, #000 45%, transparent 96%);
+  animation: ecTip 1.25s ease-out forwards; }
+.ec-tip img { width: 100%; height: 100%; display: block; }
+.ec-tip.strong { animation: ecTip 1.6s ease-out forwards, ecTipFlick 0.18s steps(2) 3; }
+@keyframes ecTip { 0% { opacity: 0; transform: rotate(-20deg) translateY(10px) scale(0.92); } 14% { opacity: var(--a, 0.4); transform: rotate(-20deg); } 55% { opacity: var(--a, 0.4); } 100% { opacity: 0; transform: rotate(-20deg) translateY(4px); } }
+@keyframes ecTipFlick { 50% { filter: drop-shadow(0 0 7px rgba(255,80,160,0.9)); } }
+/* The menu coming apart: it flickers and tears, its rows drift off true,
+   its words go to noise; then it folds shut like a set switched off. */
+[data-testid="category-overlay"].ec-unravel { animation: ecUnFlick 0.9s steps(1) infinite, ecUnTear 0.42s steps(1) infinite; pointer-events: none !important;
+  text-shadow: -2px 0 rgba(255,60,140,0.75), 2px 0 rgba(60,220,255,0.85); }
+[data-testid="category-overlay"].ec-unravel .ec-drift { transition: transform 2.2s cubic-bezier(.4,0,.6,1), opacity 2.2s ease; transform: translate(var(--dx), var(--dy)) rotate(var(--dr)); opacity: 0.75; }
+@keyframes ecUnFlick { 0%, 100% { opacity: 1; } 12% { opacity: 0.55; } 15% { opacity: 1; } 47% { opacity: 0.3; } 49% { opacity: 0.95; } 71% { opacity: 0.7; } }
+@keyframes ecUnTear { 0%, 100% { clip-path: none; transform: none; } 20% { clip-path: polygon(0 0, 100% 0, 100% 38%, 0 38%, 0 41%, 100% 41%, 100% 100%, 0 100%); transform: translateX(-4px) skewX(-2deg); }
+  45% { clip-path: none; transform: translateX(3px); } 70% { clip-path: polygon(0 0, 100% 0, 100% 64%, 0 64%, 0 70%, 100% 70%, 100% 100%, 0 100%); transform: skewX(3deg); } }
+[data-testid="category-overlay"].ec-unravel.ec-fold { animation: ecUnFold 0.55s cubic-bezier(.6,0,.9,.4) forwards; }
+@keyframes ecUnFold { 0% { transform: none; opacity: 1; filter: none; } 55% { transform: scale(1, 0.012); opacity: 1; filter: brightness(2.4); } 100% { transform: scale(0, 0.012); opacity: 0; filter: brightness(3); } }
 @media (prefers-reduced-motion: reduce) {
+  .ec-tip { animation: ecTip 1.25s linear forwards; }
+  [data-testid="category-overlay"].ec-unravel { animation: none; }
+  [data-testid="category-overlay"].ec-unravel .ec-drift { transition: none; transform: none; }
   html.ec-lost-urge [data-testid="singularity-back-button"], .ec-lost, .ec-lost *, .ec-lost .hand::after { animation: none !important; }
   .ec-lost .hand .skin { opacity: 0; } .ec-lost .hand .wire { clip-path: none; } .ec-lost .l2, .ec-lost .l3 { opacity: 1; }
 }
 `;
-function LostNudge({ stage, onExit }) {
+// The fingertip: the index finger's end from the user's wireframe hand,
+// turned to point up (tools/lost_hand.py).
+const TIP_HTML = `<img src="${lostTipWireUrl}" alt="" draggable="false">`;
+const GLITCH = "\u2588\u2593\u2592\u2591#%&@<>/\\|=+*\u00a7\u00a4";
+
+function LostNudge({ stage, onExit, sing }) {
   const h = React.createElement;
   const [lost, setLost] = React.useState(false);
   const [card, setCard] = React.useState(false);
   const shown = React.useRef(false);
+  const stageRef = React.useRef(stage);
+  stageRef.current = stage;
+  // How far it's gone: touches in all, taps inside menus, whether it's
+  // come apart yet (once).
+  const g = React.useRef({ taps: 0, menuTaps: 0, gone: false, t0: Date.now(), unease: null, timers: [] });
   React.useEffect(() => {
     if (typeof document === "undefined" || document.getElementById("ec-lost-css")) return;
     const st = document.createElement("style"); st.id = "ec-lost-css"; st.textContent = LOST_CSS; document.head.appendChild(st);
   }, []);
-  // The clock: anything touched or pressed on the sphere starts it again;
-  // the card, once up, goes at a tap anywhere else.
+
+  const showCard = () => {
+    if (shown.current) return;
+    shown.current = true;
+    setCard(true);
+    if (g.current.unease) g.current.unease.set(1);
+  };
+  // The menu won't hold: scrambled, drifting, tearing, then folded shut;
+  // then the card. With no menu up, straight to the card.
+  const unravel = () => {
+    const G = g.current;
+    if (G.gone) return;
+    G.gone = true;
+    setLost(true);
+    if (G.unease) G.unease.set(0.85);
+    const panel = typeof document !== "undefined" ? document.querySelector('[data-testid="category-overlay"]') : null;
+    if (!panel || !sing || sing.sphereMenuStage !== "overlay") { showCard(); return; }
+    panel.classList.add("ec-unravel");
+    panel.setAttribute("data-unravel", "on");
+    const kids = [...panel.querySelectorAll(":scope > *, :scope > div > *")];
+    kids.forEach((el, i) => {
+      el.style.setProperty("--dx", `${(Math.random() * 2 - 1) * (10 + i * 2)}px`);
+      el.style.setProperty("--dy", `${(Math.random() * 2 - 1) * 8 + i * 1.5}px`);
+      el.style.setProperty("--dr", `${(Math.random() * 2 - 1) * 4}deg`);
+    });
+    // (A frame later, so the drift is a move, not a jump.)
+    requestAnimationFrame(() => kids.forEach((el) => el.classList.add("ec-drift")));
+    const texts = [];
+    const walk = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) if (n.nodeValue.trim()) texts.push([n, n.nodeValue]);
+    const SCRAMBLE_MS = 2300, start = Date.now();
+    const still = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const tick = setInterval(() => {
+      if (still) return;
+      const p = Math.min(1, (Date.now() - start) / SCRAMBLE_MS);
+      texts.forEach(([n, orig]) => {
+        n.nodeValue = [...orig].map((c) => (c.trim() && Math.random() < p * 0.75 ? GLITCH[(Math.random() * GLITCH.length) | 0] : c)).join("");
+      });
+    }, 85);
+    G.timers.push(setTimeout(() => {
+      clearInterval(tick);
+      if (!panel.isConnected) { showCard(); return; }
+      panel.classList.add("ec-fold");
+      G.timers.push(setTimeout(() => {
+        if (sing && sing.sphereMenuStage === "overlay") {
+          sing.activeCategory = null;
+          sing.sphereMenuStage = "labels";
+          sing.labelsDirty = true;
+          if (sing.bump) sing.bump();
+        }
+        G.timers.push(setTimeout(showCard, 350));
+      }, 560));
+    }, SCRAMBLE_MS));
+    G.timers.push(tick);
+  };
+  const unravelRef = React.useRef(unravel);
+  unravelRef.current = unravel;
+
+  // The sound in the silence: from the first moment, rising as they go on.
+  React.useEffect(() => {
+    const G = g.current;
+    G.unease = createUnease(sing && sing.audio);
+    G.unease.set(0.08);
+    const climb = setInterval(() => {
+      if (G.gone) return;
+      const secs = (Date.now() - G.t0) / 1000;
+      G.unease.set(Math.min(0.72, 0.08 + 0.09 * G.taps + 0.006 * secs));
+    }, 1000);
+    return () => {
+      clearInterval(climb);
+      G.timers.forEach((id) => { clearTimeout(id); clearInterval(id); });
+      if (G.unease) G.unease.stop(0.8);
+    };
+  }, []);
+
+  // Every touch: a fingertip, plainer each time; and the counts.
+  React.useEffect(() => {
+    const doc = typeof document !== "undefined" ? document : null;
+    if (!doc) return undefined;
+    const onDown = (e) => {
+      if (e.target && e.target.closest && e.target.closest(".ec-lost")) return;
+      const G = g.current;
+      G.taps += 1;
+      if (stageRef.current === "overlay") G.menuTaps += 1;
+      const a = Math.min(0.95, 0.2 + 0.13 * G.taps);
+      const tip = doc.createElement("div");
+      tip.className = `ec-tip${G.taps >= 4 ? " strong" : ""}`;
+      tip.setAttribute("data-testid", "singularity-fingertip");
+      tip.setAttribute("aria-hidden", "true");
+      tip.style.left = `${e.clientX}px`; tip.style.top = `${e.clientY}px`;
+      tip.style.setProperty("--a", String(a));
+      tip.dataset.strength = a.toFixed(2);
+      tip.innerHTML = TIP_HTML;
+      doc.body.appendChild(tip);
+      setTimeout(() => tip.remove(), 1700);
+      if (G.menuTaps >= 3 || G.taps >= 8) unravelRef.current();
+    };
+    window.addEventListener("pointerdown", onDown, true);
+    return () => { window.removeEventListener("pointerdown", onDown, true); doc.querySelectorAll(".ec-tip").forEach((el) => el.remove()); };
+  }, []);
+
+  // A menu open a while: it comes apart.
+  React.useEffect(() => {
+    if (stage !== "overlay" || g.current.gone) return undefined;
+    const ms = typeof window.__EC_TEST_UNRAVEL_MS__ === "number" ? window.__EC_TEST_UNRAVEL_MS__ : UNRAVEL_MS;
+    const id = setTimeout(() => unravelRef.current(), ms);
+    return () => clearTimeout(id);
+  }, [stage]);
+
+  // The clock: anything touched or pressed on the sphere starts it again.
   React.useEffect(() => {
     if (lost) return undefined;
     const ms = typeof window.__EC_TEST_LOST_MS__ === "number" ? window.__EC_TEST_LOST_MS__ : LOST_MS;
     let id = 0;
-    const arm = () => { clearTimeout(id); id = setTimeout(() => { setLost(true); if (!shown.current) { shown.current = true; setCard(true); } }, ms); };
+    const arm = () => { clearTimeout(id); id = setTimeout(() => unravelRef.current(), ms); };
     const EV = ["pointerdown", "keydown", "wheel"];
     EV.forEach((e) => window.addEventListener(e, arm, true));
     arm();
     return () => { clearTimeout(id); EV.forEach((e) => window.removeEventListener(e, arm, true)); };
   }, [lost]);
   React.useEffect(() => { if (stage !== "labels") setCard(false); }, [stage]);
+  // The card, once up, goes at a tap anywhere else.
   React.useEffect(() => {
     if (!card) return undefined;
     const away = (e) => { if (!(e.target && e.target.closest && e.target.closest(".ec-lost, [data-testid=\"singularity-back-button\"]"))) setCard(false); };
@@ -3845,6 +4000,16 @@ export function useSingularityPhase({
     s.categorySawPointerDown = false;
     s.bump();
   }
+  // Test-only: a category opened as a tap on its label would (the sphere
+  // can come up turned any way).
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+    window.__EC_TEST_OPEN_CATEGORY__ = (category) => {
+      const t = three && three.current;
+      if (!t || !t.singularity || t.singularity.sphereMenuStage !== "labels") return false;
+      openCategoryOverlay(t, category);
+      return true;
+    };
+  }
 
   // Three quick taps on BARE sphere (i.e. not on a root label — see
   // categoryAtUv/handleSphereTap) finalize every selection and reveal
@@ -4185,6 +4350,7 @@ export function renderSingularityOverlay(setupExtras) {
     phase === PHASES.SPHERE && setupExtras.onSingularityBack && setupExtras.singularityFirstVisit && h(LostNudge, {
       key: "lost",
       stage,
+      sing: t && t.singularity,
       onExit: () => { if (!setupExtras.onSingularityBack()) exitSingularity(); },
     }),
     phase === PHASES.SPHERE && stage === "labels" && h(LabelsHint, { key: "sphere-help" }),

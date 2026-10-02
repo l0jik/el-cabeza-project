@@ -4989,3 +4989,39 @@ phone menu until "Start the story over" (which clears it).
     begin" (the tap starts the sound; full screen on a phone), then
     straight into den-ending's void. No hall; onFinish keeps nothing (the
     story stays where it was). Realities and Stay work as ever.
+
+### The Singularity's first visit: something going wrong (2026-10-02)
+  - User picked three of my ideas: A (the menu won't hold), B (a
+    wireframe fingertip at each touch), D (a heartbeat and a ringing in the
+    silence). The menus stay open to use (so they're known for menus).
+  - LostNudge (neon-singularity.js), first visit in the story only:
+    every pointerdown leaves .ec-tip (an SVG wireframe fingertip, tip at
+    the touch, finger off to the lower right, fading; plainer each touch,
+    flickering pink from the 4th; testid singularity-fingertip,
+    data-strength). The unravelling comes at the first of: a menu open
+    6 s (UNRAVEL_MS; __EC_TEST_UNRAVEL_MS__), 3 taps inside menus, 8
+    touches in all, or the old 25 s idle. With a menu up: .ec-unravel on
+    category-overlay (data-unravel="on"): flicker, tears (clip-path),
+    chromatic text, rows drift (.ec-drift), its text nodes go to block
+    glyphs over 2.3 s; then .ec-fold (a set switched off), the overlay
+    closed (stage labels), then the hand card. No menu: straight to the
+    card. Back throbs from the unravelling on.
+  - themes/neon-unease.js createUnease(audio): through neon.js
+    summonOutput (outside the master the event horizon zeroes; muted with
+    the rest): lub-dub thumps (150 -> 52 Hz, lowpassed: a phone can carry
+    them), quicker as it rises, and two sines at 5.18 kHz beating at 6 Hz.
+    Level 0.08 at first, + 0.09 a touch + a little with time (to 0.72),
+    0.85 as it comes apart, 1 with the card; stops (0.8 s) when the
+    Singularity unmounts. __EC_UNEASE__() reads it.
+  - e2e-summon's "on a computer" visit goes on into the sphere and checks
+    it all (3 s unravel; __EC_TEST_OPEN_CATEGORY__(cat) opens a menu as a
+    tap on its label would: the Nova sphere comes up north pole forward).
+  - The hand, redone from the user's second picture
+    (tools/lost-hand-source.png; tools/lost_hand.py): the wire recoloured
+    to the sphere's cyan (480x297); a flesh hand modelled from its shape
+    (silhouette with small holes filled, rounded by distance from the edge
+    at a finger's and a palm's size, grooves where the wire's brightest
+    outlines run so the fingers part, lit from the upper left, warm rim,
+    faint knuckle folds) for the skin to flicker away from; and the index
+    fingertip turned to point up (lost-tip-wire.webp), now the fingertip a
+    touch leaves (replacing a drawn SVG). The card's hand box 170x105.
