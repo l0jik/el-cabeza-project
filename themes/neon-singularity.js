@@ -3443,6 +3443,11 @@ html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !importan
   box-shadow: 0 0 12px rgba(102,217,255,0.4), inset 0 0 10px rgba(102,217,255,0.15); animation: ecLostPress 1.6s ease infinite 3.4s; }
 @keyframes ecLostPress { 0%, 30%, 70%, 100% { background: rgba(102,217,255,0.08); } 42%, 55% { background: rgba(102,217,255,0.32); box-shadow: 0 0 22px rgba(102,217,255,0.8), inset 0 0 14px rgba(102,217,255,0.4); } }
 .ec-lost button:hover, .ec-lost button:focus-visible { background: rgba(102,217,255,0.28); outline: none; }
+/* Behind the card, over everything else (the Back button stays above it):
+   taps off the card go nowhere but to its button, which pulses. */
+.ec-lost-shield { position: fixed; inset: 0; z-index: 2140; background: rgba(0,0,0,0.001); touch-action: none; }
+.ec-lost button.nudge { animation: ecLostNudge 0.65s ease-out; }
+@keyframes ecLostNudge { 0% { transform: scale(1); } 30% { transform: scale(1.08); background: rgba(102,217,255,0.45); box-shadow: 0 0 26px rgba(102,217,255,0.9); } 100% { transform: scale(1); } }
 /* The menu coming apart: it flickers and tears, its rows drift off true,
    its words go to noise; then it folds shut like a set switched off. */
 .ec-unravel { animation: ecUnFlick 0.9s steps(1) infinite, ecUnTear 0.42s steps(1) infinite; pointer-events: none !important;
@@ -3501,14 +3506,27 @@ function LostNudge({ stage, onExit, sing }) {
   const unravel = () => {
     const G = g.current;
     if (G.gone) return;
-    G.gone = true;
-    setLost(true);
-    if (G.unease) G.unease.set(0.85);
     // Whichever menu is up: a category's, or the summary with Begin Game
     // (user: they got through to a game and never saw the hand).
     const menuStage = sing && sing.sphereMenuStage;
     const sel = menuStage === "overlay" ? '[data-testid="category-overlay"]' : menuStage === "summary" ? '[data-testid="singularity-summary-menu"]' : null;
     const panel = sel && typeof document !== "undefined" ? document.querySelector(sel) : null;
+    // None up (it came on with the sphere just turning): one opens by
+    // itself, a moment to be read, and then comes apart (user: the menu
+    // decaying wasn't seen; it went straight to the card).
+    if (!panel && !G.forced && sing && sing.bump && menuStage === "labels") {
+      G.forced = true;
+      sing.activeCategory = ["laws", "matter", "topologies"][(Math.random() * 3) | 0];
+      sing.sphereMenuStage = "overlay";
+      sing.tapTimestamps = [];
+      sing.categorySawPointerDown = false;
+      sing.bump();
+      G.timers.push(setTimeout(() => unravelRef.current(), 1400));
+      return;
+    }
+    G.gone = true;
+    setLost(true);
+    if (G.unease) G.unease.set(0.85);
     if (!panel) { showCard(); return; }
     panel.classList.add("ec-unravel");
     if (menuStage === "summary") panel.classList.add("ec-centred");
@@ -3612,20 +3630,28 @@ function LostNudge({ stage, onExit, sing }) {
     arm();
     return () => { clearTimeout(id); EV.forEach((e) => window.removeEventListener(e, arm, true)); };
   }, [lost]);
-  React.useEffect(() => { if (stage !== "labels") setCard(false); }, [stage]);
-  // The card, once up, goes at a tap anywhere else.
+  // The card, once up, stays until "I want out of here" (or Back) is
+  // pressed (user: a tap anywhere else used to put it away). A tap off it
+  // lands on the shield behind it and makes its button pulse.
+  const [nudge, setNudge] = React.useState(0);
   React.useEffect(() => {
-    if (!card) return undefined;
-    const away = (e) => { if (!(e.target && e.target.closest && e.target.closest(".ec-lost, [data-testid=\"singularity-back-button\"]"))) setCard(false); };
-    window.addEventListener("pointerdown", away, true);
-    return () => window.removeEventListener("pointerdown", away, true);
-  }, [card]);
+    if (!nudge) return undefined;
+    const id = setTimeout(() => setNudge(0), 700);
+    return () => clearTimeout(id);
+  }, [nudge]);
   React.useEffect(() => {
     document.documentElement.classList.toggle("ec-lost-urge", lost);
     return () => document.documentElement.classList.remove("ec-lost-urge");
   }, [lost]);
   if (!card) return null;
-  return h("div", { className: "ec-lost", "data-testid": "singularity-lost", role: "dialog", "aria-label": "Lost in the Singularity", onPointerDown: (e) => e.stopPropagation() },
+  const swallow = (e) => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); };
+  return h(React.Fragment, null,
+    h("div", {
+      className: "ec-lost-shield", "data-testid": "singularity-lost-shield", "aria-hidden": "true",
+      onPointerDown: (e) => { swallow(e); setNudge((n) => n + 1); },
+      onPointerUp: swallow, onClick: swallow, onWheel: (e) => e.stopPropagation(), onContextMenu: swallow,
+    }),
+    h("div", { className: "ec-lost", "data-testid": "singularity-lost", role: "dialog", "aria-modal": "true", "aria-label": "Lost in the Singularity", onPointerDown: (e) => e.stopPropagation() },
     h("div", { className: "l1" }, "Wait… where am I?"),
     // (user's words, spacing and all)
     h("div", { className: "l2", style: { whiteSpace: "pre-wrap" } }, "My hand......!   Wha.........?!"),
@@ -3634,7 +3660,7 @@ function LostNudge({ stage, onExit, sing }) {
       h("div", { className: "hand", "aria-hidden": "true" },
         h("img", { className: "wire", src: lostHandWireUrl, alt: "", draggable: false }),
         h("img", { className: "skin", src: lostHandSkinUrl, alt: "", draggable: false })),
-      h("button", { type: "button", "data-testid": "singularity-lost-out", onClick: (e) => { e.stopPropagation(); onExit(); } }, "I want out of here")));
+      h("button", { type: "button", "data-testid": "singularity-lost-out", className: nudge ? "nudge" : undefined, key: `out-${nudge}`, onClick: (e) => { e.stopPropagation(); onExit(); } }, "I want out of here"))));
 }
 
 function renderBackButton(exitSingularity) {

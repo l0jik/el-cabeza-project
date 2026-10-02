@@ -5324,3 +5324,12 @@ phone menu until "Start the story over" (which clears it).
     content's thirds and their crossings, so they move with the text; the
     back of the sheet showing through is info-body::before, positioned in
     the scrolled content.
+  - Then (user): the hand card went away at any tap elsewhere; it must stay
+    until "I want out of here" is pressed. The away-tap and stage-change
+    dismissals are gone; a transparent shield (.ec-lost-shield, z 2140,
+    under the card at 2150 and the Back button at 2200) swallows taps off
+    it and makes the button pulse (.nudge). And the decaying menu wasn't
+    seen: when the unravel came with no menu up (the idle clock, or touches
+    on the bare sphere) it went straight to the card. Now a category menu
+    opens by itself first (LAWS, MATTER or TOPOLOGIES), stays 1.4 s, and
+    comes apart; then the card.
