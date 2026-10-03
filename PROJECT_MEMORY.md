@@ -5429,3 +5429,9 @@ phone menu until "Start the story over" (which clears it).
     phantom swell, surge (bent up + a hit at the thump), blast (bent up
     into the white + a hit at it). Hooks __DEN_GLITCH__, __DEN_HAUNT__;
     checked over http (loaded, every kind plays, no errors).
+  - Nova ?scene=lure (apps/unified.jsx LURE_PARAM; with ?scene=summons
+    it's STORY_PREVIEW: journeyPreview + storyPreview, no reality gate):
+    opens in the den as home before the Singularity, "The television /
+    Tap to begin"; the tap sets the lure's clock so the set stirs 3 s
+    later (not 25 s). Through the set: the summons and the sphere's first
+    visit, all in memory only. tests/e2e-camera-glide.mjs.

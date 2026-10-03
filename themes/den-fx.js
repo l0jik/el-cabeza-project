@@ -169,7 +169,9 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        the closed Big Glutts from the black just before the car pulls in;
        "hall", the hallway lighting up (its count kept in memory only, and
        after "keep playing" back in a few seconds, not a few moves, so the
-       second time's words and the third's pull can be seen too). A tap
+       second time's words and the third's pull can be seen too); "lure",
+       home before the Singularity, the set stirring a few seconds after
+       the tap instead of 25 s (Nova keeps that visit in memory only). A tap
        first (the sound needs one). Nothing's kept: the story stays where
        it was, and no hall otherwise. */
     const preview = (novaTv && novaTv.preview && novaTv.preview()) || null;
@@ -199,7 +201,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (preview === "glutts" && trip) trip.load();
       previewEl.style.cssText = "position:fixed;inset:0;z-index:3000;border:0;margin:0;background:#000;color:#cfd6e6;cursor:pointer;" +
         "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font:400 clamp(20px,5vw,30px)/1.3 Georgia,serif;letter-spacing:0.04em;-webkit-tap-highlight-color:transparent;";
-      previewEl.innerHTML = '<span>' + ({ glutts: "Back to Big Glutts", hall: "The hallway" }[preview] || "The revelation") + '</span><small style="font:600 12px/1 Arial,sans-serif;letter-spacing:0.22em;text-transform:uppercase;opacity:0.55">Tap to begin</small>';
+      previewEl.innerHTML = '<span>' + ({ glutts: "Back to Big Glutts", hall: "The hallway", lure: "The television" }[preview] || "The revelation") + '</span><small style="font:600 12px/1 Arial,sans-serif;letter-spacing:0.22em;text-transform:uppercase;opacity:0.55">Tap to begin</small>';
       // (Its taps stay its own.)
       ["pointerdown", "pointerup", "touchstart", "touchend", "mousedown", "wheel"].forEach((t) => previewEl.addEventListener(t, (e) => e.stopPropagation()));
       previewEl.addEventListener("click", (e) => {
@@ -210,6 +212,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         previewEl.remove(); previewEl = null;
         if (preview === "glutts") { if (trip) trip.start({ from: 8300 }); }
         else if (hallPreview) { if (hall) hall.now(movesNow()); }
+        else if (preview === "lure") lureStart = performance.now() - LURE_WAIT + 3000;
         else startEnding(null);
       });
       d.body.appendChild(previewEl);

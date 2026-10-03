@@ -97,6 +97,24 @@ console.log("\nNova ?scene=hall");
   await ctx.close();
 }
 
+console.log("\nNova ?scene=lure");
+{
+  const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?scene=lure");
+  check("a fresh visitor: the den, and a tap to begin", !!(await poll(async () => (await page.locator('[data-testid="den-lure-preview"]').count()) > 0, 30000)));
+  await page.waitForTimeout(800);
+  await page.locator('[data-testid="den-lure-preview"]').click();
+  check("...the set lures", !!(await page.evaluate(() => window.__DEN_TV__ && window.__DEN_TV__().lure)));
+  check("...and stirs within seconds", !!(await poll(async () => (await page.evaluate(() => window.__DEN_TV__().lureEvents)) > 0, 12000)));
+  check("...nothing kept", await page.evaluate(() => !localStorage.getItem("el-cabeza:story") && !Object.keys(localStorage).some((k) => /singularity/i.test(k) && localStorage.getItem(k) === "1")));
+  check("no page errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(failures ? `\nCAMERA GLIDE FAILED (${failures})` : "\nCAMERA GLIDE PASSED");
 process.exit(failures ? 1 : 0);

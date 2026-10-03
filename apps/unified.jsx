@@ -55,10 +55,12 @@ const WORLD_PARAM = (() => {
 })();
 // A look at one of the den's scenes without playing the story there:
 // ?scene=revelation (den-ending.js), ?scene=glutts (the trip back to
-// the closed Big Glutts, den-trip.js) or ?scene=hall (the hallway lighting
-// up, den-hall.js). Opens in the den. Read once.
+// the closed Big Glutts, den-trip.js), ?scene=hall (the hallway lighting
+// up, den-hall.js) or ?scene=lure (home before the Singularity, the set
+// stirring, and on through it into the summons). Opens in the den. Read
+// once.
 let SCENE_PARAM = (() => {
-  try { const v = new URLSearchParams(window.location.search).get("scene"); return ["revelation", "glutts", "hall"].includes(v) ? v : null; } catch (e) { return null; }
+  try { const v = new URLSearchParams(window.location.search).get("scene"); return ["revelation", "glutts", "hall", "lure"].includes(v) ? v : null; } catch (e) { return null; }
 })();
 // ?scene=summons: straight into Neon as if just through the den's set the
 // first time: the summons over the board, then the sphere's first visit
@@ -68,7 +70,12 @@ let SCENE_PARAM = (() => {
 const SUMMONS_PARAM = (() => {
   try { return new URLSearchParams(window.location.search).get("scene") === "summons"; } catch (e) { return false; }
 })();
-if (SUMMONS_PARAM) { journeyPreview(); storyPreview(); }
+// (?scene=lure is played the same way: the Singularity as never seen, so
+// the set lures, and through it the summons and the sphere's first visit,
+// none of it kept.)
+const LURE_PARAM = SCENE_PARAM === "lure";
+const STORY_PREVIEW = SUMMONS_PARAM || LURE_PARAM;
+if (STORY_PREVIEW) { journeyPreview(); storyPreview(); }
 const takeScene = () => { const r = SCENE_PARAM; SCENE_PARAM = null; return r; };
 const storyBridge = { purchase() {}, backToStore() {}, restart() {}, restartNow() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };
 // The realities menu's Restart story starts over here, in place.
@@ -108,7 +115,7 @@ const storeTheme = {
   // Full screen at the first tap (as every screen now is: the chassis).
   fullscreenOnFirstTap: true,
   // After the story: the gate as it comes up, and the other realities.
-  realityGate: SUMMONS_PARAM ? null : { world: "store", novaGo: (to, w) => storyBridge.goWorld(w) },
+  realityGate: STORY_PREVIEW ? null : { world: "store", novaGo: (to, w) => storyBridge.goWorld(w) },
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
 };
 /* The den's television (themes/den-tv.js, den-fx.js) is the way into
@@ -127,7 +134,7 @@ const homeTheme = {
   // and all).
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
   // ...and the way into a game as it comes up (themes/reality-gate.js).
-  realityGate: SUMMONS_PARAM ? null : { world: "den", novaGo: (to, w) => storyBridge.goWorld(w) },
+  realityGate: STORY_PREVIEW ? null : { world: "den", novaGo: (to, w) => storyBridge.goWorld(w) },
   mountAmbientEffects: (refs, helpers) => {
     const returning = tvBridge.returning;
     const commercial = returning && tvBridge.commercial;
@@ -168,7 +175,7 @@ const novaNeonTheme = {
   ...neonTheme,
   // After the story: the gate as it comes up, and the other realities.
   // (Not over the summons opened by its own link, ?scene=summons.)
-  realityGate: SUMMONS_PARAM ? null : { world: "neon", novaGo: (to, w) => storyBridge.goWorld(w) },
+  realityGate: STORY_PREVIEW ? null : { world: "neon", novaGo: (to, w) => storyBridge.goWorld(w) },
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
   useSetupExtras: (x) => {
     const e = { ...neonTheme.useSetupExtras(x), onSingularityBack: () => tvBridge.back() };
