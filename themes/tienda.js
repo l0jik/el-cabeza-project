@@ -349,9 +349,13 @@ export const styleSheet = `
      on a phone), 4 px up to centre the smaller card on it. */
   [data-testid="how-to-play"] { padding: 0 10px 0 7px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 18px) + 4px) !important; }
   button[aria-label$="full screen"] { width: 30px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 18px) + 4px) !important; }
-  [data-testid="room-view-corner"] { width: 30px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 60px) + 4px) !important; opacity: 0.85 !important; }
-  /* In the Room view already: the house goes grey, spent. */
-  [data-testid="room-view-corner"][data-active="true"] { background: rgba(160,152,138,0.6) !important; color: rgba(40,32,24,0.5) !important; box-shadow: none !important; opacity: 0.6 !important; }
+  /* The house as faint as the full-screen card below it (user: ghost it
+     too); a hover or focus lifts it, as the chassis does for that one. */
+  [data-testid="room-view-corner"] { width: 30px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 60px) + 4px) !important; opacity: 0.22 !important; transition: opacity 0.5s ease !important; }
+  [data-testid="room-view-corner"]:hover, [data-testid="room-view-corner"]:focus-visible { opacity: 0.8 !important; }
+  /* In the Room view already: the house goes grey, spent, and fainter still. */
+  [data-testid="room-view-corner"][data-active="true"] { background: rgba(160,152,138,0.6) !important; color: rgba(40,32,24,0.5) !important; box-shadow: none !important; opacity: 0.16 !important; }
+  [data-testid="room-view-corner"][data-active="true"]:hover { opacity: 0.45 !important; }
   /* Rules: a newspaper circular of 1975, the store's own insert from the
      Sunday paper, folded in three to go in the box and handled since.
      Groundwood newsprint gone yellow, browner and brittle at the edges;

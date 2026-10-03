@@ -5477,3 +5477,10 @@ phone menu until "Start the story over" (which clears it).
     storyOver() reads it too, so a reality reached from the menu has the
     corner button (and the gate) for the rest of the tab's visit. Checked
     on Lluvia: no record, no flag: no button; with the flag: button, menu.
+  - Tienda's house (Room view) button ghosted like the full-screen card
+    under it (user): 0.22 (was 0.85), a hover/focus lifts it to 0.8;
+    spent (in the Room view) 0.16, hover 0.45. tienda.js styleSheet. The
+    den's house is unchanged.
+  - e2e-tienda's leaflet "newsprint" check looked for the texture on the
+    sheet itself; since the leaflet change (fd48858) it's on the masthead
+    and the scrolling body, so the check looks there.

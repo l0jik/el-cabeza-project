@@ -127,13 +127,15 @@ for (const size of SIZES) {
     }
   }
   if (size === SIZES[0] || size === SIZES[7]) {
-    // How to play: the rules leaflet, on newsprint, torn at the edges.
+    // How to play: the rules leaflet, on newsprint, torn at the edges. (The
+    // newsprint is on the parts inside that scroll with the words, not the
+    // sheet itself: themes/tienda.js.)
     await page.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "quick" } })));
     await page.waitForTimeout(1200);
     const leaf = await page.evaluate(() => {
       const card = document.querySelector('[data-testid="info-overlay"] > div');
       const cs = getComputedStyle(card), b = card.getBoundingClientRect();
-      return { open: document.querySelector('[data-testid="info-overlay"]').dataset.open, clip: cs.clipPath.slice(0, 8), paper: /data:image\/png/.test(cs.backgroundImage), x: b.x, w: b.width, y: b.y, h: b.height };
+      return { open: document.querySelector('[data-testid="info-overlay"]').dataset.open, clip: cs.clipPath.slice(0, 8), paper: [card, ...card.querySelectorAll(":scope > div, :scope > div > div")].some((e) => /data:image\/png/.test(getComputedStyle(e).backgroundImage)), x: b.x, w: b.width, y: b.y, h: b.height };
     });
     check("How to play opens the leaflet, printed on newsprint with a torn edge", leaf.open === "true" && leaf.clip === "polygon(" && leaf.paper, JSON.stringify(leaf));
     check("...and it fits the screen", leaf.x >= 0 && leaf.x + leaf.w <= size.w + 1 && leaf.y >= 0 && leaf.y + leaf.h <= size.h + 1, JSON.stringify(leaf));
