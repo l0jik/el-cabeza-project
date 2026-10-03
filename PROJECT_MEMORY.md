@@ -5547,3 +5547,12 @@ phone menu until "Start the story over" (which clears it).
     its guided tap-blocker stands down and a tap doesn't dismiss it.
     e2e-camera-glide: the hall link with the story over and the note
     never taken up: no note.
+  - The realities menu at the end of the story (user: linger two seconds
+    more so the words at the top are read; emphasise them, not gauche):
+    den-ending.js lockMs 3500 -> 5500. realities.js, with lockMs: the
+    menu's an "epilogue": no scrolling while held; the sub line split into
+    its sentences, each a span arriving in turn (0.6 s, then evenly across
+    the hold, the last ~1.7 s before it's live), fading up and rising a
+    hair, 16.5 px, full white with a faint violet glow; after, it settles
+    to 0.82. Reduced motion: all at once. e2e-ending: three sentences,
+    live by 9 s.

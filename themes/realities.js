@@ -79,6 +79,19 @@ const CSS = `
 .ec-realities.locked .hold i { animation: ecRealHold var(--hold-ms, 3500ms) linear forwards; }
 .ec-realities:not(.locked) .hold { opacity: 0; transition: opacity 0.6s ease; }
 @keyframes ecRealHold { to { transform: scaleX(1); } }
+/* The first sight of it, at the end of the story (lockMs): the words at the
+   top are the thing (user: make sure they're read, without being gauche).
+   Held still (no scrolling past them), they come one sentence at a time,
+   each fading up and rising a hair, a little larger, in full white with a
+   faint glow; once the choices come alive they settle back to the quiet
+   line they are the rest of the time. */
+.ec-realities.locked { overflow: hidden; }
+.ec-realities.epilogue p.sub { font-size: 16.5px; max-width: 34em; text-wrap: balance; opacity: 0.82; transition: opacity 1.2s ease, text-shadow 1.2s ease; }
+.ec-realities.epilogue.locked p.sub { opacity: 1; text-shadow: 0 0 18px rgba(170,130,255,0.38); }
+.ec-realities.epilogue p.sub span { display: inline-block; opacity: 0; transform: translateY(4px);
+  animation: ecRealLine 1.4s cubic-bezier(.2,.7,.2,1) forwards; animation-delay: var(--d, 0s); }
+@keyframes ecRealLine { to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ec-realities.epilogue p.sub span { animation: none; opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ec-realities, .ec-realities li button { transition: none; } }
 `;
 
@@ -107,7 +120,19 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
   el.setAttribute("role", "dialog");
   el.setAttribute("aria-label", title);
   const h = document.createElement("h2"); h.textContent = title;
-  const p = document.createElement("p"); p.className = "sub"; p.textContent = sub;
+  const p = document.createElement("p"); p.className = "sub";
+  if (lockMs > 0) {
+    // (Its sentences, one at a time across the hold, the last a moment
+    // before the choices come alive.)
+    el.classList.add("epilogue");
+    const parts = sub.match(/[^.!?]+[.!?]+(\s+|$)/g) || [sub];
+    const step = parts.length > 1 ? Math.max(500, (lockMs - 2300) / (parts.length - 1)) : 0;
+    parts.forEach((t, i) => {
+      const sp = document.createElement("span"); sp.textContent = t.trim();
+      sp.style.setProperty("--d", `${(600 + i * step) / 1000}s`);
+      p.append(sp, document.createTextNode(i < parts.length - 1 ? " " : ""));
+    });
+  } else p.textContent = sub;
   const ul = document.createElement("ul");
   WORLDS.forEach((w) => {
     const li = document.createElement("li");

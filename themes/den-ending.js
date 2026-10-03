@@ -447,8 +447,9 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       sub: "The story's over. Every version of the game is here. Pick one, or stay in the den.",
       currentId: "den",
       // (A moment to read it first: taps still coming from the scene went
-      // straight to a world, user.)
-      lockMs: typeof window !== "undefined" && typeof window.__EC_TEST_REALITIES_LOCK__ === "number" ? window.__EC_TEST_REALITIES_LOCK__ : 3500,
+      // straight to a world, user; and two seconds more, so the words at
+      // the top are read, user.)
+      lockMs: typeof window !== "undefined" && typeof window.__EC_TEST_REALITIES_LOCK__ === "number" ? window.__EC_TEST_REALITIES_LOCK__ : 5500,
       onPick: (w) => { if (w.nova === "standard") { leave(); return; } stage = "going"; if (onPick) onPick(w); },
       onStay: () => leave(),
     });

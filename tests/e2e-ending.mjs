@@ -137,7 +137,8 @@ check("...every version of the game (15)", (await page.locator('[data-testid^="r
   if (b) await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   await page.waitForTimeout(400);
   check("...a tap meanwhile picks nothing", (await page.locator('[data-testid="realities"]').count()) === 1 && (await page.evaluate(() => window.__DEN_ENDING__().stage)) === "menu");
-  check("...then the choices are live", !!(await poll(async () => (await page.locator('[data-testid="realities"]').getAttribute("data-locked")) === "false", 6000)));
+  check("...its words first, one sentence at a time", (await page.locator('[data-testid="realities"] p.sub span').count()) === 3);
+  check("...then the choices are live (5.5 s)", !!(await poll(async () => (await page.locator('[data-testid="realities"]').getAttribute("data-locked")) === "false", 9000)));
 }
 check("the story's over (remembered)", await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:story")).ended === true));
 await page.waitForTimeout(1200);
