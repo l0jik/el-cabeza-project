@@ -23,10 +23,9 @@
    arms wide, taken in. A faint aura breathes round them. The
    figure is built here: a lean, faceless body, near black, its edges lit
    by the light ahead (a rim shader). The sound: the den's own sounds step
-   out (awayFromDen) and a chord comes in (the Monks' Hum's kind of voice,
-   low, hopeful but forbidding, in a vast reverb), moving a voice at a
-   time, so slowly that five seconds can pass without a change: a melody
-   played over eternity; it swells as they go in.
+   out (awayFromDen) and the user's "Completion" plays (with a long-tail
+   reverb), timed so the black lands on its change from F#m to A; under
+   the crawl, that chord held, toned down.
 
    createEnding({ audio, onFinish, onPick, onStay }) -> { start(),
    state(), skip(ms), dispose() }. den-fx.js starts it from den-hall.js. */
@@ -92,7 +91,7 @@ const T = {
   unveil: [0, 1400],      // the white fading off the void
   pull: [0, 5200],        // yanked away, fast, then slowing
   words: 8000,            // the first line
-  wordEach: 4700,         // each line's turn (in, hold, out); the last holds longer
+  wordEach: 5000,         // each line's turn (in, hold, out); the last holds longer (5 s: the black lands on the music's change, 56 s in)
   lastHold: 0,            // (set below: through the drift into the sphere)
 };
 /* The last line comes as the body drifts into the sphere (user): the
@@ -482,22 +481,28 @@ function buildFigure(mat) {
   return { fig, geos: [geo], arms, legs, headG, meshes: [body], skin, verts: N };
 }
 
-/* The chord's voices, low to high, and the chords they move through (Hz)
-   (user, the first brief: the monks' hum, but an optimistic chord, very
-   low and still haunting, a melody played over eternity; and again: more
-   optimistic, it had gone dark). Over a held low D, only major colours:
-   Dmaj9, G/D, Dsus2, D, A/D (a lift, the major seventh in it), round
-   again. Each voice glides to its next note on its own time, seconds
-   apart, so nothing seems to change for a long while. */
-const CHORDS = [
-  [73.42, 110.0, 185.0, 277.18, 329.63],
-  [73.42, 123.47, 196.0, 246.94, 293.66],
-  [73.42, 110.0, 164.81, 220.0, 329.63],
-  [73.42, 110.0, 185.0, 220.0, 369.99],
-  [73.42, 138.59, 164.81, 220.0, 329.63],
-];
-const CHORD_MS = 17000, VOICE_STAGGER = 3300, GLIDE_TC = 1.9;
-const PAD_URL = "el-cabeza-den-void-pad.mp3", PAD_LEVEL = 1.1;
+/* The music (user: "Completion", the user's recording, with a long-tail
+   reverb added: tools/den_void_music.py): its first 56 s, the scene from
+   the white to the black, which lands on its change from F#m to A, the
+   room ringing on into the crawl; and for the crawl, that next chord held
+   still, toned down, looping (crawl-drone). Fetched ahead (prefetchVoidMusic,
+   with the body, while the hall's choice is up); from disk (file:),
+   played as plain <audio>. */
+const MUSIC_URL = "el-cabeza-den-void-music.mp3", DRONE_URL = "el-cabeza-den-crawl-drone.mp3";
+const MUSIC_LEVEL = 0.9, DRONE_LEVEL = 0.75;
+const fromDisk = () => typeof location !== "undefined" && location.protocol === "file:";
+const bytes = {};
+function fetchBytes(url) {
+  if (!bytes[url]) bytes[url] = !fromDisk() && typeof fetch !== "undefined" ? fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))) : Promise.reject(new Error("no fetch"));
+  return bytes[url];
+}
+const decoded = new WeakMap();
+function audioBuffer(ctx, url) {
+  let m = decoded.get(ctx); if (!m) decoded.set(ctx, (m = {}));
+  if (!m[url]) m[url] = fetchBytes(url).then((b) => ctx.decodeAudioData(b.slice(0)));
+  return m[url];
+}
+export function prefetchVoidMusic() { [MUSIC_URL, DRONE_URL].forEach((u) => fetchBytes(u).catch(() => {})); }
 
 function impulse(ctx, secs, decay) {
   const n = Math.floor(ctx.sampleRate * secs), b = ctx.createBuffer(2, n, ctx.sampleRate);
@@ -509,126 +514,106 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   const doc = typeof document !== "undefined" ? document : null;
   let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null, crawl = null, crawlText = null, crawlLast = null, crawlP = 0, crawlTap = false, crawlFade = null, lastS = 0;
   let renderer = null, scene = null, camera = null, raf = 0, t0 = 0, stage = "idle", menu = null, finished = false;
-  let fig = null, figMat = null, disposables = [], chord = null, skipMs = 0, wisps = null;
+  let fig = null, figMat = null, disposables = [], snd = null, skipMs = 0, wisps = null;
   let look = { yaw: 0, pitch: 0, goalYaw: 0, goalPitch: 0 }, dragAt = null;
   // Resolution held to the frame rate: an average of frame times; slow for
   // a while, a step down (never below 1).
   let pixelRatio = 1, frameAvg = 16.7, slowFor = 0;
   const sphereAt = new THREE.Vector3(0, 6, -420);
 
-  /* ---- the sound: the chord ---- */
+  /* ---- the sound: the music, a bloom with each line, the crawl's drone ---- */
+  /* The way out (user: it clipped on a phone): everything together (mix),
+     the fade, then on a phone everything under 100 Hz taken out (a phone's
+     speaker can't play it, and it only drives it into crunch), then a
+     limiter, so nothing past it ever clips, whatever the device. */
   function sound(on) {
     const o = audio && audio.phoneOutput ? audio.phoneOutput() : null;
-    if (!o || !o.ctx) return;
-    const { ctx } = o, t = ctx.currentTime;
-    if (on && !chord) {
-      /* Two gains in series: `fade`, the slow fade up (and down at the
-         end), and `whole`, the level the swell moves (user: the volume
-         was odd at the start: the swell had been re-aimed every frame on
-         the same gain the fade-up was ramping, and they fought). */
-      // (Evenly in loudness: from a whisper, -34 dB, up over ~7 s.)
-      const fade = ctx.createGain(); fade.gain.setValueAtTime(0.0001, t); fade.gain.linearRampToValueAtTime(0.02, t + 0.6); fade.gain.exponentialRampToValueAtTime(1, t + 7.2);
-      const whole = ctx.createGain(); whole.gain.value = 0.15;
-      /* The way out (user: it clipped on a phone): the hum and the pad
-         together (mix), the fade, then on a phone everything under 120 Hz
-         taken out (a phone's speaker can't play it, and it only drives
-         the speaker into crunch), then a limiter, so nothing past it ever
-         clips, whatever the device. */
+    if (on && !snd) {
+      if (fromDisk()) {
+        // (From disk: plain <audio>, no fetching there.)
+        const el = typeof Audio !== "undefined" ? new Audio(MUSIC_URL) : null;
+        snd = { els: { music: el, drone: null }, all: [] };
+        if (el) { el.volume = 0.8; const p = el.play(); if (p && p.catch) p.catch(() => {}); }
+        return;
+      }
+      if (!o || !o.ctx) return;
+      const { ctx } = o, t = ctx.currentTime;
       const phone = typeof window !== "undefined" && !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
-      const mix = ctx.createGain(); mix.gain.value = 1;
+      const mix = ctx.createGain(), fade = ctx.createGain();
       const lim = ctx.createDynamicsCompressor();
       lim.threshold.value = -12; lim.knee.value = 4; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.3;
       const post = ctx.createGain(); post.gain.value = phone ? 1.1 : 0.95;
       let tail = fade;
-      if (phone) [0, 1].forEach(() => { const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 120; hp.Q.value = 0.707; tail.connect(hp); tail = hp; });
-      mix.connect(fade); tail.connect(lim).connect(post);
-      const meter = typeof window !== "undefined" && window.__EC_TEST_HOOKS__ ? { out: ctx.createAnalyser(), hum: ctx.createAnalyser(), pad: ctx.createAnalyser() } : null;
-      if (meter) { Object.values(meter).forEach((an) => { an.fftSize = 4096; }); post.connect(meter.out); whole.connect(meter.hum); }
-      // (A vast room, user: way more reverb, much fuller.)
-      const verb = ctx.createConvolver(); verb.buffer = impulse(ctx, 16, 1.6);
-      const wet = ctx.createGain(); wet.gain.value = 1.45; const dry = ctx.createGain(); dry.gain.value = 0.2;
-      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900; lp.Q.value = 0.6;
-      // The "oo" of a hum (two formants), and over it a little of an
-      // "aah" (two higher ones): warmer, and lighter, more hopeful.
-      const band = (f, q, g) => { const b = ctx.createBiquadFilter(); b.type = "bandpass"; b.frequency.value = f; b.Q.value = q; const gg = ctx.createGain(); gg.gain.value = g; b.connect(gg).connect(lp); return b; };
-      const src = ctx.createGain();
-      [band(320, 2.2, 2.0), band(820, 3, 0.9), band(700, 3, 0.7), band(1150, 4, 0.45)].forEach((b) => src.connect(b));
-      const body = ctx.createGain(); body.gain.value = 0.5; src.connect(body).connect(lp);
-      lp.connect(dry).connect(whole); lp.connect(verb).connect(wet).connect(whole);
-      whole.connect(mix); post.connect(o.ear);
+      if (phone) [0, 1].forEach(() => { const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 100; hp.Q.value = 0.707; tail.connect(hp); tail = hp; });
+      mix.connect(fade); tail.connect(lim).connect(post).connect(o.ear);
+      // A room for the blooms.
+      const verb = ctx.createConvolver(); verb.buffer = impulse(ctx, 7, 2.2);
+      const wet = ctx.createGain(); wet.gain.value = 0.9; verb.connect(wet).connect(mix);
+      const musicG = ctx.createGain(); musicG.gain.value = MUSIC_LEVEL; musicG.connect(mix);
+      // The drone: a slow swell (~14 s) and a faint shiver on it.
+      const droneAM = ctx.createGain(); droneAM.gain.value = 1;
+      const droneG = ctx.createGain(); droneG.gain.value = 0.0001;
+      droneAM.connect(droneG).connect(mix);
       const all = [];
-      const voices = CHORDS[0].map((f, vi) => {
-        // Five detuned saws a voice (fuller), each with its own vibrato.
-        const oscs = [0, 1, 2, 3, 4].map(() => {
-          const os = ctx.createOscillator(); os.type = "sawtooth"; os.frequency.value = f; os.detune.value = (Math.random() * 2 - 1) * 11;
-          const vib = ctx.createOscillator(); vib.frequency.value = 3.6 + Math.random() * 1.6; const vg = ctx.createGain(); vg.gain.value = 2 + Math.random() * 2.5;
-          vib.connect(vg).connect(os.detune);
-          os.start(t); vib.start(t); all.push(os, vib);
-          return os;
-        });
-        // (The top two voices with a faint octave above them: light.)
-        if (vi >= 3) {
-          const up = ctx.createOscillator(); up.type = "triangle"; up.frequency.value = f * 2; oscs.push(up);
-          const ug = ctx.createGain(); ug.gain.value = 0.12; up.connect(ug); up.start(t); all.push(up);
-          up._g = ug;
-        }
-        const g = ctx.createGain(); const lv = (vi >= 3 ? 0.6 : 1) / Math.sqrt(25);
-        g.gain.value = lv;
-        const breath = ctx.createOscillator(); breath.frequency.value = 0.04 + Math.random() * 0.07; const bg = ctx.createGain(); bg.gain.value = 0.3 * lv;
-        breath.connect(bg).connect(g.gain); breath.start(t); all.push(breath);
-        // Spread across the room, low in the middle, the rest to the sides.
-        const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
-        if (pan) pan.pan.value = [0, -0.45, 0.45, -0.7, 0.7][vi];
-        oscs.forEach((os) => (os._g ? os._g : os).connect(g));
-        if (pan) g.connect(pan).connect(src); else g.connect(src);
-        return { oscs, g };
-      });
-      // Under it all, the low D an octave down, a breath of it.
-      // (Not on a phone: it can't play it.)
-      if (!phone) { const sub = ctx.createOscillator(); sub.type = "sine"; sub.frequency.value = 36.71; const sg = ctx.createGain(); sg.gain.value = 0.05;
-        sub.connect(sg).connect(lp); sub.start(t); all.push(sub); }
-      // A shimmer high above it, all reverb, barely there: two sines (a D
-      // and an A), each swelling and fading on its own long breath.
-      [1174.66, 1760].forEach((f, i) => {
-        const os = ctx.createOscillator(); os.type = "sine"; os.frequency.value = f;
-        const g = ctx.createGain(); g.gain.value = 0.004;
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 1 / (17 + 6 * i); const lg = ctx.createGain(); lg.gain.value = 0.004;
-        lfo.connect(lg).connect(g.gain);
-        os.connect(g).connect(verb);
-        os.start(t); lfo.start(t); all.push(os, lfo);
-      });
-      /* The pad (user's recording, from its 2-minute mark: the higher,
-         evolving, heavenly part over the hum's low end): fetched, then
-         faded up from a couple of seconds in, a little of it into the
-         room's reverb too. (From disk, file:, there's no fetching: the
-         hum alone there.) */
-      const padG = ctx.createGain(); padG.gain.value = 0.0001;
-      const padSend = ctx.createGain(); padSend.gain.value = 0.25;
-      padG.connect(mix); padG.connect(padSend).connect(verb);
-      if (meter) padG.connect(meter.pad);
-      const c0 = { ctx, fade, whole, lp, verb, mix, voices, all, padG, padLevel: PAD_LEVEL, meter, phone, next: performance.now() + CHORD_MS, at: 0 };
-      if (typeof location !== "undefined" && location.protocol !== "file:" && typeof fetch !== "undefined") {
-        fetch(PAD_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
-          if (chord !== c0) return;
-          const src = ctx.createBufferSource(); src.buffer = buf;
-          const at = Math.max(ctx.currentTime + 0.05, t + 2);
-          padG.gain.setValueAtTime(0.0001, at); padG.gain.exponentialRampToValueAtTime(PAD_LEVEL, at + 9);
-          src.connect(padG); src.start(at); all.push(src); c0.padOn = true;
-        }).catch(() => { /* the hum alone */ });
-      }
-      chord = c0;
-    } else if (!on && chord) {
-      const c = chord; chord = null;
-      c.fade.gain.cancelScheduledValues(t); c.fade.gain.setValueAtTime(Math.max(0.0001, c.fade.gain.value), t); c.fade.gain.linearRampToValueAtTime(0.0001, t + 2.5);
-      setTimeout(() => c.all.forEach((x) => { try { x.stop(); } catch (e) { /* done */ } }), 14000);
+      [[0.07, 0.22], [6.3, 0.05]].forEach(([f, d]) => { const l = ctx.createOscillator(); l.frequency.value = f; const lg = ctx.createGain(); lg.gain.value = d; l.connect(lg).connect(droneAM.gain); l.start(t); all.push(l); });
+      const meter = typeof window !== "undefined" && window.__EC_TEST_HOOKS__ ? { out: ctx.createAnalyser(), music: ctx.createAnalyser(), drone: ctx.createAnalyser() } : null;
+      if (meter) { Object.values(meter).forEach((an) => { an.fftSize = 4096; }); post.connect(meter.out); musicG.connect(meter.music); droneG.connect(meter.drone); }
+      const s0 = { ctx, mix, fade, verb, musicG, droneG, droneAM, all, meter, phone };
+      // The music, in step with the scene (from wherever it has got to
+      // by the time it's ready).
+      audioBuffer(ctx, MUSIC_URL).then((buf) => {
+        if (snd !== s0) return;
+        const off = Math.max(0, (performance.now() - t0 + skipMs) / 1000);
+        if (off > buf.duration - 0.5) return;
+        const src = ctx.createBufferSource(); src.buffer = buf; src.connect(musicG);
+        src.start(ctx.currentTime + 0.02, off); all.push(src); s0.musicOn = true;
+      }).catch(() => { /* no music, then */ });
+      snd = s0;
+    } else if (!on && snd) {
+      const c = snd; snd = null;
+      if (c.els) { Object.values(c.els).forEach((el) => { if (el) { try { el.pause(); } catch (e) { /* fine */ } } }); return; }
+      const t = c.ctx.currentTime;
+      c.fade.gain.cancelScheduledValues(t); c.fade.gain.setValueAtTime(Math.max(0.0001, c.fade.gain.value), t); c.fade.gain.linearRampToValueAtTime(0.0001, t + 1.5);
+      setTimeout(() => c.all.forEach((x) => { try { x.stop(); } catch (e) { /* done */ } }), 2500);
+    }
+  }
+  /* The crawl's drone (user: under the crawl, something like the music,
+     toned right down, not changing; almost a vibration): faded up over
+     `secs` from the black, and down again as the crawl goes. */
+  function drone(on, secs) {
+    const c = snd;
+    if (!c) return;
+    if (c.els) {
+      if (on && !c.els.drone && typeof Audio !== "undefined") { const el = (c.els.drone = new Audio(DRONE_URL)); el.loop = true; el.volume = 0.35; const p = el.play(); if (p && p.catch) p.catch(() => {}); }
+      else if (!on && c.els.drone) { try { c.els.drone.pause(); } catch (e) { /* fine */ } c.els.drone = null; }
+      return;
+    }
+    const t = c.ctx.currentTime, g = c.droneG.gain;
+    g.cancelScheduledValues(t); g.setValueAtTime(Math.max(0.0001, g.value), t);
+    if (on && !c.droneOn) {
+      c.droneOn = true;
+      g.exponentialRampToValueAtTime(DRONE_LEVEL, t + secs);
+      audioBuffer(c.ctx, DRONE_URL).then((buf) => {
+        if (snd !== c || !c.droneOn) return;
+        const src = c.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+        // (Past any silence the encoder put at its ends: a seamless loop.)
+        const d = buf.getChannelData(0); let a = 0, z = d.length - 1;
+        while (a < 8192 && Math.abs(d[a]) < 1e-4) a++;
+        while (z > d.length - 8192 && Math.abs(d[z]) < 1e-4) z--;
+        src.loopStart = a / buf.sampleRate; src.loopEnd = (z + 1) / buf.sampleRate;
+        src.connect(c.droneAM); src.start(c.ctx.currentTime + 0.02, src.loopStart); c.all.push(src);
+      }).catch(() => { /* none */ });
+    } else if (!on && c.droneOn) {
+      c.droneOn = false;
+      g.exponentialRampToValueAtTime(0.0001, t + secs);
     }
   }
   /* As each line begins, a quiet bloom high up, felt more than heard:
-     an open fifth and its octave (A, E, A: at home in every chord here),
-     one after another, swelling into the room's reverb and dying away. */
+     an open fifth and its octave (A, E, A: in the music's key, A), one
+     after another, swelling into the room's reverb and dying away. */
   function bloom() {
-    if (!chord) return;
-    const { ctx, verb, mix } = chord, t = ctx.currentTime;
+    if (!snd || !snd.ctx) return;
+    const { ctx, verb, mix } = snd, t = ctx.currentTime;
     [[880, 0.03], [1318.51, 0.022], [1760, 0.012]].forEach(([f, peak], i) => {
       const at = t + 0.05 + i * 0.16;
       const os = ctx.createOscillator(); os.type = "sine"; os.frequency.value = f; os.detune.value = (Math.random() * 2 - 1) * 4;
@@ -637,25 +622,6 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       os.connect(g); g.connect(verb); g.connect(dry).connect(mix);
       os.start(at); os.stop(at + 5.2);
     });
-  }
-  // Each frame: when it's time, the next chord, one voice at a time.
-  function moveChord(now) {
-    if (!chord || now < chord.next) return;
-    chord.at = (chord.at + 1) % CHORDS.length;
-    const target = CHORDS[chord.at], c = chord;
-    target.forEach((f, vi) => {
-      const when = c.ctx.currentTime + (vi * VOICE_STAGGER) / 1000 + Math.random() * 0.6;
-      c.voices[vi].oscs.forEach((os) => os.frequency.setTargetAtTime(os._g ? f * 2 : f, when, GLIDE_TC));
-    });
-    chord.next = now + CHORD_MS;
-  }
-  // As they go in: louder, brighter, an octave above joining; then gone.
-  function swell(k) {
-    if (!chord) return;
-    const t = chord.ctx.currentTime;
-    chord.whole.gain.setTargetAtTime(0.15 + 0.3 * k * k, t, 0.25);
-    if (chord.padOn && k > 0.01) chord.padG.gain.setTargetAtTime(chord.padLevel * (1 + 1.2 * k * k), t, 0.25);
-    chord.lp.frequency.setTargetAtTime(900 + 2400 * k * k, t, 0.25);
   }
 
   function build() {
@@ -819,7 +785,6 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       }
     }
     const T1 = s / 1000;
-    moveChord(now);
     // The pull: from just ahead of you, away toward the sphere, fast and
     // then slowing; then floating, drifting.
     const p = clamp01(s / T.pull[1]);
@@ -901,8 +866,6 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     scene.userData.ringMat.uniforms.uFlare.value = flare + 0.6 * z;
     scene.userData.ring.rotation.z = T1 * 0.05;
     scene.userData.glow.scale.setScalar(300 * (0.94 + 0.08 * pulse) * (1 + 0.5 * flare));
-    // The sound swells with it.
-    if (stage === "void") swell(Math.max(m * 0.7, z));
     // The white going off it; the black at the end.
     if (veil) veil.style.opacity = String(1 - smooth((s - T.unveil[0]) / (T.unveil[1] - T.unveil[0])));
     if (dark) dark.style.opacity = String(smooth((s - BLACK[0]) / (BLACK[1] - BLACK[0])));
@@ -913,7 +876,9 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       if (on && !w.classList.contains("on") && stage === "void") bloom();
       w.classList.toggle("on", on);
     });
-    if (s >= BLACK[1] && stage === "void") { stage = "black"; sound(false); }
+    // (At the black the music eases out by itself, its room ringing on;
+    // the crawl's drone comes up under it.)
+    if (s >= BLACK[1] && stage === "void") { stage = "black"; drone(true, 6); }
     // The crawl, at an even pace from below the screen to far off in the
     // dark (its last line just gone into the distance as it ends).
     if (crawl && stage === "black" && s >= CRAWL[0]) {
@@ -930,7 +895,8 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       }
       crawl.style.opacity = String(smooth((s - CRAWL[0]) / 900) * (crawlFade == null ? 1 : 1 - smooth((s - crawlFade) / CRAWL_FADE)));
     }
-    if (stage === "black" && (s >= MENU_AT || (crawlFade != null && s >= crawlFade + CRAWL_FADE))) { if (crawl) crawl.classList.remove("on"); openMenu(); }
+    if (crawlFade != null && snd && snd.droneOn) drone(false, CRAWL_FADE / 1000);
+    if (stage === "black" && (s >= MENU_AT || (crawlFade != null && s >= crawlFade + CRAWL_FADE))) { drone(false, 4); if (crawl) crawl.classList.remove("on"); openMenu(); }
     // (Under the black, nothing to draw.)
     if (renderer && s < BLACK[1] + 300) renderer.render(scene, camera);
   }
@@ -978,14 +944,14 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     },
     // Whether it covers the screen (the den needn't draw underneath).
     covering: () => !!root && (stage === "void" || stage === "black" || stage === "menu" || stage === "going"),
-    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, crawlAt: CRAWL[0], crawl: crawlP, crawlTap, crawlFade: crawlFade != null, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: chord ? chord.fade.gain.value * chord.whole.gain.value : 0, wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0 }),
+    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, crawlAt: CRAWL[0], crawl: crawlP, crawlTap, crawlFade: crawlFade != null, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: snd && snd.fade ? snd.fade.gain.value * snd.musicG.gain.value : 0, music: !!(snd && (snd.musicOn || snd.els)), drone: !!(snd && (snd.droneOn || (snd.els && snd.els.drone))), wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0 }),
     // Test-only: on by ms.
     skip(ms) { skipMs += ms; },
     // Test-only: the sound's peak and loudness (dBFS) out of the scene, and the hum's and the pad's.
     meter() {
-      if (!chord || !chord.meter) return null;
+      if (!snd || !snd.meter) return null;
       const read = (an) => { const d = new Float32Array(an.fftSize); an.getFloatTimeDomainData(d); let pk = 0, ss = 0; for (const v of d) { pk = Math.max(pk, Math.abs(v)); ss += v * v; } return { peak: 20 * Math.log10(pk + 1e-9), rms: 10 * Math.log10(ss / d.length + 1e-12) }; };
-      return { out: read(chord.meter.out), hum: read(chord.meter.hum), pad: read(chord.meter.pad), padOn: !!chord.padOn, phone: chord.phone };
+      return { out: read(snd.meter.out), music: read(snd.meter.music), drone: read(snd.meter.drone), musicOn: !!snd.musicOn, droneOn: !!snd.droneOn, phone: snd.phone };
     },
     dispose() {
       sound(false);

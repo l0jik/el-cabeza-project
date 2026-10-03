@@ -24,7 +24,8 @@ const DEN_RECORDS = {
   "el-cabeza-den-tv-glitch.mp3": "assets/den/tv-glitch.mp3",
   // The void's pad (den-ending.js): the user's evolving drone pad from its
   // 2-minute mark (tools/den_void_pad.py).
-  "el-cabeza-den-void-pad.mp3": "assets/den/void-pad.mp3",
+  "el-cabeza-den-void-music.mp3": "assets/den/void-music.mp3",
+  "el-cabeza-den-crawl-drone.mp3": "assets/den/crawl-drone.mp3",
   "el-cabeza-den-call-voice.mp3": "assets/den/call-voice.mp3",
   "el-cabeza-den-car-away.mp3": "assets/den/car-away.mp3",
   "el-cabeza-den-car-arrive.mp3": "assets/den/car-arrive.mp3",

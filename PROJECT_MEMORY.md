@@ -5725,3 +5725,28 @@ phone menu until "Start the story over" (which clears it).
       so the line stays till 2.6 s before the merge ends (ZOOM/BLACK/CRAWL
       follow MERGE, the whole ~6.6 s shorter). The lines a little larger:
       clamp(25px, 5.3vw, 44px) (was 22/4.6vw/38), width min(92vw, 880px).
+    - The revelation's music is the user's "Completion" (user: new audio
+      for the scene, more long-tail reverb; and under the crawl something
+      like it, much more toned down, not changing, almost a vibration).
+      Source assets/den/src/completion.mp3 (179.6 s, A / F#m: Dmaj7 0-15,
+      E 16-25, Bm 26-39, D 40-47, F#m 48-55, A/E 56-63, C#m 64-75 ...).
+      tools/den_void_music.py: void-music.mp3 = its first 56.1 s (eased
+      out 54.6-56.6) through a made room (stereo noise, RT ~8 s lows / 4.5
+      s highs, 40 ms pre-delay, wet -5 dB), ringing 9 s on: 65 s, -17 dB
+      RMS; crawl-drone.mp3 = the A/E chord (56.5-62.5 s) frozen (its mean
+      spectrum, random phases per frame), lowpassed 1.4 kHz, the room,
+      24 s, end crossfaded into start, -20 dB RMS. The scene was
+      stretched a hair to fit: wordEach 5000 (was 4700), so BLACK[1] =
+      56.1 s, on the change. den-ending.js: the synthesized chord, pad
+      and shimmer are gone (void-pad.mp3 dropped from the build; the
+      tool and its source kept). sound(): mix -> fade -> (phone: 2x
+      100 Hz highpass) -> limiter -> post -> ear; the music buffer
+      (fetched ahead by prefetchVoidMusic with prewarmFigure, while the
+      hall's choice is up) started at the scene's own offset; blooms into
+      a 7 s room. drone(on, secs): at the black up over 6 s to
+      DRONE_LEVEL 0.75 with a 0.07 Hz swell (+-22%) and a 6.3 Hz shiver
+      (+-5%), looped past the encoder's silences; down over 4 s at the
+      switcher (or with the crawl's 2.75 s tap fade). From disk (file:):
+      plain <audio> for both. Measured over http: music out peak ~-5,
+      RMS ~-17 dB (desk and phone); the drone at 0.42 was ~-34 RMS, now
+      ~5 dB up. Hooks: state().music/drone; meter() {out, music, drone}.

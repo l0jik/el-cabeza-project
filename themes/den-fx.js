@@ -40,7 +40,7 @@ import { setCommercialOn } from "../engine/journey.js";
 import { createDenCall } from "./den-call.js";
 import { createTrip } from "./den-trip.js";
 import { createHall } from "./den-hall.js";
-import { createEnding, prewarmFigure } from "./den-ending.js";
+import { createEnding, prewarmFigure, prefetchVoidMusic } from "./den-ending.js";
 import { WORLDS } from "./realities.js";
 
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
@@ -977,8 +977,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
             || (typeof document !== "undefined" && !!document.querySelector("[data-testid='story-cut']"));
           hall.tick(now, t, den, { moves: movesNow, busy });
           // (The body for the void, made ahead in idle moments while the
-          // choice is up: den-ending.js prewarmFigure.)
-          if (!figWarm && hall.state().state === "flare") { figWarm = true; prewarmFigure(); }
+          // choice is up, and its music fetched: den-ending.js.)
+          if (!figWarm && hall.state().state === "flare") { figWarm = true; prewarmFigure(); prefetchVoidMusic(); }
           // (?scene=hall: kept playing, it's back in a few seconds.)
           if (hallPreview) {
             const hs = hall.state();
