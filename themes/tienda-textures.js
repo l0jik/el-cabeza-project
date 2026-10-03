@@ -535,37 +535,171 @@ export function paintClock(g, S, date) {
 }
 
 /* What's on the sets in the electronics department at half past seven: a
-   local newscast, a man at a desk against a blue backdrop, a caption
-   bar. Drawn small and soft, then given the tube's scan lines and a
-   glow, so the CRT look stays on the screens and nowhere else. */
+   local newscast (user: show activity, a CRT glow, a chyron with a lot of
+   strange things going across it). The anchor talks (his mouth, a blink,
+   a turn of the head), the graphic over his shoulder changes with the
+   story, and now and then it cuts to the story's own card. Under him the
+   station's bar and the story, and under that a crawl of the day's news,
+   1974 to 1976, slightly wrong. Then the tube: its glow (the picture's
+   own light, bled), scan lines, a faint snow, a band rolling up it, the
+   corners dark, and once in a while the vertical hold slips. */
+export const TV_CRAWL = [
+  "APOLLO AND SOYUZ CREWS SHAKE HANDS IN ORBIT; SOUP EXCHANGED, FLAVOR UNDISCLOSED",
+  "VIKING 1 LANDER REPORTS MARS \"POLITE BUT DISTANT\"",
+  "CONCORDE BEGINS SUPERSONIC SERVICE; SOME PASSENGERS ARRIVE BEFORE THEY LEAVE, COMPLAIN",
+  "PET ROCK SALES PASS ONE MILLION; ROCKS DECLINE TO COMMENT",
+  "8,000 CLAY SOLDIERS UNEARTHED IN CHINA; NONE WILL SAY WHO SENT THEM",
+  "\"LUCY\" FOUND IN ETHIOPIA, 3.2 MILLION YEARS OLD, STILL LOOKS WONDERFUL",
+  "ALTAIR 8800 HOME COMPUTER SOLD BY MAIL: DOES NOTHING, VERY QUICKLY",
+  "FIRST BAR CODE SCANNED, ON A PACK OF GUM IN OHIO; GUM ACCEPTS",
+  "SKYLAB CREW HOME AFTER 84 DAYS; SAYS THE DISPUTE WAS MOSTLY ABOUT CHORES",
+  "NATIONAL SPEED LIMIT NOW 55; CARS REPORTED SULKING IN DRIVEWAYS",
+  "OIL EMBARGO LIFTED; GAS LINES DISPERSE, SOME MOTORISTS STAY OUT OF HABIT",
+  "STREAKING CRAZE PEAKS; OFFICIALS URGE CITIZENS TO SLOW DOWN AND DRESS",
+  "LOCH NESS EXPEDITION FAILS TO FIND MONSTER; MONSTER FAILS TO FIND EXPEDITION",
+  "ARECIBO BEAMS MESSAGE TO STAR CLUSTER M13; REPLY DUE IN 50,000 YEARS, PLEASE STAND BY",
+  "MARINER 10 PHOTOGRAPHS MERCURY: HOT, CRATERED, \"FRANKLY A LOT LIKE HERE\"",
+  "VENERA 9 SENDS FIRST PICTURE FROM THE SURFACE OF VENUS; ROCKS UNIMPRESSED",
+  "SUEZ CANAL REOPENS; SHIPS STRANDED THERE SINCE 1967 ASK WHAT THEY MISSED",
+  "PUZZLE CUBE INVENTED IN BUDAPEST; INVENTOR STILL WORKING ON IT",
+  "PONG ARRIVES IN THE LIVING ROOM; FAMILIES REPORT PERSISTENT BOUNCING",
+  "CN TOWER COMPLETED IN TORONTO; RESIDENTS INSIST IT IS STILL GROWING",
+  "CB RADIO CRAZE: MILLIONS SAY \"BREAKER ONE-NINE\", NOBODY ASKS ABOUT ONE THROUGH EIGHTEEN",
+  "COMET KOHOUTEK A NO-SHOW; ASTRONOMERS CALL IT SHY",
+  "SPACE SHUTTLE NAMED ENTERPRISE; CANNOT GO TO SPACE, SAYS IT IS FINE WITH THAT",
+  "KING TUT'S TREASURES BEGIN U.S. TOUR; PHARAOH REQUESTS A WINDOW SEAT",
+  "VIDEO HOME SYSTEM DEBUTS IN JAPAN: NOW YOU CAN WATCH THIS AGAIN",
+  "BEACHES EMPTY NATIONWIDE AFTER SHARK PICTURE; SHARKS ISSUE STATEMENT",
+  "NATION TURNS 200, ASKS FOR NO FUSS",
+  "\"THE HUSTLE\" TOPS CHARTS; NATION DANCES IN STRAIGHT LINES",
+  "LEISURE SUIT SALES SOAR; POLYESTER RESERVES AT RECORD LOW",
+  "WEATHER: TOMORROW, MORE OF TODAY",
+  "LOCAL STORE STOCKS NEW GAME \"OF UNPARALLELED INVENTION\"; BOARD SAID TO BE WATCHING SHOPPERS",
+  "STRANGE LIGHTS REPORTED IN SUBURBAN HALLWAYS; RESIDENTS ADVISED TO CALL AN ELECTRICIAN TOMORROW",
+];
+// The stories the anchor reads (the graphic over his shoulder, the bar).
+const TV_STORIES = [
+  ["MARS", "planet", "#C9643A"], ["IN ORBIT", "capsule", "#9FB4C8"], ["SUPERSONIC", "plane", "#E8E4DA"],
+  ["ARCHAEOLOGY", "urn", "#B9875A"], ["LOCH NESS", "monster", "#4F7A5C"], ["MESSAGE TO THE STARS", "dish", "#D9D2B0"],
+  ["SHARKS", "fin", "#6F8FA8"], ["OIL", "barrel", "#2F2B28"], ["TORONTO", "tower", "#B8B0A0"], ["GAMES", "board", "#8A5A36"],
+];
+function tvIcon(g, kind, x, y, s, col) {
+  g.save(); g.translate(x, y); g.scale(s, s); g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 0.06;
+  const P = (pts) => { g.beginPath(); pts.forEach(([a, b], i) => (i ? g.lineTo(a, b) : g.moveTo(a, b))); g.closePath(); g.fill(); };
+  if (kind === "planet") { g.beginPath(); g.arc(0, 0, 0.42, 0, 6.28); g.fill(); g.fillStyle = "rgba(0,0,0,0.25)"; g.beginPath(); g.arc(0.12, 0.08, 0.1, 0, 6.28); g.arc(-0.15, -0.14, 0.07, 0, 6.28); g.fill(); }
+  else if (kind === "capsule") { P([[-0.15, -0.4], [0.15, -0.4], [0.3, 0.2], [-0.3, 0.2]]); g.fillRect(-0.5, -0.05, 0.25, 0.12); g.fillRect(0.25, -0.05, 0.25, 0.12); }
+  else if (kind === "plane") { P([[-0.5, 0.05], [0.5, -0.02], [0.5, 0.04], [-0.45, 0.12]]); P([[-0.05, 0.05], [0.2, 0.05], [-0.25, 0.4]]); P([[-0.38, 0.06], [-0.28, 0.06], [-0.45, -0.18]]); }
+  else if (kind === "urn") { P([[-0.12, -0.4], [0.12, -0.4], [0.1, -0.3], [0.32, -0.05], [0.2, 0.38], [-0.2, 0.38], [-0.32, -0.05], [-0.1, -0.3]]); }
+  else if (kind === "monster") { g.beginPath(); g.moveTo(-0.5, 0.3); g.quadraticCurveTo(-0.2, -0.05, 0.05, 0.3); g.quadraticCurveTo(0.2, -0.5, 0.35, -0.3); g.lineTo(0.42, -0.26); g.quadraticCurveTo(0.28, -0.3, 0.2, 0.3); g.closePath(); g.fill(); g.fillStyle = "#2E4E7A"; g.fillRect(-0.55, 0.3, 1.1, 0.12); }
+  else if (kind === "dish") { g.beginPath(); g.ellipse(0, -0.05, 0.42, 0.18, -0.4, 0, 3.14); g.fill(); g.fillRect(-0.04, 0.0, 0.08, 0.38); g.fillRect(-0.2, 0.36, 0.4, 0.06); }
+  else if (kind === "fin") { P([[-0.3, 0.2], [0.05, -0.4], [0.25, 0.2]]); g.fillStyle = "#2E4E7A"; g.fillRect(-0.55, 0.2, 1.1, 0.06); }
+  else if (kind === "barrel") { g.fillRect(-0.25, -0.38, 0.5, 0.76); g.fillStyle = "rgba(255,255,255,0.3)"; g.fillRect(-0.25, -0.18, 0.5, 0.04); g.fillRect(-0.25, 0.14, 0.5, 0.04); }
+  else if (kind === "tower") { P([[-0.04, -0.48], [0.04, -0.48], [0.1, 0.4], [-0.1, 0.4]]); g.beginPath(); g.ellipse(0, -0.12, 0.13, 0.06, 0, 0, 6.28); g.fill(); }
+  else if (kind === "board") { for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) if ((i + j) % 2) g.fillRect(-0.4 + i * 0.2, -0.4 + j * 0.2, 0.2, 0.2); g.strokeRect(-0.4, -0.4, 0.8, 0.8); }
+  g.restore();
+}
+const tvScratch = {};
+function tvCanvas(key, w, h) {
+  let c = tvScratch[key];
+  if (!c || c.width !== w || c.height !== h) { c = tvScratch[key] = document.createElement("canvas"); c.width = w; c.height = h; }
+  return c;
+}
+function tvPicture(g, W, H, t) {
+  const SHOT = 7000, n = Math.floor(t / SHOT), story = TV_STORIES[n % TV_STORIES.length];
+  const card = n % 4 === 2;   // every fourth shot, the story's own card
+  if (card) {
+    const bg = g.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, "#1F3A63"); bg.addColorStop(1, "#0F1E36");
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.fillStyle = "rgba(255,255,255,0.06)";
+    for (let i = 0; i < 9; i++) g.fillRect(0, H * (0.05 + i * 0.08), W, H * 0.01);
+    const z = 1 + ((t % SHOT) / SHOT) * 0.12;   // a slow push in on it
+    tvIcon(g, story[1], W * 0.5, H * 0.4, H * 0.5 * z, story[2]);
+  } else {
+    const bg = g.createRadialGradient(W * 0.5, H * 0.45, 0, W * 0.5, H * 0.45, W * 0.7);
+    bg.addColorStop(0, "#5D86B5"); bg.addColorStop(1, "#1D3558");
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    // Over his shoulder, the story.
+    g.fillStyle = "rgba(225,235,248,0.9)"; g.fillRect(W * 0.62, H * 0.12, W * 0.3, H * 0.36);
+    g.fillStyle = "#24426B"; g.fillRect(W * 0.635, H * 0.14, W * 0.27, H * 0.32);
+    tvIcon(g, story[1], W * 0.77, H * 0.3, H * 0.26, story[2]);
+    // The anchor: shoulders, head (turning a little), hair, eyes that
+    // blink, a mouth that talks in phrases.
+    const turn = Math.sin(t / 2300) * W * 0.008 + Math.sin(t / 5100) * W * 0.006, bob = Math.sin(t / 900) * H * 0.006;
+    const hx = W * 0.4 + turn, hy = H * 0.36 + bob;
+    g.fillStyle = "#3A2E2A"; g.beginPath(); g.ellipse(W * 0.4, H * 0.66 + bob * 0.5, W * 0.21, H * 0.23, 0, Math.PI, 0); g.fill();
+    g.fillStyle = "#E9E1D1"; g.beginPath(); g.moveTo(W * 0.37, H * 0.45 + bob); g.lineTo(W * 0.43, H * 0.45 + bob); g.lineTo(W * 0.4, H * 0.56 + bob); g.closePath(); g.fill();
+    g.fillStyle = "#7A2A22"; g.fillRect(W * 0.393, H * 0.47 + bob, W * 0.014, H * 0.1);
+    g.fillStyle = "#C9A083"; g.beginPath(); g.ellipse(hx, hy, W * 0.07, H * 0.11, 0, 0, 6.28); g.fill();
+    g.fillStyle = "#3B2A20"; g.beginPath(); g.ellipse(hx, hy - H * 0.07, W * 0.075, H * 0.06, 0, Math.PI, 0); g.fill();
+    const blink = t % 4300 < 130 || (t + 1700) % 9100 < 110;
+    g.fillStyle = "#2A1D18";
+    const ex = turn * 0.35;
+    if (blink) { g.fillRect(hx - W * 0.032 + ex, hy - H * 0.01, W * 0.022, H * 0.006); g.fillRect(hx + W * 0.01 + ex, hy - H * 0.01, W * 0.022, H * 0.006); }
+    else { g.fillRect(hx - W * 0.026 + ex, hy - H * 0.018, W * 0.012, H * 0.02); g.fillRect(hx + W * 0.016 + ex, hy - H * 0.018, W * 0.012, H * 0.02); }
+    const talking = Math.sin(t / 1900) > -0.35;
+    const open = talking ? Math.max(0, Math.sin(t / 85) * 0.6 + Math.sin(t / 137 + 1.1) * 0.5) : 0;
+    g.fillStyle = "#5A2A24"; g.beginPath(); g.ellipse(hx + ex, hy + H * 0.055, W * 0.02, H * (0.004 + 0.016 * open), 0, 0, 6.28); g.fill();
+    // The desk.
+    g.fillStyle = "#6B4329"; g.fillRect(0, H * 0.7, W, H * 0.3);
+    g.fillStyle = "rgba(255,255,255,0.08)"; g.fillRect(0, H * 0.7, W, H * 0.012);
+    // Papers, shuffled now and then.
+    const shuf = (t % 11000) < 600 ? Math.sin(((t % 11000) / 600) * Math.PI) * H * 0.02 : 0;
+    g.fillStyle = "#EDE6D6"; g.fillRect(W * 0.26, H * 0.71 - shuf, W * 0.12, H * 0.025);
+  }
+  // The bar: the station, then the story.
+  const by = H * 0.735, bh = H * 0.075;
+  g.fillStyle = "#C8462A"; g.fillRect(0, by, W * 0.36, bh);
+  g.fillStyle = "rgba(14,24,44,0.92)"; g.fillRect(W * 0.36, by, W * 0.64, bh);
+  text(g, "NEWS AT 7:30", W * 0.18, by + bh / 2, { font: SIGN_FONT, size: bh * 0.62, weight: 800, color: "#FFF4E0", maxWidth: W * 0.32 });
+  text(g, story[0], W * 0.39, by + bh / 2, { font: SIGN_FONT, size: bh * 0.58, weight: 700, color: "#E8EEF8", align: "left", maxWidth: W * 0.58 });
+  // The crawl.
+  const cy = by + bh + H * 0.012, ch = H * 0.08;
+  g.fillStyle = "#0A0E18"; g.fillRect(0, cy, W, ch);
+  g.fillStyle = "#E3B23C"; g.fillRect(0, cy, W, H * 0.006);
+  const fs = ch * 0.62;
+  g.font = `700 ${fs}px ${SIGN_FONT}`; g.textBaseline = "middle"; g.textAlign = "left"; g.fillStyle = "#F2D27A";
+  // (Measured again every few seconds: the face may load after the first.)
+  const key = `${W}|${Math.floor(t / 3000)}`;
+  if (!tvPicture.widths || tvPicture.key !== key) {
+    tvPicture.key = key; tvPicture.widths = TV_CRAWL.map((s) => g.measureText(s + "   •   ").width);
+    tvPicture.total = tvPicture.widths.reduce((a, b) => a + b, 0);
+  }
+  const speed = W * 0.11 / 1000;
+  let x = -((t * speed) % tvPicture.total);
+  for (let i = 0; x < W; i = (i + 1) % TV_CRAWL.length) {
+    const w = tvPicture.widths[i];
+    if (x + w > 0) g.fillText(TV_CRAWL[i] + "   •   ", x, cy + ch * 0.56);
+    x += w;
+  }
+  // A little bug in the corner.
+  text(g, "CH 4", W * 0.92, H * 0.07, { font: SIGN_FONT, size: H * 0.045, weight: 800, color: "rgba(255,255,255,0.55)" });
+}
 export function paintTv(g, W, H, t) {
-  const roll = (t * 0.00004) % 1;
-  g.fillStyle = "#2E4E7A"; g.fillRect(0, 0, W, H);
-  const bg = g.createRadialGradient(W * 0.5, H * 0.45, 0, W * 0.5, H * 0.45, W * 0.7);
-  bg.addColorStop(0, "#5D86B5"); bg.addColorStop(1, "#1D3558");
-  g.fillStyle = bg; g.fillRect(0, 0, W, H);
-  // The station's map graphic behind him.
-  g.fillStyle = "rgba(210,225,240,0.25)"; g.fillRect(W * 0.62, H * 0.16, W * 0.28, H * 0.34);
-  // The anchor: head, shoulders, a desk.
-  const bob = Math.sin(t / 900) * H * 0.006;
-  g.fillStyle = "#3A2E2A"; g.beginPath(); g.ellipse(W * 0.4, H * 0.64 + bob, W * 0.2, H * 0.22, 0, Math.PI, 0); g.fill();
-  g.fillStyle = "#C9A083"; g.beginPath(); g.ellipse(W * 0.4, H * 0.36 + bob, W * 0.07, H * 0.11, 0, 0, 6.28); g.fill();
-  g.fillStyle = "#3B2A20"; g.beginPath(); g.ellipse(W * 0.4, H * 0.29 + bob, W * 0.075, H * 0.06, 0, Math.PI, 0); g.fill();
-  g.fillStyle = "#E9E1D1"; g.fillRect(W * 0.37, H * 0.47 + bob, W * 0.06, H * 0.12);
-  g.fillStyle = "#6B4329"; g.fillRect(0, H * 0.74, W, H * 0.26);
-  // Caption bar.
-  g.fillStyle = "rgba(20,30,50,0.85)"; g.fillRect(0, H * 0.8, W, H * 0.12);
-  text(g, "NEWS AT 7:30", W * 0.3, H * 0.86, { font: SIGN_FONT, size: H * 0.07, weight: 800, color: "#F0E8D0" });
-  // The tube: scan lines, a rolling brighter band, glow at the centre,
-  // darker corners.
-  g.fillStyle = "rgba(0,0,0,0.22)";
+  // Now and then the vertical hold slips: the picture rolls a frame or so.
+  const hold = t % 41000, slip = hold < 520 ? Math.pow(hold / 520, 1.5) * H * 1.08 : 0;
+  const pic = tvCanvas("pic", W, H), pg = pic.getContext("2d");
+  tvPicture(pg, W, H, t);
+  g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+  if (slip) { g.drawImage(pic, 0, slip); g.drawImage(pic, 0, slip - H - H * 0.06); }
+  else g.drawImage(pic, 0, 0);
+  // The glow: the picture's light, small and soft, added back over it.
+  const sm = tvCanvas("glow", Math.max(8, W >> 3), Math.max(6, H >> 3)), sg = sm.getContext("2d");
+  sg.drawImage(g.canvas, 0, 0, sm.width, sm.height);
+  g.save(); g.globalCompositeOperation = "lighter"; g.globalAlpha = 0.32; g.imageSmoothingEnabled = true;
+  g.drawImage(sm, -W * 0.02, -H * 0.02, W * 1.04, H * 1.04); g.restore();
+  // The tube: scan lines, a faint snow, a band rolling up it, the corners.
+  g.fillStyle = "rgba(0,0,0,0.24)";
   for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
+  g.fillStyle = "rgba(255,255,255,0.18)";
+  for (let i = 0; i < W * 0.12; i++) g.fillRect(Math.random() * W, Math.random() * H, 1, 1);
+  const roll = (t * 0.00004) % 1;
   const band = ((roll * 1.4) % 1.4 - 0.2) * H;
   const lg = g.createLinearGradient(0, band - H * 0.1, 0, band + H * 0.1);
-  lg.addColorStop(0, "rgba(255,255,255,0)"); lg.addColorStop(0.5, "rgba(255,255,255,0.06)"); lg.addColorStop(1, "rgba(255,255,255,0)");
+  lg.addColorStop(0, "rgba(255,255,255,0)"); lg.addColorStop(0.5, "rgba(255,255,255,0.07)"); lg.addColorStop(1, "rgba(255,255,255,0)");
   g.fillStyle = lg; g.fillRect(0, 0, W, H);
-  const vg = g.createRadialGradient(W / 2, H / 2, W * 0.25, W / 2, H / 2, W * 0.72);
-  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.55)");
+  const vg = g.createRadialGradient(W / 2, H / 2, W * 0.28, W / 2, H / 2, W * 0.74);
+  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.6)");
   g.fillStyle = vg; g.fillRect(0, 0, W, H);
 }
 

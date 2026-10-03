@@ -5679,3 +5679,18 @@ phone menu until "Start the story over" (which clears it).
       wireframe: WIRE_FRAG draws ~1 px lines (fwidth) where the rest-pose
       position (attribute `rest`, varying vR) crosses planes every
       0.67/0.48/0.67 units, so the lattice rides the skin.
+    - The store's TVs show a live newscast (user: activity, a CRT glow, a
+      chyron with ~30 bizarre mid-70s headlines). tienda-textures.js
+      paintTv(): tvPicture() draws 7 s shots (every 4th the story's own
+      card, a slow push in on its icon; otherwise the anchor: talking
+      mouth in phrases, blinks, head turns, papers shuffled, the story's
+      icon over his shoulder; TV_STORIES 10 with drawn icons), the bar
+      ("NEWS AT 7:30" + the story) and a crawl of TV_CRAWL (32 headlines,
+      1974-76 events with a spin, the last two foreshadowing the board and
+      the hallway lights), widths re-measured every 3 s for the late font;
+      then the tube: vertical hold slips every 41 s (0.5 s roll), the
+      picture's own glow (an 1/8 copy added back, "lighter"), scan lines,
+      snow, rolling band, vignette. tienda-store.js: canvas 320x240 (mid,
+      high) / 192x144 (low), repainted every 70 / 220 ms; an additive
+      radial glow plane (0x8fb8ff, ~0.4, breathing) just in front of each
+      of the five screens, spilling onto the cabinets.

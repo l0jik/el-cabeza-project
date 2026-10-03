@@ -639,7 +639,7 @@ export function buildStore() {
 
   /* ---- the TV display at the records and TV endcap ---- */
   const tvCanvas = document.createElement("canvas");
-  tvCanvas.width = q.tvWall ? 256 : 128; tvCanvas.height = tvCanvas.width * 0.75;
+  tvCanvas.width = q.tvWall ? 320 : 192; tvCanvas.height = tvCanvas.width * 0.75;
   const tvTex = new THREE.CanvasTexture(tvCanvas);
   paintTv(tvCanvas.getContext("2d"), tvCanvas.width, tvCanvas.height, 0);
   const tvMat = new THREE.MeshBasicMaterial({ map: tvTex, toneMapped: false, fog: true, color: 0xe8ecee });
@@ -655,6 +655,23 @@ export function buildStore() {
   screenGeos.push(vplane(10, 7.5, tvCapX - 24.5, FLOOR + 7.3, tvCapZ - 10.1, Math.PI));
   add(merge(cabGeos), flat(null));
   add(merge(screenGeos), tvMat);
+  /* The tubes' glow (user: a CRT glow), spilling a little past each
+     screen onto its cabinet: a soft blue-white light just in front of it,
+     breathing with the picture. */
+  const glowCanvas = document.createElement("canvas"); glowCanvas.width = glowCanvas.height = 64;
+  {
+    const gg = glowCanvas.getContext("2d"), rg = gg.createRadialGradient(32, 32, 6, 32, 32, 32);
+    rg.addColorStop(0, "rgba(255,255,255,1)"); rg.addColorStop(0.45, "rgba(255,255,255,0.5)"); rg.addColorStop(1, "rgba(255,255,255,0)");
+    gg.fillStyle = rg; gg.fillRect(0, 0, 64, 64);
+  }
+  const glowTex = new THREE.CanvasTexture(glowCanvas);
+  const tvGlowMat = new THREE.MeshBasicMaterial({ map: glowTex, color: 0x8fb8ff, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: true });
+  const glowGeos = [];
+  [[-5, 12], [5, 12], [-5, 21], [5, 21]].forEach(([dx, y]) => glowGeos.push(vplane(6.2 * 1.45, 4.7 * 1.6, tvCapX + dx - 0.6, FLOOR + y + 3.9, tvCapZ - 7.86, Math.PI)));
+  glowGeos.push(vplane(10 * 1.4, 7.5 * 1.55, tvCapX - 24.5, FLOOR + 7.3, tvCapZ - 10.16, Math.PI));
+  const tvGlow = add(merge(glowGeos), tvGlowMat);
+  if (tvGlow) tvGlow.renderOrder = 2;
+  disposables.push(glowTex, tvGlowMat);
   place(tvCapX, FLOOR + 11.6, tvCapZ - 4, GD - 1, 0.6, 7, 0, -1, 0.8);
   place(tvCapX, FLOOR + 20.6, tvCapZ - 4, GD - 1, 0.6, 7, 0, -1, 0.8);
   disposables.push(tvTex, tvMat);
@@ -715,11 +732,12 @@ export function buildStore() {
         paintClock(clockCanvas.getContext("2d"), 256, { h: Math.floor(secs / 3600) % 24, m: Math.floor(secs / 60) % 60, s: secs % 60 });
         clockTex.needsUpdate = true;
       }
-      const tvEvery = q.tvWall ? 90 : 500;
+      const tvEvery = q.tvWall ? 70 : 220;
       if (now - tvLast > tvEvery) {
         tvLast = now;
         paintTv(tvCanvas.getContext("2d"), tvCanvas.width, tvCanvas.height, now);
         tvTex.needsUpdate = true;
+        tvGlowMat.opacity = 0.38 + 0.06 * Math.sin(now / 700) + 0.04 * Math.random();
       }
       // One tube near the court fails to strike now and then: a few
       // quick drop-outs over a second or so, then steady again.
