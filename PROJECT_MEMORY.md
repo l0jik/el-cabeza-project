@@ -5415,3 +5415,17 @@ phone menu until "Start the story over" (which clears it).
     second time ("Oh, for the love of…", the electrician line) and the
     third (pulled in, on to the void) can be seen. Nothing saved.
     tests/e2e-camera-glide.mjs.
+  - The set messing up, with the user's recording (freesound "tv glitch
+    6245", assets/den/src/tv-glitch-6245.mp3): a square-ish digital glitch
+    clipped past full scale, with stretches held flat on a rail.
+    tools/den_tv_glitch.py cuts the flat stretches (20 ms windows, std <
+    0.01), highpasses 60 Hz, levels to -18 dBFS RMS (tanh under -1 dBFS)
+    -> assets/den/tv-glitch.mp3 (5.7 s), served as
+    el-cabeza-den-tv-glitch.mp3. den-audio.js tvHaunt fetches it on the
+    first stir (not from file:, so the e2e tests hear the made sounds
+    only) and mixes random slices (glitchSlice: length, rate bend, swell)
+    into the made sounds through hauntBus (the set's speaker, panned, Room
+    channel): flicker/pilot short ticks, thump, static, tune, voice tail,
+    phantom swell, surge (bent up + a hit at the thump), blast (bent up
+    into the white + a hit at it). Hooks __DEN_GLITCH__, __DEN_HAUNT__;
+    checked over http (loaded, every kind plays, no errors).

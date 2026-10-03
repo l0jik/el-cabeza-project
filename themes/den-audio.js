@@ -544,9 +544,42 @@ export function createAudio() {
      Singularity's frame: a push of sub-bass and a glint). strength
      0 to 1. */
   let hauntBus = null, hauntPan = null, hauntNear = 1, hauntSide = 0, hauntDist = 0;
+  /* The user's recording of a set glitching (tools/den_tv_glitch.py):
+     slices of it, at random, mixed in with the made sounds below, through
+     the set's own small speaker (user: mix it in with the TV when it's
+     messing up). Fetched the first time the set stirs; from disk (file:)
+     there's no fetching, so the made sounds alone there. */
+  const GLITCH_URL = "el-cabeza-den-tv-glitch.mp3";
+  let glitchBuf = null, glitchAsked = false;
+  function loadGlitch() {
+    if (glitchAsked || !ctx) return;
+    glitchAsked = true;
+    if (typeof location !== "undefined" && location.protocol === "file:") return;
+    fetch(GLITCH_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => { if (!disposed) glitchBuf = buf; }).catch(() => { /* the made sounds, then */ });
+  }
+  // A slice of it: `dur` long from anywhere in it, faded in over `attack`
+  // and out at its end; `rate` to bend it (from, to); `swell` to grow
+  // into it rather than start at full.
+  function glitchSlice(at, dur, level, { rate = [1, 1], attack = 0.004, swell = false } = {}) {
+    if (!glitchBuf || !hauntBus) return;
+    const len = glitchBuf.duration;
+    const d = Math.min(dur, len - 0.05);
+    const src = ctx.createBufferSource(); src.buffer = glitchBuf;
+    src.playbackRate.setValueAtTime(rate[0], at);
+    if (rate[1] !== rate[0]) src.playbackRate.linearRampToValueAtTime(rate[1], at + d);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, at);
+    if (swell) g.gain.exponentialRampToValueAtTime(level, at + d * 0.9);
+    else { g.gain.linearRampToValueAtTime(level, at + attack); g.gain.setValueAtTime(level, at + Math.max(attack, d - 0.03)); }
+    g.gain.linearRampToValueAtTime(0.0001, at + d);
+    src.connect(g).connect(hauntBus);
+    src.start(at, Math.random() * Math.max(0, len - d * Math.max(rate[0], rate[1]) - 0.02), d * Math.max(rate[0], rate[1]) + 0.02);
+    src.stop(at + d + 0.05);
+  }
   function tvHaunt(kind, strength = 0.5) {
     ensureGraph();
     if (!ctx) return;
+    loadGlitch();
     musicGlitch(kind, strength);
     if (!hauntBus) {
       hauntBus = ctx.createGain(); hauntBus.gain.value = hauntNear;
@@ -564,6 +597,17 @@ export function createAudio() {
       o.connect(g).connect(hauntBus); o.start(at); o.stop(at + dur + 0.05);
       return o;
     };
+    // The recording, mixed in (strength and kind set how much, and how long).
+    const G = 0.55 * k;
+    if (kind === "flicker") { if (Math.random() < 0.6) glitchSlice(t, 0.05 + Math.random() * 0.08, G * 0.7); }
+    else if (kind === "pilot") { for (let i = 0; i < 3; i++) if (Math.random() < 0.6) glitchSlice(t + i * 0.11, 0.025 + Math.random() * 0.03, G * 0.5); }
+    else if (kind === "thump") glitchSlice(t + 0.01, 0.12 + Math.random() * 0.1, G);
+    else if (kind === "static") glitchSlice(t, 0.25 + 0.5 * strength, G * 0.9, { attack: 0.03 });
+    else if (kind === "tune") glitchSlice(t + 0.45, 0.25, G * 0.4, { rate: [0.8, 1.15] });
+    else if (kind === "voice") { if (Math.random() < 0.5) glitchSlice(t + 0.9 + Math.random() * 0.4, 0.12, G * 0.5); }
+    else if (kind === "phantom") glitchSlice(t, 0.85, G * 0.8, { swell: true });
+    else if (kind === "surge") { glitchSlice(t + 0.2, 1.35, G, { swell: true, rate: [0.75, 1.25] }); glitchSlice(t + 1.52, 0.18, G * 1.1); }
+    else if (kind === "blast") { glitchSlice(t + 0.6, 2.2, G * 1.2, { swell: true, rate: [0.7, 1.3] }); glitchSlice(t + 2.8, 0.35, G * 1.3); }
     if (kind === "flicker") burst(t, hauntBus, 0.08 * k, 0.06, [["bandpass", 3600, 1.2]]);
     else if (kind === "pilot") { for (let i = 0; i < 5; i++) burst(t + i * (0.07 + Math.random() * 0.1), hauntBus, 0.06 * k, 0.014, [["bandpass", 4200, 3]]); }
     else if (kind === "thump") {
@@ -659,6 +703,7 @@ export function createAudio() {
   const cue = (fn) => (...args) => { ensureGraph(); if (wood) fn(...args); };
 
   // Test-only: a track straight on (the panel's taps aside).
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) { window.__DEN_GLITCH__ = () => ({ asked: glitchAsked, loaded: !!glitchBuf, dur: glitchBuf ? glitchBuf.duration : 0 }); window.__DEN_HAUNT__ = (kind, s) => tvHaunt(kind, s); }
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_TEST_PLAY__ = (url) => playMusic({ id: "test", url, medium: "record", loop: true, treated: true });
   return {
     ensureStarted() {

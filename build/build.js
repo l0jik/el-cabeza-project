@@ -19,6 +19,9 @@ const DEN_RECORDS = {
   // The telephone's bell (themes/den-call.js): the user's recording of a
   // Stromberg-Carlson 1543, its first three rings (the talk at its end cut).
   "el-cabeza-den-phone-ring.mp3": "assets/den/phone_ring.mp3",
+  // The set messing up (den-audio.js tvHaunt): the user's recording of a
+  // TV glitching, its dead stretches cut and levelled (tools/den_tv_glitch.py).
+  "el-cabeza-den-tv-glitch.mp3": "assets/den/tv-glitch.mp3",
   "el-cabeza-den-call-voice.mp3": "assets/den/call-voice.mp3",
   "el-cabeza-den-car-away.mp3": "assets/den/car-away.mp3",
   "el-cabeza-den-car-arrive.mp3": "assets/den/car-arrive.mp3",
