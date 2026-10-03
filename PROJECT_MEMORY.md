@@ -5484,3 +5484,17 @@ phone menu until "Start the story over" (which clears it).
   - e2e-tienda's leaflet "newsprint" check looked for the texture on the
     sheet itself; since the leaflet change (fd48858) it's on the masthead
     and the scrolling body, so the check looks there.
+  - The den's set, on its way in (user): half a second after a press
+    turns it on as the portal, a press on it (or the phone menu's Turn on
+    the TV) can't call it off (den-fx.js portalAt, PORTAL_LOCK_MS 500;
+    before that a second press still switches it off). e2e-summon: a
+    press 0.8 s in, still going in.
+  - The sphere's Back button: gone on the story's first visit (user; the
+    hand's card is the way out there, and it always comes), and Escape
+    held there too (LostNudge, window capture; a rules card or the piece
+    viewer over it keeps its own Escape). Kept everywhere else, after
+    checking what removing it outright would do: on the Neon page and on
+    later visits in Nova it's the only way out of the sphere on a touch
+    screen short of beginning a game (Escape is keyboard only, and in
+    Nova goes to Neon's board, not home). The ec-lost-urge throb on Back
+    went with it.

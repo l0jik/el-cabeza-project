@@ -901,7 +901,11 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (lure && !lureDone && !set.isOn() && !lureLook) { lookAtTv(true); return true; }
       lureDone = true;
       if (lureLook) { lureLook = false; showTvHint(false); }
+      // On its way in (the portal): half a second on, it can't be called
+      // off (user); before that, a second tap still switches it off.
+      if (set.isOn() && portalAt && now - portalAt >= PORTAL_LOCK_MS) return true;
       if (set.isOn()) {
+        portalAt = 0;
         if (set.powerOff(now)) {
           // (Off in the middle of the commercial: the camera goes back the
           // slow way, as it does after it.)
@@ -916,17 +920,20 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       // goes off and the camera comes back.
       const enter = () => {
         if (novaTv.enter() !== false) return;
+        portalAt = 0;
         if (set.powerOff(performance.now(), true) && audio && audio.tvOff) audio.tvOff();
         tvGoal = 0;
       };
       if (!set.powerOn(now, portal, portal ? enter : null)) return false;
-      if (portal) tvGoal = 1;
+      if (portal) { tvGoal = 1; portalAt = now; }
       if (audio && audio.tvOn) audio.tvOn();
       return true;
     }
+    let portalAt = 0;
+    const PORTAL_LOCK_MS = 500;
     if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__DEN_TV__ = () => ({ phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
+      window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
       window.__DEN_TRIP__ = () => (trip ? trip.state() : null);
@@ -1018,6 +1025,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (offAt && now >= offAt) {
           offAt = 0;
           onTheBoard();
+          portalAt = 0;
           if (den.tv.powerOff(now) && audio && audio.tvOff) audio.tvOff();
           tvGoal = 0;
           tvLeaveAt = performance.now() + TV_LEAVE_PAUSE;

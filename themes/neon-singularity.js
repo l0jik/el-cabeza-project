@@ -3382,13 +3382,14 @@ function BackButton({ onExit }) {
   );
 }
 /* Lost in the Singularity (user): the story's first visit, and nothing
-   touched for a while on the sphere: the Back button wakes, glowing and
-   throbbing, and a card comes up in the sphere's own neon, wireframe: the
-   player's own hand, its skin falling away into lines as they watch,
-   reaching for a button that says I want out of here (which does). The hand
-   is the user's own picture of it (assets/neon, tools/lost_hand.py). Their
-   own astonishment, a line or two. A tap anywhere else puts the card away
-   (the Back button keeps throbbing). Once a visit.
+   touched for a while on the sphere: a card comes up in the sphere's own
+   neon, wireframe: the player's own hand, its skin falling away into
+   lines as they watch, reaching for a button that says I want out of here
+   (which does). The hand is the user's own picture of it (assets/neon,
+   tools/lost_hand.py). Their own astonishment, a line or two. Once a
+   visit. It's the only way out of this visit: no Back button in the
+   corner (user), and Escape doesn't leave either; the card always comes
+   (the menu coming apart, or 25 s untouched) and Begin Game waits for it.
 
    Before it, something going wrong (user picked three of the ideas): the
    menus open and work, so they're known for menus; a heartbeat and a
@@ -3404,11 +3405,6 @@ function BackButton({ onExit }) {
 const LOST_MS = 25000;
 const UNRAVEL_MS = 6000;
 const LOST_CSS = `
-html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !important; animation: ecLostThrob 1.5s ease-in-out infinite; }
-@keyframes ecLostThrob {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(102,217,255,0.6), 0 0 10px 2px rgba(102,217,255,0.45); transform: scale(1); color: #9ff0ff; }
-  50% { box-shadow: 0 0 0 2px rgba(180,245,255,1), 0 0 26px 9px rgba(102,217,255,0.85), 0 0 60px 18px rgba(140,110,255,0.4); transform: scale(1.09); color: #ffffff; }
-}
 .ec-lost { position: absolute; left: 50%; bottom: calc(15% + env(safe-area-inset-bottom)); z-index: 2150; width: min(360px, calc(100vw - 32px)); transform: translateX(-50%);
   box-sizing: border-box; padding: 14px 16px 16px; color: #cfeff7; pointer-events: auto;
   background: repeating-linear-gradient(0deg, rgba(102,217,255,0.05) 0 1px, transparent 1px 4px), rgba(3,8,14,0.86);
@@ -3450,8 +3446,8 @@ html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !importan
   box-shadow: 0 0 12px rgba(102,217,255,0.4), inset 0 0 10px rgba(102,217,255,0.15); animation: ecLostPress 1.6s ease infinite 3.4s; }
 @keyframes ecLostPress { 0%, 30%, 70%, 100% { background: rgba(102,217,255,0.08); } 42%, 55% { background: rgba(102,217,255,0.32); box-shadow: 0 0 22px rgba(102,217,255,0.8), inset 0 0 14px rgba(102,217,255,0.4); } }
 .ec-lost button:hover, .ec-lost button:focus-visible { background: rgba(102,217,255,0.28); outline: none; }
-/* Behind the card, over everything else (the Back button stays above it):
-   taps off the card go nowhere but to its button, which pulses. */
+/* Behind the card, over everything else: taps off the card go nowhere
+   but to its button, which pulses. */
 .ec-lost-shield { position: fixed; inset: 0; z-index: 2140; background: rgba(0,0,0,0.001); touch-action: none; }
 .ec-lost button.nudge { animation: ecLostNudge 0.65s ease-out; }
 @keyframes ecLostNudge { 0% { transform: scale(1); } 30% { transform: scale(1.08); background: rgba(102,217,255,0.45); box-shadow: 0 0 26px rgba(102,217,255,0.9); } 100% { transform: scale(1); } }
@@ -3474,7 +3470,7 @@ html.ec-lost-urge [data-testid="singularity-back-button"] { opacity: 1 !importan
 @media (prefers-reduced-motion: reduce) {
   .ec-unravel, .ec-unravel.ec-centred { animation: none; }
   .ec-unravel .ec-drift { transition: none; transform: none; }
-  html.ec-lost-urge [data-testid="singularity-back-button"], .ec-lost, .ec-lost *, .ec-lost .hand::after { animation: none !important; }
+  .ec-lost, .ec-lost *, .ec-lost .hand::after { animation: none !important; }
   .ec-lost .hand .skin { opacity: 0; } .ec-lost .hand .wire { clip-path: none; } .ec-lost .l2, .ec-lost .l3 { opacity: 1; }
 }
 `;
@@ -3604,12 +3600,12 @@ function LostNudge({ stage, onExit, sing }) {
      coming-apart menu lets touches through to its backdrop, and a tap
      there used to shut it on the spot, straight to the card. Now, from
      the menu opening by itself to the card, touches are held: nothing
-     shuts it, opens another or turns the sphere. Back still works. */
+     shuts it, opens another or turns the sphere. */
   React.useEffect(() => {
     const hold = (e) => {
       if (!g.current.holding || shown.current) return;
       const el = e.target;
-      if (el && el.closest && el.closest('[data-testid="singularity-back-button"], .ec-lost')) return;
+      if (el && el.closest && el.closest(".ec-lost")) return;
       e.stopImmediatePropagation(); e.stopPropagation();
       if (e.cancelable) e.preventDefault();
     };
@@ -3664,7 +3660,7 @@ function LostNudge({ stage, onExit, sing }) {
     arm();
     return () => { clearTimeout(id); EV.forEach((e) => window.removeEventListener(e, arm, true)); };
   }, [lost]);
-  // The card, once up, stays until "I want out of here" (or Back) is
+  // The card, once up, stays until "I want out of here" is
   // pressed (user: a tap anywhere else used to put it away). A tap off it
   // lands on the shield behind it and makes its button pulse.
   const [nudge, setNudge] = React.useState(0);
@@ -3673,10 +3669,18 @@ function LostNudge({ stage, onExit, sing }) {
     const id = setTimeout(() => setNudge(0), 700);
     return () => clearTimeout(id);
   }, [nudge]);
+  // Escape doesn't leave on this visit (the card is the way out): taken
+  // here, ahead of the sphere's own Escape, unless a rules card or the
+  // piece viewer is open over it and wants it for itself.
   React.useEffect(() => {
-    document.documentElement.classList.toggle("ec-lost-urge", lost);
-    return () => document.documentElement.classList.remove("ec-lost-urge");
-  }, [lost]);
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      if (document.querySelector('[data-testid="piece-viewer"]') || document.querySelector('[data-testid="info-overlay"][data-open="true"]')) return;
+      e.stopImmediatePropagation(); e.stopPropagation();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
   if (!card) return null;
   const swallow = (e) => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); };
   return h(React.Fragment, null,
@@ -4534,8 +4538,11 @@ export function renderSingularityOverlay(setupExtras) {
     // BACK: out to Neon's board; in Nova, home to the den instead
     // (setupExtras.onSingularityBack, apps/unified.jsx: its transition
     // takes the whole page, sphere and all, so the sphere isn't torn down
-    // first unless it can't go).
-    phase === PHASES.SPHERE && renderBackButton(setupExtras.onSingularityBack
+    // first unless it can't go). Not on the story's first visit (user):
+    // the hand's card is the way out there (LostNudge). Everywhere else
+    // it stays: on a touch screen it's the only way out short of
+    // beginning a game.
+    phase === PHASES.SPHERE && !(setupExtras.onSingularityBack && setupExtras.singularityFirstVisit) && renderBackButton(setupExtras.onSingularityBack
       ? () => { if (!setupExtras.onSingularityBack()) exitSingularity(); }
       : exitSingularity),
     // The story's first visit, lingering: the way out, lit (LostNudge).
