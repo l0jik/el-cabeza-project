@@ -5843,3 +5843,13 @@ phone menu until "Start the story over" (which clears it).
       e2e-store-nudge: a shopping section; e2e-story follows the cart.
       (e2e-store-nudge failed once with no FAIL line printed, then passed
       twice: timing-sensitive somewhere.)
+    - The blooms are gone (user, after listening to them isolated: they
+      were the ringing): bloom(), its call, its little room and impulse()
+      removed. The reverb baked into "Completion" (void-music.mp3) stays.
+      The listening previews (el-cabeza-preview-*.mp3) were taken off the
+      site again. Timings now: the white 0 s; lines from 8 s, every 5 s,
+      the last at 43 s; the drift in 43.9-53.3 s; the push in 50.1-55.9 s;
+      the black 55.2-56.1 s; the crawl 57.6-97.6 s (a touch may let it go
+      from ~23 s into it on a desktop, ~20 s on a phone); the switcher at
+      98.3 s. The music: "Completion" 0-56.1 s (eased out 54.6-56.6 s),
+      its added room ringing to ~65 s; the drone from 56.1 s.

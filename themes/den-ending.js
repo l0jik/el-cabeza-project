@@ -525,11 +525,6 @@ function audioBuffer(ctx, url) {
 }
 export function prefetchVoidMusic() { [MUSIC_URL, DRONE_URL].forEach((u) => fetchBytes(u).catch(() => {})); }
 
-function impulse(ctx, secs, decay) {
-  const n = Math.floor(ctx.sampleRate * secs), b = ctx.createBuffer(2, n, ctx.sampleRate);
-  for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay); }
-  return b;
-}
 
 /* The mist's noise: soft, tiling patches (value noise on a wrapped
    lattice, a few octaves), stretched upward, as an alpha mask. Made once. */
@@ -569,7 +564,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   let pixelRatio = 1, frameAvg = 16.7, slowFor = 0;
   const sphereAt = new THREE.Vector3(0, 6, -420);
 
-  /* ---- the sound: the music, a bloom with each line, the crawl's drone ---- */
+  /* ---- the sound: the music, the crawl's drone ---- */
   /* The way out (user: it clipped on a phone): everything together (mix),
      the fade, then on a phone everything under 100 Hz taken out (a phone's
      speaker can't play it, and it only drives it into crunch), then a
@@ -594,9 +589,6 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       let tail = fade;
       if (phone) [0, 1].forEach(() => { const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 100; hp.Q.value = 0.707; tail.connect(hp); tail = hp; });
       mix.connect(fade); tail.connect(lim).connect(post).connect(o.ear);
-      // A room for the blooms.
-      const verb = ctx.createConvolver(); verb.buffer = impulse(ctx, 7, 2.2);
-      const wet = ctx.createGain(); wet.gain.value = 0.9; verb.connect(wet).connect(mix);
       const musicG = ctx.createGain(); musicG.gain.value = MUSIC_LEVEL; musicG.connect(mix);
       // The drone: a slow swell (~14 s) and a faint shiver on it.
       const droneAM = ctx.createGain(); droneAM.gain.value = 1;
@@ -606,7 +598,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       [[0.07, 0.22], [6.3, 0.05]].forEach(([f, d]) => { const l = ctx.createOscillator(); l.frequency.value = f; const lg = ctx.createGain(); lg.gain.value = d; l.connect(lg).connect(droneAM.gain); l.start(t); all.push(l); });
       const meter = typeof window !== "undefined" && window.__EC_TEST_HOOKS__ ? { out: ctx.createAnalyser(), music: ctx.createAnalyser(), drone: ctx.createAnalyser() } : null;
       if (meter) { Object.values(meter).forEach((an) => { an.fftSize = 4096; }); post.connect(meter.out); musicG.connect(meter.music); droneG.connect(meter.drone); }
-      const s0 = { ctx, mix, fade, verb, musicG, droneG, droneAM, all, meter, phone };
+      const s0 = { ctx, mix, fade, musicG, droneG, droneAM, all, meter, phone };
       // The music, in step with the scene (from wherever it has got to
       // by the time it's ready).
       audioBuffer(ctx, MUSIC_URL).then((buf) => {
@@ -658,21 +650,6 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       c.droneOn = false;
       g.setTargetAtTime(0.00001, t, secs / 6.9);
     }
-  }
-  /* As each line begins, a quiet bloom high up, felt more than heard:
-     an open fifth and its octave (A, E, A: in the music's key, A), one
-     after another, swelling into the room's reverb and dying away. */
-  function bloom() {
-    if (!snd || !snd.ctx) return;
-    const { ctx, verb, mix } = snd, t = ctx.currentTime;
-    [[880, 0.03], [1318.51, 0.022], [1760, 0.012]].forEach(([f, peak], i) => {
-      const at = t + 0.05 + i * 0.16;
-      const os = ctx.createOscillator(); os.type = "sine"; os.frequency.value = f; os.detune.value = (Math.random() * 2 - 1) * 4;
-      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(peak, at + 0.7); g.gain.exponentialRampToValueAtTime(0.0001, at + 5);
-      const dry = ctx.createGain(); dry.gain.value = 0.06;
-      os.connect(g); g.connect(verb); g.connect(dry).connect(mix);
-      os.start(at); os.stop(at + 5.2);
-    });
   }
 
   function build() {
@@ -935,7 +912,6 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     words.forEach((w, i) => {
       const a = s - (T.words + i * T.wordEach), hold = i === words.length - 1 ? T.lastHold : T.wordEach;
       const on = a > 0 && a < hold - 1300;
-      if (on && !w.classList.contains("on") && stage === "void") bloom();
       w.classList.toggle("on", on);
     });
     // (At the black the music eases out by itself, its room ringing on;
