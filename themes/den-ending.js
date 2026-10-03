@@ -40,7 +40,8 @@ export const REVELATION = [
   "I...... understand now!",
   "I understand.......... *everything* now!",
   "The meaning of life, the universe..... everything!\u2026",
-  "\u2026it's **not** 42!  It never was!!",
+  "\u2026it's **not** 42!",
+  "It never was!!",
   "It's El Cabeza........",
   "....It was.....*always*...... El Cabeza.",
 ];

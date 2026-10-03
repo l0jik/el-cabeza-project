@@ -5658,3 +5658,6 @@ phone menu until "Start the story over" (which clears it).
       menu's epilogue (sentence-by-sentence sub), coda and subMs are gone.
       Hooks: state().crawlAt, state().crawl (0..1); testid
       den-ending-crawl. Nothing is rendered under the black.
+    - "It never was!!" is its own revelation line now (user), split from
+      "…it's **not** 42!": eight lines, the scene 4.7 s longer (one more
+      wordEach; MERGE/ZOOM/BLACK/CRAWL/MENU_AT follow WORDS_END).
