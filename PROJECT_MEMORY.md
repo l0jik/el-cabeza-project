@@ -5952,3 +5952,13 @@ phone menu until "Start the story over" (which clears it).
       waist 2.15 -> 2.0, chest 2.75 -> 3.0, shoulders 2.1 -> 2.3; the
       shoulder joints out to x 2.72 (were 2.55), the hips' in to 1.02
       (were 1.15).
+    - Chest too large, and a little more angular (user: too much
+      roundness): rbox(inv, c, h, r, taper), a rounded box (taper widens
+      it toward its top), and blendP(a, b, k), a part k of the way from
+      one shape to another. Hips, waist, chest, shoulders each half way
+      between their ellipsoid and a rounded box (all-box was tried: a
+      robot, seams between the blocks); the chest a wedge, 2.8 wide
+      (was 3.0; first 2.75); the head 0.3 toward a box (squarer jaw and
+      crown); the feet 0.6 toward a flat box; the palm a rounded box.
+      Joins a little tighter (trunk 1.1 -> 0.85, shoulder joint 0.7 ->
+      0.55). 21.5k vertices.

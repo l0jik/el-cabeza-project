@@ -448,15 +448,32 @@ function figRig() {
     return Object.assign((x, y, z) => { const t = Math.max(0, Math.min(1, ((x - a.x) * bx + (y - a.y) * by + (z - a.z) * bz) / bb));
       return Math.hypot(x - a.x - bx * t, y - a.y - by * t, z - a.z - bz * t) - (r1 + (r2 - r1) * t); },
     { box: [Math.min(a.x, b.x) - R, Math.min(a.y, b.y) - R, Math.min(a.z, b.z) - R, Math.max(a.x, b.x) + R, Math.max(a.y, b.y) + R, Math.max(a.z, b.z) + R] }); };
+  /* A box with its edges rounded by `r` (half sizes `h`, the extent
+     being h + r), for the more angular parts (user: too round). `taper`
+     widens it in x toward its top (+y) by that much a side, narrows it
+     toward its bottom. */
+  const rbox = (inv, c, h, r, taper = 0) => Object.assign((x, y, z) => {
+    const e = inv.elements;
+    const px = e[0] * x + e[4] * y + e[8] * z + e[12] - c.x, py = e[1] * x + e[5] * y + e[9] * z + e[13] - c.y, pz = e[2] * x + e[6] * y + e[10] * z + e[14] - c.z;
+    const hx = h.x + taper * Math.max(-1, Math.min(1, py / h.y));
+    const qx = Math.abs(px) - hx, qy = Math.abs(py) - h.y, qz = Math.abs(pz) - h.z;
+    return Math.hypot(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qy, qz), 0) - r;
+  }, { box: (() => { const w = c.clone().applyMatrix4(inv.clone().invert()), R = Math.hypot(h.x + Math.abs(taper), h.y, h.z) + r; return [w.x - R, w.y - R, w.z - R, w.x + R, w.y + R, w.z + R]; })() });
+  // (Part way between two shapes: `k` of the way from a to b.)
+  const blendP = (a, b, k) => Object.assign((x, y, z) => a(x, y, z) * (1 - k) + b(x, y, z) * k,
+    { box: a.box.map((v, i) => (i < 3 ? Math.min(v, b.box[i]) : Math.max(v, b.box[i]))) });
   const I = new THREE.Matrix4();
   const at = (o, x, y, z) => V(x, y, z).applyMatrix4(o.matrixWorld);
   const parts = [   // [bone, fn, blend]
-    [0, ell(I, V(0, 0.5, 0), V(1.9, 1.55, 1.3)), 0],       // hips (narrower, user)
-    [0, ell(I, V(0, 3.1, 0), V(2.0, 2.4, 1.26)), 1.1],     // waist
-    [0, ell(I, V(0, 5.6, 0), V(3.0, 2.25, 1.66)), 1.1],    // chest (a little wider, user)
-    [0, ell(I, V(0, 7.5, 0), V(2.3, 0.85, 1.15)), 0.8],    // shoulders
-    [1, cone(V(0, 7.9, 0), V(0, 10.1, 0.05), 0.74, 0.62), 0.6],  // neck
-    [1, ell(restInv[1], V(0, 1.3, 0.05), V(1.35, 1.6, 1.45)), 0.5],  // head
+    // (A little more angular (user: too round): each part of the trunk
+    // half way between its soft ellipsoid and a rounded box, the chest a
+    // wedge, broad at the shoulders; the joins a little tighter.)
+    [0, blendP(ell(I, V(0, 0.5, 0), V(1.9, 1.55, 1.3)), rbox(I, V(0, 0.55, 0), V(1.3, 0.95, 0.75), 0.6, 0.1), 0.5), 0],          // hips (narrower, user)
+    [0, blendP(ell(I, V(0, 3.1, 0), V(2.0, 2.4, 1.26)), rbox(I, V(0, 3.05, 0), V(1.35, 1.6, 0.68), 0.6, 0.05), 0.5), 0.85],     // waist
+    [0, blendP(ell(I, V(0, 5.6, 0), V(2.8, 2.2, 1.62)), rbox(I, V(0, 5.7, 0), V(1.95, 1.6, 0.98), 0.6, 0.3), 0.55), 0.85],      // chest (user: wider, then not so wide)
+    [0, blendP(ell(I, V(0, 7.5, 0), V(2.2, 0.85, 1.15)), rbox(I, V(0, 7.45, 0), V(1.75, 0.35, 0.6), 0.5), 0.5), 0.65],         // shoulders
+    [1, cone(V(0, 7.9, 0), V(0, 10.1, 0.05), 0.74, 0.62), 0.5],  // neck
+    [1, blendP(ell(restInv[1], V(0, 1.3, 0.05), V(1.35, 1.6, 1.45)), rbox(restInv[1], V(0, 1.3, 0.08), V(0.72, 0.98, 0.82), 0.62, -0.08), 0.3), 0.45],  // head (a touch squarer at the jaw and crown)
   ];
   /* The hands (user: fingers on them): a palm, four fingers a little
      apart and curled toward it, and a thumb on the outer side (the palm's
@@ -466,7 +483,7 @@ function figRig() {
   const hand = (k, s) => {
     const b = bones.indexOf(k), y0 = -ARM[1], P = (x, y, z) => at(k, s * x, y0 + y, z);
     const n0 = parts.length;
-    parts.push([b, ell(restInv[b], V(0, y0 - 0.42, 0.02), V(0.47, 0.56, 0.22)), 0.22]);   // the palm
+    parts.push([b, rbox(restInv[b], V(0, y0 - 0.42, 0.02), V(0.34, 0.44, 0.09), 0.13), 0.18]);   // the palm
     // [knuckle x, length, tip x] from the thumb's side over to the little finger.
     [[0.29, 1.06, 0.5], [0.1, 1.2, 0.16], [-0.1, 1.12, -0.18], [-0.29, 0.88, -0.5]].forEach(([x, len, tx]) =>
       parts.push([b, cone(P(x, -0.8, 0.03), P(tx, -0.8 - len, 0.22), 0.12, 0.09), 0.1]));
@@ -475,10 +492,10 @@ function figRig() {
   };
   // The feet longer (user, twice).
   [[arms, ARM, (k, s) => hand(k, s)],
-   [legs, LEG, (k) => parts.push([bones.indexOf(k), ell(restInv[bones.indexOf(k)], V(0, -LEG[1] - 0.2, 0.98), V(0.52, 0.38, 1.85)), 0.3])]].forEach(([set, L, end]) => set.forEach(({ j, k }, i) => {
+   [legs, LEG, (k) => parts.push([bones.indexOf(k), blendP(ell(restInv[bones.indexOf(k)], V(0, -LEG[1] - 0.2, 0.98), V(0.52, 0.38, 1.85)), rbox(restInv[bones.indexOf(k)], V(0, -LEG[1] - 0.24, 0.98), V(0.3, 0.14, 1.6), 0.24), 0.6), 0.25])]].forEach(([set, L, end]) => set.forEach(({ j, k }, i) => {
     const J = at(j, 0, 0, 0), K = at(k, 0, 0, 0), E = at(k, 0, -L[1], 0);
-    parts.push([bones.indexOf(j), cone(J, K, L[2], L[3]), 0.7]);
-    parts.push([bones.indexOf(k), cone(K, E, L[3], L[4]), 0.25]);
+    parts.push([bones.indexOf(j), cone(J, K, L[2], L[3]), 0.55]);
+    parts.push([bones.indexOf(k), cone(K, E, L[3], L[4]), 0.18]);
     end(k, i ? 1 : -1);
   }));
   const smin = (a, b, k) => { if (k <= 0) return Math.min(a, b); const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
