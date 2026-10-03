@@ -5469,3 +5469,11 @@ phone menu until "Start the story over" (which clears it).
     a tap on it calls onStay, as Escape does); the ending's menu marks
     the den (currentId "den"). stayLabel gone from every caller; tests
     tap reality-den / reality-lab-bauhaus instead of realities-stay.
+  - Stuck in Lluvia with no way back (user, after a preview link's void:
+    ?scene=hall/lure/summons keep nothing, so the record's story wasn't
+    over and Lluvia's corner button, which shows only after the story,
+    wasn't there). realities.js goToWorld sets sessionStorage
+    "el-cabeza:realities-visit" before changing page; reality-gate.js
+    storyOver() reads it too, so a reality reached from the menu has the
+    corner button (and the gate) for the rest of the tab's visit. Checked
+    on Lluvia: no record, no flag: no button; with the flag: button, menu.

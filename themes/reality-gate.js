@@ -34,7 +34,7 @@ import {
   defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, lawWarnings, piecesFit, minColsFor,
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
 } from "./rules-selections.js";
-import { WORLDS, createRealitiesMenu, goToWorld } from "./realities.js";
+import { WORLDS, createRealitiesMenu, goToWorld, REALITIES_VISIT_KEY } from "./realities.js";
 
 const h = React.createElement;
 
@@ -42,6 +42,8 @@ const h = React.createElement;
 
 const STORY_KEY = "el-cabeza:story";
 export function storyOver() {
+  // (Or come here from the realities menu this visit: realities.js goToWorld.)
+  try { if (window.sessionStorage.getItem(REALITIES_VISIT_KEY) === "1") return true; } catch (e) { /* the record, then */ }
   try { const s = JSON.parse(window.localStorage.getItem(STORY_KEY) || "null"); return !!(s && s.ended); } catch (e) { return false; }
 }
 export const GATE_EVENT = "el-cabeza:reality-gate";

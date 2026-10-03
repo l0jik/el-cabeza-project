@@ -173,8 +173,15 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
 // Where a world goes: Nova's own places in place (go(novaTheme)) when in
 // Nova, or Nova's page opened there (?world=) from another page; the
 // others by changing page.
+/* A reality reached from this menu keeps its way back (the corner
+   button, reality-gate.js storyOver) for the rest of the tab's visit,
+   even if the story isn't over in this browser's record (user: from a
+   preview link's void, ?scene=hall, Lluvia had no way back). */
+export const REALITIES_VISIT_KEY = "el-cabeza:realities-visit";
 export function goToWorld(w, novaGo) {
   if (w.nova && novaGo) { novaGo(w.nova, w); return; }
   const href = w.nova ? `el-cabeza-nova.html?world=${w.nova}` : w.href;
-  if (typeof window !== "undefined" && href) window.location.href = href;
+  if (typeof window === "undefined" || !href) return;
+  try { window.sessionStorage.setItem(REALITIES_VISIT_KEY, "1"); } catch (e) { /* the record alone, then */ }
+  window.location.href = href;
 }
