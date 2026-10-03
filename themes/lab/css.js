@@ -92,6 +92,9 @@ const HUD_BASE = `
   .lab-hud .lab-stats div { min-width: 0; }
   .lab-hud .lab-stats dt { margin: 0; }
   .lab-hud .lab-stats dd { margin: 2px 0 0; font-size: 20px; line-height: 1.05; font-weight: 700; white-space: nowrap; }
+  /* (The theme's name: a row of its own across the numbers, any grid.) */
+  .lab-hud .lab-stats .wide { grid-column: 1 / -1; }
+  .lab-hud .lab-stats .wide dd { white-space: normal; }
   .lab-hud .lab-log { list-style: none; margin: 0; padding: 0; }
   .lab-hud .lab-log li { display: grid; grid-template-columns: 2.2em 1fr; gap: 6px; align-items: baseline; font-size: 13px; }
   .lab-hud .lab-log .n { font-weight: 700; }
@@ -115,6 +118,8 @@ const HUD_BASE = `
     .lab-hud .lab-log, .lab-hud .lab-note { display: none !important; }
     .lab-hud .lab-stats { grid-template-columns: repeat(4, auto); justify-content: start; gap: 4px 14px; }
     .lab-hud .lab-stats dd { font-size: 15px; }
+    /* (No cell narrower than its own words: they'd run into the next.) */
+    .lab-hud .lab-stats div:not(.wide) { min-width: max-content; }
     .lab-hud[data-phase="setup"] { display: none; }
   }
   @media (prefers-reduced-motion: reduce) { .lab-hud, .lab-hud * { animation: none !important; transition: none !important; } }
@@ -203,7 +208,7 @@ const HUD = {
   .lab-hud .lab-log li { border-bottom: 1px solid rgba(201,210,219,0.18); padding: 4px 0; transform: skewX(-8deg); }
   .lab-hud .lab-log .n { color: var(--accent-primary); font-family: var(--font-display); }
   .lab-hud .lab-over { font-family: var(--font-display); font-size: 40px; font-weight: 800; font-style: italic; text-transform: uppercase; color: var(--accent-primary); margin-top: 10px; }
-  @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud { transform: rotate(-3deg); top: 72px; } .lab-hud .lab-big { font-size: 40px; } .lab-hud .lab-turn { font-size: 15px; padding: 6px 22px 6px 10px; margin-bottom: 6px; } }
+  @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud { transform: rotate(-3deg); top: 72px; } .lab-hud .lab-big { font-size: 40px; } .lab-hud .lab-turn { font-size: 15px; padding: 6px 22px 6px 10px; margin-bottom: 6px; } .lab-hud .lab-stats dd { font-size: 17px; } }
   `,
   brutalist: `
   .lab-hud { text-transform: uppercase; font-family: var(--font-mono); }

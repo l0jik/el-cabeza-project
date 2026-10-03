@@ -1,8 +1,8 @@
 /* Theme Lab: the in-game read-out every direction composes its own way.
 
    One component, one piece of markup: the theme id, the turn number,
-   whose move it is, the numbers (moves, points spent, pieces left,
-   pieces taken, time), the last few moves, and how the game ended. The
+   whose move it is, the numbers (the theme's name, moves, points spent,
+   the AI's level, time), the last few moves, and how the game ended. The
    ten stylesheets (themes/lab/css.js) turn the same markup into a Swiss
    column, a Bauhaus set of forms, a Mondrian grid, a tilted
    Elementarist stack, Brutalist blocks, a Tschichold page, a departure
@@ -136,19 +136,19 @@ export function LabHud({ spec, x }) {
   const turn = setup ? 1 : game.turns + (game.status === "finished" ? 0 : 1);
   const who = SIDE[game.currentPlayer];
   const ai = game.aiPlayer && game.aiPlayer === game.currentPlayer;
-  const init = SESSION.initial || game.pieceCount;
-  const taken = { dark: Math.max(0, init.light - game.pieceCount.light), light: Math.max(0, init.dark - game.pieceCount.dark) };
   const elapsed = SESSION.startedAt ? (SESSION.endedAt || Date.now()) - SESSION.startedAt : 0;
   const recent = game.log.slice(-6).map((e, i, arr) => ({ ...e, n: game.log.length - arr.length + i + 1 })).reverse();
   const corp = spec.hud === "corporateSwiss";
   const turnText = setup ? "Set up" : game.status === "finished" ? "Game over" : `${who} to move`;
 
+  /* (User: pieces left and taken said little; instead, which theme
+     this is and how hard the AI plays, in every direction, its own name
+     across the top of the numbers.) */
   const stats = [
+    ["Theme", spec.name, "wide"],
     ["Moves", pad2(game.log.length)],
     ["Points", setup ? "—" : `${game.stepsUsed}/${game.turnBudget}`],
-    ["Dark", pad2(game.pieceCount.dark)],
-    ["Light", pad2(game.pieceCount.light)],
-    ["Taken", `${taken.dark}–${taken.light}`],
+    ["AI", game.aiLevel || "Off"],
     ["Time", clock(elapsed)],
   ];
 
@@ -183,7 +183,7 @@ export function LabHud({ spec, x }) {
       corp ? h("span", { className: "lab-sr" }, turnText) : null,
       ai ? h("span", { className: "lab-ai" }, corp ? "" : " · AI") : null
     ),
-    h("dl", { className: "lab-stats" }, stats.map(([k, v]) => h("div", { key: k }, h("dt", { className: "lab-label" }, k), h("dd", null, v)))),
+    h("dl", { className: "lab-stats" }, stats.map(([k, v, cls]) => h("div", { key: k, className: cls || undefined, "data-stat": k.toLowerCase() }, h("dt", { className: "lab-label" }, k), h("dd", null, v)))),
     spec.hud === "destijl" ? h("div", { className: "lab-note lab-label" }, game.selectedType ? `${game.selectedType}` : "·") : null,
     recent.length
       ? h("ol", { className: "lab-log", "aria-label": "Recent moves" }, recent.map((e) => h("li", { key: e.n },

@@ -2299,6 +2299,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     game: {
       currentPlayer, stepsUsed, turnBudget: turnBudget(), log, status, winner, winReason,
       turns: turnHistory.length, selectedId, hoveredId, aiPlayer, awaitingBegin, busy,
+      aiDifficulty, aiLevel: aiPlayer ? (AI_DIFFICULTY[aiDifficulty] || {}).label || null : null,
       selectedType: (pieces.find((p) => p.id === selectedId) || {}).type || null,
       pieceCount: { dark: pieces.filter((p) => p.owner === "dark").length, light: pieces.filter((p) => p.owner === "light").length },
     },

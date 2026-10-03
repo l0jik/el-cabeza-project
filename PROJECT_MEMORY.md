@@ -5775,3 +5775,11 @@ phone menu until "Start the story over" (which clears it).
       order form: the skill buttons a nowrap row sharing the width
       (.td-seg.td-one). The phone menu's Seg was already one row; Neon's
       sphere menu row has no wrap.
+    - Lab HUD numbers (user: what do Dark / Light / Taken even mean?
+      They were pieces left on the board per side and pieces each side
+      had taken): now the theme's name (a row of its own, .wide, across
+      any design's grid) and the AI's level ("Easy" / "Medium" / "Hard",
+      "Off" for two humans; the chassis hands game.aiDifficulty and
+      game.aiLevel to themes), with Moves, Points, Time. On a phone no
+      stat cell is narrower than its words (min-width: max-content);
+      Elementarism's numbers 17 px there. Checked all 10 at 390 px.
