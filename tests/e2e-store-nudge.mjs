@@ -54,7 +54,7 @@ console.log("\nidle in the store: the piece, then Try a Game");
   check("the dock opens from it", await openDockPanel(page));
   check("...Try a Game is lit", (await anim(page, '[data-testid="tienda-try-game"]')) === "tdTryGlow" && /Try a Game/i.test(await q(page, "tienda-try-game").innerText()));
   await q(page, "tienda-try-game").click();
-  check("pressed: a game, and the nudge is gone", await poll(async () => (await has(page, "tienda-slip-tag")) && !(await nudging(page)) && !(await has(page, "tienda-dock-aura")), 10000));
+  check("pressed: a game, and the nudge is gone", await poll(async () => (await has(page, "tienda-price-tag")) && !(await nudging(page)) && !(await has(page, "tienda-dock-aura")), 10000));
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -92,6 +92,33 @@ console.log("\nphone, the lid: a tap that misses takes the page full screen");
   await page.touchscreen.tap(195, 120);
   check("a tap off the lid: full screen", await poll(() => page.evaluate(() => !!document.fullscreenElement), 4000));
   check("...and the lid still on", await has(page, "tienda-lid"));
+  check("no page errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
+console.log("\nshopping: the PA, the cart, closing time (user: nothing about orders in the store)");
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000; window.__EC_TEST_PA_MS__ = 7000; window.__EC_TEST_CLOSING_MS__ = 9000; window.__EC_TEST_CLOSING_MIN_MS__ = 2000; });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto(URL);
+  await poll(() => page.evaluate(() => !!window.__TIENDA_THREE__), 30000);
+  await poll(() => has(page, "tienda-open-box"), 10000);
+  await q(page, "tienda-open-box").click();
+  await poll(async () => !(await has(page, "tienda-lid")), 8000);
+  check("the dock opens", await openDockPanel(page));
+  check("...its buy button: Put one in the cart", /Put one in the cart/i.test(await q(page, "story-purchase").innerText()));
+  await q(page, "tienda-try-game").click();
+  check("a game: the game's price tag, no order slip", await poll(() => has(page, "tienda-price-tag"), 10000) && !(await has(page, "tienda-slip-tag")));
+  check("the PA: El Cabeza in stock, Aisle 9", await poll(async () => (await has(page, "tienda-pa-instock")) && /aisle 9/i.test(await q(page, "tienda-pa-instock").innerText()), 15000));
+  await q(page, "tienda-pa-instock").click();
+  check("...a tap on it: one in the cart", await poll(async () => (await has(page, "tienda-cart")) && (await page.evaluate(() => window.__TIENDA_SHOP__().cart)) === 1, 4000));
+  check("closing time: the PA", await poll(() => has(page, "tienda-pa-closing"), 15000));
+  check("...and the lights down a step", await poll(() => page.evaluate(() => window.__TIENDA_SHOP__().dim), 3000));
+  await q(page, "tienda-pa-closing").click();
+  check("...a tap on it: to the register (the purchase)", await poll(() => has(page, "story-cut"), 6000, 100));
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

@@ -30,6 +30,7 @@ import {
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
 } from "./rules-selections.js";
 import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS } from "./tienda-order.js";
+import { ShopCorner, StorePA, useShoppingVisit } from "./tienda-shopping.js";
 import { ensurePaper, ensureAgedPaper } from "./tienda-textures.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
@@ -268,6 +269,8 @@ export function useSetupExtras(x) {
      open (and on the phone bar's button). */
   const [idleNudge, setIdleNudge] = React.useState(false);
   const nudgeHere = store && arrival.current !== "cut" && !(story.after && story.after()) && !(story.realities && story.realities());
+  // (Shopping in the store before it's bought: a fresh cart each visit.)
+  useShoppingVisit(store && !(story.after && story.after()) && !(story.realities && story.realities()));
   React.useEffect(() => {
     if (!nudgeHere || idleNudgeDone || idleNudge) return undefined;
     if (!x.awaitingBegin) { if (lidDone) idleNudgeDone = true; return undefined; }
@@ -382,10 +385,27 @@ export function useSetupExtras(x) {
     lidLocked,
     dismissSpecialNote,
     selRef,
+    // The PA's moments in the store, the first visit only (tienda-shopping.js).
+    shopPA: nudgeHere,
   };
 }
 
+/* In the store before the game's bought (Nova's story), what sells it
+   (user: nothing about orders or rules there): its price tag in a game,
+   the cart once one's in it, and the store's PA (tienda-shopping.js),
+   over whatever else is up. */
 export function renderExtraOverlays(x) {
+  const rest = renderOverlaysHere(x);
+  if (!x || !x.story || x.story.mode !== "store" || (x.story.after && x.story.after()) || (x.story.realities && x.story.realities())) return rest;
+  const quiet = !!x.tiendaOverlay;
+  const inGame = !!(x.isPlaying && !x.awaitingBegin);
+  const shop = [
+    !quiet && h(ShopCorner, { key: "shop", inGame, audio: x.audio, onPurchase: x.story.onPurchase }),
+    h(StorePA, { key: "pa", active: !!x.shopPA && !quiet, game: x.game, audio: x.audio, onPurchase: x.story.onPurchase }),
+  ];
+  return [...shop, ...(Array.isArray(rest) ? rest : rest ? [rest] : [])].filter(Boolean);
+}
+function renderOverlaysHere(x) {
   if (!x) return null;
   const store = !!x.story && x.story.mode === "store";
   // In a game: the sales slip of what was ordered. At home only for a game
@@ -394,6 +414,8 @@ export function renderExtraOverlays(x) {
   if (x.isPlaying && !x.awaitingBegin) {
     const home = !!x.story && x.story.mode === "home";
     if (home && !(x.currentVariants && x.currentVariants.length)) return null;
+    // (In the store before it's bought, its price tag instead: above.)
+    if (store && !(x.story.after && x.story.after()) && !(x.story.realities && x.story.realities())) return null;
     return h(OrderSlip, { key: "slip", groups: x.currentVariants, audio: x.audio, onPurchase: store ? x.story.onPurchase : null });
   }
   if (store && x.tiendaOverlay === "clerk") {

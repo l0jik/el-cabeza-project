@@ -5809,3 +5809,37 @@ phone menu until "Start the story over" (which clears it).
       whichever of its surface and ink reads better on it (WCAG
       contrast). The phone menu's Seg and Toggle already share one
       colour (ink); Tienda's form is all ink, as its paper is.
+    - Shopping in the story's store (user: "Your order: standard /
+      Standard rules. Nothing changed." tipped the hand: the player
+      doesn't know there's anything beyond the standard game yet; picked
+      ideas 1, 4, 5, 8). themes/tienda-shopping.js, mounted by
+      renderExtraOverlays over whatever else is up, in the store before
+      it's bought (not after the story / as a reality):
+      - the price tag (in a game, top left, instead of the order slip):
+        "El Cabeza $7.97", unfolds into the shelf ticket (Games Dept.,
+        Aisle 9) with "Put one in the cart"; testids tienda-price-tag /
+        -paper / -cart;
+      - the cart (module-level CART, emptied each visit by
+        useShoppingVisit): once one's in, the corner shows "Cart · 1 item"
+        with "Check out · $7.97" (tienda-cart, tienda-cart-checkout ->
+        story.onPurchase); the dock's buy button (story-purchase, now
+        CartButton in tienda.js) says "Put one in the cart · $7.97", then
+        "Check out · $7.97"; the phone bar's likewise (label read when
+        built, the press does the right thing either way);
+      - the PA, first visit only (shopPA = nudgeHere): 4 moves into a
+        game or 75 s after arriving (window.__EC_TEST_PA_MS__), the chime
+        and voice (audio.playPage, the music ducked) and its words as a
+        comic-lettered caption (tienda-pa-instock): El Cabeza in stock,
+        Games Department, Aisle 9, Register 3 open; a tap puts one in the
+        cart. Closing time 120 s later (__EC_TEST_CLOSING_MS__), or when a
+        game ends at least 35 s after (__EC_TEST_CLOSING_MIN_MS__): the
+        lights down a step (a fixed multiply layer, two flickers then
+        0.34, kept till the visit's over) and the PA (tienda-pa-closing):
+        closing in ten minutes, final purchases to the front; a tap checks
+        out. The tag folds away when the PA speaks. Hook:
+        window.__TIENDA_SHOP__() {cart, said, dim}.
+      The catalog's own "Purchase and bring home", the clerk's offer
+      after a game and the phone menu's item are left as they were.
+      e2e-store-nudge: a shopping section; e2e-story follows the cart.
+      (e2e-store-nudge failed once with no FAIL line printed, then passed
+      twice: timing-sensitive somewhere.)

@@ -109,7 +109,7 @@ console.log("\ndesktop: the store, the purchase, home");
   check("the dock's panel opens", await openDockPanel(page));
   const see = q(page, "tienda-order-form");
   check("the setup row has See the pieces", /See the pieces/i.test(await see.innerText()));
-  check("...and Purchase and bring home", await has(page, "story-purchase") && /Purchase and bring home/i.test(await q(page, "story-purchase").innerText()));
+  check("...and the cart: Put one in the cart (nothing about orders in the store)", await has(page, "story-purchase") && /Put one in the cart/i.test(await q(page, "story-purchase").innerText()));
 
   // The catalog's page of the pieces: five, to look at.
   await see.click();
@@ -128,11 +128,13 @@ console.log("\ndesktop: the store, the purchase, home");
   check("the dock's panel opens again", await openDockPanel(page));
   check("...where the game is only tried: Try a Game", (await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Game" }).count()) === 1 && (await page.locator('[data-testid="dock-panel"] button', { hasText: "Begin Game" }).count()) === 0);
   await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Game" }).first().click();
-  check("a game begins", await poll(() => has(page, "tienda-slip-tag"), 10000));
+  check("a game begins", await poll(() => has(page, "tienda-price-tag"), 10000));
+  check("...its price tag, not an order slip", !(await has(page, "tienda-slip-tag")) && /El Cabeza/i.test(await q(page, "tienda-price-tag").innerText()) && /7\.97/.test(await q(page, "tienda-price-tag").innerText()));
   check("...with the ten classic pieces", await page.evaluate(() => { const p = window.__EC_TEST_PIECES__ || []; return p.length === 10 && p.every((x) => ["cabeza", "turrito", "flaco", "chato", "opa"].includes(x.type)); }));
-  await q(page, "tienda-slip-tag").click();
-  check("the sales slip offers the purchase mid-game", await poll(() => has(page, "tienda-slip-purchase"), 5000));
-  await page.keyboard.press("Escape");
+  await q(page, "tienda-price-tag").click();
+  check("the tag unfolds: Put one in the cart", await poll(() => has(page, "tienda-price-cart"), 5000));
+  await q(page, "tienda-price-cart").click();
+  check("...and one's in the cart: Check out", await poll(async () => (await has(page, "tienda-cart")) && /Check out/i.test(await q(page, "tienda-cart-checkout").innerText()), 5000));
   // End it: the clerk's offer.
   const corner = await waitForDockCorner(page);
   check("the dock reopens mid-game", !!corner && (await reopenDockPanelFromCorner(page, corner)));
@@ -150,8 +152,9 @@ console.log("\ndesktop: the store, the purchase, home");
   if (await again.count()) await again.first().evaluate((b) => b.click());
   check("New Game brings the setup row back", await poll(() => has(page, "story-purchase"), 10000) || (await openDockPanel(page) && await has(page, "story-purchase")));
   await openDockPanel(page);
+  check("...its button now Check out (one's in the cart)", /Check out/i.test(await q(page, "story-purchase").innerText()));
   await q(page, "story-purchase").click();
-  check("Purchase and bring home starts the scene", await poll(() => has(page, "story-cut"), 5000, 100));
+  check("Check out starts the scene", await poll(() => has(page, "story-cut"), 5000, 100));
   check("...the purchase is remembered at once", (await owned(page) || {}).owned === true);
   const printed = await poll(async () => +(await q(page, "story-receipt").getAttribute("data-lines").catch(() => 0)) >= 11 && q(page, "story-receipt").innerText(), 15000, 150);
   check("the receipt prints: El Cabeza, 7.97, total 8.45", !!printed && /EL CABEZA/.test(printed) && /7\.97/.test(printed) && /8\.45/.test(printed), printed || "no receipt");

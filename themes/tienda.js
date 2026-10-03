@@ -539,12 +539,17 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
   const after = store && story.after && story.after();
   const confused = after && clerkConfusedNow();
   const gone = home && story.storeGone && story.storeGone();
+  const buyStyle = { ...quiet, flex: "0 0 auto", width: "100%", background: COLORS.charcoal, color: COLORS.cream || "#F4EEDC" };
   const under = store
-    ? h("button", {
-        key: "buy", type: "button", className: "ec-btn", "data-testid": confused ? "story-go-home-confused" : "story-purchase",
-        onClick: confused ? story.onGoHomeConfused : story.onPurchase,
-        style: { ...quiet, flex: "0 0 auto", width: "100%", background: COLORS.charcoal, color: COLORS.cream || "#F4EEDC" },
-      }, confused ? "Go home, confused." : after ? "Purchase another copy · $7.97" : "Purchase and bring home · $7.97")
+    ? (confused || after
+      ? h("button", {
+          key: "buy", type: "button", className: "ec-btn", "data-testid": confused ? "story-go-home-confused" : "story-purchase",
+          onClick: confused ? story.onGoHomeConfused : story.onPurchase,
+          style: buyStyle,
+        }, confused ? "Go home, confused." : "Purchase another copy · $7.97")
+      // (Before it's bought: into the cart, then to the register; user:
+      // nothing about "your order" in the store, tienda-shopping.js.)
+      : h(CartButton, { key: "buy", story, style: buyStyle }))
     // One line, however narrow the phone (the type shrinks a little): on
     // two, the dock's panel ran past its height and scrolled, and the
     // second line slid under its corner switches (user's screenshot).
@@ -574,7 +579,7 @@ export function shellSetupActions({ openOrderForm, story, specialOpen }) {
       { key: "see-pieces", label: "See the pieces", onClick: openOrderForm, testid: "shell-see-pieces", placement: "below", title: "The catalog's page of the pieces in the box" },
       clerkConfusedNow()
         ? { key: "confused", label: "Go home, confused.", onClick: story.onGoHomeConfused, testid: "shell-go-home-confused", placement: "below" }
-        : { key: "purchase", label: `${story.after && story.after() ? "Purchase another copy" : "Purchase and bring home"} \u00b7 $7.97`, onClick: story.onPurchase, testid: "shell-purchase", placement: "below" },
+        : { key: "purchase", label: cartCount() ? "Check out \u00b7 $7.97" : "Put one in the cart \u00b7 $7.97", onClick: () => (cartCount() ? story.onPurchase() : addToCart()), testid: "shell-purchase", placement: "below" },
     ];
   }
   if (!specialOpen) return [{ key: "see-pieces", label: "See the pieces", onClick: openOrderForm, testid: "shell-see-pieces", placement: "below", title: "The catalog's page of the pieces in the box" }];
@@ -582,6 +587,15 @@ export function shellSetupActions({ openOrderForm, story, specialOpen }) {
 }
 
 export { useSetupExtras, renderExtraOverlays, resetLid, clerkConfused } from "./tienda-overlay.js";
+import { useCart, addToCart, cartCount } from "./tienda-shopping.js";
+// The store's buy button before it's bought: into the cart, then check out.
+function CartButton({ story, style }) {
+  const n = useCart();
+  return React.createElement("button", {
+    type: "button", className: "ec-btn", "data-testid": "story-purchase", "data-cart": n ? "full" : "empty",
+    onClick: () => (n ? story.onPurchase() : addToCart()), style,
+  }, n ? "Check out \u00b7 $7.97" : "Put one in the cart \u00b7 $7.97");
+}
 // Nova: the store after the whole story (appliances on the table, their ad on the standee).
 export { setStoreRevisited } from "./tienda-store.js";
 import { clerkConfused as clerkConfusedNow } from "./tienda-overlay.js";
