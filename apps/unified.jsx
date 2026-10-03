@@ -9,7 +9,7 @@ import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { StoryCut, storyPreview, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, hallFlares, saveHallFlares, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
 import { createRealitiesMenu, goToWorld, onStoryRestart } from "../themes/realities.js";
-import { forgetSingularity, journeyPreview, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn } from "../engine/journey.js";
+import { forgetSingularity, journeyPreview, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn, setSceneLink } from "../engine/journey.js";
 import { prepareCommercial } from "../themes/den-ad-audio.js";
 import {
   TransitionStyles,
@@ -78,6 +78,9 @@ const STORY_PREVIEW = SUMMONS_PARAM || LURE_PARAM;
 // (Any scene's link: no reality gate over it, even after the story (user:
 // the hallway's link, with the story over, opened under the gate).)
 const SCENE_LINK = STORY_PREVIEW || !!SCENE_PARAM;
+// (The den's one-scene links, revelation, glutts, hall: no story notes over
+// them. Not the summons or the lure: those play the whole first trip.)
+if (SCENE_PARAM && !LURE_PARAM) setSceneLink();
 if (STORY_PREVIEW) { journeyPreview(); storyPreview(); }
 const takeScene = () => { const r = SCENE_PARAM; SCENE_PARAM = null; return r; };
 const storyBridge = { purchase() {}, backToStore() {}, restart() {}, restartNow() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };

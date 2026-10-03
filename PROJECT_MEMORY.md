@@ -5537,3 +5537,13 @@ phone menu until "Start the story over" (which clears it).
     apps/unified.jsx SCENE_LINK (any ?scene=: revelation, glutts, hall,
     lure, summons): no realityGate on any place. e2e-camera-glide: the
     hall link with the story over, no gate, the choice there.
+  - The special-orders note over the hallway (user, on ?scene=hall): it
+    shows after the Singularity until taken up or tapped away, and theirs
+    never had been. engine/journey.js setSceneLink/isSceneLink: the den's
+    one-scene links (revelation, glutts, hall; not summons or lure, which
+    play the whole first trip and end with the note) set it, and
+    tienda-overlay.js doesn't put the note up. And whenever the hall's
+    scene is on (html.ec-hall-scene) the note's hidden (den-hall.js CSS),
+    its guided tap-blocker stands down and a tap doesn't dismiss it.
+    e2e-camera-glide: the hall link with the story over and the note
+    never taken up: no note.

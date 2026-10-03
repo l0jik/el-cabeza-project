@@ -65,6 +65,12 @@ export function forgetSingularity() {
   try { [SINGULARITY_SEEN_KEY, SPECIAL_ORDER_NOTED_KEY, COMMERCIAL_AIRED_KEY].forEach((k) => localStorage.removeItem(k)); } catch (e) { /* nothing kept */ }
   announce();
 }
+/* A scene's own link (Nova's ?scene=, apps/unified.jsx): only that scene,
+   none of the story's notes over it (user: the special-orders note sat
+   over the hallway's preview). */
+let sceneLink = false;
+export function setSceneLink() { sceneLink = true; }
+export const isSceneLink = () => sceneLink;
 // The catalog's note that special orders are open (tienda-overlay.js),
 // seen; a preview keeps it in memory only.
 let notedThisVisit = false;

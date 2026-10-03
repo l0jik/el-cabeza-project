@@ -33,7 +33,7 @@ import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS
 import { ensurePaper, ensureAgedPaper } from "./tienda-textures.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
-import { singularitySeen, onJourneyChange, isCommercialOn, CLASSIC_PIECE_KEYS, specialOrderNoted, markSpecialOrderNoted } from "../engine/journey.js";
+import { singularitySeen, onJourneyChange, isCommercialOn, CLASSIC_PIECE_KEYS, specialOrderNoted, markSpecialOrderNoted, isSceneLink } from "../engine/journey.js";
 
 /* The classic game's order (engine/journey.js: the extras wait for the
    Singularity's first visit): the five pieces only, no laws, no cut
@@ -163,7 +163,7 @@ export function useSetupExtras(x) {
   // (a tap on it: the order form), and only then is it remembered as seen.
   React.useEffect(() => {
     if (!specialOpen || adOn) return undefined;
-    if (specialOrderNoted()) return undefined;
+    if (specialOrderNoted() || isSceneLink()) return undefined;
     setSpecialNote(true);
     return () => setSpecialNote(false);
   }, [specialOpen, adOn]);
@@ -177,7 +177,10 @@ export function useSetupExtras(x) {
     // scene: it stays until it's taken up, user.)
     // A tap off it then lights it in the Singularity's blue, to show where
     // to go (user: only then; a tap straight on it needs no prompting).
-    const guidedNow = () => home && story.guided && story.guided();
+    // (Never while the hall's scene is on: its taps are its own, and the
+    // note's hidden then, den-hall.js.)
+    const hallScene = () => typeof document !== "undefined" && document.documentElement.classList.contains("ec-hall-scene");
+    const guidedNow = () => home && story.guided && story.guided() && !hallScene();
     const onNote = (e) => !!(e.target && e.target.closest && e.target.closest(".td-special-note"));
     /* The first time through, nothing else on the screen can be touched
        while it's up (user: only the order form): every tap, drag, wheel
@@ -211,7 +214,7 @@ export function useSetupExtras(x) {
     BLOCK.forEach((ev) => window.addEventListener(ev, block, { capture: true, passive: false }));
     window.addEventListener("keydown", blockKey, true);
     const onDown = (e) => {
-      if (guidedNow()) return;
+      if (guidedNow() || hallScene()) return;
       if (!onNote(e)) dismissSpecialNote();
     };
     document.addEventListener("pointerdown", onDown, true);
