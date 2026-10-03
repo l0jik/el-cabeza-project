@@ -423,8 +423,8 @@ function figRig() {
     return { j, k };
   };
   const ARM = [3.9, 3.6, 0.62, 0.5, 0.4], LEG = [5.6, 5.3, 0.95, 0.68, 0.5];
-  const arms = [-1, 1].map((s) => limb(new THREE.Vector3(s * 2.55, 7.1, 0), ARM[0], 0));
-  const legs = [-1, 1].map((s) => limb(new THREE.Vector3(s * 1.15, -0.4, 0), LEG[0], 0));
+  const arms = [-1, 1].map((s) => limb(new THREE.Vector3(s * 2.72, 7.1, 0), ARM[0], 0));
+  const legs = [-1, 1].map((s) => limb(new THREE.Vector3(s * 1.02, -0.4, 0), LEG[0], 0));
   // The rest pose: arms straight out to the sides (so the hands lie along
   // the grid's rows, see skinData), legs a little apart, straight.
   [arms, legs].forEach((set, li) => set.forEach(({ j }, i) => {
@@ -451,10 +451,10 @@ function figRig() {
   const I = new THREE.Matrix4();
   const at = (o, x, y, z) => V(x, y, z).applyMatrix4(o.matrixWorld);
   const parts = [   // [bone, fn, blend]
-    [0, ell(I, V(0, 0.5, 0), V(2.25, 1.6, 1.35)), 0],      // hips
-    [0, ell(I, V(0, 3.1, 0), V(2.15, 2.4, 1.28)), 1.1],    // waist
-    [0, ell(I, V(0, 5.6, 0), V(2.75, 2.2, 1.62)), 1.1],    // chest
-    [0, ell(I, V(0, 7.5, 0), V(2.1, 0.85, 1.15)), 0.8],    // shoulders
+    [0, ell(I, V(0, 0.5, 0), V(1.9, 1.55, 1.3)), 0],       // hips (narrower, user)
+    [0, ell(I, V(0, 3.1, 0), V(2.0, 2.4, 1.26)), 1.1],     // waist
+    [0, ell(I, V(0, 5.6, 0), V(3.0, 2.25, 1.66)), 1.1],    // chest (a little wider, user)
+    [0, ell(I, V(0, 7.5, 0), V(2.3, 0.85, 1.15)), 0.8],    // shoulders
     [1, cone(V(0, 7.9, 0), V(0, 10.1, 0.05), 0.74, 0.62), 0.6],  // neck
     [1, ell(restInv[1], V(0, 1.3, 0.05), V(1.35, 1.6, 1.45)), 0.5],  // head
   ];
@@ -958,8 +958,8 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   function stepWisps(s, dt, m) {
     if (!wisps || !fig) return;
     const W = wisps;
-    const grow = smooth((s - 4000) / 22000);
-    const rate = fig.fig.visible ? 1.5 + 18 * grow + 30 * m : 0;
+    const grow = smooth((s - 3000) / 18000);
+    const rate = fig.fig.visible ? 3 + 24 * grow + 30 * m : 0;
     W.carry += rate * dt;
     fig.fig.updateMatrixWorld(true);
     wc.copy(sphereAt).sub(figPos).normalize();
@@ -973,7 +973,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       wv.fromBufferAttribute(at, k).applyMatrix4(mesh.matrixWorld);
       p.x = wv.x; p.y = wv.y; p.z = wv.z;
       wv.sub(figPos).normalize();
-      const sp = (0.8 + 1.2 * Math.random()) * shrink;
+      const sp = (1.5 + 1.5 * Math.random()) * shrink;
       p.vx = wv.x * sp + wc.x * 0.8; p.vy = wv.y * sp + 1.1 * shrink + wc.y * 0.8; p.vz = wv.z * sp + wc.z * 0.8;
       p.age = 0; p.life = 5 + 3.5 * Math.random(); p.size = (3 + 3.5 * Math.random()) * shrink; p.ph = Math.random() * 6.28;
       p.a0 = Math.random() * 6.28; p.spin = (Math.random() - 0.5) * 0.25;
@@ -989,9 +989,10 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       p.vx *= 1 - 0.15 * dt; p.vy *= 1 - 0.1 * dt; p.vz *= 1 - 0.15 * dt;
       W.pos[i * 3] = p.x; W.pos[i * 3 + 1] = p.y; W.pos[i * 3 + 2] = p.z;
       // (Comes up slowly, lingers, thins away; swells as it goes.)
-      // (User: too much smoke on the body: fainter, and only once it's
-      // drifted off the body, not over it.)
-      W.al[i] = Math.pow(Math.sin(Math.PI * Math.min(1, u)), 1.4) * 0.2 * smooth((u - 0.12) / 0.3);
+      // (User: too much smoke on the body, then: where did they go? Off
+      // the body quickly, coming up only as it leaves it; full strength
+      // out round them.)
+      W.al[i] = Math.pow(Math.sin(Math.PI * Math.min(1, u)), 1.4) * 0.38 * smooth((u - 0.05) / 0.2);
       W.sz[i] = p.size * (1 + 1.6 * u);
       W.ang[i] = p.a0 + p.spin * p.age;
     }

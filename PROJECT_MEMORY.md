@@ -5941,3 +5941,14 @@ phone menu until "Start the story over" (which clears it).
       more curled, blend 0.07 -> 0.1 (fewer specks between them at the
       knuckles); thumb longer; feet 1.5 -> 1.85 long (centre z 0.98).
       20.9k vertices.
+    - Emanations back (user: why none any more? The last round had made
+      them nearly invisible against the bright ring): alpha 0.2 -> 0.38,
+      faded in over u 0.05..0.25 of their life (so still not over the
+      body as they leave it), thrown off faster (speed 1.5..3 * scale,
+      was 0.8..2), more of them sooner (rate 3 + 24 * grow, grow over
+      3..21 s). (Captures taken just after a time skip undercount them:
+      the pool fills in real time; let it run ~8 s before judging.)
+    - Narrower hips, a little wider chest (user): hips 2.25 -> 1.9 wide,
+      waist 2.15 -> 2.0, chest 2.75 -> 3.0, shoulders 2.1 -> 2.3; the
+      shoulder joints out to x 2.72 (were 2.55), the hips' in to 1.02
+      (were 1.15).
