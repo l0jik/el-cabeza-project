@@ -158,6 +158,16 @@ const CSS = `
 .den-ending .crawl .text p { margin: 0 0 1.1em; }
 .den-ending .crawl .text p.last { text-align: center; margin-top: 2.2em; font-weight: 500; }
 .den-ending .crawl .text em { font-style: italic; }
+/* A hint of the void's gauze on the letters (user: very slight): a
+   ghost of the words, only their glow, a little above them, seen through
+   drifting patches of mist (a soft noise, moving slowly up and across),
+   as if a breath of vapour were coming off them. */
+.den-ending .crawl .text .mist { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; color: transparent; opacity: 0.55;
+  transform: translateY(-0.12em);
+  text-shadow: 0 0 9px rgba(140,215,255,0.7), 0 -0.3em 20px rgba(90,170,255,0.45), 0 -0.6em 30px rgba(90,170,255,0.3);
+  -webkit-mask-image: var(--mist); mask-image: var(--mist); -webkit-mask-size: 240px 480px; mask-size: 240px 480px; }
+.den-ending .crawl .text .mist em { font-style: italic; }
+@media (prefers-reduced-motion: reduce) { .den-ending .crawl .text .mist { display: none; } }
 `;
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -513,9 +523,36 @@ function impulse(ctx, secs, decay) {
   return b;
 }
 
+/* The mist's noise: soft, tiling patches (value noise on a wrapped
+   lattice, a few octaves), stretched upward, as an alpha mask. Made once. */
+let MIST_URL = null;
+function mistNoise(doc) {
+  if (MIST_URL !== null) return MIST_URL;
+  try {
+    const W = 128, H = 256, c = doc.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d"), im = g.createImageData(W, H);
+    let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const oct = [[4, 8, 0.55], [8, 16, 0.3], [16, 32, 0.15]].map(([gx, gy, a]) => ({ gx, gy, a, v: Array.from({ length: gx * gy }, rnd) }));
+    const sm = (t) => t * t * (3 - 2 * t);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let n = 0;
+      oct.forEach(({ gx, gy, a, v }) => {
+        const fx = (x / W) * gx, fy = (y / H) * gy, ix = Math.floor(fx), iy = Math.floor(fy), tx = sm(fx - ix), ty = sm(fy - iy);
+        const at = (i, j) => v[((j % gy) * gx) + (i % gx)];
+        n += a * ((at(ix, iy) * (1 - tx) + at(ix + 1, iy) * tx) * (1 - ty) + (at(ix, iy + 1) * (1 - tx) + at(ix + 1, iy + 1) * tx) * ty);
+      });
+      const k = (y * W + x) * 4, al = Math.max(0, Math.min(1, (n - 0.42) / 0.3));
+      im.data[k] = im.data[k + 1] = im.data[k + 2] = 255; im.data[k + 3] = Math.round(255 * al * al * (3 - 2 * al));
+    }
+    g.putImageData(im, 0, 0);
+    MIST_URL = c.toDataURL("image/png");
+  } catch (e) { MIST_URL = ""; }
+  return MIST_URL;
+}
+
 export function createEnding({ audio, onFinish, onPick, onStay }) {
   const doc = typeof document !== "undefined" ? document : null;
-  let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null, crawl = null, crawlText = null, crawlLast = null, crawlP = 0, crawlTap = false, crawlFade = null, lastS = 0;
+  let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null, crawl = null, crawlText = null, crawlLast = null, crawlMist = null, mistTick = 0, crawlP = 0, crawlTap = false, crawlFade = null, lastS = 0;
   let renderer = null, scene = null, camera = null, raf = 0, t0 = 0, stage = "idle", menu = null, finished = false;
   let fig = null, figMat = null, disposables = [], snd = null, skipMs = 0, wisps = null;
   let look = { yaw: 0, pitch: 0, goalYaw: 0, goalPitch: 0 }, dragAt = null;
@@ -638,6 +675,10 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     crawlText.innerHTML = CRAWL_TEXT.map((t, i) => `<p${i === CRAWL_TEXT.length - 1 ? ' class="last"' : ""}>${md(t)}</p>`).join("");
     const plane = doc.createElement("div"); plane.className = "plane"; plane.appendChild(crawlText); crawl.appendChild(plane); root.appendChild(crawl);
     crawlLast = crawlText.querySelector("p.last");
+    crawlMist = doc.createElement("div"); crawlMist.className = "mist"; crawlMist.setAttribute("aria-hidden", "true");
+    crawlMist.innerHTML = crawlText.innerHTML;
+    const mn = mistNoise(doc); if (mn) crawlMist.style.setProperty("--mist", `url(${mn})`);
+    crawlText.appendChild(crawlMist);
     veil = doc.createElement("div"); veil.className = "veil"; root.appendChild(veil);
     doc.body.appendChild(root);
     // The camera can't be moved (user); touches here go nowhere (the
@@ -897,6 +938,11 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
         if (r && r.height > 0 && r.top + r.height / 2 < vh / 2) { crawlTap = true; crawl.setAttribute("data-dismissable", "true"); }
       }
       crawl.style.opacity = String(smooth((s - CRAWL[0]) / 900) * (crawlFade == null ? 1 : 1 - smooth((s - crawlFade) / CRAWL_FADE)));
+      // (The mist drifting: up, and a little side to side; every other frame.)
+      if (crawlMist && (mistTick = (mistTick + 1) % 2) === 0) {
+        const q = (s - CRAWL[0]) / 1000, mp = `${(Math.sin(q / 7) * 40).toFixed(1)}px ${(-q * 16).toFixed(1)}px`;
+        crawlMist.style.webkitMaskPosition = mp; crawlMist.style.maskPosition = mp;
+      }
     }
     if (crawlFade != null && snd && snd.droneOn) drone(false, CRAWL_FADE / 1000);
     if (stage === "black" && (s >= MENU_AT || (crawlFade != null && s >= crawlFade + CRAWL_FADE))) { drone(false, 4); if (crawl) crawl.classList.remove("on"); openMenu(); }
@@ -932,7 +978,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     disposables.forEach((d) => d && d.dispose && d.dispose()); disposables = [];
     if (renderer) { renderer.dispose(); renderer.forceContextLoss && renderer.forceContextLoss(); renderer = null; }
     if (root) { root.remove(); root = null; }
-    words = []; veil = null; dark = null; crawl = null; crawlText = null; crawlLast = null; stage = stage === "leaving" ? "done" : stage;
+    words = []; veil = null; dark = null; crawl = null; crawlText = null; crawlLast = null; crawlMist = null; stage = stage === "leaving" ? "done" : stage;
   }
 
   return {

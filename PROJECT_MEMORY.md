@@ -5755,3 +5755,11 @@ phone menu until "Start the story over" (which clears it).
       and its drone quieter and lower: DRONE_LEVEL 0.45 (was 0.75),
       played a fourth down (DRONE_RATE 0.7492, A to E; the <audio>
       fallback with preservesPitch off).
+    - A hint of the void's gauze on the crawl's letters (user: very
+      slight): .mist, a ghost of the words inside .text (aria-hidden, the
+      same markup so it wraps the same), transparent text with only a glow
+      (three soft text-shadows, the furthest -0.6em up), opacity 0.55,
+      seen through a mask of soft tiling noise (mistNoise(): value noise
+      on a wrapped lattice, 3 octaves, 128x256, made once as a data URL,
+      sized 240x480) whose position drifts up 16 px/s and sways 40 px
+      (set every other frame from frame()). Off under reduced motion.
