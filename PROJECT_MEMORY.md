@@ -5750,3 +5750,8 @@ phone menu until "Start the story over" (which clears it).
       plain <audio> for both. Measured over http: music out peak ~-5,
       RMS ~-17 dB (desk and phone); the drone at 0.42 was ~-34 RMS, now
       ~5 dB up. Hooks: state().music/drone; meter() {out, music, drone}.
+    - The crawl centered (user; text-wrap: balance), a little slower
+      (CRAWL 40 s, was 34: a touch will do from ~28 s in on a desktop),
+      and its drone quieter and lower: DRONE_LEVEL 0.45 (was 0.75),
+      played a fourth down (DRONE_RATE 0.7492, A to E; the <audio>
+      fallback with preservesPitch off).

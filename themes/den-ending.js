@@ -105,7 +105,7 @@ const BLACK = [ZOOM[1] - 700, ZOOM[1] + 200];         // to black
 /* Then, on the black (user: like the opening of Star Wars, in neon blue):
    the last words crawl up and away into the dark, at an even pace, and
    only when they're gone does the switcher come. No skipping it. */
-const CRAWL = [BLACK[1] + 1500, BLACK[1] + 1500 + 34000];
+const CRAWL = [BLACK[1] + 1500, BLACK[1] + 1500 + 40000];   // (40 s: a little slower, user)
 const MENU_AT = CRAWL[1] + 700;
 const CRAWL_FADE = 2750;   // let go by a touch (once it may be), its fade
 const CRAWL_TEXT = [
@@ -145,7 +145,7 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) { .den-ending .word.on .ph, .den-ending .word.on::before { animation: none; } }
 .den-ending.off { transition: opacity 1.2s ease; opacity: 0; }
 /* The crawl: a plane tilted back into the dark, the words on it in neon
-   blue, justified, the last line on its own; dissolving into the black as
+   blue, centered (user), the last line on its own; dissolving into the black as
    they go (the mask), not cut off. */
 .den-ending .crawl { position: absolute; inset: 0; overflow: hidden; pointer-events: none; display: none; opacity: 0;
   perspective: 300px; perspective-origin: 50% 0%;
@@ -154,7 +154,7 @@ const CSS = `
 .den-ending .crawl .plane { position: absolute; left: 50%; bottom: 0; height: 100%; width: min(84vw, 600px); transform-origin: 50% 100%; transform: translateX(-50%) rotateX(24deg); }
 .den-ending .crawl .text { position: absolute; left: 0; right: 0; top: 100%; will-change: transform;
   color: #6fd6ff; font: 600 clamp(19px, 5vw, 34px)/1.42 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.02em;
-  text-align: justify; hyphens: none; text-shadow: 0 0 6px rgba(80,200,255,0.75), 0 0 22px rgba(30,130,255,0.55); }
+  text-align: center; hyphens: none; text-wrap: balance; text-shadow: 0 0 6px rgba(80,200,255,0.75), 0 0 22px rgba(30,130,255,0.55); }
 .den-ending .crawl .text p { margin: 0 0 1.1em; }
 .den-ending .crawl .text p.last { text-align: center; margin-top: 2.2em; font-weight: 500; }
 .den-ending .crawl .text em { font-style: italic; }
@@ -489,7 +489,10 @@ function buildFigure(mat) {
    with the body, while the hall's choice is up); from disk (file:),
    played as plain <audio>. */
 const MUSIC_URL = "el-cabeza-den-void-music.mp3", DRONE_URL = "el-cabeza-den-crawl-drone.mp3";
-const MUSIC_LEVEL = 0.9, DRONE_LEVEL = 0.75;
+const MUSIC_LEVEL = 0.9, DRONE_LEVEL = 0.45;
+// (The drone a fourth lower than it was made, A to E: user, lower, and
+// quieter.)
+const DRONE_RATE = 0.7492;
 const fromDisk = () => typeof location !== "undefined" && location.protocol === "file:";
 const bytes = {};
 function fetchBytes(url) {
@@ -584,7 +587,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const c = snd;
     if (!c) return;
     if (c.els) {
-      if (on && !c.els.drone && typeof Audio !== "undefined") { const el = (c.els.drone = new Audio(DRONE_URL)); el.loop = true; el.volume = 0.35; const p = el.play(); if (p && p.catch) p.catch(() => {}); }
+      if (on && !c.els.drone && typeof Audio !== "undefined") { const el = (c.els.drone = new Audio(DRONE_URL)); el.loop = true; el.volume = 0.2; el.preservesPitch = false; el.mozPreservesPitch = false; el.webkitPreservesPitch = false; el.playbackRate = DRONE_RATE; const p = el.play(); if (p && p.catch) p.catch(() => {}); }
       else if (!on && c.els.drone) { try { c.els.drone.pause(); } catch (e) { /* fine */ } c.els.drone = null; }
       return;
     }
@@ -595,7 +598,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       g.exponentialRampToValueAtTime(DRONE_LEVEL, t + secs);
       audioBuffer(c.ctx, DRONE_URL).then((buf) => {
         if (snd !== c || !c.droneOn) return;
-        const src = c.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+        const src = c.ctx.createBufferSource(); src.buffer = buf; src.loop = true; src.playbackRate.value = DRONE_RATE;
         // (Past any silence the encoder put at its ends: a seamless loop.)
         const d = buf.getChannelData(0); let a = 0, z = d.length - 1;
         while (a < 8192 && Math.abs(d[a]) < 1e-4) a++;

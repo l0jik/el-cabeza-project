@@ -144,7 +144,7 @@ check("...the controls still away", await page.evaluate(() => document.documentE
   await page.waitForTimeout(300);
   check("...a touch early on does nothing", await page.evaluate(() => { const d = window.__DEN_ENDING__(); return !d.crawlTap && !d.crawlFade && d.stage === "black"; }));
   const st3 = await page.evaluate(() => window.__DEN_ENDING__());
-  await page.evaluate((ms) => window.__DEN_ENDING_SKIP__(ms), Math.max(0, st3.crawlAt + 24000 - st3.t));
+  await page.evaluate((ms) => window.__DEN_ENDING_SKIP__(ms), Math.max(0, st3.crawlAt + 31000 - st3.t));
   check("...its last line up in the top half: now a touch will do", !!(await poll(async () => (await page.evaluate(() => window.__DEN_ENDING__().crawlTap)), 4000)));
   await page.mouse.click(vw.width / 2, vw.height / 2);
   check("...and does: fading", !!(await poll(async () => (await page.evaluate(() => window.__DEN_ENDING__().crawlFade)), 1500)));
