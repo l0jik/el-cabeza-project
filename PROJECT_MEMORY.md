@@ -5962,3 +5962,14 @@ phone menu until "Start the story over" (which clears it).
       crown); the feet 0.6 toward a flat box; the palm a rounded box.
       Joins a little tighter (trunk 1.1 -> 0.85, shoulder joint 0.7 ->
       0.55). 21.5k vertices.
+- Lab, Elementarism's sound (user: the palette was bad; something very
+  slight and midrange, less is more, distinction golden): the sweeps are
+  gone. One voice, a small struck bar (bar(f, g, delay, dur, lean)): a
+  soft sine tick with a faint 2.76x inharmonic overtone (a tone bar's),
+  leaning a hair downward as it sounds (the diagonal), a little room
+  (verb 0.22); and one interval for everything, the tritone (E 659 /
+  B-flat 932, the octave's own diagonal): rising to select, falling to
+  deselect, descending on a capture, climbing on a win; blocked, the low
+  B-flat against a note a semitone up. Measured offline (OfflineAudioContext
+  driven through playLabVoice): peaks about 5 dB under Swiss, hover all but
+  silent (-46 dB).
