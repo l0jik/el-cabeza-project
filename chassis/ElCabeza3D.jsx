@@ -299,7 +299,11 @@ const DOCK_WORDS = {
   wonCaption: "Well played.",
 };
 
-export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null }) {
+export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTouchTilt = false }) {
+  // (Touch drags tilt the other way up and down: Nova's first scene, the
+  // store before the game's bought, user. Read at each touch-down.)
+  const invertTouchTiltRef = useRef(invertTouchTilt);
+  invertTouchTiltRef.current = invertTouchTilt;
   const C = carry && typeof carry === "object" ? carry : null;
   const carried = (key, fallback) => (C && C[key] !== undefined ? C[key] : typeof fallback === "function" ? fallback() : fallback);
   const opponentPrefsRef = useRef(null);
@@ -5207,7 +5211,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        beyond it. So the spot you grab always goes with your finger. */
     const grab = { theta: 0, phi: 0 };
     const axisAt = new THREE.Vector3();
-    function grabLatch(clientY) {
+    function grabLatch(clientY, pointerType) {
       const rect = el.getBoundingClientRect();
       let mid = rect.height / 2;
       const { camera: c, boardGroup: g } = three.current;
@@ -5219,7 +5223,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         else { axisAt.applyMatrix4(c.projectionMatrix); mid = (1 - axisAt.y) / 2 * rect.height; }
       }
       grab.theta = clientY - rect.top < mid ? 1 : -1;
-      grab.phi = cam.current.dollhouse ? 1 : -1;
+      grab.phi = (cam.current.dollhouse ? 1 : -1) * (pointerType === "touch" && invertTouchTiltRef.current ? -1 : 1);
     }
     /* Stays false until cumulative pointer travel since the down event
        crosses DRAG_DEAD_ZONE_PX — see onMove. Every touch carries a few
@@ -5474,7 +5478,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (active.size === 1) {
         dragging = true;
         dragArmed = false;
-        grabLatch(ev.clientY);
+        grabLatch(ev.clientY, ev.pointerType);
         /* pointerType check is belt-and-braces: a touch contact won't
            carry altKey anyway, so excluding it here simply guarantees
            the touch paths below are reached in exactly the same states

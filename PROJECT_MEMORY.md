@@ -5988,3 +5988,31 @@ phone menu until "Start the story over" (which clears it).
   (sfx.prefetchReceipt, unified.jsx), decoded when the register rings;
   each decided just before it's due, the made sounds if the recording
   isn't there (and from disk, file:, always).
+- Den ending, round (user):
+    - Less walking, the legs varied: `lg` weights in pose (walk only a
+      couple of strides, 3.2..7.6 s; tuck, both knees up, 13.5..17; splay,
+      wide and straight, 19.5..22.8; one knee up as the other stretches,
+      left 25.2..28.2, right 30.5..33.2; stretch, long and pointed,
+      34.5..41.5), over a float with more of its own uneven drift (two
+      sines a joint). The reflex steps at 23 s are gone.
+    - A spine: `chest`, a bone at the waist (y 3.6; chest and shoulders
+      on it, the head and arms its children; the waist part shared so the
+      bend spreads through it). reachToSphere's target now in the chest's
+      frame. Breath, struggle and "taken" move it a little.
+    - It was always El Cabeza: ecstasy(f, cr, op, t), last over the pose:
+      `curl` from the last line's start (+150 ms, 1.3 s up) to just before
+      "El Cabeza" (~1.85 s in): the spine bent 0.85 forward, head down,
+      knees drawn up, arms wrapped round, a quiver; then `open` (650 ms):
+      arched back (-0.62), head thrown back (-1.0), arms flung wide and
+      back, legs swept back, held on into the sphere; the body turned
+      0.95 rad as it opens so the arch is seen in profile from behind.
+      The reach toward the sphere now lets go as the last line comes.
+- Nova's first scene (the store before the game's bought): touch drags
+  tilt the other way up and down (user). Chassis prop invertTouchTilt
+  (grabLatch: pointerType "touch" flips grab.phi), set by unified.jsx for
+  tienda while !readOwned(). Mouse unchanged; the standalone store page
+  unchanged. Checked with a CDP touch drag: Nova's store tilts up on a
+  drag down, the store page down.
+- (The store's first song, asked: its tape, assets/tienda/muzak-1974.mp3,
+  served as el-cabeza-tienda-muzak.mp3: the user's upload "Mall Music
+  Muzak - Mall of 1974 - 03 Third Floor Spending Spree".)

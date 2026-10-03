@@ -701,6 +701,9 @@ function UnifiedApp() {
             carry={carry}
             carryRef={carryRef}
             mobileShell={mobileShell}
+            // (The first scene, the store before the game's bought: a
+            // touch tilts the other way up and down, user.)
+            invertTouchTilt={themeName === "tienda" && !readOwned()}
             initialMuted={muted}
             onMutedChange={(m) => {
               setMuted(m);

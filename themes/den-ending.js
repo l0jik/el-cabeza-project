@@ -354,15 +354,44 @@ function reachToSphere(f, g, to, t) {
   // The head lifted to it.
   f.headG.rotation.x += (-0.38 - f.headG.rotation.x) * g * 0.8;
 }
-/* `walk` (0..1): legs stepping out of habit (user: they're used to
-   walking, and only slowly realize they're weightless), one forward as
-   the other goes back, the knee lifting as it swings through. Without it
-   the legs aren't left dangling: they float the way a body at rest in
-   no gravity does, hips and knees softly bent, thighs a little forward,
-   each drifting on its own slow time. `bal` (0..1): arms out wide,
-   paddling, trying to right themselves as they somersault. */
+/* The legs (user: not dangling; then: too much walking, vary it): they
+   float the way a body at rest in no gravity does, hips and knees softly
+   bent, thighs a little forward, each drifting on its own slow, uneven
+   time; and now and then one thing, each its while (`lg`, weights 0..1):
+   `walk`, a couple of strides out of habit, early; `tuck`, both knees
+   drawn up; `splay`, the legs spread wide, nearly straight; `knee`, one
+   knee drawn up as the other leg stretches away ([left, right]);
+   `stretch`, both legs long and pointed, reaching. `bal` (0..1): arms
+   out wide, paddling, trying to right themselves as they somersault. */
 const WALK_W = (Math.PI * 2) / 1.45;
-function pose(f, t, a, m, st = 0, g = 0, walk = 0, bal = 0) {
+const NO_LEGS = { walk: 0, tuck: 0, splay: 0, knee: [0, 0], stretch: 0 };
+/* It was always El Cabeza (user): realizing it, the body curls forward,
+   in on itself (`cr`: the spine bent, the head down, the knees drawn up
+   to it, the arms wrapped round), then throws itself open (`op`): arched
+   back, the head thrown back, the arms flung wide and back, the legs
+   swept back, ecstatic, given up to it. Blended over the pose, last. */
+const _ecq = new THREE.Quaternion(), _ecv = new THREE.Vector3(), _ece = new THREE.Euler();
+function ecstasy(f, cr, op, t) {
+  if (cr <= 0.001 && op <= 0.001) return;
+  const quiver = 0.04 * Math.sin(t * 9.0) * cr;
+  const lerpX = (o, c, p) => { o.rotation.x += (c - o.rotation.x) * cr; o.rotation.x += (p - o.rotation.x) * op; };
+  lerpX(f.chest, 0.85 + quiver, -0.62 + 0.04 * Math.sin(t * 1.3));
+  lerpX(f.headG, 0.55, -1.0);
+  f.headG.rotation.y *= 1 - Math.max(cr, op);
+  const aim = (o, w, x, y, z) => { if (w <= 0.001) return; _ecv.set(x, y, z).normalize(); o.quaternion.slerp(_ecq.setFromUnitVectors(Y_DOWN, _ecv), w); };
+  const bend = (o, w, x, y = 0) => { if (w <= 0.001) return; o.quaternion.slerp(_ecq.setFromEuler(_ece.set(x, y, 0)), w); };
+  f.arms.forEach(({ j, k }, i) => {
+    const s = i ? 1 : -1;
+    aim(j, cr, -s * 0.3, -0.45, 0.85); bend(k, cr, -2.1);
+    aim(j, op, s * 0.92, 0.5 + 0.04 * Math.sin(t * 1.7 + i), -0.5); bend(k, op, -0.08, s * 0.6);
+  });
+  f.legs.forEach(({ j, k }, i) => {
+    const s = i ? 1 : -1;
+    aim(j, cr, s * 0.12, -0.2, 0.97); bend(k, cr, 2.25);
+    aim(j, op, s * 0.22, -0.82, -0.55); bend(k, op, 0.3 + (i ? 0.12 : 0));
+  });
+}
+function pose(f, t, a, m, st = 0, g = 0, lg = NO_LEGS, bal = 0) {
   const breath = Math.sin((t * Math.PI * 2) / 7.2);
   const fl = (i, k) => Math.sin(t * (6.1 + 1.3 * i) + k * 2.1 + i) * 0.7 + Math.sin(t * (9.7 - 0.9 * i) + k * 1.3) * 0.3;
   f.arms.forEach(({ j, k }, i) => {
@@ -383,14 +412,25 @@ function pose(f, t, a, m, st = 0, g = 0, walk = 0, bal = 0) {
     const s = i ? 1 : -1;
     _b.set(s * 0.14, -0.62, -0.78);
     if (st > 0) _b.x += s * 0.3 * st * fl(i + 2, 0), _b.z += 0.55 * st * fl(i + 2, 1);   // kicking
-    // (The thigh's angle forward of straight down: floating, or a stride.)
-    const ph = t * WALK_W + i * Math.PI, stride = Math.sin(ph);
-    const hip = (0.62 + 0.12 * Math.sin(t * 0.29 + i * 2.1)) * (1 - walk) + walk * (0.18 + 0.62 * stride);
-    _c.set(s * (0.1 + 0.04 * Math.sin(t * 0.23 + i)), -Math.cos(hip), Math.sin(hip));
+    // (The thigh's angle forward of straight down, its spread, the knee.)
+    let hip = 0.62 + 0.16 * Math.sin(t * 0.29 + i * 2.1) + 0.08 * Math.sin(t * 0.71 + i * 4.0);
+    let spread = 0.1 + 0.07 * Math.sin(t * 0.23 + i);
+    let knee = 0.95 + 0.22 * Math.sin(t * 0.37 + i * 1.3) + 0.1 * Math.sin(t * 0.9 + i * 2.6);
+    const to = (w, h, kn, sp) => { if (w <= 0) return; hip += (h - hip) * w; knee += (kn - knee) * w; if (sp != null) spread += (sp - spread) * w; };
+    const ph = t * WALK_W + i * Math.PI;
+    to(lg.walk, 0.18 + 0.62 * Math.sin(ph), 0.22 + 0.95 * Math.max(0, Math.sin(ph + 1.2)));
+    to(lg.tuck, 1.3 + 0.08 * Math.sin(t * 1.1 + i), 2.0 + 0.1 * Math.sin(t * 0.8 + i * 2));
+    to(lg.splay, 0.28, 0.35, 0.62 + 0.05 * Math.sin(t * 0.9 + i));
+    to(lg.knee[i], 1.35, 1.9);
+    to(lg.knee[1 - i], -0.05, 0.12);
+    to(lg.stretch, -0.12 + 0.05 * Math.sin(t * 0.8 + i), 0.04);
+    _c.set(s * spread, -Math.cos(hip), Math.sin(hip));
     aimLimb(j, _b, _c, new THREE.Vector3(s * 0.16, -0.9, -0.3), a, m);
-    const knee = (0.95 + 0.14 * Math.sin(t * 0.37 + i * 1.3)) * (1 - walk) + walk * (0.22 + 0.95 * Math.max(0, Math.sin(ph + 1.2)));
     k.rotation.x = 0.35 * (1 - a) + knee * a * (1 - m) + (i ? 0.38 : 0.24) * m + 0.7 * st * (0.5 + 0.5 * fl(i + 2, 2));
   });
+  // (The spine: a breath in it, a little curl as they struggle, a little
+  // arch as they're taken.)
+  f.chest.rotation.set(0.03 * breath * a + 0.25 * st * (0.5 + 0.5 * fl(5, 0)) - 0.12 * m, 0.1 * st * fl(5, 1), 0);
   f.headG.rotation.x = -0.5 * (1 - a) + (-0.2 - 0.04 * breath) * a * (1 - m) - 0.42 * m + 0.35 * st * fl(4, 0);
   f.headG.rotation.y = 0.08 * Math.sin(t * 0.17) * a + 0.45 * st * fl(4, 1);
   if (g > 0.001) {
@@ -416,14 +456,20 @@ const SKIN_CELL = 0.17, SKIN_FINE = 0.06, SKIN_SIGMA = 0.32;
 // The skeleton in its rest pose, and the body's parts round it.
 function figRig() {
   const fig = new THREE.Group();
-  const headG = new THREE.Group(); headG.position.set(0, 9.4, 0); fig.add(headG);
-  const limb = (at, len1, bend) => {
-    const j = new THREE.Group(); j.position.copy(at); fig.add(j);
+  /* The spine (user: curling forward, then thrown open, arched back): the
+     chest, and the head and arms with it, turn on it at the waist; the
+     hips and legs stay with the body. The waist is shared by both (its
+     skin bends half way), so the bend is spread through it. */
+  const CHEST_AT = 3.6;
+  const chest = new THREE.Group(); chest.position.set(0, CHEST_AT, 0); fig.add(chest);
+  const headG = new THREE.Group(); headG.position.set(0, 9.4 - CHEST_AT, 0); chest.add(headG);
+  const limb = (at, len1, bend, parent = fig) => {
+    const j = new THREE.Group(); j.position.copy(at); parent.add(j);
     const k = new THREE.Group(); k.position.set(0, -len1, 0); k.rotation.x = bend; j.add(k);
     return { j, k };
   };
   const ARM = [3.9, 3.6, 0.62, 0.5, 0.4], LEG = [5.6, 5.3, 0.95, 0.68, 0.5];
-  const arms = [-1, 1].map((s) => limb(new THREE.Vector3(s * 2.72, 7.1, 0), ARM[0], 0));
+  const arms = [-1, 1].map((s) => limb(new THREE.Vector3(s * 2.72, 7.1 - CHEST_AT, 0), ARM[0], 0, chest));
   const legs = [-1, 1].map((s) => limb(new THREE.Vector3(s * 1.02, -0.4, 0), LEG[0], 0));
   // The rest pose: arms straight out to the sides (so the hands lie along
   // the grid's rows, see skinData), legs a little apart, straight.
@@ -432,7 +478,7 @@ function figRig() {
     j.quaternion.setFromUnitVectors(Y_DOWN, new THREE.Vector3(s * (li ? 0.1 : 1), li ? -1 : 0, 0).normalize());
   }));
   fig.updateMatrixWorld(true);
-  const bones = [fig, headG, arms[0].j, arms[0].k, arms[1].j, arms[1].k, legs[0].j, legs[0].k, legs[1].j, legs[1].k];
+  const bones = [fig, headG, arms[0].j, arms[0].k, arms[1].j, arms[1].k, legs[0].j, legs[0].k, legs[1].j, legs[1].k, chest];
   const restInv = bones.map((b) => (b === fig ? new THREE.Matrix4() : b.matrixWorld.clone().invert()));
   // The parts, as distance functions in the body's rest frame, each with
   // its bone.
@@ -470,8 +516,8 @@ function figRig() {
     // wedge, broad at the shoulders; the joins a little tighter.)
     [0, blendP(ell(I, V(0, 0.5, 0), V(1.9, 1.55, 1.3)), rbox(I, V(0, 0.55, 0), V(1.3, 0.95, 0.75), 0.6, 0.1), 0.5), 0],          // hips (narrower, user)
     [0, blendP(ell(I, V(0, 3.1, 0), V(2.0, 2.4, 1.26)), rbox(I, V(0, 3.05, 0), V(1.35, 1.6, 0.68), 0.6, 0.05), 0.5), 0.85],     // waist
-    [0, blendP(ell(I, V(0, 5.6, 0), V(2.8, 2.2, 1.62)), rbox(I, V(0, 5.7, 0), V(1.95, 1.6, 0.98), 0.6, 0.3), 0.55), 0.85],      // chest (user: wider, then not so wide)
-    [0, blendP(ell(I, V(0, 7.5, 0), V(2.2, 0.85, 1.15)), rbox(I, V(0, 7.45, 0), V(1.75, 0.35, 0.6), 0.5), 0.5), 0.65],         // shoulders
+    [10, blendP(ell(I, V(0, 5.6, 0), V(2.8, 2.2, 1.62)), rbox(I, V(0, 5.7, 0), V(1.95, 1.6, 0.98), 0.6, 0.3), 0.55), 0.85],     // chest (user: wider, then not so wide), on the spine
+    [10, blendP(ell(I, V(0, 7.5, 0), V(2.2, 0.85, 1.15)), rbox(I, V(0, 7.45, 0), V(1.75, 0.35, 0.6), 0.5), 0.5), 0.65],        // shoulders
     [1, cone(V(0, 7.9, 0), V(0, 10.1, 0.05), 0.74, 0.62), 0.5],  // neck
     [1, blendP(ell(restInv[1], V(0, 1.3, 0.05), V(1.35, 1.6, 1.45)), rbox(restInv[1], V(0, 1.3, 0.08), V(0.72, 0.98, 0.82), 0.62, -0.08), 0.3), 0.45],  // head (a touch squarer at the jaw and crown)
   ];
@@ -510,7 +556,7 @@ function figRig() {
     }
     return d > PAD ? PAD : d;
   };
-  return { fig, headG, arms, legs, bones, restInv, parts, sdf, HAND };
+  return { fig, chest, headG, arms, legs, bones, restInv, parts, sdf, HAND };
 }
 /* The skin (the same every time, so made once and kept): built a slice at
    a time (a generator), so it can be made ahead, in moments the page is
@@ -603,7 +649,7 @@ export function prewarmFigure() {
   setTimeout(step, 0);
 }
 function buildFigure(mat) {
-  const { fig, headG, arms, legs, bones, restInv } = figRig();
+  const { fig, chest, headG, arms, legs, bones, restInv } = figRig();
   const { N, NB, rest, nrm, idx, wb, ww } = figData();
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(rest), 3));
@@ -641,7 +687,7 @@ function buildFigure(mat) {
     }
     geo.attributes.position.needsUpdate = true; geo.attributes.normal.needsUpdate = true;
   }
-  return { fig, geos: [geo], arms, legs, headG, meshes: [body], skin, verts: N };
+  return { fig, chest, geos: [geo], arms, legs, headG, meshes: [body], skin, verts: N };
 }
 
 /* The music (user: "Completion", the user's recording, with a long-tail
@@ -940,6 +986,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   const figPos = new THREE.Vector3(), camPos = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), aim = new THREE.Vector3(), off = new THREE.Vector3();
   // (The drift at a time; the camera follows where it was 2.2 s before.)
   const drift = new THREE.Vector3(), driftLag = new THREE.Vector3();
+  const LEGS = { walk: 0, tuck: 0, splay: 0, knee: [0, 0], stretch: 0 };
   const driftAt = (v, ms) => {
     const T = ms / 1000, e = smooth(ms / 3000) * (1 - smooth((ms - 16000) / 16000));
     v.set(12 * Math.sin(T * 0.21 + 0.6) - 12 * Math.sin(0.6), 5 * Math.sin(T * 0.17 + 1.9) - 5 * Math.sin(1.9), 6 * Math.sin(T * 0.13)).multiplyScalar(e);
@@ -1074,20 +1121,32 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // Hands up on the head as "....my...... god......!" begins (8 s),
     // held through the line, then down again as the next one comes.
     const onHead = smooth((s - (T.words - 700)) / 1100) * (1 - smooth((s - (T.words + 3900)) / 1600));
-    // Walking out of habit, at first; slowing as it dawns on them, a few
-    // steps again later, by reflex (user: not just dangling).
-    const walk = smooth((s - 2000) / 2500) * (1 - smooth((s - 13000) / 7000)) + 0.6 * smooth((s - 23000) / 900) * (1 - smooth((s - 26000) / 1500));
+    // The legs, now and then doing one thing, each its while (user: not
+    // just dangling; then not so much walking: vary it).
+    const bump = (a0, b0, f0) => smooth((s - a0) / f0) * (1 - smooth((s - b0) / f0));
+    LEGS.walk = 0.75 * bump(3200, 7600, 1300);
+    LEGS.tuck = bump(13500, 17000, 1400);
+    LEGS.splay = bump(19500, 22800, 1500);
+    LEGS.knee[0] = bump(25200, 28200, 1300); LEGS.knee[1] = bump(30500, 33200, 1300);
+    LEGS.stretch = bump(34500, 41500, 1600);
     // Arms out, paddling, while they turn over (not while on the head).
     const bal = smooth((s - 2600) / 2000) * (1 - smooth((s - 15500) / 4000));
-    pose(fig, T1, awe, smooth(m * 1.6), st, onHead, walk, bal);
+    pose(fig, T1, awe, smooth(m * 1.6), st, onHead, LEGS, bal);
     // Reaching for the sphere on "It's El Cabeza" (the seventh line),
     // easing into the drift as the last line comes.
     const elCabeza = T.words + 6 * T.wordEach;
-    const reach = smooth((s - (elCabeza - 400)) / 1500) * (1 - smooth((s - (elCabeza + T.wordEach + 300)) / 2200));
+    const reach = smooth((s - (elCabeza - 400)) / 1500) * (1 - smooth((s - (LAST_AT - 200)) / 900));
     if (reach > 0.001) {
       fig.fig.updateMatrixWorld(true);
-      reachToSphere(fig, reach, fig.fig.worldToLocal(tmp.copy(sphereAt)), T1);
+      reachToSphere(fig, reach, fig.chest.worldToLocal(tmp.copy(sphereAt)), T1);
     }
+    // It was always El Cabeza: curled in as the line comes, thrown open as
+    // "El Cabeza" does (~1.9 s into it), and held so, on into the sphere.
+    const curl = smooth((s - (LAST_AT + 150)) / 1300) * (1 - smooth((s - (LAST_AT + 1850)) / 500));
+    const open = smooth((s - (LAST_AT + 1850)) / 650);
+    ecstasy(fig, curl, open, T1);
+    // (Turned a little as they open, so the arch is seen, not only their back.)
+    if (open > 0.001) fig.fig.rotateY(0.95 * open);
     if (fig.fig.visible) fig.skin();
     turnBy(dt);
     // Spaghettified on the way in, let go into a body again.
