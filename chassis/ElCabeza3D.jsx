@@ -406,8 +406,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   /* For a row of mutually-exclusive choices (opponent type, difficulty) —
      the selected option reads as filled/committed, the rest sit quiet. */
   function toggleButtonStyle(active) {
+    // (A theme may name its own "chosen" colour, to match how it shows
+    // anything on: the Lab's designs, their accent.)
     return active
-      ? { ...MINI_BUTTON_BASE, background: COLORS.charcoal, color: COLORS.cream }
+      ? { ...MINI_BUTTON_BASE, background: COLORS.selected || COLORS.charcoal, color: COLORS.selectedInk || COLORS.cream, ...(COLORS.selected ? { borderColor: COLORS.selected } : null) }
       : ghostButtonStyle();
   }
 

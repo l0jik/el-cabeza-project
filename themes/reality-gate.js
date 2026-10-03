@@ -168,7 +168,9 @@ const CSS = `
 .rg-seg.rg-opp button:nth-child(3) { grid-column: 2; }
 .rg-seg button { appearance: none; min-height: 40px; padding: 0 12px; border: var(--rg-line-w) solid var(--rg-line); border-radius: var(--rg-radius); background: transparent;
   color: var(--rg-ink); font: 600 14px/1.15 var(--rg-body); cursor: pointer; }
-.rg-seg button[aria-pressed="true"] { background: var(--rg-ink); color: var(--rg-surface); border-color: var(--rg-ink); }
+/* (Chosen reads the way "on" does everywhere in the sheet, the switches
+   and Play: in the look's accent, user.) */
+.rg-seg button[aria-pressed="true"] { background: var(--rg-accent); color: var(--rg-accent-ink); border-color: var(--rg-accent); }
 .rg-seg button:disabled { opacity: 0.4; cursor: default; }
 .rg-switch { appearance: none; position: relative; width: 50px; height: 30px; flex: none; border: var(--rg-line-w) solid var(--rg-line); border-radius: 999px; background: transparent; cursor: pointer; }
 .rg-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--rg-muted); transition: transform 0.18s ease, background-color 0.18s ease; }

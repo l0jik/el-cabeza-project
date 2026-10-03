@@ -5799,3 +5799,13 @@ phone menu until "Start the story over" (which clears it).
       an exponential decay (setTargetAtTime, ~60 dB in secs): 13 s from
       the tap, 11 s at the crawl's natural end; sound(false) (leaving) a
       ~5 s tail (tau 0.75 s), sources stopped after 6.5 s.
+    - "Chosen" reads like "on" (user: in a theme where anything on is
+      pink, the chosen buttons were black). The Cabeza Nova sheet
+      (reality-gate.js): .rg-seg's pressed buttons in --rg-accent /
+      --rg-accent-ink, like its switches and Play, in every look. The
+      chassis dock: toggleButtonStyle takes COLORS.selected /
+      selectedInk if a theme gives them (else charcoal / cream as
+      before); the Lab's factory gives its accentPrimary, with the text
+      whichever of its surface and ink reads better on it (WCAG
+      contrast). The phone menu's Seg and Toggle already share one
+      colour (ink); Tienda's form is all ink, as its paper is.

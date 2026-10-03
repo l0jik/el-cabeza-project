@@ -28,6 +28,10 @@ const rgba = (css, a) => {
   return `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},${a})`;
 };
 const solid = (css) => (css.startsWith("rgba") ? "#777777" : css);
+// Whichever of two colours reads better on a third (WCAG contrast).
+const lum = (css) => { const c = new THREE.Color(css); const f = (v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)); return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+const bestOn = (bg, p, q) => (contrast(bg, p) >= contrast(bg, q) ? p : q);
 
 export function makeLabTheme(spec) {
   const c = spec.colors;
@@ -53,6 +57,9 @@ export function makeLabTheme(spec) {
     accentLight: c.pieceLight,
     accentDanger: c.accentPrimary,
     inkOnAccent: inkSolid,
+    // Chosen buttons in the design's accent, as anything on is (user).
+    selected: solid(c.accentPrimary),
+    selectedInk: bestOn(solid(c.accentPrimary), solid(c.surface), inkSolid),
   };
   const HEX = {
     cream: new THREE.Color(c.surface).getHex(),
