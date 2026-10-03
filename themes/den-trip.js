@@ -43,11 +43,11 @@ const T = {
   say1: [18800, 24400],      // "What the...!??"
   morph: [23400, 31500],     // into dusk, the sphere in the sky
   steps: [25600, 27400, 29200], // three steps backwards (the footfalls): back, up and out, toward the sphere
-  say2: [30400, 34000],      // "Time to get the heck out of here!"
-  run: [32700, 35600],       // a turn, and running for the car
-  blackOut: [33100, 35500],  // to black (the run, the door, the engine, away: heard)
-  home: 44000,               // the den, the Room view
-  fadeHome: [44300, 47500],  // up from black, home
+  say2: [29900, 32900],      // "Time to get the heck out of here!"
+  run: [31600, 34200],       // a turn, and running for the car
+  blackOut: [31900, 33900],  // to black (the run, the door, the engine, away: heard; sooner, user: it all took too long)
+  home: 40800,               // the den, the Room view
+  fadeHome: [41100, 44300],  // up from black, home
 };
 // The escape track starts here: its first step lands 0.1 s in (T.steps[0]).
 const TRACK_AT = 25500;
@@ -268,6 +268,13 @@ export function createTrip({ audio, onReturn }) {
   }
 
   /* ---------------- the picture ---------------- */
+  // A small copy of a picture, enlarged it's a soft blur (for round it).
+  const softs = new Map();
+  function soft(im) {
+    if (!im || !im.complete || !im.naturalWidth || !doc) return null;
+    if (!softs.has(im)) { const c = doc.createElement("canvas"); c.width = 96; c.height = Math.max(8, Math.round(96 * im.naturalHeight / im.naturalWidth)); c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); softs.set(im, c); }
+    return softs.get(im);
+  }
   function size() {
     if (!canvas) return;
     const dpr = Math.min(2, (typeof window !== "undefined" && window.devicePixelRatio) || 1);
@@ -294,16 +301,22 @@ export function createTrip({ audio, onReturn }) {
     g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
     const iw = imgs.day.naturalWidth || 1312, ih = imgs.day.naturalHeight || 597;
     const cover = Math.max(W / iw, H / ih);
-    const sw = sm(span(t, T.sweep));
+    /* (User: not so tight on the building; slow at first, over the left
+       and the middle, where the entrance is, then quicker to the right;
+       and as the sky turns, pulling right out, as if stepping back.) */
+    const u = span(t, T.sweep), inZ = sm(Math.min(1, u * 2.5));
     // The steps back: a third of the way each, eased; the dip as it lands.
-    let back = 0, dip = 0;
-    T.steps.forEach((f) => { const k = span(t, [f - 450, f + 650]); back += sm(k) / 3; dip += Math.sin(Math.PI * k); });
-    // (A tall screen already crops the picture's sides: less zoom there.)
-    const tall = W < H, zs = tall ? 1.18 : 1.5;
-    let zoom = 1 + (zs - 1) * sw - (zs - 1) * back;
-    let cx = 0.3 + 0.7 * sw, cy = 0.5 + 0.14 * sw;           // from the middle, in and along the front, all the way right, down to eye level
-    cx += ((tall ? 0.3 : 0.36) - cx) * back; cy += (0.4 - cy) * back; // stepping back: left, up, out
-    cy += 0.012 * dip;
+    let steps = 0, dip = 0;
+    T.steps.forEach((f) => { const k = span(t, [f - 450, f + 650]); steps += sm(k) / 3; dip += Math.sin(Math.PI * k); });
+    const back = 0.5 * sm(span(t, [T.morph[0] + 600, T.steps[2] + 900])) + 0.5 * steps;
+    // (A tall screen already crops the picture's sides: less zoom there,
+    // and further out at the end, with the picture's own light round it.)
+    const tall = W < H, zs = tall ? 1.08 : 1.22, zBack = tall ? 0.62 : 0.8;
+    let zoom = 1 + (zs - 1) * inZ;
+    zoom += (zBack - zoom) * back;
+    let cx = 0.24 + 0.6 * Math.pow(u, 2.3), cy = 0.5 + 0.1 * inZ;   // along the front, slowly, then on to the right
+    cx += ((tall ? 0.36 : 0.44) - cx) * back; cy += (0.42 - cy) * back;  // stepping back: left, up, out
+    cy += 0.01 * dip;
     // The turn and the run: away to the right, quick, bobbing, blurred.
     const ru = span(t, T.run), turn = sm(Math.min(1, ru * 2.2));
     if (ru > 0 && ru < 1) {
@@ -312,20 +325,36 @@ export function createTrip({ audio, onReturn }) {
       cy += 0.014 * Math.sin((t - T.run[0]) / 330 * 2 * Math.PI) * turn;
     }
     const s = cover * zoom, dw = iw * s, dh = ih * s;
-    const x = Math.min(0, Math.max(W - dw, W / 2 - cx * dw));
-    const y = Math.min(0, Math.max(H - dh, H / 2 - cy * dh));
+    const fit = (v, lo, hi) => Math.min(Math.max(v, Math.min(lo, hi)), Math.max(lo, hi));
+    const x = fit(W / 2 - cx * dw, W - dw, 0), y = fit(H / 2 - cy * dh, H - dh, 0);
+    const m = sm(span(t, T.morph));
+    // Pulled out past the picture's edges: round it, the picture's own
+    // light, soft and dim (a small copy, enlarged), and its edges eased.
+    // (Its top and bottom edges, softened, drawn on out to the screen's,
+    // darkening as they go: the sky and the lot carrying on.)
+    if (dh < H - 1) {
+      [[imgs.day, 1], [imgs.dusk, m]].forEach(([im, al]) => {
+        const sc = soft(im);
+        if (!sc || al <= 0.003) return;
+        g.globalAlpha = al;
+        if (y > 0) g.drawImage(sc, 0, 0, sc.width, 1, x, 0, dw, y + 2);
+        if (y + dh < H) g.drawImage(sc, 0, sc.height - 1, sc.width, 1, x, y + dh - 2, dw, H - y - dh + 2);
+      });
+      g.globalAlpha = 1;
+      if (y > 0) { const lg = g.createLinearGradient(0, 0, 0, y); lg.addColorStop(0, "rgba(0,0,0,0.75)"); lg.addColorStop(1, "rgba(0,0,0,0.1)"); g.fillStyle = lg; g.fillRect(0, 0, W, y); }
+      if (y + dh < H) { const lg = g.createLinearGradient(0, y + dh, 0, H); lg.addColorStop(0, "rgba(0,0,0,0.1)"); lg.addColorStop(1, "rgba(0,0,0,0.75)"); g.fillStyle = lg; g.fillRect(0, y + dh, W, H - y - dh); }
+    }
     const blurPx = ru > 0 && ru < 1 ? Math.round(10 * Math.sin(Math.PI * Math.min(1, ru * 2.2)) * (W / 1000)) : 0;
     if ("filter" in g) g.filter = blurPx > 0 ? `blur(${blurPx}px)` : "none";
-    const m = sm(span(t, T.morph));
-    const wob = Math.sin(Math.PI * m); // the warp: none at either end, most in the middle
+    const wob = Math.sin(Math.PI * m) * 0.3; // the warp: none at either end, most in the middle (subtle, user)
     const band = Math.max(3, Math.round(H / 140));
     const layer = (im, alpha, phase) => {
       if (!im || !im.complete || alpha <= 0.003) return;
       g.globalAlpha = alpha;
       if (wob < 0.01) { g.drawImage(im, x, y, dw, dh); return; }
-      for (let yy = 0; yy < H; yy += band) {
-        let off = wob * W * 0.03 * Math.sin(yy * 0.018 + t * 0.004 + phase) + wob * W * 0.012 * Math.sin(yy * 0.071 - t * 0.007);
-        off = Math.max(W - dw - x, Math.min(-x, off)); // (never past the picture's edge)
+      for (let yy = Math.max(0, Math.floor(y)); yy < Math.min(H, y + dh); yy += band) {
+        let off = wob * W * 0.03 * Math.sin(yy * 0.018 + t * 0.003 + phase) + wob * W * 0.012 * Math.sin(yy * 0.071 - t * 0.005);
+        if (dw >= W) off = Math.max(W - dw - x, Math.min(-x, off)); // (never past the picture's edge)
         // (the source rows behind this band of the screen)
         const sy = ((yy - y) / dh) * ih, sh = (band / dh) * ih;
         g.drawImage(im, 0, sy, iw, sh, x + off, yy, dw, band);
@@ -334,6 +363,14 @@ export function createTrip({ audio, onReturn }) {
     layer(imgs.day, 1, 0);
     layer(imgs.dusk, m, 2.1);
     g.globalAlpha = 1;
+    if (dh < H - 1) {
+      // (The seam eased: the picture's own edge dimmed a little into it.)
+      const e = Math.min(H * 0.05, dh * 0.1);
+      [[y, y + e], [y + dh, y + dh - e]].forEach(([a, z]) => {
+        const lg = g.createLinearGradient(0, a, 0, z); lg.addColorStop(0, "rgba(0,0,0,0.12)"); lg.addColorStop(1, "rgba(0,0,0,0)");
+        g.fillStyle = lg; g.fillRect(0, Math.min(a, z), W, e);
+      });
+    }
     if ("filter" in g) g.filter = "none";
     // A darkening and a vignette as it turns.
     const vg = g.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.2, W / 2, H * 0.5, Math.max(W, H) * 0.75);
@@ -394,7 +431,7 @@ export function createTrip({ audio, onReturn }) {
         if (!car("arrive", o, at(T.arrive))) arrive(o, at(T.arrive));
         // The steps back, the run, the door, the car away (one track); if
         // it isn't here, the made car's leaving, in the black.
-        if (!car("escape", o, at(TRACK_AT))) driveAway(o, at(T.blackOut[1] + 2500));
+        if (!car("escape", o, at(TRACK_AT))) driveAway(o, at(T.blackOut[1] + 800));
         // (The wind still there under the run.)
         wind(o, at(T.arrive + 1500), (T.blackOut[1] + 2000 - T.arrive - 1500) / 1000);
         drone(o, at(T.morph[0]), (T.blackOut[1] - T.morph[0]) / 1000);

@@ -137,8 +137,19 @@ check("...the controls still away", await page.evaluate(() => document.documentE
   check("...in neon blue, tilted away", await page.evaluate(() => { const t = document.querySelector('[data-testid="den-ending-crawl"] .text'); const pl = t.parentElement; return getComputedStyle(t).color === "rgb(111, 214, 255)" && /matrix3d/.test(getComputedStyle(pl).transform); }));
   await shot(page, "end-3b-crawl");
   check("...no switcher while it rolls", (await page.locator('[data-testid="realities"]').count()) === 0);
+  // (User: touches do nothing until its last line is in the top half;
+  // then a touch lets it go, a 2.75 s fade, to the switcher.)
+  const vw = page.viewportSize();
+  await page.mouse.click(vw.width / 2, vw.height / 2);
+  await page.waitForTimeout(300);
+  check("...a touch early on does nothing", await page.evaluate(() => { const d = window.__DEN_ENDING__(); return !d.crawlTap && !d.crawlFade && d.stage === "black"; }));
   const st3 = await page.evaluate(() => window.__DEN_ENDING__());
-  await page.evaluate((ms) => window.__DEN_ENDING_SKIP__(ms), Math.max(0, st3.menuAt - st3.t - 1500));
+  await page.evaluate((ms) => window.__DEN_ENDING_SKIP__(ms), Math.max(0, st3.crawlAt + 24000 - st3.t));
+  check("...its last line up in the top half: now a touch will do", !!(await poll(async () => (await page.evaluate(() => window.__DEN_ENDING__().crawlTap)), 4000)));
+  await page.mouse.click(vw.width / 2, vw.height / 2);
+  check("...and does: fading", !!(await poll(async () => (await page.evaluate(() => window.__DEN_ENDING__().crawlFade)), 1500)));
+  await page.waitForTimeout(1200);
+  check("...still fading a moment later, the switcher not yet", (await page.locator('[data-testid="realities"]').count()) === 0);
 }
 check("then the other realities", !!(await poll(async () => (await page.locator('[data-testid="realities"]').count()) > 0, 8000)));
 check("...every version of the game (15)", (await page.locator('[data-testid^="reality-"]').count()) === 15);

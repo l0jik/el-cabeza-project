@@ -104,6 +104,7 @@ const BLACK = [ZOOM[1] - 700, ZOOM[1] + 200];         // to black
    only when they're gone does the switcher come. No skipping it. */
 const CRAWL = [BLACK[1] + 1500, BLACK[1] + 1500 + 34000];
 const MENU_AT = CRAWL[1] + 700;
+const CRAWL_FADE = 2750;   // let go by a touch (once it may be), its fade
 const CRAWL_TEXT = [
   "The story's over.",
   "Every version of the game is here. Pick one, or stay in the den, because...",
@@ -502,7 +503,7 @@ function impulse(ctx, secs, decay) {
 
 export function createEnding({ audio, onFinish, onPick, onStay }) {
   const doc = typeof document !== "undefined" ? document : null;
-  let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null, crawl = null, crawlText = null, crawlP = 0;
+  let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null, crawl = null, crawlText = null, crawlLast = null, crawlP = 0, crawlTap = false, crawlFade = null, lastS = 0;
   let renderer = null, scene = null, camera = null, raf = 0, t0 = 0, stage = "idle", menu = null, finished = false;
   let fig = null, figMat = null, disposables = [], chord = null, skipMs = 0, wisps = null;
   let look = { yaw: 0, pitch: 0, goalYaw: 0, goalPitch: 0 }, dragAt = null;
@@ -663,11 +664,13 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     crawlText = doc.createElement("div"); crawlText.className = "text";
     crawlText.innerHTML = CRAWL_TEXT.map((t, i) => `<p${i === CRAWL_TEXT.length - 1 ? ' class="last"' : ""}>${md(t)}</p>`).join("");
     const plane = doc.createElement("div"); plane.className = "plane"; plane.appendChild(crawlText); crawl.appendChild(plane); root.appendChild(crawl);
+    crawlLast = crawlText.querySelector("p.last");
     veil = doc.createElement("div"); veil.className = "veil"; root.appendChild(veil);
     doc.body.appendChild(root);
     // The camera can't be moved (user); touches here go nowhere (the
     // den's own page-wide listeners have nothing to do).
     ["pointerdown", "pointermove", "pointerup", "touchstart", "touchmove", "wheel"].forEach((ev) => root.addEventListener(ev, (e) => { e.stopPropagation(); if (ev === "wheel" || ev === "touchmove") e.preventDefault(); }, ev === "wheel" || ev === "touchmove" ? { passive: false } : undefined));
+    root.addEventListener("pointerdown", () => { if (stage === "black" && crawlTap && crawlFade == null) crawlFade = lastS; });
     try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" }); } catch (e) { renderer = null; }
     // (A phone starts a little under its full density; frames that run
     // slow step it down further, see frame().)
@@ -801,7 +804,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   let mergeFrom = null, lastNow = 0;
   function frame() {
     raf = requestAnimationFrame(frame);
-    const now = performance.now(), s = now - t0 + skipMs, rawMs = lastNow ? now - lastNow : 16.7, dt = Math.min(0.05, rawMs / 1000);
+    const now = performance.now(), s = (lastS = now - t0 + skipMs), rawMs = lastNow ? now - lastNow : 16.7, dt = Math.min(0.05, rawMs / 1000);
     lastNow = now;
     if (rawMs < 250) {
       frameAvg += (rawMs - frameAvg) * 0.1;
@@ -914,9 +917,16 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       crawlP = clamp01((s - CRAWL[0]) / (CRAWL[1] - CRAWL[0]));
       const vh = crawl.clientHeight || 600, H = crawlText.offsetHeight || 400;
       crawlText.style.transform = `translateY(${-crawlP * (H + vh * 0.8)}px)`;
-      crawl.style.opacity = String(smooth((s - CRAWL[0]) / 900));
+      // (User: once its last line is up in the top half of the screen, a
+      // touch lets it go: a 2.75 s fade, then the switcher. Until then,
+      // touches do nothing.)
+      if (!crawlTap) {
+        const r = crawlLast && crawlLast.getBoundingClientRect();
+        if (r && r.height > 0 && r.top + r.height / 2 < vh / 2) { crawlTap = true; crawl.setAttribute("data-dismissable", "true"); }
+      }
+      crawl.style.opacity = String(smooth((s - CRAWL[0]) / 900) * (crawlFade == null ? 1 : 1 - smooth((s - crawlFade) / CRAWL_FADE)));
     }
-    if (s >= MENU_AT && stage === "black") { if (crawl) crawl.classList.remove("on"); openMenu(); }
+    if (stage === "black" && (s >= MENU_AT || (crawlFade != null && s >= crawlFade + CRAWL_FADE))) { if (crawl) crawl.classList.remove("on"); openMenu(); }
     // (Under the black, nothing to draw.)
     if (renderer && s < BLACK[1] + 300) renderer.render(scene, camera);
   }
@@ -949,7 +959,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     disposables.forEach((d) => d && d.dispose && d.dispose()); disposables = [];
     if (renderer) { renderer.dispose(); renderer.forceContextLoss && renderer.forceContextLoss(); renderer = null; }
     if (root) { root.remove(); root = null; }
-    words = []; veil = null; dark = null; crawl = null; crawlText = null; stage = stage === "leaving" ? "done" : stage;
+    words = []; veil = null; dark = null; crawl = null; crawlText = null; crawlLast = null; stage = stage === "leaving" ? "done" : stage;
   }
 
   return {
@@ -964,7 +974,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     },
     // Whether it covers the screen (the den needn't draw underneath).
     covering: () => !!root && (stage === "void" || stage === "black" || stage === "menu" || stage === "going"),
-    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, crawlAt: CRAWL[0], crawl: crawlP, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: chord ? chord.fade.gain.value * chord.whole.gain.value : 0, wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0 }),
+    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, crawlAt: CRAWL[0], crawl: crawlP, crawlTap, crawlFade: crawlFade != null, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: chord ? chord.fade.gain.value * chord.whole.gain.value : 0, wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0 }),
     // Test-only: on by ms.
     skip(ms) { skipMs += ms; },
     // Test-only: the sound's peak and loudness (dBFS) out of the scene, and the hum's and the pad's.

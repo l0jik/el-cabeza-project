@@ -5694,3 +5694,28 @@ phone menu until "Start the story over" (which clears it).
       high) / 192x144 (low), repainted every 70 / 220 ms; an additive
       radial glow plane (0x8fb8ff, ~0.4, breathing) just in front of each
       of the five screens, spilling onto the cabinets.
+    - The crawl can be let go (user): touches do nothing until its last
+      line ("It always has been.") has its middle above the screen's
+      (getBoundingClientRect of p.last each frame; crawlTap, the crawl's
+      data-dismissable); then a touch fades it over CRAWL_FADE 2.75 s
+      (frame-timed, from lastS) and opens the switcher. Measured: a touch
+      will do from ~23 s in on a desktop (0.69), ~20 s on a phone (0.58).
+      Hooks: state().crawlTap / crawlFade.
+    - The trip to the closed Big Glutts (den-trip.js, user: too tight on
+      the building; slow at first over the left and middle, the entrance,
+      then quicker right; the warp too pronounced; pull right out as they
+      step back; the steps too loud; the car sooner):
+      zoom in to 1.22 (wide) / 1.08 (tall) only, over the first 40% of the
+      sweep; cx = 0.24 + 0.6 * u^2.3 (slow on the left and middle, quick
+      to the right at the end). The warp's bands at 0.3 of what they were,
+      and slower. The step back: half a steady pull from the morph to past
+      the last step, half the three steps; out to 0.8 (wide) / 0.62 (tall)
+      of "cover", so the picture is smaller than the screen: above and
+      below it, its own edge rows from a 96 px soft copy, stretched on out
+      and darkening (the sky and lot carrying on), the seam eased.
+      Timeline: say2 29.9-32.9 s, run 31.6-34.2, blackOut 31.9-33.9, home
+      40.8, fadeHome 41.1-44.3 (was 44-47.5). tools/den_trip_escape.py:
+      the backward steps soft and quiet (lowpassed 2.2 kHz, 30 ms in,
+      -32 dB, was -21), the run shorter (6.2-8.8 s, -22 dB), the door at
+      8.7, a shorter crank (START from 4.6 s), the car at 9.95 (was 12.6):
+      started and away ~2.7 s sooner. Track 16.7 s.

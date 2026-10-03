@@ -9,14 +9,16 @@ One track, started with the first step back (TRACK_AT in den-trip.js), so
 it can't drift from the camera:
 
   0.1, 1.9, 3.7 s   three slow steps backwards, one with each of the
-                    camera's (isolated crunches from the walk, a touch
-                    lower and heavier: played at 0.92)
-  7.3 - 10.9 s      turning and running for the car (the walk's quickest
+                    camera's (isolated crunches from the walk, played at
+                    0.92; user: they were too loud, jarring: now quiet,
+                    soft, careful, the grit's top taken off)
+  6.2 - 8.8 s       turning and running for the car (the walk's quickest
                     stretch, ~0.2 s a step, slowing at the car)
-  10.9 - 12.5 s     the door: the handle, yanked open, in, slammed
-  12.6 - 15.6 s     the key, the starter, the catch and a rev (1.15x:
-                    in a hurry)
-  15.6 - 19.9 s     away, hard: the tyres peeling out (the burnout's
+  8.7 - 9.9 s       the door: the handle, yanked open, in, slammed
+  9.95 - 12.4 s     the key, a short crank, the catch and a rev (1.15x:
+                    in a hurry; user: the car starting and away has to
+                    come sooner)
+  12.4 - 16.7 s     away, hard: the tyres peeling out (the burnout's
                     2-4 s, faded in and out, its squeal landing as the
                     car pulls away) and the acceleration, duller and
                     gone with distance
@@ -41,13 +43,13 @@ SR = 44100
 
 BACK_STEPS = [10.11, 24.00, 34.07]   # source onsets: isolated crunches
 BACK_AT = [0.1, 1.9, 3.7]            # where they land in the track
-RUN = [(116.95, 119.55), (122.0, 123.05)]
-RUN_AT = 7.3
+RUN = [(116.95, 118.75), (122.05, 122.85)]
+RUN_AT = 6.2
 DOOR = [(0.72, 1.12), (1.50, 1.75), (2.82, 3.45)]
-DOOR_AT = 10.9
-START = (3.9, 7.4)
+DOOR_AT = 8.7
+START = (4.6, 7.4)
 AWAY = (9.3, 14.2)
-CAR_AT = 12.6
+CAR_AT = 9.95
 CAR_RATE = 1.15
 
 
@@ -112,17 +114,19 @@ def main():
     burn = load("burnout.mp3")
     track = np.zeros((int(20.5 * SR), 2), np.float32)
 
-    # Backwards: each crunch alone, slower and heavier, a little quieter
-    # (hesitant).
+    # Backwards: each crunch alone, slower, quiet and soft (careful): its
+    # grit's top taken off, eased in rather than struck.
+    soft = butter(2, 2200, "low", fs=SR, output="sos")
     for on, at in zip(BACK_STEPS, BACK_AT):
-        seg = fades(rate(cut(steps, on - 0.05, on + 0.6), 0.92), 0.008, 0.22)
-        track = place(track, level(seg, -21), at - 0.05)
+        seg = rate(cut(steps, on - 0.05, on + 0.6), 0.92)
+        seg = fades(sosfiltfilt(soft, seg, axis=0).astype(np.float32), 0.03, 0.25)
+        track = place(track, level(seg, -32), at - 0.05)
     # The run, slowing into the car.
     run = join([fades(cut(steps, a, b), 0.01, 0.03) for a, b in RUN], 0.05)
     k = np.ones(len(run))
     k[-int(0.7 * SR):] = np.linspace(1, 0.55, int(0.7 * SR))
     run = fades(run * k[:, None], 0.15, 0.12)
-    track = place(track, level(run, -19), RUN_AT)
+    track = place(track, level(run, -22), RUN_AT)
     # The door, hurried.
     d = join([fades(cut(door, a, b), 0.005, 0.03) for a, b in DOOR], 0.02)
     track = place(track, level(d, -17), DOOR_AT)
