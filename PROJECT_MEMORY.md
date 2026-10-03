@@ -5628,3 +5628,16 @@ phone menu until "Start the story over" (which clears it).
       out peak -5.6 dBFS / RMS -17.3 (hum -23.4, pad -25.7); phone peak
       -4.2 / RMS -16.4 (hum -25.1, pad -26.1). Hooks: ending.meter(),
       window.__DEN_ENDING_METER__ (with __EC_TEST_HOOKS__).
+    - Revelation lines come in as said (user: more dramatic, not gauche):
+      reveal() in themes/den-ending.js splits each REVELATION line into
+      <span class="ph"> per word and per dot (spaces plain, *em*/**strong**
+      wrapping the spans), each with a --d delay: 80 ms a word, 55 ms a dot
+      (150 a "…"), +240 after a run of dots, +320 after "! ", +200 after
+      ", "; scaled so the last starts by 2 s (REVEAL_SPAN). Each span
+      condenses out of blur/glow (den-ending-ph, 1.5 s; dots 1.1 s), and a
+      faint radial light swells behind the line (.word::before). The
+      animations sit under .word.on, so they replay each time a line shows;
+      the line itself fades in over 0.25 s and out over 1.3 s. Off under
+      prefers-reduced-motion. With each line, bloom(): A5, E6, A6 sines
+      (an open fifth, consonant with every chord), staggered 0.16 s, 0.7 s
+      up and 5 s down, into the reverb plus a little dry.

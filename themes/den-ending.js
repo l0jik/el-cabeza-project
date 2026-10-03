@@ -47,6 +47,45 @@ export const REVELATION = [
 const md = (line) => line.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c])
   .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\*(.+?)\*/g, "<em>$1</em>");
 
+/* How a line comes in (user: more dramatic, but not gauche): not all at
+   once, but as it would be said, a phrase at a time. Each word condenses
+   out of a blur of light; each dot of an ellipsis on its own, a breath
+   apart; and after a run of dots, or a "!" or a ",", a pause, longer the
+   longer the run. Returns the line's HTML: the spaces plain, every word
+   and dot a <span class="ph"> with its own delay (--d, ms). */
+const REVEAL_SPAN = 2000;   // the last word starts by this (it shows ~3.4 s)
+function reveal(line) {
+  const esc = (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] || c;
+  const units = []; let em = false, strong = false, t = 0;
+  for (let i = 0; i < line.length;) {
+    if (line.startsWith("**", i)) { strong = !strong; i += 2; continue; }
+    if (line[i] === "*") { em = !em; i++; continue; }
+    const c = line[i];
+    if (/\s/.test(c)) { let j = i; while (j < line.length && /\s/.test(line[j])) j++; units.push({ space: line.slice(i, j) }); i = j; continue; }
+    if (c === "." || c === "\u2026") {
+      // A run of dots: each its own, then the pause (a lone "." ends a sentence).
+      let j = i; while (j < line.length && (line[j] === "." || line[j] === "\u2026")) j++;
+      for (let k = i; k < j; k++) { units.push({ text: line[k], at: t, em, strong, dot: true }); t += line[k] === "\u2026" ? 150 : 55; }
+      if (j - i > 1 || c === "\u2026") t += 240;
+      i = j; continue;
+    }
+    let j = i; while (j < line.length && !/[\s.\u2026*]/.test(line[j])) j++;
+    const w = line.slice(i, j);
+    units.push({ text: w, at: t, em, strong }); t += 80;
+    if (/[!,]$/.test(w) && /\s/.test(line[j] || "")) t += w.endsWith("!") ? 320 : 200;
+    i = j;
+  }
+  const last = Math.max(1, ...units.filter((u) => u.text).map((u) => u.at));
+  const k = Math.min(1, REVEAL_SPAN / last);
+  return units.map((u) => {
+    if (u.space) return u.space;
+    let h = `<span class="ph${u.dot ? " dot" : ""}" style="--d:${Math.round(u.at * k)}ms">${u.text.replace(/[&<>]/g, esc)}</span>`;
+    if (u.em) h = `<em>${h}</em>`;
+    if (u.strong) h = `<strong>${h}</strong>`;
+    return h;
+  }).join("");
+}
+
 // The timeline (ms from the white).
 const T = {
   unveil: [0, 1400],      // the white fading off the void
@@ -71,7 +110,24 @@ const CSS = `
   text-shadow: 0 0 18px rgba(110,160,255,0.7), 0 2px 10px rgba(0,0,0,0.85); opacity: 0; transition: opacity 1.3s ease; }
 .den-ending .word em { font-style: italic; font-weight: 400; }
 .den-ending .word strong { font-weight: 700; }
-.den-ending .word.on { opacity: 1; }
+.den-ending .word.on { opacity: 1; transition: opacity 0.25s ease; }
+/* Each word out of a blur of light, a little large, settling into place;
+   brighter for a moment as it lands. (On "on": taken off, the line just
+   fades as a whole.) */
+.den-ending .word .ph { display: inline-block; }
+.den-ending .word.on .ph { animation: den-ending-ph 1.5s cubic-bezier(0.22, 0.61, 0.24, 1) var(--d, 0ms) both; }
+.den-ending .word.on .ph.dot { animation-duration: 1.1s; }
+@keyframes den-ending-ph {
+  0% { opacity: 0; filter: blur(9px); transform: translateY(0.18em) scale(1.08); text-shadow: 0 0 30px rgba(170,200,255,0.9), 0 2px 10px rgba(0,0,0,0); }
+  38% { opacity: 1; filter: blur(1.5px); text-shadow: 0 0 26px rgba(190,215,255,0.95), 0 2px 10px rgba(0,0,0,0.5); }
+  100% { opacity: 1; filter: blur(0); transform: none; text-shadow: 0 0 18px rgba(110,160,255,0.7), 0 2px 10px rgba(0,0,0,0.85); }
+}
+/* Behind the line, a faint light swelling as it begins, then settling. */
+.den-ending .word::before { content: ""; position: absolute; left: -12%; right: -12%; top: -70%; bottom: -70%; z-index: -1; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(120,160,255,0.2), rgba(120,160,255,0.07) 45%, rgba(120,160,255,0) 72%); }
+.den-ending .word.on::before { animation: den-ending-glow 3.2s ease-out both; }
+@keyframes den-ending-glow { 0% { opacity: 0; transform: scale(0.7, 0.5); } 28% { opacity: 1; } 100% { opacity: 0.4; transform: scale(1, 1); } }
+@media (prefers-reduced-motion: reduce) { .den-ending .word.on .ph, .den-ending .word.on::before { animation: none; } }
 .den-ending.off { transition: opacity 1.2s ease; opacity: 0; }
 `;
 
@@ -341,7 +397,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       const padSend = ctx.createGain(); padSend.gain.value = 0.25;
       padG.connect(mix); padG.connect(padSend).connect(verb);
       if (meter) padG.connect(meter.pad);
-      const c0 = { ctx, fade, whole, lp, voices, all, padG, padLevel: PAD_LEVEL, meter, phone, next: performance.now() + CHORD_MS, at: 0 };
+      const c0 = { ctx, fade, whole, lp, verb, mix, voices, all, padG, padLevel: PAD_LEVEL, meter, phone, next: performance.now() + CHORD_MS, at: 0 };
       if (typeof location !== "undefined" && location.protocol !== "file:" && typeof fetch !== "undefined") {
         fetch(PAD_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
           if (chord !== c0) return;
@@ -357,6 +413,21 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       c.fade.gain.cancelScheduledValues(t); c.fade.gain.setValueAtTime(Math.max(0.0001, c.fade.gain.value), t); c.fade.gain.linearRampToValueAtTime(0.0001, t + 2.5);
       setTimeout(() => c.all.forEach((x) => { try { x.stop(); } catch (e) { /* done */ } }), 14000);
     }
+  }
+  /* As each line begins, a quiet bloom high up, felt more than heard:
+     an open fifth and its octave (A, E, A: at home in every chord here),
+     one after another, swelling into the room's reverb and dying away. */
+  function bloom() {
+    if (!chord) return;
+    const { ctx, verb, mix } = chord, t = ctx.currentTime;
+    [[880, 0.03], [1318.51, 0.022], [1760, 0.012]].forEach(([f, peak], i) => {
+      const at = t + 0.05 + i * 0.16;
+      const os = ctx.createOscillator(); os.type = "sine"; os.frequency.value = f; os.detune.value = (Math.random() * 2 - 1) * 4;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(peak, at + 0.7); g.gain.exponentialRampToValueAtTime(0.0001, at + 5);
+      const dry = ctx.createGain(); dry.gain.value = 0.06;
+      os.connect(g); g.connect(verb); g.connect(dry).connect(mix);
+      os.start(at); os.stop(at + 5.2);
+    });
   }
   // Each frame: when it's time, the next chord, one voice at a time.
   function moveChord(now) {
@@ -382,7 +453,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     style();
     root = doc.createElement("div"); root.className = "den-ending"; root.setAttribute("data-testid", "den-ending");
     canvas = doc.createElement("canvas"); root.appendChild(canvas);
-    REVELATION.forEach((line, i) => { const w = doc.createElement("div"); w.className = "word"; w.setAttribute("data-testid", `den-ending-line-${i + 1}`); w.setAttribute("role", "status"); w.innerHTML = md(line); root.appendChild(w); words.push(w); });
+    REVELATION.forEach((line, i) => { const w = doc.createElement("div"); w.className = "word"; w.setAttribute("data-testid", `den-ending-line-${i + 1}`); w.setAttribute("role", "status"); w.innerHTML = reveal(line); root.appendChild(w); words.push(w); });
     dark = doc.createElement("div"); dark.className = "dark"; root.appendChild(dark);
     veil = doc.createElement("div"); veil.className = "veil"; root.appendChild(veil);
     doc.body.appendChild(root);
@@ -622,7 +693,9 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // The words, one at a time (the last held longer).
     words.forEach((w, i) => {
       const a = s - (T.words + i * T.wordEach), hold = i === words.length - 1 ? T.lastHold : T.wordEach;
-      w.classList.toggle("on", a > 0 && a < hold - 1300);
+      const on = a > 0 && a < hold - 1300;
+      if (on && !w.classList.contains("on") && stage === "void") bloom();
+      w.classList.toggle("on", on);
     });
     if (s >= BLACK[1] && stage === "void") { stage = "black"; sound(false); }
     if (s >= MENU_AT && stage === "black") openMenu();
