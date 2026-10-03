@@ -5869,3 +5869,14 @@ phone menu until "Start the story over" (which clears it).
       pose by ~7.5 s. The whole body turns slowly as it's dragged: a roll
       of 3.4 rad easing to rest by 7.2 s (and a little of it in yaw), and
       a tumble in pitch (0.5 rad at 1.4 rad/s) gone by 6 s.
+    - Hands on the head in astonishment as "....my...... god......!"
+      begins (user): handsOnHead(f, g, t), from pose() with `g` =
+      smooth((s - (T.words - 0.7 s)) / 1.1 s) * (1 - smooth((s - (T.words
+      + 3.9 s)) / 1.6 s)): up from 7.3 s, on by 8.4 s, held through the
+      line, down by ~13.4 s. Two-bone IK per arm (upper 3.9, forearm to
+      the hand's middle 4.15) from the shoulder to a spot on top of the
+      head near its front (headG-local (±0.62, 2.62, 0.72), breathing a
+      little), the elbow's pole out to the side and a little forward; the
+      forearm turned about itself so the palm (the hand's local z) faces
+      down; slerped over the pose by g. The head a little down and still
+      under the hands meanwhile.

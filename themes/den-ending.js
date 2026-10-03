@@ -280,7 +280,47 @@ function aimLimb(j, pulled, awe, taken, a, m) {
    elbows and knees working, the head jerking about; each limb on its own
    uneven rhythm (two sines a limb), fading out as they compose
    themselves. */
-function pose(f, t, a, m, st = 0) {
+/* Both hands up on the top of the head, near its front, in astonishment
+   (user: as they say "....my...... god......!"): `g` 0..1 blends it over
+   whatever pose they're in. Each arm by two-bone IK: from the shoulder to
+   a spot on the head (moving with the head), the elbow flared out to the
+   side and a little forward, the palm turned down onto the head. */
+const ARM_L1 = 3.9, ARM_L2 = 3.6 + 0.55;
+const _S = new THREE.Vector3(), _E = new THREE.Vector3(), _T = new THREE.Vector3(), _P = new THREE.Vector3(), _D = new THREE.Vector3(), _v = new THREE.Vector3(), _n = new THREE.Vector3(), _w = new THREE.Vector3();
+const _qj = new THREE.Quaternion(), _qk = new THREE.Quaternion(), _qi = new THREE.Quaternion(), _qw = new THREE.Quaternion(), _qr = new THREE.Quaternion();
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
+function handsOnHead(f, g, t) {
+  if (g <= 0.001) return;
+  f.headG.updateMatrix();
+  f.arms.forEach(({ j, k }, i) => {
+    const s = i ? 1 : -1;
+    _S.copy(j.position);
+    // (On top, near the front; a slight press and shift, alive.)
+    _T.set(s * 0.62, 2.62 + 0.04 * Math.sin(t * 2.3 + i * 1.7), 0.72 + 0.04 * Math.sin(t * 1.6 + i)).applyMatrix4(f.headG.matrix);
+    _D.subVectors(_T, _S);
+    const d = Math.min(_D.length(), ARM_L1 + ARM_L2 - 0.05); _D.normalize();
+    const along = (ARM_L1 * ARM_L1 - ARM_L2 * ARM_L2 + d * d) / (2 * d), hgt = Math.sqrt(Math.max(0, ARM_L1 * ARM_L1 - along * along));
+    _P.set(s, 0.15, 0.4); _P.addScaledVector(_D, -_P.dot(_D)).normalize();
+    _E.copy(_S).addScaledVector(_D, along).addScaledVector(_P, hgt);
+    _qj.setFromUnitVectors(Y_DOWN, _v.subVectors(_E, _S).normalize());
+    // The forearm, in the upper arm's frame; then turned about itself so
+    // the palm (the hand's thin side, its local z) faces down onto the head.
+    _w.subVectors(_T, _E).normalize();
+    _v.copy(_w).applyQuaternion(_qi.copy(_qj).invert());
+    _qk.setFromUnitVectors(Y_DOWN, _v);
+    _qw.multiplyQuaternions(_qj, _qk);
+    _n.copy(Z_AXIS).applyQuaternion(_qw).addScaledVector(_w, -Z_AXIS.clone().applyQuaternion(_qw).dot(_w)).normalize();
+    _v.set(0, -1, 0).addScaledVector(_w, _w.y).normalize();
+    if (_n.lengthSq() > 0.5 && _v.lengthSq() > 0.5) {
+      _qr.setFromUnitVectors(_n, _v);
+      _qw.premultiply(_qr);
+      _qk.multiplyQuaternions(_qi, _qw);
+    }
+    j.quaternion.slerp(_qj, g);
+    k.quaternion.slerp(_qk, g);
+  });
+}
+function pose(f, t, a, m, st = 0, g = 0) {
   const breath = Math.sin((t * Math.PI * 2) / 7.2);
   const fl = (i, k) => Math.sin(t * (6.1 + 1.3 * i) + k * 2.1 + i) * 0.7 + Math.sin(t * (9.7 - 0.9 * i) + k * 1.3) * 0.3;
   f.arms.forEach(({ j, k }, i) => {
@@ -306,6 +346,12 @@ function pose(f, t, a, m, st = 0) {
   });
   f.headG.rotation.x = -0.5 * (1 - a) + (-0.2 - 0.04 * breath) * a * (1 - m) - 0.42 * m + 0.35 * st * fl(4, 0);
   f.headG.rotation.y = 0.08 * Math.sin(t * 0.17) * a + 0.45 * st * fl(4, 1);
+  if (g > 0.001) {
+    // (The head a little down and still under the hands.)
+    f.headG.rotation.x += (0.12 - f.headG.rotation.x) * g;
+    f.headG.rotation.y *= 1 - 0.7 * g;
+    handsOnHead(f, g, t);
+  }
 }
 
 /* The body (user: one seamless mesh, smooth joints, not a wooden doll;
@@ -859,7 +905,10 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const st = 1 - smooth((s - 900) / 6600);
     const spin = 3.4 * (1 - smooth(s / 7200)), tumble = 0.5 * (1 - smooth(s / 6000)) * Math.sin(T1 * 1.4);
     fig.fig.rotation.set(-0.95 + 0.6 * awe + 0.03 * Math.sin(T1 * 0.35) + 0.25 * m + tumble, Math.PI + 0.12 * Math.sin(T1 * 0.11) * awe + 0.5 * spin * 0.3, 0.05 * Math.sin(T1 * 0.17) * awe + spin);
-    pose(fig, T1, awe, smooth(m * 1.6), st);
+    // Hands up on the head as "....my...... god......!" begins (8 s),
+    // held through the line, then down again as the next one comes.
+    const onHead = smooth((s - (T.words - 700)) / 1100) * (1 - smooth((s - (T.words + 3900)) / 1600));
+    pose(fig, T1, awe, smooth(m * 1.6), st, onHead);
     if (fig.fig.visible) fig.skin();
     // Spaghettified on the way in, let go into a body again.
     const stretch = 1 - smooth((s - 1100) / 2700);
