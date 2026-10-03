@@ -275,16 +275,23 @@ function aimLimb(j, pulled, awe, taken, a, m) {
   _a.copy(pulled).lerp(awe, a).lerp(taken, m).normalize();
   j.quaternion.setFromUnitVectors(Y_DOWN, _a);
 }
-function pose(f, t, a, m) {
+/* `st` (0..1): the struggle as they're first yanked away (user: a stronger
+   pull at the start): arms and legs flailing round the trailing pose,
+   elbows and knees working, the head jerking about; each limb on its own
+   uneven rhythm (two sines a limb), fading out as they compose
+   themselves. */
+function pose(f, t, a, m, st = 0) {
   const breath = Math.sin((t * Math.PI * 2) / 7.2);
+  const fl = (i, k) => Math.sin(t * (6.1 + 1.3 * i) + k * 2.1 + i) * 0.7 + Math.sin(t * (9.7 - 0.9 * i) + k * 1.3) * 0.3;
   f.arms.forEach(({ j, k }, i) => {
     const s = i ? 1 : -1;
     // (The right hand reaches, slowly, every so often; the left follows a little.)
     const reach = Math.pow(Math.max(0, Math.sin(t * 0.21 + (i ? 0 : 2.4))), 3) * (i ? 1 : 0.45);
     _b.set(s * 0.45, 0.55, -0.72);                                                        // pulled
+    if (st > 0) _b.x += s * 0.55 * st * fl(i, 0), _b.y += 0.6 * st * fl(i, 1), _b.z += 0.5 * st * fl(i, 2);   // flailing
     _c.set(s * (0.68 - 0.25 * reach), -0.3 + 0.06 * breath + 0.36 * reach, 0.5 + 0.4 * reach); // in awe
     aimLimb(j, _b, _c, new THREE.Vector3(s * 0.85, 0.42, 0.32), a, m);
-    k.rotation.x = -0.45 * (1 - a) - (0.2 - 0.08 * reach) * a * (1 - m) - 0.1 * m;
+    k.rotation.x = -0.45 * (1 - a) - (0.2 - 0.08 * reach) * a * (1 - m) - 0.1 * m - 0.75 * st * (0.5 + 0.5 * fl(i, 3));
     // (The hand turned palm out as it opens.)
     k.rotation.y = s * 0.5 * a;
   });
@@ -292,12 +299,13 @@ function pose(f, t, a, m) {
     const s = i ? 1 : -1;
     const sway = Math.sin(t * 0.33 + i * 1.7) * 0.05;
     _b.set(s * 0.14, -0.62, -0.78);
+    if (st > 0) _b.x += s * 0.3 * st * fl(i + 2, 0), _b.z += 0.55 * st * fl(i + 2, 1);   // kicking
     _c.set(s * 0.06 + sway, -0.97, -0.12 - (i ? 0.08 : 0));
     aimLimb(j, _b, _c, new THREE.Vector3(s * 0.16, -0.9, -0.3), a, m);
-    k.rotation.x = 0.35 * (1 - a) + (i ? 0.38 : 0.24) * a;
+    k.rotation.x = 0.35 * (1 - a) + (i ? 0.38 : 0.24) * a + 0.7 * st * (0.5 + 0.5 * fl(i + 2, 2));
   });
-  f.headG.rotation.x = -0.5 * (1 - a) + (-0.2 - 0.04 * breath) * a * (1 - m) - 0.42 * m;
-  f.headG.rotation.y = 0.08 * Math.sin(t * 0.17) * a;
+  f.headG.rotation.x = -0.5 * (1 - a) + (-0.2 - 0.04 * breath) * a * (1 - m) - 0.42 * m + 0.35 * st * fl(4, 0);
+  f.headG.rotation.y = 0.08 * Math.sin(t * 0.17) * a + 0.45 * st * fl(4, 1);
 }
 
 /* The body (user: one seamless mesh, smooth joints, not a wooden doll;
@@ -844,8 +852,14 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // Composing themselves, slowly: upright-ish, leaning toward the light,
     // a slow sway; at the end, given to it.
     const awe = smooth((s - 2200) / 7000);
-    fig.fig.rotation.set(-0.95 + 0.6 * awe + 0.03 * Math.sin(T1 * 0.35) + 0.25 * m, Math.PI + 0.12 * Math.sin(T1 * 0.11) * awe, 0.05 * Math.sin(T1 * 0.17) * awe);
-    pose(fig, T1, awe, smooth(m * 1.6));
+    /* The struggle at the start (user: a stronger pull): flailing,
+       strongest as they're yanked, gone by ~7.5 s; and the whole body
+       turning slowly as it's dragged, a little over half a turn that
+       slows to a stop just as they find their awe. */
+    const st = 1 - smooth((s - 900) / 6600);
+    const spin = 3.4 * (1 - smooth(s / 7200)), tumble = 0.5 * (1 - smooth(s / 6000)) * Math.sin(T1 * 1.4);
+    fig.fig.rotation.set(-0.95 + 0.6 * awe + 0.03 * Math.sin(T1 * 0.35) + 0.25 * m + tumble, Math.PI + 0.12 * Math.sin(T1 * 0.11) * awe + 0.5 * spin * 0.3, 0.05 * Math.sin(T1 * 0.17) * awe + spin);
+    pose(fig, T1, awe, smooth(m * 1.6), st);
     if (fig.fig.visible) fig.skin();
     // Spaghettified on the way in, let go into a body again.
     const stretch = 1 - smooth((s - 1100) / 2700);

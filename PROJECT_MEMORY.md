@@ -5861,3 +5861,11 @@ phone menu until "Start the story over" (which clears it).
       dB under the thunk). tone() takes `verb` (a send level); the voice
       is let go as before, the room's tail rings on and dies by itself
       (rendered: -94 dB by 0.4 s, silent from 0.6 s).
+    - A stronger pull at the start of the void (user: the body needed more
+      movement; chose the struggle as they're yanked away): pose() takes
+      `st` (1 - smooth((s - 0.9 s) / 6.6 s)): each arm's trailing aim
+      flails (two sines a limb, ~1-1.5 Hz, uneven), elbows and knees work,
+      the legs kick, the head jerks about; all of it fading into the awe
+      pose by ~7.5 s. The whole body turns slowly as it's dragged: a roll
+      of 3.4 rad easing to rest by 7.2 s (and a little of it in yaw), and
+      a tumble in pitch (0.5 rad at 1.4 rad/s) gone by 6 s.
