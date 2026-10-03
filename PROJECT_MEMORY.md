@@ -5556,3 +5556,29 @@ phone menu until "Start the story over" (which clears it).
     hair, 16.5 px, full white with a faint violet glow; after, it settles
     to 0.82. Reduced motion: all at once. e2e-ending: three sentences,
     live by 9 s.
+  - The void, round 3 (user: the music's volume odd at the start, the
+    notes less optimistic than first asked, way more reverb, fuller; the
+    body morphing between the singularity's black and a wireframe, slowly
+    all black; the singularity's plasma coming off the body more and more
+    as they go in):
+    - Sound (den-ending.js sound()): the odd start was the swell being
+      re-aimed every frame (setTargetAtTime) on the same gain the fade-up
+      was ramping; now two gains: `fade` (a whisper -34 dB at 0.6 s, then
+      exponential to full at 7.2 s: even in loudness, sampled ~3 dB per
+      0.5 s; down 2.5 s at the end) and `whole` (0.15, the swell's).
+      Chords back to the first brief (optimistic, low, haunting) and
+      brighter: over a held low D, Dmaj9, G/D, Dsus2, D, A/D (no minor);
+      17 s each, voices 3.3 s apart, glide tc 1.9. Five detuned saws a
+      voice (was 3), panned 0, -/+0.45, -/+0.7; a faint triangle octave
+      over the top two; "oo" formants plus a little "aah" (700/1150 Hz);
+      lowpass 900 (was 520); a D1 sub sine 0.05; reverb 16 s decay 1.6,
+      wet 1.45 dry 0.2; the shimmer 0.004. state().level for tests.
+    - Body: RIM_FRAG discards where 3D noise (drifting) > uSolid, a thin
+      seam at the edge; a wireframe twin of every part (WIRE_FRAG,
+      wireframe, additive, same uniforms so it stretches too, dim blue).
+      uSolid 0.18 -> 1 over 2-19 s with a slow back-and-forth morph;
+      uWire fades with it; the rim glow eases off as it goes solid.
+    - Plasma: a 700-mote Points pool (WISP_VERT/FRAG, soft, additive),
+      born at random vertices of the body, drifting out and up in a slow
+      curl and a little toward the sphere, growing as they fade (2.2-4.2
+      s); rate 3 + 55*grow (4-26 s) + 110*merge. state().solid/.wisps.

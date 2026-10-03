@@ -81,7 +81,7 @@ const smooth = (x) => { x = clamp01(x); return x * x * (3 - 2 * x); };
 /* ---- the figure ---- */
 // (The tidal stretch: along the way to the sphere (uDir) from the body's
 // middle (uCenter), drawn out; across it, squeezed; a slow waver.)
-const RIM_VERT = `uniform vec3 uCenter, uDir; uniform float uStretch, uTime; varying vec3 vN; varying vec3 vV;
+const RIM_VERT = `uniform vec3 uCenter, uDir; uniform float uStretch, uTime; varying vec3 vN; varying vec3 vV; varying vec3 vW;
 void main(){
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vec3 rel = wp.xyz - uCenter;
@@ -95,17 +95,42 @@ void main(){
   float k = al > 0.0 ? 1.0 + 3.6 * st : 1.0 + 1.3 * st;
   vec3 w = uCenter + uDir * (al * k + 10.0 * st) + perp / (1.0 + 1.6 * st) + side * wav + up * wav * 0.4;
   vec4 mv = viewMatrix * vec4(w, 1.0);
+  vW = w;
   vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
-const RIM_FRAG = `uniform vec3 uLight; uniform float uGlow; varying vec3 vN; varying vec3 vV;
-void main(){ vec3 n = normalize(vN); float rim = pow(1.0 - abs(dot(n, vV)), 2.4);
+/* Black like the singularity, where it's solid (uSolid): the rest of the
+   body falls away (discarded) to the wireframe under it, in drifting
+   patches of noise, and a thin bright seam where the black meets it;
+   more of it solid as time goes on, till it's all black (user). */
+const NOISE3 = `float h3(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float n3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(h3(i), h3(i + vec3(1, 0, 0)), f.x), mix(h3(i + vec3(0, 1, 0)), h3(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(h3(i + vec3(0, 0, 1)), h3(i + vec3(1, 0, 1)), f.x), mix(h3(i + vec3(0, 1, 1)), h3(i + vec3(1, 1, 1)), f.x), f.y), f.z); }`;
+const RIM_FRAG = `uniform vec3 uLight; uniform float uGlow, uSolid, uTime; varying vec3 vN; varying vec3 vV; varying vec3 vW; ${NOISE3}
+void main(){
+  float d = 0.65 * n3(vW * 0.32 + vec3(0.0, uTime * 0.35, uTime * 0.2)) + 0.35 * n3(vW * 0.9 - vec3(uTime * 0.5));
+  if (d > uSolid) discard;
+  vec3 n = normalize(vN); float rim = pow(1.0 - abs(dot(n, vV)), 2.4);
   float toward = 0.35 + 0.65 * max(0.0, dot(n, uLight));
-  vec3 c = vec3(0.012, 0.008, 0.02) + (mix(vec3(0.55, 0.35, 1.0), vec3(0.45, 0.9, 1.0), rim * rim) * rim * toward * 1.7 * uGlow);
+  vec3 c = vec3(0.004, 0.004, 0.008) + (mix(vec3(0.45, 0.45, 1.0), vec3(0.45, 0.9, 1.0), rim * rim) * rim * toward * 1.7 * uGlow);
+  float seam = 1.0 - smoothstep(0.0, 0.035, uSolid - d);
+  c += vec3(0.4, 0.75, 1.0) * seam * 0.7 * step(uSolid, 0.995);
   gl_FragColor = vec4(c, 1.0); }`;
+// The wireframe under it: lines of light, flickering a little.
+const WIRE_FRAG = `uniform float uWire, uTime; varying vec3 vN; varying vec3 vV; varying vec3 vW;
+void main(){ float f = 0.75 + 0.25 * sin(uTime * 9.0 + vW.y * 0.7);
+  gl_FragColor = vec4(vec3(0.25, 0.6, 1.0) * uWire * f * 0.32, 1.0); }`;
+// The plasma coming off them: soft motes of the singularity's own light.
+const WISP_VERT = `attribute float aAlpha; attribute float aSize; uniform float uScale; varying float vA;
+void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vA = aAlpha; gl_PointSize = aSize * uScale / max(1.0, -mv.z); gl_Position = projectionMatrix * mv; }`;
+const WISP_FRAG = `varying float vA;
+void main(){ vec2 p = gl_PointCoord - 0.5; float r = length(p); float a = smoothstep(0.5, 0.0, r); a = a * a * a;
+  gl_FragColor = vec4(mix(vec3(0.25, 0.5, 1.0), vec3(0.85, 0.95, 1.0), a) * a * vA, 1.0); }`;
 
 function buildFigure(mat) {
   const fig = new THREE.Group();
   const geos = [];
-  const mesh = (geo, parent = fig) => { geos.push(geo); const m = new THREE.Mesh(geo, mat); parent.add(m); return m; };
+  const meshes = [];
+  const mesh = (geo, parent = fig) => { geos.push(geo); const m = new THREE.Mesh(geo, mat); parent.add(m); meshes.push(m); return m; };
   // The torso: chest, ribs, waist; flattened front to back.
   const torso = new THREE.LatheGeometry([[0.01, 0], [1.9, 0.2], [2.15, 1.6], [2.3, 3.6], [2.75, 5.6], [2.6, 7.0], [1.6, 7.9], [0.6, 8.2], [0.01, 8.25]].map(([r, y]) => new THREE.Vector2(r, y)), 24);
   torso.scale(1, 1, 0.6);
@@ -129,7 +154,7 @@ function buildFigure(mat) {
   const foot = () => { const g = new THREE.SphereGeometry(1, 12, 10); g.scale(0.5, 0.36, 1.25); g.translate(0, -0.15, 0.55); return g; };
   const arms = [-1, 1].map((s) => limb(fig, new THREE.Vector3(s * 2.55, 7.1, 0), 3.9, 3.6, 0.62, 0.5, 0.4, -0.5, hand()));
   const legs = [-1, 1].map((s) => limb(fig, new THREE.Vector3(s * 1.15, -0.4, 0), 5.6, 5.3, 0.95, 0.68, 0.5, 0.35, foot()));
-  return { fig, geos, arms, legs, headG };
+  return { fig, geos, arms, legs, headG, meshes };
 }
 /* The body's pose: `d` is where each limb points, in the body's own frame
    (its front is +z; turned to face the sphere, trailing is -z). Three
@@ -170,17 +195,21 @@ function pose(f, t, a, m) {
   f.headG.rotation.y = 0.08 * Math.sin(t * 0.17) * a;
 }
 
-// The chord's voices, low to high, and the chords they move through (Hz):
-// D, D6/9, Bm7, Gmaj7, A, and round again. Each voice glides to its next
-// note on its own time, a few seconds apart.
+/* The chord's voices, low to high, and the chords they move through (Hz)
+   (user, the first brief: the monks' hum, but an optimistic chord, very
+   low and still haunting, a melody played over eternity; and again: more
+   optimistic, it had gone dark). Over a held low D, only major colours:
+   Dmaj9, G/D, Dsus2, D, A/D (a lift, the major seventh in it), round
+   again. Each voice glides to its next note on its own time, seconds
+   apart, so nothing seems to change for a long while. */
 const CHORDS = [
-  [73.42, 110.0, 146.83, 185.0, 220.0],
-  [73.42, 110.0, 164.81, 185.0, 246.94],
-  [61.74, 92.5, 146.83, 185.0, 220.0],
-  [49.0, 73.42, 146.83, 185.0, 246.94],
-  [55.0, 82.41, 138.59, 164.81, 220.0],
+  [73.42, 110.0, 185.0, 277.18, 329.63],
+  [73.42, 123.47, 196.0, 246.94, 293.66],
+  [73.42, 110.0, 164.81, 220.0, 329.63],
+  [73.42, 110.0, 185.0, 220.0, 369.99],
+  [73.42, 138.59, 164.81, 220.0, 329.63],
 ];
-const CHORD_MS = 16000, VOICE_STAGGER = 3100, GLIDE_TC = 1.6;
+const CHORD_MS = 17000, VOICE_STAGGER = 3300, GLIDE_TC = 1.9;
 
 function impulse(ctx, secs, decay) {
   const n = Math.floor(ctx.sampleRate * secs), b = ctx.createBuffer(2, n, ctx.sampleRate);
@@ -192,7 +221,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   const doc = typeof document !== "undefined" ? document : null;
   let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null;
   let renderer = null, scene = null, camera = null, raf = 0, t0 = 0, stage = "idle", menu = null, finished = false;
-  let fig = null, figMat = null, disposables = [], chord = null, skipMs = 0;
+  let fig = null, figMat = null, disposables = [], chord = null, skipMs = 0, wisps = null;
   let look = { yaw: 0, pitch: 0, goalYaw: 0, goalPitch: 0 }, dragAt = null;
   // Resolution held to the frame rate: an average of frame times; slow for
   // a while, a step down (never below 1).
@@ -205,52 +234,70 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     if (!o || !o.ctx) return;
     const { ctx } = o, t = ctx.currentTime;
     if (on && !chord) {
-      const whole = ctx.createGain(); whole.gain.setValueAtTime(0.0001, t); whole.gain.linearRampToValueAtTime(0.14, t + 7);
-      // (A vaster room than before, user: more reverb, understated.)
-      const verb = ctx.createConvolver(); verb.buffer = impulse(ctx, 13, 2.0);
-      const wet = ctx.createGain(); wet.gain.value = 1.15; const dry = ctx.createGain(); dry.gain.value = 0.26;
-      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 520; lp.Q.value = 0.7;
-      // The "oo" of a hum: two formants over the voices.
-      const f1 = ctx.createBiquadFilter(); f1.type = "bandpass"; f1.frequency.value = 320; f1.Q.value = 2.2;
-      const f2 = ctx.createBiquadFilter(); f2.type = "bandpass"; f2.frequency.value = 820; f2.Q.value = 3;
-      const fg1 = ctx.createGain(); fg1.gain.value = 2.2; const fg2 = ctx.createGain(); fg2.gain.value = 0.9;
-      const body = ctx.createGain(); body.gain.value = 0.55;
+      /* Two gains in series: `fade`, the slow fade up (and down at the
+         end), and `whole`, the level the swell moves (user: the volume
+         was odd at the start: the swell had been re-aimed every frame on
+         the same gain the fade-up was ramping, and they fought). */
+      // (Evenly in loudness: from a whisper, -34 dB, up over ~7 s.)
+      const fade = ctx.createGain(); fade.gain.setValueAtTime(0.0001, t); fade.gain.linearRampToValueAtTime(0.02, t + 0.6); fade.gain.exponentialRampToValueAtTime(1, t + 7.2);
+      const whole = ctx.createGain(); whole.gain.value = 0.15;
+      // (A vast room, user: way more reverb, much fuller.)
+      const verb = ctx.createConvolver(); verb.buffer = impulse(ctx, 16, 1.6);
+      const wet = ctx.createGain(); wet.gain.value = 1.45; const dry = ctx.createGain(); dry.gain.value = 0.2;
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900; lp.Q.value = 0.6;
+      // The "oo" of a hum (two formants), and over it a little of an
+      // "aah" (two higher ones): warmer, and lighter, more hopeful.
+      const band = (f, q, g) => { const b = ctx.createBiquadFilter(); b.type = "bandpass"; b.frequency.value = f; b.Q.value = q; const gg = ctx.createGain(); gg.gain.value = g; b.connect(gg).connect(lp); return b; };
       const src = ctx.createGain();
-      src.connect(f1).connect(fg1).connect(lp); src.connect(f2).connect(fg2).connect(lp); src.connect(body).connect(lp);
+      [band(320, 2.2, 2.0), band(820, 3, 0.9), band(700, 3, 0.7), band(1150, 4, 0.45)].forEach((b) => src.connect(b));
+      const body = ctx.createGain(); body.gain.value = 0.5; src.connect(body).connect(lp);
       lp.connect(dry).connect(whole); lp.connect(verb).connect(wet).connect(whole);
-      whole.connect(o.ear);
+      whole.connect(fade).connect(o.ear);
       const all = [];
       const voices = CHORDS[0].map((f, vi) => {
-        const oscs = [0, 1, 2].map(() => {
-          const os = ctx.createOscillator(); os.type = "sawtooth"; os.frequency.value = f; os.detune.value = (Math.random() * 2 - 1) * 8;
-          const vib = ctx.createOscillator(); vib.frequency.value = 3.8 + Math.random() * 1.4; const vg = ctx.createGain(); vg.gain.value = 2 + Math.random() * 2.5;
+        // Five detuned saws a voice (fuller), each with its own vibrato.
+        const oscs = [0, 1, 2, 3, 4].map(() => {
+          const os = ctx.createOscillator(); os.type = "sawtooth"; os.frequency.value = f; os.detune.value = (Math.random() * 2 - 1) * 11;
+          const vib = ctx.createOscillator(); vib.frequency.value = 3.6 + Math.random() * 1.6; const vg = ctx.createGain(); vg.gain.value = 2 + Math.random() * 2.5;
           vib.connect(vg).connect(os.detune);
           os.start(t); vib.start(t); all.push(os, vib);
           return os;
         });
-        const g = ctx.createGain(); const lv = (vi >= 3 ? 0.55 : 1) / Math.sqrt(15);
+        // (The top two voices with a faint octave above them: light.)
+        if (vi >= 3) {
+          const up = ctx.createOscillator(); up.type = "triangle"; up.frequency.value = f * 2; oscs.push(up);
+          const ug = ctx.createGain(); ug.gain.value = 0.12; up.connect(ug); up.start(t); all.push(up);
+          up._g = ug;
+        }
+        const g = ctx.createGain(); const lv = (vi >= 3 ? 0.6 : 1) / Math.sqrt(25);
         g.gain.value = lv;
         const breath = ctx.createOscillator(); breath.frequency.value = 0.04 + Math.random() * 0.07; const bg = ctx.createGain(); bg.gain.value = 0.3 * lv;
         breath.connect(bg).connect(g.gain); breath.start(t); all.push(breath);
-        oscs.forEach((os) => os.connect(g)); g.connect(src);
+        // Spread across the room, low in the middle, the rest to the sides.
+        const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+        if (pan) pan.pan.value = [0, -0.45, 0.45, -0.7, 0.7][vi];
+        oscs.forEach((os) => (os._g ? os._g : os).connect(g));
+        if (pan) g.connect(pan).connect(src); else g.connect(src);
         return { oscs, g };
       });
+      // Under it all, the low D an octave down, a breath of it.
+      { const sub = ctx.createOscillator(); sub.type = "sine"; sub.frequency.value = 36.71; const sg = ctx.createGain(); sg.gain.value = 0.05;
+        sub.connect(sg).connect(lp); sub.start(t); all.push(sub); }
       // A shimmer high above it, all reverb, barely there: two sines (a D
-      // and an A, at home in every chord here), each swelling and fading
-      // on its own long breath.
+      // and an A), each swelling and fading on its own long breath.
       [1174.66, 1760].forEach((f, i) => {
         const os = ctx.createOscillator(); os.type = "sine"; os.frequency.value = f;
-        const g = ctx.createGain(); g.gain.value = 0.0035;
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 1 / (17 + 6 * i); const lg = ctx.createGain(); lg.gain.value = 0.0035;
+        const g = ctx.createGain(); g.gain.value = 0.004;
+        const lfo = ctx.createOscillator(); lfo.frequency.value = 1 / (17 + 6 * i); const lg = ctx.createGain(); lg.gain.value = 0.004;
         lfo.connect(lg).connect(g.gain);
         os.connect(g).connect(verb);
         os.start(t); lfo.start(t); all.push(os, lfo);
       });
-      chord = { ctx, whole, lp, voices, all, next: performance.now() + CHORD_MS, at: 0 };
+      chord = { ctx, fade, whole, lp, voices, all, next: performance.now() + CHORD_MS, at: 0 };
     } else if (!on && chord) {
       const c = chord; chord = null;
-      c.whole.gain.cancelScheduledValues(t); c.whole.gain.setValueAtTime(c.whole.gain.value, t); c.whole.gain.linearRampToValueAtTime(0.0001, t + 2.5);
-      setTimeout(() => c.all.forEach((x) => { try { x.stop(); } catch (e) { /* done */ } }), 11000);
+      c.fade.gain.cancelScheduledValues(t); c.fade.gain.setValueAtTime(Math.max(0.0001, c.fade.gain.value), t); c.fade.gain.linearRampToValueAtTime(0.0001, t + 2.5);
+      setTimeout(() => c.all.forEach((x) => { try { x.stop(); } catch (e) { /* done */ } }), 14000);
     }
   }
   // Each frame: when it's time, the next chord, one voice at a time.
@@ -260,7 +307,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const target = CHORDS[chord.at], c = chord;
     target.forEach((f, vi) => {
       const when = c.ctx.currentTime + (vi * VOICE_STAGGER) / 1000 + Math.random() * 0.6;
-      c.voices[vi].oscs.forEach((os) => os.frequency.setTargetAtTime(f, when, GLIDE_TC));
+      c.voices[vi].oscs.forEach((os) => os.frequency.setTargetAtTime(os._g ? f * 2 : f, when, GLIDE_TC));
     });
     chord.next = now + CHORD_MS;
   }
@@ -268,8 +315,8 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   function swell(k) {
     if (!chord) return;
     const t = chord.ctx.currentTime;
-    chord.whole.gain.setTargetAtTime(0.14 + 0.3 * k * k, t, 0.25);
-    chord.lp.frequency.setTargetAtTime(520 + 2600 * k * k, t, 0.25);
+    chord.whole.gain.setTargetAtTime(0.15 + 0.3 * k * k, t, 0.25);
+    chord.lp.frequency.setTargetAtTime(900 + 2400 * k * k, t, 0.25);
   }
 
   function build() {
@@ -311,12 +358,39 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const ballGeo = new THREE.SphereGeometry(40, 48, 32), ballMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const ball = new THREE.Mesh(ballGeo, ballMat); ball.position.copy(sphereAt); scene.add(ball); disposables.push(ballGeo, ballMat);
     // The figure.
-    figMat = new THREE.ShaderMaterial({ vertexShader: RIM_VERT, fragmentShader: RIM_FRAG, uniforms: {
+    // (One set of uniforms for the body and its wireframe, so they stretch,
+    // move and dissolve together.)
+    const figU = {
       uLight: { value: new THREE.Vector3(0, 0, -1) }, uGlow: { value: 1 },
-      uCenter: { value: new THREE.Vector3() }, uDir: { value: new THREE.Vector3(0, 0, -1) }, uStretch: { value: 1 }, uTime: { value: 0 } } });
+      uCenter: { value: new THREE.Vector3() }, uDir: { value: new THREE.Vector3(0, 0, -1) }, uStretch: { value: 1 }, uTime: { value: 0 },
+      uSolid: { value: 0.2 }, uWire: { value: 0.8 } };
+    figMat = new THREE.ShaderMaterial({ vertexShader: RIM_VERT, fragmentShader: RIM_FRAG, uniforms: figU });
     fig = buildFigure(figMat);
     disposables.push(figMat, ...fig.geos);
+    // The wireframe under the black (user: the body warping, morphing
+    // between the singularity's black and a wireframe mesh, then slowly
+    // all black).
+    const wireMat = new THREE.ShaderMaterial({ vertexShader: RIM_VERT, fragmentShader: WIRE_FRAG, uniforms: figU, wireframe: true,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    disposables.push(wireMat);
+    fig.meshes.forEach((m) => { const w = new THREE.Mesh(m.geometry, wireMat); w.renderOrder = 1; m.add(w); });
     scene.add(fig.fig);
+    // The plasma coming off them (user: the singularity's own wisps,
+    // rising from the body more and more as they go into it): a pool of
+    // motes, each born at a point on the body, drifting off and up in a
+    // slow curl, growing, fading.
+    {
+      const N = 700, pos = new Float32Array(N * 3), al = new Float32Array(N), sz = new Float32Array(N);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      g.setAttribute("aAlpha", new THREE.BufferAttribute(al, 1));
+      g.setAttribute("aSize", new THREE.BufferAttribute(sz, 1));
+      const mat = new THREE.ShaderMaterial({ vertexShader: WISP_VERT, fragmentShader: WISP_FRAG, uniforms: { uScale: { value: 400 } },
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+      const pts = new THREE.Points(g, mat); pts.frustumCulled = false; scene.add(pts);
+      disposables.push(g, mat);
+      wisps = { N, pos, al, sz, g, mat, pts, p: Array.from({ length: N }, () => ({ life: 0, age: 1, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, ph: Math.random() * 6.28, size: 1 })), carry: 0, next: 0 };
+    }
     // A faint aura round them, breathing (user: subtle, ethereal).
     const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x9fc4ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
     aura.scale.setScalar(34); scene.add(aura); disposables.push(aura.material);
@@ -336,6 +410,47 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   }
 
   const figPos = new THREE.Vector3(), camPos = new THREE.Vector3(), tmp = new THREE.Vector3(), aim = new THREE.Vector3(), off = new THREE.Vector3();
+  // The plasma off the body: more and more of it from ~4 s, most as they
+  // go in; each mote born on the body, drifting out and up in a slow
+  // curl (pulled a little toward the sphere), growing as it fades.
+  const wv = new THREE.Vector3(), wc = new THREE.Vector3();
+  function stepWisps(s, dt, m) {
+    if (!wisps || !fig) return;
+    const W = wisps;
+    const grow = smooth((s - 4000) / 22000);
+    const rate = fig.fig.visible ? 3 + 55 * grow + 110 * m : 0;
+    W.carry += rate * dt;
+    fig.fig.updateMatrixWorld(true);
+    wc.copy(sphereAt).sub(figPos).normalize();
+    const shrink = fig.fig.scale.x;
+    for (let i = 0; i < W.N && W.carry >= 1; i++) {
+      const p = W.p[(W.next + i) % W.N];
+      if (p.age < p.life) continue;
+      W.carry -= 1; W.next = (W.next + i + 1) % W.N; i = -1;
+      const mesh = fig.meshes[(Math.random() * fig.meshes.length) | 0];
+      const at = mesh.geometry.attributes.position, k = (Math.random() * at.count) | 0;
+      wv.fromBufferAttribute(at, k).applyMatrix4(mesh.matrixWorld);
+      p.x = wv.x; p.y = wv.y; p.z = wv.z;
+      wv.sub(figPos).normalize();
+      const sp = (2.5 + 4 * Math.random()) * shrink;
+      p.vx = wv.x * sp + wc.x * 1.5; p.vy = wv.y * sp + 2.2 * shrink + wc.y * 1.5; p.vz = wv.z * sp + wc.z * 1.5;
+      p.age = 0; p.life = 2.2 + 2 * Math.random(); p.size = (0.8 + 1.3 * Math.random()) * shrink; p.ph = Math.random() * 6.28;
+    }
+    W.carry = Math.min(W.carry, 3);
+    for (let i = 0; i < W.N; i++) {
+      const p = W.p[i];
+      if (p.age >= p.life) { W.al[i] = 0; continue; }
+      p.age += dt;
+      const u = p.age / p.life, c = Math.sin(p.ph + p.age * 1.7) * 1.6;
+      p.x += (p.vx + c) * dt; p.y += p.vy * dt; p.z += (p.vz + Math.cos(p.ph + p.age * 1.3) * 1.6) * dt;
+      p.vx *= 1 - 0.4 * dt; p.vy *= 1 - 0.25 * dt; p.vz *= 1 - 0.4 * dt;
+      W.pos[i * 3] = p.x; W.pos[i * 3 + 1] = p.y; W.pos[i * 3 + 2] = p.z;
+      W.al[i] = Math.sin(Math.PI * Math.min(1, u)) * 0.32;
+      W.sz[i] = p.size * (1 + 2.4 * u);
+    }
+    W.g.attributes.position.needsUpdate = true; W.g.attributes.aAlpha.needsUpdate = true; W.g.attributes.aSize.needsUpdate = true;
+    if (renderer && camera) W.mat.uniforms.uScale.value = renderer.domElement.height / (2 * Math.tan((camera.fov * Math.PI) / 360));
+  }
   let mergeFrom = null, lastNow = 0;
   function frame() {
     raf = requestAnimationFrame(frame);
@@ -416,7 +531,13 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     camera.updateMatrixWorld();
     tmp.copy(sphereAt).sub(figPos).normalize().transformDirection(camera.matrixWorldInverse);
     figMat.uniforms.uLight.value.copy(tmp);
-    figMat.uniforms.uGlow.value = 0.9 + 0.12 * Math.sin((T1 * Math.PI * 2) / 7.2) + 1.2 * stretch + 1.6 * m * m;
+    // Wireframe and black, morphing, then all black (slowly, ~2 s to ~19 s).
+    const solidP = smooth((s - 2000) / 17000);
+    const solid = Math.min(1, Math.max(0.05, 0.18 + 0.82 * solidP + 0.16 * Math.sin(T1 * 1.3) * Math.sin(T1 * 0.47) * (1 - solidP)));
+    figMat.uniforms.uSolid.value = solidP >= 0.999 ? 1 : solid;
+    figMat.uniforms.uWire.value = 0.85 * Math.pow(1 - solidP, 1.2);
+    figMat.uniforms.uGlow.value = (0.9 + 0.12 * Math.sin((T1 * Math.PI * 2) / 7.2)) * (1 - 0.45 * solidP) + 1.2 * stretch + 1.6 * m * m;
+    stepWisps(s, dt, m);
     // The plasma and the halo, breathing; flaring as they're taken in.
     const pulse = 0.82 + 0.18 * Math.sin(T1 * 0.9) + 0.08 * Math.sin(T1 * 2.3);
     const flare = Math.exp(-Math.pow((m - 0.97) / 0.05, 2));
@@ -483,7 +604,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     },
     // Whether it covers the screen (the den needn't draw underneath).
     covering: () => !!root && (stage === "void" || stage === "black" || stage === "menu" || stage === "going"),
-    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null }),
+    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: chord ? chord.fade.gain.value * chord.whole.gain.value : 0, wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0 }),
     // Test-only: on by ms.
     skip(ms) { skipMs += ms; },
     dispose() {
