@@ -5450,3 +5450,8 @@ phone menu until "Start the story over" (which clears it).
     (no fetch), so the e2e tests don't hear it; checked over http
     (scheduled at 9.6 s, stops ~2 s after Back as the sphere closes).
     Hook __EC_DRONE__.
+  - Phone call dialogue 40% quieter (user): den-call.js VOICE_LEVEL 0.42
+    -> 0.25 (measured offline through the line's chain: highpass, tanh
+    crunch, lowpass; nearly linear there, 0.25 gives 0.605 of the old
+    output RMS); the synthesized stand-in (babble) through a 0.6 gain.
+    The line's own hiss and clicks, and the ringer, unchanged.

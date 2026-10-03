@@ -232,7 +232,7 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
      a line every VOICE_SLOT seconds, VOICE_LENS long; played down the
      line like everything else the caller says. Until it's loaded (or if
      it can't be), the synthesized voice (babble) stands in. */
-  const VOICE_URL = "el-cabeza-den-call-voice.mp3", VOICE_SLOT = 8, VOICE_LENS = [3.78, 0.78, 4.13], VOICE_LEVEL = 0.42;
+  const VOICE_URL = "el-cabeza-den-call-voice.mp3", VOICE_SLOT = 8, VOICE_LENS = [3.78, 0.78, 4.13], VOICE_LEVEL = 0.25; // (was 0.42; the user: 40% quieter. Measured through the line, 0.25 comes out at 60%.)
   let voiceBuf = null, voiceLoading = false, voiceEl = null, voiceElGain = null, voiceElStop = 0;
   function loadVoice() {
     const o = output(), L = line_();
@@ -327,8 +327,10 @@ export function createDenCall({ audio, awaitingBegin, onTrip = null, onGoToPhone
     const hiss = ctx.createBufferSource(); hiss.buffer = o.noise; hiss.loop = true;
     const cbp = ctx.createBiquadFilter(); cbp.type = "bandpass"; cbp.frequency.value = 3200; cbp.Q.value = 1.5;
     const cons = ctx.createGain(); cons.gain.value = 0;
-    hiss.connect(cbp).connect(cons).connect(L.input);
-    amp.connect(L.input);
+    // (40% quieter, as the recording, user.)
+    const voiceG = ctx.createGain(); voiceG.gain.value = 0.6; voiceG.connect(L.input);
+    hiss.connect(cbp).connect(cons).connect(voiceG);
+    amp.connect(voiceG);
     const words = text.replace(/…/g, "… ").split(/\s+/).filter(Boolean);
     const sentences = [];
     let cur = [];
