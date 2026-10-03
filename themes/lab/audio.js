@@ -21,7 +21,7 @@
 
 const MAX_VOICES = 24;
 const S = {
-  ctx: null, master: null, comp: null, noise: null, curve: null,
+  ctx: null, master: null, comp: null, noise: null, curve: null, room: null,
   volume: 0.8, muted: false, active: 0,
 };
 const listeners = new Set();
@@ -97,7 +97,25 @@ function filterNode(f) {
 
 /* A shaped oscillator: type, frequency (optionally gliding to f2), an
    attack/decay envelope, an optional filter and distortion. */
-function tone({ type = "sine", f = 440, f2, dur = 0.1, a = 0.004, g = 0.1, delay = 0, filter, dist, det = 0.012 }) {
+/* A small room (0.5 s), made once and kept: a voice may send into it
+   (`verb`, the send's level); its tail rings on after the voice itself
+   has ended and been let go, and dies away to nothing by itself. */
+function room() {
+  if (S.room) return S.room;
+  const c = S.ctx, n = Math.floor(c.sampleRate * 0.5), b = c.createBuffer(2, n, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = b.getChannelData(ch);
+    let seed = 777 + ch * 101;
+    for (let i = 0; i < n; i++) { seed = (seed * 16807) % 2147483647; const r = i / n; d[i] = ((seed / 2147483647) * 2 - 1) * Math.exp(-6.9 * r) * (1 - r); }
+  }
+  S.room = c.createConvolver(); S.room.buffer = b;
+  // (Its tail ~10 dB under the sound sent into it: heard, not washing it out.)
+  const out = c.createGain(); out.gain.value = 4;
+  S.room.connect(out).connect(S.comp);
+  return S.room;
+}
+
+function tone({ type = "sine", f = 440, f2, dur = 0.1, a = 0.004, g = 0.1, delay = 0, filter, dist, det = 0.012, verb = 0 }) {
   if (!voiceSlot()) return;
   const c = S.ctx, t0 = c.currentTime + 0.005 + delay;
   const o = c.createOscillator();
@@ -116,6 +134,7 @@ function tone({ type = "sine", f = 440, f2, dur = 0.1, a = 0.004, g = 0.1, delay
   if (dist) { const w = c.createWaveShaper(); w.curve = S.curve; w.oversample = "2x"; last.connect(w); last = w; chain.push(w); }
   if (filter) { const fl = filterNode(filter); if (filter.to) fl.frequency.exponentialRampToValueAtTime(filter.to, t0 + dur); last.connect(fl); last = fl; chain.push(fl); }
   last.connect(env); env.connect(S.comp); chain.push(env);
+  if (verb > 0) { const send = c.createGain(); send.gain.value = verb; env.connect(send).connect(room()); chain.push(send); }
   o.start(t0); o.stop(t0 + dur + 0.03);
   o.onended = releaser(chain, delay + dur + 0.05);
 }
@@ -249,14 +268,16 @@ const VOICES = {
     };
   })(),
   neoBrutalist: (() => {
-    const pop = (f, g = 0.16, delay = 0) => tone({ f, f2: f * 0.3, dur: 0.035, a: 0.002, g, delay, det: 0.05 });
+    const pop = (f, g = 0.16, delay = 0, verb = 0) => tone({ f, f2: f * 0.3, dur: 0.035, a: 0.002, g, delay, det: 0.05, verb });
     return {
       hover() { pop(1600, 0.035); },
       select() { pop(900); },
       deselect() { pop(600, 0.12); },
       blocked() { tone({ type: "square", f: 150, dur: 0.08, g: 0.06, filter: { f: 800 } }); pop(300, 0.1, 0.02); },
       roll() { pop(500, 0.08); pop(700, 0.07, 0.06); },
-      land() { pop(250, 0.2); tone({ f: 90, dur: 0.06, g: 0.1 }); },
+      // The thunk at the end of a move: 60% lower than it was (user), and
+      // a little room round it (0.5 s) that always rings fully away.
+      land() { pop(250, 0.08, 0, 0.8); tone({ f: 90, dur: 0.06, g: 0.04, verb: 0.8 }); },
       capture() { seq([1200, 900, 600], (f, i) => pop(f, 0.14, i * 0.05)); noise({ dur: 0.06, g: 0.06, delay: 0.15, filter: { type: "highpass", f: 2500 } }); },
       turn() { pop(1100, 0.1); },
       win() { seq([600, 800, 1000, 1200, 1600], (f, i) => pop(f, 0.14, i * 0.06)); tone({ f: 1600, dur: 0.3, g: 0.05, delay: 0.32 }); },

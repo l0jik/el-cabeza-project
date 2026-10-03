@@ -5853,3 +5853,11 @@ phone menu until "Start the story over" (which clears it).
       from ~23 s into it on a desktop, ~20 s on a phone); the switcher at
       98.3 s. The music: "Completion" 0-56.1 s (eased out 54.6-56.6 s),
       its added room ringing to ~65 s; the drone from 56.1 s.
+    - Neo-Brutalism's move thunk (Lab, themes/lab/audio.js land(): the
+      250 Hz falling pop and the 90 Hz body): 60% lower (0.2 -> 0.08,
+      0.1 -> 0.04, user) and sent (0.8) into a small room: room(), one
+      convolver for the page, a 0.5 s stereo noise impulse decaying
+      exp(-6.9 r)(1 - r) (60 dB over its length), out at 4 (its tail ~10
+      dB under the thunk). tone() takes `verb` (a send level); the voice
+      is let go as before, the room's tail rings on and dies by itself
+      (rendered: -94 dB by 0.4 s, silent from 0.6 s).
