@@ -5936,3 +5936,8 @@ phone menu until "Start the story over" (which clears it).
       rad/s) and eases back to its own float (slerp to identity, e^-0.3t),
       faded out over 2.5 s from the drift in. One quaternion premultiplied
       onto the body; nothing more drawn. State: turn (rad), edge.
+    - Longer fingers and feet still (user): fingers 1.06/1.2/1.12/0.88
+      (index..little; were 0.74/0.84/0.78/0.6), tips a little wider and
+      more curled, blend 0.07 -> 0.1 (fewer specks between them at the
+      knuckles); thumb longer; feet 1.5 -> 1.85 long (centre z 0.98).
+      20.9k vertices.

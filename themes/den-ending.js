@@ -468,14 +468,14 @@ function figRig() {
     const n0 = parts.length;
     parts.push([b, ell(restInv[b], V(0, y0 - 0.42, 0.02), V(0.47, 0.56, 0.22)), 0.22]);   // the palm
     // [knuckle x, length, tip x] from the thumb's side over to the little finger.
-    [[0.29, 0.74, 0.46], [0.1, 0.84, 0.15], [-0.1, 0.78, -0.16], [-0.29, 0.6, -0.44]].forEach(([x, len, tx]) =>
-      parts.push([b, cone(P(x, -0.8, 0.03), P(tx, -0.8 - len, 0.17), 0.12, 0.095), 0.07]));
-    parts.push([b, cone(P(0.36, -0.18, 0.06), P(0.72, -0.76, 0.22), 0.14, 0.105), 0.12]);   // the thumb
+    [[0.29, 1.06, 0.5], [0.1, 1.2, 0.16], [-0.1, 1.12, -0.18], [-0.29, 0.88, -0.5]].forEach(([x, len, tx]) =>
+      parts.push([b, cone(P(x, -0.8, 0.03), P(tx, -0.8 - len, 0.22), 0.12, 0.09), 0.1]));
+    parts.push([b, cone(P(0.36, -0.18, 0.06), P(0.82, -0.95, 0.26), 0.14, 0.1), 0.12]);   // the thumb
     for (let i = n0; i < parts.length; i++) HAND.push(parts[i][1].box);
   };
-  // The feet a little longer (user).
+  // The feet longer (user, twice).
   [[arms, ARM, (k, s) => hand(k, s)],
-   [legs, LEG, (k) => parts.push([bones.indexOf(k), ell(restInv[bones.indexOf(k)], V(0, -LEG[1] - 0.2, 0.72), V(0.52, 0.38, 1.5)), 0.3])]].forEach(([set, L, end]) => set.forEach(({ j, k }, i) => {
+   [legs, LEG, (k) => parts.push([bones.indexOf(k), ell(restInv[bones.indexOf(k)], V(0, -LEG[1] - 0.2, 0.98), V(0.52, 0.38, 1.85)), 0.3])]].forEach(([set, L, end]) => set.forEach(({ j, k }, i) => {
     const J = at(j, 0, 0, 0), K = at(k, 0, 0, 0), E = at(k, 0, -L[1], 0);
     parts.push([bones.indexOf(j), cone(J, K, L[2], L[3]), 0.7]);
     parts.push([bones.indexOf(k), cone(K, E, L[3], L[4]), 0.25]);
