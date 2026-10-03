@@ -320,6 +320,28 @@ function handsOnHead(f, g, t) {
     k.quaternion.slerp(_qk, g);
   });
 }
+/* Reaching toward the sphere (user: on "It's El Cabeza"): both arms out
+   toward it, nearly straight, a little apart, palms toward it; `to` is
+   the sphere in the body's own frame. Blended over the pose by `g`. */
+function reachToSphere(f, g, to, t) {
+  if (g <= 0.001) return;
+  f.arms.forEach(({ j, k }, i) => {
+    const s = i ? 1 : -1;
+    _v.subVectors(to, j.position).normalize();
+    // (Spread a little, and a slow, uneven yearning in it.)
+    // (A wide V, a little upward, so it reads from behind them too.)
+    _v.x += s * 0.75 + 0.03 * Math.sin(t * 1.1 + i * 2);
+    _v.y += 0.6 + 0.04 * Math.sin(t * 0.9 + i);
+    _v.normalize();
+    _qj.setFromUnitVectors(Y_DOWN, _v);
+    // (Elbows all but straight; the hands turned palm forward.)
+    _qk.setFromEuler(new THREE.Euler(-0.12, s * 1.2, 0));
+    j.quaternion.slerp(_qj, g);
+    k.quaternion.slerp(_qk, g);
+  });
+  // The head lifted to it.
+  f.headG.rotation.x += (-0.38 - f.headG.rotation.x) * g * 0.8;
+}
 function pose(f, t, a, m, st = 0, g = 0) {
   const breath = Math.sin((t * Math.PI * 2) / 7.2);
   const fl = (i, k) => Math.sin(t * (6.1 + 1.3 * i) + k * 2.1 + i) * 0.7 + Math.sin(t * (9.7 - 0.9 * i) + k * 1.3) * 0.3;
@@ -672,6 +694,17 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       setTimeout(() => c.all.forEach((x) => { try { x.stop(); } catch (e) { /* done */ } }), 6500);
     }
   }
+  /* As the switcher comes, whatever's still sounding from the crawl
+     (the drone, or its dying tail) fades evenly to nothing in `secs`
+     (user: 3 s), and the sources stop. */
+  function droneGone(secs) {
+    const c = snd;
+    if (!c) return;
+    if (c.els) { const el = c.els.drone; if (el) { const v0 = el.volume, t0 = performance.now(); const step = () => { const k = (performance.now() - t0) / (secs * 1000); if (k >= 1) { try { el.pause(); } catch (e) { /* fine */ } return; } el.volume = v0 * (1 - k); requestAnimationFrame(step); }; step(); c.els.drone = null; } return; }
+    const t = c.ctx.currentTime, g = c.droneG.gain;
+    c.droneOn = false;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + secs);
+  }
   /* The crawl's drone (user: under the crawl, something like the music,
      toned right down, not changing; almost a vibration): faded up over
      `secs` from the black, and dying away as the crawl goes, over
@@ -909,6 +942,14 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // held through the line, then down again as the next one comes.
     const onHead = smooth((s - (T.words - 700)) / 1100) * (1 - smooth((s - (T.words + 3900)) / 1600));
     pose(fig, T1, awe, smooth(m * 1.6), st, onHead);
+    // Reaching for the sphere on "It's El Cabeza" (the seventh line),
+    // easing into the drift as the last line comes.
+    const elCabeza = T.words + 6 * T.wordEach;
+    const reach = smooth((s - (elCabeza - 400)) / 1500) * (1 - smooth((s - (elCabeza + T.wordEach + 300)) / 2200));
+    if (reach > 0.001) {
+      fig.fig.updateMatrixWorld(true);
+      reachToSphere(fig, reach, fig.fig.worldToLocal(tmp.copy(sphereAt)), T1);
+    }
     if (fig.fig.visible) fig.skin();
     // Spaghettified on the way in, let go into a body again.
     const stretch = 1 - smooth((s - 1100) / 2700);
@@ -1009,7 +1050,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
         if (r && r.height > 0 && r.top + r.height / 2 < vh / 2) { crawlTap = true; crawl.setAttribute("data-dismissable", "true"); }
       }
     }
-    if (stage === "black" && (s >= MENU_AT || (crawlFade != null && s >= crawlFade + CRAWL_FADE))) { drone(false, 11); if (crawl) crawl.classList.remove("on"); openMenu(); }
+    if (stage === "black" && (s >= MENU_AT || (crawlFade != null && s >= crawlFade + CRAWL_FADE))) { droneGone(3); if (crawl) crawl.classList.remove("on"); openMenu(); }
     // (Under the black, nothing to draw.)
     if (renderer && s < BLACK[1] + 300) renderer.render(scene, camera);
   }

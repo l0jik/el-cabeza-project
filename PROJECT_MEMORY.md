@@ -5880,3 +5880,15 @@ phone menu until "Start the story over" (which clears it).
       forearm turned about itself so the palm (the hand's local z) faces
       down; slerped over the pose by g. The head a little down and still
       under the hands meanwhile.
+    - Reaching for the sphere on "It's El Cabeza" (user): reachToSphere(f,
+      g, to, t), after pose(): `to` the sphere in the body's own frame
+      (worldToLocal); each arm aimed at it plus a wide V up and out
+      (x ±0.75, y +0.6, so it reads from behind them, dark arms straight
+      into the dark sphere vanished), elbows near straight, palms
+      forward, a slow uneven yearning; the head lifted. g =
+      smooth((s - (38 s - 0.4)) / 1.5 s) * (1 - smooth((s - 43.3 s) /
+      2.2 s)): up through the line, into the drift as the last comes.
+    - At the switcher, the crawl's sound (the drone or its dying tail)
+      fades evenly to nothing in 3 s (user): droneGone(3), a linear ramp
+      to 0 (the <audio> fallback likewise). Measured: -31 dB at the
+      switcher, -49 at 2.6 s, silent from 3 s.
