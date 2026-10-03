@@ -283,6 +283,9 @@ function UnifiedApp() {
   const rafRef = useRef(null);
   const sfxRef = useRef(null);
   if (!sfxRef.current) sfxRef.current = createSwitcherSfx();
+  // (The register tape's recordings, fetched ahead while the game's still
+  // on the shelf, so they're there when it's bought.)
+  useEffect(() => { if (!readOwned()) sfxRef.current.prefetchReceipt(); }, []);
 
   const holdState = useRef({
     phase: "idle", // idle | holding | releasing | settling

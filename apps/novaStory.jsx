@@ -110,9 +110,24 @@ function receiptLines() {
 }
 
 // The register's timing, shared with its sound (unifiedTransition.jsx,
-// sfx.register): the keys and the bell, then a line of tape every LINE_MS.
+// sfx.register): the keys and the bell, then the tape printing from
+// PRINT_AT_MS. It prints in the bursts of the user's recording of a
+// paper printer (assets/story/receipt-print.mp3, tools/story_receipt.py):
+// seconds from the print's start, one or two lines a burst, each line
+// showing as its burst gets through it. Then torn off (TEAR_AFTER_MS
+// after the last burst).
 export const PRINT_AT_MS = 1450;
-export const LINE_MS = 150;
+export const PRINT_BURSTS = [[0.033, 0.45], [0.567, 1.142], [1.242, 1.825], [1.925, 2.517], [2.6, 3.2], [3.367, 3.867]];
+export const TEAR_AFTER_MS = 300;
+// (Each line's time, ms from the print's start: the lines shared out over
+// the bursts, the first (shortest) taking fewest.)
+export function printLineTimes(n) {
+  const B = PRINT_BURSTS.length, per = PRINT_BURSTS.map(() => Math.floor(n / B));
+  for (let r = n - per.reduce((a, b) => a + b, 0), i = B - 1; r > 0; r--, i = i > 1 ? i - 1 : B - 1) per[i]++;
+  const out = [];
+  PRINT_BURSTS.forEach(([a, b], i) => { for (let k = 0; k < per[i]; k++) out.push(Math.round((a + ((b - a) * (k + 1) * 0.92) / per[i]) * 1000)); });
+  return out;
+}
 
 /* A jagged paper edge as a clip-path: teeth along the top, and along the
    bottom too once the tape is torn off. */
@@ -194,15 +209,16 @@ export function StoryCut({ cut, onSwap, onDone, sfx }) {
 
   useEffect(() => {
     if (!purchase) { toDark(); return clear; }
-    if (sfx && sfx.register) sfx.register({ printAt: PRINT_AT_MS / 1000, lines: lines.length, lineGap: LINE_MS / 1000 });
+    const times = printLineTimes(lines.length);
+    const tearAt = PRINT_AT_MS + PRINT_BURSTS[PRINT_BURSTS.length - 1][1] * 1000 + TEAR_AFTER_MS;
+    if (sfx && sfx.register) sfx.register({ printAt: PRINT_AT_MS / 1000, lineTimes: times.map((t) => t / 1000), tearAt: tearAt / 1000 });
     if (reduced) {
       setPrinted(lines.length);
       after(1400, () => setTorn(true));
       after(2000, toDark);
       return clear;
     }
-    lines.forEach((_, i) => after(PRINT_AT_MS + i * LINE_MS, () => setPrinted(i + 1)));
-    const tearAt = PRINT_AT_MS + lines.length * LINE_MS + 250;
+    times.forEach((t, i) => after(PRINT_AT_MS + t, () => setPrinted(i + 1)));
     after(tearAt, () => setTorn(true));
     after(tearAt + 900, toDark);
     return clear;

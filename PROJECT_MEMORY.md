@@ -5973,3 +5973,18 @@ phone menu until "Start the story over" (which clears it).
   B-flat against a note a semitone up. Measured offline (OfflineAudioContext
   driven through playLabVoice): peaks about 5 dB under Swiss, hover all but
   silent (-46 dB).
+- Nova's purchase: the register tape's sounds from the user's recordings
+  (tools/story_receipt.py -> assets/story/receipt-print.mp3,
+  receipt-tear.mp3; served as el-cabeza-story-receipt-*.mp3, build.js).
+  The print: a taxi meter's paper printer, its first six bursts, 1.2x
+  (pitch with it), high-passed 120 Hz, levelled. The tear: the hard swipe
+  of a receipt against the cutter (peak 0.34 s in; it's started so the
+  peak lands on the tear) and, 0.62 s on, a softer swipe as it's drawn
+  away. The tape now prints in the recording's bursts (novaStory.jsx
+  PRINT_BURSTS, printLineTimes: 11 lines over 6 bursts, 1-2-2-2-2-2, each
+  line as its burst gets through it), torn 300 ms after the last: the tape
+  takes ~3.9 s (was 1.65 s at a line per 150 ms), the tear at 5.6 s from
+  the ring (was 3.35). Fetched ahead while the game's still on the shelf
+  (sfx.prefetchReceipt, unified.jsx), decoded when the register rings;
+  each decided just before it's due, the made sounds if the recording
+  isn't there (and from disk, file:, always).

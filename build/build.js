@@ -32,6 +32,10 @@ const DEN_RECORDS = {
   // (Getting out of the closed store: the steps back, the run, the door,
   // the car away; tools/den_trip_escape.py.)
   "el-cabeza-den-trip-escape.mp3": "assets/den/trip-escape.mp3",
+  // The register tape printing and torn off, for Nova's purchase (the
+  // user's recordings; tools/story_receipt.py; apps/unifiedTransition.jsx).
+  "el-cabeza-story-receipt-print.mp3": "assets/story/receipt-print.mp3",
+  "el-cabeza-story-receipt-tear.mp3": "assets/story/receipt-tear.mp3",
   // The trip back to Big Glutts after the call (den-trip.js; the user's pictures).
   "el-cabeza-trip-day.jpg": "assets/den/trip/glutts-day.jpg",
   "el-cabeza-trip-dusk.jpg": "assets/den/trip/glutts-dusk.jpg",

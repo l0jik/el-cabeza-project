@@ -886,12 +886,47 @@ export function createSwitcherSfx() {
     triangleBlip(c, time + 0.02, 1800, 0.12);
   };
 
+  /* The register tape's sounds (user's recordings, tools/story_receipt.py):
+     a paper printer printing, and a receipt torn off and drawn away.
+     Fetched ahead (prefetchReceipt, while the game's on the shelf),
+     decoded when the register rings; from disk (file:) or if they're not
+     there in time, the made sounds below instead. */
+  const RECEIPT_URLS = { print: "el-cabeza-story-receipt-print.mp3", tear: "el-cabeza-story-receipt-tear.mp3" };
+  const RECEIPT_LEVEL = { print: 0.55, tear: 0.7 };
+  const TEAR_PEAK = 0.34;   // (the tear file's hard swipe, s in)
+  const receiptBytes = {}, receiptBuf = {};
+  const prefetchReceipt = () => {
+    if (typeof location !== "undefined" && location.protocol === "file:") return;
+    Object.entries(RECEIPT_URLS).forEach(([k, u]) => {
+      if (receiptBytes[k]) return;
+      receiptBytes[k] = fetch(u).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).catch(() => null);
+    });
+  };
+  const decodeReceipt = (c) => {
+    prefetchReceipt();
+    Object.keys(RECEIPT_URLS).forEach((k) => {
+      if (receiptBuf[k] || !receiptBytes[k]) return;
+      receiptBytes[k].then((b) => (b ? c.decodeAudioData(b.slice(0)) : null)).then((buf) => { if (buf) receiptBuf[k] = buf; }).catch(() => {});
+    });
+  };
+  const playReceipt = (c, k, at) => {
+    const buf = receiptBuf[k];
+    if (!buf) return false;
+    const src = c.createBufferSource(); src.buffer = buf;
+    const g = c.createGain(); g.gain.value = RECEIPT_LEVEL[k];
+    src.connect(g).connect(getMaster());
+    src.start(Math.max(c.currentTime, at));
+    return true;
+  };
+  // (Decided just before each sound's due: the recording if it's there.)
+  const whenDue = (c, at, fn) => setTimeout(fn, Math.max(0, (at - c.currentTime - 0.08) * 1000));
+
   /* Nova's story (apps/novaStory.jsx): the store's register ringing the
      game up. The keys, the total bar and the ratchet of the mechanism
      turning over, the bell and the drawer rolling out to its stop; then
-     the tape printing, a line of hammers every lineGap seconds from
-     printAt, and torn off. */
-  const playRegister = ({ printAt = 1.45, lines = 11, lineGap = 0.15 } = {}) => {
+     the tape printing (lineTimes: each line's time from printAt, in the
+     printer's bursts), and torn off at tearAt. */
+  const playRegister = ({ printAt = 1.45, lineTimes = [], tearAt = 5.6 } = {}) => {
     const c = getCtx();
     const t0 = c.currentTime + 0.05;
     [0, 0.13, 0.24].forEach((dt, i) => {
@@ -916,14 +951,20 @@ export function createSwitcherSfx() {
     });
     filteredNoiseBurst(c, bellAt + 0.05, 0.34, "lowpass", 420, 0.7, 0.22);
     oscSweep(c, bellAt + 0.4, 0.14, "sine", 110, 55, 0.32);
-    const p0 = c.currentTime + printAt;
-    for (let line = 0; line < lines; line++) {
-      const lt = p0 + line * lineGap;
-      for (let k = 0; k < 6; k++) filteredNoiseBurst(c, lt + k * 0.018 + Math.random() * 0.004, 0.01, "bandpass", 1800 + Math.random() * 600, 4, 0.06);
-      filteredNoiseBurst(c, lt + lineGap * 0.8, 0.03, "bandpass", 900, 1.5, 0.04);
-    }
-    const tear = p0 + lines * lineGap + 0.25;
-    for (let k = 0; k < 7; k++) filteredNoiseBurst(c, tear + k * 0.03 + Math.random() * 0.01, 0.04, "highpass", 2400 + Math.random() * 1500, 0.7, 0.08);
+    decodeReceipt(c);
+    const p0 = c.currentTime + printAt, tear = c.currentTime + tearAt;
+    whenDue(c, p0, () => {
+      if (playReceipt(c, "print", p0)) return;
+      lineTimes.forEach((lt0) => {
+        const lt = p0 + lt0 - 0.12;
+        for (let k = 0; k < 6; k++) filteredNoiseBurst(c, lt + k * 0.018 + Math.random() * 0.004, 0.01, "bandpass", 1800 + Math.random() * 600, 4, 0.06);
+        filteredNoiseBurst(c, lt + 0.12, 0.03, "bandpass", 900, 1.5, 0.04);
+      });
+    });
+    whenDue(c, tear - TEAR_PEAK, () => {
+      if (playReceipt(c, "tear", tear - TEAR_PEAK)) return;
+      for (let k = 0; k < 7; k++) filteredNoiseBurst(c, tear + k * 0.03 + Math.random() * 0.01, 0.04, "highpass", 2400 + Math.random() * 1500, 0.7, 0.08);
+    });
   };
 
   /* The hold-gesture's continuous "jibbering electronic morass": two
@@ -1060,6 +1101,9 @@ export function createSwitcherSfx() {
     // The store's register, for the story's purchase (see playRegister).
     register(opts) {
       playRegister(opts);
+    },
+    prefetchReceipt() {
+      prefetchReceipt();
     },
     // Mutes this engine's own shared master gain — see its own comment
     // above for why this engine needed one added at all. Applies
