@@ -22,6 +22,9 @@ const DEN_RECORDS = {
   // The set messing up (den-audio.js tvHaunt): the user's recording of a
   // TV glitching, its dead stretches cut and levelled (tools/den_tv_glitch.py).
   "el-cabeza-den-tv-glitch.mp3": "assets/den/tv-glitch.mp3",
+  // The void's pad (den-ending.js): the user's evolving drone pad from its
+  // 2-minute mark (tools/den_void_pad.py).
+  "el-cabeza-den-void-pad.mp3": "assets/den/void-pad.mp3",
   "el-cabeza-den-call-voice.mp3": "assets/den/call-voice.mp3",
   "el-cabeza-den-car-away.mp3": "assets/den/car-away.mp3",
   "el-cabeza-den-car-arrive.mp3": "assets/den/car-arrive.mp3",

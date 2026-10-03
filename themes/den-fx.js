@@ -943,6 +943,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       window.__DEN_HALL_PICK__ = (which) => hall && hall.pick(which);
       window.__DEN_HALL_SKIP__ = (ms) => hall && hall.skipWalk(ms);
       window.__DEN_ENDING__ = () => (ending ? ending.state() : null);
+      window.__DEN_ENDING_METER__ = () => (ending && ending.meter ? ending.meter() : null);
       window.__DEN_ENDING_SKIP__ = (ms) => ending && ending.skip(ms);
       window.__DEN_TV_CHANNEL__ = () => nextChannel();
       window.__DEN_CHANNEL__ = () => ({ post: postStory, chan, name: chan >= 0 ? WORLDS[chan].name : null, phase: den && den.tv ? den.tv.phase() : null });

@@ -5604,3 +5604,27 @@ phone menu until "Start the story over" (which clears it).
     resize, after the direction's own entrance animation (animationend),
     and at 1.1 s. data-compact = small / open / no. Pointer events on
     only while compact. e2e-lab (phone): small in the corner, a tap opens.
+  - The void, round 4:
+    - Plasma (user: it looked like snow or glitter; wanted diaphanous,
+      nebulous, gauzy, gossamer, vaporous): veils not motes. 260 instanced
+      camera-facing quads (InstancedBufferGeometry: iPos, iSize, iAlpha,
+      iSeed, iAng; quads, not points, as points that big aren't drawn on
+      every phone), each fbm mist in a wide soft falloff, stretched 1.7:1
+      along its own slowly turning angle, with fine ridged-noise filaments;
+      alpha up to 0.34, additive. Born on the body at 1.5 + 18*grow +
+      30*merge a second, size 3-6.5 units swelling x2.6, drifting slowly
+      out and up (0.8-2 u/s, gentle curl), 5-8.5 s each.
+    - Sound (user: it clipped on a phone; mix in their evolving drone pad
+      from its 2-minute mark, the higher heavenly part, keeping the low
+      evolving hum): tools/den_void_pad.py cuts 2:00-3:50 of
+      assets/den/src/evolving-drone-pad-51339.mp3 (5 s in, 8 s out,
+      -20 dBFS RMS, soft-held under -3) -> assets/den/void-pad.mp3, served
+      as el-cabeza-den-void-pad.mp3. Fetched (not from file:), it fades up
+      from 2 s over 9 s to PAD_LEVEL 1.1, a 0.25 send to the room, and
+      swells with the end. The way out: hum (whole) + pad -> mix -> fade ->
+      on a phone ((hover: none) and (pointer: coarse)) a 4th-order 120 Hz
+      highpass and no 37 Hz sub -> limiter (DynamicsCompressor -12 dB,
+      ratio 20, 3 ms) -> post -> ear. Measured over http at ~15 s: desktop
+      out peak -5.6 dBFS / RMS -17.3 (hum -23.4, pad -25.7); phone peak
+      -4.2 / RMS -16.4 (hum -25.1, pad -26.1). Hooks: ending.meter(),
+      window.__DEN_ENDING_METER__ (with __EC_TEST_HOOKS__).

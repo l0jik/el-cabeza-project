@@ -119,12 +119,34 @@ void main(){
 const WIRE_FRAG = `uniform float uWire, uTime; varying vec3 vN; varying vec3 vV; varying vec3 vW;
 void main(){ float f = 0.75 + 0.25 * sin(uTime * 9.0 + vW.y * 0.7);
   gl_FragColor = vec4(vec3(0.25, 0.6, 1.0) * uWire * f * 0.32, 1.0); }`;
-// The plasma coming off them: soft motes of the singularity's own light.
-const WISP_VERT = `attribute float aAlpha; attribute float aSize; uniform float uScale; varying float vA;
-void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vA = aAlpha; gl_PointSize = aSize * uScale / max(1.0, -mv.z); gl_Position = projectionMatrix * mv; }`;
-const WISP_FRAG = `varying float vA;
-void main(){ vec2 p = gl_PointCoord - 0.5; float r = length(p); float a = smoothstep(0.5, 0.0, r); a = a * a * a;
-  gl_FragColor = vec4(mix(vec3(0.25, 0.5, 1.0), vec3(0.85, 0.95, 1.0), a) * a * vA, 1.0); }`;
+/* The plasma coming off them (user: not snow or glitter: diaphanous,
+   nebulous, gauzy, gossamer, vaporous): veils, not motes. Each is a soft
+   panel facing the camera, large and very faint, with no edge of its own:
+   drifting noise inside a wide soft falloff, stretched a little along its
+   own angle, and a few fine filaments through it (the gossamer). They
+   overlap into a haze. (Instanced quads, not points: a point that big
+   isn't drawn on every phone.) */
+const WISP_VERT = `attribute vec3 iPos; attribute float iSize, iAlpha, iSeed, iAng;
+varying vec2 vP; varying float vA, vSeed;
+void main(){ vec4 mv = viewMatrix * vec4(iPos, 1.0);
+  float c = cos(iAng), s = sin(iAng); vec2 q = position.xy * vec2(1.7, 1.0);
+  mv.xy += vec2(c * q.x - s * q.y, s * q.x + c * q.y) * iSize;
+  vP = position.xy; vA = iAlpha; vSeed = iSeed; gl_Position = projectionMatrix * mv; }`;
+const WISP_FRAG = `uniform float uTime; varying vec2 vP; varying float vA, vSeed;
+float hh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hh(i), hh(i + vec2(1, 0)), f.x), mix(hh(i + vec2(0, 1)), hh(i + vec2(1, 1)), f.x), f.y); }
+float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * vn(p); p = p * 2.03 + 1.7; a *= 0.5; } return s; }
+void main(){
+  vec2 p = vP * 2.0;
+  float fall = 1.0 - smoothstep(0.15, 1.0, length(p));
+  if (fall <= 0.0) discard;
+  vec2 o = vec2(vSeed * 7.13, vSeed * 3.71) + vec2(uTime * 0.07, -uTime * 0.05);
+  float n = fbm(p * 1.6 + o);
+  float mist = smoothstep(0.32, 0.78, n) * fall * fall;
+  float fil = pow(1.0 - abs(2.0 * fbm(p * vec2(4.5, 1.4) + o * 1.7) - 1.0), 9.0) * fall;
+  float a = (mist + 0.45 * fil) * vA;
+  gl_FragColor = vec4(mix(vec3(0.42, 0.55, 1.0), vec3(0.85, 0.92, 1.0), mist) * a, 1.0); }`;
 
 function buildFigure(mat) {
   const fig = new THREE.Group();
@@ -210,6 +232,7 @@ const CHORDS = [
   [73.42, 138.59, 164.81, 220.0, 329.63],
 ];
 const CHORD_MS = 17000, VOICE_STAGGER = 3300, GLIDE_TC = 1.9;
+const PAD_URL = "el-cabeza-den-void-pad.mp3", PAD_LEVEL = 1.1;
 
 function impulse(ctx, secs, decay) {
   const n = Math.floor(ctx.sampleRate * secs), b = ctx.createBuffer(2, n, ctx.sampleRate);
@@ -241,6 +264,21 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       // (Evenly in loudness: from a whisper, -34 dB, up over ~7 s.)
       const fade = ctx.createGain(); fade.gain.setValueAtTime(0.0001, t); fade.gain.linearRampToValueAtTime(0.02, t + 0.6); fade.gain.exponentialRampToValueAtTime(1, t + 7.2);
       const whole = ctx.createGain(); whole.gain.value = 0.15;
+      /* The way out (user: it clipped on a phone): the hum and the pad
+         together (mix), the fade, then on a phone everything under 120 Hz
+         taken out (a phone's speaker can't play it, and it only drives
+         the speaker into crunch), then a limiter, so nothing past it ever
+         clips, whatever the device. */
+      const phone = typeof window !== "undefined" && !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
+      const mix = ctx.createGain(); mix.gain.value = 1;
+      const lim = ctx.createDynamicsCompressor();
+      lim.threshold.value = -12; lim.knee.value = 4; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.3;
+      const post = ctx.createGain(); post.gain.value = phone ? 1.1 : 0.95;
+      let tail = fade;
+      if (phone) [0, 1].forEach(() => { const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 120; hp.Q.value = 0.707; tail.connect(hp); tail = hp; });
+      mix.connect(fade); tail.connect(lim).connect(post);
+      const meter = typeof window !== "undefined" && window.__EC_TEST_HOOKS__ ? { out: ctx.createAnalyser(), hum: ctx.createAnalyser(), pad: ctx.createAnalyser() } : null;
+      if (meter) { Object.values(meter).forEach((an) => { an.fftSize = 4096; }); post.connect(meter.out); whole.connect(meter.hum); }
       // (A vast room, user: way more reverb, much fuller.)
       const verb = ctx.createConvolver(); verb.buffer = impulse(ctx, 16, 1.6);
       const wet = ctx.createGain(); wet.gain.value = 1.45; const dry = ctx.createGain(); dry.gain.value = 0.2;
@@ -252,7 +290,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       [band(320, 2.2, 2.0), band(820, 3, 0.9), band(700, 3, 0.7), band(1150, 4, 0.45)].forEach((b) => src.connect(b));
       const body = ctx.createGain(); body.gain.value = 0.5; src.connect(body).connect(lp);
       lp.connect(dry).connect(whole); lp.connect(verb).connect(wet).connect(whole);
-      whole.connect(fade).connect(o.ear);
+      whole.connect(mix); post.connect(o.ear);
       const all = [];
       const voices = CHORDS[0].map((f, vi) => {
         // Five detuned saws a voice (fuller), each with its own vibrato.
@@ -281,7 +319,8 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
         return { oscs, g };
       });
       // Under it all, the low D an octave down, a breath of it.
-      { const sub = ctx.createOscillator(); sub.type = "sine"; sub.frequency.value = 36.71; const sg = ctx.createGain(); sg.gain.value = 0.05;
+      // (Not on a phone: it can't play it.)
+      if (!phone) { const sub = ctx.createOscillator(); sub.type = "sine"; sub.frequency.value = 36.71; const sg = ctx.createGain(); sg.gain.value = 0.05;
         sub.connect(sg).connect(lp); sub.start(t); all.push(sub); }
       // A shimmer high above it, all reverb, barely there: two sines (a D
       // and an A), each swelling and fading on its own long breath.
@@ -293,7 +332,26 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
         os.connect(g).connect(verb);
         os.start(t); lfo.start(t); all.push(os, lfo);
       });
-      chord = { ctx, fade, whole, lp, voices, all, next: performance.now() + CHORD_MS, at: 0 };
+      /* The pad (user's recording, from its 2-minute mark: the higher,
+         evolving, heavenly part over the hum's low end): fetched, then
+         faded up from a couple of seconds in, a little of it into the
+         room's reverb too. (From disk, file:, there's no fetching: the
+         hum alone there.) */
+      const padG = ctx.createGain(); padG.gain.value = 0.0001;
+      const padSend = ctx.createGain(); padSend.gain.value = 0.25;
+      padG.connect(mix); padG.connect(padSend).connect(verb);
+      if (meter) padG.connect(meter.pad);
+      const c0 = { ctx, fade, whole, lp, voices, all, padG, padLevel: PAD_LEVEL, meter, phone, next: performance.now() + CHORD_MS, at: 0 };
+      if (typeof location !== "undefined" && location.protocol !== "file:" && typeof fetch !== "undefined") {
+        fetch(PAD_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+          if (chord !== c0) return;
+          const src = ctx.createBufferSource(); src.buffer = buf;
+          const at = Math.max(ctx.currentTime + 0.05, t + 2);
+          padG.gain.setValueAtTime(0.0001, at); padG.gain.exponentialRampToValueAtTime(PAD_LEVEL, at + 9);
+          src.connect(padG); src.start(at); all.push(src); c0.padOn = true;
+        }).catch(() => { /* the hum alone */ });
+      }
+      chord = c0;
     } else if (!on && chord) {
       const c = chord; chord = null;
       c.fade.gain.cancelScheduledValues(t); c.fade.gain.setValueAtTime(Math.max(0.0001, c.fade.gain.value), t); c.fade.gain.linearRampToValueAtTime(0.0001, t + 2.5);
@@ -316,6 +374,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     if (!chord) return;
     const t = chord.ctx.currentTime;
     chord.whole.gain.setTargetAtTime(0.15 + 0.3 * k * k, t, 0.25);
+    if (chord.padOn && k > 0.01) chord.padG.gain.setTargetAtTime(chord.padLevel * (1 + 1.2 * k * k), t, 0.25);
     chord.lp.frequency.setTargetAtTime(900 + 2400 * k * k, t, 0.25);
   }
 
@@ -380,16 +439,21 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // motes, each born at a point on the body, drifting off and up in a
     // slow curl, growing, fading.
     {
-      const N = 700, pos = new Float32Array(N * 3), al = new Float32Array(N), sz = new Float32Array(N);
-      const g = new THREE.BufferGeometry();
-      g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-      g.setAttribute("aAlpha", new THREE.BufferAttribute(al, 1));
-      g.setAttribute("aSize", new THREE.BufferAttribute(sz, 1));
-      const mat = new THREE.ShaderMaterial({ vertexShader: WISP_VERT, fragmentShader: WISP_FRAG, uniforms: { uScale: { value: 400 } },
-        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-      const pts = new THREE.Points(g, mat); pts.frustumCulled = false; scene.add(pts);
-      disposables.push(g, mat);
-      wisps = { N, pos, al, sz, g, mat, pts, p: Array.from({ length: N }, () => ({ life: 0, age: 1, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, ph: Math.random() * 6.28, size: 1 })), carry: 0, next: 0 };
+      const N = 260, pos = new Float32Array(N * 3), al = new Float32Array(N), sz = new Float32Array(N), seed = new Float32Array(N), ang = new Float32Array(N);
+      const base = new THREE.PlaneGeometry(1, 1);
+      const g = new THREE.InstancedBufferGeometry();
+      g.index = base.index; g.setAttribute("position", base.attributes.position);
+      g.setAttribute("iPos", new THREE.InstancedBufferAttribute(pos, 3));
+      g.setAttribute("iSize", new THREE.InstancedBufferAttribute(sz, 1));
+      g.setAttribute("iAlpha", new THREE.InstancedBufferAttribute(al, 1));
+      g.setAttribute("iSeed", new THREE.InstancedBufferAttribute(seed, 1));
+      g.setAttribute("iAng", new THREE.InstancedBufferAttribute(ang, 1));
+      g.instanceCount = N;
+      const mat = new THREE.ShaderMaterial({ vertexShader: WISP_VERT, fragmentShader: WISP_FRAG, uniforms: { uTime: { value: 0 } },
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      const veils = new THREE.Mesh(g, mat); veils.frustumCulled = false; veils.renderOrder = 2; scene.add(veils);
+      disposables.push(base, g, mat);
+      wisps = { N, pos, al, sz, seed, ang, g, mat, veils, p: Array.from({ length: N }, () => ({ life: 0, age: 1, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, ph: Math.random() * 6.28, size: 1, spin: 0, a0: 0 })), carry: 0, next: 0 };
     }
     // A faint aura round them, breathing (user: subtle, ethereal).
     const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x9fc4ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
@@ -418,7 +482,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     if (!wisps || !fig) return;
     const W = wisps;
     const grow = smooth((s - 4000) / 22000);
-    const rate = fig.fig.visible ? 3 + 55 * grow + 110 * m : 0;
+    const rate = fig.fig.visible ? 1.5 + 18 * grow + 30 * m : 0;
     W.carry += rate * dt;
     fig.fig.updateMatrixWorld(true);
     wc.copy(sphereAt).sub(figPos).normalize();
@@ -432,24 +496,28 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       wv.fromBufferAttribute(at, k).applyMatrix4(mesh.matrixWorld);
       p.x = wv.x; p.y = wv.y; p.z = wv.z;
       wv.sub(figPos).normalize();
-      const sp = (2.5 + 4 * Math.random()) * shrink;
-      p.vx = wv.x * sp + wc.x * 1.5; p.vy = wv.y * sp + 2.2 * shrink + wc.y * 1.5; p.vz = wv.z * sp + wc.z * 1.5;
-      p.age = 0; p.life = 2.2 + 2 * Math.random(); p.size = (0.8 + 1.3 * Math.random()) * shrink; p.ph = Math.random() * 6.28;
+      const sp = (0.8 + 1.2 * Math.random()) * shrink;
+      p.vx = wv.x * sp + wc.x * 0.8; p.vy = wv.y * sp + 1.1 * shrink + wc.y * 0.8; p.vz = wv.z * sp + wc.z * 0.8;
+      p.age = 0; p.life = 5 + 3.5 * Math.random(); p.size = (3 + 3.5 * Math.random()) * shrink; p.ph = Math.random() * 6.28;
+      p.a0 = Math.random() * 6.28; p.spin = (Math.random() - 0.5) * 0.25;
+      W.seed[(W.next + W.N - 1) % W.N] = Math.random() * 10;
     }
     W.carry = Math.min(W.carry, 3);
     for (let i = 0; i < W.N; i++) {
       const p = W.p[i];
       if (p.age >= p.life) { W.al[i] = 0; continue; }
       p.age += dt;
-      const u = p.age / p.life, c = Math.sin(p.ph + p.age * 1.7) * 1.6;
-      p.x += (p.vx + c) * dt; p.y += p.vy * dt; p.z += (p.vz + Math.cos(p.ph + p.age * 1.3) * 1.6) * dt;
-      p.vx *= 1 - 0.4 * dt; p.vy *= 1 - 0.25 * dt; p.vz *= 1 - 0.4 * dt;
+      const u = p.age / p.life, c = Math.sin(p.ph + p.age * 0.6) * 0.7;
+      p.x += (p.vx + c) * dt; p.y += p.vy * dt; p.z += (p.vz + Math.cos(p.ph + p.age * 0.5) * 0.7) * dt;
+      p.vx *= 1 - 0.15 * dt; p.vy *= 1 - 0.1 * dt; p.vz *= 1 - 0.15 * dt;
       W.pos[i * 3] = p.x; W.pos[i * 3 + 1] = p.y; W.pos[i * 3 + 2] = p.z;
-      W.al[i] = Math.sin(Math.PI * Math.min(1, u)) * 0.32;
-      W.sz[i] = p.size * (1 + 2.4 * u);
+      // (Comes up slowly, lingers, thins away; swells as it goes.)
+      W.al[i] = Math.pow(Math.sin(Math.PI * Math.min(1, u)), 1.4) * 0.34;
+      W.sz[i] = p.size * (1 + 1.6 * u);
+      W.ang[i] = p.a0 + p.spin * p.age;
     }
-    W.g.attributes.position.needsUpdate = true; W.g.attributes.aAlpha.needsUpdate = true; W.g.attributes.aSize.needsUpdate = true;
-    if (renderer && camera) W.mat.uniforms.uScale.value = renderer.domElement.height / (2 * Math.tan((camera.fov * Math.PI) / 360));
+    ["iPos", "iAlpha", "iSize", "iAng", "iSeed"].forEach((k) => { W.g.attributes[k].needsUpdate = true; });
+    W.mat.uniforms.uTime.value = s / 1000;
   }
   let mergeFrom = null, lastNow = 0;
   function frame() {
@@ -614,6 +682,12 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: chord ? chord.fade.gain.value * chord.whole.gain.value : 0, wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0 }),
     // Test-only: on by ms.
     skip(ms) { skipMs += ms; },
+    // Test-only: the sound's peak and loudness (dBFS) out of the scene, and the hum's and the pad's.
+    meter() {
+      if (!chord || !chord.meter) return null;
+      const read = (an) => { const d = new Float32Array(an.fftSize); an.getFloatTimeDomainData(d); let pk = 0, ss = 0; for (const v of d) { pk = Math.max(pk, Math.abs(v)); ss += v * v; } return { peak: 20 * Math.log10(pk + 1e-9), rms: 10 * Math.log10(ss / d.length + 1e-12) }; };
+      return { out: read(chord.meter.out), hum: read(chord.meter.hum), pad: read(chord.meter.pad), padOn: !!chord.padOn, phone: chord.phone };
+    },
     dispose() {
       sound(false);
       teardown();
