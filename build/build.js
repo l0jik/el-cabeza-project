@@ -25,6 +25,13 @@ const DEN_RECORDS = {
   // The void's pad (den-ending.js): the user's evolving drone pad from its
   // 2-minute mark (tools/den_void_pad.py).
   "el-cabeza-den-void-music.mp3": "assets/den/void-music.mp3",
+  // (Listening previews for the user, not used by any page.)
+  "el-cabeza-preview-blooms-alone.mp3": "assets/den/preview/blooms-alone.mp3",
+  "el-cabeza-preview-revelation-with-blooms.mp3": "assets/den/preview/revelation-with-blooms.mp3",
+  "el-cabeza-preview-revelation-without-blooms.mp3": "assets/den/preview/revelation-without-blooms.mp3",
+  "el-cabeza-preview-revelation-blooms-exaggerated.mp3": "assets/den/preview/revelation-blooms-exaggerated.mp3",
+  "el-cabeza-preview-added-reverb-alone.mp3": "assets/den/preview/added-reverb-alone.mp3",
+  "el-cabeza-preview-original-track-first-56s.mp3": "assets/den/preview/original-track-first-56s.mp3",
   "el-cabeza-den-crawl-drone.mp3": "assets/den/crawl-drone.mp3",
   "el-cabeza-den-call-voice.mp3": "assets/den/call-voice.mp3",
   "el-cabeza-den-car-away.mp3": "assets/den/car-away.mp3",
