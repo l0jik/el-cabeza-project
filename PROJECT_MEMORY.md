@@ -5592,3 +5592,15 @@ phone menu until "Start the story over" (which clears it).
     screen. realities.js createRealitiesMenu({ coda: [{ html, at, dur }],
     subMs }); den-ending lockMs 12200, subMs 5500. Reduced motion: still,
     fading in and out. e2e-ending checks the coda's words and unlock by 15 s.
+  - Theme Lab read-out in play (user: it takes too much of the screen):
+    themes/lab/hud.js LabHud, while playing (not set up, not over), goes
+    to half size in the top left, 12 px in, 8 px under the lab bar,
+    moved there over 0.75 s (no fading). A hover (mouse) or a tap brings
+    it to full size there; it goes back on leave, a second tap, or 8 s
+    after a tap. Done with the separate CSS translate and scale
+    properties (compose with each direction's own transform, so the
+    e2e-lab "ten HUD compositions" signature is unchanged), measured each
+    time: scale set, rect read, translate = corner - rect; re-measured on
+    resize, after the direction's own entrance animation (animationend),
+    and at 1.1 s. data-compact = small / open / no. Pointer events on
+    only while compact. e2e-lab (phone): small in the corner, a tap opens.

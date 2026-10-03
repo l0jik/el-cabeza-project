@@ -8,6 +8,16 @@
    Elementarist stack, Brutalist blocks, a Tschichold page, a departure
    board, Neo-Brutalist cards, near-nothing, or a machine panel.
 
+   In play it gets out of the way (user: it took a lot of the screen):
+   half size, tucked into the top left corner under the lab's bar, moved
+   there gracefully, not faded; a hover (mouse) or a tap brings it up to
+   full size there, and it goes back down when the pointer leaves, on a
+   second tap, or by itself a while after a tap. Each direction's own
+   look (position, tilt) is left alone: it's moved with the separate CSS
+   translate and scale properties, measured each time, so it lands in the
+   corner whatever the direction did to it. Set up and game over: where
+   the direction puts it, full size.
+
    It only reads the game (x.game, handed over by the chassis); it
    changes nothing. The session clock and the count of pieces at the
    start live at module level, so they carry across theme switches the
@@ -69,6 +79,58 @@ export function LabHud({ spec, x }) {
     return undefined;
   }, [count]);
 
+  // In play: compact in the top left (open: full size there).
+  const hudRef = React.useRef(null);
+  const [open, setOpen] = React.useState(false);
+  const lastPointer = React.useRef(null);
+  const compact = !!game && !game.awaitingBegin && game.status === "playing";
+  const placed = React.useRef(false);
+  React.useLayoutEffect(() => {
+    const el = hudRef.current;
+    if (!el || typeof window === "undefined") return undefined;
+    let clearT = 0;
+    const place = (animate) => {
+      const cur = { t: el.style.translate || "0px 0px", s: el.style.scale || "1" };
+      el.style.transition = "none";
+      let next = { t: "0px 0px", s: "1" };
+      if (compact) {
+        const k = open ? 1 : 0.5;
+        el.style.translate = "0px 0px"; el.style.scale = String(k);
+        const r = el.getBoundingClientRect();
+        const bar = document.querySelector('[data-testid="lab-bar"]');
+        const b = bar ? bar.getBoundingClientRect() : null;
+        const X = 12, Y = (b && b.height ? b.bottom : 10) + 8;
+        next = { t: `${Math.round(X - r.left)}px ${Math.round(Y - r.top)}px`, s: String(k) };
+      }
+      el.style.translate = cur.t; el.style.scale = cur.s;
+      void el.offsetWidth;
+      const still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.style.transition = animate && !still ? "translate 0.75s cubic-bezier(.3,.1,.2,1), scale 0.75s cubic-bezier(.3,.1,.2,1)" : "none";
+      el.style.translate = next.t; el.style.scale = next.s;
+      el.style.pointerEvents = compact ? "auto" : "";
+      el.style.cursor = compact ? "pointer" : "";
+      clearTimeout(clearT);
+      clearT = setTimeout(() => { el.style.transition = ""; }, 820);
+    };
+    place(placed.current);
+    placed.current = true;
+    const onResize = () => place(false);
+    window.addEventListener("resize", onResize);
+    // (A direction's own entrance animation moves it while it's being
+    // measured: measured again once that's over, and once more later.)
+    const onAnimEnd = (e) => { if (e.target === el) place(true); };
+    el.addEventListener("animationend", onAnimEnd);
+    const again = setTimeout(() => place(true), 1100);
+    return () => { clearTimeout(clearT); clearTimeout(again); window.removeEventListener("resize", onResize); el.removeEventListener("animationend", onAnimEnd); };
+  }, [compact, open, spec.id]);
+  // (Back down by itself a while after a tap opened it.)
+  React.useEffect(() => {
+    if (!open || !compact) return undefined;
+    const t = setTimeout(() => setOpen(false), 8000);
+    return () => clearTimeout(t);
+  }, [open, compact]);
+  React.useEffect(() => { if (!compact) setOpen(false); }, [compact]);
+
   if (!game) return null;
   const setup = game.awaitingBegin;
   const turn = setup ? 1 : game.turns + (game.status === "finished" ? 0 : 1);
@@ -94,7 +156,14 @@ export function LabHud({ spec, x }) {
     "section",
     {
       className: "lab-hud",
+      ref: hudRef,
       "data-testid": "lab-hud",
+      "data-compact": compact ? (open ? "open" : "small") : "no",
+      onPointerEnter: (e) => { if (compact && e.pointerType === "mouse") setOpen(true); },
+      onPointerLeave: (e) => { if (compact && e.pointerType === "mouse") setOpen(false); },
+      onPointerDown: (e) => { lastPointer.current = e.pointerType; },
+      // (A tap opens and closes it; a mouse has the hover for that.)
+      onClick: (e) => { if (!compact || lastPointer.current === "mouse") return; e.stopPropagation(); setOpen((o) => !o); },
       "data-lab": spec.id,
       "data-player": game.currentPlayer,
       "data-status": game.status,

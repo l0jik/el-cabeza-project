@@ -210,6 +210,18 @@ async function waitSwitched(page, id) {
     });
     check(`${id}: the compact HUD fits under the lab bar, no sideways scroll`, fit.hudRight <= fit.w + 1 && fit.hudTop >= fit.barBottom - 2 && fit.scroll <= fit.w, JSON.stringify(fit));
   }
+  // In play the read-out is half size, tucked in the top left under the
+  // bar (user); a tap brings it up full size there.
+  {
+    const hudBox = () => page.evaluate(() => { const h = document.querySelector('[data-testid="lab-hud"]'); const b = h.getBoundingClientRect(); const bar = document.querySelector('[data-testid="lab-bar"]').getBoundingClientRect(); return { c: h.dataset.compact, x: b.left, y: b.top, w: b.width, barBottom: bar.bottom }; });
+    await page.waitForTimeout(900);
+    const small = await hudBox();
+    check(`in play: the read-out small, in the top left under the bar (${JSON.stringify(small)})`, small.c === "small" && Math.abs(small.x - 12) < 3 && Math.abs(small.y - (small.barBottom + 8)) < 3);
+    await page.tap('[data-testid="lab-hud"]', { position: { x: 8, y: 8 } });
+    await page.waitForTimeout(1000);
+    const big = await hudBox();
+    check(`...a tap brings it up full size, still in the corner (${Math.round(small.w)} -> ${Math.round(big.w)} px)`, big.c === "open" && big.w > small.w * 1.8 && Math.abs(big.x - 12) < 3);
+  }
   const tgt = await page.locator('[data-testid="lab-next"]').boundingBox();
   check("the lab's buttons are touch-sized", tgt.width >= 36 && tgt.height >= 36, JSON.stringify(tgt));
   check("no page errors", errs.length === 0, errs.slice(0, 4).join(" | "));
