@@ -162,12 +162,20 @@ const CSS = `
    ghost of the words, only their glow, a little above them, seen through
    drifting patches of mist (a soft noise, moving slowly up and across),
    as if a breath of vapour were coming off them. */
-.den-ending .crawl .text .mist { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; color: transparent; opacity: 0.55;
-  transform: translateY(-0.12em);
+/* (Smoothly: the mist's mask is on a wrapper that drifts up through one
+   tile of it and sways, while the ghost inside drifts back down by just
+   as much, so the words stay put and only the gauze moves; both moves
+   are the compositor's, nothing repainted frame by frame.) */
+.den-ending .crawl .text .mist-wrap { position: absolute; left: 0; right: 0; top: 0; height: calc(100% + 480px); pointer-events: none;
+  -webkit-mask-image: var(--mist); mask-image: var(--mist); -webkit-mask-size: 240px 480px; mask-size: 240px 480px;
+  animation: den-mist-drift 30s linear infinite; will-change: transform; }
+.den-ending .crawl .text .mist { position: absolute; left: 0; right: 0; top: 0; color: transparent; opacity: 0.55;
   text-shadow: 0 0 9px rgba(140,215,255,0.7), 0 -0.3em 20px rgba(90,170,255,0.45), 0 -0.6em 30px rgba(90,170,255,0.3);
-  -webkit-mask-image: var(--mist); mask-image: var(--mist); -webkit-mask-size: 240px 480px; mask-size: 240px 480px; }
+  animation: den-mist-hold 30s linear infinite; will-change: transform; }
+@keyframes den-mist-drift { 0% { transform: translate(0, 0); } 25% { transform: translate(20px, -120px); } 50% { transform: translate(0, -240px); } 75% { transform: translate(-20px, -360px); } 100% { transform: translate(0, -480px); } }
+@keyframes den-mist-hold { 0% { transform: translate(0, -0.12em); } 25% { transform: translate(-20px, calc(120px - 0.12em)); } 50% { transform: translate(0, calc(240px - 0.12em)); } 75% { transform: translate(20px, calc(360px - 0.12em)); } 100% { transform: translate(0, calc(480px - 0.12em)); } }
 .den-ending .crawl .text .mist em { font-style: italic; }
-@media (prefers-reduced-motion: reduce) { .den-ending .crawl .text .mist { display: none; } }
+@media (prefers-reduced-motion: reduce) { .den-ending .crawl .text .mist-wrap { display: none; } }
 `;
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -552,7 +560,7 @@ function mistNoise(doc) {
 
 export function createEnding({ audio, onFinish, onPick, onStay }) {
   const doc = typeof document !== "undefined" ? document : null;
-  let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null, crawl = null, crawlText = null, crawlLast = null, crawlMist = null, mistTick = 0, crawlP = 0, crawlTap = false, crawlFade = null, lastS = 0;
+  let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null, crawl = null, crawlText = null, crawlLast = null, crawlAnim = null, crawlD = 0, crawlCheckAt = 0, crawlP = 0, crawlTap = false, crawlFade = null, lastS = 0;
   let renderer = null, scene = null, camera = null, raf = 0, t0 = 0, stage = "idle", menu = null, finished = false;
   let fig = null, figMat = null, disposables = [], snd = null, skipMs = 0, wisps = null;
   let look = { yaw: 0, pitch: 0, goalYaw: 0, goalPitch: 0 }, dragAt = null;
@@ -613,13 +621,15 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       const c = snd; snd = null;
       if (c.els) { Object.values(c.els).forEach((el) => { if (el) { try { el.pause(); } catch (e) { /* fine */ } } }); return; }
       const t = c.ctx.currentTime;
-      c.fade.gain.cancelScheduledValues(t); c.fade.gain.setValueAtTime(Math.max(0.0001, c.fade.gain.value), t); c.fade.gain.linearRampToValueAtTime(0.0001, t + 1.5);
-      setTimeout(() => c.all.forEach((x) => { try { x.stop(); } catch (e) { /* done */ } }), 2500);
+      // (Away like a tail, not cut: what's still ringing decays over ~5 s.)
+      c.fade.gain.cancelScheduledValues(t); c.fade.gain.setValueAtTime(Math.max(0.0001, c.fade.gain.value), t); c.fade.gain.setTargetAtTime(0.00001, t, 0.75);
+      setTimeout(() => c.all.forEach((x) => { try { x.stop(); } catch (e) { /* done */ } }), 6500);
     }
   }
   /* The crawl's drone (user: under the crawl, something like the music,
      toned right down, not changing; almost a vibration): faded up over
-     `secs` from the black, and down again as the crawl goes. */
+     `secs` from the black, and dying away as the crawl goes, over
+     `secs` too, on into the switcher. */
   function drone(on, secs) {
     const c = snd;
     if (!c) return;
@@ -644,8 +654,9 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
         src.connect(c.droneAM); src.start(c.ctx.currentTime + 0.02, src.loopStart); c.all.push(src);
       }).catch(() => { /* none */ });
     } else if (!on && c.droneOn) {
+      // (Off like a reverb's tail: an exponential decay, ~60 dB in `secs`.)
       c.droneOn = false;
-      g.exponentialRampToValueAtTime(0.0001, t + secs);
+      g.setTargetAtTime(0.00001, t, secs / 6.9);
     }
   }
   /* As each line begins, a quiet bloom high up, felt more than heard:
@@ -675,16 +686,23 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     crawlText.innerHTML = CRAWL_TEXT.map((t, i) => `<p${i === CRAWL_TEXT.length - 1 ? ' class="last"' : ""}>${md(t)}</p>`).join("");
     const plane = doc.createElement("div"); plane.className = "plane"; plane.appendChild(crawlText); crawl.appendChild(plane); root.appendChild(crawl);
     crawlLast = crawlText.querySelector("p.last");
-    crawlMist = doc.createElement("div"); crawlMist.className = "mist"; crawlMist.setAttribute("aria-hidden", "true");
-    crawlMist.innerHTML = crawlText.innerHTML;
-    const mn = mistNoise(doc); if (mn) crawlMist.style.setProperty("--mist", `url(${mn})`);
-    crawlText.appendChild(crawlMist);
+    const mistWrap = doc.createElement("div"); mistWrap.className = "mist-wrap"; mistWrap.setAttribute("aria-hidden", "true");
+    const mist = doc.createElement("div"); mist.className = "mist"; mist.innerHTML = crawlText.innerHTML; mistWrap.appendChild(mist);
+    const mn = mistNoise(doc); if (mn) mistWrap.style.setProperty("--mist", `url(${mn})`);
+    crawlText.appendChild(mistWrap);
     veil = doc.createElement("div"); veil.className = "veil"; root.appendChild(veil);
     doc.body.appendChild(root);
     // The camera can't be moved (user); touches here go nowhere (the
     // den's own page-wide listeners have nothing to do).
     ["pointerdown", "pointermove", "pointerup", "touchstart", "touchmove", "wheel"].forEach((ev) => root.addEventListener(ev, (e) => { e.stopPropagation(); if (ev === "wheel" || ev === "touchmove") e.preventDefault(); }, ev === "wheel" || ev === "touchmove" ? { passive: false } : undefined));
-    root.addEventListener("pointerdown", () => { if (stage === "black" && crawlTap && crawlFade == null) crawlFade = lastS; });
+    root.addEventListener("pointerdown", () => {
+      if (stage !== "black" || !crawlTap || crawlFade != null) return;
+      crawlFade = lastS;
+      if (crawl && crawl.animate) crawl.animate([{ opacity: getComputedStyle(crawl).opacity }, { opacity: 0 }], { duration: CRAWL_FADE, easing: "ease", fill: "forwards" });
+      else if (crawl) crawl.style.opacity = "0";
+      // (The drone let go like a reverb's tail, dying away under the switcher.)
+      drone(false, 13);
+    });
     try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" }); } catch (e) { renderer = null; }
     // (A phone starts a little under its full density; frames that run
     // slow step it down further, see frame().)
@@ -926,26 +944,33 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // The crawl, at an even pace from below the screen to far off in the
     // dark (its last line just gone into the distance as it ends).
     if (crawl && stage === "black" && s >= CRAWL[0]) {
-      crawl.classList.add("on");
       crawlP = clamp01((s - CRAWL[0]) / (CRAWL[1] - CRAWL[0]));
-      const vh = crawl.clientHeight || 600, H = crawlText.offsetHeight || 400;
-      crawlText.style.transform = `translateY(${-crawlP * (H + vh * 0.8)}px)`;
+      // (User: it was jittery. Its motion is one animation the compositor
+      // runs at an even pace, and its fading in and out too; here only
+      // kept in step with the scene's clock if that's been moved on.)
+      const vh = crawl.clientHeight || 600;
+      if (!crawl.classList.contains("on")) {
+        crawl.classList.add("on");
+        if (crawl.animate) crawl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 900, easing: "ease", fill: "forwards" }); else crawl.style.opacity = "1";
+      }
+      const D = (crawlText.offsetHeight || 400) + vh * 0.8, at = s - CRAWL[0];
+      if (crawlText.animate && (!crawlAnim || Math.abs(D - crawlD) > 2)) {
+        if (crawlAnim) crawlAnim.cancel();
+        crawlD = D;
+        crawlAnim = crawlText.animate([{ transform: "translateY(0px)" }, { transform: `translateY(${-D}px)` }], { duration: CRAWL[1] - CRAWL[0], easing: "linear", fill: "forwards" });
+        crawlAnim.currentTime = at;
+      } else if (crawlAnim && Math.abs((crawlAnim.currentTime || 0) - at) > 150) crawlAnim.currentTime = at;
+      else if (!crawlText.animate) crawlText.style.transform = `translateY(${-crawlP * D}px)`;
       // (User: once its last line is up in the top half of the screen, a
       // touch lets it go: a 2.75 s fade, then the switcher. Until then,
-      // touches do nothing.)
-      if (!crawlTap) {
+      // touches do nothing. Looked at four times a second.)
+      if (!crawlTap && s >= crawlCheckAt) {
+        crawlCheckAt = s + 250;
         const r = crawlLast && crawlLast.getBoundingClientRect();
         if (r && r.height > 0 && r.top + r.height / 2 < vh / 2) { crawlTap = true; crawl.setAttribute("data-dismissable", "true"); }
       }
-      crawl.style.opacity = String(smooth((s - CRAWL[0]) / 900) * (crawlFade == null ? 1 : 1 - smooth((s - crawlFade) / CRAWL_FADE)));
-      // (The mist drifting: up, and a little side to side; every other frame.)
-      if (crawlMist && (mistTick = (mistTick + 1) % 2) === 0) {
-        const q = (s - CRAWL[0]) / 1000, mp = `${(Math.sin(q / 7) * 40).toFixed(1)}px ${(-q * 16).toFixed(1)}px`;
-        crawlMist.style.webkitMaskPosition = mp; crawlMist.style.maskPosition = mp;
-      }
     }
-    if (crawlFade != null && snd && snd.droneOn) drone(false, CRAWL_FADE / 1000);
-    if (stage === "black" && (s >= MENU_AT || (crawlFade != null && s >= crawlFade + CRAWL_FADE))) { drone(false, 4); if (crawl) crawl.classList.remove("on"); openMenu(); }
+    if (stage === "black" && (s >= MENU_AT || (crawlFade != null && s >= crawlFade + CRAWL_FADE))) { drone(false, 11); if (crawl) crawl.classList.remove("on"); openMenu(); }
     // (Under the black, nothing to draw.)
     if (renderer && s < BLACK[1] + 300) renderer.render(scene, camera);
   }
@@ -978,7 +1003,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     disposables.forEach((d) => d && d.dispose && d.dispose()); disposables = [];
     if (renderer) { renderer.dispose(); renderer.forceContextLoss && renderer.forceContextLoss(); renderer = null; }
     if (root) { root.remove(); root = null; }
-    words = []; veil = null; dark = null; crawl = null; crawlText = null; crawlLast = null; crawlMist = null; stage = stage === "leaving" ? "done" : stage;
+    words = []; veil = null; dark = null; crawl = null; crawlText = null; crawlLast = null; crawlAnim = null; stage = stage === "leaving" ? "done" : stage;
   }
 
   return {

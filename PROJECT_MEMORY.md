@@ -5783,3 +5783,19 @@ phone menu until "Start the story over" (which clears it).
       game.aiLevel to themes), with Moves, Points, Time. On a phone no
       stat cell is narrower than its words (min-width: max-content);
       Elementarism's numbers 17 px there. Checked all 10 at 390 px.
+    - The crawl smooth (user: jittery): it had been moved from script each
+      frame, with a layout read (the last line's rect) every frame and the
+      mist's mask moved every other frame (a repaint of blurred glow). Now
+      the move is one Web Animation (translateY 0 -> -(H + 0.8 vh), linear,
+      40 s) the compositor runs, its currentTime only reset if the scene's
+      clock has moved more than 150 ms from it (the test skip); the fade in
+      (0.9 s) and the tap's fade out (2.75 s) are Web Animations too; the
+      last line looked at 4 times a second. The mist: the mask on a
+      wrapper (.mist-wrap, 480 px taller) that drifts up one tile in 30 s
+      and sways, the ghost inside counter-moving, both CSS animations on
+      transform. Measured: 25 px/s, no variation frame to frame.
+    - Audio tails (user: after the tap, it cut out too fast; the reverb
+      has to decay completely, into the switcher): drone(false, secs) is
+      an exponential decay (setTargetAtTime, ~60 dB in secs): 13 s from
+      the tap, 11 s at the crawl's natural end; sound(false) (leaving) a
+      ~5 s tail (tau 0.75 s), sources stopped after 6.5 s.
