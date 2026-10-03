@@ -93,10 +93,14 @@ const T = {
   pull: [0, 5200],        // yanked away, fast, then slowing
   words: 8000,            // the first line
   wordEach: 4700,         // each line's turn (in, hold, out); the last holds longer
-  lastHold: 6200,
+  lastHold: 0,            // (set below: through the drift into the sphere)
 };
-const WORDS_END = T.words + (REVELATION.length - 1) * T.wordEach + T.lastHold;
-const MERGE = [WORDS_END + 400, WORDS_END + 9800];   // drifting into the sphere
+/* The last line comes as the body drifts into the sphere (user): the
+   drift begins just after it does, and it stays while they go, gone a
+   little before the push in. */
+const LAST_AT = T.words + (REVELATION.length - 1) * T.wordEach;
+const MERGE = [LAST_AT + 900, LAST_AT + 900 + 9400];   // drifting into the sphere
+T.lastHold = MERGE[1] - 2600 - LAST_AT + 1300;
 const ZOOM = [MERGE[1] - 3200, MERGE[1] + 2600];      // in on it, crescendoing
 const BLACK = [ZOOM[1] - 700, ZOOM[1] + 200];         // to black
 /* Then, on the black (user: like the opening of Star Wars, in neon blue):
@@ -117,8 +121,8 @@ const CSS = `
 .den-ending canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .den-ending .veil { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #eef4ff 55%, #dbe6ff 100%); pointer-events: none; }
 .den-ending .dark { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
-.den-ending .word { position: absolute; left: 50%; bottom: 16%; width: min(90vw, 780px); transform: translateX(-50%); text-align: center; pointer-events: none;
-  color: #e9f0ff; font: 300 clamp(22px, 4.6vw, 38px)/1.3 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.04em; text-wrap: balance;
+.den-ending .word { position: absolute; left: 50%; bottom: 16%; width: min(92vw, 880px); transform: translateX(-50%); text-align: center; pointer-events: none;
+  color: #e9f0ff; font: 300 clamp(25px, 5.3vw, 44px)/1.3 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.04em; text-wrap: balance;
   text-shadow: 0 0 18px rgba(110,160,255,0.7), 0 2px 10px rgba(0,0,0,0.85); opacity: 0; transition: opacity 1.3s ease; }
 .den-ending .word em { font-style: italic; font-weight: 400; }
 .den-ending .word strong { font-weight: 700; }

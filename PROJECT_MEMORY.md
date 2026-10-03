@@ -5719,3 +5719,9 @@ phone menu until "Start the story over" (which clears it).
       -32 dB, was -21), the run shorter (6.2-8.8 s, -22 dB), the door at
       8.7, a shorter crank (START from 4.6 s), the car at 9.95 (was 12.6):
       started and away ~2.7 s sooner. Track 16.7 s.
+    - The last revelation line ("....It was.....*always*...... El Cabeza.")
+      comes with the drift into the sphere (user): LAST_AT = T.words + 7 *
+      wordEach (40.9 s); MERGE = [LAST_AT + 0.9 s, +9.4 s]; T.lastHold set
+      so the line stays till 2.6 s before the merge ends (ZOOM/BLACK/CRAWL
+      follow MERGE, the whole ~6.6 s shorter). The lines a little larger:
+      clamp(25px, 5.3vw, 44px) (was 22/4.6vw/38), width min(92vw, 880px).
