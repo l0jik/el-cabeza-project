@@ -58,7 +58,6 @@ export function openRealities(world, novaGo = null, onStay = null) {
   return createRealitiesMenu({
     current: w && w.nova ? w.nova : null, currentId: world,
     onPick: (pick) => goToWorld(pick, novaGo), onStay,
-    stayLabel: world === "den" ? "Stay in the den" : "Stay here",
   });
 }
 // A theme's corner button for it (the chassis's theme.cornerAction).

@@ -5464,3 +5464,8 @@ phone menu until "Start the story over" (which clears it).
     over (keep playing, or Stay after the void), dismissed as ever.
     e2e-ending: a win on the walk in, hidden; after Stay, shown and a tap
     outside puts it away.
+  - Realities menu: no Stay pill (user: redundant, the den's already in
+    the list). The "You are here" card is the way to stay (realities.js:
+    a tap on it calls onStay, as Escape does); the ending's menu marks
+    the den (currentId "den"). stayLabel gone from every caller; tests
+    tap reality-den / reality-lab-bauhaus instead of realities-stay.

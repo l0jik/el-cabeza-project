@@ -141,7 +141,7 @@ await shot(page, "end-4-realities");
 check("Restart story is the menu's last button", (await page.evaluate(() => { const m = document.querySelector('[data-testid="realities"]'); return m && m.lastElementChild && m.lastElementChild.dataset.testid; })) === "realities-restart");
 await page.locator('[data-testid="realities-restart"]').click();
 check("...and a first tap asks before it does it", /again/i.test(await page.locator('[data-testid="realities-restart"]').innerText()) && (await page.locator('[data-testid="realities"]').count()) === 1);
-await page.locator('[data-testid="realities-stay"]').click();
+await page.locator('[data-testid="reality-den"]').click();
 check("(the controls back after, once it's faded)", !!(await poll(async () => !(await page.evaluate(() => document.documentElement.classList.contains("ec-hall-scene"))), 4000)));
 check("Stay in the den: back in the den", !!(await poll(async () => !(await page.locator('[data-testid="den-ending"]').count()) && !(await page.locator('[data-testid="realities"]').count()), 6000)));
 check("...the game's placard there now", !!(await poll(() => page.evaluate(() => { const b = document.querySelector('[data-testid="victory-backdrop"]'); const cs = getComputedStyle(b); return b.dataset.open === "true" && cs.pointerEvents === "auto" && Number(cs.opacity) > 0.9; }), 4000)));

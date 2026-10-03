@@ -109,8 +109,8 @@ console.log("the Lab");
   await p.waitForTimeout(800); await shot(p, "lab-bauhaus");
   await p.locator('[data-testid="gate-realities"]').click();
   check("Other realities from the gate: the menu, you are here", !!(await poll(async () => /you are here/i.test(await p.locator('[data-testid="reality-lab-bauhaus"]').innerText()), 4000)));
-  await p.locator('[data-testid="realities-stay"]').click();
-  check("...stay: the two buttons again", !!(await poll(() => p.locator('[data-testid="gate-standard"]').isVisible(), 4000)));
+  await p.locator('[data-testid="reality-lab-bauhaus"]').click();
+  check("...you are here: stay, the two buttons again", !!(await poll(() => p.locator('[data-testid="gate-standard"]').isVisible(), 4000)));
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

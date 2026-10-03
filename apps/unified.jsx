@@ -554,7 +554,7 @@ function UnifiedApp() {
   });
   storyBridge.openRealities = () => {
     if (busyRef.current) return;
-    createRealitiesMenu({ current: themeName, onPick: (w) => storyBridge.goWorld(w), stayLabel: themeName === "standard" ? "Stay in the den" : "Stay here" });
+    createRealitiesMenu({ current: themeName, onPick: (w) => storyBridge.goWorld(w) });
   };
   // "Restart story" asks first (user: an "Are you sure?").
   const [confirmRestart, setConfirmRestart] = useState(false);

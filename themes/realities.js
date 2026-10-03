@@ -58,13 +58,10 @@ const CSS = `
 .ec-realities .name { font-weight: 600; letter-spacing: 0.04em; }
 .ec-realities .line { font-size: 13px; opacity: 0.72; }
 .ec-realities .here { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #cdb4ff; }
-.ec-realities .stay { all: unset; cursor: pointer; margin-top: 22px; padding: 11px 26px; border-radius: 999px;
-  border: 1px solid rgba(214,190,255,0.7); letter-spacing: 0.16em; text-transform: uppercase; font-size: 13px; }
-.ec-realities .stay:hover, .ec-realities .stay:focus-visible { background: rgba(205,180,255,0.16); }
-.ec-realities .stay:focus-visible { outline: 2px solid #cdb4ff; outline-offset: 3px; }
-/* Restart story, at the very bottom (user): quieter than Stay here, and
-   it asks once more before it does it. */
-.ec-realities .restart { all: unset; cursor: pointer; margin-top: 14px; padding: 9px 22px; border-radius: 999px;
+/* Restart story, at the very bottom (user): quiet, and it asks once more
+   before it does it. (No Stay button above it: the "You are here" card
+   is the way to stay, user.) */
+.ec-realities .restart { all: unset; cursor: pointer; margin-top: 26px; padding: 9px 22px; border-radius: 999px;
   border: 1px solid rgba(214,190,255,0.32); letter-spacing: 0.14em; text-transform: uppercase; font-size: 11.5px; opacity: 0.8;
   touch-action: manipulation; /* (the second tap mustn't read as a double-tap zoom) */
   transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease; }
@@ -75,8 +72,8 @@ const CSS = `
    revelation, user: taps still coming from the scene picked a world before
    the words above had been read): the choices dim and the taps go nowhere,
    a hairline under the words filling until they're live. */
-.ec-realities ul, .ec-realities .stay { transition: opacity 0.9s ease, filter 0.9s ease; }
-.ec-realities.locked ul, .ec-realities.locked .stay, .ec-realities.locked .restart { pointer-events: none; opacity: 0.32; filter: saturate(0.4); }
+.ec-realities ul { transition: opacity 0.9s ease, filter 0.9s ease; }
+.ec-realities.locked ul, .ec-realities.locked .restart { pointer-events: none; opacity: 0.32; filter: saturate(0.4); }
 .ec-realities .hold { width: min(60vw, 240px); height: 1px; margin: -12px 0 20px; background: rgba(205,180,255,0.18); overflow: hidden; }
 .ec-realities .hold i { display: block; height: 100%; width: 100%; background: rgba(205,180,255,0.75); transform-origin: left; transform: scaleX(0); }
 .ec-realities.locked .hold i { animation: ecRealHold var(--hold-ms, 3500ms) linear forwards; }
@@ -96,9 +93,10 @@ export function onStoryRestart(fn) {
 export const RESTART_HREF = "el-cabeza-nova.html?restart=story";
 
 /* The menu. `current`: the Nova place you're in (marked "You are here");
-   onPick(world); onStay() for "Stay here" (and Escape). `title` / `sub`
-   say what it is. Returns { el, close }. */
-export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", stayLabel = "Stay in the den", lockMs = 0 } = {}) {
+   onPick(world); onStay() for staying where you are: a tap on the "You
+   are here" card, or Escape (there's no Stay button: user, the card
+   already says it). `title` / `sub` say what it is. Returns { el, close }. */
+export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", lockMs = 0 } = {}) {
   if (typeof document === "undefined") return { el: null, close() {} };
   if (!document.querySelector("style[data-ec-realities]")) {
     const st = document.createElement("style"); st.setAttribute("data-ec-realities", ""); st.textContent = CSS; document.head.appendChild(st);
@@ -121,15 +119,13 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     const name = document.createElement("span"); name.className = "name"; name.textContent = w.name;
     const line = document.createElement("span"); line.className = "line"; line.textContent = w.line;
     txt.append(name, line);
-    if ((current && w.nova === current) || (currentId && w.id === currentId)) { const here = document.createElement("span"); here.className = "here"; here.textContent = "You are here"; txt.append(here); }
+    const isHere = (current && w.nova === current) || (currentId && w.id === currentId);
+    if (isHere) { const here = document.createElement("span"); here.className = "here"; here.textContent = "You are here"; txt.append(here); }
     b.append(shot, txt);
-    b.onclick = () => { if (locked) return; close(); if (onPick) onPick(w); };
+    // (Where you are already: you stay.)
+    b.onclick = () => { if (locked) return; close(); if (isHere) { if (onStay) onStay(); } else if (onPick) onPick(w); };
     li.append(b); ul.append(li);
   });
-  const stay = document.createElement("button");
-  stay.type = "button"; stay.className = "stay"; stay.textContent = stayLabel;
-  stay.setAttribute("data-testid", "realities-stay");
-  stay.onclick = () => { if (locked) return; close(); if (onStay) onStay(); };
   // Restart story: a first tap asks ("Tap again to restart"), a second
   // within four seconds does it.
   const restart = document.createElement("button");
@@ -157,7 +153,7 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     setTimeout(() => { locked = false; el.classList.remove("locked"); el.setAttribute("data-locked", "false"); }, lockMs);
   }
   const hold = document.createElement("div"); hold.className = "hold"; hold.setAttribute("aria-hidden", "true"); hold.appendChild(document.createElement("i"));
-  el.append(h, p, ...(lockMs > 0 ? [hold] : []), ul, stay, restart);
+  el.append(h, p, ...(lockMs > 0 ? [hold] : []), ul, restart);
   const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (locked) return; close(); if (onStay) onStay(); } };
   window.addEventListener("keydown", onKey, true);
   document.body.appendChild(el);
