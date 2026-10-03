@@ -109,9 +109,11 @@ await page.waitForTimeout(2600);
   const vp = page.viewportSize();
   await page.mouse.move(vp.width / 2, vp.height / 2); await page.mouse.down();
   await page.mouse.move(vp.width / 2 + 160, vp.height / 2 + 60, { steps: 8 }); await page.waitForTimeout(400);
-  const look = await page.evaluate(() => window.__DEN_ENDING__().look);
+  const { look, turn } = await page.evaluate(() => window.__DEN_ENDING__());
   await page.mouse.up();
   check("...a drag doesn't move the camera", !!look && look.yaw === 0 && look.pitch === 0, JSON.stringify(look));
+  // (It turns the figure instead, gently, user.)
+  check(`...it turns the figure, gently (${turn.toFixed(2)} rad)`, turn > 0.2 && turn < 1.6);
 }
 await shot(page, "end-1-pulled");
 await page.evaluate(() => window.__DEN_ENDING_SKIP__(6000));

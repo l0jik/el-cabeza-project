@@ -5900,3 +5900,39 @@ phone menu until "Start the story over" (which clears it).
       faint 11 Hz flicker, uEdge 1.15. It reads as a crisp thin outline
       around the silhouette. Wisps: alpha 0.34 -> 0.2, and each is
       hidden until it has drifted off the body (smooth((u-0.12)/0.3)).
+    - Round (user): the outline thins away into the sphere: uEdge =
+      1.15 * (1 - m)^1.6 (edgeMat kept in scene.userData).
+    - Fingers and longer feet (user): each hand is a palm, four fingers
+      (cones, a little apart, curled toward the palm, the palm's side is
+      the hand's +z) and a thumb on the outer side, all on the forearm's
+      bone; feet 1.25 -> 1.5 long (centre z 0.5 -> 0.72). The rest pose
+      now has the arms straight out (a T), so the hands lie along the
+      grid; the grid (skinData) is a tensor grid: columns and rows 0.06
+      apart through the hands (HAND boxes + 0.25), 0.17 elsewhere, z
+      unchanged, its extent from the parts' boxes (the old fixed box
+      clipped the fingertips). 14.5k -> 20.1k vertices; skinning ~1.1 ->
+      1.4 ms a frame (node, desktop); built in ~0.75 s, prewarmed as before
+      (yields every 32 rows).
+    - The crawl's sound fades to nothing in 4 s at the switcher (user,
+      was 3): droneGone(4).
+    - More drift early, somersaulting while righting themselves (user):
+      driftAt(v, ms), a wide wander (12/5/6 units) from ~3 s, gone by
+      ~32 s; the camera's position follows where the drift was 2.2 s
+      before (deterministic, skip-safe) but it aims at where they really
+      are, and more at them than the sphere while drifting (the aim's
+      pull toward the sphere * (1 - 0.65 * early)), so they stay in frame.
+      Two forward somersaults (flip = 4 pi (1 - (1 - u)^2.4), u over
+      1.5..17 s, slowing), then caught a few times (a damped wobble).
+      Arms out wide, paddling for balance (bal, 2.6..~19 s; the hands on
+      the head still win on "my god").
+    - Legs (user: not dangling; used to walking, realizing they're
+      weightless): `walk` strides (1.45 s a step, the knee lifting on the
+      swing) from ~2 s, fading out by ~20 s, a few reflex steps again at
+      23..27 s; otherwise the resting float of a body in no gravity: hips
+      ~0.62 rad forward, knees ~0.95 bent, each drifting on its own time.
+    - The figure can be turned by a drag (user: gently; until the drift
+      in): turnBy() spins it about the screen's own axes (0.0045 rad/px),
+      it carries on after letting go (velocity decays e^-1.1t, capped 2.4
+      rad/s) and eases back to its own float (slerp to identity, e^-0.3t),
+      faded out over 2.5 s from the drift in. One quaternion premultiplied
+      onto the body; nothing more drawn. State: turn (rad), edge.

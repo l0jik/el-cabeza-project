@@ -354,7 +354,15 @@ function reachToSphere(f, g, to, t) {
   // The head lifted to it.
   f.headG.rotation.x += (-0.38 - f.headG.rotation.x) * g * 0.8;
 }
-function pose(f, t, a, m, st = 0, g = 0) {
+/* `walk` (0..1): legs stepping out of habit (user: they're used to
+   walking, and only slowly realize they're weightless), one forward as
+   the other goes back, the knee lifting as it swings through. Without it
+   the legs aren't left dangling: they float the way a body at rest in
+   no gravity does, hips and knees softly bent, thighs a little forward,
+   each drifting on its own slow time. `bal` (0..1): arms out wide,
+   paddling, trying to right themselves as they somersault. */
+const WALK_W = (Math.PI * 2) / 1.45;
+function pose(f, t, a, m, st = 0, g = 0, walk = 0, bal = 0) {
   const breath = Math.sin((t * Math.PI * 2) / 7.2);
   const fl = (i, k) => Math.sin(t * (6.1 + 1.3 * i) + k * 2.1 + i) * 0.7 + Math.sin(t * (9.7 - 0.9 * i) + k * 1.3) * 0.3;
   f.arms.forEach(({ j, k }, i) => {
@@ -364,19 +372,24 @@ function pose(f, t, a, m, st = 0, g = 0) {
     _b.set(s * 0.45, 0.55, -0.72);                                                        // pulled
     if (st > 0) _b.x += s * 0.55 * st * fl(i, 0), _b.y += 0.6 * st * fl(i, 1), _b.z += 0.5 * st * fl(i, 2);   // flailing
     _c.set(s * (0.68 - 0.25 * reach), -0.3 + 0.06 * breath + 0.36 * reach, 0.5 + 0.4 * reach); // in awe
+    const pd = t * 2.3 + i * 0.8;
+    if (bal > 0) _c.lerp(_v.set(s * 0.95, 0.12 + 0.32 * Math.sin(pd), 0.28 * Math.cos(pd)), bal);   // paddling for balance
     aimLimb(j, _b, _c, new THREE.Vector3(s * 0.85, 0.42, 0.32), a, m);
-    k.rotation.x = -0.45 * (1 - a) - (0.2 - 0.08 * reach) * a * (1 - m) - 0.1 * m - 0.75 * st * (0.5 + 0.5 * fl(i, 3));
+    k.rotation.x = -0.45 * (1 - a) - (0.2 - 0.08 * reach) * a * (1 - m) - 0.1 * m - 0.75 * st * (0.5 + 0.5 * fl(i, 3)) - 0.35 * bal * (0.5 + 0.5 * Math.sin(pd + 1.1));
     // (The hand turned palm out as it opens.)
     k.rotation.y = s * 0.5 * a;
   });
   f.legs.forEach(({ j, k }, i) => {
     const s = i ? 1 : -1;
-    const sway = Math.sin(t * 0.33 + i * 1.7) * 0.05;
     _b.set(s * 0.14, -0.62, -0.78);
     if (st > 0) _b.x += s * 0.3 * st * fl(i + 2, 0), _b.z += 0.55 * st * fl(i + 2, 1);   // kicking
-    _c.set(s * 0.06 + sway, -0.97, -0.12 - (i ? 0.08 : 0));
+    // (The thigh's angle forward of straight down: floating, or a stride.)
+    const ph = t * WALK_W + i * Math.PI, stride = Math.sin(ph);
+    const hip = (0.62 + 0.12 * Math.sin(t * 0.29 + i * 2.1)) * (1 - walk) + walk * (0.18 + 0.62 * stride);
+    _c.set(s * (0.1 + 0.04 * Math.sin(t * 0.23 + i)), -Math.cos(hip), Math.sin(hip));
     aimLimb(j, _b, _c, new THREE.Vector3(s * 0.16, -0.9, -0.3), a, m);
-    k.rotation.x = 0.35 * (1 - a) + (i ? 0.38 : 0.24) * a + 0.7 * st * (0.5 + 0.5 * fl(i + 2, 2));
+    const knee = (0.95 + 0.14 * Math.sin(t * 0.37 + i * 1.3)) * (1 - walk) + walk * (0.22 + 0.95 * Math.max(0, Math.sin(ph + 1.2)));
+    k.rotation.x = 0.35 * (1 - a) + knee * a * (1 - m) + (i ? 0.38 : 0.24) * m + 0.7 * st * (0.5 + 0.5 * fl(i + 2, 2));
   });
   f.headG.rotation.x = -0.5 * (1 - a) + (-0.2 - 0.04 * breath) * a * (1 - m) - 0.42 * m + 0.35 * st * fl(4, 0);
   f.headG.rotation.y = 0.08 * Math.sin(t * 0.17) * a + 0.45 * st * fl(4, 1);
@@ -399,7 +412,7 @@ function pose(f, t, a, m, st = 0, g = 0) {
    far it is from each bone's own part, so a joint bends as one smooth
    skin), skinned each frame (skin()). `rest`: each vertex's rest
    position, for the wireframe's lines, which stay on the body. */
-const SKIN_CELL = 0.17, SKIN_SIGMA = 0.32;
+const SKIN_CELL = 0.17, SKIN_FINE = 0.06, SKIN_SIGMA = 0.32;
 // The skeleton in its rest pose, and the body's parts round it.
 function figRig() {
   const fig = new THREE.Group();
@@ -412,10 +425,11 @@ function figRig() {
   const ARM = [3.9, 3.6, 0.62, 0.5, 0.4], LEG = [5.6, 5.3, 0.95, 0.68, 0.5];
   const arms = [-1, 1].map((s) => limb(new THREE.Vector3(s * 2.55, 7.1, 0), ARM[0], 0));
   const legs = [-1, 1].map((s) => limb(new THREE.Vector3(s * 1.15, -0.4, 0), LEG[0], 0));
-  // The rest pose: arms out and down, legs a little apart, straight.
+  // The rest pose: arms straight out to the sides (so the hands lie along
+  // the grid's rows, see skinData), legs a little apart, straight.
   [arms, legs].forEach((set, li) => set.forEach(({ j }, i) => {
     const s = i ? 1 : -1;
-    j.quaternion.setFromUnitVectors(Y_DOWN, new THREE.Vector3(s * (li ? 0.1 : 0.8), li ? -1 : -0.6, 0).normalize());
+    j.quaternion.setFromUnitVectors(Y_DOWN, new THREE.Vector3(s * (li ? 0.1 : 1), li ? -1 : 0, 0).normalize());
   }));
   fig.updateMatrixWorld(true);
   const bones = [fig, headG, arms[0].j, arms[0].k, arms[1].j, arms[1].k, legs[0].j, legs[0].k, legs[1].j, legs[1].k];
@@ -444,12 +458,28 @@ function figRig() {
     [1, cone(V(0, 7.9, 0), V(0, 10.1, 0.05), 0.74, 0.62), 0.6],  // neck
     [1, ell(restInv[1], V(0, 1.3, 0.05), V(1.35, 1.6, 1.45)), 0.5],  // head
   ];
-  [[arms, ARM, (k) => ell(restInv[bones.indexOf(k)], V(0, -ARM[1] - 0.55, 0), V(0.44, 0.78, 0.27)), 0.22],
-   [legs, LEG, (k) => ell(restInv[bones.indexOf(k)], V(0, -LEG[1] - 0.2, 0.5), V(0.52, 0.38, 1.25)), 0.3]].forEach(([set, L, end, eb]) => set.forEach(({ j, k }) => {
+  /* The hands (user: fingers on them): a palm, four fingers a little
+     apart and curled toward it, and a thumb on the outer side (the palm's
+     side is the hand's +z), all on the forearm's bone. In the bone's own
+     frame, `s` the side. */
+  const HAND = [];
+  const hand = (k, s) => {
+    const b = bones.indexOf(k), y0 = -ARM[1], P = (x, y, z) => at(k, s * x, y0 + y, z);
+    const n0 = parts.length;
+    parts.push([b, ell(restInv[b], V(0, y0 - 0.42, 0.02), V(0.47, 0.56, 0.22)), 0.22]);   // the palm
+    // [knuckle x, length, tip x] from the thumb's side over to the little finger.
+    [[0.29, 0.74, 0.46], [0.1, 0.84, 0.15], [-0.1, 0.78, -0.16], [-0.29, 0.6, -0.44]].forEach(([x, len, tx]) =>
+      parts.push([b, cone(P(x, -0.8, 0.03), P(tx, -0.8 - len, 0.17), 0.12, 0.095), 0.07]));
+    parts.push([b, cone(P(0.36, -0.18, 0.06), P(0.72, -0.76, 0.22), 0.14, 0.105), 0.12]);   // the thumb
+    for (let i = n0; i < parts.length; i++) HAND.push(parts[i][1].box);
+  };
+  // The feet a little longer (user).
+  [[arms, ARM, (k, s) => hand(k, s)],
+   [legs, LEG, (k) => parts.push([bones.indexOf(k), ell(restInv[bones.indexOf(k)], V(0, -LEG[1] - 0.2, 0.72), V(0.52, 0.38, 1.5)), 0.3])]].forEach(([set, L, end]) => set.forEach(({ j, k }, i) => {
     const J = at(j, 0, 0, 0), K = at(k, 0, 0, 0), E = at(k, 0, -L[1], 0);
     parts.push([bones.indexOf(j), cone(J, K, L[2], L[3]), 0.7]);
     parts.push([bones.indexOf(k), cone(K, E, L[3], L[4]), 0.25]);
-    parts.push([bones.indexOf(k), end(k), eb]);
+    end(k, i ? 1 : -1);
   }));
   const smin = (a, b, k) => { if (k <= 0) return Math.min(a, b); const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
   // (Far from every part, just "outside": only the sign matters there.)
@@ -463,18 +493,28 @@ function figRig() {
     }
     return d > PAD ? PAD : d;
   };
-  return { fig, headG, arms, legs, bones, restInv, parts, sdf };
+  return { fig, headG, arms, legs, bones, restInv, parts, sdf, HAND };
 }
 /* The skin (the same every time, so made once and kept): built a slice at
    a time (a generator), so it can be made ahead, in moments the page is
    idle (prewarmFigure, while the hall's choice is up), or all at once. */
-function* skinData({ parts, sdf, bones }) {
-  const V = (x, y, z) => new THREE.Vector3(x, y, z);
-  // The surface (surface nets over a grid round the rest pose).
-  const lo = V(-9.6, -12.6, -2.4), h = SKIN_CELL;
-  const nx = Math.ceil(19.2 / h) + 1, ny = Math.ceil(25.6 / h) + 1, nz = Math.ceil(5.6 / h) + 1;
+function* skinData({ parts, sdf, bones, HAND }) {
+  /* The surface (surface nets over a grid round the rest pose). The grid
+     is finer through the hands, so the fingers come out (the columns
+     through the hands, out at the ends of the arms, and the rows across
+     them closer together; the rest of the body as it was). */
+  const h = SKIN_CELL;
+  const BX = parts.map(([, fn]) => fn.box);
+  const ext = (a) => [Math.min(...BX.map((b) => b[a])) - 0.5, Math.max(...BX.map((b) => b[a + 3])) + 0.5];
+  const axis = (a) => {
+    const [lo, hi] = ext(a), fine = a === 2 ? [] : HAND.map((b) => [b[a] - 0.25, b[a + 3] + 0.25]);
+    const out = [lo]; let x = lo;
+    while (x < hi) { x += fine.some(([p, q]) => x >= p && x < q) ? SKIN_FINE : h; out.push(x); }
+    return Float32Array.from(out);
+  };
+  const X = axis(0), Y = axis(1), Z = axis(2), nx = X.length, ny = Y.length, nz = Z.length;
   const F = new Float32Array(nx * ny * nz), id = (i, j, k) => i + nx * (j + ny * k);
-  for (let k = 0; k < nz; k++) { for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) F[id(i, j, k)] = sdf(lo.x + i * h, lo.y + j * h, lo.z + k * h); yield; }
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) { for (let i = 0; i < nx; i++) F[id(i, j, k)] = sdf(X[i], Y[j], Z[k]); if ((j & 31) === 31) yield; }
   const cellV = new Int32Array((nx - 1) * (ny - 1) * (nz - 1)).fill(-1), cid = (i, j, k) => i + (nx - 1) * (j + (ny - 1) * k);
   const pos = [];
   const C = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]];
@@ -491,7 +531,7 @@ function* skinData({ parts, sdf, bones }) {
       sx += C[a][0] + (C[b][0] - C[a][0]) * t; sy += C[a][1] + (C[b][1] - C[a][1]) * t; sz += C[a][2] + (C[b][2] - C[a][2]) * t; n++;
     }
     cellV[cid(i, j, k)] = pos.length / 3;
-    pos.push(lo.x + (i + sx / n) * h, lo.y + (j + sy / n) * h, lo.z + (k + sz / n) * h);
+    pos.push(X[i] + (sx / n) * (X[i + 1] - X[i]), Y[j] + (sy / n) * (Y[j + 1] - Y[j]), Z[k] + (sz / n) * (Z[k + 1] - Z[k]));
   }
   const idx = [];
   const quad = (a, b, c, d, flip) => { if (a < 0 || b < 0 || c < 0 || d < 0) return; if (flip) idx.push(a, c, b, a, d, c); else idx.push(a, b, c, a, c, d); };
@@ -708,7 +748,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
   }
   /* As the switcher comes, whatever's still sounding from the crawl
      (the drone, or its dying tail) fades evenly to nothing in `secs`
-     (user: 3 s), and the sources stop. */
+     (user: 4 s), and the sources stop. */
   function droneGone(secs) {
     const c = snd;
     if (!c) return;
@@ -771,6 +811,17 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // The camera can't be moved (user); touches here go nowhere (the
     // den's own page-wide listeners have nothing to do).
     ["pointerdown", "pointermove", "pointerup", "touchstart", "touchmove", "wheel"].forEach((ev) => root.addEventListener(ev, (e) => { e.stopPropagation(); if (ev === "wheel" || ev === "touchmove") e.preventDefault(); }, ev === "wheel" || ev === "touchmove" ? { passive: false } : undefined));
+    root.addEventListener("pointerdown", (e) => {
+      if (stage !== "void" || lastS >= MERGE[0] || turnDrag) return;
+      turnDrag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      try { root.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
+    });
+    root.addEventListener("pointermove", (e) => {
+      if (!turnDrag || e.pointerId !== turnDrag.id) return;
+      turnPx += e.clientX - turnDrag.x; turnPy += e.clientY - turnDrag.y;
+      turnDrag.x = e.clientX; turnDrag.y = e.clientY;
+    });
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => root.addEventListener(ev, (e) => { if (turnDrag && e.pointerId === turnDrag.id) turnDrag = null; }));
     root.addEventListener("pointerdown", () => {
       if (stage !== "black" || !crawlTap || crawlFade != null) return;
       crawlFade = lastS;
@@ -854,7 +905,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // A faint aura round them, breathing (user: subtle, ethereal).
     const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x9fc4ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
     aura.scale.setScalar(34); scene.add(aura); disposables.push(aura.material);
-    scene.userData = { ringMat, ring, glow, aura };
+    scene.userData = { ringMat, ring, glow, aura, edgeMat };
     resize();
     window.addEventListener("resize", resize);
   }
@@ -869,7 +920,37 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     if (renderer) renderer.setSize(w, h, false);
   }
 
-  const figPos = new THREE.Vector3(), camPos = new THREE.Vector3(), tmp = new THREE.Vector3(), aim = new THREE.Vector3(), off = new THREE.Vector3();
+  const figPos = new THREE.Vector3(), camPos = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), aim = new THREE.Vector3(), off = new THREE.Vector3();
+  // (The drift at a time; the camera follows where it was 2.2 s before.)
+  const drift = new THREE.Vector3(), driftLag = new THREE.Vector3();
+  const driftAt = (v, ms) => {
+    const T = ms / 1000, e = smooth(ms / 3000) * (1 - smooth((ms - 16000) / 16000));
+    v.set(12 * Math.sin(T * 0.21 + 0.6) - 12 * Math.sin(0.6), 5 * Math.sin(T * 0.17 + 1.9) - 5 * Math.sin(1.9), 6 * Math.sin(T * 0.13)).multiplyScalar(e);
+    return e;
+  };
+  /* The figure can be turned, gently, by a drag (user): the drag spins it
+     about the screen's own axes (side to side about up, up and down
+     about across); let go, it carries on a little, slowing, and their own
+     floating takes over again (the turn eases back off). Only till they
+     start to drift in. A few numbers a frame, nothing more drawn. */
+  const turnQ = new THREE.Quaternion(), _qu = new THREE.Quaternion(), _qt = new THREE.Quaternion(), turnW = new THREE.Vector3(), _tw = new THREE.Vector3(), _ax = new THREE.Vector3(), _up = new THREE.Vector3(), _rt = new THREE.Vector3();
+  let turnDrag = null, turnPx = 0, turnPy = 0;
+  const TURN_K = 0.0045, TURN_MAX = 2.4;
+  function turnBy(dt) {
+    _up.setFromMatrixColumn(camera.matrixWorld, 1); _rt.setFromMatrixColumn(camera.matrixWorld, 0);
+    if (turnDrag) {
+      _ax.copy(_up).multiplyScalar(turnPx * TURN_K).addScaledVector(_rt, turnPy * TURN_K);
+      turnPx = turnPy = 0;
+      if (dt > 0) turnW.lerp(_tw.copy(_ax).divideScalar(dt), 0.35);
+    } else {
+      turnW.multiplyScalar(Math.exp(-dt * 1.1));
+      _ax.copy(turnW).multiplyScalar(dt);
+      turnQ.slerp(_qu.identity(), 1 - Math.exp(-dt * 0.3));
+    }
+    if (turnW.length() > TURN_MAX) turnW.setLength(TURN_MAX);
+    const ang = _ax.length();
+    if (ang > 1e-6) { turnQ.premultiply(_qt.setFromAxisAngle(_ax.divideScalar(ang), ang)); turnQ.normalize(); }
+  }
   // The plasma off the body: more and more of it from ~4 s, most as they
   // go in; each mote born on the body, drifting out and up in a slow
   // curl (pulled a little toward the sphere), growing as it fades.
@@ -937,6 +1018,11 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // (The drift levels off well short of it: the words take ~40 s.)
     const dist = 26 + 210 * (1 - Math.pow(1 - p, 3)) + 70 * (1 - Math.exp(-Math.max(0, T1 - T.pull[1] / 1000) / 18));
     figPos.set(Math.sin(T1 * 0.4) * 3, -3 + 2 * Math.sin(T1 * 0.31), -dist);
+    /* Drifting more early on (user), settling by ~32 s: a wider wander
+       the camera follows only lazily, so it's seen. */
+    const early = driftAt(drift, s);
+    driftAt(driftLag, s - 2200);
+    figPos.add(drift);
     // Then into the sphere: drifting in, slowly and then faster, smaller
     // as it goes, until it's one with it.
     const m = clamp01((s - MERGE[0]) / (MERGE[1] - MERGE[0]));
@@ -957,11 +1043,25 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
        slows to a stop just as they find their awe. */
     const st = 1 - smooth((s - 900) / 6600);
     const spin = 3.4 * (1 - smooth(s / 7200)), tumble = 0.5 * (1 - smooth(s / 6000)) * Math.sin(T1 * 1.4);
-    fig.fig.rotation.set(-0.95 + 0.6 * awe + 0.03 * Math.sin(T1 * 0.35) + 0.25 * m + tumble, Math.PI + 0.12 * Math.sin(T1 * 0.11) * awe + 0.5 * spin * 0.3, 0.05 * Math.sin(T1 * 0.17) * awe + spin);
+    /* Somersaulting as they try to right themselves (user): two slow
+       forward turns, slowing to a stop by ~17 s, then over-corrected and
+       caught a few times, smaller each time. */
+    const flipU = clamp01((s - 1500) / 15500);
+    const flip = Math.PI * 4 * (1 - Math.pow(1 - flipU, 2.4));
+    const catchUp = smooth((s - 14500) / 2500) * 0.32 * Math.exp(-Math.max(0, s - 16000) / 4500) * Math.sin((s - 15000) / 1000 * 1.25);
+    fig.fig.rotation.set(-0.95 + 0.6 * awe + 0.03 * Math.sin(T1 * 0.35) + 0.25 * m + tumble + flip + catchUp, Math.PI + 0.12 * Math.sin(T1 * 0.11) * awe + 0.5 * spin * 0.3 + 0.45 * early * Math.sin(T1 * 0.19), 0.05 * Math.sin(T1 * 0.17) * awe + spin);
+    // (Turned by a touch, see turnBy(); let go of as they go in.)
+    const userK = 1 - smooth((s - MERGE[0]) / 2500);
+    if (userK > 0.001 && 1 - Math.abs(turnQ.w) > 1e-6) fig.fig.quaternion.premultiply(_qu.identity().slerp(turnQ, userK));
     // Hands up on the head as "....my...... god......!" begins (8 s),
     // held through the line, then down again as the next one comes.
     const onHead = smooth((s - (T.words - 700)) / 1100) * (1 - smooth((s - (T.words + 3900)) / 1600));
-    pose(fig, T1, awe, smooth(m * 1.6), st, onHead);
+    // Walking out of habit, at first; slowing as it dawns on them, a few
+    // steps again later, by reflex (user: not just dangling).
+    const walk = smooth((s - 2000) / 2500) * (1 - smooth((s - 13000) / 7000)) + 0.6 * smooth((s - 23000) / 900) * (1 - smooth((s - 26000) / 1500));
+    // Arms out, paddling, while they turn over (not while on the head).
+    const bal = smooth((s - 2600) / 2000) * (1 - smooth((s - 15500) / 4000));
+    pose(fig, T1, awe, smooth(m * 1.6), st, onHead, walk, bal);
     // Reaching for the sphere on "It's El Cabeza" (the seventh line),
     // easing into the drift as the last line comes.
     const elCabeza = T.words + 6 * T.wordEach;
@@ -971,6 +1071,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       reachToSphere(fig, reach, fig.fig.worldToLocal(tmp.copy(sphereAt)), T1);
     }
     if (fig.fig.visible) fig.skin();
+    turnBy(dt);
     // Spaghettified on the way in, let go into a body again.
     const stretch = 1 - smooth((s - 1100) / 2700);
     figMat.uniforms.uStretch.value = stretch;
@@ -985,7 +1086,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // round where the drag says; at the end, in on the sphere.
     const lag = 14 + 22 * smooth(s / 4000) + 10 * ease;
     const orbit = 0.5 * ease * Math.sin(T1 * 0.08);
-    const anchor = mergeFrom || figPos;
+    const anchor = mergeFrom || tmp2.copy(figPos).sub(drift).add(driftLag);
     camPos.set(anchor.x + Math.sin(orbit) * lag, anchor.y - 4 + 6 * ease, anchor.z + Math.cos(orbit) * lag);
     if (s < 1800) camPos.x += (Math.random() - 0.5) * (1 - s / 1800) * 1.5;
     // (While they're drawn out, the camera's out to one side and a little
@@ -993,7 +1094,10 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // sphere; it eases in behind as they come back into a body.)
     const outSide = 1 - smooth((s - 1600) / 3600);
     camPos.x += 26 * outSide; camPos.y += 7 * outSide; camPos.z -= 6 * outSide;
-    aim.copy(anchor).lerp(sphereAt, 0.15 + 0.25 * ease);
+    // (Aimed at where they really are, so they stay in frame as they drift
+    // and the sphere behind them moves instead; more on them while they
+    // tumble and drift, so they're not turned out of the frame.)
+    aim.copy(mergeFrom || figPos).lerp(sphereAt, (0.15 + 0.25 * ease) * (1 - 0.65 * early));
     const z = smooth((s - ZOOM[0]) / (ZOOM[1] - ZOOM[0]));
     if (z > 0) {
       // (In, until the black of it fills everything.)
@@ -1019,6 +1123,8 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const solid = Math.min(1, Math.max(0.05, 0.18 + 0.82 * solidP + 0.16 * Math.sin(T1 * 1.3) * Math.sin(T1 * 0.47) * (1 - solidP)));
     figMat.uniforms.uSolid.value = solidP >= 0.999 ? 1 : solid;
     figMat.uniforms.uWire.value = 0.85 * Math.pow(1 - solidP, 1.2);
+    // The outline thinning away as they go into the sphere (user).
+    scene.userData.edgeMat.uniforms.uEdge.value = 1.15 * Math.pow(1 - m, 1.6);
     figMat.uniforms.uGlow.value = (0.9 + 0.12 * Math.sin((T1 * Math.PI * 2) / 7.2)) * (1 - 0.45 * solidP) + 1.2 * stretch + 1.6 * m * m;
     stepWisps(s, dt, m);
     // The plasma and the halo, breathing; flaring as they're taken in.
@@ -1070,7 +1176,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
         if (r && r.height > 0 && r.top + r.height / 2 < vh / 2) { crawlTap = true; crawl.setAttribute("data-dismissable", "true"); }
       }
     }
-    if (stage === "black" && (s >= MENU_AT || (crawlFade != null && s >= crawlFade + CRAWL_FADE))) { droneGone(3); if (crawl) crawl.classList.remove("on"); openMenu(); }
+    if (stage === "black" && (s >= MENU_AT || (crawlFade != null && s >= crawlFade + CRAWL_FADE))) { droneGone(4); if (crawl) crawl.classList.remove("on"); openMenu(); }
     // (Under the black, nothing to draw.)
     if (renderer && s < BLACK[1] + 300) renderer.render(scene, camera);
   }
@@ -1118,7 +1224,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     },
     // Whether it covers the screen (the den needn't draw underneath).
     covering: () => !!root && (stage === "void" || stage === "black" || stage === "menu" || stage === "going"),
-    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, crawlAt: CRAWL[0], crawl: crawlP, crawlTap, crawlFade: crawlFade != null, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: snd && snd.fade ? snd.fade.gain.value * snd.musicG.gain.value : 0, music: !!(snd && (snd.musicOn || snd.els)), drone: !!(snd && (snd.droneOn || (snd.els && snd.els.drone))), wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0 }),
+    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, crawlAt: CRAWL[0], crawl: crawlP, crawlTap, crawlFade: crawlFade != null, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: snd && snd.fade ? snd.fade.gain.value * snd.musicG.gain.value : 0, music: !!(snd && (snd.musicOn || snd.els)), drone: !!(snd && (snd.droneOn || (snd.els && snd.els.drone))), wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0, turn: 2 * Math.acos(Math.min(1, Math.abs(turnQ.w))), edge: scene && scene.userData.edgeMat ? scene.userData.edgeMat.uniforms.uEdge.value : null }),
     // Test-only: on by ms.
     skip(ms) { skipMs += ms; },
     // Test-only: the sound's peak and loudness (dBFS) out of the scene, and the hum's and the pad's.
