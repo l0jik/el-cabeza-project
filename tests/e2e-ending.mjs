@@ -65,6 +65,21 @@ check("...and keep playing's now the electrician", /call an electrician about th
 await page.waitForTimeout(500);
 await page.locator('[data-testid="den-hall-investigate"]').click();
 check("investigate: the walk in", (await page.evaluate(() => window.__DEN_HALL__().state)) === "walk");
+{
+  // The game ends just then (user: the placard came up and couldn't be
+  // dismissed): the Cabeza of whoever's to move, a step from its far row.
+  const darkToMove = /dark/i.test(await page.locator('[data-testid="turn-status"]').innerText());
+  await page.evaluate((dark) => window.__EC_TEST_SET_PIECES__([
+    { id: "dark-cabeza", type: "cabeza", owner: "dark", row: dark ? 8 : 4, col: 4, w: 1, h: 1, z: 1 },
+    { id: "dark-turrito", type: "turrito", owner: "dark", row: 0, col: 0, w: 1, h: 1, z: 1 },
+    { id: "light-cabeza", type: "cabeza", owner: "light", row: dark ? 5 : 1, col: 6, w: 1, h: 1, z: 1 },
+    { id: "light-turrito", type: "turrito", owner: "light", row: 9, col: 9, w: 1, h: 1, z: 1 },
+  ]), darkToMove);
+  await page.waitForTimeout(300);
+  await page.evaluate((dark) => window.__EC_TEST_MOVE__(dark ? "dark-cabeza" : "light-cabeza", dark ? "S" : "N"), darkToMove);
+  check("a game won on the walk in: the placard's up", !!(await poll(async () => (await page.locator('[data-testid="victory-backdrop"]').getAttribute("data-open")) === "true", 8000)));
+  check("...but kept out of the way till the scene's over", await page.evaluate(() => { const b = document.querySelector('[data-testid="victory-backdrop"]'); const cs = getComputedStyle(b); return cs.opacity === "0" && cs.pointerEvents === "none"; }));
+}
 await page.waitForTimeout(1800); await shot(page, "hall-walk-1");
 await page.waitForTimeout(2200); await shot(page, "hall-walk-2");
 const inHall = await poll(async () => {
@@ -129,6 +144,10 @@ check("...and a first tap asks before it does it", /again/i.test(await page.loca
 await page.locator('[data-testid="realities-stay"]').click();
 check("(the controls back after, once it's faded)", !!(await poll(async () => !(await page.evaluate(() => document.documentElement.classList.contains("ec-hall-scene"))), 4000)));
 check("Stay in the den: back in the den", !!(await poll(async () => !(await page.locator('[data-testid="den-ending"]').count()) && !(await page.locator('[data-testid="realities"]').count()), 6000)));
+check("...the game's placard there now", !!(await poll(() => page.evaluate(() => { const b = document.querySelector('[data-testid="victory-backdrop"]'); const cs = getComputedStyle(b); return b.dataset.open === "true" && cs.pointerEvents === "auto" && Number(cs.opacity) > 0.9; }), 4000)));
+await page.mouse.click(12, 400);
+check("...and a tap outside it puts it away", !!(await poll(async () => (await page.locator('[data-testid="victory-backdrop"]').getAttribute("data-open")) === "false", 3000)));
+await page.waitForTimeout(500);
 
 console.log("after the story");
 check("the set's channel dial glows (the story's over)", (await page.evaluate(() => window.__DEN_CHANNEL__().post)) === true);

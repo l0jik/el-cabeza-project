@@ -9469,6 +9469,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           for graphical minimalism. */}
       <div
         onClick={() => setShowVictoryPlacard(false)}
+        data-testid="victory-backdrop"
+        data-open={showVictoryPlacard ? "true" : "false"}
         style={{
           position: "fixed",
           inset: 0,

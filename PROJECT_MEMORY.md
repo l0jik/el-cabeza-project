@@ -5455,3 +5455,12 @@ phone menu until "Start the story over" (which clears it).
     crunch, lowpass; nearly linear there, 0.25 gives 0.605 of the old
     output RMS); the synthesized stand-in (babble) through a 0.6 gain.
     The line's own hiss and clicks, and the ringer, unchanged.
+  - A game ending during the hall scene (user: the placard came up and
+    wouldn't dismiss): the hall's transparent blocker (.den-hall-block,
+    z 1330, up from the flare through the walk) sat over the placard's
+    backdrop (z 1100), so no tap reached it. Now the placard's backdrop
+    (chassis data-testid="victory-backdrop", data-open) is hidden under
+    html.ec-hall-scene (den-hall.js CSS) and comes up once the scene's
+    over (keep playing, or Stay after the void), dismissed as ever.
+    e2e-ending: a win on the walk in, hidden; after Stay, shown and a tap
+    outside puts it away.

@@ -94,6 +94,12 @@ html.ec-hall-scene [data-testid="points-counter"], html.ec-hall-scene [data-test
 html.ec-hall-scene [data-testid="action-corner"], html.ec-hall-scene [data-testid="how-to-play"], html.ec-hall-scene button[aria-label$="full screen"],
 html.ec-hall-scene [data-testid="music-chip"], html.ec-hall-scene [data-testid="dock-corner"], html.ec-hall-scene [data-testid="shell-bar"], html.ec-hall-scene [data-testid="shell-hint"], html.ec-hall-scene [data-testid="piece-card"] {
   opacity: 0 !important; pointer-events: none !important; transition: opacity 0.6s ease !important; }
+/* A game that ends while it's on (the last move landing as the hall
+   flares, or on the walk in): its placard waits till the scene's over
+   (user: it came up under the scene's own blocker, whose taps it never
+   got, so it couldn't be dismissed or used). After "keep playing", or
+   back in the den from the void, it's there as ever. */
+html.ec-hall-scene [data-testid="victory-backdrop"] { opacity: 0 !important; pointer-events: none !important; }
 @media (prefers-reduced-motion: reduce) { .den-hall-say, .den-hall-choice { transition: none; } }
 `;
 
