@@ -90,23 +90,28 @@ check("through the doorway, into the hall", !!inHall, String(inHall));
 await page.waitForTimeout(3500);
 await shot(page, "hall-2-in-the-hall");
 check("down the hall it's died down (calm)", (await page.evaluate(() => window.__DEN_HALL__().amt)) < 0.5);
+const fovBefore = await page.evaluate(() => window.__DEN_THREE__.camera.fov);
 await page.evaluate(() => window.__DEN_HALL_SKIP__());
+// The dolly zoom (user): in on the rift, the lens widening as it goes.
+const dollyFov = await poll(async () => { const h = await page.evaluate(() => window.__DEN_HALL__()); return h.fov && h.fov > fovBefore * 1.3 ? h.fov : null; }, 5000, 100);
+check(`then the dolly zoom: in on the rift, the lens widening (${fovBefore.toFixed(0)}° -> ${dollyFov && dollyFov.toFixed(0)}°)`, !!dollyFov);
 check("then it erupts, to white, and the void", !!(await poll(async () => (await page.evaluate(() => window.__DEN_ENDING__ && window.__DEN_ENDING__() && window.__DEN_ENDING__().stage)) === "void", 8000)), JSON.stringify(await page.evaluate(() => { try { return window.__DEN_ENDING__ && window.__DEN_ENDING__(); } catch (e) { return String(e); } })));
 console.log("the void");
 await page.waitForTimeout(2600);
 {
   // The den underneath isn't drawn while the void covers it (user: the
-  // frame rate dropped); a drag still looks round.
+  // frame rate dropped).
   const before = await page.evaluate(() => window.__DEN_THREE__.renderer.info.render.frame);
   await page.waitForTimeout(1000);
   const after = await page.evaluate(() => window.__DEN_THREE__.renderer.info.render.frame);
   check(`...the den underneath not drawn meanwhile (${after - before} frames)`, after - before === 0);
+  // The camera's the scene's own (user: it can't be moved): a drag does nothing.
   const vp = page.viewportSize();
   await page.mouse.move(vp.width / 2, vp.height / 2); await page.mouse.down();
   await page.mouse.move(vp.width / 2 + 160, vp.height / 2 + 60, { steps: 8 }); await page.waitForTimeout(400);
   const look = await page.evaluate(() => window.__DEN_ENDING__().look);
   await page.mouse.up();
-  check("...a drag still looks round", !!look && Math.abs(look.yaw) > 0.2, JSON.stringify(look));
+  check("...a drag doesn't move the camera", !!look && look.yaw === 0 && look.pitch === 0, JSON.stringify(look));
 }
 await shot(page, "end-1-pulled");
 await page.evaluate(() => window.__DEN_ENDING_SKIP__(6000));
@@ -143,6 +148,7 @@ await page.locator('[data-testid="realities-restart"]').click();
 check("...and a first tap asks before it does it", /again/i.test(await page.locator('[data-testid="realities-restart"]').innerText()) && (await page.locator('[data-testid="realities"]').count()) === 1);
 await page.locator('[data-testid="reality-den"]').click();
 check("(the controls back after, once it's faded)", !!(await poll(async () => !(await page.evaluate(() => document.documentElement.classList.contains("ec-hall-scene"))), 4000)));
+check("...the lens given back after the dolly zoom", Math.abs((await page.evaluate(() => window.__DEN_THREE__.camera.fov)) - fovBefore) < 0.01);
 check("Stay in the den: back in the den", !!(await poll(async () => !(await page.locator('[data-testid="den-ending"]').count()) && !(await page.locator('[data-testid="realities"]').count()), 6000)));
 check("...the game's placard there now", !!(await poll(() => page.evaluate(() => { const b = document.querySelector('[data-testid="victory-backdrop"]'); const cs = getComputedStyle(b); return b.dataset.open === "true" && cs.pointerEvents === "auto" && Number(cs.opacity) > 0.9; }), 4000)));
 await page.mouse.click(12, 400);

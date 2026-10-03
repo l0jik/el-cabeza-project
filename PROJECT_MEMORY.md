@@ -5498,3 +5498,36 @@ phone menu until "Start the story over" (which clears it).
     screen short of beginning a game (Escape is keyboard only, and in
     Nova goes to Neon's board, not home). The ec-lost-urge throb on Back
     went with it.
+  - The rift and the void, round 2 (user: dolly-zoom the rip, spaghettify
+    then a normal floating body, less rag doll, in awe, camera fixed,
+    more ethereal and reverb, the pink slit read as a vagina):
+    - den-hall.js RIFT_FRAG rewritten: the fabric (a fine grid, drawn in
+      toward the tear and bent by noise) with thin jagged cracks (a ridge
+      of fine fbm, in pieces, the seed jumping erratically), a cool halo;
+      over it six portal slots, each opening for a moment in the shape of
+      a piece seen front on (Cabeza square, Chato slab, Flaco/Turrito
+      tower, Opa disc, Codo L, Rayo S, Zeta Z, Arco arch: SDFs),
+      shuddering, a deep blue dark inside. Plane 22x30. Cool palette; the
+      strobe tint, the flash and the white overlays (hall and ending veil)
+      moved off violet/pink to cool blue-white.
+    - Dolly zoom: DOLLY 12000-15800 ms of the walk clock; eye toward the
+      rift by DOLLY_IN 0.62, the fov widened so distance * tan(fov/2)
+      holds (capped 118); eruption now 3600 ms (ENDING_AT 16200), the
+      white from 72% of it, the shake only from 62%. The fov is taken
+      from the camera at the start and given back (restoreFov) when the
+      scene ends (finish, dispose, or the camera's no longer the hall's).
+      __DEN_HALL__().fov.
+    - den-ending.js: spaghettified on arrival (RIM_VERT tidal stretch
+      along the way to the sphere: x4.6 ahead, x2.3 behind, squeezed
+      across, a waver; uStretch 1 -> 0 over 1.1-3.8 s) with the camera out
+      to the side meanwhile (26 units, easing in behind by ~5 s) so the
+      strand reads. Poses authored and blended: pulled (trailing), in awe
+      (arms open, out and a little forward and down, soft elbows, palms
+      out, legs loose together, head lifted), taken (arms wide, head
+      back); a 7.2 s breath, one hand reaching slowly now and then; body
+      rotation slow. No camera drag (look stays 0; touches swallowed).
+      Reverb 13 s / decay 2.0, wet 1.15, dry 0.26; a shimmer (D6 and A6
+      sines, each on its own 17-23 s swell, all wet, 0.0035); a faint aura
+      sprite breathing round the figure.
+    - e2e-ending: dolly widens the lens (42 -> 56 deg by then), the lens
+      given back after, a drag doesn't move the void's camera.

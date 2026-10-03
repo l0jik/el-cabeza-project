@@ -12,9 +12,15 @@
    Its own canvas and renderer over everything; while it covers the
    screen the den underneath stops drawing (covering(), den-fx.js's
    render hook: drawing both had been halving the frame rate on a
-   phone). A drag looks round (there's nothing to find), and the picture's
-   resolution steps down by itself if frames run slow, so it stays smooth
-   (user: keep it rotatable, but the frame rate high). The
+   phone). The camera's its own: it can't be moved (user). The picture's
+   resolution steps down by itself if frames run slow, so it stays smooth.
+   Arriving, the body's spaghettified: drawn out toward the sphere, thin,
+   wavering, a noodle of a person (the vertex shader's tidal stretch),
+   then let go into a body again. Not a rag doll (user: this person is in
+   awe, not lifeless): pulled, limbs trailing, then slowly, gracefully
+   composing themselves: arms opening, palms out, the head lifting to the
+   light; breathing, a hand reaching a little now and then; at the end,
+   arms wide, taken in. A faint aura breathes round them. The
    figure is built here: a lean, faceless body, near black, its edges lit
    by the light ahead (a rim shader). The sound: the den's own sounds step
    out (awayFromDen) and a chord comes in (the Monks' Hum's kind of voice,
@@ -56,9 +62,9 @@ const BLACK = [ZOOM[1] - 700, ZOOM[1] + 200];         // to black
 const MENU_AT = BLACK[1] + 1600;
 
 const CSS = `
-.den-ending { position: fixed; inset: 0; z-index: 1500; background: #000; overflow: hidden; touch-action: none; cursor: grab; }
+.den-ending { position: fixed; inset: 0; z-index: 1500; background: #000; overflow: hidden; touch-action: none; cursor: default; }
 .den-ending canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.den-ending .veil { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #f1ecff 55%, #e2d6ff 100%); pointer-events: none; }
+.den-ending .veil { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #eef4ff 55%, #dbe6ff 100%); pointer-events: none; }
 .den-ending .dark { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
 .den-ending .word { position: absolute; left: 50%; bottom: 16%; width: min(90vw, 780px); transform: translateX(-50%); text-align: center; pointer-events: none;
   color: #e9f0ff; font: 300 clamp(22px, 4.6vw, 38px)/1.3 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.04em; text-wrap: balance;
@@ -73,8 +79,23 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const smooth = (x) => { x = clamp01(x); return x * x * (3 - 2 * x); };
 
 /* ---- the figure ---- */
-const RIM_VERT = `varying vec3 vN; varying vec3 vV;
-void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
+// (The tidal stretch: along the way to the sphere (uDir) from the body's
+// middle (uCenter), drawn out; across it, squeezed; a slow waver.)
+const RIM_VERT = `uniform vec3 uCenter, uDir; uniform float uStretch, uTime; varying vec3 vN; varying vec3 vV;
+void main(){
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vec3 rel = wp.xyz - uCenter;
+  float al = dot(rel, uDir);
+  vec3 perp = rel - al * uDir;
+  float st = uStretch;
+  vec3 side = normalize(cross(uDir, vec3(0.0, 1.0, 0.0)) + vec3(1e-4));
+  vec3 up = normalize(cross(side, uDir));
+  float wav = sin(al * 0.09 + uTime * 2.1) * st * 2.2;
+  // (Ahead of the camera, all of it: drawn out mostly toward the sphere.)
+  float k = al > 0.0 ? 1.0 + 3.6 * st : 1.0 + 1.3 * st;
+  vec3 w = uCenter + uDir * (al * k + 10.0 * st) + perp / (1.0 + 1.6 * st) + side * wav + up * wav * 0.4;
+  vec4 mv = viewMatrix * vec4(w, 1.0);
+  vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
 const RIM_FRAG = `uniform vec3 uLight; uniform float uGlow; varying vec3 vN; varying vec3 vV;
 void main(){ vec3 n = normalize(vN); float rim = pow(1.0 - abs(dot(n, vV)), 2.4);
   float toward = 0.35 + 0.65 * max(0.0, dot(n, uLight));
@@ -110,25 +131,43 @@ function buildFigure(mat) {
   const legs = [-1, 1].map((s) => limb(fig, new THREE.Vector3(s * 1.15, -0.4, 0), 5.6, 5.3, 0.95, 0.68, 0.5, 0.35, foot()));
   return { fig, geos, arms, legs, headG };
 }
-// Limbs trailing back from a body pulled chest first: `d` is where each
-// points, in the body's own frame (its front is +z; turned to face the
-// sphere, trailing is -z).
+/* The body's pose: `d` is where each limb points, in the body's own frame
+   (its front is +z; turned to face the sphere, trailing is -z). Three
+   held shapes, blended: pulled (limbs trailing back), in awe (arms open
+   to the sides and a little forward, palms out, legs loose together, the
+   head lifted to the light) and taken (arms wide, the head back, given
+   to it). `awe` and `taken` 0..1; `t` in seconds, for the slow life in
+   it: a breath (about 7 s), one hand reaching a little toward the light
+   now and then, never twitching. */
 const Y_DOWN = new THREE.Vector3(0, -1, 0);
-function pose(f, t, wild) {
-  const fl = (a, b) => Math.sin(t * a + b) * wild;
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3();
+function aimLimb(j, pulled, awe, taken, a, m) {
+  _a.copy(pulled).lerp(awe, a).lerp(taken, m).normalize();
+  j.quaternion.setFromUnitVectors(Y_DOWN, _a);
+}
+function pose(f, t, a, m) {
+  const breath = Math.sin((t * Math.PI * 2) / 7.2);
   f.arms.forEach(({ j, k }, i) => {
     const s = i ? 1 : -1;
-    const d = new THREE.Vector3(s * (0.45 + 0.1 * fl(1.7, i)), 0.55 + 0.12 * fl(2.3, 1 + i), -0.72 - 0.1 * fl(1.3, 2)).normalize();
-    j.quaternion.setFromUnitVectors(Y_DOWN, d);
-    k.rotation.x = -0.45 - 0.25 * fl(2.1, i);
+    // (The right hand reaches, slowly, every so often; the left follows a little.)
+    const reach = Math.pow(Math.max(0, Math.sin(t * 0.21 + (i ? 0 : 2.4))), 3) * (i ? 1 : 0.45);
+    _b.set(s * 0.45, 0.55, -0.72);                                                        // pulled
+    _c.set(s * (0.68 - 0.25 * reach), -0.3 + 0.06 * breath + 0.36 * reach, 0.5 + 0.4 * reach); // in awe
+    aimLimb(j, _b, _c, new THREE.Vector3(s * 0.85, 0.42, 0.32), a, m);
+    k.rotation.x = -0.45 * (1 - a) - (0.2 - 0.08 * reach) * a * (1 - m) - 0.1 * m;
+    // (The hand turned palm out as it opens.)
+    k.rotation.y = s * 0.5 * a;
   });
   f.legs.forEach(({ j, k }, i) => {
     const s = i ? 1 : -1;
-    const d = new THREE.Vector3(s * (0.14 + 0.06 * fl(1.1, i + 3)), -0.62, -0.78 - 0.08 * fl(1.9, i)).normalize();
-    j.quaternion.setFromUnitVectors(Y_DOWN, d);
-    k.rotation.x = 0.35 + 0.2 * fl(1.6, i + 1);
+    const sway = Math.sin(t * 0.33 + i * 1.7) * 0.05;
+    _b.set(s * 0.14, -0.62, -0.78);
+    _c.set(s * 0.06 + sway, -0.97, -0.12 - (i ? 0.08 : 0));
+    aimLimb(j, _b, _c, new THREE.Vector3(s * 0.16, -0.9, -0.3), a, m);
+    k.rotation.x = 0.35 * (1 - a) + (i ? 0.38 : 0.24) * a;
   });
-  f.headG.rotation.x = -0.5 - 0.1 * fl(1.2, 5); // head thrown back
+  f.headG.rotation.x = -0.5 * (1 - a) + (-0.2 - 0.04 * breath) * a * (1 - m) - 0.42 * m;
+  f.headG.rotation.y = 0.08 * Math.sin(t * 0.17) * a;
 }
 
 // The chord's voices, low to high, and the chords they move through (Hz):
@@ -167,8 +206,9 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const { ctx } = o, t = ctx.currentTime;
     if (on && !chord) {
       const whole = ctx.createGain(); whole.gain.setValueAtTime(0.0001, t); whole.gain.linearRampToValueAtTime(0.14, t + 7);
-      const verb = ctx.createConvolver(); verb.buffer = impulse(ctx, 9, 2.4);
-      const wet = ctx.createGain(); wet.gain.value = 0.85; const dry = ctx.createGain(); dry.gain.value = 0.35;
+      // (A vaster room than before, user: more reverb, understated.)
+      const verb = ctx.createConvolver(); verb.buffer = impulse(ctx, 13, 2.0);
+      const wet = ctx.createGain(); wet.gain.value = 1.15; const dry = ctx.createGain(); dry.gain.value = 0.26;
       const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 520; lp.Q.value = 0.7;
       // The "oo" of a hum: two formants over the voices.
       const f1 = ctx.createBiquadFilter(); f1.type = "bandpass"; f1.frequency.value = 320; f1.Q.value = 2.2;
@@ -194,6 +234,17 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
         breath.connect(bg).connect(g.gain); breath.start(t); all.push(breath);
         oscs.forEach((os) => os.connect(g)); g.connect(src);
         return { oscs, g };
+      });
+      // A shimmer high above it, all reverb, barely there: two sines (a D
+      // and an A, at home in every chord here), each swelling and fading
+      // on its own long breath.
+      [1174.66, 1760].forEach((f, i) => {
+        const os = ctx.createOscillator(); os.type = "sine"; os.frequency.value = f;
+        const g = ctx.createGain(); g.gain.value = 0.0035;
+        const lfo = ctx.createOscillator(); lfo.frequency.value = 1 / (17 + 6 * i); const lg = ctx.createGain(); lg.gain.value = 0.0035;
+        lfo.connect(lg).connect(g.gain);
+        os.connect(g).connect(verb);
+        os.start(t); lfo.start(t); all.push(os, lfo);
       });
       chord = { ctx, whole, lp, voices, all, next: performance.now() + CHORD_MS, at: 0 };
     } else if (!on && chord) {
@@ -229,17 +280,9 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     dark = doc.createElement("div"); dark.className = "dark"; root.appendChild(dark);
     veil = doc.createElement("div"); veil.className = "veil"; root.appendChild(veil);
     doc.body.appendChild(root);
-    // A drag looks round (and eases back when let go).
-    // (Kept here: the den's own page-wide listeners have nothing to do.)
-    ["pointerdown", "pointermove", "pointerup", "touchstart", "touchmove", "wheel"].forEach((ev) => root.addEventListener(ev, (e) => e.stopPropagation()));
-    root.addEventListener("pointerdown", (e) => { dragAt = { x: e.clientX, y: e.clientY, yaw: look.goalYaw, pitch: look.goalPitch }; root.setPointerCapture && root.setPointerCapture(e.pointerId); });
-    root.addEventListener("pointermove", (e) => {
-      if (!dragAt) return;
-      look.goalYaw = dragAt.yaw - (e.clientX - dragAt.x) * 0.006;
-      look.goalPitch = Math.max(-1.1, Math.min(1.1, dragAt.pitch + (e.clientY - dragAt.y) * 0.005));
-    });
-    const up = () => { dragAt = null; };
-    root.addEventListener("pointerup", up); root.addEventListener("pointercancel", up);
+    // The camera can't be moved (user); touches here go nowhere (the
+    // den's own page-wide listeners have nothing to do).
+    ["pointerdown", "pointermove", "pointerup", "touchstart", "touchmove", "wheel"].forEach((ev) => root.addEventListener(ev, (e) => { e.stopPropagation(); if (ev === "wheel" || ev === "touchmove") e.preventDefault(); }, ev === "wheel" || ev === "touchmove" ? { passive: false } : undefined));
     try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" }); } catch (e) { renderer = null; }
     // (A phone starts a little under its full density; frames that run
     // slow step it down further, see frame().)
@@ -268,11 +311,16 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const ballGeo = new THREE.SphereGeometry(40, 48, 32), ballMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const ball = new THREE.Mesh(ballGeo, ballMat); ball.position.copy(sphereAt); scene.add(ball); disposables.push(ballGeo, ballMat);
     // The figure.
-    figMat = new THREE.ShaderMaterial({ vertexShader: RIM_VERT, fragmentShader: RIM_FRAG, uniforms: { uLight: { value: new THREE.Vector3(0, 0, -1) }, uGlow: { value: 1 } } });
+    figMat = new THREE.ShaderMaterial({ vertexShader: RIM_VERT, fragmentShader: RIM_FRAG, uniforms: {
+      uLight: { value: new THREE.Vector3(0, 0, -1) }, uGlow: { value: 1 },
+      uCenter: { value: new THREE.Vector3() }, uDir: { value: new THREE.Vector3(0, 0, -1) }, uStretch: { value: 1 }, uTime: { value: 0 } } });
     fig = buildFigure(figMat);
     disposables.push(figMat, ...fig.geos);
     scene.add(fig.fig);
-    scene.userData = { ringMat, ring, glow };
+    // A faint aura round them, breathing (user: subtle, ethereal).
+    const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x9fc4ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
+    aura.scale.setScalar(34); scene.add(aura); disposables.push(aura.material);
+    scene.userData = { ringMat, ring, glow, aura };
     resize();
     window.addEventListener("resize", resize);
   }
@@ -320,8 +368,21 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     fig.fig.scale.setScalar(1 - 0.85 * m * m);
     fig.fig.visible = m < 0.995;
     const ease = smooth((s - 2500) / 6000);
-    fig.fig.rotation.set(-0.95 + 0.25 * ease + 0.05 * Math.sin(T1 * 0.7) + 0.6 * m, 0.25 * Math.sin(T1 * 0.23) * ease + Math.PI, 0.18 * Math.sin(T1 * 0.37) + 0.35 * ease * Math.sin(T1 * 0.13));
-    pose(fig, T1, 1 - 0.6 * ease - 0.3 * m);
+    // Composing themselves, slowly: upright-ish, leaning toward the light,
+    // a slow sway; at the end, given to it.
+    const awe = smooth((s - 2200) / 7000);
+    fig.fig.rotation.set(-0.95 + 0.6 * awe + 0.03 * Math.sin(T1 * 0.35) + 0.25 * m, Math.PI + 0.12 * Math.sin(T1 * 0.11) * awe, 0.05 * Math.sin(T1 * 0.17) * awe);
+    pose(fig, T1, awe, smooth(m * 1.6));
+    // Spaghettified on the way in, let go into a body again.
+    const stretch = 1 - smooth((s - 1100) / 2700);
+    figMat.uniforms.uStretch.value = stretch;
+    figMat.uniforms.uTime.value = T1;
+    figMat.uniforms.uCenter.value.copy(figPos);
+    figMat.uniforms.uDir.value.copy(sphereAt).sub(figPos).normalize();
+    const aura = scene.userData.aura;
+    aura.position.copy(figPos);
+    aura.scale.setScalar((30 + 3 * Math.sin((T1 * Math.PI * 2) / 7.2)) * (1 - 0.8 * m));
+    aura.material.opacity = (0.06 + 0.025 * Math.sin((T1 * Math.PI * 2) / 7.2)) * smooth((s - 3000) / 5000) * (1 - m);
     // The camera: behind, following; easing round as it floats; looking
     // round where the drag says; at the end, in on the sphere.
     const lag = 14 + 22 * smooth(s / 4000) + 10 * ease;
@@ -329,6 +390,11 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const anchor = mergeFrom || figPos;
     camPos.set(anchor.x + Math.sin(orbit) * lag, anchor.y - 4 + 6 * ease, anchor.z + Math.cos(orbit) * lag);
     if (s < 1800) camPos.x += (Math.random() - 0.5) * (1 - s / 1800) * 1.5;
+    // (While they're drawn out, the camera's out to one side and a little
+    // above, so the whole long strand of them reads, reaching for the
+    // sphere; it eases in behind as they come back into a body.)
+    const outSide = 1 - smooth((s - 1600) / 3600);
+    camPos.x += 26 * outSide; camPos.y += 7 * outSide; camPos.z -= 6 * outSide;
     aim.copy(anchor).lerp(sphereAt, 0.15 + 0.25 * ease);
     const z = smooth((s - ZOOM[0]) / (ZOOM[1] - ZOOM[0]));
     if (z > 0) {
@@ -337,9 +403,6 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       camPos.lerp(tmp, z * z);
       aim.lerp(sphereAt, z);
     }
-    look.yaw += (look.goalYaw - look.yaw) * (1 - Math.exp(-dt * 6));
-    look.pitch += (look.goalPitch - look.pitch) * (1 - Math.exp(-dt * 6));
-    if (!dragAt) { look.goalYaw *= Math.exp(-dt * 0.35); look.goalPitch *= Math.exp(-dt * 0.35); }
     camera.position.copy(camPos);
     off.set(Math.sin(look.yaw) * Math.cos(look.pitch), Math.sin(look.pitch), -Math.cos(look.yaw) * Math.cos(look.pitch));
     camera.up.set(0, 1, 0);
@@ -353,7 +416,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     camera.updateMatrixWorld();
     tmp.copy(sphereAt).sub(figPos).normalize().transformDirection(camera.matrixWorldInverse);
     figMat.uniforms.uLight.value.copy(tmp);
-    figMat.uniforms.uGlow.value = 0.9 + 0.2 * Math.sin(T1 * 1.3) + 1.6 * m * m;
+    figMat.uniforms.uGlow.value = 0.9 + 0.12 * Math.sin((T1 * Math.PI * 2) / 7.2) + 1.2 * stretch + 1.6 * m * m;
     // The plasma and the halo, breathing; flaring as they're taken in.
     const pulse = 0.82 + 0.18 * Math.sin(T1 * 0.9) + 0.08 * Math.sin(T1 * 2.3);
     const flare = Math.exp(-Math.pow((m - 0.97) / 0.05, 2));

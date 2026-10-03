@@ -61,14 +61,19 @@ const PATH = [
 ];
 const WALK_END = 10200;                 // ms from the click: standing still there
 const STRIDE = 4.6;                     // a step, in the den's units (about 9 in)
-const CALM_UNTIL = 12600, ERUPT_MS = 2600; // then the eruption, to white
+const CALM_UNTIL = 12600, ERUPT_MS = 3600; // then the eruption, to white
 const ENDING_AT = CALM_UNTIL + ERUPT_MS;
+/* The dolly zoom (user: dolly in, zoom out, on the rip before you're
+   taken): from standing there, the camera goes in on the rift while the
+   lens widens just as fast, so the rift holds its size and the hall
+   round it stretches away; the white comes over its last moments. */
+const DOLLY = [12000, 15800], DOLLY_IN = 0.62, DOLLY_MAX_FOV = 118;
 
 const CSS = `
 .den-hall-flash { position: fixed; inset: 0; z-index: 1335; pointer-events: none; opacity: 0; mix-blend-mode: screen;
-  background: radial-gradient(ellipse at 68% 58%, rgba(196,160,255,0.95), rgba(110,70,255,0.35) 45%, rgba(40,20,90,0) 75%); }
+  background: radial-gradient(ellipse at 68% 58%, rgba(176,204,255,0.95), rgba(80,120,255,0.32) 45%, rgba(20,40,100,0) 75%); }
 .den-hall-white { position: fixed; inset: 0; z-index: 1345; pointer-events: none; opacity: 0;
-  background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #f1ecff 55%, #e2d6ff 100%); }
+  background: radial-gradient(ellipse at 50% 50%, #ffffff 0%, #eef4ff 55%, #dbe6ff 100%); }
 .den-hall-block { position: fixed; inset: 0; z-index: 1330; background: transparent; }
 .den-hall-say { position: fixed; left: 7%; bottom: 30%; z-index: 1350; max-width: min(78vw, 420px); padding: 14px 20px 15px; background: #fffdf6;
   color: #1d1610; border: 3px solid #1d1610; border-radius: 22px; box-shadow: 4px 5px 0 rgba(0,0,0,0.35); pointer-events: none;
@@ -131,16 +136,71 @@ void main(){ vec2 d = vUv - uFrom; float r = length(d);
   // (Soft at the plane's own edges: no hard line where it ends.)
   float edge = smoothstep(0.0, 0.18, min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y)));
   gl_FragColor = vec4(mix(uA, uB, n) * f * edge * uAmt, 1.0); }`;
-// The rift: a ragged vertical tear, white at its heart, violet at the edges.
+/* The rift (user: not one pink slit, it read as something else): the
+   fabric of space and time coming apart, and through it, spasming open
+   and shut, portals in the shapes of the game's own pieces. A fine grid,
+   the fabric, bent by the pull; cracks of white tearing across it, never
+   the same twice (the noise's seed jumps, erratically); a cool halo. Over
+   it, six portals at a time, each a piece's outline seen front on (the
+   Cabeza's square, a Chato's slab, a Flaco's or Turrito's tower, an Opa's
+   disc, a Codo's L, a Rayo's S, a Zeta's Z, an Arco's arch), opening for
+   a moment somewhere in the tear, shuddering, gone; inside each, the
+   void, a deep blue dark. Cool white and blue, a little violet. */
+const RIFT_W = 22, RIFT_H = 30;
 const RIFT_FRAG = `uniform float uTime, uAmt, uGrow; varying vec2 vUv; ${NOISE}
-void main(){ vec2 p = vUv - 0.5; float y = p.y;
-  float wob = (fbm(vec2(y * 5.0, uTime * 0.8)) - 0.5) * 0.12 * (1.0 + uGrow);
-  float w = (0.03 + 0.06 * uGrow) * (1.0 - smoothstep(0.32, 0.5, abs(y) / (0.6 + 0.4 * uGrow)));
-  float dx = abs(p.x - wob);
-  float core = w > 1e-4 ? 1.0 - smoothstep(0.0, w, dx) : 0.0; // (none where it's closed up)
-  float halo = exp(-dx / (0.09 + 0.2 * uGrow)) * (1.0 - smoothstep(0.25, 0.5, abs(y))) * smoothstep(0.5, 0.35, abs(p.x));
-  float arcs = step(0.82, fbm(vec2(p.x * 22.0 + uTime * 6.0, y * 9.0 - uTime * 3.0))) * halo * 2.0;
-  vec3 c = vec3(1.0) * core * 1.6 + vec3(0.62, 0.42, 1.0) * halo + vec3(0.5, 0.9, 1.0) * arcs;
+float sdBox(vec2 p, vec2 b){ vec2 d = abs(p) - b; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }
+float piece(vec2 p, float k){
+  if (k < 0.5) return sdBox(p, vec2(0.62));                                   // Cabeza
+  if (k < 1.5) return sdBox(p, vec2(0.72, 0.3));                              // Chato
+  if (k < 2.5) return sdBox(p, vec2(0.26, 0.74));                             // Flaco, Turrito
+  if (k < 3.5) return length(p) - 0.58;                                       // Opa
+  if (k < 4.5) return min(sdBox(p - vec2(-0.22, 0.0), vec2(0.22, 0.66)), sdBox(p - vec2(0.22, -0.44), vec2(0.44, 0.22)));   // Codo
+  if (k < 5.5) return min(sdBox(p - vec2(-0.22, -0.22), vec2(0.44, 0.22)), sdBox(p - vec2(0.22, 0.22), vec2(0.44, 0.22))); // Rayo
+  if (k < 6.5) return min(min(sdBox(p - vec2(-0.44, 0.44), vec2(0.22, 0.22)), sdBox(p, vec2(0.22, 0.66))), sdBox(p - vec2(0.44, -0.44), vec2(0.22, 0.22))); // Zeta
+  return max(sdBox(p, vec2(0.66, 0.5)), -sdBox(p - vec2(0.0, -0.32), vec2(0.28, 0.34)));                                    // Arco
+}
+void main(){
+  vec2 p = (vUv - 0.5) * vec2(${(RIFT_W / RIFT_H).toFixed(4)}, 1.0);
+  float t = uTime;
+  // The fabric, drawn in toward the tear (a well) and bent by the pull,
+  // and where it's coming apart.
+  float r = length(p * vec2(1.0, 0.75));
+  vec2 w = p - normalize(p + 1e-4) * (0.004 * (1.0 + 1.5 * uGrow)) / (r + 0.08)
+    + 0.03 * (1.0 + uGrow) * vec2(fbm(p * 3.0 + t * 0.3) - 0.5, fbm(p * 3.0 - t * 0.27 + 7.0) - 0.5);
+  float field = 1.0 - smoothstep(0.12 + 0.12 * uGrow, 0.34 + 0.08 * uGrow, r);
+  vec2 g = abs(fract(w * 16.0) - 0.5);
+  float grid = (1.0 - smoothstep(0.0, 0.035, min(g.x, g.y))) * field * field;
+  // Its cracks: thin and jagged (a ridge of fine noise), in pieces, and
+  // the seed jumps at odd moments, so they tear somewhere new.
+  float jump = floor(t * 5.0 + 3.0 * hsh(vec2(floor(t * 2.3), 1.7)));
+  vec2 cw = w * 9.0 + vec2(jump * 1.31, jump * 0.77);
+  float ridge = 1.0 - abs(2.0 * fbm(cw) - 1.0);
+  float crack = pow(ridge, 28.0) * step(0.42, vn(w * 5.0 + jump * 2.7)) * field * step(0.3, hsh(vec2(jump, 2.0)));
+  float halo = exp(-r / (0.09 + 0.12 * uGrow)) * 0.55;
+  // The portals.
+  vec3 rims = vec3(0.0); float inside = 0.0;
+  for (int i = 0; i < 6; i++) {
+    float fi = float(i);
+    float rate = 0.7 + 1.3 * hsh(vec2(fi, 3.1));
+    float x = t * rate + fi * 0.37, cell = floor(x), ph = fract(x);
+    float alive = step(0.3, hsh(vec2(cell, fi)));
+    vec2 c = (vec2(hsh(vec2(cell, fi + 11.0)), hsh(vec2(cell, fi + 23.0))) - 0.5) * vec2(0.42, 0.56) * (0.55 + 0.6 * uGrow);
+    float sz = (0.035 + 0.045 * hsh(vec2(cell, fi + 5.0))) * (1.0 + 0.4 * uGrow);
+    // The spasm: a shudder in its size, now and then; a flicker.
+    float sp = 1.0 + 0.14 * sin(t * 47.0 + fi * 7.0) * step(0.55, hsh(vec2(floor(t * 11.0), fi)));
+    float env = smoothstep(0.0, 0.1, ph) * (1.0 - smoothstep(0.62, 1.0, ph)) * (0.75 + 0.25 * step(0.2, hsh(vec2(floor(t * 23.0), fi + 3.0))));
+    float k = floor(hsh(vec2(cell, fi + 31.0)) * 8.0);
+    float an = (hsh(vec2(cell, fi + 41.0)) - 0.5) * 0.7;
+    vec2 q = (p - c) / (sz * sp); q = mat2(cos(an), -sin(an), sin(an), cos(an)) * q;
+    float d = piece(q, k) * sz * sp;
+    float a = alive * env;
+    rims += mix(vec3(0.8, 0.93, 1.0), vec3(0.62, 0.66, 1.0), hsh(vec2(cell, fi + 51.0))) * exp(-abs(d) / (0.003 + 0.002 * uGrow)) * a * 1.25;
+    inside = max(inside, (1.0 - smoothstep(-0.002, 0.002, d)) * a);
+  }
+  vec3 c = (vec3(0.5, 0.78, 1.0) * grid * 0.12 + vec3(0.92, 0.97, 1.0) * crack * 1.8 + vec3(0.42, 0.6, 1.0) * halo) * (1.0 - inside)
+    + rims + vec3(0.06, 0.16, 0.6) * inside * 0.4;
+  // (Soft to the plane's own edges.)
+  c *= smoothstep(0.5, 0.36, abs(vUv.x - 0.5)) * smoothstep(0.5, 0.36, abs(vUv.y - 0.5));
   gl_FragColor = vec4(c * uAmt, 1.0); }`;
 
 function additive(frag, uniforms) {
@@ -194,7 +254,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     const hallEnd = plane(28, CEIL - FLOOR, spill(28, 49, [0.25, 24 / 49], [0, 0], 0.4));
     hallEnd.rotation.y = Math.PI / 2; hallEnd.position.set(HALL.HX0 + 0.35, (FLOOR + CEIL) / 2, RZ + 19);
     // The rift, facing back up the hall (+x).
-    const rift = plane(14, 30, additive(RIFT_FRAG, { uTime: { value: 0 }, uAmt: { value: 0 }, uGrow: { value: 0 } }));
+    const rift = plane(RIFT_W, RIFT_H, additive(RIFT_FRAG, { uTime: { value: 0 }, uAmt: { value: 0 }, uGrow: { value: 0 } }));
     rift.position.copy(RIFT); rift.rotation.y = Math.PI / 2;
     // The sparks drifting out into the room.
     const N = 240, pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
@@ -410,7 +470,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
         if (!built.roared) { built.roared = true; roar(); boom(1.4); }
         level = 0.22 + 4 * e * e; wild = 1 + e; grow = e;
         if (whiteEl === null && doc) { style(); whiteEl = div("den-hall-white"); }
-        if (whiteEl) whiteEl.style.opacity = String(clamp01((e - 0.55) / 0.42));
+        if (whiteEl) whiteEl.style.opacity = String(clamp01((e - 0.72) / 0.26));
       }
       if (s >= ENDING_AT && !ended) {
         ended = true; state = "done";
@@ -426,7 +486,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     setHum(state === "walk" && s < CALM_UNTIL ? 0.35 + 0.65 * (1 - smooth(s / 5000)) : level);
     // Colours drifting violet - cyan - white.
     const hue = 0.5 + 0.5 * Math.sin(now * 0.0011);
-    colA.setRGB(0.54 + 0.3 * hue * strobe, 0.36 + 0.25 * strobe, 1.0);
+    colA.setRGB(0.4 + 0.22 * hue * strobe, 0.46 + 0.25 * strobe, 1.0);
     colB.setRGB(0.36 + 0.4 * strobe, 0.88, 1.0);
     const T = now / 1000;
     built.mats.forEach((m) => { if (m.uniforms) { if (m.uniforms.uTime) m.uniforms.uTime.value = T; } });
@@ -438,7 +498,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     built.hallEnd.material.uniforms.uAmt.value = inHall ? 0.35 * amt + 0.12 : 0.25 * amt;
     built.rift.material.uniforms.uAmt.value = inHall ? 0.9 + 0.6 * grow + 0.2 * Math.sin(now * 0.006) : 0.6 * amt;
     built.rift.material.uniforms.uGrow.value = grow;
-    built.rift.scale.setScalar(1 + 2.4 * grow * grow);
+    built.rift.scale.setScalar(1 + 1.4 * grow * grow);
     stepSparks(dt, now, amt, !inHall || s >= CALM_UNTIL);
     if (flashEl) flashEl.style.opacity = String(clamp01(state === "walk" && s < CALM_UNTIL ? amt * 0.1 : amt * 0.24 * (0.4 + wild * strobe)));
     den.keepHall(state === "walk" || state === "done");
@@ -455,6 +515,13 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
 
   /* ---- the camera ---- */
   const wEye = new THREE.Vector3(), wAt = new THREE.Vector3();
+  // The lens before the dolly zoom widened it, given back after.
+  let fovBase = null, fovCam = null;
+  function restoreFov() {
+    if (fovBase === null || !fovCam) return;
+    fovCam.fov = fovBase; fovCam.updateProjectionMatrix();
+    fovBase = null; fovCam = null;
+  }
   function placeCamera(camera, t, den) {
     if (!den || !t || !t.boardGroup) return false;
     const now = performance.now();
@@ -499,12 +566,27 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       } else if (s < WALK_END) {
         wEye.x += (Math.random() - 0.5) * 0.25; wEye.y += (Math.random() - 0.5) * 0.25;
       }
-      if (s > CALM_UNTIL) { const e = clamp01((s - CALM_UNTIL) / ERUPT_MS), j = 1.6 * e * e; wEye.x += (Math.random() - 0.5) * j; wEye.y += (Math.random() - 0.5) * j; wAt.x += (Math.random() - 0.5) * j * 2; }
+      // The dolly zoom: in on the rift, the lens widening to keep it the
+      // same size (its distance times the lens's half-width held), looking
+      // straight at it.
+      const dz = smooth((s - DOLLY[0]) / (DOLLY[1] - DOLLY[0]));
+      if (dz > 0) {
+        if (fovBase === null) { fovBase = camera.fov; fovCam = camera; }
+        wAt.lerp(RIFT, dz);
+        tmpA.copy(RIFT).sub(wEye);
+        const d0 = tmpA.length(), d = d0 * (1 - DOLLY_IN * dz);
+        wEye.copy(RIFT).addScaledVector(tmpA.normalize(), -d);
+        const half = Math.min(DOLLY_MAX_FOV / 2, Math.atan(Math.tan((fovBase * Math.PI) / 360) * (d0 / d)) * 180 / Math.PI);
+        camera.fov = half * 2; camera.updateProjectionMatrix();
+      }
+      // (The shake only at the very end, so the dolly reads.)
+      if (s > CALM_UNTIL) { const e = clamp01((s - CALM_UNTIL) / ERUPT_MS), q = clamp01((e - 0.62) / 0.38), j = 1.6 * q * q; wEye.x += (Math.random() - 0.5) * j; wEye.y += (Math.random() - 0.5) * j; wAt.x += (Math.random() - 0.5) * j * 2; }
       den.group.updateWorldMatrix(true, false);
       den.group.localToWorld(wEye); den.group.localToWorld(wAt);
       camera.position.copy(wEye); camera.lookAt(wAt);
       return true;
     }
+    restoreFov();
     if (camW <= 0.0005) return false;
     // Over to look at the doorway (blended with wherever the camera was).
     wEye.copy(LOOK.eye); wAt.copy(LOOK.at);
@@ -533,12 +615,13 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     placeCamera,
     // Is it showing (the camera's, the screen's)?
     active: () => state === "flare" || state === "settle" || state === "walk",
-    state: () => ({ state, need, base, amt, cam: camW, flares, dragged, t: state === "idle" || state === "armed" ? 0 : performance.now() - t0 }),
+    state: () => ({ state, need, base, amt, cam: camW, flares, dragged, fov: fovCam ? fovCam.fov : null, t: state === "idle" || state === "armed" ? 0 : performance.now() - t0 }),
     // Test-only: now (as if the moves were made), and the choice.
     now(moves = 0) { if (state === "idle" || state === "armed") flare(performance.now(), moves); },
     pick,
     // The ending's over (the void, den-ending.js): the hall as it was.
     finish() {
+      restoreFov();
       state = "over"; walkFrom = null; camW = camGoal = 0;
       stopSound(0.1); cleanupDom();
       if (built && built.den) built.den.keepHall(false);
@@ -547,6 +630,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     // Test-only: skip the walk on to just before the eruption (or `ms`).
     skipWalk(ms = CALM_UNTIL - 300) { if (state === "walk") { dragged = false; t0 = performance.now() - ms; } },
     dispose() {
+      restoreFov();
       stopSound(0.1);
       nodes.forEach((n) => { try { n.stop(); } catch (e) { /* done */ } });
       nodes = [];
