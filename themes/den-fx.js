@@ -40,7 +40,7 @@ import { setCommercialOn } from "../engine/journey.js";
 import { createDenCall } from "./den-call.js";
 import { createTrip } from "./den-trip.js";
 import { createHall } from "./den-hall.js";
-import { createEnding } from "./den-ending.js";
+import { createEnding, prewarmFigure } from "./den-ending.js";
 import { WORLDS } from "./realities.js";
 
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
@@ -163,7 +163,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        picture of each on its screen. */
     let postStory = !!(novaTv && novaTv.ended && novaTv.ended());
     const movesNow = () => (moves ? moves() : 0);
-    let ending = null;
+    let ending = null, figWarm = false;
     /* A look at one scene without the story (Nova's ?scene=, read once):
        "revelation", straight into the void; "glutts", the trip back to
        the closed Big Glutts from the black just before the car pulls in;
@@ -976,6 +976,9 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
             || !!(den.tv && den.tv.isOn()) || tvGoal > 0 || phoneGoal > 0 || bookGoal > 0 || focusGoal > 0 || !!ending
             || (typeof document !== "undefined" && !!document.querySelector("[data-testid='story-cut']"));
           hall.tick(now, t, den, { moves: movesNow, busy });
+          // (The body for the void, made ahead in idle moments while the
+          // choice is up: den-ending.js prewarmFigure.)
+          if (!figWarm && hall.state().state === "flare") { figWarm = true; prewarmFigure(); }
           // (?scene=hall: kept playing, it's back in a few seconds.)
           if (hallPreview) {
             const hs = hall.state();

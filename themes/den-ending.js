@@ -162,8 +162,9 @@ const smooth = (x) => { x = clamp01(x); return x * x * (3 - 2 * x); };
 /* ---- the figure ---- */
 // (The tidal stretch: along the way to the sphere (uDir) from the body's
 // middle (uCenter), drawn out; across it, squeezed; a slow waver.)
-const RIM_VERT = `uniform vec3 uCenter, uDir; uniform float uStretch, uTime; varying vec3 vN; varying vec3 vV; varying vec3 vW;
+const RIM_VERT = `uniform vec3 uCenter, uDir; uniform float uStretch, uTime; attribute vec3 rest; varying vec3 vN; varying vec3 vV; varying vec3 vW; varying vec3 vR;
 void main(){
+  vR = rest;
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vec3 rel = wp.xyz - uCenter;
   float al = dot(rel, uDir);
@@ -196,10 +197,19 @@ void main(){
   float seam = 1.0 - smoothstep(0.0, 0.035, uSolid - d);
   c += vec3(0.4, 0.75, 1.0) * seam * 0.7 * step(uSolid, 0.995);
   gl_FragColor = vec4(c, 1.0); }`;
-// The wireframe under it: lines of light, flickering a little.
-const WIRE_FRAG = `uniform float uWire, uTime; varying vec3 vN; varying vec3 vV; varying vec3 vW;
-void main(){ float f = 0.75 + 0.25 * sin(uTime * 9.0 + vW.y * 0.7);
-  gl_FragColor = vec4(vec3(0.25, 0.6, 1.0) * uWire * f * 0.32, 1.0); }`;
+/* The wireframe under it: lines of light, flickering a little. Drawn on
+   the one skin, not its triangles (user: seamless): a lattice of fine
+   lines where the body, as it was at rest, crosses evenly spaced planes,
+   rings round it and lines down it, so they ride with it as it moves,
+   about a pixel wide whatever the distance. */
+const WIRE_FRAG = `uniform float uWire, uTime; varying vec3 vN; varying vec3 vV; varying vec3 vW; varying vec3 vR;
+void main(){
+  vec3 q = vR * vec3(1.5, 2.1, 1.5);
+  vec3 g = abs(fract(q - 0.5) - 0.5) / max(fwidth(q), vec3(1e-4));
+  float l = clamp(1.15 - min(min(g.x, g.y), g.z), 0.0, 1.0);
+  if (l < 0.01) discard;
+  float f = 0.75 + 0.25 * sin(uTime * 9.0 + vW.y * 0.7);
+  gl_FragColor = vec4(vec3(0.25, 0.6, 1.0) * uWire * f * 0.36 * l, 1.0); }`;
 /* The plasma coming off them (user: not snow or glitter: diaphanous,
    nebulous, gauzy, gossamer, vaporous): veils, not motes. Each is a soft
    panel facing the camera, large and very faint, with no edge of its own:
@@ -229,36 +239,6 @@ void main(){
   float a = (mist + 0.45 * fil) * vA;
   gl_FragColor = vec4(mix(vec3(0.42, 0.55, 1.0), vec3(0.85, 0.92, 1.0), mist) * a, 1.0); }`;
 
-function buildFigure(mat) {
-  const fig = new THREE.Group();
-  const geos = [];
-  const meshes = [];
-  const mesh = (geo, parent = fig) => { geos.push(geo); const m = new THREE.Mesh(geo, mat); parent.add(m); meshes.push(m); return m; };
-  // The torso: chest, ribs, waist; flattened front to back.
-  const torso = new THREE.LatheGeometry([[0.01, 0], [1.9, 0.2], [2.15, 1.6], [2.3, 3.6], [2.75, 5.6], [2.6, 7.0], [1.6, 7.9], [0.6, 8.2], [0.01, 8.25]].map(([r, y]) => new THREE.Vector2(r, y)), 24);
-  torso.scale(1, 1, 0.6);
-  mesh(torso);
-  const hips = new THREE.SphereGeometry(1, 20, 14); hips.scale(2.25, 1.55, 1.35); hips.translate(0, 0.1, 0); mesh(hips);
-  const neck = new THREE.CylinderGeometry(0.62, 0.72, 1.4, 14); neck.translate(0, 8.75, 0); mesh(neck);
-  const headG = new THREE.Group(); headG.position.set(0, 9.4, 0); fig.add(headG);
-  const head = new THREE.SphereGeometry(1, 22, 18); head.scale(1.35, 1.6, 1.45); head.translate(0, 1.3, 0.05); mesh(head, headG);
-  // A limb: two segments from a joint, along -y, with round joints.
-  const limb = (parent, at, len1, len2, r0, r1, r2, bend, endGeo) => {
-    const j = new THREE.Group(); j.position.copy(at); parent.add(j);
-    const a = new THREE.CylinderGeometry(r0, r1, len1, 14); a.translate(0, -len1 / 2, 0); mesh(a, j);
-    const ball = new THREE.SphereGeometry(r0, 14, 10); mesh(ball, j);
-    const k = new THREE.Group(); k.position.set(0, -len1, 0); k.rotation.x = bend; j.add(k);
-    const kb = new THREE.SphereGeometry(r1, 14, 10); mesh(kb, k);
-    const b = new THREE.CylinderGeometry(r1, r2, len2, 14); b.translate(0, -len2 / 2, 0); mesh(b, k);
-    if (endGeo) { endGeo.translate(0, -len2, 0); mesh(endGeo, k); }
-    return { j, k };
-  };
-  const hand = () => { const g = new THREE.SphereGeometry(1, 12, 10); g.scale(0.42, 0.75, 0.22); g.translate(0, -0.55, 0); return g; };
-  const foot = () => { const g = new THREE.SphereGeometry(1, 12, 10); g.scale(0.5, 0.36, 1.25); g.translate(0, -0.15, 0.55); return g; };
-  const arms = [-1, 1].map((s) => limb(fig, new THREE.Vector3(s * 2.55, 7.1, 0), 3.9, 3.6, 0.62, 0.5, 0.4, -0.5, hand()));
-  const legs = [-1, 1].map((s) => limb(fig, new THREE.Vector3(s * 1.15, -0.4, 0), 5.6, 5.3, 0.95, 0.68, 0.5, 0.35, foot()));
-  return { fig, geos, arms, legs, headG, meshes };
-}
 /* The body's pose: `d` is where each limb points, in the body's own frame
    (its front is +z; turned to face the sphere, trailing is -z). Three
    held shapes, blended: pulled (limbs trailing back), in awe (arms open
@@ -296,6 +276,205 @@ function pose(f, t, a, m) {
   });
   f.headG.rotation.x = -0.5 * (1 - a) + (-0.2 - 0.04 * breath) * a * (1 - m) - 0.42 * m;
   f.headG.rotation.y = 0.08 * Math.sin(t * 0.17) * a;
+}
+
+/* The body (user: one seamless mesh, smooth joints, not a wooden doll;
+   still alive, floating): one skin over a skeleton. The skeleton is the
+   same jointed groups the pose moves (shoulders and hips `j`, elbows and
+   knees `k`, the head); the skin is the smooth union of the body's parts
+   (soft ellipsoids and tapering limbs, blended where they meet) as a
+   distance field, made into one closed surface (surface nets, each vertex
+   settled onto the surface), in a rest pose with the arms and legs a
+   little out. Each vertex follows the bones it's near (weights from how
+   far it is from each bone's own part, so a joint bends as one smooth
+   skin), skinned each frame (skin()). `rest`: each vertex's rest
+   position, for the wireframe's lines, which stay on the body. */
+const SKIN_CELL = 0.17, SKIN_SIGMA = 0.32;
+// The skeleton in its rest pose, and the body's parts round it.
+function figRig() {
+  const fig = new THREE.Group();
+  const headG = new THREE.Group(); headG.position.set(0, 9.4, 0); fig.add(headG);
+  const limb = (at, len1, bend) => {
+    const j = new THREE.Group(); j.position.copy(at); fig.add(j);
+    const k = new THREE.Group(); k.position.set(0, -len1, 0); k.rotation.x = bend; j.add(k);
+    return { j, k };
+  };
+  const ARM = [3.9, 3.6, 0.62, 0.5, 0.4], LEG = [5.6, 5.3, 0.95, 0.68, 0.5];
+  const arms = [-1, 1].map((s) => limb(new THREE.Vector3(s * 2.55, 7.1, 0), ARM[0], 0));
+  const legs = [-1, 1].map((s) => limb(new THREE.Vector3(s * 1.15, -0.4, 0), LEG[0], 0));
+  // The rest pose: arms out and down, legs a little apart, straight.
+  [arms, legs].forEach((set, li) => set.forEach(({ j }, i) => {
+    const s = i ? 1 : -1;
+    j.quaternion.setFromUnitVectors(Y_DOWN, new THREE.Vector3(s * (li ? 0.1 : 0.8), li ? -1 : -0.6, 0).normalize());
+  }));
+  fig.updateMatrixWorld(true);
+  const bones = [fig, headG, arms[0].j, arms[0].k, arms[1].j, arms[1].k, legs[0].j, legs[0].k, legs[1].j, legs[1].k];
+  const restInv = bones.map((b) => (b === fig ? new THREE.Matrix4() : b.matrixWorld.clone().invert()));
+  // The parts, as distance functions in the body's rest frame, each with
+  // its bone.
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  // (Each with its bounds, a box, so a point far from it needn't ask it.)
+  const ell = (inv, c, r) => Object.assign((x, y, z) => {
+    const e = inv.elements;
+    const px = e[0] * x + e[4] * y + e[8] * z + e[12] - c.x, py = e[1] * x + e[5] * y + e[9] * z + e[13] - c.y, pz = e[2] * x + e[6] * y + e[10] * z + e[14] - c.z;
+    const k0 = Math.hypot(px / r.x, py / r.y, pz / r.z), k1 = Math.hypot(px / (r.x * r.x), py / (r.y * r.y), pz / (r.z * r.z));
+    return k1 > 1e-6 ? (k0 * (k0 - 1)) / k1 : -Math.min(r.x, r.y, r.z);
+  }, { box: (() => { const w = c.clone().applyMatrix4(inv.clone().invert()), R = Math.max(r.x, r.y, r.z); return [w.x - R, w.y - R, w.z - R, w.x + R, w.y + R, w.z + R]; })() });
+  const cone = (a, b, r1, r2) => { const bx = b.x - a.x, by = b.y - a.y, bz = b.z - a.z, bb = bx * bx + by * by + bz * bz, R = Math.max(r1, r2);
+    return Object.assign((x, y, z) => { const t = Math.max(0, Math.min(1, ((x - a.x) * bx + (y - a.y) * by + (z - a.z) * bz) / bb));
+      return Math.hypot(x - a.x - bx * t, y - a.y - by * t, z - a.z - bz * t) - (r1 + (r2 - r1) * t); },
+    { box: [Math.min(a.x, b.x) - R, Math.min(a.y, b.y) - R, Math.min(a.z, b.z) - R, Math.max(a.x, b.x) + R, Math.max(a.y, b.y) + R, Math.max(a.z, b.z) + R] }); };
+  const I = new THREE.Matrix4();
+  const at = (o, x, y, z) => V(x, y, z).applyMatrix4(o.matrixWorld);
+  const parts = [   // [bone, fn, blend]
+    [0, ell(I, V(0, 0.5, 0), V(2.25, 1.6, 1.35)), 0],      // hips
+    [0, ell(I, V(0, 3.1, 0), V(2.15, 2.4, 1.28)), 1.1],    // waist
+    [0, ell(I, V(0, 5.6, 0), V(2.75, 2.2, 1.62)), 1.1],    // chest
+    [0, ell(I, V(0, 7.5, 0), V(2.1, 0.85, 1.15)), 0.8],    // shoulders
+    [1, cone(V(0, 7.9, 0), V(0, 10.1, 0.05), 0.74, 0.62), 0.6],  // neck
+    [1, ell(restInv[1], V(0, 1.3, 0.05), V(1.35, 1.6, 1.45)), 0.5],  // head
+  ];
+  [[arms, ARM, (k) => ell(restInv[bones.indexOf(k)], V(0, -ARM[1] - 0.55, 0), V(0.44, 0.78, 0.27)), 0.22],
+   [legs, LEG, (k) => ell(restInv[bones.indexOf(k)], V(0, -LEG[1] - 0.2, 0.5), V(0.52, 0.38, 1.25)), 0.3]].forEach(([set, L, end, eb]) => set.forEach(({ j, k }) => {
+    const J = at(j, 0, 0, 0), K = at(k, 0, 0, 0), E = at(k, 0, -L[1], 0);
+    parts.push([bones.indexOf(j), cone(J, K, L[2], L[3]), 0.7]);
+    parts.push([bones.indexOf(k), cone(K, E, L[3], L[4]), 0.25]);
+    parts.push([bones.indexOf(k), end(k), eb]);
+  }));
+  const smin = (a, b, k) => { if (k <= 0) return Math.min(a, b); const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
+  // (Far from every part, just "outside": only the sign matters there.)
+  const PAD = 1.4, BX = parts.map(([, fn]) => fn.box);
+  const sdf = (x, y, z) => {
+    let d = 1e9;
+    for (let i = 0; i < parts.length; i++) {
+      const b = BX[i];
+      if (x < b[0] - PAD || y < b[1] - PAD || z < b[2] - PAD || x > b[3] + PAD || y > b[4] + PAD || z > b[5] + PAD) continue;
+      d = smin(d, parts[i][1](x, y, z), parts[i][2]);
+    }
+    return d > PAD ? PAD : d;
+  };
+  return { fig, headG, arms, legs, bones, restInv, parts, sdf };
+}
+/* The skin (the same every time, so made once and kept): built a slice at
+   a time (a generator), so it can be made ahead, in moments the page is
+   idle (prewarmFigure, while the hall's choice is up), or all at once. */
+function* skinData({ parts, sdf, bones }) {
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  // The surface (surface nets over a grid round the rest pose).
+  const lo = V(-9.6, -12.6, -2.4), h = SKIN_CELL;
+  const nx = Math.ceil(19.2 / h) + 1, ny = Math.ceil(25.6 / h) + 1, nz = Math.ceil(5.6 / h) + 1;
+  const F = new Float32Array(nx * ny * nz), id = (i, j, k) => i + nx * (j + ny * k);
+  for (let k = 0; k < nz; k++) { for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) F[id(i, j, k)] = sdf(lo.x + i * h, lo.y + j * h, lo.z + k * h); yield; }
+  const cellV = new Int32Array((nx - 1) * (ny - 1) * (nz - 1)).fill(-1), cid = (i, j, k) => i + (nx - 1) * (j + (ny - 1) * k);
+  const pos = [];
+  const C = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]];
+  const E = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+  const cv = new Float32Array(8);
+  for (let k = 0; k < nz - 1; k++) for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    let neg = 0;
+    for (let c = 0; c < 8; c++) { cv[c] = F[id(i + C[c][0], j + C[c][1], k + C[c][2])]; if (cv[c] < 0) neg++; }
+    if (neg === 0 || neg === 8) continue;
+    let sx = 0, sy = 0, sz = 0, n = 0;
+    for (const [a, b] of E) {
+      if ((cv[a] < 0) === (cv[b] < 0)) continue;
+      const t = cv[a] / (cv[a] - cv[b]);
+      sx += C[a][0] + (C[b][0] - C[a][0]) * t; sy += C[a][1] + (C[b][1] - C[a][1]) * t; sz += C[a][2] + (C[b][2] - C[a][2]) * t; n++;
+    }
+    cellV[cid(i, j, k)] = pos.length / 3;
+    pos.push(lo.x + (i + sx / n) * h, lo.y + (j + sy / n) * h, lo.z + (k + sz / n) * h);
+  }
+  const idx = [];
+  const quad = (a, b, c, d, flip) => { if (a < 0 || b < 0 || c < 0 || d < 0) return; if (flip) idx.push(a, c, b, a, d, c); else idx.push(a, b, c, a, c, d); };
+  for (let k = 1; k < nz - 1; k++) for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+    const f0 = F[id(i, j, k)] < 0;
+    if (i < nx - 1 && f0 !== (F[id(i + 1, j, k)] < 0)) quad(cellV[cid(i, j - 1, k - 1)], cellV[cid(i, j, k - 1)], cellV[cid(i, j, k)], cellV[cid(i, j - 1, k)], !f0);
+    if (j < ny - 1 && f0 !== (F[id(i, j + 1, k)] < 0)) quad(cellV[cid(i - 1, j, k - 1)], cellV[cid(i - 1, j, k)], cellV[cid(i, j, k)], cellV[cid(i, j, k - 1)], !f0);
+    if (k < nz - 1 && f0 !== (F[id(i, j, k + 1)] < 0)) quad(cellV[cid(i - 1, j - 1, k)], cellV[cid(i, j - 1, k)], cellV[cid(i, j, k)], cellV[cid(i - 1, j, k)], !f0);
+  }
+  // Each vertex settled onto the surface; its normal from the field.
+  const N = pos.length / 3, rest = new Float32Array(pos), nrm = new Float32Array(N * 3), e = 0.03;
+  const grad = (x, y, z) => [sdf(x + e, y, z) - sdf(x - e, y, z), sdf(x, y + e, z) - sdf(x, y - e, z), sdf(x, y, z + e) - sdf(x, y, z - e)];
+  for (let v = 0; v < N; v++) {
+    if (v % 1500 === 0) yield;
+    let x = rest[v * 3], y = rest[v * 3 + 1], z = rest[v * 3 + 2];
+    for (let it = 0; it < 2; it++) { const d = sdf(x, y, z), g = grad(x, y, z), gg = g[0] * g[0] + g[1] * g[1] + g[2] * g[2]; if (gg < 1e-9) break; const s = (d * 2 * e) / gg; x -= g[0] * s; y -= g[1] * s; z -= g[2] * s; }
+    rest[v * 3] = x; rest[v * 3 + 1] = y; rest[v * 3 + 2] = z;
+    const g = grad(x, y, z), gl = Math.hypot(g[0], g[1], g[2]) || 1;
+    nrm[v * 3] = g[0] / gl; nrm[v * 3 + 1] = g[1] / gl; nrm[v * 3 + 2] = g[2] / gl;
+  }
+  // The weights: up to three bones a vertex, by nearness to each bone's
+  // own part(s).
+  const NB = 3, wb = new Uint8Array(N * NB), ww = new Float32Array(N * NB), dB = new Float32Array(bones.length);
+  for (let v = 0; v < N; v++) {
+    if (v % 3000 === 0) yield;
+    const x = rest[v * 3], y = rest[v * 3 + 1], z = rest[v * 3 + 2];
+    dB.fill(1e9);
+    parts.forEach(([b, fn]) => { dB[b] = Math.min(dB[b], fn(x, y, z)); });
+    const w = Array.from(dB, (d, b) => [Math.exp(-Math.pow(Math.max(0, d) / SKIN_SIGMA, 2)), b]).sort((p, q) => q[0] - p[0]).slice(0, NB);
+    const sum = w.reduce((s, p) => s + p[0], 0) || 1;
+    w.forEach(([wt, b], c) => { wb[v * NB + c] = b; ww[v * NB + c] = wt / sum; });
+  }
+  return { N, NB, rest, nrm, idx, wb, ww };
+}
+let FIG_DATA = null, FIG_GEN = null;
+function figData() {
+  if (FIG_DATA) return FIG_DATA;
+  if (!FIG_GEN) FIG_GEN = skinData(figRig());
+  let r; while (!(r = FIG_GEN.next()).done);
+  FIG_DATA = r.value; FIG_GEN = null;
+  return FIG_DATA;
+}
+export function prewarmFigure() {
+  if (FIG_DATA || FIG_GEN) return;
+  FIG_GEN = skinData(figRig());
+  const step = () => {
+    if (FIG_DATA || !FIG_GEN) return;
+    const end = performance.now() + 6;
+    while (performance.now() < end) { const r = FIG_GEN.next(); if (r.done) { FIG_DATA = r.value; FIG_GEN = null; return; } }
+    setTimeout(step, 24);
+  };
+  setTimeout(step, 0);
+}
+function buildFigure(mat) {
+  const { fig, headG, arms, legs, bones, restInv } = figRig();
+  const { N, NB, rest, nrm, idx, wb, ww } = figData();
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(rest), 3));
+  geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(nrm), 3));
+  geo.setAttribute("rest", new THREE.BufferAttribute(rest, 3));
+  geo.setIndex(idx);
+  geo.computeBoundingSphere();
+  const body = new THREE.Mesh(geo, mat); body.frustumCulled = false; fig.add(body);
+  // Skinned, each frame, to wherever the pose has put the bones.
+  const M = new Float32Array(bones.length * 12), figInv = new THREE.Matrix4(), bm = new THREE.Matrix4();
+  const P = geo.attributes.position.array, Nn = geo.attributes.normal.array;
+  function skin() {
+    fig.updateMatrixWorld(true);
+    figInv.copy(fig.matrixWorld).invert();
+    bones.forEach((b, i) => {
+      if (b === fig) bm.identity(); else bm.multiplyMatrices(figInv, b.matrixWorld).multiply(restInv[i]);
+      const el = bm.elements; M.set([el[0], el[1], el[2], el[4], el[5], el[6], el[8], el[9], el[10], el[12], el[13], el[14]], i * 12);
+    });
+    for (let v = 0; v < N; v++) {
+      const x = rest[v * 3], y = rest[v * 3 + 1], z = rest[v * 3 + 2], nx0 = nrm[v * 3], ny0 = nrm[v * 3 + 1], nz0 = nrm[v * 3 + 2];
+      let px = 0, py = 0, pz = 0, qx = 0, qy = 0, qz = 0;
+      for (let c = 0; c < NB; c++) {
+        const w = ww[v * NB + c]; if (w < 1e-4) continue;
+        const o = wb[v * NB + c] * 12;
+        px += w * (M[o] * x + M[o + 3] * y + M[o + 6] * z + M[o + 9]);
+        py += w * (M[o + 1] * x + M[o + 4] * y + M[o + 7] * z + M[o + 10]);
+        pz += w * (M[o + 2] * x + M[o + 5] * y + M[o + 8] * z + M[o + 11]);
+        qx += w * (M[o] * nx0 + M[o + 3] * ny0 + M[o + 6] * nz0);
+        qy += w * (M[o + 1] * nx0 + M[o + 4] * ny0 + M[o + 7] * nz0);
+        qz += w * (M[o + 2] * nx0 + M[o + 5] * ny0 + M[o + 8] * nz0);
+      }
+      P[v * 3] = px; P[v * 3 + 1] = py; P[v * 3 + 2] = pz;
+      const ql = Math.hypot(qx, qy, qz) || 1;
+      Nn[v * 3] = qx / ql; Nn[v * 3 + 1] = qy / ql; Nn[v * 3 + 2] = qz / ql;
+    }
+    geo.attributes.position.needsUpdate = true; geo.attributes.normal.needsUpdate = true;
+  }
+  return { fig, geos: [geo], arms, legs, headG, meshes: [body], skin, verts: N };
 }
 
 /* The chord's voices, low to high, and the chords they move through (Hz)
@@ -529,10 +708,10 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // The wireframe under the black (user: the body warping, morphing
     // between the singularity's black and a wireframe mesh, then slowly
     // all black).
-    const wireMat = new THREE.ShaderMaterial({ vertexShader: RIM_VERT, fragmentShader: WIRE_FRAG, uniforms: figU, wireframe: true,
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const wireMat = new THREE.ShaderMaterial({ vertexShader: RIM_VERT, fragmentShader: WIRE_FRAG, uniforms: figU,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, extensions: { derivatives: true } });
     disposables.push(wireMat);
-    fig.meshes.forEach((m) => { const w = new THREE.Mesh(m.geometry, wireMat); w.renderOrder = 1; m.add(w); });
+    fig.meshes.forEach((m) => { const w = new THREE.Mesh(m.geometry, wireMat); w.renderOrder = 1; w.frustumCulled = false; m.add(w); });
     scene.add(fig.fig);
     // The plasma coming off them (user: the singularity's own wisps,
     // rising from the body more and more as they go into it): a pool of
@@ -656,6 +835,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const awe = smooth((s - 2200) / 7000);
     fig.fig.rotation.set(-0.95 + 0.6 * awe + 0.03 * Math.sin(T1 * 0.35) + 0.25 * m, Math.PI + 0.12 * Math.sin(T1 * 0.11) * awe, 0.05 * Math.sin(T1 * 0.17) * awe);
     pose(fig, T1, awe, smooth(m * 1.6));
+    if (fig.fig.visible) fig.skin();
     // Spaghettified on the way in, let go into a body again.
     const stretch = 1 - smooth((s - 1100) / 2700);
     figMat.uniforms.uStretch.value = stretch;

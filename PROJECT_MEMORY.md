@@ -5661,3 +5661,21 @@ phone menu until "Start the story over" (which clears it).
     - "It never was!!" is its own revelation line now (user), split from
       "…it's **not** 42!": eight lines, the scene 4.7 s longer (one more
       wordEach; MERGE/ZOOM/BLACK/CRAWL/MENU_AT follow WORDS_END).
+    - The void's body is one seamless skinned mesh (user: the overlapping
+      joints looked like a wooden doll; seamless, smooth joints, still
+      alive). figRig(): the same jointed groups pose() moves (j/k per limb,
+      headG), set to a rest pose (arms out 0.8/-0.6, legs 0.1/-1,
+      straight), and the parts as distance functions (ellipsoids for hips,
+      waist, chest, shoulders, head, hands, feet; tapering cones for neck
+      and limbs), smooth-unioned (polynomial smin, per-part blend), each
+      with a box so far points skip it. skinData() (a generator): surface
+      nets on a 0.17 grid, vertices settled onto the surface (2 Newton
+      steps), normals from the field, up to 3 bone weights each
+      (exp(-(d/0.32)^2) by distance to each bone's own parts). ~14.5k verts,
+      ~29k tris; ~0.4 s to make on a desktop, so it's made once (FIG_DATA)
+      and ahead: den-fx calls prewarmFigure() when the hall's choice is up,
+      which steps the generator ~6 ms at a time. skin(): CPU linear-blend
+      skinning each frame (~1.4 ms). The wireframe is no longer GL
+      wireframe: WIRE_FRAG draws ~1 px lines (fwidth) where the rest-pose
+      position (attribute `rest`, varying vR) crosses planes every
+      0.67/0.48/0.67 units, so the lattice rides the skin.
