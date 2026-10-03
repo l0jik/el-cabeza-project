@@ -887,13 +887,13 @@ export function createSwitcherSfx() {
   };
 
   /* The register tape's sounds (user's recordings, tools/story_receipt.py):
-     a paper printer printing, and a receipt torn off and drawn away.
+     a paper printer printing, and a receipt torn off.
      Fetched ahead (prefetchReceipt, while the game's on the shelf),
      decoded when the register rings; from disk (file:) or if they're not
      there in time, the made sounds below instead. */
   const RECEIPT_URLS = { print: "el-cabeza-story-receipt-print.mp3", tear: "el-cabeza-story-receipt-tear.mp3" };
   const RECEIPT_LEVEL = { print: 0.55, tear: 0.7 };
-  const TEAR_PEAK = 0.34;   // (the tear file's hard swipe, s in)
+  const TEAR_PEAK = 0.37;   // (the tear file's hard rip, s in)
   const receiptBytes = {}, receiptBuf = {};
   const prefetchReceipt = () => {
     if (typeof location !== "undefined" && location.protocol === "file:") return;

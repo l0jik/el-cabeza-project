@@ -117,7 +117,7 @@ function receiptLines() {
 // showing as its burst gets through it. Then torn off (TEAR_AFTER_MS
 // after the last burst).
 export const PRINT_AT_MS = 1450;
-export const PRINT_BURSTS = [[0.033, 0.45], [0.567, 1.142], [1.242, 1.825], [1.925, 2.517], [2.6, 3.2], [3.367, 3.867]];
+export const PRINT_BURSTS = [[0.03, 0.4], [0.504, 1.015], [1.104, 1.622], [1.711, 2.237], [2.311, 2.844], [2.993, 3.437]];
 export const TEAR_AFTER_MS = 300;
 // (Each line's time, ms from the print's start: the lines shared out over
 // the bursts, the first (shortest) taking fewest.)

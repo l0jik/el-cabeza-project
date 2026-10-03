@@ -2,11 +2,13 @@
 apps/unifiedTransition.jsx playRegister), from the user's recordings:
 
   receipt-print.mp3  a taxi meter's paper printer: its first six bursts
-                     (one or two lines of tape each), a touch faster (1.2x,
-                     pitch with it: a smaller, quicker printer), so the
-                     tape prints in the recording's own rhythm.
-  receipt-tear.mp3   a receipt torn off against the cutter (the hard swipe)
-                     and, a moment after, drawn away (a softer one).
+                     (one or two lines of tape each), faster (1.35x, pitch
+                     with it: a smaller, quicker printer; user: 1.2x, then
+                     a tad faster), so the tape prints in the recording's
+                     own rhythm.
+  receipt-tear.mp3   a receipt torn off against the cutter: the one hard
+                     rip (user: two rips sounded at the end; the second
+                     swipe, the receipt drawn away, is gone).
 
 Both high-passed under 120 Hz, faded at the cuts, and levelled to the same
 loudness. The burst times below are copied into novaStory.jsx
@@ -18,13 +20,10 @@ import subprocess, sys
 import numpy as np
 
 SR = 44100
-RATE = 1.2
+RATE = 1.35
 PRINT_SPAN = (0.0, 4.72)                     # the first six bursts
 BURSTS = [(0.04, 0.54), (0.68, 1.37), (1.49, 2.19), (2.31, 3.02), (3.12, 3.84), (4.04, 4.64)]
-TEAR = (1.10, 1.95)                          # the hard swipe (its peak ~0.34 s in)
-DRAW = (8.95, 9.65)                          # drawn away
-DRAW_AT = 0.62                               # ...this far into the tear file
-DRAW_GAIN = 0.6
+TEAR = (1.10, 1.80)                          # the hard swipe (its peak ~0.37 s in)
 
 
 def load(path, rate=1.0):
@@ -61,11 +60,7 @@ def main(meter, swipe):
     save(level(cut(m, a / RATE, b / RATE)), "assets/story/receipt-print.mp3")
     s = load(swipe)
     tear = cut(s, *TEAR, fin=0.03, fout=0.12)
-    draw = cut(s, *DRAW, fin=0.04, fout=0.15) * DRAW_GAIN
-    out = np.zeros(int(DRAW_AT * SR) + len(draw), np.float32)
-    out[:len(tear)] += tear
-    out[int(DRAW_AT * SR):] += draw
-    save(level(out, -22.0), "assets/story/receipt-tear.mp3")
+    save(level(tear, -22.0), "assets/story/receipt-tear.mp3")
     print("print bursts (s, in the file):", [(round(x / RATE, 3), round(y / RATE, 3)) for x, y in BURSTS])
 
 

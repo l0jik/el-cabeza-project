@@ -6016,3 +6016,8 @@ phone menu until "Start the story over" (which clears it).
 - (The store's first song, asked: its tape, assets/tienda/muzak-1974.mp3,
   served as el-cabeza-tienda-muzak.mp3: the user's upload "Mall Music
   Muzak - Mall of 1974 - 03 Third Floor Spending Spree".)
+- Receipt, take 2 (user approved it by ear, from the preview): the print
+  1.35x (was 1.2x; the tape ~3.5 s, was 3.9), the bursts re-timed
+  (PRINT_BURSTS); the tear one rip only (the second swipe, "drawn away",
+  sounded like a second rip: gone), its slice 1.10..1.80 s, peak 0.37 s
+  in (TEAR_PEAK). The tear now ~5.2 s from the ring (was 5.6).
