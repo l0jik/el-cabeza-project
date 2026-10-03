@@ -37,6 +37,11 @@ const DEN_RECORDS = {
     "lab-newTypography", "lab-corporateSwiss", "lab-neoBrutalist", "lab-minimalMono", "lab-ultimateFusion"].map((id) => [`el-cabeza-channel-${id}.jpg`, `assets/den/channels/${id}.jpg`])),
 };
 
+// The Singularity's first visit, after the ring: the user's industrial
+// drone, looped (tools/neon_sphere_drone.py; themes/neon-unease.js createDrone).
+const SPHERE_FILES = { "el-cabeza-neon-sphere-drone.mp3": "assets/neon/sphere-drone.mp3" };
+DEN_RECORDS["el-cabeza-neon-sphere-drone.mp3"] = SPHERE_FILES["el-cabeza-neon-sphere-drone.mp3"];
+
 // The Games counter's photographs (themes/tienda-overlay.js ClerkScene).
 const CLERK_SHOTS = ["clerk-hello", "clerk-sure", "clerk-go", "clerk-hmm", "clerk-sorry", "clerk-phone",
   "manager-1", "manager-2", "manager-3", "manager-4", "manager-5", "manager-6", "manager-7", "manager-8"];
@@ -44,7 +49,7 @@ const targets = [
   // The den's records (themes/standard.js DEN_TRACKS), files beside the
   // page like Tienda's reels: fetched when played. Nova's den reads the same.
   { name: "standard", entry: "apps/standard.jsx", title: "El Cabeza", files: DEN_RECORDS },
-  { name: "neon", entry: "apps/neon.jsx", title: "Neon Cabeza" },
+  { name: "neon", entry: "apps/neon.jsx", title: "Neon Cabeza", files: SPHERE_FILES },
   { name: "cromo", entry: "apps/cromo.jsx", title: "Cromo Cabeza" },
   { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza" },
   { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: DEN_RECORDS },

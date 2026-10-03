@@ -5435,3 +5435,18 @@ phone menu until "Start the story over" (which clears it).
     Tap to begin"; the tap sets the lure's clock so the set stirs 3 s
     later (not 25 s). Through the set: the summons and the sphere's first
     visit, all in memory only. tests/e2e-camera-glide.mjs.
+  - The sphere's first visit, after the ring (user: the ring, about four
+    seconds of silence, then this): the user's "industrial pulse drone
+    27456" (Freesound; assets/neon/src). tools/neon_sphere_drone.py loops
+    its steady part (0.5-25 s; it fades out after), the last 3 s
+    equal-power crossfaded into the first, -16 dBFS RMS, a second of
+    padding each side so loopStart 1.0 / loopEnd 22.5 sit on the loop's
+    own sound (checked after mp3 decode: the two points match to 5e-4)
+    -> assets/neon/sphere-drone.mp3, served beside Nova and Neon as
+    el-cabeza-neon-sphere-drone.mp3. neon-unease.js createDrone (out
+    summonOutput, like the ring): LostNudge starts it 9.6 s after the
+    sphere comes up (the ring's gone by ~5.6 s), 2.5 s fade up, level
+    0.5, looping until the visit's over (1.2 s fade). Not from file:
+    (no fetch), so the e2e tests don't hear it; checked over http
+    (scheduled at 9.6 s, stops ~2 s after Back as the sphere closes).
+    Hook __EC_DRONE__.

@@ -123,3 +123,51 @@ export function createUnease(audio) {
     },
   };
 }
+
+/* ...and after the ring, the drone (user: the ring, then silence for
+   about four seconds, then this): the user's recording of an industrial
+   pulse drone, looped (tools/neon_sphere_drone.py: its steady part, the
+   join crossfaded; DRONE_LOOP from there), out the same way as the ring.
+   A file beside the page, fetched when the sphere comes up; from disk
+   (file:) there's no fetching, so no drone there.
+
+   createDrone(audio) -> { start(delayS, fadeS), stop(fadeS) } */
+const DRONE_URL = "el-cabeza-neon-sphere-drone.mp3";
+const DRONE_FROM = 1.0, DRONE_LOOP = 21.5, DRONE_LEVEL = 0.5;
+export function createDrone(audio) {
+  const out = audio && audio.summonOutput ? audio.summonOutput() : null;
+  let buf = null, src = null, bus = null, startAt = 0, fadeIn = 2.5, wanted = false, stopped = false;
+  const hook = () => { if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_DRONE__ = () => ({ loaded: !!buf, playing: !!src, stopped, wanted, startsIn: src && out && out.ctx ? Math.max(0, startAt - out.ctx.currentTime) : null }); };
+  hook();
+  if (!out || !out.ctx) return { start() {}, stop() { stopped = true; } };
+  const { ctx, dest } = out;
+  const play = () => {
+    if (!buf || src || stopped || !wanted) return;
+    bus = ctx.createGain(); bus.gain.value = 0; bus.connect(dest);
+    const at = Math.max(ctx.currentTime + 0.05, startAt);
+    bus.gain.setValueAtTime(0.0001, at);
+    bus.gain.exponentialRampToValueAtTime(DRONE_LEVEL, at + fadeIn);
+    src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    src.loopStart = DRONE_FROM; src.loopEnd = DRONE_FROM + DRONE_LOOP;
+    src.connect(bus);
+    src.start(at, DRONE_FROM);
+  };
+  if (!(typeof location !== "undefined" && location.protocol === "file:")) {
+    fetch(DRONE_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((b) => { buf = b; play(); }).catch(() => { /* none, then */ });
+  }
+  return {
+    // In `delayS` seconds, fading up over `fadeS` (or as soon as it's here).
+    start(delayS = 0, fadeS = 2.5) { if (stopped || wanted) return; wanted = true; startAt = ctx.currentTime + delayS; fadeIn = fadeS; out.resume(); play(); },
+    stop(fadeS = 1.2) {
+      if (stopped) return;
+      stopped = true;
+      if (!src) return;
+      const t = ctx.currentTime;
+      bus.gain.cancelScheduledValues(t); bus.gain.setValueAtTime(Math.max(0.0001, bus.gain.value), t);
+      bus.gain.exponentialRampToValueAtTime(0.0001, t + fadeS);
+      const s = src, b = bus; src = null;
+      s.stop(t + fadeS + 0.05);
+      setTimeout(() => { try { b.disconnect(); } catch (e) { /* gone */ } }, (fadeS + 0.2) * 1000);
+    },
+  };
+}

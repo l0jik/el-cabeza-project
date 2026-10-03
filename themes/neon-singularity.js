@@ -40,7 +40,7 @@ import { markSingularitySeen, singularitySeen } from "../engine/journey.js";
 // (tools/lost_hand.py).
 import lostHandWireUrl from "../assets/neon/lost-hand-wire.webp";
 import lostHandSkinUrl from "../assets/neon/lost-hand-skin.webp";
-import { createUnease } from "./neon-unease.js";
+import { createUnease, createDrone } from "./neon-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
@@ -3393,7 +3393,9 @@ function BackButton({ onExit }) {
    Before it, something going wrong (user picked three of the ideas): the
    menus open and work, so they're known for menus; a heartbeat and a
    ringing as the sphere comes up, the heartbeat gone in about three seconds, the ring sliding away in the room until about five and a half
-   (neon-unease.js; user, who also had the wireframe fingertip each touch
+   (neon-unease.js; then, after about four seconds of silence, the user's
+   industrial drone, looped, until the visit's over; user, who also had
+   the wireframe fingertip each touch
    used to leave taken out); and then the menu won't
    hold: its words scramble, its rows drift and tear, it flickers and folds
    shut by itself, and the card comes up. The unravelling comes at the
@@ -3585,8 +3587,13 @@ function LostNudge({ stage, onExit, sing }) {
     G.unease = createUnease(sing && sing.audio);
     G.unease.set(0.08);
     const fade = setTimeout(() => { if (G.unease) G.unease.stop(1.4, 3.4); }, 1600); // (the heartbeat gone at 3.0 s; the ring sliding away, its room with it, until about 5.6 s)
+    // Then about four seconds of silence, and the drone comes up, there
+    // for as long as this first visit lasts (user).
+    G.drone = createDrone(sing && sing.audio);
+    G.drone.start(9.6, 2.5);
     return () => {
       clearTimeout(fade);
+      if (G.drone) G.drone.stop(1.2);
       G.timers.forEach((id) => { clearTimeout(id); clearInterval(id); });
       if (G.unease) G.unease.stop(0.8);
     };
