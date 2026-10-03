@@ -97,6 +97,25 @@ console.log("\nNova ?scene=hall");
   await ctx.close();
 }
 
+console.log("\nNova ?scene=hall, the story over");
+{
+  // (User: the link didn't work: with the story over, the reality gate
+  // came up over the den and the scene was stuck under it.)
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { if (!sessionStorage.getItem("s")) { sessionStorage.setItem("s", "1"); localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true, storeGone: true, ended: true })); localStorage.setItem("el-cabeza:singularity-seen", "1"); } } catch (e) { /* none */ } });
+  const page = await ctx.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?scene=hall");
+  check("the tap to begin", !!(await poll(async () => (await page.locator('[data-testid="den-hall-preview"]').count()) > 0, 30000)));
+  await page.waitForTimeout(1500);
+  check("...and no reality gate over it", (await page.locator('[data-testid="reality-gate"]').count()) === 0);
+  await page.locator('[data-testid="den-hall-preview"]').tap();
+  check("...the hallway lights up, the choice there to take", !!(await poll(async () => (await page.locator('[data-testid="den-hall-keep"]').count()) > 0, 8000)) && (await page.locator('[data-testid="reality-gate"]').count()) === 0);
+  check("no page errors", errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
 console.log("\nNova ?scene=lure");
 {
   const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });

@@ -5531,3 +5531,9 @@ phone menu until "Start the story over" (which clears it).
       sprite breathing round the figure.
     - e2e-ending: dolly widens the lens (42 -> 56 deg by then), the lens
       given back after, a drag doesn't move the void's camera.
+  - ?scene= links after the story (user: the hallway link "doesn't
+    work"): with the story over, the den opened with the reality gate
+    (Standard / Nova) over it, and the scene's choice was stuck under it.
+    apps/unified.jsx SCENE_LINK (any ?scene=: revelation, glutts, hall,
+    lure, summons): no realityGate on any place. e2e-camera-glide: the
+    hall link with the story over, no gate, the choice there.

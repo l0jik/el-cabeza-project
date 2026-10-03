@@ -75,6 +75,9 @@ const SUMMONS_PARAM = (() => {
 // none of it kept.)
 const LURE_PARAM = SCENE_PARAM === "lure";
 const STORY_PREVIEW = SUMMONS_PARAM || LURE_PARAM;
+// (Any scene's link: no reality gate over it, even after the story (user:
+// the hallway's link, with the story over, opened under the gate).)
+const SCENE_LINK = STORY_PREVIEW || !!SCENE_PARAM;
 if (STORY_PREVIEW) { journeyPreview(); storyPreview(); }
 const takeScene = () => { const r = SCENE_PARAM; SCENE_PARAM = null; return r; };
 const storyBridge = { purchase() {}, backToStore() {}, restart() {}, restartNow() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };
@@ -115,7 +118,7 @@ const storeTheme = {
   // Full screen at the first tap (as every screen now is: the chassis).
   fullscreenOnFirstTap: true,
   // After the story: the gate as it comes up, and the other realities.
-  realityGate: STORY_PREVIEW ? null : { world: "store", novaGo: (to, w) => storyBridge.goWorld(w) },
+  realityGate: SCENE_LINK ? null : { world: "store", novaGo: (to, w) => storyBridge.goWorld(w) },
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
 };
 /* The den's television (themes/den-tv.js, den-fx.js) is the way into
@@ -134,7 +137,7 @@ const homeTheme = {
   // and all).
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
   // ...and the way into a game as it comes up (themes/reality-gate.js).
-  realityGate: STORY_PREVIEW ? null : { world: "den", novaGo: (to, w) => storyBridge.goWorld(w) },
+  realityGate: SCENE_LINK ? null : { world: "den", novaGo: (to, w) => storyBridge.goWorld(w) },
   mountAmbientEffects: (refs, helpers) => {
     const returning = tvBridge.returning;
     const commercial = returning && tvBridge.commercial;
@@ -175,7 +178,7 @@ const novaNeonTheme = {
   ...neonTheme,
   // After the story: the gate as it comes up, and the other realities.
   // (Not over the summons opened by its own link, ?scene=summons.)
-  realityGate: STORY_PREVIEW ? null : { world: "neon", novaGo: (to, w) => storyBridge.goWorld(w) },
+  realityGate: SCENE_LINK ? null : { world: "neon", novaGo: (to, w) => storyBridge.goWorld(w) },
   cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
   useSetupExtras: (x) => {
     const e = { ...neonTheme.useSetupExtras(x), onSingularityBack: () => tvBridge.back() };
