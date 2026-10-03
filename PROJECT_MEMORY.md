@@ -5892,3 +5892,11 @@ phone menu until "Start the story over" (which clears it).
       fades evenly to nothing in 3 s (user): droneGone(3), a linear ramp
       to 0 (the <audio> fallback likewise). Measured: -31 dB at the
       switcher, -49 at 2.6 s, silent from 3 s.
+    - Less smoke on the body; a shimmering neon-blue event horizon
+      framing it tightly (user): an edge shell per body mesh, the same
+      skinned geometry drawn again BackSide, pushed out along the normal
+      (RIM_VERT uInflate 0.16), additive, renderOrder 2, with EDGE_FRAG:
+      Fresnel-weighted blue to ice blue, moving noise shimmer and a
+      faint 11 Hz flicker, uEdge 1.15. It reads as a crisp thin outline
+      around the silhouette. Wisps: alpha 0.34 -> 0.2, and each is
+      hidden until it has drifted off the body (smooth((u-0.12)/0.3)).

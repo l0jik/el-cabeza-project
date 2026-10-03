@@ -184,10 +184,10 @@ const smooth = (x) => { x = clamp01(x); return x * x * (3 - 2 * x); };
 /* ---- the figure ---- */
 // (The tidal stretch: along the way to the sphere (uDir) from the body's
 // middle (uCenter), drawn out; across it, squeezed; a slow waver.)
-const RIM_VERT = `uniform vec3 uCenter, uDir; uniform float uStretch, uTime; attribute vec3 rest; varying vec3 vN; varying vec3 vV; varying vec3 vW; varying vec3 vR;
+const RIM_VERT = `uniform vec3 uCenter, uDir; uniform float uStretch, uTime, uInflate; attribute vec3 rest; varying vec3 vN; varying vec3 vV; varying vec3 vW; varying vec3 vR;
 void main(){
   vR = rest;
-  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vec4 wp = modelMatrix * vec4(position + normal * uInflate, 1.0);
   vec3 rel = wp.xyz - uCenter;
   float al = dot(rel, uDir);
   vec3 perp = rel - al * uDir;
@@ -232,6 +232,18 @@ void main(){
   if (l < 0.01) discard;
   float f = 0.75 + 0.25 * sin(uTime * 9.0 + vW.y * 0.7);
   gl_FragColor = vec4(vec3(0.25, 0.6, 1.0) * uWire * f * 0.36 * l, 1.0); }`;
+/* The event horizon round the body (user: less smoke, more definition):
+   a shell just outside the skin, seen from inside (its back faces), so
+   only a thin edge of it shows past the body's outline; neon blue,
+   shimmering (drifting noise along the body, a faint flicker), brightest
+   where it's edge-on. */
+const EDGE_FRAG = `uniform float uTime, uEdge; varying vec3 vN; varying vec3 vV; varying vec3 vW; ${NOISE3}
+void main(){
+  float f = 1.0 - abs(dot(normalize(vN), vV));
+  float sh = 0.45 + 0.55 * n3(vW * 0.55 + vec3(0.0, uTime * 1.6, uTime * 0.8));
+  float flick = 0.86 + 0.14 * sin(uTime * 11.0 + vW.y * 1.7);
+  vec3 c = mix(vec3(0.12, 0.42, 1.0), vec3(0.62, 0.92, 1.0), sh * sh) * sh * flick * (0.35 + 0.65 * pow(f, 0.7)) * uEdge;
+  gl_FragColor = vec4(c, 1.0); }`;
 /* The plasma coming off them (user: not snow or glitter: diaphanous,
    nebulous, gauzy, gossamer, vaporous): veils, not motes. Each is a soft
    panel facing the camera, large and very faint, with no edge of its own:
@@ -800,7 +812,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     const figU = {
       uLight: { value: new THREE.Vector3(0, 0, -1) }, uGlow: { value: 1 },
       uCenter: { value: new THREE.Vector3() }, uDir: { value: new THREE.Vector3(0, 0, -1) }, uStretch: { value: 1 }, uTime: { value: 0 },
-      uSolid: { value: 0.2 }, uWire: { value: 0.8 } };
+      uSolid: { value: 0.2 }, uWire: { value: 0.8 }, uInflate: { value: 0 } };
     figMat = new THREE.ShaderMaterial({ vertexShader: RIM_VERT, fragmentShader: RIM_FRAG, uniforms: figU });
     fig = buildFigure(figMat);
     disposables.push(figMat, ...fig.geos);
@@ -811,6 +823,12 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, extensions: { derivatives: true } });
     disposables.push(wireMat);
     fig.meshes.forEach((m) => { const w = new THREE.Mesh(m.geometry, wireMat); w.renderOrder = 1; w.frustumCulled = false; m.add(w); });
+    // The event horizon framing it: the same skin, inflated a hair.
+    const edgeMat = new THREE.ShaderMaterial({ vertexShader: RIM_VERT, fragmentShader: EDGE_FRAG, side: THREE.BackSide,
+      uniforms: { ...figU, uInflate: { value: 0.16 }, uEdge: { value: 1.15 } },
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    disposables.push(edgeMat);
+    fig.meshes.forEach((m) => { const e = new THREE.Mesh(m.geometry, edgeMat); e.renderOrder = 2; e.frustumCulled = false; m.add(e); });
     scene.add(fig.fig);
     // The plasma coming off them (user: the singularity's own wisps,
     // rising from the body more and more as they go into it): a pool of
@@ -890,7 +908,9 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       p.vx *= 1 - 0.15 * dt; p.vy *= 1 - 0.1 * dt; p.vz *= 1 - 0.15 * dt;
       W.pos[i * 3] = p.x; W.pos[i * 3 + 1] = p.y; W.pos[i * 3 + 2] = p.z;
       // (Comes up slowly, lingers, thins away; swells as it goes.)
-      W.al[i] = Math.pow(Math.sin(Math.PI * Math.min(1, u)), 1.4) * 0.34;
+      // (User: too much smoke on the body: fainter, and only once it's
+      // drifted off the body, not over it.)
+      W.al[i] = Math.pow(Math.sin(Math.PI * Math.min(1, u)), 1.4) * 0.2 * smooth((u - 0.12) / 0.3);
       W.sz[i] = p.size * (1 + 1.6 * u);
       W.ang[i] = p.a0 + p.spin * p.age;
     }
