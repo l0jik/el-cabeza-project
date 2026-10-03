@@ -50,6 +50,9 @@ export const ORDER_PARTS_CSS = `
   @keyframes tdPulse { 50% { opacity: 0.35; } }
   .td-picker-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
   .td-seg { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+  /* (Easy, Medium, Hard always on one row, user: sharing it evenly.) */
+  .td-seg.td-one { display: flex; flex-wrap: nowrap; }
+  .td-seg.td-one button { flex: 1 1 0; min-width: 0; padding: 0 6px; white-space: nowrap; }
   .td-seg button { min-height: 44px; padding: 0 12px; border: 1.5px solid ${INK}; background: transparent; color: ${INK}; font: 700 13px/1.15 ${COURIER}; cursor: pointer; border-radius: 2px; }
   .td-seg button[aria-pressed="true"] { background: ${INK}; color: ${PAPER}; }
   .td-seg button:disabled { opacity: 0.45; cursor: default; }
@@ -214,7 +217,7 @@ export function OpponentSection({ x, audio }) {
     ),
     aiPlayer != null && h("div", { className: "td-dim" },
       h("span", { className: "td-desc" }, "How well it plays"),
-      h("div", { className: "td-seg", role: "group", "aria-label": "How well the demonstrator plays" },
+      h("div", { className: "td-seg td-one", role: "group", "aria-label": "How well the demonstrator plays" },
         ...Object.entries(AI_DIFFICULTY).map(([key, cfg]) => h("button", {
           key, type: "button", "aria-pressed": aiDifficulty === key ? "true" : "false", "data-testid": `tienda-skill-${key}`, disabled: locked,
           onClick: () => { audio && audio.playSelect && audio.playSelect(); setAiDifficulty(key); },

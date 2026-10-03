@@ -776,6 +776,43 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useEffect(() => {
     saveOpponentPrefs({ aiPlayer, aiDifficulty, humanStartSide });
   }, [aiPlayer, aiDifficulty, humanStartSide]);
+  /* Easy, Medium and Hard always on one row with the Back arrow (user: a
+     second row looks dumb). A theme's buttons can be wider than this
+     row's own (Lab's designs: heavier borders, wider tracking), so the
+     row fits itself: measured as laid out, and if anything has wrapped,
+     a step at a time until it hasn't: the buttons' padding and tracking
+     tightened; then the "Difficulty" word let go; then the buttons'
+     text a little smaller, then smaller again. (Set on the elements
+     themselves, !important, over any theme's own !important.) Again on
+     any change of width, and once the fonts are in. */
+  const diffRowRef = useRef(null);
+  useLayoutEffect(() => {
+    const row = diffRowRef.current;
+    if (!row || showOpponentPicker) return undefined;
+    const fit = () => {
+      const btns = Array.from(row.querySelectorAll("[data-ec-diff]")), label = row.querySelector("[data-ec-diff-label]");
+      if (!btns.length) return;
+      const set = (el, k, v) => (v == null ? el.style.removeProperty(k) : el.style.setProperty(k, v, "important"));
+      const base = btns.map((b) => { set(b, "font-size", null); return parseFloat(getComputedStyle(b).fontSize) || 11; });
+      const level = (n) => {
+        btns.forEach((b, i) => {
+          set(b, "padding-left", n >= 1 ? "5px" : null); set(b, "padding-right", n >= 1 ? "5px" : null);
+          set(b, "letter-spacing", n >= 1 ? "0.02em" : null);
+          set(b, "font-size", n >= 3 ? `${(base[i] * (n >= 4 ? 0.78 : 0.88)).toFixed(1)}px` : null);
+        });
+        if (label) set(label, "display", n >= 2 ? "none" : null);
+      };
+      const oneRow = () => { const kids = Array.from(row.children).filter((k) => k.offsetParent !== null); return kids.every((k) => Math.abs(k.offsetTop - kids[0].offsetTop) < 4 || Math.abs((k.offsetTop + k.offsetHeight / 2) - (kids[0].offsetTop + kids[0].offsetHeight / 2)) < 6); };
+      for (let n = 0; n <= 4; n++) { level(n); if (oneRow()) { row.setAttribute("data-fit", String(n)); return; } }
+      row.setAttribute("data-fit", "4");
+    };
+    fit();
+    let ro = null;
+    if (typeof ResizeObserver !== "undefined") { let w = row.clientWidth; ro = new ResizeObserver(() => { if (row.clientWidth !== w) { w = row.clientWidth; fit(); } }); ro.observe(row); }
+    let live = true;
+    if (typeof document !== "undefined" && document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (live) fit(); });
+    return () => { live = false; if (ro) ro.disconnect(); };
+  }, [showOpponentPicker, aiDifficulty, aiPlayer]);
   const [aiThinking, setAiThinking] = useState(false);
   /* Every game — Human vs Human included — now needs an explicit Begin
      Game press before anything can move, not just an AI-opponent game.
@@ -8317,7 +8354,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
              letter-spacing trims below for the same reason: several
              small margin cuts here rather than chasing one exact
              pixel threshold that isn't reliably measurable locally). */}
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 5, maxWidth: "100%" }}>
+          <div ref={diffRowRef} data-testid="opponent-row" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 5, maxWidth: "100%" }}>
           {showOpponentPicker ? (
             <>
               <span
@@ -8414,6 +8451,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 </svg>
               </button>
               <span
+                data-ec-diff-label=""
                 style={{
                   fontFamily: "'IBM Plex Mono', monospace",
                   fontSize: 10,
@@ -8430,6 +8468,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 <button
                   key={key}
                   className="ec-btn"
+                  data-ec-diff={key}
                   disabled={busy || aiThinking || turnLocked}
                   onClick={() => setAiDifficulty(key)}
                   style={{

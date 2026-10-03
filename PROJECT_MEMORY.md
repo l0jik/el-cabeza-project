@@ -5763,3 +5763,15 @@ phone menu until "Start the story over" (which clears it).
       on a wrapped lattice, 3 octaves, 128x256, made once as a data URL,
       sized 240x480) whose position drifts up 16 px/s and sways 40 px
       (set every other frame from frame()). Off under reduced motion.
+    - Easy / Medium / Hard always on one row with the Back arrow (user: a
+      second row looks dumb). Chassis dock row (data-testid opponent-row):
+      a layout effect fits it, measured as laid out, step by step until
+      nothing has wrapped (data-fit 0-4): 1 the buttons' side padding 5px
+      and tracking 0.02em; 2 the "Difficulty" word hidden; 3 / 4 the
+      buttons' text at 0.88 / 0.78. Set on the elements with !important
+      (Lab's designs force letter-spacing !important). Again on width
+      changes (ResizeObserver) and when the fonts are in. Checked: all 10
+      Lab designs at 390 px one row (levels 0-1), 320 px level 2. Tienda's
+      order form: the skill buttons a nowrap row sharing the width
+      (.td-seg.td-one). The phone menu's Seg was already one row; Neon's
+      sphere menu row has no wrap.
