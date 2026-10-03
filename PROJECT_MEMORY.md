@@ -5641,3 +5641,20 @@ phone menu until "Start the story over" (which clears it).
       prefers-reduced-motion. With each line, bloom(): A5, E6, A6 sines
       (an open fifth, consonant with every chord), staggered 0.16 s, 0.7 s
       up and 5 s down, into the reverb plus a little dry.
+    - The end of the story's words are a crawl now (user: the coda's
+      fly-off was too fast at the end, and went off at 45 degrees; like
+      the opening of Star Wars instead, neon blue, on the black). After
+      the zoom into the sphere and the black, CRAWL = [BLACK[1] + 1500,
+      +34 s]: CRAWL_TEXT ("The story's over." / "Every version of the
+      game is here. Pick one, or stay in the den, because..." / "...no
+      matter where you are, *El Cabeza* will always be with you..." /
+      "It always has been.", that last centered after a gap) on a plane
+      tilted 24 deg (perspective 300px, origin 50% 0), #6fd6ff with a blue
+      glow, justified, an even pace (translateY -p * (H + 0.8 vh), from
+      frame() so the test skip works), dissolving into the dark through a
+      top mask. No skipping (user). MENU_AT = CRAWL[1] + 700: the switcher
+      then quiet, title and cards only (sub "" leaves out the line),
+      locked 2.2 s against taps made during the crawl. The realities
+      menu's epilogue (sentence-by-sentence sub), coda and subMs are gone.
+      Hooks: state().crawlAt, state().crawl (0..1); testid
+      den-ending-crawl. Nothing is rendered under the black.

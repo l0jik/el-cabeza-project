@@ -98,7 +98,17 @@ const WORDS_END = T.words + (REVELATION.length - 1) * T.wordEach + T.lastHold;
 const MERGE = [WORDS_END + 400, WORDS_END + 9800];   // drifting into the sphere
 const ZOOM = [MERGE[1] - 3200, MERGE[1] + 2600];      // in on it, crescendoing
 const BLACK = [ZOOM[1] - 700, ZOOM[1] + 200];         // to black
-const MENU_AT = BLACK[1] + 1600;
+/* Then, on the black (user: like the opening of Star Wars, in neon blue):
+   the last words crawl up and away into the dark, at an even pace, and
+   only when they're gone does the switcher come. No skipping it. */
+const CRAWL = [BLACK[1] + 1500, BLACK[1] + 1500 + 34000];
+const MENU_AT = CRAWL[1] + 700;
+const CRAWL_TEXT = [
+  "The story's over.",
+  "Every version of the game is here. Pick one, or stay in the den, because...",
+  "...no matter where you are, *El Cabeza* will always be with you...",
+  "It always has been.",
+];
 
 const CSS = `
 .den-ending { position: fixed; inset: 0; z-index: 1500; background: #000; overflow: hidden; touch-action: none; cursor: default; }
@@ -129,6 +139,20 @@ const CSS = `
 @keyframes den-ending-glow { 0% { opacity: 0; transform: scale(0.7, 0.5); } 28% { opacity: 1; } 100% { opacity: 0.4; transform: scale(1, 1); } }
 @media (prefers-reduced-motion: reduce) { .den-ending .word.on .ph, .den-ending .word.on::before { animation: none; } }
 .den-ending.off { transition: opacity 1.2s ease; opacity: 0; }
+/* The crawl: a plane tilted back into the dark, the words on it in neon
+   blue, justified, the last line on its own; dissolving into the black as
+   they go (the mask), not cut off. */
+.den-ending .crawl { position: absolute; inset: 0; overflow: hidden; pointer-events: none; display: none; opacity: 0;
+  perspective: 300px; perspective-origin: 50% 0%;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.25) 16%, #000 46%); mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.25) 16%, #000 46%); }
+.den-ending .crawl.on { display: block; }
+.den-ending .crawl .plane { position: absolute; left: 50%; bottom: 0; height: 100%; width: min(84vw, 600px); transform-origin: 50% 100%; transform: translateX(-50%) rotateX(24deg); }
+.den-ending .crawl .text { position: absolute; left: 0; right: 0; top: 100%; will-change: transform;
+  color: #6fd6ff; font: 600 clamp(19px, 5vw, 34px)/1.42 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.02em;
+  text-align: justify; hyphens: none; text-shadow: 0 0 6px rgba(80,200,255,0.75), 0 0 22px rgba(30,130,255,0.55); }
+.den-ending .crawl .text p { margin: 0 0 1.1em; }
+.den-ending .crawl .text p.last { text-align: center; margin-top: 2.2em; font-weight: 500; }
+.den-ending .crawl .text em { font-style: italic; }
 `;
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -298,7 +322,7 @@ function impulse(ctx, secs, decay) {
 
 export function createEnding({ audio, onFinish, onPick, onStay }) {
   const doc = typeof document !== "undefined" ? document : null;
-  let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null;
+  let root = null, canvas = null, veil = null, dark = null, words = [], styleEl = null, crawl = null, crawlText = null, crawlP = 0;
   let renderer = null, scene = null, camera = null, raf = 0, t0 = 0, stage = "idle", menu = null, finished = false;
   let fig = null, figMat = null, disposables = [], chord = null, skipMs = 0, wisps = null;
   let look = { yaw: 0, pitch: 0, goalYaw: 0, goalPitch: 0 }, dragAt = null;
@@ -455,6 +479,10 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     canvas = doc.createElement("canvas"); root.appendChild(canvas);
     REVELATION.forEach((line, i) => { const w = doc.createElement("div"); w.className = "word"; w.setAttribute("data-testid", `den-ending-line-${i + 1}`); w.setAttribute("role", "status"); w.innerHTML = reveal(line); root.appendChild(w); words.push(w); });
     dark = doc.createElement("div"); dark.className = "dark"; root.appendChild(dark);
+    crawl = doc.createElement("div"); crawl.className = "crawl"; crawl.setAttribute("data-testid", "den-ending-crawl"); crawl.setAttribute("aria-live", "polite");
+    crawlText = doc.createElement("div"); crawlText.className = "text";
+    crawlText.innerHTML = CRAWL_TEXT.map((t, i) => `<p${i === CRAWL_TEXT.length - 1 ? ' class="last"' : ""}>${md(t)}</p>`).join("");
+    const plane = doc.createElement("div"); plane.className = "plane"; plane.appendChild(crawlText); crawl.appendChild(plane); root.appendChild(crawl);
     veil = doc.createElement("div"); veil.className = "veil"; root.appendChild(veil);
     doc.body.appendChild(root);
     // The camera can't be moved (user); touches here go nowhere (the
@@ -698,27 +726,30 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
       w.classList.toggle("on", on);
     });
     if (s >= BLACK[1] && stage === "void") { stage = "black"; sound(false); }
-    if (s >= MENU_AT && stage === "black") openMenu();
-    if (renderer) renderer.render(scene, camera);
+    // The crawl, at an even pace from below the screen to far off in the
+    // dark (its last line just gone into the distance as it ends).
+    if (crawl && stage === "black" && s >= CRAWL[0]) {
+      crawl.classList.add("on");
+      crawlP = clamp01((s - CRAWL[0]) / (CRAWL[1] - CRAWL[0]));
+      const vh = crawl.clientHeight || 600, H = crawlText.offsetHeight || 400;
+      crawlText.style.transform = `translateY(${-crawlP * (H + vh * 0.8)}px)`;
+      crawl.style.opacity = String(smooth((s - CRAWL[0]) / 900));
+    }
+    if (s >= MENU_AT && stage === "black") { if (crawl) crawl.classList.remove("on"); openMenu(); }
+    // (Under the black, nothing to draw.)
+    if (renderer && s < BLACK[1] + 300) renderer.render(scene, camera);
   }
   function openMenu() {
     stage = "menu";
     if (!finished) { finished = true; if (onFinish) onFinish(); }
     menu = createRealitiesMenu({
       title: "Other realities",
-      sub: "The story's over. Every version of the game is here. Pick one, or stay in the den, because...",
+      // (Its words were the crawl: here, quiet, just the choices.)
+      sub: "",
       currentId: "den",
-      // (The user's own words, as written: the first rising toward you,
-      // the last flying off the top of the screen.)
-      subMs: 5500,
-      coda: [
-        { html: md("...no matter where you are, *El Cabeza* will always be with you..."), at: 5800, dur: 4400 },
-        { html: md("It always has been."), at: 8400, dur: 3600 },
-      ],
-      // (A moment to read it first: taps still coming from the scene went
-      // straight to a world, user; then long enough for the words at the
-      // top to be read, and the coda to rise and go, user.)
-      lockMs: typeof window !== "undefined" && typeof window.__EC_TEST_REALITIES_LOCK__ === "number" ? window.__EC_TEST_REALITIES_LOCK__ : 12200,
+      // (A moment first: taps made during the crawl mustn't land on a
+      // world as it comes, user.)
+      lockMs: typeof window !== "undefined" && typeof window.__EC_TEST_REALITIES_LOCK__ === "number" ? window.__EC_TEST_REALITIES_LOCK__ : 2200,
       onPick: (w) => { if (w.nova === "standard") { leave(); return; } stage = "going"; if (onPick) onPick(w); },
       onStay: () => leave(),
     });
@@ -737,7 +768,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     disposables.forEach((d) => d && d.dispose && d.dispose()); disposables = [];
     if (renderer) { renderer.dispose(); renderer.forceContextLoss && renderer.forceContextLoss(); renderer = null; }
     if (root) { root.remove(); root = null; }
-    words = []; veil = null; dark = null; stage = stage === "leaving" ? "done" : stage;
+    words = []; veil = null; dark = null; crawl = null; crawlText = null; stage = stage === "leaving" ? "done" : stage;
   }
 
   return {
@@ -752,7 +783,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     },
     // Whether it covers the screen (the den needn't draw underneath).
     covering: () => !!root && (stage === "void" || stage === "black" || stage === "menu" || stage === "going"),
-    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: chord ? chord.fade.gain.value * chord.whole.gain.value : 0, wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0 }),
+    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, crawlAt: CRAWL[0], crawl: crawlP, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: chord ? chord.fade.gain.value * chord.whole.gain.value : 0, wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0 }),
     // Test-only: on by ms.
     skip(ms) { skipMs += ms; },
     // Test-only: the sound's peak and loudness (dBFS) out of the scene, and the hum's and the pad's.

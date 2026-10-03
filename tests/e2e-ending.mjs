@@ -127,6 +127,19 @@ await page.evaluate(() => window.__DEN_ENDING_SKIP__(3000));
 check("the body drifts into the sphere, one with it", !!(await poll(async () => (await page.evaluate(() => window.__DEN_ENDING__().figure)) === false, 4000)));
 check("then to black", !!(await poll(async () => /black|menu/.test(await page.evaluate(() => window.__DEN_ENDING__().stage)), 8000)));
 check("...the controls still away", await page.evaluate(() => document.documentElement.classList.contains("ec-hall-scene")));
+{
+  // On the black, the last words crawl away (user: like Star Wars, neon blue).
+  const st2 = await page.evaluate(() => window.__DEN_ENDING__());
+  await page.evaluate((ms) => window.__DEN_ENDING_SKIP__(ms), Math.max(0, st2.crawlAt - st2.t + 6000));
+  check("then the crawl, on the black", !!(await poll(async () => (await page.evaluate(() => window.__DEN_ENDING__().crawl)) > 0.1, 4000)));
+  const txt = await page.locator('[data-testid="den-ending-crawl"]').innerText();
+  check("...its words: \"The story's over.\" ... \"It always has been.\"", /^The story's over\./.test(txt.trim()) && /stay in the den, because\.\.\./.test(txt) && /El Cabeza will always be with you/.test(txt) && /It always has been\.$/.test(txt.trim()), txt.slice(0, 80));
+  check("...in neon blue, tilted away", await page.evaluate(() => { const t = document.querySelector('[data-testid="den-ending-crawl"] .text'); const pl = t.parentElement; return getComputedStyle(t).color === "rgb(111, 214, 255)" && /matrix3d/.test(getComputedStyle(pl).transform); }));
+  await shot(page, "end-3b-crawl");
+  check("...no switcher while it rolls", (await page.locator('[data-testid="realities"]').count()) === 0);
+  const st3 = await page.evaluate(() => window.__DEN_ENDING__());
+  await page.evaluate((ms) => window.__DEN_ENDING_SKIP__(ms), Math.max(0, st3.menuAt - st3.t - 1500));
+}
 check("then the other realities", !!(await poll(async () => (await page.locator('[data-testid="realities"]').count()) > 0, 8000)));
 check("...every version of the game (15)", (await page.locator('[data-testid^="reality-"]').count()) === 15);
 {
@@ -137,9 +150,8 @@ check("...every version of the game (15)", (await page.locator('[data-testid^="r
   if (b) await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   await page.waitForTimeout(400);
   check("...a tap meanwhile picks nothing", (await page.locator('[data-testid="realities"]').count()) === 1 && (await page.evaluate(() => window.__DEN_ENDING__().stage)) === "menu");
-  check("...its words first, one sentence at a time", (await page.locator('[data-testid="realities"] p.sub span').count()) === 3);
-  check("...then the coda: \"...no matter where you are, El Cabeza will always be with you...\", \"It always has been.\"", /El Cabeza<\/em> will always be with you/.test(await page.locator('[data-testid="realities-coda-1"]').innerHTML()) && /It always has been\./.test(await page.locator('[data-testid="realities-coda-2"]').innerText()));
-  check("...then the choices are live (12 s)", !!(await poll(async () => (await page.locator('[data-testid="realities"]').getAttribute("data-locked")) === "false", 15000)));
+  check("...quiet: no line under the title (its words were the crawl)", (await page.locator('[data-testid="realities"] p.sub').count()) === 0);
+  check("...then the choices are live", !!(await poll(async () => (await page.locator('[data-testid="realities"]').getAttribute("data-locked")) === "false", 5000)));
 }
 check("the story's over (remembered)", await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:story")).ended === true));
 await page.waitForTimeout(1200);
