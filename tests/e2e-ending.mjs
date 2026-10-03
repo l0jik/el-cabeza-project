@@ -138,7 +138,8 @@ check("...every version of the game (15)", (await page.locator('[data-testid^="r
   await page.waitForTimeout(400);
   check("...a tap meanwhile picks nothing", (await page.locator('[data-testid="realities"]').count()) === 1 && (await page.evaluate(() => window.__DEN_ENDING__().stage)) === "menu");
   check("...its words first, one sentence at a time", (await page.locator('[data-testid="realities"] p.sub span').count()) === 3);
-  check("...then the choices are live (5.5 s)", !!(await poll(async () => (await page.locator('[data-testid="realities"]').getAttribute("data-locked")) === "false", 9000)));
+  check("...then the coda: \"...no matter where you are, El Cabeza will always be with you...\", \"It always has been.\"", /El Cabeza<\/em> will always be with you/.test(await page.locator('[data-testid="realities-coda-1"]').innerHTML()) && /It always has been\./.test(await page.locator('[data-testid="realities-coda-2"]').innerText()));
+  check("...then the choices are live (12 s)", !!(await poll(async () => (await page.locator('[data-testid="realities"]').getAttribute("data-locked")) === "false", 15000)));
 }
 check("the story's over (remembered)", await page.evaluate(() => JSON.parse(localStorage.getItem("el-cabeza:story")).ended === true));
 await page.waitForTimeout(1200);

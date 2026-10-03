@@ -565,12 +565,19 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     if (!finished) { finished = true; if (onFinish) onFinish(); }
     menu = createRealitiesMenu({
       title: "Other realities",
-      sub: "The story's over. Every version of the game is here. Pick one, or stay in the den.",
+      sub: "The story's over. Every version of the game is here. Pick one, or stay in the den, because...",
       currentId: "den",
+      // (The user's own words, as written: the first rising toward you,
+      // the last flying off the top of the screen.)
+      subMs: 5500,
+      coda: [
+        { html: md("...no matter where you are, *El Cabeza* will always be with you..."), at: 5800, dur: 4400 },
+        { html: md("It always has been."), at: 8400, dur: 3600 },
+      ],
       // (A moment to read it first: taps still coming from the scene went
-      // straight to a world, user; and two seconds more, so the words at
-      // the top are read, user.)
-      lockMs: typeof window !== "undefined" && typeof window.__EC_TEST_REALITIES_LOCK__ === "number" ? window.__EC_TEST_REALITIES_LOCK__ : 5500,
+      // straight to a world, user; then long enough for the words at the
+      // top to be read, and the coda to rise and go, user.)
+      lockMs: typeof window !== "undefined" && typeof window.__EC_TEST_REALITIES_LOCK__ === "number" ? window.__EC_TEST_REALITIES_LOCK__ : 12200,
       onPick: (w) => { if (w.nova === "standard") { leave(); return; } stage = "going"; if (onPick) onPick(w); },
       onStay: () => leave(),
     });

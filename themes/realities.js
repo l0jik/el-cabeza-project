@@ -92,6 +92,27 @@ const CSS = `
   animation: ecRealLine 1.4s cubic-bezier(.2,.7,.2,1) forwards; animation-delay: var(--d, 0s); }
 @keyframes ecRealLine { to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ec-realities.epilogue p.sub span { animation: none; opacity: 1; transform: none; } }
+/* The coda (user): after the words at the top, over the dimmed choices,
+   "...no matter where you are, El Cabeza will always be with you..."
+   slowly rises toward you, growing, and fades as it goes; then "It always
+   has been." comes the same way and keeps coming, faster and larger,
+   until it's past the top of the screen. The choices come alive after. */
+.ec-realities .coda { position: fixed; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+.ec-realities.coda-on ul { opacity: 0.14 !important; }
+.ec-realities .coda div { position: absolute; left: 50%; top: 58%; width: min(76vw, 560px); text-align: center; text-wrap: balance;
+  font: 300 clamp(21px, 5.2vw, 32px)/1.3 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.03em; color: #fbf8ff;
+  text-shadow: 0 0 22px rgba(170,130,255,0.55), 0 2px 12px rgba(0,0,0,0.8); opacity: 0; transform: translate(-50%, 0) scale(0.92);
+  will-change: transform, opacity; }
+.ec-realities .coda em { font-style: italic; font-weight: 500; }
+.ec-realities .coda .c1 { animation: ecCodaRise var(--dur, 4.4s) cubic-bezier(.35,.1,.45,1) forwards; animation-delay: var(--d, 0s); }
+.ec-realities .coda .c2 { animation: ecCodaAway var(--dur, 3.6s) cubic-bezier(.5,0,.9,.55) forwards; animation-delay: var(--d, 0s); }
+@keyframes ecCodaRise { 0% { opacity: 0; transform: translate(-50%, 0) scale(0.92); } 16% { opacity: 1; }
+  78% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -24vh) scale(1.26); } }
+@keyframes ecCodaAway { 0% { opacity: 0; transform: translate(-50%, 0) scale(0.92); } 14% { opacity: 1; transform: translate(-50%, -3vh) scale(1.05); }
+  55% { opacity: 1; transform: translate(-50%, -26vh) scale(1.6); } 100% { opacity: 1; transform: translate(-50%, -125vh) scale(3.8); } }
+@media (prefers-reduced-motion: reduce) {
+  .ec-realities .coda .c1, .ec-realities .coda .c2 { animation: ecCodaStill var(--dur, 4s) ease forwards; animation-delay: var(--d, 0s); }
+  @keyframes ecCodaStill { 0%, 100% { opacity: 0; transform: translate(-50%, 0); } 15%, 80% { opacity: 1; transform: translate(-50%, 0); } } }
 @media (prefers-reduced-motion: reduce) { .ec-realities, .ec-realities li button { transition: none; } }
 `;
 
@@ -109,7 +130,11 @@ export const RESTART_HREF = "el-cabeza-nova.html?restart=story";
    onPick(world); onStay() for staying where you are: a tap on the "You
    are here" card, or Escape (there's no Stay button: user, the card
    already says it). `title` / `sub` say what it is. Returns { el, close }. */
-export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", lockMs = 0 } = {}) {
+/* `coda` (with lockMs, the end of the story): [{ html, at, dur }, ...]
+   lines over the dimmed choices after the sub line (above); the first
+   rises, the last flies off the top. `subMs`: the span the sub line's
+   sentences arrive across (lockMs if not given). */
+export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", lockMs = 0, subMs = 0, coda = null } = {}) {
   if (typeof document === "undefined") return { el: null, close() {} };
   if (!document.querySelector("style[data-ec-realities]")) {
     const st = document.createElement("style"); st.setAttribute("data-ec-realities", ""); st.textContent = CSS; document.head.appendChild(st);
@@ -126,7 +151,7 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     // before the choices come alive.)
     el.classList.add("epilogue");
     const parts = sub.match(/[^.!?]+[.!?]+(\s+|$)/g) || [sub];
-    const step = parts.length > 1 ? Math.max(500, (lockMs - 2300) / (parts.length - 1)) : 0;
+    const step = parts.length > 1 ? Math.max(500, ((subMs || lockMs) - 2300) / (parts.length - 1)) : 0;
     parts.forEach((t, i) => {
       const sp = document.createElement("span"); sp.textContent = t.trim();
       sp.style.setProperty("--d", `${(600 + i * step) / 1000}s`);
@@ -179,6 +204,22 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
   }
   const hold = document.createElement("div"); hold.className = "hold"; hold.setAttribute("aria-hidden", "true"); hold.appendChild(document.createElement("i"));
   el.append(h, p, ...(lockMs > 0 ? [hold] : []), ul, restart);
+  if (coda && coda.length && lockMs > 0) {
+    const layer = document.createElement("div"); layer.className = "coda"; layer.setAttribute("data-testid", "realities-coda"); layer.setAttribute("aria-live", "polite");
+    coda.forEach((c, i) => {
+      const d = document.createElement("div");
+      d.className = i === coda.length - 1 ? "c2" : "c1";
+      d.setAttribute("data-testid", `realities-coda-${i + 1}`);
+      d.innerHTML = c.html;
+      d.style.setProperty("--d", `${c.at / 1000}s`); d.style.setProperty("--dur", `${c.dur / 1000}s`);
+      layer.appendChild(d);
+    });
+    el.appendChild(layer);
+    const last = coda[coda.length - 1];
+    setTimeout(() => el.classList.add("coda-on"), Math.max(0, coda[0].at - 300));
+    setTimeout(() => { el.classList.remove("coda-on"); }, last.at + last.dur - 400);
+    setTimeout(() => layer.remove(), last.at + last.dur + 200);
+  }
   const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (locked) return; close(); if (onStay) onStay(); } };
   window.addEventListener("keydown", onKey, true);
   document.body.appendChild(el);

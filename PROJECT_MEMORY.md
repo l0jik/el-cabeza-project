@@ -5582,3 +5582,13 @@ phone menu until "Start the story over" (which clears it).
       born at random vertices of the body, drifting out and up in a slow
       curl and a little toward the sphere, growing as they fade (2.2-4.2
       s); rate 3 + 55*grow (4-26 s) + 110*merge. state().solid/.wisps.
+  - The end-of-story realities menu's coda (user's words, as written):
+    the sub line now ends "...stay in the den, because..."; then over
+    the choices (dimmed further, .coda-on, while it plays)
+    "...no matter where you are, *El Cabeza* will always be with you..."
+    rises toward you and grows (to 1.26x, -24vh, fading at the end; 5.8 s
+    in, 4.4 s), and "It always has been." (8.4 s, 3.6 s) comes the same
+    way and keeps coming, faster, to 3.8x and -125vh, off the top of the
+    screen. realities.js createRealitiesMenu({ coda: [{ html, at, dur }],
+    subMs }); den-ending lockMs 12200, subMs 5500. Reduced motion: still,
+    fading in and out. e2e-ending checks the coda's words and unlock by 15 s.
