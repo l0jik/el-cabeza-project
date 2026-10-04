@@ -6119,3 +6119,15 @@ phone menu until "Start the story over" (which clears it).
       Google script faces shown to the user beside it (closest in feel:
       Zeyada, Dawning of a New Day). The page uses Dawning of a New Day
       for now, lowercase.
+- Parrish masthead: the user's own "el cabeza" lettering (their artwork,
+  uploaded; locked: "change the presentation, not the lettering").
+  assets/parrish/title-mask.webp is its outline traced straight from the
+  artwork's anti-aliased edge (alpha from brightness; 2136x678, ratio
+  3.1504); the .ec-title span keeps the words for screen readers but shows
+  the mask filled with paint per palette (title-paint-orinoco.webp: deep
+  cobalt strokes with a little gold; title-paint-watermark.webp: warm cream
+  like the cover's own logo), lit from the upper left, its paint drifting
+  at 12 steps a second; a glow on the h1 (orinoco: a thin cream halo;
+  watermark: a faint warm one and a dark shadow). Sized in em (4.6em wide)
+  so it follows the chassis's masthead phases. titleFontFamily back to
+  Cinzel (headings only); the candidate script fonts are gone.

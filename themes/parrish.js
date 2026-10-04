@@ -33,6 +33,12 @@ import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from 
 import { parrishEnv, createParrishEffects } from "./parrish-scene.js";
 import { MUSIC_URL } from "./parrish-audio.js";
 import { look, lookName } from "./parrish-looks.js";
+// The user's "el cabeza" lettering, its outline traced exactly from their
+// artwork (a mask: never redrawn), and the paint that fills it, one for
+// each palette.
+import TITLE_MASK from "../assets/parrish/title-mask.webp";
+import TITLE_PAINT_ORINOCO from "../assets/parrish/title-paint-orinoco.webp";
+import TITLE_PAINT_WATERMARK from "../assets/parrish/title-paint-watermark.webp";
 
 // Which of the two palettes (?look=orinoco|watermark; parrish-looks.js).
 const LOOK = look();
@@ -70,11 +76,10 @@ export const COLORS = {
 };
 
 // Roman capitals, as Parrish lettered his calendars.
-// The title in a loose pen hand, lowercase, near the singer's own name on
-// the "Watermark" cover (it's lettered, not a font; user to pick from the
-// candidates); the menus' headings stay in Cinzel.
-export const titleFontFamily = "'Dawning of a New Day', 'Zeyada', 'Italianno', cursive";
-export const mastheadScale = 1.55; // a script's small letters need the room
+// The menus' headings in Cinzel; the masthead is the user's own lettering
+// of "el cabeza" (styleSheet below).
+export const titleFontFamily = "'Cinzel', 'Trajan Pro', Georgia, serif";
+export const mastheadScale = 1;
 // The dock's piece, in the corner during a game: enough of it to see
 // against the terrace.
 export const dockCornerOpacity = 0.6;
@@ -201,13 +206,32 @@ export const dockWords = {
 };
 
 export const styleSheet = `
-  @import url('https://fonts.googleapis.com/css2?family=Dawning+of+a+New+Day&family=Zeyada&family=Italianno&family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap');
   html, body { overscroll-behavior: none; background: ${DARK ? "#140405" : "#3E7FA8"}; }
   /* The title: Roman capitals in gold leaf over the sky. */
+  /* The masthead: the user's lettering, its outline exactly theirs (the
+     mask), presented as paint laid into the picture: filled with the
+     palette's own paint, lit faintly from the upper left as the strokes
+     are, its paint moving a little twelve times a second as the world's
+     does, and held in the world's light (the glow round the heading). The
+     words stay underneath for screen readers. */
   .ec-title {
-    color: #F6EEDC !important; text-transform: lowercase; font-weight: 400 !important; letter-spacing: 0.01em;
-    text-shadow: 0 1px 2px rgba(40, 18, 22, 0.55), 0 0 18px rgba(255, 246, 230, 0.45) !important;
+    display: inline-block; vertical-align: middle; width: 4.6em; height: calc(4.6em / 3.1504);
+    overflow: hidden; white-space: nowrap; color: transparent !important; text-shadow: none !important;
+    background:
+      linear-gradient(158deg, rgba(255, 255, 255, ${DARK ? "0.1" : "0.16"}) 0%, rgba(255, 255, 255, 0) 42%, rgba(${DARK ? "40, 8, 10, 0.18" : "40, 50, 90, 0.12"}) 100%),
+      url(${DARK ? TITLE_PAINT_WATERMARK : TITLE_PAINT_ORINOCO}) 0 0 / 130% auto;
+    -webkit-mask: url(${TITLE_MASK}) center / contain no-repeat; mask: url(${TITLE_MASK}) center / contain no-repeat;
+    animation: parrish-title-paint 2s steps(24) infinite;
+    opacity: ${DARK ? 0.93 : 0.97};
   }
+  @keyframes parrish-title-paint { from { background-position: 0 0, 0% 20%; } to { background-position: 0 0, 22% 34%; } }
+  h1:has(> .ec-title) {
+    filter: ${DARK
+      ? "drop-shadow(0 0.025em 0.04em rgba(18, 3, 5, 0.75)) drop-shadow(0 0 0.28em rgba(236, 196, 150, 0.16))"
+      : "drop-shadow(0 0 0.02em rgba(255, 250, 238, 0.95)) drop-shadow(0 0 0.06em rgba(250, 244, 228, 0.6)) drop-shadow(0 0.04em 0.12em rgba(20, 30, 70, 0.25))"};
+  }
+  @media (prefers-reduced-motion: reduce) { .ec-title { animation: none; } }
   /* The dock's piece: its edges wander like paint (renderGlobalDefs). */
   canvas[data-testid="dock-piece-canvas"] { filter: url(#parrish-paint-edge); }
   @media (prefers-reduced-motion: reduce) { canvas[data-testid="dock-piece-canvas"] { filter: none; } }
