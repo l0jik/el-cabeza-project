@@ -6,8 +6,13 @@
    a small bird. Each placed somewhere of its own, left or right, the far
    ones softer and duller.
 
-   The pieces are the wooden set's own knocks (wood-sfx.js), on a solid
-   board (flat on its stone pillar).
+   The pieces: the user's own recordings of instrumental stabs, cut into
+   very small pieces (tools/parrish_stabs.py, one file beside the page,
+   el-cabeza-parrish-stabs.mp3, fetched once): a lone note when a piece is
+   picked up or put down, a scatter of bright ticks while it moves, a
+   bass-weighted thump when it lands (lower the bigger the face it lands
+   on), a full crash for a capture. Until the file's here (or if it
+   can't be had) the wooden set's own knocks stand in (wood-sfx.js).
 
    The music: MUSIC_URL, a file beside the page, once the user's
    recording is here. With none, there's no music channel at all (no
@@ -17,13 +22,24 @@
    Every sound is made here, and all of it is kept low: it's a place to
    sit, not a soundtrack. */
 
-import { createWoodSfx } from "./wood-sfx.js";
+import { createWoodSfx, landingSize } from "./wood-sfx.js";
 
 export const hasAudio = true;
 
 // The user's recording, when it comes: e.g. "el-cabeza-parrish-music.mp3"
 // (beside the page; build/build.js copies it there).
 export const MUSIC_URL = null;
+
+// The slices of the stabs file: [start s, length s] (tools/parrish_stabs.py).
+const STABS_URL = "el-cabeza-parrish-stabs.mp3";
+const STABS = {
+  noteD5: [0.1, 0.12], noteC4: [0.47, 0.12], noteCs5: [0.84, 0.11], noteD5b: [1.2, 0.11], noteF3: [1.56, 0.14], noteDs4: [1.95, 0.12],
+  thump1: [2.32, 0.16], thump2: [2.73, 0.16], thump3: [3.14, 0.16], thump4: [3.55, 0.16],
+  tick1: [3.96, 0.045], tick2: [4.255, 0.045], tick3: [4.55, 0.045], tick4: [4.845, 0.045], tick5: [5.14, 0.04],
+  crash: [5.43, 0.42],
+};
+const THUMPS = ["thump1", "thump2", "thump3", "thump4"], TICKS = ["tick1", "tick2", "tick3", "tick4", "tick5"];
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 export function createAudio() {
   let ctx = null, master = null, vol = null, wood = null, noiseBuf = null, verb = null;
@@ -32,6 +48,8 @@ export function createAudio() {
   let natureBus = null, gust = null;
   const timers = new Set();
   let music = null;
+  // The stabs, once decoded: the buffer and each slice's real start.
+  let stabs = null, stabsAsked = false, selects = 0;
 
   function later(ms, fn) {
     const id = setTimeout(() => { timers.delete(id); if (!disposed) fn(); }, ms);
@@ -64,6 +82,7 @@ export function createAudio() {
       const nd = noiseBuf.getChannelData(0);
       for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
       wood = createWoodSfx(ctx, gates.pieces, { board: "solid" });
+      loadStabs();
     } catch (e) {
       ctx = null;
     }
@@ -230,6 +249,65 @@ export function createAudio() {
     later(1200, bird);
       }
 
+  /* ---- the pieces: the user's stabs, cut small ---- */
+  function loadStabs() {
+    if (stabsAsked || !ctx) return;
+    stabsAsked = true;
+    fetch(STABS_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+      if (disposed) return;
+      // Each slice's first sound, found in the decoded file itself (so an
+      // encoder's delay at the head can't put the cuts off their attacks).
+      const d = buf.getChannelData(0), sr = buf.sampleRate, at = {};
+      Object.entries(STABS).forEach(([k, [s, len]]) => {
+        let i = Math.max(0, Math.floor((s - 0.05) * sr));
+        const end = Math.min(d.length, Math.floor((s + 0.05) * sr));
+        while (i < end && Math.abs(d[i]) < 1e-3) i++;
+        at[k] = [Math.max(0, i / sr - 0.001), len];
+      });
+      stabs = { buf, at };
+    }).catch(() => { /* the wooden knocks stay */ });
+  }
+  // One slice, at t: its speed (and so its pitch), level, place, and how
+  // much of its top is taken off.
+  function stab(name, t, { rate = 1, level = 0.2, pan = 0, tone = 0 } = {}) {
+    const [off, len] = stabs.at[name];
+    const s = ctx.createBufferSource(); s.buffer = stabs.buf; s.playbackRate.value = rate;
+    const g = ctx.createGain(); g.gain.value = level;
+    let node = s;
+    if (tone > 0) { const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = tone; node.connect(lp); node = lp; }
+    if (ctx.createStereoPanner && pan) { const p = ctx.createStereoPanner(); p.pan.value = pan; node.connect(p); node = p; }
+    node.connect(g).connect(gates.pieces);
+    s.start(t, off, len + 0.002);
+  }
+  const sfx = {
+    select() { const t = now(); stab(selects++ % 2 ? "noteCs5" : "noteD5", t, { level: 0.2 }); },
+    deselect() { stab("noteC4", now(), { level: 0.16, rate: 0.94 }); },
+    blocked() { const t = now(); stab("noteF3", t, { level: 0.16, rate: 0.8, tone: 1400 }); stab("noteF3", t + 0.11, { level: 0.12, rate: 0.76, tone: 1200 }); },
+    // On its way: bright ticks, a little lower for a heavier piece, at
+    // the picture's own stop-motion beat (an eighth of a second).
+    rollStart(units, durationMs) {
+      const t = now(), dur = Math.max(0.15, (durationMs || 350) / 1000), m = Math.max(1, units || 1);
+      const n = Math.max(2, Math.round(dur / 0.125) + 1);
+      for (let i = 0; i < n; i++) {
+        const tt = t + (i / (n - 1)) * (dur - 0.04);
+        stab(pick(TICKS), tt, { level: (0.06 + 0.012 * Math.log2(m)) * (0.75 + 0.25 * Math.sin(Math.PI * i / (n - 1))), rate: (1.12 - 0.05 * Math.log2(m)) * (0.94 + Math.random() * 0.12), pan: (i % 2 ? 0.18 : -0.18) });
+      }
+    },
+    // Weight in its loudness, the face it lands on in its pitch.
+    landing(units, contact) {
+      const m = Math.max(1, units || 1), size = landingSize(units, contact);
+      if (typeof window !== "undefined" && Array.isArray(window.__EC_TEST_LANDINGS__)) window.__EC_TEST_LANDINGS__.push({ units, contact, size });
+      stab(pick(THUMPS), now(), { level: 0.26 + 0.05 * Math.log2(m), rate: Math.max(0.6, Math.min(1.3, 1.25 / Math.pow(size, 0.22))) });
+    },
+    capture() {
+      const t = now();
+      stab("crash", t, { level: 0.34 });
+      [0.1, 0.21, 0.29].forEach((d, i) => stab(pick(TICKS), t + d, { level: 0.07 / (i + 1), rate: 1.1 + i * 0.08, pan: i % 2 ? 0.25 : -0.25 }));
+    },
+  };
+  // The stabs when they're here, the wooden knocks till then.
+  const piece = (k) => (...args) => (stabs ? sfx[k](...args) : wood[k](...args));
+
   /* ---- the music (the user's recording, when it's here) ---- */
   function startMusic() {
     if (!MUSIC_URL || !ctx || music) return;
@@ -246,7 +324,7 @@ export function createAudio() {
 
   const cue = (fn) => (...args) => { ensureGraph(); if (wood) fn(...args); };
 
-  return {
+  const api = {
     ensureStarted() {
       ensureGraph();
       if (!ctx) return;
@@ -267,12 +345,12 @@ export function createAudio() {
     // The end of a game: the place quietens a little.
     beginFadeOut() { windingDown = true; if (ctx && natureBus) natureBus.gain.setTargetAtTime(0.5, now(), 1.5); },
     resetWindDown() { windingDown = false; if (ctx && natureBus) natureBus.gain.setTargetAtTime(1, now(), 0.8); },
-    playSelect: cue(() => wood.select()),
-    playDeselect: cue(() => wood.deselect()),
-    playBlocked: cue(() => wood.blocked()),
-    playRollStart: cue((units, durationMs) => wood.rollStart(units, durationMs)),
-    playLanding: cue((units, contact) => wood.landing(units, contact)),
-    playCapture: cue(() => wood.capture()),
+    playSelect: cue(piece("select")),
+    playDeselect: cue(piece("deselect")),
+    playBlocked: cue(piece("blocked")),
+    playRollStart: cue(piece("rollStart")),
+    playLanding: cue(piece("landing")),
+    playCapture: cue(piece("capture")),
     // A win: a harp's run, up through the scale's bright notes.
     playWin: cue(() => {
       const t = now();
@@ -294,7 +372,7 @@ export function createAudio() {
     cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
     playDockOpen() {}, playDockClose() {},
     // (Tests: what's running.)
-    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL }; },
+    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, stabs: !!stabs }; },
     dispose() {
       disposed = true;
       timers.forEach((id) => clearTimeout(id)); timers.clear();
@@ -302,4 +380,7 @@ export function createAudio() {
       if (ctx) { try { ctx.close(); } catch (e) { /* already closed */ } }
     },
   };
+  // (Tests: the sound itself, to drive and to listen to.)
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__PARRISH_AUDIO__ = api;
+  return api;
 }

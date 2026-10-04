@@ -6189,3 +6189,21 @@ phone menu until "Start the story over" (which clears it).
   lands on a piece AND that piece's depth is within 2.2% of the board's
   (so only the part touching the board darkens it); 50% at full; the taps'
   rotation reseeded with each painting so the shadow's edge is repainted.
+- Parrish piece sounds = the user's two recordings of instrumental stabs
+  (assets/parrish/src/instrumental-stab-1.mp3, instrumental-stab.mp3;
+  user: "cut them up into very, very small pieces ... I'll guide you
+  afterwards"). tools/parrish_stabs.py picks the cleanest single hits
+  (attack contrast), cuts each from 4 ms before its real attack (a third
+  of its height), fades, normalizes, lays them in one mono file
+  assets/parrish/piece-stabs.mp3 -> dist el-cabeza-parrish-stabs.mp3
+  (build.js parrish files). parrish-audio.js STABS = [start, length]
+  table (finds each slice's first sound in the decoded buffer). Mapping:
+  select = lone note D5/C#5 alternating; deselect = C4 (rate .94);
+  blocked = F3 twice, low-passed; rollStart = ticks at the 1/8 s
+  stop-motion beat across the move (lower for heavier); landing = one of 4
+  bass thumps, rate 1.25/size^0.22 (wood-sfx landingSize), louder with
+  mass; capture = the long crash + 3 small ticks. Wood knocks stand in
+  until the file decodes (and on file://). Test hook: __PARRISH_AUDIO__
+  (with __EC_TEST_HOOKS__). Audition recorded on a bare page bundling
+  only parrish-audio.js (the game page in headless GL is too slow for
+  timing): scratchpad stabs/listen.mjs.
