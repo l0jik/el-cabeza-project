@@ -6147,3 +6147,9 @@ phone menu until "Start the story over" (which clears it).
   PAINT_FPS 8, motionMode() defaults to "stop" (?motion=boil for smooth
   motion with strokes repainted 8/s); the title's paint and the dock
   piece's edge also step 8 times a second.
+- Parrish, to do when it's done (user): BOTH palettes in the theme
+  switcher, as two entries (themes/realities.js WORLDS: ids e.g.
+  "parrish-orinoco" and "parrish-watermark", hrefs
+  el-cabeza-parrish.html?look=orinoco / ?look=watermark), each with its own
+  channel picture (tools/channel_shots.mjs SHOTS + build.js channel ids)
+  and the gate's look (reality-gate.js LOOKS for both ids).
