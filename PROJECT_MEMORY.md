@@ -6183,3 +6183,9 @@ phone menu until "Start the story over" (which clears it).
   the pieces look like they hover; a screen-space offset shadow reads as
   elevation, and the scene already casts real 3D shadows). Next on show:
   a grounding (contact) shadow hugging each piece's base, from depth.
+- Parrish: the soft grounding (contact) shadow is live (user picked "soft"
+  of none/tight/soft). FINISH, board pixels only (alpha 0.5..0.85): 8
+  directions x 3 radii (up to 9 x 1.7 px x uScale), a tap counts where it
+  lands on a piece AND that piece's depth is within 2.2% of the board's
+  (so only the part touching the board darkens it); 50% at full; the taps'
+  rotation reseeded with each painting so the shadow's edge is repainted.

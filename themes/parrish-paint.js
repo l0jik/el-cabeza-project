@@ -33,7 +33,8 @@
         the colour changes (much less strictly in the world). The pieces
         sit on top (user), painted as their own layer: the oil and the
         strokes keep to their own side of a piece's edge, that edge cut
-        anew by hand with each painting.
+        anew by hand with each painting, and a soft shadow where each
+        rests on the board (where a piece meets the board's depth).
      4. The finish multiplied over (the line, the canvas's weave, a pale
         varnish), and the glow added (the lights spreading, the mist).
 
@@ -444,6 +445,10 @@ uniform float uSeed;
 uniform float uScale;
 uniform float uLine;
 uniform vec3 uVig;
+uniform sampler2D tScene;
+uniform float uContact;   // how dark the contact shadow gets
+uniform float uReach;     // how far round the base it spreads
+uniform float uHug;       // how close to the board a piece's part must be to darken it
 void main() {
   vec2 px = vUv * uRes;
   vec2 t = dirAt(texture2D(tFlow, vUv));
@@ -453,6 +458,29 @@ void main() {
   vec2 wv = px / (2.4 * max(uScale, 0.6));
   float weave = sin(wv.x * 3.14159) * sin(wv.y * 3.14159) * 0.5 + 0.5;
   k *= 1.0 - (weave * 0.5 + vnoise(wv * 0.9) * 0.5) * 0.03;
+  // Where each piece rests: the board darkens right round its base (only
+  // where a piece's own surface is at the board's depth, so the shadow
+  // hugs the contact and turns with the camera), the taps turned a little
+  // with each painting so its edge is repainted too.
+  float here = texture2D(tScene, vUv).a;
+  if (uHasDepth > 0.5 && uContact > 0.0 && here > 0.5 && here < 0.85) {
+    float dc = 1.0 / max(invZ(vUv), 1e-5);
+    float occ = 0.0;
+    float rot = hash12(vec2(uSeed, 3.7)) * 6.2832;
+    for (int i = 0; i < 8; i++) {
+      float a = rot + float(i) * 0.7854;
+      vec2 dir = vec2(cos(a), sin(a));
+      for (int j = 1; j <= 3; j++) {
+        float rr = float(j) / 3.0;
+        vec2 o = dir * rr * uReach * 9.0 * uScale / uRes;
+        float pc = pieceOf(texture2D(tScene, vUv + o).a);
+        float dn = 1.0 / max(invZ(vUv + o), 1e-5);
+        float near = 1.0 - smoothstep(uHug * 0.35, uHug, abs(dn - dc) / dc);
+        occ += pc * near * (1.15 - rr * 0.6);
+      }
+    }
+    k *= 1.0 - uContact * smoothstep(0.0, 1.0, occ / 8.0);
+  }
   // The edges darken toward crimson-umber, as the "Watermark" cover's.
   float v = length(vUv - 0.5);
   k *= mix(vec3(1.0), uVig, smoothstep(0.38, 0.76, v) * 0.7);
@@ -552,7 +580,7 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
   const canvasMat = mat(CANVAS_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 } });
   const baseMat = mat(BASE_FRAG, { tOil: { value: oilRT.texture } });
   const rawMat = mat(BASE_FRAG, { tOil: { value: null } });
-  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 }, uVig: { value: v3(L.vignette) } }, {
+  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 }, uVig: { value: v3(L.vignette) }, tScene: { value: sceneRT.texture }, uContact: { value: 0.5 }, uReach: { value: 1.7 }, uHug: { value: 0.022 } }, {
     transparent: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
     blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
   });
