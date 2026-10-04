@@ -457,10 +457,10 @@ void main() {
   // Each piece a layer laid on top: a thin soft shadow of it on what's
   // under it, down and to the right (the light's at the upper left).
   vec2 sh = vec2(-3.0, 4.0) * uScale / uRes, sp = 2.0 * uScale / uRes;
-  float cast = pieceOf(texture2D(tScene, vUv + sh).a) * 0.4
+  float shade = pieceOf(texture2D(tScene, vUv + sh).a) * 0.4
     + (pieceOf(texture2D(tScene, vUv + sh + vec2(sp.x, 0.0)).a) + pieceOf(texture2D(tScene, vUv + sh - vec2(sp.x, 0.0)).a)
     + pieceOf(texture2D(tScene, vUv + sh + vec2(0.0, sp.y)).a) + pieceOf(texture2D(tScene, vUv + sh - vec2(0.0, sp.y)).a)) * 0.15;
-  k *= 1.0 - 0.14 * cast * (1.0 - pieceOf(texture2D(tScene, vUv).a));
+  k *= 1.0 - 0.14 * shade * (1.0 - pieceOf(texture2D(tScene, vUv).a));
   // The edges darken toward crimson-umber, as the "Watermark" cover's.
   float v = length(vUv - 0.5);
   k *= mix(vec3(1.0), uVig, smoothstep(0.38, 0.76, v) * 0.7);

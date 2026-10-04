@@ -6173,3 +6173,9 @@ phone menu until "Start the story over" (which clears it).
   the definition step doubled (raw +12%, ramp pull -50%); lines: uLine
   0.53 with board x0.62 (~0.33, as before), dark pieces x0.83 (0.44, as
   before), light pieces x1 (0.53).
+- Parrish bug: "cast" is a reserved word in GLSL ES, so the FINISH shader
+  (shadow, rotoscoped line, canvas weave, vignette) failed to compile
+  from 0a4d7ac until the fix (renamed "shade"). Capture scripts now log
+  console errors too; never name a GLSL variable cast/input/output/filter/
+  sample/common/partition/active/... (ES reserved words). Shadow options
+  shown to the user (strength/reach): 0.14/1 (current), 0.24/1.6, 0.34/2.2.
