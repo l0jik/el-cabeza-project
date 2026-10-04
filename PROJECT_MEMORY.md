@@ -6160,3 +6160,16 @@ phone menu until "Start the story over" (which clears it).
   rotoscoped line firmer: uLine 0.35 -> 0.44 with the board's line scaled
   0.75 (so the board's stays ~0.33, the pieces' goes to 0.44). The world
   and the board otherwise unchanged.
+- Parrish: the pieces sit on top (user: "perhaps the pieces need to sit on
+  top ... but still it has to have that stop motion look"), and the light
+  pieces nudged once more. The pieces are painted as their own layer over
+  the board: OIL's Kuwahara takes each sample only from its own side of a
+  piece's edge (pieceOf(alpha) match, so piece and board colours never
+  mix); every stroke (all layers) reads whether its centre is on a piece
+  (vPiece, from tScene) and is cut where a pixel's side differs, the test
+  point jittered ~3 px by noise seeded per painting, so the edge is cut
+  anew 8 times a second (the rotoscope boil); FINISH lays a thin soft
+  shadow of the pieces down-right (14%). Light pieces (luma 0.45..0.65+):
+  the definition step doubled (raw +12%, ramp pull -50%); lines: uLine
+  0.53 with board x0.62 (~0.33, as before), dark pieces x0.83 (0.44, as
+  before), light pieces x1 (0.53).

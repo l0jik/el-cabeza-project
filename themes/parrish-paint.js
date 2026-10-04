@@ -30,7 +30,10 @@
         painting, that move"), in their own palette-drawn colours and
         smaller brush strokes that keep to their edges, so the game reads.
         Each stroke coloured from the oil at its middle, cut short where
-        the colour changes (much less strictly in the world).
+        the colour changes (much less strictly in the world). The pieces
+        sit on top (user), painted as their own layer: the oil and the
+        strokes keep to their own side of a piece's edge, that edge cut
+        anew by hand with each painting, a thin soft shadow under it.
      4. The finish multiplied over (the line, the canvas's weave, a pale
         varnish), and the glow added (the lights spreading, the mist).
 
@@ -80,6 +83,8 @@ uniform vec2 uInvZ;      // 1/distance = uInvZ.x - uInvZ.y * depth
 uniform float uHasDepth;
 ${HASH}
 float invZ(vec2 uv) { return max(uInvZ.x - uInvZ.y * texture2D(tDepth, uv).x, 0.0); }
+// The pieces write alpha 1, the board 0.75 (parrish.js).
+float pieceOf(float a) { return smoothstep(0.85, 0.95, a); }
 `;
 
 /* 1. The flow, and how much subject is round each point. */
@@ -164,32 +169,38 @@ void main() {
   // Broad in the world, close in the subject.
   vec2 stepT = t * uTexel * mix(2.4, 1.35, subj);
   vec2 stepN = n * uTexel * mix(2.2, 1.2, subj);
-  vec3 m0 = vec3(0.0), m1 = vec3(0.0), s0 = vec3(0.0), s1 = vec3(0.0);
-  float wsum = 0.0;
+  // The pieces sit on top: painted as their own layer, so the oil never
+  // mixes a piece's colour with the board's (each side of a piece's edge
+  // only takes from its own side).
+  vec4 here = texture2D(tScene, vUv);
+  float piece = pieceOf(here.a);
+  vec3 m0 = here.rgb * 0.05, m1 = m0, s0 = here.rgb * here.rgb * 0.05, s1 = s0;
+  float w0 = 0.05, w1 = 0.05;
   for (int k = -3; k <= 3; k++) {
     float fk = float(k);
     float w = exp(-fk * fk / 8.0);
     vec2 base = vUv + stepT * fk;
     for (int r = 1; r <= 2; r++) {
       vec2 off = stepN * float(r);
-      vec3 a = texture2D(tScene, base + off).rgb;
-      vec3 b = texture2D(tScene, base - off).rgb;
-      m0 += a * w; s0 += a * a * w;
-      m1 += b * w; s1 += b * b * w;
+      vec4 a = texture2D(tScene, base + off);
+      vec4 b = texture2D(tScene, base - off);
+      float wa = w * (1.0 - abs(pieceOf(a.a) - piece)), wb = w * (1.0 - abs(pieceOf(b.a) - piece));
+      m0 += a.rgb * wa; s0 += a.rgb * a.rgb * wa; w0 += wa;
+      m1 += b.rgb * wb; s1 += b.rgb * b.rgb * wb; w1 += wb;
     }
-    wsum += w * 2.0;
   }
-  m0 /= wsum; m1 /= wsum;
-  vec3 v0 = abs(s0 / wsum - m0 * m0), v1 = abs(s1 / wsum - m1 * m1);
-  float q0 = 1.0 / (1.0 + pow(dot(v0, vec3(1.0)) * 900.0, 2.0));
-  float q1 = 1.0 / (1.0 + pow(dot(v1, vec3(1.0)) * 900.0, 2.0));
+  m0 /= w0; m1 /= w1;
+  vec3 v0 = abs(s0 / w0 - m0 * m0), v1 = abs(s1 / w1 - m1 * m1);
+  float q0 = w0 / (1.0 + pow(dot(v0, vec3(1.0)) * 900.0, 2.0));
+  float q1 = w1 / (1.0 + pow(dot(v1, vec3(1.0)) * 900.0, 2.0));
   vec3 c = (m0 * q0 + m1 * q1) / (q0 + q1);
-  vec4 here = texture2D(tScene, vUv);
-  // The pieces (alpha 1; the board writes 0.75) kept a touch more defined
-  // than the board under them: a little more of their own detail, a little
-  // less of the palette's pull, a slightly firmer line.
-  float piece = smoothstep(0.85, 0.95, here.a);
-  c = mix(c, here.rgb, mix(0.1, 0.24, subj) + 0.06 * piece);
+  // The pieces kept a touch more defined than the board under them: a
+  // little more of their own detail, a little less of the palette's pull,
+  // a slightly firmer line; the light pieces (which sit close to the
+  // light squares) twice that.
+  float lightK = smoothstep(0.45, 0.65, luma(here.rgb)), lightP = piece * lightK;
+  float defd = piece + lightP;
+  c = mix(c, here.rgb, mix(0.1, 0.24, subj) + 0.06 * defd);
   // The afterimage: where a piece was a moment ago (and isn't now), what
   // it was, dissolving, as things move in the reference video.
   vec4 echo = texture2D(tEcho, vUv);
@@ -197,14 +208,14 @@ void main() {
   // The board and the pieces are painted in the picture's own palette too:
   // their colours drawn toward the world's, light to its light, dark to
   // its dark (so a light piece stays light and a dark one dark).
-  c = mix(c, ramp(clamp(luma(c) * 0.92 + 0.04, 0.0, 1.0)), mix(0.2, 0.34, subj) * (1.0 - 0.25 * piece));
+  c = mix(c, ramp(clamp(luma(c) * 0.92 + 0.04, 0.0, 1.0)), mix(0.2, 0.34, subj) * (1.0 - 0.25 * defd));
   // The rotoscoped line, round the subject's things only: where the
   // nearness jumps away, on the near side.
   float line = 0.0;
   if (uHasDepth > 0.5) {
     float zc = invZ(vUv);
     float lap = invZ(vUv + vec2(uTexel.x, 0.0)) + invZ(vUv - vec2(uTexel.x, 0.0)) + invZ(vUv + vec2(0.0, uTexel.y)) + invZ(vUv - vec2(0.0, uTexel.y)) - 4.0 * zc;
-    line = smoothstep(0.06, 0.2, -lap / max(zc, 1e-4)) * here.a * mix(0.75, 1.0, piece);
+    line = smoothstep(0.06, 0.2, -lap / max(zc, 1e-4)) * here.a * mix(0.62, mix(0.83, 1.0, lightK), piece);
   }
   gl_FragColor = vec4(grade(c, subj), line);
 }`;
@@ -285,7 +296,9 @@ uniform float uBoil;      // how far it moves with each repainting
 uniform float uBend;      // how far it curves
 uniform float uAngle;     // how far its direction wanders
 uniform float uScale;
+uniform sampler2D tScene;
 attribute vec2 aCell;
+varying float vPiece;
 varying vec2 vLocal;
 varying vec3 vColor;
 varying float vRnd;
@@ -315,6 +328,7 @@ void main() {
   vec2 uv = c / uRes;
   vec4 f = texture2D(tFlow, uv);
   float subj = f.z, strength = f.w;
+  vPiece = smoothstep(0.85, 0.95, texture2D(tScene, uv).a);
   float laid = step(uDetail.x, subj) * step(subj, uDetail.y) * step(uKeep.x, strength) * step(rs2.x, uKeep.z);
   vec2 t = dirAt(f);
   vec2 diag = vec2(0.8, 0.6);
@@ -357,6 +371,10 @@ uniform vec2 uRes;
 uniform float uKnife;
 uniform float uClip;
 uniform float uAlpha;
+uniform float uSeed;
+uniform float uScale;
+uniform sampler2D tScene;
+varying float vPiece;
 varying vec2 vLocal;
 varying vec3 vColor;
 varying float vRnd;
@@ -404,6 +422,11 @@ void main() {
     col *= 0.8 + 0.5 * g;
     a *= smoothstep(0.25, 0.5, vnoise(gl_FragCoord.xy / 9.0 + vRnd));
   }
+  // The pieces sit on top: a stroke stays on its own side of a piece's
+  // edge, and that edge is cut anew, a little differently, with each
+  // painting (the rotoscoped line's boil).
+  vec2 ep = gl_FragCoord.xy + (vec2(vnoise(gl_FragCoord.xy / 9.0 + uSeed * 7.31), vnoise(gl_FragCoord.xy / 9.0 + uSeed * 3.17 + 41.0)) - 0.5) * 3.0 * uScale;
+  a *= 1.0 - abs(vPiece - smoothstep(0.85, 0.95, texture2D(tScene, ep / uRes).a));
   // The world's strokes stop short of the subject.
   if (uClip > 0.5) a *= 1.0 - smoothstep(0.45, 0.85, texture2D(tFlow, gl_FragCoord.xy / uRes).z);
   a *= uAlpha;
@@ -421,6 +444,7 @@ uniform float uSeed;
 uniform float uScale;
 uniform float uLine;
 uniform vec3 uVig;
+uniform sampler2D tScene;
 void main() {
   vec2 px = vUv * uRes;
   vec2 t = dirAt(texture2D(tFlow, vUv));
@@ -430,6 +454,13 @@ void main() {
   vec2 wv = px / (2.4 * max(uScale, 0.6));
   float weave = sin(wv.x * 3.14159) * sin(wv.y * 3.14159) * 0.5 + 0.5;
   k *= 1.0 - (weave * 0.5 + vnoise(wv * 0.9) * 0.5) * 0.03;
+  // Each piece a layer laid on top: a thin soft shadow of it on what's
+  // under it, down and to the right (the light's at the upper left).
+  vec2 sh = vec2(-3.0, 4.0) * uScale / uRes, sp = 2.0 * uScale / uRes;
+  float cast = pieceOf(texture2D(tScene, vUv + sh).a) * 0.4
+    + (pieceOf(texture2D(tScene, vUv + sh + vec2(sp.x, 0.0)).a) + pieceOf(texture2D(tScene, vUv + sh - vec2(sp.x, 0.0)).a)
+    + pieceOf(texture2D(tScene, vUv + sh + vec2(0.0, sp.y)).a) + pieceOf(texture2D(tScene, vUv + sh - vec2(0.0, sp.y)).a)) * 0.15;
+  k *= 1.0 - 0.14 * cast * (1.0 - pieceOf(texture2D(tScene, vUv).a));
   // The edges darken toward crimson-umber, as the "Watermark" cover's.
   float v = length(vUv - 0.5);
   k *= mix(vec3(1.0), uVig, smoothstep(0.38, 0.76, v) * 0.7);
@@ -526,10 +557,10 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
     uLift: { value: v3(L.lift) }, uGamma: { value: L.gamma },
     ...Object.fromEntries((L.field || [[0, 0, 0], [0.2, 0.2, 0.2], [0.4, 0.4, 0.4], [0.6, 0.6, 0.6], [0.8, 0.8, 0.8], [1, 1, 1]]).map((c, i) => [`uF${i}`, { value: v3(c) }])), tEcho: { value: echoA.texture }, uEchoK: { value: 0.92 } });
   const echoMat = mat(ECHO_FRAG, { tPrev: { value: echoA.texture }, tScene: { value: sceneRT.texture }, uTexel: { value: new THREE.Vector2() }, uDecay: { value: 0.9 } });
-  const canvasMat = mat(CANVAS_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.44 } });
+  const canvasMat = mat(CANVAS_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 } });
   const baseMat = mat(BASE_FRAG, { tOil: { value: oilRT.texture } });
   const rawMat = mat(BASE_FRAG, { tOil: { value: null } });
-  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.44 }, uVig: { value: v3(L.vignette) } }, {
+  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 }, uVig: { value: v3(L.vignette) }, tScene: { value: sceneRT.texture } }, {
     transparent: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
     blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
   });
@@ -549,7 +580,7 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
       blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
       blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
       uniforms: {
-        tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uLayer: { value: def.layer },
+        tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, tScene: { value: sceneRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uLayer: { value: def.layer },
         uSpacing: { value: def.spacing }, uSize: { value: new THREE.Vector2(def.size[0], def.size[1]) }, uDetail: { value: new THREE.Vector2(def.detail[0], def.detail[1]) },
         uKeep: { value: new THREE.Vector3(...def.keep) }, uTol: { value: def.tol }, uJitter: { value: def.jitter }, uDiag: { value: def.diag },
         uAccent: { value: def.accent }, uBoil: { value: reduced ? 0 : def.boil }, uKnife: { value: def.knife }, uClip: { value: def.clip }, uAlpha: { value: def.alpha }, uBend: { value: def.bend }, uAngle: { value: def.angle }, uScale: scaleU,
