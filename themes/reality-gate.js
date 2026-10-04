@@ -95,6 +95,11 @@ const LOOKS = {
     line: "rgba(233,234,236,0.2)", lineW: "1px", radius: "3px", display: "'Michroma', 'Barlow', sans-serif", displayWeight: 400, body: "'Barlow', system-ui, sans-serif",
     shadow: "0 24px 60px rgba(0,0,0,0.6)", glow: "none", case: "uppercase", track: "0.16em", cellA: "#3A3C41", cellB: "#25262A",
   },
+  parrish: {
+    backdrop: "rgba(8,14,38,0.55)", surface: "#F6ECD6", ink: "#1D2C5E", muted: "#5A6A9A", accent: "#1D2C5E", accentInk: "#F2D293",
+    line: "rgba(201,150,59,0.7)", lineW: "1px", radius: "2px", display: "'Cinzel', Georgia, serif", displayWeight: 700, body: "'Cormorant Garamond', Georgia, serif",
+    shadow: "0 24px 60px rgba(8,14,38,0.55)", glow: "none", case: "uppercase", track: "0.08em", cellA: "#E8B75A", cellB: "#2348A8",
+  },
   lab: {
     backdrop: "rgba(0,0,0,0.45)", surface: "var(--surface, #fff)", ink: "var(--panel-ink, #111)", muted: "var(--text-secondary, #555)",
     accent: "var(--accent-primary, #e63946)", accentInk: "var(--surface, #fff)", line: "var(--border-color, #111)", lineW: "var(--border-width, 1px)",

@@ -60,6 +60,7 @@ const targets = [
   { name: "neon", entry: "apps/neon.jsx", title: "Neon Cabeza", files: SPHERE_FILES },
   { name: "cromo", entry: "apps/cromo.jsx", title: "Cromo Cabeza" },
   { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza" },
+  { name: "parrish", entry: "apps/parrish.jsx", title: "Parrish Cabeza", head: '<meta name="theme-color" content="#0E1A3D">' },
   { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: DEN_RECORDS },
   // Tienda's page can draw under a phone's
   // notch and home bar (the theme keeps its controls clear of them).

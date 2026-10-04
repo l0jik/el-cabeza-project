@@ -6021,3 +6021,44 @@ phone menu until "Start the story over" (which clears it).
   (PRINT_BURSTS); the tear one rip only (the second swipe, "drawn away",
   sounded like a second rip: gone), its slice 1.10..1.80 s, peak 0.37 s
   in (TEAR_PEAK). The tear now ~5.2 s from the ring (was 5.6).
+- Parrish (new theme, work in progress; user: a painterly technique where
+  live-action footage of the pieces and board, nature, and imagery after
+  Maxfield Parrish was edited and animated through rotoscoping and
+  stop-motion to mimic oil paintings in motion; the user's reference is
+  hand-painted rotoscoped film. Their YouTube link (share.google) was
+  blocked here, so I haven't seen it. User's picks: name "Parrish", a
+  terrace at golden hour, samples of both motions to review, and their
+  own recording later for the music). Page el-cabeza-parrish.html
+  (apps/parrish.jsx), NOT yet in the switcher (themes/realities.js
+  WORLDS) until it's reviewed and has its channel picture; the gate's
+  look is in (reality-gate.js LOOKS.parrish).
+    - themes/parrish.js: ivory print stock and Parrish-blue ink, Cinzel
+      title in gold, Cormorant Garamond captions; the store's wood set
+      (wood-set.js) reflecting parrishEnv; lights golden key, blue sky.
+    - themes/parrish-scene.js: a rectangular court: the board on a marble
+      plinth in a long reflecting pool (planar reflection), colonnades
+      down both long sides (each bay fades when it'd stand between the
+      camera and the board), balustrade at the open ends, urns, cypresses
+      and oaks below the edge, the sky dome with its painted horizon
+      DROP = 0.27 rad below eye level (so the sky shows above the
+      balustrade from a player's seat). Lights follow the board's yaw.
+      Pixel ratio capped by tier (1 / 1.25 / 1.5) and governed by frame
+      time. ?paint=raw shows the footage unpainted.
+    - themes/parrish-paint.js: scene to a texture with depth; FLOW
+      (structure tensor; detail from depth: fine near the board), OIL
+      (Kuwahara along the flow, palette grade; the rotoscoped line where
+      1/depth jumps), then the canvas: instanced brushstrokes in three
+      layers (oriented, coloured from the oil, cut short at colour
+      edges, bristles, dry tail, ridge lit from the upper left) over the
+      oil as underpainting, then outline/weave/varnish multiplied over.
+      Per-pixel dabs are the fallback without vertex textures. (Lessons:
+      dFdx of a noisy height gave 2x2 stipple; bristle noise finer than
+      a pixel aliased; a solid block under the court covered the pool.)
+      ?motion=boil (strokes re-laid 12/s over smooth motion, default) or
+      stop (a new painting 12/s, held between).
+    - themes/parrish-audio.js: breeze, leaves, the pool, birds, crickets;
+      wood-sfx on a solid board; MUSIC_URL null until the user's track.
+    - Still to do: the pool still too electric blue (soften the grade's
+      shadow tint on saturated colours, darker water); look at the
+      in-game and top views; sample clips of both motions (virtual-time
+      capture, frames to mp4); channel picture + WORLDS entry; tests.
