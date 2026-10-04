@@ -6131,3 +6131,13 @@ phone menu until "Start the story over" (which clears it).
   watermark: a faint warm one and a dark shadow). Sized in em (4.6em wide)
   so it follows the chassis's masthead phases. titleFontFamily back to
   Cinzel (headings only); the candidate script fonts are gone.
+- Parrish: the board and pieces are painted too (user: they "don't need
+  to stay clean like Enya... they are a part of the painting, that move").
+  OIL: the subject's Kuwahara steps 1.35/1.2 texels (were 0.85/0.8), only
+  24% of the raw colour kept (was 62%), its lift 75% of the world's, and
+  all colour drawn toward the look's own field ramp by brightness (subject
+  34%, world 20%; light stays light, dark dark), after the afterimage is
+  mixed in. Strokes: two subject layers (36x12 and 17x6 brushes, jitter
+  0.13/0.09, a few accents, tolerances 0.22/0.15 so edges hold); the
+  world's knives ease off over the board (clip 0.45..0.85) rather than
+  stopping hard.

@@ -2,7 +2,7 @@
    feeling and style of the references, Enya's "Orinoco Flow" video and
    the "Watermark" cover, not their things).
 
-   The board and its pieces are the subject, kept clean; round them,
+   The board and its pieces (painted as the rest is); round them,
    above and below, nothing but colour: wide, slow, drifting fields in one
    of the two palettes (themes/parrish-looks.js), leaning on the
    diagonal, with patches of a second and third colour moving through

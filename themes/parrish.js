@@ -10,22 +10,22 @@
    airy, misty) and her "Watermark" cover (crimson leaves, weathered
    plaster, the name in a fine lowercase hand, a darker edge).
 
-   So the board and its pieces are the subject, kept clean, on a pillar of
-   weathered plaster rising out of the sea, flowers at its corners, white
-   butterflies and crimson leaves about it; round it the sea breaking on
-   dark rocks, a soft sky with the moon, an old ship under sail
-   (themes/parrish-scene.js). Every frame is repainted
-   (themes/parrish-paint.js): the world in big palette-knife sweeps with
-   accents of cream, sage, mauve, cobalt, rose, crimson and gold leaf, the
-   subject in small careful strokes, all of it pastel and glowing, the
-   edges darkening toward crimson-umber. Two ways of moving
+   Here (user: no theme, zero theme; the board and pieces "are a part of
+   the painting, that move"): the board and its pieces float in a world of
+   pure abstract paint (themes/parrish-scene.js), in one of two palettes,
+   Orinoco's airy blues and creams or Watermark's wine, crimson and ruddy
+   browns (themes/parrish-looks.js, ?look=), and every frame of all of it
+   is repainted (themes/parrish-paint.js): the world in big palette-knife
+   sweeps with accents, the board and pieces in smaller strokes in the
+   palette's own colours, and a moving piece leaves a dissolving, painted
+   afterimage, as things move in the video. Two ways of moving
    (?motion=boil|stop): the strokes shift and are repainted twelve times a
    second over smooth motion, or the whole picture is stop-motion, a new
    painting twelve times a second.
 
    The menus: ivory print stock and deep blue ink, Cinzel for headings,
-   Cormorant Garamond for the rest, the title in Italianno, lowercase. The
-   sound is the sea's own (themes/parrish-audio.js), with a place for the
+   Cormorant Garamond for the rest; the masthead is the user's own
+   lettering of "el cabeza", painted into the picture. The sound is the sea's own (themes/parrish-audio.js), with a place for the
    user's recording. */
 
 import { quality } from "./tienda-quality.js";

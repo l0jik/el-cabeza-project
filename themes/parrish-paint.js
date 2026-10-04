@@ -1,8 +1,7 @@
 /* Parrish's paint: the frame, repainted.
 
    After the user's reference (Enya's "Orinoco Flow" video, 1988): the
-   subject clean and photographic, the world round it laid in loose,
-   expressive paint (wide palette-knife and brush sweeps, mostly on the
+   whole picture laid in loose, expressive paint (wide palette-knife and brush sweeps, mostly on the
    diagonal, flecks of gold leaf), the whole picture high-key, airy and
    misty: creams, sky blues, turquoise, sage, touches of rose and mauve.
    With the user's brief: hand-painted rotoscoping, so the paint moves with
@@ -26,8 +25,10 @@
         the world in big strokes (palette-knife sweeps, flat and
         square-ended, scraped thin and ridged at their edges, leaning to
         the diagonal, a few in an accent colour: cream, lemon, sage,
-        mauve, cobalt, rose, gold leaf), which stop short of the subject;
-        the subject in small careful strokes that keep to its edges.
+        mauve, cobalt, rose, gold leaf), easing off over the board; the
+        board and the pieces painted too (user: "they are a part of the
+        painting, that move"), in their own palette-drawn colours and
+        smaller brush strokes that keep to their edges, so the game reads.
         Each stroke coloured from the oil at its middle, cut short where
         the colour changes (much less strictly in the world).
      4. The finish multiplied over (the line, the canvas's weave, a pale
@@ -129,6 +130,15 @@ uniform vec3 uLift;
 uniform float uGamma;
 uniform sampler2D tEcho;
 uniform float uEchoK;
+uniform vec3 uF0, uF1, uF2, uF3, uF4, uF5;
+vec3 ramp(float x) {
+  x = clamp(x, 0.0, 1.0) * 5.0;
+  if (x < 1.0) return mix(uF0, uF1, x);
+  if (x < 2.0) return mix(uF1, uF2, x - 1.0);
+  if (x < 3.0) return mix(uF2, uF3, x - 2.0);
+  if (x < 4.0) return mix(uF3, uF4, x - 3.0);
+  return mix(uF4, uF5, x - 4.0);
+}
 /* High-key and milky, as the reference: the darks lifted toward a soft
    blue-grey (the subject's less, so the wood keeps its depth), the dull
    colours given a little more colour, cream in the lights. */
@@ -137,7 +147,7 @@ vec3 grade(vec3 c, float subj) {
   float sat = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
   c = mix(vec3(l), c, 1.0 + 0.25 * (1.0 - smoothstep(0.1, 0.5, sat)));
   c = pow(clamp(c, 0.0, 1.0), vec3(mix(uGamma, 0.95, subj)));
-  vec3 lift = mix(uLift, uLift * 0.4, subj);
+  vec3 lift = mix(uLift, uLift * 0.75, subj);
   c = lift + (1.0 - lift) * c;
   c = mix(c, c * vec3(1.03, 1.0, 0.93), smoothstep(0.65, 1.0, l));
   return clamp(c, 0.0, 1.0);
@@ -150,8 +160,8 @@ void main() {
   t = vec2(t.x * cos(wob) - t.y * sin(wob), t.x * sin(wob) + t.y * cos(wob));
   vec2 n = vec2(-t.y, t.x);
   // Broad in the world, close in the subject.
-  vec2 stepT = t * uTexel * mix(2.4, 0.85, subj);
-  vec2 stepN = n * uTexel * mix(2.2, 0.8, subj);
+  vec2 stepT = t * uTexel * mix(2.4, 1.35, subj);
+  vec2 stepN = n * uTexel * mix(2.2, 1.2, subj);
   vec3 m0 = vec3(0.0), m1 = vec3(0.0), s0 = vec3(0.0), s1 = vec3(0.0);
   float wsum = 0.0;
   for (int k = -3; k <= 3; k++) {
@@ -173,11 +183,15 @@ void main() {
   float q1 = 1.0 / (1.0 + pow(dot(v1, vec3(1.0)) * 900.0, 2.0));
   vec3 c = (m0 * q0 + m1 * q1) / (q0 + q1);
   vec4 here = texture2D(tScene, vUv);
-  c = mix(c, here.rgb, mix(0.1, 0.62, subj));
+  c = mix(c, here.rgb, mix(0.1, 0.24, subj));
   // The afterimage: where a piece was a moment ago (and isn't now), what
   // it was, dissolving, as things move in the reference video.
   vec4 echo = texture2D(tEcho, vUv);
   c = mix(c, echo.rgb, echo.a * (1.0 - smoothstep(0.85, 0.95, here.a)) * uEchoK);
+  // The board and the pieces are painted in the picture's own palette too:
+  // their colours drawn toward the world's, light to its light, dark to
+  // its dark (so a light piece stays light and a dark one dark).
+  c = mix(c, ramp(clamp(luma(c) * 0.92 + 0.04, 0.0, 1.0)), mix(0.2, 0.34, subj));
   // The rotoscoped line, round the subject's things only: where the
   // nearness jumps away, on the near side.
   float line = 0.0;
@@ -385,7 +399,7 @@ void main() {
     a *= smoothstep(0.25, 0.5, vnoise(gl_FragCoord.xy / 9.0 + vRnd));
   }
   // The world's strokes stop short of the subject.
-  if (uClip > 0.5) a *= 1.0 - smoothstep(0.3, 0.55, texture2D(tFlow, gl_FragCoord.xy / uRes).z);
+  if (uClip > 0.5) a *= 1.0 - smoothstep(0.45, 0.85, texture2D(tFlow, gl_FragCoord.xy / uRes).z);
   a *= uAlpha;
   gl_FragColor = vec4(col * a, a);
 }`;
@@ -454,7 +468,10 @@ const LAYERS = [
   { layer: 1, spacing: 52, size: [240, 72], detail: [-1, 0.5], keep: [-1, 0, 1], tol: 0.6, jitter: 0.2, diag: 0.6, accent: 0.18, boil: 0.08, knife: 1, clip: 1, alpha: 0.82, bend: 0.35, angle: 0.9 },
   { layer: 2, spacing: 30, size: [110, 34], detail: [-1, 0.5], keep: [-1, 0, 0.85], tol: 0.45, jitter: 0.16, diag: 0.45, accent: 0.12, boil: 0.12, knife: 1, clip: 1, alpha: 0.82, bend: 0.35, angle: 0.9 },
   { layer: 3, spacing: 26, size: [64, 16], detail: [-1, 0.55], keep: [0.35, 0, 0.45], tol: 0.3, jitter: 0.1, diag: 0.3, accent: 0.05, boil: 0.2, knife: 0, clip: 1, alpha: 0.85, bend: 0.25, angle: 0.5 },
-  { layer: 4, spacing: 8, size: [22, 8], detail: [0.45, 2], keep: [-1, 0, 1], tol: 0.12, jitter: 0.03, diag: 0, accent: 0, boil: 0.3, knife: 0, clip: 0, alpha: 0.5, bend: 0.1, angle: 0.3 },
+  // The board and the pieces, painted as the rest is, in brush strokes
+  // that keep to their edges (so the game still reads).
+  { layer: 4, spacing: 10, size: [36, 12], detail: [0.4, 2], keep: [-1, 0, 1], tol: 0.22, jitter: 0.13, diag: 0.12, accent: 0.06, boil: 0.3, knife: 0, clip: 0, alpha: 0.92, bend: 0.25, angle: 0.45 },
+  { layer: 5, spacing: 6, size: [17, 6], detail: [0.4, 2], keep: [0.12, 0, 0.9], tol: 0.15, jitter: 0.09, diag: 0, accent: 0.03, boil: 0.35, knife: 0, clip: 0, alpha: 0.9, bend: 0.15, angle: 0.35 },
 ];
 
 /* The painter for one renderer. paint(r, scene, camera, beforeScene)
@@ -500,7 +517,8 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
   const res = new THREE.Vector2(), scaleU = { value: 1 }, glowStep = new THREE.Vector2();
   const flowMat = mat(FLOW_FRAG, { tScene: { value: sceneRT.texture }, uTexel: { value: new THREE.Vector2() }, uSeed: { value: 0 } });
   const oilMat = mat(OIL_FRAG, { tScene: { value: sceneRT.texture }, tFlow: { value: flowRT.texture }, uTexel: { value: new THREE.Vector2() }, uSeed: { value: 0 },
-    uLift: { value: v3(L.lift) }, uGamma: { value: L.gamma }, tEcho: { value: echoA.texture }, uEchoK: { value: 0.92 } });
+    uLift: { value: v3(L.lift) }, uGamma: { value: L.gamma },
+    ...Object.fromEntries((L.field || [[0, 0, 0], [0.2, 0.2, 0.2], [0.4, 0.4, 0.4], [0.6, 0.6, 0.6], [0.8, 0.8, 0.8], [1, 1, 1]]).map((c, i) => [`uF${i}`, { value: v3(c) }])), tEcho: { value: echoA.texture }, uEchoK: { value: 0.92 } });
   const echoMat = mat(ECHO_FRAG, { tPrev: { value: echoA.texture }, tScene: { value: sceneRT.texture }, uTexel: { value: new THREE.Vector2() }, uDecay: { value: 0.9 } });
   const canvasMat = mat(CANVAS_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.35 } });
   const baseMat = mat(BASE_FRAG, { tOil: { value: oilRT.texture } });
