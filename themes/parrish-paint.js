@@ -125,6 +125,10 @@ uniform sampler2D tScene;
 uniform sampler2D tFlow;
 uniform vec2 uTexel;
 uniform float uSeed;
+uniform vec3 uLift;
+uniform float uGamma;
+uniform sampler2D tEcho;
+uniform float uEchoK;
 /* High-key and milky, as the reference: the darks lifted toward a soft
    blue-grey (the subject's less, so the wood keeps its depth), the dull
    colours given a little more colour, cream in the lights. */
@@ -132,8 +136,8 @@ vec3 grade(vec3 c, float subj) {
   float l = luma(c);
   float sat = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
   c = mix(vec3(l), c, 1.0 + 0.25 * (1.0 - smoothstep(0.1, 0.5, sat)));
-  c = pow(clamp(c, 0.0, 1.0), vec3(mix(0.86, 0.95, subj)));
-  vec3 lift = mix(vec3(0.15, 0.19, 0.27), vec3(0.06, 0.06, 0.08), subj);
+  c = pow(clamp(c, 0.0, 1.0), vec3(mix(uGamma, 0.95, subj)));
+  vec3 lift = mix(uLift, uLift * 0.4, subj);
   c = lift + (1.0 - lift) * c;
   c = mix(c, c * vec3(1.03, 1.0, 0.93), smoothstep(0.65, 1.0, l));
   return clamp(c, 0.0, 1.0);
@@ -170,6 +174,10 @@ void main() {
   vec3 c = (m0 * q0 + m1 * q1) / (q0 + q1);
   vec4 here = texture2D(tScene, vUv);
   c = mix(c, here.rgb, mix(0.1, 0.62, subj));
+  // The afterimage: where a piece was a moment ago (and isn't now), what
+  // it was, dissolving, as things move in the reference video.
+  vec4 echo = texture2D(tEcho, vUv);
+  c = mix(c, echo.rgb, echo.a * (1.0 - smoothstep(0.85, 0.95, here.a)) * uEchoK);
   // The rotoscoped line, round the subject's things only: where the
   // nearness jumps away, on the near side.
   float line = 0.0;
@@ -267,16 +275,16 @@ varying float vWid;
 varying float vGold;
 ${HASH}
 float off(vec2 p, vec3 c0, float tol) { return step(tol, distance(texture2D(tOil, p / uRes).rgb, c0)); }
+uniform vec3 uA0, uA1, uA2, uA3, uA4, uA5, uA6, uA7;   // the look's accents, the last gold leaf
 vec3 accent(float k) {
-  if (k < 0.12) return vec3(0.96, 0.93, 0.84);   // cream
-  if (k < 0.2) return vec3(0.97, 0.91, 0.62);    // lemon
-  if (k < 0.32) return vec3(0.6, 0.75, 0.6);     // sage
-  if (k < 0.42) return vec3(0.42, 0.58, 0.56);   // patina
-  if (k < 0.52) return vec3(0.66, 0.52, 0.62);   // mauve
-  if (k < 0.64) return vec3(0.24, 0.42, 0.76);   // cobalt
-  if (k < 0.74) return vec3(0.9, 0.58, 0.56);    // rose
-  if (k < 0.86) return vec3(0.56, 0.1, 0.14);    // crimson
-  return vec3(0.86, 0.7, 0.38);                  // gold leaf
+  if (k < 0.125) return uA0;
+  if (k < 0.25) return uA1;
+  if (k < 0.375) return uA2;
+  if (k < 0.5) return uA3;
+  if (k < 0.625) return uA4;
+  if (k < 0.75) return uA5;
+  if (k < 0.875) return uA6;
+  return uA7;
 }
 void main() {
   vec2 rs = hash22(aCell + vec2(uLayer * 17.31, 3.7));
@@ -315,7 +323,7 @@ void main() {
   if (rs2.y * 0.37 + rs3.x * 0.63 < uAccent) {
     float which = fract(rs.x * 7.13 + rs3.y * 3.1);
     col = mix(col, accent(which), 0.62);
-    vGold = step(0.86, which);
+    vGold = step(0.875, which);
   }
   vColor = col;
   vRnd = rs.x * 37.0 + rs2.y * 11.0;
@@ -392,6 +400,7 @@ uniform vec2 uRes;
 uniform float uSeed;
 uniform float uScale;
 uniform float uLine;
+uniform vec3 uVig;
 void main() {
   vec2 px = vUv * uRes;
   vec2 t = dirAt(texture2D(tFlow, vUv));
@@ -403,8 +412,23 @@ void main() {
   k *= 1.0 - (weave * 0.5 + vnoise(wv * 0.9) * 0.5) * 0.03;
   // The edges darken toward crimson-umber, as the "Watermark" cover's.
   float v = length(vUv - 0.5);
-  k *= mix(vec3(1.0), vec3(0.5, 0.33, 0.36), smoothstep(0.38, 0.76, v) * 0.7);
+  k *= mix(vec3(1.0), uVig, smoothstep(0.38, 0.76, v) * 0.7);
   gl_FragColor = vec4(k, 1.0);
+}`;
+// The afterimage's memory: the pieces as they are now, and, where they've
+// gone, what they were, fading (and spreading a little, softly).
+const ECHO_FRAG = COMMON + `
+uniform sampler2D tPrev;
+uniform sampler2D tScene;
+uniform vec2 uTexel;
+uniform float uDecay;
+void main() {
+  vec4 p = texture2D(tPrev, vUv) * 0.4;
+  p += (texture2D(tPrev, vUv + vec2(uTexel.x, 0.0)) + texture2D(tPrev, vUv - vec2(uTexel.x, 0.0)) + texture2D(tPrev, vUv + vec2(0.0, uTexel.y)) + texture2D(tPrev, vUv - vec2(0.0, uTexel.y))) * 0.15;
+  vec4 cur = texture2D(tScene, vUv);
+  // The pieces write alpha 1, the board 0.75 (parrish.js): only the pieces leave afterimages.
+  float piece = smoothstep(0.85, 0.95, cur.a);
+  gl_FragColor = vec4(mix(p.rgb, cur.rgb, piece), max(piece, p.a * uDecay));
 }`;
 // The glow: the lights, spread and added back (the reference's mist).
 const BRIGHT_FRAG = COMMON + `
@@ -437,7 +461,9 @@ const LAYERS = [
    draws a frame through the passes (beforeScene(r) runs first, if
    given); in stop mode a frame is only painted when its twelfth of a
    second is due, and the last one held between. */
-export function createPainter(renderer, { quality, mode = motionMode() } = {}) {
+export function createPainter(renderer, { quality, mode = motionMode(), look } = {}) {
+  const L = look || { lift: [0.15, 0.19, 0.27], gamma: 0.86, glow: 0.22, vignette: [0.6, 0.5, 0.58], accents: [[0.96, 0.93, 0.84], [0.97, 0.91, 0.62], [0.6, 0.75, 0.6], [0.66, 0.52, 0.62], [0.24, 0.42, 0.76], [0.9, 0.58, 0.56], [0.42, 0.7, 0.72], [0.86, 0.7, 0.38]] };
+  const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
   const q = quality ? quality() : { tier: "high" };
   // The painting's size, against the drawing buffer's.
   const SCALE = q.tier === "low" ? 0.55 : q.tier === "mid" ? 0.62 : 0.72;
@@ -454,6 +480,7 @@ export function createPainter(renderer, { quality, mode = motionMode() } = {}) {
   const flowRT = new THREE.WebGLRenderTarget(4, 4, opts);
   const oilRT = new THREE.WebGLRenderTarget(4, 4, opts);
   const glowA = new THREE.WebGLRenderTarget(4, 4, opts);
+  let echoA = new THREE.WebGLRenderTarget(4, 4, opts), echoB = new THREE.WebGLRenderTarget(4, 4, opts);
   const glowB = new THREE.WebGLRenderTarget(4, 4, opts);
   // (Without a depth texture, a 1x1 stand-in so the samplers are bound.)
   const noDepth = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
@@ -472,17 +499,19 @@ export function createPainter(renderer, { quality, mode = motionMode() } = {}) {
   });
   const res = new THREE.Vector2(), scaleU = { value: 1 }, glowStep = new THREE.Vector2();
   const flowMat = mat(FLOW_FRAG, { tScene: { value: sceneRT.texture }, uTexel: { value: new THREE.Vector2() }, uSeed: { value: 0 } });
-  const oilMat = mat(OIL_FRAG, { tScene: { value: sceneRT.texture }, tFlow: { value: flowRT.texture }, uTexel: { value: new THREE.Vector2() }, uSeed: { value: 0 } });
+  const oilMat = mat(OIL_FRAG, { tScene: { value: sceneRT.texture }, tFlow: { value: flowRT.texture }, uTexel: { value: new THREE.Vector2() }, uSeed: { value: 0 },
+    uLift: { value: v3(L.lift) }, uGamma: { value: L.gamma }, tEcho: { value: echoA.texture }, uEchoK: { value: 0.92 } });
+  const echoMat = mat(ECHO_FRAG, { tPrev: { value: echoA.texture }, tScene: { value: sceneRT.texture }, uTexel: { value: new THREE.Vector2() }, uDecay: { value: 0.9 } });
   const canvasMat = mat(CANVAS_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.35 } });
   const baseMat = mat(BASE_FRAG, { tOil: { value: oilRT.texture } });
   const rawMat = mat(BASE_FRAG, { tOil: { value: null } });
-  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.35 } }, {
+  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.35 }, uVig: { value: v3(L.vignette) } }, {
     transparent: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
     blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
   });
   const brightMat = mat(BRIGHT_FRAG, { tOil: { value: oilRT.texture } });
   const blurMat = mat(BLUR_FRAG, { tSrc: { value: null }, uStep: { value: glowStep } });
-  const glowMat = mat(GLOW_FRAG, { tSrc: { value: glowA.texture }, uGlow: { value: 0.2 } }, {
+  const glowMat = mat(GLOW_FRAG, { tSrc: { value: glowA.texture }, uGlow: { value: L.glow } }, {
     transparent: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
     blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
   });
@@ -500,6 +529,7 @@ export function createPainter(renderer, { quality, mode = motionMode() } = {}) {
         uSpacing: { value: def.spacing }, uSize: { value: new THREE.Vector2(def.size[0], def.size[1]) }, uDetail: { value: new THREE.Vector2(def.detail[0], def.detail[1]) },
         uKeep: { value: new THREE.Vector3(...def.keep) }, uTol: { value: def.tol }, uJitter: { value: def.jitter }, uDiag: { value: def.diag },
         uAccent: { value: def.accent }, uBoil: { value: reduced ? 0 : def.boil }, uKnife: { value: def.knife }, uClip: { value: def.clip }, uAlpha: { value: def.alpha }, uBend: { value: def.bend }, uAngle: { value: def.angle }, uScale: scaleU,
+        ...Object.fromEntries(L.accents.map((c, k) => [`uA${k}`, { value: v3(c) }])),
       },
     });
     const mesh = new THREE.Mesh(new THREE.InstancedBufferGeometry(), m);
@@ -531,7 +561,7 @@ export function createPainter(renderer, { quality, mode = motionMode() } = {}) {
   }
 
   const size = new THREE.Vector2();
-  let lastFrame = -1, frames = 0, painted = 0, lastW = 0, lastH = 0;
+  let lastFrame = -1, frames = 0, painted = 0, lastW = 0, lastH = 0, lastEcho = 0;
   const stats = { mode, painted: 0, frames: 0, seed: 0, scale: SCALE, size: [0, 0], depth: hasDepth, reduced, strokes, strokeCount: 0 };
 
   function fit(r) {
@@ -545,6 +575,8 @@ export function createPainter(renderer, { quality, mode = motionMode() } = {}) {
     flowRT.setSize(Math.max(2, Math.round(pw * 0.5)), Math.max(2, Math.round(ph * 0.5)));
     const gw = Math.max(2, Math.round(W / 4)), gh = Math.max(2, Math.round(H / 4));
     glowA.setSize(gw, gh); glowB.setSize(gw, gh);
+    echoA.setSize(pw, ph); echoB.setSize(pw, ph);
+    echoMat.uniforms.uTexel.value.set(1 / pw, 1 / ph);
     flowMat.uniforms.uTexel.value.set(1 / pw, 1 / ph);
     oilMat.uniforms.uTexel.value.set(1 / pw, 1 / ph);
     res.set(W, H);
@@ -591,7 +623,15 @@ export function createPainter(renderer, { quality, mode = motionMode() } = {}) {
       layers.forEach((L) => { L.mat.uniforms.uSeed.value = seed; });
       if (raw) { rawMat.uniforms.tOil.value = sceneRT.texture; pass(r, rawMat, null); r.setRenderTarget(prevTarget); r.autoClear = prevAuto; return true; }
       pass(r, flowMat, flowRT);
+      oilMat.uniforms.tEcho.value = echoA.texture;
       pass(r, oilMat, oilRT);
+      // The afterimage remembers this painting (its half-life about six tenths of a second).
+      const nowMs = performance.now();
+      echoMat.uniforms.uDecay.value = lastEcho ? Math.pow(0.5, Math.min(0.5, (nowMs - lastEcho) / 1000) / 0.6) : 0;
+      lastEcho = nowMs;
+      echoMat.uniforms.tPrev.value = echoA.texture;
+      pass(r, echoMat, echoB);
+      const sw = echoA; echoA = echoB; echoB = sw;
       // The glow, spread at a quarter size.
       pass(r, brightMat, glowA);
       blurMat.uniforms.tSrc.value = glowA.texture; glowStep.set(1 / glowA.width, 0); pass(r, blurMat, glowB);
@@ -616,10 +656,10 @@ export function createPainter(renderer, { quality, mode = motionMode() } = {}) {
     // (For tests: is the GPU path WebGL2.)
     isGL2,
     dispose() {
-      [sceneRT, flowRT, oilRT, glowA, glowB].forEach((t) => t.dispose());
+      [sceneRT, flowRT, oilRT, glowA, glowB, echoA, echoB].forEach((t) => t.dispose());
       if (sceneRT.depthTexture) sceneRT.depthTexture.dispose();
       noDepth.dispose();
-      [flowMat, oilMat, canvasMat, baseMat, rawMat, finishMat, brightMat, blurMat, glowMat].forEach((m) => m.dispose());
+      [flowMat, oilMat, echoMat, canvasMat, baseMat, rawMat, finishMat, brightMat, blurMat, glowMat].forEach((m) => m.dispose());
       layers.forEach((L) => { L.mesh.geometry.dispose(); L.mat.dispose(); });
       quad.geometry.dispose();
     },

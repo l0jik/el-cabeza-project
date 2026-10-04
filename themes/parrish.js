@@ -32,6 +32,11 @@ import { quality } from "./tienda-quality.js";
 import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
 import { parrishEnv, createParrishEffects } from "./parrish-scene.js";
 import { MUSIC_URL } from "./parrish-audio.js";
+import { look, lookName } from "./parrish-looks.js";
+
+// Which of the two palettes (?look=orinoco|watermark; parrish-looks.js).
+const LOOK = look();
+const DARK = lookName() === "watermark";
 
 /* ------------------------------------------------------------ the palette */
 
@@ -65,9 +70,10 @@ export const COLORS = {
 };
 
 // Roman capitals, as Parrish lettered his calendars.
-// The title in a fine hand, lowercase, as the singer's own name on the
-// "Watermark" cover (user's reference); the menus' headings stay in Cinzel.
-export const titleFontFamily = "'Italianno', 'Pinyon Script', 'Snell Roundhand', cursive";
+// The title in a loose pen hand, lowercase, near the singer's own name on
+// the "Watermark" cover (it's lettered, not a font; user to pick from the
+// candidates); the menus' headings stay in Cinzel.
+export const titleFontFamily = "'Dawning of a New Day', 'Zeyada', 'Italianno', cursive";
 export const mastheadScale = 1.55; // a script's small letters need the room
 // The dock's piece, in the corner during a game: enough of it to see
 // against the terrace.
@@ -95,15 +101,15 @@ export const outlineYOffset = OUTLINE_Y_OFFSET;
 export const modalBackdrop = "rgba(8, 14, 38, 0.55)";
 export const modalSurface = "rgba(246, 236, 214, 0.98)";
 // Shown only until the terrace is up: the sky at dusk.
-export const canvasGradientStart = "#9DBEE6";
-export const canvasGradientEnd = "#3E7FA8";
+export const canvasGradientStart = LOOK.bg;
+export const canvasGradientEnd = DARK ? "#140405" : "#3E7FA8";
 
 /* Soft, high daylight over the sea: a pale key (moved each frame with the
    board: parrish-scene.js), the sky's blue and the sea's green from above
    and below, a cool fill, a faint warm back light. */
 export const lights = {
-  ambient: { color: 0xf4f6ff, intensity: 0.16 },
-  hemi: { sky: 0xd6e6ff, ground: 0x9ccfc8, intensity: 0.7 },
+  ambient: DARK ? { color: 0xffe8e0, intensity: 0.1 } : { color: 0xf4f6ff, intensity: 0.16 },
+  hemi: DARK ? { sky: 0xd8b0a0, ground: 0x4a1a14, intensity: 0.55 } : { sky: 0xd6e6ff, ground: 0x9ccfc8, intensity: 0.7 },
   key: { color: 0xfff4e2, intensity: 1.05 },
   fill: { color: 0xc8dcff, intensity: 0.35 },
   back: { color: 0xffe2d0, intensity: 0.3 },
@@ -118,8 +124,11 @@ export const woodSet = createWoodSet({ env: parrishEnv, quality, lights });
 // it again when the board changes size.
 export const boardTextureFollowsSize = true;
 export const makeBoardTexture = woodSet.makeBoardTexture;
-export const buildSlabMaterials = woodSet.buildSlabMaterials;
-export const makeGrid = woodSet.makeGrid;
+// The board writes alpha 0.75 (the pieces 1): the paint tells them apart,
+// so only a moving piece leaves an afterimage (parrish-paint.js).
+const boardAlpha = (m) => { m.opacity = 0.75; m.transparent = false; return m; };
+export const buildSlabMaterials = (tex) => woodSet.buildSlabMaterials(tex).map(boardAlpha);
+export const makeGrid = () => { const g = woodSet.makeGrid(); g.traverse((o) => { if (o.material && !o.material.transparent) boardAlpha(o.material); }); return g; };
 export const buildPieceVisual = woodSet.buildPieceVisual;
 export const buildMoveIndicator = woodSet.buildMoveIndicator;
 export const buildMissingSquareVisual = woodSet.buildMissingSquareVisual;
@@ -192,8 +201,8 @@ export const dockWords = {
 };
 
 export const styleSheet = `
-  @import url('https://fonts.googleapis.com/css2?family=Italianno&family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap');
-  html, body { overscroll-behavior: none; background: #0E1A3D; }
+  @import url('https://fonts.googleapis.com/css2?family=Dawning+of+a+New+Day&family=Zeyada&family=Italianno&family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap');
+  html, body { overscroll-behavior: none; background: ${DARK ? "#140405" : "#3E7FA8"}; }
   /* The title: Roman capitals in gold leaf over the sky. */
   .ec-title {
     color: #F6EEDC !important; text-transform: lowercase; font-weight: 400 !important; letter-spacing: 0.01em;

@@ -6096,3 +6096,26 @@ phone menu until "Start the story over" (which clears it).
       foam hiss, gulls (no pool, no crickets).
     - Sample clips: tools are a virtual clock (rAF + performance.now
       overridden, stepped per frame) and per-frame screenshots, ffmpeg.
+- Parrish, abstract (user: "no theme, zero theme"; the feeling, painting
+  style and above all the movement of the video; two palettes; mock-ups
+  before going further; "show me El Cabeza in the Enya font"):
+    - Read from the video's frames: no hard cuts at all (ffmpeg scene
+      detection finds none): everything moves by long cross-dissolves,
+      layers (subject, painted canvas) drift slowly and separately, moving
+      things leave soft afterimages, the light blooms.
+    - The world is now only a dome of drifting abstract colour fields
+      (parrish-scene.js; no pillar, sea, ship, flowers, leaves).
+      Palettes in themes/parrish-looks.js, ?look=orinoco|watermark
+      (orinoco default while under review): fields, bias, blots, accents,
+      grade lift/gamma, glow, vignette, lights, page colour. parrish.js
+      reads it for lights and page colours.
+    - The movement: an afterimage pass (parrish-paint.js ECHO_FRAG, ping-
+      pong at paint size, half-life 0.6 s, blurring softly): where a piece
+      was and isn't now, what it was, dissolving; mixed into the oil
+      before the grade, so the strokes paint it too. The board writes
+      alpha 0.75 (parrish.js wraps the wood set's slab and grid), pieces
+      1, so only pieces leave afterimages.
+    - The title: the "Watermark" logo is hand lettering, not a font; nine
+      Google script faces shown to the user beside it (closest in feel:
+      Zeyada, Dawning of a New Day). The page uses Dawning of a New Day
+      for now, lowercase.
