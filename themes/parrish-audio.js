@@ -1,23 +1,21 @@
-/* Parrish's sound: the terrace at the golden hour.
+/* Parrish's sound: the sea round the pillar.
 
-   Nature (user: the music will be the user's own recording, sent later;
-   until then, the place itself): a soft breeze that comes and goes in
-   gusts, leaves stirring now and then, the still pool lapping at its
-   rim with the odd drop, birds (songbirds' short phrases, swallows'
-   twitter, a dove's coo from the trees below, each from somewhere of its
-   own left or right, the far ones softer and duller), and as the light
-   goes a few crickets.
+   Nature, until the user's own recording comes (MUSIC_URL): the sea's low
+   swell, the surf breaking on the rocks and its foam hissing back, a
+   breeze that comes and goes, gulls far off over the water, now and then
+   a small bird. Each placed somewhere of its own, left or right, the far
+   ones softer and duller.
 
    The pieces are the wooden set's own knocks (wood-sfx.js), on a solid
-   board (the folding board flat on its marble plinth).
+   board (flat on its stone pillar).
 
    The music: MUSIC_URL, a file beside the page, once the user's
    recording is here. With none, there's no music channel at all (no
    slider that does nothing); with one, it plays from Begin Game, looped,
    on its own channel.
 
-   Every sound is made here (no recordings yet), and all of it is kept
-   low: it's a place to sit, not a soundtrack. */
+   Every sound is made here, and all of it is kept low: it's a place to
+   sit, not a soundtrack. */
 
 import { createWoodSfx } from "./wood-sfx.js";
 
@@ -131,26 +129,38 @@ export function createAudio() {
     later(3500 + Math.random() * 8000, leaves);
   }
 
-  /* ---- the pool ---- */
-  function lap() {
-    const t = now(), dur = 0.35 + Math.random() * 0.5;
-    const n = noise(t, dur);
-    const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 500 + Math.random() * 400; bp.Q.value = 1.4;
+  /* ---- the sea: its low swell, and the surf breaking on the rocks ---- */
+  function seaBed() {
+    const t = now();
+    const n = noise(t, 0, true);
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 340;
+    const g = ctx.createGain(); g.gain.value = 0.02;
+    n.connect(lp).connect(g).connect(natureBus);
+    const breathe = () => {
+      if (!ctx) return;
+      const t2 = now(), dur = 4 + Math.random() * 4;
+      g.gain.setTargetAtTime(0.014 + Math.random() * 0.016, t2, dur / 3);
+      later(dur * 1000, breathe);
+    };
+    breathe();
+  }
+  function surf() {
+    const t = now(), rise = 1.2 + Math.random() * 0.8, tail = 2.8 + Math.random() * 1.6, pan = Math.random() * 1.2 - 0.6;
+    const n = noise(t, rise + tail + 0.3);
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass";
+    lp.frequency.setValueAtTime(260, t); lp.frequency.exponentialRampToValueAtTime(2200, t + rise); lp.frequency.exponentialRampToValueAtTime(700, t + rise + tail);
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.012 + Math.random() * 0.01, t + dur * 0.3);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    n.connect(bp).connect(g);
-    place(g, Math.random() * 0.8 - 0.4, 0.05);
-    // Now and then a drop.
-    if (Math.random() < 0.3) {
-      const o = ctx.createOscillator(), og = ctx.createGain(), t2 = t + dur * 0.5;
-      o.frequency.setValueAtTime(1500 + Math.random() * 600, t2); o.frequency.exponentialRampToValueAtTime(700, t2 + 0.06);
-      og.gain.setValueAtTime(0.0001, t2); og.gain.linearRampToValueAtTime(0.01, t2 + 0.004); og.gain.exponentialRampToValueAtTime(0.0001, t2 + 0.08);
-      o.connect(og); place(og, Math.random() * 0.6 - 0.3, 0.1);
-      o.start(t2); o.stop(t2 + 0.1);
-    }
-    later(1500 + Math.random() * 3200, lap);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.045 + Math.random() * 0.02, t + rise); g.gain.exponentialRampToValueAtTime(0.0001, t + rise + tail);
+    n.connect(lp).connect(g);
+    place(g, pan, 0.35);
+    // The foam's hiss as it runs back.
+    const n2 = noise(t + rise * 0.8, tail + 0.3);
+    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 2800;
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0.0001, t + rise * 0.8); g2.gain.linearRampToValueAtTime(0.014, t + rise + 0.15); g2.gain.exponentialRampToValueAtTime(0.0001, t + rise + tail);
+    n2.connect(hp).connect(g2);
+    place(g2, pan * 0.8, 0.3);
+    later(5500 + Math.random() * 6000, surf);
   }
 
   /* ---- birds ---- */
@@ -186,30 +196,27 @@ export function createAudio() {
       const n = 5 + Math.floor(Math.random() * 7);
       for (let i = 0; i < n; i++) { const f = 4200 + Math.random() * 1800; note(t + i * (0.045 + Math.random() * 0.03), f, f * 1.15, 0.03, 0.03, out); }
     },
-    // A dove, low and slow, from the trees below: coo, COO-oo, coo.
+    // A gull, far off over the water: a few falling cries.
     (t, out) => {
-      const f = 470 + Math.random() * 60;
-      [[0, 0.32, 1, 0.92], [0.5, 0.55, 1.06, 0.94], [1.2, 0.3, 1, 0.93]].forEach(([d, dur, a, b]) => note(t + d, f * a, f * b, dur, 0.05, out));
+      const n = 2 + Math.floor(Math.random() * 3);
+      let tt = t;
+      for (let i = 0; i < n; i++) {
+        const f = 1450 + Math.random() * 350, d = 0.26 + Math.random() * 0.12;
+        note(tt, f, f * 0.62, d, 0.026, out);
+        note(tt, f * 2, f * 1.24, d, 0.009, out);
+        tt += d + 0.12 + Math.random() * 0.2;
+      }
     },
   ];
   function bird() {
     const t = now();
-    const kind = Math.random() < 0.55 ? 0 : Math.random() < 0.6 ? 1 : 2;
+    const kind = Math.random() < 0.5 ? 2 : Math.random() < 0.6 ? 0 : 1;
     const out = ctx.createGain(); out.gain.value = 1;
-    place(out, Math.random() * 1.8 - 0.9, kind === 2 ? 0.55 : Math.random() * 0.7);
+    place(out, Math.random() * 1.8 - 0.9, kind === 2 ? 0.45 + Math.random() * 0.3 : Math.random() * 0.7);
     SONGS[kind](t, out);
     // Sometimes the same bird again, a moment later.
     if (Math.random() < 0.35) later(500 + Math.random() * 900, () => { const o2 = ctx.createGain(); place(o2, Math.random() * 1.8 - 0.9, 0.4); SONGS[kind](now(), o2); });
     later(2600 + Math.random() * 7000, bird);
-  }
-
-  /* ---- crickets, as the light goes ---- */
-  function crickets() {
-    const t = now(), f = 4300 + Math.random() * 400, out = ctx.createGain();
-    out.gain.value = 1;
-    place(out, Math.random() * 1.4 - 0.7, 0.5 + Math.random() * 0.3);
-    for (let c = 0; c < 6; c++) for (let p = 0; p < 3; p++) note(t + c * 0.55 + p * 0.022, f, f, 0.014, 0.006, out);
-    later(6000 + Math.random() * 12000, crickets);
   }
 
   function startNature() {
@@ -218,10 +225,10 @@ export function createAudio() {
     natureBus.gain.setTargetAtTime(windingDown ? 0.5 : 1, now(), 1.2);
     startBreeze();
     later(800, leaves);
-    later(400, lap);
+    seaBed();
+    later(400, surf);
     later(1200, bird);
-    later(20000, crickets);
-  }
+      }
 
   /* ---- the music (the user's recording, when it's here) ---- */
   function startMusic() {

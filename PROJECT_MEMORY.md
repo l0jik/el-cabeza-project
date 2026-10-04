@@ -6062,3 +6062,37 @@ phone menu until "Start the story over" (which clears it).
       shadow tint on saturated colours, darker water); look at the
       in-game and top views; sample clips of both motions (virtual-time
       capture, frames to mp4); channel picture + WORLDS entry; tests.
+- Parrish, redirected (user: "not hitting the mark"; their reference video
+  uploaded, Enya "Orinoco Flow", plus the "Watermark" album cover; the
+  share/YouTube/Dailymotion links were all blocked here). Read from the
+  video's frames: the singer clean and photographic over loose, abstract
+  painted backdrops (palette-knife and wide-brush sweeps, mostly diagonal,
+  gold-leaf flecks); high-key, airy, misty; creams, sky blue, cobalt
+  streaks, sage/mint, turquoise, touches of rose/coral/mauve; motifs: surf
+  on dark rocks, turquoise sea, the moon, clouds, a ship's hull and
+  rigging, roses/sweet peas/daisies, a white butterfly. The cover: crimson
+  leaves, weathered teal-grey plaster, "enya" in a fine lowercase hand,
+  darker edges. The marble court and cobalt-gold palette are gone:
+    - parrish-scene.js: the board on a weathered-plaster pillar in the sea
+      (curved sea disc, CURVE_FROM 18 / CURVE_K 0.012, horizon DROP 0.27 to
+      match), rocks with churning surf (sea shader: distance to pillar and
+      rocks), a ship sailing round (r 48, hull-down), the moon, soft
+      clouds; flowers at the pillar's corners, 3 white butterflies, 7
+      crimson leaves drifting down. The SUBJECT/WORLD split is the scene's
+      alpha: world materials are opaque at opacity 0 (alpha 0), the dome
+      and sea write 0; the board, pieces, pillar top, flowers, butterflies,
+      leaves write 1. No pool reflection any more.
+    - parrish-paint.js: FLOW carries the subject share (alpha averaged);
+      OIL grades pastel (lifted blue-grey darks, cream lights) and draws
+      the rotoscoped line only on the subject; strokes: world layers
+      (knife 240x72 and 110x34, brush 64x16; curved, feathered, leaning
+      to the rising diagonal, accents incl. crimson/patina/gold leaf with
+      glints; stop short of the subject), one light subject layer;
+      finish multiplies a crimson-umber vignette; a quarter-size glow is
+      added. boil now shifts strokes a little (uBoil) rather than
+      reshuffling. Bug fixed on the way: paint()'s 5th argument is "raw".
+    - parrish.js: title Italianno lowercase (cream), high-key lights,
+      viewPitch 1.1 (1.14 tall). parrish-audio.js: sea swell, surf with
+      foam hiss, gulls (no pool, no crickets).
+    - Sample clips: tools are a virtual clock (rAF + performance.now
+      overridden, stepped per frame) and per-frame screenshots, ffmpeg.

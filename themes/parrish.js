@@ -1,27 +1,32 @@
-/* Parrish theme: an oil painting in motion, at the golden hour.
+/* Parrish theme: a painted world in motion.
 
-   The user's brief: live footage of the pieces and the board, of nature,
-   and of imagery after Maxfield Parrish, edited and animated through
-   rotoscoping and stop-motion so that it moves like an oil painting.
+   The user's brief: a painterly technique where live-action footage of the
+   pieces and board, nature, and imagery after Maxfield Parrish is edited
+   and animated through rotoscoping and stop-motion so it moves like an
+   oil painting (Loving Vincent's hand-painted rotoscoping). The user's
+   references for the style, motif, palette and feeling: Enya's "Orinoco
+   Flow" video (the singer clean and photographic over loose, expressive
+   painted worlds of sea, surf, sky, flowers, a ship, the moon; high-key,
+   airy, misty) and her "Watermark" cover (crimson leaves, weathered
+   plaster, the name in a fine lowercase hand, a darker edge).
 
-   The "footage" is the live scene: the store's wooden set
-   (themes/wood-set.js) on a marble plinth in a reflecting pool, on a
-   terrace at the golden hour, a colonnade behind it, urns of flowers,
-   great trees, a valley, blue mountains with the sun on their snow, gold
-   and peach cumulus, and over everything Parrish's cobalt
-   (themes/parrish-scene.js). Every frame of it is painted over as oil on
-   canvas before it reaches the screen (themes/parrish-paint.js): the
-   colours laid along the brush's flow, broad and fine dabs with their
-   bristles and raised paint, a broken umber outline, the canvas's weave.
-   Two ways of moving (?motion=boil|stop): the strokes boil, repainted
-   twelve times a second over smooth motion, or the whole picture is
-   stop-motion, a new painting twelve times a second.
+   So the board and its pieces are the subject, kept clean, on a pillar of
+   weathered plaster rising out of the sea, flowers at its corners, white
+   butterflies and crimson leaves about it; round it the sea breaking on
+   dark rocks, a soft sky with the moon, an old ship under sail
+   (themes/parrish-scene.js). Every frame is repainted
+   (themes/parrish-paint.js): the world in big palette-knife sweeps with
+   accents of cream, sage, mauve, cobalt, rose, crimson and gold leaf, the
+   subject in small careful strokes, all of it pastel and glowing, the
+   edges darkening toward crimson-umber. Two ways of moving
+   (?motion=boil|stop): the strokes shift and are repainted twelve times a
+   second over smooth motion, or the whole picture is stop-motion, a new
+   painting twelve times a second.
 
-   The menus are a fine art print's: ivory stock, Parrish-blue ink, the
-   title in Roman capitals (Cinzel) as on his calendars and posters, the
-   rest in Cormorant Garamond, gold for the accents. The sound is the
-   terrace's own (themes/parrish-audio.js), with a place for the user's
-   recording. */
+   The menus: ivory print stock and deep blue ink, Cinzel for headings,
+   Cormorant Garamond for the rest, the title in Italianno, lowercase. The
+   sound is the sea's own (themes/parrish-audio.js), with a place for the
+   user's recording. */
 
 import { quality } from "./tienda-quality.js";
 import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
@@ -30,9 +35,9 @@ import { MUSIC_URL } from "./parrish-audio.js";
 
 /* ------------------------------------------------------------ the palette */
 
-// The painter's colours: his blue, the light's gold, ivory marble, umber.
+// The palette: a deep sea-blue ink, gold, ivory, and the cover's crimson.
 export const PARRISH = {
-  blue: "#1D2C5E",      // the ink: the deep of his skies
+  blue: "#1D2C5E",      // the ink
   cobalt: "#2348A8",
   azure: "#5B8FD8",
   gold: "#C9963B",
@@ -41,6 +46,7 @@ export const PARRISH = {
   ivory: "#F4EAD5",
   marble: "#EADCC0",
   umber: "#5A3A22",
+  crimson: "#8E1420",
 };
 
 export const COLORS = {
@@ -59,14 +65,16 @@ export const COLORS = {
 };
 
 // Roman capitals, as Parrish lettered his calendars.
-export const titleFontFamily = "'Cinzel', 'Trajan Pro', Georgia, serif";
-export const mastheadScale = 0.9; // Cinzel's capitals run wide
+// The title in a fine hand, lowercase, as the singer's own name on the
+// "Watermark" cover (user's reference); the menus' headings stay in Cinzel.
+export const titleFontFamily = "'Italianno', 'Pinyon Script', 'Snell Roundhand', cursive";
+export const mastheadScale = 1.55; // a script's small letters need the room
 // The dock's piece, in the corner during a game: enough of it to see
 // against the terrace.
 export const dockCornerOpacity = 0.6;
 // The camera a little lower than the default (0.86), so the colonnade and
 // the pool's sky show behind the board; lower again on a tall screen.
-export const viewPitch = typeof window !== "undefined" && window.innerHeight > window.innerWidth * 1.25 ? 1.1 : 1.04;
+export const viewPitch = typeof window !== "undefined" && window.innerHeight > window.innerWidth * 1.25 ? 1.14 : 1.1;
 
 export const HEX = {
   cream: 0xf4ead5,
@@ -87,18 +95,18 @@ export const outlineYOffset = OUTLINE_Y_OFFSET;
 export const modalBackdrop = "rgba(8, 14, 38, 0.55)";
 export const modalSurface = "rgba(246, 236, 214, 0.98)";
 // Shown only until the terrace is up: the sky at dusk.
-export const canvasGradientStart = "#2348A8";
-export const canvasGradientEnd = "#0E1A3D";
+export const canvasGradientStart = "#9DBEE6";
+export const canvasGradientEnd = "#3E7FA8";
 
-/* The golden hour: a warm low sun (the key, moved each frame to where the
-   painted sun is: parrish-scene.js), the blue sky over everything (the
-   hemisphere), a cool fill from the sky's side, a peach back light. */
+/* Soft, high daylight over the sea: a pale key (moved each frame with the
+   board: parrish-scene.js), the sky's blue and the sea's green from above
+   and below, a cool fill, a faint warm back light. */
 export const lights = {
-  ambient: { color: 0xfff1dc, intensity: 0.08 },
-  hemi: { sky: 0x8fb0ff, ground: 0xc9a070, intensity: 0.5 },
-  key: { color: 0xffd9a0, intensity: 1.2 },
-  fill: { color: 0x9db8ff, intensity: 0.35 },
-  back: { color: 0xffb38a, intensity: 0.35 },
+  ambient: { color: 0xf4f6ff, intensity: 0.16 },
+  hemi: { sky: 0xd6e6ff, ground: 0x9ccfc8, intensity: 0.7 },
+  key: { color: 0xfff4e2, intensity: 1.05 },
+  fill: { color: 0xc8dcff, intensity: 0.35 },
+  back: { color: 0xffe2d0, intensity: 0.3 },
 };
 
 /* ------------------------------------------------------------ the set */
@@ -184,14 +192,12 @@ export const dockWords = {
 };
 
 export const styleSheet = `
-  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Italianno&family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap');
   html, body { overscroll-behavior: none; background: #0E1A3D; }
   /* The title: Roman capitals in gold leaf over the sky. */
   .ec-title {
-    background: linear-gradient(180deg, #FFF3D6 0%, #F2D293 46%, #C9963B 58%, #F6E2B0 100%);
-    -webkit-background-clip: text; background-clip: text; color: transparent !important;
-    font-weight: 700 !important; letter-spacing: 0.08em;
-    filter: drop-shadow(0 2px 0 rgba(14, 26, 61, 0.55)) drop-shadow(0 0 14px rgba(255, 196, 120, 0.35));
+    color: #F6EEDC !important; text-transform: lowercase; font-weight: 400 !important; letter-spacing: 0.01em;
+    text-shadow: 0 1px 2px rgba(40, 18, 22, 0.55), 0 0 18px rgba(255, 246, 230, 0.45) !important;
   }
   /* The dock's piece: its edges wander like paint (renderGlobalDefs). */
   canvas[data-testid="dock-piece-canvas"] { filter: url(#parrish-paint-edge); }

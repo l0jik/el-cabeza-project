@@ -1,29 +1,28 @@
-/* Parrish's world: a marble court at the golden hour, after Maxfield
-   Parrish.
+/* Parrish's world, after the user's reference (Enya's "Orinoco Flow",
+   1988: the singer clean and photographic over painted worlds; user: "the
+   style, motif, color palette, and overall feeling"):
 
-   The board stands on a marble plinth in the middle of a long, still
-   reflecting pool (the pool holds the sky: the cobalt, the lit clouds,
-   the columns, the pieces themselves), in a paved court. Colonnades
-   under a plain entablature run down both long sides, and the two ends
-   are open: a balustrade, and beyond it the view, so each player looks
-   down the pool between the columns, as in Parrish's "Daybreak". Urns
-   of flowers at the pool's corners; tall cypresses and great oaks rising
-   from the slope below the balustrade. Beyond: a valley with a lake,
-   ranges of blue mountains with the sun on their snow, towering cumulus
-   lit gold and peach, and over it all Parrish's deep blue.
+   the board and its pieces are the subject, kept clean, standing on a
+   pale stone pillar that rises out of the sea; flowers at its corners
+   (roses, sweet peas, daisies) and white butterflies about it. Round it
+   the world the paint is laid over: turquoise shallows breaking white on
+   dark rocks, deepening to cobalt, misty toward the horizon; a soft, high
+   sky of cloud with a pale moon in it; an old ship under sail going
+   slowly round. High-key and airy: creams, sky blues, turquoise, sage,
+   touches of rose.
 
-   A painter's liberty: the painted horizon lies well below eye level, so
-   from where a player sits the sky, the mountains and the clouds rise
-   straight above the balustrade (from where the camera is, the real one
-   would be out of the picture above the board).
+   The subject and the world are told apart for the paint
+   (parrish-paint.js) by the alpha the scene writes: the board, pieces,
+   pillar's top, flowers and butterflies write 1, everything else 0
+   (opaque materials at opacity 0 still draw their colour, alpha 0).
+
+   A painter's liberty: the sea falls away with distance (a tight
+   curvature) and the painted horizon lies below eye level, so from where
+   a player sits the sea's edge and the sky come into the top of the
+   picture.
 
    All of it hangs off the chassis's boardGroup, so it turns with the
-   board (walking round it), and the sun with it: the chassis's lights
-   are moved each frame to where the painted sun is, so the shadows fall
-   the way the light comes. It is rebuilt if the board changes size.
-
-   The frame is drawn through parrish-paint.js (the chassis's render
-   hook): the pool's reflection first, then the scene, then the paint. */
+   board, and the light with it. Rebuilt if the board changes size. */
 
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z, SLAB_THICKNESS } from "../engine/constants.js";
@@ -31,16 +30,19 @@ import { createPainter } from "./parrish-paint.js";
 
 /* ------------------------------------------------------------ the light */
 
-// The painted horizon's drop below eye level (radians), and the sun in
-// the painted sky's own terms (low over its horizon, east-southeast of
-// the board: off the players' right hand at the start, so the clouds
-// ahead are lit from the side). The key light comes from the same side,
-// higher, so the shadows on the board stay short and readable.
+// The painted horizon's drop below eye level (radians); the sun (soft,
+// fairly high) and the moon, in the painted sky's own terms.
 const DROP = 0.27;
-export const SUN_DIR = new THREE.Vector3(0.84, 0.16, 0.52).normalize();
-const KEY_DIR = new THREE.Vector3(0.84, 0.62, 0.42).normalize();
-const FILL_DIR = new THREE.Vector3(-0.6, 0.4, 0.7).normalize();
-const BACK_DIR = new THREE.Vector3(-0.45, 0.35, -0.82).normalize();
+export const SUN_DIR = new THREE.Vector3(0.62, 0.6, 0.5).normalize();
+const MOON_DIR = new THREE.Vector3(-0.42, 0.3, -0.86).normalize();
+const KEY_DIR = new THREE.Vector3(0.62, 0.72, 0.42).normalize();
+const FILL_DIR = new THREE.Vector3(-0.6, 0.45, 0.65).normalize();
+const BACK_DIR = new THREE.Vector3(-0.45, 0.4, -0.8).normalize();
+
+// The sea's level, and how fast it falls away from the pillar.
+const WATER_Y = -2.2;
+const CURVE_FROM = 18, CURVE_K = 0.012;
+export function seaY(r) { const f = Math.max(r - CURVE_FROM, 0); return WATER_Y - f * f * CURVE_K; }
 
 /* ------------------------------------------------------------ small helpers */
 
@@ -64,69 +66,74 @@ function noise2(seed) {
   };
 }
 
-/* ------------------------------------------------------------ marble */
-
-/* Warm white marble: a soft cloudy ground and a few long grey-gold
-   veins (the sine of a turbulence, the classic way). */
-let MARBLE = null;
-function marbleTexture() {
-  if (MARBLE) return MARBLE;
+/* Weathered plaster for the pillar, as the wall behind the singer on the
+   "Watermark" cover (user): grey stone mottled with a teal-green patina,
+   umber stains, chalky pale patches, fine dark cracks. */
+let STONE = null;
+function stoneTexture() {
+  if (STONE) return STONE;
   const S = 512;
   const c = document.createElement("canvas"); c.width = c.height = S;
   const g = c.getContext("2d");
   const img = g.createImageData(S, S);
-  const n = noise2(41);
+  const n = noise2(41), m = noise2(77);
   for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
     const u = x / S, v = y / S;
-    let turb = 0, amp = 1, f = 3;
-    for (let o = 0; o < 4; o++) { turb += amp * n(u * f * 2.2, v * f * 2.2); amp *= 0.5; f *= 2; }
-    const vein = Math.pow(Math.abs(Math.sin((u * 2.6 + v * 1.1 + turb * 1.8) * Math.PI)), 0.18);
-    const cloud = n(u * 5, v * 5) * 0.5 + n(u * 13, v * 13) * 0.25;
-    const k = 0.9 + cloud * 0.14;
+    const big = n(u * 4, v * 4) * 0.6 + n(u * 11, v * 11) * 0.3 + n(u * 40, v * 40) * 0.1;
+    const patina = Math.max(0, Math.min(1, (m(u * 3 + 7, v * 3 + 2) - 0.48) * 4));
+    const stain = Math.max(0, Math.min(1, (n(u * 2.2 + 9, v * 2.2 + 4) - 0.6) * 5));
+    const chalk = Math.max(0, Math.min(1, (m(u * 9 + 1, v * 9 + 5) - 0.66) * 6));
+    let r = 168 + big * 52, gg = 166 + big * 50, b = 156 + big * 46;
+    r = r * (1 - patina * 0.4) + 104 * patina * 0.4; gg = gg * (1 - patina * 0.4) + 150 * patina * 0.4; b = b * (1 - patina * 0.4) + 140 * patina * 0.4;
+    r = r * (1 - stain * 0.3) + 110 * stain * 0.3; gg = gg * (1 - stain * 0.3) + 84 * stain * 0.3; b = b * (1 - stain * 0.3) + 70 * stain * 0.3;
+    r += chalk * 30; gg += chalk * 30; b += chalk * 28;
     const i = (y * S + x) * 4;
-    // Ivory, warmed; the veins a soft grey with a little gold.
-    img.data[i] = (238 * k) * vein + 168 * (1 - vein);
-    img.data[i + 1] = (228 * k) * vein + 156 * (1 - vein);
-    img.data[i + 2] = (206 * k) * vein + 134 * (1 - vein);
-    img.data[i + 3] = 255;
+    img.data[i] = r; img.data[i + 1] = gg; img.data[i + 2] = b; img.data[i + 3] = 255;
   }
   g.putImageData(img, 0, 0);
-  MARBLE = new THREE.CanvasTexture(c);
-  MARBLE.wrapS = MARBLE.wrapT = THREE.RepeatWrapping;
-  return MARBLE;
+  // Cracks: a few wandering hairlines.
+  const rr = rng(5);
+  g.strokeStyle = "rgba(48,46,44,0.55)"; g.lineWidth = 1.2;
+  for (let k = 0; k < 14; k++) {
+    let x = rr() * S, y = rr() * S, a = rr() * Math.PI * 2;
+    g.beginPath(); g.moveTo(x, y);
+    for (let j = 0; j < 30; j++) { a += (rr() - 0.5) * 0.9; x += Math.cos(a) * 4; y += Math.sin(a) * 4; g.lineTo(x, y); }
+    g.stroke();
+  }
+  STONE = new THREE.CanvasTexture(c);
+  STONE.wrapS = STONE.wrapT = THREE.RepeatWrapping;
+  return STONE;
 }
 
-/* The court's paving: large slabs in a few warm tones, fine joints. */
-let PAVING = null;
-function pavingTexture() {
-  if (PAVING) return PAVING;
-  const S = 1024, N = 4;
-  const c = document.createElement("canvas"); c.width = c.height = S;
+/* A crimson leaf, as the cover's: five-lobed, deep red darkening to
+   wine at its edges, its veins darker still. */
+let LEAF = null;
+function leafTexture() {
+  if (LEAF) return LEAF;
+  const c = document.createElement("canvas"); c.width = c.height = 128;
   const g = c.getContext("2d");
-  const r = rng(7), n = noise2(19);
-  const tile = S / N;
-  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const tone = 0.9 + r() * 0.12;
-    g.fillStyle = `rgb(${Math.round(232 * tone)},${Math.round(212 * tone)},${Math.round(180 * tone)})`;
-    g.fillRect(i * tile, j * tile, tile, tile);
+  g.translate(64, 70);
+  const lobes = [[-1.57, 58], [-0.75, 46], [-2.39, 46], [0.2, 30], [-3.34, 30]];
+  g.beginPath();
+  for (let i = 0; i <= 60; i++) {
+    const a = -Math.PI / 2 + (i / 60) * Math.PI * 2;
+    let rad = 14;
+    lobes.forEach(([la, len]) => { const d = Math.atan2(Math.sin(a - la), Math.cos(a - la)); rad = Math.max(rad, len * Math.exp(-d * d * 9)); });
+    const x = Math.cos(a) * rad, y = Math.sin(a) * rad;
+    if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
   }
-  const img = g.getImageData(0, 0, S, S);
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-    const k = 0.92 + n(x / 60, y / 60) * 0.1 + n(x / 9, y / 9) * 0.04;
-    const i = (y * S + x) * 4;
-    img.data[i] *= k; img.data[i + 1] *= k; img.data[i + 2] *= k;
-  }
-  g.putImageData(img, 0, 0);
-  g.strokeStyle = "rgba(120,96,70,0.55)"; g.lineWidth = 3;
-  for (let k = 0; k <= N; k++) { g.beginPath(); g.moveTo(k * tile, 0); g.lineTo(k * tile, S); g.stroke(); g.beginPath(); g.moveTo(0, k * tile); g.lineTo(S, k * tile); g.stroke(); }
-  PAVING = new THREE.CanvasTexture(c);
-  PAVING.wrapS = PAVING.wrapT = THREE.RepeatWrapping;
-  return PAVING;
+  g.closePath();
+  const grd = g.createRadialGradient(0, -6, 4, 0, -6, 62);
+  grd.addColorStop(0, "#C42A30"); grd.addColorStop(0.6, "#8E1420"); grd.addColorStop(1, "#4E0A14");
+  g.fillStyle = grd; g.fill();
+  g.strokeStyle = "rgba(50,6,12,0.7)"; g.lineWidth = 1.6;
+  lobes.forEach(([la, len]) => { g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(la) * len * 0.85, Math.sin(la) * len * 0.85); g.stroke(); });
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 40); g.stroke();
+  LEAF = new THREE.CanvasTexture(c);
+  return LEAF;
 }
 
-/* What the lacquer, the brass and the marble reflect: the golden hour
-   round the court, painted (a cobalt sky, the gold low down where the
-   sun is, the pale stone below). */
+/* What the lacquer and the wood reflect: a soft sky over a turquoise sea. */
 let ENV = null;
 export function parrishEnv() {
   if (ENV) return ENV;
@@ -135,23 +142,19 @@ export function parrishEnv() {
   c.width = W; c.height = H;
   const g = c.getContext("2d");
   const grad = g.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, "#16307A");
-  grad.addColorStop(0.3, "#3A6CC8");
-  grad.addColorStop(0.47, "#A9CDE4");
-  grad.addColorStop(0.5, "#F2D7A6");
-  grad.addColorStop(0.53, "#C9B48F");
-  grad.addColorStop(0.75, "#B49C78");
-  grad.addColorStop(1, "#5E5040");
+  grad.addColorStop(0, "#5E86C8");
+  grad.addColorStop(0.3, "#9DBEE6");
+  grad.addColorStop(0.48, "#E8EEEE");
+  grad.addColorStop(0.52, "#BFE0DA");
+  grad.addColorStop(0.7, "#4FA3B4");
+  grad.addColorStop(1, "#1F4F82");
   g.fillStyle = grad; g.fillRect(0, 0, W, H);
   const blob = (x, y, rx, ry, col) => {
     g.save(); g.translate(x, y); g.scale(1, ry / rx);
     const rg = g.createRadialGradient(0, 0, 0, 0, 0, rx); rg.addColorStop(0, col); rg.addColorStop(1, "rgba(0,0,0,0)");
     g.fillStyle = rg; g.fillRect(-rx, -rx, rx * 2, rx * 2); g.restore();
   };
-  // The sun's side, and lit clouds round the horizon.
-  const sunU = (Math.atan2(SUN_DIR.x, -SUN_DIR.z) / (Math.PI * 2) + 0.5) * W;
-  blob(sunU, H * 0.46, 150, 70, "rgba(255,214,150,0.95)");
-  [[0.1, 0.4], [0.3, 0.38], [0.52, 0.41], [0.7, 0.37], [0.88, 0.4]].forEach(([u, v]) => blob(u * W, v * H, 70, 38, "rgba(255,236,214,0.7)"));
+  [[0.08, 0.3], [0.27, 0.22], [0.45, 0.33], [0.63, 0.25], [0.82, 0.31]].forEach(([u, v]) => blob(u * W, v * H, 90, 40, "rgba(255,252,244,0.85)"));
   ENV = new THREE.CanvasTexture(c);
   ENV.mapping = THREE.EquirectangularReflectionMapping;
   return ENV;
@@ -164,417 +167,373 @@ float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.y
 float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y); }
 float fbm(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += a * vnoise(p); p = p * 2.03 + vec2(11.3, 7.7); a *= 0.5; } return s; }
-// Noise round the horizon that meets itself all the way round.
 float ringN(float az, float k, vec2 o) { return fbm(vec2(cos(az), sin(az)) * k + o); }
 `;
 
-/* The dome: the sky, the clouds, the mountains, the valley, drawn in the
-   painted sky's own terms (its horizon uDrop below eye level). Colours
-   are given as they're to be seen (the dome isn't tone mapped). */
+/* The dome, in the painted sky's own terms (its horizon uDrop below eye
+   level). Writes alpha 0: it's the world, not the subject. */
 const SKY_VERT = `
 varying vec3 vDir;
 void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const SKY_FRAG = `
 precision highp float;
 uniform vec3 uSun;
+uniform vec3 uMoon;
 uniform float uTime;
 uniform float uDrop;
 varying vec3 vDir;
 ${NOISE_GLSL}
-vec3 skyGrad(float el, float sunDot) {
-  float e = clamp(el / 1.25, 0.0, 1.0);
-  vec3 zen = vec3(0.07, 0.19, 0.5), mid = vec3(0.15, 0.37, 0.76), hor = vec3(0.6, 0.78, 0.88);
-  vec3 c = mix(hor, mid, smoothstep(0.0, 0.22, e));
-  c = mix(c, zen, smoothstep(0.22, 0.85, e));
-  c = mix(c, vec3(1.0, 0.8, 0.52), pow(sunDot, 5.0) * (1.0 - smoothstep(0.0, 0.45, e)) * 0.8);
-  return c;
+vec3 skyGrad(float el) {
+  float e = clamp(el / 1.2, 0.0, 1.0);
+  vec3 hor = vec3(0.74, 0.84, 0.92), mid = vec3(0.55, 0.71, 0.9), zen = vec3(0.3, 0.47, 0.8);
+  vec3 c = mix(hor, mid, smoothstep(0.0, 0.25, e));
+  return mix(c, zen, smoothstep(0.25, 0.9, e));
 }
 void main() {
   vec3 d0 = normalize(vDir);
   float az = atan(d0.x, -d0.z);
   float el = asin(clamp(d0.y, -1.0, 1.0)) + uDrop;
   vec3 d = vec3(cos(el) * sin(az), sin(el), -cos(el) * cos(az));
-  vec3 sunD = normalize(uSun);
-  float sunDot = max(dot(d, sunD), 0.0);
-  float sunAz = atan(sunD.x, -sunD.z);
-  float facing = cos(az - sunAz);
-  vec3 col = skyGrad(el, sunDot);
-  col += vec3(1.0, 0.86, 0.62) * (pow(sunDot, 900.0) * 4.0 + pow(sunDot, 60.0) * 0.35);
-  // High cirrus, gold toward the sun.
-  if (el > 0.02) {
-    vec2 p = d.xz / (d.y + 0.12) * 1.2;
-    float ci = fbm(p * vec2(0.8, 2.6) + vec2(uTime * 0.004, 0.0));
-    float cir = smoothstep(0.56, 0.82, ci) * smoothstep(0.02, 0.2, el) * (1.0 - smoothstep(0.7, 1.3, el));
-    col = mix(col, mix(vec3(1.0, 0.93, 0.86), vec3(1.0, 0.7, 0.52), pow(sunDot, 1.5)), cir * 0.45);
+  float sunDot = max(dot(d, normalize(uSun)), 0.0);
+  vec3 col;
+  if (el >= 0.0) {
+    col = skyGrad(el) + vec3(1.0, 0.94, 0.8) * pow(sunDot, 6.0) * 0.25;
+    // The moon, pale, its seas faint blue-grey, a haze round it.
+    vec3 md = normalize(uMoon);
+    float ma = acos(clamp(dot(d, md), -1.0, 1.0));
+    vec3 mx = normalize(cross(md, vec3(0.0, 1.0, 0.0))), my = cross(mx, md);
+    vec2 mp = vec2(dot(d, mx), dot(d, my)) / 0.07;
+    float disc = 1.0 - smoothstep(0.065, 0.071, ma);
+    float mare = fbm(mp * 2.2 + 3.0);
+    vec3 moon = mix(vec3(0.97, 0.97, 0.94), vec3(0.74, 0.78, 0.84), smoothstep(0.5, 0.75, mare) * 0.8);
+    col += vec3(0.95, 0.96, 1.0) * exp(-ma * 9.0) * 0.18;
+    col = mix(col, moon, disc);
+    // Soft cumulus everywhere above, drifting: cream where the light is,
+    // blue-grey and a little mauve in their shadow.
+    vec2 p = d.xz / (d.y + 0.22) * 1.3 + vec2(uTime * 0.008, uTime * 0.003);
+    float cl = fbm(p * 0.8);
+    float sh = fbm(p * 0.8 + normalize(uSun.xz) * 0.08);
+    float cov = smoothstep(0.5, 0.74, cl) * smoothstep(0.0, 0.1, el);
+    float lit = clamp(0.55 + (cl - sh) * 5.0, 0.0, 1.0);
+    vec3 cc = mix(mix(vec3(0.54, 0.6, 0.78), vec3(0.68, 0.56, 0.7), 0.35), vec3(0.97, 0.95, 0.91), lit);
+    col = mix(col, cc, cov * 0.92);
+    // Banks of cloud along the horizon, and the haze.
+    float H = 0.04 + 0.22 * smoothstep(0.4, 0.8, ringN(az, 1.7, vec2(3.1, 1.7)));
+    float bank = smoothstep(0.0, 0.03, H + (fbm(vec2(az * 8.0, el * 10.0)) - 0.5) * 0.1 - el);
+    col = mix(col, mix(vec3(0.72, 0.76, 0.86), vec3(0.95, 0.94, 0.92), clamp(el / max(H, 0.01), 0.0, 1.0)), bank * 0.6);
+    col = mix(col, vec3(0.86, 0.9, 0.93), (1.0 - smoothstep(0.0, 0.04, el)) * 0.45);
+  } else {
+    // The far sea: cobalt under the haze, white caps in long streaks.
+    float far = smoothstep(-0.25, 0.0, el);
+    col = mix(vec3(0.12, 0.33, 0.62), vec3(0.6, 0.78, 0.86), far * far);
+    float caps = smoothstep(0.7, 0.9, fbm(vec2(az * 40.0, el * 300.0) + vec2(uTime * 0.05, 0.0)));
+    col = mix(col, vec3(0.95, 0.97, 0.98), caps * 0.5 * (1.0 - far));
+    col = mix(col, vec3(0.92, 0.94, 0.94), smoothstep(-0.03, 0.0, el) * 0.7);
   }
-  // Towering cumulus along the horizon: tops lit cream and peach where
-  // the sun falls on them, lavender in their own shadow, the ones toward
-  // the sun dark with a gold edge.
-  float H = 0.05 + 0.6 * pow(smoothstep(0.42, 0.85, ringN(az, 1.6, vec2(3.1, 1.7))), 1.3);
-  float puff = fbm(vec2(az * 9.0, el * 11.0) + vec2(uTime * 0.003, 0.0));
-  float puff2 = fbm(vec2(az * 23.0, el * 25.0) + 5.0);
-  float top = H + (puff - 0.5) * 0.13 + (puff2 - 0.5) * 0.045;
-  float cloud = smoothstep(0.0, 0.02, top - el) * smoothstep(-0.03, 0.02, el);
-  float lit = clamp(0.5 + (puff - fbm(vec2(az * 9.0 - 0.18 * sign(sin(az - sunAz)), el * 11.0 - 0.1))) * 3.2 + 0.3 * smoothstep(-0.14, 0.0, el - top), 0.0, 1.0);
-  vec3 front = mix(vec3(0.86, 0.66, 0.6), vec3(1.0, 0.93, 0.8), lit);
-  vec3 back = mix(vec3(0.38, 0.39, 0.6), vec3(0.72, 0.58, 0.62), lit);
-  vec3 cc = mix(front, back, smoothstep(-0.3, 0.85, facing));
-  float rim = smoothstep(0.0, 0.012, top - el) * (1.0 - smoothstep(0.012, 0.04, top - el));
-  cc += vec3(1.0, 0.74, 0.34) * rim * pow(max(facing, 0.0), 2.0) * 0.9;
-  col = mix(col, cc, cloud);
-  // The far range: blue-violet, its snow lit gold where it faces away
-  // from the sun (the alpenglow), its feet lost in the haze.
-  vec3 hz = vec3(0.6, 0.74, 0.86);
-  float m1 = 0.018 + 0.1 * pow(ringN(az, 3.4, vec2(9.0, 2.0)), 1.5) + 0.03 * (1.0 - abs(2.0 * ringN(az, 7.0, vec2(1.0, 8.0)) - 1.0));
-  if (el < m1) {
-    float snow = smoothstep(m1 - 0.022, m1 - 0.004, el) * smoothstep(0.06, 0.1, m1);
-    vec3 mc = mix(vec3(0.36, 0.4, 0.68), vec3(0.42, 0.45, 0.72), smoothstep(m1 - 0.06, m1, el));
-    mc = mix(mc, vec3(0.86, 0.6, 0.58), 0.3 * max(-facing, 0.0));
-    mc = mix(mc, vec3(1.0, 0.87, 0.72), snow * 0.85);
-    mc = mix(mc, hz, 0.5 * (1.0 - smoothstep(-0.02, m1 * 0.7, el)));
-    col = mc;
-  }
-  // A nearer range, darker, its ridge caught by the sun.
-  float m2 = 0.004 + 0.05 * pow(ringN(az, 5.0, vec2(4.0, 6.0)), 1.3);
-  if (el < m2) {
-    vec3 mc = vec3(0.17, 0.25, 0.47);
-    mc = mix(mc, vec3(0.95, 0.66, 0.4), smoothstep(m2 - 0.008, m2, el) * pow(max(facing, 0.0), 1.5) * 0.7);
-    mc = mix(mc, hz * 0.85, 0.35 * (1.0 - smoothstep(-0.03, m2, el)));
-    col = mc;
-  }
-  // The near hills, wooded.
-  float m3 = -0.012 + 0.03 * ringN(az, 8.0, vec2(2.0, 3.0));
-  if (el < m3) {
-    vec3 mc = mix(vec3(0.09, 0.17, 0.19), vec3(0.15, 0.24, 0.2), fbm(vec2(az * 40.0, el * 60.0)));
-    mc = mix(mc, vec3(0.7, 0.55, 0.3), smoothstep(m3 - 0.006, m3, el) * max(facing, 0.0) * 0.6);
-    col = mc;
-  }
-  // The valley below: a lake holding the sky, woods, haze toward the far side.
-  if (el < -0.012) {
-    float lakeBand = smoothstep(-0.14, -0.06, el) * (1.0 - smoothstep(-0.03, -0.015, el));
-    float lake = lakeBand * smoothstep(0.42, 0.6, ringN(az, 2.2, vec2(5.0, 5.0)));
-    vec3 woods = mix(vec3(0.06, 0.12, 0.11), vec3(0.11, 0.2, 0.16), fbm(vec2(az * 30.0, el * 30.0)));
-    woods = mix(woods, hz * 0.8, 0.55 * smoothstep(-0.3, -0.02, el));
-    vec3 water = skyGrad(-el * 3.0, sunDot) * 0.8 + vec3(1.0, 0.8, 0.5) * pow(sunDot, 40.0) * 0.4;
-    col = mix(woods, water, lake);
-  }
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(col, 0.0);
 }`;
 
-/* ------------------------------------------------------------ the pool */
+/* ------------------------------------------------------------ the sea */
 
-const WATER_VERT = `
-uniform mat4 uTexMatrix;
-varying vec4 vRefl;
+/* A wide disc of sea round the pillar, falling away with distance (so its
+   edge meets the painted horizon), its swell moving. Turquoise shallows
+   round the pillar and the rocks, cobalt further out, white caps, and the
+   surf: foam that churns and breaks in pulses where the water meets
+   stone. Alpha 0: the world. */
+const SEA_VERT = `
+uniform float uTime;
+uniform float uCurveFrom;
+uniform float uCurveK;
 varying vec3 vWorld;
+varying vec2 vXZ;
+varying float vR;
 void main() {
-  vec4 w = modelMatrix * vec4(position, 1.0);
+  vec3 p = position;
+  float r = length(p.xz);
+  float f = max(r - uCurveFrom, 0.0);
+  p.y -= f * f * uCurveK;
+  float swell = smoothstep(10.0, 22.0, r);
+  p.y += (sin(p.x * 0.11 + uTime * 0.55) * 0.14 + sin(p.z * 0.085 - uTime * 0.42) * 0.12) * swell;
+  vXZ = position.xz;
+  vR = r;
+  vec4 w = modelMatrix * vec4(p, 1.0);
   vWorld = w.xyz;
-  vRefl = uTexMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
-const WATER_FRAG = `
+const SEA_FRAG = `
 precision highp float;
-uniform sampler2D tRefl;
 uniform float uTime;
-varying vec4 vRefl;
+uniform vec2 uPillar;
+uniform vec3 uRocks[8];
 varying vec3 vWorld;
+varying vec2 vXZ;
+varying float vR;
 ${NOISE_GLSL}
+float sdBox(vec2 p, vec2 b) { vec2 d = abs(p) - b; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }
 void main() {
-  vec2 p = vWorld.xz * 0.45;
-  vec2 rip = vec2(vnoise(p + uTime * 0.05) - 0.5, vnoise(p * 1.3 - uTime * 0.04 + 9.0) - 0.5);
-  vec4 uv = vRefl;
-  uv.xy += rip * 0.03 * uv.w;
-  vec3 refl = texture2DProj(tRefl, uv).rgb;
+  vec2 q = vXZ;
+  float dist = sdBox(q, uPillar);
+  for (int i = 0; i < 8; i++) dist = min(dist, length(q - uRocks[i].xy) - uRocks[i].z);
+  float shallow = 1.0 - smoothstep(0.0, 10.0, dist);
+  vec3 col = mix(vec3(0.13, 0.38, 0.62), vec3(0.08, 0.24, 0.52), smoothstep(12.0, 40.0, vR));
+  col = mix(col, vec3(0.3, 0.62, 0.68), shallow * 0.7);
+  // Moving streaks of light and dark across the water, and white caps.
+  float w1 = vnoise(q * vec2(0.16, 0.45) + vec2(uTime * 0.22, uTime * 0.08));
+  col *= 0.9 + 0.2 * w1;
+  float caps = smoothstep(0.74, 0.92, vnoise(q * 0.32 + vec2(uTime * 0.28, -uTime * 0.18)) * (0.55 + 0.6 * w1));
+  col = mix(col, vec3(0.88, 0.92, 0.94), caps * 0.45);
+  // The surf.
+  float pulse = 0.5 + 0.5 * sin(uTime * 0.9 - dist * 0.8);
+  float churn = vnoise(q * 0.8 + vec2(uTime * 0.6, -uTime * 0.45)) * 0.6 + vnoise(q * 2.1 - uTime * 0.8) * 0.4;
+  float near = 1.0 - smoothstep(0.0, 2.4 + 2.0 * pulse, dist);
+  float foam = near * smoothstep(0.3, 0.62, churn + 0.35 * (1.0 - smoothstep(0.0, 1.0, dist)));
+  col = mix(col, vec3(0.88, 0.92, 0.94), clamp(foam, 0.0, 1.0) * 0.9);
+  // The sky in it, seen low; the haze toward the horizon.
   vec3 V = normalize(cameraPosition - vWorld);
-  // Dark, still water: the reflection strongest where it's seen low.
-  float fres = 0.36 + 0.64 * pow(1.0 - max(V.y, 0.0), 2.2);
-  vec3 deep = vec3(0.04, 0.1, 0.13);
-  vec3 col = mix(deep, refl * 0.9, fres);
-  gl_FragColor = vec4(col, 1.0);
+  col = mix(col, vec3(0.7, 0.8, 0.9), pow(1.0 - max(V.y, 0.0), 3.0) * 0.4);
+  col = mix(col, vec3(0.74, 0.84, 0.92), smoothstep(26.0, 40.0, vR) * 0.4);
+  gl_FragColor = vec4(col, 0.0);
 }`;
 
-/* ------------------------------------------------------------ the architecture */
+/* ------------------------------------------------------------ the things in it */
 
-function marbleMat(tint = 0xffffff, repeat = 1) {
-  let map = marbleTexture();
-  if (repeat !== 1) { map = map.clone(); map.needsUpdate = true; map.repeat.set(repeat, repeat); }
-  return new THREE.MeshStandardMaterial({ color: tint, map, roughness: 0.62, metalness: 0, envMap: parrishEnv(), envMapIntensity: 0.25 });
-}
+// Materials for the world write alpha 0 (opacity 0, opaque).
+const world = (m) => { m.opacity = 0; m.transparent = false; return m; };
 
-/* A column: a fluted shaft with a little entasis, a moulded base, a
-   Doric-like capital. Height h, lower radius r. */
-function buildColumn(h, r, mat) {
-  const g = new THREE.Group();
-  const shaftH = h * 0.84;
-  const shaft = new THREE.CylinderGeometry(r * 0.84, r, shaftH, 40, 10, false);
-  const pos = shaft.attributes.position;
+/* A rock: a lumpy, dark slate boulder, half in the water. */
+function buildRock(r, size, mat) {
+  const geo = new THREE.IcosahedronGeometry(1, 2);
+  const pos = geo.attributes.position;
+  const n = noise2(Math.floor(r() * 1000));
   for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), z = pos.getZ(i), y = pos.getY(i);
-    const rad = Math.hypot(x, z);
-    if (rad < 1e-4) continue;
-    const a = Math.atan2(z, x);
-    const ent = 1 + 0.035 * Math.sin(Math.PI * (y / shaftH + 0.5));
-    const flute = 1 - 0.045 * (0.5 - 0.5 * Math.cos(a * 20));
-    pos.setX(i, x * ent * flute); pos.setZ(i, z * ent * flute);
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const k = 0.72 + 0.5 * n(x * 1.7 + 5, z * 1.7 + y * 1.3 + 5) + 0.12 * n(x * 5 + 9, y * 5 + 2);
+    pos.setXYZ(i, x * k, y * k * 0.8, z * k);
   }
-  shaft.computeVertexNormals();
-  const sm = new THREE.Mesh(shaft, mat);
-  sm.position.y = h * 0.07 + shaftH / 2;
-  sm.castShadow = true;
-  g.add(sm);
-  const base = new THREE.LatheGeometry([
-    new THREE.Vector2(r * 1.35, 0), new THREE.Vector2(r * 1.35, h * 0.025), new THREE.Vector2(r * 1.22, h * 0.03),
-    new THREE.Vector2(r * 1.24, h * 0.045), new THREE.Vector2(r * 1.08, h * 0.06), new THREE.Vector2(r * 1.02, h * 0.07),
-  ], 40);
-  g.add(new THREE.Mesh(base, mat));
-  const cap = new THREE.LatheGeometry([
-    new THREE.Vector2(r * 0.86, 0), new THREE.Vector2(r * 0.92, h * 0.012), new THREE.Vector2(r * 1.18, h * 0.045),
-    new THREE.Vector2(r * 1.24, h * 0.06),
-  ], 40);
-  const cm = new THREE.Mesh(cap, mat);
-  cm.position.y = h * 0.07 + shaftH;
-  g.add(cm);
-  const abacus = new THREE.Mesh(new THREE.BoxGeometry(r * 2.6, h * 0.035, r * 2.6), mat);
-  abacus.position.y = h * 0.07 + shaftH + h * 0.06 + h * 0.0175;
-  g.add(abacus);
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, mat);
+  m.scale.set(size * (0.9 + r() * 0.4), size * (0.7 + r() * 0.6), size * (0.9 + r() * 0.4));
+  m.rotation.y = r() * Math.PI * 2;
+  return m;
+}
+
+/* An old ship under sail: a dark wooden hull, three masts, square sails
+   bellied with wind, the rigging. Bow toward +x. */
+function buildShip(mats) {
+  const g = new THREE.Group();
+  const prof = new THREE.Shape();
+  prof.moveTo(-8, 3.4); prof.lineTo(-8.4, 1.4); prof.lineTo(-6.6, 0); prof.lineTo(5.4, 0); prof.lineTo(8.6, 1.6); prof.lineTo(9.8, 3.6); prof.lineTo(6, 3.0); prof.lineTo(-8, 3.4);
+  const hull = new THREE.Mesh(new THREE.ExtrudeGeometry(prof, { depth: 3.4, bevelEnabled: false, curveSegments: 1 }), mats.hull);
+  hull.position.z = -1.7;
+  g.add(hull);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(15.5, 0.3, 3.5), mats.trim);
+  stripe.position.set(0.3, 2.4, 0);
+  g.add(stripe);
+  const masts = [[-4.2, 13], [0.6, 16], [5.2, 12]];
+  const ropes = [];
+  masts.forEach(([x, h]) => {
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.2, h, 6), mats.hull);
+    mast.position.set(x, 3 + h / 2, 0);
+    g.add(mast);
+    [[0.42, 0.9], [0.74, 0.7]].forEach(([at, w]) => {
+      const sw = 5.6 * w, sh = h * 0.27;
+      const sg = new THREE.PlaneGeometry(sw, sh, 6, 4);
+      const sp = sg.attributes.position;
+      for (let i = 0; i < sp.count; i++) {
+        const u = sp.getX(i) / (sw / 2), v = sp.getY(i) / (sh / 2);
+        sp.setZ(i, (1 - u * u) * (1 - 0.3 * v * v) * 0.9);
+      }
+      sg.computeVertexNormals();
+      const sail = new THREE.Mesh(sg, mats.sail);
+      sail.rotation.y = Math.PI / 2;
+      sail.position.set(x + 0.25, 3 + h * at, 0);
+      g.add(sail);
+      ropes.push(x, 3 + h * at + sh / 2, 0, x, 3 + h * at + sh / 2, 0);
+    });
+    ropes.push(x, 3 + h, 0, -8, 3.4, 0, x, 3 + h, 0, 9.8, 3.6, 0);
+  });
+  const bow = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 6, 5), mats.hull);
+  bow.rotation.z = -Math.PI / 2.6;
+  bow.position.set(11.5, 4.8, 0);
+  g.add(bow);
+  const rg = new THREE.BufferGeometry();
+  rg.setAttribute("position", new THREE.Float32BufferAttribute(ropes, 3));
+  g.add(new THREE.LineSegments(rg, mats.rope));
   return g;
 }
 
-/* An urn on a pedestal, overflowing with leaves and flowers. */
-function buildUrn(mat, leafMat, flowerMats, r) {
+/* Flowers for a corner of the pillar: roses (coral, rose, red), sweet peas
+   (lavender, mauve), daisies, and their leaves. */
+function buildFlowers(r, mats) {
   const g = new THREE.Group();
-  const ped = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.2, 2.2), mat);
-  ped.position.y = 1.1;
-  g.add(ped);
-  const capb = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.25, 2.6), mat);
-  capb.position.y = 2.3;
-  g.add(capb);
-  const prof = [[0, 0], [0.62, 0], [0.62, 0.14], [0.36, 0.24], [0.3, 0.5], [0.7, 0.82], [0.88, 1.15], [0.8, 1.4], [0.58, 1.52], [0.68, 1.62], [0.64, 1.7], [0.0, 1.7]];
-  const urn = new THREE.Mesh(new THREE.LatheGeometry(prof.map(([x, y]) => new THREE.Vector2(x * 1.25, y * 1.25)), 32), mat);
-  urn.position.y = 2.42;
-  g.add(urn);
-  const top = 2.42 + 1.7 * 1.25;
-  const leaf = new THREE.IcosahedronGeometry(0.55, 1);
+  const leaf = new THREE.IcosahedronGeometry(0.16, 0);
+  const rose = new THREE.IcosahedronGeometry(0.11, 1);
+  const pea = new THREE.IcosahedronGeometry(0.06, 0);
+  const petal = new THREE.CircleGeometry(0.09, 8);
+  const eye = new THREE.CircleGeometry(0.035, 6);
   for (let i = 0; i < 16; i++) {
-    const a = r() * Math.PI * 2, rr = r() * 0.95;
-    const m = new THREE.Mesh(leaf, leafMat);
-    m.position.set(Math.cos(a) * rr, top + 0.2 + r() * 0.9 - rr * 0.35, Math.sin(a) * rr);
-    m.scale.setScalar(0.7 + r() * 0.7);
+    const a = r() * Math.PI * 2, rr = r() * 0.55;
+    const m = new THREE.Mesh(leaf, mats.leaf);
+    m.position.set(Math.cos(a) * rr, 0.05 + r() * 0.16, Math.sin(a) * rr);
+    m.scale.set(1, 0.5, 1.4);
+    m.rotation.y = r() * 6;
     g.add(m);
   }
-  const fl = new THREE.IcosahedronGeometry(0.2, 0);
-  for (let i = 0; i < 14; i++) {
-    const a = r() * Math.PI * 2, rr = 0.4 + r() * 0.8;
-    const m = new THREE.Mesh(fl, flowerMats[i % flowerMats.length]);
-    m.position.set(Math.cos(a) * rr, top + 0.6 + r() * 0.9, Math.sin(a) * rr);
+  for (let i = 0; i < 7; i++) {
+    const a = r() * Math.PI * 2, rr = r() * 0.45;
+    const m = new THREE.Mesh(rose, mats.roses[i % mats.roses.length]);
+    m.position.set(Math.cos(a) * rr, 0.2 + r() * 0.14, Math.sin(a) * rr);
+    m.scale.set(1, 0.8, 1);
     g.add(m);
+  }
+  for (let i = 0; i < 12; i++) {
+    const a = r() * Math.PI * 2, rr = 0.2 + r() * 0.45;
+    const m = new THREE.Mesh(pea, mats.peas[i % mats.peas.length]);
+    m.position.set(Math.cos(a) * rr, 0.24 + r() * 0.22, Math.sin(a) * rr);
+    g.add(m);
+  }
+  for (let i = 0; i < 5; i++) {
+    const a = r() * Math.PI * 2, rr = 0.25 + r() * 0.35;
+    const d = new THREE.Group();
+    const p = new THREE.Mesh(petal, mats.daisy); d.add(p);
+    const e = new THREE.Mesh(eye, mats.eye); e.position.z = 0.005; d.add(e);
+    d.position.set(Math.cos(a) * rr, 0.26 + r() * 0.12, Math.sin(a) * rr);
+    d.rotation.x = -Math.PI / 2 + (r() - 0.5) * 0.8;
+    g.add(d);
   }
   return g;
 }
 
-/* A tree: a trunk and a crown of leaf clusters (a broad oak, or a tall
-   cypress). */
-function buildTree(kind, scale, leafMat, barkMat, r) {
+/* A white butterfly: two wings (a painted canvas: white, a dusting of
+   lemon, dark tips and a spot), flapping. */
+let WING = null;
+function wingTexture() {
+  if (WING) return WING;
+  const c = document.createElement("canvas"); c.width = c.height = 128;
+  const g = c.getContext("2d");
+  g.fillStyle = "#FBFAF2";
+  g.beginPath(); g.moveTo(4, 64); g.bezierCurveTo(20, 4, 110, 0, 124, 30); g.bezierCurveTo(126, 56, 96, 66, 70, 66); g.bezierCurveTo(104, 80, 112, 112, 84, 124); g.bezierCurveTo(52, 128, 18, 96, 4, 64); g.fill();
+  const lg = g.createRadialGradient(10, 64, 4, 10, 64, 90); lg.addColorStop(0, "rgba(232,226,160,0.8)"); lg.addColorStop(1, "rgba(232,226,160,0)");
+  g.globalCompositeOperation = "source-atop";
+  g.fillStyle = lg; g.fillRect(0, 0, 128, 128);
+  g.fillStyle = "rgba(60,62,70,0.85)"; g.beginPath(); g.ellipse(112, 24, 16, 12, 0.5, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.arc(78, 40, 7, 0, Math.PI * 2); g.fill();
+  WING = new THREE.CanvasTexture(c);
+  return WING;
+}
+function buildButterfly(mat) {
   const g = new THREE.Group();
-  const H = (kind === "cypress" ? 26 : 20) * scale;
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5 * scale, 0.9 * scale, H * 0.55, 8), barkMat);
-  trunk.position.y = H * 0.27;
-  g.add(trunk);
-  const blob = new THREE.IcosahedronGeometry(1, 1);
-  const n = kind === "cypress" ? 22 : 34;
-  for (let i = 0; i < n; i++) {
-    const m = new THREE.Mesh(blob, leafMat);
-    if (kind === "cypress") {
-      const y = H * (0.18 + 0.8 * (i / n));
-      const w = 2.2 * scale * Math.sin(Math.PI * Math.min(1, (i + 2) / n)) + 0.5 * scale;
-      m.position.set((r() - 0.5) * w * 0.5, y, (r() - 0.5) * w * 0.5);
-      m.scale.set(w, 2.4 * scale, w);
-    } else {
-      const a = r() * Math.PI * 2, rr = r() * 6 * scale, y = H * (0.55 + r() * 0.4);
-      m.position.set(Math.cos(a) * rr, y - rr * 0.25, Math.sin(a) * rr * 0.8);
-      m.scale.setScalar((2.6 + r() * 2) * scale);
-    }
-    g.add(m);
-  }
+  const geo = new THREE.PlaneGeometry(0.42, 0.42);
+  geo.translate(0.21, 0, 0);
+  geo.rotateX(-Math.PI / 2);
+  const right = new THREE.Mesh(geo, mat);
+  const left = new THREE.Mesh(geo, mat);
+  left.scale.x = -1;
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 4), new THREE.MeshLambertMaterial({ color: 0x3a3a40 }));
+  body.rotation.x = Math.PI / 2;
+  g.add(right, left, body);
+  g.userData = { right, left };
   return g;
 }
 
-/* The whole court, sized to the board. Returns { group, water, waterMat,
-   fades, dispose }; `fades` are the things that step aside when they'd
-   stand between the camera and the board. */
-function buildTerrace(sky) {
+/* ------------------------------------------------------------ the world */
+
+function buildWorld(sky) {
   const group = new THREE.Group();
-  group.name = "parrish-terrace";
+  group.name = "parrish-world";
   const geos = new Set(), mats = new Set();
   const keep = (o) => { o.traverse((m) => { if (m.geometry) geos.add(m.geometry); if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach((x) => mats.add(x)); }); return o; };
-  const r = rng(1975);
-  const hx = SLAB_X / 2, hz = SLAB_Z / 2;
-  const WATER_Y = -2.2;
-  const FLOOR_Y = WATER_Y + 0.55;   // the paving
-  const PX = hx + 5.5, PZ = hz + 8.5; // the pool's half sizes
-  const RIM = 1.3;                  // its kerb
-  const CX = PX + RIM + 5.5;        // the colonnades, at x = ±CX
-  const CZ = PZ + RIM + 1.5;        // running from z = -CZ to CZ
-  const TX = CX + 6, TZ = CZ + 6.5; // the court's edge
-  const COL_H = 15;
+  const r = rng(1988);
 
-  const marble = marbleMat(0xffffff, 1);
-  const marbleWarm = marbleMat(0xf3e2c6, 2);
-  mats.add(marble); mats.add(marbleWarm);
-  const box = (w, h, d, mat, x, y, z, shadow = true) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-    m.position.set(x, y, z);
-    m.receiveShadow = shadow;
-    group.add(m);
-    return m;
+  // The pillar: its top (the subject's, with the board) and its body going
+  // down into the sea (the world's).
+  const pw = SLAB_X + 2.4, pd = SLAB_Z + 2.4;
+  const stoneTop = new THREE.MeshStandardMaterial({ color: 0xffffff, map: stoneTexture(), roughness: 0.9, metalness: 0, envMap: parrishEnv(), envMapIntensity: 0.12 });
+  const stoneBody = world(new THREE.MeshStandardMaterial({ color: 0xe6e2da, map: stoneTexture(), roughness: 0.8, metalness: 0 }));
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(pw, 0.4, pd), stoneTop);
+  cap.position.y = -SLAB_THICKNESS - 0.2;
+  cap.receiveShadow = true;
+  group.add(cap);
+  const bodyH = 14;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(pw - 0.6, bodyH, pd - 0.6), stoneBody);
+  body.position.y = -SLAB_THICKNESS - 0.4 - bodyH / 2;
+  body.receiveShadow = true;
+  group.add(body);
+
+  // Flowers at the pillar's corners, outside the board.
+  const fm = {
+    leaf: new THREE.MeshStandardMaterial({ color: 0x6f9a6a, roughness: 0.85, flatShading: true }),
+    roses: [0xf08a7a, 0xe8607a, 0xc8283a, 0xf6b8b0].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 })),
+    peas: [0xb59ad8, 0xd8a8d0, 0x9a7cc8].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 })),
+    daisy: new THREE.MeshStandardMaterial({ color: 0xfbfaf4, roughness: 0.8, side: THREE.DoubleSide }),
+    eye: new THREE.MeshStandardMaterial({ color: 0xf2c33c, roughness: 0.8, side: THREE.DoubleSide }),
   };
-
-  // The plinth the board stands on, rising from the pool.
-  const pw = SLAB_X + 0.9, pd = SLAB_Z + 0.9;
-  const plinthH = -SLAB_THICKNESS - WATER_Y + 0.6;
-  box(pw, plinthH, pd, marble, 0, -SLAB_THICKNESS - 0.32 - plinthH / 2, 0);
-  box(pw + 0.5, 0.32, pd + 0.5, marble, 0, -SLAB_THICKNESS - 0.16, 0);
-  box(pw + 0.7, 0.5, pd + 0.7, marble, 0, WATER_Y + 0.1, 0, false);
-
-  // The water, with the reflection's matrix and texture filled in each frame.
-  const waterMat = new THREE.ShaderMaterial({
-    uniforms: { tRefl: { value: null }, uTexMatrix: { value: new THREE.Matrix4() }, uTime: { value: 0 } },
-    vertexShader: WATER_VERT, fragmentShader: WATER_FRAG,
-  });
-  mats.add(waterMat);
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(PX * 2, PZ * 2), waterMat);
-  water.rotation.x = -Math.PI / 2;
-  water.position.y = WATER_Y;
-  water.name = "parrish-pool";
-  group.add(water);
-
-  // The kerb round the pool, with a coping on top.
-  const kerbH = FLOOR_Y + 0.4 - (WATER_Y - 0.4), kerbY = (FLOOR_Y + 0.4 + WATER_Y - 0.4) / 2;
-  [[0, PZ + RIM / 2, PX * 2 + RIM * 2, RIM], [0, -PZ - RIM / 2, PX * 2 + RIM * 2, RIM], [PX + RIM / 2, 0, RIM, PZ * 2], [-PX - RIM / 2, 0, RIM, PZ * 2]].forEach(([x, z, w, d]) => {
-    box(w, kerbH, d, marble, x, kerbY, z);
-    box(w + 0.2, 0.14, d + 0.2, marble, x, FLOOR_Y + 0.47, z);
+  const fx = pw / 2 - 0.55, fz = pd / 2 - 0.55;
+  [[fx, fz], [-fx, fz], [fx, -fz], [-fx, -fz]].forEach(([x, z]) => {
+    const f = buildFlowers(r, fm);
+    f.position.set(x, -SLAB_THICKNESS, z);
+    f.scale.setScalar(1.6);
+    group.add(f);
   });
 
-  // The paving, from the kerb out to the edge (a slab with the pool cut out).
-  const outline = new THREE.Shape([new THREE.Vector2(-TX, -TZ), new THREE.Vector2(TX, -TZ), new THREE.Vector2(TX, TZ), new THREE.Vector2(-TX, TZ)]);
-  const hp = PX + RIM - 0.05, hq = PZ + RIM - 0.05;
-  outline.holes.push(new THREE.Path([new THREE.Vector2(-hp, -hq), new THREE.Vector2(-hp, hq), new THREE.Vector2(hp, hq), new THREE.Vector2(hp, -hq)]));
-  const floorGeo = new THREE.ShapeGeometry(outline);
-  const fp = floorGeo.attributes.position, fuv = floorGeo.attributes.uv;
-  for (let i = 0; i < fp.count; i++) fuv.setXY(i, fp.getX(i) / 9, fp.getY(i) / 9);
-  const floorMat = new THREE.MeshStandardMaterial({ map: pavingTexture(), roughness: 0.75, metalness: 0, envMap: parrishEnv(), envMapIntensity: 0.15 });
-  mats.add(floorMat);
-  const floor = new THREE.Mesh(floorGeo, floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = FLOOR_Y;
-  floor.receiveShadow = true;
-  group.add(floor);
-
-  // The walls the court stands on, warm stone going down into the haze
-  // (walls only: a block would cover the pool).
-  const cliffMat = new THREE.MeshStandardMaterial({ color: 0x9a826a, roughness: 0.95, metalness: 0 });
-  mats.add(cliffMat);
-  [[0, TZ - 0.5, TX * 2, 1], [0, -TZ + 0.5, TX * 2, 1], [TX - 0.5, 0, 1, TZ * 2], [-TX + 0.5, 0, 1, TZ * 2]].forEach(([x, z, w, d]) => {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 46, d), cliffMat);
-    wall.position.set(x, FLOOR_Y - 23.05, z);
-    group.add(wall);
+  // The sea.
+  const rocks = [];
+  const rockMat = world(new THREE.MeshStandardMaterial({ color: 0x3c4652, roughness: 0.9, metalness: 0, flatShading: true }));
+  [[0.5, 17, 2.6], [1.3, 21, 3.6], [2.2, 15.5, 1.8], [2.9, 26, 4.2], [3.7, 19, 2.4], [4.4, 24, 3.2], [5.3, 16.5, 2.2], [5.9, 29, 4.8]].forEach(([a, d, s]) => {
+    const rock = buildRock(r, s, rockMat);
+    const x = Math.cos(a) * d, z = Math.sin(a) * d;
+    rock.position.set(x, seaY(d) - s * 0.25, z);
+    group.add(rock);
+    rocks.push(new THREE.Vector3(x, z, s * 0.95));
   });
+  const seaGeo = new THREE.RingGeometry(0.5, 420, 160, 90);
+  seaGeo.rotateX(-Math.PI / 2);
+  const seaMat = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uCurveFrom: { value: CURVE_FROM }, uCurveK: { value: CURVE_K }, uPillar: { value: new THREE.Vector2((pw - 0.6) / 2, (pd - 0.6) / 2) }, uRocks: { value: rocks } },
+    vertexShader: SEA_VERT, fragmentShader: SEA_FRAG,
+  });
+  const sea = new THREE.Mesh(seaGeo, seaMat);
+  sea.position.y = WATER_Y;
+  sea.frustumCulled = false;
+  sea.name = "parrish-sea";
+  group.add(sea);
 
-  // The balustrade round the edge: balusters between piers, a rail, a sill.
-  const balProf = [[0, 0], [0.32, 0], [0.32, 0.1], [0.18, 0.18], [0.16, 0.35], [0.3, 0.62], [0.33, 0.78], [0.16, 1.02], [0.14, 1.12], [0.26, 1.2], [0.26, 1.3], [0, 1.3]];
-  const balGeo = new THREE.LatheGeometry(balProf.map(([x, y]) => new THREE.Vector2(x, y)), 10);
-  geos.add(balGeo);
-  const BX = TX - 0.7, BZ = TZ - 0.7;
-  const spots = [];
-  const side = (x0, z0, x1, z1) => {
-    const len = Math.hypot(x1 - x0, z1 - z0), n = Math.round(len / 1.0);
-    for (let i = 1; i < n; i++) {
-      const u = i / n;
-      // Every eighth a pier instead.
-      if (i % 8 === 0) { box(1.0, 2.0, 1.0, marbleWarm, x0 + (x1 - x0) * u, FLOOR_Y + 1.0, z0 + (z1 - z0) * u); continue; }
-      spots.push([x0 + (x1 - x0) * u, z0 + (z1 - z0) * u]);
-    }
+  // The ship, sailing round.
+  const shipMats = {
+    hull: world(new THREE.MeshStandardMaterial({ color: 0x5a3c28, roughness: 0.8 })),
+    trim: world(new THREE.MeshStandardMaterial({ color: 0xc9a050, roughness: 0.6 })),
+    sail: world(new THREE.MeshStandardMaterial({ color: 0xf4eedf, roughness: 0.9, side: THREE.DoubleSide })),
+    rope: world(new THREE.LineBasicMaterial({ color: 0x3a3028 })),
   };
-  side(-BX, -BZ, BX, -BZ); side(BX, -BZ, BX, BZ); side(BX, BZ, -BX, BZ); side(-BX, BZ, -BX, -BZ);
-  const bal = new THREE.InstancedMesh(balGeo, marbleWarm, spots.length);
-  const m4 = new THREE.Matrix4();
-  spots.forEach(([x, z], i) => { m4.makeTranslation(x, FLOOR_Y + 0.3, z); bal.setMatrixAt(i, m4); });
-  group.add(bal);
-  [[-BX, BX, -BZ, -BZ], [-BX, BX, BZ, BZ], [-BX, -BX, -BZ, BZ], [BX, BX, -BZ, BZ]].forEach(([x0, x1, z0, z1]) => {
-    const w = Math.max(0.8, Math.abs(x1 - x0) + 0.8), d = Math.max(0.8, Math.abs(z1 - z0) + 0.8);
-    box(w, 0.3, d, marbleWarm, (x0 + x1) / 2, FLOOR_Y + 0.15, (z0 + z1) / 2);
-    box(w, 0.24, d, marbleWarm, (x0 + x1) / 2, FLOOR_Y + 1.72, (z0 + z1) / 2);
-  });
-  [[-BX, -BZ], [BX, -BZ], [BX, BZ], [-BX, BZ]].forEach(([x, z]) => box(1.2, 2.2, 1.2, marbleWarm, x, FLOOR_Y + 1.1, z));
+  const ship = buildShip(shipMats);
+  group.add(ship);
 
-  // The colonnades down both long sides, each bay (a column and its
-  // stretch of entablature) stepping aside on its own when it would
-  // stand between the camera and the board.
-  const fades = [];
-  const NB = Math.max(5, Math.round((CZ * 2) / 4.8) + 1);
-  const bay = (CZ * 2) / (NB - 1);
-  [-1, 1].forEach((sx) => {
-    // The stylobate the columns stand on.
-    box(3.4, 0.35, CZ * 2 + 3.4, marbleWarm, sx * CX, FLOOR_Y + 0.17, 0);
-    for (let k = 0; k < NB; k++) {
-      const z = -CZ + k * bay;
-      const mat = marbleMat(0xffffff, 1);
-      mats.add(mat);
-      const g = new THREE.Group();
-      const col = buildColumn(COL_H, 0.95, mat);
-      col.position.y = 0.35;
-      g.add(col);
-      // Its stretch of the entablature: architrave, frieze, cornice.
-      const len = bay + (k === 0 || k === NB - 1 ? 1.7 : 0);
-      const off = k === 0 ? -0.85 : k === NB - 1 ? 0.85 : 0;
-      const ent = (w, h, d, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(0, y, off); g.add(m); };
-      ent(2.3, 1.0, len, COL_H + 0.35 + 0.5);
-      ent(2.1, 1.1, len, COL_H + 0.35 + 1.55);
-      ent(2.9, 0.45, len + 0.1, COL_H + 0.35 + 2.33);
-      g.position.set(sx * CX, FLOOR_Y, z);
-      group.add(g);
-      fades.push({ obj: g, mats: [mat], x: sx * CX, z, rad: 1.6, op: 1 });
-    }
+  // The butterflies.
+  const bmat = new THREE.MeshLambertMaterial({ map: wingTexture(), side: THREE.DoubleSide, alphaTest: 0.5 });
+  const butterflies = [0, 1, 2].map((i) => {
+    const b = buildButterfly(bmat);
+    b.userData.phase = i * 2.1 + r() * 3;
+    b.userData.speed = 0.13 + r() * 0.06;
+    group.add(b);
+    return b;
   });
 
-  // Urns at the pool's corners.
-  const leafMat = new THREE.MeshStandardMaterial({ color: 0x35532f, roughness: 0.9, flatShading: true });
-  const flowerMats = [0xe98a72, 0xf3c25d, 0xf2e7d4, 0xd96a8a].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 }));
-  mats.add(leafMat); flowerMats.forEach((m) => mats.add(m));
-  const ux = PX + RIM + 2.2, uz = PZ + RIM + 2.2;
-  [[ux, uz], [-ux, uz], [ux, -uz], [-ux, -uz]].forEach(([x, z]) => {
-    const u = buildUrn(marble, leafMat, flowerMats, r);
-    u.position.set(x, FLOOR_Y, z);
-    group.add(u);
+  // Crimson leaves drifting down past the pillar (the "Watermark" cover).
+  const lmat = new THREE.MeshLambertMaterial({ map: leafTexture(), side: THREE.DoubleSide, alphaTest: 0.5 });
+  const lgeo = new THREE.PlaneGeometry(0.95, 0.95);
+  const leaves = [0, 1, 2, 3, 4, 5, 6].map((i) => {
+    const l = new THREE.Mesh(lgeo, lmat);
+    l.userData = { phase: r() * 100, a0: r() * Math.PI * 2, rad: 0.6 + r() * 0.5, spin: 0.6 + r() * 0.8, fall: 0.22 + r() * 0.14 };
+    group.add(l);
+    return l;
   });
 
-  // Trees on the slope below the edge, their crowns over the balustrade:
-  // cypresses flanking the view at each open end, oaks behind the
-  // colonnades. Each its own leaves, to step aside on its own.
-  const barkMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2c, roughness: 0.95 });
-  mats.add(barkMat);
-  const trees = [
-    ["cypress", 1.0, TX - 3.5, -(TZ + 4)], ["cypress", 0.85, TX - 7.5, -(TZ + 6)], ["cypress", 0.95, -(TX - 4), -(TZ + 4.5)],
-    ["cypress", 1.05, TX - 4, TZ + 4.5], ["cypress", 0.9, -(TX - 3.5), TZ + 4], ["cypress", 0.8, -(TX - 8), TZ + 6.5],
-    ["oak", 1.2, TX + 6, -TZ * 0.4], ["oak", 1.05, TX + 7, TZ * 0.45], ["oak", 1.15, -(TX + 6.5), TZ * 0.1], ["oak", 0.95, -(TX + 6), -TZ * 0.7],
-  ];
-  trees.forEach(([kind, s, x, z]) => {
-    const leaf = new THREE.MeshStandardMaterial({ color: kind === "cypress" ? 0x24402a : 0x2c4728, roughness: 0.92, flatShading: true });
-    mats.add(leaf);
-    const t = buildTree(kind, s, leaf, barkMat, r);
-    t.position.set(x, FLOOR_Y - 12, z);
-    group.add(t);
-    fades.push({ obj: t, mats: [leaf], x, z, rad: kind === "cypress" ? 3 : 7, op: 1 });
-  });
-
-  // The dome.
   group.add(sky);
   keep(group);
   geos.delete(sky.geometry); mats.delete(sky.material);
   return {
-    group, water, waterMat, fades, WATER_Y,
-    dispose() { group.remove(sky); geos.forEach((g) => g.dispose()); mats.forEach((m) => { if (m.map && m.map !== marbleTexture() && m.map !== pavingTexture()) m.map.dispose(); m.dispose(); }); },
+    group, sea, seaMat, ship, butterflies, leaves, half: [pw / 2, pd / 2],
+    dispose() { group.remove(sky); geos.forEach((g) => g.dispose()); mats.forEach((m) => { if (m.map && m.map !== stoneTexture() && m.map !== wingTexture() && m.map !== leafTexture()) m.map.dispose(); m.dispose(); }); },
   };
 }
 
@@ -584,86 +543,32 @@ const RAW = (() => { try { return new URLSearchParams(window.location.search).ge
 
 export function createParrishEffects(woodSet, { quality }) {
   return function mountAmbientEffects(refs, { three }) {
-    let attachedTo = null, terrace = null, brass = null, dims = "";
+    let attachedTo = null, scene = null, brass = null, dims = "";
     let painter = null;
     let farBefore = null;
     const keyBase = { key: null, fill: null, back: null };
 
     const sky = new THREE.Mesh(
       new THREE.SphereGeometry(900, 64, 32),
-      new THREE.ShaderMaterial({ uniforms: { uSun: { value: SUN_DIR.clone() }, uTime: { value: 0 }, uDrop: { value: DROP } }, vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, depthTest: false }),
+      new THREE.ShaderMaterial({ uniforms: { uSun: { value: SUN_DIR.clone() }, uMoon: { value: MOON_DIR.clone() }, uTime: { value: 0 }, uDrop: { value: DROP } }, vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, depthTest: false }),
     );
     sky.renderOrder = -10;
     sky.frustumCulled = false;
     sky.name = "parrish-sky";
 
-    // The pool's reflection: a camera mirrored in the water's plane.
-    const reflRT = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat });
-    const mirrorCam = new THREE.PerspectiveCamera();
-    const plane = new THREE.Plane(), clip = new THREE.Vector4(), qv = new THREE.Vector4();
-    const nrm = new THREE.Vector3(), mirrorPt = new THREE.Vector3(), camPos = new THREE.Vector3(), look = new THREE.Vector3(), tgt = new THREE.Vector3(), rotM = new THREE.Matrix4();
-    const texM = new THREE.Matrix4(), bias = new THREE.Matrix4().set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1);
-    const rsize = new THREE.Vector2();
-
-    function reflect(r, camera) {
-      if (!terrace) return;
-      const water = terrace.water;
-      r.getDrawingBufferSize(rsize);
-      const w = Math.max(2, Math.round(rsize.x * 0.32)), h = Math.max(2, Math.round(rsize.y * 0.32));
-      if (reflRT.width !== w || reflRT.height !== h) reflRT.setSize(w, h);
-      water.updateMatrixWorld();
-      mirrorPt.setFromMatrixPosition(water.matrixWorld);
-      nrm.set(0, 1, 0);
-      camPos.setFromMatrixPosition(camera.matrixWorld);
-      look.subVectors(mirrorPt, camPos);
-      if (look.dot(nrm) > 0) return; // under the water: nothing to see
-      look.reflect(nrm).negate().add(mirrorPt);
-      rotM.extractRotation(camera.matrixWorld);
-      tgt.set(0, 0, -1).applyMatrix4(rotM).add(camPos);
-      tgt.subVectors(mirrorPt, tgt).reflect(nrm).negate().add(mirrorPt);
-      mirrorCam.position.copy(look);
-      mirrorCam.up.set(0, 1, 0).applyMatrix4(rotM).reflect(nrm);
-      mirrorCam.lookAt(tgt);
-      mirrorCam.far = camera.far; mirrorCam.near = camera.near;
-      mirrorCam.updateMatrixWorld();
-      mirrorCam.projectionMatrix.copy(camera.projectionMatrix);
-      texM.copy(bias).multiply(mirrorCam.projectionMatrix).multiply(mirrorCam.matrixWorldInverse).multiply(water.matrixWorld);
-      // Only what's above the water: the near plane tilted onto it.
-      plane.setFromNormalAndCoplanarPoint(nrm, mirrorPt).applyMatrix4(mirrorCam.matrixWorldInverse);
-      clip.set(plane.normal.x, plane.normal.y, plane.normal.z, plane.constant);
-      const P = mirrorCam.projectionMatrix.elements;
-      qv.x = (Math.sign(clip.x) + P[8]) / P[0];
-      qv.y = (Math.sign(clip.y) + P[9]) / P[5];
-      qv.z = -1;
-      qv.w = (1 + P[10]) / P[14];
-      clip.multiplyScalar(2 / clip.dot(qv));
-      P[2] = clip.x; P[6] = clip.y; P[10] = clip.z + 1 - 0.003; P[14] = clip.w;
-      terrace.waterMat.uniforms.uTexMatrix.value.copy(texM);
-      terrace.waterMat.uniforms.tRefl.value = reflRT.texture;
-      const scene = three.current.scene;
-      water.visible = false;
-      const autoShadow = r.shadowMap.autoUpdate;
-      r.shadowMap.autoUpdate = false;
-      r.setRenderTarget(reflRT);
-      r.clear();
-      r.render(scene, mirrorCam);
-      r.shadowMap.autoUpdate = autoShadow;
-      water.visible = true;
-    }
-
     function build() {
       const t = three.current;
-      if (terrace) { if (terrace.group.parent) terrace.group.parent.remove(terrace.group); terrace.dispose(); terrace = null; }
+      if (scene) { if (scene.group.parent) scene.group.parent.remove(scene.group); scene.dispose(); scene = null; }
       if (brass) { if (brass.group.parent) brass.group.parent.remove(brass.group); brass.dispose(); brass = null; }
-      terrace = buildTerrace(sky);
+      scene = buildWorld(sky);
       brass = woodSet.buildBrass();
-      t.boardGroup.add(terrace.group, brass.group);
+      t.boardGroup.add(scene.group, brass.group);
       dims = `${SLAB_X}x${SLAB_Z}`;
     }
 
     /* The pixel ratio. A painting needs no more than about one pixel to
        the screen's point (the strokes are wider than any pixel), and every
-       pixel costs three passes: capped by the device's tier, and lowered a
+       pixel costs several passes: capped by the device's tier, lowered a
        step when the frames run slow, raised again when there's room (as
        the den does, den-fx.js govern). */
     const q = quality();
@@ -707,7 +612,7 @@ export function createParrishEffects(woodSet, { quality }) {
         if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__PARRISH_THREE__ = t; // tests: read the scene
       }
       if (dims !== `${SLAB_X}x${SLAB_Z}`) build();
-      // The slab's box outline would draw over the plinth's top.
+      // The slab's box outline would draw over the pillar's top.
       const edges = t.boardGroup.getObjectByName("ec-slab-edges");
       if (edges) edges.visible = false;
       if (t.camera && farBefore == null) { farBefore = t.camera.far; t.camera.far = 2400; t.camera.updateProjectionMatrix(); }
@@ -718,9 +623,9 @@ export function createParrishEffects(woodSet, { quality }) {
       return true;
     }
 
-    const yAxis = new THREE.Vector3(0, 1, 0), tmp = new THREE.Vector3(), camLocal = new THREE.Vector3();
+    const yAxis = new THREE.Vector3(0, 1, 0), tmp = new THREE.Vector3();
     const boardPos = new THREE.Vector3(), focusRange = [20, 60];
-    // The sun goes round with the court: the chassis's lights follow it.
+    // The light goes round with the world: the chassis's lights follow it.
     function placeLights() {
       const t = three.current;
       if (!t.lights) return;
@@ -730,40 +635,45 @@ export function createParrishEffects(woodSet, { quality }) {
       set(t.lights.fill, FILL_DIR, 13);
       set(t.lights.back, BACK_DIR, 13);
     }
-    /* What would stand between the camera and the board (a bay of the
-       colonnade, a tree) fades away while it would: anything within reach
-       of the line from the camera to the board's middle, the reach
-       widening toward the board as the board does. */
-    const R_BOARD = () => Math.hypot(SLAB_X, SLAB_Z) / 2;
-    function fadeBlockers(dtSec) {
-      const t = three.current;
-      if (!terrace || !t.camera) return;
-      camLocal.copy(t.camera.position);
-      t.boardGroup.worldToLocal(camLocal);
-      const cx = camLocal.x, cz = camLocal.z, L2 = cx * cx + cz * cz, RB = R_BOARD();
-      terrace.fades.forEach((f) => {
-        let block = false;
-        if (L2 > 1) {
-          const u = ((f.x - cx) * -cx + (f.z - cz) * -cz) / L2; // 0 at the camera, 1 at the board's middle
-          if (u > -0.05 && u < 1) {
-            const qx = cx - cx * u, qz = cz - cz * u;
-            block = Math.hypot(f.x - qx, f.z - qz) < f.rad + 0.8 + u * RB;
-          }
-        }
-        const goal = block ? 0.06 : 1;
-        f.op += (goal - f.op) * Math.min(1, dtSec * 5);
-        const tr = f.op < 0.995;
-        f.mats.forEach((m) => {
-          if (m.transparent !== tr) { m.transparent = tr; m.depthWrite = !tr; m.needsUpdate = true; }
-          m.opacity = f.op;
-        });
-        f.obj.visible = f.op > 0.02;
+    // The ship sails slowly round (a lap in about five minutes), rising
+    // and dipping on the swell; the butterflies wander round the pillar,
+    // never over the board.
+    const SHIP_R = 48;
+    function move(nowS) {
+      if (!scene) return;
+      const a = nowS * 0.021 + 1.2;
+      const s = scene.ship;
+      s.position.set(Math.cos(a) * SHIP_R, seaY(SHIP_R) - 0.6 + Math.sin(nowS * 0.7) * 0.25, Math.sin(a) * SHIP_R);
+      s.rotation.set(Math.sin(nowS * 0.6) * 0.03, -a - Math.PI / 2, Math.sin(nowS * 0.8 + 1) * 0.05);
+      const [hx, hz] = scene.half;
+      scene.butterflies.forEach((b) => {
+        const p = b.userData.phase, sp = b.userData.speed;
+        const th = nowS * sp + p;
+        const rx = hx + 1.6 + Math.sin(nowS * 0.31 + p) * 1.2, rz = hz + 1.6 + Math.cos(nowS * 0.27 + p * 1.7) * 1.2;
+        b.position.set(Math.cos(th) * rx, 0.9 + Math.sin(nowS * 0.9 + p) * 0.6 + Math.sin(nowS * 2.3 + p) * 0.15, Math.sin(th) * rz);
+        b.rotation.y = -th + Math.PI;
+        const flap = 0.15 + 1.0 * Math.abs(Math.sin(nowS * 11 + p * 3));
+        b.userData.right.rotation.z = flap;
+        b.userData.left.rotation.z = -flap;
+      });
+      // The leaves: each drifts down a slow spiral outside the board,
+      // tumbling, and starts again from above when it reaches the sea.
+      const R0 = Math.hypot(hx, hz);
+      scene.leaves.forEach((l) => {
+        const u = l.userData;
+        const cyc = 7 / u.fall;
+        const tt = (nowS + u.phase) % cyc;
+        const lap = Math.floor((nowS + u.phase) / cyc);
+        const a = u.a0 + lap * 2.4 + tt * 0.22;
+        const rad = R0 * (0.95 + u.rad * 0.6) + Math.sin(tt * 0.7) * 0.8;
+        l.position.set(Math.cos(a) * rad, 4.2 - tt * u.fall + Math.sin(tt * 1.3) * 0.3, Math.sin(a) * rad);
+        l.rotation.set(tt * u.spin, tt * u.spin * 0.7 + u.phase, Math.sin(tt * 1.7) * 0.8);
       });
     }
 
     let last = performance.now();
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__PARRISH__ = () => ({ painter: painter ? { ...painter.stats } : null, terrace: !!terrace, mode: painter ? painter.mode : null, faded: terrace ? terrace.fades.filter((f) => f.op < 0.5).length : 0 });
+      window.__PARRISH__ = () => ({ painter: painter ? { ...painter.stats } : null, terrace: !!scene, mode: painter ? painter.mode : null });
     }
 
     return {
@@ -775,33 +685,30 @@ export function createParrishEffects(woodSet, { quality }) {
         last = now;
         const t = three.current;
         sky.material.uniforms.uTime.value = now / 1000;
-        if (terrace) terrace.waterMat.uniforms.uTime.value = now / 1000;
+        if (scene) scene.seaMat.uniforms.uTime.value = now / 1000;
         placeLights();
-        fadeBlockers(dt);
+        move(now / 1000, dt);
         woodSet.followGrain(t);
         govern(now);
       },
       // The frame through the paint (the chassis's render hook).
-      render(r, scene, camera) {
-        if (!painter || !terrace) return false;
+      render(r, scn, camera) {
+        if (!painter || !scene) return false;
         // (?paint=raw: the footage, unpainted, for comparing.)
-        if (RAW) { reflect(r, camera); r.setRenderTarget(null); r.render(scene, camera); return true; }
-        // Fine strokes from the board's near edge to a little past its far
-        // one, loosening out over the court.
+        if (RAW) return painter.paint(r, scn, camera, null, true);
         const t = three.current;
         boardPos.setFromMatrixPosition(t.boardGroup.matrixWorld);
-        const D = camera.position.distanceTo(boardPos), RB = R_BOARD();
+        const D = camera.position.distanceTo(boardPos), RB = Math.hypot(SLAB_X, SLAB_Z) / 2;
         focusRange[0] = D + RB * 1.1; focusRange[1] = D + RB * 3.5;
-        return painter.paint(r, scene, camera, (rr) => reflect(rr, camera), focusRange);
+        return painter.paint(r, scn, camera, null);
       },
       dispose() {
         const t = three.current;
-        if (terrace && terrace.group.parent) terrace.group.parent.remove(terrace.group);
+        if (scene && scene.group.parent) scene.group.parent.remove(scene.group);
         if (brass && brass.group.parent) brass.group.parent.remove(brass.group);
-        if (terrace) terrace.dispose();
+        if (scene) scene.dispose();
         if (brass) brass.dispose();
         sky.geometry.dispose(); sky.material.dispose();
-        reflRT.dispose();
         if (painter) painter.dispose();
         if (t && t.camera && farBefore != null) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (t && t.lights) ["key", "fill", "back"].forEach((k) => { if (keyBase[k] && t.lights[k]) t.lights[k].position.copy(keyBase[k]); });
