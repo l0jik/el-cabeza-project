@@ -185,7 +185,11 @@ void main() {
   float q1 = 1.0 / (1.0 + pow(dot(v1, vec3(1.0)) * 900.0, 2.0));
   vec3 c = (m0 * q0 + m1 * q1) / (q0 + q1);
   vec4 here = texture2D(tScene, vUv);
-  c = mix(c, here.rgb, mix(0.1, 0.24, subj));
+  // The pieces (alpha 1; the board writes 0.75) kept a touch more defined
+  // than the board under them: a little more of their own detail, a little
+  // less of the palette's pull, a slightly firmer line.
+  float piece = smoothstep(0.85, 0.95, here.a);
+  c = mix(c, here.rgb, mix(0.1, 0.24, subj) + 0.06 * piece);
   // The afterimage: where a piece was a moment ago (and isn't now), what
   // it was, dissolving, as things move in the reference video.
   vec4 echo = texture2D(tEcho, vUv);
@@ -193,14 +197,14 @@ void main() {
   // The board and the pieces are painted in the picture's own palette too:
   // their colours drawn toward the world's, light to its light, dark to
   // its dark (so a light piece stays light and a dark one dark).
-  c = mix(c, ramp(clamp(luma(c) * 0.92 + 0.04, 0.0, 1.0)), mix(0.2, 0.34, subj));
+  c = mix(c, ramp(clamp(luma(c) * 0.92 + 0.04, 0.0, 1.0)), mix(0.2, 0.34, subj) * (1.0 - 0.25 * piece));
   // The rotoscoped line, round the subject's things only: where the
   // nearness jumps away, on the near side.
   float line = 0.0;
   if (uHasDepth > 0.5) {
     float zc = invZ(vUv);
     float lap = invZ(vUv + vec2(uTexel.x, 0.0)) + invZ(vUv - vec2(uTexel.x, 0.0)) + invZ(vUv + vec2(0.0, uTexel.y)) + invZ(vUv - vec2(0.0, uTexel.y)) - 4.0 * zc;
-    line = smoothstep(0.06, 0.2, -lap / max(zc, 1e-4)) * here.a;
+    line = smoothstep(0.06, 0.2, -lap / max(zc, 1e-4)) * here.a * mix(0.75, 1.0, piece);
   }
   gl_FragColor = vec4(grade(c, subj), line);
 }`;
@@ -522,10 +526,10 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
     uLift: { value: v3(L.lift) }, uGamma: { value: L.gamma },
     ...Object.fromEntries((L.field || [[0, 0, 0], [0.2, 0.2, 0.2], [0.4, 0.4, 0.4], [0.6, 0.6, 0.6], [0.8, 0.8, 0.8], [1, 1, 1]]).map((c, i) => [`uF${i}`, { value: v3(c) }])), tEcho: { value: echoA.texture }, uEchoK: { value: 0.92 } });
   const echoMat = mat(ECHO_FRAG, { tPrev: { value: echoA.texture }, tScene: { value: sceneRT.texture }, uTexel: { value: new THREE.Vector2() }, uDecay: { value: 0.9 } });
-  const canvasMat = mat(CANVAS_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.35 } });
+  const canvasMat = mat(CANVAS_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.44 } });
   const baseMat = mat(BASE_FRAG, { tOil: { value: oilRT.texture } });
   const rawMat = mat(BASE_FRAG, { tOil: { value: null } });
-  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.35 }, uVig: { value: v3(L.vignette) } }, {
+  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.44 }, uVig: { value: v3(L.vignette) } }, {
     transparent: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
     blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
   });

@@ -6153,3 +6153,10 @@ phone menu until "Start the story over" (which clears it).
   el-cabeza-parrish.html?look=orinoco / ?look=watermark), each with its own
   channel picture (tools/channel_shots.mjs SHOTS + build.js channel ids)
   and the gate's look (reality-gate.js LOOKS for both ids).
+- Parrish: the pieces a touch more defined against the board (user: they
+  "blend into the board just a bit too much", a SUBTLE adjustment). OIL,
+  on piece pixels only (scene alpha ~1; the board writes 0.75): +6% of the
+  raw colour kept, the palette-ramp pull 25% less (34% -> ~25.5%), and the
+  rotoscoped line firmer: uLine 0.35 -> 0.44 with the board's line scaled
+  0.75 (so the board's stays ~0.33, the pieces' goes to 0.44). The world
+  and the board otherwise unchanged.
