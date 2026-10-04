@@ -6179,3 +6179,7 @@ phone menu until "Start the story over" (which clears it).
   console errors too; never name a GLSL variable cast/input/output/filter/
   sample/common/partition/active/... (ES reserved words). Shadow options
   shown to the user (strength/reach): 0.14/1 (current), 0.24/1.6, 0.34/2.2.
+- Parrish: the flat drop shadow under the pieces is GONE (user: it made
+  the pieces look like they hover; a screen-space offset shadow reads as
+  elevation, and the scene already casts real 3D shadows). Next on show:
+  a grounding (contact) shadow hugging each piece's base, from depth.

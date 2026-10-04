@@ -33,7 +33,7 @@
         the colour changes (much less strictly in the world). The pieces
         sit on top (user), painted as their own layer: the oil and the
         strokes keep to their own side of a piece's edge, that edge cut
-        anew by hand with each painting, a thin soft shadow under it.
+        anew by hand with each painting.
      4. The finish multiplied over (the line, the canvas's weave, a pale
         varnish), and the glow added (the lights spreading, the mist).
 
@@ -444,7 +444,6 @@ uniform float uSeed;
 uniform float uScale;
 uniform float uLine;
 uniform vec3 uVig;
-uniform sampler2D tScene;
 void main() {
   vec2 px = vUv * uRes;
   vec2 t = dirAt(texture2D(tFlow, vUv));
@@ -454,13 +453,6 @@ void main() {
   vec2 wv = px / (2.4 * max(uScale, 0.6));
   float weave = sin(wv.x * 3.14159) * sin(wv.y * 3.14159) * 0.5 + 0.5;
   k *= 1.0 - (weave * 0.5 + vnoise(wv * 0.9) * 0.5) * 0.03;
-  // Each piece a layer laid on top: a thin soft shadow of it on what's
-  // under it, down and to the right (the light's at the upper left).
-  vec2 sh = vec2(-3.0, 4.0) * uScale / uRes, sp = 2.0 * uScale / uRes;
-  float shade = pieceOf(texture2D(tScene, vUv + sh).a) * 0.4
-    + (pieceOf(texture2D(tScene, vUv + sh + vec2(sp.x, 0.0)).a) + pieceOf(texture2D(tScene, vUv + sh - vec2(sp.x, 0.0)).a)
-    + pieceOf(texture2D(tScene, vUv + sh + vec2(0.0, sp.y)).a) + pieceOf(texture2D(tScene, vUv + sh - vec2(0.0, sp.y)).a)) * 0.15;
-  k *= 1.0 - 0.14 * shade * (1.0 - pieceOf(texture2D(tScene, vUv).a));
   // The edges darken toward crimson-umber, as the "Watermark" cover's.
   float v = length(vUv - 0.5);
   k *= mix(vec3(1.0), uVig, smoothstep(0.38, 0.76, v) * 0.7);
@@ -560,7 +552,7 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
   const canvasMat = mat(CANVAS_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 } });
   const baseMat = mat(BASE_FRAG, { tOil: { value: oilRT.texture } });
   const rawMat = mat(BASE_FRAG, { tOil: { value: null } });
-  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 }, uVig: { value: v3(L.vignette) }, tScene: { value: sceneRT.texture } }, {
+  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 }, uVig: { value: v3(L.vignette) } }, {
     transparent: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
     blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
   });
