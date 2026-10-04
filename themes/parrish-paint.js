@@ -34,14 +34,16 @@
      4. The finish multiplied over (the line, the canvas's weave, a pale
         varnish), and the glow added (the lights spreading, the mist).
 
-   The motion (user: samples of each to review):
-     "boil"  the scene moves smoothly, every frame; the strokes shift and
-             are repainted 12 times a second (the subject's more, the
-             world's big sweeps only a little), so the paint lives like a
-             painted film's.
-     "stop"  true stop-motion: the whole picture is a new painting 12
+   The motion, at the reference video's own rhythm: in it the picture
+   changes on every third frame and holds for the two between (about 8
+   new images a second, measured frame by frame; user: stop-motion is
+   the default, at 8):
+     "stop"  true stop-motion: the whole picture is a new painting 8
              times a second and held in between, the pieces' moves too.
-   ?motion=boil|stop in the address picks one (the default is boil).
+     "boil"  the scene moves smoothly, every frame; the strokes shift and
+             are repainted 8 times a second (the board's more, the
+             world's big sweeps only a little).
+   ?motion=stop|boil in the address picks one (the default is stop).
    With reduced motion asked for, the strokes don't move.
 
    Where the GPU can't read textures in its vertex stage, a per-pixel
@@ -49,14 +51,14 @@
 
 import * as THREE from "three";
 
-export const PAINT_FPS = 12;
+export const PAINT_FPS = 8;
 
 export function motionMode() {
   try {
     const m = new URLSearchParams(window.location.search).get("motion");
     if (m === "stop" || m === "boil") return m;
   } catch (e) { /* no URL */ }
-  return "boil";
+  return "stop";
 }
 
 const QUAD_VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
@@ -476,7 +478,7 @@ const LAYERS = [
 
 /* The painter for one renderer. paint(r, scene, camera, beforeScene)
    draws a frame through the passes (beforeScene(r) runs first, if
-   given); in stop mode a frame is only painted when its twelfth of a
+   given); in stop mode a frame is only painted when its eighth of a
    second is due, and the last one held between. */
 export function createPainter(renderer, { quality, mode = motionMode(), look } = {}) {
   const L = look || { lift: [0.15, 0.19, 0.27], gamma: 0.86, glow: 0.22, vignette: [0.6, 0.5, 0.58], accents: [[0.96, 0.93, 0.84], [0.97, 0.91, 0.62], [0.6, 0.75, 0.6], [0.66, 0.52, 0.62], [0.24, 0.42, 0.76], [0.9, 0.58, 0.56], [0.42, 0.7, 0.72], [0.86, 0.7, 0.38]] };

@@ -6141,3 +6141,9 @@ phone menu until "Start the story over" (which clears it).
   0.13/0.09, a few accents, tolerances 0.22/0.15 so edges hold); the
   world's knives ease off over the board (clip 0.45..0.85) rather than
   stopping hard.
+- Parrish motion: the reference video measured frame by frame changes on
+  every third frame and holds the two between (25 fps file: ~8 images a
+  second; even dissolves step). User: stop-motion is the default, at 8.
+  PAINT_FPS 8, motionMode() defaults to "stop" (?motion=boil for smooth
+  motion with strokes repainted 8/s); the title's paint and the dock
+  piece's edge also step 8 times a second.

@@ -19,9 +19,10 @@
    sweeps with accents, the board and pieces in smaller strokes in the
    palette's own colours, and a moving piece leaves a dissolving, painted
    afterimage, as things move in the video. Two ways of moving
-   (?motion=boil|stop): the strokes shift and are repainted twelve times a
-   second over smooth motion, or the whole picture is stop-motion, a new
-   painting twelve times a second.
+   (?motion=stop|boil): by default stop-motion, the whole picture a new
+   painting eight times a second and held between (the video's own
+   rhythm), or the strokes repainted eight times a second over smooth
+   motion.
 
    The menus: ivory print stock and deep blue ink, Cinzel for headings,
    Cormorant Garamond for the rest; the masthead is the user's own
@@ -177,13 +178,13 @@ export function renderSetupExtras() {
 
 /* The dock's floating piece is drawn by a renderer of its own, not through
    the paint; it gets a touch of the same life: its edges wander a little,
-   redrawn twelve times a second (an SVG turbulence whose seed steps). */
+   redrawn eight times a second (an SVG turbulence whose seed steps). */
 export function renderGlobalDefs() {
   return (
     <svg width="0" height="0" style={{ position: "absolute", width: 0, height: 0 }} aria-hidden="true" focusable="false">
       <filter id="parrish-paint-edge" x="-5%" y="-5%" width="110%" height="110%">
         <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="1" result="n">
-          <animate attributeName="seed" values="1;2;3;4;5;6;7;8;9;10;11;12" dur="1s" calcMode="discrete" repeatCount="indefinite" />
+          <animate attributeName="seed" values="1;2;3;4;5;6;7;8" dur="1s" calcMode="discrete" repeatCount="indefinite" />
         </feTurbulence>
         <feDisplacementMap in="SourceGraphic" in2="n" scale="3.5" xChannelSelector="R" yChannelSelector="G" />
       </filter>
@@ -212,7 +213,7 @@ export const styleSheet = `
   /* The masthead: the user's lettering, its outline exactly theirs (the
      mask), presented as paint laid into the picture: filled with the
      palette's own paint, lit faintly from the upper left as the strokes
-     are, its paint moving a little twelve times a second as the world's
+     are, its paint moving a little eight times a second as the world's
      does, and held in the world's light (the glow round the heading). The
      words stay underneath for screen readers. */
   .ec-title {
@@ -222,7 +223,7 @@ export const styleSheet = `
       linear-gradient(158deg, rgba(255, 255, 255, ${DARK ? "0.1" : "0.16"}) 0%, rgba(255, 255, 255, 0) 42%, rgba(${DARK ? "40, 8, 10, 0.18" : "40, 50, 90, 0.12"}) 100%),
       url(${DARK ? TITLE_PAINT_WATERMARK : TITLE_PAINT_ORINOCO}) 0 0 / 130% auto;
     -webkit-mask: url(${TITLE_MASK}) center / contain no-repeat; mask: url(${TITLE_MASK}) center / contain no-repeat;
-    animation: parrish-title-paint 2s steps(24) infinite;
+    animation: parrish-title-paint 2s steps(16) infinite;
     opacity: ${DARK ? 0.93 : 0.97};
   }
   @keyframes parrish-title-paint { from { background-position: 0 0, 0% 20%; } to { background-position: 0 0, 22% 34%; } }
