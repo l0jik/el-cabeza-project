@@ -5,6 +5,7 @@ import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js
 import * as parrishTheme from "../themes/parrish.js";
 import { realitiesCorner } from "../themes/reality-gate.js";
 import { lookName } from "../themes/parrish-looks.js";
+import { installParrishClosing } from "../themes/parrish-closing.js";
 
 // After the story: the way into a game here (the gate) and back to the
 // other realities (the corner button). themes/reality-gate.js. Each of
@@ -13,6 +14,8 @@ import { lookName } from "../themes/parrish-looks.js";
 // this page shows.
 const world = `parrish-${lookName()}`;
 const theme = { ...parrishTheme, realityGate: { world }, cornerAction: realitiesCorner(world) };
+// Leaving: the closing music first, then the switcher (themes/parrish-closing.js).
+installParrishClosing();
 
 applyBootstrapBoardSize();
 applyBootstrapLaws();

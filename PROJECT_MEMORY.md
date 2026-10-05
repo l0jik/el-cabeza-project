@@ -6493,3 +6493,18 @@ phone menu until "Start the story over" (which clears it).
   gull). NO_GULLS (look watermark): every bird call there is a songbird or
   swallows instead, same cadence. Orinoco keeps its gulls. Nothing visual:
   the scene has no birds drawn.
+- Leaving Orinoco/Watermark: the closing music now plays BEFORE the
+  switcher (user: "the closing music needs to complete before it goes back
+  to the menu switcher"; asked: wait for the music ~10.5 s, not the 7 s
+  hall after it; the painting fades slowly meanwhile; a tap skips).
+  reality-gate.js setRealitiesPrelude(fn): openRealities calls fn(open)
+  instead of opening at once (only Parrish sets one). themes/
+  parrish-closing.js (installed by apps/parrish.jsx): dispatches
+  PARRISH_CLOSING_EVENT ({ms}) -> parrish-audio.js starts the close and
+  sets ms = 10500 when audible (muted / music channel 0: 1200), a veil
+  (look's dark, z 1590, under the switcher) fades to 0.85 over ms, then
+  open(); pointerdown/keydown skip; REALITIES_STAY_EVENT lifts the veil.
+  playOutro no longer restarts a close already under way (when the
+  switcher's own open event fires). The close is fetched with the stabs at
+  the first tap, so it starts at once. Measured in headless (busy GPU):
+  tap to switcher 11.6-13.8 s for a 10.5 s timer.

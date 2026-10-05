@@ -57,11 +57,18 @@ export function openRealityGate(detail = {}) {
    switch in place. */
 export function openRealities(world, novaGo = null, onStay = null) {
   const w = WORLDS.find((x) => x.id === world);
-  return createRealitiesMenu({
+  const open = () => createRealitiesMenu({
     current: w && w.nova ? w.nova : null, currentId: world,
     onPick: (pick) => goToWorld(pick, novaGo), onStay,
   });
+  // A page may play something out first (setRealitiesPrelude: Parrish's
+  // closing music, the painting fading), then open the menu.
+  if (prelude) { prelude(open); return null; }
+  return open();
 }
+let prelude = null;
+// prelude(open): call open() when ready (once). null: none.
+export function setRealitiesPrelude(fn) { prelude = fn; }
 // A theme's corner button for it (the chassis's theme.cornerAction).
 export const realitiesCorner = (world, novaGo = null) => () => (storyOver() ? { label: "Other realities", onClick: () => openRealities(world, novaGo) } : null);
 

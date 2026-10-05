@@ -64,6 +64,10 @@ export const hasAudio = true;
 export const MUSIC_URL = null;
 export const INTRO_URL = "el-cabeza-parrish-intro.mp3";
 export const OUTRO_URL = "el-cabeza-parrish-outro.mp3";
+// Leaving: the close's music (before its hall rings on) is this long; the
+// switcher opens as it ends (user; themes/parrish-closing.js).
+export const PARRISH_CLOSING_EVENT = "el-cabeza:parrish-closing";
+const CLOSE_MUSIC_MS = 10500;
 // Watermark's soundtrack: the user's "Cathedral Hums", looped (made to
 // loop by tools/parrish_hums.py), on a channel of its own.
 export const HUMS_URL = lookName() === "watermark" ? "el-cabeza-parrish-hums.mp3" : null;
@@ -202,6 +206,9 @@ export function createAudio() {
       hallIn = ctx.createGain(); hallIn.gain.value = 0.8;
       hallIn.connect(hall).connect(gates.pieces);
       loadStabs();
+      // The close, fetched now, so it starts the moment it's asked for
+      // (leaving: the switcher waits for its music, parrish-closing.js).
+      if (OUTRO_URL) fetch(OUTRO_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => { if (!outroBuf) outroBuf = buf; }).catch(() => { /* fetched again when needed */ });
     } catch (e) {
       ctx = null;
     }
@@ -474,8 +481,11 @@ export function createAudio() {
     if (intro && intro.g) intro.g.gain.setTargetAtTime(0, now(), 0.25);
     if (hums && hums.g) hums.g.gain.setTargetAtTime(0, now(), 0.6);
     if (natureBus) natureBus.gain.setTargetAtTime(0.35, now(), 0.8);
+    // (Already closing, from the tap that asked for the switcher: it plays
+    // on, not again from the top, when the switcher opens.)
+    if (outro && !outro.done && !outro.stopped && now() - outro.at < 20) return;
     if (outro && outro.src) { try { outro.src.stop(); } catch (e) { /* ended */ } }
-    const o = (outro = { stopped: false });
+    const o = (outro = { stopped: false, at: now() });
     const go = (buf) => {
       if (o.stopped || disposed) return;
       const s = ctx.createBufferSource(); s.buffer = buf;
@@ -488,6 +498,13 @@ export function createAudio() {
     fetch(OUTRO_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => { outroBuf = buf; go(buf); }).catch(() => { /* no close, then */ });
   }
   const onRealities = () => playOutro();
+  // Closing (themes/parrish-closing.js): the close starts at the tap; the
+  // switcher waits for its music when it can be heard (detail.ms).
+  const onClosing = (e) => {
+    playOutro();
+    if (e && e.detail && ctx && !muted && chLevel.music > 0) e.detail.ms = CLOSE_MUSIC_MS;
+  };
+  if (typeof window !== "undefined" && OUTRO_URL) window.addEventListener(PARRISH_CLOSING_EVENT, onClosing);
   if (typeof window !== "undefined" && OUTRO_URL) window.addEventListener(REALITIES_OPEN_EVENT, onRealities);
   // Staying after all: the soundtrack comes back in under the game.
   const onStay = () => { if (hums && hums.g && !disposed) hums.g.gain.setTargetAtTime(HUMS_GAIN, now(), 2.5); };
@@ -608,7 +625,7 @@ export function createAudio() {
       if (music) music.stopped = true;
       if (hums) { hums.stopped = true; try { if (hums.src) hums.src.stop(); } catch (e) { /* ended */ } }
       offGesture();
-      if (typeof window !== "undefined") { window.removeEventListener(REALITIES_OPEN_EVENT, onRealities); window.removeEventListener(REALITIES_STAY_EVENT, onStay); }
+      if (typeof window !== "undefined") { window.removeEventListener(REALITIES_OPEN_EVENT, onRealities); window.removeEventListener(REALITIES_STAY_EVENT, onStay); window.removeEventListener(PARRISH_CLOSING_EVENT, onClosing); }
       if (outro) { outro.stopped = true; try { if (outro.src) outro.src.stop(); } catch (e) { /* ended */ } }
       if (intro) { intro.stopped = true; try { if (intro.src) intro.src.stop(); } catch (e) { /* ended */ } }
       if (ctx) { try { ctx.close(); } catch (e) { /* already closed */ } }
