@@ -6238,3 +6238,13 @@ phone menu until "Start the story over" (which clears it).
   ... think Enya": a generated hall (makeHall: 28 ms pre-delay, dark tail
   RT60 3.8 s + bright 1.3 s, early reflections, L/R decorrelated), send
   0.8 on every stab, on the pieces channel.
+- Parrish (Orinoco) move markers: the painting's light blue (user: the
+  beige ones were hard to tell from the board). parrish.js has its own
+  buildMoveIndicator for Orinoco (Watermark and capture markers stay the
+  wood set's): a 0.09-wide band of 0x5fa2f0 over a 0.13 dark-cobalt edge
+  (0x1f2f58), and a 34% wash of the blue across the square. The blue is
+  set richer than it reads (the paint greys it: 0x9ec2e6 came out
+  grey-white; 0x5fa2f0 lands on the painting's light blue). Full-screen
+  button: Parrish CSS opacity 0.7 (0.45 in focus mode, 1 on hover; the
+  chassis's 0.22 elsewhere), keyed on its inline visibility so it still
+  hides when covered. Screenshot script: scratchpad parrish/mk.mjs.

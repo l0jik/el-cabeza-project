@@ -29,6 +29,7 @@
    lettering of "el cabeza", painted into the picture. The sound is the sea's own (themes/parrish-audio.js), with a place for the
    user's recording. */
 
+import * as THREE from "three";
 import { quality } from "./tienda-quality.js";
 import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
 import { parrishEnv, createParrishEffects } from "./parrish-scene.js";
@@ -136,7 +137,48 @@ const boardAlpha = (m) => { m.opacity = 0.75; m.transparent = false; return m; }
 export const buildSlabMaterials = (tex) => woodSet.buildSlabMaterials(tex).map(boardAlpha);
 export const makeGrid = () => { const g = woodSet.makeGrid(); g.traverse((o) => { if (o.material && !o.material.transparent) boardAlpha(o.material); }); return g; };
 export const buildPieceVisual = woodSet.buildPieceVisual;
-export const buildMoveIndicator = woodSet.buildMoveIndicator;
+// The move markers: in Orinoco, one of the painting's own lighter blues
+// (user: the beige ones were hard to tell from the board), on a wider band
+// than the set's and with a faint wash of the blue across the square, so
+// they hold up through the paint; the dark edge under them as the set has
+// it. A capture's marker, and Watermark's, stay the set's own.
+const MARKER_BLUE = 0x5fa2f0, MARKER_EDGE = 0x1f2f58;
+export const buildMoveIndicator = (opts) => {
+  if (DARK || opts.isCrush) return woodSet.buildMoveIndicator(opts);
+  const { cx, cz, hx, hz } = opts;
+  const group = new THREE.Group();
+  const mats = [], geos = [];
+  const add = (geo, color, base, lift) => {
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, side: THREE.DoubleSide, toneMapped: false });
+    mat.userData.base = base;
+    const m = new THREE.Mesh(geo, mat); m.position.y = lift;
+    mats.push(mat); geos.push(geo); group.add(m);
+  };
+  const frame = (ix, iz, w) => {
+    const pos = [], idx = [];
+    const o = [[-ix, -iz], [ix, -iz], [ix, iz], [-ix, iz]], inn = [[-ix + w, -iz + w], [ix - w, -iz + w], [ix - w, iz - w], [-ix + w, iz - w]];
+    for (let i = 0; i < 4; i++) {
+      const p = o[i], q = o[(i + 1) % 4], r = inn[(i + 1) % 4], t = inn[i], v = i * 4;
+      pos.push(p[0], 0, p[1], q[0], 0, q[1], r[0], 0, r[1], t[0], 0, t[1]);
+      idx.push(v, v + 2, v + 1, v, v + 3, v + 2);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geo.setIndex(idx);
+    return geo;
+  };
+  const wash = new THREE.PlaneGeometry(hx * 1.7, hz * 1.7); wash.rotateX(-Math.PI / 2);
+  add(wash, MARKER_BLUE, 0.34, 0.0005);
+  add(frame(hx * 0.92, hz * 0.92, 0.13), MARKER_EDGE, 0.75, 0);
+  add(frame(hx * 0.92 - 0.02, hz * 0.92 - 0.02, 0.09), MARKER_BLUE, 1, 0.001);
+  group.position.set(cx, 0.03, cz);
+  return {
+    root: group,
+    setOpacity(v) { mats.forEach((m) => { m.opacity = v * m.userData.base; }); },
+    tick() {},
+    dispose() { geos.forEach((g) => g.dispose()); mats.forEach((m) => m.dispose()); },
+  };
+};
 export const buildMissingSquareVisual = woodSet.buildMissingSquareVisual;
 export const buildBlackHoleVisual = woodSet.buildBlackHoleVisual;
 
@@ -248,6 +290,11 @@ export const styleSheet = `
     border-radius: 999px !important; box-shadow: 0 2px 8px rgba(8, 14, 38, 0.4);
     width: 30px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 18px) + 4px) !important;
   }
+  /* (Plainer to see than the chassis's faint 0.22, user; still lifted on
+     hover, and still gone when something covers the corner.) */
+  button[aria-label$="full screen"][style*="visibility: visible"] { opacity: 0.7 !important; }
+  button[aria-label$="full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.45 !important; }
+  button[aria-label$="full screen"][style*="visibility: visible"]:hover { opacity: 1 !important; }
   [data-testid="points-counter"] {
     color: ${PARRISH.blue} !important; background: rgba(244, 234, 213, 0.92); padding: 5px 12px 5px 13px; border-radius: 999px;
     box-shadow: 0 2px 8px rgba(8, 14, 38, 0.4);
