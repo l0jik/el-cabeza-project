@@ -6556,3 +6556,13 @@ phone menu until "Start the story over" (which clears it).
 - Corporate Swiss sides now Navy / Platinum (user; was Navy / Silver,
   which clashed with Elementarism's Graphite / Silver). Its serial piece
   stamps read N / P.
+- Parrish close fades in (user: going to the switcher in game "cuts to
+  that music too harshly"; chose 3 s, switcher wait unchanged at ~10.5 s).
+  parrish-audio.js OUTRO_FADE_S = 3: the close's gain follows an
+  equal-power (sine) curve 0 -> 0.7 over 3 s (setValueCurveAtTime; gain
+  .value = 0 first rather than a setValueAtTime at the same instant,
+  which would overlap the curve); the hums and the intro ramp linearly to
+  0 over the same 3 s (were quick setTargetAtTime drops), skipped when a
+  close is already under way. Checked (Watermark, headless): curve 0 ->
+  0.5 at half -> 0.7 over 3 s, intro ramps out, switcher at 14.2 s
+  (headless timer lag), no errors.

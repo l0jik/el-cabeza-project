@@ -68,6 +68,10 @@ export const OUTRO_URL = "el-cabeza-parrish-outro.mp3";
 // switcher opens as it ends (user; themes/parrish-closing.js).
 export const PARRISH_CLOSING_EVENT = "el-cabeza:parrish-closing";
 const CLOSE_MUSIC_MS = 10500;
+// The close swells in over this long instead of starting at full (user:
+// it "cuts to that music too harshly"; chose 3 s, the switcher's wait
+// unchanged); the hums and the intro step out over the same time.
+const OUTRO_FADE_S = 3;
 // Watermark's soundtrack: the user's "Cathedral Hums", looped (made to
 // loop by tools/parrish_hums.py), on a channel of its own.
 export const HUMS_URL = lookName() === "watermark" ? "el-cabeza-parrish-hums.mp3" : null;
@@ -477,9 +481,12 @@ export function createAudio() {
     ensureGraph();
     if (!ctx) return;
     if (ctx.state === "suspended") ctx.resume();
-    // The intro gives way; the place's sound steps back.
-    if (intro && intro.g) intro.g.gain.setTargetAtTime(0, now(), 0.25);
-    if (hums && hums.g) hums.g.gain.setTargetAtTime(0, now(), 0.6);
+    // The intro and the hums cross out as the close swells in; the
+    // place's sound steps back.
+    const fadeOut = (g) => { const t = now(); g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + OUTRO_FADE_S); };
+    const closing = outro && !outro.done && !outro.stopped && now() - outro.at < 20;
+    if (!closing && intro && intro.g) fadeOut(intro.g);
+    if (!closing && hums && hums.g) fadeOut(hums.g);
     if (natureBus) natureBus.gain.setTargetAtTime(0.35, now(), 0.8);
     // (Already closing, from the tap that asked for the switcher: it plays
     // on, not again from the top, when the switcher opens.)
@@ -489,8 +496,12 @@ export function createAudio() {
     const go = (buf) => {
       if (o.stopped || disposed) return;
       const s = ctx.createBufferSource(); s.buffer = buf;
-      const g = ctx.createGain(); g.gain.value = 0.7;
-      s.connect(g).connect(gates.music); s.start(now());
+      const g = ctx.createGain();
+      // An equal-power swell from silence to 0.7 over OUTRO_FADE_S.
+      const curve = new Float32Array(64).map((_, i) => 0.7 * Math.sin((i / 63) * Math.PI / 2));
+      const t = now();
+      g.gain.value = 0; g.gain.setValueCurveAtTime(curve, t, OUTRO_FADE_S); // (the curve starts at 0)
+      s.connect(g).connect(gates.music); s.start(t);
       o.src = s;
       s.onended = () => { o.done = true; if (!windingDown && natureBus && outro === o) natureBus.gain.setTargetAtTime(natureOn ? 1 : 0, now(), 1.5); };
     };
