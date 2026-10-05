@@ -6592,3 +6592,6 @@ phone menu until "Start the story over" (which clears it).
   previous edit, whose // comment had swallowed `sideColor: 0xffffff,
   roughness: 1,` on the same line (both were briefly unset, live for one
   push); the comment now sits on its own lines above.
+- Brutalism turn box label: "[TURN] TURN" -> "[TURN]" (user). css.js
+  brutalist: the ::before was "[TURN] " in front of the HUD's own "Turn";
+  now ::before "[" and ::after "]" around it.

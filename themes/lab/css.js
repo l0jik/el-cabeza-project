@@ -221,7 +221,9 @@ const HUD = {
   .lab-hud .lab-id::before { content: "[SYS]"; }
   .lab-hud .lab-big { font-size: clamp(56px, 7vw, 96px); font-weight: 800; line-height: 0.85; letter-spacing: -0.06em; }
   .lab-hud .lab-big small { display: block; font-size: 11px; letter-spacing: 0.04em; margin-bottom: 4px; }
-  .lab-hud .lab-big small::before { content: "[TURN] "; }
+  /* The label reads [TURN] once (user: it said "[TURN] TURN"). */
+  .lab-hud .lab-big small::before { content: "["; }
+  .lab-hud .lab-big small::after { content: "]"; }
   .lab-hud .lab-turn { font-size: 18px; font-weight: 800; background: var(--accent-secondary); color: #111; animation-name: lab-brutal-slam; }
   @keyframes lab-brutal-slam { from { transform: translate(-8px, -8px); box-shadow: 16px 16px 0 #111; } to { transform: none; } }
   .lab-hud .lab-stats dt { font-size: 10.5px; }
