@@ -6508,3 +6508,19 @@ phone menu until "Start the story over" (which clears it).
   switcher's own open event fires). The close is fetched with the stabs at
   the first tap, so it starts at once. Measured in headless (busy GPU):
   tap to switcher 11.6-13.8 s for a 10.5 s timer.
+- Big Glutts up/down tilt reversed (user: "switched to the opposite";
+  asked: the Big Glutts page, touch and mouse). Chassis prop invertTilt
+  flips grab.phi for every pointer (on top of invertTouchTilt). Set on
+  apps/tienda.jsx and, in apps/unified.jsx, on Big Glutts reached from the
+  switcher (themeName tienda && readOwned()). The story's first store
+  visit (invertTouchTilt, !readOwned()) is unchanged. Verified: an upward
+  drag tilts the board down on Tienda and up on Cromo.
+- Parrish full screen, in game: both corner badges at 60% (user, Orinoco
+  screenshot; both looks share the CSS). "Exit full screen" button 0.6,
+  dimmed 0.4 (the Enter button out of full screen stays 0.7 / 0.5);
+  :root:fullscreen [data-dock-piece][style*="opacity: 0.8"] -> 0.6
+  (dockCornerOpacity 0.8 still applies out of full screen). The :hover
+  full-strength rule is now inside @media (hover: hover) and (pointer:
+  fine): on phones a tap left the button "hovered" at 1.0, which is likely
+  why it read bright. Verified at 412 px touch: in full screen 0.6/0.6,
+  out 0.7/0.8, back in 0.6/0.6.

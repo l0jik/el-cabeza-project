@@ -704,6 +704,10 @@ function UnifiedApp() {
             // (The first scene, the store before the game's bought: a
             // touch tilts the other way up and down, user.)
             invertTouchTilt={themeName === "tienda" && !readOwned()}
+            // (Big Glutts once it's bought, as the switcher opens it: up
+            // and down the other way, touch and mouse, user; the story's
+            // first visit keeps its own, above.)
+            invertTilt={themeName === "tienda" && readOwned()}
             initialMuted={muted}
             onMutedChange={(m) => {
               setMuted(m);

@@ -13,5 +13,6 @@ applyBootstrapBoardSize();
 applyBootstrapLaws();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <ElCabeza3D theme={theme} />
+  // (Up and down tilt the other way here, touch and mouse, user.)
+  <ElCabeza3D theme={theme} invertTilt />
 );

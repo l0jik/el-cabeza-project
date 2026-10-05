@@ -301,11 +301,15 @@ const DOCK_WORDS = {
   wonCaption: "Well played.",
 };
 
-export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTouchTilt = false }) {
+export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTouchTilt = false, invertTilt = false }) {
   // (Touch drags tilt the other way up and down: Nova's first scene, the
   // store before the game's bought, user. Read at each touch-down.)
   const invertTouchTiltRef = useRef(invertTouchTilt);
   invertTouchTiltRef.current = invertTouchTilt;
+  // Up and down the other way for every pointer (a page's choice: Big
+  // Glutts, user).
+  const invertTiltRef = useRef(invertTilt);
+  invertTiltRef.current = invertTilt;
   const C = carry && typeof carry === "object" ? carry : null;
   const carried = (key, fallback) => (C && C[key] !== undefined ? C[key] : typeof fallback === "function" ? fallback() : fallback);
   const opponentPrefsRef = useRef(null);
@@ -5232,7 +5236,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         else { axisAt.applyMatrix4(c.projectionMatrix); mid = (1 - axisAt.y) / 2 * rect.height; }
       }
       grab.theta = clientY - rect.top < mid ? 1 : -1;
-      grab.phi = (cam.current.dollhouse ? 1 : -1) * (pointerType === "touch" && invertTouchTiltRef.current ? -1 : 1);
+      grab.phi = (cam.current.dollhouse ? 1 : -1) * (pointerType === "touch" && invertTouchTiltRef.current ? -1 : 1) * (invertTiltRef.current ? -1 : 1);
     }
     /* Stays false until cumulative pointer travel since the down event
        crosses DRAG_DEAD_ZONE_PX — see onMove. Every touch carries a few
