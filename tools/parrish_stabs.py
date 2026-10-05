@@ -37,6 +37,14 @@ scan of both files (onset delta 0.02) and kept only if clean (percussive
 energy under 6%, no low thump, no second stab inside the cut), at most two
 per pitch: set 6 #1-12. Cut as hits, cleaned like the rest.
 
+And a seventh (user: "more two and three note tone variations"): twelve
+more phrases of two or three stabs, from the first file (its phrases had
+never been looked at; the second's were all used or offered in set 5),
+found as set 5's were, the percussive passages left out (no frame more
+than 40% percussive, under 16% on average, at least 75% harmonic): six
+bright (D5 to B4), two in the middle (G4), four deep with the bass (G2):
+set 7 #1-12, cut as phrases, cleaned like the rest.
+
 No audible percussion (user: "there should be no audible percussion
 used", of the capture win, set 3 #20, which had a snare under it): every
 longer cut is cleaned. Its sound is split into the sustained (harmonic)
@@ -123,6 +131,22 @@ PIECES = [
     ("s6n10", "a", 8.415, 120),   # C5
     ("s6n11", "a", 18.145, 120),   # B4
     ("s6n12", "a", 18.485, 120),   # B4
+    # set 7: more short phrases of two or three stabs (user: "it would
+    # increase the variety if we did more two and three note tone
+    # variations"), from the first file (the second's were all used or
+    # offered in set 5), cut and cleaned as set 5's
+    ("s7p1", "a", 6.92, 480, "phrase"),  # 3 stabs, ~D5, bright
+    ("s7p2", "a", 7.91, 320, "phrase"),  # 2 stabs, ~D5, bright
+    ("s7p3", "a", 27.19, 300, "phrase"),  # 2 stabs, ~C5, bright
+    ("s7p4", "a", 41.37, 290, "phrase"),  # 2 stabs, ~C5, bright
+    ("s7p5", "a", 7.41, 310, "phrase"),  # 2 stabs, ~B4, bright
+    ("s7p6", "a", 9.89, 450, "phrase"),  # 3 stabs, ~B4, bright
+    ("s7p7", "a", 40.71, 310, "phrase"),  # 2 stabs, ~G4, mid
+    ("s7p8", "a", 40.37, 330, "phrase"),  # 2 stabs, ~G4, mid
+    ("s7p9", "a", 11.01, 330, "phrase"),  # 2 stabs, ~G2, deep, with bass
+    ("s7p10", "a", 21.29, 300, "phrase"), # 2 stabs, ~G2, deep, with bass
+    ("s7p11", "a", 42.68, 300, "phrase"), # 2 stabs, ~G2, deep, with bass
+    ("s7p12", "a", 16.31, 310, "phrase"), # 2 stabs, ~G2, deep, with bass
 ]
 
 
@@ -146,7 +170,7 @@ def attack(y, t):
 
 # The cuts whose sound is cleaned of percussion (see the docstring).
 CLEAN = {"winEdge", "winCapture", "s3n5", "s3n6", "s5n7", "s5p10", "s5p11", "s5p12", "s5p13", "s5p21", "s5p22", "s5p23",
-         *(f"s6n{i}" for i in range(1, 13))}
+         *(f"s6n{i}" for i in range(1, 13)), *(f"s7p{i}" for i in range(1, 13))}
 
 
 def unstruck(g, keep_attack=True):

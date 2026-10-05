@@ -6428,3 +6428,28 @@ phone menu until "Start the story over" (which clears it).
   four. Test hook: window.__EC_TEST_STABS__ (array) logs each stab name.
   Audition: scratchpad stabs/selection-6-small-pieces.mp3 (numbered as
   s6n1-12). Larger pieces unchanged (the Flaco still mostly s1n3).
+- Parrish sounds, round 2 of variety (user: "even if some of them have two
+  notes that would be fine ... more two and three note tone variations";
+  asked: add directly, all pieces). Set 7: twelve phrases of two or three
+  stabs from the FIRST file (never scanned for phrases; the second file's
+  were all used or offered in set 5, and the ones the user passed over
+  then aren't reused): phrase finder as set 5 (no frame >40% percussive,
+  mean <16%, >=75% harmonic), cut as "phrase", HPSS-cleaned. Six bright
+  (D5-B4), two mid (G4), four deep with bass (G2). Appended to
+  piece-stabs.mp3 (old part byte-identical). parrish-audio.js noteFor:
+  35% a phrase of the piece's register (bright t<0.12, mid t<0.5, deep
+  above), else single notes: one cube from SMALL (16), others from the
+  five NOTES nearest their pitch; fresh(): never one of the last four.
+  Browser check (60 picks each): Turrito/Cabeza 21 sounds, Flaco 9, Opa 9,
+  0 repeats within four. Audition: scratchpad stabs/selection-7-phrases.mp3.
+- Parrish full-screen button (user, again): the chassis already goes full
+  screen at the first tap for every theme (browsers allow nothing sooner);
+  checked: before a tap "Enter full screen" at 0.7, after it "Exit full
+  screen" at 0.5. Now: full screen (the default after the first tap) 0.5
+  (focus 0.35), out of full screen by choice 0.7 (focus 0.5; was 1), full
+  on hover. User confirmed "70% visible" (they'd said "30% opaque" meaning
+  30% transparent).
+- The dock piece's corner spot: identical in every theme (chassis box
+  120x106 at right 130 / bottom 8, no theme override); measured Parrish
+  vs Cromo, Neon, Tienda, desktop and phone: same place. Asked the user
+  before changing anything.
