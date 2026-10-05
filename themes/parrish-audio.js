@@ -85,7 +85,9 @@ const NO_GULLS = lookName() === "watermark";
 // wrap either side). EVENING_GAIN: its place in the mix.
 export const EVENING_URL = lookName() === "watermark" ? "el-cabeza-parrish-evening.mp3" : null;
 const EVENING_LOOP = [0.25, 0.25 + 192.1];
-const EVENING_GAIN = 0.19; // (measured, place only: about -38 dBFS at the speakers; Orinoco's made terrace about -44)
+// (0.19 measured about -38 dBFS at the speakers, place only; user: "way,
+// way down", so ~12 dB lower: about -50. Orinoco's made terrace: about -44.)
+const EVENING_GAIN = 0.045;
 // Its slider starts here (user: "very low on the overall audio mix so as
 // to not be distracting"; theirs to bring up): the channel's level times
 // HUMS_GAIN, about 26 dB under the music at first.

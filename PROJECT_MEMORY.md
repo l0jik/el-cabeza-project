@@ -6621,3 +6621,9 @@ phone menu until "Start the story over" (which clears it).
   unchanged (The terrace, Music, Pieces). Checked headless: menus as
   above, evening playing, close swells in, switcher 14.2 s, no errors.
   Not done: the rare blackbird (the recording has its own far birds).
+- Watermark evening way down (user: "way, way too loud"): EVENING_GAIN
+  0.19 -> 0.045 (~-12 dB, about -50 dBFS place-only by the last
+  measurement's scale; not re-measured). A blackbird made in code was
+  started and then removed at the user's word ("don't synthesize that
+  sound"): never committed. A blackbird only from a recording the user
+  sends.
