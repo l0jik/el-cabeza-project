@@ -16,6 +16,10 @@ Four pictures, made here so they can be made again:
                               its ends dry and split into bristle streaks,
                               its body a little uneven (mask, sliced 0/96
                               px, so any width keeps its ends).
+  menu-stroke-<look>-paint/   that stroke painted, in each palette's paint
+  -glaze.webp                 and glaze, its bristle ridges catching the
+                              light: drawn behind a button's words (CSS
+                              border-image), never cutting them.
 
     python3 tools/parrish_menu_art.py
 """
@@ -122,6 +126,22 @@ def brush_mask(w=640, h=128):
     return alpha_mask(body)
 
 
+def painted_stroke(mask, color, alpha, seed):
+    """A stroke of paint in one colour: the brush's shape (mask), its
+    bristles' ridges catching the light and its furrows darker, a little
+    thinner paint towards the dry end."""
+    r = np.random.default_rng(seed)
+    a = np.asarray(mask.split()[-1], dtype=float) / 255
+    h, w = a.shape
+    ridges = np.array([noise1(w, 160, 2) for _ in range(h)])
+    ridges = np.repeat(r.uniform(-1, 1, (h, 1)), w, 1) * 0.6 + ridges * 0.4
+    light = 1 + 0.10 * ridges + 0.06 * np.linspace(0.5, -0.5, h)[:, None]
+    rgb = np.clip(np.array(color)[None, None, :] * light[..., None], 0, 1)
+    thin = 0.86 + 0.14 * np.clip(1 - np.linspace(0, 1, w)[None, :] * 0.6 + ridges * 0.2, 0, 1)
+    out = np.dstack([rgb, np.clip(a * alpha * thin, 0, 1)])
+    return Image.fromarray((out * 255).astype(np.uint8), "RGBA")
+
+
 def main():
     orinoco = ground((0.955, 0.925, 0.850), [
         dict(n=240, colors=[(0.985, 0.965, 0.905), (0.925, 0.880, 0.770), (0.965, 0.925, 0.820)], length=150, width=26, angle=0.55, angle_var=0.25, alpha=0.55),
@@ -136,8 +156,20 @@ def main():
     orinoco.save(os.path.join(OUT, "menu-paint-orinoco.webp"), quality=82)
     watermark.save(os.path.join(OUT, "menu-paint-watermark.webp"), quality=82)
     edge_mask().save(os.path.join(OUT, "menu-edge.webp"), lossless=True)
-    brush_mask().save(os.path.join(OUT, "menu-brush.webp"), lossless=True)
-    for n in ("menu-paint-orinoco.webp", "menu-paint-watermark.webp", "menu-edge.webp", "menu-brush.webp"):
+    brush = brush_mask()
+    brush.save(os.path.join(OUT, "menu-brush.webp"), lossless=True)
+    # The buttons' strokes, painted behind their words (CSS border-image,
+    # so a stroke never cuts its letters): each palette's own paint, and a
+    # thin glaze for the quiet ones.
+    strokes = {
+        "menu-stroke-orinoco-paint.webp": ((0.141, 0.255, 0.561), 1.0),    # cobalt #24418F
+        "menu-stroke-orinoco-glaze.webp": ((0.91, 0.72, 0.35), 0.42),      # amber
+        "menu-stroke-watermark-paint.webp": ((0.89, 0.796, 0.596), 1.0),   # cream #E3CB98
+        "menu-stroke-watermark-glaze.webp": ((0.84, 0.63, 0.33), 0.32),    # old gold
+    }
+    for i, (n, (col, al)) in enumerate(strokes.items()):
+        painted_stroke(brush, col, al, 20 + i).save(os.path.join(OUT, n), quality=90)
+    for n in ("menu-paint-orinoco.webp", "menu-paint-watermark.webp", "menu-edge.webp", "menu-brush.webp", *strokes):
         print(n, os.path.getsize(os.path.join(OUT, n)) // 1024, "KB")
 
 

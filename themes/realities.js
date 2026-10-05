@@ -79,6 +79,15 @@ const CSS = `
 .ec-realities.locked .hold i { animation: ecRealHold var(--hold-ms, 3500ms) linear forwards; }
 .ec-realities:not(.locked) .hold { opacity: 0; transition: opacity 0.6s ease; }
 @keyframes ecRealHold { to { transform: scaleX(1); } }
+/* Leaving, once the page's own sound has finished (holdLeaving: Parrish's
+   closing music rings out first, user): the pick marked, the rest
+   stepping back, a line filling as it plays out. */
+.ec-realities .leave { min-height: 1.45em; margin: -10px 0 16px; text-align: center; font-size: 13px; letter-spacing: 0.06em; opacity: 0; transition: opacity 0.5s ease; }
+.ec-realities .leave i { display: block; width: min(60vw, 240px); height: 1px; margin: 8px auto 0; background: rgba(205,180,255,0.75); transform-origin: left; transform: scaleX(0); }
+.ec-realities.leaving .leave { opacity: 0.85; }
+.ec-realities.leaving .leave i { animation: ecRealHold var(--leave-ms, 1000ms) linear forwards; }
+.ec-realities.leaving li button:not(.picked) { opacity: 0.4; }
+.ec-realities li button.picked { border-color: rgba(214,190,255,0.95); }
 .ec-realities.locked { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .ec-realities, .ec-realities li button { transition: none; } }
 `;
@@ -103,6 +112,19 @@ export const REALITIES_OPEN_EVENT = "el-cabeza:realities-open";
 // ...and, when it's put away to stay where you are, this (Parrish: its
 // soundtrack comes back).
 export const REALITIES_STAY_EVENT = "el-cabeza:realities-stay";
+/* A page may hold its leaving until its sound is done (Parrish: the
+   closing music's decay, user: "the switch should wait for the decay to
+   finish"): holdLeaving(fn), fn() the seconds still to wait (0: none).
+   Returns the way to let go. */
+const LEAVE_HOLDS = new Set();
+export function holdLeaving(fn) { LEAVE_HOLDS.add(fn); return () => LEAVE_HOLDS.delete(fn); }
+// (Tests: the wait as it stands.)
+if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_LEAVE_WAIT__ = () => ({ n: LEAVE_HOLDS.size, s: leaveWait() });
+function leaveWait() {
+  let s = 0;
+  LEAVE_HOLDS.forEach((f) => { try { s = Math.max(s, Number(f()) || 0); } catch (e) { /* that hold's problem */ } });
+  return s;
+}
 const stayed = () => { try { window.dispatchEvent(new CustomEvent(REALITIES_STAY_EVENT)); } catch (e) { /* no events */ } };
 export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", lockMs = 0 } = {}) {
   if (typeof document === "undefined") return { el: null, close() {} };
@@ -133,8 +155,12 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     const isHere = (current && w.nova === current) || (currentId && w.id === currentId);
     if (isHere) { const here = document.createElement("span"); here.className = "here"; here.textContent = "You are here"; txt.append(here); }
     b.append(shot, txt);
-    // (Where you are already: you stay.)
-    b.onclick = () => { if (locked) return; close(); if (isHere) { stayed(); if (onStay) onStay(); } else if (onPick) onPick(w); };
+    // (Where you are already: you stay, even if already leaving.)
+    b.onclick = () => {
+      if (locked) return;
+      if (isHere) { cancelLeave(); close(); stayed(); if (onStay) onStay(); return; }
+      if (onPick) leaveFor(() => onPick(w), b, w.name);
+    };
     li.append(b); ul.append(li);
   });
   // Restart story: a first tap asks ("Tap again to restart"), a second
@@ -152,10 +178,33 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
       return;
     }
     clearTimeout(sureTimer);
-    close();
-    if (restartHere) restartHere();
-    else if (typeof window !== "undefined") window.location.href = RESTART_HREF;
+    if (restartHere) { cancelLeave(); close(); restartHere(); }
+    else if (typeof window !== "undefined") leaveFor(() => { window.location.href = RESTART_HREF; }, null, "the start of the story");
   };
+  // Going: at once, or once the page's sound is done (holdLeaving). While
+  // it waits, another pick changes where to (the same wait); Escape or
+  // "You are here" stays.
+  const leave = document.createElement("div"); leave.className = "leave"; leave.setAttribute("aria-live", "polite");
+  const leaveText = document.createElement("span"); leave.append(leaveText, document.createElement("i"));
+  let leaving = null, leaveGo = null;
+  function leaveFor(go, btn, name) {
+    leaveGo = go;
+    el.querySelectorAll("li button.picked").forEach((x) => x.classList.remove("picked"));
+    if (btn) btn.classList.add("picked");
+    leaveText.textContent = `Leaving for ${name} as the music ends. Esc, or You are here, to stay.`;
+    if (leaving) return;
+    const wait = leaveWait();
+    if (wait <= 0.05) { close(); go(); return; }
+    el.style.setProperty("--leave-ms", `${Math.round(wait * 1000)}ms`);
+    el.classList.add("leaving"); el.setAttribute("data-leaving", "true");
+    leaving = setTimeout(() => { leaving = null; close(); leaveGo(); }, wait * 1000);
+  }
+  function cancelLeave() {
+    if (!leaving) return;
+    clearTimeout(leaving); leaving = null;
+    el.classList.remove("leaving"); el.removeAttribute("data-leaving");
+    el.querySelectorAll("li button.picked").forEach((x) => x.classList.remove("picked"));
+  }
   let locked = lockMs > 0;
   if (locked) {
     el.classList.add("locked");
@@ -164,8 +213,8 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     setTimeout(() => { locked = false; el.classList.remove("locked"); el.setAttribute("data-locked", "false"); }, lockMs);
   }
   const hold = document.createElement("div"); hold.className = "hold"; hold.setAttribute("aria-hidden", "true"); hold.appendChild(document.createElement("i"));
-  el.append(h, ...(sub ? [p] : []), ...(lockMs > 0 ? [hold] : []), ul, restart);
-  const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (locked) return; close(); stayed(); if (onStay) onStay(); } };
+  el.append(h, ...(sub ? [p] : []), ...(lockMs > 0 ? [hold] : []), leave, ul, restart);
+  const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (locked) return; cancelLeave(); close(); stayed(); if (onStay) onStay(); } };
   window.addEventListener("keydown", onKey, true);
   document.body.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("on")));

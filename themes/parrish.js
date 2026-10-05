@@ -47,6 +47,10 @@ import MENU_PAINT_ORINOCO from "../assets/parrish/menu-paint-orinoco.webp";
 import MENU_PAINT_WATERMARK from "../assets/parrish/menu-paint-watermark.webp";
 import MENU_EDGE from "../assets/parrish/menu-edge.webp";
 import MENU_BRUSH from "../assets/parrish/menu-brush.webp";
+import STROKE_ORINOCO_PAINT from "../assets/parrish/menu-stroke-orinoco-paint.webp";
+import STROKE_ORINOCO_GLAZE from "../assets/parrish/menu-stroke-orinoco-glaze.webp";
+import STROKE_WATERMARK_PAINT from "../assets/parrish/menu-stroke-watermark-paint.webp";
+import STROKE_WATERMARK_GLAZE from "../assets/parrish/menu-stroke-watermark-glaze.webp";
 
 // Which of the two palettes (?look=orinoco|watermark; parrish-looks.js).
 const LOOK = look();
@@ -268,6 +272,7 @@ export const dockWords = {
 
 // The menus' shared pieces (styleSheet).
 const PAPER = DARK ? MENU_PAINT_WATERMARK : MENU_PAINT_ORINOCO;
+const STROKE = DARK ? { paint: STROKE_WATERMARK_PAINT, glaze: STROKE_WATERMARK_GLAZE } : { paint: STROKE_ORINOCO_PAINT, glaze: STROKE_ORINOCO_GLAZE };
 const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ");
 const GOLD = (a) => `rgba(${rgbOf(MENU.gold)}, ${a})`;
 const PAINT = (a) => `rgba(${rgbOf(MENU.paint)}, ${a})`;
@@ -356,46 +361,61 @@ export const styleSheet = `
   /* The status line: lettered, not typed. */
   :is(${PANELS}) :is([data-testid="turn-status"], [data-testid="turn-status"] *) { font-family: 'Cinzel', Georgia, serif !important; letter-spacing: 0.08em !important; color: ${MENU.ink} !important; }
 
-  /* Buttons: a stroke of the brush. The quiet ones a glaze (the wood
-     buttons that stand for a side keep their wood: theme.sideSurface). */
-  :is(${PANELS}) .ec-btn:not([style*="url("]):not([data-dock-role="primary"]):not([data-dock-role="link"]), .rg-seg button, .rg-step button, .rg-btn.plain, .rg-small, .rg-big:not(.rg-nova) {
-    background-image: linear-gradient(${MENU.glaze}, ${MENU.glaze}) !important;
-    border-color: transparent !important; border-radius: 0 !important; box-shadow: none !important; color: ${MENU.ink} !important;
-    -webkit-mask-box-image: url(${MENU_BRUSH}) 0 96 fill / 0 18px stretch;
-    mask-border: url(${MENU_BRUSH}) 0 96 fill / 0 18px stretch;
-    padding-left: max(14px, 1em) !important; padding-right: max(14px, 1em) !important;
+  /* Buttons: strokes of a loaded brush, painted BEHIND their words
+     (border-image, user: the first try, a mask, cut the letters of the
+     small ones, Easy / Medium / Hard): each stroke reaches a little past
+     its button, so the words always sit in the paint. The quiet ones a
+     glaze; a picked one, and the big ones (Begin Game, Play, Nova), the
+     palette's own paint. The wooden side buttons keep their wood; icon
+     buttons and the dock's links stay as they are. */
+  :is(${PANELS}) .ec-btn:not([data-dock-role="link"]):not([data-dock-role="primary"]):not([data-dock-role="begin"]):not(:has(> svg)):not([style*="url("]),
+  .rg-seg button, .rg-step button, .rg-btn, .rg-small {
+    background: none !important; box-shadow: none !important; border-radius: 0 !important;
+    border-style: solid !important; border-color: transparent !important;
+    border-image: url(${STROKE.glaze}) 0 110 fill / 0 20px / 2px 7px stretch !important;
+    -webkit-mask-box-image: none !important; mask-border: none !important;
+    color: ${MENU.ink} !important;
+    padding-left: max(16px, 1.1em) !important; padding-right: max(16px, 1.1em) !important;
   }
-  :is(${PANELS}) .ec-btn:not([style*="url("]):not([data-dock-role]) { font-size: 11px !important; letter-spacing: 0.1em !important; font-weight: 700 !important; }
-  :is(${PANELS}) .ec-btn:not([style*="url("]):not([data-dock-role="link"]):hover, :is(${PANELS}) .ec-btn[aria-pressed="true"]:not([style*="url("]), .rg-seg button:hover, .rg-step button:hover, .rg-btn.plain:hover, .rg-small:hover, .rg-big:not(.rg-nova):hover {
-    background-image: linear-gradient(${MENU.glaze}, ${MENU.glaze}), linear-gradient(${MENU.glaze}, ${MENU.glaze}) !important;
+  :is(${PANELS}) .ec-btn:not([data-dock-role]):not(:has(> svg)) { font-size: 11px !important; letter-spacing: 0.1em !important; font-weight: 700 !important; }
+  :is(${PANELS}) .ec-btn:not([data-dock-role="link"]):not([data-dock-role="primary"]):not([data-dock-role="begin"]):not(:has(> svg)):hover, .rg-seg button:hover, .rg-step button:hover, .rg-btn:hover, .rg-small:hover { filter: brightness(${DARK ? 1.12 : 0.96}) saturate(1.1); }
+  :is(${PANELS}) .ec-btn[style*="rgb(${rgbOf(MENU.paint)})"]:not([data-dock-role="link"]):not(:has(> svg)):not([style*="url("]), :is(${PANELS}) .ec-btn[aria-pressed="true"]:not([data-dock-role="link"]):not(:has(> svg)):not([style*="url("]),
+  [data-dock-role="primary"], [data-dock-role="begin"], .rg-seg button[aria-pressed="true"], .rg-btn.go {
+    background: none !important; box-shadow: none !important; border-radius: 0 !important;
+    border-style: solid !important; border-color: transparent !important;
+    border-image: url(${STROKE.paint}) 0 110 fill / 0 22px / 2px 8px stretch !important;
+    -webkit-mask-box-image: none !important; mask-border: none !important;
+    color: ${MENU.paintInk} !important;
   }
+  /* Icon buttons (Back): a faint gold square, no chassis box. */
+  :is(${PANELS}) .ec-btn:has(> svg) { border-color: ${GOLD(0.4)} !important; background: none !important; color: ${MENU.ink} !important; border-radius: 0 !important; }
+  /* Small ones (8×8, the steppers): shorter ends. */
+  .rg-seg button, .rg-step button, .rg-small { border-image-width: 0 10px !important; border-image-outset: 1px 3px !important; padding-left: 12px !important; padding-right: 12px !important; }
+  .rg-step button { padding: 0 !important; }
   /* The camera views: two strokes side by side, no box round them. */
-  :is(${PANELS}) [data-dock-role="views"] { border: none !important; border-radius: 0 !important; overflow: visible !important; gap: 4px; }
-  :is(${PANELS}) [data-dock-role="view"] { border: none !important; }
-  /* The status line's box: a gold fillet round a thin glaze. */
-  :is(${PANELS}) div:has(> [data-testid="turn-status"]) { border-color: ${GOLD(0.55)} !important; background: linear-gradient(${MENU.glaze}, ${MENU.glaze}) !important; }
-  /* A picked one, and the big ones: the palette's own paint. */
-  :is(${PANELS}) .ec-btn[style*="rgb(${rgbOf(MENU.paint)})"]:not([style*="url("]), .rg-seg button[aria-pressed="true"], .rg-big.rg-nova, .rg-btn.go, [data-dock-role="primary"] {
-    background: linear-gradient(170deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1)), linear-gradient(${PAINT(0.9)}, ${PAINT(0.9)}), url(${PAPER}) 0 0 / 512px, ${MENU.paint} !important;
-    color: ${MENU.paintInk} !important; border-color: transparent !important; border-radius: 0 !important; box-shadow: none !important;
-    -webkit-mask-box-image: url(${MENU_BRUSH}) 0 96 fill / 0 22px stretch;
-    mask-border: url(${MENU_BRUSH}) 0 96 fill / 0 22px stretch;
+  :is(${PANELS}) [data-dock-role="views"] { border: none !important; border-radius: 0 !important; overflow: visible !important; gap: 10px; }
+  /* The status line ("Dark to move"): a broad stroke of glaze, no box. */
+  :is(${PANELS}) div:has(> [data-testid="turn-status"]) {
+    background: none !important; border-style: solid !important; border-color: transparent !important; border-radius: 0 !important;
+    border-image: url(${STROKE.glaze}) 0 110 fill / 0 28px / 3px 4px stretch !important;
   }
-  /* Small ones (8×8, the steppers): the stroke's ends shorter. */
-  .rg-seg button, .rg-step button, .rg-small, .rg-seg button[aria-pressed="true"] {
-    -webkit-mask-box-image: url(${MENU_BRUSH}) 0 96 fill / 0 9px stretch !important; mask-border: url(${MENU_BRUSH}) 0 96 fill / 0 9px stretch !important;
-  }
+  /* The dock's icons: lettered in the gold of the captions. */
+  :is(${PANELS}) :is([data-testid="sound-button"], [data-testid="points-toggle"], [data-testid="costs-toggle"], [data-testid="guide-toggle"]) { color: ${DARK ? "#E2B36E" : "#8A5A1E"} !important; }
   /* The gate's two big choices: swatches of paint, ragged all round. */
-  .rg-big, .rg-big.rg-nova {
-    -webkit-mask-box-image: url(${MENU_EDGE}) 64 fill / 13px stretch !important; mask-border: url(${MENU_EDGE}) 64 fill / 13px stretch !important;
-  }
-  /* The dock's big button (chassis DOCK_WORDS): a broad stroke of it,
-     gold-lettered on Orinoco's cobalt, wine-lettered on Watermark's cream. */
-  [data-dock-role="primary"] { font-family: 'Cinzel', Georgia, serif !important; font-weight: 700 !important; font-size: 15px !important;
-    letter-spacing: 0.16em !important; text-transform: uppercase !important; color: ${DARK ? MENU.paintInk : "#F2D293"} !important;
-    padding: 15px 30px !important; }
-  [data-dock-role="primary"]:hover { filter: brightness(${DARK ? 1.05 : 1.15}); }
-  [data-dock-role="primary"]:active { transform: translateY(1px); }
+  .rg-big { border: none !important; border-radius: 0 !important; box-shadow: none !important; color: ${MENU.ink} !important;
+    background: linear-gradient(${MENU.glaze}, ${MENU.glaze}) !important;
+    -webkit-mask-box-image: url(${MENU_EDGE}) 64 fill / 13px stretch !important; mask-border: url(${MENU_EDGE}) 64 fill / 13px stretch !important; }
+  .rg-big.rg-nova { color: ${MENU.paintInk} !important;
+    background: linear-gradient(170deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1)), linear-gradient(${PAINT(0.9)}, ${PAINT(0.9)}), url(${PAPER}) 0 0 / 512px, ${MENU.paint} !important; }
+  .rg-big:hover { filter: brightness(${DARK ? 1.1 : 0.97}); }
+  /* The dock's big button (chassis DOCK_WORDS) and Begin Game: broad
+     strokes, gold-lettered on Orinoco's cobalt, wine-lettered on
+     Watermark's cream. */
+  [data-dock-role="primary"], [data-dock-role="begin"] { font-family: 'Cinzel', Georgia, serif !important; font-weight: 700 !important; font-size: 15px !important;
+    letter-spacing: 0.16em !important; text-transform: uppercase !important; color: ${DARK ? MENU.paintInk : "#F2D293"} !important; text-shadow: none !important;
+    padding: 14px 30px !important; }
+  [data-dock-role="primary"]:hover, [data-dock-role="begin"]:hover { filter: brightness(${DARK ? 1.05 : 1.15}); }
+  [data-dock-role="primary"]:active, [data-dock-role="begin"]:active { transform: translateY(1px); }
   [data-dock-role="caption"] { font-family: 'Cormorant Garamond', Georgia, serif !important; font-style: italic !important; font-weight: 600 !important;
     font-size: 17px !important; color: ${DARK ? "#E2B36E" : "#8A5A1E"} !important; letter-spacing: 0.01em; }
   :is(${PANELS}) [style*="text-decoration: underline"] { font-family: 'Cinzel', Georgia, serif !important; text-decoration-color: ${GOLD(0.7)} !important; color: ${MENU.ink} !important; }
@@ -414,7 +434,7 @@ export const styleSheet = `
   [data-testid="piece-card"] { padding: 12px 18px 13px !important; outline-offset: -6px !important; }
   /* Little scraps of the same paint over the painting. */
   [data-testid="points-counter"], [data-testid="unused-points-note"] {
-    color: ${MENU.ink} !important; background: url(${PAPER}) 0 0 / 512px, ${MENU.paper} !important; padding: 6px 18px !important; border-radius: 0 !important;
+    color: ${MENU.ink} !important; background: url(${PAPER}) 0 0 / 512px, ${MENU.paper} !important; padding: 6px 24px !important; border-radius: 0 !important;
     -webkit-mask-box-image: url(${MENU_BRUSH}) 0 96 fill / 0 18px stretch; mask-border: url(${MENU_BRUSH}) 0 96 fill / 0 18px stretch;
     font-family: 'Cinzel', Georgia, serif !important; letter-spacing: 0.06em; box-shadow: none !important;
   }
@@ -462,6 +482,9 @@ export const styleSheet = `
   .ec-realities .here { color: #E8B75A !important; font-family: 'Cinzel', Georgia, serif !important; }
   .ec-realities .hold { background: ${GOLD(0.2)} !important; }
   .ec-realities .hold i { background: ${GOLD(0.85)} !important; }
+  .ec-realities .leave { font-style: italic; font-size: 16px; color: #F2D293; }
+  .ec-realities .leave i { background: ${GOLD(0.85)} !important; }
+  .ec-realities li button.picked { border-color: ${GOLD(1)} !important; box-shadow: inset 0 0 0 3px transparent, inset 0 0 0 4px ${GOLD(0.6)}, 0 0 24px ${GOLD(0.4)} !important; }
   .ec-realities .restart { border-color: ${GOLD(0.45)} !important; border-radius: 0 !important; font-family: 'Cinzel', Georgia, serif !important; }
   .ec-realities .restart:hover, .ec-realities .restart:focus-visible { background: ${GOLD(0.12)} !important; }
 `;

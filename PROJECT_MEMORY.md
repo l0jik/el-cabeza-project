@@ -6367,3 +6367,28 @@ phone menu until "Start the story over" (which clears it).
   (whole mix, descent at 30 s): old ~-22 dBFS, rain silenced ~-24, new
   ~-24 (the old rain was about as loud as everything else together; the
   new one sits well under it).
+- Leaving Parrish waits for the closing music's decay (user). realities.js
+  holdLeaving(fn): a page registers fn() -> seconds still to wait; a pick
+  in the switcher (or Restart story, when it navigates) waits for the
+  longest hold with the menu open: the pick marked, the rest dimmed, "Leaving
+  for X as the music ends. Esc, or You are here, to stay." and a line
+  filling for the wait; another pick changes the destination (same wait);
+  Esc / You are here cancels and stays. parrish-audio.js: the outro's time
+  left (its full 17.5 s while still loading); 0 if muted or the music
+  channel is at 0. Pages without holds leave at once as before
+  (e2e-ending passes). Playwright note: a locator .click() on the heavy
+  Parrish page can take ~13 s (actionability); use el.click() in evaluate
+  when timing matters.
+- Parrish buttons rethought (user: the brush mask "didn't do the AI
+  difficulty buttons very well", Begin Game and the turn box unchanged).
+  A CSS mask clips the button's own words, so the strokes are now
+  border-image (fill), painted BEHIND the words and reaching past the
+  button (outset): tools/parrish_menu_art.py makes
+  menu-stroke-<look>-paint/-glaze.webp (the brush shape painted, bristle
+  ridges lit). Glaze for quiet buttons; paint for picked (inline colour =
+  COLORS.selected, or aria-pressed), primary, Begin Game, Play, Go. Begin
+  Game (pre-game, chassis playerButtonStyle = the starting side's wood)
+  now carries data-dock-role="begin" so Parrish paints it. The turn box
+  ("Dark to move") is a broad glaze stroke; icon buttons (Back) a faint
+  gold square; dock icons gold. Specificity: the glaze rule excludes
+  primary/begin/links/icons so the paint rule wins.

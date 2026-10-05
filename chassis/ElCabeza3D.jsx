@@ -8521,6 +8521,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 <button
                   key="begin"
                   className="ec-btn"
+                  data-dock-role="begin"
                   onClick={triggerBeginGame}
                   style={{
                     ...playerButtonStyle(currentPlayer),
