@@ -181,7 +181,12 @@ export function useSetupExtras(x) {
     // (Never while the hall's scene is on: its taps are its own, and the
     // note's hidden then, den-hall.js.)
     const hallScene = () => typeof document !== "undefined" && document.documentElement.classList.contains("ec-hall-scene");
-    const guidedNow = () => home && story.guided && story.guided() && !hallScene();
+    // (Only while the note is really on the screen: it's drawn at the
+    // setup only, so with a game still in play, back from the Singularity,
+    // it waits for the next setup, and nothing is held meanwhile. User: a
+    // full run, after the commercial "everything froze".)
+    const noteShown = () => typeof document !== "undefined" && !!document.querySelector(".td-special-note");
+    const guidedNow = () => home && story.guided && story.guided() && !hallScene() && noteShown();
     const onNote = (e) => !!(e.target && e.target.closest && e.target.closest(".td-special-note"));
     /* The first time through, nothing else on the screen can be touched
        while it's up (user: only the order form): every tap, drag, wheel
@@ -215,7 +220,7 @@ export function useSetupExtras(x) {
     BLOCK.forEach((ev) => window.addEventListener(ev, block, { capture: true, passive: false }));
     window.addEventListener("keydown", blockKey, true);
     const onDown = (e) => {
-      if (guidedNow() || hallScene()) return;
+      if (guidedNow() || hallScene() || !noteShown()) return;
       if (!onNote(e)) dismissSpecialNote();
     };
     document.addEventListener("pointerdown", onDown, true);

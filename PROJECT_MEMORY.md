@@ -6629,3 +6629,20 @@ phone menu until "Start the story over" (which clears it).
   sends.
 - Watermark: no blackbird (user: "leave the blackbird out"). Its evening
   is the recorded wind and its own far birds only.
+- Den freeze after the commercial (user, full run: "the camera centered
+  over the board and everything froze. Nothing was clickable"). Cause:
+  tienda-overlay.js's special-orders note is drawn only at the setup
+  (x.awaitingBegin), but its tap-block (the first time through, every
+  tap off the note stopped at the window) ran whenever the note was due.
+  Back from the Singularity with a den game still in play (it carries
+  over by design), the note was due, not drawn, and every tap was held.
+  Fix: guidedNow() and the dismiss-on-tap both require the note on the
+  screen (document.querySelector(".td-special-note")); mid-game nothing
+  is held, and the note (and its guiding) comes at the next setup.
+  Repro (scratch den/freeze.mjs): game begun, then the Singularity marked
+  seen: before, note off screen and 0 taps through; after, 2 taps
+  through; ending the game, the note shows and holds taps again.
+- Orinoco/Watermark dock: "DIFFICULTY" ran into Easy's stroke (user
+  screenshot): the strokes reach 7px past a button (border-image-outset),
+  past the row's gap. parrish.js: [data-ec-diff-label] margin-right 10px
+  in the panels.
