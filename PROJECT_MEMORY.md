@@ -6674,3 +6674,9 @@ phone menu until "Start the story over" (which clears it).
   page opened with the game NOT owned, so a "Start the story over" from
   an owned game fetched them only when the register rang, too late for
   the print, and the made stand-ins played. Now always prefetched (~50 KB).
+- Full suite (npm test, user asked): engine smokes pass; e2e 48/50 in
+  79.5 min. The two failures were the tests, not the game, behind two
+  of the user's own changes: e2e-drag-latch (Big Glutts' page tilts the
+  other way up/down now: flip the expected tilt sign on el-cabeza-tienda)
+  and e2e-tienda ("Dark wins" -> "Walnut wins" on the placard). Both
+  tests updated.

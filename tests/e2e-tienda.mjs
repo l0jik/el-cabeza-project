@@ -271,7 +271,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "S"));
   await page.waitForTimeout(5000);
   const placard = page.locator('[data-testid="victory-placard"]');
-  check("the Cabeza reaching the far row puts up the win placard", (await placard.count()) === 1 && /dark wins/i.test(await placard.innerText()));
+  check("the Cabeza reaching the far row puts up the win placard", (await placard.count()) === 1 && /walnut wins/i.test(await placard.innerText())); // (Big Glutts calls Dark "Walnut", side-names.js)
   check("...on screen", inView(await placard.boundingBox(), size, 1));
   const wound = await page.evaluate(() => window.__TIENDA_AUDIO__());
   check("the music winds down at the end of the game", wound.windingDown === true, JSON.stringify(wound));
