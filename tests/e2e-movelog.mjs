@@ -21,7 +21,7 @@ await openDockPanel(page);
 await page.locator('[data-testid="dock-panel"] button', { hasText: /^AI$/ }).nth(1).click();
 await page.waitForTimeout(500);
 const pill = page.locator('[data-testid="turn-status"]');
-for (let i = 0; i < 2 && !/light/i.test(await pill.textContent()); i++) { await pill.click(); await page.waitForTimeout(300); }
+for (let i = 0; i < 2 && !/plasma/i.test(await pill.textContent()); i++) { await pill.click(); await page.waitForTimeout(300); }
 check("Plasma (Light) is set to open", /plasma/i.test(await pill.textContent()));
 await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
 for (let i = 0; i < 40 && !(await page.evaluate(() => (window.__EC_TEST_LOG__ || []).length)); i++) await page.waitForTimeout(500);

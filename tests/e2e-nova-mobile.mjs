@@ -16,6 +16,9 @@
       back); the dock's layout icon switches to the bar, and the choice is
       remembered. Sections 1-3 open with the bar chosen. */
 import { chromium } from "playwright";
+import { SIDE_NAMES } from "../themes/side-names.js";
+
+const DARK_NAMES = `\\b(${[...new Set(["Dark", ...Object.values(SIDE_NAMES).map((n) => n.dark)])].join("|")})\\b`;
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 let failures = 0;
@@ -105,7 +108,8 @@ async function waitFor(fn, ms = 8000) {
 
   // A piece: its description in the bar, then a move
   const pos = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-flaco"));
-  const cur = await page.evaluate(() => /dark/i.test(document.querySelector('[data-testid="shell-status"]').textContent) ? "dark" : "light");
+  // The status names the side as the theme does (Walnut, Photon...).
+  const cur = await page.evaluate((re) => new RegExp(re, "i").test(document.querySelector('[data-testid="shell-status"]').textContent) ? "dark" : "light", DARK_NAMES);
   const mover = cur === "dark" ? "dark-flaco" : "light-flaco";
   const mpos = await page.evaluate((id) => window.__EC_TEST_SCREEN_POS__(id), mover);
   await page.touchscreen.tap(mpos.x, mpos.y);
@@ -118,7 +122,7 @@ async function waitFor(fn, ms = 8000) {
   check("Undo move and Stop here appear mid-turn", (await visible(page, "shell-undo-move")) && (await visible(page, "shell-end-turn")));
   check("one point left", (await page.locator('[data-testid="shell-points"] [data-filled="true"]').count()) === 1);
   await q(page, "shell-end-turn").click();
-  check("Stop here passes the turn", await waitFor(async () => new RegExp(cur === "dark" ? "light" : "dark", "i").test(await q(page, "shell-status").textContent())));
+  check("Stop here passes the turn", await waitFor(async () => ((t) => /to move/i.test(t) && new RegExp(DARK_NAMES, "i").test(t) === (cur !== "dark"))(await q(page, "shell-status").textContent())));
   check("Undo turn is offered", await visible(page, "shell-undo-turn"));
 
   // View toggle
