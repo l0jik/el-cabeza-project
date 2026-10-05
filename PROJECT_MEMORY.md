@@ -6261,3 +6261,13 @@ phone menu until "Start the story over" (which clears it).
   b): 1-peak 9.44 12.52 8.77 5.71 11.40 6.14 26.76 7.91; 2-peak 9.65
   12.73 19.53 4.62 1.53 12.08 26.32 32.22; 3-peak 32.88 33.76 7.58 10.98
   0.63 35.94 3.72 17.33. Waiting on the user's picks.
+- Parrish sounds: the user kept set 5 #6, 7, 9-13, 21-23 ("treat/process
+  as before and integrate wisely"). Added to tools/parrish_stabs.py as
+  "phrase" cuts (as auditioned: onset - 4 ms, last 30% faded) and to the
+  one file (now 27 slices, 14.6 s). Measured by strongest partials: #6
+  ~A4, #7 ~A#5 -> into NOTES (now 17, A#5 on top). Roles: biggest
+  landings (landingSize >= 6/8/10) on a pair half the time (#9 ~D4, #13
+  ~C4, #12 ~D#3); capture = #23 (three, deepest, bass) replacing the
+  D#3+F3 dyad; Begin Game (playPowerOn) = #21; a game ended by hand
+  (playPowerOff, not within 2.5 s of a win) = #22; rules open #10, close
+  #11 (quiet), rules tab = #7 very soft. All through the hall.

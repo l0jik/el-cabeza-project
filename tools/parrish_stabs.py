@@ -17,6 +17,19 @@ is won:
   set 3 #20       the long stab 23.7 s into the second file: the last
                   Cabeza crushed
 
+And from a fifth selection (short phrases of one, two or three stabs from
+the second file, the percussive passages left out; user: "more variety"),
+ten more, cut as they were played to the user (from 4 ms before the first
+stab's onset, faded out over their last 30%):
+
+  set 5 #6, #7    single stabs, ~A4 (mellow) and ~A#5 (bright): two more
+                  notes for the pieces
+  set 5 #9-13     two stabs each: the biggest pieces' landings (#9 ~D4,
+                  #12 ~D#3, #13 ~C4), the rules opening and closing (#10,
+                  #11, the brighter pair)
+  set 5 #21-23    three stabs each: Begin Game (#21), a game ended by hand
+                  (#22), a capture (#23, the deepest, with the bass)
+
 The game sorts the notes by pitch and gives each piece sound the notes for
 its size, the deeper the bigger (themes/parrish-audio.js), and lays a long
 hall reverb on all of it there.
@@ -69,6 +82,17 @@ PIECES = [
     ("s3n6", "b", 1.970, 120),    # C4
     ("winEdge", "a", 39.720, 420),     # set 1 #16
     ("winCapture", "b", 23.665, 380),  # set 3 #20
+    # set 5: phrases, cut as auditioned (onset - 4 ms, last 30% faded)
+    ("s5n6", "b", 6.14, 200, "phrase"),     # one stab, ~A4, mellow
+    ("s5n7", "b", 26.76, 200, "phrase"),    # one stab, ~A#5, bright
+    ("s5p9", "b", 9.65, 440, "phrase"),     # two, ~D4
+    ("s5p10", "b", 12.73, 430, "phrase"),   # two, bright (~A5)
+    ("s5p11", "b", 19.53, 510, "phrase"),   # two, bright (~G5)
+    ("s5p12", "b", 4.62, 410, "phrase"),    # two, ~D#3, mellow
+    ("s5p13", "b", 1.53, 720, "phrase"),    # two, ~C4, mellow
+    ("s5p21", "b", 0.63, 890, "phrase"),    # three, ~D4/A#4, mellow
+    ("s5p22", "b", 35.94, 740, "phrase"),   # three, ~G2, mellow
+    ("s5p23", "b", 3.72, 630, "phrase"),    # three, ~D#2, with the bass
 ]
 
 
@@ -90,14 +114,14 @@ def attack(y, t):
     return (s + int(np.argmax(env >= env.max() / 3))) / SR
 
 
-def cut(y, t, ms):
-    s = max(0, int((attack(y, t) - 0.004) * SR))
+def cut(y, t, ms, kind="hit"):
+    s = max(0, int(((t if kind == "phrase" else attack(y, t)) - 0.004) * SR))
     n = int(ms / 1000 * SR)
     g = y[s:s + n].copy()
     env = np.ones(n)
     fi = int(0.002 * SR)
     env[:fi] = np.linspace(0, 1, fi)
-    fo = int(n * 0.65)
+    fo = int(n * (0.3 if kind == "phrase" else 0.65))
     env[n - fo:] *= 0.5 * (1 + np.cos(np.linspace(0, np.pi, fo)))
     g *= env
     g -= g.mean() * env  # no step at the ends
@@ -107,8 +131,8 @@ def cut(y, t, ms):
 def main():
     src = {k: load(p) for k, p in SRC.items()}
     parts, table, pos = [np.zeros(int(0.1 * SR))], {}, 0.1
-    for name, f, t, ms in PIECES:
-        g = cut(src[f], t, ms)
+    for name, f, t, ms, *kind in PIECES:
+        g = cut(src[f], t, ms, *kind)
         table[name] = [round(pos, 4), round(len(g) / SR, 4)]
         parts += [g, np.zeros(int(GAP * SR))]
         pos += len(g) / SR + GAP

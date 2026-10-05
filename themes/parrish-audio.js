@@ -7,13 +7,17 @@
    ones softer and duller.
 
    The pieces: the user's own recordings of instrumental stabs, cut into
-   very small pieces, of which the user picked fifteen lone notes and two
-   longer hits (tools/parrish_stabs.py, one file beside the page,
+   very small pieces, of which the user picked seventeen lone notes, ten
+   short phrases of two or three stabs, and two longer hits
+   (tools/parrish_stabs.py, one file beside the page,
    el-cabeza-parrish-stabs.mp3, fetched once). The notes, sorted by pitch,
    are the pieces' voice, and the deeper the note the bigger the piece
    (user): picked up and put down at its own pitch, silent as it moves,
-   landing on the note for the face it lands on, a low pair for a capture, the two lowest muffled for a move
-   that isn't allowed. The two longer hits are the two wins (user): a
+   landing on the note for the face it lands on (the biggest, as often as
+   not, on a deep pair of stabs), the two lowest muffled for a move that
+   isn't allowed. The phrases of three: Begin Game, a game ended by hand,
+   a capture (the deepest, with the bass). The brighter pairs: the rules
+   opening and closing. The two longer hits are the two wins (user): a
    Cabeza reaching the far side, and the last Cabeza crushed. All of it
    in a long, soft hall (user: "think Enya"). Until the file's here (or if
    it can't be had) the wooden set's own knocks stand in (wood-sfx.js).
@@ -41,10 +45,16 @@ const STABS = {
   s2n1: [2.32, 0.12], s2n2: [2.69, 0.12], s2n3: [3.06, 0.12], s2n4: [3.43, 0.12], s2n5: [3.8, 0.13],
   s3n3: [4.18, 0.12], s3n4: [4.55, 0.12], s3n5: [4.92, 0.12], s3n6: [5.29, 0.12],
   winEdge: [5.66, 0.42], winCapture: [6.33, 0.38],
+  s5n6: [6.96, 0.2], s5n7: [7.41, 0.2],
+  s5p9: [7.86, 0.44], s5p10: [8.55, 0.43], s5p11: [9.23, 0.51], s5p12: [9.99, 0.41], s5p13: [10.65, 0.72],
+  s5p21: [11.62, 0.89], s5p22: [12.76, 0.74], s5p23: [13.75, 0.63],
 };
-// The fifteen notes, highest to lowest (as measured): D5 D5 D5 C#5 C5, E4
-// D#4 D4, C4 C4 C4, B3 B3, F3, D#3.
-const NOTES = ["s1n4", "s3n4", "s1n1", "s1n3", "s2n3", "s2n2", "s1n6", "s3n5", "s3n6", "s3n3", "s1n2", "s2n4", "s2n1", "s1n5", "s2n5"];
+// The seventeen notes, highest to lowest (as measured): A#5, D5 D5 D5
+// C#5 C5, A4, E4 D#4 D4, C4 C4 C4, B3 B3, F3, D#3.
+const NOTES = ["s5n7", "s1n4", "s3n4", "s1n1", "s1n3", "s2n3", "s5n6", "s2n2", "s1n6", "s3n5", "s3n6", "s3n3", "s1n2", "s2n4", "s2n1", "s1n5", "s2n5"];
+// The biggest pieces land, as often as not, on two stabs rather than one
+// (a weight that settles): the deeper pair the bigger (~D4, ~C4, ~D#3).
+const PAIRS = [[6, "s5p9"], [8, "s5p13"], [10, "s5p12"]];
 // Where a size falls among them: a single cube at the top, about twelve
 // cubes' worth (a big piece on a broad face) at the bottom; then one of
 // its neighbours now and then, so a piece doesn't always say the same.
@@ -81,7 +91,7 @@ export function createAudio() {
   const timers = new Set();
   let music = null;
   // The stabs, once decoded: the buffer and each slice's real start.
-  let stabs = null, stabsAsked = false, hallIn = null, pendingCapture = null;
+  let stabs = null, stabsAsked = false, hallIn = null, pendingCapture = null, wonAt = -1e9;
 
   function later(ms, fn) {
     const id = setTimeout(() => { timers.delete(id); if (!disposed) fn(); }, ms);
@@ -333,22 +343,25 @@ export function createAudio() {
     landing(units, contact) {
       const m = Math.max(1, units || 1), size = landingSize(units, contact);
       if (typeof window !== "undefined" && Array.isArray(window.__EC_TEST_LANDINGS__)) window.__EC_TEST_LANDINGS__.push({ units, contact, size });
+      const pair = PAIRS.filter(([at]) => size >= at).pop();
+      if (pair && Math.random() < 0.5) { stab(pair[1], now(), { level: 0.15 + 0.03 * Math.log2(m) }); return; }
       stab(noteFor(size), now(), { level: 0.17 + 0.03 * Math.log2(m) });
     },
-    // A capture: the two lowest notes together, a B3 after. Held back a
-    // moment: if the game is won by it, the win's own hit plays instead.
+    // A capture: three stabs, the deepest of the phrases, with the bass in
+    // them. Held back a moment: if the game is won by it, the win's own
+    // hit plays instead.
     capture() {
       if (pendingCapture) clearTimeout(pendingCapture);
       pendingCapture = setTimeout(() => {
         pendingCapture = null;
         if (disposed || !stabs) return;
-        const t = now();
-        stab("s2n5", t, { level: 0.2 }); stab("s1n5", t + 0.03, { level: 0.17 }); stab("s2n1", t + 0.2, { level: 0.1 });
+        stab("s5p23", now(), { level: 0.24 });
       }, 40);
     },
     // The two wins (user): the last Cabeza crushed (the game calls the
     // capture, then the win, at once), or a Cabeza at the far side.
     win() {
+      wonAt = ctx.currentTime;
       if (pendingCapture) { clearTimeout(pendingCapture); pendingCapture = null; stab("winCapture", now(), { level: 0.32 }); return; }
       stab("winEdge", now(), { level: 0.32 });
     },
@@ -414,8 +427,16 @@ export function createAudio() {
         });
       });
     }),
-    playMenu() {}, fadeOutMenu() {}, stopMenu() {}, playRulesOpen() {}, playRulesClose() {}, playRulesTab() {}, playPowerOn() {},
-    playPowerOff() {}, playFlicker() {}, playArc() {}, playGlitch() {},
+    // Begin Game: three soft stabs. A game ended by hand: three deeper ones
+    // (a won game has its own win, so nothing more then). The rules, opened
+    // and closed: the brighter pairs, quietly; a tab, the top note, softer.
+    playPowerOn: cue(() => { if (stabs) stab("s5p21", now(), { level: 0.16 }); }),
+    playPowerOff: cue(() => { if (stabs && ctx.currentTime - wonAt > 2.5) stab("s5p22", now(), { level: 0.16 }); }),
+    playRulesOpen: cue(() => { if (stabs) stab("s5p10", now(), { level: 0.09 }); }),
+    playRulesClose: cue(() => { if (stabs) stab("s5p11", now(), { level: 0.08 }); }),
+    playRulesTab: cue(() => { if (stabs) stab("s5n7", now(), { level: 0.05, tone: 3500 }); }),
+    playMenu() {}, fadeOutMenu() {}, stopMenu() {},
+    playFlicker() {}, playArc() {}, playGlitch() {},
     playSingularityOpen() {}, playSingularityClose() {},
     startSingularityHum() {}, updateSingularityHum() {}, stopSingularityHum() {}, playSingularityDismiss() {},
     continueSingularityHumThroughCollapse() {}, startSingularityCollapseRoar() {},
