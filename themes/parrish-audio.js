@@ -297,7 +297,7 @@ export function createAudio() {
     landing(units, contact) {
       const m = Math.max(1, units || 1), size = landingSize(units, contact);
       if (typeof window !== "undefined" && Array.isArray(window.__EC_TEST_LANDINGS__)) window.__EC_TEST_LANDINGS__.push({ units, contact, size });
-      stab(pick(THUMPS), now(), { level: 0.26 + 0.05 * Math.log2(m), rate: Math.max(0.6, Math.min(1.3, 1.25 / Math.pow(size, 0.22))) });
+      stab(pick(THUMPS), now(), { level: 0.19 + 0.04 * Math.log2(m), rate: Math.max(0.6, Math.min(1.3, 1.25 / Math.pow(size, 0.22))) });
     },
     capture() {
       const t = now();

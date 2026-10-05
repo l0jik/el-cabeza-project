@@ -6207,3 +6207,10 @@ phone menu until "Start the story over" (which clears it).
   (with __EC_TEST_HOOKS__). Audition recorded on a bare page bundling
   only parrish-audio.js (the game page in headless GL is too slow for
   timing): scratchpad stabs/listen.mjs.
+- Parrish landings softer (user): thump level 0.19 + 0.04*log2(cubes)
+  (was 0.26 + 0.05*log2), about 2.5 dB down. A second selection of 16
+  cuts sent for the user to choose from (scratchpad stabs/set2.py, one
+  cut per whole second): notes B3 1.795a, E4 26.055a, C5 4.95a, B3
+  12.885a, D#3 2.855b; thumps 10.705a, 35.625a, 33.45a, 18.875b; ticks
+  15.32a, 35.085a, 9.445b, 8.785b; stabs F2 3.08b, 25.445b; long hit
+  5.095a (s into instrumental-stab-1 = a / instrumental-stab = b).
