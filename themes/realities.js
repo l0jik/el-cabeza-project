@@ -100,6 +100,10 @@ export const RESTART_HREF = "el-cabeza-nova.html?restart=story";
 /* `sub` empty: no line under the title (the end of the story, whose
    words were its crawl). */
 export const REALITIES_OPEN_EVENT = "el-cabeza:realities-open";
+// ...and, when it's put away to stay where you are, this (Parrish: its
+// soundtrack comes back).
+export const REALITIES_STAY_EVENT = "el-cabeza:realities-stay";
+const stayed = () => { try { window.dispatchEvent(new CustomEvent(REALITIES_STAY_EVENT)); } catch (e) { /* no events */ } };
 export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", lockMs = 0 } = {}) {
   if (typeof document === "undefined") return { el: null, close() {} };
   // (For the page's own sound to mark leaving: Parrish's closing music.)
@@ -130,7 +134,7 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     if (isHere) { const here = document.createElement("span"); here.className = "here"; here.textContent = "You are here"; txt.append(here); }
     b.append(shot, txt);
     // (Where you are already: you stay.)
-    b.onclick = () => { if (locked) return; close(); if (isHere) { if (onStay) onStay(); } else if (onPick) onPick(w); };
+    b.onclick = () => { if (locked) return; close(); if (isHere) { stayed(); if (onStay) onStay(); } else if (onPick) onPick(w); };
     li.append(b); ul.append(li);
   });
   // Restart story: a first tap asks ("Tap again to restart"), a second
@@ -161,7 +165,7 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
   }
   const hold = document.createElement("div"); hold.className = "hold"; hold.setAttribute("aria-hidden", "true"); hold.appendChild(document.createElement("i"));
   el.append(h, ...(sub ? [p] : []), ...(lockMs > 0 ? [hold] : []), ul, restart);
-  const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (locked) return; close(); if (onStay) onStay(); } };
+  const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (locked) return; close(); stayed(); if (onStay) onStay(); } };
   window.addEventListener("keydown", onKey, true);
   document.body.appendChild(el);
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("on")));

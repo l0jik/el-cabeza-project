@@ -38,6 +38,11 @@
    page, so the ringing carries on under it). The intro, if it's still
    going, gives way; the place's own sound steps back for it.
 
+   Watermark's soundtrack (user: "use this as background track while
+   playing Watermark ... very low ... [its own] audio slider"): the user's
+   "Cathedral Hums", looped, from Begin Game, on its own channel, its
+   slider starting at a fifth (HUMS_LEVEL). It gives way to the close.
+
    The music: MUSIC_URL, a file beside the page, once the user's
    recording is here. With none, there's no music channel at all (no
    slider that does nothing); with one, it plays from Begin Game, looped,
@@ -47,7 +52,8 @@
    sit, not a soundtrack. */
 
 import { createWoodSfx, landingSize } from "./wood-sfx.js";
-import { REALITIES_OPEN_EVENT } from "./realities.js";
+import { REALITIES_OPEN_EVENT, REALITIES_STAY_EVENT } from "./realities.js";
+import { lookName } from "./parrish-looks.js";
 
 export const hasAudio = true;
 
@@ -56,6 +62,14 @@ export const hasAudio = true;
 export const MUSIC_URL = null;
 export const INTRO_URL = "el-cabeza-parrish-intro.mp3";
 export const OUTRO_URL = "el-cabeza-parrish-outro.mp3";
+// Watermark's soundtrack: the user's "Cathedral Hums", looped (made to
+// loop by tools/parrish_hums.py), on a channel of its own.
+export const HUMS_URL = lookName() === "watermark" ? "el-cabeza-parrish-hums.mp3" : null;
+// Its slider starts here (user: "very low on the overall audio mix so as
+// to not be distracting"; theirs to bring up): the channel's level times
+// HUMS_GAIN, about 26 dB under the music at first.
+export const HUMS_LEVEL = 0.2;
+const HUMS_GAIN = 0.5;
 
 // The slices of the stabs file: [start s, length s] (tools/parrish_stabs.py).
 const STABS_URL = "el-cabeza-parrish-stabs.mp3";
@@ -104,11 +118,11 @@ function makeHall(ctx) {
 
 export function createAudio() {
   let ctx = null, master = null, vol = null, wood = null, noiseBuf = null, verb = null;
-  const gates = {}, chLevel = { nature: 1, pieces: 1, music: 1 };
+  const gates = {}, chLevel = { nature: 1, pieces: 1, music: 1, hums: HUMS_LEVEL };
   let muted = false, natureOn = false, disposed = false, windingDown = false;
   let natureBus = null, gust = null;
   const timers = new Set();
-  let music = null;
+  let music = null, hums = null;
   // The stabs, once decoded: the buffer and each slice's real start.
   let intro = null, outro = null;
   let stabs = null, stabsAsked = false, hallIn = null, pendingCapture = null, wonAt = -1e9;
@@ -128,7 +142,7 @@ export function createAudio() {
       comp.threshold.value = -16; comp.ratio.value = 3; comp.attack.value = 0.005; comp.release.value = 0.25;
       vol = ctx.createGain(); vol.gain.value = 1;
       master.connect(comp).connect(vol).connect(ctx.destination);
-      ["nature", "pieces", "music"].forEach((k) => { const g = ctx.createGain(); g.gain.value = chLevel[k]; g.connect(master); gates[k] = g; });
+      ["nature", "pieces", "music", "hums"].forEach((k) => { const g = ctx.createGain(); g.gain.value = chLevel[k]; g.connect(master); gates[k] = g; });
       natureBus = ctx.createGain(); natureBus.gain.value = 0; natureBus.connect(gates.nature);
       // The open air: a short, soft, bright tail (there are no walls).
       verb = ctx.createConvolver();
@@ -416,6 +430,7 @@ export function createAudio() {
     if (ctx.state === "suspended") ctx.resume();
     // The intro gives way; the place's sound steps back.
     if (intro && intro.g) intro.g.gain.setTargetAtTime(0, now(), 0.25);
+    if (hums && hums.g) hums.g.gain.setTargetAtTime(0, now(), 0.6);
     if (natureBus) natureBus.gain.setTargetAtTime(0.35, now(), 0.8);
     if (outro && outro.src) { try { outro.src.stop(); } catch (e) { /* ended */ } }
     const o = (outro = { stopped: false });
@@ -432,6 +447,9 @@ export function createAudio() {
   }
   const onRealities = () => playOutro();
   if (typeof window !== "undefined" && OUTRO_URL) window.addEventListener(REALITIES_OPEN_EVENT, onRealities);
+  // Staying after all: the soundtrack comes back in under the game.
+  const onStay = () => { if (hums && hums.g && !disposed) hums.g.gain.setTargetAtTime(HUMS_GAIN, now(), 2.5); };
+  if (typeof window !== "undefined" && HUMS_URL) window.addEventListener(REALITIES_STAY_EVENT, onStay);
 
   // The first tap or key anywhere on the page starts it.
   const firstGesture = () => { offGesture(); playIntro(); };
@@ -452,6 +470,27 @@ export function createAudio() {
     }).catch(() => { /* no recording yet */ });
   }
 
+  /* ---- Watermark's soundtrack: the hums, looped, low ---- */
+  function startHums() {
+    if (!HUMS_URL || !ctx || hums) return;
+    hums = { stopped: false };
+    const h = hums;
+    fetch(HUMS_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+      if (h.stopped || disposed) return;
+      // The loop from the first sound to the last (an encoder's padding
+      // left out, so the seam the file was made with stays seamless).
+      const d = buf.getChannelData(0), lim = Math.min(d.length, Math.floor(buf.sampleRate * 0.2));
+      let a = 0, z = d.length - 1;
+      while (a < lim && Math.abs(d[a]) < 1e-4) a++;
+      while (z > d.length - lim && Math.abs(d[z]) < 1e-4) z--;
+      const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
+      s.loopStart = a / buf.sampleRate; s.loopEnd = (z + 1) / buf.sampleRate;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now()); g.gain.setTargetAtTime(HUMS_GAIN, now(), 2.5);
+      s.connect(g).connect(gates.hums); s.start(now(), s.loopStart);
+      h.src = s; h.g = g;
+    }).catch(() => { /* no soundtrack, then */ });
+  }
+
   const cue = (fn) => (...args) => { ensureGraph(); if (wood) fn(...args); };
 
   const api = {
@@ -462,7 +501,9 @@ export function createAudio() {
       startNature();
     },
     beginGameFadeIn() {
-      windingDown = false; startNature(); startMusic();
+      windingDown = false; startNature(); startMusic(); startHums();
+      // (Back from the switcher without leaving: the hums return.)
+      if (hums && hums.g) hums.g.gain.setTargetAtTime(HUMS_GAIN, now(), 2);
       // The intro, if it's still playing, steps back under the game.
       if (intro && intro.g && !intro.done) intro.g.gain.setTargetAtTime(0.25, now(), 0.6);
       if (ctx && natureBus) natureBus.gain.setTargetAtTime(1, now(), 1.2);
@@ -517,14 +558,15 @@ export function createAudio() {
     cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
     playDockOpen() {}, playDockClose() {},
     // (Tests: what's running.)
-    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
+    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
     dispose() {
       disposed = true;
       timers.forEach((id) => clearTimeout(id)); timers.clear();
       if (pendingCapture) clearTimeout(pendingCapture);
       if (music) music.stopped = true;
+      if (hums) { hums.stopped = true; try { if (hums.src) hums.src.stop(); } catch (e) { /* ended */ } }
       offGesture();
-      if (typeof window !== "undefined") window.removeEventListener(REALITIES_OPEN_EVENT, onRealities);
+      if (typeof window !== "undefined") { window.removeEventListener(REALITIES_OPEN_EVENT, onRealities); window.removeEventListener(REALITIES_STAY_EVENT, onStay); }
       if (outro) { outro.stopped = true; try { if (outro.src) outro.src.stop(); } catch (e) { /* ended */ } }
       if (intro) { intro.stopped = true; try { if (intro.src) intro.src.stop(); } catch (e) { /* ended */ } }
       if (ctx) { try { ctx.close(); } catch (e) { /* already closed */ } }

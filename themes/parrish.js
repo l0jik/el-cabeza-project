@@ -33,7 +33,7 @@ import * as THREE from "three";
 import { quality } from "./tienda-quality.js";
 import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
 import { parrishEnv, createParrishEffects } from "./parrish-scene.js";
-import { MUSIC_URL, INTRO_URL } from "./parrish-audio.js";
+import { MUSIC_URL, INTRO_URL, HUMS_URL, HUMS_LEVEL } from "./parrish-audio.js";
 import { look, lookName } from "./parrish-looks.js";
 // The user's "el cabeza" lettering, its outline traced exactly from their
 // artwork (a mask: never redrawn), and the paint that fills it, one for
@@ -41,6 +41,12 @@ import { look, lookName } from "./parrish-looks.js";
 import TITLE_MASK from "../assets/parrish/title-mask.webp";
 import TITLE_PAINT_ORINOCO from "../assets/parrish/title-paint-orinoco.webp";
 import TITLE_PAINT_WATERMARK from "../assets/parrish/title-paint-watermark.webp";
+// The menus' paint (tools/parrish_menu_art.py): each palette's ground, a
+// panel's ragged painted edge, and a button's single brush stroke.
+import MENU_PAINT_ORINOCO from "../assets/parrish/menu-paint-orinoco.webp";
+import MENU_PAINT_WATERMARK from "../assets/parrish/menu-paint-watermark.webp";
+import MENU_EDGE from "../assets/parrish/menu-edge.webp";
+import MENU_BRUSH from "../assets/parrish/menu-brush.webp";
 
 // Which of the two palettes (?look=orinoco|watermark; parrish-looks.js).
 const LOOK = look();
@@ -62,16 +68,26 @@ export const PARRISH = {
   crimson: "#8E1420",
 };
 
+// The menus, painted (styleSheet below): Orinoco's on ivory with
+// Parrish-blue ink; Watermark's on wine, its ink the cream of its light.
+const MENU = DARK
+  ? { paper: "#3A0F14", paperAlt: "#4A161B", ink: "#F1E2C4", muted: "#C9A78A", mutedRgb: "201, 167, 138", gold: "#C8964A",
+      paint: "#E3CB98", paintInk: "#3A0C12", glaze: "rgba(214, 160, 84, 0.24)", shade: "rgba(12, 2, 4, 0.6)" }
+  : { paper: PARRISH.ivory, paperAlt: PARRISH.marble, ink: PARRISH.blue, muted: "#5A6A9A", mutedRgb: "90, 106, 154", gold: "#B8862E",
+      paint: "#24418F", paintInk: "#F6E7C1", glaze: "rgba(232, 183, 90, 0.3)", shade: "rgba(8, 14, 38, 0.5)" };
+
 export const COLORS = {
-  // The menus: ivory print stock, Parrish-blue ink.
-  cream: PARRISH.ivory,
-  creamAlt: PARRISH.marble,
-  charcoal: PARRISH.blue,
-  slate: "#5A6A9A",
-  slateSoft: "rgba(90, 106, 154, 0.30)",
-  slateFaint: "rgba(90, 106, 154, 0.10)",
-  pageBg: "#0E1A3D",
-  pageBgDeep: "#081128",
+  cream: MENU.paper,
+  creamAlt: MENU.paperAlt,
+  charcoal: MENU.ink,
+  slate: MENU.muted,
+  slateSoft: `rgba(${MENU.mutedRgb}, 0.30)`,
+  slateFaint: `rgba(${MENU.mutedRgb}, 0.10)`,
+  // A picked button: a stroke of the palette's own paint.
+  selected: MENU.paint,
+  selectedInk: MENU.paintInk,
+  pageBg: DARK ? "#140405" : "#0E1A3D",
+  pageBgDeep: DARK ? "#0A0203" : "#081128",
   // The pieces: the set's walnut for Dark, olive ash for Light.
   bodyDark: "#4A2C1C",
   bodyLight: "#D9B77E",
@@ -105,8 +121,8 @@ export const EDGE_RADIUS = SET_EDGE_RADIUS;
 // The shell's at-rest lift, stripped before a roll (wood-set.js SHELL_LIFT).
 export const outlineYOffset = OUTLINE_Y_OFFSET;
 
-export const modalBackdrop = "rgba(8, 14, 38, 0.55)";
-export const modalSurface = "rgba(246, 236, 214, 0.98)";
+export const modalBackdrop = DARK ? "rgba(14, 3, 5, 0.6)" : "rgba(8, 14, 38, 0.55)";
+export const modalSurface = DARK ? "rgba(58, 15, 20, 0.98)" : "rgba(246, 236, 214, 0.98)";
 // Shown only until the terrace is up: the sky at dusk.
 export const canvasGradientStart = LOOK.bg;
 export const canvasGradientEnd = DARK ? "#140405" : "#3E7FA8";
@@ -206,6 +222,8 @@ export const soundChannels = [
   { key: "nature", label: "The terrace", hint: "The breeze, the birds, the pool" },
   ...(MUSIC_URL || INTRO_URL ? [{ key: "music", label: "Music", hint: MUSIC_URL ? "The recording" : "The opening" }] : []),
   { key: "pieces", label: "Pieces", hint: "The wood on the board" },
+  // Watermark's soundtrack, its slider starting low (parrish-audio.js).
+  ...(HUMS_URL ? [{ key: "hums", label: "Soundtrack", hint: "Cathedral Hums", level: HUMS_LEVEL }] : []),
 ];
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle).
@@ -248,6 +266,17 @@ export const dockWords = {
   wonCaption: "The last stroke. Well played.",
 };
 
+// The menus' shared pieces (styleSheet).
+const PAPER = DARK ? MENU_PAINT_WATERMARK : MENU_PAINT_ORINOCO;
+const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ");
+const GOLD = (a) => `rgba(${rgbOf(MENU.gold)}, ${a})`;
+const PAINT = (a) => `rgba(${rgbOf(MENU.paint)}, ${a})`;
+const PANELS = [
+  '[data-testid="dock-panel"]', '[data-testid="sound-menu"]', '[data-testid="music-panel"]', '[data-testid="info-overlay"] > div',
+  '[data-testid="movelog-sheet"]', '[data-testid="victory-placard"]', '[data-testid="new-game-choice"]', '[data-testid="piece-card"]',
+  ".rg-choose", ".rg-sheet", ".rg-pick-box",
+].join(", ");
+
 export const styleSheet = `
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap');
   html, body { overscroll-behavior: none; background: ${DARK ? "#140405" : "#3E7FA8"}; }
@@ -278,12 +307,6 @@ export const styleSheet = `
   /* The dock's piece: its edges wander like paint (renderGlobalDefs). */
   canvas[data-testid="dock-piece-canvas"] { filter: url(#parrish-paint-edge); }
   @media (prefers-reduced-motion: reduce) { canvas[data-testid="dock-piece-canvas"] { filter: none; } }
-  [data-testid="dock-panel"] {
-    background-color: ${PARRISH.ivory} !important;
-    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
-    border: 1px solid rgba(201, 150, 59, 0.55) !important;
-    box-shadow: inset 0 0 0 3px ${PARRISH.ivory}, inset 0 0 0 4px rgba(29, 44, 94, 0.25), 0 14px 34px rgba(8, 14, 38, 0.5) !important;
-  }
   /* Over the painting: a scrap of ivory behind anything that floats on it. */
   button[aria-label$="full screen"] {
     background: rgba(244, 234, 213, 0.9) !important; color: ${PARRISH.blue} !important;
@@ -301,39 +324,144 @@ export const styleSheet = `
   button[aria-label="Exit full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.35 !important; }
   button[aria-label="Exit full screen"][style*="visibility: visible"]:hover { opacity: 1 !important; }
   button[aria-label$="full screen"] svg { stroke-width: 2.6; }
-  [data-testid="points-counter"] {
-    color: ${PARRISH.blue} !important; background: rgba(244, 234, 213, 0.92); padding: 5px 12px 5px 13px; border-radius: 999px;
-    box-shadow: 0 2px 8px rgba(8, 14, 38, 0.4);
-  }
-  [data-testid="unused-points-note"] {
-    color: ${PARRISH.blue} !important; background: rgba(244, 234, 213, 0.94); padding: 6px 12px; border-radius: 999px;
-  }
-  /* The rules: a print on its mat, a gold fillet and a blue keyline. */
-  [data-testid="info-overlay"] > div {
-    background: #F6ECD6 !important;
-    border: none !important; border-radius: 2px !important;
-    box-shadow: inset 0 0 0 8px #F6ECD6, inset 0 0 0 9px rgba(201, 150, 59, 0.85), inset 0 0 0 12px #F6ECD6, inset 0 0 0 13px rgba(29, 44, 94, 0.35), 0 24px 60px rgba(8, 14, 38, 0.55) !important;
+  /* ---------------------------------------------------------- the menus, painted
+     (user: "all menus for Orinoco & Watermark must have theme appropriate
+     artistic updates"). Every panel is a swatch of the palette's paint,
+     laid in loose strokes (Orinoco: ivory, warm light and a breath of sky;
+     Watermark: wine and madder over umber), its edge the dragged, ragged
+     end of the brush, with a gold fillet inside it as on Parrish's prints.
+     Buttons are single strokes of a loaded flat brush: the big ones in the
+     palette's own paint (cobalt; Watermark's cream), the rest a thin glaze.
+     Headings in Cinzel's Roman capitals, the words in Cormorant. Pictures:
+     tools/parrish_menu_art.py. */
+  ${PANELS} {
+    background: linear-gradient(158deg, rgba(255, 255, 255, ${DARK ? "0.05" : "0.12"}), rgba(255, 255, 255, 0) 45%, ${MENU.shade.replace(/[\d.]+\)$/, DARK ? "0.18)" : "0.06)")}),
+      url(${PAPER}) 0 0 / 512px repeat, ${MENU.paper} !important;
+    color: ${MENU.ink} !important;
+    border: none !important; border-radius: 0 !important; box-shadow: none !important;
     backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+    -webkit-mask-box-image: url(${MENU_EDGE}) 64 fill / 16px stretch;
+    mask-border: url(${MENU_EDGE}) 64 fill / 16px stretch;
+    outline: 1px solid ${GOLD(0.62)} !important; outline-offset: -9px !important;
   }
-  [data-testid="info-overlay"] h2 {
-    font-family: 'Cinzel', Georgia, serif !important; font-weight: 700 !important; letter-spacing: 0.08em;
+  :is(${PANELS}) :is(h1, h2, h3, h4) { font-family: 'Cinzel', Georgia, serif !important; font-weight: 700 !important; letter-spacing: 0.08em !important; color: ${MENU.ink} !important; }
+  :is(${PANELS}) :is(div, span, p, li, label, td, th, output, small, strong, em, b, i, a) { font-family: 'Cormorant Garamond', Georgia, serif !important; }
+  :is(${PANELS}) :is(button, [role="button"], select) { font-family: 'Cinzel', Georgia, serif !important; }
+  :is(${PANELS}) hr { border: none !important; height: 1px !important; background: linear-gradient(90deg, transparent, ${GOLD(0.6)} 12%, ${GOLD(0.6)} 88%, transparent) !important; }
+  :is(${PANELS}) input[type="range"] { accent-color: ${MENU.paint}; }
+  :is(${PANELS}) ::-webkit-scrollbar { width: 8px; }
+  :is(${PANELS}) ::-webkit-scrollbar-thumb { background: ${GOLD(0.45)}; border-radius: 4px; }
+  [data-testid="dock-panel"]::-webkit-scrollbar, [data-testid="movelog-sheet"]::-webkit-scrollbar { width: 8px; }
+  [data-testid="dock-panel"]::-webkit-scrollbar-thumb, [data-testid="movelog-sheet"]::-webkit-scrollbar-thumb { background: ${GOLD(0.45)}; border-radius: 4px; }
+  /* The status line: lettered, not typed. */
+  :is(${PANELS}) :is([data-testid="turn-status"], [data-testid="turn-status"] *) { font-family: 'Cinzel', Georgia, serif !important; letter-spacing: 0.08em !important; color: ${MENU.ink} !important; }
+
+  /* Buttons: a stroke of the brush. The quiet ones a glaze (the wood
+     buttons that stand for a side keep their wood: theme.sideSurface). */
+  :is(${PANELS}) .ec-btn:not([style*="url("]):not([data-dock-role="primary"]):not([data-dock-role="link"]), .rg-seg button, .rg-step button, .rg-btn.plain, .rg-small, .rg-big:not(.rg-nova) {
+    background-image: linear-gradient(${MENU.glaze}, ${MENU.glaze}) !important;
+    border-color: transparent !important; border-radius: 0 !important; box-shadow: none !important; color: ${MENU.ink} !important;
+    -webkit-mask-box-image: url(${MENU_BRUSH}) 0 96 fill / 0 18px stretch;
+    mask-border: url(${MENU_BRUSH}) 0 96 fill / 0 18px stretch;
+    padding-left: max(14px, 1em) !important; padding-right: max(14px, 1em) !important;
   }
+  :is(${PANELS}) .ec-btn:not([style*="url("]):not([data-dock-role]) { font-size: 11px !important; letter-spacing: 0.1em !important; font-weight: 700 !important; }
+  :is(${PANELS}) .ec-btn:not([style*="url("]):not([data-dock-role="link"]):hover, :is(${PANELS}) .ec-btn[aria-pressed="true"]:not([style*="url("]), .rg-seg button:hover, .rg-step button:hover, .rg-btn.plain:hover, .rg-small:hover, .rg-big:not(.rg-nova):hover {
+    background-image: linear-gradient(${MENU.glaze}, ${MENU.glaze}), linear-gradient(${MENU.glaze}, ${MENU.glaze}) !important;
+  }
+  /* The camera views: two strokes side by side, no box round them. */
+  :is(${PANELS}) [data-dock-role="views"] { border: none !important; border-radius: 0 !important; overflow: visible !important; gap: 4px; }
+  :is(${PANELS}) [data-dock-role="view"] { border: none !important; }
+  /* The status line's box: a gold fillet round a thin glaze. */
+  :is(${PANELS}) div:has(> [data-testid="turn-status"]) { border-color: ${GOLD(0.55)} !important; background: linear-gradient(${MENU.glaze}, ${MENU.glaze}) !important; }
+  /* A picked one, and the big ones: the palette's own paint. */
+  :is(${PANELS}) .ec-btn[style*="rgb(${rgbOf(MENU.paint)})"]:not([style*="url("]), .rg-seg button[aria-pressed="true"], .rg-big.rg-nova, .rg-btn.go, [data-dock-role="primary"] {
+    background: linear-gradient(170deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 50%, rgba(0, 0, 0, 0.1)), linear-gradient(${PAINT(0.9)}, ${PAINT(0.9)}), url(${PAPER}) 0 0 / 512px, ${MENU.paint} !important;
+    color: ${MENU.paintInk} !important; border-color: transparent !important; border-radius: 0 !important; box-shadow: none !important;
+    -webkit-mask-box-image: url(${MENU_BRUSH}) 0 96 fill / 0 22px stretch;
+    mask-border: url(${MENU_BRUSH}) 0 96 fill / 0 22px stretch;
+  }
+  /* Small ones (8×8, the steppers): the stroke's ends shorter. */
+  .rg-seg button, .rg-step button, .rg-small, .rg-seg button[aria-pressed="true"] {
+    -webkit-mask-box-image: url(${MENU_BRUSH}) 0 96 fill / 0 9px stretch !important; mask-border: url(${MENU_BRUSH}) 0 96 fill / 0 9px stretch !important;
+  }
+  /* The gate's two big choices: swatches of paint, ragged all round. */
+  .rg-big, .rg-big.rg-nova {
+    -webkit-mask-box-image: url(${MENU_EDGE}) 64 fill / 13px stretch !important; mask-border: url(${MENU_EDGE}) 64 fill / 13px stretch !important;
+  }
+  /* The dock's big button (chassis DOCK_WORDS): a broad stroke of it,
+     gold-lettered on Orinoco's cobalt, wine-lettered on Watermark's cream. */
+  [data-dock-role="primary"] { font-family: 'Cinzel', Georgia, serif !important; font-weight: 700 !important; font-size: 15px !important;
+    letter-spacing: 0.16em !important; text-transform: uppercase !important; color: ${DARK ? MENU.paintInk : "#F2D293"} !important;
+    padding: 15px 30px !important; }
+  [data-dock-role="primary"]:hover { filter: brightness(${DARK ? 1.05 : 1.15}); }
+  [data-dock-role="primary"]:active { transform: translateY(1px); }
+  [data-dock-role="caption"] { font-family: 'Cormorant Garamond', Georgia, serif !important; font-style: italic !important; font-weight: 600 !important;
+    font-size: 17px !important; color: ${DARK ? "#E2B36E" : "#8A5A1E"} !important; letter-spacing: 0.01em; }
+  :is(${PANELS}) [style*="text-decoration: underline"] { font-family: 'Cinzel', Georgia, serif !important; text-decoration-color: ${GOLD(0.7)} !important; color: ${MENU.ink} !important; }
+
+  /* The rules: a print, matted. */
+  [data-testid="info-overlay"] > div { outline-offset: -11px !important; box-shadow: inset 0 0 0 14px transparent, inset 0 0 0 15px rgba(${MENU.mutedRgb}, 0.35) !important; }
   [data-testid="info-overlay"] [data-testid="info-body"] {
     margin-bottom: 18px;
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
     mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
   }
-  [data-testid="movelog-sheet"], [data-testid="victory-placard"], [data-testid="new-game-choice"] {
-    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
-  }
+  [data-testid="info-overlay"] [role="tab"], [data-testid="info-overlay"] [role="tablist"] button { font-family: 'Cinzel', Georgia, serif !important; letter-spacing: 0.08em !important; }
+  [data-testid="info-overlay"] [role="tab"][aria-selected="true"] { color: ${MENU.ink} !important; border-color: ${GOLD(0.9)} !important; }
 
-  /* The dock by the moment (chassis DOCK_WORDS): the big button in
-     Parrish blue with gold capitals, a fine gold rule inside it. */
-  [data-dock-role="primary"] { font-family: 'Cinzel', Georgia, serif !important; font-weight: 700 !important; font-size: 15px !important;
-    letter-spacing: 0.16em !important; text-transform: uppercase !important; color: #F2D293 !important;
-    background: linear-gradient(180deg, #2A4290 0%, ${PARRISH.blue} 100%) !important; border: 1px solid ${PARRISH.gold} !important; border-radius: 2px !important;
-    box-shadow: inset 0 0 0 3px ${PARRISH.blue}, inset 0 0 0 4px rgba(232, 183, 90, 0.6), 0 6px 16px rgba(8, 14, 38, 0.4) !important; padding: 12px 18px !important; }
-  [data-dock-role="primary"]:active { transform: translateY(1px); }
-  [data-dock-role="caption"] { font-family: 'Cormorant Garamond', Georgia, serif !important; font-style: italic !important; font-weight: 600 !important;
-    font-size: 17px !important; color: #8A5A1E !important; letter-spacing: 0.01em; }
+  /* The piece card: a small swatch, its fillet closer to the edge. */
+  [data-testid="piece-card"] { padding: 12px 18px 13px !important; outline-offset: -6px !important; }
+  /* Little scraps of the same paint over the painting. */
+  [data-testid="points-counter"], [data-testid="unused-points-note"] {
+    color: ${MENU.ink} !important; background: url(${PAPER}) 0 0 / 512px, ${MENU.paper} !important; padding: 6px 18px !important; border-radius: 0 !important;
+    -webkit-mask-box-image: url(${MENU_BRUSH}) 0 96 fill / 0 18px stretch; mask-border: url(${MENU_BRUSH}) 0 96 fill / 0 18px stretch;
+    font-family: 'Cinzel', Georgia, serif !important; letter-spacing: 0.06em; box-shadow: none !important;
+  }
+  [data-testid="points-counter"] *, [data-testid="unused-points-note"] * { font-family: inherit !important; }
+
+  /* The gate (Standard / Nova) and the Nova sheet: the palette's tokens,
+     the same paint (themes/reality-gate.js). */
+  .rg-layer {
+    --rg-backdrop: ${DARK ? "rgba(14, 3, 5, 0.55)" : "rgba(8, 14, 38, 0.45)"} !important;
+    --rg-surface: ${MENU.paper} !important; --rg-ink: ${MENU.ink} !important; --rg-muted: ${MENU.muted} !important;
+    --rg-accent: ${MENU.paint} !important; --rg-accent-ink: ${MENU.paintInk} !important;
+    --rg-line: ${GOLD(0.55)} !important; --rg-radius: 0px !important; --rg-shadow: none !important;
+    --rg-cell-a: ${DARK ? "#E3CB98" : "#E8B75A"} !important; --rg-cell-b: ${DARK ? "#6E1E22" : "#2348A8"} !important;
+  }
+  .rg-choose { padding: 28px 26px 20px !important; gap: 14px !important; }
+  .rg-big { padding: 18px 26px !important; min-height: 88px !important; }
+  .rg-big:hover { transform: translateY(-1px); box-shadow: none !important; }
+  .rg-big-t { font-family: 'Cinzel', Georgia, serif !important; }
+  .rg-big-s { font-family: 'Cormorant Garamond', Georgia, serif !important; font-size: 16px !important; font-weight: 600 !important; }
+  .rg-kicker, .rg-sec h3, .rg-side { font-family: 'Cinzel', Georgia, serif !important; color: ${DARK ? "#E2B36E" : "#8A5A1E"} !important; }
+  .rg-link { font-family: 'Cormorant Garamond', Georgia, serif !important; font-style: italic; font-size: 17px !important; text-decoration-color: ${GOLD(0.7)} !important; color: ${MENU.ink} !important; }
+  .rg-sheet { padding: 6px 4px 0; }
+  .rg-head, .rg-foot { border-color: ${GOLD(0.45)} !important; }
+  .rg-foot { background: transparent !important; padding-bottom: max(18px, env(safe-area-inset-bottom)) !important; }
+  .rg-sec { border-bottom: none !important; background: linear-gradient(90deg, transparent, ${GOLD(0.45)} 15%, ${GOLD(0.45)} 85%, transparent) bottom / 100% 1px no-repeat; }
+  .rg-step button { padding: 0 !important; width: 46px !important; }
+  .rg-switch { background-image: linear-gradient(${MENU.glaze}, ${MENU.glaze}) !important; border-color: ${GOLD(0.6)} !important; }
+  .rg-switch[aria-checked="true"] { background: ${MENU.paint} !important; border-color: ${MENU.paint} !important; }
+  .rg-pic { background: radial-gradient(ellipse at 50% 60%, ${GOLD(0.22)}, transparent 70%) !important; }
+  .rg-grid { border-color: ${GOLD(0.8)} !important; }
+
+  /* Other realities, from here: the painting's own dusk behind the cards,
+     each card a print in a gold frame. */
+  .ec-realities {
+    background: radial-gradient(ellipse at 50% 30%, ${DARK ? "rgba(74, 22, 27, 0.8), rgba(14, 3, 5, 0.96)" : "rgba(43, 72, 140, 0.78), rgba(8, 14, 38, 0.95)"} 72%) !important;
+    color: ${DARK ? "#F1E2C4" : "#F4EAD5"} !important; font-family: 'Cormorant Garamond', Georgia, serif !important; font-size: 17px !important;
+  }
+  .ec-realities h2 { font-family: 'Cinzel', Georgia, serif !important; font-weight: 600 !important; letter-spacing: 0.22em !important; color: #F2D293 !important; }
+  .ec-realities p.sub { font-style: italic; }
+  .ec-realities li button { border: 1px solid ${GOLD(0.55)} !important; border-radius: 0 !important; background: ${DARK ? "rgba(58, 15, 20, 0.85)" : "rgba(16, 26, 62, 0.8)"} !important;
+    box-shadow: inset 0 0 0 3px ${DARK ? "rgba(58, 15, 20, 0.85)" : "rgba(16, 26, 62, 0.8)"}, inset 0 0 0 4px ${GOLD(0.3)} !important; padding: 6px !important; }
+  .ec-realities li button:hover, .ec-realities li button:focus-visible { border-color: ${GOLD(1)} !important; box-shadow: inset 0 0 0 3px transparent, inset 0 0 0 4px ${GOLD(0.5)}, 0 0 24px ${GOLD(0.35)} !important; }
+  .ec-realities li button:focus-visible { outline-color: #F2D293 !important; }
+  .ec-realities .name { font-family: 'Cinzel', Georgia, serif !important; color: #F2D293; }
+  .ec-realities .here { color: #E8B75A !important; font-family: 'Cinzel', Georgia, serif !important; }
+  .ec-realities .hold { background: ${GOLD(0.2)} !important; }
+  .ec-realities .hold i { background: ${GOLD(0.85)} !important; }
+  .ec-realities .restart { border-color: ${GOLD(0.45)} !important; border-radius: 0 !important; font-family: 'Cinzel', Georgia, serif !important; }
+  .ec-realities .restart:hover, .ec-realities .restart:focus-visible { background: ${GOLD(0.12)} !important; }
 `;

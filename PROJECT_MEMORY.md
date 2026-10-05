@@ -6315,3 +6315,35 @@ phone menu until "Start the story over" (which clears it).
   stab (all cleaned; >3 kHz in its first 60 ms down ~10 dB). The capture
   win is still the user's set 3 #20, verified identical to the auditioned
   cut before cleaning.
+- Parrish menus painted, both looks (user: "all menus for Orinoco &
+  Watermark must have theme appropriate artistic updates").
+  tools/parrish_menu_art.py makes four pictures: menu-paint-orinoco/
+  -watermark.webp (a panel's ground in loose strokes, seamless 512 px),
+  menu-edge.webp (a ragged painted edge, mask sliced 64) and
+  menu-brush.webp (one flat-brush stroke, mask sliced 0/96). Masks must be
+  RGBA (CSS masks read alpha; a greyscale "L" image masks nothing).
+  themes/parrish.js: MENU tokens per look (Orinoco ivory paper, blue ink,
+  cobalt paint; Watermark wine paper, cream ink, cream paint), COLORS now
+  follow them (Watermark's menus are dark, COLORS.selected = the paint).
+  Every panel (dock, sound menu, rules print, move log, placard, new game,
+  piece card, gate, Nova sheet, square picker) is paper + edge mask + a
+  gold fillet (outline, offset inward); no drop shadows (a mask clips
+  them). Buttons: a glaze stroke (amber / gold); picked and primary ones
+  the palette's paint; small ones shorter ends; the gate's two choices
+  ragged swatches. The gate's --rg-* vars are overridden with !important.
+  The switcher (.ec-realities) on Parrish: the palette's dusk, gold-framed
+  cards, Cinzel. Cinzel for headings and buttons, Cormorant for text.
+  Shots: scratchpad parrish/menus.mjs <look> [only] (rules open from the
+  piece card's More: Parrish has no corner How to play).
+- Watermark soundtrack (user: "Cathedral Hums ... background track while
+  playing Watermark ... start very low ... [its own] audio slider"):
+  assets/parrish/src/cathedral-hums.mp3 -> tools/parrish_hums.py (last
+  8 s crossfaded over the first, so it loops seamlessly; cover art
+  dropped) -> assets/parrish/hums.mp3 -> el-cabeza-parrish-hums.mp3.
+  parrish-audio.js HUMS_URL (Watermark only), its own "hums" gate, from
+  Begin Game, looped (loop points skip encoder padding), fades in over a
+  few seconds; gives way to the close; comes back if the switcher is put
+  away to stay (realities.js REALITIES_STAY_EVENT). Sound menu channel
+  "Soundtrack" with level 0.2: chassis soundChannels entries may now carry
+  .level, the slider's starting place until the player moves it
+  (applyChannelLevels, levelOf, toggleChannel honour it).

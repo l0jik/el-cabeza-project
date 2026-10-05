@@ -239,7 +239,9 @@ function saveMasterLevel(v) {
 function applyChannelLevels(audio, channels, levels, master) {
   if (!audio || !channels) return;
   channels.forEach((c) => {
-    const v = (levels[c.key] == null ? 1 : levels[c.key]) * master;
+    // (A channel may start lower than full until it's moved: its .level,
+    // e.g. Parrish Watermark's soundtrack, kept low under the game.)
+    const v = (levels[c.key] == null ? (c.level != null ? c.level : 1) : levels[c.key]) * master;
     if (audio.setChannelLevel) audio.setChannelLevel(c.key, v);
     else if (audio.setChannelMuted) audio.setChannelMuted(c.key, v <= 0);
   });
@@ -1640,7 +1642,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const soundChannels = theme.soundChannels && theme.soundChannels.length ? theme.soundChannels : null;
   const [channelLevels, setChannelLevels] = useState(loadChannelLevels);
   const [masterLevel, setMasterLevel] = useState(loadMasterLevel);
-  const levelOf = (k) => (channelLevels[k] == null ? 1 : channelLevels[k]);
+  const levelOf = (k) => {
+    if (channelLevels[k] != null) return channelLevels[k];
+    const c = soundChannels && soundChannels.find((x) => x.key === k);
+    return c && c.level != null ? c.level : 1;
+  };
   const channelsOff = {};
   if (soundChannels) soundChannels.forEach((c) => { channelsOff[c.key] = levelOf(c.key) <= 0; });
   // The dock's sound menu (only for a theme with soundChannels): where it
@@ -1768,7 +1774,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     applyChannelLevels(audioRef.current, soundChannels, next, masterLevel);
   }
   // On or off (the record player turning its channel back on).
-  function toggleChannel(key) { setChannelLevel(key, levelOf(key) > 0 ? 0 : 1); }
+  function toggleChannel(key) {
+    const c = soundChannels && soundChannels.find((x) => x.key === key);
+    setChannelLevel(key, levelOf(key) > 0 ? 0 : c && c.level != null ? c.level : 1);
+  }
   // "All sounds": all the way left is the mute it always was; up from
   // there, every channel at its own level times this one.
   function setMasterSound(v) {
