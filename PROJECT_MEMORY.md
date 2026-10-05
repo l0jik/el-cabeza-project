@@ -6566,3 +6566,18 @@ phone menu until "Start the story over" (which clears it).
   close is already under way. Checked (Watermark, headless): curve 0 ->
   0.5 at half -> 0.7 over 3 s, intro ramps out, switcher at 14.2 s
   (headless timer lag), no errors.
+- Lab HUD on phones: the stats row (Moves / Points / AI / Time) ran past
+  its card (user screenshot: Brutalism, "MEDIUM 00:42" past the box).
+  Brutalism's 22 px numbers beat the compact 15 px, and the compact grid
+  (repeat(4, auto), cells max-content) can't shrink. Fix (themes/lab/
+  css.js): compact stats are flex + wrap (one row when it fits, a stat
+  that doesn't fit drops to the next line; .wide is a full line);
+  Brutalism's compact numbers 18 px; Corporate Swiss keeps its own grid
+  (display: grid in its compact rule); New Typography now wraps too (its
+  3-column grid didn't fit beside the big turn number). Measured with the
+  real JetBrains Mono loaded (headless can't fetch Google Fonts: fetch
+  from raw.githubusercontent.com/google/fonts and inject as a data URI):
+  before, Brutalism, Elementarism, New Typography, Minimal Mono and
+  Ultimate Fusion overflowed at 360 px (Brutalism also at 375; fit at
+  412); after, all ten fit at 360 and 412, small and opened. e2e-lab
+  passes.

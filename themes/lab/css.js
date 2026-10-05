@@ -116,7 +116,11 @@ const HUD_BASE = `
   @media (max-aspect-ratio: 3/2), (max-width: 899px) {
     .lab-hud { left: calc(10px + env(safe-area-inset-left)); right: calc(10px + env(safe-area-inset-right)); top: 58px; width: auto; }
     .lab-hud .lab-log, .lab-hud .lab-note { display: none !important; }
-    .lab-hud .lab-stats { grid-template-columns: repeat(4, auto); justify-content: start; gap: 4px 14px; }
+    /* One row when it fits; a stat that doesn't drops to the next line
+       rather than running off the card (user: Brutalism's time ran past
+       its box on a phone). */
+    .lab-hud .lab-stats { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start; gap: 4px 14px; }
+    .lab-hud .lab-stats .wide { flex: 0 0 100%; }
     .lab-hud .lab-stats dd { font-size: 15px; }
     /* (No cell narrower than its own words: they'd run into the next.) */
     .lab-hud .lab-stats div:not(.wide) { min-width: max-content; }
@@ -226,7 +230,7 @@ const HUD = {
   .lab-hud .lab-log li:last-child { border-bottom: 0; }
   .lab-hud .lab-over { font-size: 30px; font-weight: 800; background: #111; color: var(--accent-secondary); }
   .lab-hud:not([data-status="finished"]) .lab-over { display: none; }
-  @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud > * { margin-bottom: 8px; padding: 6px 8px; box-shadow: 5px 5px 0 #111; border-width: 3px; } .lab-hud .lab-big { font-size: 34px; padding: 4px 8px; } .lab-hud .lab-id { display: none; } }
+  @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud > * { margin-bottom: 8px; padding: 6px 8px; box-shadow: 5px 5px 0 #111; border-width: 3px; } .lab-hud .lab-big { font-size: 34px; padding: 4px 8px; } .lab-hud .lab-id { display: none; } .lab-hud .lab-stats dd { font-size: 18px; } }
   `,
   newTypography: `
   .lab-hud { width: clamp(220px, 23vw, 320px); }
@@ -242,7 +246,7 @@ const HUD = {
   .lab-hud .lab-log .n { font-weight: 900; font-stretch: 62%; font-size: 30px; line-height: 0.9; letter-spacing: -0.04em; }
   .lab-hud .lab-log li:first-child .n { color: var(--accent-primary); }
   .lab-hud .lab-over { font-weight: 900; font-stretch: 62%; font-size: 64px; line-height: 0.85; letter-spacing: -0.04em; border-top: 8px solid var(--accent-primary); padding-top: 8px; margin-top: 10px; }
-  @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud .lab-big { font-size: 64px; position: absolute; right: 0; top: 0; } .lab-hud .lab-big small { display: none; } .lab-hud .lab-turn { font-size: 13px; margin: 6px 0 6px; } .lab-hud .lab-stats { grid-template-columns: repeat(3, auto); gap: 4px 18px; } .lab-hud .lab-stats dd { font-size: 16px; } }
+  @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud .lab-big { font-size: 64px; position: absolute; right: 0; top: 0; } .lab-hud .lab-big small { display: none; } .lab-hud .lab-turn { font-size: 13px; margin: 6px 0 6px; } .lab-hud .lab-stats { gap: 4px 18px; } .lab-hud .lab-stats dd { font-size: 16px; } }
   `,
   corporateSwiss: `
   .lab-hud { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -268,7 +272,7 @@ const HUD = {
   .lab-hud .lab-log .n { color: var(--accent-primary); font-weight: 400; }
   .lab-hud .lab-over { grid-column: 1 / -1; background: var(--accent-primary); color: #0F1D33; font-family: var(--font-mono); font-size: 22px; }
   .lab-hud:not([data-status="finished"]) .lab-over { display: none; }
-  @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud { grid-template-columns: auto auto 1fr; } .lab-hud .lab-id { display: none; } .lab-hud .lab-big .lab-flap { font-size: 20px; } .lab-hud .lab-turn .lab-flap { font-size: 15px; } .lab-hud .lab-stats { grid-column: 3 / 4; grid-template-columns: repeat(3, auto); } .lab-hud > * { padding: 5px 7px; } }
+  @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud { grid-template-columns: auto auto 1fr; } .lab-hud .lab-id { display: none; } .lab-hud .lab-big .lab-flap { font-size: 20px; } .lab-hud .lab-turn .lab-flap { font-size: 15px; } .lab-hud .lab-stats { grid-column: 3 / 4; display: grid; grid-template-columns: repeat(3, auto); } .lab-hud > * { padding: 5px 7px; } }
   `,
   neoBrutalist: `
   .lab-hud > * { background: #FFF; border: 3px solid #000; border-radius: 10px; box-shadow: 5px 5px 0 #000; padding: 12px 14px; margin: 0 0 14px; }
