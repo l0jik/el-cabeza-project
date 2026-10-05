@@ -6627,3 +6627,5 @@ phone menu until "Start the story over" (which clears it).
   started and then removed at the user's word ("don't synthesize that
   sound"): never committed. A blackbird only from a recording the user
   sends.
+- Watermark: no blackbird (user: "leave the blackbird out"). Its evening
+  is the recorded wind and its own far birds only.
