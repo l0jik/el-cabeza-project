@@ -175,13 +175,16 @@ export function createSummonSound(out, { mix = "full" } = {}) {
     mix,
     get ctx() { return ctx; },
     // tau: the summons' own clock (seconds since it began) right now.
-    start(tau, when = ctx.currentTime) {
+    // rate: how fast the summons' build clock runs against real time
+    // (neon-summon.js BUILD); its moments land in real seconds.
+    start(tau, when = ctx.currentTime, rate = 1) {
       if (started) return;
-      started = true; t0 = when - tau;
-      const a = Math.max(when, t0 + APPEAR_AT);
-      [whole, thWhole].forEach((w) => { w.gain.setValueAtTime(0, a); w.gain.linearRampToValueAtTime(1, Math.max(a + 0.05, t0 + APPEAR_AT + 0.9)); });
+      started = true; t0 = when - tau / rate;
+      const at = (x) => t0 + x / rate;
+      const a = Math.max(when, at(APPEAR_AT));
+      [whole, thWhole].forEach((w) => { w.gain.setValueAtTime(0, a); w.gain.linearRampToValueAtTime(1, Math.max(a + 0.05, at(APPEAR_AT + 0.9))); });
       startHum(when); startThunder(when);
-      if (t0 + RING_AT >= when) thunderRing(t0 + RING_AT);
+      if (at(RING_AT) >= when) thunderRing(at(RING_AT));
     },
     // The build: the hum from silence to full (build^2), the thunder's bed.
     update(tau, when = ctx.currentTime) {

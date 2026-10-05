@@ -35,9 +35,16 @@ export const summonBridge = { reveal: null };
 
 const WAVES = 6;
 const APPEAR_AT = 0.4, TURN_AT = 1.3, TURN_S = 2.0, LIFT_AT = 1.7, LIFT_S = 4.5, RING_AT = 1.7, RING_S = 1.6, WAVES_AT = 3.6;
+// The build runs this many times faster than it was made (user: "four
+// times the speed ... it just takes too long for it to get going"): the
+// sphere appearing, the pieces turning and lifting, the ring opening, the
+// thunder coming on and growing. The motions themselves (the bobbing and
+// drift, the ring's turn and breath, a shock wave's travel, the beat's
+// spacing) keep their own pace. tb below: the build's clock.
+const BUILD = 4;
 const ease = (x) => { const c = Math.max(0, Math.min(1, x)); return c * c * (3 - 2 * c); };
 
-export function mountSummon(three, { delay = 1200, audio = null, cam = null } = {}) {
+export function mountSummon(three, { delay = 300, audio = null, cam = null } = {}) {
   const t = three.current;
   if (!t || !t.boardGroup || !t.pieceGroup || !t.renderer) return null;
   // Its sound, through the soundscape's interface channel.
@@ -285,8 +292,8 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
   const Y = new THREE.Vector3(0, 1, 0), qFace = new THREE.Quaternion(), qT = new THREE.Quaternion(), qI = new THREE.Quaternion();
   const sLocal = new THREE.Vector3(), dir = new THREE.Vector3(), off = new THREE.Vector3();
   const qW = new THREE.Quaternion(), eW = new THREE.Euler(), drift = new THREE.Vector3();
-  function placePieces(tau) {
-    const turn = ease((tau - TURN_AT) / TURN_S), lift = ease((tau - LIFT_AT) / LIFT_S);
+  function placePieces(tau, tb = tau) {
+    const turn = ease((tb - TURN_AT) / TURN_S), lift = ease((tb - LIFT_AT) / LIFT_S);
     // The singularity in the pieces' own frame.
     sLocal.set(0, top + height, 0); t.boardGroup.localToWorld(sLocal); t.pieceGroup.worldToLocal(sLocal);
     pieces.forEach((e) => {
@@ -376,8 +383,8 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
   // (thunder so far: the test hook; the share's running sum, started at
   // 0.7 so the first clap comes on the third beat, about 6.6 s in: the
   // user wanted them to start earlier. It was 0.5, about 12 s.)
-  let thunder = 0, acc = 0.7;
-  let nextWave = WAVES_AT;
+  let thunder = 0, acc = 0.86; // (0.86: the very first beat brings the first clap, user: quicker to get going)
+  let nextWave = 0; // (real seconds: the first beat as soon as the build's ready for it)
 
   /* ---- the shield over the board, and the dock put away ---- */
   const canvas = renderer.domElement;
@@ -534,12 +541,13 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
       if (!active) return;
       // The Singularity itself has begun: stand down, pieces back.
       if (t.singularity && t.singularity.phase && t.singularity.phase !== "idle") { end(); return; }
-      if (!t0) { t0 = now + delay; readyAt = t0 + TURN_AT * 1000; }
+      if (!t0) { t0 = now + delay; readyAt = t0 + (TURN_AT / BUILD) * 1000; }
       fitShield();
       tau = Math.max(0, (now - t0) / 1000);
       if (now < t0) return;
       group.visible = true;
-      if (sound) { sound.start(tau); sound.update(tau); }
+      const tb = tau * BUILD;
+      if (sound) { sound.start(tb, undefined, BUILD); sound.update(tb); }
       // Its height: about 60% of the way up the screen, and (on a wide
       // screen, where the camera stands back and 60% up is the title
       // itself) with the ring's top edge under the title's. Solved each
@@ -551,9 +559,9 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
       firstFit = false; lastNow = now;
       group.position.set(0, top + height, 0);
       // Appearing: out of nothing, then the ring opens as the pieces turn.
-      const appear = ease((tau - APPEAR_AT) / 0.9);
+      const appear = ease((tb - APPEAR_AT) / 0.9);
       group.scale.setScalar(Math.max(0.001, appear));
-      ringMat.uniforms.uOpen.value = ease((tau - RING_AT) / RING_S);
+      ringMat.uniforms.uOpen.value = ease((tb - RING_AT) / RING_S);
       ringMat.uniforms.uRot.value = tau * 0.35;
       ringMat.uniforms.uPulsePhase.value = sphereMat.uniforms.uPulsePhase.value = tau * 1.1; // the Singularity's breathing
       ringMat.uniforms.uTime.value = sphereMat.uniforms.uTime.value = reduceMotion ? 0 : tau;
@@ -562,12 +570,12 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
       t.camera.getWorldQuaternion(qFace); group.getWorldQuaternion(qT);
       ring.quaternion.copy(qT.invert()).multiply(qFace);
       if (!pieces.size) gather();
-      placePieces(tau);
+      placePieces(tau, tb);
       // The beats (every 3 s at first, every 1.1 s at full strength), and
       // on a growing share of them, spread evenly, thunder and its shock
       // wave: about one in six or seven at first, every one at full.
-      if (tau >= nextWave) {
-        const k = Math.min(1, (tau - WAVES_AT) / 45), strength = 0.35 + 0.65 * k;
+      if (tb >= WAVES_AT && tau >= nextWave) {
+        const k = Math.min(1, (tb - WAVES_AT) / 45), strength = 0.35 + 0.65 * k;
         nextWave = tau + (3.0 - 1.9 * k);
         acc += 0.15 + 0.85 * Math.pow(k, 1.6);
         if (acc >= 1) {
@@ -584,14 +592,14 @@ export function mountSummon(three, { delay = 1200, audio = null, cam = null } = 
         const fade = Math.max(0, 1 - r / 1.7);
         uR[i] = r; uS[i] = 0.022 * w.strength * fade * Math.min(1, r / 0.08);
       }
-      postMat.uniforms.uPinch.value = reduceMotion ? 0 : 0.004 * ease((tau - WAVES_AT) / 20);
-      postMat.uniforms.uMelt.value = reduceMotion ? 0 : 0.003 * ease((tau - LIFT_AT) / 5);
+      postMat.uniforms.uPinch.value = reduceMotion ? 0 : 0.004 * ease((tb - WAVES_AT) / 20);
+      postMat.uniforms.uMelt.value = reduceMotion ? 0 : 0.003 * ease((tb - LIFT_AT) / 5);
       // The well: up with the sphere's appearing, deeper as the build
       // goes on (0.45 of a square at first, 1.8 at full), breathing, and
       // each clap's ripple running out across it and dying away.
       if (!well) well = buildWell();
       if (well) {
-        const u = well.uniforms, kb = Math.min(1, Math.max(0, (tau - WAVES_AT) / 45)), on = ease((tau - APPEAR_AT) / 3);
+        const u = well.uniforms, kb = Math.min(1, Math.max(0, (tb - WAVES_AT) / 45)), on = ease((tb - APPEAR_AT) / 3);
         const breathe = reduceMotion ? 1 : 1 + 0.12 * Math.sin(tau * 0.9) + 0.05 * Math.sin(tau * 2.3);
         u.uA.value = S * (0.45 + 1.35 * kb) * on * breathe * (reduceMotion ? 0.5 : 1);
         u.uPull.value = (0.05 + 0.07 * kb) * on;

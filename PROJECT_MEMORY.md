@@ -6714,3 +6714,16 @@ phone menu until "Start the story over" (which clears it).
   showCard() clears it too. e2e-summon: a new section (preview with the
   menu coming apart at 9 s): MATTER, the Opa in 3D, the close-up unravels
   with the menu, the hand with no close-up, its tap: home.
+- Summons build four times faster (user: the first trip through the TV,
+  pieces hovering and bobbing with the singularity and thunder, "sped up
+  like probably four times ... it just takes too long for it to get
+  going"). neon-summon.js: BUILD = 4, a build clock tb = tau * BUILD drives
+  the appear, turn, lift, ring opening, pinch/melt, the well and the
+  thunder's ramp (waves start at tb >= WAVES_AT, strength from tb); the
+  beat gaps stay in real seconds and the first beat brings the first clap
+  (acc starts at 0.86). The bob, drift, ring spin/breath and shock-wave
+  travel keep their real-time pace. Start delay 1200 -> 300 ms. readyAt is
+  TURN_AT / BUILD. neon-summon-audio.js start(tau, when, rate): the hum's
+  schedule (appear, ring) runs at the same rate. Pieces fully up in about
+  1.9 s (was ~7.4 s); first clap at about the first beat (was ~7.8 s).
+  Tests: e2e-summon, tv-lure.
