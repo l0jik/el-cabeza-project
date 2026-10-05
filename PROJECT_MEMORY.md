@@ -6287,7 +6287,7 @@ phone menu until "Start the story over" (which clears it).
     channel at 0.6 with a 0.3 send to the hall; Begin Game ducks it to
     0.25. The Music slider now shows ("The opening").
   - Close: the user's "Orinoco Flow" end (src/orinoco-end.mp3) baked by
-    tools/parrish_outro.py into a long hall (RT60 6.5 s, 35 ms pre-delay,
+    tools/parrish_outro.py (now parrish_bookends.py) into a long hall (RT60 6.5 s, 35 ms pre-delay,
     highs dying first) with 7 s more tail -> assets/parrish/outro.mp3
     (17.5 s; dist el-cabeza-parrish-outro.mp3). Played when the switcher
     opens over the page: realities.js createRealitiesMenu now dispatches
@@ -6297,3 +6297,9 @@ phone menu until "Start the story over" (which clears it).
     switcher"); the intro gives way, nature dips to 0.35 and comes back
     after. Picking another world still navigates at once (cuts it).
   - Checked: scratchpad parrish/io.mjs (http-served page, records sound).
+- Parrish intro now in a hall too (user: "add reverb and extend the tail
+  ... allowing the decay to complete fully, 3 seconds"): one tool,
+  tools/parrish_bookends.py, renders both (intro RT60 2.8 s, 3 s added
+  after the cut, wet 0.38, last 0.8 s faded -> 13.8 s; outro as before,
+  RT60 6.5 s, 7 s tail -> 17.5 s). The game's runtime hall send on the
+  intro is gone (it's baked in).

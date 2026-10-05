@@ -23,17 +23,17 @@
    it can't be had) the wooden set's own knocks stand in (wood-sfx.js).
 
    The intro (user: "use this as intro music when Orinoco or Watermark
-   are opened"): the user's opening of "Orinoco Flow" (INTRO_URL, beside
-   the page; assets/parrish/intro.mp3, its hard cut at the end faded over
-   1.3 s), once a visit. A browser lets a page sound only after a tap or a
-   key, so it starts on the first one (whatever it's on), on the music
-   channel, a little of it into the hall so its end rings away; when a
-   game begins it steps back under the game.
+   are opened"): the user's opening of "Orinoco Flow" laid in a hall, its
+   decay given 3 s to complete after the cut (user; INTRO_URL, beside the
+   page; tools/parrish_bookends.py), once a visit. A browser lets a page
+   sound only after a tap or a key, so it starts on the first one
+   (whatever it's on), on the music channel; when a game begins it steps
+   back under the game.
 
    The close (user: when Orinoco or Watermark are closed; "add reverb and
    extend the tail ... the decay completes even if already back in the
    theme switcher"): the user's end of "Orinoco Flow" laid in a long hall
-   with about 7 s more of its ringing (OUTRO_URL; tools/parrish_outro.py),
+   with about 7 s more of its ringing (OUTRO_URL; tools/parrish_bookends.py),
    played when the switcher opens over the page (it's a panel on this
    page, so the ringing carries on under it). The intro, if it's still
    going, gives way; the place's own sound steps back for it.
@@ -402,7 +402,6 @@ export function createAudio() {
       const s = ctx.createBufferSource(); s.buffer = buf;
       const g = ctx.createGain(); g.gain.value = 0.6;
       s.connect(g).connect(gates.music);
-      if (hallIn) { const w = ctx.createGain(); w.gain.value = 0.3; g.connect(w).connect(hallIn); }
       s.start(now());
       it.src = s; it.g = g;
       s.onended = () => { it.done = true; };
