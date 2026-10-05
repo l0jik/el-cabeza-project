@@ -51,8 +51,12 @@ export const ORDER_PARTS_CSS = `
   .td-picker-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
   .td-seg { display: inline-flex; flex-wrap: wrap; gap: 6px; }
   /* (Easy, Medium, Hard always on one row, user: sharing it evenly.) */
-  .td-seg.td-one { display: flex; flex-wrap: nowrap; }
-  .td-seg.td-one button { flex: 1 1 0; min-width: 0; padding: 0 6px; white-space: nowrap; }
+  .td-seg.td-one { display: flex; flex-wrap: nowrap; flex: 1 1 auto; justify-content: flex-end; }
+  /* Each as wide as its word needs (user: "Medium" didn't fit its button
+     on a phone); where the row can't hold the label and all three, they
+     go under it (.td-opponent .td-dim wraps). */
+  .td-seg.td-one button { flex: 1 0 auto; min-width: max-content; padding: 0 10px; white-space: nowrap; }
+  .td-opponent .td-dim { flex-wrap: wrap; row-gap: 8px; }
   .td-seg button { min-height: 44px; padding: 0 12px; border: 1.5px solid ${INK}; background: transparent; color: ${INK}; font: 700 13px/1.15 ${COURIER}; cursor: pointer; border-radius: 2px; }
   .td-seg button[aria-pressed="true"] { background: ${INK}; color: ${PAPER}; }
   .td-seg button:disabled { opacity: 0.45; cursor: default; }

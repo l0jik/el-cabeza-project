@@ -7116,8 +7116,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // small," back up to 177 (300% of that halved size — 50*3=150,
     // 150*1.18=177).
     // (Then 12px further right and 10 lower, user: "slightly more toward
-    // the bottom right corner".)
-    left: dockPieceIsCorner ? "calc(100% - 130px)" : "50%",
+    // the bottom right corner"; then right into it, user: "move it further
+    // into the corner on all": the box's empty margin, round the piece,
+    // past the edges, so the piece itself sits in the corner.)
+    left: dockPieceIsCorner ? "calc(100% - 108px)" : "50%",
     // Piece-view (pre-game) bottom lowered from 20 -> 8 per feedback that
     // it sat slightly too high; corner (post-game watermark) is unrelated
     // and keeps its own value. Corner size went 100x88 -> 50x44 (halved)
@@ -7126,7 +7128,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // 120x105.6) per feedback that the corner badge had grown too large
     // again. left's offset scales with it (~1.18x ratio kept at every
     // size change, see comment below) — 120 * 1.18 = 141.6, rounded.
-    bottom: 8, // (the corner was 18; down 10 with the move right above)
+    bottom: dockPieceIsCorner ? -10 : 8, // (the corner was 18, then 8; now past the edge, see left)
     // On a narrow phone the pre-game piece narrows so its canvas stays
     // clear of the How to play button in the lower left (which ends
     // 87px in); the piece itself is centred and still fits.

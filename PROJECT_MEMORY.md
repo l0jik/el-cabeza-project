@@ -6457,3 +6457,24 @@ phone menu until "Start the story over" (which clears it).
   reverb ... the piece move sounds"): select/deselect/landing stabs send
   wet MOVE_WET 1.25 to the hall (about +2 dB of hall) instead of 1; the
   win, capture, Begin Game and rules stabs keep 1.
+- The dock piece's corner spot moved further into the corner in every
+  theme (user: "move it further into the corner on all"; chassis): its
+  120x106 box now at left calc(100% - 108px), bottom -10 (was 130px / 8):
+  the box's empty margin round the piece hangs past the edges, so the
+  piece itself sits ~30 px from the right and ~25 px from the bottom on a
+  phone, whole. (The piece-view, pre-game, keeps bottom 8.) e2e-dock-moments
+  passes.
+- Tienda order form, "How well it plays" (user: "Medium" didn't fit its
+  button on a phone): the three buttons are as wide as their words
+  (flex 1 0 auto, min-width max-content) and the row wraps under its label
+  when it can't hold all three (.td-opponent .td-dim flex-wrap). Checked
+  at 360 and 412 px: all fit.
+- Parrish Nova sheet (user: "Computer plays Dark / Light" ran out of their
+  strokes; "make the buttons bigger"): .rg-seg buttons min-height 46,
+  padding 11px 16px, line-height 1.2, stroke outset 4px, so a two-line
+  label sits inside its stroke (58 px tall when it wraps); under 560 px
+  "How well it plays" goes above its three buttons. Headless can't reach
+  Google Fonts (falls back to Georgia, narrower: nothing wraps): load the
+  real faces for checks from scratchpad fonts/ (Cinzel.ttf, Cormorant.ttf
+  from github.com/google/fonts) with addStyleTag @font-face file:// urls
+  (scratchpad parrish/sheet-phone.mjs).

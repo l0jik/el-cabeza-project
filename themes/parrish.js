@@ -411,6 +411,13 @@ export const styleSheet = `
   /* Small ones (8×8, the steppers): shorter ends. */
   .rg-seg button, .rg-step button, .rg-small { border-image-width: 0 10px !important; border-image-outset: 1px 3px !important; padding-left: 12px !important; padding-right: 12px !important; }
   .rg-step button { padding: 0 !important; }
+  /* The sheet's choices bigger (user: "Computer plays Dark / Light" ran
+     out of their strokes when the words took two lines): room above and
+     below the words, so the stroke, stretched to the button, covers both
+     lines; and on a narrow screen "How well it plays" above its three,
+     not squeezed beside them. */
+  .rg-seg button { min-height: 46px !important; padding: 11px 16px !important; line-height: 1.2 !important; border-image-outset: 4px 4px !important; }
+  @media (max-width: 560px) { .rg-sec .rg-row:has(> .rg-seg) { grid-template-columns: minmax(0, 1fr); row-gap: 6px; } }
   /* The camera views: two strokes side by side, no box round them. */
   :is(${PANELS}) [data-dock-role="views"] { border: none !important; border-radius: 0 !important; overflow: visible !important; gap: 10px; }
   /* The status line ("Dark to move"): a broad stroke of glaze, no box. */
