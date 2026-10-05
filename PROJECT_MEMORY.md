@@ -6248,3 +6248,6 @@ phone menu until "Start the story over" (which clears it).
   button: Parrish CSS opacity 0.7 (0.45 in focus mode, 1 on hover; the
   chassis's 0.22 elsewhere), keyed on its inline visibility so it still
   hides when covered. Screenshot script: scratchpad parrish/mk.mjs.
+- Parrish: no sound while a piece moves (user: the falling run of 50 ms
+  note-heads, "di-di-da-da", stuttered and isn't wanted); sfx.rollStart is
+  empty, the landing note is the move's sound.

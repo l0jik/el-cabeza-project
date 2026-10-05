@@ -11,9 +11,8 @@
    longer hits (tools/parrish_stabs.py, one file beside the page,
    el-cabeza-parrish-stabs.mp3, fetched once). The notes, sorted by pitch,
    are the pieces' voice, and the deeper the note the bigger the piece
-   (user): picked up and put down at its own pitch, a falling run of the
-   notes' first instants as it moves, landing on the note for the face it
-   lands on, a low pair for a capture, the two lowest muffled for a move
+   (user): picked up and put down at its own pitch, silent as it moves,
+   landing on the note for the face it lands on, a low pair for a capture, the two lowest muffled for a move
    that isn't allowed. The two longer hits are the two wins (user): a
    Cabeza reaching the far side, and the last Cabeza crushed. All of it
    in a long, soft hall (user: "think Enya"). Until the file's here (or if
@@ -326,17 +325,9 @@ export function createAudio() {
     select(units) { stab(noteFor(units || 1), now(), { level: 0.17 }); },
     deselect(units) { stab(noteFor(units || 1), now(), { level: 0.12, rate: 0.94, tone: 2400 }); },
     blocked() { const t = now(); stab("s2n5", t, { level: 0.15, tone: 1200 }); stab("s1n5", t + 0.11, { level: 0.11, tone: 1000 }); },
-    // On its way: the notes' first instants, falling from the piece's own
-    // pitch, at the picture's stop-motion beat (an eighth of a second).
-    rollStart(units, durationMs) {
-      const t = now(), dur = Math.max(0.15, (durationMs || 350) / 1000);
-      const n = Math.max(2, Math.round(dur / 0.125) + 1);
-      const top = Math.max(0, NOTES.indexOf(noteFor(units || 1)) - 2);
-      for (let i = 0; i < n; i++) {
-        const tt = t + (i / (n - 1)) * (dur - 0.05);
-        stab(NOTES[Math.min(NOTES.length - 1, top + i)], tt, { dur: 0.05, level: 0.08 * (0.75 + 0.25 * Math.sin(Math.PI * i / (n - 1))), pan: i % 2 ? 0.18 : -0.18 });
-      }
-    },
+    // On its way: nothing (user: the run of note-heads as it moved
+    // stuttered); it's heard when it lands.
+    rollStart() {},
     // Landing on the note for the face it lands on (and the piece), as
     // loud as the piece is heavy.
     landing(units, contact) {
