@@ -51,6 +51,9 @@ const steady = (seen, k, sign) => {
   return moved > 3;
 };
 const W = vp.width, H = vp.height;
+// (Big Glutts' own page tilts the other way up and down, user: the
+// chassis's invertTilt, apps/tienda.jsx. The latch is the same.)
+const flip = pageName === "el-cabeza-tienda.html" ? -1 : 1;
 const VIEWS = [["play view", { dollhouse: false, phi: Math.min(start.phi, 0.8), radius: start.radius, theta: start.theta }, false]];
 if (pageName !== "el-cabeza-neon.html") VIEWS.push(["Room view", { dollhouse: true, phi: 0.6, radius: 82, theta: start.theta }, true]);
 for (const [name, state, room] of VIEWS) {
@@ -69,10 +72,10 @@ for (const [name, state, room] of VIEWS) {
   check("begun low, right and up across the middle", steady(s, 0, -1), JSON.stringify(s.map((v) => v[0].toFixed(3))));
   await reset();
   s = await drag(x, H * 0.3, x, H * 0.45);
-  check(`finger down: the tilt ${room ? "toward the horizon" : "toward overhead"}`, steady(s, 1, room ? 1 : -1), JSON.stringify(s.map((v) => v[1].toFixed(3))));
+  check(`finger down: the tilt ${(room ? 1 : -1) * flip > 0 ? "toward the horizon" : "toward overhead"}`, steady(s, 1, (room ? 1 : -1) * flip), JSON.stringify(s.map((v) => v[1].toFixed(3))));
   await reset();
   s = await drag(x, H * 0.6, x, H * 0.35);
-  check(`finger up across the middle: the tilt ${room ? "toward overhead" : "toward the horizon"} all the way`, steady(s, 1, room ? -1 : 1), JSON.stringify(s.map((v) => v[1].toFixed(3))));
+  check(`finger up across the middle: the tilt ${(room ? -1 : 1) * flip > 0 ? "toward the horizon" : "toward overhead"} all the way`, steady(s, 1, (room ? -1 : 1) * flip), JSON.stringify(s.map((v) => v[1].toFixed(3))));
 }
 console.log(`\n${pageName} ${phone ? "phone" : "desktop"}: ${checks} checks, ${fails} failed; page errors ${errs.length}${errs.length ? ": " + errs.join(" | ") : ""}`);
 await browser.close();
