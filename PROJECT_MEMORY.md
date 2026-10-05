@@ -6406,3 +6406,10 @@ phone menu until "Start the story over" (which clears it).
 - Playwright on Parrish: selecting a piece by script is flaky (a piece
   sometimes moves before the click lands); scratchpad parrish/mk.mjs with
   its retries and timed shots got there on a later run.
+- REVERSED (user: "do the opposite ... I want the other way"): leaving
+  Parrish for another reality does NOT wait for the closing music's decay;
+  a pick in the switcher leaves at once, cutting it short, as before.
+  realities.js and parrish-audio.js restored to their state before
+  b4a6a49 (holdLeaving, the leaving line and its Parrish CSS removed);
+  the button strokes from that commit stay. The decay still rings on
+  under the switcher while it's open (as asked originally).

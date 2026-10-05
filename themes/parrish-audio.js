@@ -35,8 +35,7 @@
    theme switcher"): the user's end of "Orinoco Flow" laid in a long hall
    with about 7 s more of its ringing (OUTRO_URL; tools/parrish_bookends.py),
    played when the switcher opens over the page (it's a panel on this
-   page, so the ringing carries on under it), and a pick there waits for
-   it to finish before leaving (user; realities.js holdLeaving). The intro, if it's still
+   page, so the ringing carries on under it). The intro, if it's still
    going, gives way; the place's own sound steps back for it.
 
    Watermark's soundtrack (user: "use this as background track while
@@ -53,7 +52,7 @@
    sit, not a soundtrack. */
 
 import { createWoodSfx, landingSize } from "./wood-sfx.js";
-import { REALITIES_OPEN_EVENT, REALITIES_STAY_EVENT, holdLeaving } from "./realities.js";
+import { REALITIES_OPEN_EVENT, REALITIES_STAY_EVENT } from "./realities.js";
 import { lookName } from "./parrish-looks.js";
 
 export const hasAudio = true;
@@ -440,22 +439,12 @@ export function createAudio() {
       const s = ctx.createBufferSource(); s.buffer = buf;
       const g = ctx.createGain(); g.gain.value = 0.7;
       s.connect(g).connect(gates.music); s.start(now());
-      o.src = s; o.end = now() + buf.duration;
+      o.src = s;
       s.onended = () => { o.done = true; if (!windingDown && natureBus && outro === o) natureBus.gain.setTargetAtTime(natureOn ? 1 : 0, now(), 1.5); };
     };
     if (outroBuf) { go(outroBuf); return; }
     fetch(OUTRO_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => { outroBuf = buf; go(buf); }).catch(() => { /* no close, then */ });
   }
-  // Leaving for another reality waits for the close to ring out (user:
-  // "the switch should wait for the decay to finish"): the seconds left,
-  // or its whole length while it's still loading; nothing if it can't be
-  // heard (sound off, or the music channel all the way down).
-  const OUTRO_S = 17.5;
-  const offHold = holdLeaving(() => {
-    if (!outro || outro.done || outro.stopped || !ctx || muted || chLevel.music <= 0) return 0;
-    if (!outro.src) return OUTRO_S;
-    return Math.max(0, outro.end - ctx.currentTime);
-  });
   const onRealities = () => playOutro();
   if (typeof window !== "undefined" && OUTRO_URL) window.addEventListener(REALITIES_OPEN_EVENT, onRealities);
   // Staying after all: the soundtrack comes back in under the game.
@@ -569,14 +558,14 @@ export function createAudio() {
     cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
     playDockOpen() {}, playDockClose() {},
     // (Tests: what's running.)
-    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null, outroLeft: outro && outro.end && ctx ? outro.end - ctx.currentTime : null, outroDur: outroBuf ? outroBuf.duration : null }; },
+    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
     dispose() {
       disposed = true;
       timers.forEach((id) => clearTimeout(id)); timers.clear();
       if (pendingCapture) clearTimeout(pendingCapture);
       if (music) music.stopped = true;
       if (hums) { hums.stopped = true; try { if (hums.src) hums.src.stop(); } catch (e) { /* ended */ } }
-      offGesture(); offHold();
+      offGesture();
       if (typeof window !== "undefined") { window.removeEventListener(REALITIES_OPEN_EVENT, onRealities); window.removeEventListener(REALITIES_STAY_EVENT, onStay); }
       if (outro) { outro.stopped = true; try { if (outro.src) outro.src.stop(); } catch (e) { /* ended */ } }
       if (intro) { intro.stopped = true; try { if (intro.src) intro.src.stop(); } catch (e) { /* ended */ } }

@@ -499,9 +499,6 @@ export const styleSheet = `
   .ec-realities .here { color: #E8B75A !important; font-family: 'Cinzel', Georgia, serif !important; }
   .ec-realities .hold { background: ${GOLD(0.2)} !important; }
   .ec-realities .hold i { background: ${GOLD(0.85)} !important; }
-  .ec-realities .leave { font-style: italic; font-size: 16px; color: #F2D293; }
-  .ec-realities .leave i { background: ${GOLD(0.85)} !important; }
-  .ec-realities li button.picked { border-color: ${GOLD(1)} !important; box-shadow: inset 0 0 0 3px transparent, inset 0 0 0 4px ${GOLD(0.6)}, 0 0 24px ${GOLD(0.4)} !important; }
   .ec-realities .restart { border-color: ${GOLD(0.45)} !important; border-radius: 0 !important; font-family: 'Cinzel', Georgia, serif !important; }
   .ec-realities .restart:hover, .ec-realities .restart:focus-visible { background: ${GOLD(0.12)} !important; }
 `;
