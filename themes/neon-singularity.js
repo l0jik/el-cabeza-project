@@ -3498,7 +3498,9 @@ function LostNudge({ stage, onExit, sing }) {
     if (shown.current) return;
     shown.current = true;
     g.current.holding = false; // (the card's own shield takes over)
-    // (The card shows over the sphere's labels: whatever menu was up goes.)
+    // (The card shows over the sphere's labels: whatever menu was up goes,
+    // and a piece's 3D close-up with it, user: it stayed over the card.)
+    if (sing && sing.pieceViewer) { sing.pieceViewer = null; if (sing.bump) sing.bump(); }
     if (sing && sing.sphereMenuStage !== "labels") {
       sing.activeCategory = null;
       sing.sphereMenuStage = "labels";
@@ -3540,6 +3542,11 @@ function LostNudge({ stage, onExit, sing }) {
     panel.classList.add("ec-unravel");
     if (menuStage === "summary") panel.classList.add("ec-centred");
     panel.setAttribute("data-unravel", "on");
+    // A piece's 3D close-up open over the MATTER menu (its own layer, over
+    // everything) comes apart with it (user: the menu dissolved behind it
+    // and it couldn't be got out of).
+    const viewerEl = typeof document !== "undefined" ? document.querySelector('[data-testid="piece-viewer"]') : null;
+    if (viewerEl) { viewerEl.classList.add("ec-unravel"); viewerEl.setAttribute("data-unravel", "on"); }
     const kids = [...panel.querySelectorAll(":scope > *, :scope > div > *")];
     kids.forEach((el, i) => {
       el.style.setProperty("--dx", `${(Math.random() * 2 - 1) * (10 + i * 2)}px`);
@@ -3564,7 +3571,10 @@ function LostNudge({ stage, onExit, sing }) {
       clearInterval(tick);
       if (!panel.isConnected) { showCard(); return; }
       panel.classList.add("ec-fold");
+      const v = typeof document !== "undefined" ? document.querySelector('[data-testid="piece-viewer"]') : null;
+      if (v) { v.classList.add("ec-unravel"); v.classList.add("ec-fold"); }
       G.timers.push(setTimeout(() => {
+        if (sing && sing.pieceViewer) sing.pieceViewer = null;
         if (sing && (sing.sphereMenuStage === "overlay" || sing.sphereMenuStage === "summary")) {
           sing.activeCategory = null;
           sing.sphereMenuStage = "labels";

@@ -6704,3 +6704,13 @@ phone menu until "Start the story over" (which clears it).
   390x844 screen, the camera check allows the paper's aim, tap -> note ->
   order form), e2e-story (paper, then the note). Mid-game checked by
   script: game armed -> paper -> tap -> game reset, note shown.
+- Sphere's first visit: a piece's 3D close-up now comes apart with the
+  menu (user: MATTER open, an Opa in 3D, "the menu dissolve was happening
+  behind it, and I couldn't get out of it"). The close-up (piece-showcase
+  PieceViewer, fixed, z 2300) is its own layer over everything, so the
+  unravel only touched the panel under it. neon-singularity.js unravel():
+  the [data-testid="piece-viewer"] gets ec-unravel (flicker, tears) and
+  ec-fold with the panel, and sing.pieceViewer is cleared as it folds;
+  showCard() clears it too. e2e-summon: a new section (preview with the
+  menu coming apart at 9 s): MATTER, the Opa in 3D, the close-up unravels
+  with the menu, the hand with no close-up, its tap: home.

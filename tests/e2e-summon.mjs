@@ -266,6 +266,25 @@ async function preview(lostMs) {
 const lostCard = (page) => page.locator('[data-testid="singularity-lost-out"]');
 const atSphere = (page) => page.evaluate(() => { const ph = document.querySelector("[data-singularity-phase]"); return !!ph && ph.getAttribute("data-singularity-phase") === "sphere"; });
 
+console.log("the link straight to it: a piece's 3D close-up open as the menu comes apart");
+{
+  // (User: MATTER open, an Opa in 3D, the menu dissolved behind it and it
+  // couldn't be got out of.)
+  const { ctx, page, errs } = await preview(9000);
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => { const s = window.__EC_TEST_THREE__().singularity; s.activeCategory = "matter"; s.sphereMenuStage = "overlay"; s.bump(); });
+  await poll(async () => (await page.locator('[data-testid="matter-view-opa"]').count()) > 0, 5000);
+  await page.locator('[data-testid="matter-view-opa"]').scrollIntoViewIfNeeded();
+  await page.locator('[data-testid="matter-view-opa"]').click();
+  check("...MATTER: an Opa in 3D", !!(await poll(async () => (await page.locator('[data-testid="piece-viewer"]').count()) > 0, 4000)));
+  check("...the menu comes apart, the close-up with it", !!(await poll(() => page.evaluate(() => { const v = document.querySelector('[data-testid="piece-viewer"]'); return !!v && v.classList.contains("ec-unravel"); }), 15000)));
+  check("...the hand, and the close-up gone", !!(await poll(async () => (await lostCard(page).count()) > 0 && (await page.locator('[data-testid="piece-viewer"]').count()) === 0, 10000)));
+  await lostCard(page).click();
+  check("...\"I want out of here\" takes the tap: home", !!(await poll(() => page.evaluate(() => !!window.__DEN_TV__), 30000)));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
 console.log("the link straight to it (?scene=summons): Begin Game doesn't skip the hand");
 {
   const { ctx, page, errs } = await preview(60000);
