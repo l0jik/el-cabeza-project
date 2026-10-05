@@ -295,6 +295,11 @@ export const styleSheet = `
      corner, a little quieter in focus mode. */
   button[aria-label$="full screen"][style*="visibility: visible"] { opacity: 1 !important; background: rgba(250, 243, 228, 0.97) !important; box-shadow: 0 0 0 1px rgba(29, 44, 94, 0.35), 0 2px 8px rgba(8, 14, 38, 0.45) !important; }
   button[aria-label$="full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.6 !important; }
+  /* Once the page is full screen, the button steps back: 70% transparent
+     (user), and back to full on hover. */
+  button[aria-label="Exit full screen"][style*="visibility: visible"] { opacity: 0.3 !important; }
+  button[aria-label="Exit full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.2 !important; }
+  button[aria-label="Exit full screen"][style*="visibility: visible"]:hover { opacity: 1 !important; }
   button[aria-label$="full screen"] svg { stroke-width: 2.6; }
   [data-testid="points-counter"] {
     color: ${PARRISH.blue} !important; background: rgba(244, 234, 213, 0.92); padding: 5px 12px 5px 13px; border-radius: 999px;

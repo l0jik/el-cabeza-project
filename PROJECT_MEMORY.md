@@ -6274,3 +6274,7 @@ phone menu until "Start the story over" (which clears it).
 - Parrish full-screen button: fully opaque now (user: 0.7 still wasn't
   enough): opacity 1 (0.6 in focus mode), near-solid ivory disc with a
   thin blue ring, icon stroke 2.6.
+- Parrish full-screen button in full screen (aria-label "Exit full
+  screen"): 70% transparent (user) = opacity 0.3 (0.2 in focus mode), 1 on
+  hover; windowed it stays fully opaque. (Checked with scratchpad
+  parrish/fs.mjs; measure after the 0.5 s transition and off hover.)
