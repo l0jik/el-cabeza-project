@@ -26,7 +26,7 @@ export const SIDE_NAMES = {
   swiss: { dark: "Black", light: "White" },
   bauhaus: { dark: "Red", light: "Blue" },
   destijl: { dark: "Red", light: "Blue" },
-  elementarism: { dark: "Graphite", light: "Steel" },
+  elementarism: { dark: "Graphite", light: "Silver" },
   brutalist: { dark: "Iron", light: "Concrete" },
   newTypography: { dark: "Ink", light: "Paper" },
   corporateSwiss: { dark: "Navy", light: "Silver" },

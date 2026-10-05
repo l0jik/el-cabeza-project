@@ -6534,7 +6534,7 @@ phone menu until "Start the story over" (which clears it).
   Wood set (Den/Standard, Big Glutts, Orinoco, Watermark) Walnut / Ash;
   Neon Photon / Plasma (user wanted technical names); Lluvia Mưa / Nắng
   (rain / sun); Cromo Steel / Chrome. Lab: Swiss and Minimal Mono Black /
-  White, Bauhaus and De Stijl Red / Blue, Elementarism Graphite / Steel,
+  White, Bauhaus and De Stijl Red / Blue, Elementarism Graphite / Silver (was Steel; user changed it),
   Brutalism Iron / Concrete, New Typography Ink / Paper, Corporate Swiss
   Navy / Silver, Neo-Brutalism Pink / Yellow, Ultimate Fusion Charcoal /
   Bone. Where it shows: chassis status ("X to move", "X (AI) thinking",
