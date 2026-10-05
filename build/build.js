@@ -59,7 +59,7 @@ const targets = [
   { name: "standard", entry: "apps/standard.jsx", title: "El Cabeza", files: DEN_RECORDS },
   { name: "neon", entry: "apps/neon.jsx", title: "Neon Cabeza", files: SPHERE_FILES },
   { name: "cromo", entry: "apps/cromo.jsx", title: "Cromo Cabeza" },
-  { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza" },
+  { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza", files: { "el-cabeza-lluvia-rain.mp3": "assets/lluvia/rain.mp3" } },
   // Parrish's piece sounds: the user's stabs, cut small (tools/parrish_stabs.py);
   // its intro and its close, the user's opening and end of "Orinoco Flow"
   // (each in a long hall, tools/parrish_bookends.py).

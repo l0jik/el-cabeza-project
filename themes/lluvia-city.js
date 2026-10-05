@@ -23,6 +23,10 @@ import * as THREE from "three";
 
   var TAU = Math.PI * 2;
   var DESCENT_S = 24;
+  // The rain's recording, beside the page (build/build.js), and how far
+  // under the score's levels it sits (about 17 dB under the old rain).
+  var RAIN_URL = "el-cabeza-lluvia-rain.mp3";
+  var RAIN_TRIM = 0.4;
 
   function rng(seed) { var s = seed >>> 0; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
   function smooth(t) { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); }
@@ -662,10 +666,36 @@ import * as THREE from "three";
     var mtof = function (m) { return 440 * Math.pow(2, (m - 69) / 12); };
 
     // Beds: rain and a low drone, started once, then only faded.
+    // The rain: a recording of gentle rain (tools/lluvia_rain.py, beside
+    // the page as RAIN_URL), looped; until it's here (or on a page without
+    // it), a dark, quiet noise stands in. All of it under RAIN_TRIM (user:
+    // the rain was "way too loud", the old bright noise "so intense"),
+    // whatever level the score gives the rain (rainG).
     var rainG = ctx.createGain(); rainG.gain.value = 0;
-    var rs = noise(now()), hp = ctx.createBiquadFilter(), lpf = ctx.createBiquadFilter();
-    hp.type = "highpass"; hp.frequency.value = 500; lpf.type = "lowpass"; lpf.frequency.value = 6500;
-    rs.connect(hp).connect(lpf).connect(rainG); out(rainG, 1, 0.15);
+    var rainTrim = ctx.createGain(); rainTrim.gain.value = RAIN_TRIM;
+    var rs = noise(now()), hp = ctx.createBiquadFilter(), lpf = ctx.createBiquadFilter(), rsG = ctx.createGain();
+    hp.type = "highpass"; hp.frequency.value = 400; lpf.type = "lowpass"; lpf.frequency.value = 2400; rsG.gain.value = 0.5;
+    rs.connect(hp).connect(lpf).connect(rsG).connect(rainG); rainG.connect(rainTrim); out(rainTrim, 1, 0.15);
+    // (Not from disk: a browser won't fetch a file beside a page opened
+    // from disk; the stand-in plays there.)
+    if (typeof fetch === "function" && !(typeof location !== "undefined" && location.protocol === "file:")) {
+      fetch(RAIN_URL).then(function (r) { return r.ok ? r.arrayBuffer() : Promise.reject(r.status); })
+        .then(function (b) { return ctx.decodeAudioData(b); })
+        .then(function (buf) {
+          if (ctx.state === "closed") return;
+          // The loop from its first sound to its last (an encoder's padding left out).
+          var d = buf.getChannelData(0), lim = Math.min(d.length, Math.floor(buf.sampleRate * 0.2)), a = 0, z = d.length - 1;
+          while (a < lim && Math.abs(d[a]) < 1e-4) a++;
+          while (z > d.length - lim && Math.abs(d[z]) < 1e-4) z--;
+          var src = ctx.createBufferSource(), g = ctx.createGain(), t = now();
+          src.buffer = buf; src.loop = true; src.loopStart = a / buf.sampleRate; src.loopEnd = (z + 1) / buf.sampleRate;
+          g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 2);
+          src.connect(g).connect(rainG); src.start(t, src.loopStart + Math.random() * 20);
+          rsG.gain.setTargetAtTime(0, t, 0.6);
+          setTimeout(function () { try { rs.stop(); } catch (e) { /* stopped */ } }, 4000);
+        })
+        .catch(function () { /* the noise stays */ });
+    }
     var droneG = ctx.createGain(); droneG.gain.value = 0;
     var dlp = ctx.createBiquadFilter(); dlp.type = "lowpass"; dlp.frequency.value = 150;
     [55, 55.35, 27.5].forEach(function (f, k) { var o = ctx.createOscillator(); o.type = k === 2 ? "sine" : "sawtooth"; o.frequency.value = f; o.connect(dlp); o.start(); });
@@ -677,7 +707,7 @@ import * as THREE from "three";
         if (Math.random() > 0.55) return;
         var t0 = now(), s = noise(t0, 0.03), bp = ctx.createBiquadFilter(), g = ctx.createGain();
         bp.type = "bandpass"; bp.frequency.value = 2000 + Math.random() * 4000; bp.Q.value = 8;
-        g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(level * (0.3 + Math.random() * 0.7), t0 + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.03);
+        g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(level * 0.5 * (0.3 + Math.random() * 0.7), t0 + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.03);
         s.connect(bp).connect(g); out(g, 1, 0.2);
       }, 70);
     }

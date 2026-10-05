@@ -6347,3 +6347,23 @@ phone menu until "Start the story over" (which clears it).
   "Soundtrack" with level 0.2: chassis soundChannels entries may now carry
   .level, the slider's starting place until the player moves it
   (applyChannelLevels, levelOf, toggleChannel honour it).
+- Parrish intro: longer tail (user). tools/parrish_bookends.py intro hall
+  RT60 2.8 -> 5 s, 6 s added after the cut (was 3), wet 0.4, last 1.2 s
+  faded -> 16.8 s (was 13.8). The outro re-renders byte-identical.
+- Lluvia rain (user: "way too loud ... change to an audio clip of rain
+  that's not so intense"): no outside recordings are reachable from the
+  build machine (the proxy refuses commons.wikimedia.org), so
+  tools/lluvia_rain.py renders one: dark pink-noise bed, ~70 tiny far taps
+  a second, ~5 near bubble drops a second, a few awning drops, a short
+  room; 40 s seamless loop at -20 dBFS RMS -> assets/lluvia/rain.mp3 ->
+  el-cabeza-lluvia-rain.mp3 (build target files). Spectral centroid ~1 kHz
+  (the old filtered white noise: ~5.7 kHz, most of it above 3 kHz).
+  lluvia-city.js: the clip loops into rainG (loop points skip encoder
+  padding), crossfading over a darker, quieter stand-in noise (hp 400,
+  lp 2400, x0.5) used until it loads or from disk (file:// skips the
+  fetch, as the den does). Everything after rainG goes through RAIN_TRIM
+  0.4, so the score's own rain levels (descent ramp, 0.13 in the city,
+  setZoom) are unchanged in code. Drips halved. Measured in the browser
+  (whole mix, descent at 30 s): old ~-22 dBFS, rain silenced ~-24, new
+  ~-24 (the old rain was about as loud as everything else together; the
+  new one sits well under it).

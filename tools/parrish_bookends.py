@@ -3,8 +3,9 @@
   intro  the user's opening of "Orinoco Flow" (assets/parrish/src/
          orinoco-beginning.mp3, 10.8 s; user: "add reverb and extend the
          tail on this one, allowing the decay to complete fully, 3
-         seconds"): the hall dies away about 60 dB in 2.8 s, and 3 s more
-         are added after the music's cut for it -> assets/parrish/intro.mp3
+         seconds", then "should have longer tail"): the hall dies away
+         about 60 dB in 5 s, and 6 s more are added after the music's cut
+         for it -> assets/parrish/intro.mp3
   outro  the user's end of "Orinoco Flow" (src/orinoco-end.mp3, 10.5 s;
          user: "add reverb and extend the tail on this one, the decay
          completes even if already back in the theme switcher"): a longer
@@ -32,7 +33,7 @@ SR = 48000
 PRE = 0.035
 # name: (source, out, RT60 s, tail s, wet, final fade s)
 PIECES = {
-    "intro": ("assets/parrish/src/orinoco-beginning.mp3", "assets/parrish/intro.mp3", 2.8, 3.0, 0.38, 0.8),
+    "intro": ("assets/parrish/src/orinoco-beginning.mp3", "assets/parrish/intro.mp3", 5.0, 6.0, 0.4, 1.2),
     "outro": ("assets/parrish/src/orinoco-end.mp3", "assets/parrish/outro.mp3", 6.5, 7.0, 0.42, 1.5),
 }
 
