@@ -6102,7 +6102,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           (movedPieceIds.includes(p.id) || movedPieceIds.length < MAX_PIECES_PER_TURN) &&
           Object.keys(legalMovesFor(pieces, p, remaining)).length > 0;
         if (eligible) {
-          audioRef.current.playSelect();
+          audioRef.current.playSelect(cubeCount(p));
           setSelectedId(p.id);
           setHoveredId(p.id);
         }
@@ -6110,7 +6110,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const p = pieces.find((x) => x.id === hit.id);
         if (p && p.owner === currentPlayer) {
           const willSelect = selectedId !== p.id;
-          willSelect ? audioRef.current.playSelect() : audioRef.current.playDeselect();
+          willSelect ? audioRef.current.playSelect(cubeCount(p)) : audioRef.current.playDeselect(cubeCount(p));
           setSelectedId((prev) => (prev === p.id ? null : p.id));
         }
       } else if (!hit && !turnLocked) {

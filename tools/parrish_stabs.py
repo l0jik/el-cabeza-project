@@ -3,18 +3,23 @@ instrumental stabs (assets/parrish/src/instrumental-stab-1.mp3 and
 instrumental-stab.mp3; user: "cut them up into very, very small pieces to
 use as piece movement sounds").
 
-Both are dense passages of music (a stab every ~0.16 s and ~0.22 s, over
-pads and a bass), so the pieces are the cleanest single hits in them,
-found by how sharply each one rises over what came just before it:
+The user's picks from the four selections offered (the cleanest single
+hits in the two recordings, by how sharply each rises over what came just
+before): fifteen lone notes, and two longer hits for the two ways a game
+is won:
 
-  notes   the first file's opening five seconds: lone pitched stabs with
-          no bass under them (D5, C4, C#5, F3; and one D#4 from the
-          second file): picking a piece up, putting it down.
-  thumps  hits with the bass in them: a piece landing (pitched in the game
-          by the face it lands on).
-  ticks   bright, unpitched hits, a few hundredths of a second each: the
-          piece on its way, scattered through the move.
-  crash   one longer, full hit: a capture.
+  set 1 (#1-6)    D5, C4, C#5, D5, F3 (the first file's quiet opening)
+                  and D#4 (the second file's)
+  set 1 #16       the full hit 39.7 s into the first file: a Cabeza
+                  reaching the far side
+  set 2 (#1-5)    B3, E4, C5, B3 (brighter) and D#3 (the second file's)
+  set 3 (#3-6)    C4, D5 (first file), D4, C4 (second file)
+  set 3 #20       the long stab 23.7 s into the second file: the last
+                  Cabeza crushed
+
+The game sorts the notes by pitch and gives each piece sound the notes for
+its size, the deeper the bigger (themes/parrish-audio.js), and lays a long
+hall reverb on all of it there.
 
 Each piece is cut from 4 ms before its attack (where it first reaches a
 third of its height: some of the notes swell in), faded in over 2 ms, held,
@@ -47,22 +52,23 @@ GAP = 0.25
 # name: (file, onset s, length ms) - onsets found by attack contrast
 # (librosa onset strength, backtracked), see the docstring.
 PIECES = [
-    ("noteD5", "a", 0.155, 120),
-    ("noteC4", "a", 1.130, 120),
-    ("noteCs5", "a", 2.135, 110),
-    ("noteD5b", "a", 2.780, 110),
-    ("noteF3", "a", 3.455, 140),
-    ("noteDs4", "b", 2.415, 120),
-    ("thump1", "a", 12.365, 160),
-    ("thump2", "a", 25.540, 160),
-    ("thump3", "a", 17.635, 160),
-    ("thump4", "a", 22.910, 160),
-    ("tick1", "a", 25.865, 45),
-    ("tick2", "a", 17.955, 45),
-    ("tick3", "a", 23.225, 45),
-    ("tick4", "a", 12.685, 45),
-    ("tick5", "a", 39.035, 40),
-    ("crash", "a", 39.720, 420),
+    ("s1n1", "a", 0.155, 120),    # D5
+    ("s1n2", "a", 1.130, 120),    # C4
+    ("s1n3", "a", 2.135, 110),    # C#5
+    ("s1n4", "a", 2.780, 110),    # D5
+    ("s1n5", "a", 3.455, 140),    # F3
+    ("s1n6", "b", 2.415, 120),    # D#4
+    ("s2n1", "a", 1.795, 120),    # B3
+    ("s2n2", "a", 26.055, 120),   # E4
+    ("s2n3", "a", 4.950, 120),    # C5
+    ("s2n4", "a", 12.885, 120),   # B3, brighter
+    ("s2n5", "b", 2.855, 130),    # D#3
+    ("s3n3", "a", 1.475, 120),    # C4
+    ("s3n4", "a", 4.105, 120),    # D5
+    ("s3n5", "b", 1.305, 120),    # D4
+    ("s3n6", "b", 1.970, 120),    # C4
+    ("winEdge", "a", 39.720, 420),     # set 1 #16
+    ("winCapture", "b", 23.665, 380),  # set 3 #20
 ]
 
 

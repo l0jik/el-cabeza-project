@@ -7,12 +7,17 @@
    ones softer and duller.
 
    The pieces: the user's own recordings of instrumental stabs, cut into
-   very small pieces (tools/parrish_stabs.py, one file beside the page,
-   el-cabeza-parrish-stabs.mp3, fetched once): a lone note when a piece is
-   picked up or put down, a scatter of bright ticks while it moves, a
-   bass-weighted thump when it lands (lower the bigger the face it lands
-   on), a full crash for a capture. Until the file's here (or if it
-   can't be had) the wooden set's own knocks stand in (wood-sfx.js).
+   very small pieces, of which the user picked fifteen lone notes and two
+   longer hits (tools/parrish_stabs.py, one file beside the page,
+   el-cabeza-parrish-stabs.mp3, fetched once). The notes, sorted by pitch,
+   are the pieces' voice, and the deeper the note the bigger the piece
+   (user): picked up and put down at its own pitch, a falling run of the
+   notes' first instants as it moves, landing on the note for the face it
+   lands on, a low pair for a capture, the two lowest muffled for a move
+   that isn't allowed. The two longer hits are the two wins (user): a
+   Cabeza reaching the far side, and the last Cabeza crushed. All of it
+   in a long, soft hall (user: "think Enya"). Until the file's here (or if
+   it can't be had) the wooden set's own knocks stand in (wood-sfx.js).
 
    The music: MUSIC_URL, a file beside the page, once the user's
    recording is here. With none, there's no music channel at all (no
@@ -33,13 +38,41 @@ export const MUSIC_URL = null;
 // The slices of the stabs file: [start s, length s] (tools/parrish_stabs.py).
 const STABS_URL = "el-cabeza-parrish-stabs.mp3";
 const STABS = {
-  noteD5: [0.1, 0.12], noteC4: [0.47, 0.12], noteCs5: [0.84, 0.11], noteD5b: [1.2, 0.11], noteF3: [1.56, 0.14], noteDs4: [1.95, 0.12],
-  thump1: [2.32, 0.16], thump2: [2.73, 0.16], thump3: [3.14, 0.16], thump4: [3.55, 0.16],
-  tick1: [3.96, 0.045], tick2: [4.255, 0.045], tick3: [4.55, 0.045], tick4: [4.845, 0.045], tick5: [5.14, 0.04],
-  crash: [5.43, 0.42],
+  s1n1: [0.1, 0.12], s1n2: [0.47, 0.12], s1n3: [0.84, 0.11], s1n4: [1.2, 0.11], s1n5: [1.56, 0.14], s1n6: [1.95, 0.12],
+  s2n1: [2.32, 0.12], s2n2: [2.69, 0.12], s2n3: [3.06, 0.12], s2n4: [3.43, 0.12], s2n5: [3.8, 0.13],
+  s3n3: [4.18, 0.12], s3n4: [4.55, 0.12], s3n5: [4.92, 0.12], s3n6: [5.29, 0.12],
+  winEdge: [5.66, 0.42], winCapture: [6.33, 0.38],
 };
-const THUMPS = ["thump1", "thump2", "thump3", "thump4"], TICKS = ["tick1", "tick2", "tick3", "tick4", "tick5"];
-const pick = (a) => a[Math.floor(Math.random() * a.length)];
+// The fifteen notes, highest to lowest (as measured): D5 D5 D5 C#5 C5, E4
+// D#4 D4, C4 C4 C4, B3 B3, F3, D#3.
+const NOTES = ["s1n4", "s3n4", "s1n1", "s1n3", "s2n3", "s2n2", "s1n6", "s3n5", "s3n6", "s3n3", "s1n2", "s2n4", "s2n1", "s1n5", "s2n5"];
+// Where a size falls among them: a single cube at the top, about twelve
+// cubes' worth (a big piece on a broad face) at the bottom; then one of
+// its neighbours now and then, so a piece doesn't always say the same.
+function noteFor(size) {
+  const t = Math.max(0, Math.min(1, Math.log(Math.max(1, size)) / Math.log(12)));
+  const i = Math.round(t * (NOTES.length - 1)), r = Math.random();
+  const j = r < 0.2 ? i - 1 : r > 0.8 ? i + 1 : i;
+  return NOTES[Math.max(0, Math.min(NOTES.length - 1, j))];
+}
+// The hall: a long, soft tail (about 3.8 s to die away), its highs going
+// first, after a breath of pre-delay; left and right drawn apart.
+function makeHall(ctx) {
+  const sr = ctx.sampleRate, len = Math.floor(sr * 4.2), pre = Math.floor(sr * 0.028);
+  const ir = ctx.createBuffer(2, len, sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch);
+    let lp = 0;
+    for (let i = pre; i < len; i++) {
+      const t = (i - pre) / sr, x = Math.random() * 2 - 1;
+      lp += 0.12 * (x - lp);
+      const dark = lp * 2.2 * Math.exp(-6.9 * t / 3.8), bright = x * 0.45 * Math.exp(-6.9 * t / 1.3);
+      d[i] = (dark + bright) * Math.min(1, t / 0.006);
+    }
+    [0.011, 0.023, 0.037, 0.052, 0.071].forEach((e, k) => { const i = pre + Math.floor(sr * (e + ch * 0.0031 * (k + 1))); if (i < len) d[i] += (k % 2 ? -0.5 : 0.5) / (k + 1.5); });
+  }
+  return ir;
+}
 
 export function createAudio() {
   let ctx = null, master = null, vol = null, wood = null, noiseBuf = null, verb = null;
@@ -49,7 +82,7 @@ export function createAudio() {
   const timers = new Set();
   let music = null;
   // The stabs, once decoded: the buffer and each slice's real start.
-  let stabs = null, stabsAsked = false, selects = 0;
+  let stabs = null, stabsAsked = false, hallIn = null, pendingCapture = null;
 
   function later(ms, fn) {
     const id = setTimeout(() => { timers.delete(id); if (!disposed) fn(); }, ms);
@@ -82,6 +115,10 @@ export function createAudio() {
       const nd = noiseBuf.getChannelData(0);
       for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
       wood = createWoodSfx(ctx, gates.pieces, { board: "solid" });
+      // The pieces' hall.
+      const hall = ctx.createConvolver(); hall.buffer = makeHall(ctx);
+      hallIn = ctx.createGain(); hallIn.gain.value = 0.8;
+      hallIn.connect(hall).connect(gates.pieces);
       loadStabs();
     } catch (e) {
       ctx = null;
@@ -267,42 +304,62 @@ export function createAudio() {
       stabs = { buf, at };
     }).catch(() => { /* the wooden knocks stay */ });
   }
-  // One slice, at t: its speed (and so its pitch), level, place, and how
-  // much of its top is taken off.
-  function stab(name, t, { rate = 1, level = 0.2, pan = 0, tone = 0 } = {}) {
-    const [off, len] = stabs.at[name];
+  // One slice, at t: its speed (and so its pitch), level, place, how much
+  // of its top is taken off, and (dur) only its first instants, faded out
+  // over their last 15 ms. Into the room dry and, more, into the hall.
+  function stab(name, t, { rate = 1, level = 0.2, pan = 0, tone = 0, dur = 0, wet = 1 } = {}) {
+    const [off, full] = stabs.at[name];
+    const len = dur > 0 ? Math.min(full, dur) : full;
     const s = ctx.createBufferSource(); s.buffer = stabs.buf; s.playbackRate.value = rate;
     const g = ctx.createGain(); g.gain.value = level;
+    if (dur > 0) { const end = t + len / rate; g.gain.setValueAtTime(level, Math.max(t, end - 0.015)); g.gain.linearRampToValueAtTime(0, end); }
     let node = s;
     if (tone > 0) { const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = tone; node.connect(lp); node = lp; }
     if (ctx.createStereoPanner && pan) { const p = ctx.createStereoPanner(); p.pan.value = pan; node.connect(p); node = p; }
-    node.connect(g).connect(gates.pieces);
+    node.connect(g);
+    g.connect(gates.pieces);
+    if (hallIn && wet > 0) { const w = ctx.createGain(); w.gain.value = wet; g.connect(w).connect(hallIn); }
     s.start(t, off, len + 0.002);
   }
   const sfx = {
-    select() { const t = now(); stab(selects++ % 2 ? "noteCs5" : "noteD5", t, { level: 0.2 }); },
-    deselect() { stab("noteC4", now(), { level: 0.16, rate: 0.94 }); },
-    blocked() { const t = now(); stab("noteF3", t, { level: 0.16, rate: 0.8, tone: 1400 }); stab("noteF3", t + 0.11, { level: 0.12, rate: 0.76, tone: 1200 }); },
-    // On its way: bright ticks, a little lower for a heavier piece, at
-    // the picture's own stop-motion beat (an eighth of a second).
+    // Picked up and put down at the piece's own pitch (its cubes).
+    select(units) { stab(noteFor(units || 1), now(), { level: 0.17 }); },
+    deselect(units) { stab(noteFor(units || 1), now(), { level: 0.12, rate: 0.94, tone: 2400 }); },
+    blocked() { const t = now(); stab("s2n5", t, { level: 0.15, tone: 1200 }); stab("s1n5", t + 0.11, { level: 0.11, tone: 1000 }); },
+    // On its way: the notes' first instants, falling from the piece's own
+    // pitch, at the picture's stop-motion beat (an eighth of a second).
     rollStart(units, durationMs) {
-      const t = now(), dur = Math.max(0.15, (durationMs || 350) / 1000), m = Math.max(1, units || 1);
+      const t = now(), dur = Math.max(0.15, (durationMs || 350) / 1000);
       const n = Math.max(2, Math.round(dur / 0.125) + 1);
+      const top = Math.max(0, NOTES.indexOf(noteFor(units || 1)) - 2);
       for (let i = 0; i < n; i++) {
-        const tt = t + (i / (n - 1)) * (dur - 0.04);
-        stab(pick(TICKS), tt, { level: (0.06 + 0.012 * Math.log2(m)) * (0.75 + 0.25 * Math.sin(Math.PI * i / (n - 1))), rate: (1.12 - 0.05 * Math.log2(m)) * (0.94 + Math.random() * 0.12), pan: (i % 2 ? 0.18 : -0.18) });
+        const tt = t + (i / (n - 1)) * (dur - 0.05);
+        stab(NOTES[Math.min(NOTES.length - 1, top + i)], tt, { dur: 0.05, level: 0.08 * (0.75 + 0.25 * Math.sin(Math.PI * i / (n - 1))), pan: i % 2 ? 0.18 : -0.18 });
       }
     },
-    // Weight in its loudness, the face it lands on in its pitch.
+    // Landing on the note for the face it lands on (and the piece), as
+    // loud as the piece is heavy.
     landing(units, contact) {
       const m = Math.max(1, units || 1), size = landingSize(units, contact);
       if (typeof window !== "undefined" && Array.isArray(window.__EC_TEST_LANDINGS__)) window.__EC_TEST_LANDINGS__.push({ units, contact, size });
-      stab(pick(THUMPS), now(), { level: 0.19 + 0.04 * Math.log2(m), rate: Math.max(0.6, Math.min(1.3, 1.25 / Math.pow(size, 0.22))) });
+      stab(noteFor(size), now(), { level: 0.17 + 0.03 * Math.log2(m) });
     },
+    // A capture: the two lowest notes together, a B3 after. Held back a
+    // moment: if the game is won by it, the win's own hit plays instead.
     capture() {
-      const t = now();
-      stab("crash", t, { level: 0.34 });
-      [0.1, 0.21, 0.29].forEach((d, i) => stab(pick(TICKS), t + d, { level: 0.07 / (i + 1), rate: 1.1 + i * 0.08, pan: i % 2 ? 0.25 : -0.25 }));
+      if (pendingCapture) clearTimeout(pendingCapture);
+      pendingCapture = setTimeout(() => {
+        pendingCapture = null;
+        if (disposed || !stabs) return;
+        const t = now();
+        stab("s2n5", t, { level: 0.2 }); stab("s1n5", t + 0.03, { level: 0.17 }); stab("s2n1", t + 0.2, { level: 0.1 });
+      }, 40);
+    },
+    // The two wins (user): the last Cabeza crushed (the game calls the
+    // capture, then the win, at once), or a Cabeza at the far side.
+    win() {
+      if (pendingCapture) { clearTimeout(pendingCapture); pendingCapture = null; stab("winCapture", now(), { level: 0.32 }); return; }
+      stab("winEdge", now(), { level: 0.32 });
     },
   };
   // The stabs when they're here, the wooden knocks till then.
@@ -351,8 +408,10 @@ export function createAudio() {
     playRollStart: cue(piece("rollStart")),
     playLanding: cue(piece("landing")),
     playCapture: cue(piece("capture")),
-    // A win: a harp's run, up through the scale's bright notes.
+    // A win: the user's own hits once they're here (sfx.win), a harp's run
+    // up through the scale's bright notes till then.
     playWin: cue(() => {
+      if (stabs) { sfx.win(); return; }
       const t = now();
       [587.33, 739.99, 880, 987.77, 1174.66, 1479.98].forEach((f, i) => {
         const tt = t + i * 0.09;
@@ -376,6 +435,7 @@ export function createAudio() {
     dispose() {
       disposed = true;
       timers.forEach((id) => clearTimeout(id)); timers.clear();
+      if (pendingCapture) clearTimeout(pendingCapture);
       if (music) music.stopped = true;
       if (ctx) { try { ctx.close(); } catch (e) { /* already closed */ } }
     },

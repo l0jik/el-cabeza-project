@@ -6220,3 +6220,21 @@ phone menu until "Start the story over" (which clears it).
   thumps 14.99a, 13.34a, 26.53a, 38.27a, 36.08a; ticks 36.41a, 13.98a,
   34.12a, 46.96a; stabs 25.89b, 22.39b, 6.58b, 24.12b, 23.66b (long).
   Waiting on the user's picks across the three selections.
+- Parrish piece sounds = the user's 17 picks (tools/parrish_stabs.py
+  PIECES): set 1 #1-6 (D5 C4 C#5 D5 F3 D#4) + #16 (39.72a, win: Cabeza
+  at the far side); set 2 #1-5 (B3 E4 C5 B3 D#3); set 3 #3-6 (C4 D5 D4
+  C4) + #20 (23.665b long, win: last Cabeza crushed). Thumps/ticks/crash
+  gone. User: unassigned ones by audio-profile similarity, "the deeper
+  the pitch, the larger the piece or side". parrish-audio.js NOTES =
+  the 15 notes high->low; noteFor(size) = log(size)/log(12) across them
+  (+-1 neighbour 40% of the time): select/deselect by the piece's cubes
+  (chassis now passes playSelect(cubeCount(p)) / playDeselect(cubeCount(p));
+  other themes ignore the arg), landing by landingSize, rollStart a
+  falling run of 50 ms note heads from 2 above the piece's note at the
+  1/8 s beat, blocked = D#3 + F3 muffled, capture = D#3+F3 dyad then B3
+  (deferred 40 ms: chassis calls playCapture then playWin for a capture
+  win, so win() cancels it and plays winCapture; a win with no pending
+  capture = winEdge). User: "each stab should be given additional reverb
+  ... think Enya": a generated hall (makeHall: 28 ms pre-delay, dark tail
+  RT60 3.8 s + bright 1.3 s, early reflections, L/R decorrelated), send
+  0.8 on every stab, on the pieces channel.
