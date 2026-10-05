@@ -6581,3 +6581,9 @@ phone menu until "Start the story over" (which clears it).
   Ultimate Fusion overflowed at 360 px (Brutalism also at 375; fit at
   412); after, all ten fit at 360 and 412, small and opened. e2e-lab
   passes.
+- Minimal Mono board darker (user: "almost impossible to see ... no
+  structural changes, just make the lines darker"): the crosshair grid
+  opacity 0.35 -> 0.9 (specs.js gridOpacity), the goal-row ticks 0.5 ->
+  0.9 (paint.js pureWhite). Same marks, same thickness. The board's edge
+  is still only the white slab's shading (sideColor 0xffffff); offered,
+  not done: a light grey side, or thicker crosses.

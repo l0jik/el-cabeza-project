@@ -340,7 +340,7 @@ const PAINTERS = {
     const { g, W, H, pad, sq } = b;
     g.fillStyle = "#FFFFFF"; g.fillRect(0, 0, W, H);
     // The goal rows are known by four ticks at their ends, nothing else.
-    g.fillStyle = "rgba(0,0,0,0.5)";
+    g.fillStyle = "rgba(0,0,0,0.9)"; // (was 0.5; darker with the grid, user)
     const fw = BOARD_COLS * sq, t = Math.max(2, sq * 0.012), l = sq * 0.18;
     [pad + sq, pad + (BOARD_ROWS - 1) * sq].forEach((y) => {
       g.fillRect(pad - l - sq * 0.08, y - t / 2, l, t);
