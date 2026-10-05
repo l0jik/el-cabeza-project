@@ -6646,3 +6646,9 @@ phone menu until "Start the story over" (which clears it).
   screenshot): the strokes reach 7px past a button (border-image-outset),
   past the row's gap. parrish.js: [data-ec-diff-label] margin-right 10px
   in the panels.
+- Orinoco/Watermark: the picked difficulty now shows (user: "nothing
+  changes when you click ... no indicator"). parrish.js's glaze rule
+  (unpicked) out-ranked the paint rule (picked) by its extra :not()s, so
+  every dock button looked unpicked; it now skips [aria-pressed="true"]
+  and buttons whose inline background is MENU.paint (the chassis's
+  COLORS.selected). Chassis: the difficulty buttons carry aria-pressed.

@@ -395,7 +395,9 @@ export const styleSheet = `
      glaze; a picked one, and the big ones (Begin Game, Play, Nova), the
      palette's own paint. The wooden side buttons keep their wood; icon
      buttons and the dock's links stay as they are. */
-  :is(${PANELS}) .ec-btn:not([data-dock-role="link"]):not([data-dock-role="primary"]):not([data-dock-role="begin"]):not(:has(> svg)):not([style*="url("]),
+  /* (Not a picked one: its paint, below, has to win; user: picking a
+     difficulty "nothing changes".) */
+  :is(${PANELS}) .ec-btn:not([data-dock-role="link"]):not([data-dock-role="primary"]):not([data-dock-role="begin"]):not(:has(> svg)):not([style*="url("]):not([aria-pressed="true"]):not([style*="rgb(${rgbOf(MENU.paint)})"]),
   .rg-seg button, .rg-step button, .rg-btn, .rg-small {
     background: none !important; box-shadow: none !important; border-radius: 0 !important;
     border-style: solid !important; border-color: transparent !important;

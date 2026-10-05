@@ -8494,6 +8494,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                   key={key}
                   className="ec-btn"
                   data-ec-diff={key}
+                  aria-pressed={aiDifficulty === key}
                   disabled={busy || aiThinking || turnLocked}
                   onClick={() => setAiDifficulty(key)}
                   style={{
