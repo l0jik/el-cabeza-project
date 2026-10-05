@@ -6307,3 +6307,11 @@ phone menu until "Start the story over" (which clears it).
   during a game, dockCornerOpacity 0.6 -> 0.8; the full-screen button in
   full screen 0.3 -> 0.5 (0.35 in focus mode); windowed it stays at 1.
   (Checked with scratchpad parrish/br.mjs.)
+- Parrish sounds: no audible percussion (user; the capture win, set 3
+  #20, had a snare). tools/parrish_stabs.py CLEAN: the longer cuts
+  (both wins, s3n5, s3n6, s5n7, s5p10-13, s5p21-23) keep only their
+  harmonic part (HPSS soft mask margin 2, percussive -24 dB), the first
+  12 ms as cut (attack), except winCapture where the snare lands with the
+  stab (all cleaned; >3 kHz in its first 60 ms down ~10 dB). The capture
+  win is still the user's set 3 #20, verified identical to the auditioned
+  cut before cleaning.

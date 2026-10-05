@@ -30,6 +30,14 @@ stab's onset, faded out over their last 30%):
   set 5 #21-23    three stabs each: Begin Game (#21), a game ended by hand
                   (#22), a capture (#23, the deepest, with the bass)
 
+No audible percussion (user: "there should be no audible percussion
+used", of the capture win, set 3 #20, which had a snare under it): every
+longer cut is cleaned. Its sound is split into the sustained (harmonic)
+and the struck (percussive) parts (librosa HPSS, a soft mask, margin 2),
+and only the sustained part kept, with the percussive left 24 dB under
+it, except for the first 12 ms, kept as cut, so the stab's own attack
+stays crisp (but not for the capture win, whose snare lands with the stab). The single notes, cut from quiet passages, need nothing.
+
 The game sorts the notes by pitch and gives each piece sound the notes for
 its size, the deeper the bigger (themes/parrish-audio.js), and lays a long
 hall reverb on all of it there.
@@ -50,6 +58,7 @@ import os
 import subprocess
 import tempfile
 
+import librosa
 import numpy as np
 import soundfile as sf
 
@@ -114,6 +123,27 @@ def attack(y, t):
     return (s + int(np.argmax(env >= env.max() / 3))) / SR
 
 
+# The cuts whose sound is cleaned of percussion (see the docstring).
+CLEAN = {"winEdge", "winCapture", "s3n5", "s3n6", "s5n7", "s5p10", "s5p11", "s5p12", "s5p13", "s5p21", "s5p22", "s5p23"}
+
+
+def unstruck(g, keep_attack=True):
+    """The sustained part of a cut, the struck part left 24 dB under it;
+    its first 12 ms as they were (the stab's own attack), unless a drum
+    lands with the stab (the capture win's snare): then all of it."""
+    n_fft, hop = 2048, 256
+    D = librosa.stft(g, n_fft=n_fft, hop_length=hop)
+    H, P = librosa.decompose.hpss(D, margin=2.0)
+    out = librosa.istft(H + P * 10 ** (-24 / 20), hop_length=hop, length=len(g))
+    if not keep_attack:
+        return out
+    k = int(0.012 * SR)
+    fade = np.linspace(0, 1, int(0.006 * SR))
+    out[:k] = g[:k]
+    out[k:k + len(fade)] = g[k:k + len(fade)] * (1 - fade) + out[k:k + len(fade)] * fade
+    return out
+
+
 def cut(y, t, ms, kind="hit"):
     s = max(0, int(((t if kind == "phrase" else attack(y, t)) - 0.004) * SR))
     n = int(ms / 1000 * SR)
@@ -133,6 +163,9 @@ def main():
     parts, table, pos = [np.zeros(int(0.1 * SR))], {}, 0.1
     for name, f, t, ms, *kind in PIECES:
         g = cut(src[f], t, ms, *kind)
+        if name in CLEAN:
+            g = unstruck(g, keep_attack=name != "winCapture")
+            g = g / (np.abs(g).max() + 1e-9) * 10 ** (-1 / 20)
         table[name] = [round(pos, 4), round(len(g) / SR, 4)]
         parts += [g, np.zeros(int(GAP * SR))]
         pos += len(g) / SR + GAP
