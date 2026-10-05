@@ -290,11 +290,12 @@ export const styleSheet = `
     border-radius: 999px !important; box-shadow: 0 2px 8px rgba(8, 14, 38, 0.4);
     width: 30px !important; height: 30px !important; bottom: calc(var(--ec-corner-bottom, 18px) + 4px) !important;
   }
-  /* (Plainer to see than the chassis's faint 0.22, user; still lifted on
-     hover, and still gone when something covers the corner.) */
-  button[aria-label$="full screen"][style*="visibility: visible"] { opacity: 0.7 !important; }
-  button[aria-label$="full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.45 !important; }
-  button[aria-label$="full screen"][style*="visibility: visible"]:hover { opacity: 1 !important; }
+  /* Fully there (user: the chassis's faint 0.22, then 0.7, weren't
+     enough), its icon heavier; still gone when something covers the
+     corner, a little quieter in focus mode. */
+  button[aria-label$="full screen"][style*="visibility: visible"] { opacity: 1 !important; background: rgba(250, 243, 228, 0.97) !important; box-shadow: 0 0 0 1px rgba(29, 44, 94, 0.35), 0 2px 8px rgba(8, 14, 38, 0.45) !important; }
+  button[aria-label$="full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.6 !important; }
+  button[aria-label$="full screen"] svg { stroke-width: 2.6; }
   [data-testid="points-counter"] {
     color: ${PARRISH.blue} !important; background: rgba(244, 234, 213, 0.92); padding: 5px 12px 5px 13px; border-radius: 999px;
     box-shadow: 0 2px 8px rgba(8, 14, 38, 0.4);

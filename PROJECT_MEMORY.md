@@ -6271,3 +6271,6 @@ phone menu until "Start the story over" (which clears it).
   D#3+F3 dyad; Begin Game (playPowerOn) = #21; a game ended by hand
   (playPowerOff, not within 2.5 s of a win) = #22; rules open #10, close
   #11 (quiet), rules tab = #7 very soft. All through the hall.
+- Parrish full-screen button: fully opaque now (user: 0.7 still wasn't
+  enough): opacity 1 (0.6 in focus mode), near-solid ivory disc with a
+  thin blue ring, icon stroke 2.6.
