@@ -29,7 +29,7 @@ export const SIDE_NAMES = {
   elementarism: { dark: "Graphite", light: "Silver" },
   brutalist: { dark: "Iron", light: "Concrete" },
   newTypography: { dark: "Ink", light: "Paper" },
-  corporateSwiss: { dark: "Navy", light: "Silver" },
+  corporateSwiss: { dark: "Navy", light: "Platinum" },
   neoBrutalist: { dark: "Pink", light: "Yellow" },
   minimalMono: { dark: "Black", light: "White" },
   ultimateFusion: { dark: "Charcoal", light: "Bone" },

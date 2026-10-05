@@ -6553,3 +6553,6 @@ phone menu until "Start the story over" (which clears it).
   at 19 px. Out of full screen the Enter button keeps its ivory disc at
   0.7. Checked at 412 px touch, both looks: in 0.5 transparent, out 0.7
   disc, back in 0.5; the corner piece 0.6 in full screen unchanged.
+- Corporate Swiss sides now Navy / Platinum (user; was Navy / Silver,
+  which clashed with Elementarism's Graphite / Silver). Its serial piece
+  stamps read N / P.
