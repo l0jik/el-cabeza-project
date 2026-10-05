@@ -157,15 +157,20 @@ const boardAlpha = (m) => { m.opacity = 0.75; m.transparent = false; return m; }
 export const buildSlabMaterials = (tex) => woodSet.buildSlabMaterials(tex).map(boardAlpha);
 export const makeGrid = () => { const g = woodSet.makeGrid(); g.traverse((o) => { if (o.material && !o.material.transparent) boardAlpha(o.material); }); return g; };
 export const buildPieceVisual = woodSet.buildPieceVisual;
-// The move markers: in Orinoco, one of the painting's own lighter blues
-// (user: the beige ones were hard to tell from the board), on a wider band
-// than the set's and with a faint wash of the blue across the square, so
-// they hold up through the paint; the dark edge under them as the set has
-// it. A capture's marker, and Watermark's, stay the set's own.
-const MARKER_BLUE = 0x5fa2f0, MARKER_EDGE = 0x1f2f58;
+// The move markers (user: the set's beige ones were hard to tell from the
+// board): in Orinoco one of the painting's own lighter blues, in Watermark
+// one of the crimsons of its sky, on a wider band than the set's and with a
+// faint wash of the colour across the square, so they hold up through the
+// paint; a dark edge under them as the set has it. A capture's marker
+// stays the set's own design (an inner square too); in Watermark it's in
+// the painting's gold, so it can't be mistaken for the red ones.
+const MARKER = DARK ? { main: 0xe6283f, edge: 0x2e060c, wash: 0.36 } : { main: 0x5fa2f0, edge: 0x1f2f58, wash: 0.34 };
+const CRUSH_GOLD = 0xe8b75a, CRUSH_EDGE = 0x2a0a0c;
 export const buildMoveIndicator = (opts) => {
-  if (DARK || opts.isCrush) return woodSet.buildMoveIndicator(opts);
-  const { cx, cz, hx, hz } = opts;
+  if (opts.isCrush) return DARK ? paintedMarker(opts, { main: CRUSH_GOLD, edge: CRUSH_EDGE, wash: 0.22, inner: true }) : woodSet.buildMoveIndicator(opts);
+  return paintedMarker(opts, MARKER);
+};
+function paintedMarker({ cx, cz, hx, hz }, c) {
   const group = new THREE.Group();
   const mats = [], geos = [];
   const add = (geo, color, base, lift) => {
@@ -188,9 +193,13 @@ export const buildMoveIndicator = (opts) => {
     return geo;
   };
   const wash = new THREE.PlaneGeometry(hx * 1.7, hz * 1.7); wash.rotateX(-Math.PI / 2);
-  add(wash, MARKER_BLUE, 0.34, 0.0005);
-  add(frame(hx * 0.92, hz * 0.92, 0.13), MARKER_EDGE, 0.75, 0);
-  add(frame(hx * 0.92 - 0.02, hz * 0.92 - 0.02, 0.09), MARKER_BLUE, 1, 0.001);
+  add(wash, c.main, c.wash, 0.0005);
+  add(frame(hx * 0.92, hz * 0.92, 0.13), c.edge, 0.75, 0);
+  add(frame(hx * 0.92 - 0.02, hz * 0.92 - 0.02, 0.09), c.main, 1, 0.001);
+  if (c.inner) {
+    add(frame(hx * 0.6, hz * 0.6, 0.09), c.edge, 0.75, 0);
+    add(frame(hx * 0.6 - 0.015, hz * 0.6 - 0.015, 0.06), c.main, 1, 0.001);
+  }
   group.position.set(cx, 0.03, cz);
   return {
     root: group,
@@ -198,7 +207,7 @@ export const buildMoveIndicator = (opts) => {
     tick() {},
     dispose() { geos.forEach((g) => g.dispose()); mats.forEach((m) => m.dispose()); },
   };
-};
+}
 export const buildMissingSquareVisual = woodSet.buildMissingSquareVisual;
 export const buildBlackHoleVisual = woodSet.buildBlackHoleVisual;
 
@@ -389,6 +398,14 @@ export const styleSheet = `
   }
   /* Icon buttons (Back): a faint gold square, no chassis box. */
   :is(${PANELS}) .ec-btn:has(> svg) { border-color: ${GOLD(0.4)} !important; background: none !important; color: ${MENU.ink} !important; border-radius: 0 !important; }
+  /* The win's card: its New Game a stroke of the palette's paint too (the
+     chassis gives it the winner's wood). */
+  [data-testid="victory-placard"] .ec-btn[style*="url("] {
+    background: none !important; box-shadow: none !important; border-radius: 0 !important; text-shadow: none !important;
+    border-style: solid !important; border-color: transparent !important;
+    border-image: url(${STROKE.paint}) 0 110 fill / 0 22px / 2px 8px stretch !important;
+    color: ${MENU.paintInk} !important; font-family: 'Cinzel', Georgia, serif !important; font-weight: 700 !important;
+  }
   /* Small ones (8×8, the steppers): shorter ends. */
   .rg-seg button, .rg-step button, .rg-small { border-image-width: 0 10px !important; border-image-outset: 1px 3px !important; padding-left: 12px !important; padding-right: 12px !important; }
   .rg-step button { padding: 0 !important; }

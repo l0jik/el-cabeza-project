@@ -6392,3 +6392,17 @@ phone menu until "Start the story over" (which clears it).
   ("Dark to move") is a broad glaze stroke; icon buttons (Back) a faint
   gold square; dock icons gold. Specificity: the glaze rule excludes
   primary/begin/links/icons so the paint rule wins.
+- Watermark move markers red (user: its beige ones blended into the board,
+  as Orinoco's had; "a red that matches the background" -- said "for
+  Orinoco" but meant Watermark, whose sky is the red one; Orinoco keeps
+  its blue). parrish.js MARKER per look: Watermark crimson 0xe6283f on a
+  dark edge 0x2e060c, wash 0.36 (0xc22a36 was tried first: dusty through
+  the paint). Same painted builder as Orinoco's (paintedMarker). A
+  capture's marker in Watermark: the set's design (inner square) in the
+  painting's gold 0xe8b75a, so it isn't confused with the red moves;
+  Orinoco's capture marker is still the set's own.
+- The win card's New Game (chassis: the winner's wood) painted as a stroke
+  of the palette's paint in Parrish.
+- Playwright on Parrish: selecting a piece by script is flaky (a piece
+  sometimes moves before the click lands); scratchpad parrish/mk.mjs with
+  its retries and timed shots got there on a later run.
