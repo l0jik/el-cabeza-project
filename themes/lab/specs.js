@@ -424,7 +424,9 @@ export const LAB_SPECS = [
     borders: { width: 1, radius: 0, color: "rgba(0,0,0,0.14)" },
     shadows: { x: 0, y: 0, blur: 0, opacity: 0, color: "0,0,0" },
     board: {
-      paint: "pureWhite", grid: "crosshair", gridOpacity: 0.9, // (was 0.35: user, "almost impossible to see"; darker, same marks) sideColor: 0xffffff, roughness: 1,
+      // (User: the board was "almost impossible to see": the crosses 0.35 ->
+      // 0.9, same marks; the sides light grey, were white, so its edge shows.)
+      paint: "pureWhite", grid: "crosshair", gridOpacity: 0.9, sideColor: 0xc8c8c8, roughness: 1,
       goal: "ticks", coords: null,
     },
     pieces: {

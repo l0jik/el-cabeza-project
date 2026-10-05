@@ -6587,3 +6587,8 @@ phone menu until "Start the story over" (which clears it).
   0.9 (paint.js pureWhite). Same marks, same thickness. The board's edge
   is still only the white slab's shading (sideColor 0xffffff); offered,
   not done: a light grey side, or thicker crosses.
+- Minimal Mono board sides light grey (user): sideColor 0xffffff ->
+  0xc8c8c8, so the board's edge shows on the white page. Also fixed my
+  previous edit, whose // comment had swallowed `sideColor: 0xffffff,
+  roughness: 1,` on the same line (both were briefly unset, live for one
+  push); the comment now sits on its own lines above.
