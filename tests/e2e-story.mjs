@@ -182,7 +182,17 @@ console.log("\ndesktop: the store, the purchase, home");
   // The sphere's been visited (as markSingularitySeen does it): special
   // orders open, once announced, and the row says Custom rules.
   await page.evaluate(() => { localStorage.setItem("el-cabeza:singularity-seen", "1"); window.dispatchEvent(new CustomEvent("el-cabeza:journey")); });
-  check("after the Singularity: the note that special orders are open", await poll(() => has(page, "tienda-special-note"), 5000));
+  // First (user): the paper beside the board glows, the order form, the
+  // only thing to tap; its tap brings the note.
+  check("after the Singularity: the paper on the table glows (the order form)", await poll(() => page.evaluate(() => !!(window.__DEN_ORDER_PAPER__ && window.__DEN_ORDER_PAPER__().on)), 8000));
+  check("...and no note yet", !(await has(page, "tienda-special-note")));
+  await page.waitForTimeout(2500); // (the camera eases over to show it)
+  {
+    const at = await page.evaluate(() => window.__DEN_ORDER_PAPER__());
+    await page.mouse.click(at.x, at.y);
+  }
+  check("after the paper's tap: the note that special orders are open", await poll(() => has(page, "tienda-special-note"), 5000));
+  await page.waitForTimeout(2500); // (and back to the board)
   check("...not lit at first", !/td-sing-glow/.test(await q(page, "tienda-special-note").getAttribute("class")));
   await page.mouse.click(8, 300);
   await page.waitForTimeout(400);

@@ -138,9 +138,14 @@ console.log("the first arrival");
     const v = await page.evaluate(() => {
       const c = window.__EC_TEST_CAM__(), t = window.__DEN_THREE__ || window.__EC_TEST_THREE__(), bv = t.boardView ? t.boardView() : null;
       const p = t.boardGroup.position.clone(); t.boardGroup.getWorldPosition(p); p.project(t.camera);
-      return { c, bv, sx: p.x, sy: p.y };
+      return { c, bv, sx: p.x, sy: p.y, paper: !!(window.__DEN_ORDER_PAPER__ && window.__DEN_ORDER_PAPER__().on) };
     });
-    check(`...re-centred on the coffee table (${JSON.stringify(v)})`, !!v.bv && !v.c.dollhouse && Math.hypot(...v.c.target) < 0.5 && Math.abs(v.c.radius - v.bv.radius) < 0.5 && Math.abs(v.sx) < 0.25 && Math.abs(v.sy) < 0.4);
+    // (With the order paper glowing, user, the aim is partway toward the
+    // paper beside the board and drawn back to show it: the board still
+    // well in the picture, not closer than its own view.)
+    const centred = Math.hypot(...v.c.target) < 0.5 && Math.abs(v.c.radius - v.bv.radius) < 0.5 && Math.abs(v.sx) < 0.25 && Math.abs(v.sy) < 0.4;
+    const besidePaper = v.paper && Math.hypot(...v.c.target) < 12 && v.c.radius >= v.bv.radius - 0.5 && Math.abs(v.sx) < 0.8 && Math.abs(v.sy) < 0.6;
+    check(`...re-centred on the coffee table (${JSON.stringify(v)})`, !!v.bv && !v.c.dollhouse && (centred || besidePaper));
   }
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
@@ -298,7 +303,21 @@ console.log("the link straight to it: left alone, a menu opens by itself and com
   // commercial, the special order, and at the store the clerk (user: the
   // stamped order went to a store that thought the story was over).
   const q = (id) => page.locator(`[data-testid="${id}"]`);
-  check("...the special order note, after the commercial", !!(await poll(async () => (await q("tienda-special-note").count()) > 0, 90000)));
+  // After the commercial (user): the paper beside the board, the order
+  // form, glows; only it takes a tap, and its tap brings the note.
+  check("...after the commercial, the paper on the table glows (the order form)", !!(await poll(() => page.evaluate(() => !!(window.__DEN_ORDER_PAPER__ && window.__DEN_ORDER_PAPER__().on)), 90000)));
+  check("...and no note yet", (await q("tienda-special-note").count()) === 0);
+  await page.waitForTimeout(3500);
+  await page.screenshot({ path: process.env.EC_SHOTS ? `${process.env.EC_SHOTS}/order-paper.png` : "/dev/null" }).catch(() => {});
+  check("...the paper all on screen", await page.evaluate(() => { const p = window.__DEN_ORDER_PAPER__(); return p.on && p.x - p.w / 2 > -10 && p.x + p.w / 2 < innerWidth + 10 && p.y - p.h / 2 > 0 && p.y + p.h / 2 < innerHeight; }), JSON.stringify(await page.evaluate(() => window.__DEN_ORDER_PAPER__())));
+  await page.mouse.click(8, 300);
+  check("...a tap elsewhere is held, and the halo throbs", !!(await poll(() => page.evaluate(() => !!document.querySelector('[data-testid="den-order-paper"].throb') && window.__DEN_ORDER_PAPER__().on), 3000)), JSON.stringify(await page.evaluate(() => ({ p: window.__DEN_ORDER_PAPER__(), cls: (document.querySelector('[data-testid="den-order-paper"]') || {}).className }))));
+  {
+    const at = await page.evaluate(() => window.__DEN_ORDER_PAPER__());
+    await page.mouse.click(at.x, at.y);
+  }
+  check("...the paper's tap: the special order note", !!(await poll(async () => (await q("tienda-special-note").count()) > 0, 8000)));
+  check("...and the glow's gone", await page.evaluate(() => !window.__DEN_ORDER_PAPER__().on && !document.documentElement.classList.contains("ec-order-paper")));
   await q("tienda-special-note").click();
   check("...the order form", !!(await poll(async () => (await q("tienda-order").count()) > 0, 8000)));
   await q("tienda-piece-turrito-inc").click();

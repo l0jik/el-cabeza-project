@@ -2295,6 +2295,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
     busy, aiThinking, triggerBeginGame,
+    // Back to the setup, a game in play set aside (New Game's own reset;
+    // the den's order paper, tienda-overlay.js).
+    resetToSetup: () => handleReset(),
     // Which of the dock's views is showing ("piece" | "panel" | "corner"),
     // read only (Tienda's store nudges toward the piece, then Try a Game).
     dockView,

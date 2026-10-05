@@ -1710,6 +1710,34 @@ function buildCoffeeTable(TW, boardSpan) {
   // opens them (den-fx.js pickScene "rules"), a "?" over it under the mouse.
   leaflet.userData.rules = true;
   boxMesh.userData.rules = true;
+  /* After the commercial (Nova's story, user): the same paper is Big
+     Glutts' special-order form, lit in the Singularity's blue, until the
+     order's done (den-fx.js orderPaper). */
+  let orderTex = null;
+  const orderForm = (on, glow = 0) => {
+    if (on && !orderTex) {
+      orderTex = canvasTexture(256, 192, (g, W, H) => {
+        g.fillStyle = "#EDE6D2"; g.fillRect(0, 0, W, H);
+        g.fillStyle = "#A8321F"; g.fillRect(0, 0, W, H * 0.07);
+        g.fillStyle = "#28231F"; g.textAlign = "center";
+        g.font = `700 ${Math.round(H * 0.07)}px 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif`;
+        g.fillText("BIG GLUTTS \u00b7 GAMES & HOBBY", W / 2, H * 0.17);
+        g.fillStyle = "#A8321F"; g.font = `900 ${Math.round(H * 0.12)}px 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif`;
+        g.fillText("SPECIAL ORDERS", W / 2, H * 0.31);
+        g.fillStyle = "rgba(40,35,31,0.6)";
+        for (let l = 0; l < 7; l++) {
+          const y = H * (0.42 + l * 0.075);
+          g.strokeStyle = "rgba(40,35,31,0.55)"; g.lineWidth = 1.4; g.strokeRect(W * 0.08, y - H * 0.03, H * 0.04, H * 0.04);
+          g.fillRect(W * 0.16, y, W * (0.62 - (l % 3) * 0.1), H * 0.012);
+        }
+        g.fillStyle = "rgba(20,12,6,0.12)"; g.fillRect(W / 3 - 1, 0, 2, H); g.fillRect((2 * W) / 3 - 1, 0, 2, H);
+      }, { scale: false });
+      disposables.push(orderTex);
+    }
+    leafMat.map = on ? orderTex : leafTex;
+    if (leafMat.emissive) { leafMat.emissive.setRGB(0.4, 0.85, 1); leafMat.emissiveIntensity = on ? glow : 0; }
+    leafMat.needsUpdate = true;
+  };
   // A mug of coffee on its saucer, a spoon laid on the saucer's rim; a
   // tumbler of scotch on the rocks on a cork coaster.
   const cork = lit({ color: 0x9a7048, roughness: 0.9 });
@@ -1984,7 +2012,7 @@ function buildCoffeeTable(TW, boardSpan) {
 
   return {
     group,
-    rules: { pickables: [leaflet, boxMesh], leaflet },
+    rules: { pickables: [leaflet, boxMesh], leaflet, orderForm },
     // Each frame: the steam drifts, and turns to face the camera (camLocal:
     // the camera in the board's frame, the table's too but for focus's drop).
     animate(t, camLocal) {

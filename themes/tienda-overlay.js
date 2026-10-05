@@ -162,12 +162,30 @@ export function useSetupExtras(x) {
   const [noteGlow, setNoteGlow] = React.useState(false);
   // The note stays until it's dismissed (a tap anywhere else) or taken up
   // (a tap on it: the order form), and only then is it remembered as seen.
+  /* At home, the first time through (user): first the paper beside the
+     board, the order form, glowing, the only thing to tap (den-fx.js,
+     html.ec-order-paper); its tap sets aside a game in play and brings
+     the note. */
+  const [paperTaken, setPaperTaken] = React.useState(false);
+  const awaitingRef = React.useRef(x.awaitingBegin); awaitingRef.current = x.awaitingBegin;
+  const resetRef = React.useRef(x.resetToSetup); resetRef.current = x.resetToSetup;
   React.useEffect(() => {
     if (!specialOpen || adOn) return undefined;
     if (specialOrderNoted() || isSceneLink()) return undefined;
+    const viaPaper = home && story && story.guided && story.guided() && !paperTaken && typeof document !== "undefined";
+    if (viaPaper) {
+      document.documentElement.classList.add("ec-order-paper");
+      const taken = () => {
+        document.documentElement.classList.remove("ec-order-paper");
+        if (!awaitingRef.current && resetRef.current) resetRef.current();
+        setPaperTaken(true);
+      };
+      window.addEventListener("el-cabeza:order-paper-taken", taken);
+      return () => { window.removeEventListener("el-cabeza:order-paper-taken", taken); document.documentElement.classList.remove("ec-order-paper"); };
+    }
     setSpecialNote(true);
     return () => setSpecialNote(false);
-  }, [specialOpen, adOn]);
+  }, [specialOpen, adOn, paperTaken]);
   const dismissSpecialNote = React.useCallback(() => {
     setSpecialNote(false);
     markSpecialOrderNoted();

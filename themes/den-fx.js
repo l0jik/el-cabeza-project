@@ -155,6 +155,128 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        the settings as they are; a game already going carries on. The
        hall's moves count from there. (Nova's story only: the trip is.) */
     let settleDrop = null;
+    /* After the commercial (Nova's story; user): the paper beside the
+       board, the rules leaflet, is Big Glutts' special-order form now,
+       glowing and throbbing in the Singularity's blue, and the only thing
+       that takes a tap. Its tap brings the special-order note (tienda-
+       overlay.js, which turns this on with html.ec-order-paper and hears
+       ORDER_PAPER_TAKEN). A stray tap makes it throb harder. The paper
+       stays an order form while the den's up (back from the store, the
+       leaflet's itself again). */
+    const ORDER_PAPER_TAKEN = "el-cabeza:order-paper-taken";
+    let paper = null, paperTaken = false, paperRay = null;
+    const paperV = new THREE.Vector3();
+    function paperStyle(doc) {
+      if (doc.getElementById("ec-order-paper-style")) return;
+      const st = doc.createElement("style");
+      st.id = "ec-order-paper-style";
+      st.textContent = `
+        .ec-order-halo { position: fixed; z-index: 1240; pointer-events: none; border-radius: 50%; transform: translate(-50%, -50%);
+          border: 3px solid rgba(102, 217, 255, 0.95); background: radial-gradient(ellipse at center, rgba(102, 217, 255, 0.16), rgba(102, 217, 255, 0.04) 70%, transparent);
+          box-shadow: 0 0 24px 8px rgba(102, 217, 255, 0.6), inset 0 0 18px 6px rgba(102, 217, 255, 0.4);
+          animation: ecOrderHalo 1.6s ease-in-out infinite; }
+        @keyframes ecOrderHalo { 0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); } }
+        .ec-order-halo.throb { animation: ecOrderThrob 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) both, ecOrderHalo 1.6s ease-in-out 0.9s infinite; }
+        @keyframes ecOrderThrob { 0% { transform: translate(-50%, -50%) scale(1); } 28% { transform: translate(-50%, -50%) scale(1.45); box-shadow: 0 0 34px 14px rgba(102, 217, 255, 0.85); } 100% { transform: translate(-50%, -50%) scale(1); } }
+        @media (prefers-reduced-motion: reduce) { .ec-order-halo, .ec-order-halo.throb { animation: none; opacity: 1; } }`;
+      doc.head.appendChild(st);
+    }
+    function paperStart() {
+      const doc = typeof document !== "undefined" ? document : null;
+      if (!doc || paper || paperTaken || !den) return;
+      paperStyle(doc);
+      den.table.rules.orderForm(true, 0.5);
+      const halo = doc.createElement("div");
+      halo.className = "ec-order-halo";
+      halo.setAttribute("data-testid", "den-order-paper");
+      halo.setAttribute("aria-hidden", "true");
+      doc.body.appendChild(halo);
+      let swallow = false;
+      const onPaper = (e) => {
+        if (e.clientX == null) return false;
+        const r = halo.getBoundingClientRect();
+        if (r.width && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return true;
+        const t = three.current;
+        if (!t || !t.camera || !t.renderer) return false;
+        const c = t.renderer.domElement.getBoundingClientRect();
+        if (!paperRay) paperRay = new THREE.Raycaster();
+        paperRay.setFromCamera({ x: ((e.clientX - c.left) / c.width) * 2 - 1, y: -((e.clientY - c.top) / c.height) * 2 + 1 }, t.camera);
+        return paperRay.intersectObject(den.table.rules.leaflet, false).length > 0;
+      };
+      const throb = () => requestAnimationFrame(() => { halo.classList.remove("throb"); void halo.offsetWidth; halo.classList.add("throb"); });
+      const onFull = (e) => !!(e.target instanceof Element && e.target.closest("[data-fullscreen-toggle]"));
+      const EVENTS = ["pointerdown", "pointerup", "pointermove", "click", "dblclick", "contextmenu", "touchstart", "touchmove", "touchend", "wheel", "mousedown", "mouseup", "gesturestart"];
+      const block = (e) => {
+        if (onFull(e)) return;
+        e.stopImmediatePropagation(); e.stopPropagation();
+        if (e.cancelable && e.type !== "pointermove") e.preventDefault();
+        if (swallow) { if (e.type === "click" || e.type === "pointerup" || e.type === "touchend") setTimeout(stop, 0); return; }
+        const down = e.type === "pointerdown" || (e.type === "touchstart" && !window.PointerEvent);
+        if (!down) return;
+        const pt = e.touches && e.touches[0] ? e.touches[0] : e;
+        if (onPaper(pt)) {
+          swallow = true; paperTaken = true;
+          window.dispatchEvent(new CustomEvent(ORDER_PAPER_TAKEN));
+          setTimeout(stop, 600); // (in case the tap's end never comes)
+        } else throb();
+      };
+      const blockKey = (e) => { if (e.key === "Tab") return; e.stopImmediatePropagation(); e.stopPropagation(); if (e.cancelable) e.preventDefault(); };
+      function stop() {
+        if (!paper) return;
+        EVENTS.forEach((ev) => window.removeEventListener(ev, block, { capture: true }));
+        window.removeEventListener("keydown", blockKey, true);
+        halo.remove();
+        den.table.rules.orderForm(true, 0);
+        if (paper.back && cam && cam.current && cam.current.target) { cam.current.target.copy(paper.back.target); cam.current.radius = paper.back.radius; }
+        paper = null;
+      }
+      EVENTS.forEach((ev) => window.addEventListener(ev, block, { capture: true, passive: false }));
+      window.addEventListener("keydown", blockKey, true);
+      rulesHover = false;
+      // The camera eases over so the paper's in view beside the board (on
+      // a phone it lay off the screen's edge): its aim moves partway
+      // toward the paper, and it draws back (paperFrame) until the paper's
+      // on screen; it goes back to the board once the paper's taken.
+      let back = null;
+      if (cam && cam.current && cam.current.target) {
+        const c = cam.current, lp = den.table.rules.leaflet.getWorldPosition(new THREE.Vector3());
+        back = { target: c.target.clone(), radius: c.radius };
+        c.target.set(lp.x * 0.5, 0, lp.z * 0.5);
+      }
+      paper = { halo, stop, t0: performance.now(), back };
+    }
+    // Each frame: on (html.ec-order-paper) it starts; the halo follows the
+    // paper on screen and the paper's own glow breathes with it.
+    function paperFrame(t, now) {
+      const want = typeof document !== "undefined" && document.documentElement.classList.contains("ec-order-paper");
+      // (Once the set's let go of the camera: the board's view, the paper in it.)
+      if (want && !paper && !paperTaken && !holdsCamera()) paperStart();
+      if (!want && paper) paper.stop();
+      if (!paper || !t.camera || !t.renderer) return;
+      const lf = den.table.rules.leaflet, c = t.renderer.domElement.getBoundingClientRect();
+      lf.updateWorldMatrix(true, false);
+      const pos = lf.geometry.attributes.position;
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, behind = false;
+      for (let i = 0; i < pos.count; i++) {
+        paperV.fromBufferAttribute(pos, i).applyMatrix4(lf.matrixWorld).project(t.camera);
+        if (paperV.z > 1) behind = true;
+        const sx = c.left + ((paperV.x + 1) / 2) * c.width, sy = c.top + ((1 - paperV.y) / 2) * c.height;
+        x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
+      }
+      // (Not all of it on screen yet: the camera draws back a little more.)
+      const w = Math.max(56, (x1 - x0) * 1.35), hgt = Math.max(44, (y1 - y0) * 1.6);
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, vw = window.innerWidth, vh = window.innerHeight, m = 10;
+      if (paper.back && cam && cam.current && (cx - w / 2 < m || cx + w / 2 > vw - m || cy - hgt / 2 < m || cy + hgt / 2 > vh - m || behind) && cam.current.radius < paper.back.radius * 1.9) cam.current.radius *= 1.012;
+      const st = paper.halo.style;
+      st.left = `${cx}px`; st.top = `${cy}px`; st.width = `${w}px`; st.height = `${hgt}px`;
+      st.display = behind ? "none" : "";
+      den.table.rules.orderForm(true, 0.45 + 0.6 * (0.5 + 0.5 * Math.sin((now - paper.t0) / 260)));
+    }
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__DEN_ORDER_PAPER__ = () => {
+      if (!paper) return { on: false, taken: paperTaken };
+      const r = paper.halo.getBoundingClientRect();
+      return { on: true, taken: paperTaken, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height };
+    };
     function settleIn(onDone) {
       const doc = typeof document !== "undefined" ? document : null;
       const bulb = () => doc && doc.querySelector('[data-testid="focus-corner"]');
@@ -848,6 +970,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        document-level gesture listeners and the canvas's own. */
     const holdsCamera = () => tvW > 0.02 || tvGoal > 0;
     const onHoldMove = (e) => {
+      if (paper) return; // (the order paper's own, while it's up)
       const t = three.current, el = t && t.renderer && t.renderer.domElement;
       if (!el || e.target !== el || !holdsCamera()) return;
       if (e.type === "pointermove" && !e.buttons && e.pointerType === "mouse") return; // (just hovering)
@@ -862,6 +985,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        during the commercial (a tap there switched it off half-way). */
     const holdSwallowed = new Set();
     const onHoldDown = (e) => {
+      if (paper) return; // (the order paper's own, while it's up)
       const t = three.current, el = t && t.renderer && t.renderer.domElement;
       if (!el || e.target !== el) return;
       if (e.type === "pointerdown") {
@@ -1031,6 +1155,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (t.camera) { camLocal.copy(t.camera.position); t.boardGroup.worldToLocal(camLocal); }
         den.animate(now, t.camera ? camLocal : null, { open: focusGoal > 0 && focusW > 0.6, playing });
         showRulesHint(t);
+        paperFrame(t, now);
         focusFrame(t, now);
         listen(t, now);
         if (call) call.tick(now, t, den);
@@ -1345,6 +1470,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         clearTimeout(homeCardTimer);
         if (homeCardDrop) homeCardDrop();
         if (settleDrop) settleDrop();
+        if (paper) paper.stop();
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (novaTv && novaTv.register) novaTv.register(null);

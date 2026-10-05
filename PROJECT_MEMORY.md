@@ -6680,3 +6680,27 @@ phone menu until "Start the story over" (which clears it).
   other way up/down now: flip the expected tilt sign on el-cabeza-tienda)
   and e2e-tienda ("Dark wins" -> "Walnut wins" on the placard). Both
   tests updated.
+- After the commercial, the paper first (user: "the piece of paper on the
+  table next to the board game be the only thing that can be clicked ...
+  glowing, a throbbing glowing ... that will be the order form. When they
+  click on that, that's when the special order note will appear"; asked:
+  it becomes an order form, then the note, then the form as before; a
+  game in play is set aside; Singularity blue). tienda-overlay.js: at
+  home, guided, special orders open and not yet noted: html.ec-order-paper
+  instead of the note; on "el-cabeza:order-paper-taken" it resets a game
+  in play (chassis setupExtras.resetToSetup = handleReset) and shows the
+  note. den-room.js rules.orderForm(on, glow): the leaflet's print swapped
+  for a Big Glutts SPECIAL ORDERS form, emissive blue. den-fx.js
+  paperStart/paperFrame (once the set's let go of the camera): the form
+  printed and breathing blue, a DOM halo (.ec-order-halo, testid
+  den-order-paper) following its projected bounds; every tap/drag/key held
+  at the window (bar the full-screen switch), a stray tap throbs it; a tap
+  on the halo or a ray hit on the leaflet takes it (the rest of that tap
+  swallowed). The camera aims halfway toward the paper and draws back
+  until the whole halo's on screen, then goes back when it's taken. The
+  set's camera-hold listeners stand aside while the paper's up (they'd
+  swallowed its taps). The leaflet stays an order form while the den's up.
+  Tests: e2e-summon (glow, no note yet, stray tap throbs, halo all on a
+  390x844 screen, the camera check allows the paper's aim, tap -> note ->
+  order form), e2e-story (paper, then the note). Mid-game checked by
+  script: game armed -> paper -> tap -> game reset, note shown.
