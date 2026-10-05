@@ -6303,3 +6303,7 @@ phone menu until "Start the story over" (which clears it).
   after the cut, wet 0.38, last 0.8 s faded -> 13.8 s; outro as before,
   RT60 6.5 s, 7 s tail -> 17.5 s). The game's runtime hall send on the
   intro is gone (it's baked in).
+- Parrish corner badges (user): the dock piece in the bottom-right corner
+  during a game, dockCornerOpacity 0.6 -> 0.8; the full-screen button in
+  full screen 0.3 -> 0.5 (0.35 in focus mode); windowed it stays at 1.
+  (Checked with scratchpad parrish/br.mjs.)

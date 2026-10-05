@@ -84,7 +84,7 @@ export const titleFontFamily = "'Cinzel', 'Trajan Pro', Georgia, serif";
 export const mastheadScale = 1;
 // The dock's piece, in the corner during a game: enough of it to see
 // against the terrace.
-export const dockCornerOpacity = 0.6;
+export const dockCornerOpacity = 0.8; // (user: 20% more than the 0.6 it was)
 // The camera a little lower than the default (0.86), so the colonnade and
 // the pool's sky show behind the board; lower again on a tall screen.
 export const viewPitch = typeof window !== "undefined" && window.innerHeight > window.innerWidth * 1.25 ? 1.14 : 1.1;
@@ -295,10 +295,10 @@ export const styleSheet = `
      corner, a little quieter in focus mode. */
   button[aria-label$="full screen"][style*="visibility: visible"] { opacity: 1 !important; background: rgba(250, 243, 228, 0.97) !important; box-shadow: 0 0 0 1px rgba(29, 44, 94, 0.35), 0 2px 8px rgba(8, 14, 38, 0.45) !important; }
   button[aria-label$="full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.6 !important; }
-  /* Once the page is full screen, the button steps back: 70% transparent
-     (user), and back to full on hover. */
-  button[aria-label="Exit full screen"][style*="visibility: visible"] { opacity: 0.3 !important; }
-  button[aria-label="Exit full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.2 !important; }
+  /* Once the page is full screen, the button steps back: half transparent
+     (user: 70% transparent, then 20% more opaque), full on hover. */
+  button[aria-label="Exit full screen"][style*="visibility: visible"] { opacity: 0.5 !important; }
+  button[aria-label="Exit full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.35 !important; }
   button[aria-label="Exit full screen"][style*="visibility: visible"]:hover { opacity: 1 !important; }
   button[aria-label$="full screen"] svg { stroke-width: 2.6; }
   [data-testid="points-counter"] {
