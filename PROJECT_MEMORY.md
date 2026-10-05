@@ -6251,3 +6251,13 @@ phone menu until "Start the story over" (which clears it).
 - Parrish: no sound while a piece moves (user: the falling run of 50 ms
   note-heads, "di-di-da-da", stuttered and isn't wanted); sfx.rollStart is
   empty, the landing note is the move's sound.
+- Parrish sounds, selection 5 (user: "more variety ... these can have 1, 2
+  or 3 peaks ... ignore the percussive stuff"). The upload enya_stabs.mp3
+  is byte-identical to assets/parrish/src/instrumental-stab.mp3 (b).
+  24 phrases from b, 8 each of 1/2/3 stabs, one every 2 s
+  (scratchpad stabs/phrases.py -> set5.json, set5.py); percussive parts
+  skipped by HPSS (percussive share max < 0.45, mean < 0.2), flams
+  (< 80 ms apart) skipped, cuts end before the next stab. Onsets (s into
+  b): 1-peak 9.44 12.52 8.77 5.71 11.40 6.14 26.76 7.91; 2-peak 9.65
+  12.73 19.53 4.62 1.53 12.08 26.32 32.22; 3-peak 32.88 33.76 7.58 10.98
+  0.63 35.94 3.72 17.33. Waiting on the user's picks.
