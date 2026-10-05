@@ -20,6 +20,8 @@ const SHOTS = [
   ["store", dist("el-cabeza-tienda.html"), 7000],
   ["lluvia", dist("el-cabeza-lluvia.html"), 9000],
   ["cromo", dist("el-cabeza-cromo.html"), 6500],
+  ["parrish-orinoco", dist("el-cabeza-parrish.html?look=orinoco"), 9000],
+  ["parrish-watermark", dist("el-cabeza-parrish.html?look=watermark"), 9000],
   ...LAB.map((id) => [`lab-${id}`, dist(`el-cabeza-lab.html?theme=${id}`), 6000]),
 ];
 const only = process.argv[2] ? process.argv[2].split(",") : null;

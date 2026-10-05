@@ -41,7 +41,7 @@ const DEN_RECORDS = {
   "el-cabeza-trip-dusk.jpg": "assets/den/trip/glutts-dusk.jpg",
   // The other realities' pictures (themes/realities.js: the den's set after
   // the story, and the realities menu; tools/channel_shots.mjs).
-  ...Object.fromEntries(["den", "neon", "store", "lluvia", "cromo", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-elementarism", "lab-brutalist",
+  ...Object.fromEntries(["den", "neon", "store", "lluvia", "cromo", "parrish-orinoco", "parrish-watermark", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-elementarism", "lab-brutalist",
     "lab-newTypography", "lab-corporateSwiss", "lab-neoBrutalist", "lab-minimalMono", "lab-ultimateFusion"].map((id) => [`el-cabeza-channel-${id}.jpg`, `assets/den/channels/${id}.jpg`])),
 };
 

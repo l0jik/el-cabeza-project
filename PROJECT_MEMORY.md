@@ -6478,3 +6478,13 @@ phone menu until "Start the story over" (which clears it).
   real faces for checks from scratchpad fonts/ (Cinzel.ttf, Cormorant.ttf
   from github.com/google/fonts) with addStyleTag @font-face file:// urls
   (scratchpad parrish/sheet-phone.mjs).
+- Orinoco and Watermark in the theme switcher (user). realities.js WORLDS:
+  parrish-orinoco ("Orinoco") and parrish-watermark ("Watermark"), after
+  Cromo, href el-cabeza-parrish.html?look=..., their pictures
+  assets/den/channels/parrish-*.jpg (tools/channel_shots.mjs + .py; listed
+  in build/build.js; build fails if a listed picture is missing, so shoot
+  first). apps/parrish.jsx: world = `parrish-${lookName()}` for the gate
+  and the corner button, so "You are here" marks the look shown;
+  reality-gate.js lookOf maps any "parrish*" world to LOOKS.parrish. The
+  den TV's channels (same WORLDS) now include them too. e2e-ending's count
+  15 -> 17; e2e-gate passes.

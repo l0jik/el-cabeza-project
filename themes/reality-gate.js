@@ -108,7 +108,7 @@ const LOOKS = {
     cellA: "var(--board-surface, #ddd)", cellB: "var(--board-grid, #999)",
   },
 };
-const lookOf = (world) => LOOKS[world] || (String(world).startsWith("lab-") ? LOOKS.lab : LOOKS.den);
+const lookOf = (world) => LOOKS[world] || (String(world).startsWith("lab-") ? LOOKS.lab : String(world).startsWith("parrish") ? LOOKS.parrish : LOOKS.den);
 const varsOf = (L) => ({
   "--rg-backdrop": L.backdrop, "--rg-surface": L.surface, "--rg-ink": L.ink, "--rg-muted": L.muted, "--rg-accent": L.accent, "--rg-accent-ink": L.accentInk,
   "--rg-line": L.line, "--rg-line-w": L.lineW, "--rg-radius": L.radius, "--rg-display": L.display, "--rg-display-weight": L.displayWeight, "--rg-body": L.body,

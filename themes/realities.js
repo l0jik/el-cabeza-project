@@ -33,6 +33,10 @@ export const WORLDS = [
   { id: "store", name: "Big Glutts", line: "Games & Hobby Dept., the day you found it.", nova: "tienda" },
   { id: "lluvia", name: "Lluvia", line: "A city in the rain, far below.", href: "el-cabeza-lluvia.html" },
   { id: "cromo", name: "Cromo", line: "Steel and stone, quiet and exact.", href: "el-cabeza-cromo.html" },
+  // Parrish's two palettes, each its own reality (user): one page, the
+  // look in the address (themes/parrish-looks.js).
+  { id: "parrish-orinoco", name: "Orinoco", line: "A painted terrace by the sea, in cobalt, cream and gold.", href: "el-cabeza-parrish.html?look=orinoco" },
+  { id: "parrish-watermark", name: "Watermark", line: "The same terrace in wine and umber, the light gone low.", href: "el-cabeza-parrish.html?look=watermark" },
   ...LAB.map(([id, name, line]) => ({ id: `lab-${id}`, name, line, href: `el-cabeza-lab.html?theme=${id}` })),
 ].map((w) => ({ ...w, shot: `el-cabeza-channel-${w.id}.jpg` }));
 
