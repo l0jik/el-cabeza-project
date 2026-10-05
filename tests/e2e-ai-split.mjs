@@ -62,7 +62,7 @@ if (splitTurn) {
   console.log(`    turn: ${JSON.stringify(splitTurn.steps)}  log: ${JSON.stringify(splitLog && splitLog.notation)}`);
   check("it was Dark's (the AI's) turn", splitTurn.player === "dark");
   check("the move log names both pieces", !!splitLog && splitLog.notation.includes("·"), JSON.stringify(splitLog));
-  check("the turn then passed to Light", !!statusAfter && /light to move/i.test(statusAfter), JSON.stringify(statusAfter));
+  check("the turn then passed to Ash (Light)", !!statusAfter && /ash to move/i.test(statusAfter), JSON.stringify(statusAfter));
 }
 check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
 await browser.close();

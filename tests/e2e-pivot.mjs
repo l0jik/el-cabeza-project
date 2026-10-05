@@ -140,7 +140,7 @@ const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w &&
     same(half, { row: 4, col: 3, w: 2, h: 1, vox: "0,0,1;1,0,0;1,0,1" }), JSON.stringify(half));
   const log = await page.evaluate(() => window.__EC_TEST_LOG__ || []);
   check("the move log records both quarter turns", log.length === 1 && /pivot-ccw\.pivot-ccw/.test(log[0].notation), JSON.stringify(log));
-  check("the half turn used the whole turn (Light to move)", /light to move/i.test(await statusText(page)), await statusText(page));
+  check("the half turn used the whole turn (Plasma to move)", /plasma to move/i.test(await statusText(page)), await statusText(page));
 
   // ---- 5. rolling out and back costs nothing either ----
   await page.evaluate(() => window.__EC_TEST_MOVE__("light-turrito", "E"));
@@ -156,7 +156,7 @@ const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w &&
   await page.waitForTimeout(1400);
   await page.evaluate(() => window.__EC_TEST_MOVE__("light-turrito", "E"));
   await page.waitForTimeout(1400);
-  check("...and two more rolls then end the turn", /dark to move/i.test(await statusText(page)), await statusText(page));
+  check("...and two more rolls then end the turn", /photon to move/i.test(await statusText(page)), await statusText(page));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();
 }

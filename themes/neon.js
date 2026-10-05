@@ -7051,3 +7051,7 @@ export function createSoundscape() {
     },
   };
 }
+
+/* What the two sides are called here (user; themes/side-names.js). */
+import { sideNamesFor } from "./side-names.js";
+export const sideNames = sideNamesFor("neon");

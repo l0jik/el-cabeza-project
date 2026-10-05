@@ -19,6 +19,9 @@ import {
   missingCellsOf, holeCellsOf, boardLabel, totalPieces,
 } from "./rules-selections.js";
 import { sideSurface } from "./tienda.js";
+import { sideNamesFor } from "./side-names.js";
+
+const SIDE = sideNamesFor("tienda"); // Walnut / Ash, the set on the table
 
 const h = React.createElement;
 const INK = "#2E2118", RED = "#A33F33", PAPER = "#EFE6CD", PENCIL = "#1F3A6B";
@@ -181,9 +184,9 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
     h("div", { className: "td-picker" },
       h("h3", null, title),
       h("p", null, help),
-      h("div", { className: "td-picker-side" }, "Far side · Light"),
+      h("div", { className: "td-picker-side" }, `Far side · ${SIDE.light}`),
       h("div", { className: "td-grid", role: "grid", "aria-label": `${boardLabel(draft)} board`, style: { gridTemplateColumns: `repeat(${cols}, ${cell}px)` } }, cells),
-      h("div", { className: "td-picker-side" }, "Your side · Dark"),
+      h("div", { className: "td-picker-side" }, `Your side · ${SIDE.dark}`),
       h("div", { key: note.n, className: `td-picker-note${note.text ? " pulse" : ""}`, role: "status", "data-testid": "tienda-picker-note" }, note.text),
       h("div", { className: "td-picker-btns" },
         h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-picker-random", onClick: random }, "Random"),
@@ -216,8 +219,8 @@ export function OpponentSection({ x, audio }) {
     ),
     h("div", { className: "td-seg", role: "group", "aria-label": "Opponent", style: { padding: "10px 4px" } },
       opt(null, "Two humans", "tienda-opponent-human"),
-      opt("dark", "The demonstrator plays Dark", "tienda-opponent-dark"),
-      opt("light", "The demonstrator plays Light", "tienda-opponent-light"),
+      opt("dark", `The demonstrator plays ${SIDE.dark}`, "tienda-opponent-dark"),
+      opt("light", `The demonstrator plays ${SIDE.light}`, "tienda-opponent-light"),
     ),
     aiPlayer != null && h("div", { className: "td-dim" },
       h("span", { className: "td-desc" }, "How well it plays"),

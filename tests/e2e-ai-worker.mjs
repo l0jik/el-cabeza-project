@@ -49,7 +49,7 @@ const status = await page.evaluate(() => {
   const s = [...document.querySelectorAll("span")].find((el) => /to move|thinking|left/i.test(el.textContent || ""));
   return s ? s.textContent : null;
 });
-check(`the AI actually completed a turn (status: ${JSON.stringify(status)})`, !!status && /light to move/i.test(status));
+check(`the AI actually completed a turn (status: ${JSON.stringify(status)})`, !!status && /ash to move/i.test(status));
 check(`no page errors (${errs.length})`, errs.length === 0);
 await browser.close();
 console.log(failures === 0 ? "\nAI WORKER BOARD-SIZE E2E PASSED" : `\nAI WORKER BOARD-SIZE E2E FAILED (${failures})`);

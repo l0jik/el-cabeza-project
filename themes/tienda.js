@@ -645,3 +645,7 @@ export const moveCostToggle = true;
 // The visit goes full screen at the first tap, usually the one that opens
 // the box (chassis: theme.fullscreenOnFirstTap; browsers need a tap first).
 export const fullscreenOnFirstTap = true;
+
+/* What the two sides are called here (user; themes/side-names.js). */
+import { sideNamesFor } from "./side-names.js";
+export const sideNames = sideNamesFor("tienda");

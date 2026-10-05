@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import VolumeFader from "./VolumeFader.jsx";
+import { sideNamesOf } from "../themes/side-names.js";
 
 /* The phone layout (a page opts in with ElCabeza3D's mobileShell prop;
    Nova does). On a phone-sized screen the desktop dock — the floating 3D
@@ -232,6 +233,7 @@ function tokens(theme, C) {
     backdrop: theme.modalBackdrop || "rgba(0,0,0,0.45)",
     dark: C.bodyDark,
     light: C.bodyLight,
+    names: sideNamesOf(theme), // what the theme calls its two sides
     accentDark: C.accentDark || null,
     accentLight: C.accentLight || null,
     glow: neonish ? `0 0 18px ${hexA(C.accentDark, 0.28)}` : "none",
@@ -367,8 +369,8 @@ function SetupPanel({ ctl, t }) {
   const vsAi = ctl.aiPlayer !== null;
   // A side's button, once chosen, takes that side's own colour.
   const sideOpts = () => [
-    { value: "dark", label: "Dark", side: "dark" },
-    { value: "light", label: "Light", side: "light" },
+    { value: "dark", label: t.names.dark, side: "dark" },
+    { value: "light", label: t.names.light, side: "light" },
   ];
   const secondary = ctl.setupActions.filter((a) => a.placement !== "below");
   const below = ctl.setupActions.filter((a) => a.placement === "below");

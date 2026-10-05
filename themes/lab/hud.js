@@ -24,6 +24,7 @@
    way the game itself does. */
 
 import React from "react";
+import { sideNamesFor } from "../side-names.js";
 
 const h = React.createElement;
 
@@ -31,13 +32,13 @@ const SESSION = { startedAt: null, initial: null, gameKey: 0 };
 
 const pad2 = (n) => String(n).padStart(2, "0");
 const clock = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`; };
-const SIDE = { dark: "Dark", light: "Light" };
 
 function flap(text) {
   return h("span", { className: "lab-flap", "aria-hidden": "true" }, [...String(text)].map((ch, i) => h("b", { key: i }, ch === " " ? " " : ch)));
 }
 
 export function LabHud({ spec, x }) {
+  const SIDE = sideNamesFor(spec && spec.id); // "Red" / "Blue" in De Stijl, and so on
   const game = x && x.game;
   const audio = x && x.audio;
   const [, setNow] = React.useState(0);

@@ -22,7 +22,7 @@ await page.locator('[data-testid="dock-panel"] button', { hasText: /^AI$/ }).nth
 await page.waitForTimeout(500);
 const pill = page.locator('[data-testid="turn-status"]');
 for (let i = 0; i < 2 && !/light/i.test(await pill.textContent()); i++) { await pill.click(); await page.waitForTimeout(300); }
-check("Light is set to open", /light/i.test(await pill.textContent()));
+check("Plasma (Light) is set to open", /plasma/i.test(await pill.textContent()));
 await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
 for (let i = 0; i < 40 && !(await page.evaluate(() => (window.__EC_TEST_LOG__ || []).length)); i++) await page.waitForTimeout(500);
 const log = await page.evaluate(() => (window.__EC_TEST_LOG__ || []).map((e) => e.player));
@@ -33,13 +33,13 @@ await page.locator('[data-testid="end-game"]').click();
 await page.waitForTimeout(800);
 await page.locator('[data-testid="move-log"]').click();
 await page.waitForTimeout(800);
-const headers = await page.evaluate(() => [...document.querySelectorAll("span")].map((s) => s.textContent.trim()).filter((t) => t === "Dark" || t === "Light"));
-check(`the Move Log's first column is Light (${headers.join(", ")})`, headers[0] === "Light" && headers[1] === "Dark");
+const headers = await page.evaluate(() => [...document.querySelectorAll("span")].map((s) => s.textContent.trim()).filter((t) => t === "Photon" || t === "Plasma")); // Neon: Photon is Dark, Plasma is Light
+check(`the Move Log's first column is Plasma, the Light side (${headers.join(", ")})`, headers[0] === "Plasma" && headers[1] === "Photon");
 await page.locator("button", { hasText: /Copy Move[ _]?Log/i }).first().click();
 await page.waitForTimeout(400);
 const text = await page.evaluate(() => navigator.clipboard.readText());
 const first = text.split("\n").find((l) => /^1\./.test(l)) || "";
-check(`copied round 1 opens with Light and shows no skipped Dark move (${JSON.stringify(first)})`, /^1\. Light: /.test(first) && !/—/.test(first));
+check(`copied round 1 opens with Plasma (Light) and shows no skipped Photon move (${JSON.stringify(first)})`, /^1\. Plasma: /.test(first) && !/—/.test(first));
 check(`no page errors (${errs.length})`, errs.length === 0);
 
 await browser.close();

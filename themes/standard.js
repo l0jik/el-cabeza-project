@@ -421,3 +421,7 @@ export const styleSheet = `
   [data-dock-role="primary"]:active { transform: translateY(2px); box-shadow: 0 2px 0 #B4451F !important; }
   [data-dock-role="caption"] { font-family: 'Caprasimo', 'Cooper Black', Georgia, serif !important; font-style: normal !important; font-size: 15px !important; color: #B4451F !important; }
 `;
+
+/* What the two sides are called here (user; themes/side-names.js). */
+import { sideNamesFor } from "./side-names.js";
+export const sideNames = sideNamesFor("standard");

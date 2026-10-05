@@ -10,6 +10,7 @@
 
 import * as THREE from "three";
 import { BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE } from "../../engine/constants.js";
+import { sideNamesFor } from "../side-names.js";
 
 export function rng(seed) {
   let s = seed >>> 0 || 1;
@@ -261,8 +262,9 @@ const PAINTERS = {
     }
     g.font = `800 ${Math.round(pad * 0.42)}px 'JetBrains Mono', monospace`;
     g.fillStyle = "rgba(24,22,20,0.55)";
-    g.fillText("GOAL / LIGHT", pad, pad * 0.3);
-    g.textBaseline = "bottom"; g.fillText("GOAL / DARK", pad, H - pad * 0.26);
+    const names = sideNamesFor(spec.id);
+    g.fillText(`GOAL / ${names.light.toUpperCase()}`, pad, pad * 0.3);
+    g.textBaseline = "bottom"; g.fillText(`GOAL / ${names.dark.toUpperCase()}`, pad, H - pad * 0.26);
   },
 
   parchment(spec, b) {
@@ -571,6 +573,7 @@ function drawMark(spec, kind, { label, owner, type, square, isCabeza }, g, W, H)
   const dark = owner === "dark";
   const col = spec.colors;
   const ink = dark ? col.inkOnDark : col.inkOnLight;
+  const initial = sideNamesFor(spec.id)[dark ? "dark" : "light"][0].toUpperCase(); // the side's own initial (I / C, N / S)
   g.clearRect(0, 0, W, H);
   g.textAlign = "center"; g.textBaseline = "middle";
   if (kind === "shape") {
@@ -596,7 +599,7 @@ function drawMark(spec, kind, { label, owner, type, square, isCabeza }, g, W, H)
   } else if (kind === "code") {
     g.fillStyle = ink;
     g.font = `800 ${Math.round(m * 0.34)}px 'JetBrains Mono', 'Courier New', monospace`;
-    g.fillText(`${dark ? "D" : "L"}/${label}`, W / 2, H / 2 - m * 0.12);
+    g.fillText(`${initial}/${label}`, W / 2, H / 2 - m * 0.12);
     g.font = `700 ${Math.round(m * 0.2)}px 'JetBrains Mono', monospace`;
     g.fillText(square, W / 2, H / 2 + m * 0.24);
   } else if (kind === "glyph") {
@@ -608,7 +611,7 @@ function drawMark(spec, kind, { label, owner, type, square, isCabeza }, g, W, H)
     g.beginPath(); g.arc(m * 0.18, m * 0.18, m * 0.06, 0, Math.PI * 2); g.fill();
     g.fillStyle = dark ? "rgba(210,222,240,0.8)" : "rgba(15,29,51,0.8)";
     g.font = `500 ${Math.round(m * 0.17)}px 'Share Tech Mono', monospace`;
-    g.fillText(`${dark ? "D" : "L"}-${type.slice(0, 3).toUpperCase()}`, W / 2, H / 2);
+    g.fillText(`${initial}-${type.slice(0, 3).toUpperCase()}`, W / 2, H / 2);
     g.fillText(square, W / 2, H / 2 + m * 0.2);
   } else if (kind === "sticker") {
     g.save(); g.translate(W / 2, H / 2); g.rotate(dark ? -0.12 : 0.1);

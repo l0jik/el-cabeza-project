@@ -517,3 +517,7 @@ export const styleSheet = `
   .ec-realities .restart { border-color: ${GOLD(0.45)} !important; border-radius: 0 !important; font-family: 'Cinzel', Georgia, serif !important; }
   .ec-realities .restart:hover, .ec-realities .restart:focus-visible { background: ${GOLD(0.12)} !important; }
 `;
+
+/* What the two sides are called here (user; themes/side-names.js). */
+import { sideNamesFor } from "./side-names.js";
+export const sideNames = sideNamesFor("parrish");

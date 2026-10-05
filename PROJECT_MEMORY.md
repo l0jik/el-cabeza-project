@@ -6524,3 +6524,25 @@ phone menu until "Start the story over" (which clears it).
   fine): on phones a tap left the button "hovered" at 1.0, which is likely
   why it read bright. Verified at 412 px touch: in full screen 0.6/0.6,
   out 0.7/0.8, back in 0.6/0.6.
+- Side names per theme (user: "In De Stijl, all references to dark and
+  light need to be changed to red and blue. All other themes ... whatever
+  is most appropriate"; every pair picked with the user, one theme at a
+  time). themes/side-names.js holds them (SIDE_NAMES, sideNamesFor(id),
+  sideNamesOf(theme)); each theme module exports `sideNames` (lab factory:
+  sideNames from spec.id). Only the words people read changed: the engine,
+  AI, saves, data attributes and test ids still say dark/light.
+  Wood set (Den/Standard, Big Glutts, Orinoco, Watermark) Walnut / Ash;
+  Neon Photon / Plasma (user wanted technical names); Lluvia Mưa / Nắng
+  (rain / sun); Cromo Steel / Chrome. Lab: Swiss and Minimal Mono Black /
+  White, Bauhaus and De Stijl Red / Blue, Elementarism Graphite / Steel,
+  Brutalism Iron / Concrete, New Typography Ink / Paper, Corporate Swiss
+  Navy / Silver, Neo-Brutalism Pink / Yellow, Ultimate Fusion Charcoal /
+  Bone. Where it shows: chassis status ("X to move", "X (AI) thinking",
+  "X wins", the X WINS placard, AI Opponent: X, players line, move-log
+  headers and the copied log), the phone shell's side buttons, the Lab
+  HUD, Brutalism's "GOAL / X" stencil, the Lab's piece stamps (code and
+  serial marks use the side's initial: I/C, N/S), the Lab swatches, the
+  reality gate's "Computer plays X" and square picker, Big Glutts' order
+  form (demonstrator plays X, Far/Your side), Neon's Singularity "AI · X".
+  Tests updated to the page's names (standard Walnut/Ash, neon Photon/
+  Plasma; the Nova phone test reads the button's own label).

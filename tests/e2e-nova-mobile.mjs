@@ -223,13 +223,15 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "shell-opponent").locator('button[data-value="true"]').click();
   await q(page, "shell-ai-level").locator('button[data-value="easy"]').click();
   const human = await page.evaluate(() => document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]').dataset.value);
+  // The side's name as this theme says it (Walnut / Ash, Photon / Plasma...).
+  const humanName = await page.evaluate(() => document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]').textContent.trim());
   await q(page, "shell-begin").click();
   await page.waitForTimeout(2500);
   await page.evaluate((id) => window.__EC_TEST_MOVE__(id, id.startsWith("dark") ? "S" : "N"), `${human}-flaco`);
   await page.waitForTimeout(1800);
   await q(page, "shell-end-turn").click();
   check("the AI takes its turn", await waitFor(async () => (await page.evaluate(() => (window.__EC_TEST_TURNS__ || []).length)) >= 2, 30000));
-  check("then it's the human's turn again", await waitFor(async () => new RegExp(`${human} to move`, "i").test(await q(page, "shell-status").textContent()), 10000));
+  check("then it's the human's turn again", await waitFor(async () => new RegExp(`${humanName} to move`, "i").test(await q(page, "shell-status").textContent()), 10000));
   check("Undo turn takes back the pair", await visible(page, "shell-undo-turn"));
   await q(page, "shell-undo-turn").click();
   check("...back to the start", await waitFor(async () => (await page.evaluate(() => (window.__EC_TEST_TURNS__ || []).length)) === 0, 8000));

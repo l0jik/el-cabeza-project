@@ -22,6 +22,7 @@ import { createAmbient } from "./ambient.js";
 import { createLabAudio } from "./audio.js";
 import { styleSheetFor } from "./css.js";
 import { LabHud } from "./hud.js";
+import { sideNamesFor } from "../side-names.js";
 
 const rgba = (css, a) => {
   const c = new THREE.Color(css);
@@ -78,6 +79,7 @@ export function makeLabTheme(spec) {
     labId: spec.id,
     labSpec: spec,
     realityName: spec.name, // (the info panel's This game tab)
+    sideNames: sideNamesFor(spec.id), // what the two sides are called here
 
     COLORS, HEX,
     EDGE_RADIUS: scene.EDGE_RADIUS,

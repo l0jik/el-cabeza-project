@@ -42,6 +42,9 @@ import lostHandWireUrl from "../assets/neon/lost-hand-wire.webp";
 import lostHandSkinUrl from "../assets/neon/lost-hand-skin.webp";
 import { createUnease, createDrone } from "./neon-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
+import { sideNamesFor } from "./side-names.js";
+
+const SIDE = sideNamesFor("neon"); // Photon / Plasma
 
 // TOLLING is the lead-in the player triggers by clicking the revealed
 // SINGULARITY invite: the cathedral bell tolls and a black curtain fades
@@ -3140,8 +3143,8 @@ function renderOpponentAiPicker(setupExtras) {
       // (no boolean-attribute coercion the way it handles e.g. disabled),
       // so a bare boolean here gets silently dropped instead of stringified.
       h("button", { type: "button", "data-testid": "opponent-human", "aria-pressed": String(aiPlayer === null), disabled: locked, onClick: () => selectOpponent(null), style: pillStyle(aiPlayer === null) }, "Two humans"),
-      h("button", { type: "button", "data-testid": "opponent-ai-dark", "aria-pressed": String(aiPlayer === "dark"), disabled: locked, onClick: () => selectOpponent("dark"), style: pillStyle(aiPlayer === "dark") }, "AI · Dark"),
-      h("button", { type: "button", "data-testid": "opponent-ai-light", "aria-pressed": String(aiPlayer === "light"), disabled: locked, onClick: () => selectOpponent("light"), style: pillStyle(aiPlayer === "light") }, "AI · Light")
+      h("button", { type: "button", "data-testid": "opponent-ai-dark", "aria-pressed": String(aiPlayer === "dark"), disabled: locked, onClick: () => selectOpponent("dark"), style: pillStyle(aiPlayer === "dark") }, `AI · ${SIDE.dark}`),
+      h("button", { type: "button", "data-testid": "opponent-ai-light", "aria-pressed": String(aiPlayer === "light"), disabled: locked, onClick: () => selectOpponent("light"), style: pillStyle(aiPlayer === "light") }, `AI · ${SIDE.light}`)
     ),
     aiPlayer !== null &&
       h(

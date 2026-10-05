@@ -28,6 +28,7 @@ const FOCUS_EVENT = "el-cabeza:focus";
 import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
 import VolumeFader from "./VolumeFader.jsx";
 import { RealityGate, storyOver, GATE_EVENT } from "../themes/reality-gate.js";
+import { sideNamesOf } from "../themes/side-names.js";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
 // ABOUT's link returns to the original game. Inlined by the build.
@@ -316,6 +317,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   if (opponentPrefsRef.current === null) opponentPrefsRef.current = loadOpponentPrefs();
   const savedOpponent = opponentPrefsRef.current;
   const { COLORS, HEX, EDGE_RADIUS, modalBackdrop, modalSurface, canvasGradientStart, canvasGradientEnd } = theme;
+  // What this theme calls the two sides ("Red" / "Blue" in De Stijl,
+  // "Walnut" / "Ash" for the wooden set): every side the player reads.
+  const SIDE_NAMES = sideNamesOf(theme);
+  const sideName = (side) => SIDE_NAMES[side === "dark" ? "dark" : "light"];
   /* Display face for the masthead title and modal headers (Move Log,
      the intro panel, the end-of-game banner). Themes without their own
      opinion fall back to Standard's Fraunces — only Neon currently
@@ -6981,7 +6986,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   function handleCopyLog() {
     const rows = pairLog(log);
     const cell = (e) => `${e.notation}${e.mark ? " " + e.mark : ""}`;
-    const name = (side) => (side === "dark" ? "Dark" : "Light");
+    const name = sideName;
     // Whoever opened goes first on every line; a round the game ended in
     // the middle of just stops after the last move made.
     const lines = rows.map((row) => {
@@ -6991,7 +6996,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     });
     const summary =
       status === "finished" && winner
-        ? `Result: ${winner === "dark" ? "Dark" : "Light"} wins${winReason ? " \u2014 " + winReason : ""}`
+        ? `Result: ${sideName(winner)} wins${winReason ? " \u2014 " + winReason : ""}`
         : status === "ended"
         ? "Game ended manually, no winner"
         : "";
@@ -7092,18 +7097,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
 
   const statusText = status === "finished"
-    ? `${winner === "dark" ? "Dark" : "Light"} wins \u00b7 ${winReason}`
+    ? `${sideName(winner)} wins \u00b7 ${winReason}`
     : status === "ended"
     ? "Game ended"
     : aiThinking
-    ? `${currentPlayer === "dark" ? "Dark" : "Light"} (AI) thinking\u2026`
+    ? `${sideName(currentPlayer)} (AI) thinking\u2026`
     : activePiece && activePiece.owner === currentPlayer
     ? `${PIECE_META[activePiece.type].name} \u00b7 ${stepsRemaining} ${
         activePiece.type === "cabeza" ? "step" : "roll"
       }${stepsRemaining === 1 ? "" : "s"} left`
-    : currentPlayer === "dark"
-    ? "Dark to move"
-    : "Light to move";
+    : `${sideName(currentPlayer)} to move`;
 
   // One consistent property set across all three dockView values (no
   // switching between left/right or adding/removing properties) is
@@ -8088,7 +8091,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                   whiteSpace: "nowrap",
                 }}
               >
-                AI Opponent: {aiJustSelected === "dark" ? "Dark" : "Light"}
+                AI Opponent: {sideName(aiJustSelected)}
               </span>
             </div>
           )}
@@ -8649,7 +8652,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             }}
           >
             {["dark", "light"]
-              .map((side) => `${side === "dark" ? "Dark" : "Light"}: ${
+              .map((side) => `${sideName(side)}: ${
                 aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : "Human"
               }`)
               .join("  \u2502  ") /* a full-height pipe between the two sides */}
@@ -9052,7 +9055,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             onToggleFocus: focusable ? toggleFocus : null,
             // Menu
             playersLine: ["dark", "light"]
-              .map((side) => `${side === "dark" ? "Dark" : "Light"}: ${aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : "Human"}`)
+              .map((side) => `${sideName(side)}: ${aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : "Human"}`)
               .join("  \u00b7  "),
             onOpenRules: (tab, focus) => openRulesAt(tab, focus || null),
             rulesTabsHidden: hiddenRulesTabs,
@@ -9227,7 +9230,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                       aria-hidden="true"
                       style={{ width: 8, height: 8, borderRadius: "50%", background: sideFill(side).background, border: `1px solid ${COLORS.charcoal}` }}
                     />
-                    {side === "dark" ? "Dark" : "Light"}
+                    {sideName(side)}
                   </span>
                 ))}
               </div>
@@ -9586,7 +9589,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               color: COLORS.charcoal,
             }}
           >
-            {winner === "dark" ? "DARK WINS" : "LIGHT WINS"}
+            {`${sideName(winner)} wins`.toUpperCase()}
           </h2>
 
           <p

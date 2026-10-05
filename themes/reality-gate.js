@@ -35,6 +35,7 @@ import {
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
 } from "./rules-selections.js";
 import { WORLDS, createRealitiesMenu, goToWorld, REALITIES_VISIT_KEY } from "./realities.js";
+import { sideNamesFor } from "./side-names.js";
 
 const h = React.createElement;
 
@@ -253,7 +254,7 @@ const segBtn = (key, on, text, onClick, testid, disabled = false) => h("button",
 /* Marking the board by hand (as Tienda's order form and Neon's sphere):
    squares cut out (X) or the black holes' place (O); each mark's 180°
    partner is filled in. Drawn from Dark's side, as the board faces. */
-function SpotPicker({ sel, kind, onDone, onCancel }) {
+function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) }) {
   const [draft, setDraft] = React.useState(() => cloneSelections(sel));
   const [note, setNote] = React.useState("");
   const { rows, cols } = draft;
@@ -332,9 +333,9 @@ function SpotPicker({ sel, kind, onDone, onCancel }) {
       h("p", null, isHole
         ? "Tap a square for one black hole; its partner, turned half round, is marked for you. Not in either side's two back rows."
         : `Tap up to ${count} ${count === 1 ? "square" : "squares"}; each one's partner, turned half round, is marked for you. Dashed marks were picked at random: tap one to keep it. Dots show where the pieces start.`),
-      h("div", { className: "rg-side" }, "Far side · Light"),
+      h("div", { className: "rg-side" }, `Far side · ${names.light}`),
       h("div", { className: "rg-grid", role: "grid", "aria-label": `${boardLabel(draft)} board`, style: { gridTemplateColumns: `repeat(${cols}, ${cell}px)` } }, cells),
-      h("div", { className: "rg-side" }, "Near side · Dark"),
+      h("div", { className: "rg-side" }, `Near side · ${names.dark}`),
       h("div", { className: "rg-pick-note", role: "status" }, note),
       h("div", { className: "rg-pick-btns" },
         h("button", { type: "button", className: "rg-small", "data-testid": "gate-picker-random", onClick: () => setDraft(randomizeSpots(cloneSelections(draft), kind)) }, "Random"),
@@ -433,6 +434,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const showPivots = usePivotGuide(warnings.some((w) => w.key === "cantileverPivot"), { warnSel: '[data-testid="gate-law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="gate-piece-${k}"]` });
   const { aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking } = api || {};
   const locked = !!(busy || aiThinking);
+  const names = sideNamesFor(world); // what this world calls its two sides
   const resize = (rows, cols) => change((n) => { n.rows = clampDim(rows); n.cols = clampDim(cols); refreshSpots(n); });
   const canPlay = !tooMany && fits && total > 0 && sel.counts.cabeza > 0;
 
@@ -440,8 +442,8 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
     h("h3", null, "Who's playing"),
     h(Seg, { label: "Opponent", className: "rg-opp" },
       segBtn("h", aiPlayer == null, "Two humans", () => !locked && selectOpponent(null), "gate-opponent-human", locked),
-      segBtn("d", aiPlayer === "dark", "Computer plays Dark", () => !locked && selectOpponent("dark"), "gate-opponent-dark", locked),
-      segBtn("l", aiPlayer === "light", "Computer plays Light", () => !locked && selectOpponent("light"), "gate-opponent-light", locked)),
+      segBtn("d", aiPlayer === "dark", `Computer plays ${names.dark}`, () => !locked && selectOpponent("dark"), "gate-opponent-dark", locked),
+      segBtn("l", aiPlayer === "light", `Computer plays ${names.light}`, () => !locked && selectOpponent("light"), "gate-opponent-light", locked)),
     aiPlayer != null && h("div", { className: "rg-row" },
       h("span", { className: "rg-name" }, "How well it plays"),
       h(Seg, { label: "How well the computer plays" }, Object.entries(AI_DIFFICULTY).map(([k, cfg]) => segBtn(k, aiDifficulty === k, cfg.label, () => setAiDifficulty(k), `gate-skill-${k}`, locked))))) : null;
@@ -504,7 +506,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
       h("div", { className: "rg-foot" },
         h("button", { type: "button", className: "rg-btn plain", "data-testid": "gate-reset", onClick: () => setSel(defaultSelections()) }, "Reset"),
         h("button", { type: "button", className: "rg-btn go", "data-testid": "gate-play", disabled: !canPlay, onClick: () => { keep(sel); onPlay(sel); } }, "Play"))),
-    picker && h(SpotPicker, { sel, kind: picker, onCancel: () => setPicker(null), onDone: (d) => { setSel(d); setPicker(null); } }));
+    picker && h(SpotPicker, { sel, kind: picker, names, onCancel: () => setPicker(null), onDone: (d) => { setSel(d); setPicker(null); } }));
 }
 
 /* ------------------------------------------------------------ the gate */

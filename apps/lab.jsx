@@ -21,6 +21,7 @@ import ElCabeza3D from "../chassis/ElCabeza3D.jsx";
 import { applyBootstrapBoardSize, applyBootstrapLaws } from "./boardBootstrap.js";
 import { LAB_SPECS } from "../themes/lab/specs.js";
 import { makeLabTheme } from "../themes/lab/factory.js";
+import { sideNamesFor } from "../themes/side-names.js";
 import { realitiesCorner } from "../themes/reality-gate.js";
 import { playLabVoice, setLabMuted, setLabVolume, labAudioState, onLabAudio, startLabAudio } from "../themes/lab/audio.js";
 
@@ -246,7 +247,7 @@ function LabApp() {
   const curSpec = curtain ? byId[curtain.id].labSpec : null;
   const pal = useMemo(() => [
     ["bg", spec.colors.bgPrimary], ["surface", spec.colors.surface], ["ink", spec.colors.textPrimary],
-    ["accent", spec.colors.accentPrimary], ["accent 2", spec.colors.accentSecondary], ["dark", spec.colors.pieceDark], ["light", spec.colors.pieceLight],
+    ["accent", spec.colors.accentPrimary], ["accent 2", spec.colors.accentSecondary], [sideNamesFor(spec.id).dark.toLowerCase(), spec.colors.pieceDark], [sideNamesFor(spec.id).light.toLowerCase(), spec.colors.pieceLight],
   ], [spec]);
 
   return (

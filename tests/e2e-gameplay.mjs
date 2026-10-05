@@ -6,6 +6,8 @@ import { openDockPanel, waitForDockCorner, reopenDockPanelFromCorner } from "./d
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const target = process.argv[2];
 const file = path.join(__dirname, "..", "dist", `el-cabeza-${target}.html`);
+// What the page calls its two sides (themes/side-names.js).
+const NAMES = { standard: { dark: "Walnut", light: "Ash" }, neon: { dark: "Photon", light: "Plasma" } }[target] || { dark: "Dark", light: "Light" };
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
@@ -40,8 +42,8 @@ await turnPill.click();
 await page.waitForTimeout(250);
 const pillBack = await pillState();
 const toggleOk =
-  /dark to move/i.test(pillBefore.text) &&
-  /light to move/i.test(pillToggled.text) &&
+  new RegExp(`${NAMES.dark} to move`, "i").test(pillBefore.text) &&
+  new RegExp(`${NAMES.light} to move`, "i").test(pillToggled.text) &&
   pillToggled.dot !== pillBefore.dot &&
   pillBack.text === pillBefore.text &&
   pillBack.dot === pillBefore.dot;
@@ -121,7 +123,7 @@ if (selected) {
     // the ghost) leaves that exact text on screen unchanged, which used
     // to read as a false "move completed" the instant the loop hit a
     // miss before ever reaching a candidate that really lands.
-    if (s === "Light to move" || /finished/i.test(s || "")) {
+    if (s === `${NAMES.light} to move` || /finished/i.test(s || "")) {
       console.log(`[${target}] move completed via (${fx},${fy}), status now:`, s);
       moved = true;
       break;
