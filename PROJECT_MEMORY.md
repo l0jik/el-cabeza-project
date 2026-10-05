@@ -6214,3 +6214,9 @@ phone menu until "Start the story over" (which clears it).
   12.885a, D#3 2.855b; thumps 10.705a, 35.625a, 33.45a, 18.875b; ticks
   15.32a, 35.085a, 9.445b, 8.785b; stabs F2 3.08b, 25.445b; long hit
   5.095a (s into instrumental-stab-1 = a / instrumental-stab = b).
+- Parrish sounds, selection 3 (20 more cuts, none repeating sets 1-2,
+  one per whole second; scratchpad stabs/set3.py, list in set3.json):
+  notes C4 24.55a, C4 24.90a, C4 1.48a, D5 4.11a, D4 1.30b, C4 1.97b;
+  thumps 14.99a, 13.34a, 26.53a, 38.27a, 36.08a; ticks 36.41a, 13.98a,
+  34.12a, 46.96a; stabs 25.89b, 22.39b, 6.58b, 24.12b, 23.66b (long).
+  Waiting on the user's picks across the three selections.
