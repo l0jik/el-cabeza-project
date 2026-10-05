@@ -6413,3 +6413,18 @@ phone menu until "Start the story over" (which clears it).
   b4a6a49 (holdLeaving, the leaving line and its Parrish CSS removed);
   the button strokes from that commit stay. The decay still rings on
   under the switcher while it's open (as asked originally).
+- Parrish small-piece sound variety (user: "more sound variety for when
+  the Turrito or Cabeza pieces move ... harvest some more sounds with all
+  the same treatments"). Both are one cube, so every pick-up, put-down and
+  landing fell on the top two notes (s5n7 80%). Set 6: twelve more bright
+  single stabs (B4-D#6), none used before, from a finer onset scan of both
+  source files (onset delta 0.02; kept: percussive energy < 6%, no low
+  thump, no second stab inside the cut; at most two per pitch); cut as
+  hits (120 ms), HPSS-cleaned like the rest (CLEAN), appended to
+  piece-stabs.mp3 (the old 14.5 s decode byte-identical; new slices
+  14.63-18.82 s). parrish-audio.js: noteFor(size < 1.15) -> smallNote(),
+  a pool of 16 (the four highest old notes + set 6), never one of the last
+  four. Checked in the browser: 40 picks, all 16 used, no repeats within
+  four. Test hook: window.__EC_TEST_STABS__ (array) logs each stab name.
+  Audition: scratchpad stabs/selection-6-small-pieces.mp3 (numbered as
+  s6n1-12). Larger pieces unchanged (the Flaco still mostly s1n3).

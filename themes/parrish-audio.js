@@ -8,7 +8,8 @@
 
    The pieces: the user's own recordings of instrumental stabs, cut into
    very small pieces, of which the user picked seventeen lone notes, ten
-   short phrases of two or three stabs, and two longer hits
+   short phrases of two or three stabs, and two longer hits (and twelve
+   more bright notes for the smallest pieces, harvested the same way)
    (tools/parrish_stabs.py, one file beside the page,
    el-cabeza-parrish-stabs.mp3, fetched once). The notes, sorted by pitch,
    are the pieces' voice, and the deeper the note the bigger the piece
@@ -81,6 +82,8 @@ const STABS = {
   s5n6: [6.96, 0.2], s5n7: [7.41, 0.2],
   s5p9: [7.86, 0.44], s5p10: [8.55, 0.43], s5p11: [9.23, 0.51], s5p12: [9.99, 0.41], s5p13: [10.65, 0.72],
   s5p21: [11.62, 0.89], s5p22: [12.76, 0.74], s5p23: [13.75, 0.63],
+  s6n1: [14.63, 0.12], s6n2: [15.0, 0.12], s6n3: [15.37, 0.12], s6n4: [15.74, 0.12], s6n5: [16.11, 0.12], s6n6: [16.48, 0.12],
+  s6n7: [16.85, 0.12], s6n8: [17.22, 0.12], s6n9: [17.59, 0.12], s6n10: [17.96, 0.12], s6n11: [18.33, 0.12], s6n12: [18.7, 0.12],
 };
 // The seventeen notes, highest to lowest (as measured): A#5, D5 D5 D5
 // C#5 C5, A4, E4 D#4 D4, C4 C4 C4, B3 B3, F3, D#3.
@@ -91,7 +94,21 @@ const PAIRS = [[6, "s5p9"], [8, "s5p13"], [10, "s5p12"]];
 // Where a size falls among them: a single cube at the top, about twelve
 // cubes' worth (a big piece on a broad face) at the bottom; then one of
 // its neighbours now and then, so a piece doesn't always say the same.
+// The smallest pieces (a single cube: the Turrito, the Cabeza) are picked
+// up, put down and landed the most, and all fell on the top two notes;
+// they draw from sixteen bright ones (user: "more sound variety"): the
+// four highest above and the twelve of the sixth harvest (B4 to D#6,
+// tools/parrish_stabs.py set 6), never one of the last four again.
+const SMALL = ["s5n7", "s1n4", "s3n4", "s1n1", "s6n1", "s6n2", "s6n3", "s6n4", "s6n5", "s6n6", "s6n7", "s6n8", "s6n9", "s6n10", "s6n11", "s6n12"];
+const recentSmall = [];
+function smallNote() {
+  const free = SMALL.filter((n) => !recentSmall.includes(n));
+  const n = free[Math.floor(Math.random() * free.length)];
+  recentSmall.push(n); if (recentSmall.length > 4) recentSmall.shift();
+  return n;
+}
 function noteFor(size) {
+  if (size < 1.15) return smallNote();
   const t = Math.max(0, Math.min(1, Math.log(Math.max(1, size)) / Math.log(12)));
   const i = Math.round(t * (NOTES.length - 1)), r = Math.random();
   const j = r < 0.2 ? i - 1 : r > 0.8 ? i + 1 : i;
@@ -351,6 +368,7 @@ export function createAudio() {
   // of its top is taken off, and (dur) only its first instants, faded out
   // over their last 15 ms. Into the room dry and, more, into the hall.
   function stab(name, t, { rate = 1, level = 0.2, pan = 0, tone = 0, dur = 0, wet = 1 } = {}) {
+    if (typeof window !== "undefined" && Array.isArray(window.__EC_TEST_STABS__)) window.__EC_TEST_STABS__.push(name);
     const [off, full] = stabs.at[name];
     const len = dur > 0 ? Math.min(full, dur) : full;
     const s = ctx.createBufferSource(); s.buffer = stabs.buf; s.playbackRate.value = rate;

@@ -30,6 +30,13 @@ stab's onset, faded out over their last 30%):
   set 5 #21-23    three stabs each: Begin Game (#21), a game ended by hand
                   (#22), a capture (#23, the deepest, with the bass)
 
+And a sixth harvest (user: "more sound variety for when the Turrito or
+Cabeza pieces move", "with all the same treatments"): twelve more bright
+single stabs, B4 to D#6, none of them used before, found by a finer onset
+scan of both files (onset delta 0.02) and kept only if clean (percussive
+energy under 6%, no low thump, no second stab inside the cut), at most two
+per pitch: set 6 #1-12. Cut as hits, cleaned like the rest.
+
 No audible percussion (user: "there should be no audible percussion
 used", of the capture win, set 3 #20, which had a snare under it): every
 longer cut is cleaned. Its sound is split into the sustained (harmonic)
@@ -102,6 +109,20 @@ PIECES = [
     ("s5p21", "b", 0.63, 890, "phrase"),    # three, ~D4/A#4, mellow
     ("s5p22", "b", 35.94, 740, "phrase"),   # three, ~G2, mellow
     ("s5p23", "b", 3.72, 630, "phrase"),    # three, ~D#2, with the bass
+    # set 6: more bright single stabs for the smallest pieces (the Turrito
+    # and the Cabeza), found by a finer onset scan of both files
+    ("s6n1", "a", 24.225, 120),    # D#6
+    ("s6n2", "b", 8.785, 120),    # C6
+    ("s6n3", "a", 24.900, 120),    # C6
+    ("s6n4", "b", 22.160, 120),    # A5
+    ("s6n5", "a", 3.120, 120),    # D#5
+    ("s6n6", "a", 2.455, 120),    # D#5
+    ("s6n7", "a", 34.120, 120),    # D5
+    ("s6n8", "a", 4.440, 120),    # D5
+    ("s6n9", "a", 38.075, 120),    # C5
+    ("s6n10", "a", 8.415, 120),   # C5
+    ("s6n11", "a", 18.145, 120),   # B4
+    ("s6n12", "a", 18.485, 120),   # B4
 ]
 
 
@@ -124,7 +145,8 @@ def attack(y, t):
 
 
 # The cuts whose sound is cleaned of percussion (see the docstring).
-CLEAN = {"winEdge", "winCapture", "s3n5", "s3n6", "s5n7", "s5p10", "s5p11", "s5p12", "s5p13", "s5p21", "s5p22", "s5p23"}
+CLEAN = {"winEdge", "winCapture", "s3n5", "s3n6", "s5n7", "s5p10", "s5p11", "s5p12", "s5p13", "s5p21", "s5p22", "s5p23",
+         *(f"s6n{i}" for i in range(1, 13))}
 
 
 def unstruck(g, keep_attack=True):
