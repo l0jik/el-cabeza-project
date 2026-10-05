@@ -6546,3 +6546,10 @@ phone menu until "Start the story over" (which clears it).
   form (demonstrator plays X, Far/Your side), Neon's Singularity "AI · X".
   Tests updated to the page's names (standard Walnut/Ash, neon Photon/
   Plasma; the Nova phone test reads the button's own label).
+- Parrish "Exit full screen" (in full screen): icon only, like the Other
+  realities planet above it (user: the 60% ivory disc was "still way too
+  bright"; chose icon only, both looks). No disc or shadow, MENU.ink,
+  opacity 0.5 / 0.25 in focus mode (the planet's 0.5 / 0.25), stroke 1.8
+  at 19 px. Out of full screen the Enter button keeps its ivory disc at
+  0.7. Checked at 412 px touch, both looks: in 0.5 transparent, out 0.7
+  disc, back in 0.5; the corner piece 0.6 in full screen unchanged.

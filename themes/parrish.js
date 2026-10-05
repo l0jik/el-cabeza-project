@@ -334,13 +334,19 @@ export const styleSheet = `
      the corner, quieter in focus mode. */
   button[aria-label$="full screen"][style*="visibility: visible"] { opacity: 0.7 !important; background: rgba(250, 243, 228, 0.97) !important; box-shadow: 0 0 0 1px rgba(29, 44, 94, 0.35), 0 2px 8px rgba(8, 14, 38, 0.45) !important; }
   button[aria-label$="full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.5 !important; }
-  /* In full screen, playing, both corners step back to 60% (user: "40%
-     transparent or 60% opaque ... harder to see"): this button, and the
-     dock's piece in the other corner (its 0.8 out of full screen,
-     dockCornerOpacity). Full on hover only with a mouse: on a phone a tap
-     leaves the button "hovered", which kept it at full strength. */
-  button[aria-label="Exit full screen"][style*="visibility: visible"] { opacity: 0.6 !important; }
-  button[aria-label="Exit full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.4 !important; }
+  /* In full screen the button is just its arrows, like the Other
+     realities planet above it: no ivory disc, the planet's ink, the
+     planet's strength (0.5, 0.25 in focus mode). User: the disc at 60%
+     was "still way too bright" on the painting; chose icon only. The
+     dock's piece in the other corner steps back to 60% in full screen
+     (its 0.8 out of it, dockCornerOpacity; user: "40% transparent or 60%
+     opaque"). Full on hover only with a mouse: on a phone a tap leaves
+     the button "hovered", which kept it at full strength. */
+  button[aria-label="Exit full screen"][style*="visibility: visible"] {
+    opacity: 0.5 !important; background: transparent !important; box-shadow: none !important; color: ${MENU.ink} !important;
+  }
+  button[aria-label="Exit full screen"][style*="visibility: visible"][data-dim="true"] { opacity: 0.25 !important; }
+  button[aria-label="Exit full screen"][style] svg { stroke-width: 1.8; width: 19px; height: 19px; }
   @media (hover: hover) and (pointer: fine) {
     button[aria-label$="full screen"][style*="visibility: visible"]:hover { opacity: 1 !important; }
   }
