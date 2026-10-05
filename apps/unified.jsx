@@ -283,9 +283,12 @@ function UnifiedApp() {
   const rafRef = useRef(null);
   const sfxRef = useRef(null);
   if (!sfxRef.current) sfxRef.current = createSwitcherSfx();
-  // (The register tape's recordings, fetched ahead while the game's still
-  // on the shelf, so they're there when it's bought.)
-  useEffect(() => { if (!readOwned()) sfxRef.current.prefetchReceipt(); }, []);
+  // (The register tape's recordings, fetched ahead so they're there when
+  // the game's bought: always, not only while it's still on the shelf at
+  // the page's opening, or a "Start the story over" from an owned game
+  // rang the register before they'd arrived and the made sounds played.
+  // ~50 KB.)
+  useEffect(() => { sfxRef.current.prefetchReceipt(); }, []);
 
   const holdState = useRef({
     phase: "idle", // idle | holding | releasing | settling

@@ -6668,3 +6668,9 @@ phone menu until "Start the story over" (which clears it).
   Dropped on dispose. e2e-story: glow after the card, a stray tap held
   and throbbing (dock unchanged), the bulb -> focus on and a game under
   way (__EC_TEST_ARMED__), the glow gone.
+- Receipt sounds (user: "did we lose the receipt printing sound?"): not
+  lost; assets/story/receipt-print.mp3 and receipt-tear.mp3 still ship and
+  play at the purchase. But unified.jsx only prefetched them when the
+  page opened with the game NOT owned, so a "Start the story over" from
+  an owned game fetched them only when the register rang, too late for
+  the print, and the made stand-ins played. Now always prefetched (~50 KB).
