@@ -67,6 +67,7 @@ export const OUTRO_URL = "el-cabeza-parrish-outro.mp3";
 // Watermark's soundtrack: the user's "Cathedral Hums", looped (made to
 // loop by tools/parrish_hums.py), on a channel of its own.
 export const HUMS_URL = lookName() === "watermark" ? "el-cabeza-parrish-hums.mp3" : null;
+const NO_GULLS = lookName() === "watermark";
 // Its slider starts here (user: "very low on the overall audio mix so as
 // to not be distracting"; theirs to bring up): the channel's level times
 // HUMS_GAIN, about 26 dB under the music at first.
@@ -347,7 +348,9 @@ export function createAudio() {
   ];
   function bird() {
     const t = now();
-    const kind = Math.random() < 0.5 ? 2 : Math.random() < 0.6 ? 0 : 1;
+    // (No gulls in Watermark, user: its birds are the land's, a songbird
+    // or swallows; Orinoco keeps them, over the sea.)
+    const kind = !NO_GULLS && Math.random() < 0.5 ? 2 : Math.random() < 0.6 ? 0 : 1;
     const out = ctx.createGain(); out.gain.value = 1;
     place(out, Math.random() * 1.8 - 0.9, kind === 2 ? 0.45 + Math.random() * 0.3 : Math.random() * 0.7);
     SONGS[kind](t, out);

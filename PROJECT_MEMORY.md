@@ -6488,3 +6488,8 @@ phone menu until "Start the story over" (which clears it).
   reality-gate.js lookOf maps any "parrish*" world to LOOKS.parrish. The
   den TV's channels (same WORLDS) now include them too. e2e-ending's count
   15 -> 17; e2e-gate passes.
+- No seagulls in Watermark (user). They were only ever in the sound (the
+  terrace's birds, parrish-audio.js bird(): ~half the calls were a far-off
+  gull). NO_GULLS (look watermark): every bird call there is a songbird or
+  swallows instead, same cadence. Orinoco keeps its gulls. Nothing visual:
+  the scene has no birds drawn.
