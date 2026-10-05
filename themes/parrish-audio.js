@@ -114,6 +114,10 @@ const PHRASES = {
   deep: ["s7p9", "s7p10", "s7p11", "s7p12"],
 };
 const PHRASE_CHANCE = 0.35;
+// The pieces' own moves (picked up, put down, landing) a little deeper in
+// the hall than the game's other stabs (user: "a little tiny bit more
+// reverb ... the piece move sounds"): a quarter more send, about 2 dB.
+const MOVE_WET = 1.25;
 const recent = [];
 // One of these, not one of the last four heard.
 function fresh(list) {
@@ -401,8 +405,8 @@ export function createAudio() {
   }
   const sfx = {
     // Picked up and put down at the piece's own pitch (its cubes).
-    select(units) { stab(noteFor(units || 1), now(), { level: 0.17 }); },
-    deselect(units) { stab(noteFor(units || 1), now(), { level: 0.12, rate: 0.94, tone: 2400 }); },
+    select(units) { stab(noteFor(units || 1), now(), { level: 0.17, wet: MOVE_WET }); },
+    deselect(units) { stab(noteFor(units || 1), now(), { level: 0.12, rate: 0.94, tone: 2400, wet: MOVE_WET }); },
     blocked() { const t = now(); stab("s2n5", t, { level: 0.15, tone: 1200 }); stab("s1n5", t + 0.11, { level: 0.11, tone: 1000 }); },
     // On its way: nothing (user: the run of note-heads as it moved
     // stuttered); it's heard when it lands.
@@ -413,8 +417,8 @@ export function createAudio() {
       const m = Math.max(1, units || 1), size = landingSize(units, contact);
       if (typeof window !== "undefined" && Array.isArray(window.__EC_TEST_LANDINGS__)) window.__EC_TEST_LANDINGS__.push({ units, contact, size });
       const pair = PAIRS.filter(([at]) => size >= at).pop();
-      if (pair && Math.random() < 0.5) { stab(pair[1], now(), { level: 0.15 + 0.03 * Math.log2(m) }); return; }
-      stab(noteFor(size), now(), { level: 0.17 + 0.03 * Math.log2(m) });
+      if (pair && Math.random() < 0.5) { stab(pair[1], now(), { level: 0.15 + 0.03 * Math.log2(m), wet: MOVE_WET }); return; }
+      stab(noteFor(size), now(), { level: 0.17 + 0.03 * Math.log2(m), wet: MOVE_WET });
     },
     // A capture: three stabs, the deepest of the phrases, with the bass in
     // them. Held back a moment: if the game is won by it, the win's own

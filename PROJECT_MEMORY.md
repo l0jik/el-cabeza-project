@@ -6453,3 +6453,7 @@ phone menu until "Start the story over" (which clears it).
   120x106 at right 130 / bottom 8, no theme override); measured Parrish
   vs Cromo, Neon, Tienda, desktop and phone: same place. Asked the user
   before changing anything.
+- Parrish piece moves a touch more reverb (user: "a little tiny bit more
+  reverb ... the piece move sounds"): select/deselect/landing stabs send
+  wet MOVE_WET 1.25 to the hall (about +2 dB of hall) instead of 1; the
+  win, capture, Begin Game and rules stabs keep 1.
