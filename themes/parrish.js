@@ -33,7 +33,7 @@ import * as THREE from "three";
 import { quality } from "./tienda-quality.js";
 import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
 import { parrishEnv, createParrishEffects } from "./parrish-scene.js";
-import { MUSIC_URL, INTRO_URL, HUMS_URL, HUMS_LEVEL } from "./parrish-audio.js";
+import { MUSIC_URL, INTRO_URL, HUMS_URL, HUMS_LEVEL, EVENING_URL } from "./parrish-audio.js";
 import { look, lookName } from "./parrish-looks.js";
 // The user's "el cabeza" lettering, its outline traced exactly from their
 // artwork (a mask: never redrawn), and the paint that fills it, one for
@@ -232,8 +232,12 @@ export { createAudio, hasAudio } from "./parrish-audio.js";
 // own (chassis: theme.soundChannels). Music: the intro (the opening of
 // "Orinoco Flow") and the user's recording once it's in (parrish-audio.js).
 export const soundChannels = [
-  { key: "nature", label: "The terrace", hint: "The breeze, the birds, the pool" },
-  ...(MUSIC_URL || INTRO_URL ? [{ key: "music", label: "Music", hint: MUSIC_URL ? "The recording" : "The opening" }] : []),
+  // (Watermark: "The evening", the wind in the trees, and the opening and
+  // the close with it: no Music slider there. User.)
+  EVENING_URL
+    ? { key: "nature", label: "The evening", hint: "The wind in the trees, the opening and the close" }
+    : { key: "nature", label: "The terrace", hint: "The breeze, the birds, the pool" },
+  ...(!EVENING_URL && (MUSIC_URL || INTRO_URL) ? [{ key: "music", label: "Music", hint: MUSIC_URL ? "The recording" : "The opening" }] : []),
   { key: "pieces", label: "Pieces", hint: "The wood on the board" },
   // Watermark's soundtrack, its slider starting low (parrish-audio.js).
   ...(HUMS_URL ? [{ key: "hums", label: "Soundtrack", hint: "Cathedral Hums", level: HUMS_LEVEL }] : []),

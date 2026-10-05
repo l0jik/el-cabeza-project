@@ -6595,3 +6595,29 @@ phone menu until "Start the story over" (which clears it).
 - Brutalism turn box label: "[TURN] TURN" -> "[TURN]" (user). css.js
   brutalist: the ::before was "[TURN] " in front of the HUD's own "Turn";
   now ::before "[" and ::after "]" around it.
+- Watermark's evening (user: Orinoco's ambient sounds "do not go with the
+  evening"; ideas talked through first; user chose wind gently rustling
+  branches, no creatures, real recordings, then sent
+  freesound_community "forest wind and birds" 6881, 3:16, 24 kHz stereo,
+  very quiet at -53 dBFS, and asked for its mid/high hiss turned down).
+  tools/parrish_evening.py: a soft spectral gate above 1.2 kHz (each
+  bin's 35th-percentile floor turned down by up to 12 dB toward 6 kHz,
+  anything ~10 dB over it passes: the birds, the gusts), EQ (+1.5 dB @220
+  shelf, -2.5 dB @2.2k, -5 dB shelf 3.5k, lp 7k, hp 45), 2:1 compressor,
+  -22 dBFS RMS, 4 s equal-power loop crossfade, 0.25 s wrap pads, stereo,
+  96 kb/s -> assets/parrish/evening.mp3 (2.3 MB) -> dist
+  el-cabeza-parrish-evening.mp3. Steady level vs source, same loudness:
+  1.5-3k -3 dB, 3-6k -8 dB, 6-12k -12 dB; birds' peaks 3-5 dB less cut.
+  parrish-audio.js: EVENING_URL (Watermark only); startNature plays it
+  (loop 0.25..192.35 s, random start, 1.5 s rise) into natureBus instead
+  of the made sea, breeze, leaves and birds; if it can't be fetched
+  (file://) a made breeze and leaves only. EVENING_GAIN 0.19: measured
+  place-only at the speakers about -38 dBFS (0.75 gave -26; Orinoco's made
+  terrace measures about -44). MUSIC_CH = "nature" in Watermark: the
+  intro and the close (and a future MUSIC_URL) go through the evening's
+  slider, and the switcher's wait checks that slider. parrish.js
+  soundChannels in Watermark: "The evening" (hint: the wind in the trees,
+  the opening and the close), Pieces, Soundtrack; no Music. Orinoco
+  unchanged (The terrace, Music, Pieces). Checked headless: menus as
+  above, evening playing, close swells in, switcher 14.2 s, no errors.
+  Not done: the rare blackbird (the recording has its own far birds).

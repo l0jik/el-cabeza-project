@@ -76,6 +76,16 @@ const OUTRO_FADE_S = 3;
 // loop by tools/parrish_hums.py), on a channel of its own.
 export const HUMS_URL = lookName() === "watermark" ? "el-cabeza-parrish-hums.mp3" : null;
 const NO_GULLS = lookName() === "watermark";
+// Watermark's evening (user): a recording of wind in the trees, with its
+// own far birds (freesound_community "forest wind and birds", its hiss
+// taken down and looped: tools/parrish_evening.py), in place of the
+// terrace's made sea, breeze, leaves and birds. Its slider, "The
+// evening", also carries the opening and the close (no Music slider in
+// Watermark). EVENING_LOOP: the loop inside the file (0.25 s of its own
+// wrap either side). EVENING_GAIN: its place in the mix.
+export const EVENING_URL = lookName() === "watermark" ? "el-cabeza-parrish-evening.mp3" : null;
+const EVENING_LOOP = [0.25, 0.25 + 192.1];
+const EVENING_GAIN = 0.19; // (measured, place only: about -38 dBFS at the speakers; Orinoco's made terrace about -44)
 // Its slider starts here (user: "very low on the overall audio mix so as
 // to not be distracting"; theirs to bring up): the channel's level times
 // HUMS_GAIN, about 26 dB under the music at first.
@@ -166,6 +176,9 @@ function makeHall(ctx) {
 export function createAudio() {
   let ctx = null, master = null, vol = null, wood = null, noiseBuf = null, verb = null;
   const gates = {}, chLevel = { nature: 1, pieces: 1, music: 1, hums: HUMS_LEVEL };
+  // (Watermark: the opening and the close are on the evening's slider.)
+  const MUSIC_CH = EVENING_URL ? "nature" : "music";
+  let evening = null;
   let muted = false, natureOn = false, disposed = false, windingDown = false;
   let natureBus = null, gust = null;
   const timers = new Set();
@@ -370,10 +383,32 @@ export function createAudio() {
     later(2600 + Math.random() * 7000, bird);
   }
 
+  /* ---- Watermark's evening: the wind in the trees, recorded ---- */
+  function startEvening() {
+    if (evening) return;
+    evening = { stopped: false };
+    const ev = evening;
+    fetch(EVENING_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+      if (ev.stopped || disposed) return;
+      const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
+      s.loopStart = EVENING_LOOP[0]; s.loopEnd = Math.min(EVENING_LOOP[1], buf.duration);
+      // Somewhere in it, not always the same opening seconds; a slow rise.
+      const at = s.loopStart + Math.random() * (s.loopEnd - s.loopStart - 10);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now()); g.gain.setTargetAtTime(EVENING_GAIN, now(), 1.5);
+      s.connect(g).connect(natureBus); s.start(now(), at);
+      ev.src = s; ev.g = g;
+    }).catch(() => {
+      // (Opened from a file, or the recording missing: a quiet made breeze
+      // and leaves instead, no sea or birds.)
+      if (ev.stopped || disposed) return;
+      startBreeze(); later(800, leaves);
+    });
+  }
   function startNature() {
     if (!ctx || natureOn) return;
     natureOn = true;
     natureBus.gain.setTargetAtTime(windingDown ? 0.5 : 1, now(), 1.2);
+    if (EVENING_URL) { startEvening(); return; }
     startBreeze();
     later(800, leaves);
     seaBed();
@@ -468,7 +503,7 @@ export function createAudio() {
       if (it.stopped || disposed) return;
       const s = ctx.createBufferSource(); s.buffer = buf;
       const g = ctx.createGain(); g.gain.value = 0.6;
-      s.connect(g).connect(gates.music);
+      s.connect(g).connect(gates[MUSIC_CH]);
       s.start(now());
       it.src = s; it.g = g;
       s.onended = () => { it.done = true; };
@@ -501,7 +536,7 @@ export function createAudio() {
       const curve = new Float32Array(64).map((_, i) => 0.7 * Math.sin((i / 63) * Math.PI / 2));
       const t = now();
       g.gain.value = 0; g.gain.setValueCurveAtTime(curve, t, OUTRO_FADE_S); // (the curve starts at 0)
-      s.connect(g).connect(gates.music); s.start(t);
+      s.connect(g).connect(gates[MUSIC_CH]); s.start(t);
       o.src = s;
       s.onended = () => { o.done = true; if (!windingDown && natureBus && outro === o) natureBus.gain.setTargetAtTime(natureOn ? 1 : 0, now(), 1.5); };
     };
@@ -513,7 +548,7 @@ export function createAudio() {
   // switcher waits for its music when it can be heard (detail.ms).
   const onClosing = (e) => {
     playOutro();
-    if (e && e.detail && ctx && !muted && chLevel.music > 0) e.detail.ms = CLOSE_MUSIC_MS;
+    if (e && e.detail && ctx && !muted && chLevel[MUSIC_CH] > 0) e.detail.ms = CLOSE_MUSIC_MS;
   };
   if (typeof window !== "undefined" && OUTRO_URL) window.addEventListener(PARRISH_CLOSING_EVENT, onClosing);
   if (typeof window !== "undefined" && OUTRO_URL) window.addEventListener(REALITIES_OPEN_EVENT, onRealities);
@@ -535,7 +570,7 @@ export function createAudio() {
       if (m.stopped || disposed) return;
       const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now()); g.gain.setTargetAtTime(0.55, now(), 2);
-      s.connect(g).connect(gates.music); s.start();
+      s.connect(g).connect(gates[MUSIC_CH]); s.start();
       m.src = s; m.g = g;
     }).catch(() => { /* no recording yet */ });
   }
@@ -628,13 +663,14 @@ export function createAudio() {
     cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
     playDockOpen() {}, playDockClose() {},
     // (Tests: what's running.)
-    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
+    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.src ? "playing" : "loading") : null, evening: evening ? (evening.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
     dispose() {
       disposed = true;
       timers.forEach((id) => clearTimeout(id)); timers.clear();
       if (pendingCapture) clearTimeout(pendingCapture);
       if (music) music.stopped = true;
       if (hums) { hums.stopped = true; try { if (hums.src) hums.src.stop(); } catch (e) { /* ended */ } }
+      if (evening) { evening.stopped = true; try { if (evening.src) evening.src.stop(); } catch (e) { /* ended */ } }
       offGesture();
       if (typeof window !== "undefined") { window.removeEventListener(REALITIES_OPEN_EVENT, onRealities); window.removeEventListener(REALITIES_STAY_EVENT, onStay); window.removeEventListener(PARRISH_CLOSING_EVENT, onClosing); }
       if (outro) { outro.stopped = true; try { if (outro.src) outro.src.stop(); } catch (e) { /* ended */ } }
