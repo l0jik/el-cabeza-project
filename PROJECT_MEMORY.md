@@ -6652,3 +6652,19 @@ phone menu until "Start the story over" (which clears it).
   every dock button looked unpicked; it now skips [aria-pressed="true"]
   and buttons whose inline background is MENU.paint (the chassis's
   COLORS.selected). Chassis: the difficulty buttons carry aria-pressed.
+- Home from the closed Big Glutts (story only): settle into a game (user:
+  "we want them to start playing a game immediately ... a big highlight
+  [on] the focus button"; asked: its tap = focus + the game begins with
+  the settings as they are; only it takes a tap, like the special-order
+  note; a game already going carries on). den-fx.js settleIn(), after
+  the home card (homeCard -> settleIn -> hall.arm): html.ec-settle gives
+  [data-testid="focus-corner"] (the light bulb) a warm breathing glow
+  ring (ecSettleGlow, reduced-motion: steady); every tap/drag/wheel/key
+  off it (and the full-screen switch) is stopped at the window, a stray
+  tap throbs it (ecSettleThrob); its click goes through (focus on; if
+  focus was already on, that click is held so it stays on), then 450 ms
+  later beginGame() (chassis helper: triggerBeginGame via a ref, only
+  while awaitingBegin) and the hall arms with the moves from then.
+  Dropped on dispose. e2e-story: glow after the card, a stray tap held
+  and throbbing (dock unchanged), the bulb -> focus on and a game under
+  way (__EC_TEST_ARMED__), the glow gone.

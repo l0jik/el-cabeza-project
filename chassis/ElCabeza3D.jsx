@@ -2575,6 +2575,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return after;
   }
 
+  const triggerBeginGameRef = useRef(null);
+  triggerBeginGameRef.current = triggerBeginGame;
   function triggerBeginGame() {
     audioRef.current.beginGameFadeIn();
     audioRef.current.playPowerOn();
@@ -3333,6 +3335,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       {
         three, cam, windingDownRef, awaitingBeginRef, audio: audioRef.current,
         moves: () => (logRef.current ? logRef.current.length : 0),
+        // (The den's story: home from the closed store, the bulb's tap
+        // settles in and the game begins, den-fx.js.)
+        beginGame: () => { if (awaitingBeginRef.current && triggerBeginGameRef.current) triggerBeginGameRef.current(); },
         music: music ? { tracks: () => music.tracks(), play: (track) => playTrackRef.current && playTrackRef.current(track), playing: () => !!musicNowRef.current } : null,
       }
     );

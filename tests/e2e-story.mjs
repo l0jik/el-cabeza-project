@@ -317,6 +317,19 @@ console.log("\ndesktop: the store, the purchase, home");
   }
   await q(page, "den-home-card").click();
   check("...a tap puts it away", !!(await poll(async () => !(await has(page, "den-home-card")), 3000)));
+  // Then settle in (user): the light bulb glows, and only it takes a tap;
+  // its tap: focus, and the game (begun, or the one already going).
+  check("...then the light bulb glows", !!(await poll(() => page.evaluate(() => document.documentElement.classList.contains("ec-settle")), 3000)));
+  {
+    const dockBefore = await page.evaluate(() => (document.querySelector('[data-testid="dock-panel"]') || {}).getAttribute ? document.querySelector('[data-testid="dock-panel"]').getAttribute("data-open") : null);
+    await page.mouse.click(640, 400);
+    await page.waitForTimeout(300);
+    const st = await page.evaluate(() => ({ throb: !!document.querySelector('[data-testid="focus-corner"].ec-settle-throb'), settle: document.documentElement.classList.contains("ec-settle"), dock: document.querySelector('[data-testid="dock-panel"]') ? document.querySelector('[data-testid="dock-panel"]').getAttribute("data-open") : null }));
+    check("...a tap elsewhere is held, and the bulb throbs", st.throb && st.settle && st.dock === dockBefore, JSON.stringify({ dockBefore, st }));
+  }
+  await q(page, "focus-corner").click();
+  check("...the bulb: the room into focus", !!(await poll(async () => (await q(page, "focus-corner").getAttribute("data-on")) === "true", 3000)));
+  check("...and the game's under way", !!(await poll(() => page.evaluate(() => window.__EC_TEST_ARMED__ === true && !document.documentElement.classList.contains("ec-settle")), 4000)));
   check("...still owned", (await owned(page) || {}).owned === true);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
 

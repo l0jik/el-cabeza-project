@@ -46,7 +46,7 @@ import { WORLDS } from "./realities.js";
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
 export function createDenEffects(woodSet, { viewPitch = null } = {}) {
-  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null, moves = null }) {
+  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null, moves = null, beginGame = null }) {
     const q = quality();
     // Home with the special order (Nova): the thought, then the telephone
     // call from Big Glutts (den-call.js).
@@ -147,12 +147,77 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       doc.addEventListener("pointerdown", elsewhere, true);
     }
     let homeCardTimer = 0, homeCardDrop = null;
+    /* Then settle in (user): "we want them to start playing a game
+       immediately". The light-bulb (focus) corner button glows and
+       breathes, and it's the only thing that takes a tap (user: like the
+       special-order note; a stray tap makes it throb). Its tap dims the
+       room into focus and, with no game under way, the game begins with
+       the settings as they are; a game already going carries on. The
+       hall's moves count from there. (Nova's story only: the trip is.) */
+    let settleDrop = null;
+    function settleIn(onDone) {
+      const doc = typeof document !== "undefined" ? document : null;
+      const bulb = () => doc && doc.querySelector('[data-testid="focus-corner"]');
+      if (!doc || !bulb()) { onDone(); return; }
+      if (!doc.getElementById("ec-settle-style")) {
+        const st = doc.createElement("style");
+        st.id = "ec-settle-style";
+        st.textContent = `
+          html.ec-settle [data-testid="focus-corner"] { opacity: 1 !important; visibility: visible !important; pointer-events: auto !important;
+            border-radius: 50% !important; color: #FFE9B8 !important; background: rgba(255, 196, 110, 0.28) !important;
+            animation: ecSettleGlow 2.2s ease-in-out infinite; }
+          @keyframes ecSettleGlow {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(255, 216, 150, 0.9), 0 0 18px 6px rgba(255, 168, 70, 0.55); }
+            50% { box-shadow: 0 0 0 5px rgba(255, 224, 165, 1), 0 0 38px 16px rgba(255, 168, 70, 0.8); } }
+          html.ec-settle [data-testid="focus-corner"].ec-settle-throb { animation: ecSettleThrob 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) both, ecSettleGlow 2.2s ease-in-out 0.9s infinite; }
+          @keyframes ecSettleThrob { 0% { transform: scale(1); } 28% { transform: scale(1.5); } 100% { transform: scale(1); } }
+          @media (prefers-reduced-motion: reduce) { html.ec-settle [data-testid="focus-corner"], html.ec-settle [data-testid="focus-corner"].ec-settle-throb {
+            animation: none; box-shadow: 0 0 0 4px rgba(255, 216, 150, 0.95), 0 0 26px 10px rgba(255, 168, 70, 0.7); } }`;
+        doc.head.appendChild(st);
+      }
+      doc.documentElement.classList.add("ec-settle");
+      const onBulb = (e) => !!(e.target instanceof Element && e.target.closest('[data-testid="focus-corner"], [data-fullscreen-toggle]'));
+      const throb = () => requestAnimationFrame(() => { const b = bulb(); if (!b) return; b.classList.remove("ec-settle-throb"); void b.offsetWidth; b.classList.add("ec-settle-throb"); });
+      const EVENTS = ["pointerdown", "pointerup", "pointermove", "click", "dblclick", "contextmenu", "touchstart", "touchmove", "touchend", "wheel", "mousedown", "mouseup", "gesturestart"];
+      const block = (e) => {
+        if (onBulb(e)) return;
+        e.stopImmediatePropagation(); e.stopPropagation();
+        if (e.cancelable && e.type !== "pointermove") e.preventDefault();
+        if (e.type === "pointerdown" || (e.type === "touchstart" && !window.PointerEvent)) throb();
+      };
+      const blockKey = (e) => { if (e.key === "Tab") return; e.stopImmediatePropagation(); e.stopPropagation(); if (e.cancelable) e.preventDefault(); };
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        EVENTS.forEach((ev) => window.removeEventListener(ev, block, { capture: true }));
+        window.removeEventListener("keydown", blockKey, true);
+        doc.removeEventListener("click", onClick, true);
+        doc.documentElement.classList.remove("ec-settle");
+        const b = bulb(); if (b) b.classList.remove("ec-settle-throb");
+        settleDrop = null;
+      };
+      // The bulb's own click goes through to it (focus on); if focus is
+      // already on, that click is kept from turning it off again.
+      const onClick = (e) => {
+        if (!(e.target instanceof Element) || !e.target.closest('[data-testid="focus-corner"]')) return;
+        const b = bulb();
+        if (b && b.getAttribute("data-on") === "true") { e.stopImmediatePropagation(); e.stopPropagation(); }
+        finish();
+        // (A moment for the room to start dimming, then the game.)
+        setTimeout(() => { if (beginGame) beginGame(); onDone(); }, 450);
+      };
+      EVENTS.forEach((ev) => window.addEventListener(ev, block, { capture: true, passive: false }));
+      window.addEventListener("keydown", blockKey, true);
+      doc.addEventListener("click", onClick, true);
+      settleDrop = () => { finish(); };
+    }
     const trip = novaTv ? createTrip({ audio, onReturn: () => {
       roomView();
       // (Not on a look at the scene alone: nothing's kept.)
       if (novaTv.hall && !preview) novaTv.hall.arm();
       // (Once the den's faded up from the black.)
-      homeCardTimer = setTimeout(() => homeCard(() => { if (hall) hall.arm(movesNow()); }), 3800);
+      homeCardTimer = setTimeout(() => homeCard(() => settleIn(() => { if (hall) hall.arm(movesNow()); })), 3800);
     } }) : null;
     if (trip && novaTv.call) trip.load(); // (its pictures, well ahead of time)
     const call = novaTv && novaTv.call ? createDenCall({ audio, awaitingBegin: () => !!(awaitingBeginRef && awaitingBeginRef.current), onTrip: () => trip && trip.start(), onGoToPhone: () => phoneVisit(true), onPhoneDone: () => phoneVisit(false) }) : null;
@@ -1279,6 +1344,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (trip) trip.dispose();
         clearTimeout(homeCardTimer);
         if (homeCardDrop) homeCardDrop();
+        if (settleDrop) settleDrop();
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (novaTv && novaTv.register) novaTv.register(null);
