@@ -22,6 +22,22 @@
    in a long, soft hall (user: "think Enya"). Until the file's here (or if
    it can't be had) the wooden set's own knocks stand in (wood-sfx.js).
 
+   The intro (user: "use this as intro music when Orinoco or Watermark
+   are opened"): the user's opening of "Orinoco Flow" (INTRO_URL, beside
+   the page; assets/parrish/intro.mp3, its hard cut at the end faded over
+   1.3 s), once a visit. A browser lets a page sound only after a tap or a
+   key, so it starts on the first one (whatever it's on), on the music
+   channel, a little of it into the hall so its end rings away; when a
+   game begins it steps back under the game.
+
+   The close (user: when Orinoco or Watermark are closed; "add reverb and
+   extend the tail ... the decay completes even if already back in the
+   theme switcher"): the user's end of "Orinoco Flow" laid in a long hall
+   with about 7 s more of its ringing (OUTRO_URL; tools/parrish_outro.py),
+   played when the switcher opens over the page (it's a panel on this
+   page, so the ringing carries on under it). The intro, if it's still
+   going, gives way; the place's own sound steps back for it.
+
    The music: MUSIC_URL, a file beside the page, once the user's
    recording is here. With none, there's no music channel at all (no
    slider that does nothing); with one, it plays from Begin Game, looped,
@@ -31,12 +47,15 @@
    sit, not a soundtrack. */
 
 import { createWoodSfx, landingSize } from "./wood-sfx.js";
+import { REALITIES_OPEN_EVENT } from "./realities.js";
 
 export const hasAudio = true;
 
 // The user's recording, when it comes: e.g. "el-cabeza-parrish-music.mp3"
 // (beside the page; build/build.js copies it there).
 export const MUSIC_URL = null;
+export const INTRO_URL = "el-cabeza-parrish-intro.mp3";
+export const OUTRO_URL = "el-cabeza-parrish-outro.mp3";
 
 // The slices of the stabs file: [start s, length s] (tools/parrish_stabs.py).
 const STABS_URL = "el-cabeza-parrish-stabs.mp3";
@@ -91,6 +110,7 @@ export function createAudio() {
   const timers = new Set();
   let music = null;
   // The stabs, once decoded: the buffer and each slice's real start.
+  let intro = null, outro = null;
   let stabs = null, stabsAsked = false, hallIn = null, pendingCapture = null, wonAt = -1e9;
 
   function later(ms, fn) {
@@ -369,6 +389,56 @@ export function createAudio() {
   // The stabs when they're here, the wooden knocks till then.
   const piece = (k) => (...args) => (stabs ? sfx[k](...args) : wood[k](...args));
 
+  /* ---- the intro: the opening of "Orinoco Flow", once a visit ---- */
+  function playIntro() {
+    if (intro || disposed) return;
+    ensureGraph();
+    if (!ctx) return;
+    intro = { stopped: false };
+    const it = intro;
+    if (ctx.state === "suspended") ctx.resume();
+    fetch(INTRO_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
+      if (it.stopped || disposed) return;
+      const s = ctx.createBufferSource(); s.buffer = buf;
+      const g = ctx.createGain(); g.gain.value = 0.6;
+      s.connect(g).connect(gates.music);
+      if (hallIn) { const w = ctx.createGain(); w.gain.value = 0.3; g.connect(w).connect(hallIn); }
+      s.start(now());
+      it.src = s; it.g = g;
+      s.onended = () => { it.done = true; };
+    }).catch(() => { /* no intro, then */ });
+  }
+  /* ---- the close: the end of "Orinoco Flow", ringing on ---- */
+  let outroBuf = null;
+  function playOutro() {
+    if (disposed) return;
+    ensureGraph();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
+    // The intro gives way; the place's sound steps back.
+    if (intro && intro.g) intro.g.gain.setTargetAtTime(0, now(), 0.25);
+    if (natureBus) natureBus.gain.setTargetAtTime(0.35, now(), 0.8);
+    if (outro && outro.src) { try { outro.src.stop(); } catch (e) { /* ended */ } }
+    const o = (outro = { stopped: false });
+    const go = (buf) => {
+      if (o.stopped || disposed) return;
+      const s = ctx.createBufferSource(); s.buffer = buf;
+      const g = ctx.createGain(); g.gain.value = 0.7;
+      s.connect(g).connect(gates.music); s.start(now());
+      o.src = s;
+      s.onended = () => { o.done = true; if (!windingDown && natureBus && outro === o) natureBus.gain.setTargetAtTime(natureOn ? 1 : 0, now(), 1.5); };
+    };
+    if (outroBuf) { go(outroBuf); return; }
+    fetch(OUTRO_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => { outroBuf = buf; go(buf); }).catch(() => { /* no close, then */ });
+  }
+  const onRealities = () => playOutro();
+  if (typeof window !== "undefined" && OUTRO_URL) window.addEventListener(REALITIES_OPEN_EVENT, onRealities);
+
+  // The first tap or key anywhere on the page starts it.
+  const firstGesture = () => { offGesture(); playIntro(); };
+  const offGesture = () => ["pointerdown", "keydown", "touchend"].forEach((e) => window.removeEventListener(e, firstGesture, true));
+  if (typeof window !== "undefined" && INTRO_URL) ["pointerdown", "keydown", "touchend"].forEach((e) => window.addEventListener(e, firstGesture, true));
+
   /* ---- the music (the user's recording, when it's here) ---- */
   function startMusic() {
     if (!MUSIC_URL || !ctx || music) return;
@@ -392,7 +462,12 @@ export function createAudio() {
       if (ctx.state === "suspended") ctx.resume();
       startNature();
     },
-    beginGameFadeIn() { windingDown = false; startNature(); startMusic(); if (ctx && natureBus) natureBus.gain.setTargetAtTime(1, now(), 1.2); },
+    beginGameFadeIn() {
+      windingDown = false; startNature(); startMusic();
+      // The intro, if it's still playing, steps back under the game.
+      if (intro && intro.g && !intro.done) intro.g.gain.setTargetAtTime(0.25, now(), 0.6);
+      if (ctx && natureBus) natureBus.gain.setTargetAtTime(1, now(), 1.2);
+    },
     setZoom() {},
     setMuted(m) { muted = m; if (ctx) master.gain.setTargetAtTime(m ? 0 : 1, now(), 0.08); },
     setVolume(v) { if (ctx) vol.gain.setTargetAtTime(Math.max(0, Math.min(1, v)), now(), 0.05); },
@@ -443,12 +518,16 @@ export function createAudio() {
     cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
     playDockOpen() {}, playDockClose() {},
     // (Tests: what's running.)
-    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, stabs: !!stabs }; },
+    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
     dispose() {
       disposed = true;
       timers.forEach((id) => clearTimeout(id)); timers.clear();
       if (pendingCapture) clearTimeout(pendingCapture);
       if (music) music.stopped = true;
+      offGesture();
+      if (typeof window !== "undefined") window.removeEventListener(REALITIES_OPEN_EVENT, onRealities);
+      if (outro) { outro.stopped = true; try { if (outro.src) outro.src.stop(); } catch (e) { /* ended */ } }
+      if (intro) { intro.stopped = true; try { if (intro.src) intro.src.stop(); } catch (e) { /* ended */ } }
       if (ctx) { try { ctx.close(); } catch (e) { /* already closed */ } }
     },
   };

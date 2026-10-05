@@ -99,8 +99,11 @@ export const RESTART_HREF = "el-cabeza-nova.html?restart=story";
    already says it). `title` / `sub` say what it is. Returns { el, close }. */
 /* `sub` empty: no line under the title (the end of the story, whose
    words were its crawl). */
+export const REALITIES_OPEN_EVENT = "el-cabeza:realities-open";
 export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", lockMs = 0 } = {}) {
   if (typeof document === "undefined") return { el: null, close() {} };
+  // (For the page's own sound to mark leaving: Parrish's closing music.)
+  try { window.dispatchEvent(new CustomEvent(REALITIES_OPEN_EVENT, { detail: { currentId } })); } catch (e) { /* no events */ }
   if (!document.querySelector("style[data-ec-realities]")) {
     const st = document.createElement("style"); st.setAttribute("data-ec-realities", ""); st.textContent = CSS; document.head.appendChild(st);
   }

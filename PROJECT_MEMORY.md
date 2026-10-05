@@ -6278,3 +6278,22 @@ phone menu until "Start the story over" (which clears it).
   screen"): 70% transparent (user) = opacity 0.3 (0.2 in focus mode), 1 on
   hover; windowed it stays fully opaque. (Checked with scratchpad
   parrish/fs.mjs; measure after the 0.5 s transition and off hover.)
+- Parrish intro + close (user, both palettes):
+  - Intro: the user's "Orinoco Flow" opening (assets/parrish/src/
+    orinoco-beginning.mp3 -> assets/parrish/intro.mp3, its hard-cut end
+    faded 1.3 s; dist el-cabeza-parrish-intro.mp3). Browsers need a
+    gesture, so it starts on the first pointerdown/keydown/touchend
+    anywhere (capture listener in createAudio), once a visit, on the music
+    channel at 0.6 with a 0.3 send to the hall; Begin Game ducks it to
+    0.25. The Music slider now shows ("The opening").
+  - Close: the user's "Orinoco Flow" end (src/orinoco-end.mp3) baked by
+    tools/parrish_outro.py into a long hall (RT60 6.5 s, 35 ms pre-delay,
+    highs dying first) with 7 s more tail -> assets/parrish/outro.mp3
+    (17.5 s; dist el-cabeza-parrish-outro.mp3). Played when the switcher
+    opens over the page: realities.js createRealitiesMenu now dispatches
+    REALITIES_OPEN_EVENT ("el-cabeza:realities-open"); parrish-audio
+    listens. The switcher is a panel on the same page, so the decay
+    completes under it (user: "even if already back in the theme
+    switcher"); the intro gives way, nature dips to 0.35 and comes back
+    after. Picking another world still navigates at once (cuts it).
+  - Checked: scratchpad parrish/io.mjs (http-served page, records sound).
