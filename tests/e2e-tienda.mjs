@@ -10,7 +10,7 @@
    and it fits.
 
    On a phone and a laptop: the catalog order form (custom rules) fits,
-   its rules behave (Diagonal slide brings Slide), the board takes any
+   its rules behave (Diagonal slide on its own), the board takes any
    width and length, a piece's photograph takes it up in 3-D (turning,
    dragged, in either wood, put back), pieces too many for the width are
    refused with a fix, and placing the order starts that game on a board
@@ -172,7 +172,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
     slide: document.querySelector('[data-testid="tienda-law-slide-input"]').checked,
     diag: document.querySelector('[data-testid="tienda-law-diagonalSlide-input"]').checked,
   }));
-  check("checking Diagonal slide checks Slide too", laws.slide && laws.diag, JSON.stringify(laws));
+  check("Diagonal slide stands on its own (Orthogonal slide stays off)", !laws.slide && laws.diag, JSON.stringify(laws));
   check("a Rayo makes six pieces a side", (await page.locator('[data-testid="tienda-piece-total"]').innerText()).includes("6 of"));
 
   // The board: any width and length, not just the square sizes.

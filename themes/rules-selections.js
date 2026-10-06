@@ -54,7 +54,7 @@ export const LAW_OPTIONS = [
   // Named Orthogonal slide (user), with what orthogonal means said in the
   // note: along a row or column, not corner to corner.
   { key: "slide", name: "Orthogonal slide", note: "Move a piece one open square along its row or column (not corner to corner) without tipping it. 2 points (a roll is 1)." },
-  { key: "diagonalSlide", name: "Diagonal slide", note: "Slides may also go corner to corner. Needs Orthogonal slide. A diagonal slide never shoves." },
+  { key: "diagonalSlide", name: "Diagonal slide", note: "Move a piece one open square corner to corner without tipping it. 2 points. On its own, or with Orthogonal slide for all eight ways. Never shoves." },
   { key: "blackHoleSquares", name: "Black hole squares", note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn." },
   { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 point more. Choose whether rolls shove too, or only slides." },
   { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 point." },
@@ -274,13 +274,11 @@ export const boardLabel = (sel) => `${sel.cols} × ${sel.rows}`;
 
 /* ------------------------------------------------------------ laws */
 
-// Turning a law on or off, with the one dependency between them:
-// Diagonal slide needs Slide.
+// Turning a law on or off, with what goes with it. (Diagonal slide
+// stands on its own, user; it once needed Orthogonal slide.)
 export function toggleLaw(sel, key) {
   const on = !sel.laws[key];
   sel.laws[key] = on;
-  if (key === "diagonalSlide" && on) sel.laws.slide = true;
-  if (key === "slide" && !on) sel.laws.diagonalSlide = false;
   if (key === "blackHoleSquares" && on) fillSpots(sel, "hole");
   // The two Split movements: one or the other. Three pieces brings 3
   // actions (with 2 points a turn it's no different from two pieces), and
@@ -307,11 +305,13 @@ export function setShove(sel, key, value) {
 // developer). It changes as Slide is ticked.
 export function shoveNow(sel) {
   // (And never on a diagonal, user: said while Diagonal slide is on.)
-  const diag = sel.laws.slide && sel.laws.diagonalSlide ? " Diagonal slides never shove." : "";
+  const diag = sel.laws.diagonalSlide ? " Diagonal slides never shove." : "";
   if (sel.shove && sel.shove.onRolls === false)
     return `Right now only slides shove.${diag} A roll into a piece is just blocked. Turning Orthogonal slide off switches this back to Slides and rolls.`;
   if (!sel.laws.slide)
-    return "Right now only rolls shove: Orthogonal slide is off, so there are no slides to shove with. Choosing Slides only turns it on.";
+    return sel.laws.diagonalSlide
+      ? "Right now only rolls shove: Orthogonal slide is off, and diagonal slides never shove. Choosing Slides only turns it on."
+      : "Right now only rolls shove: Orthogonal slide is off, so there are no slides to shove with. Choosing Slides only turns it on.";
   return `Right now slides and rolls both shove.${diag}`;
 }
 // What the engine gets: the laws (a diagonal slide only with Slide) and
@@ -319,7 +319,7 @@ export function shoveNow(sel) {
 export function lawsForEngine(sel) {
   const l = sel.laws;
   const three = !!(l.splitThree && l.threeActions);
-  return { ...l, diagonalSlide: l.diagonalSlide && l.slide, splitThree: three, splitMovement: !!l.splitMovement || three, shoveOnRolls: !(sel.shove && sel.shove.onRolls === false) };
+  return { ...l, diagonalSlide: !!l.diagonalSlide, splitThree: three, splitMovement: !!l.splitMovement || three, shoveOnRolls: !(sel.shove && sel.shove.onRolls === false) };
 }
 // Pieces that can ever stand balanced on one cube (so can pivot).
 export const PIVOT_CAPABLE = ["codo", "hombro", "cruce", "rayo", "zeta"];

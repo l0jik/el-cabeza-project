@@ -274,6 +274,105 @@ export function makePolycubeRounded(piece, unit, radius, grow = 0) {
   return geo;
 }
 
+/* The same seamless, rounded solid for a shape that isn't one cube thick
+   in any direction (the Hombro: an L with a cube standing on its corner;
+   user: it showed its cubes as separate blocks, "supposed to be smooth
+   like all the others"). Every outward edge rounded, every inward edge
+   crisp, no groove where cubes meet.
+   How: the shape is drawn as the points within r of its core, the cubes
+   pulled in by c on every side that's open (a cube's corner or edge
+   region is core only where every cube around it there is solid too).
+   Each outside face of each cube is laid out as a grid, finest near its
+   edges, and every grid point is moved to the core's nearest point plus
+   r straight out from it: a flat face stays put, the strip by an outward
+   edge wraps onto a quarter round, a corner onto an eighth of a ball,
+   and by an inward edge nothing moves. Normals are that same direction;
+   uv is the face's own plane, continuous across neighbouring faces. */
+function makePolycubeSmooth3D(piece, unit, radius, grow = 0, seg = 6) {
+  const cubes = parseVox(piece.vox);
+  const solid = new Set(cubes.map((q) => q.join(",")));
+  const centers = voxCubeCenters(piece, unit);
+  const h = unit / 2;
+  const c = Math.max(0, Math.min(radius - grow, h - 1e-4));
+  const r = c + grow;
+  // World axes from vox: x -> X, level -> Y, row -> Z.
+  const step = [[1, 0, 0], [0, 0, 1], [0, 1, 0]]; // world axis a as a vox offset
+  const filled = (q, off) => solid.has(`${q[0] + off[0]},${q[1] + off[1]},${q[2] + off[2]}`);
+  // The core: each cube's 3x3x3 sub-blocks (bands c | middle | c per axis).
+  const boxes = [];
+  const band = (ctr, s) => (s < 0 ? [ctr - h, ctr - h + c] : s > 0 ? [ctr + h - c, ctr + h] : [ctr - h + c, ctr + h - c]);
+  cubes.forEach((q, i) => {
+    const ctr = centers[i];
+    for (let sx = -1; sx <= 1; sx++) for (let sy = -1; sy <= 1; sy++) for (let sz = -1; sz <= 1; sz++) {
+      const s = [sx, sy, sz];
+      const axes = [0, 1, 2].filter((a) => s[a] !== 0);
+      let ok = true;
+      for (let mask = 1; mask < 1 << axes.length && ok; mask++) {
+        const off = [0, 0, 0];
+        axes.forEach((a, k) => { if (mask & (1 << k)) for (let j = 0; j < 3; j++) off[j] += step[a][j] * s[a]; });
+        if (!filled(q, off)) ok = false;
+      }
+      if (!ok) continue;
+      const b = [0, 1, 2].map((a) => band(ctr[a], s[a]));
+      if (b.every(([lo, hi]) => hi - lo > 1e-9) || c === 0) boxes.push(b);
+    }
+  });
+  const nearest = (p) => {
+    let best = null, bd = Infinity;
+    for (const b of boxes) {
+      const qx = Math.min(Math.max(p[0], b[0][0]), b[0][1]), qy = Math.min(Math.max(p[1], b[1][0]), b[1][1]), qz = Math.min(Math.max(p[2], b[2][0]), b[2][1]);
+      const d = (p[0] - qx) ** 2 + (p[1] - qy) ** 2 + (p[2] - qz) ** 2;
+      if (d < bd) { bd = d; best = [qx, qy, qz]; }
+    }
+    return best;
+  };
+  // Grid ticks across a face, from -h to h: fine through each c band.
+  const ticks = [];
+  for (let k = 0; k <= seg; k++) ticks.push(-h + (c * k) / seg);
+  ticks.push(0);
+  for (let k = seg; k >= 0; k--) ticks.push(h - (c * k) / seg);
+  const T = [...new Set(ticks.map((t) => Math.round(t * 1e6) / 1e6))].sort((a, b) => a - b);
+  const mins = [0, 1, 2].map((a) => Math.min(...centers.map((ct) => ct[a])) - h);
+  const pos = [], nor = [], uv = [], idx = [];
+  cubes.forEach((q, i) => {
+    const ctr = centers[i];
+    for (let a = 0; a < 3; a++) for (const sgn of [1, -1]) {
+      if (filled(q, step[a].map((v) => v * sgn))) continue;
+      const [ta, tb] = [0, 1, 2].filter((x) => x !== a);
+      const base = pos.length / 3;
+      for (const u of T) for (const v of T) {
+        const p = [0, 0, 0];
+        p[a] = ctr[a] + sgn * h; p[ta] = ctr[ta] + u; p[tb] = ctr[tb] + v;
+        const qn = nearest(p);
+        let n = [0, 0, 0];
+        if (qn) n = [p[0] - qn[0], p[1] - qn[1], p[2] - qn[2]];
+        const len = Math.hypot(n[0], n[1], n[2]);
+        if (!qn || len < 1e-9) { n = [0, 0, 0]; n[a] = sgn; }
+        else n = n.map((x) => x / len);
+        const out = qn && len >= 1e-9 ? [qn[0] + n[0] * r, qn[1] + n[1] * r, qn[2] + n[2] * r] : p.map((x, j) => x + (j === a ? sgn * grow : 0));
+        pos.push(...out); nor.push(...n);
+        uv.push((p[ta] - mins[ta]) / unit, (p[tb] - mins[tb]) / unit);
+      }
+      const N = T.length;
+      for (let iu = 0; iu + 1 < N; iu++) for (let iv = 0; iv + 1 < N; iv++) {
+        const i00 = base + iu * N + iv, i01 = i00 + 1, i10 = i00 + N, i11 = i10 + 1;
+        // Wound to face out along the face's own normal.
+        const e1 = [0, 0, 0], e2 = [0, 0, 0];
+        e1[ta] = 1; e2[tb] = 1;
+        const cross = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+        if (cross[a] * sgn > 0) idx.push(i00, i10, i11, i00, i11, i01);
+        else idx.push(i00, i11, i10, i00, i01, i11);
+      }
+    }
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  return geo;
+}
+
 /* One seamless solid with rounded edges, like makeRoundedBox but for an
    odd shape: no groove or seam where its cubes meet. Every odd piece is
    flat (one cube thick along some axis), so the shape is its outline in
@@ -288,7 +387,7 @@ export function makePolycubeSmooth(piece, unit, radius, grow = 0, seg = 6) {
   const centers = voxCubeCenters(piece, unit);
   const eq = (a, b) => Math.abs(a - b) < unit * 1e-3;
   const flat = [0, 1, 2].find((ax) => centers.every((c) => eq(c[ax], centers[0][ax])));
-  if (flat === undefined) return makePolycubeRounded(piece, unit, radius, grow);
+  if (flat === undefined) return makePolycubeSmooth3D(piece, unit, radius, grow, seg);
   // In-plane axes, ordered so (u x v) points along +flat.
   const [ua, va] = flat === 0 ? [1, 2] : flat === 1 ? [2, 0] : [0, 1];
   const minU = Math.min(...centers.map((c) => c[ua])) - unit / 2;

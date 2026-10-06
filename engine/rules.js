@@ -502,13 +502,15 @@ export function legalCabezaSteps(pieces, piece) {
    Cabeza already has this exact movement as its unconditional baseline
    and must not gain a redundant, identically-keyed duplicate of it.
 
-   Orthogonal only by default (N/E/S/W) — diagonal sliding is its own
-   separate law (ACTIVE_LAWS.diagonalSlide), so a plain Slide game never
-   offers a diagonal. Cabeza's own baseline stepping (legalCabezaSteps)
-   is unchanged and still 8-directional; this divergence is intentional. */
+   Two laws, each on its own (user: Diagonal slide "can be used by
+   itself"): Orthogonal slide (ACTIVE_LAWS.slide) gives N/E/S/W, Diagonal
+   slide (ACTIVE_LAWS.diagonalSlide) the four corners; both, all eight.
+   Cabeza's own baseline stepping (legalCabezaSteps) is unchanged and
+   still 8-directional; this divergence is intentional. */
+const DIAGONAL_DIRS = Object.keys(STEP_DIRS).filter((d) => !ROLL_DIRS.includes(d));
 export function legalSlideSteps(pieces, piece) {
   const out = {};
-  const dirs = ACTIVE_LAWS.diagonalSlide ? Object.keys(STEP_DIRS) : ROLL_DIRS;
+  const dirs = [...(ACTIVE_LAWS.slide ? ROLL_DIRS : []), ...(ACTIVE_LAWS.diagonalSlide ? DIAGONAL_DIRS : [])];
   for (const dir of dirs) {
     const [dr, dc] = STEP_DIRS[dir];
     // Shoves are never diagonal (user), even with Diagonal slide on: a
@@ -560,7 +562,7 @@ export function legalMovesFor(pieces, piece, remaining = Infinity) {
   // An Opa's cheapest move is two points; with fewer left it can't move.
   if (piece.type === "opa" && remaining < OPA_MOVE_COST) return {};
   const rolls = { ...legalRolls(pieces, piece), ...legalPivots(pieces, piece) };
-  if (!ACTIVE_LAWS.slide || remaining < SLIDE_COST) return withinBudget(rolls, remaining);
+  if (!(ACTIVE_LAWS.slide || ACTIVE_LAWS.diagonalSlide) || remaining < SLIDE_COST) return withinBudget(rolls, remaining);
   // Prefixed keys (see slideKey/constants.js): a block piece's roll and
   // slide can legally coexist in the same cardinal direction (e.g. "E"
   // rolls it a full square-and-a-bit away while "slide-E" just nudges
@@ -580,7 +582,7 @@ export function legalMovesFor(pieces, piece, remaining = Infinity) {
    { dir, candidate, shoves }: where the slide would have landed, and who
    it would have pushed. */
 export function blockedDiagonalShoves(pieces, piece, remaining = Infinity) {
-  if (!ACTIVE_LAWS.slide || !ACTIVE_LAWS.diagonalSlide || !ACTIVE_LAWS.shoving || piece.type === "cabeza") return [];
+  if (!ACTIVE_LAWS.diagonalSlide || !ACTIVE_LAWS.shoving || piece.type === "cabeza") return [];
   const out = [];
   for (const [dir, [dr, dc]] of Object.entries(STEP_DIRS)) {
     if (dr === 0 || dc === 0) continue;

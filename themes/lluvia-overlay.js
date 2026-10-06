@@ -116,7 +116,7 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
       const row = h("button", {
         key: k, type: "button", "data-testid": `lluvia-law-${k}`, "aria-pressed": on ? "true" : "false",
         onClick: () => { sound("key"); change((s) => {
-          toggleLaw(s, k); // (diagonal brings slide; one Split movement at a time)
+          toggleLaw(s, k); // (one Split movement at a time, and so on)
         }); },
         style: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", gap: 10, width: "100%", minHeight: 56, padding: "6px 0", background: "transparent", border: "none", borderBottom: "1px solid rgba(255,179,71,0.12)", textAlign: "left", cursor: "pointer", ...TERM },
       },

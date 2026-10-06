@@ -58,8 +58,8 @@ await page.locator('[data-testid="lluvia-open-laws"]').click();
 await page.waitForTimeout(300);
 await page.locator('[data-testid="lluvia-law-diagonalSlide"]').click();
 await page.waitForTimeout(150);
-check("turning on Diagonal slide turns on Slide too",
-  (await page.locator('[data-testid="lluvia-law-slide"]').getAttribute("aria-pressed")) === "true" &&
+check("Diagonal slide stands on its own (Orthogonal slide stays off)",
+  (await page.locator('[data-testid="lluvia-law-slide"]').getAttribute("aria-pressed")) === "false" &&
   (await page.locator('[data-testid="lluvia-law-diagonalSlide"]').getAttribute("aria-pressed")) === "true");
 // Shoving's one setting shows under it while it's on; slides only, with
 // Slide on but 2 points a turn, says a shoving slide needs 3.

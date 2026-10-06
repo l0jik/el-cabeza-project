@@ -7097,3 +7097,39 @@ phone menu until "Start the story over" (which clears it).
   (tienda-overlay.js), which holds every tap but the note's, now lets the
   rules overlay (data-testid info-overlay) be tapped and Escape through
   while it's open, so nothing over the note can trap you.
+
+- Round: Hombro smooth, phone side buttons, piece card clear of the
+  corner buttons, points hidden in cut-scenes, Diagonal slide alone.
+  - Hombro (user: "shows segmentation"): makePolycubeSmooth only did
+    shapes one cube thick along some axis and fell back to separate
+    rounded cubes. New makePolycubeSmooth3D for any shape: a core (each
+    cube cut into 3x3x3 sub-blocks with bands of c; a sub-block is core
+    only where every cube toward it is solid), and each outside cube
+    face is a grid (fine in the c bands) whose points move to the core's
+    nearest point + r outward. Flat faces stay, outward edges round,
+    inward edges crisp, no seams; normals from the same direction, uv
+    the face plane. ~7k triangles a Hombro. All themes go through it.
+  - Phone control bar (user screenshot: "WALNUT (DARK" cut off): the
+    shell's side buttons show the name with the colour word small
+    beneath it (.ec-shell-side, .ec-shell-side-name) and the dot beside.
+  - Piece card over the den's lamp/home/full-screen buttons (user): the
+    card measures the lower-left corner buttons as it shows (and on
+    resize) and sits 10 px above the highest (pieceCardBottom, min 66).
+  - Points strip in cut-scenes (user, the TV commercial): a chassis
+    sheet fades the points counter, piece card and unused-points note on
+    html.ec-tv-visit / ec-summon / ec-hall-scene and body:has(.den-trip,
+    .den-ending, .td-clerk-layer); Neon's Singularity hides it by phase.
+  - Diagonal slide on its own (user: "does not need orthogonal slide...
+    unless there is a reason"; no reason found, only that Shoving's
+    Slides only still needs Orthogonal slide, since shoves are never
+    diagonal). Engine: legalSlideSteps takes N/E/S/W from slide and the
+    corners from diagonalSlide; legalMovesFor offers slides when either
+    is on; blockedDiagonalShoves no longer needs slide. Menus: the
+    toggle links, Neon's warning and lawsForEngine's AND are gone; notes,
+    rules cards and the piece card say it stands alone.
+- The trip back to the store (den-trip.js; user): "What the…!??" is now
+  followed straight away by "…but I was just here!" in the same bubble
+  place. say1 18.8-22.0 s, say1b 22.1-25.4 s (the warp to dusk starts
+  under it), say2 unchanged. LINES carries each line's window, side and
+  test id (den-trip-say-1, -1b, -2). e2e-story checks the new one shows
+  right after the first.

@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
-import { sideNamesOf, sideLabel, sideDotStyle } from "../themes/side-names.js";
+import { sideNamesOf, sideDotStyle } from "../themes/side-names.js";
 
 /* The phone layout (a page opts in with ElCabeza3D's mobileShell prop;
    Nova does). On a phone-sized screen the desktop dock — the floating 3D
@@ -292,6 +292,9 @@ function shellCss(t) {
       box-shadow: ${t.accentLight ? `0 0 0 1px ${t.accentLight}, 0 0 16px ${hexA(t.accentLight, 0.45)}` : `0 0 0 1px ${t.ink}`};
     }
     .ec-shell-seg button:disabled { opacity: 0.45; cursor: default; }
+    .ec-shell-side { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; line-height: 1; }
+    .ec-shell-side > span, .ec-shell-side small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .ec-shell-side small { font-size: 8.5px; letter-spacing: 0.12em; opacity: 0.72; }
     .ec-shell-label { font: 600 10px/1 ${t.mono}; letter-spacing: 0.16em; text-transform: uppercase; color: ${t.muted}; }
     .ec-shell-row {
       width: 100%; min-height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 16px; box-sizing: border-box;
@@ -371,9 +374,18 @@ function SetupPanel({ ctl, t }) {
   // A side's button, once chosen, takes that side's own colour.
   const sideOpts = () => [
     // A dot of each side's colour, and the colour named where the name
-    // doesn't say it (user): "Photon (dark)".
-    { value: "dark", label: sideLabel(t.names, "dark"), side: "dark", icon: <span aria-hidden="true" style={sideDotStyle(t.names, "dark", 9)} /> },
-    { value: "light", label: sideLabel(t.names, "light"), side: "light", icon: <span aria-hidden="true" style={sideDotStyle(t.names, "light", 9)} /> },
+    // doesn't say it (user), small under the name: one line was too long
+    // for the button ("WALNUT (DARK" cut off, user).
+    ...["dark", "light"].map((side) => ({
+      value: side, side,
+      icon: <span aria-hidden="true" style={{ ...sideDotStyle(t.names, side, 9), marginRight: 0 }} />,
+      label: (
+        <span className="ec-shell-side">
+          <span className="ec-shell-side-name">{t.names[side]}</span>
+          {t.names.hint && t.names.hint[side] ? <small>{t.names.hint[side]}</small> : null}
+        </span>
+      ),
+    })),
   ];
   const secondary = ctl.setupActions.filter((a) => a.placement !== "below");
   const below = ctl.setupActions.filter((a) => a.placement === "below");

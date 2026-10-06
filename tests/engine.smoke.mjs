@@ -340,6 +340,13 @@ setActiveLaws({ splitMovement: false, threeActions: false });
   m = legalMovesFor([chato, corner], chato, 3);
   shoveCheck("a diagonal slide into a lighter piece doesn't shove", !m["slide-NE"], JSON.stringify(m["slide-NE"]));
   shoveCheck("...while the open diagonal is still a slide", !!m["slide-SE"] && !m["slide-SE"].shoves);
+  // Diagonal slide on its own (user): the four corners, none of N/E/S/W.
+  setActiveLaws({ ...LAWS_OFF, diagonalSlide: true, threeActions: true });
+  {
+    const alone = Object.keys(legalMovesFor([chato], chato, 3)).filter((k) => k.startsWith("slide-")).sort().join(" ");
+    shoveCheck("Diagonal slide alone: corner to corner only", alone === "slide-NE slide-NW slide-SE slide-SW", alone);
+  }
+  setActiveLaws({ ...LAWS_OFF, slide: true, diagonalSlide: true, threeActions: true, shoving: true });
   // The board's X: the would-be diagonal shove is listed, and only it.
   let bd = blockedDiagonalShoves([chato, corner], chato, 3);
   shoveCheck("the blocked diagonal shove is listed for the board's X", bd.length === 1 && bd[0].dir === "NE" && bd[0].shoves[0].id === "tc", JSON.stringify(bd));
@@ -348,6 +355,9 @@ setActiveLaws({ splitMovement: false, threeActions: false });
   shoveCheck("...nor a diagonal blocked by a heavier piece", bd.length === 0, JSON.stringify(bd));
   setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true });
   shoveCheck("...nor without Diagonal slide", blockedDiagonalShoves([chato, corner], chato, 3).length === 0);
+  setActiveLaws({ ...LAWS_OFF, diagonalSlide: true, threeActions: true, shoving: true });
+  shoveCheck("...and with Diagonal slide alone, still the X", blockedDiagonalShoves([chato, corner], chato, 3).length === 1);
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true });
   m = legalMovesFor([opa, standingFlaco], opa, 3)["slide-E"];
   shoveCheck("an Opa slides into a standing Flaco (as tall as it) and pushes it one square", m && moved(m, "fl").col === 5, JSON.stringify(m));
   shoveCheck("equal mass can't shove", !legalMovesFor([P("f1", "flaco", 4, 3, 1, 2, 1), P("f2", "flaco", 4, 4, 1, 2, 1, "light")], P("f1", "flaco", 4, 3, 1, 2, 1), 3)["slide-E"]);

@@ -2790,6 +2790,29 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [pieceCardDismissed, setPieceCardDismissed] = useState(false);
   useEffect(() => { setPieceCardDismissed(false); }, [selectedId, currentPlayer]);
   const pieceCardShown = showGuide && isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && dockView !== "panel" && !pieceCardDismissed;
+  /* The card sits above whatever corner buttons a theme stacks at the
+     lower left (the den's lamp, room view and full screen; user: the card
+     lay over them), measured as it shows and on a resize. */
+  const [pieceCardBottom, setPieceCardBottom] = useState(66);
+  useLayoutEffect(() => {
+    if (!pieceCardShown || typeof document === "undefined") return undefined;
+    const measure = () => {
+      const sel = '[data-testid="focus-corner"], [data-testid="room-view-corner"], [data-testid="action-corner"], [data-testid="dock-corner"], [data-testid="how-to-play"], [data-fullscreen-toggle]';
+      let top = Infinity;
+      document.querySelectorAll(sel).forEach((el) => {
+        const r = el.getBoundingClientRect();
+        // (Only what's showing, at the lower left, where the card goes.)
+        if (!r.width || !r.height || r.left > 260 || r.top < window.innerHeight * 0.45) return;
+        const cs = getComputedStyle(el);
+        if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) === 0) return;
+        top = Math.min(top, r.top);
+      });
+      setPieceCardBottom(top === Infinity ? 66 : Math.max(66, Math.round(window.innerHeight - top + 10)));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [pieceCardShown, selectedId]);
   useEffect(() => {
     if (!pieceCardShown) return undefined;
     const onDown = (ev) => {
@@ -7670,7 +7693,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          the next game's setup begins (awaitingBegin): through the win/ended
          screens it holds the finished game's last turn (pointsFinal).
          Hidden while the dock panel is open (it would sit under it). */}
-      {!shell && showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && (() => {
+      {/* Out of the way while a cut-scene has the screen (user: the TV's
+          commercial played with the points still showing). The story's
+          scenes flag themselves on the page (the TV visit, the hall, the
+          summons, the trip, the ending, the store's clerk); Neon's
+          Singularity through its phase. Their own sheets hide the rest. */}
+      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"]),
+html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"]),
+html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"]),
+body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"]) {
+  opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
+}`}</style>
+      {!shell && showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle") && (() => {
         const budget = turnBudget();
         const final = isPlaying ? null : pointsFinal;
         const player = final ? final.player : currentPlayer;
@@ -7756,7 +7790,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             style={{
               position: "fixed",
               left: 18,
-              bottom: 66,
+              bottom: pieceCardBottom,
               zIndex: 12,
               width: "min(250px, calc(100vw - 36px))",
               boxSizing: "border-box",

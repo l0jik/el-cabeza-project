@@ -552,7 +552,7 @@ const LAWS_ITEMS = [
   // the other; it brings 3 Actions, a point a piece.)
   { key: "splitThree", label: "Split Movement, 3 Pieces", blurb: "Split a turn's 3 points between up to three pieces, one point each. Brings 3 Actions Per Turn." },
   { key: "slide", label: "Orthogonal Slide", blurb: "Move a piece one open square along its row or column (north, south, east or west, not corner to corner) without tipping it. Costs 2 points (a roll costs 1)." },
-  { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Slides may also go diagonally. Needs Orthogonal Slide. A diagonal slide never shoves." },
+  { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Move a piece one open square corner to corner without tipping it. Costs 2 points. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
   { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
   { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Hombro, Cruce, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 point." },
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 action points per turn instead of 2." },
@@ -2181,8 +2181,6 @@ const PIVOT_CAPABLE_ROSTER = ["codo", "hombro", "cruce", "rayo", "zeta"];
 function lawWarning(key, sel) {
   const laws = sel.laws || {};
   if (!laws[key]) return null;
-  if (key === "diagonalSlide" && !laws.slide)
-    return { testid: "law-warning-diagonalSlide", text: "Diagonal Slide only works with Orthogonal Slide. Turn it on." };
   if (key === "cantileverPivot") {
     const roster = (sel.matter && sel.matter.roster) || {};
     if (!PIVOT_CAPABLE_ROSTER.some((k) => roster[k] > 0))
@@ -2914,11 +2912,7 @@ function renderCategoryOverlay(t) {
           sel.laws[item.key],
           () => {
             sel.laws[item.key] = !sel.laws[item.key];
-            // Diagonal Slide needs Slide: turning it on turns Slide on, and
-            // turning Slide off takes it too (as Tienda's order form does,
-            // rules-selections.js toggleLaw).
-            if (item.key === "diagonalSlide" && sel.laws.diagonalSlide) sel.laws.slide = true;
-            if (item.key === "slide" && !sel.laws.slide) sel.laws.diagonalSlide = false;
+            // (Diagonal Slide stands on its own, user.)
             // One Split Movement or the other; three pieces brings 3
             // Actions, and goes with them (rules-selections.js toggleLaw).
             if (item.key === "splitThree" && sel.laws.splitThree) { sel.laws.splitMovement = false; sel.laws.threeActions = true; }

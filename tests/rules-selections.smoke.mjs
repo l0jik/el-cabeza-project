@@ -80,6 +80,11 @@ import("../themes/rules-selections.js").then(async (m) => {
   check("with Slide off, the line says only rolls shove", /only rolls shove/.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: false } })));
   check("...with Slide on, slides and rolls both", /slides and rolls both shove/.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: true } })));
   check("...on slides only, only slides", /only slides shove/.test(m.shoveNow({ ...s, shove: { onRolls: false } })));
+  {
+    const lone = m.toggleLaw(m.cloneSelections(m.defaultSelections()), "diagonalSlide");
+    check("Diagonal slide stands on its own: Orthogonal slide stays off", lone.laws.diagonalSlide && !lone.laws.slide && m.lawsForEngine(lone).diagonalSlide === true);
+    check("...and the line says only rolls shove, diagonal slides never", /diagonal slides never shove/.test(m.shoveNow({ ...lone, laws: { ...lone.laws, shoving: true } })));
+  }
   check("...and with Diagonal slide on it says diagonal slides never shove", /Diagonal slides never shove/.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: true, diagonalSlide: true } })));
   check("Shoving reaches the engine, rolls shoving by default", m.lawsForEngine(s).shoving === true && m.lawsForEngine(s).shoveOnRolls === true && !("shoveFar" in m.lawsForEngine(s)));
   // Its one setting: slides only.

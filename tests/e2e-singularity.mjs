@@ -795,9 +795,9 @@ if (state.activeCategory === "laws") {
   await page.locator('[data-testid="law-shoving"]').click();
   await page.waitForTimeout(150);
 
-  // Diagonal Slide brings Slide with it, and Slide off takes Diagonal
-  // Slide with it (the user's request; Tienda's order form and Lluvia's
-  // city menu already did), so it never sits there unable to act.
+  // Diagonal Slide stands on its own (user): checking it leaves
+  // Orthogonal Slide as it was, with no warning, and Orthogonal Slide on
+  // and off again leaves Diagonal Slide on.
   state = await sphereState();
   const slideOn = !!state.selections.laws.slide, diagOn = !!state.selections.laws.diagonalSlide;
   if (diagOn) { await page.locator('[data-testid="law-diagonalSlide"]').click(); await page.waitForTimeout(120); }
@@ -805,12 +805,16 @@ if (state.activeCategory === "laws") {
   await page.locator('[data-testid="law-diagonalSlide"]').click();
   await page.waitForTimeout(150);
   const both = (await sphereState()).selections.laws;
-  check("checking Diagonal Slide checks Slide too, and nothing warns",
-    both.diagonalSlide && both.slide && (await page.locator('[data-testid="law-warning-diagonalSlide"]').count()) === 0, JSON.stringify(both));
+  check("checking Diagonal Slide leaves Orthogonal Slide off, and nothing warns",
+    both.diagonalSlide && !both.slide && (await page.locator('[data-testid="law-warning-diagonalSlide"]').count()) === 0, JSON.stringify(both));
+  await page.locator('[data-testid="law-slide"]').click();
+  await page.waitForTimeout(120);
   await page.locator('[data-testid="law-slide"]').click();
   await page.waitForTimeout(150);
-  const neither = (await sphereState()).selections.laws;
-  check("...and unchecking Slide unchecks Diagonal Slide", !neither.slide && !neither.diagonalSlide, JSON.stringify(neither));
+  const after = (await sphereState()).selections.laws;
+  check("...and Orthogonal Slide on and off again leaves Diagonal Slide on", !after.slide && after.diagonalSlide, JSON.stringify(after));
+  await page.locator('[data-testid="law-diagonalSlide"]').click(); // (off again, as the restore below expects)
+  await page.waitForTimeout(120);
   // Back as they were.
   if (slideOn) { await page.locator('[data-testid="law-slide"]').click(); await page.waitForTimeout(120); }
   if (diagOn) await page.locator('[data-testid="law-diagonalSlide"]').click();

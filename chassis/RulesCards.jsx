@@ -35,7 +35,7 @@ export const RULES_TABS = [
 export const LAW_TEXT = {
   splitMovement: { name: "Split Movement", text: "Your points can be shared between up to two pieces in one turn." },
   slide: { name: "Orthogonal Slide", text: "Any piece can move one open square along its row or column (north, south, east or west, not corner to corner) without tipping. A slide costs 2 points." },
-  diagonalSlide: { name: "Diagonal Slide", text: "Slides can also go diagonally. A diagonal slide never shoves." },
+  diagonalSlide: { name: "Diagonal Slide", text: "Any piece can move one open square corner to corner without tipping, for 2 points. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
   blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends." },
   cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 point." },
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 action points instead of 2." },
@@ -397,7 +397,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "diagonalSlide", law: "diagonalSlide", title: "Diagonal Slide", cost: <Dots n={2} C={C} />, text: "With Orthogonal Slide on, a slide may also go diagonally. A diagonal slide never shoves.",
+      key: "diagonalSlide", law: "diagonalSlide", title: "Diagonal Slide", cost: <Dots n={2} C={C} />, text: "A piece glides one square corner to corner without tipping. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves.",
       svg: (
         <>
           {grid(3, 3, 36, 6)}
@@ -762,10 +762,11 @@ export function pieceCardInfo(piece, laws = {}, name = piece.type) {
     tile = "flaco";
   }
   const extra = [];
-  if (laws.slide && piece.type !== "cabeza") {
+  if ((laws.slide || laws.diagonalSlide) && piece.type !== "cabeza") {
+    const way = laws.slide ? (laws.diagonalSlide ? " one square, diagonals too," : " one square") : " one square corner to corner";
     extra.push(piece.type === "opa"
-      ? `It can also slide one square${laws.diagonalSlide ? ", diagonals too" : ""}, still 2 points.`
-      : `Or slide one square without tipping${laws.diagonalSlide ? ", diagonals too" : ""}, 2 points.`);
+      ? `It can also slide${way}, still 2 points.`
+      : `Or slide${way} without tipping, 2 points.`);
   }
   if (laws.cantileverPivot && PIVOTERS.includes(piece.type)) extra.push("Or pivot a quarter turn on one cube, 1 point.");
   if (laws.shoving && piece.type !== "cabeza") {

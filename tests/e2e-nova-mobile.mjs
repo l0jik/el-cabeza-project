@@ -228,7 +228,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "shell-ai-level").locator('button[data-value="easy"]').click();
   const human = await page.evaluate(() => document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]').dataset.value);
   // The side's name as this theme says it (Walnut / Ash, Photon / Plasma...).
-  const humanName = await page.evaluate(() => document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]').textContent.trim().replace(/ \(.*\)$/, "")); // (the name, without its colour word)
+  const humanName = await page.evaluate(() => (document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"] .ec-shell-side-name') || document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]')).textContent.trim()); // (the name, without its colour word)
   await q(page, "shell-begin").click();
   await page.waitForTimeout(2500);
   await page.evaluate((id) => window.__EC_TEST_MOVE__(id, id.startsWith("dark") ? "S" : "N"), `${human}-flaco`);
