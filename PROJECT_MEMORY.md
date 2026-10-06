@@ -6944,3 +6944,8 @@ phone menu until "Start the story over" (which clears it).
   pass. e2e-outside-dismiss fails one Lluvia check ("mid-turn, a tap on
   an empty square puts the card away") on the build before the split
   round too (228ed2d): older, not from this; left for the user.
+- User asked: with Shoving selected, must Slide be forced on? Answered no:
+  rolls shove too by default ("Slides and rolls"); only "Slides only"
+  needs Slide, and today that shows a warning (lawWarnings
+  shove-needs-slide) rather than switching Slide on. Offered to make
+  "Slides only" bring Slide (as Diagonal slide does). Nothing changed.
