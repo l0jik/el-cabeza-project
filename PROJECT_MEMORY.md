@@ -6811,3 +6811,12 @@ phone menu until "Start the story over" (which clears it).
   as their screenshot, and Pages lets a page be cached for 10 minutes.
   Given a cache-busting link (&v=2). (The sandbox can't reach github.io
   to check the live page.)
+- User (Orinoco, Slide on): a 2x3 under a Zeta's overhang "should be able
+  to slide out ... Why is it not able to?" Engine checked (scratch
+  script): upright Zeta (vox 0,0,0;0,0,1;1,0,1;2,0,1;2,0,2) over a flat
+  block2x3: legalMovesFor gives slide-N, slide-E, slide-S (W blocked by
+  the Zeta's foot) and no rolls (the overhang blocks every tip). So the
+  rules allow it. Likely cause: slides are never drawn as markers (chassis
+  shadowEntries filters isSlide; they're done by tapping the piece, then
+  dragging it), so a piece whose only moves are slides shows nothing when
+  tapped. Offered fixes; waiting on the user (and whether they dragged).
