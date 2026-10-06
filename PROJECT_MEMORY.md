@@ -6803,3 +6803,11 @@ phone menu until "Start the story over" (which clears it).
   fresh profile: menu with all 18 worlds, the den "You are here", Neon
   picked from it opens, a plain reload doesn't reopen it, no page errors.
   Tests: e2e-gate.
+- ?switcher on the user's phone showed the den with the order paper
+  glowing (their real mid-story state), not the menu. Reproduced their
+  state headless (owned, Singularity seen, commercial aired: paper up),
+  then ?switcher: paper gone, menu up, record unlocked. So it was the old
+  page: the deploy with ?switcher finished 12:58:26 UTC, the same minute
+  as their screenshot, and Pages lets a page be cached for 10 minutes.
+  Given a cache-busting link (&v=2). (The sandbox can't reach github.io
+  to check the live page.)
