@@ -7705,6 +7705,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               fontWeight: 600,
               letterSpacing: "0.16em",
               textTransform: "uppercase",
+              // One line, at its own width: centred from the middle of the
+              // screen, it was otherwise held to half the screen and broke
+              // "Action points" over two lines (user, Parrish on a phone).
+              whiteSpace: "nowrap",
+              width: "max-content",
               color: COLORS.slate,
               ["--ec-ember"]: glow,
             }}

@@ -7024,3 +7024,16 @@ phone menu until "Start the story over" (which clears it).
   LAWS sign. The move kind stays "slide" (Shoving's "Slides only", the
   cost row "Slide", "a slide costs 2"): any slide, either rule. Keys
   unchanged (`slide`), so saves and tests carry over.
+
+- Parrish's Action Points strip (user, phone screenshot: "a bit too
+  jarring... the text is not even fitting inside of it"). Cause: the
+  counter is position:fixed at left:50%, so shrink-to-fit held it to
+  half the screen (206px on a 412px phone) and "Action points" broke over
+  two lines that spilled out of the paper scrap. Chassis: the counter is
+  now white-space:nowrap and width:max-content (one line in every
+  theme). Parrish: smaller and quieter (9.5px type, 10px beads, a close
+  still glow, no breathing) and, per the user ("I like it more without
+  the paper, like in Watermark"), no paper behind it in either look: the
+  words sit on the painting with a soft halo of the ground's light. The
+  unused-points note keeps its paper. e2e-points passes alone (failed
+  once under the runner, and passes without the change too).

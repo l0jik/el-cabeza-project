@@ -496,6 +496,18 @@ export const styleSheet = `
     font-family: 'Cinzel', Georgia, serif !important; letter-spacing: 0.06em; box-shadow: none !important;
   }
   [data-testid="points-counter"] *, [data-testid="unused-points-note"] * { font-family: inherit !important; }
+  /* The counter smaller and quieter (user: "a bit too jarring", its
+     words not fitting the paper): a narrow scrap, small type, smaller
+     beads with a closer glow. */
+  /* No paper behind it (user: "I like it more without the paper, like
+     in Watermark"): the words and beads straight on the painting, a
+     soft halo of the ground's own light keeping the words legible. */
+  [data-testid="points-counter"] { font-size: 9.5px !important; letter-spacing: 0.1em !important; gap: 8px !important; padding: 5px 18px !important; opacity: 0.92;
+    background: none !important; -webkit-mask-box-image: none !important; mask-border: none !important;
+    text-shadow: 0 0 6px ${DARK ? "rgba(20, 4, 6, 0.9)" : "rgba(235, 244, 252, 0.95)"}, 0 0 2px ${DARK ? "rgba(20, 4, 6, 0.9)" : "rgba(235, 244, 252, 0.95)"}; }
+  [data-testid="points-counter"] > span:last-of-type { gap: 6px !important; }
+  [data-testid="points-counter"] [data-filled] { width: 10px !important; height: 10px !important; }
+  [data-testid="points-counter"] [data-filled="true"] { animation: none !important; box-shadow: 0 0 0 1px color-mix(in srgb, var(--ec-ember) 50%, black), 0 0 4px 1px color-mix(in srgb, var(--ec-ember) 70%, transparent) !important; }
 
   /* The gate (Standard / Nova) and the Nova sheet: the palette's tokens,
      the same paint (themes/reality-gate.js). */
