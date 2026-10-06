@@ -547,6 +547,9 @@ const DEFAULT_BOARD_DIM = 10; // matches the engine's fixed board before any TOP
 // plus Diagonal Slide (a modifier on Slide).
 const LAWS_ITEMS = [
   { key: "splitMovement", label: "Split Movement", blurb: "Split a turn's points between up to two pieces instead of one." },
+  // (User: a three-piece limit as its own choice, one Split Movement or
+  // the other; it brings 3 Actions, a point a piece.)
+  { key: "splitThree", label: "Split Movement, 3 Pieces", blurb: "Split a turn's 3 points between up to three pieces, one point each. Brings 3 Actions Per Turn." },
   { key: "slide", label: "Slide", blurb: "Move a piece one open square north, south, east or west without tipping it. Costs 2 points (a roll costs 1)." },
   { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Slides may also go diagonally. Needs Slide." },
   { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
@@ -568,7 +571,8 @@ function lawLabel(item, selections) {
 }
 // What setActiveLaws gets: the law checkboxes plus Shoving's setting.
 function lawsForEngine(selections) {
-  return { ...selections.laws, shoveOnRolls: shovesOnRolls(selections) };
+  const l = selections.laws, three = !!(l.splitThree && l.threeActions);
+  return { ...l, splitThree: three, splitMovement: !!l.splitMovement || three, shoveOnRolls: shovesOnRolls(selections) };
 }
 
 // Footprints (col,row cells, all one layer) used only to draw the
@@ -2901,6 +2905,11 @@ function renderCategoryOverlay(t) {
             // rules-selections.js toggleLaw).
             if (item.key === "diagonalSlide" && sel.laws.diagonalSlide) sel.laws.slide = true;
             if (item.key === "slide" && !sel.laws.slide) sel.laws.diagonalSlide = false;
+            // One Split Movement or the other; three pieces brings 3
+            // Actions, and goes with them (rules-selections.js toggleLaw).
+            if (item.key === "splitThree" && sel.laws.splitThree) { sel.laws.splitMovement = false; sel.laws.threeActions = true; }
+            if (item.key === "splitMovement" && sel.laws.splitMovement) sel.laws.splitThree = false;
+            if (item.key === "threeActions" && !sel.laws.threeActions) sel.laws.splitThree = false;
             // Turning Black Holes on with no spot yet rolls a real one now.
             if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares && !sel.blackHole.manual) fillPairedSpots(s, "blackHole", false);
             s.labelsDirty = true; s.bump();

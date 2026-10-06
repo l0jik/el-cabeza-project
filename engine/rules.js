@@ -2,7 +2,7 @@
    between the Standard and Neon theme sources before extraction — see
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, MAX_PIECES_PER_TURN, moveCost, PIVOT_KEYS } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, maxPiecesPerTurn, moveCost, PIVOT_KEYS } from "./constants.js";
 import { rollVox, groundCellsOf, piecesClash, rollSweepClashes, anyOddShape, cubeCount, pivotCellOf, pivotPiece, pivotSweepClashes } from "./shapes.js";
 
 /* Dark's half of the opening setup, with columns expressed RELATIVE to
@@ -601,7 +601,7 @@ export function turnContinues(pieces, player, movedPieceIds, currentPieceState, 
     Object.keys(legalMovesFor(pieces, currentPieceState, remaining)).length > 0;
   if (!split) return currentCanContinue;
   if (currentCanContinue) return true;
-  if (movedPieceIds.length >= MAX_PIECES_PER_TURN) return false;
+  if (movedPieceIds.length >= maxPiecesPerTurn()) return false;
   return pieces.some(
     (q) =>
       q.owner === player &&

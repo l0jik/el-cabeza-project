@@ -300,6 +300,12 @@ export function getBoardDimensions() {
    Begin Game time — see finalizeSingularityBegin. */
 export let ACTIVE_LAWS = {
   splitMovement: false,
+  // Split Movement across up to THREE pieces instead of two (user: its own
+  // choice in the game setup; it takes 3 Actions, a point a piece). Set,
+  // splitMovement is set too (setActiveLaws), so everything that asks
+  // "is the turn split?" still asks splitMovement; only the cap differs
+  // (maxPiecesPerTurn).
+  splitThree: false,
   slide: false,
   diagonalSlide: false,
   blackHoleSquares: false,
@@ -318,6 +324,7 @@ export let ACTIVE_LAWS = {
 
 export function setActiveLaws(partial) {
   ACTIVE_LAWS = { ...ACTIVE_LAWS, ...partial };
+  if (ACTIVE_LAWS.splitThree) ACTIVE_LAWS.splitMovement = true;
   return ACTIVE_LAWS;
 }
 
@@ -384,6 +391,8 @@ export function turnBudget() {
    points the bank holds: a 3-point Split turn can be one Opa roll (2) plus a
    different piece's roll (1), but never a third piece. */
 export const MAX_PIECES_PER_TURN = 2;
+// The cap in play: three with the three-piece Split Movement, else two.
+export const maxPiecesPerTurn = () => (ACTIVE_LAWS.splitThree ? 3 : MAX_PIECES_PER_TURN);
 
 /* A Slide always costs TWO action points (a roll costs one). So in a
    normal 2-point turn a slide consumes the whole turn, while with "3

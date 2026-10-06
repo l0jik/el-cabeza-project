@@ -39,6 +39,7 @@ export const LAW_TEXT = {
   blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends." },
   cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 point." },
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 action points instead of 2." },
+  splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 points can be shared between up to three pieces in one turn, one point each." },
   shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra point. A slide pushes them one square; a roll pushes them just past where it lands. Nothing may be behind them." },
 };
 // Shoving as this game plays it: its one setting says whether rolls shove
@@ -145,7 +146,8 @@ function CostsCard({ C, classic }) {
 
 /* ---------------------------------------------------------------- C */
 function GameCard({ C, game, onFocus, classic, reality }) {
-  const on = classic ? [] : Object.keys(LAW_TEXT).filter((k) => game.laws[k]);
+  // (Three pieces says it all: not two-piece Split Movement beside it.)
+  const on = classic ? [] : Object.keys(LAW_TEXT).filter((k) => game.laws[k] && !(k === "splitMovement" && game.laws.splitThree));
   const extras = [];
   if (game.rows !== 10 || game.cols !== 10) extras.push(`${game.rows} × ${game.cols} board`);
   if (game.missing && !classic) extras.push(`${game.missing} missing squares`);
@@ -476,7 +478,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "splitMovement", law: "splitMovement", title: "Split Movement", cost: null, text: "Your points can be shared between up to two pieces. Here a Turrito rolls for 1 point, then a lying Flaco rolls over its long side, one square, and stays lying down, for the other.",
+      key: "splitMovement", law: "splitMovement", title: "Split Movement", cost: null, text: "Your points can be shared between up to two pieces. Here a Turrito rolls for 1 point, then a lying Flaco rolls over its long side, one square, and stays lying down, for the other. With Split Movement, 3 Pieces (and 3 actions), up to three pieces, a point each.",
       svg: (
         <>
           {panels}

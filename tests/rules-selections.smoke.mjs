@@ -121,6 +121,23 @@ import("../themes/rules-selections.js").then(async (m) => {
   check("an old save keeps its slides-only choice and drops the push distance", (() => { const n = m.normalizeSelections({ laws: { shoving: true }, shove: { far: true, onRolls: false } }); return n.shove.onRolls === false && !("far" in n.shove); })());
   check("a save without the setting shoves on rolls too", m.normalizeSelections({ laws: { shoving: true } }).shove.onRolls === true);
   check("an old save normalises (size → rows × cols, counts clamped)", (() => { const n = m.normalizeSelections({ size: 12, counts: { opa: 9 } }); return n.rows === 12 && n.cols === 12 && n.counts.opa === 4 && n.missingSpots.length === 0; })());
+  // The two Split movements (user): one or the other; three pieces brings 3 actions.
+  {
+    const t = m.defaultSelections();
+    m.toggleLaw(t, "splitMovement");
+    m.toggleLaw(t, "splitThree");
+    check("three pieces turns two pieces off and 3 actions on", t.laws.splitThree && !t.laws.splitMovement && t.laws.threeActions, JSON.stringify(t.laws));
+    m.toggleLaw(t, "splitMovement");
+    check("two pieces turns three pieces off", t.laws.splitMovement && !t.laws.splitThree);
+    m.toggleLaw(t, "splitThree");
+    m.toggleLaw(t, "threeActions");
+    check("3 actions off takes three pieces with it", !t.laws.threeActions && !t.laws.splitThree);
+    const u = m.defaultSelections(); m.toggleLaw(u, "splitThree");
+    const e = m.lawsForEngine(u);
+    check("the engine gets split on, three pieces, 3 actions", e.splitMovement && e.splitThree && e.threeActions, JSON.stringify(e));
+    check("a save with both keeps three pieces only", (() => { const n = m.normalizeSelections({ laws: { splitMovement: true, splitThree: true, threeActions: true } }); return n.laws.splitThree && !n.laws.splitMovement; })());
+    check("the three-piece choice sits right under two pieces", (() => { const k = m.LAW_OPTIONS.map((l) => l.key); return k.indexOf("splitThree") === k.indexOf("splitMovement") + 1 && k.indexOf("threeActions") === k.indexOf("splitMovement") - 1; })());
+  }
   setBoardDimensions(10, 10);
   console.log(failures ? `\n${failures} check(s) failed` : "\nall rules-selections checks passed");
   process.exit(failures ? 1 : 0);

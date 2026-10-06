@@ -56,6 +56,9 @@ export const LAW_OPTIONS = [
   // (3 actions per turn directly above Split movement: user.)
   { key: "threeActions", name: "3 actions per turn", note: "3 points a turn instead of 2." },
   { key: "splitMovement", name: "Split movement", note: "Spend a turn's points on up to two pieces." },
+  // (User: a three-piece limit as its own choice; one or the other of the
+  // two Split movements, and it brings 3 actions, a point a piece.)
+  { key: "splitThree", name: "Split movement, 3 pieces", note: "Spend a turn's 3 points on up to three pieces, one point each. Brings 3 actions per turn." },
 ];
 // Shoving's one setting (as Neon's sphere): which moves shove. With
 // slides only, a roll into a piece is simply blocked.
@@ -113,6 +116,8 @@ export function normalizeSelections(sel) {
   });
   out.laws = { ...d.laws };
   LAW_OPTIONS.forEach((l) => { out.laws[l.key] = !!(sel.laws && sel.laws[l.key]); });
+  // (One Split movement at a time: three pieces wins.)
+  if (out.laws.splitThree) out.laws.splitMovement = false;
   // Which moves shove (a save from before the setting came back has none:
   // slides and rolls). An older save's push distance is dropped.
   out.shove = { onRolls: !(sel.shove && sel.shove.onRolls === false) };
@@ -272,13 +277,20 @@ export function toggleLaw(sel, key) {
   if (key === "diagonalSlide" && on) sel.laws.slide = true;
   if (key === "slide" && !on) sel.laws.diagonalSlide = false;
   if (key === "blackHoleSquares" && on) fillSpots(sel, "hole");
+  // The two Split movements: one or the other. Three pieces brings 3
+  // actions (with 2 points a turn it's no different from two pieces), and
+  // goes with them.
+  if (key === "splitThree" && on) { sel.laws.splitMovement = false; sel.laws.threeActions = true; }
+  if (key === "splitMovement" && on) sel.laws.splitThree = false;
+  if (key === "threeActions" && !on) sel.laws.splitThree = false;
   return sel;
 }
 // What the engine gets: the laws (a diagonal slide only with Slide) and
 // Shoving's setting.
 export function lawsForEngine(sel) {
   const l = sel.laws;
-  return { ...l, diagonalSlide: l.diagonalSlide && l.slide, shoveOnRolls: !(sel.shove && sel.shove.onRolls === false) };
+  const three = !!(l.splitThree && l.threeActions);
+  return { ...l, diagonalSlide: l.diagonalSlide && l.slide, splitThree: three, splitMovement: !!l.splitMovement || three, shoveOnRolls: !(sel.shove && sel.shove.onRolls === false) };
 }
 // Pieces that can ever stand balanced on one cube (so can pivot).
 export const PIVOT_CAPABLE = ["codo", "rayo", "zeta"];

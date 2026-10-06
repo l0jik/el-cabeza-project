@@ -9,7 +9,7 @@ import {
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, setBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
   isSlideKey, baseDirOfSlideKey, isPivotKey, pivotTurnOfKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
   MISSING_SQUARES, setMissingSquares as setActiveMissingSquares,
-  turnBudget, MAX_PIECES_PER_TURN,
+  turnBudget, maxPiecesPerTurn,
 } from "../engine/constants.js";
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues, applyShoves,
@@ -636,8 +636,20 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // screen pixels for tests that then click on it.
     window.__EC_TEST_MOVE__ = (id, dir) => {
       const piece = pieces.find((p) => p.id === id);
+      // Mid-turn, only the selected piece moves, as on the board (a tap on
+      // another piece is what hands it the turn's points, Split Movement's
+      // cap and all).
+      if (piece && stepsUsed > 0 && piece.id !== selectedId) return false;
       if (piece && beginMoveRef.current) beginMoveRef.current(piece, dir);
       return !!piece;
+    };
+    // Mid-turn under Split Movement, hand the turn's points to another
+    // piece, as a tap on it does (the piece limit and all); false if not.
+    window.__EC_TEST_SPLIT_TO__ = (id) => {
+      const p = pieces.find((x) => x.id === id);
+      if (!(stepsUsed > 0 && ACTIVE_LAWS.splitMovement && canTakeSplitPoints(p))) return false;
+      setSelectedId(p.id);
+      return true;
     };
     // Screen position of the centre of the cube at (row, col, level) —
     // for tapping a specific cube of an odd-shaped piece (its bounding-box
@@ -691,7 +703,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       const c = cam.current;
       return { theta: c.theta, phi: c.phi, radius: c.radius, dollhouse: !!c.dollhouse, target: [c.target.x, c.target.y, c.target.z], roomLimit: roomLimitRef.current };
     };
-  }, [pieces]);
+  }, [pieces, stepsUsed, selectedId, movedPieceIds]);
   /* React-visible copy of the Black Hole Squares LAW's current
      placement — engine/constants.js's own BLACK_HOLES is plain mutable
      module state, invisible to React's render cycle, same reason
@@ -1005,7 +1017,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // (Opened on one of the extras on purpose, an order form's "How it
   // works ›" or a law on the order slip, the card shows them all, so the
   // one asked for is there.)
-  const EXTRA_FOCUS = ["splitMovement", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving", "shoveRoll", "shelter", "missing"];
+  const EXTRA_FOCUS = ["splitMovement", "splitThree", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving", "shoveRoll", "shelter", "missing"];
   const standardGame = !["splitMovement", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving"].some((k) => ACTIVE_LAWS[k])
     && pieces.every((p) => CLASSIC_TYPES.includes(p.type)) && !MISSING_SQUARES.length && !(blackHoles && blackHoles.length);
   const [focusMode, setFocusMode] = useState(false);
@@ -4750,8 +4762,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const why =
           piece.type === "opa" && !splitOn
             ? "an Opa moves only once per turn"
-            : splitOn && movedAfter.length >= MAX_PIECES_PER_TURN
-              ? "only two pieces can move per turn"
+            : splitOn && movedAfter.length >= maxPiecesPerTurn()
+              ? `only ${maxPiecesPerTurn() === 3 ? "three" : "two"} pieces can move per turn`
               : "no move fits the points left";
         setUnusedNote({ key: Date.now(), text: `${left} point${left > 1 ? "s" : ""} unused: ${why}` });
       }
@@ -6172,14 +6184,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         // bank (stepsUsed) and step record carry over untouched; only the
         // selection changes, so beginMove picks up the remaining points.
         const p = pieces.find((x) => x.id === hit.id);
-        const remaining = turnBudget() - stepsUsed;
-        const eligible =
-          p &&
-          p.owner === currentPlayer &&
-          remaining > 0 &&
-          (movedPieceIds.includes(p.id) || movedPieceIds.length < MAX_PIECES_PER_TURN) &&
-          Object.keys(legalMovesFor(pieces, p, remaining)).length > 0;
-        if (eligible) {
+        if (canTakeSplitPoints(p)) {
           audioRef.current.playSelect(cubeCount(p));
           setSelectedId(p.id);
           setHoveredId(p.id);
@@ -6566,6 +6571,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* Split Movement, mid-turn: may this piece take the turn's points left?
+     One of the player's own, a point left, a legal move with it, and
+     either already moved this turn or under the piece limit (two, or
+     three with Split Movement, 3 Pieces). */
+  function canTakeSplitPoints(p) {
+    const remaining = turnBudget() - stepsUsed;
+    return !!p &&
+      p.owner === currentPlayer &&
+      remaining > 0 &&
+      (movedPieceIds.includes(p.id) || movedPieceIds.length < maxPiecesPerTurn()) &&
+      Object.keys(legalMovesFor(pieces, p, remaining)).length > 0;
+  }
   function handleStopHere() {
     // Guards the human-facing entry point only — the AI's own orchestration
     // effect calls settleTurn directly, bypassing this, so its own
@@ -6870,7 +6887,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // session settings — cleared here for a plain game (both the engine
       // module state read by rules.js/the AI worker and the chassis's own
       // React copies).
-      setActiveLaws({ splitMovement: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true });
+      setActiveLaws({ splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true });
       setActiveBlackHoles([]);
       setBlackHoles([]);
       setActiveMissingSquares([]);

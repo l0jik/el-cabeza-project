@@ -6873,3 +6873,25 @@ phone menu until "Start the story over" (which clears it).
   390 phone without scrolling? It scrolls if it doesn't (the strip's own
   check). e2e-now-playing: the "fits" check polls now (it read too soon
   under load once). All pass.
+- Stopping a piece under Split movement: user withdrew the question
+  ("leave ... as it currently is"); unchanged.
+- Split movement, 3 pieces (user: a three-piece limit as its own toggle;
+  turning it on turns the two-piece one off; with 3 points max, a point a
+  piece). Law key splitThree. Engine: ACTIVE_LAWS.splitThree;
+  setActiveLaws sets splitMovement too when it's on (every "is the turn
+  split?" check stays splitMovement); maxPiecesPerTurn() 3 or 2 replaces
+  MAX_PIECES_PER_TURN in rules.js turnContinues, ai.js generateSplitTurns,
+  the chassis (unused-points note, hand-over). Setup: rules-selections
+  LAW_OPTIONS (after Split movement; the sheet, Big Glutts' order form,
+  Lluvia's city menu, which now uses toggleLaw too) and Neon's sphere
+  LAWS_ITEMS; toggleLaw: three on -> two off + 3 actions on; two on ->
+  three off; 3 actions off -> three off; lawsForEngine/normalize keep one.
+  Rules cards: LAW_TEXT.splitThree (This game shows it instead of two),
+  the Moves tile mentions it. AI: generateTurns lists 3-piece turns
+  (110 turns, ~3 ms from the start position). Chassis: canTakeSplitPoints
+  (the tap's hand-over check, shared); test hooks: __EC_TEST_MOVE__ moves
+  only the selected piece mid-turn, __EC_TEST_SPLIT_TO__ hands points over
+  as a tap does; the hooks effect now also follows stepsUsed, selectedId,
+  movedPieceIds. Tests: rules-selections smoke (toggles), new
+  e2e-split-three (3 pieces a turn; with two-piece split a third refused).
+  Related suites pass: e2e-gate, ai-split, singularity, lluvia, tienda, costs, rules, split-three.

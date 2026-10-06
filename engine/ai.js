@@ -2,7 +2,7 @@
    the Standard and Neon theme sources before extraction (see
    build/scratch/) — pure logic, no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost, ACTIVE_LAWS, turnBudget, MAX_PIECES_PER_TURN, MISSING_SQUARES } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost, ACTIVE_LAWS, turnBudget, maxPiecesPerTurn, MISSING_SQUARES } from "./constants.js";
 import { legalMovesFor, legalRolls, legalCabezaSteps, sameState } from "./rules.js";
 import { maskAt } from "./shapes.js";
 
@@ -407,7 +407,7 @@ function generateSplitTurns(pieces, player, turns) {
     const movedCount = starts.size;
     for (const q of pieces.slice()) {
       if (q.owner !== player) continue;
-      if (!starts.has(q) && movedCount >= MAX_PIECES_PER_TURN) continue;
+      if (!starts.has(q) && movedCount >= maxPiecesPerTurn()) continue;
       // The first step is always a fresh piece; after that the current
       // piece may continue, a moved one may resume, or a new one may join.
       const moves = legalMovesFor(pieces, q, remaining);
