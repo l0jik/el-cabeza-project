@@ -801,7 +801,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      tightened; then the "Difficulty" word let go; then the buttons'
      text a little smaller, then smaller again. (Set on the elements
      themselves, !important, over any theme's own !important.) Again on
-     any change of width, and once the fonts are in. */
+     any change of width, and once the fonts are in.
+     A theme with diffLabelAbove (Parrish: user, "difficulty will just
+     simply be kind of like the umbrella for those three") has the word
+     over the three, so they take its place beside the arrow; the word
+     is never let go there. */
+  const diffLabelAbove = !!theme.diffLabelAbove;
   const diffRowRef = useRef(null);
   useLayoutEffect(() => {
     const row = diffRowRef.current;
@@ -817,9 +822,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           set(b, "letter-spacing", n >= 1 ? "0.02em" : null);
           set(b, "font-size", n >= 3 ? `${(base[i] * (n >= 4 ? 0.78 : 0.88)).toFixed(1)}px` : null);
         });
-        if (label) set(label, "display", n >= 2 ? "none" : null);
+        if (label && !diffLabelAbove) set(label, "display", n >= 2 ? "none" : null);
       };
-      const oneRow = () => { const kids = Array.from(row.children).filter((k) => k.offsetParent !== null); return kids.every((k) => Math.abs(k.offsetTop - kids[0].offsetTop) < 4 || Math.abs((k.offsetTop + k.offsetHeight / 2) - (kids[0].offsetTop + kids[0].offsetHeight / 2)) < 6); };
+      // The arrow and the three on one line (and the word, when it's beside
+      // them): each overlaps the first top to bottom, as a wrapped one can't.
+      const oneRow = () => {
+        const kids = [row.querySelector("[data-ec-diff-back]"), diffLabelAbove ? null : label, ...btns].filter((k) => k && k.offsetParent !== null).map((k) => k.getBoundingClientRect());
+        return kids.every((r) => r.top < kids[0].bottom - 2 && r.bottom > kids[0].top + 2);
+      };
       for (let n = 0; n <= 4; n++) { level(n); if (oneRow()) { row.setAttribute("data-fit", String(n)); return; } }
       row.setAttribute("data-fit", "4");
     };
@@ -828,8 +838,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (typeof ResizeObserver !== "undefined") { let w = row.clientWidth; ro = new ResizeObserver(() => { if (row.clientWidth !== w) { w = row.clientWidth; fit(); } }); ro.observe(row); }
     let live = true;
     if (typeof document !== "undefined" && document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (live) fit(); });
-    return () => { live = false; if (ro) ro.disconnect(); };
-  }, [showOpponentPicker, aiDifficulty, aiPlayer]);
+    // A face fetched only once it's used (Parrish's Cinzel) can land after
+    // fonts.ready: fit again whenever one does.
+    const fonts = typeof document !== "undefined" && document.fonts && document.fonts.addEventListener ? document.fonts : null;
+    if (fonts) fonts.addEventListener("loadingdone", fit);
+    return () => { live = false; if (ro) ro.disconnect(); if (fonts) fonts.removeEventListener("loadingdone", fit); };
+  }, [showOpponentPicker, aiDifficulty, aiPlayer, diffLabelAbove]);
   const [aiThinking, setAiThinking] = useState(false);
   /* Every game — Human vs Human included — now needs an explicit Begin
      Game press before anything can move, not just an AI-opponent game.
@@ -7187,6 +7201,35 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     ? { top: "calc(env(safe-area-inset-top, 0px) + 10px)", left: "calc((100vw - var(--ec-shell-side, 0px)) / 2)" }
     : { top: "calc(env(safe-area-inset-top, 0px) + 18px)" };
 
+  /* Easy, Medium, Hard (beside the arrow, or under the word: diffLabelAbove). */
+  const diffButtons = Object.entries(AI_DIFFICULTY).map(([key, cfg]) => (
+    <button
+      key={key}
+      className="ec-btn"
+      data-ec-diff={key}
+      aria-pressed={aiDifficulty === key}
+      disabled={busy || aiThinking || turnLocked}
+      onClick={() => setAiDifficulty(key)}
+      style={{
+        ...toggleButtonStyle(aiDifficulty === key),
+        // Padding/letter-spacing trimmed from the shared
+        // MINI_BUTTON_BASE default (6px 10px / 0.1em) just
+        // here, not globally — this row is the one place
+        // that needs the extra room to keep Easy/Medium/
+        // Hard on one line; other buttons sharing that base
+        // style elsewhere aren't tight on space and don't
+        // need the same squeeze.
+        padding: "6px 7px",
+        letterSpacing: "0.05em",
+        opacity: busy || aiThinking || turnLocked ? 0.5 : 1,
+        cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
+        flexShrink: 0,
+      }}
+    >
+      {cfg.label}
+    </button>
+  ));
+
   return (
     <div
       style={{
@@ -8456,6 +8499,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             <>
               <button
                 className="ec-btn"
+                data-ec-diff-back=""
                 aria-label="Back to opponent selection"
                 title="Back to opponent selection"
                 disabled={busy || aiThinking || turnLocked}
@@ -8483,47 +8527,46 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                   <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
                 </svg>
               </button>
-              <span
-                data-ec-diff-label=""
-                style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: 10,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: COLORS.slate,
-                  margin: 0,
-                  flexShrink: 0,
-                }}
-              >
-                Difficulty
-              </span>
-              {Object.entries(AI_DIFFICULTY).map(([key, cfg]) => (
-                <button
-                  key={key}
-                  className="ec-btn"
-                  data-ec-diff={key}
-                  aria-pressed={aiDifficulty === key}
-                  disabled={busy || aiThinking || turnLocked}
-                  onClick={() => setAiDifficulty(key)}
-                  style={{
-                    ...toggleButtonStyle(aiDifficulty === key),
-                    // Padding/letter-spacing trimmed from the shared
-                    // MINI_BUTTON_BASE default (6px 10px / 0.1em) just
-                    // here, not globally — this row is the one place
-                    // that needs the extra room to keep Easy/Medium/
-                    // Hard on one line; other buttons sharing that base
-                    // style elsewhere aren't tight on space and don't
-                    // need the same squeeze.
-                    padding: "6px 7px",
-                    letterSpacing: "0.05em",
-                    opacity: busy || aiThinking || turnLocked ? 0.5 : 1,
-                    cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
-                    flexShrink: 0,
-                  }}
-                >
-                  {cfg.label}
-                </button>
-              ))}
+              {diffLabelAbove ? (
+                <div data-ec-diff-group="" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, minWidth: 0 }}>
+                  <span
+                    data-ec-diff-label=""
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 10,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: COLORS.slate,
+                      margin: 0,
+                      flexShrink: 0,
+                      lineHeight: 1,
+                    }}
+                  >
+                    Difficulty
+                  </span>
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                    {diffButtons}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <span
+                    data-ec-diff-label=""
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: 10,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: COLORS.slate,
+                      margin: 0,
+                      flexShrink: 0,
+                    }}
+                  >
+                    Difficulty
+                  </span>
+                  {diffButtons}
+                </>
+              )}
             </>
           )}
           </div>

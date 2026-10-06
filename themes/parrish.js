@@ -429,9 +429,11 @@ export const styleSheet = `
   /* Small ones (8×8, the steppers): shorter ends. */
   .rg-seg button, .rg-step button, .rg-small { border-image-width: 0 10px !important; border-image-outset: 1px 3px !important; padding-left: 12px !important; padding-right: 12px !important; }
   .rg-step button { padding: 0 !important; }
-  /* The dock's Difficulty word clear of Easy's stroke (user: they ran
-     together): a stroke reaches 7px past its button, past the row's gap. */
-  :is(${PANELS}) [data-ec-diff-label] { margin-right: 10px !important; }
+  /* Easy's stroke clear of the arrow (user: the word and Easy ran
+     together when the word stood there): a stroke reaches 7px past its
+     button, past the row's gap. The word itself sits over the three
+     (diffLabelAbove). */
+  :is(${PANELS}) [data-ec-diff-group] { margin-left: 8px; }
   /* The sheet's choices bigger (user: "Computer plays Dark / Light" ran
      out of their strokes when the words took two lines): room above and
      below the words, so the stroke, stretched to the button, covers both
@@ -536,3 +538,7 @@ export const styleSheet = `
 /* What the two sides are called here (user; themes/side-names.js). */
 import { sideNamesFor } from "./side-names.js";
 export const sideNames = sideNamesFor("parrish");
+/* The dock's "Difficulty" over Easy, Medium and Hard, so the three fit
+   beside the arrow on a phone (user: the word above, "kind of like the
+   umbrella for those three"). */
+export const diffLabelAbove = true;

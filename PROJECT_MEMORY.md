@@ -6727,3 +6727,17 @@ phone menu until "Start the story over" (which clears it).
   schedule (appear, ring) runs at the same rate. Pieces fully up in about
   1.9 s (was ~7.4 s); first clap at about the first beat (was ~7.8 s).
   Tests: e2e-summon, tv-lure.
+- Parrish dock: "Difficulty" over Easy, Medium and Hard (user: Hard had
+  wrapped to a second line again; "difficulty will just simply be kind of
+  like the umbrella for those three", the three beside the arrow). A theme
+  export diffLabelAbove = true (Parrish only for now; the user will say
+  whether the other themes whose three wrap get it too): the chassis puts
+  the word centred over the three in a [data-ec-diff-group] column; the
+  row fitter never lets the word go there. The fitter's one-line check is
+  now "every one overlaps the first top to bottom" (the lowered three read
+  as wrapped under the old top/centre check), and it fits again on
+  document.fonts "loadingdone" (Cinzel can land after fonts.ready, likely
+  why the phone showed Hard wrapped). Parrish CSS: the word's
+  margin-right gone, the group 8px clear of the arrow (Easy's stroke).
+  Checked headless at 450 and 360 wide, both looks: one line, fit 0.
+  Tests: e2e-lab, e2e-gameplay.
