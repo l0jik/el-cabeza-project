@@ -7140,3 +7140,8 @@ phone menu until "Start the story over" (which clears it).
   While any of it is off screen it now also turns toward it (aim 0.5 ->
   0.85 of the paper's position) and may draw back to 2.6x. e2e-summon's
   "the paper all on screen" passes at 390x844.
+- Dock's who's-playing read-out (user, phone: "how can I know what AI
+  level I'm playing against"; it read "Walnut: You | As…", cut off by the
+  corner icons): now one side a line in the footer strip, "Walnut: You" /
+  "Ash: AI · Medium", 10.5px, bottom 7px (fits the 40px strip). Each line
+  ellipsizes on its own if ever too long.

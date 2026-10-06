@@ -8829,8 +8829,9 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
            (the one Sound's icon sits in), never a control: the setup
            buttons already say it before the game, so this is for once
            it's under way (and after, for the game just played). Absolutely
-           placed, so it never makes the dock any bigger; it gives way
-           (ellipsis) to the corner icons on a narrow screen. */}
+           placed, so it never makes the dock any bigger. One side a line,
+           so the computer's level always shows (user, on a phone: it read
+           "Walnut: You | As…", cut off by the corner icons). */}
         {declutter && (
           <div
             data-testid="dock-players"
@@ -8840,26 +8841,24 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               right: (theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0),
               // (With the corner switches, into the strip at the end of the
               // panel's content when it scrolls: --ec-dock-overflow.)
-              bottom: "calc(13px - var(--ec-dock-overflow, 0px))",
+              bottom: "calc(7px - var(--ec-dock-overflow, 0px))",
               fontFamily: "'IBM Plex Mono', monospace",
               // Larger and in the dock's own text colour per feedback
               // (was 9px slate at 0.75 — too dim and small to read).
-              fontSize: 11,
-              letterSpacing: "0.1em",
+              fontSize: 10.5,
+              lineHeight: 1.3,
+              letterSpacing: "0.08em",
               textTransform: "uppercase",
               color: COLORS.charcoal,
               opacity: 0.8,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
               pointerEvents: "none",
             }}
           >
-            {["dark", "light"]
-              .map((side) => `${sideName(side)}: ${
-                aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : "Human"
-              }`)
-              .join("  \u2502  ") /* a full-height pipe between the two sides */}
+            {["dark", "light"].map((side) => (
+              <div key={side} data-side={side} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {`${sideName(side)}: ${aiPlayer === side ? `AI \u00b7 ${AI_DIFFICULTY[aiDifficulty].label}` : aiPlayer ? "You" : "Human"}`}
+              </div>
+            ))}
           </div>
         )}
         {/* Points-left counter on/off — same quiet corner-icon treatment
