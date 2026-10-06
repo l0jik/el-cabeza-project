@@ -81,7 +81,8 @@ const OUTRO_FADE_S = 3;
 // same as Watermark": the place, Pieces, Soundtrack; the opening and the
 // close on the place's slider).
 export const HUMS_URL = lookName() === "watermark" ? "el-cabeza-parrish-hums.mp3" : "el-cabeza-parrish-soundtrack-orinoco.mp3";
-export const SOUNDTRACK_TITLE = lookName() === "watermark" ? "Cathedral Hums" : "Dodh\u00e9anta an Ghrian";
+// (Watermark's shown as "Ôm Nhau", user; the file is still the hums.)
+export const SOUNDTRACK_TITLE = lookName() === "watermark" ? "\u00d4m Nhau" : "Dodh\u00e9anta an Ghrian";
 const NO_GULLS = lookName() === "watermark";
 // Watermark's evening (user): a recording of wind in the trees, with its
 // own far birds (freesound_community "forest wind and birds", its hiss

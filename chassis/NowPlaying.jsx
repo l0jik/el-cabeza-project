@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /* Now playing, across the top of the sound menu (the dock's and the
    phone's), in every theme with music (user: "Go with option 4, all
@@ -15,7 +15,10 @@ import React, { useEffect, useState } from "react";
    No overlap: the button, the words and the time each have their own
    grid column, a fixed 12px gap between them, and the title's box a
    little room on the left for an italic's overhang (Parrish's
-   Cormorant); a long title ends in an ellipsis. The strip takes the
+   Cormorant). A title too long for its space scrolls (user): it rests a
+   moment, glides along to its end, rests, and glides back, over and over
+   (a reader who'd rather have no motion can swipe it along instead). The
+   strip takes the
    menu's width and never sets it (width 0, min-width 100%), so a long
    title can't push the faders apart, and 12px in from each side. */
 const fmt = (s) => {
@@ -24,14 +27,42 @@ const fmt = (s) => {
   return `${m}:${String(r).padStart(2, "0")}`;
 };
 
+const REST_S = 1.6; // the pause at each end
+const GLIDE_PX_S = 28; // how fast it moves along
+const reducedMotion = () => typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 export default function NowPlaying({ source, ink, muted, hair, accent, font, testid = "now-playing" }) {
   const [, tick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => tick((n) => n + 1), 250);
     return () => clearInterval(id);
   }, []);
-  const s = source && source.get ? source.get() : null;
+  const got = source && source.get ? source.get() : null;
+  // (Tests: a long title, to see it scroll.)
+  const testTitle = typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && window.__EC_NP_TITLE__;
+  const s = got && testTitle ? { ...got, title: testTitle } : got;
+  // How far the title runs past its space (0: it fits).
+  const boxRef = useRef(null), textRef = useRef(null);
+  const [over, setOver] = useState(0);
+  const title = s && s.title;
+  useLayoutEffect(() => {
+    const measure = () => {
+      const b = boxRef.current, t = textRef.current;
+      if (!b || !t) return;
+      const d = Math.ceil(t.scrollWidth - b.clientWidth);
+      setOver(d > 1 ? d : 0);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    const fonts = typeof document !== "undefined" && document.fonts && document.fonts.addEventListener ? document.fonts : null;
+    if (fonts) fonts.addEventListener("loadingdone", measure);
+    return () => { window.removeEventListener("resize", measure); if (fonts) fonts.removeEventListener("loadingdone", measure); };
+  }, [title]);
   if (!s || !s.title) return null;
+  const glide = over > 0 && !reducedMotion();
+  const glideS = over / GLIDE_PX_S, cycle = 2 * (REST_S + glideS);
+  const pc = (t) => `${((t / cycle) * 100).toFixed(2)}%`;
+  const anim = glide ? `ec-np-glide-${over}` : null;
   const paused = !!s.paused;
   const pct = s.length > 0 && s.at >= 0 ? Math.max(0, Math.min(100, (s.at / s.length) * 100)) : null;
   const at = fmt(s.at), len = fmt(s.length);
@@ -66,10 +97,22 @@ export default function NowPlaying({ source, ink, muted, hair, accent, font, tes
       </button>
       <div style={{ minWidth: 0, paddingLeft: 3 }}>
         <div
+          ref={boxRef}
           data-testid={`${testid}-title`}
+          data-scrolls={over > 0 ? "true" : "false"}
           title={s.title}
-          style={{ fontSize: 13.5, fontWeight: 500, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", opacity: paused ? 0.62 : 1 }}
-        >{s.title}</div>
+          style={{
+            fontSize: 13.5, fontWeight: 500, lineHeight: 1.25, whiteSpace: "nowrap", opacity: paused ? 0.62 : 1,
+            // (No motion wanted: a swipe moves it along instead.)
+            overflowX: over > 0 && !glide ? "auto" : "hidden", overflowY: "hidden", scrollbarWidth: "none",
+          }}
+        >
+          {anim && <style>{`@keyframes ${anim} { 0%, ${pc(REST_S)} { transform: translateX(0); } ${pc(REST_S + glideS)}, ${pc(2 * REST_S + glideS)} { transform: translateX(-${over}px); } 100% { transform: translateX(0); } }`}</style>}
+          <span
+            ref={textRef}
+            style={{ display: "inline-block", paddingRight: 3, animation: anim ? `${anim} ${cycle.toFixed(2)}s ease-in-out infinite` : "none" }}
+          >{s.title}</span>
+        </div>
         <div aria-hidden="true" style={{ height: 3, marginTop: 6, borderRadius: 2, background: hair, overflow: "hidden" }}>
           {pct != null && <div style={{ width: `${pct}%`, height: "100%", background: accent }} />}
         </div>

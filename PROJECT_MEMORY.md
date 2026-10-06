@@ -6855,3 +6855,16 @@ phone menu until "Start the story over" (which clears it).
   keeps its own order. Sheet read on Orinoco: slide, diagonalSlide,
   blackHoleSquares, shoving, cantileverPivot, threeActions,
   splitMovement. Tests: rules-selections smoke, e2e-gate.
+- Now-playing: a title too long for its space scrolls (user): rests 1.6 s,
+  glides to its end at 28 px/s, rests, glides back, looping (per-length
+  keyframes; reduced motion: no glide, swipe-scrollable instead);
+  measured on title change, resize, font load; data-scrolls on the title.
+  Watermark's soundtrack is shown as "Ôm Nhau" (user; was Cathedral Hums;
+  the slider's hint too). Test hook __EC_NP_TITLE__ (under
+  __EC_TEST_HOOKS__) for a long title. e2e-now-playing: long title
+  scrolls, glides, stays clear; a fitting one doesn't.
+- Rule question asked (not changed): with Split movement, should stopping
+  a piece end only that piece, the turn going on with the points left?
+  Today a tap on the moved piece ("Stop here"; the phone's End turn) ends
+  the whole turn; under Split a different own piece can already be tapped
+  to spend what's left (turnContinues; 2-piece cap). Waiting on the user.

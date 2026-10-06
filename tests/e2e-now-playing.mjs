@@ -40,7 +40,7 @@ const secs = (t) => { const m = /(\d+):(\d\d)/.exec(t || ""); return m ? +m[1] *
 
 const PLACES = [
   { name: "Orinoco", url: "el-cabeza-parrish.html?look=orinoco", title: "Dodhéanta an Ghrian", start: "begin" },
-  { name: "Watermark", url: "el-cabeza-parrish.html?look=watermark", title: "Cathedral Hums", start: "begin" },
+  { name: "Watermark", url: "el-cabeza-parrish.html?look=watermark", title: "\u00d4m Nhau", start: "begin" },
   { name: "Big Glutts", url: "el-cabeza-tienda.html", title: /Muzak, 1974|Coupon Gloss|Atrium|Emporium|Clearance|arrangement/, start: "box" },
   { name: "the den", url: "el-cabeza-standard.html", title: /\S/, start: "record" },
   { name: "Neon", url: "el-cabeza-neon.html", title: null, start: "begin" },
@@ -116,6 +116,20 @@ for (const place of PLACES) {
   await page.click('[data-testid="now-playing-toggle"]');
   const r = await poll(async () => { const b = await read(); return b && b.paused === "false" && secs(b.time) > secs(p2.time) ? b : null; }, 6000);
   check("played again, it carries on from where it was", !!r && secs(r.time) - secs(p2.time) < 8, r ? `${p2.time} -> ${r.time}` : "");
+  // A title too long for its space scrolls (user), still clear of the time.
+  if (place.name === "Orinoco") {
+    await page.evaluate(() => { window.__EC_NP_TITLE__ = "A Very Long Title That Cannot Possibly Fit In This Little Strip"; });
+    const shift = () => page.evaluate(() => { const t = document.querySelector('[data-testid="now-playing-title"]'); const sp = t.querySelector("span"); return { scrolls: t.dataset.scrolls, x: new DOMMatrixReadOnly(getComputedStyle(sp).transform).m41 }; });
+    const s0 = await poll(async () => { const v = await shift(); return v.scrolls === "true" ? v : null; }, 3000);
+    check("a long title is marked to scroll", !!s0);
+    const moved = await poll(async () => { const v = await shift(); return v.x < -5 ? v : null; }, 6000, 200);
+    check("...and glides along", !!moved, JSON.stringify(s0));
+    const l = await read();
+    check("...still clear of the button and the time", sep(l.btn, l.name) && sep(l.name, l.when), JSON.stringify(l));
+    await page.evaluate(() => { window.__EC_NP_TITLE__ = null; });
+    await page.waitForTimeout(400);
+    check("a title that fits doesn't scroll", (await shift()).scrolls === "false");
+  }
   check("no page errors", errs.length === 0, errs.join(" | "));
   await page.close();
 }
