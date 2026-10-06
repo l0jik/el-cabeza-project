@@ -22,6 +22,8 @@
 
    Kept free of React/Three.js like the rest of engine/. */
 
+import { PIECE_SCALE } from "./constants.js";
+
 // ---- the canonical cube-list encoding ----
 
 const parseCache = new Map();
@@ -320,7 +322,17 @@ export function pivotArmFootprint(piece) {
    that same level, with the same separating-axis test the roll sweep
    uses — here in the board's plane (u = column, v = row). A one-square
    arm sweeps its destination square and the diagonal square between
-   the two headings. Swinging over the board's edge is fine: it's air. */
+   the two headings. Swinging over the board's edge is fine: it's air.
+
+   Both cubes are measured at their drawn size (PIECE_SCALE of a square,
+   centred in it), not as whole squares (user: a Rayo standing on one
+   cube couldn't swing its arm west, with nothing in the way). A whole
+   square's far corner swings out to 1.58 squares from the planted
+   cube's centre, nicking the square two along by 0.08 — a piece
+   standing there blocked the turn though nothing visibly touched. At
+   drawn size the corner reaches 1.50 and the next cube starts at 1.57:
+   what's blocked is exactly what you'd see collide. */
+const DRAWN_INSET = (1 - PIECE_SCALE) / 2;
 export function pivotSweepClashes(pieces, piece, turn) {
   const pc = pivotCellOf(piece);
   const cu = pc.col + 0.5;
@@ -347,12 +359,13 @@ export function pivotSweepClashes(pieces, piece, turn) {
             const sn = Math.sin(phi);
             // Rows run down the screen, so this turns (u, v) clockwise
             // as seen from above for a positive angle.
-            const corners = [[ac, ar], [ac + 1, ar], [ac + 1, ar + 1], [ac, ar + 1]].map(([u, v]) => {
+            const a0 = ac + DRAWN_INSET, a1 = ac + 1 - DRAWN_INSET, b0 = ar + DRAWN_INSET, b1 = ar + 1 - DRAWN_INSET;
+            const corners = [[a0, b0], [a1, b0], [a1, b1], [a0, b1]].map(([u, v]) => {
               const du = u - cu;
               const dv = v - cv;
               return [cu + du * cs - dv * sn, cv + du * sn + dv * cs];
             });
-            if (squaresOverlap(corners, c, r)) return true;
+            if (squaresOverlap(corners, c, r, DRAWN_INSET)) return true;
           }
         }
       }
@@ -383,17 +396,19 @@ function leavesClearance(piece, other) {
   return true;
 }
 
-/* Separating-axis test between a turned unit square (its 4 corners) and
-   the axis-aligned unit square [ou, ou+1] x [ol, ol+1], both shrunk by
-   SWEEP_EPS so shared edges don't count as overlap. */
-function squaresOverlap(corners, ou, ol) {
+/* Separating-axis test between a turned square (its 4 corners) and
+   the axis-aligned unit square [ou, ou+1] x [ol, ol+1] (drawn in by
+   `inset` on every side), both shrunk by SWEEP_EPS so shared edges
+   don't count as overlap. */
+function squaresOverlap(corners, ou, ol, inset = 0) {
   const axes = [
     [1, 0],
     [0, 1],
     [corners[1][0] - corners[0][0], corners[1][1] - corners[0][1]],
     [corners[3][0] - corners[0][0], corners[3][1] - corners[0][1]],
   ];
-  const box = [[ou, ol], [ou + 1, ol], [ou + 1, ol + 1], [ou, ol + 1]];
+  const lo = inset, hi = 1 - inset;
+  const box = [[ou + lo, ol + lo], [ou + hi, ol + lo], [ou + hi, ol + hi], [ou + lo, ol + hi]];
   for (const [ax, ay] of axes) {
     let aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity;
     for (const [px, py] of corners) { const d = px * ax + py * ay; if (d < aMin) aMin = d; if (d > aMax) aMax = d; }

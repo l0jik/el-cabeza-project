@@ -180,6 +180,18 @@ check("a box still fills every level of its footprint", maskAt({ row: 0, col: 0,
   setActiveLaws({ cantileverPivot: true });
   check("the Zeta, balanced on one cube, can Cantilever Pivot",
     Object.keys(legalMovesFor([zeta], zeta)).some((k) => k.startsWith("pivot")));
+  // (User's game:) a Rayo on one cube, arm out to the south; a two-high
+  // piece stands two squares west of its foot. Swinging the arm west
+  // passes clear of it (the cubes are drawn at 87%), so both turns are
+  // there. A piece on the landing square, or the diagonal one swept on
+  // the way, still blocks it.
+  const stood = { id: "r", type: "rayo", owner: 0, row: 4, col: 4, w: 1, h: 2, z: 3, vox: "0,0,0;0,0,1;0,1,1;0,1,2" };
+  const tower = (row, col) => ({ id: "t", type: "flaco", owner: 1, row, col, w: 1, h: 1, z: 2 });
+  const turns = (other) => Object.keys(legalMovesFor([stood, other], stood)).filter((k) => k.startsWith("pivot")).sort().join(" ");
+  check("a pivot's arm swings past a piece two squares along", turns(tower(4, 2)) === "pivot-ccw pivot-cw", turns(tower(4, 2)));
+  check("...and past one beyond its tip", turns(tower(6, 4)) === "pivot-ccw pivot-cw", turns(tower(6, 4)));
+  check("a piece on the landing square blocks that way round", turns(tower(4, 3)) === "pivot-ccw", turns(tower(4, 3)));
+  check("so does one on the diagonal square it sweeps", turns(tower(5, 3)) === "pivot-ccw", turns(tower(5, 3)));
   setActiveLaws({ cantileverPivot: false });
 }
 

@@ -6960,3 +6960,18 @@ phone menu until "Start the story over" (which clears it).
   law rows now go through toggleLaw (they had their own copy).
   Tests: rules-selections smoke, e2e-tienda, e2e-singularity,
   e2e-lluvia, e2e-gate.
+- User (3 screenshots, Cromo): a Rayo standing on one cube, arm out
+  toward the player, offered only one pivot; the other way round was
+  clear. Cause: pivotSweepClashes measured the swinging cube and the
+  others as whole squares. A whole square's far corner swings out to
+  1.58 squares from the foot's centre, so it nicked the square two
+  along (and the one beyond the arm's tip) by 0.08, and the silver
+  two-high piece standing two squares west blocked the turn though
+  nothing visibly touched. Now both cubes are measured at drawn size
+  (PIECE_SCALE 0.87, centred): the corner reaches 1.50, the next cube
+  starts at 1.57. Blocking is now exactly the landing square and the
+  diagonal swept between, as the rule's comment always said. Rolls'
+  sweep (rollSweepClashes) unchanged. shapes.smoke has the user's
+  case plus the two that must still block. Tests: shapes, engine,
+  ai-threats smoke; e2e-pivot pass. e2e-pivot-guide failed once inside
+  the combined run, passed twice alone (menu picture; no sweep code).
