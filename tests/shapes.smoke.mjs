@@ -195,5 +195,30 @@ check("a box still fills every level of its footprint", maskAt({ row: 0, col: 0,
   setActiveLaws({ cantileverPivot: false });
 }
 
+// ---- the Hombro and the Cruce (a Codo with a fourth cube at its corner) ----
+// (User.) The Hombro's cube stands up from the corner; the Cruce's lies
+// flat out the back of it, a T. Both keep their 4 cubes through rolls,
+// and one roll from their opening pose stands each on a single cube,
+// where it can Cantilever Pivot.
+{
+  const hombro = { id: "h", type: "hombro", owner: "dark", row: 5, col: 5, w: 2, h: 2, z: 2, vox: "0,0,0;1,0,0;0,1,0;0,0,1" };
+  const cruce = { id: "c", type: "cruce", owner: "dark", row: 5, col: 5, w: 3, h: 2, z: 1, vox: "0,0,0;1,0,0;2,0,0;1,1,0" };
+  check("the standing Hombro stands on three squares, the flat Cruce on four",
+    groundCellsOf(hombro).length === 3 && groundCellsOf(cruce).length === 4);
+  for (const p of [hombro, cruce]) {
+    let q = p;
+    for (let i = 0; i < 4; i++) q = rollBlock(q, "E");
+    let r = p;
+    for (let i = 0; i < 4; i++) r = rollBlock(r, "S");
+    check(`the ${p.type} keeps its 4 cubes and comes back to its pose after four rolls either way`,
+      cubeCount(q) === 4 && voxKey(parseVox(q.vox)) === voxKey(parseVox(p.vox)) && voxKey(parseVox(r.vox)) === voxKey(parseVox(p.vox)), q.vox + " / " + r.vox);
+    setActiveLaws({ cantileverPivot: true });
+    const balanced = ["N", "E", "S", "W"].map((d) => rollBlock(p, d)).filter((b) => groundCellsOf(b).length === 1);
+    check(`one roll stands the ${p.type} on a single cube, where it can pivot (${balanced.length} ways)`,
+      balanced.length > 0 && balanced.every((b) => Object.keys(legalMovesFor([b], b)).some((k) => k.startsWith("pivot"))));
+    setActiveLaws({ cantileverPivot: false });
+  }
+}
+
 if (failures) { console.log(`\nSHAPES SMOKE TEST FAILED (${failures})`); process.exit(1); }
 console.log("\nSHAPES SMOKE TEST PASSED");

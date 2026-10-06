@@ -56,7 +56,7 @@ check(`a tight order on a 10-wide board is set out as ordered, every time (${asO
 import("../themes/rules-selections.js").then(async (m) => {
   const { getBoardDimensions, ACTIVE_LAWS } = await import("../engine/constants.js");
   const s = m.defaultSelections();
-  check("13 piece types (each Arco size its own), up to 4 each (Cabeza 1-2)", m.PIECE_OPTIONS.length === 13 && m.PIECE_OPTIONS.every((p) => p.max === (p.key === "cabeza" ? 2 : 4)));
+  check("15 piece types (each Arco size its own; the Hombro and Cruce too), up to 4 each (Cabeza 1-2)", m.PIECE_OPTIONS.length === 15 && m.PIECE_OPTIONS.every((p) => p.max === (p.key === "cabeza" ? 2 : 4)));
   {
     const { PIECE_META: PIECE_TYPES } = await import("../engine/constants.js");
     const offered = m.PIECE_OPTIONS.map((p) => m.pieceTypeOf(p.key));

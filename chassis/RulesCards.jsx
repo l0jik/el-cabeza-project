@@ -37,7 +37,7 @@ export const LAW_TEXT = {
   slide: { name: "Orthogonal Slide", text: "Any piece can move one open square along its row or column (north, south, east or west, not corner to corner) without tipping. A slide costs 2 points." },
   diagonalSlide: { name: "Diagonal Slide", text: "Slides can also go diagonally. A diagonal slide never shoves." },
   blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends." },
-  cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 point." },
+  cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 point." },
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 action points instead of 2." },
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 points can be shared between up to three pieces in one turn, one point each." },
   shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra point. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
@@ -111,7 +111,7 @@ function CostsCard({ C, classic }) {
     ["Cabeza step", "Any of 8 directions", <Dots n={1} C={C} />],
     ["Opa move", "Roll or slide; once per turn", <Dots n={2} C={C} />],
     ["Slide", "One square, no tipping", <Dots n={2} C={C} />, true],
-    ["Pivot", "Codo, Rayo or Zeta on one cube", <Dots n={1} C={C} />, true],
+    ["Pivot", "Codo, Hombro, Cruce, Rayo or Zeta on one cube", <Dots n={1} C={C} />, true],
     ["Shove", "Added to the move that pushes", <Dots n={1} C={C} plus />, true],
     ["Back to an earlier spot", "This turn only", <span style={{ color: C.slate }}>free</span>],
   ];
@@ -431,7 +431,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "cantileverPivot", law: "cantileverPivot", title: "Pivot", cost: <Dots n={1} C={C} />, text: "A Codo, Rayo or Zeta balanced on one cube turns a quarter turn around it. Its arm is held up, so it swings right over a Cabeza.",
+      key: "cantileverPivot", law: "cantileverPivot", title: "Pivot", cost: <Dots n={1} C={C} />, text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube turns a quarter turn around it. Its arm is held up, so it swings right over a Cabeza.",
       svg: (
         <>
           {panels}
@@ -747,8 +747,10 @@ const PIECE_TEXT = {
   arcoAncho: ["A wide arch. Rolls for 1 point; a Cabeza in its opening is sheltered. " + CUBE_CRUSH, "shelter"],
   rayo: ["Four cubes in an S. Rolls for 1 point. " + CUBE_CRUSH, "roll"],
   zeta: ["Five cubes in a Z. Rolls for 1 point. " + CUBE_CRUSH, "roll"],
+  hombro: ["Four cubes: a Codo with one standing on its corner. Rolls for 1 point. " + CUBE_CRUSH, "roll"],
+  cruce: ["Four cubes in a T. Rolls for 1 point. " + CUBE_CRUSH, "roll"],
 };
-const PIVOTERS = ["codo", "rayo", "zeta"];
+const PIVOTERS = ["codo", "hombro", "cruce", "rayo", "zeta"];
 
 export function pieceCardInfo(piece, laws = {}, name = piece.type) {
   let [text, tile] = PIECE_TEXT[piece.type] || ["Rolls over one edge, 1 point a roll. " + CRUSH, "roll"];

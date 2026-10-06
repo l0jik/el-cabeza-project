@@ -36,6 +36,8 @@ export const POSES = {
   arcoAncho: { w: 4, h: 1, z: 2, vox: "0,0,0;0,0,1;1,0,1;2,0,1;3,0,0;3,0,1" },
   rayo: { w: 3, h: 1, z: 2, vox: "0,0,0;1,0,0;1,0,1;2,0,1" },
   zeta: { w: 3, h: 1, z: 3, vox: "0,0,0;0,0,1;1,0,1;2,0,1;2,0,2" },
+  hombro: { w: 2, h: 2, z: 2, vox: "0,0,0;1,0,0;0,1,0;0,0,1" },
+  cruce: { w: 3, h: 2, z: 1, vox: "0,0,0;1,0,0;2,0,0;1,1,0" },
 };
 
 // The angle the still is taken from; the viewer opens at the same one,

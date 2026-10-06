@@ -98,6 +98,23 @@ export const PIECE_ORIENTATIONS = {
     { w: 3, h: 1, z: 3, vox: "1,0,0;2,0,0;1,0,1;0,0,2;1,0,2" },
     { w: 3, h: 1, z: 3, vox: "0,0,0;1,0,0;1,0,1;1,0,2;2,0,2" },
   ],
+  // The Hombro (a Codo with a cube standing on its corner): an L flat on
+  // the board, its corner in any of the 2x2's four, the fourth cube up.
+  // (Upside down on one cube is reachable in play, never a start.)
+  hombro: [
+    { w: 2, h: 2, z: 2, vox: "0,0,0;1,0,0;0,1,0;0,0,1" },
+    { w: 2, h: 2, z: 2, vox: "1,0,0;0,0,0;1,1,0;1,0,1" },
+    { w: 2, h: 2, z: 2, vox: "0,1,0;1,1,0;0,0,0;0,1,1" },
+    { w: 2, h: 2, z: 2, vox: "1,1,0;0,1,0;1,0,0;1,1,1" },
+  ],
+  // The Cruce (a T): flat, its stem toward either home row, or standing
+  // across the row on its bar with the stem up. (On its stem it balances
+  // on one cube: reachable in play, never a start.)
+  cruce: [
+    { w: 3, h: 2, z: 1, vox: "0,0,0;1,0,0;2,0,0;1,1,0" },
+    { w: 3, h: 2, z: 1, vox: "1,0,0;0,1,0;1,1,0;2,1,0" },
+    { w: 3, h: 1, z: 2, vox: "0,0,0;1,0,0;2,0,0;1,0,1" },
+  ],
 };
 
 export function shuffledIndices(n) {

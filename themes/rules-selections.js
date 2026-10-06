@@ -29,9 +29,12 @@ export const PIECE_OPTIONS = [
   { key: "arcoChico", name: "Arco Chico", note: "3 wide, 2 tall", min: 0, max: 4, def: 0 },
   { key: "arcoAlto", name: "Arco Alto", note: "3 wide, 3 tall", min: 0, max: 4, def: 0 },
   { key: "arcoAncho", name: "Arco Ancho", note: "4 wide, 2 tall", min: 0, max: 4, def: 0 },
-  // The pieces that can pivot (Codo, Rayo, Zeta) together at the end,
+  // The pieces that can pivot (Codo, Hombro, Cruce, Rayo, Zeta) together at the end,
   // so the pivot warning can point at one place (user).
   { key: "codo", name: "Codo", min: 0, max: 4, def: 0 },
+  // (The Codo's family, with a fourth cube at its corner, user.)
+  { key: "hombro", name: "Hombro", note: "A Codo with a cube standing on its corner", min: 0, max: 4, def: 0 },
+  { key: "cruce", name: "Cruce", note: "4 cubes in a T", min: 0, max: 4, def: 0 },
   { key: "rayo", name: "Rayo", min: 0, max: 4, def: 0 },
   { key: "zeta", name: "Zeta", min: 0, max: 4, def: 0 },
 ];
@@ -54,7 +57,7 @@ export const LAW_OPTIONS = [
   { key: "diagonalSlide", name: "Diagonal slide", note: "Slides may also go corner to corner. Needs Orthogonal slide. A diagonal slide never shoves." },
   { key: "blackHoleSquares", name: "Black hole squares", note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn." },
   { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 point more. Choose whether rolls shove too, or only slides." },
-  { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 point." },
+  { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 point." },
   // (3 actions per turn directly above Split movement: user.)
   { key: "threeActions", name: "3 actions per turn", note: "3 points a turn instead of 2." },
   { key: "splitMovement", name: "Split movement", note: "Spend a turn's points on up to two pieces." },
@@ -319,14 +322,14 @@ export function lawsForEngine(sel) {
   return { ...l, diagonalSlide: l.diagonalSlide && l.slide, splitThree: three, splitMovement: !!l.splitMovement || three, shoveOnRolls: !(sel.shove && sel.shove.onRolls === false) };
 }
 // Pieces that can ever stand balanced on one cube (so can pivot).
-export const PIVOT_CAPABLE = ["codo", "rayo", "zeta"];
+export const PIVOT_CAPABLE = ["codo", "hombro", "cruce", "rayo", "zeta"];
 /* A law that's on but can't do anything with the other choices, and why
    (as Neon's sphere warns): { key, testid, text } for each. */
 export function lawWarnings(sel) {
   const out = [];
   const l = sel.laws;
   if (l.cantileverPivot && !PIVOT_CAPABLE.some((k) => sel.counts[k] > 0))
-    out.push({ key: "cantileverPivot", testid: "law-warning-cantileverPivot", text: "Only a Codo, Rayo or Zeta can pivot. Order one under Pieces." });
+    out.push({ key: "cantileverPivot", testid: "law-warning-cantileverPivot", text: "Only a Codo, Hombro, Cruce, Rayo or Zeta can pivot. Order one under Pieces." });
   if (l.shoving) {
     if (!(sel.shove && sel.shove.onRolls === false)) {
       // Every Opa move costs 2 and a shove 1 more: an Opa only shoves with 3.

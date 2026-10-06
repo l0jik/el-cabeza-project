@@ -191,7 +191,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       halo.setAttribute("data-testid", "den-order-paper");
       halo.setAttribute("aria-hidden", "true");
       doc.body.appendChild(halo);
-      let swallow = false;
+      let swallow = false, endT = 0;
       const onPaper = (e) => {
         if (e.clientX == null) return false;
         const r = halo.getBoundingClientRect();
@@ -210,14 +210,20 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (onFull(e)) return;
         e.stopImmediatePropagation(); e.stopPropagation();
         if (e.cancelable && e.type !== "pointermove") e.preventDefault();
-        if (swallow) { if (e.type === "click" || e.type === "pointerup" || e.type === "touchend") setTimeout(stop, 0); return; }
+        // The paper's tap is held to its end, and a beat past it: on a
+        // phone the browser sends the tap's mouse events (click and all)
+        // a moment after touchend, and once let through they reached the
+        // board as a tap on the leaflet and opened the rules over the note
+        // (user, on a phone: the rules came up, the order note flashing
+        // behind them).
+        if (swallow) { if (e.type === "click" || e.type === "pointerup" || e.type === "touchend" || e.type === "mouseup") { clearTimeout(endT); endT = setTimeout(stop, 450); } return; }
         const down = e.type === "pointerdown" || (e.type === "touchstart" && !window.PointerEvent);
         if (!down) return;
         const pt = e.touches && e.touches[0] ? e.touches[0] : e;
         if (onPaper(pt)) {
           swallow = true; paperTaken = true;
           window.dispatchEvent(new CustomEvent(ORDER_PAPER_TAKEN));
-          setTimeout(stop, 600); // (in case the tap's end never comes)
+          setTimeout(stop, 1500); // (in case the tap's end never comes)
         } else throb();
       };
       const blockKey = (e) => { if (e.key === "Tab") return; e.stopImmediatePropagation(); e.stopPropagation(); if (e.cancelable) e.preventDefault(); };
@@ -1293,7 +1299,9 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         const t = three.current;
         const slab = t && t.boardGroup && t.boardGroup.getObjectByName("ec-slab");
         const onTable = raycaster.intersectObjects([slab].concat(den.table.rules.pickables).filter(Boolean), false)[0];
-        if (onTable && onTable.object.userData.rules) return "rules";
+        // (Once taken, the paper's the special-order form till the den's
+        // left: not the rules, user. The box still is.)
+        if (onTable && onTable.object.userData.rules) return paperTaken && onTable.object === den.table.rules.leaflet ? "orderPaper" : "rules";
         // The lamps (focus: the console's, the credenza's two, the ceiling's
         // two globes), each while its wall or the ceiling is there, and,
         // while the south wall is there, the stereo's machines and the
@@ -1325,6 +1333,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       // open at the Quick card (as How to play did; chassis/RulesCards.jsx
       // listens for the event, the name its OPEN_RULES_EVENT), the knob turns.
       sceneTap(what) {
+        if (what === "orderPaper") return true; // (the order form: the note's up already)
         if (what === "rules") {
           rulesHover = false;
           if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "quick", focus: null } }));

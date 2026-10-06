@@ -206,6 +206,11 @@ export function useSetupExtras(x) {
     const noteShown = () => typeof document !== "undefined" && !!document.querySelector(".td-special-note");
     const guidedNow = () => home && story.guided && story.guided() && !hallScene() && noteShown();
     const onNote = (e) => !!(e.target && e.target.closest && e.target.closest(".td-special-note"));
+    // The rules, if anything brings them up over the note, can always be
+    // read and closed (user: the rules came up over it, on a phone, and
+    // there was no getting out of them).
+    const rulesOpen = () => typeof document !== "undefined" && !!document.querySelector('[data-testid="info-overlay"][data-open="true"]');
+    const onRules = (e) => !!(e.target && e.target.closest && e.target.closest('[data-testid="info-overlay"]'));
     /* The first time through, nothing else on the screen can be touched
        while it's up (user: only the order form): every tap, drag, wheel
        and key off it is stopped at the window, before the board, the
@@ -221,13 +226,13 @@ export function useSetupExtras(x) {
       }));
     };
     const block = (e) => {
-      if (!guidedNow() || onNote(e)) return;
+      if (!guidedNow() || onNote(e) || onRules(e)) return;
       e.stopImmediatePropagation(); e.stopPropagation();
       if (e.cancelable && e.type !== "pointermove") e.preventDefault();
       if (e.type === "pointerdown" || (e.type === "touchstart" && !window.PointerEvent)) { setNoteGlow(true); throb(); }
     };
     const blockKey = (e) => {
-      if (!guidedNow()) return;
+      if (!guidedNow() || rulesOpen()) return;
       const a = document.activeElement;
       if (a && a.closest && a.closest(".td-special-note") && (e.key === "Enter" || e.key === " " || e.key === "Tab")) return;
       if (e.key === "Tab") return;
@@ -1200,6 +1205,8 @@ const CATALOG = {
   arcoAncho: ["49 T 4413", "65¢", "A wide arch, 4 wide and 2 tall. A Cabeza in its opening is sheltered."],
   rayo: ["49 T 4408", "45¢", "Four cubes, an S."],
   zeta: ["49 T 4409", "55¢", "Five cubes, a Z."],
+  hombro: ["49 T 4414", "45¢", "Four cubes: an L with one standing on its corner."],
+  cruce: ["49 T 4415", "45¢", "Four cubes, a T."],
 };
 // The summary's groups, in the store's words.
 export const TIENDA_VARIANT_LABELS = { laws: "RULES", matter: "PIECES", topologies: "BOARD" };

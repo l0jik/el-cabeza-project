@@ -7037,3 +7037,63 @@ phone menu until "Start the story over" (which clears it).
   words sit on the painting with a soft halo of the ground's light. The
   unused-points note keeps its paper. e2e-points passes alone (failed
   once under the runner, and passes without the change too).
+
+- Hombro and Cruce (built; user: "a new piece where the extra block
+  points both straight up from the corner and then one where it's flat
+  out the back of the corner... Go with Hombro and Cruce"). Both are a
+  Codo with a fourth cube at its corner. Hombro (`hombro`, "Ho"): the cube
+  stands up from the corner, three arms three ways; it opens as an L flat
+  on the board with the cube up (four corner turns, 2x2). Cruce
+  (`cruce`, "Cr"): the cube lies flat out the back of the corner, a T; it
+  opens flat with its stem toward either home row (3x2), or standing on
+  its bar with the stem up (3x1x2). Each can roll onto a single cube
+  (Hombro upside down, Cruce on its stem or bar end), so both pivot:
+  PIVOT_CAPABLE, PIVOT_CAPABLE_ROSTER and PIVOTERS are now codo, hombro,
+  cruce, rayo, zeta, in that order at the end of every pieces list, and
+  every pivot text names all five. Touchpoints, as the Zeta's:
+  PIECE_META, anomaly poses, neon.js roster, PIECE_OPTIONS (with notes),
+  MATTER rows and icons, piece-showcase POSES (gate/sphere pictures),
+  Tienda catalog 49 T 4414 / 4415 at 45¢, gate PICTURE_TYPES, Lluvia
+  signs 肩 (shoulder) / 十 (cross), RulesCards piece text. Not added: a
+  den-hall rift portal shape (decorative). Tests: shapes.smoke (rolls,
+  one roll to a single cube, pivots), theme-neon.smoke (openings
+  mirrored, in the home rows, no overlap), rules-selections (15 types),
+  e2e-pivot-guide and e2e-singularity lists of five.
+
+- Side colours where you pick a side (user, Neon screenshot of "Computer
+  plays Photon / Plasma": "whenever the names are not clear... a
+  parenthetical what color that name actually is referring to, or some
+  other way"; chose "where you pick a side" plus a colour dot, and the
+  words one world at a time). side-names.js pairs now carry `swatch`
+  (the pieces' body colour) and, only where the name doesn't say it,
+  `hint`: Photon (dark) / Plasma (light), Mưa (teal) / Nắng (pink),
+  Steel (dark) / Chrome (bright), Walnut (dark) / Ash (light), Lab: Iron
+  (dark) / Concrete (light), Ink (dark) / Paper (light); the Lab's other
+  names are colours already. Helpers sideLabel, sideSwatch, sideDotStyle
+  (a ringed dot that shows on any ground). Used in the gate sheet's
+  "Computer plays", Neon sphere's "AI ·", the phone shell's Starts / AI
+  plays; Tienda's order form gets the word only (its buttons are each
+  side's wood already). The desktop dock's AI buttons are painted in the
+  side colours, unchanged; Lluvia's city has no side picker.
+- e2e-pivot-guide's "the warning flashes" kept failing (runner and
+  alone): Lluvia's city under the software renderer is so busy that the
+  click returns ~2.5 s later, after the warning's 1.2 s flash and the
+  jump to MATTER (same on the build before the new pieces). The test now
+  records every guide flash as it starts (a MutationObserver from its
+  init script) and matches by selector, so a flash on an element that's
+  since gone still counts; clearFlashes before the warning tap's replay.
+
+- The order paper on a phone (user, a full story run: tapping the glowing
+  order form on the coffee table after the commercial brought up the
+  rules' Quick card, the order note flashing behind it, and no way out).
+  Two faults. (1) den-fx.js paperStart's tap blocker let go on the first
+  up event (setTimeout(stop, 0)); on a touch screen the browser sends the
+  tap's mouse events a moment after touchend, which then reached the
+  chassis as a tap on the leaflet: sceneTap "rules". Now the swallowed tap
+  is held until 450 ms after its last up/click (hard cap 1.5 s). (2) Once
+  taken, the leaflet stays the special-order form while the den's up, so
+  pickScene calls it "orderPaper" (sceneTap: nothing), not "rules"; the
+  game box still opens the rules. And the special note's own blocker
+  (tienda-overlay.js), which holds every tap but the note's, now lets the
+  rules overlay (data-testid info-overlay) be tapped and Escape through
+  while it's open, so nothing over the note can trap you.

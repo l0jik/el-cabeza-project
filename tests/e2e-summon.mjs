@@ -332,10 +332,14 @@ console.log("the link straight to it: left alone, a menu opens by itself and com
   await page.mouse.click(8, 300);
   check("...a tap elsewhere is held, and the halo throbs", !!(await poll(() => page.evaluate(() => !!document.querySelector('[data-testid="den-order-paper"].throb') && window.__DEN_ORDER_PAPER__().on), 3000)), JSON.stringify(await page.evaluate(() => ({ p: window.__DEN_ORDER_PAPER__(), cls: (document.querySelector('[data-testid="den-order-paper"]') || {}).className }))));
   {
+    // A finger, as on a phone (user: there the tap's late mouse events
+    // got past the paper and opened the rules over the note).
     const at = await page.evaluate(() => window.__DEN_ORDER_PAPER__());
-    await page.mouse.click(at.x, at.y);
+    await page.touchscreen.tap(at.x, at.y);
   }
   check("...the paper's tap: the special order note", !!(await poll(async () => (await q("tienda-special-note").count()) > 0, 8000)));
+  await page.waitForTimeout(1200);
+  check("...and not the rules over it", (await page.locator('[data-testid="info-overlay"][data-open="true"]').count()) === 0);
   check("...and the glow's gone", await page.evaluate(() => !window.__DEN_ORDER_PAPER__().on && !document.documentElement.classList.contains("ec-order-paper")));
   await q("tienda-special-note").click();
   check("...the order form", !!(await poll(async () => (await q("tienda-order").count()) > 0, 8000)));

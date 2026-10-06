@@ -19,7 +19,7 @@ import {
   missingCellsOf, holeCellsOf, boardLabel, totalPieces,
 } from "./rules-selections.js";
 import { sideSurface } from "./tienda.js";
-import { sideNamesFor } from "./side-names.js";
+import { sideNamesFor, sideLabel } from "./side-names.js";
 
 const SIDE = sideNamesFor("tienda"); // Walnut / Ash, the set on the table
 
@@ -219,8 +219,10 @@ export function OpponentSection({ x, audio }) {
     ),
     h("div", { className: "td-seg", role: "group", "aria-label": "Opponent", style: { padding: "10px 4px" } },
       opt(null, "Two humans", "tienda-opponent-human"),
-      opt("dark", `The demonstrator plays ${SIDE.dark}`, "tienda-opponent-dark"),
-      opt("light", `The demonstrator plays ${SIDE.light}`, "tienda-opponent-light"),
+      // (Each button is its side's wood already, so no dot; the word says
+      // which is which, user.)
+      opt("dark", `The demonstrator plays ${sideLabel(SIDE, "dark")}`, "tienda-opponent-dark"),
+      opt("light", `The demonstrator plays ${sideLabel(SIDE, "light")}`, "tienda-opponent-light"),
     ),
     aiPlayer != null && h("div", { className: "td-dim" },
       h("span", { className: "td-desc" }, "How well it plays"),

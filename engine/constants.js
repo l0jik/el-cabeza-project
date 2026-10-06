@@ -224,6 +224,14 @@ export const PIECE_META = {
   // Standing upright as the user drew it, it's balanced on one cube, so
   // it can Cantilever Pivot like a Codo.
   zeta: { label: "Ze", name: "Zeta", shape: "block", maxSteps: 2 },
+  // A Codo with a fourth cube at its corner (user). The Hombro
+  // ("shoulder", a Codo's neighbouring joint): the cube points straight
+  // up from the corner, so its three arms go three ways, like the corner
+  // of a box. Upside down it stands on one cube and can pivot. The
+  // Cruce ("crossing"): the cube lies flat out the back of the corner, a
+  // T. Stood up on its stem, it too balances on one cube.
+  hombro: { label: "Ho", name: "Hombro", shape: "block", maxSteps: 2 },
+  cruce: { label: "Cr", name: "Cruce", shape: "block", maxSteps: 2 },
 };
 
 /* The Arco's three sizes: the key an older save's one size choice

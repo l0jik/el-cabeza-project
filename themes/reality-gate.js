@@ -35,7 +35,7 @@ import {
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
 } from "./rules-selections.js";
 import { WORLDS, createRealitiesMenu, goToWorld, REALITIES_VISIT_KEY } from "./realities.js";
-import { sideNamesFor } from "./side-names.js";
+import { sideNamesFor, sideLabel, sideDotStyle } from "./side-names.js";
 
 const h = React.createElement;
 
@@ -410,7 +410,7 @@ function piecePictures(world, look, types) {
 // (Other menus' rows use them too: Lluvia's city.)
 export const piecePicture = (world, type) => pictures.get(`${world}|${type}`) || null;
 export const piecePicturesReady = (world, look) => piecePictures(world, look, PICTURE_TYPES) || PICTURE_TYPES.every((t) => !POSES[t] || pictures.has(`${world}|${t}`));
-const PICTURE_TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "arcoChico", "arcoAlto", "arcoAncho", "codo", "rayo", "zeta"];
+const PICTURE_TYPES = ["cabeza", "turrito", "flaco", "chato", "opa", "block1x3", "block2x3", "arcoChico", "arcoAlto", "arcoAncho", "codo", "hombro", "cruce", "rayo", "zeta"];
 
 /* ------------------------------------------------------------ the sheet */
 
@@ -438,12 +438,15 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const resize = (rows, cols) => change((n) => { n.rows = clampDim(rows); n.cols = clampDim(cols); refreshSpots(n); });
   const canPlay = !tooMany && fits && total > 0 && sel.counts.cabeza > 0;
 
+  // Each side with a dot of its pieces' colour, and what that colour is
+  // where the name doesn't say (user): "Computer plays Photon (dark)".
+  const plays = (side) => h(React.Fragment, null, h("span", { "aria-hidden": "true", style: sideDotStyle(names, side) }), `Computer plays ${sideLabel(names, side)}`);
   const opponent = selectOpponent && AI_DIFFICULTY ? h("section", { className: "rg-sec", "aria-label": "Who's playing" },
     h("h3", null, "Who's playing"),
     h(Seg, { label: "Opponent", className: "rg-opp" },
       segBtn("h", aiPlayer == null, "Two humans", () => !locked && selectOpponent(null), "gate-opponent-human", locked),
-      segBtn("d", aiPlayer === "dark", `Computer plays ${names.dark}`, () => !locked && selectOpponent("dark"), "gate-opponent-dark", locked),
-      segBtn("l", aiPlayer === "light", `Computer plays ${names.light}`, () => !locked && selectOpponent("light"), "gate-opponent-light", locked)),
+      segBtn("d", aiPlayer === "dark", plays("dark"), () => !locked && selectOpponent("dark"), "gate-opponent-dark", locked),
+      segBtn("l", aiPlayer === "light", plays("light"), () => !locked && selectOpponent("light"), "gate-opponent-light", locked)),
     aiPlayer != null && h("div", { className: "rg-row" },
       h("span", { className: "rg-name" }, "How well it plays"),
       h(Seg, { label: "How well the computer plays" }, Object.entries(AI_DIFFICULTY).map(([k, cfg]) => segBtn(k, aiDifficulty === k, cfg.label, () => setAiDifficulty(k), `gate-skill-${k}`, locked))))) : null;

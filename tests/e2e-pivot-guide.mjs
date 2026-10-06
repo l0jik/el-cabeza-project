@@ -14,14 +14,23 @@ const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromi
 let failures = 0;
 const check = (l, c, extra) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && extra ? " — " + extra : ""}`); };
 const poll = async (fn, ms = 20000, step = 100) => { const end = Date.now() + ms; for (;;) { const v = await fn().catch(() => null); if (v) return v; if (Date.now() > end) return null; await new Promise((r) => setTimeout(r, step)); } };
-const flashing = (page, sel) => page.evaluate((sel) => { const e = document.querySelector(sel); return !!e && e.classList.contains("ec-guide-flash"); }, sel);
+// Flashing now, or flashed since the last clear: every flash is recorded
+// as it starts (see context()), so a page too busy to answer while a
+// 1.2 s flash runs (Lluvia's city under the software renderer) still
+// shows that it happened.
+const flashing = (page, sel) => page.evaluate((sel) => {
+  const e = document.querySelector(sel);
+  // (Matched by selector: the panel may have moved on and the element gone.)
+  return (!!e && e.classList.contains("ec-guide-flash")) || [...(window.__ecFlashed || [])].some((x) => x.matches(sel));
+}, sel);
+const clearFlashes = (page) => page.evaluate(() => window.__ecFlashed && window.__ecFlashed.clear());
 // The rows in order, by the prefix of their testids.
 const order = (page, prefix) => page.evaluate((p) => [...document.querySelectorAll(`[data-testid^="${p}"]`)].map((e) => e.getAttribute("data-testid").slice(p.length)).filter((k) => /^[a-zA-Z0-9]+$/.test(k) && k !== "total"), prefix);
-const PIVOTS = ["codo", "rayo", "zeta"];
+const PIVOTS = ["codo", "hombro", "cruce", "rayo", "zeta"];
 
 async function show(page, { warn, row, label }) {
   check(`${label}: the warning flashes`, !!(await poll(() => flashing(page, warn), 1500, 50)));
-  check(`${label}: then the Codo, Rayo and Zeta flash`, !!(await poll(async () => (await Promise.all(PIVOTS.map((k) => flashing(page, row(k))))).every(Boolean), 4000, 80)));
+  check(`${label}: then the five pivot pieces flash`, !!(await poll(async () => (await Promise.all(PIVOTS.map((k) => flashing(page, row(k))))).every(Boolean), 4000, 80)));
   const seen = await page.evaluate((sels) => sels.every((sel) => { const r = document.querySelector(sel).getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight; }), PIVOTS.map(row));
   check(`${label}: ...on screen (jumped to)`, seen);
 }
@@ -36,6 +45,11 @@ async function context(viewport, ended = true) {
       localStorage.setItem("el-cabeza:commercial-aired", "1"); localStorage.setItem("el-cabeza:special-order-noted", "1");
       localStorage.removeItem("el-cabeza:nova-setup");
     } catch (e) { /* none */ }
+    // Every element that starts a guide flash, as it starts.
+    window.__ecFlashed = new Set();
+    new MutationObserver((list) => {
+      for (const m of list) if (m.target.classList && m.target.classList.contains("ec-guide-flash")) window.__ecFlashed.add(m.target);
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ["class"] });
   }, ended);
   const page = await ctx.newPage();
   const errs = [];
@@ -52,11 +66,12 @@ console.log("Tienda's order form (phone)");
   await poll(() => page.locator('[data-testid="tienda-order"]').count(), 8000);
   await page.waitForTimeout(800);
   const rows = await order(page, "tienda-piece-");
-  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-3).join(",") === "codo,rayo,zeta" && rows.indexOf("arcoAncho") === rows.length - 4);
+  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-5).join(",") === PIVOTS.join(",") && rows.indexOf("arcoAncho") === rows.length - 6);
   await page.locator('[data-testid="tienda-law-cantileverPivot"]').click();
   await show(page, { label: "pivot on", warn: '[data-testid="law-warning-cantileverPivot"]', row: (k) => `[data-testid="tienda-piece-${k}"]` });
   await page.waitForTimeout(2200);
   await page.locator('[data-testid="law-warning-cantileverPivot"]').scrollIntoViewIfNeeded();
+  await clearFlashes(page);
   await page.locator('[data-testid="law-warning-cantileverPivot"]').click();
   await show(page, { label: "a tap on the warning", warn: '[data-testid="law-warning-cantileverPivot"]', row: (k) => `[data-testid="tienda-piece-${k}"]` });
   await page.locator('[data-testid="tienda-piece-codo-inc"]').click();
@@ -74,7 +89,7 @@ console.log("\nthe gate's sheet (Cromo, phone)");
   await poll(() => page.locator('[data-testid="gate-sheet"]').count(), 4000);
   await page.waitForTimeout(500);
   const rows = await order(page, "gate-piece-");
-  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-3).join(",") === "codo,rayo,zeta");
+  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-5).join(",") === PIVOTS.join(","));
   await page.locator('[data-testid="gate-law-cantileverPivot"]').click();
   await show(page, { label: "pivot on", warn: '[data-testid="gate-law-warning-cantileverPivot"]', row: (k) => `[data-testid="gate-piece-${k}"]` });
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
@@ -95,14 +110,14 @@ console.log("\nLluvia's city");
   await page.locator('[data-testid="lluvia-open-matter"]').click();
   await page.waitForTimeout(400);
   const rows = await order(page, "lluvia-matter-");
-  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-3).join(",") === "codo,rayo,zeta");
+  check(`the pivot pieces together at the end (${rows.join(" ")})`, rows.slice(-5).join(",") === PIVOTS.join(","));
   await page.locator('[data-testid="lluvia-panel-close"]').click();
   await page.locator('[data-testid="lluvia-open-laws"]').click();
   await page.waitForTimeout(300);
   await page.locator('[data-testid="lluvia-law-cantileverPivot"]').click();
   check("pivot on: the warning flashes", !!(await poll(() => flashing(page, '[data-testid="law-warning-cantileverPivot"]'), 1500, 50)));
   check("...then over to MATTER", !!(await poll(() => page.locator('[data-testid="lluvia-panel-matter"]').count(), 3000)));
-  check("...where the Codo, Rayo and Zeta flash", !!(await poll(async () => (await Promise.all(PIVOTS.map((k) => flashing(page, `[data-testid="lluvia-matter-${k}"]`)))).every(Boolean), 4000, 80)));
+  check("...where the five pivot pieces flash", !!(await poll(async () => (await Promise.all(PIVOTS.map((k) => flashing(page, `[data-testid="lluvia-matter-${k}"]`)))).every(Boolean), 4000, 80)));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

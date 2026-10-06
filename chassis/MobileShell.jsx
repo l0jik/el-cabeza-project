@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
-import { sideNamesOf } from "../themes/side-names.js";
+import { sideNamesOf, sideLabel, sideDotStyle } from "../themes/side-names.js";
 
 /* The phone layout (a page opts in with ElCabeza3D's mobileShell prop;
    Nova does). On a phone-sized screen the desktop dock — the floating 3D
@@ -370,8 +370,10 @@ function SetupPanel({ ctl, t }) {
   const vsAi = ctl.aiPlayer !== null;
   // A side's button, once chosen, takes that side's own colour.
   const sideOpts = () => [
-    { value: "dark", label: t.names.dark, side: "dark" },
-    { value: "light", label: t.names.light, side: "light" },
+    // A dot of each side's colour, and the colour named where the name
+    // doesn't say it (user): "Photon (dark)".
+    { value: "dark", label: sideLabel(t.names, "dark"), side: "dark", icon: <span aria-hidden="true" style={sideDotStyle(t.names, "dark", 9)} /> },
+    { value: "light", label: sideLabel(t.names, "light"), side: "light", icon: <span aria-hidden="true" style={sideDotStyle(t.names, "light", 9)} /> },
   ];
   const secondary = ctl.setupActions.filter((a) => a.placement !== "below");
   const below = ctl.setupActions.filter((a) => a.placement === "below");

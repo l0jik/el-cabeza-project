@@ -43,7 +43,7 @@ import lostHandSkinUrl from "../assets/neon/lost-hand-skin.webp";
 import { createUnease, createDrone } from "./neon-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
 import { shoveNow } from "./rules-selections.js";
-import { sideNamesFor } from "./side-names.js";
+import { sideNamesFor, sideLabel, sideDotStyle } from "./side-names.js";
 
 const SIDE = sideNamesFor("neon"); // Photon / Plasma
 
@@ -554,7 +554,7 @@ const LAWS_ITEMS = [
   { key: "slide", label: "Orthogonal Slide", blurb: "Move a piece one open square along its row or column (north, south, east or west, not corner to corner) without tipping it. Costs 2 points (a roll costs 1)." },
   { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Slides may also go diagonally. Needs Orthogonal Slide. A diagonal slide never shoves." },
   { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
-  { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 point." },
+  { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Hombro, Cruce, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 point." },
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 action points per turn instead of 2." },
   { key: "shoving", label: "Shoving", blurb: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal Slide. Anything behind them blocks. Costs 1 extra point. Choose whether rolls shove too, or only slides." },
 ];
@@ -600,6 +600,8 @@ const PIECE_FOOTPRINTS = {
   arch: [[0, 0], [2, 0], [0, 1], [1, 1], [2, 1]],
   rayo: [[0, 0], [1, 0], [1, 1], [2, 1]],
   zeta: [[0, 0], [0, 1], [1, 1], [2, 1], [2, 2]],
+  hombro: [[0, 0], [1, 0], [0, 1]],
+  cruce: [[0, 0], [1, 0], [2, 0], [1, 1]],
 };
 
 // MATTER — every piece type, one row each with a count (0-4; the
@@ -628,6 +630,10 @@ const MATTER_ROSTER = [
   // The Codo: MATTER's first odd-shaped piece (a 3-cube L — see
   // engine/shapes.js).
   { key: "codo", label: "Codo", min: 0, max: 4, default: 0, icon: "codo", view: "codo", detail: "3 cubes in an L. Its overhang can shelter a Cabeza." },
+  // The Codo's family: a fourth cube at its corner, standing up (the
+  // Hombro) or flat out the back (the Cruce, a T).
+  { key: "hombro", label: "Hombro", min: 0, max: 4, default: 0, icon: "hombro", view: "hombro", detail: "4 cubes: a Codo with one standing on its corner." },
+  { key: "cruce", label: "Cruce", min: 0, max: 4, default: 0, icon: "cruce", view: "cruce", detail: "4 cubes in a T." },
   // The Rayo (4-cube S/Z) and the Zeta (5-cube Z).
   { key: "rayo", label: "Rayo", min: 0, max: 4, default: 0, icon: "rayo", view: "rayo", detail: "4 cubes in an S." },
   { key: "zeta", label: "Zeta", min: 0, max: 4, default: 0, icon: "zeta", view: "zeta", detail: "5 cubes in a Z." },
@@ -2168,7 +2174,7 @@ function openRulesCard(tab, focus = null) {
 
 // Pieces that can ever stand balanced on one cube (so can Cantilever
 // Pivot): checked against every orientation in engine/shapes.js.
-const PIVOT_CAPABLE_ROSTER = ["codo", "rayo", "zeta"];
+const PIVOT_CAPABLE_ROSTER = ["codo", "hombro", "cruce", "rayo", "zeta"];
 
 // A law that's on but can't do anything with the other settings, and
 // why: shown under the law's own row.
@@ -2180,7 +2186,7 @@ function lawWarning(key, sel) {
   if (key === "cantileverPivot") {
     const roster = (sel.matter && sel.matter.roster) || {};
     if (!PIVOT_CAPABLE_ROSTER.some((k) => roster[k] > 0))
-      return { testid: "law-warning-cantileverPivot", text: "Only a Codo, Rayo or Zeta can pivot. Add one in MATTER." };
+      return { testid: "law-warning-cantileverPivot", text: "Only a Codo, Hombro, Cruce, Rayo or Zeta can pivot. Add one in MATTER." };
   }
   if (key === "shoving") {
     if (shovesOnRolls(sel)) {
@@ -3164,8 +3170,8 @@ function renderOpponentAiPicker(setupExtras) {
       // (no boolean-attribute coercion the way it handles e.g. disabled),
       // so a bare boolean here gets silently dropped instead of stringified.
       h("button", { type: "button", "data-testid": "opponent-human", "aria-pressed": String(aiPlayer === null), disabled: locked, onClick: () => selectOpponent(null), style: pillStyle(aiPlayer === null) }, "Two humans"),
-      h("button", { type: "button", "data-testid": "opponent-ai-dark", "aria-pressed": String(aiPlayer === "dark"), disabled: locked, onClick: () => selectOpponent("dark"), style: pillStyle(aiPlayer === "dark") }, `AI · ${SIDE.dark}`),
-      h("button", { type: "button", "data-testid": "opponent-ai-light", "aria-pressed": String(aiPlayer === "light"), disabled: locked, onClick: () => selectOpponent("light"), style: pillStyle(aiPlayer === "light") }, `AI · ${SIDE.light}`)
+      h("button", { type: "button", "data-testid": "opponent-ai-dark", "aria-pressed": String(aiPlayer === "dark"), disabled: locked, onClick: () => selectOpponent("dark"), style: pillStyle(aiPlayer === "dark") }, h("span", { "aria-hidden": "true", style: sideDotStyle(SIDE, "dark", 9) }), `AI · ${sideLabel(SIDE, "dark")}`),
+      h("button", { type: "button", "data-testid": "opponent-ai-light", "aria-pressed": String(aiPlayer === "light"), disabled: locked, onClick: () => selectOpponent("light"), style: pillStyle(aiPlayer === "light") }, h("span", { "aria-hidden": "true", style: sideDotStyle(SIDE, "light", 9) }), `AI · ${sideLabel(SIDE, "light")}`)
     ),
     aiPlayer !== null &&
       h(
