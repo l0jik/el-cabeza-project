@@ -7134,3 +7134,9 @@ phone menu until "Start the story over" (which clears it).
   test id (den-trip-say-1, -1b, -2). e2e-story checks the new one shows
   right after the first.
 - Cruce pivot (user asked, then: "I guess it's fine as it is"): unchanged; it pivots only standing on one cube (its stem, or one end of its bar), like every pivot piece.
+- Order paper on a narrow phone (user: "pull the camera back so the order
+  paper fits on screen"): paperFrame drew back only (radius up to 1.9x),
+  aimed half way to the paper, so at 390 px the paper hung off the right.
+  While any of it is off screen it now also turns toward it (aim 0.5 ->
+  0.85 of the paper's position) and may draw back to 2.6x. e2e-summon's
+  "the paper all on screen" passes at 390x844.

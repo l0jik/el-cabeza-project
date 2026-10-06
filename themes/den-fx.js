@@ -249,7 +249,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         back = { target: c.target.clone(), radius: c.radius };
         c.target.set(lp.x * 0.5, 0, lp.z * 0.5);
       }
-      paper = { halo, stop, t0: performance.now(), back };
+      paper = { halo, stop, t0: performance.now(), back, aim: 0.5, lp: back ? den.table.rules.leaflet.getWorldPosition(new THREE.Vector3()) : null };
     }
     // Each frame: on (html.ec-order-paper) it starts; the halo follows the
     // paper on screen and the paper's own glow breathes with it.
@@ -272,7 +272,18 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       // (Not all of it on screen yet: the camera draws back a little more.)
       const w = Math.max(56, (x1 - x0) * 1.35), hgt = Math.max(44, (y1 - y0) * 1.6);
       const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, vw = window.innerWidth, vh = window.innerHeight, m = 10;
-      if (paper.back && cam && cam.current && (cx - w / 2 < m || cx + w / 2 > vw - m || cy - hgt / 2 < m || cy + hgt / 2 > vh - m || behind) && cam.current.radius < paper.back.radius * 1.9) cam.current.radius *= 1.012;
+      // On a narrow phone, drawing back alone left the paper hanging off
+      // the side (user: "pull the camera back so the order paper fits on
+      // screen"): it also turns further toward the paper, and may draw
+      // back further.
+      const off = cx - w / 2 < m || cx + w / 2 > vw - m || cy - hgt / 2 < m || cy + hgt / 2 > vh - m || behind;
+      if (paper.back && cam && cam.current && off) {
+        if (cam.current.radius < paper.back.radius * 2.6) cam.current.radius *= 1.012;
+        if (paper.lp && paper.aim < 0.85) {
+          paper.aim = Math.min(0.85, paper.aim + 0.006);
+          cam.current.target.set(paper.lp.x * paper.aim, 0, paper.lp.z * paper.aim);
+        }
+      }
       const st = paper.halo.style;
       st.left = `${cx}px`; st.top = `${cy}px`; st.width = `${w}px`; st.height = `${hgt}px`;
       st.display = behind ? "none" : "";
