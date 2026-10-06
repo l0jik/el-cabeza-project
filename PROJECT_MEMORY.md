@@ -6747,3 +6747,21 @@ phone menu until "Start the story over" (which clears it).
   flex row: a 1px currentColor rule at 45% each side, 8px clear of the
   word. Checked headless, Watermark at 450 wide: the rules run from
   Easy's left to Hard's right, still one line, fit 0.
+- Every theme: "Difficulty" goes up over Easy, Medium and Hard (with its
+  side rules) wherever the row would otherwise wrap (user: "Apply it to
+  all the other themes that wrap"). Chassis fitter, in order: beside as
+  is, beside tightened, then the word up (state diffAboveFor = the theme
+  it happened in, diffAboveAtRef = the room it happened at), then the
+  three's text 0.88, 0.78. The word is never dropped any more. Decided
+  per device and width, with the real fonts: a phone that wraps gets it,
+  a desktop that doesn't keeps the word beside. Given more room than it
+  wrapped at (rotation, a wider window) the word tries beside again; the
+  room is the row's parent's width, so the switch itself can't loop.
+  Parrish keeps diffLabelAbove (always up). data-fit is now "0"-"1"
+  beside, "above-0".."above-3" up.
+  Checked headless at 390 wide (fallback fonts, Google Fonts don't reach
+  the test browser): nothing wraps there, four Lab designs tighten
+  (elementarism, corporateSwiss, minimalMono, ultimateFusion). At 300
+  wide standard, elementarism and corporateSwiss put the word up with its
+  rules, one line. Real phone fonts run wider, so on a phone it goes up
+  sooner. Tests: e2e-lab, e2e-gameplay, e2e-nova-mobile.

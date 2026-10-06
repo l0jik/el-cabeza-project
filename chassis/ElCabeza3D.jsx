@@ -798,19 +798,25 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      row's own (Lab's designs: heavier borders, wider tracking), so the
      row fits itself: measured as laid out, and if anything has wrapped,
      a step at a time until it hasn't: the buttons' padding and tracking
-     tightened; then the "Difficulty" word let go; then the buttons'
-     text a little smaller, then smaller again. (Set on the elements
-     themselves, !important, over any theme's own !important.) Again on
-     any change of width, and once the fonts are in.
-     A theme with diffLabelAbove (Parrish: user, "difficulty will just
-     simply be kind of like the umbrella for those three") has the word
-     over the three, so they take its place beside the arrow; the word
-     is never let go there. */
-  const diffLabelAbove = !!theme.diffLabelAbove;
+     tightened; then the "Difficulty" word goes up over the three, with a
+     thin line out either side across all of them, and the three take its
+     place beside the arrow (user, of Parrish: "kind of like the umbrella
+     for those three"; then "apply it to all the other themes that
+     wrap"); then the buttons' text a little smaller, then smaller again.
+     (Set on the elements themselves, !important, over any theme's own
+     !important.) Again on any change of width, and whenever a font
+     lands. A theme with diffLabelAbove (Parrish) has the word over the
+     three at any width; any other gets it only where the row would wrap,
+     and only at that width or narrower: given more room again, the word
+     tries beside them once more. */
   const diffRowRef = useRef(null);
+  const [diffAboveFor, setDiffAboveFor] = useState(null); // the theme the row's wrapped in (its word went up)
+  const diffAboveAtRef = useRef(0); // the room it wrapped in
+  const diffLabelAbove = !!theme.diffLabelAbove || diffAboveFor === theme;
   useLayoutEffect(() => {
     const row = diffRowRef.current;
     if (!row || showOpponentPicker) return undefined;
+    const room = () => (row.parentElement || row).clientWidth;
     const fit = () => {
       const btns = Array.from(row.querySelectorAll("[data-ec-diff]")), label = row.querySelector("[data-ec-diff-label]");
       if (!btns.length) return;
@@ -820,9 +826,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         btns.forEach((b, i) => {
           set(b, "padding-left", n >= 1 ? "5px" : null); set(b, "padding-right", n >= 1 ? "5px" : null);
           set(b, "letter-spacing", n >= 1 ? "0.02em" : null);
-          set(b, "font-size", n >= 3 ? `${(base[i] * (n >= 4 ? 0.78 : 0.88)).toFixed(1)}px` : null);
+          set(b, "font-size", n >= 2 ? `${(base[i] * (n >= 3 ? 0.78 : 0.88)).toFixed(1)}px` : null);
         });
-        if (label && !diffLabelAbove) set(label, "display", n >= 2 ? "none" : null);
       };
       // The arrow and the three on one line (and the word, when it's beside
       // them): each overlaps the first top to bottom, as a wrapped one can't.
@@ -830,12 +835,24 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const kids = [row.querySelector("[data-ec-diff-back]"), diffLabelAbove ? null : label, ...btns].filter((k) => k && k.offsetParent !== null).map((k) => k.getBoundingClientRect());
         return kids.every((r) => r.top < kids[0].bottom - 2 && r.bottom > kids[0].top + 2);
       };
-      for (let n = 0; n <= 4; n++) { level(n); if (oneRow()) { row.setAttribute("data-fit", String(n)); return; } }
-      row.setAttribute("data-fit", "4");
+      // Beside: as they are, then tightened; past that, the word goes up.
+      for (let n = 0; n <= (diffLabelAbove ? 3 : 1); n++) { level(n); if (oneRow()) { row.setAttribute("data-fit", `${diffLabelAbove ? "above-" : ""}${n}`); return; } }
+      if (!diffLabelAbove) { diffAboveAtRef.current = room(); setDiffAboveFor(theme); return; }
+      row.setAttribute("data-fit", "above-3");
     };
     fit();
     let ro = null;
-    if (typeof ResizeObserver !== "undefined") { let w = row.clientWidth; ro = new ResizeObserver(() => { if (row.clientWidth !== w) { w = row.clientWidth; fit(); } }); ro.observe(row); }
+    if (typeof ResizeObserver !== "undefined") {
+      let w = room();
+      ro = new ResizeObserver(() => {
+        const now = room();
+        if (now === w) return;
+        w = now;
+        if (diffAboveFor === theme && !theme.diffLabelAbove && now > diffAboveAtRef.current + 1) setDiffAboveFor(null);
+        else fit();
+      });
+      ro.observe(row.parentElement || row);
+    }
     let live = true;
     if (typeof document !== "undefined" && document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (live) fit(); });
     // A face fetched only once it's used (Parrish's Cinzel) can land after
@@ -843,7 +860,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const fonts = typeof document !== "undefined" && document.fonts && document.fonts.addEventListener ? document.fonts : null;
     if (fonts) fonts.addEventListener("loadingdone", fit);
     return () => { live = false; if (ro) ro.disconnect(); if (fonts) fonts.removeEventListener("loadingdone", fit); };
-  }, [showOpponentPicker, aiDifficulty, aiPlayer, diffLabelAbove]);
+  }, [showOpponentPicker, aiDifficulty, aiPlayer, diffLabelAbove, theme]);
   const [aiThinking, setAiThinking] = useState(false);
   /* Every game — Human vs Human included — now needs an explicit Begin
      Game press before anything can move, not just an AI-opponent game.
