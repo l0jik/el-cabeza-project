@@ -40,10 +40,13 @@
    page, so the ringing carries on under it). The intro, if it's still
    going, gives way; the place's own sound steps back for it.
 
-   Watermark's soundtrack (user: "use this as background track while
-   playing Watermark ... very low ... [its own] audio slider"): the user's
-   "Cathedral Hums", looped, from Begin Game, on its own channel, its
-   slider starting at a fifth (HUMS_LEVEL). It gives way to the close.
+   The soundtrack (user, of Watermark: "use this as background track
+   while playing Watermark ... very low ... [its own] audio slider"; then
+   Orinoco's, "Volume sliders the same as Watermark"): the user's
+   "Cathedral Hums" in Watermark, their "Dodhéanta an Ghrian" in Orinoco,
+   looped, from Begin Game, on its own channel, its slider starting at a
+   fifth (HUMS_LEVEL). It gives way to the close. The opening and the
+   close go on the place's own slider then (no Music slider).
 
    The music: MUSIC_URL, a file beside the page, once the user's
    recording is here. With none, there's no music channel at all (no
@@ -72,9 +75,13 @@ const CLOSE_MUSIC_MS = 10500;
 // it "cuts to that music too harshly"; chose 3 s, the switcher's wait
 // unchanged); the hums and the intro step out over the same time.
 const OUTRO_FADE_S = 3;
-// Watermark's soundtrack: the user's "Cathedral Hums", looped (made to
-// loop by tools/parrish_hums.py), on a channel of its own.
-export const HUMS_URL = lookName() === "watermark" ? "el-cabeza-parrish-hums.mp3" : null;
+// Each look's soundtrack, looped (made to loop by tools/parrish_hums.py),
+// on a channel of its own ("hums"): Watermark, the user's "Cathedral
+// Hums"; Orinoco, their "Dodhéanta an Ghrian" (user: "Volume sliders the
+// same as Watermark": the place, Pieces, Soundtrack; the opening and the
+// close on the place's slider).
+export const HUMS_URL = lookName() === "watermark" ? "el-cabeza-parrish-hums.mp3" : "el-cabeza-parrish-soundtrack-orinoco.mp3";
+export const SOUNDTRACK_TITLE = lookName() === "watermark" ? "Cathedral Hums" : "Dodh\u00e9anta an Ghrian";
 const NO_GULLS = lookName() === "watermark";
 // Watermark's evening (user): a recording of wind in the trees, with its
 // own far birds (freesound_community "forest wind and birds", its hiss
@@ -178,8 +185,9 @@ function makeHall(ctx) {
 export function createAudio() {
   let ctx = null, master = null, vol = null, wood = null, noiseBuf = null, verb = null;
   const gates = {}, chLevel = { nature: 1, pieces: 1, music: 1, hums: HUMS_LEVEL };
-  // (Watermark: the opening and the close are on the evening's slider.)
-  const MUSIC_CH = EVENING_URL ? "nature" : "music";
+  // (With a soundtrack, both looks: the opening and the close are on the
+  // place's slider, the evening's or the terrace's.)
+  const MUSIC_CH = EVENING_URL || HUMS_URL ? "nature" : "music";
   let evening = null;
   let muted = false, natureOn = false, disposed = false, windingDown = false;
   let natureBus = null, gust = null;
@@ -577,7 +585,7 @@ export function createAudio() {
     }).catch(() => { /* no recording yet */ });
   }
 
-  /* ---- Watermark's soundtrack: the hums, looped, low ---- */
+  /* ---- The soundtrack (Watermark's hums, Orinoco's sun), looped, low ---- */
   function startHums() {
     if (!HUMS_URL || !ctx || hums) return;
     hums = { stopped: false };

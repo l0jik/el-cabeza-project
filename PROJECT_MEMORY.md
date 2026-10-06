@@ -6765,3 +6765,16 @@ phone menu until "Start the story over" (which clears it).
   wide standard, elementarism and corporateSwiss put the word up with its
   rules, one line. Real phone fonts run wider, so on a phone it goes up
   sooner. Tests: e2e-lab, e2e-gameplay, e2e-nova-mobile.
+- Orinoco's soundtrack: the user's "Dodhéanta an Ghrian"
+  (influentialdistortion257, like Cathedral Hums; user: "Here's the
+  soundtrack for Orinoco. Volume sliders the same as Watermark").
+  tools/parrish_hums.py now takes the look (watermark|orinoco): same 8 s
+  equal-power loop, assets/parrish/src/dodheanta-an-ghrian.mp3 ->
+  assets/parrish/soundtrack-orinoco.mp3 (209.9 s, -17.1 dB mean, the hums
+  -17.2), shipped as el-cabeza-parrish-soundtrack-orinoco.mp3. HUMS_URL is
+  per look now (the "hums" channel is the look's soundtrack), with
+  SOUNDTRACK_TITLE for the slider's hint. Orinoco's sliders as Watermark's:
+  All sounds, The terrace (now with the opening and the close: MUSIC_CH is
+  "nature" whenever there's a soundtrack), Pieces, Soundtrack (from 20%).
+  No Music slider in either look. Checked headless: both menus, and the
+  soundtrack fetched at Begin Game.

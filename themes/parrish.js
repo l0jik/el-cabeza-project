@@ -33,7 +33,7 @@ import * as THREE from "three";
 import { quality } from "./tienda-quality.js";
 import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
 import { parrishEnv, createParrishEffects } from "./parrish-scene.js";
-import { MUSIC_URL, INTRO_URL, HUMS_URL, HUMS_LEVEL, EVENING_URL } from "./parrish-audio.js";
+import { MUSIC_URL, INTRO_URL, HUMS_URL, HUMS_LEVEL, EVENING_URL, SOUNDTRACK_TITLE } from "./parrish-audio.js";
 import { look, lookName } from "./parrish-looks.js";
 // The user's "el cabeza" lettering, its outline traced exactly from their
 // artwork (a mask: never redrawn), and the paint that fills it, one for
@@ -229,18 +229,19 @@ export function sideSurface(side) {
 export const realityName = "Parrish";
 export { createAudio, hasAudio } from "./parrish-audio.js";
 // The dock's sound button (and the phone menu) offers these, each on its
-// own (chassis: theme.soundChannels). Music: the intro (the opening of
-// "Orinoco Flow") and the user's recording once it's in (parrish-audio.js).
+// own (chassis: theme.soundChannels): the place (with the opening and the
+// close of "Orinoco Flow"), the pieces, and the look's soundtrack
+// (parrish-audio.js).
 export const soundChannels = [
-  // (Watermark: "The evening", the wind in the trees, and the opening and
-  // the close with it: no Music slider there. User.)
+  // (Both looks: the place, the opening and the close on the one slider;
+  // no Music slider. User, Watermark then Orinoco.)
   EVENING_URL
     ? { key: "nature", label: "The evening", hint: "The wind in the trees, the opening and the close" }
-    : { key: "nature", label: "The terrace", hint: "The breeze, the birds, the pool" },
-  ...(!EVENING_URL && (MUSIC_URL || INTRO_URL) ? [{ key: "music", label: "Music", hint: MUSIC_URL ? "The recording" : "The opening" }] : []),
+    : { key: "nature", label: "The terrace", hint: HUMS_URL ? "The breeze, the birds, the pool, the opening and the close" : "The breeze, the birds, the pool" },
+  ...(!EVENING_URL && !HUMS_URL && (MUSIC_URL || INTRO_URL) ? [{ key: "music", label: "Music", hint: MUSIC_URL ? "The recording" : "The opening" }] : []),
   { key: "pieces", label: "Pieces", hint: "The wood on the board" },
-  // Watermark's soundtrack, its slider starting low (parrish-audio.js).
-  ...(HUMS_URL ? [{ key: "hums", label: "Soundtrack", hint: "Cathedral Hums", level: HUMS_LEVEL }] : []),
+  // The look's soundtrack, its slider starting low (parrish-audio.js).
+  ...(HUMS_URL ? [{ key: "hums", label: "Soundtrack", hint: SOUNDTRACK_TITLE, level: HUMS_LEVEL }] : []),
 ];
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle).
