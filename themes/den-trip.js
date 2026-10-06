@@ -4,7 +4,7 @@
    of tired brakes, the stop, the shift into park, the ignition off) as
    the picture fades up on Big Glutts in a strip mall, the camera panning
    past it (the user's picture, assets/den/trip/glutts-day.jpg).
-   "What the...!??" The scene starts to warp and merge into the same
+   "What the...!??", then "...but I was just here!" The scene starts to warp and merge into the same
    place at a burning dusk with the Singularity's black sphere in the sky
    (glutts-dusk.jpg); three slow steps backwards, the camera taking each
    one (back, up and out, as the sphere comes into view); "Time to get the
@@ -40,7 +40,8 @@ const T = {
   arrive: 9800,              // the car coming in (heard through the fade-in)
   fadeUp: [10200, 17000],    // up from black onto the store
   sweep: [12200, 24800],     // the look round: from the whole storefront, in close and along it, all the way right
-  say1: [18800, 24400],      // "What the...!??"
+  say1: [18800, 22000],      // "What the...!??"
+  say1b: [22100, 25400],     // "...but I was just here!" (user: right after it)
   morph: [23400, 31500],     // into dusk, the sphere in the sky
   steps: [25600, 27400, 29200], // three steps backwards (the footfalls): back, up and out, toward the sphere
   say2: [29900, 32900],      // "Time to get the heck out of here!"
@@ -51,7 +52,13 @@ const T = {
 };
 // The escape track starts here: its first step lands 0.1 s in (T.steps[0]).
 const TRACK_AT = 25500;
-const LINES = ["What the…!??", "Time to get the heck out of here!"];
+// Each line, when it's up, and which side its bubble is on (the second
+// thought follows the first in the same place).
+const LINES = [
+  { text: "What the…!??", at: T.say1, two: false, id: "1" },
+  { text: "…but I was just here!", at: T.say1b, two: false, id: "1b" },
+  { text: "Time to get the heck out of here!", at: T.say2, two: true, id: "2" },
+];
 
 const CSS = `
 .den-trip { position: fixed; inset: 0; z-index: 1350; pointer-events: auto; background: transparent; }
@@ -390,7 +397,7 @@ export function createTrip({ audio, onReturn }) {
     if (black) black.style.opacity = String(b);
     if (canvas) canvas.style.opacity = t >= T.blackIn[1] && t < T.home ? "1" : "0";
     if (root) root.style.pointerEvents = t >= T.blackIn[0] ? "auto" : "none";
-    says.forEach((el, i) => { const [a, z] = i ? T.say2 : T.say1; el.classList.toggle("on", t >= a && t < z); });
+    says.forEach((el, i) => { const [a, z] = LINES[i].at; el.classList.toggle("on", t >= a && t < z); });
     if (t >= T.blackIn[1] && t < T.home) draw(now);
     stage = t < T.blackIn[1] ? "leaving" : t < T.home ? "store" : t < T.fadeHome[1] ? "home" : "done";
     if (!returned && t >= T.home) {
@@ -419,7 +426,7 @@ export function createTrip({ audio, onReturn }) {
       canvas = doc.createElement("canvas"); canvas.style.opacity = "0"; g = canvas.getContext("2d");
       black = doc.createElement("div"); black.className = "black";
       root.appendChild(canvas); root.appendChild(black);
-      LINES.forEach((txt, i) => { const el = doc.createElement("div"); el.className = "say" + (i ? " two" : ""); el.setAttribute("data-testid", `den-trip-say-${i + 1}`); el.setAttribute("role", "status"); el.textContent = txt; root.appendChild(el); says.push(el); });
+      LINES.forEach((line) => { const el = doc.createElement("div"); el.className = "say" + (line.two ? " two" : ""); el.setAttribute("data-testid", `den-trip-say-${line.id}`); el.setAttribute("role", "status"); el.textContent = line.text; root.appendChild(el); says.push(el); });
       doc.body.appendChild(root);
       t0 = performance.now() - from; stage = "leaving";
       const o = out();

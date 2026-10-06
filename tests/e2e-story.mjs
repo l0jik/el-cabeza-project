@@ -307,6 +307,7 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...the steps back timed to the track (its first step 0.1 s in)", await page.evaluate(() => { const d = window.__DEN_TRIP__(); return d.steps.length === 3 && d.steps[0] - d.trackAt === 100 && d.steps[1] - d.steps[0] === 1800 && d.steps[2] - d.steps[1] === 1800; }));
   check("the trip: off to the store", !!(await poll(async () => (await page.evaluate(() => window.__DEN_TRIP__ && window.__DEN_TRIP__().stage)) === "store", 9000, 100)));
   check("...\"What the...!??\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-1"].on').count()) === 1, 20000, 100)));
+  check("...\"...but I was just here!\" right after it", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-1b"].on').count()) === 1 && (await page.locator('[data-testid="den-trip-say-1"].on').count()) === 0, 8000, 100)));
   check("...\"Time to get the heck out of here!\"", !!(await poll(async () => (await page.locator('[data-testid="den-trip-say-2"].on').count()) === 1, 25000, 100)));
   check("...home, in the Room view", !!(await poll(async () => { const s = await page.evaluate(() => window.__DEN_TRIP__().stage); const c = await page.evaluate(() => window.__EC_TEST_CAM__()); return (s === "home" || s === "done") && c.dollhouse; }, 25000, 100)));
   check("...and the trip's gone", !!(await poll(async () => !(await has(page, "den-trip")), 6000, 100)));

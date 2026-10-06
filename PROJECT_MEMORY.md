@@ -7133,3 +7133,4 @@ phone menu until "Start the story over" (which clears it).
   under it), say2 unchanged. LINES carries each line's window, side and
   test id (den-trip-say-1, -1b, -2). e2e-story checks the new one shows
   right after the first.
+- Cruce pivot (user asked, then: "I guess it's fine as it is"): unchanged; it pivots only standing on one cube (its stem, or one end of its bar), like every pivot piece.
