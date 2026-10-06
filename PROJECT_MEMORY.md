@@ -6895,3 +6895,9 @@ phone menu until "Start the story over" (which clears it).
   movedPieceIds. Tests: rules-selections smoke (toggles), new
   e2e-split-three (3 pieces a turn; with two-piece split a third refused).
   Related suites pass: e2e-gate, ai-split, singularity, lluvia, tienda, costs, rules, split-three.
+- Points counter "hard to see, hard to discern" (user). Today (chassis
+  points-counter): 9px dots, filled at 0.55 opacity, spent 0.28, a 10px
+  label straight on the board. Mock-ups published
+  (https://claude.ai/artifact/Qb6oK5Xa4X23poCMZTH7ST): now; 1 bigger pips
+  + "2 left"; 2 big numeral; 3 on a dark plate (whose turn, count, pips);
+  4 segmented gauge; 5 little cubes that tip over. Waiting on the pick.
