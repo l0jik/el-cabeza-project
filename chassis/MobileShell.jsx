@@ -556,22 +556,22 @@ function PlayPanel({ ctl, t }) {
             data-left={ctl.points.left}
             aria-label={`${ctl.points.left} of ${ctl.points.budget} action points left`}
             key={ctl.pointsPulse}
-            style={{ display: "flex", gap: 5, flexShrink: 0, animation: ctl.pointsPulse ? "ec-shell-points 0.6s ease-out" : "none" }}
+            style={{ display: "flex", gap: 8, flexShrink: 0, animation: ctl.pointsPulse ? "ec-shell-points 0.6s ease-out" : "none", ["--ec-ember"]: ctl.points.glow || accent || t.ink }}
           >
+            {/* Embers, breathing, as the desktop's counter (ElCabeza3D.jsx):
+               a point you have glows in this world's light, a spent one is
+               a dark bead. */}
+            <style>{`@keyframes ecShellEmber{0%,100%{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 4px 1px var(--ec-ember),0 0 10px 2px color-mix(in srgb,var(--ec-ember) 40%,transparent)}50%{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 7px 2px var(--ec-ember),0 0 18px 5px color-mix(in srgb,var(--ec-ember) 60%,transparent)}}
+[data-testid="shell-points"] [data-filled="true"]{background:radial-gradient(circle at 38% 34%,color-mix(in srgb,var(--ec-ember) 45%,white) 0 16%,var(--ec-ember) 46%,color-mix(in srgb,var(--ec-ember) 72%,black) 100%);animation:ecShellEmber 2.6s ease-in-out infinite}
+[data-testid="shell-points"] [data-filled="false"]{background:#2a221d;box-shadow:inset 0 1px 2px rgba(0,0,0,0.8),0 0 0 1.5px rgba(255,244,226,0.28)}
+@media (prefers-reduced-motion: reduce){[data-testid="shell-points"] [data-filled="true"]{animation:none;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 5px 1px var(--ec-ember),0 0 12px 3px color-mix(in srgb,var(--ec-ember) 50%,transparent)}}`}</style>
             {Array.from({ length: ctl.points.budget }, (_, i) => {
               const on = i < ctl.points.left;
               return (
                 <span
                   key={i}
                   data-filled={on ? "true" : "false"}
-                  style={{
-                    width: 10, height: 10, borderRadius: "50%", boxSizing: "border-box",
-                    border: `1.5px solid ${on && accent ? accent : t.ink}`,
-                    background: on ? (accent || t.ink) : "transparent",
-                    boxShadow: on && accent ? `0 0 6px ${accent}` : "none",
-                    opacity: on ? 0.9 : 0.3,
-                    transition: "background 0.25s ease, opacity 0.25s ease",
-                  }}
+                  style={{ width: 12, height: 12, borderRadius: "50%", boxSizing: "border-box", display: "block", animationDelay: `${i * 0.25}s`, transition: "background 0.4s ease, box-shadow 0.4s ease" }}
                 />
               );
             })}

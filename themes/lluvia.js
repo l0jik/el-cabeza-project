@@ -394,4 +394,7 @@ export const moveCostToggle = true;
 
 /* What the two sides are called here (user; themes/side-names.js). */
 import { sideNamesFor } from "./side-names.js";
+import { pointsGlowFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("lluvia");
+// The points counter's embers (points-glow.js).
+export const pointsGlow = pointsGlowFor("lluvia");

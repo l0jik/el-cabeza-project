@@ -424,4 +424,7 @@ export const styleSheet = `
 
 /* What the two sides are called here (user; themes/side-names.js). */
 import { sideNamesFor } from "./side-names.js";
+import { pointsGlowFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("standard");
+// The points counter's embers (points-glow.js): firelight and lamplight.
+export const pointsGlow = pointsGlowFor("standard");

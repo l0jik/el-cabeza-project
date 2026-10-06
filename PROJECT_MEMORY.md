@@ -6922,3 +6922,25 @@ phone menu until "Start the story over" (which clears it).
   points-counter dots 14px, lit radial core + glow, spent a dark bead;
   theme overrides to clear: tienda.js (ink dots), lab/css.js
   corporateSwiss and minimalMono rules.
+- Points counter built: Ember, breathing, in each world's own light (user
+  approved the colours, "let's go with the breathing version").
+  themes/points-glow.js (POINTS_GLOW, pointsGlowFor); each theme exports
+  pointsGlow (standard, tienda, neon, lluvia, cromo, parrish by look, the
+  Lab's factory per design). Chassis points-counter: 14px beads; lit: a
+  solid bead of the colour with a small highlight and a darker rim of its
+  own colour (reads on pale plates: Orinoco's paper, Minimal Mono), glow
+  breathing 2.6 s, a beat (0.25 s) apart; spent: a dark bead (#2a221d)
+  with a faint rim, fading in over 0.4 s; reduced motion: steady glow.
+  Label 11px, 0.9. Same in the phone layout (MobileShell shell-points,
+  12px; ctl.points.glow). Theme rules that flattened the dots removed:
+  tienda.js ink dots, lab/css.js corporateSwiss fill and minimalMono
+  counter opacity. Checked headless in den, store, Neon, Cromo, both
+  Parrish looks, Swiss, Corporate Swiss, Minimal Mono.
+  Fix to the split round's test hook: __EC_TEST_MOVE__'s "only the
+  selected piece mid-turn" now applies under Split movement only (the
+  Lab's switch-mid-step check moves after a remount with nothing
+  selected; it failed, now passes).
+  Tests: e2e-points, e2e-nova-mobile, e2e-tienda, e2e-lab, split-three
+  pass. e2e-outside-dismiss fails one Lluvia check ("mid-turn, a tap on
+  an empty square puts the card away") on the build before the split
+  round too (228ed2d): older, not from this; left for the user.

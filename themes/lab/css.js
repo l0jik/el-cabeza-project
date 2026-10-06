@@ -346,9 +346,9 @@ const CHROME = {
   elementarism: `[data-testid="dock-panel"] { clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px)); border-left: 3px solid var(--accent-primary) !important; }`,
   brutalist: `.ec-btn { border: 3px solid #111 !important; box-shadow: 4px 4px 0 #111 !important; text-transform: uppercase; } .ec-btn:active { transform: translate(4px, 4px) !important; box-shadow: none !important; } [data-testid="dock-panel"] { border-width: 4px !important; }`,
   newTypography: `[data-testid="dock-panel"] { border-width: 0 0 0 !important; border-top: 6px solid #141210 !important; } .ec-title { font-stretch: 62%; }`,
-  corporateSwiss: `[data-testid="dock-panel"] { border-top: 3px solid var(--accent-primary) !important; } [data-testid="points-counter"] [data-filled="true"] { background: var(--accent-primary) !important; }`,
+  corporateSwiss: `[data-testid="dock-panel"] { border-top: 3px solid var(--accent-primary) !important; }`,
   neoBrutalist: `.ec-btn { border: 3px solid #000 !important; box-shadow: 4px 4px 0 #000 !important; font-weight: 800 !important; } .ec-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000 !important; } .ec-btn:active { transform: translate(4px, 4px) !important; box-shadow: none !important; } .ec-btn-invert { background: var(--accent-secondary) !important; color: #FFF !important; }`,
-  minimalMono: `[data-testid="dock-panel"] { box-shadow: none !important; } .ec-btn { font-weight: 400 !important; } [data-testid="points-counter"] { opacity: 0.55; }`,
+  minimalMono: `[data-testid="dock-panel"] { box-shadow: none !important; } .ec-btn { font-weight: 400 !important; }`,
   ultimateFusion: `.ec-btn { border: 2px solid #2B2B2B !important; box-shadow: 3px 3px 0 #0A0A0A !important; text-transform: uppercase; } .ec-btn:active { transform: translate(3px, 3px) !important; box-shadow: none !important; } [data-testid="dock-panel"] { border-top: 8px solid var(--accent-primary) !important; } .ec-title { color: var(--surface) !important; }`,
 };
 

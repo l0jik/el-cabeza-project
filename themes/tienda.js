@@ -336,9 +336,8 @@ export const styleSheet = `
     box-shadow: 0 3px 8px rgba(20,12,6,0.35);
   }
   [data-testid="points-counter"] > span:first-of-type { opacity: 0.8 !important; }
-  [data-testid="points-counter"] [data-filled] { box-shadow: none !important; border-color: ${PERIOD.ink} !important; }
-  [data-testid="points-counter"] [data-filled="true"] { background: ${PERIOD.ink} !important; opacity: 0.9 !important; }
-  [data-testid="points-counter"] [data-filled="false"] { background: transparent !important; opacity: 0.45 !important; }
+  /* (Its points are the chassis's embers, in the store's own light:
+     points-glow.js.) */
   /* The corner controls sit over wood, floor or the dark under the
      table, so they're printed on a scrap of card to read on any of it. */
   [data-testid="how-to-play"], button[aria-label$="full screen"], [data-testid="room-view-corner"] {
@@ -657,4 +656,7 @@ export const fullscreenOnFirstTap = true;
 
 /* What the two sides are called here (user; themes/side-names.js). */
 import { sideNamesFor } from "./side-names.js";
+import { pointsGlowFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("tienda");
+// The points counter's embers (points-glow.js).
+export const pointsGlow = pointsGlowFor("tienda");

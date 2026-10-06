@@ -23,6 +23,7 @@ import { createLabAudio } from "./audio.js";
 import { styleSheetFor } from "./css.js";
 import { LabHud } from "./hud.js";
 import { sideNamesFor } from "../side-names.js";
+import { pointsGlowFor } from "../points-glow.js";
 
 const rgba = (css, a) => {
   const c = new THREE.Color(css);
@@ -80,6 +81,7 @@ export function makeLabTheme(spec) {
     labSpec: spec,
     realityName: spec.name, // (the info panel's This game tab)
     sideNames: sideNamesFor(spec.id), // what the two sides are called here
+    pointsGlow: pointsGlowFor(spec.id), // the points counter's embers (points-glow.js)
 
     COLORS, HEX,
     EDGE_RADIUS: scene.EDGE_RADIUS,

@@ -636,10 +636,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // screen pixels for tests that then click on it.
     window.__EC_TEST_MOVE__ = (id, dir) => {
       const piece = pieces.find((p) => p.id === id);
-      // Mid-turn, only the selected piece moves, as on the board (a tap on
-      // another piece is what hands it the turn's points, Split Movement's
-      // cap and all).
-      if (piece && stepsUsed > 0 && piece.id !== selectedId) return false;
+      // Under Split Movement, mid-turn, only the selected piece moves, as on
+      // the board (a tap on another piece is what hands it the turn's
+      // points, the piece limit and all: __EC_TEST_SPLIT_TO__).
+      if (piece && stepsUsed > 0 && ACTIVE_LAWS.splitMovement && piece.id !== selectedId) return false;
       if (piece && beginMoveRef.current) beginMoveRef.current(piece, dir);
       return !!piece;
     };
@@ -7636,10 +7636,16 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const final = isPlaying ? null : pointsFinal;
         const player = final ? final.player : currentPlayer;
         const left = final ? final.left : Math.max(0, budget - stepsUsed);
-        // The player's glow where the theme has one (Neon: Dark's body
-        // colour would vanish into its dark backdrop), else their body.
-        const accent = player === "dark" ? COLORS.accentDark : COLORS.accentLight;
-        const fill = accent || (player === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
+        /* Ember, breathing (user, from a page of mock-ups: a point you
+           have glows, a spent one goes dark): each point a small lamp in
+           this world's light for the side (theme.pointsGlow,
+           themes/points-glow.js; else the side's accent), its glow slowly
+           swelling and easing, a beat apart; a spent one is a cold dark
+           bead with a faint rim. A thin darker rim of its own colour keeps a
+           lit one readable on a pale plate (Orinoco's paper, Minimal Mono).
+           Still for a reader who wants no motion. */
+        const pg = theme.pointsGlow || null;
+        const glow = (pg && pg[player]) || (player === "dark" ? COLORS.accentDark : COLORS.accentLight) || (player === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
         return (
           <div
             data-testid="points-counter"
@@ -7654,32 +7660,36 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               pointerEvents: "none",
               display: "flex",
               alignItems: "center",
-              gap: 10,
+              gap: 12,
               fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 10,
-              letterSpacing: "0.18em",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.16em",
               textTransform: "uppercase",
               color: COLORS.slate,
+              ["--ec-ember"]: glow,
             }}
           >
-            <style>{"@keyframes ecPointsRefund{0%{transform:scale(1.35);filter:brightness(1.8)}100%{transform:scale(1);filter:none}}"}</style>
-            <span style={{ opacity: 0.7 }}>Action points</span>
-            <span key={pointsPulse} style={{ display: "flex", gap: 5, animation: pointsPulse ? "ecPointsRefund 0.6s ease-out" : "none" }}>
+            <style>{`@keyframes ecPointsRefund{0%{transform:scale(1.35);filter:brightness(1.8)}100%{transform:scale(1);filter:none}}
+@keyframes ecEmberBreathe{0%,100%{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 5px 1px var(--ec-ember),0 0 12px 2px color-mix(in srgb,var(--ec-ember) 40%,transparent)}50%{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 8px 3px var(--ec-ember),0 0 22px 6px color-mix(in srgb,var(--ec-ember) 60%,transparent)}}
+[data-testid="points-counter"] [data-filled="true"]{background:radial-gradient(circle at 38% 34%,color-mix(in srgb,var(--ec-ember) 45%,white) 0 16%,var(--ec-ember) 46%,color-mix(in srgb,var(--ec-ember) 72%,black) 100%);animation:ecEmberBreathe 2.6s ease-in-out infinite}
+[data-testid="points-counter"] [data-filled="false"]{background:#2a221d;box-shadow:inset 0 1px 2px rgba(0,0,0,0.8),0 0 0 1.5px rgba(255,244,226,0.28)}
+@media (prefers-reduced-motion: reduce){[data-testid="points-counter"] [data-filled="true"]{animation:none;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 6px 2px var(--ec-ember),0 0 16px 4px color-mix(in srgb,var(--ec-ember) 50%,transparent)}}`}</style>
+            <span style={{ opacity: 0.9 }}>Action points</span>
+            <span key={pointsPulse} style={{ display: "flex", gap: 10, animation: pointsPulse ? "ecPointsRefund 0.6s ease-out" : "none" }}>
               {Array.from({ length: budget }, (_, i) => (
                 <span
                   key={i}
                   data-filled={i < left ? "true" : "false"}
                   style={{
-                    width: 9,
-                    height: 9,
+                    width: 14,
+                    height: 14,
                     borderRadius: "50%",
                     boxSizing: "border-box",
-                    border: `1.25px solid ${i < left && accent ? accent : COLORS.charcoal}`,
-                    background: i < left ? fill : "transparent",
-                    boxShadow: i < left && accent ? `0 0 5px ${accent}` : "none",
-                    // Dimmed per feedback: a quiet readout, not a beacon.
-                    opacity: i < left ? 0.55 : 0.28,
-                    transition: "background 0.25s ease, opacity 0.25s ease",
+                    display: "block",
+                    // (A beat apart, so they breathe one after another.)
+                    animationDelay: `${i * 0.25}s`,
+                    transition: "background 0.4s ease, box-shadow 0.4s ease",
                   }}
                 />
               ))}
@@ -9162,7 +9172,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             onUndoMove: handleUndoTurn,
             onStopHere: handleStopHere,
             onUndoTurn: handleUndoLastTurn,
-            points: showPoints && isPlaying ? { left: Math.max(0, turnBudget() - stepsUsed), budget: turnBudget() } : null,
+            points: showPoints && isPlaying ? { left: Math.max(0, turnBudget() - stepsUsed), budget: turnBudget(), glow: (theme.pointsGlow && theme.pointsGlow[currentPlayer]) || null } : null,
             pointsPulse,
             viewMode,
             onTopDown: () => topDownView(),
