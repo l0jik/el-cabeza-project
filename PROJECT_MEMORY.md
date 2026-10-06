@@ -6868,3 +6868,8 @@ phone menu until "Start the story over" (which clears it).
   Today a tap on the moved piece ("Stop here"; the phone's End turn) ends
   the whole turn; under Split a different own piece can already be tapped
   to spend what's left (turnContinues; 2-piece cap). Waiting on the user.
+- Watermark's soundtrack title is now "Ôm Nhau Vĩnh Cửu" (user), in the
+  now-playing strip and the Soundtrack slider's hint. Fits the strip on a
+  390 phone without scrolling? It scrolls if it doesn't (the strip's own
+  check). e2e-now-playing: the "fits" check polls now (it read too soon
+  under load once). All pass.

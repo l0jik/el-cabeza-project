@@ -40,7 +40,7 @@ const secs = (t) => { const m = /(\d+):(\d\d)/.exec(t || ""); return m ? +m[1] *
 
 const PLACES = [
   { name: "Orinoco", url: "el-cabeza-parrish.html?look=orinoco", title: "Dodhéanta an Ghrian", start: "begin" },
-  { name: "Watermark", url: "el-cabeza-parrish.html?look=watermark", title: "\u00d4m Nhau", start: "begin" },
+  { name: "Watermark", url: "el-cabeza-parrish.html?look=watermark", title: "\u00d4m Nhau V\u0129nh C\u1eedu", start: "begin" },
   { name: "Big Glutts", url: "el-cabeza-tienda.html", title: /Muzak, 1974|Coupon Gloss|Atrium|Emporium|Clearance|arrangement/, start: "box" },
   { name: "the den", url: "el-cabeza-standard.html", title: /\S/, start: "record" },
   { name: "Neon", url: "el-cabeza-neon.html", title: null, start: "begin" },
@@ -127,8 +127,7 @@ for (const place of PLACES) {
     const l = await read();
     check("...still clear of the button and the time", sep(l.btn, l.name) && sep(l.name, l.when), JSON.stringify(l));
     await page.evaluate(() => { window.__EC_NP_TITLE__ = null; });
-    await page.waitForTimeout(400);
-    check("a title that fits doesn't scroll", (await shift()).scrolls === "false");
+    check("a title that fits doesn't scroll", !!(await poll(async () => (await shift()).scrolls === "false", 4000, 200)));
   }
   check("no page errors", errs.length === 0, errs.join(" | "));
   await page.close();
