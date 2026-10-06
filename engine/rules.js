@@ -511,7 +511,9 @@ export function legalSlideSteps(pieces, piece) {
   const dirs = ACTIVE_LAWS.diagonalSlide ? Object.keys(STEP_DIRS) : ROLL_DIRS;
   for (const dir of dirs) {
     const [dr, dc] = STEP_DIRS[dir];
-    const move = translatedCandidate(pieces, piece, dr, dc, !!ACTIVE_LAWS.shoving);
+    // Shoves are never diagonal (user), even with Diagonal slide on: a
+    // diagonal slide into a piece is simply blocked.
+    const move = translatedCandidate(pieces, piece, dr, dc, !!ACTIVE_LAWS.shoving && (dr === 0 || dc === 0));
     if (move) {
       out[dir] = move.teleports
         ? { candidate: move.candidate, crushes: move.crushes, isSlide: true, teleports: true }
@@ -567,6 +569,25 @@ export function legalMovesFor(pieces, piece, remaining = Infinity) {
   const out = { ...rolls };
   for (const [dir, move] of Object.entries(legalSlideSteps(pieces, piece))) out[slideKey(dir)] = move;
   return withinBudget(out, remaining);
+}
+
+/* The diagonals a slide can't take only because shoves are never diagonal
+   (user): the slide would push a lighter piece with room to go, as an
+   orthogonal one does, and the points are there. The board draws an X on
+   that square while the player drags toward it (user: "make the board
+   show an X when a diagonal shove is blocked"). A diagonal blocked any
+   other way (a heavier piece, the edge) isn't listed. Each entry is
+   { dir, candidate, shoves }: where the slide would have landed, and who
+   it would have pushed. */
+export function blockedDiagonalShoves(pieces, piece, remaining = Infinity) {
+  if (!ACTIVE_LAWS.slide || !ACTIVE_LAWS.diagonalSlide || !ACTIVE_LAWS.shoving || piece.type === "cabeza") return [];
+  const out = [];
+  for (const [dir, [dr, dc]] of Object.entries(STEP_DIRS)) {
+    if (dr === 0 || dc === 0) continue;
+    const move = translatedCandidate(pieces, piece, dr, dc, true);
+    if (move && move.shoves && moveCost({ ...move, isSlide: true }) <= remaining) out.push({ dir, candidate: move.candidate, shoves: move.shoves });
+  }
+  return out;
 }
 
 // Drops any move costing more than the points left — only ever bites

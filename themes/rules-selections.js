@@ -48,10 +48,12 @@ export function pieceTypeOf(key) {
 }
 
 export const LAW_OPTIONS = [
-  { key: "slide", name: "Slide", note: "Move a piece one open square without tipping it. 2 points (a roll is 1)." },
-  { key: "diagonalSlide", name: "Diagonal slide", note: "Slides may go corner to corner. Needs Slide." },
+  // Named Orthogonal slide (user), with what orthogonal means said in the
+  // note: along a row or column, not corner to corner.
+  { key: "slide", name: "Orthogonal slide", note: "Move a piece one open square along its row or column (not corner to corner) without tipping it. 2 points (a roll is 1)." },
+  { key: "diagonalSlide", name: "Diagonal slide", note: "Slides may also go corner to corner. Needs Orthogonal slide. A diagonal slide never shoves." },
   { key: "blackHoleSquares", name: "Black hole squares", note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn." },
-  { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. 1 point more. Choose whether rolls shove too, or only slides." },
+  { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 point more. Choose whether rolls shove too, or only slides." },
   { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 point." },
   // (3 actions per turn directly above Split movement: user.)
   { key: "threeActions", name: "3 actions per turn", note: "3 points a turn instead of 2." },
@@ -297,6 +299,18 @@ export function setShove(sel, key, value) {
   if (key === "onRolls" && value === false) sel.laws.slide = true;
   return sel;
 }
+// What actually shoves with the rules as they're set, for the line under
+// Shoving's setting (user: the Slide/Shoving link confused even the
+// developer). It changes as Slide is ticked.
+export function shoveNow(sel) {
+  // (And never on a diagonal, user: said while Diagonal slide is on.)
+  const diag = sel.laws.slide && sel.laws.diagonalSlide ? " Diagonal slides never shove." : "";
+  if (sel.shove && sel.shove.onRolls === false)
+    return `Right now only slides shove.${diag} A roll into a piece is just blocked. Turning Orthogonal slide off switches this back to Slides and rolls.`;
+  if (!sel.laws.slide)
+    return "Right now only rolls shove: Orthogonal slide is off, so there are no slides to shove with. Choosing Slides only turns it on.";
+  return `Right now slides and rolls both shove.${diag}`;
+}
 // What the engine gets: the laws (a diagonal slide only with Slide) and
 // Shoving's setting.
 export function lawsForEngine(sel) {
@@ -320,7 +334,7 @@ export function lawWarnings(sel) {
         out.push({ key: "shoving", testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 points, so Opas only shove with 3 actions per turn." });
     } else if (!l.slide) {
       // Slides only: nothing shoves without the Slide rule...
-      out.push({ key: "shoving", testid: "shove-needs-slide", text: "Slides only needs the Slide rule. Check Slide, or let rolls shove too." });
+      out.push({ key: "shoving", testid: "shove-needs-slide", text: "Slides only needs Orthogonal slide. Check it, or let rolls shove too." });
     } else if (!l.threeActions) {
       // ...and a shoving slide costs 2 + 1.
       out.push({ key: "shoving", testid: "shove-needs-three", text: "A shoving slide costs 3 points, so slides only needs 3 actions per turn. Check it, or let rolls shove too." });

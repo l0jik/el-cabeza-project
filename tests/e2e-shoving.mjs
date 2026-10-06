@@ -145,6 +145,51 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   await page.close();
 }
 
+// ---- 5. shoves are never diagonal: dragging that way shows an X ----
+// (user). With Diagonal slide on, a Chato dragged toward a Turrito on its
+// diagonal gets an X on that square, not the slide arrow, and letting go
+// moves nothing; dragged toward an open square it gets the arrow.
+{
+  const { page, errs } = await openPage({ slide: true, diagonalSlide: true, threeActions: true, shoving: true });
+  await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), [
+    ...cabezas,
+    P("dark-chato", "chato", "dark", 4, 3, 1, 2, 2),
+    P("light-turrito", "turrito", "light", 3, 4, 1, 1, 1),
+  ]);
+  await page.waitForTimeout(300);
+  await openDockPanel(page);
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.waitForTimeout(1200);
+  const from = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("dark-chato"));
+  const to = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-turrito"));
+  await page.mouse.click(from.x, from.y);
+  await page.waitForTimeout(400);
+  const cues = () => page.evaluate(() => { const t = window.__EC_TEST_THREE__(); return { x: t.slideBlockGroup.visible, arrow: t.slideArrowGroup.visible }; });
+  const drag = async (tx, ty) => {
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++) await page.mouse.move(from.x + ((tx - from.x) * i) / 8, from.y + ((ty - from.y) * i) / 8);
+    await page.waitForTimeout(150);
+  };
+  await drag(to.x, to.y);
+  const atX = await cues();
+  await page.screenshot({ path: "/tmp/e2e-shove-diagonal-x.png" });
+  check("dragging toward a diagonal shove shows the X, not the arrow", atX.x && !atX.arrow, JSON.stringify(atX));
+  await page.mouse.up();
+  await page.waitForTimeout(1200);
+  let ps = await page.evaluate(() => window.__EC_TEST_PIECES__);
+  check("...and letting go moves nothing", ps.find((p) => p.id === "dark-chato").col === 3 && ps.find((p) => p.id === "light-turrito").col === 4, JSON.stringify(ps));
+  check("...the X is gone again", !(await cues()).x);
+  // The other diagonal on that side (south-east) is open: the arrow, no X.
+  const se = await page.evaluate(() => { const a = window.__EC_TEST_CUBE_POS__(4, 3), b = window.__EC_TEST_CUBE_POS__(5, 4); return { x: b.x - a.x, y: b.y - a.y }; });
+  await drag(from.x + se.x, from.y + se.y);
+  const open = await cues();
+  await page.mouse.up();
+  check("an open diagonal shows the arrow, no X", open.arrow && !open.x, JSON.stringify(open));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await page.close();
+}
+
 await browser.close();
 console.log(failures === 0 ? "\nSHOVING E2E PASSED" : `\nSHOVING E2E FAILED (${failures})`);
 process.exit(failures === 0 ? 0 : 1);

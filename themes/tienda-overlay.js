@@ -26,7 +26,7 @@ import { usePivotGuide } from "./pivot-guide.js";
 import React from "react";
 import {
   PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
-  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, setShove, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
+  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, setShove, shoveNow, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
 } from "./rules-selections.js";
 import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS } from "./tienda-order.js";
@@ -1330,7 +1330,8 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
               key: String(o.value), type: "button", "aria-pressed": ((sel.shove || {})[st.key] !== false) === o.value ? "true" : "false",
               "data-testid": `tienda-shove-${st.key}-${o.value ? "on" : "off"}`,
               onClick: () => { click(); change((s) => setShove(s, st.key, o.value)); },
-            }, o.name)))))));
+            }, o.name))))),
+        h("span", { className: "td-sub-val", "data-testid": "tienda-shove-now" }, shoveNow(sel))));
     }
     if (on && l.key === "blackHoleSquares") {
       out.push(h("div", { key: "holes", className: "td-sub", "data-testid": "tienda-hole-settings" },

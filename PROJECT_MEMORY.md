@@ -6975,3 +6975,52 @@ phone menu until "Start the story over" (which clears it).
   case plus the two that must still block. Tests: shapes, engine,
   ai-threats smoke; e2e-pivot pass. e2e-pivot-guide failed once inside
   the combined run, passed twice alone (menu picture; no sweep code).
+
+- Shoving explains itself (user: "I'm the developer and I'm confused by
+  it sometimes"). Picked from three mock-ups: a live line under
+  Shoving's setting, `shoveNow(sel)` in rules-selections.js, shown in
+  all four menus (gate-shove-now, tienda-shove-now, lluvia-shove-now,
+  Neon's shove-now). Three cases: slides only -> "only slides shove, a
+  roll is just blocked, turning Slide off switches back"; slides and
+  rolls with Slide off -> "only rolls shove... Choosing Slides only
+  turns Slide on"; with Slide on -> "slides and rolls both shove". The
+  "turns on Slide" hint lives in the line, not on the button (keeps the
+  segmented buttons one line in every theme). Rules unchanged.
+
+- Shoves are never diagonal (user: "shoving can never be diagonal, even
+  with diagonal sliding turned on"). The engine had allowed it: a
+  diagonal slide into a lighter piece pushed it one square along the
+  diagonal. Now legalSlideSteps passes allowShove only for N/E/S/W, so a
+  diagonal slide into a piece is just blocked (AI included, it reads the
+  same moves). Said in: LAW_OPTIONS notes for Shoving and Diagonal slide
+  (gate, Tienda, Lluvia read these), Neon's sphere blurbs, RulesCards
+  (law text, slides-only text, both rule cards), and shoveNow adds
+  "Diagonal slides never shove." while Diagonal slide is on. engine.smoke
+  has the blocked diagonal and the open diagonal still a plain slide.
+
+- The board's X for a blocked diagonal shove (user: "make the board show
+  an X when a diagonal shove is blocked"; chose "while dragging" and
+  "would-be shoves only"). Engine: blockedDiagonalShoves(pieces, piece,
+  remaining) lists the diagonals that would have shoved under the old
+  rule (lighter piece with room, points there) as {dir, candidate,
+  shoves}; a heavier piece or the edge isn't listed. Chassis: the slide
+  drag arms these too (dirs entries carry `blocked`); pointing at one
+  shows slideBlockGroup (two crossed red bars, depthTest off, over the
+  landing square above the tallest piece there) instead of the slide
+  arrow, and slideDrag.chosen stays null so release moves nothing.
+  updateSlideArrow(null) hides both, so every reset path clears it.
+  Tests: engine.smoke (listed / not at 2 points / not for a heavier
+  piece / not without Diagonal slide), e2e-shoving section 5 (X shows,
+  no arrow, release moves nothing, open diagonal shows the arrow).
+
+- Slide is named "Orthogonal slide" (user, with a screenshot of the
+  Cabeza Nova sheet: "should be referred to as orthogonal slide... a bit
+  of an explanation as to what is meant by orthogonal... really
+  concise"). The explanation rides in the note itself: "along its row or
+  column (not corner to corner)". Changed: LAW_OPTIONS (gate, Tienda,
+  Lluvia), Neon sphere label/blurb ("Orthogonal Slide"), RulesCards law
+  text and rule card title, every warning or line that named the rule
+  ("Needs Orthogonal slide", shoveNow, shove-needs-slide), Lluvia's
+  LAWS sign. The move kind stays "slide" (Shoving's "Slides only", the
+  cost row "Slide", "a slide costs 2"): any slide, either rule. Keys
+  unchanged (`slide`), so saves and tests carry over.

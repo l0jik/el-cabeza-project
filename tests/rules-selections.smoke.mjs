@@ -76,6 +76,11 @@ import("../themes/rules-selections.js").then(async (m) => {
     check("...and the summary names each", JSON.stringify(m.variantsOf(mix)).includes("1× Arco Alto") && JSON.stringify(m.variantsOf(mix)).includes("1× Arco Ancho"));
   }
   s.laws.shoving = true;
+  // The line under the setting says what actually shoves (user).
+  check("with Slide off, the line says only rolls shove", /only rolls shove/.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: false } })));
+  check("...with Slide on, slides and rolls both", /slides and rolls both shove/.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: true } })));
+  check("...on slides only, only slides", /only slides shove/.test(m.shoveNow({ ...s, shove: { onRolls: false } })));
+  check("...and with Diagonal slide on it says diagonal slides never shove", /Diagonal slides never shove/.test(m.shoveNow({ ...s, laws: { ...s.laws, slide: true, diagonalSlide: true } })));
   check("Shoving reaches the engine, rolls shoving by default", m.lawsForEngine(s).shoving === true && m.lawsForEngine(s).shoveOnRolls === true && !("shoveFar" in m.lawsForEngine(s)));
   // Its one setting: slides only.
   s.shove = { onRolls: false };

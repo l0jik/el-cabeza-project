@@ -34,19 +34,19 @@ export const RULES_TABS = [
 // One sentence per law, shared by "This game" and the MOVES tiles.
 export const LAW_TEXT = {
   splitMovement: { name: "Split Movement", text: "Your points can be shared between up to two pieces in one turn." },
-  slide: { name: "Slide", text: "Any piece can move one open square north, south, east or west without tipping. A slide costs 2 points." },
-  diagonalSlide: { name: "Diagonal Slide", text: "Slides can also go diagonally." },
+  slide: { name: "Orthogonal Slide", text: "Any piece can move one open square along its row or column (north, south, east or west, not corner to corner) without tipping. A slide costs 2 points." },
+  diagonalSlide: { name: "Diagonal Slide", text: "Slides can also go diagonally. A diagonal slide never shoves." },
   blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends." },
   cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 point." },
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 action points instead of 2." },
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 points can be shared between up to three pieces in one turn, one point each." },
-  shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra point. A slide pushes them one square; a roll pushes them just past where it lands. Nothing may be behind them." },
+  shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra point. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
 };
 // Shoving as this game plays it: its one setting says whether rolls shove
 // too (ACTIVE_LAWS.shoveOnRolls, on unless set to slides only).
 export function shovingText(laws = {}) {
   return laws.shoveOnRolls === false
-    ? "Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra point (a shoving slide costs 3). A roll into a piece is blocked. Nothing may be behind them."
+    ? "Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra point (a shoving slide costs 3), never diagonally. A roll into a piece is blocked. Nothing may be behind them."
     : LAW_TEXT.shoving.text;
 }
 
@@ -387,7 +387,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "slide", law: "slide", title: "Slide", cost: <Dots n={2} C={C} />, text: "Any piece glides one square north, south, east or west without tipping, so a lying Flaco stays lying down (a roll would stand it up). Costs 2 points.",
+      key: "slide", law: "slide", title: "Orthogonal Slide", cost: <Dots n={2} C={C} />, text: "Any piece glides one square along its row or column (north, south, east or west, not corner to corner) without tipping, so a lying Flaco stays lying down (a roll would stand it up). Costs 2 points.",
       svg: (
         <>
           {grid()}
@@ -397,7 +397,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "diagonalSlide", law: "diagonalSlide", title: "Diagonal Slide", cost: <Dots n={2} C={C} />, text: "With Slide on, a slide may also go diagonally.",
+      key: "diagonalSlide", law: "diagonalSlide", title: "Diagonal Slide", cost: <Dots n={2} C={C} />, text: "With Orthogonal Slide on, a slide may also go diagonally. A diagonal slide never shoves.",
       svg: (
         <>
           {grid(3, 3, 36, 6)}
@@ -406,7 +406,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "shoving", law: "shoving", title: "Shove", cost: <Dots n={1} C={C} plus />, text: "Rolling or sliding into pieces with fewer cubes, all together, pushes them along, for 1 extra point: a slide one square, a roll just past where it lands. Anything behind them blocks. Set to slides only, a roll can't shove.",
+      key: "shoving", law: "shoving", title: "Shove", cost: <Dots n={1} C={C} plus />, text: "Rolling or sliding into pieces with fewer cubes, all together, pushes them along, for 1 extra point: a slide one square, a roll just past where it lands. Never diagonally. Anything behind them blocks. Set to slides only, a roll can't shove.",
       svg: (
         <>
           {grid()}

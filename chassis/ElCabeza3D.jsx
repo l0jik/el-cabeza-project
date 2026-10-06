@@ -7,12 +7,12 @@ import {
   CAMERA_DAMPING, RESET_CAMERA_DAMPING, RESET_TRANSITION_MS,
   ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, setBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
-  isSlideKey, baseDirOfSlideKey, isPivotKey, pivotTurnOfKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
+  isSlideKey, slideKey, baseDirOfSlideKey, isPivotKey, pivotTurnOfKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
   MISSING_SQUARES, setMissingSquares as setActiveMissingSquares,
   turnBudget, maxPiecesPerTurn,
 } from "../engine/constants.js";
 import {
-  createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues, applyShoves,
+  createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues, applyShoves, blockedDiagonalShoves,
 } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY, placeKey } from "../engine/ai.js";
 import {
@@ -3279,6 +3279,22 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       slideArrowGroup.add(shaft, head);
       slideArrowGroup.visible = false;
     }
+    // Its counterpart: an X on the square a drag points at when that's a
+    // diagonal slide that would shove (shoves are never diagonal, user:
+    // "make the board show an X when a diagonal shove is blocked"). Two
+    // crossed bars, a unit square across, scaled and placed per drag;
+    // drawn over everything so the piece in the way can't hide it.
+    const slideBlockGroup = new THREE.Group();
+    {
+      const xMat = new THREE.MeshBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.92, depthTest: false });
+      for (const a of [Math.PI / 4, -Math.PI / 4]) {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.03, 0.13), xMat);
+        bar.rotation.y = a;
+        bar.renderOrder = 20;
+        slideBlockGroup.add(bar);
+      }
+      slideBlockGroup.visible = false;
+    }
 
     /* Everything that should turn together — the slab, the grid, every
        piece, every footprint indicator — lives under one group. Camera
@@ -3289,7 +3305,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const boardGroup = new THREE.Group();
     const grid = theme.makeGrid();
     grid.name = "ec-grid"; // so resizeBoardPlate can find/replace it
-    boardGroup.add(slab, slabEdges, topRing, grid, pieceGroup, ghostGroup, holeGroup, missingGroup, slideArrowGroup);
+    boardGroup.add(slab, slabEdges, topRing, grid, pieceGroup, ghostGroup, holeGroup, missingGroup, slideArrowGroup, slideBlockGroup);
     scene.add(boardGroup);
 
     three.current = {
@@ -3302,6 +3318,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       holeGroup,
       missingGroup,
       slideArrowGroup,
+      slideBlockGroup,
       raycaster: new THREE.Raycaster(),
       pointer: new THREE.Vector2(),
       // Exposed so theme code reached later (the singularity board
@@ -5404,10 +5421,24 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // Shows/orients/hides the slide arrow cue on the selected piece.
     // dirKey is a "slide-<DIR>" key or null to hide. rotation.y maps the
     // arrow's local +X onto the slide's own (dr,dc) board direction.
-    function updateSlideArrow(dirKey) {
+    // `blocked` (an entry of blockedDiagonalShoves) shows the X on its
+    // square instead of the arrow: that way is a diagonal shove.
+    function updateSlideArrow(dirKey, blocked = null) {
       const g = t.slideArrowGroup;
       if (!g) return;
-      const piece = dirKey ? pieces.find((p) => p.id === selectedId) : null;
+      const x = t.slideBlockGroup;
+      if (x) {
+        x.visible = !!blocked;
+        if (blocked) {
+          const c = blocked.candidate;
+          // On the landing's own square(s), above the tallest piece there.
+          const pushed = pieces.filter((p) => blocked.shoves.some((q) => q.id === p.id));
+          const top = Math.max(c.z, ...pushed.map((p) => p.z));
+          x.position.set((c.col + c.w / 2) * SQUARE_SIZE - OFF_X, top * PIECE_SCALE + 0.08, (c.row + c.h / 2) * SQUARE_SIZE - OFF_Z);
+          x.scale.setScalar(Math.min(c.w, c.h) * SQUARE_SIZE * 0.8);
+        }
+      }
+      const piece = dirKey && !blocked ? pieces.find((p) => p.id === selectedId) : null;
       if (!piece) { g.visible = false; return; }
       const [dr, dc] = STEP_DIRS[baseDirOfSlideKey(dirKey)];
       const pc = pieceCenter(piece);
@@ -5634,18 +5665,24 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               // armable when the piece still has at least that many.
               const slideRemaining = piece ? maxStepsFor(piece.type) - stepsUsed : 0;
               const moves = piece ? legalMovesFor(pieces, piece, slideRemaining) : {};
-              const slideEntries = Object.entries(moves).filter(([, m]) => m.isSlide);
+              // With the diagonals a shove can't take (each drawn as an X
+              // while the drag points at it; release does nothing).
+              const blockedDiag = piece ? blockedDiagonalShoves(pieces, piece, slideRemaining) : [];
+              const slideEntries = [
+                ...Object.entries(moves).filter(([, m]) => m.isSlide),
+                ...blockedDiag.map((b) => [slideKey(b.dir), { blocked: b }]),
+              ];
               if (piece && slideEntries.length) {
                 const pc = pieceCenter(piece);
                 const originScreen = worldToScreen(pc.x, pc.z);
-                const dirs = slideEntries.map(([key]) => {
+                const dirs = slideEntries.map(([key, m]) => {
                   const [dr, dc] = STEP_DIRS[baseDirOfSlideKey(key)];
                   const adj = pieceCenter({ ...piece, row: piece.row + dr, col: piece.col + dc });
                   const a = worldToScreen(adj.x, adj.z);
                   const vx = a.x - originScreen.x;
                   const vy = a.y - originScreen.y;
                   const len = Math.hypot(vx, vy) || 1;
-                  return { key, dirX: vx / len, dirY: vy / len };
+                  return { key, dirX: vx / len, dirY: vy / len, blocked: m.blocked || null };
                 });
                 slideDrag = { dirs, chosen: null };
                 slideDownX = ev.clientX;
@@ -5832,15 +5869,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           const totalDy = ev.clientY - slideDownY;
           const totalLen = Math.hypot(totalDx, totalDy);
           let chosen = null;
+          let blocked = null;
           if (totalLen > DRAG_DEAD_ZONE_PX) {
             let bestDot = 0.5; // require ~60deg alignment before claiming a direction
             for (const d of slideDrag.dirs) {
               const dot = (totalDx / totalLen) * d.dirX + (totalDy / totalLen) * d.dirY;
-              if (dot > bestDot) { bestDot = dot; chosen = d.key; }
+              if (dot > bestDot) { bestDot = dot; chosen = d.key; blocked = d.blocked; }
             }
           }
-          slideDrag.chosen = chosen;
-          updateSlideArrow(chosen);
+          // A blocked diagonal shows its X and commits nothing.
+          slideDrag.chosen = blocked ? null : chosen;
+          updateSlideArrow(chosen, blocked);
           return;
         }
 

@@ -42,6 +42,7 @@ import lostHandWireUrl from "../assets/neon/lost-hand-wire.webp";
 import lostHandSkinUrl from "../assets/neon/lost-hand-skin.webp";
 import { createUnease, createDrone } from "./neon-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
+import { shoveNow } from "./rules-selections.js";
 import { sideNamesFor } from "./side-names.js";
 
 const SIDE = sideNamesFor("neon"); // Photon / Plasma
@@ -550,12 +551,12 @@ const LAWS_ITEMS = [
   // (User: a three-piece limit as its own choice, one Split Movement or
   // the other; it brings 3 Actions, a point a piece.)
   { key: "splitThree", label: "Split Movement, 3 Pieces", blurb: "Split a turn's 3 points between up to three pieces, one point each. Brings 3 Actions Per Turn." },
-  { key: "slide", label: "Slide", blurb: "Move a piece one open square north, south, east or west without tipping it. Costs 2 points (a roll costs 1)." },
-  { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Slides may also go diagonally. Needs Slide." },
+  { key: "slide", label: "Orthogonal Slide", blurb: "Move a piece one open square along its row or column (north, south, east or west, not corner to corner) without tipping it. Costs 2 points (a roll costs 1)." },
+  { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Slides may also go diagonally. Needs Orthogonal Slide. A diagonal slide never shoves." },
   { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
   { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 point." },
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 action points per turn instead of 2." },
-  { key: "shoving", label: "Shoving", blurb: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Anything behind them blocks. Costs 1 extra point. Choose whether rolls shove too, or only slides." },
+  { key: "shoving", label: "Shoving", blurb: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal Slide. Anything behind them blocks. Costs 1 extra point. Choose whether rolls shove too, or only slides." },
 ];
 
 // The Shoving law's one game-start setting (selections.shove), shown under
@@ -2175,7 +2176,7 @@ function lawWarning(key, sel) {
   const laws = sel.laws || {};
   if (!laws[key]) return null;
   if (key === "diagonalSlide" && !laws.slide)
-    return { testid: "law-warning-diagonalSlide", text: "Diagonal Slide only works with Slide. Turn on Slide." };
+    return { testid: "law-warning-diagonalSlide", text: "Diagonal Slide only works with Orthogonal Slide. Turn it on." };
   if (key === "cantileverPivot") {
     const roster = (sel.matter && sel.matter.roster) || {};
     if (!PIVOT_CAPABLE_ROSTER.some((k) => roster[k] > 0))
@@ -2190,7 +2191,7 @@ function lawWarning(key, sel) {
       return null;
     }
     // Slides only: nothing shoves without Slide, and a shoving slide costs 3.
-    if (!laws.slide) return { testid: "shove-needs-slide", text: "SLIDES ONLY requires the Slide law. Turn on Slide, or choose SLIDES AND ROLLS." };
+    if (!laws.slide) return { testid: "shove-needs-slide", text: "SLIDES ONLY requires Orthogonal Slide. Turn it on, or choose SLIDES AND ROLLS." };
     if (!laws.threeActions) return { testid: "shove-needs-three", text: "A shoving slide costs 3 points, so SLIDES ONLY requires 3 Actions Per Turn. Turn it on, or choose SLIDES AND ROLLS." };
   }
   return null;
@@ -2249,6 +2250,11 @@ function renderShoveSettingsRow(t) {
           })
         )
       )
+    ),
+    h(
+      "div",
+      { "data-testid": "shove-now", style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, color: "#dffaff", lineHeight: 1.45 } },
+      shoveNow(sel)
     ),
     h(
       "div",

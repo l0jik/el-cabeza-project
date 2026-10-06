@@ -317,7 +317,7 @@ import * as THREE from "three";
       if (key === "matter") { wireCube(g, cx, H * 0.34, W * 0.22, t, m.color, 1); wireCube(g, cx - W * 0.2, H * 0.52, W * 0.09, t * 1.4, "#ffffff", 1); wireCube(g, cx + W * 0.2, H * 0.52, W * 0.09, -t, "#ffffff", 2); }
       if (key === "laws") {
         g.font = "600 " + Math.round(W * 0.07) + "px " + LAT; g.textAlign = "left"; g.fillStyle = m.color;
-        var lines = ["SLIDE", "DIAGONAL SLIDE", "BLACK HOLES", "3 ACTIONS", "SHOVING", "CANTILEVER", "SPLIT MOVES"];
+        var lines = ["ORTHOGONAL SLIDE", "DIAGONAL SLIDE", "BLACK HOLES", "3 ACTIONS", "SHOVING", "CANTILEVER", "SPLIT MOVES"];
         for (i = 0; i < 12; i++) { var y = ((i * 0.09 + t * 0.05) % 1.08) * H * 0.62 + H * 0.08; g.globalAlpha = 0.35 + 0.65 * Math.sin(Math.PI * Math.min(1, (y - H * 0.08) / (H * 0.62))); g.fillText("› " + lines[i % lines.length], W * 0.12, y); }
         g.globalAlpha = 1;
       }
