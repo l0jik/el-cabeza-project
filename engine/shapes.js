@@ -315,6 +315,29 @@ export function pivotArmFootprint(piece) {
   return { row: r0, col: c0, w: c1 - c0 + 1, h: r1 - r0 + 1 };
 }
 
+/* Where a pivot's arm is drawn and grabbed: the middle of its squares,
+   or, when that lands on the planted cube (an arm reaching out both ways
+   alike: the Cruce on its stem, user: "the head of an arrow indicating a
+   turn" and no curve, the arrow had no radius), the middle of the
+   farthest arm square instead. A point in board units: { row, col }, a
+   square's centre at +0.5. */
+export function pivotArmPoint(piece) {
+  const pc = pivotCellOf(piece);
+  const arm = pivotArmFootprint(piece);
+  const pr = pc.row + 0.5, pcc = pc.col + 0.5;
+  const r = arm.row + arm.h / 2, c = arm.col + arm.w / 2;
+  if (Math.hypot(r - pr, c - pcc) >= 0.45) return { row: r, col: c };
+  let best = null, bd = -1;
+  for (let rr = piece.row; rr < piece.row + piece.h; rr++) {
+    for (let cc = piece.col; cc < piece.col + piece.w; cc++) {
+      if ((rr === pc.row && cc === pc.col) || !maskAt(piece, rr, cc)) continue;
+      const d = Math.hypot(rr + 0.5 - pr, cc + 0.5 - pcc);
+      if (d > bd + 1e-9) { bd = d; best = { row: rr + 0.5, col: cc + 0.5 }; }
+    }
+  }
+  return best || { row: r, col: c };
+}
+
 /* Does the pivot's swinging arm pass through another piece's cube on
    its way round? Each cube off the pivot column sweeps a quarter circle
    at its own level; it's sampled at intermediate angles (the start and

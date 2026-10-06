@@ -20,7 +20,7 @@ import {
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
   setGhostLineTarget,
 } from "../engine/geometry.js";
-import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmFootprint } from "../engine/shapes.js";
+import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmPoint } from "../engine/shapes.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
@@ -4378,13 +4378,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (move.isPivot) {
         const cand = move.candidate;
         const pc = pivotCellOf(cand);
-        const arm = pivotArmFootprint(cand);
+        const arm = pivotArmPoint(cand);
         const center = {
           x: (pc.col + 0.5) * SQUARE_SIZE - OFF_X,
           z: (pc.row + 0.5) * SQUARE_SIZE - OFF_Z,
         };
-        const ax = (arm.col + arm.w / 2) * SQUARE_SIZE - OFF_X - center.x;
-        const az = (arm.row + arm.h / 2) * SQUARE_SIZE - OFF_Z - center.z;
+        const ax = arm.col * SQUARE_SIZE - OFF_X - center.x;
+        const az = arm.row * SQUARE_SIZE - OFF_Z - center.z;
         const toAngle = Math.atan2(az, ax);
         const cw = dir === "pivot-cw";
         const arrow = buildPivotArrow({
@@ -5726,10 +5726,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               // Screen positions of the planted column and the arm, at the
               // arm's own height (that's what the player sees and grabs).
               const pc = pivotCellOf(piece);
-              const arm = pivotArmFootprint(piece);
+              const arm = pivotArmPoint(piece);
               const armY = (piece.z - 0.5) * PIECE_SCALE;
               const center = worldToScreen((pc.col + 0.5) * SQUARE_SIZE - OFF_X, (pc.row + 0.5) * SQUARE_SIZE - OFF_Z, armY);
-              const armPos = worldToScreen((arm.col + arm.w / 2) * SQUARE_SIZE - OFF_X, (arm.row + arm.h / 2) * SQUARE_SIZE - OFF_Z, armY);
+              const armPos = worldToScreen(arm.col * SQUARE_SIZE - OFF_X, arm.row * SQUARE_SIZE - OFF_Z, armY);
               const nearArm = Math.hypot(ev.clientX - armPos.x, ev.clientY - armPos.y) < Math.hypot(ev.clientX - center.x, ev.clientY - center.y);
               pivotDrag = {
                 pieceId: piece.id,

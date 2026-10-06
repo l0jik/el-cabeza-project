@@ -7145,3 +7145,10 @@ phone menu until "Start the story over" (which clears it).
   corner icons): now one side a line in the footer strip, "Walnut: You" /
   "Ash: AI · Medium", 10.5px, bottom 7px (fits the 40px strip). Each line
   ellipsizes on its own if ever too long.
+- Cruce pivot arrow (user: "there's not a left or right pivot curved
+  arrow"; only the cone showed): the arrow's radius came from
+  pivotArmFootprint's centre, which for a Cruce standing on its stem is
+  right over the planted cube, so the arc had zero radius. New
+  shapes.pivotArmPoint uses that centre unless it sits within 0.45 of the
+  pivot cube, else the footprint cube farthest from it. The chassis arrow
+  and the swipe lever use it. shapes.smoke checks it for the stem pose.

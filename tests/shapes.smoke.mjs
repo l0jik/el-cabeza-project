@@ -4,7 +4,7 @@
    (the Codo's shape) as the test piece. Box pieces must behave exactly
    as before — the rest of the suite covers that. */
 import { rollBlock, legalMovesFor, evaluateBlockLanding, sameState } from "../engine/rules.js";
-import { parseVox, voxKey, groundCellsOf, piecesClash, rollSweepClashes, maskAt, cubeCount } from "../engine/shapes.js";
+import { parseVox, voxKey, groundCellsOf, piecesClash, rollSweepClashes, maskAt, cubeCount, pivotCellOf, pivotArmPoint } from "../engine/shapes.js";
 import { setBoardDimensions, setMissingSquares, setBlackHoles, setActiveLaws, STEP_DIRS } from "../engine/constants.js";
 
 let failures = 0;
@@ -218,6 +218,16 @@ check("a box still fills every level of its footprint", maskAt({ row: 0, col: 0,
       balanced.length > 0 && balanced.every((b) => Object.keys(legalMovesFor([b], b)).some((k) => k.startsWith("pivot"))));
     setActiveLaws({ cantileverPivot: false });
   }
+}
+
+// The Cruce on its stem (user: the pivot arrow was only its head): its
+// arm reaches out both ways alike, so the arrow and the swipe use the
+// farthest arm square, a whole square from the stem, not the arm's
+// middle (which is the stem itself).
+{
+  const onStem = { id: "c", type: "cruce", owner: "dark", row: 4, col: 4, w: 3, h: 1, z: 2, vox: "1,0,0;0,0,1;1,0,1;2,0,1" };
+  const pc = pivotCellOf(onStem), pt = pivotArmPoint(onStem);
+  check("the Cruce on its stem: the pivot arm point is a square out from the stem", !!pc && Math.hypot(pt.row - (pc.row + 0.5), pt.col - (pc.col + 0.5)) > 0.9, JSON.stringify({ pc, pt }));
 }
 
 if (failures) { console.log(`\nSHAPES SMOKE TEST FAILED (${failures})`); process.exit(1); }
