@@ -6778,3 +6778,10 @@ phone menu until "Start the story over" (which clears it).
   "nature" whenever there's a soundtrack), Pieces, Soundtrack (from 20%).
   No Music slider in either look. Checked headless: both menus, and the
   soundtrack fetched at Begin Game.
+- Parrish's corner badge (the masthead minimized in play) 1.5x (user: the
+  minimized badges for Orinoco and Watermark "seem too small"): the
+  lettering's thin lowercase script read smaller than the other worlds'
+  capitals at the same font size and was narrower (74 px wide to their
+  94 on a 390 phone). parrish.js: .ec-masthead-relocated .ec-title 6.9em
+  wide (was 4.6em): 110 px on a phone, 247 on a 1280 desktop. Checked
+  headless: top right, clear of everything.

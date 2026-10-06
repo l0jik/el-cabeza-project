@@ -316,6 +316,11 @@ export const styleSheet = `
     animation: parrish-title-paint 2s steps(16) infinite;
     opacity: ${DARK ? 0.93 : 0.97};
   }
+  /* In the corner during play, half as big again (user: the minimized
+     badges "seem too small"): the lettering's thin lowercase script read
+     smaller than the other worlds' capitals at the same size, and came
+     out narrower too (74 px wide to their 94 on a phone). */
+  .ec-masthead-relocated .ec-title { width: 6.9em; height: calc(6.9em / 3.1504); }
   @keyframes parrish-title-paint { from { background-position: 0 0, 0% 20%; } to { background-position: 0 0, 22% 34%; } }
   h1:has(> .ec-title) {
     filter: ${DARK
