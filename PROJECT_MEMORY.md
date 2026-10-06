@@ -6820,3 +6820,9 @@ phone menu until "Start the story over" (which clears it).
   shadowEntries filters isSlide; they're done by tapping the piece, then
   dragging it), so a piece whose only moves are slides shows nothing when
   tapped. Offered fixes; waiting on the user (and whether they dragged).
+- Pause button for the sound menu: mock-ups of the five ideas published
+  as an artifact (https://claude.ai/artifact/14x84oRTYKvfnsqKDJnqD9):
+  1 corner button (soundtrack only, recommended), 2 the Soundtrack
+  column's speaker icon as play/pause, 3 corner "Pause all", 4 a "now
+  playing" strip (title, play/pause, progress), 5 tap the Soundtrack
+  label. Each tappable to its paused state. Waiting on the user's pick.
