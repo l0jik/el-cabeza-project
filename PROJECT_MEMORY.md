@@ -6901,3 +6901,11 @@ phone menu until "Start the story over" (which clears it).
   (https://claude.ai/artifact/Qb6oK5Xa4X23poCMZTH7ST): now; 1 bigger pips
   + "2 left"; 2 big numeral; 3 on a dark plate (whose turn, count, pips);
   4 segmented gauge; 5 little cubes that tip over. Waiting on the pick.
+- Points counter, round 2 (user: "maybe the dots just need to be glowing,
+  and when it's used, it is no longer glowing"): the mock-up page now
+  shows five glow versions (same URL, version 2): 1 Ember (steady glow in
+  the player's colour, spent a cold dark bead), 2 Breathing (slow swell),
+  3 Pilot lights (glass lamps with a glint), 4 Candle (slight flicker, a
+  spent one blown out), 5 Next one marked (a ring pulses on the point the
+  next move spends). Label kept the same in all, a little brighter than
+  today's. Waiting on the pick.
