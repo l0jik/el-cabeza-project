@@ -7,9 +7,9 @@ import * as neonTheme from "../themes/neon.js";
 import { mountSummon, summonBridge } from "../themes/neon-summon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
-import { StoryCut, storyPreview, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, hallFlares, saveHallFlares, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
+import { StoryCut, STORY_KEY, storyPreview, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, hallFlares, saveHallFlares, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
 import { createRealitiesMenu, goToWorld, onStoryRestart } from "../themes/realities.js";
-import { forgetSingularity, journeyPreview, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn, setSceneLink } from "../engine/journey.js";
+import { SINGULARITY_SEEN_KEY, SPECIAL_ORDER_NOTED_KEY, COMMERCIAL_AIRED_KEY, forgetSingularity, journeyPreview, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn, setSceneLink } from "../engine/journey.js";
 import { prepareCommercial } from "../themes/den-ad-audio.js";
 import {
   TransitionStyles,
@@ -47,6 +47,25 @@ import {
     url.searchParams.delete("restart");
     window.history.replaceState(null, "", url.pathname + url.search + url.hash);
   } catch (e) { /* no URL or storage: nothing to clear */ }
+})();
+// ?switcher: straight to the theme switcher (the Other realities menu),
+// everything unlocked (user: "a link that goes straight to theme
+// switcher"; chose to unlock everything): the story is marked played
+// through on this device (bought, the Singularity seen, the store gone,
+// the end reached) and the menu opens over the den. Its Restart story
+// undoes it. Read before anything else, once.
+const OPEN_SWITCHER = (() => {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("switcher")) return false;
+    let rec = {};
+    try { rec = JSON.parse(localStorage.getItem(STORY_KEY) || "null") || {}; } catch (e) { /* none kept */ }
+    localStorage.setItem(STORY_KEY, JSON.stringify({ ...rec, owned: true, storeGone: true, ended: true, hallDue: false }));
+    [SINGULARITY_SEEN_KEY, SPECIAL_ORDER_NOTED_KEY, COMMERCIAL_AIRED_KEY].forEach((k) => localStorage.setItem(k, "1"));
+    url.searchParams.delete("switcher");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    return true;
+  } catch (e) { return false; }
 })();
 // From another page's realities menu (realities.js goToWorld): ?world=
 // <place>, after the story.
@@ -568,6 +587,8 @@ function UnifiedApp() {
     if (busyRef.current) return;
     createRealitiesMenu({ current: themeName, onPick: (w) => storyBridge.goWorld(w) });
   };
+  // ?switcher: the menu, once the den's up.
+  useEffect(() => { if (OPEN_SWITCHER) { const id = setTimeout(() => storyBridge.openRealities(), 900); return () => clearTimeout(id); } return undefined; }, []);
   // "Restart story" asks first (user: an "Are you sure?").
   const [confirmRestart, setConfirmRestart] = useState(false);
   storyBridge.restart = () => {

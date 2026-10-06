@@ -6792,3 +6792,14 @@ phone menu until "Start the story over" (which clears it).
   play is untouched (its own 6.9em rule). Measured: 390 phone 125 ->
   163 px wide; 1280 desktop 412 -> 536 px wide (ceiling 170 px), clear
   of the board.
+- A link straight to the theme switcher (user: "a link that goes straight
+  to theme switcher"; asked, chose to unlock everything):
+  el-cabeza-nova.html?switcher. apps/unified.jsx OPEN_SWITCHER, read
+  first, once: the story record gets owned, storeGone, ended (hallDue
+  off), and the Singularity-seen, special-order-noted and
+  commercial-aired keys are set, i.e. played through on that device; the
+  param is dropped from the address; the Other realities menu opens over
+  the den 0.9 s in. Its Restart story undoes it. Checked headless on a
+  fresh profile: menu with all 18 worlds, the den "You are here", Neon
+  picked from it opens, a plain reload doesn't reopen it, no page errors.
+  Tests: e2e-gate.
