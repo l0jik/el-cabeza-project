@@ -233,7 +233,7 @@ function compose(tuneIndex, key, seed) {
 
 /* ------------------------------------------------------------ the engine */
 
-export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
+export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null } = {}) {
   const q = quality();
   let ctx = null, master = null, comp = null;
   let storeBus = null, musicBus = null, ambBus = null, farBus = null, sfxBus = null, musicDuck = null;
@@ -684,7 +684,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
     tapeRate = ctx.createGain(); tapeRate.gain.value = TAPE_RATE * 0.000578 * 1.6;
     if (wow) wow.connect(tapeRate);
   }
-  function startTape(at) {
+  function startTape(at, fadeIn) {
     tapeGraph();
     const src = ctx.createBufferSource();
     const r = cur();
@@ -697,7 +697,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
     src.start(at, tapeOffset);
     tapeIn.gain.cancelScheduledValues(at);
     tapeIn.gain.setValueAtTime(0, at);
-    tapeIn.gain.linearRampToValueAtTime(TAPE_LEVEL, at + (tapeOffset > 0 ? 1.5 : 0.05));
+    tapeIn.gain.linearRampToValueAtTime(TAPE_LEVEL, at + (fadeIn != null ? fadeIn : tapeOffset > 0 ? 1.5 : 0.05));
     tapeSrc = src; tapeStartedAt = at;
     tapeEndsAt = at + (r.buffer.duration - tapeOffset) / TAPE_RATE;
     tapeGap = 4 + Math.random() * 3;
@@ -758,6 +758,8 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
   function startMusic() {
     if (typeof window !== "undefined" && window.__TIENDA_MUSIC_ONLY__ === "none") return; // tests: the store without music
     loadTape();
+    // (Paused from the sound menu: it stays paused until played again.)
+    if (held) return;
     // Back before the fade had finished (an undo at the end of a game):
     // the tape's still running, so just bring it up again.
     if (playing === "tape" && tapeSrc) ramp(tapeIn.gain, TAPE_LEVEL, 1.5);
@@ -780,6 +782,57 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
       stopTape(0.05);
       playing = null;
     }, secs * 1000 + 200);
+  }
+
+  /* Paused from the sound menu's now-playing strip (user: "pause the
+     music right where it is"): the speakers fade out in an eighth of a
+     second and everything holds. A reel keeps its place (stopTape notes
+     it) and starts again from there; an arrangement's clock just stops
+     (its notes are timed from pieceStart, moved on by the pause). It
+     stays paused until played again: the store opening or a game
+     beginning doesn't. */
+  let held = false, heldAt = 0, heldTape = false, heldNow = null;
+  const HOLD_FADE = 0.12;
+  function holdMusic(pause) {
+    if (!ctx || held === !!pause) return;
+    const t = ctx.currentTime;
+    if (pause) {
+      const now = nowPlaying();
+      if (!now) return; // nothing playing to pause
+      held = true; heldAt = t; heldNow = now;
+      clearInterval(schedTimer); schedTimer = null;
+      ramp(musicBus.gain, 0, HOLD_FADE);
+      heldTape = playing === "tape" && !!tapeSrc && t < tapeEndsAt;
+      if (heldTape) stopTape(HOLD_FADE);
+    } else {
+      held = false; heldNow = null;
+      if (!playing) { startMusic(); return; } // (the store closed meanwhile)
+      if (playing === "tape" && heldTape) startTape(t + 0.05, 0.3);
+      else if (playing === "piece" && piece) pieceStart += t - heldAt;
+      clearInterval(schedTimer); schedTimer = setInterval(schedule, 90);
+      ramp(musicBus.gain, 1, 0.4);
+    }
+  }
+  // What the speakers are on, for the strip: a reel (its title, how far
+  // in, how long, in listening time at the tape's speed) or one of the
+  // store's own arrangements.
+  function nowPlaying() {
+    if (!ctx) return null;
+    if (held) return heldNow ? { ...heldNow, paused: true } : null;
+    const t = ctx.currentTime;
+    if (playing === "tape") {
+      const r = cur();
+      if (!r || !r.buffer) return null;
+      const k = reels.indexOf(r);
+      const at = tapeSrc ? Math.min(r.buffer.duration, tapeOffset + Math.max(0, t - tapeStartedAt) * TAPE_RATE) : r.buffer.duration;
+      return { title: (tapeTitles && tapeTitles[k]) || "The store's tape", at: at / TAPE_RATE, length: r.buffer.duration / TAPE_RATE, paused: false };
+    }
+    if (playing === "piece" && piece) {
+      const spb = 60 / piece.tempo;
+      const lead = TUNES[tuneNo] && TUNES[tuneNo].lead;
+      return { title: lead ? `The store's own arrangement (${lead})` : "The store's own arrangement", at: Math.max(0, Math.min(piece.beats * spb, t - pieceStart)), length: piece.beats * spb, paused: false };
+    }
+    return null;
   }
 
   function startStore() {
@@ -952,11 +1005,14 @@ export function createAudio({ tapeUrl = null, tapeUrls = null } = {}) {
     startSingularityHum() {}, updateSingularityHum() {}, stopSingularityHum() {},
     continueSingularityHumThroughCollapse() {}, startSingularityCollapseRoar() {},
     cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
+    // The sound menu's now-playing strip (chassis/NowPlaying.jsx).
+    nowPlaying,
+    setNowPlayingPaused(pause) { holdMusic(pause); },
     // For tests: what's playing.
     debugState() {
       return {
         ctx: !!ctx, ctxState: ctx ? ctx.state : null, storeOn, windingDown, channelsOff: { ...channelOff }, channelLevels: { ...channelLevel },
-        gates: Object.fromEntries(Object.entries(gates).map(([k, list]) => [k, list.map((g) => +g.gain.value.toFixed(3))])), music: !!schedTimer, playing, tune: tuneNo, key: keyNo, notes: piece ? piece.notes.length : 0,
+        gates: Object.fromEntries(Object.entries(gates).map(([k, list]) => [k, list.map((g) => +g.gain.value.toFixed(3))])), music: !!schedTimer, playing, held, tune: tuneNo, key: keyNo, notes: piece ? piece.notes.length : 0,
         tape: !cur() ? "none" : cur().failed ? "failed" : cur().buffer ? "ready" : cur().loading ? "loading" : "none",
         tapeTime: ctx && playing === "tape" ? tapeOffset + Math.max(0, ctx.currentTime - tapeStartedAt) * TAPE_RATE : cur() ? cur().pos : 0,
         tapeLength: cur() && cur().buffer ? cur().buffer.duration : 0,

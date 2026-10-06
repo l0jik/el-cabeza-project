@@ -6826,3 +6826,25 @@ phone menu until "Start the story over" (which clears it).
   column's speaker icon as play/pause, 3 corner "Pause all", 4 a "now
   playing" strip (title, play/pause, progress), 5 tap the Soundtrack
   label. Each tappable to its paused state. Waiting on the user's pick.
+- Now-playing strip (user picked option 4 of the mock-ups, "all themes
+  with music, being careful to ensure there is no overlap"):
+  chassis/NowPlaying.jsx across the top of the sound menu (dock) and the
+  phone menu (MobileShell, ctl.nowPlaying): play/pause, title, a thin
+  progress line, time "m:ss / m:ss". Own grid columns, 12px gaps, 3px
+  room for an italic overhang, ellipsis; width 0 / min-width calc(100% -
+  24px) so it never widens the menu and its rule stops short of
+  Parrish's inset gold frame. Sources (chassis nowPlayingSource): the den
+  (theme.music: musicNow, pauseTrack, den-audio musicTime()), else
+  audio.nowPlaying() / audio.setNowPlayingPaused(): Parrish's soundtrack
+  (buffer source stopped and restarted at its place: playHumsFrom,
+  humsPos), the store (holdMusic: a reel stops at its place, an
+  arrangement's clock moves on by the pause; reel titles
+  STORE_REEL_TITLES). Pauses stay until played (Begin Game, the store
+  opening, back from the switcher don't resume). No music, no strip
+  (Neon, Cromo, Lab; Lluvia's score is generated and has no slider menu).
+  Test: tests/e2e-now-playing.mjs (own http server; Orinoco, Watermark,
+  Big Glutts, the den: title, time moves, pause holds, resumes, no
+  overlap, inside the menu; Neon none). Also e2e-nova-sound, e2e-den
+  pass. e2e-sound-channels fails one check the same on the unchanged
+  build (the store's far-sounds gate reads 1: an idle gain node's
+  automation isn't advanced headless): a test artifact, left.

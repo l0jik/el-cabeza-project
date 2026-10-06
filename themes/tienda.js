@@ -627,7 +627,16 @@ export const STORE_REELS = [
   "el-cabeza-tienda-reel-5.mp3",
   "el-cabeza-tienda-reel-6.mp3",
 ];
-export const createAudio = () => createStoreAudio({ tapeUrls: STORE_REELS });
+// Their titles, for the sound menu's now-playing strip.
+export const STORE_REEL_TITLES = [
+  "Muzak, 1974",
+  "Coupon Gloss Reverie",
+  "Twilight at the Atrium",
+  "Tuesday Morning at the Atrium",
+  "Tuesday Night at the Emporium",
+  "Midday Clearance Sale",
+];
+export const createAudio = () => createStoreAudio({ tapeUrls: STORE_REELS, tapeTitles: STORE_REEL_TITLES });
 // The reality's name, at the top of the info panel's This game tab (user);
 // the same names as the Other realities menu (themes/realities.js WORLDS).
 export const realityName = "Big Glutts";

@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import VolumeFader from "./VolumeFader.jsx";
+import NowPlaying from "./NowPlaying.jsx";
 import { sideNamesOf } from "../themes/side-names.js";
 
 /* The phone layout (a page opts in with ElCabeza3D's mobileShell prop;
@@ -734,6 +735,12 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
                vertical; all the way down is off). One for a theme with a
                single sound, else All sounds and each channel beside it, the
                channels dimmed while All sounds is off. */}
+            {/* Now playing (NowPlaying.jsx): above the faders, where there's music. */}
+            {ctl.hasAudio && ctl.nowPlaying && (
+              <div style={{ paddingTop: 6 }}>
+                <NowPlaying source={ctl.nowPlaying} ink={t.ink} muted={t.muted} hair={t.hair} accent={t.ink} font={t.sans} testid="shell-now-playing" />
+              </div>
+            )}
             {ctl.hasAudio && (
               <div className="ec-shell-row" data-testid="shell-menu-mixer" style={{ cursor: "default", justifyContent: "center", alignItems: "flex-start", gap: 2, flexWrap: "wrap", paddingTop: 12, paddingBottom: 12 }}>
                 <VolumeFader

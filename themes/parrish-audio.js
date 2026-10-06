@@ -563,7 +563,7 @@ export function createAudio() {
   if (typeof window !== "undefined" && OUTRO_URL) window.addEventListener(PARRISH_CLOSING_EVENT, onClosing);
   if (typeof window !== "undefined" && OUTRO_URL) window.addEventListener(REALITIES_OPEN_EVENT, onRealities);
   // Staying after all: the soundtrack comes back in under the game.
-  const onStay = () => { if (hums && hums.g && !disposed) hums.g.gain.setTargetAtTime(HUMS_GAIN, now(), 2.5); };
+  const onStay = () => { if (hums && hums.g && !hums.paused && !disposed) hums.g.gain.setTargetAtTime(HUMS_GAIN, now(), 2.5); };
   if (typeof window !== "undefined" && HUMS_URL) window.addEventListener(REALITIES_STAY_EVENT, onStay);
 
   // The first tap or key anywhere on the page starts it.
@@ -598,12 +598,53 @@ export function createAudio() {
       let a = 0, z = d.length - 1;
       while (a < lim && Math.abs(d[a]) < 1e-4) a++;
       while (z > d.length - lim && Math.abs(d[z]) < 1e-4) z--;
-      const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
-      s.loopStart = a / buf.sampleRate; s.loopEnd = (z + 1) / buf.sampleRate;
+      h.buf = buf; h.loopStart = a / buf.sampleRate; h.loopEnd = (z + 1) / buf.sampleRate;
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now()); g.gain.setTargetAtTime(HUMS_GAIN, now(), 2.5);
-      s.connect(g).connect(gates.hums); s.start(now(), s.loopStart);
-      h.src = s; h.g = g;
+      g.connect(gates.hums);
+      h.g = g;
+      // (Paused from the sound menu before it had loaded: it waits there.)
+      if (h.paused) { h.pos = h.loopStart; return; }
+      playHumsFrom(h, h.loopStart);
     }).catch(() => { /* no soundtrack, then */ });
+  }
+  // A fresh source from `pos` (a buffer source can't be paused, only
+  // stopped and started again), looped as the file was made to.
+  function playHumsFrom(h, pos) {
+    const s = ctx.createBufferSource(); s.buffer = h.buf; s.loop = true;
+    s.loopStart = h.loopStart; s.loopEnd = h.loopEnd;
+    s.connect(h.g); s.start(now(), pos);
+    h.src = s; h.t0 = now(); h.off = pos;
+  }
+  // Where in the track it is now (seconds into the file).
+  function humsPos(h) {
+    if (h.paused || !h.src) return h.pos != null ? h.pos : h.loopStart || 0;
+    const span = h.loopEnd - h.loopStart, raw = h.off + (now() - h.t0);
+    return raw < h.loopEnd ? raw : h.loopStart + ((raw - h.loopStart) % span);
+  }
+  /* Paused from the sound menu's now-playing strip (user: "pause the
+     music right where it is"): a quick fade, the source stopped, the
+     place kept; played again, a new source from that place, a short fade
+     in. It stays paused until played again (a game beginning doesn't). */
+  const HOLD_FADE = 0.12;
+  function setHumsPaused(pause) {
+    const h = hums;
+    if (!h || !ctx || !!h.paused === !!pause) return;
+    if (pause) {
+      h.pos = humsPos(h);
+      h.paused = true;
+      if (h.src) {
+        const s = h.src; h.src = null;
+        try { s.stop(now() + HOLD_FADE + 0.02); } catch (e) { /* ended */ }
+        if (h.g) { h.g.gain.cancelScheduledValues(now()); h.g.gain.setTargetAtTime(0.0001, now(), HOLD_FADE / 3); }
+      }
+    } else {
+      h.paused = false;
+      if (!h.buf || !h.g) return; // (still loading: it starts as it comes)
+      h.g.gain.cancelScheduledValues(now());
+      h.g.gain.setValueAtTime(0.0001, now());
+      h.g.gain.setTargetAtTime(HUMS_GAIN, now(), 0.15);
+      playHumsFrom(h, h.pos != null ? h.pos : h.loopStart);
+    }
   }
 
   const cue = (fn) => (...args) => { ensureGraph(); if (wood) fn(...args); };
@@ -618,7 +659,7 @@ export function createAudio() {
     beginGameFadeIn() {
       windingDown = false; startNature(); startMusic(); startHums();
       // (Back from the switcher without leaving: the hums return.)
-      if (hums && hums.g) hums.g.gain.setTargetAtTime(HUMS_GAIN, now(), 2);
+      if (hums && hums.g && !hums.paused) hums.g.gain.setTargetAtTime(HUMS_GAIN, now(), 2);
       // The intro, if it's still playing, steps back under the game.
       if (intro && intro.g && !intro.done) intro.g.gain.setTargetAtTime(0.25, now(), 0.6);
       if (ctx && natureBus) natureBus.gain.setTargetAtTime(1, now(), 1.2);
@@ -673,7 +714,15 @@ export function createAudio() {
     cutSingularityAudioToSilence() {}, resumeAudioAfterSingularity() {},
     playDockOpen() {}, playDockClose() {},
     // (Tests: what's running.)
-    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.src ? "playing" : "loading") : null, evening: evening ? (evening.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
+    // The sound menu's now-playing strip (chassis/NowPlaying.jsx): the
+    // look's soundtrack, once a game has started it.
+    nowPlaying() {
+      const h = hums;
+      if (!HUMS_URL || !h || (!h.buf && !h.paused)) return null;
+      return { title: SOUNDTRACK_TITLE, at: h.buf ? humsPos(h) - (h.loopStart || 0) : 0, length: h.buf ? h.loopEnd - h.loopStart : null, paused: !!h.paused };
+    },
+    setNowPlayingPaused(pause) { setHumsPaused(pause); },
+    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.paused ? "paused" : hums.src ? "playing" : "loading") : null, evening: evening ? (evening.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
     dispose() {
       disposed = true;
       timers.forEach((id) => clearTimeout(id)); timers.clear();

@@ -27,6 +27,7 @@ import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 const FOCUS_EVENT = "el-cabeza:focus";
 import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
 import VolumeFader from "./VolumeFader.jsx";
+import NowPlaying from "./NowPlaying.jsx";
 import { RealityGate, storyOver, GATE_EVENT } from "../themes/reality-gate.js";
 import { sideNamesOf } from "../themes/side-names.js";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
@@ -1807,6 +1808,26 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (pause) { a.pauseMusic(); musicPlaying(null); } else { a.resumeMusic(); musicPlaying(tr ? tr.medium : null); }
     setMusicPaused(!!pause);
   }
+  /* The sound menu's now-playing strip (NowPlaying.jsx): the stereo's
+     track (theme.music: the den), or whatever the theme's own sound says
+     is on (audio.nowPlaying: Parrish's soundtrack, the store's tape). */
+  const nowPlayingSource = {
+    get: () => {
+      const a = audioRef.current;
+      if (music) {
+        if (!musicNow) return null;
+        const tr = music.tracks().find((t) => t.id === musicNow);
+        const tm = a && a.musicTime ? a.musicTime() : null;
+        return { title: tr ? tr.title : "Music", paused: musicPaused, ...(tm || {}) };
+      }
+      return a && a.nowPlaying ? a.nowPlaying() : null;
+    },
+    toggle: (pause) => {
+      if (music) { pauseTrack(pause); return; }
+      const a = audioRef.current;
+      if (a && a.setNowPlayingPaused) a.setNowPlayingPaused(pause);
+    },
+  };
   function setChannelLevel(key, v) {
     const next = { ...channelLevels, [key]: Math.max(0, Math.min(1, v)) };
     setChannelLevels(next);
@@ -8952,6 +8973,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             fontFamily: "'IBM Plex Sans', sans-serif",
           }}
         >
+          <NowPlaying source={nowPlayingSource} ink={COLORS.charcoal} muted={COLORS.slate} hair={COLORS.slateSoft} accent={COLORS.charcoal} font="'IBM Plex Sans', sans-serif" />
           {/* The faders, standing up, all the way down off: All sounds
              and each channel beside it like a mixing desk, or one Volume
              for a theme with a single sound. */}
@@ -9154,6 +9176,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             masterLevel: audioMuted ? 0 : masterLevel,
             onMasterLevel: setMasterSound,
             music: music ? { hint: musicNow ? "Playing on the stereo" : music.hint } : null,
+            nowPlaying: nowPlayingSource,
             onOpenMusic: () => setMusicPanel(true),
             showPoints,
             onTogglePoints: () => { const next = !showPoints; setShowPoints(next); saveShowPoints(next); },

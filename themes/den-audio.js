@@ -418,6 +418,12 @@ export function createAudio() {
     try { music.el.pause(); } catch (e) { /* gone */ }
     roomFollowMusic();
   }
+  // How far into the track (the sound menu's now-playing strip).
+  function musicTime() {
+    if (!music) return null;
+    const d = music.el.duration;
+    return { at: music.el.currentTime || 0, length: isFinite(d) ? d : null };
+  }
   function resumeMusic() {
     handOverHold();
     if (!music || !music.el.paused) return;
@@ -816,6 +822,7 @@ export function createAudio() {
     playMusic,
     stopMusic,
     pauseMusic,
+    musicTime,
     resumeMusic,
     tvOn,
     tvOff,
