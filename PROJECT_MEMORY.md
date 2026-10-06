@@ -6909,3 +6909,16 @@ phone menu until "Start the story over" (which clears it).
   spent one blown out), 5 Next one marked (a ring pulses on the point the
   next move spends). Label kept the same in all, a little brighter than
   today's. Waiting on the pick.
+- Points counter: user picked Ember, then asked for each theme's own ember
+  colours. Proposed per world and side (mock-up page version 3, same URL):
+  Den fire orange/lamp gold; Big Glutts harvest gold/register green;
+  Neon cyan/amber (its glows); Lluvia cyan/pink; Cromo cold blue
+  pilot/chrome white; Orinoco sun gold/sea-foam cream; Watermark candle
+  amber/rose wine; Lab: Swiss red/white, Bauhaus and De Stijl red/blue,
+  Elementarism orange/silver, Brutalism safety orange/work-light white,
+  New Typography red/paper, Corporate Swiss amber/platinum blue,
+  Neo-Brutalism pink/yellow, Minimal Mono grey/white, Fusion red/gold.
+  Not built yet; waiting on the user's OK. Building it: chassis
+  points-counter dots 14px, lit radial core + glow, spent a dark bead;
+  theme overrides to clear: tienda.js (ink dots), lab/css.js
+  corporateSwiss and minimalMono rules.
