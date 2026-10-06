@@ -6848,3 +6848,10 @@ phone menu until "Start the story over" (which clears it).
   pass. e2e-sound-channels fails one check the same on the unchanged
   build (the store's far-sounds gate reads 1: an idle gain node's
   automation isn't advanced headless): a test artifact, left.
+- "3 actions per turn" directly above "Split movement" in the Cabeza Nova
+  setup sheet (user, all themes): one move in rules-selections.js
+  LAW_OPTIONS, which also orders Big Glutts' order form and Lluvia's
+  city menu the same way. Neon's sphere (neon-singularity.js LAWS_ITEMS)
+  keeps its own order. Sheet read on Orinoco: slide, diagonalSlide,
+  blackHoleSquares, shoving, cantileverPivot, threeActions,
+  splitMovement. Tests: rules-selections smoke, e2e-gate.

@@ -51,9 +51,10 @@ export const LAW_OPTIONS = [
   { key: "slide", name: "Slide", note: "Move a piece one open square without tipping it. 2 points (a roll is 1)." },
   { key: "diagonalSlide", name: "Diagonal slide", note: "Slides may go corner to corner. Needs Slide." },
   { key: "blackHoleSquares", name: "Black hole squares", note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn." },
-  { key: "threeActions", name: "3 actions per turn", note: "3 points a turn instead of 2." },
   { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. 1 point more. Choose whether rolls shove too, or only slides." },
   { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 point." },
+  // (3 actions per turn directly above Split movement: user.)
+  { key: "threeActions", name: "3 actions per turn", note: "3 points a turn instead of 2." },
   { key: "splitMovement", name: "Split movement", note: "Spend a turn's points on up to two pieces." },
 ];
 // Shoving's one setting (as Neon's sphere): which moves shove. With
