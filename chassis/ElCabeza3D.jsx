@@ -8540,9 +8540,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                       margin: 0,
                       flexShrink: 0,
                       lineHeight: 1,
+                      // A thin line out from either side, the width of
+                      // the three (user: to show it covers all three).
+                      alignSelf: "stretch",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      whiteSpace: "nowrap",
                     }}
                   >
+                    <span aria-hidden="true" style={{ flex: "1 1 0", minWidth: 8, height: 1, background: "currentColor", opacity: 0.45 }} />
                     Difficulty
+                    <span aria-hidden="true" style={{ flex: "1 1 0", minWidth: 8, height: 1, background: "currentColor", opacity: 0.45 }} />
                   </span>
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 5 }}>
                     {diffButtons}

@@ -6741,3 +6741,9 @@ phone menu until "Start the story over" (which clears it).
   margin-right gone, the group 8px clear of the arrow (Easy's stroke).
   Checked headless at 450 and 360 wide, both looks: one line, fit 0.
   Tests: e2e-lab, e2e-gameplay.
+- Parrish dock: a thin line out from either side of "Difficulty", across
+  the full width of Easy, Medium and Hard (user: "to emphasize it covers
+  all 3"). The word (diffLabelAbove only) stretches across its group as a
+  flex row: a 1px currentColor rule at 45% each side, 8px clear of the
+  word. Checked headless, Watermark at 450 wide: the rules run from
+  Easy's left to Hard's right, still one line, fit 0.
