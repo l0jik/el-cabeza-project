@@ -777,10 +777,7 @@ if (state.activeCategory === "laws") {
   await page.locator('[data-testid="shove-onRolls-off"]').click();
   await page.waitForTimeout(150);
   state = await sphereState();
-  check("...Slides only can be chosen", state.selections.shove.onRolls === false);
-  if (!state.selections.laws.slide) {
-    check("...and without Slide it says nothing can shove", (await page.locator('[data-testid="shove-needs-slide"]').count()) === 1);
-  }
+  check("...Slides only can be chosen, and brings Slide with it (user)", state.selections.shove.onRolls === false && state.selections.laws.slide === true && (await page.locator('[data-testid="shove-needs-slide"]').count()) === 0, JSON.stringify(state.selections.laws));
   await page.locator('[data-testid="shove-onRolls-on"]').click();
   await page.waitForTimeout(150);
   state = await sphereState();

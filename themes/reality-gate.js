@@ -31,7 +31,7 @@ import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constant
 import { POSES } from "./piece-showcase.js";
 import {
   PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
-  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, lawWarnings, piecesFit, minColsFor,
+  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, setShove, lawWarnings, piecesFit, minColsFor,
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
 } from "./rules-selections.js";
 import { WORLDS, createRealitiesMenu, goToWorld, REALITIES_VISIT_KEY } from "./realities.js";
@@ -468,7 +468,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
         h("span", { className: "rg-name" }, l.name, h("span", { className: "rg-note" }, l.note)),
         h(Switch, { on: sel.laws[l.key], label: l.name, testid: `gate-law-${l.key}`, onClick: () => change((n) => toggleLaw(n, l.key)) })),
       l.key === "shoving" && sel.laws.shoving && h("div", { className: "rg-sub" },
-        SHOVE_SETTINGS.map((s) => h(Seg, { key: s.key, label: s.name }, s.options.map((o) => segBtn(String(o.value), (sel.shove[s.key] !== false) === o.value, o.name, () => change((n) => { n.shove[s.key] = o.value; }), `gate-shove-${o.value ? "rolls" : "slides"}`))))),
+        SHOVE_SETTINGS.map((s) => h(Seg, { key: s.key, label: s.name }, s.options.map((o) => segBtn(String(o.value), (sel.shove[s.key] !== false) === o.value, o.name, () => change((n) => setShove(n, s.key, o.value)), `gate-shove-${o.value ? "rolls" : "slides"}`))))),
       l.key === "blackHoleSquares" && sel.laws.blackHoleSquares && h("div", { className: "rg-sub" },
         h("div", { className: "rg-row" },
           h("span", { className: "rg-note" }, sel.holeSpot ? (sel.holeSpot.random ? "Placed at random." : "Placed by hand.") : "Placed at random."),

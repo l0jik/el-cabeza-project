@@ -6949,3 +6949,14 @@ phone menu until "Start the story over" (which clears it).
   needs Slide, and today that shows a warning (lawWarnings
   shove-needs-slide) rather than switching Slide on. Offered to make
   "Slides only" bring Slide (as Diagonal slide does). Nothing changed.
+- User: "Yes, make slides only turn on Slide." Done in all four setup
+  menus (Nova sheet / reality-gate, Big Glutts' order form, Lluvia's
+  city menu, Neon's sphere). Picking Shoving "Slides only" switches
+  Slide on (rules-selections setShove; Neon's own shove button the
+  same). Turning Shoving on while "Slides only" is set brings Slide
+  too. Turning Slide off sets Shoving back to "Slides and rolls"
+  (instead of leaving a rule that can't fire), so the
+  shove-needs-slide warning no longer comes up from the menus. Lluvia's
+  law rows now go through toggleLaw (they had their own copy).
+  Tests: rules-selections smoke, e2e-tienda, e2e-singularity,
+  e2e-lluvia, e2e-gate.

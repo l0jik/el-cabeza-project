@@ -283,6 +283,18 @@ export function toggleLaw(sel, key) {
   if (key === "splitThree" && on) { sel.laws.splitMovement = false; sel.laws.threeActions = true; }
   if (key === "splitMovement" && on) sel.laws.splitThree = false;
   if (key === "threeActions" && !on) sel.laws.splitThree = false;
+  // Shoving on "Slides only" needs Slide (user): Shoving switched on with
+  // that already set brings Slide; Slide switched off puts Shoving back on
+  // "Slides and rolls".
+  if (key === "shoving" && on && sel.shove && sel.shove.onRolls === false) sel.laws.slide = true;
+  if (key === "slide" && !on && sel.shove && sel.shove.onRolls === false) sel.shove = { ...sel.shove, onRolls: true };
+  return sel;
+}
+// Shoving's setting: "Slides only" brings Slide (user: "make slides only
+// turn on Slide"), as Diagonal slide does.
+export function setShove(sel, key, value) {
+  sel.shove = { ...(sel.shove || {}), [key]: value };
+  if (key === "onRolls" && value === false) sel.laws.slide = true;
   return sel;
 }
 // What the engine gets: the laws (a diagonal slide only with Slide) and

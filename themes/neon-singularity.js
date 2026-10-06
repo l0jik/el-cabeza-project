@@ -2231,6 +2231,8 @@ function renderShoveSettingsRow(t) {
                 "aria-pressed": on ? "true" : "false",
                 onClick: () => {
                   sel.shove = { ...sel.shove, [setting.key]: opt.value };
+                  // "Slides only" needs Slide: it brings it (user).
+                  if (setting.key === "onRolls" && opt.value === false) sel.laws.slide = true;
                   if (s.audio && s.audio.playSelect) s.audio.playSelect();
                   s.labelsDirty = true; s.bump();
                 },
@@ -2910,6 +2912,10 @@ function renderCategoryOverlay(t) {
             if (item.key === "splitThree" && sel.laws.splitThree) { sel.laws.splitMovement = false; sel.laws.threeActions = true; }
             if (item.key === "splitMovement" && sel.laws.splitMovement) sel.laws.splitThree = false;
             if (item.key === "threeActions" && !sel.laws.threeActions) sel.laws.splitThree = false;
+            // Shoving on "Slides only" needs Slide: Shoving on with it set
+            // brings Slide; Slide off puts Shoving back on slides and rolls.
+            if (item.key === "shoving" && sel.laws.shoving && sel.shove && sel.shove.onRolls === false) sel.laws.slide = true;
+            if (item.key === "slide" && !sel.laws.slide && sel.shove && sel.shove.onRolls === false) sel.shove = { ...sel.shove, onRolls: true };
             // Turning Black Holes on with no spot yet rolls a real one now.
             if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares && !sel.blackHole.manual) fillPairedSpots(s, "blackHole", false);
             s.labelsDirty = true; s.bump();

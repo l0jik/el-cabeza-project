@@ -135,6 +135,13 @@ import("../themes/rules-selections.js").then(async (m) => {
     const u = m.defaultSelections(); m.toggleLaw(u, "splitThree");
     const e = m.lawsForEngine(u);
     check("the engine gets split on, three pieces, 3 actions", e.splitMovement && e.splitThree && e.threeActions, JSON.stringify(e));
+    // Shoving on Slides only brings Slide; Slide off puts it back (user).
+    const w = m.defaultSelections(); m.toggleLaw(w, "shoving"); m.setShove(w, "onRolls", false);
+    check("Slides only turns Slide on", w.laws.slide && w.shove.onRolls === false);
+    m.toggleLaw(w, "slide");
+    check("Slide off puts Shoving back on slides and rolls", !w.laws.slide && w.shove.onRolls === true);
+    const x = m.defaultSelections(); m.setShove(x, "onRolls", false); m.toggleLaw(x, "shoving");
+    check("Shoving on with Slides only already set brings Slide", x.laws.slide);
     check("a save with both keeps three pieces only", (() => { const n = m.normalizeSelections({ laws: { splitMovement: true, splitThree: true, threeActions: true } }); return n.laws.splitThree && !n.laws.splitMovement; })());
     check("the three-piece choice sits right under two pieces", (() => { const k = m.LAW_OPTIONS.map((l) => l.key); return k.indexOf("splitThree") === k.indexOf("splitMovement") + 1 && k.indexOf("threeActions") === k.indexOf("splitMovement") - 1; })());
   }
