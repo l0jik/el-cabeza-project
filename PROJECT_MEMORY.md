@@ -6785,3 +6785,10 @@ phone menu until "Start the story over" (which clears it).
   94 on a 390 phone). parrish.js: .ec-masthead-relocated .ec-title 6.9em
   wide (was 4.6em): 110 px on a phone, 247 on a 1280 desktop. Checked
   headless: top right, clear of everything.
+- Parrish's pre-game masthead 1.3x (user: "make free game masthead for
+  both Orinoco and Watermark 1.3 times larger", read as pre-game):
+  mastheadScale 1 -> 1.3 (the shared clamp's floor, slope and ceiling;
+  also the brief "fading" phase after Begin Game). The corner badge in
+  play is untouched (its own 6.9em rule). Measured: 390 phone 125 ->
+  163 px wide; 1280 desktop 412 -> 536 px wide (ceiling 170 px), clear
+  of the board.
