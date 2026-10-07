@@ -7454,3 +7454,14 @@ phone menu until "Start the story over" (which clears it).
   name on it, prices reversed out of brown). e2e-try-it's price match
   now allows "$7.97" as well as the raised cents. When the user picks
   one, it becomes the only one (drop the rest and ?flyer=).
+- The Try it! flyer no longer goes by itself (user: "it doesn't
+  automatically pop down. You have to click on it in order to dismiss
+  it", and the click goes on to the menu with Try a Game lit, as done()
+  always did). TRY_IT_MS and its timer are gone; TRY_IT_HOLD_MS (1.5 s
+  against wild taps) stays. A transparent veil (.td-tryit-veil, z 1259,
+  just under the card) takes taps beside it: the store behind stays put
+  and the sheet shakes (.nudge, on the sheet so the card's entrance never
+  replays). "Let's play" calls (tdTryCall) once it's free. Enter, Space or
+  Escape dismiss it from the keyboard (the card takes focus). e2e-try-it
+  checks it's still up after 6.5 s, a tap beside it does nothing, a tap
+  on it opens the menu.

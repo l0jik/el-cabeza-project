@@ -97,9 +97,12 @@ function noteHeld() {
 }
 /* The "Try it!" card on the table (user: a tap on it, and the store says
    so in a friendly way, then takes you to the menu with Try a Game lit):
-   a card from the Games counter, held a moment against wild taps, that
-   goes on by itself after TRY_IT_MS (or a tap once it's free). */
-const TRY_IT_MS = 5200, TRY_IT_HOLD_MS = 1500;
+   the store's flyer, held a moment against wild taps, then up until it's
+   tapped (user: "it doesn't automatically pop down. You have to click on
+   it in order to dismiss it"), and the tap goes on to the menu, Try a Game
+   lit. A tap beside it doesn't reach the store behind: the flyer gives a
+   little shake instead, and its "Let's play" calls once it's free. */
+const TRY_IT_HOLD_MS = 1500;
 const TRY_IT_CSS = `
   /* Printed as the period's Sunday circulars were (user: "what glossy
      flyer advertisements for during that era would have looked like ...
@@ -169,7 +172,7 @@ const TRY_IT_CSS = `
   .td-tryit .stripes i:nth-child(1) { background: #6B3A1E; } .td-tryit .stripes i:nth-child(2) { background: #B4451F; }
   .td-tryit .stripes i:nth-child(3) { background: #E07B22; } .td-tryit .stripes i:nth-child(4) { background: #E9B23A; }
   .td-tryit .go { display: block; margin-top: 8px; text-align: left; font: 700 11px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0;
-    animation: tdTryGo 0.5s ease ${TRY_IT_HOLD_MS}ms both; }
+    animation: tdTryGo 0.5s ease ${TRY_IT_HOLD_MS}ms both, tdTryCall 1.8s ease-in-out ${TRY_IT_HOLD_MS + 700}ms infinite; }
 
   /* Version 1, the circular: the stripes down the side and round the top,
      the store's name, the photograph across the sheet, the two items side
@@ -277,9 +280,17 @@ const TRY_IT_CSS = `
   .td-tryit .v6 .dept { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px; border-top: 1px solid rgba(244,230,196,0.45); font: 800 11.5px/1 'Libre Franklin', Arial, sans-serif; color: #F4E6C4; }
   .td-tryit .v6 .dept .go { margin: 0; color: #F4E6C4; }
   .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg); pointer-events: none; }
+  /* Up until it's tapped: a tap beside it lands on the veil (the store
+     behind stays put) and the flyer shakes; its "Let's play" calls. */
+  .td-tryit-veil { position: fixed; inset: 0; z-index: 1259; }
+  .td-tryit .sheet.nudge { animation: tdTryNudge 0.42s ease; }
+  @keyframes tdTryNudge { 0%, 100% { transform: none; } 25% { transform: rotate(1.6deg); } 55% { transform: rotate(-1.3deg); } 80% { transform: rotate(0.6deg); } }
+  .td-tryit:focus { outline: none; }
+  .td-tryit:focus-visible .go { opacity: 1; text-decoration: underline; }
   @keyframes tdTryIn { from { opacity: 0; transform: translate(-50%, -40%) rotate(-4deg) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-1.2deg); } }
   @keyframes tdTryGo { to { opacity: 0.75; } }
-  @media (prefers-reduced-motion: reduce) { .td-tryit, .td-tryit .go, .td-tryit .sheet::after { animation: none; opacity: 1; } }
+  @keyframes tdTryCall { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .td-tryit, .td-tryit .go, .td-tryit .sheet::after, .td-tryit .sheet.nudge { animation: none; opacity: 1; } }
 `;
 /* The flyer's edges, its mask, made at its size. A web press's folder cuts
    the sheets from the running web with a saw-toothed knife, so the top and
@@ -629,10 +640,11 @@ export function useSetupExtras(x) {
   tryItLive.current = { ok: store && x.awaitingBegin && !overlay && !(story.after && story.after()) && !(story.realities && story.realities()), openDock: x.openDock };
   React.useEffect(() => {
     if (!store) return undefined;
-    let card = null, timer = 0, marks = null;
+    let card = null, veil = null, marks = null;
     const done = () => {
       if (!card) return;
-      const c = card; card = null; clearTimeout(timer);
+      const c = card; card = null;
+      if (veil) { veil.remove(); veil = null; }
       if (marks) { marks.disconnect(); marks = null; }
       c.classList.add("off"); setTimeout(() => c.remove(), 400);
       const live = tryItLive.current;
@@ -660,9 +672,27 @@ export function useSetupExtras(x) {
       sheet.innerHTML = flyerHtml(version) + '<span class="ink"></span>';
       sheet.querySelector(".photo").style.backgroundImage = 'url("' + flyerPhotoUrl + '")';
       const since = performance.now();
-      card.addEventListener("click", (e) => { e.stopPropagation(); if (performance.now() - since >= TRY_IT_HOLD_MS) done(); });
+      const free = () => performance.now() - since >= TRY_IT_HOLD_MS;
+      card.addEventListener("click", (e) => { e.stopPropagation(); if (free()) done(); });
       card.addEventListener("pointerdown", (e) => e.stopPropagation());
+      // (From the keyboard: Enter, Space or Escape, once it's free.)
+      card.tabIndex = 0;
+      card.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " " && e.key !== "Escape") return;
+        e.preventDefault(); e.stopPropagation();
+        if (free()) done();
+      });
+      // A tap beside it: the store behind stays put, the flyer shakes.
+      veil = document.createElement("div");
+      veil.className = "td-tryit-veil";
+      veil.setAttribute("data-testid", "tienda-try-it-veil");
+      const shake = (e) => { e.preventDefault(); e.stopPropagation(); sheet.classList.remove("nudge"); void sheet.offsetWidth; sheet.classList.add("nudge"); };
+      veil.addEventListener("pointerdown", shake);
+      veil.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); });
+      sheet.addEventListener("animationend", (e) => { if (e.target === sheet) sheet.classList.remove("nudge"); });
+      document.body.appendChild(veil);
       document.body.appendChild(card);
+      try { card.focus({ preventScroll: true }); } catch (e) { /* no focus */ }
       // The cut edges, at the sheet's size (and again if it changes: the
       // fonts arriving, the screen turning).
       let markedAt = "";
@@ -675,10 +705,9 @@ export function useSetupExtras(x) {
       };
       mark();
       if (typeof ResizeObserver !== "undefined") { marks = new ResizeObserver(mark); marks.observe(sheet); }
-      timer = setTimeout(done, TRY_IT_MS);
     };
     window.addEventListener(TRY_IT_EVENT, onTry);
-    return () => { window.removeEventListener(TRY_IT_EVENT, onTry); clearTimeout(timer); if (marks) marks.disconnect(); if (card) card.remove(); };
+    return () => { window.removeEventListener(TRY_IT_EVENT, onTry); if (marks) marks.disconnect(); if (veil) veil.remove(); if (card) card.remove(); };
   }, []);
   React.useEffect(() => {
     if (!idleNudge) return undefined;

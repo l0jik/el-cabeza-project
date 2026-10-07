@@ -1,8 +1,10 @@
 /* The store's "Try it!" card on the table (user): a fresh story, the box
-   opened; a tap on the card brings the store's word ("So you'd like to try
-   it, eh?", $7.97), held a moment against wild taps, then the menu opens as
-   the piece's tap opens it, Try a Game lit (tienda-fx.js pickScene/sceneTap,
-   tienda-overlay.js). On a phone, the card's corner in the opening view. */
+   opened; a tap on the card brings the store's flyer ("So you'd like to
+   try it, eh?", $7.97), held a moment against wild taps, then up until
+   it's tapped (a tap beside it doesn't count); a tap on it opens the menu
+   as the piece's tap opens it, Try a Game lit (tienda-fx.js
+   pickScene/sceneTap, tienda-overlay.js). On a phone, the card's corner in
+   the opening view. */
 import { chromium } from "playwright";
 let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
@@ -45,7 +47,16 @@ await page.evaluate(() => document.querySelector('[data-testid="tienda-try-it"]'
 await page.waitForTimeout(150);
 check("...held a moment: an early tap doesn't put it away", (await card.count()) === 1);
 await page.waitForTimeout(6500);
-check("then the menu, as the piece's tap opens it", (await card.count()) === 0 && (await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open)) === "true");
+check("...and up until it's tapped (user: it doesn't pop down by itself)", (await card.count()) === 1);
+// A tap beside it: the store behind doesn't take it, the flyer stays.
+await page.touchscreen.tap(195, 800);
+await page.waitForTimeout(400);
+const panelOpen = () => page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open === "true");
+check("...a tap beside it doesn't put it away, or reach the store", (await card.count()) === 1 && !(await panelOpen()));
+const cb = await card.boundingBox();
+await page.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2);
+await page.waitForTimeout(900);
+check("then a tap on it: the menu, as the piece's tap opens it", (await card.count()) === 0 && (await panelOpen()));
 check("...Try a Game lit", await page.evaluate(() => document.documentElement.classList.contains("td-idle-nudge")) && (await page.locator("button.td-try-game").count()) > 0);
 check("no page errors", errs.length === 0, errs.join(" | "));
 await browser.close();
