@@ -483,7 +483,8 @@ function flyerMask(w, h) {
    address picks one (1 when there's none; 7-12 the second six, user:
    "redo six more flyers using this image instead", from the period's
    real circulars). Every one says the store's
-   word ("So you'd like to try it, eh?"), the price ($7.97) and Let's play. */
+   demonstration game (free to play), the price ($7.97) and Let's play.
+   (No more "So you'd like to try it, eh?": the user had it taken out.) */
 const FLYER_VERSIONS = 12;
 function flyerVersion() {
   try {
@@ -507,7 +508,7 @@ function flyerHtml(v) {
   const PRICE = '<div class="pr"><span class="d">$</span><span class="n">7</span><span class="ce"><span class="c">97</span><span class="ea">EA.</span></span></div>';
   const FREE = '<div class="pr"><span class="n w">FREE</span><span class="ea">TO<br>PLAY</span></div>';
   const GO = '<span class="go">Let’s play ›</span>';
-  const TRY = "So you’d like to try it, eh?";
+  const TRY = "Demonstration game";
   const FRIEND = "Go right ahead, friend. The demonstration set’s all yours.";
   const GAME = "The Game of Unparalleled Intention. Hardwood board and ten pieces, walnut and ash.";
   const NEW = "NEW! El Cabeza game set";
@@ -524,7 +525,7 @@ function flyerHtml(v) {
       + '<p class="cap">Christmas came early at our house. “Can we play it tonight?”</p>'
       + '<p class="lead"><span class="k">A</span><strong>' + NEW + '.</strong> ' + GAME + ' For 2 players, ages 10 to adult.</p>'
       + '<p class="row"><span>74 N 1975</span><i></i><span class="each">Each</span><span class="amt">$7.97</span></p>'
-      + '<p class="lead"><span class="k">B</span><strong>' + TRY + '</strong> Go right ahead, friend: the demonstration set’s all yours, free to play, in the Games &amp; Hobby Dept., Aisle\u00a09.</p>' + GO;
+      + '<p class="lead"><span class="k">B</span><strong>' + TRY + '.</strong> Go right ahead, friend: the demonstration set’s all yours, free to play, in the Games &amp; Hobby Dept., Aisle\u00a09.</p>' + GO;
   }
   if (v === 4) {
     return '<div class="top"><b>Big Glutts</b>' + STRIPES + '</div>'
@@ -556,7 +557,7 @@ function flyerHtml(v) {
       + '<div class="band">Toys &amp; Games</div>'
       + '<div class="pic">' + PHOTO + '<span class="lt">A</span></div>'
       + '<div class="row"><div class="desc"><p><b>A. NEW! El Cabeza game set.</b> ' + GAME + ' For 2 players, ages 10 to adult.</p>'
-      + '<p><b>' + TRY + '</b> A demonstration set is free to play in our Games &amp; Hobby Dept., Aisle\u00a09.</p></div>'
+      + '<p>A demonstration set is free to play in our Games &amp; Hobby Dept., Aisle\u00a09.</p></div>'
       + '<div class="price"><em>Sale</em>' + SALE + '<small>Our Reg. 9.97</small></div></div>'
       + '<p class="fine">' + FINE + '</p>'
       + '<div class="policy"><b>Our advertised merchandise policy:</b> we mean to have every advertised item on our shelves. If one sells out, ask for a Rain Check and buy it at the sale price when it arrives.</div>'
@@ -566,7 +567,7 @@ function flyerHtml(v) {
     return '<div class="ribbon"><span class="holly l">' + HOLLY + '</span><span class="holly r">' + HOLLY + '</span><b>Toyland</b><em class="sub">at Big Glutts</em></div><div class="candy"></div>'
       + '<div class="pic">' + PHOTO + '<div class="burst"><svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="' + burstPoints(14, 37, 49) + '" fill="#F2C14E" stroke="#17110c" stroke-width="2.5" stroke-linejoin="round"/></svg><div><em>Save</em><b>2.00</b></div></div></div>'
       + '<div class="line"><h4><small>NEW! For Christmas</small>El Cabeza</h4><div class="tag"><em>Sale</em>' + SALE + '<small>Our Reg. 9.97</small></div></div>'
-      + '<p class="txt">' + GAME + ' <b>' + TRY + '</b> Play the demonstration set free in our Games &amp; Hobby Dept., Aisle\u00a09.</p>'
+      + '<p class="txt">' + GAME + ' Play the demonstration set free in our Games &amp; Hobby Dept., Aisle\u00a09.</p>'
       + '<div class="foot2"><span>Lay-Away now for Christmas!</span><span>Open every night till\u00a010</span></div>'
       + '<p class="fine">' + FINE + '</p>' + GO;
   }
@@ -575,7 +576,7 @@ function flyerHtml(v) {
       + '<h3 class="soft">Give a game of unparalleled intention.</h3>' + PHOTO
       + '<div class="cols"><p class="cap">El Cabeza: a fine hardwood board and ten pieces in walnut and ash. For 2 players, ages 10 to adult.</p>'
       + '<div class="pp"><span class="reg">Reg. $10.</span><span class="sale">Sale <b class="soft">$7.97</b></span></div></div>'
-      + '<p class="try"><b>' + TRY + '</b> The demonstration set is in our Games &amp; Hobby Dept., Aisle\u00a09, free to play.</p>'
+      + '<p class="try">The demonstration set is in our Games &amp; Hobby Dept., Aisle\u00a09, free to play.</p>'
       + '<div class="ch">Charge it on your Big Glutts account, or with BankAmericard or Master\u00a0Charge. Shop tonight till 9:30.</div>' + GO;
   }
   if (v === 10) {
@@ -593,7 +594,7 @@ function flyerHtml(v) {
     const cents = (c) => '<div class="pr"><span class="n cents">' + c + '</span><span class="cs">¢</span></div>';
     return '<div class="bar"><b>Big Glutts</b><span>Toys &amp; Games<br>' + "Sale Thurs.–Sat., Dec. 11–13" + '</span></div>'
       + '<div class="pic">' + PHOTO + '<span class="lt">A</span><div class="pbox"><small>Sale</small>' + SALE + '<i>Our Reg. 9.97</i></div></div>'
-      + '<p class="a"><b>A. NEW! El Cabeza game set.</b> ' + GAME + ' <b>' + TRY + '</b> Play the demonstration set free, Aisle\u00a09.</p>'
+      + '<p class="a"><b>A. NEW! El Cabeza game set.</b> ' + GAME + ' Play the demonstration set free, Aisle\u00a09.</p>'
       + '<div class="others">'
       + other("B", "Jigsaw puzzles", "500 and 1,000 pieces. Scenic views.", pr("1", "47"))
       + other("C", "Checkers &amp; chess set", "Folding board, wood men.", pr("2", "97"))
@@ -606,7 +607,7 @@ function flyerHtml(v) {
     const cp = (val, t, small) => '<div class="cp">' + scissors + '<div class="val">' + val + '</div><div class="t">' + t + '<small>' + small + '</small></div></div>';
     return '<div class="head12"><b>Big Glutts</b><span class="soft">Coupon Savings!</span></div>' + STRIPES + PHOTO
       + '<div class="coupons">'
-      + cp("Free<small>one game</small>", TRY + " One game of El Cabeza at our demonstration table, Games &amp; Hobby Dept., Aisle\u00a09.", "Good any time. No purchase necessary.")
+      + cp("Free<small>one game</small>", "One game of El Cabeza at our demonstration table, Games &amp; Hobby Dept., Aisle\u00a09.", "Good any time. No purchase necessary.")
       + cp("Save<br>2.00", "NEW! El Cabeza game set, $7.97 with this coupon. Our Reg. 9.97. " + GAME, "Coupon good Thurs.–Sat., Dec. 11–13, 1975. Limit one per family.")
       + cp("Free<small>gift wrap</small>", "Gift wrap on any game you buy this week, at our Gift Wrap Counter.", "Cash value 1/20 of 1¢.")
       + '</div>' + GO;

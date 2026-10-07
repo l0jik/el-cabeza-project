@@ -7514,3 +7514,9 @@ phone menu until "Start the story over" (which clears it).
   while the lid's up. A first cut held until "the box opened", which the
   store page on its own (no story) never reports, so its drags did
   nothing; e2e-drag-latch caught it.)
+- "So you'd like to try it, eh?" is off the flyer (user: "remove the so
+  you'd like to try it, eh?"), in all twelve versions: where it was an
+  item's heading it's now "Demonstration game" (the tent card's own
+  words, "Demonstration Game"); where it led a sentence, the sentence
+  stands alone. e2e-try-it now looks for "demonstration" and the price,
+  and checks the phrase is gone.
