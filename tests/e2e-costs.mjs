@@ -95,7 +95,8 @@ for (const theme of ["neon", "standard"]) {
 }
 // As players see it (no test switch): badges only when the costs differ
 // (user); the points row says whose points they are; and once a move is
-// made, a Stop here button sits above the points row.
+// made, an End turn button sits above the points row (only while the
+// points are shown).
 {
   console.log("[neon, as played]");
   const context = await browser.newContext({ viewport: { width: 1000, height: 900 } });
@@ -116,7 +117,7 @@ for (const theme of ["neon", "standard"]) {
     await page.waitForTimeout(400);
   }
   check("the points row names whose points they are", /Photon/i.test(await page.locator('[data-testid="points-side"]').innerText()));
-  check("no Stop here before a move", (await page.locator('[data-testid="stop-here-float"]').count()) === 0);
+  check("no End turn before a move", (await page.locator('[data-testid="stop-here-float"]').count()) === 0);
   {
     // The other side's piece won't move on this side's turn (the Theme Lab
     // test found a move of Light's piece played on Dark's points).
@@ -134,12 +135,34 @@ for (const theme of ["neon", "standard"]) {
   if (b.length === 0) { await select(page, "dark-turrito"); b = await badges(page); }
   check("a free way back among them: badges again", b.some((x) => x.text === "free") && b.some((x) => x.text === "1"), JSON.stringify(b));
   const stop = page.locator('[data-testid="stop-here-float"]');
-  check("after a move, Stop here above the points row", (await stop.count()) === 1);
+  check("after a move, End turn above the points row", (await stop.count()) === 1 && /end turn/i.test(await stop.innerText()));
   await page.screenshot({ path: "/tmp/e2e-costs-stop.png" });
   await stop.click();
   await page.waitForTimeout(1500);
   check("...and it ends the turn", /Plasma/i.test(await page.locator('[data-testid="points-side"]').innerText()) && (await stop.count()) === 0);
   check("no page errors", errs.length === 0, errs.join(" | "));
+  await context.close();
+}
+
+// Points hidden: no End turn either (user: it's an aid for whoever uses
+// the points).
+{
+  console.log("[neon, points hidden]");
+  const context = await browser.newContext({ viewport: { width: 1000, height: 900 } });
+  const page = await context.newPage();
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:show-points", "0"); } catch (e) { /* none */ } });
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-neon.html");
+  await page.waitForTimeout(1500);
+  await openDockPanel(page);
+  await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), position);
+  await page.waitForTimeout(300);
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.mouse.move(4, 450);
+  await page.waitForTimeout(1500);
+  if ((await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true") { await page.mouse.click(4, 450); await page.waitForTimeout(400); }
+  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
+  await page.waitForTimeout(1600);
+  check("a move made, the points hidden: no End turn", (await page.locator('[data-testid="points-counter"]').count()) === 0 && (await page.locator('[data-testid="stop-here-float"]').count()) === 0);
   await context.close();
 }
 

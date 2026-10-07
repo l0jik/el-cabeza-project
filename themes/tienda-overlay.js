@@ -34,6 +34,7 @@ import { ShopCorner, StorePA, useShoppingVisit } from "./tienda-shopping.js";
 import { ensurePaper, ensureAgedPaper } from "./tienda-textures.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
+import { TRY_IT_EVENT } from "./tienda-fx.js";
 import { singularitySeen, onJourneyChange, isCommercialOn, CLASSIC_PIECE_KEYS, specialOrderNoted, markSpecialOrderNoted, isSceneLink } from "../engine/journey.js";
 
 /* The classic game's order (engine/journey.js: the extras wait for the
@@ -86,6 +87,29 @@ function noteHeld() {
   const el = document.querySelector(".td-special-note");
   return !!(el && el.dataset.since && performance.now() - Number(el.dataset.since) < NOTE_HOLD_MS);
 }
+/* The "Try it!" card on the table (user: a tap on it, and the store says
+   so in a friendly way, then takes you to the menu with Try a Game lit):
+   a card from the Games counter, held a moment against wild taps, that
+   goes on by itself after TRY_IT_MS (or a tap once it's free). */
+const TRY_IT_MS = 5200, TRY_IT_HOLD_MS = 1500;
+const TRY_IT_CSS = `
+  .td-tryit { position: fixed; left: 50%; top: 50%; z-index: 1260; width: min(86vw, 360px); box-sizing: border-box;
+    transform: translate(-50%, -50%) rotate(-1.2deg); padding: 0 0 16px; background: #EFE6CD; color: #2E2118;
+    border: 1.5px solid #2E2118; box-shadow: 0 14px 40px rgba(10,6,3,0.5); text-align: center; cursor: pointer;
+    font: 400 15px/1.45 'Courier Prime', 'Courier New', Courier, monospace; animation: tdTryIn 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+  .td-tryit .band { background: #A33F33; color: #F2EBD7; padding: 7px 10px 6px; margin-bottom: 14px;
+    font: 900 italic 13px/1 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; }
+  .td-tryit b.say { display: block; margin: 0 18px 8px; font: 400 26px/1.1 'Bodoni Moda', 'Didot', Georgia, serif; }
+  .td-tryit p { margin: 0 20px 10px; }
+  .td-tryit .price { display: inline-block; margin: 2px 0 12px; padding: 4px 12px; border: 1.5px dashed #A33F33; color: #A33F33;
+    font: 800 15px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.06em; transform: rotate(-2deg); }
+  .td-tryit .go { display: block; font: 700 11px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0;
+    animation: tdTryGo 0.5s ease ${TRY_IT_HOLD_MS}ms both; }
+  .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg); pointer-events: none; }
+  @keyframes tdTryIn { from { opacity: 0; transform: translate(-50%, -40%) rotate(-4deg) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-1.2deg); } }
+  @keyframes tdTryGo { to { opacity: 0.75; } }
+  @media (prefers-reduced-motion: reduce) { .td-tryit, .td-tryit .go { animation: none; opacity: 1; } }
+`;
 const IDLE_NUDGE_MS = 30000;
 const NUDGE_GROW_MS = 90000;
 const NUDGE_CSS = `
@@ -321,6 +345,41 @@ export function useSetupExtras(x) {
   React.useEffect(() => {
     if (idleNudge && !x.awaitingBegin) { idleNudgeDone = true; setIdleNudge(false); }
   }, [idleNudge, x.awaitingBegin]);
+  // The "Try it!" card's tap (tienda-fx.js): the store's word, then the
+  // menu open (as the piece's tap opens it), Try a Game lit.
+  const tryItLive = React.useRef({});
+  tryItLive.current = { ok: store && x.awaitingBegin && !overlay && !(story.after && story.after()) && !(story.realities && story.realities()), openDock: x.openDock };
+  React.useEffect(() => {
+    if (!store) return undefined;
+    let card = null, timer = 0;
+    const done = () => {
+      if (!card) return;
+      const c = card; card = null; clearTimeout(timer);
+      c.classList.add("off"); setTimeout(() => c.remove(), 400);
+      const live = tryItLive.current;
+      if (live.openDock) live.openDock();
+      setIdleNudge(true);
+    };
+    const onTry = () => {
+      if (card || !tryItLive.current.ok || document.querySelector(".td-special-note")) return;
+      if (!document.getElementById("td-tryit-css")) { const st = document.createElement("style"); st.id = "td-tryit-css"; st.textContent = TRY_IT_CSS; document.head.appendChild(st); }
+      card = document.createElement("div");
+      card.className = "td-tryit"; card.setAttribute("role", "dialog"); card.setAttribute("aria-label", "Try it");
+      card.setAttribute("data-testid", "tienda-try-it");
+      card.innerHTML = '<div class="band">Big Glutts \u00b7 Games &amp; Hobby Dept.</div>'
+        + '<b class="say">So you\u2019d like to try it, eh?</b>'
+        + '<p>Go right ahead, friend. The demonstration set\u2019s all yours, no charge to play.</p>'
+        + '<span class="price">Take one home: only $7.97</span>'
+        + '<span class="go">Let\u2019s play \u203a</span>';
+      const since = performance.now();
+      card.addEventListener("click", (e) => { e.stopPropagation(); if (performance.now() - since >= TRY_IT_HOLD_MS) done(); });
+      card.addEventListener("pointerdown", (e) => e.stopPropagation());
+      document.body.appendChild(card);
+      timer = setTimeout(done, TRY_IT_MS);
+    };
+    window.addEventListener(TRY_IT_EVENT, onTry);
+    return () => { window.removeEventListener(TRY_IT_EVENT, onTry); clearTimeout(timer); if (card) card.remove(); };
+  }, []);
   React.useEffect(() => {
     if (!idleNudge) return undefined;
     let css = document.getElementById("td-nudge-css");

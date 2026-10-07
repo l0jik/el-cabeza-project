@@ -985,9 +985,12 @@ export function buildTable(slabX, slabZ) {
   const cardMat = lit({ map: card, roughness: 0.85 });
   const cardBack = lit({ color: 0xe9e0c8, roughness: 0.9, side: THREE.BackSide });
   const cx = -(slabX / 2 + 1.1 + 2.0), cz = 0;
+  // (Its leaves take a tap: "Try it!", tienda-fx.js pickScene.)
+  const tent = [];
   if (!revisited) [1, -1].forEach((s) => {
     const g = new THREE.PlaneGeometry(3.4, 2.55);
     const m = mk(g, cardMat, true);
+    m.userData.tryIt = true; tent.push(m);
     m.position.set(cx, topY + 1.16, cz + s * 0.42);
     m.rotation.set(0, s > 0 ? 0 : Math.PI, 0);
     m.rotateX(-0.34);
@@ -1044,6 +1047,7 @@ export function buildTable(slabX, slabZ) {
   return {
     group,
     setKeyDir,
+    tent,
     repaint() { repaint(lid); repaint(card); if (carton) repaint(carton); },
     dispose() { disposables.forEach((d) => d && d.dispose && d.dispose()); },
   };

@@ -2376,6 +2376,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // Which of the dock's views is showing ("piece" | "panel" | "corner"),
     // read only (Tienda's store nudges toward the piece, then Try a Game).
     dockView,
+    // Opens the dock's menu as a tap on its piece does (the store's "Try
+    // it!" card); nothing with the phone's bar, whose menu is its own.
+    openDock: () => { if (!shell && dockView === "piece") triggerDockBounce(); },
     // Black Hole Squares LAW: the chassis-local React state, threaded
     // through so finalizeSingularityBegin (themes/neon-singularity.js)
     // can populate it with the same placement it hands to
@@ -7866,7 +7869,9 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
          is folded away while you play). Just above the points row once a
          move of yours has been made and there's more you could do; the
          phone's bar has its own. */}
-      {stopHereFloat && (
+      {/* (End turn, user: "Stop here" read as stopping the piece there; and
+          only with the points showing, an aid for whoever uses them.) */}
+      {stopHereFloat && showPoints && (
         <button
           type="button"
           className="ec-btn"
@@ -7876,13 +7881,13 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             ...playerButtonStyle(currentPlayer),
             position: "fixed",
             left: "50%",
-            bottom: showPoints ? 50 : 22,
+            bottom: 50,
             transform: "translateX(-50%)",
             zIndex: 12,
             whiteSpace: "nowrap",
           }}
         >
-          Stop here
+          End turn
         </button>
       )}
 
@@ -8512,7 +8517,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           >
             {isPlaying && turnLocked && currentPlayer !== aiPlayer && shadowEntries.length > 0 && (
               <button className="ec-btn" onClick={handleStopHere} style={playerButtonStyle(currentPlayer)}>
-                Stop here
+                End turn
               </button>
             )}
             {isPlaying && turnLocked && currentPlayer !== aiPlayer && (

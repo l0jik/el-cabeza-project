@@ -4,7 +4,7 @@
       or corner icons; no sideways scroll); setup choices (first move,
       opponent, AI side and level) and Begin Game; the board framed
       large in the space between the bars; the bar's status, points and
-      piece description; Undo move / Stop here; the view toggle; the
+      piece description; Undo move / End turn; the view toggle; the
       menu's rows and switches; the rules sheet; End game (two taps),
       Move Log, New Game.
    2. The menu's theme switch: CONNECT, then Neon with its own setup
@@ -119,10 +119,10 @@ async function waitFor(fn, ms = 8000) {
   void pos;
   await page.evaluate((id) => window.__EC_TEST_MOVE__(id, id.startsWith("dark") ? "S" : "N"), mover);
   await page.waitForTimeout(1800);
-  check("Undo move and Stop here appear mid-turn", (await visible(page, "shell-undo-move")) && (await visible(page, "shell-end-turn")));
+  check("Undo move and End turn appear mid-turn", (await visible(page, "shell-undo-move")) && (await visible(page, "shell-end-turn")));
   check("one point left", (await page.locator('[data-testid="shell-points"] [data-filled="true"]').count()) === 1);
   await q(page, "shell-end-turn").click();
-  check("Stop here passes the turn", await waitFor(async () => ((t) => /to move/i.test(t) && new RegExp(DARK_NAMES, "i").test(t) === (cur !== "dark"))(await q(page, "shell-status").textContent())));
+  check("End turn passes the turn", await waitFor(async () => ((t) => /to move/i.test(t) && new RegExp(DARK_NAMES, "i").test(t) === (cur !== "dark"))(await q(page, "shell-status").textContent())));
   check("Undo turn is offered", await visible(page, "shell-undo-turn"));
 
   // View toggle

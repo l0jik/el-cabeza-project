@@ -39,6 +39,9 @@ import { look, lookName } from "./parrish-looks.js";
 // artwork (a mask: never redrawn), and the paint that fills it, one for
 // each palette.
 import TITLE_MASK from "../assets/parrish/title-mask.webp";
+// End turn's stroke (tools/parrish_button_stroke.py): one steady pass,
+// straight along its length, the bristles lifting off at the end (user).
+import BUTTON_STROKE from "../assets/parrish/button-stroke.webp";
 import TITLE_PAINT_ORINOCO from "../assets/parrish/title-paint-orinoco.webp";
 import TITLE_PAINT_WATERMARK from "../assets/parrish/title-paint-watermark.webp";
 // The menus' paint (tools/parrish_menu_art.py): each palette's ground, a
@@ -355,6 +358,15 @@ export const styleSheet = `
       : "drop-shadow(0 0 0.02em rgba(255, 250, 238, 0.95)) drop-shadow(0 0 0.06em rgba(250, 244, 228, 0.6)) drop-shadow(0 0.04em 0.12em rgba(20, 30, 70, 0.25))"};
   }
   @media (prefers-reduced-motion: reduce) { .ec-title, .ec-rules-title { animation: none; } }
+  /* End turn, over the painting (user: painted, the piece's own wood
+     showing): the side's wood, cut to a brush stroke of its own. */
+  [data-testid="stop-here-float"] {
+    -webkit-mask: url(${BUTTON_STROKE}) center / 100% 100% no-repeat; mask: url(${BUTTON_STROKE}) center / 100% 100% no-repeat;
+    border: none !important; border-radius: 0 !important; box-shadow: none !important; outline-offset: 4px;
+    padding: 13px 34px 14px !important; min-height: 46px !important;
+    font: 600 13px/1 'Cinzel', Georgia, serif !important; letter-spacing: 0.16em !important; text-transform: uppercase;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
   /* The dock's piece: its edges wander like paint (renderGlobalDefs). */
   canvas[data-testid="dock-piece-canvas"] { filter: url(#parrish-paint-edge); }
   @media (prefers-reduced-motion: reduce) { canvas[data-testid="dock-piece-canvas"] { filter: none; } }

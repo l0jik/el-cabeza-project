@@ -520,7 +520,7 @@ function PlayPanel({ ctl, t }) {
     if (ctl.canStopHere) {
       actions.push(
         <button key="stop" type="button" className="ec-shell-btn ec-shell-primary" data-testid="shell-end-turn" onClick={ctl.onStopHere} style={{ flex: 1 }}>
-          Stop here
+          End turn
         </button>
       );
     }

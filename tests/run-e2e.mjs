@@ -22,7 +22,7 @@ const E2E = [
   ["e2e-lluvia.mjs"], ["e2e-odd-pieces.mjs"], ["e2e-shoving.mjs"], ["e2e-anomaly.mjs"], ["e2e-pivot.mjs"], ["e2e-pivot-drag.mjs"], ["e2e-points.mjs"], ["e2e-rules.mjs"],
   ["e2e-costs.mjs"], ["e2e-original.mjs"], ["e2e-nova-mobile.mjs"], ["e2e-ambient.mjs"], ["e2e-singularity.mjs"], ["e2e-tienda.mjs"],
   ["e2e-sound-channels.mjs"], ["e2e-nova-sound.mjs"], ["e2e-wood-sounds.mjs"], ["e2e-piece-guide.mjs"], ["e2e-den.mjs"], ["e2e-story.mjs"],
-  ["e2e-store-nudge.mjs"], ["e2e-dock-moments.mjs"], ["e2e-wake.mjs"], ["e2e-camera-glide.mjs"], ["e2e-pivot-guide.mjs"], ["e2e-fullscreen.mjs"],
+  ["e2e-store-nudge.mjs"], ["e2e-try-it.mjs"], ["e2e-dock-moments.mjs"], ["e2e-wake.mjs"], ["e2e-camera-glide.mjs"], ["e2e-pivot-guide.mjs"], ["e2e-fullscreen.mjs"],
   ["e2e-outline.mjs"], ["audio-bell.mjs"], ["e2e-now-playing.mjs"], ["e2e-split-three.mjs"],
   // (In tests/ but never in the chain until the 2026-10 audit; each passes.)
   ["e2e-gate.mjs"], ["e2e-ending.mjs"], ["e2e-summon.mjs"], ["e2e-den-return.mjs"], ["e2e-drag-latch.mjs"], ["e2e-journey.mjs"], ["e2e-tv-lure.mjs"], ["e2e-clerk.mjs"],

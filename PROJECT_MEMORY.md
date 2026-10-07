@@ -7293,3 +7293,21 @@ phone menu until "Start the story over" (which clears it).
   den's catalog), Neon's sphere (neon-singularity.js, "Split Movement, 2
   Pieces"), and the rules cards (LAW_TEXT, the Laws card's title, the Your
   turn card). Lluvia's city sign "SPLIT MOVES" is scenery, left.
+
+- "Stop here" is "End turn" everywhere (user: "Stop here" read as stopping
+  the piece there): the floating button, the dock panel's, the phone bar's
+  (testid shell-end-turn unchanged), the rules text. The floating one shows
+  only with the points showing (stopHereFloat && showPoints; user: an aid
+  for whoever uses the points). Parrish paints it: the side's wood masked
+  by assets/parrish/button-stroke.webp (tools/parrish_button_stroke.py; user:
+  a real stroke's long edges run steady and straight, "you're not moving
+  your hand up and down", only the ends serrated where the bristles lift).
+  e2e-costs checks the name and that it's gone with the points hidden.
+- The store's "Try it!" tent card takes a tap (user): tienda-store.js
+  buildTable returns `tent` (userData.tryIt), tienda-fx.js pickScene/
+  sceneTap dispatch TRY_IT_EVENT; tienda-overlay.js shows Big Glutts' card
+  ("So you'd like to try it, eh?" ... "only $7.97"; held TRY_IT_HOLD_MS
+  1.5 s, goes on by itself at TRY_IT_MS 5.2 s), then x.openDock() (chassis:
+  the piece's own bounce-and-open, setupExtras.openDock; not in the phone
+  bar layout) and setIdleNudge(true), which lights Try a Game. Store, before
+  a game, not after the story. tests/e2e-try-it.mjs.

@@ -28,6 +28,7 @@ import { ensurePaper, ensureNewsprint } from "./tienda-textures.js";
 
 const FONT_FACES = ["800 40px 'Libre Franklin'", "900 40px 'Libre Franklin'", "700 40px 'Libre Franklin'", "600 40px 'Libre Franklin'", "700 40px 'Courier Prime'", "400 40px 'Courier Prime'", "700 40px 'Bodoni Moda'", "italic 700 40px 'Libre Franklin'"];
 
+export const TRY_IT_EVENT = "el-cabeza:tienda-try-it";
 export function mountAmbientEffects(refs, { three, cam, windingDownRef, audio }) {
   const q = quality();
   let store = null, table = null, brass = null;
@@ -210,6 +211,18 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, audio })
         keyDir.applyQuaternion(keyQuat);
         table.setKeyDir(keyDir);
       }
+    },
+    /* The "Try it!" card on the table takes a tap (user): the store's own
+       word on it, then the menu, Try a Game lit (tienda-overlay.js, on
+       TRY_IT_EVENT). */
+    pickScene(raycaster) {
+      if (!table || !table.tent || !table.tent.length || !table.tent[0].visible) return null;
+      return raycaster.intersectObjects(table.tent, false)[0] ? "tryIt" : null;
+    },
+    sceneTap(what) {
+      if (what !== "tryIt") return false;
+      try { window.dispatchEvent(new CustomEvent(TRY_IT_EVENT)); } catch (e) { /* no events */ }
+      return true;
     },
     dispose() {
       const t = three.current;
