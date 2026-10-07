@@ -7207,3 +7207,8 @@ phone menu until "Start the story over" (which clears it).
 - Parrish corner masthead badge during play: 20% more opaque (user),
   0.22 -> 0.264, through a new optional theme.mastheadBadgeOpacity
   (chassis falls back to the shared 0.22; other worlds unchanged).
+
+- Rules card heading: the chassis wraps "EL CABEZA" in span.ec-rules-title
+  (a hook for a world's own lettering). Parrish draws it with the masthead's
+  mask and paint (same rule as .ec-title, 8em wide), so both looks show the
+  user's "el Cabeza" lettering there (user). Other worlds unchanged.

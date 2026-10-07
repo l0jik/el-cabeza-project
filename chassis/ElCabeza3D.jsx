@@ -9593,7 +9593,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                   color: COLORS.charcoal,
                 }}
               >
-                EL CABEZA
+                {/* (A world may draw its own lettering here: .ec-rules-title.) */}
+                <span className="ec-rules-title">EL CABEZA</span>
               </h2>
               <div
                 style={{

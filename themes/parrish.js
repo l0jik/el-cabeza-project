@@ -329,7 +329,7 @@ export const styleSheet = `
      are, its paint moving a little eight times a second as the world's
      does, and held in the world's light (the glow round the heading). The
      words stay underneath for screen readers. */
-  .ec-title {
+  .ec-title, .ec-rules-title {
     display: inline-block; vertical-align: middle; width: 4.6em; height: calc(4.6em / 3.1504);
     overflow: hidden; white-space: nowrap; color: transparent !important; text-shadow: none !important;
     background:
@@ -344,13 +344,17 @@ export const styleSheet = `
      smaller than the other worlds' capitals at the same size, and came
      out narrower too (74 px wide to their 94 on a phone). */
   .ec-masthead-relocated .ec-title { width: 6.9em; height: calc(6.9em / 3.1504); }
+  /* The rules card's heading in the same lettering (user), not the
+     shared serif capitals. */
+  .ec-rules-title { width: 8em; height: calc(8em / 3.1504); }
+  h2:has(> .ec-rules-title) { line-height: 0; }
   @keyframes parrish-title-paint { from { background-position: 0 0, 0% 20%; } to { background-position: 0 0, 22% 34%; } }
   h1:has(> .ec-title) {
     filter: ${DARK
       ? "drop-shadow(0 0.025em 0.04em rgba(18, 3, 5, 0.75)) drop-shadow(0 0 0.28em rgba(236, 196, 150, 0.16))"
       : "drop-shadow(0 0 0.02em rgba(255, 250, 238, 0.95)) drop-shadow(0 0 0.06em rgba(250, 244, 228, 0.6)) drop-shadow(0 0.04em 0.12em rgba(20, 30, 70, 0.25))"};
   }
-  @media (prefers-reduced-motion: reduce) { .ec-title { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .ec-title, .ec-rules-title { animation: none; } }
   /* The dock's piece: its edges wander like paint (renderGlobalDefs). */
   canvas[data-testid="dock-piece-canvas"] { filter: url(#parrish-paint-edge); }
   @media (prefers-reduced-motion: reduce) { canvas[data-testid="dock-piece-canvas"] { filter: none; } }
