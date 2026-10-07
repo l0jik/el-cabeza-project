@@ -51,6 +51,18 @@ import STROKE_ORINOCO_PAINT from "../assets/parrish/menu-stroke-orinoco-paint.we
 import STROKE_ORINOCO_GLAZE from "../assets/parrish/menu-stroke-orinoco-glaze.webp";
 import STROKE_WATERMARK_PAINT from "../assets/parrish/menu-stroke-watermark-paint.webp";
 import STROKE_WATERMARK_GLAZE from "../assets/parrish/menu-stroke-watermark-glaze.webp";
+import STROKE_ORINOCO_PAINT_1 from "../assets/parrish/menu-stroke-orinoco-paint-1.webp";
+import STROKE_ORINOCO_PAINT_2 from "../assets/parrish/menu-stroke-orinoco-paint-2.webp";
+import STROKE_ORINOCO_PAINT_3 from "../assets/parrish/menu-stroke-orinoco-paint-3.webp";
+import STROKE_ORINOCO_GLAZE_1 from "../assets/parrish/menu-stroke-orinoco-glaze-1.webp";
+import STROKE_ORINOCO_GLAZE_2 from "../assets/parrish/menu-stroke-orinoco-glaze-2.webp";
+import STROKE_ORINOCO_GLAZE_3 from "../assets/parrish/menu-stroke-orinoco-glaze-3.webp";
+import STROKE_WATERMARK_PAINT_1 from "../assets/parrish/menu-stroke-watermark-paint-1.webp";
+import STROKE_WATERMARK_PAINT_2 from "../assets/parrish/menu-stroke-watermark-paint-2.webp";
+import STROKE_WATERMARK_PAINT_3 from "../assets/parrish/menu-stroke-watermark-paint-3.webp";
+import STROKE_WATERMARK_GLAZE_1 from "../assets/parrish/menu-stroke-watermark-glaze-1.webp";
+import STROKE_WATERMARK_GLAZE_2 from "../assets/parrish/menu-stroke-watermark-glaze-2.webp";
+import STROKE_WATERMARK_GLAZE_3 from "../assets/parrish/menu-stroke-watermark-glaze-3.webp";
 
 // Which of the two palettes (?look=orinoco|watermark; parrish-looks.js).
 const LOOK = look();
@@ -289,6 +301,12 @@ export const dockWords = {
 // The menus' shared pieces (styleSheet).
 const PAPER = DARK ? MENU_PAINT_WATERMARK : MENU_PAINT_ORINOCO;
 const STROKE = DARK ? { paint: STROKE_WATERMARK_PAINT, glaze: STROKE_WATERMARK_GLAZE } : { paint: STROKE_ORINOCO_PAINT, glaze: STROKE_ORINOCO_GLAZE };
+// Four strokes of each (user: the buttons' paint "all too much the same"):
+// a button takes one by its data-stroke (the gate's, fixed per button) or
+// else by its place in its row. Pictures only, nothing runs.
+const STROKES = DARK
+  ? { paint: [STROKE_WATERMARK_PAINT, STROKE_WATERMARK_PAINT_1, STROKE_WATERMARK_PAINT_2, STROKE_WATERMARK_PAINT_3], glaze: [STROKE_WATERMARK_GLAZE, STROKE_WATERMARK_GLAZE_1, STROKE_WATERMARK_GLAZE_2, STROKE_WATERMARK_GLAZE_3] }
+  : { paint: [STROKE_ORINOCO_PAINT, STROKE_ORINOCO_PAINT_1, STROKE_ORINOCO_PAINT_2, STROKE_ORINOCO_PAINT_3], glaze: [STROKE_ORINOCO_GLAZE, STROKE_ORINOCO_GLAZE_1, STROKE_ORINOCO_GLAZE_2, STROKE_ORINOCO_GLAZE_3] };
 const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ");
 const GOLD = (a) => `rgba(${rgbOf(MENU.gold)}, ${a})`;
 const PAINT = (a) => `rgba(${rgbOf(MENU.paint)}, ${a})`;
@@ -405,11 +423,11 @@ export const styleSheet = `
      buttons and the dock's links stay as they are. */
   /* (Not a picked one: its paint, below, has to win; user: picking a
      difficulty "nothing changes".) */
-  :is(${PANELS}) .ec-btn:not([data-dock-role="link"]):not([data-dock-role="primary"]):not([data-dock-role="begin"]):not(:has(> svg)):not([style*="url("]):not([aria-pressed="true"]):not([style*="rgb(${rgbOf(MENU.paint)})"]),
-  .rg-seg button, .rg-step button, .rg-btn, .rg-small {
+  :is(${PANELS}) .ec-btn:not([data-dock-role="link"]):not([data-dock-role="primary"]):not([data-dock-role="begin"]):not(:has(> svg)):not([style*="url("]):not([aria-pressed]):not([style*="rgb(${rgbOf(MENU.paint)})"]),
+  .rg-seg button:not([aria-pressed="false"]), .rg-step button, .rg-btn, .rg-small {
     background: none !important; box-shadow: none !important; border-radius: 0 !important;
     border-style: solid !important; border-color: transparent !important;
-    border-image: url(${STROKE.glaze}) 0 110 fill / 0 20px / 2px 7px stretch !important;
+    border-image: var(--pr-glaze, url(${STROKE.glaze})) 0 110 fill / 0 20px / 2px 7px stretch !important;
     -webkit-mask-box-image: none !important; mask-border: none !important;
     color: ${MENU.ink} !important;
     padding-left: max(16px, 1.1em) !important; padding-right: max(16px, 1.1em) !important;
@@ -420,10 +438,26 @@ export const styleSheet = `
   [data-dock-role="primary"], [data-dock-role="begin"], .rg-seg button[aria-pressed="true"], .rg-btn.go {
     background: none !important; box-shadow: none !important; border-radius: 0 !important;
     border-style: solid !important; border-color: transparent !important;
-    border-image: url(${STROKE.paint}) 0 110 fill / 0 22px / 2px 8px stretch !important;
+    border-image: var(--pr-paint, url(${STROKE.paint})) 0 110 fill / 0 22px / 2px 8px stretch !important;
     -webkit-mask-box-image: none !important; mask-border: none !important;
     color: ${MENU.paintInk} !important;
   }
+  /* A choice not picked: its words only, quieter, over a thin dry line of
+     the glaze so it still reads as something to tap (user: with both
+     painted "it's hard to know which one is currently selected"). Only
+     the picked one carries paint. */
+  :is(${PANELS}) .ec-btn[aria-pressed="false"]:not(:has(> svg)):not([style*="url("]):not([style*="rgb(${rgbOf(MENU.paint)})"]), .rg-seg button[aria-pressed="false"] {
+    border-image: none !important; -webkit-mask-box-image: none !important; mask-border: none !important;
+    border-style: solid !important; border-color: transparent !important; border-radius: 0 !important; box-shadow: none !important;
+    background: var(--pr-glaze, url(${STROKE.glaze})) center calc(100% - 5px) / 62% 5px no-repeat !important;
+    color: ${MENU.muted} !important; text-shadow: none !important;
+  }
+  :is(${PANELS}) .ec-btn[aria-pressed="false"]:not(:has(> svg)):hover, .rg-seg button[aria-pressed="false"]:hover { color: ${MENU.ink} !important; background-size: 80% 6px !important; filter: none !important; }
+  /* Which stroke: the gate's buttons say (data-stroke); the dock's go by
+     their place in the row. */
+  [data-stroke="1"], :is(${PANELS}) .ec-btn:not([data-stroke]):nth-child(4n+2) { --pr-paint: url(${STROKES.paint[1]}); --pr-glaze: url(${STROKES.glaze[1]}); }
+  [data-stroke="2"], :is(${PANELS}) .ec-btn:not([data-stroke]):nth-child(4n+3) { --pr-paint: url(${STROKES.paint[2]}); --pr-glaze: url(${STROKES.glaze[2]}); }
+  [data-stroke="3"], :is(${PANELS}) .ec-btn:not([data-stroke]):nth-child(4n+4) { --pr-paint: url(${STROKES.paint[3]}); --pr-glaze: url(${STROKES.glaze[3]}); }
   /* Icon buttons (Back): a faint gold square, no chassis box. */
   :is(${PANELS}) .ec-btn:has(> svg) { border-color: ${GOLD(0.4)} !important; background: none !important; color: ${MENU.ink} !important; border-radius: 0 !important; }
   /* The win's card: its New Game a stroke of the palette's paint too (the
@@ -431,7 +465,7 @@ export const styleSheet = `
   [data-testid="victory-placard"] .ec-btn[style*="url("] {
     background: none !important; box-shadow: none !important; border-radius: 0 !important; text-shadow: none !important;
     border-style: solid !important; border-color: transparent !important;
-    border-image: url(${STROKE.paint}) 0 110 fill / 0 22px / 2px 8px stretch !important;
+    border-image: var(--pr-paint, url(${STROKE.paint})) 0 110 fill / 0 22px / 2px 8px stretch !important;
     color: ${MENU.paintInk} !important; font-family: 'Cinzel', Georgia, serif !important; font-weight: 700 !important;
   }
   /* Small ones (8×8, the steppers): shorter ends. */
@@ -448,6 +482,9 @@ export const styleSheet = `
      lines; and on a narrow screen "How well it plays" above its three,
      not squeezed beside them. */
   .rg-seg button { min-height: 46px !important; padding: 11px 16px !important; line-height: 1.2 !important; border-image-outset: 4px 4px !important; }
+  /* Who's playing: taller again (user: "Computer plays Walnut (dark)" on
+     two lines wants more room in its stroke). */
+  .rg-seg.rg-opp button { min-height: 66px !important; padding: 15px 18px !important; }
   @media (max-width: 560px) { .rg-sec .rg-row:has(> .rg-seg) { grid-template-columns: minmax(0, 1fr); row-gap: 6px; } }
   /* The camera views: two strokes side by side, no box round them. */
   :is(${PANELS}) [data-dock-role="views"] { border: none !important; border-radius: 0 !important; overflow: visible !important; gap: 10px; }

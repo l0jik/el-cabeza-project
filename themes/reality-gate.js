@@ -241,13 +241,17 @@ const ICON_BACK = h("svg", { width: 22, height: 22, viewBox: "0 0 24 24", fill: 
   h("path", { d: "M19 12H5" }), h("path", { d: "M11 6l-6 6 6 6" }));
 function Stepper({ value, min, max, onChange, label, testid }) {
   return h("span", { className: "rg-step", role: "group", "aria-label": label },
-    h("button", { type: "button", "aria-label": `Fewer: ${label}`, "data-testid": testid && `${testid}-minus`, disabled: value <= min, onClick: () => onChange(value - 1) }, "−"),
+    h("button", { type: "button", "aria-label": `Fewer: ${label}`, "data-testid": testid && `${testid}-minus`, "data-stroke": strokeOf(`${label}-`), disabled: value <= min, onClick: () => onChange(value - 1) }, "−"),
     h("output", { "aria-live": "polite", "data-testid": testid && `${testid}-value` }, value),
-    h("button", { type: "button", "aria-label": `More: ${label}`, "data-testid": testid && `${testid}-plus`, disabled: value >= max, onClick: () => onChange(value + 1) }, "+"));
+    h("button", { type: "button", "aria-label": `More: ${label}`, "data-testid": testid && `${testid}-plus`, "data-stroke": strokeOf(`${label}+`), disabled: value >= max, onClick: () => onChange(value + 1) }, "+"));
 }
 const Switch = ({ on, onClick, label, testid }) => h("button", { type: "button", role: "switch", className: "rg-switch", "aria-checked": on ? "true" : "false", "aria-label": label, "data-testid": testid, onClick });
+/* Which of a painted theme's strokes a button wears (Parrish: four, so the
+   buttons aren't all the same): fixed by the button's name, so it never
+   changes under the finger. Themes without strokes ignore it. */
+const strokeOf = (name) => { let n = 7; for (const ch of String(name || "")) n = (n * 31 + ch.charCodeAt(0)) >>> 0; return String(n % 4); };
 const Seg = ({ label, children, className = "" }) => h("div", { className: `rg-seg${className ? " " + className : ""}`, role: "group", "aria-label": label }, children);
-const segBtn = (key, on, text, onClick, testid, disabled = false) => h("button", { key, type: "button", "aria-pressed": on ? "true" : "false", "data-testid": testid, onClick, disabled }, text);
+const segBtn = (key, on, text, onClick, testid, disabled = false) => h("button", { key, type: "button", "aria-pressed": on ? "true" : "false", "data-testid": testid, "data-stroke": strokeOf(testid || key), onClick, disabled }, text);
 
 /* ------------------------------------------------------------ the square picker */
 
@@ -338,9 +342,9 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
       h("div", { className: "rg-side" }, `Near side · ${names.dark}`),
       h("div", { className: "rg-pick-note", role: "status" }, note),
       h("div", { className: "rg-pick-btns" },
-        h("button", { type: "button", className: "rg-small", "data-testid": "gate-picker-random", onClick: () => setDraft(randomizeSpots(cloneSelections(draft), kind)) }, "Random"),
-        h("button", { type: "button", className: "rg-small", onClick: onCancel }, "Cancel"),
-        h("button", { type: "button", className: "rg-small", "data-testid": "gate-picker-done", onClick: () => onDone(isHole ? draft : fillSpots(cloneSelections(draft), kind)) }, "Done"))));
+        h("button", { type: "button", className: "rg-small", "data-testid": "gate-picker-random", onClick: () => setDraft(randomizeSpots(cloneSelections(draft), kind)), "data-stroke": "0" }, "Random"),
+        h("button", { type: "button", className: "rg-small", onClick: onCancel, "data-stroke": "3" }, "Cancel"),
+        h("button", { type: "button", className: "rg-small", "data-testid": "gate-picker-done", onClick: () => onDone(isHole ? draft : fillSpots(cloneSelections(draft), kind)), "data-stroke": "2" }, "Done"))));
 }
 
 /* ------------------------------------------------------------ the pieces' pictures */
@@ -476,7 +480,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
       l.key === "blackHoleSquares" && sel.laws.blackHoleSquares && h("div", { className: "rg-sub" },
         h("div", { className: "rg-row" },
           h("span", { className: "rg-note" }, sel.holeSpot ? (sel.holeSpot.random ? "Placed at random." : "Placed by hand.") : "Placed at random."),
-          h("button", { type: "button", className: "rg-small", "data-testid": "gate-place-holes", onClick: () => setPicker("hole") }, "Place them"))))),
+          h("button", { type: "button", className: "rg-small", "data-testid": "gate-place-holes", onClick: () => setPicker("hole"), "data-stroke": "1" }, "Place them"))))),
     warnings.map((w) => h("div", { key: w.testid, className: "rg-warn", "data-testid": `gate-${w.testid}`, ...(w.key === "cantileverPivot" ? { onClick: showPivots, style: { cursor: "pointer" }, title: "Show me" } : {}) }, w.text)));
 
   const board = h("section", { className: "rg-sec", "aria-label": "Board" },
@@ -498,7 +502,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
       h("div", { className: "rg-row" }, h("span", { className: "rg-name" }, "Pairs"),
         h(Stepper, { value: sel.missingCount, min: 1, max: MAX_MISSING_PAIRS, label: "Pairs cut out", testid: "gate-missing-count", onChange: (v) => change((n) => { n.missingCount = v; n.missingSpots = n.missingSpots.slice(0, v); fillSpots(n, "missing"); }) })),
       h("div", { className: "rg-row" }, h("span", { className: "rg-note" }, "Random unless you mark them."),
-        h("button", { type: "button", className: "rg-small", "data-testid": "gate-mark-missing", onClick: () => setPicker("missing") }, "Mark them"))));
+        h("button", { type: "button", className: "rg-small", "data-testid": "gate-mark-missing", onClick: () => setPicker("missing"), "data-stroke": "0" }, "Mark them"))));
 
   return h(React.Fragment, null,
     h("div", { className: "rg-sheet", "data-testid": "gate-sheet", role: "dialog", "aria-modal": "true", "aria-label": "Cabeza Nova" },
@@ -508,8 +512,8 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
         h("span", null)),
       h("div", { className: "rg-body" }, opponent, pieces, rules, board),
       h("div", { className: "rg-foot" },
-        h("button", { type: "button", className: "rg-btn plain", "data-testid": "gate-reset", onClick: () => setSel(defaultSelections()) }, "Reset"),
-        h("button", { type: "button", className: "rg-btn go", "data-testid": "gate-play", disabled: !canPlay, onClick: () => { keep(sel); onPlay(sel); } }, "Play"))),
+        h("button", { type: "button", className: "rg-btn plain", "data-testid": "gate-reset", onClick: () => setSel(defaultSelections()), "data-stroke": "3" }, "Reset"),
+        h("button", { type: "button", className: "rg-btn go", "data-testid": "gate-play", disabled: !canPlay, onClick: () => { keep(sel); onPlay(sel); }, "data-stroke": "2" }, "Play"))),
     picker && h(SpotPicker, { sel, kind: picker, names, onCancel: () => setPicker(null), onDone: (d) => { setSel(d); setPicker(null); } }));
 }
 

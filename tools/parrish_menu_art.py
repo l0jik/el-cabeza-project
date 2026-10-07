@@ -20,6 +20,13 @@ Four pictures, made here so they can be made again:
   -glaze.webp                 and glaze, its bristle ridges catching the
                               light: drawn behind a button's words (CSS
                               border-image), never cutting them.
+  menu-stroke-<look>-paint-   three more strokes (user: the buttons' paint
+  1/2/3.webp, -glaze-1/2/3    "all too much the same"): 1 laid on loaded
+                              and dragged dry, rising a little; 2 two
+                              passes, their ends forked; 3 dry at the
+                              start, flicked up at the end. The ends stay
+                              in the 110 px the CSS slices, so any width
+                              keeps them.
 
     python3 tools/parrish_menu_art.py
 """
@@ -126,6 +133,60 @@ def brush_mask(w=640, h=128):
     return alpha_mask(body)
 
 
+def brush_variant(kind, w=640, h=128):
+    """Another stroke of the same brush (see brush_mask); its own seed, so
+    the first four pictures come out as before."""
+    r = np.random.default_rng(100 + kind)
+    x = np.linspace(0, 1, w)
+    yy = np.linspace(0, 1, h)[:, None]
+
+    def n1(scale, octaves=3):
+        out = np.zeros(w)
+        for o in range(octaves):
+            k = max(2, int(w / scale * 2 ** o))
+            pts = r.uniform(-1, 1, k + 1)
+            out += np.interp(np.linspace(0, k, w), np.arange(k + 1), pts) / 2 ** o
+        return out / np.abs(out).max()
+
+    def band(top, bot, soft=0.05):
+        return np.clip((yy - top) / soft, 0, 1) * np.clip((bot - yy) / soft, 0, 1)
+
+    rows = np.array([n1(220, 2) for _ in range(h)]) * 0.5 + 0.5
+    bristle = np.repeat(r.uniform(0, 1, (h, 1)), w, 1) * 0.6 + rows * 0.4
+    if kind == 1:
+        # loaded at the start (a blunt, round end), dragged dry and rising
+        rise = -0.07 * x
+        top = 0.15 + rise + n1(110) * 0.04 + 0.02 * x
+        bot = 0.86 + rise + n1(110) * 0.04 - 0.03 * x
+        body = band(top[None], bot[None])
+        cy = (yy - 0.5) / 0.36
+        reach_l = 0.035 + 0.05 * np.clip(np.abs(cy), 0, 1) ** 2 + bristle[:, :1] * 0.02
+        reach_r = 0.975 - bristle[:, :1] * 0.15
+        ends = np.clip((x[None] - reach_l) / 0.015, 0, 1) * np.clip((reach_r - x[None]) / 0.05, 0, 1)
+        body = body * ends * (0.84 + 0.16 * rows)
+    elif kind == 2:
+        # two passes, one over the other: forked ends, a thinner seam
+        a1 = band((0.11 + n1(90) * 0.04)[None], (0.62 + n1(90) * 0.04)[None])
+        a2 = band((0.40 + n1(90) * 0.04)[None], (0.89 + n1(90) * 0.04)[None])
+        l1 = 0.02 + bristle[:, :1] * 0.08; r1 = 0.905 - bristle[:, :1] * 0.06
+        l2 = 0.09 + bristle[:, :1] * 0.07; r2 = 0.985 - bristle[:, :1] * 0.08
+        e1 = np.clip((x[None] - l1) / 0.03, 0, 1) * np.clip((r1 - x[None]) / 0.04, 0, 1)
+        e2 = np.clip((x[None] - l2) / 0.03, 0, 1) * np.clip((r2 - x[None]) / 0.04, 0, 1)
+        p1, p2 = a1 * e1 * 0.92, a2 * e2 * 0.92
+        body = np.clip(p1 + p2 - p1 * p2 * 1.15, 0, 1) * (0.84 + 0.16 * rows)
+    else:
+        # dry at the start, deeply split; flicked up at the end
+        flick = -0.2 * np.clip((x - 0.85) / 0.15, 0, 1) ** 2
+        top = 0.17 + n1(70) * 0.06 + flick
+        bot = 0.83 + n1(70) * 0.06 + flick * 0.8
+        body = band(top[None], bot[None], 0.06)
+        reach_l = 0.02 + bristle[:, :1] ** 1.6 * 0.15
+        reach_r = 0.98 - bristle[:, :1] * 0.06
+        ends = np.clip((x[None] - reach_l) / 0.05, 0, 1) * np.clip((reach_r - x[None]) / 0.025, 0, 1)
+        body = body * ends * (0.82 + 0.18 * rows)
+    return alpha_mask(body)
+
+
 def painted_stroke(mask, color, alpha, seed):
     """A stroke of paint in one colour: the brush's shape (mask), its
     bristles' ridges catching the light and its furrows darker, a little
@@ -169,6 +230,10 @@ def main():
     }
     for i, (n, (col, al)) in enumerate(strokes.items()):
         painted_stroke(brush, col, al, 20 + i).save(os.path.join(OUT, n), quality=90)
+    for kind in (1, 2, 3):
+        b = brush_variant(kind)
+        for i, (n, (col, al)) in enumerate(strokes.items()):
+            painted_stroke(b, col, al, 40 + 10 * kind + i).save(os.path.join(OUT, n.replace(".webp", f"-{kind}.webp")), quality=90)
     for n in ("menu-paint-orinoco.webp", "menu-paint-watermark.webp", "menu-edge.webp", "menu-brush.webp", *strokes):
         print(n, os.path.getsize(os.path.join(OUT, n)) // 1024, "KB")
 

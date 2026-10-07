@@ -7152,3 +7152,21 @@ phone menu until "Start the story over" (which clears it).
   shapes.pivotArmPoint uses that centre unless it sits within 0.45 of the
   pivot cube, else the footprint cube farthest from it. The chassis arrow
   and the swipe lever use it. shapes.smoke checks it for the stem pose.
+- Parrish buttons, three asks (user, Cabeza Nova sheet):
+  - Picked vs not picked ("hard to know which one is currently
+    selected"; user chose "bare words" from four options): a choice not
+    picked (aria-pressed="false": the gate's Seg buttons, Easy/Medium/
+    Hard, the camera views) has no stroke, only its words in MENU.muted
+    over a thin dry line of the glaze (background 62% x 5px at the
+    bottom), ink on hover. Only the picked one is painted. The glaze rule
+    now skips anything with aria-pressed.
+  - Who's playing taller: .rg-opp buttons min-height 66px (was 46-58), so
+    "Computer plays Walnut (dark)" sits in its stroke on two lines.
+  - Variety ("all too much the same", at no running cost): three more
+    strokes per paint/glaze per look (tools/parrish_menu_art.py
+    brush_variant: 1 loaded and rising, 2 two passes with forked ends,
+    3 dry start with a flick; ends kept inside the 110 px slices), 12
+    webp at 6-12 KB. The rules use var(--pr-paint/--pr-glaze, stroke 0);
+    a button picks 1-3 by data-stroke (reality-gate.js strokeOf(name),
+    a fixed hash per button; other themes ignore it) or, in the dock, by
+    nth-child.
