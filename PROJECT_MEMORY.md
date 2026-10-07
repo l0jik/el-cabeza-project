@@ -7425,3 +7425,11 @@ phone menu until "Start the story over" (which clears it).
   (launch proxy: { server: HTTPS_PROXY }) and Google Fonts fetched by curl
   through page.route, fonts loaded before the card opens (it leaves after
   5.2 s).
+- The flyer's serration finer and softer (user, shown an enlarged
+  screenshot of the edge: "that looks better ... the serration on top
+  looks more realistic"; asked, chose a fine, soft serration as in the
+  image over a crisp sawtooth or none): flyerMask's teeth 2.9 px apart,
+  1.15 deep (each a little different), and only the two toothed strips
+  blurred 0.18 px (an SVG filter in the mask), the body of the sheet crisp.
+  On a sharp phone screen the old crisp triangles read as a sawtooth; the
+  enlarged screenshot had softened them.

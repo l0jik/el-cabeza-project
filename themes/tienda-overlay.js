@@ -189,22 +189,36 @@ const TRY_IT_CSS = `
 `;
 /* The flyer's edges, its mask, made at its size. A web press's folder cuts
    the sheets from the running web with a saw-toothed knife, so the top and
-   bottom are finely zigzagged (user: "the checking along the edge"), each
-   tooth torn a little differently; the sides are the web's own clean
-   edges. (No pin-feed holes, perforations or slits: that's continuous
-   stationery, user: "not the type of paper I was talking about".) */
+   bottom are finely serrated (user: "the checking along the edge"); the
+   sides are the web's own clean edges. (No pin-feed holes, perforations or
+   slits: that's continuous stationery, user: "not the type of paper I was
+   talking about".) The serration fine and soft, each tooth a little
+   different and its edge softened as a cut sheet's fibres soften it (user,
+   shown an enlarged screenshot: that, not a crisp sawtooth): the teeth's
+   strips blurred a fifth of a pixel, the body of the sheet left crisp. */
 function flyerMask(w, h) {
   let seed = 1975;
   const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   const f = (n) => (Math.round(n * 100) / 100).toString();
-  const T = 3.2, D = 1.3; // the knife's teeth: pitch, depth
-  const tooth = () => D * (0.75 + rnd() * 0.5);
-  let d = "M0 " + f(tooth());
-  for (let x = 0; x < w; x += T) d += " L" + f(Math.min(w, x + T / 2)) + " 0 L" + f(Math.min(w, x + T)) + " " + f(tooth());
-  d += " L" + w + " " + f(h - tooth());
-  for (let x = w; x > 0; x -= T) d += " L" + f(Math.max(0, x - T / 2)) + " " + h + " L" + f(Math.max(0, x - T)) + " " + f(h - tooth());
-  d += " Z";
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + " " + h + '"><path fill="#000" d="' + d + '"/></svg>';
+  const T = 2.9, D = 1.15, IN = 0.32; // the teeth: pitch, depth; the tips' room for the softening
+  const depth = () => D * (0.75 + rnd() * 0.5);
+  const pitch = () => T * (0.9 + rnd() * 0.2);
+  // One edge's teeth along y0, the valleys toward the sheet (dir).
+  const teeth = (y0, dir) => {
+    let d = "", x = 0;
+    while (x < w - 0.01) {
+      const p = Math.min(pitch(), w - x), v = y0 + dir * depth();
+      d += (d ? " L" : "M") + f(x) + " " + f(v) + " L" + f(x + p / 2) + " " + f(y0) + " L" + f(x + p) + " " + f(v);
+      x += p;
+    }
+    return d;
+  };
+  const top = teeth(IN, 1) + " L" + w + " " + f(D * 3) + " L0 " + f(D * 3) + " Z";
+  const bottom = teeth(h - IN, -1) + " L" + w + " " + f(h - D * 3) + " L0 " + f(h - D * 3) + " Z";
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + " " + h + '">'
+    + '<defs><filter id="soft" x="-1%" y="-50%" width="102%" height="200%"><feGaussianBlur stdDeviation="0.18"/></filter></defs>'
+    + '<rect y="' + f(D * 2) + '" width="' + w + '" height="' + f(h - D * 4) + '"/>'
+    + '<path filter="url(#soft)" d="' + top + '"/><path filter="url(#soft)" d="' + bottom + '"/></svg>';
   return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
 }
 const IDLE_NUDGE_MS = 30000;
