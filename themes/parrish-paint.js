@@ -88,11 +88,14 @@ float invZ(vec2 uv) { return max(uInvZ.x - uInvZ.y * texture2D(tDepth, uv).x, 0.
 float pieceOf(float a) { return smoothstep(0.85, 0.95, a); }
 `;
 
-/* 1. The flow, and how much subject is round each point. */
+/* 1. The flow, and how much subject is round each point. (uFloor: cut
+   out, the piece has no board round it, so what's round it counts as the
+   board would, and it's painted as a piece on the board is.) */
 const FLOW_FRAG = COMMON + `
 uniform sampler2D tScene;
 uniform vec2 uTexel;
 uniform float uSeed;
+uniform float uFloor;
 void main() {
   float L[25];
   float subj = 0.0;
@@ -100,7 +103,7 @@ void main() {
     vec2 o = vec2(float(i) - 2.0, float(j) - 2.0) * uTexel * 2.0;
     vec4 s = texture2D(tScene, vUv + o);
     L[j * 5 + i] = luma(s.rgb);
-    subj += s.a;
+    subj += max(s.a, uFloor);
   }
   subj /= 25.0;
   float E = 0.0, F = 0.0, G = 0.0;
@@ -311,6 +314,7 @@ uniform float uBoil;      // how far it moves with each repainting
 uniform float uBend;      // how far it curves
 uniform float uAngle;     // how far its direction wanders
 uniform float uScale;
+uniform float uCut;
 uniform sampler2D tScene;
 attribute vec2 aCell;
 varying float vPiece;
@@ -345,6 +349,7 @@ void main() {
   float subj = f.z, strength = f.w;
   vPiece = smoothstep(0.85, 0.95, texture2D(tScene, uv).a);
   float laid = step(uDetail.x, subj) * step(subj, uDetail.y) * step(uKeep.x, strength) * step(rs2.x, uKeep.z);
+  if (uCut > 0.5) laid *= step(0.5, vPiece);
   vec2 t = dirAt(f);
   vec2 diag = vec2(0.8, 0.6);
   if (dot(t, diag) < 0.0) t = -t;
@@ -388,6 +393,7 @@ uniform float uClip;
 uniform float uAlpha;
 uniform float uSeed;
 uniform float uScale;
+uniform float uCut;       // a cut-out painting: only the piece's own strokes
 uniform sampler2D tScene;
 varying float vPiece;
 varying vec2 vLocal;
@@ -442,6 +448,8 @@ void main() {
   // painting (the rotoscoped line's boil).
   vec2 ep = gl_FragCoord.xy + (vec2(vnoise(gl_FragCoord.xy / 9.0 + uSeed * 7.31), vnoise(gl_FragCoord.xy / 9.0 + uSeed * 3.17 + 41.0)) - 0.5) * 3.0 * uScale;
   a *= 1.0 - abs(vPiece - smoothstep(0.85, 0.95, texture2D(tScene, ep / uRes).a));
+  // (Cut out, there's no world round the piece to paint.)
+  a *= mix(1.0, vPiece, uCut);
   // The world's strokes stop short of the subject.
   if (uClip > 0.5) a *= 1.0 - smoothstep(0.45, 0.85, texture2D(tFlow, gl_FragCoord.xy / uRes).z);
   a *= uAlpha;
@@ -450,6 +458,12 @@ void main() {
 const BASE_FRAG = COMMON + `
 uniform sampler2D tOil;
 void main() { gl_FragColor = vec4(texture2D(tOil, vUv).rgb, 1.0); }`;
+// A painting cut out round its subject (the dock's piece, over the page):
+// the underpainting only where the piece is, premultiplied, clear round it.
+const CUT_FRAG = COMMON + `
+uniform sampler2D tOil;
+uniform sampler2D tScene;
+void main() { float a = texture2D(tScene, vUv).a; gl_FragColor = vec4(texture2D(tOil, vUv).rgb * a, a); }`;
 // The finish, multiplied over the strokes (it can only darken).
 const FINISH_FRAG = COMMON + `
 uniform sampler2D tOil;
@@ -545,11 +559,23 @@ const LAYERS = [
   { layer: 5, spacing: 6, size: [17, 6], detail: [0.4, 2], keep: [0.12, 0, 0.9], tol: 0.15, jitter: 0.09, diag: 0, accent: 0.03, boil: 0.35, knife: 0, clip: 0, alpha: 0.9, bend: 0.15, angle: 0.35 },
 ];
 
+// The board's brush, in CSS px per unit of stroke size (fit() below): a
+// cut-out painting lays its strokes at the same size on the screen, so the
+// dock's piece is painted with the board's own brush.
+let boardBrush = 0;
+
 /* The painter for one renderer. paint(r, scene, camera, beforeScene)
    draws a frame through the passes (beforeScene(r) runs first, if
    given); in stop mode a frame is only painted when its eighth of a
-   second is due, and the last one held between. */
-export function createPainter(renderer, { quality, mode = motionMode(), look } = {}) {
+   second is due, and the last one held between (paint() then returns
+   "hold").
+
+   cutout: the dock's piece (user: "should look like the pieces on the
+   board"), painted on a canvas of its own over the page: only the
+   subject's passes (the oil, the piece's brush strokes, the line, the
+   weave), clear round the piece, and no world, glow, afterimage or
+   vignette. */
+export function createPainter(renderer, { quality, mode = motionMode(), look, cutout = false } = {}) {
   const L = look || { lift: [0.15, 0.19, 0.27], gamma: 0.86, glow: 0.22, vignette: [0.6, 0.5, 0.58], accents: [[0.96, 0.93, 0.84], [0.97, 0.91, 0.62], [0.6, 0.75, 0.6], [0.66, 0.52, 0.62], [0.24, 0.42, 0.76], [0.9, 0.58, 0.56], [0.42, 0.7, 0.72], [0.86, 0.7, 0.38]] };
   const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
   const q = quality ? quality() : { tier: "high" };
@@ -586,15 +612,17 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
     vertexShader: QUAD_VERT, fragmentShader: frag, uniforms: { ...common(), ...uniforms }, depthTest: false, depthWrite: false, ...(extra || null),
   });
   const res = new THREE.Vector2(), scaleU = { value: 1 }, glowStep = new THREE.Vector2();
-  const flowMat = mat(FLOW_FRAG, { tScene: { value: sceneRT.texture }, uTexel: { value: new THREE.Vector2() }, uSeed: { value: 0 } });
+  // (The board writes alpha 0.75: cut out, that's what's taken to be round the piece.)
+  const flowMat = mat(FLOW_FRAG, { tScene: { value: sceneRT.texture }, uTexel: { value: new THREE.Vector2() }, uSeed: { value: 0 }, uFloor: { value: cutout ? 0.75 : 0 } });
   const oilMat = mat(OIL_FRAG, { tScene: { value: sceneRT.texture }, tFlow: { value: flowRT.texture }, uTexel: { value: new THREE.Vector2() }, uSeed: { value: 0 },
     uLift: { value: v3(L.lift) }, uGamma: { value: L.gamma },
-    ...Object.fromEntries((L.field || [[0, 0, 0], [0.2, 0.2, 0.2], [0.4, 0.4, 0.4], [0.6, 0.6, 0.6], [0.8, 0.8, 0.8], [1, 1, 1]]).map((c, i) => [`uF${i}`, { value: v3(c) }])), tEcho: { value: echoA.texture }, uEchoK: { value: 0.92 }, uPieceEdge: { value: L.pieceEdge || 0 } });
+    ...Object.fromEntries((L.field || [[0, 0, 0], [0.2, 0.2, 0.2], [0.4, 0.4, 0.4], [0.6, 0.6, 0.6], [0.8, 0.8, 0.8], [1, 1, 1]]).map((c, i) => [`uF${i}`, { value: v3(c) }])), tEcho: { value: echoA.texture }, uEchoK: { value: cutout ? 0 : 0.92 }, uPieceEdge: { value: L.pieceEdge || 0 } });
   const echoMat = mat(ECHO_FRAG, { tPrev: { value: echoA.texture }, tScene: { value: sceneRT.texture }, uTexel: { value: new THREE.Vector2() }, uDecay: { value: 0.9 } });
   const canvasMat = mat(CANVAS_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 } });
   const baseMat = mat(BASE_FRAG, { tOil: { value: oilRT.texture } });
+  const cutMat = mat(CUT_FRAG, { tOil: { value: oilRT.texture }, tScene: { value: sceneRT.texture } });
   const rawMat = mat(BASE_FRAG, { tOil: { value: null } });
-  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 }, uVig: { value: v3(L.vignette) }, tScene: { value: sceneRT.texture }, uContact: { value: 0.5 }, uReach: { value: 1.7 }, uHug: { value: 0.022 } }, {
+  const finishMat = mat(FINISH_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 }, uVig: { value: cutout ? v3([1, 1, 1]) : v3(L.vignette) }, tScene: { value: sceneRT.texture }, uContact: { value: 0.5 }, uReach: { value: 1.7 }, uHug: { value: 0.022 } }, {
     transparent: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
     blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
   });
@@ -608,7 +636,8 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
   // Stroke by stroke, where the vertex stage can read the oil and the flow.
   const strokes = !!(renderer.capabilities && renderer.capabilities.vertexTextures);
   const strokeScene = new THREE.Scene();
-  const layers = strokes ? LAYERS.map((def, i) => {
+  // (Cut out: the subject's layers only, the board's and the pieces'.)
+  const layers = strokes ? LAYERS.filter((def) => !cutout || def.detail[0] > 0).map((def, i) => {
     const m = new THREE.ShaderMaterial({
       vertexShader: STROKE_VERT, fragmentShader: STROKE_FRAG, depthTest: false, depthWrite: false, transparent: true,
       blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
@@ -617,7 +646,7 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
         tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, tScene: { value: sceneRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uLayer: { value: def.layer },
         uSpacing: { value: def.spacing }, uSize: { value: new THREE.Vector2(def.size[0], def.size[1]) }, uDetail: { value: new THREE.Vector2(def.detail[0], def.detail[1]) },
         uKeep: { value: new THREE.Vector3(...def.keep) }, uTol: { value: def.tol }, uJitter: { value: def.jitter }, uDiag: { value: def.diag },
-        uAccent: { value: def.accent }, uBoil: { value: reduced ? 0 : def.boil }, uKnife: { value: def.knife }, uClip: { value: def.clip }, uAlpha: { value: def.alpha }, uBend: { value: def.bend }, uAngle: { value: def.angle }, uScale: scaleU,
+        uAccent: { value: def.accent }, uBoil: { value: reduced ? 0 : def.boil }, uKnife: { value: def.knife }, uClip: { value: def.clip }, uAlpha: { value: def.alpha }, uBend: { value: def.bend }, uAngle: { value: def.angle }, uScale: scaleU, uCut: { value: cutout ? 1 : 0 },
         ...Object.fromEntries(L.accents.map((c, k) => [`uA${k}`, { value: v3(c) }])),
       },
     });
@@ -653,10 +682,19 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
   let lastFrame = -1, frames = 0, painted = 0, lastW = 0, lastH = 0, lastEcho = 0;
   const stats = { mode, painted: 0, frames: 0, seed: 0, scale: SCALE, size: [0, 0], depth: hasDepth, reduced, strokes, strokeCount: 0 };
 
+  // Strokes sized to the picture: about the same share of it on a phone as
+  // on a monitor. Cut out, the board's brush as it is on the screen (or,
+  // before the board's first painting, the same reckoning for the window).
+  function brushFor(r, W, H) {
+    if (!cutout) return Math.max(0.6, Math.min(W, H) / 900);
+    const pr = r.getPixelRatio() || 1;
+    return (boardBrush || Math.max(0.6, (Math.min(window.innerWidth, window.innerHeight) * pr) / 900) / pr) * pr;
+  }
   function fit(r) {
     r.getDrawingBufferSize(size);
     const W = Math.max(2, Math.round(size.x)), H = Math.max(2, Math.round(size.y));
-    if (W === lastW && H === lastH) return false;
+    const brush = brushFor(r, W, H);
+    if (W === lastW && H === lastH && Math.abs(brush - scaleU.value) < brush * 0.02) return false;
     lastW = W; lastH = H;
     const pw = Math.max(2, Math.round(W * SCALE)), ph = Math.max(2, Math.round(H * SCALE));
     sceneRT.setSize(pw, ph);
@@ -669,9 +707,8 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
     flowMat.uniforms.uTexel.value.set(1 / pw, 1 / ph);
     oilMat.uniforms.uTexel.value.set(1 / pw, 1 / ph);
     res.set(W, H);
-    // Strokes sized to the picture: about the same share of it on a phone
-    // as on a monitor.
-    scaleU.value = Math.max(0.6, Math.min(W, H) / 900);
+    scaleU.value = brush;
+    if (!cutout) boardBrush = brush / (r.getPixelRatio() || 1);
     sizeLayers(W, H);
     stats.strokeCount = layers.reduce((n, L) => n + L.cols * L.rows, 0);
     stats.size = [W, H];
@@ -692,7 +729,7 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
       frames++;
       const frame = Math.floor(performance.now() / (1000 / PAINT_FPS));
       // Stop-motion: hold the last painting until the next is due.
-      if (mode === "stop" && frame === lastFrame && !resized) { stats.frames = frames; return true; }
+      if (mode === "stop" && frame === lastFrame && !resized) { stats.frames = frames; return "hold"; }
       const seed = reduced ? 7 : frame % 997;
       const newPainting = frame !== lastFrame;
       lastFrame = frame;
@@ -714,28 +751,37 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
       pass(r, flowMat, flowRT);
       oilMat.uniforms.tEcho.value = echoA.texture;
       pass(r, oilMat, oilRT);
-      // The afterimage remembers this painting (its half-life about six tenths of a second).
-      const nowMs = performance.now();
-      echoMat.uniforms.uDecay.value = lastEcho ? Math.pow(0.5, Math.min(0.5, (nowMs - lastEcho) / 1000) / 0.6) : 0;
-      lastEcho = nowMs;
-      echoMat.uniforms.tPrev.value = echoA.texture;
-      pass(r, echoMat, echoB);
-      const sw = echoA; echoA = echoB; echoB = sw;
-      // The glow, spread at a quarter size.
-      pass(r, brightMat, glowA);
-      blurMat.uniforms.tSrc.value = glowA.texture; glowStep.set(1 / glowA.width, 0); pass(r, blurMat, glowB);
-      blurMat.uniforms.tSrc.value = glowB.texture; glowStep.set(0, 1 / glowA.height); pass(r, blurMat, glowA);
-      if (strokes) {
-        // The underpainting, the strokes over it, the finish over all.
-        pass(r, baseMat, null);
+      if (cutout) {
+        // The piece alone, over the page: its underpainting, its strokes,
+        // the finish over them.
+        pass(r, cutMat, null);
         r.autoClear = false;
-        r.render(strokeScene, postCam);
+        if (strokes) r.render(strokeScene, postCam);
         pass(r, finishMat, null);
       } else {
-        pass(r, canvasMat, null);
-        r.autoClear = false;
+        // The afterimage remembers this painting (its half-life about six tenths of a second).
+        const nowMs = performance.now();
+        echoMat.uniforms.uDecay.value = lastEcho ? Math.pow(0.5, Math.min(0.5, (nowMs - lastEcho) / 1000) / 0.6) : 0;
+        lastEcho = nowMs;
+        echoMat.uniforms.tPrev.value = echoA.texture;
+        pass(r, echoMat, echoB);
+        const sw = echoA; echoA = echoB; echoB = sw;
+        // The glow, spread at a quarter size.
+        pass(r, brightMat, glowA);
+        blurMat.uniforms.tSrc.value = glowA.texture; glowStep.set(1 / glowA.width, 0); pass(r, blurMat, glowB);
+        blurMat.uniforms.tSrc.value = glowB.texture; glowStep.set(0, 1 / glowA.height); pass(r, blurMat, glowA);
+        if (strokes) {
+          // The underpainting, the strokes over it, the finish over all.
+          pass(r, baseMat, null);
+          r.autoClear = false;
+          r.render(strokeScene, postCam);
+          pass(r, finishMat, null);
+        } else {
+          pass(r, canvasMat, null);
+          r.autoClear = false;
+        }
+        pass(r, glowMat, null);
       }
-      pass(r, glowMat, null);
       r.setRenderTarget(prevTarget);
       r.autoClear = prevAuto;
       if (newPainting) painted++;
@@ -748,7 +794,7 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
       [sceneRT, flowRT, oilRT, glowA, glowB, echoA, echoB].forEach((t) => t.dispose());
       if (sceneRT.depthTexture) sceneRT.depthTexture.dispose();
       noDepth.dispose();
-      [flowMat, oilMat, echoMat, canvasMat, baseMat, rawMat, finishMat, brightMat, blurMat, glowMat].forEach((m) => m.dispose());
+      [flowMat, oilMat, echoMat, canvasMat, baseMat, cutMat, rawMat, finishMat, brightMat, blurMat, glowMat].forEach((m) => m.dispose());
       layers.forEach((L) => { L.mesh.geometry.dispose(); L.mat.dispose(); });
       quad.geometry.dispose();
     },

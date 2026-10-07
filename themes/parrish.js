@@ -33,6 +33,7 @@ import * as THREE from "three";
 import { quality } from "./tienda-quality.js";
 import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
 import { parrishEnv, createParrishEffects } from "./parrish-scene.js";
+import { createPainter } from "./parrish-paint.js";
 import { MUSIC_URL, INTRO_URL, HUMS_URL, HUMS_LEVEL, EVENING_URL, SOUNDTRACK_TITLE } from "./parrish-audio.js";
 import { look, lookName, lookTitle } from "./parrish-looks.js";
 // The user's "el cabeza" lettering, its outline traced exactly from their
@@ -275,20 +276,50 @@ export function renderSetupExtras() {
   return null;
 }
 
-/* The dock's floating piece is drawn by a renderer of its own, not through
-   the paint; it gets a touch of the same life: its edges wander a little,
-   redrawn eight times a second (an SVG turbulence whose seed steps). */
-export function renderGlobalDefs() {
-  return (
-    <svg width="0" height="0" style={{ position: "absolute", width: 0, height: 0 }} aria-hidden="true" focusable="false">
-      <filter id="parrish-paint-edge" x="-5%" y="-5%" width="110%" height="110%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="1" result="n">
-          <animate attributeName="seed" values="1;2;3;4;5;6;7;8" dur="1s" calcMode="discrete" repeatCount="indefinite" />
-        </feTurbulence>
-        <feDisplacementMap in="SourceGraphic" in2="n" scale="3.5" xChannelSelector="R" yChannelSelector="G" />
-      </filter>
-    </svg>
-  );
+/* The dock's floating piece, painted as the board's pieces are (user: "The
+   3D floating button should look like the pieces on the board when in
+   this theme", both looks). It has a renderer of its own, so the board's
+   painter is made again for it, cut out round the piece (parrish-paint.js
+   cutout), with the board's brush; and it's lit as the board is: the
+   chassis's ACES at the board's exposure, the sky and the sea from above
+   and below, the look's key, fill and back. (It used to wander at its
+   edges by an SVG filter, a stand-in for the paint.) */
+export function createDockPainter(renderer, scene) {
+  const painter = createPainter(renderer, { quality, look: LOOK, cutout: true });
+  const was = { tm: renderer.toneMapping, exp: renderer.toneMappingExposure, lights: [] };
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  const dirs = [];
+  scene.children.forEach((o) => {
+    if (o.isAmbientLight) {
+      was.lights.push([o, o.color.getHex(), o.intensity]);
+      o.color.setHex(lights.ambient.color); o.intensity = lights.ambient.intensity;
+    } else if (o.isDirectionalLight) dirs.push(o);
+  });
+  // The dock's two, brighter first: the key and the fill.
+  dirs.sort((a, b) => b.intensity - a.intensity);
+  const sun = [LOOK.lights.key, LOOK.lights.fill];
+  dirs.slice(0, 2).forEach((o, i) => {
+    was.lights.push([o, o.color.getHex(), o.intensity]);
+    o.color.setHex(sun[i][0]); o.intensity = sun[i][1];
+  });
+  const hemi = new THREE.HemisphereLight(lights.hemi.sky, lights.hemi.ground, lights.hemi.intensity);
+  const back = new THREE.DirectionalLight(LOOK.lights.back[0], LOOK.lights.back[1]);
+  back.position.set(-2, 1.6, -4.4);
+  scene.add(hemi, back);
+  // (Tone mapping is compiled into a material: the piece's, again.)
+  scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
+  return {
+    paint: (r, scn, camera) => painter.paint(r, scn, camera),
+    dispose() {
+      painter.dispose();
+      scene.remove(hemi, back);
+      was.lights.forEach(([o, c, i]) => { o.color.setHex(c); o.intensity = i; });
+      renderer.toneMapping = was.tm;
+      renderer.toneMappingExposure = was.exp;
+      scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
+    },
+  };
 }
 
 /* ------------------------------------------------------------ the menus' look */
@@ -370,9 +401,6 @@ export const styleSheet = `
     font: 600 12px/1 'Cinzel', Georgia, serif !important; letter-spacing: 0.11em !important; text-transform: uppercase;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
-  /* The dock's piece: its edges wander like paint (renderGlobalDefs). */
-  canvas[data-testid="dock-piece-canvas"] { filter: url(#parrish-paint-edge); }
-  @media (prefers-reduced-motion: reduce) { canvas[data-testid="dock-piece-canvas"] { filter: none; } }
   /* Over the painting: a scrap of ivory behind anything that floats on it. */
   button[aria-label$="full screen"] {
     background: rgba(244, 234, 213, 0.9) !important; color: ${PARRISH.blue} !important;

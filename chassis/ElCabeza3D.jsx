@@ -1069,6 +1069,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // down and rebuild the whole mini scene on every dock open/close.
   const dockViewRef = useRef(dockView);
   dockViewRef.current = dockView;
+  // (The same for the theme, read by the dock preview's render: a theme
+  // may paint the piece its own way, theme.createDockPainter.)
+  const dockThemeRef = useRef(theme);
+  dockThemeRef.current = theme;
   /* Phone layout (MobileShell.jsx). A page opts in with the mobileShell
      prop (Nova does) and chooses it (mobileShell.preferBar): the dock
      piece, dock panel and corner icons give way to a top bar, a bottom
@@ -1496,10 +1500,30 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       pieceGroup.rotation.x += state.velocity.x * dt;
       pieceGroup.rotation.y += state.velocity.y * dt;
       pieceGroup.rotation.z += state.velocity.z * dt;
-      renderer.render(scene, camera);
-      clipToPiece();
+      // (Held between paintings, the piece keeps the outline it was
+      // painted with.)
+      if (paintOrRender() !== "hold") clipToPiece();
     }
     raf = requestAnimationFrame(tick);
+
+    /* A theme may draw the piece its own way, theme.createDockPainter
+       (renderer, scene) -> { paint(renderer, scene, camera), dispose() }:
+       Parrish paints it as it paints the board's pieces (user: "should
+       look like the pieces on the board"). paint() returns true when it
+       has drawn the frame, "hold" when it's holding the last one (stop-
+       motion). Made for the theme it's in, and again if that changes. */
+    let painter = null, painterTheme = null;
+    function paintOrRender() {
+      const th = dockThemeRef.current;
+      if (th !== painterTheme) {
+        if (painter) painter.dispose();
+        painter = th && th.createDockPainter ? th.createDockPainter(renderer, scene) : null;
+        painterTheme = th;
+      }
+      const done = painter && painter.paint(renderer, scene, camera);
+      if (!done) renderer.render(scene, camera);
+      return done || true;
+    }
 
     /* The piece's own outline is its hit area. The canvas is a fixed
        frame sized for the largest piece (and larger than Opa itself), and
@@ -1553,6 +1577,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      if (painter) painter.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
     };

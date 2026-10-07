@@ -7371,3 +7371,19 @@ phone menu until "Start the story over" (which clears it).
   a line of Archivo Narrow small print; the box's own photograph
   (assets/tienda/box-art.jpg, the game in the den) down the right to the
   sheet's edge, halftoned. The glossy stock and the press's marks stay.
+
+- The dock's floating piece painted like the board's pieces in both
+  Parrish looks (user: "The 3D floating button should look like the pieces
+  on the board when in this theme", and the same in Go deo na ndeor). A
+  theme hook, theme.createDockPainter(renderer, scene) -> { paint, dispose
+  }, used by the dock's own render loop (chassis paintOrRender; paint()
+  returns true when drawn, "hold" when stop-motion is holding the last
+  painting, and the hit outline is only re-cut when a new one is drawn).
+  Parrish's makes the board's painter again for the dock's renderer, cut
+  out (parrish-paint.js cutout: CUT_FRAG premultiplied underpainting, the
+  subject's stroke layers only and only strokes centred on the piece, no
+  world, glow, afterimage or vignette; uFloor 0.75 so what's round the
+  piece counts as board and it's graded as a piece on the board is) with
+  the board's brush in CSS px (boardBrush), and lights the dock as the
+  board is (ACES at 1.15, the hemisphere, the look's key/fill/back). The
+  SVG edge-wander filter on the dock canvas (a stand-in) is gone.
