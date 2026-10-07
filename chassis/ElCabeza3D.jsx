@@ -7902,12 +7902,20 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           style={{ position: "fixed", left: "50%", bottom: 50, transform: "translateX(-50%)", zIndex: 12, display: "flex", gap: 10, alignItems: "center", whiteSpace: "nowrap" }}
         >
           {undoMoveFloat && (
-            <button type="button" className="ec-btn" data-testid="undo-move-float" onClick={handleUndoTurn} style={{ ...ghostButtonStyle(), whiteSpace: "nowrap" }}>
+            <button type="button" className="ec-btn" data-testid="undo-move-float" onClick={handleUndoTurn} style={{ ...playerButtonStyle(currentPlayer), whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 7 }}>
+              {/* (The same side's colour as End turn, user; told apart by
+                  their marks: a curving arrow back, a green tick.) */}
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+              </svg>
               Undo move
             </button>
           )}
           {stopHereFloat && (
-            <button type="button" className="ec-btn" data-testid="stop-here-float" onClick={handleEndTurnClick} style={{ ...playerButtonStyle(currentPlayer), whiteSpace: "nowrap" }}>
+            <button type="button" className="ec-btn" data-testid="stop-here-float" onClick={handleEndTurnClick} style={{ ...playerButtonStyle(currentPlayer), whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 7 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#3FAE5A" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.35))" }}>
+                <path d="M4.5 12.5 9.5 17.5 19.5 6.5" />
+              </svg>
               End turn
             </button>
           )}

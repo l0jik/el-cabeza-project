@@ -7339,3 +7339,9 @@ phone menu until "Start the story over" (which clears it).
   shadow, no border), a gloss across it that glints over as it lands (a
   ::after sheen, tdGlint) and a fine halftone screen over the printed
   colours (the stripes, the corner, the starburst).
+- Undo move and End turn above the points: both the side's own colour
+  (playerButtonStyle; Parrish, both the side's wood in the button stroke;
+  user: the pale Undo read as Ash's colour on Walnut's turn), told apart by
+  their marks: a curving arrow back on Undo, a green tick (#3FAE5A) on End
+  turn. Parrish's pair a little tighter (12px, 0.11em) so it fits a phone
+  clear of the corner piece.

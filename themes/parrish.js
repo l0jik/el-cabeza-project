@@ -360,20 +360,13 @@ export const styleSheet = `
   @media (prefers-reduced-motion: reduce) { .ec-title, .ec-rules-title { animation: none; } }
   /* End turn, over the painting (user: painted, the piece's own wood
      showing): the side's wood, cut to a brush stroke of its own. */
-  /* Undo move beside it: the same stroke in the menus' paper, the ink's
-     words (the quieter of the two). */
-  [data-testid="undo-move-float"] {
-    -webkit-mask: url(${BUTTON_STROKE}) center / 100% 100% no-repeat; mask: url(${BUTTON_STROKE}) center / 100% 100% no-repeat;
-    background: ${DARK ? "linear-gradient(rgba(241, 226, 196, 0.24), rgba(241, 226, 196, 0.24)), url(" + PAPER + ") 0 0 / 512px" : "url(" + PAPER + ") 0 0 / 512px, " + MENU.paper} !important; color: ${MENU.ink} !important;
-    border: none !important; border-radius: 0 !important; box-shadow: none !important; outline-offset: 4px;
-    padding: 13px 30px 14px !important; min-height: 46px !important;
-    font: 600 12px/1 'Cinzel', Georgia, serif !important; letter-spacing: 0.14em !important; text-transform: uppercase;
-  }
-  [data-testid="stop-here-float"] {
+  /* (Undo move beside it the same: the side's wood, user; their marks
+     tell them apart.) */
+  [data-testid="stop-here-float"], [data-testid="undo-move-float"] {
     -webkit-mask: url(${BUTTON_STROKE}) center / 100% 100% no-repeat; mask: url(${BUTTON_STROKE}) center / 100% 100% no-repeat;
     border: none !important; border-radius: 0 !important; box-shadow: none !important; outline-offset: 4px;
-    padding: 13px 34px 14px !important; min-height: 46px !important;
-    font: 600 13px/1 'Cinzel', Georgia, serif !important; letter-spacing: 0.16em !important; text-transform: uppercase;
+    padding: 13px 24px 14px !important; min-height: 46px !important;
+    font: 600 12px/1 'Cinzel', Georgia, serif !important; letter-spacing: 0.11em !important; text-transform: uppercase;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
   /* The dock's piece: its edges wander like paint (renderGlobalDefs). */
