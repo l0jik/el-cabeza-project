@@ -7541,3 +7541,10 @@ phone menu until "Start the story over" (which clears it).
   in the card's transform (its entrance and exit too), from its height,
   kept as the sheet or the window changes size. e2e-try-it checks the
   three sale days, the stripes, and that all of it is on the screen.
+- Video (user: "If I were to give you two videos, could you, like,
+  combine them together?"): this machine has no ffmpeg, but `pip install
+  --target <scratchpad>/vidtools imageio-ffmpeg` brings a static ffmpeg
+  7.0.2 (libx264, aac, vp9, opus) through the proxy, and it works: a
+  landscape and a portrait test clip joined end to end (each scaled and
+  padded to 1280x720 at 30 fps, their sound kept). Nothing made yet: the
+  user's videos, and how they want them combined, still to come.
