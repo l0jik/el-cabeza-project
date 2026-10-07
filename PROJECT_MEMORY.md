@@ -7241,3 +7241,13 @@ phone menu until "Start the story over" (which clears it).
     step waits: the step lands and counts" fails, and fails the same on the
     build before this round (3b07317, checked in a worktree): already broken,
     not from this round. Not yet looked into.
+
+- After the story, Nova's page opens on the switcher (user; chose
+  "Switcher + Continue"): apps/unified.jsx OPEN_ON_RETURN (story ended, not
+  ?switcher, not ?world=, not a scene link) opens the realities menu as the
+  den comes up, with "Continue in <last world>" first (realities.js
+  continueWorld, data-testid realities-continue; none when nothing's been
+  played). The last world (localStorage el-cabeza:last-world, a WORLDS id)
+  is kept by the chassis when a game begins in a reality after the story
+  (its realityGate.world). Direct links to a world still go straight there
+  (user: the packaged game won't have them anyway). e2e-gate covers it.

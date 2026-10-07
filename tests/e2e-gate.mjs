@@ -145,6 +145,25 @@ for (const [world, name] of [["neon", "neon"], ["tienda", "store"], ["standard",
   await ctx.close();
 }
 
+console.log("Nova's page after the story: the switcher, the last world first");
+{
+  const { p, ctx, errs } = await open("el-cabeza-nova.html");
+  check("nothing played yet: the switcher, no Continue", !!(await poll(async () => (await p.locator('[data-testid="realities"]').count()) > 0, 20000)) && (await p.locator('[data-testid="realities-continue"]').count()) === 0);
+  await p.goto(DIST + "el-cabeza-cromo.html");
+  await gateOn(p);
+  await p.locator('[data-testid="gate-standard"]').click();
+  await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000);
+  check("a game begun in Cromo is kept as the last world", (await p.evaluate(() => localStorage.getItem("el-cabeza:last-world"))) === "cromo");
+  await p.goto(DIST + "el-cabeza-nova.html");
+  const cont = p.locator('[data-testid="realities-continue"]');
+  check("back on Nova's page: the switcher, Continue in Cromo first", !!(await poll(async () => (await cont.count()) > 0, 20000)) && /Cromo/.test(await cont.innerText()));
+  await p.waitForTimeout(1000); await shot(p, "nova-continue");
+  await cont.click();
+  check("...which goes there", !!(await poll(async () => /el-cabeza-cromo\.html/.test(p.url()), 8000)));
+  check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(fails ? `\nGATE E2E FAILED (${fails})` : "\nGATE E2E PASSED");
 process.exit(fails ? 1 : 0);

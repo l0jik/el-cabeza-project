@@ -8,7 +8,7 @@ import { mountSummon, summonBridge } from "../themes/neon-summon.js";
 import * as tiendaTheme from "../themes/tienda.js";
 import { setBoardDimensions, getBoardDimensions, setActiveLaws, setBlackHoles, setMissingSquares, ACTIVE_LAWS, BLACK_HOLES, MISSING_SQUARES } from "../engine/constants.js";
 import { StoryCut, STORY_KEY, storyPreview, readOwned, saveOwned, saveStoreGone, storeGone, forgetStoreGone, hallDue, saveHallDue, hallFlares, saveHallFlares, storyEnded, saveStoryEnded, forgetStoryEnd } from "./novaStory.jsx";
-import { createRealitiesMenu, goToWorld, onStoryRestart } from "../themes/realities.js";
+import { createRealitiesMenu, goToWorld, onStoryRestart, lastWorld } from "../themes/realities.js";
 import { SINGULARITY_SEEN_KEY, SPECIAL_ORDER_NOTED_KEY, COMMERCIAL_AIRED_KEY, forgetSingularity, journeyPreview, singularitySeen, onJourneyChange, commercialAired, markCommercialAired, setCommercialOn, setSceneLink } from "../engine/journey.js";
 import { prepareCommercial } from "../themes/den-ad-audio.js";
 import {
@@ -97,6 +97,11 @@ const STORY_PREVIEW = SUMMONS_PARAM || LURE_PARAM;
 // (Any scene's link: no reality gate over it, even after the story (user:
 // the hallway's link, with the story over, opened under the gate).)
 const SCENE_LINK = STORY_PREVIEW || !!SCENE_PARAM;
+// After the story, Nova's page opens on the realities menu (user: "the
+// game should always open on the theme switcher"), with the last world
+// played offered first ("Continue in ..."; chosen with the user). Not when
+// it's come here for a place (?world=) or a scene's link.
+const OPEN_ON_RETURN = !OPEN_SWITCHER && !WORLD_PARAM && !SCENE_LINK && storyEnded();
 // (The den's one-scene links, revelation, glutts, hall: no story notes over
 // them. Not the summons or the lure: those play the whole first trip.)
 if (SCENE_PARAM && !LURE_PARAM) setSceneLink();
@@ -583,12 +588,17 @@ function UnifiedApp() {
     if (busyRef.current || to === themeName) return;
     startCut({ kind: "fade", caption: CUT_CAPTIONS[to] || "", to });
   });
-  storyBridge.openRealities = () => {
+  storyBridge.openRealities = (opts = {}) => {
     if (busyRef.current) return;
-    createRealitiesMenu({ current: themeName, onPick: (w) => storyBridge.goWorld(w) });
+    createRealitiesMenu({ current: themeName, onPick: (w) => storyBridge.goWorld(w), continueWorld: opts.continueWorld || null });
   };
-  // ?switcher: the menu, once the den's up.
-  useEffect(() => { if (OPEN_SWITCHER) { const id = setTimeout(() => storyBridge.openRealities(), 900); return () => clearTimeout(id); } return undefined; }, []);
+  // ?switcher, or back after the story: the menu, once the den's up (the
+  // latter with the last world played first).
+  useEffect(() => {
+    if (!OPEN_SWITCHER && !OPEN_ON_RETURN) return undefined;
+    const id = setTimeout(() => storyBridge.openRealities(OPEN_ON_RETURN ? { continueWorld: lastWorld() } : {}), 900);
+    return () => clearTimeout(id);
+  }, []);
   // "Restart story" asks first (user: an "Are you sure?").
   const [confirmRestart, setConfirmRestart] = useState(false);
   storyBridge.restart = () => {

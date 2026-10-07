@@ -61,6 +61,18 @@ const CSS = `
 .ec-realities .txt { padding: 9px 12px 11px; display: flex; flex-direction: column; gap: 2px; }
 .ec-realities .name { font-weight: 600; letter-spacing: 0.04em; }
 .ec-realities .line { font-size: 13px; opacity: 0.72; }
+/* Continue in (the last world played), first and on its own. */
+.ec-realities .continue { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 14px;
+  width: min(100%, 460px); margin: 0 0 22px; padding: 10px 18px 10px 10px; border-radius: 12px;
+  border: 1px solid rgba(214,190,255,0.7); background: rgba(60,32,110,0.55); box-shadow: 0 0 26px rgba(150,100,255,0.35);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease; }
+.ec-realities .continue:hover, .ec-realities .continue:focus-visible { transform: translateY(-2px); background: rgba(80,44,140,0.7); box-shadow: 0 0 34px rgba(170,120,255,0.55); }
+.ec-realities .continue:focus-visible { outline: 2px solid #cdb4ff; outline-offset: 3px; }
+.ec-realities .continue .thumb { flex: 0 0 auto; width: 84px; aspect-ratio: 4 / 3; border-radius: 7px; background: #0b0614 center / cover no-repeat; }
+.ec-realities .continue .words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ec-realities .continue .k { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #cdb4ff; }
+.ec-realities .continue .n { font-size: 19px; font-weight: 600; letter-spacing: 0.02em; }
+.ec-realities.locked .continue { pointer-events: none; opacity: 0.32; filter: saturate(0.4); }
 .ec-realities .here { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #cdb4ff; }
 /* Restart story, at the very bottom (user): quiet, and it asks once more
    before it does it. (No Stay button above it: the "You are here" card
@@ -108,7 +120,19 @@ export const REALITIES_OPEN_EVENT = "el-cabeza:realities-open";
 // soundtrack comes back).
 export const REALITIES_STAY_EVENT = "el-cabeza:realities-stay";
 const stayed = () => { try { window.dispatchEvent(new CustomEvent(REALITIES_STAY_EVENT)); } catch (e) { /* no events */ } };
-export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", lockMs = 0 } = {}) {
+/* The last world played after the story (user: Nova's page opens on this
+   menu then, with a way straight back to where you were): kept when a game
+   begins in it (the chassis, from its realityGate's world). */
+export const LAST_WORLD_KEY = "el-cabeza:last-world";
+export function saveLastWorld(id) {
+  try { if (id && WORLDS.some((w) => w.id === id)) window.localStorage.setItem(LAST_WORLD_KEY, id); } catch (e) { /* this visit only */ }
+}
+export function lastWorld() {
+  try { const id = window.localStorage.getItem(LAST_WORLD_KEY); return WORLDS.find((w) => w.id === id) || null; } catch (e) { return null; }
+}
+/* `continueWorld`: a world to offer first, on its own ("Continue in
+   Orinoco"), above the rest. */
+export function createRealitiesMenu({ current = null, currentId = null, onPick, onStay, title = "Other realities", sub = "Every version of the game. Pick one.", lockMs = 0, continueWorld = null } = {}) {
   if (typeof document === "undefined") return { el: null, close() {} };
   // (For the page's own sound to mark leaving: Parrish's closing music.)
   try { window.dispatchEvent(new CustomEvent(REALITIES_OPEN_EVENT, { detail: { currentId } })); } catch (e) { /* no events */ }
@@ -124,6 +148,21 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
   const p = document.createElement("p"); p.className = "sub";
   p.textContent = sub;
   const ul = document.createElement("ul");
+  const isHereW = (w) => (current && w.nova === current) || (currentId && w.id === currentId);
+  const take = (w) => { if (locked) return; close(); if (isHereW(w)) { stayed(); if (onStay) onStay(); } else if (onPick) onPick(w); };
+  let cont = null;
+  if (continueWorld) {
+    cont = document.createElement("button");
+    cont.type = "button"; cont.className = "continue";
+    cont.setAttribute("data-testid", "realities-continue");
+    const thumb = document.createElement("span"); thumb.className = "thumb"; thumb.style.backgroundImage = `url("${continueWorld.shot}")`;
+    const words = document.createElement("span"); words.className = "words";
+    const k = document.createElement("span"); k.className = "k"; k.textContent = "Continue in";
+    const n = document.createElement("span"); n.className = "n"; n.textContent = `${continueWorld.name} \u203a`;
+    words.append(k, n);
+    cont.append(thumb, words);
+    cont.onclick = () => take(continueWorld);
+  }
   WORLDS.forEach((w) => {
     const li = document.createElement("li");
     const b = document.createElement("button");
@@ -134,11 +173,11 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     const name = document.createElement("span"); name.className = "name"; name.textContent = w.name;
     const line = document.createElement("span"); line.className = "line"; line.textContent = w.line;
     txt.append(name, line);
-    const isHere = (current && w.nova === current) || (currentId && w.id === currentId);
+    const isHere = isHereW(w);
     if (isHere) { const here = document.createElement("span"); here.className = "here"; here.textContent = "You are here"; txt.append(here); }
     b.append(shot, txt);
     // (Where you are already: you stay.)
-    b.onclick = () => { if (locked) return; close(); if (isHere) { stayed(); if (onStay) onStay(); } else if (onPick) onPick(w); };
+    b.onclick = () => take(w);
     li.append(b); ul.append(li);
   });
   // Restart story: a first tap asks ("Tap again to restart"), a second
@@ -168,7 +207,7 @@ export function createRealitiesMenu({ current = null, currentId = null, onPick, 
     setTimeout(() => { locked = false; el.classList.remove("locked"); el.setAttribute("data-locked", "false"); }, lockMs);
   }
   const hold = document.createElement("div"); hold.className = "hold"; hold.setAttribute("aria-hidden", "true"); hold.appendChild(document.createElement("i"));
-  el.append(h, ...(sub ? [p] : []), ...(lockMs > 0 ? [hold] : []), ul, restart);
+  el.append(h, ...(sub ? [p] : []), ...(lockMs > 0 ? [hold] : []), ...(cont ? [cont] : []), ul, restart);
   const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (locked) return; close(); stayed(); if (onStay) onStay(); } };
   window.addEventListener("keydown", onKey, true);
   document.body.appendChild(el);

@@ -29,6 +29,7 @@ import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
 import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
 import { RealityGate, storyOver, GATE_EVENT } from "../themes/reality-gate.js";
+import { saveLastWorld } from "../themes/realities.js";
 import { sideNamesOf } from "../themes/side-names.js";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
@@ -890,6 +891,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      one: Lluvia, after its descent; a finished game's "change the
      rules"). Gone once a game begins. */
   const gateCfg = theme.realityGate || null;
+  // The last world played after the story (Nova's page offers it first
+  // on its realities menu: realities.js lastWorld), kept as a game begins.
+  useEffect(() => {
+    if (gameArmed && gateCfg && gateCfg.world && storyOver()) saveLastWorld(gateCfg.world);
+  }, [gameArmed, gateCfg && gateCfg.world]);
   const [gate, setGate] = useState(() => (gateCfg && !gateCfg.deferred && !gameArmed && storyOver() && (!gateCfg.when || gateCfg.when()) ? { stage: "choose", n: 0 } : null));
   useEffect(() => {
     if (!gateCfg) return undefined;
