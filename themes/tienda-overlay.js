@@ -34,6 +34,13 @@ import { ShopCorner, StorePA, useShoppingVisit } from "./tienda-shopping.js";
 import { ensurePaper, ensureAgedPaper } from "./tienda-textures.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
 import boxArtUrl from "../assets/tienda/box-art.jpg";
+// The flyer's paper (tools/tienda_flyer_paper.py): the stock multiplied over
+// the print, the ink's missing dots and the fold's cracks screened over it.
+import flyerPaperUrl from "../assets/tienda/flyer-paper.webp";
+import flyerInkUrl from "../assets/tienda/flyer-ink.webp";
+// The flyer's picture (tools/tienda_flyer_family.py): a 1975 family fawning
+// over the boxed game (user).
+import flyerFamilyUrl from "../assets/tienda/flyer-family.jpg";
 import { TRY_IT_EVENT } from "./tienda-fx.js";
 import { singularitySeen, onJourneyChange, isCommercialOn, CLASSIC_PIECE_KEYS, specialOrderNoted, markSpecialOrderNoted, isSceneLink } from "../engine/journey.js";
 
@@ -93,34 +100,53 @@ function noteHeld() {
    goes on by itself after TRY_IT_MS (or a tap once it's free). */
 const TRY_IT_MS = 5200, TRY_IT_HOLD_MS = 1500;
 const TRY_IT_CSS = `
-  /* Printed on supercalendered stock (user: SC / lightweight coated, the
-     glossy circulars' paper: pressed smooth and shiny between hot
-     rollers): a bright, even sheet with no tooth, thin (a crisp, close
-     shadow, the faintest curl), the colours laid down in a fine halftone
-     screen, and a gloss across it that catches the light as it lands. */
+  /* Printed as the period's Sunday circulars were (user: "what glossy
+     flyer advertisements for during that era would have looked like ...
+     use that type of paper"). A preprint, run on a web press onto
+     supercalendered groundwood stock (SC: mostly mechanical pulp and clay,
+     uncoated, pressed to a satin gloss between hot rollers; ISO brightness
+     about 65 to newsprint's 57-63, a warm, faintly grey white), thin
+     enough (40-60 g/m2) that the page behind shows through, and folded in
+     half to go inside the Sunday paper. Its top and bottom cut by the
+     folder's saw-toothed knife; its sides the web's clean edges. The
+     paper's layers (tools/tienda_flyer_paper.py): flyer-paper.webp
+     multiplied over everything (the stock's tone, its cloudy formation and
+     grain, shives, the reverse page showing through, mirrored), and
+     flyer-ink.webp screened over that, so it only shows in the ink: the
+     pale specks of missing dots in the solids, the ink cracked along the
+     fold. The fold's crease at --fold, the same place the ink cracks. */
   .td-tryit { position: fixed; left: 50%; top: 50%; z-index: 1260; width: min(92vw, 400px);
     transform: translate(-50%, -50%) rotate(-1.2deg); cursor: pointer; text-align: left;
     filter: drop-shadow(0 1px 1px rgba(10,6,3,0.4)) drop-shadow(0 9px 14px rgba(10,6,3,0.32));
     animation: tdTryIn 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
-  /* The sheet itself, cut by the press's marks (flyerMask: its mask, made
-     at its size). */
-  .td-tryit .sheet { position: relative; box-sizing: border-box; padding: 0 0 0 62px; color: #2A1D14;
-    background: linear-gradient(176deg, #FBF8F0 0%, #F6F1E5 60%, #EFE8D8 100%);
+  /* The sheet itself, its edges cut (flyerMask: its mask, made at its size). */
+  .td-tryit .sheet { --fold: 47%; position: relative; box-sizing: border-box; padding: 0 0 0 62px; color: #2A1D14;
+    background: #FFFFFF;
     font: 400 14.5px/1.42 'Courier Prime', 'Courier New', Courier, monospace;
     -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+  /* The stock, over the print (it can only darken): its tone and all,
+     then the fold: the crease, and the sheet a touch in shadow either
+     side of it where the two halves lie at an angle. */
+  .td-tryit .sheet::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; mix-blend-mode: multiply;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0) calc(var(--fold) - 6px), rgba(92,70,48,0.1) calc(var(--fold) - 1px), rgba(92,70,48,0.24) var(--fold), rgba(92,70,48,0.07) calc(var(--fold) + 2px), rgba(255,255,255,0) calc(var(--fold) + 8px)),
+      linear-gradient(180deg, rgba(255,255,255,0) 8%, rgba(110,90,70,0.06) calc(var(--fold) - 1%), rgba(255,255,255,0) var(--fold), rgba(110,90,70,0.09) calc(var(--fold) + 1%), rgba(255,255,255,0) 88%),
+      url("${flyerPaperUrl}") 0 0 / 100% 100% no-repeat; }
+  .td-tryit .sheet > .ink { position: absolute; inset: 0; z-index: 2; pointer-events: none; mix-blend-mode: screen; opacity: 0.7;
+    background: url("${flyerInkUrl}") 0 0 / 100% 100% no-repeat; }
+  /* The calendered gloss: a satin sheen, not a mirror (SC's gloss is
+     about half a coated sheet's), that sweeps across as it lands; the
+     crease's ridge catching the light; the upper half, tipped toward
+     the light, a shade brighter. */
   .td-tryit .sheet::after { content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
     background:
-      linear-gradient(118deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.3) 41%, rgba(255,255,255,0.08) 46%, rgba(255,255,255,0) 56%) 0 0 / 260% 100% no-repeat,
-      radial-gradient(ellipse 70% 45% at 78% 8%, rgba(255,255,255,0.32), rgba(255,255,255,0) 70%),
-      linear-gradient(90deg, rgba(0,0,0,0.035), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.05));
+      linear-gradient(118deg, rgba(255,255,255,0) 26%, rgba(255,255,255,0.2) 40%, rgba(255,255,255,0.07) 47%, rgba(255,255,255,0) 60%) 0 0 / 260% 100% no-repeat,
+      radial-gradient(ellipse 80% 50% at 76% 10%, rgba(255,255,255,0.22), rgba(255,255,255,0) 72%),
+      linear-gradient(180deg, rgba(255,255,255,0) calc(var(--fold) - 3px), rgba(255,255,255,0.5) calc(var(--fold) - 1.5px), rgba(255,255,255,0) calc(var(--fold) - 0.4px)),
+      linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.09) calc(var(--fold) - 4%), rgba(255,255,255,0) var(--fold)),
+      linear-gradient(90deg, rgba(0,0,0,0.03), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.04));
     animation: tdGlint 1.1s cubic-bezier(0.3, 0.1, 0.3, 1) 0.3s both; }
-  @keyframes tdGlint { from { background-position: 100% 0, 0 0, 0 0; } to { background-position: 4% 0, 0 0, 0 0; } }
-  /* The halftone: the printed colour's dots, fine (a dense screen). */
-  .td-tryit .sv, .td-tryit .sh { isolation: isolate; }
-  .td-tryit .sv::after, .td-tryit .sh::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: radial-gradient(circle, rgba(255,250,235,0.17) 0.55px, rgba(255,250,235,0) 0.95px) 0 0 / 2.6px 2.6px; }
-  .td-tryit .scd { position: absolute; left: 10px; top: 10px; width: 59px; height: 59px; pointer-events: none;
-    background: radial-gradient(circle, rgba(255,250,235,0.17) 0.55px, rgba(255,250,235,0) 0.95px) 0 0 / 2.6px 2.6px; }
+  @keyframes tdGlint { from { background-position: 100% 0, 0 0, 0 0, 0 0, 0 0; } to { background-position: 4% 0, 0 0, 0 0, 0 0, 0 0; } }
   /* The logo's stripes: four of them, the earth tones, down the left side
      and round the corner along the top. */
   .td-tryit .sv { position: absolute; left: 10px; top: 69px; bottom: 10px; width: 35px;
@@ -135,7 +161,9 @@ const TRY_IT_CSS = `
   /* The ad, set as the period's department-store circulars (the user's
      reference): a column of items down the left, each a bold heading, a
      big price with its cents raised and "EA." beside, a line of small
-     print; the photograph down the right to the sheet's edge. */
+     print; the picture down the right to the sheet's edge (the family
+     fawning over the box, tools/tienda_flyer_family.py: drawn as the
+     period's ads drew families, printed on the sheet, its top kept). */
   .td-tryit .ad2 { display: grid; grid-template-columns: minmax(0, 1fr) 47%; margin-top: 12px; border-top: 2px solid #17110c; }
   .td-tryit .col { padding: 10px 10px 14px 0; display: flex; flex-direction: column; }
   .td-tryit .item { margin: 0 0 11px; }
@@ -151,9 +179,7 @@ const TRY_IT_CSS = `
   .td-tryit .pr .ce { display: flex; flex-direction: column; align-items: flex-start; }
   .td-tryit .pr .ce .ea { align-self: flex-start; margin: 5px 0 0 3px; }
   .td-tryit .item p { margin: 3px 0 0; font: 600 11.5px/1.22 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
-  .td-tryit .photo { position: relative; background: #3b2a1c center 60% / cover no-repeat; filter: saturate(1.12) contrast(1.04); }
-  .td-tryit .photo::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: radial-gradient(circle, rgba(255,250,235,0.14) 0.55px, rgba(255,250,235,0) 0.95px) 0 0 / 2.6px 2.6px; }
+  .td-tryit .photo { position: relative; background: #F0C55A center top / cover no-repeat; }
   .td-tryit .go { display: block; margin-top: auto; text-align: left; font: 700 11px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0;
     animation: tdTryGo 0.5s ease ${TRY_IT_HOLD_MS}ms both; }
   .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg); pointer-events: none; }
@@ -161,47 +187,24 @@ const TRY_IT_CSS = `
   @keyframes tdTryGo { to { opacity: 0.75; } }
   @media (prefers-reduced-motion: reduce) { .td-tryit, .td-tryit .go, .td-tryit .sheet::after { animation: none; opacity: 1; } }
 `;
-/* The marks of the press on the flyer (user: "it looks like it got handled
-   in those machines": the checking along the edge, tiny holes to move the
-   paper, a little slit cut every now and then): the sheet's mask, made at
-   its size, so they're holes and cuts the store shows through. The top and
-   bottom are torn on a checked (zigzag) perforation; down each side a row
-   of pin-feed holes with a line of perforation cuts inside it; and a few
-   short slits, from the edges, between the holes. One evenodd path: the
-   sheet, less what's cut from it. */
+/* The flyer's edges, its mask, made at its size. A web press's folder cuts
+   the sheets from the running web with a saw-toothed knife, so the top and
+   bottom are finely zigzagged (user: "the checking along the edge"), each
+   tooth torn a little differently; the sides are the web's own clean
+   edges. (No pin-feed holes, perforations or slits: that's continuous
+   stationery, user: "not the type of paper I was talking about".) */
 function flyerMask(w, h) {
   let seed = 1975;
   const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   const f = (n) => (Math.round(n * 100) / 100).toString();
-  const T = 3.2, D = 1.3; // the checked edges: tooth width, depth
-  let d = "M0 " + D;
-  for (let x = 0; x < w; x += T) d += " L" + f(Math.min(w, x + T / 2)) + " 0 L" + f(Math.min(w, x + T)) + " " + D;
-  d += " L" + w + " " + f(h - D);
-  for (let x = w; x > 0; x -= T) d += " L" + f(Math.max(0, x - T / 2)) + " " + h + " L" + f(Math.max(0, x - T)) + " " + f(h - D);
+  const T = 3.2, D = 1.3; // the knife's teeth: pitch, depth
+  const tooth = () => D * (0.75 + rnd() * 0.5);
+  let d = "M0 " + f(tooth());
+  for (let x = 0; x < w; x += T) d += " L" + f(Math.min(w, x + T / 2)) + " 0 L" + f(Math.min(w, x + T)) + " " + f(tooth());
+  d += " L" + w + " " + f(h - tooth());
+  for (let x = w; x > 0; x -= T) d += " L" + f(Math.max(0, x - T / 2)) + " " + h + " L" + f(Math.max(0, x - T)) + " " + f(h - tooth());
   d += " Z";
-  // Pin-feed holes down both sides.
-  const R = 1.7, P = 12, Y0 = 9;
-  for (let y = Y0; y < h - 6; y += P) [5.5, w - 5.5].forEach((cx) => {
-    d += " M" + f(cx - R) + " " + f(y) + " a" + R + " " + R + " 0 1 0 " + 2 * R + " 0 a" + R + " " + R + " 0 1 0 " + -2 * R + " 0 Z";
-  });
-  // The perforation inside them: short cuts.
-  for (let y = 4; y < h - 7; y += 4.2) [8.6, w - 8.6].forEach((cx) => {
-    d += " M" + f(cx - 0.4) + " " + f(y) + " h0.8 v2.4 h-0.8 Z";
-  });
-  // Slits now and then: from the sides between the holes, from the top and
-  // bottom clear of the side strips.
-  const rows = Math.max(1, Math.floor((h - 6 - Y0) / P));
-  for (let i = 0; i < 6; i++) {
-    const L = 4 + rnd() * 3.5;
-    if (i % 3 === 2) {
-      const x = w * (0.18 + rnd() * 0.64);
-      d += i % 2 ? " M" + f(x) + " " + f(D + 0.05) + " h0.9 v" + f(L) + " h-0.9 Z" : " M" + f(x) + " " + f(h - D - 0.05 - L) + " h0.9 v" + f(L) + " h-0.9 Z";
-    } else {
-      const y = Y0 + P * (Math.floor(rnd() * rows) + 0.5);
-      d += i % 2 ? " M0 " + f(y) + " h" + f(L) + " v0.9 h" + f(-L) + " Z" : " M" + f(w - L) + " " + f(y) + " h" + f(L) + " v0.9 h" + f(-L) + " Z";
-    }
-  }
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + " " + h + '"><path fill="#000" fill-rule="evenodd" d="' + d + '"/></svg>';
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + " " + h + '"><path fill="#000" d="' + d + '"/></svg>';
   return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
 }
 const IDLE_NUDGE_MS = 30000;
@@ -468,7 +471,7 @@ export function useSetupExtras(x) {
       const sheet = document.createElement("div");
       sheet.className = "sheet";
       card.appendChild(sheet);
-      sheet.innerHTML = '<span class="sv"></span>' + '<svg class="sc" viewBox="0 0 59 59" aria-hidden="true"><path d="M4 59 A55 55 0 0 1 59 4" fill="none" stroke="#6B3A1E" stroke-width="8"/><path d="M13 59 A46 46 0 0 1 59 13" fill="none" stroke="#B4451F" stroke-width="8"/><path d="M22 59 A37 37 0 0 1 59 22" fill="none" stroke="#E07B22" stroke-width="8"/><path d="M31 59 A28 28 0 0 1 59 31" fill="none" stroke="#E9B23A" stroke-width="8"/></svg>' + '<span class="scd"></span><span class="sh"></span>'
+      sheet.innerHTML = '<span class="sv"></span>' + '<svg class="sc" viewBox="0 0 59 59" aria-hidden="true"><path d="M4 59 A55 55 0 0 1 59 4" fill="none" stroke="#6B3A1E" stroke-width="8"/><path d="M13 59 A46 46 0 0 1 59 13" fill="none" stroke="#B4451F" stroke-width="8"/><path d="M22 59 A37 37 0 0 1 59 22" fill="none" stroke="#E07B22" stroke-width="8"/><path d="M31 59 A28 28 0 0 1 59 31" fill="none" stroke="#E9B23A" stroke-width="8"/></svg>' + '<span class="sh"></span>'
         + '<div class="logo"><b>Big Glutts</b><span>Discount Department Store</span></div>'
         + '<div class="ad2"><div class="col">'
         + '<div class="item"><h4>So you\u2019d like to try it, eh?</h4><div class="pr"><span class="n w">FREE</span><span class="ea">TO<br>PLAY</span></div>'
@@ -477,15 +480,16 @@ export function useSetupExtras(x) {
         + '<p>The Game of Unparalleled Intention. Hardwood board and ten pieces, walnut and ash.</p></div>'
         + '<div class="item"><h4 class="sm">Games &amp; Hobby Dept.</h4><p>Aisle 9.</p></div>'
         + '<span class="go">Let\u2019s play \u203a</span>'
-        + '</div><div class="photo"></div></div>';
-      // (The photograph: the game in the den, the box's own picture.)
-      sheet.querySelector(".photo").style.backgroundImage = 'url("' + boxArtUrl + '")';
+        + '</div><div class="photo"></div></div>'
+        + '<span class="ink"></span>';
+      // (The picture: the family, fawning over the box.)
+      sheet.querySelector(".photo").style.backgroundImage = 'url("' + flyerFamilyUrl + '")';
       const since = performance.now();
       card.addEventListener("click", (e) => { e.stopPropagation(); if (performance.now() - since >= TRY_IT_HOLD_MS) done(); });
       card.addEventListener("pointerdown", (e) => e.stopPropagation());
       document.body.appendChild(card);
-      // The press's marks, at the sheet's size (and again if it changes:
-      // the fonts arriving, the screen turning).
+      // The cut edges, at the sheet's size (and again if it changes: the
+      // fonts arriving, the screen turning).
       let markedAt = "";
       const mark = () => {
         const w = sheet.offsetWidth, hh = sheet.offsetHeight;

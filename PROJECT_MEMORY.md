@@ -7387,3 +7387,41 @@ phone menu until "Start the story over" (which clears it).
   the board's brush in CSS px (boardBrush), and lights the dock as the
   board is (ACES at 1.15, the hemisphere, the look's key/fill/back). The
   SVG edge-wander filter on the dock canvas (a stand-in) is gone.
+
+- The Try it! flyer on the period's own paper (user: get rid of the side
+  perforation and the holes, "not the type of paper I was talking about";
+  research what the era's glossy flyer ads were printed on and use it).
+  The research: Sunday preprints/circulars, run on web presses (heatset
+  offset, some gravure) onto supercalendered groundwood stock (SC: 50-70%
+  mechanical pulp, 15-30% filler, uncoated, calendered to a satin gloss,
+  Hunter gloss <20-50% to LWC's 50-65%; ISO brightness 62-70, newsprint
+  57-63), 40-60 g/m2 so the reverse shows through; groundwood leaves
+  shives (dark specks) and, under gravure, missing dots (pale specks in
+  the solids); folded to go inside the paper; cut apart by the folder's
+  saw-toothed knife. So: flyerMask is only the saw-tooth top and bottom
+  (each tooth a little different), straight web edges at the sides; no
+  pin-feed holes, perforations or slits. tools/tienda_flyer_paper.py makes
+  assets/tienda/flyer-paper.webp (multiplied over the sheet: the stock's
+  warm grey-white, formation, grain, shives, a mirrored "Toyland" page
+  showing through) and flyer-ink.webp (screened over it: missing dots,
+  the ink cracked along the fold at FOLD = 47%, the CSS --fold); the
+  crease and its two halves' shading in .sheet::before, its ridge's
+  highlight and a satin sweep in ::after. The old halftone dot grids are
+  gone (at this scale a 120-150 lpi screen is invisible).
+- The flyer's picture is now an imaginary 1975 family fawning over the
+  boxed game (user), drawn by tools/tienda_flyer_family.py (no image
+  generator here): Dad in a powder-blue leisure suit, wide collar and
+  medallion holding the box up like a trophy against a harvest-gold
+  sunburst, eyes rolled up to it; Mom swooning (back of hand to brow,
+  hand on heart, a tear of joy, feathered hair, blue eyeshadow, hoops);
+  the boy gasping, hands on cheeks; the girl starry-eyed, hands clasped;
+  the beagle too. The box is the store's (lidPainter's design, the den
+  photograph, Bodoni). SVG drawn in Python, rendered in Chromium by
+  tools/svg_render.mjs (Playwright from tests/), then printed (plates a
+  hair out of register, ink spread, mottle) to assets/tienda/flyer-
+  family.jpg, shown center-top / cover in .photo. Fonts for it in
+  tools/fonts (Bodoni Moda Bold latin woff2 added, OFL).
+- Headless screenshots of the flyer: Chromium needs the proxy
+  (launch proxy: { server: HTTPS_PROXY }) and Google Fonts fetched by curl
+  through page.route, fonts loaded before the card opens (it leaves after
+  5.2 s).
