@@ -97,12 +97,13 @@ function noteHeld() {
 }
 /* The "Try it!" card on the table (user: a tap on it, and the store says
    so in a friendly way, then takes you to the menu with Try a Game lit):
-   the store's flyer, held a moment against wild taps, then up until it's
+   the store's flyer, deaf to taps for its first five seconds (user:
+   "Ignore taps for the first five seconds"), then up until it's
    tapped (user: "it doesn't automatically pop down. You have to click on
    it in order to dismiss it"), and the tap goes on to the menu, Try a Game
    lit. A tap beside it doesn't reach the store behind: the flyer gives a
    little shake instead, and its "Let's play" calls once it's free. */
-const TRY_IT_HOLD_MS = 1500;
+const TRY_IT_HOLD_MS = 5000;
 const TRY_IT_CSS = `
   /* Printed as the period's Sunday circulars were (user: "what glossy
      flyer advertisements for during that era would have looked like ...
@@ -672,6 +673,7 @@ export function useSetupExtras(x) {
       sheet.innerHTML = flyerHtml(version) + '<span class="ink"></span>';
       sheet.querySelector(".photo").style.backgroundImage = 'url("' + flyerPhotoUrl + '")';
       const since = performance.now();
+      card.dataset.since = String(since); // (tests: when it came up)
       const free = () => performance.now() - since >= TRY_IT_HOLD_MS;
       card.addEventListener("click", (e) => { e.stopPropagation(); if (free()) done(); });
       card.addEventListener("pointerdown", (e) => e.stopPropagation());

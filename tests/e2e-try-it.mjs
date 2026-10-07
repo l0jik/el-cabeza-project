@@ -1,6 +1,6 @@
 /* The store's "Try it!" card on the table (user): a fresh story, the box
    opened; a tap on the card brings the store's flyer ("So you'd like to
-   try it, eh?", $7.97), held a moment against wild taps, then up until
+   try it, eh?", $7.97), deaf to taps for five seconds, then up until
    it's tapped (a tap beside it doesn't count); a tap on it opens the menu
    as the piece's tap opens it, Try a Game lit (tienda-fx.js
    pickScene/sceneTap, tienda-overlay.js). On a phone, the card's corner in
@@ -45,8 +45,19 @@ check("a tap on it: the store's word (the ad: $7.97)", (await card.count()) === 
 // card's entrance to settle, which can take past the hold.)
 await page.evaluate(() => document.querySelector('[data-testid="tienda-try-it"]').click());
 await page.waitForTimeout(150);
-check("...held a moment: an early tap doesn't put it away", (await card.count()) === 1);
-await page.waitForTimeout(6500);
+check("...held: an early tap doesn't put it away", (await card.count()) === 1);
+// (And one at four seconds, by the card's own clock: taps are ignored for
+// the first five, user.)
+const tappedAt = await page.evaluate(async () => {
+  const el = document.querySelector('[data-testid="tienda-try-it"]');
+  const since = Number(el.dataset.since);
+  while (performance.now() - since < 4000) await new Promise((r) => setTimeout(r, 40));
+  el.click();
+  return performance.now() - since;
+});
+await page.waitForTimeout(150);
+check("...nor one at four seconds", tappedAt < 5000 && (await card.count()) === 1, `tapped at ${Math.round(tappedAt)} ms`);
+await page.waitForTimeout(2700);
 check("...and up until it's tapped (user: it doesn't pop down by itself)", (await card.count()) === 1);
 // A tap beside it: the store behind doesn't take it, the flyer stays.
 await page.touchscreen.tap(195, 800);

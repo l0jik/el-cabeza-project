@@ -7465,3 +7465,8 @@ phone menu until "Start the story over" (which clears it).
   Escape dismiss it from the keyboard (the card takes focus). e2e-try-it
   checks it's still up after 6.5 s, a tap beside it does nothing, a tap
   on it opens the menu.
+- ...and it ignores taps for its first five seconds (user: "Ignore taps
+  for the first five seconds"): TRY_IT_HOLD_MS 5000 (was 1.5 s), the keys
+  the same; "Let's play" fades in at five seconds and calls after. The
+  card carries data-since (when it came up) for the test, which taps it
+  at once and again at four seconds by that clock, then past the hold.
