@@ -52,27 +52,34 @@ const T = {
 };
 // The escape track starts here: its first step lands 0.1 s in (T.steps[0]).
 const TRACK_AT = 25500;
-// Each line, when it's up, and which side its bubble is on (the second
-// thought follows the first in the same place).
+// Each thought, when it's up, and which side its bubble is on (the
+// second follows the first in the same place).
 const LINES = [
   { text: "What the…!??", at: T.say1, two: false, id: "1" },
   { text: "…but I was just here!", at: T.say1b, two: false, id: "1b" },
   { text: "Time to get the heck out of here!", at: T.say2, two: true, id: "2" },
 ];
 
+// A thought's cloud (user: thought bubbles, not speech): a ring of bumps,
+// stretched to fit its words; its line stays 3 px however it's stretched.
+const CLOUD = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="8 4 184 92" preserveAspectRatio="none"><path d="M100.0 14.0A18.6 18.6 0 0 1 130.8 16.3A15.7 15.7 0 0 1 156.3 22.3A18.6 18.6 0 0 1 183.0 38.0A14.3 14.3 0 0 1 183.1 61.8A18.4 18.4 0 0 1 156.7 77.5A18.3 18.3 0 0 1 126.9 84.3A15.8 15.8 0 0 1 100.7 86.0A18.5 18.5 0 0 1 69.9 83.8A15.7 15.7 0 0 1 44.4 77.9A19.2 19.2 0 0 1 16.8 61.8A14.6 14.6 0 0 1 17.5 37.4A18.1 18.1 0 0 1 43.6 22.4A16.2 16.2 0 0 1 69.9 16.2A18.1 18.1 0 0 1 100.0 14.0Z" fill="#fffdf6" stroke="#1d1610" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>');
+
 const CSS = `
 .den-trip { position: fixed; inset: 0; z-index: 1350; pointer-events: auto; background: transparent; }
 .den-trip canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .den-trip .black { position: absolute; inset: 0; background: #000; opacity: 0; }
-.den-trip .say { position: absolute; left: 7%; bottom: 16%; max-width: min(78vw, 420px); padding: 14px 20px 15px; background: #fffdf6;
-  color: #1d1610; border: 3px solid #1d1610; border-radius: 22px; box-shadow: 4px 5px 0 rgba(0,0,0,0.35);
-  font: 400 clamp(24px, 6.4vw, 36px)/1.12 'Patrick Hand', 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', cursive;
-  opacity: 0; transform: scale(0.6) rotate(-2deg); transform-origin: 12% 110%; transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 1.6, 0.4, 1); }
-.den-trip .say::after { content: ""; position: absolute; left: 28px; bottom: -22px; width: 26px; height: 24px; background: #fffdf6;
-  border-left: 3px solid #1d1610; border-bottom: 3px solid #1d1610; transform: skewX(-28deg) rotate(-12deg); border-bottom-left-radius: 6px; }
+.den-trip .say { position: absolute; left: 7%; bottom: 17%; max-width: min(80vw, 440px); padding: 26px 38px 28px; background: url("${CLOUD}") 0 0 / 100% 100% no-repeat;
+  color: #1d1610; filter: drop-shadow(4px 5px 0 rgba(0,0,0,0.35));
+  font: 400 clamp(24px, 6.4vw, 36px)/1.12 'Patrick Hand', 'Comic Neue', 'Comic Sans MS', 'Chalkboard SE', cursive; text-align: center;
+  opacity: 0; transform: scale(0.6) rotate(-2deg); transform-origin: 12% 120%; transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 1.6, 0.4, 1); }
+/* The thought's trail: two puffs, smaller toward the thinker. */
+.den-trip .say::before, .den-trip .say::after { content: ""; position: absolute; background: #fffdf6; border: 3px solid #1d1610; border-radius: 50%; box-sizing: border-box; }
+.den-trip .say::before { left: 30px; bottom: -22px; width: 27px; height: 22px; }
+.den-trip .say::after { left: 13px; bottom: -42px; width: 17px; height: 14px; }
 .den-trip .say.on { opacity: 1; transform: scale(1) rotate(-2deg); }
-.den-trip .say.two { left: auto; right: 7%; bottom: 20%; transform-origin: 88% 110%; }
-.den-trip .say.two::after { left: auto; right: 34px; transform: skewX(28deg) rotate(12deg); border-left: 0; border-right: 3px solid #1d1610; border-bottom-left-radius: 0; border-bottom-right-radius: 6px; }
+.den-trip .say.two { left: auto; right: 7%; bottom: 21%; transform-origin: 88% 120%; }
+.den-trip .say.two::before { left: auto; right: 34px; }
+.den-trip .say.two::after { left: auto; right: 18px; }
 .den-trip .say.two.on { transform: scale(1) rotate(1.5deg); }
 @media (prefers-reduced-motion: reduce) { .den-trip .say { transition: none; } }
 `;

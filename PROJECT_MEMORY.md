@@ -7170,3 +7170,10 @@ phone menu until "Start the story over" (which clears it).
     a button picks 1-3 by data-stroke (reality-gate.js strokeOf(name),
     a fixed hash per button; other themes ignore it) or, in the dock, by
     nth-child.
+- Trip back to Big Glutts (den-trip.js; user: "speech bubbles changed
+  into thought bubbles"): the three lines are thoughts now. A cloud (an
+  SVG ring of 14 bumps as the bubble's background, stretched to its
+  words, its 3 px line kept by vector-effect non-scaling-stroke) and a
+  trail of two puffs (::before / ::after) toward the thinker, mirrored for
+  the second side; drop-shadow filter instead of box-shadow so the shadow
+  follows the bumps. Same font, places, timings and test ids.
