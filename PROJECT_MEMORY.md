@@ -7205,7 +7205,7 @@ phone menu until "Start the story over" (which clears it).
   after a win it's as before. Its canvas carries data-side.
 
 - Parrish corner masthead badge during play: 20% more opaque (user),
-  0.22 -> 0.264, through a new optional theme.mastheadBadgeOpacity
+  0.22 -> 0.264, then 0.42 (user: "20 points ... instead"), through a new optional theme.mastheadBadgeOpacity
   (chassis falls back to the shared 0.22; other worlds unchanged).
 
 - Rules card heading: the chassis wraps "EL CABEZA" in span.ec-rules-title
