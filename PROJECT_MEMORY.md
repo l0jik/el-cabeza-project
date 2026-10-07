@@ -7325,7 +7325,7 @@ phone menu until "Start the story over" (which clears it).
   cards' set) down the left side and curving round the top (CSS bands plus
   an SVG corner of quarter arcs), then the friendly line and an ad: a rust
   starburst "Only $7.97", NEW! EL CABEZA, Games & Hobby Dept. · Aisle 9.
-- Parrish points: Walnut's are walnut (#8a5632 Orinoco, #a0653a Watermark;
+- Parrish points: each side the colour of its pieces. Walnut's walnut (#8a5632 Orinoco, #a0653a Watermark;
   were sun gold / candle amber), user: Ash's already looked like ash.
 
 - Undo move beside End turn above the points (user): turn-buttons-float
@@ -7345,3 +7345,6 @@ phone menu until "Start the story over" (which clears it).
   their marks: a curving arrow back on Undo, a green tick (#3FAE5A) on End
   turn. Parrish's pair a little tighter (12px, 0.11em) so it fits a phone
   clear of the corner piece.
+- ...and Ash's points the honey of the ash blocks (#d9b77e Orinoco, the side
+  swatch; #d4a86c Watermark), user: the cream (and Watermark's rose) didn't
+  look like the ash pieces.

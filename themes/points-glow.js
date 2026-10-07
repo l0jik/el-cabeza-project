@@ -18,10 +18,11 @@ export const POINTS_GLOW = {
   neon: { dark: "#4de8ff", light: "#ffb454" }, // its own glows
   lluvia: { dark: "#3fe6ff", light: "#ff4fa3" }, // signs in the rain
   cromo: { dark: "#8fcaff", light: "#f4f8ff" }, // a cold blue pilot light, chrome white
-  // (Walnut's points are walnut, user: "because the ash ones already look
-  // like ash"; they were sun gold and candle amber.)
-  "parrish-orinoco": { dark: "#8a5632", light: "#fff1d0" }, // walnut, sea-foam cream
-  "parrish-watermark": { dark: "#a0653a", light: "#ff8fa8" }, // walnut by the candle, rose wine
+  // (Each side's points the colour of its pieces, user: Walnut's walnut,
+  // and Ash's the honey of the ash blocks; they were sun gold and candle
+  // amber, sea-foam cream and rose wine.)
+  "parrish-orinoco": { dark: "#8a5632", light: "#d9b77e" }, // walnut, ash
+  "parrish-watermark": { dark: "#a0653a", light: "#d4a86c" }, // walnut and ash by the candle
   // Theme Lab
   swiss: { dark: "#e63946", light: "#ffffff" },
   bauhaus: { dark: "#d1362a", light: "#3f78ff" },
