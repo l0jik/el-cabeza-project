@@ -7203,3 +7203,7 @@ phone menu until "Start the story over" (which clears it).
 - The corner dock piece (bottom right) takes the colour of whoever's turn
   it is during a game (user: another whose-turn cue); before Begin and
   after a win it's as before. Its canvas carries data-side.
+
+- Parrish corner masthead badge during play: 20% more opaque (user),
+  0.22 -> 0.264, through a new optional theme.mastheadBadgeOpacity
+  (chassis falls back to the shared 0.22; other worlds unchanged).

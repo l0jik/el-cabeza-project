@@ -7527,7 +7527,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 // few seconds): the button lives inside this wrapper, so
                 // at 0.22 it was all but invisible. Comes up quickly,
                 // fades back at the usual pace.
-                opacity: infoBtnVisible ? 0.9 : 0.22,
+                // (theme.mastheadBadgeOpacity: a world's own, e.g.
+                // Parrish's 20% stronger, user.)
+                opacity: infoBtnVisible ? 0.9 : theme.mastheadBadgeOpacity != null ? theme.mastheadBadgeOpacity : 0.22,
                 /* "Behind the board" in spirit, not literal z-order —
                    the 3D canvas paints as one flat layer, so nothing
                    can sit behind its meshes while staying in front of
