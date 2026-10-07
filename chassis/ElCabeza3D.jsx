@@ -1557,6 +1557,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // Human there's no single "your side" either, so it stays whichever
   // color dockSessionColor derived as the OPPOSITE of this session's
   // randomly-rolled near side (see boardNearSide above).
+  const dockTurnSide = !awaitingBegin && !winner ? currentPlayer : null;
   useEffect(() => {
     const state = dockPieceRef.current;
     if (!state) return;
@@ -1566,7 +1567,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       c.geometry && c.geometry.dispose();
       c.material && c.material.dispose();
     }
-    const side = aiPlayer !== null ? (aiPlayer === "dark" ? "light" : "dark") : dockSessionColor;
+    // During a game it's whoever's turn it is (user: "another visual
+    // indicator ... as to whose turn it is"); before and after, as above.
+    const side = dockTurnSide || (aiPlayer !== null ? (aiPlayer === "dark" ? "light" : "dark") : dockSessionColor);
     const isDark = side === "dark";
     const meta = PIECE_META[dockSessionPieceType];
     const isDisc = meta.shape === "disc";
@@ -1673,7 +1676,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const HIT_TIGHTEN = 0.4;
     const ownFootprint = isDisc ? DISC_DIAM : Math.max(orientation.w, orientation.h, orientation.z);
     setDockHitFraction(HIT_TIGHTEN * Math.max(0.4, ownFootprint / DOCK_PIECE_LARGEST_DIM));
-  }, [aiPlayer, dockSessionColor, dockSessionPieceType, theme]);
+    if (state.renderer) state.renderer.domElement.dataset.side = side;
+  }, [aiPlayer, dockSessionColor, dockSessionPieceType, theme, dockTurnSide]);
 
   /* Mirrors the audio engine's own `windingDown` flag but at the
      component level: flips true once a win or a manual end fires, so
@@ -4372,21 +4376,42 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       };
     };
 
+    // Where each pivot arrow ends: the planted cube's centre and the
+    // angle of the arm's end after the turn.
+    const pivotEnd = (cand) => {
+      const pc = pivotCellOf(cand);
+      const arm = pivotArmPoint(cand);
+      const center = {
+        x: (pc.col + 0.5) * SQUARE_SIZE - OFF_X,
+        z: (pc.row + 0.5) * SQUARE_SIZE - OFF_Z,
+      };
+      const ax = arm.col * SQUARE_SIZE - OFF_X - center.x;
+      const az = arm.row * SQUARE_SIZE - OFF_Z - center.z;
+      return { center, ax, az, toAngle: Math.atan2(az, ax) };
+    };
+    /* A piece that reaches out both ways alike lands on the same squares
+       turned either way, so both arrows ended at the same spot and their
+       heads met (user). Then each goes across one end of the piece
+       instead (user: "one could be on the other side of the piece"): the
+       clockwise one across one tip, the anticlockwise one across the
+       other, each the way that tip would go. `tip`: the angle of the tip
+       the clockwise arrow crosses (where its arm starts). */
+    const pivotMoves = Object.fromEntries(shadowEntries.filter(([, m]) => m.isPivot).map(([d, m]) => [d, m]));
+    let tip = null;
+    if (pivotMoves["pivot-cw"] && pivotMoves["pivot-ccw"]) {
+      const a = pivotEnd(pivotMoves["pivot-cw"].candidate).toAngle, b = pivotEnd(pivotMoves["pivot-ccw"].candidate).toAngle;
+      if (Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) < 0.6) tip = a - Math.PI / 2;
+    }
+
     shadowEntries.forEach(([dir, move]) => {
       // Cantilever Pivot: a curved arrow round the planted cube instead
       // of a square marker (see buildPivotArrow).
       if (move.isPivot) {
         const cand = move.candidate;
-        const pc = pivotCellOf(cand);
-        const arm = pivotArmPoint(cand);
-        const center = {
-          x: (pc.col + 0.5) * SQUARE_SIZE - OFF_X,
-          z: (pc.row + 0.5) * SQUARE_SIZE - OFF_Z,
-        };
-        const ax = arm.col * SQUARE_SIZE - OFF_X - center.x;
-        const az = arm.row * SQUARE_SIZE - OFF_Z - center.z;
-        const toAngle = Math.atan2(az, ax);
         const cw = dir === "pivot-cw";
+        const { center, ax, az } = pivotEnd(cand);
+        const across = tip === null ? null : cw ? tip : tip + Math.PI;
+        const toAngle = across === null ? pivotEnd(cand).toAngle : across + (cw ? Math.PI / 4 : -Math.PI / 4);
         const arrow = buildPivotArrow({
           center,
           radius: Math.hypot(ax, az),

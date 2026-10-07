@@ -7192,3 +7192,14 @@ phone menu until "Start the story over" (which clears it).
   TERRACE_TRIM = 0.7 gain (natureBus and the open-air verb), so its slider
   at 100% is 70% of what it was; the opening and the close on that slider
   are untouched, and Watermark's evening is unchanged.
+
+- Pivot arrows for a piece that reaches out both ways alike (Cruce on its
+  stem, etc.): both turns land on the same squares, so the two arrows
+  ended at one spot and their heads collided (user). Now (chassis, the
+  pivot block in the ghost markers) when the cw and ccw arm ends agree,
+  each arrow crosses one tip of the piece instead: cw across one end, ccw
+  across the other, each pointing the way that tip swings (user chose
+  "opposite ends"). Other pieces unchanged.
+- The corner dock piece (bottom right) takes the colour of whoever's turn
+  it is during a game (user: another whose-turn cue); before Begin and
+  after a win it's as before. Its canvas carries data-side.
