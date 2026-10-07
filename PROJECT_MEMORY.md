@@ -7334,3 +7334,8 @@ phone menu until "Start the story over" (which clears it).
   stop-here-float, only with the points showing. Parrish paints Undo in the
   same stroke in the menus' paper (Watermark: a pale wash over it, else it
   vanished on the dark). e2e-costs checks it takes the move back.
+- The Try it! flyer on supercalendered (SC/LWC) stock (user): a bright,
+  smooth sheet (no paper texture, a faint fall-off), thin (a close crisp
+  shadow, no border), a gloss across it that glints over as it lands (a
+  ::after sheen, tdGlint) and a fine halftone screen over the printed
+  colours (the stripes, the corner, the starburst).

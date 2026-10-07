@@ -93,10 +93,29 @@ function noteHeld() {
    goes on by itself after TRY_IT_MS (or a tap once it's free). */
 const TRY_IT_MS = 5200, TRY_IT_HOLD_MS = 1500;
 const TRY_IT_CSS = `
+  /* Printed on supercalendered stock (user: SC / lightweight coated, the
+     glossy circulars' paper: pressed smooth and shiny between hot
+     rollers): a bright, even sheet with no tooth, thin (a crisp, close
+     shadow, the faintest curl), the colours laid down in a fine halftone
+     screen, and a gloss across it that catches the light as it lands. */
   .td-tryit { position: fixed; left: 50%; top: 50%; z-index: 1260; width: min(88vw, 370px); box-sizing: border-box;
-    transform: translate(-50%, -50%) rotate(-1.2deg); padding: 0 18px 16px 62px; background: #F1E7CC; color: #2E2118;
-    border: 1px solid rgba(46,33,24,0.5); box-shadow: 0 14px 40px rgba(10,6,3,0.5); text-align: left; cursor: pointer;
+    transform: translate(-50%, -50%) rotate(-1.2deg); padding: 0 18px 16px 62px; color: #2A1D14;
+    background: linear-gradient(176deg, #FBF8F0 0%, #F6F1E5 60%, #EFE8D8 100%);
+    border: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.7), 0 1px 2px rgba(10,6,3,0.35), 0 10px 26px rgba(10,6,3,0.42); text-align: left; cursor: pointer;
     font: 400 14.5px/1.42 'Courier Prime', 'Courier New', Courier, monospace; animation: tdTryIn 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+  .td-tryit::after { content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background:
+      linear-gradient(118deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.3) 41%, rgba(255,255,255,0.08) 46%, rgba(255,255,255,0) 56%) 0 0 / 260% 100% no-repeat,
+      radial-gradient(ellipse 70% 45% at 78% 8%, rgba(255,255,255,0.32), rgba(255,255,255,0) 70%),
+      linear-gradient(90deg, rgba(0,0,0,0.035), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.05));
+    animation: tdGlint 1.1s cubic-bezier(0.3, 0.1, 0.3, 1) 0.3s both; }
+  @keyframes tdGlint { from { background-position: 100% 0, 0 0, 0 0; } to { background-position: 4% 0, 0 0, 0 0; } }
+  /* The halftone: the printed colour's dots, fine (a dense screen). */
+  .td-tryit .sv, .td-tryit .sh, .td-tryit .burst { isolation: isolate; }
+  .td-tryit .sv::after, .td-tryit .sh::after, .td-tryit .burst::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(circle, rgba(255,250,235,0.17) 0.55px, rgba(255,250,235,0) 0.95px) 0 0 / 2.6px 2.6px; }
+  .td-tryit .scd { position: absolute; left: 10px; top: 10px; width: 59px; height: 59px; pointer-events: none;
+    background: radial-gradient(circle, rgba(255,250,235,0.17) 0.55px, rgba(255,250,235,0) 0.95px) 0 0 / 2.6px 2.6px; }
   /* The logo's stripes: four of them, the earth tones, down the left side
      and round the corner along the top. */
   .td-tryit .sv { position: absolute; left: 10px; top: 69px; bottom: 10px; width: 35px;
@@ -114,7 +133,7 @@ const TRY_IT_CSS = `
   .td-tryit .ad { display: flex; align-items: center; gap: 12px; margin: 2px 0 10px; }
   .td-tryit .ad .what { font: 700 12px/1.3 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.04em; }
   .td-tryit .ad .what small { display: block; font-weight: 500; opacity: 0.75; letter-spacing: 0.06em; }
-  .td-tryit .burst { flex: 0 0 auto; width: 80px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  .td-tryit .burst { position: relative; flex: 0 0 auto; width: 80px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center;
     background: #B4451F; color: #F2EBD7; transform: rotate(-8deg); text-align: center; line-height: 1;
     clip-path: polygon(50% 0, 61% 12%, 77% 6%, 80% 22%, 96% 26%, 90% 41%, 100% 54%, 88% 64%, 92% 80%, 76% 82%, 70% 97%, 55% 89%, 42% 100%, 34% 86%, 18% 92%, 16% 76%, 2% 70%, 10% 56%, 0 43%, 12% 33%, 8% 17%, 24% 16%, 30% 2%, 43% 11%); }
   .td-tryit .burst small { font: 800 9px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; }
@@ -124,7 +143,7 @@ const TRY_IT_CSS = `
   .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg); pointer-events: none; }
   @keyframes tdTryIn { from { opacity: 0; transform: translate(-50%, -40%) rotate(-4deg) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-1.2deg); } }
   @keyframes tdTryGo { to { opacity: 0.75; } }
-  @media (prefers-reduced-motion: reduce) { .td-tryit, .td-tryit .go { animation: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .td-tryit, .td-tryit .go, .td-tryit::after { animation: none; opacity: 1; } }
 `;
 const IDLE_NUDGE_MS = 30000;
 const NUDGE_GROW_MS = 90000;
@@ -385,7 +404,7 @@ export function useSetupExtras(x) {
       card.setAttribute("data-testid", "tienda-try-it");
       // A 1970s flyer (user): Big Glutts' logo, the four earth-tone stripes
       // down the side and round the top, and an ad for the game.
-      card.innerHTML = '<span class="sv"></span>' + '<svg class="sc" viewBox="0 0 59 59" aria-hidden="true"><path d="M4 59 A55 55 0 0 1 59 4" fill="none" stroke="#6B3A1E" stroke-width="8"/><path d="M13 59 A46 46 0 0 1 59 13" fill="none" stroke="#B4451F" stroke-width="8"/><path d="M22 59 A37 37 0 0 1 59 22" fill="none" stroke="#E07B22" stroke-width="8"/><path d="M31 59 A28 28 0 0 1 59 31" fill="none" stroke="#E9B23A" stroke-width="8"/></svg>' + '<span class="sh"></span>'
+      card.innerHTML = '<span class="sv"></span>' + '<svg class="sc" viewBox="0 0 59 59" aria-hidden="true"><path d="M4 59 A55 55 0 0 1 59 4" fill="none" stroke="#6B3A1E" stroke-width="8"/><path d="M13 59 A46 46 0 0 1 59 13" fill="none" stroke="#B4451F" stroke-width="8"/><path d="M22 59 A37 37 0 0 1 59 22" fill="none" stroke="#E07B22" stroke-width="8"/><path d="M31 59 A28 28 0 0 1 59 31" fill="none" stroke="#E9B23A" stroke-width="8"/></svg>' + '<span class="scd"></span><span class="sh"></span>'
         + '<div class="logo"><b>Big Glutts</b><span>Discount Department Store</span></div>'
         + '<hr>'
         + '<b class="say">So you\u2019d like to try it, eh?</b>'
