@@ -7433,3 +7433,24 @@ phone menu until "Start the story over" (which clears it).
   blurred 0.18 px (an SVG filter in the mask), the body of the sheet crisp.
   On a sharp phone screen the old crisp triangles read as a sawtooth; the
   enlarged screenshot had softened them.
+- The flyer's picture is now the user's photograph (a family in the store
+  at the holidays, Dad holding up the boxed El Cabeza, the children
+  gasping; its signs "GIFTS for the Entire Family", "QUALITY VALUES for the
+  HOLIDAYS"): assets/tienda/src/flyer-photo-source.jpg kept, printed for
+  the SC paper by tools/tienda_flyer_photo.py (blacks held at about the
+  stock's density, a touch flatter and warmer, plates a hair out of
+  register) to assets/tienda/flyer-photo.jpg. My drawn family (and its
+  tool, renderer and font) is gone; it's in git at 5ca5358 if wanted.
+- Six versions of the flyer round it (user: "Give me six different
+  versions"), ?flyer=1-6 in the address (flyerVersion; 1 when none), each
+  .sheet.vN with its own markup (flyerHtml) on the same paper:
+  1 the circular (side stripes, photo across, two items, a foot rule),
+  2 the starburst (brown masthead, "The gift they'll gasp about!", a
+  price burst on the photo's corner), 3 the catalog page (Wish Book
+  running head, Bodoni italic caption, item letters, 74 N 1975 with dot
+  leaders, $7.97), 4 holiday values (the photo's own red sign with a
+  green edge, a hang tag on the corner), 5 the coupon (dashed clip-out,
+  "Cash value 1/20 of 1¢"), 6 the cover (photo full bleed, the store's
+  name on it, prices reversed out of brown). e2e-try-it's price match
+  now allows "$7.97" as well as the raised cents. When the user picks
+  one, it becomes the only one (drop the rest and ?flyer=).

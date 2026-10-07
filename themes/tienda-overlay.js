@@ -38,9 +38,10 @@ import boxArtUrl from "../assets/tienda/box-art.jpg";
 // the print, the ink's missing dots and the fold's cracks screened over it.
 import flyerPaperUrl from "../assets/tienda/flyer-paper.webp";
 import flyerInkUrl from "../assets/tienda/flyer-ink.webp";
-// The flyer's picture (tools/tienda_flyer_family.py): a 1975 family fawning
-// over the boxed game (user).
-import flyerFamilyUrl from "../assets/tienda/flyer-family.jpg";
+// The flyer's photograph (the user's: a family at the holidays, Dad holding
+// up the boxed game, the children agog; tools/tienda_flyer_photo.py prints
+// it for the flyer's paper).
+import flyerPhotoUrl from "../assets/tienda/flyer-photo.jpg";
 import { TRY_IT_EVENT } from "./tienda-fx.js";
 import { singularitySeen, onJourneyChange, isCommercialOn, CLASSIC_PIECE_KEYS, specialOrderNoted, markSpecialOrderNoted, isSceneLink } from "../engine/journey.js";
 
@@ -120,7 +121,7 @@ const TRY_IT_CSS = `
     filter: drop-shadow(0 1px 1px rgba(10,6,3,0.4)) drop-shadow(0 9px 14px rgba(10,6,3,0.32));
     animation: tdTryIn 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
   /* The sheet itself, its edges cut (flyerMask: its mask, made at its size). */
-  .td-tryit .sheet { --fold: 47%; position: relative; box-sizing: border-box; padding: 0 0 0 62px; color: #2A1D14;
+  .td-tryit .sheet { --fold: 47%; position: relative; box-sizing: border-box; padding: 0; color: #2A1D14;
     background: #FFFFFF;
     font: 400 14.5px/1.42 'Courier Prime', 'Courier New', Courier, monospace;
     -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
@@ -147,41 +148,134 @@ const TRY_IT_CSS = `
       linear-gradient(90deg, rgba(0,0,0,0.03), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.04));
     animation: tdGlint 1.1s cubic-bezier(0.3, 0.1, 0.3, 1) 0.3s both; }
   @keyframes tdGlint { from { background-position: 100% 0, 0 0, 0 0, 0 0, 0 0; } to { background-position: 4% 0, 0 0, 0 0, 0 0, 0 0; } }
-  /* The logo's stripes: four of them, the earth tones, down the left side
-     and round the corner along the top. */
-  .td-tryit .sv { position: absolute; left: 10px; top: 69px; bottom: 10px; width: 35px;
-    background: linear-gradient(90deg, #6B3A1E 0 8px, transparent 8px 9px, #B4451F 9px 17px, transparent 17px 18px, #E07B22 18px 26px, transparent 26px 27px, #E9B23A 27px 35px); }
-  .td-tryit .sc { position: absolute; left: 10px; top: 10px; width: 59px; height: 59px; }
-  .td-tryit .sh { position: absolute; left: 69px; right: 10px; top: 10px; height: 35px;
-    background: linear-gradient(180deg, #6B3A1E 0 8px, transparent 8px 9px, #B4451F 9px 17px, transparent 17px 18px, #E07B22 18px 26px, transparent 26px 27px, #E9B23A 27px 35px); }
-  .td-tryit .logo { padding: 54px 24px 0 0; }
-  .td-tryit .logo b { display: block; font: 400 36px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; letter-spacing: 0.01em;
-    text-shadow: 2px 2px 0 #E9B23A; }
+  /* The pieces the versions share: the store's lettering, an item's bold
+     heading, a big price (the cents raised and underlined, "EA." under
+     them), a line of small print, the photograph, the earth-tone stripes. */
+  .td-tryit .logo b { display: block; font: 400 36px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; letter-spacing: 0.01em; text-shadow: 2px 2px 0 #E9B23A; }
   .td-tryit .logo span { display: block; margin-top: 6px; font: 800 10.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #B4451F; }
-  /* The ad, set as the period's department-store circulars (the user's
-     reference): a column of items down the left, each a bold heading, a
-     big price with its cents raised and "EA." beside, a line of small
-     print; the picture down the right to the sheet's edge (the family
-     fawning over the box, tools/tienda_flyer_family.py: drawn as the
-     period's ads drew families, printed on the sheet, its top kept). */
-  .td-tryit .ad2 { display: grid; grid-template-columns: minmax(0, 1fr) 47%; margin-top: 12px; border-top: 2px solid #17110c; }
-  .td-tryit .col { padding: 10px 10px 14px 0; display: flex; flex-direction: column; }
-  .td-tryit .item { margin: 0 0 11px; }
-  .td-tryit .item h4 { margin: 0; font: 800 17px/1.03 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif; letter-spacing: -0.015em; color: #17110c; }
-  .td-tryit .item h4.sm { font-size: 14px; }
+  .td-tryit .item h4 { margin: 0; font: 800 16px/1.04 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif; letter-spacing: -0.015em; color: #17110c; }
   .td-tryit .pr { display: flex; align-items: flex-start; margin: 4px 0 3px; font-family: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif; font-weight: 900; color: #17110c; line-height: 0.82; }
-  .td-tryit .pr .d { font-size: 19px; margin-top: 3px; }
-  .td-tryit .pr .n { font-size: 46px; letter-spacing: -0.035em; }
-  .td-tryit .pr .n.w { font-size: 33px; letter-spacing: -0.02em; }
-  .td-tryit .pr .c { font-size: 19px; margin: 1px 0 0 1px; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
+  .td-tryit .pr .d { font-size: 18px; margin-top: 3px; }
+  .td-tryit .pr .n { font-size: 42px; letter-spacing: -0.035em; }
+  .td-tryit .pr .n.w { font-size: 31px; letter-spacing: -0.02em; }
+  .td-tryit .pr .c { font-size: 18px; margin: 1px 0 0 1px; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
   .td-tryit .pr .ea { align-self: flex-end; margin: 0 0 3px 3px; font-size: 9px; font-weight: 800; letter-spacing: 0.04em; line-height: 1.05; }
-  /* (The cents raised, "EA." under them, as the ad has it.) */
   .td-tryit .pr .ce { display: flex; flex-direction: column; align-items: flex-start; }
   .td-tryit .pr .ce .ea { align-self: flex-start; margin: 5px 0 0 3px; }
   .td-tryit .item p { margin: 3px 0 0; font: 600 11.5px/1.22 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
-  .td-tryit .photo { position: relative; background: #F0C55A center top / cover no-repeat; }
-  .td-tryit .go { display: block; margin-top: auto; text-align: left; font: 700 11px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0;
+  .td-tryit .photo { position: relative; background: #7a5a3e 50% 30% / cover no-repeat; }
+  .td-tryit .stripes { display: flex; flex-direction: column; gap: 1px; }
+  .td-tryit .stripes i { display: block; height: 6px; }
+  .td-tryit .stripes i:nth-child(1) { background: #6B3A1E; } .td-tryit .stripes i:nth-child(2) { background: #B4451F; }
+  .td-tryit .stripes i:nth-child(3) { background: #E07B22; } .td-tryit .stripes i:nth-child(4) { background: #E9B23A; }
+  .td-tryit .go { display: block; margin-top: 8px; text-align: left; font: 700 11px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0;
     animation: tdTryGo 0.5s ease ${TRY_IT_HOLD_MS}ms both; }
+
+  /* Version 1, the circular: the stripes down the side and round the top,
+     the store's name, the photograph across the sheet, the two items side
+     by side under it. */
+  .td-tryit .v1 { padding: 0 14px 0 62px; }
+  .td-tryit .v1 .sv { position: absolute; left: 10px; top: 69px; bottom: 10px; width: 35px;
+    background: linear-gradient(90deg, #6B3A1E 0 8px, transparent 8px 9px, #B4451F 9px 17px, transparent 17px 18px, #E07B22 18px 26px, transparent 26px 27px, #E9B23A 27px 35px); }
+  .td-tryit .v1 .sc { position: absolute; left: 10px; top: 10px; width: 59px; height: 59px; }
+  .td-tryit .v1 .sh { position: absolute; left: 69px; right: 10px; top: 10px; height: 35px;
+    background: linear-gradient(180deg, #6B3A1E 0 8px, transparent 8px 9px, #B4451F 9px 17px, transparent 17px 18px, #E07B22 18px 26px, transparent 26px 27px, #E9B23A 27px 35px); }
+  .td-tryit .v1 .logo { padding: 54px 10px 0 0; }
+  .td-tryit .v1 .photo { margin-top: 12px; aspect-ratio: 1.42; border-top: 2px solid #17110c; }
+  .td-tryit .v1 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+  .td-tryit .v1 .foot { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; padding: 7px 0 13px; border-top: 1px solid #17110c; font: 800 11.5px/1 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v1 .foot .go { margin: 0; }
+
+  /* Version 2, the starburst: a brown masthead with the stripes under it,
+     a headline, the photograph with a price burst over its corner. */
+  .td-tryit .v2 { padding: 0 0 14px; }
+  .td-tryit .v2 .band { background: #6B3A1E; padding: 16px 16px 11px; }
+  .td-tryit .v2 .band b { display: block; font: 400 34px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #F2C14E; text-shadow: 2px 2px 0 #2A170C; }
+  .td-tryit .v2 .band span { display: block; margin-top: 6px; font: 800 10px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #F4E6C4; }
+  .td-tryit .v2 .stripes i:nth-child(1) { display: none; }
+  .td-tryit .v2 .head { margin: 10px 14px 8px; font: 400 24px/1.02 'Caprasimo', 'Cooper Black', Georgia, serif; color: #B4451F; text-align: center; text-wrap: balance; }
+  .td-tryit .v2 .pic { position: relative; margin: 0 14px; }
+  .td-tryit .v2 .photo { aspect-ratio: 1.4; border: 2px solid #17110c; }
+  .td-tryit .v2 .burst { position: absolute; right: -12px; bottom: -40px; width: 122px; height: 122px; transform: rotate(-9deg); }
+  .td-tryit .v2 .burst svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .td-tryit .v2 .burst .bt { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 4px; }
+  .td-tryit .v2 .burst em { font: 900 12px/1 'Libre Franklin', Arial, sans-serif; font-style: normal; letter-spacing: 0.12em; color: #FFF3D6; }
+  .td-tryit .v2 .burst .pr { color: #FFF3D6; margin: 3px 0 0; }
+  .td-tryit .v2 .burst .pr .n { font-size: 40px; }
+  .td-tryit .v2 .copy { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 14px 0; padding-right: 0; }
+  .td-tryit .v2 .copy .item:first-child { padding-right: 96px; grid-column: 1 / -1; }
+  .td-tryit .v2 .go { margin: 10px 14px 0; }
+
+  /* Version 3, the catalog page (the holiday Wish Book's): a running
+     head, the photograph and its caption, the listing with its item
+     letter, catalog number, dot leaders and price. */
+  .td-tryit .v3 { padding: 14px 16px 13px; }
+  .td-tryit .v3 .runhead { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 6px; border-bottom: 3px double #17110c; font: 700 9.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #2A1D14; }
+  .td-tryit .v3 .runhead b { font: 400 19px/1 'Caprasimo', 'Cooper Black', Georgia, serif; letter-spacing: 0; text-transform: none; color: #6B3A1E; }
+  .td-tryit .v3 .photo { margin-top: 10px; aspect-ratio: 1.2; }
+  .td-tryit .v3 .cap { margin: 7px 0 9px; font: italic 500 13.5px/1.25 'Bodoni Moda', Didot, Georgia, serif; color: #2A1D14; }
+  .td-tryit .v3 .lead { margin: 0 0 5px; font: 500 11.5px/1.32 'Libre Franklin', Arial, sans-serif; color: #2A1D14; }
+  .td-tryit .v3 .lead .k { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-right: 5px; border-radius: 50%; background: #17110c; color: #F4E6C4; font: 800 9.5px/1 'Libre Franklin', Arial, sans-serif; vertical-align: 1px; }
+  .td-tryit .v3 .lead strong { font-weight: 800; color: #17110c; }
+  .td-tryit .v3 .row { display: flex; align-items: baseline; margin: 3px 0 11px; font: 700 12px/1 'Courier Prime', 'Courier New', monospace; color: #17110c; }
+  .td-tryit .v3 .row i { flex: 1; margin: 0 6px; border-bottom: 2px dotted #17110c; transform: translateY(-3px); }
+  .td-tryit .v3 .row .each { font: 700 11px/1 'Libre Franklin', Arial, sans-serif; margin-right: 5px; }
+  .td-tryit .v3 .row .amt { font: 900 23px/1 'Libre Franklin', Arial, sans-serif; color: #A8322B; letter-spacing: -0.02em; }
+
+  /* Version 4, holiday values: the store's holiday sign as it hangs in
+     the photograph (red, cream lettering, a green edge), the photograph
+     framed, a price tag hung on its corner. */
+  .td-tryit .v4 { padding: 12px 14px 13px; }
+  .td-tryit .v4 .top { display: flex; align-items: center; gap: 10px; }
+  .td-tryit .v4 .top b { font: 400 22px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; text-shadow: 1.5px 1.5px 0 #E9B23A; white-space: nowrap; }
+  .td-tryit .v4 .top .stripes { flex: 1; } .td-tryit .v4 .top .stripes i { height: 4px; }
+  .td-tryit .v4 .sign { margin: 11px 4px 0; padding: 8px 10px 10px; text-align: center; background: #A8322B; color: #F6EBD2; border: 3px solid #F6EBD2; border-radius: 28px / 18px; box-shadow: 0 0 0 3px #2E5A3C; }
+  .td-tryit .v4 .sign b { display: block; font: 400 30px/1 'Caprasimo', 'Cooper Black', Georgia, serif; }
+  .td-tryit .v4 .sign span { display: block; margin-top: 2px; font: 400 18px/1.05 'Caprasimo', 'Cooper Black', Georgia, serif; }
+  .td-tryit .v4 .pic { position: relative; margin-top: 15px; }
+  .td-tryit .v4 .photo { aspect-ratio: 1.28; border-radius: 10px; border: 3px solid #F6EBD2; box-shadow: 0 0 0 2px #2E5A3C; }
+  .td-tryit .v4 .tag { position: absolute; right: 2px; bottom: -70px; width: 98px; box-sizing: border-box; padding: 17px 8px 8px; text-align: center; background: #F3E7C8; border: 2px solid #17110c; border-radius: 5px 5px 7px 7px; transform: rotate(7deg); }
+  .td-tryit .v4 .tag::before { content: ""; position: absolute; left: 50%; top: 5px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: #2A1D14; }
+  .td-tryit .v4 .tag::after { content: ""; position: absolute; left: 50%; bottom: 100%; width: 1.5px; height: 30px; margin-bottom: -9px; background: #2E5A3C; transform: rotate(-24deg); transform-origin: bottom; }
+  .td-tryit .v4 .tag small { display: block; font: 900 10px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.12em; color: #A8322B; }
+  .td-tryit .v4 .tag span { display: block; margin-top: 3px; font: 800 11px/1.1 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v4 .tag .pr { justify-content: center; margin: 4px 0 0; }
+  .td-tryit .v4 .tag .pr .n { font-size: 34px; }
+  .td-tryit .v4 .copy { margin-top: 12px; padding-right: 108px; }
+
+  /* Version 5, the coupon: clip it and bring it in (a free game; its cash
+     value, as the coupons said, a twentieth of a cent). */
+  .td-tryit .v5 { padding: 11px 12px 13px; }
+  .td-tryit .v5 .clip { display: flex; align-items: center; gap: 6px; margin: 0 2px 6px; font: 800 9.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #2A1D14; }
+  .td-tryit .v5 .clip svg { width: 20px; height: 13px; flex: none; }
+  .td-tryit .v5 .coupon { border: 2px dashed #17110c; padding: 10px; }
+  .td-tryit .v5 .stripes i { height: 5px; }
+  .td-tryit .v5 .chead { text-align: center; margin: 9px 0 8px; }
+  .td-tryit .v5 .chead b { display: block; font: 400 30px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; text-shadow: 2px 2px 0 #E9B23A; }
+  .td-tryit .v5 .chead span { display: block; margin-top: 5px; font: 800 9.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #B4451F; }
+  .td-tryit .v5 .photo { aspect-ratio: 1.35; }
+  .td-tryit .v5 .cbody { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; margin-top: 10px; }
+  .td-tryit .v5 .worth { margin-top: 5px; font: 900 12.5px/1.12 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.02em; color: #A8322B; text-transform: uppercase; }
+  .td-tryit .v5 .box { border: 3px solid #17110c; padding: 6px 8px 6px; text-align: center; }
+  .td-tryit .v5 .box small { display: block; font: 800 9.5px/1.1 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v5 .box .pr { justify-content: center; margin: 4px 0 0; }
+  .td-tryit .v5 .box .pr .n { font-size: 38px; }
+  .td-tryit .v5 .fine { margin: 9px 0 0; font: italic 500 10px/1.25 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
+
+  /* Version 6, the cover: the photograph full bleed across the top with
+     the store's name on it, the stripes, the prices reversed out of a
+     brown block. */
+  .td-tryit .v6 .cover { position: relative; }
+  .td-tryit .v6 .photo { aspect-ratio: 1.2; }
+  .td-tryit .v6 .mast { position: absolute; left: 0; right: 0; bottom: 0; padding: 34px 14px 10px; background: linear-gradient(180deg, rgba(42,23,12,0), rgba(42,23,12,0.8) 58%); }
+  .td-tryit .v6 .mast b { display: block; font: 400 34px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #F2C14E; text-shadow: 2px 2px 0 #2A170C; }
+  .td-tryit .v6 .mast span { display: block; margin-top: 5px; font: 800 10px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #F4E6C4; }
+  .td-tryit .v6 .block { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 14px 15px; background: #3B2618; }
+  .td-tryit .v6 .block h4 { color: #F4E6C4; }
+  .td-tryit .v6 .block .pr { color: #F2C14E; }
+  .td-tryit .v6 .block p { color: #E9DCC0; }
+  .td-tryit .v6 .dept { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px; border-top: 1px solid rgba(244,230,196,0.45); font: 800 11.5px/1 'Libre Franklin', Arial, sans-serif; color: #F4E6C4; }
+  .td-tryit .v6 .dept .go { margin: 0; color: #F4E6C4; }
   .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg); pointer-events: none; }
   @keyframes tdTryIn { from { opacity: 0; transform: translate(-50%, -40%) rotate(-4deg) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-1.2deg); } }
   @keyframes tdTryGo { to { opacity: 0.75; } }
@@ -220,6 +314,79 @@ function flyerMask(w, h) {
     + '<rect y="' + f(D * 2) + '" width="' + w + '" height="' + f(h - D * 4) + '"/>'
     + '<path filter="url(#soft)" d="' + top + '"/><path filter="url(#soft)" d="' + bottom + '"/></svg>';
   return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
+}
+/* The flyer's versions (user: "This is the image that you will incorporate
+   into the advertising flyer. Give me six different versions."), each
+   round the user's photograph, on the same paper: ?flyer=1-6 in the
+   address picks one (1 when there's none). Every one says the store's
+   word ("So you'd like to try it, eh?"), the price ($7.97) and Let's play. */
+const FLYER_VERSIONS = 6;
+function flyerVersion() {
+  try {
+    const v = Math.floor(Number(new URLSearchParams(window.location.search).get("flyer")));
+    if (v >= 1 && v <= FLYER_VERSIONS) return v;
+  } catch (e) { /* no address */ }
+  return 1;
+}
+// A starburst's points: n points, inner and outer radius, round 50,50.
+function burstPoints(n, r0, r1) {
+  const pts = [];
+  for (let i = 0; i < n * 2; i++) {
+    const a = (Math.PI * i) / n - Math.PI / 2, r = i % 2 ? r0 : r1;
+    pts.push((50 + r * Math.cos(a)).toFixed(1) + "," + (50 + r * Math.sin(a)).toFixed(1));
+  }
+  return pts.join(" ");
+}
+function flyerHtml(v) {
+  const PHOTO = '<div class="photo" role="img" aria-label="A family in the store at the holidays, the father holding up a boxed El Cabeza, the children gasping"></div>';
+  const STRIPES = '<div class="stripes"><i></i><i></i><i></i><i></i></div>';
+  const PRICE = '<div class="pr"><span class="d">$</span><span class="n">7</span><span class="ce"><span class="c">97</span><span class="ea">EA.</span></span></div>';
+  const FREE = '<div class="pr"><span class="n w">FREE</span><span class="ea">TO<br>PLAY</span></div>';
+  const GO = '<span class="go">Let’s play ›</span>';
+  const TRY = "So you’d like to try it, eh?";
+  const FRIEND = "Go right ahead, friend. The demonstration set’s all yours.";
+  const GAME = "The Game of Unparalleled Intention. Hardwood board and ten pieces, walnut and ash.";
+  const NEW = "NEW! El Cabeza game set";
+  if (v === 2) {
+    return '<div class="band"><b>Big Glutts</b><span>Discount Department Store</span></div>' + STRIPES
+      + '<h3 class="head">The gift they’ll gasp about!</h3>'
+      + '<div class="pic">' + PHOTO + '<div class="burst"><svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="' + burstPoints(16, 38, 49) + '" fill="#B4451F" stroke="#17110c" stroke-width="2" stroke-linejoin="round"/><polygon points="' + burstPoints(16, 31, 40) + '" fill="#C9541F"/></svg><div class="bt"><em>NEW!</em>' + PRICE + '</div></div></div>'
+      + '<div class="copy"><div class="item"><h4>' + NEW + '</h4><p>' + GAME + '</p></div>'
+      + '<div class="item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + '</p></div>'
+      + '<div class="item"><h4>Games &amp; Hobby Dept.</h4><p>Aisle 9. Open late till Christmas.</p></div></div>' + GO;
+  }
+  if (v === 3) {
+    return '<div class="runhead"><b>Big Glutts</b><span>Holiday Gift Catalog</span><span>Page 74</span></div>' + PHOTO
+      + '<p class="cap">Christmas came early at our house. “Can we play it tonight?”</p>'
+      + '<p class="lead"><span class="k">A</span><strong>' + NEW + '.</strong> ' + GAME + ' For 2 players, ages 10 to adult.</p>'
+      + '<p class="row"><span>74 N 1975</span><i></i><span class="each">Each</span><span class="amt">$7.97</span></p>'
+      + '<p class="lead"><span class="k">B</span><strong>' + TRY + '</strong> Go right ahead, friend: the demonstration set’s all yours, free to play, in the Games &amp; Hobby Dept., Aisle 9.</p>' + GO;
+  }
+  if (v === 4) {
+    return '<div class="top"><b>Big Glutts</b>' + STRIPES + '</div>'
+      + '<div class="sign"><b>Holiday</b><span>Gift Values</span></div>'
+      + '<div class="pic">' + PHOTO + '<div class="tag"><small>NEW!</small><span>El Cabeza game set</span>' + PRICE + '</div></div>'
+      + '<div class="copy item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + ' ' + GAME + ' Games &amp; Hobby Dept., Aisle 9.</p></div>' + GO;
+  }
+  if (v === 5) {
+    const scissors = '<svg viewBox="0 0 20 13" aria-hidden="true"><circle cx="3.5" cy="3.2" r="2.4" fill="none" stroke="#17110c" stroke-width="1.4"/><circle cx="3.5" cy="9.8" r="2.4" fill="none" stroke="#17110c" stroke-width="1.4"/><path d="M5.6 4.4 19 10.6M5.6 8.6 19 2.4" stroke="#17110c" stroke-width="1.4" stroke-linecap="round"/></svg>';
+    return '<div class="clip">' + scissors + 'Clip and save</div>'
+      + '<div class="coupon">' + STRIPES + '<div class="chead"><b>Big Glutts</b><span>Discount Department Store</span></div>' + PHOTO
+      + '<div class="cbody"><div class="item"><h4>' + TRY + '</h4><div class="worth">This coupon good for one game, free to play</div><p>' + FRIEND + '</p></div>'
+      + '<div class="box"><small>NEW! El Cabeza<br>game set</small>' + PRICE + '</div></div>'
+      + '<p class="fine">' + GAME + ' At the demonstration table, Games &amp; Hobby Dept., Aisle 9. Limit: as many games as you like. Cash value 1/20 of 1¢.</p></div>' + GO;
+  }
+  if (v === 6) {
+    return '<div class="cover">' + PHOTO + '<div class="mast"><b>Big Glutts</b><span>Holiday Gift Values · Discount Dept. Store</span></div></div>' + STRIPES
+      + '<div class="block"><div class="item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + '</p></div>'
+      + '<div class="item"><h4>' + NEW + '</h4>' + PRICE + '<p>' + GAME + '</p></div>'
+      + '<div class="dept"><span>Games &amp; Hobby Dept. · Aisle 9</span>' + GO + '</div></div>';
+  }
+  return '<span class="sv"></span>' + '<svg class="sc" viewBox="0 0 59 59" aria-hidden="true"><path d="M4 59 A55 55 0 0 1 59 4" fill="none" stroke="#6B3A1E" stroke-width="8"/><path d="M13 59 A46 46 0 0 1 59 13" fill="none" stroke="#B4451F" stroke-width="8"/><path d="M22 59 A37 37 0 0 1 59 22" fill="none" stroke="#E07B22" stroke-width="8"/><path d="M31 59 A28 28 0 0 1 59 31" fill="none" stroke="#E9B23A" stroke-width="8"/></svg>' + '<span class="sh"></span>'
+    + '<div class="logo"><b>Big Glutts</b><span>Discount Department Store</span></div>' + PHOTO
+    + '<div class="two"><div class="item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + '</p></div>'
+    + '<div class="item"><h4>' + NEW + '</h4>' + PRICE + '<p>' + GAME + '</p></div></div>'
+    + '<div class="foot"><span>Games &amp; Hobby Dept. · Aisle 9</span>' + GO + '</div>';
 }
 const IDLE_NUDGE_MS = 30000;
 const NUDGE_GROW_MS = 90000;
@@ -477,6 +644,7 @@ export function useSetupExtras(x) {
       if (!document.getElementById("td-tryit-css")) { const st = document.createElement("style"); st.id = "td-tryit-css"; st.textContent = TRY_IT_CSS; document.head.appendChild(st); }
       if (!document.querySelector('link[href*="family=Archivo+Narrow"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Libre+Franklin:wght@700;800;900&display=swap"; document.head.appendChild(l); }
       if (!document.querySelector('link[href*="family=Caprasimo"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap"; document.head.appendChild(l); }
+      if (!document.querySelector('link[href*="family=Bodoni+Moda:ital"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@1,6..96,500&display=swap"; document.head.appendChild(l); }
       card = document.createElement("div");
       card.className = "td-tryit"; card.setAttribute("role", "dialog"); card.setAttribute("aria-label", "Try it");
       card.setAttribute("data-testid", "tienda-try-it");
@@ -485,19 +653,12 @@ export function useSetupExtras(x) {
       const sheet = document.createElement("div");
       sheet.className = "sheet";
       card.appendChild(sheet);
-      sheet.innerHTML = '<span class="sv"></span>' + '<svg class="sc" viewBox="0 0 59 59" aria-hidden="true"><path d="M4 59 A55 55 0 0 1 59 4" fill="none" stroke="#6B3A1E" stroke-width="8"/><path d="M13 59 A46 46 0 0 1 59 13" fill="none" stroke="#B4451F" stroke-width="8"/><path d="M22 59 A37 37 0 0 1 59 22" fill="none" stroke="#E07B22" stroke-width="8"/><path d="M31 59 A28 28 0 0 1 59 31" fill="none" stroke="#E9B23A" stroke-width="8"/></svg>' + '<span class="sh"></span>'
-        + '<div class="logo"><b>Big Glutts</b><span>Discount Department Store</span></div>'
-        + '<div class="ad2"><div class="col">'
-        + '<div class="item"><h4>So you\u2019d like to try it, eh?</h4><div class="pr"><span class="n w">FREE</span><span class="ea">TO<br>PLAY</span></div>'
-        + '<p>Go right ahead, friend. The demonstration set\u2019s all yours.</p></div>'
-        + '<div class="item"><h4>NEW! El Cabeza game set</h4><div class="pr"><span class="d">$</span><span class="n">7</span><span class="ce"><span class="c">97</span><span class="ea">EA.</span></span></div>'
-        + '<p>The Game of Unparalleled Intention. Hardwood board and ten pieces, walnut and ash.</p></div>'
-        + '<div class="item"><h4 class="sm">Games &amp; Hobby Dept.</h4><p>Aisle 9.</p></div>'
-        + '<span class="go">Let\u2019s play \u203a</span>'
-        + '</div><div class="photo"></div></div>'
-        + '<span class="ink"></span>';
-      // (The picture: the family, fawning over the box.)
-      sheet.querySelector(".photo").style.backgroundImage = 'url("' + flyerFamilyUrl + '")';
+      // Six versions of it, round the user's photograph (user: "Give me six
+      // different versions"): ?flyer=1-6 in the address picks one.
+      const version = flyerVersion();
+      sheet.classList.add("v" + version);
+      sheet.innerHTML = flyerHtml(version) + '<span class="ink"></span>';
+      sheet.querySelector(".photo").style.backgroundImage = 'url("' + flyerPhotoUrl + '")';
       const since = performance.now();
       card.addEventListener("click", (e) => { e.stopPropagation(); if (performance.now() - since >= TRY_IT_HOLD_MS) done(); });
       card.addEventListener("pointerdown", (e) => e.stopPropagation());
