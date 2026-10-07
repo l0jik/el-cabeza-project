@@ -7251,3 +7251,11 @@ phone menu until "Start the story over" (which clears it).
   is kept by the chassis when a game begins in a reality after the story
   (its realityGate.world). Direct links to a world still go straight there
   (user: the packaged game won't have them anyway). e2e-gate covers it.
+
+- STANDING (user): every reply ends with the start links as well as the
+  seven: a brand-new player (el-cabeza-nova.html?fresh: apps/unified.jsx
+  FRESH forgets every el-cabeza: key in local and session storage, mounts
+  nothing, and reloads without the word, so it opens as a first visit, in
+  the store) and everything unlocked on the theme switcher
+  (el-cabeza-nova.html?switcher), plus Restart story (?restart=story: the
+  story from the top, settings kept) and the plain page (as you left it).

@@ -33,6 +33,22 @@ import {
    start. The chassis keeps its theme object for as long as it's mounted,
    so these are fixed objects, and their buttons reach the app through
    storyBridge, which the app keeps pointed at its current handlers. */
+// ?fresh: a brand-new player (user: links to start the whole game from
+// nothing, for finding bugs): everything this browser has kept for the
+// game (every el-cabeza: key, the story, the settings, the sound) is
+// forgotten, and the page loads again without the word, from the store.
+const FRESH = (() => {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("fresh")) return false;
+    [window.localStorage, window.sessionStorage].forEach((st) => {
+      Object.keys(st).filter((k) => k.startsWith("el-cabeza:")).forEach((k) => st.removeItem(k));
+    });
+    url.searchParams.delete("fresh");
+    window.location.replace(url.pathname + url.search + url.hash);
+    return true;
+  } catch (e) { return false; }
+})();
 // Restart story from another page's realities menu (?restart=story): the
 // story starts over here, in the store, the same fresh start as Nova's own
 // Restart story (restartStory below). Read before anything else, once.
@@ -806,4 +822,5 @@ applyBootstrapBoardSize();
 applyBootstrapLaws();
 bootRules = { board: getBoardDimensions(), laws: { ...ACTIVE_LAWS } };
 
-ReactDOM.createRoot(document.getElementById("root")).render(<UnifiedApp />);
+// (?fresh: nothing mounts, so nothing's kept again before the page reloads.)
+if (!FRESH) ReactDOM.createRoot(document.getElementById("root")).render(<UnifiedApp />);
