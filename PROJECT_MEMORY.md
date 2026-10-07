@@ -7520,3 +7520,24 @@ phone menu until "Start the story over" (which clears it).
   words, "Demonstration Game"); where it led a sentence, the sentence
   stands alone. e2e-try-it now looks for "demonstration" and the price,
   and checks the phrase is gone.
+- The flyer is one page now (user, shown the twelve: "I like the one on
+  the right the most, but I want the logo striping from the one on the
+  left incorporated into the one on the right somehow"): version 7, the
+  discount store's page (3 Days Only, Toys & Games, Sale 7.97 over Our
+  Reg. 9.97, the fine print, the rain-check policy, the charge cards),
+  with version 1's stripes round it: four earth tones (#6B3A1E, #B4451F,
+  #E07B22, #E9B23A; 7 px, 1 px apart, 10 px in from the edges) down the
+  left side and across the top, turning the top-left corner in four
+  arcs (.sv, .sc, .sh), the store's name in the corner they turn, and
+  the sale days' red sticker over their right end (laid out two ways
+  first: beside the name under the stripes, which squeezed the name onto
+  two lines on a phone, and on the stripes, the one kept). tienda-overlay.js
+  FLYER_HTML; ?flyer=, flyerVersion and the other eleven are gone (in
+  the history before this; the fonts only they used, Fraunces,
+  Shrikhand and Bodoni italic, no longer loaded). No-break spaces keep
+  "No sales to dealers." and "BankAmericard • Master Charge" whole and
+  "2 players" together. And on a screen too short for it (a 320x568
+  phone, a phone on its side) the whole sheet is scaled to fit: --fit
+  in the card's transform (its entrance and exit too), from its height,
+  kept as the sheet or the window changes size. e2e-try-it checks the
+  three sale days, the stripes, and that all of it is on the screen.

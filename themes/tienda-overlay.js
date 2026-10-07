@@ -120,12 +120,14 @@ const TRY_IT_CSS = `
      flyer-ink.webp screened over that, so it only shows in the ink: the
      pale specks of missing dots in the solids, the ink cracked along the
      fold. The fold's crease at --fold, the same place the ink cracks. */
+  /* (On a screen too short for it, the whole sheet a little smaller:
+     --fit, from its height.) */
   .td-tryit { position: fixed; left: 50%; top: 50%; z-index: 1260; width: min(92vw, 400px);
-    transform: translate(-50%, -50%) rotate(-1.2deg); cursor: pointer; text-align: left;
+    transform: translate(-50%, -50%) rotate(-1.2deg) scale(var(--fit, 1)); cursor: pointer; text-align: left;
     filter: drop-shadow(0 1px 1px rgba(10,6,3,0.4)) drop-shadow(0 9px 14px rgba(10,6,3,0.32));
     animation: tdTryIn 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
   /* The sheet itself, its edges cut (flyerMask: its mask, made at its size). */
-  .td-tryit .sheet { --fold: 47%; position: relative; box-sizing: border-box; padding: 0; color: #2A1D14;
+  .td-tryit .sheet { --fold: 47%; position: relative; box-sizing: border-box; padding: 54px 13px 12px 53px; color: #2A1D14;
     background: #FFFFFF;
     font: 400 14.5px/1.42 'Courier Prime', 'Courier New', Courier, monospace;
     -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
@@ -152,285 +154,50 @@ const TRY_IT_CSS = `
       linear-gradient(90deg, rgba(0,0,0,0.03), rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,0.04));
     animation: tdGlint 1.1s cubic-bezier(0.3, 0.1, 0.3, 1) 0.3s both; }
   @keyframes tdGlint { from { background-position: 100% 0, 0 0, 0 0, 0 0, 0 0; } to { background-position: 4% 0, 0 0, 0 0, 0 0, 0 0; } }
-  /* The pieces the versions share: the store's lettering, an item's bold
-     heading, a big price (the cents raised and underlined, "EA." under
-     them), a line of small print, the photograph, the earth-tone stripes. */
-  .td-tryit .logo b { display: block; font: 400 36px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; letter-spacing: 0.01em; text-shadow: 2px 2px 0 #E9B23A; }
-  .td-tryit .logo span { display: block; margin-top: 6px; font: 800 10.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #B4451F; }
-  .td-tryit .item h4 { margin: 0; font: 800 16px/1.04 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif; letter-spacing: -0.015em; color: #17110c; }
-  .td-tryit .pr { display: flex; align-items: flex-start; margin: 4px 0 3px; font-family: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif; font-weight: 900; color: #17110c; line-height: 0.82; }
-  .td-tryit .pr .d { font-size: 18px; margin-top: 3px; }
-  .td-tryit .pr .n { font-size: 42px; letter-spacing: -0.035em; }
-  .td-tryit .pr .n.w { font-size: 31px; letter-spacing: -0.02em; }
-  .td-tryit .pr .c { font-size: 18px; margin: 1px 0 0 1px; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
-  .td-tryit .pr .ea { align-self: flex-end; margin: 0 0 3px 3px; font-size: 9px; font-weight: 800; letter-spacing: 0.04em; line-height: 1.05; }
+  /* The page (user, shown twelve: "I like the one on the right the most"),
+     set as a 1975 discount store's circular was (K mart's, Zayre's,
+     Woolco's): the store and its three sale days (Thurs.-Sat., Dec. 11-13,
+     1975), the department's band, the photograph with its item letter,
+     the sale price over "Our Reg.", the cents raised, the fine print
+     ("Prices good thru ... Limit rights reserved. No sales to dealers."),
+     the store's advertised-merchandise (rain check) policy, the charge
+     cards of late 1975 (BankAmericard, Master Charge). Round it the
+     store's stripes, four earth tones down the side and round the top,
+     the store's name in the corner they turn (user: "I want the logo
+     striping from the one on the left incorporated into the one on the
+     right"; the sheet's padding sets the page in from them), and the sale
+     days on a sticker over their end. */
+  .td-tryit .sv { position: absolute; left: 10px; top: 65px; bottom: 10px; width: 31px;
+    background: linear-gradient(90deg, #6B3A1E 0 7px, transparent 7px 8px, #B4451F 8px 15px, transparent 15px 16px, #E07B22 16px 23px, transparent 23px 24px, #E9B23A 24px 31px); }
+  .td-tryit .sc { position: absolute; left: 10px; top: 10px; width: 55px; height: 55px; }
+  .td-tryit .sh { position: absolute; left: 65px; right: 40px; top: 10px; height: 31px;
+    background: linear-gradient(180deg, #6B3A1E 0 7px, transparent 7px 8px, #B4451F 8px 15px, transparent 15px 16px, #E07B22 16px 23px, transparent 23px 24px, #E9B23A 24px 31px); }
+  .td-tryit .logo b { display: block; font: 400 31px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; letter-spacing: 0.01em; text-shadow: 2px 2px 0 #E9B23A; }
+  .td-tryit .logo span { display: block; margin-top: 6px; font: 800 8.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #B4451F; }
+  .td-tryit .when { position: absolute; right: 13px; top: 4px; padding: 5px 9px 6px; text-align: center; background: #C8281E; color: #FFF6E4; transform: rotate(2deg); box-shadow: 2px 2px 0 #17110c; }
+  .td-tryit .when b { display: block; font: italic 900 15px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.02em; text-transform: uppercase; }
+  .td-tryit .when span { display: block; margin-top: 3px; font: 700 10px/1.15 'Libre Franklin', Arial, sans-serif; }
+  .td-tryit .band { margin: 10px 0 8px; padding: 4px 8px 5px; background: #17110c; color: #FFF6E4; font: italic 900 15px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+  .td-tryit .pic { position: relative; }
+  .td-tryit .photo { aspect-ratio: 1.3; background: #7a5a3e 50% 30% / cover no-repeat; }
+  .td-tryit .lt { position: absolute; left: 6px; bottom: 6px; width: 22px; height: 22px; border-radius: 50%; background: #FFF6E4; border: 2px solid #17110c; display: grid; place-items: center; font: 900 12px/1 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; margin-top: 8px; align-items: start; }
+  .td-tryit .desc p { margin: 0 0 5px; font: 500 11px/1.27 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .desc b { font-weight: 800; }
+  .td-tryit .price { text-align: center; color: #C8281E; }
+  .td-tryit .price em { display: block; font: italic 900 14px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
+  .td-tryit .pr { display: flex; justify-content: center; align-items: flex-start; margin: 3px 0 2px; font-family: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif; font-weight: 900; line-height: 0.82; }
+  .td-tryit .pr .n { font-size: 52px; letter-spacing: -0.035em; }
   .td-tryit .pr .ce { display: flex; flex-direction: column; align-items: flex-start; }
-  .td-tryit .pr .ce .ea { align-self: flex-start; margin: 5px 0 0 3px; }
-  .td-tryit .item p { margin: 3px 0 0; font: 600 11.5px/1.22 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
-  .td-tryit .photo { position: relative; background: #7a5a3e 50% 30% / cover no-repeat; }
-  .td-tryit .stripes { display: flex; flex-direction: column; gap: 1px; }
-  .td-tryit .stripes i { display: block; height: 6px; }
-  .td-tryit .stripes i:nth-child(1) { background: #6B3A1E; } .td-tryit .stripes i:nth-child(2) { background: #B4451F; }
-  .td-tryit .stripes i:nth-child(3) { background: #E07B22; } .td-tryit .stripes i:nth-child(4) { background: #E9B23A; }
+  .td-tryit .pr .c { font-size: 18px; margin: 1px 0 0 1px; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
+  .td-tryit .price small { display: block; font: 700 9.5px/1.15 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .fine { margin: 6px 0 0; font: 600 8.5px/1.25 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
+  .td-tryit .policy { margin-top: 6px; padding: 4px 6px 5px; border: 1px solid #17110c; font: 500 8px/1.28 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
+  .td-tryit .policy b { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .td-tryit .charge { margin-top: 6px; font: 800 8.5px/1.2 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #17110c; }
   .td-tryit .go { display: block; margin-top: 8px; text-align: left; font: 700 11px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0;
     animation: tdTryGo 0.5s ease ${TRY_IT_HOLD_MS}ms both, tdTryCall 1.8s ease-in-out ${TRY_IT_HOLD_MS + 700}ms infinite; }
-
-  /* Version 1, the circular: the stripes down the side and round the top,
-     the store's name, the photograph across the sheet, the two items side
-     by side under it. */
-  .td-tryit .v1 { padding: 0 14px 0 62px; }
-  .td-tryit .v1 .sv { position: absolute; left: 10px; top: 69px; bottom: 10px; width: 35px;
-    background: linear-gradient(90deg, #6B3A1E 0 8px, transparent 8px 9px, #B4451F 9px 17px, transparent 17px 18px, #E07B22 18px 26px, transparent 26px 27px, #E9B23A 27px 35px); }
-  .td-tryit .v1 .sc { position: absolute; left: 10px; top: 10px; width: 59px; height: 59px; }
-  .td-tryit .v1 .sh { position: absolute; left: 69px; right: 10px; top: 10px; height: 35px;
-    background: linear-gradient(180deg, #6B3A1E 0 8px, transparent 8px 9px, #B4451F 9px 17px, transparent 17px 18px, #E07B22 18px 26px, transparent 26px 27px, #E9B23A 27px 35px); }
-  .td-tryit .v1 .logo { padding: 54px 10px 0 0; }
-  .td-tryit .v1 .photo { margin-top: 12px; aspect-ratio: 1.42; border-top: 2px solid #17110c; }
-  .td-tryit .v1 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
-  .td-tryit .v1 .foot { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; padding: 7px 0 13px; border-top: 1px solid #17110c; font: 800 11.5px/1 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v1 .foot .go { margin: 0; }
-
-  /* Version 2, the starburst: a brown masthead with the stripes under it,
-     a headline, the photograph with a price burst over its corner. */
-  .td-tryit .v2 { padding: 0 0 14px; }
-  .td-tryit .v2 .band { background: #6B3A1E; padding: 16px 16px 11px; }
-  .td-tryit .v2 .band b { display: block; font: 400 34px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #F2C14E; text-shadow: 2px 2px 0 #2A170C; }
-  .td-tryit .v2 .band span { display: block; margin-top: 6px; font: 800 10px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #F4E6C4; }
-  .td-tryit .v2 .stripes i:nth-child(1) { display: none; }
-  .td-tryit .v2 .head { margin: 10px 14px 8px; font: 400 24px/1.02 'Caprasimo', 'Cooper Black', Georgia, serif; color: #B4451F; text-align: center; text-wrap: balance; }
-  .td-tryit .v2 .pic { position: relative; margin: 0 14px; }
-  .td-tryit .v2 .photo { aspect-ratio: 1.4; border: 2px solid #17110c; }
-  .td-tryit .v2 .burst { position: absolute; right: -12px; bottom: -40px; width: 122px; height: 122px; transform: rotate(-9deg); }
-  .td-tryit .v2 .burst svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .td-tryit .v2 .burst .bt { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 4px; }
-  .td-tryit .v2 .burst em { font: 900 12px/1 'Libre Franklin', Arial, sans-serif; font-style: normal; letter-spacing: 0.12em; color: #FFF3D6; }
-  .td-tryit .v2 .burst .pr { color: #FFF3D6; margin: 3px 0 0; }
-  .td-tryit .v2 .burst .pr .n { font-size: 40px; }
-  .td-tryit .v2 .copy { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 14px 0; padding-right: 0; }
-  .td-tryit .v2 .copy .item:first-child { padding-right: 96px; grid-column: 1 / -1; }
-  .td-tryit .v2 .go { margin: 10px 14px 0; }
-
-  /* Version 3, the catalog page (the holiday Wish Book's): a running
-     head, the photograph and its caption, the listing with its item
-     letter, catalog number, dot leaders and price. */
-  .td-tryit .v3 { padding: 14px 16px 13px; }
-  .td-tryit .v3 .runhead { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 6px; border-bottom: 3px double #17110c; font: 700 9.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #2A1D14; }
-  .td-tryit .v3 .runhead b { font: 400 19px/1 'Caprasimo', 'Cooper Black', Georgia, serif; letter-spacing: 0; text-transform: none; color: #6B3A1E; }
-  .td-tryit .v3 .photo { margin-top: 10px; aspect-ratio: 1.2; }
-  .td-tryit .v3 .cap { margin: 7px 0 9px; font: italic 500 13.5px/1.25 'Bodoni Moda', Didot, Georgia, serif; color: #2A1D14; }
-  .td-tryit .v3 .lead { margin: 0 0 5px; font: 500 11.5px/1.32 'Libre Franklin', Arial, sans-serif; color: #2A1D14; }
-  .td-tryit .v3 .lead .k { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-right: 5px; border-radius: 50%; background: #17110c; color: #F4E6C4; font: 800 9.5px/1 'Libre Franklin', Arial, sans-serif; vertical-align: 1px; }
-  .td-tryit .v3 .lead strong { font-weight: 800; color: #17110c; }
-  .td-tryit .v3 .row { display: flex; align-items: baseline; margin: 3px 0 11px; font: 700 12px/1 'Courier Prime', 'Courier New', monospace; color: #17110c; }
-  .td-tryit .v3 .row i { flex: 1; margin: 0 6px; border-bottom: 2px dotted #17110c; transform: translateY(-3px); }
-  .td-tryit .v3 .row .each { font: 700 11px/1 'Libre Franklin', Arial, sans-serif; margin-right: 5px; }
-  .td-tryit .v3 .row .amt { font: 900 23px/1 'Libre Franklin', Arial, sans-serif; color: #A8322B; letter-spacing: -0.02em; }
-
-  /* Version 4, holiday values: the store's holiday sign as it hangs in
-     the photograph (red, cream lettering, a green edge), the photograph
-     framed, a price tag hung on its corner. */
-  .td-tryit .v4 { padding: 12px 14px 13px; }
-  .td-tryit .v4 .top { display: flex; align-items: center; gap: 10px; }
-  .td-tryit .v4 .top b { font: 400 22px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; text-shadow: 1.5px 1.5px 0 #E9B23A; white-space: nowrap; }
-  .td-tryit .v4 .top .stripes { flex: 1; } .td-tryit .v4 .top .stripes i { height: 4px; }
-  .td-tryit .v4 .sign { margin: 11px 4px 0; padding: 8px 10px 10px; text-align: center; background: #A8322B; color: #F6EBD2; border: 3px solid #F6EBD2; border-radius: 28px / 18px; box-shadow: 0 0 0 3px #2E5A3C; }
-  .td-tryit .v4 .sign b { display: block; font: 400 30px/1 'Caprasimo', 'Cooper Black', Georgia, serif; }
-  .td-tryit .v4 .sign span { display: block; margin-top: 2px; font: 400 18px/1.05 'Caprasimo', 'Cooper Black', Georgia, serif; }
-  .td-tryit .v4 .pic { position: relative; margin-top: 15px; }
-  .td-tryit .v4 .photo { aspect-ratio: 1.28; border-radius: 10px; border: 3px solid #F6EBD2; box-shadow: 0 0 0 2px #2E5A3C; }
-  .td-tryit .v4 .tag { position: absolute; right: 2px; bottom: -70px; width: 98px; box-sizing: border-box; padding: 17px 8px 8px; text-align: center; background: #F3E7C8; border: 2px solid #17110c; border-radius: 5px 5px 7px 7px; transform: rotate(7deg); }
-  .td-tryit .v4 .tag::before { content: ""; position: absolute; left: 50%; top: 5px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: #2A1D14; }
-  .td-tryit .v4 .tag::after { content: ""; position: absolute; left: 50%; bottom: 100%; width: 1.5px; height: 30px; margin-bottom: -9px; background: #2E5A3C; transform: rotate(-24deg); transform-origin: bottom; }
-  .td-tryit .v4 .tag small { display: block; font: 900 10px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.12em; color: #A8322B; }
-  .td-tryit .v4 .tag span { display: block; margin-top: 3px; font: 800 11px/1.1 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v4 .tag .pr { justify-content: center; margin: 4px 0 0; }
-  .td-tryit .v4 .tag .pr .n { font-size: 34px; }
-  .td-tryit .v4 .copy { margin-top: 12px; padding-right: 108px; }
-
-  /* Version 5, the coupon: clip it and bring it in (a free game; its cash
-     value, as the coupons said, a twentieth of a cent). */
-  .td-tryit .v5 { padding: 11px 12px 13px; }
-  .td-tryit .v5 .clip { display: flex; align-items: center; gap: 6px; margin: 0 2px 6px; font: 800 9.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #2A1D14; }
-  .td-tryit .v5 .clip svg { width: 20px; height: 13px; flex: none; }
-  .td-tryit .v5 .coupon { border: 2px dashed #17110c; padding: 10px; }
-  .td-tryit .v5 .stripes i { height: 5px; }
-  .td-tryit .v5 .chead { text-align: center; margin: 9px 0 8px; }
-  .td-tryit .v5 .chead b { display: block; font: 400 30px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; text-shadow: 2px 2px 0 #E9B23A; }
-  .td-tryit .v5 .chead span { display: block; margin-top: 5px; font: 800 9.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #B4451F; }
-  .td-tryit .v5 .photo { aspect-ratio: 1.35; }
-  .td-tryit .v5 .cbody { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; margin-top: 10px; }
-  .td-tryit .v5 .worth { margin-top: 5px; font: 900 12.5px/1.12 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.02em; color: #A8322B; text-transform: uppercase; }
-  .td-tryit .v5 .box { border: 3px solid #17110c; padding: 6px 8px 6px; text-align: center; }
-  .td-tryit .v5 .box small { display: block; font: 800 9.5px/1.1 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v5 .box .pr { justify-content: center; margin: 4px 0 0; }
-  .td-tryit .v5 .box .pr .n { font-size: 38px; }
-  .td-tryit .v5 .fine { margin: 9px 0 0; font: italic 500 10px/1.25 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
-
-  /* Version 6, the cover: the photograph full bleed across the top with
-     the store's name on it, the stripes, the prices reversed out of a
-     brown block. */
-  .td-tryit .v6 .cover { position: relative; }
-  .td-tryit .v6 .photo { aspect-ratio: 1.2; }
-  .td-tryit .v6 .mast { position: absolute; left: 0; right: 0; bottom: 0; padding: 34px 14px 10px; background: linear-gradient(180deg, rgba(42,23,12,0), rgba(42,23,12,0.8) 58%); }
-  .td-tryit .v6 .mast b { display: block; font: 400 34px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #F2C14E; text-shadow: 2px 2px 0 #2A170C; }
-  .td-tryit .v6 .mast span { display: block; margin-top: 5px; font: 800 10px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #F4E6C4; }
-  .td-tryit .v6 .block { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 14px 15px; background: #3B2618; }
-  .td-tryit .v6 .block h4 { color: #F4E6C4; }
-  .td-tryit .v6 .block .pr { color: #F2C14E; }
-  .td-tryit .v6 .block p { color: #E9DCC0; }
-  .td-tryit .v6 .dept { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px; border-top: 1px solid rgba(244,230,196,0.45); font: 800 11.5px/1 'Libre Franklin', Arial, sans-serif; color: #F4E6C4; }
-  .td-tryit .v6 .dept .go { margin: 0; color: #F4E6C4; }
-
-  /* Versions 7-12: the user's photograph again, set as the period's real
-     circulars were (user: "find reference images from 1975 department
-     store flyers to create the realism"): the three sale days and their
-     dates, "Our Reg." against the sale price, the cents raised, item
-     letters, a department's band, the fine print ("Prices good thru ...
-     Limit rights reserved. No sales to dealers."), the store's
-     advertised-merchandise (rain check) policy, the charge cards of late
-     1975 (BankAmericard, Master Charge), the hours till Christmas, and
-     the page's other items. Sale Thurs.-Sat., Dec. 11-13, 1975. */
-  .td-tryit .fine { margin: 6px 0 0; font: 600 8.5px/1.25 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
-  .td-tryit .soft { font-family: 'Fraunces', 'Bodoni Moda', Georgia, serif; font-variation-settings: "SOFT" 100, "WONK" 0; }
-
-  /* Version 7, the discount store's page (as K mart's, Zayre's and
-     Woolco's ran): the store and its three days, the department's band,
-     the photograph with its item letter, the sale price over "Our Reg.",
-     the fine print, the rain-check policy, the charge cards. */
-  .td-tryit .v7 { padding: 12px 13px 12px; }
-  .td-tryit .v7 .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .td-tryit .v7 .top .logo b { font-size: 31px; }
-  .td-tryit .v7 .top .logo span { font-size: 8.5px; letter-spacing: 0.16em; }
-  .td-tryit .v7 .when { flex: none; background: #C8281E; color: #FFF6E4; padding: 6px 9px 7px; text-align: center; transform: rotate(2deg); box-shadow: 2px 2px 0 #17110c; }
-  .td-tryit .v7 .when b { display: block; font: italic 900 15px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.02em; text-transform: uppercase; }
-  .td-tryit .v7 .when span { display: block; margin-top: 3px; font: 700 10px/1.15 'Libre Franklin', Arial, sans-serif; }
-  .td-tryit .v7 .band { margin: 10px 0 8px; padding: 4px 8px 5px; background: #17110c; color: #FFF6E4; font: italic 900 15px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
-  .td-tryit .v7 .pic { position: relative; }
-  .td-tryit .v7 .photo { aspect-ratio: 1.3; }
-  .td-tryit .lt { position: absolute; left: 6px; bottom: 6px; width: 22px; height: 22px; border-radius: 50%; background: #FFF6E4; border: 2px solid #17110c; display: grid; place-items: center; font: 900 12px/1 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v7 .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; margin-top: 8px; align-items: start; }
-  .td-tryit .v7 .desc p { margin: 0 0 5px; font: 500 11px/1.27 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v7 .desc b { font-weight: 800; }
-  .td-tryit .v7 .price { text-align: center; color: #C8281E; }
-  .td-tryit .v7 .price em { display: block; font: italic 900 14px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
-  .td-tryit .v7 .price .pr { color: #C8281E; justify-content: center; margin: 3px 0 2px; }
-  .td-tryit .v7 .price .pr .n { font-size: 52px; }
-  .td-tryit .v7 .price small { display: block; font: 700 9.5px/1.15 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v7 .policy { margin-top: 6px; padding: 4px 6px 5px; border: 1px solid #17110c; font: 500 8px/1.28 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
-  .td-tryit .v7 .policy b { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
-  .td-tryit .v7 .charge { margin-top: 6px; font: 800 8.5px/1.2 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #17110c; }
-
-  /* Version 8, Toyland (the toy stores' Christmas circulars, Child World
-     and Zayre's toy pages): a candy-striped banner, holly, a "Save" burst
-     on the photograph, the sale tag, Lay-Away and the late hours. */
-  .td-tryit .v8 { padding: 0 0 12px; }
-  .td-tryit .v8 .ribbon { position: relative; padding: 13px 14px 11px; text-align: center; background: #2E5A3C; }
-  .td-tryit .v8 .candy { height: 7px; background: repeating-linear-gradient(-45deg, #C8281E 0 6px, #FFF6E4 6px 12px); }
-  .td-tryit .v8 .ribbon b { display: block; font: 400 46px/0.9 'Shrikhand', 'Caprasimo', Georgia, serif; color: #E5342A; -webkit-text-stroke: 1.5px #FFF6E4; text-shadow: 3px 3px 0 #17110c; }
-  .td-tryit .v8 .ribbon .sub { display: block; margin-top: 4px; font: 400 15px/1 'Caprasimo', 'Cooper Black', Georgia, serif; font-style: normal; color: #F2C14E; }
-  .td-tryit .v8 .holly { position: absolute; top: 6px; width: 44px; height: 34px; }
-  .td-tryit .v8 .holly.l { left: 6px; } .td-tryit .v8 .holly.r { right: 6px; transform: scaleX(-1); }
-  .td-tryit .v8 .pic { position: relative; margin: 12px 12px 0; }
-  .td-tryit .v8 .photo { aspect-ratio: 1.3; border: 3px solid #2E5A3C; }
-  .td-tryit .v8 .burst { position: absolute; left: -12px; top: -16px; width: 84px; height: 84px; transform: rotate(-12deg); }
-  .td-tryit .v8 .burst svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-  .td-tryit .v8 .burst div { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #C8281E; }
-  .td-tryit .v8 .burst em { font: italic 900 11px/1 'Libre Franklin', Arial, sans-serif; text-transform: uppercase; letter-spacing: 0.08em; }
-  .td-tryit .v8 .burst b { font: 900 21px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: -0.02em; }
-  .td-tryit .v8 .line { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; margin: 10px 12px 0; }
-  .td-tryit .v8 .line h4 { margin: 0; font: 400 23px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #2E5A3C; }
-  .td-tryit .v8 .line h4 small { display: block; font: 900 10px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; color: #C8281E; text-transform: uppercase; margin-bottom: 3px; }
-  .td-tryit .v8 .tag { flex: none; background: #C8281E; color: #FFF6E4; padding: 5px 9px 6px; text-align: center; border-radius: 3px; transform: rotate(-3deg); box-shadow: 2px 2px 0 #17110c; }
-  .td-tryit .v8 .tag em { display: block; font: italic 900 11px/1 'Libre Franklin', Arial, sans-serif; text-transform: uppercase; letter-spacing: 0.1em; }
-  .td-tryit .v8 .tag .pr { color: #FFF6E4; margin: 2px 0 0; justify-content: center; }
-  .td-tryit .v8 .tag .pr .n { font-size: 40px; }
-  .td-tryit .v8 .tag small { display: block; margin-top: 3px; font: 700 9px/1 'Libre Franklin', Arial, sans-serif; }
-  .td-tryit .v8 .txt { margin: 9px 12px 0; font: 500 11.5px/1.3 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v8 .txt b { font-weight: 800; }
-  .td-tryit .v8 .foot2 { display: flex; justify-content: space-between; gap: 8px; margin: 9px 12px 0; padding-top: 6px; border-top: 2px solid #2E5A3C; font: 900 9.5px/1.15 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #C8281E; }
-  .td-tryit .v8 .fine { margin: 6px 12px 0; }
-  .td-tryit .v8 .go { margin: 8px 12px 0; }
-
-  /* Version 9, the department store's (Sears', Penney's): quiet and
-     spacious, a fine red rule, a soft serif headline, the photograph,
-     an italic caption, "Reg. $10. Sale 7.97", charge it on your account,
-     open tonight. */
-  .td-tryit .v9 { padding: 14px 16px 13px; }
-  .td-tryit .v9 .dhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-bottom: 6px; border-bottom: 1.5px solid #A8322B; }
-  .td-tryit .v9 .dhead b { font: 400 22px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; }
-  .td-tryit .v9 .dhead span { font: 600 9px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.22em; text-transform: uppercase; color: #A8322B; }
-  .td-tryit .v9 h3 { margin: 12px 0 10px; font-weight: 600; font-size: 24px; line-height: 1.08; color: #17110c; text-wrap: balance; }
-  .td-tryit .v9 .photo { aspect-ratio: 1.25; }
-  .td-tryit .v9 .cols { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; margin-top: 9px; align-items: end; }
-  .td-tryit .v9 .cap { margin: 0; font: italic 500 12.5px/1.3 'Bodoni Moda', Didot, Georgia, serif; color: #2A1D14; }
-  .td-tryit .v9 .pp { text-align: right; }
-  .td-tryit .v9 .pp .reg { display: block; font: 500 11px/1 'Libre Franklin', Arial, sans-serif; color: #2A1D14; }
-  .td-tryit .v9 .pp .sale { display: block; margin-top: 4px; font: 700 12px/1 'Libre Franklin', Arial, sans-serif; color: #A8322B; text-transform: uppercase; letter-spacing: 0.08em; }
-  .td-tryit .v9 .pp .sale b { font-size: 34px; font-weight: 600; letter-spacing: -0.01em; text-transform: none; }
-  .td-tryit .v9 .try { margin: 10px 0 0; font: 500 11.5px/1.32 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v9 .try b { font-weight: 700; }
-  .td-tryit .v9 .ch { margin-top: 8px; padding-top: 6px; border-top: 1px solid #cdbfa8; font: italic 500 11px/1.3 'Bodoni Moda', Didot, Georgia, serif; color: #2A1D14; }
-
-  /* Version 10, the early bird: Saturday morning only, the price in
-     black and red as big as it'll go, "Save 2.00", limit 2, no rain
-     checks on early-bird items. */
-  .td-tryit .v10 { padding: 0 0 12px; }
-  .td-tryit .v10 .eb { background: #F2C14E; padding: 12px 14px 8px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; border-bottom: 4px solid #17110c; }
-  .td-tryit .v10 .eb b { font: italic 900 34px/0.9 'Libre Franklin', Arial, sans-serif; color: #C8281E; text-transform: uppercase; letter-spacing: -0.01em; text-shadow: 2px 2px 0 #17110c; }
-  .td-tryit .v10 .eb span { font: italic 900 21px/1 'Libre Franklin', Arial, sans-serif; color: #17110c; text-transform: uppercase; }
-  .td-tryit .v10 .ebtime { background: #17110c; color: #F2C14E; padding: 5px 14px; font: 800 10.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
-  .td-tryit .v10 .storeline { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 8px 14px 0; }
-  .td-tryit .v10 .storeline b { font: 400 22px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; text-shadow: 1.5px 1.5px 0 #E9B23A; }
-  .td-tryit .v10 .storeline span { font: 800 9px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #B4451F; }
-  .td-tryit .v10 .photo { margin: 8px 14px 0; aspect-ratio: 1.38; border: 2px solid #17110c; }
-  .td-tryit .v10 .big { display: flex; align-items: center; gap: 10px; margin: 6px 14px 0; }
-  .td-tryit .v10 .big .pr { color: #C8281E; margin: 0; }
-  .td-tryit .v10 .big .pr .d { font-size: 24px; } .td-tryit .v10 .big .pr .n { font-size: 66px; } .td-tryit .v10 .big .pr .c { font-size: 24px; }
-  .td-tryit .v10 .was { font: 700 11px/1.2 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v10 .was b { display: block; margin-top: 2px; font: italic 900 17px/1 'Libre Franklin', Arial, sans-serif; color: #17110c; text-transform: uppercase; }
-  .td-tryit .v10 .item { margin: 6px 14px 0; }
-  .td-tryit .v10 .item h4 { font-size: 15px; }
-  .td-tryit .v10 .fine { margin: 7px 14px 0; }
-  .td-tryit .v10 .go { margin: 8px 14px 0; }
-
-  /* Version 11, a page of the circular: El Cabeza the big item, the
-     page's others round it as they ran, each with its letter and price. */
-  .td-tryit .v11 { padding: 10px 12px 12px; }
-  .td-tryit .v11 .bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 3px solid #17110c; }
-  .td-tryit .v11 .bar b { font: 400 25px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; text-shadow: 1.5px 1.5px 0 #E9B23A; }
-  .td-tryit .v11 .bar span { font: 800 9px/1.2 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #17110c; text-align: right; }
-  .td-tryit .v11 .pic { position: relative; margin-top: 8px; }
-  .td-tryit .v11 .photo { aspect-ratio: 1.45; }
-  .td-tryit .v11 .pbox { position: absolute; right: -4px; bottom: -14px; background: #FFFDF6; border: 2px solid #17110c; padding: 4px 8px 5px; text-align: center; box-shadow: 2px 2px 0 rgba(23,17,12,0.6); }
-  .td-tryit .v11 .pbox small { display: block; font: 900 9.5px/1 'Libre Franklin', Arial, sans-serif; color: #C8281E; letter-spacing: 0.1em; text-transform: uppercase; }
-  .td-tryit .v11 .pbox .pr { justify-content: center; margin: 2px 0 1px; }
-  .td-tryit .v11 .pbox .pr .n { font-size: 40px; }
-  .td-tryit .v11 .pbox i { display: block; font: 700 9px/1 'Libre Franklin', Arial, sans-serif; font-style: normal; color: #17110c; }
-  .td-tryit .v11 .a { margin: 8px 96px 0 0; font: 500 11px/1.27 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v11 .a b { font-weight: 800; }
-  .td-tryit .v11 .others { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 9px; }
-  .td-tryit .v11 .o { border: 1px solid #17110c; padding: 5px 6px 6px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px; align-items: end; }
-  .td-tryit .v11 .o p { margin: 0; font: 600 9.5px/1.2 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
-  .td-tryit .v11 .o p b { display: block; font: 800 10.5px/1.15 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v11 .o .pr { margin: 0; color: #C8281E; } .td-tryit .v11 .o .pr .n { font-size: 24px; } .td-tryit .v11 .o .pr .c { font-size: 11px; }
-  .td-tryit .v11 .o .pr .n.cents { font-size: 22px; } .td-tryit .v11 .o .pr .cs { font-size: 13px; margin-left: 1px; }
-
-  /* Version 12, the coupon page: clip them (a free game, two dollars off,
-     free gift wrap), each dashed, each with its terms. */
-  .td-tryit .v12 { padding: 11px 12px 12px; }
-  .td-tryit .v12 .head12 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-  .td-tryit .v12 .head12 b { font: 400 25px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; text-shadow: 1.5px 1.5px 0 #E9B23A; }
-  .td-tryit .v12 .head12 span { font-weight: 700; font-size: 21px; line-height: 1; color: #C8281E; }
-  .td-tryit .v12 .stripes { margin: 7px 0 8px; } .td-tryit .v12 .stripes i { height: 4px; }
-  .td-tryit .v12 .photo { aspect-ratio: 1.5; border: 2px solid #17110c; }
-  .td-tryit .v12 .coupons { display: grid; gap: 7px; margin-top: 9px; }
-  .td-tryit .v12 .cp { position: relative; border: 2px dashed #17110c; padding: 7px 8px 7px; display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; align-items: center; }
-  .td-tryit .v12 .cp svg { position: absolute; left: -9px; top: -8px; width: 18px; height: 12px; background: #FFFFFF; }
-  .td-tryit .v12 .val { font: 900 18px/0.95 'Libre Franklin', Arial, sans-serif; color: #C8281E; text-align: center; text-transform: uppercase; letter-spacing: -0.01em; }
-  .td-tryit .v12 .val small { display: block; font-size: 10px; letter-spacing: 0.08em; color: #17110c; }
-  .td-tryit .v12 .t { font: 800 11px/1.18 'Libre Franklin', Arial, sans-serif; color: #17110c; }
-  .td-tryit .v12 .t small { display: block; margin-top: 3px; font: 600 8.5px/1.2 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
-  .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg); pointer-events: none; }
+  .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg) scale(var(--fit, 1)); pointer-events: none; }
   /* Up until it's tapped: a tap beside it lands on the veil (the store
      behind stays put) and the flyer shakes; its "Let's play" calls. */
   .td-tryit-veil { position: fixed; inset: 0; z-index: 1259; }
@@ -438,7 +205,7 @@ const TRY_IT_CSS = `
   @keyframes tdTryNudge { 0%, 100% { transform: none; } 25% { transform: rotate(1.6deg); } 55% { transform: rotate(-1.3deg); } 80% { transform: rotate(0.6deg); } }
   .td-tryit:focus { outline: none; }
   .td-tryit:focus-visible .go { opacity: 1; text-decoration: underline; }
-  @keyframes tdTryIn { from { opacity: 0; transform: translate(-50%, -40%) rotate(-4deg) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-1.2deg); } }
+  @keyframes tdTryIn { from { opacity: 0; transform: translate(-50%, -40%) rotate(-4deg) scale(calc(0.9 * var(--fit, 1))); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-1.2deg) scale(var(--fit, 1)); } }
   @keyframes tdTryGo { to { opacity: 0.75; } }
   @keyframes tdTryCall { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .td-tryit, .td-tryit .go, .td-tryit .sheet::after, .td-tryit .sheet.nudge { animation: none; opacity: 1; } }
@@ -477,147 +244,26 @@ function flyerMask(w, h) {
     + '<path filter="url(#soft)" d="' + top + '"/><path filter="url(#soft)" d="' + bottom + '"/></svg>';
   return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
 }
-/* The flyer's versions (user: "This is the image that you will incorporate
-   into the advertising flyer. Give me six different versions."), each
-   round the user's photograph, on the same paper: ?flyer=1-12 in the
-   address picks one (1 when there's none; 7-12 the second six, user:
-   "redo six more flyers using this image instead", from the period's
-   real circulars). Every one says the store's
-   demonstration game (free to play), the price ($7.97) and Let's play.
-   (No more "So you'd like to try it, eh?": the user had it taken out.) */
-const FLYER_VERSIONS = 12;
-function flyerVersion() {
-  try {
-    const v = Math.floor(Number(new URLSearchParams(window.location.search).get("flyer")));
-    if (v >= 1 && v <= FLYER_VERSIONS) return v;
-  } catch (e) { /* no address */ }
-  return 1;
-}
-// A starburst's points: n points, inner and outer radius, round 50,50.
-function burstPoints(n, r0, r1) {
-  const pts = [];
-  for (let i = 0; i < n * 2; i++) {
-    const a = (Math.PI * i) / n - Math.PI / 2, r = i % 2 ? r0 : r1;
-    pts.push((50 + r * Math.cos(a)).toFixed(1) + "," + (50 + r * Math.sin(a)).toFixed(1));
-  }
-  return pts.join(" ");
-}
-function flyerHtml(v) {
-  const PHOTO = '<div class="photo" role="img" aria-label="A family in the store at the holidays, the father holding up a boxed El Cabeza, the children gasping"></div>';
-  const STRIPES = '<div class="stripes"><i></i><i></i><i></i><i></i></div>';
-  const PRICE = '<div class="pr"><span class="d">$</span><span class="n">7</span><span class="ce"><span class="c">97</span><span class="ea">EA.</span></span></div>';
-  const FREE = '<div class="pr"><span class="n w">FREE</span><span class="ea">TO<br>PLAY</span></div>';
-  const GO = '<span class="go">Let’s play ›</span>';
-  const TRY = "Demonstration game";
-  const FRIEND = "Go right ahead, friend. The demonstration set’s all yours.";
-  const GAME = "The Game of Unparalleled Intention. Hardwood board and ten pieces, walnut and ash.";
-  const NEW = "NEW! El Cabeza game set";
-  if (v === 2) {
-    return '<div class="band"><b>Big Glutts</b><span>Discount Department Store</span></div>' + STRIPES
-      + '<h3 class="head">The gift they’ll gasp about!</h3>'
-      + '<div class="pic">' + PHOTO + '<div class="burst"><svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="' + burstPoints(16, 38, 49) + '" fill="#B4451F" stroke="#17110c" stroke-width="2" stroke-linejoin="round"/><polygon points="' + burstPoints(16, 31, 40) + '" fill="#C9541F"/></svg><div class="bt"><em>NEW!</em>' + PRICE + '</div></div></div>'
-      + '<div class="copy"><div class="item"><h4>' + NEW + '</h4><p>' + GAME + '</p></div>'
-      + '<div class="item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + '</p></div>'
-      + '<div class="item"><h4>Games &amp; Hobby Dept.</h4><p>Aisle\u00a09. Open late till Christmas.</p></div></div>' + GO;
-  }
-  if (v === 3) {
-    return '<div class="runhead"><b>Big Glutts</b><span>Holiday Gift Catalog</span><span>Page 74</span></div>' + PHOTO
-      + '<p class="cap">Christmas came early at our house. “Can we play it tonight?”</p>'
-      + '<p class="lead"><span class="k">A</span><strong>' + NEW + '.</strong> ' + GAME + ' For 2 players, ages 10 to adult.</p>'
-      + '<p class="row"><span>74 N 1975</span><i></i><span class="each">Each</span><span class="amt">$7.97</span></p>'
-      + '<p class="lead"><span class="k">B</span><strong>' + TRY + '.</strong> Go right ahead, friend: the demonstration set’s all yours, free to play, in the Games &amp; Hobby Dept., Aisle\u00a09.</p>' + GO;
-  }
-  if (v === 4) {
-    return '<div class="top"><b>Big Glutts</b>' + STRIPES + '</div>'
-      + '<div class="sign"><b>Holiday</b><span>Gift Values</span></div>'
-      + '<div class="pic">' + PHOTO + '<div class="tag"><small>NEW!</small><span>El Cabeza game set</span>' + PRICE + '</div></div>'
-      + '<div class="copy item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + ' ' + GAME + ' Games &amp; Hobby Dept., Aisle\u00a09.</p></div>' + GO;
-  }
-  if (v === 5) {
-    const scissors = '<svg viewBox="0 0 20 13" aria-hidden="true"><circle cx="3.5" cy="3.2" r="2.4" fill="none" stroke="#17110c" stroke-width="1.4"/><circle cx="3.5" cy="9.8" r="2.4" fill="none" stroke="#17110c" stroke-width="1.4"/><path d="M5.6 4.4 19 10.6M5.6 8.6 19 2.4" stroke="#17110c" stroke-width="1.4" stroke-linecap="round"/></svg>';
-    return '<div class="clip">' + scissors + 'Clip and save</div>'
-      + '<div class="coupon">' + STRIPES + '<div class="chead"><b>Big Glutts</b><span>Discount Department Store</span></div>' + PHOTO
-      + '<div class="cbody"><div class="item"><h4>' + TRY + '</h4><div class="worth">This coupon good for one game, free to play</div><p>' + FRIEND + '</p></div>'
-      + '<div class="box"><small>NEW! El Cabeza<br>game set</small>' + PRICE + '</div></div>'
-      + '<p class="fine">' + GAME + ' At the demonstration table, Games &amp; Hobby Dept., Aisle\u00a09. Limit: as many games as you like. Cash value 1/20 of 1¢.</p></div>' + GO;
-  }
-  if (v === 6) {
-    return '<div class="cover">' + PHOTO + '<div class="mast"><b>Big Glutts</b><span>Holiday Gift Values · Discount Dept. Store</span></div></div>' + STRIPES
-      + '<div class="block"><div class="item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + '</p></div>'
-      + '<div class="item"><h4>' + NEW + '</h4>' + PRICE + '<p>' + GAME + '</p></div>'
-      + '<div class="dept"><span>Games &amp; Hobby Dept. · Aisle\u00a09</span>' + GO + '</div></div>';
-  }
-  const SALE = '<div class="pr"><span class="n">7</span><span class="ce"><span class="c">97</span></span></div>';
-  const DAYS = "Thurs., Fri., Sat.<br>Dec. 11, 12, 13";
-  const FINE = "Prices good thru Sat., Dec. 13, 1975. Quantities limited. Limit rights reserved. No sales to dealers.";
-  const CARDS = "Charge it! Big Glutts Charge • BankAmericard • Master\u00a0Charge";
-  const HOLLY = '<svg viewBox="0 0 44 34" aria-hidden="true"><path d="M4 22 C8 14 14 12 20 16 C16 18 15 22 18 26 C12 28 7 27 4 22Z" fill="#3E7A4C" stroke="#17110c" stroke-width="1.2"/><path d="M16 12 C20 4 28 3 34 7 C29 9 28 13 30 17 C24 19 19 17 16 12Z" fill="#4E8C58" stroke="#17110c" stroke-width="1.2"/><circle cx="20" cy="20" r="3.2" fill="#D9302A" stroke="#17110c" stroke-width="1"/><circle cx="25" cy="21" r="3" fill="#E5342A" stroke="#17110c" stroke-width="1"/><circle cx="22" cy="25.5" r="3" fill="#C8281E" stroke="#17110c" stroke-width="1"/></svg>';
-  if (v === 7) {
-    return '<div class="top"><div class="logo"><b>Big Glutts</b><span>Your savings headquarters</span></div><div class="when"><b>3 Days Only!</b><span>' + DAYS + '</span></div></div>'
-      + '<div class="band">Toys &amp; Games</div>'
-      + '<div class="pic">' + PHOTO + '<span class="lt">A</span></div>'
-      + '<div class="row"><div class="desc"><p><b>A. NEW! El Cabeza game set.</b> ' + GAME + ' For 2 players, ages 10 to adult.</p>'
-      + '<p>A demonstration set is free to play in our Games &amp; Hobby Dept., Aisle\u00a09.</p></div>'
-      + '<div class="price"><em>Sale</em>' + SALE + '<small>Our Reg. 9.97</small></div></div>'
-      + '<p class="fine">' + FINE + '</p>'
-      + '<div class="policy"><b>Our advertised merchandise policy:</b> we mean to have every advertised item on our shelves. If one sells out, ask for a Rain Check and buy it at the sale price when it arrives.</div>'
-      + '<div class="charge">' + CARDS + '</div>' + GO;
-  }
-  if (v === 8) {
-    return '<div class="ribbon"><span class="holly l">' + HOLLY + '</span><span class="holly r">' + HOLLY + '</span><b>Toyland</b><em class="sub">at Big Glutts</em></div><div class="candy"></div>'
-      + '<div class="pic">' + PHOTO + '<div class="burst"><svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="' + burstPoints(14, 37, 49) + '" fill="#F2C14E" stroke="#17110c" stroke-width="2.5" stroke-linejoin="round"/></svg><div><em>Save</em><b>2.00</b></div></div></div>'
-      + '<div class="line"><h4><small>NEW! For Christmas</small>El Cabeza</h4><div class="tag"><em>Sale</em>' + SALE + '<small>Our Reg. 9.97</small></div></div>'
-      + '<p class="txt">' + GAME + ' Play the demonstration set free in our Games &amp; Hobby Dept., Aisle\u00a09.</p>'
-      + '<div class="foot2"><span>Lay-Away now for Christmas!</span><span>Open every night till\u00a010</span></div>'
-      + '<p class="fine">' + FINE + '</p>' + GO;
-  }
-  if (v === 9) {
-    return '<div class="dhead"><b>Big Glutts</b><span>Holiday Gift Shop</span></div>'
-      + '<h3 class="soft">Give a game of unparalleled intention.</h3>' + PHOTO
-      + '<div class="cols"><p class="cap">El Cabeza: a fine hardwood board and ten pieces in walnut and ash. For 2 players, ages 10 to adult.</p>'
-      + '<div class="pp"><span class="reg">Reg. $10.</span><span class="sale">Sale <b class="soft">$7.97</b></span></div></div>'
-      + '<p class="try">The demonstration set is in our Games &amp; Hobby Dept., Aisle\u00a09, free to play.</p>'
-      + '<div class="ch">Charge it on your Big Glutts account, or with BankAmericard or Master\u00a0Charge. Shop tonight till 9:30.</div>' + GO;
-  }
-  if (v === 10) {
-    return '<div class="eb"><b>Early Bird</b><span>Special!</span></div>'
-      + '<div class="ebtime">Saturday only • 9 a.m. to 1 p.m. • Dec. 13</div>'
-      + '<div class="storeline"><b>Big Glutts</b><span>Games &amp; Hobby Dept.</span></div>' + PHOTO
-      + '<div class="big">' + PRICE + '<div class="was">Our Reg. 9.97<b>Save 2.00</b></div></div>'
-      + '<div class="item"><h4>' + NEW + '</h4><p>' + GAME + '</p></div>'
-      + '<div class="item"><h4>' + TRY + '</h4><p>Go right ahead, friend: the demonstration set’s free to play, Aisle\u00a09.</p></div>'
-      + '<p class="fine">Limit 2 per customer. No rain checks on Early Bird items. ' + FINE + '</p>' + GO;
-  }
-  if (v === 11) {
-    const other = (k, name, line, price) => '<div class="o"><p><b>' + k + '. ' + name + '</b>' + line + '</p>' + price + '</div>';
-    const pr = (d, c) => '<div class="pr"><span class="n">' + d + '</span><span class="ce"><span class="c">' + c + '</span></span></div>';
-    const cents = (c) => '<div class="pr"><span class="n cents">' + c + '</span><span class="cs">¢</span></div>';
-    return '<div class="bar"><b>Big Glutts</b><span>Toys &amp; Games<br>' + "Sale Thurs.–Sat., Dec. 11–13" + '</span></div>'
-      + '<div class="pic">' + PHOTO + '<span class="lt">A</span><div class="pbox"><small>Sale</small>' + SALE + '<i>Our Reg. 9.97</i></div></div>'
-      + '<p class="a"><b>A. NEW! El Cabeza game set.</b> ' + GAME + ' Play the demonstration set free, Aisle\u00a09.</p>'
-      + '<div class="others">'
-      + other("B", "Jigsaw puzzles", "500 and 1,000 pieces. Scenic views.", pr("1", "47"))
-      + other("C", "Checkers &amp; chess set", "Folding board, wood men.", pr("2", "97"))
-      + other("D", "Playing cards", "Plastic-coated. 2 decks.", cents("97"))
-      + other("E", "Christmas gift wrap", "3 rolls, 75 sq. ft. in all.", cents("88"))
-      + '</div><p class="fine">' + FINE + ' ' + CARDS + '.</p>' + GO;
-  }
-  if (v === 12) {
-    const scissors = '<svg viewBox="0 0 20 13" aria-hidden="true"><circle cx="3.5" cy="3.2" r="2.4" fill="none" stroke="#17110c" stroke-width="1.4"/><circle cx="3.5" cy="9.8" r="2.4" fill="none" stroke="#17110c" stroke-width="1.4"/><path d="M5.6 4.4 19 10.6M5.6 8.6 19 2.4" stroke="#17110c" stroke-width="1.4" stroke-linecap="round"/></svg>';
-    const cp = (val, t, small) => '<div class="cp">' + scissors + '<div class="val">' + val + '</div><div class="t">' + t + '<small>' + small + '</small></div></div>';
-    return '<div class="head12"><b>Big Glutts</b><span class="soft">Coupon Savings!</span></div>' + STRIPES + PHOTO
-      + '<div class="coupons">'
-      + cp("Free<small>one game</small>", "One game of El Cabeza at our demonstration table, Games &amp; Hobby Dept., Aisle\u00a09.", "Good any time. No purchase necessary.")
-      + cp("Save<br>2.00", "NEW! El Cabeza game set, $7.97 with this coupon. Our Reg. 9.97. " + GAME, "Coupon good Thurs.–Sat., Dec. 11–13, 1975. Limit one per family.")
-      + cp("Free<small>gift wrap</small>", "Gift wrap on any game you buy this week, at our Gift Wrap Counter.", "Cash value 1/20 of 1¢.")
-      + '</div>' + GO;
-  }
-  return '<span class="sv"></span>' + '<svg class="sc" viewBox="0 0 59 59" aria-hidden="true"><path d="M4 59 A55 55 0 0 1 59 4" fill="none" stroke="#6B3A1E" stroke-width="8"/><path d="M13 59 A46 46 0 0 1 59 13" fill="none" stroke="#B4451F" stroke-width="8"/><path d="M22 59 A37 37 0 0 1 59 22" fill="none" stroke="#E07B22" stroke-width="8"/><path d="M31 59 A28 28 0 0 1 59 31" fill="none" stroke="#E9B23A" stroke-width="8"/></svg>' + '<span class="sh"></span>'
-    + '<div class="logo"><b>Big Glutts</b><span>Discount Department Store</span></div>' + PHOTO
-    + '<div class="two"><div class="item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + '</p></div>'
-    + '<div class="item"><h4>' + NEW + '</h4>' + PRICE + '<p>' + GAME + '</p></div></div>'
-    + '<div class="foot"><span>Games &amp; Hobby Dept. · Aisle\u00a09</span>' + GO + '</div>';
-}
+/* The flyer (user: "This is the image that you will incorporate into the
+   advertising flyer"), the store's page with the game on it, round the
+   user's photograph, on the paper above: the store's demonstration game
+   (free to play), the price ($7.97) and Let's play. The user's pick of
+   the twelve versions they were shown (?flyer=1-12, gone since), with
+   another's stripes. */
+const FLYER_HTML = '<span class="sv"></span>'
+  + '<svg class="sc" viewBox="0 0 55 55" aria-hidden="true"><path d="M3.5 55 A51.5 51.5 0 0 1 55 3.5" fill="none" stroke="#6B3A1E" stroke-width="7"/><path d="M11.5 55 A43.5 43.5 0 0 1 55 11.5" fill="none" stroke="#B4451F" stroke-width="7"/><path d="M19.5 55 A35.5 35.5 0 0 1 55 19.5" fill="none" stroke="#E07B22" stroke-width="7"/><path d="M27.5 55 A27.5 27.5 0 0 1 55 27.5" fill="none" stroke="#E9B23A" stroke-width="7"/></svg>'
+  + '<span class="sh"></span>'
+  + '<div class="logo"><b>Big Glutts</b><span>Your savings headquarters</span></div>'
+  + '<div class="when"><b>3 Days Only!</b><span>Thurs., Fri., Sat.<br>Dec. 11, 12, 13</span></div>'
+  + '<div class="band">Toys &amp; Games</div>'
+  + '<div class="pic"><div class="photo" role="img" aria-label="A family in the store at the holidays, the father holding up a boxed El Cabeza, the children gasping"></div><span class="lt">A</span></div>'
+  + '<div class="row"><div class="desc"><p><b>A. NEW! El Cabeza game set.</b> The Game of Unparalleled Intention. Hardwood board and ten pieces, walnut and ash. For 2\u00a0players, ages 10 to adult.</p>'
+  + '<p>A demonstration set is free to play in our Games &amp; Hobby Dept., Aisle\u00a09.</p></div>'
+  + '<div class="price"><em>Sale</em><div class="pr"><span class="n">7</span><span class="ce"><span class="c">97</span></span></div><small>Our Reg. 9.97</small></div></div>'
+  + '<p class="fine">Prices good thru Sat., Dec. 13, 1975. Quantities limited. Limit rights reserved. No\u00a0sales\u00a0to\u00a0dealers.</p>'
+  + '<div class="policy"><b>Our advertised merchandise policy:</b> we mean to have every advertised item on our shelves. If one sells out, ask for a Rain Check and buy it at the sale price when it arrives.</div>'
+  + '<div class="charge">Charge it! Big Glutts Charge • BankAmericard\u00a0•\u00a0Master\u00a0Charge</div>'
+  + '<span class="go">Let’s play ›</span>';
 const IDLE_NUDGE_MS = 30000;
 const NUDGE_GROW_MS = 90000;
 const NUDGE_CSS = `
@@ -871,12 +517,13 @@ export function useSetupExtras(x) {
   tryItLive.current = { ok: store && x.awaitingBegin && !overlay && !(story.after && story.after()) && !(story.realities && story.realities()), openDock: x.openDock };
   React.useEffect(() => {
     if (!store) return undefined;
-    let card = null, veil = null, marks = null;
+    let card = null, veil = null, marks = null, refit = null;
     const done = () => {
       if (!card) return;
       const c = card; card = null;
       if (veil) { veil.remove(); veil = null; }
       if (marks) { marks.disconnect(); marks = null; }
+      if (refit) { window.removeEventListener("resize", refit); refit = null; }
       c.classList.add("off"); setTimeout(() => c.remove(), 400);
       const live = tryItLive.current;
       if (live.openDock) live.openDock();
@@ -885,10 +532,8 @@ export function useSetupExtras(x) {
     const onTry = () => {
       if (card || !tryItLive.current.ok || document.querySelector(".td-special-note")) return;
       if (!document.getElementById("td-tryit-css")) { const st = document.createElement("style"); st.id = "td-tryit-css"; st.textContent = TRY_IT_CSS; document.head.appendChild(st); }
-      if (!document.querySelector('link[href*="family=Archivo+Narrow"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Libre+Franklin:wght@700;800;900&display=swap"; document.head.appendChild(l); }
+      if (!document.querySelector('link[href*="family=Archivo+Narrow"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Libre+Franklin:wght@500;700;800;900&display=swap"; document.head.appendChild(l); }
       if (!document.querySelector('link[href*="family=Caprasimo"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap"; document.head.appendChild(l); }
-      if (!document.querySelector('link[href*="family=Shrikhand"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0..100,0..1&family=Shrikhand&display=swap"; document.head.appendChild(l); }
-      if (!document.querySelector('link[href*="family=Bodoni+Moda:ital"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@1,6..96,500&display=swap"; document.head.appendChild(l); }
       card = document.createElement("div");
       card.className = "td-tryit"; card.setAttribute("role", "dialog"); card.setAttribute("aria-label", "Try it");
       card.setAttribute("data-testid", "tienda-try-it");
@@ -897,11 +542,7 @@ export function useSetupExtras(x) {
       const sheet = document.createElement("div");
       sheet.className = "sheet";
       card.appendChild(sheet);
-      // Six versions of it, round the user's photograph (user: "Give me six
-      // different versions"): ?flyer=1-6 in the address picks one.
-      const version = flyerVersion();
-      sheet.classList.add("v" + version);
-      sheet.innerHTML = flyerHtml(version) + '<span class="ink"></span>';
+      sheet.innerHTML = FLYER_HTML + '<span class="ink"></span>';
       sheet.querySelector(".photo").style.backgroundImage = 'url("' + flyerPhotoUrl + '")';
       const since = performance.now();
       card.dataset.since = String(since); // (tests: when it came up)
@@ -927,9 +568,10 @@ export function useSetupExtras(x) {
       document.body.appendChild(card);
       try { card.focus({ preventScroll: true }); } catch (e) { /* no focus */ }
       // The cut edges, at the sheet's size (and again if it changes: the
-      // fonts arriving, the screen turning).
+      // fonts arriving, the screen turning), and its fit to the screen.
       let markedAt = "";
       const mark = () => {
+        card.style.setProperty("--fit", Math.min(1, (window.innerHeight - 20) / Math.max(1, card.offsetHeight)).toFixed(3));
         const w = sheet.offsetWidth, hh = sheet.offsetHeight;
         if (!w || !hh || markedAt === w + "x" + hh) return;
         markedAt = w + "x" + hh;
@@ -938,9 +580,10 @@ export function useSetupExtras(x) {
       };
       mark();
       if (typeof ResizeObserver !== "undefined") { marks = new ResizeObserver(mark); marks.observe(sheet); }
+      refit = mark; window.addEventListener("resize", refit);
     };
     window.addEventListener(TRY_IT_EVENT, onTry);
-    return () => { window.removeEventListener(TRY_IT_EVENT, onTry); if (marks) marks.disconnect(); if (veil) veil.remove(); if (card) card.remove(); };
+    return () => { window.removeEventListener(TRY_IT_EVENT, onTry); if (marks) marks.disconnect(); if (refit) window.removeEventListener("resize", refit); if (veil) veil.remove(); if (card) card.remove(); };
   }, []);
   React.useEffect(() => {
     if (!idleNudge) return undefined;

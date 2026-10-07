@@ -1,6 +1,7 @@
 /* The store's "Try it!" card on the table (user): a fresh story, the box
    opened; a tap on the card brings the store's flyer (its demonstration
-   game, $7.97), deaf to taps for five seconds, then up until
+   game, $7.97; the page the user picked, the store's stripes round it,
+   all of it on the screen), deaf to taps for five seconds, then up until
    it's tapped (a tap beside it doesn't count); a tap on it opens the menu
    as the piece's tap opens it, Try a Game lit (tienda-fx.js
    pickScene/sceneTap, tienda-overlay.js). On a phone, the card's corner in
@@ -60,6 +61,16 @@ await page.waitForTimeout(150);
 check("...nor one at four seconds", tappedAt < 5000 && (await card.count()) === 1, `tapped at ${Math.round(tappedAt)} ms`);
 await page.waitForTimeout(2700);
 check("...and up until it's tapped (user: it doesn't pop down by itself)", (await card.count()) === 1);
+// The page the user picked (its three sale days), with the store's stripes
+// down the side and round the top (user), all of it on the screen.
+const stripes = await page.evaluate(() => [".sv", ".sc", ".sh"].every((q) => {
+  const el = document.querySelector('[data-testid="tienda-try-it"] ' + q);
+  const r = el && el.getBoundingClientRect();
+  return !!(r && r.width > 0 && r.height > 0);
+}));
+check("...the three sale days, the store's stripes down the side and round the top (user)", /3 days only/i.test(await card.innerText()) && stripes);
+const fb = await card.boundingBox();
+check("...all of it on the screen", !!fb && fb.x >= 0 && fb.y >= 0 && fb.x + fb.width <= 390 && fb.y + fb.height <= 844, JSON.stringify(fb));
 // A tap beside it: the store behind doesn't take it, the flyer stays.
 await page.touchscreen.tap(195, 800);
 await page.waitForTimeout(400);
