@@ -489,6 +489,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      next roll. Reading beginMoveRef.current at call time instead always
      gets whatever render most recently ran. */
   const beginMoveRef = useRef(null);
+  const stepInFlightRef = useRef(false); // (see snapshotGame)
   /* The AI's fully-decided turn for its current move, set once when it
      starts thinking and cleared the moment that turn ends for any
      reason (crush, goal, running out of steps, or the AI choosing to
@@ -5106,12 +5107,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const beginMove = useCallback(
     (piece, dir) => {
       if (!piece || anim.current || busy) return;
+      // Only the side to move moves its own pieces. (A tap on a marker
+      // left from the other side's piece, or a test's move, once played
+      // the other side's piece on this side's points.)
+      if (piece.owner !== currentPlayer) return;
       const remainingBefore = maxStepsFor(piece.type) - (piece.id === selectedId ? stepsUsed : 0);
       const move = legalMovesFor(pieces, piece, remainingBefore)[dir];
       if (!move) return;
 
       const t = three.current;
       setBusy(true);
+      stepInFlightRef.current = true;
       while (t.ghostGroup.children.length) t.ghostGroup.children.pop();
 
       // A fresh turn (this piece's first step) always starts with a
@@ -5155,7 +5161,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         move.shoves ? move.shoves.map((q) => ({ ...q, state: pieces.find((p) => p.id === q.id) })) : null
       );
     },
-    [pieces, busy, selectedId, stepsUsed, animateStep]
+    [pieces, busy, selectedId, stepsUsed, animateStep, currentPlayer]
   );
   beginMoveRef.current = beginMove;
 
@@ -6677,10 +6683,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       currentVariants, winner, winReason, showVictoryPlacard, aiPlayer, showOpponentPicker,
       humanStartSide, aiDifficulty, gameArmed, dockSessionPieceType, boardNearSide,
       cam: { theta: c.theta, phi: c.phi, radius: c.radius, target: [c.target.x, c.target.y, c.target.z] },
-      settling: !!(busy || aiThinking || anim.current),
+      settling: !!(busy || aiThinking || anim.current || stepInFlightRef.current),
     };
   }
   if (carryRef) carryRef.current = snapshotGame;
+  /* A step in flight, from the moment it starts until the render with it
+     landed (its commit) is done: until then this snapshot can still be
+     the one from before it began (on a slow renderer a step can start,
+     run and land between two renders, and the Theme Lab, switching then,
+     carried the board from before the step with its point spent). */
+  useEffect(() => {
+    if (!busy && !anim.current) stepInFlightRef.current = false;
+  }, [busy, pieces, stepsUsed]);
   // Starting from a carried game: the view as it was, the theme's own
   // in-game ambience and sound armed as if Begin Game had just been
   // pressed, but without replaying the opening.

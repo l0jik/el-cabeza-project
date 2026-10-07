@@ -121,11 +121,16 @@ async function waitSwitched(page, id) {
   check("back on the first direction, the address says so", (await labId(page)) === "swiss" && (await page.evaluate(() => new URLSearchParams(location.search).get("theme"))) === "swiss");
 
   // Play carries on: finish Light's turn.
+  // (The Chato may still be the selected piece, carried over: a tap on it
+  // again is "stop here", which ends Light's turn by itself. Only if it's
+  // still Light's turn after the tap is there a move to play.)
   const lp2 = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-chato"));
   await page.mouse.click(lp2.x, lp2.y); await page.waitForTimeout(400);
-  const b2 = await page.evaluate(() => window.__EC_TEST_COST_BADGES__());
-  const d2 = (b2.find((x) => x.text !== "free") || b2[0] || {}).dir;
-  if (d2) await page.evaluate((d) => window.__EC_TEST_MOVE__("light-chato", d), d2);
+  if ((await state(page)).player === "light") {
+    const b2 = await page.evaluate(() => window.__EC_TEST_COST_BADGES__());
+    const d2 = (b2.find((x) => x.text !== "free") || b2[0] || {}).dir;
+    if (d2) await page.evaluate((d) => window.__EC_TEST_MOVE__("light-chato", d), d2);
+  }
   check("after the switches the turn finishes and play passes to Dark", !!(await poll(async () => (await state(page)).player === "dark", 6000)));
   const logLen = await page.evaluate(() => window.__EC_TEST_LOG__.length);
   check("...and the log grows by one (two turns in all)", logLen === 2, String(logLen));

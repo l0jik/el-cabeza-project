@@ -7272,3 +7272,17 @@ phone menu until "Start the story over" (which clears it).
   out of the deps. tests/e2e-pivot-drag.mjs: both arms, both ways,
   selected or not.
 - ?fresh checked in a browser: reloads clean, opens on the store's lid.
+
+- e2e-lab "a switch during a step waits" fixed (it predated the usability
+  round). Root cause, traced with an in-page event log: after the ten
+  switches the Light Chato was still selected (carried), so the test's tap
+  on it was "stop here" and ended Light's turn; the test then played
+  "Chato S" through __EC_TEST_MOVE__ on Dark's turn, and the chassis took
+  it: Dark spent a point moving Light's piece, and the Flaco's move then
+  had nothing left to do. Fixes: beginMove refuses a piece that isn't the
+  side to move's (a real hole too: any stale marker or hook could do it);
+  the test plays Light's move only if it's still Light's turn after the
+  tap. Also added: stepInFlightRef, so the carry snapshot reads "settling"
+  from a step's start until the render with it landed (a slow renderer
+  could otherwise hand the Lab the pre-step closure). e2e-costs checks the
+  other side's piece won't move.

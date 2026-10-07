@@ -117,6 +117,15 @@ for (const theme of ["neon", "standard"]) {
   }
   check("the points row names whose points they are", /Photon/i.test(await page.locator('[data-testid="points-side"]').innerText()));
   check("no Stop here before a move", (await page.locator('[data-testid="stop-here-float"]').count()) === 0);
+  {
+    // The other side's piece won't move on this side's turn (the Theme Lab
+    // test found a move of Light's piece played on Dark's points).
+    const before = JSON.stringify((await page.evaluate(() => window.__EC_TEST_PIECES__)).find((p) => p.id === "light-turrito"));
+    await page.evaluate(() => window.__EC_TEST_MOVE__("light-turrito", "N"));
+    await page.waitForTimeout(1500);
+    const after = JSON.stringify((await page.evaluate(() => window.__EC_TEST_PIECES__)).find((p) => p.id === "light-turrito"));
+    check("the other side's piece won't move on this side's turn", before === after && /Photon/i.test(await page.locator('[data-testid="points-side"]').innerText()), after);
+  }
   await select(page, "dark-turrito");
   check("every roll costs the same: no badges", (await badges(page)).length === 0, JSON.stringify(await badges(page)));
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
