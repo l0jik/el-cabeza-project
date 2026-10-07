@@ -7184,3 +7184,11 @@ phone menu until "Start the story over" (which clears it).
   pointerdown/click/mousedown/touchstart), a drag still moves it, and the
   "Tap to play" hint is hidden (.den-card.held small). e2e-story checks
   early taps don't close it and that it frees after 3.8 s.
+
+- Parrish sound (parrish-audio.js): leaving for Other realities, the
+  soundtrack (hums channel) now fades out in HUMS_OUT_S = 0.6 s instead of
+  over the close's 3 s swell (user: it clashed with the exit music; the
+  intro still crosses out over 3 s). Orinoco's made terrace runs through a
+  TERRACE_TRIM = 0.7 gain (natureBus and the open-air verb), so its slider
+  at 100% is 70% of what it was; the opening and the close on that slider
+  are untouched, and Watermark's evening is unchanged.

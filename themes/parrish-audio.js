@@ -75,6 +75,9 @@ const CLOSE_MUSIC_MS = 10500;
 // it "cuts to that music too harshly"; chose 3 s, the switcher's wait
 // unchanged); the hums and the intro step out over the same time.
 const OUTRO_FADE_S = 3;
+// The soundtrack, though, is gone in this long at the tap (user: "fade
+// out very quickly"; it and the close clashed).
+const HUMS_OUT_S = 0.6;
 // Each look's soundtrack, looped (made to loop by tools/parrish_hums.py),
 // on a channel of its own ("hums"): Watermark, the user's "Cathedral
 // Hums"; Orinoco, their "Dodhéanta an Ghrian" (user: "Volume sliders the
@@ -96,6 +99,9 @@ const EVENING_LOOP = [0.25, 0.25 + 192.1];
 // (0.19 measured about -38 dBFS at the speakers, place only; user: "way,
 // way down", so ~12 dB lower: about -50. Orinoco's made terrace: about -44.)
 const EVENING_GAIN = 0.045;
+// Orinoco's made terrace, at most this much of what it was (user: at 100%
+// it was too loud; its maximum down to 70%).
+const TERRACE_TRIM = 0.7;
 // Its slider starts here (user: "very low on the overall audio mix so as
 // to not be distracting"; theirs to bring up): the channel's level times
 // HUMS_GAIN, about 26 dB under the music at first.
@@ -214,7 +220,11 @@ export function createAudio() {
       vol = ctx.createGain(); vol.gain.value = 1;
       master.connect(comp).connect(vol).connect(ctx.destination);
       ["nature", "pieces", "music", "hums"].forEach((k) => { const g = ctx.createGain(); g.gain.value = chLevel[k]; g.connect(master); gates[k] = g; });
-      natureBus = ctx.createGain(); natureBus.gain.value = 0; natureBus.connect(gates.nature);
+      // (The place's own sound through a trim: Orinoco's made terrace at
+      // TERRACE_TRIM, so its slider's top is 70% of what it was, user; the
+      // opening and the close on the same slider stay as they were.)
+      const trim = ctx.createGain(); trim.gain.value = EVENING_URL ? 1 : TERRACE_TRIM; trim.connect(gates.nature);
+      natureBus = ctx.createGain(); natureBus.gain.value = 0; natureBus.connect(trim);
       // The open air: a short, soft, bright tail (there are no walls).
       verb = ctx.createConvolver();
       const len = Math.floor(ctx.sampleRate * 1.1), ir = ctx.createBuffer(2, len, ctx.sampleRate);
@@ -224,7 +234,7 @@ export function createAudio() {
       }
       verb.buffer = ir;
       const wet = ctx.createGain(); wet.gain.value = 0.22;
-      verb.connect(wet).connect(gates.nature);
+      verb.connect(wet).connect(trim);
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 3, ctx.sampleRate);
       const nd = noiseBuf.getChannelData(0);
       for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
@@ -529,10 +539,11 @@ export function createAudio() {
     if (ctx.state === "suspended") ctx.resume();
     // The intro and the hums cross out as the close swells in; the
     // place's sound steps back.
-    const fadeOut = (g) => { const t = now(); g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + OUTRO_FADE_S); };
+    const fadeOut = (g, s) => { const t = now(); g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + s); };
     const closing = outro && !outro.done && !outro.stopped && now() - outro.at < 20;
-    if (!closing && intro && intro.g) fadeOut(intro.g);
-    if (!closing && hums && hums.g) fadeOut(hums.g);
+    if (!closing && intro && intro.g) fadeOut(intro.g, OUTRO_FADE_S);
+    // (The soundtrack goes quickly, user: it clashed with the close.)
+    if (!closing && hums && hums.g) fadeOut(hums.g, HUMS_OUT_S);
     if (natureBus) natureBus.gain.setTargetAtTime(0.35, now(), 0.8);
     // (Already closing, from the tap that asked for the switcher: it plays
     // on, not again from the top, when the switcher opens.)
