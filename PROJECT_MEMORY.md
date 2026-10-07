@@ -7311,3 +7311,19 @@ phone menu until "Start the story over" (which clears it).
   the piece's own bounce-and-open, setupExtras.openDock; not in the phone
   bar layout) and setIdleNudge(true), which lights Try a Game. Store, before
   a game, not after the story. tests/e2e-try-it.mjs.
+
+- End turn with points left asks first ("You still have N action points
+  left. Are you sure you don't want to use them?", Keep playing / End turn;
+  data-testid end-turn-ask) through a player's first game (user: "at least
+  for the very first time a person plays"): handleEndTurnClick in the
+  chassis, for the floating button, the dock panel's and the phone bar's;
+  localStorage el-cabeza:end-turn-coached is set once a game finishes or is
+  ended (?fresh clears it). Tapping the piece again to stop doesn't ask.
+- The store's Try it! card is a 1970s Big Glutts flyer (user): the logo
+  ("Big Glutts", Caprasimo with a gold shadow, "Discount Department Store")
+  with four earth-tone stripes (#6B3A1E #B4451F #E07B22 #E9B23A, the den
+  cards' set) down the left side and curving round the top (CSS bands plus
+  an SVG corner of quarter arcs), then the friendly line and an ad: a rust
+  starburst "Only $7.97", NEW! EL CABEZA, Games & Hobby Dept. · Aisle 9.
+- Parrish points: Walnut's are walnut (#8a5632 Orinoco, #a0653a Watermark;
+  were sun gold / candle amber), user: Ash's already looked like ash.

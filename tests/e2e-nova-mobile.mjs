@@ -121,7 +121,7 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(1800);
   check("Undo move and End turn appear mid-turn", (await visible(page, "shell-undo-move")) && (await visible(page, "shell-end-turn")));
   check("one point left", (await page.locator('[data-testid="shell-points"] [data-filled="true"]').count()) === 1);
-  await q(page, "shell-end-turn").click();
+  await q(page, "shell-end-turn").click(); await page.waitForTimeout(300); if (await page.locator('[data-testid="end-turn-ask-end"]').count()) await page.locator('[data-testid="end-turn-ask-end"]').click(); // (a first game asks first)
   check("End turn passes the turn", await waitFor(async () => ((t) => /to move/i.test(t) && new RegExp(DARK_NAMES, "i").test(t) === (cur !== "dark"))(await q(page, "shell-status").textContent())));
   check("Undo turn is offered", await visible(page, "shell-undo-turn"));
 
@@ -233,7 +233,7 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(2500);
   await page.evaluate((id) => window.__EC_TEST_MOVE__(id, id.startsWith("dark") ? "S" : "N"), `${human}-flaco`);
   await page.waitForTimeout(1800);
-  await q(page, "shell-end-turn").click();
+  await q(page, "shell-end-turn").click(); await page.waitForTimeout(300); if (await page.locator('[data-testid="end-turn-ask-end"]').count()) await page.locator('[data-testid="end-turn-ask-end"]').click(); // (a first game asks first)
   check("the AI takes its turn", await waitFor(async () => (await page.evaluate(() => (window.__EC_TEST_TURNS__ || []).length)) >= 2, 30000));
   check("then it's the human's turn again", await waitFor(async () => new RegExp(`${humanName} to move`, "i").test(await q(page, "shell-status").textContent()), 10000));
   check("Undo turn takes back the pair", await visible(page, "shell-undo-turn"));

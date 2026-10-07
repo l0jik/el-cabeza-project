@@ -195,6 +195,13 @@ const OPPONENT_PREFS_KEY = "el-cabeza:opponent";
 // The points-left counter's on/off switch (see the dock's corner toggle).
 // On unless the player has switched it off.
 const SHOW_POINTS_KEY = "el-cabeza:show-points";
+/* End turn with points left asks first, through a player's first game
+   (user: "you still have action points left. Are you sure?"): kept once
+   a game of theirs has finished or been ended. */
+const END_TURN_COACHED_KEY = "el-cabeza:end-turn-coached";
+function endTurnCoached() {
+  try { return window.localStorage.getItem(END_TURN_COACHED_KEY) === "1"; } catch (e) { return false; }
+}
 function loadShowPoints() {
   try { return window.localStorage.getItem(SHOW_POINTS_KEY) !== "0"; } catch (e) { return true; }
 }
@@ -6730,6 +6737,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       (movedPieceIds.includes(p.id) || movedPieceIds.length < maxPiecesPerTurn()) &&
       Object.keys(legalMovesFor(pieces, p, remaining)).length > 0;
   }
+  // End turn, from the player's buttons: with points still to spend, in a
+  // player's first game, it asks first (endTurnAsk, its dialog below).
+  const [endTurnAsk, setEndTurnAsk] = useState(null);
+  function handleEndTurnClick() {
+    const left = Math.max(0, turnBudget() - stepsUsed);
+    if (left > 0 && !endTurnCoached()) { setEndTurnAsk({ left }); return; }
+    handleStopHere();
+  }
+  useEffect(() => {
+    if (status === "finished" || status === "ended") {
+      try { window.localStorage.setItem(END_TURN_COACHED_KEY, "1"); } catch (e) { /* this visit only */ }
+    }
+    if (status !== "playing") setEndTurnAsk(null);
+  }, [status]);
+  useEffect(() => { setEndTurnAsk(null); }, [currentPlayer]);
   function handleStopHere() {
     // Guards the human-facing entry point only — the AI's own orchestration
     // effect calls settleTurn directly, bypassing this, so its own
@@ -7876,7 +7898,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           type="button"
           className="ec-btn"
           data-testid="stop-here-float"
-          onClick={handleStopHere}
+          onClick={handleEndTurnClick}
           style={{
             ...playerButtonStyle(currentPlayer),
             position: "fixed",
@@ -7889,6 +7911,37 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         >
           End turn
         </button>
+      )}
+      {endTurnAsk && (
+        <div
+          data-testid="end-turn-ask"
+          role="alertdialog"
+          aria-label="End turn?"
+          onPointerDown={(e) => { if (e.target === e.currentTarget) setEndTurnAsk(null); }}
+          style={{ position: "fixed", inset: 0, zIndex: 1500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(10,8,6,0.35)" }}
+        >
+          <div
+            className="ec-end-turn-ask"
+            style={{
+              width: "min(340px, 100%)", boxSizing: "border-box", padding: "20px 20px 16px", borderRadius: 10,
+              background: COLORS.cream, color: COLORS.charcoal, border: `1px solid ${COLORS.slateSoft}`,
+              boxShadow: "0 18px 50px rgba(0,0,0,0.35)", fontFamily: "'IBM Plex Sans', sans-serif", textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.3, marginBottom: 6 }}>
+              You still have {endTurnAsk.left} action point{endTurnAsk.left > 1 ? "s" : ""} left.
+            </div>
+            <div style={{ fontSize: 14.5, lineHeight: 1.45, opacity: 0.85, marginBottom: 16 }}>Are you sure you don't want to use {endTurnAsk.left > 1 ? "them" : "it"}?</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button type="button" className="ec-btn" data-testid="end-turn-ask-keep" onClick={() => setEndTurnAsk(null)} style={{ ...ghostButtonStyle(), flex: 1 }}>
+                Keep playing
+              </button>
+              <button type="button" className="ec-btn" data-testid="end-turn-ask-end" onClick={() => { setEndTurnAsk(null); handleStopHere(); }} style={{ ...playerButtonStyle(currentPlayer), flex: 1 }}>
+                End turn
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Piece card: while it's your turn and a piece of yours is
@@ -8516,7 +8569,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             }}
           >
             {isPlaying && turnLocked && currentPlayer !== aiPlayer && shadowEntries.length > 0 && (
-              <button className="ec-btn" onClick={handleStopHere} style={playerButtonStyle(currentPlayer)}>
+              <button className="ec-btn" onClick={handleEndTurnClick} style={playerButtonStyle(currentPlayer)}>
                 End turn
               </button>
             )}
@@ -9362,7 +9415,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             canUndoAfter: !isPlaying && !awaitingBegin && turnHistory.length > 0,
             undoTurnBusy: !!(busy || aiThinking || anim.current),
             onUndoMove: handleUndoTurn,
-            onStopHere: handleStopHere,
+            onStopHere: handleEndTurnClick,
             onUndoTurn: handleUndoLastTurn,
             points: showPoints && isPlaying ? { left: Math.max(0, turnBudget() - stepsUsed), budget: turnBudget(), glow: (theme.pointsGlow && theme.pointsGlow[currentPlayer]) || null } : null,
             pointsPulse,

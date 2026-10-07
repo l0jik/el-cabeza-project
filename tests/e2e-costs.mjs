@@ -138,6 +138,16 @@ for (const theme of ["neon", "standard"]) {
   check("after a move, End turn above the points row", (await stop.count()) === 1 && /end turn/i.test(await stop.innerText()));
   await page.screenshot({ path: "/tmp/e2e-costs-stop.png" });
   await stop.click();
+  await page.waitForTimeout(500);
+  // (A first game, points left: it asks first, user.)
+  const ask = page.locator('[data-testid="end-turn-ask"]');
+  check("...points left, a first game: it asks first", (await ask.count()) === 1 && /1 action point left/i.test(await ask.innerText()));
+  await page.locator('[data-testid="end-turn-ask-keep"]').click();
+  await page.waitForTimeout(400);
+  check("...Keep playing: still this turn", (await ask.count()) === 0 && /Photon/i.test(await page.locator('[data-testid="points-side"]').innerText()));
+  await stop.click();
+  await page.waitForTimeout(400);
+  await page.locator('[data-testid="end-turn-ask-end"]').click();
   await page.waitForTimeout(1500);
   check("...and it ends the turn", /Plasma/i.test(await page.locator('[data-testid="points-side"]').innerText()) && (await stop.count()) === 0);
   check("no page errors", errs.length === 0, errs.join(" | "));
