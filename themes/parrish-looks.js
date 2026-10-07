@@ -22,6 +22,9 @@ export const LOOKS = {
     blot2: [0.6, 0.75, 0.6],    // and sage
     accents: [[0.96, 0.93, 0.84], [0.97, 0.91, 0.62], [0.6, 0.75, 0.6], [0.66, 0.52, 0.62], [0.24, 0.42, 0.76], [0.9, 0.58, 0.56], [0.42, 0.7, 0.72], [0.86, 0.7, 0.38]],
     lift: [0.15, 0.19, 0.27], gamma: 0.86, glow: 0.22, vignette: [0.62, 0.52, 0.6],
+    // A line round the whole of each light piece, its foot too (user: they
+    // all but vanished on the light squares); parrish-paint.js uPieceEdge.
+    pieceEdge: 0.95,
     lights: { key: [0xfff4e2, 1.05], fill: [0xc8dcff, 0.35], back: [0xffe2d0, 0.3] },
     bg: "#9DBEE6",
   },

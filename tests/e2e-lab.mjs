@@ -24,7 +24,7 @@ const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "
 const poll = async (fn, ms = 8000, step = 150) => { const end = Date.now() + ms; let v; while (Date.now() < end) { v = await fn(); if (v) return v; await new Promise((r) => setTimeout(r, step)); } return v; };
 
 async function openLab(page, theme) {
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.removeItem("el-cabeza:lab-theme"); } catch (e) { /* none */ } });
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; try { localStorage.removeItem("el-cabeza:lab-theme"); } catch (e) { /* none */ } });
   await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-lab.html?theme=${theme}`);
   await poll(() => page.evaluate(() => !!window.__LAB__ && !!document.querySelector('[data-testid="lab-hud"]')), 15000);
 }

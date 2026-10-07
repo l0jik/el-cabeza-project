@@ -341,6 +341,7 @@ console.log("the link straight to it: left alone, a menu opens by itself and com
   await page.waitForTimeout(1200);
   check("...and not the rules over it", (await page.locator('[data-testid="info-overlay"][data-open="true"]').count()) === 0);
   check("...and the glow's gone", await page.evaluate(() => !window.__DEN_ORDER_PAPER__().on && !document.documentElement.classList.contains("ec-order-paper")));
+  await page.waitForFunction(() => { const n = document.querySelector(".td-special-note"); return n && performance.now() - Number(n.dataset.since) > 2600; }, null, { timeout: 8000 }); // (held a moment against wild taps)
   await q("tienda-special-note").click();
   check("...the order form", !!(await poll(async () => (await q("tienda-order").count()) > 0, 8000)));
   await q("tienda-piece-turrito-inc").click();

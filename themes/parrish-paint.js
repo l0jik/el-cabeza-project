@@ -138,6 +138,7 @@ uniform vec3 uLift;
 uniform float uGamma;
 uniform sampler2D tEcho;
 uniform float uEchoK;
+uniform float uPieceEdge;
 uniform vec3 uF0, uF1, uF2, uF3, uF4, uF5;
 vec3 ramp(float x) {
   x = clamp(x, 0.0, 1.0) * 5.0;
@@ -217,6 +218,19 @@ void main() {
     float zc = invZ(vUv);
     float lap = invZ(vUv + vec2(uTexel.x, 0.0)) + invZ(vUv - vec2(uTexel.x, 0.0)) + invZ(vUv + vec2(0.0, uTexel.y)) + invZ(vUv - vec2(0.0, uTexel.y)) - 4.0 * zc;
     line = smoothstep(0.06, 0.2, -lap / max(zc, 1e-4)) * here.a * mix(0.62, mix(0.83, 1.0, lightK), piece);
+  }
+  // A light piece's whole outline, where it meets the board too (user:
+  // in Orinoco the light pieces all but vanished on the light squares;
+  // the line above is only where the depth jumps, so a piece's foot had
+  // none): the edge of the piece itself, inside it, a couple of texels
+  // wide (uPieceEdge, the look's: Orinoco's).
+  if (uPieceEdge > 0.0 && lightP > 0.0) {
+    float nb = 0.0;
+    for (int i = 0; i < 8; i++) {
+      float an = float(i) * 0.7854;
+      nb += pieceOf(texture2D(tScene, vUv + vec2(cos(an), sin(an)) * uTexel * 2.2).a);
+    }
+    line = max(line, lightP * smoothstep(0.0, 2.5, 8.0 - nb) * uPieceEdge);
   }
   gl_FragColor = vec4(grade(c, subj), line);
 }`;
@@ -575,7 +589,7 @@ export function createPainter(renderer, { quality, mode = motionMode(), look } =
   const flowMat = mat(FLOW_FRAG, { tScene: { value: sceneRT.texture }, uTexel: { value: new THREE.Vector2() }, uSeed: { value: 0 } });
   const oilMat = mat(OIL_FRAG, { tScene: { value: sceneRT.texture }, tFlow: { value: flowRT.texture }, uTexel: { value: new THREE.Vector2() }, uSeed: { value: 0 },
     uLift: { value: v3(L.lift) }, uGamma: { value: L.gamma },
-    ...Object.fromEntries((L.field || [[0, 0, 0], [0.2, 0.2, 0.2], [0.4, 0.4, 0.4], [0.6, 0.6, 0.6], [0.8, 0.8, 0.8], [1, 1, 1]]).map((c, i) => [`uF${i}`, { value: v3(c) }])), tEcho: { value: echoA.texture }, uEchoK: { value: 0.92 } });
+    ...Object.fromEntries((L.field || [[0, 0, 0], [0.2, 0.2, 0.2], [0.4, 0.4, 0.4], [0.6, 0.6, 0.6], [0.8, 0.8, 0.8], [1, 1, 1]]).map((c, i) => [`uF${i}`, { value: v3(c) }])), tEcho: { value: echoA.texture }, uEchoK: { value: 0.92 }, uPieceEdge: { value: L.pieceEdge || 0 } });
   const echoMat = mat(ECHO_FRAG, { tPrev: { value: echoA.texture }, tScene: { value: sceneRT.texture }, uTexel: { value: new THREE.Vector2() }, uDecay: { value: 0.9 } });
   const canvasMat = mat(CANVAS_FRAG, { tOil: { value: oilRT.texture }, tFlow: { value: flowRT.texture }, uRes: { value: res }, uSeed: { value: 0 }, uScale: scaleU, uLine: { value: 0.53 } });
   const baseMat = mat(BASE_FRAG, { tOil: { value: oilRT.texture } });

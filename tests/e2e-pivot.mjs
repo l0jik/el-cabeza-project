@@ -43,7 +43,7 @@ async function openPage() {
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/ERR_CERT|ERR_CONNECTION/.test(m.text())) errs.push(m.text()); });
-  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = { cantileverPivot: true }; });
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; window.__EC_LAWS__ = { cantileverPivot: true }; });
   await page.goto(FILE);
   await page.waitForTimeout(1500);
   return { page, errs };

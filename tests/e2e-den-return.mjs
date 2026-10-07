@@ -20,7 +20,7 @@ const poll = async (fn, ms = 20000, step = 200) => {
 };
 const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
 await ctx.addInitScript(() => {
-  window.__EC_TEST_HOOKS__ = true;
+  window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true;
   try {
     if (!sessionStorage.getItem("seeded")) {
       sessionStorage.setItem("seeded", "1");

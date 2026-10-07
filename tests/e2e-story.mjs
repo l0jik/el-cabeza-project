@@ -206,6 +206,7 @@ console.log("\ndesktop: the store, the purchase, home");
   await page.waitForTimeout(900);
   check("...nothing else takes a tap or a drag: the camera stays", cam0 === await page.evaluate(() => { const p = window.__EC_TEST_THREE__().camera.position; return [p.x, p.y, p.z].map((v) => v.toFixed(2)).join(); }));
   check("...and each tap off it makes it throb", /td-throb/.test(await q(page, "tienda-special-note").getAttribute("class")));
+  await page.waitForFunction(() => { const n = document.querySelector(".td-special-note"); return n && performance.now() - Number(n.dataset.since) > 2600; }, null, { timeout: 8000 }); // (held a moment against wild taps)
   await q(page, "tienda-special-note").click();
   check("the note is the whole order form", await poll(() => has(page, "tienda-order"), 8000));
   check("...with the board's size now, and still no shuffled start (Neon's alone)", (await has(page, "tienda-cols")) && !/Shuffled start/.test(await q(page, "tienda-order").innerText()));

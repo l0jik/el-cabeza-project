@@ -28,7 +28,7 @@ async function startGame(theme, laws) {
   page.setDefaultTimeout(30000);
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
-  await page.addInitScript((l) => { window.__EC_TEST_HOOKS__ = true; if (l) window.__EC_LAWS__ = l; }, laws || null);
+  await page.addInitScript((l) => { window.__EC_TEST_HOOKS__ = true; window.__EC_TEST_ALL_COSTS__ = true; if (l) window.__EC_LAWS__ = l; }, laws || null);
   await page.goto(`file:///home/user/el-cabeza-project/dist/el-cabeza-${theme}.html`);
   await page.waitForTimeout(2500);
   if (OPENING[theme]) { await page.locator(`[data-testid="${OPENING[theme]}"]`).click(); await page.waitForTimeout(1200); }

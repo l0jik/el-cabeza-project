@@ -7212,3 +7212,28 @@ phone menu until "Start the story over" (which clears it).
   (a hook for a world's own lettering). Parrish draws it with the masthead's
   mask and paint (same rule as .ec-title, 8em wide), so both looks show the
   user's "el Cabeza" lettering there (user). Other worlds unchanged.
+
+- Usability round (user: "Do every suggestion you made"):
+  - Points row (chassis): "<side name> · Action points" (sideName of the
+    player; data-testid points-side). Spent points were already dark beads
+    (suggestion 3 was already there; left as the user designed it).
+  - Stop here during play on the classic layout: a button above the points
+    row (data-testid stop-here-float) once a move's been made and more can
+    be done (stopHereFloat; !shell, the phone bar has its own). The piece
+    card's lower-left measure counts it. The stopHereFloat/measure block
+    sits after shadowEntries (hook order moved, nothing else).
+  - Cost badges only when the shown markers' costs differ (a "free" way
+    back among 1s, a slide at 2...); all the same, none (the piece card says
+    the cost). Tests of the badges themselves set window.__EC_TEST_ALL_COSTS__
+    (costs, den-return, lab, outside-dismiss, piece-guide, pivot); e2e-costs
+    has an "as played" block for the new behaviour.
+  - Orinoco: a line round the whole of each light piece, its foot too
+    (parrish-paint.js OIL_FRAG uPieceEdge from the look's pieceEdge 0.95;
+    Watermark 0). The old line was depth-jump only, so a foot had none.
+  - Held against wild taps: the hallway choice (den-hall.js, CHOICE_HOLD_MS
+    1500, [data-held] dims the buttons; pick() ignores taps till then) and
+    the special-orders note (tienda-overlay.js NOTE_HOLD_MS 2500 from its
+    data-since; its "Order from the catalog" fades in then; neither a tap on
+    it nor a dismissing tap off it counts before). The phone call's captions
+    and the den's thought/yay cards are timed, not tap-dismissed: unchanged.
+    Tests wait the holds out (ending, camera-glide, summon, story).

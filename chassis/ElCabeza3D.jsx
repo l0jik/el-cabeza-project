@@ -2798,25 +2798,6 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      lower left (the den's lamp, room view and full screen; user: the card
      lay over them), measured as it shows and on a resize. */
   const [pieceCardBottom, setPieceCardBottom] = useState(66);
-  useLayoutEffect(() => {
-    if (!pieceCardShown || typeof document === "undefined") return undefined;
-    const measure = () => {
-      const sel = '[data-testid="focus-corner"], [data-testid="room-view-corner"], [data-testid="action-corner"], [data-testid="dock-corner"], [data-testid="how-to-play"], [data-fullscreen-toggle]';
-      let top = Infinity;
-      document.querySelectorAll(sel).forEach((el) => {
-        const r = el.getBoundingClientRect();
-        // (Only what's showing, at the lower left, where the card goes.)
-        if (!r.width || !r.height || r.left > 260 || r.top < window.innerHeight * 0.45) return;
-        const cs = getComputedStyle(el);
-        if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) === 0) return;
-        top = Math.min(top, r.top);
-      });
-      setPieceCardBottom(top === Infinity ? 66 : Math.max(66, Math.round(window.innerHeight - top + 10)));
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [pieceCardShown, selectedId]);
   useEffect(() => {
     if (!pieceCardShown) return undefined;
     const onDown = (ev) => {
@@ -2856,6 +2837,29 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // being buried under a marker for every slide direction on top of every
   // roll.
   const shadowEntries = Object.entries(shadows).filter(([, m]) => !m.isSlide);
+  // (Stop here above the points row; see its button. Kept up through a
+  // move's own animation, when the markers are briefly gone.)
+  const stopHereFloat = !shell && isPlaying && turnLocked && currentPlayer !== aiPlayer && (stepsRemaining > 0 || busy) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
+  // (The piece card's place, measured below everything at the lower left.)
+  useLayoutEffect(() => {
+    if (!pieceCardShown || typeof document === "undefined") return undefined;
+    const measure = () => {
+      const sel = '[data-testid="focus-corner"], [data-testid="room-view-corner"], [data-testid="action-corner"], [data-testid="dock-corner"], [data-testid="how-to-play"], [data-fullscreen-toggle], [data-testid="stop-here-float"]';
+      let top = Infinity;
+      document.querySelectorAll(sel).forEach((el) => {
+        const r = el.getBoundingClientRect();
+        // (Only what's showing, at the lower left, where the card goes.)
+        if (!r.width || !r.height || r.left > 260 || r.top < window.innerHeight * 0.45) return;
+        const cs = getComputedStyle(el);
+        if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) === 0) return;
+        top = Math.min(top, r.top);
+      });
+      setPieceCardBottom(top === Infinity ? 66 : Math.max(66, Math.round(window.innerHeight - top + 10)));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [pieceCardShown, selectedId, stopHereFloat]);
 
   /* ------------------------- scene setup ------------------------- */
   useEffect(() => {
@@ -4352,15 +4356,25 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        (the turn trail in commit); a crush or shove never is. */
     const sameBoard = (a, b) =>
       a.length === b.length && a.every((p) => { const q = b.find((x) => x.id === p.id); return q && sameState(p, q); });
-    const withCostBadge = (themed, move, x, y, z) => {
-      if (!costsOn) return themed;
+    const costLabel = (move) => {
       const cand = move.candidate;
       const nextBoard = pieces.map((p) => (p.id === cand.id ? cand : p));
       const isFree = currentPlayer !== aiPlayer && !move.crushes && !move.shoves &&
         turnTrailRef.current.some((e) => sameBoard(e.board, nextBoard));
+      return isFree ? "free" : String(moveCost(move));
+    };
+    /* Only when the costs differ (user): a badge on every marker saying
+       the same "1" was clutter; when they all cost the same, the piece
+       card says what that is. (Tests of the badges themselves can keep
+       them all: __EC_TEST_ALL_COSTS__.) */
+    const costLabels = new Set(shadowEntries.map(([, m]) => costLabel(m)));
+    const badgesWanted = costsOn && (costLabels.size > 1 || (typeof window !== "undefined" && window.__EC_TEST_ALL_COSTS__));
+    const withCostBadge = (themed, move, x, y, z) => {
+      if (!badgesWanted) return themed;
+      const cand = move.candidate;
       const dark = cand.owner === "dark";
       const badge = buildCostBadge({
-        text: isFree ? "free" : String(moveCost(move)),
+        text: costLabel(move),
         fill: (dark ? COLORS.accentDark : COLORS.accentLight) || (dark ? COLORS.bodyDark : COLORS.bodyLight),
         ink: COLORS.inkOnAccent || (dark ? COLORS.bodyLight : COLORS.bodyDark),
         x, y, z,
@@ -7780,7 +7794,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
 [data-testid="points-counter"] [data-filled="true"]{background:radial-gradient(circle at 38% 34%,color-mix(in srgb,var(--ec-ember) 45%,white) 0 16%,var(--ec-ember) 46%,color-mix(in srgb,var(--ec-ember) 72%,black) 100%);animation:ecEmberBreathe 2.6s ease-in-out infinite}
 [data-testid="points-counter"] [data-filled="false"]{background:#2a221d;box-shadow:inset 0 1px 2px rgba(0,0,0,0.8),0 0 0 1.5px rgba(255,244,226,0.28)}
 @media (prefers-reduced-motion: reduce){[data-testid="points-counter"] [data-filled="true"]{animation:none;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 6px 2px var(--ec-ember),0 0 16px 4px color-mix(in srgb,var(--ec-ember) 50%,transparent)}}`}</style>
-            <span style={{ opacity: 0.9 }}>Action points</span>
+            {/* Whose points (user: say whose turn it is, by name). */}
+            <span style={{ opacity: 0.9 }}><span data-testid="points-side">{sideName(player)}</span> · Action points</span>
             <span key={pointsPulse} style={{ display: "flex", gap: 10, animation: pointsPulse ? "ecPointsRefund 0.6s ease-out" : "none" }}>
               {Array.from({ length: budget }, (_, i) => (
                 <span
@@ -7802,6 +7817,31 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           </div>
         );
       })()}
+
+      {/* Stop here, during play (user: ending a turn early meant tapping
+         the piece again or finding Stop here in the dock's panel, which
+         is folded away while you play). Just above the points row once a
+         move of yours has been made and there's more you could do; the
+         phone's bar has its own. */}
+      {stopHereFloat && (
+        <button
+          type="button"
+          className="ec-btn"
+          data-testid="stop-here-float"
+          onClick={handleStopHere}
+          style={{
+            ...playerButtonStyle(currentPlayer),
+            position: "fixed",
+            left: "50%",
+            bottom: showPoints ? 50 : 22,
+            transform: "translateX(-50%)",
+            zIndex: 12,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Stop here
+        </button>
+      )}
 
       {/* Piece card: while it's your turn and a piece of yours is
          selected, a small card in the lower left says what it is, how it

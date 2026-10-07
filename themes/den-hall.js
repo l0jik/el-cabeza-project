@@ -29,6 +29,7 @@ import * as THREE from "three";
 import { FLOOR, CEIL, RZ, HALL } from "./den-room.js";
 
 const FIRST_AFTER = 4;   // moves after coming home (user: at least four)
+const CHOICE_HOLD_MS = 1500; // the choice takes no tap till then (wild taps; user)
 const AGAIN_AFTER = 3;   // after "just keep playing": a few moves later
 const LINE = "Oh no… now what?";
 // ...and when it comes back, having kept playing (user).
@@ -93,6 +94,8 @@ const CSS = `
 .den-hall-choice button.stay { font-style: italic; }
 .den-hall-choice button.stay:hover, .den-hall-choice button.stay:focus-visible { background: rgba(46,33,24,0.08); }
 .den-hall-choice button:focus-visible { outline: 2px solid #A8321F; outline-offset: 2px; }
+.den-hall-choice button { transition: opacity 0.4s ease; }
+.den-hall-choice[data-held] button { opacity: 0.5; cursor: default; }
 /* While it's happening (user: the corner buttons and the points pill are
    only a distraction then): the page's own controls step out of the way. */
 html.ec-hall-scene [data-testid="points-counter"], html.ec-hall-scene [data-testid="room-view-corner"], html.ec-hall-scene [data-testid="focus-corner"],
@@ -213,6 +216,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
   let state = "idle", base = 0, need = FIRST_AFTER, t0 = 0, choiceAt = 0;
   let built = null, builtFor = null;
   let flashEl = null, whiteEl = null, sayEl = null, choiceEl = null, blockEl = null, styleEl = null;
+  let choiceFreeAt = 0;
   let amt = 0, camW = 0, camGoal = 0, camFrom = 0, camT0 = 0;
   let nodes = [], hum = null, nextBoom = 0, walkFrom = null, ended = false, path = null, nextStep = 0;
   const colA = new THREE.Color(0x8a5cff), colB = new THREE.Color(0x5ce1ff);
@@ -367,6 +371,13 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       const go = doc.createElement("button"); go.type = "button"; go.className = "go"; go.textContent = INVESTIGATE; go.setAttribute("data-testid", "den-hall-investigate"); go.onclick = () => pick("investigate");
       const stay = doc.createElement("button"); stay.type = "button"; stay.className = "stay"; stay.textContent = flares > 1 ? KEEP_AGAIN : KEEP; stay.setAttribute("data-testid", "den-hall-keep"); stay.onclick = () => pick("keep");
       choiceEl.append(go, stay);
+      // Held a moment (user: an impatient player tapping wildly could take
+      // a choice unread, and Investigate is the way to the end): no tap
+      // counts for CHOICE_HOLD_MS, the buttons dimmed till then.
+      const el = choiceEl;
+      el.setAttribute("data-held", "");
+      choiceFreeAt = performance.now() + CHOICE_HOLD_MS;
+      setTimeout(() => el.removeAttribute("data-held"), CHOICE_HOLD_MS);
       requestAnimationFrame(() => requestAnimationFrame(() => choiceEl && choiceEl.classList.add("on")));
       setTimeout(() => { try { go.focus({ preventScroll: true }); } catch (e) { /* fine */ } }, 60);
     }
@@ -374,7 +385,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
   }
   function camTo(goal) { if (goal === camGoal) return; camFrom = camW; camGoal = goal; camT0 = performance.now(); }
   function pick(which) {
-    if (state !== "flare") return;
+    if (state !== "flare" || performance.now() < choiceFreeAt) return;
     showChoice(false); showSay(false);
     if (which === "keep") {
       state = "settle"; t0 = performance.now(); camTo(0);

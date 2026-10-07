@@ -85,11 +85,11 @@ console.log("\nNova ?scene=hall");
   await page.locator('[data-testid="den-hall-preview"]').click();
   const keep = page.locator('[data-testid="den-hall-keep"]');
   check("...the hallway lights up, and the choice", !!(await poll(async () => (await keep.count()) > 0 && /weird enough already/.test(await keep.innerText()), 8000)));
-  await page.waitForTimeout(500);
+  await page.waitForSelector('[data-testid="den-hall-choice"]:not([data-held])', { timeout: 5000 }); // (held a moment against wild taps)
   await keep.click();
   check("kept playing: back in a few seconds, \"Oh, for the love of…\"", !!(await poll(async () => (await keep.count()) > 0 && /Oh, for the love of…/.test(await page.locator('[data-testid="den-hall-say"]').innerText()), 15000)));
   check("...and keep playing's the electrician", /call an electrician about that tomorrow\. Let me just finish one game!/.test(await keep.innerText()));
-  await page.waitForTimeout(500);
+  await page.waitForSelector('[data-testid="den-hall-choice"]:not([data-held])', { timeout: 5000 }); // (held a moment against wild taps)
   await keep.click();
   check("the third time: pulled in", !!(await poll(async () => { const h = await page.evaluate(() => window.__DEN_HALL__()); return h.state === "walk" && h.dragged; }, 15000)));
   check("...and nothing kept", await page.evaluate(() => { const s = JSON.parse(localStorage.getItem("el-cabeza:story") || "null"); return !s || (!s.hallFlares && !s.ended); }));

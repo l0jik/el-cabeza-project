@@ -76,6 +76,16 @@ let lidDone = false;
    (user: "the more that should... pulse larger"), over NUDGE_GROW_MS. */
 let idleNudgeDone = false;
 let idleSpent = 0; // ms of the clock already run (kept across pauses)
+/* The special-orders note is held a moment when it comes up (user: an
+   impatient player tapping wildly could put it away, or take it, unread):
+   no tap on it or off it counts till NOTE_HOLD_MS, and its "Order from
+   the catalog" fades in then. */
+const NOTE_HOLD_MS = 2500;
+function noteHeld() {
+  if (typeof document === "undefined") return false;
+  const el = document.querySelector(".td-special-note");
+  return !!(el && el.dataset.since && performance.now() - Number(el.dataset.since) < NOTE_HOLD_MS);
+}
 const IDLE_NUDGE_MS = 30000;
 const NUDGE_GROW_MS = 90000;
 const NUDGE_CSS = `
@@ -243,7 +253,7 @@ export function useSetupExtras(x) {
     BLOCK.forEach((ev) => window.addEventListener(ev, block, { capture: true, passive: false }));
     window.addEventListener("keydown", blockKey, true);
     const onDown = (e) => {
-      if (guidedNow() || hallScene() || !noteShown()) return;
+      if (guidedNow() || hallScene() || !noteShown() || noteHeld()) return;
       if (!onNote(e)) dismissSpecialNote();
     };
     document.addEventListener("pointerdown", onDown, true);
@@ -470,8 +480,11 @@ function renderOverlaysHere(x) {
         // has missed it: it's where the special-order scene starts (user).
         className: x.noteGlow ? "td-special-note td-sing-glow" : "td-special-note",
         title: "Open the catalog's order form",
+        // (When it came up: it's held a moment, noteHeld.)
+        ref: (el) => { if (el && !el.dataset.since) el.dataset.since = String(performance.now()); },
         // Taken up: straight to the order form (from the box's lid too).
         onClick: () => {
+          if (noteHeld()) return;
           x.dismissSpecialNote();
           if (x.tiendaOverlay === "lid") { lidDone = true; x.audio && x.audio.startStore && x.audio.startStore(); }
           x.audio && x.audio.playRulesOpen && x.audio.playRulesOpen();
@@ -625,6 +638,8 @@ const CSS = `
     box-shadow: 0 6px 18px rgba(10,6,3,0.4); font: 400 13px/1.4 ${COURIER}; cursor: pointer; animation: tdNoteIn 0.5s ease both; }
   .td-special-note { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
   .td-special-note b { color: ${RED}; letter-spacing: 0.06em; text-transform: uppercase; font-family: ${FRANKLIN}; font-size: 13px; }
+  .td-special-note .td-special-go { animation: td-go-in 0.5s ease ${NOTE_HOLD_MS}ms both; }
+  @keyframes td-go-in { from { opacity: 0; } to { opacity: 1; } }
   .td-special-note .td-special-go { margin-top: 4px; padding: 5px 12px; border: 1.5px solid ${INK}; background: ${INK}; color: #EFE6CD;
     font: 700 11px/1 ${FRANKLIN}; letter-spacing: 0.1em; text-transform: uppercase; }
   .td-special-note:hover .td-special-go, .td-special-note:focus-visible .td-special-go { background: ${RED}; border-color: ${RED}; }
