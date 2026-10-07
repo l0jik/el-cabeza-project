@@ -34,7 +34,7 @@ import { quality } from "./tienda-quality.js";
 import { createWoodSet, EDGE_RADIUS as SET_EDGE_RADIUS, OUTLINE_Y_OFFSET } from "./wood-set.js";
 import { parrishEnv, createParrishEffects } from "./parrish-scene.js";
 import { MUSIC_URL, INTRO_URL, HUMS_URL, HUMS_LEVEL, EVENING_URL, SOUNDTRACK_TITLE } from "./parrish-audio.js";
-import { look, lookName } from "./parrish-looks.js";
+import { look, lookName, lookTitle } from "./parrish-looks.js";
 // The user's "el cabeza" lettering, its outline traced exactly from their
 // artwork (a mask: never redrawn), and the paint that fills it, one for
 // each palette.
@@ -246,7 +246,8 @@ export function sideSurface(side) {
 
 // The reality's name, at the top of the info panel's This game tab; the
 // same name as the Other realities menu (themes/realities.js WORLDS).
-export const realityName = "Parrish";
+// (The look's own name, user: "Tá muid beo" or "Go deo na ndeor".)
+export const realityName = lookTitle();
 export { createAudio, hasAudio } from "./parrish-audio.js";
 // The dock's sound button (and the phone menu) offers these, each on its
 // own (chassis: theme.soundChannels): the place (with the opening and the

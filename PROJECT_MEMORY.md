@@ -7348,3 +7348,18 @@ phone menu until "Start the story over" (which clears it).
 - ...and Ash's points the honey of the ash blocks (#d9b77e Orinoco, the side
   swatch; #d4a86c Watermark), user: the cream (and Watermark's rose) didn't
   look like the ash pieces.
+
+- Parrish's looks renamed (user): Orinoco is "Tá muid beo", Watermark "Go
+  deo na ndeor" (parrish-looks.js LOOK_TITLES / lookTitle): the switcher's
+  names (realities.js WORLDS, so "Continue in ..." too), the rules card's
+  "This game" (theme.realityName), and the tab's title (apps/parrish.jsx).
+  Ids, addresses (?look=orinoco / ?look=watermark), asset names and code
+  names stay orinoco / watermark.
+- The Try it! flyer carries the press's marks (user: "handled in those
+  machines"): tienda-overlay.js flyerMask(w, h), one evenodd SVG path made
+  at the sheet's size (ResizeObserver) and set as its CSS mask, so they're
+  real holes: checked (zigzag) tear edges top and bottom, pin-feed holes
+  down both sides, a perforation line of short cuts inside them, and six
+  short slits from the edges between the holes. The card is now an outer
+  .td-tryit (place, entrance, a drop-shadow that follows the cuts) and its
+  .sheet (paper, gloss, the mask).

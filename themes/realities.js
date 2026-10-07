@@ -35,8 +35,10 @@ export const WORLDS = [
   { id: "cromo", name: "Cromo", line: "Steel and stone, quiet and exact.", href: "el-cabeza-cromo.html" },
   // Parrish's two palettes, each its own reality (user): one page, the
   // look in the address (themes/parrish-looks.js).
-  { id: "parrish-orinoco", name: "Orinoco", line: "A painted terrace by the sea, in cobalt, cream and gold.", href: "el-cabeza-parrish.html?look=orinoco" },
-  { id: "parrish-watermark", name: "Watermark", line: "The same terrace in wine and umber, the light gone low.", href: "el-cabeza-parrish.html?look=watermark" },
+  // (Named "Tá muid beo" and "Go deo na ndeor" by the user; ids and
+  // addresses as they were. themes/parrish-looks.js LOOK_TITLES.)
+  { id: "parrish-orinoco", name: "T\u00e1 muid beo", line: "A painted terrace by the sea, in cobalt, cream and gold.", href: "el-cabeza-parrish.html?look=orinoco" },
+  { id: "parrish-watermark", name: "Go deo na ndeor", line: "The same terrace in wine and umber, the light gone low.", href: "el-cabeza-parrish.html?look=watermark" },
   ...LAB.map(([id, name, line]) => ({ id: `lab-${id}`, name, line, href: `el-cabeza-lab.html?theme=${id}` })),
 ].map((w) => ({ ...w, shot: `el-cabeza-channel-${w.id}.jpg` }));
 

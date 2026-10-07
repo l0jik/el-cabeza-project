@@ -98,12 +98,17 @@ const TRY_IT_CSS = `
      rollers): a bright, even sheet with no tooth, thin (a crisp, close
      shadow, the faintest curl), the colours laid down in a fine halftone
      screen, and a gloss across it that catches the light as it lands. */
-  .td-tryit { position: fixed; left: 50%; top: 50%; z-index: 1260; width: min(88vw, 370px); box-sizing: border-box;
-    transform: translate(-50%, -50%) rotate(-1.2deg); padding: 0 18px 16px 62px; color: #2A1D14;
+  .td-tryit { position: fixed; left: 50%; top: 50%; z-index: 1260; width: min(88vw, 370px);
+    transform: translate(-50%, -50%) rotate(-1.2deg); cursor: pointer; text-align: left;
+    filter: drop-shadow(0 1px 1px rgba(10,6,3,0.4)) drop-shadow(0 9px 14px rgba(10,6,3,0.32));
+    animation: tdTryIn 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+  /* The sheet itself, cut by the press's marks (flyerMask: its mask, made
+     at its size). */
+  .td-tryit .sheet { position: relative; box-sizing: border-box; padding: 0 24px 18px 62px; color: #2A1D14;
     background: linear-gradient(176deg, #FBF8F0 0%, #F6F1E5 60%, #EFE8D8 100%);
-    border: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.7), 0 1px 2px rgba(10,6,3,0.35), 0 10px 26px rgba(10,6,3,0.42); text-align: left; cursor: pointer;
-    font: 400 14.5px/1.42 'Courier Prime', 'Courier New', Courier, monospace; animation: tdTryIn 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
-  .td-tryit::after { content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    font: 400 14.5px/1.42 'Courier Prime', 'Courier New', Courier, monospace;
+    -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+  .td-tryit .sheet::after { content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
     background:
       linear-gradient(118deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.3) 41%, rgba(255,255,255,0.08) 46%, rgba(255,255,255,0) 56%) 0 0 / 260% 100% no-repeat,
       radial-gradient(ellipse 70% 45% at 78% 8%, rgba(255,255,255,0.32), rgba(255,255,255,0) 70%),
@@ -143,8 +148,51 @@ const TRY_IT_CSS = `
   .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg); pointer-events: none; }
   @keyframes tdTryIn { from { opacity: 0; transform: translate(-50%, -40%) rotate(-4deg) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-1.2deg); } }
   @keyframes tdTryGo { to { opacity: 0.75; } }
-  @media (prefers-reduced-motion: reduce) { .td-tryit, .td-tryit .go, .td-tryit::after { animation: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .td-tryit, .td-tryit .go, .td-tryit .sheet::after { animation: none; opacity: 1; } }
 `;
+/* The marks of the press on the flyer (user: "it looks like it got handled
+   in those machines": the checking along the edge, tiny holes to move the
+   paper, a little slit cut every now and then): the sheet's mask, made at
+   its size, so they're holes and cuts the store shows through. The top and
+   bottom are torn on a checked (zigzag) perforation; down each side a row
+   of pin-feed holes with a line of perforation cuts inside it; and a few
+   short slits, from the edges, between the holes. One evenodd path: the
+   sheet, less what's cut from it. */
+function flyerMask(w, h) {
+  let seed = 1975;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const f = (n) => (Math.round(n * 100) / 100).toString();
+  const T = 3.2, D = 1.3; // the checked edges: tooth width, depth
+  let d = "M0 " + D;
+  for (let x = 0; x < w; x += T) d += " L" + f(Math.min(w, x + T / 2)) + " 0 L" + f(Math.min(w, x + T)) + " " + D;
+  d += " L" + w + " " + f(h - D);
+  for (let x = w; x > 0; x -= T) d += " L" + f(Math.max(0, x - T / 2)) + " " + h + " L" + f(Math.max(0, x - T)) + " " + f(h - D);
+  d += " Z";
+  // Pin-feed holes down both sides.
+  const R = 1.7, P = 12, Y0 = 9;
+  for (let y = Y0; y < h - 6; y += P) [5.5, w - 5.5].forEach((cx) => {
+    d += " M" + f(cx - R) + " " + f(y) + " a" + R + " " + R + " 0 1 0 " + 2 * R + " 0 a" + R + " " + R + " 0 1 0 " + -2 * R + " 0 Z";
+  });
+  // The perforation inside them: short cuts.
+  for (let y = 4; y < h - 7; y += 4.2) [8.6, w - 8.6].forEach((cx) => {
+    d += " M" + f(cx - 0.4) + " " + f(y) + " h0.8 v2.4 h-0.8 Z";
+  });
+  // Slits now and then: from the sides between the holes, from the top and
+  // bottom clear of the side strips.
+  const rows = Math.max(1, Math.floor((h - 6 - Y0) / P));
+  for (let i = 0; i < 6; i++) {
+    const L = 4 + rnd() * 3.5;
+    if (i % 3 === 2) {
+      const x = w * (0.18 + rnd() * 0.64);
+      d += i % 2 ? " M" + f(x) + " " + f(D + 0.05) + " h0.9 v" + f(L) + " h-0.9 Z" : " M" + f(x) + " " + f(h - D - 0.05 - L) + " h0.9 v" + f(L) + " h-0.9 Z";
+    } else {
+      const y = Y0 + P * (Math.floor(rnd() * rows) + 0.5);
+      d += i % 2 ? " M0 " + f(y) + " h" + f(L) + " v0.9 h" + f(-L) + " Z" : " M" + f(w - L) + " " + f(y) + " h" + f(L) + " v0.9 h" + f(-L) + " Z";
+    }
+  }
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + " " + h + '"><path fill="#000" fill-rule="evenodd" d="' + d + '"/></svg>';
+  return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
+}
 const IDLE_NUDGE_MS = 30000;
 const NUDGE_GROW_MS = 90000;
 const NUDGE_CSS = `
@@ -386,10 +434,11 @@ export function useSetupExtras(x) {
   tryItLive.current = { ok: store && x.awaitingBegin && !overlay && !(story.after && story.after()) && !(story.realities && story.realities()), openDock: x.openDock };
   React.useEffect(() => {
     if (!store) return undefined;
-    let card = null, timer = 0;
+    let card = null, timer = 0, marks = null;
     const done = () => {
       if (!card) return;
       const c = card; card = null; clearTimeout(timer);
+      if (marks) { marks.disconnect(); marks = null; }
       c.classList.add("off"); setTimeout(() => c.remove(), 400);
       const live = tryItLive.current;
       if (live.openDock) live.openDock();
@@ -404,7 +453,10 @@ export function useSetupExtras(x) {
       card.setAttribute("data-testid", "tienda-try-it");
       // A 1970s flyer (user): Big Glutts' logo, the four earth-tone stripes
       // down the side and round the top, and an ad for the game.
-      card.innerHTML = '<span class="sv"></span>' + '<svg class="sc" viewBox="0 0 59 59" aria-hidden="true"><path d="M4 59 A55 55 0 0 1 59 4" fill="none" stroke="#6B3A1E" stroke-width="8"/><path d="M13 59 A46 46 0 0 1 59 13" fill="none" stroke="#B4451F" stroke-width="8"/><path d="M22 59 A37 37 0 0 1 59 22" fill="none" stroke="#E07B22" stroke-width="8"/><path d="M31 59 A28 28 0 0 1 59 31" fill="none" stroke="#E9B23A" stroke-width="8"/></svg>' + '<span class="scd"></span><span class="sh"></span>'
+      const sheet = document.createElement("div");
+      sheet.className = "sheet";
+      card.appendChild(sheet);
+      sheet.innerHTML = '<span class="sv"></span>' + '<svg class="sc" viewBox="0 0 59 59" aria-hidden="true"><path d="M4 59 A55 55 0 0 1 59 4" fill="none" stroke="#6B3A1E" stroke-width="8"/><path d="M13 59 A46 46 0 0 1 59 13" fill="none" stroke="#B4451F" stroke-width="8"/><path d="M22 59 A37 37 0 0 1 59 22" fill="none" stroke="#E07B22" stroke-width="8"/><path d="M31 59 A28 28 0 0 1 59 31" fill="none" stroke="#E9B23A" stroke-width="8"/></svg>' + '<span class="scd"></span><span class="sh"></span>'
         + '<div class="logo"><b>Big Glutts</b><span>Discount Department Store</span></div>'
         + '<hr>'
         + '<b class="say">So you\u2019d like to try it, eh?</b>'
@@ -415,10 +467,22 @@ export function useSetupExtras(x) {
       card.addEventListener("click", (e) => { e.stopPropagation(); if (performance.now() - since >= TRY_IT_HOLD_MS) done(); });
       card.addEventListener("pointerdown", (e) => e.stopPropagation());
       document.body.appendChild(card);
+      // The press's marks, at the sheet's size (and again if it changes:
+      // the fonts arriving, the screen turning).
+      let markedAt = "";
+      const mark = () => {
+        const w = sheet.offsetWidth, hh = sheet.offsetHeight;
+        if (!w || !hh || markedAt === w + "x" + hh) return;
+        markedAt = w + "x" + hh;
+        const m = flyerMask(w, hh);
+        sheet.style.webkitMaskImage = m; sheet.style.maskImage = m;
+      };
+      mark();
+      if (typeof ResizeObserver !== "undefined") { marks = new ResizeObserver(mark); marks.observe(sheet); }
       timer = setTimeout(done, TRY_IT_MS);
     };
     window.addEventListener(TRY_IT_EVENT, onTry);
-    return () => { window.removeEventListener(TRY_IT_EVENT, onTry); clearTimeout(timer); if (card) card.remove(); };
+    return () => { window.removeEventListener(TRY_IT_EVENT, onTry); clearTimeout(timer); if (marks) marks.disconnect(); if (card) card.remove(); };
   }, []);
   React.useEffect(() => {
     if (!idleNudge) return undefined;

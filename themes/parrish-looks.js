@@ -40,6 +40,10 @@ export const LOOKS = {
   },
 };
 
+/* What each look is called (user): Orinoco is "Tá muid beo", Watermark
+   "Go deo na ndeor". (The address keeps ?look=orinoco / ?look=watermark.) */
+export const LOOK_TITLES = { orinoco: "T\u00e1 muid beo", watermark: "Go deo na ndeor" };
+export const lookTitle = () => LOOK_TITLES[lookName()];
 export function lookName() {
   try {
     const l = new URLSearchParams(window.location.search).get("look");
