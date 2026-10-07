@@ -132,19 +132,36 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       /* One of the den's cards (den-cards.js), askance in the upper right
          and movable; a tap on it, or the first tap anywhere else (which
          goes on to do what it was for), puts it away. */
-      let done = false, c = null;
-      const close = () => {
-        if (done) return;
-        done = true;
+      /* Held for 3.8 s first (user: a play-tester tapping wildly put it
+         away unread): till then no tap puts it away, taps elsewhere go
+         nowhere, and "Tap to play" shows only once it's free (a drag
+         still moves it). */
+      const HOLD_MS = 3800;
+      let done = false, held = true, c = null, holdTimer = 0;
+      const swallow = (e) => { if (held && !(e.target instanceof Element && c.el.contains(e.target))) { e.stopPropagation(); e.preventDefault(); } };
+      const unhook = () => {
+        clearTimeout(holdTimer);
         doc.removeEventListener("pointerdown", elsewhere, true);
+        for (const t of ["click", "mousedown", "touchstart"]) doc.removeEventListener(t, swallow, true);
+      };
+      const close = () => {
+        if (done || held) return;
+        done = true;
+        unhook();
         c.remove(550);
         onDone();
       };
-      const elsewhere = (e) => { if (!(e.target instanceof Element && c.el.contains(e.target))) close(); };
+      const elsewhere = (e) => {
+        if (e.target instanceof Element && c.el.contains(e.target)) return;
+        if (held) swallow(e); else close();
+      };
       c = dealCard(doc, { testid: "den-home-card", l1: HOME_LINES[i], hint: "Tap to play", role: "dialog", label: "Home again", onTap: close });
       c.el.setAttribute("data-line", String(i));
-      homeCardDrop = () => { done = true; doc.removeEventListener("pointerdown", elsewhere, true); c.el.remove(); };
+      c.el.classList.add("held");
+      holdTimer = setTimeout(() => { held = false; c.el.classList.remove("held"); }, HOLD_MS);
+      homeCardDrop = () => { done = true; unhook(); c.el.remove(); };
       doc.addEventListener("pointerdown", elsewhere, true);
+      for (const t of ["click", "mousedown", "touchstart"]) doc.addEventListener(t, swallow, { capture: true, passive: false });
     }
     let homeCardTimer = 0, homeCardDrop = null;
     /* Then settle in (user): "we want them to start playing a game

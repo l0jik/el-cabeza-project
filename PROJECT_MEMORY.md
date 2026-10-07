@@ -7177,3 +7177,10 @@ phone menu until "Start the story over" (which clears it).
   trail of two puffs (::before / ::after) toward the thinker, mirrored for
   the second side; drop-shadow filter instead of box-shadow so the shadow
   follows the bumps. Same font, places, timings and test ids.
+
+- Home-again card (back from Big Glutts, den-fx.js homeCard): held 3.8 s
+  after it's dealt (user: an impatient play-tester tapped it away unread).
+  While held, no tap closes it, taps elsewhere are swallowed (capture
+  pointerdown/click/mousedown/touchstart), a drag still moves it, and the
+  "Tap to play" hint is hidden (.den-card.held small). e2e-story checks
+  early taps don't close it and that it frees after 3.8 s.

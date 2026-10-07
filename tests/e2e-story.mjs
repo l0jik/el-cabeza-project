@@ -316,6 +316,14 @@ console.log("\ndesktop: the store, the purchase, home");
   check("home: the card (one of the ten lines)", !!(await poll(async () => (await has(page, "den-home-card")) && (await q(page, "den-home-card").innerText()).length > 20, 8000)));
   await page.screenshot({ path: process.env.EC_SHOTS ? `${process.env.EC_SHOTS}/home-card.png` : "/dev/null" }).catch(() => {});
   {
+    // (Held 3.8 s, user: early taps, on it or anywhere, don't put it away.)
+    const v = page.viewportSize();
+    await page.mouse.click(v.width * 0.5, v.height * 0.85);
+    await q(page, "den-home-card").click();
+    await page.waitForTimeout(400);
+    check("...held: early taps don't put it away", (await has(page, "den-home-card")) && (await page.evaluate(() => document.querySelector('[data-testid="den-home-card"]').classList.contains("held"))));
+  }
+  {
     // (The same card, askance; a drag moves it and doesn't put it away.)
     const r0 = await q(page, "den-home-card").boundingBox();
     if (r0) {
@@ -326,6 +334,7 @@ console.log("\ndesktop: the store, the purchase, home");
     const r1 = await q(page, "den-home-card").boundingBox().catch(() => null);
     check("...a drag moves it, and it stays", !!r0 && !!r1 && r1.x < r0.x - 200 && r1.y > r0.y + 80, JSON.stringify({ r0, r1 }));
   }
+  check("...and free after 3.8 s", !!(await poll(() => page.evaluate(() => !document.querySelector('[data-testid="den-home-card"]').classList.contains("held")), 5000, 100)));
   await q(page, "den-home-card").click();
   check("...a tap puts it away", !!(await poll(async () => !(await has(page, "den-home-card")), 3000)));
   // Then settle in (user): the light bulb glows, and only it takes a tap;

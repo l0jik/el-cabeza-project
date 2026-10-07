@@ -27,7 +27,8 @@ const CSS = `
 .den-card .l2 { display: block; margin-top: 8px; font: 400 clamp(17px, 4.8vw, 22px)/1.15 'Caprasimo', 'Cooper Black', Georgia, serif;
   animation: denCardLine 0.6s cubic-bezier(0.2, 1.5, 0.4, 1) 1.1s both; }
 .den-card small { display: block; margin-top: 12px; text-align: right; font: 700 11px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.16em;
-  text-transform: uppercase; color: #B4451F; }
+  text-transform: uppercase; color: #B4451F; transition: opacity 0.5s ease; }
+.den-card.held small { opacity: 0; }
 .den-card.off { transition: opacity 0.6s ease; opacity: 0; pointer-events: none; }
 @keyframes denCardIn { from { opacity: 0; transform: translateY(-10px) scale(0.6); } to { opacity: 1; transform: none; } }
 @keyframes denCardLine { from { opacity: 0; transform: translateY(8px) scale(0.85); } to { opacity: 1; transform: none; } }
