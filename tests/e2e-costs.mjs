@@ -136,6 +136,18 @@ for (const theme of ["neon", "standard"]) {
   check("a free way back among them: badges again", b.some((x) => x.text === "free") && b.some((x) => x.text === "1"), JSON.stringify(b));
   const stop = page.locator('[data-testid="stop-here-float"]');
   check("after a move, End turn above the points row", (await stop.count()) === 1 && /end turn/i.test(await stop.innerText()));
+  {
+    // Undo move beside it (user): takes the step back.
+    const undo = page.locator('[data-testid="undo-move-float"]');
+    check("...and Undo move beside it", (await undo.count()) === 1);
+    const before = await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === "dark-turrito")));
+    await undo.click();
+    await page.waitForTimeout(1800);
+    const back = await page.evaluate(() => JSON.stringify(window.__EC_TEST_PIECES__.find((p) => p.id === "dark-turrito")));
+    check("...which takes the move back (and both buttons go)", back !== before && (await undo.count()) === 0 && (await stop.count()) === 0, back);
+    await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
+    await page.waitForTimeout(1600);
+  }
   await page.screenshot({ path: "/tmp/e2e-costs-stop.png" });
   await stop.click();
   await page.waitForTimeout(500);

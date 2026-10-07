@@ -2860,11 +2860,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // (Stop here above the points row; see its button. Kept up through a
   // move's own animation, when the markers are briefly gone.)
   const stopHereFloat = !shell && isPlaying && turnLocked && currentPlayer !== aiPlayer && (stepsRemaining > 0 || busy) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
+  const undoMoveFloat = !shell && isPlaying && turnLocked && currentPlayer !== aiPlayer && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
   // (The piece card's place, measured below everything at the lower left.)
   useLayoutEffect(() => {
     if (!pieceCardShown || typeof document === "undefined") return undefined;
     const measure = () => {
-      const sel = '[data-testid="focus-corner"], [data-testid="room-view-corner"], [data-testid="action-corner"], [data-testid="dock-corner"], [data-testid="how-to-play"], [data-fullscreen-toggle], [data-testid="stop-here-float"]';
+      const sel = '[data-testid="focus-corner"], [data-testid="room-view-corner"], [data-testid="action-corner"], [data-testid="dock-corner"], [data-testid="how-to-play"], [data-fullscreen-toggle], [data-testid="turn-buttons-float"]';
       let top = Infinity;
       document.querySelectorAll(sel).forEach((el) => {
         const r = el.getBoundingClientRect();
@@ -2879,7 +2880,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [pieceCardShown, selectedId, stopHereFloat]);
+  }, [pieceCardShown, selectedId, stopHereFloat, undoMoveFloat]);
 
   /* ------------------------- scene setup ------------------------- */
   useEffect(() => {
@@ -7893,24 +7894,24 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
          phone's bar has its own. */}
       {/* (End turn, user: "Stop here" read as stopping the piece there; and
           only with the points showing, an aid for whoever uses them.) */}
-      {stopHereFloat && showPoints && (
-        <button
-          type="button"
-          className="ec-btn"
-          data-testid="stop-here-float"
-          onClick={handleEndTurnClick}
-          style={{
-            ...playerButtonStyle(currentPlayer),
-            position: "fixed",
-            left: "50%",
-            bottom: 50,
-            transform: "translateX(-50%)",
-            zIndex: 12,
-            whiteSpace: "nowrap",
-          }}
+      {/* With it, Undo move (user: "add the undo move button beside end
+          turn"): the step taken back, as the dock panel's does. */}
+      {(stopHereFloat || undoMoveFloat) && showPoints && (
+        <div
+          data-testid="turn-buttons-float"
+          style={{ position: "fixed", left: "50%", bottom: 50, transform: "translateX(-50%)", zIndex: 12, display: "flex", gap: 10, alignItems: "center", whiteSpace: "nowrap" }}
         >
-          End turn
-        </button>
+          {undoMoveFloat && (
+            <button type="button" className="ec-btn" data-testid="undo-move-float" onClick={handleUndoTurn} style={{ ...ghostButtonStyle(), whiteSpace: "nowrap" }}>
+              Undo move
+            </button>
+          )}
+          {stopHereFloat && (
+            <button type="button" className="ec-btn" data-testid="stop-here-float" onClick={handleEndTurnClick} style={{ ...playerButtonStyle(currentPlayer), whiteSpace: "nowrap" }}>
+              End turn
+            </button>
+          )}
+        </div>
       )}
       {endTurnAsk && (
         <div

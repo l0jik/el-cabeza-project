@@ -7327,3 +7327,10 @@ phone menu until "Start the story over" (which clears it).
   starburst "Only $7.97", NEW! EL CABEZA, Games & Hobby Dept. · Aisle 9.
 - Parrish points: Walnut's are walnut (#8a5632 Orinoco, #a0653a Watermark;
   were sun gold / candle amber), user: Ash's already looked like ash.
+
+- Undo move beside End turn above the points (user): turn-buttons-float
+  holds undo-move-float (handleUndoTurn, the dock panel's Undo move; shown
+  once a move's been made on your own turn, undoMoveFloat) and
+  stop-here-float, only with the points showing. Parrish paints Undo in the
+  same stroke in the menus' paper (Watermark: a pale wash over it, else it
+  vanished on the dark). e2e-costs checks it takes the move back.
