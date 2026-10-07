@@ -7237,3 +7237,7 @@ phone menu until "Start the story over" (which clears it).
     it nor a dismissing tap off it counts before). The phone call's captions
     and the den's thought/yay cards are timed, not tap-dismissed: unchanged.
     Tests wait the holds out (ending, camera-glide, summon, story).
+  - Tests after the round: 12 of 13 pass. e2e-lab's "a switch during a
+    step waits: the step lands and counts" fails, and fails the same on the
+    build before this round (3b07317, checked in a worktree): already broken,
+    not from this round. Not yet looked into.
