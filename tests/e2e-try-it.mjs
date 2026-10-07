@@ -38,7 +38,7 @@ check("the card's on screen", !!at, JSON.stringify(at));
 if (at) await page.touchscreen.tap(at.x, at.y);
 await page.waitForSelector('[data-testid="tienda-try-it"]', { timeout: 3000 }).catch(() => {});
 const card = page.locator('[data-testid="tienda-try-it"]');
-check("a tap on it: the store's word", (await card.count()) === 1 && /try it, eh\?/i.test(await card.innerText()) && /\$7\.97/.test(await card.innerText()));
+check("a tap on it: the store's word (the ad: $7.97)", (await card.count()) === 1 && /try it, eh\?/i.test(await card.innerText()) && /\$\s*7\s*97/.test(await card.innerText()));
 // (Tapped straight away, in the page: the test's own click waits for the
 // card's entrance to settle, which can take past the hold.)
 await page.evaluate(() => document.querySelector('[data-testid="tienda-try-it"]').click());

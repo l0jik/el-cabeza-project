@@ -7363,3 +7363,11 @@ phone menu until "Start the story over" (which clears it).
   short slits from the edges between the holes. The card is now an outer
   .td-tryit (place, entrance, a drop-shadow that follows the cuts) and its
   .sheet (paper, gloss, the mask).
+- The Try it! flyer laid out as a real 1970s department-store circular
+  (user's reference: a Target ad, the two men in shorts gone): under the
+  Big Glutts masthead and stripes, a column of items down the left, each a
+  bold Libre Franklin heading, a big Franklin-black price (cents raised and
+  underlined, "EA." under them; FREE / TO PLAY for the demonstration) and
+  a line of Archivo Narrow small print; the box's own photograph
+  (assets/tienda/box-art.jpg, the game in the den) down the right to the
+  sheet's edge, halftoned. The glossy stock and the press's marks stay.

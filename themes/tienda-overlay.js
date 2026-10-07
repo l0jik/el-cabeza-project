@@ -98,13 +98,13 @@ const TRY_IT_CSS = `
      rollers): a bright, even sheet with no tooth, thin (a crisp, close
      shadow, the faintest curl), the colours laid down in a fine halftone
      screen, and a gloss across it that catches the light as it lands. */
-  .td-tryit { position: fixed; left: 50%; top: 50%; z-index: 1260; width: min(88vw, 370px);
+  .td-tryit { position: fixed; left: 50%; top: 50%; z-index: 1260; width: min(92vw, 400px);
     transform: translate(-50%, -50%) rotate(-1.2deg); cursor: pointer; text-align: left;
     filter: drop-shadow(0 1px 1px rgba(10,6,3,0.4)) drop-shadow(0 9px 14px rgba(10,6,3,0.32));
     animation: tdTryIn 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
   /* The sheet itself, cut by the press's marks (flyerMask: its mask, made
      at its size). */
-  .td-tryit .sheet { position: relative; box-sizing: border-box; padding: 0 24px 18px 62px; color: #2A1D14;
+  .td-tryit .sheet { position: relative; box-sizing: border-box; padding: 0 0 0 62px; color: #2A1D14;
     background: linear-gradient(176deg, #FBF8F0 0%, #F6F1E5 60%, #EFE8D8 100%);
     font: 400 14.5px/1.42 'Courier Prime', 'Courier New', Courier, monospace;
     -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
@@ -116,8 +116,8 @@ const TRY_IT_CSS = `
     animation: tdGlint 1.1s cubic-bezier(0.3, 0.1, 0.3, 1) 0.3s both; }
   @keyframes tdGlint { from { background-position: 100% 0, 0 0, 0 0; } to { background-position: 4% 0, 0 0, 0 0; } }
   /* The halftone: the printed colour's dots, fine (a dense screen). */
-  .td-tryit .sv, .td-tryit .sh, .td-tryit .burst { isolation: isolate; }
-  .td-tryit .sv::after, .td-tryit .sh::after, .td-tryit .burst::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  .td-tryit .sv, .td-tryit .sh { isolation: isolate; }
+  .td-tryit .sv::after, .td-tryit .sh::after { content: ""; position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(circle, rgba(255,250,235,0.17) 0.55px, rgba(255,250,235,0) 0.95px) 0 0 / 2.6px 2.6px; }
   .td-tryit .scd { position: absolute; left: 10px; top: 10px; width: 59px; height: 59px; pointer-events: none;
     background: radial-gradient(circle, rgba(255,250,235,0.17) 0.55px, rgba(255,250,235,0) 0.95px) 0 0 / 2.6px 2.6px; }
@@ -128,22 +128,33 @@ const TRY_IT_CSS = `
   .td-tryit .sc { position: absolute; left: 10px; top: 10px; width: 59px; height: 59px; }
   .td-tryit .sh { position: absolute; left: 69px; right: 10px; top: 10px; height: 35px;
     background: linear-gradient(180deg, #6B3A1E 0 8px, transparent 8px 9px, #B4451F 9px 17px, transparent 17px 18px, #E07B22 18px 26px, transparent 26px 27px, #E9B23A 27px 35px); }
-  .td-tryit .logo { padding: 54px 0 2px; }
+  .td-tryit .logo { padding: 54px 24px 0 0; }
   .td-tryit .logo b { display: block; font: 400 36px/0.95 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; letter-spacing: 0.01em;
     text-shadow: 2px 2px 0 #E9B23A; }
   .td-tryit .logo span { display: block; margin-top: 6px; font: 800 10.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.2em; text-transform: uppercase; color: #B4451F; }
-  .td-tryit hr { border: 0; border-top: 1.5px dashed rgba(46,33,24,0.45); margin: 12px 0 10px; }
-  .td-tryit b.say { display: block; margin: 0 0 6px; font: 400 23px/1.12 'Bodoni Moda', 'Didot', Georgia, serif; }
-  .td-tryit p { margin: 0 0 10px; }
-  .td-tryit .ad { display: flex; align-items: center; gap: 12px; margin: 2px 0 10px; }
-  .td-tryit .ad .what { font: 700 12px/1.3 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.04em; }
-  .td-tryit .ad .what small { display: block; font-weight: 500; opacity: 0.75; letter-spacing: 0.06em; }
-  .td-tryit .burst { position: relative; flex: 0 0 auto; width: 80px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: #B4451F; color: #F2EBD7; transform: rotate(-8deg); text-align: center; line-height: 1;
-    clip-path: polygon(50% 0, 61% 12%, 77% 6%, 80% 22%, 96% 26%, 90% 41%, 100% 54%, 88% 64%, 92% 80%, 76% 82%, 70% 97%, 55% 89%, 42% 100%, 34% 86%, 18% 92%, 16% 76%, 2% 70%, 10% 56%, 0 43%, 12% 33%, 8% 17%, 24% 16%, 30% 2%, 43% 11%); }
-  .td-tryit .burst small { font: 800 9px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; }
-  .td-tryit .burst b { font: 400 21px/1.05 'Caprasimo', 'Cooper Black', Georgia, serif; }
-  .td-tryit .go { display: block; text-align: right; font: 700 11px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0;
+  /* The ad, set as the period's department-store circulars (the user's
+     reference): a column of items down the left, each a bold heading, a
+     big price with its cents raised and "EA." beside, a line of small
+     print; the photograph down the right to the sheet's edge. */
+  .td-tryit .ad2 { display: grid; grid-template-columns: minmax(0, 1fr) 47%; margin-top: 12px; border-top: 2px solid #17110c; }
+  .td-tryit .col { padding: 10px 10px 14px 0; display: flex; flex-direction: column; }
+  .td-tryit .item { margin: 0 0 11px; }
+  .td-tryit .item h4 { margin: 0; font: 800 17px/1.03 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif; letter-spacing: -0.015em; color: #17110c; }
+  .td-tryit .item h4.sm { font-size: 14px; }
+  .td-tryit .pr { display: flex; align-items: flex-start; margin: 4px 0 3px; font-family: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif; font-weight: 900; color: #17110c; line-height: 0.82; }
+  .td-tryit .pr .d { font-size: 19px; margin-top: 3px; }
+  .td-tryit .pr .n { font-size: 46px; letter-spacing: -0.035em; }
+  .td-tryit .pr .n.w { font-size: 33px; letter-spacing: -0.02em; }
+  .td-tryit .pr .c { font-size: 19px; margin: 1px 0 0 1px; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
+  .td-tryit .pr .ea { align-self: flex-end; margin: 0 0 3px 3px; font-size: 9px; font-weight: 800; letter-spacing: 0.04em; line-height: 1.05; }
+  /* (The cents raised, "EA." under them, as the ad has it.) */
+  .td-tryit .pr .ce { display: flex; flex-direction: column; align-items: flex-start; }
+  .td-tryit .pr .ce .ea { align-self: flex-start; margin: 5px 0 0 3px; }
+  .td-tryit .item p { margin: 3px 0 0; font: 600 11.5px/1.22 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
+  .td-tryit .photo { position: relative; background: #3b2a1c center 60% / cover no-repeat; filter: saturate(1.12) contrast(1.04); }
+  .td-tryit .photo::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(circle, rgba(255,250,235,0.14) 0.55px, rgba(255,250,235,0) 0.95px) 0 0 / 2.6px 2.6px; }
+  .td-tryit .go { display: block; margin-top: auto; text-align: left; font: 700 11px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0;
     animation: tdTryGo 0.5s ease ${TRY_IT_HOLD_MS}ms both; }
   .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg); pointer-events: none; }
   @keyframes tdTryIn { from { opacity: 0; transform: translate(-50%, -40%) rotate(-4deg) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) rotate(-1.2deg); } }
@@ -447,6 +458,7 @@ export function useSetupExtras(x) {
     const onTry = () => {
       if (card || !tryItLive.current.ok || document.querySelector(".td-special-note")) return;
       if (!document.getElementById("td-tryit-css")) { const st = document.createElement("style"); st.id = "td-tryit-css"; st.textContent = TRY_IT_CSS; document.head.appendChild(st); }
+      if (!document.querySelector('link[href*="family=Archivo+Narrow"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Libre+Franklin:wght@700;800;900&display=swap"; document.head.appendChild(l); }
       if (!document.querySelector('link[href*="family=Caprasimo"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap"; document.head.appendChild(l); }
       card = document.createElement("div");
       card.className = "td-tryit"; card.setAttribute("role", "dialog"); card.setAttribute("aria-label", "Try it");
@@ -458,11 +470,16 @@ export function useSetupExtras(x) {
       card.appendChild(sheet);
       sheet.innerHTML = '<span class="sv"></span>' + '<svg class="sc" viewBox="0 0 59 59" aria-hidden="true"><path d="M4 59 A55 55 0 0 1 59 4" fill="none" stroke="#6B3A1E" stroke-width="8"/><path d="M13 59 A46 46 0 0 1 59 13" fill="none" stroke="#B4451F" stroke-width="8"/><path d="M22 59 A37 37 0 0 1 59 22" fill="none" stroke="#E07B22" stroke-width="8"/><path d="M31 59 A28 28 0 0 1 59 31" fill="none" stroke="#E9B23A" stroke-width="8"/></svg>' + '<span class="scd"></span><span class="sh"></span>'
         + '<div class="logo"><b>Big Glutts</b><span>Discount Department Store</span></div>'
-        + '<hr>'
-        + '<b class="say">So you\u2019d like to try it, eh?</b>'
-        + '<p>Go right ahead, friend. The demonstration set\u2019s all yours, no charge to play.</p>'
-        + '<div class="ad"><div class="burst"><small>Only</small><b>$7.97</b></div><div class="what">NEW! EL CABEZA<small>The Game of Unparalleled Intention</small><small>Games &amp; Hobby Dept. \u00b7 Aisle 9</small></div></div>'
-        + '<span class="go">Let\u2019s play \u203a</span>';
+        + '<div class="ad2"><div class="col">'
+        + '<div class="item"><h4>So you\u2019d like to try it, eh?</h4><div class="pr"><span class="n w">FREE</span><span class="ea">TO<br>PLAY</span></div>'
+        + '<p>Go right ahead, friend. The demonstration set\u2019s all yours.</p></div>'
+        + '<div class="item"><h4>NEW! El Cabeza game set</h4><div class="pr"><span class="d">$</span><span class="n">7</span><span class="ce"><span class="c">97</span><span class="ea">EA.</span></span></div>'
+        + '<p>The Game of Unparalleled Intention. Hardwood board and ten pieces, walnut and ash.</p></div>'
+        + '<div class="item"><h4 class="sm">Games &amp; Hobby Dept.</h4><p>Aisle 9.</p></div>'
+        + '<span class="go">Let\u2019s play \u203a</span>'
+        + '</div><div class="photo"></div></div>';
+      // (The photograph: the game in the den, the box's own picture.)
+      sheet.querySelector(".photo").style.backgroundImage = 'url("' + boxArtUrl + '")';
       const since = performance.now();
       card.addEventListener("click", (e) => { e.stopPropagation(); if (performance.now() - since >= TRY_IT_HOLD_MS) done(); });
       card.addEventListener("pointerdown", (e) => e.stopPropagation());
