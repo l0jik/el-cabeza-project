@@ -20,7 +20,7 @@ import {
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
   setGhostLineTarget,
 } from "../engine/geometry.js";
-import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmPoint } from "../engine/shapes.js";
+import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmPoint, maskAt } from "../engine/shapes.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
@@ -2821,6 +2821,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }, [pieceCardShown]);
   const hoveredPiece = pieces.find((p) => p.id === hoveredId) || null;
   const activePiece = selectedPiece || hoveredPiece;
+  // (For the pointer handlers, which mustn't be re-bound by hover alone.)
+  const activePieceRef = useRef(null);
+  activePieceRef.current = activePiece;
 
   const maxSteps = activePiece ? maxStepsFor(activePiece.type) : 0;
   const stepsRemaining = activePiece
@@ -5761,8 +5764,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         }
         pivotDrag = null;
         if (!altPanning && !busy && !anim.current && currentPlayer !== aiPlayer && !awaitingBegin && isPlaying) {
-          const hit = pick(ev);
-          const piece = hit && hit.type === "piece" ? pieces.find((p) => p.id === hit.id) : null;
+          /* The piece under the finger, looking past the move markers (a
+             selected piece's turn arrows lie over its arms, and their wide
+             tap areas won the press, so grabbing an arm did nothing: user,
+             the Hombro). Where it was pressed, too: the arm grabbed. */
+          pick(ev); // (aims the ray at the press)
+          const pieceHit = t.raycaster.intersectObjects(t.pieceGroup.children.filter((c) => c.userData.kind === "piece"), false)[0] || null;
+          const piece = pieceHit ? pieces.find((p) => p.id === pieceHit.object.userData.pieceId) : null;
           if (piece && piece.owner === currentPlayer && (piece.id === selectedId || !turnLocked) && pivotCellOf(piece)) {
             const remaining = maxStepsFor(piece.type) - (piece.id === selectedId ? stepsUsed : 0);
             const moves = legalMovesFor(pieces, piece, remaining);
@@ -5771,7 +5779,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               // Screen positions of the planted column and the arm, at the
               // arm's own height (that's what the player sees and grabs).
               const pc = pivotCellOf(piece);
-              const arm = pivotArmPoint(piece);
+              /* The arm: the cube pressed, if it's one off the planted
+                 column (user: a Hombro on its stem has two arms, and the
+                 middle of both, the arm point, is the empty corner between
+                 them, so a drag across either arm read wrong); else the
+                 arm point. */
+              let arm = pivotArmPoint(piece);
+              if (pieceHit && t.boardGroup) {
+                const lp = t.boardGroup.worldToLocal(pieceHit.point.clone());
+                const hc = Math.floor((lp.x + OFF_X) / SQUARE_SIZE), hr = Math.floor((lp.z + OFF_Z) / SQUARE_SIZE);
+                if ((hr !== pc.row || hc !== pc.col) && hr >= piece.row && hr < piece.row + piece.h && hc >= piece.col && hc < piece.col + piece.w && maskAt(piece, hr, hc)) {
+                  arm = { row: hr + 0.5, col: hc + 0.5 };
+                }
+              }
               const armY = (piece.z - 0.5) * PIECE_SCALE;
               const center = worldToScreen((pc.col + 0.5) * SQUARE_SIZE - OFF_X, (pc.row + 0.5) * SQUARE_SIZE - OFF_Z, armY);
               const armPos = worldToScreen(arm.col * SQUARE_SIZE - OFF_X, arm.row * SQUARE_SIZE - OFF_Z, armY);
@@ -6187,8 +6207,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const chosen = slideDrag.chosen;
         slideDrag = null;
         updateSlideArrow(null);
-        if (chosen && activePiece && !busy && !anim.current) {
-          beginMove(activePiece, chosen);
+        if (chosen && activePieceRef.current && !busy && !anim.current) {
+          beginMove(activePieceRef.current, chosen);
           return;
         }
       }
@@ -6274,8 +6294,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         }
       }
       const hit = pick(ev);
-      if (hit && hit.type === "ghost" && activePiece) {
-        beginMove(activePiece, hit.dir);
+      if (hit && hit.type === "ghost" && activePieceRef.current) {
+        beginMove(activePieceRef.current, hit.dir);
       } else if (hit && hit.type === "piece" && turnLocked && hit.id === selectedId) {
         // Tapping directly on the piece that's already made a step this
         // turn stops here, same as the "Stop here" button — handleStopHere
@@ -6400,7 +6420,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [pieces, currentPlayer, turnLocked, activePiece, busy, isPlaying, beginMove, aiPlayer, awaitingBegin, selectedId, turnSnapshot, movedPieceIds, stepsUsed]);
+  // (Not the hovered piece: read through activePieceRef. A hover coming
+  // and going under a drag re-bound these handlers and dropped the drag
+  // half-way: user, grabbing an arm to pivot it did nothing.)
+  }, [pieces, currentPlayer, turnLocked, busy, isPlaying, beginMove, aiPlayer, awaitingBegin, selectedId, turnSnapshot, movedPieceIds, stepsUsed]);
 
   /* --------------------------- actions --------------------------- */
   /* With the standalone rotate buttons gone, this is the only reset

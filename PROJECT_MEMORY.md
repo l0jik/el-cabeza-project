@@ -7259,3 +7259,16 @@ phone menu until "Start the story over" (which clears it).
   the store) and everything unlocked on the theme switcher
   (el-cabeza-nova.html?switcher), plus Restart story (?restart=story: the
   story from the top, settings kept) and the plain page (as you left it).
+
+- Pivot by dragging an arm (user: the Hombro wouldn't). Two causes, both
+  in the chassis pointer handlers: (1) a selected piece's turn arrows lie
+  over its arms and pick() lets ghosts win a press, so the pivot drag now
+  raycasts the pieces alone, and takes the lever from the arm cube pressed
+  (a Hombro on its stem has two arms; pivotArmPoint, their middle, is the
+  empty corner between them); (2) the pointer effect had activePiece in
+  its deps, so the hover coming and going under a drag re-bound the
+  handlers and lost every gesture variable mid-drag (a drag on a piece not
+  yet selected never worked, Codo too). Now read via activePieceRef and
+  out of the deps. tests/e2e-pivot-drag.mjs: both arms, both ways,
+  selected or not.
+- ?fresh checked in a browser: reloads clean, opens on the store's lid.
