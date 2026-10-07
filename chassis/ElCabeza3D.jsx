@@ -705,9 +705,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // theme's room, as a drag and a pinch would.
     window.__EC_TEST_CAM__ = (patch) => {
       if (patch) {
-        const { target, ...rest } = patch;
+        const { target, snap, ...rest } = patch;
         Object.assign(cam.current, rest);
         if (Array.isArray(target)) cam.current.target.set(target[0], target[1], target[2]);
+        // (snap: there at once, the view too, no easing.)
+        if (snap) {
+          const v = cam.current.view;
+          v.theta = cam.current.theta; v.phi = cam.current.phi; v.radius = cam.current.radius; v.target.copy(cam.current.target);
+        }
       }
       const c = cam.current;
       return { theta: c.theta, phi: c.phi, radius: c.radius, dollhouse: !!c.dollhouse, target: [c.target.x, c.target.y, c.target.z], roomLimit: roomLimitRef.current };
@@ -3499,6 +3504,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         // (The den's story: home from the closed store, the bulb's tap
         // settles in and the game begins, den-fx.js.)
         beginGame: () => { if (awaitingBeginRef.current && triggerBeginGameRef.current) triggerBeginGameRef.current(); },
+        /* A theme's own camera move, glided (the store's gentle return to
+           its opening view, tienda-fx.js): to { theta, phi, radius,
+           target: [x, y, z] } over ms, eased in and out like the view
+           jumps; a finger or the wheel takes over as ever. */
+        glideTo: (to, ms) => {
+          const c = cam.current;
+          c.theta = to.theta; c.phi = to.phi; c.radius = to.radius;
+          c.target.set(to.target[0], to.target[1], to.target[2]);
+          c.dollhouse = false;
+          glideRef.current = { ms };
+        },
         music: music ? { tracks: () => music.tracks(), play: (track) => playTrackRef.current && playTrackRef.current(track), playing: () => !!musicNowRef.current } : null,
       }
     );
@@ -3948,9 +3964,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         g.start = now;
         const turn = Math.abs(g.dTheta) / Math.PI, tilt = Math.abs(goal.phi - view.phi), reach = Math.abs(goal.radius - view.radius) / Math.max(1, view.radius);
         const slow = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        g.dur = slow ? 450 : Math.min(1600, 900 + 450 * turn + 300 * tilt + 350 * Math.min(1, reach) + 10 * view.target.distanceTo(goal.target));
-        // A half turn of the board lifts away a touch on the way round.
-        g.lift = 0.06 * turn;
+        g.dur = slow ? 450 : g.ms || Math.min(1600, 900 + 450 * turn + 300 * tilt + 350 * Math.min(1, reach) + 10 * view.target.distanceTo(goal.target));
+        // A half turn of the board lifts away a touch on the way round
+        // (not on a theme's own gentle glide, glideTo below).
+        g.lift = g.ms ? 0 : 0.06 * turn;
       } else if (g && (Math.abs(goal.theta - g.to.theta) > 1e-6 || Math.abs(goal.phi - g.to.phi) > 1e-6 || Math.abs(goal.radius - g.to.radius) > 1e-6 || goal.target.distanceToSquared(g.to.target) > 1e-8)) {
         glideRef.current = null;
       }

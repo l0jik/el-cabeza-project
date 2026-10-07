@@ -7470,3 +7470,47 @@ phone menu until "Start the story over" (which clears it).
   the same; "Let's play" fades in at five seconds and calls after. The
   card carries data-since (when it came up) for the test, which taps it
   at once and again at four seconds by that clock, then past the hold.
+- The store's opening view (user, with a screenshot: "When you first open
+  the box, this should be the zoom level that you see. You want to be
+  able to see the placard on the table"): tienda-fx.js OPENING_VIEW
+  { theta: PI - 0.1, phi: 1.25, radius: 66, target: [2.2, -2.87, 0] },
+  found by rendering ~700 candidate framings and scoring each against the
+  user's screenshot (blurred grey + edge correlation, the dock area
+  masked). Held (snapped, cam.placed so the pre-game fit leaves it) from
+  the first frame of a first visit until the lid's off. Then the player
+  looks round freely; once 10 s have passed since the box opened and
+  they've been still 6 s (no change to the camera's goal), with nothing
+  open over the store (tienda-overlay.js setStoreQuiet: no overlay, the
+  dock shut, no flyer or note), the camera glides back over 3.2 s
+  (chassis ctx.glideTo, a glideRef with its own ms and no lift) and the
+  card glows the store's nudge blue (tienda-store.js setGlow: a soft neon
+  rim behind each leaf, a pool of light on the table, a cyan-to-violet
+  haze, a touch of blue on the card's face; pulsing at the nudges' 2.4 s).
+  Repeats if they wander off again; stops for good once the card's
+  tapped or a game begins. boxOpened/boxClosed (resetLid) from the
+  overlay. __EC_TEST_CAM__ takes snap: true (the view too, at once).
+  tests/e2e-store-opening.mjs.
+- The flyer's photograph replaced with the user's second version (the
+  box closer to the store's own lid), and six more flyer versions, 7-12
+  (user: "redo six more flyers using this image instead ... find
+  reference images from 1975 department store flyers to create the
+  realism"). The network policy here blocks every image archive tried
+  (Plaid Stallions, archive.org, Flickr, Pinterest, newspaper archives),
+  so they're built from text research: the three sale days (Thurs.-Sat.,
+  Dec. 11-13, 1975, checked against the calendar), "Our Reg." over the
+  sale price, raised cents, item letters, department bands, fine print
+  after a real 1973 ad ("Prices good thru ... Limit rights reserved. No
+  sales to dealers."), an advertised-merchandise rain-check policy (as
+  K mart's ads carried; ours in our own words), the late-1975 charge
+  cards (BankAmericard until Dec. 1976, Master Charge until 1979),
+  Lay-Away, hours till Christmas, and the page's other items. 7 discount
+  store page, 8 Toyland (holly, candy stripe, Shrikhand), 9 department
+  store (Fraunces soft as a Souvenir stand-in, Bodoni italic caption,
+  "Reg. $10. Sale $7.97"), 10 Early Bird (Sat. 9 a.m.-1 p.m., limit 2),
+  11 a circular page with El Cabeza and four other items, 12 a coupon
+  page. e2e-try-it's price match now takes 7.97 with or without "$".
+- (The opening view is the story's store only: the overlay reports
+  storeState({ story, lid, quiet }) each time it draws, and the hold runs
+  while the lid's up. A first cut held until "the box opened", which the
+  store page on its own (no story) never reports, so its drags did
+  nothing; e2e-drag-latch caught it.)

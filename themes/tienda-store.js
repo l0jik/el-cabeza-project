@@ -996,6 +996,64 @@ export function buildTable(slabX, slabZ) {
     m.rotateX(-0.34);
     const b = new THREE.Mesh(g, cardBack); b.position.copy(m.position); b.quaternion.copy(m.quaternion); group.add(b);
   });
+  /* The card glowing the store's neon blue (user: the camera glides back
+     "to the table where the placard is going to be glowing the neon
+     blue"; the blue of the store's nudges, tienda-overlay.js, its violet
+     fringe too): a soft neon rim round each leaf (a larger leaf of light
+     just behind it), the light pooled on the table under the card, a
+     haze round it all, and the card itself just touched with the blue
+     (its red still red). setGlow(k, pulse) from tienda-fx.js; dark until
+     then. */
+  const glowParts = [];
+  const glowTex = (w, h, paint) => { const t = canvasTexture(w, h, paint, { scale: false }); disposables.push(t); return t; };
+  const glowMat = (map, params) => { const m = new THREE.MeshBasicMaterial({ map, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false, ...params }); disposables.push(m); return m; };
+  if (!revisited) {
+    // The rim: a soft-edged leaf of light, a little larger than the card.
+    const rimTex = glowTex(128, 96, (g, CW, CH) => {
+      g.clearRect(0, 0, CW, CH);
+      g.shadowColor = "rgba(150,232,255,1)"; g.shadowBlur = 20;
+      g.fillStyle = "rgba(170,238,255,1)";
+      for (let i = 0; i < 2; i++) g.fillRect(CW * 0.2, CH * 0.21, CW * 0.6, CH * 0.58);
+    });
+    tent.forEach((leaf) => {
+      const rim = new THREE.Mesh(new THREE.PlaneGeometry(3.4 * 1.62, 2.55 * 1.74), glowMat(rimTex, { side: THREE.DoubleSide }));
+      disposables.push(rim.geometry);
+      rim.position.copy(leaf.position); rim.quaternion.copy(leaf.quaternion);
+      rim.translateZ(-0.05);
+      rim.visible = false; group.add(rim); glowParts.push({ o: rim, base: 1 });
+    });
+    // The light on the table round it.
+    const poolTex = glowTex(128, 128, (g, CW, CH) => {
+      const grd = g.createRadialGradient(CW / 2, CH / 2, 0, CW / 2, CH / 2, CW / 2);
+      grd.addColorStop(0, "rgba(140,230,255,1)"); grd.addColorStop(0.4, "rgba(102,217,255,0.6)"); grd.addColorStop(1, "rgba(102,217,255,0)");
+      g.fillStyle = grd; g.fillRect(0, 0, CW, CH);
+    });
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 6), glowMat(poolTex, { polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }));
+    disposables.push(pool.geometry);
+    pool.rotation.x = -Math.PI / 2; pool.position.set(cx, topY + 0.02, cz);
+    pool.visible = false; group.add(pool); glowParts.push({ o: pool, base: 0.9 });
+    // The haze round it all, cyan to a violet edge (the dock's aura).
+    const hazeTex = glowTex(128, 128, (g, CW, CH) => {
+      const grd = g.createRadialGradient(CW / 2, CH / 2, 0, CW / 2, CH / 2, CW / 2);
+      grd.addColorStop(0, "rgba(170,238,255,0.8)"); grd.addColorStop(0.32, "rgba(102,217,255,0.48)"); grd.addColorStop(0.62, "rgba(140,110,255,0.16)"); grd.addColorStop(1, "rgba(140,110,255,0)");
+      g.fillStyle = grd; g.fillRect(0, 0, CW, CH);
+    });
+    const hazeMat = new THREE.SpriteMaterial({ map: hazeTex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, fog: false });
+    disposables.push(hazeMat);
+    const haze = new THREE.Sprite(hazeMat);
+    haze.position.set(cx, topY + 1.7, cz);
+    haze.scale.set(8.4, 6.4, 1);
+    haze.visible = false; group.add(haze); glowParts.push({ o: haze, base: 0.85, grow: true });
+    if (cardMat.emissive) { cardMat.emissive.set(0x66d9ff); cardMat.emissiveIntensity = 0; }
+  }
+  function setGlow(k, pulse = 0.5) {
+    glowParts.forEach(({ o, base, grow }) => {
+      o.visible = k > 0.002;
+      o.material.opacity = k * base * (0.62 + 0.38 * pulse);
+      if (grow) { const sc = 1 + 0.08 * pulse; o.scale.set(8.4 * sc, 6.4 * sc, 1); }
+    });
+    if (cardMat.emissive) cardMat.emissiveIntensity = k * (0.05 + 0.07 * pulse);
+  }
   // Its shadow on the floor, cast by the ceiling's troffers.
   const { tex: shTex, w: shW, d: shD } = tableShadow(W, D, legInsetX, legInsetZ);
   disposables.push(shTex);
@@ -1048,6 +1106,7 @@ export function buildTable(slabX, slabZ) {
     group,
     setKeyDir,
     tent,
+    setGlow,
     repaint() { repaint(lid); repaint(card); if (carton) repaint(carton); },
     dispose() { disposables.forEach((d) => d && d.dispose && d.dispose()); },
   };

@@ -42,7 +42,7 @@ import flyerInkUrl from "../assets/tienda/flyer-ink.webp";
 // up the boxed game, the children agog; tools/tienda_flyer_photo.py prints
 // it for the flyer's paper).
 import flyerPhotoUrl from "../assets/tienda/flyer-photo.jpg";
-import { TRY_IT_EVENT } from "./tienda-fx.js";
+import { TRY_IT_EVENT, boxOpened, boxClosed, storeState } from "./tienda-fx.js";
 import { singularitySeen, onJourneyChange, isCommercialOn, CLASSIC_PIECE_KEYS, specialOrderNoted, markSpecialOrderNoted, isSceneLink } from "../engine/journey.js";
 
 /* The classic game's order (engine/journey.js: the extras wait for the
@@ -280,6 +280,156 @@ const TRY_IT_CSS = `
   .td-tryit .v6 .block p { color: #E9DCC0; }
   .td-tryit .v6 .dept { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px; border-top: 1px solid rgba(244,230,196,0.45); font: 800 11.5px/1 'Libre Franklin', Arial, sans-serif; color: #F4E6C4; }
   .td-tryit .v6 .dept .go { margin: 0; color: #F4E6C4; }
+
+  /* Versions 7-12: the user's photograph again, set as the period's real
+     circulars were (user: "find reference images from 1975 department
+     store flyers to create the realism"): the three sale days and their
+     dates, "Our Reg." against the sale price, the cents raised, item
+     letters, a department's band, the fine print ("Prices good thru ...
+     Limit rights reserved. No sales to dealers."), the store's
+     advertised-merchandise (rain check) policy, the charge cards of late
+     1975 (BankAmericard, Master Charge), the hours till Christmas, and
+     the page's other items. Sale Thurs.-Sat., Dec. 11-13, 1975. */
+  .td-tryit .fine { margin: 6px 0 0; font: 600 8.5px/1.25 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
+  .td-tryit .soft { font-family: 'Fraunces', 'Bodoni Moda', Georgia, serif; font-variation-settings: "SOFT" 100, "WONK" 0; }
+
+  /* Version 7, the discount store's page (as K mart's, Zayre's and
+     Woolco's ran): the store and its three days, the department's band,
+     the photograph with its item letter, the sale price over "Our Reg.",
+     the fine print, the rain-check policy, the charge cards. */
+  .td-tryit .v7 { padding: 12px 13px 12px; }
+  .td-tryit .v7 .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .td-tryit .v7 .top .logo b { font-size: 31px; }
+  .td-tryit .v7 .top .logo span { font-size: 8.5px; letter-spacing: 0.16em; }
+  .td-tryit .v7 .when { flex: none; background: #C8281E; color: #FFF6E4; padding: 6px 9px 7px; text-align: center; transform: rotate(2deg); box-shadow: 2px 2px 0 #17110c; }
+  .td-tryit .v7 .when b { display: block; font: italic 900 15px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.02em; text-transform: uppercase; }
+  .td-tryit .v7 .when span { display: block; margin-top: 3px; font: 700 10px/1.15 'Libre Franklin', Arial, sans-serif; }
+  .td-tryit .v7 .band { margin: 10px 0 8px; padding: 4px 8px 5px; background: #17110c; color: #FFF6E4; font: italic 900 15px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+  .td-tryit .v7 .pic { position: relative; }
+  .td-tryit .v7 .photo { aspect-ratio: 1.3; }
+  .td-tryit .lt { position: absolute; left: 6px; bottom: 6px; width: 22px; height: 22px; border-radius: 50%; background: #FFF6E4; border: 2px solid #17110c; display: grid; place-items: center; font: 900 12px/1 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v7 .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; margin-top: 8px; align-items: start; }
+  .td-tryit .v7 .desc p { margin: 0 0 5px; font: 500 11px/1.27 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v7 .desc b { font-weight: 800; }
+  .td-tryit .v7 .price { text-align: center; color: #C8281E; }
+  .td-tryit .v7 .price em { display: block; font: italic 900 14px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
+  .td-tryit .v7 .price .pr { color: #C8281E; justify-content: center; margin: 3px 0 2px; }
+  .td-tryit .v7 .price .pr .n { font-size: 52px; }
+  .td-tryit .v7 .price small { display: block; font: 700 9.5px/1.15 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v7 .policy { margin-top: 6px; padding: 4px 6px 5px; border: 1px solid #17110c; font: 500 8px/1.28 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
+  .td-tryit .v7 .policy b { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .td-tryit .v7 .charge { margin-top: 6px; font: 800 8.5px/1.2 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #17110c; }
+
+  /* Version 8, Toyland (the toy stores' Christmas circulars, Child World
+     and Zayre's toy pages): a candy-striped banner, holly, a "Save" burst
+     on the photograph, the sale tag, Lay-Away and the late hours. */
+  .td-tryit .v8 { padding: 0 0 12px; }
+  .td-tryit .v8 .ribbon { position: relative; padding: 13px 14px 11px; text-align: center; background: #2E5A3C; }
+  .td-tryit .v8 .candy { height: 7px; background: repeating-linear-gradient(-45deg, #C8281E 0 6px, #FFF6E4 6px 12px); }
+  .td-tryit .v8 .ribbon b { display: block; font: 400 46px/0.9 'Shrikhand', 'Caprasimo', Georgia, serif; color: #E5342A; -webkit-text-stroke: 1.5px #FFF6E4; text-shadow: 3px 3px 0 #17110c; }
+  .td-tryit .v8 .ribbon .sub { display: block; margin-top: 4px; font: 400 15px/1 'Caprasimo', 'Cooper Black', Georgia, serif; font-style: normal; color: #F2C14E; }
+  .td-tryit .v8 .holly { position: absolute; top: 6px; width: 44px; height: 34px; }
+  .td-tryit .v8 .holly.l { left: 6px; } .td-tryit .v8 .holly.r { right: 6px; transform: scaleX(-1); }
+  .td-tryit .v8 .pic { position: relative; margin: 12px 12px 0; }
+  .td-tryit .v8 .photo { aspect-ratio: 1.3; border: 3px solid #2E5A3C; }
+  .td-tryit .v8 .burst { position: absolute; left: -12px; top: -16px; width: 84px; height: 84px; transform: rotate(-12deg); }
+  .td-tryit .v8 .burst svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .td-tryit .v8 .burst div { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #C8281E; }
+  .td-tryit .v8 .burst em { font: italic 900 11px/1 'Libre Franklin', Arial, sans-serif; text-transform: uppercase; letter-spacing: 0.08em; }
+  .td-tryit .v8 .burst b { font: 900 21px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: -0.02em; }
+  .td-tryit .v8 .line { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; margin: 10px 12px 0; }
+  .td-tryit .v8 .line h4 { margin: 0; font: 400 23px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #2E5A3C; }
+  .td-tryit .v8 .line h4 small { display: block; font: 900 10px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; color: #C8281E; text-transform: uppercase; margin-bottom: 3px; }
+  .td-tryit .v8 .tag { flex: none; background: #C8281E; color: #FFF6E4; padding: 5px 9px 6px; text-align: center; border-radius: 3px; transform: rotate(-3deg); box-shadow: 2px 2px 0 #17110c; }
+  .td-tryit .v8 .tag em { display: block; font: italic 900 11px/1 'Libre Franklin', Arial, sans-serif; text-transform: uppercase; letter-spacing: 0.1em; }
+  .td-tryit .v8 .tag .pr { color: #FFF6E4; margin: 2px 0 0; justify-content: center; }
+  .td-tryit .v8 .tag .pr .n { font-size: 40px; }
+  .td-tryit .v8 .tag small { display: block; margin-top: 3px; font: 700 9px/1 'Libre Franklin', Arial, sans-serif; }
+  .td-tryit .v8 .txt { margin: 9px 12px 0; font: 500 11.5px/1.3 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v8 .txt b { font-weight: 800; }
+  .td-tryit .v8 .foot2 { display: flex; justify-content: space-between; gap: 8px; margin: 9px 12px 0; padding-top: 6px; border-top: 2px solid #2E5A3C; font: 900 9.5px/1.15 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #C8281E; }
+  .td-tryit .v8 .fine { margin: 6px 12px 0; }
+  .td-tryit .v8 .go { margin: 8px 12px 0; }
+
+  /* Version 9, the department store's (Sears', Penney's): quiet and
+     spacious, a fine red rule, a soft serif headline, the photograph,
+     an italic caption, "Reg. $10. Sale 7.97", charge it on your account,
+     open tonight. */
+  .td-tryit .v9 { padding: 14px 16px 13px; }
+  .td-tryit .v9 .dhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-bottom: 6px; border-bottom: 1.5px solid #A8322B; }
+  .td-tryit .v9 .dhead b { font: 400 22px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; }
+  .td-tryit .v9 .dhead span { font: 600 9px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.22em; text-transform: uppercase; color: #A8322B; }
+  .td-tryit .v9 h3 { margin: 12px 0 10px; font-weight: 600; font-size: 24px; line-height: 1.08; color: #17110c; text-wrap: balance; }
+  .td-tryit .v9 .photo { aspect-ratio: 1.25; }
+  .td-tryit .v9 .cols { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; margin-top: 9px; align-items: end; }
+  .td-tryit .v9 .cap { margin: 0; font: italic 500 12.5px/1.3 'Bodoni Moda', Didot, Georgia, serif; color: #2A1D14; }
+  .td-tryit .v9 .pp { text-align: right; }
+  .td-tryit .v9 .pp .reg { display: block; font: 500 11px/1 'Libre Franklin', Arial, sans-serif; color: #2A1D14; }
+  .td-tryit .v9 .pp .sale { display: block; margin-top: 4px; font: 700 12px/1 'Libre Franklin', Arial, sans-serif; color: #A8322B; text-transform: uppercase; letter-spacing: 0.08em; }
+  .td-tryit .v9 .pp .sale b { font-size: 34px; font-weight: 600; letter-spacing: -0.01em; text-transform: none; }
+  .td-tryit .v9 .try { margin: 10px 0 0; font: 500 11.5px/1.32 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v9 .try b { font-weight: 700; }
+  .td-tryit .v9 .ch { margin-top: 8px; padding-top: 6px; border-top: 1px solid #cdbfa8; font: italic 500 11px/1.3 'Bodoni Moda', Didot, Georgia, serif; color: #2A1D14; }
+
+  /* Version 10, the early bird: Saturday morning only, the price in
+     black and red as big as it'll go, "Save 2.00", limit 2, no rain
+     checks on early-bird items. */
+  .td-tryit .v10 { padding: 0 0 12px; }
+  .td-tryit .v10 .eb { background: #F2C14E; padding: 12px 14px 8px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; border-bottom: 4px solid #17110c; }
+  .td-tryit .v10 .eb b { font: italic 900 34px/0.9 'Libre Franklin', Arial, sans-serif; color: #C8281E; text-transform: uppercase; letter-spacing: -0.01em; text-shadow: 2px 2px 0 #17110c; }
+  .td-tryit .v10 .eb span { font: italic 900 21px/1 'Libre Franklin', Arial, sans-serif; color: #17110c; text-transform: uppercase; }
+  .td-tryit .v10 .ebtime { background: #17110c; color: #F2C14E; padding: 5px 14px; font: 800 10.5px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }
+  .td-tryit .v10 .storeline { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 8px 14px 0; }
+  .td-tryit .v10 .storeline b { font: 400 22px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; text-shadow: 1.5px 1.5px 0 #E9B23A; }
+  .td-tryit .v10 .storeline span { font: 800 9px/1 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #B4451F; }
+  .td-tryit .v10 .photo { margin: 8px 14px 0; aspect-ratio: 1.38; border: 2px solid #17110c; }
+  .td-tryit .v10 .big { display: flex; align-items: center; gap: 10px; margin: 6px 14px 0; }
+  .td-tryit .v10 .big .pr { color: #C8281E; margin: 0; }
+  .td-tryit .v10 .big .pr .d { font-size: 24px; } .td-tryit .v10 .big .pr .n { font-size: 66px; } .td-tryit .v10 .big .pr .c { font-size: 24px; }
+  .td-tryit .v10 .was { font: 700 11px/1.2 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v10 .was b { display: block; margin-top: 2px; font: italic 900 17px/1 'Libre Franklin', Arial, sans-serif; color: #17110c; text-transform: uppercase; }
+  .td-tryit .v10 .item { margin: 6px 14px 0; }
+  .td-tryit .v10 .item h4 { font-size: 15px; }
+  .td-tryit .v10 .fine { margin: 7px 14px 0; }
+  .td-tryit .v10 .go { margin: 8px 14px 0; }
+
+  /* Version 11, a page of the circular: El Cabeza the big item, the
+     page's others round it as they ran, each with its letter and price. */
+  .td-tryit .v11 { padding: 10px 12px 12px; }
+  .td-tryit .v11 .bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-bottom: 6px; border-bottom: 3px solid #17110c; }
+  .td-tryit .v11 .bar b { font: 400 25px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; text-shadow: 1.5px 1.5px 0 #E9B23A; }
+  .td-tryit .v11 .bar span { font: 800 9px/1.2 'Libre Franklin', Arial, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #17110c; text-align: right; }
+  .td-tryit .v11 .pic { position: relative; margin-top: 8px; }
+  .td-tryit .v11 .photo { aspect-ratio: 1.45; }
+  .td-tryit .v11 .pbox { position: absolute; right: -4px; bottom: -14px; background: #FFFDF6; border: 2px solid #17110c; padding: 4px 8px 5px; text-align: center; box-shadow: 2px 2px 0 rgba(23,17,12,0.6); }
+  .td-tryit .v11 .pbox small { display: block; font: 900 9.5px/1 'Libre Franklin', Arial, sans-serif; color: #C8281E; letter-spacing: 0.1em; text-transform: uppercase; }
+  .td-tryit .v11 .pbox .pr { justify-content: center; margin: 2px 0 1px; }
+  .td-tryit .v11 .pbox .pr .n { font-size: 40px; }
+  .td-tryit .v11 .pbox i { display: block; font: 700 9px/1 'Libre Franklin', Arial, sans-serif; font-style: normal; color: #17110c; }
+  .td-tryit .v11 .a { margin: 8px 96px 0 0; font: 500 11px/1.27 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v11 .a b { font-weight: 800; }
+  .td-tryit .v11 .others { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 9px; }
+  .td-tryit .v11 .o { border: 1px solid #17110c; padding: 5px 6px 6px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px; align-items: end; }
+  .td-tryit .v11 .o p { margin: 0; font: 600 9.5px/1.2 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
+  .td-tryit .v11 .o p b { display: block; font: 800 10.5px/1.15 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v11 .o .pr { margin: 0; color: #C8281E; } .td-tryit .v11 .o .pr .n { font-size: 24px; } .td-tryit .v11 .o .pr .c { font-size: 11px; }
+  .td-tryit .v11 .o .pr .n.cents { font-size: 22px; } .td-tryit .v11 .o .pr .cs { font-size: 13px; margin-left: 1px; }
+
+  /* Version 12, the coupon page: clip them (a free game, two dollars off,
+     free gift wrap), each dashed, each with its terms. */
+  .td-tryit .v12 { padding: 11px 12px 12px; }
+  .td-tryit .v12 .head12 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .td-tryit .v12 .head12 b { font: 400 25px/1 'Caprasimo', 'Cooper Black', Georgia, serif; color: #6B3A1E; text-shadow: 1.5px 1.5px 0 #E9B23A; }
+  .td-tryit .v12 .head12 span { font-weight: 700; font-size: 21px; line-height: 1; color: #C8281E; }
+  .td-tryit .v12 .stripes { margin: 7px 0 8px; } .td-tryit .v12 .stripes i { height: 4px; }
+  .td-tryit .v12 .photo { aspect-ratio: 1.5; border: 2px solid #17110c; }
+  .td-tryit .v12 .coupons { display: grid; gap: 7px; margin-top: 9px; }
+  .td-tryit .v12 .cp { position: relative; border: 2px dashed #17110c; padding: 7px 8px 7px; display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; align-items: center; }
+  .td-tryit .v12 .cp svg { position: absolute; left: -9px; top: -8px; width: 18px; height: 12px; background: #FFFFFF; }
+  .td-tryit .v12 .val { font: 900 18px/0.95 'Libre Franklin', Arial, sans-serif; color: #C8281E; text-align: center; text-transform: uppercase; letter-spacing: -0.01em; }
+  .td-tryit .v12 .val small { display: block; font-size: 10px; letter-spacing: 0.08em; color: #17110c; }
+  .td-tryit .v12 .t { font: 800 11px/1.18 'Libre Franklin', Arial, sans-serif; color: #17110c; }
+  .td-tryit .v12 .t small { display: block; margin-top: 3px; font: 600 8.5px/1.2 'Archivo Narrow', 'Arial Narrow', Arial, sans-serif; color: #2A1D14; }
   .td-tryit.off { transition: opacity 0.35s ease, transform 0.35s ease; opacity: 0; transform: translate(-50%, -46%) rotate(-1.2deg); pointer-events: none; }
   /* Up until it's tapped: a tap beside it lands on the veil (the store
      behind stays put) and the flyer shakes; its "Let's play" calls. */
@@ -329,10 +479,12 @@ function flyerMask(w, h) {
 }
 /* The flyer's versions (user: "This is the image that you will incorporate
    into the advertising flyer. Give me six different versions."), each
-   round the user's photograph, on the same paper: ?flyer=1-6 in the
-   address picks one (1 when there's none). Every one says the store's
+   round the user's photograph, on the same paper: ?flyer=1-12 in the
+   address picks one (1 when there's none; 7-12 the second six, user:
+   "redo six more flyers using this image instead", from the period's
+   real circulars). Every one says the store's
    word ("So you'd like to try it, eh?"), the price ($7.97) and Let's play. */
-const FLYER_VERSIONS = 6;
+const FLYER_VERSIONS = 12;
 function flyerVersion() {
   try {
     const v = Math.floor(Number(new URLSearchParams(window.location.search).get("flyer")));
@@ -365,20 +517,20 @@ function flyerHtml(v) {
       + '<div class="pic">' + PHOTO + '<div class="burst"><svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="' + burstPoints(16, 38, 49) + '" fill="#B4451F" stroke="#17110c" stroke-width="2" stroke-linejoin="round"/><polygon points="' + burstPoints(16, 31, 40) + '" fill="#C9541F"/></svg><div class="bt"><em>NEW!</em>' + PRICE + '</div></div></div>'
       + '<div class="copy"><div class="item"><h4>' + NEW + '</h4><p>' + GAME + '</p></div>'
       + '<div class="item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + '</p></div>'
-      + '<div class="item"><h4>Games &amp; Hobby Dept.</h4><p>Aisle 9. Open late till Christmas.</p></div></div>' + GO;
+      + '<div class="item"><h4>Games &amp; Hobby Dept.</h4><p>Aisle\u00a09. Open late till Christmas.</p></div></div>' + GO;
   }
   if (v === 3) {
     return '<div class="runhead"><b>Big Glutts</b><span>Holiday Gift Catalog</span><span>Page 74</span></div>' + PHOTO
       + '<p class="cap">Christmas came early at our house. “Can we play it tonight?”</p>'
       + '<p class="lead"><span class="k">A</span><strong>' + NEW + '.</strong> ' + GAME + ' For 2 players, ages 10 to adult.</p>'
       + '<p class="row"><span>74 N 1975</span><i></i><span class="each">Each</span><span class="amt">$7.97</span></p>'
-      + '<p class="lead"><span class="k">B</span><strong>' + TRY + '</strong> Go right ahead, friend: the demonstration set’s all yours, free to play, in the Games &amp; Hobby Dept., Aisle 9.</p>' + GO;
+      + '<p class="lead"><span class="k">B</span><strong>' + TRY + '</strong> Go right ahead, friend: the demonstration set’s all yours, free to play, in the Games &amp; Hobby Dept., Aisle\u00a09.</p>' + GO;
   }
   if (v === 4) {
     return '<div class="top"><b>Big Glutts</b>' + STRIPES + '</div>'
       + '<div class="sign"><b>Holiday</b><span>Gift Values</span></div>'
       + '<div class="pic">' + PHOTO + '<div class="tag"><small>NEW!</small><span>El Cabeza game set</span>' + PRICE + '</div></div>'
-      + '<div class="copy item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + ' ' + GAME + ' Games &amp; Hobby Dept., Aisle 9.</p></div>' + GO;
+      + '<div class="copy item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + ' ' + GAME + ' Games &amp; Hobby Dept., Aisle\u00a09.</p></div>' + GO;
   }
   if (v === 5) {
     const scissors = '<svg viewBox="0 0 20 13" aria-hidden="true"><circle cx="3.5" cy="3.2" r="2.4" fill="none" stroke="#17110c" stroke-width="1.4"/><circle cx="3.5" cy="9.8" r="2.4" fill="none" stroke="#17110c" stroke-width="1.4"/><path d="M5.6 4.4 19 10.6M5.6 8.6 19 2.4" stroke="#17110c" stroke-width="1.4" stroke-linecap="round"/></svg>';
@@ -386,19 +538,84 @@ function flyerHtml(v) {
       + '<div class="coupon">' + STRIPES + '<div class="chead"><b>Big Glutts</b><span>Discount Department Store</span></div>' + PHOTO
       + '<div class="cbody"><div class="item"><h4>' + TRY + '</h4><div class="worth">This coupon good for one game, free to play</div><p>' + FRIEND + '</p></div>'
       + '<div class="box"><small>NEW! El Cabeza<br>game set</small>' + PRICE + '</div></div>'
-      + '<p class="fine">' + GAME + ' At the demonstration table, Games &amp; Hobby Dept., Aisle 9. Limit: as many games as you like. Cash value 1/20 of 1¢.</p></div>' + GO;
+      + '<p class="fine">' + GAME + ' At the demonstration table, Games &amp; Hobby Dept., Aisle\u00a09. Limit: as many games as you like. Cash value 1/20 of 1¢.</p></div>' + GO;
   }
   if (v === 6) {
     return '<div class="cover">' + PHOTO + '<div class="mast"><b>Big Glutts</b><span>Holiday Gift Values · Discount Dept. Store</span></div></div>' + STRIPES
       + '<div class="block"><div class="item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + '</p></div>'
       + '<div class="item"><h4>' + NEW + '</h4>' + PRICE + '<p>' + GAME + '</p></div>'
-      + '<div class="dept"><span>Games &amp; Hobby Dept. · Aisle 9</span>' + GO + '</div></div>';
+      + '<div class="dept"><span>Games &amp; Hobby Dept. · Aisle\u00a09</span>' + GO + '</div></div>';
+  }
+  const SALE = '<div class="pr"><span class="n">7</span><span class="ce"><span class="c">97</span></span></div>';
+  const DAYS = "Thurs., Fri., Sat.<br>Dec. 11, 12, 13";
+  const FINE = "Prices good thru Sat., Dec. 13, 1975. Quantities limited. Limit rights reserved. No sales to dealers.";
+  const CARDS = "Charge it! Big Glutts Charge • BankAmericard • Master\u00a0Charge";
+  const HOLLY = '<svg viewBox="0 0 44 34" aria-hidden="true"><path d="M4 22 C8 14 14 12 20 16 C16 18 15 22 18 26 C12 28 7 27 4 22Z" fill="#3E7A4C" stroke="#17110c" stroke-width="1.2"/><path d="M16 12 C20 4 28 3 34 7 C29 9 28 13 30 17 C24 19 19 17 16 12Z" fill="#4E8C58" stroke="#17110c" stroke-width="1.2"/><circle cx="20" cy="20" r="3.2" fill="#D9302A" stroke="#17110c" stroke-width="1"/><circle cx="25" cy="21" r="3" fill="#E5342A" stroke="#17110c" stroke-width="1"/><circle cx="22" cy="25.5" r="3" fill="#C8281E" stroke="#17110c" stroke-width="1"/></svg>';
+  if (v === 7) {
+    return '<div class="top"><div class="logo"><b>Big Glutts</b><span>Your savings headquarters</span></div><div class="when"><b>3 Days Only!</b><span>' + DAYS + '</span></div></div>'
+      + '<div class="band">Toys &amp; Games</div>'
+      + '<div class="pic">' + PHOTO + '<span class="lt">A</span></div>'
+      + '<div class="row"><div class="desc"><p><b>A. NEW! El Cabeza game set.</b> ' + GAME + ' For 2 players, ages 10 to adult.</p>'
+      + '<p><b>' + TRY + '</b> A demonstration set is free to play in our Games &amp; Hobby Dept., Aisle\u00a09.</p></div>'
+      + '<div class="price"><em>Sale</em>' + SALE + '<small>Our Reg. 9.97</small></div></div>'
+      + '<p class="fine">' + FINE + '</p>'
+      + '<div class="policy"><b>Our advertised merchandise policy:</b> we mean to have every advertised item on our shelves. If one sells out, ask for a Rain Check and buy it at the sale price when it arrives.</div>'
+      + '<div class="charge">' + CARDS + '</div>' + GO;
+  }
+  if (v === 8) {
+    return '<div class="ribbon"><span class="holly l">' + HOLLY + '</span><span class="holly r">' + HOLLY + '</span><b>Toyland</b><em class="sub">at Big Glutts</em></div><div class="candy"></div>'
+      + '<div class="pic">' + PHOTO + '<div class="burst"><svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="' + burstPoints(14, 37, 49) + '" fill="#F2C14E" stroke="#17110c" stroke-width="2.5" stroke-linejoin="round"/></svg><div><em>Save</em><b>2.00</b></div></div></div>'
+      + '<div class="line"><h4><small>NEW! For Christmas</small>El Cabeza</h4><div class="tag"><em>Sale</em>' + SALE + '<small>Our Reg. 9.97</small></div></div>'
+      + '<p class="txt">' + GAME + ' <b>' + TRY + '</b> Play the demonstration set free in our Games &amp; Hobby Dept., Aisle\u00a09.</p>'
+      + '<div class="foot2"><span>Lay-Away now for Christmas!</span><span>Open every night till\u00a010</span></div>'
+      + '<p class="fine">' + FINE + '</p>' + GO;
+  }
+  if (v === 9) {
+    return '<div class="dhead"><b>Big Glutts</b><span>Holiday Gift Shop</span></div>'
+      + '<h3 class="soft">Give a game of unparalleled intention.</h3>' + PHOTO
+      + '<div class="cols"><p class="cap">El Cabeza: a fine hardwood board and ten pieces in walnut and ash. For 2 players, ages 10 to adult.</p>'
+      + '<div class="pp"><span class="reg">Reg. $10.</span><span class="sale">Sale <b class="soft">$7.97</b></span></div></div>'
+      + '<p class="try"><b>' + TRY + '</b> The demonstration set is in our Games &amp; Hobby Dept., Aisle\u00a09, free to play.</p>'
+      + '<div class="ch">Charge it on your Big Glutts account, or with BankAmericard or Master\u00a0Charge. Shop tonight till 9:30.</div>' + GO;
+  }
+  if (v === 10) {
+    return '<div class="eb"><b>Early Bird</b><span>Special!</span></div>'
+      + '<div class="ebtime">Saturday only • 9 a.m. to 1 p.m. • Dec. 13</div>'
+      + '<div class="storeline"><b>Big Glutts</b><span>Games &amp; Hobby Dept.</span></div>' + PHOTO
+      + '<div class="big">' + PRICE + '<div class="was">Our Reg. 9.97<b>Save 2.00</b></div></div>'
+      + '<div class="item"><h4>' + NEW + '</h4><p>' + GAME + '</p></div>'
+      + '<div class="item"><h4>' + TRY + '</h4><p>Go right ahead, friend: the demonstration set’s free to play, Aisle\u00a09.</p></div>'
+      + '<p class="fine">Limit 2 per customer. No rain checks on Early Bird items. ' + FINE + '</p>' + GO;
+  }
+  if (v === 11) {
+    const other = (k, name, line, price) => '<div class="o"><p><b>' + k + '. ' + name + '</b>' + line + '</p>' + price + '</div>';
+    const pr = (d, c) => '<div class="pr"><span class="n">' + d + '</span><span class="ce"><span class="c">' + c + '</span></span></div>';
+    const cents = (c) => '<div class="pr"><span class="n cents">' + c + '</span><span class="cs">¢</span></div>';
+    return '<div class="bar"><b>Big Glutts</b><span>Toys &amp; Games<br>' + "Sale Thurs.–Sat., Dec. 11–13" + '</span></div>'
+      + '<div class="pic">' + PHOTO + '<span class="lt">A</span><div class="pbox"><small>Sale</small>' + SALE + '<i>Our Reg. 9.97</i></div></div>'
+      + '<p class="a"><b>A. NEW! El Cabeza game set.</b> ' + GAME + ' <b>' + TRY + '</b> Play the demonstration set free, Aisle\u00a09.</p>'
+      + '<div class="others">'
+      + other("B", "Jigsaw puzzles", "500 and 1,000 pieces. Scenic views.", pr("1", "47"))
+      + other("C", "Checkers &amp; chess set", "Folding board, wood men.", pr("2", "97"))
+      + other("D", "Playing cards", "Plastic-coated. 2 decks.", cents("97"))
+      + other("E", "Christmas gift wrap", "3 rolls, 75 sq. ft. in all.", cents("88"))
+      + '</div><p class="fine">' + FINE + ' ' + CARDS + '.</p>' + GO;
+  }
+  if (v === 12) {
+    const scissors = '<svg viewBox="0 0 20 13" aria-hidden="true"><circle cx="3.5" cy="3.2" r="2.4" fill="none" stroke="#17110c" stroke-width="1.4"/><circle cx="3.5" cy="9.8" r="2.4" fill="none" stroke="#17110c" stroke-width="1.4"/><path d="M5.6 4.4 19 10.6M5.6 8.6 19 2.4" stroke="#17110c" stroke-width="1.4" stroke-linecap="round"/></svg>';
+    const cp = (val, t, small) => '<div class="cp">' + scissors + '<div class="val">' + val + '</div><div class="t">' + t + '<small>' + small + '</small></div></div>';
+    return '<div class="head12"><b>Big Glutts</b><span class="soft">Coupon Savings!</span></div>' + STRIPES + PHOTO
+      + '<div class="coupons">'
+      + cp("Free<small>one game</small>", TRY + " One game of El Cabeza at our demonstration table, Games &amp; Hobby Dept., Aisle\u00a09.", "Good any time. No purchase necessary.")
+      + cp("Save<br>2.00", "NEW! El Cabeza game set, $7.97 with this coupon. Our Reg. 9.97. " + GAME, "Coupon good Thurs.–Sat., Dec. 11–13, 1975. Limit one per family.")
+      + cp("Free<small>gift wrap</small>", "Gift wrap on any game you buy this week, at our Gift Wrap Counter.", "Cash value 1/20 of 1¢.")
+      + '</div>' + GO;
   }
   return '<span class="sv"></span>' + '<svg class="sc" viewBox="0 0 59 59" aria-hidden="true"><path d="M4 59 A55 55 0 0 1 59 4" fill="none" stroke="#6B3A1E" stroke-width="8"/><path d="M13 59 A46 46 0 0 1 59 13" fill="none" stroke="#B4451F" stroke-width="8"/><path d="M22 59 A37 37 0 0 1 59 22" fill="none" stroke="#E07B22" stroke-width="8"/><path d="M31 59 A28 28 0 0 1 59 31" fill="none" stroke="#E9B23A" stroke-width="8"/></svg>' + '<span class="sh"></span>'
     + '<div class="logo"><b>Big Glutts</b><span>Discount Department Store</span></div>' + PHOTO
     + '<div class="two"><div class="item"><h4>' + TRY + '</h4>' + FREE + '<p>' + FRIEND + '</p></div>'
     + '<div class="item"><h4>' + NEW + '</h4>' + PRICE + '<p>' + GAME + '</p></div></div>'
-    + '<div class="foot"><span>Games &amp; Hobby Dept. · Aisle 9</span>' + GO + '</div>';
+    + '<div class="foot"><span>Games &amp; Hobby Dept. · Aisle\u00a09</span>' + GO + '</div>';
 }
 const IDLE_NUDGE_MS = 30000;
 const NUDGE_GROW_MS = 90000;
@@ -426,7 +643,7 @@ const NUDGE_CSS = `
 `;
 // Nova's "Start the story over" (apps/unified.jsx): the box is back on the
 // shelf, lid and all.
-export function resetLid() { lidDone = false; idleNudgeDone = false; idleSpent = 0; confusedAtClerk = false; orderInHand = null; keptOrder = null; deliverHome = null; }
+export function resetLid() { boxClosed(); lidDone = false; idleNudgeDone = false; idleSpent = 0; confusedAtClerk = false; orderInHand = null; keptOrder = null; deliverHome = null; }
 /* After the whole story, back at the store: another copy, please. The
    clerk has never heard of it, the manager has never heard of it
    (ClerkScene), and the store's purchase becomes "Go home, confused."
@@ -637,6 +854,18 @@ export function useSetupExtras(x) {
   }, [idleNudge, x.awaitingBegin]);
   // The "Try it!" card's tap (tienda-fx.js): the store's word, then the
   // menu open (as the piece's tap opens it), Try a Game lit.
+  /* The store's opening view (tienda-fx.js OPENING_VIEW): told when the
+     lid's off, and whether anything's open over the store, so the camera
+     only glides back to the table when the player's simply been still. */
+  React.useEffect(() => {
+    if (store && lidDone && overlay !== "lid") boxOpened();
+    storeState({
+      story: store,
+      lid: overlay === "lid",
+      quiet: store && lidDone && x.awaitingBegin && !overlay && x.dockView === "piece" && !(story.after && story.after()) && !(story.realities && story.realities()),
+    });
+  });
+  React.useEffect(() => () => storeState({}), []);
   const tryItLive = React.useRef({});
   tryItLive.current = { ok: store && x.awaitingBegin && !overlay && !(story.after && story.after()) && !(story.realities && story.realities()), openDock: x.openDock };
   React.useEffect(() => {
@@ -657,6 +886,7 @@ export function useSetupExtras(x) {
       if (!document.getElementById("td-tryit-css")) { const st = document.createElement("style"); st.id = "td-tryit-css"; st.textContent = TRY_IT_CSS; document.head.appendChild(st); }
       if (!document.querySelector('link[href*="family=Archivo+Narrow"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Libre+Franklin:wght@700;800;900&display=swap"; document.head.appendChild(l); }
       if (!document.querySelector('link[href*="family=Caprasimo"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Caprasimo&display=swap"; document.head.appendChild(l); }
+      if (!document.querySelector('link[href*="family=Shrikhand"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0..100,0..1&family=Shrikhand&display=swap"; document.head.appendChild(l); }
       if (!document.querySelector('link[href*="family=Bodoni+Moda:ital"]')) { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@1,6..96,500&display=swap"; document.head.appendChild(l); }
       card = document.createElement("div");
       card.className = "td-tryit"; card.setAttribute("role", "dialog"); card.setAttribute("aria-label", "Try it");

@@ -29,13 +29,82 @@ import { ensurePaper, ensureNewsprint } from "./tienda-textures.js";
 const FONT_FACES = ["800 40px 'Libre Franklin'", "900 40px 'Libre Franklin'", "700 40px 'Libre Franklin'", "600 40px 'Libre Franklin'", "700 40px 'Courier Prime'", "400 40px 'Courier Prime'", "700 40px 'Bodoni Moda'", "italic 700 40px 'Libre Franklin'"];
 
 export const TRY_IT_EVENT = "el-cabeza:tienda-try-it";
-export function mountAmbientEffects(refs, { three, cam, windingDownRef, audio }) {
+
+/* The store's opening view (user, with a screenshot of it: "When you first
+   open the box, this should be the zoom level that you see. You want to be
+   able to see the placard on the table"): the table, the board and its Try
+   it! card, from the aisle, the shelves and the 2-for-$5 stack beyond;
+   matched to the user's screenshot. Held while the lid's on; then the
+   player looks round as they like ("they can look around for a little
+   bit"), and once they've been still a while the camera "will very gently
+   glide back over to the table where the placard is going to be glowing
+   the neon blue" (table.setGlow). Before the first game only. */
+export const OPENING_VIEW = { theta: Math.PI - 0.1, phi: 1.25, radius: 66, target: [2.2, -2.87, 0] };
+const LOOK_MS = 10000, IDLE_MS = 6000, GLIDE_MS = 3200;
+let boxOpenedAt = 0, storeQuiet = false, storyStore = false, lidUp = false;
+/* (tienda-overlay.js, each time it draws: this is the story's store (only
+   there: the store page on its own keeps its own camera), the lid's up,
+   nothing's open over the store; and when the lid comes off, and goes
+   back on with the story started over.) */
+export function storeState({ story, lid, quiet }) { storyStore = !!story; lidUp = !!lid; storeQuiet = !!quiet; }
+export function boxOpened() { if (!boxOpenedAt) boxOpenedAt = performance.now(); }
+export function boxClosed() { boxOpenedAt = 0; }
+
+export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaitingBeginRef, audio, glideTo }) {
   const q = quality();
   let store = null, table = null, brass = null;
   let attachedTo = null, dims = "";
   let tuned = false;
   let revisitUntil = 0;
   let fogBefore = null, farBefore = null;
+  // The opening view and its gentle return (OPENING_VIEW above).
+  let framed = false, played = false, cardTapped = false;
+  let lastGoal = null, lastInput = 0, glideUntil = 0, glowK = 0, glowOn = false, lastTick = 0;
+  const OPEN = [OPENING_VIEW.theta, OPENING_VIEW.phi, OPENING_VIEW.radius, ...OPENING_VIEW.target];
+  const goalOf = () => { const c = cam.current; return [c.theta, c.phi, c.radius, c.target.x, c.target.y, c.target.z]; };
+  const turnOf = (d) => ((d % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+  const near = (a, b, eps) => !!(a && b) && a.every((v, i) => Math.abs(i === 0 ? turnOf(v - b[i]) : v - b[i]) < eps);
+  function frameOpening() {
+    const c = cam.current;
+    c.theta = OPENING_VIEW.theta; c.phi = OPENING_VIEW.phi; c.radius = OPENING_VIEW.radius;
+    c.target.set(OPENING_VIEW.target[0], OPENING_VIEW.target[1], OPENING_VIEW.target[2]);
+    c.dollhouse = false;
+    // (Placed: the chassis's pre-game fit leaves it be.)
+    c.placed = true;
+    if (c.view) { c.view.theta = c.theta; c.view.phi = c.phi; c.view.radius = c.radius; c.view.target.copy(c.target); }
+  }
+  function openingView(now) {
+    const dt = lastTick ? Math.min(0.1, (now - lastTick) / 1000) : 0;
+    lastTick = now;
+    const first = storyStore && !!(table && table.tent && table.tent.length) && !storeRevisited() && !played;
+    const waiting = !!(awaitingBeginRef && awaitingBeginRef.current);
+    if (first && !waiting && framed) played = true;
+    if (first && waiting && cam && cam.current) {
+      if (!framed) { frameOpening(); framed = true; lastGoal = goalOf(); lastInput = now; }
+      else {
+        const g = goalOf();
+        // The player moved it (a drag, a pinch, the wheel, a view button).
+        if (!near(g, lastGoal, 1e-5)) lastInput = now;
+        if (lidUp) {
+          // Held while the lid's on (a refit, a resize).
+          if (!near(g, OPEN, 1e-4)) frameOpening();
+        } else if (boxOpenedAt) {
+          const quiet = storeQuiet && !document.querySelector(".td-tryit, .td-special-note");
+          if (quiet && !cardTapped && now - boxOpenedAt > LOOK_MS && now - lastInput > IDLE_MS) {
+            if (!near(g, OPEN, 0.02) && now > glideUntil && glideTo) { glideTo(OPENING_VIEW, GLIDE_MS); glideUntil = now + GLIDE_MS; }
+            glowOn = true;
+          }
+        }
+        lastGoal = goalOf();
+      }
+    }
+    // The card's glow: in over half a second, the nudges' slow pulse.
+    const want = glowOn && !cardTapped && !played && waiting ? 1 : 0;
+    glowK += (want - glowK) * Math.min(1, dt / 0.5);
+    if (Math.abs(want - glowK) < 0.002) glowK = want;
+    if (table && table.setGlow) table.setGlow(glowK, 0.5 + 0.5 * Math.sin((now / 2400) * Math.PI * 2));
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__TIENDA_OPENING__ = { framed, glow: glowK, opened: !!boxOpenedAt, played, cardTapped };
+  }
   ensurePaper();
   ensureNewsprint();
 
@@ -186,6 +255,7 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, audio })
          store and the table (with its appliances) stay. Every frame, so
          anything the chassis adds to the board later goes too. */
       if (storeRevisited()) t.boardGroup.children.forEach((o) => { o.visible = o === store.group || (table && o === table.group); });
+      openingView(now);
       // (Held through the first moments: the opening framing, fitted to
       // the board, runs after the store is up and would pull it back in.
       // After that the player zooms as they like.)
@@ -221,6 +291,7 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, audio })
     },
     sceneTap(what) {
       if (what !== "tryIt") return false;
+      cardTapped = true;
       try { window.dispatchEvent(new CustomEvent(TRY_IT_EVENT)); } catch (e) { /* no events */ }
       return true;
     },
