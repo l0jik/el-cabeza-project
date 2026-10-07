@@ -547,7 +547,7 @@ const DEFAULT_BOARD_DIM = 10; // matches the engine's fixed board before any TOP
 // LAWS — the independent toggles from SINGULARITY_DESIGN.md's Part 2,
 // plus Diagonal Slide (a modifier on Slide).
 const LAWS_ITEMS = [
-  { key: "splitMovement", label: "Split Movement", blurb: "Split a turn's points between up to two pieces instead of one." },
+  { key: "splitMovement", label: "Split Movement, 2 Pieces", blurb: "Split a turn's points between up to two pieces instead of one." },
   // (User: a three-piece limit as its own choice, one Split Movement or
   // the other; it brings 3 Actions, a point a piece.)
   { key: "splitThree", label: "Split Movement, 3 Pieces", blurb: "Split a turn's 3 points between up to three pieces, one point each. Brings 3 Actions Per Turn." },

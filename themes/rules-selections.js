@@ -60,7 +60,7 @@ export const LAW_OPTIONS = [
   { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 point." },
   // (3 actions per turn directly above Split movement: user.)
   { key: "threeActions", name: "3 actions per turn", note: "3 points a turn instead of 2." },
-  { key: "splitMovement", name: "Split movement", note: "Spend a turn's points on up to two pieces." },
+  { key: "splitMovement", name: "Split movement, 2 pieces", note: "Spend a turn's points on up to two pieces." },
   // (User: a three-piece limit as its own choice; one or the other of the
   // two Split movements, and it brings 3 actions, a point a piece.)
   { key: "splitThree", name: "Split movement, 3 pieces", note: "Spend a turn's 3 points on up to three pieces, one point each. Brings 3 actions per turn." },

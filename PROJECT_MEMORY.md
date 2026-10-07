@@ -7286,3 +7286,10 @@ phone menu until "Start the story over" (which clears it).
   from a step's start until the render with it landed (a slow renderer
   could otherwise hand the Lab the pre-step closure). e2e-costs checks the
   other side's piece won't move.
+
+- "Split movement" is "Split movement, 2 pieces" everywhere it's named
+  (user), matching the 3-pieces one: rules-selections.js LAW_OPTIONS (the
+  gate's Cabeza Nova sheet, Big Glutts' order form, Lluvia's menu, the
+  den's catalog), Neon's sphere (neon-singularity.js, "Split Movement, 2
+  Pieces"), and the rules cards (LAW_TEXT, the Laws card's title, the Your
+  turn card). Lluvia's city sign "SPLIT MOVES" is scenery, left.

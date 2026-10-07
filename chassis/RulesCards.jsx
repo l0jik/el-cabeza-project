@@ -33,7 +33,7 @@ export const RULES_TABS = [
 
 // One sentence per law, shared by "This game" and the MOVES tiles.
 export const LAW_TEXT = {
-  splitMovement: { name: "Split Movement", text: "Your points can be shared between up to two pieces in one turn." },
+  splitMovement: { name: "Split Movement, 2 Pieces", text: "Your points can be shared between up to two pieces in one turn." },
   slide: { name: "Orthogonal Slide", text: "Any piece can move one open square along its row or column (north, south, east or west, not corner to corner) without tipping. A slide costs 2 points." },
   diagonalSlide: { name: "Diagonal Slide", text: "Any piece can move one open square corner to corner without tipping, for 2 points. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
   blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends." },
@@ -478,7 +478,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "splitMovement", law: "splitMovement", title: "Split Movement", cost: null, text: "Your points can be shared between up to two pieces. Here a Turrito rolls for 1 point, then a lying Flaco rolls over its long side, one square, and stays lying down, for the other. With Split Movement, 3 Pieces (and 3 actions), up to three pieces, a point each.",
+      key: "splitMovement", law: "splitMovement", title: "Split Movement, 2 Pieces", cost: null, text: "Your points can be shared between up to two pieces. Here a Turrito rolls for 1 point, then a lying Flaco rolls over its long side, one square, and stays lying down, for the other. With Split Movement, 3 Pieces (and 3 actions), up to three pieces, a point each.",
       svg: (
         <>
           {panels}
@@ -657,7 +657,7 @@ function MovesCard({ C, focus, classic }) {
 function TurnCard({ C, budget, classic }) {
   const steps = [
     <><b>You must move at least 1 piece, 1 time.</b> Skipping your turn is not allowed.</>,
-    classic ? <>Pick <b>one piece</b>.</> : <>Pick <b>one piece</b>. (With Split Movement, up to two.)</>,
+    classic ? <>Pick <b>one piece</b>.</> : <>Pick <b>one piece</b>. (With Split Movement, 2 Pieces, up to two.)</>,
     classic
       ? <>Spend your points <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, an Opa move is 2.</>
       : <>Spend your points <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, a slide or any Opa move is 2, a pivot 1, a shove 1 more.</>,
