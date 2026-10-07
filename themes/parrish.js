@@ -117,8 +117,8 @@ export const titleFontFamily = "'Cinzel', 'Trajan Pro', Georgia, serif";
 // badge during play has its own (.ec-masthead-relocated below).
 export const mastheadScale = 1.3;
 // The corner badge during play, stronger than the shared 0.22 watermark
-// (user: 0.264, then 0.42, then "53% opacity").
-export const mastheadBadgeOpacity = 0.53;
+// (user: 0.264, then 0.42, then 0.53, then 62%).
+export const mastheadBadgeOpacity = 0.62;
 // The dock's piece, in the corner during a game: enough of it to see
 // against the terrace.
 export const dockCornerOpacity = 0.8; // (user: 20% more than the 0.6 it was)
