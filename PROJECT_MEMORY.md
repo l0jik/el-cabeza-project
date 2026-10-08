@@ -60,6 +60,20 @@ track changes and should not be read as a changelog signal.
   full e2e suites (e2e-tienda ~10-12 min, e2e-den ~8 min on the software
   renderer) are for real behaviour changes, or when asked. Never rebuild
   `dist/` while a test run is using it.
+- **Pace (user, standing, 2026-10-08): push first, sweep after.** After
+  a round's changes: build, run only the tests directly about the
+  change, commit and push (that's the deploy), and report to the user
+  then: what was done and is live, and, said plainly, that a wider
+  sweep (the other browser tests the change could touch) is starting
+  now, roughly how long it will take, and that it may turn up something
+  unexpected, which would come as a follow-up fix and push. Then run the
+  sweep in the background, one test at a time, and when it ends follow
+  up: all passed, or what failed, what was fixed, pushed. (User asked
+  "Why is this taking so long?" after a round of 2 h 20 min, most of it
+  a 72-minute sweep of 31 browser tests before anything was pushed.
+  Single tests here take 1-11 min each on the software renderer.) While
+  a sweep is running, a new request's build waits for it or stops it
+  (kill by PID): never rebuild `dist/` under it.
 - `npm run build` → `build/build.js`: three esbuild passes (one per app
   entry) plus one shared pass for `engine/ai-worker.js`, embedded as
   **inert script text** (`type="application/x-ai-worker"`, not a JS
