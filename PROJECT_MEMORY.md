@@ -7655,3 +7655,16 @@ phone menu until "Start the story over" (which clears it).
   repos/l0jik/el-cabeza-project/actions/runs) and the committed files.
   A browser that already had the old sound may hold it a few minutes
   (Pages caches about 10 minutes); a reload gets the new one.
+- ?scene=commercial (user: "Did you give me a direct link to where I can
+  see what it looks like in that scene?"): Nova's one-scene links
+  (apps/unified.jsx SCENE_PARAM) take "commercial" too: opens in the
+  den, the black "The commercial / Tap to begin" card (den-fx.js
+  previewEl; the tap starts the sound), then as home from the
+  Singularity the first time (returning + commercialNext): the set on,
+  the camera in close, the spot, off after it, the camera back to the
+  board. No lure and no record put on for it (den-fx.js lure, autoMusic);
+  a scene link (setSceneLink), so no story notes; nothing kept
+  (commercial-aired untouched). unified.jsx prepares all of the spot at
+  once for it (COMMERCIAL_SCENE). e2e-den-spot opens it over http, taps,
+  and checks the spot plays.
+  https://l0jik.github.io/el-cabeza-project/el-cabeza-nova.html?scene=commercial

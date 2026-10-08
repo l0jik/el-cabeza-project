@@ -5,7 +5,8 @@
    off after its 30 s. Served over http (from disk, WebGL won't take a
    video: there the tube shows snow); this Chromium has no H.264, so it
    plays the VP9 copy. A new player, still in the store, isn't sent the
-   video yet (it's 2.8 MB; it loads once the Singularity's open).
+   video yet (it's 2.8 MB; it loads once the Singularity's open). Its own
+   link, ?scene=commercial, plays it on the set after a tap.
 
    node tests/e2e-den-spot.mjs */
 import { chromium } from "playwright";
@@ -57,6 +58,25 @@ const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromi
   await p0.waitForTimeout(3000);
   check("a new player, in the store: the spot's video not sent yet", !asked.some((u) => /den-spot\.(mp4|webm)/.test(u)) && (await p0.evaluate(() => !(window.__DEN_SPOT__ && window.__DEN_SPOT__().src))), asked.filter((u) => /den-spot/.test(u)).join(" "));
   await fresh.close();
+}
+{
+  // Its own link (user: a direct link to see it on the set): the den, a
+  // card to tap (the sound needs one), then the set on with the spot, as
+  // home from the Singularity; no lure, nothing kept.
+  const sc = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  const p1 = await sc.newPage();
+  const errs1 = [];
+  p1.on("pageerror", (e) => errs1.push(e.message));
+  await p1.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  await p1.goto(`http://localhost:${port}/el-cabeza-nova.html?scene=commercial`);
+  const card = p1.locator('[data-testid="den-commercial-preview"]');
+  check("?scene=commercial: the den, \"The commercial\", tap to begin", !!(await poll(async () => (await card.count()) && /The commercial/.test(await card.innerText()), 30000)));
+  await card.click();
+  check("...a tap: the set on, the spot playing", !!(await poll(() => p1.evaluate(() => { const v = window.__DEN_SPOT__ && window.__DEN_SPOT__(); return window.__DEN_TV__().phase === "commercial" && v && !v.paused && v.t > 1; }), 15000)));
+  check("...no lure, nothing kept", await p1.evaluate(() => !window.__DEN_TV__().lure && !localStorage.getItem("el-cabeza:commercial-aired")));
+  check("...no page errors", errs1.length === 0, errs1.join(" | "));
+  if (process.env.EC_SHOTS) { await p1.waitForTimeout(4000); await p1.screenshot({ path: `${process.env.EC_SHOTS}/scene-link.png` }); }
+  await sc.close();
 }
 const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
 await ctx.addInitScript(() => {

@@ -91,12 +91,14 @@ const WORLD_PARAM = (() => {
 // A look at one of the den's scenes without playing the story there:
 // ?scene=revelation (den-ending.js), ?scene=glutts (the trip back to
 // the closed Big Glutts, den-trip.js), ?scene=hall (the hallway lighting
-// up, den-hall.js) or ?scene=lure (home before the Singularity, the set
-// stirring, and on through it into the summons). Opens in the den. Read
-// once.
+// up, den-hall.js), ?scene=lure (home before the Singularity, the set
+// stirring, and on through it into the summons) or ?scene=commercial (the
+// user's spot on the set, as home from the Singularity the first time;
+// user: a direct link to see it there). Opens in the den. Read once.
 let SCENE_PARAM = (() => {
-  try { const v = new URLSearchParams(window.location.search).get("scene"); return ["revelation", "glutts", "hall", "lure"].includes(v) ? v : null; } catch (e) { return null; }
+  try { const v = new URLSearchParams(window.location.search).get("scene"); return ["revelation", "glutts", "hall", "lure", "commercial"].includes(v) ? v : null; } catch (e) { return null; }
 })();
+const COMMERCIAL_SCENE = SCENE_PARAM === "commercial";
 // ?scene=summons: straight into Neon as if just through the den's set the
 // first time: the summons over the board, then the sphere's first visit
 // (the ring and heartbeat, the menu coming apart, the hand). The journey
@@ -294,7 +296,8 @@ function UnifiedApp() {
   // well ahead, while it's still to come: its sound from the start, its
   // video (2.8 MB) once the Singularity's open, not while the store's
   // loading; it's played on the way home from the Singularity.
-  useEffect(() => { if (!commercialAired()) prepareCommercial({ picture: singularityOpen }); }, [singularityOpen]);
+  // (Its own link: all of it, at once.)
+  useEffect(() => { if (COMMERCIAL_SCENE || !commercialAired()) prepareCommercial({ picture: COMMERCIAL_SCENE || singularityOpen }); }, [singularityOpen]);
   // The den's game while Neon's up (see putRules above), and the one
   // handed to the chassis as it mounts.
   const carryRef = useRef(null);

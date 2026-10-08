@@ -392,9 +392,11 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        after "keep playing" back in a few seconds, not a few moves, so the
        second time's words and the third's pull can be seen too); "lure",
        home before the Singularity, the set stirring a few seconds after
-       the tap instead of 25 s (Nova keeps that visit in memory only). A tap
-       first (the sound needs one). Nothing's kept: the story stays where
-       it was, and no hall otherwise. */
+       the tap instead of 25 s (Nova keeps that visit in memory only);
+       "commercial", the set on with the user's spot, as home from the
+       Singularity the first time (no lure, no record on). A tap first
+       (the sound needs one). Nothing's kept: the story stays where it
+       was, and no hall otherwise. */
     const preview = (novaTv && novaTv.preview && novaTv.preview()) || null;
     const hallPreview = preview === "hall";
     const previewFlares = (() => { let n = 0; return { get: () => n, set: (v) => { n = v; } }; })();
@@ -422,7 +424,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (preview === "glutts" && trip) trip.load();
       previewEl.style.cssText = "position:fixed;inset:0;z-index:3000;border:0;margin:0;background:#000;color:#cfd6e6;cursor:pointer;" +
         "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font:400 clamp(20px,5vw,30px)/1.3 Georgia,serif;letter-spacing:0.04em;-webkit-tap-highlight-color:transparent;";
-      previewEl.innerHTML = '<span>' + ({ glutts: "Back to Big Glutts", hall: "The hallway", lure: "The television" }[preview] || "The revelation") + '</span><small style="font:600 12px/1 Arial,sans-serif;letter-spacing:0.22em;text-transform:uppercase;opacity:0.55">Tap to begin</small>';
+      previewEl.innerHTML = '<span>' + ({ glutts: "Back to Big Glutts", hall: "The hallway", lure: "The television", commercial: "The commercial" }[preview] || "The revelation") + '</span><small style="font:600 12px/1 Arial,sans-serif;letter-spacing:0.22em;text-transform:uppercase;opacity:0.55">Tap to begin</small>';
       // (Its taps stay its own.)
       ["pointerdown", "pointerup", "touchstart", "touchend", "mousedown", "wheel"].forEach((t) => previewEl.addEventListener(t, (e) => e.stopPropagation()));
       previewEl.addEventListener("click", (e) => {
@@ -434,6 +436,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (preview === "glutts") { if (trip) trip.start({ from: 8300 }); }
         else if (hallPreview) { if (hall) hall.now(movesNow()); }
         else if (preview === "lure") lureStart = performance.now() - LURE_WAIT + 3000;
+        else if (preview === "commercial") { returning = true; commercialNext = true; }
         else startEnding(null);
       });
       d.body.appendChild(previewEl);
@@ -444,7 +447,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        but heard; 40%, user), once the scene change has faded up. Through the
        stereo's own player (the chassis's `music`), so the chip and the
        turntable or the 8-track show it. Not if something's already on. */
-    let autoMusic = !!(music && novaTv && novaTv.lure && novaTv.lure() && !novaTv.returning), autoMusicAt = 0;
+    let autoMusic = !!(music && novaTv && novaTv.lure && novaTv.lure() && !novaTv.returning && preview !== "commercial"), autoMusicAt = 0;
     // (And the room's own sounds, the fire, the clock, the rain, at 87% on
     // that visit, user; otherwise as ever.)
     if (audio && audio.setRoomTrim) audio.setRoomTrim(autoMusic ? 0.87 : 1);
@@ -915,7 +918,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        camera over to watch (lureLook:
        it stirs at once and twice as often there); the second turns it on.
        A tap anywhere else, or Escape, and the camera goes back. */
-    const lure = !!(novaTv && novaTv.lure && novaTv.lure());
+    const lure = !!(novaTv && novaTv.lure && novaTv.lure()) && preview !== "commercial";
     const LURE_WAIT = 25000, LURE_RAMP = 60000;
     let lureStart = 0, lureDone = false, lureLook = false, tvHint = null, lookSwallow = null;
     /* And three times in all, for an instant, the Singularity itself on the
