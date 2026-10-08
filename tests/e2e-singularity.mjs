@@ -367,6 +367,18 @@ check("MATTER lists every piece type as the same kind of row (15, each Arco size
 check("no checkbox rows are left for pieces", (await page.locator('[data-testid^="matter-piece-"]').count()) === 0);
 check("each row's still is a rendered 3D image",
   (await page.locator('[data-testid^="matter-view-"] img').count()) === 15);
+// More below (user: the newest pieces, at the list's foot, seemed not to
+// be there): said at the panel's foot while there's more, gone at its end.
+{
+  const panel = page.locator('[data-testid="category-overlay"]');
+  check("...more of the list below, said at the panel's foot", (await panel.getAttribute("data-more")) === "true" &&
+    (await page.locator('[data-testid="category-overlay-more"]').evaluate((el) => +getComputedStyle(el).opacity)) > 0.5);
+  await panel.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  await page.waitForTimeout(400);
+  check("...and not once its end is in view", (await panel.getAttribute("data-more")) === "false");
+  await panel.evaluate((el) => { el.scrollTop = 0; });
+  await page.waitForTimeout(300);
+}
 check("the 1×3 Block starts at 0", state.selections.matter.roster.block1x3 === 0, JSON.stringify(state.selections.matter.roster));
 await page.locator('[data-testid="roster-block1x3-inc"]').click();
 await page.waitForTimeout(150);

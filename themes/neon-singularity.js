@@ -3040,7 +3040,11 @@ function renderCategoryOverlay(t) {
       {
         "data-testid": "category-overlay",
         "data-category": category,
+        "data-more": s.overlayMore ? "true" : "false",
         onPointerDown: (e) => e.stopPropagation(),
+        // Whether there's more of the list below (the cue at its foot).
+        ref: (el) => { if (el && typeof requestAnimationFrame !== "undefined") requestAnimationFrame(() => noteOverlayMore(s, el)); },
+        onScroll: (e) => noteOverlayMore(s, e.currentTarget),
         style: {
           "--ec-guide": "#66d9ff", "--ec-guide-glow": "rgba(102,217,255,0.45)", "--ec-guide-bg": "rgba(102,217,255,0.12)",
           width: "clamp(280px, 84%, 440px)",
@@ -3061,7 +3065,8 @@ function renderCategoryOverlay(t) {
         "div",
         { style: { marginTop: 16, textAlign: "center", fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, color: "rgba(142,243,255,0.4)", letterSpacing: "0.08em" } },
         "TAP OUTSIDE TO CLOSE"
-      )
+      ),
+      renderMoreBelow(!!s.overlayMore)
     )
   );
   // Always the same shape, viewer or not: switching between a bare overlay
@@ -3069,6 +3074,38 @@ function renderCategoryOverlay(t) {
   // opened or closed, scrolling the list back to the top, so the model
   // shrank back to where its row no longer was.
   return h(React.Fragment, null, overlay, viewer || null);
+}
+
+/* More of the list below (user: the newest pieces, at the foot of
+   MATTER's list, seemed not to be there at all; on a phone the panel
+   shows six of fifteen, with no scrollbar till it's moved): while there
+   is, a fade over the panel's foot and "▼ more below", stuck to its
+   bottom edge; gone once the list's end is in view. Measured as the panel
+   draws and as it scrolls (noteOverlayMore), a redraw only when it
+   changes. */
+function noteOverlayMore(s, el) {
+  if (!el || !el.isConnected) return;
+  const more = el.scrollHeight - el.clientHeight - el.scrollTop > 6;
+  if (more !== !!s.overlayMore) { s.overlayMore = more; s.bump(); }
+}
+function renderMoreBelow(more) {
+  const h = React.createElement;
+  return h(
+    "div",
+    {
+      "data-testid": "category-overlay-more",
+      "aria-hidden": "true",
+      style: {
+        position: "sticky", bottom: -18, margin: "0 -20px -18px", padding: "26px 0 9px",
+        textAlign: "center", pointerEvents: "none",
+        background: "linear-gradient(rgba(4,10,18,0), rgba(4,10,18,0.96) 58%)",
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.14em",
+        color: "rgba(142,243,255,0.85)", textShadow: "0 0 8px rgba(102,217,255,0.55)",
+        opacity: more ? 1 : 0, transition: "opacity 0.25s ease",
+      },
+    },
+    "\u25BC  MORE BELOW"
+  );
 }
 
 /* One MATTER row: the piece's 3D still (a button: it opens the viewer,
@@ -4215,6 +4252,7 @@ export function useSingularityPhase({
   function openCategoryOverlay(t, category) {
     const s = t.singularity;
     s.activeCategory = category;
+    s.overlayMore = false; // (measured as it draws)
     s.sphereMenuStage = "overlay";
     s.tapTimestamps = [];
     s.configHover = null;

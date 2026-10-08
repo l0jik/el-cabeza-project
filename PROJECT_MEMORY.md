@@ -7684,3 +7684,18 @@ phone menu until "Start the story over" (which clears it).
   the set's speaker filter (HP 120, +1.5 dB at 1.7 kHz, LP 7500), -16
   LUFS. 8.3 MB. Sent as el-cabeza-commercial-tv.mp4 (scratchpad); not
   in the repo or the game (the game's set does this itself).
+- The sphere's MATTER list and the newest pieces (user: "the matter in
+  the neon sphere selection menu does not have the new pieces listed in
+  it"): checked, it does: all 15 (MATTER_ROSTER = PIECE_OPTIONS = the
+  engine's PIECE_META: the five, the two blocks, the three Arcos, Codo,
+  Hombro, Cruce, Rayo, Zeta), each with its 3D still; e2e-singularity
+  already checked the list. But on a phone the panel (72vh, scrolling)
+  shows six of fifteen, no scrollbar till it's moved, and the newest are
+  at the foot (the pivot pieces grouped last, as the user had them), so
+  they seemed missing. Now every sphere menu that runs past its panel
+  says so: a fade over its foot and "▼ MORE BELOW", stuck to the bottom
+  edge (renderMoreBelow; position sticky inside the scrolling panel),
+  gone once the end's in view (noteOverlayMore: measured as it draws, by
+  ref + rAF, and on scroll; a redraw only when it changes; reset on each
+  category opened). data-more on the panel. e2e-singularity checks it
+  shows on MATTER and goes at the end.
