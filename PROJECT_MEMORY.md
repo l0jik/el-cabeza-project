@@ -8009,3 +8009,21 @@ phone menu until "Start the story over" (which clears it).
   it from a fallback at 12.5px bold. Now its own span (.td-warn-hand):
   Noto Sans Symbols 2 (only that glyph fetched, Google Fonts text=), 30px,
   not bold, the words beside it (the warning a flex row).
+- The hall's third time, after a game ends (user: dismissed twice, then
+  "after the second prompt and before the timer runs out ... if the game
+  ends ... it never reprompts, or it never pulls into the hallway"). The
+  cause: den-hall.js counted moves as the den's moves() (the chassis's
+  move log, logRef.current.length, a completed turn each), compared with
+  a base taken when it was armed; a new game starts that log over at 0,
+  so after a game ended it waited for a number the new game hadn't
+  reached (and with no new game, no moves at all). Now: the moves made
+  are counted across games (each frame, what the log grew by; a shorter
+  log is a new game, counted on from its start: made / seen, countFrom);
+  and after the second "keep playing" ("Let me just finish one game!")
+  that game's end brings the third time too, 2 s after (OVER_HOLD_MS):
+  the chassis hands themes over() (statusRef, won or ended), den-fx.js
+  passes it as ctx.over. Its placard waits under the scene as before.
+  tests/e2e-hall-after-game.mjs: won after the second keep (back a moment
+  later, and pulls you in); won and a new game set up at once (the
+  winning turn and two more, and it's back). Against the old code both
+  fail (5 checks); e2e-ending and e2e-camera-glide pass.

@@ -13,7 +13,13 @@
    white (onEnding: den-ending.js, the void). The second time it comes
    (having kept playing) it's "Oh, for the love of…"; the third, no choice:
    you're dragged in, faster, straight on to the eruption (user). The
-   count's kept with the story (`flares`: { get, set }).
+   count's kept with the story (`flares`: { get, set }). Moves count
+   across games (user: a game that ended between the second time and the
+   third left it stuck in the den: the count was the game's own move log,
+   which a new game starts over, so it waited for a number the new game
+   hadn't reached), and the second time's "Let me just finish one game!"
+   is taken at its word: that game's end brings the third, a moment
+   after (ctx.over).
 
    The den's lighting is baked, so the light here is drawn: a swirl filling
    the doorway, its spill on the floor, the wall round the door and the
@@ -31,6 +37,7 @@ import { FLOOR, CEIL, RZ, HALL } from "./den-room.js";
 const FIRST_AFTER = 4;   // moves after coming home (user: at least four)
 const CHOICE_HOLD_MS = 1500; // the choice takes no tap till then (wild taps; user)
 const AGAIN_AFTER = 3;   // after "just keep playing": a few moves later
+const OVER_HOLD_MS = 2000; // after "finish one game", its end: a moment, then the third
 const LINE = "Oh no… now what?";
 // ...and when it comes back, having kept playing (user).
 const LINE_AGAIN = "Oh, for the love of…";
@@ -217,7 +224,13 @@ function additive(frag, uniforms) {
 
 export function createHall({ audio, onEnding, flares: flareStore = null }) {
   const doc = typeof document !== "undefined" ? document : null;
-  let state = "idle", base = 0, need = FIRST_AFTER, t0 = 0, choiceAt = 0;
+  let state = "idle", need = FIRST_AFTER, t0 = 0, choiceAt = 0;
+  /* The moves made since it was armed, over however many games: each
+     frame, what the game's move log has grown by (a shorter log is a new
+     game: counted on from its start). */
+  let made = 0, seen = 0, overAt = 0;
+  const countFrom = (moves) => { made = 0; seen = moves; overAt = 0; };
+  const count = (moves) => { if (moves > seen) made += moves - seen; seen = moves; };
   let built = null, builtFor = null;
   let flashEl = null, whiteEl = null, sayEl = null, choiceEl = null, blockEl = null, styleEl = null;
   let choiceFreeAt = 0;
@@ -412,7 +425,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
   // choice, you're dragged in (user).
   let flares = flareStore ? flareStore.get() : 0, dragged = false;
   function flare(now, moves) {
-    state = "flare"; t0 = now; base = moves; nextBoom = now + 600; flares++; dragged = false;
+    state = "flare"; t0 = now; countFrom(moves); nextBoom = now + 600; flares++; dragged = false;
     if (flareStore) flareStore.set(flares);
     camTo(1);
     startHum();
@@ -450,7 +463,11 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     if (!den || ended || state === "over") return;
     if (state === "armed") {
       const moves = ctx && ctx.moves ? ctx.moves() : 0;
-      if (moves - base >= need && !(ctx && ctx.busy)) flare(now, moves);
+      count(moves);
+      // (After "Let me just finish one game!": that game's end, too.)
+      const over = flares >= 2 && !!(ctx && ctx.over && ctx.over());
+      if (!over) overAt = 0; else if (!overAt) overAt = now;
+      if ((made >= need || (overAt && now - overAt >= OVER_HOLD_MS)) && !(ctx && ctx.busy)) flare(now, moves);
     }
     if (state === "idle" || state === "armed") {
       if (built && amt > 0) amt = Math.max(0, amt - dt * 0.8);
@@ -474,7 +491,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       if (now >= nextBoom) { boom(0.8 + Math.random() * 0.4); nextBoom = now + 3200 + Math.random() * 3200; }
     } else if (state === "settle") {
       level = 1 - smooth(s / 2600); wild = level;
-      if (s > 2600) { state = "armed"; need = AGAIN_AFTER; choiceAt = 0; stopSound(); if (ctx && ctx.moves) base = ctx.moves(); }
+      if (s > 2600) { state = "armed"; need = AGAIN_AFTER; choiceAt = 0; stopSound(); countFrom(ctx && ctx.moves ? ctx.moves() : 0); }
     } else if (state === "walk") {
       // Dying down as you go (to a glow you can walk up to).
       level = s < CALM_UNTIL ? 0.22 + 0.78 * (1 - smooth((s - 600) / 5200)) : 0.22;
@@ -642,12 +659,12 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
 
   return {
     // Armed (home from the trip): counting from `moves`.
-    arm(moves = 0) { if (state === "idle") { state = "armed"; base = moves; need = FIRST_AFTER; } },
+    arm(moves = 0) { if (state === "idle") { state = "armed"; countFrom(moves); need = FIRST_AFTER; } },
     tick,
     placeCamera,
     // Is it showing (the camera's, the screen's)?
     active: () => state === "flare" || state === "settle" || state === "walk",
-    state: () => ({ state, need, base, amt, cam: camW, flares, dragged, fov: fovCam ? fovCam.fov : null, t: state === "idle" || state === "armed" ? 0 : performance.now() - t0 }),
+    state: () => ({ state, need, made, amt, cam: camW, flares, dragged, fov: fovCam ? fovCam.fov : null, t: state === "idle" || state === "armed" ? 0 : performance.now() - t0 }),
     // Test-only: now (as if the moves were made), and the choice.
     now(moves = 0) { if (state === "idle" || state === "armed") flare(performance.now(), moves); },
     pick,

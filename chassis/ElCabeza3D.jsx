@@ -603,6 +603,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const logRef = useRef(log);
   logRef.current = log;
   const [status, setStatus] = useState(() => carried("status", "playing"));
+  // (For a theme's own clock: the den's hall, den-hall.js.)
+  const statusRef = useRef(status);
+  statusRef.current = status;
   /* Every completed turn, oldest first, each entry holding full state
      from immediately BEFORE that turn started plus what's needed to
      animate it backward: which piece moved, the direction sequence it
@@ -3501,6 +3504,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       {
         three, cam, windingDownRef, awaitingBeginRef, audio: audioRef.current,
         moves: () => (logRef.current ? logRef.current.length : 0),
+        // Is the game over (won, or ended), its board still there?
+        over: () => statusRef.current !== "playing",
         // (The den's story: home from the closed store, the bulb's tap
         // settles in and the game begins, den-fx.js.)
         beginGame: () => { if (awaitingBeginRef.current && triggerBeginGameRef.current) triggerBeginGameRef.current(); },

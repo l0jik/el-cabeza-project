@@ -49,7 +49,7 @@ import { WORLDS } from "./realities.js";
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
 export function createDenEffects(woodSet, { viewPitch = null } = {}) {
-  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null, moves = null, beginGame = null }) {
+  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null, moves = null, over = null, beginGame = null }) {
     const q = quality();
     // Home with the special order (Nova): the thought, then the telephone
     // call from Big Glutts (den-call.js).
@@ -1285,7 +1285,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           const busy = !!(awaitingBeginRef && awaitingBeginRef.current) || !!(call && call.busy && call.busy()) || (ts !== "idle" && ts !== "done")
             || !!(den.tv && den.tv.isOn()) || tvGoal > 0 || !!wake || phoneGoal > 0 || bookGoal > 0 || focusGoal > 0 || !!ending
             || (typeof document !== "undefined" && !!document.querySelector("[data-testid='story-cut']"));
-          hall.tick(now, t, den, { moves: movesNow, busy });
+          hall.tick(now, t, den, { moves: movesNow, busy, over: () => !!(over && over()) });
           // (The body for the void, made ahead in idle moments while the
           // choice is up, and its music fetched: den-ending.js.)
           if (!figWarm && hall.state().state === "flare") { figWarm = true; prewarmFigure(); prefetchVoidMusic(); }
