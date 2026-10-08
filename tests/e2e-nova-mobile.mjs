@@ -137,10 +137,11 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(400);
   // (No "Rules in this game" in the store or the den: theme.rulesTabsHidden.)
   const rows = ["shell-menu-rules", "shell-menu-movelog", "shell-menu-end", "shell-menu-top", "shell-menu-player",
-    "shell-menu-sound", "shell-menu-points", "shell-menu-costs", "shell-menu-switch-theme", "shell-menu-back-to-store", "shell-menu-restart", "shell-menu-about"];
+    "shell-menu-sound", "shell-menu-points", "shell-menu-costs", "shell-menu-switch-theme", "shell-menu-back-to-store", "shell-menu-about"];
   const missing = [];
   for (const r of rows) if (!(await q(page, r).count())) missing.push(r);
   check("the menu has every option", missing.length === 0, missing.join(", "));
+  check("...and no Restart story (only at the foot of the theme switcher, user)", (await q(page, "shell-menu-restart").count()) === 0);
   check("the move log has a move", !(await q(page, "shell-menu-movelog").isDisabled()));
   await q(page, "shell-menu-points").click();
   await page.waitForTimeout(200);

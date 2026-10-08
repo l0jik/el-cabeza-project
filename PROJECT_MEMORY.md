@@ -7699,3 +7699,32 @@ phone menu until "Start the story over" (which clears it).
   ref + rAF, and on scroll; a redraw only when it changes; reset on each
   category opened). data-more on the panel. e2e-singularity checks it
   shows on MATTER and goes at the end.
+- Neon's title hold locked until the end (user: "Users should not be
+  able to long press on the masthead in Neon to teleport back to the
+  den. That is only available later, after everything's unlocked."):
+  the MastheadHoldZone is now the den's (once the Singularity's been
+  visited, as before) and Neon's only once storyEnded (`ended`); Neon's
+  phone menu drops its "switch" item (the hold's twin) until then too.
+  Before the end, the way home from Neon is the Singularity's BACK
+  (tvBridge.back). Test hook __EC_TEST_BACK_HOME__ (with
+  __EC_TEST_HOOKS__) goes home that way; tests that used the hold to get
+  home from Neon (e2e-den, e2e-den-return, e2e-story) poll it (it's
+  false while a transition's still running). e2e-den-return also checks
+  ?switcher -> Neon has the hold zone (everything unlocked).
+- Restart story only at the foot of the theme switcher (user, with a
+  screenshot of the den's dock, "Back to the store · Restart story":
+  "Remove restart story from all buttons from all menus except at the
+  very bottom of the theme switcher"): gone from the den's dock links
+  (tienda.js renderSetupExtras; with the store gone and the story not
+  over the links row is now empty, so it isn't drawn), from Nova's phone
+  menu (shell-menu-restart), and the "Are you sure?" card that went with
+  them (RestartConfirm, storyBridge.restart, HOME_STORY.onRestart). Kept:
+  realities.js's bottom button (realities-restart, "Tap again to
+  restart"), ?restart=story (another page's realities menu) and ?fresh.
+  e2e-journey starts over by ?restart=story; e2e-story, e2e-nova-mobile
+  check the buttons are absent.
+- e2e-ending: five hallway checks fail ("a game won on the walk in: the
+  placard's up", "down the hall it's died down (calm)", "then the dolly
+  zoom", "the lens given back after the dolly zoom", "the game's placard
+  there now"), and fail the same on b53734c without the two changes
+  above (rebuilt and run): not from these. Not yet looked into.

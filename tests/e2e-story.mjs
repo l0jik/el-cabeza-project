@@ -169,7 +169,7 @@ console.log("\ndesktop: the store, the purchase, home");
   // Before the Singularity there are no custom rules anywhere: the row
   // offers the catalog's page (look only), whose foot line is faded.
   check("the setup row has See the pieces (no custom rules yet)", /See the pieces/i.test(await q(page, "tienda-order-form").innerText()));
-  check("...Back to the store and Start the story over", (await has(page, "story-back-to-store")) && (await has(page, "story-restart")));
+  check("...Back to the store, and no Restart story (only at the foot of the theme switcher, user)", (await has(page, "story-back-to-store")) && !(await has(page, "story-restart")));
   check("...and no purchase (it's bought)", !(await has(page, "story-purchase")));
   await q(page, "tienda-order-form").click();
   check("See the pieces is the catalog, not the order form", await poll(() => has(page, "tienda-catalog"), 8000) && !(await has(page, "tienda-order")));
@@ -359,17 +359,13 @@ console.log("\ndesktop: the store, the purchase, home");
   await poll(() => place(page), 30000);
   check("a reload opens at home", (await place(page)) === "home");
 
-  // The fresh start.
+  // The fresh start: not from the dock any more (user: only at the very
+  // bottom of the theme switcher, e2e-ending), so here by another page's
+  // switcher's link, ?restart=story.
   check("the dock's panel opens", await openDockPanel(page));
-  await q(page, "story-restart").click();
-  check("Restart story asks first", await poll(() => has(page, "restart-confirm"), 4000));
-  await q(page, "restart-confirm-cancel").click();
-  check("...Keep playing leaves it be (still home)", !(await has(page, "restart-confirm")) && (await place(page)) === "home");
-  check("the dock's panel opens", await openDockPanel(page));
-  await q(page, "story-restart").click();
-  await q(page, "restart-confirm-yes").click();
-  const fresh = await throughCut(page, "store");
-  check("Start the story over: the store", fresh.gone && fresh.there, JSON.stringify(fresh));
+  check("...with no Restart story in it", !(await has(page, "story-restart")));
+  await page.goto(URL + "?restart=story");
+  check("Start the story over (?restart=story): the store", !!(await poll(async () => (await place(page)) === "store", 30000)));
   check("...with the lid back on the box", await poll(() => has(page, "tienda-lid"), 10000));
   check("...and nothing owned", (await owned(page)) === null);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
@@ -410,15 +406,12 @@ console.log("\ndesktop: the den's television, into Singularity and back");
   check("...snow, then the test pattern", !!(await poll(async () => ["pattern", "dive"].includes(((await tv()) || {}).phase), 12000, 100)));
   check("...and the picture pulls the camera in", !!(await poll(async () => ((await tv()) || {}).dive > 0.3, 10000, 100)));
   check("into Singularity (Neon)", !!(await poll(async () => (await place(page)) === "neon", 30000)));
-  // Back out: the title hold and DISCONNECT.
+  // Back out. No title hold in Neon while the story's on (user: no
+  // teleporting back to the den before everything's unlocked); the way
+  // home is the Singularity's BACK, as the hook goes.
   await page.waitForTimeout(1500);
-  const box = await page.locator(".ec-title").first().boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.waitForTimeout(4600);
-  await page.mouse.up();
-  await poll(async () => (await page.locator(".ec-hold-modal-word").count()) > 0, 5000);
-  await page.locator(".ec-hold-modal-word").click({ force: true });
+  check("in Neon, no title hold back to the den", (await page.locator(".ec-masthead-hold-zone").count()) === 0);
+  check("...home as the Singularity's BACK goes", !!(await poll(() => page.evaluate(() => window.__EC_TEST_BACK_HOME__()), 20000, 400)));
   check("back in the den", !!(await poll(async () => (await place(page)) === "home", 30000)));
   const back = await poll(async () => { const s = await tv(); return s && (s.phase === "pattern" || s.phase === "closing") ? s : null; }, 8000, 100);
   check("...with the set on and the camera at it", !!back && back.focus > 0.5, JSON.stringify(back));
@@ -455,7 +448,7 @@ console.log("\nphone with the control bar: the store and home");
   check("buying from the menu takes it home", went.gone && went.there, JSON.stringify(went));
   check("home's bar has See the pieces (before the Singularity)", await poll(() => has(page, "shell-see-pieces"), 10000) && !(await has(page, "shell-custom-rules")));
   await q(page, "shell-menu-button").tap().catch(() => {});
-  check("...and its menu the way back, the fresh start and Neon", await poll(async () => (await has(page, "shell-menu-back-to-store")) && (await has(page, "shell-menu-restart")) && (await has(page, "shell-menu-switch-theme")), 8000));
+  check("...and its menu the way back and Neon, no Restart story", await poll(async () => (await has(page, "shell-menu-back-to-store")) && (await has(page, "shell-menu-switch-theme")) && !(await has(page, "shell-menu-restart")), 8000));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

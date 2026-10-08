@@ -538,6 +538,7 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
   const after = store && story.after && story.after();
   const confused = after && clerkConfusedNow();
   const gone = home && story.storeGone && story.storeGone();
+  const realities = home && !!story.realities && !!story.realities();
   const buyStyle = { ...quiet, flex: "0 0 auto", width: "100%", background: COLORS.charcoal, color: COLORS.cream || "#F4EEDC" };
   const under = store
     ? (confused || after
@@ -551,15 +552,18 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
       : h(CartButton, { key: "buy", story, style: buyStyle }))
     // One line, however narrow the phone (the type shrinks a little): on
     // two, the dock's panel ran past its height and scrolled, and the
-    // second line slid under its corner switches (user's screenshot).
+    // second line slid under its corner switches (user's screenshot). No
+    // "Restart story" in it: that's only at the very bottom of the theme
+    // switcher (user).
     : h("div", { key: "links", style: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "nowrap", width: "100%" } },
         !gone && link("store", "Back to the store", story.onBackToStore, "story-back-to-store"),
         // After the story's end: every other version of the game (Nova).
-        story.realities && story.realities() && link("realities", "Other realities", story.onRealities, "story-realities"),
-        link("over", "Restart story", story.onRestart, "story-restart"));
+        realities && link("realities", "Other realities", story.onRealities, "story-realities"));
   // Back after the story the table has no game on it: only the purchase
   // (which is the clerk's scene), no Custom rules or Begin Game.
   if (after) return h("div", { style: { display: "flex", flexDirection: "column", gap: 8, width: "100%" } }, under);
+  // (At home with the store gone and the story not yet over, no links.)
+  if (home && gone && !realities) return row;
   return h("div", { style: { display: "flex", flexDirection: "column", gap: 8, width: "100%" } }, row, under);
 }
 

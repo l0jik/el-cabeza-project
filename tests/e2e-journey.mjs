@@ -136,10 +136,9 @@ async function page(url, init) {
   const r = await rulesView(p);
   check("at home, after the Singularity, a standard game: the classic moves", r.moves.classic === "true" && !r.moves.slide, JSON.stringify(r.moves));
   check("...and the rest of the extras unlocked (ABOUT mentions them)", r.aboutMentions);
-  await openDockPanel(p);
-  await q(p, "story-restart").click();
-  check("Restart story asks first", await poll(() => has(p, "restart-confirm"), 4000));
-  await q(p, "restart-confirm-yes").click();
+  // (Restart story only at the very bottom of the theme switcher now,
+  // user; another page's sends ?restart=story.)
+  await p.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?restart=story");
   check("Start the story over forgets it", await poll(async () => (await p.evaluate((k) => localStorage.getItem(k), SEEN)) === null, 8000));
   await poll(() => has(p, "tienda-lid"), 15000);
   // (The story's lid takes only Open the box: in by it, then the rules.)

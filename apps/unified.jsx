@@ -125,7 +125,7 @@ const OPEN_ON_RETURN = !OPEN_SWITCHER && !WORLD_PARAM && !SCENE_LINK && storyEnd
 if (SCENE_PARAM && !LURE_PARAM) setSceneLink();
 if (STORY_PREVIEW) { journeyPreview(); storyPreview(); }
 const takeScene = () => { const r = SCENE_PARAM; SCENE_PARAM = null; return r; };
-const storyBridge = { purchase() {}, backToStore() {}, restart() {}, restartNow() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };
+const storyBridge = { purchase() {}, backToStore() {}, restartNow() {}, goHomeConfused() {}, orderAtStore() {}, arrival: false, audio: null, callNext: false, finishStory() {}, goWorld() {}, openRealities() {} };
 // The realities menu's Restart story starts over here, in place.
 onStoryRestart(() => storyBridge.restartNow());
 // How the place just mounted was reached (read once): false for the page
@@ -145,7 +145,7 @@ const STORE_STORY = { mode: "store", onPurchase: () => storyBridge.purchase(), o
    strange; until the story starts over), the order form at home is a
    special order to take to the store (guided, onOrderAtStore). */
 const HOME_STORY = {
-  mode: "home", onBackToStore: () => storyBridge.backToStore(), onRestart: () => storyBridge.restart(), storeGone, arrived: takeArrival, bindAudio,
+  mode: "home", onBackToStore: () => storyBridge.backToStore(), storeGone, arrived: takeArrival, bindAudio,
   guided: () => singularitySeen() && !storeGone(),
   onOrderAtStore: () => storyBridge.orderAtStore(),
   // After the story's end (themes/den-ending.js): the other realities.
@@ -619,14 +619,13 @@ function UnifiedApp() {
     const id = setTimeout(() => storyBridge.openRealities(OPEN_ON_RETURN ? { continueWorld: lastWorld() } : {}), 900);
     return () => clearTimeout(id);
   }, []);
-  // "Restart story" asks first (user: an "Are you sure?").
-  const [confirmRestart, setConfirmRestart] = useState(false);
-  storyBridge.restart = () => {
-    if (busyRef.current) return;
-    setConfirmRestart(true);
-  };
+  /* The story over from the top: only from the very bottom of the
+     theme switcher (the realities menu, which asks first; user: "Remove
+     restart story from all buttons from all menus except at the very
+     bottom of the theme switcher"), or another page's (?restart=story).
+     No longer in the den's dock or its phone menu, nor their "Are you
+     sure?" card. */
   const restartStory = () => {
-    setConfirmRestart(false);
     if (busyRef.current) return;
     saveOwned(false);
     forgetStoreGone();
@@ -650,6 +649,8 @@ function UnifiedApp() {
     beginTransition();
     return true;
   };
+  // (Test-only: home from Neon the way the Singularity's BACK goes.)
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_BACK_HOME__ = () => tvBridge.back();
   // Under the black: the new place.
   const onCutSwap = useCallback(() => {
     const c = cutRef.current;
@@ -680,7 +681,8 @@ function UnifiedApp() {
   /* Phone layout (chassis/MobileShell.jsx): the theme switch is also a
      menu item there, since a four-second hold on the title is hard to
      find on a phone. It opens the same CONNECT / DISCONNECT prompt the
-     hold ends in. */
+     hold ends in, and is there where the hold is (in Neon, only once the
+     story's over). */
   /* Layout: the classic dock with its floating piece (the default, on
      phones too, as the user asked) or the control bar. Remembered in this
      browser. */
@@ -721,9 +723,10 @@ function UnifiedApp() {
             switchTheme,
             ended && { key: "realities", testid: "shell-menu-realities", label: "Other realities", detail: "Every version of the game", onClick: () => storyBridge.openRealities() },
             !storeGone() && { key: "back-to-store", testid: "shell-menu-back-to-store", label: "Back to the store", detail: "Where the game came from", onClick: () => storyBridge.backToStore() },
-            { key: "restart", testid: "shell-menu-restart", label: "Restart story", detail: "From the store's shelf", onClick: () => storyBridge.restart() },
           ].filter(Boolean)
-        : [switchTheme, ended && { key: "realities", testid: "shell-menu-realities", label: "Other realities", detail: "Every version of the game", onClick: () => storyBridge.openRealities() }].filter(Boolean);
+        // (In Neon its way back, the hold's twin, only once the story's
+        // over, as the hold.)
+        : [ended && switchTheme, ended && { key: "realities", testid: "shell-menu-realities", label: "Other realities", detail: "Every version of the game", onClick: () => storyBridge.openRealities() }].filter(Boolean);
     return { preferBar: layoutPref === "bar", onLayoutChange, menuItems: items };
   }, [themeName, transition, cut, layoutPref, onLayoutChange, singularityOpen, clerkTick, ended]);
 
@@ -769,10 +772,13 @@ function UnifiedApp() {
             }}
           />
         </div>
-        {/* The title hold into Neon is the den's (and Neon's, back out);
-            the store has none, and the den none until the Singularity's
-            been visited (the television is the way in the first time). */}
-        {themeName !== "tienda" && (themeName !== "standard" || singularityOpen) && (
+        {/* The title hold: the den's into Neon once the Singularity's
+            been visited (the television is the way in the first time);
+            Neon's back out to the den only once the story's over (user:
+            no long press on the masthead to teleport back to the den
+            until everything's unlocked; till then the way home is the
+            Singularity's BACK). The store has none. */}
+        {((themeName === "standard" && singularityOpen) || (themeName === "neon" && ended)) && (
           <MastheadHoldZone
             zoneRef={holdZoneRef}
             onBegin={beginHold}
@@ -789,38 +795,10 @@ function UnifiedApp() {
         <CrtTransitionOverlay direction={transition.direction} filterId={transition.filterId} onDone={onTransitionDone} sfx={sfxRef.current} />
       )}
       {cut && <StoryCut key={cut.kind + cut.to} cut={cut} onSwap={onCutSwap} onDone={onCutDone} sfx={sfxRef.current} />}
-      {confirmRestart && <RestartConfirm onConfirm={restartStory} onCancel={() => setConfirmRestart(false)} />}
     </>
   );
 }
 
-/* "Are you sure?" before the story starts over (user): a card off the
-   same paper as the store's printed matter, over a dimmed screen. A tap
-   outside it, Escape or "Keep playing" leaves things as they are. */
-function RestartConfirm({ onConfirm, onCancel }) {
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); onCancel(); } };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [onCancel]);
-  const INK = "#2E2118", RED = "#A8321F", PAPER = "#EFE6CD";
-  const FRANKLIN = "'Libre Franklin', 'Franklin Gothic Medium', 'Helvetica Neue', Arial, sans-serif";
-  const btn = { font: `700 12px/1 ${FRANKLIN}`, letterSpacing: "0.1em", textTransform: "uppercase", padding: "11px 16px", cursor: "pointer", border: `1.5px solid ${INK}` };
-  return (
-    <div data-testid="restart-confirm" role="dialog" aria-modal="true" aria-labelledby="restart-confirm-title"
-      onPointerDown={(e) => { if (e.target === e.currentTarget) onCancel(); }}
-      style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(20,12,6,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ width: "min(92vw, 360px)", background: PAPER, color: INK, border: `1.5px solid ${INK}`, boxShadow: "0 10px 28px rgba(10,6,3,0.5)", padding: "20px 20px 16px", display: "flex", flexDirection: "column", gap: 10, textAlign: "center" }}>
-        <b id="restart-confirm-title" style={{ font: `800 16px/1.2 ${FRANKLIN}`, letterSpacing: "0.06em", textTransform: "uppercase", color: RED }}>Restart the story?</b>
-        <span style={{ font: "400 14px/1.45 'Courier Prime', 'Courier New', monospace" }}>Back to the store's shelf, the game unbought. Everything since is forgotten.</span>
-        <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
-          <button type="button" data-testid="restart-confirm-cancel" autoFocus onClick={onCancel} style={{ ...btn, flex: 1, background: "transparent", color: INK }}>Keep playing</button>
-          <button type="button" data-testid="restart-confirm-yes" onClick={onConfirm} style={{ ...btn, flex: 1, background: RED, borderColor: RED, color: PAPER }}>Restart story</button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 applyBootstrapBoardSize();
 applyBootstrapLaws();

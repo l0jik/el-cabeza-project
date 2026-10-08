@@ -561,7 +561,15 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForFunction(() => window.__EC_SUMMON__ && window.__EC_SUMMON__().active, null, { timeout: 30000 }).catch(() => {}); await page.evaluate(() => window.__EC_SUMMON_END__ && window.__EC_SUMMON_END__()); // (the first arrival's summons, themes/neon-summon.js: its own test)
   check("...and the den has gone with Standard", await page.evaluate(() => window.__DEN_ROOM__ === false && !window.__DEN_THREE__));
   await page.waitForTimeout(1200);
-  await switchTheme(true);
+  // In Neon the menu has no way back to the den while the story's on
+  // (user: no teleporting back before everything's unlocked); home as the
+  // Singularity's BACK goes.
+  await q(page, "shell-menu-button").click();
+  await page.waitForTimeout(300);
+  check("...and no way back to the den in its menu while the story's on", (await q(page, "shell-menu-switch-theme").count()) === 0);
+  await page.mouse.click(8, 300);
+  await page.waitForTimeout(300);
+  check("...home as the Singularity's BACK goes", await waitFor(() => page.evaluate(() => window.__EC_TEST_BACK_HOME__()), 20000));
   check("back to Standard: the den is built again", await waitFor(denUp, 15000));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();

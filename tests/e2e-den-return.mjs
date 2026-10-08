@@ -65,14 +65,11 @@ const before = await state();
 await page.evaluate(() => window.__DEN_TV_PRESS__());
 check("into Neon through the television", !!(await poll(async () => (await place()) === "neon", 30000)));
 await page.waitForTimeout(1500);
-// Straight back: the title's hold, DISCONNECT.
-const box = await page.locator(".ec-title").first().boundingBox();
-await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-await page.mouse.down();
-await page.waitForTimeout(4600);
-await page.mouse.up();
-await poll(async () => (await page.locator(".ec-hold-modal-word").count()) > 0, 5000);
-await page.locator(".ec-hold-modal-word").click({ force: true });
+// Straight back. Not by the title's hold: in Neon that waits till the
+// story's over (user: no teleporting back to the den before everything's
+// unlocked); the way home is the Singularity's BACK, as the hook goes.
+check("in Neon, no title hold back to the den while the story's on", (await page.locator(".ec-masthead-hold-zone").count()) === 0);
+check("...home as the Singularity's BACK goes", !!(await poll(() => page.evaluate(() => window.__EC_TEST_BACK_HOME__()), 20000, 400)));
 check("back in the den", !!(await poll(async () => (await place()) === "den", 30000)));
 await page.waitForTimeout(3000);
 const after = await state();
@@ -80,6 +77,19 @@ check("the same pieces where they were", after.pieces === before.pieces, `${befo
 check("the same move log", after.log === before.log, `${before.log} vs ${after.log}`);
 check(`the same side to move (${after.turn})`, after.turn === before.turn, `${before.turn} vs ${after.turn}`);
 check("still in play (no Begin Game waiting)", (await page.locator("button", { hasText: /^Begin Game$/ }).count()) === 0);
+// Once the story's over (everything unlocked, ?switcher), Neon has its
+// title hold back to the den.
+{
+  const ctx2 = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  const p2 = await ctx2.newPage();
+  p2.on("pageerror", (e) => errs.push(e.message));
+  await p2.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  await p2.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?switcher");
+  await poll(async () => (await p2.locator('[data-testid="reality-neon"]').count()) > 0, 30000);
+  await p2.locator('[data-testid="reality-neon"]').click();
+  check("everything unlocked: in Neon, the title hold back to the den", !!(await poll(async () => (await p2.locator(".ec-masthead-hold-zone").count()) > 0 && /Chakra/.test(await p2.evaluate(() => getComputedStyle(document.querySelector(".ec-title") || document.body).fontFamily)), 30000)));
+  await ctx2.close();
+}
 check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
 await browser.close();
 console.log(failures ? `\n${failures} failed` : "\nall passed");
