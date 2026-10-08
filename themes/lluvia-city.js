@@ -509,8 +509,9 @@ import * as THREE from "three";
     }
     heroSign("Điện Ảnh Sài Gòn", "#ffb347", -21, 74, 150, 6, 30, 0.35);
     heroSign("薬局", "#6dff9e", 17, 44, 112, 5, 22, -0.3);
-    // (Was "Phở TPHCM": no pho shop says that, and it bowed into "TPH / CM".)
-    heroSign("Phở Hà Nội", "#ff3dbb", -13.5, 20.5, 80, 3.6, 10.5, 0.2);
+    // (Chicken pho, user. Was "Phở TPHCM": no pho shop says that, and it
+    // bowed into "TPH / CM".)
+    heroSign("Phở Gà", "#ff3dbb", -13.5, 20.5, 80, 3.6, 10.5, 0.2);
     heroSign("天国ホテル", "#23e6ff", -7.2, 56, -30, 3.2, 17, 0.12);
     heroSign("酒場", "#ff3dbb", 6.4, 70, -34, 3.4, 18, -0.15);
 
@@ -1221,7 +1222,7 @@ import * as THREE from "three";
   function fontsReady(fn) {
     if (!document.fonts || !document.fonts.load) { fn(); return; }
     var done = false, go = function () { if (!done) { done = true; fn(); } };
-    Promise.all([document.fonts.load("400 40px 'Dela Gothic One'", "物質法則位相ラーメン"), document.fonts.load("700 40px 'Saira Extra Condensed'", "MATTER"), document.fonts.load("600 40px 'Saira Extra Condensed'", "Phở Bò Nhà Thuốc Mưa Điện Ảnh Sài Gòn Hà Nội")]).then(function () {
+    Promise.all([document.fonts.load("400 40px 'Dela Gothic One'", "物質法則位相ラーメン"), document.fonts.load("700 40px 'Saira Extra Condensed'", "MATTER"), document.fonts.load("600 40px 'Saira Extra Condensed'", "Phở Bò Gà Nhà Thuốc Mưa Điện Ảnh Sài Gòn")]).then(function () {
       // (In after the city went up without them: its signs drawn again.)
       SIGN_FONTS.ready = true;
       if (SIGN_FONTS.late.length) { TRON_CACHE = {}; SIGN_FONTS.late.splice(0).forEach(function (f) { f(); }); }

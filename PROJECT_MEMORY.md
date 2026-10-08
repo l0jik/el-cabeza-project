@@ -7858,3 +7858,6 @@ phone menu until "Start the story over" (which clears it).
     route that fetches fonts.googleapis.com / gstatic through curl, which
     the test browser can't reach itself): the five signs drawn by the
     game's own sign code, the line, the Lab panels.
+- Lluvia's hero pho sign now "Phở Gà" (user: "change it to Phở Gà"; it
+  had just become "Phở Hà Nội", from "Phở TPHCM"): two discs, the hook on
+  ở and the grave on à drawn right (checked with the real font).
