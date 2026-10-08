@@ -7815,3 +7815,46 @@ phone menu until "Start the story over" (which clears it).
     0.35 when not picked, since 2026-09-27) and the picked Human / Begin
     game blue on red; Lluvia, the after-game line "Mưa vẫn rơi." in
     Special Elite, which has no ư, ẫ or ơ (they come from another font).
+- The four display problems fixed, and Lluvia's Vietnamese checked (user:
+  "fix all four, and double check all Vietnamese in Lluvia displays
+  correctly. I think the sign that has the word phở on it might not be
+  correct either"):
+  - Swiss (Lab): its inverted buttons black with white words (lab/css.js
+    CHROME.swiss); the win card's Move log had been black on black.
+  - Ultimate Fusion (Lab): the turn line's words and the side dot's ring
+    in bone on its near-black bar (CHROME.ultimateFusion, turn-status
+    > span + span / > span:first-child); COLORS.creamAlt there is the
+    page's #1F1F1F and charcoal its ink #2B2B2B.
+  - The colour-sided Lab designs (Bauhaus, De Stijl, Neo-Brutalist):
+    lab/factory.js gives them sideSurface: each side's buttons in its
+    colour with its pieces' own ink (spec inkOnDark / inkOnLight: cream,
+    white, black), all at full strength and the pick ringed (chassis
+    pickedMark), not lettered in the other side's colour (blue on red) and
+    faded to 0.35 when not picked (the AI buttons all but blank).
+    Measured: Bauhaus 4.6-6.8:1, De Stijl 5.0-9.3:1, Neo-Brutalist
+    6.8-16:1. Neo-Brutalist's hard shadows (!important) hide the ring, so
+    its picked opponent shows pressed in (translate 4px, no shadow):
+    [data-opponent][aria-pressed="true"]; the dock's three opponent
+    buttons now carry data-opponent ("human", "ai-dark", "ai-light") and
+    aria-pressed (chassis). Parrish's paint for pressed buttons skips them
+    (its side buttons have url( backgrounds).
+  - Lluvia's after-game line ("Mưa vẫn rơi. The rain keeps falling.") in
+    Xanh Mono 15px (a typewriter's mono serif, with Vietnamese; Special
+    Elite has no ư, ẫ, ơ): lluvia.js, the font added to its @import.
+  - Lluvia's chữ tròn signs (lluvia-city.js tronMask): each letter's body
+    (its NFD first letter, without the marks) stretched to one height for
+    the word, the marks kept in proportion in bands above and below, the
+    rows centred and packed, and 9% clear of the square's corners (the
+    elliptical square-to-disc map bends them: the u of "Thuốc" grew a
+    horn and read "Thư", the dot of "Sài"'s i was lost, ở's hook curled;
+    and stretched to full height an ố shrank beside a giant c). The hero
+    "Phở TPHCM" now "Phở Hà Nội" (no pho shop says TPHCM, and it bowed
+    into "TPH / CM"). Signs drawn before their fonts came (fontsReady
+    gives up at 1.8 s) are painted again once they're in (SIGN_FONTS.late,
+    paintSign, TRON_CACHE cleared). All the Vietnamese in Lluvia: the
+    signs Phở Bò, Nhà Thuốc, Mưa, Điện Ảnh Sài Gòn, Phở Hà Nội; the
+    after-game line; the side names Mưa / Nắng (Saira, IBM Plex: fine).
+  - Checked with the real web fonts (scratch fontroute.mjs: a Playwright
+    route that fetches fonts.googleapis.com / gstatic through curl, which
+    the test browser can't reach itself): the five signs drawn by the
+    game's own sign code, the line, the Lab panels.

@@ -139,11 +139,22 @@ import * as THREE from "three";
     return (texCache.cloud = t);
   }
 
-  /* A neon sign: glowing tube text on a dark backing, vertical or horizontal. */
+  /* A neon sign: glowing tube text on a dark backing, vertical or horizontal.
+     Drawn again once its fonts are in if the city went up without them
+     (fontsReady stops waiting after 1.8 s), so a slow connection doesn't
+     leave its lettering, the Vietnamese with it, in a stand-in face. */
+  var SIGN_FONTS = { ready: false, late: [] };
   function signTexture(text, color, vertical, backing, res) {
     var W = (vertical ? 128 : 512) * (res || 1), H = (vertical ? 512 : 128) * (res || 1);
     var c = document.createElement("canvas"); c.width = W; c.height = H;
-    var g = c.getContext("2d");
+    var tex = new THREE.CanvasTexture(c);
+    paintSign(c, text, color, vertical, backing);
+    if (!SIGN_FONTS.ready) SIGN_FONTS.late.push(function () { paintSign(c, text, color, vertical, backing); tex.needsUpdate = true; });
+    return tex;
+  }
+  function paintSign(c, text, color, vertical, backing) {
+    var W = c.width, H = c.height, g = c.getContext("2d");
+    g.clearRect(0, 0, W, H); g.shadowBlur = 0; g.globalAlpha = 1;
     if (backing) { g.fillStyle = backing; g.fillRect(0, 0, W, H); }
     g.strokeStyle = color; g.globalAlpha = 0.5; g.lineWidth = 3; g.strokeRect(6, 6, W - 12, H - 12); g.globalAlpha = 1;
     g.fillStyle = "#ffffff"; g.shadowColor = color; g.shadowBlur = 18; g.textAlign = "center"; g.textBaseline = "middle";
@@ -153,7 +164,7 @@ import * as THREE from "three";
       var col = tube(color);
       if (vertical) tronColumn(g, text, 14, 12, W - 28, H - 24, col, col, paler(col));
       else tronRow(g, text, 12, 10, W - 24, H - 20, col, col, paler(col));
-      return new THREE.CanvasTexture(c);
+      return;
     }
     var latin = /^[\x00-\x7FÀ-ſ·]+$/.test(text);
     if (vertical) {
@@ -166,12 +177,17 @@ import * as THREE from "three";
       var w = g.measureText(text).width; if (w > W - 40) { g.font = (latin ? "700 " : "400 ") + Math.round(fs2 * (W - 40) / w) + "px " + (latin ? LAT : JP); }
       g.fillStyle = color; g.fillText(text, W / 2, H / 2 + 4); g.shadowBlur = 4; g.fillStyle = "rgba(255,255,255,0.85)"; g.fillText(text, W / 2, H / 2 + 4);
     }
-    return new THREE.CanvasTexture(c);
   }
 
   // Chữ Tròn: lay the letters out in a square, one tall row (two rows for
   // five letters or more), then map the square onto a disc so the outer
   // strokes bow along the rim. The disc is cached per word, as an alpha mask.
+  // Each letter's body (the letter without its marks) is stretched to one
+  // height for the whole word, its marks kept in proportion above and below
+  // it, and the letters kept clear of the square's corners, where the bow
+  // is harshest (user: the Vietnamese wasn't showing right: stretched to the
+  // full height, an ố shrank beside a giant c; bowed at the corners, the u
+  // of "Thuốc" grew a horn, the dot of "Sài"'s i was lost, ở's hook curled).
   var TRON_CACHE = {};
   function tronMask(word) {
     var S = 192, key = word;
@@ -179,22 +195,32 @@ import * as THREE from "three";
     var src = document.createElement("canvas"); src.width = src.height = S;
     var g = src.getContext("2d"), letters = Array.from(word.normalize ? word.normalize("NFC") : word);
     var n = letters.length, rows = n >= 5 ? [letters.slice(0, Math.ceil(n / 2)), letters.slice(Math.ceil(n / 2))] : [letters];
-    var pad = S * 0.06, rh = (S - pad * 2) / rows.length;
-    g.fillStyle = "#fff"; g.textBaseline = "alphabetic";
-    rows.forEach(function (row, ri) {
-      // Each letter's cell is as wide as its glyph wants (an i stays thin),
-      // and the row is then stretched to the square's full width.
-      g.font = "600 100px " + TRON;
+    var pad = S * 0.09, rh = (S - pad * 2) / rows.length, bh = rh * 0.94, gapw = (S - pad * 2) * 0.03;
+    g.fillStyle = "#fff"; g.textBaseline = "alphabetic"; g.font = "600 100px " + TRON;
+    var laid = rows.map(function (row) {
       var ms = row.map(function (ch) {
-        var m = g.measureText(ch), l = m.actualBoundingBoxLeft || 0, r = m.actualBoundingBoxRight || m.width;
-        return { ch: ch, l: l, gw: Math.max(1, l + r), asc: m.actualBoundingBoxAscent || 70, gh: Math.max(1, (m.actualBoundingBoxAscent || 70) + (m.actualBoundingBoxDescent || 0)) };
+        // (The letter's body: the same letter without its marks, NFD's first.)
+        var m = g.measureText(ch), b = g.measureText(ch.normalize ? ch.normalize("NFD").charAt(0) : ch);
+        var asc = m.actualBoundingBoxAscent || 70, desc = m.actualBoundingBoxDescent || 0;
+        var basc = b.actualBoundingBoxAscent || asc, bdesc = b.actualBoundingBoxDescent || 0, body = Math.max(1, basc + bdesc);
+        var l = m.actualBoundingBoxLeft || 0, r = m.actualBoundingBoxRight || m.width;
+        return { ch: ch, l: l, gw: Math.max(1, l + r), basc: basc, body: body, up: Math.max(0, asc - basc) / body, down: Math.max(0, desc - bdesc) / body };
       });
-      var want = ms.map(function (q) { return Math.max(q.gw, 22) * (100 / q.gh); }), tot = want.reduce(function (a2, b2) { return a2 + b2; }, 0);
-      var gapw = (S - pad * 2) * 0.03, avail = S - pad * 2 - gapw * (ms.length - 1), cx0 = pad;
+      return { ms: ms, up: Math.max.apply(null, ms.map(function (q) { return q.up; })), down: Math.max.apply(null, ms.map(function (q) { return q.down; })) };
+    });
+    var bodyH = Math.min.apply(null, laid.map(function (L) { return bh / (1 + L.up + L.down); }));
+    laid.forEach(function (L, ri) {
+      // Each letter's cell as wide as its glyph wants (an i stays thin); the
+      // row then set in the middle of the square's width.
+      var ms = L.ms, top = pad + ri * rh + (rh - bodyH * (1 + L.up + L.down)) / 2 + L.up * bodyH;
+      var want = ms.map(function (q) { return Math.max(q.gw, 22) * (100 / q.body); }), tot = want.reduce(function (a2, b2) { return a2 + b2; }, 0);
+      var avail = S - pad * 2 - gapw * (ms.length - 1);
+      var fit = ms.map(function (q, ci) { var cw = avail * want[ci] / tot, sy = bodyH / q.body, sx = Math.min(cw / q.gw, (bh / q.body) * 1.7); return { sx: sx, sy: sy, bw: q.gw * sx }; });
+      var x0 = pad + (S - pad * 2 - fit.reduce(function (a2, f) { return a2 + f.bw; }, 0) - gapw * (ms.length - 1)) / 2;
       ms.forEach(function (q, ci) {
-        var cw = avail * want[ci] / tot, bh = rh * 0.94, sy = bh / q.gh, sx = Math.min(cw / q.gw, sy * 1.7), bw = q.gw * sx;
-        g.save(); g.translate(cx0 + (cw - bw) / 2 + q.l * sx, pad + ri * rh + (rh - bh) / 2 + q.asc * sy); g.scale(sx, sy); g.fillText(q.ch, 0, 0); g.restore();
-        cx0 += cw + gapw;
+        var f = fit[ci];
+        g.save(); g.translate(x0 + q.l * f.sx, top + q.basc * f.sy); g.scale(f.sx, f.sy); g.fillText(q.ch, 0, 0); g.restore();
+        x0 += f.bw + gapw;
       });
     });
     // Square -> disc (the inverse elliptical grid mapping), sampled per pixel.
@@ -483,7 +509,8 @@ import * as THREE from "three";
     }
     heroSign("Điện Ảnh Sài Gòn", "#ffb347", -21, 74, 150, 6, 30, 0.35);
     heroSign("薬局", "#6dff9e", 17, 44, 112, 5, 22, -0.3);
-    heroSign("Phở TPHCM", "#ff3dbb", -13.5, 20.5, 80, 3.6, 10.5, 0.2);
+    // (Was "Phở TPHCM": no pho shop says that, and it bowed into "TPH / CM".)
+    heroSign("Phở Hà Nội", "#ff3dbb", -13.5, 20.5, 80, 3.6, 10.5, 0.2);
     heroSign("天国ホテル", "#23e6ff", -7.2, 56, -30, 3.2, 17, 0.12);
     heroSign("酒場", "#ff3dbb", 6.4, 70, -34, 3.4, 18, -0.15);
 
@@ -1194,7 +1221,12 @@ import * as THREE from "three";
   function fontsReady(fn) {
     if (!document.fonts || !document.fonts.load) { fn(); return; }
     var done = false, go = function () { if (!done) { done = true; fn(); } };
-    Promise.all([document.fonts.load("400 40px 'Dela Gothic One'", "物質法則位相ラーメン"), document.fonts.load("700 40px 'Saira Extra Condensed'", "MATTER"), document.fonts.load("600 40px 'Saira Extra Condensed'", "Phở Bò Nhà Thuốc Mưa Điện Ảnh Sài Gòn TPHCM")]).then(go, go);
+    Promise.all([document.fonts.load("400 40px 'Dela Gothic One'", "物質法則位相ラーメン"), document.fonts.load("700 40px 'Saira Extra Condensed'", "MATTER"), document.fonts.load("600 40px 'Saira Extra Condensed'", "Phở Bò Nhà Thuốc Mưa Điện Ảnh Sài Gòn Hà Nội")]).then(function () {
+      // (In after the city went up without them: its signs drawn again.)
+      SIGN_FONTS.ready = true;
+      if (SIGN_FONTS.late.length) { TRON_CACHE = {}; SIGN_FONTS.late.splice(0).forEach(function (f) { f(); }); }
+      go();
+    }, go);
     setTimeout(go, 1800);
   }
 

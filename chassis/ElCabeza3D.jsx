@@ -8813,6 +8813,10 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               </span>
               <button
                 className="ec-btn"
+                // (Which of the three is the pick, for a theme's own way of
+                // showing it and for screen readers.)
+                data-opponent="human"
+                aria-pressed={aiPlayer === null}
                 disabled={busy || aiThinking || turnLocked}
                 onClick={handleHumanButtonClick}
                 style={{
@@ -8839,6 +8843,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                   <button
                     key={opt.value}
                     className="ec-btn"
+                    data-opponent={`ai-${opt.value}`}
+                    aria-pressed={isActive}
                     disabled={locked}
                     onClick={() => {
                       selectOpponent(opt.value);

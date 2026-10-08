@@ -340,16 +340,23 @@ const HUD = {
 
 /* A little per-direction tailoring of the chassis's own controls. */
 const CHROME = {
-  swiss: `.ec-btn-invert { background: #000 !important; } [data-testid="dock-panel"] { border-top: 4px solid var(--accent-primary) !important; }`,
+  // (Its inverted buttons black, and their words white: the win card's
+  // Move log had kept its black ink, black on black, user.)
+  swiss: `.ec-btn-invert { background: #000 !important; color: #FFF !important; } [data-testid="dock-panel"] { border-top: 4px solid var(--accent-primary) !important; }`,
   bauhaus: `[data-testid="dock-panel"] { border-left: 12px solid var(--accent-primary) !important; } .ec-btn { text-transform: lowercase !important; }`,
   destijl: `[data-testid="dock-panel"] { box-shadow: inset 0 0 0 6px #0E0E0E !important; border: 0 !important; } [data-testid="victory-placard"] { border: 8px solid #0E0E0E !important; } [data-testid="victory-placard"]::before { content: ""; position: absolute; left: 0; top: 0; width: 34%; height: 18px; background: var(--accent-primary); }`,
   elementarism: `[data-testid="dock-panel"] { clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px)); border-left: 3px solid var(--accent-primary) !important; }`,
   brutalist: `.ec-btn { border: 3px solid #111 !important; box-shadow: 4px 4px 0 #111 !important; text-transform: uppercase; } .ec-btn:active { transform: translate(4px, 4px) !important; box-shadow: none !important; } [data-testid="dock-panel"] { border-width: 4px !important; }`,
   newTypography: `[data-testid="dock-panel"] { border-width: 0 0 0 !important; border-top: 6px solid #141210 !important; } .ec-title { font-stretch: 62%; }`,
   corporateSwiss: `[data-testid="dock-panel"] { border-top: 3px solid var(--accent-primary) !important; }`,
-  neoBrutalist: `.ec-btn { border: 3px solid #000 !important; box-shadow: 4px 4px 0 #000 !important; font-weight: 800 !important; } .ec-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000 !important; } .ec-btn:active { transform: translate(4px, 4px) !important; box-shadow: none !important; } .ec-btn-invert { background: var(--accent-secondary) !important; color: #FFF !important; }`,
+  // (The opponent picked shown pressed in, as its buttons press: their hard
+  // shadows hide the ring the other inked designs show it with.)
+  neoBrutalist: `.ec-btn { border: 3px solid #000 !important; box-shadow: 4px 4px 0 #000 !important; font-weight: 800 !important; } .ec-btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #000 !important; } .ec-btn:active { transform: translate(4px, 4px) !important; box-shadow: none !important; } .ec-btn-invert { background: var(--accent-secondary) !important; color: #FFF !important; } [data-opponent][aria-pressed="true"] { transform: translate(4px, 4px); box-shadow: none !important; }`,
   minimalMono: `[data-testid="dock-panel"] { box-shadow: none !important; } .ec-btn { font-weight: 400 !important; }`,
-  ultimateFusion: `.ec-btn { border: 2px solid #2B2B2B !important; box-shadow: 3px 3px 0 #0A0A0A !important; text-transform: uppercase; } .ec-btn:active { transform: translate(3px, 3px) !important; box-shadow: none !important; } [data-testid="dock-panel"] { border-top: 8px solid var(--accent-primary) !important; } .ec-title { color: var(--surface) !important; }`,
+  // (The turn line's bar is the machine's near-black, so its words, and the
+  // ring round the side's dot, in bone: in the panel's ink they were dark
+  // on dark, user.)
+  ultimateFusion: `.ec-btn { border: 2px solid #2B2B2B !important; box-shadow: 3px 3px 0 #0A0A0A !important; text-transform: uppercase; } .ec-btn:active { transform: translate(3px, 3px) !important; box-shadow: none !important; } [data-testid="dock-panel"] { border-top: 8px solid var(--accent-primary) !important; } .ec-title { color: var(--surface) !important; } [data-testid="turn-status"] > span + span { color: #EAE6DF !important; } [data-testid="turn-status"] > span:first-child { border-color: rgba(234,230,223,0.75) !important; }`,
 };
 
 export function styleSheetFor(spec) {

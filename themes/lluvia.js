@@ -307,7 +307,7 @@ export const dockWords = {
 };
 
 export const styleSheet = `
-  @import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=Saira+Extra+Condensed:wght@600;700;800&family=Dela+Gothic+One&family=Special+Elite&family=VT323&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=Saira+Extra+Condensed:wght@600;700;800&family=Dela+Gothic+One&family=Special+Elite&family=VT323&family=Xanh+Mono&display=swap');
   .ec-title {
     font-weight: 800 !important;
     color: #fff4fb !important;
@@ -316,11 +316,13 @@ export const styleSheet = `
   }
 
   /* The dock by the moment: a pink neon sign for the big button, a
-     detective's typewriter for its line. */
+     detective's typewriter for its line (Xanh Mono, a typewriter's serif
+     with the Vietnamese letters: Special Elite has none, and "Mưa vẫn
+     rơi" came out with its ư, ẫ and ơ from another face, user). */
   [data-dock-role="primary"] { font-family: 'Saira Extra Condensed', 'Saira Condensed', sans-serif !important; font-weight: 800 !important; font-size: 20px !important;
     letter-spacing: 0.14em !important; background: rgba(255,61,187,0.06) !important; color: #fff4fb !important; border: 1px solid #ff3dbb !important;
     text-shadow: 0 0 4px rgba(255,255,255,0.8), 0 0 10px #ff3dbb, 0 0 22px #ff3dbb !important; box-shadow: 0 0 14px rgba(255,61,187,0.4), inset 0 0 12px rgba(255,61,187,0.15) !important; }
-  [data-dock-role="caption"] { font-family: 'Special Elite', 'Courier New', monospace !important; font-style: normal !important; color: #ffb347 !important; font-size: 13.5px !important; }
+  [data-dock-role="caption"] { font-family: 'Xanh Mono', 'Courier New', monospace !important; font-style: normal !important; color: #ffb347 !important; font-size: 15px !important; }
 `;
 
 /* ------------------------------------------------------------ the opening and the city */

@@ -34,6 +34,8 @@ const solid = (css) => (css.startsWith("rgba") ? "#777777" : css);
 const lum = (css) => { const c = new THREE.Color(css); const f = (v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)); return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
 const contrast = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 const bestOn = (bg, p, q) => (contrast(bg, p) >= contrast(bg, q) ? p : q);
+// The designs whose two sides are colours, their side buttons inked (below).
+const SIDE_INKED = new Set(["bauhaus", "destijl", "neoBrutalist"]);
 
 export function makeLabTheme(spec) {
   const c = spec.colors;
@@ -81,6 +83,13 @@ export function makeLabTheme(spec) {
     labSpec: spec,
     realityName: spec.name, // (the info panel's This game tab)
     sideNames: sideNamesFor(spec.id), // what the two sides are called here
+    // The buttons and chips that stand for a side (chassis sideFill), in the
+    // designs whose sides are colours (red / blue, pink / yellow): each in
+    // its side's colour with that side's own ink (what its pieces are
+    // lettered in), all at full strength and the pick ringed. As flat fills
+    // lettered in the other side's colour and faded when not picked, their
+    // words were lost: blue on red, the two AI buttons all but blank (user).
+    sideSurface: SIDE_INKED.has(spec.id) ? (side) => (side === "dark" ? { background: c.pieceDark, color: c.inkOnDark } : { background: c.pieceLight, color: c.inkOnLight }) : undefined,
     pointsGlow: pointsGlowFor(spec.id), // the points counter's embers (points-glow.js)
 
     COLORS, HEX,
