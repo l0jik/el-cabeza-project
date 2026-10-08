@@ -7645,3 +7645,13 @@ phone menu until "Start the story over" (which clears it).
   was kept). Now it reads "...How you whaat? That's clever. For two
   players...". The shareable copy (scratchpad el-cabeza-commercial.mp4)
   redone the same way, its picture stream copied unchanged.
+- Checked the den TV has the redone spot (user: "push this version onto
+  the television with all the treatment that you gave it before"): it
+  went out with df2b7a2 (Pages deploy succeeded; that commit's
+  spot-sound.mp3 is the silenced one, shipped as el-cabeza-den-spot.mp3,
+  played through the set's speaker as before; picture unchanged). From
+  here the live site can't be fetched (the proxy refuses github.io,
+  CONNECT 403): check a deploy by its workflow run (gh api
+  repos/l0jik/el-cabeza-project/actions/runs) and the committed files.
+  A browser that already had the old sound may hold it a few minutes
+  (Pages caches about 10 minutes); a reload gets the new one.
