@@ -1681,11 +1681,15 @@ unaffected.
 - A Cabeza never blocks another piece's swing (it's lower than a cube).
   It is still sheltered, and still can't be landed on except by a crush.
 - Nor, since 2026-10-08 (the user's choice: "swing over 1-tall pieces"),
-  does any piece one cube tall (other.z <= 1): a roll's swing passes
-  over it (in the animation the swinging cube briefly passes through its
-  top). Taller pieces in the way, and anything on the landing, still stop
-  it. Asked because a flat Cruce couldn't stand up on its stem with a
-  Flaco lying beside the stem (its bar's end swept through the Flaco).
+  does a piece one cube tall (other.z <= 1) where it stands on the
+  roller's own side of the edge it tips over: the roll rises over it (in
+  the animation the swinging cube briefly passes through its top). Asked
+  because a flat Cruce couldn't stand up on its stem with a Flaco lying
+  beside the stem (its bar's end swept through the Flaco). Beyond that
+  edge, where the roller comes down, it's in the way as ever (the user,
+  the same day: a Hombro came down onto a Cabeza through the Turrito
+  beside it, "it should have only been able to travel over the Flaco").
+  Taller pieces in the way, and anything on the landing, still stop it.
   Pivots are as they were.
 - A piece sheltered wholly under an overhang or in an opening blocks the
   roll only if it reaches the underside (`leavesClearance`): its top
@@ -8252,3 +8256,45 @@ phone menu until "Start the story over" (which clears it).
   Codo's arm and in an Arco Chico's opening now swung over (every roll
   open), and the user's Cruce case (stands up past a lying Flaco, not
   past a 2-tall piece). npm run test:engine passes.
+- Every world's in-game touch turns and tilts as Neon's (user: "make all
+  in-game touch movement tilt rotate exactly like it is in Neon. That is
+  the correct way they should all be when playing the game"). Measured
+  on a phone (412 x 915, real CDP touches) first: Neon, Standard, the
+  den, Cromo, Lluvia, the Lab and Parrish already matched; the store
+  (Nova's first visit and Big Glutts' page) didn't (one-way turn,
+  dragTurnOneWay; tilt reversed, invertTilt / invertTouchTilt). Chassis
+  grabLatch: neonWay = a touch with a game under way
+  (!awaitingBeginRef.current): the turntable split by the board's centre
+  on screen, finger up toward the horizon, whatever the page's own ways.
+  Before Begin the store keeps its ways; a mouse keeps them in play too
+  (asked only about touch); the Room view keeps its own reversed tilt.
+- Found on the way: the board's pointer handlers are bound again on every
+  change of what they close over (pieces, busy, the turn...), and each
+  binding started with no finger down, so a drag stopped dead whenever the
+  computer took a step (Parrish's first drag, its computer opponent
+  moving; Neon the same with a computer moving). gestureKeepRef hands the
+  view's gesture (fingers down, the latched turn and tilt, dead zone,
+  pinch, two-finger tap) from one binding to the next; a piece's drag
+  (undo, slide, pivot) is still let go, as before.
+- tests/e2e-touch-in-game.mjs [world filter]: ten pages (Neon, Standard,
+  the den, the story's store, Big Glutts' page (also before Begin: its
+  own ways), Lluvia, Cromo, the Lab, both Parrish looks), phone, real
+  touches: begun above / below the board's centre, a drag right turns
+  theta up / down every step, finger up phi up, down phi down; in Neon a
+  drag carries on through a rebinding (__EC_TEST_SET_PIECES__ halfway).
+- The Hombro in the user's video rolled over a dark Flaco, then on past
+  the Turrito beside it onto the dark Cabeza (crushed, the win): "it
+  should have only been able to travel over the Flaco, but not also the
+  Turrito". Rebuilt in the engine (Hombro at cols 1-2 of row 0, Flaco
+  rows 0-1 col 4, Turrito col 5, Cabeza col 6, tumbling east): the old
+  rule allowed the first (its arm stays a cube up and comes to rest on
+  the Flaco) and refused the second (that arm comes down onto the
+  Cabeza's square through the Turrito); "swing over 1-tall pieces" had
+  made both legal. The user's two calls together, as one rule: a piece
+  one cube tall is risen over on the roller's own side of the edge it
+  tips over (beside a Cruce's stem, under a Codo's arm); beyond it, where
+  the roller comes down, it's in the way as ever. rollSweepClashes skips
+  a z <= 1 piece's squares on the roller's side only (sign < 0 ? u <
+  pivot : u >= pivot). The Cruce cases, the Codo and Chico cases all as
+  they were; shapes.smoke.mjs adds the video's position (over the Flaco
+  yes, on past the Turrito no, with no Turrito the crush yes).

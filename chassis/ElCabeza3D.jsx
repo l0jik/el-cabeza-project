@@ -5447,6 +5447,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }, [busy, stepsUsed, isPlaying, awaitingBegin, currentPlayer, aiPlayer, pieces, selectedId]);
 
   /* --------------------------- input ----------------------------- */
+  // A gesture in progress, handed from one binding of the handlers below
+  // to the next.
+  const gestureKeepRef = useRef(null);
   useEffect(() => {
     const t = three.current;
     if (!t.renderer) return;
@@ -5497,8 +5500,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // the far side: theme.dragTurnOneWay, the store's, user: begun below
       // the middle, where its low view is mostly table and floor, it felt
       // reversed.)
-      grab.theta = (theme.dragTurnOneWay || clientY - rect.top < mid) ? 1 : -1;
-      grab.phi = (cam.current.dollhouse ? 1 : -1) * (pointerType === "touch" && invertTouchTiltRef.current ? -1 : 1) * (invertTiltRef.current ? -1 : 1);
+      // A finger once a game's begun turns and tilts as Neon's does in
+      // every world (user: "that is the correct way they should all be
+      // when playing the game"): the page's own ways (the store's one-way
+      // turn, its tilt the other way) are for before Begin. The Room view
+      // keeps its own tilt.
+      const neonWay = pointerType === "touch" && !awaitingBeginRef.current;
+      grab.theta = ((theme.dragTurnOneWay && !neonWay) || clientY - rect.top < mid) ? 1 : -1;
+      grab.phi = (cam.current.dollhouse ? 1 : -1) * (neonWay ? 1 : (pointerType === "touch" && invertTouchTiltRef.current ? -1 : 1) * (invertTiltRef.current ? -1 : 1));
     }
     /* Stays false until cumulative pointer travel since the down event
        crosses DRAG_DEAD_ZONE_PX — see onMove. Every touch carries a few
@@ -5586,6 +5595,25 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        Slide is also armed and the contact began nearer the planted base
        than the arm: grab the arm to swing it, grab the base to slide. */
     let pivotDrag = null;
+    /* A drag outlives these handlers being bound again: each step the
+       computer takes changes what they close over (pieces, busy, the
+       turn), and a fresh binding started with no finger down, so a turn
+       of the board under way stopped dead whenever the opponent moved
+       (found checking every world's touch against Neon's, user). The
+       view's own gestures (fingers down, the turn and tilt latched, a
+       pinch, a two-finger tap) are handed on from the binding before; a
+       piece's drag is let go as ever (see the cleanup). */
+    const kept = gestureKeepRef.current;
+    gestureKeepRef.current = null;
+    if (kept && kept.el === el) {
+      lastTwoFingerTapAt = kept.lastTwoFingerTapAt;
+      if (kept.view) {
+        kept.view.active.forEach((v, id) => active.set(id, v));
+        ({ dragging, dragArmed, altPanning, moved, lastX, lastY, pinchDist, pinchSpan0, pinchR0, panAnchor, twoFingerStartTime, twoFingerStartMid, twoFingerStartSpan, twoFingerTrail, twoFingerLastMid, twoFingerMoved } = kept.view);
+        grab.theta = kept.view.grab.theta;
+        grab.phi = kept.view.grab.phi;
+      }
+    }
     // Shows/orients/hides the slide arrow cue on the selected piece.
     // dirKey is a "slide-<DIR>" key or null to hide. rotation.y maps the
     // arrow's local +X onto the slide's own (dr,dc) board direction.
@@ -6509,6 +6537,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     el.addEventListener("contextmenu", onContextMenu);
 
     return () => {
+      gestureKeepRef.current = {
+        el,
+        lastTwoFingerTapAt,
+        view: active.size && !(undoDragTarget || slideDrag || pivotDrag)
+          ? { active: new Map(active), dragging, dragArmed, altPanning, moved, lastX, lastY, pinchDist, pinchSpan0, pinchR0, panAnchor, twoFingerStartTime, twoFingerStartMid, twoFingerStartSpan, twoFingerTrail, twoFingerLastMid, twoFingerMoved, grab: { theta: grab.theta, phi: grab.phi } }
+          : null,
+      };
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerleave", onLeave);

@@ -196,12 +196,17 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
     // Clearance (user rule): a Cabeza is lower than a cube, so every
     // swing passes over it; and a piece sheltered under an overhang or
     // in an opening only gets in the way if it reaches the underside.
-    // And any piece one cube tall is swung over too, as a Cabeza is (the
-    // user's choice, 2026-10-08: a Cruce tipping up onto its stem, a
-    // Flaco lying beside the stem, couldn't stand up, its bar's end
-    // sweeping through the Flaco): a taller piece in the way, or anything
-    // on the landing, still stops it.
-    if (other.type === "cabeza" || other.z <= 1 || leavesClearance(piece, other)) continue;
+    // And a piece one cube tall is risen over where it stands on the
+    // roller's own side of the edge it tips over (the user's choice,
+    // 2026-10-08: a Cruce tipping up onto its stem, a Flaco lying beside
+    // the stem, couldn't stand up, its bar's end sweeping through the
+    // Flaco). Beyond that edge, where the roller comes down, it's in the
+    // way as ever (user: a Hombro came down onto a Cabeza through the
+    // Turrito beside it, "it should have only been able to travel over
+    // the Flaco"). A taller piece in the way, or anything on the landing,
+    // still stops it.
+    if (other.type === "cabeza" || leavesClearance(piece, other)) continue;
+    const low = other.z <= 1;
     // Box against box can't clash mid-roll without the landing clashing
     // too (see above), so a box only needs checking against odd shapes.
     if (!piece.vox && !other.vox) continue;
@@ -222,6 +227,8 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
         if (!lanes.has(lane)) continue;
         const u = alongCols ? other.col + x : other.row + y;
         if (Math.abs(u + 0.5 - pivot) > reach + 1) continue;
+        // (A one-cube piece's square on the roller's side: risen over.)
+        if (low && (sign < 0 ? u < pivot : u >= pivot)) continue;
         const mask = maskAt(other, other.row + y, other.col + x);
         for (let l = 0; mask >> l; l++) {
           if (!((mask >> l) & 1)) continue;
