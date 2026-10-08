@@ -7631,3 +7631,17 @@ phone menu until "Start the story over" (which clears it).
   src, time, readyState, paused, rate). tests/e2e-den-spot.mjs serves
   dist over http (byte ranges) to check it really plays on the set, in
   step (within 20 ms here), sound decoded, off after it.
+- The spot's sound, two stretches silenced (user: "16.0 through 17.3, I
+  need you to drop out the audio ... change nothing else", and "two
+  little bumps" at the very end, "clipped off"): 16.0-17.41 s, the
+  announcer's stutter after "How you whaat?" ("The exciting's wha-"; it
+  runs past 17.3, its tail and a click at 17.39, so to the gap before
+  "That's clever" at 17.54, which is untouched), and 29.5 s to the end,
+  the flash's sound (two bumps, 29.62-29.77 and 29.80-29.95; the flash's
+  frames stay). tools/den_spot.py applies them after the level's set
+  (aeval, 10 ms ramps inside), so the rest is as it was: the same levels
+  either side, the picture untouched (spot.mp4 came out byte-identical;
+  the re-encoded spot.webm differed in bytes only, so the committed one
+  was kept). Now it reads "...How you whaat? That's clever. For two
+  players...". The shareable copy (scratchpad el-cabeza-commercial.mp4)
+  redone the same way, its picture stream copied unchanged.

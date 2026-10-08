@@ -13,7 +13,10 @@ is heard once: A's take up to "...unparalleled intention", a tear into
 B's Singularity and B's take from there (the box white, "How you
 whaat?", the garbled flyer flickering into the sale card), a dissolve
 home to A's family at the coffee table, A's end card ("Your move."), and
-A's hidden four frames of a figure before the black hole. The den's set
+A's hidden four frames of a figure before the black hole. Two stretches
+of sound silenced (user): the announcer's stutter after "How you whaat?"
+("The exciting's wha-", 16.0-17.41 s), and the two bumps under the flash
+at the end (29.5 s on). The den's set
 is pushed into at the start (B's shot of it, through its screen into
 the store). 720 frames, 24 fps, 640x480.
 
@@ -134,6 +137,14 @@ def main():
     loud = float(re.findall(r"^\s+I:\s+(-?[0-9.]+) LUFS", r.stderr, re.M)[-1])
     sound = os.path.join(tmp, "sound.wav")
     ff("-i", mix, "-af", f"volume={-16 - loud:.2f}dB,alimiter=limit=0.891:attack=5:release=60:level=disabled:latency=1", "-c:a", "pcm_s24le", sound)
+    # Silenced, after the level's set, so the rest is as it was (user:
+    # "16.0 through 17.3, I need you to drop out the audio"; the word runs
+    # on to 17.4, a click at its end, so to the gap before "That's
+    # clever", 17.41; and "two little bumps" at the very end, the flash's
+    # sound, from 29.5). 10 ms ramps, inside the stretches.
+    edited = os.path.join(tmp, "sound-edited.wav")
+    ff("-i", sound, "-af", "aeval=exprs='val(ch)*(1-clip((t-16)/0.01,0,1)+clip((t-17.41)/0.01,0,1))*(1-clip((t-29.5)/0.01,0,1))':c=same",
+       "-c:a", "pcm_s24le", edited)
 
     # The files. (setpts=N/24: the concat demuxer gives pieces made by
     # xfade, trim and loop a frame short, so their first frames would
@@ -144,7 +155,7 @@ def main():
        "-pix_fmt", "yuv420p", "-tune", "film", "-movflags", "+faststart", os.path.join(OUT, "spot.mp4"))
     ff("-i", video, "-vf", even, "-r", "24", "-an", "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", "33", "-row-mt", "1",
        "-deadline", "good", "-cpu-used", "2", os.path.join(OUT, "spot.webm"))
-    ff("-i", sound, "-c:a", "libmp3lame", "-b:a", "192k", os.path.join(OUT, "spot-sound.mp3"))
+    ff("-i", edited, "-c:a", "libmp3lame", "-b:a", "192k", os.path.join(OUT, "spot-sound.mp3"))
     for n in ("spot.mp4", "spot.webm", "spot-sound.mp3"):
         p = os.path.join(OUT, n)
         print("wrote", p, os.path.getsize(p), "bytes")
