@@ -29,7 +29,10 @@
      set and into the picture, and Nova's own transition takes over
      (tv.enter). Back out of Singularity (tv.returning) the den comes up
      with the camera at the set, the pattern on it, and the set switches
-     off as the camera goes back to the board. */
+     off as the camera goes back to the board. The first time (the
+     commercial's), home first: the set dark, the camera on the board, a
+     thought; then the set switches itself on and the commercial locks
+     in. */
 
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z, SLAB_MAX } from "../engine/constants.js";
@@ -919,6 +922,40 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       }
       if (okayCard && nowP >= okayEnd) { okayCard.remove(700); okayCard = null; }
     }
+    /* Into the commercial, the first time back from Singularity (user:
+       the cut straight to it was "a bit abrupt"; picked: a pause with the
+       set dark, a relieved thought, then the set waking by itself): home
+       first, the camera on the board and the set dark; "Phew… I'm home.
+       What just happened?!" (one of the den's cards); then the set
+       switches itself on (the dot opens, snow) while the camera goes over
+       and in, and out of the snow the picture locks into the commercial
+       (den-tv.js showCommercial). Meanwhile the set's taps wait, and drags
+       do, as while it has the camera. */
+    const PHEW = "Phew… I'm home. What just happened?!", PHEW_AT = 800, PHEW_MS = 3200;
+    const WAKE_AT = 2800, WAKE_TO_AD = 2000;
+    let wake = null, phewCard = null, phewEnd = 0;
+    function wakeFrame(now) {
+      if (phewCard && now >= phewEnd) { phewCard.remove(700); phewCard = null; }
+      if (!wake || !den || !den.tv) return;
+      if (wake.phewAt && now >= wake.phewAt) {
+        wake.phewAt = 0;
+        const doc = typeof document !== "undefined" ? document : null;
+        if (doc) { phewCard = dealCard(doc, { testid: "den-phew", l1: PHEW }); phewEnd = now + PHEW_MS; }
+      }
+      if (!wake.woke && now >= wake.wakeAt) {
+        wake.woke = true;
+        wake.adAt = now + WAKE_TO_AD;
+        if (den.tv.powerOn(now) && audio && audio.tvOn) audio.tvOn();
+        tvGoal = 1; tvLeaveAt = 0;
+      }
+      if (wake.woke && now >= wake.adAt) {
+        wake = null;
+        // (A second in, held on its first frame as it locks in.)
+        den.tv.showCommercial(now, AD_DELAY);
+        setCommercialOn(true);
+        if (audio && audio.tvCommercial) audio.tvCommercial(AD_DELAY / 1000);
+      }
+    }
     const easeInOutCubic = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
     // How loud the snow hisses, by what's on the screen.
     const HISS = { warming: 1, snow: 1, resolving: 0.5, pattern: 0.1, dive: 0.08, commercial: 0.03, aired: 0.9 };
@@ -1019,7 +1056,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        left (user: after the commercial, looking at the carpet). Taps still
        go through (to the set). Window, capture: ahead of the chassis's
        document-level gesture listeners and the canvas's own. */
-    const holdsCamera = () => tvW > 0.02 || tvGoal > 0;
+    const holdsCamera = () => tvW > 0.02 || tvGoal > 0 || !!wake;
     const onHoldMove = (e) => {
       if (paper) return; // (the order paper's own, while it's up)
       const t = three.current, el = t && t.renderer && t.renderer.domElement;
@@ -1127,6 +1164,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     function pressTv() {
       const set = den && den.tv;
       if (!set) return false;
+      // (Waking by itself into the commercial: the tap waits.)
+      if (wake) return true;
       const now = performance.now();
       /* After the story the power knob is just that: on (to the channel
          it was on, or the first) and off. The dial does the channels. */
@@ -1175,7 +1214,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     const PORTAL_LOCK_MS = 500;
     if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
+      window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? (wake.woke ? "woke" : "dark") : null, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
       // Test-only: as if back from the Singularity the first time: the
@@ -1219,7 +1258,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (hall) {
           const ts = trip ? trip.state().stage : "idle";
           const busy = !!(awaitingBeginRef && awaitingBeginRef.current) || !!(call && call.busy && call.busy()) || (ts !== "idle" && ts !== "done")
-            || !!(den.tv && den.tv.isOn()) || tvGoal > 0 || phoneGoal > 0 || bookGoal > 0 || focusGoal > 0 || !!ending
+            || !!(den.tv && den.tv.isOn()) || tvGoal > 0 || !!wake || phoneGoal > 0 || bookGoal > 0 || focusGoal > 0 || !!ending
             || (typeof document !== "undefined" && !!document.querySelector("[data-testid='story-cut']"));
           hall.tick(now, t, den, { moves: movesNow, busy });
           // (The body for the void, made ahead in idle moments while the
@@ -1252,7 +1291,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           // about 0.6 s after this), off. The first time, the commercial
           // is on instead, and the set goes off after it.
           returning = false;
-          tvGoal = tvW = 1;
+          tvGoal = tvW = commercialNext ? 0 : 1;
           /* Under the set's hold, the board's own camera squares up, so
              the set lets go onto the board square on, at the usual
              pitch (user: it came back at an angle; the heading had come
@@ -1261,16 +1300,14 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           onTheBoard();
           if (commercialNext) {
             commercialNext = false;
-            // (A second in, once Nova's transition has shown the room.)
-            den.tv.showCommercial(now, AD_DELAY);
-            tvWatch = 1;
-            setCommercialOn(true);
-            if (audio && audio.tvCommercial) audio.tvCommercial(AD_DELAY / 1000);
+            // Home first, the set dark; then it wakes (wakeFrame).
+            wake = { phewAt: now + PHEW_AT, wakeAt: now + WAKE_AT, woke: false, adAt: 0 };
           } else {
             den.tv.showPattern(now);
             offAt = now + 1800;
           }
         }
+        wakeFrame(now);
         if (den.tv.phase() === "aired" && !offAt) offAt = now + 650;
         if (offAt && now >= offAt) {
           offAt = 0;
@@ -1319,8 +1356,11 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         whiteOut(den.tv.blastState ? den.tv.blastState(now).white : 0);
         {
           const on = den.tv.phase() === "commercial";
-          if (!on) setCommercialOn(false);
-          tvWatch += ((on ? 1 : 0) - tvWatch) * (1 - Math.exp(-dt * 1.2));
+          // (Waking into it counts: the order paper and the special order
+          // wait for after it, as they always have.)
+          if (!on && !wake) setCommercialOn(false);
+          const watch = on || !!(wake && wake.woke);
+          tvWatch += ((watch ? 1 : 0) - tvWatch) * (1 - Math.exp(-dt * 1.2));
         }
         // While the camera visits the set, the title and the dock's piece
         // step aside (standard.js styleSheet, html.ec-tv-visit).
@@ -1535,6 +1575,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (paper) paper.stop();
         okayAt = 0;
         if (okayCard) { okayCard.el.remove(); okayCard = null; }
+        wake = null;
+        if (phewCard) { phewCard.el.remove(); phewCard = null; }
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (novaTv && novaTv.register) novaTv.register(null);

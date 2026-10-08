@@ -453,7 +453,7 @@ export function buildTelevision(yF, RZ, X = -40) {
   /* ---- the set's life ---- */
   // The commercial (den-commercial.js: the user's spot, a video), made
   // when it's first shown.
-  let commercial = null;
+  let commercial = null, adLead = 0;
   let phase = "off", t0 = 0, portal = false, entered = false, onEnter = null;
   let knobA = -0.9, knobGoal = -0.9;
   const u = screen.uniforms;
@@ -625,9 +625,10 @@ export function buildTelevision(yF, RZ, X = -40) {
       u.uTex.value = pattern;
       set("pattern", now - TV_TIMES.resolve);
     },
-    /* Already on (back out of Singularity the first time, in Nova), and
-       the commercial is on (held on its first frame for `delay`): then
-       snow ("aired"), for den-fx.js to switch it off. */
+    /* On (back out of Singularity the first time, in Nova, it's switched
+       itself on: den-fx.js), the commercial comes in out of the snow,
+       rolling and locking (held on its first frame for `delay`), and
+       plays: then snow ("aired"), for den-fx.js to switch it off. */
     showCommercial(now, delay = 0) {
       knobA = knobGoal = -0.9 + 0.75;
       portal = false;
@@ -635,6 +636,7 @@ export function buildTelevision(yF, RZ, X = -40) {
       commercial.reset();
       commercial.draw(-delay / 1000);
       u.uTex.value = commercial.texture;
+      adLead = delay;
       set("commercial", now + delay);
     },
     /* The lure (den-fx.js): called each frame while the set's off and
@@ -697,7 +699,7 @@ export function buildTelevision(yF, RZ, X = -40) {
       knobWiggle = 0;
       u.uTime.value = now / 1000;
       const s = since(now);
-      let raster = 0, snow = 0, pat = 0, dive = 0, glow = 0, dot = 0;
+      let raster = 0, snow = 0, pat = 0, dive = 0, glow = 0, dot = 0, lock = 1;
       if (phase === "warming") {
         raster = ease(clamp01(s / TV_TIMES.raster)); snow = 1; glow = 0.55 + 0.45 * raster;
         if (s >= TV_TIMES.raster) set("snow", now);
@@ -717,10 +719,12 @@ export function buildTelevision(yF, RZ, X = -40) {
       } else if (phase === "commercial") {
         // A clean picture (user); snow until the spot has one (still
         // loading, or from disk). (s is negative before it starts: held
-        // on its first frame.)
+        // on its first frame.) Out of the snow it locks in, from the
+        // moment it's shown (adLead before it starts).
         commercial.draw(s / 1000);
         const on = commercial.ready();
-        raster = 1; glow = 1; pat = on ? 1 : 0; snow = on ? 0 : 1;
+        lock = on ? ease(clamp01((s + adLead) / TV_TIMES.resolve)) : 1;
+        raster = 1; glow = 1; pat = on ? lock : 0; snow = on ? 1 - lock : 1;
         if (commercial.done(s)) set("aired", now);
       } else if (phase === "channel") {
         // Another reality on the set (after the story): a clean picture,
@@ -792,6 +796,8 @@ export function buildTelevision(yF, RZ, X = -40) {
         raster = 1; pat = 1; snow = 0.12; glow = 0.85; line = -1; tear = 0;
       } else if (flashTex && u.uTex.value === flashTex.texture && !(haunt && (haunt.kind === "ghost" || haunt.kind === "voice"))) u.uTex.value = pattern;
       if (phase === "channel" && chanBlip > 0) { tear = Math.max(tear, 0.7 * chanBlip); line = (now * 0.003) % 1; lineAmt = 0.5 * chanBlip; }
+      // (The commercial locking in: a roll bar and a tear, settling.)
+      if (phase === "commercial" && lock < 1) { tear = Math.max(tear, 0.45 * (1 - lock)); line = (now * 0.0026) % 1; lineAmt = 0.5 * (1 - lock); }
       // The knob's glow, breathing.
       knobGlow.visible = knobGlowOn;
       if (knobGlowOn) knobGlowMat.opacity = 0.55 + 0.35 * Math.sin(now * 0.004);

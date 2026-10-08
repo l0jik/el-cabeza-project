@@ -1,8 +1,9 @@
 /* The den's commercial is the user's spot (user: "put it on the den's
    TV", in place of the drawn one): back from the Singularity the first
-   time, the set plays the video (themes/den-commercial.js), kept with
-   its sound as it's heard, the sound decoded ahead (den-ad-audio.js), and
-   goes off after its 30 s. Served over http (from disk, WebGL won't take a
+   time, after a moment home (a thought, then the set switching itself
+   on), the set plays the video (themes/den-commercial.js), kept with its
+   sound as it's heard, the sound decoded ahead (den-ad-audio.js), and
+   goes off after its 30 s; then another thought. Served over http (from disk, WebGL won't take a
    video: there the tube shows snow); this Chromium has no H.264, so it
    plays the VP9 copy. A new player, still in the store, isn't sent the
    video yet (it's 2.8 MB; it loads once the Singularity's open). Its own
@@ -99,7 +100,18 @@ check("home, in the den", !!(await poll(() => page.evaluate(() => !!window.__DEN
 check("the spot's sound, fetched and decoded ahead", !!(await poll(() => page.evaluate(() => { const a = window.__EC_AD__ && window.__EC_AD__(); return a && a.rendered && Math.abs(a.seconds - 30) < 0.5; }), 20000)));
 check("...and its picture loading", !!(await poll(() => page.evaluate(() => { const s = window.__DEN_SPOT__ && window.__DEN_SPOT__(); return s && s.ready >= 2 && /el-cabeza-den-spot\.(webm|mp4)$/.test(s.src); }), 20000)), JSON.stringify(await page.evaluate(() => window.__DEN_SPOT__ && window.__DEN_SPOT__())));
 await page.evaluate(() => window.__DEN_TV_AIR__());
-check("back from the Singularity: the commercial on the set", !!(await poll(() => page.evaluate(() => window.__DEN_TV__().phase === "commercial"), 10000)));
+// Home first (user: the cut straight to it was "a bit abrupt"): the set
+// dark and the camera on the board; "Phew… I'm home. What just
+// happened?!"; then the set switches itself on, the camera goes over, and
+// the commercial locks in.
+const first = await poll(() => page.evaluate(() => { const s = window.__DEN_TV__(); return s.waking === "dark" && { phase: s.phase, focus: s.focus }; }), 5000, 50);
+check(`back from the Singularity: home first, the set dark, the camera on the board (${JSON.stringify(first)})`, !!first && first.phase === "off" && first.focus < 0.05);
+const phew = await poll(() => page.evaluate(() => { const c = document.querySelector('[data-testid="den-phew"]'); return c && { text: c.innerText.trim(), phase: window.__DEN_TV__().phase }; }), 6000, 100);
+check(`...a thought (${JSON.stringify(phew)})`, !!phew && phew.text === "Phew… I'm home. What just happened?!" && phew.phase === "off");
+const woke = await poll(() => page.evaluate(() => { const s = window.__DEN_TV__(); return s.waking === "woke" && /^(warming|snow)$/.test(s.phase) && { phase: s.phase, goal: s.goal }; }), 8000, 50);
+check(`...then the set switches itself on, the camera going over (${JSON.stringify(woke)})`, !!woke && woke.goal === 1);
+check("...and the commercial locks in on the set", !!(await poll(() => page.evaluate(() => window.__DEN_TV__().phase === "commercial"), 10000)));
+check("...the thought gone by then", await page.evaluate(() => !document.querySelector('[data-testid="den-phew"]') || document.querySelector('[data-testid="den-phew"]').classList.contains("off")));
 const shots = process.env.EC_SHOTS;
 // Its video on the tube, with the sound as it's heard (user: the voice
 // wasn't with the lips). Every 100 ms or so, against the moment of the

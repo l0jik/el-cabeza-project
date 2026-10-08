@@ -7948,6 +7948,25 @@ phone menu until "Start the story over" (which clears it).
   part way; not after the plain pattern. Once the order paper starts
   glowing its block takes every tap, the card's drag too (it goes by
   itself). e2e-den-spot checks it (as the camera heads back, then gone).
-- Asked the user for options on the cut into the commercial (back from
-  the Singularity, the camera's at the set and the spot starts a second
-  in: "a bit abrupt").
+- Into the commercial (user: back from the Singularity the camera was at
+  the set and the spot started a second in, "a bit abrupt"; offered four
+  options, picked two together: a pause with the set dark, then the set
+  waking by itself; and a relieved thought first, worded "Phew… I'm
+  home. What just happened?!"). den-fx.js wake/wakeFrame: landing the
+  first time (commercialNext) the camera's on the board (tvGoal = tvW =
+  0) and the set dark; the thought (a den card, testid den-phew) at 0.8 s
+  for 3.2 s; at 2.8 s the set switches itself on (powerOn, tvOn's click,
+  hum and whine) and the camera goes over and in (tvGoal 1, tvWatch
+  easing from then, not from the spot's start); 2 s on (the dot open,
+  snow) showCommercial(now, 1000): out of the snow the picture locks in
+  over TV_TIMES.resolve (0.8 s) with a roll bar and a tear (den-tv.js
+  lock, adLead), held on its first frame, and plays a second later with
+  its sound. The spot starts 5.8 s after landing (it was 1 s).
+  Meanwhile a tap on the set waits (pressTv), drags too (holdsCamera
+  counts the wake), the hall keeps out (busy), and the commercial flag
+  stays on (ec-commercial; the order paper and the special order wait
+  for after it, as before). Later returns (the pattern, then off) are as
+  they were; ?scene=commercial has the same lead-in after its tap.
+  e2e-den-spot walks through it (dark and on the board, the thought, the
+  set on by itself with the camera going over, the commercial, the
+  thought gone).
