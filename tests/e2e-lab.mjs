@@ -3,7 +3,7 @@
    What must hold, and is checked here:
    - every direction loads and renders with no page errors;
    - switching direction never touches the game: the same pieces in the
-     same places, the same side to move, the same points spent mid-turn,
+     same places, the same side to move, the same actions used mid-turn,
      the same log, all ten times over, and play carries on afterwards;
    - a switch asked for while a step is still animating waits for it;
    - the directions really differ (their tokens, fonts, HUD composition);
@@ -33,7 +33,9 @@ const state = (page) => page.evaluate(() => ({
   log: JSON.stringify(window.__EC_TEST_LOG__ || []),
   player: document.querySelector('[data-testid="lab-hud"]').dataset.player,
   status: document.querySelector('[data-testid="lab-hud"]').dataset.status,
-  points: [...document.querySelectorAll('[data-testid="lab-hud"] .lab-stats div')].find((d) => /points/i.test(d.textContent))?.querySelector("dd").textContent,
+  // (The read-out labelled Actions, by its data-stat: the old "Points"
+  // label is gone, and a lookup by that word found nothing on either side.)
+  actions: document.querySelector('[data-testid="lab-hud"] [data-stat="actions"] dd')?.textContent,
   focus: document.querySelector('[data-testid="lab-hud"]').dataset.focus,
 }));
 const labId = (page) => page.evaluate(() => window.__LAB__.id);
@@ -85,9 +87,9 @@ async function waitSwitched(page, id) {
   const chato0 = await pieceOf(page, "light-chato");
   await page.evaluate(() => window.__EC_TEST_MOVE__("light-chato", "N"));
   await landed(page, "light-chato", chato0);
-  await poll(async () => (await state(page)).points === "1/2", 4000);
+  await poll(async () => (await state(page)).actions === "1/2", 4000);
   const before = await state(page);
-  check("mid-turn: Light has spent a point", before.points === "1/2" && before.player === "light", JSON.stringify(before));
+  check("mid-turn: Light has used one of its two actions", before.actions === "1/2" && before.player === "light", JSON.stringify(before));
 
   // Switch through every direction, several ways; nothing about the game moves.
   const ids = await page.evaluate(() => window.__LAB__.ids);
@@ -103,7 +105,7 @@ async function waitSwitched(page, id) {
     const ok = await waitSwitched(page, id);
     await page.waitForTimeout(500);
     const now = await state(page);
-    const same = ok && now.pieces === before.pieces && now.log === before.log && now.player === before.player && now.points === before.points;
+    const same = ok && now.pieces === before.pieces && now.log === before.log && now.player === before.player && now.actions === before.actions;
     if (same) intact++;
     else console.log("   differs in", id, JSON.stringify({ ok, before, now }).slice(0, 400));
     const look = await page.evaluate(() => {
@@ -144,9 +146,9 @@ async function waitSwitched(page, id) {
   await page.evaluate((d) => { window.__EC_TEST_MOVE__("dark-flaco", d); window.__LAB__.switchTo("brutalist"); }, dd);
   await waitSwitched(page, "brutalist");
   await landed(page, "dark-flaco", flacoBefore);
-  await poll(async () => (await state(page)).points === "1/2", 4000);
+  await poll(async () => (await state(page)).actions === "1/2", 4000);
   const flacoAfter = await pieceOf(page, "dark-flaco");
-  const pts = (await state(page)).points;
+  const pts = (await state(page)).actions;
   check("a switch during a step waits: the step lands and counts", flacoAfter !== flacoBefore && pts === "1/2", `${pts} ${flacoAfter} lab ${await page.evaluate(() => JSON.stringify({ id: window.__LAB__.id, busy: window.__LAB__.busy(), n: document.querySelectorAll("canvas").length }))} ${JSON.stringify(await state(page))}`);
 
   // The lab's own controls.
@@ -172,7 +174,7 @@ async function waitSwitched(page, id) {
   await page.locator('[data-testid="lab-reset"]').click();
   await page.waitForTimeout(1500);
   const afterReset = await state(page);
-  check("reset presentation leaves the game as it was", afterReset.pieces === beforeReset.pieces && afterReset.points === beforeReset.points && afterReset.player === beforeReset.player);
+  check("reset presentation leaves the game as it was", afterReset.pieces === beforeReset.pieces && afterReset.actions === beforeReset.actions && afterReset.player === beforeReset.player);
   if ((await page.locator('[data-testid="lab-panel"]').count()) === 0) await page.locator('[data-testid="lab-open"]').click();
   await page.locator('[data-testid="lab-return"]').click();
   check("return to game closes the panel", (await page.locator('[data-testid="lab-panel"]').count()) === 0);

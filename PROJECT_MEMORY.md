@@ -8432,3 +8432,13 @@ phone menu until "Start the story over" (which clears it).
   Proposed: a faint ghost at every stop with a small hop per move, so the
   whole path sits on the board; Show me kept as the extra. Awaiting the
   user's yes before building it.
+- Sweep for the check alert / Revelation / Reset / piece-inspection round
+  (through 734ec2e): the background task's 30-minute default limit cut it
+  after 14 of 25 (13 pass; e2e-store-nudge was mid-run). A later re-run
+  needs run_in_background with the 2-hour limit. e2e-lab failed 2 checks,
+  a stale test, not the game: its state() read the HUD stat whose text
+  matched /points/i, gone since "Action points" became "Actions"
+  (7459db8), so it was undefined. Both steps had landed. The undefined
+  value had also made the "untouched by all ten switches" and "reset
+  presentation" comparisons vacuous for that field. Now read by
+  [data-stat="actions"] (key renamed actions): all 35 lab checks pass.
