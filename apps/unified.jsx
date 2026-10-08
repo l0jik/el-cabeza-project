@@ -64,6 +64,24 @@ const FRESH = (() => {
     window.history.replaceState(null, "", url.pathname + url.search + url.hash);
   } catch (e) { /* no URL or storage: nothing to clear */ }
 })();
+// ?jump=hall (user: a link to test the hallway walk, "right before the
+// very first hallway trigger"): the story set to that point, home from
+// the trip back to the closed Big Glutts, the Singularity, the
+// commercial and the special order behind it, the hall counting its
+// first four moves (themes/den-hall.js); the settings kept. The story's
+// really there after, like ?restart=story's start over. Read before
+// anything else, once, and the word dropped from the address.
+(() => {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("jump") !== "hall") return;
+    forgetStoryEnd();
+    window.localStorage.setItem(STORY_KEY, JSON.stringify({ owned: true, storeGone: true, hallDue: true }));
+    [SINGULARITY_SEEN_KEY, COMMERCIAL_AIRED_KEY, SPECIAL_ORDER_NOTED_KEY].forEach((k) => window.localStorage.setItem(k, "1"));
+    url.searchParams.delete("jump");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  } catch (e) { /* no URL or storage: nothing to set */ }
+})();
 // ?switcher: straight to the theme switcher (the Other realities menu),
 // everything unlocked (user: "a link that goes straight to theme
 // switcher"; chose to unlock everything): the story is marked played

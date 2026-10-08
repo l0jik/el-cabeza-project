@@ -8207,3 +8207,16 @@ phone menu until "Start the story over" (which clears it).
   into its top, each its own arc (border-top + border-left, radii 12, 9,
   6, 3) so the curve keeps their width; the words set in from them
   (padding 16 10 5 18). tienda-overlay.js .td-clerk-stripes.
+- ?jump=hall (user: "a link so I can test the hallway walk again ...
+  right before the very first hallway trigger"): apps/unified.jsx, read
+  at load before anything else (like ?restart=story): the story set to
+  home from the trip back to the closed Big Glutts ({ owned, storeGone,
+  hallDue }, no hallFlares or ended), the Singularity, the commercial and
+  the special order marked seen, the settings kept; the word dropped from
+  the address. The den then arms the hall: Begin Game, and its first time
+  comes four moves (completed turns) in, then three after each "keep
+  playing", the third time pulling you in (or the game's end, 2 s after,
+  past the second). It really sets the story (as e2e-hall-after-game
+  seeds it). Checked from an ended story: armed, need 4, made 0, the
+  opponent setting kept. Link:
+  https://l0jik.github.io/el-cabeza-project/el-cabeza-nova.html?jump=hall
