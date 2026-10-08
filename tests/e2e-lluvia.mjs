@@ -49,6 +49,12 @@ check("MATTER opens its panel", (await page.locator('[data-testid="lluvia-panel-
 // Every piece pictured as the city draws it, each Arco size its own row.
 check("...every piece pictured (15, each Arco size its own row)", !!(await (async () => { for (let i = 0; i < 40; i++) { const n = await page.locator('[data-testid^="lluvia-pic-"]').evaluateAll((els) => els.filter((e) => (e.getAttribute("src") || "").startsWith("data:image/png")).length); if (n === 15) return true; await page.waitForTimeout(150); } return false; })()));
 check("...the Arco Chico, Alto and Ancho each with a picture", (await page.locator('[data-testid="lluvia-pic-arcoChico"]').count()) === 1 && (await page.locator('[data-testid="lluvia-pic-arcoAlto"]').count()) === 1 && (await page.locator('[data-testid="lluvia-pic-arcoAncho"]').count()) === 1);
+// A picture: the piece large, in 3D, as the city draws it (user).
+await page.locator('[data-testid="lluvia-inspect-zeta"]').scrollIntoViewIfNeeded();
+await page.locator('[data-testid="lluvia-inspect-zeta"]').click();
+check("...a picture opens the piece large, in 3D", !!(await (async () => { for (let i = 0; i < 30; i++) { if ((await page.locator('[data-testid="piece-viewer"]').getAttribute("data-state").catch(() => null)) === "open") return true; await page.waitForTimeout(200); } return false; })()) && /zeta/i.test(await page.locator('[data-testid="piece-viewer-name"]').innerText()));
+await page.mouse.click(8, 8);
+check("...and a tap outside puts it back, the panel still open", !!(await (async () => { for (let i = 0; i < 20; i++) { if ((await page.locator('[data-testid="piece-viewer"]').count()) === 0) return true; await page.waitForTimeout(200); } return false; })()) && (await page.locator('[data-testid="lluvia-panel-matter"]').count()) === 1);
 await page.locator('[data-testid="lluvia-matter-rayo-inc"]').click();
 await page.waitForTimeout(150);
 check("...a Rayo is added (6 pieces)", (await page.locator('[data-testid="lluvia-matter-total"]').textContent()).startsWith("6 /"));

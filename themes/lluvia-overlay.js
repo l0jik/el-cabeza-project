@@ -25,7 +25,7 @@ import React from "react";
 import { PIECE_OPTIONS, LAW_OPTIONS, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, setShove, shoveNow } from "./rules-selections.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
-import { storyOver, openRealityGate, piecePicture, piecePicturesReady } from "./reality-gate.js";
+import { storyOver, openRealityGate, piecePicture, piecePicturesReady, usePieceInspect } from "./reality-gate.js";
 
 const h = React.createElement;
 const PINK = "#ff3dbb", CYAN = "#23e6ff", AMBER = "#ffb347";
@@ -69,6 +69,8 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
   // Each piece pictured as the city draws it (made once, a beat after the
   // panel opens; the sign stands in till then).
   const [, setPics] = React.useState(0);
+  // A picture's tap: the piece large, in 3D, as the city draws it (user).
+  const inspect = usePieceInspect("lluvia", pieceLook);
   React.useEffect(() => {
     if (panel !== "matter" || !pieceLook) return undefined;
     const id = setTimeout(() => { if (piecePicturesReady("lluvia", pieceLook)) setPics((n) => n + 1); }, 120);
@@ -85,7 +87,7 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
         const set = (v) => { sound("key"); change((s) => { s.counts[k] = Math.max(min, Math.min(max, v)); }); };
         const pic = piecePicture("lluvia", k);
         return h("div", { key: k, "data-testid": `lluvia-matter-${k}`, style: { display: "grid", gridTemplateColumns: "58px minmax(0, 1fr) 44px 30px 44px", alignItems: "center", gap: 6, minHeight: 50, borderBottom: "1px solid rgba(255,179,71,0.12)", color: n ? "#ffe2b0" : "#8a6a3e" } },
-          h("span", { style: { position: "relative", width: 58, height: 44, display: "flex", alignItems: "center", justifyContent: "center" } },
+          h("button", { type: "button", "data-testid": `lluvia-inspect-${k}`, "aria-label": `${name} in 3D`, title: `See the ${name} in 3D`, disabled: !pic, onClick: (e) => { sound("key"); inspect.open(k, name, null, e); }, style: { position: "relative", width: 58, height: 44, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, border: 0, background: "transparent", color: "inherit", cursor: pic ? "zoom-in" : "default" } },
             pic ? h("img", { src: pic, alt: "", "data-testid": `lluvia-pic-${k}`, style: { width: 58, height: 44, objectFit: "contain", filter: n ? "none" : "saturate(0.6) brightness(0.8)" } }) : null,
             h("span", { style: { position: pic ? "absolute" : "static", right: -2, bottom: -2, fontFamily: JP, fontSize: pic ? 12 : 17, color: CYAN, textShadow: "0 0 4px #000" } }, sign)),
           h("span", { style: { fontSize: 22 } }, name),
@@ -151,7 +153,8 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
     h("span", { style: { fontSize: 16, color: "#a8783a", whiteSpace: "nowrap" } }, "KV-OS >"),
     h("span", { style: { whiteSpace: "nowrap", fontFamily: SAIRA_X, fontWeight: 800, fontSize: 22, letterSpacing: "0.06em", color: title[3], textShadow: TUBE(title[2]) } }, title[0], " ", h("span", { style: { fontFamily: JP, fontSize: 17, color: title[2], textShadow: "none" } }, title[1])),
     h("button", { type: "button", "data-testid": "lluvia-panel-close", onClick: onClose, style: { marginLeft: "auto", flexShrink: 0, whiteSpace: "nowrap", height: 36, padding: "0 10px", background: "transparent", border: "1px solid rgba(255,179,71,0.6)", borderRadius: 3, color: "#ffcf8a", font: "400 18px 'VT323', monospace", cursor: "pointer" } }, "CLOSE ✕")),
-  h("div", { style: { overflowY: "auto", padding: "8px 14px 14px", display: "flex", flexDirection: "column", gap: 2 } }, ...[].concat(body)));
+  h("div", { style: { overflowY: "auto", padding: "8px 14px 14px", display: "flex", flexDirection: "column", gap: 2 } }, ...[].concat(body)),
+  inspect.viewer);
 }
 
 /* ------------------------------------------------------------ the layer */

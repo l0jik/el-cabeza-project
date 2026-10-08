@@ -24,11 +24,12 @@
 
 import { usePivotGuide } from "./pivot-guide.js";
 import React from "react";
+import { createPortal } from "react-dom";
 import * as THREE from "three";
 import { initialPiecesFor } from "../engine/rules.js";
 import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
 import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constants.js";
-import { POSES } from "./piece-showcase.js";
+import { POSES, PieceViewer } from "./piece-showcase.js";
 import {
   PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
   defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, setShove, shoveNow, lawWarnings, piecesFit, minColsFor,
@@ -167,6 +168,9 @@ const CSS = `
 .rg-pic { flex: none; width: 66px; height: 50px; display: flex; align-items: center; justify-content: center;
   border-radius: var(--rg-radius); background: radial-gradient(ellipse at 50% 60%, color-mix(in srgb, var(--rg-ink) 14%, transparent), transparent 70%); }
 .rg-pic img { width: 66px; height: 50px; object-fit: contain; display: block; }
+button.rg-pic { appearance: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: zoom-in; }
+button.rg-pic:disabled { cursor: default; }
+button.rg-pic:focus-visible { outline: 2px solid var(--rg-accent); outline-offset: 2px; }
 .rg-note { display: block; font: 400 12.5px/1.35 var(--rg-body); color: var(--rg-muted); margin-top: 2px; }
 .rg-step { display: inline-flex; align-items: center; gap: 2px; }
 .rg-step button { appearance: none; width: 40px; height: 40px; border: var(--rg-line-w) solid var(--rg-line); border-radius: var(--rg-radius); background: transparent; color: var(--rg-ink);
@@ -364,6 +368,74 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
    MATTER stills, piece-showcase.js). Light's pieces; the poses are the
    pieces' first starting ones (POSES). Sizes stay true to each other,
    only the smallest brought up a little to be seen. */
+/* One piece as a world draws it (its own buildPieceVisual, Light's), its
+   middle at the origin (inside a group, so turning it turns it about its
+   middle): the still's model, and the 3D viewer's. */
+function lookModel(look, type) {
+  const pose = POSES[type], inner = new THREE.Group(), group = new THREE.Group();
+  const isDisc = !!pose.disc;
+  const edge = look.EDGE_RADIUS || 0.06;
+  const piece = isDisc ? { id: `pic-${type}`, type, owner: "light", w: 1, h: 1, z: 1 } : { id: `pic-${type}`, type, owner: "light", ...pose };
+  const geo = isDisc
+    ? new THREE.CylinderGeometry((DISC_DIAM * CABEZA_SCALE) / 2, (DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, 40)
+    : pose.vox ? makePolycubeSmooth(piece, PIECE_SCALE, edge) : makeRoundedBox(pose.w * PIECE_SCALE, pose.z * PIECE_SCALE, pose.h * PIECE_SCALE, edge);
+  const { mesh, shell } = look.buildPieceVisual({ piece, isDark: false, isDisc, geo, center: { x: 0, z: 0 }, y: 0 });
+  // (A see-through body that doesn't write depth: a depth pass first, so
+  // its outline's far edges are hidden, as the dock does.)
+  if (mesh.material && mesh.material.transparent && mesh.material.depthWrite === false) {
+    const d = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ colorWrite: false })); d.position.copy(mesh.position); d.renderOrder = 0; d.userData.ownMaterial = true; inner.add(d);
+  }
+  inner.add(mesh); if (shell) inner.add(shell);
+  const box = new THREE.Box3().setFromObject(inner), c = new THREE.Vector3(), size = new THREE.Vector3();
+  box.getCenter(c); box.getSize(size);
+  inner.position.sub(c);
+  group.add(inner);
+  return { group, geo, radius: size.length() / 2 };
+}
+// Lit as the dock piece is.
+function lookStage() {
+  const scene = new THREE.Scene();
+  scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+  const key = new THREE.DirectionalLight(0xffffff, 1.15); key.position.set(3, 4, 3); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.3); fill.position.set(-3, 1.5, -2); scene.add(fill);
+  return scene;
+}
+function lookRenderer(canvas, w, hgt) {
+  const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+  r.setPixelRatio(1); r.setSize(w, hgt, false); r.setClearColor(0x000000, 0);
+  return r;
+}
+/* A setup's piece, large, in 3D, in its world's look (user: "3D blow up
+   piece inspections in the setup for every page"): tapped from its
+   picture, it grows out of it, turns slowly, turns any way under a drag,
+   and goes back into the picture at a tap outside (Neon's MATTER viewer,
+   piece-showcase.js, with this world's piece, lights, colours and type). */
+const LOOK_SKIN = {
+  backdrop: "var(--rg-backdrop)",
+  caption: { padding: "10px 16px 9px", background: "var(--rg-surface)", border: "var(--rg-line-w) solid var(--rg-line)", borderRadius: "var(--rg-radius)", boxShadow: "var(--rg-shadow)", color: "var(--rg-ink)" },
+  title: { fontFamily: "var(--rg-display)", fontWeight: "var(--rg-display-weight)", fontSize: 21, letterSpacing: "var(--rg-track)", textTransform: "var(--rg-case)", color: "var(--rg-ink)", textShadow: "var(--rg-glow)" },
+  detail: { fontFamily: "var(--rg-body)", fontSize: 13.5, color: "var(--rg-muted)" },
+  hint: { fontFamily: "var(--rg-body)", fontSize: 10.5, letterSpacing: "0.14em", color: "var(--rg-muted)" },
+};
+export function LookPieceViewer({ world, look, ...rest }) {
+  return h(PieceViewer, { ...rest, model: (t) => lookModel(look, t), stage: lookStage, makeGl: lookRenderer, keepMaterials: true, skin: LOOK_SKIN, vars: varsOf(lookOf(world)) });
+}
+// Its state for a list: open(p, event) from a picture's tap; the viewer.
+export function usePieceInspect(world, look) {
+  const [inspect, setInspect] = React.useState(null);
+  const open = (type, name, detail, e) => {
+    const el = (e && e.currentTarget && (e.currentTarget.querySelector("img") || e.currentTarget)) || null;
+    const r = el ? el.getBoundingClientRect() : null;
+    setInspect({ type, name, detail: detail || null, rect: r && { left: r.left, top: r.top, width: r.width, height: r.height }, closing: false });
+  };
+  // (On the page itself, over everything: a list's sheet may be moving or
+  // clipped, which would take a fixed layer with it.)
+  const viewer = inspect && look && look.buildPieceVisual && typeof document !== "undefined" ? createPortal(h(LookPieceViewer, {
+    world, look, type: inspect.type, name: inspect.name, detail: inspect.detail, fromRect: inspect.rect, closing: inspect.closing,
+    onClose: () => setInspect((v) => v && { ...v, closing: true }), onClosed: () => setInspect(null),
+  }), document.body) : null;
+  return { open, viewer };
+}
 const pictures = new Map(); // `${world}|${type}` -> data URL
 const PIC_W = 132, PIC_H = 100;
 function piecePictures(world, look, types) {
@@ -374,31 +446,9 @@ function piecePictures(world, look, types) {
     const canvas = document.createElement("canvas");
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(1); renderer.setSize(PIC_W, PIC_H, false); renderer.setClearColor(0x000000, 0);
-    const scene = new THREE.Scene();
-    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
-    const key = new THREE.DirectionalLight(0xffffff, 1.15); key.position.set(3, 4, 3); scene.add(key);
-    const fill = new THREE.DirectionalLight(0xffffff, 0.3); fill.position.set(-3, 1.5, -2); scene.add(fill);
+    const scene = lookStage();
     const camera = new THREE.PerspectiveCamera(26, PIC_W / PIC_H, 0.05, 100);
-    const edge = look.EDGE_RADIUS || 0.06;
-    const built = todo.map((type) => {
-      const pose = POSES[type], g = new THREE.Group();
-      const isDisc = !!pose.disc;
-      const piece = isDisc ? { id: `pic-${type}`, type, owner: "light", w: 1, h: 1, z: 1 } : { id: `pic-${type}`, type, owner: "light", ...pose };
-      const geo = isDisc
-        ? new THREE.CylinderGeometry((DISC_DIAM * CABEZA_SCALE) / 2, (DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, 40)
-        : pose.vox ? makePolycubeSmooth(piece, PIECE_SCALE, edge) : makeRoundedBox(pose.w * PIECE_SCALE, pose.z * PIECE_SCALE, pose.h * PIECE_SCALE, edge);
-      const { mesh, shell } = look.buildPieceVisual({ piece, isDark: false, isDisc, geo, center: { x: 0, z: 0 }, y: 0 });
-      // (A see-through body that doesn't write depth: a depth pass first,
-      // so its outline's far edges are hidden, as the dock does.)
-      if (mesh.material && mesh.material.transparent && mesh.material.depthWrite === false) {
-        const d = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ colorWrite: false })); d.position.copy(mesh.position); d.renderOrder = 0; g.add(d);
-      }
-      g.add(mesh); if (shell) g.add(shell);
-      const box = new THREE.Box3().setFromObject(g), c = new THREE.Vector3(), size = new THREE.Vector3();
-      box.getCenter(c); box.getSize(size);
-      g.position.sub(c);
-      return { type, g, geo, r: size.length() / 2 };
-    });
+    const built = todo.map((type) => { const { group, geo, radius } = lookModel(look, type); return { type, g: group, geo, r: radius }; });
     const rMax = Math.max(...built.map((b) => b.r));
     built.forEach(({ type, g, geo, r }) => {
       scene.add(g);
@@ -434,6 +484,8 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
     return () => clearTimeout(id);
   }, []);
   const picOf = (key) => pictures.get(`${world}|${pieceTypeOf(key)}`) || null;
+  // A picture's tap: the piece large, in 3D (user).
+  const inspect = usePieceInspect(world, pieceLook);
   const [picker, setPicker] = React.useState(null); // null | "missing" | "hole"
   const change = (fn) => setSel((s) => { const n = cloneSelections(s); fn(n); return n; });
   const total = totalPieces(sel), tooMany = total > MAX_PIECES;
@@ -467,7 +519,8 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
     PIECE_OPTIONS.map((p) => h(React.Fragment, { key: p.key },
       h("div", { className: "rg-row rg-piece", "data-testid": `gate-piece-${p.key}` },
         h("span", { className: "rg-piece-id" },
-          h("span", { className: "rg-pic", "aria-hidden": "true" }, picOf(p.key) ? h("img", { src: picOf(p.key), alt: "", "data-testid": `gate-pic-${p.key}` }) : null),
+          h("button", { type: "button", className: "rg-pic", "data-testid": `gate-inspect-${p.key}`, "aria-label": `${p.name} in 3D`, title: `See the ${p.name} in 3D`, disabled: !picOf(p.key), onClick: (e) => inspect.open(pieceTypeOf(p.key), p.name, p.def ? "In the classic game" : p.note, e) },
+            picOf(p.key) ? h("img", { src: picOf(p.key), alt: "", "data-testid": `gate-pic-${p.key}` }) : null),
           h("span", { className: "rg-name" }, p.name, p.def ? h("span", { className: "rg-note" }, "In the classic game") : p.note ? h("span", { className: "rg-note" }, p.note) : null)),
         h(Stepper, { value: sel.counts[p.key], min: p.min, max: p.max, label: p.name, testid: `gate-count-${p.key}`, onChange: (v) => change((n) => { n.counts[p.key] = v; }) })))),
     h("div", { className: `rg-total${tooMany ? " bad" : ""}`, "data-testid": "gate-total" },
@@ -521,7 +574,8 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
       h("div", { className: "rg-foot" },
         h("button", { type: "button", className: "rg-btn plain", "data-testid": "gate-reset", onClick: () => setSel(defaultSelections()), "data-stroke": "3" }, "Reset"),
         h("button", { type: "button", className: "rg-btn go", "data-testid": "gate-play", disabled: !canPlay, onClick: () => { keep(sel); onPlay(sel); }, "data-stroke": "2" }, "Play"))),
-    picker && h(SpotPicker, { sel, kind: picker, names, onCancel: () => setPicker(null), onDone: (d) => { setSel(d); setPicker(null); } }));
+    picker && h(SpotPicker, { sel, kind: picker, names, onCancel: () => setPicker(null), onDone: (d) => { setSel(d); setPicker(null); } }),
+    inspect.viewer);
 }
 
 /* ------------------------------------------------------------ the gate */

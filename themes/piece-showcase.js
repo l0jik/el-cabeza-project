@@ -194,8 +194,23 @@ const OPEN_MS = 420;
 /* type/name/detail describe the piece; fromRect is the list still's
    screen rectangle (the viewer grows out of it and returns to it);
    closing is set by the caller to play the return, after which
-   onClosed fires. */
-export function PieceViewer({ type, name, detail, fromRect, closing, onClose, onClosed }) {
+   onClosed fires. Another world's setup can show its own pieces in it
+   (user: "3D blow up piece inspections in the setup for every page"):
+   `model(type)` -> { group, radius } its piece, `stage(renderer)` its
+   scene and lights, `makeGl(canvas, w, h)` its renderer, `keepMaterials`
+   when the model's materials are the world's own (shared with its board:
+   only the geometry's let go), and `skin` its colours and type (the
+   backdrop, and the words under the piece). Neon's MATTER menu passes
+   none of them. */
+const NEON_SKIN = {
+  backdrop: "rgba(2,6,10,0.42)",
+  caption: null,
+  title: { fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 22, letterSpacing: "0.08em", color: "#dffaff", textShadow: "0 0 18px rgba(77,232,255,0.45)", textTransform: "uppercase" },
+  detail: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "rgba(207,216,220,0.85)" },
+  hint: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.12em", color: "rgba(142,243,255,0.55)" },
+};
+export function PieceViewer({ type, name, detail, fromRect, closing, onClose, onClosed, model = buildModel, stage = makeStage, makeGl = makeRenderer, keepMaterials = false, skin = null, vars = null }) {
+  const sk = skin || NEON_SKIN;
   const h = React.createElement;
   const canvasRef = React.useRef(null);
   const [open, setOpen] = React.useState(false);
@@ -231,9 +246,9 @@ export function PieceViewer({ type, name, detail, fromRect, closing, onClose, on
     if (!canvas || !POSES[type]) return undefined;
     const px = Math.round(size * Math.min(2, window.devicePixelRatio || 1));
     let renderer;
-    try { renderer = makeRenderer(canvas, px, px); } catch (e) { return undefined; }
-    const scene = makeStage(renderer);
-    const { group, radius } = buildModel(type);
+    try { renderer = makeGl(canvas, px, px); } catch (e) { return undefined; }
+    const scene = stage(renderer);
+    const { group, radius } = model(type);
     scene.add(group);
     const camera = new THREE.PerspectiveCamera(28, 1, 0.05, 100);
     aim(camera, radius, START_AZ, START_EL, 1.15);
@@ -275,7 +290,8 @@ export function PieceViewer({ type, name, detail, fromRect, closing, onClose, on
       canvas.removeEventListener("pointermove", move);
       canvas.removeEventListener("pointerup", up);
       canvas.removeEventListener("pointercancel", up);
-      disposeScene(scene);
+      if (keepMaterials) { scene.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.userData && o.userData.ownMaterial && o.material) o.material.dispose(); }); if (scene.environment) scene.environment.dispose(); }
+      else disposeScene(scene);
       renderer.dispose(); renderer.forceContextLoss();
       if (window.__EC_PIECE_VIEWER__ && window.__EC_PIECE_VIEWER__.type === type) delete window.__EC_PIECE_VIEWER__;
     };
@@ -293,8 +309,9 @@ export function PieceViewer({ type, name, detail, fromRect, closing, onClose, on
       onPointerDown: (e) => { e.stopPropagation(); if (e.target === e.currentTarget) onClose && onClose(); },
       onClick: (e) => e.stopPropagation(),
       style: {
+        ...(vars || {}),
         position: "fixed", inset: 0, zIndex: 2300,
-        background: shown ? "rgba(2,6,10,0.42)" : "rgba(2,6,10,0)",
+        background: shown ? sk.backdrop : "transparent",
         backdropFilter: shown ? "blur(9px)" : "blur(0px)",
         WebkitBackdropFilter: shown ? "blur(9px)" : "blur(0px)",
         transition: `background ${ease}, backdrop-filter ${ease}, -webkit-backdrop-filter ${ease}`,
@@ -320,9 +337,10 @@ export function PieceViewer({ type, name, detail, fromRect, closing, onClose, on
           transition: `opacity ${ease}, transform ${ease}`, pointerEvents: "none",
         },
       },
-      h("div", { style: { fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 22, letterSpacing: "0.08em", color: "#dffaff", textShadow: "0 0 18px rgba(77,232,255,0.45)" } }, name.toUpperCase()),
-      detail && h("div", { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, color: "rgba(207,216,220,0.85)", maxWidth: 360, lineHeight: 1.45 } }, detail),
-      h("div", { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.12em", color: "rgba(142,243,255,0.55)", marginTop: 4 } }, "DRAG TO TURN · TAP OUTSIDE TO CLOSE")
+      h("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 6, ...(sk.caption || {}) } },
+        h("div", { "data-testid": "piece-viewer-name", style: sk.title }, name),
+        detail && h("div", { style: { maxWidth: 360, lineHeight: 1.45, ...sk.detail } }, detail),
+        h("div", { style: { marginTop: 4, textTransform: "uppercase", ...sk.hint } }, "Drag to turn \u00b7 tap outside to close"))
     )
   );
 }

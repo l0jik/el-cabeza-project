@@ -8396,3 +8396,27 @@ phone menu until "Start the story over" (which clears it).
   min-width 96px. Every world uses it. Checked with the lettering forced
   wider (the real faces can't load in the sandbox): the word stays inside
   at any width. e2e-gate passes.
+- 3D piece inspection in every setup (user: "I want to have a 3D blow up
+  piece inspections in the setup for every page"). Neon's MATTER menu
+  (piece-showcase.js PieceViewer) and the store's order form
+  (tienda-showcase.js) already had one. PieceViewer now takes another
+  world's piece: model(type) -> { group, radius }, stage(renderer),
+  makeGl(canvas, w, h), keepMaterials (the world's own materials, shared
+  with its board: only geometry let go; a model's own extra materials
+  marked userData.ownMaterial), skin (backdrop, caption box, title,
+  detail, hint) and vars (CSS custom properties on its root); Neon's
+  passes none (its look, unchanged; the title now upper-cased by CSS).
+  reality-gate.js: lookModel(look, type) (the stills' model, now shared:
+  the world's buildPieceVisual, Light's, centred inside a group so it
+  turns about its middle), lookStage (lit as the dock piece), lookRenderer
+  (the stills' plain renderer), LookPieceViewer (the world's look as a
+  caption card in --rg-* colours and type), usePieceInspect(world, look)
+  -> { open(type, name, detail, event), viewer } (portalled to the body:
+  a sheet may move or clip). The Cabeza Nova sheet's pictures are buttons
+  (gate-inspect-<key>): the piece grows out of its picture, turns slowly,
+  turns under a drag, back at a tap outside; name and the row's note.
+  Lluvia's MATTER pictures the same (lluvia-inspect-<type>). Covers every
+  world after the story (Cromo, Parrish, the Lab's ten, the den...) and
+  Lluvia's city; Neon and the store keep theirs. e2e-gate (open, drag
+  turns it, tap outside, sheet still up), e2e-lluvia (open, close),
+  e2e-singularity still passes.

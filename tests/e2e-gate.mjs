@@ -63,6 +63,24 @@ console.log("Cabeza Nova: the one menu");
   check("...each piece pictured, as Cromo draws it (15, each Arco size its own)", !!(await poll(async () => (await p.locator('[data-testid^="gate-pic-"]').count()) === 15, 6000)));
   check("...the Arco Chico, Alto and Ancho each in a row of their own, no size switch", (await p.locator('[data-testid="gate-piece-arcoChico"]').count()) === 1 && (await p.locator('[data-testid="gate-piece-arcoAlto"]').count()) === 1 && (await p.locator('[data-testid="gate-piece-arcoAncho"]').count()) === 1 && (await p.locator('[data-testid^="gate-arco-"]').count()) === 0);
   await p.waitForTimeout(600); await shot(p, "sheet-phone");
+  {
+    // A piece's picture: the piece large, in 3D, as this world draws it
+    // (user: "3D blow up piece inspections in the setup for every page").
+    await p.locator('[data-testid="gate-inspect-hombro"]').scrollIntoViewIfNeeded();
+    await p.locator('[data-testid="gate-inspect-hombro"]').click();
+    const viewer = p.locator('[data-testid="piece-viewer"]');
+    check("a piece's picture opens the piece large, in 3D", !!(await poll(async () => (await viewer.getAttribute("data-state")) === "open", 5000)) && /hombro/i.test(await p.locator('[data-testid="piece-viewer-name"]').innerText()));
+    const yaw = () => p.evaluate(() => window.__EC_PIECE_VIEWER__ && window.__EC_PIECE_VIEWER__.yaw());
+    const box = await p.locator('[data-testid="piece-viewer-canvas"]').boundingBox();
+    const y0 = await yaw();
+    await p.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2); await p.mouse.down();
+    await p.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2, { steps: 6 }); await p.mouse.up();
+    const y1 = await yaw();
+    check(`...a drag turns it (${(y1 - y0).toFixed(2)} rad)`, y1 - y0 > 1);
+    await p.mouse.click(8, 8);
+    check("...a tap outside puts it back", !!(await poll(async () => (await viewer.count()) === 0, 4000)));
+    check("...the sheet still up", (await p.locator('[data-testid="gate-sheet"]').count()) === 1);
+  }
   await p.locator('[data-testid="gate-opponent-human"]').click();
   await p.locator('[data-testid="gate-count-codo-plus"]').click();
   await p.locator('[data-testid="gate-law-slide"]').click();
