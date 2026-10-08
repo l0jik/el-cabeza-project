@@ -92,14 +92,14 @@ import("../themes/rules-selections.js").then(async (m) => {
   check("slides only reaches the engine", m.lawsForEngine(s).shoveOnRolls === false);
   check("...and without Slide it warns that nothing can shove", m.lawWarnings(s).some((w) => w.testid === "shove-needs-slide"));
   s.laws.slide = true;
-  check("...with Slide but 2 points a turn it warns a shoving slide needs 3", m.lawWarnings(s).some((w) => w.testid === "shove-needs-three"));
+  check("...with Slide but 2 actions a turn it warns a shoving slide needs 3", m.lawWarnings(s).some((w) => w.testid === "shove-needs-three"));
   s.laws.threeActions = true;
   check("...which 3 actions per turn clears", !m.lawWarnings(s).some((w) => w.key === "shoving"));
   check("...and the summary says slides only", m.variantsOf(s)[0].items.includes("Shoving (slides only)"));
   s.laws.threeActions = false; s.laws.slide = false;
   s.shove = { onRolls: true };
   s.counts.opa = 1;
-  check("...and with an Opa but 2 points a turn it warns an Opa's shove needs 3", m.lawWarnings(s).some((w) => w.testid === "shove-opa-needs-three"));
+  check("...and with an Opa but 2 actions a turn it warns an Opa's shove needs 3", m.lawWarnings(s).some((w) => w.testid === "shove-opa-needs-three"));
   s.laws.threeActions = true;
   check("...which 3 actions per turn clears", !m.lawWarnings(s).some((w) => w.testid === "shove-opa-needs-three"));
   s.laws.threeActions = false;

@@ -1006,7 +1006,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [dockView, setDockView] = useState(() => (C && C.gameArmed ? "corner" : "piece")); // "piece" | "panel" | "corner"
   /* Points-left counter (user-requested, off by default, remembered per
      browser): a row of dots at the bottom centre showing how many of the
-     current player's action points this turn has left — filled for
+     current player's actions this turn has left — filled for
      left, hollow for spent. Switched from the dock's corner, beside
      Sound. `pointsPulse` bumps when a free detour hands points back (see
      commitRef's turn trail), replaying a short flash on the counter. */
@@ -4906,8 +4906,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             ? "an Opa moves only once per turn"
             : splitOn && movedAfter.length >= maxPiecesPerTurn()
               ? `only ${maxPiecesPerTurn() === 3 ? "three" : "two"} pieces can move per turn`
-              : "no move fits the points left";
-        setUnusedNote({ key: Date.now(), text: `${left} point${left > 1 ? "s" : ""} unused: ${why}` });
+              : "no move fits the actions left";
+        setUnusedNote({ key: Date.now(), text: `${left} action${left > 1 ? "s" : ""} unused: ${why}` });
       }
       settleTurn(move.candidate, notation, stepsNext);
     } else {
@@ -7875,7 +7875,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           <div
             data-testid="points-counter"
             data-left={left}
-            aria-label={`${left} of ${budget} action points left`}
+            aria-label={`${left} of ${budget} actions left`}
             style={{
               position: "fixed",
               left: "50%",
@@ -7906,7 +7906,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
 [data-testid="points-counter"] [data-filled="false"]{background:#2a221d;box-shadow:inset 0 1px 2px rgba(0,0,0,0.8),0 0 0 1.5px rgba(255,244,226,0.28)}
 @media (prefers-reduced-motion: reduce){[data-testid="points-counter"] [data-filled="true"]{animation:none;box-shadow:0 0 0 1.5px color-mix(in srgb,var(--ec-ember) 55%,black),0 0 6px 2px var(--ec-ember),0 0 16px 4px color-mix(in srgb,var(--ec-ember) 50%,transparent)}}`}</style>
             {/* Whose points (user: say whose turn it is, by name). */}
-            <span style={{ opacity: 0.9 }}><span data-testid="points-side">{sideName(player)}</span> · Action points</span>
+            <span style={{ opacity: 0.9 }}><span data-testid="points-side">{sideName(player)}</span> · Actions</span>
             <span key={pointsPulse} style={{ display: "flex", gap: 10, animation: pointsPulse ? "ecPointsRefund 0.6s ease-out" : "none" }}>
               {Array.from({ length: budget }, (_, i) => (
                 <span
@@ -7980,7 +7980,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             }}
           >
             <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.3, marginBottom: 6 }}>
-              You still have {endTurnAsk.left} action point{endTurnAsk.left > 1 ? "s" : ""} left.
+              You still have {endTurnAsk.left} action{endTurnAsk.left > 1 ? "s" : ""} left.
             </div>
             <div style={{ fontSize: 14.5, lineHeight: 1.45, opacity: 0.85, marginBottom: 16 }}>Are you sure you don't want to use {endTurnAsk.left > 1 ? "them" : "it"}?</div>
             <div style={{ display: "flex", gap: 10 }}>
@@ -9100,7 +9100,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             const next = !showPoints;
             setShowPoints(next);
             saveShowPoints(next);
-            showToggleHint(e, next ? "Points left: shown. The dots count the points you have left this turn." : "Points left: hidden.");
+            showToggleHint(e, next ? "Actions left: shown. The dots count the actions you have left this turn." : "Actions left: hidden.");
           }}
           aria-label={showPoints ? "Hide points left" : "Show points left"}
           title={showPoints ? "Hide points left" : "Show points left"}

@@ -33,20 +33,20 @@ export const RULES_TABS = [
 
 // One sentence per law, shared by "This game" and the MOVES tiles.
 export const LAW_TEXT = {
-  splitMovement: { name: "Split Movement, 2 Pieces", text: "Your points can be shared between up to two pieces in one turn." },
-  slide: { name: "Orthogonal Slide", text: "Any piece can move one open square along its row or column (north, south, east or west, not corner to corner) without tipping. A slide costs 2 points." },
-  diagonalSlide: { name: "Diagonal Slide", text: "Any piece can move one open square corner to corner without tipping, for 2 points. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
+  splitMovement: { name: "Split Movement, 2 Pieces", text: "Your actions can be shared between up to two pieces in one turn." },
+  slide: { name: "Orthogonal Slide", text: "Any piece can move one open square along its row or column (north, south, east or west, not corner to corner) without tipping. A slide costs 2 actions." },
+  diagonalSlide: { name: "Diagonal Slide", text: "Any piece can move one open square corner to corner without tipping, for 2 actions. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
   blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends." },
-  cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 point." },
-  threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 action points instead of 2." },
-  splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 points can be shared between up to three pieces in one turn, one point each." },
-  shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra point. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
+  cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 action." },
+  threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 actions instead of 2." },
+  splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 actions can be shared between up to three pieces in one turn, one action each." },
+  shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra action. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
 };
 // Shoving as this game plays it: its one setting says whether rolls shove
 // too (ACTIVE_LAWS.shoveOnRolls, on unless set to slides only).
 export function shovingText(laws = {}) {
   return laws.shoveOnRolls === false
-    ? "Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra point (a shoving slide costs 3), never diagonally. A roll into a piece is blocked. Nothing may be behind them."
+    ? "Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra action (a shoving slide costs 3), never diagonally. A roll into a piece is blocked. Nothing may be behind them."
     : LAW_TEXT.shoving.text;
 }
 
@@ -82,11 +82,11 @@ function QuickCard({ C, budget }) {
   const rows = [
     ["Win", <>Get your <b>Cabeza</b> to the far row, or crush the enemy Cabeza by landing a block on it.</>],
     ["Must", <><b>Move at least 1 piece, 1 time.</b> Skipping your turn is not allowed.</>],
-    ["Turn", <>Spend up to <b>{budget} action points</b> <Dots n={budget} C={C} /> on one piece. You can stop after one move: tap the piece again, or press End turn.</>],
-    ["Blocks", <>Every piece but the Cabeza. Tip over an edge: north, south, east or west. <b>1 point</b> a roll.</>],
+    ["Turn", <>Spend up to <b>{budget} actions</b> <Dots n={budget} C={C} /> on one piece. You can stop after one move: tap the piece again, or press End turn.</>],
+    ["Blocks", <>Every piece but the Cabeza. Tip over an edge: north, south, east or west. <b>1 action</b> a roll.</>],
     // The Opa is a block with its own cost, so it sits indented under Blocks.
-    ["Opa", <>The big cube's move costs <b>2 points</b>, and it moves once per turn.</>, true],
-    ["Cabeza", <>Steps one square in any of 8 directions. <b>1 point</b>. It can't crush.</>],
+    ["Opa", <>The big cube's move costs <b>2 actions</b>, and it moves once per turn.</>, true],
+    ["Cabeza", <>Steps one square in any of 8 directions. <b>1 action</b>. It can't crush.</>],
     ["Free", <>Moving back to where you already were this turn costs nothing.</>],
   ];
   return (
@@ -120,7 +120,7 @@ function CostsCard({ C, classic }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontFamily: mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", border: `1px solid ${C.slateSoft}`, background: C.slateFaint, padding: "8px 10px" }}>
-        <span>Points per turn</span>
+        <span>Actions per turn</span>
         <span>2{!classic && <span style={{ color: C.slate }}> · 3 with 3 Actions</span>}</span>
       </div>
       <div>
@@ -138,7 +138,7 @@ function CostsCard({ C, classic }) {
         ))}
       </div>
       <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: C.slate, textAlign: "center" }}>
-        {classic ? "Points don't carry over" : "Anything costing 3 needs 3 Actions · points don't carry over"}
+        {classic ? "Actions don't carry over" : "Anything costing 3 needs 3 Actions · actions don't carry over"}
       </div>
     </div>
   );
@@ -321,7 +321,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "opa", title: "Opa", cost: <Dots n={2} C={C} />, text: "The big cube covers four squares and rolls two squares at once. Its move costs 2 points, and it moves only once per turn.",
+      key: "opa", title: "Opa", cost: <Dots n={2} C={C} />, text: "The big cube covers four squares and rolls two squares at once. Its move costs 2 actions, and it moves only once per turn.",
       svg: (
         <>
           {panels}
@@ -359,7 +359,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "free", title: "Free way back", cost: <span style={{ color: C.slate }}>free</span>, text: "Change your mind: moving back to where you already were this turn gives the points back.",
+      key: "free", title: "Free way back", cost: <span style={{ color: C.slate }}>free</span>, text: "Change your mind: moving back to where you already were this turn gives the actions back.",
       svg: (
         <>
           {panels}
@@ -387,7 +387,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "slide", law: "slide", title: "Orthogonal Slide", cost: <Dots n={2} C={C} />, text: "Any piece glides one square along its row or column (north, south, east or west, not corner to corner) without tipping, so a lying Flaco stays lying down (a roll would stand it up). Costs 2 points.",
+      key: "slide", law: "slide", title: "Orthogonal Slide", cost: <Dots n={2} C={C} />, text: "Any piece glides one square along its row or column (north, south, east or west, not corner to corner) without tipping, so a lying Flaco stays lying down (a roll would stand it up). Costs 2 actions.",
       svg: (
         <>
           {grid()}
@@ -406,7 +406,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "shoving", law: "shoving", title: "Shove", cost: <Dots n={1} C={C} plus />, text: "Rolling or sliding into pieces with fewer cubes, all together, pushes them along, for 1 extra point: a slide one square, a roll just past where it lands. Never diagonally. Anything behind them blocks. Set to slides only, a roll can't shove.",
+      key: "shoving", law: "shoving", title: "Shove", cost: <Dots n={1} C={C} plus />, text: "Rolling or sliding into pieces with fewer cubes, all together, pushes them along, for 1 extra action: a slide one square, a roll just past where it lands. Never diagonally. Anything behind them blocks. Set to slides only, a roll can't shove.",
       svg: (
         <>
           {grid()}
@@ -478,7 +478,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "splitMovement", law: "splitMovement", title: "Split Movement, 2 Pieces", cost: null, text: "Your points can be shared between up to two pieces. Here a Turrito rolls for 1 point, then a lying Flaco rolls over its long side, one square, and stays lying down, for the other. With Split Movement, 3 Pieces (and 3 actions), up to three pieces, a point each.",
+      key: "splitMovement", law: "splitMovement", title: "Split Movement, 2 Pieces", cost: null, text: "Your actions can be shared between up to two pieces. Here a Turrito rolls for 1 action, then a lying Flaco rolls over its long side, one square, and stays lying down, for the other. With Split Movement, 3 Pieces (and 3 actions), up to three pieces, an action each.",
       svg: (
         <>
           {panels}
@@ -659,10 +659,10 @@ function TurnCard({ C, budget, classic }) {
     <><b>You must move at least 1 piece, 1 time.</b> Skipping your turn is not allowed.</>,
     classic ? <>Pick <b>one piece</b>.</> : <>Pick <b>one piece</b>. (With Split Movement, 2 Pieces, up to two.)</>,
     classic
-      ? <>Spend your points <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, an Opa move is 2.</>
-      : <>Spend your points <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, a slide or any Opa move is 2, a pivot 1, a shove 1 more.</>,
-    <>Changed your mind? Moving back to where you were this turn gives the points back.</>,
-    <>The turn ends when the points run out, when nothing left can use them, or when you stop early after your first move: tap the piece again, or press End turn.</>,
+      ? <>Spend your actions <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, an Opa move is 2.</>
+      : <>Spend your actions <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, a slide or any Opa move is 2, a pivot 1, a shove 1 more.</>,
+    <>Changed your mind? Moving back to where you were this turn gives the actions back.</>,
+    <>The turn ends when the actions run out, when nothing left can use them, or when you stop early after your first move: tap the piece again, or press End turn.</>,
   ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -677,8 +677,8 @@ function TurnCard({ C, budget, classic }) {
       <div style={{ fontSize: 13, borderLeft: `2px solid ${C.accentLight || C.slate}`, padding: "8px 10px", background: C.slateFaint }}>
         <b style={{ color: C.accentLight || C.charcoal }}>Example:</b>{" "}
         {classic
-          ? "an Opa roll spends both your points, so it's the turn's one move. A Turrito could roll twice instead."
-          : "with 3 Actions, an Opa roll spends 2. The last point goes unused, because an Opa moves only once per turn. (With Split Movement, another piece could use it.)"}
+          ? "an Opa roll spends both your actions, so it's the turn's one move. A Turrito could roll twice instead."
+          : "with 3 Actions, an Opa roll spends 2. The last action goes unused, because an Opa moves only once per turn. (With Split Movement, another piece could use it.)"}
       </div>
     </div>
   );
@@ -735,44 +735,44 @@ export function RulesCard({ tab, focus, onFocus, C, budget, game, classic = fals
 const CRUSH = "Land on the enemy Cabeza to crush it.";
 const CUBE_CRUSH = "It crushes only with a cube that comes down on the Cabeza.";
 const PIECE_TEXT = {
-  cabeza: ["Steps one square in any of 8 directions, 1 point a step. It never crushes. Reach the far row to win.", "cabeza"],
-  turrito: ["Rolls one square north, south, east or west, 1 point a roll. " + CRUSH, "roll"],
-  opa: ["The big cube rolls two squares at once. Its move costs 2 points, once per turn. " + CRUSH, "opa"],
-  chato: ["Rolls over one edge into the next squares, 1 point a roll. " + CRUSH, "roll"],
-  block1x3: ["Rolls over one edge, 1 point a roll. Standing on one square, it can enter a black hole. " + CRUSH, "roll"],
-  block2x3: ["Rolls over one edge, 1 point a roll. " + CRUSH, "roll"],
-  codo: ["Three cubes in an L. Rolls for 1 point; its overhang can shelter a Cabeza. " + CUBE_CRUSH, "shelter"],
-  arcoChico: ["An arch. Rolls for 1 point; a Cabeza in its opening is sheltered. " + CUBE_CRUSH, "shelter"],
-  arcoAlto: ["A tall arch. Rolls for 1 point; a Cabeza in its opening is sheltered. " + CUBE_CRUSH, "shelter"],
-  arcoAncho: ["A wide arch. Rolls for 1 point; a Cabeza in its opening is sheltered. " + CUBE_CRUSH, "shelter"],
-  rayo: ["Four cubes in an S. Rolls for 1 point. " + CUBE_CRUSH, "roll"],
-  zeta: ["Five cubes in a Z. Rolls for 1 point. " + CUBE_CRUSH, "roll"],
-  hombro: ["Four cubes: a Codo with one standing on its corner. Rolls for 1 point. " + CUBE_CRUSH, "roll"],
-  cruce: ["Four cubes in a T. Rolls for 1 point. " + CUBE_CRUSH, "roll"],
+  cabeza: ["Steps one square in any of 8 directions, 1 action a step. It never crushes. Reach the far row to win.", "cabeza"],
+  turrito: ["Rolls one square north, south, east or west, 1 action a roll. " + CRUSH, "roll"],
+  opa: ["The big cube rolls two squares at once. Its move costs 2 actions, once per turn. " + CRUSH, "opa"],
+  chato: ["Rolls over one edge into the next squares, 1 action a roll. " + CRUSH, "roll"],
+  block1x3: ["Rolls over one edge, 1 action a roll. Standing on one square, it can enter a black hole. " + CRUSH, "roll"],
+  block2x3: ["Rolls over one edge, 1 action a roll. " + CRUSH, "roll"],
+  codo: ["Three cubes in an L. Rolls for 1 action; its overhang can shelter a Cabeza. " + CUBE_CRUSH, "shelter"],
+  arcoChico: ["An arch. Rolls for 1 action; a Cabeza in its opening is sheltered. " + CUBE_CRUSH, "shelter"],
+  arcoAlto: ["A tall arch. Rolls for 1 action; a Cabeza in its opening is sheltered. " + CUBE_CRUSH, "shelter"],
+  arcoAncho: ["A wide arch. Rolls for 1 action; a Cabeza in its opening is sheltered. " + CUBE_CRUSH, "shelter"],
+  rayo: ["Four cubes in an S. Rolls for 1 action. " + CUBE_CRUSH, "roll"],
+  zeta: ["Five cubes in a Z. Rolls for 1 action. " + CUBE_CRUSH, "roll"],
+  hombro: ["Four cubes: a Codo with one standing on its corner. Rolls for 1 action. " + CUBE_CRUSH, "roll"],
+  cruce: ["Four cubes in a T. Rolls for 1 action. " + CUBE_CRUSH, "roll"],
 };
 const PIVOTERS = ["codo", "hombro", "cruce", "rayo", "zeta"];
 
 export function pieceCardInfo(piece, laws = {}, name = piece.type) {
-  let [text, tile] = PIECE_TEXT[piece.type] || ["Rolls over one edge, 1 point a roll. " + CRUSH, "roll"];
+  let [text, tile] = PIECE_TEXT[piece.type] || ["Rolls over one edge, 1 action a roll. " + CRUSH, "roll"];
   if (piece.type === "flaco") {
     const standing = piece.z > 1;
     text = standing
-      ? "Standing, it tips over and lands lying across the next two squares, 1 point. " + CRUSH
-      : "Lying down, it rolls one square, 1 point; rolled along its length it stands back up. " + CRUSH;
+      ? "Standing, it tips over and lands lying across the next two squares, 1 action. " + CRUSH
+      : "Lying down, it rolls one square, 1 action; rolled along its length it stands back up. " + CRUSH;
     tile = "flaco";
   }
   const extra = [];
   if ((laws.slide || laws.diagonalSlide) && piece.type !== "cabeza") {
     const way = laws.slide ? (laws.diagonalSlide ? " one square, diagonals too," : " one square") : " one square corner to corner";
     extra.push(piece.type === "opa"
-      ? `It can also slide${way}, still 2 points.`
-      : `Or slide${way} without tipping, 2 points.`);
+      ? `It can also slide${way}, still 2 actions.`
+      : `Or slide${way} without tipping, 2 actions.`);
   }
-  if (laws.cantileverPivot && PIVOTERS.includes(piece.type)) extra.push("Or pivot a quarter turn on one cube, 1 point.");
+  if (laws.cantileverPivot && PIVOTERS.includes(piece.type)) extra.push("Or pivot a quarter turn on one cube, 1 action.");
   if (laws.shoving && piece.type !== "cabeza") {
     extra.push(laws.shoveOnRolls === false
-      ? (laws.slide ? "Sliding into lighter pieces (fewer cubes, all together) shoves them one square, 1 point more." : "")
-      : "Rolling or sliding into lighter pieces (fewer cubes, all together) shoves them along, 1 point more.");
+      ? (laws.slide ? "Sliding into lighter pieces (fewer cubes, all together) shoves them one square, 1 action more." : "")
+      : "Rolling or sliding into lighter pieces (fewer cubes, all together) shoves them along, 1 action more.");
   }
   return { name, text: [text, ...extra.filter(Boolean)].join(" "), tile };
 }

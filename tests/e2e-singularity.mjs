@@ -795,7 +795,7 @@ if (state.activeCategory === "laws") {
   state = await sphereState();
   check("...and back to slides and rolls", state.selections.shove.onRolls === true && (await page.locator('[data-testid="shove-needs-slide"]').count()) === 0);
   if ((state.selections.matter.roster.opa || 0) > 0 && !state.selections.laws.threeActions) {
-    check("with an Opa and 2 points a turn it says an Opa's shove needs 3",
+    check("with an Opa and 2 actions a turn it says an Opa's shove needs 3",
       (await page.locator('[data-testid="shove-opa-needs-three"]').count()) === 1);
     await page.locator('[data-testid="law-threeActions"]').click();
     await page.waitForTimeout(150);

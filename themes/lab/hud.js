@@ -1,7 +1,7 @@
 /* Theme Lab: the in-game read-out every direction composes its own way.
 
    One component, one piece of markup: the theme id, the turn number,
-   whose move it is, the numbers (the theme's name, moves, points spent,
+   whose move it is, the numbers (the theme's name, moves, actions spent,
    the AI's level, time), the last few moves, and how the game ended. The
    ten stylesheets (themes/lab/css.js) turn the same markup into a Swiss
    column, a Bauhaus set of forms, a Mondrian grid, a tilted
@@ -148,7 +148,7 @@ export function LabHud({ spec, x }) {
   const stats = [
     ["Theme", spec.name, "wide"],
     ["Moves", pad2(game.log.length)],
-    ["Points", setup ? "—" : `${game.stepsUsed}/${game.turnBudget}`],
+    ["Actions", setup ? "—" : `${game.stepsUsed}/${game.turnBudget}`],
     ["AI", game.aiLevel || "Off"],
     ["Time", clock(elapsed)],
   ];

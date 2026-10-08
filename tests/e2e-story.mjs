@@ -91,11 +91,11 @@ console.log("\ndesktop: the store, the purchase, home");
   await page.mouse.click(1200, 700); await page.waitForTimeout(250);
   await page.mouse.click(30, 700); await page.waitForTimeout(500);
   check("taps that miss bring no story card (user: not needed)", !(await page.locator(".td-story-hint").count()) && (await has(page, "tienda-lid")));
-  check("the full-screen switch sits over the lid, the other corner buttons hidden", await page.evaluate(() => {
-    const t = document.querySelector("[data-fullscreen-toggle]"); if (!t) return false;
-    const r = t.getBoundingClientRect(); const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    const how = document.querySelector('[data-testid="how-to-play"]');
-    return !!el && t.contains(el) && (!how || getComputedStyle(how).visibility === "hidden");
+  // (No full-screen switch over the lid, user: a brand-new game goes full
+  // screen at its first tap, so it isn't needed there.)
+  check("over the lid, no full-screen switch and no other corner buttons", await page.evaluate(() => {
+    const hidden = (el) => !el || getComputedStyle(el).visibility === "hidden";
+    return hidden(document.querySelector("[data-fullscreen-toggle]")) && hidden(document.querySelector('[data-testid="how-to-play"]'));
   }));
   await q(page, "tienda-open-box").click();
   check("Open the box: the lid off", await poll(async () => !(await has(page, "tienda-lid")), 8000));
@@ -162,6 +162,13 @@ console.log("\ndesktop: the store, the purchase, home");
   check(`black, and "${caption}"`, caption === "Later, at home.");
   const arrived = await throughCut(page, "home");
   check("...then the den", arrived.gone && arrived.there, JSON.stringify(arrived));
+  // Its first look (user's screenshot: "the perspective they should see
+  // their den when that scene first opens"): the Room view from above the
+  // near side, over the coffee table to the stereo wall, the set at the edge.
+  const firstLook = await page.evaluate(() => window.__EC_TEST_CAM__ && window.__EC_TEST_CAM__());
+  check(`...opening on the den's first look, the Room view over the table (${JSON.stringify(firstLook)})`, !!firstLook && firstLook.dollhouse
+    && Math.abs(firstLook.theta - 3.1241) < 0.01 && Math.abs(firstLook.phi - 1.134) < 0.01 && Math.abs(firstLook.radius - 123.5) < 1
+    && Math.abs(firstLook.target[0] - 0.7) < 1 && Math.abs(firstLook.target[1] - 30) < 1 && Math.abs(firstLook.target[2] + 11.97) < 1);
 
   // Home: everything.
   check("no lid at home", !(await has(page, "tienda-lid")));

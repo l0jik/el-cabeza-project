@@ -547,16 +547,16 @@ const DEFAULT_BOARD_DIM = 10; // matches the engine's fixed board before any TOP
 // LAWS — the independent toggles from SINGULARITY_DESIGN.md's Part 2,
 // plus Diagonal Slide (a modifier on Slide).
 const LAWS_ITEMS = [
-  { key: "splitMovement", label: "Split Movement, 2 Pieces", blurb: "Split a turn's points between up to two pieces instead of one." },
+  { key: "splitMovement", label: "Split Movement, 2 Pieces", blurb: "Split a turn's actions between up to two pieces instead of one." },
   // (User: a three-piece limit as its own choice, one Split Movement or
   // the other; it brings 3 Actions, a point a piece.)
-  { key: "splitThree", label: "Split Movement, 3 Pieces", blurb: "Split a turn's 3 points between up to three pieces, one point each. Brings 3 Actions Per Turn." },
-  { key: "slide", label: "Orthogonal Slide", blurb: "Move a piece one open square along its row or column (north, south, east or west, not corner to corner) without tipping it. Costs 2 points (a roll costs 1)." },
-  { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Move a piece one open square corner to corner without tipping it. Costs 2 points. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
+  { key: "splitThree", label: "Split Movement, 3 Pieces", blurb: "Split a turn's 3 actions between up to three pieces, one action each. Brings 3 Actions Per Turn." },
+  { key: "slide", label: "Orthogonal Slide", blurb: "Move a piece one open square along its row or column (north, south, east or west, not corner to corner) without tipping it. Costs 2 actions (a roll costs 1)." },
+  { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Move a piece one open square corner to corner without tipping it. Costs 2 actions. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
   { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
-  { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Hombro, Cruce, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 point." },
-  { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 action points per turn instead of 2." },
-  { key: "shoving", label: "Shoving", blurb: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal Slide. Anything behind them blocks. Costs 1 extra point. Choose whether rolls shove too, or only slides." },
+  { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Hombro, Cruce, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 action." },
+  { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 actions per turn instead of 2." },
+  { key: "shoving", label: "Shoving", blurb: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal Slide. Anything behind them blocks. Costs 1 extra action. Choose whether rolls shove too, or only slides." },
 ];
 
 // The Shoving law's one game-start setting (selections.shove), shown under
@@ -617,7 +617,7 @@ const MATTER_ROSTER = [
   { key: "turrito", label: "Turrito", min: 0, max: 4, default: 1, icon: "turrito", view: "turrito", detail: "1 cube. Rolls one square." },
   { key: "flaco", label: "Flaco", min: 0, max: 4, default: 1, icon: "flaco", view: "flaco", detail: "2 cubes long. Tips up to stand, and back down." },
   { key: "chato", label: "Chato", min: 0, max: 4, default: 1, icon: "chato", view: "chato", detail: "A 1×2 slab, 2 tall." },
-  { key: "opa", label: "Opa", min: 0, max: 4, default: 1, icon: "opa", view: "opa", detail: "The big 2×2×2 cube. Rolls two squares; 2 points." },
+  { key: "opa", label: "Opa", min: 0, max: 4, default: 1, icon: "opa", view: "opa", detail: "The big 2×2×2 cube. Rolls two squares; 2 actions." },
   { key: "block1x3", label: "1×3 Block", min: 0, max: 4, default: 0, icon: "block1x3", view: "block1x3", detail: "3 cubes in a row." },
   { key: "block2x3", label: "2×3 Block", min: 0, max: 4, default: 0, icon: "block2x3", view: "block2x3", detail: "A 2×3 slab of 6 cubes." },
   // The Arco (an arch — see engine/constants.js), in each of its three
@@ -2191,12 +2191,12 @@ function lawWarning(key, sel) {
       // Every Opa move costs 2 and a shove 1 more, so an Opa's shove is 3.
       const opas = (sel.matter && sel.matter.roster && sel.matter.roster.opa) || 0;
       if (opas > 0 && !laws.threeActions)
-        return { testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 points, so Opas can only shove with 3 Actions Per Turn." };
+        return { testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 actions, so Opas can only shove with 3 Actions Per Turn." };
       return null;
     }
     // Slides only: nothing shoves without Slide, and a shoving slide costs 3.
     if (!laws.slide) return { testid: "shove-needs-slide", text: "SLIDES ONLY requires Orthogonal Slide. Turn it on, or choose SLIDES AND ROLLS." };
-    if (!laws.threeActions) return { testid: "shove-needs-three", text: "A shoving slide costs 3 points, so SLIDES ONLY requires 3 Actions Per Turn. Turn it on, or choose SLIDES AND ROLLS." };
+    if (!laws.threeActions) return { testid: "shove-needs-three", text: "A shoving slide costs 3 actions, so SLIDES ONLY requires 3 Actions Per Turn. Turn it on, or choose SLIDES AND ROLLS." };
   }
   return null;
 }
@@ -2263,7 +2263,7 @@ function renderShoveSettingsRow(t) {
     h(
       "div",
       { style: { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, color: "rgba(207,216,220,0.68)", lineHeight: 1.45 } },
-      "A shove adds 1 point: a shoving roll costs 2, a shoving slide 3, and an Opa shove 3 (its move already costs 2). Anything costing 3 needs 3 Actions Per Turn."
+      "A shove adds 1 action: a shoving roll costs 2, a shoving slide 3, and an Opa shove 3 (its move already costs 2). Anything costing 3 needs 3 Actions Per Turn."
     )
   );
 }

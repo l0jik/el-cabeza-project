@@ -568,7 +568,7 @@ function PlayPanel({ ctl, t }) {
           <span
             data-testid="shell-points"
             data-left={ctl.points.left}
-            aria-label={`${ctl.points.left} of ${ctl.points.budget} action points left`}
+            aria-label={`${ctl.points.left} of ${ctl.points.budget} actions left`}
             key={ctl.pointsPulse}
             style={{ display: "flex", gap: 8, flexShrink: 0, animation: ctl.pointsPulse ? "ec-shell-points 0.6s ease-out" : "none", ["--ec-ember"]: ctl.points.glow || accent || t.ink }}
           >
@@ -781,7 +781,7 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
             )}
             {/* A theme with a stereo (the den): its music panel. */}
             {ctl.music && <Row label="Choose music" detail={ctl.music.hint} testid="shell-menu-music" onClick={run(ctl.onOpenMusic)} chevron t={t} />}
-            <Toggle label="Points left" hint="Dots for the turn's action points" testid="shell-menu-points" on={ctl.showPoints} onChange={ctl.onTogglePoints} t={t} />
+            <Toggle label="Actions left" hint="Dots for the turn's actions" testid="shell-menu-points" on={ctl.showPoints} onChange={ctl.onTogglePoints} t={t} />
             <Toggle label="Piece guide" hint="What the chosen piece does, and tips on what to tap" testid="shell-menu-guide" on={ctl.showGuide !== false} onChange={ctl.onToggleGuide} t={t} />
             {ctl.costsToggle && <Toggle label="Move costs on the board" testid="shell-menu-costs" on={ctl.showCosts} onChange={ctl.onToggleCosts} t={t} />}
           </Section>

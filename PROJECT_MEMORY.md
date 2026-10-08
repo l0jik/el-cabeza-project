@@ -7970,3 +7970,42 @@ phone menu until "Start the story over" (which clears it).
   e2e-den-spot walks through it (dark and on the board, the thought, the
   set on by itself with the camera going over, the commercial, the
   thought gone).
+- The den's first look, the first time home from Big Glutts (user, with
+  a phone screenshot: "the perspective they should see their den when
+  that scene first opens"): the Room view from above the near side, over
+  the coffee table (its board at the foot of the screen) and the sofa to
+  the stereo wall and its painting, the set at the right edge. Fitted to
+  the screenshot (1080x2400, a 412x915 phone): the table's and board's
+  corners gave the camera (80 up, 101 back, 24 degrees down, within 3 px),
+  then an image match in the game's own Room view settled it: theta
+  3.1241, phi 1.134, radius 123.5, target (0.7, 30, -11.97), dollhouse.
+  (The chassis keeps its camera on +z of the target and turns the board
+  group by -theta, so the target is in the turned frame; target y 30 is
+  the den's freeCamera.yMax, radius within its zoomMax 140, so the user
+  reached it by hand.) den-fx.js OPENING / opening(): on the first tick
+  (after the chassis's setup fit) while the set's still to be noticed
+  (lure, not returning), marked placed so the fit leaves it; Begin Game
+  goes top-down as ever and the Room view lets go by itself. e2e-story
+  checks it after the purchase cut.
+- A brand-new game's first screen (the lid, "Open the box"): no
+  full-screen switch (user: it goes full screen by default, so it's
+  unnecessary there). A tap anywhere there already takes the page full
+  screen where the browser allows (not an iPhone: no Fullscreen API for
+  pages); STORY_CSS hides the switch while the lid is up (it had been left
+  over the lid, at the user's earlier asking); the clerk's scene keeps its
+  faint one. e2e-story checks it.
+- "Action points" are "actions" everywhere (user: "the word points is
+  unnecessary, so have it removed from all instances"): the turn line
+  ("WALNUT · ACTIONS"), the end-turn question ("You still have 1 action
+  left."), the unused note ("1 action unused: ..."), the Points left
+  switch and its hint (now Actions left), the rules cards (Actions per
+  turn, "costs 2 actions", "1 action a roll", "gives the actions back"),
+  the rules menus' notes and warnings (store order form, Singularity),
+  the phone menu, the Lab's readout (Actions 1/2), the aria labels. Test
+  ids and code names (points-counter, shell-points, showPoints) as they
+  were; tests matched on the words updated.
+- The order form's warnings: the pointing hand (☞) was a speck (user:
+  "way too small... not legible"): Courier Prime has no ☞, so a phone drew
+  it from a fallback at 12.5px bold. Now its own span (.td-warn-hand):
+  Noto Sans Symbols 2 (only that glyph fetched, Google Fonts text=), 30px,
+  not bold, the words beside it (the warning a flex row).

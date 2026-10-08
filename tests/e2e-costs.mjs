@@ -53,7 +53,7 @@ for (const theme of ["neon", "standard"]) {
   check("each roll costs 1", b.length > 0 && b.every((x) => x.text === "1"), JSON.stringify(b));
   const card = page.locator('[data-testid="piece-card"]');
   check("the piece card names the selected piece", (await card.count()) === 1 && /Turrito/.test(await card.innerText()), await card.count() ? await card.innerText() : "none");
-  check("...and says how it moves and what it costs", /rolls one square.*1 point/i.test(await page.locator('[data-testid="piece-card-text"]').innerText()));
+  check("...and says how it moves and what it costs", /rolls one square.*1 action/i.test(await page.locator('[data-testid="piece-card-text"]').innerText()));
   await page.screenshot({ path: `/tmp/e2e-costs-${theme}-1.png` });
   // The in-game menu switches the cost badges off and on (and
   // remembers it), in every theme.
@@ -153,7 +153,7 @@ for (const theme of ["neon", "standard"]) {
   await page.waitForTimeout(500);
   // (A first game, points left: it asks first, user.)
   const ask = page.locator('[data-testid="end-turn-ask"]');
-  check("...points left, a first game: it asks first", (await ask.count()) === 1 && /1 action point left/i.test(await ask.innerText()));
+  check("...actions left, a first game: it asks first", (await ask.count()) === 1 && /1 action left/i.test(await ask.innerText()));
   await page.locator('[data-testid="end-turn-ask-keep"]').click();
   await page.waitForTimeout(400);
   check("...Keep playing: still this turn", (await ask.count()) === 0 && /Photon/i.test(await page.locator('[data-testid="points-side"]').innerText()));

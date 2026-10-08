@@ -83,7 +83,7 @@ const same = (a, b) => a && a.row === b.row && a.col === b.col && a.w === b.w &&
   }
   check("selecting the balanced Codo shows a curved arrow only for the way it can turn", !arrows.cw && !!arrows.ccw, JSON.stringify(arrows));
   const pivotBadge = (await page.evaluate(() => window.__EC_TEST_COST_BADGES__())).find((b) => b.dir === "pivot-ccw");
-  check("the pivot arrow carries a cost badge (1 point)", pivotBadge && pivotBadge.text === "1", JSON.stringify(pivotBadge));
+  check("the pivot arrow carries a cost badge (1 action)", pivotBadge && pivotBadge.text === "1", JSON.stringify(pivotBadge));
   await page.screenshot({ path: "/tmp/e2e-pivot-arrow.png" });
   if (arrows.ccw) await page.mouse.click(arrows.ccw.x, arrows.ccw.y);
   await page.waitForTimeout(400);

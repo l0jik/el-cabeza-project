@@ -93,7 +93,7 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(2200);
   const status = await q(page, "shell-status").textContent();
   check("the status says whose turn it is", /to move/i.test(status), status);
-  check("two action points shown", (await page.locator('[data-testid="shell-points"] [data-filled="true"]').count()) === 2);
+  check("two actions shown", (await page.locator('[data-testid="shell-points"] [data-filled="true"]').count()) === 2);
 
   // Board framed between the bars, and large
   const frame = await page.evaluate(() => {
@@ -145,7 +145,7 @@ async function waitFor(fn, ms = 8000) {
   check("the move log has a move", !(await q(page, "shell-menu-movelog").isDisabled()));
   await q(page, "shell-menu-points").click();
   await page.waitForTimeout(200);
-  check("Points left switches off", (await q(page, "shell-menu-points").getAttribute("aria-checked")) === "false");
+  check("Actions left switches off", (await q(page, "shell-menu-points").getAttribute("aria-checked")) === "false");
   // All sounds is a slider at home (the den's channels under it): all the
   // way left is off, and back up again.
   await q(page, "shell-menu-sound").fill("0");

@@ -972,6 +972,30 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     const lure = !!(novaTv && novaTv.lure && novaTv.lure()) && preview !== "commercial";
     const LURE_WAIT = 25000, LURE_RAMP = 60000;
     let lureStart = 0, lureDone = false, lureLook = false, tvHint = null, lookSwallow = null;
+    /* The first time home from Big Glutts, while the set's still to be
+       noticed (user, with a screenshot from a phone: "the perspective they
+       should see their den when that scene first opens"): the Room view
+       from above the near side, the coffee table and its board at the
+       foot of the screen, the sofa, the stereo wall and its painting, the
+       set at the right edge. Fitted to the screenshot; inside the den's
+       own limits (target height at yMax). Set on the first frame, after
+       the chassis's setup fit, and marked placed so the fit leaves it;
+       Begin Game (top-down), a view button or a drag takes it from
+       there. */
+    const OPENING = { theta: 3.1241, phi: 1.134, radius: 123.5, target: [0.7, 30, -11.97] };
+    let openingDue = lure && !returning;
+    function opening() {
+      if (!openingDue) return;
+      openingDue = false;
+      if (!cam || !cam.current || !cam.current.target) return;
+      const c = cam.current, [x, y, z] = OPENING.target;
+      c.dollhouse = true; c.placed = true;
+      c.theta = OPENING.theta; c.phi = OPENING.phi; c.radius = OPENING.radius; c.target.set(x, y, z);
+      if (c.view) {
+        c.view.theta = c.theta; c.view.phi = c.phi; c.view.radius = c.radius;
+        if (c.view.target) c.view.target.set(x, y, z);
+      }
+    }
     /* And three times in all, for an instant, the Singularity itself on the
        dead tube (the commercial's subliminal frame): once a while after it
        starts stirring, and, once the camera's come over, soon after, then
@@ -1244,6 +1268,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       restart() {},
       tick(now) {
         if (!attach()) return;
+        opening();
         const t = three.current;
         govern(now);
         woodSet.followGrain(t);

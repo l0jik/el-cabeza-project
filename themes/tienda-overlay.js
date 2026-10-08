@@ -443,10 +443,11 @@ export function useSetupExtras(x) {
   }, [specialNote, dismissSpecialNote]);
   /* The story's first moment (Nova, the box lid on the store's counter):
      "Open the box" is the lid's only button and the only thing that takes
-     a tap, besides the corner's full-screen switch (user); it's plain,
-     not dimmed or lit. Every other tap, drag, wheel and key is stopped at
-     the window. (A tap anywhere still takes the page full screen, and the
-     corner's switch sits over the lid, user.) */
+     a tap; it's plain, not dimmed or lit. Every other tap, drag, wheel and
+     key is stopped at the window. A tap anywhere takes the page full
+     screen, where the browser can (not an iPhone's), so the corner's
+     full-screen switch is hidden here (user: on a brand-new game's first
+     screen it's unnecessary; STORY_CSS). */
   const lidLocked = store && !!story && overlay === "lid";
   React.useEffect(() => {
     if (!lidLocked) return undefined;
@@ -802,6 +803,7 @@ function renderOverlaysHere(x) {
 /* ------------------------------------------------------------ shared look */
 
 const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&text=%E2%98%9E&display=swap');
   .td-layer { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center;
     padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
     background: rgba(26,18,11,0.62); overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
@@ -1031,7 +1033,12 @@ const MORE_CSS = `
   .td-info { display: inline-block; margin-top: 4px; padding: 6px 0; min-height: 32px; border: none; background: transparent; color: ${RED};
     font: 700 12px/1.2 ${COURIER}; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
   .td-info:focus-visible { outline: 3px solid ${RED}; outline-offset: 2px; }
-  .td-warn { margin: 0 0 6px 44px; padding: 6px 10px; font: 700 12.5px/1.4 ${COURIER}; color: ${RED}; border-left: 2px solid ${RED}; background: rgba(163,63,51,0.06); }
+  .td-warn { display: flex; align-items: center; gap: 10px; margin: 0 0 6px 44px; padding: 6px 10px; font: 700 12.5px/1.4 ${COURIER}; color: ${RED}; border-left: 2px solid ${RED}; background: rgba(163,63,51,0.06); }
+  /* Its pointing hand (user: far too small to read; Courier has none, so a
+     phone drew a speck from whatever font it found): a symbol face that
+     draws it whole (just that glyph fetched), at over twice the line, not
+     bold (made bold it smudges); the words beside it, not under it. */
+  .td-warn-hand { flex: none; font: 400 30px/1 'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Apple Symbols', 'DejaVu Sans', sans-serif; }
   .td-diagram-mark { position: absolute; display: flex; align-items: center; justify-content: center; font: 700 10px/1 ${COURIER}; font-style: normal; color: #1F3A6B;
     background: rgba(239,230,205,0.8); }
   .td-opponent .td-dim { border-bottom: none; }
@@ -1052,7 +1059,8 @@ const STORY_CSS = `
   body:has(.td-clerk-layer) [data-testid="focus-corner"] { visibility: hidden !important; pointer-events: none !important; }
   body:has([data-testid="tienda-lid"]) [data-testid="room-view-corner"], body:has([data-testid="tienda-lid"]) [data-testid="how-to-play"],
   body:has([data-testid="tienda-lid"]) [data-testid="focus-corner"], body:has([data-testid="tienda-lid"]) [data-testid="action-corner"] { visibility: hidden !important; pointer-events: none !important; }
-  body:has(.td-clerk-layer) [data-fullscreen-toggle], body:has([data-testid="tienda-lid"]) [data-fullscreen-toggle] { opacity: 0.28 !important; }
+  body:has(.td-clerk-layer) [data-fullscreen-toggle] { opacity: 0.28 !important; }
+  body:has([data-testid="tienda-lid"]) [data-fullscreen-toggle] { visibility: hidden !important; pointer-events: none !important; }
   .td-row-look { grid-template-columns: 64px 5.2em minmax(0, 1fr) 4em; }
   .td-clerk-layer { cursor: pointer; }
   .td-clerk { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: default; animation: tdClerkIn 0.4s ease both;
@@ -1599,7 +1607,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const warnFor = (key) => warnings.filter((w) => w.key === key).map((w) => h("div", {
     key: w.testid, className: "td-warn", role: "status", "data-testid": w.testid,
     ...(w.key === "cantileverPivot" ? { onClick: showPivots, style: { cursor: "pointer" }, title: "Show me" } : {}),
-  }, h("span", { "aria-hidden": "true" }, "☞ "), w.text));
+  }, h("span", { className: "td-warn-hand", "aria-hidden": "true" }, "☞"), h("span", null, w.text)));
   const spotsLine = (list, mark) => (list.length ? list.map((p) => `${mark} row ${p.row + 1}, col ${p.col + 1}${p.random ? " (random)" : ""}`).join(" · ") : "none yet");
 
   const lawRows = LAW_OPTIONS.flatMap((l) => {

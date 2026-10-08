@@ -53,17 +53,17 @@ export function pieceTypeOf(key) {
 export const LAW_OPTIONS = [
   // Named Orthogonal slide (user), with what orthogonal means said in the
   // note: along a row or column, not corner to corner.
-  { key: "slide", name: "Orthogonal slide", note: "Move a piece one open square along its row or column (not corner to corner) without tipping it. 2 points (a roll is 1)." },
-  { key: "diagonalSlide", name: "Diagonal slide", note: "Move a piece one open square corner to corner without tipping it. 2 points. On its own, or with Orthogonal slide for all eight ways. Never shoves." },
+  { key: "slide", name: "Orthogonal slide", note: "Move a piece one open square along its row or column (not corner to corner) without tipping it. 2 actions (a roll is 1)." },
+  { key: "diagonalSlide", name: "Diagonal slide", note: "Move a piece one open square corner to corner without tipping it. 2 actions. On its own, or with Orthogonal slide for all eight ways. Never shoves." },
   { key: "blackHoleSquares", name: "Black hole squares", note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn." },
-  { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 point more. Choose whether rolls shove too, or only slides." },
-  { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 point." },
+  { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 action more. Choose whether rolls shove too, or only slides." },
+  { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 action." },
   // (3 actions per turn directly above Split movement: user.)
-  { key: "threeActions", name: "3 actions per turn", note: "3 points a turn instead of 2." },
-  { key: "splitMovement", name: "Split movement, 2 pieces", note: "Spend a turn's points on up to two pieces." },
+  { key: "threeActions", name: "3 actions per turn", note: "3 actions a turn instead of 2." },
+  { key: "splitMovement", name: "Split movement, 2 pieces", note: "Spend a turn's actions on up to two pieces." },
   // (User: a three-piece limit as its own choice; one or the other of the
   // two Split movements, and it brings 3 actions, a point a piece.)
-  { key: "splitThree", name: "Split movement, 3 pieces", note: "Spend a turn's 3 points on up to three pieces, one point each. Brings 3 actions per turn." },
+  { key: "splitThree", name: "Split movement, 3 pieces", note: "Spend a turn's 3 actions on up to three pieces, one action each. Brings 3 actions per turn." },
 ];
 // Shoving's one setting (as Neon's sphere): which moves shove. With
 // slides only, a roll into a piece is simply blocked.
@@ -334,13 +334,13 @@ export function lawWarnings(sel) {
     if (!(sel.shove && sel.shove.onRolls === false)) {
       // Every Opa move costs 2 and a shove 1 more: an Opa only shoves with 3.
       if (sel.counts.opa > 0 && !l.threeActions)
-        out.push({ key: "shoving", testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 points, so Opas only shove with 3 actions per turn." });
+        out.push({ key: "shoving", testid: "shove-opa-needs-three", text: "An Opa's shove costs 3 actions, so Opas only shove with 3 actions per turn." });
     } else if (!l.slide) {
       // Slides only: nothing shoves without the Slide rule...
       out.push({ key: "shoving", testid: "shove-needs-slide", text: "Slides only needs Orthogonal slide. Check it, or let rolls shove too." });
     } else if (!l.threeActions) {
       // ...and a shoving slide costs 2 + 1.
-      out.push({ key: "shoving", testid: "shove-needs-three", text: "A shoving slide costs 3 points, so slides only needs 3 actions per turn. Check it, or let rolls shove too." });
+      out.push({ key: "shoving", testid: "shove-needs-three", text: "A shoving slide costs 3 actions, so slides only needs 3 actions per turn. Check it, or let rolls shove too." });
     }
   }
   return out;

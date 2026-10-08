@@ -67,7 +67,7 @@ for (const theme of ["neon", "standard"]) {
   await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
   await closeDock(page);
   await page.waitForTimeout(1500);
-  check("in play, the counter shows 2 points left", (await left(page)) === 2, String(await left(page)));
+  check("in play, the counter shows 2 actions left", (await left(page)) === 2, String(await left(page)));
 
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-turrito", "S"));
   await page.waitForTimeout(1400);
@@ -112,7 +112,7 @@ for (const theme of ["neon", "standard"]) {
   await page.waitForTimeout(2500);
   const won = await page.evaluate(() => [...document.querySelectorAll("span")].some((el) => /wins/i.test(el.textContent || "")));
   check("a Cabeza stepping onto its far row wins", won);
-  check("after the win the counter stays up, holding the last turn (1 point left)", (await left(page)) === 1, String(await left(page)));
+  check("after the win the counter stays up, holding the last turn (1 action left)", (await left(page)) === 1, String(await left(page)));
   if (theme === "neon") await page.screenshot({ path: "/tmp/e2e-points-won.png" });
   await openDockPanel(page);
   await page.locator('[data-testid="new-game"]').click();
@@ -147,7 +147,7 @@ for (const theme of ["neon", "standard"]) {
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-opa", "S"));
   await page.waitForTimeout(1600);
   const text = (await note.count()) ? await note.textContent() : "";
-  check("an Opa roll ends the turn with a note saying why", /1 point unused: an Opa moves only once per turn/.test(text), text);
+  check("an Opa roll ends the turn with a note saying why", /1 action unused: an Opa moves only once per turn/.test(text), text);
   await note.click();
   await page.waitForTimeout(500);
   check("tapping the note opens the Your turn rules card",
