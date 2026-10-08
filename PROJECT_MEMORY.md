@@ -7668,3 +7668,19 @@ phone menu until "Start the story over" (which clears it).
   once for it (COMMERCIAL_SCENE). e2e-den-spot opens it over http, taps,
   and checks the spot plays.
   https://l0jik.github.io/el-cabeza-project/el-cabeza-nova.html?scene=commercial
+- The spot as the den's TV shows it (user: the stills had "CRT lines and
+  all that kind of stuff ... I don't see that in this version, the MP4"):
+  the CRT look isn't in the video files, the set's screen shader adds it
+  live (scanlines, glass, vignette, glow; den-tv.js screenMaterial), so
+  the MP4s are clean. For a file with it: tools/den_spot_tv.mjs records
+  the spot from the game itself, frame for frame: dist served over http,
+  ?scene=commercial at 1280x960 tapped on, then the page's frame clock
+  taken over (requestAnimationFrame and performance.now replaced from an
+  init script; take() puts it 120 ms ahead of any frame still due), the
+  commercial's start found by stepping until __DEN_TV__().ad > 0, and for
+  each of 720 frames: the time set, the video (paused, play() a no-op)
+  sought to the frame, one frame drawn, a screenshot with all but the
+  canvas hidden (~0.45 s a frame, ~6 min). Sound: spot-sound.mp3 through
+  the set's speaker filter (HP 120, +1.5 dB at 1.7 kHz, LP 7500), -16
+  LUFS. 8.3 MB. Sent as el-cabeza-commercial-tv.mp4 (scratchpad); not
+  in the repo or the game (the game's set does this itself).
