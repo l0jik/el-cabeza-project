@@ -1123,6 +1123,18 @@ const STORY_CSS = `
     font-size: 11px; padding: 4px 9px 3px; opacity: 0.92; animation: tdClerkTopIn 0.35s ease both; }
   /* (Two lines: a little higher, clear of the tape's ends.) */
   .td-clerk-narration.td-clerk-when.td-clerk-top.td-clerk-long { bottom: calc(100% + 32px); }
+  /* The store's own stripes on it (user: Big Glutts' branding "that go up
+     the left side vertically and then curve and then go across the top"):
+     its four earth tones, as on its flyer, 2px each, up the caption's left
+     side and round into its top, each its own arc so the curve keeps their
+     width; the words set in from them. */
+  .td-clerk-narration.td-clerk-when.td-clerk-top { padding: 16px 10px 5px 18px; }
+  .td-clerk-stripes { position: absolute; inset: 0; pointer-events: none; }
+  .td-clerk-stripes i { position: absolute; right: 3px; bottom: 3px; border-style: solid; border-width: 2px 0 0 2px; }
+  .td-clerk-stripes i:nth-child(1) { top: 2px; left: 2px; border-color: #6B3A1E; border-top-left-radius: 12px; }
+  .td-clerk-stripes i:nth-child(2) { top: 5px; left: 5px; border-color: #B4451F; border-top-left-radius: 9px; }
+  .td-clerk-stripes i:nth-child(3) { top: 8px; left: 8px; border-color: #E07B22; border-top-left-radius: 6px; }
+  .td-clerk-stripes i:nth-child(4) { top: 11px; left: 11px; border-color: #E9B23A; border-top-left-radius: 3px; }
   @keyframes tdClerkTopIn { from { opacity: 0; transform: translateX(-50%) translateY(-4px) rotate(-1.4deg); } to { opacity: 0.92; transform: translateX(-50%) rotate(-1.4deg); } }
   .td-clerk-pa { left: 8px; right: 8px; bottom: 8px; text-align: center; background: #FBF6E6; }
   .td-clerk-fallback { position: absolute; z-index: 2; inset: auto 12px 12px; margin: 0; padding: 12px 14px; background: #FBF8F0; color: ${INK};
@@ -1436,7 +1448,8 @@ function ClerkScene({ audio, onStay, onGoHome }) {
       // newsprint cut by hand, two strips of old tape, the panel in its
       // ink border, printed in Ben-Day dots, a little faded.
       h("figure", { className: "td-clerk-print", "data-fade": fade },
-        s.narration && h("p", { key: `w${s.frame}`, className: `td-clerk-narration td-clerk-when td-clerk-top${s.narration.length > 32 ? " td-clerk-long" : ""}`, "data-testid": "tienda-clerk-when" }, s.narration),
+        s.narration && h("p", { key: `w${s.frame}`, className: `td-clerk-narration td-clerk-when td-clerk-top${s.narration.length > 32 ? " td-clerk-long" : ""}`, "data-testid": "tienda-clerk-when" },
+          h("span", { className: "td-clerk-stripes", "aria-hidden": "true" }, h("i"), h("i"), h("i"), h("i")), s.narration),
         h("span", { className: "td-clerk-tape td-clerk-tape-l", "aria-hidden": "true" }),
         h("span", { className: "td-clerk-tape td-clerk-tape-r", "aria-hidden": "true" }),
         h("div", { className: "td-clerk-paper", style: { clipPath: CLIP_EDGE, WebkitClipPath: CLIP_EDGE } },

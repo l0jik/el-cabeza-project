@@ -118,8 +118,15 @@ html.ec-hall-scene [data-testid="tienda-special-note"] {
    flares, or on the walk in): its placard waits till the scene's over
    (user: it came up under the scene's own blocker, whose taps it never
    got, so it couldn't be dismissed or used). After "keep playing", or
-   back in the den from the void, it's there as ever. */
-html.ec-hall-scene [data-testid="victory-backdrop"] { opacity: 0 !important; pointer-events: none !important; }
+   back in the den from the void, it's there as ever. So does every other
+   sheet of the game's that may be up as it starts, each as stuck there
+   as the placard was (user: a Singularity game's NEW GAME choice, Retain
+   or Reconfigure, the placard's New Game had brought up just before the
+   pull, stayed over the whole walk): that choice, the end-turn question,
+   the rules, the move log, the sound menu. */
+html.ec-hall-scene [data-testid="victory-backdrop"], html.ec-hall-scene [data-testid="new-game-choice"],
+html.ec-hall-scene [data-testid="end-turn-ask"], html.ec-hall-scene [data-testid="info-overlay"],
+html.ec-hall-scene [data-testid="movelog-sheet"], html.ec-hall-scene [data-testid="sound-menu"] { opacity: 0 !important; pointer-events: none !important; }
 @media (prefers-reduced-motion: reduce) { .den-hall-say, .den-hall-choice { transition: none; } }
 `;
 

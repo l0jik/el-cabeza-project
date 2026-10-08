@@ -15,6 +15,9 @@
    often and more strongly (render(): the frame drawn to a texture and
    redrawn displaced, see the chassis's ambient render hook).
 
+   Meanwhile the board slowly turns and the view creeps in (user), till
+   the sphere's tapped (slowOrbit(), below).
+
    Meanwhile the board takes no input (a shield over the canvas) and the
    dock is put away: the one thing that answers is the singularity. A
    tap on it opens the SINGULARITY invite (summonBridge.reveal, Neon's
@@ -476,6 +479,7 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
     const g = gesture; gesture = null;
     if (!g || g.moved || e.type === "pointercancel") return;
     if (performance.now() < readyAt || !hit(e)) return;
+    heldTill = performance.now() + 1500; // (the slow turn stops: the invite's coming)
     if (summonBridge.reveal) summonBridge.reveal();
   };
   const onWheel = (e) => {
@@ -496,6 +500,30 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
   }));
   shield.addEventListener("pointermove", onMove);
   shield.addEventListener("pointerdown", onDown);
+  /* The slow turn and push in (user: "from the beginning onward until
+     they click the singularity sphere, I want the board to slowly rotate
+     and zoom in"): from its start the board turns (a full turn every
+     2 min 20 s or so) and the view creeps in (toward 72% of where it
+     started, most of that in the first minute), on the chassis's camera
+     goals (cam.current), which its view eases toward, as the gestures
+     above do. It holds while a finger's down (a turn or a pinch of their
+     own, within the same limits) and stops at the tap on the sphere,
+     while its invite is up (put away unanswered, it goes on). Not with
+     reduced motion (camOk). */
+  const SPIN = 0.045, PUSH = 0.28, PUSH_TAU = 25;
+  let orbitT = 0, orbitAt = 0, heldTill = 0;
+  const pushAt = (sec) => 1 - PUSH * (1 - Math.exp(-sec / PUSH_TAU));
+  const inviteUp = () => typeof document !== "undefined" && !!document.querySelector(".ec-singularity-invite-btn");
+  function slowOrbit(now) {
+    const dt = orbitAt ? Math.min(0.25, Math.max(0, (now - orbitAt) / 1000)) : 0; // (a slow device keeps its pace; no leap after a hidden tab)
+    orbitAt = now;
+    if (!camOk() || ptrs.size || now < heldTill || inviteUp()) return;
+    if (!home) home = { radius: cam.current.radius, phi: cam.current.phi };
+    cam.current.theta += SPIN * dt;
+    const f0 = pushAt(orbitT);
+    orbitT += dt;
+    cam.current.radius = clampR(cam.current.radius * (pushAt(orbitT) / f0));
+  }
   function fitShield() {
     const r = canvas.getBoundingClientRect();
     shield.style.left = `${r.left}px`; shield.style.top = `${r.top}px`; shield.style.width = `${r.width}px`; shield.style.height = `${r.height}px`;
@@ -545,6 +573,7 @@ export function mountSummon(three, { delay = 300, audio = null, cam = null } = {
       fitShield();
       tau = Math.max(0, (now - t0) / 1000);
       if (now < t0) return;
+      slowOrbit(now);
       group.visible = true;
       const tb = tau * BUILD;
       if (sound) { sound.start(tb, undefined, BUILD); sound.update(tb); }

@@ -98,6 +98,19 @@ console.log("kept playing twice, then the game's won");
   check(`a moment later it's back (${JSON.stringify(third && { state: third.state, flares: third.flares })})`, !!third && third.flares === 3);
   const pulled = await poll(async () => { const h = await hall(page); return h.state === "walk" && h.dragged ? h : null; }, 8000, 100);
   check("...and it pulls you in (no choice the third time)", !!pulled);
+  // A sheet of the game's up as it pulls you in (user: a Singularity
+  // game's NEW GAME choice stayed over the whole walk, under the scene's
+  // blocker, so it couldn't be used or put away): each waits, unseen and
+  // untouchable, till the scene's over. (Opened as the chassis opens
+  // them: opacity 1, taps on.)
+  const sheets = await page.evaluate(() => ["new-game-choice", "info-overlay", "victory-backdrop"].map((id) => {
+    const el = document.querySelector(`[data-testid="${id}"]`);
+    if (!el) return [id, "missing"];
+    el.style.opacity = "1"; el.style.pointerEvents = "auto";
+    const cs = getComputedStyle(el);
+    return [id, `${cs.opacity}/${cs.pointerEvents}`];
+  }));
+  check(`...every sheet of the game's out of sight meanwhile (${sheets.map((x) => x.join(" ")).join(", ")})`, sheets.every(([, v]) => v === "0/none"));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

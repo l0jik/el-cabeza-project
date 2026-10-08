@@ -8158,3 +8158,52 @@ phone menu until "Start the story over" (which clears it).
   (bottom: 100% + 22px), and a long one (td-clerk-long, over 32
   characters) 10px higher, clear of the tape's ends. "Moments later..."
   sits as before. e2e-clerk passes; looked at on a phone and a desktop.
+- Neon's first arrival, the summons (user, with a screenshot: "from the
+  beginning onward until they click the singularity sphere, I want the
+  board to slowly rotate and zoom in"): neon-summon.js slowOrbit(), each
+  frame from the summons' start, on the chassis's camera goals
+  (cam.current, which its view eases toward, as the summons' own
+  drag/pinch gestures do): theta += 0.045 rad/s (a full turn about every
+  2 min 20 s; each frame's step capped at 0.25 s, so a slow device keeps
+  the pace and a hidden tab doesn't leap on its return), radius toward 72% of where it started (1 - 0.28(1 -
+  e^(-t/25 s)), applied as a ratio each frame, so a pinch of their own
+  composes with it, within the same clampR limits). It holds while a
+  finger's down, and stops at the tap on the sphere (held 1.5 s for the
+  SINGULARITY invite to come up, then while the invite's up; put away
+  unanswered, it goes on). Not with reduced motion (camOk). The sphere's
+  height is already solved each frame against the camera (about 60% up,
+  under the title), so it stays put as the view comes in.
+- A phone put to sleep and woken (user: "it was in an unmaximized state.
+  It should automatically remaximize"): browsers leave full screen when
+  a page is hidden, and let it back only from a tap (no page can go full
+  screen by itself). The chassis already put it back at any click
+  anywhere (Other realities included: its menu is over a mounted world)
+  unless the player left with the button or the two-finger double-tap
+  (fullscreenDeclined). Now the end of any touch does too (touchend, not
+  only click): a first touch back that's a drag or a scroll never makes
+  a click. Not while other fingers are down, or just after two (the
+  two-finger toggle). e2e-fullscreen: out of full screen by itself, then
+  a one-finger drag across the board, full screen again. (What would
+  keep it full screen through sleep: the site installed to the home
+  screen with a manifest set to display: fullscreen; offered, not done.)
+- The hall pulling you in just as a game ends (user: a Singularity
+  game's NEW GAME choice, Retain or Reconfigure, "showed up, but then it
+  wouldn't go away ... the pop-up was there the whole time during the
+  animation going through the hallway"): the choice (z-index 1150) was
+  under the hall's tap blocker (.den-hall-block, 1330), seen but
+  untouchable, as the win placard once was. den-hall.js's scene CSS hid
+  only the placard; now every sheet of the game's that can be up as it
+  starts waits unseen under the scene the same way (back as it was after
+  "keep playing"): the NEW GAME choice, the end-turn question, the
+  rules, the move log, the sound menu. e2e-hall-after-game: on the walk,
+  the choice, the rules and the placard, opened as the chassis opens
+  them, are out of sight and untouchable.
+- Big Glutts' stripes on the clerk scene's two top captions (user: "the
+  branding stripes that go up the left side vertically and then curve
+  and then go across the top ... on these action descriptor dialogue
+  boxes"; "Later that day..." and the manager's "Moments later..."): the
+  store's four earth tones from its flyer (#6B3A1E, #B4451F, #E07B22,
+  #E9B23A), 2px each a pixel apart, up the caption's left side and round
+  into its top, each its own arc (border-top + border-left, radii 12, 9,
+  6, 3) so the curve keeps their width; the words set in from them
+  (padding 16 10 5 18). tienda-overlay.js .td-clerk-stripes.

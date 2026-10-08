@@ -2075,17 +2075,25 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      puts it back, unless the player came out of it themselves with the
      button or the two-finger double-tap (fullscreenDeclined), until they
      go back in. A theme can still opt out: fullscreenOnFirstTap: false.) */
+  /* (And the end of any touch, not only a click, user: a phone put to
+     sleep and woken again had left full screen, as browsers do, and the
+     first touch back, on Other realities, was a scroll, which never makes
+     a click, so it stayed out. A browser may count a touch's end as the
+     tap it needs; if not, nothing's lost. Not while other fingers are
+     still down, or just after two.) */
   useEffect(() => {
     if (theme.fullscreenOnFirstTap === false) return undefined;
     function onClick(ev) {
       if (!ev.isTrusted || ev.timeStamp - lastMultiTouchRef.current < 600) return;
+      if (ev.type === "touchend" && ev.touches && ev.touches.length) return;
       const own = ev.target instanceof Element && ev.target.closest("[data-fullscreen-toggle]");
       if (!own && !fullscreenDeclined && !document.fullscreenElement && document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
     }
     document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    document.addEventListener("touchend", onClick, true);
+    return () => { document.removeEventListener("click", onClick, true); document.removeEventListener("touchend", onClick, true); };
   }, [theme]);
 
   /* The screen stays on while the game's on screen (user: a Pixel dimmed

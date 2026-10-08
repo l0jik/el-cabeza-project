@@ -121,6 +121,31 @@ console.log("\nTienda, phone: full screen at the first tap");
   await ctx.close();
 }
 
+/* ---- A phone put to sleep and woken (user): the browser leaves full
+   screen by itself, and the first touch back puts it back, a tap or a
+   drag alike (a drag never makes a click). ---- */
+console.log("\nTienda, phone: out of full screen by itself, back at the first touch");
+{
+  const { ctx, page, errs, full, centre } = await open("tienda");
+  const client = await ctx.newCDPSession(page);
+  const openBtn = await centre('[data-testid="tienda-open-box"]');
+  await page.touchscreen.tap(openBtn.x, openBtn.y);
+  await page.waitForTimeout(1500);
+  check("full screen at the first tap", await full());
+  await page.evaluate(() => document.exitFullscreen());
+  await page.waitForTimeout(700);
+  check("out of it by itself (as a phone asleep and woken)", !(await full()));
+  // One finger dragged across the board: no click.
+  const vp = page.viewportSize(), y = vp.height * 0.45, at = Date.now() / 1000;
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", timestamp: at, touchPoints: [{ x: vp.width * 0.3, y, id: 1 }] });
+  for (let i = 1; i <= 6; i++) await client.send("Input.dispatchTouchEvent", { type: "touchMove", timestamp: at + i * 0.03, touchPoints: [{ x: vp.width * (0.3 + i * 0.06), y, id: 1 }] });
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", timestamp: at + 0.25, touchPoints: [] });
+  await page.waitForTimeout(900);
+  check("the first touch back, a drag across the board: full screen again", await full());
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
 /* ---- Tienda on a laptop: the first click ---- */
 console.log("\nTienda, laptop: full screen at the first click");
 {
