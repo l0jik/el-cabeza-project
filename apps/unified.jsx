@@ -215,8 +215,8 @@ const homeTheme = {
 };
 /* Singularity's BACK, in Nova, goes home: straight to the den through
    Nova's own transition (not back to Neon's board), where the set is on
-   and, the first time, showing the late-night commercial that says what
-   just opened and where to get it (themes/den-commercial.js). */
+   and, the first time, showing the commercial (the user's spot,
+   themes/den-commercial.js). */
 const novaNeonTheme = {
   ...neonTheme,
   // After the story: the gate as it comes up, and the other realities.
@@ -290,10 +290,11 @@ function UnifiedApp() {
   const [clerkTick, setClerkTick] = useState(0);
   useEffect(() => { const on = () => setClerkTick((n) => n + 1); window.addEventListener("el-cabeza:clerk-done", on); return () => window.removeEventListener("el-cabeza:clerk-done", on); }, []);
   useEffect(() => onJourneyChange(setSingularityOpen), []);
-  // The late-night commercial's soundtrack (a recording beside the page,
-  // den-ad-audio.js), fetched and decoded well ahead, while it's still to
-  // come; it's played on the way home from the Singularity.
-  useEffect(() => { if (!commercialAired()) prepareCommercial(); }, [singularityOpen]);
+  // The commercial (the user's spot; den-ad-audio.js, den-commercial.js),
+  // well ahead, while it's still to come: its sound from the start, its
+  // video (2.8 MB) once the Singularity's open, not while the store's
+  // loading; it's played on the way home from the Singularity.
+  useEffect(() => { if (!commercialAired()) prepareCommercial({ picture: singularityOpen }); }, [singularityOpen]);
   // The den's game while Neon's up (see putRules above), and the one
   // handed to the chassis as it mounts.
   const carryRef = useRef(null);

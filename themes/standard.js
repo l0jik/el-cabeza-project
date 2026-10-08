@@ -315,7 +315,7 @@ export const styleSheet = `
   button[aria-label$="full screen"][data-dim="true"] { opacity: 0.14 !important; }
   [data-dim="true"]:hover, [data-dim="true"]:focus-visible, [data-testid="focus-corner"][data-dim="true"]:hover { opacity: 0.9 !important; }
   [data-testid="room-view-corner"][data-active="true"]:hover { opacity: 0.6 !important; }
-  /* While the set's late-night commercial plays (engine/journey.js
+  /* While the set's commercial plays (engine/journey.js
      setCommercialOn puts ec-commercial on the page; user): the lamp and
      the house ghost, and taps on them go nowhere until it's over. */
   html.ec-commercial [data-testid="room-view-corner"], html.ec-commercial [data-testid="focus-corner"], html.ec-commercial [data-testid="action-corner"] {

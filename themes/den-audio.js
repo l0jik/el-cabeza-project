@@ -24,7 +24,7 @@
    room starts then, so the fire is already going on the setup screen. */
 
 import { createWoodSfx } from "./wood-sfx.js";
-import { playCommercial, loadAdVoices, prepareCommercial } from "./den-ad-audio.js";
+import { playCommercial, prepareCommercial } from "./den-ad-audio.js";
 
 export const hasAudio = true;
 
@@ -496,7 +496,6 @@ export function createAudio() {
     hiss.connect(bp).connect(hissGain).connect(bus);
     hiss.start();
     tv = { bus, hissGain, whine: null, whineGain: null, ad: null };
-    loadAdVoices(ctx); // (the commercial's voices, decoded before it airs)
     return tv;
   }
   function tvClick(t) {
@@ -694,14 +693,14 @@ export function createAudio() {
     }
   }
 
-  /* The late-night commercial's sound: den-ad-audio.js (the jingle, the
-     user's voices, the jokes, the set's small speaker), through the set's
-     bus; tvOff (or another commercial) stops it. */
+  /* The commercial's sound: den-ad-audio.js (the user's spot's own
+     sound, through the set's speaker), on the set's bus; tvOff (or another
+     commercial) stops it. */
   function tvCommercial(delay = 0) {
     if (!tvGraph()) return;
     if (tv.ad) { tv.ad.stop(); tv.ad = null; }
     prepareCommercial(); // (if it isn't on its way already: late, then)
-    const ad = playCommercial(ctx, tv.bus, { delay, noiseBuf });
+    const ad = playCommercial(ctx, tv.bus, { delay });
     tv.ad = ad;
     setTimeout(() => { if (tv && tv.ad === ad) tv.ad = null; }, (ad.end - now()) * 1000 + 500);
   }

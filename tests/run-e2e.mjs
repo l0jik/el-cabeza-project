@@ -25,7 +25,7 @@ const E2E = [
   ["e2e-store-nudge.mjs"], ["e2e-try-it.mjs"], ["e2e-store-opening.mjs"], ["e2e-dock-moments.mjs"], ["e2e-wake.mjs"], ["e2e-camera-glide.mjs"], ["e2e-pivot-guide.mjs"], ["e2e-fullscreen.mjs"],
   ["e2e-outline.mjs"], ["audio-bell.mjs"], ["e2e-now-playing.mjs"], ["e2e-split-three.mjs"],
   // (In tests/ but never in the chain until the 2026-10 audit; each passes.)
-  ["e2e-gate.mjs"], ["e2e-ending.mjs"], ["e2e-summon.mjs"], ["e2e-den-return.mjs"], ["e2e-drag-latch.mjs"], ["e2e-journey.mjs"], ["e2e-tv-lure.mjs"], ["e2e-clerk.mjs"],
+  ["e2e-gate.mjs"], ["e2e-ending.mjs"], ["e2e-summon.mjs"], ["e2e-den-spot.mjs"], ["e2e-den-return.mjs"], ["e2e-drag-latch.mjs"], ["e2e-journey.mjs"], ["e2e-tv-lure.mjs"], ["e2e-clerk.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

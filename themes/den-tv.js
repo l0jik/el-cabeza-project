@@ -451,14 +451,18 @@ export function buildTelevision(yF, RZ, X = -40) {
   }
 
   /* ---- the set's life ---- */
-  // The late-night commercial (den-commercial.js), made when it's first
-  // shown.
+  // The commercial (den-commercial.js: the user's spot, a video), made
+  // when it's first shown.
   let commercial = null;
   let phase = "off", t0 = 0, portal = false, entered = false, onEnter = null;
   let knobA = -0.9, knobGoal = -0.9;
   const u = screen.uniforms;
   const since = (now) => now - t0;
-  function set(p, now) { phase = p; t0 = now; }
+  function set(p, now) {
+    // (Off the commercial, its video stops too.)
+    if (phase === "commercial" && p !== "commercial" && commercial) commercial.pause();
+    phase = p; t0 = now;
+  }
 
   /* ---- the set, off, haunted (Nova, the first time home: den-fx.js's
      lure, until the knob's turned) ----
@@ -622,8 +626,8 @@ export function buildTelevision(yF, RZ, X = -40) {
       set("pattern", now - TV_TIMES.resolve);
     },
     /* Already on (back out of Singularity the first time, in Nova), and
-       the late-night commercial is on: then snow ("aired"), for den-fx.js
-       to switch it off. */
+       the commercial is on (held on its first frame for `delay`): then
+       snow ("aired"), for den-fx.js to switch it off. */
     showCommercial(now, delay = 0) {
       knobA = knobGoal = -0.9 + 0.75;
       portal = false;
@@ -711,8 +715,11 @@ export function buildTelevision(yF, RZ, X = -40) {
         dive = ease(clamp01(s / TV_TIMES.dive));
         if (!entered && s >= TV_TIMES.enterAt) { entered = true; if (onEnter) onEnter(); }
       } else if (phase === "commercial") {
-        raster = 1; glow = 1; pat = 1; snow = 0; // (a clean picture, user)
+        // A clean picture (user); snow until the spot has one (still
+        // loading, or from disk).
         commercial.draw(Math.max(0, s) / 1000);
+        const on = commercial.ready();
+        raster = 1; glow = 1; pat = on ? 1 : 0; snow = on ? 0 : 1;
         if (s >= COMMERCIAL_MS) set("aired", now);
       } else if (phase === "channel") {
         // Another reality on the set (after the story): a clean picture,

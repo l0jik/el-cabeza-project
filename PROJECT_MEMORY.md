@@ -7594,3 +7594,40 @@ phone menu until "Start the story over" (which clears it).
   by xfade/trim/loop one frame too short, so frames collided at the
   joins and the encode dropped two: setpts=N/(24*TB) on the final encode
   fixes it (720 frames, exact 24 fps).
+- The user's spot is the den's commercial now (user: "put it on the
+  den's TV"; asked where, chose "Instead of the drawn one"): the same
+  moment (back from the Singularity the first time, once per story;
+  COMMERCIAL_AIRED_KEY as before, the order form after it as before),
+  30 s (COMMERCIAL_MS 30000, was 46400). tools/den_spot.py rebuilds it
+  from the three clips (the cut above, in frames) into assets/den/
+  spot.mp4 (H.264, 2.8 MB), spot.webm (VP9, 1.5 MB; Playwright's
+  Chromium has no H.264, nor do some Linux builds) and spot-sound.mp3
+  (-16 LUFS); build.js ships them as el-cabeza-den-spot.mp4/.webm/.mp3.
+  themes/den-commercial.js: one <video> (muted and playsinline, so it may
+  start without a tap on phones; in the page, 2 px, opacity 0.01, since
+  some browsers won't play a hidden one), H.264 source first, VP9 after,
+  loading from prepareCommercial (unified.jsx calls it well ahead: the
+  sound at once, the video only once the Singularity's open, so its
+  2.8 MB doesn't compete with the store loading for a new player);
+  createCommercial() keeps the interface den-tv.js had (texture, reset,
+  draw(t), plus ready, pause): a THREE.VideoTexture, the video held on
+  its first frame through AD_DELAY, then playing, its rate nudged
+  (0.92-1.08) if it drifts more than 40 ms from the commercial's clock,
+  sought back if more than 0.35 s. den-tv.js: snow until it has a
+  picture; leaving the "commercial" phase pauses it. From disk WebGL
+  won't take a video (SecurityError: cross-origin), so there it's never
+  made: snow for the 30 s (the file:// e2e tests). Its sound
+  (den-ad-audio.js, rewritten): the mp3 fetched and decoded ahead, one
+  buffer on the audio clock from the picture's start, through the set's
+  speaker (HP 120, +1.5 dB at 1.7 kHz, LP 7500), at 0.6 (about the drawn
+  one's -20 LUFS); from disk an <audio> element. Gone: the drawn
+  infomercial's scenes, its score and voice cues (den-ad-audio.js
+  compose, loadAdVoices), assets/den/ad-soundtrack.mp3 and
+  tools/den_ad_render.mjs (all in the history before this). Kept: the
+  Singularity frame the lure flashes (createSingularityFrame, blackHole),
+  and the user's four voice recordings (assets/den/commercial-*.mp3), no
+  longer shipped. Test-only: __DEN_TV_AIR__() (den-fx.js: as if back
+  from the Singularity, the commercial on), __DEN_SPOT__() (the video's
+  src, time, readyState, paused, rate). tests/e2e-den-spot.mjs serves
+  dist over http (byte ranges) to check it really plays on the set, in
+  step (within 20 ms here), sound decoded, off after it.

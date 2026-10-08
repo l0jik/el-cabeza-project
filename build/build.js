@@ -4,14 +4,12 @@ import { writeFileSync, mkdirSync, copyFileSync } from "fs";
 // The den's records: the user's tracks, each through tools/console_1974_turntable.py.
 const DEN_RECORDS = {
   "el-cabeza-den-record-1.mp3": "assets/den/1974_console_master.mp3",
-  // The late-night commercial's voice-over (the user's recording, treated).
-  "el-cabeza-den-ad-voice.mp3": "assets/den/commercial-king.mp3",
-  "el-cabeza-den-ad-voice-2.mp3": "assets/den/commercial-new-king.mp3",
-  "el-cabeza-den-ad-voice-3.mp3": "assets/den/commercial-chess.mp3",
-  "el-cabeza-den-ad-voice-4.mp3": "assets/den/commercial-checkers.mp3",
-  // ...and the whole soundtrack, voices and all, rendered once
-  // (tools/den_ad_render.mjs; themes/den-ad-audio.js plays it).
-  "el-cabeza-den-ad.mp3": "assets/den/ad-soundtrack.mp3",
+  // The commercial on the set: the user's spot (tools/den_spot.py), its
+  // picture twice over (H.264; VP9 where there's no H.264) and its sound
+  // (themes/den-commercial.js, den-ad-audio.js).
+  "el-cabeza-den-spot.mp4": "assets/den/spot.mp4",
+  "el-cabeza-den-spot.webm": "assets/den/spot.webm",
+  "el-cabeza-den-spot.mp3": "assets/den/spot-sound.mp3",
   // The 8-track's tapes: the user's tracks through tools/den_8track_treatment.py.
   ...Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`el-cabeza-den-tape-${n}.mp3`, `assets/den/8track_${n}.mp3`])),
   // The fireplace: a recording, looped and warmed (tools/den_fire_loop.py).

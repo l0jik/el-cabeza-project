@@ -56,7 +56,7 @@ export function markSingularitySeen() {
 // The one-time note that the catalog's special orders are open (the
 // store's printed matter, themes/tienda-overlay.js), shown once per unlock.
 export const SPECIAL_ORDER_NOTED_KEY = "el-cabeza:special-order-noted";
-// The den's late-night commercial (themes/den-commercial.js): shown once,
+// The den's commercial (themes/den-commercial.js, the user's spot): shown once,
 // back out of Singularity the first time, in Nova.
 export const COMMERCIAL_AIRED_KEY = "el-cabeza:commercial-aired";
 export function forgetSingularity() {

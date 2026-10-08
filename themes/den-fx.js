@@ -890,9 +890,9 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     /* ---- the television ---- */
     let tvGoal = 0, tvW = 0, tvDive = 0, tvPhase = "off", lastTick = 0, offAt = 0, onStage = false, lureEvents = 0, lastHaunt = null;
     let returning = !!(novaTv && novaTv.returning);
-    // The first time back, the late-night commercial is on (den-commercial.js):
-    // the camera comes in close enough to read it (tvWatch), and the set
-    // goes off once it's aired (or when it's tapped).
+    // The first time back, the commercial is on (den-commercial.js, the
+    // user's spot): the camera comes in close on the picture (tvWatch),
+    // and the set goes off once it's aired (or when it's tapped).
     let commercialNext = !!(novaTv && novaTv.commercial);
     let tvWatch = 0;
     const AD_DELAY = 1000;
@@ -1159,6 +1159,9 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
+      // Test-only: as if back from the Singularity the first time: the
+      // set on, the commercial.
+      window.__DEN_TV_AIR__ = () => { returning = true; commercialNext = true; };
       window.__DEN_TRIP__ = () => (trip ? trip.state() : null);
       // The end of the story: the hall, the void, the channels after.
       window.__DEN_HALL__ = () => (hall ? hall.state() : null);
