@@ -5493,7 +5493,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         if (axisAt.z >= -1e-3) mid = Infinity; // behind the camera: all of it's beyond
         else { axisAt.applyMatrix4(c.projectionMatrix); mid = (1 - axisAt.y) / 2 * rect.height; }
       }
-      grab.theta = clientY - rect.top < mid ? 1 : -1;
+      // (A theme can have it turn one way wherever the drag begins, as from
+      // the far side: theme.dragTurnOneWay, the store's, user: begun below
+      // the middle, where its low view is mostly table and floor, it felt
+      // reversed.)
+      grab.theta = (theme.dragTurnOneWay || clientY - rect.top < mid) ? 1 : -1;
       grab.phi = (cam.current.dollhouse ? 1 : -1) * (pointerType === "touch" && invertTouchTiltRef.current ? -1 : 1) * (invertTiltRef.current ? -1 : 1);
     }
     /* Stays false until cumulative pointer travel since the down event

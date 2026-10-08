@@ -8220,3 +8220,19 @@ phone menu until "Start the story over" (which clears it).
   seeds it). Checked from an ended story: armed, need 4, made 0, the
   opponent setting kept. Link:
   https://l0jik.github.io/el-cabeza-project/el-cabeza-nova.html?jump=hall
+- The store's drag turns the board one way wherever it begins (user: "if
+  you drag from the top, the pivot or rotate is correct, but if you drop
+  below the halfway point on the screen, it is reversed"; for the store
+  only, "on this board or on this theme area"). Measured first: the
+  chassis did as designed, the turntable rule (grabLatch: begun above the
+  board's centre on screen, the far side follows the finger; below it,
+  the near side), and once a game's begun the board's centre is the
+  screen's middle (y 400 of 800, 458 of 915), so below the middle every
+  drag turned the other way; in the opening view (low, about 18 degrees
+  up) most of the screen below the board is table and floor. Now
+  theme.dragTurnOneWay (tienda.js, so Big Glutts' page and Nova's store
+  both): grab.theta = 1 wherever it begins, as from the far side. The
+  den and the other worlds keep the turntable rule; the tilt's own flip
+  in the store is invertTilt as before. e2e-drag-latch: on the store's
+  page a drag begun low turns as from high (phone and desktop); Neon's
+  rule unchanged.

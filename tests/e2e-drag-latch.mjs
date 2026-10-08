@@ -54,6 +54,10 @@ const W = vp.width, H = vp.height;
 // (Big Glutts' own page tilts the other way up and down, user: the
 // chassis's invertTilt, apps/tienda.jsx. The latch is the same.)
 const flip = pageName === "el-cabeza-tienda.html" ? -1 : 1;
+// (And there a drag turns the board one way wherever it begins, user:
+// begun below the middle it felt reversed; theme.dragTurnOneWay. Begun
+// low, right turns it as from high: theta up.)
+const low = pageName === "el-cabeza-tienda.html" ? 1 : -1;
 const VIEWS = [["play view", { dollhouse: false, phi: Math.min(start.phi, 0.8), radius: start.radius, theta: start.theta }, false]];
 if (pageName !== "el-cabeza-neon.html") VIEWS.push(["Room view", { dollhouse: true, phi: 0.6, radius: 82, theta: start.theta }, true]);
 for (const [name, state, room] of VIEWS) {
@@ -66,10 +70,10 @@ for (const [name, state, room] of VIEWS) {
   check("begun high, right and down across the middle: the turn keeps its way", steady(s, 0, 1), JSON.stringify(s.map((v) => v[0].toFixed(3))));
   await reset();
   s = await drag(x + W * 0.5, H * 0.72, x, H * 0.3);
-  check(`begun low, left and up across the middle: the turn keeps its way`, steady(s, 0, 1), JSON.stringify(s.map((v) => v[0].toFixed(3))));
+  check(`begun low, left and up across the middle: the turn keeps its way`, steady(s, 0, -low), JSON.stringify(s.map((v) => v[0].toFixed(3))));
   await reset();
   s = await drag(x, H * 0.7, x + W * 0.5, H * 0.3);
-  check("begun low, right and up across the middle", steady(s, 0, -1), JSON.stringify(s.map((v) => v[0].toFixed(3))));
+  check(`begun low, right and up across the middle${low > 0 ? ": as from high" : ""}`, steady(s, 0, low), JSON.stringify(s.map((v) => v[0].toFixed(3))));
   await reset();
   s = await drag(x, H * 0.3, x, H * 0.45);
   check(`finger down: the tilt ${(room ? 1 : -1) * flip > 0 ? "toward the horizon" : "toward overhead"}`, steady(s, 1, (room ? 1 : -1) * flip), JSON.stringify(s.map((v) => v[1].toFixed(3))));
