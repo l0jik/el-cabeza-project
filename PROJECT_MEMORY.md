@@ -8326,3 +8326,25 @@ phone menu until "Start the story over" (which clears it).
   tests/e2e-check-alert.mjs (Neon desktop, the den's bar layout on a
   phone, two people); ai-threats.smoke.mjs: cabezaThreats, the video's
   position with and without the Turrito.
+- Asked for "5 different ways we can implement this [the check alert] ...
+  pictures": rendered in the game itself (Neon, phone, the user's kind of
+  position: the computer's Hombro over a Flaco, your Cabeza two squares on;
+  scratch overlays drawn into the scene with the page's own three.js
+  classes): 1 banner + marks (live), 2 show the threat (a ghost of the
+  landing and the arc it takes, a CHECK tag), 3 safe squares (the
+  Cabeza's reachable squares this turn, green safe / red in reach, from
+  cabezaThreats), 4 alarm (red screen-edge glow, Cabeza and attacker
+  glowing, a CHECK pill), 5 coach card (what's wrong, what to do, Show me,
+  its own switch). Waiting on the user's pick.
+- The user, on the rule ("I'm not sure what the rationale is ... the
+  Cruces ... should have been able to do that. But the Hombro being able
+  to hop over that other piece, that doesn't make sense"): the narrowed
+  rule (live since fe4600f) already does both. Framed for them as rise
+  over vs come down through: a tipping piece turns on one bottom edge; its
+  cubes on its own side of that edge lift (the Cruce's bar end over the
+  Flaco beside its stem, allowed), cubes beyond it come down (the Hombro's
+  arm onto the Cabeza through the Turrito, refused). Side-view pictures
+  from the real geometry, and a table of five readings against the three
+  cases: strict (A no), one cube tall ignored (C yes, rescinded), rise over
+  not down through (live; A yes B yes C no), only pieces ending under the
+  roller (A no, C yes), only a lying Flaco (matches, but arbitrary).
