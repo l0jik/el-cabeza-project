@@ -25,7 +25,7 @@ import { canvasTexture, repaint } from "./tienda-textures.js";
 import { paintWood } from "./wood-set.js";
 import { quality } from "./tienda-quality.js";
 import * as TX from "./den-textures.js";
-import { createCommercial, createSingularityFrame, COMMERCIAL_MS } from "./den-commercial.js";
+import { createCommercial, createSingularityFrame } from "./den-commercial.js";
 
 // The timeline, in ms from the moment the knob turns.
 export const TV_TIMES = {
@@ -633,7 +633,7 @@ export function buildTelevision(yF, RZ, X = -40) {
       portal = false;
       if (!commercial) { commercial = createCommercial(); disposables.push(commercial); }
       commercial.reset();
-      commercial.draw(0);
+      commercial.draw(-delay / 1000);
       u.uTex.value = commercial.texture;
       set("commercial", now + delay);
     },
@@ -716,11 +716,12 @@ export function buildTelevision(yF, RZ, X = -40) {
         if (!entered && s >= TV_TIMES.enterAt) { entered = true; if (onEnter) onEnter(); }
       } else if (phase === "commercial") {
         // A clean picture (user); snow until the spot has one (still
-        // loading, or from disk).
-        commercial.draw(Math.max(0, s) / 1000);
+        // loading, or from disk). (s is negative before it starts: held
+        // on its first frame.)
+        commercial.draw(s / 1000);
         const on = commercial.ready();
         raster = 1; glow = 1; pat = on ? 1 : 0; snow = on ? 0 : 1;
-        if (s >= COMMERCIAL_MS) set("aired", now);
+        if (commercial.done(s)) set("aired", now);
       } else if (phase === "channel") {
         // Another reality on the set (after the story): a clean picture,
         // a burst of snow as it clicks over.

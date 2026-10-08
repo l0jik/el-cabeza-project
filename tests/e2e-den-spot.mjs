@@ -1,8 +1,8 @@
 /* The den's commercial is the user's spot (user: "put it on the den's
    TV", in place of the drawn one): back from the Singularity the first
-   time, the set plays the video (themes/den-commercial.js), kept to the
-   commercial's clock, its sound decoded ahead (den-ad-audio.js), and goes
-   off after its 30 s. Served over http (from disk, WebGL won't take a
+   time, the set plays the video (themes/den-commercial.js), kept with
+   its sound as it's heard, the sound decoded ahead (den-ad-audio.js), and
+   goes off after its 30 s. Served over http (from disk, WebGL won't take a
    video: there the tube shows snow); this Chromium has no H.264, so it
    plays the VP9 copy. A new player, still in the store, isn't sent the
    video yet (it's 2.8 MB; it loads once the Singularity's open). Its own
@@ -101,7 +101,31 @@ check("...and its picture loading", !!(await poll(() => page.evaluate(() => { co
 await page.evaluate(() => window.__DEN_TV_AIR__());
 check("back from the Singularity: the commercial on the set", !!(await poll(() => page.evaluate(() => window.__DEN_TV__().phase === "commercial"), 10000)));
 const shots = process.env.EC_SHOTS;
-// Its video on the tube, and in step with the commercial's clock.
+// Its video on the tube, with the sound as it's heard (user: the voice
+// wasn't with the lips). Every 100 ms or so, against the moment of the
+// spot reaching the ears (the audio clock's output timestamp, less when
+// the sound was set to start): the video's own clock, and the frame last
+// put on the screen carried on to now (this browser, drawing without a
+// GPU, puts one up only every 0.1-0.2 s). + is the picture ahead. Lip
+// sync is noticed past about 45 ms with the sound early, 125 ms with it
+// late (ITU-R BT.1359); before, the picture ran about 100 ms ahead here.
+await page.evaluate(() => {
+  window.__SYNC__ = [];
+  let vf = null, watched = null;
+  setInterval(() => {
+    const a = window.__EC_AD_SCHED__, v = [...document.querySelectorAll("video")].find((x) => /den-spot/.test(x.currentSrc));
+    if (v && v !== watched && v.requestVideoFrameCallback) {
+      watched = v;
+      const cb = (now, md) => { vf = { disp: md.expectedDisplayTime, media: md.mediaTime }; v.requestVideoFrameCallback(cb); };
+      v.requestVideoFrameCallback(cb);
+    }
+    if (!a || !v || !vf || v.paused) return;
+    const perf = performance.now(), ts = a.ctx.getOutputTimestamp();
+    const heard = ts.contextTime + (perf - ts.performanceTime) / 1000 - a.T;
+    const shown = vf.media + Math.max(0, perf - vf.disp) / 1000 * v.playbackRate;
+    window.__SYNC__.push({ heard, clock: v.currentTime - heard, shown: shown - heard });
+  }, 100);
+});
 const sync = [];
 for (const at of [3, 9, 15, 24]) {
   await poll(() => page.evaluate((s) => (window.__DEN_TV__().ad || 0) >= s * 1000, at), 30000, 100);
@@ -109,7 +133,18 @@ for (const at of [3, 9, 15, 24]) {
   sync.push({ ad: +r.ad.toFixed(2), t: +r.v.t.toFixed(2), paused: r.v.paused });
   if (shots) await page.screenshot({ path: `${shots}/spot-${at}.png` });
 }
-check(`...playing, in step with it (${JSON.stringify(sync)})`, sync.every((s) => !s.paused && Math.abs(s.t - s.ad) < 0.4));
+check(`...playing (${JSON.stringify(sync)})`, sync.every((s) => !s.paused && Math.abs(s.t - s.ad) < 0.4));
+{
+  // (The first second left out: the video's start, rolling up to the sound.)
+  const rows = await page.evaluate(() => window.__SYNC__.filter((r) => r.heard > 1 && r.heard < 29));
+  const ms = (x) => Math.round(x * 1000);
+  for (const [what, key] of [["the video's clock", "clock"], ["the frame on the screen", "shown"]]) {
+    const offs = rows.map((r) => r[key]).sort((p, q) => p - q);
+    const mean = offs.reduce((s, x) => s + x, 0) / Math.max(1, offs.length);
+    const within = offs.filter((x) => x > -0.045 && x < 0.06).length / Math.max(1, offs.length);
+    check(`...${what} with the sound as heard (${offs.length} samples: mean ${ms(mean)} ms, ${Math.round(within * 100)}% within -45..+60 ms, ${ms(offs[0] || 0)}..${ms(offs[offs.length - 1] || 0)} ms)`, offs.length >= 40 && mean > -0.03 && mean < 0.045 && within >= 0.95);
+  }
+}
 check("then it's aired: off, and the camera back from the set", !!(await poll(() => page.evaluate(() => { const s = window.__DEN_TV__(); return s.phase === "off" && s.focus < 0.01; }), 20000, 250)));
 check("...its video stopped", await page.evaluate(() => window.__DEN_SPOT__().paused));
 check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));

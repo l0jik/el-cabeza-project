@@ -7861,3 +7861,54 @@ phone menu until "Start the story over" (which clears it).
 - Lluvia's hero pho sign now "Phở Gà" (user: "change it to Phở Gà"; it
   had just become "Phở Hà Nội", from "Phở TPHCM"): two discs, the hook on
   ở and the grave on à drawn right (checked with the real font).
+- The den TV commercial, picture and sound together (user: "it seemed
+  like the audio wasn't synchronized with the mouth movement ... Triple,
+  quadruple check that"). Four checks:
+  1. The files (tools/den_spot.py's cut): every piece of spot.mp4 is
+     frame-exact against its source clip, and spot-sound.mp3 sample-exact
+     (each source's picture and sound at the same offset; the sources'
+     own streams both start at 0).
+  2. The decode: Chrome's decodeAudioData of the MP3 is exactly 30.000 s,
+     0 samples off ffmpeg's (the encoder delay trimmed).
+  3. In the game, the error: the video was kept to the set's clock
+     (performance.now) while its sound came out of Web Audio later, by
+     the output's latency (and the compressor's 6 ms look-ahead), so the
+     picture ran about 0.1 s ahead of the sound here (84-143 ms in the
+     test), and on a phone, whose sound comes out later still (0.15 s and
+     more; Bluetooth more), 0.25 s and more. Lip sync is noticed past
+     about 45 ms with the sound early, 125 ms with it late (ITU-R
+     BT.1359). Now the picture follows the sound as heard:
+     den-ad-audio.js sets spotSound.heard() (den-commercial.js) to the
+     spot's moment reaching the ears (getOutputTimestamp carried on to
+     now; without it, currentTime less outputLatency and baseLatency;
+     less the look-ahead); draw() aims the video a display frame past it,
+     rolls it 0.1 s early (PREROLL) so the decoder's start doesn't leave
+     it behind, nudges its rate (within 15%) when it's more than 15 ms
+     off, seeks past 0.25 s; and the set's commercial phase ends when the
+     sound does (commercial.done; den-tv.js), at most a second after its
+     clock says. Each showing forgets the last one's sound
+     (commercial.reset: the den drops a finished one's handle without
+     stop(), so a later showing without sound would have read the old
+     clock and ended at once), and den-tv passes the set's lead-in as
+     negative time (it was clamped to 0: with no sound to follow, the
+     video would roll a second early), so it holds on its first frame.
+     Measured: the video's clock 18-22 ms ahead of the sound heard, the
+     frame on screen -17..+29 ms; a simulated phone (150 ms out) -2..-6
+     ms mean; no output timestamp (latency reported) 3 ms; no Web Audio
+     at all: held through the lead-in, then -14 ms from the set's clock,
+     over at 30.04 s.
+     tests/e2e-den-spot.mjs checks both (mean within -30..+45 ms, 95%
+     within -45..+60 ms); with the fix turned off it fails (+84 ms).
+     (That test browser, drawing the den without a GPU, puts a frame up
+     only every 0.1-0.2 s, so the frame on screen is carried on to now
+     from its requestVideoFrameCallback, uncapped.)
+  4. The footage itself (MediaPipe face landmarks on every frame, its
+     mouths against the voice; whisper for the words): the only line said
+     on camera in the spot is "That's clever." (18.3-18.9 s, B's take),
+     the father's: his lips narrow on "-ver" and close as the voice ends
+     (A's take of it, unused, has him open a frame before "That's" and
+     close 40 ms after "clever"). Every other line is the announcer, off
+     camera; the mouths moving under them are expressions, not speech:
+     the girl's "ooh" on the set's screen during "Think checkers is
+     boring?", the family's smiles, and the mother laughing through the
+     stretch silenced at 16.0-17.41 s. So nothing to retime in the cut.

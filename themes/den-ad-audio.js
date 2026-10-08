@@ -11,7 +11,7 @@
    fetch there), an <audio> element instead, straight out. stop() fades it
    at once. */
 
-import { COMMERCIAL_MS, prepareCommercialPicture } from "./den-commercial.js";
+import { COMMERCIAL_MS, prepareCommercialPicture, spotSound } from "./den-commercial.js";
 
 const TRACK_URL = "el-cabeza-den-spot.mp3";
 // (The recording is mastered to -16 LUFS; the drawn one's ran at -20.)
@@ -19,6 +19,18 @@ const LEVEL = 0.6;
 const rendered = { buffer: null, promise: null };
 const fromDisk = () => typeof location !== "undefined" && location.protocol === "file:";
 const decode = (c, ab) => new Promise((res, rej) => { const p = c.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); });
+// The audio clock's time of the sound reaching the ears now: its output
+// timestamp carried on to now, or the clock less its reported latencies;
+// less the master compressor's 6 ms look-ahead (den-audio.js).
+const LOOKAHEAD = 0.006;
+function heardNow(ctx) {
+  const ts = ctx.getOutputTimestamp ? ctx.getOutputTimestamp() : null;
+  if (ts && ts.performanceTime > 0 && ts.contextTime > 0 && typeof performance !== "undefined") {
+    const on = ctx.state === "running" ? (performance.now() - ts.performanceTime) / 1000 : 0;
+    return ts.contextTime + on - LOOKAHEAD;
+  }
+  return ctx.currentTime - (ctx.outputLatency || 0) - (ctx.baseLatency || 0) - LOOKAHEAD;
+}
 export function prepareCommercial({ picture = true } = {}) {
   if (picture) prepareCommercialPicture();
   if (rendered.buffer || rendered.promise) return rendered.promise;
@@ -40,6 +52,11 @@ if (typeof window !== "undefined") {
 export function playCommercial(ctx, dest, { delay = 0 } = {}) {
   const T = ctx.currentTime + delay;
   const END = T + COMMERCIAL_MS / 1000;
+  // (Test-only: when it starts, on the audio clock.)
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_AD_SCHED__ = { T, ctx };
+  // The picture follows the sound (den-commercial.js spotSound).
+  const heard = () => heardNow(ctx) - T;
+  spotSound.heard = heard;
   // The set's speaker.
   const g = ctx.createGain(); g.gain.value = LEVEL;
   const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 120; hp.Q.value = 0.6;
@@ -77,6 +94,7 @@ export function playCommercial(ctx, dest, { delay = 0 } = {}) {
     stop() {
       if (stopped) return;
       stopped = true;
+      if (spotSound.heard === heard) spotSound.heard = null;
       clearTimeout(timer);
       const t = ctx.currentTime;
       g.gain.cancelScheduledValues(t); g.gain.setTargetAtTime(0, t, 0.015);

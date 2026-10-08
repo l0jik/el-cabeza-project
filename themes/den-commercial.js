@@ -13,7 +13,8 @@
    A video beside the page (H.264, or VP9 where there's no H.264; no
    sound: den-ad-audio.js plays that through the set's speaker), muted
    (so it may play without a tap anywhere, phones included), shown on the
-   tube as a texture and kept to the commercial's own clock. Until it has
+   tube as a texture and kept with its sound as it's heard (spotSound,
+   below). Until it has
    a picture (still loading, or from disk, where WebGL may not take it)
    the tube shows snow.
 
@@ -102,11 +103,22 @@ export function createSingularityFrame() {
 
 /* ------------------------------------------------------ the spot */
 
+/* What the spot's sound is up to, set by den-ad-audio.js while it plays:
+   heard() is how far into the spot (s) the sound reaching the ears now is,
+   the output's delay allowed for. The picture follows it (user: the voice
+   wasn't with the lips; kept to the set's own clock, the picture ran about
+   0.1 s ahead of the sound on a computer, and further on a phone, whose
+   audio comes out later still). */
+export const spotSound = { heard: null };
+// (The video started this far ahead of the sound, so its decoder's start
+// doesn't leave it behind; and kept within this of it.)
+const PREROLL = 0.1, CLOSE = 0.015;
+
 /* The commercial on the tube: its texture, and draw(t) each frame (t in
-   seconds from the top) keeping the video there: held on its first frame
-   before it starts, then playing, nudged faster or slower if it drifts
-   from the clock, put back if it's well off. ready() once it has shown a
-   picture. */
+   seconds from the top, the set's clock, for when there's no sound to
+   follow) keeping the video with the sound: held on its first frame
+   before it starts, then playing, nudged faster or slower as it drifts,
+   put back if it's well off. ready() once it has shown a picture. */
 export function createCommercial() {
   const v = spotVideo();
   let texture;
@@ -117,8 +129,11 @@ export function createCommercial() {
     texture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
     texture.needsUpdate = true;
   }
-  let shown = false, tried = 0;
+  let shown = false, tried = 0, lastDraw = 0, frame = 1 / 60, at = 0;
   const seekTo = (t) => { try { if (!v.seeking) v.currentTime = t; } catch (e) { /* not yet */ } };
+  // (playbackRate only set when it changes, so the decoder isn't
+  // re-timed every frame.)
+  const rateTo = (r) => { if (Math.abs(v.playbackRate - r) > 0.004) v.playbackRate = r; };
   const api = {
     texture,
     ready() {
@@ -126,28 +141,42 @@ export function createCommercial() {
       return shown;
     },
     reset() {
+      // (A showing's sound is its own: the last one's, played out, is
+      // forgotten; this one's, if there's sound, is set just after.)
+      spotSound.heard = null; at = 0;
       if (!v) return;
       v.pause(); v.playbackRate = 1;
       if (v.readyState >= 1 && v.currentTime > 0) seekTo(0);
     },
     draw(t) {
       if (!v) return;
-      if (t <= 0) {
+      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+      // (A frame drawn now is on the screen about a frame later: the
+      // picture's aimed that far ahead.)
+      if (lastDraw && now - lastDraw < 100) frame += ((now - lastDraw) / 1000 - frame) * 0.1;
+      lastDraw = now;
+      const heard = spotSound.heard ? spotSound.heard() : null;
+      at = heard != null ? heard : t;
+      if (heard != null) t = heard + Math.min(0.05, Math.max(0.008, frame));
+      if (t <= -PREROLL) {
         if (!v.paused) v.pause();
         if (v.readyState >= 1 && v.currentTime > 0.05) seekTo(0);
         return;
       }
       if (v.ended || (v.duration && t >= v.duration)) return;
       if (v.paused) {
-        if (v.readyState >= 1 && Math.abs(v.currentTime - t) > 0.12) seekTo(t);
-        const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+        if (t > 0 && v.readyState >= 1 && Math.abs(v.currentTime - t) > 0.12) seekTo(t);
         if (now - tried > 500) { tried = now; const p = v.play(); if (p && p.catch) p.catch(() => {}); }
         return;
       }
+      if (t < 0) return; // (rolling from the top, a moment before the sound)
       const drift = v.currentTime - t;
-      if (Math.abs(drift) > 0.35) { seekTo(t); v.playbackRate = 1; }
-      else v.playbackRate = Math.abs(drift) > 0.04 ? Math.min(1.08, Math.max(0.92, 1 - drift * 0.8)) : 1;
+      if (Math.abs(drift) > 0.25) { seekTo(t); rateTo(1); }
+      else rateTo(Math.abs(drift) < CLOSE ? 1 : Math.min(1.15, Math.max(0.85, 1 - drift * 2.5)));
     },
+    // Over when the sound is (s: the set's clock, in ms; and at most a
+    // second after it says so, should the sound have stalled).
+    done(s) { return s >= COMMERCIAL_MS + 1000 || (spotSound.heard ? at >= COMMERCIAL_MS / 1000 : s >= COMMERCIAL_MS); },
     pause() { if (v && !v.paused) v.pause(); },
     dispose() { api.pause(); texture.dispose(); },
   };
