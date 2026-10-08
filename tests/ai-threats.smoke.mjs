@@ -3,7 +3,7 @@
    left it where a Flaco could roll west, then south onto it — a threat
    the evaluation only counted when it took a single roll. */
 import { setActiveLaws, setBlackHoles, setMissingSquares } from "../engine/constants.js";
-import { cabezaInDanger, cabezaThreats, evaluatePosition, findBestAiTurn, generateTurns, AI_DIFFICULTY, placeKey } from "../engine/ai.js";
+import { cabezaInDanger, cabezaThreats, crushLine, cabezaEscapes, evaluatePosition, findBestAiTurn, generateTurns, AI_DIFFICULTY, placeKey } from "../engine/ai.js";
 import { createInitialPieces } from "../engine/rules.js";
 import { generateAnomalySetup } from "../engine/anomaly.js";
 
@@ -147,6 +147,18 @@ setActiveLaws({ threeActions: false });
   const open = video.filter((p) => p.id !== "dark-turrito");
   const o = cabezaThreats(open, "dark");
   check(`...the Turrito gone: the Hombro has the Cabeza in check (${JSON.stringify(o)})`, o.length === 1 && o[0].attacker === "light-hombro");
+  // Show me: the line it crushes by, move by move.
+  const hl = crushLine(open, "light-hombro", "dark-cabeza");
+  check(`Show me: the Hombro's line is one tumble east onto the Cabeza (${JSON.stringify(hl && hl.map((s) => [s.dir, s.kind, s.to.col]))})`, !!hl && hl.length === 1 && hl[0].dir === "E" && hl[0].kind === "roll" && hl[0].from.col === 3 && hl[0].to.col === 5);
+  const tl = crushLine(twoRoll, "dark-turrito", "light-cabeza");
+  check(`...the Turrito's, two rolls, the second onto it (${JSON.stringify(tl && tl.map((s) => [s.dir, s.to.row, s.to.col]))})`, !!tl && tl.length === 2 && tl[1].to.row === 4 && tl[1].to.col === 4 && tl[0].to.row + tl[0].to.col === 7);
+  check("...none where it can't reach", crushLine(video, "light-hombro", "dark-cabeza") === null);
+  // The safe squares: where the Cabeza can get to this turn, safe or not.
+  const esc = cabezaEscapes(twoRoll, "light-cabeza", 2);
+  const safe = esc.filter((e) => e.safe), unsafe = esc.filter((e) => !e.safe);
+  check(`the Cabeza's squares this turn, safe and not (${esc.length}: ${safe.length} safe)`, esc.length >= 4 && safe.length >= 1 && unsafe.length >= 1 && !esc.some((e) => e.row === 4 && e.col === 4));
+  check("...each safe one really out of reach", safe.every((e) => cabezaThreats(twoRoll.map((p) => (p.id === "light-cabeza" ? { ...p, row: e.row, col: e.col } : p)), "light").length === 0));
+  check("...and none with no actions left", cabezaEscapes(twoRoll, "light-cabeza", 0).length === 0);
 }
 
 if (failed) { console.log(`AI THREATS: ${failed} FAILED`); process.exit(1); }

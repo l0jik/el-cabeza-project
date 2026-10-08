@@ -8361,3 +8361,29 @@ phone menu until "Start the story over" (which clears it).
   e2e-ending checks both: arms 0.97 down, head 0.68 at 35 s; then the
   arms up (negative) and the head lifted by 39.5 s. Seen on a phone via
   ?scene=revelation.
+- The check alert, the user's pick of the five: "combine 2, 3 & 5". The
+  banner, ring and outline (1) are gone. Now, on your turn against the
+  computer while it could crush your Cabeza: a card across the top (5),
+  in the world's own colours (modalSurface, COLORS), a red stripe down its
+  left: CHECK, "The Hombro can tumble onto your Cabeza on the computer's
+  next turn." (tumble / slide / crush by its line's moves), then what to
+  do: "Move your Cabeza to a green square, or block its way." (or: none
+  is safe / it can't move again this turn: block its way if you can);
+  Show me (check-alert-show) and the Alert switch (check-alert-off).
+  On the board (checkGroup): the ghost of each attacker where it would
+  land (2: its own shape, translucent red, check-ghost), an arc from it to
+  the Cabeza (a tube and a cone, check-arc), and every square your Cabeza
+  can still get to this turn (3: green safe, red in reach; its own square
+  red; check-square). Engine (ai.js): crushLine(pieces, attacker, cabeza)
+  the shortest line of moves it crushes by (iterative deepening; [{ dir,
+  kind, from, to }]); cabezaEscapes(pieces, cabeza, points) each square
+  reachable with the points and whether it's safe there. The Cabeza's
+  points: all of the turn before anything's moved, the rest of its own
+  move once begun, the turn's points under Split Movement if it may take
+  them, else none. Show me: each line played as a ghost, move by move, as
+  the board animates them (rolls about pivotFor's edge with the residual,
+  pivots about the planted cube, slides straight), ROLL_MS x2 a move, held
+  1 s, faded; the still ghost and arc hidden meanwhile; once per press
+  (checkShownRef). Tests may slow it (__EC_TEST_SHOW_SLOW__). Hooks:
+  __EC_TEST_CHECK_VIEW__, __EC_TEST_CHECK_SHOW__. e2e-check-alert and
+  ai-threats.smoke cover it.

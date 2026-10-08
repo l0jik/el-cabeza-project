@@ -71,6 +71,75 @@ export function cabezaThreats(pieces, owner) {
   return out;
 }
 
+/* The check alert's Show me (the chassis): the shortest line of moves by
+   which `attackerId` crushes `cabezaId` on its coming turn, from this
+   position: [{ dir, kind: "roll" | "slide" | "pivot", from, to }] in
+   order (`from` and `to` the piece before and after each move), or null.
+   Tried one move deep, then two, and so on through its turn's points, the
+   way blockTurnReach walks it. On a copy. */
+export function crushLine(pieces, attackerId, cabezaId) {
+  const board = pieces.map((p) => ({ ...p }));
+  const p = board.find((q) => q.id === attackerId);
+  if (!p || !board.some((q) => q.id === cabezaId)) return null;
+  const kindOf = (m) => (m.isSlide ? "slide" : m.isPivot ? "pivot" : "roll");
+  const line = [];
+  const walk = (left, depth) => {
+    const moves = legalMovesFor(board, p, left);
+    for (const dir in moves) {
+      const m = moves[dir];
+      if (m.crushes && m.crushes.id === cabezaId) { line.push({ dir, kind: kindOf(m), from: { ...p }, to: { ...p, ...m.candidate } }); return true; }
+    }
+    if (depth <= 1) return false;
+    for (const dir in moves) {
+      const m = moves[dir];
+      if (m.crushes || m.teleports || m.shoves) continue;
+      const rest = left - moveCost(m);
+      if (rest < 1) continue;
+      const from = { ...p };
+      const undo = applyMove(board, p, m);
+      line.push({ dir, kind: kindOf(m), from, to: { ...p } });
+      const found = walk(rest, depth - 1);
+      undoMove(board, p, undo);
+      if (found) return true;
+      line.pop();
+    }
+    return false;
+  };
+  const points = maxStepsFor(p.type);
+  for (let depth = 1; depth <= points; depth++) if (walk(points, depth)) return line;
+  return null;
+}
+
+/* The check alert's safe squares (the chassis): every square the Cabeza
+   `cabezaId` can get to with `points` (what its side has left of this
+   turn for it), each with whether it's out of the opponent's reach there
+   (no cabezaThreats with the Cabeza standing on it). [{ row, col, safe }].
+   On a copy. */
+export function cabezaEscapes(pieces, cabezaId, points) {
+  const board = pieces.map((p) => ({ ...p }));
+  const cab = board.find((q) => q.id === cabezaId);
+  if (!cab || points < 1) return [];
+  const start = `${cab.row},${cab.col}`;
+  const best = new Map();
+  const walk = (left) => {
+    const moves = legalMovesFor(board, cab, left);
+    for (const dir in moves) {
+      const m = moves[dir];
+      if (m.crushes || m.teleports || m.isPivot) continue;
+      const c = m.candidate, key = `${c.row},${c.col}`, rest = left - moveCost(m);
+      if (key === start || (best.has(key) && best.get(key) >= rest)) continue;
+      best.set(key, rest);
+      if (rest >= 1 && !m.shoves) { const undo = applyMove(board, cab, m); walk(rest); undoMove(board, cab, undo); }
+    }
+  };
+  walk(points);
+  return [...best.keys()].map((key) => {
+    const [row, col] = key.split(",").map(Number);
+    const there = board.map((q) => (q.id === cabezaId ? { ...q, row, col } : q));
+    return { row, col, safe: cabezaThreats(there, cab.owner).length === 0 };
+  });
+}
+
 /* The squares a block's footprint covers on the ground (an odd shape's
    overhang covers none), marked in `marks` (row * BOARD_COLS + col). */
 function markGround(marks, cand) {

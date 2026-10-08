@@ -14,7 +14,7 @@ import {
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues, applyShoves, blockedDiagonalShoves,
 } from "../engine/rules.js";
-import { findBestAiTurn, AI_DIFFICULTY, placeKey, cabezaThreats } from "../engine/ai.js";
+import { findBestAiTurn, AI_DIFFICULTY, placeKey, cabezaThreats, crushLine, cabezaEscapes } from "../engine/ai.js";
 import {
   pieceCenter, restingY, makeRoundedBox, makePolycubeSmooth, rayHitBoardPlaneY0,
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
@@ -2817,6 +2817,31 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
 
   const turnLocked = stepsUsed > 0;
+  /* The check alert's board and card (user: designs 2, 3 and 5 of the
+     five shown): for each piece that has your Cabeza in reach, the line
+     it would crush it by (crushLine: the ghost of its landing, the arc it
+     takes, Show me's replay), and every square your Cabeza can still get
+     to this turn, safe or not (cabezaEscapes: green or red). What it has
+     left of the turn: all of it before anything's moved; the rest of its
+     own move once it's begun; under Split Movement, the turn's points if
+     it may still take them; else none. */
+  const checkView = React.useMemo(() => {
+    if (!checkThreats) return null;
+    const lines = checkThreats.map(({ attacker, cabeza }) => ({ attacker, cabeza, steps: crushLine(pieces, attacker, cabeza) })).filter((l) => l.steps && l.steps.length);
+    const cabIds = [...new Set(checkThreats.map((x) => x.cabeza))];
+    const escapes = cabIds.flatMap((id) => {
+      const cab = pieces.find((q) => q.id === id);
+      if (!cab) return [];
+      const left = !turnLocked ? maxStepsFor(cab.type)
+        : selectedId === cab.id ? maxStepsFor(cab.type) - stepsUsed
+        : ACTIVE_LAWS.splitMovement && canTakeSplitPoints(cab) ? turnBudget() - stepsUsed : 0;
+      return cabezaEscapes(pieces, id, left);
+    });
+    return { lines, escapes, cabIds };
+  }, [checkThreats, pieces, turnLocked, selectedId, stepsUsed]);
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_CHECK_VIEW__ = () => checkView && { lines: checkView.lines.map((l) => ({ attacker: l.attacker, steps: l.steps.map((st) => st.dir) })), escapes: checkView.escapes };
+  // Show me: a count, each press playing the line again.
+  const [checkShow, setCheckShow] = useState(0);
   /* True from the moment a game is begun (awaitingBegin cleared) until
      it concludes — the window where the Opponent row and the move
      record are hidden to declutter the board, and End Active Game
@@ -4447,58 +4472,145 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return () => cancelAnimationFrame(raf);
   }, [missingSquares]);
 
-  /* The check alert on the board: a red ring pulsing on the board round
-     each Cabeza of yours in check, and a red line round the foot of each
-     piece that has it in reach (user: "I thought the Hombro could not
-     land on the cabeza, but it could"). Plain primitives in every world,
-     like the black holes' rings; they turn with the board. */
+  /* The check alert on the board (user: designs 2 and 3 of the five
+     shown, with 5's card): for each piece that has your Cabeza in reach, a
+     ghost of it where it would land on the Cabeza and an arc from it to
+     there (user: "I thought the Hombro could not land on the cabeza, but
+     it could"); and every square your Cabeza can still get to this turn,
+     green where it's out of reach, red where it isn't, its own square red.
+     Plain primitives in every world, like the black holes' rings; they
+     turn with the board. Show me (checkShow) plays each line: a ghost of
+     the piece tumbling, sliding or turning, move by move, onto the
+     Cabeza, as the board's own moves are animated. */
+  const CHECK_RED = 0xff3b30, CHECK_GREEN = 0x2ee59d;
+  function checkGhostMesh(state, opacity) {
+    const geo = PIECE_META[state.type].shape === "disc"
+      ? new THREE.CylinderGeometry((DISC_DIAM * CABEZA_SCALE) / 2, (DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, 40)
+      : state.vox ? makePolycubeSmooth(state, PIECE_SCALE, EDGE_RADIUS)
+        : makeRoundedBox(state.w * PIECE_SCALE, state.z * PIECE_SCALE, state.h * PIECE_SCALE, EDGE_RADIUS);
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: CHECK_RED, transparent: true, opacity, depthWrite: false }));
+    const c = pieceCenter(state);
+    mesh.position.set(c.x, restingY(state), c.z);
+    mesh.renderOrder = 6;
+    return mesh;
+  }
+  const checkShowRef = useRef(null);
+  // (Each press plays once: not again when the board's next drawn.)
+  const checkShownRef = useRef(0);
   useEffect(() => {
     const t = three.current;
     if (!t.checkGroup) return undefined;
     const group = t.checkGroup;
     clearFeatureGroup(group);
-    if (!checkThreats) return undefined;
-    const RED = 0xff3b30;
-    const rings = [];
-    [...new Set(checkThreats.map((x) => x.cabeza))].forEach((id) => {
-      const p = pieces.find((q) => q.id === id);
-      if (!p) return;
-      const c = pieceCenter(p);
-      const r = (DISC_DIAM * CABEZA_SCALE) / 2;
-      const mat = new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide });
-      const ring = new THREE.Mesh(new THREE.RingGeometry(r * 1.12, r * 1.34, 48), mat);
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.set(c.x, 0.02, c.z);
-      ring.renderOrder = 5;
-      group.add(ring);
-      rings.push(ring);
+    if (!checkView) return undefined;
+    // The safe squares: green out of reach, red in it; the Cabeza's own red.
+    const square = (row, col, safe, opacity) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(SQUARE_SIZE * 0.9, 0.02, SQUARE_SIZE * 0.9), new THREE.MeshBasicMaterial({ color: safe ? CHECK_GREEN : CHECK_RED, transparent: true, opacity, depthWrite: false }));
+      const c = pieceCenter({ row, col, w: 1, h: 1, z: 0 });
+      m.position.set(c.x, 0.015, c.z);
+      m.renderOrder = 4;
+      m.userData = { kind: "check-square", safe, row, col };
+      group.add(m);
+    };
+    checkView.cabIds.forEach((id) => { const p = pieces.find((q) => q.id === id); if (p) square(p.row, p.col, false, 0.5); });
+    checkView.escapes.forEach((e) => square(e.row, e.col, e.safe, e.safe ? 0.42 : 0.3));
+    // The ghost of each landing, and the arc to it.
+    checkView.lines.forEach((line) => {
+      const last = line.steps[line.steps.length - 1].to;
+      const ghost = checkGhostMesh(last, 0.34);
+      ghost.userData = { kind: "check-ghost", attacker: line.attacker };
+      group.add(ghost);
+      const from = line.steps[0].from, cab = pieces.find((q) => q.id === line.cabeza);
+      if (!cab) return;
+      const a = pieceCenter(from), b = pieceCenter(cab);
+      const A = new THREE.Vector3(a.x, from.z * PIECE_SCALE + 0.12, a.z), B = new THREE.Vector3(b.x, DISC_H * CABEZA_SCALE + 0.32, b.z);
+      const C = A.clone().lerp(B, 0.5); C.y = Math.max(A.y, B.y) + 1.4 + 0.25 * A.distanceTo(B);
+      const curve = new THREE.QuadraticBezierCurve3(A, C, B);
+      const mat = new THREE.MeshBasicMaterial({ color: CHECK_RED, transparent: true, opacity: 0.9, depthWrite: false });
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 32, 0.075, 8, false), mat);
+      tube.renderOrder = 7;
+      tube.userData = { kind: "check-arc", attacker: line.attacker };
+      const head = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.44, 20), mat);
+      const dir = curve.getTangent(1).normalize();
+      head.position.copy(B).addScaledVector(dir, -0.12);
+      head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+      head.renderOrder = 7;
+      head.userData = { kind: "check-arc-head" };
+      group.add(tube, head);
     });
-    [...new Set(checkThreats.map((x) => x.attacker))].forEach((id) => {
-      const p = pieces.find((q) => q.id === id);
-      if (!p) return;
-      const c = pieceCenter(p);
-      const w = p.w * SQUARE_SIZE, d = p.h * SQUARE_SIZE, th = 0.07;
-      const mat = new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.9, depthWrite: false });
-      [[0, -d / 2, w + th, th], [0, d / 2, w + th, th], [-w / 2, 0, th, d + th], [w / 2, 0, th, d + th]].forEach(([dx, dz, sx, sz]) => {
-        const bar = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.02, sz), mat);
-        bar.position.set(c.x + dx, 0.02, c.z + dz);
-        bar.renderOrder = 5;
-        group.add(bar);
-      });
-    });
-    // The ring breathes (still for a reader who wants no motion).
-    const still = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (still || !rings.length) return undefined;
-    let raf = 0;
+    // Show me: each line played as a ghost, move by move; then gone.
+    checkShowRef.current = null;
+    if (!checkShow || checkShow === checkShownRef.current || !checkView.lines.length) return undefined;
+    checkShownRef.current = checkShow;
+    // (Tests may slow it down, to see it between their slow frames.)
+    const slow = (typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && window.__EC_TEST_SHOW_SLOW__) || 1;
+    const STEP_MS = ROLL_MS * 2 * slow, GAP_MS = 260 * slow, HOLD_MS = 1000 * slow;
+    // (The still ghost and the arc stand aside while it plays.)
+    const still = group.children.filter((c) => c.userData.kind === "check-ghost" || c.userData.kind === "check-arc" || c.userData.kind === "check-arc-head");
+    const showStill = (v) => still.forEach((c) => { c.visible = v; });
+    showStill(false);
+    const plays = checkView.lines.map((line) => ({ line, mesh: null, holder: null }));
+    const total = Math.max(...plays.map((pl) => pl.line.steps.length));
+    const show = { playing: true, step: 0, steps: total };
+    checkShowRef.current = show;
     const start = performance.now();
+    let raf = 0;
+    const place = (pl, i, e) => {
+      const st = pl.line.steps[i];
+      if (!pl.mesh || pl.at !== i) {
+        if (pl.holder) { group.remove(pl.holder); pl.mesh.geometry.dispose(); pl.mesh.material.dispose(); }
+        pl.mesh = checkGhostMesh(st.from, 0.72);
+        pl.mesh.userData = { kind: "check-show" };
+        pl.at = i;
+        pl.holder = new THREE.Object3D();
+        if (st.kind === "roll") {
+          const pv = pivotFor(st.from, st.dir);
+          pl.pv = pv;
+          pl.holder.position.copy(pv.point);
+          pl.mesh.position.sub(pv.point);
+        } else if (st.kind === "pivot") {
+          const pc = pivotCellOf(st.from);
+          const point = new THREE.Vector3((pc.col + 0.5) * SQUARE_SIZE - OFF_X, 0, (pc.row + 0.5) * SQUARE_SIZE - OFF_Z);
+          pl.pv = { point, axis: new THREE.Vector3(0, 1, 0), angle: pivotTurnOfKey(st.dir) === "cw" ? -Math.PI / 2 : Math.PI / 2, dirVec: new THREE.Vector3(), residual: 0 };
+          pl.holder.position.copy(point);
+          pl.mesh.position.sub(point);
+        } else {
+          const a = pieceCenter(st.from), b = pieceCenter(st.to);
+          pl.pv = { slide: new THREE.Vector3(b.x - a.x, 0, b.z - a.z) };
+        }
+        pl.holder.add(pl.mesh);
+        group.add(pl.holder);
+      }
+      const ease = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2;
+      if (pl.pv.slide) pl.holder.position.copy(pl.pv.slide).multiplyScalar(ease);
+      else {
+        const sm = e * e * (3 - 2 * e);
+        pl.holder.setRotationFromAxisAngle(pl.pv.axis, pl.pv.angle * ease);
+        pl.holder.position.copy(pl.pv.point).addScaledVector(pl.pv.dirVec, pl.pv.residual * sm * sm);
+      }
+    };
     const loop = (now) => {
-      const s = Math.sin(((now - start) / 1000) * Math.PI * 1.4) * 0.5 + 0.5;
-      rings.forEach((ring) => { ring.material.opacity = 0.45 + 0.5 * s; const k = 1 + 0.12 * s; ring.scale.set(k, k, 1); });
-      raf = requestAnimationFrame(loop);
+      const ms = Math.max(0, now - start); // (a frame stamped just before the press)
+      const i = Math.floor(ms / (STEP_MS + GAP_MS));
+      const within = ms - i * (STEP_MS + GAP_MS);
+      if (i < total) {
+        show.step = i + 1;
+        plays.forEach((pl) => { const n = pl.line.steps.length; place(pl, Math.min(i, n - 1), i < n ? Math.min(1, within / STEP_MS) : 1); });
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+      // Landed on the Cabeza: held a moment, then faded away.
+      const after = ms - total * (STEP_MS + GAP_MS), fade = Math.min(1, Math.max(0, (after - HOLD_MS) / 450));
+      plays.forEach((pl) => { if (pl.mesh) pl.mesh.material.opacity = 0.72 * (1 - fade); });
+      if (fade < 1) { raf = requestAnimationFrame(loop); return; }
+      plays.forEach((pl) => { if (pl.holder) { group.remove(pl.holder); pl.mesh.geometry.dispose(); pl.mesh.material.dispose(); } });
+      show.playing = false;
+      showStill(true);
     };
     raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [checkThreats, pieces]);
+    return () => { cancelAnimationFrame(raf); show.playing = false; showStill(true); };
+  }, [checkView, checkShow, pieces]);
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_CHECK_SHOW__ = () => checkShowRef.current && { ...checkShowRef.current };
 
   /* Feeds the current position's "tension" to the audio engine, purely
      atmospheric (reads pieces, never writes game state). Standard's
@@ -8256,19 +8368,28 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         </div>
       )}
 
-      {/* The check alert's banner, across the top: on your turn against the
-         computer, while it could crush your Cabeza on its next turn
-         (checkThreats; the board marks the Cabeza and the pieces). It names
-         the pieces, and carries its own switch, so it says it can be turned
-         off (user: "letting them know that they can turn this on and off");
-         the menu and the setup have the same switch. */}
+      {/* The check alert's card (user: design 5 of the five shown, with 2's
+         ghost and arc and 3's safe squares on the board), across the top:
+         on your turn against the computer, while it could crush your Cabeza
+         on its next turn. What's wrong (the piece by name), what to do (a
+         green square, or its way blocked), Show me (its line played on the
+         board, checkShow) and its own switch (user: "letting them know that
+         they can turn this on and off"; the menu and the setup have it
+         too). In the world's own colours. */}
       {checkThreats && (() => {
-        const names = [...new Set(checkThreats.map((x) => {
+        const lines = (checkView && checkView.lines) || [];
+        const named = [...new Set(checkThreats.map((x) => {
           const p = pieces.find((q) => q.id === x.attacker);
           return p && PIECE_META[p.type] ? PIECE_META[p.type].name : null;
         }).filter(Boolean))];
-        const who = names.length === 1 ? `The ${names[0]}` : names.length === 2 ? `The ${names[0]} and the ${names[1]}` : "Its pieces";
+        const kinds = new Set(lines.flatMap((l) => l.steps.map((st) => st.kind)));
+        const verb = kinds.size === 1 && kinds.has("roll") ? "tumble onto" : kinds.size === 1 && kinds.has("slide") ? "slide onto" : "crush";
         const yours = pieces.filter((p) => p.type === "cabeza" && p.owner === youSide).length > 1 ? "a Cabeza of yours" : "your Cabeza";
+        const esc = (checkView && checkView.escapes) || [];
+        const advice = esc.some((e) => e.safe) ? "Move your Cabeza to a green square, or block its way."
+          : esc.length ? "No square your Cabeza can reach this turn is safe: block its way if you can."
+            : "Your Cabeza can't move again this turn: block its way if you can.";
+        const label = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" };
         return (
           <div
             data-testid="check-alert"
@@ -8279,46 +8400,63 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               left: "50%",
               transform: "translateX(-50%)",
               zIndex: 13,
-              width: "max-content",
-              maxWidth: "min(calc(100vw - 32px), 540px)",
+              width: "min(calc(100vw - 32px), 460px)",
               boxSizing: "border-box",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "8px 8px 8px 12px",
-              borderRadius: 10,
-              background: "rgba(150, 20, 16, 0.94)",
-              border: "1px solid rgba(255, 140, 120, 0.55)",
-              boxShadow: "0 6px 22px rgba(0, 0, 0, 0.35)",
-              color: "#fff",
+              padding: "13px 14px 12px",
+              borderRadius: 14,
+              background: modalSurface,
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              border: `1px solid ${COLORS.slateSoft}`,
+              borderLeft: "4px solid #e5392d",
+              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+              color: COLORS.charcoal,
               fontFamily: "'IBM Plex Sans', sans-serif",
               fontSize: 13.5,
-              lineHeight: 1.3,
+              lineHeight: 1.42,
               animation: "ecCheckIn 0.35s ease both",
             }}
           >
             <style>{"@keyframes ecCheckIn{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}@media (prefers-reduced-motion: reduce){[data-testid=\"check-alert\"]{animation:none!important}}"}</style>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
-              <path d="M12 3.5 2.5 20h19z" />
-              <path d="M12 10v4.5M12 17.4v.1" />
-            </svg>
-            <span data-testid="check-alert-text" style={{ flex: 1, minWidth: 0 }}>
-              <b style={{ letterSpacing: "0.08em" }}>CHECK.</b> {who} can crush {yours} next turn.
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked="true"
-              data-testid="check-alert-off"
-              title="Check alert: on. Turn it off here, or in the menu."
-              onClick={() => { toggleCheckAlert(); setCheckOffNote(Date.now()); }}
-              style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 8px", minHeight: 32, borderRadius: 7, border: "1px solid rgba(255,255,255,0.45)", background: "rgba(255,255,255,0.1)", color: "#fff", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}
-            >
-              Alert
-              <span aria-hidden="true" style={{ width: 24, height: 14, borderRadius: 8, boxSizing: "border-box", position: "relative", flexShrink: 0, border: "1.5px solid currentColor" }}>
-                <span style={{ position: "absolute", top: 1.5, left: 11.5, width: 8, height: 8, borderRadius: "50%", background: "currentColor" }} />
-              </span>
-            </button>
+            <div style={{ ...label, display: "flex", alignItems: "center", gap: 8, color: "#e5392d", fontWeight: 700 }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3.5 2.5 20h19z" />
+                <path d="M12 10v4.5M12 17.4v.1" />
+              </svg>
+              Check
+            </div>
+            <div data-testid="check-alert-text" style={{ marginTop: 7 }}>
+              {named.length === 1 ? <>The <b>{named[0]}</b> can {verb} {yours} on the computer's next turn.</>
+                : named.length === 2 ? <>The <b>{named[0]}</b> and the <b>{named[1]}</b> can {verb} {yours} on the computer's next turn.</>
+                  : <>Its pieces can crush {yours} on the computer's next turn.</>}
+            </div>
+            <div data-testid="check-alert-advice" style={{ marginTop: 3, opacity: 0.75 }}>{advice}</div>
+            <div style={{ display: "flex", alignItems: "stretch", gap: 10, marginTop: 11 }}>
+              <button
+                type="button"
+                data-testid="check-alert-show"
+                disabled={!lines.length}
+                title="Play its move on the board"
+                onClick={() => setCheckShow((n) => n + 1)}
+                style={{ ...label, flex: 1, minHeight: 36, padding: "8px 10px", borderRadius: 9, border: `1.5px solid ${COLORS.charcoal}`, background: COLORS.charcoal, color: COLORS.cream, fontWeight: 600, cursor: lines.length ? "pointer" : "default", opacity: lines.length ? 1 : 0.5 }}
+              >
+                Show me {"▸"}
+              </button>
+              <button
+                type="button"
+                role="switch"
+                aria-checked="true"
+                data-testid="check-alert-off"
+                title="Check alert: on. Turn it off here, or in the menu."
+                onClick={() => { toggleCheckAlert(); setCheckOffNote(Date.now()); }}
+                style={{ ...label, flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 7, minHeight: 36, padding: "8px 10px", borderRadius: 9, border: `1px solid ${COLORS.slateSoft}`, background: "transparent", color: COLORS.charcoal, cursor: "pointer" }}
+              >
+                Alert
+                <span aria-hidden="true" style={{ width: 24, height: 14, borderRadius: 8, boxSizing: "border-box", position: "relative", flexShrink: 0, border: "1.5px solid currentColor" }}>
+                  <span style={{ position: "absolute", top: 1.5, left: 11.5, width: 8, height: 8, borderRadius: "50%", background: "currentColor" }} />
+                </span>
+              </button>
+            </div>
           </div>
         );
       })()}
