@@ -8542,6 +8542,9 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             role={awaitingBegin ? "button" : undefined}
             tabIndex={awaitingBegin ? 0 : undefined}
             data-testid="turn-status"
+            // (Whose move, as the game says it, whatever the theme calls
+            // the sides: for tests.)
+            data-side={currentPlayer}
             title={awaitingBegin ? "Tap to switch which side moves first" : undefined}
             onClick={toggleStartingPlayer}
             onKeyDown={(e) => {
@@ -8697,7 +8700,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                 onClick={() => setNextOpen((v) => !v)}
                 style={dockLinkStyle()}
               >
-                {dockWords.nextGame}: {aiPlayer ? `You vs ${AI_DIFFICULTY[aiDifficulty].label} AI` : "Two humans"} {nextOpen ? "\u25B4" : "\u25BE"}
+                {dockWords.nextGame}: {aiPlayer ? `You vs ${AI_DIFFICULTY[aiDifficulty].label} AI` : "Human"} {nextOpen ? "\u25B4" : "\u25BE"}
               </button>
             </div>
           </div>
@@ -8824,7 +8827,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                   cursor: busy || aiThinking || turnLocked ? "default" : "pointer",
                 }}
               >
-                Two humans
+                Human
               </button>
               {[
                 { label: "AI", value: "dark", side: "dark" },

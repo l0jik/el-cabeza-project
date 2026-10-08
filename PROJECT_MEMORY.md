@@ -7728,3 +7728,31 @@ phone menu until "Start the story over" (which clears it).
   zoom", "the lens given back after the dolly zoom", "the game's placard
   there now"), and fail the same on b53734c without the two changes
   above (rebuilt and run): not from these. Not yet looked into.
+- e2e-ending's five hallway failures fixed (user: "fix the hallway test
+  failures"). The game was fine; the test was stale and racing the walk.
+  It read whose move it was from the turn readout's words (/dark/i), but
+  since the side names (0d6cb2f, 2026-10-05) the den says "Walnut to
+  move": it moved the wrong side's Cabeza, so no win, no placard ("a game
+  won on the walk in", "the game's placard there now"). Its 8 s wait for
+  the placard then held the test up, so the next checks read the walk
+  too late: past the calm, the lens "before" read mid dolly zoom (91
+  deg), so "the dolly zoom" and "the lens given back" failed too. Now:
+  the turn readout carries data-side ("dark"/"light", the game's own
+  words; chassis ElCabeza3D.jsx turn-status) and the test reads that;
+  the lens "before" is read before the walk (the den's own, 42 deg at
+  1100x800); the calm is checked by the walk's own clock
+  (__DEN_HALL__().t >= 10300: standing at the rift; calm till the
+  eruption at 12.6 s; the dolly from 12 s), not a fixed 3.5 s wait after
+  the doorway (with EC_SHOTS the screenshots pushed that past 12 s and
+  the lens check failed). Passes with and without EC_SHOTS.
+- "Human", not "Two humans" (user, with a phone screenshot of the den's
+  dock: "'2 humans' doesn't make sense... A player's opponent isn't going
+  to be 2 humans, it'll be one. Wherever it says this, it should be
+  changed to just 'HUMAN'"). Undoes the 2026-10-02 "Two humans" round
+  everywhere it went: the dock's opponent row and its "Next game: Human"
+  (ElCabeza3D.jsx), the phone menu's Opponent switch (MobileShell.jsx),
+  Neon's sphere pill (neon-singularity.js), the gate's sheet
+  (reality-gate.js), the store's order form (tienda-order.js), Lluvia's
+  readout "HUMAN · PASS AND PLAY" (lluvia-overlay.js). Written "Human";
+  HUMAN where the theme sets its labels in capitals. Tests look for
+  /^Human$/ (e2e-ending, e2e-den-return, e2e-dock-moments).

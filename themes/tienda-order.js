@@ -218,7 +218,7 @@ export function OpponentSection({ x, audio }) {
       h("span", { className: "td-desc" }, "Opponent", h("span", null, "a friend at the table, or the store's demonstrator")),
     ),
     h("div", { className: "td-seg", role: "group", "aria-label": "Opponent", style: { padding: "10px 4px" } },
-      opt(null, "Two humans", "tienda-opponent-human"),
+      opt(null, "Human", "tienda-opponent-human"),
       // (Each button is its side's wood already, so no dot; the word says
       // which is which, user.)
       opt("dark", `The demonstrator plays ${sideLabel(SIDE, "dark")}`, "tienda-opponent-dark"),

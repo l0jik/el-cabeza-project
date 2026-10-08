@@ -40,7 +40,7 @@ check("home, in the den", !!(await poll(() => page.evaluate(() => !!window.__DEN
 await page.waitForTimeout(1500);
 check("the hall is armed (home from the trip)", (await page.evaluate(() => window.__DEN_HALL__ && window.__DEN_HALL__().state)) === "armed");
 await openDockPanel(page);
-const human = page.locator('[data-testid="dock-panel"] button', { hasText: /^Two humans$/ }).first();
+const human = page.locator('[data-testid="dock-panel"] button', { hasText: /^Human$/ }).first();
 if (await human.count()) { await human.click(); await page.waitForTimeout(300); }
 await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game/ }).first().click();
 await page.waitForTimeout(2500);
@@ -64,12 +64,16 @@ await poll(async () => (await page.locator('[data-testid="den-hall-investigate"]
 check("again: \"Oh, for the love of…\"", /Oh, for the love of…/.test(await page.locator('[data-testid="den-hall-say"]').innerText()));
 check("...and keep playing's now the electrician", /call an electrician about that tomorrow\. Let me just finish one game!/.test(await page.locator('[data-testid="den-hall-keep"]').innerText()));
 await page.waitForSelector('[data-testid="den-hall-choice"]:not([data-held])', { timeout: 5000 }); // (held a moment against wild taps)
+// The den's own lens, before the walk (the dolly zoom at its end widens
+// it, and it's to be given back).
+const fovBefore = await page.evaluate(() => window.__DEN_THREE__.camera.fov);
 await page.locator('[data-testid="den-hall-investigate"]').click();
 check("investigate: the walk in", (await page.evaluate(() => window.__DEN_HALL__().state)) === "walk");
 {
   // The game ends just then (user: the placard came up and couldn't be
   // dismissed): the Cabeza of whoever's to move, a step from its far row.
-  const darkToMove = /dark/i.test(await page.locator('[data-testid="turn-status"]').innerText());
+  // (By the side's own name, not the words: the den calls Dark "Walnut".)
+  const darkToMove = (await page.locator('[data-testid="turn-status"]').getAttribute("data-side")) === "dark";
   await page.evaluate((dark) => window.__EC_TEST_SET_PIECES__([
     { id: "dark-cabeza", type: "cabeza", owner: "dark", row: dark ? 8 : 4, col: 4, w: 1, h: 1, z: 1 },
     { id: "dark-turrito", type: "turrito", owner: "dark", row: 0, col: 0, w: 1, h: 1, z: 1 },
@@ -88,10 +92,12 @@ const inHall = await poll(async () => {
   return z > 92 ? z : null;
 }, 12000, 150);
 check("through the doorway, into the hall", !!inHall, String(inHall));
-await page.waitForTimeout(3500);
+// (By the walk's own clock, not the test's, which a screenshot can hold
+// up a second or more: calm from about 6 s in, standing at the rift from
+// 10.2, the dolly zoom from 12, the eruption from 12.6.)
+const calm = await poll(async () => { const h = await page.evaluate(() => window.__DEN_HALL__()); return h.t >= 10300 ? h : null; }, 10000, 100);
+check("down the hall it's died down (calm)", !!calm && calm.amt < 0.5 && calm.t < 12600, JSON.stringify(calm && { amt: calm.amt, t: Math.round(calm.t) }));
 await shot(page, "hall-2-in-the-hall");
-check("down the hall it's died down (calm)", (await page.evaluate(() => window.__DEN_HALL__().amt)) < 0.5);
-const fovBefore = await page.evaluate(() => window.__DEN_THREE__.camera.fov);
 await page.evaluate(() => window.__DEN_HALL_SKIP__());
 // The dolly zoom (user): in on the rift, the lens widening as it goes.
 const dollyFov = await poll(async () => { const h = await page.evaluate(() => window.__DEN_HALL__()); return h.fov && h.fov > fovBefore * 1.3 ? h.fov : null; }, 5000, 100);
@@ -176,7 +182,10 @@ await page.locator('[data-testid="realities-restart"]').click();
 check("...and a first tap asks before it does it", /again/i.test(await page.locator('[data-testid="realities-restart"]').innerText()) && (await page.locator('[data-testid="realities"]').count()) === 1);
 await page.locator('[data-testid="reality-den"]').click();
 check("(the controls back after, once it's faded)", !!(await poll(async () => !(await page.evaluate(() => document.documentElement.classList.contains("ec-hall-scene"))), 4000)));
-check("...the lens given back after the dolly zoom", Math.abs((await page.evaluate(() => window.__DEN_THREE__.camera.fov)) - fovBefore) < 0.01);
+{
+  const fovAfter = await page.evaluate(() => window.__DEN_THREE__.camera.fov);
+  check("...the lens given back after the dolly zoom", Math.abs(fovAfter - fovBefore) < 0.01, `${fovBefore} before, ${fovAfter} after`);
+}
 check("Stay in the den: back in the den", !!(await poll(async () => !(await page.locator('[data-testid="den-ending"]').count()) && !(await page.locator('[data-testid="realities"]').count()), 6000)));
 check("...the game's placard there now", !!(await poll(() => page.evaluate(() => { const b = document.querySelector('[data-testid="victory-backdrop"]'); const cs = getComputedStyle(b); return b.dataset.open === "true" && cs.pointerEvents === "auto" && Number(cs.opacity) > 0.9; }), 4000)));
 await page.mouse.click(12, 400);

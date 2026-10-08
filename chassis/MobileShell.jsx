@@ -419,7 +419,7 @@ function SetupPanel({ ctl, t }) {
         <Seg
           label="Opponent"
           testid="shell-opponent"
-          options={[{ value: false, label: "Two humans" }, { value: true, label: "AI" }]}
+          options={[{ value: false, label: "Human" }, { value: true, label: "AI" }]}
           value={vsAi}
           disabled={locked}
           onChange={(ai) => {
