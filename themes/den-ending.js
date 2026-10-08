@@ -391,6 +391,24 @@ function ecstasy(f, cr, op, t) {
     aim(j, op, s * 0.22, -0.82, -0.55); bend(k, op, 0.3 + (i ? 0.12 : 0));
   });
 }
+/* Admitting it (user: on "It never was!!", "their arms that are up need
+   to drop down, the head needs to drop down, sort of like they're kind of
+   admitting something"): the arms fall to the sides, hanging a little
+   forward, the elbows soft; the head bows and the shoulders round. The
+   breath still in it. Blended over the pose by `w`. */
+function admit(f, w, t) {
+  if (w <= 0.001) return;
+  const breath = Math.sin((t * Math.PI * 2) / 7.2);
+  f.arms.forEach(({ j, k }, i) => {
+    const s = i ? 1 : -1;
+    _ecv.set(s * 0.17, -1, 0.2 + 0.03 * breath).normalize();
+    j.quaternion.slerp(_ecq.setFromUnitVectors(Y_DOWN, _ecv), w);
+    k.quaternion.slerp(_ecq.setFromEuler(_ece.set(-0.22, s * 0.2, 0)), w);
+  });
+  f.chest.rotation.x += (0.2 + 0.02 * breath - f.chest.rotation.x) * w;
+  f.headG.rotation.x += (0.68 - f.headG.rotation.x) * w;
+  f.headG.rotation.y *= 1 - w;
+}
 function pose(f, t, a, m, st = 0, g = 0, lg = NO_LEGS, bal = 0) {
   const breath = Math.sin((t * Math.PI * 2) / 7.2);
   const fl = (i, k) => Math.sin(t * (6.1 + 1.3 * i) + k * 2.1 + i) * 0.7 + Math.sin(t * (9.7 - 0.9 * i) + k * 1.3) * 0.3;
@@ -1063,7 +1081,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     ["iPos", "iAlpha", "iSize", "iAng", "iSeed"].forEach((k) => { W.g.attributes[k].needsUpdate = true; });
     W.mat.uniforms.uTime.value = s / 1000;
   }
-  let mergeFrom = null, lastNow = 0;
+  let mergeFrom = null, lastNow = 0, admitW = 0;
   function frame() {
     raf = requestAnimationFrame(frame);
     const now = performance.now(), s = (lastS = now - t0 + skipMs), rawMs = lastNow ? now - lastNow : 16.7, dt = Math.min(0.05, rawMs / 1000);
@@ -1132,9 +1150,14 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     // Arms out, paddling, while they turn over (not while on the head).
     const bal = smooth((s - 2600) / 2000) * (1 - smooth((s - 15500) / 4000));
     pose(fig, T1, awe, smooth(m * 1.6), st, onHead, LEGS, bal);
+    // "It never was!!" (the sixth line): admitting it, the arms fall and
+    // the head drops as it's said; held through the line, then lifted into
+    // the reach as "It's El Cabeza" comes.
+    const elCabeza = T.words + 6 * T.wordEach;
+    admitW = smooth((s - (T.words + 5 * T.wordEach + 250)) / 1300) * (1 - smooth((s - (elCabeza - 600)) / 1300));
+    admit(fig, admitW, T1);
     // Reaching for the sphere on "It's El Cabeza" (the seventh line),
     // easing into the drift as the last line comes.
-    const elCabeza = T.words + 6 * T.wordEach;
     const reach = smooth((s - (elCabeza - 400)) / 1500) * (1 - smooth((s - (LAST_AT - 200)) / 900));
     if (reach > 0.001) {
       fig.fig.updateMatrixWorld(true);
@@ -1301,7 +1324,7 @@ export function createEnding({ audio, onFinish, onPick, onStay }) {
     },
     // Whether it covers the screen (the den needn't draw underneath).
     covering: () => !!root && (stage === "void" || stage === "black" || stage === "menu" || stage === "going"),
-    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, crawlAt: CRAWL[0], crawl: crawlP, crawlTap, crawlFade: crawlFade != null, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: snd && snd.fade ? snd.fade.gain.value * snd.musicG.gain.value : 0, music: !!(snd && (snd.musicOn || snd.els)), drone: !!(snd && (snd.droneOn || (snd.els && snd.els.drone))), wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0, turn: 2 * Math.acos(Math.min(1, Math.abs(turnQ.w))), edge: scene && scene.userData.edgeMat ? scene.userData.edgeMat.uniforms.uEdge.value : null }),
+    state: () => ({ stage, pixelRatio, look: { yaw: look.yaw, pitch: look.pitch }, t: stage === "idle" ? 0 : performance.now() - t0 + skipMs, line: words.findIndex((w) => w.classList.contains("on")) + 1, menuAt: MENU_AT, crawlAt: CRAWL[0], crawl: crawlP, crawlTap, crawlFade: crawlFade != null, mergeAt: MERGE[0], figure: fig ? fig.fig.visible : null, solid: figMat ? figMat.uniforms.uSolid.value : null, level: snd && snd.fade ? snd.fade.gain.value * snd.musicG.gain.value : 0, music: !!(snd && (snd.musicOn || snd.els)), drone: !!(snd && (snd.droneOn || (snd.els && snd.els.drone))), wisps: wisps ? wisps.al.reduce((n, a) => n + (a > 0 ? 1 : 0), 0) : 0, turn: 2 * Math.acos(Math.min(1, Math.abs(turnQ.w))), admit: admitW, head: fig ? fig.headG.rotation.x : null, armsDown: fig ? fig.arms.map(({ j }) => -new THREE.Vector3(0, -1, 0).applyQuaternion(j.quaternion).y) : null, edge: scene && scene.userData.edgeMat ? scene.userData.edgeMat.uniforms.uEdge.value : null }),
     // Test-only: on by ms.
     skip(ms) { skipMs += ms; },
     // Test-only: the sound's peak and loudness (dBFS) out of the scene, and the hum's and the pad's.

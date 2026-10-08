@@ -8348,3 +8348,16 @@ phone menu until "Start the story over" (which clears it).
   cases: strict (A no), one cube tall ignored (C yes, rescinded), rise over
   not down through (live; A yes B yes C no), only pieces ending under the
   roller (A no, C yes), only a lying Flaco (matches, but arbitrary).
+- The Revelation, "It never was!!" (user: "their arms that are up need to
+  drop down, the head needs to drop down, sort of like they're kind of
+  admitting something"): den-ending.js admit(f, w, t), blended over the
+  pose after pose() and before the reach: the arms fall to the sides
+  (hanging a little forward, elbows soft), the shoulders round (chest x
+  0.2), the head bows (headG x 0.68), the breath still in it. In 250 ms
+  after the sixth line starts (33 s), over 1.3 s; held through the line;
+  let go from 600 ms before "It's El Cabeza" (38 s) over 1.3 s, into the
+  reach for the sphere as before. state() reports admit, head and
+  armsDown (each upper arm's downward-ness in the chest's frame).
+  e2e-ending checks both: arms 0.97 down, head 0.68 at 35 s; then the
+  arms up (negative) and the head lifted by 39.5 s. Seen on a phone via
+  ?scene=revelation.

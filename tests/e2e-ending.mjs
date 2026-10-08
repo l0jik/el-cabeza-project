@@ -128,6 +128,19 @@ await page.waitForTimeout(1500);
 check("the words, one at a time", !!(await poll(async () => (await page.evaluate(() => window.__DEN_ENDING__().line)) >= 1, 6000)));
 await shot(page, "end-2-words");
 check("...the corner buttons and points still away", await page.evaluate(() => document.documentElement.classList.contains("ec-hall-scene")));
+{
+  // "It never was!!" (user: "their arms that are up need to drop down, the
+  // head needs to drop down, sort of like they're kind of admitting
+  // something"): the sixth line, 33 s in; then up into the reach on "It's
+  // El Cabeza" (38 s).
+  const s0 = await page.evaluate(() => window.__DEN_ENDING__());
+  await page.evaluate((ms) => window.__DEN_ENDING_SKIP__(ms), Math.max(0, 35000 - s0.t));
+  const a = await poll(async () => { const s = await page.evaluate(() => window.__DEN_ENDING__()); return s.admit > 0.95 ? s : null; }, 4000, 100);
+  check(`"It never was!!": the arms drop to the sides, the head drops (${JSON.stringify(a && { line: a.line, arms: a.armsDown.map((v) => +v.toFixed(2)), head: +a.head.toFixed(2) })})`, !!a && a.line === 6 && a.armsDown.every((v) => v > 0.85) && a.head > 0.55);
+  await shot(page, "end-2b-never-was");
+  const r = await poll(async () => { const s = await page.evaluate(() => window.__DEN_ENDING__()); return s.t > 39500 ? s : null; }, 8000, 150);
+  check(`...then, on "It's El Cabeza", up into the reach (${JSON.stringify(r && { line: r.line, arms: r.armsDown.map((v) => +v.toFixed(2)), head: +r.head.toFixed(2) })})`, !!r && r.admit < 0.05 && r.armsDown.every((v) => v < 0) && r.head < 0);
+}
 const st = await page.evaluate(() => window.__DEN_ENDING__());
 await page.evaluate((ms) => window.__DEN_ENDING_SKIP__(ms), st.mergeAt - st.t + 6000);
 await page.waitForTimeout(1500);
