@@ -3,7 +3,7 @@
    left it where a Flaco could roll west, then south onto it — a threat
    the evaluation only counted when it took a single roll. */
 import { setActiveLaws, setBlackHoles, setMissingSquares } from "../engine/constants.js";
-import { cabezaInDanger, evaluatePosition, findBestAiTurn, generateTurns, AI_DIFFICULTY, placeKey } from "../engine/ai.js";
+import { cabezaInDanger, cabezaThreats, evaluatePosition, findBestAiTurn, generateTurns, AI_DIFFICULTY, placeKey } from "../engine/ai.js";
 import { createInitialPieces } from "../engine/rules.js";
 import { generateAnomalySetup } from "../engine/anomaly.js";
 
@@ -125,6 +125,29 @@ for (const fast of [true, false]) {
     : `the classic game: no put-back cost (${first.pieceId} ${first.dirs.join(".")} both times)`, fast ? !same : same);
 }
 setActiveLaws({ threeActions: false });
+
+// The check alert (chassis): which enemy pieces could crush a Cabeza on
+// their next turn, by name, from the position as it stands; the pieces
+// passed in are left as they were.
+{
+  const two = twoRoll.map((p) => ({ ...p }));
+  const before = JSON.stringify(two);
+  const t = cabezaThreats(two, "light");
+  check(`the check alert names the block two rolls away (${JSON.stringify(t)})`, t.length === 1 && t[0].attacker === "dark-turrito" && t[0].cabeza === "light-cabeza");
+  check("...and leaves the pieces as they were", JSON.stringify(two) === before);
+  check("nothing in reach, no check", cabezaThreats(far, "light").length === 0);
+  check("the other side's Cabeza isn't in check here", cabezaThreats(two, "dark").length === 0);
+  // The user's video: a light Hombro lying over a dark Flaco, the dark
+  // Cabeza two squares east past a Turrito. With the Turrito there, no
+  // check (its arm can't come down through it); without it, the Hombro.
+  const hombro = { id: "light-hombro", type: "hombro", owner: "light", row: 0, col: 3, w: 2, h: 2, z: 2, vox: "0,0,0;0,0,1;0,1,1;1,0,1" };
+  const flaco = { id: "dark-flaco", type: "flaco", owner: "dark", row: 0, col: 4, w: 1, h: 2, z: 1 };
+  const video = [hombro, flaco, cube("dark-turrito", "dark", 0, 5), cab("dark-cabeza", "dark", 0, 6), cab("light-cabeza", "light", 9, 9)];
+  check("the video's Hombro, the Turrito in the way: no check", cabezaThreats(video, "dark").length === 0);
+  const open = video.filter((p) => p.id !== "dark-turrito");
+  const o = cabezaThreats(open, "dark");
+  check(`...the Turrito gone: the Hombro has the Cabeza in check (${JSON.stringify(o)})`, o.length === 1 && o[0].attacker === "light-hombro");
+}
 
 if (failed) { console.log(`AI THREATS: ${failed} FAILED`); process.exit(1); }
 console.log("AI THREATS PASSED");

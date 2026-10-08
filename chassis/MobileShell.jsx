@@ -452,6 +452,16 @@ function SetupPanel({ ctl, t }) {
               onChange={(key) => { ctl.cue("Select"); ctl.onSetDifficulty(key); }}
             />
           </Field>
+          {/* The check alert (user: in the setup as well as the menu). */}
+          <Field label="Check alert">
+            <Seg
+              label="Check alert: a warning when the computer could crush your Cabeza on its next turn"
+              testid="shell-check-alert"
+              options={[{ value: true, label: "On" }, { value: false, label: "Off" }]}
+              value={!!ctl.checkAlert}
+              onChange={() => { ctl.cue("Select"); ctl.onToggleCheckAlert(); }}
+            />
+          </Field>
         </>
       )}
       <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
@@ -786,6 +796,7 @@ function MenuSheet({ ctl, t, open, onClose, landscape, safe }) {
             <Toggle label="Actions left" hint="Dots for the turn's actions" testid="shell-menu-points" on={ctl.showPoints} onChange={ctl.onTogglePoints} t={t} />
             <Toggle label="Piece guide" hint="What the chosen piece does, and tips on what to tap" testid="shell-menu-guide" on={ctl.showGuide !== false} onChange={ctl.onToggleGuide} t={t} />
             {ctl.costsToggle && <Toggle label="Move costs on the board" testid="shell-menu-costs" on={ctl.showCosts} onChange={ctl.onToggleCosts} t={t} />}
+            {ctl.aiPlayer && <Toggle label="Check alert" hint="A warning when the computer could crush your Cabeza on its next turn" testid="shell-menu-check" on={!!ctl.checkAlert} onChange={ctl.onToggleCheckAlert} t={t} />}
           </Section>
 
           <Section label="More" t={t}>

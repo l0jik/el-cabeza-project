@@ -50,6 +50,27 @@ export function cabezaInDanger(pieces, owner) {
   return false;
 }
 
+/* The check alert's question (the chassis, a game against the computer):
+   which of the opponent's blocks could crush one of `owner`'s Cabezas on
+   their next turn, from this exact position, each walked through its
+   whole turn as cabezaInDanger walks them. [{ attacker, cabeza }] by id,
+   empty when nothing can. Works on a copy: the walk moves pieces in place
+   (and puts them back), and the chassis passes its own live pieces. */
+export function cabezaThreats(pieces, owner) {
+  const board = pieces.map((p) => ({ ...p }));
+  const cabezas = board.filter((p) => p.type === "cabeza" && p.owner === owner);
+  const out = [];
+  if (!cabezas.length) return out;
+  const oppPlayer = opponentOf(owner);
+  for (const p of board.slice()) {
+    if (p.owner !== oppPlayer || p.type === "cabeza") continue;
+    const threatened = new Set();
+    blockTurnReach(board, p, maxStepsFor(p.type), cabezas, null, threatened, false);
+    threatened.forEach((cabeza) => out.push({ attacker: p.id, cabeza }));
+  }
+  return out;
+}
+
 /* The squares a block's footprint covers on the ground (an odd shape's
    overhang covers none), marked in `marks` (row * BOARD_COLS + col). */
 function markGround(marks, cand) {

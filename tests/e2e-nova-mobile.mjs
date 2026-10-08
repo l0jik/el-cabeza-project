@@ -322,7 +322,7 @@ async function waitFor(fn, ms = 8000) {
   check("...and switches to it", await waitFor(() => visible(p.page, "shell-bar")));
   await p.page.reload();
   await p.page.waitForTimeout(2500);
-  check("the bar is remembered on the phone", await visible(p.page, "shell-bar"));
+  check("the bar is remembered on the phone", await waitFor(() => visible(p.page, "shell-bar")));
   await q(p.page, "shell-menu-button").tap();
   await p.page.waitForTimeout(300);
   check("the phone's menu offers the classic dock", (await q(p.page, "shell-menu-layout").count()) === 1);

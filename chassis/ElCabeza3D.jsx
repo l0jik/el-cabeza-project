@@ -14,7 +14,7 @@ import {
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues, applyShoves, blockedDiagonalShoves,
 } from "../engine/rules.js";
-import { findBestAiTurn, AI_DIFFICULTY, placeKey } from "../engine/ai.js";
+import { findBestAiTurn, AI_DIFFICULTY, placeKey, cabezaThreats } from "../engine/ai.js";
 import {
   pieceCenter, restingY, makeRoundedBox, makePolycubeSmooth, rayHitBoardPlaneY0,
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
@@ -272,6 +272,17 @@ function loadShowCosts() {
 }
 function saveShowCosts(on) {
   try { window.localStorage.setItem(SHOW_COSTS_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
+}
+/* The check alert (user: against the computer, "if on the next turn they
+   don't move their cabeza, they will lose the game ... something better
+   for more amateur players"): a warning on your turn while the computer
+   could crush your Cabeza on its next. On unless switched off. */
+const CHECK_ALERT_KEY = "el-cabeza:check-alert";
+function loadCheckAlert() {
+  try { return window.localStorage.getItem(CHECK_ALERT_KEY) !== "0"; } catch (e) { return true; }
+}
+function saveCheckAlert(on) {
+  try { window.localStorage.setItem(CHECK_ALERT_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
 }
 // With nothing saved, a theme's default opponent if it has one (the store:
 // a new player gets the computer, theme.defaultOpponent), else two players.
@@ -1023,6 +1034,33 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [showCosts, setShowCosts] = useState(loadShowCosts);
   const [showGuide, setShowGuide] = useState(loadPieceGuide);
   const togglePieceGuide = () => { const next = !showGuide; setShowGuide(next); savePieceGuide(next); };
+  const [checkAlert, setCheckAlert] = useState(loadCheckAlert);
+  const toggleCheckAlert = () => { const next = !checkAlert; setCheckAlert(next); saveCheckAlert(next); };
+  // The check alert's switch in the dock (setup, and in play beside Focus):
+  // Focus's own little pill.
+  const checkSwitch = (testid) => (
+    <button
+      className="ec-btn"
+      role="switch"
+      aria-checked={checkAlert}
+      data-testid={testid}
+      title="Check alert: a warning when the computer could crush your Cabeza on its next turn"
+      onClick={(e) => { showToggleHint(e, checkAlert ? "Check alert: off." : "Check alert: on. A warning when the computer could crush your Cabeza on its next turn."); toggleCheckAlert(); }}
+      style={{ ...dockLinkStyle(), display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none" }}
+    >
+      Check alert
+      <span aria-hidden="true" style={{ width: 24, height: 14, borderRadius: 8, boxSizing: "border-box", position: "relative", flexShrink: 0, border: "1.5px solid currentColor", opacity: checkAlert ? 1 : 0.55, transition: "opacity 180ms ease" }}>
+        <span style={{ position: "absolute", top: 1.5, left: checkAlert ? 11.5 : 1.5, width: 8, height: 8, borderRadius: "50%", background: "currentColor", transition: "left 180ms ease" }} />
+      </span>
+    </button>
+  );
+  // Switched off from the banner itself: a moment's note where it was.
+  const [checkOffNote, setCheckOffNote] = useState(0);
+  useEffect(() => {
+    if (!checkOffNote) return undefined;
+    const id = setTimeout(() => setCheckOffNote(0), 3600);
+    return () => clearTimeout(id);
+  }, [checkOffNote]);
   /* Focus (a theme with theme.focusMode: the den): the room goes dark and
      soft round the board, and the board floats, just the game. The theme
      draws it (its ambient setFocus); the ways in and out are here: the
@@ -2428,6 +2466,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      Game controls (Neon's Singularity summary menu) drive the exact
      same game-start path the dock's own buttons do. */
   const isPlaying = status === "playing";
+  /* The check alert: against the computer, on your own turn, the enemy
+     pieces that could crush your Cabeza on the computer's next turn
+     (engine cabezaThreats), from the board as it stands, so it comes and
+     goes as you move: a step out of reach clears it, a step into reach
+     brings it up. [{ attacker, cabeza }] or null. */
+  const youSide = aiPlayer ? (aiPlayer === "dark" ? "light" : "dark") : null;
+  const checkThreats = React.useMemo(() => {
+    if (!checkAlert || !youSide || awaitingBegin || !isPlaying || winner || currentPlayer !== youSide) return null;
+    const found = cabezaThreats(pieces, youSide);
+    return found.length ? found : null;
+  }, [checkAlert, youSide, awaitingBegin, isPlaying, winner, currentPlayer, pieces]);
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_CHECK__ = () => checkThreats; // tests: the alert's reading
   const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
@@ -3364,6 +3414,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // Missing Squares TOPOLOGIES markers — same reasoning, own group,
     // keyed on the chassis's own `missingSquares` React state below.
     const missingGroup = new THREE.Group();
+    // The check alert's marks (a ring round a Cabeza in check, a line round
+    // each piece that has it in reach): own group, keyed on checkThreats.
+    const checkGroup = new THREE.Group();
 
     // Slide LAW gesture cue — a single arrow lit up on the selected
     // piece while the player is dragging it toward a legal slide (see
@@ -3412,7 +3465,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const boardGroup = new THREE.Group();
     const grid = theme.makeGrid();
     grid.name = "ec-grid"; // so resizeBoardPlate can find/replace it
-    boardGroup.add(slab, slabEdges, topRing, grid, pieceGroup, ghostGroup, holeGroup, missingGroup, slideArrowGroup, slideBlockGroup);
+    boardGroup.add(slab, slabEdges, topRing, grid, pieceGroup, ghostGroup, holeGroup, missingGroup, checkGroup, slideArrowGroup, slideBlockGroup);
     scene.add(boardGroup);
 
     three.current = {
@@ -3424,6 +3477,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       ghostGroup,
       holeGroup,
       missingGroup,
+      checkGroup,
       slideArrowGroup,
       slideBlockGroup,
       raycaster: new THREE.Raycaster(),
@@ -4392,6 +4446,59 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (typeof window !== "undefined") window.__EC_TEST_MISSING_SQUARES__ = missingSquares;
     return () => cancelAnimationFrame(raf);
   }, [missingSquares]);
+
+  /* The check alert on the board: a red ring pulsing on the board round
+     each Cabeza of yours in check, and a red line round the foot of each
+     piece that has it in reach (user: "I thought the Hombro could not
+     land on the cabeza, but it could"). Plain primitives in every world,
+     like the black holes' rings; they turn with the board. */
+  useEffect(() => {
+    const t = three.current;
+    if (!t.checkGroup) return undefined;
+    const group = t.checkGroup;
+    clearFeatureGroup(group);
+    if (!checkThreats) return undefined;
+    const RED = 0xff3b30;
+    const rings = [];
+    [...new Set(checkThreats.map((x) => x.cabeza))].forEach((id) => {
+      const p = pieces.find((q) => q.id === id);
+      if (!p) return;
+      const c = pieceCenter(p);
+      const r = (DISC_DIAM * CABEZA_SCALE) / 2;
+      const mat = new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide });
+      const ring = new THREE.Mesh(new THREE.RingGeometry(r * 1.12, r * 1.34, 48), mat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(c.x, 0.02, c.z);
+      ring.renderOrder = 5;
+      group.add(ring);
+      rings.push(ring);
+    });
+    [...new Set(checkThreats.map((x) => x.attacker))].forEach((id) => {
+      const p = pieces.find((q) => q.id === id);
+      if (!p) return;
+      const c = pieceCenter(p);
+      const w = p.w * SQUARE_SIZE, d = p.h * SQUARE_SIZE, th = 0.07;
+      const mat = new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0.9, depthWrite: false });
+      [[0, -d / 2, w + th, th], [0, d / 2, w + th, th], [-w / 2, 0, th, d + th], [w / 2, 0, th, d + th]].forEach(([dx, dz, sx, sz]) => {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.02, sz), mat);
+        bar.position.set(c.x + dx, 0.02, c.z + dz);
+        bar.renderOrder = 5;
+        group.add(bar);
+      });
+    });
+    // The ring breathes (still for a reader who wants no motion).
+    const still = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (still || !rings.length) return undefined;
+    let raf = 0;
+    const start = performance.now();
+    const loop = (now) => {
+      const s = Math.sin(((now - start) / 1000) * Math.PI * 1.4) * 0.5 + 0.5;
+      rings.forEach((ring) => { ring.material.opacity = 0.45 + 0.5 * s; const k = 1 + 0.12 * s; ring.scale.set(k, k, 1); });
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [checkThreats, pieces]);
 
   /* Feeds the current position's "tension" to the audio engine, purely
      atmospheric (reads pieces, never writes game state). Standard's
@@ -7925,10 +8032,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           scenes flag themselves on the page (the TV visit, the hall, the
           summons, the trip, the ending, the store's clerk); Neon's
           Singularity through its phase. Their own sheets hide the rest. */}
-      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"]),
-html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"]),
-html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"]),
-body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"]) {
+      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"]),
+html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"]),
+html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"]),
+body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"]) {
   opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
 }`}</style>
       {!shell && showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle") && (() => {
@@ -8146,6 +8253,104 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         >
           <style>{"@keyframes ecUnusedNote{0%{opacity:0}8%{opacity:0.85}75%{opacity:0.85}100%{opacity:0}}"}</style>
           {unusedNote.text} <span style={{ opacity: 0.7 }}>›</span>
+        </div>
+      )}
+
+      {/* The check alert's banner, across the top: on your turn against the
+         computer, while it could crush your Cabeza on its next turn
+         (checkThreats; the board marks the Cabeza and the pieces). It names
+         the pieces, and carries its own switch, so it says it can be turned
+         off (user: "letting them know that they can turn this on and off");
+         the menu and the setup have the same switch. */}
+      {checkThreats && (() => {
+        const names = [...new Set(checkThreats.map((x) => {
+          const p = pieces.find((q) => q.id === x.attacker);
+          return p && PIECE_META[p.type] ? PIECE_META[p.type].name : null;
+        }).filter(Boolean))];
+        const who = names.length === 1 ? `The ${names[0]}` : names.length === 2 ? `The ${names[0]} and the ${names[1]}` : "Its pieces";
+        const yours = pieces.filter((p) => p.type === "cabeza" && p.owner === youSide).length > 1 ? "a Cabeza of yours" : "your Cabeza";
+        return (
+          <div
+            data-testid="check-alert"
+            role="alert"
+            style={{
+              position: "fixed",
+              top: "calc(var(--ec-shell-top, env(safe-area-inset-top, 0px)) + 12px)",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 13,
+              width: "max-content",
+              maxWidth: "min(calc(100vw - 32px), 540px)",
+              boxSizing: "border-box",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "8px 8px 8px 12px",
+              borderRadius: 10,
+              background: "rgba(150, 20, 16, 0.94)",
+              border: "1px solid rgba(255, 140, 120, 0.55)",
+              boxShadow: "0 6px 22px rgba(0, 0, 0, 0.35)",
+              color: "#fff",
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontSize: 13.5,
+              lineHeight: 1.3,
+              animation: "ecCheckIn 0.35s ease both",
+            }}
+          >
+            <style>{"@keyframes ecCheckIn{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}@media (prefers-reduced-motion: reduce){[data-testid=\"check-alert\"]{animation:none!important}}"}</style>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <path d="M12 3.5 2.5 20h19z" />
+              <path d="M12 10v4.5M12 17.4v.1" />
+            </svg>
+            <span data-testid="check-alert-text" style={{ flex: 1, minWidth: 0 }}>
+              <b style={{ letterSpacing: "0.08em" }}>CHECK.</b> {who} can crush {yours} next turn.
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked="true"
+              data-testid="check-alert-off"
+              title="Check alert: on. Turn it off here, or in the menu."
+              onClick={() => { toggleCheckAlert(); setCheckOffNote(Date.now()); }}
+              style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 8px", minHeight: 32, borderRadius: 7, border: "1px solid rgba(255,255,255,0.45)", background: "rgba(255,255,255,0.1)", color: "#fff", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}
+            >
+              Alert
+              <span aria-hidden="true" style={{ width: 24, height: 14, borderRadius: 8, boxSizing: "border-box", position: "relative", flexShrink: 0, border: "1.5px solid currentColor" }}>
+                <span style={{ position: "absolute", top: 1.5, left: 11.5, width: 8, height: 8, borderRadius: "50%", background: "currentColor" }} />
+              </span>
+            </button>
+          </div>
+        );
+      })()}
+      {checkOffNote > 0 && !checkAlert && (
+        <div
+          key={checkOffNote}
+          data-testid="check-alert-note"
+          role="status"
+          style={{
+            position: "fixed",
+            top: "calc(var(--ec-shell-top, env(safe-area-inset-top, 0px)) + 12px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 13,
+            width: "max-content",
+            maxWidth: "calc(100vw - 32px)",
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: modalSurface,
+            border: `1px solid ${COLORS.slateSoft}`,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+            color: COLORS.charcoal,
+            fontFamily: "'IBM Plex Sans', sans-serif",
+            fontSize: 12.5,
+            lineHeight: 1.35,
+            textAlign: "center",
+            pointerEvents: "none",
+            animation: "ecUnusedNote 3.6s ease forwards",
+          }}
+        >
+          <style>{"@keyframes ecUnusedNote{0%{opacity:0}8%{opacity:0.85}75%{opacity:0.85}100%{opacity:0}}"}</style>
+          Check alert off. Turn it back on in the menu.
         </div>
       )}
 
@@ -8833,6 +9038,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                   </span>
                 </button>
               )}
+              {/* The check alert, in play against the computer. */}
+              {declutter && aiPlayer && checkSwitch("check-alert-switch")}
             </div>
             {declutter && (
               <button className="ec-btn" data-testid="end-game" data-dock-role="link" title="End this game" onClick={handleEndActiveGame} style={dockLinkStyle()}>
@@ -9025,6 +9232,10 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             </>
           )}
           </div>
+
+          {/* The check alert, against the computer (user: in the game's
+              setup as well as the in-game menu). */}
+          {aiPlayer && checkSwitch("check-alert-setup")}
 
           {/* Begin Game (and, for a theme with setup extras of its own
               — Neon's Anomaly button — that whole extras row) on its
@@ -9592,6 +9803,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             costsToggle: !!theme.moveCostToggle,
             showCosts,
             onToggleCosts: () => { const next = !showCosts; setShowCosts(next); saveShowCosts(next); },
+            checkAlert,
+            onToggleCheckAlert: toggleCheckAlert,
             pageItems: [
               ...((mobileShell && mobileShell.menuItems) || []),
               ...(layoutSwitch ? [{ key: "layout", testid: "shell-menu-layout", label: "Use the classic dock", detail: "The floating piece", onClick: () => layoutSwitch("dock") }] : []),

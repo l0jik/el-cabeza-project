@@ -8298,3 +8298,31 @@ phone menu until "Start the story over" (which clears it).
   pivot : u >= pivot). The Cruce cases, the Codo and Chico cases all as
   they were; shapes.smoke.mjs adds the video's position (over the Flaco
   yes, on past the Turrito no, with no Turrito the crush yes).
+- The check alert (user: against the computer, "if it is basically in
+  check, meaning if on the next turn they don't move their cabeza, they
+  will lose the game ... a toggle switch ... in the in-game menu ... and
+  for game setup as well ... better for more amateur players"; their own
+  case, the Hombro in their video: "if I had this toggle switch turned
+  on, I would have been alerted to it"). engine/ai.js cabezaThreats(pieces,
+  owner): [{ attacker, cabeza }] by id, each enemy block walked through its
+  whole turn as cabezaInDanger walks them (blockTurnReach), on a copy of
+  the pieces. Chassis: checkThreats (useMemo on pieces, the turn, the
+  switch) only with an AI opponent, a game under way, on your own turn,
+  so it comes and goes with each of your steps; null otherwise (never
+  between two people). Shown as: a red banner across the top (under the
+  phone bar's top bar: var(--ec-shell-top)), "CHECK. The Hombro can crush
+  your Cabeza next turn." naming the pieces, with its own ALERT switch
+  (off: a note "Check alert off. Turn it back on in the menu."); on the
+  board, checkGroup (a child of boardGroup, so it turns with it): a red
+  ring pulsing round the Cabeza (still under prefers-reduced-motion) and
+  a red line round the attacker's footprint. Hidden in the story's scenes
+  with the points counter. The switch (el-cabeza:check-alert, on unless
+  switched off): desktop dock setup under Difficulty (check-alert-setup,
+  also under Next game), dock panel in play beside Focus
+  (check-alert-switch), phone bar setup (shell-check-alert, On/Off under
+  Level) and menu Settings (shell-menu-check), each only against the
+  computer. Not on Lluvia's city or Neon's Singularity menu (their own
+  setup screens); the in-game menu and the banner cover those games.
+  tests/e2e-check-alert.mjs (Neon desktop, the den's bar layout on a
+  phone, two people); ai-threats.smoke.mjs: cabezaThreats, the video's
+  position with and without the Turrito.
