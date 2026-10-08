@@ -112,6 +112,13 @@ const woke = await poll(() => page.evaluate(() => { const s = window.__DEN_TV__(
 check(`...then the set switches itself on, the camera going over (${JSON.stringify(woke)})`, !!woke && woke.goal === 1);
 check("...and the commercial locks in on the set", !!(await poll(() => page.evaluate(() => window.__DEN_TV__().phase === "commercial"), 10000)));
 check("...the thought gone by then", await page.evaluate(() => !document.querySelector('[data-testid="den-phew"]') || document.querySelector('[data-testid="den-phew"]').classList.contains("off")));
+// Its first frame's a living room like this one (user: "wait, is that my
+// house?"): held there, the camera slowly pushing in on it, and the
+// thought, before it plays (its sound set to start with it).
+const house = await poll(() => page.evaluate(() => { const c = document.querySelector('[data-testid="den-house"]'); const s = window.__DEN_TV__(); return c && { text: c.innerText.trim(), ad: s.ad, watch: +s.watch.toFixed(2) }; }), 4000, 50);
+check(`...held on its first frame, the camera pushing in, and a thought (${JSON.stringify(house)})`, !!house && house.text === "Wait… is that my house?" && house.ad === 0 && house.watch > 0.02 && house.watch < 0.9);
+const plays = await poll(() => page.evaluate(() => { const s = window.__DEN_TV__(); const c = document.querySelector('[data-testid="den-house"]'); return s.ad > 0 && { watch: +s.watch.toFixed(2), card: c ? (c.classList.contains("off") ? "going" : "up") : "gone" }; }), 8000, 50);
+check(`...then it plays, the camera in close, the thought gone or going (${JSON.stringify(plays)})`, !!plays && plays.watch > 0.97 && plays.card !== "up");
 const shots = process.env.EC_SHOTS;
 // Its video on the tube, with the sound as it's heard (user: the voice
 // wasn't with the lips). Every 100 ms or so, against the moment of the

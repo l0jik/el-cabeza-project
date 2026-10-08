@@ -99,7 +99,7 @@ console.log("\nphone, the lid: a tap that misses takes the page full screen");
 console.log("\nshopping: the PA, the cart, closing time (user: nothing about orders in the store)");
 {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000; window.__EC_TEST_PA_MS__ = 7000; window.__EC_TEST_CLOSING_MS__ = 9000; window.__EC_TEST_CLOSING_MIN_MS__ = 2000; });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; window.__EC_TEST_NUDGE_MS__ = 600000; window.__EC_TEST_PA_MS__ = 7000; window.__EC_TEST_CLOSING_MS__ = 12000; window.__EC_TEST_CLOSING_MIN_MS__ = 2000; }); // (closing time 12 s after the in-stock words, which go at 10.7 s: in the same place, so a slow tap on them could land on it instead)
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));

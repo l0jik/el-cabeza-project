@@ -8027,3 +8027,100 @@ phone menu until "Start the story over" (which clears it).
   later, and pulls you in); won and a new game set up at once (the
   winning turn and two more, and it's back). Against the old code both
   fail (5 checks); e2e-ending and e2e-camera-glide pass.
+- The store's game for a new player is against the computer (user: "a
+  new player needs somebody to play against. So yeah, AI on easy. And you
+  could have the AI always be Ash"; and "did this change?"). It hadn't:
+  the chassis's opponent has defaulted to two players (aiPlayer null,
+  medium) since the start, the store included from its first day
+  (2026-09-25); since 2026-09-23 a choice made is saved on the device
+  (el-cabeza:opponent), and ?fresh forgets it, so a fresh start always
+  came up Human. Now themes can name a default for when nothing's saved
+  (theme.defaultOpponent, read by loadOpponentPrefs(fallback)); the store
+  (tienda.js) gives { aiPlayer: "light", aiDifficulty: "easy" }: the
+  computer on Easy playing Ash, you Walnut, moving first. The chassis
+  saves the prefs as the page comes up, so the store's default is kept
+  and holds at home and in every world after, till it's changed in the
+  menu. Other themes, with nothing saved (a test's seeded den, say),
+  still come up Human.
+- The commercial's first frame is a living room like the player's (user:
+  "the user should have a thought bubble that says, wait, is that my
+  house? ... before the commercial actually starts playing", and a slow
+  pan in, without upsetting the timing or the sync). It's held on that
+  frame for 4.2 s (HOUSE_HOLD, was AD_DELAY 1 s): it locks in out of the
+  snow as before (den-tv.js lock-in runs from the moment it's shown),
+  the camera pushes in from the set onto the picture over 3.8 s
+  (PUSH_MS: tvWatch driven 0 to 1 on a smoothstep, instead of easing in
+  at its usual rate), and "Wait… is that my house?" (den card, testid
+  den-house) comes 0.9 s in and goes at 3.5 s; then it plays. The sound
+  is scheduled with the same hold (audio.tvCommercial(HOUSE_HOLD / 1000)),
+  so picture and sound start together as before: e2e-den-spot measured
+  +23 ms (video clock) and +27 ms (frame on screen), all within -45..+60.
+  e2e-den-spot checks the card while the ad's still at 0 and the camera
+  part way in, then the camera fully in and the card going as it plays.
+- The lure's look round, and "!!" (user: when the set acts up and the
+  music goes wonky, "the UI should take over and have the camera swivel
+  from side to side ... in a semi-random way", a thought "huh? What's
+  going on?", passing over the set; if it's still not tapped at the
+  bright flash, "!!" and the camera "should focus, not go to, but just
+  turn ... to where it looks at the TV ... and nothing can happen until
+  they tap on it"). den-fx.js: as the lure starts stirring (25 s in),
+  once, when nothing else has the camera and the set's not been looked
+  at: glance "round", the camera turning where it stands (camera.lookAt,
+  first in placeCamera, never moved) to the stereo, toward the hall door,
+  half the time the stereo again, then over the set, and back (each turn
+  and hold 0.85-1.15x at random; about 6-8 s), "Huh? What's going on?"
+  (testid den-huh) 0.9 s in. At the blast (16 s after the stirring
+  starts, if it's not been tapped): "!!" (den-bang, loud; 0.4 s in, over
+  the blast's white, z 1401, so it reads through the flash, and up 7 s,
+  till a moment after the white's gone) and glance "fix", turned to the
+  set (0.6 s in, over 1.4 s) and held there. While either has the head,
+  lureLock: window-capture listeners swallow the starts of every pointer,
+  touch, wheel and key event but the full-screen switch's (and Tab); a
+  finger already down still lifts. A tap on the set (raycast on its
+  pickables) is pressed by the lock itself (pressTv:
+  lookAtTv(true), over to watch, the head let go, eased back over 1.2 s),
+  whatever's over it or in front of it (the chassis's own pick skips the
+  set when its wall's cut away or the table's nearer), and the rest of
+  that tap is swallowed by pointer id (REST_EVENTS: the chassis takes a
+  lift on the board for a tap even with no press, which on the set would
+  be a second press, switching it on); held on it after the blast, Enter
+  or Space presses it too.
+  The AI still moves meanwhile. Never stranded: the round waits while a
+  sheet's up (and while the console, book or phone has the camera); the
+  blast's fix puts every sheet away and calls the camera back from the
+  console, the book and the phone first (chassis helpers.sheets: up() /
+  close(): the music panel and chip, the sound menu, the rules, the move
+  log, the end-turn question, the win placard (dismissed as a tap does,
+  board and New Game kept), the phone menu via MobileShell ctl.shutMenu).
+  And the lure stands down (lureDone, the head let go) if the Singularity
+  is seen during the visit (onJourneyChange: another tab, or e2e-story's
+  shortcut of marking it seen at home; the den decides "lure" once, as it
+  comes up). And of the scene links only ?scene=lure lures (a fresh
+  visitor hasn't seen the Singularity, so ?scene=hall had the set luring
+  behind the hallway, and the look round's hold took the second "keep
+  playing" tap: e2e-camera-glide). __DEN_TV__ reports lureWaited, glance, glanceAt, lock, fixed;
+  __DEN_TV_AT__ the set's place on screen. e2e-tv-lure checks the round
+  (the thought, the lock, over the set, back and free), then the music
+  panel up as the blast comes: put away and the camera back, "!!", held on
+  the set, a tap elsewhere doing nothing, and a real tap on the set going
+  over to watch, letting go, still off. Tests that skipped the lure 41 s
+  (written when it waited 40 s) now skip just past the 25 s
+  (lureWaited), not on to the blast (e2e-den, e2e-nova-sound,
+  e2e-nova-mobile); e2e-nova-mobile's layout checks put the lure off ten
+  minutes (__DEN_LURE_SKIP__(-600000)). Other wording offered
+  for the thought: "Huh? What's wrong with the music?", "Who's messing
+  with my record?", "That's not supposed to sound like that…", "Hello? Is
+  someone there?".
+- Store browser tests after the new opponent default (31 run, one after
+  another): all pass but four store ones that failed once in that long
+  run and pass alone; none touch this round's code. Two had races, now
+  gone: e2e-store-nudge (closing time takes the in-stock PA's place 9 s
+  after it's spoken, so a slow tap on "in stock" could land on closing
+  time, which goes to the register, and closing time was then gone; the
+  test's closing comes at 12 s, after the in-stock words go at 10.7 s),
+  e2e-store-opening (the card's glow eases out on the frames' clock; the
+  test waited a fixed 1.5 s, now polls up to 4 s). Left as they are,
+  borderline under load: e2e-sound-channels (the store's second gate,
+  the far bus, read at 1 half a second after the slider's ramp; [0.25,
+  1]) and e2e-wood-sounds (the folding board's roll, rendered offline,
+  peaked at 0.005 against "> 0.005").

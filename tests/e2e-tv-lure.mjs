@@ -1,12 +1,17 @@
 /* Nova, home before the first Singularity: the set waits to be noticed
    (den-fx.js lure, den-tv.js haunt). For 25 s nothing; then, left alone,
-   it stirs, more and more, heard loudest near it. A tap on it (or the
+   it stirs, more and more, heard loudest near it; as it starts, the den
+   looks round (the stereo, the hall door, over the set) with "Huh? What's
+   going on?", taps waiting meanwhile. At the blast, if it's still not
+   been tapped: "!!", any sheet put away, the head turned to the set and
+   held there, nothing but a tap on it doing anything. A tap on it (or the
    menu's Turn on the TV, the same press) takes the camera over to watch (still off, stirring more often); a tap anywhere
    else goes back; a second tap on it turns it on, into Neon.
    The test moves the lure's clock on (__DEN_LURE_SKIP__).
 
    node tests/e2e-tv-lure.mjs [--shots DIR] */
 import { chromium } from "playwright";
+import { openDockPanel } from "./dock-helpers.mjs";
 
 const shots = process.argv.includes("--shots") ? process.argv[process.argv.indexOf("--shots") + 1] : null;
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--autoplay-policy=no-user-gesture-required"] });
@@ -45,12 +50,30 @@ await page.waitForTimeout(800);
 const mus = () => page.evaluate(() => { const a = window.__DEN_AUDIO__(); return { pull: a.tvPull, duck: a.music && a.music.duck, wobble: a.music && a.music.wobble }; });
 const m0 = await mus();
 check(`a record plays at full before the set stirs (${JSON.stringify(m0)})`, m0.pull === 0 && m0.duck > 0.95);
-await page.evaluate(() => window.__DEN_LURE_SKIP__(26000));
+// (On to just past the 25 s, whenever the den's clock began.)
+await page.evaluate(() => window.__DEN_LURE_SKIP__(-window.__DEN_TV__().lureWaited + 400));
 check("after 25 s it stirs", !!(await poll(async () => (await tv()).lureEvents >= 1, 15000)), JSON.stringify(await tv()));
 const m1 = await poll(async () => { const m = await mus(); return m.duck < 0.55 && m.wobble > 0 ? m : null; }, 6000);
 check(`...and the record backs off and warps (${JSON.stringify(m1 || (await mus()))})`, !!m1);
+// The look round (user): the den takes the camera, the head turns from
+// side to side (the stereo, the hall door, over the set) and back; a
+// thought; meanwhile only a tap on the set does anything.
+check("the den takes the camera: it looks round", !!(await poll(async () => (await tv()).glance === "round", 4000, 50)), JSON.stringify(await tv()));
+check("...\"Huh? What's going on?\"", !!(await poll(async () => /Huh\? What's going on\?/.test(await page.locator('[data-testid="den-huh"]').innerText().catch(() => "")), 4000, 100)));
+check("...taps elsewhere wait meanwhile", (await tv()).lock === true);
+check("...and it passes over the set", !!(await poll(async () => (await tv()).glanceAt === "tv", 9000, 50)));
+check("...then back, and the taps are free again", !!(await poll(async () => { const t = await tv(); return t.glance === null && !t.lock; }, 9000, 100)), JSON.stringify(await tv()));
 await page.waitForTimeout(400);
 const far = await near();
+// The music panel up as the blast comes, the camera over at the console:
+// it'll be put away, and the camera back, so it can turn to the set.
+// (The lure's clock held back a little meanwhile: its own blast, 16 s in,
+// mustn't come before the panel's up.)
+await page.evaluate(() => window.__DEN_LURE_SKIP__(-6000));
+await openDockPanel(page).catch(() => {});
+await page.locator('[data-testid="sound-button"]').first().click();
+await page.locator('[data-testid="sound-music"]').click();
+check("the music panel up, the camera at the console", !!(await poll(async () => (await page.locator('[data-testid="music-panel"]').count()) === 1 && (await page.evaluate(() => window.__DEN_STEREO__().focus)) > 0.9, 6000, 100)));
 // Left alone a good while: it stirs, often.
 await page.evaluate(() => window.__DEN_LURE_SKIP__(60000));
 // The blast (user): once, a cone of light out of the set until all goes
@@ -58,6 +81,18 @@ await page.evaluate(() => window.__DEN_LURE_SKIP__(60000));
 check("the blast: once, a while in", !!(await poll(async () => (await tv()).blasted, 8000, 50)), JSON.stringify(await tv()));
 check("...everything goes white", !!(await poll(async () => (await tv()).white > 0.97, 6000, 30)));
 check("...and fades back", !!(await poll(async () => (await tv()).white === 0 && !(await page.locator('[data-testid="den-whiteout"]').count()), 8000, 100)));
+// The set still not looked at (user): "!!", and the head turns to it and
+// stays; nothing but a tap on it does anything.
+check("the blast, the set not looked at: \"!!\"", /!!/.test(await page.locator('[data-testid="den-bang"]').innerText().catch(() => "")));
+check("...the head turned to the set, held there", (await tv()).glance === "fix" && (await tv()).glanceAt === "tv" && (await tv()).fixed);
+check("...the music panel put away, the camera back from the console", (await page.locator('[data-testid="music-panel"]').count()) === 0 && (await page.evaluate(() => window.__DEN_STEREO__().focus)) < 0.05);
+{
+  const box0 = await page.locator("canvas").first().boundingBox();
+  await page.mouse.click(box0.x + 12, box0.y + box0.height - 12);
+  await page.waitForTimeout(600);
+  const dockOpen = await page.evaluate(() => !!document.querySelector('[data-testid="dock-panel"][data-open="true"]'));
+  check("...a tap elsewhere does nothing (still held)", (await tv()).fixed && (await tv()).glance === "fix" && !dockOpen);
+}
 if (shots) {
   await page.evaluate(() => window.__DEN_TV_LOOK__(true));
   await page.waitForTimeout(2500);
@@ -67,9 +102,14 @@ if (shots) {
 const n0 = (await tv()).lureEvents;
 const n = await poll(async () => { const t = await tv(); return t.lureEvents >= n0 + 3 ? t.lureEvents - n0 : null; }, 30000);
 check(`...more and more (${n || 0} more events)`, !!n);
-// A tap on the set: over to watch it, still off.
-check("a tap on the set takes the camera over to it", (await page.evaluate(() => window.__DEN_TV_PRESS__())) === true);
-check("...to watch", !!(await poll(async () => { const t = await tv(); return t.looking && t.focus > 0.9; }, 8000, 100)));
+// A tap on the set (a real one, where it is on the screen, through the
+// hold): over to watch it, still off (the rest of the tap goes nowhere,
+// not a second press).
+const at = await page.evaluate(() => window.__DEN_TV_AT__());
+check(`a tap on the set (${at && `${Math.round(at.x)}, ${Math.round(at.y)}`})...`, !!at && at.over, JSON.stringify(at));
+if (at) await page.mouse.click(at.x, at.y);
+check("...takes the camera over to watch", !!(await poll(async () => { const t = await tv(); return t.looking && t.focus > 0.9; }, 8000, 100)), JSON.stringify(await tv()));
+check("...and the den lets go of the head", !!(await poll(async () => { const t = await tv(); return !t.fixed && !t.lock && t.glance === null; }, 4000, 100)), JSON.stringify(await tv()));
 check("...and it's still off", (await tv()).phase === "off");
 check("...with the hint, on two lines, no dot", await page.locator('[data-testid="den-tv-hint"].on').count() === 1 && !/\u00b7/.test(await page.locator('[data-testid="den-tv-hint"]').innerText()));
 check("...and soon the Singularity flashes on the dead tube", !!(await poll(async () => (await tv()).flashes >= 1, 6000, 50)), JSON.stringify(await tv()));

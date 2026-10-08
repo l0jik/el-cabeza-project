@@ -55,9 +55,10 @@ const at = await page.evaluate(() => {
   return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
 });
 await page.touchscreen.tap(at.x, at.y);
-await page.waitForTimeout(1500);
-check("a tap on the card: its flyer", (await page.locator('[data-testid="tienda-try-it"]').count()) === 1);
-check("...and the glow out", (await st()).glow < 0.1 && (await st()).cardTapped);
+// (The glow eases out on the frames' clock: a moment longer on a busy machine.)
+const poll = async (fn, ms) => { const end = Date.now() + ms; for (;;) { if (await fn()) return true; if (Date.now() > end) return false; await page.waitForTimeout(150); } };
+check("a tap on the card: its flyer", await poll(async () => (await page.locator('[data-testid="tienda-try-it"]').count()) === 1, 4000));
+check("...and the glow out", await poll(async () => { const s = await st(); return s.glow < 0.1 && s.cardTapped; }, 4000), JSON.stringify(await st()));
 check("no page errors", errs.length === 0, errs.join(" | "));
 await browser.close();
 console.log(failures ? `${failures} failure(s)` : "all passed");

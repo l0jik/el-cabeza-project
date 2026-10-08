@@ -658,6 +658,15 @@ export const moveCostToggle = true;
 // the box (chassis: theme.fullscreenOnFirstTap; browsers need a tap first).
 export const fullscreenOnFirstTap = true;
 
+/* A new player's opponent (user: "a new player needs somebody to play
+   against ... AI on easy ... the AI always be Ash"): with nothing saved
+   on the device, the store's game is against the computer, on Easy,
+   playing Ash (light; you're Walnut, and move first). Every new player
+   starts here, and the chassis keeps the choice from then on (it's saved
+   as the page comes up), so it holds at home and everywhere after, till
+   it's changed (chassis: theme.defaultOpponent). */
+export const defaultOpponent = { aiPlayer: "light", aiDifficulty: "easy" };
+
 /* What the two sides are called here (user; themes/side-names.js). */
 import { sideNamesFor } from "./side-names.js";
 import { pointsGlowFor } from "./points-glow.js";

@@ -36,10 +36,10 @@
 
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z, SLAB_MAX } from "../engine/constants.js";
-import { buildDen } from "./den-room.js";
+import { buildDen, HALL, FLOOR, RZ } from "./den-room.js";
 import { dealCard } from "./den-cards.js";
 import { quality } from "./tienda-quality.js";
-import { setCommercialOn } from "../engine/journey.js";
+import { setCommercialOn, onJourneyChange } from "../engine/journey.js";
 import { createDenCall } from "./den-call.js";
 import { createTrip } from "./den-trip.js";
 import { createHall } from "./den-hall.js";
@@ -49,7 +49,7 @@ import { WORLDS } from "./realities.js";
 const LID_FONTS = ["700 40px 'Bodoni Moda'", "500 40px 'Bodoni Moda'", "700 40px 'Libre Franklin'", "700 40px 'Courier Prime'"];
 
 export function createDenEffects(woodSet, { viewPitch = null } = {}) {
-  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null, moves = null, over = null, beginGame = null }) {
+  return function mountAmbientEffects(refs, { three, cam, audio, awaitingBeginRef, music = null, tv: novaTv = null, moves = null, over = null, beginGame = null, sheets = null }) {
     const q = quality();
     // Home with the special order (Nova): the thought, then the telephone
     // call from Big Glutts (den-call.js).
@@ -928,14 +928,25 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        first, the camera on the board and the set dark; "Phew… I'm home.
        What just happened?!" (one of the den's cards); then the set
        switches itself on (the dot opens, snow) while the camera goes over
-       and in, and out of the snow the picture locks into the commercial
-       (den-tv.js showCommercial). Meanwhile the set's taps wait, and drags
-       do, as while it has the camera. */
+       to it, and out of the snow the picture locks into the commercial
+       (den-tv.js showCommercial) on its first frame: a living room like
+       this one (user: "Wait, is that my house?"). It holds there while the
+       camera slowly pushes in on it and the thought comes and goes, then
+       plays (its sound set to start with it, so they're as together as
+       ever). Meanwhile the set's taps wait, and drags do, as while it has
+       the camera. */
     const PHEW = "Phew… I'm home. What just happened?!", PHEW_AT = 800, PHEW_MS = 3200;
     const WAKE_AT = 2800, WAKE_TO_AD = 2000;
-    let wake = null, phewCard = null, phewEnd = 0;
+    const HOUSE = "Wait… is that my house?", HOUSE_HOLD = 4200, HOUSE_AT = 900, HOUSE_MS = 2600, PUSH_MS = 3800;
+    let wake = null, phewCard = null, phewEnd = 0, houseAt = 0, houseCard = null, houseEnd = 0, pushAt = 0;
     function wakeFrame(now) {
       if (phewCard && now >= phewEnd) { phewCard.remove(700); phewCard = null; }
+      if (houseAt && now >= houseAt) {
+        houseAt = 0;
+        const doc = typeof document !== "undefined" ? document : null;
+        if (doc) { houseCard = dealCard(doc, { testid: "den-house", l1: HOUSE }); houseEnd = now + HOUSE_MS; }
+      }
+      if (houseCard && now >= houseEnd) { houseCard.remove(700); houseCard = null; }
       if (!wake || !den || !den.tv) return;
       if (wake.phewAt && now >= wake.phewAt) {
         wake.phewAt = 0;
@@ -950,10 +961,12 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       }
       if (wake.woke && now >= wake.adAt) {
         wake = null;
-        // (A second in, held on its first frame as it locks in.)
-        den.tv.showCommercial(now, AD_DELAY);
+        // (Held on its first frame as it locks in, the push and the
+        // thought, then on.)
+        den.tv.showCommercial(now, HOUSE_HOLD);
         setCommercialOn(true);
-        if (audio && audio.tvCommercial) audio.tvCommercial(AD_DELAY / 1000);
+        if (audio && audio.tvCommercial) audio.tvCommercial(HOUSE_HOLD / 1000);
+        houseAt = now + HOUSE_AT; pushAt = now;
       }
     }
     const easeInOutCubic = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
@@ -968,8 +981,12 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        on. The first tap on it (or the menu's Turn on the TV) only takes the
        camera over to watch (lureLook:
        it stirs at once and twice as often there); the second turns it on.
-       A tap anywhere else, or Escape, and the camera goes back. */
-    const lure = !!(novaTv && novaTv.lure && novaTv.lure()) && preview !== "commercial";
+       A tap anywhere else, or Escape, and the camera goes back. (Of the
+       scene links, only ?scene=lure's own: the hall, the trip, the
+       revelation and the commercial come after the Singularity in the
+       story, but a fresh visitor hasn't seen it, and the lure's look round
+       and hold took the hall's taps.) */
+    const lure = !!(novaTv && novaTv.lure && novaTv.lure()) && (!preview || preview === "lure");
     const LURE_WAIT = 25000, LURE_RAMP = 60000;
     let lureStart = 0, lureDone = false, lureLook = false, tvHint = null, lookSwallow = null;
     /* The first time home from Big Glutts, while the set's still to be
@@ -1024,6 +1041,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (on === lureLook) return;
       lureLook = on;
       if (on) {
+        letGoGlance();
         tvGoal = 1; tvLeaveAt = 0;
         const now = performance.now();
         // (Looked at before it's begun: it begins.)
@@ -1072,6 +1090,160 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     };
     const onLookUp = (e) => { if (lookSwallow !== null && e.pointerId === lookSwallow) { lookSwallow = null; e.stopImmediatePropagation(); e.preventDefault(); } };
     const onLookKey = (e) => { if (e.key === "Escape" && lureLook) { lookAtTv(false); e.stopPropagation(); } };
+    /* The lure's look round (user): when the set starts acting up and the
+       music goes wonky, the den takes the camera for a few seconds and the
+       head turns, a little at random: to the stereo (the music), off
+       toward the hall door, maybe back, then over the set (acting up),
+       and back; "Huh? What's going on?" (one of the den's cards). And if
+       the set's still not been touched when the blast comes: "!!", and
+       the head turns to the set and stays there. Meanwhile nothing but a
+       tap on the set (or the full-screen switch) does anything (user:
+       "nothing can happen until they tap on it"); the tap takes the camera
+       over to watch, as ever, and lets go. The camera turns where it
+       stands, it isn't moved (glanceFrame, first in placeCamera, so the
+       visit to the set blends on from it). */
+    const HUH = "Huh? What's going on?", HUH_AT = 900, HUH_MS = 3400;
+    // (The "!!" over the blast's white, den-fx.js whiteOut at 1400, and up till
+    // a moment after it's gone: 5.6 s, den-tv.js blastState.)
+    const BANG = "!!", BANG_AT = 400, BANG_MS = 7000, FIX_AT = 600, FIX_TURN = 1400;
+    let glance = null, lureFix = false, lookedRound = false, lockOn = false;
+    let huhAt = 0, huhCard = null, huhEnd = 0, bangAt = 0, bangCard = null, bangEnd = 0;
+    const gA = new THREE.Vector3(), gB = new THREE.Vector3(), gOwn = new THREE.Vector3(), gDir = new THREE.Vector3();
+    function startLookRound(now) {
+      const j = () => 0.85 + Math.random() * 0.3;
+      const keys = [{ at: "stereo", turn: 900 * j(), hold: 700 * j() }, { at: "hall", turn: 1000 * j(), hold: 450 * j() }];
+      if (Math.random() < 0.5) keys.push({ at: "stereo", turn: 800 * j(), hold: 250 * j() });
+      keys.push({ at: "tv", turn: 1200 * j(), hold: 1300 * j() });
+      glance = { t0: now, keys, back: 1300, fix: false, release: 0, seen: [] };
+      huhAt = now + HUH_AT;
+      lureLock(true);
+    }
+    function startFix(now) {
+      // (Nothing in the way: every sheet put away, the win placard too, and
+      // the camera back from the console, the book or the phone, so it can
+      // turn to the set and a tap can reach it.)
+      if (sheets && sheets.close) sheets.close();
+      focusGoal = 0; bookGoal = 0; phoneVisit(false);
+      glance = { t0: now + FIX_AT, keys: [{ at: "tv", turn: FIX_TURN, hold: Infinity }], back: 0, fix: true, release: 0, seen: [] };
+      lureFix = true; bangAt = now + BANG_AT;
+      lureLock(true);
+    }
+    // Let go (a tap on the set, or the lure's over): eased back to its own look.
+    function letGoGlance() {
+      lureFix = false;
+      if (glance && !glance.release) glance.release = performance.now();
+      lureLock(false);
+    }
+    function glancePoint(t, at, out) {
+      if (at === "tv") out.copy(den.tv.focus.target);
+      else if (at === "stereo") out.copy(den.stereo.focus.target);
+      else out.set((HALL.DX0 + HALL.DX1) / 2, FLOOR + 19, RZ + 4);
+      return t.boardGroup.localToWorld(out);
+    }
+    function glanceFrame(camera, t) {
+      if (!glance || !den || !den.tv || !den.stereo || !t || !t.boardGroup) return;
+      const now = performance.now();
+      camera.getWorldDirection(gDir);
+      gOwn.copy(camera.position).addScaledVector(gDir, 60);
+      let s = now - glance.t0, from = null, to = null, k = 0, prev = "own";
+      for (const key of glance.keys) {
+        if (s < key.turn) { from = prev; to = key.at; k = Math.max(0, s / key.turn); break; }
+        s -= key.turn;
+        if (s < key.hold) { from = to = key.at; k = 1; break; }
+        s -= key.hold;
+        prev = key.at;
+      }
+      if (from === null) {
+        if (glance.fix) { from = to = prev; k = 1; }
+        else if (s < glance.back) { from = prev; to = "own"; k = s / glance.back; }
+        else { glance = null; if (!lureFix) lureLock(false); return; }
+      }
+      if (k >= 1 && glance.seen[glance.seen.length - 1] !== to) glance.seen.push(to);
+      const pt = (at, out) => (at === "own" ? out.copy(gOwn) : glancePoint(t, at, out));
+      pt(from, gA); pt(to, gB);
+      gA.lerp(gB, k * k * (3 - 2 * k));
+      if (glance.release) {
+        const r = Math.min(1, (now - glance.release) / 1200);
+        gA.lerp(gOwn, r * r * (3 - 2 * r));
+        if (r >= 1) glance = null;
+      }
+      camera.lookAt(gA);
+    }
+    // While it has the head: only a tap on the set (or the full-screen
+    // switch) goes through; everything else, keys too, waits.
+    const overTv = (x, y) => {
+      const t = three.current, el = t && t.renderer && t.renderer.domElement;
+      if (!el || !t.camera || !den || !den.tv) return false;
+      const r = el.getBoundingClientRect();
+      tvNdc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
+      tvRay.setFromCamera(tvNdc, t.camera);
+      return !!tvRay.intersectObjects(den.tv.pickables, false)[0];
+    };
+    // (The starts of things only: a finger already down when it began
+    // still lifts, so no drag is left hanging.) A tap on the set is the
+    // set's, pressed here at once (pressTv: over to watch, and the head let
+    // go), whatever's over it or in front of it (a wall cut away, the
+    // table), and the rest of that tap goes nowhere. Held on the set after
+    // the blast, Enter or Space does the same from the keyboard.
+    const LOCK_EVENTS = ["pointerdown", "click", "dblclick", "mousedown", "touchstart", "wheel", "contextmenu", "gesturestart"];
+    const swallow = (e) => { e.stopImmediatePropagation(); e.stopPropagation(); if (e.cancelable) e.preventDefault(); };
+    const onLock = (e) => {
+      if (e.target instanceof Element && e.target.closest("[data-fullscreen-toggle]")) return;
+      swallow(e);
+      if (e.type === "pointerdown" && e.isPrimary !== false && overTv(e.clientX, e.clientY)) { swallowRest(e.pointerId); pressTv(); }
+    };
+    const onLockKey = (e) => {
+      if (e.key === "Tab") return;
+      swallow(e);
+      if (lureFix && (e.key === "Enter" || e.key === " ") && !e.repeat) pressTv();
+    };
+    /* The rest of that tap: its lift (the chassis takes a lift on the board
+       for a tap even with no press, and on the set that's a second press,
+       turning it on), and the mouse and touch events a browser makes of it,
+       for a moment after. */
+    const REST_EVENTS = ["pointerup", "pointercancel", "touchstart", "touchend", "mousedown", "mouseup", "click", "dblclick", "contextmenu"];
+    let restId = null, restUntil = 0, restOn = false;
+    const onRest = (e) => {
+      if (e.type === "pointerup" || e.type === "pointercancel") {
+        if (restId === null || e.pointerId !== restId) return;
+        restId = null; restUntil = performance.now() + 700;
+      } else if (restId === null && performance.now() > restUntil) { restOff(); return; }
+      swallow(e);
+    };
+    function swallowRest(id) {
+      restId = id; restUntil = Infinity;
+      if (restOn || typeof window === "undefined") return;
+      restOn = true;
+      REST_EVENTS.forEach((ev) => window.addEventListener(ev, onRest, { capture: true, passive: false }));
+    }
+    function restOff() {
+      if (!restOn || typeof window === "undefined") return;
+      restOn = false; restId = null;
+      REST_EVENTS.forEach((ev) => window.removeEventListener(ev, onRest, { capture: true }));
+    }
+    function lureLock(on) {
+      if (on === lockOn || typeof window === "undefined") return;
+      lockOn = on;
+      const f = on ? "addEventListener" : "removeEventListener";
+      LOCK_EVENTS.forEach((ev) => window[f](ev, onLock, { capture: true, passive: false }));
+      window[f]("keydown", onLockKey, true);
+    }
+    /* The Singularity seen meanwhile, while the set's still luring (another
+       tab; a test's shortcut): its reason gone, the lure stands down, as
+       when the set's turned on, and lets go of the head. */
+    const offJourney = onJourneyChange((seen) => {
+      if (!seen || !lure || lureDone) return;
+      lureDone = true; huhAt = 0; bangAt = 0;
+      letGoGlance();
+    });
+    // Its two thoughts, each frame.
+    function lureCards(now) {
+      const doc = typeof document !== "undefined" ? document : null;
+      if (huhAt && now >= huhAt) { huhAt = 0; if (doc) { huhCard = dealCard(doc, { testid: "den-huh", l1: HUH }); huhEnd = now + HUH_MS; } }
+      if (huhCard && now >= huhEnd) { huhCard.remove(700); huhCard = null; }
+      if (bangAt && now >= bangAt) { bangAt = 0; if (doc) { bangCard = dealCard(doc, { testid: "den-bang", l1: BANG, loud: true }); bangCard.el.style.zIndex = "1401"; bangEnd = now + BANG_MS; } }
+      if (bangCard && now >= bangEnd) { bangCard.remove(700); bangCard = null; }
+    }
     let lookListenersOn = null;
     /* While the set has the camera (watching it, the commercial, the way
        in and out), a drag, a pinch, a two-finger swipe or the wheel on the
@@ -1080,7 +1252,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        left (user: after the commercial, looking at the carpet). Taps still
        go through (to the set). Window, capture: ahead of the chassis's
        document-level gesture listeners and the canvas's own. */
-    const holdsCamera = () => tvW > 0.02 || tvGoal > 0 || !!wake;
+    const holdsCamera = () => tvW > 0.02 || tvGoal > 0 || !!wake || !!glance;
     const onHoldMove = (e) => {
       if (paper) return; // (the order paper's own, while it's up)
       const t = three.current, el = t && t.renderer && t.renderer.domElement;
@@ -1238,9 +1410,19 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     const PORTAL_LOCK_MS = 500;
     if (novaTv && novaTv.register) novaTv.register({ press: pressTv });
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? (wake.woke ? "woke" : "dark") : null, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
+      window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? (wake.woke ? "woke" : "dark") : null, lureWaited: lureStart ? performance.now() - lureStart - LURE_WAIT : null, glance: glance ? (glance.fix ? "fix" : "round") : null, glanceAt: glance && glance.seen.length ? glance.seen[glance.seen.length - 1] : null, lock: lockOn, fixed: lureFix, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
+      // Test-only: where the set is on the screen (its picture's middle),
+      // and whether a tap there is over it.
+      window.__DEN_TV_AT__ = () => {
+        const t = three.current, el = t && t.renderer && t.renderer.domElement;
+        if (!el || !t.camera || !t.boardGroup || !den || !den.tv) return null;
+        const p = t.boardGroup.localToWorld(new THREE.Vector3().copy(den.tv.focus.target)).project(t.camera);
+        const r = el.getBoundingClientRect();
+        const x = r.left + ((p.x + 1) / 2) * r.width, y = r.top + ((1 - p.y) / 2) * r.height;
+        return { x, y, over: overTv(x, y) };
+      };
       // Test-only: as if back from the Singularity the first time: the
       // set on, the commercial.
       window.__DEN_TV_AIR__ = () => { returning = true; commercialNext = true; };
@@ -1333,6 +1515,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           }
         }
         wakeFrame(now);
+        lureCards(performance.now());
         if (den.tv.phase() === "aired" && !offAt) offAt = now + 650;
         if (offAt && now >= offAt) {
           offAt = 0;
@@ -1349,9 +1532,17 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           if (!lureStart) lureStart = now;
           const waited = now - lureStart - LURE_WAIT;
           if (waited >= 0) {
+            // The look round, once, as it starts (when nothing else has the
+            // camera, and no sheet's up), unless the set's been looked at
+            // already.
+            if (!lookedRound && !lureLook && !blasted && !glance && tvGoal === 0 && phoneGoal === 0 && bookGoal === 0 && focusGoal === 0 && !(sheets && sheets.up && sheets.up())) {
+              lookedRound = true; startLookRound(performance.now());
+            }
             if (!blasted && waited >= (lureLook ? BLAST_AFTER_LOOK : BLAST_AFTER) && den.tv.blast(now)) {
               blasted = true; lureEvents++; lastHaunt = "blast";
               if (audio && audio.tvHaunt) audio.tvHaunt("blast", 1);
+              // Still not looked at: "!!", and the head turns to it and stays.
+              if (!lureLook) startFix(performance.now());
             }
             // (After the blast, it's never quite settled again.)
             const level = Math.max(Math.min(1, waited / LURE_RAMP), blasted ? 0.85 : 0);
@@ -1384,8 +1575,13 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           // (Waking into it counts: the order paper and the special order
           // wait for after it, as they always have.)
           if (!on && !wake) setCommercialOn(false);
-          const watch = on || !!(wake && wake.woke);
-          tvWatch += ((watch ? 1 : 0) - tvWatch) * (1 - Math.exp(-dt * 1.2));
+          // In close on the picture: the slow push from the set onto its
+          // first frame, as it locks in; else eased.
+          if (pushAt) {
+            const k = Math.min(1, Math.max(0, (now - pushAt) / PUSH_MS));
+            tvWatch = Math.max(tvWatch, k * k * (3 - 2 * k));
+            if (k >= 1 || !on) pushAt = 0;
+          } else tvWatch += ((on ? 1 : 0) - tvWatch) * (1 - Math.exp(-dt * 1.2));
         }
         // While the camera visits the set, the title and the dock's piece
         // step aside (standard.js styleSheet, html.ec-tv-visit).
@@ -1486,6 +1682,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         const t = three.current;
         // The hall first (the doorway, the walk in): over everything else.
         if (hall && hall.placeCamera(camera, t, den)) return true;
+        glanceFrame(camera, t);
         focusW += (focusGoal - focusW) * (1 - Math.exp(-(dtMs / 1000) * 2.4));
         if (Math.abs(focusGoal - focusW) < 0.001) focusW = focusGoal;
         if (tvLeaveAt && tvGoal === 0) {
@@ -1600,8 +1797,12 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (paper) paper.stop();
         okayAt = 0;
         if (okayCard) { okayCard.el.remove(); okayCard = null; }
-        wake = null;
+        wake = null; houseAt = 0; pushAt = 0;
+        glance = null; lureFix = false; lureLock(false); restOff(); offJourney(); huhAt = 0; bangAt = 0;
+        if (huhCard) { huhCard.el.remove(); huhCard = null; }
+        if (bangCard) { bangCard.el.remove(); bangCard = null; }
         if (phewCard) { phewCard.el.remove(); phewCard = null; }
+        if (houseCard) { houseCard.el.remove(); houseCard = null; }
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (novaTv && novaTv.register) novaTv.register(null);

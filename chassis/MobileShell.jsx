@@ -127,8 +127,10 @@ export default function MobileShell({ ctl }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
-  // A cinematic taking the screen (Neon's Singularity) closes the menu.
+  // A cinematic taking the screen (Neon's Singularity) closes the menu, as
+  // does a theme's scene putting every sheet away (ctl.shutMenu).
   useEffect(() => { if (ctl.hidden) setMenuOpen(false); }, [ctl.hidden]);
+  useEffect(() => { if (ctl.shutMenu) setMenuOpen(false); }, [ctl.shutMenu]);
 
   const t = tokens(theme, COLORS);
   const hiddenStyle = ctl.hidden ? { opacity: 0, pointerEvents: "none" } : { opacity: 1 };

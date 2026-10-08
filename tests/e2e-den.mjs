@@ -543,7 +543,7 @@ async function waitFor(fn, ms = 8000) {
   const switchTheme = async (prompt) => {
     await q(page, "shell-menu-button").click();
     await page.waitForTimeout(300);
-    await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(41000)); // (past the set's 25 s wait, den-fx.js lure)
+    await page.evaluate(() => { const w = window.__DEN_TV__ && window.__DEN_TV__().lureWaited; if (window.__DEN_LURE_SKIP__) window.__DEN_LURE_SKIP__(w == null ? 25400 : 400 - w); }); // (just past the set's 25 s wait, not on to its blast, which holds everything till the set's tapped: den-fx.js lure)
     await q(page, "shell-menu-switch-theme").click();
     // (The first press, the first time home, only goes over to watch: den-fx.js lure.)
     if (await page.waitForFunction(() => { const t = window.__DEN_TV__ && window.__DEN_TV__(); return !t || t.phase !== "off" || t.looking; }, null, { timeout: 5000 }).then(() => page.evaluate(() => { const t = window.__DEN_TV__ && window.__DEN_TV__(); return !!(t && t.looking); })).catch(() => false)) {

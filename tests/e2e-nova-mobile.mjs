@@ -40,6 +40,14 @@ async function open(url, { width, height, touch = true, bar = false }) {
   }, bar);
   await page.goto(url);
   await page.waitForTimeout(2500);
+  // At home the set's lure waits ten minutes, not 25 s: these are the
+  // layout's checks, and as it starts it takes the camera (and the taps)
+  // for a moment, and at its blast till the set's tapped (den-fx.js lure;
+  // e2e-tv-lure). The TV's own check below moves it on.
+  if (url === NOVA) {
+    await page.waitForFunction(() => !!window.__DEN_LURE_SKIP__, null, { timeout: 10000 }).catch(() => {});
+    await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(-600000));
+  }
   return { ctx, page, errs };
 }
 const q = (page, id) => page.locator(`[data-testid="${id}"]`);
@@ -191,7 +199,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "shell-menu-button").click();
   await page.waitForTimeout(300);
   check("the menu's switch is the TV at home", /Turn on the TV/.test(await q(page, "shell-menu-switch-theme").innerText()));
-  await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(41000)); // (past the set's 25 s wait, den-fx.js lure)
+  await page.evaluate(() => { const w = window.__DEN_TV__ && window.__DEN_TV__().lureWaited; if (window.__DEN_LURE_SKIP__) window.__DEN_LURE_SKIP__(w == null ? 25400 : 400 - w); }); // (just past the set's 25 s wait, not on to its blast, which holds everything till the set's tapped: den-fx.js lure)
   await q(page, "shell-menu-switch-theme").click();
   // (The first press, the first time home, only goes over to watch: den-fx.js lure.)
   if (await page.waitForFunction(() => { const t = window.__DEN_TV__ && window.__DEN_TV__(); return !t || t.phase !== "off" || t.looking; }, null, { timeout: 5000 }).then(() => page.evaluate(() => { const t = window.__DEN_TV__ && window.__DEN_TV__(); return !!(t && t.looking); })).catch(() => false)) {

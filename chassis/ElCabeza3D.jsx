@@ -273,8 +273,14 @@ function loadShowCosts() {
 function saveShowCosts(on) {
   try { window.localStorage.setItem(SHOW_COSTS_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
 }
-function loadOpponentPrefs() {
+// With nothing saved, a theme's default opponent if it has one (the store:
+// a new player gets the computer, theme.defaultOpponent), else two players.
+function loadOpponentPrefs(fallback = null) {
   const prefs = { aiPlayer: null, aiDifficulty: "medium", humanStartSide: "dark" };
+  if (fallback) {
+    if (fallback.aiPlayer === "dark" || fallback.aiPlayer === "light") prefs.aiPlayer = fallback.aiPlayer;
+    if (Object.prototype.hasOwnProperty.call(AI_DIFFICULTY, fallback.aiDifficulty)) prefs.aiDifficulty = fallback.aiDifficulty;
+  }
   try {
     const saved = JSON.parse(window.localStorage.getItem(OPPONENT_PREFS_KEY) || "null");
     if (saved && typeof saved === "object") {
@@ -323,7 +329,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const C = carry && typeof carry === "object" ? carry : null;
   const carried = (key, fallback) => (C && C[key] !== undefined ? C[key] : typeof fallback === "function" ? fallback() : fallback);
   const opponentPrefsRef = useRef(null);
-  if (opponentPrefsRef.current === null) opponentPrefsRef.current = loadOpponentPrefs();
+  if (opponentPrefsRef.current === null) opponentPrefsRef.current = loadOpponentPrefs(theme.defaultOpponent || null);
   const savedOpponent = opponentPrefsRef.current;
   const { COLORS, HEX, EDGE_RADIUS, modalBackdrop, modalSurface, canvasGradientStart, canvasGradientEnd } = theme;
   // What this theme calls the two sides ("Red" / "Blue" in De Stijl,
@@ -1783,6 +1789,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      open the theme takes the camera over to the stereo (ambient
      setMusicFocus / cameraOverride), and back when it closes. */
   const music = theme.music || null;
+  /* Every sheet put away at once, and is one up? For a theme's scene that
+     takes the screen (the den's lure as the set blasts, den-fx.js:
+     helpers.sheets): the music panel and chip, the sound menu, the rules,
+     the move log, the end-turn question, the win placard (its board and
+     New Game stay, as when it's tapped away), the phone's menu
+     (MobileShell, ctl.shutMenu). */
+  const [shutMenu, setShutMenu] = useState(0);
+  const sheetsUpRef = useRef(false);
   const [musicPanel, setMusicPanel] = useState(false);
   const [musicNow, setMusicNow] = useState(null);
   // Paused from the now-playing chip: the track keeps its place.
@@ -3521,6 +3535,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           glideRef.current = { ms };
         },
         music: music ? { tracks: () => music.tracks(), play: (track) => playTrackRef.current && playTrackRef.current(track), playing: () => !!musicNowRef.current } : null,
+        sheets: {
+          up: () => sheetsUpRef.current || (typeof document !== "undefined" && document.documentElement.classList.contains("ec-shell-menu-open")),
+          close: () => {
+            setMusicPanel(false); setMusicChipOpen(false); setSoundMenuAt(null); setShowInfoOverlay(false);
+            setShowMoveLog(false); setEndTurnAsk(null); setShowVictoryPlacard(false); setShutMenu((n) => n + 1);
+          },
+        },
       }
     );
 
@@ -6800,6 +6821,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (status !== "playing") setEndTurnAsk(null);
   }, [status]);
   useEffect(() => { setEndTurnAsk(null); }, [currentPlayer]);
+  // (Is a sheet up? Read by helpers.sheets, at the theme's mount above.)
+  sheetsUpRef.current = !!(musicPanel || musicChipOpen || soundMenuAt || showInfoOverlay || showMoveLog || endTurnAsk || showVictoryPlacard);
   function handleStopHere() {
     // Guards the human-facing entry point only — the AI's own orchestration
     // effect calls settleTurn directly, bypassing this, so its own
@@ -9450,6 +9473,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             // gets the whole screen back (no visible shift mid-collapse).
             hidden: !!(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle"),
             fullFrame: !!(setupExtras && (setupExtras.singularityPhase === "blackout" || setupExtras.singularityPhase === "sphere")),
+            // (Counted up: a theme's scene put every sheet away, helpers.sheets.)
+            shutMenu,
             cue: (name) => { try { const f = audioRef.current["play" + name]; if (f) f.call(audioRef.current); } catch (e) { /* audio not started */ } },
             phase: awaitingBegin ? "setup" : isPlaying ? "playing" : "over",
             statusText, currentPlayer, winner, aiPlayer, aiThinking,
