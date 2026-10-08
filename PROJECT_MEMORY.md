@@ -8420,3 +8420,15 @@ phone menu until "Start the story over" (which clears it).
   Lluvia's city; Neon and the store keep theirs. e2e-gate (open, drag
   turns it, tap outside, sheet still up), e2e-lluvia (open, close),
   e2e-singularity still passes.
+- Check alert, the user's question: "Is it going to be 3D? ... just create
+  the still that you can rotate ... see the attack from all angles ...
+  Which way would be better? Or is it both?" Answered: it already is 3D
+  (ghost, arc and squares are objects on the board, in checkGroup; drag
+  turns and tilts, pinch zooms, during Show me too; the still stays up all
+  turn, Show me plays only on a press). Recommended both, the still doing
+  most of the work: the still says where it lands, the replay says how
+  (the Hombro tumble was the surprise). Gap named: a line of two or three
+  moves shows only its start and its landing, one arc over the middle.
+  Proposed: a faint ghost at every stop with a small hop per move, so the
+  whole path sits on the board; Show me kept as the extra. Awaiting the
+  user's yes before building it.
