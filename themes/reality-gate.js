@@ -177,7 +177,10 @@ const CSS = `
 /* Who's playing: two columns, the computer's two sides one under the other
    in the right one (user: Computer plays Light in the right column, under
    Dark, not wrapped to the left). */
-.rg-seg.rg-opp { display: grid; grid-template-columns: auto auto; justify-content: start; }
+/* (Its two rows one height: with the sides' names, one can run to two
+   lines where the other doesn't, "Computer plays Paper (light)" under
+   "Computer plays Ink (dark)", and the pair had come out uneven.) */
+.rg-seg.rg-opp { display: grid; grid-template-columns: auto auto; grid-auto-rows: 1fr; justify-content: start; }
 .rg-seg.rg-opp button:nth-child(3) { grid-column: 2; }
 .rg-seg button { appearance: none; min-height: 40px; padding: 0 12px; border: var(--rg-line-w) solid var(--rg-line); border-radius: var(--rg-radius); background: transparent;
   color: var(--rg-ink); font: 600 14px/1.15 var(--rg-body); cursor: pointer; }

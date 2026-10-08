@@ -7777,3 +7777,41 @@ phone menu until "Start the story over" (which clears it).
   the path as designed (105 units). Checked: the camera's height and
   the footsteps through the walk (ten thuds about 0.94 s apart, the
   lowest points with them), frames at 0-2.8 s, e2e-ending.
+- Audit of the recent name changes (user: "Do comprehensive check to
+  ensure all recent name changes haven't created any other issues & if
+  so they must be repaired"). The renames: each theme's sides (0d6cb2f,
+  2026-10-05, and the follow-ups; the colour hints and dots, 898437f),
+  "Split movement, 2 pieces" (e13ab85), the Parrish looks "Tá muid beo" /
+  "Go deo na ndeor" (cb17267), Watermark's "Ôm Nhau Vĩnh Cửu" (228ed2d),
+  "Human" (8bdec83).
+  - Code: nothing in the game reads the words on screen (no comparisons
+    with display text); the old look names live on only in comments;
+    every turn line, win card, points label, "(AI) thinking" and "Next
+    game: Human" is built from the theme's names.
+  - Tests: e2e-ending was the one that read the words (fixed in 8bdec83:
+    turn-status data-side); the others already read the themed names.
+    The full run (run-e2e, 56): 55 passed; e2e-summon failed on its
+    title-hold check, from the Neon hold rule (6220327), not a rename:
+    updated (04da13a), passes.
+  - On screen (scratch scripts, phone 390 and desktop 1280): all 17
+    worlds' setup panel and a game won at once: the theme's names in the
+    turn line and on the win card, no label clipped or off the screen
+    (big win titles wrap to two lines on a phone, as they're made to).
+    The gate's Cabeza Nova menu in every world, its board picker, the
+    store's order form, Lluvia's city: none clipped; Mưa and Nắng in
+    Saira / IBM Plex (both with Vietnamese). (Parrish: the computer plays
+    Walnut and opens, by default.)
+  - Fixed: the gate's who's-playing rows one height (.rg-seg.rg-opp
+    grid-auto-rows: 1fr): with the names and hints one of the computer's
+    two buttons can wrap where the other doesn't (Parrish: "Walnut
+    (dark)" on two lines, "Ash (light)" on one), and the pair came out
+    uneven.
+  - Found, older than the renames, left as they are (offered to the
+    user): Swiss (Lab), the win card's Move log black on black (lab/css.js
+    swiss `.ec-btn-invert { background: #000 !important }`, the button's
+    text COLORS.charcoal); Ultimate Fusion (Lab), the turn line dark on
+    dark (COLORS.charcoal on COLORS.creamAlt, both dark there); Bauhaus
+    and De Stijl (Lab), the AI buttons' words faint (the side colours at
+    0.35 when not picked, since 2026-09-27) and the picked Human / Begin
+    game blue on red; Lluvia, the after-game line "Mưa vẫn rơi." in
+    Special Elite, which has no ư, ẫ or ơ (they come from another font).
