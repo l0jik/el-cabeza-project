@@ -1,8 +1,9 @@
 /* The first arrival in Neon from the den's television (Nova, before the
    Singularity's been visited): the summons (themes/neon-summon.js). The
    singularity over the board, the pieces turned to it and hovering, shock
-   waves running out; the board and the dock out of reach, the title's hold
-   still there; a tap on the singularity opens the SINGULARITY invite, and
+   waves running out; the board and the dock out of reach, the title not
+   (though with no hold on it: in Neon, only once the story's over); a tap
+   on the singularity opens the SINGULARITY invite, and
    the toll puts it all away. Its sound: the phone mix on a phone, the
    full-range mix on a computer, thunder on the waves. Once the
    Singularity's been visited, no summons.
@@ -72,8 +73,12 @@ console.log("the first arrival");
   check("the singularity sits between the title and the board", !!s1 && s1.screen.y > 110 && s1.screen.y < 420, JSON.stringify(s1 && s1.screen));
   const dockHidden = await page.evaluate(() => [...document.querySelectorAll('[data-dock-piece], [data-testid="dock-panel"]')].every((d) => getComputedStyle(d).visibility === "hidden"));
   check("the dock is put away", dockHidden);
-  const atTitle = await page.evaluate(() => { const t = document.querySelector(".ec-title").getBoundingClientRect(); const el = document.elementFromPoint(t.left + t.width / 2, t.top + t.height / 2); return el && (el.getAttribute("data-testid") || el.className); });
-  check(`the title's hold is still within reach (${atTitle})`, /hold-zone/.test(String(atTitle)));
+  // Its shield over the board only, not the title; and on the title no
+  // hold before the story's over (user: the long press home from Neon
+  // only once everything's unlocked; the way home is the Singularity's).
+  const atTitle = await page.evaluate(() => { const t = document.querySelector(".ec-title").getBoundingClientRect(); const el = document.elementFromPoint(t.left + t.width / 2, t.top + t.height / 2); return el && (el.closest(".ec-title") ? "the title" : el.getAttribute("data-testid") || el.className); });
+  check(`the title isn't under its shield (${atTitle})`, !!atTitle && !/summon-shield/.test(String(atTitle)));
+  check("...and has no hold on it before the story's over", (await page.locator(".ec-masthead-hold-zone").count()) === 0);
   // (The first clap of thunder, and its shock wave, comes about 12 s in.)
   check("a clap of thunder, and its shock wave", !!(await poll(async () => { const s = await S(); return s.waves >= 1 && s.sound && s.sound.thunder >= 1; }, 30000)), JSON.stringify(await S()));
   // A tap on the board does nothing.
