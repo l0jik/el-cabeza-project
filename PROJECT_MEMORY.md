@@ -8442,3 +8442,7 @@ phone menu until "Start the story over" (which clears it).
   value had also made the "untouched by all ten switches" and "reset
   presentation" comparisons vacuous for that field. Now read by
   [data-stat="actions"] (key renamed actions): all 35 lab checks pass.
+- The rest of that sweep, re-run with the 2-hour limit: all 11 pass
+  (store-nudge, dock-moments, outline, den, den-return, den-spot,
+  outside-dismiss, smoke tienda, try-it, store-opening, clerk). With
+  e2e-lab fixed, all 25 green for the round through 734ec2e.
