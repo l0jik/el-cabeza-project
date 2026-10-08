@@ -7548,3 +7548,49 @@ phone menu until "Start the story over" (which clears it).
   landscape and a portrait test clip joined end to end (each scaled and
   padded to 1280x720 at 30 fps, their sound kept). Nothing made yet: the
   user's videos, and how they want them combined, still to come.
+- The user's three videos combined (user: "Combine them in a creative
+  way. If you're able to view the clips in group or and get rid of stuff
+  as duplicate, that would be good"): three AI-made 1975 TV spots for El
+  Cabeza, 25 s each, 640x480 (4:3), 24 fps, with sound. All three read
+  the same script ("Tired of chess? Think checkers is boring? Then try
+  something completely different. Introducing El Cabeza, the exciting new
+  game of unparalleled intention. That's clever. For two players, ages 10
+  to adult. Now only $7.97 at Big Glutts. Your move."). A (a39adb92...) a
+  clean take, ending on four frames of a figure before the black hole,
+  then black. B (269b7439...) a glitched take: the Singularity (10.54-12.29
+  s, music only) swallows the announcer, then "How you whaat?", the box
+  white, the take recovers. C (1c658fd7...) is B frame for frame, its
+  sound bit-identical, but for frames 461-498 (19.2-20.8 s): a garbled
+  AI copy of our flyer ("BiL GABEtts", "SAL$7.97") where B has the sale
+  card. A's sale card is B's too; both have the store shot. Found with
+  per-frame correlation (8 fps, 32x24 grey), cuts by frame difference,
+  pauses by silencedetect, words by speech-to-text.
+  The edit, a 30 s spot (720 frames; T = output frame): A 0-40 (den,
+  board on the table, "Tired of chess?"); B 6-64 + 2 held, pushing in
+  through the TV's screen (x 217-392, y 172-303; zoompan on a 4x
+  upscale, zoom 1 to 3.9 from local frame 27, eased u^2.4), dissolving
+  (6 frames) into A 96-191 (the family and the box) and A 192-298 (the
+  hand, a walnut piece); A 299-301 torn (geq sine shear, rgbashift,
+  noise) into B 253-255 (RGB split) and B 256-460 (B's take from the
+  Singularity on: the white box, the board, father and son, the son); C
+  461-472 (the garbled flyer, first 2 frames glitched) and B 473-535
+  (the sale card, first 2 frames glitched; the walnut piece, Big
+  Glutts); dissolving (9 frames) B 536-544 into A 504-512, then A
+  513-590 (home: the family at the coffee table; the end card, "Your
+  move."); A 590 held 39 frames; A 591-599 (the flash, black). Sound: A
+  0-12.58 s at T 0, B 10.54-22.71 s at T 12.58 (-1.5 dB to match A's
+  voice), A 21.0-24.625 s at T 24.375 (crossfaded 0.375 s), A
+  24.625-25.0 s at T 29.625; -16 LUFS, limited to -1 dB. Each line said
+  once; the dropped parts are the duplicates (B's store shot, both
+  cards but one, B's end card and its "El Cabeza, your move").
+  Delivered as el-cabeza-commercial.mp4 (5.5 MB) from the scratchpad;
+  not in the repo or the game (the user hasn't said where it goes).
+  Tools here: ffmpeg from pip imageio-ffmpeg (static 7.0.2, no drawtext:
+  label frames with PIL); speech-to-text: pip sherpa-onnx + Whisper
+  base.en (int8) from the sherpa-onnx GitHub release asr-models (Hugging
+  Face is blocked; GitHub release downloads work). Gotchas: ffv1 pieces
+  in .mkv read back as 23.976 fps (use .nut); for xfade, setpts before
+  fps (setpts clears the frame rate); the concat demuxer gave pieces made
+  by xfade/trim/loop one frame too short, so frames collided at the
+  joins and the encode dropped two: setpts=N/(24*TB) on the final encode
+  fixes it (720 frames, exact 24 fps).
