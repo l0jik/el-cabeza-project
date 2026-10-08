@@ -7756,3 +7756,24 @@ phone menu until "Start the story over" (which clears it).
   readout "HUMAN · PASS AND PLAY" (lluvia-overlay.js). Written "Human";
   HUMAN where the theme sets its labels in capitals. Tests look for
   /^Human$/ (e2e-ending, e2e-den-return, e2e-dock-moments).
+- The hall walk, a grown-up's (user: "When investigating the hallway
+  lights the walking must have longer, fewer strides. Right now, it
+  looks / feels like a child walking"). den-hall.js: STRIDE 4.6 -> 11
+  (about 9 in -> 22 in): ten steps down to the rift at about 64 a minute
+  (it was 23 at 153, a toddler's rate), the same path and timing
+  (WALK_END 10.2 s, the dolly and the eruption untouched). The rise and
+  fall now smooth (sin^2: lowest as the foot comes down, highest over
+  it; it was |sin|, a sharp bounce at each step), 0.8 high (was 0.7);
+  the sway 0.35 (was 0.22); half a step in, so the first foot comes down
+  as it gets going (about 0.9 s), one footstep per stride as before.
+  And a cut at its start: the walk started from camera.position, but the
+  page puts its own camera back each frame before the hall's
+  placeCamera, so it started from the den's board camera (den-local
+  0, 19.8, 0: about 3.5 ft up, by the lamp, looking at the ceiling) and
+  not from the look at the doorway it had been showing, then walked from
+  there (147 units, 13 steps, a child's eye height at first). Now the
+  look branch keeps where it last drew from and looked at (lastEye,
+  lastAt, den-local) and the walk starts there (34, 35.4, 22): no cut,
+  the path as designed (105 units). Checked: the camera's height and
+  the footsteps through the walk (ten thuds about 0.94 s apart, the
+  lowest points with them), frames at 0-2.8 s, e2e-ending.

@@ -61,7 +61,11 @@ const PATH = [
   new THREE.Vector3(64.5, EY - 0.6, 113.5), // a few steps nearer the rift
 ];
 const WALK_END = 10200;                 // ms from the click: standing still there
-const STRIDE = 4.6;                     // a step, in the den's units (about 9 in)
+// A step, in the den's units: about 22 in, a grown-up's careful step, ten
+// of them down to the rift at about 64 a minute (user: "longer, fewer
+// strides"; at 4.6, about 9 in, it was 23 at 153 a minute, "like a
+// child walking").
+const STRIDE = 11;
 const CALM_UNTIL = 12600, ERUPT_MS = 3600; // then the eruption, to white
 const ENDING_AT = CALM_UNTIL + ERUPT_MS;
 /* The dolly zoom (user: dolly in, zoom out, on the rip before you're
@@ -527,6 +531,10 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
 
   /* ---- the camera ---- */
   const wEye = new THREE.Vector3(), wAt = new THREE.Vector3();
+  // Where the camera was last drawn from, and looking at, in the den (the
+  // look at the doorway): the walk starts from there.
+  const lastEye = new THREE.Vector3(), lastAt = new THREE.Vector3();
+  let lastPlaced = false;
   // The lens before the dolly zoom widened it, given back after.
   let fovBase = null, fovCam = null;
   function restoreFov() {
@@ -541,10 +549,17 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     if (state === "walk" || (state === "done" && walkFrom)) {
       const s = state === "done" ? ENDING_AT : walkClock(now);
       if (!walkFrom) {
-        // Where the camera is now (and what it's looking at), in the den.
-        tmpA.copy(camera.position); den.group.worldToLocal(tmpA);
-        camera.getWorldDirection(dir); tmpB.copy(camera.position).addScaledVector(dir, 40); den.group.worldToLocal(tmpB);
-        walkFrom = { eye: tmpA.clone(), at: tmpB.clone() };
+        // Where the camera was last drawn from (and what it was looking
+        // at), in the den. (Not where the camera is now: the page puts its
+        // own back each frame before this, and the walk had started with a
+        // cut to it, low, by the lamp.)
+        if (lastPlaced) walkFrom = { eye: lastEye.clone(), at: lastAt.clone() };
+        else {
+          tmpA.copy(camera.position); den.group.worldToLocal(tmpA);
+          camera.getWorldDirection(dir); tmpB.copy(camera.position).addScaledVector(dir, 40); den.group.worldToLocal(tmpB);
+          walkFrom = { eye: tmpA.clone(), at: tmpB.clone() };
+        }
+        lastPlaced = false;
       }
       if (!path) {
         const curve = new THREE.CatmullRomCurve3([walkFrom.eye.clone(), ...PATH.map((p) => p.clone())], false, "centripetal");
@@ -565,15 +580,17 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       wAt.y = EY - 3;
       wAt.lerp(walkFrom.at, 1 - smooth(s / 1400));
       wAt.lerp(RIFT, smooth((d - (L - 26)) / 20));
-      // The steps: a rise and fall with each, a sway from foot to foot,
+      // The steps: a rise and fall with each (lowest as the foot comes
+      // down, highest over it, smooth both ways), a sway from foot to foot,
       // as much as it's walking; dragged, none (pulled along, a tremble).
-      const phase = (d / STRIDE) * Math.PI;
+      // Half a step in, so the first foot comes down as it gets going.
+      const phase = (d / STRIDE + 0.5) * Math.PI;
       if (!dragged) {
         dir.copy(wAt).sub(wEye).setY(0).normalize();
-        const k = pace;
-        wEye.y += (Math.abs(Math.sin(phase)) - 0.5) * 0.7 * k;
-        wEye.x += -dir.z * Math.sin(phase) * 0.22 * k; wEye.z += dir.x * Math.sin(phase) * 0.22 * k;
-        const n = Math.floor(d / STRIDE);
+        const k = pace, sp = Math.sin(phase);
+        wEye.y += (sp * sp - 0.5) * 0.8 * k;
+        wEye.x += -dir.z * sp * 0.35 * k; wEye.z += dir.x * sp * 0.35 * k;
+        const n = Math.floor(d / STRIDE + 0.5);
         if (state === "walk" && n > nextStep && pace > 0.15) { nextStep = n; step(wEye.z > RZ); }
       } else if (s < WALK_END) {
         wEye.x += (Math.random() - 0.5) * 0.25; wEye.y += (Math.random() - 0.5) * 0.25;
@@ -599,7 +616,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       return true;
     }
     restoreFov();
-    if (camW <= 0.0005) return false;
+    if (camW <= 0.0005) { lastPlaced = false; return false; }
     // Over to look at the doorway (blended with wherever the camera was).
     wEye.copy(LOOK.eye); wAt.copy(LOOK.at);
     den.group.updateWorldMatrix(true, false);
@@ -610,6 +627,9 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     look.lerp(wAt, e);
     camera.position.lerp(wEye, e);
     camera.lookAt(look);
+    lastEye.copy(camera.position); den.group.worldToLocal(lastEye);
+    lastAt.copy(look); den.group.worldToLocal(lastAt);
+    lastPlaced = true;
     return true;
   }
 
