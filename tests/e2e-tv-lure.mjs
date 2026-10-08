@@ -50,7 +50,10 @@ await page.waitForTimeout(800);
 const mus = () => page.evaluate(() => { const a = window.__DEN_AUDIO__(); return { pull: a.tvPull, duck: a.music && a.music.duck, wobble: a.music && a.music.wobble }; });
 const m0 = await mus();
 check(`a record plays at full before the set stirs (${JSON.stringify(m0)})`, m0.pull === 0 && m0.duck > 0.95);
-// (On to just past the 25 s, whenever the den's clock began.)
+// (On to just past the 25 s, whenever the den's clock began. The look
+// round's thought pinned to "Huh?" here; who's messing with the music is
+// its own check, below.)
+await page.evaluate(() => window.__DEN_HUH_PIN__(false));
 await page.evaluate(() => window.__DEN_LURE_SKIP__(-window.__DEN_TV__().lureWaited + 400));
 check("after 25 s it stirs", !!(await poll(async () => (await tv()).lureEvents >= 1, 15000)), JSON.stringify(await tv()));
 const m1 = await poll(async () => { const m = await mus(); return m.duck < 0.55 && m.wobble > 0 ? m : null; }, 6000);
@@ -132,6 +135,41 @@ await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 check("the second tap turns it on", !!(await poll(async () => (await tv()).phase !== "off", 3000, 100)), JSON.stringify(await tv()));
 check("...into Neon", await poll(() => page.evaluate(() => !window.__DEN_TV__ && !!document.querySelector(".ec-title") && /Chakra/.test(getComputedStyle(document.querySelector(".ec-title")).fontFamily)), 30000));
 check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+
+// The look round's thought, half the time (user): who's messing with what's
+// being listened to, the record or the 8-track; "Huh?" with nothing on.
+console.log("who's messing with it");
+{
+  const ctx2 = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  await ctx2.addInitScript(() => {
+    window.__EC_TEST_HOOKS__ = true;
+    try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.setItem("el-cabeza:story", JSON.stringify({ owned: true })); } } catch (e) { /* none */ }
+  });
+  const p2 = await ctx2.newPage();
+  const errs2 = [];
+  p2.on("pageerror", (e) => errs2.push(e.message));
+  await p2.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
+  await poll(() => p2.evaluate(() => !!window.__DEN_TV__ && !!window.__DEN_PLAY_TRACK__), 30000);
+  // (The first visit's own music first, then a tape over it.)
+  await poll(() => p2.evaluate(() => !!(window.__DEN_STEREO__ && window.__DEN_STEREO__().playing)), 10000);
+  await p2.evaluate(() => window.__DEN_PLAY_TRACK__("tape-parse"));
+  check("an 8-track on", !!(await poll(() => p2.evaluate(() => window.__DEN_STEREO__().playing === "8track"), 8000)));
+  await p2.evaluate(() => { window.__DEN_HUH_PIN__(true); window.__DEN_LURE_SKIP__(-window.__DEN_TV__().lureWaited + 400); });
+  const said = await poll(async () => { const t = await p2.locator('[data-testid="den-huh"]').innerText().catch(() => ""); return t.trim() || null; }, 8000, 100);
+  check(`...the set acts up: "${said}"`, said === "Who's messing with my 8-track?");
+  check("...or, the other half of the time, \"Huh? What's going on?\"", (await p2.evaluate(() => window.__DEN_HUH_LINE__(false))) === "Huh? What's going on?");
+  await p2.evaluate(() => window.__DEN_PLAY_TRACK__("dangerous-dashing"));
+  await poll(() => p2.evaluate(() => window.__DEN_STEREO__().playing === "record"), 8000);
+  check("a record on: \"Who's messing with my record?\"", (await p2.evaluate(() => window.__DEN_HUH_LINE__(true))) === "Who's messing with my record?");
+  // Paused (the now-playing chip, once the look round's let go of the
+  // taps): nothing's being listened to.
+  await poll(() => p2.evaluate(() => !window.__DEN_TV__().lock && window.__DEN_TV__().glance === null), 12000, 100);
+  await p2.locator('[data-testid="music-chip-toggle"]').first().click();
+  await poll(() => p2.evaluate(() => !window.__DEN_STEREO__().playing), 5000);
+  check("paused: \"Huh? What's going on?\" only", (await p2.evaluate(() => window.__DEN_HUH_LINE__(true))) === "Huh? What's going on?");
+  check(`no page errors (${errs2.length})`, errs2.length === 0, errs2.join(" | "));
+  await ctx2.close();
+}
 await browser.close();
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);

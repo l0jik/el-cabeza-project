@@ -8138,3 +8138,23 @@ phone menu until "Start the story over" (which clears it).
   the far bus, read at 1 half a second after the slider's ramp; [0.25,
   1]) and e2e-wood-sounds (the folding board's roll, rendered offline,
   peaked at 0.005 against "> 0.005").
+- The look round's thought, half the time (user: "Add as an alternate
+  randomly selected: 'Who's messing with my record?' ... specific to
+  whether an 8-track or the record is being listened to at that time"):
+  den-fx.js huhLine(), picked as the thought comes: with something being
+  listened to (the chassis's setMusicPlaying: "record" / "8track", none
+  while paused or stopped), half the time "Who's messing with my
+  record?" or "Who's messing with my 8-track?"; else, and always with
+  nothing on, "Huh? What's going on?". Test hooks: __DEN_HUH_LINE__(pick),
+  __DEN_HUH_PIN__(pick), __DEN_PLAY_TRACK__(id) (a track the chassis's
+  way, as from the music panel). e2e-tv-lure: the 8-track's line in the
+  round itself, the record's, and "Huh?" paused.
+- The clerk scene's first caption (user: "Change all instances ... to:
+  'Later that day at everyone's favorite department store, Big
+  Glutts...'"): the only one, tienda-overlay.js CLERK_FRAMES. It's in
+  capitals at 11px and was held on one line (nowrap), which a phone can't
+  fit; the top caption now wraps in balanced lines (max-width min(84vw,
+  320px), text-wrap: balance), its foot where a short one's always was
+  (bottom: 100% + 22px), and a long one (td-clerk-long, over 32
+  characters) 10px higher, clear of the tape's ends. "Moments later..."
+  sits as before. e2e-clerk passes; looked at on a phone and a desktop.

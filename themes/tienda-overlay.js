@@ -1112,11 +1112,17 @@ const STORY_CSS = `
   .td-clerk-next:focus-visible { outline: 2px dashed #17110D; outline-offset: 3px; }
   /* The time, quietly: a smaller, paler box. */
   .td-clerk-narration.td-clerk-when { font-size: 9.5px; padding: 3px 7px 2px; background: #F7EBB8; border-width: 1.5px; box-shadow: 1.5px 1.5px 0 rgba(23, 17, 13, 0.6); opacity: 0.85; }
-  /* The time ("Later that day...", "Moments later..."): up top, above
-     the clipping (user), apart from it; held there on its own so the
-     panel doesn't move on the frames that have one. */
-  .td-clerk-narration.td-clerk-when.td-clerk-top { top: -46px; left: 50%; transform: translateX(-50%) rotate(-1.4deg); white-space: nowrap;
+  /* The time ("Later that day at everyone's favorite department store,
+     Big Glutts...", "Moments later..."): up top, above the clipping
+     (user), apart from it; held there on its own so the panel doesn't
+     move on the frames that have one. A long one wraps, in balanced
+     lines, upward from where a short one sits (its foot 22px over the
+     clipping). */
+  .td-clerk-narration.td-clerk-when.td-clerk-top { top: auto; bottom: calc(100% + 22px); left: 50%; transform: translateX(-50%) rotate(-1.4deg);
+    width: max-content; max-width: min(84vw, 320px); text-align: center; text-wrap: balance;
     font-size: 11px; padding: 4px 9px 3px; opacity: 0.92; animation: tdClerkTopIn 0.35s ease both; }
+  /* (Two lines: a little higher, clear of the tape's ends.) */
+  .td-clerk-narration.td-clerk-when.td-clerk-top.td-clerk-long { bottom: calc(100% + 32px); }
   @keyframes tdClerkTopIn { from { opacity: 0; transform: translateX(-50%) translateY(-4px) rotate(-1.4deg); } to { opacity: 0.92; transform: translateX(-50%) rotate(-1.4deg); } }
   .td-clerk-pa { left: 8px; right: 8px; bottom: 8px; text-align: center; background: #FBF6E6; }
   .td-clerk-fallback { position: absolute; z-index: 2; inset: auto 12px 12px; margin: 0; padding: 12px 14px; background: #FBF8F0; color: ${INK};
@@ -1308,7 +1314,7 @@ function PurchaseOffer({ story, audio }) {
    files beside the page (build/build.js), fetched as the scene opens; if
    one can't load, its line is printed instead. */
 const CLERK_FRAMES = [
-  { shots: ["clerk-hello", "clerk-sure"], narration: "Later that day\u2026", handover: true, lines: ["Hi there! Can I help you with something?", "Sure thing! I'd be happy to help you find that."] },
+  { shots: ["clerk-hello", "clerk-sure"], narration: "Later that day at everyone's favorite department store, Big Glutts\u2026", handover: true, lines: ["Hi there! Can I help you with something?", "Sure thing! I'd be happy to help you find that."] },
   // (The "One minute! I'll see if we have it in the back!" shot, clerk-back,
   // is out: user.)
   { shots: ["clerk-go"], lines: ["I'll go check on that for you real quick!"] },
@@ -1430,7 +1436,7 @@ function ClerkScene({ audio, onStay, onGoHome }) {
       // newsprint cut by hand, two strips of old tape, the panel in its
       // ink border, printed in Ben-Day dots, a little faded.
       h("figure", { className: "td-clerk-print", "data-fade": fade },
-        s.narration && h("p", { key: `w${s.frame}`, className: "td-clerk-narration td-clerk-when td-clerk-top", "data-testid": "tienda-clerk-when" }, s.narration),
+        s.narration && h("p", { key: `w${s.frame}`, className: `td-clerk-narration td-clerk-when td-clerk-top${s.narration.length > 32 ? " td-clerk-long" : ""}`, "data-testid": "tienda-clerk-when" }, s.narration),
         h("span", { className: "td-clerk-tape td-clerk-tape-l", "aria-hidden": "true" }),
         h("span", { className: "td-clerk-tape td-clerk-tape-r", "aria-hidden": "true" }),
         h("div", { className: "td-clerk-paper", style: { clipPath: CLIP_EDGE, WebkitClipPath: CLIP_EDGE } },

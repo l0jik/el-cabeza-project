@@ -1103,6 +1103,15 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
        stands, it isn't moved (glanceFrame, first in placeCamera, so the
        visit to the set blends on from it). */
     const HUH = "Huh? What's going on?", HUH_AT = 900, HUH_MS = 3400;
+    /* Half the time, while something's playing, it's who's messing with
+       it: the record or the 8-track, whichever's being listened to (user;
+       the chassis's setMusicPlaying: none while paused). Picked as the
+       thought comes. (huhPin: a test's pick.) */
+    let huhPin = null;
+    function huhLine(pick = huhPin != null ? huhPin : Math.random() < 0.5) {
+      const what = playing === "record" ? "record" : playing === "8track" ? "8-track" : null;
+      return what && pick ? `Who's messing with my ${what}?` : HUH;
+    }
     // (The "!!" over the blast's white, den-fx.js whiteOut at 1400, and up till
     // a moment after it's gone: 5.6 s, den-tv.js blastState.)
     const BANG = "!!", BANG_AT = 400, BANG_MS = 7000, FIX_AT = 600, FIX_TURN = 1400;
@@ -1239,7 +1248,7 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     // Its two thoughts, each frame.
     function lureCards(now) {
       const doc = typeof document !== "undefined" ? document : null;
-      if (huhAt && now >= huhAt) { huhAt = 0; if (doc) { huhCard = dealCard(doc, { testid: "den-huh", l1: HUH }); huhEnd = now + HUH_MS; } }
+      if (huhAt && now >= huhAt) { huhAt = 0; if (doc) { huhCard = dealCard(doc, { testid: "den-huh", l1: huhLine() }); huhEnd = now + HUH_MS; } }
       if (huhCard && now >= huhEnd) { huhCard.remove(700); huhCard = null; }
       if (bangAt && now >= bangAt) { bangAt = 0; if (doc) { bangCard = dealCard(doc, { testid: "den-bang", l1: BANG, loud: true }); bangCard.el.style.zIndex = "1401"; bangEnd = now + BANG_MS; } }
       if (bangCard && now >= bangEnd) { bangCard.remove(700); bangCard = null; }
@@ -1413,6 +1422,12 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       window.__DEN_TV__ = () => ({ portalAt, phase: den && den.tv ? den.tv.phase() : null, focus: tvW, goal: tvGoal, dive: tvDive, watch: tvWatch, waking: wake ? (wake.woke ? "woke" : "dark") : null, lureWaited: lureStart ? performance.now() - lureStart - LURE_WAIT : null, glance: glance ? (glance.fix ? "fix" : "round") : null, glanceAt: glance && glance.seen.length ? glance.seen[glance.seen.length - 1] : null, lock: lockOn, fixed: lureFix, ad: den && den.tv ? den.tv.commercialAt(performance.now()) : null, lure, locked: tvLocked(performance.now()), lureEvents, lastHaunt, looking: lureLook, flashes, blasted, white: whiteEl ? Number(whiteEl.style.opacity) : 0 });
       // Test-only: move the lure's clock on (ms).
       window.__DEN_LURE_SKIP__ = (ms) => { lureStart -= ms; };
+      // Test-only: the look round's thought for a pick (true: who's messing
+      // with what's playing), pinning the pick for the round itself, and a
+      // track played the chassis's way (as from the music panel).
+      window.__DEN_HUH_LINE__ = (pick) => huhLine(!!pick);
+      window.__DEN_HUH_PIN__ = (pick) => { huhPin = pick == null ? null : !!pick; };
+      window.__DEN_PLAY_TRACK__ = (id) => { const tr = music && music.tracks().find((x) => x.id === id); if (tr) music.play(tr); return !!tr; };
       // Test-only: where the set is on the screen (its picture's middle),
       // and whether a tap there is over it.
       window.__DEN_TV_AT__ = () => {
