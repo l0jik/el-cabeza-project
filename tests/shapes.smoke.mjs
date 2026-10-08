@@ -154,9 +154,18 @@ check("a box still fills every level of its footprint", maskAt({ row: 0, col: 0,
   const alto = P("aa", "arcoAlto", 4, 3, 3, 1, 3, "0,0,0;0,0,1;0,0,2;1,0,2;2,0,0;2,0,1;2,0,2", "dark"); // opening (4,4), 2 tall
   const rolls = (mover, other) => Object.keys(legalMovesFor([mover, other], mover)).filter((k) => !k.includes("-")).sort().join(",");
   check("a Cabeza under a Codo's arm doesn't stop it rolling toward it", rolls(codo, P("cb", "cabeza", 4, 5, 1, 1, 1)) === "E,N,S,W", rolls(codo, P("cb", "cabeza", 4, 5, 1, 1, 1)));
-  check("a Turrito filling the gap under the arm blocks only the roll that swings into it", rolls(codo, P("tu", "turrito", 4, 5, 1, 1, 1)) === "N,S,W", rolls(codo, P("tu", "turrito", 4, 5, 1, 1, 1)));
+  // (A piece one cube tall is swung over, as a Cabeza is: the user's
+  // choice, 2026-10-08. Before, a Turrito filling the gap blocked the roll
+  // that swung into it, and one in the Chico's opening its sideways rolls.)
+  check("a Turrito filling the gap under the arm is swung over: every roll open", rolls(codo, P("tu", "turrito", 4, 5, 1, 1, 1)) === "E,N,S,W", rolls(codo, P("tu", "turrito", 4, 5, 1, 1, 1)));
   check("a Cabeza in an Arco Chico doesn't lock it", rolls(chico, P("cb", "cabeza", 4, 4, 1, 1, 1)) === "E,N,S,W");
-  check("a Turrito filling the Chico's opening blocks its sideways rolls", rolls(chico, P("tu", "turrito", 4, 4, 1, 1, 1)) === "N,S");
+  check("a Turrito filling the Chico's opening is swung over too", rolls(chico, P("tu", "turrito", 4, 4, 1, 1, 1)) === "E,N,S,W", rolls(chico, P("tu", "turrito", 4, 4, 1, 1, 1)));
+  // (User's game:) a Cruce flat, its stem toward an empty square, a Flaco
+  // lying along the stem's side: it stands up on its stem, its bar's end
+  // swinging over the Flaco; a 2-tall piece there still stops it.
+  const cruce = P("cr", "cruce", 4, 4, 3, 2, 1, "0,0,0;1,0,0;2,0,0;1,1,0", "dark");
+  check("a Cruce stands up on its stem past a Flaco lying beside it", rolls(cruce, P("fl", "flaco", 5, 4, 1, 2, 1)).includes("S"), rolls(cruce, P("fl", "flaco", 5, 4, 1, 2, 1)));
+  check("...but not past a 2-tall piece there", !rolls(cruce, P("fl", "flaco", 5, 4, 1, 1, 2)).includes("S"), rolls(cruce, P("fl", "flaco", 5, 4, 1, 1, 2)));
   check("a Turrito in the Alto's 2-tall opening leaves clearance: every roll open", rolls(alto, P("tu", "turrito", 4, 4, 1, 1, 1)) === "E,N,S,W");
   check("a standing 1x2 filling the Alto's opening blocks its sideways rolls", rolls(alto, P("fl", "flaco", 4, 4, 1, 1, 2)) === "N,S");
 }

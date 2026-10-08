@@ -196,7 +196,12 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
     // Clearance (user rule): a Cabeza is lower than a cube, so every
     // swing passes over it; and a piece sheltered under an overhang or
     // in an opening only gets in the way if it reaches the underside.
-    if (other.type === "cabeza" || leavesClearance(piece, other)) continue;
+    // And any piece one cube tall is swung over too, as a Cabeza is (the
+    // user's choice, 2026-10-08: a Cruce tipping up onto its stem, a
+    // Flaco lying beside the stem, couldn't stand up, its bar's end
+    // sweeping through the Flaco): a taller piece in the way, or anything
+    // on the landing, still stops it.
+    if (other.type === "cabeza" || other.z <= 1 || leavesClearance(piece, other)) continue;
     // Box against box can't clash mid-roll without the landing clashing
     // too (see above), so a box only needs checking against odd shapes.
     if (!piece.vox && !other.vox) continue;

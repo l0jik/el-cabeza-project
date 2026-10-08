@@ -1680,6 +1680,13 @@ unaffected.
 (shapes.js):
 - A Cabeza never blocks another piece's swing (it's lower than a cube).
   It is still sheltered, and still can't be landed on except by a crush.
+- Nor, since 2026-10-08 (the user's choice: "swing over 1-tall pieces"),
+  does any piece one cube tall (other.z <= 1): a roll's swing passes
+  over it (in the animation the swinging cube briefly passes through its
+  top). Taller pieces in the way, and anything on the landing, still stop
+  it. Asked because a flat Cruce couldn't stand up on its stem with a
+  Flaco lying beside the stem (its bar's end swept through the Flaco).
+  Pivots are as they were.
 - A piece sheltered wholly under an overhang or in an opening blocks the
   roll only if it reaches the underside (`leavesClearance`): its top
   level must be at least the lowest roof cube above it. For example, a
@@ -8236,3 +8243,12 @@ phone menu until "Start the story over" (which clears it).
   in the store is invertTilt as before. e2e-drag-latch: on the store's
   page a drag begun low turns as from high (phone and desktop); Neon's
   rule unchanged.
+- The dark Cruce couldn't stand up on the square the user circled
+  (Neon, their game): reproduced in the engine, the roll onto its stem
+  landed fine but was refused by rollSweepClashes, the bar's end sweeping
+  through a light Flaco lying alongside the stem. Asked (rules are the
+  user's call): "Swing over 1-tall pieces" chosen. shapes.js: other.z <=
+  1 skipped like a Cabeza. tests/shapes.smoke.mjs: the Turrito under a
+  Codo's arm and in an Arco Chico's opening now swung over (every roll
+  open), and the user's Cruce case (stands up past a lying Flaco, not
+  past a 2-tall piece). npm run test:engine passes.
