@@ -8387,3 +8387,12 @@ phone menu until "Start the story over" (which clears it).
   (checkShownRef). Tests may slow it (__EC_TEST_SHOW_SLOW__). Hooks:
   __EC_TEST_CHECK_VIEW__, __EC_TEST_CHECK_SHOW__. e2e-check-alert and
   ai-threats.smoke cover it.
+- The Cabeza Nova sheet's Reset ran out of its box into Play (user's
+  screenshot: De Stijl in the Lab on a phone). De Stijl's display face is
+  Rubik Mono One (very wide) with 0.12em tracking; the footer gave Reset a
+  fixed third (minmax(0,1fr) minmax(0,2fr)), ~91 px at 360 px, less than
+  the word. reality-gate.js: .rg-foot columns auto minmax(0,1fr) (Reset as
+  wide as its word, Play the rest), .rg-btn padding 0 18px, nowrap, Reset
+  min-width 96px. Every world uses it. Checked with the lettering forced
+  wider (the real faces can't load in the sandbox): the word stays inside
+  at any width. e2e-gate passes.

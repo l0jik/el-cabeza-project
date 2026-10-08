@@ -196,10 +196,14 @@ const CSS = `
 .rg-warn { margin: 6px 0; padding: 8px 10px; border-left: 3px solid var(--rg-accent); font: 500 13px/1.35 var(--rg-body); }
 .rg-total { font: 600 13px/1.3 var(--rg-body); color: var(--rg-muted); padding: 6px 0 2px; font-variant-numeric: tabular-nums; }
 .rg-total.bad { color: var(--rg-accent); }
-.rg-foot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 10px; padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+/* (Reset as wide as its word in the world's face, Play the rest: in a third
+   of a phone's width De Stijl's wide Rubik Mono One ran out of its box
+   into Play, user.) */
+.rg-foot { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 12px 16px max(12px, env(safe-area-inset-bottom));
   border-top: var(--rg-line-w) solid var(--rg-line); background: var(--rg-surface); }
-.rg-btn { appearance: none; min-height: 52px; border-radius: var(--rg-radius); cursor: pointer; font-family: var(--rg-display); font-weight: var(--rg-display-weight);
-  font-size: 18px; text-transform: var(--rg-case); letter-spacing: var(--rg-track); }
+.rg-btn { appearance: none; min-height: 52px; padding: 0 18px; border-radius: var(--rg-radius); cursor: pointer; font-family: var(--rg-display); font-weight: var(--rg-display-weight);
+  font-size: 18px; text-transform: var(--rg-case); letter-spacing: var(--rg-track); white-space: nowrap; }
+.rg-btn.plain { min-width: 96px; }
 .rg-btn.plain { border: var(--rg-line-w) solid var(--rg-line); background: transparent; color: var(--rg-ink); }
 .rg-btn.go { border: var(--rg-line-w) solid var(--rg-accent); background: var(--rg-accent); color: var(--rg-accent-ink); }
 .rg-btn:disabled { opacity: 0.45; cursor: not-allowed; }
