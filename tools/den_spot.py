@@ -4,19 +4,24 @@
 in a creative way ... get rid of stuff as duplicate"; then "put it on the
 den's TV", in place of the drawn infomercial).
 
-    python3 tools/den_spot.py A.mp4 B.mp4 C.mp4
+    python3 tools/den_spot.py A.mp4 B.mp4 C.mp4 [--sound]
+
+(--sound: the sound file only, the two videos left as they are.)
 
 A is the clean take, B the glitched one (the Singularity swallows the
 announcer), C is B but for frames 461-498 (a garbled copy of our flyer
 where B has the sale card). All three read the same script, so each line
 is heard once: A's take up to "...unparalleled intention", a tear into
-B's Singularity and B's take from there (the box white, "How you
-whaat?", the garbled flyer flickering into the sale card), a dissolve
+B's Singularity and B's take from there (the box white, the mother's
+"Hay quá!", the garbled flyer flickering into the sale card), a dissolve
 home to A's family at the coffee table, A's end card ("Your move."), and
 A's hidden four frames of a figure before the black hole. Two stretches
-of sound silenced (user): the announcer's stutter after "How you whaat?"
+of sound silenced (user): the announcer's stutter after "Hay quá!"
 ("The exciting's wha-", 16.0-17.41 s), and the two bumps under the flash
-at the end (29.5 s on). The den's set
+at the end (29.5 s on). The mother's
+"Hay quá!" (14.9-15.6 s) brought 80 ms earlier, to her lips (user: out
+of sync; in B her lips ran about 0.1 s ahead of her voice, where the
+father's "That's clever" is within 0.03 s). The den's set
 is pushed into at the start (B's shot of it, through its screen into
 the store). 720 frames, 24 fps, 640x480.
 
@@ -68,10 +73,23 @@ def seek(frame):
 
 
 def main():
-    if len(sys.argv) != 4:
+    args = [a for a in sys.argv[1:] if a != "--sound"]
+    sound_only = len(args) < len(sys.argv) - 1
+    if len(args) != 3:
         sys.exit(__doc__)
-    src = dict(zip("ABC", sys.argv[1:4]))
+    src = dict(zip("ABC", args))
     tmp = tempfile.mkdtemp(prefix="den-spot-")
+    if not sound_only:
+        picture(src, tmp)
+    sound(src, tmp)
+    os.makedirs(OUT, exist_ok=True)
+    names = ("spot-sound.mp3",) if sound_only else ("spot.mp4", "spot.webm", "spot-sound.mp3")
+    for n in names:
+        p = os.path.join(OUT, n)
+        print("wrote", p, os.path.getsize(p), "bytes")
+
+
+def picture(src, tmp):
     piece = lambda name: os.path.join(tmp, name + ".nut")
 
     def cut(name, s, first, count, vf=None):
@@ -118,20 +136,40 @@ def main():
     video = os.path.join(tmp, "video.nut")
     ff("-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", video)
 
+    # The files. (setpts=N/24: the concat demuxer gives pieces made by
+    # xfade, trim and loop a frame short, so their first frames would
+    # collide with the frames before and be dropped.)
+    os.makedirs(OUT, exist_ok=True)
+    even = "setpts=N/(24*TB)"
+    ff("-i", video, "-vf", even, "-r", "24", "-an", "-c:v", "libx264", "-preset", "slow", "-crf", "21", "-profile:v", "high",
+       "-pix_fmt", "yuv420p", "-tune", "film", "-movflags", "+faststart", os.path.join(OUT, "spot.mp4"))
+    ff("-i", video, "-vf", even, "-r", "24", "-an", "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", "33", "-row-mt", "1",
+       "-deadline", "good", "-cpu-used", "2", os.path.join(OUT, "spot.webm"))
+
+
+def sound(src, tmp):
     # The sound, each piece placed to the sample (output time T): A's take
-    # to T 12.583 s; B's from its Singularity (1.5 dB down, to A's voice);
-    # A's home and end card, crossfaded in over the dissolve; the held card
-    # silent; A's flash. Then to -16 LUFS, limited to -1 dB.
+    # to T 12.583 s; B's from its Singularity (1.5 dB down, to A's voice),
+    # in three: up to the mother's "Hay quá!", the line 80 ms (3840
+    # samples) earlier, and on from T 15.7 s as it was (joined in the
+    # room's quiet with 10 ms crossfades: 80 ms of it before the line left
+    # out, 80 ms after it heard twice); A's home and end card, crossfaded
+    # in over the dissolve; the held card silent; A's flash. Then to -16
+    # LUFS, limited to -1 dB.
     mix = os.path.join(tmp, "mix.wav")
     ff("-i", src["A"], "-i", src["B"], "-filter_complex",
        "[0:a]aresample=48000,atrim=start_sample=0:end_sample=604000,asetpts=PTS-STARTPTS,afade=t=out:st=12.573:d=0.01[a1];"
-       "[1:a]aresample=48000,atrim=start_sample=506000:end_sample=1090000,asetpts=PTS-STARTPTS,volume=-1.5dB,"
-       "afade=t=in:d=0.01,afade=t=out:st=11.791667:d=0.375,adelay=delays=604000S:all=1[a2];"
+       "[1:a]aresample=48000,atrim=start_sample=506000:end_sample=607840,asetpts=PTS-STARTPTS,volume=-1.5dB,"
+       "afade=t=in:d=0.01,afade=t=out:st=2.111667:d=0.01,adelay=delays=604000S:all=1[a2];"
+       "[1:a]aresample=48000,atrim=start_sample=611200:end_sample=659680,asetpts=PTS-STARTPTS,volume=-1.5dB,"
+       "afade=t=in:d=0.01,afade=t=out:st=1:d=0.01,adelay=delays=705360S:all=1[a2h];"
+       "[1:a]aresample=48000,atrim=start_sample=655360:end_sample=1090000,asetpts=PTS-STARTPTS,volume=-1.5dB,"
+       "afade=t=in:d=0.01,afade=t=out:st=8.68:d=0.375,adelay=delays=753360S:all=1[a2r];"
        "[0:a]aresample=48000,atrim=start_sample=1008000:end_sample=1182000,asetpts=PTS-STARTPTS,"
        "afade=t=in:d=0.375,afade=t=out:st=3.575:d=0.05,adelay=delays=1170000S:all=1[a3];"
        "[0:a]aresample=48000,atrim=start_sample=1182000:end_sample=1200000,asetpts=PTS-STARTPTS,"
        "afade=t=in:d=0.005,adelay=delays=1422000S:all=1[a4];"
-       "[a1][a2][a3][a4]amix=inputs=4:normalize=0:duration=longest,apad=whole_len=1440000,atrim=end_sample=1440000[mix]",
+       "[a1][a2][a2h][a2r][a3][a4]amix=inputs=6:normalize=0:duration=longest,apad=whole_len=1440000,atrim=end_sample=1440000[mix]",
        "-map", "[mix]", "-c:a", "pcm_s24le", mix)
     r = subprocess.run([FF, "-hide_banner", "-nostats", "-i", mix, "-af", "ebur128", "-f", "null", "-"], capture_output=True, text=True)
     loud = float(re.findall(r"^\s+I:\s+(-?[0-9.]+) LUFS", r.stderr, re.M)[-1])
@@ -146,19 +184,8 @@ def main():
     ff("-i", sound, "-af", "aeval=exprs='val(ch)*(1-clip((t-16)/0.01,0,1)+clip((t-17.41)/0.01,0,1))*(1-clip((t-29.5)/0.01,0,1))':c=same",
        "-c:a", "pcm_s24le", edited)
 
-    # The files. (setpts=N/24: the concat demuxer gives pieces made by
-    # xfade, trim and loop a frame short, so their first frames would
-    # collide with the frames before and be dropped.)
     os.makedirs(OUT, exist_ok=True)
-    even = "setpts=N/(24*TB)"
-    ff("-i", video, "-vf", even, "-r", "24", "-an", "-c:v", "libx264", "-preset", "slow", "-crf", "21", "-profile:v", "high",
-       "-pix_fmt", "yuv420p", "-tune", "film", "-movflags", "+faststart", os.path.join(OUT, "spot.mp4"))
-    ff("-i", video, "-vf", even, "-r", "24", "-an", "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", "33", "-row-mt", "1",
-       "-deadline", "good", "-cpu-used", "2", os.path.join(OUT, "spot.webm"))
     ff("-i", edited, "-c:a", "libmp3lame", "-b:a", "192k", os.path.join(OUT, "spot-sound.mp3"))
-    for n in ("spot.mp4", "spot.webm", "spot-sound.mp3"):
-        p = os.path.join(OUT, n)
-        print("wrote", p, os.path.getsize(p), "bytes")
     print(f"(the mix was {loud:.1f} LUFS, now -16)")
 
 

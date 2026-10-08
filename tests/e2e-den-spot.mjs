@@ -145,7 +145,11 @@ check(`...playing (${JSON.stringify(sync)})`, sync.every((s) => !s.paused && Mat
     check(`...${what} with the sound as heard (${offs.length} samples: mean ${ms(mean)} ms, ${Math.round(within * 100)}% within -45..+60 ms, ${ms(offs[0] || 0)}..${ms(offs[offs.length - 1] || 0)} ms)`, offs.length >= 40 && mean > -0.03 && mean < 0.045 && within >= 0.95);
   }
 }
+// After it (user): as the camera sets off back to the table, a thought.
+const okay = await poll(() => page.evaluate(() => { const c = document.querySelector('[data-testid="den-okay"]'); const s = window.__DEN_TV__(); return c && { text: c.innerText.trim(), phase: s.phase, focus: +s.focus.toFixed(2) }; }), 20000, 100);
+check(`then it's aired, and as the camera heads back: "Uhh, Okaaaay....." (${JSON.stringify(okay)})`, !!okay && okay.text === "Uhh, Okaaaay....." && /^(closing|off)$/.test(okay.phase) && okay.focus > 0.05);
 check("then it's aired: off, and the camera back from the set", !!(await poll(() => page.evaluate(() => { const s = window.__DEN_TV__(); return s.phase === "off" && s.focus < 0.01; }), 20000, 250)));
+check("...and the thought goes after a few seconds", !!(await poll(() => page.evaluate(() => !document.querySelector('[data-testid="den-okay"]')), 8000, 200)));
 check("...its video stopped", await page.evaluate(() => window.__DEN_SPOT__().paused));
 check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
 await browser.close();

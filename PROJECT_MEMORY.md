@@ -13,6 +13,15 @@ Constants/values cited here were read from source, not assumed from
 commit messages — but code moves faster than docs, so if a cited number
 looks off, trust `grep` over this file.
 
+## Open reminders (from the user; not done yet)
+
+- **A disclaimer on the site** (user, 2026-10-08: "we need to have some
+  sort of disclaimer on the site or something like this: 'This is an
+  unofficial, non-commercial implementation and is not affiliated with
+  or endorsed by them.'"). Still to settle with the user: who "them" is
+  named as, and where it shows (every page, e.g. a small line at the
+  foot, an about panel, the first screen).
+
 ## 1. What this is, in one paragraph
 
 A 3D board game (React + Three.js r128) with a shared "chassis + theme
@@ -7912,3 +7921,33 @@ phone menu until "Start the story over" (which clears it).
      the girl's "ooh" on the set's screen during "Think checkers is
      boring?", the family's smiles, and the mother laughing through the
      stretch silenced at 16.0-17.41 s. So nothing to retime in the cut.
+- The mother's "Hay quá!" (user: out of sync; the den TV spot, 14.85-15.5
+  s, the store with the white box): Vietnamese, a woman's voice (205-350
+  Hz, rising on "quá"; whisper had heard it as "How you wha-", and the
+  comments called it "How you whaat?"). In B's footage her lips led her
+  voice by about 0.1 s (MediaPipe on her face cut out and enlarged 4x:
+  her lips round for the w at 15.04 s, the voice's dip for it 15.14; her
+  mouth opens on "á" at 15.12, the voice rises 15.22), where the
+  father's "That's clever" is within 0.025 s (his lips close for the v at
+  18.69, the voice's v at 18.71) and his grin opens on the chuckle at
+  17.54. Last round's playback fix had already taken off the game's own
+  ~0.1 s (more on phones), which doubled it. Now the line is 80 ms
+  earlier in the cut: tools/den_spot.py splits B's sound in three (to
+  14.7 s, the line, on from 15.7 s as it was), joined in the room's quiet
+  with 10 ms crossfades, and has --sound to write only spot-sound.mp3
+  (the videos left byte-for-byte as they were). Checked: 0-14.6 s
+  bit-identical, the line exactly 3840 samples earlier (correlation
+  1.0000), the rest 64 dB under the signal (the MP3's own noise), no
+  clicks at the joins; her lips now lead by 15-20 ms, as his do.
+- After the commercial (user: "a pop-up thought bubble ... 'Uhh,
+  Okaaaay.....'"): one of the den's cards (the den's thoughts are cards
+  since 2026-10-02, the user's call), testid den-okay, dealt 0.4 s after
+  the camera sets off from the set (the set off, TV_LEAVE_PAUSE 0.7 s,
+  then the slow-start glide), up 3.8 s, fading 0.7 s (den-fx.js
+  okayFrame). After the commercial aired to its end or was switched off
+  part way; not after the plain pattern. Once the order paper starts
+  glowing its block takes every tap, the card's drag too (it goes by
+  itself). e2e-den-spot checks it (as the camera heads back, then gone).
+- Asked the user for options on the cut into the commercial (back from
+  the Singularity, the camera's at the set and the spot starts a second
+  in: "a bit abrupt").

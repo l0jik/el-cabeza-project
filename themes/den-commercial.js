@@ -5,8 +5,8 @@
    on the den's TV", in place of the drawn community-access infomercial
    that was here): 30 s, cut by tools/den_spot.py. The den, the set
    pushed into, the store, the hand on a walnut piece; the Singularity
-   tears through it and the take changes (the box white, "How you
-   whaat?", the flyer garbled for a moment); home again, the family at
+   tears through it and the take changes (the box white, the mother's
+   "Hay quá!", the flyer garbled for a moment); home again, the family at
    the coffee table; "Your move."; and four frames of a figure before the
    black hole.
 

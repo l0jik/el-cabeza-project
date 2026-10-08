@@ -905,6 +905,20 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
     // exponential ease the other visits use, which is fastest at the start).
     const TV_LEAVE_PAUSE = 700, TV_LEAVE_MS = 3400;
     let tvLeaveAt = 0;
+    /* After the commercial (user: "Uhh, Okaaaay....."): a thought, one of
+       the den's cards (den-cards.js), as the camera sets off back to the
+       table (just after it leaves the set), for a few seconds. Whether it
+       aired to its end or was switched off part way. */
+    const OKAY = "Uhh, Okaaaay.....", OKAY_AFTER = 400, OKAY_MS = 3800;
+    let okayAt = 0, okayEnd = 0, okayCard = null;
+    function okayFrame(nowP) {
+      if (okayAt && nowP >= okayAt) {
+        okayAt = 0;
+        const doc = typeof document !== "undefined" ? document : null;
+        if (doc) { okayCard = dealCard(doc, { testid: "den-okay", l1: OKAY }); okayEnd = nowP + OKAY_MS; }
+      }
+      if (okayCard && nowP >= okayEnd) { okayCard.remove(700); okayCard = null; }
+    }
     const easeInOutCubic = (p) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
     // How loud the snow hisses, by what's on the screen.
     const HISS = { warming: 1, snow: 1, resolving: 0.5, pattern: 0.1, dive: 0.08, commercial: 0.03, aired: 0.9 };
@@ -1132,10 +1146,12 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
       if (set.isOn() && portalAt && now - portalAt >= PORTAL_LOCK_MS) return true;
       if (set.isOn()) {
         portalAt = 0;
+        const ad = set.phase() === "commercial" || set.phase() === "aired";
         if (set.powerOff(now)) {
           // (Off in the middle of the commercial: the camera goes back the
           // slow way, as it does after it.)
           if (tvGoal && tvW > 0.9) { tvLeaveAt = performance.now() + TV_LEAVE_PAUSE; onTheBoard(); }
+          if (ad) okayAt = performance.now() + TV_LEAVE_PAUSE + OKAY_AFTER;
           tvGoal = 0; offAt = 0;
           if (audio && audio.tvOff) audio.tvOff();
         }
@@ -1260,10 +1276,13 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
           offAt = 0;
           onTheBoard();
           portalAt = 0;
+          const ad = den.tv.phase() === "aired";
           if (den.tv.powerOff(now) && audio && audio.tvOff) audio.tvOff();
           tvGoal = 0;
           tvLeaveAt = performance.now() + TV_LEAVE_PAUSE;
+          if (ad) okayAt = tvLeaveAt + OKAY_AFTER;
         }
+        okayFrame(performance.now());
         if (lure && !lureDone) {
           if (!lureStart) lureStart = now;
           const waited = now - lureStart - LURE_WAIT;
@@ -1514,6 +1533,8 @@ export function createDenEffects(woodSet, { viewPitch = null } = {}) {
         if (homeCardDrop) homeCardDrop();
         if (settleDrop) settleDrop();
         if (paper) paper.stop();
+        okayAt = 0;
+        if (okayCard) { okayCard.el.remove(); okayCard = null; }
         if (t && t.scene) { t.scene.fog = fogBefore; t.scene.background = bgBefore; }
         if (t && t.camera && farBefore) { t.camera.far = farBefore; t.camera.updateProjectionMatrix(); }
         if (novaTv && novaTv.register) novaTv.register(null);
