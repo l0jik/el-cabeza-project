@@ -8475,3 +8475,15 @@ phone menu until "Start the story over" (which clears it).
   check-stop too. e2e-check-alert: the two-roll Turrito has 1 ghost, 1 stop
   at 4,5 (fainter), 2 arcs, both outlined; the video's one-roll Hombro 1
   ghost, no stop, 1 arc; Show me hides and restores all. Passes.
+- Path ghosts' wider check (scratch, not in tests/): 120 positions from
+  random legal walks of a mixed light army (Hombro, Codo, Arco Chico and
+  the standard pieces), half with threeActions + slide + cantileverPivot
+  (__EC_LAWS__ in the page, setActiveLaws in node): 239 lines, 37
+  positions with a three-move line, 13 with a turn, 16 with a slide; each
+  drawn with 1 landing ghost per line, n-1 stops, an arc and a head per
+  hop, all outlined; Show me on a pivot line plays and restores; no page
+  errors. Plus e2e-odd-pieces, -pivot, -points, -original, -try-it pass.
+  Catch for tests: __EC_TEST_CHECK_VIEW__ is set during render, the still
+  is drawn in an effect a frame or more later (slow here), so a test must
+  wait for the drawing itself to match (and hold), not just the view; the
+  first run counted the previous position's marks 17 times.
