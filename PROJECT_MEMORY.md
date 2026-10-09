@@ -9444,3 +9444,28 @@ phone menu until "Start the story over" (which clears it).
       (low sun from the right), not geometry.
   - Sent chosen-corridors-and-figures.jpg, 98 full size and the garden
     close-up. Scratch: out/send6/moon-98, moon98sheet.py.
+- Moon 99: board contour, dust berms and slimmer hips.
+  - Board (user: "the board surface ... is too flat ... we need some
+    contour ... sometimes a portion of a building might have a small
+    berm of moon dust up against it"):
+    - buildTerrain adds T.boardRelief after levelling the board.
+    - A low roll across the squares: two noise layers, amplitude about
+      ±0.045.
+    - Each building gets a level pad (flat within 0.02 of its footprint,
+      blending out over 0.32).
+    - About 45% of building sides, chosen by hash, get a dust bank
+      0.045-0.09 high. It is tucked under the wall, crests 0.07 out, has
+      a width of 0.2, and varies along its length. A narrower first try
+      left a saw edge on the ground's 0.05 mesh.
+    - The board lines drape over it (buildBoardMarks uses TERRAIN.at).
+    - boardRelief: false turns it off.
+  - Hips (user: "their hips are still too large ... the leg piece ...
+    tapers too wide at the top"):
+    - The thigh top radius went from 0.058 to 0.049, tapering to 0.044
+      at the knee and 0.038 at the ankle.
+    - The hip joints are at ±0.052, the pelvis radius is 0.064, and the
+      leg blend is k 0.06 within 0.17 of the hip joint.
+  - The user's corridor line (the 91 interchange, smaller) was repeated;
+    it was already in from 98.
+  - Sent contour-and-hips.jpg, 99 full size and the garden close-up.
+    Scratch: out/send6/moon-99, moon99sheet.py.
