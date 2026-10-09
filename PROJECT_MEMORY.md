@@ -8681,3 +8681,32 @@ phone menu until "Start the story over" (which clears it).
   blueprint city with traffic and people (user asked mid-round), then
   five more (41-45) from the user's eight cyberpunk reference images.
   Still awaiting the user's pick of a day and a night direction.
+- City mock-up 41, Blueprint City (user: "a blueprints version of like
+  a city. Very technical ... simplistic ... very readable ... streets
+  ... little cars moving on the street ... actual human life happening
+  in these cities"): its own scratch renderer, blueprint.js (with
+  blueprint.html; one file serves the still, the frames of an 8-second
+  loop through window.__step(t), and a live page when opened without
+  ?w=). An orthographic axonometric of the board as a plaza on
+  cyanotype blue: the plan drawn on one big canvas (kerbs, lane dashes,
+  zebras, stop lines, lane arrows, bike symbols, a tram street, the
+  board's grid with A-J / 1-10 bubbles, dimension strings, street names
+  after the pieces), the pieces as massing with floors and windows drawn
+  on (light pieces white masses with blue lines, dark pieces blue with
+  white lines and 45-degree hatched roofs), the pivoting Opa with its
+  upright position dashed in red pencil and the arc of its swing, quiet
+  context blocks (a market hall with a sawtooth roof, a school with a
+  court, a park with a pond, a perimeter block), trees as canopy rings
+  on trunks with their plans dashed below. Life is instanced: cars,
+  vans, bikes and people on every lane and sidewalk, each lane's pattern
+  repeating every speed x loop so the loop closes seamlessly; runners
+  round the pond; a tram at its stop, a bus in its bay, a café terrace,
+  shoppers, children in the schoolyard. The sheet (a 2D canvas over
+  the WebGL one) has the border, a legend, a title block, a north arrow
+  and six numbered notes anchored to things. bpshoot.mjs renders the
+  still or the frames; gifloop.py writes a GIF that stores only changed
+  pixels (80 frames, about 2 MB). The live page was published as a
+  private artifact "Blueprint City" (three r128 from jsDelivr, Architects
+  Daughter and IBM Plex Mono): drag to turn it round, Pause/Space, starts
+  paused for reduced motion, narrow screens drop the legend and notes.
+  Next: five more (42-46) from the user's eight cyberpunk references.
