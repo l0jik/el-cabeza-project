@@ -9297,3 +9297,28 @@ phone menu until "Start the story over" (which clears it).
     there too.
   - Still open for the user: which hub (if any), which idea (78-82),
     and who yields at a crossing.
+- Rule from now on: people in every scene span the human range of skin
+  tones (user: "Make sure that the people have an array of different
+  human skin tones").
+  - Scratch moonFolk palette: nine tones in three bands.
+    - Light: #eccab2 #e6b896 #d9a57f.
+    - Medium: #c98f62 #ad7449 #93603b.
+    - Deep: #744528 #583320 #3f2416.
+  - Each group (a garden's three people) takes one person from each
+    band, in a shuffled order. No tone repeats until all nine are used.
+  - Hair varies: black, browns, auburn, red, blond, grey.
+  - Two bugs hid the tones:
+    - The hair was a cap all the way round the head, so you saw hair,
+      not faces. Now it is a crown and a fall at the back and sides, the
+      face open, and the head is a little larger.
+    - The moon scenes skip the sRGB-to-linear step (TRUE_COL off), so
+      every tone showed pale. personFig now converts skin and hair
+      itself; o.skinGain can dim them further.
+  - Gardens are placed with the camera in mind: the fruit picker stands
+    beside the tree, not behind its crown, and the kneeler is side-on.
+    So faces show, not only backs of heads.
+  - The F.lineup option stands all nine in a row for checking (preset
+    mx36cast).
+  - Sent people-skin-tones.jpg and both gardens up close (new preset
+    mx36gd for the dark garden). 95's renders were re-exported with the
+    new tones (scratch out/send6/moon-people).
