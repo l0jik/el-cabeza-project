@@ -8446,3 +8446,16 @@ phone menu until "Start the story over" (which clears it).
   (store-nudge, dock-moments, outline, den, den-return, den-spot,
   outside-dismiss, smoke tienda, try-it, store-opening, clerk). With
   e2e-lab fixed, all 25 green for the round through 734ec2e.
+- Path ghosts, explained with a picture (user: "I don't understand exactly
+  what you mean. Maybe give me a brief demonstration?"). Sent a now vs
+  proposed image (Neon, phone; an angled view and one from above), the
+  proposed side a local mockup, not committed. Demo position: the design
+  position re-placed, dark Cabeza 3,4, Light Chato 5,6 standing (1x2x2);
+  its only line is roll N (to 3,6, still 1x2x2) then roll W (flat 2x2x1
+  over 3-4 x 4-5). A dark piece on 3,6 or 4,6 leaves no threat at all
+  (cabezaThreats empty): the stop is where the card's "block its way"
+  works. Mockup: each steps[i].to but the last a ghost at 0.2 with an
+  EdgesGeometry outline (0.8), the landing outlined too (both melt into
+  the red squares without one); a hop per move, lift 0.7 + 0.2 x distance,
+  small heads (0.16 x 0.34), the last hop to the Cabeza with the big head;
+  a one-move line drawn as before. Awaiting the user's yes before building.
