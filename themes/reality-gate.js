@@ -192,7 +192,10 @@ button.rg-pic:focus-visible { outline: 2px solid var(--rg-accent); outline-offse
    and Play: in the look's accent, user.) */
 .rg-seg button[aria-pressed="true"] { background: var(--rg-accent); color: var(--rg-accent-ink); border-color: var(--rg-accent); }
 .rg-seg button:disabled { opacity: 0.4; cursor: default; }
-.rg-switch { appearance: none; position: relative; width: 50px; height: 30px; flex: none; border: var(--rg-line-w) solid var(--rg-line); border-radius: 999px; background: transparent; cursor: pointer; }
+/* (The track grows with its line, the same 48 x 28 inside every look, so
+   the knob sits centred in it: drawn 50 x 30 for a 1px line, it sat low
+   and ran out at the side under a thick one, De Stijl's 6px, user.) */
+.rg-switch { appearance: none; position: relative; width: calc(48px + 2 * var(--rg-line-w)); height: calc(28px + 2 * var(--rg-line-w)); flex: none; border: var(--rg-line-w) solid var(--rg-line); border-radius: 999px; background: transparent; cursor: pointer; }
 .rg-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--rg-muted); transition: transform 0.18s ease, background-color 0.18s ease; }
 .rg-switch[aria-checked="true"] { background: var(--rg-accent); border-color: var(--rg-accent); }
 .rg-switch[aria-checked="true"]::after { transform: translateX(20px); background: var(--rg-accent-ink); }

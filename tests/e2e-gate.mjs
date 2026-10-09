@@ -133,6 +133,32 @@ console.log("the Lab");
   await ctx.close();
 }
 
+console.log("the Lab's De Stijl: the menu's switches under its thick lines");
+{
+  // (User, the knobs sat low and ran out at the side under De Stijl's 6px
+  // line: each knob's room inside the line, above and below it, and beside
+  // it at its end, the same.)
+  const { p, ctx, errs } = await open("el-cabeza-lab.html?theme=destijl", { viewport: { width: 400, height: 860 } });
+  await gateOn(p);
+  await p.locator('[data-testid="gate-nova"]').click();
+  await poll(async () => (await p.locator('[data-testid="gate-sheet"]').count()) > 0, 4000);
+  const knobs = () => p.evaluate(() => [...document.querySelectorAll(".rg-switch")].map((b) => {
+    const cs = getComputedStyle(b, "::after"), line = parseFloat(getComputedStyle(b).borderTopWidth), r = b.getBoundingClientRect();
+    const x = parseFloat(cs.left) + (cs.transform === "none" ? 0 : new DOMMatrix(cs.transform).m41), y = parseFloat(cs.top);
+    return { id: b.dataset.testid, on: b.getAttribute("aria-checked") === "true", line, top: y, bottom: r.height - 2 * line - y - parseFloat(cs.height), left: x, right: r.width - 2 * line - x - parseFloat(cs.width) };
+  }));
+  const k0 = await knobs();
+  const centred = (k) => Math.abs(k.top - k.bottom) < 0.5 && Math.abs((k.on ? k.right : k.left) - k.top) < 0.5;
+  check(`every switch's knob centred in its ${k0[0] && k0[0].line}px line (${k0.length})`, k0.length >= 8 && k0[0].line >= 6 && k0.every(centred), JSON.stringify(k0.filter((k) => !centred(k))));
+  const id = k0.find((k) => !k.on).id;
+  await p.locator(`[data-testid="${id}"]`).scrollIntoViewIfNeeded();
+  await p.locator(`[data-testid="${id}"]`).click();
+  const k1 = await poll(async () => { const k = (await knobs()).find((q) => q.id === id); return k.on && centred(k) ? k : null; }, 4000);
+  check("...switched on, it goes to the other end, centred there too", !!k1);
+  check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
 console.log("Lluvia");
 {
   const { p, ctx, errs } = await open("el-cabeza-lluvia.html");

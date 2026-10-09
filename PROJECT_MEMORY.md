@@ -8487,3 +8487,19 @@ phone menu until "Start the story over" (which clears it).
   is drawn in an effect a frame or more later (slow here), so a test must
   wait for the drawing itself to match (and hold), not just the view; the
   first run counted the previous position's marks 17 times.
+- The Cabeza Nova sheet's switches (user, a De Stijl screenshot: "Are
+  these toggle switches intended to be off-center on the y-axis?"). No: a
+  bug. .rg-switch was 50 x 30 border-box (.rg-layer * is border-box) with
+  the knob 22px at 3px and translateX(20px) on, sized for a 1px line; the
+  Lab's sheet takes --rg-line-w from the direction's --border-width (1 to
+  6px; De Stijl 6, Brutalist 4, New Typography / Neo-Brutalist / Ultimate
+  Fusion 3, Bauhaus 2), so the room inside shrank and the knob sat low
+  (De Stijl: 3px above, -7px below) and ran out at the side when on. Now
+  the track is calc(48px + 2 x line) by calc(28px + 2 x line): 48 x 28
+  inside in every look, the knob 3px from every edge it rests on; 50 x 30
+  for a 1px line as before, De Stijl's 60 x 40 (its controls' height).
+  The other switches (dock's Check alert and Focus pills, the phone
+  menu's) have fixed thin lines and were centred. e2e-gate: the Lab's De
+  Stijl sheet, every knob centred in its 6px line, one switched on centred
+  at the other end. (Measuring a knob: its slide takes a while on this
+  slow machine; poll for the end, don't read it at once.)
