@@ -8931,3 +8931,34 @@ phone menu until "Start the story over" (which clears it).
   (dark side bronze glass, ribbon 0.68), 66 Golden Hour. The backdrop's
   crowns and spires are gone (mix entries without crown). The round 6
   sheet's day row is retitled "Three Ages, now with mid-century pieces".
+- Mid-century scenes 62-71 reworked (user: per-floor offsets "look just
+  like the building is wavy ... combine multiple floors for one offset
+  section, and it doesn't have to be equal"; colours "a little too
+  bright ... toned down ... less density, more character ... nostalgia";
+  the filled squares "a little overdone"; then mid-turn, with a
+  screenshot of a park's 3D trees: put trees like these on the board
+  itself with a bit more variety, they won't obstruct the buildings, and
+  "some city life happening on the streets ... not crazy, but some").
+  - BUILD.midmod: floors grouped into unequal sections (pal.sections,
+    default cycle 3,2,4,2,3,4; a trailing single floor joins the one
+    below), each section one facade box shifted as a block (pal.steps
+    0,1,-1,1,0,-1 times pal.offset, every fourth across the short side),
+    one slab band a section, one spandrel colour a section (pal.bands).
+    FACADE.midmod: pal.ribbon sets the window band.
+  - Look: muted palettes (creams, sage, teal, mustard, burnt orange,
+    walnut, charcoal), trueColor on (the std() colours as given, which
+    deepened the greens and the darks), post5.py "postcard" (bloom only
+    on the brightest, saturation 0.86, a little warmth, blacks lifted
+    0.03, grain, vignette). Backdrop: glass, brut, mid-century and deco
+    boxes, no crowns, 110 of them; lotsP 0.6 for the empty blocks.
+  - Lots: about half the board's free squares (lotsP 0.5), mostly park
+    and lawn; LOT_TYPES now park, lawn, plaza, subway, court,
+    construction (art, market and playground off the board, still in the
+    city round it); colours muted. Trees: treeAt() with kinds round,
+    cluster, oval, flat (umbrella), blossom, autumn; groves of 6-9 in a
+    park, 2-4 on a lawn, sized up a quarter on the board.
+  - EXTRAS.citylife: board lanes (cars at true scale for these
+    buildings, carS 1.5, the odd bus, cyclists by the kerb) and people in
+    ones to knots of four at corners and along pavements (personS 1.7);
+    the city's own streets round the board (cars 1.45, buses, people
+    2.0) skipping the board and the context buildings.
