@@ -9084,3 +9084,32 @@ phone menu until "Start the story over" (which clears it).
     none).
   - Sent: moon-ideas-sheet.jpg and six 3200x2000 JPEGs (scratch:
     out/send6/moon-mix, moonmixsheet.py).
+- Moon board in the moon's own ground (user: the board "should not be a
+  separate board ... that rises up on top of the surface ... it should
+  be a part of the contours of the regular surface of the moon ...
+  impact craters and that sort of thing"). Rule: no plate or slab under
+  the moon board.
+  - city.js P.terrain: buildTerrain() makes one height-field surface out
+    to the horizon.
+    - Vertices are dense by the board and sparse far off:
+      x = sign(u)(14.4|u| + K|u|^3), 561 x 561.
+    - Shape: a broad gentle swell (short waves read as dunes, removed),
+      hills on the horizon.
+    - Craters: 430 near and 300 far, each a bowl with a raised rim; one
+      in five fresh, with a bright rim.
+    - Vertex colours give mottling.
+  - The board is a levelled stretch of it: the swell and the craters
+    are taken down over a 0.5 pad plus a 3.4 blend. It keeps 0.8 of the
+    ground's mottling. 13 worn craters show on it, 2-3 cm deep with dark
+    floors and pale rims; pieces still stand at y 0.
+  - buildBoardMarks() lays the squares on the ground: an overlay
+    following the surface with worn lines, a stud at every corner (lit
+    by night) and a firmer edge line. The ground texture has small
+    craters (craters 200, craterMax 22).
+  - GY(x, z) now gives the terrain's height; the boulders, dish,
+    lander, rover and solar panels sit on it. Work-light poles run
+    into the ground.
+  - All of mx1-mx5 and mx1b use it, re-rendered at 3200x2000. Sent:
+    moon-ground-sheet.jpg and six JPEGs (scratch: out/send6/moon-ground,
+    moongroundsheet.py). The older A/B pictures (ml*, m1, m1p, m2, m3,
+    n10) still have the plate.
