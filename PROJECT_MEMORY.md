@@ -8637,3 +8637,47 @@ phone menu until "Start the story over" (which clears it).
   30 Film Noir (brick vs stone, fire escapes, water towers, lamp beams
   in the rain, graded black and white with one red HOTEL sign). Awaiting
   the user's pick of a day and a night direction (from any round, 1-30).
+- City mock-ups, round 4, maps (user: "a map sort of look ... a
+  Vietnamese city, both ancient and modern ... a Manhattan one ... a lot
+  of trees ... trees on top of the buildings ... very livable,
+  European"; then "assemble all together"): numbered 31-40, same scratch
+  renderer (round-4 code merged into city.js from round4a.js/round4b.js;
+  presets d16-d20, n16-n20; post4.py adds the map finish: a compass
+  turned to true north from window.__META, the place and its
+  coordinates on a chip, or for "antique" a sepia paper grade with a
+  compass rose and a cartouche; sheet.py sets day4/night4; overview.py
+  puts all 40 on one numbered sheet, names shared from sheet_sets.py).
+  New in the renderer: map ink (edge outlines), flat map geography
+  (water, parks, plazas, roads, sand) that the city keeps off,
+  context fills of named block types (Manhattan setbacks with roof
+  gardens, Eixample chamfered courtyard blocks, Hanoi tube houses, French
+  villas, Hội An shophouses, concrete pots with trees, collective-housing
+  slabs, towers, courtyard blocks), Barcelona superblocks (every third
+  street keeps its traffic, the others turn green with play squares at
+  the crossings), street life (cars and people by day; headlights, tail
+  lights, lamps and lantern strings by night, drawn as glow points that
+  ignore fog), flat or upright map labels drawn over buildings, and an
+  opt-in true-colour mode (P.trueColor reads flat colours as sRGB like
+  the textures; without it flat colours come out paler than their hex).
+  Day: 31 Green Manhattan (the grid at 29 degrees, trees on every roof,
+  water tanks, Central Park, the High Line, Little Island, the Empire
+  State, the Flatiron), 32 Huế Imperial Citadel (Kinh Thành's 24
+  bastions and moat, yellow and green glazed roofs, Ngọ Môn, the flag
+  tower, Thiên Mụ, Trường Tiền bridge; an antique map), 33 Hanoi Old
+  Quarter (tube houses, Hoàn Kiếm with the Turtle Tower and the red Thê
+  Húc bridge, the French Quarter, Long Biên bridge), 34 Houses for Trees
+  (concrete pots with trees on top, a three-ring loop-roof kindergarten,
+  the Saigon river), 35 Barcelona Superblocks (seen from Tibidabo: the
+  grid running down to the sea, green axes, the Sagrada Família, the
+  Diagonal, Montjuïc, the old town). Night: 36 Hội An Lantern Night
+  (yin-yang tiled shophouses, lantern strings, floating lanterns on the
+  Thu Bồn, the Covered Bridge), 37 Saigon Skyline (LED-lit towers on the
+  river bend, a bundled tower, a cable bridge, motorbike streams), 38
+  Green Manhattan by Night (lamplit Central Park, glowing roof gardens,
+  the Empire State's crown, Queensboro bridge), 39 Hanoi Collective
+  Housing (Kim Liên's five-storey slabs, Bảy Mẫu lake ringed with lamps,
+  Long Biên with a train), 40 Vertical Forest Milan (tower forests at
+  Porta Nuova, the tree library, a lit spire, the Duomo). Next: a
+  blueprint city with traffic and people (user asked mid-round), then
+  five more (41-45) from the user's eight cyberpunk reference images.
+  Still awaiting the user's pick of a day and a night direction.
