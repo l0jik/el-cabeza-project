@@ -8568,3 +8568,6 @@ phone menu until "Start the story over" (which clears it).
   cones up the concrete), 9 Grid From Above (glowing amber street grid),
   10 Night Shift (steel frames, nets, a tower crane, work lights).
   Awaiting the user's pick.
+- The All laws round's wider sweep: all 9 pass (e2e-tienda, -story,
+  -journey, -store-opening, -try-it, -fullscreen, -original, -points,
+  -summon).
