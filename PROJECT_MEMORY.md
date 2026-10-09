@@ -8710,3 +8710,35 @@ phone menu until "Start the story over" (which clears it).
   Daughter and IBM Plex Mono): drag to turn it round, Pause/Space, starts
   paused for reduced motion, narrow screens drop the legend and notes.
   Next: five more (42-46) from the user's eight cyberpunk references.
+- City mock-ups 42-46, cyberpunk (user sent eight reference images:
+  red-haze megastructure, a red skyline with billboards, a mountain
+  and a pyramid, giant holographic billboards, a teal canyon of towers,
+  violet fog with neon roof edges and a game HUD, drones over lit tower
+  crowns, a dot-hologram whale in magenta rain; "Don't directly copy any
+  of these ... make your own spin"). Same scratch renderer (round-5 code
+  merged into city.js from round5a.js/round5b.js; presets c1-c5;
+  post5.py finishes them; sheet.py set night5 holds 41-46; overview.py
+  now wraps rows and puts all 46 on one sheet). New: a "dash" facade
+  (dark walls lit by short dashes), a "cyber" piece style (dash walls,
+  neon round the roof, a mast light, a tall screen facing the camera and
+  a round neon logo), screens printed with invented ads (the Cabeza's
+  head in halftone, a lock, rings, the word CABEZA stacked, a bolt),
+  a Cabeza that projects its own head as a point cloud, a cyberCity
+  extra (towers from shared dash tiles with UVs scaled per tower, neon
+  roof edges, screens, logos, small signs, lit crowns), a megastructure
+  on legs with hanging cables, a pyramid with one lit edge, a far ridged
+  mountain range, a red light tower, a hologram projector, a koi made of
+  points, a hyperboloid lattice tower in red and white lights, drones,
+  and camera roll (P.cam.roll). post5.py: bloom, grade, grain, and per
+  look glitch streaks and scan lines, a red monochrome print, chromatic
+  aberration, anamorphic lens streaks, a game HUD (tool column, turn
+  line, LIVE, a minimap of the board) or a photo-mode bar. 42 Red Haze
+  Arcology (a hulk hung over the city on cables in dust-red haze), 43
+  Crimson Signal (a red monochrome skyline, screens with the Cabeza's
+  head, a pyramid, glitch lines), 44 Teal Canyon (looking up between the
+  pieces, giant screens, dash windows streaking, searchlights), 45
+  Violet Overwatch (from above, neon roof edges, a red light tower, the
+  Cabeza's head as a giant hologram, a HUD), 46 Leviathan Rain (a koi of
+  light over the rooftops, a lattice tower, lit crowns, drones, rain,
+  photo mode). Still awaiting the user's pick of a day and a night
+  direction.
