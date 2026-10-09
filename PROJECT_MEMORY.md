@@ -9018,3 +9018,15 @@ phone menu until "Start the story over" (which clears it).
     to B3 rounded solids (line-up, Earthrise, Crater Rim), C1 to C3
     connected modules (line-up, Earthrise, Lunar Night). Scratch:
     out/send6/moon-hires, moonsheet.py.
+- Moon Base: the connected modules dropped (user: "It looks like servers
+  and a server rack. I don't like that look at all. Let's get rid of
+  that one now"). Rule: no stacks of boxy modules for the moon base;
+  nothing that reads as server racks.
+  - Scratch renderer: BUILD.moonmod and MOD_MAT deleted; presets m1b
+    (Earthrise, modules) and ml3 (modules line-up) deleted; 56b dropped
+    from sheet_sets.py. Lunar Night (m2, 57) was only ever shown with
+    modules: it now uses the rounded solids (BUILD.moonsolid), re-rendered
+    at 3200x2000 as moon-B4-rounded-solids-lunar-night.jpg.
+  - Two working models left: A pods (ml1 line-up, m1p Earthrise, n10 the
+    first Moon Base) and B rounded solids (ml2 line-up, m1 Earthrise, m3
+    Crater Rim, m2 Lunar Night). moonsheet.py now draws those two rows.
