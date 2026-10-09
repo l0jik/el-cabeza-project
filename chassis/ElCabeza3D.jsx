@@ -16,7 +16,7 @@ import {
 } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY, placeKey, cabezaThreats, crushLine, cabezaEscapes } from "../engine/ai.js";
 import {
-  pieceCenter, restingY, makeRoundedBox, makePolycubeSmooth, rayHitBoardPlaneY0,
+  pieceCenter, restingY, makeRoundedBox, makePolycubeSmooth, makePolycubeGeometry, rayHitBoardPlaneY0,
   boardVerticalOverlapFraction, clampVerticalTarget, pivotFor,
   setGhostLineTarget,
 } from "../engine/geometry.js";
@@ -4481,10 +4481,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      Plain primitives in every world, like the black holes' rings; they
      turn with the board. Show me (checkShow) plays each line: a ghost of
      the piece tumbling, sliding or turning, move by move, onto the
-     Cabeza, as the board's own moves are animated. */
+     Cabeza, as the board's own moves are animated.
+     An attack of two moves or more (user, shown the same Chato attack
+     drawn both ways: "Yes, build it") has a fainter ghost at every stop
+     on the way and a hop for each move instead of one arc over it all:
+     the route on the board, from any angle, where it turns, and the
+     squares a piece of yours could block (the card's "or block its
+     way"). Every ghost outlined, or a faint one melts into the red
+     squares under it. */
   const CHECK_RED = 0xff3b30, CHECK_GREEN = 0x2ee59d;
-  function checkGhostMesh(state, opacity) {
-    const geo = PIECE_META[state.type].shape === "disc"
+  function checkGhostMesh(state, opacity, edges = 0) {
+    const disc = PIECE_META[state.type].shape === "disc";
+    const geo = disc
       ? new THREE.CylinderGeometry((DISC_DIAM * CABEZA_SCALE) / 2, (DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, 40)
       : state.vox ? makePolycubeSmooth(state, PIECE_SCALE, EDGE_RADIUS)
         : makeRoundedBox(state.w * PIECE_SCALE, state.z * PIECE_SCALE, state.h * PIECE_SCALE, EDGE_RADIUS);
@@ -4492,6 +4500,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const c = pieceCenter(state);
     mesh.position.set(c.x, restingY(state), c.z);
     mesh.renderOrder = 6;
+    // (The outline traced on a sharp-cornered copy, as Neon's pieces are:
+    // the rounded one's edges turn too gently for EdgesGeometry to find.)
+    if (edges && !disc) {
+      const sharp = state.vox ? makePolycubeGeometry(state, PIECE_SCALE) : new THREE.BoxGeometry(state.w * PIECE_SCALE, state.z * PIECE_SCALE, state.h * PIECE_SCALE);
+      const line = new THREE.LineSegments(new THREE.EdgesGeometry(sharp, 10), new THREE.LineBasicMaterial({ color: CHECK_RED, transparent: true, opacity: edges, depthWrite: false }));
+      sharp.dispose();
+      line.renderOrder = 7;
+      mesh.add(line);
+    }
     return mesh;
   }
   const checkShowRef = useRef(null);
@@ -4514,29 +4531,50 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
     checkView.cabIds.forEach((id) => { const p = pieces.find((q) => q.id === id); if (p) square(p.row, p.col, false, 0.5); });
     checkView.escapes.forEach((e) => square(e.row, e.col, e.safe, e.safe ? 0.42 : 0.3));
-    // The ghost of each landing, and the arc to it.
-    checkView.lines.forEach((line) => {
-      const last = line.steps[line.steps.length - 1].to;
-      const ghost = checkGhostMesh(last, 0.34);
-      ghost.userData = { kind: "check-ghost", attacker: line.attacker };
-      group.add(ghost);
-      const from = line.steps[0].from, cab = pieces.find((q) => q.id === line.cabeza);
-      if (!cab) return;
-      const a = pieceCenter(from), b = pieceCenter(cab);
-      const A = new THREE.Vector3(a.x, from.z * PIECE_SCALE + 0.12, a.z), B = new THREE.Vector3(b.x, DISC_H * CABEZA_SCALE + 0.32, b.z);
-      const C = A.clone().lerp(B, 0.5); C.y = Math.max(A.y, B.y) + 1.4 + 0.25 * A.distanceTo(B);
+    // An arc with its head, from A down to B, `lift` over the higher end;
+    // the last of a line full size, the hops before it slighter.
+    const arc = (A, B, lift, last, data) => {
+      const C = A.clone().lerp(B, 0.5); C.y = Math.max(A.y, B.y) + lift;
       const curve = new THREE.QuadraticBezierCurve3(A, C, B);
       const mat = new THREE.MeshBasicMaterial({ color: CHECK_RED, transparent: true, opacity: 0.9, depthWrite: false });
-      const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 32, 0.075, 8, false), mat);
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 32, last ? 0.075 : 0.06, 8, false), mat);
       tube.renderOrder = 7;
-      tube.userData = { kind: "check-arc", attacker: line.attacker };
-      const head = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.44, 20), mat);
+      tube.userData = { kind: "check-arc", ...data };
+      const head = new THREE.Mesh(last ? new THREE.ConeGeometry(0.2, 0.44, 20) : new THREE.ConeGeometry(0.16, 0.34, 20), mat);
       const dir = curve.getTangent(1).normalize();
       head.position.copy(B).addScaledVector(dir, -0.12);
       head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
       head.renderOrder = 7;
-      head.userData = { kind: "check-arc-head" };
+      head.userData = { kind: "check-arc-head", ...data };
       group.add(tube, head);
+    };
+    const topOf = (s) => { const c = pieceCenter(s); return new THREE.Vector3(c.x, s.z * PIECE_SCALE + 0.12, c.z); };
+    // The ghost of each landing; of each stop on the way there, fainter;
+    // and the arc, or a hop for each move.
+    checkView.lines.forEach((line) => {
+      const n = line.steps.length;
+      const ghost = checkGhostMesh(line.steps[n - 1].to, 0.34, 0.95);
+      ghost.userData = { kind: "check-ghost", attacker: line.attacker };
+      group.add(ghost);
+      line.steps.slice(0, -1).forEach((st, i) => {
+        const stop = checkGhostMesh(st.to, 0.2, 0.8);
+        stop.userData = { kind: "check-stop", attacker: line.attacker, move: i + 1, row: st.to.row, col: st.to.col };
+        group.add(stop);
+      });
+      const cab = pieces.find((q) => q.id === line.cabeza);
+      if (!cab) return;
+      const b = pieceCenter(cab), B = new THREE.Vector3(b.x, DISC_H * CABEZA_SCALE + 0.32, b.z);
+      if (n === 1) {
+        const A = topOf(line.steps[0].from);
+        arc(A, B, 1.4 + 0.25 * A.distanceTo(B), true, { attacker: line.attacker, move: 1 });
+        return;
+      }
+      line.steps.forEach((st, i) => {
+        const A = topOf(st.from), E = i === n - 1 ? B : topOf(st.to);
+        // (A turn on the spot goes nowhere: its stop's ghost says it.)
+        if (i < n - 1 && Math.hypot(E.x - A.x, E.z - A.z) < 0.05) return;
+        arc(A, E, 0.7 + 0.2 * A.distanceTo(E), i === n - 1, { attacker: line.attacker, move: i + 1 });
+      });
     });
     // Show me: each line played as a ghost, move by move; then gone.
     checkShowRef.current = null;
@@ -4545,8 +4583,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // (Tests may slow it down, to see it between their slow frames.)
     const slow = (typeof window !== "undefined" && window.__EC_TEST_HOOKS__ && window.__EC_TEST_SHOW_SLOW__) || 1;
     const STEP_MS = ROLL_MS * 2 * slow, GAP_MS = 260 * slow, HOLD_MS = 1000 * slow;
-    // (The still ghost and the arc stand aside while it plays.)
-    const still = group.children.filter((c) => c.userData.kind === "check-ghost" || c.userData.kind === "check-arc" || c.userData.kind === "check-arc-head");
+    // (The still ghosts and the arcs stand aside while it plays.)
+    const still = group.children.filter((c) => ["check-ghost", "check-stop", "check-arc", "check-arc-head"].includes(c.userData.kind));
     const showStill = (v) => still.forEach((c) => { c.visible = v; });
     showStill(false);
     const plays = checkView.lines.map((line) => ({ line, mesh: null, holder: null }));

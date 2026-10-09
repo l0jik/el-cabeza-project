@@ -8459,3 +8459,19 @@ phone menu until "Start the story over" (which clears it).
   the red squares without one); a hop per move, lift 0.7 + 0.2 x distance,
   small heads (0.16 x 0.34), the last hop to the Cabeza with the big head;
   a one-move line drawn as before. Awaiting the user's yes before building.
+- Path ghosts built (user: "Yes, build it"). The check alert's still, per
+  line: the landing ghost (check-ghost, 0.34) as before; for a line of two
+  moves or more, a ghost at each stop on the way (check-stop, 0.2; userData
+  attacker, move, row, col) and a hop per move (check-arc + check-arc-head,
+  userData move: 1..n; lift 0.7 + 0.2 x distance; heads 0.16 x 0.34, the
+  last hop to the Cabeza full size: tube 0.075, head 0.2 x 0.44); a
+  one-move line keeps its one high arc (lift 1.4 + 0.25 x distance). A hop
+  whose ends are under 0.05 apart (a turn in place) is skipped: its stop's
+  ghost says it. Every ghost outlined (checkGhostMesh's edges opacity: 0.95
+  landing, 0.8 stop): EdgesGeometry(10) on a sharp-cornered copy, a
+  BoxGeometry or makePolycubeGeometry (now imported), as Neon outlines its
+  pieces. The mockup's EdgesGeometry(30) on the rounded geometry drew
+  nothing (makeRoundedBox's fillets turn 15 degrees a facet). Show me hides
+  check-stop too. e2e-check-alert: the two-roll Turrito has 1 ghost, 1 stop
+  at 4,5 (fainter), 2 arcs, both outlined; the video's one-roll Hombro 1
+  ghost, no stop, 1 arc; Show me hides and restores all. Passes.

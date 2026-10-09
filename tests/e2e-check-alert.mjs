@@ -8,8 +8,10 @@
    your Cabeza on its next turn (the user's pick of five designs: 2, 3 and
    5): a card across the top naming the piece and saying what to do, with
    Show me and its own switch; on the board, a ghost of the piece where it
-   would land and the arc it takes, and every square your Cabeza can get to
-   this turn, green if safe, red if not. It comes and goes with the
+   would land and the arc it takes (an attack of two moves: a fainter ghost
+   at its stop on the way, and a hop for each move; every ghost outlined),
+   and every square your Cabeza can get to this turn, green if safe, red if
+   not. It comes and goes with the
    position. Its switch is in the setup, in the in-game menu (the dock's
    panel; the phone bar's menu) and on the card. Never in a game between
    two people.
@@ -46,10 +48,13 @@ const reading = (page) => page.evaluate(() => window.__EC_TEST_CHECK__ && window
 const card = (page) => page.locator('[data-testid="check-alert"]');
 const marks = (page) => page.evaluate(() => window.__EC_TEST_THREE__().checkGroup.children.length);
 const kinds = (page) => page.evaluate(() => {
-  const out = { ghost: 0, arc: 0, green: 0, red: 0 };
+  const out = { ghost: 0, stop: 0, arc: 0, green: 0, red: 0, outlined: 0, stops: [] };
   window.__EC_TEST_THREE__().checkGroup.children.forEach((c) => {
     const k = c.userData.kind;
+    // (An outline: a line child with edges in it.)
+    if ((k === "check-ghost" || k === "check-stop") && c.children.some((l) => l.isLineSegments && l.geometry.attributes.position.count >= 24)) out.outlined++;
     if (k === "check-ghost" && c.visible) out.ghost++;
+    else if (k === "check-stop" && c.visible) { out.stop++; out.stops.push([c.userData.row, c.userData.col, c.material.opacity]); }
     else if (k === "check-arc" && c.visible) out.arc++;
     else if (k === "check-square") out[c.userData.safe ? "green" : "red"]++;
   });
@@ -97,7 +102,9 @@ console.log("Neon, desktop: the setup's switch, the warning, its own switch, the
   check("...and says what to do", /Move your Cabeza to a green square, or block its way/.test(await page.locator('[data-testid="check-alert-advice"]').textContent()));
   const view1 = await page.evaluate(() => window.__EC_TEST_CHECK_VIEW__());
   const k1 = await kinds(page);
-  check(`...on the board: its landing's ghost and the arc to it (${JSON.stringify(k1)}; its line ${JSON.stringify(view1.lines)})`, k1.ghost === 1 && k1.arc === 1 && view1.lines.length === 1 && view1.lines[0].steps.length === 2);
+  check(`...on the board: its landing's ghost, its stop's, a hop for each roll (${JSON.stringify(k1)}; its line ${JSON.stringify(view1.lines)})`, k1.ghost === 1 && k1.stop === 1 && k1.arc === 2 && view1.lines.length === 1 && view1.lines[0].steps.length === 2);
+  check("...the stop where its first roll ends, between the two, fainter than the landing", k1.stops.length === 1 && k1.stops[0][0] === 4 && k1.stops[0][1] === 5 && k1.stops[0][2] < 0.34);
+  check(`...both ghosts outlined (${k1.outlined})`, k1.outlined === 2);
   const safeN = view1.escapes.filter((e) => e.safe).length;
   check(`...and your Cabeza's squares this turn, green or red (${view1.escapes.length}: ${safeN} safe)`, k1.green === safeN && k1.red === view1.escapes.length - safeN + 1 && safeN > 0);
   // Show me: its two rolls played as a ghost onto the Cabeza (slowed
@@ -106,12 +113,12 @@ console.log("Neon, desktop: the setup's switch, the warning, its own switch, the
   await page.locator('[data-testid="check-alert-show"]').click();
   const playing = await poll(async () => { const s = await page.evaluate(() => window.__EC_TEST_CHECK_SHOW__()); return s && s.playing ? s : null; }, 3000, 80);
   const kp = await kinds(page);
-  check(`Show me plays its line (${JSON.stringify(playing)}), the still marks aside`, !!playing && playing.steps === 2 && kp.ghost === 0 && kp.arc === 0);
+  check(`Show me plays its line (${JSON.stringify(playing)}), the still marks aside`, !!playing && playing.steps === 2 && kp.ghost === 0 && kp.stop === 0 && kp.arc === 0);
   const twoSteps = await poll(async () => { const s = await page.evaluate(() => window.__EC_TEST_CHECK_SHOW__()); return s && s.step === 2 ? s : null; }, 12000, 100);
   check("...both rolls, one after the other", !!twoSteps);
   const done = await poll(async () => { const s = await page.evaluate(() => window.__EC_TEST_CHECK_SHOW__()); return s && !s.playing ? s : null; }, 20000, 200);
   const kd = await kinds(page);
-  check(`...then it's done, the still marks back (${JSON.stringify(kd)})`, !!done && kd.ghost === 1 && kd.arc === 1);
+  check(`...then it's done, the still marks back (${JSON.stringify(kd)})`, !!done && kd.ghost === 1 && kd.stop === 1 && kd.arc === 2);
   await page.evaluate(() => { window.__EC_TEST_SHOW_SLOW__ = 1; });
   const box = await card(page).boundingBox();
   check(`the card's across the top, in the middle (${JSON.stringify(box && { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width) })})`, !!box && box.y < 40 && Math.abs(box.x + box.width / 2 - 640) < 4);
@@ -125,6 +132,8 @@ console.log("Neon, desktop: the setup's switch, the warning, its own switch, the
   await setPieces(page, VIDEO(false));
   const text2 = await poll(async () => (await card(page).count()) && (await page.locator('[data-testid="check-alert-text"]').textContent()));
   check(`the video's position: "${text2}"`, /The Hombro can tumble onto your Cabeza/.test(text2 || ""));
+  const k2 = await kinds(page);
+  check(`...one roll: its landing's ghost and one arc, no stop (${JSON.stringify(k2)})`, k2.ghost === 1 && k2.stop === 0 && k2.arc === 1 && k2.outlined === 1);
   // ...but not through a Turrito of yours between.
   await setPieces(page, VIDEO(true));
   check("...with your Turrito between them: no warning", !!(await poll(async () => (await card(page).count()) === 0)));
