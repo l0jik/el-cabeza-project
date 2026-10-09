@@ -9199,3 +9199,19 @@ phone menu until "Start the story over" (which clears it).
     smaller network, or whoever built last.
   - Sent: moon-crossings-close-up.jpg, moon-crossings-sheet.jpg and six
     3200x2000 JPEGs (scratch: out/send6/moon-crossings, moonxsheet.py).
+- Moon Cabezas told apart by their bases (user: "Maybe the bases of the
+  cabezas both need to be different colors, because it's kind of hard to
+  tell the difference between the two of them at a glance").
+  - Cause: CABEZA.moon used one pale-grey base (#c9ccd0) and a grey hem
+    ring for both sides, so it was the one moon piece with no team
+    colour.
+  - Rule now: each Cabeza's base is in its side's colours. The base is
+    the side's wall colour, 0.1 tall, with an accent band round it and
+    an accent hem ring (white and orange; charcoal and gold). The dome
+    is 0.8 r instead of 0.95 r, so a ring of base colour shows round it
+    from above too. Total height about as before.
+  - P.cabezaOld brings back the old base, for comparisons. The corridor
+    stub stops at the smaller dome (SHAPES inside 0.5 CAB_D).
+  - Re-rendered mx1-mx5, mx1b and cx1-cx6. Sent cabezas-before-after.jpg
+    (presets cz0/cz1), 78 and 88 full size, and both sheets (scratch:
+    out/send6/moon-cabezas).
