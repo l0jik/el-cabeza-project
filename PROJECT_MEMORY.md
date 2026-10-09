@@ -9469,3 +9469,32 @@ phone menu until "Start the story over" (which clears it).
     it was already in from 98.
   - Sent contour-and-hips.jpg, 99 full size and the garden close-up.
     Scratch: out/send6/moon-99, moon99sheet.py.
+- Moon 100: buildings to scale under overhangs, and a flat front on the
+  figures.
+  - Rule (user: "all of the buildings are proportional to one another
+    ... a Turrito (or other 1 cube tall piece) will have to fit
+    underneath an overhang"):
+    - Every moon piece is a whole number of PS cubes tall, with domes and
+      rounded edges kept inside that height.
+    - Roof gear (Turrito hatch, masts, dishes, MIX_KIT) is drawn only
+      when nothing stands on the piece. In the scratch scene, cubesOf and
+      CUBES map every piece's cubes; coveredPiece is passed as o.covered,
+      and BUILD.moonmix uses `kit` in place of `top` for gear.
+    - Presets prop and propc check it: Turritos under the Arco Chico and
+      the Zeta, a lying Flaco under the Arco Ancho, a two-high Flaco under
+      the Arco Alto. All fit flush.
+  - Figures (user: "the people look like they have butts ... on the front
+    of their abdomen"):
+    - The thighs are flattened front to back (sz 0.84) to the pelvis's
+      depth, and their tops start 0.035 up the leg line, inside the
+      belly.
+    - The belly capsule is r 0.086-0.088 with sz 0.6, and the leg blend k
+      is 0.045.
+    - Preset mx36q shows the line-up three-quarters round.
+  - Board contour: the user confirmed it shows now.
+  - Open: people are about a fifth of a storey (0.18 against a 0.87
+    level), so windows are person-height. Raised with the user, not
+    changed.
+  - Sent scale-and-figures.jpg, 100-scale-check.jpg and
+    100-people-three-quarters.jpg. Scratch: out/send6/moon-100,
+    moon100sheet.py.
