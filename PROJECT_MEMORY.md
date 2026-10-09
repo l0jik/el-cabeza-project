@@ -9498,3 +9498,33 @@ phone menu until "Start the story over" (which clears it).
   - Sent scale-and-figures.jpg, 100-scale-check.jpg and
     100-people-three-quarters.jpg. Scratch: out/send6/moon-100,
     moon100sheet.py.
+- Moon 101: nothing cylindrical, everything squircle (user: "I don't
+  want the supports of an upright arco ... to be cylinders. Those also
+  have to be the squircle ... nothing should be cylindrical. Everything
+  should be squircle").
+  - Scratch flag P.squircle (SQ_ALL), with helpers sqF, sqPts, sqPrism,
+    sqDomeGeo and sqRingGeo (n 4.2; tube section cfg.secN, default 4).
+  - Pieces:
+    - moonVoxBody columns (arch legs, Codo uprights) are roundPlan
+      columns: flat under the row they hold up, the roundover top edge
+      where open. They no longer get a dome.
+    - Every standing piece, square or long, takes the roundover with the
+      roof kit.
+    - The Turrito's hatch is a squircle.
+  - Cabeza (CABEZA.moon with SQ_ALL):
+    - A squircle base and accent band, a squircle glass dome and sheen,
+      a squircle hem, and a squircle garden deck.
+    - Its plan goes to SHAPES via g.userData.inside, so corridors meet
+      its walls.
+    - The game's own Cabeza is a disc. This is a departure for the lunar
+      look only.
+  - Corridors:
+    - The interchange (own-side and the grey crossing one) is a squircle
+      drum, band and dome.
+    - Collars and thin rings are squircle prisms.
+    - The inflatable tubes have a squircle section with squircle ribs.
+  - Left round: vehicles, lander, dish, the Earth, people, trees, planter
+    beds.
+  - Presets mx40, mx40c, mx40g, prop2, prop2c and cx40c.
+  - Sent all-squircle.jpg, 101 full size and the garden close-up.
+    Scratch: out/send6/moon-101, moon101sheet.py.
