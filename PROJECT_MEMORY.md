@@ -8919,3 +8919,15 @@ phone menu until "Start the story over" (which clears it).
   Colour Blocks, 70 Mid-Century against Brut, 71 Golden Hour; all with
   the city lots, a backdrop of glass, brut and mid-century boxes (no
   crowns). overview.py's default order now ends with day7.
+- City mock-ups 62-66 redone with the mid-century pieces (user: "redo
+  62-66 with the mid-century pieces"). Same scenes (camera, light,
+  layout, the city lots); every piece now BUILD.midmod with the pavilion
+  Cabeza and formTrue; palettes echo the old pairings: 62 Cream and Gold
+  against Concrete (gold mullions, black and gold spandrels; the dark
+  side concrete greys with small windows), 63 Glass against Concrete
+  (light side pale glass, FACADE.midmod's new pal.ribbon = 0.66 for a
+  taller window band; dark 0.32), 64 Offset Towers (offset 0.045, fins
+  on the light side, gold on the dark), 65 Cream and Gold against Bronze
+  (dark side bronze glass, ribbon 0.68), 66 Golden Hour. The backdrop's
+  crowns and spires are gone (mix entries without crown). The round 6
+  sheet's day row is retitled "Three Ages, now with mid-century pieces".
