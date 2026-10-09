@@ -8600,3 +8600,40 @@ phone menu until "Start the story over" (which clears it).
   piece stands, capsules where it lies, Earth lit by the sun; porthole
   cubes read as dice again and were dropped). Awaiting the user's pick
   of a day and a night direction (from either round).
+- City mock-ups, round 3 (user: "Even 10 more now"): numbered 21-30,
+  same scratch renderer (round-3 code merged into city.js from
+  round3a.js/round3b.js; presets d11-d15, n11-n15; sheet.py sets
+  day3/night3; noir.py grades a render black and white with only strong
+  reds kept, grain and a vignette). New in the renderer: the house
+  builder takes named bodies (BODIES) and wall dressing (DECO), pieces
+  carry their id (a sign can go on one), an `occupied` test keeps trees
+  and props off buildings, `nearCam` keeps scattered set pieces out of
+  the lens (a Tron pillar had stood in front of it), boards can draw on
+  their margin (`after`), fake wet-street reflections (anything with
+  userData.reflect is smeared toward the camera on an additive layer),
+  rain, light beams under lamps, floorboards / drawn-grid / lava-river
+  grounds. Day: 21 Cardboard City (brown kraft vs white card boxes,
+  marker windows, open flaps, a green cutting mat with masking-tape
+  streets on a wooden floor, a giant pencil, ruler, mug, crayons; paper
+  bits, no cracks), 22 Castle Town (dark basalt with red roofs and
+  banners vs limestone with blue; crenellations, corner turrets, a round
+  tower for a standing 1x1x2, a moat, forest and hills), 23 Adobe Pueblo
+  (red earth vs pale earth stepped terraces, log ends, turquoise vs blue
+  doors, ladders out of roof hatches, a kiva Cabeza, cacti, mesas), 24
+  Paris Boulevards (Place des Vosges brick vs Haussmann stone, zinc
+  mansards with dormers and chimney pots, balconies, plane trees down the
+  avenues, a Panthéon Cabeza, the Eiffel Tower), 25 Memphis Postmodern
+  (black-white-and-primary vs pastel, squiggles/dots/grids/stripes,
+  toppers, columns and slabs, terrazzo, giant shapes on a lilac grid).
+  Night: 26 Neo-Tokyo Rain (magenta vs cyan blade signs and rooftop
+  billboards, megacity, rain, reflections, flying cars, a torii and
+  hologram Cabeza), 27 Tron Grid (black glass, orange vs cyan edges and
+  circuit traces, light-cycle walls along the streets, data pillars, an
+  identity-disc Cabeza), 28 Lava City (obsidian with glowing veins vs
+  pale stone, hexagonal basalt blocks, lava channels for streets, a
+  volcano, embers and ash, a caldera Cabeza), 29 Haunted Hollow (plum
+  with green windows vs grey-green with orange; crooked gables, witch-hat
+  turrets, a churchyard Cabeza, harvest moon and bats, pumpkins, mist),
+  30 Film Noir (brick vs stone, fire escapes, water towers, lamp beams
+  in the rain, graded black and white with one red HOTEL sign). Awaiting
+  the user's pick of a day and a night direction (from any round, 1-30).
