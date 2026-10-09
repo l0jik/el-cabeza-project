@@ -9215,3 +9215,39 @@ phone menu until "Start the story over" (which clears it).
   - Re-rendered mx1-mx5, mx1b and cx1-cx6. Sent cabezas-before-after.jpg
     (presets cz0/cz1), 78 and 88 full size, and both sheets (scratch:
     out/send6/moon-cabezas).
+- Moon 94: the Squircle Base on the Fused Drums' ground, with a better
+  Earth and sky (user: "Show me squircle base on fused drums background,
+  but with an improved atmosphere and earth").
+  - Scratch preset mx35: mx5's ground, low sun from the right, long
+    shadows and set dressing, with mx3's moonMix and corridors.
+    - Camera lower (y 4.3) for more sky.
+    - Lander moved clear of the drums' roofs.
+    - Rover brought into the frame on sunlit ground, so the long shadow
+      that used to come in from outside the picture now has a source.
+    - Boulders kept 10 back from the lens.
+  - Real Earth (EXTRAS.earth with f.real):
+    - Coastlines are Natural Earth's 1:50m land. It is public domain, as
+      packaged in world-atlas@2 (ISC licence).
+    - mkearthmask.py rasterizes it into a 2048x1024 equirectangular
+      earthmask.png: R is antialiased land, G is distance inland, B is
+      distance offshore. city.js top-level-awaits it only when a preset
+      asks for it.
+    - Colours come from rough climate zones (EARTH_ZONES: deserts, dry
+      steppe and savanna, rainforest, ice, city-light hotspots) with
+      noise-broken edges, and latitude bands for boreal and tundra.
+    - The shelf is a shade lighter than the open sea, at uneven widths,
+      so the coasts don't look outlined.
+    - The sun's glint is a small soft spot.
+    - Clouds wind round seven storms (one a hurricane), thinner over the
+      deserts. Cloud shift is off, so the clouds are fixed to the map.
+    - City lights are pinpoints on the night side (Brazil shows in 94).
+  - Kept from before: the gibbous phase (sunFrom), the soft limb glow
+    shell, earthshine (shine), and the Milky Way and coloured stars
+    (P.milky).
+  - Rover rebuilt:
+    - A capsule cab with a dark windscreen dome and an accent band.
+    - Pitched and rolled to the slope it is parked on.
+    - Its tracks are ribbons laid on the terrain, darker than the dust.
+  - Sent 94 at 3200x2000, a 4x-density close-up of the Earth, and
+    earth-before-after.jpg (82's painted ball against the new Earth).
+    Scratch: out/send6/moon-earth, moonearthsheet.py.
