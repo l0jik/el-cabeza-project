@@ -9251,3 +9251,49 @@ phone menu until "Start the story over" (which clears it).
   - Sent 94 at 3200x2000, a 4x-density close-up of the Earth, and
     earth-before-after.jpg (82's painted ball against the new Earth).
     Scratch: out/send6/moon-earth, moonearthsheet.py.
+- Moon 95: people, a squarer Chato, and smaller two-colour hubs for 91
+  (user: "inject a little bit of human activity ... looking out of
+  windows or walking ... into the cabeza ... harvesting ... tending to
+  the crops"; "the chato is a bit too oval ... more squircle"; "91 ...
+  the hub smaller, less protruding ... indicate both colors ... as the
+  cylinders wrap over each other").
+  - People (scratch P.folk, moonFolk, personFig):
+    - A posable figure about 0.18 tall (a dome is about twice a
+      person's height). Poses: walk, kneel, reach, carry. A suited
+      version has a gold visor, a backpack and an arm band in the
+      side's colour.
+    - Each Cabeza dome is now a kitchen garden: three planter beds round
+      an orange tree, with a gap on the corridor's side. In it, someone
+      walks in through the corridor door, someone kneels at a bed, and
+      someone picks from the tree with a basket at their feet.
+    - Suits are a shade deeper than the side's accent (the glass washes
+      colour out). The dome glass is clearer when it has people inside.
+    - Faces at about one lit window in seven: soft silhouettes, varied
+      in size and place, not icons. They are picked by their own hash,
+      so the rest of the scene doesn't change.
+    - Suited walkers outside (F.eva) by the rover and the lander, with
+      footprints behind them.
+    - moonFolk uses its own random numbers, and the old garden blobs
+      still use up their draws, so nothing else in the scene moves.
+  - Chato: new plan PLAN.sqrect (straight walls, squircle corners).
+    - For lying pods, podPlan "sqrect" uses the Turrito's own corner
+      (half a square, n 4.5), and podEdge can be [across, up]. 95 uses
+      [0.06, 0.08], the Turrito's.
+    - The light Chato is a 2x2 slab: before, an n-4 squircle over the
+      whole piece read as an oval.
+  - 91 hubs (cfg.hub on hub crossings; "big" is the old one):
+    - 91a "quarter": a low drum about collar size, each quarter in the
+      colours of the tube that comes in there.
+    - 91b "ribbon": a low grey drum whose dome carries each side's
+      colour as a ribbon, the second side's over the first's.
+    - 91c "sleeve": no hub; the second side's tube swells over the
+      first's, which runs on through it.
+    - Thin rings replace the big collars on the new hubs.
+    - In this light, charcoal facing the sky reads grey, so the dark
+      parts are matte near-black (#08090b, Lambert).
+  - Sent: 95 full scene, a close-up of the garden, windows and garden,
+    chato-before-after.jpg and hubs-91-close-up.jpg. Scratch:
+    out/send6/moon-people, moonpeoplesheet.py; the full 91a-c scenes are
+    there too.
+  - Still open for the user: which hub (if any), which idea (78-82),
+    and who yields at a crossing.
