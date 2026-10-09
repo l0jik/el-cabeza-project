@@ -8829,3 +8829,41 @@ phone menu until "Start the story over" (which clears it).
   as does sheet_sets.py; change both), overview rebuilt. The first
   renders are kept in out/prev5. Still open: the user's pick of a day
   and a night direction.
+- City mock-ups, round 6 (47-66). The user asked for more of Teal Canyon,
+  Film Noir, Neo-Tokyo Rain, Moon Base and Night Shift (their night
+  favourites, three each) and a mix of Curtain Wall, Béton Brut and Art
+  Deco Metropolis (their day pick, five takes). Every one keeps the
+  "clear and playable" rules from the cyberpunk rework: a game-height
+  camera, the squares outlined, the board out of the fog, the two sides
+  told apart by value as well as colour. 47-49 Teal Canyon (Sky Bridges
+  from the dark side, Monsoon with amber light pieces, First Light with a
+  dawn sky at the canyon's end); 50-52 Film Noir (Venetian Blinds, The
+  Searchlights, The Last El, all through noir.py); 53-55 Neo-Tokyo Rain
+  (Scramble, Monorail, Lantern Alley); 56-58 Moon Base (Earthrise, Lunar
+  Night, Crater Rim); 59-61 Night Shift (The Pour, Rain and Tarps, From
+  the Crane); 62-66 Three Ages (deco v brut in a glass city, glass v
+  concrete before a deco skyline, hybrid towers, deco v dark bronze
+  glass in a brut city, the hybrids at golden hour).
+  - User mid-round: the light through the blinds (50) was distracting;
+    it was re-done as one soft window's worth of barred light on part of
+    the board (blinds extra with window: [w, d], a wall round the
+    opening, sunShadow radius for soft edges, brighter base light) and
+    re-sent as 50.
+  - Scratch renderer additions: P.styleBySide (a building style per
+    side); BUILD.hybrid (a béton brut podium, a curtain-wall shaft, an art
+    deco crown with a gold spire; CABEZA.hybrid = the deco one); the
+    board's grid option on any board kind (grid, gridA, gridW, gridGlow,
+    gridIn); ground.mix (a city of several styles with their own palettes,
+    heights and crowns); P.sunShadow (map size, PCF blur radius, frustum
+    extent); P.shadowOnlyBoard; cyberCity avoid rects (a street left open
+    through the towers); pal.lit on the neo facade; the site style's
+    pal.slab, pal.net/netLine and pal.tarp (sheeting all round); extras
+    skybridges, blinds, elevated (a steel El or a white monorail, a lit
+    train), umbrellas, bigscreens, vending, steam, lander, rover (with
+    tracks and a lamp), solar, rim (a crater rim from a lathe), mixers,
+    pump, workers (hi-vis), weld. post5.py styles dawn, neo, space, site.
+  - The local mock-up server was stopped by the background time limit;
+    renders now go through render.sh, which starts the server, renders
+    and stops it. tile.py makes contact sheets, export6.py the numbered
+    JPEGs (out/send6), overview.py takes an order, an output name and a
+    title (round6.jpg; overview-all now 66). Still open: the user's pick.
