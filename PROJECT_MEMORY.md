@@ -9367,3 +9367,46 @@ phone menu until "Start the story over" (which clears it).
       retired it), so it isn't in the spread.
   - Sent the spread, chato-roundover.jpg, people-and-glass.jpg and 96
     full size. Scratch: out/send6/moon-joints and out/send6/moon-round.
+- Moon 97: window lights by floor and corner, legs nestled, plain glass
+  with a sheen, the tall 1x2 piece squared off, and a connector catalogue.
+  - Window lights (user: "they can't be like every other light ... an
+    entire floor might be on, or an entire floor's lights might be off,
+    or one corner of a building's lights are on"):
+    - Scratch litPlan(bays, floors, P, side) is used by FACADE.moon1 and
+      FACADE.moon. Each floor is all on, all dark, or one contiguous run
+      of bays lit round a corner; about one building in four has the
+      same corner lit all the way up.
+    - Each floor's lights are one colour.
+    - It runs on its own hash. The old random draws still happen and are
+      ignored, so the rest of the scene doesn't change.
+  - Legs (user: "the top of the legs nestle within the lower portion of
+    the torso seamlessly"):
+    - The body profile is smoothed through a spline, so there is no kink
+      at the waist.
+    - The hips are as wide as the thighs' outer line, and below the
+      waist the body is only as deep as a thigh (its depth eases from
+      0.56 to 0.66), so nothing bulges past the legs.
+    - The crotch is raised to 0.462 (it had hung between the legs as a
+      lobe). The thighs start inside the body.
+  - Dome (user: "get rid of the birdcage look. Just go back to the glass,
+    but just give it maybe some more sheen"): no frame. Glass opacity
+    0.21 with envMapIntensity 2.2, plus an additive rim shell (a
+    Fresnel-style glow) so the edges catch the light.
+  - The tall 1x2 piece (user: "Flaco still looks like an oval"; it was
+    the dark Chato standing on its edge): BUILD.moonmix's standing pieces
+    longer than they are wide now take ROUNDOVER, with a rounded top edge
+    and the roof kit. Square standing pieces stay round towers.
+  - Connector catalogue (user: "I still need to see all those tube joint
+    connectors all together ... I remember there was one"):
+    - Preset jc with P.catalogue: jointCatalogue sets out 20 connectors
+      on their own with stubs, in three rows. Front: the five styles'
+      nodes, the straight joint, a wall collar. Middle: bridge node,
+      portal, pylon, 91, 91a-c. Back: hatch, beacon, drum neck, fused
+      web, airlock, and the retired modules' collars and level necks.
+    - The retired modules are restored from city.js.bak-r12 as
+      BUILD.moonmodRetired, for the catalogue only.
+    - jointcatalogue.py builds every-corridor-connector.jpg: one shot of
+      them all with numbered badges, then the 20 close-ups.
+  - Sent the catalogue, window-lights.jpg, long-piece-squared.jpg,
+    people-and-glass.jpg and 97 full size. Scratch: out/send6/moon-97
+    and out/send6/moon-joints.
