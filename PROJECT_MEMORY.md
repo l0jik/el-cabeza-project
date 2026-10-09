@@ -8797,3 +8797,35 @@ phone menu until "Start the story over" (which clears it).
       the tram's bell, a bicycle bell, a horn, birds, someone drawing.
     - Tests: e2e-smoke plano (in run-e2e), e2e-dock-moments, e2e-gameplay
       (plano names), e2e-touch-in-game list, e2e-ending's count 17 -> 18.
+- Plano's sweep passed after the push (87a5d93, deployed): e2e-ending
+  (now 18 worlds) 0 fails, e2e-gate 0 fails, e2e-touch-in-game 72
+  checks 0 failed (Plano's four drags all right). Earlier: e2e-smoke
+  plano, e2e-dock-moments (every page OK) and e2e-gameplay plano passed.
+  The name "Plano" and the side names Blue / White were Claude's picks,
+  put to the user to confirm or rename.
+- City mock-ups 42-46 reworked (user: "These cyberpunk ones need to have
+  the feeling of what we're looking for, but they also have to be very
+  clear and playable too"). Scratch renderer changes: P.clearBoard (after
+  the build, everything standing on the board, by world bounding sphere
+  inside the board's square and under y 5, is drawn with fog off, so the
+  fog can come in close round the city while the game stays crisp);
+  the "dash" facade on a pale wall (pal.dashInk for dark glass dashes,
+  darker seams, pal.lit per side, optional pal.wallGlow); the wet board's
+  kerbs (o.kerb, a lit line either side of every street, so each square
+  is outlined; o.kerbGlow on the night canvas); pal.neonEdges (neon up a
+  side's corners); pal.screenP / pal.screenK (fewer, smaller screens on
+  the pieces); cyberCity frontH (towers on the camera's side of the
+  board kept low) and roofC (dark roofs instead of lit slabs); the cyber
+  Cabeza on a pale drum for the light side. Presets: a game camera on
+  each (about 22-46 degrees down, the board in the lower half, the
+  skyline above; c3 lost its roll), skyH so the sky runs to the horizon,
+  light side pale silver with dark windows and cool neon, dark side
+  near-black with bright windows and hot neon, c4's hologram moved off
+  the board, c5's rain thinned (1600 drops at 0.14), its koi lowered
+  under the photo bar. post5.py: bloom only above about 0.8 so the pale
+  pieces don't blow out, glitches kept to the top third, the crimson
+  print mixed 82% with the true colour, fewer glitch rows. Sheets: the
+  night5 captions rewritten (sheet.py carries its own copy of the sets,
+  as does sheet_sets.py; change both), overview rebuilt. The first
+  renders are kept in out/prev5. Still open: the user's pick of a day
+  and a night direction.
