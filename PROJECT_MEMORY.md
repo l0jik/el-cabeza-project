@@ -8962,3 +8962,26 @@ phone menu until "Start the story over" (which clears it).
     ones to knots of four at corners and along pavements (personS 1.7);
     the city's own streets round the board (cars 1.45, buses, people
     2.0) skipping the board and the context buildings.
+- City mock-ups round 8 (72-77), white and grey-blue (user: "I want the
+  pieces to be the whitish with the gray blue. You're using the brown
+  ones as the dark. I don't like that" ... no brown on the outside map
+  either; light and dark but "more variety within the building colors
+  and types, although still keeping with a consistent group"; "different
+  models for each particular type ... a chato ... not always going to
+  look the same"; sides must still tell apart; keep the postcard look).
+  - BUILD.midvar: each piece hashes its id (with the scene seed) to pick
+    a model and a tint from its side's families (pal.walls, pal.glasses,
+    pal.accents; slab, roof, glassHi per side). Models: sections (midmod
+    with offsets), fins (midmod, one section, fins), grid (the new
+    FACADE.punch: punched windows, shadowed reveals, a pier every second
+    bay), balcony (glass behind, a slab and pale rail a floor on the long
+    faces), curtain (the glass facade). Every model keeps the piece's
+    block; a flat roof, a low plant room, sometimes an antenna. A piece id
+    ending -0..-4 forces the model (used by the line-up, vlin).
+    CABEZA.midvar = the pavilion in the side's first tints.
+  - Families: light walls #eceae4 #f2f1ec #e2e2dc #dfe4e6 #e8e4da with
+    grey-blue glass; dark walls #5e6e7e #546474 #687886 #4e5e6c #5a6a76
+    (first tried darker, read as charcoal; lifted). City: glass, punch,
+    mid-century and light concrete in whites, greys and grey-blues.
+  - 72 the five models (line-up), 73 Morning, 74 Afternoon, 75 Golden
+    Hour, 76 Overcast, 77 From Above; overview order ends with day8.
