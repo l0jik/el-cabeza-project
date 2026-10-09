@@ -8867,3 +8867,35 @@ phone menu until "Start the story over" (which clears it).
     and stops it. tile.py makes contact sheets, export6.py the numbered
     JPEGs (out/send6), overview.py takes an order, an output name and a
     title (round6.jpg; overview-all now 66). Still open: the user's pick.
+- Round 6 revisions (user feedback after the round):
+  - "What's that lock image ... it just looks like a block with a lock
+    on it" (Teal Canyon): it was the ad screen DECO.screens put on a
+    face of every cyber piece. HOUSE.cyber now takes DECO.lobby instead
+    (a lit glass lobby round the base, thin mullions, a canopy over the
+    door toward the camera); the padlock ad is gone from AD_KINDS and
+    every preset's ads (towers keep head, rings, word, bolt). 42-49 and
+    53 re-rendered and re-sent.
+  - Moon Base "a little too round ... make them look more connected, or
+    solid structures with more rounding on edges and corners": two new
+    piece styles. BUILD.moonsolid: one rounded box per piece (radius up
+    to 0.17), the moon facade as decals, accent bands round the corners,
+    an airlock with a lit port toward the camera, roof kit inside the
+    footprint (moonRoof). BUILD.moonmod: modules a cell wide and half a
+    storey high (rounded boxes) joined by collars side to side and necks
+    between levels, a frame up the corners, one roof deck. 56 and 58
+    solid, 57 modules, 56b the Earthrise in modules for a side by side,
+    plus a close-up of both. The Cabeza stays the habitat dome.
+  - Day cities, "the blank spaces in between the streets need variety
+    ... parks, art, subway entrances, construction ... flat-ish": city
+    lots. board.lots (lotMap per free square, about 68% filled, the rest
+    plain paving) drawn into the board canvas (drawLot) with low relief
+    on top (lotRelief); ground.lots fills the empty blocks of the city
+    round the board (the ground's own street grid: pitch 140/12/4, street
+    0.296; skipped where a context building stands, CTX_BOXES), bigger
+    relief. Types: park (lawn stripes, path, pond, trees, benches),
+    plaza (rings of paving, fountain basin and jet, planters), art (a
+    painted ground mural, a torus-knot sculpture, tilted slabs), subway
+    (stair wells, glass canopies with rails, a red globe sign), building
+    site (dirt, tracks, a pit, hoarding, a digger, materials, a cabin),
+    court (basketball, hoops), market (striped stalls), playground,
+    parking. 62-66 re-rendered with them.
