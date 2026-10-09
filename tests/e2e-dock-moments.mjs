@@ -19,6 +19,7 @@ const PAGES = [
   ["tienda", '[data-testid="tienda-open-box"]', { endGame: "Put them down", newGame: "Set up the demo again", caption: "Please leave pieces on the board." }],
   ["neon", null, { endGame: "Disconnect", newGame: "Reboot", caption: "session closed" }],
   ["cromo", null, { endGame: "Lay down", newGame: "Set the stones", caption: "The stones rest." }],
+  ["plano", null, { endGame: "Roll up the plans", newGame: "A fresh sheet", caption: "Plans rolled up." }],
   ["lluvia", '[data-testid="lluvia-straight-to-board"]', { endGame: "Walk away", newGame: "Another round", caption: "Mưa vẫn rơi" }],
 ];
 

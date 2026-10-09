@@ -8742,3 +8742,58 @@ phone menu until "Start the story over" (which clears it).
   light over the rooftops, a lattice tower, lit crowns, drones, rain,
   photo mode). Still awaiting the user's pick of a day and a night
   direction.
+- Plano, a new world (user, picking the blueprint mock-up: "Let's
+  definitely go with the blueprints version. Move forward with that.
+  Make a full full world for this one that we can add to the theme
+  switcher"). Page el-cabeza-plano.html (apps/plano.jsx), in the switcher
+  after Cromo (realities.js WORLDS id "plano", "Plano": "The city drawn
+  in white on blue, its streets alive."), its picture
+  assets/den/channels/plano.jpg (tools/channel_shots.mjs; shot with
+  Architects Daughter and IBM Plex Mono installed locally in ~/.fonts from
+  raw.githubusercontent.com/google/fonts, since headless can't reach
+  Google Fonts), the gate's look (reality-gate.js LOOKS.plano), the sides
+  "Blue" (dark) and "White" (light) (side-names.js, chosen by me; ask the
+  user), points glow (points-glow.js).
+    - themes/plano.js: cyanotype blue (#1d4c8a) with white line work.
+      The board drawn unlit (MeshBasicMaterial, the texture's blues
+      exact), the squares a shade lighter, quarter lines, goal rows
+      hatched, a double border, the columns lettered and rows numbered in
+      bubbles round the edge, the far edge and right side turned for the
+      player across the table, crop marks. Pieces: light = white masses
+      (#cfe0f4) lined navy, dark = deep blue (#0d2548) lined white with
+      the roof hatched (a separate, fainter line set, every 0.12); each
+      box gets its floors and windows drawn on; the Cabeza a rotunda
+      (columns down the drum, rings on the roof); line geometry cached
+      per shape (the chassis disposes only mesh/shell materials and
+      geometry, not children). Moves: red pencil frames with set-out
+      ticks and a light wash; a crush struck through. useSetupExtras
+      reads the chassis's game facts so plano-fx can wash and line the
+      selected piece in red pencil. Dock words: Street / Plan / Site,
+      "Roll up the plans", "A fresh sheet", "Revision log", "General
+      notes", "Next sheet", "Plans rolled up.", "Approved.".
+    - themes/plano-city.js: the city in the board's frame, sized from
+      the slab (rebuilt when the board changes size): the sheet (a 320
+      unit plane of the paper's grid, its lines run on from the board's),
+      the plan (one canvas, 2048-4096 by quality tier): two rings of
+      streets with kerbs, lane lines, bike lanes, zebras, stop lines,
+      arrows; a tram street; a bus bay; paving dots; plots; a park with a
+      pond; a schoolyard court; street names after the pieces; dimension
+      strings; tree plans. Its words turn round when the camera is on the
+      board's far side (redrawn). Blocks flat-shaded in three blues
+      (vertex colours, unlit), held low near the board, faded to a drawn
+      outline when one stands between the camera and the board. Trees as
+      canopy-ring sprites on trunks. Life instanced (cars and vans with
+      navy outlines, bikes, people), placed every frame from the clock;
+      runners round the pond; a tram at its stop, a bus in its bay, a
+      café terrace, shoppers, children.
+    - themes/plano-fx.js: hangs the city on boardGroup, a ShadowMaterial
+      layer over the unlit board for the pieces' shadows, scene.fog in the
+      sheet's blue kept beyond the camera, a red-pencil circle sketched
+      round each piece where it lands.
+    - themes/plano-audio.js: a drafting room over a city, all synthesized:
+      a pencil tick (select), a stroke (roll), a ruler set down (landing),
+      the rubber stamp (crush), two stamps and the desk bell (win), page
+      turns (menus); the city far off: traffic, cars passing across,
+      the tram's bell, a bicycle bell, a horn, birds, someone drawing.
+    - Tests: e2e-smoke plano (in run-e2e), e2e-dock-moments, e2e-gameplay
+      (plano names), e2e-touch-in-game list, e2e-ending's count 17 -> 18.

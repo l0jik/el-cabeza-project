@@ -30,6 +30,7 @@ export const SIDE_NAMES = {
   neon: pair("Photon", "Plasma", ["#0D1116", "#FFFFFF"], ["dark", "light"]),
   lluvia: pair("Mưa", "Nắng", ["#0B3B47", "#FFD0EF"], ["teal", "pink"]), // rain / sun
   cromo: pair("Steel", "Chrome", ["#5A5347", "#F2F3F5"], ["dark", "bright"]),
+  plano: pair("Blue", "White", ["#163F75", "#DBE9F8"]), // the blueprint: hatched blue masses, white masses
   // Theme Lab (only Iron and Ink, of its names, aren't colours already)
   swiss: pair("Black", "White", ["#111111", "#FAFAF8"]),
   bauhaus: pair("Red", "Blue", ["#C8332A", "#1F4EA3"]),

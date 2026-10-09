@@ -18,6 +18,7 @@ export const POINTS_GLOW = {
   neon: { dark: "#4de8ff", light: "#ffb454" }, // its own glows
   lluvia: { dark: "#3fe6ff", light: "#ff4fa3" }, // signs in the rain
   cromo: { dark: "#8fcaff", light: "#f4f8ff" }, // a cold blue pilot light, chrome white
+  plano: { dark: "#8ec2ff", light: "#ffffff" }, // the blueprint's line work
   // (Each side's points the colour of its pieces, user: Walnut's walnut,
   // and Ash's the honey of the ash blocks; they were sun gold and candle
   // amber, sea-foam cream and rose wine.)

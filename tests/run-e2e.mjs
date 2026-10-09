@@ -16,7 +16,7 @@ import { spawn } from "node:child_process";
 
 // [script, ...args], in the order they've always run.
 const E2E = [
-  ["e2e-smoke.mjs", "standard"], ["e2e-smoke.mjs", "neon"], ["e2e-smoke.mjs", "cromo"], ["e2e-smoke.mjs", "lluvia"], ["e2e-smoke.mjs", "tienda"],
+  ["e2e-smoke.mjs", "standard"], ["e2e-smoke.mjs", "neon"], ["e2e-smoke.mjs", "cromo"], ["e2e-smoke.mjs", "plano"], ["e2e-smoke.mjs", "lluvia"], ["e2e-smoke.mjs", "tienda"],
   ["e2e-outside-dismiss.mjs"], ["e2e-lab.mjs"], ["e2e-gameplay.mjs", "standard"], ["e2e-gameplay.mjs", "neon"],
   ["e2e-board-size.mjs"], ["e2e-ai-worker.mjs"], ["e2e-ai-split.mjs"], ["e2e-movelog.mjs"], ["e2e-undo-audio.mjs"], ["e2e-undo-wormhole.mjs"],
   ["e2e-lluvia.mjs"], ["e2e-odd-pieces.mjs"], ["e2e-shoving.mjs"], ["e2e-anomaly.mjs"], ["e2e-pivot.mjs"], ["e2e-pivot-drag.mjs"], ["e2e-points.mjs"], ["e2e-rules.mjs"],

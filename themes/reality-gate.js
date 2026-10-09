@@ -104,6 +104,11 @@ const LOOKS = {
     line: "rgba(233,234,236,0.2)", lineW: "1px", radius: "3px", display: "'Michroma', 'Barlow', sans-serif", displayWeight: 400, body: "'Barlow', system-ui, sans-serif",
     shadow: "0 24px 60px rgba(0,0,0,0.6)", glow: "none", case: "uppercase", track: "0.16em", cellA: "#3A3C41", cellB: "#25262A",
   },
+  plano: {
+    backdrop: "rgba(6,18,42,0.6)", surface: "#1D4C8A", ink: "#EEF6FF", muted: "#A9C6EC", accent: "#EEF6FF", accentInk: "#0F2A52",
+    line: "rgba(238,246,255,0.6)", lineW: "1.5px", radius: "0px", display: "'Architects Daughter', 'IBM Plex Mono', monospace", displayWeight: 400, body: "'IBM Plex Mono', 'DejaVu Sans Mono', monospace",
+    shadow: "0 0 0 3px #1D4C8A, 0 0 0 4.5px rgba(238,246,255,0.55), 0 24px 60px rgba(4,12,30,0.6)", glow: "none", case: "uppercase", track: "0.08em", cellA: "#2A5D9E", cellB: "#163F75",
+  },
   parrish: {
     backdrop: "rgba(8,14,38,0.55)", surface: "#F6ECD6", ink: "#1D2C5E", muted: "#5A6A9A", accent: "#1D2C5E", accentInk: "#F2D293",
     line: "rgba(201,150,59,0.7)", lineW: "1px", radius: "2px", display: "'Cinzel', Georgia, serif", displayWeight: 700, body: "'Cormorant Garamond', Georgia, serif",

@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const target = process.argv[2]; // "standard" or "neon"
 if (!target) {
-  console.error("usage: node tests/e2e-smoke.mjs <standard|neon|cromo|lluvia|tienda>");
+  console.error("usage: node tests/e2e-smoke.mjs <standard|neon|cromo|plano|lluvia|tienda>");
   process.exit(1);
 }
 

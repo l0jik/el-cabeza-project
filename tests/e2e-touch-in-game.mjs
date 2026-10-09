@@ -30,6 +30,7 @@ const WORLDS = [
   ["Big Glutts' page", `${D}/el-cabeza-tienda.html`, {}, { storeWays: true }],
   ["Lluvia", `${D}/el-cabeza-lluvia.html`, {}],
   ["Cromo", `${D}/el-cabeza-cromo.html`, {}],
+  ["Plano", `${D}/el-cabeza-plano.html`, {}],
   ["Lab (Bauhaus)", `${D}/el-cabeza-lab.html?theme=bauhaus`, {}],
   ["Parrish, Tá muid beo", `${D}/el-cabeza-parrish.html?look=orinoco`, {}],
   ["Parrish, Go deo na ndeor", `${D}/el-cabeza-parrish.html?look=watermark`, {}],
