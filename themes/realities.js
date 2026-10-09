@@ -35,6 +35,9 @@ export const WORLDS = [
   { id: "cromo", name: "Cromo", line: "Steel and stone, quiet and exact.", href: "el-cabeza-cromo.html" },
   // The game drawn as a blueprint (user picked it from the city mock-ups).
   { id: "plano", name: "Plano", line: "The city drawn in white on blue, its streets alive.", href: "el-cabeza-plano.html" },
+  // The game as a moon base (user, after the mock-ups: "deploy this now
+  // into Theme Switcher").
+  { id: "luna", name: "Luna", line: "A moon base under the Earth, its corridors laid again every move.", href: "el-cabeza-luna.html" },
   // Parrish's two palettes, each its own reality (user): one page, the
   // look in the address (themes/parrish-looks.js).
   // (Named "Tá muid beo" and "Go deo na ndeor" by the user; ids and

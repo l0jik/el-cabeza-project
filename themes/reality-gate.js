@@ -109,6 +109,11 @@ const LOOKS = {
     line: "rgba(238,246,255,0.6)", lineW: "1.5px", radius: "0px", display: "'Architects Daughter', 'IBM Plex Mono', monospace", displayWeight: 400, body: "'IBM Plex Mono', 'DejaVu Sans Mono', monospace",
     shadow: "0 0 0 3px #1D4C8A, 0 0 0 4.5px rgba(238,246,255,0.55), 0 24px 60px rgba(4,12,30,0.6)", glow: "none", case: "uppercase", track: "0.08em", cellA: "#2A5D9E", cellB: "#163F75",
   },
+  luna: {
+    backdrop: "rgba(2,4,8,0.64)", surface: "rgba(13,17,24,0.97)", ink: "#E8ECF2", muted: "#9AA6B6", accent: "#FF7A1A", accentInk: "#0B0D12",
+    line: "rgba(232,236,242,0.22)", lineW: "1px", radius: "6px", display: "'Jost', 'Futura', 'Century Gothic', sans-serif", displayWeight: 600, body: "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif",
+    shadow: "0 0 0 1px rgba(255,122,26,0.18), 0 24px 60px rgba(0,0,0,0.7)", glow: "none", case: "uppercase", track: "0.16em", cellA: "#8A8780", cellB: "#5F5C56",
+  },
   parrish: {
     backdrop: "rgba(8,14,38,0.55)", surface: "#F6ECD6", ink: "#1D2C5E", muted: "#5A6A9A", accent: "#1D2C5E", accentInk: "#F2D293",
     line: "rgba(201,150,59,0.7)", lineW: "1px", radius: "2px", display: "'Cinzel', Georgia, serif", displayWeight: 700, body: "'Cormorant Garamond', Georgia, serif",

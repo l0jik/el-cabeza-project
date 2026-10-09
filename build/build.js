@@ -39,7 +39,7 @@ const DEN_RECORDS = {
   "el-cabeza-trip-dusk.jpg": "assets/den/trip/glutts-dusk.jpg",
   // The other realities' pictures (themes/realities.js: the den's set after
   // the story, and the realities menu; tools/channel_shots.mjs).
-  ...Object.fromEntries(["den", "neon", "store", "lluvia", "cromo", "plano", "parrish-orinoco", "parrish-watermark", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-elementarism", "lab-brutalist",
+  ...Object.fromEntries(["den", "neon", "store", "lluvia", "cromo", "plano", "luna", "parrish-orinoco", "parrish-watermark", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-elementarism", "lab-brutalist",
     "lab-newTypography", "lab-corporateSwiss", "lab-neoBrutalist", "lab-minimalMono", "lab-ultimateFusion"].map((id) => [`el-cabeza-channel-${id}.jpg`, `assets/den/channels/${id}.jpg`])),
 };
 
@@ -59,6 +59,8 @@ const targets = [
   { name: "cromo", entry: "apps/cromo.jsx", title: "Cromo Cabeza" },
   // Plano: the game drawn as a blueprint, its city alive round the board.
   { name: "plano", entry: "apps/plano.jsx", title: "Plano Cabeza", head: '<meta name="theme-color" content="#1D4C8A">' },
+  // Luna: the game as a moon base, the board part of the lunar surface.
+  { name: "luna", entry: "apps/luna.jsx", title: "Luna Cabeza", head: '<meta name="theme-color" content="#05070B">' },
   { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza", files: { "el-cabeza-lluvia-rain.mp3": "assets/lluvia/rain.mp3" } },
   // Parrish's piece sounds: the user's stabs, cut small (tools/parrish_stabs.py);
   // its intro and its close, the user's opening and end of "Orinoco Flow"

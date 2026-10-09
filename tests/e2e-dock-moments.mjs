@@ -20,6 +20,7 @@ const PAGES = [
   ["neon", null, { endGame: "Disconnect", newGame: "Reboot", caption: "session closed" }],
   ["cromo", null, { endGame: "Lay down", newGame: "Set the stones", caption: "The stones rest." }],
   ["plano", null, { endGame: "Roll up the plans", newGame: "A fresh sheet", caption: "Plans rolled up." }],
+  ["luna", null, { endGame: "End mission", newGame: "New mission", caption: "Mission scrubbed." }],
   ["lluvia", '[data-testid="lluvia-straight-to-board"]', { endGame: "Walk away", newGame: "Another round", caption: "Mưa vẫn rơi" }],
 ];
 

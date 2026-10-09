@@ -6412,7 +6412,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
            angles where that showed up in testing. */
         cam.current.phi = Math.max(
           0.012,
-          Math.min(1.25, cam.current.phi + follow.phi * dy * ORBIT_SENS_PHI)
+          Math.min(theme.maxPitch ?? 1.25, cam.current.phi + follow.phi * dy * ORBIT_SENS_PHI)
         );
         return;
       }

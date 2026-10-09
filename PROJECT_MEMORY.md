@@ -9528,3 +9528,93 @@ phone menu until "Start the story over" (which clears it).
   - Presets mx40, mx40c, mx40g, prop2, prop2c and cx40c.
   - Sent all-squircle.jpg, 101 full size and the garden close-up.
     Scratch: out/send6/moon-101, moon101sheet.py.
+- Moon 102: people a hair smaller, the round inflatable tubes back (user:
+  "Scale the people a hair smaller ... Put the round inflatable tubes back
+  as well"). Scratch: figures 0.18 -> 0.165 (personFig o.h, moonFolk F.h);
+  the inflatable arms, collars and thin rings round again (squircle only
+  with cfg.squareTube); interchanges stay squircle.
+- Luna, a new world: the moon base deployed into the theme switcher (user:
+  "Let's go ahead and deploy this now into Theme Switcher. I think it's
+  ready"). Page el-cabeza-luna.html (apps/luna.jsx), in the switcher after
+  Plano (realities.js WORLDS id "luna", "Luna": "A moon base under the
+  Earth, its corridors laid again every move."), its picture
+  assets/den/channels/luna.jpg (channel_shots.mjs now takes a camera for a
+  shot: Luna's is low over the board, the Earth in it), the gate's look
+  (reality-gate.js LOOKS.luna: black panels, Jost and IBM Plex, orange
+  accent), the sides "Mare" (dark) and "Terra" (light) (side-names.js: the
+  moon's dark seas and bright highlands; Claude's pick, put to the user),
+  points glow gold and orange. Build target "luna"; deploy landing page
+  link.
+  - themes/luna-models.js: the buildings, ported from the scratch's
+    all-squircle base (mx40): one roundover for every cube piece
+    (PLAN.sqrect, rc 0.62, n 4.2, edge 0.11/0.12), one storey of rounded
+    ports a level, lit by floor or corner run (litPlan), faces at some
+    lit windows, the light side white/orange, the dark charcoal/gold. Odd
+    pieces from their vox (columns, pods, lone cubes). The roof kit in its
+    own group (userData.kit), hidden by luna-fx under an overhang
+    (coveredIds). The Cabeza: squircle base and band, squircle glass dome
+    with the Fresnel sheen, a kitchen garden with three people (one per
+    skin-tone band), a basket. Figures by surface nets at a coarser grid
+    (0.011) than the scratch's. Each building made once per piece and
+    pose (BUILT) and hung on the chassis's piece mesh, which is an unseen
+    hit target (the Cabeza's as tall as its dome); the shell is empty and
+    unseen. footprintOf gives the plans for corridors and ground.
+  - themes/luna-corridors.js: the router generalised to rows x cols
+    (missing squares and black holes blocked), the chosen corridors: round
+    inflatable arms (lathe, ribs at the pinches, accent stripe), squircle
+    interchanges at turns and branches with collars, the grey neutral
+    interchange banded in both colours at crossings, necks between
+    buildings side by side, a beacon on a building left on its own. Every
+    part marked radial/whole for the inflate animation.
+  - themes/luna-ground.js: the scratch terrain (561/421/301 a side by
+    quality tier, swell, craters, far hills; the board levelled, ghost
+    craters) with the board's contour settled again on every move:
+    update(pieces) puts a level pad under each building, the roll
+    elsewhere, banks of dust on the sides each piece's id hashes to;
+    normals from the heights' slopes; positions and normals updated in the
+    board's rows only. The squares' marks a draped overlay (lines, lit
+    studs, the edge). at() and base() (no banks) for the rest.
+  - themes/luna-sky.js: in the world (not on the board), following the
+    camera: a black dome (distant dust below the horizon), the Milky Way on
+    a tipped sphere (fading at the horizon), stars as points in three
+    sizes, and the real Earth from baked maps (assets/luna/earth-*.jpg,
+    1024x512, from scratch earthbake.html: day, clouds, lights,
+    roughness), 5 degrees up, 15 left of straight ahead (the camera always
+    looks down -z; the board turns under it). The ball writes depth, or
+    its own glow and the stars draw over it (that was a white disc).
+  - themes/luna-fx.js: hides the chassis plate (slab, edges, top ring,
+    grid) by name every tick, the ground on boardGroup, the page in sRGB
+    (outputEncoding, exposure 1.05), the key light moved to an 18 degree
+    sun (the scratch's 12 threw tall pieces' shadows over the whole
+    board), the fill to the Earth's side. Corridors: a piece in motion
+    (its carrier off pieceGroup) deflates its side's network; at rest
+    (PLAY.pieces changed) the ground is settled and both networks laid
+    again, a changed one deflating then inflating (easeOutBack), an
+    unchanged one swapped in place. Dust thrown up on landing
+    (spawnLandingParticles, slow ballistic arcs). A ring of the side's
+    accent round the selected piece. Props: lander, rover with tracks, a
+    dish, solar rows, boulders (small near the board), three suited
+    walkers and their prints. cameraOverride keeps the camera 0.9 above
+    the ground under it (tilted right down it could sink into a hill).
+  - themes/luna-audio.js: the inside of the base, all synthesized: air
+    handlers, a hum, instrument beeps, a pump, an airlock, the radio
+    (Quindar 2525/2475 Hz tones round static chatter); console beeps,
+    servo whir, structural thud and seal hiss, a clunk and venting for a
+    crush, Quindar round a chime to win.
+  - Chassis: theme.maxPitch (default 1.25) for the drag tilt; Luna 1.4,
+    so the view tilts down to the hills and the Earth comes up over them.
+  - Dock words: Ground / Orbit / Base, "End mission", "New mission",
+    "Mission log", "Flight rules", "Next mission", "Mission scrubbed.",
+    "Base secured.".
+  - Tests: e2e-smoke luna (in run-e2e), e2e-gameplay luna (Mare/Terra),
+    e2e-touch-in-game Luna, e2e-dock-moments luna, e2e-ending's count
+    18 -> 19. Passed before the push: smoke, gameplay, touch (6 checks),
+    dock moments (every page), gate, ending (19 worlds), test:engine.
+  - luna-fx also lifts the chassis's flat marks (the check alert's
+    squares and ghosts, black holes, missing squares) over the board's
+    contour each tick, so the dust banks don't swallow them.
+  - Seen in the real game (scratch luna/lunashot.mjs, lunamid.mjs,
+    lunaclose.mjs; __EC_TEST_SET_PIECES__ for the mock-ups' mid-game
+    position): the networks route and cross at the grey interchange, a
+    moved side's tubes go down and come back on the new route, landing
+    pads read on the ground, the selection ring, faces at windows.

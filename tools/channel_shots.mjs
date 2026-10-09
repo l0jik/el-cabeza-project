@@ -21,17 +21,21 @@ const SHOTS = [
   ["lluvia", dist("el-cabeza-lluvia.html"), 9000],
   ["cromo", dist("el-cabeza-cromo.html"), 6500],
   ["plano", dist("el-cabeza-plano.html"), 7000],
+  // (Luna low over the board, so the Earth is in the picture: the view a player tilts down to.)
+  ["luna", dist("el-cabeza-luna.html?quality=high"), 9000, { cam: { theta: 0.35, phi: 1.36, radius: 14.5, snap: true } }],
   ["parrish-orinoco", dist("el-cabeza-parrish.html?look=orinoco"), 9000],
   ["parrish-watermark", dist("el-cabeza-parrish.html?look=watermark"), 9000],
   ...LAB.map((id) => [`lab-${id}`, dist(`el-cabeza-lab.html?theme=${id}`), 6000]),
 ];
 const only = process.argv[2] ? process.argv[2].split(",") : null;
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--use-gl=angle", "--ignore-gpu-blocklist"] });
-for (const [id, url, wait] of SHOTS) {
+for (const [id, url, wait, prep] of SHOTS) {
   if (only && !only.includes(id)) continue;
   const page = await browser.newPage({ viewport: { width: 960, height: 720 } });
+  if (prep && prep.cam) await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
   await page.goto(url);
   await page.waitForTimeout(wait);
+  if (prep && prep.cam) { await page.evaluate((c) => window.__EC_TEST_CAM__ && window.__EC_TEST_CAM__(c), prep.cam); await page.waitForTimeout(2500); }
   await page.screenshot({ path: path.join(ROOT, "assets", "den", "channels", `${id}.png`) });
   await page.close();
   console.log("shot", id);

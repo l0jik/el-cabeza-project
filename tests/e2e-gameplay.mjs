@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const target = process.argv[2];
 const file = path.join(__dirname, "..", "dist", `el-cabeza-${target}.html`);
 // What the page calls its two sides (themes/side-names.js).
-const NAMES = { standard: { dark: "Walnut", light: "Ash" }, neon: { dark: "Photon", light: "Plasma" }, plano: { dark: "Blue", light: "White" } }[target] || { dark: "Dark", light: "Light" };
+const NAMES = { standard: { dark: "Walnut", light: "Ash" }, neon: { dark: "Photon", light: "Plasma" }, plano: { dark: "Blue", light: "White" }, luna: { dark: "Mare", light: "Terra" } }[target] || { dark: "Dark", light: "Light" };
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
