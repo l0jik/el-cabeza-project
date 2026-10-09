@@ -9113,3 +9113,22 @@ phone menu until "Start the story over" (which clears it).
     moon-ground-sheet.jpg and six JPEGs (scratch: out/send6/moon-ground,
     moongroundsheet.py). The older A/B pictures (ml*, m1, m1p, m2, m3,
     n10) still have the plate.
+- Moon sizes true to the game pieces (user circled the Turrito in 78:
+  "The sizing may be off a little bit. The Torito, for example, seems
+  like it's a little too tall ... Maybe we give this one a squircle").
+  - Cause: the Turrito (a 0.87 cube) was a drum 0.77 wide with a 0.15
+    dome on top (1.02 tall). Every drum had the same two faults: narrower
+    than its square and taller than its piece.
+  - Rules now:
+    - The Turrito is a squircle (n 3.2): a rounded cube filling its
+      square, its top rounding over inside its 0.87.
+    - Drums fill the square (r = PS/2 - 0.025).
+    - Every dome and cap (drum domes, squircle domes, the fused lobes'
+      little domes) sits inside the piece's own height. Only masts and
+      the roof kit rise above.
+  - city.js: the pieces loop passes type: p.type, also to pivot slices.
+    BUILD.moonmix has a turrito branch (P.moonMix.turrito "drum" keeps
+    the old form, turritoN sets the exponent). The mx1/mx4 presets no
+    longer pin drumR.
+  - Re-rendered 78-82 and 78b. Sent turrito-before-after.jpg, the sheet
+    and the six JPEGs (out/send6/moon-ground).
