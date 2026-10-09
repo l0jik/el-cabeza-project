@@ -9322,3 +9322,48 @@ phone menu until "Start the story over" (which clears it).
   - Sent people-skin-tones.jpg and both gardens up close (new preset
     mx36gd for the dark garden). 95's renders were re-exported with the
     new tones (scratch out/send6/moon-people).
+- Moon 96: one roundover for every cube-built piece, the dome glass a touch
+  stronger, smooth figures, and a spread of every corridor joint.
+  - Roundover (user: "Make the Chato slightly less squared, somewhere in
+    between the two. That should be the default roundover for all
+    modular cube or polygon pieces"):
+    - Scratch ROUNDOVER = squircle corners of radius 0.62 (clamped to the
+      piece), n 4.2, top edge [0.11, 0.12]. It sits between 94's oval
+      and 95's squared version.
+    - Used by the Turrito, every lying pod (podPlan defaults to "round")
+      and moonVoxBody's rows and lone cubes. P.moonMix.round overrides
+      it. The comparison is chato-roundover.jpg.
+  - Dome glass (user: "a little bit too transparent ... make it ever
+    slightly more so"):
+    - Opacity is 0.21 in people scenes (it was 0.14), with stronger
+      reflections.
+    - Four fine, half-clear arches. A first heavier frame with a hoop
+      read as a birdcage, so it was thinned to 0.0019.
+  - Figures (user: "remove the ball joint shoulders ... any sort of ball
+    joints ... more fluid figures"; "No, I meant the people"):
+    - personFig now builds a turned body (lathe) that flows from the
+      hips through the shoulders to the neck.
+    - Each arm and leg is one tapered sweep through the elbow or knee
+      (sweepLimb, a custom tapered tube), and the hands taper out of the
+      sleeves.
+    - No spheres at the shoulders, hips or hands.
+    - Poses and skin tones are unchanged.
+  - Joint spread (user: "show me every single connection pipe joint that
+    you've created so far ... in a spread"):
+    - Scratch preset jx with P.spread: jointSpread lays out 47 cells on
+      bare ground (P.noPlate skips the board plate).
+    - shootcells.sh/.mjs loads it once, then points the camera at each
+      cell (window.__cam) and saves a shot.
+    - jointspread.py builds every-corridor-joint.jpg with three
+      sections. The five styles (tube 78, tunnel 79, inflatable 80/94-95,
+      glass 81, buried 82) each through straight, elbow, T, four-way,
+      into a building, into a Cabeza, and a neck between neighbours. The
+      nine crossings 88-93 and 91a-c. Inside a piece: drum necks (78),
+      fused webs (82), the rounded solids' airlock.
+    - To make this possible, the joint builders (collar, hatch, portal,
+      pylon and the hubs) moved out of buildCorridors into
+      makeJoints(cfg, res, crossBy, yG).
+    - The old connected-modules model was deleted earlier (the user
+      retired it), so it isn't in the spread.
+  - Sent the spread, chato-roundover.jpg, people-and-glass.jpg and 96
+    full size. Scratch: out/send6/moon-joints and out/send6/moon-round.
