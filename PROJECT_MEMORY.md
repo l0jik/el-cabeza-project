@@ -9410,3 +9410,37 @@ phone menu until "Start the story over" (which clears it).
   - Sent the catalogue, window-lights.jpg, long-piece-squared.jpg,
     people-and-glass.jpg and 97 full size. Scratch: out/send6/moon-97
     and out/send6/moon-joints.
+- Moon 98: corridors decided, figures made one smooth surface.
+  - Corridors (user: "for the tube connector joints, let's go for the
+    number 91 neutral interchange, but make it a little bit smaller ...
+    for the tubing type, we'll go with inflatable"):
+    - Scratch CHOSEN_CORRIDORS = { style "inflate", r 0.09, node
+      "interchange", nodeK 2.1, crossing "hub", hub "big", hubK 2.1 }.
+    - 91's interchange is 2.1 tube radii across (it was 2.6) and lower.
+    - Where one side's own tubes meet (elbow, T, four-way) it is in that
+      side's colours (interchangeNode), with collars. Where the two sides
+      cross it is the grey one banded in both colours.
+    - Read as all joints, not only crossings. If the user meant only
+      crossings, the side's own junctions would go back to the inflatable
+      dome node.
+    - Presets mx38, mx38c, mx38g, mx38gd, cx98 and cx98c.
+  - Figures (user marked the walking figure's hip right and the standing
+    one's wrong, then "these hip bulges need to be smoothed out some"):
+    - figureBody builds each figure from tapered-capsule distance fields:
+      a torso flattened front to back (pelvis, belly, chest, shoulder
+      line), a neck, two-segment arms and legs, and hands.
+    - Smooth unions only near the joints: legs into the pelvis (k 0.075
+      within 0.19 of the hip joint), arms into the shoulders (k 0.04
+      within 0.11), neck 0.03, wrists 0.012. Elsewhere the union is hard,
+      so arms and legs never fuse along their length.
+    - Meshed with naive surface nets (voxel 0.008). Normals come from the
+      field's gradient, and quad facing from the quad's diagonals. The
+      material is DoubleSide, which removed specks.
+    - Suit and skin are per-vertex colours, cached per pose.
+    - The pelvis is narrow (half-width 0.098) and the thighs slimmer
+      (r 0.058, hips at ±0.056), so waist, hip and thigh run in one line.
+      The arms are held ∓0.19 out, clear of the hips.
+    - In the line-up, a dark mark on a hip is the neighbour's cast shadow
+      (low sun from the right), not geometry.
+  - Sent chosen-corridors-and-figures.jpg, 98 full size and the garden
+    close-up. Scratch: out/send6/moon-98, moon98sheet.py.
