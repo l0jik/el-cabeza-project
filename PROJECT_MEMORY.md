@@ -9174,3 +9174,28 @@ phone menu until "Start the story over" (which clears it).
   - Checked in the built page: two frames a second apart; cars in each
     lane move the way its arrow points, on both street directions.
     e2e-smoke plano and e2e-gameplay plano pass.
+- Moon: options for where the two sides' corridors cross (user: "What are
+  our choices when opponents connecting tunnels cross. We need like some
+  options here").
+  - Scratch buildCorridors(cfg.crossing) draws six choices on one
+    position, MOON_X (the dark run from its Cabeza down to its Chato
+    has to pass the light run from its Cabeza to its Opa, square r5 c4):
+    - 88 bridge (cx1, what we had): the corridor laid second arches
+      over the other.
+    - 89 tunnel (cx2): the second dives over three squares, reaching
+      the ground at an arched portal half a square either side of the
+      crossing.
+    - 90 two levels (cx3, cfg.lift { dark: 0.34 }): one side's whole
+      network runs on pylons, dropping to the Cabeza dome at its end.
+    - 91 hub (cx4): both sides end at a sealed grey interchange banded
+      in both accents.
+    - 92 around (cx5, router cross: "none"): no crossings. The dark run
+      goes round by the west and south edges. A building nothing can
+      reach is reported in res.stranded and gets a beacon.
+    - 93 cut, right of way (cx6): the first keeps the square and the
+      second ends either side in sealed hatches with red lamps.
+  - Still open for the user: who yields (goes over, under or is cut).
+    Choices: the side whose move made the crossing, a fixed side, the
+    smaller network, or whoever built last.
+  - Sent: moon-crossings-close-up.jpg, moon-crossings-sheet.jpg and six
+    3200x2000 JPEGs (scratch: out/send6/moon-crossings, moonxsheet.py).
