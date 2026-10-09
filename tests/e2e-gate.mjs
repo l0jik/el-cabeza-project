@@ -60,6 +60,29 @@ console.log("Cabeza Nova: the one menu");
   check("...who's playing, pieces, rules, board, Reset and Play", (await p.locator('[data-testid="gate-opponent-human"]').count()) > 0 && (await p.locator('[data-testid="gate-count-codo-plus"]').count()) > 0
     && (await p.locator('[data-testid="gate-law-slide"]').count()) > 0 && (await p.locator('[data-testid="gate-size-12"]').count()) > 0
     && (await p.locator('[data-testid="gate-reset"]').count()) > 0 && (await p.locator('[data-testid="gate-play"]').count()) > 0);
+  {
+    // Every rule at once, first in the sheet (user: "a switch ... at the top
+    // of all custom setting menus to turn all laws on").
+    const all = p.locator('[data-testid="gate-all-laws"]');
+    const laws = '[data-testid^="gate-law-"][role="switch"]';
+    const first = await p.evaluate(() => { const s = document.querySelector('[data-testid="gate-sheet"] .rg-body [role="switch"]'); return s && s.dataset.testid; });
+    check(`All rules: the sheet's first switch, off (${first})`, first === "gate-all-laws" && (await all.getAttribute("aria-checked")) === "false");
+    await all.click();
+    const n = await p.locator(laws).count();
+    const on = await p.$$eval(`${laws}[aria-checked="true"]`, (els) => els.map((e) => e.dataset.testid));
+    check(`...on: every rule, Split movement three pieces the one split (${on.length}/${n})`, n === 8 && on.length === 7 && !on.includes("gate-law-splitMovement") && (await all.getAttribute("aria-checked")) === "true");
+    // (No pivot piece in the classic five: it keeps you where you are, the
+    // pivot guide's trip to the pieces held back, its note saying why.)
+    await p.waitForTimeout(2200);
+    const stay = await p.evaluate(() => { const r = document.querySelector('[data-testid="gate-all-laws"]').getBoundingClientRect(), b = document.querySelector('[data-testid="gate-sheet"] .rg-body').getBoundingClientRect(); return r.top >= b.top - 1 && r.bottom <= b.bottom + 1; });
+    check("...it keeps you there, its note saying what pivoting needs", stay && /Cantilever pivot needs a Codo/.test(await p.locator('[data-testid="gate-all-laws-note"]').textContent()));
+    await p.locator('[data-testid="gate-law-slide"]').click();
+    check("...one rule off by hand: All rules reads off", (await all.getAttribute("aria-checked")) === "false");
+    await all.click();
+    check("...on again: back on", (await all.getAttribute("aria-checked")) === "true" && (await p.locator(`${laws}[aria-checked="true"]`).count()) === 7);
+    await all.click();
+    check("...off: none", (await p.locator(`${laws}[aria-checked="true"]`).count()) === 0 && (await all.getAttribute("aria-checked")) === "false");
+  }
   check("...each piece pictured, as Cromo draws it (15, each Arco size its own)", !!(await poll(async () => (await p.locator('[data-testid^="gate-pic-"]').count()) === 15, 6000)));
   check("...the Arco Chico, Alto and Ancho each in a row of their own, no size switch", (await p.locator('[data-testid="gate-piece-arcoChico"]').count()) === 1 && (await p.locator('[data-testid="gate-piece-arcoAlto"]').count()) === 1 && (await p.locator('[data-testid="gate-piece-arcoAncho"]').count()) === 1 && (await p.locator('[data-testid^="gate-arco-"]').count()) === 0);
   await p.waitForTimeout(600); await shot(p, "sheet-phone");
@@ -71,7 +94,14 @@ console.log("Cabeza Nova: the one menu");
     const viewer = p.locator('[data-testid="piece-viewer"]');
     check("a piece's picture opens the piece large, in 3D", !!(await poll(async () => (await viewer.getAttribute("data-state")) === "open", 5000)) && /hombro/i.test(await p.locator('[data-testid="piece-viewer-name"]').innerText()));
     const yaw = () => p.evaluate(() => window.__EC_PIECE_VIEWER__ && window.__EC_PIECE_VIEWER__.yaw());
-    const box = await p.locator('[data-testid="piece-viewer-canvas"]').boundingBox();
+    // ("open" from the moment it starts to grow out of the picture: the
+    // drag waits till it's done, the canvas where it stays.)
+    let box = null;
+    for (let i = 0, last = ""; i < 30; i++) {
+      const b = await p.locator('[data-testid="piece-viewer-canvas"]').boundingBox(), k = JSON.stringify(b);
+      if (b && k === last) { box = b; break; }
+      last = k; await p.waitForTimeout(150);
+    }
     const y0 = await yaw();
     await p.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2); await p.mouse.down();
     await p.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2, { steps: 6 }); await p.mouse.up();
@@ -129,6 +159,38 @@ console.log("the Lab");
   check("Other realities from the gate: the menu, you are here", !!(await poll(async () => /you are here/i.test(await p.locator('[data-testid="reality-lab-bauhaus"]').innerText()), 4000)));
   await p.locator('[data-testid="reality-lab-bauhaus"]').click();
   check("...you are here: stay, the two buttons again", !!(await poll(() => p.locator('[data-testid="gate-standard"]').isVisible(), 4000)));
+  check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
+console.log("the store's order form: All rules, and its marked boxes");
+{
+  const { p, ctx, errs } = await open("el-cabeza-tienda.html", { ended: false, viewport: { width: 390, height: 844 } });
+  await poll(() => p.locator('[data-testid="tienda-lid-order"]').count(), 30000);
+  await p.locator('[data-testid="tienda-lid-order"]').click();
+  await poll(() => p.locator('[data-testid="tienda-order"]').count(), 8000);
+  await p.waitForTimeout(600);
+  const all = p.locator('[data-testid="tienda-all-laws-input"]');
+  const laws = 'input[data-testid^="tienda-law-"][type="checkbox"]';
+  const first = await p.evaluate(() => { const c = document.querySelector('[data-testid="tienda-order"] .td-check'); return c && c.dataset.testid; });
+  check(`All rules: the form's first box, unmarked (${first})`, first === "tienda-all-laws" && !(await all.isChecked()));
+  await all.click({ force: true });
+  const n = await p.locator(laws).count();
+  const on = await p.$$eval(`${laws}:checked`, (els) => els.map((e) => e.dataset.testid));
+  check(`...marked: every rule, Split movement three pieces the one split (${on.length}/${n})`, n === 8 && on.length === 7 && !on.includes("tienda-law-splitMovement-input") && (await all.isChecked()));
+  await p.waitForTimeout(2200);
+  const stay = await p.evaluate(() => { const r = document.querySelector('[data-testid="tienda-all-laws"]').getBoundingClientRect(), f = document.querySelector(".td-form-scroll").getBoundingClientRect(); return r.top >= f.top - 1 && r.bottom <= f.bottom + 1; });
+  check("...it keeps you there, its note saying what pivoting needs", stay && /Cantilever pivot needs a Codo/.test(await p.locator('[data-testid="tienda-all-laws"]').textContent()));
+  // (User, the sheet's knobs: the order form's X was small, brown and in
+  // its box's corner, the notes' style outranking the box's own.)
+  const x = await p.evaluate(() => {
+    const b = document.querySelector('[data-testid="tienda-law-slide"] .td-box'), cs = getComputedStyle(b), r = b.getBoundingClientRect();
+    const range = document.createRange(); range.selectNodeContents(b); const t = range.getBoundingClientRect();
+    return { text: b.textContent, display: cs.display, size: cs.fontSize, dx: Math.round((t.left + t.width / 2) - (r.left + r.width / 2)), dy: Math.round((t.top + t.height / 2) - (r.top + r.height / 2)) };
+  });
+  check(`...each marked box's X its own size, in the middle (${JSON.stringify(x)})`, x.text === "✕" && x.display === "flex" && x.size === "26px" && Math.abs(x.dx) <= 1 && Math.abs(x.dy) <= 1);
+  await all.click({ force: true });
+  check("...cleared: none", (await p.locator(`${laws}:checked`).count()) === 0 && !(await all.isChecked()));
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

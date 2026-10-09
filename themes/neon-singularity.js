@@ -42,7 +42,7 @@ import lostHandWireUrl from "../assets/neon/lost-hand-wire.webp";
 import lostHandSkinUrl from "../assets/neon/lost-hand-skin.webp";
 import { createUnease, createDrone } from "./neon-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
-import { shoveNow } from "./rules-selections.js";
+import { shoveNow, allLawsOn, setAllLaws } from "./rules-selections.js";
 import { sideNamesFor, sideLabel, sideDotStyle } from "./side-names.js";
 
 const SIDE = sideNamesFor("neon"); // Photon / Plasma
@@ -2900,9 +2900,38 @@ function renderCategoryOverlay(t) {
 
   let body = null;
   if (category === "laws") {
+    // One law switched, with what goes with it (the checkbox's own and All
+    // Laws' alike).
+    const flip = (key) => {
+      sel.laws[key] = !sel.laws[key];
+      // (Diagonal Slide stands on its own, user.)
+      // One Split Movement or the other; three pieces brings 3
+      // Actions, and goes with them (rules-selections.js toggleLaw).
+      if (key === "splitThree" && sel.laws.splitThree) { sel.laws.splitMovement = false; sel.laws.threeActions = true; }
+      if (key === "splitMovement" && sel.laws.splitMovement) sel.laws.splitThree = false;
+      if (key === "threeActions" && !sel.laws.threeActions) sel.laws.splitThree = false;
+      // Shoving on "Slides only" needs Slide: Shoving on with it set
+      // brings Slide; Slide off puts Shoving back on slides and rolls.
+      if (key === "shoving" && sel.laws.shoving && sel.shove && sel.shove.onRolls === false) sel.laws.slide = true;
+      if (key === "slide" && !sel.laws.slide && sel.shove && sel.shove.onRolls === false) sel.shove = { ...sel.shove, onRolls: true };
+      // Turning Black Holes on with no spot yet rolls a real one now.
+      if (key === "blackHoleSquares" && sel.laws.blackHoleSquares && !sel.blackHole.manual) fillPairedSpots(s, "blackHole", false);
+    };
+    // Every law at once, first in LAWS (user: "a switch ... at the top of
+    // all custom setting menus to turn all laws on"); rules-selections.js
+    // says which, through this sphere's own switching.
+    // (It keeps you here: no trip to MATTER for Pivot, its note says it.)
+    const all = allLawsOn(sel);
+    const allRow = renderCheckboxRow(
+      { key: "allLaws", label: "All Laws", blurb: `Every law below, on or off at once.${all && lawWarning("cantileverPivot", sel) ? " Cantilever Pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: add one in MATTER." : ""}` },
+      all,
+      () => { setAllLaws(sel, !all, (_, key) => flip(key)); s.labelsDirty = true; s.bump(); },
+      "law-all"
+    );
     body = h(
       "div",
       { style: { display: "flex", flexDirection: "column" } },
+      h("div", { key: "all", style: { borderBottom: "1px solid rgba(142,243,255,0.25)", marginBottom: 4 } }, allRow),
       // The Black Hole Squares manual-placement control sits DIRECTLY
       // below its own toggle (not appended after every law), so it reads
       // as that toggle's sub-option. Only shown when the law is on.
@@ -2911,19 +2940,7 @@ function renderCategoryOverlay(t) {
           item,
           sel.laws[item.key],
           () => {
-            sel.laws[item.key] = !sel.laws[item.key];
-            // (Diagonal Slide stands on its own, user.)
-            // One Split Movement or the other; three pieces brings 3
-            // Actions, and goes with them (rules-selections.js toggleLaw).
-            if (item.key === "splitThree" && sel.laws.splitThree) { sel.laws.splitMovement = false; sel.laws.threeActions = true; }
-            if (item.key === "splitMovement" && sel.laws.splitMovement) sel.laws.splitThree = false;
-            if (item.key === "threeActions" && !sel.laws.threeActions) sel.laws.splitThree = false;
-            // Shoving on "Slides only" needs Slide: Shoving on with it set
-            // brings Slide; Slide off puts Shoving back on slides and rolls.
-            if (item.key === "shoving" && sel.laws.shoving && sel.shove && sel.shove.onRolls === false) sel.laws.slide = true;
-            if (item.key === "slide" && !sel.laws.slide && sel.shove && sel.shove.onRolls === false) sel.shove = { ...sel.shove, onRolls: true };
-            // Turning Black Holes on with no spot yet rolls a real one now.
-            if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares && !sel.blackHole.manual) fillPairedSpots(s, "blackHole", false);
+            flip(item.key);
             s.labelsDirty = true; s.bump();
             // Pivot on with no Codo, Rayo or Zeta: the warning flashes,
             // then over to MATTER, where the three flash (pivot-guide.js).

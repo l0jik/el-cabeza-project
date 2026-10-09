@@ -22,7 +22,7 @@
    after its descent). React through createElement, as the other overlays,
    so it imports in plain Node. */
 
-import { usePivotGuide } from "./pivot-guide.js";
+import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
 import { createPortal } from "react-dom";
 import * as THREE from "three";
@@ -32,7 +32,7 @@ import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constant
 import { POSES, PieceViewer } from "./piece-showcase.js";
 import {
   PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
-  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, setShove, shoveNow, lawWarnings, piecesFit, minColsFor,
+  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, lawWarnings, piecesFit, minColsFor,
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
 } from "./rules-selections.js";
 import { WORLDS, createRealitiesMenu, goToWorld, REALITIES_VISIT_KEY } from "./realities.js";
@@ -497,7 +497,8 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   const warnings = lawWarnings(sel);
   // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then the
   // three flash where they sit (pivot-guide.js).
-  const showPivots = usePivotGuide(warnings.some((w) => w.key === "cantileverPivot"), { warnSel: '[data-testid="gate-law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="gate-piece-${k}"]` });
+  const pivotHush = useGuideHush();
+  const showPivots = usePivotGuide(warnings.some((w) => w.key === "cantileverPivot"), { warnSel: '[data-testid="gate-law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="gate-piece-${k}"]`, quiet: pivotHush.quiet });
   const { aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking } = api || {};
   const locked = !!(busy || aiThinking);
   const names = sideNamesFor(world); // what this world calls its two sides
@@ -530,6 +531,14 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
       tooMany ? `${total} pieces a side: ${MAX_PIECES} at most.` : `${total} ${total === 1 ? "piece" : "pieces"} a side (up to ${MAX_PIECES}).`),
     !fits && !tooMany && h("div", { className: "rg-warn", "data-testid": "gate-fit" },
       narrowest ? `These pieces need a board at least ${narrowest} wide. Widen it below.` : "These pieces won't set out on any board. Take some off."));
+
+  // Every law at once, first thing in the sheet (user: "a switch ... at
+  // the top of all custom setting menus to turn all laws on").
+  const allRules = h("section", { className: "rg-sec", "aria-label": "All rules" },
+    h("div", { className: "rg-row" },
+      h("span", { className: "rg-name" }, "All rules", h("span", { className: "rg-note", "data-testid": "gate-all-laws-note" }, "Every rule under Rules below, on or off at once.",
+        allLawsOn(sel) && warnings.some((w) => w.key === "cantileverPivot") ? " Cantilever pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: add one under Pieces." : "")),
+      h(Switch, { on: allLawsOn(sel), label: "All rules", testid: "gate-all-laws", onClick: () => { pivotHush.hush(); change((n) => setAllLaws(n, !allLawsOn(n))); } })));
 
   const rules = h("section", { className: "rg-sec", "aria-label": "Rules" },
     h("h3", null, "Rules"),
@@ -573,7 +582,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
         h("button", { type: "button", className: "rg-icon", "aria-label": "Back", "data-testid": "gate-sheet-back", onClick: onBack }, ICON_BACK),
         h("h2", null, "Cabeza Nova"),
         h("span", null)),
-      h("div", { className: "rg-body" }, opponent, pieces, rules, board),
+      h("div", { className: "rg-body" }, allRules, opponent, pieces, rules, board),
       h("div", { className: "rg-foot" },
         h("button", { type: "button", className: "rg-btn plain", "data-testid": "gate-reset", onClick: () => setSel(defaultSelections()), "data-stroke": "3" }, "Reset"),
         h("button", { type: "button", className: "rg-btn go", "data-testid": "gate-play", disabled: !canPlay, onClick: () => { keep(sel); onPlay(sel); }, "data-stroke": "2" }, "Play"))),

@@ -8503,3 +8503,38 @@ phone menu until "Start the story over" (which clears it).
   Stijl sheet, every knob centred in its 6px line, one switched on centred
   at the other end. (Measuring a knob: its slide takes a while on this
   slow machine; poll for the end, don't read it at once.)
+- User: "check any other themes that might have a similar bug. add a
+  switch ... at the top of all custom setting menus to turn all laws on."
+  Audit of every switch and check: the sheet's .rg-switch (fixed the round
+  before); the store's order form: .td-check span (0,1,1) outranked
+  .td-box (0,1,0), so every marked box's X was 13px, brown, block, in its
+  top-left corner; now .td-check .td-box (26px Courier, blue, centred).
+  Lluvia's LAWS: its row buttons, in a flex column (a grid too), were
+  sized without their text, held to minHeight 56, the notes running over
+  the next row (with VT323 too once the list outgrows 74vh); the panels'
+  scroller is plain block flow now (rows keep width: 100%, which a button
+  needs there). Fine: the dock's Check alert / Focus pills and the alert
+  card's (24 x 14, 1.5px line, knob 8 at 1.5), the phone menu's Toggle
+  (44 x 26, 1.5px, knob 19 at 2), Neon's sphere checkboxes (a filled
+  square, nothing inside), Lluvia's [ ON ]/[OFF ] text, the Lab panel's
+  pressed buttons, the native sliders.
+  All laws: rules-selections.js allLawsOn(sel) and setAllLaws(sel, on,
+  toggle = toggleLaw): on, each law that's off through its own toggle, the
+  two Split movements one or the other (Split 2 kept if on, else Split 3,
+  which brings 3 actions); off, each on law off; reads on with either
+  Split. First in every custom menu, named for the menu's own heading:
+  the sheet's "All rules" (gate-all-laws, its own section at the top of
+  .rg-body), the store's "All rules" box (tienda-all-laws, first on the
+  full form, .td-all; the classic form has no rules), Lluvia's "ALL LAWS"
+  (lluvia-all-laws, first in LAWS), Neon's "All Laws" (law-all, first in
+  the LAWS overlay; its per-law steps moved into flip(key)). It keeps you
+  where you are: pivot-guide.js useGuideHush() (hush() before the change;
+  usePivotGuide's opts.quiet() true for 1.5 s), Neon's All Laws doesn't
+  call showPivotPieces; while all are on with no pivot piece its note adds
+  "Cantilever pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: add one
+  under Pieces / order one in section 1 / add one in MATTER".
+  e2e-gate's piece-viewer drag now waits for the canvas to settle ("open"
+  from the start of its 420ms grow; the new checks shifted the timing and
+  the drag landed on the growing canvas). Passing: rules-selections smoke
+  (7 new), e2e-gate (sheet, order form with its X, De Stijl), e2e-lluvia
+  (+ every LAWS row as tall as its words), e2e-singularity, e2e-pivot-guide.

@@ -62,6 +62,23 @@ await shot(page, "4-matter");
 await page.locator('[data-testid="lluvia-panel-close"]').click();
 await page.locator('[data-testid="lluvia-open-laws"]').click();
 await page.waitForTimeout(300);
+// Every law at once, first in LAWS (user: "a switch ... at the top of all
+// custom setting menus to turn all laws on").
+{
+  const all = page.locator('[data-testid="lluvia-all-laws"]');
+  const first = await page.evaluate(() => { const b = document.querySelector('[data-testid="lluvia-panel-laws"] button[aria-pressed]'); return b && b.dataset.testid; });
+  check(`ALL LAWS first in LAWS, off (${first})`, first === "lluvia-all-laws" && (await all.getAttribute("aria-pressed")) === "false");
+  await all.click(); await page.waitForTimeout(150);
+  const n = await page.locator('button[data-testid^="lluvia-law-"]').count();
+  const on = await page.$$eval('button[data-testid^="lluvia-law-"][aria-pressed="true"]', (els) => els.map((e) => e.dataset.testid));
+  check(`...on: every law, Split movement three pieces the one split (${on.length}/${n})`, n === 8 && on.length === 7 && !on.includes("lluvia-law-splitMovement") && (await all.getAttribute("aria-pressed")) === "true");
+  await all.click(); await page.waitForTimeout(150);
+  check("...off: none", (await page.locator('button[data-testid^="lluvia-law-"][aria-pressed="true"]').count()) === 0 && (await all.getAttribute("aria-pressed")) === "false");
+  // (The rows were held to their least height in a flex column, their
+  // notes running over the next row.)
+  const squeezed = await page.evaluate(() => [...document.querySelectorAll('[data-testid="lluvia-panel-laws"] button[aria-pressed]')].filter((b) => b.scrollHeight > b.clientHeight + 1).map((b) => `${b.dataset.testid} ${b.clientHeight}<${b.scrollHeight}`));
+  check(`...every row as tall as its words, none running over the next (${squeezed.join(", ") || "none"})`, squeezed.length === 0);
+}
 await page.locator('[data-testid="lluvia-law-diagonalSlide"]').click();
 await page.waitForTimeout(150);
 check("Diagonal slide stands on its own (Orthogonal slide stays off)",

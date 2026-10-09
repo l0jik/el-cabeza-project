@@ -293,6 +293,23 @@ export function toggleLaw(sel, key) {
   if (key === "slide" && !on && sel.shove && sel.shove.onRolls === false) sel.shove = { ...sel.shove, onRolls: true };
   return sel;
 }
+/* Every law at once (user: "a switch ... at the top of all custom setting
+   menus to turn all laws on"). On: each law that's off switched on as its
+   own switch does it, the two Split movements one or the other (whichever
+   is on, else three pieces, which brings its 3 actions); off: every law
+   off the same way. All on reads true with either Split movement. `toggle`
+   is the menu's own (Neon's sphere keeps its own selections). */
+const SPLITS = ["splitMovement", "splitThree"];
+export const allLawsOn = (sel) => LAW_OPTIONS.every((l) => (SPLITS.includes(l.key) ? SPLITS.some((k) => sel.laws[k]) : !!sel.laws[l.key]));
+export function setAllLaws(sel, on, toggle = toggleLaw) {
+  if (on) {
+    LAW_OPTIONS.forEach((l) => {
+      if (sel.laws[l.key] || l.key === "splitMovement" || (l.key === "splitThree" && sel.laws.splitMovement)) return;
+      toggle(sel, l.key);
+    });
+  } else LAW_OPTIONS.forEach((l) => { if (sel.laws[l.key]) toggle(sel, l.key); });
+  return sel;
+}
 // Shoving's setting: "Slides only" brings Slide (user: "make slides only
 // turn on Slide"), as Diagonal slide does.
 export function setShove(sel, key, value) {

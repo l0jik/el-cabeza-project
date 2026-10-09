@@ -20,9 +20,9 @@
    renderExtraOverlays. Written with createElement, like Neon's overlays,
    so the theme stays importable in plain Node for the smoke tests. */
 
-import { usePivotGuide } from "./pivot-guide.js";
+import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
-import { PIECE_OPTIONS, LAW_OPTIONS, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, setShove, shoveNow } from "./rules-selections.js";
+import { PIECE_OPTIONS, LAW_OPTIONS, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow } from "./rules-selections.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
 import { storyOver, openRealityGate, piecePicture, piecePicturesReady, usePieceInspect } from "./reality-gate.js";
@@ -65,7 +65,8 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
   const total = totalOf(sel);
   // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then over to
   // MATTER, where the three flash (pivot-guide.js).
-  const showPivots = usePivotGuide(lawWarnings(sel).some((w) => w.key === "cantileverPivot"), { warnSel: '[data-testid="law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="lluvia-matter-${k}"]`, goTo: () => onGoTo && onGoTo("matter") });
+  const pivotHush = useGuideHush();
+  const showPivots = usePivotGuide(lawWarnings(sel).some((w) => w.key === "cantileverPivot"), { quiet: pivotHush.quiet, warnSel: '[data-testid="law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="lluvia-matter-${k}"]`, goTo: () => onGoTo && onGoTo("matter") });
   // Each piece pictured as the city draws it (made once, a beat after the
   // panel opens; the sign stands in till then).
   const [, setPics] = React.useState(0);
@@ -98,7 +99,17 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
     ];
   } else if (panel === "laws") {
     const warnings = lawWarnings(sel);
-    body = LAWS.flatMap(([k, name, note]) => {
+    // Every law at once, first in the panel (user: "a switch ... at the top
+    // of all custom setting menus to turn all laws on").
+    const all = allLawsOn(sel);
+    const allRow = h("button", {
+      key: "all", type: "button", "data-testid": "lluvia-all-laws", "aria-pressed": all ? "true" : "false",
+      onClick: () => { sound("key"); pivotHush.hush(); change((s) => { setAllLaws(s, !allLawsOn(s)); }); },
+      style: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", gap: 10, width: "100%", minHeight: 56, padding: "6px 0 8px", background: "transparent", border: "none", borderBottom: "2px solid rgba(255,179,71,0.35)", textAlign: "left", cursor: "pointer", ...TERM },
+    },
+    h("span", { style: { display: "flex", flexDirection: "column" } }, h("span", { style: { fontSize: 22, color: "#ffe2b0" } }, "ALL LAWS"), h("span", { "data-testid": "lluvia-all-laws-note", style: { fontSize: 16, color: "#a8783a" } }, "Every law below, on or off at once.", all && warnings.some((w) => w.key === "cantileverPivot") ? " Cantilever pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: add one in MATTER." : "")),
+    h("span", { style: { fontSize: 22, color: all ? "#fff27a" : "#7a6040", textShadow: all ? "0 0 8px rgba(255,242,122,0.7)" : "none" } }, all ? "[ ON ]" : "[OFF ]"));
+    body = [allRow, ...LAWS.flatMap(([k, name, note]) => {
       const on = !!sel.laws[k];
       // A law that can't do anything with the other choices says why.
       const warn = warnings.filter((w) => w.key === k).map((w) => h("div", { key: w.testid, role: "status", "data-testid": w.testid, ...(w.key === "cantileverPivot" ? { onClick: showPivots, title: "Show me" } : {}), style: { fontSize: 17, color: "#ffb347", padding: "4px 0 8px 14px", borderBottom: "1px solid rgba(255,179,71,0.12)", cursor: w.key === "cantileverPivot" ? "pointer" : "default" } }, "! ", w.text));
@@ -125,7 +136,7 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
       h("span", { style: { display: "flex", flexDirection: "column" } }, h("span", { style: { fontSize: 22, color: "#ffe2b0" } }, name), h("span", { style: { fontSize: 16, color: "#a8783a" } }, note)),
       h("span", { style: { fontSize: 22, color: on ? "#fff27a" : "#7a6040", textShadow: on ? "0 0 8px rgba(255,242,122,0.7)" : "none" } }, on ? "[ ON ]" : "[OFF ]"));
       return [row, ...(shoveRow ? [shoveRow] : []), ...warn];
-    });
+    })];
   } else {
     const flag = (k, label) => h("button", {
       key: k, type: "button", "data-testid": `lluvia-topo-${k}`, "aria-pressed": sel[k] ? "true" : "false",
@@ -153,7 +164,10 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
     h("span", { style: { fontSize: 16, color: "#a8783a", whiteSpace: "nowrap" } }, "KV-OS >"),
     h("span", { style: { whiteSpace: "nowrap", fontFamily: SAIRA_X, fontWeight: 800, fontSize: 22, letterSpacing: "0.06em", color: title[3], textShadow: TUBE(title[2]) } }, title[0], " ", h("span", { style: { fontFamily: JP, fontSize: 17, color: title[2], textShadow: "none" } }, title[1])),
     h("button", { type: "button", "data-testid": "lluvia-panel-close", onClick: onClose, style: { marginLeft: "auto", flexShrink: 0, whiteSpace: "nowrap", height: 36, padding: "0 10px", background: "transparent", border: "1px solid rgba(255,179,71,0.6)", borderRadius: 3, color: "#ffcf8a", font: "400 18px 'VT323', monospace", cursor: "pointer" } }, "CLOSE ✕")),
-  h("div", { style: { overflowY: "auto", padding: "8px 14px 14px", display: "flex", flexDirection: "column", gap: 2 } }, ...[].concat(body)),
+  // (Plain blocks, one under another: in a flex column, and in a grid, the
+  // row buttons were sized without their text, held to their 56px least
+  // height, so LAWS's notes ran over the next row.)
+  h("div", { style: { overflowY: "auto", padding: "8px 14px 14px" } }, ...[].concat(body)),
   inspect.viewer);
 }
 

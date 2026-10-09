@@ -73,11 +73,21 @@ export function usePivotGuide(active, opts) {
     cancel.current = guideToPivots(optsRef.current);
   }, []);
   React.useEffect(() => {
-    if (active && !was.current) run();
+    // (opts.quiet(): not when All laws turned Pivot on, see useGuideHush.)
+    if (active && !was.current && !(optsRef.current.quiet && optsRef.current.quiet())) run();
     // (Turned off again, or a pivot piece ordered: no more of it.)
     if (!active && cancel.current) { cancel.current(); cancel.current = null; }
     was.current = active;
   }, [active]);
   React.useEffect(() => () => { if (cancel.current) cancel.current(); }, []);
   return run;
+}
+
+/* All laws (user: "a switch ... at the top of all custom setting menus to
+   turn all laws on") keeps you where you are: when it's what turned Pivot
+   on, the guide holds off (its note says what pivoting needs instead).
+   hush() just before that change; quiet goes in the guide's options. */
+export function useGuideHush() {
+  const at = React.useRef(0);
+  return React.useMemo(() => ({ hush: () => { at.current = Date.now(); }, quiet: () => Date.now() - at.current < 1500 }), []);
 }

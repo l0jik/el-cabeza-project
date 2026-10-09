@@ -22,11 +22,11 @@
    and home bar kept clear (safe-area insets), every control at least
    44 px tall, and scroll inside the sheet when a short screen needs it. */
 
-import { usePivotGuide } from "./pivot-guide.js";
+import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
 import {
   PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
-  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, setShove, shoveNow, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
+  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
 } from "./rules-selections.js";
 import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS } from "./tienda-order.js";
@@ -952,6 +952,7 @@ const CSS = `
   .td-form-sub { font: 700 clamp(10.5px, 1.2vw, 12px)/1.4 ${FRANKLIN}; letter-spacing: 0.14em; text-transform: uppercase; color: ${RED}; }
   .td-form-note { font: 400 clamp(12px, 1.2vw, 13px)/1.4 ${COURIER}; }
   .td-sec { margin-top: 18px; }
+  .td-all { margin-top: 10px; border-bottom: 2px solid rgba(46,33,24,0.45); }
   .td-sec-h { display: flex; align-items: baseline; gap: 10px; font: 800 clamp(13px, 1.5vw, 15px)/1.2 ${FRANKLIN}; letter-spacing: 0.12em; text-transform: uppercase;
     background: ${INK}; color: ${PAPER}; padding: 6px 10px; }
   .td-sec-h { flex-wrap: wrap; }
@@ -994,7 +995,9 @@ const CSS = `
   .td-total.over { color: ${RED}; }
   .td-check { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 4px; border-bottom: 1px solid rgba(46,33,24,0.3); cursor: pointer; min-height: 52px; }
   .td-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-  .td-box { width: 30px; height: 30px; border: 2px solid ${INK}; display: flex; align-items: center; justify-content: center; font: 700 26px/1 ${COURIER}; color: #1F3A6B; background: rgba(255,255,255,0.25); }
+  /* (Under .td-check: the notes' .td-check span outranked a bare .td-box,
+     so the X came out small, brown and in the top-left corner.) */
+  .td-check .td-box { width: 30px; height: 30px; border: 2px solid ${INK}; display: flex; align-items: center; justify-content: center; font: 700 26px/1 ${COURIER}; color: #1F3A6B; background: rgba(255,255,255,0.25); }
   .td-check b { display: block; font: 700 clamp(14px, 1.5vw, 16px)/1.25 ${FRANKLIN}; }
   .td-check span { display: block; font: 400 13px/1.35 ${FRANKLIN}; color: #5A4A38; }
   .td-sizes { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 4px; }
@@ -1552,7 +1555,8 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const warnings = lawWarnings(sel);
   // Pivot on with no Codo, Rayo or Zeta: the warning flashes, then the
   // three (together at the end of the pieces) flash (pivot-guide.js).
-  const showPivots = usePivotGuide(warnings.some((w) => w.key === "cantileverPivot"), { warnSel: '[data-testid="law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="tienda-piece-${k}"]` });
+  const pivotHush = useGuideHush();
+  const showPivots = usePivotGuide(warnings.some((w) => w.key === "cantileverPivot"), { warnSel: '[data-testid="law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="tienda-piece-${k}"]`, quiet: pivotHush.quiet });
   // The piece taken up off the page, if any: { key, type, name, detail, cat, price, rect, closing }.
   const [viewer, setViewer] = React.useState(null);
   // The board being marked ("missing" | "hole"), if any.
@@ -1784,6 +1788,11 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
           ),
           h("div", { className: "td-form-note" }, "Please print. Mark boxes with an X."),
         ),
+        // Every rule at once, first on the form (user: "a switch ... at the
+        // top of all custom setting menus to turn all laws on").
+        !classic && h("div", { className: "td-all" },
+          check("all-laws", allLawsOn(sel), "All rules", `Mark this box for every rule in section 2; clear it for none.${allLawsOn(sel) && warnings.some((w) => w.key === "cantileverPivot") ? " Cantilever pivot needs a Codo, Hombro, Cruce, Rayo or Zeta: order one in section 1." : ""}`,
+            () => { pivotHush.hush(); change((s) => setAllLaws(s, !allLawsOn(s))); })),
         sec("Pieces", "quantity for each side — the other side gets the same",
           pieceRows,
           h("div", { className: `td-total${over ? " over" : ""}`, "data-testid": "tienda-piece-total" },

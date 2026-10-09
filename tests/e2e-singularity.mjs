@@ -681,6 +681,26 @@ state = await navigateToCategory("laws");
 check("dragging brings LAWS into view regardless of the shuffled arrangement",
   state.activeCategory === "laws", `activeCategory=${state.activeCategory}`);
 if (state.activeCategory === "laws") {
+  // Every law at once, first in LAWS (user: "a switch ... at the top of all
+  // custom setting menus to turn all laws on").
+  {
+    const LAW_KEYS = ["slide", "diagonalSlide", "blackHoleSquares", "shoving", "cantileverPivot", "threeActions", "splitMovement", "splitThree"];
+    const all = page.locator('[data-testid="law-all"]');
+    const first = await page.evaluate(() => { const r = document.querySelector('[data-testid^="law-"][data-checked]'); return r && r.dataset.testid; });
+    check(`All Laws first in LAWS, off (${first})`, first === "law-all" && (await all.getAttribute("data-checked")) === "false");
+    await all.click();
+    await page.waitForTimeout(150);
+    state = await sphereState();
+    const on = LAW_KEYS.filter((k) => state.selections.laws[k]);
+    check(`...on: every law, Split Movement three pieces the one split (${on.join(" ")})`, on.length === 7 && !state.selections.laws.splitMovement && state.selections.laws.splitThree && (await all.getAttribute("data-checked")) === "true");
+    // (It keeps you in LAWS: no trip to MATTER for Pivot.)
+    await page.waitForTimeout(2200);
+    check("...and keeps you in LAWS", (await sphereState()).activeCategory === "laws");
+    await all.click();
+    await page.waitForTimeout(150);
+    state = await sphereState();
+    check("...off: none, still in LAWS", !LAW_KEYS.some((k) => state.selections.laws[k]) && state.activeCategory === "laws" && (await all.getAttribute("data-checked")) === "false");
+  }
   await page.locator('[data-testid="law-blackHoleSquares"]').click();
   await page.waitForTimeout(150);
   state = await sphereState();

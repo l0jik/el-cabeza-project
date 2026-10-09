@@ -155,6 +155,24 @@ import("../themes/rules-selections.js").then(async (m) => {
     check("a save with both keeps three pieces only", (() => { const n = m.normalizeSelections({ laws: { splitMovement: true, splitThree: true, threeActions: true } }); return n.laws.splitThree && !n.laws.splitMovement; })());
     check("the three-piece choice sits right under two pieces", (() => { const k = m.LAW_OPTIONS.map((l) => l.key); return k.indexOf("splitThree") === k.indexOf("splitMovement") + 1 && k.indexOf("threeActions") === k.indexOf("splitMovement") - 1; })());
   }
+  // Every law at once (user: "a switch ... to turn all laws on").
+  {
+    const a = m.defaultSelections();
+    check("all laws reads off at the start", !m.allLawsOn(a));
+    m.setAllLaws(a, true);
+    const on = m.LAW_OPTIONS.filter((l) => a.laws[l.key]).map((l) => l.key);
+    check(`all laws on: every one but two pieces, three pieces in its place (${on.join(" ")})`, m.allLawsOn(a) && on.length === m.LAW_OPTIONS.length - 1 && a.laws.splitThree && !a.laws.splitMovement && a.laws.threeActions);
+    check("...the black holes placed, as their own switch does", m.holeCellsOf(a).length === 2, JSON.stringify(a.holeSpot));
+    m.setAllLaws(a, false);
+    check("all laws off: none on", !m.LAW_OPTIONS.some((l) => a.laws[l.key]) && !m.allLawsOn(a));
+    const b = m.defaultSelections(); m.toggleLaw(b, "splitMovement"); m.setShove(b, "onRolls", false);
+    m.setAllLaws(b, true);
+    check("all on keeps two pieces if that was chosen, and slides only", m.allLawsOn(b) && b.laws.splitMovement && !b.laws.splitThree && b.shove.onRolls === false);
+    m.toggleLaw(b, "cantileverPivot");
+    check("one switched off after: all laws reads off", !m.allLawsOn(b));
+    m.setAllLaws(b, false);
+    check("off from slides only puts Shoving back on slides and rolls", !b.laws.slide && b.shove.onRolls === true);
+  }
   setBoardDimensions(10, 10);
   console.log(failures ? `\n${failures} check(s) failed` : "\nall rules-selections checks passed");
   process.exit(failures ? 1 : 0);
