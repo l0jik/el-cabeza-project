@@ -8985,3 +8985,36 @@ phone menu until "Start the story over" (which clears it).
     mid-century and light concrete in whites, greys and grey-blues.
   - 72 the five models (line-up), 73 Morning, 74 Afternoon, 75 Golden
     Hour, 76 Overcast, 77 From Above; overview order ends with day8.
+- Paused, city glass towers and cranes (user: "I think we'll work on
+  these one at a time"). city.js already has FACADE.fullglass, the
+  glass-tower branch of BUILD.midvar (o.tall: a 1x1x3 piece when
+  P.tallGlass) and board cranes on construction lots (P.board.cranes,
+  craneColor). Still to do: tallGlass and board.cranes in the vv
+  presets, 1x1x3 "alto" pieces on free squares, re-render 73-77.
+- Moon Base, the working models at high resolution (user: "Let's go
+  back to the moon base. Show me all of the working models we have for
+  that. I need to see higher resolution images of all of them").
+  - Three models: A pods (HOUSE.moon, style "moon": round drums,
+    rings, tubes; the round-2 Moon Base, n10), B rounded solids
+    (BUILD.moonsolid), C connected modules (BUILD.moonmod).
+  - New presets: ml1/ml2/ml3, line-ups (MOONLINE(style), MOON_LINE).
+    They show every piece of both sides: the near (White) band holds
+    Opa, Chato, Flaco lying, Flaco standing and Turrito, with the
+    Cabeza a step forward. The far (dark) band is the same, mirrored.
+    Long lens (fov 23, from 20 back and up) so both sides read at near
+    the same size and nothing tall hides anything.
+  - m1p: the Earthrise scene with the pods, to compare all three in
+    one scene.
+  - Renderer: a dpr query param (renderer pixel ratio; the sky canvas
+    and its stars scale with it). shoot.mjs takes a 5th argument as
+    deviceScaleFactor: `render.sh ids 1600 1000 2` gives 3200x2000 of
+    the same frame. post5.py scales the bloom radii with the picture
+    width (S = width / 1600).
+  - Fix: the small roof dishes (moonRoof and the pod roof) are now
+    drawn double-sided. Before, only their back showed, and up close
+    it read as a broken V.
+  - Sent: moon-models-sheet.jpg (a row per model) and nine 3200x2000
+    JPEGs: A1 to A3 pods (line-up, Earthrise, the first Moon Base), B1
+    to B3 rounded solids (line-up, Earthrise, Crater Rim), C1 to C3
+    connected modules (line-up, Earthrise, Lunar Night). Scratch:
+    out/send6/moon-hires, moonsheet.py.
