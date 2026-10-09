@@ -8571,3 +8571,32 @@ phone menu until "Start the story over" (which clears it).
 - The All laws round's wider sweep: all 9 pass (e2e-tienda, -story,
   -journey, -store-opening, -try-it, -fullscreen, -original, -points,
   -summon).
+- City mock-ups, round 2 (user: "10 more (5 of each, again), loosening
+  the restrictions"): numbered 11-20 after round 1's 1-10, same scratch
+  renderer (round-2 styles merged into city.js; presets d6-d10, n6-n10;
+  sheet.py sets day2/night2; tilt.py tilt-shifts a render). The pivot,
+  the game-size pieces and the street grid kept; the industrial-materials
+  brief dropped. New in the renderer: skyH (the sky's gradient ends on
+  the horizon, worked out from the camera), stars, an aurora, water and
+  plain/cratered grounds, roofs and crowns on the city round the board,
+  confetti at a pivot, gas lamps, set pieces placed by where they fall in
+  the frame (fireworks, moon, Earth), and a point-light budget. Day: 11
+  Art Deco Metropolis (black granite vs limestone, gold setbacks and
+  spires, yellow cabs, an airship), 12 Toy Town (cobalt and yellow vs
+  cream and tomato, gabled rounded blocks on a playmat, lollipop trees,
+  confetti, tilt-shifted), 13 Whitewash Island (white and blue domes vs
+  ochre and terracotta domes, the board an island with cliffs, boats,
+  windmills), 14 Garden City (charred vs pale timber terraces, green
+  roofs, solar, bike lanes, turbines), 15 Canal City (Venetian red vs
+  rose palazzi, hipped roofs, canals for streets, gondolas and mooring
+  poles, a campanile). Night: 16 Googie Strip (cyan vs pink neon edges,
+  folded-plate roofs, starburst pylons, palms, searchlights, a saucer
+  Cabeza), 17 Gaslight Old Town (oxblood vs cream half-timbering, cobbles,
+  gas lamps, mist, full moon, a fountain Cabeza), 18 Aurora Harbour (falu
+  red vs ochre siding, snowy gables, snowfall, the aurora, a rink
+  Cabeza), 19 Lantern Festival (black-and-green vs red-and-grey tiered
+  pagodas, lantern strings, fireworks, sky lanterns, a Temple of Heaven
+  Cabeza), 20 Moon Base (dark-and-gold vs white-and-orange silos where a
+  piece stands, capsules where it lies, Earth lit by the sun; porthole
+  cubes read as dice again and were dropped). Awaiting the user's pick
+  of a day and a night direction (from either round).
