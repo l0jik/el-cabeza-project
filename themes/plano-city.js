@@ -136,7 +136,9 @@ export function buildCity({ EX, EZ, sq, gx = EX, gz = EZ, renderer, tier = "high
       for (let k = -RW + 0.06; k < RW - 0.04; k += 0.13) { rect(cx + k, cz + s * (RW + 0.08), cx + k + 0.07, cz + s * (RW + 0.42), INK); rect(cx + s * (RW + 0.08), cz + k, cx + s * (RW + 0.42), cz + k + 0.07, INK); }
       line([[cx + s * 0.02, cz + s * (RW + 0.5)], [cx + s * RW, cz + s * (RW + 0.5)]], 3.2);
       if (cz !== TRAM_Z) line([[cx + s * (RW + 0.5), cz - s * 0.02], [cx + s * (RW + 0.5), cz - s * RW]], 3.2);
-      arrow(cx - s * 0.19, cz - s * (RW + 1.0), s > 0 ? -Math.PI / 2 : Math.PI / 2, 0.36);
+      // each arrow points the way its lane's traffic runs, into the crossing: the lane west of a north-south
+      // street's centre carries traffic south (+z), the east one north (user: cars were going against the arrows)
+      arrow(cx - s * 0.19, cz - s * (RW + 1.0), s > 0 ? Math.PI / 2 : -Math.PI / 2, 0.36);
       if (cz !== TRAM_Z) arrow(cx + s * (RW + 1.0), cz - s * 0.19, s > 0 ? Math.PI : 0, 0.36);
     }
     // bike symbols

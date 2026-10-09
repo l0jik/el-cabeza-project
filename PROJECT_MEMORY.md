@@ -9132,3 +9132,45 @@ phone menu until "Start the story over" (which clears it).
     longer pin drumR.
   - Re-rendered 78-82 and 78b. Sent turrito-before-after.jpg, the sheet
     and the six JPEGs (out/send6/moon-ground).
+- Moon: the Turrito read as a cube; the other ten pieces in the lunar
+  style (user: "Turrito still seems too tall. I want to see all the
+  other pieces besides the basic five rendered in the new lunar style").
+  - Turrito: it was already the game's 0.87 cube, but it read as a tower:
+    three rows of windows and a mast with a dish on top. Now a squarer
+    squircle (n 4.5, filling its square) with one storey of windows and
+    a flat roof with a hatch.
+  - Rule: one row of windows per game level for every moon piece
+    (FACADE.moon1, STYLE_GRID.moon1 { floor: PS, chPx: 120 } so the
+    ports keep their shape; facadeTex takes chPx). Metal rings sit at
+    the storey lines. moonMix.storeys 3 brings back the old look.
+  - The other ten (POSE in presets.js, from engine/anomaly.js's starting
+    poses): 1×3 and 2×3 Blocks, Codo, Hombro, Cruce, Rayo, Zeta, Arco
+    Chico, Arco Alto, Arco Ancho.
+  - Odd shapes are built by moonVoxBody() from the game's own cube
+    list (vox), passed through the pieces loop:
+    - A column from the ground is a drum. It stops under a row laid
+      across its top, so an arch's legs stand under the lintel.
+    - Each row of two or more cubes is a pod at its level; raised pods
+      get a cap underneath.
+    - A lone cube is a squircle.
+    - The parts overlap, so each piece reads as one building in its
+      exact shape.
+  - Corridors meet a piece only on squares where it touches the ground,
+    never under an arch or an overhang (moonroute.js cells()).
+  - Showcases pc1-pc5 (83-87): two kinds an image, dark side at the
+    back and light in front, standing then lying (or two turns), each
+    side's corridors joined. Sent moon-pieces-sheet.jpg, five
+    3200x2000 JPEGs, turrito-before-after-2.jpg and the ideas re-rendered
+    (scratch: out/send6/moon-pieces, moonpiecesheet.py).
+- Blueprint (Plano) traffic against the arrows (user screenshot: "going
+  the wrong direction according to the arrows on the street").
+  - In themes/plano-city.js the arrows before each crossing on the
+    north-south streets were drawn pointing backwards. The lane at
+    c - 0.19 runs south (+z), the one at c + 0.19 north, and their
+    arrows had -pi/2 and +pi/2 the wrong way round. Swapped.
+  - The east-west arrows already matched their lanes. The plan isn't
+    mirrored (canvas y follows world z), so only the north-south ones
+    were wrong.
+  - Checked in the built page: two frames a second apart; cars in each
+    lane move the way its arrow points, on both street directions.
+    e2e-smoke plano and e2e-gameplay plano pass.
