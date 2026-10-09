@@ -9030,3 +9030,57 @@ phone menu until "Start the story over" (which clears it).
   - Two working models left: A pods (ml1 line-up, m1p Earthrise, n10 the
     first Moon Base) and B rounded solids (ml2 line-up, m1 Earthrise, m3
     Crater Rim, m2 Lunar Night). moonsheet.py now draws those two rows.
+- Moon Base, five in-between ideas, 78-82 (user: corridors "between all
+  the modules", re-laid "with each move", "each side is going to have
+  their own connectivity"; something between A pods and B rounded solids:
+  "I like the cylindrical look when they're standing up, but not when
+  they're laying down", so standing = cylindrical and lying on the
+  ground = rounded pods; keep each team's colours).
+  - Rules now: a piece is standing when its height is at least its
+    longest side (Opa, Turrito, Flaco up, Chato up). Standing pieces are
+    drums; lying pieces (Flaco or Chato lying) are rounded pods. No
+    lying cylinders or capsules.
+  - Corridors: scratch moonroute.js routeCorridors(pieces), a pure
+    function, ~10 ms. Each side's network grows from its Cabeza. Each
+    step takes the cheapest path from what is already joined (a building,
+    or a corridor to branch from) to the next building. Corridors run
+    through the middles of free squares; turns cost extra and a square
+    next to the other side's buildings costs a little more; shared runs
+    are cheap. A building right beside one already joined gets a short
+    neck. The other side's corridor may only be crossed straight over a
+    straight run of it, drawn as a bridge. The squares a mid-pivot piece
+    tips over stay clear, and that piece is left out until it lands.
+    - Fuzz: 400 random positions, no failures. 7 of 800 sides had a
+      building walled in (no free route); a real build would need a rule
+      for that.
+  - city.js: BUILD.moonmix (P.moonMix) and planBody(), a body from a
+    plan, built as follows:
+    - PLAN.rrect, squircle and fused give inside(x,z). The outline is
+      found along rays from the middle and lofted into walls with the
+      moon facade wrapped round.
+    - Tops round in (pods), dome over (drums) or sit flat on a deck.
+    - Options: glassTop (a garden storey), glassRoof (a pod under glass),
+      bands.
+    - Pivot slices get o.fullY so they keep their standing/lying form.
+  - city.js: buildCorridors(P.corridors) draws the networks in each
+    side's colours. Styles: tube, tunnel, inflate, glass, buried. Hubs
+    at turns and junctions, collars where a corridor meets a wall
+    (SHAPES[id].inside finds the wall), bridges at crossings.
+    EXTRAS.boulders takes `near`.
+  - Presets: MOON_MID (both sides with pieces standing and lying), and
+    for each idea: building / corridors / scene.
+    - mx1, 78 Drums and Pods: drum per square / ribbed round tubes /
+      Earthrise.
+    - mx1b, 78b, the same a move later: the light Flaco tipped east
+      (tower to pod) and its corridors re-routed.
+    - mx2, 79 Capsule Towers: one round body, capsule plans, deck /
+      flat-sided tunnels / high sun.
+    - mx3, 80 Squircle Base / inflatable tunnels / lunar night.
+    - mx4, 81 Greenhouse Base: glazed garden storey, pods under glass /
+      glass corridors / earthshine.
+    - mx5, 82 Fused Drums: lobed bodies with small domes / half-buried
+      corridors / low sun.
+  - The Earth is shown only where the frame has sky (high views have
+    none).
+  - Sent: moon-ideas-sheet.jpg and six 3200x2000 JPEGs (scratch:
+    out/send6/moon-mix, moonmixsheet.py).
