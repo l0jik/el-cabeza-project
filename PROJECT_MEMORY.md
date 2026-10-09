@@ -8899,3 +8899,23 @@ phone menu until "Start the story over" (which clears it).
     site (dirt, tracks, a pit, hoarding, a digger, materials, a cabin),
     court (basketball, hoops), market (striped stalls), playground,
     parking. 62-66 re-rendered with them.
+- DESIGN RULE for city pieces (user): pieces keep the form of the game
+  piece they stand for. No setbacks or tiers (an upper part a different
+  size), no spires, cones or steeples; antennas are fine. Reason: tiered
+  silhouettes make it hard to tell which piece you're looking at. (The
+  backdrop city may keep its towers; the pieces may not.) The user's
+  suggested direction: mid-century / postmodern, floors slightly offset
+  from one another, the whole piece cohesive to its game piece.
+- City mock-ups, round 7 (67-71), mid-century with the form kept:
+  BUILD.midmod (each floor a facade box of the full footprint less a
+  little, shifted by pal.offset, default 0.03, on a slow pattern along
+  the long side and less across; thin slab edges a floor; a recessed
+  glass ground floor; a flat roof plate, a low plant room, an antenna
+  over 1.2 tall; optional vertical fins), FACADE.midmod (ribbon windows
+  with mullions over coloured spandrel panels from pal.panels),
+  CABEZA.midmod (a round glass pavilion, thin columns, a flat disc
+  roof). P.formTrue keeps béton brut's stair core flush and no higher
+  than the roof. 67 Offset Floors, 68 Fins and Ribbons, 69 Postmodern
+  Colour Blocks, 70 Mid-Century against Brut, 71 Golden Hour; all with
+  the city lots, a backdrop of glass, brut and mid-century boxes (no
+  crowns). overview.py's default order now ends with day7.
