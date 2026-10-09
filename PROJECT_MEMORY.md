@@ -8538,3 +8538,33 @@ phone menu until "Start the story over" (which clears it).
   the drag landed on the growing canvas). Passing: rules-selections smoke
   (7 new), e2e-gate (sheet, order form with its X, De Stijl), e2e-lluvia
   (+ every LAWS row as tall as its words), e2e-singularity, e2e-pivot-guide.
+- City Day / City Night (user: two new worlds for the theme switcher, a
+  city by day and by night, each piece a building, the board streets; ten
+  mock-ups, five each; a kinetic-architecture brief: a building pivots on
+  an edge like a high-stress fulcrum (shear cracks, dust), its floor
+  plates and walls slide on tracks and lock as it lands, form follows the
+  new orientation (a tower lying down becomes a concourse or bridge),
+  aligned to the street grid, industrial materials with clean seams, air
+  displaced through vents, streetlights and wires shaken). Mock-ups were
+  three.js stills, scratch only (session scratchpad city/: city.js,
+  presets.js, shoot.mjs via a local server); not in the repo. Shared:
+  pieces at game size (0.87 a cube on 1.056 squares; the Cabeza a 0.87 x
+  0.21 drum, the city's civic rotunda); streets on the grid lines, a
+  paved block a square (multi-square pieces bridge streets); one piece
+  mid-pivot each, built as storeys slid along the roll with lit tracks in
+  the seams, cracks and dust at the fulcrum, vented air, a streetlight
+  and wires swung; a tower Flaco on one side, a lying concourse Flaco on
+  the other. Glass reflects the preset's own sky (PMREM of a gradient
+  sphere); concrete gets no room reflections (it washed out). Day: 1
+  Béton Brut (proud concrete bands, deep ribbon glass, pilotis, stair
+  core; charcoal vs pale), 2 Curtain Wall (bronze vs blue-green glass,
+  morning sun), 3 Constructivist Works (red/black vs cream, Warren truss
+  and X-bracing, roof signs, tram-track grid, Tatlin-spiral Cabeza), 4
+  Habitat Kit (Habitat 67 modules, two a cube, staggered, glazed ends;
+  white vs plywood on a plan board; round windows read as dice, dropped),
+  5 Infrastructure (Cor-ten vs galvanised on a viaduct deck with bus
+  lanes, the Opa a parking deck, gasholder Cabeza, overcast). Night: 6
+  Sodium Vapour, 7 Blue Hour, 8 Floodlit Monument (spotlights and beam
+  cones up the concrete), 9 Grid From Above (glowing amber street grid),
+  10 Night Shift (steel frames, nets, a tower crane, work lights).
+  Awaiting the user's pick.
