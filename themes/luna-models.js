@@ -252,7 +252,16 @@ function roofKit(kit, X, Z, y, pal) {
    top, as an arch's legs under the lintel); every row of two or more
    cubes side by side is a pod at its level; a cube on its own takes the
    Turrito's squircle. The parts overlap into one building of the piece's
-   exact shape. */
+   exact shape.
+
+   Where two parts overlap, the one inside is drawn a hair smaller (INNER)
+   so it never shares the outside wall: a column inside the row it passes
+   through, the second of two rows crossing at a cube (an L's arms). Same
+   size, the two walls and their rounded corners lay one on the other,
+   each sampled from its own middle, and fought, in stripes (user: "Z
+   fighting on building corner", in the game and in the setup's 3D
+   piece). */
+const INNER = 0.004;
 function voxBody(vox, w, h, z, pal, side) {
   const cubes = vox.split(";").map((s) => s.split(",").map(Number)), has = new Set(cubes.map((c) => c.join(",")));
   const X = w * PS, Z = h * PS, at = (x, y) => [-X / 2 + PS * (x + 0.5), -Z / 2 + PS * (y + 0.5)];
@@ -272,15 +281,23 @@ function voxBody(vox, w, h, z, pal, side) {
     let l2 = top; if (top > 0 && inRun(x, y, top)) l2 = top - 1;
     if (top === 0) continue;
     const open = l2 === top, H = (l2 + 1) * PS, [cx, cz] = at(x, y);
-    const q = PS / 2 - m, plan = roundPlan(q, q), Hc = H + (open ? 0 : 0.02);
+    // (Inside a row at any of its levels, or up into the lintel it holds: in from it.)
+    let inner = !open;
+    for (let k = 0; k <= l2; k++) if (inRun(x, y, k)) inner = true;
+    const q = PS / 2 - m - (inner ? INNER : 0), plan = roundPlan(q, q), Hc = H + (open ? 0 : 0.02);
     place(planBody(plan, Hc, pal, side, { edge: open ? roundEdge(Hc) : [0, 0], topBand: true, bands: [] }), cx, cz, 0);
     for (let k = 0; k <= l2; k++) used.add(`${x},${y},${k}`);
     ground.push(((ox, oz) => (px, pz) => plan(px - ox, pz - oz))(cx, cz));
   }
   // pods: every row of two or more, at its level, rounding over on top where nothing stands on it
+  const podded = new Set();
   for (const R of runs) {
     const n = R.b - R.a + 1, [x0, z0] = R.axis === "x" ? at(R.a, R.at) : at(R.at, R.a), [x1, z1] = R.axis === "x" ? at(R.b, R.at) : at(R.at, R.b);
-    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, hx = (R.axis === "x" ? n * PS : PS) / 2 - m, hz = (R.axis === "x" ? PS : n * PS) / 2 - m;
+    const cells = Array.from({ length: n }, (_, i) => (R.axis === "x" ? [R.a + i, R.at] : [R.at, R.a + i]));
+    // (Crossing a row already laid at this level, an L's second arm: in from it.)
+    const inner = cells.some(([xx, yy]) => podded.has(`${xx},${yy},${R.l}`)) ? INNER : 0;
+    cells.forEach(([xx, yy]) => podded.add(`${xx},${yy},${R.l}`));
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, hx = (R.axis === "x" ? n * PS : PS) / 2 - m - inner, hz = (R.axis === "x" ? PS : n * PS) / 2 - m - inner;
     let open = true; for (let k = R.a; k <= R.b; k++) { const [xx, yy] = R.axis === "x" ? [k, R.at] : [R.at, k]; if (sits(xx, yy, R.l)) open = false; used.add(`${xx},${yy},${R.l}`); }
     const inside = roundPlan(hx, hz);
     place(planBody(inside, PS, pal, side, { edge: open ? roundEdge(PS) : [0, 0], base: R.l === 0, topBand: true, bands: [], bottom: R.l > 0 }), cx, cz, R.l * PS);

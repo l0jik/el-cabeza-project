@@ -9722,3 +9722,49 @@ phone menu until "Start the story over" (which clears it).
     lure isn't held off (open() skips it, the reload doesn't), so on a
     slow load it can take the screen before the bar is seen. Timing in
     the test, not this round's code.
+- Luna: z-fighting on odd pieces, and shadows swinging as the view turns
+  (user: "Glitching / z-fighting on building corner", the same "in the 3D
+  model on the settings piece selection menu" (the Hombro), then a video:
+  "Glitching on shadows during screen movement").
+  - Z-fighting: voxBody (luna-models.js) builds an odd piece from parts
+    that overlap: a column (cubes rising from the ground) and a pod for
+    every row of two or more at a level. A column inside the row it
+    passes through, and the two arms of an L crossing at a cube, had the
+    same plan at the shared end (rounded caps of the same radius about
+    the same cube), so their walls, bands and facades lay one on the
+    other; each part samples its outline from its own middle (144 rays),
+    so the two faceted curves crossed every few millimetres: vertical
+    stripes on the corners, broken gold bands. Now the part inside is
+    drawn INNER (0.004) smaller: a column that is in a row at any of its
+    levels, or that holds a lintel (pokes 0.02 into it); a pod that
+    crosses a row already laid at its level. 0.004 is ~40x the
+    tessellation gap and far above depth precision (camera near 1). The
+    setup's 3D viewer (reality-gate.js lookModel -> buildPieceVisual) uses
+    the same buildings, so it is fixed by the same change. Checked:
+    close-ups on the board (scratch zfight/repro.mjs) and the viewer for
+    all eight odd types (zfight/viewer.mjs, before/after pairs).
+  - Shadows: the chassis turns the board (boardGroup.rotation.y = -theta)
+    under a key light fixed in the world. Elsewhere that is pieces on a
+    flat plate under a lamp; in Luna the board is the ground, every crater
+    and dust bank of it, so the whole landscape turned under a still sun
+    and every shadow (the ground's own too) swung, grew and shrank as the
+    view was dragged. luna-fx attach() (every tick, after the chassis's
+    applyCamera) now turns the sun with the board: SUN_DIR rotated about Y
+    by boardGroup.rotation.y - SUN_TURN, SUN_TURN = -PI so the dark side's
+    first view (theta PI) is lit exactly as before. The fill (earthshine)
+    stays with the sky and the Earth, which follow the view. The shadow
+    frustum is centred on the origin, so it covers the board at any turn,
+    and its texel grid now turns with the ground (no more swimming).
+    Checked by turning the board a degree a frame (scratch
+    shadowvid/turn.mjs): before, the shadows swept and smudges came and
+    went at building feet; after, they hold. From the light side the base
+    is lit from the other side (side-lit, a little from behind), as
+    walking round it would be.
+  - Scratch only: ffmpeg is at
+    scratchpad/vidtools/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2
+    (no system ffmpeg) for reading the user's screen recordings.
+  - Tests: e2e-smoke luna, e2e-gameplay luna, e2e-gate (the setup's 3D
+    viewer, 61 checks) passed. e2e-touch-in-game passed every world it
+    reached (Luna included, 73 checks) before a 900 s cap I'd set cut it
+    off in the last (Parrish, Go deo na ndeor): the whole test takes
+    longer than 15 minutes now; give it more.

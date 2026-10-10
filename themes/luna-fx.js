@@ -5,9 +5,11 @@
    - The chassis's board plate is hidden; the lunar surface takes its
      place, hung on the chassis's boardGroup so it turns with the board,
      and made again if the board changes size.
-   - The sky stays put as the board turns, with the sun: the key light is
-     moved down toward the horizon (long shadows), the fill to the Earth's
-     side (earthshine). The page renders in sRGB, as the mock-ups did.
+   - The sky stays put as the board turns, the Earth with it; the sun (the
+     key light, low: long shadows) turns with the board, so every shadow
+     keeps its place on the ground as the view goes round. The fill comes
+     from the Earth's side (earthshine). The page renders in sRGB, as the
+     mock-ups did.
    - The corridors: when a building moves, its side's tubes deflate; when
      the pieces have come to rest, the ground under the board is settled
      round them and each side's network laid again, the tubes inflating
@@ -31,8 +33,9 @@ import { routeCorridors, buildCorridors, disposeCorridors, networkKey } from "./
 import { footprintOf, coveredIds, personFig, personH, std, mesh, boxM, glowSprite, col, cv, tex, PAL } from "./luna-models.js";
 
 // The sun: low (18 degrees; the mock-ups' 12 threw the tall pieces' shadows across the whole board), from the
-// board's right as the player first sees it, a little toward them.
+// board's right as the player first sees it (from the dark side, the board turned SUN_TURN), a little toward them.
 const SUN_DIR = new THREE.Vector3(12, 3.95, 2.0).normalize();
+const SUN_TURN = -Math.PI, UP = new THREE.Vector3(0, 1, 0);
 const PLATE = new Set(["ec-slab", "ec-slab-edges", "ec-top-ring", "ec-grid"]);
 
 /* ---- life round the base ---- */
@@ -182,10 +185,18 @@ export function mountAmbientEffects(refs, { three }) {
       t.spawnLandingParticles = spawnDust;
     }
     if (dims !== `${SLAB_X}x${SLAB_Z}`) buildWorld(t);
-    // the sun low in the sky, the earthshine from the Earth's side
+    /* The sun low in the sky, turning with the board (user: "glitching on
+       shadows during screen movement"): the chassis turns the board, not
+       the camera, and here the board is the ground, every bank and crater
+       of it. Under a sun held still, the whole moon turned beneath it as
+       the view was dragged, and every shadow, the ground's own too, swung
+       and grew and shrank across it. Turned with it, a shadow stays where
+       it falls; only the view goes round. The earthshine from the Earth's
+       side, which stays in the sky with the view. */
     if (t.lights) {
       const L = t.lights;
-      sun.copy(SUN_DIR).multiplyScalar(25); if (!L.key.position.equals(sun)) L.key.position.copy(sun);
+      sun.copy(SUN_DIR).applyAxisAngle(UP, t.boardGroup.rotation.y - SUN_TURN).multiplyScalar(25);
+      if (!L.key.position.equals(sun)) L.key.position.copy(sun);
       if (L.fill) L.fill.position.copy(EARTH_DIR).multiplyScalar(20);
     }
     // the chassis's plate, unseen: the ground is the board
