@@ -198,6 +198,16 @@ How to use it:
     way through playing it again then (the line "Chato · 1 roll left",
     not "… to move"); the old build caught that too, one run in two.
     It now reads the line until it settles (10 s at most): 3/3.
+  - The GitHub workflow's first run (c13ede9): 7 of 8 machines green
+    (13-25 min each); the 8th failed e2e-sound-channels, "the store's
+    slider at half", reading [0.25, 1]. Those machines run the
+    Playwright's own Chrome 153 (the /opt/pw-browsers path is a link to
+    it); here it's the older Chromium 1194. A gain node with nothing
+    passing through it (the store's far-off bus, between sounds) isn't
+    worked by Chrome 153, so its live gain still read the old level,
+    though its fade was set. tienda-audio.js's test hook now also gives
+    gateLevels (what each gate is set to; regate() records it), and the
+    test's four level checks read those.
     scratch files/check.mjs: the moved files load beside every page that
     names them (the cue: 11 pages; the hand: Neon and Nova).
 - Back to Cabeza Nova (user: after a game ended in a gated world (Cromo,

@@ -45,13 +45,16 @@ for (const k of ["sound-all", "sound-ch-music", "sound-ch-store", "sound-ch-piec
 await page.locator('[data-testid="sound-ch-store"]').fill("50");
 await page.waitForTimeout(500);
 let half = await audio();
-check("the store's slider at half: its path at a quarter (heard as the square)", half.gates.store.every((g) => Math.abs(g - 0.25) < 0.02), JSON.stringify(half.gates.store));
+// (gateLevels: the level each gate is set to. A gate nothing's passing
+// through isn't worked by Chrome 153, so its live value can lag: GitHub's
+// machines read [0.25, 1] here.)
+check("the store's slider at half: its path at a quarter (heard as the square)", half.gateLevels.store.every((g) => Math.abs(g - 0.25) < 0.02), JSON.stringify(half.gateLevels.store));
 await page.locator('[data-testid="sound-ch-store"]').fill("100");
 await page.locator('[data-testid="sound-ch-music"]').fill("0");
 await page.waitForTimeout(500);
 let a = await audio();
-check("Music off silences the music's path", a.gates.music.every((g) => g === 0), JSON.stringify(a.gates));
-check("...and leaves the store and the pieces sounding", a.gates.store.every((g) => g === 1) && a.gates.pieces.every((g) => g === 1), JSON.stringify(a.gates));
+check("Music off silences the music's path", a.gateLevels.music.every((g) => g === 0), JSON.stringify(a.gateLevels));
+check("...and leaves the store and the pieces sounding", a.gateLevels.store.every((g) => g === 1) && a.gateLevels.pieces.every((g) => g === 1), JSON.stringify(a.gateLevels));
 check("...while the music itself keeps its place (still playing underneath)", a.music === true);
 check("the dock stays open while you use the menu", (await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "true");
 await page.keyboard.press("Escape");
@@ -63,7 +66,7 @@ await page.locator('[data-testid="sound-ch-pieces"]').fill("0");
 await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "S"));
 await page.waitForTimeout(1500);
 a = await audio();
-check("Pieces off silences the game's own sounds", a.gates.pieces.every((g) => g === 0), JSON.stringify(a.gates));
+check("Pieces off silences the game's own sounds", a.gateLevels.pieces.every((g) => g === 0), JSON.stringify(a.gateLevels));
 await openDock();
 if (!(await page.locator('[data-testid="sound-menu"]').count())) await page.locator('[data-testid="sound-button"]').click();
 await page.locator('[data-testid="sound-ch-pieces"]').fill("100");
