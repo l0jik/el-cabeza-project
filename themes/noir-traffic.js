@@ -112,6 +112,11 @@ export function createTraffic({ EX, EZ, compile }) {
     const beamM = glowMat(0), beam = flat(info.width * 2.0, info.len * 1.7, beamM, info.len * 0.5 + info.len * 0.75);
     const heads = info.head.map(([x, y, z]) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xfff4dc, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })); s.position.set(x + 0.004, y, z); s.scale.set(0.07, 0.07, 1); s.raycast = NO_TAP; rig.add(s); return s; });
     const tails = info.tail.map(([x, y, z]) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: 0xc8c8c8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })); s.position.set(x - 0.004, y, z); s.scale.set(0.035, 0.035, 1); s.raycast = NO_TAP; rig.add(s); return s; });
+    // and the same lamps as points the same size on the screen however far
+    // off (from high over the board a car is its lights going down a street)
+    const point = (x, y, z, size, color) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, sizeAttenuation: false })); s.position.set(x, y, z); s.scale.set(size, size, 1); s.raycast = NO_TAP; rig.add(s); return s; };
+    const headPts = info.head.map(([x, y, z]) => point(x + 0.006, y, z, 0.011, 0xfff4dc));
+    const tailPts = info.tail.map(([x, y, z]) => point(x - 0.006, y, z, 0.007, 0xbdbdbd));
     rig.visible = false;
     group.add(rig);
     return {
@@ -121,13 +126,15 @@ export function createTraffic({ EX, EZ, compile }) {
         shadowM.opacity = 0.55 * v; beamM.opacity = 0.32 * v;
         heads.forEach((s) => { s.material.opacity = 0.95 * v; });
         tails.forEach((s) => { s.material.opacity = 0.6 * v; });
+        headPts.forEach((s) => { s.material.opacity = 0.9 * v; });
+        tailPts.forEach((s) => { s.material.opacity = 0.55 * v; });
       },
       dispose() {
         // (the model's shape is its kind's, kept by noir-cars.js)
         group.remove(rig);
         mats.forEach((m) => m.dispose());
         [shadow, beam].forEach((m) => { m.geometry.dispose(); m.material.dispose(); });
-        [...heads, ...tails].forEach((s) => s.material.dispose());
+        [...heads, ...tails, ...headPts, ...tailPts].forEach((s) => s.material.dispose());
       },
     };
   }

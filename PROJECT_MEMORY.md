@@ -284,7 +284,9 @@ How to use it:
     dissolves when a piece moves. Cars: no shadow (shadow-watch would
     redraw every frame), no taps, a dithered dissolve in and out (their
     own material clones), headlamp glows, a beam on the street, tail
-    glows, a soft shadow. The next car is made ready ~1.5 s after the
+    glows, a soft shadow; and the lamps again as points a fixed size on
+    the screen (sizeAttenuation off), so from the phone's default view,
+    high over the board, a car still shows as its lights down a street. The next car is made ready ~1.5 s after the
     last left (shape, materials, renderer.compile for its shaders).
     Test hook __NOIR_TRAFFIC__ (state, closed, spawn {street, kind,
     paint, ring, at}, pace, freeze). In the software test browser the
