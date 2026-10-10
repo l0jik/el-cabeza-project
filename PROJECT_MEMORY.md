@@ -303,3 +303,23 @@ How to use it:
     follow a curved nose (noseStrip lays it on the outline); the test
     camera's target is in the world, the board turned under it (use the
     car's world position). Not done: sounds for the cars (to offer).
+- CI after the Noir cars: e2e-summon's desktop part ("on a computer")
+  missed its tap on the summons on GitHub twice running (b13ef3e and
+  its re-run): no invite, then a 30 s timeout. Not the cars: the Nova
+  and Neon pages built from b13ef3e are byte-identical to the last
+  green build (6f4c15a). It fails only on GitHub's faster machines
+  (there, in shard 8, e2e-outline takes ~77 s and e2e-singularity
+  185-210 s, against ~102 s and ~241 s on the slower ones): every
+  slower-machine run has passed (4 of 4), every faster one failed (2
+  of 2). Here it passes every way tried: Chrome 141 and GitHub's own
+  Chrome 153 (Chrome for Testing, from storage.googleapis.com/
+  chrome-for-testing-public/<version>/linux64/chrome-linux64.zip,
+  reachable here though cdn.playwright.dev isn't), with Google's fonts
+  or without (here they fail on the proxy's certificate; a launch with
+  proxy {server: HTTPS_PROXY} and contexts with ignoreHTTPSErrors loads
+  them, and Neon's title is then 145 px tall, not 125), the CPU slowed
+  4x or not. So the test now notes each press, the invite coming and
+  going, full screen and resizes, and on a miss prints them with
+  what's under the point, the summons' state, the title and the canvas
+  (cd46547), then goes on to the other sections. Open: on the next
+  faster-machine run, read that line in shard 8's log and fix the cause.
