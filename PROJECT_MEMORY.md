@@ -208,6 +208,16 @@ How to use it:
     though its fade was set. tienda-audio.js's test hook now also gives
     gateLevels (what each gate is set to; regate() records it), and the
     test's four level checks read those.
+  - The second run (e60c3a5): that one green, but e2e-hall-after-game
+    failed "another turn" (green in the first run). Its turn() asked
+    for a turn's two rolls 0.9 s apart, and the board drops a move
+    asked for while a roll's still going (beginMove: anim or busy), so
+    on a slow moment the second roll was lost and the turn never
+    finished. Reproduced the timing with Chrome's CPU throttle (4x, 6x:
+    the first roll still going at 0.9 s). turn() now asks for each roll
+    once the cube has stood still 1.5 s, reading whose turn it is each
+    time, till the turn's recorded (20 s at most): green at 1x and 6x.
+    (e2e-pivot spaces its moves 1.4-1.6 s; green on GitHub both times.)
     scratch files/check.mjs: the moved files load beside every page that
     names them (the cue: 11 pages; the hand: Neon and Nova).
 - Back to Cabeza Nova (user: after a game ended in a gated world (Cromo,

@@ -75,15 +75,28 @@ async function winNow(page, wait = true) {
   return poll(async () => (await page.locator('[data-testid="victory-backdrop"]').getAttribute("data-open")) === "true", 8000);
 }
 // A whole turn for whoever's to move: their cube rolled twice, away from
-// everything (each roll 1 of the turn's 2 actions).
+// everything (each roll 1 of the turn's 2 actions). Each roll is asked for
+// once the cube has stood still a moment, whoever's turn it is read again
+// each time: a move asked for while the last is still rolling is dropped
+// (the board's own rule), and two at a fixed 0.9 s apart lost the second
+// on a slow machine now and then (GitHub's), leaving the turn unfinished.
 async function turn(page) {
-  const dark = (await page.locator('[data-testid="turn-status"]').getAttribute("data-side")) === "dark";
-  const before = await page.evaluate(() => (window.__EC_TEST_TURNS__ || []).length);
-  for (let i = 0; i < 2; i++) {
-    await page.evaluate((dark) => window.__EC_TEST_MOVE__(dark ? "dark-turrito" : "light-turrito", dark ? "E" : "W"), dark);
-    await page.waitForTimeout(900);
+  const turns = () => page.evaluate(() => (window.__EC_TEST_TURNS__ || []).length);
+  const before = await turns();
+  const at = () => page.evaluate(() => (window.__EC_TEST_PIECES__ || []).filter((p) => /turrito/.test(p.id)).map((p) => `${p.id}@${p.row},${p.col}`).join(" "));
+  let last = await at(), still = 0;
+  for (const end = Date.now() + 20000; Date.now() < end; ) {
+    if ((await turns()) > before) return true;
+    const now = await at();
+    if (now !== last) { last = now; still = Date.now(); }
+    if (Date.now() - still > 1500) {
+      const dark = (await page.locator('[data-testid="turn-status"]').getAttribute("data-side")) === "dark";
+      await page.evaluate((dark) => window.__EC_TEST_MOVE__(dark ? "dark-turrito" : "light-turrito", dark ? "E" : "W"), dark);
+      still = Date.now();
+    }
+    await page.waitForTimeout(150);
   }
-  return poll(async () => (await page.evaluate(() => (window.__EC_TEST_TURNS__ || []).length)) > before, 6000, 150);
+  return false;
 }
 
 console.log("kept playing twice, then the game's won");
