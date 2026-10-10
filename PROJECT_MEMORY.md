@@ -9942,3 +9942,21 @@ phone menu until "Start the story over" (which clears it).
   Checked: scratch mono2/shot.mjs (phone size; White's end close and low,
   odd pieces, the white Cabeza's rims).
   Tests: e2e lab and outline (one at a time): both passed.
+- Check alert in Minimal Mono (user's phone screenshot, "This happened on
+  a check alert on minimal mono"): two faults, both reproduced (scratch
+  check/repro.mjs: the Lab on a phone, the Hombro-over-the-Flaco position
+  from e2e-check-alert, Show me slowed right down).
+  - Show me's ghost starts on the attacker itself (and a turn on the
+    spot's stop sits where the piece stands). Same faces, same depth: the
+    red ghost and the white piece fought, the piece showing through in
+    jagged patches. checkGhostMesh's material now has polygonOffset
+    (factor -1, units -4), so a ghost on a piece's own faces draws over
+    them (a clean red over the piece). Far faces still hide behind near
+    ones (the offset is a hair, not a reorder).
+  - The Lab's bar (09 / ‹ / ›; apps/lab.jsx, z-index 30, top 10px) sat over
+    the check card's corner (the chassis puts it 12px under the top, z 13,
+    and the Lab has no --ec-shell-top). LAB_CSS now puts the game's top
+    cards (check-alert, check-alert-note, replay-bar) at 54px + the safe
+    area, where the Lab's panel opens, under the bar.
+  - e2e-check-alert.mjs wasn't in run-e2e's list (written after the
+    2026-10 audit): added. Tests: e2e check-alert and lab passed.

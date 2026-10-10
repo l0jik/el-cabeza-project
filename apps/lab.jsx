@@ -81,6 +81,11 @@ const LAB_CSS = `
   .lab-notes .lab-pal i { width: 14px; height: 14px; display: inline-block; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3); }
   .lab-vol { width: 110px; accent-color: var(--accent-primary); }
   .lab-keys { font-size: 11px; opacity: 0.6; margin: 10px 0 0; }
+  /* The game's cards across the top (the check alert and its note, the
+     replay bar) sit under the Lab's bar, where its panel opens, not
+     beneath it (the bar covered the check alert's corner; user's
+     screenshot, Minimal Mono). */
+  [data-testid="check-alert"], [data-testid="check-alert-note"], [data-testid="replay-bar"] { top: calc(54px + env(safe-area-inset-top)) !important; }
   .lab-curtain { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
   .lab-curtain.in { animation: lab-cur-in 170ms ease-in both; }
   .lab-curtain.out { animation: lab-cur-out 300ms ease-out both; }

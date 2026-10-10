@@ -4581,7 +4581,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       ? new THREE.CylinderGeometry((DISC_DIAM * CABEZA_SCALE) / 2, (DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, 40)
       : state.vox ? makePolycubeSmooth(state, PIECE_SCALE, EDGE_RADIUS)
         : makeRoundedBox(state.w * PIECE_SCALE, state.z * PIECE_SCALE, state.h * PIECE_SCALE, EDGE_RADIUS);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: CHECK_RED, transparent: true, opacity, depthWrite: false }));
+    /* (Pulled toward the camera, so a ghost lying on a piece's own faces
+       draws over them: Show me starts on the attacker itself, and a turn
+       on the spot stops where it stands. At the same depth the two fought,
+       the piece showing through the red in jagged patches; user's
+       screenshot, Minimal Mono.) */
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: CHECK_RED, transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
     const c = pieceCenter(state);
     mesh.position.set(c.x, restingY(state), c.z);
     mesh.renderOrder = 6;
