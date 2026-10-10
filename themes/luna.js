@@ -81,6 +81,13 @@ export const lights = {
 };
 // Down to near the ground, so the sky and the Earth come up over the hills (the chassis keeps 1.25).
 export const maxPitch = 1.4;
+// Room to wander (user: "the panning field needs to be increased dramatically for the Luna"): the view may
+// leave the board, out past the walkers, the lander and the rover to the far craters, 40 from the middle
+// where the board alone allowed about 8 close in (chassis theme.freeCamera). `room` is no room, only where
+// the camera itself must stay: inside the ground (luna-ground, 72 each way) with the hills still beyond, so
+// zoomed out over the edge it slides in along its line of sight rather than looking off the end of the
+// Moon. No Room view (no dollhouse). Current Player View and Top-Down View bring the board back.
+export const freeCamera = { reach: 40, yMin: -1, yMax: 8, room: { x: [-60, 60], y: [-10, 150], z: [-60, 60] } };
 
 /* ------------------------------------------------------------ board */
 

@@ -979,7 +979,7 @@ function recordHistory(history, turn, depth) {
    depths) and threaded through every recursive call — `ply` counts UP
    from the root (0) precisely so killers stay ply-indexed rather than
    remaining-depth-indexed, since `depth` counts down instead. */
-export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, deadline, rootBias = null, weights = DEFAULT_EVAL_WEIGHTS, killers = EMPTY_KILLERS, history = EMPTY_HISTORY, ply = 0) {
+export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, deadline, rootBias = null, weights = DEFAULT_EVAL_WEIGHTS, killers = EMPTY_KILLERS, history = EMPTY_HISTORY, ply = 0, rootFirst = null) {
   if (performance.now() > deadline) {
     return { score: evaluatePosition(pieces, aiPlayer, weights, player), turn: null, timedOut: true };
   }
@@ -1044,6 +1044,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
       turn: t,
       terminal,
       orderScore,
+      isFirst: ply === 0 && key === rootFirst,
       isKiller: !!(killerSlot && (killerSlot[0] === key || killerSlot[1] === key)),
       histScore: history[key] || 0,
     };
@@ -1051,6 +1052,9 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
   scoredTurns.sort((a, b) => {
     if (a.terminal !== b.terminal) return a.terminal ? -1 : 1;
     if (a.terminal) return 0; // both terminal -- no further ranking needed between them
+    // At the root, the last finished depth's choice is searched first (see
+    // findBestAiTurn: what an unfinished depth can still be trusted for).
+    if (a.isFirst !== b.isFirst) return a.isFirst ? -1 : 1;
     if (a.isKiller !== b.isKiller) return a.isKiller ? -1 : 1;
     if (a.isKiller && b.isKiller) return b.histScore - a.histScore;
     const primary = maximizing ? b.orderScore - a.orderScore : a.orderScore - b.orderScore;
@@ -1098,8 +1102,15 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
      block. */
   const dangerBeforeMove = rootBias ? cabezaInDanger(pieces, player) : false;
 
+  // The best root turn whose search finished, for a depth that runs out of
+  // time partway (see findBestAiTurn).
+  let settledTurn = null;
+  let settledScore = -Infinity;
+  let firstSettled = false; // rootFirst's own search finished
+
   for (const turn of turns) {
     let score;
+    let finished = true;
     const undos = applyTurn(pieces, turn);
     if (turn.endsGame) {
       // Terminal within this ply. depth is folded in as a small
@@ -1127,7 +1138,10 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
         ply + 1
       );
       score = child.score;
-      if (child.timedOut) timedOut = true;
+      if (child.timedOut) {
+        timedOut = true;
+        finished = false;
+      }
 
       if (rootBias) {
         // A turn that actually resolves an existing threat to my own
@@ -1221,6 +1235,13 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
     }
 
     if (rootScores) rootScores.push({ turn, score });
+    if (ply === 0 && finished) {
+      if (score > settledScore) {
+        settledScore = score;
+        settledTurn = turn;
+      }
+      if (rootFirst && moveKey(turn) === rootFirst) firstSettled = true;
+    }
 
     // Only a tie needs to know whether this turn leaves `player`'s own
     // Cabeza safe — worked out while the turn is still applied.
@@ -1272,7 +1293,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
     if (timedOut) break;
   }
 
-  return { score: bestScore, turn: bestTurn, timedOut, width: turns.length, rootScores };
+  return { score: bestScore, turn: bestTurn, timedOut, width: turns.length, rootScores, settledTurn: firstSettled ? settledTurn : null };
 }
 
 /* When the search ends one turn deep (Split Movement, 3 Actions: nothing
@@ -1339,13 +1360,14 @@ function findForcedCrush(pieces, player, rootScores, deadline) {
 }
 
 /* Iterative deepening: search depth 1, then 2, then 3… until either
-   maxDepth or timeBudgetMs runs out. A deeper attempt that times out
-   mid-search is discarded outright rather than trusted — an alpha-beta
-   search cut off partway through can be badly wrong about the branches
-   it never finished looking at, so only a FULLY completed depth's
-   answer is ever used. This is what keeps a "Hard" search from ever
-   being able to freeze the tab: worst case, it just quietly falls back
-   to whatever depth it did finish in time.
+   maxDepth or timeBudgetMs runs out. Of a deeper attempt that times out
+   mid-search, only the root turns whose searches finished are trusted —
+   an alpha-beta search cut off partway through can be badly wrong about
+   the branches it never finished looking at — and only when the last
+   finished depth's choice was among them (it is searched first; see the
+   loop below). This is what keeps a "Hard" search from ever being able
+   to freeze the tab: worst case, it just quietly falls back to whatever
+   depth it did finish in time.
 
    `cabezaStreak` is how many of the AI's own most recent consecutive
    turns moved its Cabeza, supplied by the caller (see aiCabezaStreakRef
@@ -1385,9 +1407,10 @@ function yieldToEventLoop() {
    thread for a stretch, since splitting minimaxSearch itself into
    interruptible chunks would be a considerably larger change. Callers
    now await this. */
-/* The deepest search depth the last findBestAiTurn call fully completed
-   — for tests and the AI simulator (tests/ai-sim.mjs). */
-export const lastSearchInfo = { depth: 0, depthMs: [] };
+/* The deepest search depth the last findBestAiTurn call fully completed,
+   and whether the depth after it, unfinished, changed the choice — for
+   tests and the AI simulator (tests/ai-sim.mjs). */
+export const lastSearchInfo = { depth: 0, depthMs: [], partial: false };
 
 
 export async function findBestAiTurn(
@@ -1456,12 +1479,27 @@ export async function findBestAiTurn(
 
   lastSearchInfo.depth = 0;
   lastSearchInfo.depthMs = [];
+  lastSearchInfo.partial = false;
   for (let depth = 1; depth <= maxDepth; depth++) {
     if (performance.now() > deadline) break;
     if (depth > 1) await yieldToEventLoop(); // let a frame render between depths — see the function comment above
     const depthStart = performance.now();
-    const result = minimaxSearch(working, aiPlayer, aiPlayer, depth, -Infinity, Infinity, deadline, rootBias, weights, killers, history, 0);
-    if (result.timedOut && depth > 1) break;
+    const result = minimaxSearch(working, aiPlayer, aiPlayer, depth, -Infinity, Infinity, deadline, rootBias, weights, killers, history, 0, best && moveKey(best));
+    /* A depth that runs out of time is not all lost. It searches the last
+       depth's choice first, to the end, so every other root turn whose
+       search also finished and scored higher is a better choice at this
+       depth too (the root keeps a turn only for beating the best so far).
+       The turn the time ran out on, and every one after it, are left out.
+       This is what let the time budgets below be cut (user: "AI is spending
+       too much time thinking on turn") while keeping most of the strength:
+       about half of every think used to go on a depth thrown away. */
+    if (result.timedOut && depth > 1) {
+      if (result.settledTurn) {
+        lastSearchInfo.partial = !best || moveKey(result.settledTurn) !== moveKey(best);
+        best = result.settledTurn;
+      }
+      break;
+    }
     if (result.turn) best = result.turn;
     if (depth === 1) oneTurn = result.rootScores;
     lastSearchInfo.depth = depth;
@@ -1640,7 +1678,12 @@ export const AI_DIFFICULTY = {
        contributor to the original failure, just a different mechanism
        than "couldn't see the gap at all." */
     maxDepth: 8,
-    timeBudgetMs: 2200,
+    /* 2200 -> 1200 (user: "AI is spending too much time thinking on
+       turn"). Measured in Node on classic games, a 2200ms think had its
+       answer at 0.6-1.5s and spent the rest on a depth it then threw
+       away; an unfinished depth now keeps its finished root turns (see
+       findBestAiTurn), so the cut costs less than a depth. */
+    timeBudgetMs: 1200,
     twoStepBias: 0,
     cabezaRepeatBias: 11,
     pieceRepeatBias: 6,
@@ -1718,8 +1761,10 @@ export const AI_DIFFICULTY = {
        (and the 3D scene competes with it). Checked with tests/ai-sim.mjs
        against Medium on the classic board: 3500ms with beam 12 went
        7 wins / 0 losses / 3 draws, while 3000ms (beam 10 or 8) fell to
-       an even match. */
-    timeBudgetMs: 3500,
+       an even match. 3500 -> 2800 with Medium's cut (see there): at 2000
+       it lost to the old Hard 1-5 (2 draws) and only drew with the new
+       Medium 2-2, so it was no longer the harder of the two. */
+    timeBudgetMs: 2800,
     twoStepBias: 10,
     cabezaRepeatBias: 9,
     pieceRepeatBias: 5,

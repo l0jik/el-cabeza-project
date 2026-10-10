@@ -181,6 +181,7 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
 const TWO_FINGER_TAP_MAX_MS = 300; // a two-finger contact shorter than this, with barely any movement, is a tap
 const TWO_FINGER_TAP_MOVE_PX = 12; // max cumulative midpoint travel still counted as a tap, not a drag
 const TWO_FINGER_DOUBLE_TAP_MS = 400; // max gap between two taps to count as a double-tap
+const AI_BEAT_MS = 500; // the AI's first step comes no sooner than this after its turn comes round (see the AI turn effect)
 // The player took the page out of full screen themselves (the button or the
 // two-finger double-tap): it stays out until they put it back.
 let fullscreenDeclined = false;
@@ -5607,6 +5608,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const aiWorkerRef = useRef(null);
   const aiRequestsRef = useRef(new Map());
   const aiRequestIdRef = useRef(0);
+  // The AI's search for the position it's to move in (see the AI turn
+  // effect below): { key, startedAt, search }.
+  const aiJobRef = useRef(null);
   useEffect(() => {
     const scriptEl = document.getElementById("ai-worker-src");
     if (!scriptEl || !scriptEl.textContent) return; // no bundled worker (e.g. running from source) — runAiSearch below falls back to in-thread
@@ -5682,29 +5686,47 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
     if (stepsUsed === 0 && !aiDirsRef.current) {
       setAiThinking(true);
-      // Runs on the AI worker thread now (see runAiSearch above) — the
-      // main thread stays fully responsive for the entire search,
-      // including within a single depth, not just between completed
-      // ones. `cancelled` guards against this timer's own 500ms delay
-      // or the search's own duration outliving this effect run (a
-      // fresh dependency change, e.g. a reset) — clearTimeout alone
-      // can't cancel a Promise already in flight.
-      let cancelled = false;
-      const timer = setTimeout(async () => {
+      /* The search starts at once and the pause runs alongside it (user:
+         "AI is spending too much time thinking on turn"): it used to wait
+         500ms and then search, so every think was half a second longer
+         than the search. The first step still waits until AI_BEAT_MS
+         after the turn came round, so a quick search doesn't feel
+         instant and robotic. The search belongs to the position (aiJobRef),
+         not to this effect run: a run that only re-renders the same
+         position picks up the search already going rather than starting
+         another behind it on the worker. Runs on the AI worker thread
+         (see runAiSearch above), so the main thread stays responsive
+         throughout. `cancelled` stops a superseded run from acting on
+         the answer — a Promise already in flight can't be called off. */
+      const jobKey = `${aiPlayer}|${aiDifficulty}|${log.length}|${JSON.stringify(pieces)}`;
+      let job = aiJobRef.current;
+      if (!job || job.key !== jobKey) {
         const recentPlaces = {};
         for (const snap of aiPlacesRef.current) {
           for (const id in snap) (recentPlaces[id] || (recentPlaces[id] = [])).push(snap[id]);
         }
-        const turn = await runAiSearch(
+        job = { key: jobKey, startedAt: performance.now() };
+        const args = [
           pieces,
           aiPlayer,
           AI_DIFFICULTY[aiDifficulty],
           aiCabezaStreakRef.current,
           log.length, // turns played so far — drives the opening jitter boost
           aiPieceStreaksRef.current,
-          recentPlaces
-        );
+          recentPlaces,
+        ];
+        // A worker that fails searches here instead (the search, not the
+        // position, kept: otherwise every later run would pick up the failure).
+        job.search = runAiSearch(...args).catch(() => findBestAiTurn(...args));
+        aiJobRef.current = job;
+      }
+      let cancelled = false;
+      let timer = null;
+      job.search.then((turn) => new Promise((resolve) => {
+        timer = setTimeout(() => resolve(turn), Math.max(0, AI_BEAT_MS - (performance.now() - job.startedAt)));
+      })).then((turn) => {
         if (cancelled) return;
+        if (aiJobRef.current === job) aiJobRef.current = null;
         {
           const snap = {};
           for (const p of pieces) if (p.owner === aiPlayer) snap[p.id] = placeKey(p);
@@ -5732,7 +5754,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           aiPieceStreaksRef.current = streaks;
           beginMoveRef.current(piece, planSteps[0].dir);
         }
-      }, 500);
+      });
       return () => {
         cancelled = true;
         clearTimeout(timer);

@@ -9768,3 +9768,65 @@ phone menu until "Start the story over" (which clears it).
     reached (Luna included, 73 checks) before a 900 s cap I'd set cut it
     off in the last (Parrish, Go deo na ndeor): the whole test takes
     longer than 15 minutes now; give it more.
+- Faster AI turns, Luna's wide pan, Minimal Mono's edges (user: "AI AI is
+  spending too much time thinking on turn"; "The field, the panning
+  field, needs to be increased dramatically for the Luna"; "Black pieces
+  in minimal mono need edge delineation because they're just a black
+  mass"; and "work on film noir now": Noir, the next note).
+  - AI, measured first (scratch aitime/time.mjs: AI-vs-AI in Node, each
+    turn's time, completed depth and per-depth ms). Classic, Medium used
+    all of its 2200 ms on most turns, but its last finished depth was done
+    by 0.6-1.5 s: the rest went on a depth that ran out of time and was
+    thrown away. Split Movement and 3 Actions alone: the same. With
+    Split + 3 Actions (~450-1000 turns a side) only depth 1 fits; it
+    scores every turn whatever the budget (0.3-1 s in Node), and the
+    reply checks (checkOneTurnChoice, findForcedCrush) take the rest of
+    the budget.
+  - The chassis waited 500 ms and then searched. Now the search starts
+    at once and the first step waits until AI_BEAT_MS (500) after the
+    turn came round: max(500, search) instead of 500 + search. The search
+    belongs to the position (aiJobRef, keyed by side, difficulty, log
+    length and the pieces as JSON): an effect run for the same position
+    picks up the search already going instead of queuing a second one on
+    the worker; a worker that fails searches in the page instead.
+  - engine/ai.js: the root searches the last finished depth's choice
+    first (minimaxSearch's rootFirst), and a depth that runs out of time
+    keeps the root turns whose searches finished, if that first one did:
+    returned as settledTurn and taken by findBestAiTurn
+    (lastSearchInfo.partial: whether it changed the choice). Budgets:
+    Medium 2200 -> 1200, Hard 3500 -> 2800, Easy 450 kept.
+  - Results (tests/ai-sim.mjs, AI_OLD = the previous ai.js, both sides
+    played): classic, new Medium against old 7-4 (1 draw), thinking 1.06 s
+    a turn against 1.98; Split Movement + 3 Actions + Slides + Pivot +
+    Shoving ("fast"), 3-5, the think about the same (~1 s: one depth and
+    the reply checks, whatever the budget). Hard at 2000 lost to the old
+    Hard 1-5 (2 draws) and only drew with the new Medium 2-2, so it went to
+    2800: against the new Medium 5-3 (thinking 2.4 s against 1.0). In Node
+    a classic Medium think went from 2.04 s on average to 1.07 s; with
+    the pause run alongside the search, a turn waits about half what it
+    did. The fast games' depth 1 isn't bounded by the budget (it scores
+    every turn): on a slow phone that is still the longest wait.
+  - Minimal Mono: specs.js pieces.edges { dark: 0xffffff }; lab/scene.js
+    pieceMaterial paints, on the dark pieces, every facet turned more than
+    ~12 degrees off all three axes of the piece's own frame (the fillets
+    along every outside edge; never a flat face) in the edge colour. The
+    facet's own normal (cross of dFdx/dFdy of the object-space position),
+    not the vertex normals: makePolycubeSmooth's flat faces blend vertex
+    normals across big triangles, and the first try painted white smears
+    across odd pieces' faces. The Cabeza's disc is left out (its side
+    normals are off-axis all round; it went half white) and gets two
+    white rings (TorusGeometry) at its rims. An odd piece's inward corner
+    is crisp (no fillet), so it has no line. Checked: scratch mono/shot.mjs
+    (phone size; board, close-up, odd pieces, the disc).
+  - Luna: freeCamera { reach: 40, yMin: -1, yMax: 8, room: x/z +-60,
+    y -10..150 }: the view's target may go 40 from the middle (the board's
+    own clamp allowed ~8 close in); the room box is only where the camera
+    itself may be, so zoomed out over the far craters it slides in along
+    its line of sight instead of passing the ground's end (luna-ground
+    EXT 72) and looking off the edge of the Moon. No dollhouse, so no
+    Room view. Checked: scratch luna/pan.mjs (phone size; 40 out, zoomed
+    right out, looking outward to the hills).
+  - Tests: test:engine's engine.smoke and ai-threats.smoke; e2e (one at
+    a time, 25 min): ai-worker, ai-split, smoke luna, standard and lluvia,
+    gameplay standard and luna, lab, outline, board-size, points,
+    undo-audio, singularity, lluvia, split-three: all passed.

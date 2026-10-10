@@ -142,7 +142,7 @@ export function createScene(spec) {
   }
 
   /* ---------------- pieces */
-  function pieceMaterial(isDark) {
+  function pieceMaterial(isDark, isDisc = false) {
     const m = isDark ? P.dark : P.light;
     const Mat = m.clearcoat ? THREE.MeshPhysicalMaterial : THREE.MeshStandardMaterial;
     const mat = new Mat({
@@ -151,6 +151,36 @@ export function createScene(spec) {
     });
     const tex = pieceSurface(m.texture);
     if (tex) mat.map = tex;
+    /* Edge lines (Minimal Mono's black pieces; user: "Black pieces in
+       minimal mono need edge delineation because they're just a black
+       mass"). Matte black faces shade the same black whichever way they
+       face, so nothing showed where the top met the sides. The rounded
+       edges are painted in the edge colour instead: every facet that
+       faces more than about 12 degrees off the nearest axis of the
+       piece's own frame, which is the fillet along every outside edge
+       and never a flat face. The facet's own facing (from the slopes of
+       its position across the screen), not the smoothed vertex normals:
+       an odd piece's flat faces blend those across whole faces, and
+       painted smears. The Cabeza's disc has no fillet; it gets rings
+       (buildPieceVisual). */
+    if (isDark && P.edges && !isDisc) {
+      const edge = new THREE.Color(P.edges.dark);
+      mat.onBeforeCompile = (shader) => {
+        shader.uniforms.uEdgeColor = { value: edge };
+        shader.vertexShader = shader.vertexShader
+          .replace("#include <common>", "#include <common>\nvarying vec3 vPiecePos;")
+          .replace("#include <begin_vertex>", "#include <begin_vertex>\nvPiecePos = position;");
+        shader.fragmentShader = shader.fragmentShader
+          .replace("#include <common>", "#include <common>\nvarying vec3 vPiecePos;\nuniform vec3 uEdgeColor;")
+          .replace("#include <color_fragment>", `#include <color_fragment>
+            {
+              vec3 an = abs(normalize(cross(dFdx(vPiecePos), dFdy(vPiecePos))));
+              float onAxis = max(an.x, max(an.y, an.z));
+              diffuseColor.rgb = mix(diffuseColor.rgb, uEdgeColor, 1.0 - smoothstep(0.96, 0.98, onAxis));
+            }`);
+      };
+      mat.customProgramCacheKey = () => "lab-piece-edges";
+    }
     return mat;
   }
 
@@ -168,7 +198,7 @@ export function createScene(spec) {
   }
 
   function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
-    const mesh = new THREE.Mesh(geo, pieceMaterial(isDark));
+    const mesh = new THREE.Mesh(geo, pieceMaterial(isDark, isDisc));
     mesh.position.set(center.x, y, center.z);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -197,6 +227,21 @@ export function createScene(spec) {
         mesh.add(decal);
         mesh.addEventListener("removed", () => { g2.dispose(); m2.dispose(); });
       }
+    }
+
+    if (isDisc && isDark && P.edges) {
+      // The disc's two rims as thin rings (see pieceMaterial's edge lines).
+      const R = (DISC_DIAM * CABEZA_SCALE) / 2, H = (DISC_H * CABEZA_SCALE) / 2;
+      const ringGeo = new THREE.TorusGeometry(R, 0.012, 6, 64);
+      const ringMat = new THREE.MeshStandardMaterial({ color: P.edges.dark, roughness: 1, metalness: 0 });
+      for (const ry of [H, -H]) {
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.y = ry;
+        ring.userData = { kind: "edge" };
+        mesh.add(ring);
+      }
+      mesh.addEventListener("removed", () => { ringGeo.dispose(); ringMat.dispose(); });
     }
 
     let shell;
