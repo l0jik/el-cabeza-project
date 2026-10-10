@@ -9710,3 +9710,15 @@ phone menu until "Start the story over" (which clears it).
     - A test driving __EC_TEST_MOVE__ for a second piece mid-turn without
       Split Movement makes a record the rules reject (the real controls
       can't do it): drive whole turns, as e2e-replay's planGame does.
+  - Tests for this round (pushed as ee5af33, deploy success): test:engine
+    (replay.smoke included); e2e smoke luna, plano, standard; gameplay
+    standard and luna; check-alert; movelog; replay; ai-split;
+    undo-audio; dock-moments (every page); nova-mobile; outside-dismiss;
+    odd-pieces; split-three. Luna close-ups (scratch luna/luna-round.mjs)
+    show the round interchanges at turns, the four-way, and the round
+    Cabeza dome.
+  - e2e-nova-mobile's "the bar layout is remembered" (after a reload)
+    failed once and passed on the rerun: after the reload the den's TV
+    lure isn't held off (open() skips it, the reload doesn't), so on a
+    slow load it can take the screen before the bar is seen. Timing in
+    the test, not this round's code.
