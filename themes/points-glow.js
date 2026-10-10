@@ -20,6 +20,7 @@ export const POINTS_GLOW = {
   cromo: { dark: "#8fcaff", light: "#f4f8ff" }, // a cold blue pilot light, chrome white
   plano: { dark: "#8ec2ff", light: "#ffffff" }, // the blueprint's line work
   luna: { dark: "#f2c14e", light: "#ff8d3a" }, // the sides' gold and orange, lit
+  noir: { dark: "#c8c8c8", light: "#ffffff" }, // a lamp's light, a lit window
   // (Each side's points the colour of its pieces, user: Walnut's walnut,
   // and Ash's the honey of the ash blocks; they were sun gold and candle
   // amber, sea-foam cream and rose wine.)

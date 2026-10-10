@@ -114,6 +114,12 @@ const LOOKS = {
     line: "rgba(232,236,242,0.22)", lineW: "1px", radius: "6px", display: "'Jost', 'Futura', 'Century Gothic', sans-serif", displayWeight: 600, body: "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif",
     shadow: "0 0 0 1px rgba(255,122,26,0.18), 0 24px 60px rgba(0,0,0,0.7)", glow: "none", case: "uppercase", track: "0.16em", cellA: "#8A8780", cellB: "#5F5C56",
   },
+  // Noir: a title card, white on black, the one red of the HOTEL sign
+  noir: {
+    backdrop: "rgba(0,0,0,0.66)", surface: "rgba(14,14,15,0.97)", ink: "#ECECEC", muted: "#A2A2A2", accent: "#ECECEC", accentInk: "#0B0B0C",
+    line: "rgba(236,236,236,0.4)", lineW: "1px", radius: "0px", display: "'Bebas Neue', 'Oswald', Impact, sans-serif", displayWeight: 400, body: "'Courier Prime', 'Courier New', monospace",
+    shadow: "0 0 0 3px #0B0B0C, 0 0 0 4px rgba(236,236,236,0.35), 0 24px 60px rgba(0,0,0,0.75)", glow: "none", case: "uppercase", track: "0.14em", cellA: "#3A3A3A", cellB: "#1E1E1E",
+  },
   parrish: {
     backdrop: "rgba(8,14,38,0.55)", surface: "#F6ECD6", ink: "#1D2C5E", muted: "#5A6A9A", accent: "#1D2C5E", accentInk: "#F2D293",
     line: "rgba(201,150,59,0.7)", lineW: "1px", radius: "2px", display: "'Cinzel', Georgia, serif", displayWeight: 700, body: "'Cormorant Garamond', Georgia, serif",

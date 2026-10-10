@@ -9830,3 +9830,102 @@ phone menu until "Start the story over" (which clears it).
     a time, 25 min): ai-worker, ai-split, smoke luna, standard and lluvia,
     gameplay standard and luna, lab, outline, board-size, points,
     undo-audio, singularity, lluvia, split-three: all passed.
+- Noir, a new world in the making (user: "work on film noir now", after
+  the mock-ups 30 and 50-52). Built as its own page, el-cabeza-noir.html
+  (apps/noir.jsx; build target "noir"), NOT in the theme switcher yet
+  (realities.js WORLDS untouched): the user decides when it's ready, as
+  with Luna. The gate's look (reality-gate.js LOOKS.noir), the sides
+  "Shadow" (dark) and "Silver" (light) (side-names.js; my pick, put to the
+  user), points glow lamp grey and white (points-glow.js).
+  - themes/noir.js: black and white with one red (the HOTEL sign's). The
+    board a block of wet street at night (three canvases: colour,
+    roughness at half size for the shining puddles, glow at half size for
+    the lamps' pools): pavement slabs darkened by the rain, joints,
+    puddles, a manhole now and then, pale kerbs between the squares, a
+    crossing's stripes along each goal row, columns lettered and rows
+    numbered in road paint on the street round it (each turned for its own
+    end). Pieces: the chassis's mesh an unseen hit target with the
+    building on it (as Luna). Moves: a pool of light on the square and a
+    thin white edge; a crush in the sign's red, struck through. Dock
+    words in a film set's: Wide shot / Bird's-eye / Set, "Cut", "Another
+    take", "The script", "Run a reel", "Production code", "Next scene",
+    "Fade out.", "The End.". Fonts Bebas Neue and Courier Prime.
+    maxPitch 1.36; freeCamera reach 26, the camera kept in a +-40 box.
+    Lights: ambient 0.03, hemi 0.28, key (the moon) 1.65, fill 0.12, back
+    0.5; the street dark (asphalt #0d0d0e, pavement #1f1f20), the lamps'
+    pools at 0.85 glow. The first try was an overcast day in black and
+    white; this reads as night and the pieces still read.
+  - themes/noir-models.js: tenements at each piece's exact size, ported
+    from the mock-ups' noir style: four bays and four floors a cube
+    (40 px a cell), the dark side soot-black brick with pale stone sill
+    courses, lintels, sills and quoins (so it never reads as a black
+    mass), the light side pale limestone; a third of the windows lit
+    behind venetian blinds, some half up, a figure at one now and then
+    (a fedora, a woman's hair); a shopfront on the street floor; a
+    cornice (its top 4 mm under the roof: not the same plane), a
+    parapet, a stair bulkhead and a chimney; a water tower (towerParts,
+    shared geometry) on most standing roofs; a fire escape (one merged
+    geometry) down one side of anything three floors or more; HOTEL in
+    red neon down a corner of the light Chato (only it). Odd pieces: one
+    box per unbroken run of cubes up each column, full width so
+    neighbours meet flush, faces pressed against a neighbour drawn plain,
+    the cornice only as the band painted along each face's top. The
+    Cabeza: a round newsstand (papers and magazines round the drum, NEWS
+    and PAPERS, a lit window, a dome and finial) and a street clock on a
+    cast-iron post (ten to midnight), on its own kerbed corner; black
+    enamel or white by side. Cached per piece and pose.
+  - themes/noir-city.js (on boardGroup, rebuilt with the board's size): a
+    ring street, then blocks (4.4) and streets (1.7) out to 46: the
+    ground one canvas (walks and kerbs, lane marks, crossings at every
+    corner, puddles; roughness at half and the lamps' pools at a quarter
+    of its size), plain dark ground beyond to 260; buildings in lots,
+    low by the board and taller out (4-11, 7-20, 10-34 floors), four
+    facade greys as tiling window textures (windows a quarter unit),
+    every face of a kind in one geometry (quads into sinks), a coping
+    round each roof, a skyline ring at 54-94 into the fog (and plain dark
+    ground on to 260, so no edge shows); water towers
+    instanced; the El (merged steel trestle, deck, rails) down the
+    second street on -x with a six-car lit train each way every 46 s;
+    lamp posts (instanced) on the near corners and round the board, their
+    heads one Points draw. Seen through (seeThrough, onBeforeCompile on
+    the facade, roof and El materials): a fragment inside a narrow cone
+    round the line from the camera to the view's target (FOCUS, set by
+    noir-fx from cam.current.view.target) is dropped, an ordered dither
+    at its edge, so a block behind you never fills the view (a wide cone
+    cut the tops off blocks the view passed well over; their shadows stay,
+    the depth pass doesn't drop them). roofAt(x, z): the roofs' height
+    there, from a 3-unit grid over every building, for cameraOverride.
+  - themes/noir-fx.js: renderer sRGB, exposure 0.95 (restored on dispose);
+    cameraOverride keeps the camera 0.45 above the roofs under it (free to
+    wander the streets, it could go into a block);
+    the moon (the key light) turned with the board as Luna's sun, so no
+    shadow swings as the view turns; a sky dome following the camera
+    (the city's glow on low cloud, drifting fbm cloud, a moon behind it
+    with a halo, lightning); fog 0x222225 (fog is mixed in after the
+    output encoding in r128, the same numbers as the sky shader's
+    horizon), near/far from the camera's distance; rain (LineSegments,
+    the fall in the vertex shader) round the board; three searchlights
+    (open cones, additive, fading up their length) sweeping beyond the
+    city; steam from two manholes in the ring street; a ripple on the wet
+    street where a piece lands; a pool of light under the piece picked
+    up; lightning every 22-62 s (the sky and a CSS flash) with
+    audio.thunder() after it; over the picture a vignette, a moving grain
+    and the flash, put in the canvas's layer before the chassis's fx
+    overlay (and removed on dispose).
+  - themes/noir-audio.js: rain on the street and the roofs, gutters
+    dripping, a car hissing by (panned across), the El going over (the
+    wheels on the rail joints), a siren far off, thunder; cues: a
+    typewriter key (select), a softer one (deselect), two knocks at a
+    door (blocked), stone grinding (roll), a thud and a splash
+    (landing), a flashbulb and a slammed door (crush), a low minor-ninth
+    chord (win), a projector starting and running down (power), a
+    venetian blind going up and down (the dock), a page turned (rules).
+  - Seen in the real game (scratch noir/shots.mjs, phone and desktop):
+    the first look was too grey and its puddles black holes; the near
+    blocks filled a low view (hence the see-through) and the camera could
+    sit in a roof (hence roofAt).
+  - Tests: e2e-smoke noir added to run-e2e and passed; e2e-gameplay knows
+    its names (Shadow, Silver) and passed. Its move check waited a fixed
+    0.7 s after each click: Noir's roll outlasted that on the software
+    renderer and the next candidates' clicks played Silver's turn. It now
+    polls up to 2.5 s for the turn to pass (standard and luna re-run: pass).

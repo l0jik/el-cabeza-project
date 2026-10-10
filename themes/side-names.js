@@ -32,6 +32,7 @@ export const SIDE_NAMES = {
   cromo: pair("Steel", "Chrome", ["#5A5347", "#F2F3F5"], ["dark", "bright"]),
   plano: pair("Blue", "White", ["#163F75", "#DBE9F8"]), // the blueprint: hatched blue masses, white masses
   luna: pair("Mare", "Terra", ["#2C3038", "#ECEEF0"], ["dark", "light"]), // the moon's dark seas and bright highlands
+  noir: pair("Shadow", "Silver", ["#2B2B2B", "#C4C4C4"], ["dark", "light"]), // the night's shadows and the silver screen
   // Theme Lab (only Iron and Ink, of its names, aren't colours already)
   swiss: pair("Black", "White", ["#111111", "#FAFAF8"]),
   bauhaus: pair("Red", "Blue", ["#C8332A", "#1F4EA3"]),

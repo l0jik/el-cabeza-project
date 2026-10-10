@@ -61,6 +61,8 @@ const targets = [
   { name: "plano", entry: "apps/plano.jsx", title: "Plano Cabeza", head: '<meta name="theme-color" content="#1D4C8A">' },
   // Luna: the game as a moon base, the board part of the lunar surface.
   { name: "luna", entry: "apps/luna.jsx", title: "Luna Cabeza", head: '<meta name="theme-color" content="#05070B">' },
+  // Noir: the game as a night in a film noir city (not in the switcher yet).
+  { name: "noir", entry: "apps/noir.jsx", title: "Noir Cabeza", head: '<meta name="theme-color" content="#0B0B0C">' },
   { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza", files: { "el-cabeza-lluvia-rain.mp3": "assets/lluvia/rain.mp3" } },
   // Parrish's piece sounds: the user's stabs, cut small (tools/parrish_stabs.py);
   // its intro and its close, the user's opening and end of "Orinoco Flow"

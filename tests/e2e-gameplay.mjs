@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const target = process.argv[2];
 const file = path.join(__dirname, "..", "dist", `el-cabeza-${target}.html`);
 // What the page calls its two sides (themes/side-names.js).
-const NAMES = { standard: { dark: "Walnut", light: "Ash" }, neon: { dark: "Photon", light: "Plasma" }, plano: { dark: "Blue", light: "White" }, luna: { dark: "Mare", light: "Terra" } }[target] || { dark: "Dark", light: "Light" };
+const NAMES = { standard: { dark: "Walnut", light: "Ash" }, neon: { dark: "Photon", light: "Plasma" }, plano: { dark: "Blue", light: "White" }, luna: { dark: "Mare", light: "Terra" }, noir: { dark: "Shadow", light: "Silver" } }[target] || { dark: "Dark", light: "Light" };
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
@@ -115,8 +115,15 @@ if (selected) {
       await page.waitForTimeout(300);
     }
     await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
-    await page.waitForTimeout(700); // roll animation
-    s = await statusText();
+    // The roll animation: up to 2.5 s for the turn to pass (a heavy scene,
+    // Noir's city, draws slowly on this software renderer and its roll
+    // outlasted a fixed 0.7 s wait: the next candidate's clicks then
+    // played the other side's turn), done as soon as it has.
+    for (let waited = 0; waited < 2500; waited += 250) {
+      await page.waitForTimeout(250);
+      s = await statusText();
+      if (s === `${NAMES.light} to move` || /finished/i.test(s || "")) break;
+    }
     // Deliberately NOT matching "left" here — a piece that's still
     // selected with steps remaining ("Opa - 1 roll left") also contains
     // that word, and a missed click (this candidate wasn't actually on
