@@ -10935,7 +10935,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
 
               <p style={{ margin: "0 0 16px" }}>
                 Developed sometime prior to 1977 in Argentina by Jaime
-                Poniachik and Enrique Lindenbaum, Cabeza was never officially
+                Poniachik and Enrique Lindenbaum, El Cabeza was never officially
                 published for reasons unknown. It was, however, fully
                 described in a 1987 issue of the Argentine gaming magazine{" "}
                 <em>Revista Humor y Juegos</em>, with such vivid detail that
