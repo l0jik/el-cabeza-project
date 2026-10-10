@@ -30,7 +30,9 @@ import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
 import { RealityGate, storyOver, GATE_EVENT } from "../themes/reality-gate.js";
 import { saveLastWorld } from "../themes/realities.js";
-import { sideNamesOf } from "../themes/side-names.js";
+import { sideNamesOf, SIDE_NAMES as WORLD_SIDE_NAMES, DEFAULT_SIDE_NAMES } from "../themes/side-names.js";
+import { LAW_OPTIONS } from "../themes/rules-selections.js";
+import { gameRecord, encodeReplay, checkReplay, readPastedLog, VANILLA_LAWS } from "../engine/replay.js";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
 // ABOUT's link returns to the original game. Inlined by the build.
@@ -321,6 +323,8 @@ const DOCK_WORDS = {
   endGame: "End game",
   newGame: "New game",
   moveLog: "Move log",
+  // The way into Replay a game (a pasted move log, played back).
+  replay: "Replay a game",
   plainRules: "Plain rules",
   nextGame: "Next game",
   // The line under the result: a manual end, a win.
@@ -640,6 +644,27 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      consumed by an undo — this is real history, not a single-slot
      snapshot. */
   const [turnHistory, setTurnHistory] = useState(() => carried("turnHistory", []));
+  /* A game replayed from a pasted move log (user: "a way to take a copied
+     move log and have it replay a game"; engine/replay.js). null, or
+     { rec, total, phase: "setup" | "play" | "done", playing, speed,
+     untilTurn (Next turn: play up to there), stopAt (Stop, mid-turn: end
+     the replay once that turn's played out), error }. The turns play
+     through beginMove, as taps would, so the
+     log, the history and undo build up as in a game played by hand.
+     Where it's got to is the game's own: the turn is turnHistory's
+     length (a replay starts from a fresh game), the step the turn's
+     pendingSteps. While one plays the board takes no input, the
+     computer doesn't move and nothing is refunded (a record never goes
+     back to a board its turn already had). */
+  const [replay, setReplay] = useState(null);
+  // (Its end, too, until Play on: the computer waits while the last
+  // position is looked at.)
+  const replaying = !!replay;
+  const replayingRef = useRef(false);
+  replayingRef.current = replaying;
+  // Its sheet (a pasted log in, what it holds, Replay), and the paste.
+  const [showReplaySheet, setShowReplaySheet] = useState(false);
+  const [replayText, setReplayText] = useState("");
   // Test-only mirror of the move log plus each turn's piece-tagged steps,
   // so e2e tests can read what a turn actually did (e.g. an AI Split
   // Movement turn moving two pieces) without parsing rendered text.
@@ -2473,11 +2498,69 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      brings it up. [{ attacker, cabeza }] or null. */
   const youSide = aiPlayer ? (aiPlayer === "dark" ? "light" : "dark") : null;
   const checkThreats = React.useMemo(() => {
-    if (!checkAlert || !youSide || awaitingBegin || !isPlaying || winner || currentPlayer !== youSide) return null;
+    // (Not while a replay plays: nobody's playing for real.)
+    if (!checkAlert || !youSide || awaitingBegin || !isPlaying || winner || currentPlayer !== youSide || replaying) return null;
     const found = cabezaThreats(pieces, youSide);
     return found.length ? found : null;
-  }, [checkAlert, youSide, awaitingBegin, isPlaying, winner, currentPlayer, pieces]);
+  }, [checkAlert, youSide, awaitingBegin, isPlaying, winner, currentPlayer, pieces, replaying]);
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_CHECK__ = () => checkThreats; // tests: the alert's reading
+  /* Dismissed (user: "tap outside of it or swipe it away to dismiss it if
+     you acknowledge and you want to keep moving forward ... You shouldn't
+     have to simply turn it off"): a tap anywhere else, or a swipe on the
+     card, puts the card and its marks away for this turn and these
+     threats, the alert left on. A different threat (another piece in
+     reach, another Cabeza), or the next turn's, brings it back. */
+  const [checkDismissed, setCheckDismissed] = useState("");
+  const checkKey = checkThreats ? `${turnHistory.length}|${checkThreats.map((x) => `${x.attacker}>${x.cabeza}`).sort().join(",")}` : "";
+  const checkHidden = !!checkThreats && checkKey === checkDismissed;
+  // (Once the danger's past, a dismissal is forgotten: the same threat coming back later is news again.)
+  useEffect(() => { if (!checkThreats && checkDismissed) setCheckDismissed(""); }, [checkThreats, checkDismissed]);
+  const checkCardRef = useRef(null);
+  const checkKeyRef = useRef("");
+  checkKeyRef.current = checkKey;
+  // The card goes the way it's sent (a swipe), or up and out (a tap elsewhere), then it's dismissed.
+  const dismissCheck = (dx = 0, dy = -40) => {
+    const el = checkCardRef.current, key = checkKeyRef.current;
+    if (!key) return;
+    if (!el || (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) { setCheckDismissed(key); return; }
+    el.style.transition = "transform 200ms ease-in, opacity 200ms ease-in";
+    el.style.transform = `translate(calc(-50% + ${dx}px), ${dy}px)`;
+    el.style.opacity = "0";
+    setTimeout(() => setCheckDismissed(key), 200);
+  };
+  useEffect(() => {
+    if (!checkThreats || checkHidden || typeof document === "undefined") return undefined;
+    let down = null;
+    const onDown = (e) => { const el = checkCardRef.current; down = { x: e.clientX, y: e.clientY, t: Date.now(), outside: !(el && el.contains(e.target)) }; };
+    const onUp = (e) => {
+      const d = down; down = null;
+      if (!d || !d.outside) return;
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 10 && Date.now() - d.t < 800) dismissCheck(0, -40);
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("pointerup", onUp, true);
+    return () => { document.removeEventListener("pointerdown", onDown, true); document.removeEventListener("pointerup", onUp, true); };
+  }, [checkThreats, checkHidden]);
+  // A swipe on the card itself: it follows the finger, and off it goes past a short way (or a quick flick).
+  const swipe = useRef(null);
+  const onCheckDown = (e) => { swipe.current = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, on: false }; };
+  const onCheckMove = (e) => {
+    const sw = swipe.current, el = checkCardRef.current;
+    if (!sw || sw.id !== e.pointerId || !el) return;
+    const dx = e.clientX - sw.x, dy = Math.min(0, e.clientY - sw.y);
+    if (!sw.on && Math.hypot(dx, dy) > 8) { sw.on = true; try { el.setPointerCapture(e.pointerId); } catch (err) { /* gone */ } el.style.transition = "none"; el.style.animation = "none"; }
+    if (sw.on) { el.style.transform = `translate(calc(-50% + ${dx}px), ${dy}px)`; el.style.opacity = String(Math.max(0.25, 1 - Math.max(Math.abs(dx), -dy) / 260)); }
+  };
+  const onCheckUp = (e) => {
+    const sw = swipe.current, el = checkCardRef.current; swipe.current = null;
+    if (!sw || !sw.on || !el) return;
+    const dx = e.clientX - sw.x, dy = Math.min(0, e.clientY - sw.y), dt = Math.max(1, Date.now() - sw.t), far = Math.max(Math.abs(dx), -dy);
+    if (far > 70 || (far > 24 && far / dt > 0.5)) {
+      // off in the direction it was thrown, across or up
+      if (Math.abs(dx) >= -dy) dismissCheck(Math.sign(dx) * (window.innerWidth || 800), 0);
+      else dismissCheck(0, -260);
+    } else { el.style.transition = "transform 180ms ease-out, opacity 180ms ease-out"; el.style.transform = "translate(-50%, 0)"; el.style.opacity = "1"; }
+  };
   const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
@@ -2826,7 +2909,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      own move once it's begun; under Split Movement, the turn's points if
      it may still take them; else none. */
   const checkView = React.useMemo(() => {
-    if (!checkThreats) return null;
+    if (!checkThreats || checkHidden) return null;
     const lines = checkThreats.map(({ attacker, cabeza }) => ({ attacker, cabeza, steps: crushLine(pieces, attacker, cabeza) })).filter((l) => l.steps && l.steps.length);
     const cabIds = [...new Set(checkThreats.map((x) => x.cabeza))];
     const escapes = cabIds.flatMap((id) => {
@@ -2838,7 +2921,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       return cabezaEscapes(pieces, id, left);
     });
     return { lines, escapes, cabIds };
-  }, [checkThreats, pieces, turnLocked, selectedId, stepsUsed]);
+  }, [checkThreats, checkHidden, pieces, turnLocked, selectedId, stepsUsed]);
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_CHECK_VIEW__ = () => checkView && { lines: checkView.lines.map((l) => ({ attacker: l.attacker, steps: l.steps.map((st) => st.dir) })), escapes: checkView.escapes };
   // Show me: a count, each press playing the line again.
   const [checkShow, setCheckShow] = useState(0);
@@ -2940,7 +3023,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      away, until another piece is picked or the turn moves on. */
   const [pieceCardDismissed, setPieceCardDismissed] = useState(false);
   useEffect(() => { setPieceCardDismissed(false); }, [selectedId, currentPlayer]);
-  const pieceCardShown = showGuide && isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && dockView !== "panel" && !pieceCardDismissed;
+  const pieceCardShown = showGuide && isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && !replaying && dockView !== "panel" && !pieceCardDismissed;
   /* The card sits above whatever corner buttons a theme stacks at the
      lower left (the den's lamp, room view and full screen; user: the card
      lay over them), measured as it shows and on a resize. */
@@ -2977,6 +3060,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     activePiece &&
     activePiece.owner === currentPlayer &&
     currentPlayer !== aiPlayer && // the AI moves without narrating its options on the board
+    !replaying && // (nor does a replay)
     stepsRemaining > 0
       ? legalMovesFor(pieces, activePiece, stepsRemaining)
       : {};
@@ -2989,8 +3073,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const shadowEntries = Object.entries(shadows).filter(([, m]) => !m.isSlide);
   // (Stop here above the points row; see its button. Kept up through a
   // move's own animation, when the markers are briefly gone.)
-  const stopHereFloat = !shell && isPlaying && turnLocked && currentPlayer !== aiPlayer && (stepsRemaining > 0 || busy) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
-  const undoMoveFloat = !shell && isPlaying && turnLocked && currentPlayer !== aiPlayer && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
+  const stopHereFloat = !shell && isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && (stepsRemaining > 0 || busy) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
+  const undoMoveFloat = !shell && isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
   // (The piece card's place, measured below everything at the lower left.)
   useLayoutEffect(() => {
     if (!pieceCardShown || typeof document === "undefined") return undefined;
@@ -5114,7 +5198,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        replay counts on the points it planned with. A crush or a shove
        changes the board for good, so neither can be walked back. */
     const trail = turnTrailRef.current;
-    if (currentPlayer !== aiPlayer && !move.crushes && !move.shoves) {
+    if (currentPlayer !== aiPlayer && !replayingRef.current && !move.crushes && !move.shoves) {
       const sameBoard = (a, b) =>
         a.length === b.length && a.every((p) => { const q = b.find((x) => x.id === p.id); return q && sameState(p, q); });
       const k = trail.findIndex((e) => sameBoard(e.board, nextPieces));
@@ -5190,7 +5274,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (stop) {
       // Points left over that nothing could spend: say why, so the turn
       // ending doesn't look like a glitch (the player's own turns only).
-      if (!move.teleports && used < budget && currentPlayer !== aiPlayer) {
+      if (!move.teleports && used < budget && currentPlayer !== aiPlayer && !replayingRef.current) {
         const left = budget - used;
         const why =
           piece.type === "opa" && !splitOn
@@ -5593,7 +5677,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      delay also happens to be exactly what keeps the AI's moves from
      feeling instant and robotic. */
   useEffect(() => {
-    if (!isPlaying || busy || anim.current || currentPlayer !== aiPlayer || awaitingBegin) return;
+    // (A replay plays both sides itself.)
+    if (!isPlaying || busy || anim.current || currentPlayer !== aiPlayer || awaitingBegin || replaying) return;
 
     if (stepsUsed === 0 && !aiDirsRef.current) {
       setAiThinking(true);
@@ -5681,7 +5766,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       aiDirsRef.current = null;
       if (piece) settleTurn(piece, pendingNotation, pendingSteps);
     }
-  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, pendingSteps, awaitingBegin, log, selectedId]);
+  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, pendingSteps, awaitingBegin, log, selectedId, replaying]);
 
   /* Drains a human's queued continuation (see pendingIntentRef/onUp's
      busy branch above) the instant the step it was waiting on actually
@@ -5692,7 +5777,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      cleared pendingIntentRef itself (see settleTurn), so there's nothing
      left to drain once stepsUsed resets to 0. */
   useEffect(() => {
-    if (busy || anim.current || !isPlaying || awaitingBegin || currentPlayer === aiPlayer) return;
+    if (busy || anim.current || !isPlaying || awaitingBegin || currentPlayer === aiPlayer || replayingRef.current) return;
     if (stepsUsed === 0) return;
     const intent = pendingIntentRef.current;
     if (!intent) return;
@@ -6081,7 +6166,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         // exact piece, mid-turn, on the human's own turn.
         undoDragTarget = null;
         slideDrag = null;
-        if (!altPanning && selectedId != null && !busy && !anim.current && currentPlayer !== aiPlayer && !awaitingBegin) {
+        if (!altPanning && selectedId != null && !busy && !anim.current && currentPlayer !== aiPlayer && !awaitingBegin && !replayingRef.current) {
           const hit = pick(ev);
           if (hit && hit.type === "piece" && hit.id === selectedId) {
             if (turnLocked) {
@@ -6145,7 +6230,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           }
         }
         pivotDrag = null;
-        if (!altPanning && !busy && !anim.current && currentPlayer !== aiPlayer && !awaitingBegin && isPlaying) {
+        if (!altPanning && !busy && !anim.current && currentPlayer !== aiPlayer && !awaitingBegin && isPlaying && !replayingRef.current) {
           /* The piece under the finger, looking past the move markers (a
              selected piece's turn arrows lie over its arms, and their wide
              tap areas won the press, so grabbing an arm did nothing: user,
@@ -6434,7 +6519,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         if (el.style.cursor === "pointer") el.style.cursor = "grab";
       }
 
-      if (busy || !isPlaying || currentPlayer === aiPlayer || awaitingBegin) return;
+      if (busy || !isPlaying || currentPlayer === aiPlayer || awaitingBegin || replayingRef.current) return;
       const hit = pick(ev, { respectDepth: true });
       if (hit && hit.type === "ghost") {
         el.style.cursor = "pointer";
@@ -6629,7 +6714,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          threshold, and without this it would fall through and
          select/deselect a piece on release. An Option/Alt drag is never
          a click. */
-      if (wasAltPan || wasDrag || !isPlaying || currentPlayer === aiPlayer || awaitingBegin) return;
+      // (A replay playing: the board is the replay's.)
+      if (wasAltPan || wasDrag || !isPlaying || currentPlayer === aiPlayer || awaitingBegin || replayingRef.current) return;
 
       /* A step is currently animating: real ghost meshes don't exist to
          pick() against (beginMove already cleared them), so a tap here
@@ -7126,7 +7212,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }, [status]);
   useEffect(() => { setEndTurnAsk(null); }, [currentPlayer]);
   // (Is a sheet up? Read by helpers.sheets, at the theme's mount above.)
-  sheetsUpRef.current = !!(musicPanel || musicChipOpen || soundMenuAt || showInfoOverlay || showMoveLog || endTurnAsk || showVictoryPlacard);
+  sheetsUpRef.current = !!(musicPanel || musicChipOpen || soundMenuAt || showInfoOverlay || showMoveLog || showReplaySheet || endTurnAsk || showVictoryPlacard);
   function handleStopHere() {
     // Guards the human-facing entry point only — the AI's own orchestration
     // effect calls settleTurn directly, bypassing this, so its own
@@ -7136,7 +7222,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // roll of a two-step turn (stepsUsed > 0 by then), and clicking it
     // ends the turn while that roll's own animation is still in flight,
     // before its own commit logic has had a chance to run.
-    if (!selectedPiece || stepsUsed === 0 || busy || anim.current || currentPlayer === aiPlayer || awaitingBegin) return;
+    if (!selectedPiece || stepsUsed === 0 || busy || anim.current || currentPlayer === aiPlayer || awaitingBegin || replayingRef.current) return;
     // Settle against the piece that actually moved LAST this turn, not
     // whatever happens to be selected — under Split Movement the player may
     // have just selected a second piece without moving it yet, and
@@ -7213,7 +7299,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
 
   function handleUndoTurn() {
-    if (!turnSnapshot || busy || anim.current || currentPlayer === aiPlayer || awaitingBegin) return;
+    if (!turnSnapshot || busy || anim.current || currentPlayer === aiPlayer || awaitingBegin || replayingRef.current) return;
     pendingIntentRef.current = null; // whatever was queued for this turn no longer applies
 
     const restore = () => {
@@ -7255,8 +7341,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
     run(pendingSteps.length - 1);
   }
-  function handleUndoLastTurn() {
+  // A replay's step back takes back exactly one turn, whoever played it
+  // ({ fromReplay: true }); the buttons can't while a replay plays.
+  function handleUndoLastTurn(opts) {
+    const fromReplay = !!(opts && opts.fromReplay === true);
     if (turnHistory.length === 0 || busy || aiThinking || turnLocked || anim.current || awaitingBegin) return;
+    if (replayingRef.current && !fromReplay) return;
 
     /* Collect the batch of entries to undo, most recent first. Against
        an AI opponent, keep walking past any entry the AI itself played
@@ -7275,7 +7365,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     while (stack.length > 0) {
       const entry = stack.pop();
       batch.push(entry);
-      if (aiPlayer === null || entry.currentPlayer !== aiPlayer) break;
+      if (fromReplay || aiPlayer === null || entry.currentPlayer !== aiPlayer) break;
     }
     if (batch.length === 0) return;
     const target = batch[batch.length - 1]; // oldest entry in the batch — final restore target
@@ -7484,6 +7574,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       }
       anim.current = null;
     }
+    // Nothing's mid-step in a fresh game: a step torn down above never
+    // reaches its commit, which is what would have cleared this (left set,
+    // no piece could move again; a replay started then waited forever).
+    setBusy(false);
+    stepInFlightRef.current = false;
     if (keepSingularityConfig) {
       // Persist the Singularity setup: replay the exact laws/board/roster/
       // holes/variants/FX the ended game used (re-deriving a fresh, possibly
@@ -7518,6 +7613,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     setLogCopied(false);
     setLogCopyFailed(false);
     setShowMoveLog(false);
+    setReplay(null); // a new game ends a replay (Replay a game sets one up after this)
     aiDirsRef.current = null;
     aiCabezaStreakRef.current = 0;
     aiPieceStreaksRef.current = {};
@@ -7595,10 +7691,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      entirely — e.g. pasting a completed game elsewhere for analysis.
      Reuses pairLog exactly as the display table does, so the exported
      text and what's on screen can never drift apart into two separate
-     formats. Deliberately simple (one line per turn, minimal
-     punctuation) rather than a structured format — nothing currently
-     reads this back into the game, so there's no parser to satisfy,
-     just a person or a paste target reading plain lines. */
+     formats. One line per turn, minimal punctuation, for a person
+     reading it; then, last, the game's replay code (engine/replay.js),
+     which Replay a game reads back exactly (the lines alone only say
+     which kind of piece moved, not which one, nor the setup). Last so a
+     code a chat app wraps over lines still reads to the end. */
   // The Move Log's column order: whoever opened this game first (the log's
   // first entry), or before any move, the side set to start.
   const logOpener = log.length ? log[0].player : humanStartSide;
@@ -7621,7 +7718,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         : status === "ended"
         ? "Game ended manually, no winner"
         : "";
-    const text = [summary, "", ...lines].join("\n");
+    const code = encodeReplay(gameRecord({ turnHistory, pieces: turnSnapshot || pieces, currentPlayer, status, winner }));
+    const text = [summary, "", ...lines, "", `Replay code (paste the whole log into Replay a game): ${code}`].join("\n");
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_COPIED__ = text; // tests: what was copied
 
     function announce(ok) {
       if (ok) {
@@ -7674,6 +7773,187 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     } catch (e) {
       announce(fallbackCopy());
     }
+  }
+
+  /* --------------------------------------------- replay a game */
+  /* Replay a game (user: "a way to take a copied move log and have it
+     replay a game"): a sheet takes a pasted move log, says what it reads
+     (how many turns, the result, the rules), and Replay sets up the
+     game's own start and plays it through on the board, both sides,
+     with play/pause, a turn at a time, a turn back, speed, and stop.
+     engine/replay.js reads the log and checks every move against the
+     rules before anything moves. */
+  function openReplaySheet() {
+    setShowMoveLog(false);
+    setShowVictoryPlacard(false);
+    setShowReplaySheet(true);
+  }
+  function closeReplaySheet() {
+    setShowReplaySheet(false);
+  }
+  // (Escape puts it away too.)
+  useEffect(() => {
+    if (!showReplaySheet || typeof window === "undefined") return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setShowReplaySheet(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showReplaySheet]);
+  // A log names its sides as the world it was copied in did: this one's
+  // names first, then every world's.
+  const replayNames = React.useMemo(() => [SIDE_NAMES, ...Object.values(WORLD_SIDE_NAMES), DEFAULT_SIDE_NAMES], [SIDE_NAMES]);
+  const replayReading = React.useMemo(() => {
+    const text = replayText.trim();
+    if (!text) return null;
+    const rec = readPastedLog(text, replayNames);
+    if (!rec || !rec.turns || !rec.turns.length) return { error: (rec && rec.error) || "No moves found. Paste a move log copied with Copy Move Log." };
+    const res = checkReplay(rec);
+    const total = res.ok ? res.turns : res.valid;
+    const problem = !res.ok
+      ? `Turn ${res.bad + 1} doesn't fit the rules (${res.error}).`
+      : rec.error
+        ? rec.error
+        : null;
+    if (!total) return { error: problem || "No moves found." };
+    return { rec, total, problem, legacy: !!rec.legacy, codeDamaged: !!rec.codeDamaged, final: res.final };
+  }, [replayText, replayNames]);
+  // The rules a replayed game was played under, for the rules flyout (as a
+  // custom game's own).
+  function replayVariants(rec) {
+    const groups = [];
+    const laws = LAW_OPTIONS.filter((l) => rec.laws[l.key]).map((l) => l.name);
+    if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws, keys: LAW_OPTIONS.filter((l) => rec.laws[l.key]).map((l) => l.key) });
+    const topo = [];
+    if (rec.rows !== bootBoardRef.current.rows || rec.cols !== bootBoardRef.current.cols) topo.push(`${rec.cols} × ${rec.rows} board`);
+    if (rec.missing.length) topo.push(`Missing squares (${rec.missing.length / 2} ${rec.missing.length === 2 ? "pair" : "pairs"})`);
+    if (topo.length) groups.push({ key: "topologies", label: "TOPOLOGY", items: topo });
+    return groups.length ? groups : null;
+  }
+  // What the sheet says the log holds.
+  function replaySummary(r) {
+    const turns = `${r.total} turn${r.total === 1 ? "" : "s"}`;
+    const won = r.final && r.final.won;
+    const result = won ? `${sideName(won.winner)} wins (${won.why.toLowerCase()})` : "not finished";
+    const rules = replayVariants(r.rec);
+    const ruleText = rules ? rules.map((g) => g.items.join(", ")).join(" · ") : "standard rules";
+    return `${turns} · ${result} · ${ruleText}`;
+  }
+
+  function startReplay(reading) {
+    if (!reading || !reading.total) return;
+    const { rec } = reading;
+    setShowReplaySheet(false);
+    closeMoveLog();
+    setShowVictoryPlacard(false);
+    setShowNewGameChoice(false);
+    // A plain new game first (its board, laws and holes undone, any move
+    // in flight stopped), then this game's own setup over it.
+    resetGame(false);
+    applyBoardResize(rec.rows, rec.cols);
+    setActiveLaws({ ...VANILLA_LAWS, ...rec.laws });
+    setActiveBlackHoles(rec.holes);
+    setBlackHoles(rec.holes);
+    setActiveMissingSquares(rec.missing);
+    setMissingSquares(rec.missing);
+    setPieces(rec.start.map((p) => ({ ...p })));
+    setCurrentPlayer(rec.opener);
+    setCurrentVariants(replayVariants(rec));
+    cam.current.theta = rec.opener === "dark" ? Math.PI : 0;
+    setReplay({ rec, total: reading.total, phase: "setup", playing: true, speed: 1, untilTurn: null, stopAt: null });
+  }
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+    // tests: replay a pasted text straight away, and read where it's got to.
+    window.__EC_TEST_REPLAY__ = (text, speed = 1) => {
+      const r = readPastedLog(text, replayNames);
+      if (!r || !r.turns || !r.turns.length) return false;
+      const res = checkReplay(r);
+      startReplay({ rec: r, total: res.ok ? res.turns : res.valid });
+      if (speed !== 1) setTimeout(() => setReplay((x) => (x ? { ...x, speed } : x)), 0);
+      return true;
+    };
+    window.__EC_TEST_REPLAY_STATE__ = replay ? { phase: replay.phase, playing: replay.playing, speed: replay.speed, total: replay.total, turn: turnHistory.length } : null;
+  }
+
+  // Set up: once the fresh board is down, Begin Game, as its button would.
+  useEffect(() => {
+    if (!replay || replay.phase !== "setup" || !awaitingBegin) return undefined;
+    const timer = setTimeout(() => {
+      triggerBeginGameRef.current && triggerBeginGameRef.current();
+      setReplay((r) => (r && r.phase === "setup" ? { ...r, phase: "play" } : r));
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [replay, awaitingBegin]);
+
+  /* Plays it: each time the board is still (no step in flight), the next
+     thing the record says, after a pause a person can follow. A turn's
+     piece is picked up (selected) first, then moved; a Split Movement
+     turn hands the points to its next piece the way a tap on it does; a
+     turn that's still open after its last step ended on Stop here. A
+     move the board won't make (it shouldn't: the record was checked)
+     stops the replay there. */
+  const REPLAY_TURN_MS = 650, REPLAY_PICK_MS = 380, REPLAY_STEP_MS = 320;
+  useEffect(() => {
+    const r = replay;
+    if (!r || r.phase !== "play" || awaitingBegin || busy || anim.current) return undefined;
+    const turn = turnHistory.length;
+    const between = stepsUsed === 0 && pendingSteps.length === 0;
+    if (r.stopAt !== null && turn >= r.stopAt && between) { setReplay(null); return undefined; }
+    if (status !== "playing" || (turn >= r.total && between)) {
+      setReplay({ ...r, phase: "done", playing: false, untilTurn: null });
+      return undefined;
+    }
+    if (!(r.playing || (r.untilTurn !== null && turn < r.untilTurn) || r.stopAt !== null)) return undefined;
+    const speed = r.speed || 1;
+    const later = (fn, ms) => { const t = setTimeout(fn, ms / speed); return () => clearTimeout(t); };
+    const steps = r.rec.turns[turn] || [];
+    const at = pendingSteps.length;
+    if (at >= steps.length) {
+      const last = pendingSteps[pendingSteps.length - 1];
+      return later(() => {
+        const piece = last && pieces.find((p) => p.id === last.pieceId);
+        if (piece) settleTurn(piece, pendingNotation, pendingSteps);
+      }, REPLAY_STEP_MS);
+    }
+    const step = steps[at];
+    const piece = pieces.find((p) => p.id === step.pieceId);
+    // (Points left: the turn's so far, whichever piece spent them, as a
+    // Split Movement hand-over carries them to the next piece.)
+    if (!piece || piece.owner !== currentPlayer || !legalMovesFor(pieces, piece, maxStepsFor(piece.type) - stepsUsed)[step.dir]) {
+      setReplay({ ...r, phase: "done", playing: false, untilTurn: null, error: `Turn ${turn + 1} couldn't be played here.` });
+      return undefined;
+    }
+    if (selectedId !== piece.id) {
+      return later(() => { setSelectedId(piece.id); setHoveredId(piece.id); }, at === 0 ? REPLAY_TURN_MS : REPLAY_STEP_MS);
+    }
+    return later(() => beginMoveRef.current && beginMoveRef.current(piece, step.dir), at === 0 ? REPLAY_PICK_MS : REPLAY_STEP_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replay, awaitingBegin, busy, turnHistory, status, stepsUsed, pendingSteps, pendingNotation, pieces, currentPlayer, selectedId]);
+
+  // The bar's controls. Between turns, or mid-turn: a pause stops after
+  // the step in flight; a turn back waits for the board to be still.
+  const replayMidTurn = stepsUsed > 0 || pendingSteps.length > 0;
+  function replayTogglePlay() {
+    setReplay((r) => (r && r.phase === "play" ? { ...r, playing: !r.playing, untilTurn: null } : r));
+  }
+  function replayStepTurn() {
+    setReplay((r) => (r && r.phase === "play" ? { ...r, playing: false, untilTurn: turnHistory.length + 1 } : r));
+  }
+  function replayBack() {
+    if (!replay || busy || anim.current || replayMidTurn || turnHistory.length === 0) return;
+    setReplay((r) => (r ? { ...r, phase: "play", playing: false, untilTurn: null, error: null } : r));
+    handleUndoLastTurn({ fromReplay: true });
+  }
+  function replaySpeed() {
+    setReplay((r) => (r ? { ...r, speed: r.speed >= 4 ? 1 : r.speed * 2 } : r));
+  }
+  // Stop: the game stays where it's got to, to play on from (a turn under
+  // way is played out first: a turn can't be left half the record's).
+  function replayStop() {
+    if (!replay) return;
+    if (replay.phase === "play" && (replayMidTurn || busy || anim.current)) {
+      setReplay((r) => (r ? { ...r, playing: false, untilTurn: null, stopAt: turnHistory.length + 1 } : r));
+      return;
+    }
+    setReplay(null);
   }
 
   /* Distinct from handleReset on purpose: this stops the game — no
@@ -8406,6 +8686,108 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         </div>
       )}
 
+      {/* A replay's bar, across the top: where it's got to, and its
+         controls (a turn back, play/pause, a turn on, speed, stop). At its
+         end it says so, and Play on hands the board back. */}
+      {replay && (() => {
+        const turnNow = Math.min(turnHistory.length + (replayMidTurn ? 1 : 0), replay.total);
+        const done = replay.phase === "done";
+        const label = replay.phase === "setup"
+          ? "Replay · setting up"
+          : done
+            ? replay.error || `Replay · end · ${turnHistory.length} of ${replay.total}`
+            : `Replay · turn ${Math.max(1, turnNow)} of ${replay.total}`;
+        const still = !busy && !anim.current;
+        const icon = (d, label2, onClick, testid, disabled = false) => (
+          <button
+            type="button"
+            className="ec-btn"
+            data-testid={testid}
+            aria-label={label2}
+            title={label2}
+            disabled={disabled}
+            onClick={onClick}
+            style={{
+              width: 32, height: 32, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
+              borderRadius: "50%", border: "none", background: "transparent", color: COLORS.charcoal, padding: 0,
+              cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.35 : 1,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">{d}</svg>
+          </button>
+        );
+        return (
+          <div
+            data-testid="replay-bar"
+            role="toolbar"
+            aria-label="Replay"
+            style={{
+              position: "fixed",
+              top: "calc(var(--ec-shell-top, env(safe-area-inset-top, 0px)) + 12px)",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 13,
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              maxWidth: "calc(100vw - 32px)",
+              boxSizing: "border-box",
+              padding: "4px 6px 4px 14px",
+              borderRadius: 999,
+              background: modalSurface,
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              border: `1px solid ${COLORS.slateSoft}`,
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
+              color: COLORS.charcoal,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 11,
+              letterSpacing: "0.08em",
+            }}
+          >
+            <span data-testid="replay-status" style={{ textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0, marginRight: 6, fontVariantNumeric: "tabular-nums" }}>
+              {label}
+            </span>
+            {icon(<path d="M6 5h2.4v14H6zM20 5v14L9.5 12z" />, "A turn back", replayBack, "replay-back", !still || replayMidTurn || turnHistory.length === 0 || replay.phase === "setup")}
+            {!done && icon(
+              replay.playing ? <path d="M6.5 5h4v14h-4zM13.5 5h4v14h-4z" /> : <path d="M7 4.5v15L19.5 12z" />,
+              replay.playing ? "Pause" : "Play",
+              replayTogglePlay,
+              "replay-play",
+              replay.phase !== "play"
+            )}
+            {!done && icon(<path d="M4 5v14l10.5-7zM15.6 5H18v14h-2.4z" />, "Next turn", replayStepTurn, "replay-step", replay.phase !== "play" || replay.playing)}
+            {!done && (
+              <button
+                type="button"
+                className="ec-btn"
+                data-testid="replay-speed"
+                aria-label={`Speed ${replay.speed} times`}
+                title="Speed"
+                onClick={replaySpeed}
+                style={{ minWidth: 34, height: 32, flexShrink: 0, border: "none", background: "transparent", color: COLORS.charcoal, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, letterSpacing: "0.02em", cursor: "pointer", padding: "0 4px", fontVariantNumeric: "tabular-nums" }}
+              >
+                {replay.speed}×
+              </button>
+            )}
+            {done ? (
+              <button
+                type="button"
+                className="ec-btn"
+                data-testid="replay-play-on"
+                title="Hand the board back, to play on from here"
+                onClick={() => setReplay(null)}
+                style={{ height: 30, flexShrink: 0, marginLeft: 4, border: `1.5px solid ${COLORS.charcoal}`, borderRadius: 999, background: "transparent", color: COLORS.charcoal, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", padding: "0 12px", cursor: "pointer", whiteSpace: "nowrap" }}
+              >
+                {status === "playing" ? "Play on" : "Close"}
+              </button>
+            ) : (
+              icon(<path d="M6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6L19 6.4 17.6 5 12 10.6z" />, replay.stopAt !== null ? "Stopping after this turn" : "Stop the replay here", replayStop, "replay-stop", replay.stopAt !== null)
+            )}
+          </div>
+        );
+      })()}
+
       {/* The check alert's card (user: design 5 of the five shown, with 2's
          ghost and arc and 3's safe squares on the board), across the top:
          on your turn against the computer, while it could crush your Cabeza
@@ -8414,7 +8796,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
          board, checkShow) and its own switch (user: "letting them know that
          they can turn this on and off"; the menu and the setup have it
          too). In the world's own colours. */}
-      {checkThreats && (() => {
+      {checkThreats && !checkHidden && (() => {
         const lines = (checkView && checkView.lines) || [];
         const named = [...new Set(checkThreats.map((x) => {
           const p = pieces.find((q) => q.id === x.attacker);
@@ -8430,9 +8812,17 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         const label = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" };
         return (
           <div
+            key={checkKey}
+            ref={checkCardRef}
             data-testid="check-alert"
             role="alert"
+            title="Swipe it away, or tap anywhere else, to put it away for this turn"
+            onPointerDown={onCheckDown}
+            onPointerMove={onCheckMove}
+            onPointerUp={onCheckUp}
+            onPointerCancel={onCheckUp}
             style={{
+              touchAction: "none",
               position: "fixed",
               top: "calc(var(--ec-shell-top, env(safe-area-inset-top, 0px)) + 12px)",
               left: "50%",
@@ -9078,17 +9468,17 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               justifyContent: "flex-end",
             }}
           >
-            {isPlaying && turnLocked && currentPlayer !== aiPlayer && shadowEntries.length > 0 && (
+            {isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && shadowEntries.length > 0 && (
               <button className="ec-btn" onClick={handleEndTurnClick} style={playerButtonStyle(currentPlayer)}>
                 End turn
               </button>
             )}
-            {isPlaying && turnLocked && currentPlayer !== aiPlayer && (
+            {isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && (
               <button className="ec-btn" onClick={handleUndoTurn} style={ghostButtonStyle()}>
                 Undo move
               </button>
             )}
-            {!turnLocked && !awaitingBegin && turnHistory.length > 0 && (
+            {!turnLocked && !awaitingBegin && !replaying && turnHistory.length > 0 && (
               <button
                 className="ec-btn"
                 onClick={handleUndoLastTurn}
@@ -9448,6 +9838,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras });
               return extras || <div style={{ display: "flex", gap: 8, flexShrink: 0, width: "100%" }}>{beginGameButton}</div>;
             })()}
+
         </div>
         )}
 
@@ -9513,6 +9904,34 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                 </>
               )}
             </svg>
+          </button>
+        )}
+        {/* With no game under way (before one, or after), Replay a game (a
+           game already played, from its copied move log) in the footer
+           strip, left, where the players' read-out goes during a game.
+           Absolutely placed: in the panel's flow it moved Begin Game up to
+           where the dock piece had been, so a second tap while the panel
+           opened began the game. */}
+        {(awaitingBegin || !isPlaying) && !replay && (
+          <button
+            className="ec-btn"
+            data-testid="replay-link"
+            data-dock-role="link"
+            title="Replay a game from a copied move log"
+            onClick={openReplaySheet}
+            style={{
+              ...dockLinkStyle(),
+              position: "absolute",
+              left: 16,
+              bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
+              maxWidth: `calc(100% - ${(theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + 20}px)`,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              padding: "7px 2px",
+            }}
+          >
+            {dockWords.replay}
           </button>
         )}
         {/* Who's playing what — a quiet read-out in the dock's footer strip
@@ -9914,7 +10333,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             statusText, currentPlayer, winner, aiPlayer, aiThinking,
             aiTurn: isPlaying && currentPlayer === aiPlayer,
             selectedOwn: !!selectedPiece && selectedPiece.owner === currentPlayer,
-            pieceInfo: showGuide && isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer
+            pieceInfo: showGuide && isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && !replaying
               ? { type: selectedPiece.type, ...pieceCardInfo(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name) }
               : null,
             showGuide,
@@ -9931,12 +10350,12 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             words: dockWords,
             noGame: !!(setupExtras && setupExtras.noGame),
             // Play
-            canUndoMove: isPlaying && turnLocked && currentPlayer !== aiPlayer,
-            canStopHere: isPlaying && turnLocked && currentPlayer !== aiPlayer && shadowEntries.length > 0,
-            canUndoTurn: isPlaying && !turnLocked && turnHistory.length > 0,
+            canUndoMove: isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying,
+            canStopHere: isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && shadowEntries.length > 0,
+            canUndoTurn: isPlaying && !turnLocked && !replaying && turnHistory.length > 0,
             // After a game ends its last turn can still be taken back (the
             // desktop dock's Undo turn does the same), from the menu.
-            canUndoAfter: !isPlaying && !awaitingBegin && turnHistory.length > 0,
+            canUndoAfter: !isPlaying && !awaitingBegin && !replaying && turnHistory.length > 0,
             undoTurnBusy: !!(busy || aiThinking || anim.current),
             onUndoMove: handleUndoTurn,
             onStopHere: handleEndTurnClick,
@@ -9957,6 +10376,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             rulesTabsHidden: hiddenRulesTabs,
             logCount: log.length,
             onOpenMoveLog: openMoveLog,
+            onOpenReplay: openReplaySheet,
             onEndGame: handleEndActiveGame,
             endBusy: !!(busy || anim.current),
             onNewGame: handleNewGameClick,
@@ -10089,6 +10509,16 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               New Game
             </button>
           </div>
+          {/* (The other way: a copied log back in, played back.) */}
+          <button
+            className="ec-btn"
+            data-testid="open-replay"
+            title="Paste a copied move log and play it back"
+            onClick={openReplaySheet}
+            style={{ ...dockLinkStyle(), display: "block", margin: "-6px auto 14px" }}
+          >
+            Replay a game from a copied log
+          </button>
 
           {log.length === 0 ? (
             <p
@@ -10181,6 +10611,148 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               </div>
             </>
           )}
+        </div>
+      </div>
+
+      {/* Replay a game: paste a copied move log, see what it holds, play
+          it back (see startReplay). Always mounted, like the Move Log
+          popup, so it fades both ways; a tap outside closes it. */}
+      <div
+        onClick={closeReplaySheet}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: modalBackdrop,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+          boxSizing: "border-box",
+          zIndex: 1050,
+          opacity: showReplaySheet ? 1 : 0,
+          pointerEvents: showReplaySheet ? "auto" : "none",
+          // (Hidden once faded, so its box and buttons take no keyboard focus.)
+          visibility: showReplaySheet ? "visible" : "hidden",
+          transition: showReplaySheet ? "opacity 0.3s ease" : "opacity 0.3s ease, visibility 0s linear 0.3s",
+        }}
+        aria-hidden={!showReplaySheet}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          data-testid="replay-sheet"
+          role="dialog"
+          aria-label="Replay a game"
+          style={{
+            position: "relative",
+            width: "clamp(280px, 90%, 460px)",
+            maxHeight: "86vh",
+            overflowY: "auto",
+            background: modalSurface,
+            backdropFilter: "blur(6px)",
+            border: `1px solid ${COLORS.slateSoft}`,
+            boxShadow: "0 30px 70px rgba(36,24,10,0.35)",
+            padding: "32px 24px 24px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          <h2 style={{ margin: 0, textAlign: "center", fontFamily: titleFontFamily, fontWeight: 600, fontSize: 19, letterSpacing: "0.04em", color: COLORS.charcoal }}>
+            REPLAY A GAME
+          </h2>
+          <p style={{ margin: 0, textAlign: "center", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, lineHeight: 1.45, color: COLORS.slate }}>
+            Paste a move log copied with Copy Move Log. It plays back on the board, both sides, from the first move.
+          </p>
+          <label htmlFor="ec-replay-text" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>Move log to replay</label>
+          <textarea
+            id="ec-replay-text"
+            data-testid="replay-text"
+            value={replayText}
+            onChange={(e) => setReplayText(e.target.value)}
+            placeholder={"Result: …\n\n1. " + sideName(logSides[0]) + ": T: N.E | " + sideName(logSides[1]) + ": F: S\n…\n\nReplay code: ECR1.…"}
+            rows={6}
+            spellCheck={false}
+            autoComplete="off"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              resize: "vertical",
+              minHeight: 110,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 12,
+              lineHeight: 1.45,
+              color: COLORS.charcoal,
+              background: COLORS.slateFaint,
+              border: `1px solid ${COLORS.slateSoft}`,
+              borderRadius: 4,
+              padding: "9px 10px",
+              outlineColor: COLORS.charcoal,
+            }}
+          />
+          <div data-testid="replay-reading" aria-live="polite" style={{ minHeight: 18, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, lineHeight: 1.5, color: COLORS.charcoal }}>
+            {!replayReading ? (
+              <span style={{ color: COLORS.slate }}>Nothing pasted yet.</span>
+            ) : replayReading.error ? (
+              <span data-replay-ok="no">{replayReading.error}</span>
+            ) : (
+              <>
+                <span data-replay-ok="yes">{replaySummary(replayReading)}</span>
+                {replayReading.legacy && (
+                  <span style={{ display: "block", color: COLORS.slate }}>
+                    {replayReading.codeDamaged ? "Its replay code is damaged or cut short" : "No replay code in it"}, so it's read from its moves, from the standard start.
+                  </span>
+                )}
+                {replayReading.problem && (
+                  <span style={{ display: "block", color: COLORS.slate }}>
+                    {replayReading.problem} The {replayReading.total} turn{replayReading.total === 1 ? "" : "s"} before it can be replayed.
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+          {log.length > 0 && status === "playing" && !replay && (
+            <p style={{ margin: 0, fontFamily: "'IBM Plex Sans', sans-serif", fontStyle: "italic", fontSize: 12, color: COLORS.slate }}>
+              Replaying ends the game on the board.
+            </p>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            {typeof navigator !== "undefined" && navigator.clipboard && typeof navigator.clipboard.readText === "function" && (
+              <button
+                className="ec-btn ec-btn-invert"
+                data-testid="replay-paste"
+                onClick={() => {
+                  try {
+                    navigator.clipboard.readText().then((t) => { if (t) setReplayText(t); }, () => {});
+                  } catch (e) { /* no clipboard here: paste into the box */ }
+                }}
+                style={{ flex: "1 1 0", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: COLORS.charcoal, background: "transparent", border: `1.5px solid ${COLORS.charcoal}`, padding: "10px 12px", cursor: "pointer" }}
+              >
+                Paste
+              </button>
+            )}
+            <button
+              className="ec-btn"
+              data-testid="replay-start"
+              disabled={!replayReading || !!replayReading.error}
+              onClick={() => startReplay(replayReading)}
+              style={{
+                flex: "1 1 0",
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 11,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: COLORS.cream,
+                background: COLORS.charcoal,
+                border: `1.5px solid ${COLORS.charcoal}`,
+                padding: "10px 12px",
+                cursor: !replayReading || replayReading.error ? "default" : "pointer",
+                opacity: !replayReading || replayReading.error ? 0.4 : 1,
+              }}
+            >
+              {replayReading && !replayReading.error && replayReading.problem ? `Replay ${replayReading.total} turns` : "Replay"}
+            </button>
+          </div>
         </div>
       </div>
 

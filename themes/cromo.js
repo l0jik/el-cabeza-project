@@ -494,6 +494,7 @@ export const dockWords = {
   endGame: "Lay down",
   newGame: "Set the stones",
   moveLog: "Engraved record",
+  replay: "Replay a sitting",
   plainRules: "Bare rules",
   nextGame: "Next sitting",
   endedCaption: "The stones rest.",

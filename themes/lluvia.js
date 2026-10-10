@@ -300,6 +300,7 @@ export const dockWords = {
   endGame: "Walk away",
   newGame: "Another round",
   moveLog: "Case file",
+  replay: "Replay a case",
   plainRules: "Strip the rules",
   nextGame: "Next rival",
   endedCaption: "Mưa vẫn rơi. The rain keeps falling.",

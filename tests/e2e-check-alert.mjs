@@ -123,6 +123,14 @@ console.log("Neon, desktop: the setup's switch, the warning, its own switch, the
   const box = await card(page).boundingBox();
   check(`the card's across the top, in the middle (${JSON.stringify(box && { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.width) })})`, !!box && box.y < 40 && Math.abs(box.x + box.width / 2 - 640) < 4);
 
+  // Put away with a tap elsewhere (user: "tap outside of it or swipe it away to dismiss it ... You shouldn't have to
+  // simply turn it off"): the card and its marks go for this turn, the alert stays on, the threat still read.
+  await page.mouse.click(60, 400);
+  check("a tap elsewhere puts the card away", !!(await poll(async () => (await card(page).count()) === 0)));
+  check("...its marks with it", (await marks(page)) === 0);
+  check("...the alert still on, the threat still there", (await stored(page)) === "1" && !!(await reading(page)));
+  await page.waitForTimeout(800);
+  check("...and it stays away while the threat's the same", (await card(page).count()) === 0);
   // A step north takes it out of reach: the warning goes.
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "N"));
   check("your Cabeza steps out of reach: the warning goes", !!(await poll(async () => (await card(page).count()) === 0 && !(await reading(page)))));
@@ -134,13 +142,26 @@ console.log("Neon, desktop: the setup's switch, the warning, its own switch, the
   check(`the video's position: "${text2}"`, /The Hombro can tumble onto your Cabeza/.test(text2 || ""));
   const k2 = await kinds(page);
   check(`...one roll: its landing's ghost and one arc, no stop (${JSON.stringify(k2)})`, k2.ghost === 1 && k2.stop === 0 && k2.arc === 1 && k2.outlined === 1);
+  // Swiped away: it follows the finger and goes; still on.
+  {
+    const b0 = await card(page).boundingBox();
+    const sx = b0.x + b0.width * 0.3, sy = b0.y + 18;
+    await page.mouse.move(sx, sy); await page.mouse.down();
+    for (let i = 1; i <= 8; i++) { await page.mouse.move(sx + i * 24, sy + 2); await page.waitForTimeout(16); }
+    const mid = await card(page).boundingBox().catch(() => null);
+    await page.mouse.up();
+    check(`a swipe on the card carries it along (${mid && Math.round(mid.x - b0.x)}px)`, !!mid && mid.x - b0.x > 100);
+    check("...and sends it away", !!(await poll(async () => (await card(page).count()) === 0)));
+    check("...the alert still on", (await stored(page)) === "1" && !!(await reading(page)) && (await marks(page)) === 0);
+  }
   // ...but not through a Turrito of yours between.
   await setPieces(page, VIDEO(true));
   check("...with your Turrito between them: no warning", !!(await poll(async () => (await card(page).count()) === 0)));
 
-  // Off from the card itself: gone, and a note says where it is kept.
+  // Off from the card itself: gone, and a note says where it is kept. (The threat gone and back again: news again,
+  // the card back though it was swiped away before.)
   await setPieces(page, VIDEO(false));
-  await poll(async () => (await card(page).count()) === 1);
+  check("the same threat back after it had gone: the card again", !!(await poll(async () => (await card(page).count()) === 1)));
   await page.locator('[data-testid="check-alert-off"]').click();
   check("the card's own switch turns it off", !!(await poll(async () => (await card(page).count()) === 0)) && (await stored(page)) === "0" && !(await reading(page)));
   check("...saying where to turn it back on", /Turn it back on in the menu/.test((await page.locator('[data-testid="check-alert-note"]').textContent().catch(() => "")) || ""));

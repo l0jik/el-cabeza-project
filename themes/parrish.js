@@ -330,6 +330,7 @@ export const dockWords = {
   endGame: "Lay down the brush",
   newGame: "A fresh canvas",
   moveLog: "The sketchbook",
+  replay: "Replay a canvas",
   plainRules: "The plain rules",
   nextGame: "Another canvas",
   endedCaption: "Left unfinished, for now.",

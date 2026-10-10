@@ -267,6 +267,7 @@ export const dockWords = {
   endGame: "Call it a night",
   newGame: "Set them up again",
   moveLog: "Score pad",
+  replay: "Replay a game",
   plainRules: "Back to the box rules",
   nextGame: "Next game",
   endedCaption: "We'll finish it some other time.",

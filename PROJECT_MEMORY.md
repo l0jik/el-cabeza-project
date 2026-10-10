@@ -9618,3 +9618,95 @@ phone menu until "Start the story over" (which clears it).
     position): the networks route and cross at the grey interchange, a
     moved side's tubes go down and come back on the new route, landing
     pads read on the ground, the selection ring, faces at windows.
+- Luna round 2, and three things for every world (user: "the cabeza
+  should be round ... change the interchanges back to a circular ... The
+  people's arms are too long ... Scale the people down ... vary their
+  heights ... tap outside of it or swipe it away to dismiss it ... Have the
+  newer pieces been rendered in the blueprint style yet? ... a way to take
+  a copied move log and have it replay a game").
+  - Luna: the Cabeza round again (cylinder base and band, round glass dome
+    and sheen, torus hem, round garden deck, footprint a circle), the
+    interchanges round again (drum, bands, flattened dome; own-side and
+    the grey crossing one). People: arms 0.18/0.145/0.055 (were longer),
+    PERSON_H 0.115 with personH(n) varying each figure 0.92-1.08; the
+    lander (0.5), rover (0.55, tracks scaled with it) and solar rows
+    (0.65) cut to suit them. Scratch city.js the same (squircle only with
+    P.squircleCabeza / cfg.squareNode).
+  - Check alert (chassis): a tap anywhere else (under 10px and 800ms), or a
+    swipe on the card (it follows the finger; past 70px, or a quick
+    flick, it goes the way it's thrown), puts the card and its board
+    marks away for that turn and those threats; the alert stays on. Keyed
+    `${turnHistory.length}|attacker>cabeza,...`: a new threat or the next
+    turn's shows it again; once the danger's past the dismissal is
+    forgotten. Reduced motion: no animation. e2e-check-alert covers tap,
+    swipe and coming back.
+  - Plano: the odd pieces (vox) now carry the blueprint details too: floor
+    lines and windows on every exposed side face (same bay/floor rhythm as
+    the boxes), a level line where a cube stands on another, and the dark
+    side's 45-degree hatch on the top-exposed cubes, clipped to each cube.
+    Before, they had their outline only.
+  - Replay a game (engine/replay.js; chassis "replay a game" block):
+    - Copy Move Log adds a last line, "Replay code (paste the whole log
+      into Replay a game): ECR1.<base64url JSON>": board size, laws on,
+      shove setting, black holes, missing squares, the start pieces (id,
+      type, owner, row, col, w, h, z, vox), the opener, each turn as
+      "<piece index><move key>" steps joined by ".", the winner. Built by
+      gameRecord from turnHistory (turn 0's board is the start; steps are
+      piece-tagged, so it's exact). About 1,100 characters for 40 turns.
+      Last in the text so a chat app's wrapping still reads (decode joins
+      the lines after the tag if the first try fails).
+    - readPastedLog: the code if it reads; else the readable lines
+      (parseLogText: rows "n. Side: L: d.d  ·  L: d | Side: ...", side
+      names matched as a pair against every world's, laws inferred from
+      the moves: slide keys, pivots, split groups, 3-point turns; shoving
+      tried on if a move only fits with it; each label resolved to the
+      piece of that type whose moves are legal, standard start and board).
+      A damaged code with lines above it falls back to the lines and says
+      so (codeDamaged).
+    - checkReplay plays the record through the rules as the chassis does
+      (beginMove's points, the Split Movement hand-over rule, crush/goal
+      ends, turnContinues, the out-and-back void) with the engine set to
+      the record's setup and put back after (withSetup). The first turn
+      that doesn't fit is named; the turns before it can still be played.
+    - Chassis: the sheet (paste box, Paste button, what it reads: turns,
+      result, rules; Replay). startReplay: resetGame(false), then the
+      record's board size, laws, holes, missing squares, start and opener,
+      currentVariants for the rules flyout; phase setup -> Begin Game
+      (triggerBeginGame) -> play. The runner effect plays the next thing
+      whenever the board is still: select the turn's piece, move it
+      (beginMoveRef, the tap path), hand a split turn's points to the next
+      piece, settleTurn for a turn that ended on Stop here. Progress is
+      the game's own: turn = turnHistory.length, step =
+      pendingSteps.length. Bar across the top (where the check card sits):
+      "Replay · turn N of M", a turn back (handleUndoLastTurn({ fromReplay
+      }) takes exactly one turn, whoever played it), play/pause, next
+      turn (untilTurn), speed 1/2/4x, stop (mid-turn: plays the turn out
+      first, stopAt). At the end "Play on" (or "Close" on a finished game)
+      hands the board back.
+    - While `replay` is set (end included, until Play on): no board input
+      (replayingRef in the pointer handlers, stop/undo guards), no move
+      markers, piece card, stop/undo buttons, check alert, AI turns, or
+      refunds (the record never revisits a board within a turn).
+    - Entry points: the Move Log sheet's link; the dock's footer strip,
+      left, whenever no game is under way (before one or after;
+      data-testid replay-link; dockWords.replay, each world's own:
+      "Replay a mission", "Replay a sheet", "Replay a trace", "Replay a
+      case", "Replay a canvas", "Replay a sitting", "Replay a game"); the
+      phone menu (MobileShell row, ctl.onOpenReplay). The dock link is
+      absolutely placed on purpose: under Begin Game, in the panel's flow,
+      it moved Begin Game up to where the dock piece had been, and
+      openDockPanel's retry tap (the panel slow to open in Luna) began the
+      game (e2e-gameplay luna failed on it).
+    - resetGame now clears busy (and stepInFlightRef): a New Game during a
+      step tore the step down before its commit, leaving busy set, so no
+      piece could move again.
+    - Tests: tests/replay.smoke.mjs (in test:engine; 60 random games
+      plain and under laws through encode/decode/check, wrapped and
+      damaged codes, older logs), tests/e2e-replay.mjs (in run-e2e: a
+      game under Split/3 Actions/Slide played, ended, copied, replayed to
+      the same board and moves; pause, next turn, a turn back, speed,
+      Play on; its lines alone; a damaged code). Hooks: __EC_TEST_COPIED__,
+      __EC_TEST_REPLAY__(text), __EC_TEST_REPLAY_STATE__.
+    - A test driving __EC_TEST_MOVE__ for a second piece mid-turn without
+      Split Movement makes a record the rules reject (the real controls
+      can't do it): drive whole turns, as e2e-replay's planGame does.

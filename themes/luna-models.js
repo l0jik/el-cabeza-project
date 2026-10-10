@@ -102,7 +102,8 @@ function litPlan(bays, floors) {
 }
 // A face at a lit window: head and shoulders dark against the light, soft as through glass.
 function windowFace(x, e, X0, Y0, w, h) {
-  const v = (k) => folkHash(FOLK_K * 13 + k), mx = X0 + w * (0.22 + 0.56 * v(1)), by = Y0 + h, s2 = 0.8 + 0.45 * v(2), hr = h * 0.15 * s2, sw = w * 0.2 * s2, lean = (v(3) - 0.5) * hr * 0.8;
+  // (smaller since the people outside were made smaller: head and shoulders low in the port)
+  const v = (k) => folkHash(FOLK_K * 13 + k), mx = X0 + w * (0.22 + 0.56 * v(1)), by = Y0 + h, s2 = (0.8 + 0.45 * v(2)) * 0.62, hr = h * 0.15 * s2, sw = w * 0.2 * s2, lean = (v(3) - 0.5) * hr * 0.8;
   for (const [c, fill] of [[x, "rgba(12,15,20,0.95)"], [e, "rgba(14,10,6,0.88)"]]) {
     c.save(); roundRect(c, X0, Y0, w, h, 6); c.clip(); c.filter = "blur(0.7px)"; c.fillStyle = fill;
     c.beginPath(); c.ellipse(mx, by + h * 0.08, sw, h * 0.36 * s2, 0, Math.PI, 0); c.fill();
@@ -331,27 +332,28 @@ function pieceBuilding(piece, side) {
 /* The habitat dome, a garden glowing inside; its base in the side's own
    colours (white with an orange band, charcoal with a gold one), the dome
    a little smaller so a ring of the base shows round it from above too.
-   Just glass, no frame (user: "get rid of the birdcage look ... just give
-   it maybe some more sheen"): a soft bright rim where the glass turns
-   away from the eye. */
+   Round, as the game's Cabeza is (user: "the cabeza should be round.
+   Change that back"; it had been a squircle for a round). Just glass, no
+   frame (user: "get rid of the birdcage look ... just give it maybe some
+   more sheen"): a soft bright rim where the glass turns away from the
+   eye. */
 const SHEEN_VS = "varying vec3 vN; varying vec3 vV; void main(){ vec4 wp = modelMatrix * vec4(position, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp; }";
 const SHEEN_FS = "uniform vec3 tint; uniform float k; varying vec3 vN; varying vec3 vV; void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.4); gl_FragColor = vec4(tint * f * k, f * k); }";
 function cabezaBuilding(side, seedN) {
   const pal = PAL[side], g = new THREE.Group(), r = CAB_D / 2, bh = 0.1, dr = r * 0.8;
   const baseM = std(pal.wall, { metalness: 0.15, roughness: 0.5 }), acc = std(pal.accent, { metalness: 0.2, roughness: 0.45 });
-  g.add(mesh(loft([{ pts: sqPts(r * 1.03), y: 0 }, { pts: sqPts(r), y: bh }]), baseM));
-  const cap = capGeo(sqPts(r)); cap.translate(0, bh, 0); g.add(mesh(cap, baseM));
-  g.add(mesh(loft([{ pts: sqPts(r * 1.035), y: bh * 0.45 - 0.013 }, { pts: sqPts(r * 1.035), y: bh * 0.45 + 0.013 }]), acc));
-  g.userData.inside = (x, z) => Math.abs(x / r) ** SQN + Math.abs(z / r) ** SQN <= 1;
+  g.add(mesh(new THREE.CylinderGeometry(r, r * 1.03, bh, 64), baseM, 0, bh / 2, 0));
+  g.add(mesh(new THREE.CylinderGeometry(r * 1.035, r * 1.035, 0.026, 64), acc, 0, bh * 0.45, 0));
+  g.userData.inside = (x, z) => x * x + z * z <= r * r;
   garden(g, side, bh, dr, seedN);
-  const dome = new THREE.Mesh(sqDomeGeo(dr), new THREE.MeshStandardMaterial({ color: col("#d8ecff"), transparent: true, opacity: 0.21, roughness: 0.05, metalness: 0.2, emissive: col("#7ac8ff"), emissiveIntensity: 0.25 }));
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(dr, 48, 18, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: col("#d8ecff"), transparent: true, opacity: 0.21, roughness: 0.05, metalness: 0.2, emissive: col("#7ac8ff"), emissiveIntensity: 0.25 }));
   dome.position.y = bh; dome.castShadow = false; dome.renderOrder = 1; g.add(dome);
-  const sheen = new THREE.Mesh(sqDomeGeo(dr * 1.003), new THREE.ShaderMaterial({
+  const sheen = new THREE.Mesh(new THREE.SphereGeometry(dr * 1.003, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.ShaderMaterial({
     uniforms: { tint: { value: col("#eef7ff") }, k: { value: 0.6 } }, vertexShader: SHEEN_VS, fragmentShader: SHEEN_FS,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   }));
   sheen.position.y = bh; sheen.renderOrder = 2; sheen.castShadow = false; g.add(sheen);
-  g.add(mesh(sqRingGeo(dr, 0.024), acc, 0, bh, 0));
+  const hem = mesh(new THREE.TorusGeometry(dr, 0.024, 8, 64), acc, 0, bh, 0); hem.rotation.x = Math.PI / 2; g.add(hem);
   return g;
 }
 
@@ -388,7 +390,9 @@ function figureBody(Q, k, eva) {
   const toBody = (p) => V(p.x, 0.5 + p.y * cl - p.z * sl, p.y * sl + p.z * cl);
   [-1, 1].forEach((sd, i) => {
     const [sx, sz, ex] = Q.arms[i], R = new THREE.Euler(sx, 0, sz), sh = V(sd * 0.1 * k, 0.27, 0), d1 = down().applyEuler(R), d2 = down().applyAxisAngle(X1, ex).applyEuler(R);
-    const el = sh.clone().add(d1.clone().multiplyScalar(0.215)), wr = el.clone().add(d2.clone().multiplyScalar(0.175)), tip = wr.clone().add(d2.clone().multiplyScalar(0.065));
+    // (user: "The people's arms are too long": the upper arm, forearm and hand now about 0.18, 0.145 and 0.055 of
+    // the height, the fingertips hanging at mid-thigh; they were 0.215, 0.175, 0.065, reaching the knee)
+    const el = sh.clone().add(d1.clone().multiplyScalar(0.18)), wr = el.clone().add(d2.clone().multiplyScalar(0.145)), tip = wr.clone().add(d2.clone().multiplyScalar(0.055));
     arms.push([prim([sh.x, sh.y + 0.012, sh.z], [el.x, el.y, el.z], 0.042 * k, 0.033 * k), prim([el.x, el.y, el.z], [wr.x, wr.y, wr.z], 0.033 * k, 0.029 * k)]);
     hands.push(prim([wr.x, wr.y, wr.z], [tip.x, tip.y, tip.z], 0.027 * k, 0.022 * k)); sho.push(sh); joints.push({ sh, d1 });
     pts.push(toBody(sh), toBody(el), toBody(wr), toBody(tip));
@@ -454,7 +458,12 @@ function figureBody(Q, k, eva) {
 // skin tones across the whole human range, in three bands; hair
 export const SKIN = [["#eccab2", "#e6b896", "#d9a57f"], ["#c98f62", "#ad7449", "#93603b"], ["#744528", "#583320", "#3f2416"]];
 export const HAIR = ["#141110", "#2b1d15", "#4a3020", "#7a4a26", "#b88a4a", "#9c3f20", "#d8d2c8"];
-export const PERSON_H = 0.165; // a hair smaller than the mock-ups' first people (user)
+// About two thirds of the first deploy's 0.165 (user: "Scale the people down to where they look appropriate for
+// the new building sizes, and maybe even slightly smaller than that. Perhaps vary their heights a little bit"):
+// beside the garden's fruit tree a person is now half its height, a raised bed reaches their hip.
+export const PERSON_H = 0.115;
+// a person's own height: within about 8% either way of PERSON_H, steady for a given seed
+export const personH = (n) => PERSON_H * (0.92 + 0.16 * folkHash(n * 7 + 3));
 const SHOE_GEO = new THREE.SphereGeometry(1, 14, 8);
 /* A little person, one unit tall scaled to o.h, facing +z, feet at the
    origin. Poses: "stand", "walk", "kneel" (tending the bed in front),
@@ -492,8 +501,8 @@ export function personFig(o = {}) {
     head.add(mesh(new THREE.SphereGeometry(0.0905, 18, 8, Math.PI / 2 + 1.05, Math.PI * 2 - 2.1, 0.6, o.long ? 1.35 : 0.85), hairM, 0, 0.081, -0.004));
   }
   if (pose === "carry") {
-    b.add(mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.09, 16, 1, true), std("#b08a52", { roughness: 0.9, side: THREE.DoubleSide }), 0, 0.55, 0.24));
-    for (let i = 0; i < 4; i++) b.add(mesh(new THREE.SphereGeometry(0.035, 8, 6), std(["#d63c2a", "#f08a24", "#6fb03a", "#e8c63a"][i], { roughness: 0.5 }), (i % 2 - 0.5) * 0.08, 0.6, 0.24 + (i < 2 ? -0.03 : 0.03)));
+    b.add(mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.09, 16, 1, true), std("#b08a52", { roughness: 0.9, side: THREE.DoubleSide }), 0, 0.58, 0.2));
+    for (let i = 0; i < 4; i++) b.add(mesh(new THREE.SphereGeometry(0.035, 8, 6), std(["#d63c2a", "#f08a24", "#6fb03a", "#e8c63a"][i], { roughness: 0.5 }), (i % 2 - 0.5) * 0.08, 0.63, 0.2 + (i < 2 ? -0.03 : 0.03)));
   }
   g.traverse((m) => { if (m.isMesh) m.castShadow = false; });
   return g;
@@ -514,7 +523,7 @@ function garden(g, side, bh, dr, seedN) {
   const put = (o, x, y, z, ry = 0) => { o.position.set(x, y, z); o.rotation.y = ry; g.add(o); return o; };
   // the door toward the board's middle as the pieces start (the light side's toward -z, the dark side's toward +z)
   const th0 = side === "light" ? Math.PI : 0, thc = 0, at = (th, rho) => [Math.sin(th) * rho, Math.cos(th) * rho];
-  put(mesh(capGeo(sqPts(dr - 0.006)), deck), 0, bh + 0.004, 0);
+  put(mesh(new THREE.CylinderGeometry(dr - 0.006, dr - 0.006, 0.004, 48), deck), 0, bh + 0.002, 0);
   for (const c of [th0 + Math.PI / 2, th0 + Math.PI, th0 + 1.5 * Math.PI]) {
     const span = 1.25, a0 = c - span / 2;
     put(mesh(new THREE.LatheGeometry([new THREE.Vector2(0.2, 0), new THREE.Vector2(0.2, 0.04), new THREE.Vector2(0.29, 0.04), new THREE.Vector2(0.29, 0)], 16, a0, span), bed), 0, bh, 0);
@@ -532,7 +541,7 @@ function garden(g, side, bh, dr, seedN) {
   // one person from each band of skin tones, in an order of its own
   const bands = [0, 1, 2]; for (let i = 2; i > 0; i--) { const j = Math.floor(fr() * (i + 1)); [bands[i], bands[j]] = [bands[j], bands[i]]; }
   let nth = 0;
-  const who = (pose) => personFig({ pose, suit: SUITS[side], skin: SKIN[bands[nth % 3]][(seedN + nth++) % 3], hair: fp(HAIR), long: fr() < 0.4 });
+  const who = (pose) => personFig({ pose, h: personH(seedN * 31 + nth), suit: SUITS[side], skin: SKIN[bands[nth % 3]][(seedN + nth++) % 3], hair: fp(HAIR), long: fr() < 0.4 });
   const inGap = (a) => Math.abs(Math.atan2(Math.sin(a - th0), Math.cos(a - th0))) < 1.0;
   { const [x, z] = at(th0, 0.22); put(who("walk"), x, bh, z, th0 + Math.PI); }
   { let a = thc + 1.25; if (inGap(a)) a = thc - 1.25; const [x, z] = at(a, 0.15); put(who("kneel"), x, bh, z, a); }
@@ -562,7 +571,7 @@ export function buildingFor(piece, side) {
    middle on the board and whether a point (relative to the middle) is
    inside its walls at the ground. The same plans as the buildings. */
 export function footprintOf(piece, center) {
-  if (piece.type === "cabeza") { const r = CAB_D / 2; return { x: center.x, z: center.z, round: true, r, inside: (x, z) => Math.abs(x / r) ** SQN + Math.abs(z / r) ** SQN <= 1 }; }
+  if (piece.type === "cabeza") { const r = CAB_D / 2; return { x: center.x, z: center.z, round: true, r, inside: (x, z) => x * x + z * z <= r * r }; }
   const X = piece.w * PS, Z = piece.h * PS;
   if (piece.vox) {
     const cells = piece.vox.split(";").map((s) => s.split(",").map(Number)).filter((c) => c[2] === 0), q = PS / 2 - 0.012;

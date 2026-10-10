@@ -23,7 +23,8 @@ import {
   BOARD_ROWS, BOARD_COLS, SLAB_X, SLAB_Z, SLAB_MAX, MARGIN, SQUARE_SIZE, OFF_X, OFF_Z,
   DISC_DIAM, DISC_H, PIECE_SCALE, CABEZA_SCALE,
 } from "../engine/constants.js";
-import { makeRoundedBox, makePolycubeSmooth, makePolycubeGeometry } from "../engine/geometry.js";
+import { makeRoundedBox, makePolycubeSmooth, makePolycubeGeometry, voxCubeCenters } from "../engine/geometry.js";
+import { parseVox } from "../engine/shapes.js";
 
 /* ------------------------------------------------------------ palette */
 
@@ -210,6 +211,35 @@ function detailGeometry(piece, isDark, isDisc) {
   } else if (piece.vox) {
     const src = makePolycubeGeometry(piece, PIECE_SCALE), eg = new THREE.EdgesGeometry(src, 10);
     L.push(...eg.attributes.position.array); src.dispose(); eg.dispose();
+    /* The drawing on an odd piece as on a box (user: "Have the newer pieces
+       been rendered in the blueprint style yet? It doesn't seem like they
+       have been"; they had only their outline): on every outside wall of
+       every cube its floors and windows, a line where a wall runs on up
+       past a level (the outline leaves that out), and on the dark side
+       every roof hatched, the hatching one pattern across the piece. */
+    const cubes = parseVox(piece.vox), solid = new Set(cubes.map((c) => c.join(","))), centers = voxCubeCenters(piece, PIECE_SCALE);
+    const S = PIECE_SCALE, h = S / 2, e = 0.004, fl = Math.max(1, Math.round(S / FLOOR)), FH = S / fl, bays = Math.max(2, Math.round(S / BAY)), bw = S / bays;
+    const X = piece.w * S, Z = piece.h * S;
+    cubes.forEach(([x, y, l], i) => {
+      const [cx, cy, cz] = centers[i];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (solid.has(`${x + dx},${y + dy},${l}`)) continue; // a wall inside the piece
+        const at = (t, yy) => (dx ? [cx + dx * (h + e), yy, cz + t] : [cx + t, yy, cz + dy * (h + e)]);
+        for (let f = 1; f < fl; f++) { const yy = cy - h + f * FH; L.push(...at(-h, yy), ...at(h, yy)); }
+        if (solid.has(`${x},${y},${l + 1}`) && !solid.has(`${x + dx},${y + dy},${l + 1}`)) L.push(...at(-h, cy + h), ...at(h, cy + h));
+        for (let f = 0; f < fl; f++) for (let b = 0; b < bays; b++) {
+          const x0 = -h + b * bw + bw * 0.26, x1 = x0 + bw * 0.48, y0 = cy - h + f * FH + FH * 0.3, y1 = y0 + FH * 0.42;
+          L.push(...at(x0, y0), ...at(x1, y0), ...at(x1, y0), ...at(x1, y1), ...at(x1, y1), ...at(x0, y1), ...at(x0, y1), ...at(x0, y0));
+        }
+      }
+      if (isDark && !solid.has(`${x},${y},${l + 1}`)) {
+        const x0 = cx - h, x1 = cx + h, z0 = cz - h, z1 = cz + h, top = cy + h + e;
+        for (let t = -(X + Z) / 2 + HATCH / 2; t < (X + Z) / 2; t += HATCH) {
+          const lo = Math.max(x0, z0 + t), hi = Math.min(x1, z1 + t);
+          if (hi > lo) HL.push(lo, top, lo - t, hi, top, hi - t);
+        }
+      }
+    });
   } else {
     const X = piece.w * PIECE_SCALE, Y = piece.z * PIECE_SCALE, Z = piece.h * PIECE_SCALE, e = 0.004;
     const box = new THREE.BoxGeometry(X, Y, Z), eg = new THREE.EdgesGeometry(box, 20);
@@ -320,6 +350,7 @@ export const dockWords = {
   endGame: "Roll up the plans",
   newGame: "A fresh sheet",
   moveLog: "Revision log",
+  replay: "Replay a sheet",
   plainRules: "General notes",
   nextGame: "Next sheet",
   endedCaption: "Plans rolled up.",

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node build/build.js",
-    "test:engine": "node tests/engine.smoke.mjs && node tests/ai-threats.smoke.mjs && node tests/shapes.smoke.mjs && node tests/board-size.smoke.mjs && node --import ./tests/asset-hooks.mjs tests/theme-standard.smoke.mjs && node --import ./tests/asset-hooks.mjs tests/theme-neon.smoke.mjs && node tests/tienda-music.smoke.mjs && node tests/rules-selections.smoke.mjs && node tests/story-save.smoke.mjs",
+    "test:engine": "node tests/engine.smoke.mjs && node tests/ai-threats.smoke.mjs && node tests/shapes.smoke.mjs && node tests/board-size.smoke.mjs && node --import ./tests/asset-hooks.mjs tests/theme-standard.smoke.mjs && node --import ./tests/asset-hooks.mjs tests/theme-neon.smoke.mjs && node tests/tienda-music.smoke.mjs && node tests/rules-selections.smoke.mjs && node tests/story-save.smoke.mjs && node tests/replay.smoke.mjs",
     "test:e2e": "npm run build && node tests/run-e2e.mjs",
     "test": "npm run test:engine && npm run test:e2e"
   },

@@ -201,6 +201,7 @@ export const dockWords = {
   endGame: "End mission",
   newGame: "New mission",
   moveLog: "Mission log",
+  replay: "Replay a mission",
   plainRules: "Flight rules",
   nextGame: "Next mission",
   endedCaption: "Mission scrubbed.",

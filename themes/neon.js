@@ -2434,6 +2434,7 @@ export const dockWords = {
   endGame: "Disconnect",
   newGame: "Reboot",
   moveLog: "Trace log",
+  replay: "Replay a trace",
   plainRules: "Purge rules",
   nextGame: "Next link",
   endedCaption: "session closed",

@@ -5,8 +5,9 @@
    inflatable tubes back as well"), ribbed at the pinches, a stripe of the
    side's accent along the top; at every turn or branch the chosen
    interchange (user: "number 91 neutral interchange, but make it a little
-   bit smaller"): a squircle drum with a band and a low dome, a lamp on
-   it; collars where a tube meets a wall or a drum. Where the two sides'
+   bit smaller"): a round drum with a band and a low dome, a lamp on it
+   (round again: user, "change the interchanges back to a circular like
+   they were before"); collars where a tube meets a wall or a drum. Where the two sides'
    corridors cross, both run into a grey interchange banded in both sides'
    colours. A building no corridor can reach stands on its own, a beacon
    on its roof.
@@ -17,7 +18,7 @@
 
 import * as THREE from "three";
 import { SQUARE_SIZE } from "../engine/constants.js";
-import { PAL, std, shade, mesh, glowSprite, loft, sqPts, sqDomeGeo, PS } from "./luna-models.js";
+import { PAL, std, shade, mesh, glowSprite, PS } from "./luna-models.js";
 
 const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]]; // N S W E as [dRow, dCol]
 const AXIS = [0, 0, 1, 1];
@@ -133,10 +134,14 @@ function shared() {
   SHARED.rib = new THREE.TorusGeometry(r * 0.88, 0.012, 6, 22); SHARED.rib.rotateX(Math.PI / 2);
   SHARED.collar = new THREE.CylinderGeometry(r * 1.32, r * 1.32, 0.06, 22);
   SHARED.ball = new THREE.SphereGeometry(r * 0.999, 18, 12);
-  const K = CFG.nodeK, k = K / 2.6, R = r * K, h = r * 2 + 0.12 * k * k, bp = sqPts(R + 0.006);
-  SHARED.node = { R, h, k, drum: loft([{ pts: sqPts(R), y: 0 }, { pts: sqPts(R), y: h }]), band: loft([{ pts: bp, y: h * 0.6 - 0.017 * k }, { pts: bp, y: h * 0.6 + 0.017 * k }]), dome: sqDomeGeo(R, 0.4) };
-  const RH = r * CFG.hubK, kh = RH / (r * 2.6), hh = r * 2 + 0.12 * kh * kh, hp = sqPts(RH + 0.006), band = (y) => loft([{ pts: hp, y: y - 0.015 * kh }, { pts: hp, y: y + 0.015 * kh }]);
-  SHARED.hub = { R: RH, h: hh, k: kh, drum: loft([{ pts: sqPts(RH), y: 0 }, { pts: sqPts(RH), y: hh }]), bandLo: band(hh * 0.42), bandHi: band(hh * 0.72), dome: sqDomeGeo(RH, 0.4) };
+  // round: a drum standing on the ground, a band, a low dome
+  const drum = (R, h) => { const g = new THREE.CylinderGeometry(R, R, h, 40); g.translate(0, h / 2, 0); return g; };
+  const band = (R, y, w) => { const g = new THREE.CylinderGeometry(R + 0.006, R + 0.006, w, 40); g.translate(0, y, 0); return g; };
+  const dome = (R) => { const g = new THREE.SphereGeometry(R, 40, 12, 0, Math.PI * 2, 0, Math.PI / 2); g.scale(1, 0.4, 1); return g; };
+  const K = CFG.nodeK, k = K / 2.6, R = r * K, h = r * 2 + 0.12 * k * k;
+  SHARED.node = { R, h, k, drum: drum(R, h), band: band(R, h * 0.6, 0.034 * k), dome: dome(R) };
+  const RH = r * CFG.hubK, kh = RH / (r * 2.6), hh = r * 2 + 0.12 * kh * kh;
+  SHARED.hub = { R: RH, h: hh, k: kh, drum: drum(RH, hh), bandLo: band(RH, hh * 0.42, 0.03 * kh), bandHi: band(RH, hh * 0.72, 0.03 * kh), dome: dome(RH) };
   SHARED.grey = std("#9aa0a7", { metalness: 0.35, roughness: 0.45 });
   SHARED.mast = new THREE.BoxGeometry(0.016, 0.22, 0.016);
   SHARED.beacon = new THREE.SphereGeometry(0.03, 12, 8);
