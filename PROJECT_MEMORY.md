@@ -275,7 +275,8 @@ How to use it:
     0.3 long on the board. A kind's shape is made once and shared
     (partsOf); first time 5-44 ms here (software GL), then ~3 ms.
   - The traffic (themes/noir-traffic.js, run by noir-fx.js): one car at
-    a time, now and then (6-18 s between): along the ring street, a
+    a time, now and then (a crossing ~30 s, then 15-45 s of empty
+    street; the first 4-10 s into the game): along the ring street, a
     quarter turn into an open board street, end to end, a turn out the
     far side (right-hand lanes); or by on the ring street. One-way
     streets, every other the other way. Closed: a piece on the ground

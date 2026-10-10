@@ -288,7 +288,8 @@ export function createTraffic({ EX, EZ, compile }) {
     car.rg.rig.visible = false; car.rg.fade(0); car.rg.busy = false;
     car = null;
     const now = performance.now();
-    nextAt = now + (pace != null ? pace : 6000 + rnd() * 12000);
+    // (now and then: a crossing takes about half a minute, then 15-45 s of an empty street)
+    nextAt = now + (pace != null ? pace : 15000 + rnd() * 30000);
     readyAt = now + Math.min(1500, pace != null ? 0 : 1500);
   }
 
@@ -299,7 +300,7 @@ export function createTraffic({ EX, EZ, compile }) {
     tick(now, pieces, moving) {
       const dt = lastNow ? Math.min(0.1, (now - lastNow) / 1000) : 0;
       lastNow = now;
-      if (!nextAt) { nextAt = now + 3000 + rnd() * 5000; readyAt = now + 1500; }
+      if (!nextAt) { nextAt = now + 4000 + rnd() * 6000; readyAt = now + 1500; }
       if (!car) {
         if (!plan && now >= readyAt && !moving) prepare();
         else if (plan && now >= nextAt && !moving) spawn(pieces);
