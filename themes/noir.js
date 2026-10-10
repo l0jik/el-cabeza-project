@@ -27,13 +27,14 @@ import {
   DISC_DIAM, DISC_H, CABEZA_SCALE,
 } from "../engine/constants.js";
 import { buildingFor, NEON } from "./noir-models.js";
-import { lampSpots } from "./noir-city.js";
+import { lampSpots, BOARD_STREET, BOARD_WALK } from "./noir-city.js";
 
 /* ------------------------------------------------------------ palette */
 
 export const ASPHALT = "#0d0d0e";
 export const PAVE = "#1f1f20";
 export const KERB = "#a8a8a8";
+export const WALK = "#262627";
 
 export const COLORS = {
   // A dark UI: the panel the black of the night street, its ink the
@@ -104,13 +105,20 @@ let bseed = 1717;
 const brnd = () => (bseed = (bseed * 16807) % 2147483647) / 2147483647;
 const brr = (a, b) => a + (b - a) * brnd();
 
-/* The block, drawn: the street round it (the margin) asphalt with its
-   kerb and gutter; each square a slab of pavement, joints in it, darker
-   with the wet in places, puddles; the kerbs between the squares pale;
-   a crossing's stripes along each goal row's outer edge; the columns
-   lettered and rows numbered on the street in road paint; the lamps'
-   pools. Three canvases the same size: the colour, how rough (the
-   puddles shine) and the glow (the lamps' pools, lit whatever the moon). */
+/* The board, drawn as the city's streets (user: "Can the grid of Noir be
+   made to look like city streets appropriate to the time / theme /
+   setting?"): every line of the grid a street (BOARD_STREET wide, one
+   lane, centred on the line), going on out across the border to the
+   city's own; each square a block, its walk round it with the kerb at the
+   edge and the lot inside paved in slabs, darker with the wet, puddles; in
+   the streets the gutters, manholes, drains at the corners, a crossing's
+   two painted lines at every corner (as they were painted then), and a
+   streetcar line in granite setts down the middle each way. The border
+   outside the outer street is the walk round the district, the columns
+   lettered and rows numbered on it; the goal rows' outer streets carry a
+   band of stripes. Three canvases the same size: the colour, how rough
+   (the wet streets and the puddles shine) and the glow (the lamps' pools,
+   lit whatever the moon). */
 export function makeBoardTexture() {
   bseed = 1717;
   const RES = 2048, px = RES / SLAB_MAX;
@@ -122,69 +130,168 @@ export function makeBoardTexture() {
   r.scale(0.5, 0.5); e.scale(0.5, 0.5);
   const pad = MARGIN * px, sq = SQUARE_SIZE * px, gw = BOARD_COLS * sq, gh = BOARD_ROWS * sq;
   const U = (x) => (x + SLAB_X / 2) * px, V = (z) => (z + SLAB_Z / 2) * px;
-  // the street
+  const hs = (BOARD_STREET / 2) * px, walk = BOARD_WALK * px, kerbW = Math.max(2, sq * 0.012);
+  const gx = Array.from({ length: BOARD_COLS + 1 }, (_, i) => pad + i * sq), gy = Array.from({ length: BOARD_ROWS + 1 }, (_, j) => pad + j * sq);
+  const both = (fill, rough, x, y, w, h) => { g.fillStyle = fill; g.fillRect(x, y, w, h); if (rough) { r.fillStyle = rough; r.fillRect(x, y, w, h); } };
+  // n specks over a rectangle, light or dark at random (each kind one fill: fast)
+  const speckles = (x, y, w, h, n, light, dark) => {
+    const a = new Path2D(), b = new Path2D();
+    for (let i = 0; i < n; i++) (brnd() < 0.5 ? a : b).rect(x + brnd() * w, y + brnd() * h, 2, 2);
+    g.fillStyle = light; g.fill(a); g.fillStyle = dark; g.fill(b);
+  };
+
+  // the streets: wet asphalt everywhere first (smoother than the walks: it shines)
   g.fillStyle = ASPHALT; g.fillRect(0, 0, W, H);
-  for (let i = 0; i < (W * H) / 90; i++) { g.fillStyle = brnd() < 0.5 ? "rgba(255,255,255,0.035)" : "rgba(0,0,0,0.18)"; g.fillRect(brnd() * W, brnd() * H, 2, 2); }
-  r.fillStyle = "rgb(140,140,140)"; r.fillRect(0, 0, W, H);
+  speckles(0, 0, W, H, (W * H) / 90, "rgba(255,255,255,0.035)", "rgba(0,0,0,0.18)");
+  r.fillStyle = "rgb(105,105,105)"; r.fillRect(0, 0, W, H);
   e.fillStyle = "#000"; e.fillRect(0, 0, W, H);
-  // the squares: pavement slabs
+
+  // a walk's flags: the paving joints across it, every so often
+  const flags = (x, y, w, h) => {
+    g.strokeStyle = "rgba(0,0,0,0.5)"; g.lineWidth = Math.max(1, sq * 0.004); g.beginPath();
+    const step = sq * 0.11;
+    if (w >= h) for (let X = x + step; X < x + w - 2; X += step) { g.moveTo(X, y); g.lineTo(X, y + h); }
+    else for (let Y = y + step; Y < y + h - 2; Y += step) { g.moveTo(x, Y); g.lineTo(x + w, Y); }
+    g.stroke();
+    speckles(x, y, w, h, (w * h) / 260, "rgba(255,255,255,0.05)", "rgba(0,0,0,0.22)");
+  };
+  const kerbLine = (x0, y0, x1, y1) => { g.strokeStyle = KERB; g.globalAlpha = 0.6; g.lineWidth = kerbW; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.globalAlpha = 1; };
+
+  // the border: the walk round the district, outside the outer street, cut
+  // where each street goes on out to the city's
+  const xs = [[0, gx[0] - hs], ...gx.slice(0, -1).map((x, i) => [x + hs, gx[i + 1] - hs]), [gx[BOARD_COLS] + hs, W]];
+  const ys = gy.slice(0, -1).map((y, j) => [y + hs, gy[j + 1] - hs]);
+  const islands = [];
+  for (const [a, b] of xs) { islands.push([a, 0, b, pad - hs]); islands.push([a, pad + gh + hs, b, H]); }
+  for (const [a, b] of ys) { islands.push([0, a, pad - hs, b]); islands.push([pad + gw + hs, a, W, b]); }
+  for (const [x0, y0, x1, y1] of islands) {
+    both(WALK, "rgb(170,170,170)", x0, y0, x1 - x0, y1 - y0);
+    flags(x0, y0, x1 - x0, y1 - y0);
+    // the kerb on every side that meets a street (not the slab's own edge)
+    if (x0 > 1) kerbLine(x0, y0, x0, y1);
+    if (x1 < W - 1) kerbLine(x1, y0, x1, y1);
+    if (y0 > 1) kerbLine(x0, y0, x1, y0);
+    if (y1 < H - 1) kerbLine(x0, y1, x1, y1);
+  }
+
+  // the blocks: the walk round each, its kerb, the lot inside paved in slabs
+  const round = sq * 0.035;
+  const rrect = (ctx, x, y, w, h, rad) => { ctx.beginPath(); ctx.moveTo(x + rad, y); ctx.arcTo(x + w, y, x + w, y + h, rad); ctx.arcTo(x + w, y + h, x, y + h, rad); ctx.arcTo(x, y + h, x, y, rad); ctx.arcTo(x, y, x + w, y, rad); ctx.closePath(); };
   for (let j = 0; j < BOARD_ROWS; j++) for (let i = 0; i < BOARD_COLS; i++) {
-    const x0 = pad + i * sq, y0 = pad + j * sq, k = brr(0.9, 1.08);
-    g.fillStyle = shadeHex(PAVE, k); g.fillRect(x0, y0, sq, sq);
-    r.fillStyle = "rgb(175,175,175)"; r.fillRect(x0, y0, sq, sq);
-    // the wet: darker drifts across the slab
+    const bx = gx[i] + hs, by = gy[j] + hs, bw = sq - 2 * hs, bh = sq - 2 * hs;
+    g.fillStyle = WALK; rrect(g, bx, by, bw, bh, round); g.fill();
+    r.fillStyle = "rgb(170,170,170)"; rrect(r, bx, by, bw, bh, round); r.fill();
+    // the walk's flags, all round
+    g.strokeStyle = "rgba(0,0,0,0.5)"; g.lineWidth = Math.max(1, sq * 0.004); g.beginPath();
+    for (let t = sq * 0.11; t < bw - 2; t += sq * 0.11) { g.moveTo(bx + t, by); g.lineTo(bx + t, by + walk); g.moveTo(bx + t, by + bh - walk); g.lineTo(bx + t, by + bh); }
+    for (let t = sq * 0.11; t < bh - 2; t += sq * 0.11) { g.moveTo(bx, by + t); g.lineTo(bx + walk, by + t); g.moveTo(bx + bw - walk, by + t); g.lineTo(bx + bw, by + t); }
+    g.stroke();
+    // the lot
+    const x0 = bx + walk, y0 = by + walk, lw = bw - 2 * walk, lh = bh - 2 * walk, k = brr(0.9, 1.08);
+    g.fillStyle = shadeHex(PAVE, k); g.fillRect(x0, y0, lw, lh);
+    r.fillStyle = "rgb(175,175,175)"; r.fillRect(x0, y0, lw, lh);
+    g.strokeStyle = "rgba(0,0,0,0.55)"; g.lineWidth = Math.max(1.5, sq * 0.006); g.strokeRect(x0, y0, lw, lh);
+    // the wet: darker drifts across the lot
     for (let n = 0; n < 4; n++) {
-      const gx = x0 + brnd() * sq, gy = y0 + brnd() * sq, gr = sq * brr(0.15, 0.4), grd = g.createRadialGradient(gx, gy, 0, gx, gy, gr);
-      grd.addColorStop(0, "rgba(0,0,0,0.22)"); grd.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = grd; g.fillRect(x0, y0, sq, sq);
+      const cx = x0 + brnd() * lw, cy = y0 + brnd() * lh, gr = lw * brr(0.15, 0.4), grd = g.createRadialGradient(cx, cy, 0, cx, cy, gr);
+      grd.addColorStop(0, "rgba(0,0,0,0.22)"); grd.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = grd; g.fillRect(x0, y0, lw, lh);
     }
-    // slab joints: the square cut in four
+    // slab joints: the lot cut in four
     g.strokeStyle = "rgba(0,0,0,0.45)"; g.lineWidth = Math.max(1.5, sq * 0.008);
-    g.beginPath(); g.moveTo(x0 + sq / 2, y0); g.lineTo(x0 + sq / 2, y0 + sq); g.moveTo(x0, y0 + sq / 2); g.lineTo(x0 + sq, y0 + sq / 2); g.stroke();
+    g.beginPath(); g.moveTo(x0 + lw / 2, y0); g.lineTo(x0 + lw / 2, y0 + lh); g.moveTo(x0, y0 + lh / 2); g.lineTo(x0 + lw, y0 + lh / 2); g.stroke();
     // grit
-    for (let n = 0; n < sq * 0.6; n++) { g.fillStyle = brnd() < 0.5 ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.25)"; g.fillRect(x0 + brnd() * sq, y0 + brnd() * sq, 2, 2); }
-    // a puddle on one square in three: dark, and mirror-smooth in the roughness
+    speckles(x0, y0, lw, lh, sq * 0.5, "rgba(255,255,255,0.05)", "rgba(0,0,0,0.25)");
+    // a puddle on one lot in three: dark, and mirror-smooth in the roughness
     if (brnd() < 0.36) {
       const n = 1 + (brnd() < 0.35 ? 1 : 0);
-      for (let q = 0; q < n; q++) {
-        const cx = x0 + sq * brr(0.22, 0.78), cy = y0 + sq * brr(0.22, 0.78), rx = sq * brr(0.07, 0.15), ry = sq * brr(0.04, 0.09), rot = brr(0, Math.PI);
-        g.save(); g.translate(cx, cy); g.rotate(rot); g.scale(1, ry / rx);
-        const pg = g.createRadialGradient(0, 0, 0, 0, 0, rx); pg.addColorStop(0, "rgba(4,4,5,0.42)"); pg.addColorStop(0.75, "rgba(4,4,5,0.3)"); pg.addColorStop(1, "rgba(4,4,5,0)");
-        g.fillStyle = pg; g.beginPath(); g.arc(0, 0, rx, 0, 7); g.fill(); g.restore();
-        g.strokeStyle = "rgba(255,255,255,0.1)"; g.lineWidth = 1.5; g.beginPath(); g.ellipse(cx, cy, rx, ry, rot, Math.PI * 1.1, Math.PI * 1.75); g.stroke();
-        r.fillStyle = "rgb(30,30,30)"; r.beginPath(); r.ellipse(cx, cy, rx, ry, rot, 0, 7); r.fill();
+      for (let q = 0; q < n; q++) puddle(x0 + lw * brr(0.22, 0.78), y0 + lh * brr(0.22, 0.78), lw * brr(0.07, 0.15), lw * brr(0.04, 0.09), brr(0, Math.PI));
+    }
+    // the kerb round the block
+    g.strokeStyle = KERB; g.globalAlpha = 0.6; g.lineWidth = kerbW; rrect(g, bx, by, bw, bh, round); g.stroke(); g.globalAlpha = 1;
+  }
+  function puddle(cx, cy, rx, ry, rot) {
+    g.save(); g.translate(cx, cy); g.rotate(rot); g.scale(1, ry / rx);
+    const pg = g.createRadialGradient(0, 0, 0, 0, 0, rx); pg.addColorStop(0, "rgba(4,4,5,0.42)"); pg.addColorStop(0.75, "rgba(4,4,5,0.3)"); pg.addColorStop(1, "rgba(4,4,5,0)");
+    g.fillStyle = pg; g.beginPath(); g.arc(0, 0, rx, 0, 7); g.fill(); g.restore();
+    g.strokeStyle = "rgba(255,255,255,0.1)"; g.lineWidth = 1.5; g.beginPath(); g.ellipse(cx, cy, rx, ry, rot, Math.PI * 1.1, Math.PI * 1.75); g.stroke();
+    r.fillStyle = "rgb(30,30,30)"; r.beginPath(); r.ellipse(cx, cy, rx, ry, rot, 0, 7); r.fill();
+  }
+
+  // the gutters: a darker run along each kerb, where the rain goes
+  g.fillStyle = "rgba(0,0,0,0.35)";
+  const gut = Math.max(2, sq * 0.012);
+  for (let j = 0; j < BOARD_ROWS; j++) for (let i = 0; i < BOARD_COLS; i++) {
+    const bx = gx[i] + hs, by = gy[j] + hs, bw = sq - 2 * hs;
+    g.fillRect(bx, by - gut, bw, gut); g.fillRect(bx, by + bw, bw, gut); g.fillRect(bx - gut, by, gut, bw); g.fillRect(bx + bw, by, gut, bw);
+  }
+  // the streetcar line down the middle each way: setts, the two rails
+  const midX = gx[Math.round(BOARD_COLS / 2)], midY = gy[Math.round(BOARD_ROWS / 2)];
+  const sett = sq * 0.022, band = hs * 0.72, gauge = sq * 0.034;
+  const settShades = [0.8, 0.88, 0.96, 1.04, 1.12, 1.2].map((k) => shadeHex("#262627", k));
+  const setts = (x, y, w, h) => {
+    // (shade by shade: one colour set at a time)
+    settShades.forEach((shade, n) => {
+      g.fillStyle = shade;
+      for (let Y = y, row = 0; Y < y + h; Y += sett, row++) for (let X = x + ((row % 2) * sett) / 2, col = 0; X < x + w; X += sett, col++) {
+        if (((row * 7 + col * 13 + ((row * col) % 5)) % settShades.length) === n) g.fillRect(X + 0.6, Y + 0.6, sett - 1.2, sett - 1.2);
       }
-    }
-    // a manhole now and then
-    if (brnd() < 0.07) {
-      const cx = x0 + sq * brr(0.3, 0.7), cy = y0 + sq * brr(0.3, 0.7), mr = sq * 0.11;
-      g.fillStyle = "#161616"; g.beginPath(); g.arc(cx, cy, mr, 0, 7); g.fill();
-      g.strokeStyle = "rgba(255,255,255,0.14)"; g.lineWidth = 2; g.stroke();
-      g.strokeStyle = "rgba(255,255,255,0.08)"; for (let t = -mr * 0.7; t <= mr * 0.7; t += mr * 0.35) { g.beginPath(); g.moveTo(cx - mr * 0.75, cy + t); g.lineTo(cx + mr * 0.75, cy + t); g.stroke(); }
+    });
+  };
+  setts(midX - band, 0, band * 2, H); setts(0, midY - band, W, band * 2);
+  r.fillStyle = "rgb(140,140,140)"; r.fillRect(midX - band, 0, band * 2, H); r.fillRect(0, midY - band, W, band * 2);
+  g.fillStyle = "rgba(205,205,205,0.75)";
+  const rail = Math.max(1.5, sq * 0.007);
+  for (const d of [-gauge, gauge]) { g.fillRect(midX + d - rail / 2, 0, rail, H); g.fillRect(0, midY + d - rail / 2, W, rail); }
+  r.fillStyle = "rgb(40,40,40)";
+  for (const d of [-gauge, gauge]) { r.fillRect(midX + d - rail, 0, rail * 2, H); r.fillRect(0, midY + d - rail, W, rail * 2); }
+  // manholes in the streets, a drain's grate by the kerb at some corners, puddles in the gutters
+  const inStreets = [];
+  for (let i = 0; i <= BOARD_COLS; i++) for (let j = 0; j < BOARD_ROWS; j++) inStreets.push([gx[i], gy[j] + sq * brr(0.3, 0.7), 0]);
+  for (let j = 0; j <= BOARD_ROWS; j++) for (let i = 0; i < BOARD_COLS; i++) inStreets.push([gx[i] + sq * brr(0.3, 0.7), gy[j], 1]);
+  for (const [x, y, across] of inStreets) {
+    const roll = brnd(), onRails = across ? Math.abs(y - midY) < 1 : Math.abs(x - midX) < 1;
+    if (roll < 0.09 && !onRails) {
+      const mr = hs * 0.42;
+      g.fillStyle = "#151515"; g.beginPath(); g.arc(x, y, mr, 0, 7); g.fill();
+      g.strokeStyle = "rgba(255,255,255,0.16)"; g.lineWidth = 1.5; g.stroke();
+      g.strokeStyle = "rgba(255,255,255,0.08)"; g.beginPath(); for (let t = -mr * 0.6; t <= mr * 0.6; t += mr * 0.4) { g.moveTo(x - mr * 0.7, y + t); g.lineTo(x + mr * 0.7, y + t); } g.stroke();
+    } else if (roll < 0.2) {
+      const s = brnd() < 0.5 ? -1 : 1, dw = sq * 0.05, dh = hs * 0.28, at = s > 0 ? hs - dh : -hs;
+      const [dx, dy] = across ? [x - dw / 2, y + at] : [x + at, y - dw / 2];
+      const [w2, h2] = across ? [dw, dh] : [dh, dw];
+      g.fillStyle = "#070707"; g.fillRect(dx, dy, w2, h2);
+      g.strokeStyle = "rgba(255,255,255,0.12)"; g.lineWidth = 1; g.beginPath();
+      for (let t = 1; t < 5; t++) { if (across) { g.moveTo(dx + (w2 * t) / 5, dy); g.lineTo(dx + (w2 * t) / 5, dy + h2); } else { g.moveTo(dx, dy + (h2 * t) / 5); g.lineTo(dx + w2, dy + (h2 * t) / 5); } }
+      g.stroke();
+    } else if (roll < 0.34) {
+      const s = brnd() < 0.5 ? -1 : 1, off = s * hs * 0.62;
+      if (across) puddle(x, y + off, sq * brr(0.06, 0.12), hs * 0.22, 0);
+      else puddle(x + off, y, hs * 0.22, sq * brr(0.06, 0.12), 0);
     }
   }
-  // the crossings: road-paint stripes along each goal row's outer edge
-  g.fillStyle = "rgba(225,225,225,0.55)"; r.fillStyle = "rgb(120,120,120)";
-  const bandH = sq * 0.16, stripe = sq / 6;
-  for (const y0 of [pad + sq * 0.03, pad + gh - sq * 0.03 - bandH]) {
-    for (let x = pad + stripe * 0.25; x < pad + gw - stripe * 0.5; x += stripe) { g.fillRect(x, y0, stripe * 0.55, bandH); r.fillRect(x, y0, stripe * 0.55, bandH); }
+  // the crossings: two painted lines across each street at every corner
+  const cw = Math.max(1.5, sq * 0.009), c1 = hs + sq * 0.03, c2 = hs + sq * 0.085, xing = new Path2D();
+  for (const x of gx) for (const y of gy) {
+    for (const d of [c1, c2]) {
+      xing.rect(x - hs, y - d - cw / 2, hs * 2, cw); xing.rect(x - hs, y + d - cw / 2, hs * 2, cw);
+      xing.rect(x - d - cw / 2, y - hs, cw, hs * 2); xing.rect(x + d - cw / 2, y - hs, cw, hs * 2);
+    }
   }
-  // the kerbs between the squares: pale, a little worn
-  g.strokeStyle = KERB; g.lineWidth = Math.max(2.5, sq * 0.022); g.globalAlpha = 0.55;
-  g.beginPath();
-  for (let i = 0; i <= BOARD_COLS; i++) { const x = pad + i * sq; g.moveTo(x, pad); g.lineTo(x, pad + gh); }
-  for (let j = 0; j <= BOARD_ROWS; j++) { const y = pad + j * sq; g.moveTo(pad, y); g.lineTo(pad + gw, y); }
-  g.stroke(); g.globalAlpha = 1;
-  // the outer kerb, heavier, and the gutter's shadow outside it
-  g.strokeStyle = "rgba(0,0,0,0.6)"; g.lineWidth = Math.max(6, sq * 0.05); g.strokeRect(pad - sq * 0.045, pad - sq * 0.045, gw + sq * 0.09, gh + sq * 0.09);
-  g.strokeStyle = "#c4c4c4"; g.lineWidth = Math.max(4, sq * 0.04); g.strokeRect(pad, pad, gw, gh);
-  // the columns lettered and the rows numbered on the street, in road paint
-  // (each reads the right way up from its own end of the board)
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", fs = Math.round(Math.min(pad * 0.62, sq * 0.3));
-  g.fillStyle = "rgba(230,230,230,0.7)"; g.font = `${fs}px 'Bebas Neue', 'Oswald', Impact, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillStyle = "rgba(220,220,220,0.4)"; g.fill(xing); r.fillStyle = "rgb(120,120,120)"; r.fill(xing);
+  // the goal rows: a band of stripes down their outer streets
+  const bandH = hs * 1.5, stripe = sq / 6, stripes = new Path2D();
+  for (const yc of [gy[0], gy[BOARD_ROWS]]) {
+    for (let x = pad + stripe * 0.25; x < pad + gw - stripe * 0.5; x += stripe) stripes.rect(x, yc - bandH / 2, stripe * 0.5, bandH);
+  }
+  g.fillStyle = "rgba(225,225,225,0.5)"; g.fill(stripes); r.fillStyle = "rgb(120,120,120)"; r.fill(stripes);
+  // the columns lettered and the rows numbered on the walk round the
+  // district, in paint (each reads the right way up from its own end)
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", band2 = pad - hs, fs = Math.round(Math.min(band2 * 0.72, sq * 0.27));
+  g.fillStyle = "rgba(230,230,230,0.72)"; g.font = `${fs}px 'Bebas Neue', 'Oswald', Impact, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
   const paint = (x, y, s, turn) => { g.save(); g.translate(x, y); if (turn) g.rotate(Math.PI); g.fillText(s, 0, fs * 0.06); g.restore(); };
-  for (let i = 0; i < BOARD_COLS; i++) { const x = pad + (i + 0.5) * sq; paint(x, pad * 0.5, letters[i], true); paint(x, H - pad * 0.5, letters[i], false); }
-  for (let j = 0; j < BOARD_ROWS; j++) { const y = pad + (j + 0.5) * sq; paint(pad * 0.5, y, String(BOARD_ROWS - j), false); paint(W - pad * 0.5, y, String(BOARD_ROWS - j), true); }
-  // the lamps' pools: on the glow (lit whatever the moon), a touch on the colour
+  for (let i = 0; i < BOARD_COLS; i++) { const x = pad + (i + 0.5) * sq; paint(x, band2 * 0.5, letters[i], true); paint(x, H - band2 * 0.5, letters[i], false); }
+  for (let j = 0; j < BOARD_ROWS; j++) { const y = pad + (j + 0.5) * sq; paint(band2 * 0.5, y, String(BOARD_ROWS - j), false); paint(W - band2 * 0.5, y, String(BOARD_ROWS - j), true); }
+  // the lamps' pools: on the glow (lit whatever the moon)
   for (const [lx, lz] of lampSpots()) {
     const cx = U(lx), cy = V(lz), R = sq * 1.7;
     const grd = e.createRadialGradient(cx, cy, 0, cx, cy, R);
@@ -213,8 +320,9 @@ export function buildSlabMaterials(boardTex) {
   return [side(), side(), top, side(), side(), side()];
 }
 
-/* The squares' lines again, fine, over the painted kerbs: they hold up at
-   a distance where the texture blurs. */
+/* The squares' lines again, fine, over the painted streets: a dashed line
+   down the middle of each, as a lane's paint (they hold up at a distance
+   where the texture blurs). */
 export function makeGrid() {
   const group = new THREE.Group();
   const lines = [];
@@ -222,7 +330,8 @@ export function makeGrid() {
   for (let i = 0; i <= BOARD_ROWS; i++) { const z = i * SQUARE_SIZE - OFF_Z; lines.push(-OFF_X, 0, z, OFF_X, 0, z); }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(lines, 3));
-  const gridLines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0xcfcfcf, transparent: true, opacity: 0.18 }));
+  const gridLines = new THREE.LineSegments(geo, new THREE.LineDashedMaterial({ color: 0xd8d8d8, transparent: true, opacity: 0.2, dashSize: 0.07, gapSize: 0.06 }));
+  gridLines.computeLineDistances();
   gridLines.name = "ec-grid-lines";
   gridLines.position.y = 0.05; // clears the top face's polygon offset (see themes/standard.js)
   group.add(gridLines);

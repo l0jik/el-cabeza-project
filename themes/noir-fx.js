@@ -15,6 +15,8 @@
      then lightning (and the thunder after it, noir-audio.js).
    - The piece picked up stands in a pool of light, as if a lamp just out
      of shot had found it.
+   - Now and then a car of the time down one of the board's streets, or by
+     on the ring street (noir-traffic.js).
    - Over the picture: a vignette and a fine moving grain, as on a print of
      the film. All of it rebuilds or disposes cleanly; nothing here touches
      play. */
@@ -22,6 +24,8 @@
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z, OFF_X, OFF_Z, MARGIN } from "../engine/constants.js";
 import { buildCity, glowTex, FOCUS } from "./noir-city.js";
+import { createTraffic } from "./noir-traffic.js";
+import { disposeCars } from "./noir-cars.js";
 import { quality } from "./tienda-quality.js";
 import { PLAY } from "./noir.js";
 
@@ -197,7 +201,7 @@ function mountPrint(refs) {
 export function mountAmbientEffects(refs, { three, cam, audio }) {
   const Q = quality();
   let city = null, dims = "", attachedTo = null, fog = null, renderPrev = null, sky = null, rain = null, beams = null, print = null, fogPrev = null;
-  let pool = null, steam = null;
+  let pool = null, steam = null, traffic = null, moving = false;
   const ripples = [];
   const lastPos = new Map();
   const camLocal = new THREE.Vector3(), keyPos = new THREE.Vector3(), tmp = new THREE.Vector3();
@@ -217,6 +221,19 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
     if (steam) { steam.group.parent && steam.group.parent.remove(steam.group); steam.dispose(); }
     steam = createSteam([[OFF_X + MARGIN + 0.9, OFF_Z - 1.6], [-(OFF_X + MARGIN + 0.9), -OFF_Z + 2.3]]);
     t.boardGroup.add(steam.group);
+    // the cars, laid out for this board's streets
+    if (traffic) { traffic.group.parent && traffic.group.parent.remove(traffic.group); traffic.dispose(); }
+    traffic = createTraffic({ EX: SLAB_X / 2, EZ: SLAB_Z / 2, compile: () => { const c = three.current; if (c && c.renderer && c.scene && c.camera) c.renderer.compile(c.scene, c.camera); } });
+    t.boardGroup.add(traffic.group);
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+      window.__NOIR_TRAFFIC__ = {
+        state: () => ({ ...traffic.test.state(), moving }),
+        spawn: (opts) => traffic.test.spawn(PLAY.pieces, opts),
+        pace: (ms) => traffic.test.pace(ms),
+        freeze: (on) => traffic.test.freeze(on),
+        closed: () => traffic.test.closed(PLAY.pieces),
+      };
+    }
     dims = `${SLAB_X}x${SLAB_Z}`;
   }
 
@@ -268,16 +285,18 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
   function watchLandings(t) {
     if (!t.pieceGroup) return;
     const changed = [];
+    moving = false;
     t.pieceGroup.children.forEach((o) => {
       if (!o.userData || o.userData.kind !== "piece") return;
       const id = o.userData.pieceId, key = `${o.position.x.toFixed(2)},${o.position.z.toFixed(2)}`;
       const rec = lastPos.get(id);
       if (!rec) { lastPos.set(id, { key, still: 99, pending: false }); return; }
-      if (rec.key !== key) { changed.push(rec); rec.key = key; rec.still = 0; rec.pending = true; }
+      if (rec.key !== key) { changed.push(rec); rec.key = key; rec.still = 0; rec.pending = true; moving = true; }
       else if (rec.pending && ++rec.still === 3) {
         rec.pending = false;
         if (!rec.bulk) { spawnRipple(o.position.x, o.position.z, 0.9, 0); spawnRipple(o.position.x, o.position.z, 0.7, 180); }
       }
+      if (rec.pending) moving = true;
     });
     const bulk = changed.length > 2;
     changed.forEach((rec) => { rec.bulk = bulk; });
@@ -338,6 +357,7 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
       beams.tick(sec);
       steam.tick(sec);
       watchLandings(t);
+      traffic.tick(now, PLAY.pieces, moving);
       tickPool(t, now);
       for (let i = ripples.length - 1; i >= 0; i--) {
         const r = ripples[i], u = (now - r.born) / 1100;
@@ -366,6 +386,8 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
       if (rain) { rain.lines.parent && rain.lines.parent.remove(rain.lines); rain.dispose(); rain = null; }
       if (beams) { beams.group.parent && beams.group.parent.remove(beams.group); beams.dispose(); beams = null; }
       if (steam) { steam.group.parent && steam.group.parent.remove(steam.group); steam.dispose(); steam = null; }
+      if (traffic) { traffic.group.parent && traffic.group.parent.remove(traffic.group); traffic.dispose(); traffic = null; disposeCars(); }
+      if (typeof window !== "undefined" && window.__NOIR_TRAFFIC__) delete window.__NOIR_TRAFFIC__;
       if (sky) { sky.group.parent && sky.group.parent.remove(sky.group); sky.dispose(); sky = null; }
       if (print) { print.dispose(); print = null; }
       const t = three.current;

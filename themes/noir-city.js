@@ -18,7 +18,7 @@
    scale: a window a bay of a quarter unit, four to a floor. */
 
 import * as THREE from "three";
-import { BOARD_ROWS, BOARD_COLS, OFF_X, OFF_Z, MARGIN } from "../engine/constants.js";
+import { BOARD_ROWS, BOARD_COLS, OFF_X, OFF_Z, MARGIN, SQUARE_SIZE } from "../engine/constants.js";
 import { towerParts, TOWER_MATS, hash } from "./noir-models.js";
 
 const ASPHALT = "#0d0d0e", WALK = "#1c1c1d", KERB = "#6e6e6e";
@@ -179,9 +179,16 @@ export function buildCity({ EX, EZ, tier }) {
     g.strokeStyle = KERB; g.lineWidth = Math.max(1, GPX * 0.06); g.strokeRect(U(x0) - 0.35 * GPX, U(z0) - 0.35 * GPX, (x1 - x0 + 0.7) * GPX, (z1 - z0 + 0.7) * GPX);
     r.fillStyle = "rgb(185,185,185)"; r.fillRect(U(x0) - 0.35 * GPX, U(z0) - 0.35 * GPX, (x1 - x0 + 0.7) * GPX, (z1 - z0 + 0.7) * GPX);
   }
-  // the board's own kerb and walk round the slab
+  // the board's own kerb and walk round the slab; the board's streets go
+  // on out across it to the ring street
   g.fillStyle = WALK; g.fillRect(U(-EX) - 0.3 * GPX, U(-EZ) - 0.3 * GPX, (2 * EX + 0.6) * GPX, (2 * EZ + 0.6) * GPX);
   g.strokeStyle = KERB; g.lineWidth = Math.max(1, GPX * 0.06); g.strokeRect(U(-EX) - 0.3 * GPX, U(-EZ) - 0.3 * GPX, (2 * EX + 0.6) * GPX, (2 * EZ + 0.6) * GPX);
+  {
+    const half = BOARD_STREET / 2, out = 0.38;
+    const asphalt = (x0, z0, x1, z1) => { g.fillStyle = ASPHALT; g.fillRect(U(x0), U(z0), (x1 - x0) * GPX, (z1 - z0) * GPX); r.fillStyle = "rgb(150,150,150)"; r.fillRect(U(x0), U(z0), (x1 - x0) * GPX, (z1 - z0) * GPX); };
+    for (let i = 0; i <= BOARD_COLS; i++) { const x = i * SQUARE_SIZE - OFF_X; asphalt(x - half, -EZ - out, x + half, -EZ); asphalt(x - half, EZ, x + half, EZ + out); }
+    for (let j = 0; j <= BOARD_ROWS; j++) { const z = j * SQUARE_SIZE - OFF_Z; asphalt(-EX - out, z - half, -EX, z + half); asphalt(EX, z - half, EX + out, z + half); }
+  }
   // lane marks down the middle of every street, crossings at the corners
   g.fillStyle = "rgba(210,210,210,0.35)";
   const mids = (bandsArr) => { const m = []; for (let i = 0; i < bandsArr.length - 1; i++) m.push((bandsArr[i][1] + bandsArr[i + 1][0]) / 2); return m; };
@@ -385,14 +392,25 @@ export function buildCity({ EX, EZ, tier }) {
   };
 }
 
-/* Where the street lamps stand round the board's edge: the corners, and
-   along the sides between them. noir.js draws their pools on the board. */
+/* The board's streets (noir.js paints them, noir-traffic.js drives them):
+   one down every line of the grid, this wide, and on out across the
+   border; the walk round each block inside its square. */
+export const BOARD_STREET = 0.18;
+export const BOARD_WALK = 0.05;
+
+/* Where the street lamps stand round the board's edge: on the walk round
+   the district, at the corners and along the sides between them (by a
+   column's letter, clear of the streets going out). noir.js draws their
+   pools on the board. */
 export function lampSpots() {
-  const ex = OFF_X + MARGIN * 0.5, ez = OFF_Z + MARGIN * 0.5, out = [];
+  const k = (BOARD_STREET / 2 + MARGIN) / 2, ex = OFF_X + k, ez = OFF_Z + k, out = [];
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) out.push([sx * ex, sz * ez]);
   const nx = Math.max(0, Math.round(BOARD_COLS / 4) - 1), nz = Math.max(0, Math.round(BOARD_ROWS / 4) - 1);
-  for (let i = 1; i <= nx; i++) { const x = -OFF_X + (2 * OFF_X * i) / (nx + 1); out.push([x, -ez], [x, ez]); }
-  for (let i = 1; i <= nz; i++) { const z = -OFF_Z + (2 * OFF_Z * i) / (nz + 1); out.push([-ex, z], [ex, z]); }
+  // (a column's middle, then 0.3 of a square in toward the board's middle:
+  // between its letter and the next street)
+  const by = (v, off, n) => { const i = Math.min(n - 1, Math.max(0, Math.floor((v + off) / SQUARE_SIZE))); return (i + (v < 0 ? 0.8 : 0.2)) * SQUARE_SIZE - off; };
+  for (let i = 1; i <= nx; i++) { const x = by(-OFF_X + (2 * OFF_X * i) / (nx + 1), OFF_X, BOARD_COLS); out.push([x, -ez], [x, ez]); }
+  for (let i = 1; i <= nz; i++) { const z = by(-OFF_Z + (2 * OFF_Z * i) / (nz + 1), OFF_Z, BOARD_ROWS); out.push([-ex, z], [ex, z]); }
   return out;
 }
 

@@ -29,6 +29,8 @@ const E2E = [
   ["e2e-gate.mjs"], ["e2e-ending.mjs"], ["e2e-hall-after-game.mjs"], ["e2e-summon.mjs"], ["e2e-den-spot.mjs"], ["e2e-den-return.mjs"], ["e2e-drag-latch.mjs"], ["e2e-journey.mjs"], ["e2e-tv-lure.mjs"], ["e2e-clerk.mjs"],
   // (Written for the in-game touch round and never added until the efficiency review.)
   ["e2e-touch-in-game.mjs"],
+  // Noir's streets and its cars.
+  ["e2e-noir-streets.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

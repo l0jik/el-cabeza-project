@@ -242,3 +242,61 @@ How to use it:
   the placard's Move Log, with the HUD tapped open as the game was won,
   and the next game's small HUD opens on a tap. Asked the user which
   direction, which device and what they tapped.
+- Noir's streets and cars (user: "Can the grid of Noir be made to look
+  like city streets appropriate to the time / theme / setting?
+  Occasionally have a post-war sedan or coupe, most notably 4-door sedans
+  and low-slung coupes produced by American manufacturers like Ford,
+  Buick, Cadillac, Chevrolet, and Chrysler between 1935 and 1950"). Noir
+  itself: history/10.md, "Noir, a new world in the making".
+  - The board (noir.js makeBoardTexture): every grid line a street
+    (BOARD_STREET 0.18 wide, one lane, noir-city.js), going on out across
+    the border to the city's ring street; each square a block: its walk
+    (BOARD_WALK 0.05) with the kerb, the lot inside in slabs as before;
+    gutters, manholes, drains, puddles; a crossing's two painted lines at
+    every corner (as then: no zebras); a streetcar line in granite setts
+    down the middle each way; the border the walk round the district,
+    letters and numbers on it; the goal rows' stripes in their outer
+    streets. makeGrid's lines dashed (LineDashedMaterial; needs
+    computeLineDistances). Lamps (lampSpots) on the walk, clear of the
+    streets out; the city's walk round the slab cut where they go out.
+    Drawing it: ~50 ms (was ~75): specks, crossings and stripes as one
+    Path2D fill each (2,000 small fillRects alternating between two
+    canvases had cost 87 ms alone).
+  - The cars (themes/noir-cars.js): sedan41 ('41 Cadillac/Buick sedan,
+    skirts), fastback46 (Fleetline Aerosedan), coupe40 ('40 Ford De Luxe,
+    the prow), shoebox49 ('49 Ford, slab sides), airflow37 (Chrysler
+    Airflow, the waterfall grille following its nose), taxi. Drawn from
+    side elevations in a per-model SPECS table, extruded and rounded
+    (slab(): the outline drawn in by the rounding first, so it isn't
+    grown; less rounding where a part is thin, until the drawn-in
+    outline doesn't cross itself; plan-view taper of nose and tail;
+    smooth shading via mergeVertices). Body-coloured cabin, windows set
+    in (clipped to the cabin's outline), a windshield in two. Greys only.
+    0.3 long on the board. A kind's shape is made once and shared
+    (partsOf); first time 5-44 ms here (software GL), then ~3 ms.
+  - The traffic (themes/noir-traffic.js, run by noir-fx.js): one car at
+    a time, now and then (6-18 s between): along the ring street, a
+    quarter turn into an open board street, end to end, a turn out the
+    far side (right-hand lanes); or by on the ring street. One-way
+    streets, every other the other way. Closed: a piece on the ground
+    both sides of a street (groundCellsOf), a missing square or black
+    hole beside it. None starts while a piece moves; one on the board
+    dissolves when a piece moves. Cars: no shadow (shadow-watch would
+    redraw every frame), no taps, a dithered dissolve in and out (their
+    own material clones), headlamp glows, a beam on the street, tail
+    glows, a soft shadow. The next car is made ready ~1.5 s after the
+    last left (shape, materials, renderer.compile for its shaders).
+    Test hook __NOIR_TRAFFIC__ (state, closed, spawn {street, kind,
+    paint, ring, at}, pace, freeze). In the software test browser the
+    page draws at ~3 fps and the car's step is capped at 0.1 s a frame:
+    cars crawl there; real devices are fine.
+  - tests/e2e-noir-streets.mjs (in run-e2e): the picture's streets darker
+    than the walks, dashed lines, streets closed by a lying Flaco and by
+    a black hole, a car on its own (a period kind, an open street, no
+    shadow, no tap), on its street's line, gone when a piece moves:
+    16/16. e2e-smoke noir passes; an 8x13 board draws without errors.
+  - Pitfalls met: a rear fender's wheel opening runs PI -> 0 (the
+    outline goes forward along the bottom there); a tilted plane can't
+    follow a curved nose (noseStrip lays it on the outline); the test
+    camera's target is in the world, the board turned under it (use the
+    car's world position). Not done: sounds for the cars (to offer).
