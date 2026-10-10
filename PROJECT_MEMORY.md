@@ -9960,3 +9960,39 @@ phone menu until "Start the story over" (which clears it).
     area, where the Lab's panel opens, under the bar.
   - e2e-check-alert.mjs wasn't in run-e2e's list (written after the
     2026-10 audit): added. Tests: e2e check-alert and lab passed.
+- Efficiency review (user: "What can be done to make everything more
+  efficient without sacrificing quality?"). Measured, not changed yet
+  (scratch perf/: measure2.mjs, profile.mjs on unminified copies from
+  devbuild.mjs, luna-parts.mjs, meta*.mjs). Phone window, ?quality=mid,
+  software renderer: settings, counts and main-thread script time are
+  real; GPU time isn't measurable here.
+  - Device fit is uneven. Home (standard/den) and Tienda: pixel ratio
+    1.75, shadow map 2048 and the frame-rate governor on phones. Neon,
+    Cromo, Lab, Plano, Luna, Noir, Lluvia: pixel ratio 2 and 4096 (the
+    chassis default; Luna/Noir/Plano read quality() only for their own
+    extras). A 4096 map is ~100 MB of graphics memory (RGBA + depth16)
+    against ~25 MB at 2048. Nothing sets shadowMap.autoUpdate: every
+    world redraws its shadow map every frame (a software-renderer trial:
+    the home world's frame 23% shorter without it).
+  - Per frame (draw calls / triangles / script ms on a desktop CPU):
+    standard 101/49k/3.0, neon 61/19k/2.0, cromo 35/13k/1.3, plano
+    230/241k/3.2, luna 386/715k/6.3, noir 218/77k/4.9, lluvia 34/12k/8.1,
+    lab 33/12k/1.9, tienda 118/40k/5.2.
+  - Hot spots: Lluvia ~44% of its script time in texImage2D (lluvia-city
+    animate repaints and uploads every screen at ~15 fps, in view or
+    not). Tienda ~30% in the TV picture (tienda-store animate: painted
+    every 70 ms, and three.js resizes the non-power-of-two canvas on each
+    upload). Luna and Noir ~25% garbage collection; the dock piece's
+    clipToPiece (ElCabeza3D.jsx) 8-9%: it projects up to 160 vertices
+    per mesh every frame, an array per point. Luna: 588 meshes, 766k
+    triangles (terrain 353k, luna-board-marks 135k), ten pieces as 263
+    meshes (~26 parts each), 465 marked castShadow.
+  - Pages: Nova 2.9 MB (1.35 MB gzipped), ~1 MB of it inlined media,
+    most needed when the store opens (~250 KB gzipped could wait: the
+    den's book cover, Neon's wire, the Original cue). Build: 2 s.
+  - Audio: Parrish's Watermark decodes ~150 MB of music whole (hums +
+    evening, 3.5 min stereo each; whole for the seamless loop points).
+  - Tests: run-e2e lacks e2e-touch-in-game.mjs (check-alert added today);
+    805 fixed waitForTimeout calls (~800 s written in). A full sweep is
+    ~2 hours one at a time (14 tests took 30 min).
+  - PROJECT_MEMORY.md itself: 657 KB, ~9,950 lines.
