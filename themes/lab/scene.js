@@ -74,6 +74,8 @@ export function createScene(spec) {
      themes/wood-set.js: flush, a low view broke the line under a piece
      into crawling dashes). outlineYOffset is the whole at-rest lift. */
   const SHELL_LIFT = P.outline ? 0.003 : 0;
+  /* Each side's edge-line colour, if it has one (pieceMaterial). */
+  const edgeHex = (isDark) => (P.edges ? (isDark ? P.edges.dark : P.edges.light) : undefined);
 
   /* ---------------- board */
   function makeBoardTexture() { return paintBoard(spec); }
@@ -151,20 +153,22 @@ export function createScene(spec) {
     });
     const tex = pieceSurface(m.texture);
     if (tex) mat.map = tex;
-    /* Edge lines (Minimal Mono's black pieces; user: "Black pieces in
-       minimal mono need edge delineation because they're just a black
-       mass"). Matte black faces shade the same black whichever way they
-       face, so nothing showed where the top met the sides. The rounded
-       edges are painted in the edge colour instead: every facet that
-       faces more than about 12 degrees off the nearest axis of the
-       piece's own frame, which is the fillet along every outside edge
-       and never a flat face. The facet's own facing (from the slopes of
-       its position across the screen), not the smoothed vertex normals:
-       an odd piece's flat faces blend those across whole faces, and
-       painted smears. The Cabeza's disc has no fillet; it gets rings
-       (buildPieceVisual). */
-    if (isDark && P.edges && !isDisc) {
-      const edge = new THREE.Color(P.edges.dark);
+    /* Edge lines (Minimal Mono: white on the black pieces, black on the
+       white; user: "Black pieces in minimal mono need edge delineation
+       because they're just a black mass", then "Minimal mono white
+       pieces need the same thing, but just the opposite"). Matte black
+       faces shade the same black whichever way they face, and lit matte
+       white ones wash out to the same white, so nothing showed where the
+       top met the sides. The rounded edges are painted in the side's
+       edge colour instead: every facet that faces more than about 12
+       degrees off the nearest axis of the piece's own frame, which is
+       the fillet along every outside edge and never a flat face. The
+       facet's own facing (from the slopes of its position across the
+       screen), not the smoothed vertex normals: an odd piece's flat
+       faces blend those across whole faces, and painted smears. The
+       Cabeza's disc has no fillet; it gets rings (buildPieceVisual). */
+    if (edgeHex(isDark) != null && !isDisc) {
+      const edge = new THREE.Color(edgeHex(isDark));
       mat.onBeforeCompile = (shader) => {
         shader.uniforms.uEdgeColor = { value: edge };
         shader.vertexShader = shader.vertexShader
@@ -229,11 +233,11 @@ export function createScene(spec) {
       }
     }
 
-    if (isDisc && isDark && P.edges) {
+    if (isDisc && edgeHex(isDark) != null) {
       // The disc's two rims as thin rings (see pieceMaterial's edge lines).
       const R = (DISC_DIAM * CABEZA_SCALE) / 2, H = (DISC_H * CABEZA_SCALE) / 2;
       const ringGeo = new THREE.TorusGeometry(R, 0.012, 6, 64);
-      const ringMat = new THREE.MeshStandardMaterial({ color: P.edges.dark, roughness: 1, metalness: 0 });
+      const ringMat = new THREE.MeshStandardMaterial({ color: edgeHex(isDark), roughness: 1, metalness: 0 });
       for (const ry of [H, -H]) {
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.rotation.x = Math.PI / 2;

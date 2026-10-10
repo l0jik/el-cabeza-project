@@ -9929,3 +9929,16 @@ phone menu until "Start the story over" (which clears it).
     0.7 s after each click: Noir's roll outlasted that on the software
     renderer and the next candidates' clicks played Silver's turn. It now
     polls up to 2.5 s for the turn to pass (standard and luna re-run: pass).
+- Minimal Mono's white pieces edged too (user: "Minimal mono white pieces
+  need the same thing, but just the opposite"). specs.js pieces.edges is
+  now { dark: 0xffffff, light: 0x0a0a0a }: each side's lines in the other
+  side's colour. lab/scene.js reads it through edgeHex(isDark) (undefined
+  when a spec has no edges, or none for that side), for the fillet paint
+  in pieceMaterial and the Cabeza disc's two rim rings alike; both sides'
+  materials share the "lab-piece-edges" program (the colour is a
+  per-material uniform). Lit matte white faces wash out to one white as
+  the black ones shade to one black, so the white pieces' top and sides
+  ran together too; the black outline shell only drew their silhouette.
+  Checked: scratch mono2/shot.mjs (phone size; White's end close and low,
+  odd pieces, the white Cabeza's rims).
+  Tests: e2e lab and outline (one at a time): both passed.

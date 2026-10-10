@@ -431,9 +431,11 @@ export const LAB_SPECS = [
     },
     pieces: {
       edgeRadius: 0.03, outline: { t: 0.006, dark: 0x0a0a0a, light: 0x0a0a0a },
-      // White edge lines on the black pieces (scene.js pieceMaterial; user:
-      // they were "just a black mass").
-      edges: { dark: 0xffffff },
+      // Edge lines in the other side's colour: white on the black pieces,
+      // black on the white (scene.js pieceMaterial; user: the black were
+      // "just a black mass", then the white "need the same thing, but
+      // just the opposite").
+      edges: { dark: 0xffffff, light: 0x0a0a0a },
       dark: { color: 0x0a0a0a, roughness: 1, metalness: 0 },
       light: { color: 0xffffff, roughness: 1, metalness: 0 },
       mark: null,
