@@ -84,6 +84,10 @@ export const outlineYOffset = OUTLINE_Y_OFFSET;
 // way to the ceiling, and not have it act weird"): the camera stops at the
 // walls and the ceiling (`room`, the den's box inside them),
 // sliding in along its line of sight rather than going through.
+// The den sizes its own pixel ratio to the device (den-fx.js, the
+// governor), so the chassis's doesn't (chassis/device-fit.js).
+export const ownsPixelRatio = true;
+
 export const freeCamera = {
   zoomMin: 4.5, zoomMax: 140, reach: 70, yMin: -8, yMax: 30,
   // The Room view (a button, and the phone's menu): up above the den,

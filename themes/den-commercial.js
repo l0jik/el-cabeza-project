@@ -110,6 +110,8 @@ export function createSingularityFrame() {
    0.1 s ahead of the sound on a computer, and further on a phone, whose
    audio comes out later still). */
 export const spotSound = { heard: null };
+// (Test-only: how far ahead of the sound the picture's aimed just now.)
+let spotLead = 0;
 // (The video started this far ahead of the sound, so its decoder's start
 // doesn't leave it behind; and kept within this of it.)
 const PREROLL = 0.1, CLOSE = 0.015;
@@ -157,7 +159,8 @@ export function createCommercial() {
       lastDraw = now;
       const heard = spotSound.heard ? spotSound.heard() : null;
       at = heard != null ? heard : t;
-      if (heard != null) t = heard + Math.min(0.05, Math.max(0.008, frame));
+      spotLead = heard != null ? Math.min(0.05, Math.max(0.008, frame)) : 0;
+      if (heard != null) t = heard + spotLead;
       if (t <= -PREROLL) {
         if (!v.paused) v.pause();
         if (v.readyState >= 1 && v.currentTime > 0.05) seekTo(0);
@@ -186,6 +189,6 @@ export function createCommercial() {
 // (Test-only: the spot's video, where it is.)
 if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
   window.__DEN_SPOT__ = () => (video
-    ? { src: video.currentSrc, t: video.currentTime, ready: video.readyState, paused: video.paused, rate: video.playbackRate, duration: video.duration }
+    ? { src: video.currentSrc, t: video.currentTime, ready: video.readyState, paused: video.paused, rate: video.playbackRate, duration: video.duration, lead: spotLead }
     : { src: null, fromDisk: fromDisk() });
 }

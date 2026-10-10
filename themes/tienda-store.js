@@ -654,7 +654,13 @@ export function buildStore() {
   cabGeos.push(bake(box(20, 1.6, 8, tvCapX - 22, FLOOR + 0.8, tvCapZ - 6), { tint: [0.2, 0.16, 0.13] }));
   screenGeos.push(vplane(10, 7.5, tvCapX - 24.5, FLOOR + 7.3, tvCapZ - 10.1, Math.PI));
   add(merge(cabGeos), flat(null));
-  add(merge(screenGeos), tvMat);
+  const tvScreens = add(merge(screenGeos), tvMat);
+  const tvFrustum = new THREE.Frustum(), tvPV = new THREE.Matrix4();
+  const tvInView = (camera) => {
+    camera.updateMatrixWorld();
+    tvFrustum.setFromProjectionMatrix(tvPV.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    return tvFrustum.intersectsObject(tvScreens);
+  };
   /* The tubes' glow (user: a CRT glow), spilling a little past each
      screen onto its cabinet: a soft blue-white light just in front of it,
      breathing with the picture. */
@@ -724,7 +730,7 @@ export function buildStore() {
     flickerIndex,
     signTextures,
     // Called every frame: the clock, the TV picture, the flickering tube.
-    animate(now, { onFlicker } = {}) {
+    animate(now, { onFlicker, camera } = {}) {
       // The clock starts at 7:31 PM and keeps real time from there.
       const secs = Math.floor((Date.now() - start) / 1000) + (19 * 3600 + 31 * 60 + 12);
       if (secs !== clockLast) {
@@ -733,7 +739,11 @@ export function buildStore() {
         clockTex.needsUpdate = true;
       }
       const tvEvery = q.tvWall ? 70 : 220;
-      if (now - tvLast > tvEvery) {
+      /* (Painted only while a screen's in view: the picture, its glow and
+         its upload were a fifth of the store's frame when the sets were
+         behind the camera; user: "go ahead", the efficiency review. One
+         look away and back, and it's painted again at once.) */
+      if (now - tvLast > tvEvery && (!camera || !tvScreens || tvInView(camera))) {
         tvLast = now;
         paintTv(tvCanvas.getContext("2d"), tvCanvas.width, tvCanvas.height, now);
         tvTex.needsUpdate = true;

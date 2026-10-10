@@ -38,7 +38,13 @@ await page.locator("button", { hasText: /^Undo turn$/i }).first().click();
 await page.waitForTimeout(3000);
 const back = await audio();
 console.log("  after undo:", JSON.stringify(back));
-check("after Undo Turn the game is playing again", /to move|thinking/i.test(await page.locator('[data-testid="turn-status"]').textContent()));
+// (Read until it settles: the undone turn was the computer's, so it may be
+// part way through playing it again, the line naming the piece it's
+// moving, "Chato · 1 roll left"; a single read at 3 s caught that now
+// and then, in the old build too.)
+let line = "";
+for (let i = 0; i < 40; i++) { line = await page.locator('[data-testid="turn-status"]').textContent(); if (/to move|thinking/i.test(line)) break; await page.waitForTimeout(250); }
+check(`after Undo Turn the game is playing again (${line})`, /to move|thinking/i.test(line));
 check("after Undo Turn the sound is back up", back && back.gain > 0.1 && !back.windingDown);
 check("...and the ambient bed isn't left at zero", back && (back.intro === null || back.intro > 0.5));
 

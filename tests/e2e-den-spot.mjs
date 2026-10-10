@@ -128,6 +128,12 @@ const shots = process.env.EC_SHOTS;
 // GPU, puts one up only every 0.1-0.2 s). + is the picture ahead. Lip
 // sync is noticed past about 45 ms with the sound early, 125 ms with it
 // late (ITU-R BT.1359); before, the picture ran about 100 ms ahead here.
+// Both less the lead the den aims the video by (den-commercial.js: a
+// frame drawn now reaches the screen about a frame later, so the video
+// runs that much ahead of the sound, to 50 ms): what's measured here is
+// the video itself, before the frame that shows it is put up. (Without
+// it, the check read the lead as a fault, and failed or passed as this
+// slow browser happened to draw a few frames under 100 ms or not.)
 await page.evaluate(() => {
   window.__SYNC__ = [];
   let vf = null, watched = null;
@@ -142,7 +148,8 @@ await page.evaluate(() => {
     const perf = performance.now(), ts = a.ctx.getOutputTimestamp();
     const heard = ts.contextTime + (perf - ts.performanceTime) / 1000 - a.T;
     const shown = vf.media + Math.max(0, perf - vf.disp) / 1000 * v.playbackRate;
-    window.__SYNC__.push({ heard, clock: v.currentTime - heard, shown: shown - heard });
+    const lead = (window.__DEN_SPOT__ && window.__DEN_SPOT__().lead) || 0;
+    window.__SYNC__.push({ heard, clock: v.currentTime - heard - lead, shown: shown - heard - lead, lead });
   }, 100);
 });
 const sync = [];
@@ -161,7 +168,8 @@ check(`...playing (${JSON.stringify(sync)})`, sync.every((s) => !s.paused && Mat
     const offs = rows.map((r) => r[key]).sort((p, q) => p - q);
     const mean = offs.reduce((s, x) => s + x, 0) / Math.max(1, offs.length);
     const within = offs.filter((x) => x > -0.045 && x < 0.06).length / Math.max(1, offs.length);
-    check(`...${what} with the sound as heard (${offs.length} samples: mean ${ms(mean)} ms, ${Math.round(within * 100)}% within -45..+60 ms, ${ms(offs[0] || 0)}..${ms(offs[offs.length - 1] || 0)} ms)`, offs.length >= 40 && mean > -0.03 && mean < 0.045 && within >= 0.95);
+    const lead = rows.reduce((s, r) => s + r.lead, 0) / Math.max(1, rows.length);
+    check(`...${what} with the sound as heard (${offs.length} samples: mean ${ms(mean)} ms, ${Math.round(within * 100)}% within -45..+60 ms, ${ms(offs[0] || 0)}..${ms(offs[offs.length - 1] || 0)} ms; aimed ${ms(lead)} ms ahead)`, offs.length >= 40 && mean > -0.03 && mean < 0.045 && within >= 0.95);
   }
 }
 // After it (user): as the camera sets off back to the table, a thought.

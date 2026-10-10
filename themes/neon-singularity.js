@@ -38,8 +38,12 @@ import { ensureThumbs, pieceThumb, PieceViewer } from "./piece-showcase.js";
 import { markSingularitySeen, singularitySeen } from "../engine/journey.js";
 // The lost card's hand (LostNudge): the user's wireframe hand, and its skin
 // (tools/lost_hand.py).
-import lostHandWireUrl from "../assets/neon/lost-hand-wire.webp";
-import lostHandSkinUrl from "../assets/neon/lost-hand-skin.webp";
+// The lost hand's two pictures: files beside the page (build.js), not
+// inlined, since few visits get that far (83 KB; user: "move forward with
+// all", the efficiency review). Loaded as the visit begins (LostNudge),
+// seconds before the card can show them.
+const lostHandWireUrl = "el-cabeza-lost-hand-wire.webp";
+const lostHandSkinUrl = "el-cabeza-lost-hand-skin.webp";
 import { createUnease, createDrone } from "./neon-unease.js";
 import { guideToPivots } from "./pivot-guide.js";
 import { shoveNow, allLawsOn, setAllLaws } from "./rules-selections.js";
@@ -3565,6 +3569,7 @@ function LostNudge({ stage, onExit, sing }) {
   // come apart yet (once).
   const g = React.useRef({ taps: 0, menuTaps: 0, gone: false, t0: Date.now(), unease: null, timers: [] });
   React.useEffect(() => {
+    if (typeof Image !== "undefined") [lostHandWireUrl, lostHandSkinUrl].forEach((u) => { const im = new Image(); im.src = u; });
     if (typeof document === "undefined" || document.getElementById("ec-lost-css")) return;
     const st = document.createElement("style"); st.id = "ec-lost-css"; st.textContent = LOST_CSS; document.head.appendChild(st);
   }, []);

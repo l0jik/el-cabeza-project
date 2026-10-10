@@ -44,9 +44,11 @@ const theme = (page) => page.evaluate(() => {
   check("the link closes INFO", (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "false");
   const cue = await page.evaluate(() => {
     const a = window.__EC_LAST_ORIGINAL_CUE__;
-    return a ? { src: a.src.slice(0, 22), playing: !a.paused, duration: a.duration } : null;
+    return a ? { src: a.src.split("/").pop(), playing: !a.paused, duration: a.duration } : null;
   });
-  check("...and plays the muzak cue (about 5.5 s)", !!cue && cue.src.startsWith("data:audio/mpeg") && cue.playing && cue.duration > 5 && cue.duration < 6, JSON.stringify(cue));
+  // (The cue is a file beside the page now, no longer inlined in it:
+  // build.js COMMON_FILES, the efficiency round.)
+  check("...and plays the muzak cue (about 5.5 s)", !!cue && cue.src === "el-cabeza-original-cue.mp3" && cue.playing && cue.duration > 5 && cue.duration < 6, JSON.stringify(cue));
   check("...and the game now has no laws", (await lawsInPlay(page)) === 0);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();

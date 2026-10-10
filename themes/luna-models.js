@@ -24,6 +24,7 @@
    shell's own geometry and material; these are children). */
 
 import * as THREE from "three";
+import { mergeStatic } from "./merge-static.js";
 import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constants.js";
 import { makeRoundedBox } from "../engine/geometry.js";
 
@@ -341,6 +342,8 @@ function pieceBuilding(piece, side) {
   }
   g.add(kit);
   g.userData.kit = kit;
+  // (Hidden as a whole under an overhang: merged on its own, merge-static.js.)
+  kit.userData.mergeRoot = true;
   return g;
 }
 
@@ -579,6 +582,10 @@ export function buildingFor(piece, side) {
   if (!b) {
     b = piece.type === "cabeza" ? cabezaBuilding(side, CAB_N++) : pieceBuilding(piece, side);
     b.userData.lunaBuilding = true;
+    /* Its parts that look the same drawn as one (merge-static.js): a
+       piece was some 26 things to draw, and ten of them most of Luna's
+       frame (user: "move forward with all", the efficiency review). */
+    mergeStatic(b);
     BUILT.set(key, b);
   }
   return b;
@@ -624,3 +631,16 @@ export function coveredIds(pieces) {
 }
 
 export { rnd, rr, pick };
+
+/* Tests: a piece's building made fresh, its parts merged or not (the
+   merge must draw the same picture: merge-static.js). The same random
+   stream each time (`s`), so two builds of a piece are the same piece;
+   the world's own stream is left where it was. */
+export function buildingForTest(piece, side, merge, s = 4242) {
+  const keep = seed;
+  seed = s;
+  const b = piece.type === "cabeza" ? cabezaBuilding(side, 0) : pieceBuilding(piece, side);
+  seed = keep;
+  if (merge) mergeStatic(b);
+  return b;
+}

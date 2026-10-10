@@ -263,7 +263,7 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
         if (cam.current.radius < 62) cam.current.radius = 62;
         if (cam.current.phi > 0.95) cam.current.phi = 0.95;
       }
-      store.animate(now, { onFlicker: (ms) => { if (audio && audio.playTubeFlicker && !(windingDownRef && windingDownRef.current)) audio.playTubeFlicker(ms); } });
+      store.animate(now, { camera: t.camera, onFlicker: (ms) => { if (audio && audio.playTubeFlicker && !(windingDownRef && windingDownRef.current)) audio.playTubeFlicker(ms); } });
       // Above the drop ceiling, it steps aside.
       if (t.camera) {
         camLocal.copy(t.camera.position);

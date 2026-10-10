@@ -1,0 +1,47 @@
+name: Browser tests
+
+# The whole browser suite (tests/run-e2e.mjs) after every push, split
+# across machines so it takes about twenty minutes instead of the two
+# hours it takes run one test at a time (user: "move forward with all",
+# after the efficiency review). It doesn't hold up the deploy; it reports.
+# The repository is public, so GitHub's machines cost nothing here.
+
+on:
+  push:
+    branches:
+      - main
+      - claude/artifact-code-update-u6amyw
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # The tests name the paths of the development machine (the project
+      # under /home/user, Chromium under /opt/pw-browsers): made to exist
+      # here too, rather than changing every test.
+      - name: The paths the tests expect
+        run: |
+          sudo mkdir -p /home/user /opt/pw-browsers/chromium-1194/chrome-linux
+          sudo ln -sfn "$GITHUB_WORKSPACE" /home/user/el-cabeza-project
+          sudo ln -sf "$(node -e 'console.log(require("playwright").chromium.executablePath())')" /opt/pw-browsers/chromium-1194/chrome-linux/chrome
+      - run: npm run build
+      - run: node tests/run-e2e.mjs --shard ${{ matrix.shard }}/8

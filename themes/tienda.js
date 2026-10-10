@@ -118,6 +118,10 @@ export const rulesTabsHidden = ["game"];
 // enough to go round the advertisement's stand and see it from behind),
 // and the camera may wander off the board into the aisles (chassis:
 // theme.freeCamera).
+// The store sizes its own pixel ratio to the device (tienda-fx.js, the
+// governor), so the chassis's doesn't (chassis/device-fit.js).
+export const ownsPixelRatio = true;
+
 export const freeCamera = { zoomMin: 4.5, zoomMax: 82, reach: 60, yMin: -14, yMax: 30, dollhouse: { radius: 82, phi: 0.6 } };
 
 export const modalBackdrop = "rgba(26, 18, 11, 0.55)";

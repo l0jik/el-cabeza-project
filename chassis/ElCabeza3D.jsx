@@ -28,15 +28,21 @@ const FOCUS_EVENT = "el-cabeza:focus";
 import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
 import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
-import { RealityGate, storyOver, GATE_EVENT } from "../themes/reality-gate.js";
+import { RealityGate, storyOver, GATE_EVENT, openRealityGate } from "../themes/reality-gate.js";
 import { saveLastWorld } from "../themes/realities.js";
 import { sideNamesOf, SIDE_NAMES as WORLD_SIDE_NAMES, DEFAULT_SIDE_NAMES } from "../themes/side-names.js";
 import { LAW_OPTIONS } from "../themes/rules-selections.js";
 import { gameRecord, encodeReplay, checkReplay, readPastedLog, VANILLA_LAWS } from "../engine/replay.js";
+import { quality, createGovernor } from "./device-fit.js";
+import { createShadowWatch } from "./shadow-watch.js";
+import { fpsWanted, createFpsReadout } from "./fps-readout.js";
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
-// ABOUT's link returns to the original game. Inlined by the build.
-import ORIGINAL_CUE_URL from "../assets/original-cue.mp3";
+// ABOUT's link returns to the original game. A file beside every page
+// (build.js COMMON_FILES), no longer inlined in each (67 KB a page, user:
+// "move forward with all", the efficiency review): fetched when INFO
+// opens, ready by the time the link can be pressed.
+const ORIGINAL_CUE_URL = "el-cabeza-original-cue.mp3";
 
 /* Semantic Versioning (MAJOR.MINOR.PATCH), shared by both themes since
    it describes the game as a whole, not any one skin's own history. */
@@ -966,6 +972,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (gameArmed && gate) setGate(null);
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_ARMED__ = gameArmed; // tests: a game under way
   }, [gameArmed]);
+  /* Back to Cabeza Nova from a plain game (user: after picking Standard
+     Cabeza, "there's no way to go back, while still in that theme, to
+     return to Cabeza Nova"). A Nova game ends with its own way out (the
+     plain-rules link, and New Game's Reconfigure); a plain one now has
+     this: a "Cabeza Nova" link once it's over and before the next one
+     begins, opening the gate's sheet (Back on it: the two buttons, and
+     Other realities). In the same words everywhere, as the gate's. */
+  const novaAgain = !!(gateCfg && !currentVariants && storyOver());
+  function openNovaAgain() {
+    if (!awaitingBegin) resetGame(false);
+    openRealityGate({ stage: "nova" });
+  }
 
   /* Easter egg: clicking the "EL CABEZA" title (only the text itself,
      not the header around it) reveals a small INFO button that fades in
@@ -974,6 +992,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      about-the-game overlay. */
   const [infoBtnVisible, setInfoBtnVisible] = useState(false);
   const [showInfoOverlay, setShowInfoOverlay] = useState(false);
+  // The original game's cue, fetched as INFO opens (see ORIGINAL_CUE_URL).
+  const originalCueRef = useRef(null);
+  useEffect(() => {
+    if (!showInfoOverlay || originalCueRef.current || typeof Audio === "undefined") return;
+    try { const a = new Audio(); a.preload = "auto"; a.src = ORIGINAL_CUE_URL; originalCueRef.current = a; } catch (e) { /* made when pressed, then */ }
+  }, [showInfoOverlay]);
   /* The INFO overlay's tab: "about" (the game's history) or one of the
      rules cards (chassis/RulesCards.jsx). rulesFocus names a MOVES tile
      to scroll to when a card is opened from where a rule matters. */
@@ -1542,6 +1566,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       draggedFar: false,
     };
     dockPieceRef.current = state;
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_DOCK__ = () => ({ state, pieceGroup, camera, mount }); // tests: the dock piece's own scene
 
     let raf;
     let last = performance.now();
@@ -1612,44 +1637,122 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        a finger), and the frame is clipped to that: a clip-path is where
        the browser delivers pointer events, so a tap beside the piece goes
        on to the board beneath, and the piece is always drawn inside its
-       own hull. A drag keeps the pointer (captured) once it's begun. */
-    const hv = new THREE.Vector3();
-    let lastClip = "";
-    function clipToPiece() {
-      const w = mount.clientWidth, h = mount.clientHeight;
-      if (!w || !h) return;
-      const pts = [];
-      pieceGroup.updateMatrixWorld(true);
+       own hull. A drag keeps the pointer (captured) once it's begun.
+       The points: every mesh's, sampled as they always were (up to 160
+       a mesh), gathered once a piece in the piece's own frame, each
+       place once (a merged box repeats every corner; only the piece as
+       a whole turns and bounces, its parts don't move). Each frame
+       they're projected into one reused array; those inside the
+       octagon of the eight outermost (left, right, top, bottom and the
+       four diagonals) can't be on the outline and are passed over
+       (Akl-Toussaint), the rest wrapped as before; and the clip is only
+       written again when it has moved half a pixel (it has 4 to 9 to
+       spare). The same outline, exactly. It was every sampled point of
+       every mesh, a new little array each, sorted, every frame: 8-9% of
+       a frame in Luna and Noir, whose pieces are many meshes (user: "go
+       ahead", the efficiency review). */
+    const corner = new THREE.Vector3();
+    const toScreen = new THREE.Matrix4();
+    let src = null, srcFrom = [], n = 0;
+    let scr = new Float64Array(0), order = [], lower = [], upper = [];
+    let work = new Float64Array(0), applied = new Float64Array(0), appliedM = -1;
+    const oct = new Int32Array(8);
+    const coarse = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(pointer: coarse)") : null;
+    const byXY = (a, b) => scr[2 * a] - scr[2 * b] || scr[2 * a + 1] - scr[2 * b + 1];
+    const X = (j) => scr[2 * j], Y = (j) => scr[2 * j + 1];
+    const cross = (o, a, b) => (scr[2 * a] - scr[2 * o]) * (scr[2 * b + 1] - scr[2 * o + 1]) - (scr[2 * a + 1] - scr[2 * o + 1]) * (scr[2 * b] - scr[2 * o]);
+    function gather() {
+      const inv = new THREE.Matrix4().copy(pieceGroup.matrixWorld).invert();
+      const keys = new Set(), xyz = [];
       pieceGroup.traverse((o) => {
         if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
         if (o.material && o.material.colorWrite === false) return;
         const pos = o.geometry.attributes.position;
-        const step = Math.max(1, Math.floor(pos.count / 160));
-        for (let i = 0; i < pos.count; i += step) {
-          hv.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).project(camera);
-          pts.push([((hv.x + 1) / 2) * w, ((1 - hv.y) / 2) * h]);
+        const m = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+        // (Parts merged into one mesh, themes/merge-static.js: still sampled each its own.)
+        const parts = o.geometry.userData.parts || [pos.count];
+        for (let p = 0, start = 0; p < parts.length; start += parts[p++]) {
+          const step = Math.max(1, Math.floor(parts[p] / 160));
+          for (let i = start; i < start + parts[p]; i += step) {
+            corner.fromBufferAttribute(pos, i).applyMatrix4(m);
+            const k = `${corner.x.toFixed(5)},${corner.y.toFixed(5)},${corner.z.toFixed(5)}`;
+            if (!keys.has(k)) { keys.add(k); xyz.push(corner.x, corner.y, corner.z); }
+          }
         }
       });
-      if (pts.length < 3) return;
+      src = Float64Array.from(xyz);
+      n = xyz.length / 3;
+      scr = new Float64Array(2 * n);
+      work = new Float64Array(2 * n);
+      applied = new Float64Array(2 * n);
+      appliedM = -1;
+      srcFrom = pieceGroup.children.slice();
+    }
+    function clipToPiece() {
+      const w = mount.clientWidth, h = mount.clientHeight;
+      if (!w || !h) return;
+      pieceGroup.updateMatrixWorld(true);
+      // (A new piece: its points gathered again.)
+      const kids = pieceGroup.children;
+      if (!src || kids.length !== srcFrom.length || kids.some((k, i) => k !== srcFrom[i])) gather();
+      if (n < 3) return;
+      toScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(pieceGroup.matrixWorld);
+      // The eight outermost: x, x+y, y, y-x at their most, then least.
+      for (let d = 0; d < 8; d++) oct[d] = 0;
+      for (let i = 0; i < n; i++) {
+        corner.set(src[3 * i], src[3 * i + 1], src[3 * i + 2]).applyMatrix4(toScreen);
+        const x = ((corner.x + 1) / 2) * w, y = ((1 - corner.y) / 2) * h;
+        scr[2 * i] = x; scr[2 * i + 1] = y;
+        if (i === 0) continue;
+        if (x > X(oct[0])) oct[0] = i;
+        if (x + y > X(oct[1]) + Y(oct[1])) oct[1] = i;
+        if (y > Y(oct[2])) oct[2] = i;
+        if (y - x > Y(oct[3]) - X(oct[3])) oct[3] = i;
+        if (x < X(oct[4])) oct[4] = i;
+        if (x + y < X(oct[5]) + Y(oct[5])) oct[5] = i;
+        if (y < Y(oct[6])) oct[6] = i;
+        if (y - x < Y(oct[7]) - X(oct[7])) oct[7] = i;
+      }
+      // Those strictly inside the octagon go; the rest are sorted.
+      order.length = 0;
+      for (let i = 0; i < n; i++) {
+        let inside = true;
+        for (let d = 0; d < 8 && inside; d++) {
+          const a = oct[d], b = oct[(d + 1) % 8];
+          if (a === b) continue;
+          if (cross(a, b, i) <= 1e-9) inside = false;
+        }
+        if (!inside) order.push(i);
+      }
+      const k0 = order.length;
+      if (k0 < 3) return;
       // Andrew's monotone chain.
-      pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-      const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-      const lower = [], upper = [];
-      for (const p of pts) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); }
-      for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
-      const hull = lower.slice(0, -1).concat(upper.slice(0, -1));
+      order.sort(byXY);
+      lower.length = 0; upper.length = 0;
+      for (let k = 0; k < k0; k++) { const p = order[k]; while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); }
+      for (let k = k0 - 1; k >= 0; k--) { const p = order[k]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
+      const m = lower.length - 1 + upper.length - 1;
       let cx = 0, cy = 0;
-      hull.forEach((p) => { cx += p[0]; cy += p[1]; });
-      cx /= hull.length; cy /= hull.length;
+      for (let k = 0; k < m; k++) { const p = k < lower.length - 1 ? lower[k] : upper[k - (lower.length - 1)]; cx += scr[2 * p]; cy += scr[2 * p + 1]; }
+      cx /= m; cy /= m;
       // A little room round it: more for a finger than a mouse.
-      const grow = window.matchMedia && window.matchMedia("(pointer: coarse)").matches ? 9 : 4;
-      const out = hull.map(([x, y]) => {
-        const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) || 1;
-        return [x + (dx / d) * grow, y + (dy / d) * grow];
-      });
-      state.hitHull = out;
-      const clip = `polygon(${out.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ")})`;
-      if (clip !== lastClip) { mount.style.clipPath = clip; mount.style.webkitClipPath = clip; lastClip = clip; }
+      const grow = coarse && coarse.matches ? 9 : 4;
+      let moved = m !== appliedM;
+      for (let k = 0; k < m; k++) {
+        const p = k < lower.length - 1 ? lower[k] : upper[k - (lower.length - 1)];
+        const x = scr[2 * p], y = scr[2 * p + 1], dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) || 1;
+        work[2 * k] = x + (dx / d) * grow;
+        work[2 * k + 1] = y + (dy / d) * grow;
+        if (!moved && (Math.abs(work[2 * k] - applied[2 * k]) > 0.5 || Math.abs(work[2 * k + 1] - applied[2 * k + 1]) > 0.5)) moved = true;
+      }
+      if (!moved) return;
+      applied.set(work.subarray(0, 2 * m));
+      appliedM = m;
+      const hull = [];
+      for (let k = 0; k < m; k++) hull.push([work[2 * k], work[2 * k + 1]]);
+      state.hitHull = hull;
+      const clip = `polygon(${hull.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(", ")})`;
+      mount.style.clipPath = clip; mount.style.webkitClipPath = clip;
     }
 
     return () => {
@@ -3104,6 +3207,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
     const scene = new THREE.Scene();
     scene.background = null;
+    /* The frame's matrices are worked out once, in the loop below, before
+       the shadow check (shadow-watch.js) and the drawing, rather than a
+       second time inside render(). Nothing else draws this scene. */
+    scene.autoUpdate = false;
 
     /* near raised 0.1 -> 1: a conservative fix for a reported depth-
        sort/z-fighting glitch (a piece briefly rendering in front of
@@ -3117,8 +3224,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const BASE_FOV = 42;
     const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 1, 200);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // The device's tier caps the pixel ratio (device-fit.js): 2 on a
+    // computer, 1.75 on a phone, 1.25 on the weakest.
+    const fit = quality();
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, fit.dprCap));
     renderer.shadowMap.enabled = true;
+    /* The shadows are drawn when something casting them changes, not on
+       every frame (shadow-watch.js). ?shadows=always draws them every
+       frame, as before, to compare. */
+    const shadowsAlways = typeof window !== "undefined" && /[?&]shadows=always(&|$)/.test(window.location.search);
+    renderer.shadowMap.autoUpdate = shadowsAlways;
+    const shadowsChanged = shadowsAlways ? null : createShadowWatch();
     /* Back to PCFSoftShadowMap after VSMShadowMap turned out to cost
        more than expected. The reasoning that led to VSM undersold what
        "once, in a separate pass" actually meant: that blur pass runs
@@ -3205,8 +3321,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        ten pieces and a board, not an open world — doubling it is a
        trivial GPU cost. Combined with the already-tight ±11 frustum
        below, this is real added texel density, not resolution spent
-       on empty space the frustum doesn't even cover. */
-    key.shadow.mapSize.set(4096, 4096);
+       on empty space the frustum doesn't even cover.
+       Now by the device's tier (device-fit.js): 4096 on a computer,
+       2048 on a phone (as the den and the store had: about 25 MB of
+       graphics memory against 100), 1024 on the weakest. */
+    key.shadow.mapSize.set(fit.shadowMap, fit.shadowMap);
     /* This light and its frustum stay fixed in world space now that the
        board (not the camera) is what turns — see boardGroup below. A
        square board spun to 45° has a bounding diagonal of roughly
@@ -3914,10 +4033,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const ro = new ResizeObserver(resize);
     ro.observe(mount);
 
+    // The frame-rate governor (device-fit.js), where the theme doesn't
+    // run its own (the den, the store and Parrish do: theme.ownsPixelRatio).
+    const governor = theme.ownsPixelRatio ? null : createGovernor(renderer, () => three.current.getMountSize(), fit);
+    // ?fps: the readout (fps-readout.js).
+    const readout = fpsWanted() ? createFpsReadout() : null;
+    const aboutFrame = () => ({
+      pixelRatio: renderer.getPixelRatio(), tier: fit.tier, shadowMap: key.castShadow ? key.shadow.mapSize.x : 0, shadowsAlways,
+      calls: renderer.info.render.calls, triangles: renderer.info.render.triangles,
+    });
+
     /* ---- render loop ---- */
     let raf;
     let last = performance.now();
     function tick(now) {
+      const workStart = readout ? performance.now() : 0;
       /* Clamped, not raw. The AI's move search runs synchronously and can
          block the main thread for hundreds of milliseconds — JS is
          single-threaded, so this loop simply can't tick at all while
@@ -4298,9 +4428,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // the chassis has placed it and before the frame is drawn.
       if (ambientRef.current && ambientRef.current.cameraOverride) ambientRef.current.cameraOverride(camera, dt);
 
+      // This frame's matrices, once (scene.autoUpdate is off), and then the
+      // shadows drawn again only if a caster or a shadow light has changed.
+      scene.updateMatrixWorld();
+      const shadowDrawn = shadowsChanged ? shadowsChanged(scene, now) : true;
+      if (shadowsChanged && shadowDrawn) renderer.shadowMap.needsUpdate = true;
+      if (governor) governor.govern(now);
+
       // A theme may draw the frame itself (Nova's Neon summons: the frame
       // through its shock waves), returning true when it has.
       if (!(ambientRef.current && ambientRef.current.render && ambientRef.current.render(renderer, scene, camera))) renderer.render(scene, camera);
+      if (readout) readout.frame(now, performance.now() - workStart, shadowDrawn, aboutFrame);
       raf = requestAnimationFrame(tick);
     }
     raf = requestAnimationFrame(tick);
@@ -4308,6 +4446,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      if (readout) readout.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
       ambientRef.current && ambientRef.current.dispose();
@@ -7516,7 +7655,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // replaced mid-cue when the theme switches back to Standard.
     if (!audioMuted && document.visibilityState === "visible") {
       try {
-        const cue = new Audio(ORIGINAL_CUE_URL);
+        const cue = originalCueRef.current || new Audio(ORIGINAL_CUE_URL);
+        originalCueRef.current = null;
         cue.volume = 0.75;
         window.__EC_LAST_ORIGINAL_CUE__ = cue; // tests read this
         cue.play().catch(() => {});
@@ -9564,6 +9704,11 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                   {dockWords.plainRules}
                 </button>
               )}
+              {novaAgain && (
+                <button className="ec-btn" data-testid="nova-again" data-dock-role="link" title="Every piece, rule and board: set up the next game" onClick={openNovaAgain} style={dockLinkStyle()}>
+                  Cabeza Nova
+                </button>
+              )}
               <button
                 className="ec-btn"
                 data-testid="next-game"
@@ -9865,6 +10010,13 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras });
               return extras || <div style={{ display: "flex", gap: 8, flexShrink: 0, width: "100%" }}>{beginGameButton}</div>;
             })()}
+          {awaitingBegin && novaAgain && !gate && (
+            <div data-dock-role="links" style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
+              <button className="ec-btn" data-testid="nova-again-setup" data-dock-role="link" title="Every piece, rule and board: set up this game" onClick={openNovaAgain} style={dockLinkStyle()}>
+                Cabeza Nova
+              </button>
+            </div>
+          )}
 
         </div>
         )}
@@ -10409,6 +10561,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             onNewGame: handleNewGameClick,
             canResetRules: !!currentVariants && status !== "playing",
             onResetRules: handleResetRules,
+            canNovaAgain: novaAgain && status !== "playing",
+            onNovaAgain: openNovaAgain,
             canFullscreen: !!(document.fullscreenEnabled || document.documentElement.requestFullscreen),
             isFullscreen,
             onToggleFullscreen: toggleFullscreen,

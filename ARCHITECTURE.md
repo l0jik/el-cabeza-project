@@ -154,7 +154,7 @@ export const outlineYOffset = 0; // or OUTLINE_Y_OFFSET (OUTLINE_T + SHELL_LIFT)
 
 // A theme set in a room (Standard's den, Tienda's store) can let the
 // camera look around it: closer zoom, and a reach from the board's
-// middle instead of the board-visibility clamp (PROJECT_MEMORY §5),
+// middle instead of the board-visibility clamp (docs/memory/05-camera-input.md),
 // optionally a zoomMax further out than the board's own limit, and a
 // `room` box ({ x: [lo, hi], y: [lo, hi], z: [lo, hi] }, board frame) the
 // camera stops at, sliding in along its line of sight (the den), and
@@ -166,6 +166,14 @@ export const freeCamera = { zoomMin: 4.5, reach: 70, yMin: -8, yMax: 30 }; // or
 // Declared capability, not a branch: lets the chassis skip an inert
 // Sound On/Off button for a theme with no audio.
 export const hasAudio = false; // or true for Neon
+
+// The theme sets the pixel ratio itself (the den's den-fx.js, the
+// store's tienda-fx.js, Parrish): the chassis then leaves it alone.
+// Absent, the chassis fits the device (chassis/device-fit.js): the
+// tier caps the pixel ratio and sizes the key light's shadow map, and a
+// governor steps the ratio down when frames run slow and back up when
+// there's room.
+export const ownsPixelRatio = true; // or undefined
 
 // Every method always exists — Standard's is every method as a no-op,
 // Neon's is createSoundscape(). The chassis calls these unconditionally
@@ -204,7 +212,7 @@ export function mountAmbientEffects(refs, helpers) {
 // present, handles the ones that are the room's own and returns true
 // (the den's "tv": its knob turns). Nova hands the den's effects
 // `helpers.tv` ({ portal(), enter(), returning, register(api) }) so the
-// television is the way into Singularity (PROJECT_MEMORY, "Nova's story").
+// television is the way into Singularity (docs/memory/nova-story.md).
 
 // Move-triggered FX (weight-lift/landing glow, glitch bursts, landing
 // shockwave) are NOT a separate hook — they're plain properties
@@ -343,6 +351,33 @@ gameplay feature from both original sources now exists in the shared
 chassis + theme structure, verified end-to-end.
 
 ## Known pitfalls
+
+**Shadows are drawn when something casting them changes, not every
+frame** (chassis/shadow-watch.js). Each frame the chassis compares what
+the shadow pass would draw (every visible shadow-casting light and
+caster: its matrices, its geometry's and material's ids and versions,
+instances, draw range) with the last drawing, and draws the shadows
+again only on a difference, or a second after the last. Moving,
+showing, hiding or swapping a caster is seen; so is anything marked
+`needsUpdate`. Changing a caster's shape any other way (writing into a
+position array without `needsUpdate`, repainting a canvas an alpha-
+tested caster's shadow reads) isn't: set
+`renderer.shadowMap.needsUpdate = true` that frame, or the shadow
+catches up within a second. A skinned or morphing caster, or one with
+its own depth material, is drawn every frame. `?shadows=always` draws
+every frame, to compare. And the scene's matrices are worked out once a
+frame by the chassis (`scene.autoUpdate` is off), before the shadow
+check and the drawing: a theme that draws the chassis's scene itself
+with something it moved after that should call
+`scene.updateMatrixWorld()` first.
+
+**A finished model's same-looking parts can be drawn as one**
+(themes/merge-static.js, Luna's buildings): call it once, before the
+model is first drawn. It leaves alone what it can't merge safely
+(transparent, hooked, mirrored, hidden or grouped parts); a part the
+theme changes later goes in a group marked `userData.mergeRoot` (merged
+on its own, so the group can still be shown or hidden: Luna's roof
+kit) or is marked `userData.noMerge`.
 
 **Never size responsive text with `transform: scale()`.** The
 relocated corner masthead badge went through several passes (0.45,

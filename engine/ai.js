@@ -1031,16 +1031,34 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
      pruning actually win out in wall-clock time rather than being
      eaten by ordering overhead. */
   const killerSlot = killers[ply];
-  const scoredTurns = turns.map((t) => {
+  /* The first look at the root (depth 1) scores every turn, and in a
+     Split Movement or 3 Actions game that's a thousand turns and more: on
+     a slow phone, well past the time it was given (user: "move forward
+     with all", after the efficiency review found it the longest wait).
+     So there the time is checked every 32 turns, and once it's out the
+     rest aren't scored: they sort below every scored turn. Game-ending
+     turns need no score and always come first, so a win is never
+     missed; the others are scored taking each piece's turns in turn, so
+     a cut leaves every piece's best looked at rather than some pieces'
+     all and others' none. Given the time (any computer, most phones),
+     every turn is scored and the result is exactly as before. */
+  const capRoot = ply === 0 && depth === 1;
+  const scoredTurns = new Array(turns.length);
+  let outOfTime = false;
+  const scoreAt = (i, unscored) => {
+    const t = turns[i];
     const terminal = !!t.endsGame;
     let orderScore = 0;
     if (!terminal) {
-      const undos = applyTurn(pieces, t);
-      orderScore = evaluatePosition(pieces, aiPlayer, weights, opponentOf(player));
-      undoTurn(pieces, t, undos);
+      if (unscored) orderScore = maximizing ? -Infinity : Infinity;
+      else {
+        const undos = applyTurn(pieces, t);
+        orderScore = evaluatePosition(pieces, aiPlayer, weights, opponentOf(player));
+        undoTurn(pieces, t, undos);
+      }
     }
     const key = moveKey(t);
-    return {
+    scoredTurns[i] = {
       turn: t,
       terminal,
       orderScore,
@@ -1048,7 +1066,29 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
       isKiller: !!(killerSlot && (killerSlot[0] === key || killerSlot[1] === key)),
       histScore: history[key] || 0,
     };
-  });
+  };
+  if (!capRoot) {
+    for (let i = 0; i < turns.length; i++) scoreAt(i, false);
+  } else {
+    // Each piece's turns in rotation (by the piece that moves first).
+    const byPiece = new Map();
+    turns.forEach((t, i) => {
+      const k = t.steps ? t.steps[0].pieceId : t.pieceId;
+      if (!byPiece.has(k)) byPiece.set(k, []);
+      byPiece.get(k).push(i);
+    });
+    const queues = [...byPiece.values()];
+    let n = 0;
+    for (let round = 0; n < turns.length; round++) {
+      for (const q of queues) {
+        if (round >= q.length) continue;
+        const i = q[round];
+        if (!outOfTime && n > 0 && (n & 31) === 0 && performance.now() > deadline) outOfTime = true;
+        scoreAt(i, outOfTime && !turns[i].endsGame);
+        n++;
+      }
+    }
+  }
   scoredTurns.sort((a, b) => {
     if (a.terminal !== b.terminal) return a.terminal ? -1 : 1;
     if (a.terminal) return 0; // both terminal -- no further ranking needed between them

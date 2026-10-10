@@ -1,0 +1,507 @@
+# The history, part by part
+
+The round-by-round notes, oldest first, as they were appended to
+PROJECT_MEMORY.md until the split (2026-10-10). Each part starts at a
+round's first line. Under each part, the first line of every round
+note (a top-level `- ` entry or a `### ` heading) in it, to grep or skim.
+
+## [01.md](01.md) (651 lines, 81 entries)
+
+- The den's rules leaflet is the How to play (Standard / Nova at home)
+- The leaflet and the game box on the coffee table (den-room.js buildCoffeeTable, userData.rules) are a link: den-fx pickScene returns "rule
+- `theme.rulesInRoom` (standard.js) hides the corner How to play; the Room view house moves beside the full-screen button (bottom 18). Other
+- The wheel only zooms (user: the mouse-wheel issue "still happening")
+- Cromo, Lluvia and the Lab: the shell lift (outline fix)
+- Tienda's ball bin (user: "not obeying physics")
+- The den's coffee table: earth-tone ceramic mosaic (user's pick)
+- Focus mode in the den (user: "everything but the board... blurred out... the board kind of floating")
+- **Chassis:** `theme.focusMode` turns it on for a theme. State
+- **Den (den-fx.js focusFrame):** eased (about 1 s). Fog closes in to just
+- **The lamps:** each is its own switch: the stereo console's table
+- Test hook `__DEN_FOCUS__()` ({ on, w, lift, fogNear }). Test: e2e-den
+- The den's mug and spoon (user: the spoon "not sitting in there"; the mug redesigned from a photo)
+- **Spoon:** it sat with its bowl inside the mug's foot and its handle
+- **Mug:** a mid-seventies stacking stoneware mug after the user's
+- Den draw calls are 195 of the test's < 200: little room left.
+- **Then (user):** the mug more yellow (speckle base #E4CF72, color
+- **The spoon settled (user: "clipping through the mug and saucer"):**
+- The extras wait for the Singularity (user: the info panel in the store and the den shows no Anomaly/Singularity/extra pieces/laws until
+- `engine/journey.js`: `singularitySeen()` (localStorage
+- A theme opts in with `lockExtrasUntilSingularity` (tienda.js,
+- Chassis: `classicRules` → `RulesCard classic` (data-classic): MOVES
+- Order form (tienda-overlay.js OrderForm, the store/den/Tienda page):
+- Tests: e2e-journey.mjs (locked by default on Tienda and Neon; open with
+- The den's first record: "Dangerous Dashing" through a 1974 console turntable
+- **Re-run (user: "the hiss is way too overpowering... 80% hiss and only
+- The book by the chair: a tap takes the camera to it
+- The bottom-left corner's buttons stack on a phone (user)
+- **Focus button icon (user):** a light bulb. Focus off (the room's lights
+- Lights down dims the page's furniture; Room view house greys; now-playing chip (user)
+- **Room view house greyed while it's the view:** `room-view-corner` has
+- **Focus (lights down) dims the corner:** every corner control (full
+- **Now-playing chip** (chassis, any theme.music): while a track is on and
+- **The chip folds on a phone (user):** `musicChipCompact` (cornerStack or
+- The catalog and order form on aged stock (user: "a slightly dated look")
+- The 3D piece viewer shows true relative sizes (user: the Turrito looked as big as the Opa)
+- The store table's lower shelf isn't black (user: "practically pitch black")
+- Den: the side sofa's back cushions reach the corners (user)
+- Board sizes wait for the Singularity; a shuffled start is Neon's alone (user)
+- The den's 8-track: the user's own tapes (the eight composed ones are gone)
+- No custom rules before the Singularity (the user's "option 4")
+- The 8-track's five tapes (the user's uploads)
+- BACK from Singularity goes home, and the late-night commercial (2026-09-29)
+- Commercial voice-over (2026-09-29): the user's recording "El Cabeza is
+- Voice redone (user: too forward, wanted lower fidelity, pitch a hair
+- Round 3 (user: voice still too forward; add cheap echo; "the new king!"
+- The special-orders note (tienda-overlay.js) no longer times out: it stays
+- Round 4 (user: voice lower still, pitch much deeper): both voice files
+- Subliminal frames (user): CUES.flash [6.45, 16.35, 20.25, 33.55, 37.95]
+- Dock icon switches say what they did on touch (2026-09-29)
+- Corner buttons under the open dock (fix): the den's CSS forces the
+- After the whole story, the store has never heard of it (2026-09-29)
+- ABOUT's "The original El Cabeza is played with its basic rules alone"
+- New voice-over (user's cab_comm.mp3, 9.3 s): "Take a hike, chess!"
+- Checkers beat (user): instead of a lone checker, a couple at a card table
+- Room view drag (user: in Tienda's Room view the X and Y felt inverted
+- Then (user's screen recording: panned over to the standee, tilting still
+- The user's final word on drag ("last chance"): whatever is behind the
+- Den focus mode: the "YOUR ORDER ... change" slip dims to 0.3 with the
+- The revisited store: the clerk is a he. The PA "manager to the front"
+- The Games-counter scene (revisited store, Nova, after the story) is now
+- The revisited store itself (tienda-store.js setStoreRevisited, set from
+- Games-counter scene dressed as a panel clipped from a 1975 comic (user:
+- Music chip (now playing): above the floating dock piece (z 16 > 15) with
+- Dock panel on phones (user's screenshot: "Start the story over" under the
+- Now-playing chip on phones: stays a round button until tapped (a tap
+- Revisited store, round 2 (user: "Cabeza is nowhere to be seen"): the
+- Singularity starfield: stars are a fixed pixel size (sizeAttenuation
+- Revisited store, round 3 (user: hide both, start the clerk scene
+- The TV's lure (Nova, home before the first Singularity; unified.jsx
+- Dock switch notes (toggle-hint) stay 4.4 s (user: two seconds longer).
+- Games-counter scene paging: one step per 500 ms at most (a double tap
+- Guided first run (user; only until the story is restarted): after the
+- The manager call's PA is the store's own ambient announcement
+- Dock panel on phones: the players line ("Dark: … | Light: …") sits
+- Tienda's store says "Try a Game" on the Begin Game button (user: it's
+- TV lure, round 2 (user: sooner, more happening, weird noises from
+- The menu's "Turn on the TV" now presses like a tap (user): the first
+- Lure flashes (user: the commercial's subliminal Singularity, three
+- Den fire rebuilt (user: the hiss was distracting, made no sense):
+- Clerk scene narration (user: the handover box sat on the clerk's face):
+
+## [02.md](02.md) (671 lines, 73 entries)
+
+- Full screen during the clerk scene (user: couldn't maximize): the
+- Den fire is now a recording (user's pick: freesound_community "Aachen
+- Rain sound removed (user: for now). Sound menu hint "The fire and the
+- Singularity entry "clipping" (user): measured at the destination the
+- Bell toll revoiced (user: still crunched at the toll on the phone): at
+- Fireplace logs (user: look like actual wood): den-room log() builds each
+- Singularity starfield: 240 + 36 stars (was 700 + 100; user: fewer).
+- Guided run prompts (user): the "Special orders now open" note gets
+- den-audio: on file:// the fire goes straight to the <audio> element
+- Special-orders note glow (user): NOT lit at first; a tap outside it in
+- Den game survives a trip to Neon (user): unified.jsx passes carry /
+- Order button glow: same rule as the note (user) - btnGlow set by the
+- Store levels (user): MUSIC_VOLUME 0.5 -> 0.3 (tape + arrangements,
+- The summons (user's "idea 5"): Nova's first arrival in Neon from the den
+- The summons' sound (user's pick "C6" from the sound mock-ups page,
+- Summons: shock waves only with the thunder (user). neon-summon.js keeps
+- Summons sphere: pure black (user: "completely black, like a black
+- Clerk scene: the "One minute! I'll see if we have it in the back!" shot
+- Summons singularity now looks like the Singularity's own sphere (user):
+- Summons halo alive (user: pulsating and vibrating, plasma jets from a
+- Summons: the dock is hidden with visibility (not display: none). The
+- Unresolved (asked the user): a "global sound dampening" on some boards,
+- Den fireplace (user: the rock, mortar and mantel looked ridiculous):
+- Den fireplace, again (user: flat, like flagstones, not round river
+- The TV's pull on the music (user: a record at full blast drowned the
+- Fireplace: back to the river-rock fieldstone (user: "never mind, go back
+- Den: while the set holds the camera (tvW > 0.02 or tvGoal > 0: the lure's
+- Den fire bed (user: the orange slab under the logs made no sense): a
+- Clerk scene: the time captions (a frame's `narration`: "Later that
+- Den telephone (user): on the west credenza, a little left of the
+- The wormhole's sound on a phone (user: still missing). Measured through
+- The summons' way out (user: the last thunderclap's reverb should carry
+- Summons: thunder earlier (acc starts at 0.7, first clap on the third
+- The special-orders note, the first time through (guided; user: only it
+- Den: the set lets go onto the board square on (user: after the
+- Home with the special order (user): themes/den-call.js, created by
+- "Start the story over" is "Restart story" (user), on the story links
+- Pinch out (user: in works, out barely): on a phone Neon's fitted view
+- The summons can be looked round (user: pinch a little, turn the board):
+- Summons pieces adrift, ghostly (user: slower, drifting, sideways too):
+- The gravity well (user's pick for "the grid board warping"): while the
+- The sphere's arrival (user's pick: recede while it fades in): at
+- The den's lure, weirder (user): events every (6.5 - 4.7 level) s (was
+- The phone's bell is the user's recording (assets/den/phone_ring.mp3,
+- The story's first moment (Nova, the box lid in the store; user): only
+- The den's music on the first visit (user: a random track already on, so
+- Full screen everywhere (user: every screen should always be maximized
+- The summons (Neon's first visit) hides the corner's How to play ("?")
+- Pinch out (user's video: close over the den's steps, fingers a thumb's
+- The order form the first time through (guided; user: only Order it at
+- e2e-fullscreen: Standard now goes full screen at the first tap; the
+- The commercial's voices 0.5 s earlier (user: the dialogue was late):
+- The order's stamp (user: a quick whoosh-thunk, a rubber stamp smacking
+- The phone answered by picking it up (user): no "Pick up" button (the
+- The stereo never plays the same song twice running (user): the 8-tracks
+- The commercial's voices now 1.5 s ahead of their cues (VOICE_LEAD; user:
+- The summons' drag turns the board by the board's own rule (user: the
+- Clerk scene, manager-1: Steve B.'s gaze was warped to match the
+- While the set holds the camera, a touch that begins on the canvas starts
+- "Restart story" asks first (user): storyBridge.restart (the dock's link
+- The story's lid, revised (user: "Open the box" is the intended first
+- The commercial's music, continuous (user: since the voices moved 1.5 s
+- Drag turn and tilt back to the original rule (user: "reset directional
+- The commercial's sound, redone from scratch (user: "it's just gotten
+- tests/e2e-den-return.mjs seeds el-cabeza:special-order-noted too (the
+- "Sure thing!" frame (clerk-sure; user): the clerk now holds the order
+- The handed-over form, round 2 (user: his hand closed round it, redrawn
+- "Home again. Confused." (novaStory.jsx): the second line ("The new
+- The phone's handset back to avocado (user: it showed cream on the
+- After the call (user): den-call.js yay() puts up a 1975 card (as the
+- The set's blast (user: more extreme; a cone of light from the screen's
+- The clerk's hands, round 3 (user: not convincing; try a lot harder).
+- The trip back to Big Glutts (user, after the call's card): themes/
+
+## [03.md](03.md) (662 lines, 34 entries)
+
+- The commercial redone clean (user: too dirty, too messy, too garbled;
+- The summons' pieces (first visit to Neon; user: rise more slowly; the
+- The commercial's analog look back (user: more analog TV distortion, but
+- The clerk's hands, round 4 (user: atrocious; back to the original
+- The trip, round 2 (user: a little zoomed in; start out wider, then zoom
+- "I'll go check on that for you real quick!" (clerk-go; user): from the
+- The phone in the den, answering (user): the ringing slip (den-call.js)
+- The phone's handset, redone (user: the receiver didn't look believable;
+- The phone, after the user's photo (a Western Electric 500 rotary desk
+- The caller's voice (user: their recording of indistinct chatter, cut up
+- The phone's coiled cord (user: like the photo): den-room.js. From
+- Focus mode brings the camera to the board (user: as if you're going to
+- The car leaving, the user's recording (assets/den/src/car-start-drive-
+- The car arriving, the user's recording (assets/den/src/car-arrive-stop-
+- Restart story's card now reads "Once more, from the top… shelf." (user:
+- THE END OF THE STORY (user; Nova). Home from the closed Big Glutts (the
+- The void, round 2: the user's words, the sphere alone, the chord, the merge (2026-10-01)
+- Every reality: Standard Cabeza or Cabeza Nova; the switcher everywhere (2026-10-01)
+- Den draw calls, the clerk's page, the home order form (2026-10-01)
+- Trip leaving, the hall's second line, the Nova sheet's pictures, classic Moves (2026-10-01)
+- The hall: kept count, the third time, a real walk (2026-10-01)
+- The wormhole's sound on a phone (2026-10-01)
+- The commercial's sound: one recording (2026-10-02)
+- Home from the trip: the card (2026-10-02)
+- The store's idle nudge; the lid without its card (2026-10-02)
+- The den's cards: one style, askance, movable (2026-10-02)
+- After the commercial: back on the coffee table; a fainter full-screen switch (2026-10-02)
+- Every Arco size its own row, in every menu (2026-10-02)
+- The dock by the moment, in each theme's words; no "?" (2026-10-02)
+- Lost in the Singularity (2026-10-02)
+- The revelation scene: rotatable, but light (2026-10-02)
+- Awake while playing; a pause before the realities (2026-10-02)
+- The view jumps glide; a link straight to the revelation (2026-10-02)
+- The Singularity's first visit: something going wrong (2026-10-02)
+
+## [04.md](04.md) (937 lines, 22 entries)
+
+- The way into the wormhole: a wide swing, then a straight dive (2026-10-02)
+- The pivot pieces together, and the warning that shows them (2026-10-02)
+- The closed Big Glutts: a slower look, three steps back, the getaway (2026-10-02)
+- "Two humans" in every opponent menu (2026-10-02)
+- A link to the closed Big Glutts scene alone (2026-10-02)
+- Gate sheet: Computer plays Light in the right column (2026-10-02)
+- Codebase audit (2026-10-02)
+- The camera after the den's television (2026-10-02)
+- Volume faders, the corner piece, the reality's name (2026-10-02)
+- Restart story in the realities menu (2026-10-02)
+- Cromo's sounds: metal, not bells (2026-10-02)
+- Cromo: black squares behind back-row pieces (2026-10-02)
+- Store nudge: a look in the dock no longer cancels it; it grows (2026-10-02)
+- Singularity first visit: ring and heartbeat fade; no fingertips (2026-10-02)
+- ?scene=summons, and the gate's wording (2026-10-02)
+- Realities menu: a line for each Lab world (2026-10-02)
+- Singularity first visit: Begin Game can't skip the hand (2026-10-02)
+- The rules leaflet's paper scrolls with the words (2026-10-02)
+- The den's corner buttons ghost during the commercial (2026-10-02)
+- The summons link now plays the whole first trip; the clerk always takes a stamped order (2026-10-02)
+- The sphere's ring trails off longer (2026-10-02)
+- "I want out of here" centred in its button (2026-10-02)
+
+## [05.md](05.md) (660 lines, 64 entries)
+
+- Lab, Elementarism's sound (user: the palette was bad; something very
+- Nova's purchase: the register tape's sounds from the user's recordings
+- Den ending, round (user):
+- Nova's first scene (the store before the game's bought): touch drags
+- (The store's first song, asked: its tape, assets/tienda/muzak-1974.mp3,
+- Receipt, take 2 (user approved it by ear, from the preview): the print
+- Parrish (new theme, work in progress; user: a painterly technique where
+- Parrish, redirected (user: "not hitting the mark"; their reference video
+- Parrish, abstract (user: "no theme, zero theme"; the feeling, painting
+- Parrish masthead: the user's own "el cabeza" lettering (their artwork,
+- Parrish: the board and pieces are painted too (user: they "don't need
+- Parrish motion: the reference video measured frame by frame changes on
+- Parrish, to do when it's done (user): BOTH palettes in the theme
+- Parrish: the pieces a touch more defined against the board (user: they
+- Parrish: the pieces sit on top (user: "perhaps the pieces need to sit on
+- Parrish bug: "cast" is a reserved word in GLSL ES, so the FINISH shader
+- Parrish: the flat drop shadow under the pieces is GONE (user: it made
+- Parrish: the soft grounding (contact) shadow is live (user picked "soft"
+- Parrish piece sounds = the user's two recordings of instrumental stabs
+- Parrish landings softer (user): thump level 0.19 + 0.04*log2(cubes)
+- Parrish sounds, selection 3 (20 more cuts, none repeating sets 1-2,
+- Parrish piece sounds = the user's 17 picks (tools/parrish_stabs.py
+- Parrish (Orinoco) move markers: the painting's light blue (user: the
+- Parrish: no sound while a piece moves (user: the falling run of 50 ms
+- Parrish sounds, selection 5 (user: "more variety ... these can have 1, 2
+- Parrish sounds: the user kept set 5 #6, 7, 9-13, 21-23 ("treat/process
+- Parrish full-screen button: fully opaque now (user: 0.7 still wasn't
+- Parrish full-screen button in full screen (aria-label "Exit full
+- Parrish intro + close (user, both palettes):
+- Parrish intro now in a hall too (user: "add reverb and extend the tail
+- Parrish corner badges (user): the dock piece in the bottom-right corner
+- Parrish sounds: no audible percussion (user; the capture win, set 3
+- Parrish menus painted, both looks (user: "all menus for Orinoco &
+- Watermark soundtrack (user: "Cathedral Hums ... background track while
+- Parrish intro: longer tail (user). tools/parrish_bookends.py intro hall
+- Lluvia rain (user: "way too loud ... change to an audio clip of rain
+- Leaving Parrish waits for the closing music's decay (user). realities.js
+- Parrish buttons rethought (user: the brush mask "didn't do the AI
+- Watermark move markers red (user: its beige ones blended into the board,
+- The win card's New Game (chassis: the winner's wood) painted as a stroke
+- Playwright on Parrish: selecting a piece by script is flaky (a piece
+- REVERSED (user: "do the opposite ... I want the other way"): leaving
+- Parrish small-piece sound variety (user: "more sound variety for when
+- Parrish sounds, round 2 of variety (user: "even if some of them have two
+- Parrish full-screen button (user, again): the chassis already goes full
+- The dock piece's corner spot: identical in every theme (chassis box
+- Parrish piece moves a touch more reverb (user: "a little tiny bit more
+- The dock piece's corner spot moved further into the corner in every
+- Tienda order form, "How well it plays" (user: "Medium" didn't fit its
+- Parrish Nova sheet (user: "Computer plays Dark / Light" ran out of their
+- Orinoco and Watermark in the theme switcher (user). realities.js WORLDS:
+- No seagulls in Watermark (user). They were only ever in the sound (the
+- Leaving Orinoco/Watermark: the closing music now plays BEFORE the
+- Big Glutts up/down tilt reversed (user: "switched to the opposite";
+- Parrish full screen, in game: both corner badges at 60% (user, Orinoco
+- Side names per theme (user: "In De Stijl, all references to dark and
+- Parrish "Exit full screen" (in full screen): icon only, like the Other
+- Corporate Swiss sides now Navy / Platinum (user; was Navy / Silver,
+- Parrish close fades in (user: going to the switcher in game "cuts to
+- Lab HUD on phones: the stats row (Moves / Points / AI / Time) ran past
+- Minimal Mono board darker (user: "almost impossible to see ... no
+- Minimal Mono board sides light grey (user): sideColor 0xffffff ->
+- Brutalism turn box label: "[TURN] TURN" -> "[TURN]" (user). css.js
+- Watermark's evening (user: Orinoco's ambient sounds "do not go with the
+
+## [06.md](06.md) (651 lines, 62 entries)
+
+- Watermark evening way down (user: "way, way too loud"): EVENING_GAIN
+- Watermark: no blackbird (user: "leave the blackbird out"). Its evening
+- Den freeze after the commercial (user, full run: "the camera centered
+- Orinoco/Watermark dock: "DIFFICULTY" ran into Easy's stroke (user
+- Orinoco/Watermark: the picked difficulty now shows (user: "nothing
+- Home from the closed Big Glutts (story only): settle into a game (user:
+- Receipt sounds (user: "did we lose the receipt printing sound?"): not
+- Full suite (npm test, user asked): engine smokes pass; e2e 48/50 in
+- After the commercial, the paper first (user: "the piece of paper on the
+- Sphere's first visit: a piece's 3D close-up now comes apart with the
+- Summons build four times faster (user: the first trip through the TV,
+- Parrish dock: "Difficulty" over Easy, Medium and Hard (user: Hard had
+- Parrish dock: a thin line out from either side of "Difficulty", across
+- Every theme: "Difficulty" goes up over Easy, Medium and Hard (with its
+- Orinoco's soundtrack: the user's "Dodhéanta an Ghrian"
+- Parrish's corner badge (the masthead minimized in play) 1.5x (user: the
+- Parrish's pre-game masthead 1.3x (user: "make free game masthead for
+- A link straight to the theme switcher (user: "a link that goes straight
+- ?switcher on the user's phone showed the den with the order paper
+- User (Orinoco, Slide on): a 2x3 under a Zeta's overhang "should be able
+- Pause button for the sound menu: mock-ups of the five ideas published
+- Now-playing strip (user picked option 4 of the mock-ups, "all themes
+- "3 actions per turn" directly above "Split movement" in the Cabeza Nova
+- Now-playing: a title too long for its space scrolls (user): rests 1.6 s,
+- Rule question asked (not changed): with Split movement, should stopping
+- Watermark's soundtrack title is now "Ôm Nhau Vĩnh Cửu" (user), in the
+- Stopping a piece under Split movement: user withdrew the question
+- Split movement, 3 pieces (user: a three-piece limit as its own toggle;
+- Points counter "hard to see, hard to discern" (user). Today (chassis
+- Points counter, round 2 (user: "maybe the dots just need to be glowing,
+- Points counter: user picked Ember, then asked for each theme's own ember
+- Points counter built: Ember, breathing, in each world's own light (user
+- User asked: with Shoving selected, must Slide be forced on? Answered no:
+- User: "Yes, make slides only turn on Slide." Done in all four setup
+- User (3 screenshots, Cromo): a Rayo standing on one cube, arm out
+- Shoving explains itself (user: "I'm the developer and I'm confused by
+- Shoves are never diagonal (user: "shoving can never be diagonal, even
+- The board's X for a blocked diagonal shove (user: "make the board show
+- Slide is named "Orthogonal slide" (user, with a screenshot of the
+- Parrish's Action Points strip (user, phone screenshot: "a bit too
+- Hombro and Cruce (built; user: "a new piece where the extra block
+- Side colours where you pick a side (user, Neon screenshot of "Computer
+- e2e-pivot-guide's "the warning flashes" kept failing (runner and
+- The order paper on a phone (user, a full story run: tapping the glowing
+- Round: Hombro smooth, phone side buttons, piece card clear of the
+- The trip back to the store (den-trip.js; user): "What the…!??" is now
+- Cruce pivot (user asked, then: "I guess it's fine as it is"): unchanged; it pivots only standing on one cube (its stem, or one end of its
+- Order paper on a narrow phone (user: "pull the camera back so the order
+- Dock's who's-playing read-out (user, phone: "how can I know what AI
+- Cruce pivot arrow (user: "there's not a left or right pivot curved
+- Parrish buttons, three asks (user, Cabeza Nova sheet):
+- Trip back to Big Glutts (den-trip.js; user: "speech bubbles changed
+- Home-again card (back from Big Glutts, den-fx.js homeCard): held 3.8 s
+- Parrish sound (parrish-audio.js): leaving for Other realities, the
+- Pivot arrows for a piece that reaches out both ways alike (Cruce on its
+- The corner dock piece (bottom right) takes the colour of whoever's turn
+- Parrish corner masthead badge during play: 20% more opaque (user),
+- Rules card heading: the chassis wraps "EL CABEZA" in span.ec-rules-title
+- Usability round (user: "Do every suggestion you made"):
+- After the story, Nova's page opens on the switcher (user; chose
+- STANDING (user): every reply ends with the start links as well as the
+- Pivot by dragging an arm (user: the Hombro wouldn't). Two causes, both
+
+## [07.md](07.md) (660 lines, 48 entries)
+
+- ?fresh checked in a browser: reloads clean, opens on the store's lid.
+- e2e-lab "a switch during a step waits" fixed (it predated the usability
+- "Split movement" is "Split movement, 2 pieces" everywhere it's named
+- "Stop here" is "End turn" everywhere (user: "Stop here" read as stopping
+- The store's "Try it!" tent card takes a tap (user): tienda-store.js
+- End turn with points left asks first ("You still have N action points
+- The store's Try it! card is a 1970s Big Glutts flyer (user): the logo
+- Parrish points: each side the colour of its pieces. Walnut's walnut (#8a5632 Orinoco, #a0653a Watermark;
+- Undo move beside End turn above the points (user): turn-buttons-float
+- The Try it! flyer on supercalendered (SC/LWC) stock (user): a bright,
+- Undo move and End turn above the points: both the side's own colour
+- ...and Ash's points the honey of the ash blocks (#d9b77e Orinoco, the side
+- Parrish's looks renamed (user): Orinoco is "Tá muid beo", Watermark "Go
+- The Try it! flyer carries the press's marks (user: "handled in those
+- The Try it! flyer laid out as a real 1970s department-store circular
+- The dock's floating piece painted like the board's pieces in both
+- The Try it! flyer on the period's own paper (user: get rid of the side
+- The flyer's picture is now an imaginary 1975 family fawning over the
+- Headless screenshots of the flyer: Chromium needs the proxy
+- The flyer's serration finer and softer (user, shown an enlarged
+- The flyer's picture is now the user's photograph (a family in the store
+- Six versions of the flyer round it (user: "Give me six different
+- The Try it! flyer no longer goes by itself (user: "it doesn't
+- ...and it ignores taps for its first five seconds (user: "Ignore taps
+- The store's opening view (user, with a screenshot: "When you first open
+- The flyer's photograph replaced with the user's second version (the
+- (The opening view is the story's store only: the overlay reports
+- "So you'd like to try it, eh?" is off the flyer (user: "remove the so
+- The flyer is one page now (user, shown the twelve: "I like the one on
+- Video (user: "If I were to give you two videos, could you, like,
+- The user's three videos combined (user: "Combine them in a creative
+- The user's spot is the den's commercial now (user: "put it on the
+- The spot's sound, two stretches silenced (user: "16.0 through 17.3, I
+- Checked the den TV has the redone spot (user: "push this version onto
+- ?scene=commercial (user: "Did you give me a direct link to where I can
+- The spot as the den's TV shows it (user: the stills had "CRT lines and
+- The sphere's MATTER list and the newest pieces (user: "the matter in
+- Neon's title hold locked until the end (user: "Users should not be
+- Restart story only at the foot of the theme switcher (user, with a
+- e2e-ending: five hallway checks fail ("a game won on the walk in: the
+- e2e-ending's five hallway failures fixed (user: "fix the hallway test
+- "Human", not "Two humans" (user, with a phone screenshot of the den's
+- The hall walk, a grown-up's (user: "When investigating the hallway
+- Audit of the recent name changes (user: "Do comprehensive check to
+- The four display problems fixed, and Lluvia's Vietnamese checked (user:
+- Lluvia's hero pho sign now "Phở Gà" (user: "change it to Phở Gà"; it
+- The den TV commercial, picture and sound together (user: "it seemed
+- The mother's "Hay quá!" (user: out of sync; the den TV spot, 14.85-15.5
+
+## [08.md](08.md) (674 lines, 43 entries)
+
+- After the commercial (user: "a pop-up thought bubble ... 'Uhh,
+- Into the commercial (user: back from the Singularity the camera was at
+- The den's first look, the first time home from Big Glutts (user, with
+- A brand-new game's first screen (the lid, "Open the box"): no
+- "Action points" are "actions" everywhere (user: "the word points is
+- The order form's warnings: the pointing hand (☞) was a speck (user:
+- The hall's third time, after a game ends (user: dismissed twice, then
+- The store's game for a new player is against the computer (user: "a
+- The commercial's first frame is a living room like the player's (user:
+- The lure's look round, and "!!" (user: when the set acts up and the
+- Store browser tests after the new opponent default (31 run, one after
+- The look round's thought, half the time (user: "Add as an alternate
+- The clerk scene's first caption (user: "Change all instances ... to:
+- Neon's first arrival, the summons (user, with a screenshot: "from the
+- A phone put to sleep and woken (user: "it was in an unmaximized state.
+- The hall pulling you in just as a game ends (user: a Singularity
+- Big Glutts' stripes on the clerk scene's two top captions (user: "the
+- ?jump=hall (user: "a link so I can test the hallway walk again ...
+- The store's drag turns the board one way wherever it begins (user: "if
+- The dark Cruce couldn't stand up on the square the user circled
+- Every world's in-game touch turns and tilts as Neon's (user: "make all
+- Found on the way: the board's pointer handlers are bound again on every
+- tests/e2e-touch-in-game.mjs [world filter]: ten pages (Neon, Standard,
+- The Hombro in the user's video rolled over a dark Flaco, then on past
+- The check alert (user: against the computer, "if it is basically in
+- Asked for "5 different ways we can implement this [the check alert] ...
+- The user, on the rule ("I'm not sure what the rationale is ... the
+- The Revelation, "It never was!!" (user: "their arms that are up need to
+- The check alert, the user's pick of the five: "combine 2, 3 & 5". The
+- The Cabeza Nova sheet's Reset ran out of its box into Play (user's
+- 3D piece inspection in every setup (user: "I want to have a 3D blow up
+- Check alert, the user's question: "Is it going to be 3D? ... just create
+- Sweep for the check alert / Revelation / Reset / piece-inspection round
+- The rest of that sweep, re-run with the 2-hour limit: all 11 pass
+- Path ghosts, explained with a picture (user: "I don't understand exactly
+- Path ghosts built (user: "Yes, build it"). The check alert's still, per
+- Path ghosts' wider check (scratch, not in tests/): 120 positions from
+- The Cabeza Nova sheet's switches (user, a De Stijl screenshot: "Are
+- User: "check any other themes that might have a similar bug. add a
+- City Day / City Night (user: two new worlds for the theme switcher, a
+- The All laws round's wider sweep: all 9 pass (e2e-tienda, -story,
+- City mock-ups, round 2 (user: "10 more (5 of each, again), loosening
+- City mock-ups, round 3 (user: "Even 10 more now"): numbered 21-30,
+
+## [09.md](09.md) (661 lines, 25 entries)
+
+- City mock-ups, round 4, maps (user: "a map sort of look ... a
+- City mock-up 41, Blueprint City (user: "a blueprints version of like
+- City mock-ups 42-46, cyberpunk (user sent eight reference images:
+- Plano, a new world (user, picking the blueprint mock-up: "Let's
+- Plano's sweep passed after the push (87a5d93, deployed): e2e-ending
+- City mock-ups 42-46 reworked (user: "These cyberpunk ones need to have
+- City mock-ups, round 6 (47-66). The user asked for more of Teal Canyon,
+- Round 6 revisions (user feedback after the round):
+- DESIGN RULE for city pieces (user): pieces keep the form of the game
+- City mock-ups, round 7 (67-71), mid-century with the form kept:
+- City mock-ups 62-66 redone with the mid-century pieces (user: "redo
+- Mid-century scenes 62-71 reworked (user: per-floor offsets "look just
+- City mock-ups round 8 (72-77), white and grey-blue (user: "I want the
+- Paused, city glass towers and cranes (user: "I think we'll work on
+- Moon Base, the working models at high resolution (user: "Let's go
+- Moon Base: the connected modules dropped (user: "It looks like servers
+- Moon Base, five in-between ideas, 78-82 (user: corridors "between all
+- Moon board in the moon's own ground (user: the board "should not be a
+- Moon sizes true to the game pieces (user circled the Turrito in 78:
+- Moon: the Turrito read as a cube; the other ten pieces in the lunar
+- Blueprint (Plano) traffic against the arrows (user screenshot: "going
+- Moon: options for where the two sides' corridors cross (user: "What are
+- Moon Cabezas told apart by their bases (user: "Maybe the bases of the
+- Moon 94: the Squircle Base on the Fused Drums' ground, with a better
+- Moon 95: people, a squarer Chato, and smaller two-colour hubs for 91
+
+## [10.md](10.md) (664 lines, 15 entries)
+
+- Rule from now on: people in every scene span the human range of skin
+- Moon 96: one roundover for every cube-built piece, the dome glass a touch
+- Moon 97: window lights by floor and corner, legs nestled, plain glass
+- Moon 98: corridors decided, figures made one smooth surface.
+- Moon 99: board contour, dust berms and slimmer hips.
+- Moon 100: buildings to scale under overhangs, and a flat front on the
+- Moon 101: nothing cylindrical, everything squircle (user: "I don't
+- Moon 102: people a hair smaller, the round inflatable tubes back (user:
+- Luna, a new world: the moon base deployed into the theme switcher (user:
+- Luna round 2, and three things for every world (user: "the cabeza
+- Luna: z-fighting on odd pieces, and shadows swinging as the view turns
+- Faster AI turns, Luna's wide pan, Minimal Mono's edges (user: "AI AI is
+- Noir, a new world in the making (user: "work on film noir now", after
+- Minimal Mono's white pieces edged too (user: "Minimal mono white pieces
+- Check alert in Minimal Mono (user's phone screenshot, "This happened on
+
+## [11.md](11.md) (37 lines, 1 entries)
+
+- Efficiency review (user: "What can be done to make everything more

@@ -454,7 +454,7 @@ import * as THREE from "three";
       m.position.set(x, y, z); m.rotation.y = rotY || 0; world.add(m);
       var gl = new THREE.Mesh(new THREE.PlaneGeometry(w * 2.2, h * 1.5), glowMaterial(glowTex(), kind === "skin" ? 0x23e6ff : kind === "sleep" ? 0xffa040 : 0xff3dbb, 0.35)); gl.position.copy(m.position); gl.rotation.y = m.rotation.y; gl.position.z += 0.3; world.add(gl);
       var mm = m.clone(); mirror.add(mm); var gm = gl.clone(); mirror.add(gm);
-      anim.screens.push(sc);
+      sc.meshes = [m, mm]; anim.screens.push(sc);
     }
     adScreen("kv", -27 + 6.2, 52, 110, 16, 32, Math.PI / 2 * 0.0 + 0.5);
     adScreen("skin", 27 - 6.2, 34, 170, 12, 24, -0.5);
@@ -523,7 +523,7 @@ import * as THREE from "three";
       var gl = new THREE.Mesh(new THREE.PlaneGeometry(w * 2, h * 1.35), glowMaterial(glowTex(), MENU[key].color, 0.45));
       gl.position.copy(m.position); gl.rotation.y = rotY; gl.translateZ(-0.2); world.add(gl);
       var mm = m.clone(); mirror.add(mm);
-      sc.key = key; anim.screens.push(sc); anim.menu[key] = { mesh: m, glow: gl, sc: sc };
+      sc.meshes = [m, mm]; sc.key = key; anim.screens.push(sc); anim.menu[key] = { mesh: m, glow: gl, sc: sc };
     }
     menuBoard("matter", -4.6, 16, 8, 5.8, 14, 0.22);
     menuBoard("topologies", 7, 33, -4, 6.8, 16, -0.3);
@@ -1130,15 +1130,22 @@ import * as THREE from "three";
       anim.cloudBot.visible = y < 170;
     }
 
+    var viewFrustum = new THREE.Frustum(), viewPV = new THREE.Matrix4();
+    function inView(m) { return m.visible !== false && viewFrustum.intersectsObject(m); }
     function animate(t, dt) {
       SHARED.uTime.value = t; SHARED.uCam.value.copy(cam.position);
       atmosphere(cam.position.y);
       var i;
       anim.cloudTop.material.map.offset.x = t * 0.004; anim.cloudTop2.material.map.offset.y = t * 0.003; anim.cloudBot.material.map.offset.x = t * 0.004;
       anim.smog.material.map.offset.x = t * 0.006; anim.smog2.material.map.offset.y = -t * 0.005;
-      // Screens at ~15 fps.
+      // Screens at ~15 fps, the ones in view (a screen out of the picture,
+      // or its reflection, keeps its last frame till it's back: user, "go
+      // ahead", the efficiency review; they were nearly half the city's
+      // frame, painted and uploaded whether seen or not).
       var fr = Math.floor(t * 15);
-      anim.screens.forEach(function (sc, k) { if ((fr + k) % 2 && sc.last >= 0) return; if (sc.last === fr) return; sc.last = fr; sc.draw(sc.g, sc.canvas.width, sc.canvas.height, t, sc.key && (sc.key === selected || sc.key === hover)); sc.tex.needsUpdate = true; });
+      cam.updateMatrixWorld();
+      viewFrustum.setFromProjectionMatrix(viewPV.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+      anim.screens.forEach(function (sc, k) { if ((fr + k) % 2 && sc.last >= 0) return; if (sc.last === fr) return; if (sc.last >= 0 && sc.meshes && !sc.meshes.some(inView)) return; sc.last = fr; sc.draw(sc.g, sc.canvas.width, sc.canvas.height, t, sc.key && (sc.key === selected || sc.key === hover)); sc.tex.needsUpdate = true; });
       Object.keys(anim.menu).forEach(function (k) { var m = anim.menu[k], on = k === selected || k === hover; m.glow.material.opacity = lerp(m.glow.material.opacity, on ? 0.9 : 0.4 + 0.08 * Math.sin(t * 3 + k.length), 0.1); });
       anim.flicker.forEach(function (f) { var on = Math.sin(t * 7 + f.ph) > -0.3 || Math.sin(t * 31 + f.ph * 3) > 0.6; f.ms[0].opacity = on ? 1 : 0.15; f.ms[1].opacity = on ? 0.5 : 0.05; });
       anim.beacons.forEach(function (b) { b.s.material.opacity = Math.sin(t * 2.2 + b.ph) > 0.6 ? 1 : 0.1; });

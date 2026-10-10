@@ -48,6 +48,13 @@ const DEN_RECORDS = {
 const SPHERE_FILES = { "el-cabeza-neon-sphere-drone.mp3": "assets/neon/sphere-drone.mp3" };
 DEN_RECORDS["el-cabeza-neon-sphere-drone.mp3"] = SPHERE_FILES["el-cabeza-neon-sphere-drone.mp3"];
 
+// Beside every page: ABOUT's original-game cue (chassis ORIGINAL_CUE_URL).
+const COMMON_FILES = { "el-cabeza-original-cue.mp3": "assets/original-cue.mp3" };
+// Beside the pages with Neon's Singularity: the lost hand (neon-singularity.js).
+const LOST_HAND = { "el-cabeza-lost-hand-wire.webp": "assets/neon/lost-hand-wire.webp", "el-cabeza-lost-hand-skin.webp": "assets/neon/lost-hand-skin.webp" };
+Object.assign(SPHERE_FILES, LOST_HAND);
+Object.assign(DEN_RECORDS, LOST_HAND);
+
 // The Games counter's photographs (themes/tienda-overlay.js ClerkScene).
 const CLERK_SHOTS = ["clerk-hello", "clerk-sure", "clerk-go", "clerk-hmm", "clerk-sorry", "clerk-phone",
   "manager-1", "manager-2", "manager-3", "manager-4", "manager-5", "manager-6", "manager-7", "manager-8"];
@@ -145,7 +152,7 @@ for (const t of targets) {
   // reads its textContent and turns it into a real Worker via a Blob URL.
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="${t.viewport || "width=device-width,initial-scale=1"}">${t.head || ""}<meta name="robots" content="noindex, nofollow"><title>${t.title}</title></head><body style="margin:0"><div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script><script>${js}</script></body></html>`;
   writeFileSync(`dist/el-cabeza-${t.name}.html`, html);
-  Object.entries(t.files || {}).forEach(([to, from]) => copyFileSync(from, `dist/${to}`));
+  Object.entries({ ...COMMON_FILES, ...(t.files || {}) }).forEach(([to, from]) => copyFileSync(from, `dist/${to}`));
   console.log(`built dist/el-cabeza-${t.name}.html (${(js.length / 1024).toFixed(0)}kb JS, ${(workerJs.length / 1024).toFixed(0)}kb worker)`);
 }
 

@@ -9,6 +9,7 @@
 
      node tests/run-e2e.mjs                 every test (build first: npm run build)
      node tests/run-e2e.mjs story den       only tests whose names contain "story" or "den"
+     node tests/run-e2e.mjs --shard 1/2     every second test, from the first (2/2: the rest)
 
    Not here, on purpose: ai-sim.mjs (a simulator; minutes per run) and
    e2e-screenshot.mjs (a tool that saves screenshots). */
@@ -26,11 +27,27 @@ const E2E = [
   ["e2e-outline.mjs"], ["audio-bell.mjs"], ["e2e-now-playing.mjs"], ["e2e-split-three.mjs"], ["e2e-check-alert.mjs"],
   // (In tests/ but never in the chain until the 2026-10 audit; each passes.)
   ["e2e-gate.mjs"], ["e2e-ending.mjs"], ["e2e-hall-after-game.mjs"], ["e2e-summon.mjs"], ["e2e-den-spot.mjs"], ["e2e-den-return.mjs"], ["e2e-drag-latch.mjs"], ["e2e-journey.mjs"], ["e2e-tv-lure.mjs"], ["e2e-clerk.mjs"],
+  // (Written for the in-game touch round and never added until the efficiency review.)
+  ["e2e-touch-in-game.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");
-const only = process.argv.slice(2);
-const list = only.length ? E2E.filter((t) => only.some((o) => label(t).includes(o))) : E2E;
+/* --shard i/n: every n-th test from the i-th (1-based), so a long run can
+   be split, here into two under the 2-hour limit of a background task,
+   or across machines (.github/workflows/e2e.yml). The round-robin keeps
+   the long tests spread out. */
+const shardArg = process.argv.slice(2).find((a) => /^--shard[= ]?\d+\/\d+$/.test(a) || a === "--shard");
+let shard = null;
+{
+  const args = process.argv.slice(2);
+  const i = args.indexOf("--shard");
+  const spec = i >= 0 ? args[i + 1] : shardArg && shardArg.replace(/^--shard=?/, "");
+  const m = spec && spec.match(/^(\d+)\/(\d+)$/);
+  if (m) shard = { k: Number(m[1]), n: Number(m[2]) };
+}
+const only = process.argv.slice(2).filter((a, i, all) => !a.startsWith("--shard") && all[i - 1] !== "--shard");
+let list = only.length ? E2E.filter((t) => only.some((o) => label(t).includes(o))) : E2E;
+if (shard) list = list.filter((t, i) => i % shard.n === shard.k - 1);
 if (!list.length) { console.error(`no test matches: ${only.join(" ")}`); process.exit(2); }
 
 function run([file, ...args]) {

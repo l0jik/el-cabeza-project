@@ -309,7 +309,7 @@ Configurable board dimensions beyond the fixed 10×10 (e.g. 10×11, 9×12),
 
 **STATUS: the engine-side parameterization is BUILT and shipped** — this
 is the one part of this document that is no longer just a plan. See
-`PROJECT_MEMORY.md` §3b for what actually exists: `BOARD_ROWS`/
+`docs/memory/03b-board-dimensions.md` for what actually exists: `BOARD_ROWS`/
 `BOARD_COLS` with `setBoardDimensions()`, axis-split geometry
 (`OFF_X/Z`, `SLAB_X/Z`, `GRID_EXTENT_X/Z`), a board-scaled zoom ceiling,
 worker dimension passing, a parametric starting layout, and tests at
@@ -345,7 +345,7 @@ magnitude from flat-board TOPOLOGIES:
   transform system that doesn't exist anywhere in this engine today).
 - **The camera is the biggest risk**, specifically because it's this
   project's most hard-won, extensively-tuned, repeatedly-fragile system
-  (see `PROJECT_MEMORY.md` §5 and §11) — every existing guarantee (the
+  (see `docs/memory/05-camera-input.md` and `docs/memory/11-fragile-areas.md`) — every existing guarantee (the
   50%/75% visibility clamps) assumes one flat, always-partially-visible
   thing. A cube has faces facing away from the camera by construction;
   there is no single viewpoint that sees the whole board. This needs real

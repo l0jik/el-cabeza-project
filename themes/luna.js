@@ -22,7 +22,8 @@
 
 import * as THREE from "three";
 import { DISC_DIAM, DISC_H, CABEZA_SCALE } from "../engine/constants.js";
-import { buildingFor } from "./luna-models.js";
+import { buildingFor, buildingForTest } from "./luna-models.js";
+if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__LUNA_BUILD__ = buildingForTest; // tests: merged vs not (merge-static.js)
 
 /* ------------------------------------------------------------ palette */
 

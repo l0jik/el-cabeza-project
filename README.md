@@ -38,6 +38,6 @@ Pushing to `main` or the working branch deploys `dist/` to GitHub Pages
 ## Docs
 
 - `ARCHITECTURE.md`: the layers and the theme plugin interface.
-- `PROJECT_MEMORY.md`: the design decisions, in the order they were made.
+- `PROJECT_MEMORY.md`: the index of the design notes (`docs/memory/`): the decisions, the history and the pitfalls.
 - `SINGULARITY_DESIGN.md`: the Singularity sequence.
 - `AUDIT.md`: the 2026-10 codebase audit and what's left from it.

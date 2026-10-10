@@ -269,6 +269,9 @@ export const soundChannels = [
 // markers (chassis: theme.moveCostToggle).
 export const moveCostToggle = true;
 
+// Parrish sizes its own pixel ratio, lower for its painting
+// (parrish-scene.js), so the chassis's doesn't (chassis/device-fit.js).
+export const ownsPixelRatio = true;
 export const mountAmbientEffects = createParrishEffects(woodSet, { quality });
 
 /* No pre-game setup extras. */
