@@ -157,7 +157,7 @@ console.log("the first arrival");
 }
 
 console.log("on a computer");
-{
+desk: {
   const { ctx, page, errs, inNeon } = await throughTheSet(false, true, null, 3000);
   check("into Neon through the television", !!inNeon);
   const S = () => page.evaluate(() => (window.__EC_SUMMON__ ? window.__EC_SUMMON__() : { active: false }));
@@ -170,8 +170,38 @@ console.log("on a computer");
   // three seconds; no fingertips (taken out); and a menu that comes apart
   // (3 s here) and folds shut, then the hand.
   const at = (await S()).screen;
+  // (Each press noted on its way down, so a tap that opens nothing on
+  // another machine says where it went: GitHub's, where this one missed.)
+  // (And the invite coming and going, and the page going full screen or
+  // changing size, which the tap also asks for.)
+  await page.evaluate(() => {
+    window.__TAPS__ = [];
+    const t0 = performance.now(), note = (s) => window.__TAPS__.push(`${Math.round(performance.now() - t0)}ms ${s}`);
+    ["pointerdown", "pointerup", "click"].forEach((t) => document.addEventListener(t, (e) => {
+      const el = e.target;
+      note(`${t}@${Math.round(e.clientX)},${Math.round(e.clientY)}>${(el.getAttribute && el.getAttribute("data-testid")) || (typeof el.className === "string" && el.className.slice(0, 40)) || el.tagName}`);
+    }, true));
+    document.addEventListener("fullscreenchange", () => note(`fullscreen ${!!document.fullscreenElement} ${innerWidth}x${innerHeight}`));
+    window.addEventListener("resize", () => note(`resize ${innerWidth}x${innerHeight}`));
+    let up = false;
+    new MutationObserver(() => { const now = !!document.querySelector(".ec-singularity-invite-btn"); if (now !== up) { up = now; note(now ? "invite up" : "invite gone"); } }).observe(document.body, { childList: true, subtree: true });
+  });
   await page.mouse.click(at.x, at.y);
-  await poll(async () => (await page.locator(".ec-singularity-invite-btn").count()) > 0, 4000);
+  const invited = await poll(async () => (await page.locator(".ec-singularity-invite-btn").count()) > 0, 4000);
+  const why = invited ? null : await page.evaluate((at) => {
+    const name = (el) => (el.getAttribute && el.getAttribute("data-testid")) || (typeof el.className === "string" && el.className.slice(0, 40)) || el.tagName;
+    const box = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom].map(Math.round); };
+    const s = window.__EC_SUMMON__ ? window.__EC_SUMMON__() : null;
+    let chakra = 0; for (const f of document.fonts) if (/Chakra/.test(f.family) && f.status === "loaded") chakra++;
+    return {
+      at, now: s && { active: s.active, ready: s.ready, height: s.height, screen: s.screen },
+      under: document.elementsFromPoint(at.x, at.y).slice(0, 6).map(name),
+      taps: window.__TAPS__, title: box(document.querySelector(".ec-title")), canvas: box(document.querySelector("canvas")),
+      view: [innerWidth, innerHeight], chakra, fullscreen: !!document.fullscreenElement, html: document.documentElement.className,
+    };
+  }, at);
+  check("a tap on the singularity opens the SINGULARITY invite", invited, JSON.stringify(why));
+  if (!invited) { await ctx.close(); break desk; }
   const b = await page.locator(".ec-singularity-invite-btn").boundingBox();
   await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   check("into the sphere", !!(await poll(() => page.evaluate(() => { const t = window.__EC_TEST_THREE__ && window.__EC_TEST_THREE__(); const ph = document.querySelector("[data-singularity-phase]"); return !!(t && t.singularity && !t.singularity.sphereArriveAt && ph && ph.getAttribute("data-singularity-phase") === "sphere"); }), 25000)));
