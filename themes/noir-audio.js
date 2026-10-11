@@ -2,7 +2,7 @@
    it's shown in. All synthesized (Web Audio), as the other worlds'.
 
    The street: rain on the pavement and the roofs, gutters running and
-   dripping, a car hissing by on the wet road now and then, the El going
+   dripping, a car going by on the wet road now and then, the El going
    over a few streets off, a siren far away, the thunder after the
    lightning (noir-fx.js calls thunder()).
 
@@ -14,6 +14,9 @@
    and coming down; the projector starts the picture and runs it down. */
 
 export const hasAudio = true;
+
+// The rain's pavement band closes above this (Hz), calm; tension opens it a little.
+const RAIN_LP = 3600;
 
 export function createAudio() {
   let ctx = null, master = null, sfx = null, amb = null, intro = null, wet = null, rev = null, noiseBuf = null, brownBuf = null;
@@ -103,17 +106,22 @@ export function createAudio() {
     if (ambRunning || !ctx) return;
     ambRunning = true;
     ambGain = ctx.createGain(); ambGain.gain.value = 0.7 + 0.4 * zoom; ambGain.connect(amb);
-    // the rain: a steady hiss on the pavement, a duller roar on the roofs
+    // the rain: a steady wash on the pavement, a duller roar on the roofs.
+    // (Kept dark, as an old picture's soundtrack is (user: "Reduce the
+    // hiss on Noir"): the pavement's band centred at 1.9 kHz and closed
+    // above 3.6, where it was 3.6 and 7 (11 when tense); its energy above
+    // 4 kHz down 12 dB, the rain as a whole 3 dB, the roofs' roar up to
+    // carry it.)
     const rb = ctx.createBufferSource(); rb.buffer = noiseBuf; rb.loop = true;
-    const rbp = ctx.createBiquadFilter(); rbp.type = "bandpass"; rbp.frequency.value = 3600; rbp.Q.value = 0.5;
-    rainLp = ctx.createBiquadFilter(); rainLp.type = "lowpass"; rainLp.frequency.value = 7000;
-    const rg = ctx.createGain(); rg.gain.value = 0.045;
+    const rbp = ctx.createBiquadFilter(); rbp.type = "bandpass"; rbp.frequency.value = 1900; rbp.Q.value = 0.7;
+    rainLp = ctx.createBiquadFilter(); rainLp.type = "lowpass"; rainLp.frequency.value = RAIN_LP;
+    const rg = ctx.createGain(); rg.gain.value = 0.042;
     rb.connect(rbp).connect(rainLp).connect(rg).connect(ambGain); rb.start();
     const rr = ctx.createBufferSource(); rr.buffer = brownBuf; rr.loop = true;
     const rrl = ctx.createBiquadFilter(); rrl.type = "lowpass"; rrl.frequency.value = 700;
-    const rrg = ctx.createGain(); rrg.gain.value = 0.05; rr.connect(rrl).connect(rrg).connect(ambGain); rr.start();
+    const rrg = ctx.createGain(); rrg.gain.value = 0.065; rr.connect(rrl).connect(rrg).connect(ambGain); rr.start();
     // the rain coming and going a little
-    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 0.05; lg.gain.value = 0.012; lfo.connect(lg).connect(rg.gain); lfo.start();
+    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 0.05; lg.gain.value = 0.011; lfo.connect(lg).connect(rg.gain); lfo.start();
     scheduleStreet();
   }
   function scheduleStreet() {
@@ -129,13 +137,14 @@ export function createAudio() {
       }
       later(drip, 2500 + Math.random() * 5000);
     }, 2000);
-    // a car going by on the wet road, its tyres hissing, left to right or back
+    // a car going by on the wet road, its tyres on the water, left to right
+    // or back (softer and darker with the rain: 2 kHz at the most, was 2.6)
     later(function car() {
       if (!ctx || windingDown) return;
       const t = now(), dur = 3.2 + Math.random() * 1.6, dir = Math.random() < 0.5 ? 1 : -1;
       const s = noise(t, dur + 0.1), bp = ctx.createBiquadFilter(), g = ctx.createGain();
-      bp.type = "bandpass"; bp.Q.value = 0.7; bp.frequency.setValueAtTime(1200, t); bp.frequency.linearRampToValueAtTime(2600, t + dur * 0.5); bp.frequency.linearRampToValueAtTime(900, t + dur);
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.03, t + dur * 0.5); g.gain.linearRampToValueAtTime(0, t + dur);
+      bp.type = "bandpass"; bp.Q.value = 0.7; bp.frequency.setValueAtTime(1000, t); bp.frequency.linearRampToValueAtTime(2000, t + dur * 0.5); bp.frequency.linearRampToValueAtTime(800, t + dur);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.022, t + dur * 0.5); g.gain.linearRampToValueAtTime(0, t + dur);
       let n2 = g;
       if (ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.setValueAtTime(-0.8 * dir, t); p.pan.linearRampToValueAtTime(0.8 * dir, t + dur); g.connect(p); n2 = p; }
       s.connect(bp).connect(g); const o2 = ctx.createGain(); o2.gain.value = 1; n2.connect(o2).connect(ambGain);
@@ -194,8 +203,8 @@ export function createAudio() {
     intro.gain.cancelScheduledValues(t0); intro.gain.setValueAtTime(0, t0); intro.gain.linearRampToValueAtTime(1, t0 + 3);
   }
   function setZoom(z) { zoom = z; if (ambGain && ctx) ambGain.gain.setTargetAtTime(0.7 + 0.4 * z, ctx.currentTime, 0.4); }
-  // tension: the rain heavier and brighter
-  function setTension(v) { if (rainLp && ctx) rainLp.frequency.setTargetAtTime(7000 + 4000 * v, ctx.currentTime, 1.2); }
+  // tension: the rain heavier and brighter (5 kHz at the most)
+  function setTension(v) { if (rainLp && ctx) rainLp.frequency.setTargetAtTime(RAIN_LP + 1400 * v, ctx.currentTime, 1.2); }
   function setMuted(m) { muted = m; if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.08); }
   function setVolume(v) { volume = Math.max(0, Math.min(1, v)); if (vol && ctx) vol.gain.setTargetAtTime(volume, ctx.currentTime, 0.05); }
   function beginFadeOut(seconds) {

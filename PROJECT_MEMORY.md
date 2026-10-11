@@ -250,3 +250,15 @@ How to use it:
   screen under the card, back exactly; up the board, a quarter turn from
   the side a tall Flaco isn't in front of; the den on a phone: between
   card and bar, back, and the bar's view button kept).
+- Noir, "Reduce the hiss on Noir": the hiss was the rain's pavement bed
+  (noir-audio.js startAmbience), white noise through a bandpass at
+  3.6 kHz (Q 0.5) and a lowpass at 7 kHz (11 kHz when tense), all but
+  the whole of the rain (the roofs' brown-noise roar 12 dB under it,
+  A-weighted). Now: bandpass 1.9 kHz (Q 0.7), lowpass RAIN_LP 3.6 kHz
+  (tension +1.4, so 5 kHz at the most), gain 0.042 (was 0.045, its LFO
+  0.011), the roofs' roar 0.065 (was 0.05); a passing car's tyres 2 kHz
+  at the most (was 2.6), peak 0.022 (was 0.03). Measured on the engine
+  itself rendered offline in Chromium (scratch noirhiss/render.mjs: an
+  OfflineAudioContext handed to createAudio, before and after): calm,
+  4-8 kHz -12 dB, above 8 kHz -22 dB, the rain -2.8 dB A-weighted and
+  +1.9 dB under 1 kHz; tense, 4-8 kHz -7 dB, above 8 kHz -21 dB.
