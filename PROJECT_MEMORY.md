@@ -37,7 +37,24 @@ How to use it:
   foot, an about panel, the first screen). 2026-10-11 the user asked for
   ideas: options given in chat (a one-line footer, an About paragraph, a
   full Notices section, in-world variants; placement; the "Orinoco Flow"
-  clips flagged). Waiting on the user's pick.
+  clips flagged). Waiting on the user's pick. Then the user asked how
+  rights work given how far the game's been augmented ("essentially
+  created a new game"). Answered as general information, not legal
+  advice:
+  - Game mechanics, names and titles aren't copyrightable (USCO FL-108;
+    Argentina draws the same idea/expression line). The original's rules
+    are free to implement; the 1987 article's text and art are not free
+    to copy.
+  - The user owns their own expression, but not the new mechanics
+    (patents only; US 1-year grace after their own disclosure).
+  - AI-generated parts may not be protected: human authorship is
+    required (Thaler v. Perlmutter, D.C. Cir. 2025; cert denied 2
+    March 2026).
+  - Suggested its own name (e.g. Cabeza Nova), "based on El Cabeza by
+    Poniachik and Lindenbaum", a © line, and a licence choice for the
+    repo.
+  - Still needing permission: the "Orinoco Flow" clips, and the people
+    in their videos (for commercial use).
 
 ## Topics (`docs/memory/`)
 
