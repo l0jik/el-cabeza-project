@@ -78,14 +78,27 @@ const OUTRO_FADE_S = 3;
 // The soundtrack, though, is gone in this long at the tap (user: "fade
 // out very quickly"; it and the close clashed).
 const HUMS_OUT_S = 0.6;
-// Each look's soundtrack, looped (made to loop by tools/parrish_hums.py),
-// on a channel of its own ("hums"): Watermark, the user's "Cathedral
-// Hums"; Orinoco, their "Dodhéanta an Ghrian" (user: "Volume sliders the
-// same as Watermark": the place, Pieces, Soundtrack; the opening and the
-// close on the place's slider).
-export const HUMS_URL = lookName() === "watermark" ? "el-cabeza-parrish-hums.mp3" : "el-cabeza-parrish-soundtrack-orinoco.mp3";
-// (Watermark's shown as "Ôm Nhau Vĩnh Cửu", user; the file is still the hums.)
-export const SOUNDTRACK_TITLE = lookName() === "watermark" ? "\u00d4m Nhau V\u0129nh C\u1eedu" : "Dodh\u00e9anta an Ghrian";
+// Each look's soundtrack, on a channel of its own ("hums"): Watermark, the
+// user's "Cathedral Hums" (shown as "Ôm Nhau Vĩnh Cửu", user; the file is
+// still the hums), then their "Ná seas ag mo uaigh is ná goil" (user: "Add
+// to the 'Go deo na ndeor' soundtrack ... matching for audio levels":
+// tools/parrish_na_seas.py, the same loudness as the hums); Orinoco,
+// their "Dodhéanta an Ghrian" (user: "Volume sliders the same as
+// Watermark": the place, Pieces, Soundtrack; the opening and the close on
+// the place's slider). A song alone loops, as its file was made to
+// (seam: tools/parrish_hums.py laid its end over its start); songs in
+// turn play through once each, round again (startHums).
+const SOUNDTRACK = lookName() === "watermark"
+  ? [{ url: "el-cabeza-parrish-hums.mp3", title: "\u00d4m Nhau V\u0129nh C\u1eedu", seam: true },
+    { url: "el-cabeza-parrish-na-seas.mp3", title: "N\u00e1 seas ag mo uaigh is n\u00e1 goil" }]
+  : [{ url: "el-cabeza-parrish-soundtrack-orinoco.mp3", title: "Dodh\u00e9anta an Ghrian", seam: true }];
+export const HUMS_URL = SOUNDTRACK[0].url;
+// (The slider's hint: every song on it.)
+export const SOUNDTRACK_TITLE = SOUNDTRACK.map((s) => s.title).join(" \u00b7 ");
+// Between songs: a song made to loop ends on its seam, not an ending, so
+// it fades over its last SEAM_FADE_S instead; a breath (SONG_GAP_S) before
+// the next, fetched and decoded SONG_PREFETCH_S before it's due.
+const SEAM_FADE_S = 6, SONG_GAP_S = 3, SONG_PREFETCH_S = 25;
 const NO_GULLS = lookName() === "watermark";
 // Watermark's evening (user): a recording of wind in the trees, with its
 // own far birds (freesound_community "forest wind and birds", its hiss
@@ -597,41 +610,94 @@ export function createAudio() {
     }).catch(() => { /* no recording yet */ });
   }
 
-  /* ---- The soundtrack (Watermark's hums, Orinoco's sun), looped, low ---- */
-  function startHums() {
-    if (!HUMS_URL || !ctx || hums) return;
-    hums = { stopped: false };
-    const h = hums;
-    fetch(HUMS_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
-      if (h.stopped || disposed) return;
-      // The loop from the first sound to the last (an encoder's padding
-      // left out, so the seam the file was made with stays seamless).
+  /* ---- The soundtrack (Watermark's songs, Orinoco's sun), low ---- */
+  // h.k: the song on (SOUNDTRACK), h.song: its { buf, start, end }, h.g:
+  // the soundtrack's own gain (the close, staying, pausing), h.sg: the
+  // song's (its fades in and out).
+  const ONE_SONG = SOUNDTRACK.length === 1;
+  // A song fetched and decoded once asked for (the promise kept while it's
+  // wanted), from its first sound to its last (an encoder's padding left
+  // out, so the seam a looped file was made with stays seamless).
+  function loadSong(h, k) {
+    if (h.songs[k]) return h.songs[k];
+    const p = fetch(SOUNDTRACK[k].url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((b) => ctx.decodeAudioData(b)).then((buf) => {
       const d = buf.getChannelData(0), lim = Math.min(d.length, Math.floor(buf.sampleRate * 0.2));
       let a = 0, z = d.length - 1;
       while (a < lim && Math.abs(d[a]) < 1e-4) a++;
       while (z > d.length - lim && Math.abs(d[z]) < 1e-4) z--;
-      h.buf = buf; h.loopStart = a / buf.sampleRate; h.loopEnd = (z + 1) / buf.sampleRate;
+      return { buf, start: a / buf.sampleRate, end: (z + 1) / buf.sampleRate };
+    });
+    h.songs[k] = p;
+    p.catch(() => { if (h.songs[k] === p) h.songs[k] = null; });
+    return p;
+  }
+  function startHums() {
+    if (!HUMS_URL || !ctx || hums) return;
+    hums = { stopped: false, k: 0, songs: [], timers: [] };
+    const h = hums;
+    loadSong(h, 0).then((song) => {
+      if (h.stopped || disposed) return;
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now()); g.gain.setTargetAtTime(HUMS_GAIN, now(), 2.5);
       g.connect(gates.hums);
-      h.g = g;
+      h.g = g; h.song = song;
       // (Paused from the sound menu before it had loaded: it waits there.)
-      if (h.paused) { h.pos = h.loopStart; return; }
-      playHumsFrom(h, h.loopStart);
+      if (h.paused) { h.pos = song.start; return; }
+      playHumsFrom(h, song.start);
     }).catch(() => { /* no soundtrack, then */ });
   }
-  // A fresh source from `pos` (a buffer source can't be paused, only
-  // stopped and started again), looped as the file was made to.
-  function playHumsFrom(h, pos) {
-    const s = ctx.createBufferSource(); s.buffer = h.buf; s.loop = true;
-    s.loopStart = h.loopStart; s.loopEnd = h.loopEnd;
-    s.connect(h.g); s.start(now(), pos);
-    h.src = s; h.t0 = now(); h.off = pos;
+  function songTimer(h, s, fn) {
+    const id = setTimeout(() => { if (!h.stopped && !disposed) fn(); }, Math.max(0, s * 1000));
+    h.timers.push(id);
   }
-  // Where in the track it is now (seconds into the file).
+  function clearSongTimers(h) { h.timers.forEach((id) => clearTimeout(id)); h.timers = []; }
+  // A fresh source from `pos` (a buffer source can't be paused, only
+  // stopped and started again): a song alone looped as its file was made
+  // to; in turn, played to its end (a looped song's seam faded), the next
+  // fetched a little before it's due and begun after a breath.
+  function playHumsFrom(h, pos, fadeIn = 0) {
+    const song = h.song, t = now();
+    const s = ctx.createBufferSource(); s.buffer = song.buf;
+    const sg = ctx.createGain(); sg.connect(h.g);
+    if (fadeIn > 0) { sg.gain.setValueAtTime(0.0001, t); sg.gain.setTargetAtTime(1, t, fadeIn / 3); }
+    s.connect(sg);
+    h.src = s; h.sg = sg; h.t0 = t; h.off = pos; h.gap = false;
+    if (ONE_SONG) {
+      s.loop = true; s.loopStart = song.start; s.loopEnd = song.end;
+      s.start(t, pos);
+      return;
+    }
+    const left = Math.max(0, song.end - pos);
+    s.start(t, pos, left);
+    if (SOUNDTRACK[h.k].seam && left > 0.05) sg.gain.setTargetAtTime(0.0001, t + Math.max(0, left - SEAM_FADE_S), SEAM_FADE_S / 5);
+    clearSongTimers(h);
+    const next = (h.k + 1) % SOUNDTRACK.length;
+    songTimer(h, left - SONG_PREFETCH_S, () => { loadSong(h, next).catch(() => {}); });
+    songTimer(h, left, () => { if (h.src === s) { h.src = null; h.gap = true; } });
+    songTimer(h, left + SONG_GAP_S, () => nextSong(h));
+  }
+  // On to the next song (the one played let go): a song made to loop
+  // comes in from its start with a fade (its start is its own seam).
+  function nextSong(h) {
+    if (h.paused || h.stopped || disposed) return;
+    const done = h.k, k = (h.k + 1) % SOUNDTRACK.length;
+    loadSong(h, k).then((song) => {
+      if (h.paused || h.stopped || disposed) return;
+      if (done !== k) h.songs[done] = null;
+      h.k = k; h.song = song;
+      playHumsFrom(h, song.start, SOUNDTRACK[k].seam ? 2.5 : 0.05);
+    }).catch(() => {
+      // (Couldn't be had: the one before plays again.)
+      if (h.paused || h.stopped || disposed) return;
+      playHumsFrom(h, h.song.start, SOUNDTRACK[h.k].seam ? 2.5 : 0.05);
+    });
+  }
+  // Where in the song it is now (seconds into the file).
   function humsPos(h) {
-    if (h.paused || !h.src) return h.pos != null ? h.pos : h.loopStart || 0;
-    const span = h.loopEnd - h.loopStart, raw = h.off + (now() - h.t0);
-    return raw < h.loopEnd ? raw : h.loopStart + ((raw - h.loopStart) % span);
+    if (h.paused || !h.src) return h.pos != null ? h.pos : h.gap ? h.song.end : h.song ? h.song.start : 0;
+    const raw = h.off + (now() - h.t0);
+    if (!ONE_SONG) return Math.min(h.song.end, raw);
+    const span = h.song.end - h.song.start;
+    return raw < h.song.end ? raw : h.song.start + ((raw - h.song.start) % span);
   }
   /* Paused from the sound menu's now-playing strip (user: "pause the
      music right where it is"): a quick fade, the source stopped, the
@@ -642,8 +708,10 @@ export function createAudio() {
     const h = hums;
     if (!h || !ctx || !!h.paused === !!pause) return;
     if (pause) {
-      h.pos = humsPos(h);
+      // (Between songs: it holds there, and plays on with the next.)
+      h.pos = h.gap ? null : humsPos(h);
       h.paused = true;
+      if (h.timers) clearSongTimers(h);
       if (h.src) {
         const s = h.src; h.src = null;
         try { s.stop(now() + HOLD_FADE + 0.02); } catch (e) { /* ended */ }
@@ -651,11 +719,14 @@ export function createAudio() {
       }
     } else {
       h.paused = false;
-      if (!h.buf || !h.g) return; // (still loading: it starts as it comes)
+      if (!h.song || !h.g) return; // (still loading: it starts as it comes)
       h.g.gain.cancelScheduledValues(now());
       h.g.gain.setValueAtTime(0.0001, now());
       h.g.gain.setTargetAtTime(HUMS_GAIN, now(), 0.15);
-      playHumsFrom(h, h.pos != null ? h.pos : h.loopStart);
+      if (h.gap) { nextSong(h); return; }
+      // (A looped song's own seam fade, if it was in it, starts again
+      // from there: playHumsFrom sets it by what's left.)
+      playHumsFrom(h, h.pos != null ? h.pos : h.song.start);
     }
   }
 
@@ -728,19 +799,31 @@ export function createAudio() {
     // (Tests: what's running.)
     // The sound menu's now-playing strip (chassis/NowPlaying.jsx): the
     // look's soundtrack, once a game has started it.
+    // The song on now, its own title (between songs, the one just played,
+    // at its end).
     nowPlaying() {
       const h = hums;
-      if (!HUMS_URL || !h || (!h.buf && !h.paused)) return null;
-      return { title: SOUNDTRACK_TITLE, at: h.buf ? humsPos(h) - (h.loopStart || 0) : 0, length: h.buf ? h.loopEnd - h.loopStart : null, paused: !!h.paused };
+      if (!HUMS_URL || !h || (!h.song && !h.paused)) return null;
+      const song = h.song;
+      return { title: SOUNDTRACK[h.k].title, at: song ? humsPos(h) - song.start : 0, length: song ? song.end - song.start : null, paused: !!h.paused };
     },
     setNowPlayingPaused(pause) { setHumsPaused(pause); },
-    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.paused ? "paused" : hums.src ? "playing" : "loading") : null, evening: evening ? (evening.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
+    // (Tests: on to `secondsLeft` before the end of the song on now.)
+    testSongNearEnd(secondsLeft) {
+      const h = hums;
+      if (!h || !h.song || !h.src || h.paused) return false;
+      const s = h.src; h.src = null;
+      try { s.stop(); } catch (e) { /* ended */ }
+      playHumsFrom(h, Math.max(h.song.start, h.song.end - secondsLeft));
+      return true;
+    },
+    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.paused ? "paused" : hums.src ? "playing" : hums.gap ? "between" : "loading") : null, song: hums ? hums.k : null, songs: SOUNDTRACK.length, evening: evening ? (evening.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
     dispose() {
       disposed = true;
       timers.forEach((id) => clearTimeout(id)); timers.clear();
       if (pendingCapture) clearTimeout(pendingCapture);
       if (music) music.stopped = true;
-      if (hums) { hums.stopped = true; try { if (hums.src) hums.src.stop(); } catch (e) { /* ended */ } }
+      if (hums) { hums.stopped = true; clearSongTimers(hums); try { if (hums.src) hums.src.stop(); } catch (e) { /* ended */ } }
       if (evening) { evening.stopped = true; try { if (evening.src) evening.src.stop(); } catch (e) { /* ended */ } }
       offGesture();
       if (typeof window !== "undefined") { window.removeEventListener(REALITIES_OPEN_EVENT, onRealities); window.removeEventListener(REALITIES_STAY_EVENT, onStay); window.removeEventListener(PARRISH_CLOSING_EVENT, onClosing); }

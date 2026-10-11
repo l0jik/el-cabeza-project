@@ -351,3 +351,20 @@ How to use it:
   world), el_cabeza_3d.jsx and el-cabeza-neon-3d.html; "hasn&rsquo;t" as
   the text's other apostrophes. Read back from the ABOUT tab on Standard,
   Noir, Neon and Lab.
+- Go deo na ndeor (Watermark), its soundtrack now two songs (user: "Add
+  to the 'Go deo na ndeor' soundtrack with the title 'Ná seas ag mo uaigh
+  is ná goil', matching for audio levels"): their own song, edited over
+  four rounds in this chat (2:34.699-2:53.234 out, a hall trailing off
+  through 3.4 s, the last part on its first note, the dead-stop click at
+  the end faded into the hall, reverb over all). tools/parrish_na_seas.py
+  makes assets/parrish/na-seas.mp3 from assets/parrish/src/ (the user's
+  original) and matches its integrated loudness (BS.1770, its own lufs())
+  to the first song's, -15.71 LUFS, re-encoding until the MP3 measures
+  within 0.05 dB (LAME takes ~0.45 dB off). parrish-audio.js: SOUNDTRACK,
+  a list per look (Orinoco still one song, looping on its seam as
+  before); a list of two plays each in turn, a 3 s gap between, the next
+  fetched 25 s before the end; pause, the now-playing strip (title, time
+  and length of the song playing) and the hums channel's hint (both
+  titles) follow it. Tests: e2e-now-playing's Watermark section skips to
+  each song's end (testSongNearEnd) and reads the next; the strip's title
+  read from its span (a title that scrolls has its keyframes beside it).

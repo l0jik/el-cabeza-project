@@ -82,7 +82,8 @@ for (const place of PLACES) {
     const box = (q) => { const b = (q ? s.querySelector(q) : s).getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
     const m = document.querySelector('[data-testid="sound-menu"]').getBoundingClientRect();
     return {
-      paused: s.dataset.paused, title: s.querySelector('[data-testid="now-playing-title"]').textContent,
+      // (The title's own text: a title that scrolls has its keyframes beside it.)
+      paused: s.dataset.paused, title: s.querySelector('[data-testid="now-playing-title"] span').textContent,
       time: s.querySelector('[data-testid="now-playing-time"]').textContent,
       btn: box('[data-testid="now-playing-toggle"]'), name: box('[data-testid="now-playing-title"]'), when: box('[data-testid="now-playing-time"]'), strip: box(), menu: { l: m.left, r: m.right, t: m.top, b: m.bottom },
     };
@@ -128,6 +129,23 @@ for (const place of PLACES) {
     check("...still clear of the button and the time", sep(l.btn, l.name) && sep(l.name, l.when), JSON.stringify(l));
     await page.evaluate(() => { window.__EC_NP_TITLE__ = null; });
     check("a title that fits doesn't scroll", !!(await poll(async () => (await shift()).scrolls === "false", 4000, 200)));
+  }
+  // Watermark's soundtrack: two songs in turn (user: "Add to the 'Go deo
+  // na ndeor' soundtrack with the title 'Ná seas ag mo uaigh is ná
+  // goil'"): near the end of the first, the strip moves on to the second
+  // (from its start, its own length), and after it, round to the first.
+  if (place.name === "Watermark") {
+    const NEXT = "Ná seas ag mo uaigh is ná goil";
+    const skip = (s) => page.evaluate((s) => window.__PARRISH_AUDIO__.testSongNearEnd(s), s);
+    check("near the end of the first song", await skip(2));
+    const b = await poll(async () => { const v = await read(); return v && v.title === NEXT ? v : null; }, 15000, 300);
+    check(`...then the next, "${NEXT}"`, !!b, JSON.stringify(await read()));
+    check(`...from its start, its own length (${b && b.time})`, !!b && secs(b.time.split("/")[0]) <= 4 && /2:57/.test(b.time), b && b.time);
+    const st = await page.evaluate(() => window.__PARRISH_AUDIO__.debugState());
+    check("...playing, the second of two", st.hums === "playing" && st.song === 1 && st.songs === 2, JSON.stringify(st));
+    check("near the end of the second", await skip(2));
+    const c = await poll(async () => { const v = await read(); return v && v.title === place.title ? v : null; }, 15000, 300);
+    check("...then round to the first again", !!c, JSON.stringify(await read()));
   }
   check("no page errors", errs.length === 0, errs.join(" | "));
   await page.close();
