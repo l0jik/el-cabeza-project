@@ -142,3 +142,38 @@ How to use it:
   noirrain/render4.mjs renders a scene on the engine offline (a car
   pulls out, passes, thunder); sent the user noir-rain-cars-thunder.mp3
   (8 s of the old rain, then the new).
+- GitHub browser tests #16 (12abc42), two failures, neither in what
+  that push touched:
+  - e2e-den-spot "the frame on the screen": mean -28 ms, 90% within;
+    #15 had -31 ms, 84%. The video's clock on the runner sat a steady
+    13-14 ms behind its target (range -14..-13 ms). den-commercial.js
+    left the video alone anywhere within 15 ms of the sound (CLOSE). It
+    started a little behind and stayed there; the frame on the screen,
+    of a 24 fps spot, is a further 0-42 ms back. Now it's nudged once
+    6 ms off (CLOSE) until within 1.5 ms (HOLD), then set to exactly 1
+    (rateTo's 0.004 step would leave it a hair off).
+  - The test also measured against the sound 6 ms early: the master
+    compressor's look-ahead delays it, as den-ad-audio.js heardNow
+    allows. __EC_AD_SCHED__.lookahead now gives the test that figure.
+  - Local results, the clock and then the frame: unthrottled -1 (-3..-1)
+    and -4 ms; CPU throttled x4, -1 (-2..0) and -20 (-29..+4) ms, 100%
+    within, one rate change in the spot (the old code there: +2 and
+    +2 ms, -6..+98, four changes). Scratch densync/den-spot-dump.mjs
+    (THROTTLE=4 DUMP=file.json; show.py).
+  - e2e-nova-mobile "the bar layout is remembered": after a reload the
+    den's lure wasn't held off (diagnosed before, history/10.md, never
+    fixed). On the slow runner it had the screen before the bar was
+    seen. holdLure(page, ms) now runs after both reloads too (45 s),
+    and a failure reports the stored layout, the bar, the dock and the
+    lure.
+  - CI logs: `gh api .../actions/jobs/<id>/logs` comes back empty here;
+    mcp__github__get_job_logs (return_content, tail_lines) works. A
+    passing test's lines aren't in the log, only its pass.
+- GitHub browser tests #17 (617c374, the recorded Noir sounds): all
+  passed but e2e-summon (#148, shard 8, the faster machines again:
+  e2e-outline 77 s, e2e-singularity 185 s). Its diagnostic line
+  (cd46547) wasn't in the log: run-e2e printed only the last 25 lines
+  of a failed test, all passes after the miss. run-e2e now prints every
+  FAIL line above the tail first. Next faster-machine run: read it.
+  e2e-den-spot and e2e-nova-mobile passed in #17 (before the fixes
+  above).

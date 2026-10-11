@@ -128,6 +128,9 @@ const shots = process.env.EC_SHOTS;
 // GPU, puts one up only every 0.1-0.2 s). + is the picture ahead. Lip
 // sync is noticed past about 45 ms with the sound early, 125 ms with it
 // late (ITU-R BT.1359); before, the picture ran about 100 ms ahead here.
+// The sound reaches the ears the master compressor's look-ahead (6 ms)
+// after its output timestamp, as the den has it (den-ad-audio.js
+// heardNow); left out, every reading here was 6 ms behind.
 // Both less the lead the den aims the video by (den-commercial.js: a
 // frame drawn now reaches the screen about a frame later, so the video
 // runs that much ahead of the sound, to 50 ms): what's measured here is
@@ -146,7 +149,7 @@ await page.evaluate(() => {
     }
     if (!a || !v || !vf || v.paused) return;
     const perf = performance.now(), ts = a.ctx.getOutputTimestamp();
-    const heard = ts.contextTime + (perf - ts.performanceTime) / 1000 - a.T;
+    const heard = ts.contextTime + (perf - ts.performanceTime) / 1000 - a.T - (a.lookahead || 0);
     const shown = vf.media + Math.max(0, perf - vf.disp) / 1000 * v.playbackRate;
     const lead = (window.__DEN_SPOT__ && window.__DEN_SPOT__().lead) || 0;
     window.__SYNC__.push({ heard, clock: v.currentTime - heard - lead, shown: shown - heard - lead, lead });

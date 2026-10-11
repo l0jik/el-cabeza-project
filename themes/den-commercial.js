@@ -113,8 +113,11 @@ export const spotSound = { heard: null };
 // (Test-only: how far ahead of the sound the picture's aimed just now.)
 let spotLead = 0;
 // (The video started this far ahead of the sound, so its decoder's start
-// doesn't leave it behind; and kept within this of it.)
-const PREROLL = 0.1, CLOSE = 0.015;
+// doesn't leave it behind. Nudged once it's CLOSE off, till it's within
+// HOLD: a band of 15 ms left it wherever it landed in it, and on a slow
+// machine it started 13-17 ms behind and stayed there, the frame on the
+// screen a further frame back, about 30 ms in all.)
+const PREROLL = 0.1, CLOSE = 0.006, HOLD = 0.0015;
 
 /* The commercial on the tube: its texture, and draw(t) each frame (t in
    seconds from the top, the set's clock, for when there's no sound to
@@ -131,7 +134,7 @@ export function createCommercial() {
     texture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
     texture.needsUpdate = true;
   }
-  let shown = false, tried = 0, lastDraw = 0, frame = 1 / 60, at = 0;
+  let shown = false, tried = 0, lastDraw = 0, frame = 1 / 60, at = 0, nudging = false;
   const seekTo = (t) => { try { if (!v.seeking) v.currentTime = t; } catch (e) { /* not yet */ } };
   // (playbackRate only set when it changes, so the decoder isn't
   // re-timed every frame.)
@@ -145,7 +148,7 @@ export function createCommercial() {
     reset() {
       // (A showing's sound is its own: the last one's, played out, is
       // forgotten; this one's, if there's sound, is set just after.)
-      spotSound.heard = null; at = 0;
+      spotSound.heard = null; at = 0; nudging = false;
       if (!v) return;
       v.pause(); v.playbackRate = 1;
       if (v.readyState >= 1 && v.currentTime > 0) seekTo(0);
@@ -174,8 +177,13 @@ export function createCommercial() {
       }
       if (t < 0) return; // (rolling from the top, a moment before the sound)
       const drift = v.currentTime - t;
-      if (Math.abs(drift) > 0.25) { seekTo(t); rateTo(1); }
-      else rateTo(Math.abs(drift) < CLOSE ? 1 : Math.min(1.15, Math.max(0.85, 1 - drift * 2.5)));
+      if (Math.abs(drift) > 0.25) { seekTo(t); rateTo(1); nudging = false; return; }
+      if (Math.abs(drift) > CLOSE) nudging = true;
+      else if (nudging && Math.abs(drift) < HOLD) {
+        // (Back to 1 exactly: rateTo would leave it a hair off, drifting.)
+        nudging = false; v.playbackRate = 1;
+      }
+      if (nudging) rateTo(Math.min(1.15, Math.max(0.85, 1 - drift * 2.5)));
     },
     // Over when the sound is (s: the set's clock, in ms; and at most a
     // second after it says so, should the sound have stalled).

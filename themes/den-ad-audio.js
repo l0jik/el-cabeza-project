@@ -53,7 +53,7 @@ export function playCommercial(ctx, dest, { delay = 0 } = {}) {
   const T = ctx.currentTime + delay;
   const END = T + COMMERCIAL_MS / 1000;
   // (Test-only: when it starts, on the audio clock.)
-  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_AD_SCHED__ = { T, ctx };
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_AD_SCHED__ = { T, ctx, lookahead: LOOKAHEAD };
   // The picture follows the sound (den-commercial.js spotSound).
   const heard = () => heardNow(ctx) - T;
   spotSound.heard = heard;

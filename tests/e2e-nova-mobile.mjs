@@ -40,15 +40,19 @@ async function open(url, { width, height, touch = true, bar = false }) {
   }, bar);
   await page.goto(url);
   await page.waitForTimeout(2500);
-  // At home the set's lure waits ten minutes, not 25 s: these are the
-  // layout's checks, and as it starts it takes the camera (and the taps)
-  // for a moment, and at its blast till the set's tapped (den-fx.js lure;
-  // e2e-tv-lure). The TV's own check below moves it on.
-  if (url === NOVA) {
-    await page.waitForFunction(() => !!window.__DEN_LURE_SKIP__, null, { timeout: 10000 }).catch(() => {});
-    await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(-600000));
-  }
+  if (url === NOVA) await holdLure(page);
   return { ctx, page, errs };
+}
+// At home the set's lure waits ten minutes, not 25 s: these are the
+// layout's checks, and as it starts it takes the camera (and the taps)
+// for a moment, and at its blast till the set's tapped (den-fx.js lure;
+// e2e-tv-lure). The TV's own check below moves it on. (After a reload
+// too: on a slow machine the reloaded page could take so long that the
+// lure had the screen before the bar was seen: once here, and in
+// GitHub's browser tests #16.)
+async function holdLure(page, ms = 10000) {
+  await page.waitForFunction(() => !!window.__DEN_LURE_SKIP__, null, { timeout: ms }).catch(() => {});
+  await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(-600000));
 }
 const q = (page, id) => page.locator(`[data-testid="${id}"]`);
 const visible = (page, id) => page.evaluate((id) => {
@@ -287,9 +291,11 @@ async function waitFor(fn, ms = 8000) {
   const bar = await q(d.page, "shell-bar").boundingBox();
   check("on a desktop the bar floats, centred", bar.width <= 600 && Math.abs(bar.x + bar.width / 2 - 640) < 2 && bar.y + bar.height < 800 - 8, JSON.stringify(bar));
   await d.page.reload();
+  await holdLure(d.page, 45000);
   // (Polled, not a fixed pause: on a busy machine a reloaded Nova can take
   // well over the old 2.5 s to come up, which read as "not remembered".)
-  check("the bar layout is remembered", await waitFor(() => visible(d.page, "shell-bar"), 45000));
+  const kept = await waitFor(() => visible(d.page, "shell-bar"), 45000);
+  check("the bar layout is remembered", kept, kept ? "" : JSON.stringify(await d.page.evaluate(() => ({ pref: localStorage.getItem("el-cabeza:nova-layout"), bar: !!document.querySelector('[data-testid="shell-bar"]'), dock: !!document.querySelector('[data-testid="dock-piece-canvas"]'), tv: window.__DEN_TV__ ? (({ phase, lure, locked, lureWaited }) => ({ phase, lure, locked, lureWaited }))(window.__DEN_TV__()) : null }))));
   // The side that moves first sits nearest the viewer before a game.
   // (Waits for the page to be ready: a fixed pause can fall short on a busy machine.)
   await d.page.waitForFunction(() => document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]') && window.__EC_TEST_SCREEN_POS__ && window.__EC_TEST_SCREEN_POS__("dark-cabeza") && window.__EC_TEST_SCREEN_POS__("light-cabeza"), null, { timeout: 45000 });
@@ -321,8 +327,8 @@ async function waitFor(fn, ms = 8000) {
   await q(p.page, "layout-toggle").tap();
   check("...and switches to it", await waitFor(() => visible(p.page, "shell-bar")));
   await p.page.reload();
-  await p.page.waitForTimeout(2500);
-  check("the bar is remembered on the phone", await waitFor(() => visible(p.page, "shell-bar")));
+  await holdLure(p.page, 45000);
+  check("the bar is remembered on the phone", await waitFor(() => visible(p.page, "shell-bar"), 45000));
   await q(p.page, "shell-menu-button").tap();
   await p.page.waitForTimeout(300);
   check("the phone's menu offers the classic dock", (await q(p.page, "shell-menu-layout").count()) === 1);

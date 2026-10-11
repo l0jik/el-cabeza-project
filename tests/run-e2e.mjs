@@ -73,7 +73,13 @@ for (const t of list) {
   results.push({ name: label(t), ...r });
   console.log(`${r.code === 0 ? "pass" : "FAIL"} (${r.secs.toFixed(0)} s)`);
   if (r.code !== 0) {
-    const tail = r.out.split("\n").filter((l) => l.trim() && !/agent-proxy|connect_rejected|For details: curl/.test(l)).slice(-25);
+    const lines = r.out.split("\n").filter((l) => l.trim() && !/agent-proxy|connect_rejected|For details: curl/.test(l));
+    const tail = lines.slice(-25);
+    // Every failed check too, with what it says about itself, however far
+    // above the tail it is (GitHub's log of e2e-summon, #17, had only the
+    // passes after its miss).
+    const above = lines.slice(0, -25).filter((l) => /^\s*FAIL\b/.test(l));
+    if (above.length) console.log([...above, "..."].map((l) => `    ${l}`).join("\n"));
     console.log(tail.map((l) => `    ${l}`).join("\n"));
   }
 }
