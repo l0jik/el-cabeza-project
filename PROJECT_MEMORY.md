@@ -323,3 +323,17 @@ How to use it:
   what's under the point, the summons' state, the title and the canvas
   (cd46547), then goes on to the other sections. Open: on the next
   faster-machine run, read that line in shard 8's log and fix the cause.
+- Noir, "Z-fighting on white border" (user's phone video, a low view
+  along the numbered edge): the chassis's top ring (buildTopRingFrame,
+  a 0.025-wide frame mesh exactly in the slab's top plane, HEX.charcoal
+  at 0.45: white in Noir, whose charcoal is 0xececec) won its depth test
+  against the coincident top face by fixed units only (-4 against the
+  face's +3). Seen low, the two surfaces' interpolated depths drift apart
+  by more than that, and the whole rim lost or won together as the view
+  crept: in the video every pixel of it flipped between ~80 and ~135 in
+  lockstep (found with a per-pixel flicker map over the video's stillest
+  20 frames, decoded with a static ffmpeg and numpy). Reproduced here, a
+  low view along the -x edge with theta nudged 0.0004 a frame (the rim
+  gone in 2 of 6 frames). Fix: polygonOffsetFactor -1 on the ring too,
+  the slope-scaled pull the check alert's marks already have; the rim
+  holds in every frame. Every world has the ring (all smokes pass).

@@ -3618,7 +3618,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         side: THREE.DoubleSide,
         depthWrite: false,
         polygonOffset: true,
-        polygonOffsetFactor: 0,
+        // A slope-scaled pull as well (as the check alert's marks have):
+        // at a grazing angle the ring's and the top face's interpolated
+        // depths, at the same pixel, drift apart by more than a few
+        // fixed units, and with units alone the ring lost to the face
+        // on some frames and not others, a border flickering on and off
+        // as the view crept (user's video, Noir, whose ring is white;
+        // reproduced here at a low view along the edge).
+        polygonOffsetFactor: -1,
         // Negative pulls this surface's depth-buffer value CLOSER to
         // camera (the opposite direction from the top face's own +3,
         // which pushes IT back) — real hardware depth-test margin
