@@ -34,7 +34,10 @@ How to use it:
   unofficial, non-commercial implementation and is not affiliated with
   or endorsed by them.'"). Still to settle with the user: who "them" is
   named as, and where it shows (every page, e.g. a small line at the
-  foot, an about panel, the first screen).
+  foot, an about panel, the first screen). 2026-10-11 the user asked for
+  ideas: options given in chat (a one-line footer, an About paragraph, a
+  full Notices section, in-world variants; placement; the "Orinoco Flow"
+  clips flagged). Waiting on the user's pick.
 
 ## Topics (`docs/memory/`)
 
