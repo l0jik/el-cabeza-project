@@ -1,20 +1,24 @@
 /* Noir's recorded sounds (tools/noir_sounds.py; noir-audio.js), and the
    sound menu's sliders for them (user: "make sure you get some better
    rain sounds, too ... it definitely will need its own volume toggle";
-   "add car sounds, real recordings").
+   "add car sounds, real recordings"; "Noir needs better time-period
+   appropriate police sirens").
 
    Served over http (as GitHub Pages serves it):
    - every recording is fetched: the rain, two thunders, the car's engine,
-     its rev and its tyres; once a game's begun the rain is the recording;
+     its rev and its tyres, three sirens; once a game's begun the rain is
+     the recording;
    - the sound menu has All sounds, Rain, The city and Pieces; Rain all the
      way down turns the rain channel down, and back up;
    - a car sent down a street is heard: its engine at a street's pace
      (pitched up from its idle), revving as it pulls out of its turn in,
      and quiet again once it's gone;
    - the thunder plays (a recording) with nothing thrown;
-   - the About card credits the recordings, the CC BY one by name.
+   - a siren plays (one of the mechanical sirens, far off or near);
+   - the About card credits the recordings, the CC BY ones by name.
    Opened from disk (a browser won't fetch a file beside it): the made rain
-   stands in, nothing is fetched, no car is heard, nothing's thrown.
+   stands in, nothing is fetched, no car is heard, no siren (a made one
+   isn't the sound), nothing's thrown.
 
    node tests/e2e-noir-sound.mjs */
 import { chromium } from "playwright";
@@ -38,7 +42,7 @@ let fails = 0;
 const check = (name, ok, extra = "") => { console.log(`  ${ok ? "ok  " : "FAIL"} ${name}${!ok && extra ? "  " + extra : ""}`); if (!ok) fails++; };
 const poll = async (fn, ms = 8000, step = 250) => { const end = Date.now() + ms; for (;;) { const v = await fn().catch(() => null); if (v) return v; if (Date.now() > end) return null; await new Promise((r) => setTimeout(r, step)); } };
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--autoplay-policy=no-user-gesture-required"] });
-const FILES = ["rain", "thunder-1", "thunder-2", "car-engine", "car-rev", "car-tyres"];
+const FILES = ["rain", "thunder-1", "thunder-2", "car-engine", "car-rev", "car-tyres", "siren-1", "siren-2", "siren-3"];
 
 async function visit(url, label) {
   console.log(label);
@@ -59,9 +63,9 @@ async function visit(url, label) {
 
 {
   const { page, errs, fetched, st } = await visit(`http://127.0.0.1:${server.address().port}/el-cabeza-noir.html`, "served over http");
-  const s = await poll(async () => { const v = await st(); return v && v.rain === "recording" && v.carsReady && v.thunder === 2 ? v : null; }, 40000);
+  const s = await poll(async () => { const v = await st(); return v && v.rain === "recording" && v.carsReady && v.thunder === 2 && v.sirens === 3 ? v : null; }, 40000);
   check(`every recording fetched (${FILES.join(", ")})`, FILES.every((f) => fetched[f] === 200), JSON.stringify(fetched));
-  check("...once a game's begun, the rain is the recording; the thunder and the car ready", !!s, JSON.stringify(await st()));
+  check("...once a game's begun, the rain is the recording; the thunder, the car and the sirens ready", !!s, JSON.stringify(await st()));
 
   // the sliders
   await page.evaluate(() => document.querySelector('[data-testid="sound-button"]').click());
@@ -95,11 +99,15 @@ async function visit(url, label) {
   // the thunder
   await page.evaluate(() => window.__NOIR_AUDIO__.thunder());
   await page.waitForTimeout(500);
+  // a siren
+  const wailed = await page.evaluate(() => window.__NOIR_AUDIO__.siren());
+  const ls = (await st()).lastSiren;
+  check(`a police siren plays, a recording (${JSON.stringify(ls)})`, wailed === true && !!ls && [0, 1, 2].includes(ls.k) && ls.dur > 10, JSON.stringify(ls));
 
   // the About card's credits
   await page.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "about" } })));
   const credits = await poll(() => page.evaluate(() => { const e = document.querySelector('[data-testid="info-sound-credits"]'); return e && e.innerText; }), 8000);
-  check("the About card credits the recordings (the CC BY one by name)", !!credits && /lonemonk/.test(credits) && /CC BY 4\.0/.test(credits) && /freesound\.org\/s\/62566/.test(credits) && /Breviceps/.test(credits), credits || "");
+  check("the About card credits the recordings (the CC BY ones by name)", !!credits && /lonemonk/.test(credits) && /CC BY 4\.0/.test(credits) && /freesound\.org\/s\/62566/.test(credits) && /Breviceps/.test(credits) && /Old Police Siren\u201d by CGEffex/.test(credits) && /freesound\.org\/s\/121902/.test(credits), credits || "");
   check("nothing thrown", errs.length === 0, errs.slice(0, 3).join(" | "));
   await page.close();
 }
@@ -115,6 +123,7 @@ async function visit(url, label) {
   await page.waitForTimeout(2500);
   const c = await st();
   check("...no car heard", c && !c.carsReady && !c.car, JSON.stringify(c));
+  check("...no siren", (await page.evaluate(() => window.__NOIR_AUDIO__.siren())) === false && !(await st()).lastSiren);
   await page.evaluate(() => window.__NOIR_AUDIO__.thunder());
   await page.waitForTimeout(300);
   check("nothing thrown (the made thunder too)", errs.length === 0, errs.slice(0, 3).join(" | "));

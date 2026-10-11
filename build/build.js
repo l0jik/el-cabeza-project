@@ -73,6 +73,7 @@ const targets = [
     "el-cabeza-noir-rain.mp3": "assets/noir/rain.mp3",
     "el-cabeza-noir-thunder-1.mp3": "assets/noir/thunder-1.mp3", "el-cabeza-noir-thunder-2.mp3": "assets/noir/thunder-2.mp3",
     "el-cabeza-noir-car-engine.mp3": "assets/noir/car-engine.mp3", "el-cabeza-noir-car-rev.mp3": "assets/noir/car-rev.mp3", "el-cabeza-noir-car-tyres.mp3": "assets/noir/car-tyres.mp3",
+    "el-cabeza-noir-siren-1.mp3": "assets/noir/siren-1.mp3", "el-cabeza-noir-siren-2.mp3": "assets/noir/siren-2.mp3", "el-cabeza-noir-siren-3.mp3": "assets/noir/siren-3.mp3",
   } },
   { name: "lluvia", entry: "apps/lluvia.jsx", title: "Lluvia Cabeza", files: { "el-cabeza-lluvia-rain.mp3": "assets/lluvia/rain.mp3" } },
   // Parrish's piece sounds: the user's stabs, cut small (tools/parrish_stabs.py);

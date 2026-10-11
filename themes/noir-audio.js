@@ -17,7 +17,8 @@
      on the wet street (Breviceps's pass-by, slowed to city speed); louder
      as it comes near the camera, to the side it's on, duller far off,
      fading as it dissolves (carSound, from noir-fx.js). And a gutter
-     dripping, the El going over a few streets off, a siren far away.
+     dripping, the El going over a few streets off, a police siren across
+     the city.
    Until the recordings are here, or on a page opened from disk, made
    sounds stand in: the old noise rain (quieter), the made thunder; no
    cars.
@@ -36,6 +37,9 @@ export const hasAudio = true;
 const RAIN_URL = "el-cabeza-noir-rain.mp3";
 const THUNDER_URLS = ["el-cabeza-noir-thunder-1.mp3", "el-cabeza-noir-thunder-2.mp3"];
 const CAR_URLS = { engine: "el-cabeza-noir-car-engine.mp3", rev: "el-cabeza-noir-car-rev.mp3", tyres: "el-cabeza-noir-car-tyres.mp3" };
+// A police car's siren of the day, mechanical: two of a wind-up and its
+// growl down, one of the chase (pulsed).
+const SIREN_URLS = ["el-cabeza-noir-siren-1.mp3", "el-cabeza-noir-siren-2.mp3", "el-cabeza-noir-siren-3.mp3"];
 const LOOP_PAD = 0.3;
 // Their places in the mix. The rain about as loud as it was (A-weighted;
 // tension takes it up to 30% louder, heavier rain); a car near the camera
@@ -43,6 +47,10 @@ const LOOP_PAD = 0.3;
 const RAIN_GAIN = 0.19;
 const THUNDER_GAIN = 0.42;
 const CAR_GAIN = 0.24, ENGINE_LEVEL = 0.8, TYRE_LEVEL = 1.1;
+// A siren a street or two off, about 4 dB over the rain (A-weighted, its
+// loudest 3 s, on the engine offline); across the city SIREN_FAR of that,
+// about 2.5 dB under it.
+const SIREN_GAIN = 0.13, SIREN_FAR = 0.4;
 // The made rain, standing in: its pavement band closes above this (Hz),
 // calm; tension opens it a little.
 const RAIN_LP = 3600;
@@ -55,7 +63,7 @@ export function createAudio() {
   // The sound menu's channels: each a gate for its sounds and one for
   // their echo (so a channel turned down takes its echo with it).
   const CH = {}, levels = { rain: 1, city: 1, pieces: 1 };
-  let rainClip = null, thunderBufs = null, carBufs = null, car = null, carN = 0;
+  let rainClip = null, thunderBufs = null, carBufs = null, car = null, carN = 0, sirenBufs = null, lastSiren = null;
 
   function ensureGraph() {
     if (ctx) return;
@@ -122,6 +130,7 @@ export function createAudio() {
     rainClip = fetchBuffer(RAIN_URL).then(loopOf);
     rainClip.catch(() => { /* the made rain stays */ });
     Promise.all(THUNDER_URLS.map((u) => fetchBuffer(u).catch(() => null))).then((bs) => { thunderBufs = bs.filter(Boolean); });
+    Promise.all(SIREN_URLS.map((u) => fetchBuffer(u).catch(() => null))).then((bs) => { sirenBufs = bs.map((b, k) => b && { b, k }).filter(Boolean); });
     Promise.all([fetchBuffer(CAR_URLS.engine), fetchBuffer(CAR_URLS.tyres), fetchBuffer(CAR_URLS.rev).catch(() => null)])
       .then(([e, t, r]) => { carBufs = { engine: loopOf(e), tyres: loopOf(t), rev: r }; })
       .catch(() => { /* no cars heard */ });
@@ -246,17 +255,44 @@ export function createAudio() {
       }
       later(el, 38000 + Math.random() * 30000);
     }, 15000 + Math.random() * 10000);
-    // a siren, far off across the city
-    later(function siren() {
+    // a police car's siren somewhere in the city, now and then (siren())
+    later(function wail() {
       if (!ctx || windingDown) return;
-      const t = now(), dur = 6 + Math.random() * 3, o = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
-      o.type = "triangle"; o.frequency.setValueAtTime(520, t);
-      for (let tt = t, up = true; tt < t + dur; tt += 1.4, up = !up) o.frequency.linearRampToValueAtTime(up ? 760 : 520, tt + 1.4);
-      lp.type = "lowpass"; lp.frequency.value = 1100;
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.008, t + 1.5); g.gain.setValueAtTime(0.008, t + dur - 2); g.gain.linearRampToValueAtTime(0, t + dur);
-      o.connect(lp).connect(g); out(g, 1, 0.6, CH.city, 0.5); o.start(t); o.stop(t + dur + 0.1);
-      later(siren, 60000 + Math.random() * 60000);
-    }, 40000 + Math.random() * 30000);
+      siren();
+      later(wail, 55000 + Math.random() * 65000);
+    }, 35000 + Math.random() * 30000);
+  }
+
+  /* A police car's siren, the kind of the day (user: "Noir needs better
+     time-period appropriate police sirens"; it was a tone sliding up and
+     down): one of the recordings of a mechanical siren, a motor's rotor
+     winding up to a scream and growling down as it slows, or pulsed in a
+     chase. Mostly across the city, dull and mostly the buildings' echo;
+     now and then a street or two off. From one side, drifting as the car
+     goes, its pitch falling a touch as it goes away; a different car each
+     time, its motor a little faster or slower. None without the
+     recordings (from disk): a made one isn't the sound. */
+  function siren() {
+    if (!ctx || windingDown || !ambRunning || !sirenBufs || !sirenBufs.length) return false;
+    const pick = sirenBufs[Math.floor(Math.random() * sirenBufs.length)];
+    const t = now(), near = Math.random() < 0.25, r = 0.94 + Math.random() * 0.1, dur = pick.b.duration / r;
+    const s = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = pick.b;
+    s.playbackRate.setValueAtTime(r * 1.012, t); s.playbackRate.linearRampToValueAtTime(r * 0.988, t + dur);
+    lp.type = "lowpass"; lp.frequency.value = near ? 3400 : 1300 + Math.random() * 700;
+    g.gain.value = SIREN_GAIN * (near ? 1 : SIREN_FAR);
+    s.connect(lp).connect(g);
+    const from = (Math.random() < 0.5 ? -1 : 1) * (0.35 + Math.random() * 0.45);
+    let n = g;
+    if (ctx.createStereoPanner) {
+      const p = ctx.createStereoPanner();
+      p.pan.setValueAtTime(from, t); p.pan.linearRampToValueAtTime(from * -0.3, t + dur);
+      g.connect(p); n = p;
+    }
+    out(n, near ? 1 : 0.7, near ? 0.45 : 1, CH.city);
+    s.start(t);
+    lastSiren = { k: pick.k, near, at: +t.toFixed(2), dur: +dur.toFixed(1) };
+    return true;
   }
 
   /* The thunder, after the lightning: one of the recorded claps, a little
@@ -482,12 +518,13 @@ export function createAudio() {
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose,
-    // the thunder after noir-fx.js's lightning; the car on the board
-    thunder, carSound,
+    // the thunder after noir-fx.js's lightning; the car on the board; a
+    // siren (it comes on its own; tests call it)
+    thunder, carSound, siren,
     // (Tests: what's playing.)
     debugState: () => ({
       ctx: !!ctx, ambience: ambRunning, rain: rainOn ? "recording" : ambRunning ? "made" : null,
-      thunder: thunderBufs ? thunderBufs.length : 0, carsReady: !!carBufs,
+      thunder: thunderBufs ? thunderBufs.length : 0, carsReady: !!carBufs, sirens: sirenBufs ? sirenBufs.length : 0, lastSiren,
       car: car ? { n: car.n, rate: +car.eng.playbackRate.value.toFixed(3), gain: +car.out.gain.value.toFixed(4), revving: ctx.currentTime < car.revUntil } : null,
       levels: { ...levels },
     }),

@@ -257,3 +257,46 @@ How to use it:
   lab menu bug. I can't reproduce it, either, but if it happens again,
   I'll let you know." Off the open reminders; don't remind. (The
   corner piece it was about now calls after a game: dockCall above.)
+- Noir's police sirens, recorded (user: "Noir needs better time-period
+  appropriate police sirens"; it was a triangle wave sliding 520-760 Hz).
+  - The sound: a police car's mechanical siren of the 1930s-50s, a
+    motor's rotor winding up to a scream and growling down as it slows.
+  - Sources in assets/noir/src (CREDITS.md):
+    - craigsmith's "S06-04 Old mechanical police siren" (675700, CC0,
+      the Hollywood studios' library). Its two clean goes make
+      siren-1.mp3 (a wind-up, hold and long growl down, 13.45 s to the
+      end) and siren-2.mp3 (a wind-up and fall, 1.6-13.4 s).
+    - CGEffex's "Old Police Siren" (121902, CC BY 4.0, credited on the
+      About card), a real one run off a car battery. Its first half
+      minute, the chase pulsed up and down then wound down (0.4-31 s),
+      makes siren-3.mp3.
+    - Passed over: craigsmith's dry studio take (noise floor), and the
+      motorcycle and crash takes (buried in engines).
+  - tools/noir_sounds.py siren(): high-pass at 100 Hz, low-pass at
+    9 kHz, the loudest 2 s at -14 dBFS, 80 kb/s mono. The tool now
+    takes step names (`... noir_sounds.py siren`).
+  - noir-audio.js siren(), every 55-120 s (the first at 35-65 s):
+    - A random pick; a quarter of them a street or two off (LP
+      3400 Hz, SIREN_GAIN 0.13, dry 1 / send 0.45). The rest across the
+      city (LP 1300-2000 Hz, x SIREN_FAR 0.4, dry 0.7 / send 1).
+    - Rate 0.94-1.04, drifting 1.2% down over its length (going
+      away). Panned from one side toward the middle.
+    - No made siren without the recordings: from disk there is none.
+    - debugState sirens / lastSiren; api.siren for tests.
+  - Calibrated on the engine offline (scratch noirsiren/render/
+    render5.mjs), the siren alone against the rain, A-weighted,
+    loudest 3 s: far -1.4 to -2.8 dB, near +3.7 dB.
+  - Sent the user noir-sirens.mp3 (far, near, the chase).
+    noirsiren/tools/look.py draws spectrograms with PIL (matplotlib
+    won't load under python3 -I).
+  - e2e-noir-sound now checks the three files, a siren playing on cue,
+    none from disk, and the CGEffex credit.
+- Big Glutts' flyer: the real charge cards of 1975 (BankAmericard,
+  Master Charge) replaced by the user's made-up ones: "Charge it! Big
+  Glutts Charge • BankAmericorp$ • Disaster Charge"
+  (tienda-overlay.js). There were no card names in the ad images.
+- The user asked whether they can put a © notice on the game without a
+  registered copyright. Answered in chat: copyright is automatic in
+  their own human-authored work, and the notice is optional. Only a
+  knowingly false notice is an offence, so scope it to their own
+  material, or use a plain "Created by" credit.

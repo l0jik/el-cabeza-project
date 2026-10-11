@@ -30,12 +30,24 @@
               fall taken out so it holds steady, slowed to city speed (x0.62,
               lower and softer), looped. -> car-tyres.mp3
 
+  the sirens  a police car's mechanical siren of the 1930s-50s (a motor
+              spinning a rotor: it winds up to a scream and growls down as
+              it slows), three ways: craigsmith's "S06-04 Old mechanical
+              police siren" (CC0, from the Hollywood studios' library), its
+              two goes, a wind-up and fall (1.6-13.4 s) -> siren-2.mp3, and
+              a wind-up, hold and the long growl down (13.45 s to the end)
+              -> siren-1.mp3; and CGEffex's "Old Police Siren" (CC BY 4.0:
+              the About card credits it), an old one run off a car battery,
+              its first half minute, the chase: pulsed up and down, then
+              wound down -> siren-3.mp3. Each its loudest 2 s at -14 dBFS,
+              cut below 100 Hz and above 9 kHz; the game puts them far off.
+
 A loop's file is the loop with 0.3 s of its own end before it and of its
 own start after it, so whichever sample the game finds first, the content
 round its loop points runs on unbroken (themes/noir-audio.js takes the
 loop as from the first sound + 0.3 s to the last sound - 0.3 s).
 
-    FFMPEG=/path/to/ffmpeg python3 tools/noir_sounds.py
+    FFMPEG=/path/to/ffmpeg python3 tools/noir_sounds.py [rain thunder engine tyres siren]
 """
 import os
 import subprocess
@@ -221,8 +233,27 @@ def tyres():
     write(padded(loop), "car-tyres.mp3", 96)
 
 
+def loudest(x, secs=2.0):
+    """The RMS of the loudest `secs` of x."""
+    w = int(secs * SR)
+    e = np.convolve(x ** 2, np.ones(w) / w, mode="valid")
+    return np.sqrt(e.max())
+
+
+def siren():
+    def make(x, name):
+        x = lp(hp(x, 100), 9000)
+        x = x * (10 ** (-14 / 20) / loudest(x))
+        write(fades(x, 0.02, 0.3), name, 80)
+    m = load("siren-old-mechanical-police-craigsmith-675700.ogg")
+    make(m[int(13.45 * SR):], "siren-1.mp3")
+    make(cut(m, 1.6, 13.4), "siren-2.mp3")
+    make(cut(load("old-police-siren-cgeffex-121902.ogg"), 0.4, 31.0), "siren-3.mp3")
+
+
 if __name__ == "__main__":
-    rain()
-    thunder()
-    engine()
-    tyres()
+    import sys
+    only = sys.argv[1:]
+    for step in (rain, thunder, engine, tyres, siren):
+        if not only or step.__name__ in only:
+            step()

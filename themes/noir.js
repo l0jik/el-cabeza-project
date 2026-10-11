@@ -467,7 +467,7 @@ export const soundChannels = [
 ];
 // Whose recordings Noir plays (tools/noir_sounds.py, assets/noir/src/
 // CREDITS.md), on the About card under the line that closes it.
-export const soundCredits = "Sounds from freesound.org: the rain, kyles and craigsmith (CC0); the thunder, craigsmith (CC0); a car's engine, \u201c1951 Mercury-Idle and Throttle\u201d by lonemonk (freesound.org/s/62566), CC BY 4.0, looped and pitched; its tyres, Breviceps (CC0).";
+export const soundCredits = "Sounds from freesound.org: the rain, kyles and craigsmith (CC0); the thunder, craigsmith (CC0); a car's engine, \u201c1951 Mercury-Idle and Throttle\u201d by lonemonk (freesound.org/s/62566), CC BY 4.0, looped and pitched; its tyres, Breviceps (CC0); the police sirens, craigsmith (CC0) and \u201cOld Police Siren\u201d by CGEffex (freesound.org/s/121902), CC BY 4.0, cut and placed far off.";
 // The in-game menu offers a switch for the cost badges on the move markers.
 export const moveCostToggle = true;
 

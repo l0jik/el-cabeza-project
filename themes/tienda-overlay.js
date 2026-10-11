@@ -161,7 +161,8 @@ const TRY_IT_CSS = `
      the sale price over "Our Reg.", the cents raised, the fine print
      ("Prices good thru ... Limit rights reserved. No sales to dealers."),
      the store's advertised-merchandise (rain check) policy, the charge
-     cards of late 1975 (BankAmericard, Master Charge). Round it the
+     cards of late 1975, made up (user: "Disaster Charge &
+     BankAmericorp$", for the real ones of the day). Round it the
      store's stripes, four earth tones down the side and round the top,
      the store's name in the corner they turn (user: "I want the logo
      striping from the one on the left incorporated into the one on the
@@ -262,7 +263,7 @@ const FLYER_HTML = '<span class="sv"></span>'
   + '<div class="price"><em>Sale</em><div class="pr"><span class="n">7</span><span class="ce"><span class="c">97</span></span></div><small>Our Reg. 9.97</small></div></div>'
   + '<p class="fine">Prices good thru Sat., Dec. 13, 1975. Quantities limited. Limit rights reserved. No\u00a0sales\u00a0to\u00a0dealers.</p>'
   + '<div class="policy"><b>Our advertised merchandise policy:</b> we mean to have every advertised item on our shelves. If one sells out, ask for a Rain Check and buy it at the sale price when it arrives.</div>'
-  + '<div class="charge">Charge it! Big Glutts Charge • BankAmericard\u00a0•\u00a0Master\u00a0Charge</div>'
+  + '<div class="charge">Charge it! Big Glutts Charge • BankAmericorp$\u00a0•\u00a0Disaster\u00a0Charge</div>'
   + '<span class="go">Let’s play ›</span>';
 const IDLE_NUDGE_MS = 30000;
 const NUDGE_GROW_MS = 90000;
