@@ -35,14 +35,6 @@ How to use it:
   or endorsed by them.'"). Still to settle with the user: who "them" is
   named as, and where it shows (every page, e.g. a small line at the
   foot, an about panel, the first screen).
-- **Lab: "after a win the minimized menu cannot be raised / maximized"**
-  (user, 2026-10-10). Not reproduced (the round note "Lab, after a
-  win..." in docs/memory/history/13.md). Parked by the user 2026-10-11: "Forget about
-  the lab menu bug for the time being. Just remind." So: don't ask about
-  it in every reply; remind now and then. To pick it up: which Lab
-  direction, which device, what was tapped (a screenshot or a video).
-  (2026-10-11: after a game the corner piece now calls till it's opened,
-  dockCall; perhaps what was missed. Ask whether it still happens.)
 
 ## Topics (`docs/memory/`)
 
@@ -240,3 +232,8 @@ How to use it:
     before the corner's fade had begun.) Scratch dockcall/:
     shots.mjs, worlds.mjs (WAIT=ms) and lab.mjs; noir-corner-call.mp4
     sent.
+- Lab, "after a win the minimized menu cannot be raised" (open reminder
+  since 2026-10-10, parked): closed by the user, 2026-10-11: "Forget the
+  lab menu bug. I can't reproduce it, either, but if it happens again,
+  I'll let you know." Off the open reminders; don't remind. (The
+  corner piece it was about now calls after a game: dockCall above.)
