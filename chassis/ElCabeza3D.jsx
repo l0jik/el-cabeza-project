@@ -339,6 +339,28 @@ const DOCK_WORDS = {
   wonCaption: "Well played.",
 };
 
+/* How well a light of colour `glow` shows on `ground` (#rrggbb each):
+   the contrast (WCAG: 1 for none, 21 for black on white) the ground makes
+   with the light drawn over it as strongly as the middle of the corner
+   piece's pool of light is (55%), or null for anything else. (A dark
+   colour's glow barely lifts a dark ground, though the colours alone
+   differ: walnut's on Watermark's dimmed painting.) The corner piece's
+   light after a game uses it (dockGlow in the component). */
+function glowShows(glow, ground) {
+  const rgb = (hex) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    return [n >> 16, (n >> 8) & 255, n & 255];
+  };
+  const g = rgb(glow), b = rgb(ground);
+  if (!g || !b) return null;
+  const ch = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const lum = (c) => 0.2126 * ch(c[0]) + 0.7152 * ch(c[1]) + 0.0722 * ch(c[2]);
+  const x = lum(b.map((v, i) => v + 0.55 * (g[i] - v))), y = lum(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
 export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange, carry = null, carryRef = null, mobileShell = null, invertTouchTilt = false, invertTilt = false }) {
   // (Touch drags tilt the other way up and down: Nova's first scene, the
   // store before the game's bought, user. Read at each touch-down.)
@@ -1376,6 +1398,51 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
     requestAnimationFrame(tick);
   }, []);
+
+  /* After a game, the corner piece calls (user: "When a game ends, and
+     the user is using the regular, 3D button, have the minimized / badge
+     version become highlighted whilst in the bottom-right corner, to help
+     guide the user to open to see other options... in Noir, the badge
+     size piece can become lost visually"): at full strength, not the
+     corner's faint watermark, in a breathing pool of its world's light
+     (the dockCallAura below), the piece itself glowing and now and then
+     giving a little hop, till the dock's been opened. Not before the
+     game's over, nor in the phone's bar layout (no corner piece there),
+     nor while a replay plays; and once the dock's been opened after the
+     game, not again till the next one's over. */
+  const gameOver = status === "finished" || status === "ended";
+  const [dockCallSeen, setDockCallSeen] = useState(false);
+  useEffect(() => { if (!gameOver) setDockCallSeen(false); }, [gameOver]);
+  useEffect(() => { if (gameOver && dockView === "panel") setDockCallSeen(true); }, [gameOver, dockView]);
+  const dockCall = !shell && gameOver && dockView === "corner" && !dockCallSeen && !replaying;
+  // The hop: the squash and stretch of opening it, smaller, nothing
+  // opened (its own flag: a tap meanwhile gets its bounce, which takes
+  // the piece over).
+  const nudgeDockPiece = useCallback(() => {
+    const state = dockPieceRef.current;
+    if (!state || state.bouncing || state.nudging || state.dragging) return;
+    state.nudging = true;
+    const start = performance.now();
+    const DUR = 560;
+    const base = state.pieceBaseScale || 1;
+    const tick = (now) => {
+      if (state.bouncing) { state.nudging = false; return; }
+      const t = Math.min(1, (now - start) / DUR);
+      const s = 1 + Math.sin(t * Math.PI * 2) * 0.16 * (1 - t);
+      state.pieceGroup.scale.set(base / Math.sqrt(s), base * s, base / Math.sqrt(s));
+      if (t < 1) requestAnimationFrame(tick);
+      else { state.pieceGroup.scale.set(base, base, base); state.nudging = false; }
+    };
+    requestAnimationFrame(tick);
+  }, []);
+  useEffect(() => {
+    if (!dockCall) return;
+    if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // (Every other breath of the light, the first a moment after it's lit.)
+    const first = setTimeout(nudgeDockPiece, 900);
+    const every = setInterval(nudgeDockPiece, 4800);
+    return () => { clearTimeout(first); clearInterval(every); };
+  }, [dockCall, nudgeDockPiece]);
 
   // True when ev lands inside a box centered on the mount element,
   // sized to dockHitFraction of its full box — the actual per-piece
@@ -8367,6 +8434,22 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // opacity/scale, piece <-> corner via left/bottom/size — actually
   // animate instead of snapping.
   const dockPieceIsCorner = dockView === "corner";
+  /* The light it calls in (dockCall): its world's glow for the side the
+     piece shows (theme.pointsGlow, as the action points have it; else
+     that side's accent), the side as the piece's mesh effect picks it.
+     A light that hardly shows on what's under it (white on Swiss
+     Design's white, walnut on Parrish's dimmed painting): then the
+     world's other light, if it shows better (Swiss Design's red,
+     Parrish's ash). What's under it: theme.dockCallGround where that
+     isn't the page colour (Parrish's painting). */
+  const dockShownSide = dockTurnSide || (aiPlayer !== null ? (aiPlayer === "dark" ? "light" : "dark") : dockSessionColor);
+  const glowFor = (side) => (theme.pointsGlow && theme.pointsGlow[side]) || (side === "dark" ? COLORS.accentDark : COLORS.accentLight) || (side === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
+  let dockGlow = glowFor(dockShownSide);
+  {
+    const ground = theme.dockCallGround || COLORS.pageBg;
+    const own = glowShows(dockGlow, ground), other = glowFor(dockShownSide === "dark" ? "light" : "dark"), alt = glowShows(other, ground);
+    if (own !== null && alt !== null && own < 3 && alt > own) dockGlow = other;
+  }
   const dockPieceStyle = {
     position: "fixed",
     // Corner offset scales with the piece's own size below (same ~1.18x
@@ -8395,8 +8478,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     width: dockPieceIsCorner ? 120 : "min(260px, calc(100vw - 184px))",
     height: dockPieceIsCorner ? 106 : 220,
     transform: dockPieceIsCorner ? "translateX(0) scale(1)" : "translateX(-50%) scale(1)",
-    // (theme.dockCornerOpacity: the den's dark room lost it at 0.35, user.)
-    opacity: dockView === "panel" ? 0 : dockPieceIsCorner ? (theme.dockCornerOpacity != null ? theme.dockCornerOpacity : 0.35) : 1,
+    // (theme.dockCornerOpacity: the den's dark room lost it at 0.35, user.
+    // At full strength while it calls after a game: dockCall above.)
+    opacity: dockView === "panel" ? 0 : dockPieceIsCorner && !dockCall ? (theme.dockCornerOpacity != null ? theme.dockCornerOpacity : 0.35) : 1,
     pointerEvents: dockView === "panel" ? "none" : "auto",
     zIndex: dockPieceIsCorner ? 2 : 15,
     /* Position/size cut from 900ms linear-feeling ease to a shorter,
@@ -8419,6 +8503,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       : "opacity 320ms ease, left 480ms cubic-bezier(0.34,1.56,0.64,1), bottom 480ms cubic-bezier(0.34,1.56,0.64,1), width 480ms cubic-bezier(0.34,1.56,0.64,1), height 480ms cubic-bezier(0.34,1.56,0.64,1), transform 480ms cubic-bezier(0.34,1.56,0.64,1)",
     touchAction: "none",
     cursor: "grab",
+    ["--ec-dock-glow"]: dockGlow,
   };
 
   /* Phone layout: the title opens at the top of the screen (not 6vh down)
@@ -8814,10 +8899,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           scenes flag themselves on the page (the TV visit, the hall, the
           summons, the trip, the ending, the store's clerk); Neon's
           Singularity through its phase. Their own sheets hide the rest. */}
-      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"]),
-html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"]),
-html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"]),
-body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"]) {
+      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="dock-call-aura"]),
+html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="dock-call-aura"]),
+html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="dock-call-aura"]),
+body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="dock-call-aura"]) {
   opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
 }`}</style>
       {!shell && showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle") && (() => {
@@ -9546,8 +9631,28 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         onPointerUp={handleDockPiecePointerUp}
         onPointerLeave={handleDockPiecePointerLeave}
         onPointerEnter={handleDockPieceHoverStart}
+        data-dock-call={dockCall ? "true" : undefined}
         style={shell ? { ...dockPieceStyle, display: "none" } : dockPieceStyle}
       />
+
+      {/* After a game, the corner piece calling (dockCall above): a pool
+         of its world's light breathing behind it, its own layer (the
+         piece's frame is clipped to the piece's outline, which would cut
+         a glow drawn there off at its edge), centred on the corner box
+         (dockPieceStyle: 120x106 at calc(100% - 108px), -10px); and the
+         piece glowing at its edge. Still, for a reader who wants no
+         motion. Gone with the rest in a cut-scene (the rule above the
+         points counter) and wherever there's no game. */}
+      {dockCall && (
+        <>
+          <style>{`[data-testid="dock-call-aura"]{position:fixed;z-index:1;pointer-events:none;border-radius:50%;width:156px;height:156px;left:calc(100% - 126px);bottom:-35px;background:radial-gradient(circle,color-mix(in srgb,var(--ec-dock-glow) 62%,transparent) 0%,color-mix(in srgb,var(--ec-dock-glow) 30%,transparent) 34%,color-mix(in srgb,var(--ec-dock-glow) 10%,transparent) 54%,transparent 70%);animation:ecDockCallAura 2.4s ease-in-out infinite}
+@keyframes ecDockCallAura{0%,100%{opacity:.5;transform:scale(.86)}50%{opacity:1;transform:scale(1.06)}}
+[data-dock-piece][data-dock-call="true"] canvas{animation:ecDockCallHalo 2.4s ease-in-out infinite}
+@keyframes ecDockCallHalo{0%,100%{filter:brightness(1.06) drop-shadow(0 0 1.5px var(--ec-dock-glow))}50%{filter:brightness(1.22) drop-shadow(0 0 4px var(--ec-dock-glow))}}
+@media (prefers-reduced-motion: reduce){[data-testid="dock-call-aura"]{animation:none;opacity:.85}[data-dock-piece][data-dock-call="true"] canvas{animation:none;filter:brightness(1.12) drop-shadow(0 0 3px var(--ec-dock-glow))}}`}</style>
+          <div data-testid="dock-call-aura" aria-hidden="true" style={{ ["--ec-dock-glow"]: dockGlow }} />
+        </>
+      )}
 
       {/* The dock — every non-board control, floating as one compact
          panel instead of a full-height card. Removing the canvas (now
@@ -10674,7 +10779,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
          after the story, where the game is nowhere to be seen): no title,
          no dock or its piece, no phone bar. */}
       {noGame && (
-        <style>{'[data-masthead], [data-dock-piece], [data-testid="dock-panel"] { display: none !important; }'}</style>
+        <style>{'[data-masthead], [data-dock-piece], [data-testid="dock-panel"], [data-testid="dock-call-aura"] { display: none !important; }'}</style>
       )}
 
       {/* Phone layout (see MobileShell.jsx and the shell state above). */}

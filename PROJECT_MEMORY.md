@@ -41,6 +41,8 @@ How to use it:
   the lab menu bug for the time being. Just remind." So: don't ask about
   it in every reply; remind now and then. To pick it up: which Lab
   direction, which device, what was tapped (a screenshot or a video).
+  (2026-10-11: after a game the corner piece now calls till it's opened,
+  dockCall; perhaps what was missed. Ask whether it still happens.)
 
 ## Topics (`docs/memory/`)
 
@@ -177,3 +179,60 @@ How to use it:
   FAIL line above the tail first. Next faster-machine run: read it.
   e2e-den-spot and e2e-nova-mobile passed in #17 (before the fixes
   above).
+- GitHub browser tests #18 (0ee4025): all 8 shards green, e2e-den-spot
+  and e2e-nova-mobile with their fixes. e2e-summon passed too, but on
+  the slower machines (shard 8: e2e-outline 105 s, e2e-singularity
+  222 s), where it always has. #148 waits on a faster-machine run.
+- After a game, the corner piece calls (user: "When a game ends, and the
+  user is using the regular, 3D button, have the minimized / badge
+  version become highlighted whilst in the bottom-right corner, to help
+  guide the user to open to see other options... in Noir, the badge size
+  piece can become lost visually").
+  - When: chassis dockCall = !shell && game over (status finished or
+    ended) && dockView "corner" && !dockCallSeen && !replaying.
+    dockCallSeen is set once the dock's open after the game (a game
+    ended with it open counts), and cleared in play. So it calls only
+    till it's been found, every game.
+  - The call:
+    - The mount at opacity 1, not theme.dockCornerOpacity / 0.35, with
+      data-dock-call="true".
+    - The canvas breathing: ecDockCallHalo, brightness and a
+      drop-shadow in --ec-dock-glow, inside the 4-9 px the clip
+      leaves round the piece.
+    - A pool of light behind it, data-testid dock-call-aura: its own
+      fixed layer at z 1 on the corner box's centre, ecDockCallAura,
+      2.4 s. The mount is clip-pathed to the piece's hull (its tap
+      area), so a glow drawn on the mount would be cut off.
+    - A hop: nudgeDockPiece, squash and stretch 0.16 over 560 ms, every
+      4.8 s, the first at 0.9 s. It has its own state.nudging flag, so a
+      tap's bounce takes over.
+    - Reduced motion: a still glow, no hop.
+    - Hidden in cut-scenes (the points counter's scene rule) and with
+      noGame.
+  - The colour, dockGlow: theme.pointsGlow for the side the piece shows
+    (picked as its mesh effect picks it; else the accents). If that
+    light hardly shows on the ground (theme.dockCallGround ||
+    COLORS.pageBg), the other side's, when that shows better.
+    "Shows" is glowShows (module level): the WCAG contrast the ground
+    makes with the light drawn over it at 55%, the strength at the
+    pool's middle, with a threshold of 3. Plain colour contrast missed
+    a dark light on a dark ground: walnut on Watermark's dimmed
+    painting is 4:1 as colours, but 2:1 drawn as light.
+    - Swiss Design's white on white becomes its red #e63946.
+    - Parrish's painting dims after a game (the corner: Orinoco #7fa9c7
+      to #384d6e, Watermark #290b0e to #120507), so parrish.js
+      dockCallGround. Both looks take ash: #d9b77e and #d4a86c.
+    - Minimal Mono's white on white becomes grey #bfbfbf.
+    - The rest keep their own: Noir lamp white or grey, the den
+      lamplight or firelight, Neon cyan or amber, Lluvia's neon, Luna
+      gold, Plano white, Cromo chrome white, Tienda gold.
+  - The parked Lab report ("after a win the minimized menu cannot be
+    raised") is this corner piece. Here a tap on it opens the dock after
+    a win in the Lab (Swiss Design), so the call may be what was missing.
+  - Test e2e-dock-call (in run-e2e): Noir in play, after a win, opened,
+    put away, the next game, ended from the open dock; reduced motion;
+    the den, Neon, the Lab, Orinoco's and Watermark's colours. (Its first
+    check, the faint watermark in play, is polled: one run in four read it
+    before the corner's fade had begun.) Scratch dockcall/:
+    shots.mjs, worlds.mjs (WAIT=ms) and lab.mjs; noir-corner-call.mp4
+    sent.
