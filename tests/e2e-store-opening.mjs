@@ -1,6 +1,7 @@
 /* The store's opening view (user, with a screenshot): the box opened, the
    camera on the table with its Try it! card in view; the player may look
-   round; once they've been still a while (10 s after the box, 6 s still)
+   round; once they've been still a while (1 s after the box, 6 s still;
+   user: the tent card's cue "reduced by 9 seconds", from 10 s)
    the camera glides gently back there and the card glows the store's
    neon blue; a tap on the card puts the glow out (tienda-fx.js
    OPENING_VIEW, tienda-store.js setGlow).
@@ -31,7 +32,15 @@ const cardOnScreen = await page.evaluate(() => {
   return Math.abs(v.x) < 0.95 && Math.abs(v.y) < 0.95 && v.z < 1;
 });
 check("...the card on screen", cardOnScreen);
-check("...not glowing yet", (await st()).glow < 0.01);
+// (Its cue: not before a second after the box, and only once the camera's
+// been still 6 s; on a slow machine the click can land late, so this reads
+// when it came rather than whether it has yet.)
+{
+  let c = null;
+  const t1 = Date.now();
+  while (Date.now() - t1 < 15000) { c = await st(); if (c.glowAt !== null) break; await page.waitForTimeout(200); }
+  check(`...its cue a second after the box, the camera still 6 s (${c && c.glowAt} ms)`, !!c && c.glowAt !== null && c.glowAt >= 950 && c.glowAt < 9000, JSON.stringify(c));
+}
 // Looking round.
 await cam({ theta: 2.2, phi: 1.0, radius: 40 });
 await page.waitForTimeout(3000);
@@ -40,7 +49,9 @@ let back = null;
 const t0 = Date.now();
 while (Date.now() - t0 < 20000) {
   const s = await st();
-  if (s.glow > 0.9) { back = s; break; }
+  // (The glow can be on already, from before the look round: the camera's
+  // glide back is what says they've been still long enough.)
+  if (s.glow > 0.9 && atOpening(await cam())) { back = s; break; }
   await page.waitForTimeout(400);
 }
 check("still a while: the card glows", !!back, JSON.stringify(await st()));

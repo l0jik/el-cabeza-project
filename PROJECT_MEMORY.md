@@ -300,3 +300,37 @@ How to use it:
   their own human-authored work, and the notice is optional. Only a
   knowingly false notice is an offence, so scope it to their own
   material, or use a plain "Created by" credit.
+- The Big Glutts card in the realities menu, branded (user, with a
+  screenshot of it: "add some 'Big Glutts' store branding on this Theme
+  Switcher card, to give it more of an instant, relatable feel to the
+  shopping experience"). It was the store page's opening screen, the box
+  panel, with nothing of the store about it.
+  - tools/channel_shots.mjs, the store's shot: the box opened (a click on
+    tienda-open-box, 5 s), the page's buttons and dock hidden (HIDE_UI),
+    then framed by bigGlutts() as a page of the store's flyer (as
+    tienda-overlay.js draws it, at twice its size):
+    - the paper (flyer-paper.webp);
+    - the four earth-tone stripes, 14 px each with 2 px gaps, down the
+      left and round the top, through the flyer's corner SVG at 110 px;
+    - "Big Glutts" in Caprasimo 74 px, brown with its gold shadow, and
+      "Your savings headquarters";
+    - a red sticker, "Free demo! Games & Hobby · Aisle 9";
+    - the black "Toys & Games" band over the picture, which is set in
+      at 50% 0, cover.
+  - The fonts are kept in assets/tienda/fonts (Caprasimo and Libre
+    Franklin, latin, SIL OFL, fetched with curl from Google Fonts), so
+    the picture needs no network. This sandbox's browser can't load
+    Google's fonts through the proxy, and loosening TLS isn't allowed.
+  - Remake: `npm run build && node tools/channel_shots.mjs store &&
+    python3 tools/channel_shots.py`. The same picture is the den TV's
+    store channel.
+- The table's tent card ("TRY IT") cues the player back sooner (user:
+  "The timer for when the table tent card cues the user back to the
+  table should be reduced by 9 seconds"). tienda-fx.js LOOK_MS goes
+  10 s -> 1 s after the box is opened; IDLE_MS (6 s still) is
+  unchanged, so it never pulls the camera from someone moving it.
+  - __TIENDA_OPENING__ gains glowAt (ms after the box when the cue came)
+    and still.
+  - e2e-store-opening checks the cue's timing (1022 ms here). It waits
+    for the glide back itself, since the glow is now often on before
+    the look round.

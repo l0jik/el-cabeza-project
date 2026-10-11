@@ -38,9 +38,12 @@ export const TRY_IT_EVENT = "el-cabeza:tienda-try-it";
    player looks round as they like ("they can look around for a little
    bit"), and once they've been still a while the camera "will very gently
    glide back over to the table where the placard is going to be glowing
-   the neon blue" (table.setGlow). Before the first game only. */
+   the neon blue" (table.setGlow). Before the first game only. The card's
+   cue comes LOOK_MS after the box is opened, once they've been still for
+   IDLE_MS (user: "The timer for when the table tent card cues the user
+   back to the table should be reduced by 9 seconds": LOOK_MS was 10 s). */
 export const OPENING_VIEW = { theta: Math.PI - 0.1, phi: 1.25, radius: 66, target: [2.2, -2.87, 0] };
-const LOOK_MS = 10000, IDLE_MS = 6000, GLIDE_MS = 3200;
+const LOOK_MS = 1000, IDLE_MS = 6000, GLIDE_MS = 3200;
 let boxOpenedAt = 0, storeQuiet = false, storyStore = false, lidUp = false;
 /* (tienda-overlay.js, each time it draws: this is the story's store (only
    there: the store page on its own keeps its own camera), the lid's up,
@@ -59,7 +62,7 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
   let fogBefore = null, farBefore = null;
   // The opening view and its gentle return (OPENING_VIEW above).
   let framed = false, played = false, cardTapped = false;
-  let lastGoal = null, lastInput = 0, glideUntil = 0, glowK = 0, glowOn = false, lastTick = 0;
+  let lastGoal = null, lastInput = 0, glideUntil = 0, glowK = 0, glowOn = false, glowAt = null, lastTick = 0;
   const OPEN = [OPENING_VIEW.theta, OPENING_VIEW.phi, OPENING_VIEW.radius, ...OPENING_VIEW.target];
   const goalOf = () => { const c = cam.current; return [c.theta, c.phi, c.radius, c.target.x, c.target.y, c.target.z]; };
   const turnOf = (d) => ((d % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
@@ -92,6 +95,7 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
           const quiet = storeQuiet && !document.querySelector(".td-tryit, .td-special-note");
           if (quiet && !cardTapped && now - boxOpenedAt > LOOK_MS && now - lastInput > IDLE_MS) {
             if (!near(g, OPEN, 0.02) && now > glideUntil && glideTo) { glideTo(OPENING_VIEW, GLIDE_MS); glideUntil = now + GLIDE_MS; }
+            if (!glowOn) glowAt = now - boxOpenedAt;
             glowOn = true;
           }
         }
@@ -103,7 +107,9 @@ export function mountAmbientEffects(refs, { three, cam, windingDownRef, awaiting
     glowK += (want - glowK) * Math.min(1, dt / 0.5);
     if (Math.abs(want - glowK) < 0.002) glowK = want;
     if (table && table.setGlow) table.setGlow(glowK, 0.5 + 0.5 * Math.sin((now / 2400) * Math.PI * 2));
-    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__TIENDA_OPENING__ = { framed, glow: glowK, opened: !!boxOpenedAt, played, cardTapped };
+    // (glowAt: how long after the box was opened the card's cue came, ms;
+    // still: how long the camera had been still then.)
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__TIENDA_OPENING__ = { framed, glow: glowK, opened: !!boxOpenedAt, played, cardTapped, glowAt: glowAt === null ? null : Math.round(glowAt), still: Math.round(now - lastInput) };
   }
   ensurePaper();
   ensureNewsprint();
