@@ -2075,6 +2075,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       const a = audioRef.current;
       if (a && a.setNowPlayingPaused) a.setNowPlayingPaused(pause);
     },
+    // Back (-1) and forward (1), where get() says `skips` (Parrish's
+    // soundtrack: audio.skipNowPlaying).
+    skip: (dir) => {
+      const a = audioRef.current;
+      if (!music && a && a.skipNowPlaying) a.skipNowPlaying(dir);
+    },
   };
   function setChannelLevel(key, v) {
     const next = { ...channelLevels, [key]: Math.max(0, Math.min(1, v)) };

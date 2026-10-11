@@ -633,7 +633,9 @@ export function createAudio() {
   }
   function startHums() {
     if (!HUMS_URL || !ctx || hums) return;
-    hums = { stopped: false, k: 0, songs: [], timers: [] };
+    // (h.cues: counts the songs asked for, the next in turn or a skip; a
+    // song that comes after a later one was asked for is let go.)
+    hums = { stopped: false, k: 0, songs: [], timers: [], cues: 0 };
     const h = hums;
     loadSong(h, 0).then((song) => {
       if (h.stopped || disposed) return;
@@ -660,7 +662,12 @@ export function createAudio() {
     const sg = ctx.createGain(); sg.connect(h.g);
     if (fadeIn > 0) { sg.gain.setValueAtTime(0.0001, t); sg.gain.setTargetAtTime(1, t, fadeIn / 3); }
     s.connect(sg);
-    h.src = s; h.sg = sg; h.t0 = t; h.off = pos; h.gap = false;
+    // (h.pos, the place kept while it's paused or a song's on its way, is
+    // done with: between songs after this, it's the song's end.)
+    h.src = s; h.sg = sg; h.t0 = t; h.off = pos; h.gap = false; h.pos = null;
+    // (Tests: how many are sounding, one at most once a skip's fade is done.)
+    h.live = (h.live || 0) + 1;
+    s.onended = () => { h.live--; };
     if (ONE_SONG) {
       s.loop = true; s.loopStart = song.start; s.loopEnd = song.end;
       s.start(t, pos);
@@ -679,17 +686,60 @@ export function createAudio() {
   // comes in from its start with a fade (its start is its own seam).
   function nextSong(h) {
     if (h.paused || h.stopped || disposed) return;
-    const done = h.k, k = (h.k + 1) % SOUNDTRACK.length;
+    const done = h.k, k = (h.k + 1) % SOUNDTRACK.length, cue = ++h.cues;
     loadSong(h, k).then((song) => {
-      if (h.paused || h.stopped || disposed) return;
+      if (h.paused || h.stopped || disposed || h.cues !== cue) return;
       if (done !== k) h.songs[done] = null;
       h.k = k; h.song = song;
       playHumsFrom(h, song.start, SOUNDTRACK[k].seam ? 2.5 : 0.05);
     }).catch(() => {
       // (Couldn't be had: the one before plays again.)
-      if (h.paused || h.stopped || disposed) return;
+      if (h.paused || h.stopped || disposed || h.cues !== cue) return;
       playHumsFrom(h, h.song.start, SOUNDTRACK[h.k].seam ? 2.5 : 0.05);
     });
+  }
+  /* The strip's back and forward (user: "if you're in a song during the
+     soundtrack and you want to skip to the next song ... Or ... back to
+     the beginning of a song you're currently listening to"): forward, the
+     next song now; back, the song on from its start, or, in its first
+     BACK_TO_START_S, the one before (as a player's back button does). The
+     one playing goes as quickly as a pause; one made to loop comes in
+     over SKIP_SEAM_FADE_S (its start is its own seam). Paused, it stays
+     paused, at the start of the song chosen. A song not here yet is
+     fetched (the strip shows its title meanwhile; pressed again before
+     it's here, the later one wins). */
+  const BACK_TO_START_S = 3, SKIP_SEAM_FADE_S = 1;
+  function skipSong(dir) {
+    const h = hums;
+    // (Not before the first song's here.)
+    if (!h || !ctx || !h.g || h.stopped || disposed) return false;
+    const n = SOUNDTRACK.length;
+    const at = h.song ? humsPos(h) - h.song.start : 0;
+    const k = dir < 0 && at > BACK_TO_START_S ? h.k : (h.k + (dir < 0 ? n - 1 : 1)) % n;
+    clearSongTimers(h);
+    if (h.src) {
+      const s = h.src, sg = h.sg; h.src = null;
+      sg.gain.cancelScheduledValues(now()); sg.gain.setTargetAtTime(0.0001, now(), HOLD_FADE / 3);
+      try { s.stop(now() + HOLD_FADE + 0.02); } catch (e) { /* ended */ }
+    }
+    h.gap = false;
+    const done = h.k, doneSong = h.song, cue = ++h.cues;
+    const go = (kk, song) => {
+      h.k = kk; h.song = song; h.pos = song.start;
+      if (!h.paused) playHumsFrom(h, song.start, SOUNDTRACK[kk].seam ? SKIP_SEAM_FADE_S : 0.05);
+    };
+    if (k === done && doneSong) { go(k, doneSong); return true; }
+    h.k = k; h.song = null; h.pos = null;
+    loadSong(h, k).then((song) => {
+      if (h.stopped || disposed || h.cues !== cue) return;
+      if (done !== k) h.songs[done] = null;
+      go(k, song);
+    }).catch(() => {
+      // (Couldn't be had: the one it was on, from its start.)
+      if (h.stopped || disposed || h.cues !== cue || !doneSong) return;
+      go(done, doneSong);
+    });
+    return true;
   }
   // Where in the song it is now (seconds into the file).
   function humsPos(h) {
@@ -719,10 +769,11 @@ export function createAudio() {
       }
     } else {
       h.paused = false;
-      if (!h.song || !h.g) return; // (still loading: it starts as it comes)
+      if (!h.g) return; // (still loading: it starts as it comes)
       h.g.gain.cancelScheduledValues(now());
       h.g.gain.setValueAtTime(0.0001, now());
       h.g.gain.setTargetAtTime(HUMS_GAIN, now(), 0.15);
+      if (!h.song) return; // (a song skipped to, on its way: the same)
       if (h.gap) { nextSong(h); return; }
       // (A looped song's own seam fade, if it was in it, starts again
       // from there: playHumsFrom sets it by what's left.)
@@ -800,14 +851,17 @@ export function createAudio() {
     // The sound menu's now-playing strip (chassis/NowPlaying.jsx): the
     // look's soundtrack, once a game has started it.
     // The song on now, its own title (between songs, the one just played,
-    // at its end).
+    // at its end; a song skipped to, from the press). `skips`: back and
+    // forward buttons, where there's more than one song (once the first
+    // is here).
     nowPlaying() {
       const h = hums;
-      if (!HUMS_URL || !h || (!h.song && !h.paused)) return null;
+      if (!HUMS_URL || !h || (!h.g && !h.paused)) return null;
       const song = h.song;
-      return { title: SOUNDTRACK[h.k].title, at: song ? humsPos(h) - song.start : 0, length: song ? song.end - song.start : null, paused: !!h.paused };
+      return { title: SOUNDTRACK[h.k].title, at: song ? humsPos(h) - song.start : 0, length: song ? song.end - song.start : null, paused: !!h.paused, skips: SOUNDTRACK.length > 1 && !!h.g };
     },
     setNowPlayingPaused(pause) { setHumsPaused(pause); },
+    skipNowPlaying(dir) { return skipSong(dir); },
     // (Tests: on to `secondsLeft` before the end of the song on now.)
     testSongNearEnd(secondsLeft) {
       const h = hums;
@@ -817,7 +871,7 @@ export function createAudio() {
       playHumsFrom(h, Math.max(h.song.start, h.song.end - secondsLeft));
       return true;
     },
-    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.paused ? "paused" : hums.src ? "playing" : hums.gap ? "between" : "loading") : null, song: hums ? hums.k : null, songs: SOUNDTRACK.length, evening: evening ? (evening.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
+    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.paused ? "paused" : hums.src ? "playing" : hums.gap ? "between" : "loading") : null, song: hums ? hums.k : null, songs: SOUNDTRACK.length, sounding: hums ? hums.live || 0 : 0, evening: evening ? (evening.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
     dispose() {
       disposed = true;
       timers.forEach((id) => clearTimeout(id)); timers.clear();

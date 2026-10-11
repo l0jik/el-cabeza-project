@@ -262,3 +262,43 @@ How to use it:
   OfflineAudioContext handed to createAudio, before and after): calm,
   4-8 kHz -12 dB, above 8 kHz -22 dB, the rain -2.8 dB A-weighted and
   +1.9 dB under 1 kHz; tense, 4-8 kHz -7 dB, above 8 kHz -21 dB.
+- Parrish's soundtrack, back and forward (user: "they both need a back
+  and forward track buttons ... skip to the next song ... back to the
+  beginning of a song you're currently listening to"; Orinoco "not at
+  this point", it has one song). NowPlaying.jsx: where get() says
+  `skips` and the source has skip(dir), |◀ (play) ▶| on the left (plain
+  marks, 26 px, either side of the round button), the title over its
+  line, the time at the line's end (so the title keeps its room, ~166 px
+  in the 297 px menu); without, the strip as it was. parrish-audio.js
+  skipSong: forward, the next song now; back, the song from its start,
+  or in its first 3 s (BACK_TO_START_S) the one before (round to the
+  last from the first). The one playing goes as a pause does (0.12 s);
+  a looped one comes in over 1 s (SKIP_SEAM_FADE_S), the other at once.
+  Paused, it stays paused at the chosen song's start. A song not here is
+  fetched (its title at once, the time 0:00 till it's decoded); h.cues
+  counts songs asked for, so a later skip, or the next in turn
+  (nextSong), wins over one still on its way. nowPlaying() stays up
+  while a skip loads (h.g, not h.song), `skips` once the first song's
+  here and there's more than one (Orinoco gets the buttons when it gets
+  a second song); skipNowPlaying(dir); debugState.sounding (sources
+  playing). setHumsPaused(false) brings the gain back before waiting on
+  a song skipped to. playHumsFrom now clears h.pos (the place kept while
+  paused): left over, it made humsPos read the gap between songs as the
+  old place, not the song's end (the strip showed it after a pause, and
+  back between songs went to the song before). Chassis nowPlayingSource.skip (not the den's
+  records or the store's tape). Tests: e2e-now-playing (buttons in
+  Watermark, none in Orinoco, the store, the den; forward; back 5 s in
+  to the start; back twice at once, the start then the song before;
+  paused forward stays paused; twice at once round to the same song,
+  one sounding; back between songs plays the one just ended again).
+  A real click there took ~12 s to land (Playwright waits for the
+  button to hold still over two frames, slow on the software
+  renderer), so the checks read times from after it, not windows.
+- GitHub browser tests #14 (376e0f6, the three pushes before): e2e-summon
+  passed (#148). Two failures, both the tests' own: e2e-tienda "a tap
+  places the pair and closes" (the black hole is rolled at random when
+  its law goes on; on 3-2 or its partner, 3.4% of 20000 rolls, the
+  test's tap on 3-2 only kept the rolled pair; now it taps the first of
+  3-2, 3-3, 4-2 not marked) and e2e-wood-sounds "every cue is audible"
+  (the roll is filtered noise peaking about 0.005-0.007 by chance,
+  against "> 0.005"; its floor is now 0.002, the knocks' still 0.005).

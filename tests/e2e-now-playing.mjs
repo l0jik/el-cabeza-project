@@ -10,8 +10,11 @@
    In each: the strip shows the title and the time, and the time moves on;
    its button pauses (the time holds) and plays again (it moves on from
    there); the button, the title and the time don't overlap, and the strip
-   sits inside the menu. Served over http (the music is files beside the
-   page, which a page opened from disk can't fetch). */
+   sits inside the menu. Back and forward buttons where the soundtrack has
+   more than one song (Watermark; user: "they both need a back and
+   forward track buttons", Orinoco not "at this point", one song), and
+   none elsewhere. Served over http (the music is files beside the page,
+   which a page opened from disk can't fetch). */
 import { chromium } from "playwright";
 import http from "node:http";
 import fs from "node:fs";
@@ -79,13 +82,14 @@ for (const place of PLACES) {
   const read = () => page.evaluate(() => {
     const s = document.querySelector('[data-testid="now-playing"]');
     if (!s) return null;
-    const box = (q) => { const b = (q ? s.querySelector(q) : s).getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
+    const box = (q) => { const e = q ? s.querySelector(q) : s; if (!e) return null; const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; };
     const m = document.querySelector('[data-testid="sound-menu"]').getBoundingClientRect();
     return {
       // (The title's own text: a title that scrolls has its keyframes beside it.)
       paused: s.dataset.paused, title: s.querySelector('[data-testid="now-playing-title"] span').textContent,
       time: s.querySelector('[data-testid="now-playing-time"]').textContent,
       btn: box('[data-testid="now-playing-toggle"]'), name: box('[data-testid="now-playing-title"]'), when: box('[data-testid="now-playing-time"]'), strip: box(), menu: { l: m.left, r: m.right, t: m.top, b: m.bottom },
+      back: box('[data-testid="now-playing-back"]'), next: box('[data-testid="now-playing-next"]'),
     };
   });
   if (!place.title) {
@@ -105,6 +109,13 @@ for (const place of PLACES) {
   const sep = (x, y) => x.r <= y.l || y.r <= x.l || x.b <= y.t || y.b <= x.t;
   check("button, title and time don't overlap", sep(a.btn, a.name) && sep(a.name, a.when) && sep(a.btn, a.when), JSON.stringify(a));
   check("the strip is inside the menu", a.strip.l >= a.menu.l && a.strip.r <= a.menu.r && a.strip.t >= a.menu.t, JSON.stringify({ strip: a.strip, menu: a.menu }));
+  // Back and forward (user), where there's more than one song to go to.
+  const SKIPS = place.name === "Watermark";
+  check(SKIPS ? "back and forward buttons (two songs)" : "no back and forward buttons", SKIPS ? !!(a.back && a.next) : !a.back && !a.next, JSON.stringify({ back: a.back, next: a.next }));
+  if (a.back && a.next) {
+    check("...back, play, forward in a row, clear of the title and the time", a.back.r <= a.btn.l && a.btn.r <= a.next.l && [a.back, a.btn, a.next].every((x) => sep(x, a.name) && sep(x, a.when)), JSON.stringify(a));
+    check("...the buttons and the time inside the strip", [a.back, a.btn, a.next, a.name, a.when].every((x) => x.l >= a.strip.l && x.r <= a.strip.r && x.t >= a.strip.t && x.b <= a.strip.b), JSON.stringify(a));
+  }
   const moved = await poll(async () => { const b = await read(); return b && secs(b.time) > secs(a.time) ? b : null; }, 6000);
   check("the time moves on while it plays", !!moved, a.time);
   await page.click('[data-testid="now-playing-toggle"]');
@@ -146,6 +157,69 @@ for (const place of PLACES) {
     check("near the end of the second", await skip(2));
     const c = await poll(async () => { const v = await read(); return v && v.title === place.title ? v : null; }, 15000, 300);
     check("...then round to the first again", !!c, JSON.stringify(await read()));
+
+    // Back and forward (user: "if you're in a song during the soundtrack
+    // and you want to skip to the next song ... Or ... back to the
+    // beginning of a song you're currently listening to").
+    const state = () => page.evaluate(() => window.__PARRISH_AUDIO__.debugState());
+    const at = (v) => secs((v && v.time ? v.time : "").split("/")[0]);
+    const press = (b) => page.evaluate((b) => document.querySelector(`[data-testid="now-playing-${b}"]`).click(), b);
+    const FIRST_LEN = /3:30/, NEXT_LEN = /2:57/;
+    await poll(async () => { const v = await read(); return v && v.title === place.title && FIRST_LEN.test(v.time) && at(v) >= 1 ? v : null; }, 15000, 300);
+    // (A real click can take seconds to land on the software renderer, so
+    // the times are read from when it has.)
+    await page.click('[data-testid="now-playing-next"]');
+    const t0 = Date.now();
+    const f1 = await read();
+    check("forward: the next song's title at once", !!f1 && f1.title === NEXT, JSON.stringify(f1));
+    const f2 = await poll(async () => { const v = await read(); return v && v.title === NEXT && NEXT_LEN.test(v.time) ? v : null; }, 15000, 150);
+    check(`...playing from its start (${f2 && f2.time}, here ${Date.now() - t0} ms after the click)`, !!f2 && f2.paused === "false" && at(f2) <= 2, JSON.stringify(await read()));
+    const s1 = await state();
+    check("...the second song, playing", s1.hums === "playing" && s1.song === 1, JSON.stringify(s1));
+    // Back, some seconds in: the same song from its start (its time goes
+    // back, however long the click took to land).
+    const f3 = await poll(async () => { const v = await read(); return v && at(v) >= 5 ? v : null; }, 12000, 300);
+    await page.click('[data-testid="now-playing-back"]');
+    const b1 = await read(), sb = await state();
+    check(`back, ${f3 && f3.time} in: the same song from its start (${b1 && b1.time})`, !!f3 && !!b1 && b1.title === NEXT && at(b1) < at(f3) && b1.paused === "false" && sb.song === 1 && sb.hums === "playing", JSON.stringify({ b1, sb }));
+    // Twice at once, some seconds in: its start, then (in its first
+    // seconds) the song before, from its start.
+    await poll(async () => { const v = await read(); return v && at(v) >= 4 ? v : null; }, 12000, 300);
+    await page.evaluate(() => { const b = document.querySelector('[data-testid="now-playing-back"]'); b.click(); b.click(); });
+    const b2 = await poll(async () => { const v = await read(); return v && v.title === place.title && FIRST_LEN.test(v.time) ? v : null; }, 15000, 150);
+    check("back twice at once: the start, then the song before, from its start", !!b2 && at(b2) <= 3, JSON.stringify(await read()));
+    await page.waitForTimeout(1500);
+    const s2 = await state();
+    check("...the first song, playing, one song sounding", s2.hums === "playing" && s2.song === 0 && s2.sounding === 1, JSON.stringify(s2));
+    // Paused, forward: the next song, still paused, at its start; played,
+    // it goes on from there.
+    await page.click('[data-testid="now-playing-toggle"]');
+    await poll(async () => { const v = await read(); return v && v.paused === "true"; }, 3000, 100);
+    await page.click('[data-testid="now-playing-next"]');
+    const p1 = await poll(async () => { const v = await read(); return v && v.title === NEXT && NEXT_LEN.test(v.time) ? v : null; }, 15000, 150);
+    await page.waitForTimeout(2000);
+    const p2 = await read(), s3 = await state();
+    check("paused, forward: the next song, still paused at its start", !!p1 && p1.paused === "true" && at(p1) === 0 && p2.time === p1.time && s3.hums === "paused" && s3.song === 1 && s3.sounding === 0, JSON.stringify({ p1, p2, s3 }));
+    await page.click('[data-testid="now-playing-toggle"]');
+    const p3 = await poll(async () => { const v = await read(); return v && v.paused === "false" && at(v) >= 1 ? v : null; }, 8000, 200);
+    check("...played, it goes on from its start", !!p3 && p3.title === NEXT && at(p3) <= 4, JSON.stringify(await read()));
+    // Forward twice at once: round to the same song (two of them), one
+    // sounding (the song asked for first, still on its way, let go).
+    await page.evaluate(() => { const b = document.querySelector('[data-testid="now-playing-next"]'); b.click(); b.click(); });
+    const d1 = await poll(async () => { const v = await read(); return v && v.title === NEXT && NEXT_LEN.test(v.time) && at(v) >= 1 ? v : null; }, 15000, 200);
+    await page.waitForTimeout(1500);
+    const s4 = await state();
+    check("forward twice at once: round to the same song, from its start, one sounding", !!d1 && at(d1) <= 3 && s4.hums === "playing" && s4.song === 1 && s4.sounding === 1, JSON.stringify({ d1, s4 }));
+    // Between songs, back: the one just ended, again from its start (on
+    // its own it would go on to the first).
+    check("near the end of the song", await skip(0.5));
+    const g0 = await poll(async () => { const v = await state(); return v.hums === "between" ? v : null; }, 6000, 100);
+    check("...then between songs", !!g0, JSON.stringify(await state()));
+    await press("back");
+    const g1 = await poll(async () => { const v = await read(); return v && v.title === NEXT && NEXT_LEN.test(v.time) && at(v) <= 2 && v.paused === "false" ? v : null; }, 6000, 150);
+    await page.waitForTimeout(4000);
+    const g2 = await read(), s5 = await state();
+    check("between songs, back: the one just ended from its start, and it stays on it", !!g1 && g2.title === NEXT && s5.song === 1 && s5.hums === "playing" && s5.sounding === 1, JSON.stringify({ g1, g2, s5 }));
   }
   check("no page errors", errs.length === 0, errs.join(" | "));
   await page.close();

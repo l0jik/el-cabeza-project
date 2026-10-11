@@ -90,7 +90,10 @@ async function run(theme) {
   for (const board of ["solid", "folding"]) {
     const r = res[board];
     console.log(`  ${board}:`, JSON.stringify(r));
-    check(`${board}: every cue is audible and under full scale`, Object.values(r).every((x) => x.peak > 0.005 && x.peak < 1), JSON.stringify(r));
+    // (The roll is a soft rumble by design, filtered noise peaking about
+    // 0.005-0.007 as the noise falls: against 0.005 it failed now and
+    // then. Its floor is under half that, still far from silence.)
+    check(`${board}: every cue is audible and under full scale`, Object.entries(r).every(([k, x]) => x.peak > (k === "roll" ? 0.002 : 0.005) && x.peak < 1), JSON.stringify(r));
     check(`${board}: a 1x3 on its side sounds lower than on end`, r.onSide.zc < r.onEnd.zc * 0.8, `${r.onSide.zc} vs ${r.onEnd.zc}`);
   }
   await page.close();
