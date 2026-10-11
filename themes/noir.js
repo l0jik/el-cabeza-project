@@ -457,6 +457,17 @@ export { mountAmbientEffects } from "./noir-fx.js";
 // The reality's name, at the top of the info panel's This game tab.
 export const realityName = "Noir";
 export { createAudio, hasAudio } from "./noir-audio.js";
+// The sound menu's sliders (chassis: theme.soundChannels; noir-audio.js
+// setChannelLevel), the rain on its own (user: "it definitely will need
+// its own volume toggle").
+export const soundChannels = [
+  { key: "rain", label: "Rain", hint: "The rain on the street, and the thunder" },
+  { key: "city", label: "The city", hint: "The cars going by, the El, a siren far off" },
+  { key: "pieces", label: "Pieces", hint: "The typewriter, the knocks, the flashbulb" },
+];
+// Whose recordings Noir plays (tools/noir_sounds.py, assets/noir/src/
+// CREDITS.md), on the About card under the line that closes it.
+export const soundCredits = "Sounds from freesound.org: the rain, kyles and craigsmith (CC0); the thunder, craigsmith (CC0); a car's engine, \u201c1951 Mercury-Idle and Throttle\u201d by lonemonk (freesound.org/s/62566), CC BY 4.0, looped and pitched; its tyres, Breviceps (CC0).";
 // The in-game menu offers a switch for the cost badges on the move markers.
 export const moveCostToggle = true;
 

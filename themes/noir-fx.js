@@ -204,7 +204,8 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
   let pool = null, steam = null, traffic = null, moving = false;
   const ripples = [];
   const lastPos = new Map();
-  const camLocal = new THREE.Vector3(), keyPos = new THREE.Vector3(), tmp = new THREE.Vector3();
+  const camLocal = new THREE.Vector3(), keyPos = new THREE.Vector3(), tmp = new THREE.Vector3(), carAt = new THREE.Vector3();
+  let carHeard = 0;
   let nextFlash = 0, flashT = -1, thunderAt = 0;
 
   function build(t) {
@@ -308,6 +309,20 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
     ripples.push({ m, born: performance.now() + delay, size });
   }
 
+  /* The car on the board, heard where it is (noir-audio.js carSound): as
+     loud as its dissolve has it and as near as it is to the camera
+     ((5 / distance)^0.8, the street units: from the usual view about a
+     third), to the side of the picture it's on, and duller further off. */
+  function hearCar(t) {
+    if (!audio || !audio.carSound) return;
+    const v = traffic && traffic.voice();
+    if (!v || !t.camera || !attachedTo) { audio.carSound(null); return; }
+    carAt.set(v.x, 0.05, v.z); attachedTo.localToWorld(carAt);
+    carAt.applyMatrix4(t.camera.matrixWorldInverse);
+    const d = Math.max(0.5, carAt.length()), near = Math.pow(5 / Math.max(5, d), 0.8);
+    audio.carSound({ n: v.n, v: v.v, gain: v.k * near, pan: Math.max(-0.85, Math.min(0.85, (2 * carAt.x) / d)), cutoff: 2000 + 9000 * Math.pow(5 / Math.max(5, d), 0.7) });
+  }
+
   // The piece picked up, in a pool of light.
   function tickPool(t, now) {
     if (!pool) {
@@ -358,6 +373,7 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
       steam.tick(sec);
       watchLandings(t);
       traffic.tick(now, PLAY.pieces, moving);
+      if (now - carHeard > 60) { carHeard = now; hearCar(t); }
       tickPool(t, now);
       for (let i = ripples.length - 1; i >= 0; i--) {
         const r = ripples[i], u = (now - r.born) / 1100;

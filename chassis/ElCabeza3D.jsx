@@ -11355,6 +11355,24 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               This digital implementation by Ted Ortmann, August 2026
               &middot; v{APP_VERSION}
             </p>
+            {/* A world's recorded sounds, credited (theme.soundCredits: Noir's,
+               one of them CC BY), under the line above, in its type. */}
+            {theme.soundCredits && (
+              <p
+                data-testid="info-sound-credits"
+                style={{
+                  margin: "8px 0 0",
+                  textAlign: "center",
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: 10,
+                  lineHeight: 1.5,
+                  letterSpacing: "0.04em",
+                  color: COLORS.slate,
+                }}
+              >
+                {theme.soundCredits}
+              </p>
+            )}
             </>
             )}
             </div>

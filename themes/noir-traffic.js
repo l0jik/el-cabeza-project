@@ -220,7 +220,7 @@ export function createTraffic({ EX, EZ, compile }) {
      appear when its time comes. */
 
   const rigs = []; // cars made, kept to drive again
-  let car = null, plan = null, nextAt = 0, readyAt = 0, pace = null, lastClosed = null, frozen = false;
+  let car = null, plan = null, nextAt = 0, readyAt = 0, pace = null, lastClosed = null, frozen = false, carN = 0;
   const tmp = new THREE.Vector3();
 
   function rigFor(kind, paint, roof) {
@@ -267,7 +267,7 @@ export function createTraffic({ EX, EZ, compile }) {
     }
     const rg = plan.rg;
     plan = null;
-    car = { rg, r, s: opts.at ? opts.at * r.length : 0, street, leaving: 0 };
+    car = { rg, r, s: opts.at ? opts.at * r.length : 0, street, leaving: 0, n: ++carN, k: 0 };
     rg.rig.visible = true;
     place(car);
   }
@@ -280,6 +280,7 @@ export function createTraffic({ EX, EZ, compile }) {
     if (at.dx || at.dz) rig.rotation.y = Math.atan2(-at.dz, at.dx);
     const L = c.r.length, k = Math.min(1, c.s / FADE, (L - c.s) / FADE) * (c.leaving ? Math.max(0, 1 - (performance.now() - c.leaving) / 500) : 1);
     c.rg.fade(Math.max(0, k));
+    c.k = Math.max(0, k);
     return at;
   }
 
@@ -315,6 +316,14 @@ export function createTraffic({ EX, EZ, compile }) {
       if (!frozen) car.s += v * dt;
       place(car);
       if (car.s >= car.r.length || (car.leaving && performance.now() - car.leaving > 520)) finish();
+    },
+    /* The car on the board, for its sound (noir-fx.js -> noir-audio.js
+       carSound), or null: which car (n), where (x, z on the board), its
+       pace (v) and how far it has come out of its dissolve (k, 0..1). */
+    voice() {
+      if (!car) return null;
+      const at = along(car.r, car.s);
+      return { n: car.n, x: at.x, z: at.z, v: frozen ? 0 : at.v, k: car.k };
     },
     test: {
       state: () => {

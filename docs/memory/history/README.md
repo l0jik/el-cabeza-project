@@ -1,7 +1,8 @@
 # The history, part by part
 
 The round-by-round notes, oldest first, as they were appended to
-PROJECT_MEMORY.md until the split (2026-10-10). Each part starts at a
+PROJECT_MEMORY.md until the split (2026-10-10), and since then whenever
+its Recent rounds passed about 300 lines (12 on). Each part starts at a
 round's first line. Under each part, the first line of every round
 note (a top-level `- ` entry or a `### ` heading) in it, to grep or skim.
 
@@ -510,3 +511,19 @@ note (a top-level `- ` entry or a `### ` heading) in it, to grep or skim.
 
 - ABOUT (INFO overlay), two asks the same day: "Developed sometime prior
 - Efficiency, the fixes (user: "go ahead with 1–3 and add the fps
+
+## [13.md](13.md) (250 lines, 13 entries)
+
+- Back to Cabeza Nova (user: after a game ended in a gated world (Cromo,
+- Lab, "after a win the minimized menu cannot be raised / maximized"
+- Noir's streets and cars (user: "Can the grid of Noir be made to look
+- CI after the Noir cars: e2e-summon's desktop part ("on a computer")
+- Noir, "Z-fighting on white border" (user's phone video, a low view
+- ABOUT (INFO overlay), the user's wording: "...the article itself
+- Go deo na ndeor (Watermark), its soundtrack now two songs (user: "Add
+- Check alert, Show me's camera (user: "When check alerts pop up & Show
+- Noir, "Reduce the hiss on Noir": the hiss was the rain's pavement bed
+- Parrish's soundtrack, back and forward (user: "they both need a back
+- GitHub browser tests #14 (376e0f6, the three pushes before): e2e-summon
+- Noir's rain (user: "Noir's rain sound is still not right. It's just
+- GitHub browser tests #15 (0152609): e2e-tienda passes there now.
