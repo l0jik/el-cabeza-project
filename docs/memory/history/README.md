@@ -505,3 +505,8 @@ note (a top-level `- ` entry or a `### ` heading) in it, to grep or skim.
 ## [11.md](11.md) (37 lines, 1 entries)
 
 - Efficiency review (user: "What can be done to make everything more
+
+## [12.md](12.md) (143 lines, 2 entries)
+
+- ABOUT (INFO overlay), two asks the same day: "Developed sometime prior
+- Efficiency, the fixes (user: "go ahead with 1–3 and add the fps

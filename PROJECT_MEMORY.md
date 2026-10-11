@@ -78,154 +78,11 @@ How to use it:
 ## History (`docs/memory/history/`)
 
 - [history/README.md](docs/memory/history/README.md): the index, every
-  round's first line, part by part (01 is the oldest, 11 the newest, up
-  to the efficiency review).
+  round's first line, part by part (01 is the oldest, 12 the newest, up
+  to the efficiency fixes).
 
 ## Recent rounds
 
-- ABOUT (INFO overlay), two asks the same day: "Developed sometime prior
-  to 1977 in Argentina by Jaime Poniachik and Enrique Lindenbaum, ..."
-  (with "amidst a steady stream of abstract strategy board games" gone),
-  then "Cabeza was never officially published" made "El Cabeza was
-  never officially published". In every copy of the text:
-  chassis/ElCabeza3D.jsx (every world), el_cabeza_3d.jsx and
-  el-cabeza-neon-3d.html (the old single-file versions). daba416, 5f4229b.
-- Efficiency, the fixes (user: "go ahead with 1–3 and add the fps
-  readout", then "move forward will all other suggested efficiency fixes
-  proposed earlier"; the measurements are history/11.md's last note).
-  Nothing is meant to look different; what changed is how often and how
-  much is drawn.
-  - `?fps` (chassis/fps-readout.js): a readout at the left middle, every
-    page, never takes a tap: fps and the average frame, the slowest
-    frame, the main loop's own ms a frame, pixel ratio and tier, the
-    shadow map's size and how often it's drawn, draws and triangles.
-    `?fps` keeps it on for the tab (sessionStorage), `?fps=0` turns it
-    off. A gap of 5 s or more (tab away) isn't counted.
-  - Device fit for every world (chassis/device-fit.js): quality()'s tier
-    (themes/tienda-quality.js; `?quality=low|mid|high` forces one) caps
-    the pixel ratio (2 / 1.75 / 1.25) and sizes the key light's shadow
-    map (4096 / 2048 / 1024), and the den's frame-rate governor runs in
-    the chassis. A theme with its own (`export const ownsPixelRatio =
-    true`: standard for the den, tienda, parrish) keeps it. Phones: Neon,
-    Cromo, Plano, Luna, Noir, Lluvia and the Lab went from 2 to 1.75 and
-    from 4096 to 2048; Parrish's shadows to 2048 too. Computers as before.
-  - Shadows drawn only on a change (chassis/shadow-watch.js):
-    renderer.shadowMap.autoUpdate off; each frame, after
-    scene.updateMatrixWorld() (scene.autoUpdate is off: once a frame, not
-    twice), a signature of every visible shadow-casting light and caster
-    (matrices, geometry/material ids and versions, instances, draw range,
-    shadow camera) is compared with the last drawing's; any difference,
-    a skinned/morphing/custom-depth caster, or 1 s since the last, and
-    they're drawn. `?shadows=always` draws them every frame, to compare.
-    Pixel-identical to every frame in all ten worlds (at rest, mid-turn,
-    after; scratch eff/shadowcheck.mjs). At rest about 1 a second (the
-    backstop; Noir 2: its rain lamps).
-  - The dock piece's outline (clipToPiece, ElCabeza3D.jsx): points
-    gathered once a piece in its own frame (deduped), per frame one
-    reused array, the Akl–Toussaint octagon drops the inner points, then
-    the same monotone chain; the clip only rewritten past 0.5 px. Same
-    outline (scratch eff/dockcheck.mjs: ≤0.5 px, ~1 px at two Noir
-    near-collinear corners). Luna 8.3% → 2.3% of script time, Noir 9.3%
-    → 4.2%. A merged mesh (below) is still sampled part by part
-    (geometry.userData.parts), as its parts were.
-  - Lluvia's ad screens and menu boards (lluvia-city.js) are painted and
-    uploaded only when the screen or its reflection is in the camera's
-    view; Tienda's TV picture (tienda-store.js animate, given the camera
-    by tienda-fx.js) likewise. Both are in view from the default camera,
-    so the win is when looking away.
-  - The AI's first look (engine/ai.js minimaxSearch, depth 1 at the
-    root) checks the time every 32 turns while ordering; once out, the
-    rest go unscored (sorted last; game-ending turns are never cut), and
-    pieces are taken in rotation so a cut leaves every piece's turns
-    partly looked at. With the time (computers, most phones) nothing
-    changes; the same moves with the noise off. A Split Movement root on
-    a 60 ms budget: 531 → 77 ms.
-  - Files beside the pages instead of inlined (build.js COMMON_FILES and
-    LOST_HAND): ABOUT's original-game cue (el-cabeza-original-cue.mp3,
-    every page; fetched when INFO opens) and the lost card's hand
-    (el-cabeza-lost-hand-wire/skin.webp, Neon and Nova; LostNudge
-    preloads them as it mounts).
-  - Luna's buildings merged (themes/merge-static.js, called in
-    luna-models.js buildingFor): inside a building, plain parts that look
-    the same are baked into one mesh each; the roof kit
-    (userData.mergeRoot) is merged on its own so luna-fx.js can still
-    hide it under an overhang. Not merged: transparent, hooked, mirrored,
-    hidden, morphing or grouped parts, anything marked userData.noMerge.
-    Checked (scratch merge/: every piece in every pose, both sides, one
-    building drawn as built, merged in place, drawn again, two views):
-    76 of 96 identical, the rest 1-3 pixels of 102,400 (rounding at an
-    edge); the dock outline's sampled points the same to 1e-7. Luna's
-    buildings: 1,246 meshes -> 586 (the Cabeza 94 -> 30). The page, phone
-    tier (scratch perf/measure2.mjs): 386 draws a frame -> 236, 465
-    shadow casters -> 335, script 6.8 -> 5.0 ms a frame, the same
-    triangles. (Two separate
-    builds of one piece differ by thousands of pixels: something in a
-    building isn't seeded; the game builds each once, so it doesn't
-    show, but compare a building with itself.)
-  - Tests: tests/run-e2e.mjs `--shard i/n`; e2e-touch-in-game added to
-    its list (never run until now; passes). .github/workflows/e2e.yml
-    runs the whole list on every push to main and this branch, eight
-    machines at once (free: a public repository); it reports, it doesn't
-    hold up the deploy. The tests' fixed paths (/home/user, /opt/pw-
-    browsers) are symlinked there.
-  - Memory: this file split into docs/memory/ (see the top).
-  - Not done, on purpose: Parrish's Watermark music is still decoded
-    whole (~150 MB): both long tracks loop seamlessly on their own loop
-    points and play at once; streaming them (a media element) would put
-    a gap or a crossfade into the loop, a change in what's heard. The
-    den's book (book-cover/tail/fore.jpg, ~105 KB) stays inlined: it's on
-    the side table from the den's first frame, and as a file it would
-    arrive after the room (a pop-in on a slow line). And the tests' fixed
-    pauses stay: most wait out an easing or a fade; the CI shards are the
-    time fix.
-  - The den TV's lip-sync test (e2e-den-spot) failed after this: the
-    video 55 ms ahead of the sound, its limit 45. Not a fault: the den
-    aims the video a drawn frame ahead of the sound (den-commercial.js;
-    the canvas shows a frame about a frame after it's drawn), its frame
-    time a running average of the gaps under 100 ms. This software
-    browser draws the den at ~117 ms a frame; the old build had about 2
-    gaps in 190 under 100 ms (the average stayed near 1/60 s, the lead
-    ~16-23 ms), the faster new one 13 in 210 (the lead to its 50 ms cap).
-    The test measured the video element, not the screen, so it read the
-    lead as an error. It now takes off the lead the den reports
-    (__DEN_SPOT__().lead): video clock 46 -> ~0 ms. Real browsers at 60
-    fps: the lead ~16 ms either way.
-  - e2e-original checked the cue was inlined (src data:audio/mpeg); it
-    now checks the file (el-cabeza-original-cue.mp3) plays, 5.5 s.
-  - Tests: the whole list in two halves (run-e2e --shard 1/2, 2/2).
-    Half 1 on the first build (device fit, shadows, ?fps, dock outline,
-    screens, Cabeza Nova link): 31/32, the one the den lip-sync check
-    (above). Then on the final build: the tests the later changes touch
-    (smoke luna, gameplay standard, ai-split, odd-pieces, split-three,
-    dock-moments, touch-in-game, gate with its new phone check, den-spot,
-    original): all pass. Half 2 on the final build: 30/31, the one
-    e2e-undo-audio's "the game is playing again", read once 3 s after
-    Undo Turn: the undone turn was the computer's, and it may be part
-    way through playing it again then (the line "Chato · 1 roll left",
-    not "… to move"); the old build caught that too, one run in two.
-    It now reads the line until it settles (10 s at most): 3/3.
-  - The GitHub workflow's first run (c13ede9): 7 of 8 machines green
-    (13-25 min each); the 8th failed e2e-sound-channels, "the store's
-    slider at half", reading [0.25, 1]. Those machines run the
-    Playwright's own Chrome 153 (the /opt/pw-browsers path is a link to
-    it); here it's the older Chromium 1194. A gain node with nothing
-    passing through it (the store's far-off bus, between sounds) isn't
-    worked by Chrome 153, so its live gain still read the old level,
-    though its fade was set. tienda-audio.js's test hook now also gives
-    gateLevels (what each gate is set to; regate() records it), and the
-    test's four level checks read those.
-  - The second run (e60c3a5): that one green, but e2e-hall-after-game
-    failed "another turn" (green in the first run). Its turn() asked
-    for a turn's two rolls 0.9 s apart, and the board drops a move
-    asked for while a roll's still going (beginMove: anim or busy), so
-    on a slow moment the second roll was lost and the turn never
-    finished. Reproduced the timing with Chrome's CPU throttle (4x, 6x:
-    the first roll still going at 0.9 s). turn() now asks for each roll
-    once the cube has stood still 1.5 s, reading whose turn it is each
-    time, till the turn's recorded (20 s at most): green at 1x and 6x.
-    (e2e-pivot spaces its moves 1.4-1.6 s; green on GitHub both times.)
-    scratch files/check.mjs: the moved files load beside every page that
-    names them (the cue: 11 pages; the hand: Neon and Nova).
 - Back to Cabeza Nova (user: after a game ended in a gated world (Cromo,
   everything unlocked) and Standard Cabeza was picked, "there's no way to
   go back, while still in that theme, to return to Cabeza Nova"). A plain
@@ -368,3 +225,28 @@ How to use it:
   titles) follow it. Tests: e2e-now-playing's Watermark section skips to
   each song's end (testSongNearEnd) and reads the next; the strip's title
   read from its span (a title that scrolls has its keyframes beside it).
+- Check alert, Show me's camera (user: "When check alerts pop up & Show
+  Me is selected, move the camera to observe the animation, & when
+  dismissed, return camera to original attitude"). frameCheckShow (with
+  the view functions): the board turned so the attack's long way (the
+  principal axis of every footprint corner it passes) runs across the
+  screen, of the two headings that do it the one with less of the
+  board's pieces standing in front (taller at the near face than the
+  sight line to the ghost's foot), else the nearer; pitch
+  max(VIEW_PHI, 1.0) (a tumble reads side on), 0.8 for a turn on the
+  spot alone; then the radius bisected (never under 11) so the box round
+  it all fills at most half the room under the card (and between the
+  phone's bars), the target moved by two Newton steps to centre it
+  there, within the tick's own pan limit. The play waits, its ghost on
+  the piece, until the glide's done (show.waiting; at most 2.5 s).
+  checkCamRef holds the camera from before the first press; when the
+  card goes (put away, the danger past, the alert off, the turn over)
+  the camera glides back, except into a new game's setup or a replay,
+  and not once a view's been chosen meanwhile (glideCamera and a theme's
+  glideTo forget it: the phone bar's view button is one tap that both
+  puts the card away and picks a view). __EC_TEST_CAM__ now also gives
+  the eased view; __EC_TEST_CHECK_CAM__ the kept camera. Tests:
+  e2e-check-alert (Neon on a computer: waits, then the attack across the
+  screen under the card, back exactly; up the board, a quarter turn from
+  the side a tall Flaco isn't in front of; the den on a phone: between
+  card and bar, back, and the bar's view button kept).

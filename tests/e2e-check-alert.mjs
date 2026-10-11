@@ -61,12 +61,34 @@ const kinds = (page) => page.evaluate(() => {
   return out;
 });
 const stored = (page) => page.evaluate(() => localStorage.getItem("el-cabeza:check-alert"));
+// The camera: where it's going, and where the eased view has got to.
+const camOf = (page) => page.evaluate(() => window.__EC_TEST_CAM__());
+const showOf = (page) => page.evaluate(() => window.__EC_TEST_CHECK_SHOW__());
+const wrapA = (d) => ((d % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+const sameCam = (a, b) => Math.abs(wrapA(a.theta - b.theta)) < 1e-6 && Math.abs(a.phi - b.phi) < 1e-6 && Math.abs(a.radius - b.radius) < 1e-6 && a.target.every((x, i) => Math.abs(x - b.target[i]) < 1e-6);
+const arrived = (c) => Math.abs(wrapA(c.view.theta - c.theta)) < 0.01 && Math.abs(c.view.phi - c.phi) < 0.01 && Math.abs(c.view.radius - c.radius) < 0.05;
+const camText = (c) => c && `theta ${c.theta.toFixed(2)}, phi ${c.phi.toFixed(2)}, radius ${c.radius.toFixed(1)}`;
+// Two pieces on the screen, the card's foot and the phone's bar's top: the attack across the screen, in view under
+// the card.
+const across = (page, a, b) => page.evaluate(([a, b]) => {
+  const p = window.__EC_TEST_SCREEN_POS__(a), q = window.__EC_TEST_SCREEN_POS__(b);
+  const card = document.querySelector('[data-testid="check-alert"]'), bar = document.querySelector('[data-testid="shell-bar"]');
+  return { p, q, under: card ? Math.round(card.getBoundingClientRect().bottom) : 0, over: bar ? Math.round(bar.getBoundingClientRect().top) : innerHeight, w: innerWidth };
+}, [a, b]);
+const acrossOk = (s) => !!s.p && !!s.q && Math.abs(s.q.y - s.p.y) < 0.35 * Math.abs(s.q.x - s.p.x)
+  && [s.p, s.q].every((o) => o.x > 0 && o.x < s.w && o.y > s.under && o.y < s.over);
+// The show's ghost waits on the piece until the camera's there.
+const camThere = (page) => poll(async () => { const s = await showOf(page); return s && !s.waiting ? s : null; }, 6000, 40);
 
 // The computer plays light; you're dark, to move.
 const T = (id, owner, row, col) => ({ id, type: "turrito", owner, row, col, w: 1, h: 1, z: 1 });
 const CAB = (id, owner, row, col) => ({ id, type: "cabeza", owner, row, col, w: 1, h: 1, z: 1 });
 // A light Turrito two rolls from your Cabeza (and nothing else near).
 const TWO_ROLLS = [T("light-turrito", "light", 4, 4), CAB("dark-cabeza", "dark", 4, 6), T("dark-turrito", "dark", 8, 1), CAB("light-cabeza", "light", 1, 8)];
+// Two rolls up the board instead, a Flaco of yours standing two columns off its middle: Show me turns the board to
+// see it across the screen, from the side the Flaco isn't in front of.
+const ALONG = [T("light-turrito", "light", 2, 6), CAB("dark-cabeza", "dark", 4, 6), T("dark-turrito", "dark", 8, 1), CAB("light-cabeza", "light", 1, 8),
+  { id: "dark-flaco", type: "flaco", owner: "dark", row: 3, col: 4, w: 1, h: 1, z: 2 }];
 // The user's video, mid-board: the light Hombro lying over your Flaco,
 // your Cabeza two squares on (and, optionally, a Turrito of yours between).
 const VIDEO = (turrito) => [
@@ -108,12 +130,21 @@ console.log("Neon, desktop: the setup's switch, the warning, its own switch, the
   const safeN = view1.escapes.filter((e) => e.safe).length;
   check(`...and your Cabeza's squares this turn, green or red (${view1.escapes.length}: ${safeN} safe)`, k1.green === safeN && k1.red === view1.escapes.length - safeN + 1 && safeN > 0);
   // Show me: its two rolls played as a ghost onto the Cabeza (slowed
-  // down for this slow renderer), the still ghost and arc aside meanwhile.
+  // down for this slow renderer), the still ghost and arc aside meanwhile;
+  // the camera brought round to watch first (user: "When check alerts pop up & Show Me is selected, move the camera
+  // to observe the animation, & when dismissed, return camera to original attitude").
+  const camA = await camOf(page);
   await page.evaluate(() => { window.__EC_TEST_SHOW_SLOW__ = 4; });
   await page.locator('[data-testid="check-alert-show"]').click();
   const playing = await poll(async () => { const s = await page.evaluate(() => window.__EC_TEST_CHECK_SHOW__()); return s && s.playing ? s : null; }, 3000, 80);
   const kp = await kinds(page);
   check(`Show me plays its line (${JSON.stringify(playing)}), the still marks aside`, !!playing && playing.steps === 2 && kp.ghost === 0 && kp.stop === 0 && kp.arc === 0);
+  check("...its ghost waiting on the piece while the camera comes round", !!playing && playing.waiting === true && playing.step === 0);
+  const there = await camThere(page);
+  const camS = await camOf(page);
+  check(`...then playing, the camera there (${camText(camA)} -> ${camText(camS)})`, !!there && there.step <= 1 && !sameCam(camS, camA) && arrived(camS), JSON.stringify(camS));
+  const sc = await across(page, "light-turrito", "dark-cabeza");
+  check(`...the attack across the screen, in view under the card (${JSON.stringify(sc)})`, acrossOk(sc));
   const twoSteps = await poll(async () => { const s = await page.evaluate(() => window.__EC_TEST_CHECK_SHOW__()); return s && s.step === 2 ? s : null; }, 12000, 100);
   check("...both rolls, one after the other", !!twoSteps);
   const done = await poll(async () => { const s = await page.evaluate(() => window.__EC_TEST_CHECK_SHOW__()); return s && !s.playing ? s : null; }, 20000, 200);
@@ -129,6 +160,9 @@ console.log("Neon, desktop: the setup's switch, the warning, its own switch, the
   check("a tap elsewhere puts the card away", !!(await poll(async () => (await card(page).count()) === 0)));
   check("...its marks with it", (await marks(page)) === 0);
   check("...the alert still on, the threat still there", (await stored(page)) === "1" && !!(await reading(page)));
+  const back = await poll(async () => { const c = await camOf(page); return sameCam(c, camA) ? c : null; }, 3000, 50);
+  check(`...and the camera goes back where it was (${camText(camA)})`, !!back, JSON.stringify(await camOf(page)));
+  check("...all the way", !!(await poll(async () => arrived(await camOf(page)), 4000, 100)));
   await page.waitForTimeout(800);
   check("...and it stays away while the threat's the same", (await card(page).count()) === 0);
   // A step north takes it out of reach: the warning goes.
@@ -172,6 +206,27 @@ console.log("Neon, desktop: the setup's switch, the warning, its own switch, the
   check("the dock's panel in play has the switch, off", (await dockSw.count()) === 1 && (await dockSw.getAttribute("aria-checked")) === "false");
   await dockSw.click();
   check("...on again there: the warning's back", !!(await poll(async () => (await card(page).count()) === 1)) && (await stored(page)) === "1");
+
+  // Show me up the board: the board turned so the attack runs across the screen, seen from the side the tall
+  // Flaco isn't in front of; put away, turned back.
+  await setPieces(page, ALONG);
+  check("a Turrito two rolls up the board: the card", !!(await poll(async () => (await card(page).count()) === 1 && /Turrito/.test(await page.locator('[data-testid="check-alert-text"]').textContent()))));
+  const camB = await camOf(page);
+  await page.locator('[data-testid="check-alert-show"]').click();
+  await camThere(page);
+  const camU = await camOf(page);
+  const su = await across(page, "light-turrito", "dark-cabeza");
+  check(`...the board turned a quarter (${camText(camB)} -> ${camText(camU)}), the attack across the screen (${JSON.stringify(su)})`,
+    Math.abs(Math.abs(wrapA(camU.theta - camB.theta)) - Math.PI / 2) < 0.01 && acrossOk(su));
+  const depth = await page.evaluate(() => {
+    const g = window.__EC_TEST_THREE__().pieceGroup;
+    const z = (id) => { const m = g.children.find((c) => c.userData.pieceId === id && c.userData.kind === "piece"); return m.getWorldPosition(m.position.clone()).z; };
+    return { flaco: z("dark-flaco"), turrito: z("light-turrito"), cabeza: z("dark-cabeza") };
+  });
+  check(`...from the side the Flaco isn't in front of (nearer the camera: larger z; ${JSON.stringify(depth)})`, depth.flaco < Math.min(depth.turrito, depth.cabeza) - 1);
+  await page.mouse.click(60, 600);
+  check("...put away", !!(await poll(async () => (await card(page).count()) === 0)));
+  check(`...the board turned back (${camText(camB)})`, !!(await poll(async () => sameCam(await camOf(page), camB), 3000, 50)), JSON.stringify(await camOf(page)));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }
@@ -199,6 +254,29 @@ console.log("\nThe den on a phone, the bar layout: the setup's field and the men
   const b = await card(page).boundingBox();
   const bar = await page.locator('[data-testid="shell-menu-button"]').boundingBox();
   check(`...under the top bar, inside the screen (${JSON.stringify(b && { y: Math.round(b.y), x: Math.round(b.x), w: Math.round(b.width) })})`, !!b && !!bar && b.y >= bar.y + bar.height && b.x >= 15 && b.x + b.width <= 412 - 15);
+  // Show me on the phone: the attack across the screen, between the card and the bar; put away, the camera back.
+  const camP = await camOf(page);
+  await page.locator('[data-testid="check-alert-show"]').click();
+  check("Show me: the camera comes round first", !!(await camThere(page)) && arrived(await camOf(page)) && !sameCam(await camOf(page), camP));
+  const sp = await across(page, "light-hombro", "dark-cabeza");
+  check(`...the attack across the screen, between the card and the bar (${JSON.stringify(sp)})`, acrossOk(sp));
+  await page.touchscreen.tap(30, 640);
+  check("...a tap elsewhere puts the card away", !!(await poll(async () => (await card(page).count()) === 0)));
+  check(`...and the camera goes back where it was (${camText(camP)})`, !!(await poll(async () => sameCam(await camOf(page), camP), 3000, 50)), JSON.stringify(await camOf(page)));
+  // (The danger past and back again: the card again.)
+  const again = async () => { await setPieces(page, VIDEO(true)); await setPieces(page, VIDEO(false)); return !!(await poll(async () => (await card(page).count()) === 1)); };
+  check("...the threat gone and back: the card again", await again());
+  // A view chosen while Show me has the camera (the bar's view button: the same tap puts the card away) is kept,
+  // not undone.
+  await page.locator('[data-testid="check-alert-show"]').click();
+  await camThere(page);
+  await page.locator('[data-testid="shell-view-toggle"]').click();
+  check("Show me, then the bar's view button: the card put away by the same tap", !!(await poll(async () => (await card(page).count()) === 0)));
+  await page.waitForTimeout(1200);
+  const camV = await camOf(page), pv = await page.evaluate(() => window.__EC_TEST_THREE__().boardView());
+  check(`...and the view it chose kept, the player's (${camText(camV)})`, Math.abs(wrapA(camV.theta - Math.PI)) < 1e-6 && Math.abs(camV.phi - pv.phi) < 1e-6 && Math.abs(camV.radius - pv.radius) < 1e-6
+    && camV.target.every((x) => Math.abs(x) < 1e-6) && !(await page.evaluate(() => window.__EC_TEST_CHECK_CAM__())), JSON.stringify({ camV, pv }));
+  check("...the card again, for the menu's switch", await again());
   await page.locator('[data-testid="shell-menu-button"]').click();
   await page.waitForTimeout(600);
   const menuSw = page.locator('[data-testid="shell-menu-check"]');

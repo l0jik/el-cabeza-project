@@ -766,8 +766,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           v.theta = cam.current.theta; v.phi = cam.current.phi; v.radius = cam.current.radius; v.target.copy(cam.current.target);
         }
       }
-      const c = cam.current;
-      return { theta: c.theta, phi: c.phi, radius: c.radius, dollhouse: !!c.dollhouse, target: [c.target.x, c.target.y, c.target.z], roomLimit: roomLimitRef.current };
+      const c = cam.current, v = c.view;
+      return {
+        theta: c.theta, phi: c.phi, radius: c.radius, dollhouse: !!c.dollhouse, target: [c.target.x, c.target.y, c.target.z], roomLimit: roomLimitRef.current,
+        // (Where the eased view has got to.)
+        view: { theta: v.theta, phi: v.phi, radius: v.radius, target: [v.target.x, v.target.y, v.target.z] },
+      };
     };
   }, [pieces, stepsUsed, selectedId, movedPieceIds]);
   /* React-visible copy of the Black Hole Squares LAW's current
@@ -3029,6 +3033,27 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_CHECK_VIEW__ = () => checkView && { lines: checkView.lines.map((l) => ({ attacker: l.attacker, steps: l.steps.map((st) => st.dir) })), escapes: checkView.escapes };
   // Show me: a count, each press playing the line again.
   const [checkShow, setCheckShow] = useState(0);
+  /* ...the camera brought round to watch it (frameCheckShow; user: "When
+     check alerts pop up & Show Me is selected, move the camera to observe
+     the animation, & when dismissed, return camera to original
+     attitude"): where it was before the first press, kept until the card
+     goes, put away or the danger past, and then glided back there. Not
+     when a new game's set up or a replay starts (they frame their own
+     view), nor once a view's been chosen meanwhile (glideCamera forgets
+     it). */
+  const checkCamRef = useRef(null);
+  const checkUp = !!checkThreats && !checkHidden;
+  useEffect(() => {
+    if (checkUp) return;
+    const saved = checkCamRef.current;
+    checkCamRef.current = null;
+    if (!saved || awaitingBegin || replaying) return;
+    const c = cam.current;
+    c.theta = saved.theta; c.phi = saved.phi; c.radius = saved.radius; c.target.copy(saved.target);
+    if (saved.dollhouse) c.dollhouse = true;
+    glideRef.current = {};
+  }, [checkUp]);
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_CHECK_CAM__ = () => checkCamRef.current && { ...checkCamRef.current, target: checkCamRef.current.target.toArray() };
   /* True from the moment a game is begun (awaitingBegin cleared) until
      it concludes — the window where the Opponent row and the move
      record are hidden to declutter the board, and End Active Game
@@ -3831,6 +3856,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           c.target.set(to.target[0], to.target[1], to.target[2]);
           c.dollhouse = false;
           glideRef.current = { ms };
+          checkCamRef.current = null; // (its view, not Show me's way back)
         },
         music: music ? { tracks: () => music.tracks(), play: (track) => playTrackRef.current && playTrackRef.current(track), playing: () => !!musicNowRef.current } : null,
         sheets: {
@@ -4825,9 +4851,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     showStill(false);
     const plays = checkView.lines.map((line) => ({ line, mesh: null, holder: null }));
     const total = Math.max(...plays.map((pl) => pl.line.steps.length));
-    const show = { playing: true, step: 0, steps: total };
+    const show = { playing: true, step: 0, steps: total, waiting: true };
     checkShowRef.current = show;
-    const start = performance.now();
+    // (The ghost waits on the piece while the camera comes round to
+    // watch, frameCheckShow's glide; not past 2.5 s.)
+    const pressed = performance.now();
+    let start = null;
     let raf = 0;
     const place = (pl, i, e) => {
       const st = pl.line.steps[i];
@@ -4864,6 +4893,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       }
     };
     const loop = (now) => {
+      if (start === null) {
+        if (glideRef.current && now - pressed < 2500) {
+          plays.forEach((pl) => place(pl, 0, 0));
+          raf = requestAnimationFrame(loop);
+          return;
+        }
+        start = now;
+        show.waiting = false;
+      }
       const ms = Math.max(0, now - start); // (a frame stamped just before the press)
       const i = Math.floor(ms / (STEP_MS + GAP_MS));
       const within = ms - i * (STEP_MS + GAP_MS);
@@ -7088,9 +7126,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
 
   // The view jumps glide (see glideRef); the pan comes home with them.
+  // (A view chosen while Show me has the camera stays: checkCamRef.)
   function glideCamera() {
     cam.current.target.set(0, 0, 0);
     glideRef.current = {};
+    checkCamRef.current = null;
   }
 
   /* Shared bisection core behind fitRadiusToBoard below: smallest
@@ -7278,6 +7318,138 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (topDownViewRadiusRef.current == null) captureViewBaselines();
     cam.current.radius = topDownViewRadiusRef.current;
     glideCamera();
+  }
+
+  /* Show me's camera (user: "When check alerts pop up & Show Me is
+     selected, move the camera to observe the animation, & when
+     dismissed, return camera to original attitude"; checkCamRef keeps
+     where it was, and the card going puts it back). The board turned so
+     the attack runs across the screen (its long way, over every square
+     the ghost touches), seen side on a little lower than play's pitch, as
+     a tumble reads best (a turn on the spot alone: from higher up); of
+     the two sides, the one with less of the board's pieces standing in
+     the way, else the nearer. Then as close as it fills half the room
+     left under the card (and between the phone's bars), centred there as
+     far as the pan's own limit lets it. Show me's play waits for the
+     camera to get there (its effect). */
+  function frameCheckShow(view) {
+    const t = three.current;
+    const size = t.getMountSize && t.getMountSize();
+    if (!view || !view.lines.length || !t.camera || !t.renderer || !size) return;
+    const c = cam.current;
+    if (!checkCamRef.current) checkCamRef.current = { theta: c.theta, phi: c.phi, radius: c.radius, target: c.target.clone(), dollhouse: !!c.dollhouse };
+    // Each footprint's corners (board x-z) on the way, and how high the
+    // ghost stands or tumbles.
+    const foot = [];
+    let high = 0, turnsOnly = true;
+    view.lines.forEach((l) => l.steps.forEach((st) => {
+      if (st.kind !== "pivot") turnsOnly = false;
+      [st.from, st.to].forEach((s) => {
+        const x0 = s.col * SQUARE_SIZE - OFF_X, z0 = s.row * SQUARE_SIZE - OFF_Z, x1 = x0 + s.w * SQUARE_SIZE, z1 = z0 + s.h * SQUARE_SIZE;
+        foot.push([x0, z0], [x1, z0], [x0, z1], [x1, z1]);
+        high = Math.max(high, Math.hypot(Math.max(s.w, s.h), s.z) * PIECE_SCALE);
+      });
+    }));
+    const n = foot.length;
+    const mx = foot.reduce((s, p) => s + p[0], 0) / n, mz = foot.reduce((s, p) => s + p[1], 0) / n;
+    let sxx = 0, szz = 0, sxz = 0;
+    foot.forEach(([x, z]) => { sxx += (x - mx) * (x - mx); szz += (z - mz) * (z - mz); sxz += (x - mx) * (z - mz); });
+    // The long way's angle a on the board (the spread's principal axis):
+    // the heading theta lays it across the screen where sin(a + theta) = 0.
+    const a = 0.5 * Math.atan2(2 * sxz, sxx - szz);
+    const wrap = (d) => ((d % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+    const phi = turnsOnly ? Math.min(VIEW_PHI, 0.8) : Math.min(theme.maxPitch ?? 1.25, Math.max(VIEW_PHI, 1.0));
+    // (The board turned by theta: boardGroup.rotation.y = -theta.)
+    const toWorld = (x, z, th) => [x * Math.cos(th) - z * Math.sin(th), x * Math.sin(th) + z * Math.cos(th)];
+    const ids = new Set(view.lines.map((l) => l.attacker));
+    // In the way: a piece in front of the attack (toward the camera, +z),
+    // taller at its near face than the line of sight over it to the
+    // ghost's foot.
+    const inTheWay = (th) => {
+      const w = foot.map(([x, z]) => toWorld(x, z, th));
+      const x0 = Math.min(...w.map((p) => p[0])) - 0.5, x1 = Math.max(...w.map((p) => p[0])) + 0.5;
+      const zc = w.reduce((s, p) => s + p[1], 0) / w.length;
+      return pieces.reduce((sum, p) => {
+        if (ids.has(p.id)) return sum;
+        const pc = pieceCenter(p), [px, pz] = toWorld(pc.x, pc.z, th), d = pz - zc;
+        if (px < x0 || px > x1 || d < 0.3 || d > 3.5) return sum;
+        return sum + Math.max(0, p.z * PIECE_SCALE - 0.1 - Math.max(0, d - SQUARE_SIZE / 2) / Math.tan(phi));
+      }, 0);
+    };
+    const sides = [-a, Math.PI - a].map((th) => c.theta + wrap(th - c.theta)).map((th) => ({ th, block: inTheWay(th), turn: Math.abs(th - c.theta) }));
+    sides.sort((p, q) => (Math.abs(p.block - q.block) > 0.05 ? p.block - q.block : p.turn - q.turn));
+    const theta = sides[0].th;
+    // The room to show it in: under the card, between the phone's bars.
+    const ins = viewInsetsRef.current || { top: 0, right: 0, bottom: 0, left: 0 };
+    const cardEl = checkCardRef.current;
+    const under = cardEl ? cardEl.getBoundingClientRect().bottom - t.renderer.domElement.getBoundingClientRect().top : 0;
+    const reg = { l: ins.left + 12, r: size.w - ins.right - 12, t: Math.max(ins.top, under) + 12, b: size.h - ins.bottom - 12 };
+    if (reg.b - reg.t < 160) reg.t = ins.top + 12; // (a phone on its side: no room under it)
+    // Where the box round it all lands on the screen, the camera as
+    // tick() would place it there (a camera only borrowed: the next frame
+    // puts it back).
+    const pts = [];
+    foot.forEach(([x, z]) => pts.push([x, 0, z], [x, high, z]));
+    const cm = t.camera, v = new THREE.Vector3();
+    const boxAt = (radius, target) => {
+      const r = t.cameraDistance ? t.cameraDistance(theta, phi, radius, target, false) : radius;
+      cm.position.set(target.x, target.y + r * Math.cos(phi), target.z + r * Math.sin(phi));
+      cm.lookAt(target);
+      cm.updateMatrixWorld(true);
+      const b = { l: Infinity, r: -Infinity, t: Infinity, b: -Infinity };
+      for (const [x, y, z] of pts) {
+        const [wx, wz] = toWorld(x, z, theta);
+        v.set(wx, y, wz).project(cm);
+        const px = (v.x * 0.5 + 0.5) * size.w, py = (1 - (v.y * 0.5 + 0.5)) * size.h;
+        b.l = Math.min(b.l, px); b.r = Math.max(b.r, px); b.t = Math.min(b.t, py); b.b = Math.max(b.b, py);
+      }
+      return b;
+    };
+    // The pan's own limit (tick(): the target within groundHalfSpan of the
+    // board's centre; a theme with a room, its reach).
+    const fc = theme.freeCamera;
+    const half = (cm.fov / 2) * (Math.PI / 180);
+    const clampPan = (target, radius) => {
+      const lim = 0.98 * (fc ? fc.reach : radius * Math.tan(Math.min(half, Math.atan(Math.tan(half) * cm.aspect))));
+      const d = Math.hypot(target.x, target.z);
+      if (d > lim) { target.x *= lim / d; target.z *= lim / d; }
+      return target;
+    };
+    // The target moving the box's middle to the room's (two Newton steps,
+    // its pull on the screen measured).
+    const midOf = (b) => [(b.l + b.r) / 2, (b.t + b.b) / 2];
+    const want = [(reg.l + reg.r) / 2, (reg.t + reg.b) / 2];
+    const centred = (radius) => {
+      const [cx, cz] = toWorld(mx, mz, theta);
+      const target = clampPan(new THREE.Vector3(cx, 0, cz), radius);
+      for (let k = 0; k < 2; k++) {
+        const m0 = midOf(boxAt(radius, target));
+        const mX = midOf(boxAt(radius, target.clone().setX(target.x + 0.5)));
+        const mZ = midOf(boxAt(radius, target.clone().setZ(target.z + 0.5)));
+        const j00 = (mX[0] - m0[0]) / 0.5, j01 = (mZ[0] - m0[0]) / 0.5, j10 = (mX[1] - m0[1]) / 0.5, j11 = (mZ[1] - m0[1]) / 0.5;
+        const det = j00 * j11 - j01 * j10;
+        if (Math.abs(det) < 1e-6) break;
+        const ex = want[0] - m0[0], ey = want[1] - m0[1];
+        target.x += (ex * j11 - j01 * ey) / det;
+        target.z += (j00 * ey - j10 * ex) / det;
+        clampPan(target, radius);
+      }
+      return target;
+    };
+    // As close as it fills half the room (and stays inside it), and not
+    // so close the board round it is lost.
+    const FILL = 0.5;
+    let lo = Math.max(zoomMin, 11), hi = zoomMaxFor(), best = null;
+    for (let i = 0; i < 16; i++) {
+      const r = (lo + hi) / 2, target = centred(r), b = boxAt(r, target);
+      const ok = b.r - b.l <= FILL * (reg.r - reg.l) && b.b - b.t <= FILL * (reg.b - reg.t) && b.l >= reg.l && b.r <= reg.r && b.t >= reg.t && b.b <= reg.b;
+      if (ok) { hi = r; best = { r, target }; } else lo = r;
+    }
+    if (!best) best = { r: hi, target: centred(hi) };
+    c.theta = theta; c.phi = phi; c.radius = best.r; c.target.copy(best.target);
+    // (Already there, a second press: no glide, so the play needn't wait.)
+    const vw = c.view;
+    if (Math.abs(wrap(vw.theta - theta)) > 0.01 || Math.abs(vw.phi - phi) > 0.01 || Math.abs(vw.radius - best.r) > 0.05 || vw.target.distanceTo(best.target) > 0.05) glideRef.current = {};
   }
 
   /* The phone layout reports the room its bars take (MobileShell.jsx) and
@@ -9039,7 +9211,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                 data-testid="check-alert-show"
                 disabled={!lines.length}
                 title="Play its move on the board"
-                onClick={() => setCheckShow((n) => n + 1)}
+                onClick={() => { frameCheckShow(checkView); setCheckShow((n) => n + 1); }}
                 style={{ ...label, flex: 1, minHeight: 36, padding: "8px 10px", borderRadius: 9, border: `1.5px solid ${COLORS.charcoal}`, background: COLORS.charcoal, color: COLORS.cream, fontWeight: 600, cursor: lines.length ? "pointer" : "default", opacity: lines.length ? 1 : 0.5 }}
               >
                 Show me {"▸"}
