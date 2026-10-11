@@ -209,20 +209,24 @@ How to use it:
     - Reduced motion: a still glow, no hop.
     - Hidden in cut-scenes (the points counter's scene rule) and with
       noGame.
-  - The colour, dockGlow: theme.pointsGlow for the side the piece shows
-    (picked as its mesh effect picks it; else the accents). If that
-    light hardly shows on the ground (theme.dockCallGround ||
-    COLORS.pageBg), the other side's, when that shows better.
-    "Shows" is glowShows (module level): the WCAG contrast the ground
+  - The colour, dockGlow: theme.dockCallGlow if the theme names one,
+    else theme.pointsGlow for the side the piece shows (picked as its
+    mesh effect picks it; else the accents). If that light hardly shows
+    on the page (COLORS.pageBg), the other side's, when it shows better.
+    "Shows" is glowShows (module level): the WCAG contrast the page
     makes with the light drawn over it at 55%, the strength at the
-    pool's middle, with a threshold of 3. Plain colour contrast missed
-    a dark light on a dark ground: walnut on Watermark's dimmed
-    painting is 4:1 as colours, but 2:1 drawn as light.
+    pool's middle, with a threshold of 3. Plain colour contrast misses a
+    dark light on a dark ground.
     - Swiss Design's white on white becomes its red #e63946.
-    - Parrish's painting dims after a game (the corner: Orinoco #7fa9c7
-      to #384d6e, Watermark #290b0e to #120507), so parrish.js
-      dockCallGround. Both looks take ash: #d9b77e and #d4a86c.
     - Minimal Mono's white on white becomes grey #bfbfbf.
+    - Parrish names its own (parrish.js dockCallGlow): the look's ash,
+      #d9b77e and #d4a86c, candlelight on the painting. Walnut barely
+      shows: Watermark's dark hardly lifts, and on Orinoco's sky
+      (#7fa9c7 by the corner) it reads as a smudge, not a light. (A
+      first try measured a "dimmed" painting after a game, #384d6e and
+      #120507. That was the victory card's backdrop, still up because
+      Escape had come before the card opened. Wait for the card before
+      putting it away: scratch worlds.mjs does now.)
     - The rest keep their own: Noir lamp white or grey, the den
       lamplight or firelight, Neon cyan or amber, Lluvia's neon, Luna
       gold, Plano white, Cromo chrome white, Tienda gold.

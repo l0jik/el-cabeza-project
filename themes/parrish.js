@@ -652,10 +652,11 @@ import { pointsGlowFor } from "./points-glow.js";
 export const sideNames = sideNamesFor("parrish");
 // The points counter's embers (points-glow.js), the look's own.
 export const pointsGlow = pointsGlowFor(DARK ? "parrish-watermark" : "parrish-orinoco");
-// What's behind the corner piece after a game, the painting dimmed (the
-// chassis picks the side's light that shows there: dockGlow). Measured
-// from the page: Orinoco's sky goes #7fa9c7 to this; Watermark's dark.
-export const dockCallGround = DARK ? "#120507" : "#384d6e";
+// The corner piece's light after a game (chassis dockGlow): the look's
+// ash, candlelight on the painting, whichever side's piece it is. Walnut
+// barely shows: on Watermark's dark it hardly lifts it, and on Orinoco's
+// sky it reads as a smudge, not a light.
+export const dockCallGlow = DARK ? "#d4a86c" : "#d9b77e";
 /* The dock's "Difficulty" over Easy, Medium and Hard, so the three fit
    beside the arrow on a phone (user: the word above, "kind of like the
    umbrella for those three"). */

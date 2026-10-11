@@ -344,8 +344,8 @@ const DOCK_WORDS = {
    with the light drawn over it as strongly as the middle of the corner
    piece's pool of light is (55%), or null for anything else. (A dark
    colour's glow barely lifts a dark ground, though the colours alone
-   differ: walnut's on Watermark's dimmed painting.) The corner piece's
-   light after a game uses it (dockGlow in the component). */
+   may differ a good deal.) The corner piece's light after a game uses
+   it (dockGlow in the component). */
 function glowShows(glow, ground) {
   const rgb = (hex) => {
     const m = /^#([0-9a-f]{6})$/i.exec(String(hex || "").trim());
@@ -8437,17 +8437,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   /* The light it calls in (dockCall): its world's glow for the side the
      piece shows (theme.pointsGlow, as the action points have it; else
      that side's accent), the side as the piece's mesh effect picks it.
-     A light that hardly shows on what's under it (white on Swiss
-     Design's white, walnut on Parrish's dimmed painting): then the
-     world's other light, if it shows better (Swiss Design's red,
-     Parrish's ash). What's under it: theme.dockCallGround where that
-     isn't the page colour (Parrish's painting). */
+     A light that hardly shows on the page (white on Swiss Design's
+     white): then the world's other light, if it shows better (Swiss
+     Design's red). A theme may name its own (theme.dockCallGlow:
+     Parrish's ash, candlelight on its painting). */
   const dockShownSide = dockTurnSide || (aiPlayer !== null ? (aiPlayer === "dark" ? "light" : "dark") : dockSessionColor);
   const glowFor = (side) => (theme.pointsGlow && theme.pointsGlow[side]) || (side === "dark" ? COLORS.accentDark : COLORS.accentLight) || (side === "dark" ? COLORS.bodyDark : COLORS.bodyLight);
-  let dockGlow = glowFor(dockShownSide);
-  {
-    const ground = theme.dockCallGround || COLORS.pageBg;
-    const own = glowShows(dockGlow, ground), other = glowFor(dockShownSide === "dark" ? "light" : "dark"), alt = glowShows(other, ground);
+  let dockGlow = theme.dockCallGlow || glowFor(dockShownSide);
+  if (!theme.dockCallGlow) {
+    const own = glowShows(dockGlow, COLORS.pageBg), other = glowFor(dockShownSide === "dark" ? "light" : "dark"), alt = glowShows(other, COLORS.pageBg);
     if (own !== null && alt !== null && own < 3 && alt > own) dockGlow = other;
   }
   const dockPieceStyle = {
