@@ -1,10 +1,19 @@
 /* Noir's sound: the street at night in the rain, and the picture house
-   it's shown in. All synthesized (Web Audio), as the other worlds'.
+   it's shown in. Synthesized (Web Audio), as the other worlds', but for
+   the rain itself.
 
    The street: rain on the pavement and the roofs, gutters running and
    dripping, a car going by on the wet road now and then, the El going
    over a few streets off, a siren far away, the thunder after the
    lightning (noir-fx.js calls thunder()).
+
+   The rain (user: "Noir's rain sound is still not right ... it's like
+   white noise"): a recording made of drops, beside the page (RAIN_URL;
+   tools/noir_rain.py: ticks on the pavement near and far, drops into
+   puddles, drips off a fire escape and an awning, a downspout running,
+   rain drumming on canvas, the wash of the rest of it low and dark),
+   looped. Until it's here, or on a page opened from disk, the old made
+   rain (noise through a band) stands in, quieter.
 
    The cues: a typewriter key to pick a piece up (the script being
    typed), a softer one to put it down, a knock at a door for a move that
@@ -17,12 +26,16 @@ export const hasAudio = true;
 
 // The rain's pavement band closes above this (Hz), calm; tension opens it a little.
 const RAIN_LP = 3600;
+// The rain recording, and its place in the mix: about as loud as the made
+// rain was (A-weighted; tension takes it up to 30% louder, heavier rain).
+const RAIN_URL = "el-cabeza-noir-rain.mp3";
+const RAIN_CLIP_GAIN = 0.14;
 
 export function createAudio() {
   let ctx = null, master = null, sfx = null, amb = null, intro = null, wet = null, rev = null, noiseBuf = null, brownBuf = null;
-  let muted = false, windingDown = false, ambRunning = false;
+  let muted = false, windingDown = false, ambRunning = false, rainOn = false;
   let timers = [], menuVoice = null;
-  let zoom = 0.5, volume = 1, vol = null, ambGain = null, rainLp = null;
+  let zoom = 0.5, volume = 1, vol = null, ambGain = null, rainLp = null, rainBus = null, rainClip = null;
 
   function ensureGraph() {
     if (ctx) return;
@@ -49,6 +62,26 @@ export function createAudio() {
       brownBuf = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate);
       const bd = brownBuf.getChannelData(0); let b = 0; for (let i = 0; i < bd.length; i++) { b = (b + 0.02 * (Math.random() * 2 - 1)) / 1.02; bd[i] = b * 3.5; }
     } catch (e) { ctx = null; }
+    // (The rain's recording on its way from the start, so it's here by the game.)
+    loadRainClip();
+  }
+  // The rain recording, decoded: { buf, start, end } (the loop from its
+  // first sound to its last, an encoder's padding left out). Not from disk:
+  // a browser won't fetch a file beside a page opened from disk.
+  function loadRainClip() {
+    if (rainClip || !ctx) return rainClip;
+    if (typeof fetch !== "function" || (typeof location !== "undefined" && location.protocol === "file:")) rainClip = Promise.reject(new Error("no rain recording from disk"));
+    else {
+      rainClip = fetch(RAIN_URL).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((ab) => ctx.decodeAudioData(ab)).then((buf) => {
+        const d = buf.getChannelData(0), lim = Math.min(d.length, Math.floor(buf.sampleRate * 0.2));
+        let a = 0, z = d.length - 1;
+        while (a < lim && Math.abs(d[a]) < 1e-4) a++;
+        while (z > d.length - lim && Math.abs(d[z]) < 1e-4) z--;
+        return { buf, start: a / buf.sampleRate, end: (z + 1) / buf.sampleRate };
+      });
+    }
+    rainClip.catch(() => { /* the made rain stays */ });
+    return rainClip;
   }
   function ensureStarted() { ensureGraph(); if (ctx && ctx.state === "suspended") ctx.resume(); }
   const now = () => ctx.currentTime + 0.005;
@@ -106,22 +139,34 @@ export function createAudio() {
     if (ambRunning || !ctx) return;
     ambRunning = true;
     ambGain = ctx.createGain(); ambGain.gain.value = 0.7 + 0.4 * zoom; ambGain.connect(amb);
-    // the rain: a steady wash on the pavement, a duller roar on the roofs.
-    // (Kept dark, as an old picture's soundtrack is (user: "Reduce the
-    // hiss on Noir"): the pavement's band centred at 1.9 kHz and closed
-    // above 3.6, where it was 3.6 and 7 (11 when tense); its energy above
-    // 4 kHz down 12 dB, the rain as a whole 3 dB, the roofs' roar up to
-    // carry it.)
+    // The rain: the recording once it's here (RAIN_URL), fading in over
+    // 2 s from a random place in it. Till then the made rain stands in
+    // (standIn), quieter: a wash on the pavement (noise, its band centred
+    // at 1.9 kHz and closed above 3.6, kept dark as an old picture's
+    // soundtrack is: user, "Reduce the hiss on Noir"), coming and going.
+    // Under both, the roofs' duller roar, low, for the weight of it.
+    const standIn = ctx.createGain(); standIn.gain.value = 0.6; standIn.connect(ambGain);
     const rb = ctx.createBufferSource(); rb.buffer = noiseBuf; rb.loop = true;
     const rbp = ctx.createBiquadFilter(); rbp.type = "bandpass"; rbp.frequency.value = 1900; rbp.Q.value = 0.7;
     rainLp = ctx.createBiquadFilter(); rainLp.type = "lowpass"; rainLp.frequency.value = RAIN_LP;
     const rg = ctx.createGain(); rg.gain.value = 0.042;
-    rb.connect(rbp).connect(rainLp).connect(rg).connect(ambGain); rb.start();
+    rb.connect(rbp).connect(rainLp).connect(rg).connect(standIn); rb.start();
+    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 0.05; lg.gain.value = 0.011; lfo.connect(lg).connect(rg.gain); lfo.start();
     const rr = ctx.createBufferSource(); rr.buffer = brownBuf; rr.loop = true;
     const rrl = ctx.createBiquadFilter(); rrl.type = "lowpass"; rrl.frequency.value = 700;
-    const rrg = ctx.createGain(); rrg.gain.value = 0.065; rr.connect(rrl).connect(rrg).connect(ambGain); rr.start();
-    // the rain coming and going a little
-    const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = 0.05; lg.gain.value = 0.011; lfo.connect(lg).connect(rg.gain); lfo.start();
+    const rrg = ctx.createGain(); rrg.gain.value = 0.04; rr.connect(rrl).connect(rrg).connect(ambGain); rr.start();
+    rainBus = ctx.createGain(); rainBus.gain.value = RAIN_CLIP_GAIN; rainBus.connect(ambGain);
+    const c = ctx;
+    loadRainClip().then((clip) => {
+      if (c !== ctx || c.state === "closed") return;
+      const src = c.createBufferSource(), g = c.createGain(), t = now(), span = clip.end - clip.start;
+      src.buffer = clip.buf; src.loop = true; src.loopStart = clip.start; src.loopEnd = clip.end;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 2);
+      src.connect(g).connect(rainBus); src.start(t, clip.start + Math.random() * Math.max(0, span - 1));
+      standIn.gain.setTargetAtTime(0, t, 0.6);
+      setTimeout(() => { try { rb.stop(); lfo.stop(); } catch (e) { /* stopped */ } }, 5000);
+      rainOn = true;
+    }).catch(() => { /* the made rain stays */ });
     scheduleStreet();
   }
   function scheduleStreet() {
@@ -203,8 +248,13 @@ export function createAudio() {
     intro.gain.cancelScheduledValues(t0); intro.gain.setValueAtTime(0, t0); intro.gain.linearRampToValueAtTime(1, t0 + 3);
   }
   function setZoom(z) { zoom = z; if (ambGain && ctx) ambGain.gain.setTargetAtTime(0.7 + 0.4 * z, ctx.currentTime, 0.4); }
-  // tension: the rain heavier and brighter (5 kHz at the most)
-  function setTension(v) { if (rainLp && ctx) rainLp.frequency.setTargetAtTime(RAIN_LP + 1400 * v, ctx.currentTime, 1.2); }
+  // tension: the rain heavier (the recording up to 30% louder; the made
+  // rain, while it stands in, brighter: 5 kHz at the most)
+  function setTension(v) {
+    if (!ctx) return;
+    if (rainLp) rainLp.frequency.setTargetAtTime(RAIN_LP + 1400 * v, ctx.currentTime, 1.2);
+    if (rainBus) rainBus.gain.setTargetAtTime(RAIN_CLIP_GAIN * (1 + 0.3 * Math.max(0, Math.min(1, v))), ctx.currentTime, 1.2);
+  }
   function setMuted(m) { muted = m; if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.08); }
   function setVolume(v) { volume = Math.max(0, Math.min(1, v)); if (vol && ctx) vol.gain.setTargetAtTime(volume, ctx.currentTime, 0.05); }
   function beginFadeOut(seconds) {
@@ -314,13 +364,15 @@ export function createAudio() {
   function stopMenu() { if (!menuVoice || !ctx) return; const g = menuVoice; menuVoice = null; g.gain.setValueAtTime(0, ctx.currentTime); (g._oscs || []).forEach((o) => { try { o.stop(); } catch (e) { /* stopped */ } }); }
 
   const noop = () => {};
-  return {
+  const api = {
     ensureStarted, beginGameFadeIn, setZoom, setMuted, setVolume, setTension, beginFadeOut, resetWindDown,
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose,
     // the thunder after noir-fx.js's lightning
     thunder,
+    // (Tests: is the rain the recording yet?)
+    debugState: () => ({ ctx: !!ctx, ambience: ambRunning, rain: rainOn ? "recording" : ambRunning ? "made" : null }),
     // Neon-only effects; the chassis calls every audio method unconditionally.
     playFlicker: noop, playArc: noop, playGlitch: noop,
     playSingularityOpen: noop, playSingularityClose: noop, playSingularityBell: noop, playSingularityDismiss: noop,
@@ -329,4 +381,7 @@ export function createAudio() {
     cutSingularityAudioToSilence: noop, resumeAudioAfterSingularity: noop,
     dispose() { clearTimers(); if (ctx) { try { ctx.close(); } catch (e) { /* closed */ } } },
   };
+  // (Tests: the sound itself.)
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__NOIR_AUDIO__ = api;
+  return api;
 }

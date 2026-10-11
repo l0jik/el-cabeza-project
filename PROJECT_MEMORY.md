@@ -302,3 +302,34 @@ How to use it:
   3-2, 3-3, 4-2 not marked) and e2e-wood-sounds "every cue is audible"
   (the roll is filtered noise peaking about 0.005-0.007 by chance,
   against "> 0.005"; its floor is now 0.002, the knocks' still 0.005).
+- Noir's rain (user: "Noir's rain sound is still not right. It's just
+  too, it's like white noise"). It was: white noise through a band (in
+  1-6 kHz a kurtosis of 3.2, i.e. pure noise; a flat spectrogram). No
+  outside recordings reachable (the proxy refuses freesound, wikimedia,
+  opengameart, archive.org, pixabay), so, as Lluvia's, a recording made
+  of drops: tools/noir_rain.py -> assets/noir/rain.mp3 (44 s loop, 128
+  kb/s, 688 KB) -> dist el-cabeza-noir-rain.mp3 (build files). Near drops
+  ~55/s (a tick and spray, the bigger ones with a dull splat), the
+  patter ~400/s (12 kinds of drop as trains, fftconvolve), puddles ~9/s
+  (bubbles at 3.26/r Hz, rising), four drips (two puddles, a fire
+  escape's iron, a canvas awning), a downspout (tiny bubbles and a
+  gurgle), rain drumming on canvas, the wash (pink, 100-1600 Hz) at -7
+  dB, the facades' echoes and a 0.9 s tail; gusts; the top rolled away
+  (lp 5.5 and 8 kHz). drift() smooths at 500 points a second (a direct
+  np.convolve with a 16 s window ran for over ten minutes).
+  noir-audio.js: loadRainClip() from ensureGraph (decoded before the
+  game), the clip into rainBus at RAIN_CLIP_GAIN 0.14 from a random place
+  with a 2 s fade; the made rain stands in (0.6) until then and from
+  disk; the roofs' roar 0.04 (was 0.065) under it for weight; tension
+  takes the recording up to +30%. On the engine itself, offline (scratch
+  noirrain/render2.mjs), the same loudness (A-weighted -38.8 dBFS, was
+  -38.7), kurtosis 18.6, 5 ms envelope variation 0.62 (was 0.21),
+  centroid 1.24 kHz (1.08), 4-8 kHz -16.2 dB of the whole (-14.8).
+  __NOIR_AUDIO__ (test hooks), debugState().rain "recording" / "made".
+  Test: tests/e2e-noir-rain.mjs (over http the recording is fetched and
+  plays; from disk the stand-in, nothing fetched; nothing thrown), in
+  run-e2e. Sent the user a before/after clip.
+- GitHub browser tests #15 (0152609): e2e-tienda passes there now.
+  e2e-den-spot's "frame on the screen" missed on the runner (mean -31 ms,
+  84% within; the video's own clock -17 ms), passed in #11 and #14 and
+  here (+4 ms, 100%); that push didn't touch the den. Watch the next run.

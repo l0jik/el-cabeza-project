@@ -31,6 +31,8 @@ const E2E = [
   ["e2e-touch-in-game.mjs"],
   // Noir's streets and its cars.
   ["e2e-noir-streets.mjs"],
+  // Noir's rain, the recording (over http) and its stand-in (from disk).
+  ["e2e-noir-rain.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");
