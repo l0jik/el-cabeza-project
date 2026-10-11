@@ -35,6 +35,12 @@ How to use it:
   or endorsed by them.'"). Still to settle with the user: who "them" is
   named as, and where it shows (every page, e.g. a small line at the
   foot, an about panel, the first screen).
+- **Lab: "after a win the minimized menu cannot be raised / maximized"**
+  (user, 2026-10-10). Not reproduced (the round note under Recent rounds,
+  "Lab, after a win..."). Parked by the user 2026-10-11: "Forget about
+  the lab menu bug for the time being. Just remind." So: don't ask about
+  it in every reply; remind now and then. To pick it up: which Lab
+  direction, which device, what was tapped (a screenshot or a video).
 
 ## Topics (`docs/memory/`)
 
