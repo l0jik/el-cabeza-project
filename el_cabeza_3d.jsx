@@ -4562,8 +4562,9 @@ export default function ElCabeza3D() {
                 <em>Revista Humor y Juegos</em>, with such vivid detail that
                 one could believe it had actually been released. Yet, the
                 article itself clarifies that El Cabeza had not yet been
-                published, however over the years DIY, physical versions
-                have been produced by enthusiasts.
+                published, and to the current day still hasn&rsquo;t seen an
+                official publication, however over the years DIY, physical
+                versions have been produced by enthusiasts.
               </p>
 
               <p style={{ margin: "0 0 16px" }}>

@@ -343,3 +343,11 @@ How to use it:
   gone in 2 of 6 frames). Fix: polygonOffsetFactor -1 on the ring too,
   the slope-scaled pull the check alert's marks already have; the rim
   holds in every frame. Every world has the ring (all smokes pass).
+- ABOUT (INFO overlay), the user's wording: "...the article itself
+  clarifies that El Cabeza had not yet been published, and to the
+  current day still hasn't seen an official publication, however over
+  the years DIY, physical versions have been produced by enthusiasts."
+  In every copy of the text, as before: chassis/ElCabeza3D.jsx (every
+  world), el_cabeza_3d.jsx and el-cabeza-neon-3d.html; "hasn&rsquo;t" as
+  the text's other apostrophes. Read back from the ABOUT tab on Standard,
+  Noir, Neon and Lab.
