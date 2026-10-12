@@ -61,6 +61,24 @@ async function winNow(page) {
   await page.evaluate((dark) => window.__EC_TEST_MOVE__(dark ? "dark-cabeza" : "light-cabeza", dark ? "S" : "N"), dark);
   return poll(async () => (await page.locator('[data-testid="victory-backdrop"]').getAttribute("data-open")) === "true", 8000);
 }
+// The placard put away with Escape, once it's all the way up (as anyone
+// sees it before they press). GitHub's run 25 pressed the moment it
+// opened and it stayed (an Escape 700 ms on, later, took); not seen here.
+// So the keys and the placard are noted, to say where it went if it ever
+// stays again.
+async function putAway(page) {
+  const card = '[data-testid="victory-backdrop"]';
+  await poll(() => page.evaluate((card) => getComputedStyle(document.querySelector(card)).opacity === "1", card), 3000);
+  await page.evaluate((card) => {
+    const t0 = performance.now(), b = document.querySelector(card);
+    window.__ESC_NOTES__ = [`0ms open=${b.dataset.open}`];
+    window.addEventListener("keydown", (e) => window.__ESC_NOTES__.push(`${Math.round(performance.now() - t0)}ms ${e.key} (open=${b.dataset.open})`), { capture: true, once: true });
+    new MutationObserver(() => window.__ESC_NOTES__.push(`${Math.round(performance.now() - t0)}ms open=${b.dataset.open}`)).observe(b, { attributes: true, attributeFilter: ["data-open"] });
+  }, card);
+  await page.keyboard.press("Escape");
+  const gone = await poll(async () => (await page.locator(card).getAttribute("data-open")) === "false", 4000);
+  return { gone: !!gone, notes: await page.evaluate(() => window.__ESC_NOTES__) };
+}
 // Human against human (nobody else moves), Begin Game, into the corner.
 async function begin(page) {
   await openDockPanel(page);
@@ -91,8 +109,8 @@ async function open(name, opts = {}) {
   let s = await poll(async () => { const v = await callState(page); return v.opacity < 0.9 ? v : null; }, 4000) || await callState(page);
   check("in play: no call, the corner's faint watermark", s.call === false && !s.aura && s.opacity < 0.9 && s.halo === "none", JSON.stringify(s));
   check("a game won: the placard", await winNow(page));
-  await page.keyboard.press("Escape");
-  check("...put away", !!(await poll(async () => (await page.locator('[data-testid="victory-backdrop"]').getAttribute("data-open")) === "false", 4000)));
+  const away = await putAway(page);
+  check("...put away", away.gone, JSON.stringify(away.notes));
   s = await poll(async () => { const v = await callState(page); return v.call && v.opacity > 0.99 ? v : null; }, 4000) || await callState(page);
   check("after it: the corner piece calls, at full strength", s.call === true && s.opacity > 0.99, JSON.stringify(s));
   check("...in a pool of Noir's light (a lamp's, a lit window's), centred on it", s.aura && /^#(ffffff|c8c8c8)$/i.test(s.glow) && s.off !== null && s.off <= 3, JSON.stringify(s));
@@ -135,7 +153,8 @@ async function open(name, opts = {}) {
   const { ctx, page, errs } = await open("noir", { reducedMotion: "reduce" });
   await begin(page);
   await winNow(page);
-  await page.keyboard.press("Escape");
+  const away = await putAway(page);
+  check("the placard put away", away.gone, JSON.stringify(away.notes));
   const s = await poll(async () => { const v = await callState(page); return v.call && v.opacity > 0.99 ? v : null; }, 5000) || await callState(page);
   check("the call, still: the light and the glow, no breathing", s.call === true && s.aura && s.halo === "none" && /drop-shadow/.test(s.filter), JSON.stringify(s));
   const hop = await hopRange(page, 5500);
@@ -153,7 +172,8 @@ for (const [name, glows] of [["standard", /^#(ff8a2a|ffd98a)$/i], ["neon", /^#(4
   const { ctx, page, errs } = await open(name);
   await begin(page);
   await winNow(page);
-  await page.keyboard.press("Escape");
+  const away = await putAway(page);
+  check("the placard put away", away.gone, JSON.stringify(away.notes));
   const s = await poll(async () => { const v = await callState(page); return v.call && v.opacity > 0.99 ? v : null; }, 5000) || await callState(page);
   check(`after a game: the corner piece calls, in its world's light (${s.glow})`, s.call === true && s.aura && glows.test(s.glow || "") && s.off !== null && s.off <= 3, JSON.stringify(s));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
