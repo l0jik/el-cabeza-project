@@ -129,3 +129,17 @@ How to use it:
     2.35 s needs slotted() to let the last take run past its slot. A CC
     BY pick goes on the About card (standard.js soundCredits) too.
   - Waiting on the user's pick.
+- Corner menu mock-ups, sent (scratch cornermenu/sheets/corner-menu-1,
+  -2, -lab, -phones.jpg). Fixed after a first look: Big Glutts' DEMO
+  stamp on the slip's last line beside the link (it had covered the
+  board lines); Noir's title on two even lines; the Lab's rules block
+  across the whole read-out (De Stijl's, Corporate Swiss's and
+  Brutalism's are grids, so it had been squeezed into one cell) and in
+  the read-out's own ink, read from its own figures (.lab-stats dd/dt:
+  Ultimate Fusion's law names had been dark on dark). On a short screen
+  the Lab's list runs down to the corner buttons; a build would cap it
+  and let it scroll. The store's sample card shows the custom sample
+  over its standard board (the shoot plays the store's standard game).
+  Waiting on the user's picks; the concept image never arrived.
+- GitHub browser tests #30 (f3138ee, Luna's closed floors): all 8 shards
+  green.
