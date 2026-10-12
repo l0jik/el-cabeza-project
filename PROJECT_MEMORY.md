@@ -188,3 +188,43 @@ How to use it:
     eruption: if it's chosen, level it down a touch (by its peak, not
     only its loudest 0.3 s). Nothing else passes 1.03.
   - Waiting on the user's pick.
+- The pull, round two (user: "None are working. Do a full 5 new sets.
+  Less grunting, less panting... More surprise and ruckus sounds....
+  Get selection of 15 new end yells / aahhhh shouts"). Same page, its
+  version 2: https://claude.ai/artifact/ArcaQAwCQfhxofXMRVeMyS (five
+  whole sets, then fifteen end shouts, each alone then in the ending).
+  - Each set: one person reacting in surprise all the way down (no
+    grunts, no breathing at all), a lot more crashing than the game has,
+    the game's made sounds, field, eruption and void, and an end shout.
+    Set 1 Sadiquecat (CC0; "What?", "Whoa", "Wait, what?", "Oh crap",
+    "What the hell, man", "Wait!", "No way.", "Oh no! Oh no! Oh no!"),
+    ruckus A, ends on 3; set 2 Peter_Scream (CC0; his Surprise and Fear
+    takes), ruckus B, ends on his own 9; set 3 unfa (CC0; Excited Young
+    Male Screams), ruckus C, ends on his own 7; set 4 Iceofdoom (the
+    walk's man; his surprised "Oh!"s for the grunts), ruckus A, ends on
+    1; set 5 dersuperanton (CC BY), ruckus B, ends on 4.
+  - Ruckus A: the house shaking (earthquake rattles), a picture frame and
+    its glass, a chair over, dishes in the kitchen (low-passed, far), the
+    lamp's bulb popping, boxes, a door slamming behind, things whizzing
+    past; B: clatter (a tray, tins, metal, a pot, boards, a stumble); C:
+    smashing (glass, bangs, the neon tube, a door). Each eruption gets
+    its own big crash, debris, glass and a rush. Some 30 new crash and
+    whoosh recordings (scratch scream/dl5, cut by scream/tools/sets.py's
+    R table; CC0 mostly, four CC BY).
+  - The fifteen shouts (sets.py Y): 1 qubodup Wilhelm Scream, 2 Wilhelm
+    Alternative 5, 3 kfatehi argg-pitfall, 4 LittleRobotSoundFactory
+    Scream_Male_03, 5 kMoon Scream_Male_MidDistance_Outdoors, 6 Guy110
+    Male Scream, 7 unfa "Whoa!", 8 unfa "Ah!", 9 Peter_Scream Surprise 2,
+    10 Surprise 4, 11 Greencouch 79_ohOHohhh, 12 Gamba_04 Grito
+    Sorprendido, 13 SuddenDice AS060822_Surprise, 14 AtoMediaDesign
+    Screaming, startled, falling 3, 15 jrssandoval ahh 2. None of the
+    first twenty (all turned down).
+  - scratch scream/tools/engine.py is scene.py's engine on its own;
+    sets.py renders a set from any cue list (takes from any file, a
+    low-pass for far-off things), the shout ending at the hand-off.
+    freesound's search pages refuse quick bursts (403): fetch.py and the
+    searches pause between requests.
+  - In the game a set would mean: a new voice.mp3 and things.mp3 (more
+    slots; some ruckus runs past THING_SLOT's 4 s), new WALK_CUES and
+    DRAG_CUES, BREATH_AT gone, and the About card's credits.
+  - Waiting on the user's pick.
