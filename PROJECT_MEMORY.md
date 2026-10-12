@@ -293,3 +293,47 @@ How to use it:
     back in 4 s, so the third time, dragged, can be heard too; nothing
     kept). e2e-hall-sound now also opens it from nothing kept: the
     recordings fetched, the pull heard.
+- The scream ends as the white takes you, and echoes on into the void
+  (user: "The end of the scream should have reverb / echo decay that lasts
+  for a 1.7 seconds after being pulled through the portal / when you
+  initially see the body tumbling in space").
+  - It was at 12.85 s (the eruption's start), ending 2 s before the
+    hand-off. Now SCREAM_AT = ENDING_AT - (LEAD + its 1.24 s) = 14.86 s, in
+    both lists, so its last breath is at 16.2 s, the hand-off to the void.
+    The breathing runs on through the eruption's start till then (cut at
+    the scream, as before).
+  - screamEcho: the scream sent (0.3, rising to 1 by its end) into a
+    ConvolverNode (normalize off) with a made room, echoRoom: ECHO_SECS 1.7
+    long, a wash of noise (bright to dark, exp(-t/0.95)) plus seven echoes
+    0.21 s apart, ping-pong, each x0.84 and duller (5 kHz to 1.2 kHz),
+    the last 0.15 s faded out, unit energy; wet 1.3, straight to the ear
+    (phoneOutput's ear: neither awayFromDen nor the hall's stopSound
+    touches it), disconnected once rung out.
+  - Tuned offline on the scream itself (scratch echo/tune.py): from -6 dB
+    under the scream's loudest as it ends, -16 a second on, -22 at
+    1.2-1.5 s, gone at 1.7. In the whole render (scratch hallsnd
+    render_pull2.py) the scream is still +10 dB(A) over the roar (walk;
+    +13 dragged). The void's music only comes up as it goes (-65 dBFS for
+    its first second, -39 at 1.5 s).
+  - state().pull.echo { rms, age } (an analyser, test hooks only).
+    e2e-hall-sound: the scream ends at about 16.2 s on the walk's clock
+    (16247), echo rms 0.05 early, 0.007-0.013 at 1.0-1.4 s, 0 after
+    1.85 s.
+  - Preview sent: scream-into-the-void-preview.mp3 (12-18.4 s of the walk,
+    offline, no void music).
+- GitHub browser tests #27 (0c9910b): cancelled by the next push, but six
+  shards finished: shard 2 (e2e-dock-call with the hop count) green;
+  shard 6 failed e2e-nova-mobile "the bar is remembered on the phone"
+  (the phone's reload: no bar within 45 s, then a 30 s tap timeout).
+  - Not reproduced locally (135 s, all passed); run 28 (276255b) shard 6
+    passed it.
+  - The phone check had no report (only the desktop one had, since
+    history/14). Both now use layoutState(): the stored layout, the page
+    (url, readyState, ms since load), bar, menu button, dock, the lure
+    hook and the set's state, and the html classes. A phone miss now
+    stops the test there with that line, instead of a tap timeout.
+- Settings corner menu (user, choosing what it lists): "laws including
+  their sub-settings, pieces, board" (not the opponent, sides, actions or
+  check alert). Still open: which option (one shared menu in each
+  world's look / bespoke per world / a light update of Neon's), mock-ups
+  first or not, and the user's image (it didn't arrive).

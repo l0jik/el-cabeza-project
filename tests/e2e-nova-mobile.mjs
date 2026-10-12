@@ -55,6 +55,15 @@ async function holdLure(page, ms = 10000) {
   await page.evaluate(() => window.__DEN_LURE_SKIP__ && window.__DEN_LURE_SKIP__(-600000));
 }
 const q = (page, id) => page.locator(`[data-testid="${id}"]`);
+// What the page was doing when the bar wasn't seen after a reload (run 27
+// on GitHub: the phone's reload, no bar in 45 s, nothing else to go on).
+const layoutState = (page) => page.evaluate(() => ({
+  pref: localStorage.getItem("el-cabeza:nova-layout"), url: location.href.replace(/^.*\//, ""), ready: document.readyState, sinceLoad: Math.round(performance.now()),
+  bar: !!document.querySelector('[data-testid="shell-bar"]'), menu: !!document.querySelector('[data-testid="shell-menu-button"]'),
+  dock: !!document.querySelector('[data-testid="dock-piece-canvas"]'), lureHook: !!window.__DEN_LURE_SKIP__,
+  tv: window.__DEN_TV__ ? (({ phase, lure, locked, lureWaited }) => ({ phase, lure, locked, lureWaited }))(window.__DEN_TV__()) : null,
+  html: document.documentElement.className,
+})).catch((e) => ({ error: String(e).slice(0, 200) }));
 const visible = (page, id) => page.evaluate((id) => {
   const el = document.querySelector(`[data-testid="${id}"]`);
   if (!el) return false;
@@ -295,7 +304,7 @@ async function waitFor(fn, ms = 8000) {
   // (Polled, not a fixed pause: on a busy machine a reloaded Nova can take
   // well over the old 2.5 s to come up, which read as "not remembered".)
   const kept = await waitFor(() => visible(d.page, "shell-bar"), 45000);
-  check("the bar layout is remembered", kept, kept ? "" : JSON.stringify(await d.page.evaluate(() => ({ pref: localStorage.getItem("el-cabeza:nova-layout"), bar: !!document.querySelector('[data-testid="shell-bar"]'), dock: !!document.querySelector('[data-testid="dock-piece-canvas"]'), tv: window.__DEN_TV__ ? (({ phase, lure, locked, lureWaited }) => ({ phase, lure, locked, lureWaited }))(window.__DEN_TV__()) : null }))));
+  check("the bar layout is remembered", kept, kept ? "" : JSON.stringify(await layoutState(d.page)));
   // The side that moves first sits nearest the viewer before a game.
   // (Waits for the page to be ready: a fixed pause can fall short on a busy machine.)
   await d.page.waitForFunction(() => document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]') && window.__EC_TEST_SCREEN_POS__ && window.__EC_TEST_SCREEN_POS__("dark-cabeza") && window.__EC_TEST_SCREEN_POS__("light-cabeza"), null, { timeout: 45000 });
@@ -328,7 +337,9 @@ async function waitFor(fn, ms = 8000) {
   check("...and switches to it", await waitFor(() => visible(p.page, "shell-bar")));
   await p.page.reload();
   await holdLure(p.page, 45000);
-  check("the bar is remembered on the phone", await waitFor(() => visible(p.page, "shell-bar"), 45000));
+  const keptPhone = await waitFor(() => visible(p.page, "shell-bar"), 45000);
+  check("the bar is remembered on the phone", keptPhone, keptPhone ? "" : JSON.stringify(await layoutState(p.page)));
+  if (!keptPhone) { console.log(`\nNOVA MOBILE E2E FAILED (${failures})`); process.exit(1); }
   await q(p.page, "shell-menu-button").tap();
   await p.page.waitForTimeout(300);
   check("the phone's menu offers the classic dock", (await q(p.page, "shell-menu-layout").count()) === 1);
