@@ -34,17 +34,20 @@ const callState = (page) => page.evaluate(() => {
     filter: c ? getComputedStyle(c).filter : null,
   };
 });
-// How far the piece's height strays from its own size over a few seconds
-// (the hop squashes and stretches it).
+// Over a few seconds: how many hops began, and how far the piece's height
+// strayed from its own size (the hop squashes and stretches it). (Counted:
+// GitHub's software renderer draws Noir a few frames a second, and frames
+// that far apart miss the hop's peak, 0.12 for a moment of its 560 ms; run
+// 26 read 0.013.)
 const hopRange = (page, ms) => page.evaluate((ms) => new Promise((done) => {
   const d = window.__EC_TEST_DOCK__ && window.__EC_TEST_DOCK__();
   if (!d) return done(null);
-  const base = d.state.pieceBaseScale || 1;
+  const base = d.state.pieceBaseScale || 1, n0 = d.state.nudges || 0;
   let most = 0;
   const end = performance.now() + ms;
   const look = () => {
     most = Math.max(most, Math.abs(d.pieceGroup.scale.y / base - 1));
-    if (performance.now() < end) requestAnimationFrame(look); else done(+most.toFixed(3));
+    if (performance.now() < end) requestAnimationFrame(look); else done({ hops: (d.state.nudges || 0) - n0, most: +most.toFixed(3) });
   };
   look();
 }), ms);
@@ -116,7 +119,7 @@ async function open(name, opts = {}) {
   check("...in a pool of Noir's light (a lamp's, a lit window's), centred on it", s.aura && /^#(ffffff|c8c8c8)$/i.test(s.glow) && s.off !== null && s.off <= 3, JSON.stringify(s));
   check("...the piece glowing at its edge", s.halo === "ecDockCallHalo" && /drop-shadow/.test(s.filter), JSON.stringify({ halo: s.halo, filter: s.filter }));
   const hop = await hopRange(page, 6000);
-  check("...and hopping now and then", hop !== null && hop > 0.04, String(hop));
+  check("...and hopping now and then", hop !== null && hop.hops >= 1 && hop.most > 0.005, JSON.stringify(hop));
   corner = await waitForDockCorner(page, { timeoutMs: 3000 });
   check("a tap on it: the dock opens", await reopenDockPanelFromCorner(page, corner));
   s = await callState(page);
@@ -127,7 +130,7 @@ async function open(name, opts = {}) {
   s = await poll(async () => { const v = await callState(page); return v.opacity < 0.9 ? v : null; }, 4000) || await callState(page);
   check("put away again: the plain watermark (found once, it doesn't call again)", s.call === false && !s.aura && s.opacity < 0.9 && s.halo === "none", JSON.stringify(s));
   const still = await hopRange(page, 5500);
-  check("...and no more hops", still !== null && still < 0.01, String(still));
+  check("...and no more hops", still !== null && still.hops === 0 && still.most < 0.01, JSON.stringify(still));
   // The next game: none in play; ended from the open dock, none after
   // (it was open when the game ended).
   await reopenDockPanelFromCorner(page, await waitForDockCorner(page, { timeoutMs: 3000 }));
@@ -158,7 +161,7 @@ async function open(name, opts = {}) {
   const s = await poll(async () => { const v = await callState(page); return v.call && v.opacity > 0.99 ? v : null; }, 5000) || await callState(page);
   check("the call, still: the light and the glow, no breathing", s.call === true && s.aura && s.halo === "none" && /drop-shadow/.test(s.filter), JSON.stringify(s));
   const hop = await hopRange(page, 5500);
-  check("...and no hops", hop !== null && hop < 0.01, String(hop));
+  check("...and no hops", hop !== null && hop.hops === 0 && hop.most < 0.01, JSON.stringify(hop));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

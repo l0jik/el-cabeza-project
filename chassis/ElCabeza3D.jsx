@@ -1422,6 +1422,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const state = dockPieceRef.current;
     if (!state || state.bouncing || state.nudging || state.dragging) return;
     state.nudging = true;
+    state.nudges = (state.nudges || 0) + 1; // (counted, for the tests: a slow renderer's frames can miss its peak)
     const start = performance.now();
     const DUR = 560;
     const base = state.pieceBaseScale || 1;
@@ -8897,10 +8898,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           scenes flag themselves on the page (the TV visit, the hall, the
           summons, the trip, the ending, the store's clerk); Neon's
           Singularity through its phase. Their own sheets hide the rest. */}
-      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="dock-call-aura"]),
-html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="dock-call-aura"]),
-html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="dock-call-aura"]),
-body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="dock-call-aura"]) {
+      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"]),
+html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"]),
+html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"]),
+body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"]) {
   opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
 }`}</style>
       {!shell && showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle") && (() => {
@@ -9323,6 +9324,56 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           </div>
         );
       })()}
+      {/* Put away, called back (user: "if a check alert is dismissed, but
+          the user decides they want to view again before making their turn
+          there needs to be a way to call it back"): a chip where the card
+          was, while the same threat stands this turn; a tap brings the card
+          back, marks and all. It goes with the danger, or the turn. */}
+      {checkThreats && checkHidden && (
+        <button
+          type="button"
+          data-testid="check-alert-recall"
+          title="Show the check alert again"
+          aria-label="Check: show the alert again"
+          onClick={() => setCheckDismissed("")}
+          style={{
+            position: "fixed",
+            top: "calc(var(--ec-shell-top, env(safe-area-inset-top, 0px)) + 12px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 13,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            minHeight: 34,
+            padding: "6px 13px 6px 10px",
+            boxSizing: "border-box",
+            borderRadius: 10,
+            background: modalSurface,
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            border: `1px solid ${COLORS.slateSoft}`,
+            borderLeft: "4px solid #e5392d",
+            boxShadow: "0 6px 18px rgba(0, 0, 0, 0.3)",
+            color: "#e5392d",
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            fontWeight: 700,
+            cursor: "pointer",
+            animation: "ecCheckRecallIn 0.3s ease both",
+          }}
+        >
+          <style>{"@keyframes ecCheckRecallIn{from{opacity:0;transform:translate(-50%,-6px)}to{opacity:1;transform:translate(-50%,0)}}@media (prefers-reduced-motion: reduce){[data-testid=\"check-alert-recall\"]{animation:none!important}}"}</style>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 3.5 2.5 20h19z" />
+            <path d="M12 10v4.5M12 17.4v.1" />
+          </svg>
+          Check
+          <span style={{ color: COLORS.charcoal, fontWeight: 600 }}>Show again</span>
+        </button>
+      )}
       {checkOffNote > 0 && !checkAlert && (
         <div
           key={checkOffNote}

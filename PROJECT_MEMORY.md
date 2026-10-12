@@ -144,3 +144,121 @@ How to use it:
   - If it ever stays again, the check prints the keydown and data-open
     timeline (__ESC_NOTES__).
   - Passed here: 34 ok, 380 s (CI took 528 s with the misses' waits).
+- Shoving, which pieces a roll may push (user: "For when pieces can
+  shove by rolling, what's my current rule? That any piece, yours or your
+  opponents can be moved, or only the opponents? Let's add a subtoggle for
+  shoving by rolling that all pieces or only opponents can be shoved by
+  rolling").
+  - The answer: any piece, either side's, lighter in total (tryShove's
+    hits had no owner check); a roll onto a lone enemy Cabeza is still a
+    crush.
+  - New engine law ACTIVE_LAWS.shoveOwnOnRolls (default true, "All
+    pieces"). With it false ("Only opponents'"), rollShove refuses any hit
+    of the mover's own side, so a roll into your own lighter piece (or a
+    mix of yours and theirs) is blocked, as without the law. Slides still
+    push either side's.
+  - Selections: shove.ownOnRolls in rules-selections.js (SHOVE_SETTINGS'
+    second setting, its `when`: only while rolls shove; `shoveShown(sel)`;
+    defaults, normalize, effective, lawsForEngine, shoveNow's line,
+    shovingName "Shoving (slides and rolls, rolls only opponents')") and
+    in Neon's sphere (its own SHOVE_SETTINGS, lawLabel, lawsForEngine,
+    defaults, normalization; renderShoveSettingsRow filters by `when`).
+  - Menus: the store's custom game (tienda-shove-ownOnRolls-on/off), the
+    gate's sheet (gate-shove-all / gate-shove-opponents), Lluvia's terminal
+    (ROLLS SHOVE: ALL PIECES / OPPONENTS' ONLY, lluvia-shove-ownOnRolls-*),
+    Neon's sphere (shove-ownOnRolls-*). The row shows only with "Slides and
+    rolls".
+  - Rules text: RulesCards shovingText, the "Shove by rolling" card, a
+    piece card's line. Replay codes carry it (o: 0).
+  - Tests: engine.smoke (default shoves your own; opponents' only: your
+    own blocks, theirs pushed, a mix blocks, slides push either, crush
+    intact), rules-selections.smoke, replay.smoke (a law set and the
+    round trip), e2e-shoving 2c, and the menus in e2e-tienda, e2e-gate,
+    e2e-lluvia and e2e-singularity.
+- Check alert, called back (user: "if a check alert is dismissed, but the
+  user decides they want to view again before making their turn there
+  needs to be a way to call it back").
+  - While the same threat stands this turn and the card's been put away
+    (checkHidden), a chip "⚠ Check · Show again" (check-alert-recall)
+    sits where the card was. A tap clears the dismissal, bringing back the
+    card and its marks.
+  - The chip goes with the danger, or the next turn (a new checkKey). The
+    cut-scenes hide it as they hide the card.
+  - e2e-check-alert covers it: the chip where the card was, back with its
+    marks, no chip while it's up, the chip again when put away again, gone
+    when the Cabeza steps out of reach.
+- The pull down the hall, recorded (user: "When the user is pulled from
+  the den into the hallway, there should be audio of someone being pulled,
+  somewhat unwilingly, although curious....stuff should sound like it's
+  being knocked over, but it's not total chaos...although some forcefield
+  like noise could also be happening too. Whenever the user turn right
+  after passing through the doorframe, they see the strange objects on the
+  wall flashing around, so there should be an expression of extreme shock
+  or confusion.... Perhaps the person / man should increasingly sound a
+  bit panicky as they're pulled into the hallway... Let's pull from our
+  new audio resources").
+  - Sources: freesound.org (assets/hall/src/, CREDITS.md). The man is
+    one voice throughout: Iceofdoom's "buddy" (CC BY 4.0, credited on
+    the den's About card, standard.js soundCredits). Takes: "Whoah, no
+    way", a startled "Ah", two "Ugh"s, a grunt, a gasp, "Huh?", "Phew",
+    "Ahh!!!". Whisper (scratch asrmodel) sorted his grunts/gasps/"Huh?"s.
+  - The rest is CC0:
+    - the breathing: casiba842's scared heavy breathing, which gets
+      harder over its 36 s (its 14-34 s);
+    - the force field: humanoide9000's hum with quickening pulses, a 20 s
+      loop, and LilMati's swell for the force taking hold;
+    - what goes over: nick121087's cup shelf, YannSauvin's table,
+      mickdow's papers, kyles's chair scrape, MindlessTrails's books and
+      martian's vase;
+    - the doorframe: jawbutch's body against a wall, and a flat-hand slap
+      by Soundscape_Leuphana.
+  - tools/hall_sounds.py (FFMPEG=... python3) makes assets/hall/:
+    - voice.mp3: 9 takes in 2.5 s slots, LEAD 0.1 s in;
+    - things.mp3: 9 in 4 s slots;
+    - field.mp3: the loop, padded 0.3 s each side;
+    - breath.mp3.
+    Each take's loudest 0.3 s is at -14 dBFS, the beds at -20 average. LAME
+    VBR, 700 KB in all. build.js adds el-cabeza-hall-*.mp3 to DEN_RECORDS.
+  - den-hall.js PULL_FILES are fetched when the hall flares (http only;
+    from disk, the made sounds alone).
+  - WALK_CUES and DRAG_CUES run on the walk's own clock, so the camera
+    and the takes line up: the doorframe at 6.9-7.1 s, the turn to the
+    rift from 7.2 s.
+    - Investigating: the swell; "Whoah, no way" (0.9 s); rattle, "Ah",
+      papers swept across, chair, "Ugh", books, "Ugh", vase.
+    - At the doorframe: bump, slap, grunt.
+    - Round the turn: the gasp (7.7 s) and "Huh?" (8.9 s); "Phew" as it
+      dies down (11 s); "Ahh!!!" at the eruption (12.85 s).
+    - Dragged (the third time): a startled "Ah", no "Whoah", fewer words
+      (the takes don't speed up), the same doorframe and gasp, the scream.
+  - FIELD_AT and BREATH_AT set the beds by the walk's clock: up as he's
+    pulled in, most at the rift, down as it dies down, up for the
+    eruption. The breathing starts at 4.7 s (x1.08 dragged) and dips to
+    0.35 under each voice take. The made hum is x0.45 under the field.
+  - A take whose moment passed more than 0.6 s before its file came is
+    dropped, not played late; skipWalk lets go of the takes it skips.
+  - state().pull reports { loaded, heard, field, breath } for tests.
+  - Levels checked on a render of the whole thing (scratch hallsnd
+    render_pull.py, with the made booms, hum, steps and roar roughly
+    in), A-weighted, each take against everything else over 0.5 s:
+    - walk: whoa +16, gasp +11, "Huh?" +10, the efforts +5 to +9, "Phew"
+      +14, scream +13;
+    - drag: "Ah" +3, gasp +14.
+    It was gasp +2 and "Huh?" +1 before the duck and the gain-up, the field
+    at -47 dB(A) before it was doubled.
+  - The preview mix was sent to the user (hall-pull-preview.mp3, 30 s: the
+    walk, then the drag).
+- GitHub browser tests #26 (60210a8): shard 8 green, so e2e-summon's
+  wait for the CRT picture holds there (#148 done). Shard 2: e2e-dock-call,
+  "the placard put away" passing in every world now; one miss left, "...and
+  hopping now and then" read 0.013 (wants > 0.04).
+  - The CI renderer draws Noir a few frames a second. Frames that far
+    apart miss the hop's peak (0.12 for a moment of its 560 ms; at about
+    3 fps the samples land on its tail, 0.01-0.02).
+  - The chassis counts each hop as it starts (dock state.nudges), and
+    hopRange returns { hops, most }.
+  - "Hopping" now means a hop began and the piece moved at all (> 0.005).
+    "No more hops" and reduced motion mean none began (and under 0.01).
+  - Locally (389 s) the whole of e2e-dock-call passes with the count:
+    hopping, no more hops and reduced motion in Noir, the placard put
+    away in all seven.

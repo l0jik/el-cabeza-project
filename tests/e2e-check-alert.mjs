@@ -165,10 +165,23 @@ console.log("Neon, desktop: the setup's switch, the warning, its own switch, the
   check("...all the way", !!(await poll(async () => arrived(await camOf(page)), 4000, 100)));
   await page.waitForTimeout(800);
   check("...and it stays away while the threat's the same", (await card(page).count()) === 0);
+  // ...but can be called back (user: "if a check alert is dismissed, but the user decides they want to view again
+  // before making their turn there needs to be a way to call it back"): a chip where the card was brings it back,
+  // marks and all; put away again, the chip again.
+  const recall = () => page.locator('[data-testid="check-alert-recall"]');
+  const rb = await recall().boundingBox().catch(() => null);
+  check(`...a chip where it was, to call it back (${JSON.stringify(rb && { x: Math.round(rb.x + rb.width / 2), y: Math.round(rb.y) })})`, !!rb && rb.y < 40 && Math.abs(rb.x + rb.width / 2 - 640) < 4);
+  await recall().click();
+  check("...a tap on it: the card back", !!(await poll(async () => (await card(page).count()) === 1)));
+  check("...its marks with it", !!(await poll(async () => (await marks(page)) > 0)));
+  check("...and no chip while it's up", (await recall().count()) === 0);
+  await page.mouse.click(60, 400);
+  check("...put away again: the chip again", !!(await poll(async () => (await card(page).count()) === 0 && (await recall().count()) === 1)));
   // A step north takes it out of reach: the warning goes.
   await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "N"));
   check("your Cabeza steps out of reach: the warning goes", !!(await poll(async () => (await card(page).count()) === 0 && !(await reading(page)))));
   check("...and the marks with it", (await marks(page)) === 0);
+  check("...and the chip", (await recall().count()) === 0);
 
   // The user's video: the Hombro can come down on it past nothing...
   await setPieces(page, VIDEO(false));
