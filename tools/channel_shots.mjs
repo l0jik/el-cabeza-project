@@ -26,6 +26,7 @@ const SHOTS = [
   ["plano", dist("el-cabeza-plano.html"), 7000],
   // (Luna low over the board, so the Earth is in the picture: the view a player tilts down to.)
   ["luna", dist("el-cabeza-luna.html?quality=high"), 9000, { cam: { theta: 0.35, phi: 1.36, radius: 14.5, snap: true } }],
+  ["noir", dist("el-cabeza-noir.html?quality=high"), 9000],
   ["parrish-orinoco", dist("el-cabeza-parrish.html?look=orinoco"), 9000],
   ["parrish-watermark", dist("el-cabeza-parrish.html?look=watermark"), 9000],
   ...LAB.map((id) => [`lab-${id}`, dist(`el-cabeza-lab.html?theme=${id}`), 6000]),

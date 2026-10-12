@@ -174,7 +174,7 @@ check("...the controls still away", await page.evaluate(() => document.documentE
   check("...still fading a moment later, the switcher not yet", (await page.locator('[data-testid="realities"]').count()) === 0);
 }
 check("then the other realities", !!(await poll(async () => (await page.locator('[data-testid="realities"]').count()) > 0, 8000)));
-check("...every version of the game (19, Orinoco, Watermark, Plano and Luna among them)", (await page.locator('[data-testid^="reality-"]').count()) === 19);
+check("...every version of the game (20, Orinoco, Watermark, Plano, Luna and Noir among them)", (await page.locator('[data-testid^="reality-"]').count()) === 20);
 {
   // A moment to read it first (user: taps still coming from the scene
   // picked a world): the choices held, a tap goes nowhere.

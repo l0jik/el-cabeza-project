@@ -336,6 +336,29 @@ console.log("Nova's page after the story: the switcher, the last world first");
   await ctx.close();
 }
 
+// User: "Incorporate Noir into Theme Switcher now".
+console.log("Noir, in the switcher");
+{
+  const { p, ctx, errs } = await open("el-cabeza-nova.html");
+  const card = p.locator('[data-testid="reality-noir"]');
+  check("Nova's switcher: a Noir card", !!(await poll(async () => (await card.count()) > 0, 20000)) && /Noir/.test(await card.innerText()));
+  const pic = await card.locator(".shot").evaluate((e) => getComputedStyle(e).backgroundImage);
+  const loaded = await p.evaluate((u) => new Promise((done) => { const i = new Image(); i.onload = () => done(i.naturalWidth); i.onerror = () => done(0); i.src = u; }), (/url\("?([^")]+)"?\)/.exec(pic) || [])[1] || "");
+  check(`...with its picture (${loaded}px wide)`, /el-cabeza-channel-noir\.jpg/.test(pic) && loaded > 0, pic);
+  await card.click();
+  check("...which goes there", !!(await poll(async () => /el-cabeza-noir\.html/.test(p.url()), 8000)));
+  check("Noir's page: the gate, in Noir's look", !!(await gateOn(p)) && (await p.locator('[data-testid="reality-gate"]').getAttribute("data-world")) === "noir");
+  await p.waitForTimeout(800); await shot(p, "noir");
+  await p.locator('[data-testid="gate-standard"]').click();
+  await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000);
+  check("a game begun in Noir is kept as the last world", (await p.evaluate(() => localStorage.getItem("el-cabeza:last-world"))) === "noir");
+  await p.locator('[data-testid="action-corner"]').first().click();
+  const here = p.locator('[data-testid="reality-noir"] .here');
+  check("its Other realities: Noir marked You are here", !!(await poll(async () => (await here.count()) > 0, 6000)));
+  check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(fails ? `\nGATE E2E FAILED (${fails})` : "\nGATE E2E PASSED");
 process.exit(fails ? 1 : 0);

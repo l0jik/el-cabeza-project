@@ -45,7 +45,7 @@ const DEN_RECORDS = {
   "el-cabeza-trip-dusk.jpg": "assets/den/trip/glutts-dusk.jpg",
   // The other realities' pictures (themes/realities.js: the den's set after
   // the story, and the realities menu; tools/channel_shots.mjs).
-  ...Object.fromEntries(["den", "neon", "store", "lluvia", "cromo", "plano", "luna", "parrish-orinoco", "parrish-watermark", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-elementarism", "lab-brutalist",
+  ...Object.fromEntries(["den", "neon", "store", "lluvia", "cromo", "plano", "luna", "noir", "parrish-orinoco", "parrish-watermark", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-elementarism", "lab-brutalist",
     "lab-newTypography", "lab-corporateSwiss", "lab-neoBrutalist", "lab-minimalMono", "lab-ultimateFusion"].map((id) => [`el-cabeza-channel-${id}.jpg`, `assets/den/channels/${id}.jpg`])),
 };
 
@@ -74,7 +74,8 @@ const targets = [
   { name: "plano", entry: "apps/plano.jsx", title: "Plano Cabeza", head: '<meta name="theme-color" content="#1D4C8A">' },
   // Luna: the game as a moon base, the board part of the lunar surface.
   { name: "luna", entry: "apps/luna.jsx", title: "Luna Cabeza", head: '<meta name="theme-color" content="#05070B">' },
-  // Noir: the game as a night in a film noir city (not in the switcher yet).
+  // Noir: the game as a night in a film noir city (in the switcher since the
+  // user's "Incorporate Noir into Theme Switcher now").
   { name: "noir", entry: "apps/noir.jsx", title: "Noir Cabeza", head: '<meta name="theme-color" content="#0B0B0C">', files: {
     "el-cabeza-noir-rain.mp3": "assets/noir/rain.mp3",
     "el-cabeza-noir-thunder-1.mp3": "assets/noir/thunder-1.mp3", "el-cabeza-noir-thunder-2.mp3": "assets/noir/thunder-2.mp3",

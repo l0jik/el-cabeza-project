@@ -40,6 +40,9 @@ export const WORLDS = [
   // The game as a moon base (user, after the mock-ups: "deploy this now
   // into Theme Switcher").
   { id: "luna", name: "Luna", line: "A moon base under the Earth, its corridors laid again every move.", href: "el-cabeza-luna.html" },
+  // The game as a night in a film noir city (user: "Incorporate Noir into
+  // Theme Switcher now").
+  { id: "noir", name: "Noir", line: "Rain on a 1940s city at night, in black and white.", href: "el-cabeza-noir.html" },
   // Parrish's two palettes, each its own reality (user): one page, the
   // look in the address (themes/parrish-looks.js).
   // (Named "Tá muid beo" and "Go deo na ndeor" by the user; ids and
