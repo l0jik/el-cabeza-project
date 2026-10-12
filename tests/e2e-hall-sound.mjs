@@ -12,7 +12,8 @@
    slap, a grunt) as the camera passes through it; round the turn, the gasp
    and "Huh?"; the force field and the breathing up by then. Skipped on to
    the eruption, what's skipped isn't played all at once, and the scream
-   comes, his breathing cut with it for good. Dragged in (the third time):
+   comes, his breathing cut with it for good; it ends as the white takes
+   you, and its echo rings on into the void, gone by 1.7 s. Dragged in (the third time):
    a startled "Ah" first, no "Whoah", and the breathing cut at the scream.
    The scene's link (?scene=hall), from nothing kept: a tap, the hall
    flares with its recordings, and investigating, the pull's heard. The
@@ -104,9 +105,27 @@ async function home(url, flares = 0) {
   // (User: "when the 'waaah!' happens, the breathing must stop. It sounds
   // like there's 2 people there.")
   check(`...his breathing cut with the scream (${erupt && JSON.stringify({ breath: erupt.pull.breath, cut: erupt.pull.breathCut })})`, !!erupt && erupt.pull.breathCut === true && erupt.pull.breath === null);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(900);
   const later = await hall();
   check(`...and it doesn't come back (${JSON.stringify({ breath: later.pull.breath, cut: later.pull.breathCut })})`, later.pull.breath === null && later.pull.breathCut === true);
+  // (User: "The end of the scream should have reverb / echo decay that
+  // lasts for a 1.7 seconds after being pulled through the portal / when
+  // you initially see the body tumbling in space.") The scream ends at the
+  // hand-off to the void; its echo is heard there, still there over a
+  // second on, and gone by 1.7 s.
+  const samples = [];
+  const t0 = Date.now();
+  while (Date.now() - t0 < 3200) { const h = await hall(); if (h.pull.echo) samples.push({ ...h.pull.echo, t: h.t, state: h.state }); await page.waitForTimeout(60); }
+  const at = (a, b) => samples.filter((e) => e.age >= a && e.age < b).map((e) => e.rms);
+  const echoEarly = at(0.1, 0.6), echoLate = at(1.0, 1.4), echoAfter = at(1.85, 9);
+  const show = JSON.stringify({ early: echoEarly.slice(0, 4), late: echoLate.slice(0, 4), after: echoAfter.slice(0, 3) });
+  // (When the scream ended, on the walk's clock: its echo's age read
+  // against the clock. The hand-off to the void is at 16.2 s.)
+  const ended = samples.length ? Math.round(samples[0].t - samples[0].age * 1000) : null;
+  check(`the scream ends as the white takes you (at ${ended} ms; the void at 16200)`, ended !== null && Math.abs(ended - 16200) < 250 && samples.some((e) => e.state === "done"));
+  check(`...its echo rings on into the void ${show}`, echoEarly.length > 0 && Math.max(...echoEarly) > 0.01);
+  check("...still there over a second on", echoLate.length > 0 && Math.max(...echoLate) > 0.002);
+  check("...and gone by 1.7 s", echoAfter.length > 0 && Math.max(...echoAfter) < 0.0005);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

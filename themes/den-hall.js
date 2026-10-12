@@ -101,6 +101,50 @@ const TAKES = {
   voice: { whoa: [0, 2.05], ah: [1, 0.55], ugh1: [2, 0.8], ugh2: [3, 0.77], grunt: [4, 0.45], gasp: [5, 1.45], huh: [6, 0.6], phew: [7, 1.46], scream: [8, 1.24] },
   things: { engage: [0, 3.0], rattle: [1, 3.5], table: [2, 3.4], papers: [3, 3.2], chair: [4, 2.8], books: [5, 1.3], vase: [6, 1.04], bump: [7, 0.61], slap: [8, 0.36] },
 };
+/* The scream ends as the white takes you, and echoes on into the void
+   (user: "The end of the scream should have reverb / echo decay that
+   lasts for a 1.7 seconds after being pulled through the portal / when
+   you initially see the body tumbling in space"): it's cued so its last
+   breath is at ENDING_AT, the hand-off to the void, and its echo
+   (screamEcho) rings on there for ECHO_SECS and stops. */
+const ECHO_SECS = 1.7;
+const SCREAM_AT = ENDING_AT - Math.round((LEAD + TAKES.voice.scream[1]) * 1000);
+/* The echo's room, made: a wash of noise dying away (and darkening as it
+   goes), with echoes in it going from side to side, each fainter and
+   duller than the last; ECHO_SECS long, its last 0.15 s faded right out,
+   so nothing of it outlasts that. Scaled to unit energy (the room's own
+   normalising is off), screamEcho's `wet` sets how loud it rings. Tuned
+   offline against the scream itself: from about 6 dB under the scream's
+   loudest as it ends, 16 dB under a second on, 22 dB at 1.2-1.5 s, then
+   gone; the void's music only comes up as it goes (at 1.5 s, 39 dB down). */
+function echoRoom(ctx) {
+  const sr = ctx.sampleRate, n = Math.round(ECHO_SECS * sr), buf = ctx.createBuffer(2, n, sr);
+  const GAP = 0.21, ECHOES = Array.from({ length: Math.floor(1.6 / GAP) }, (_, j) => GAP * (j + 1));
+  let peak = 0;
+  for (let c = 0; c < 2; c++) {
+    const d = buf.getChannelData(c);
+    let bright = 0, dark = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i / sr, x = Math.random() * 2 - 1, w = 1 - t / ECHO_SECS;
+      bright = 0.6 * x + 0.4 * bright; dark = 0.12 * x + 0.88 * dark;
+      d[i] = 0.45 * (bright * w + 2.2 * dark * (1 - w)) * Math.exp(-t / 0.95);
+    }
+    ECHOES.forEach((at, j) => {
+      // Ping-pong (left, right, left...), each a touch duller: a one-pole
+      // smear, its corner coming down from 5 kHz to 1.2 kHz.
+      const g = 0.55 * Math.pow(0.84, j) * ((j % 2) === c ? 1 : 0.42);
+      const fc = 5000 - (3800 * j) / (ECHOES.length - 1), a = Math.exp((-2 * Math.PI * fc) / sr);
+      const i0 = Math.round(at * sr);
+      for (let k = 0; k < 400 && i0 + k < n; k++) d[i0 + k] += 30 * g * (1 - a) * Math.pow(a, k);
+    });
+    const fadeN = Math.round(0.15 * sr);
+    for (let i = n - fadeN; i < n; i++) d[i] *= 0.5 + 0.5 * Math.cos((Math.PI * (i - (n - fadeN))) / fadeN);
+    let e = 0; for (let i = 0; i < n; i++) e += d[i] * d[i];
+    peak = Math.max(peak, Math.sqrt(e));
+  }
+  for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) d[i] /= peak; }
+  return buf;
+}
 /* When each comes, on the walk's own clock (so with the camera: through
    the doorframe at 6.9-7.1 s, turning right to the rift from 7.2 s, the
    rift full in view by 8.9 s), [ms, kind, take, gain, pan (or [from, to])].
@@ -108,14 +152,15 @@ const TAKES = {
    field; a shelf rattling, papers flying past, a chair scraping, books
    going over, a vase off its table; efforts against it; a grab at the
    doorframe as he's pulled through; round the turn, the rift: a gasp, and
-   "Huh?"; as it dies down, "Phew"; and as it erupts, "Ahh!!!". */
+   "Huh?"; as it dies down, "Phew"; and as it erupts and the white takes
+   him, "Ahh!!!", echoing on into the void (SCREAM_AT). */
 const WALK_CUES = [
   [0, "things", "engage", 0.5, 0], [900, "voice", "whoa", 0.7], [1500, "things", "rattle", 0.42, -0.6],
   [2500, "voice", "ah", 0.5], [2900, "things", "papers", 0.4, [-0.7, 0.5]], [3700, "things", "chair", 0.5, 0.55],
   [4300, "voice", "ugh1", 0.5], [5300, "things", "books", 0.55, -0.45], [5900, "voice", "ugh2", 0.5],
   [6350, "things", "vase", 0.55, 0.35], [6850, "things", "bump", 0.65, 0.3], [6950, "things", "slap", 0.6, 0.45],
   [7050, "voice", "grunt", 0.5], [7700, "voice", "gasp", 0.85], [8900, "voice", "huh", 0.85],
-  [11000, "voice", "phew", 0.45], [12850, "voice", "scream", 0.7],
+  [11000, "voice", "phew", 0.45], [SCREAM_AT, "voice", "scream", 0.7],
 ];
 // Dragged in, the third time (the walk 1.7 times as fast, no standing
 // still): no curiosity left, fewer words (the takes don't speed up), the
@@ -125,7 +170,7 @@ const DRAG_CUES = [
   [1600, "voice", "ugh1", 0.5], [2300, "things", "papers", 0.4, [-0.7, 0.5]], [3000, "things", "chair", 0.5, 0.55],
   [3600, "voice", "ugh2", 0.55], [4700, "things", "books", 0.55, -0.45], [5600, "things", "vase", 0.55, 0.35],
   [6850, "things", "bump", 0.65, 0.3], [6950, "things", "slap", 0.6, 0.45], [7050, "voice", "grunt", 0.55],
-  [7700, "voice", "gasp", 0.85], [12850, "voice", "scream", 0.75],
+  [7700, "voice", "gasp", 0.85], [SCREAM_AT, "voice", "scream", 0.75],
 ];
 const BREATH_FROM = 4700; // (the walk's clock: as he's pulled toward the door)
 // (Under his voice the breathing dips: he catches it to gasp, to speak.)
@@ -480,9 +525,38 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       g.connect(p).connect(o.ear);
     } else g.connect(o.ear);
     src.start(t, at[0] * SLOT[kind], len);
+    if (kind === "voice" && name === "scream") screamEcho(o, g, t, LEAD + at[1]);
     if (kind === "voice") voiceUntil = performance.now() + len * 1000;
     heard.push(name);
     return true;
+  }
+  /* The scream's echo (ECHO_SECS, echoRoom above): sent into the room more
+     and more as the scream goes (a little at first, all of it by its
+     end), the room straight to the ear, so the void's step-out of the
+     den's sounds and the hall's own stop at the hand-off leave it be: it
+     rings on there, over the first sight of the body, and is gone. */
+  let echoBuf = null, echo = null;
+  function screamEcho(o, from, t, len) {
+    const { ctx } = o;
+    if (!echoBuf || echoBuf.sampleRate !== ctx.sampleRate) echoBuf = echoRoom(ctx);
+    const send = ctx.createGain(), room = ctx.createConvolver(), wet = ctx.createGain();
+    room.normalize = false; room.buffer = echoBuf;
+    send.gain.setValueAtTime(0.3, t); send.gain.linearRampToValueAtTime(1, t + len);
+    wet.gain.value = 1.3;
+    from.connect(send).connect(room).connect(wet).connect(o.ear);
+    const meter = typeof window !== "undefined" && window.__EC_TEST_HOOKS__ ? ctx.createAnalyser() : null;
+    if (meter) { meter.fftSize = 2048; wet.connect(meter); }
+    echo = { ctx, end: t + len, meter };
+    // (Let go once it's rung out.)
+    setTimeout(() => { [send, room, wet, meter].forEach((x) => { try { x && x.disconnect(); } catch (e) { /* gone */ } }); }, (len + ECHO_SECS + 1) * 1000);
+  }
+  // How loud the echo is now (for the tests): its RMS, and how long since
+  // the scream ended (s; negative while it's still going).
+  function echoNow() {
+    if (!echo || !echo.meter) return null;
+    const a = new Float32Array(echo.meter.fftSize); echo.meter.getFloatTimeDomainData(a);
+    let e = 0; for (let i = 0; i < a.length; i++) e += a[i] * a[i];
+    return { rms: +Math.sqrt(e / a.length).toFixed(4), age: +(echo.ctx.currentTime - echo.end).toFixed(2) };
   }
   // A bed (the field's loop, the breathing), silent till the walk sets it.
   function bed(kind) {
@@ -822,7 +896,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     // Is it showing (the camera's, the screen's)?
     active: () => state === "flare" || state === "settle" || state === "walk",
     state: () => ({ state, need, made, amt, cam: camW, flares, dragged, fov: fovCam ? fovCam.fov : null, t: state === "idle" || state === "armed" ? 0 : performance.now() - t0,
-      pull: { loaded: rec ? Object.keys(rec).filter((k) => rec[k]).sort() : [], heard: heard.slice(), field: field ? +field.g.gain.value.toFixed(3) : null, breath: breath ? +breath.g.gain.value.toFixed(3) : null, breathCut: breathDone } }),
+      pull: { loaded: rec ? Object.keys(rec).filter((k) => rec[k]).sort() : [], heard: heard.slice(), field: field ? +field.g.gain.value.toFixed(3) : null, breath: breath ? +breath.g.gain.value.toFixed(3) : null, breathCut: breathDone, echo: echoNow() } }),
     // Test-only: now (as if the moves were made), and the choice.
     now(moves = 0) { if (state === "idle" || state === "armed") flare(performance.now(), moves); },
     pick,
