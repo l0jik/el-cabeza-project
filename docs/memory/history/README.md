@@ -541,3 +541,20 @@ note (a top-level `- ` entry or a `### ` heading) in it, to grep or skim.
 - The user asked whether they can put a © notice on the game without a
 - The Big Glutts card in the realities menu, branded (user, with a
 - The table's tent card ("TRY IT") cues the player back sooner (user:
+
+## [15.md](15.md) (285 lines, 14 entries)
+
+- The Big Glutts card's line in the realities menu (user: "The Big Glutts
+- e2e-summon's miss on GitHub (#148, now and then since run 17), found
+- GitHub browser tests #25 (30b95e0, the first full run since #18):
+- Shoving, which pieces a roll may push (user: "For when pieces can
+- Check alert, called back (user: "if a check alert is dismissed, but the
+- The pull down the hall, recorded (user: "When the user is pulled from
+- GitHub browser tests #26 (60210a8): shard 8 green, so e2e-summon's
+- Noir in the theme switcher (user: "Incorporate Noir into Theme Switcher
+- Hall pull: the breathing stops at the scream, for good (user: "when the
+- The scream ends as the white takes you, and echoes on into the void
+- GitHub browser tests #27 (0c9910b): cancelled by the next push, but six
+- Settings corner menu (user, choosing what it lists): "laws including
+- Luna: pieces see-through as they roll (user's video, Record_2026-10-11-21-09-55:
+- Corner menu mock-ups (user: Option 1, "make mock-ups first"; contents
