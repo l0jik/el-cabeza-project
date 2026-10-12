@@ -337,3 +337,26 @@ How to use it:
   check alert). Still open: which option (one shared menu in each
   world's look / bespoke per world / a light update of Neon's), mock-ups
   first or not, and the user's image (it didn't arrive).
+- Luna: pieces see-through as they roll (user's video, Record_2026-10-11-21-09-55:
+  "You can see the Flaco going transparent when it rolls").
+  - Seen at 16.8-17.1 s: the dark Flaco tipping over away from the camera
+    looked hollow for about 7 frames, its roof gear seen through it.
+  - Cause: Luna's buildings had no floor. planBody adds one only with
+    o.bottom, which only raised pods and cubes of odd pieces (l > 0) had.
+    A roll tips the foot up into view, so a roll away from you showed the
+    hollow inside (FrontSide walls, their insides culled).
+  - Fix: bottom: true on every body (luna-models.js pieceBuilding's
+    Turrito and box pieces, voxBody's columns, pods and lone cubes). It
+    faces down, so it's never seen at rest, and its material (the wall's
+    skin) merges with the walls (merge-static.js), so it costs no extra
+    draw call.
+  - Other worlds checked: Noir's facadeBox draws its underside (HIDDEN_FACE
+    is a near-black material, not invisible); Plano, Cromo, Lluvia, Neon
+    and the den use the chassis's closed rounded box (Lluvia's glass is
+    meant).
+  - tests/e2e-luna-floors.mjs (in run-e2e): seven shapes on each side,
+    built alone (__LUNA_BUILD__), must have faces down at the foot
+    covering 60% or more of their squares. It fails all 14 on the old
+    code.
+  - Before/after: scratch flaco/repro/flaco-floor-before-after.png (a
+    Flaco built alone, tipped 75 degrees, foot to the camera; base.mjs).

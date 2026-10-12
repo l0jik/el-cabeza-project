@@ -35,6 +35,8 @@ const E2E = [
   ["e2e-noir-sound.mjs"],
   // After a game, the corner piece calls till the dock's opened.
   ["e2e-dock-call.mjs"], ["e2e-hall-sound.mjs"],
+  // Luna's pieces closed underneath (a roll showed them hollow).
+  ["e2e-luna-floors.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

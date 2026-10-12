@@ -286,7 +286,7 @@ function voxBody(vox, w, h, z, pal, side) {
     let inner = !open;
     for (let k = 0; k <= l2; k++) if (inRun(x, y, k)) inner = true;
     const q = PS / 2 - m - (inner ? INNER : 0), plan = roundPlan(q, q), Hc = H + (open ? 0 : 0.02);
-    place(planBody(plan, Hc, pal, side, { edge: open ? roundEdge(Hc) : [0, 0], topBand: true, bands: [] }), cx, cz, 0);
+    place(planBody(plan, Hc, pal, side, { edge: open ? roundEdge(Hc) : [0, 0], topBand: true, bands: [], bottom: true }), cx, cz, 0);
     for (let k = 0; k <= l2; k++) used.add(`${x},${y},${k}`);
     ground.push(((ox, oz) => (px, pz) => plan(px - ox, pz - oz))(cx, cz));
   }
@@ -301,14 +301,14 @@ function voxBody(vox, w, h, z, pal, side) {
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, hx = (R.axis === "x" ? n * PS : PS) / 2 - m - inner, hz = (R.axis === "x" ? PS : n * PS) / 2 - m - inner;
     let open = true; for (let k = R.a; k <= R.b; k++) { const [xx, yy] = R.axis === "x" ? [k, R.at] : [R.at, k]; if (sits(xx, yy, R.l)) open = false; used.add(`${xx},${yy},${R.l}`); }
     const inside = roundPlan(hx, hz);
-    place(planBody(inside, PS, pal, side, { edge: open ? roundEdge(PS) : [0, 0], base: R.l === 0, topBand: true, bands: [], bottom: R.l > 0 }), cx, cz, R.l * PS);
+    place(planBody(inside, PS, pal, side, { edge: open ? roundEdge(PS) : [0, 0], base: R.l === 0, topBand: true, bands: [], bottom: true }), cx, cz, R.l * PS);
     if (R.l === 0) ground.push(((ox, oz) => (px, pz) => inside(px - ox, pz - oz))(cx, cz));
   }
   // a cube on its own
   for (const [x, y, l] of cubes) {
     if (used.has(`${x},${y},${l}`)) continue;
     const [cx, cz] = at(x, y), hh = PS / 2 - 0.012, inside = roundPlan(hh, hh), top = !sits(x, y, l);
-    place(planBody(inside, PS, pal, side, { edge: top ? roundEdge(PS) : [0, 0], base: l === 0, topBand: true, bands: [], bottom: l > 0 }), cx, cz, l * PS);
+    place(planBody(inside, PS, pal, side, { edge: top ? roundEdge(PS) : [0, 0], base: l === 0, topBand: true, bands: [], bottom: true }), cx, cz, l * PS);
     if (l === 0) ground.push(((ox, oz) => (px, pz) => inside(px - ox, pz - oz))(cx, cz));
   }
   g.userData.inside = (px, pz) => ground.some((f) => f(px, pz));
@@ -317,7 +317,11 @@ function voxBody(vox, w, h, z, pal, side) {
 
 /* A piece's building, its foot at y = 0, its middle at x = z = 0, in the
    piece's own box (w across, h deep, z high). The roof's gear in a group
-   of its own (userData.kit), hidden by the scene under an overhang. */
+   of its own (userData.kit), hidden by the scene under an overhang. Every
+   body is closed underneath (planBody's bottom): a roll tips the foot up
+   into view, and an open one showed the hollow inside, the piece looking
+   see-through (user's video: "the Flaco going transparent when it
+   rolls"). */
 function pieceBuilding(piece, side) {
   const pal = PAL[side], X = piece.w * PS, Y = piece.z * PS, Z = piece.h * PS, kit = new THREE.Group();
   kit.name = "luna-kit";
@@ -326,7 +330,7 @@ function pieceBuilding(piece, side) {
   else if (piece.type === "turrito") {
     // the Turrito is a cube: the roundover filling its square, one storey of windows, a hatch on a flat roof
     const q = X / 2 - 0.012;
-    g = planBody(roundPlan(q, q), Y, pal, side, { edge: roundEdge(Y), topBand: true, bands: [] });
+    g = planBody(roundPlan(q, q), Y, pal, side, { edge: roundEdge(Y), topBand: true, bands: [], bottom: true });
     if (g.userData.top.flat) {
       const ty = g.userData.top.y;
       kit.add(sqPrism(0.105, 0.012, std(pal.accent, { roughness: 0.5 })).translateY(ty + 0.006), sqPrism(0.095, 0.025, std(shade(pal.wall, side === "light" ? 0.85 : 1.4), { roughness: 0.5 })).translateY(ty + 0.0125));
@@ -334,7 +338,7 @@ function pieceBuilding(piece, side) {
   } else {
     const standing = Y >= Math.max(X, Z) - 0.01, m = 0.02, hx = X / 2 - m, hz = Z / 2 - m, e = roundEdge(Y), bands = [];
     for (let y = PS; y < Y - 0.05; y += PS) bands.push(y);
-    g = planBody(roundPlan(hx, hz), Y, pal, side, { edge: e, topBand: true, bands: standing ? bands : [] });
+    g = planBody(roundPlan(hx, hz), Y, pal, side, { edge: e, topBand: true, bands: standing ? bands : [], bottom: true });
     if (g.userData.top.flat) {
       if (standing) roofKit(kit, X * 0.62, Z * 0.62, g.userData.top.y, pal);
       else roofKit(kit, X - 2 * e[0] - 0.1, Z - 2 * e[0] - 0.1, g.userData.top.y, pal);
