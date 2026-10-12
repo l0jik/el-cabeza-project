@@ -246,3 +246,40 @@ How to use it:
     preverb then the shout; TAKES.voice.scream's length and SCREAM_AT
     take the 1.7 s in), or make it once at load (an OfflineAudioContext
     convolving the reversed buffer).
+- Set 5 in the game (user: "Let's go with number 5 for the hull pull, but
+  that glass break right near the very end, we need to remove that and
+  lower the ruckus just a hair"). The glass break was ruckus B's last
+  crash (MyInnerWill "Crash bang", walk 15.1 s, 71% of it above 4 kHz):
+  gone. Every thing 2 dB down except engage (the field's swell as was).
+  Preview of the final mix: scratch scream/sets2/set-5-final.mp3
+  (scream/tools/final5.py).
+  - tools/hall_sounds.py remade: voice.mp3 seven 2.5 s slots
+    (dersuperanton huh, hey, wow, ahh, uhoh, hit; LittleRobotSoundFactory
+    Scream_Male_03 0-1.11 s), things.mp3 21 4 s slots, pre.mp3 (the
+    shout's preverb, baked: PRE_LEAD 0.1 s silence, then the shout run
+    backwards through echoRoom's recipe, seed 7, 1.7 s rising into it),
+    field.mp3 as was. breath.mp3 and nine old sources gone (casiba842,
+    Iceofdoom x5, nick121087, MindlessTrails); 20 new in assets/hall/src
+    (CREDITS.md). About card: dersuperanton and LittleRobotSoundFactory
+    (CC BY 4.0) by name, the CC0 names after.
+  - den-hall.js: PULL_FILES voice/things/field/pre; TAKES; WALK_CUES and
+    DRAG_CUES are set 5's (byTime-sorted); SCREAM_CUE = SCREAM_AT - 1.8
+    s: take() plays the pre file from the cue and the shout PRE +
+    PRE_LEAD later, so it still ends at ENDING_AT, its echo on into the
+    void. A late frame's made up (take's `late`: the pre starts that far
+    in, the shout that much sooner): the shout's end was landing 90-160
+    ms after the hand-off on slow frames, now about 30. All the breath
+    code gone (BREATH_*, voiceUntil, breathDone, the bed's rate).
+  - Caught by the test: screamEcho's let-go timer counted from the cue,
+    so with the shout 1.8 s on it cut the echo 0.9 s into the void. Now
+    counted from the shout (t).
+  - state().pull.pre {at, shout, env}: env is the RMS of each 2048
+    samples of the last 32768 (test hooks only), stamped with the audio
+    clock, so a sampler every 100 ms gets the whole swell even at a few
+    frames a second (main-thread sampling missed most of it).
+  - e2e-hall-sound rewritten: four files, no breath; the takes to the
+    rift in WALK_CUES order, once each; preverb 1.8 s ahead, silent at
+    first (< 0.004), > 0.015 and 2.5x its middle by the shout; the echo
+    listened to until 2.2 s on (it had stopped at 3.2 s from the cue),
+    there all along at 1.0-1.4 s. Dragged: "Hey!" first, "Huh?" at
+    4.0-5.4 s. e2e-ending, e2e-hall-after-game, e2e-camera-glide pass.

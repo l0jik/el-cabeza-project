@@ -13,11 +13,11 @@ const DEN_RECORDS = {
   // The 8-track's tapes: the user's tracks through tools/den_8track_treatment.py.
   ...Object.fromEntries([1, 2, 3, 4, 5].map((n) => [`el-cabeza-den-tape-${n}.mp3`, `assets/den/8track_${n}.mp3`])),
   // The pull down the hall (themes/den-hall.js): the man, what goes over,
-  // the force field, his breathing (tools/hall_sounds.py).
+  // the force field, his shout's preverb (tools/hall_sounds.py).
   "el-cabeza-hall-voice.mp3": "assets/hall/voice.mp3",
   "el-cabeza-hall-things.mp3": "assets/hall/things.mp3",
   "el-cabeza-hall-field.mp3": "assets/hall/field.mp3",
-  "el-cabeza-hall-breath.mp3": "assets/hall/breath.mp3",
+  "el-cabeza-hall-pre.mp3": "assets/hall/pre.mp3",
   // The fireplace: a recording, looped and warmed (tools/den_fire_loop.py).
   "el-cabeza-den-fire.mp3": "assets/den/fire_loop.mp3",
   // The telephone's bell (themes/den-call.js): the user's recording of a
