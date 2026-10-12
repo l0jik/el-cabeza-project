@@ -228,3 +228,21 @@ How to use it:
     slots; some ruckus runs past THING_SLOT's 4 s), new WALK_CUES and
     DRAG_CUES, BREATH_AT gone, and the About card's credits.
   - Waiting on the user's pick.
+- Round two's end shouts, a preverb (user: "Add 1.7 sec. preverb to all
+  ending yells before being sucked into the void"). The page's version 3
+  (same link). sets.py preverb(): the shout's own echo room (den-hall.js
+  echoRoom's recipe) run backwards (reverse the take, convolve, reverse
+  back), so the room swells for 1.7 s up into the shout and the echo
+  rings 1.7 s after it, mirror images. Sent most from the shout's start
+  (1 to 0.3 over it; the echo's send runs 0.3 to 1), wet 0.75, and a
+  straight rise from nothing over the 1.7 s on top of the room's own:
+  measured against each shout's loudest, -49, -22, -13 and -5 dB at 1.5,
+  1.0, 0.5 and 0 s before it (first pass, at the echo's 1.3 and no rise,
+  it reached the shout's own level and the shout no longer stood out).
+  It starts during the eruption (about 1.7 s before the shout); the
+  shout still ends at the hand-off.
+  - In the game it can't be done live (it needs the shout before it's
+    played): bake it in (hall_sounds.py, the scream's slot holding the
+    preverb then the shout; TAKES.voice.scream's length and SCREAM_AT
+    take the 1.7 s in), or make it once at load (an OfflineAudioContext
+    convolving the reversed buffer).
