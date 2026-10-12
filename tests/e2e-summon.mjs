@@ -23,6 +23,12 @@ const poll = async (fn, ms = 20000, step = 200) => {
     await new Promise((r) => setTimeout(r, step));
   }
 };
+// The way in from the set ends with the television's own picture coming
+// on, 2 s (unifiedTransition.jsx CrtTransitionOverlay), which takes no
+// taps. On a quick machine the summons is up and its first clap (on the
+// very first beat) has come before that's over: GitHub's run 25, where
+// the tap on the singularity went to ec-crt-flash.
+const pictureOn = (page) => poll(async () => (await page.locator(".ec-crt-overlay").count()) === 0, 5000);
 async function throughTheSet(seen, desktop, lostMs = null, unravelMs = null, pressAgain = false) {
   const ctx = await browser.newContext(desktop ? { viewport: { width: 1280, height: 800 } } : { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   await ctx.addInitScript(([seen, lostMs, unravelMs]) => {
@@ -81,7 +87,8 @@ console.log("the first arrival");
   check("...and has no hold on it before the story's over", (await page.locator(".ec-masthead-hold-zone").count()) === 0);
   // (The first clap of thunder, and its shock wave, comes about 12 s in.)
   check("a clap of thunder, and its shock wave", !!(await poll(async () => { const s = await S(); return s.waves >= 1 && s.sound && s.sound.thunder >= 1; }, 30000)), JSON.stringify(await S()));
-  // A tap on the board does nothing.
+  // A tap on the board does nothing (once the picture's fully on).
+  await pictureOn(page);
   await page.mouse.click(110, 560);
   await page.waitForTimeout(600);
   check("a tap on the board: nothing", (await page.locator(".ec-singularity-invite-btn").count()) === 0 && (await S()).active);
@@ -169,6 +176,7 @@ desk: {
   // visit): a heartbeat and a ring as the sphere comes up, gone in about
   // three seconds; no fingertips (taken out); and a menu that comes apart
   // (3 s here) and folds shut, then the hand.
+  await pictureOn(page);
   const at = (await S()).screen;
   // (Each press noted on its way down, so a tap that opens nothing on
   // another machine says where it went: GitHub's, where this one missed.)

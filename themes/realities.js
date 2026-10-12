@@ -30,7 +30,9 @@ const LAB = [
 export const WORLDS = [
   { id: "den", name: "The Den, 1975", line: "Home. The fire, the records, the set.", nova: "standard" },
   { id: "neon", name: "Neon", line: "The board in light, at the edge of the Singularity.", nova: "neon" },
-  { id: "store", name: "Big Glutts", line: "Games & Hobby Dept., the day you found it.", nova: "tienda" },
+  // (User: "everyone's favorite department store...just like the day you
+  // found the game"; the clerk scene's narration calls it the same.)
+  { id: "store", name: "Big Glutts", line: "Everyone's favorite department store, just like the day you found the game.", nova: "tienda" },
   { id: "lluvia", name: "Lluvia", line: "A city in the rain, far below.", href: "el-cabeza-lluvia.html" },
   { id: "cromo", name: "Cromo", line: "Steel and stone, quiet and exact.", href: "el-cabeza-cromo.html" },
   // The game drawn as a blueprint (user picked it from the city mock-ups).
@@ -67,7 +69,7 @@ const CSS = `
 .ec-realities .shot { aspect-ratio: 4 / 3; width: 100%; background: #0b0614 center / cover no-repeat; }
 .ec-realities .txt { padding: 9px 12px 11px; display: flex; flex-direction: column; gap: 2px; }
 .ec-realities .name { font-weight: 600; letter-spacing: 0.04em; }
-.ec-realities .line { font-size: 13px; opacity: 0.72; }
+.ec-realities .line { font-size: 13px; opacity: 0.72; text-wrap: pretty; }
 /* Continue in (the last world played), first and on its own. */
 .ec-realities .continue { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 14px;
   width: min(100%, 460px); margin: 0 0 22px; padding: 10px 18px 10px 10px; border-radius: 12px;

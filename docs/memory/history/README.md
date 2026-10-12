@@ -527,3 +527,17 @@ note (a top-level `- ` entry or a `### ` heading) in it, to grep or skim.
 - GitHub browser tests #14 (376e0f6, the three pushes before): e2e-summon
 - Noir's rain (user: "Noir's rain sound is still not right. It's just
 - GitHub browser tests #15 (0152609): e2e-tienda passes there now.
+
+## [14.md](14.md) (237 lines, 11 entries)
+
+- Noir's sounds, recorded (user, once the allowlist let freesound through:
+- GitHub browser tests #16 (12abc42), two failures, neither in what
+- GitHub browser tests #17 (617c374, the recorded Noir sounds): all
+- GitHub browser tests #18 (0ee4025): all 8 shards green, e2e-den-spot
+- After a game, the corner piece calls (user: "When a game ends, and the
+- Lab, "after a win the minimized menu cannot be raised" (open reminder
+- Noir's police sirens, recorded (user: "Noir needs better time-period
+- Big Glutts' flyer: the real charge cards of 1975 (BankAmericard,
+- The user asked whether they can put a © notice on the game without a
+- The Big Glutts card in the realities menu, branded (user, with a
+- The table's tent card ("TRY IT") cues the player back sooner (user:
