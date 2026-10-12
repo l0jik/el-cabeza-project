@@ -12,9 +12,12 @@
    slap, a grunt) as the camera passes through it; round the turn, the gasp
    and "Huh?"; the force field and the breathing up by then. Skipped on to
    the eruption, what's skipped isn't played all at once, and the scream
-   comes. Dragged in (the third time): a startled "Ah" first, no "Whoah".
-   The About card credits Iceofdoom (CC BY). From disk: nothing fetched,
-   the walk the same without them.
+   comes, his breathing cut with it for good. Dragged in (the third time):
+   a startled "Ah" first, no "Whoah", and the breathing cut at the scream.
+   The scene's link (?scene=hall), from nothing kept: a tap, the hall
+   flares with its recordings, and investigating, the pull's heard. The
+   About card credits Iceofdoom (CC BY). From disk: nothing fetched, the
+   walk the same without them.
 
    node tests/e2e-hall-sound.mjs */
 import { chromium } from "playwright";
@@ -98,6 +101,12 @@ async function home(url, flares = 0) {
   await page.evaluate(() => window.__DEN_HALL_SKIP__(12200));
   const erupt = await poll(async () => { const h = await hall(); return h.pull.heard.includes("scream") ? h : null; }, 6000, 100);
   check(`skipped on to the eruption: "Ahh!!!", and nothing skipped played (${erupt && erupt.pull.heard.slice(-2).join(" ")})`, !!erupt && !erupt.pull.heard.includes("phew"));
+  // (User: "when the 'waaah!' happens, the breathing must stop. It sounds
+  // like there's 2 people there.")
+  check(`...his breathing cut with the scream (${erupt && JSON.stringify({ breath: erupt.pull.breath, cut: erupt.pull.breathCut })})`, !!erupt && erupt.pull.breathCut === true && erupt.pull.breath === null);
+  await page.waitForTimeout(1500);
+  const later = await hall();
+  check(`...and it doesn't come back (${JSON.stringify({ breath: later.pull.breath, cut: later.pull.breathCut })})`, later.pull.breath === null && later.pull.breathCut === true);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }
@@ -112,6 +121,31 @@ async function home(url, flares = 0) {
   check(`...a startled "Ah" first, no "Whoah, no way" (${first && first.pull.heard.join(" ")})`, !!first && first.pull.heard[1] === "ah" && !first.pull.heard.includes("whoa"));
   const gasp = await poll(async () => { const h = await hall(); return h.pull.heard.includes("gasp") ? h : null; }, 8000, 100);
   check(`...through the doorframe faster: the gasp at ${gasp && Math.round(gasp.t)} ms`, !!gasp && gasp.t > 4000 && gasp.t < 5400);
+  const scream = await poll(async () => { const h = await hall(); return h.pull.heard.includes("scream") ? h : null; }, 12000, 100);
+  check(`...the scream, and his breathing cut with it (${scream && JSON.stringify({ breath: scream.pull.breath, cut: scream.pull.breathCut })})`, !!scream && scream.pull.breathCut === true && scream.pull.breath === null);
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
+// ---- The scene's link (?scene=hall), the one the user's sent to assess it ----
+{
+  console.log("the hallway's link (?scene=hall), over http");
+  const ctx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+  await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  const page = await ctx.newPage();
+  const errs = [], fetched = {};
+  page.on("pageerror", (e) => errs.push(e.message));
+  page.on("response", (r) => { const m = /el-cabeza-hall-([a-z]+)\.mp3/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
+  await page.goto(URL_HTTP + "?scene=hall");
+  const begin = page.locator('[data-testid="den-hall-preview"]');
+  check("\"The hallway / Tap to begin\"", !!(await poll(async () => (await begin.count()) > 0, 30000)));
+  await page.waitForTimeout(1500);
+  await begin.click();
+  check("a tap: the hall flares, its recordings fetched", !!(await poll(async () => FILES.every((k) => fetched[k] === 200), 10000)), JSON.stringify(fetched));
+  await page.waitForSelector('[data-testid="den-hall-choice"]:not([data-held])', { timeout: 8000 });
+  await page.locator('[data-testid="den-hall-investigate"]').click();
+  const h = await poll(async () => { const v = await page.evaluate(() => window.__DEN_HALL__()); return v.pull.heard.includes("whoa") ? v : null; }, 5000, 100);
+  check(`investigate: the pull heard (${h && h.pull.heard.join(" ")})`, !!h && h.pull.heard[0] === "engage");
   check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

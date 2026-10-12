@@ -262,3 +262,34 @@ How to use it:
   - Locally (389 s) the whole of e2e-dock-call passes with the count:
     hopping, no more hops and reduced motion in Noir, the placard put
     away in all seven.
+- Noir in the theme switcher (user: "Incorporate Noir into Theme Switcher
+  now & stop publishing it's own page link, for now"):
+  - realities.js WORLDS after Luna: "Noir", "Rain on a 1940s city at
+    night, in black and white." (so the den's set has it as a channel too,
+    and Continue in / You are here know it).
+  - Its picture: tools/channel_shots.mjs ["noir", ?quality=high, 9 s] (the
+    opening view with the title and the corner piece, as the others),
+    assets/den/channels/noir.jpg, build.js's channel list.
+  - It already had its gate look, side names, points glow and the Other
+    realities corner (apps/noir.jsx); the comments there and in build.js
+    no longer say "not in the switcher".
+  - e2e-ending counts 20; e2e-gate "Noir, in the switcher": the card and
+    its picture, the trip there, Noir's gate, the last world kept, You
+    are here.
+  - The replies' links block drops the separate Noir line for now
+    (reached through the switcher).
+- Hall pull: the breathing stops at the scream, for good (user: "when the
+  'waaah!' happens, the breathing must stop. It sounds like there's 2
+  people there").
+  - pullSound cuts the breath bed at the scream's moment in either list
+    (cuesFor(list).scream, 12.85 s on the walk's clock), whether or not
+    the take itself came: a 35 ms time constant, its source stopped,
+    not made again that walk (breathDone, reset by pick). BREATH_AT now
+    ends at 12.6 s.
+  - state().pull.breathCut; e2e-hall-sound checks it on the walk (skipped
+    on to the eruption) and the drag, and that it stays gone.
+  - The link sent to assess the scene: ?scene=hall (the den, "The
+    hallway / Tap to begin", the hall at once; "keep playing" brings it
+    back in 4 s, so the third time, dragged, can be heard too; nothing
+    kept). e2e-hall-sound now also opens it from nothing kept: the
+    recordings fetched, the pull heard.

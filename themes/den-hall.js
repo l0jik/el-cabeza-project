@@ -131,9 +131,15 @@ const BREATH_FROM = 4700; // (the walk's clock: as he's pulled toward the door)
 // (Under his voice the breathing dips: he catches it to gasp, to speak.)
 const BREATH_UNDER_VOICE = 0.35;
 // The force field and the breathing, by the walk's clock: up as he's
-// pulled in, most at the rift, down as it dies down, up for the eruption.
+// pulled in, most at the rift, down as it dies down, the field up for the
+// eruption. The breathing stops at the scream, for good (user: "when the
+// 'waaah!' happens, the breathing must stop. It sounds like there's 2
+// people there"): pullSound, at the scream's moment in either list.
 const FIELD_AT = [[0, 0], [1500, 0.45], [6900, 0.7], [8000, 0.8], [10200, 0.6], [12000, 0.4], [12600, 0.55], [15600, 0.9]];
-const BREATH_AT = [[BREATH_FROM, 0], [6900, 0.26], [9000, 0.36], [10200, 0.3], [11600, 0.16], [12600, 0.2], [15000, 0.38]];
+const BREATH_AT = [[BREATH_FROM, 0], [6900, 0.26], [9000, 0.36], [10200, 0.3], [11600, 0.16], [12600, 0.2]];
+// A walk's takes, from the `i`th, and the scream's moment in them (where
+// the breathing stops).
+const cuesFor = (list, i = 0) => ({ list, i, scream: (list.find((c) => c[2] === "scream") || [Infinity])[0] });
 const along = (pts, s) => {
   if (s <= pts[0][0]) return pts[0][1];
   for (let i = 1; i < pts.length; i++) if (s <= pts[i][0]) { const [a, va] = pts[i - 1], [b, vb] = pts[i]; return va + (vb - va) * (s - a) / (b - a); }
@@ -448,7 +454,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
   }
 
   /* ---- the pull's recordings (PULL_FILES above) ---- */
-  let rec = null, field = null, breath = null, cues = null, voiceUntil = 0;
+  let rec = null, field = null, breath = null, breathDone = false, cues = null, voiceUntil = 0;
   const heard = []; // (the takes played, for the tests)
   function loadRecordings() {
     if (rec || typeof fetch === "undefined" || (typeof location !== "undefined" && location.protocol === "file:")) return;
@@ -502,13 +508,23 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
      late), and the beds' levels. */
   function pullSound(s) {
     if (!rec) return;
-    if (!cues) cues = { list: dragged ? DRAG_CUES : WALK_CUES, i: 0 };
+    if (!cues) cues = cuesFor(dragged ? DRAG_CUES : WALK_CUES);
     while (cues.i < cues.list.length && cues.list[cues.i][0] <= s) {
       const [at, kind, name, gain, pan] = cues.list[cues.i++];
       if (s - at < 600) take(kind, name, gain, pan);
     }
+    // The scream takes his breath: it's cut there (as the scream's lead-in
+    // passes) and doesn't come back, whether or not the take itself came.
+    if (s >= cues.scream && !breathDone) {
+      breathDone = true;
+      if (breath) {
+        const b = breath; breath = null;
+        b.g.gain.setTargetAtTime(0, b.ctx.currentTime, 0.035);
+        try { b.src.stop(b.ctx.currentTime + 0.4); } catch (e) { /* done */ }
+      }
+    }
     if (!field && rec.field) field = bed("field");
-    if (!breath && rec.breath && s >= BREATH_FROM) breath = bed("breath");
+    if (!breath && !breathDone && rec.breath && s >= BREATH_FROM) breath = bed("breath");
     if (field) field.g.gain.setTargetAtTime(along(FIELD_AT, s), field.ctx.currentTime, 0.2);
     if (breath) breath.g.gain.setTargetAtTime(along(BREATH_AT, s) * (performance.now() < voiceUntil ? BREATH_UNDER_VOICE : 1), breath.ctx.currentTime, 0.08);
   }
@@ -548,7 +564,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       if (blockEl) { blockEl.remove(); blockEl = null; }
       return;
     }
-    state = "walk"; t0 = performance.now(); walkFrom = null; path = null; nextStep = 0; cues = null;
+    state = "walk"; t0 = performance.now(); walkFrom = null; path = null; nextStep = 0; cues = null; breathDone = false;
   }
   /* The walk's clock: as it is; dragged, the walk itself goes 1.7 times
      as fast and, there, straight on to the eruption (no standing calm). */
@@ -806,7 +822,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
     // Is it showing (the camera's, the screen's)?
     active: () => state === "flare" || state === "settle" || state === "walk",
     state: () => ({ state, need, made, amt, cam: camW, flares, dragged, fov: fovCam ? fovCam.fov : null, t: state === "idle" || state === "armed" ? 0 : performance.now() - t0,
-      pull: { loaded: rec ? Object.keys(rec).filter((k) => rec[k]).sort() : [], heard: heard.slice(), field: field ? +field.g.gain.value.toFixed(3) : null, breath: breath ? +breath.g.gain.value.toFixed(3) : null } }),
+      pull: { loaded: rec ? Object.keys(rec).filter((k) => rec[k]).sort() : [], heard: heard.slice(), field: field ? +field.g.gain.value.toFixed(3) : null, breath: breath ? +breath.g.gain.value.toFixed(3) : null, breathCut: breathDone } }),
     // Test-only: now (as if the moves were made), and the choice.
     now(moves = 0) { if (state === "idle" || state === "armed") flare(performance.now(), moves); },
     pick,
@@ -823,7 +839,7 @@ export function createHall({ audio, onEnding, flares: flareStore = null }) {
       if (state !== "walk") return;
       dragged = false; t0 = performance.now() - ms;
       // (The takes it skips past aren't played all at once.)
-      cues = { list: WALK_CUES, i: WALK_CUES.findIndex((c) => c[0] > ms) };
+      cues = cuesFor(WALK_CUES, WALK_CUES.findIndex((c) => c[0] > ms));
       if (cues.i < 0) cues.i = WALK_CUES.length;
     },
     dispose() {
