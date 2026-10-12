@@ -142,4 +142,6 @@ How to use it:
   over its standard board (the shoot plays the store's standard game).
   Waiting on the user's picks; the concept image never arrived.
 - GitHub browser tests #30 (f3138ee, Luna's closed floors): all 8 shards
-  green.
+  green. #28 (276255b) and #29 (afe7776) were cancelled by the pushes
+  after them, with no failures (seven of eight and four of eight shards
+  done, all green); #30 ran everything they held.
