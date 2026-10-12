@@ -98,6 +98,10 @@ export const freeCamera = {
   room: { x: [-ROOM_RX + 9, ROOM_RX - 9], y: [ROOM_PIT_FLOOR + 1.5, ROOM_CEIL - 4.2], z: [-ROOM_RZ + 9, ROOM_RZ - 9] },
 };
 
+// The den's recordings that ask for a credit, on the About card (as
+// Noir's): the man pulled down the hall (den-hall.js; the pull's other
+// recordings are CC0, assets/hall/src/CREDITS.md).
+export const soundCredits = "Sounds from freesound.org: the man pulled down the hall, five recordings by Iceofdoom (\u201cWhoah, no way\u201d, \u201cSeries of Grunts, Surprised Sounds, and Breaths\u201d, \u201cUgh\u201d, \u201cPhew\u201d and \u201cAhh!!!\u201d; freesound.org/people/Iceofdoom), CC BY 4.0, cut; what goes over, the force field and his breathing, nick121087, YannSauvin, mickdow, kyles, MindlessTrails, martian, jawbutch, Soundscape_Leuphana, humanoide9000, LilMati and casiba842 (CC0).";
 export const modalBackdrop = "rgba(20, 12, 6, 0.5)";
 export const modalSurface = "rgba(243, 231, 205, 0.98)";
 // Shown only until the room is up.

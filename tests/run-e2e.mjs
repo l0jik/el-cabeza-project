@@ -34,7 +34,7 @@ const E2E = [
   // Noir's recorded sounds (rain, thunder, the cars), its sliders, its credits.
   ["e2e-noir-sound.mjs"],
   // After a game, the corner piece calls till the dock's opened.
-  ["e2e-dock-call.mjs"],
+  ["e2e-dock-call.mjs"], ["e2e-hall-sound.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");
