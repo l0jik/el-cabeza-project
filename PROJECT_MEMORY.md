@@ -360,3 +360,26 @@ How to use it:
     code.
   - Before/after: scratch flaco/repro/flaco-floor-before-after.png (a
     Flaco built alone, tipped 75 degrees, foot to the camera; base.mjs).
+- Corner menu mock-ups (user: Option 1, "make mock-ups first"; contents
+  "laws including their sub-settings, pieces, board").
+  - One menu, the same contents and behaviour everywhere, each world's own
+    look: a closed tab top left (resting at 0.82), opening into a card:
+    the laws with their settings (as the setup menus name them: Shoves
+    on, Rolls shove, Placed, Pieces, Actions), each side's pieces (what
+    differs from the standard set marked), the board (size, missing
+    squares); a Rules link.
+  - The looks: the den's 1975 card (House rules), Neon's cut-corner
+    readout (Ruleset), Big Glutts' price tag and typed sales slip (Your
+    order, a DEMO stamp), Lluvia's pink neon sign (LUẬT, the Vietnamese
+    over the English), Cromo's screwed-on steel plate (Parameters),
+    Plano's title block and schedules with revision triangles and a plan
+    of the board, Luna's mission patch and checklist, Noir's title card
+    (one red), Parrish's gold-ruled cartouche (cream and cobalt; wine
+    and old gold for Go deo na ndeor), the Lab's own read-out gaining a
+    Rules section in each style's tokens.
+  - Made in scratch cornermenu/: cm.js (the mock, window.__CM(world,
+    open)), fonts/faces.css (each world's faces inlined: headless
+    Chromium here can't load Google Fonts, ERR_CERT_AUTHORITY_INVALID),
+    shoot.mjs (each world in play with a seeded custom game: the gate's
+    Cabeza Nova menu reads el-cabeza:nova-setup; 12 x 10, five laws, two
+    extra piece types), sheets.py.
