@@ -283,3 +283,20 @@ How to use it:
     listened to until 2.2 s on (it had stopped at 3.2 s from the cue),
     there all along at 1.0-1.4 s. Dragged: "Hey!" first, "Huh?" at
     4.0-5.4 s. e2e-ending, e2e-hall-after-game, e2e-camera-glide pass.
+- GitHub browser tests #37 (a88d0f3, set 5): seven shards green,
+  e2e-hall-sound's among them. Shard 2 failed e2e-dock-call "...and
+  hopping now and then", {"hops":1,"most":0.004}, the rest of it passing.
+  - Why: the CI renderer draws Noir three or four frames a second (317
+    ms apart here), about half the hop's 560 ms, and a hop's first frame
+    comes as it begins (its timer fires just before a frame). So its
+    frames land where the curve (sin 2pi t, decaying) passes through the
+    piece's own size, at its start and middle: 0.001-0.036 here, 0.004
+    and 0.013 (run 26) there, for a peak of 0.12 at 130 ms.
+  - Reproduced (scratch dockhop/repro2.mjs: Noir calling, each frame held
+    250 ms longer): the old check failed 1 round in 6 (0.0029). The new
+    hopRange, run as the test has it (repro3), passed 8 of 8 and reads
+    exactly 0 at rest.
+  - hopRange(page, ms, moved): stops once a hop's begun and ended with the
+    piece moved more than `moved`, else at ms, and reports frames and ms.
+    Hopping: up to 11 s (two hops), hops >= 1 and moved > 1e-4, "at all"
+    (at rest it's exactly 0). The no-hop checks are as they were.

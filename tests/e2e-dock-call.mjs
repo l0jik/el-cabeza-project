@@ -34,23 +34,28 @@ const callState = (page) => page.evaluate(() => {
     filter: c ? getComputedStyle(c).filter : null,
   };
 });
-// Over a few seconds: how many hops began, and how far the piece's height
-// strayed from its own size (the hop squashes and stretches it). (Counted:
-// GitHub's software renderer draws Noir a few frames a second, and frames
-// that far apart miss the hop's peak, 0.12 for a moment of its 560 ms; run
-// 26 read 0.013.)
-const hopRange = (page, ms) => page.evaluate((ms) => new Promise((done) => {
+// Over a few seconds: how many hops began, how far the piece's height
+// strayed from its own size (the hop squashes and stretches it), and the
+// frames drawn. Given `moved`, it stops once a hop's begun and ended with
+// the piece moved more than that. (Counted, and "moved at all": GitHub's
+// software renderer draws Noir three or four frames a second, about half
+// the hop's 560 ms apart, and a hop's first frame comes as it begins, so
+// its frames can land where it passes through the piece's own size, at its
+// start and its middle: run 26 read 0.013, run 37 0.004, for a peak of
+// 0.12. At rest the piece is at exactly its own size, 0.)
+const hopRange = (page, ms, moved = null) => page.evaluate(([ms, moved]) => new Promise((done) => {
   const d = window.__EC_TEST_DOCK__ && window.__EC_TEST_DOCK__();
   if (!d) return done(null);
-  const base = d.state.pieceBaseScale || 1, n0 = d.state.nudges || 0;
-  let most = 0;
-  const end = performance.now() + ms;
+  const base = d.state.pieceBaseScale || 1, n0 = d.state.nudges || 0, t0 = performance.now();
+  let most = 0, frames = 0;
   const look = () => {
     most = Math.max(most, Math.abs(d.pieceGroup.scale.y / base - 1));
-    if (performance.now() < end) requestAnimationFrame(look); else done({ hops: (d.state.nudges || 0) - n0, most: +most.toFixed(3) });
+    const hops = (d.state.nudges || 0) - n0, at = performance.now() - t0;
+    if (at < ms && !(moved !== null && hops && !d.state.nudging && most > moved)) { frames++; requestAnimationFrame(look); }
+    else done({ hops, most: +most.toFixed(4), frames, ms: Math.round(at) });
   };
   look();
-}), ms);
+}), [ms, moved]);
 // Whoever's to move wins in one step (their Cabeza a step from its far row).
 async function winNow(page) {
   const dark = (await page.locator('[data-testid="turn-status"]').getAttribute("data-side")) === "dark";
@@ -118,8 +123,10 @@ async function open(name, opts = {}) {
   check("after it: the corner piece calls, at full strength", s.call === true && s.opacity > 0.99, JSON.stringify(s));
   check("...in a pool of Noir's light (a lamp's, a lit window's), centred on it", s.aura && /^#(ffffff|c8c8c8)$/i.test(s.glow) && s.off !== null && s.off <= 3, JSON.stringify(s));
   check("...the piece glowing at its edge", s.halo === "ecDockCallHalo" && /drop-shadow/.test(s.filter), JSON.stringify({ halo: s.halo, filter: s.filter }));
-  const hop = await hopRange(page, 6000);
-  check("...and hopping now and then", hop !== null && hop.hops >= 1 && hop.most > 0.005, JSON.stringify(hop));
+  // (Up to two hops' time: the first one's frames can all land where it's
+  // at the piece's own size.)
+  const hop = await hopRange(page, 11000, 1e-4);
+  check("...and hopping now and then", hop !== null && hop.hops >= 1 && hop.most > 1e-4, JSON.stringify(hop));
   corner = await waitForDockCorner(page, { timeoutMs: 3000 });
   check("a tap on it: the dock opens", await reopenDockPanelFromCorner(page, corner));
   s = await callState(page);
