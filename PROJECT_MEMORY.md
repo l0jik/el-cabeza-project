@@ -164,3 +164,27 @@ How to use it:
     (CC0, 2.36). Out: EricSueiro's (5000 clipped samples), joseppujol's
     (heard as "Yeah!", "Hey"), the high or child-like ones.
   - Waiting on the user's pick (from all fifteen).
+- The five yells in the whole scene (user: "use all of the yells and do
+  the full suite of sounds for that scene, combine them together, and
+  then let me hear MP3 samples of all of them individually. Give me a
+  link to all those"). Page: https://claude.ai/artifact/ArcaQAwCQfhxofXMRVeMyS
+  ("Hall Pull Yells": each yell and the current scream, the walk and the
+  dragged-in version, a strip of the scene's timeline to play and scrub,
+  "Skip to the eruption"; scratch hallpage/).
+  - scratch scream/tools/scene.py renders the scene offline from
+    den-hall.js itself: the flare (booms, the hum, crackle at the
+    strobe's moments; Investigate tapped at 4.4 s, or dragged in at
+    2.6 s), the walk or drag (every cue, the field and breath beds as
+    pullSound sets them, footsteps and creaks, booms), the eruption
+    (roar, the boom), the yell's echo, stopSound at the hand-off, and the
+    void's music (den-ending.js: x 0.9, its limiter, x 0.95). The made
+    sounds are their recipes in Web Audio's own terms (biquads with Q in
+    dB, ramps, setTargetAtTime once a frame), the den's master
+    compressor too (-16 dB, 3:1, 30 dB knee: Chromium's curve and
+    makeup, 0.7 dB). Beds and made sounds reach both channels whole (a
+    mono source upmixed); takes go through a StereoPanner (0.71 each at
+    centre). render_pull2.py had the beds and made sounds 3 dB low.
+  - Yell 12 (tim.kahn) peaks at 1.17 into the destination in the
+    eruption: if it's chosen, level it down a touch (by its peak, not
+    only its loudest 0.3 s). Nothing else passes 1.03.
+  - Waiting on the user's pick.
