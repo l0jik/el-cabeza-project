@@ -652,6 +652,12 @@ export function createAudio() {
     h.timers.push(id);
   }
   function clearSongTimers(h) { h.timers.forEach((id) => clearTimeout(id)); h.timers = []; }
+  // A song's source stopped (at `when`, or now): silent from then.
+  function stopVoice(h, s, when) {
+    try { if (when == null) s.stop(); else s.stop(when); } catch (e) { /* ended */ }
+    const v = (h.voices || []).find((x) => x.s === s);
+    if (v) v.until = Math.min(v.until, when == null ? 0 : when);
+  }
   // A fresh source from `pos` (a buffer source can't be paused, only
   // stopped and started again): a song alone looped as its file was made
   // to; in turn, played to its end (a looped song's seam faded), the next
@@ -665,9 +671,15 @@ export function createAudio() {
     // (h.pos, the place kept while it's paused or a song's on its way, is
     // done with: between songs after this, it's the song's end.)
     h.src = s; h.sg = sg; h.t0 = t; h.off = pos; h.gap = false; h.pos = null;
-    // (Tests: how many are sounding, one at most once a skip's fade is done.)
-    h.live = (h.live || 0) + 1;
-    s.onended = () => { h.live--; };
+    // (Tests: how many are sounding, one at most once a skip's fade is
+    // done. Each source till its end or its stop on the audio clock, its
+    // 'ended' only letting it go sooner: headless Chrome doesn't always
+    // fire it (the Lab's sounds found so), and GitHub's run 38 counted a
+    // song long over as still sounding.)
+    const v = { s, until: Infinity };
+    h.voices = (h.voices || []).filter((x) => x.until > t);
+    h.voices.push(v);
+    s.onended = () => { v.until = 0; };
     if (ONE_SONG) {
       s.loop = true; s.loopStart = song.start; s.loopEnd = song.end;
       s.start(t, pos);
@@ -675,6 +687,7 @@ export function createAudio() {
     }
     const left = Math.max(0, song.end - pos);
     s.start(t, pos, left);
+    v.until = t + left;
     if (SOUNDTRACK[h.k].seam && left > 0.05) sg.gain.setTargetAtTime(0.0001, t + Math.max(0, left - SEAM_FADE_S), SEAM_FADE_S / 5);
     clearSongTimers(h);
     const next = (h.k + 1) % SOUNDTRACK.length;
@@ -720,7 +733,7 @@ export function createAudio() {
     if (h.src) {
       const s = h.src, sg = h.sg; h.src = null;
       sg.gain.cancelScheduledValues(now()); sg.gain.setTargetAtTime(0.0001, now(), HOLD_FADE / 3);
-      try { s.stop(now() + HOLD_FADE + 0.02); } catch (e) { /* ended */ }
+      stopVoice(h, s, now() + HOLD_FADE + 0.02);
     }
     h.gap = false;
     const done = h.k, doneSong = h.song, cue = ++h.cues;
@@ -764,7 +777,7 @@ export function createAudio() {
       if (h.timers) clearSongTimers(h);
       if (h.src) {
         const s = h.src; h.src = null;
-        try { s.stop(now() + HOLD_FADE + 0.02); } catch (e) { /* ended */ }
+        stopVoice(h, s, now() + HOLD_FADE + 0.02);
         if (h.g) { h.g.gain.cancelScheduledValues(now()); h.g.gain.setTargetAtTime(0.0001, now(), HOLD_FADE / 3); }
       }
     } else {
@@ -867,11 +880,11 @@ export function createAudio() {
       const h = hums;
       if (!h || !h.song || !h.src || h.paused) return false;
       const s = h.src; h.src = null;
-      try { s.stop(); } catch (e) { /* ended */ }
+      stopVoice(h, s);
       playHumsFrom(h, Math.max(h.song.start, h.song.end - secondsLeft));
       return true;
     },
-    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.paused ? "paused" : hums.src ? "playing" : hums.gap ? "between" : "loading") : null, song: hums ? hums.k : null, songs: SOUNDTRACK.length, sounding: hums ? hums.live || 0 : 0, evening: evening ? (evening.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
+    debugState() { return { ctx: !!ctx, ctxState: ctx ? ctx.state : null, natureOn, muted, levels: { ...chLevel }, music: !!MUSIC_URL, hums: hums ? (hums.paused ? "paused" : hums.src ? "playing" : hums.gap ? "between" : "loading") : null, song: hums ? hums.k : null, songs: SOUNDTRACK.length, sounding: hums && ctx ? (hums.voices || []).filter((v) => v.until > ctx.currentTime).length : 0, evening: evening ? (evening.src ? "playing" : "loading") : null, stabs: !!stabs, intro: intro ? (intro.done ? "ended" : intro.src ? "playing" : "loading") : null, outro: outro ? (outro.done ? "ended" : outro.src ? "playing" : "loading") : null }; },
     dispose() {
       disposed = true;
       timers.forEach((id) => clearTimeout(id)); timers.clear();

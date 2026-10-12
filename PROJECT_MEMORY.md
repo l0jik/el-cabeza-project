@@ -300,3 +300,21 @@ How to use it:
     piece moved more than `moved`, else at ms, and reports frames and ms.
     Hopping: up to 11 s (two hops), hops >= 1 and moved > 1e-4, "at all"
     (at rest it's exactly 0). The no-hop checks are as they were.
+- GitHub browser tests #38 (9902682): e2e-dock-call passed with the new
+  hop measure (408 s). Shard 2 then failed e2e-now-playing "between
+  songs, back": the right song from its start (0:00, then 0:04), but
+  sounding 2. It had passed in runs 32 to 37.
+  - Why: the count (debugState.sounding) went down only on each source's
+    'ended', which headless Chrome doesn't always fire (the Lab's sounds
+    found the same, theme-lab.md). GitHub runs Chrome 153, here 141.
+    Every path that starts a song is guarded (h.cues, cleared timers).
+    No timing tried here left two playing: presses 0-5.3 s into the gap,
+    just after the next song began, and at 4x CPU throttling.
+  - Reproduced by dropping the 0.5 s tail source's 'ended' (scratch
+    np/np-repro.mjs, DROP=1): exactly run 38's failure (song 1 at 0:00
+    then 0:04, sounding 2).
+  - parrish-audio.js: h.voices holds each source till its end (t + left)
+    or its stop. stopVoice is used by skip, pause and testSongNearEnd.
+    Its 'ended' only lets a source go sooner, and sounding counts those
+    still ahead on the audio clock. The same drop now passes, as does the
+    whole of e2e-now-playing.
