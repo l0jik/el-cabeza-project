@@ -145,3 +145,22 @@ How to use it:
   green. #28 (276255b) and #29 (afe7776) were cancelled by the pushes
   after them, with no failures (seven of eight and four of eight shards
   done, all green); #30 ran everything they held.
+- The scream, five yells instead (user: "Get me 5 more screams, but more
+  like yells. These are a bit too terror filled. This should be more
+  like loud shock, a yell... it's not a scream of terror").
+  - 32 more candidates (scratch scream/dl3; searched for whoa, surprise,
+    shocked and startled yells; scream/tools/parse.py reads freesound's
+    search pages, segs.py lists a long recording's loud takes with what
+    Whisper hears in each). Iceofdoom's own recordings looked at first,
+    to keep one voice: his grunts series has no yell, but his "Oh!" -
+    Surprised Male (371555, his buddy, the same voice, 11 takes) does.
+  - The five, numbered on from the ten (scratch scream/out2/
+    yell-option-11..15.mp3, yell-options-all.mp3 with the current one
+    first; scream/tools/yells.py): 11 Peter_Scream Surprise 3, a
+    "Whoa!" (CC0, 1.16 s), 12 tim.kahn yell 2, an "AAAH!" (CC BY 4.0,
+    1.13), 13 dersuperanton Ahhh Surprise Man Voice, an "Ah!" (CC BY
+    4.0, 0.85), 14 Iceofdoom's loudest "Oh!" (10.84 s in, CC BY 4.0,
+    0.95; already credited), 15 HappyYoLucky303 whoa!, a long "whoaaa"
+    (CC0, 2.36). Out: EricSueiro's (5000 clipped samples), joseppujol's
+    (heard as "Yeah!", "Hey"), the high or child-like ones.
+  - Waiting on the user's pick (from all fifteen).
