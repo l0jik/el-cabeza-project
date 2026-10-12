@@ -25,8 +25,8 @@
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
 import {
-  PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
-  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
+  PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
+  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
 } from "./rules-selections.js";
 import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS } from "./tienda-order.js";
@@ -1638,10 +1638,11 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     const on = !!sel.laws[l.key];
     const info = h("button", { type: "button", className: "td-info", "data-testid": `tienda-law-${l.key}-info`, onClick: (e) => { e.preventDefault(); e.stopPropagation(); explain(l.key); } }, "How it works ›");
     const out = [check(`law-${l.key}`, on, l.name, l.note, () => change((s) => toggleLaw(s, l.key)), info)];
-    // Shoving's one setting: whether rolls shove too, or only slides.
+    // Shoving's settings: whether rolls shove too, or only slides; and,
+    // while they do, whether a roll pushes any piece or only the opponent's.
     if (on && l.key === "shoving") {
       out.push(h("div", { key: "shove", className: "td-sub", "data-testid": "tienda-shove-settings" },
-        ...SHOVE_SETTINGS.map((st) => h("div", { key: st.key, className: "td-sub-row" },
+        ...shoveShown(sel).map((st) => h("div", { key: st.key, className: "td-sub-row" },
           h("span", { className: "td-sub-h" }, st.name),
           h("div", { className: "td-seg", role: "group", "aria-label": st.name },
             ...st.options.map((o) => h("button", {

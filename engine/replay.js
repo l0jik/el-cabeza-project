@@ -12,6 +12,7 @@
        b: [rows, cols],
        l: ["slide", ...],         laws on (vanilla when empty)
        s: 0,                      only when Shoving shoves on slides only
+       o: 0,                      only when rolls shove only the opponent's
        h: [[row, col], ...],      black holes
        m: [[row, col], ...],      missing squares
        p: [[id, type, owner, row, col, w, h, z, vox?], ...]   the start
@@ -43,9 +44,9 @@ export const REPLAY_TAG = "ECR1.";
 // The laws of a plain game (as the chassis's resetGame sets them).
 export const VANILLA_LAWS = {
   splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false,
-  cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true,
+  cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwnOnRolls: true,
 };
-const LAW_KEYS = Object.keys(VANILLA_LAWS).filter((k) => k !== "shoveOnRolls");
+const LAW_KEYS = Object.keys(VANILLA_LAWS).filter((k) => k !== "shoveOnRolls" && k !== "shoveOwnOnRolls");
 
 /* ------------------------------------------------------------ the code */
 
@@ -88,6 +89,7 @@ export function encodeReplay(rec) {
     b: [rec.rows, rec.cols],
     l: LAW_KEYS.filter((k) => rec.laws && rec.laws[k]),
     ...(rec.laws && rec.laws.shoveOnRolls === false ? { s: 0 } : {}),
+    ...(rec.laws && rec.laws.shoveOwnOnRolls === false ? { o: 0 } : {}),
     h: (rec.holes || []).map((c) => [c.row, c.col]),
     m: (rec.missing || []).map((c) => [c.row, c.col]),
     p: rec.start.map((p) => [p.id, p.type, p.owner, p.row, p.col, p.w, p.h, p.z, ...(p.vox ? [p.vox] : [])]),
@@ -129,6 +131,7 @@ function recordOf(json) {
   const laws = { ...VANILLA_LAWS };
   for (const k of Array.isArray(json.l) ? json.l : []) if (LAW_KEYS.includes(k)) laws[k] = true;
   if (json.s === 0) laws.shoveOnRolls = false;
+  if (json.o === 0) laws.shoveOwnOnRolls = false;
   if (laws.splitThree) laws.splitMovement = true;
   const opener = side(json.f);
   if (!opener) return null;

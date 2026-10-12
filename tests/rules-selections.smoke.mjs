@@ -98,6 +98,17 @@ import("../themes/rules-selections.js").then(async (m) => {
   check("...and the summary says slides only", m.variantsOf(s)[0].items.includes("Shoving (slides only)"));
   s.laws.threeActions = false; s.laws.slide = false;
   s.shove = { onRolls: true };
+  // ...and, while rolls shove, which pieces they push (user: "all pieces or
+  // only opponents"): all by default; the row only shows while rolls shove.
+  check("rolls shove all pieces by default", m.defaultSelections().shove.ownOnRolls === true && m.lawsForEngine(m.defaultSelections()).shoveOwnOnRolls === true);
+  check("...an older save without the setting reads as all pieces", m.normalizeSelections({ laws: { shoving: true }, shove: { onRolls: true } }).shove.ownOnRolls === true);
+  check("...the setting shows only while rolls shove", m.shoveShown({ ...s, shove: { onRolls: true } }).some((st) => st.key === "ownOnRolls") && !m.shoveShown({ ...s, shove: { onRolls: false } }).some((st) => st.key === "ownOnRolls"));
+  s.shove = { onRolls: true, ownOnRolls: false };
+  check("opponents' only reaches the engine", m.lawsForEngine(s).shoveOwnOnRolls === false && m.lawsForEngine(s).shoveOnRolls === true);
+  check("...the line says so", /only your opponent's pieces/.test(m.shoveNow(s)));
+  check("...and the summary too", m.variantsOf(s)[0].items.includes("Shoving (slides and rolls, rolls only opponents')"), JSON.stringify(m.variantsOf(s)[0].items));
+  check("...and it survives a save", m.normalizeSelections(m.cloneSelections(s)).shove.ownOnRolls === false);
+  s.shove = { onRolls: true };
   s.counts.opa = 1;
   check("...and with an Opa but 2 actions a turn it warns an Opa's shove needs 3", m.lawWarnings(s).some((w) => w.testid === "shove-opa-needs-three"));
   s.laws.threeActions = true;

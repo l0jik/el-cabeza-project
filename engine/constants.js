@@ -328,6 +328,11 @@ export let ACTIVE_LAWS = {
   // and rolls", the default) or only slides do ("slides only": a roll into
   // a piece is simply blocked, as without the law).
   shoveOnRolls: true,
+  // ...and, while rolls shove, which pieces a roll may push (user: "all
+  // pieces or only opponents"): any piece in its way (the default), or
+  // only the other side's (a roll into one of your own is blocked, as
+  // without the law). Slides push any piece either way.
+  shoveOwnOnRolls: true,
 };
 
 export function setActiveLaws(partial) {

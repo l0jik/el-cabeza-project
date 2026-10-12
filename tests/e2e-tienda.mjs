@@ -336,7 +336,14 @@ for (const size of [SIZES[2], SIZES[7]]) {
   check("Shoving offers slides and rolls, or slides only (slides and rolls ticked)", (await count('[data-testid="tienda-shove-settings"]')) === 1 && (await attr('[data-testid="tienda-shove-onRolls-on"]', "aria-pressed")) === "true" && (await count('[data-testid^="tienda-shove-far-"]')) === 0);
   check("...and warns that an Opa's shove needs 3 actions", (await count('[data-testid="shove-opa-needs-three"]')) === 1);
   check("...and says what shoves right now", /shove/.test(await page.locator('[data-testid="tienda-shove-now"]').innerText()));
+  // ...and, while rolls shove, which pieces (user: "all pieces or only
+  // opponents"): all by default; opponents' only says so.
+  check("...rolls shove all pieces, by default", (await attr('[data-testid="tienda-shove-ownOnRolls-on"]', "aria-pressed")) === "true");
+  await press('[data-testid="tienda-shove-ownOnRolls-off"]');
+  check("...or only the opponent's, and the line says so", (await attr('[data-testid="tienda-shove-ownOnRolls-off"]', "aria-pressed")) === "true" && /only your opponent's pieces/.test(await page.locator('[data-testid="tienda-shove-now"]').innerText()));
+  await press('[data-testid="tienda-shove-ownOnRolls-on"]');
   await press('[data-testid="tienda-shove-onRolls-off"]');
+  check("...a choice gone with slides only (rolls don't shove)", (await count('[data-testid^="tienda-shove-ownOnRolls-"]')) === 0);
   // (User: Slides only turns Slide on, so it never stands without it.)
   check("Slides only ticks the Slide rule with it (no nothing-can-shove warning)", (await attr('[data-testid="tienda-shove-onRolls-off"]', "aria-pressed")) === "true" && (await page.evaluate(() => document.querySelector('[data-testid="tienda-law-slide-input"]').checked)) && (await count('[data-testid="shove-needs-slide"]')) === 0);
   check("...and the line under it now says only slides shove", /only slides shove/.test(await page.locator('[data-testid="tienda-shove-now"]').innerText()));

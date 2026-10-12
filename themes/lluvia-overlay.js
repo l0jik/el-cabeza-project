@@ -113,17 +113,23 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
       const on = !!sel.laws[k];
       // A law that can't do anything with the other choices says why.
       const warn = warnings.filter((w) => w.key === k).map((w) => h("div", { key: w.testid, role: "status", "data-testid": w.testid, ...(w.key === "cantileverPivot" ? { onClick: showPivots, title: "Show me" } : {}), style: { fontSize: 17, color: "#ffb347", padding: "4px 0 8px 14px", borderBottom: "1px solid rgba(255,179,71,0.12)", cursor: w.key === "cantileverPivot" ? "pointer" : "default" } }, "! ", w.text));
-      // Shoving's one setting, under its row while it's on: whether rolls
-      // shove too, or only slides.
+      // Shoving's settings, under its row while it's on: whether rolls
+      // shove too, or only slides; and, while they do, whether a roll
+      // pushes any piece or only the opponent's (user).
       const rolls = !(sel.shove && sel.shove.onRolls === false);
+      const own = !(sel.shove && sel.shove.ownOnRolls === false);
+      const segBtn = (key, v, now, label) => h("button", {
+        key: String(v), type: "button", "data-testid": `lluvia-shove-${key}-${v ? "on" : "off"}`, "aria-pressed": now === v ? "true" : "false",
+        onClick: () => { sound("key"); change((s) => setShove(s, key, v)); },
+        style: { height: 38, padding: "0 10px", border: "1px solid", borderRadius: 3, font: "400 20px 'VT323', monospace", cursor: "pointer", ...(now === v ? { background: AMBER, color: "#140a04", borderColor: AMBER } : { background: "transparent", color: "#ffcf8a", borderColor: "rgba(255,179,71,0.5)" }) },
+      }, label);
       const shoveRow = k === "shoving" && on
         ? h("div", { key: "shove", "data-testid": "lluvia-shove-settings", style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "6px 0 10px 14px", borderBottom: "1px solid rgba(255,179,71,0.12)" } },
           h("span", { style: { fontSize: 17, color: "#a8783a", marginRight: 4 } }, "SHOVES ON"),
-          ...[[true, "SLIDES + ROLLS"], [false, "SLIDES ONLY"]].map(([v, label]) => h("button", {
-            key: String(v), type: "button", "data-testid": `lluvia-shove-onRolls-${v ? "on" : "off"}`, "aria-pressed": rolls === v ? "true" : "false",
-            onClick: () => { sound("key"); change((s) => setShove(s, "onRolls", v)); },
-            style: { height: 38, padding: "0 10px", border: "1px solid", borderRadius: 3, font: "400 20px 'VT323', monospace", cursor: "pointer", ...(rolls === v ? { background: AMBER, color: "#140a04", borderColor: AMBER } : { background: "transparent", color: "#ffcf8a", borderColor: "rgba(255,179,71,0.5)" }) },
-          }, label)),
+          ...[[true, "SLIDES + ROLLS"], [false, "SLIDES ONLY"]].map(([v, label]) => segBtn("onRolls", v, rolls, label)),
+          rolls && h("span", { key: "own-break", style: { flexBasis: "100%", height: 0 } }),
+          rolls && h("span", { key: "own-h", style: { fontSize: 17, color: "#a8783a", marginRight: 4 } }, "ROLLS SHOVE"),
+          ...(rolls ? [[true, "ALL PIECES"], [false, "OPPONENTS' ONLY"]].map(([v, label]) => segBtn("ownOnRolls", v, own, label)) : []),
           h("span", { "data-testid": "lluvia-shove-now", style: { flexBasis: "100%", fontSize: 16, color: "#a8783a" } }, shoveNow(sel)))
         : null;
       const row = h("button", {

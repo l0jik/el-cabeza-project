@@ -7,6 +7,8 @@
    2. A roll pushes the piece it tips into just past where it lands (two
       squares for a piece right against it).
    2b. Set to slides only, the same roll is blocked: nothing moves.
+   2c. Rolls set to shove only the opponent's pieces: a roll into one of
+       your own is blocked, into the opponent's still shoves.
    3. An Opa rolls into a Turrito and a Cabeza side by side (lighter all
       together) and pushes both past its landing.
    4. An AI turn with the law on runs without errors. */
@@ -97,6 +99,33 @@ const cabezas = [P("dark-cabeza", "cabeza", "dark", 0, 0, 1, 1, 1), P("light-cab
   const tur = ps.find((p) => p.id === "light-turrito");
   check("slides only: the Flaco can't roll into the Turrito", flaco && flaco.col === 3 && flaco.z === 2, JSON.stringify(flaco));
   check("...and the Turrito stays put", tur && tur.col === 4, JSON.stringify(tur));
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await page.close();
+}
+
+// ---- 2c. opponents' only: your own blocks the roll, theirs is pushed ----
+{
+  const { page, errs } = await openPage({ shoving: true, shoveOwnOnRolls: false });
+  await page.evaluate((ps) => window.__EC_TEST_SET_PIECES__(ps), [
+    ...cabezas,
+    P("dark-flaco", "flaco", "dark", 4, 3, 1, 1, 2),
+    P("dark-turrito", "turrito", "dark", 4, 4, 1, 1, 1),
+    P("dark-flaco-2", "flaco", "dark", 6, 3, 1, 1, 2),
+    P("light-turrito", "turrito", "light", 6, 4, 1, 1, 1),
+  ]);
+  await page.waitForTimeout(300);
+  await openDockPanel(page);
+  await page.locator("button", { hasText: /Begin Game|Try a Game/ }).click();
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco", "E"));
+  await page.waitForTimeout(1500);
+  let ps = await page.evaluate(() => window.__EC_TEST_PIECES__);
+  let at = (id) => ps.find((p) => p.id === id);
+  check("opponents' only: the Flaco can't roll into your own Turrito", at("dark-flaco").col === 3 && at("dark-flaco").z === 2 && at("dark-turrito").col === 4, JSON.stringify([at("dark-flaco"), at("dark-turrito")]));
+  await page.evaluate(() => window.__EC_TEST_MOVE__("dark-flaco-2", "E"));
+  await page.waitForTimeout(1500);
+  ps = await page.evaluate(() => window.__EC_TEST_PIECES__);
+  check("...the other rolls into the opponent's and pushes it 2 squares", at("dark-flaco-2") && ps.find((p) => p.id === "dark-flaco-2").col === 4 && ps.find((p) => p.id === "light-turrito").col === 6, JSON.stringify(ps.filter((p) => /flaco-2|light-turrito/.test(p.id))));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await page.close();
 }

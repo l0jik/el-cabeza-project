@@ -31,8 +31,8 @@ import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
 import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constants.js";
 import { POSES, PieceViewer } from "./piece-showcase.js";
 import {
-  PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SHOVE_SETTINGS, SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
-  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, lawWarnings, piecesFit, minColsFor,
+  PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
+  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, lawWarnings, piecesFit, minColsFor,
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
 } from "./rules-selections.js";
 import { WORLDS, createRealitiesMenu, goToWorld, REALITIES_VISIT_KEY } from "./realities.js";
@@ -563,7 +563,8 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
         h("span", { className: "rg-name" }, l.name, h("span", { className: "rg-note" }, l.note)),
         h(Switch, { on: sel.laws[l.key], label: l.name, testid: `gate-law-${l.key}`, onClick: () => change((n) => toggleLaw(n, l.key)) })),
       l.key === "shoving" && sel.laws.shoving && h("div", { className: "rg-sub" },
-        SHOVE_SETTINGS.map((s) => h(Seg, { key: s.key, label: s.name }, s.options.map((o) => segBtn(String(o.value), (sel.shove[s.key] !== false) === o.value, o.name, () => change((n) => setShove(n, s.key, o.value)), `gate-shove-${o.value ? "rolls" : "slides"}`)))),
+        shoveShown(sel).map((s) => h(Seg, { key: s.key, label: s.name }, s.options.map((o) => segBtn(String(o.value), (sel.shove[s.key] !== false) === o.value, o.name, () => change((n) => setShove(n, s.key, o.value)),
+          s.key === "onRolls" ? `gate-shove-${o.value ? "rolls" : "slides"}` : `gate-shove-${o.value ? "all" : "opponents"}`)))),
         h("span", { className: "rg-note", "data-testid": "gate-shove-now" }, shoveNow(sel))),
       l.key === "blackHoleSquares" && sel.laws.blackHoleSquares && h("div", { className: "rg-sub" },
         h("div", { className: "rg-row" },

@@ -42,11 +42,15 @@ export const LAW_TEXT = {
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 actions can be shared between up to three pieces in one turn, one action each." },
   shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra action. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
 };
-// Shoving as this game plays it: its one setting says whether rolls shove
-// too (ACTIVE_LAWS.shoveOnRolls, on unless set to slides only).
+// Shoving as this game plays it: its settings say whether rolls shove
+// too (ACTIVE_LAWS.shoveOnRolls, on unless set to slides only), and if so
+// whether a roll may push your own pieces (ACTIVE_LAWS.shoveOwnOnRolls,
+// on unless set to opponents' pieces only).
 export function shovingText(laws = {}) {
-  return laws.shoveOnRolls === false
-    ? "Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra action (a shoving slide costs 3), never diagonally. A roll into a piece is blocked. Nothing may be behind them."
+  if (laws.shoveOnRolls === false)
+    return "Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra action (a shoving slide costs 3), never diagonally. A roll into a piece is blocked. Nothing may be behind them.";
+  return laws.shoveOwnOnRolls === false
+    ? `${LAW_TEXT.shoving.text} A roll shoves only the opponent's pieces: one of your own in the way blocks it.`
     : LAW_TEXT.shoving.text;
 }
 
@@ -416,7 +420,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "shoveRoll", law: "shoving", title: "Shove by rolling", cost: <Dots n={1} C={C} plus />, text: "A roll shoves too (unless the game is set to slides only): the pieces go just past where it lands. Here a standing Flaco tips over and pushes a Turrito two squares.",
+      key: "shoveRoll", law: "shoving", title: "Shove by rolling", cost: <Dots n={1} C={C} plus />, text: "A roll shoves too (unless the game is set to slides only; set to the opponent's pieces only, one of your own in the way blocks it): the pieces go just past where it lands. Here a standing Flaco tips over and pushes a Turrito two squares.",
       svg: (
         <>
           {panels}
@@ -772,7 +776,9 @@ export function pieceCardInfo(piece, laws = {}, name = piece.type) {
   if (laws.shoving && piece.type !== "cabeza") {
     extra.push(laws.shoveOnRolls === false
       ? (laws.slide ? "Sliding into lighter pieces (fewer cubes, all together) shoves them one square, 1 action more." : "")
-      : "Rolling or sliding into lighter pieces (fewer cubes, all together) shoves them along, 1 action more.");
+      : laws.shoveOwnOnRolls === false
+        ? "Rolling or sliding into lighter pieces (fewer cubes, all together) shoves them along, 1 action more; a roll shoves only the opponent's."
+        : "Rolling or sliding into lighter pieces (fewer cubes, all together) shoves them along, 1 action more.");
   }
   return { name, text: [text, ...extra.filter(Boolean)].join(" "), tile };
 }

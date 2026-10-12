@@ -806,9 +806,19 @@ if (state.activeCategory === "laws") {
       (await page.locator('[data-testid="shove-onRolls-on"]').getAttribute("aria-pressed")) === "true" &&
       (await page.locator('[data-testid^="shove-far-"]').count()) === 0,
     JSON.stringify(state.selections));
+  // ...and, while rolls shove, which pieces (user: "all pieces or only
+  // opponents"): all by default; only the opponent's reaches the engine's
+  // laws; gone with slides only.
+  check("...rolls shove all pieces by default", (await page.locator('[data-testid="shove-ownOnRolls-on"]').getAttribute("aria-pressed")) === "true" && state.selections.shove.ownOnRolls === true);
+  await page.locator('[data-testid="shove-ownOnRolls-off"]').click();
+  await page.waitForTimeout(150);
+  state = await sphereState();
+  check("...or only the opponent's", state.selections.shove.ownOnRolls === false && (await page.locator('[data-testid="shove-ownOnRolls-off"]').getAttribute("aria-pressed")) === "true" && /only your opponent's pieces/.test(await page.locator('[data-testid="shove-now"]').innerText()), JSON.stringify(state.selections.shove));
+  await page.locator('[data-testid="shove-ownOnRolls-on"]').click();
   await page.locator('[data-testid="shove-onRolls-off"]').click();
   await page.waitForTimeout(150);
   state = await sphereState();
+  check("...a choice gone with slides only", (await page.locator('[data-testid^="shove-ownOnRolls-"]').count()) === 0);
   check("...Slides only can be chosen, and brings Slide with it (user)", state.selections.shove.onRolls === false && state.selections.laws.slide === true && (await page.locator('[data-testid="shove-needs-slide"]').count()) === 0, JSON.stringify(state.selections.laws));
   await page.locator('[data-testid="shove-onRolls-on"]').click();
   await page.waitForTimeout(150);

@@ -563,21 +563,26 @@ const LAWS_ITEMS = [
   { key: "shoving", label: "Shoving", blurb: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal Slide. Anything behind them blocks. Costs 1 extra action. Choose whether rolls shove too, or only slides." },
 ];
 
-// The Shoving law's one game-start setting (selections.shove), shown under
-// its checkbox: which moves shove. With slides only, a roll into a piece
-// is simply blocked.
+// The Shoving law's game-start settings (selections.shove), shown under
+// its checkbox: which moves shove (with slides only, a roll into a piece
+// is simply blocked), and, while rolls shove, which pieces a roll may push
+// (user: "all pieces or only opponents"; with opponents' only, one of your
+// own in the way blocks the roll). `when`: shown only while it means
+// something.
 const SHOVE_SETTINGS = [
   { key: "onRolls", label: "Shoves on", options: [{ value: true, label: "Slides and rolls" }, { value: false, label: "Slides only" }] },
+  { key: "ownOnRolls", label: "Rolls shove", when: (shove) => !(shove && shove.onRolls === false), options: [{ value: true, label: "All pieces" }, { value: false, label: "Only opponents'" }] },
 ];
 const shovesOnRolls = (selections) => !(selections.shove && selections.shove.onRolls === false);
+const rollsShoveOwn = (selections) => !(selections.shove && selections.shove.ownOnRolls === false);
 // "Shoving (slides only)" etc. for the summary / variants.
 function lawLabel(item, selections) {
-  return item.key === "shoving" ? `Shoving (${shovesOnRolls(selections) ? "slides and rolls" : "slides only"})` : item.label;
+  return item.key === "shoving" ? `Shoving (${!shovesOnRolls(selections) ? "slides only" : rollsShoveOwn(selections) ? "slides and rolls" : "slides and rolls, rolls only opponents'"})` : item.label;
 }
-// What setActiveLaws gets: the law checkboxes plus Shoving's setting.
+// What setActiveLaws gets: the law checkboxes plus Shoving's settings.
 function lawsForEngine(selections) {
   const l = selections.laws, three = !!(l.splitThree && l.threeActions);
-  return { ...l, splitThree: three, splitMovement: !!l.splitMovement || three, shoveOnRolls: shovesOnRolls(selections) };
+  return { ...l, splitThree: three, splitMovement: !!l.splitMovement || three, shoveOnRolls: shovesOnRolls(selections), shoveOwnOnRolls: rollsShoveOwn(selections) };
 }
 
 // Footprints (col,row cells, all one layer) used only to draw the
@@ -677,8 +682,8 @@ function createDefaultSelections() {
     // of each placed pair ({row,col,random}), hand-picked or rolled at
     // random — each one's 180-degree mirror is its partner.
     missingSquare: { spots: [], count: 1 },
-    // The Shoving law's setting (only matters while it's on).
-    shove: { onRolls: true },
+    // The Shoving law's settings (only matter while it's on).
+    shove: { onRolls: true, ownOnRolls: true },
   };
 }
 
@@ -967,9 +972,10 @@ function normalizeSelections(saved) {
     // Same key order as createDefaultSelections, so a loaded
     // configuration compares equal to the live selections it came from.
     missingSquare: normalizeMissingSquare(src.missingSquare, cell),
-    // Which moves shove; a save without the setting: slides and rolls. An
-    // older save's push distance is dropped (the rule fixes it).
-    shove: { onRolls: !(src.shove && src.shove.onRolls === false) },
+    // Which moves shove; a save without the setting: slides and rolls. And
+    // which pieces rolls push; without it: all. An older save's push
+    // distance is dropped (the rule fixes it).
+    shove: { onRolls: !(src.shove && src.shove.onRolls === false), ownOnRolls: !(src.shove && src.shove.ownOnRolls === false) },
   };
 }
 // Missing Squares' saved shape: { spots, count }. A configuration saved
@@ -2212,7 +2218,7 @@ function renderShoveSettingsRow(t) {
   const s = t.singularity;
   const h = React.createElement;
   const sel = s.selections;
-  if (!sel.shove) sel.shove = { onRolls: true };
+  if (!sel.shove) sel.shove = { onRolls: true, ownOnRolls: true };
   const mono = { fontFamily: "'IBM Plex Mono', monospace" };
   return h(
     "div",
@@ -2221,7 +2227,7 @@ function renderShoveSettingsRow(t) {
       "data-testid": "shove-settings",
       style: { margin: "0 0 6px 36px", padding: "9px 11px", border: "1px solid rgba(102,217,255,0.22)", borderRadius: 4, background: "rgba(102,217,255,0.05)", display: "flex", flexDirection: "column", gap: 8 },
     },
-    ...SHOVE_SETTINGS.map((setting) =>
+    ...SHOVE_SETTINGS.filter((setting) => !setting.when || setting.when(sel.shove)).map((setting) =>
       h(
         "div",
         { key: setting.key, style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" } },
