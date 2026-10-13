@@ -42,16 +42,15 @@ export const LAW_TEXT = {
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 actions can be shared between up to three pieces in one turn, one action each." },
   shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra action. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
 };
-// Shoving as this game plays it: its settings say whether rolls shove
-// too (ACTIVE_LAWS.shoveOnRolls, on unless set to slides only), and if so
-// whether a roll may push your own pieces (ACTIVE_LAWS.shoveOwnOnRolls,
-// on unless set to opponents' pieces only).
+// Shoving as this game plays it: its settings (chassis/shove-settings.js)
+// say whether rolls shove too (ACTIVE_LAWS.shoveOnRolls, on unless set to
+// slides only), and whether a shove, a slide's or a roll's, may push your
+// own pieces (ACTIVE_LAWS.shoveOwn, on unless set to opponents' only).
 export function shovingText(laws = {}) {
+  const own = laws.shoveOwn === false ? " A shove pushes only the opponent's pieces: one of your own in the way blocks the move." : "";
   if (laws.shoveOnRolls === false)
-    return "Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra action (a shoving slide costs 3), never diagonally. A roll into a piece is blocked. Nothing may be behind them.";
-  return laws.shoveOwnOnRolls === false
-    ? `${LAW_TEXT.shoving.text} A roll shoves only the opponent's pieces: one of your own in the way blocks it.`
-    : LAW_TEXT.shoving.text;
+    return `Slides only: a piece sliding into pieces with fewer cubes than it, all together, pushes them one square along, for 1 extra action (a shoving slide costs 3), never diagonally. A roll into a piece is blocked. Nothing may be behind them.${own}`;
+  return `${LAW_TEXT.shoving.text}${own}`;
 }
 
 const mono = "'IBM Plex Mono', monospace";
@@ -774,11 +773,11 @@ export function pieceCardInfo(piece, laws = {}, name = piece.type) {
   }
   if (laws.cantileverPivot && PIVOTERS.includes(piece.type)) extra.push("Or pivot a quarter turn on one cube, 1 action.");
   if (laws.shoving && piece.type !== "cabeza") {
+    // (Set to the opponent's pieces only: "the opponent's lighter pieces".)
+    const whose = laws.shoveOwn === false ? "the opponent's lighter pieces" : "lighter pieces";
     extra.push(laws.shoveOnRolls === false
-      ? (laws.slide ? "Sliding into lighter pieces (fewer cubes, all together) shoves them one square, 1 action more." : "")
-      : laws.shoveOwnOnRolls === false
-        ? "Rolling or sliding into lighter pieces (fewer cubes, all together) shoves them along, 1 action more; a roll shoves only the opponent's."
-        : "Rolling or sliding into lighter pieces (fewer cubes, all together) shoves them along, 1 action more.");
+      ? (laws.slide ? `Sliding into ${whose} (fewer cubes, all together) shoves them one square, 1 action more.` : "")
+      : `Rolling or sliding into ${whose} (fewer cubes, all together) shoves them along, 1 action more.`);
   }
   return { name, text: [text, ...extra.filter(Boolean)].join(" "), tile };
 }

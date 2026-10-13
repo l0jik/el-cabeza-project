@@ -9,6 +9,7 @@
    smoke tests. */
 
 import { setActiveLaws, setBlackHoles, setMissingSquares, getBoardDimensions, MIN_BOARD_DIM, MAX_BOARD_DIM } from "../engine/constants.js";
+import { SHOVE_SETTINGS, DEFAULT_SHOVE, shoveOf, shoveLaws, shoveSummary, shoveNow as shoveNowFor } from "../chassis/shove-settings.js";
 import {
   createInitialPieces, initialPiecesFor, pickBlackHoleSquares, pickMissingSquares, missingSquaresKeepPath, blackHoleRowAllowed,
 } from "../engine/rules.js";
@@ -56,7 +57,7 @@ export const LAW_OPTIONS = [
   { key: "slide", name: "Orthogonal slide", note: "Move a piece one open square along its row or column (not corner to corner) without tipping it. 2 actions (a roll is 1)." },
   { key: "diagonalSlide", name: "Diagonal slide", note: "Move a piece one open square corner to corner without tipping it. 2 actions. On its own, or with Orthogonal slide for all eight ways. Never shoves." },
   { key: "blackHoleSquares", name: "Black hole squares", note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn." },
-  { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 action more. Choose whether rolls shove too, or only slides." },
+  { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 action more. Choose whether rolls shove too, or only slides, and whether a shove may push your own pieces." },
   { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 action." },
   // (3 actions per turn directly above Split movement: user.)
   { key: "threeActions", name: "3 actions per turn", note: "3 actions a turn instead of 2." },
@@ -65,16 +66,13 @@ export const LAW_OPTIONS = [
   // two Split movements, and it brings 3 actions, a point a piece.)
   { key: "splitThree", name: "Split movement, 3 pieces", note: "Spend a turn's 3 actions on up to three pieces, one action each. Brings 3 actions per turn." },
 ];
-// Shoving's settings (as Neon's sphere): which moves shove (with slides
-// only, a roll into a piece is simply blocked), and, while rolls shove,
-// which pieces a roll may push (user: "all pieces or only opponents"; with
-// opponents' only, one of your own in the way blocks the roll). `when`:
-// shown only while it means something.
-export const SHOVE_SETTINGS = [
-  { key: "onRolls", name: "Shoves on", options: [{ value: true, name: "Slides and rolls" }, { value: false, name: "Slides only" }] },
-  { key: "ownOnRolls", name: "Rolls shove", when: (shove) => !(shove && shove.onRolls === false), options: [{ value: true, name: "All pieces" }, { value: false, name: "Only opponents'" }] },
-];
-export const shoveShown = (sel) => SHOVE_SETTINGS.filter((st) => !st.when || st.when(sel.shove || {}));
+// Shoving's settings, the chassis's (chassis/shove-settings.js): which
+// moves shove (with slides only, a roll into a piece is simply blocked),
+// and which pieces a shove may push, a slide's or a roll's (user: "all
+// pieces or only opponents"; with opponents' only, one of your own in the
+// way blocks the move). Both shown while Shoving is on.
+export { SHOVE_SETTINGS };
+export const shoveShown = () => SHOVE_SETTINGS;
 // The board: rows (from one side's home row to the other's) and columns
 // (across, the width of a home row), each MIN_BOARD_DIM to MAX_BOARD_DIM.
 // SIZES are square quick picks.
@@ -86,7 +84,7 @@ export { MIN_BOARD_DIM, MAX_BOARD_DIM };
 export const clampDim = (v) => Math.max(MIN_BOARD_DIM, Math.min(MAX_BOARD_DIM, Math.round(v)));
 
 /* A selection:
-   { counts: {key: n}, laws: {key: bool}, shove: {onRolls, ownOnRolls},
+   { counts: {key: n}, laws: {key: bool}, shove: {onRolls, own},
      rows, cols, missing: bool, missingCount: 1..5,
      missingSpots: [{row, col, random}]   one square of each missing pair,
      holeSpot: {row, col, random} | null  one of the two black holes,
@@ -100,7 +98,7 @@ export function defaultSelections() {
   const laws = {};
   LAW_OPTIONS.forEach((l) => { laws[l.key] = false; });
   return {
-    counts, laws, shove: { onRolls: true, ownOnRolls: true },
+    counts, laws, shove: { ...DEFAULT_SHOVE },
     rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM,
     missing: false, missingCount: 1, missingSpots: [], holeSpot: null,
     random: false,
@@ -129,9 +127,10 @@ export function normalizeSelections(sel) {
   // (One Split movement at a time: three pieces wins.)
   if (out.laws.splitThree) out.laws.splitMovement = false;
   // Which moves shove (a save from before the setting came back has none:
-  // slides and rolls), and which pieces rolls push (none: all). An older
-  // save's push distance is dropped.
-  out.shove = { onRolls: !(sel.shove && sel.shove.onRolls === false), ownOnRolls: !(sel.shove && sel.shove.ownOnRolls === false) };
+  // slides and rolls), and which pieces a shove pushes (none: all; a save
+  // from when it was for rolls only keeps its answer). An older save's
+  // push distance is dropped.
+  out.shove = shoveOf(sel.shove);
   delete out.arcoSize;
   if (!sel.rows || !sel.cols) { out.rows = sel.size || DEFAULT_BOARD_DIM; out.cols = sel.size || DEFAULT_BOARD_DIM; }
   out.rows = clampDim(out.rows); out.cols = clampDim(out.cols);
@@ -147,9 +146,7 @@ export function normalizeSelections(sel) {
 // What actually changes the game: settings of a feature that's off don't.
 function effective(sel) {
   const e = cloneSelections(sel);
-  if (!e.laws.shoving) e.shove = { onRolls: true, ownOnRolls: true };
-  // (Slides only: which pieces a roll pushes doesn't come into it.)
-  else if (e.shove && e.shove.onRolls === false) e.shove = { ...e.shove, ownOnRolls: true };
+  if (!e.laws.shoving) e.shove = { ...DEFAULT_SHOVE };
   if (!e.missing) { e.missingCount = 1; e.missingSpots = []; }
   if (!e.laws.blackHoleSquares) e.holeSpot = null;
   e.missingSpots = (e.missingSpots || []).map((p) => ({ row: p.row, col: p.col }));
@@ -326,26 +323,14 @@ export function setShove(sel, key, value) {
   return sel;
 }
 // What actually shoves with the rules as they're set, for the line under
-// Shoving's setting (user: the Slide/Shoving link confused even the
-// developer). It changes as Slide is ticked.
-export function shoveNow(sel) {
-  // (And never on a diagonal, user: said while Diagonal slide is on.)
-  const diag = sel.laws.diagonalSlide ? " Diagonal slides never shove." : "";
-  if (sel.shove && sel.shove.onRolls === false)
-    return `Right now only slides shove.${diag} A roll into a piece is just blocked. Turning Orthogonal slide off switches this back to Slides and rolls.`;
-  const own = sel.shove && sel.shove.ownOnRolls === false ? " A roll shoves only your opponent's pieces: one of your own in the way blocks it." : "";
-  if (!sel.laws.slide)
-    return sel.laws.diagonalSlide
-      ? `Right now only rolls shove: Orthogonal slide is off, and diagonal slides never shove.${own} Choosing Slides only turns it on.`
-      : `Right now only rolls shove: Orthogonal slide is off, so there are no slides to shove with.${own} Choosing Slides only turns it on.`;
-  return `Right now slides and rolls both shove.${diag}${own}`;
-}
+// Shoving's settings (the chassis's words). It changes as Slide is ticked.
+export const shoveNow = (sel) => shoveNowFor(sel.shove, sel.laws);
 // What the engine gets: the laws (a diagonal slide only with Slide) and
 // Shoving's setting.
 export function lawsForEngine(sel) {
   const l = sel.laws;
   const three = !!(l.splitThree && l.threeActions);
-  return { ...l, diagonalSlide: !!l.diagonalSlide, splitThree: three, splitMovement: !!l.splitMovement || three, shoveOnRolls: !(sel.shove && sel.shove.onRolls === false), shoveOwnOnRolls: !(sel.shove && sel.shove.ownOnRolls === false) };
+  return { ...l, diagonalSlide: !!l.diagonalSlide, splitThree: three, splitMovement: !!l.splitMovement || three, ...shoveLaws(sel.shove) };
 }
 // Pieces that can ever stand balanced on one cube (so can pivot).
 export const PIVOT_CAPABLE = ["codo", "hombro", "cruce", "rayo", "zeta"];
@@ -374,10 +359,10 @@ export function lawWarnings(sel) {
 
 /* ------------------------------------------------------------ the summary */
 
-// "Shoving (slides only)", "Shoving (slides and rolls)" or, rolls set to
-// the opponent's pieces, "Shoving (slides and rolls, rolls only
-// opponents')", for the summary.
-export const shovingName = (sel) => `Shoving (${sel.shove && sel.shove.onRolls === false ? "slides only" : sel.shove && sel.shove.ownOnRolls === false ? "slides and rolls, rolls only opponents'" : "slides and rolls"})`;
+// "Shoving (slides and rolls)", "Shoving (slides only)" and, set to the
+// opponent's pieces, "Shoving (slides only, only opponents')", for the
+// summary.
+export const shovingName = (sel) => `Shoving (${shoveSummary(sel.shove)})`;
 const pieceName = (p) => p.name;
 
 /* What the choices change, for the chassis's current-rules panel and its

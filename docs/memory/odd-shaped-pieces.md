@@ -130,6 +130,17 @@ could ever be in the way. The rule now, confirmed with the user:
   `shove-needs-slide`, without 3 Actions `shove-needs-three`. Lluvia's LAWS
   panel now shows all law warnings too. Rules text follows the setting
   (RulesCards `shovingText`, the piece card).
+- WHICH PIECES A SHOVE MAY PUSH is the second setting (user: "all pieces
+  or only opponents", first for rolls; then "available for [slides] only
+  as well ... written into the chassis", one choice for both): "All
+  pieces" (default) or "Only opponents'": a slide or roll into one of its
+  own side's pieces is blocked, as without the law (`tryShove` checks
+  `ACTIVE_LAWS.shoveOwn`; shown with either Shoves on choice). Written
+  once in `chassis/shove-settings.js` (SHOVE_SETTINGS, shoveOf, shoveLaws,
+  shoveSummary, shoveChosen, shoveNow), read by rules-selections (the
+  store, the gate menus), Neon's sphere, Lluvia, the corner menu and the
+  rules cards. Selection `shove: { onRolls, own }`; a save's old
+  `ownOnRolls` keeps its answer; replay letter `o: 0` unchanged.
 
 Other pieces:
 - The move carries `shoves: [{ id, row, col, teleports }]`, one per

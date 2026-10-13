@@ -344,9 +344,9 @@ export function pickMissingSquarePairs(pieces, rows, cols, count, avoid = [], ex
      never pushed), even if it is itself in the mover's way.
    Rolls shove only while ACTIVE_LAWS.shoveOnRolls is on (the law's
    setting: "slides and rolls", or "slides only"), and with
-   ACTIVE_LAWS.shoveOwnOnRolls off ("only opponents'") a roll shoves only
-   the other side's pieces: one of the mover's own in the way blocks it
-   (rollShove).
+   ACTIVE_LAWS.shoveOwn off ("only opponents'") a shove, a slide's or a
+   roll's, pushes only the other side's pieces: one of the mover's own in
+   the way blocks the move.
    How far: a slide pushes exactly one square (`clearOfLanding` false). A
    roll pushes each piece just clear of where the roller lands
    (`clearOfLanding` true): a piece right against a rolling Opa goes two
@@ -359,6 +359,9 @@ export function pickMissingSquarePairs(pieces, rows, cols, count, avoid = [], ex
    does. */
 function tryShove(pieces, mover, landing, hits, [dr, dc], clearOfLanding) {
   if (!hits.length) return null;
+  // (Set to the opponent's pieces only: one of your own in the way blocks
+  // the move, as without the law.)
+  if (ACTIVE_LAWS.shoveOwn === false && hits.some((p) => p.owner === mover.owner)) return null;
   const mass = hits.reduce((n, q) => n + cubeCount(q), 0);
   if (cubeCount(mover) <= mass) return null;
   const others = pieces.filter((p) => p.id !== mover.id);
@@ -414,9 +417,6 @@ function rollShove(pieces, piece, candidate, dir, sweep) {
   if (bh.blocked || bh.teleportTo) return null;
   const hits = pieces.filter((p) => p.id !== piece.id && piecesClash(candidate, p));
   if (!hits.length) return null;
-  // (Rolls set to shove only the opponent's pieces: one of your own in
-  // the way blocks the roll, as without the law.)
-  if (ACTIVE_LAWS.shoveOwnOnRolls === false && hits.some((p) => p.owner === piece.owner)) return null;
   const shoves = tryShove(pieces, piece, candidate, hits, STEP_DIRS[dir], true);
   if (!shoves) return null;
   if (sweep && rollSweepClashes(pieces, piece, dir, hits)) return null;

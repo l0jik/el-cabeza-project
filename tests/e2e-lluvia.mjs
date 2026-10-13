@@ -91,17 +91,18 @@ await page.waitForTimeout(150);
 check("Shoving shows its setting, slides and rolls chosen",
   (await page.locator('[data-testid="lluvia-shove-settings"]').count()) === 1 &&
   (await page.locator('[data-testid="lluvia-shove-onRolls-on"]').getAttribute("aria-pressed")) === "true");
-check("...and, while rolls shove, all pieces or only the opponent's (all chosen)",
-  (await page.locator('[data-testid="lluvia-shove-ownOnRolls-on"]').getAttribute("aria-pressed")) === "true" &&
-  (await page.locator('[data-testid="lluvia-shove-ownOnRolls-off"]').count()) === 1);
-await page.locator('[data-testid="lluvia-shove-ownOnRolls-off"]').click();
+check("...and all pieces or only the opponent's (all chosen)",
+  (await page.locator('[data-testid="lluvia-shove-own-on"]').getAttribute("aria-pressed")) === "true" &&
+  (await page.locator('[data-testid="lluvia-shove-own-off"]').count()) === 1);
+await page.locator('[data-testid="lluvia-shove-own-off"]').click();
 await page.waitForTimeout(150);
 check("...only the opponent's can be chosen, and the line says so",
-  (await page.locator('[data-testid="lluvia-shove-ownOnRolls-off"]').getAttribute("aria-pressed")) === "true" &&
+  (await page.locator('[data-testid="lluvia-shove-own-off"]').getAttribute("aria-pressed")) === "true" &&
   /only your opponent's pieces/.test(await page.locator('[data-testid="lluvia-shove-now"]').innerText()));
-await page.locator('[data-testid="lluvia-shove-ownOnRolls-on"]').click();
+await page.locator('[data-testid="lluvia-shove-own-on"]').click();
 await page.locator('[data-testid="lluvia-shove-onRolls-off"]').click();
 await page.waitForTimeout(150);
+check("...the choice there with slides only too (user)", (await page.locator('[data-testid="lluvia-shove-own-on"]').count()) === 1 && (await page.locator('[data-testid="lluvia-shove-own-off"]').count()) === 1);
 check("...slides only can be chosen, and it says a shoving slide needs 3",
   (await page.locator('[data-testid="lluvia-shove-onRolls-off"]').getAttribute("aria-pressed")) === "true" &&
   (await page.locator('[data-testid="shove-needs-three"]').count()) === 1);

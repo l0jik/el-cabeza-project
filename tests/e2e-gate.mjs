@@ -137,13 +137,16 @@ console.log("Cabeza Nova: the one menu");
     check("...one rule off by hand: All rules reads off", (await all.getAttribute("aria-checked")) === "false");
     await all.click();
     check("...on again: back on", (await all.getAttribute("aria-checked")) === "true" && (await p.locator(`${laws}[aria-checked="true"]`).count()) === 7);
-    // Shoving's settings: which moves shove, and, while rolls do, which
-    // pieces (user: "all pieces or only opponents").
-    check("...Shoving's settings: rolls shove all pieces, or only the opponent's", (await p.locator('[data-testid="gate-shove-all"]').count()) === 1 && (await p.locator('[data-testid="gate-shove-opponents"]').count()) === 1);
+    // Shoving's settings: which moves shove, and which pieces a shove
+    // pushes, a slide's or a roll's (user: "all pieces or only opponents",
+    // for slides only as well).
+    check("...Shoving's settings: shoves push all pieces, or only the opponent's", (await p.locator('[data-testid="gate-shove-all"]').count()) === 1 && (await p.locator('[data-testid="gate-shove-opponents"]').count()) === 1);
     await p.locator('[data-testid="gate-shove-opponents"]').click();
     check("...only the opponent's, and the line under it says so", /only your opponent's pieces/.test(await p.locator('[data-testid="gate-shove-now"]').textContent()));
     await p.locator('[data-testid="gate-shove-slides"]').click();
-    check("...a choice gone with slides only", (await p.locator('[data-testid="gate-shove-opponents"]').count()) === 0);
+    check("...the choice there with slides only too, still chosen, the line saying both",
+      (await p.locator('[data-testid="gate-shove-opponents"][aria-pressed="true"]').count()) === 1 &&
+      /only slides shove/i.test(await p.locator('[data-testid="gate-shove-now"]').textContent()) && /only your opponent's pieces/.test(await p.locator('[data-testid="gate-shove-now"]').textContent()));
     await p.locator('[data-testid="gate-shove-rolls"]').click();
     await p.locator('[data-testid="gate-shove-all"]').click();
     await all.click();

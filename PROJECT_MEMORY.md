@@ -367,6 +367,24 @@ How to use it:
   before). "City maps" is the user's name for the City (first asked as
   "What is the Cabeza piece for the city maps supposed to be?"); Plano
   keeps its own drawn rotunda.
+- Shoving's pieces choice for every shove (user, the Cabeza Nova menu:
+  "All pieces or only opponents buttons should be available for [slides]
+  only as well in all relevant instances throughout all themes. This
+  should be written into the chassis"; asked: Slides only too, one choice
+  for slides and rolls): chassis/shove-settings.js holds both settings
+  ("Shoves on": Slides and rolls / Slides only; "Shoves push": All pieces
+  / Only opponents'), their words (the line under them, the summary, the
+  corner menu's) and the reading of old saves. The engine's
+  ACTIVE_LAWS.shoveOwn (was shoveOwnOnRolls) is checked in tryShove, so a
+  slide's shove and a roll's alike; selections keep shove.own (an old
+  ownOnRolls is read); replay codes keep o: 0. Every menu shows the choice
+  with Slides only now: the gate menus and the store (shoveShown), Neon's
+  sphere (shove-own-on|off), Lluvia (lluvia-shove-own-on|off). Tests:
+  engine.smoke (slides into your own blocked, theirs pushed, slides only
+  too, no X for a diagonal into your own), rules-selections.smoke,
+  replay.smoke, e2e-shoving 2d (in play), e2e-gate, e2e-singularity,
+  e2e-tienda, e2e-lluvia, e2e-corner-menu ("Shoves push: Only
+  opponents'").
 - e2e-hold-to-end's short press and drag (CI run 47, the City): on a
   loaded machine the lift or the drag's first move reached the page after
   the 0.65 s, so the page saw a held press and the turn ended. Those two

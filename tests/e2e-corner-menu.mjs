@@ -25,7 +25,7 @@ let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
 const poll = async (fn, ms = 8000) => { const end = Date.now() + ms; let v; while (Date.now() < end) { v = await fn().catch(() => null); if (v) return v; await new Promise((r) => setTimeout(r, 200)); } return v; };
 
-const LAWS = { slide: true, shoving: true, shoveOwnOnRolls: false };
+const LAWS = { slide: true, shoving: true, shoveOwn: false };
 const BOARD = { rows: 12, cols: 10 };
 const VIEW = { width: 1100, height: 800 };
 const WORLDS = [
@@ -163,7 +163,7 @@ for (const world of WORLDS) {
   await page.hover('[data-testid="lab-hud"]');
   const list = await poll(() => page.evaluate(() => { const r = document.querySelector('[data-testid="lab-hud-rules"]'); return r && r.dataset.open === "true" ? r.textContent : null; }), 5000);
   await page.waitForTimeout(1200); // (its glide up to full size)
-  check("brought up, it lists the laws, their settings, the pieces, the board", !!list && /Orthogonal slide/.test(list) && /Rolls shove: Only opponents'/.test(list) && /Turrito/.test(list) && /Size 10 × 12/.test(list), list && list.slice(0, 300));
+  check("brought up, it lists the laws, their settings, the pieces, the board", !!list && /Orthogonal slide/.test(list) && /Shoves push: Only opponents'/.test(list) && /Turrito/.test(list) && /Size 10 × 12/.test(list), list && list.slice(0, 300));
   const fits = await page.evaluate(() => { const l = document.querySelector('[data-testid="lab-hud-rules"] .lab-rules-list'); const r = l && l.getBoundingClientRect(); return r ? { top: Math.round(r.top), bottom: Math.round(r.bottom), h: innerHeight, max: l.style.maxHeight } : null; });
   check("...the list within the screen", !!fits && fits.bottom <= fits.h, JSON.stringify(fits));
   await page.waitForTimeout(8000);

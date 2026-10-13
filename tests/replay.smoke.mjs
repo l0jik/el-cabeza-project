@@ -117,8 +117,10 @@ const LAW_SETS = [
   { splitMovement: true, threeActions: true },
   { shoving: true, slide: true },
   { cantileverPivot: true, splitMovement: true },
-  // (Rolls set to shove only the opponent's pieces: the code carries it.)
-  { shoving: true, threeActions: true, shoveOwnOnRolls: false },
+  // (Shoves set to push only the opponent's pieces, slides' and rolls':
+  // the code carries it.)
+  { shoving: true, threeActions: true, shoveOwn: false },
+  { shoving: true, slide: true, threeActions: true, shoveOnRolls: false, shoveOwn: false },
 ];
 
 console.log("codes");
@@ -150,13 +152,13 @@ for (let seed = 1; seed <= 60; seed++) {
 }
 check(`${games} random games (${wins} won) through encode, decode and the rules check`, allOk);
 {
-  // Shoving's roll setting goes into the code and comes back out (o: 0
-  // only when rolls shove only the opponent's; otherwise all pieces).
-  const g = randomGame(7, { shoving: true, threeActions: true, shoveOwnOnRolls: false }, 6);
+  // Shoving's pieces setting goes into the code and comes back out (o: 0
+  // only when shoves push only the opponent's; otherwise all pieces).
+  const g = randomGame(7, { shoving: true, threeActions: true, shoveOwn: false }, 6);
   const back = decodeReplay(`Replay code: ${encodeReplay(g.rec)}`);
-  const plain = decodeReplay(`Replay code: ${encodeReplay({ ...g.rec, laws: { ...g.rec.laws, shoveOwnOnRolls: true } })}`);
-  check("rolls shoving only the opponent's survives the code", !!back && back.laws && back.laws.shoveOwnOnRolls === false && back.laws.shoving === true);
-  check("...and all pieces (the default) stays the default", !!plain && plain.laws && plain.laws.shoveOwnOnRolls === true);
+  const plain = decodeReplay(`Replay code: ${encodeReplay({ ...g.rec, laws: { ...g.rec.laws, shoveOwn: true } })}`);
+  check("shoves pushing only the opponent's survives the code", !!back && back.laws && back.laws.shoveOwn === false && back.laws.shoving === true);
+  check("...and all pieces (the default) stays the default", !!plain && plain.laws && plain.laws.shoveOwn === true);
 }
 check("...each ends on the board it was played to, with the same winner", finals);
 check("...and their readable lines alone read back to the same moves (no shoving)", legacyOk);

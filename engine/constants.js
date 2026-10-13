@@ -324,15 +324,15 @@ export let ACTIVE_LAWS = {
   // pushes one square, a roll just clear of where it lands. See tryShove
   // in rules.js.
   shoving: false,
-  // Shoving's one setting: whether rolls shove as well as slides ("slides
+  // Shoving's settings: whether rolls shove as well as slides ("slides
   // and rolls", the default) or only slides do ("slides only": a roll into
-  // a piece is simply blocked, as without the law).
+  // a piece is simply blocked, as without the law)...
   shoveOnRolls: true,
-  // ...and, while rolls shove, which pieces a roll may push (user: "all
-  // pieces or only opponents"): any piece in its way (the default), or
-  // only the other side's (a roll into one of your own is blocked, as
-  // without the law). Slides push any piece either way.
-  shoveOwnOnRolls: true,
+  // ...and which pieces a shove may push, a slide's or a roll's (user:
+  // "all pieces or only opponents", for slides only as well): any piece in
+  // its way (the default), or only the other side's (a move into one of
+  // your own is blocked, as without the law). chassis/shove-settings.js.
+  shoveOwn: true,
 };
 
 export function setActiveLaws(partial) {

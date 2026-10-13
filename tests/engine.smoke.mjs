@@ -415,23 +415,40 @@ setActiveLaws({ splitMovement: false, threeActions: false });
   shoveCheck("slides only: a slide still shoves", m && moved(m, "tu").col === 5, JSON.stringify(m));
   m = legalMovesFor([chatoTall, enemyCab], chatoTall, 2).E;
   shoveCheck("slides only: a roll onto a lone enemy Cabeza is still a crush", m && m.crushes && !m.shoves, JSON.stringify(m));
-  setActiveLaws({ ...LAWS_OFF, shoving: true, threeActions: true, shoveOnRolls: true });
-  // ...and, while rolls shove, which pieces (user: "all pieces or only
-  // opponents"). All, the default: a roll pushes your own too.
+  setActiveLaws({ ...LAWS_OFF, slide: true, shoving: true, threeActions: true, shoveOnRolls: true });
+  // ...and which pieces a shove may push, a slide's or a roll's (user: "all
+  // pieces or only opponents", for slides only as well). All, the default:
+  // your own too.
   m = legalMovesFor([chatoTall, P("own", "turrito", 4, 4, 1, 1, 1)], chatoTall, 2).E;
   shoveCheck("all pieces (the default): a roll shoves your own lighter piece", m && moved(m, "own").col === 6, JSON.stringify(m));
-  // Only the opponent's: one of your own in the way blocks the roll, theirs
-  // are still pushed, a mix is blocked; slides push either; crushes intact.
-  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true, shoveOnRolls: true, shoveOwnOnRolls: false });
+  m = legalMovesFor([chato, P("os", "turrito", 4, 4, 1, 1, 1)], chato, 3)["slide-E"];
+  shoveCheck("all pieces (the default): a slide shoves your own lighter piece", m && moved(m, "os").col === 5, JSON.stringify(m));
+  // Only the opponent's: one of your own in the way blocks the move, a
+  // roll's or a slide's; theirs are still pushed; a mix is blocked;
+  // crushes intact.
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true, shoveOnRolls: true, shoveOwn: false });
   shoveCheck("opponents' only: a roll into your own lighter piece is blocked", !legalMovesFor([chatoTall, P("own", "turrito", 4, 4, 1, 1, 1)], chatoTall, 3).E);
   m = legalMovesFor([chatoTall, P("t3", "turrito", 4, 4, 1, 1, 1, "light")], chatoTall, 3).E;
   shoveCheck("opponents' only: a roll still shoves the opponent's", m && moved(m, "t3").col === 6, JSON.stringify(m));
   shoveCheck("opponents' only: yours and theirs side by side block the roll", !legalMovesFor([opa, P("o1", "turrito", 4, 4, 1, 1, 1), P("o2", "turrito", 5, 4, 1, 1, 1, "light")], opa, 3).E);
-  m = legalMovesFor([chato, P("os", "turrito", 4, 4, 1, 1, 1)], chato, 3)["slide-E"];
-  shoveCheck("opponents' only: a slide still shoves your own", m && moved(m, "os").col === 5, JSON.stringify(m));
+  shoveCheck("opponents' only: a slide into your own lighter piece is blocked too", !legalMovesFor([chato, P("os", "turrito", 4, 4, 1, 1, 1)], chato, 3)["slide-E"]);
+  m = legalMovesFor([chato, turrito], chato, 3)["slide-E"];
+  shoveCheck("opponents' only: a slide still shoves the opponent's", m && moved(m, "tu").col === 5, JSON.stringify(m));
+  shoveCheck("opponents' only: yours and theirs side by side block the slide", !legalMovesFor([opa, P("o1", "turrito", 4, 4, 1, 1, 1), P("o2", "turrito", 5, 4, 1, 1, 1, "light")], opa, 3)["slide-E"]);
   m = legalMovesFor([chatoTall, enemyCab], chatoTall, 2).E;
   shoveCheck("opponents' only: a roll onto a lone enemy Cabeza is still a crush", m && m.crushes && !m.shoves, JSON.stringify(m));
-  setActiveLaws({ ...LAWS_OFF, shoving: true, threeActions: true, shoveOnRolls: true, shoveOwnOnRolls: true });
+  // ...with Slides only as well (the choice shows with it now).
+  setActiveLaws({ ...LAWS_OFF, slide: true, threeActions: true, shoving: true, shoveOnRolls: false, shoveOwn: false });
+  shoveCheck("slides only, opponents' only: a slide into your own is blocked", !legalMovesFor([chato, P("os", "turrito", 4, 4, 1, 1, 1)], chato, 3)["slide-E"]);
+  m = legalMovesFor([chato, turrito], chato, 3)["slide-E"];
+  shoveCheck("slides only, opponents' only: a slide shoves the opponent's", m && moved(m, "tu").col === 5, JSON.stringify(m));
+  shoveCheck("slides only, opponents' only: a roll into the opponent's is still blocked", !legalMovesFor([chatoTall, P("t3", "turrito", 4, 4, 1, 1, 1, "light")], chatoTall, 3).E);
+  // (The board's X for a diagonal: not for one into your own, which no
+  // slide could push anyway.)
+  setActiveLaws({ ...LAWS_OFF, slide: true, diagonalSlide: true, threeActions: true, shoving: true, shoveOwn: false });
+  shoveCheck("opponents' only: no X for a diagonal into your own", blockedDiagonalShoves([chato, P("oc", "turrito", 3, 4, 1, 1, 1)], chato, 3).length === 0);
+  shoveCheck("...still the X for the opponent's", blockedDiagonalShoves([chato, corner], chato, 3).length === 1);
+  setActiveLaws({ ...LAWS_OFF, shoving: true, threeActions: true, shoveOnRolls: true, shoveOwn: true });
 
   // The AI sees shoves (several pieces at once too), and applying/undoing
   // them restores the board exactly.
@@ -443,8 +460,8 @@ setActiveLaws({ splitMovement: false, threeActions: false });
   shoveCheck("generating them leaves the board untouched", JSON.stringify(board) === before);
   const plan = await findBestAiTurn(board, "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 300 }, 0, 10);
   shoveCheck("the AI still finds a turn with Shoving on", !!plan);
-  setActiveLaws({ ...LAWS_OFF, shoveOnRolls: true, shoveOwnOnRolls: true });
-  console.log("[shoving] lighter-in-total pieces pushed; slide 1, roll clear of landing; side by side yes, lines no; mass not height; holes, edges, Missing Squares; +1 point; crushes intact; slides only blocks the roll; opponents' only blocks a roll into your own; AI sees it");
+  setActiveLaws({ ...LAWS_OFF, shoveOnRolls: true, shoveOwn: true });
+  console.log("[shoving] lighter-in-total pieces pushed; slide 1, roll clear of landing; side by side yes, lines no; mass not height; holes, edges, Missing Squares; +1 point; crushes intact; slides only blocks the roll; opponents' only blocks a slide or roll into your own; AI sees it");
 }
 
 // ---------- Cantilever Pivot LAW ----------

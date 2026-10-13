@@ -16,6 +16,7 @@
 
 import { ACTIVE_LAWS, BOARD_ROWS, BOARD_COLS } from "../engine/constants.js";
 import { PIECE_OPTIONS } from "../themes/rules-selections.js";
+import { shoveFromLaws, shoveChosen } from "./shove-settings.js";
 
 /* ------------------------------------------------------------ the data */
 
@@ -36,10 +37,8 @@ export function gameRules(pieces = [], missing = [], holes = []) {
   if (A.slide) laws.push({ key: "slide", name: "Orthogonal slide" });
   if (A.diagonalSlide) laws.push({ key: "diagonalSlide", name: "Diagonal slide" });
   if (A.blackHoleSquares) laws.push({ key: "blackHoleSquares", name: "Black hole squares" });
-  if (A.shoving) {
-    const rolls = A.shoveOnRolls !== false;
-    laws.push({ key: "shoving", name: "Shoving", sets: [["Shoves on", rolls ? "Slides and rolls" : "Slides only"], ...(rolls ? [["Rolls shove", A.shoveOwnOnRolls === false ? "Only opponents'" : "All pieces"]] : [])] });
-  }
+  // (Shoving's settings, both, in the chassis's words: chassis/shove-settings.js.)
+  if (A.shoving) laws.push({ key: "shoving", name: "Shoving", sets: shoveChosen(shoveFromLaws(A)) });
   if (A.cantileverPivot) laws.push({ key: "cantileverPivot", name: "Cantilever pivot" });
   if (A.splitMovement) laws.push({ key: A.splitThree ? "splitThree" : "splitMovement", name: "Split movement", sets: [["Pieces", A.splitThree ? "Up to 3" : "Up to 2"], ["Actions", A.splitThree || A.threeActions ? "3 a turn" : "2 a turn"]] });
   else if (A.threeActions) laws.push({ key: "threeActions", name: "3 actions per turn" });

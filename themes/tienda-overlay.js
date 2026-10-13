@@ -1631,8 +1631,9 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     const on = !!sel.laws[l.key];
     const info = h("button", { type: "button", className: "td-info", "data-testid": `tienda-law-${l.key}-info`, onClick: (e) => { e.preventDefault(); e.stopPropagation(); explain(l.key); } }, "How it works ›");
     const out = [check(`law-${l.key}`, on, l.name, l.note, () => change((s) => toggleLaw(s, l.key)), info)];
-    // Shoving's settings: whether rolls shove too, or only slides; and,
-    // while they do, whether a roll pushes any piece or only the opponent's.
+    // Shoving's settings (the chassis's): whether rolls shove too, or only
+    // slides; and whether a shove, a slide's or a roll's, pushes any piece
+    // or only the opponent's.
     if (on && l.key === "shoving") {
       out.push(h("div", { key: "shove", className: "td-sub", "data-testid": "tienda-shove-settings" },
         ...shoveShown(sel).map((st) => h("div", { key: st.key, className: "td-sub-row" },
