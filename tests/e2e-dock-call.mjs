@@ -186,6 +186,42 @@ async function open(name, opts = {}) {
   await ctx.close();
 }
 
+// ---- the mouse resting where the corner piece lands (GitHub run 43) ----
+// After Begin Game the pointer rests where it pressed, and the piece slides
+// to its corner. Arriving under a resting mouse isn't a hover: on a slow
+// machine the browser can report it entering there and leaving only later,
+// and the dock opened by itself (Watermark, run 43: the game then ended
+// with it open, so no call). Here the mouse waits right where the piece
+// lands, Begin is pressed without moving it: the dock stays shut; then the
+// mouse moved a little, never off the piece, opens it (a hover now; the
+// mouse brought onto it from off it is every other section's).
+{
+  console.log("a mouse at rest where the corner piece lands");
+  const first = await open("standard");
+  const landed = await begin(first.page);
+  check("a game begun: the corner's place", !!landed, JSON.stringify(landed));
+  await first.ctx.close();
+  const { ctx, page, errs } = await open("standard");
+  await openDockPanel(page);
+  const human = page.locator('[data-testid="dock-panel"] button', { hasText: /^Human$/ }).first();
+  if (await human.count()) { await human.click(); await page.waitForTimeout(300); }
+  const cx = landed.x + landed.width / 2, cy = landed.y + landed.height / 2;
+  await page.mouse.move(cx, cy);
+  await page.locator('[data-testid="dock-panel"] button', { hasText: /Begin Game/ }).first().dispatchEvent("click");
+  const corner = await waitForDockCorner(page, { timeoutMs: 15000 });
+  const under = corner && Math.abs(corner.x + corner.width / 2 - cx) < 30 && Math.abs(corner.y + corner.height / 2 - cy) < 30;
+  check("the piece came to rest under the mouse", !!under, JSON.stringify({ corner, cx, cy }));
+  await page.waitForTimeout(3000);
+  const shut = await page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open !== "true");
+  check("...and the dock stayed shut (no hover: the mouse never moved)", shut);
+  // (five pixels toward the piece's middle, so still on it)
+  if (corner) await page.mouse.move(cx + Math.sign(corner.x + corner.width / 2 - cx || 1) * 5, cy + Math.sign(corner.y + corner.height / 2 - cy || 1) * 5, { steps: 2 });
+  const opened = await poll(() => page.evaluate(() => document.querySelector('[data-testid="dock-panel"]').dataset.open === "true"), 4000);
+  check("...then the mouse moved a little over it: it opens", !!opened);
+  check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
+  await ctx.close();
+}
+
 // ---- other worlds: their own light, and one that shows there ----
 // (The Lab's Swiss Design: white on its white page can't be seen, so its
 // red, whichever side's piece; Parrish names its own, its ash, candlelight

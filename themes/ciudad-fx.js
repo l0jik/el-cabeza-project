@@ -20,7 +20,7 @@
 
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z, BOARD_ROWS, BOARD_COLS } from "../engine/constants.js";
-import { NOW, stepTime, timeOf } from "./ciudad-time.js";
+import { NOW, TIMES, stepTime, timeOf } from "./ciudad-time.js";
 import { PLAN_U, FOCUS, applyNight, setEnv, glowTex } from "./ciudad-models.js";
 import { buildCity } from "./ciudad-city.js";
 import { createLots } from "./ciudad-lots.js";
@@ -91,12 +91,15 @@ function makeEnv(renderer, id) {
   const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
   es.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ map: t, side: THREE.BackSide })));
   if (!T.night) { const sd = new THREE.Mesh(new THREE.SphereGeometry(4, 16, 8), new THREE.MeshBasicMaterial({ color: 0xfffaf0 })); sd.position.set(...T.sun.dir).normalize().multiplyScalar(44); es.add(sd); }
-  const pm = new THREE.PMREMGenerator(renderer);
-  const out = pm.fromScene(es, 0).texture;
-  pm.dispose(); t.dispose();
+  // (one generator kept: made new each time, its blurring was compiled
+  // again for every hour)
+  if (!PM || PM.r !== renderer) { if (PM) PM.g.dispose(); PM = { r: renderer, g: new THREE.PMREMGenerator(renderer) }; }
+  const out = PM.g.fromScene(es, 0).texture;
+  t.dispose();
   es.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
   return out;
 }
+let PM = null;
 
 /* ------------------------------------------------------------ dust, the pool */
 
@@ -119,8 +122,27 @@ function puffTexture() {
 export function mountAmbientEffects(refs, { three, cam, audio }) {
   const Q = quality();
   let city = null, lots = null, life = null, dims = "", attachedTo = null, fog = null, renderPrev = null, sky = null, fogPrev = null;
-  let hemi = null, ambient = null, pool = null, lastVersion = -1, envId = null, moving = false;
+  let hemi = null, ambient = null, pool = null, lastVersion = -1, envId = null, moving = false, warmed = false, gone = false;
   const envs = new Map();
+
+  /* The first change to an hour mustn't stall a frame on its way: on a
+     phone, or GitHub's software renderer, one long frame the length of the
+     change skips it (e2e-ciudad saw the night go from 0 to 1 between two
+     frames). So once the city is up, every material's program is built (the
+     night's lamps and glows among them, hidden by day), and each hour's
+     sky for the glass is made one at a time when the page is idle. */
+  const idle = (fn) => (typeof requestIdleCallback === "function" ? requestIdleCallback(fn, { timeout: 5000 }) : setTimeout(fn, 800));
+  function warmUp(t) {
+    try { t.renderer.compile(t.scene, t.camera); } catch (e) { /* the frame's own draw will */ }
+    const next = () => {
+      if (gone) return;
+      const tt = three.current, id = TIMES.map((x) => x.id).find((k) => !envs.has(k));
+      if (!id || !tt || !tt.renderer) return;
+      envs.set(id, makeEnv(tt.renderer, id));
+      idle(next);
+    };
+    idle(next);
+  }
   const puffs = [];
   const lastPos = new Map();
   const camLocal = new THREE.Vector3(), sunWorld = new THREE.Vector3(), keyPos = new THREE.Vector3(), tmp = new THREE.Vector3();
@@ -272,6 +294,10 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
       stepTime(now);
       placeSun(t);
       if (NOW.version !== lastVersion) { lastVersion = NOW.version; light(t); }
+      if (!warmed && t.camera) { warmed = true; warmUp(t); }
+      // (a test's record of the night as each frame draws it, e2e-ciudad)
+      const trace = typeof window !== "undefined" && window.__CIUDAD_TRACE__;
+      if (trace && trace.length < 4000) trace.push(+NOW.night.toFixed(3));
       sky.set(sunWorld);
       PLAN_U.uTime.value = sec;
       if (t.camera) {
@@ -290,6 +316,7 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
       if (audio && audio.setHour) audio.setHour(NOW.id, NOW.night);
     },
     dispose() {
+      gone = true;
       puffs.forEach((p) => { p.s.parent && p.s.parent.remove(p.s); p.s.material.dispose(); }); puffs.length = 0;
       if (pool) { pool.parent && pool.parent.remove(pool); pool.geometry.dispose(); pool.material.dispose(); pool = null; }
       for (const part of [city, lots, life]) if (part) { part.group.parent && part.group.parent.remove(part.group); part.dispose(); }
@@ -297,6 +324,7 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
       if (typeof window !== "undefined" && window.__CIUDAD__) delete window.__CIUDAD__;
       if (sky) { sky.group.parent && sky.group.parent.remove(sky.group); sky.dispose(); sky = null; }
       setEnv(null); envs.forEach((e) => e.dispose()); envs.clear();
+      if (PM) { PM.g.dispose(); PM = null; }
       const t = three.current;
       if (t && t.scene && t.scene.fog === fog) t.scene.fog = fogPrev ? fogPrev.fog : null;
       if (t && t.renderer && renderPrev) { t.renderer.outputEncoding = renderPrev.enc; t.renderer.toneMappingExposure = renderPrev.exp; }

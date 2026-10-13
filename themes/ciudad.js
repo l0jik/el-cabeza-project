@@ -261,20 +261,20 @@ export function makeGrid() {
 
 /* The chassis's piece is the hit target, unseen; the building rides on it
    (a child, so it moves and rolls with it). The Cabeza's target is as tall
-   as its pavilion. */
+   as the Cabeza it is (the pavilion, or the one tried, ciudad-cabezas.js). */
 const HIDDEN = () => new THREE.MeshBasicMaterial({ visible: false });
 export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
   let g = geo;
   const side = isDark ? "dark" : "light";
+  const building = buildingFor(piece, side);
   if (isDisc) {
-    const r = (DISC_DIAM * CABEZA_SCALE) / 2, hh = 0.24, base = (DISC_H * CABEZA_SCALE) / 2;
+    const r = (DISC_DIAM * CABEZA_SCALE) / 2, hh = Math.max(0.24, (building.userData.top || 0) + 0.02), base = (DISC_H * CABEZA_SCALE) / 2;
     g = new THREE.CylinderGeometry(r, r, hh, 40); g.translate(0, hh / 2 - base, 0);
     geo.dispose();
   }
   const mesh = new THREE.Mesh(g, HIDDEN());
   mesh.position.set(center.x, y, center.z);
   mesh.userData = { pieceId: piece.id, kind: "piece", isDark };
-  const building = buildingFor(piece, side);
   building.position.set(0, -y, 0);
   building.rotation.set(0, 0, 0);
   mesh.add(building);

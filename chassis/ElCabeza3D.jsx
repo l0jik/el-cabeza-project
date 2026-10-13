@@ -1234,6 +1234,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // gated behind a hover/hold (see handleDockPieceHoverStart) instead of
   // a click, so it can't be triggered by an incidental tap mid-play.
   const dockHoverTimerRef = useRef(null);
+  // Where the mouse last moved on the page, and where it was resting when
+  // the piece took its corner (see handleDockPieceHoverStart).
+  const lastPointerRef = useRef(null);
+  const cornerRestRef = useRef(null);
+  const restEnterRef = useRef(false); // an entering set aside (the mouse at rest), till it moves
+  const pointerAtRest = useCallback((ev) => {
+    const r = cornerRestRef.current;
+    return !!r && Math.abs(ev.clientX - r.x) <= 2 && Math.abs(ev.clientY - r.y) <= 2;
+  }, []);
   const clearDockHoverTimer = useCallback(() => {
     if (dockHoverTimerRef.current) {
       clearTimeout(dockHoverTimerRef.current);
@@ -1344,6 +1353,24 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameArmed]);
+
+  // (handleDockPieceHoverStart: the mouse's last place, and as the piece
+  // takes its corner, where it rests then; set before the browser can
+  // report anything entering the piece there)
+  useEffect(() => {
+    const onMove = (e) => {
+      if (e.pointerType === "touch") return;
+      lastPointerRef.current = { x: e.clientX, y: e.clientY };
+      // moved off where it rested: from now on an entering is a hover
+      const r = cornerRestRef.current;
+      if (r && (Math.abs(e.clientX - r.x) > 2 || Math.abs(e.clientY - r.y) > 2)) cornerRestRef.current = null;
+    };
+    window.addEventListener("pointermove", onMove, { capture: true, passive: true });
+    return () => window.removeEventListener("pointermove", onMove, { capture: true });
+  }, []);
+  useLayoutEffect(() => {
+    if (dockView === "corner") cornerRestRef.current = lastPointerRef.current ? { ...lastPointerRef.current } : null;
+  }, [dockView]);
 
   const prevDockViewRef = useRef(dockView);
   useEffect(() => {
@@ -1490,13 +1517,33 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // shrinking an already-tiny hover target further for the smallest
   // piece types reintroduces exactly the "too small/sensitive"
   // complaint this gesture exists to avoid.
+  //
+  // A hover is the mouse brought onto the piece, not the piece arriving
+  // under a mouse at rest: right after Begin Game the pointer still rests
+  // on the button, and the piece slides to its corner under it. On a slow
+  // machine (GitHub's software renderer, run 43) the browser can report
+  // it entering once the piece is in its corner and the leaving more than
+  // the 0.5 s later, and the dock opened by itself (a game then ended with
+  // it open: no call after). So where the mouse was when the piece took
+  // its corner is noted, and an entering there, the mouse not moved since,
+  // starts nothing; moved over the piece, it does (dockHoverMoved below).
   const handleDockPieceHoverStart = useCallback((ev) => {
     if (dockView !== "corner" || dockHoverTimerRef.current) return;
+    if (ev && ev.type === "pointerenter" && ev.pointerType !== "touch" && pointerAtRest(ev)) { restEnterRef.current = true; return; }
     dockHoverTimerRef.current = setTimeout(() => {
       dockHoverTimerRef.current = null;
       triggerDockBounce();
     }, 500);
-  }, [dockView, triggerDockBounce]);
+  }, [dockView, triggerDockBounce, pointerAtRest]);
+  // The mouse moving over the corner piece after its entering was set
+  // aside (it rested where the piece arrived): now it's a hover. (Only
+  // then: any other move over the piece, after spinning it, say, starts
+  // nothing, as before.)
+  const dockHoverMoved = useCallback((ev) => {
+    if (!restEnterRef.current || dockView !== "corner" || dockHoverTimerRef.current || ev.pointerType === "touch" || pointerAtRest(ev)) return;
+    restEnterRef.current = false;
+    handleDockPieceHoverStart({ type: "pointermove", pointerType: ev.pointerType });
+  }, [dockView, pointerAtRest, handleDockPieceHoverStart]);
 
   const handleDockPiecePointerDown = useCallback((ev) => {
     const state = dockPieceRef.current;
@@ -1507,6 +1554,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (e) {}
     }
     ev.currentTarget.style.cursor = "grabbing";
+    // (a press is the player's own: an entering set aside is done with)
+    restEnterRef.current = false;
     // Touch has no real hover, so pointerdown doubles as the start of
     // the corner watermark's hold-to-open timer (see
     // handleDockPieceHoverStart) — a no-op everywhere else.
@@ -1516,6 +1565,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const handleDockPiecePointerMove = useCallback((ev) => {
     const drag = dockDragRef.current;
     const state = dockPieceRef.current;
+    if (!drag.dragging) dockHoverMoved(ev);
     if (!drag.dragging || !state) return;
     const now = performance.now();
     const dt = Math.max((now - drag.lastT) / 1000, 1 / 120);
@@ -1535,7 +1585,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     drag.lastX = ev.clientX;
     drag.lastY = ev.clientY;
     drag.lastT = now;
-  }, []);
+  }, [dockHoverMoved]);
 
   const handleDockPiecePointerUp = useCallback((ev) => {
     const drag = dockDragRef.current;
@@ -1572,6 +1622,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const handleDockPiecePointerLeave = useCallback((ev) => {
     const drag = dockDragRef.current;
     const state = dockPieceRef.current;
+    restEnterRef.current = false;
     drag.dragging = false;
     if (state) {
       state.dragging = false;

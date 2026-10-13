@@ -192,3 +192,73 @@ How to use it:
     e2e-smoke ciudad, e2e-gameplay ciudad (Slate, Chalk), e2e-corner-menu
     (the ciudad look), e2e-dock-moments (its words) and e2e-touch-in-game
     (Neon's turn and tilt; Noir is still not in that list).
+- The city's Cabeza, the ten built (user: "Show me the 10 options for the
+  city's cabeza"): themes/ciudad-cabezas.js CABEZAS, the pavilion (still
+  the one played) and rotunda, bandstand, carousel, head (a sphere pushed
+  into a head: nose, brow, eyes, lips, chin, ears; Chalk's white stone,
+  Slate's grey-blue bronze; a fountain of six jets), planetarium, kiosk
+  (its four faces tell the city's hour: CLOCKS redrawn on onTimeChange),
+  roundabout, watertower, subway, stadium. ?cabeza=<id> plays with one,
+  until the user picks. Each side's faces the other's: the models face +z,
+  the light side's in a group turned round (ciudad.js zeroes the building's
+  own rotation). The hit cylinder is as tall as the Cabeza (userData.top).
+  R comes from the engine's constants: ciudad-models.js imports this
+  module, so a value of its read as this one loads isn't there yet (R was
+  NaN and every part sized by it went missing). rodGeo: r128 geometry has
+  no applyQuaternion. The carousel's horses turn in their mesh's
+  onBeforeRender. Sheets: scratch cabezas/shoot.mjs, sheet.py (each
+  option, the two side by side, morning and 10 PM).
+- Ciudad's time switch a clock (user: "Maybe the time of day switch can be
+  a clock"): ciudad-hud.js. The sign a street clock, its hands at the
+  hour's time; open, a dial with the five hours where the hour hand points
+  then (marks with their pictures) and the name and time under it. A pick
+  sweeps the hands forward with the light (handsNow from NOW.k; one rAF
+  loop for every face drawn) and the dial stays until a tap outside or
+  Escape. The face lit warm at night. e2e-ciudad: the hands at ten after
+  10 PM on the dial and the sign; Escape puts the dial away.
+- The first change to 10 PM (e2e-ciudad, locally: no night part way seen):
+  a Ciudad frame takes 0.5-0.7 s on the software renderer, the change is
+  drawn in three or four, and the test's timer samples starve between such
+  frames. It now reads window.__CIUDAD_TRACE__ (the night as each frame
+  draws it). And the change no longer compiles as it starts (4 programs,
+  measured): warmUp in ciudad-fx (renderer.compile once the city's up, the
+  night-only materials too; each hour's env map made in idle time) and one
+  PMREMGenerator kept (made new each time, its blur compiled again).
+- GitHub run 43 shard 2 (e2e-dock-call, Watermark: no call after a game,
+  the dock open). A piece sliding into its corner under the mouse at rest
+  on Begin Game counted as a hover (the browser reports it entering; on a
+  slow machine the leaving more than 0.5 s later) and opened the dock.
+  Now a hover counts only once the mouse has moved since the piece took
+  its corner (chassis cornerRestRef, set in a layout effect, cleared on
+  the first real move away; dockHoverMoved for a move over the piece).
+  e2e-dock-call: the mouse parked where the corner piece lands, Begin
+  pressed without moving it (dispatchEvent): the dock stays shut (the old
+  code opened it every time); then a few pixels' move, still on the
+  piece, opens it (dockHoverMoved: restEnterRef, set only by an entering
+  set aside, cleared by a press or the mouse leaving, so a move after
+  spinning the piece starts nothing, as ever).
+- City sounds from recordings (user: "go online and find like city
+  sounds ... appropriate for each time"): freesound refused in this
+  session (403 for the site and its CDN; Wikimedia, archive.org, Pixabay,
+  the BBC's not reachable). Picked from its pages (WebFetch): morning
+  RHumphries 2536 "rbh morning birds 01" (CC BY 4.0, 5 am Washington,
+  birds and distant traffic), afternoon mzui 135095 (CC0, busy London
+  street) or felix.blume 705049 (CC0, a small city from a rooftop), golden
+  hour SpliceSound 369891 (CC0, a Brooklyn rooftop at evening, the M
+  train), overcast BlindRainGames 396049 (CC0, a small city, wind in the
+  trees, birds, cars), 10 PM puppetmaster685719 641211 (CC0, the city at
+  night, traffic, a dog now and then). Not: klankbeeld (no stock use),
+  Fonoport ("not for resale"), lwdickens (non-commercial). Waiting for the
+  user to allow freesound.org and cdn.freesound.org.
+- The end-turn warning (user: a second tap on a piece ends the turn with
+  actions left; "give me some options"): chassis ElCabeza3D.jsx, the tap
+  (turnLocked && hit.id === selectedId -> handleStopHere) and the queued
+  "stop" intent (a tap on the square the piece is moving to, mid-move: a
+  quick double click on a move marker ends the turn, likely the commonest
+  accident); endTurnAsk asks only for the End turn button, in a first
+  game. Whichever is picked: a second click within half a second of the
+  move counts as the same click. Five ways mocked up over the real game
+  (Standard, desktop and phone, scratch endturn/mock.mjs): A the dialog in
+  the middle, B a bubble at the piece (recommended), C the turn bar asks,
+  D hold to end, E tap again to confirm; review page "Ending a Turn
+  Early". Waiting on the user.

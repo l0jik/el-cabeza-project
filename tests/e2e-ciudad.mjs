@@ -77,16 +77,22 @@ console.log("The time switch");
   await page.mouse.click(550, 380);
   check("a tap outside puts it away", !!(await poll(async () => (await opts.count()) === 0, 2000)));
   const day = await light();
-  // (the night as it goes, noted in the page: on a slow machine a click alone outlasts the change)
-  await T(() => { window.__nights = []; window.__noting = setInterval(() => window.__nights.push(window.__CIUDAD_TIME__.get().night), 40); });
+  // (the night as each frame draws it, noted by the city itself: on the
+  // software renderer a frame takes half a second, the change is drawn in
+  // three or four, and a timer's samples between such frames are starved)
+  await T(() => { window.__CIUDAD_TRACE__ = []; });
   await chip.click();
   await page.locator('[data-testid="ciudad-time-night"]').click();
   check("10 PM picked", (await page.locator('[data-testid="ciudad-time"]').getAttribute("data-time")) === "night");
-  check("the list away after the pick", (await opts.count()) === 0);
+  check("the dial stays, to watch the hands go round", (await opts.count()) === 5);
   const done = await poll(() => T(() => { const s = window.__CIUDAD__.now(); return s.night === 1 && s; }), 6000);
   check("night all the way up", !!done && done.exposure === 1.2, JSON.stringify(done));
-  const nights = await T(() => { clearInterval(window.__noting); return window.__nights; });
-  check("the city eased into it (the night part way up on the way)", nights.some((v) => v > 0.05 && v < 0.95), JSON.stringify(nights.slice(0, 12)));
+  const hands = await poll(() => T(() => { const t = (s) => (document.querySelector(s) || { getAttribute: () => "" }).getAttribute("transform") || ""; const a = t(".ciu-time .clock .face .hh"), c = t('[data-testid="ciudad-time-chip"] .face .hh'); return /rotate\(300\.00 /.test(a) && /rotate\(300\.00 /.test(c) && [a, c]; }), 3000);
+  check("...the hands gone round to ten, on the dial and the sign", !!hands, JSON.stringify(hands));
+  await page.keyboard.press("Escape");
+  check("...and Escape puts the dial away", !!(await poll(async () => (await opts.count()) === 0, 2000)));
+  const nights = await T(() => { const n = window.__CIUDAD_TRACE__; window.__CIUDAD_TRACE__ = null; return n; });
+  check("the city eased into it (a frame drawn with the night part way up)", nights.some((v) => v > 0.05 && v < 0.95), JSON.stringify(nights.filter((v, i, a) => i === 0 || v !== a[i - 1]).slice(0, 12)));
   check("the lamps lit", await T(() => { const o = window.__EC_TEST_THREE__().scene.getObjectByName("ciudad-lamp-heads"); return !!o && o.visible && o.material.opacity > 0.9; }));
   await page.waitForTimeout(400);
   const night = await light();
@@ -96,6 +102,7 @@ console.log("The time switch");
   await page.locator('[data-testid="ciudad-time-afternoon"]').click();
   const back = await poll(() => T(() => { const s = window.__CIUDAD__.now(); return s.night === 0 && !window.__CIUDAD_TIME__.get().changing && s; }), 6000);
   check("Afternoon: the night gone again", !!back);
+  await page.keyboard.press("Escape");
   check("the lamps out", await T(() => !window.__EC_TEST_THREE__().scene.getObjectByName("ciudad-lamp-heads").visible));
 }
 

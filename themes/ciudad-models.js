@@ -24,8 +24,9 @@
    - Odd-shaped pieces: a column of the building's own facade on each of
      its cubes' squares, one box for every unbroken run up it, the faces
      pressed against a neighbour left out.
-   - The Cabeza is the round glass pavilion: a glass drum under a flat
-     disc roof, thin columns round it, lit inside at night.
+   - The Cabeza is the round glass pavilion (a glass drum under a flat
+     disc roof, thin columns round it, lit inside at night), or one of the
+     ten offered for it with ?cabeza= (ciudad-cabezas.js).
 
    The windows by night (user, of the 10 PM city: "too random ... like
    black and white Rubik's cubes"; "cut the total lights on in the
@@ -49,6 +50,7 @@ import * as THREE from "three";
 import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constants.js";
 import { quality } from "./tienda-quality.js";
+import { cabezaFor, cabezaKind } from "./ciudad-cabezas.js";
 
 export const PS = PIECE_SCALE;
 export const CAB_D = DISC_DIAM * CABEZA_SCALE;
@@ -428,7 +430,7 @@ export function roofMat(c) {
 }
 // A lobby's glass: lit from inside, a little by day, warmly at night.
 const LOBBY = new Map();
-function lobbyMat(glass, lit) {
+export function lobbyMat(glass, lit) {
   const key = glass + lit;
   let m = LOBBY.get(key);
   if (!m) {
@@ -439,7 +441,7 @@ function lobbyMat(glass, lit) {
   return m;
 }
 // Something lit only at night (a crown, a beacon's glow): its opacity the night's.
-function nightOnly(m, k = 1) {
+export function nightOnly(m, k = 1) {
   m.transparent = true; m.opacity = 0; m.depthWrite = false;
   TIMED.add((n) => { m.opacity = n * k; m.visible = n > 0.01; });
   return m;
@@ -466,7 +468,7 @@ export function nightGlow(color, size, k = 0.8) {
 /* What a building is made of, gathered then made into as few meshes as
    it can be: its walls (one atlas, one material), and its plain parts
    (slabs, roofs, plant rooms, rails) merged by material. */
-function builder(sd, style, look, side, cell) {
+export function builder(sd, style, look, side, cell) {
   const atlas = makeAtlas(cell), walls = [], parts = new Map(), extra = [];
   const add = (geo, mat) => { const g = geo.index ? geo.toNonIndexed() : geo; if (geo !== g) geo.dispose(); (parts.get(mat) || parts.set(mat, []).get(mat)).push(g); };
   return {
@@ -527,8 +529,8 @@ export function pieceLook(id, side) {
   };
 }
 
-const cellPx = () => (quality().tier === "low" ? 28 : 40);
-const seedOf = (id) => (strHash(id) % 997) + 1;
+export const cellPx = () => (quality().tier === "low" ? 28 : 40);
+export const seedOf = (id) => (strHash(id) % 997) + 1;
 
 /* ------------------------------------------------------------ the models */
 
@@ -638,24 +640,6 @@ function voxModel(b, piece, look, st) {
   if (best) b.box(0.2, 0.06, 0.14, std(look.wall, { roughness: 0.7 }), best[0] - 0.12, (best[2] + 1) * PS + 0.055, best[1] + 0.1);
 }
 
-/* The Cabeza: the round glass pavilion, a glass drum under a flat disc
-   roof, twelve thin columns round it, the light inside. Its own colours
-   (the side's first wall, glass and accent). */
-function pavilion(side) {
-  const F = FAMILY[side], b = builder(seedOf(`cab-${side}`), "midmod", F, side, cellPx()), r = CAB_D / 2, h = CAB_H * 0.62;
-  const slab = side === "light" ? F.slab : F.walls[0];
-  b.cyl(r * 0.98, r, 0.04, 48, std(slab, { roughness: 0.6 }), 0, 0.02, 0);
-  const glass = glassy(new THREE.MeshStandardMaterial({ color: col(F.glasses[0]), roughness: 0.08, metalness: 0.5, emissive: col("#ffe0b0"), emissiveIntensity: 0.12 }));
-  TIMED.add((n) => { glass.emissiveIntensity = 0.12 + 0.68 * n; });
-  b.cyl(r * 0.78, r * 0.78, h, 48, glass, 0, 0.04 + h / 2, 0);
-  const colM = std(slab, { roughness: 0.5 });
-  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; b.cyl(0.01, 0.01, h, 8, colM, Math.cos(a) * r * 0.9, 0.04 + h / 2, Math.sin(a) * r * 0.9); }
-  b.cyl(r * 1.05, r * 1.05, 0.035, 56, std(F.accents[0], { roughness: 0.5 }), 0, 0.04 + h + 0.0175, 0);
-  const g = b.finish();
-  g.userData.top = 0.04 + h + 0.035;
-  return g;
-}
-
 /* ------------------------------------------------------------ the pieces, for the chassis */
 
 function pieceBuilding(piece, side) {
@@ -682,10 +666,10 @@ function pieceBuilding(piece, side) {
 // A piece's building, made once per piece and pose and kept.
 const BUILT = new Map();
 export function buildingFor(piece, side) {
-  const key = piece.type === "cabeza" ? `${piece.id}|cab|${side}` : `${piece.id}|${side}|${piece.type}|${piece.w}|${piece.h}|${piece.z}|${piece.vox || ""}`;
+  const key = piece.type === "cabeza" ? `${piece.id}|cab|${cabezaKind()}|${side}` : `${piece.id}|${side}|${piece.type}|${piece.w}|${piece.h}|${piece.z}|${piece.vox || ""}`;
   let b = BUILT.get(key);
   if (!b) {
-    b = piece.type === "cabeza" ? pavilion(side) : pieceBuilding(piece, side);
+    b = piece.type === "cabeza" ? cabezaFor(side) : pieceBuilding(piece, side);
     b.userData.ciudadBuilding = true;
     BUILT.set(key, b);
   }
