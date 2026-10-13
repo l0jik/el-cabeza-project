@@ -442,6 +442,8 @@ const LOOK_SKIN = {
   detail: { fontFamily: "var(--rg-body)", fontSize: 13.5, color: "var(--rg-muted)" },
   hint: { fontFamily: "var(--rg-body)", fontSize: 10.5, letterSpacing: "0.14em", color: "var(--rg-muted)" },
 };
+// (Tests: this world's close-up parts, for piece-showcase.js modelViews.)
+export const lookParts = (look) => ({ model: (t) => lookModel(look, t), stage: lookStage, makeGl: lookRenderer });
 export function LookPieceViewer({ world, look, ...rest }) {
   return h(PieceViewer, { ...rest, model: (t) => lookModel(look, t), stage: lookStage, makeGl: lookRenderer, keepMaterials: true, skin: LOOK_SKIN, vars: varsOf(lookOf(world)) });
 }

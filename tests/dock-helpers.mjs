@@ -17,14 +17,19 @@
 // retrying rather than a single attempt. A single click opens it (see
 // handleDockPiecePointerUp in ElCabeza3D.jsx) while it's still the
 // pre-game centered piece.
+// (The panel opens over where the piece was, after the piece's bounce: a
+// second click while it's on its way lands on the panel's own controls,
+// the setup's Start row now, once Begin Game; so it waits longer, and never
+// clicks again once the panel's open.)
 export async function openDockPanel(page, { attempts = 8 } = {}) {
   const dockCanvas = page.locator('canvas[data-testid="dock-piece-canvas"]');
   for (let i = 0; i < attempts; i++) {
+    if (await waitForPanelOpen(page, 0)) return true;
     const box = await dockCanvas.boundingBox();
     if (!box) return false;
     const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
     await page.mouse.click(cx, cy);
-    const opened = await waitForPanelOpen(page, 1000);
+    const opened = await waitForPanelOpen(page, 2500);
     if (opened) return true;
   }
   return false;
@@ -35,15 +40,16 @@ export async function openDockPanel(page, { attempts = 8 } = {}) {
 // transform transition finishes) rather than assuming any fixed delay.
 async function waitForPanelOpen(page, timeoutMs) {
   const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
+  // (Looked at once at least, even with no time to wait.)
+  for (;;) {
     const open = await page.evaluate(() => {
       const el = document.querySelector('[data-testid="dock-panel"]');
       return el ? el.dataset.open === "true" : false;
     });
     if (open) return true;
+    if (Date.now() - start >= timeoutMs) return false;
     await page.waitForTimeout(100);
   }
-  return false;
 }
 
 // After Begin Game, the dock piece remorphs and relocates to the

@@ -180,3 +180,60 @@ How to use it:
   Chalk stay. Tests: e2e-gate "The City, in the switcher" (card, picture,
   page, gate look, title, last world, You are here), e2e-ending's 21
   realities.
+- Set out by hand (user: "a toggle(?) / way to manually place pieces
+  before the start of a match"; of the five mock-ups, "Drag, or tap then
+  tap", "Back three rows", two players "Mirrored", extras "Same as last
+  time"). engine/placement.js is the rules (pure; tests/placement.smoke
+  in npm run test:engine): zoneRows (the back three, or with half up to
+  the middle; an odd middle row is nobody's), mirrorOf (180°, vox too),
+  fitsZone (rows, board, nothing missing or a hole under it or under its
+  mirror), startSetOut (the other side made the setting side's mirror),
+  place (what it lands on of yours swaps into the squares it left if it
+  fits inside them, nearest where it stood, as the mock-ups' shared rule
+  "Swap when it fits"; else the bench, as the chosen option and the user's
+  first words said), putBack, turn (PIECE_ORIENTATIONS' next pose, kept in
+  the rows), setHalf, readiness (bench empty, and cabezaInDanger for
+  neither side), keep/canRestore/restore (Same as last time, as Dark by
+  name, for the same roster and board). chassis/set-out.js: the kept
+  choices (el-cabeza:start-position "hand", el-cabeza:set-out-half,
+  el-cabeza:set-out-last), benchSpots (a row past the setting side's
+  board edge), setOutCorners (the camera's fit), nearestAnchor/
+  freeAnchors/anchorOnto, buildSetOutMarks (the rows washed and dashed,
+  "Your rows", the bench tray, the chosen piece's edge, a dot where each
+  free placing's middle would be, the drag's landing squares, red rings;
+  edges drawn over the pieces, depthTest off), keepSame (unmoved pieces
+  keep their objects, so only moved meshes rebuild). The chassis: the
+  dock's Start row (Standard / By hand, and Anywhere in my half) and the
+  phone bar's Start / Pieces in; with By hand, "Set out my pieces"; every
+  begin from a menu goes through beginOrSetOut (the dock, the bar, the
+  setup extras' triggerBeginGame, so beginCustomGame and Neon's sphere,
+  and the reality gate's api); a replay and the den's story begin don't.
+  It waits a render (setOutPending) so a menu's setPieces is in. While
+  setting out: the dock, its piece, the title and the phone's bars aside;
+  the banner (the check card's look; "Before the game · Set out by hand",
+  what to do now, Begin, "n on the bench"; Undo, Put it back, Turn,
+  Standard, Same as last time, the half switch, Back; on a narrow screen
+  the buttons in a bar along the bottom); the camera (frameSetOut: from
+  the setting side, pitch 0.42, the board and bench fitted under the
+  banner and above the bar, centred by target.y as the setup's fit does;
+  refit on resize; Back puts it and the dock back). The board's pointer
+  hands presses to setOutPointerRef first: a press on one of yours (or a
+  bench piece, benchGroup, kind bench-piece) is the set-out's (a drag
+  carries its meshes, lifted, the landing lit; a tap chooses; the chosen
+  one again turns it; another of yours with one chosen sets it there);
+  a tap elsewhere sets the chosen piece on the nearest free dot (within
+  0.75 of a square) or lets go. Keys: arrows (by the screen's way), Enter,
+  R, Escape. The side: you against the computer; two players, the side to
+  move. Begin: readiness, else the banner says why (bench: the piece
+  chosen; danger: cabezaThreats' Cabezas and attackers ringed); then
+  saveLastSetOut, triggerBeginGame; the record's start is the first
+  turn's board, so replays begin from the set-out. measureBoxPx now
+  reports its box's edges too. Test hooks: __EC_TEST_SET_OUT__,
+  __EC_TEST_SQUARE_POS__, __EC_TEST_BENCH_POS__, __EC_TEST_NEW_GAME__,
+  __EC_TEST_REPLAY_START__. tests/e2e-set-out.mjs (the den step by step,
+  against the computer, the gate's Standard Cabeza, every world, a phone).
+  dock-helpers' openDockPanel no longer clicks again once the panel's
+  open, and waits 2.5 s a try: its second click could land on the panel
+  (the Start row now sits where the piece was). A test's seeding mark
+  belongs in localStorage: sessionStorage isn't always back in time on a
+  file: page's reload, and the clear then wiped what was saved.

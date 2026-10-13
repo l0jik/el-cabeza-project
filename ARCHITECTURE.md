@@ -252,6 +252,23 @@ export const styleSheet = `...`;
 export function renderGlobalDefs() { return null; }
 ```
 
+Set out by hand (the setup's Starting position: Standard, or By hand)
+is the chassis's, in every world: the rules are `engine/placement.js`
+(the rows a side may use, the 180° mirror, a piece set on another of
+yours swapping into the squares it left if it fits there, or the other
+to the bench; turning; Anywhere in my half; a safe start; Same as last
+time), and `chassis/set-out.js` keeps the choices, places the bench (a
+tray past the setting side's edge of the board) and draws the board's
+marks, the same in every world as the check alert's are. The bench's
+pieces are built with the theme's own `buildPieceVisual`, in a group of
+the board's own, tagged `bench-piece` / `bench-shell` so nothing that
+looks for the board's pieces finds them. A theme may name the bench and
+the rows (`setOutWords: { bench, rows }`, optional). Every way a game is
+begun from a menu (the dock, the phone's bar, `beginCustomGame` from a
+world's own menus, the reality gate, Neon's sphere) goes through the
+chassis's `beginOrSetOut`; a replay and a theme's own story begin go
+straight to `triggerBeginGame`.
+
 The chassis calls every hook unconditionally. A theme that has nothing
 to contribute returns `null`/no-ops rather than the chassis special
 -casing "if Standard, skip this." That's what keeps the chassis from

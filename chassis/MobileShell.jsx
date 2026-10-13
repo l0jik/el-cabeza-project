@@ -464,6 +464,30 @@ function SetupPanel({ ctl, t }) {
           </Field>
         </>
       )}
+      {/* Starting position (set out by hand before the game; the other
+          side mirrors yours), and with By hand, how far up the board. */}
+      {ctl.onStartByHand && (
+        <Field label="Start">
+          <Seg
+            label="Starting position"
+            testid="shell-start"
+            options={[{ value: false, label: "Standard" }, { value: true, label: "By hand" }]}
+            value={!!ctl.startByHand}
+            onChange={(v) => { ctl.cue("Select"); ctl.onStartByHand(v); }}
+          />
+        </Field>
+      )}
+      {ctl.onStartByHand && ctl.startByHand && (
+        <Field label="Pieces in">
+          <Seg
+            label="Where your pieces may be set out: your back three rows, or anywhere in your half"
+            testid="shell-set-out-half"
+            options={[{ value: false, label: "Back 3 rows" }, { value: true, label: "My half" }]}
+            value={!!ctl.ownHalf}
+            onChange={() => { ctl.cue("Select"); ctl.onToggleOwnHalf(); }}
+          />
+        </Field>
+      )}
       <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
         {secondary.map((a) => (
           <button

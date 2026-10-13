@@ -21,6 +21,17 @@ import {
   setGhostLineTarget,
 } from "../engine/geometry.js";
 import { cubeCount, contactArea, pivotCellOf, pivotPiece, pivotArmPoint, maskAt } from "../engine/shapes.js";
+import {
+  startSetOut, place as setOutPlace, putBack as setOutPutBack, turn as setOutTurn, setHalf as setOutSetHalf,
+  readiness as setOutReadiness, keep as setOutKeep, restore as setOutRestore, canRestore as setOutCanRestore,
+  otherSide as setOutOther, targets as setOutTargets,
+} from "../engine/placement.js";
+import {
+  loadStartByHand, saveStartByHand, loadOwnHalf, saveOwnHalf, loadLastSetOut, saveLastSetOut,
+  benchSpots, setOutCorners, nearestAnchor, freeAnchors, anchorOnto, buildSetOutMarks, keepSame,
+  pieceName as setOutPieceName, SET_OUT_ACCENT,
+} from "./set-out.js";
+import { PIECE_ORIENTATIONS } from "../engine/anomaly.js";
 import { RulesTabs, RulesCard, OPEN_RULES_EVENT, PLAY_ORIGINAL_EVENT, RULES_TABS, pieceCardInfo } from "./RulesCards.jsx";
 import { singularitySeen, onJourneyChange } from "../engine/journey.js";
 // A theme's own way into focus (the den's lamps): { on }, or a toggle.
@@ -30,7 +41,8 @@ import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
 import CornerMenu from "./CornerMenu.jsx";
 import { gameRules } from "./corner-menu.js";
-import { RealityGate, storyOver, GATE_EVENT, openRealityGate } from "../themes/reality-gate.js";
+import { RealityGate, storyOver, GATE_EVENT, openRealityGate, lookParts } from "../themes/reality-gate.js";
+import { modelViews, NEON_SHOWCASE } from "../themes/piece-showcase.js";
 import { saveLastWorld } from "../themes/realities.js";
 import { sideNamesOf, SIDE_NAMES as WORLD_SIDE_NAMES, DEFAULT_SIDE_NAMES } from "../themes/side-names.js";
 import { LAW_OPTIONS } from "../themes/rules-selections.js";
@@ -2911,7 +2923,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
-    busy, aiThinking, triggerBeginGame,
+    // (Begin, from a world's own menus: with By hand chosen, the set-out
+    // first.)
+    busy, aiThinking, triggerBeginGame: beginOrSetOut,
     // Back to the setup, a game in play set aside (New Game's own reset;
     // the den's order paper, tienda-overlay.js).
     resetToSetup: () => handleReset(),
@@ -3220,6 +3234,515 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // View, per feedback.
     captureViewBaselines();
     topDownView();
+  }
+
+  /* ---- Set out by hand (user: "a toggle(?) / way to manually place
+     pieces before the start of a match"; engine/placement.js has the
+     rules, chassis/set-out.js the bench, the board's marks and what's
+     kept). The setup's Starting position, Standard or By hand, and
+     Anywhere in my half, are kept between games. With By hand, Begin (the
+     dock's, the phone's, a world's own menus') sets out first: the dock
+     and the title step aside, a banner takes the top, the camera tips
+     over the board from your side, and your pieces can be dragged, or
+     tapped and then a dot; one set on another of yours swaps into the
+     squares it left if it fits there, or the other waits on the bench.
+     The other side mirrors yours throughout (the computer always; two
+     players too, the user's pick). The banner's Begin checks nothing's
+     on the bench and no Cabeza can be crushed on the first move, keeps
+     the set-out for Same as last time, and begins as Begin always has. */
+  const [startByHand, setStartByHand] = useState(loadStartByHand);
+  const [ownHalf, setOwnHalf] = useState(loadOwnHalf);
+  const toggleStartByHand = (on) => { setStartByHand(on); saveStartByHand(on); };
+  const toggleOwnHalf = () => { const on = !ownHalf; setOwnHalf(on); saveOwnHalf(on); };
+  // The set-out under way, or null: { so (engine/placement.js's), start
+  // (as it began: Standard), hist (Undo), chosen (an id), note (the
+  // banner's: { kind, ... }), danger (ids ringed in red), before (the
+  // board before it began) and cam (the camera then: Back) }.
+  const [setOut, setSetOut] = useState(null);
+  const setOutRef = useRef(null);
+  setOutRef.current = setOut;
+  const commitSetOut = (next) => { setOutRef.current = next; setSetOut(next); };
+  // A press on a piece while setting out (its drag, or its tap), and
+  // where a drag or the arrow keys would set the chosen piece.
+  const setOutDragRef = useRef(null);
+  const [setOutAim, setSetOutAim] = useState(null);
+  const setOutAimRef = useRef(null);
+  setOutAimRef.current = setOutAim;
+  const setOutBannerRef = useRef(null);
+  const setOutBarRef = useRef(null);
+  // The bench's pieces, built as the world builds its own: by id.
+  const benchCacheRef = useRef(new Map());
+  // Begin with By hand: set out first, once the board a world's menu has
+  // just set up is the board (its setPieces comes in the same moment).
+  const [setOutPending, setSetOutPending] = useState(false);
+  function beginOrSetOut() {
+    if (startByHand && awaitingBegin && !setOutRef.current) setSetOutPending(true);
+    else triggerBeginGame();
+  }
+  useEffect(() => {
+    if (!setOutPending) return;
+    setSetOutPending(false);
+    if (awaitingBegin && !setOutRef.current) enterSetOut();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setOutPending]);
+  // (A game begun some other way, or New Game: no set-out.)
+  useEffect(() => {
+    if (!awaitingBegin && setOutRef.current) { releaseSetOutDrag(); commitSetOut(null); setSetOutAim(null); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [awaitingBegin]);
+
+  // Anywhere in my half, as a switch (the setup's, and the banner's).
+  const halfSwitch = (testid, on, onToggle, short = false) => (
+    <button
+      className="ec-btn"
+      role="switch"
+      aria-checked={on}
+      data-testid={testid}
+      title="Anywhere in my half: your pieces can go anywhere up to the middle of the board, not just your back three rows"
+      onClick={(e) => { showToggleHint(e, on ? "Anywhere in my half: off. Your pieces go in your back three rows." : "Anywhere in my half: on. Your pieces can go anywhere up to the middle of the board."); onToggle(); }}
+      style={{ ...dockLinkStyle(), display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
+    >
+      {short ? "My half" : "Anywhere in my half"}
+      <span aria-hidden="true" style={{ width: 24, height: 14, borderRadius: 8, boxSizing: "border-box", position: "relative", flexShrink: 0, border: "1.5px solid currentColor", opacity: on ? 1 : 0.55, transition: "opacity 180ms ease" }}>
+        <span style={{ position: "absolute", top: 1.5, left: on ? 11.5 : 1.5, width: 8, height: 8, borderRadius: "50%", background: "currentColor", transition: "left 180ms ease" }} />
+      </span>
+    </button>
+  );
+  // The dock's Starting position row (the mock-ups' setup): Standard, or
+  // By hand; with By hand, Anywhere in my half beside it.
+  const startRow = (
+    <div data-dock-role="start" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: "6px 8px", marginTop: 8 }}>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.slate, marginRight: 2, flexShrink: 0 }}>
+        Start
+      </span>
+      {[{ v: false, label: "Standard", title: "The pieces start where the set puts them" }, { v: true, label: "By hand", title: "Set your pieces out yourself before the game; the other side mirrors yours" }].map((o) => (
+        <button
+          key={o.label}
+          className="ec-btn"
+          data-testid={o.v ? "start-by-hand" : "start-standard"}
+          aria-pressed={startByHand === o.v}
+          title={o.title}
+          onClick={() => toggleStartByHand(o.v)}
+          style={{ ...toggleButtonStyle(startByHand === o.v), padding: "6px 9px", letterSpacing: "0.06em", flexShrink: 0, cursor: "pointer" }}
+        >
+          {o.label}
+        </button>
+      ))}
+      {startByHand && halfSwitch("set-out-half-setup", ownHalf, toggleOwnHalf)}
+    </div>
+  );
+
+  // Who sets out: you, against the computer; with two players, the side
+  // to move first (the near side), and the other mirrors it.
+  const setOutSideNow = () => (aiPlayer ? setOutOther(aiPlayer) : currentPlayer);
+  function enterSetOut() {
+    const side = setOutSideNow();
+    const so = startSetOut(pieces, side, ownHalf);
+    const c = cam.current;
+    commitSetOut({ so, start: so, hist: [], chosen: null, note: null, danger: null, before: pieces, cam: { theta: c.theta, phi: c.phi, radius: c.radius, target: c.target.clone(), dollhouse: !!c.dollhouse, placed: !!c.placed } });
+    setPieces((prev) => keepSame(prev, so.pieces));
+    setSetOutAim(null);
+    setDockView("piece");
+    try { audioRef.current.playSelect(); } catch (e) { /* audio not started */ }
+    // (Framed once the banner's on the page.)
+    requestAnimationFrame(() => requestAnimationFrame(() => frameSetOut(side)));
+  }
+  // Back to the setup: the board, the camera and the menu as they were.
+  function cancelSetOut() {
+    const s = setOutRef.current;
+    if (!s) return;
+    releaseSetOutDrag();
+    commitSetOut(null);
+    setSetOutAim(null);
+    setPieces(s.before);
+    const c = cam.current, v = s.cam;
+    c.theta = v.theta; c.phi = v.phi; c.radius = v.radius; c.dollhouse = v.dollhouse;
+    glideCamera();
+    c.target.copy(v.target);
+    // (The setup's own fit may take the camera on a resize again.)
+    c.placed = v.placed;
+    if (!shell) setDockView("panel");
+  }
+  // One step of setting out: the board follows; Undo takes it back.
+  function stepSetOut(next, extra = {}) {
+    const s = setOutRef.current;
+    if (!s || !next) return false;
+    commitSetOut({ ...s, so: next, hist: [...s.hist, s.so].slice(-80), chosen: null, note: null, danger: null, ...extra });
+    setPieces((prev) => keepSame(prev, next.pieces));
+    setSetOutAim(null);
+    return true;
+  }
+  const setOutFind = (s, id) => (s && id ? s.so.pieces.find((p) => p.id === id) || s.so.bench.find((p) => p.id === id) || null : null);
+  const setOutOnBench = (s, id) => !!(s && id && s.so.bench.some((p) => p.id === id));
+  const turnsOf = (p) => !!p && (PIECE_ORIENTATIONS[p.type] || []).length > 1;
+  const setOutCue = (name, p) => { try { const a = audioRef.current; if (a[name]) a[name](p ? cubeCount(p) : undefined); } catch (e) { /* audio not started */ } };
+  // A piece set down: the world's knock as it lands (the Cabeza only ever
+  // slides: its slide, or nothing).
+  function setDownSound(p) {
+    if (!p) return;
+    const a = audioRef.current;
+    try {
+      if (slidesOnly(p)) { if (a.playSlide) a.playSlide(cubeCount(p), SLIDE_MS); }
+      else a.playLanding(cubeCount(p), contactArea(p));
+    } catch (e) { /* audio not started */ }
+  }
+  /* `id` set at row, col (a drop, a dot, the keys): whatever of yours it
+     lands on swaps into the squares it left if it fits, or goes to the
+     bench; the banner says which. */
+  function setOutDrop(id, row, col) {
+    const s = setOutRef.current;
+    const p = setOutFind(s, id);
+    if (!s || !p) return false;
+    if (!setOutOnBench(s, id) && p.row === row && p.col === col) { commitSetOut({ ...s, chosen: null }); return false; }
+    const next = setOutPlace(s.so, id, row, col);
+    if (!next) { setOutCue("playBlocked"); return false; }
+    const benched = next.bench.filter((q) => !s.so.bench.some((b) => b.id === q.id));
+    const swapped = next.pieces.filter((q) => q.owner === s.so.side && q.id !== id && s.so.pieces.some((o) => o.id === q.id && (o.row !== q.row || o.col !== q.col)));
+    const note = benched.length ? { kind: "benched", ids: benched.map((q) => q.id) } : swapped.length ? { kind: "swapped", id, ids: swapped.map((q) => q.id) } : null;
+    stepSetOut(next, { note });
+    setDownSound({ ...p, row, col });
+    return true;
+  }
+  function setOutChoose(id) {
+    const s = setOutRef.current;
+    const p = setOutFind(s, id);
+    if (!s || !p) return;
+    setOutCue("playSelect", p);
+    commitSetOut({ ...s, chosen: id, note: null, danger: null });
+    setSetOutAim(null);
+  }
+  function setOutLetGo() {
+    const s = setOutRef.current;
+    if (!s || !s.chosen) return;
+    setOutCue("playDeselect", setOutFind(s, s.chosen));
+    commitSetOut({ ...s, chosen: null });
+    setSetOutAim(null);
+  }
+  // The chosen piece (on the board) turned to its next way round.
+  function setOutTurnChosen() {
+    const s = setOutRef.current;
+    if (!s || !s.chosen) return;
+    const next = setOutTurn(s.so, s.chosen);
+    if (!next) { setOutCue("playBlocked"); return; }
+    const benched = next.bench.filter((q) => !s.so.bench.some((b) => b.id === q.id));
+    stepSetOut(next, { chosen: s.chosen, note: benched.length ? { kind: "benched", ids: benched.map((q) => q.id) } : { kind: "turned", id: s.chosen } });
+    setDownSound(next.pieces.find((q) => q.id === s.chosen));
+  }
+  // A tap on a piece of yours: choose it; the chosen one again: turn it
+  // (or let it go, if it has one way round); another, with one chosen:
+  // the chosen one set on it.
+  function setOutTapPiece(id) {
+    const s = setOutRef.current;
+    if (!s) return;
+    if (!s.chosen) { setOutChoose(id); return; }
+    if (s.chosen === id) {
+      if (!setOutOnBench(s, id) && turnsOf(setOutFind(s, id))) setOutTurnChosen();
+      else setOutLetGo();
+      return;
+    }
+    const other = s.so.pieces.find((q) => q.id === id);
+    const chosen = setOutFind(s, s.chosen);
+    const a = other && chosen ? anchorOnto(s.so, chosen.id, chosen, other) : null;
+    if (a) setOutDrop(chosen.id, a.row, a.col);
+    else setOutChoose(id);
+  }
+  function setOutUndo() {
+    const s = setOutRef.current;
+    if (!s || !s.hist.length) return;
+    const prev = s.hist[s.hist.length - 1];
+    commitSetOut({ ...s, so: prev, hist: s.hist.slice(0, -1), chosen: null, note: null, danger: null });
+    setPieces((p) => keepSame(p, prev.pieces));
+    setSetOutAim(null);
+    if (prev.half !== ownHalf) { setOwnHalf(prev.half); saveOwnHalf(prev.half); }
+    setOutCue("playDeselect");
+  }
+  // Standard: everything back as it began.
+  function setOutStandard() {
+    const s = setOutRef.current;
+    if (!s) return;
+    stepSetOut(setOutSetHalf(s.start, s.so.half));
+    setOutCue("playSelect");
+  }
+  // Put it back: the piece on the bench that's chosen, or else the last
+  // one put there, back on the squares it last stood on, if they're free.
+  const setOutBackable = (s) => {
+    if (!s || !s.so.bench.length) return null;
+    const order = setOutOnBench(s, s.chosen) ? [s.chosen] : s.so.bench.map((q) => q.id).reverse();
+    for (const id of order) { const next = setOutPutBack(s.so, id); if (next) return { id, next }; }
+    return null;
+  };
+  function setOutPutItBack() {
+    const b = setOutBackable(setOutRef.current);
+    if (!b) return;
+    stepSetOut(b.next);
+    setDownSound(b.next.pieces.find((q) => q.id === b.id));
+  }
+  // Same as last time: the set-out the last game began with, if it suits
+  // this board and these pieces.
+  const lastSetOut = React.useMemo(() => (setOut ? loadLastSetOut() : null), [!!setOut]);
+  const setOutLastOk = !!(setOut && lastSetOut && setOutCanRestore(lastSetOut, setOut.so));
+  function setOutSameAsLast() {
+    const s = setOutRef.current;
+    const next = s && lastSetOut ? setOutRestore(lastSetOut, s.so) : null;
+    if (!next) { setOutCue("playBlocked"); return; }
+    if (next.half !== ownHalf) { setOwnHalf(next.half); saveOwnHalf(next.half); }
+    stepSetOut(next);
+    setOutCue("playSelect");
+  }
+  function setOutToggleHalf() {
+    const s = setOutRef.current;
+    const on = !(s ? s.so.half : ownHalf);
+    setOwnHalf(on); saveOwnHalf(on);
+    if (s) {
+      const next = setOutSetHalf(s.so, on);
+      const benched = next.bench.filter((q) => !s.so.bench.some((b) => b.id === q.id));
+      stepSetOut(next, { note: benched.length ? { kind: "benched", ids: benched.map((q) => q.id) } : null });
+    }
+  }
+  // Begin, from the banner: nothing left on the bench, and no Cabeza the
+  // other side could crush with its first turn (the shuffle's own test);
+  // the set-out kept for next time; then the game, as Begin begins it.
+  function setOutBegin() {
+    const s = setOutRef.current;
+    if (!s) return;
+    const r = setOutReadiness(s.so);
+    if (!r.ok) {
+      setOutCue("playBlocked");
+      const danger = r.reason === "danger"
+        ? [...new Set(["dark", "light"].flatMap((side) => cabezaThreats(s.so.pieces, side).flatMap((x) => [x.cabeza, x.attacker])))]
+        : null;
+      commitSetOut({ ...s, chosen: r.reason === "bench" ? s.so.bench[0].id : null, note: { kind: r.reason }, danger });
+      setSetOutAim(null);
+      return;
+    }
+    saveLastSetOut(setOutKeep(s.so));
+    releaseSetOutDrag();
+    commitSetOut(null);
+    setSetOutAim(null);
+    setPieces((prev) => keepSame(prev, s.so.pieces));
+    triggerBeginGame();
+  }
+  // A drag let go of: the meshes it carried back where they stand.
+  function releaseSetOutDrag() {
+    const d = setOutDragRef.current;
+    setOutDragRef.current = null;
+    if (d && d.meshes) d.meshes.forEach(({ obj, pos }) => obj.position.copy(pos));
+  }
+  /* The camera while setting out (the mock-ups: "the camera tips overhead
+     while you set out, and back to its own when you Begin"): from your
+     side, steeply down, the board and the bench filling the room under
+     the banner (and above the phone's buttons); centred there the way the
+     setup's own fit centres the board (target.y). */
+  const SET_OUT_PHI = 0.42;
+  function frameSetOut(side) {
+    const t = three.current;
+    const measure = t.measureBoxPx;
+    const size = t.getMountSize && t.getMountSize();
+    if (!measure || !size || !t.renderer || !setOutRef.current) return;
+    const c = cam.current;
+    const theta = side === "dark" ? Math.PI : 0;
+    const phi = Math.min(theme.maxPitch ?? 1.25, SET_OUT_PHI);
+    const rect = t.renderer.domElement.getBoundingClientRect();
+    const banner = setOutBannerRef.current, bar = setOutBarRef.current;
+    const top = Math.max(0, (banner ? banner.getBoundingClientRect().bottom : rect.top) - rect.top) + 12;
+    const bottom = Math.min(size.h, (bar ? bar.getBoundingClientRect().top : rect.bottom) - rect.top) - 12;
+    const room = Math.max(140, bottom - top);
+    const maxW = size.w * (shell ? 0.96 : 0.9);
+    const corners = setOutCorners(side);
+    const heights = [0, 2 * PIECE_SCALE];
+    const aim = new THREE.Vector3(0, 0, 0);
+    let lo = ZOOM_MIN, hi = ZOOM_MAX_FOR_BOARD;
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2;
+      const m = measure(mid, phi, theta, aim, corners, heights);
+      if (!m) return;
+      if (m.height <= room && m.width <= maxW) hi = mid;
+      else lo = mid;
+    }
+    const want = (top + bottom) / 2;
+    const middle = (m) => (m.top + m.bottom) / 2;
+    let ty = 0;
+    const m0 = measure(hi, phi, theta, aim, corners, heights);
+    aim.y = 2;
+    const m1 = measure(hi, phi, theta, aim, corners, heights);
+    if (m0 && m1 && Math.abs(middle(m1) - middle(m0)) > 1e-3) {
+      const slope = (middle(m1) - middle(m0)) / 2;
+      ty = (want - middle(m0)) / slope;
+      aim.y = ty;
+      const mR = measure(hi, phi, theta, aim, corners, heights);
+      if (mR) ty += (want - middle(mR)) / slope;
+    }
+    c.theta = theta; c.phi = phi; c.radius = hi; c.dollhouse = false;
+    glideCamera();
+    c.target.set(0, ty, 0);
+    c.placed = true;
+  }
+  useEffect(() => {
+    if (!setOut) return undefined;
+    const side = setOut.so.side;
+    const onResize = () => frameSetOut(side);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!setOut]);
+  /* The board's pointer while setting out: the pointer effect hands each
+     press, move, lift and tap here first (h: its pick, which aims the ray,
+     and screenToBoardCell). A press on a piece of yours, on the board or
+     the bench, is the set-out's: a drag carries it (the squares it would
+     land on lit), a tap chooses it; a tap elsewhere with one chosen sets
+     it on the nearest dot, or lets it go. Anything else is the view's. */
+  const setOutPointerRef = useRef(null);
+  setOutPointerRef.current = {
+    down(ev, h) {
+      const s = setOutRef.current;
+      const t = three.current;
+      if (!s || !t.pieceGroup) return false;
+      h.pick(ev);
+      const hitable = [...t.pieceGroup.children.filter((c) => c.userData.kind === "piece"), ...(t.benchGroup ? t.benchGroup.children.filter((c) => c.userData.kind === "bench-piece") : [])];
+      const hit = t.raycaster.intersectObjects(hitable, false)[0];
+      if (!hit) return false;
+      const id = hit.object.userData.pieceId;
+      const onBench = hit.object.userData.kind === "bench-piece";
+      const p = onBench ? s.so.bench.find((q) => q.id === id) : s.so.pieces.find((q) => q.id === id && q.owner === s.so.side);
+      if (!p) return false;
+      const entry = (onBench ? benchCacheRef.current : pieceMeshCacheRef.current).get(id);
+      const meshes = entry ? [entry.mesh, entry.shell].filter((o) => o && o.parent && o.parent !== entry.mesh).map((obj) => ({ obj, pos: obj.position.clone() })) : [];
+      const spot = onBench ? benchSpots(s.so.bench, s.so.side).get(id) : null;
+      const mid = spot ? { col: (spot.x + OFF_X) / SQUARE_SIZE, row: (spot.z + OFF_Z) / SQUARE_SIZE } : { row: p.row + p.h / 2, col: p.col + p.w / 2 };
+      const cell = h.screenToBoardCell(ev);
+      setOutDragRef.current = { pointerId: ev.pointerId, id, onBench, x0: ev.clientX, y0: ev.clientY, live: false, mid, off: cell ? { row: cell.row - mid.row, col: cell.col - mid.col } : { row: 0, col: 0 }, meshes, aim: null };
+      return true;
+    },
+    move(ev, h) {
+      const d = setOutDragRef.current, s = setOutRef.current;
+      if (!d || !s || ev.pointerId !== d.pointerId) return false;
+      const p = setOutFind(s, d.id);
+      if (!p) return true;
+      if (!d.live) {
+        if (Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) <= DRAG_DEAD_ZONE_PX) return true;
+        d.live = true;
+        if (s.chosen || s.note || s.danger) commitSetOut({ ...s, chosen: null, note: null, danger: null });
+        setOutCue("playSelect", p);
+      }
+      const cell = h.screenToBoardCell(ev);
+      if (!cell) return true;
+      // (From the bench the finger has it by the middle; on the board, by
+      // where it was picked up.)
+      const want = d.onBench ? cell : { row: cell.row - d.off.row, col: cell.col - d.off.col };
+      const dx = (want.col - d.mid.col) * SQUARE_SIZE, dz = (want.row - d.mid.row) * SQUARE_SIZE;
+      d.meshes.forEach(({ obj, pos }) => obj.position.set(pos.x + dx, pos.y + 0.3, pos.z + dz));
+      const a = nearestAnchor(s.so, d.id, p, want);
+      // (Carried well away from your rows, it sets down nowhere.)
+      const aim = a && a.d <= 1.6 ? { ...p, row: a.row, col: a.col } : null;
+      if (aim ? !d.aim || d.aim.row !== aim.row || d.aim.col !== aim.col : d.aim) { d.aim = aim; setSetOutAim(aim); }
+      return true;
+    },
+    up(ev) {
+      const d = setOutDragRef.current;
+      if (!d || ev.pointerId !== d.pointerId) return false;
+      releaseSetOutDrag();
+      setSetOutAim(null);
+      if (!d.live) setOutTapPiece(d.id);
+      else if (d.aim) setOutDrop(d.id, d.aim.row, d.aim.col);
+      else setOutCue("playDeselect", setOutFind(setOutRef.current, d.id));
+      return true;
+    },
+    tap(ev, h) {
+      const s = setOutRef.current;
+      const p = setOutFind(s, s && s.chosen);
+      if (!p) return;
+      const cell = h.screenToBoardCell(ev);
+      const free = freeAnchors(s.so, p.id, p);
+      const a = cell && free.length ? nearestAnchor(s.so, p.id, p, cell, free) : null;
+      if (a && a.d <= 0.75) setOutDrop(p.id, a.row, a.col);
+      else setOutLetGo();
+    },
+    cancel() { releaseSetOutDrag(); setSetOutAim(null); },
+  };
+  // The keys (the mock-ups): the arrows move where the chosen piece would
+  // go, Enter sets it there, R turns it, Escape lets it go.
+  useEffect(() => {
+    if (!setOut) return undefined;
+    const onKey = (e) => {
+      const s = setOutRef.current;
+      if (!s || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+      const el = e.target;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) return;
+      if (e.key === "Escape") { if (s.chosen) { e.preventDefault(); setOutLetGo(); } return; }
+      const p = setOutFind(s, s.chosen);
+      if (!p) return;
+      if (e.key === "r" || e.key === "R") { e.preventDefault(); if (!setOutOnBench(s, p.id)) setOutTurnChosen(); return; }
+      if (e.key === "Enter") {
+        if (el && el.closest && el.closest("button")) return;
+        const a = setOutAimRef.current;
+        if (a) { e.preventDefault(); setOutDrop(p.id, a.row, a.col); }
+        return;
+      }
+      const v = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[e.key];
+      if (!v) return;
+      e.preventDefault();
+      const list = setOutTargets(s.so, p.id);
+      if (!list.length) return;
+      const from = setOutAimRef.current || (setOutOnBench(s, p.id) ? null : p);
+      if (!from) { const a0 = freeAnchors(s.so, p.id, p)[0] || list[0]; setSetOutAim({ ...p, row: a0.row, col: a0.col }); return; }
+      // The step on the board that goes that way on the screen (the board
+      // turns under the camera): a row or a column, whichever's nearer it.
+      const t = three.current;
+      const proj = (row, col) => {
+        const w = new THREE.Vector3((col + p.w / 2) * SQUARE_SIZE - OFF_X, 0, (row + p.h / 2) * SQUARE_SIZE - OFF_Z);
+        t.boardGroup.localToWorld(w);
+        w.project(t.camera);
+        return { x: w.x, y: -w.y };
+      };
+      const o = proj(from.row, from.col);
+      const best = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dr, dc]) => {
+        const q = proj(from.row + dr, from.col + dc);
+        const len = Math.hypot(q.x - o.x, q.y - o.y) || 1;
+        return { dr, dc, dot: ((q.x - o.x) * v[0] + (q.y - o.y) * v[1]) / len };
+      }).sort((a, b) => b.dot - a.dot)[0];
+      for (let k = 1; k <= Math.max(BOARD_ROWS, BOARD_COLS); k++) {
+        const r = from.row + best.dr * k, c = from.col + best.dc * k;
+        if (list.some((a) => a.row === r && a.col === c)) { setSetOutAim({ ...p, row: r, col: c }); return; }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!setOut]);
+  // Tests: the set-out as it stands, and a board square's place on the
+  // screen.
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+    window.__EC_TEST_SET_OUT__ = setOut
+      ? { side: setOut.so.side, half: setOut.so.half, chosen: setOut.chosen, note: setOut.note && setOut.note.kind, danger: setOut.danger, bench: setOut.so.bench.map((p) => p.id), pieces: setOut.so.pieces.map((p) => ({ ...p })), undo: setOut.hist.length, aim: setOutAim && { row: setOutAim.row, col: setOutAim.col }, sameAsLast: setOutLastOk }
+      : null;
+    window.__EC_TEST_START_BY_HAND__ = startByHand;
+    // New Game, as its button; and the board the game's record starts from
+    // (the first turn's, or this first turn's own start while it's going).
+    window.__EC_TEST_NEW_GAME__ = () => handleReset();
+    // A close-up's model turned any way (piece-showcase.js modelViews): this
+    // world's own (the gate's and its menus'), or Neon's MATTER glass.
+    window.__EC_TEST_LOOK_VIEWS__ = (type, views, size, which) => modelViews(which === "neon" ? NEON_SHOWCASE : lookParts({ buildPieceVisual: theme.buildPieceVisual, EDGE_RADIUS: theme.EDGE_RADIUS }), type, views, size);
+    window.__EC_TEST_REPLAY_START__ = () => ((turnHistory[0] && turnHistory[0].pieces) || turnSnapshot || []).map((p) => ({ id: p.id, row: p.row, col: p.col }));
+    // A square's middle, or a piece on the bench, on the screen.
+    const toScreen = (x, z, y = 0) => {
+      const t = three.current;
+      if (!t.boardGroup || !t.camera || !t.renderer) return null;
+      const v = new THREE.Vector3(x, y, z);
+      t.boardGroup.localToWorld(v);
+      v.project(t.camera);
+      const r = t.renderer.domElement.getBoundingClientRect();
+      return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+    };
+    window.__EC_TEST_SQUARE_POS__ = (row, col) => toScreen((col + 0.5) * SQUARE_SIZE - OFF_X, (row + 0.5) * SQUARE_SIZE - OFF_Z);
+    window.__EC_TEST_BENCH_POS__ = (id) => {
+      const e = benchCacheRef.current.get(id);
+      if (!e) return null;
+      const w = new THREE.Vector3();
+      e.mesh.getWorldPosition(w);
+      const t = three.current;
+      t.boardGroup.worldToLocal(w);
+      return toScreen(w.x, w.z, w.y);
+    };
   }
 
   /* The Human button does double duty: from an AI mode, it switches
@@ -4265,7 +4788,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           if (py > maxY) maxY = py;
         }
       }
-      return { width: maxX - minX, height: maxY - minY };
+      return { width: maxX - minX, height: maxY - minY, left: minX, right: maxX, top: minY, bottom: maxY };
     };
     three.current.getMountSize = function () {
       const w = mount.clientWidth, h = mount.clientHeight;
@@ -4818,6 +5341,72 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       }
     });
   }, [pieces]);
+
+  /* Setting out by hand: the bench's pieces, each built as the world
+     builds its pieces, and the board's marks (chassis/set-out.js), in
+     groups of the board's own so they turn with it. A piece on the bench
+     keeps its mesh while it stays put there (a drag carries that mesh). */
+  useEffect(() => {
+    const t = three.current;
+    if (!t.boardGroup) return;
+    if (!t.setOutGroup) { t.setOutGroup = new THREE.Group(); t.setOutGroup.name = "ec-set-out"; t.boardGroup.add(t.setOutGroup); }
+    if (!t.benchGroup) { t.benchGroup = new THREE.Group(); t.benchGroup.name = "ec-bench"; t.boardGroup.add(t.benchGroup); }
+    clearFeatureGroup(t.setOutGroup);
+    const s = setOut;
+    const cache = benchCacheRef.current;
+    const spots = s ? benchSpots(s.so.bench, s.so.side) : new Map();
+    const dropEntry = (id) => {
+      const e = cache.get(id);
+      cache.delete(id);
+      if (!e) return;
+      [e.mesh, e.shell].forEach((o) => {
+        if (!o) return;
+        if (o.parent) o.parent.remove(o);
+        o.traverse((x) => {
+          if (x.geometry) x.geometry.dispose();
+          if (x.material) (Array.isArray(x.material) ? x.material : [x.material]).forEach((m) => m.dispose());
+        });
+      });
+    };
+    const onBench = new Set();
+    if (s) s.so.bench.forEach((p) => {
+      onBench.add(p.id);
+      const spot = spots.get(p.id);
+      const key = `${p.w}x${p.h}x${p.z}|${p.vox || ""}|${spot.x.toFixed(3)},${spot.z.toFixed(3)}`;
+      const had = cache.get(p.id);
+      if (had && had.key === key) return;
+      if (had) dropEntry(p.id);
+      const isDisc = PIECE_META[p.type].shape === "disc";
+      const geo = isDisc
+        ? new THREE.CylinderGeometry((DISC_DIAM * CABEZA_SCALE) / 2, (DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, 40)
+        : p.vox ? makePolycubeSmooth(p, PIECE_SCALE, EDGE_RADIUS) : makeRoundedBox(p.w * PIECE_SCALE, p.z * PIECE_SCALE, p.h * PIECE_SCALE, EDGE_RADIUS);
+      const y = restingY(p);
+      const { mesh, shell } = theme.buildPieceVisual({ piece: p, isDark: p.owner === "dark", isDisc, geo, center: { x: spot.x, y: (p.z * PIECE_SCALE) / 2, z: spot.z }, y });
+      // (Not the board's: nothing that looks for the board's pieces finds
+      // these.)
+      mesh.userData = { ...mesh.userData, kind: "bench-piece", pieceId: p.id };
+      if (shell && shell !== mesh) shell.userData = { ...shell.userData, kind: "bench-shell", pieceId: p.id };
+      t.benchGroup.add(mesh);
+      if (shell && shell !== mesh && !shell.parent) t.benchGroup.add(shell);
+      cache.set(p.id, { key, mesh, shell });
+    });
+    [...cache.keys()].forEach((id) => { if (!onBench.has(id)) dropEntry(id); });
+    if (!s) return;
+    const chosen = setOutFind(s, s.chosen);
+    const dragging = !!(setOutDragRef.current && setOutDragRef.current.live);
+    buildSetOutMarks(t.setOutGroup, {
+      side: s.so.side,
+      half: s.so.half,
+      benchSpots: spots,
+      bench: s.so.bench,
+      chosen: chosen ? { piece: chosen, where: setOutOnBench(s, chosen.id) ? "bench" : "board", spot: spots.get(chosen.id) } : null,
+      dots: chosen && !dragging ? freeAnchors(s.so, chosen.id, chosen) : [],
+      aim: setOutAim,
+      danger: (s.danger || []).map((id) => s.so.pieces.find((q) => q.id === id)).filter(Boolean),
+      words: { bench: (theme.setOutWords && theme.setOutWords.bench) || "Bench" },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setOut, setOutAim]);
 
   /* Black Hole Squares LAW obstacle markers — a small, theme-agnostic
      pair of primitives per hole (a dark sphere plus a glowing ring),
@@ -6627,6 +7216,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         lastX = ev.clientX;
         lastY = ev.clientY;
         el.style.cursor = "grabbing";
+        // Setting out by hand: a press on a piece of yours (on the board or
+        // the bench) is the set-out's, not the view's.
+        if (!altPanning && setOutRef.current && setOutPointerRef.current.down(ev, { pick, screenToBoardCell })) {
+          dragging = false;
+          return;
+        }
 
         // "Undo Move": dragging the piece that has already made a step
         // this turn back toward where it started undoes the turn, same
@@ -6777,8 +7372,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           }
         }
       } else {
-        // (A second finger: no hold.)
+        // (A second finger: no hold, and a piece being set out let go of.)
         if (endHoldRef.current && !endHoldRef.current.done) cancelEndHold();
+        if (setOutDragRef.current) setOutPointerRef.current.cancel();
         /* A second finger cancels the rotate outright rather than
            blending into it. */
         dragging = false;
@@ -6809,6 +7405,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (active.has(ev.pointerId)) {
         active.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       }
+      if (setOutDragRef.current && setOutPointerRef.current.move(ev, { pick, screenToBoardCell })) return;
       const eh = endHoldRef.current;
       if (eh && !eh.done && ev.pointerId === eh.id && Math.hypot(ev.clientX - eh.x0, ev.clientY - eh.y0) > DRAG_DEAD_ZONE_PX) cancelEndHold();
 
@@ -7093,6 +7690,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       active.delete(ev.pointerId);
       el.releasePointerCapture && el.releasePointerCapture(ev.pointerId);
       el.style.cursor = "grab";
+      if (setOutDragRef.current && setOutPointerRef.current.up(ev)) {
+        if (active.size === 0) { dragging = false; altPanning = false; }
+        return;
+      }
 
       /* Lifting one finger of a pinch must not resume a rotate from a
          stale anchor — that produced a jump. */
@@ -7161,6 +7762,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
       const wasDrag = moved > DRAG_DEAD_ZONE_PX;
       dragging = false;
+
+      // Setting out by hand: a tap anywhere but on a piece of yours sets the
+      // chosen piece at the dot nearest it, or lets it go.
+      if (setOutRef.current) {
+        if (!wasAltPan && !wasDrag) setOutPointerRef.current.tap(ev, { pick, screenToBoardCell });
+        return;
+      }
 
       // (The turn's been ended by holding the piece: this lift is no tap.)
       if (heldToEnd) {
@@ -7323,6 +7931,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
     function onCancel(ev) {
       if (endHoldRef.current && ev.pointerId === endHoldRef.current.id) { if (endHoldRef.current.done) endHoldRef.current = null; else cancelEndHold(); }
+      if (setOutDragRef.current && ev.pointerId === setOutDragRef.current.pointerId) setOutPointerRef.current.cancel();
       active.delete(ev.pointerId);
       if (active.size < 2) {
         pinchDist = 0;
@@ -8177,6 +8786,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     window.dispatchEvent(new CustomEvent(PLAY_ORIGINAL_EVENT));
   }
   function resetGame(keepSingularity) {
+    // (A set-out under way is done with: the fresh board is the setup's.)
+    if (setOutRef.current) { releaseSetOutDrag(); commitSetOut(null); setSetOutAim(null); }
     const keepSingularityConfig =
       keepSingularity &&
       three.current &&
@@ -8983,7 +9594,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
                 zIndex: 20,
                 transition: `opacity ${infoBtnVisible ? 0.3 : 1.1}s ease, transform 1.1s ease, top 1.1s ease, right 1.1s ease`,
                 textAlign: "center",
-              }), ...shellMastheadStyle }}
+              }), ...shellMastheadStyle, ...(setOut ? { opacity: 0, pointerEvents: "none" } : {}) }}
       >
         {/* Plain (unpositioned) inner wrapper — see titleFxRef's own
            comment above for why the glitch effects animate THIS
@@ -9539,6 +10150,150 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         );
       })()}
 
+      {/* Setting out by hand: the banner across the top (the mock-ups'
+          options 1 and 3), saying what to do now, with Begin; the set-out's
+          own buttons under it, or on a phone in a bar along the bottom. In
+          the world's own colours, as the check alert's card. */}
+      {setOut && (() => {
+        const s = setOut;
+        const mine = s.so.side;
+        // (A phone, the bar's or the floating piece's: the buttons along the
+        // bottom.)
+        const compact = shell || viewportW < 600;
+        const chosen = setOutFind(s, s.chosen);
+        const named = (id) => setOutPieceName(setOutFind(s, id) || (s.before || []).find((q) => q.id === id));
+        const and = (xs) => (xs.length < 2 ? xs[0] || "" : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+        const mirrorer = aiPlayer ? "The computer" : sideName(setOutOther(mine));
+        const n = s.note;
+        let title, hint, tone = "plain";
+        if (n && n.kind === "danger") {
+          title = "A Cabeza could be crushed on the first move";
+          hint = "Ringed in red: the Cabeza and what can reach it. Move one of them, then Begin.";
+          tone = "danger";
+        } else if (n && n.kind === "bench") {
+          title = `Your ${named(s.chosen)} is still on the bench`;
+          hint = "Begin waits until every piece is on the board: tap a dot to set it there, or drag it on.";
+          tone = "warn";
+        } else if (chosen && setOutOnBench(s, chosen.id)) {
+          title = `Place your ${setOutPieceName(chosen)}`;
+          hint = "Tap a dot to set it there, or drag it onto the board.";
+        } else if (chosen) {
+          title = n && n.kind === "turned" ? `Your ${setOutPieceName(chosen)}, turned` : `Your ${setOutPieceName(chosen)}: where to?`;
+          hint = `Tap a dot to move it there, or another of yours to set it there.${turnsOf(chosen) ? ` Tap the ${setOutPieceName(chosen)} again to turn it.` : ""}`;
+        } else if (n && n.kind === "benched") {
+          title = `Your ${and(n.ids.map(named))} to the bench`;
+          hint = "Drag it back onto the board, or tap it, then a dot.";
+        } else if (n && n.kind === "swapped") {
+          title = `Your ${named(n.id)} and ${and(n.ids.map(named))} swapped places`;
+          hint = `${mirrorer} swapped its pair too.`;
+        } else if (s.so.bench.length) {
+          title = `Place your ${setOutPieceName(s.so.bench[0])}`;
+          hint = "Drag it from the bench, or tap it, then a dot.";
+        } else {
+          title = "Drag a piece where you want it";
+          hint = `Or tap it, then a dot. Whatever it lands on waits on the bench until you place it. ${mirrorer} mirrors every move.`;
+        }
+        const edge = tone === "danger" ? "#e5392d" : tone === "warn" ? "#e8862a" : `#${SET_OUT_ACCENT.toString(16).padStart(6, "0")}`;
+        const label = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" };
+        const btn = (on = true) => ({ ...label, fontSize: 10.5, letterSpacing: "0.1em", minHeight: 34, padding: "7px 10px", borderRadius: 9, border: `1px solid ${COLORS.slateSoft}`, background: "transparent", color: COLORS.charcoal, cursor: on ? "pointer" : "default", opacity: on ? 1 : 0.42, whiteSpace: "nowrap", flexShrink: 0 });
+        const backable = !!setOutBackable(s);
+        const canTurn = !!chosen && !setOutOnBench(s, chosen.id) && turnsOf(chosen);
+        const atStart = s.so === s.start || (s.so.bench.length === 0 && s.so.pieces.every((p) => { const q = s.start.pieces.find((x) => x.id === p.id); return q && q.row === p.row && q.col === p.col && q.w === p.w && q.h === p.h && q.z === p.z && (q.vox || "") === (p.vox || ""); }));
+        const actions = (
+          <>
+            <button type="button" data-testid="set-out-undo" disabled={!s.hist.length} onClick={setOutUndo} title="Take back the last change" style={btn(!!s.hist.length)}>Undo</button>
+            {s.so.bench.length > 0 && <button type="button" data-testid="set-out-put-back" disabled={!backable} onClick={setOutPutItBack} title="Put the piece from the bench back where it stood, if those squares are free" style={btn(backable)}>Put it back</button>}
+            {canTurn && <button type="button" data-testid="set-out-turn" onClick={setOutTurnChosen} title="Turn it to its next way round (R)" style={btn()}>Turn</button>}
+            <button type="button" data-testid="set-out-standard" disabled={atStart} onClick={setOutStandard} title="Every piece back where it began" style={btn(!atStart)}>Standard</button>
+            {setOutLastOk && <button type="button" data-testid="set-out-same" onClick={setOutSameAsLast} title="Set out as your last game began" style={btn()}>Same as last time</button>}
+            {halfSwitch("set-out-half", s.so.half, setOutToggleHalf, compact)}
+            <button type="button" data-testid="set-out-back" onClick={cancelSetOut} title="Back to the game's setup" style={{ ...btn(), border: "none", textDecoration: "underline", textUnderlineOffset: 3 }}>Back</button>
+          </>
+        );
+        return (
+          <>
+            <div
+              ref={setOutBannerRef}
+              data-testid="set-out-banner"
+              role="region"
+              aria-label="Set out by hand"
+              style={{
+                position: "fixed",
+                top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 13,
+                width: compact ? "calc(100vw - 20px)" : "min(calc(100vw - 32px), 640px)",
+                boxSizing: "border-box",
+                padding: compact ? "10px 12px 11px" : "13px 16px 12px",
+                borderRadius: 14,
+                background: modalSurface,
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                border: `1px solid ${COLORS.slateSoft}`,
+                borderLeft: `4px solid ${edge}`,
+                boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+                color: COLORS.charcoal,
+                fontFamily: "'IBM Plex Sans', sans-serif",
+                fontSize: compact ? 12.5 : 13.5,
+                lineHeight: 1.42,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+                  <div style={{ ...label, fontSize: compact ? 9.5 : 10.5, color: edge === "#e5392d" ? edge : COLORS.slate, fontWeight: 700 }}>Before the game · Set out by hand</div>
+                  <div data-testid="set-out-title" style={{ fontFamily: titleFontFamily, fontWeight: 700, fontSize: compact ? 16 : 19, lineHeight: 1.15, marginTop: 4, textWrap: "balance" }}>{title}</div>
+                  <div data-testid="set-out-hint" style={{ marginTop: 3, opacity: 0.78 }}>{hint}</div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    data-testid="set-out-begin"
+                    onClick={setOutBegin}
+                    title={s.so.bench.length ? "Every piece on the board first" : "Begin the game from here"}
+                    style={{ ...label, fontWeight: 700, minHeight: compact ? 36 : 40, padding: compact ? "8px 14px" : "9px 20px", borderRadius: 10, border: `1.5px solid ${COLORS.charcoal}`, background: COLORS.charcoal, color: COLORS.cream, cursor: "pointer", opacity: s.so.bench.length ? 0.55 : 1 }}
+                  >
+                    Begin
+                  </button>
+                  {s.so.bench.length > 0 && <span data-testid="set-out-bench-count" style={{ ...label, fontSize: 9.5, letterSpacing: "0.08em", color: "#c0581c", fontWeight: 600 }}>{s.so.bench.length} on the bench</span>}
+                </div>
+              </div>
+              {!compact && <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 10 }}>{actions}</div>}
+            </div>
+            {compact && (
+              <div
+                ref={setOutBarRef}
+                data-testid="set-out-bar"
+                style={{
+                  position: "fixed",
+                  bottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  zIndex: 13,
+                  width: "calc(100vw - 20px)",
+                  boxSizing: "border-box",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "8px 10px",
+                  overflowX: "auto",
+                  borderRadius: 14,
+                  background: modalSurface,
+                  backdropFilter: "blur(12px)",
+                  WebkitBackdropFilter: "blur(12px)",
+                  border: `1px solid ${COLORS.slateSoft}`,
+                  boxShadow: "0 -6px 24px rgba(0, 0, 0, 0.25)",
+                  color: COLORS.charcoal,
+                  fontFamily: "'IBM Plex Sans', sans-serif",
+                }}
+              >
+                {actions}
+              </div>
+            )}
+          </>
+        );
+      })()}
+
       {/* The check alert's card (user: design 5 of the five shown, with 2's
          ghost and arc and 3's safe squares on the board), across the top:
          on your turn against the computer, while it could crush your Cabeza
@@ -9996,7 +10751,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         onPointerLeave={handleDockPiecePointerLeave}
         onPointerEnter={handleDockPieceHoverStart}
         data-dock-call={dockCall ? "true" : undefined}
-        style={shell ? { ...dockPieceStyle, display: "none" } : dockPieceStyle}
+        style={shell || setOut ? { ...dockPieceStyle, display: "none" } : dockPieceStyle}
       />
 
       {/* After a game, the corner piece calling (dockCall above): a pool
@@ -10631,6 +11386,10 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               setup as well as the in-game menu). */}
           {aiPlayer && checkSwitch("check-alert-setup")}
 
+          {/* Starting position: Standard, or By hand (set out before the
+              game; the other side mirrors yours). */}
+          {awaitingBegin && startRow}
+
           {/* Begin Game (and, for a theme with setup extras of its own
               — Neon's Anomaly button — that whole extras row) on its
               own line below Opponent/Difficulty, rather than crowding
@@ -10643,7 +11402,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                   key="begin"
                   className="ec-btn"
                   data-dock-role="begin"
-                  onClick={triggerBeginGame}
+                  onClick={beginOrSetOut}
                   style={{
                     ...playerButtonStyle(currentPlayer),
                     fontSize: 11,
@@ -10660,7 +11419,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                     minWidth: theme.renderSetupExtras ? 0 : undefined,
                   }}
                 >
-                  {beginLabel}
+                  {startByHand ? "Set out my pieces" : beginLabel}
                 </button>
               );
               const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras });
@@ -11159,7 +11918,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             // A theme cinematic (Neon's Singularity) has the screen: the bars
             // step aside, and once the screen has gone black the camera
             // gets the whole screen back (no visible shift mid-collapse).
-            hidden: !!(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle"),
+            hidden: !!(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle") || !!setOut,
             fullFrame: !!(setupExtras && (setupExtras.singularityPhase === "blackout" || setupExtras.singularityPhase === "sphere")),
             // (Counted up: a theme's scene put every sheet away, helpers.sheets.)
             shutMenu,
@@ -11179,9 +11938,13 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             onToggleStart: toggleStartingPlayer,
             onSelectOpponent: selectOpponent,
             onSetDifficulty: setAiDifficulty,
-            onBegin: triggerBeginGame,
+            onBegin: beginOrSetOut,
             setupActions: theme.shellSetupActions && setupExtras ? theme.shellSetupActions(setupExtras) : [],
-            beginLabel,
+            beginLabel: startByHand ? "Set out my pieces" : beginLabel,
+            startByHand,
+            onStartByHand: toggleStartByHand,
+            ownHalf,
+            onToggleOwnHalf: toggleOwnHalf,
             words: dockWords,
             noGame: !!(setupExtras && setupExtras.noGame),
             // Play
@@ -12090,7 +12853,9 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           pieceLook={{ buildPieceVisual: theme.buildPieceVisual, EDGE_RADIUS: theme.EDGE_RADIUS }}
           onClose={() => setGate(null)}
           api={{
-            three, setPieces, setBlackHoles, setMissingSquares, setCurrentVariants, applyBoardResize, triggerBeginGame,
+            // (Its Standard Cabeza and Play: with By hand chosen, the
+            // set-out first.)
+            three, setPieces, setBlackHoles, setMissingSquares, setCurrentVariants, applyBoardResize, triggerBeginGame: beginOrSetOut,
             aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking,
           }}
         />

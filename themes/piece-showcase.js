@@ -344,3 +344,54 @@ export function PieceViewer({ type, name, detail, fromRect, closing, onClose, on
     )
   );
 }
+
+/* Tests (the chassis's __EC_TEST_LOOK_VIEWS__): a close-up's model of
+   `type` (parts: { model, stage, makeGl }, a viewer's own), turned to each
+   [yaw, pitch] as a drag turns it (a pitch past ±π/2 shows its underside),
+   drawn as the viewer draws it: a data URL each, and how see-through it
+   is there: of the pixels an opaque copy of its shapes covers, the share
+   the real model leaves (nearly) empty. Glows and lines aren't shapes.
+   The model's own materials are a world's, often shared: kept. */
+export const NEON_SHOWCASE = { model: buildModel, stage: makeStage, makeGl: makeRenderer };
+export function modelViews(parts, type, views, size = 220) {
+  if (!POSES[type]) return null;
+  const canvas = document.createElement("canvas");
+  const renderer = parts.makeGl(canvas, size, size);
+  const scene = parts.stage(renderer);
+  const { group, radius } = parts.model(type);
+  scene.add(group);
+  const camera = new THREE.PerspectiveCamera(28, 1, 0.05, 100);
+  aim(camera, radius, START_AZ, START_EL, 1.15);
+  const grab = () => {
+    const c = document.createElement("canvas");
+    c.width = c.height = size;
+    const g = c.getContext("2d");
+    g.drawImage(renderer.domElement, 0, 0);
+    return { url: c.toDataURL("image/png"), data: g.getImageData(0, 0, size, size).data };
+  };
+  const solid = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+  const out = [];
+  for (const [yaw, pitch] of views) {
+    group.rotation.set(pitch, yaw, 0, "YXZ");
+    renderer.render(scene, camera);
+    const real = grab();
+    const swapped = [];
+    group.traverse((o) => {
+      if (!o.visible) return;
+      const m = o.material;
+      const glow = !o.isMesh || !m || (Array.isArray(m) ? m.every((x) => x.depthWrite === false || !x.visible) : m.depthWrite === false || !m.visible || m.colorWrite === false);
+      if (glow) { swapped.push([o, null, o.visible]); o.visible = false; } else { swapped.push([o, m]); o.material = solid; }
+    });
+    renderer.render(scene, camera);
+    const shape = grab();
+    swapped.forEach(([o, m, v]) => { if (m) o.material = m; else o.visible = v; });
+    let cover = 0, empty = 0;
+    for (let i = 3; i < shape.data.length; i += 4) if (shape.data[i] > 200) { cover++; if (real.data[i] < 128) empty++; }
+    out.push({ url: real.url, seeThrough: cover ? empty / cover : 0 });
+  }
+  scene.remove(group);
+  solid.dispose();
+  renderer.dispose();
+  if (renderer.forceContextLoss) renderer.forceContextLoss();
+  return out;
+}

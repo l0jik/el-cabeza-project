@@ -45,6 +45,8 @@ const E2E = [
   ["e2e-hold-to-end.mjs"], ["e2e-ciudad-cabezas.mjs"],
   // Slides (the Cabeza's, a slid block's): no roll's start or landing's knock, in any world.
   ["e2e-slide-sounds.mjs"],
+  // Set out by hand before a game: drag or tap, the bench, the mirror, every world.
+  ["e2e-set-out.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");
