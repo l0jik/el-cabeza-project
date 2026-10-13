@@ -658,6 +658,22 @@ export function createAudio() {
     const v = (h.voices || []).find((x) => x.s === s);
     if (v) v.until = Math.min(v.until, when == null ? 0 : when);
   }
+  // One song at a time: any still sounding but `keep` goes as quickly as
+  // a pause (user: "if you skip to the next track, it seems like the first
+  // track continues playing, so you have 2 playing at the same time").
+  // How there came to be two: the song's end and the next were on the
+  // page's timers while the song played on the audio's clock, and the
+  // audio can fall behind them (a phone suspends it with the screen off
+  // or another app up; a busy machine), so the next came in over the
+  // first's end, and a skip stopped only the newer.
+  function hushOthers(h, keep = null) {
+    const t = now();
+    for (const v of h.voices || []) {
+      if (v.s === keep || v.until <= t) continue;
+      if (v.sg) { v.sg.gain.cancelScheduledValues(t); v.sg.gain.setTargetAtTime(0.0001, t, HOLD_FADE / 3); }
+      stopVoice(h, v.s, t + HOLD_FADE + 0.02);
+    }
+  }
   // A fresh source from `pos` (a buffer source can't be paused, only
   // stopped and started again): a song alone looped as its file was made
   // to; in turn, played to its end (a looped song's seam faded), the next
@@ -676,7 +692,8 @@ export function createAudio() {
     // 'ended' only letting it go sooner: headless Chrome doesn't always
     // fire it (the Lab's sounds found so), and GitHub's run 38 counted a
     // song long over as still sounding.)
-    const v = { s, until: Infinity };
+    hushOthers(h);
+    const v = { s, sg, until: Infinity };
     h.voices = (h.voices || []).filter((x) => x.until > t);
     h.voices.push(v);
     s.onended = () => { v.until = 0; };
@@ -692,8 +709,17 @@ export function createAudio() {
     clearSongTimers(h);
     const next = (h.k + 1) % SOUNDTRACK.length;
     songTimer(h, left - SONG_PREFETCH_S, () => { loadSong(h, next).catch(() => {}); });
-    songTimer(h, left, () => { if (h.src === s) { h.src = null; h.gap = true; } });
-    songTimer(h, left + SONG_GAP_S, () => nextSong(h));
+    // Its end by the audio's clock, not the page's (the timer looks again
+    // while the audio's still short of it), then a breath, then the next.
+    const endAt = t + left;
+    const atEnd = () => {
+      if (h.src !== s) return;
+      const short = endAt - now();
+      if (short > 0.05) { songTimer(h, short, atEnd); return; }
+      h.src = null; h.gap = true;
+      songTimer(h, SONG_GAP_S, () => nextSong(h));
+    };
+    songTimer(h, left, atEnd);
   }
   // On to the next song (the one played let go): a song made to loop
   // comes in from its start with a fade (its start is its own seam).
@@ -730,11 +756,12 @@ export function createAudio() {
     const at = h.song ? humsPos(h) - h.song.start : 0;
     const k = dir < 0 && at > BACK_TO_START_S ? h.k : (h.k + (dir < 0 ? n - 1 : 1)) % n;
     clearSongTimers(h);
-    if (h.src) {
-      const s = h.src, sg = h.sg; h.src = null;
-      sg.gain.cancelScheduledValues(now()); sg.gain.setTargetAtTime(0.0001, now(), HOLD_FADE / 3);
-      stopVoice(h, s, now() + HOLD_FADE + 0.02);
-    }
+    // (Every song sounding goes, not only the one on: one song at a time.
+    // The opening, if it's still playing, steps out too: a song's been
+    // chosen.)
+    h.src = null;
+    hushOthers(h);
+    if (intro && intro.g && !intro.done) { intro.g.gain.cancelScheduledValues(now()); intro.g.gain.setTargetAtTime(0.0001, now(), 0.25); }
     h.gap = false;
     const done = h.k, doneSong = h.song, cue = ++h.cues;
     const go = (kk, song) => {
@@ -780,6 +807,8 @@ export function createAudio() {
         stopVoice(h, s, now() + HOLD_FADE + 0.02);
         if (h.g) { h.g.gain.cancelScheduledValues(now()); h.g.gain.setTargetAtTime(0.0001, now(), HOLD_FADE / 3); }
       }
+      // (And any other still sounding: paused is silent.)
+      hushOthers(h);
     } else {
       h.paused = false;
       if (!h.g) return; // (still loading: it starts as it comes)

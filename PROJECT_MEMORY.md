@@ -175,3 +175,58 @@ How to use it:
   committing and pushing, twice, against the stop hook (user: "What did I
   tell you to stop & wait on?"). Carry on with the standing routine, and
   don't block on long waits: background them.
+- Watermark's soundtrack, two songs at once (user: "if you skip to the
+  next track, it seems like the first track continues playing, so you
+  have 2 playing at the same time"). The skip itself was right; the fault
+  was older: a song's end and the next song were on the page's timers
+  (setTimeout) while the song played on the audio clock. When the audio
+  falls behind (a phone suspends it with the screen off or another app
+  up; a busy machine; GitHub's runner), the timers end the song early and
+  start the next over the first's last stretch, and a skip then stops
+  only the newer. Reproduced by suspending the AudioContext 6 s near a
+  song's end: two sounding. GitHub's run 38 ("between songs, back: two
+  sounding") was this, not the test's counting, as was concluded then.
+  Now (themes/parrish-audio.js): the end timer looks at the audio clock
+  and waits on while it's short; hushOthers() keeps one song at a time
+  (playHumsFrom, a skip, a pause fade every other song still sounding);
+  a skip also lets the opening (the intro) go.
+- The corner menu, round 2:
+  - "The usual rules" is "The standard rules" (user, of the Watermark
+    card); likewise "the standard game" (the Parrish tab) and "not the
+    standard set" (the Noir and Parrish keys).
+  - Watermark and Orinoco: closed, the tab is minimized (the title only,
+    scale 0.8, opacity 0.5; 0.85 under a mouse); a tap opens it at full
+    size and strength (user: "too obstructive / distracting").
+- GitHub's run 41, shard 2: e2e-dock-call's one-step win missed (Noir).
+  Not the corner menu: the commit before it lost the same steps 3/3
+  here. Just after Begin the page is busy for seconds on a slow machine,
+  and a move asked 300 ms after setting the position was dropped
+  (beginMove's anim/busy guard). winNow now waits for the position
+  (__EC_TEST_PIECES__), then asks the move again till it's made; every
+  section checks the win (the reduced-motion and other-world sections
+  didn't, so a missed win showed as "no call").
+- 10 PM lights by plan (user: "too random, some are so lit up they simply
+  look like black and white Rubik's cubes" and "cut the total lights on
+  in the buildings by 20%, and occasionally change which lights are on"):
+  scratch city/ P.nightPlan. The backdrop had repeated 6x12-window tiles
+  of random lights, cool white, on every face, roofs too. Now a facade's
+  style draws its windows as before (the scene's random draws untouched)
+  but which are lit follows a plan (nightPlan): offices by the floor
+  (whole, or a run at one end; ten at night, mostly empty), homes by the
+  flat (2-3 windows, the same flats up the building, a room or two lit,
+  now and then a TV's blue), a stair lit up the side, one building in
+  eight dark; warmer and dimmer (windowGlow 1.15). The windows' shapes
+  from a mask (the style drawn again, all lit, the seed put back). The
+  backdrop gets a map of its own per building, its roof a roof. 48% of
+  windows lit (was 60%). LIVE keeps every window: window.__live switches
+  a few on and off for the looping clips.
+- Cranes (user: "Cranes heights don't always have to be the same. If a
+  building moves onto a square with a crane, it obviously will
+  disappear. Try to keep cranes as far from other pieces as possible, but
+  once placed it remains in that square until displaced by a playing
+  piece moving into its square."): scratch city/ board.sites { far: 2 }
+  (farSites: the free squares farthest from every piece, apart from each
+  other too) and board.craneHs (each its own height, 4.0 to 7.0). For a
+  City world: cranes placed at the start on the squares farthest from the
+  pieces, staying put; a piece moving onto one takes its square and the
+  crane is gone.

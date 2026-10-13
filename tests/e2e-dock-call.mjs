@@ -57,17 +57,30 @@ const hopRange = (page, ms, moved = null) => page.evaluate(([ms, moved]) => new 
   look();
 }), [ms, moved]);
 // Whoever's to move wins in one step (their Cabeza a step from its far row).
+// The move once the position's in place, and asked again till it's made,
+// as a player would: just after Begin the page can be busy for seconds on
+// a slow machine (a frame of Noir takes a third of a second on GitHub's
+// runner), and a move asked while the board's still busy is dropped.
+// GitHub's run 41 moved 300 ms after setting the position and nobody won;
+// here the same steps lost three times in three, in this commit and the
+// one before.
 async function winNow(page) {
   const dark = (await page.locator('[data-testid="turn-status"]').getAttribute("data-side")) === "dark";
+  const id = dark ? "dark-cabeza" : "light-cabeza", row = dark ? 8 : 1, dir = dark ? "S" : "N";
   await page.evaluate((dark) => window.__EC_TEST_SET_PIECES__([
     { id: "dark-cabeza", type: "cabeza", owner: "dark", row: dark ? 8 : 4, col: 4, w: 1, h: 1, z: 1 },
     { id: "dark-turrito", type: "turrito", owner: "dark", row: 0, col: 0, w: 1, h: 1, z: 1 },
     { id: "light-cabeza", type: "cabeza", owner: "light", row: dark ? 5 : 1, col: 6, w: 1, h: 1, z: 1 },
     { id: "light-turrito", type: "turrito", owner: "light", row: 9, col: 9, w: 1, h: 1, z: 1 },
   ]), dark);
-  await page.waitForTimeout(300);
-  await page.evaluate((dark) => window.__EC_TEST_MOVE__(dark ? "dark-cabeza" : "light-cabeza", dark ? "S" : "N"), dark);
-  return poll(async () => (await page.locator('[data-testid="victory-backdrop"]').getAttribute("data-open")) === "true", 8000);
+  await poll(() => page.evaluate(([id, row]) => (window.__EC_TEST_PIECES__ || []).some((p) => p.id === id && p.row === row), [id, row]), 10000, 100);
+  const won = async () => (await page.locator('[data-testid="victory-backdrop"]').getAttribute("data-open")) === "true";
+  const end = Date.now() + 24000;
+  while (Date.now() < end) {
+    await page.evaluate(([id, dir]) => window.__EC_TEST_MOVE__(id, dir), [id, dir]);
+    if (await poll(won, 3000)) return true;
+  }
+  return false;
 }
 // The placard put away with Escape, once it's all the way up (as anyone
 // sees it before they press). GitHub's run 25 pressed the moment it
@@ -162,7 +175,7 @@ async function open(name, opts = {}) {
   console.log("noir, reduced motion");
   const { ctx, page, errs } = await open("noir", { reducedMotion: "reduce" });
   await begin(page);
-  await winNow(page);
+  check("a game won: the placard", await winNow(page));
   const away = await putAway(page);
   check("the placard put away", away.gone, JSON.stringify(away.notes));
   const s = await poll(async () => { const v = await callState(page); return v.call && v.opacity > 0.99 ? v : null; }, 5000) || await callState(page);
@@ -181,7 +194,7 @@ for (const [name, glows] of [["standard", /^#(ff8a2a|ffd98a)$/i], ["neon", /^#(4
   console.log(name);
   const { ctx, page, errs } = await open(name);
   await begin(page);
-  await winNow(page);
+  check("a game won: the placard", await winNow(page));
   const away = await putAway(page);
   check("the placard put away", away.gone, JSON.stringify(away.notes));
   const s = await poll(async () => { const v = await callState(page); return v.call && v.opacity > 0.99 ? v : null; }, 5000) || await callState(page);

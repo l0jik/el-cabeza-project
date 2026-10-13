@@ -408,8 +408,8 @@ export const LOOKS = {
     L: {
       head: `<div class="hd"><span class="kick">— THIS GAME —</span><h3>THE RULES<br>OF THE GAME</h3></div>`,
       laws: () => "THE LAWS", pieces: () => "THE PIECES <small>(each side)</small>", board: () => "THE BOARD",
-      noLaws: "The usual rules",
-      foot: () => `<div class="ft"><span><b>*</b> not the usual set</span>${rulesLink("RULES ›")}</div>`,
+      noLaws: "The standard rules",
+      foot: () => `<div class="ft"><span><b>*</b> not the standard set</span>${rulesLink("RULES ›")}</div>`,
     },
     css: `
     .cm-noir { --ink:#ECECEC; --mut:#A2A2A2; --red:#D7262E; color: var(--ink); }
@@ -437,13 +437,13 @@ export const LOOKS = {
   /* Tá muid beo: a painted cartouche, cream and cobalt, ruled in gold. */
   "parrish-orinoco": {
     fonts: "family=Cinzel:wght@600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600",
-    tab: (r) => `<span class="t">The Rules</span><span class="s">${r.standard ? `the usual game · ${word(r.board.cols)} by ${word(r.board.rows)}` : `${r.laws.length ? `${word(r.laws.length)} ${r.laws.length === 1 ? "law" : "laws"}` : "no laws"} · ${word(r.board.cols)} by ${word(r.board.rows)}`}</span>`,
+    tab: (r) => `<span class="t">The Rules</span><span class="s">${r.standard ? `the standard game · ${word(r.board.cols)} by ${word(r.board.rows)}` : `${r.laws.length ? `${word(r.laws.length)} ${r.laws.length === 1 ? "law" : "laws"}` : "no laws"} · ${word(r.board.cols)} by ${word(r.board.rows)}`}</span>`,
     L: {
       head: (title) => `<div class="hd"><span class="kick">${title}</span><h3>The Rules of Play</h3><span class="orn">— ◆ —</span></div>`,
       laws: () => "THE LAWS", pieces: () => "THE PIECES · EACH SIDE", board: () => "THE BOARD",
-      noLaws: "The usual rules",
+      noLaws: "The standard rules",
       count: (c) => word(c),
-      foot: () => `<div class="ft"><span><i>in gold:</i> not the usual set</span>${rulesLink("The rules ›")}</div>`,
+      foot: () => `<div class="ft"><span><i>in gold:</i> not the standard set</span>${rulesLink("The rules ›")}</div>`,
     },
     css: `
     .cm-parrish-orinoco { --ink:#1D2C5E; --mut:#5A6A9A; --gold:#C9963B; --paper:#F6ECD6; color: var(--ink); }
@@ -467,6 +467,15 @@ export const LOOKS = {
     .cm-parrish-orinoco .cm-pc.changed .c, .cm-parrish-orinoco .cm-pc.changed .n { color:var(--gold); }
     .cm-parrish-orinoco .ft { display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-top:12px; font:500 14px/1 'Cormorant Garamond', Georgia, serif; color:var(--mut); }
     .cm-parrish-orinoco .ft .go, .cm-parrish-orinoco .cm-extra { font:700 10.5px/1 'Cinzel', Georgia, serif; letter-spacing:.18em; color:var(--ink); }
+    /* Out of the way till it's wanted (user: "On Watermark & Orinoco, the
+       new Corner menu needs to be minimized and set to 50% opaque with a
+       tap or click raising it to its full size and opacity. It's currently
+       too obstructive / distracting."): closed, the title alone, smaller,
+       at half strength; a tap opens it at full size and strength. */
+    .cm-parrish-orinoco .cm-tab { transform-origin:0 0; transition: opacity .18s ease, transform .18s ease; }
+    .cm-parrish-orinoco:not([data-open="true"]) .cm-tab { opacity:.5; transform:scale(.8); padding:7px 14px; }
+    .cm-parrish-orinoco:not([data-open="true"]) .cm-tab .s { display:none; }
+    @media (hover: hover) { .cm-parrish-orinoco:not([data-open="true"]) .cm-tab:hover { opacity:.85; } }
     `,
   },
 };
