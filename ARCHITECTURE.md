@@ -178,12 +178,17 @@ export const ownsPixelRatio = true; // or undefined
 // Every method always exists — Standard's is every method as a no-op,
 // Neon's is createSoundscape(). The chassis calls these unconditionally
 // at fixed game-event sites and never branches on "does this theme
-// have audio."
+// have audio." One exception, playSlide: the Cabeza only ever slides,
+// so its moves play the world's playSlide(units, ms) if it has one
+// (else nothing), never playRollStart or playLanding (user: "should not
+// have a tap or falling tone, as they are only slid"; the chassis's
+// slidesOnly).
 export function createAudio() {
   return {
     ensureStarted() {}, beginGameFadeIn() {}, setZoom(t) {}, setMuted(m) {},
     setTension(t) {}, beginFadeOut(s) {}, resetWindDown(restore) {},
-    playSelect() {}, playDeselect() {}, playLanding(mass) {}, playCapture() {},
+    playSelect() {}, playDeselect() {}, playRollStart(units, ms) {},
+    playLanding(units, contact) {}, playSlide(units, ms) {} /* optional */, playCapture() {},
     playWin() {}, playMenu() {}, fadeOutMenu() {}, playPowerOn() {},
     playPowerOff() {}, playFlicker() {}, playArc() {}, playGlitch() {},
     dispose() {},

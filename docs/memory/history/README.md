@@ -587,3 +587,20 @@ note (a top-level `- ` entry or a `### ` heading) in it, to grep or skim.
 - Setting out the pieces by hand (user: "a toggle(?) / way to manually
 - The city's Cabeza (user: "What is the Cabeza piece for the city maps
 - The 10 PM loops: scratch city/ loops.mjs (each state of the lights
+
+## [18.md](18.md) (254 lines, 14 entries)
+
+- Ciudad, a new world: the city of the glass towers and cranes, playable,
+- The city's Cabeza, the ten built (user: "Show me the 10 options for the
+- Ciudad's time switch a clock (user: "Maybe the time of day switch can be
+- The first change to 10 PM (e2e-ciudad, locally: no night part way seen):
+- GitHub run 43 shard 2 (e2e-dock-call, Watermark: no call after a game,
+- City sounds from recordings (user: "go online and find like city
+- The end-turn warning (user: a second tap on a piece ends the turn with
+- The dock piece turns about its own middle (user, Ciudad: "rotating such
+- City sounds from real recordings (user: "go out onto the other resources
+- GitHub run 45 shard 1 (e2e-singularity, the CONFIGURATIONS panel): its
+- Freesound, re-probed 13 Oct 17:01 UTC (user: "I already did this,
+- Corner piece, every world (user: "I think the lunar one also has the
+- City Hall rotunda, ten more (user: "Give me 10 different City Hall
+- Hold to end (user: "Let's go with solution D", the end-turn page): with

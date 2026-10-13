@@ -429,6 +429,8 @@ export function createAudio() {
     ensureStarted, beginGameFadeIn, setZoom, setMuted, setVolume, setTension, beginFadeOut, resetWindDown,
     setChannelLevel, setChannelMuted, setHour,
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
+    // The Cabeza's moves (it only slides, the chassis's slidesOnly): the rumble of a building moved, no landing.
+    playSlide: playRollStart,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose,
     debugState: () => ({ ctx: !!ctx, ambience: ambRunning, hour, night, levels: { ...levels }, city, bed: bedNow && bedNow.id, fetched: Object.keys(beds) }),

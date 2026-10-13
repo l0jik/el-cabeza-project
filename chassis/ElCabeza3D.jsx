@@ -316,6 +316,18 @@ function loadCheckAlert() {
 function saveCheckAlert(on) {
   try { window.localStorage.setItem(CHECK_ALERT_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
 }
+/* A move's sounds, the world's (its audio's playRollStart as the piece
+   sets off, playLanding as it comes down). The Cabeza only ever slides
+   (user: "Cabeza pieces should not have a tap or falling tone, as they are
+   only slid ... the cabeza piece should not make a rolling tap noise when
+   it moves"): its moves play the world's slide (playSlide, which a world
+   may leave out, and then they're silent), never a roll's start or a
+   landing's knock. Tests that set window.__EC_TEST_MOVE_SOUNDS__ = [] see
+   each one asked for. */
+const slidesOnly = (piece) => !!piece && !!PIECE_META[piece.type] && PIECE_META[piece.type].shape === "disc";
+function noteMoveSound(kind, piece, played) {
+  if (typeof window !== "undefined" && Array.isArray(window.__EC_TEST_MOVE_SOUNDS__)) window.__EC_TEST_MOVE_SOUNDS__.push({ kind, id: piece && piece.id, type: piece && piece.type, played });
+}
 /* Hold to end (user: "Let's go with solution D", of the five ways to stop
    a turn being ended by accident): with actions left, a tap on the piece
    that's moved no longer ends the turn (the second click of a double
@@ -5608,8 +5620,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     }
 
     // Cubes, not box volume (an odd shape weighs what it's made of), and
-    // the face it came down on (how low a wood theme's knock is).
-    audioRef.current.playLanding(cubeCount(piece), contactArea(move.candidate));
+    // the face it came down on (how low a wood theme's knock is). Not the
+    // Cabeza: it slides, nothing comes down (slidesOnly).
+    if (!slidesOnly(piece)) {
+      audioRef.current.playLanding(cubeCount(piece), contactArea(move.candidate));
+      noteMoveSound("landing", piece, true);
+    }
 
     /* A move that puts the board back exactly how it was earlier this
        turn (rolling out and back, pivoting there and back, a Split turn's
@@ -5766,10 +5782,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        it accompanied the motion itself). Same shape/kind distinction as
        the branch below: a translate (disc, or any Slide) uses SLIDE_MS
        rather than ROLL_MS, though both constants share one value today. */
-    audioRef.current.playRollStart(
-      cubeCount(state),
-      PIECE_META[state.type].shape === "disc" || isSlideMove ? SLIDE_MS : ROLL_MS
-    );
+    // (The Cabeza: the world's slide, if it has one, never a roll's start.)
+    if (slidesOnly(state)) {
+      const slide = audioRef.current.playSlide;
+      if (slide) audioRef.current.playSlide(cubeCount(state), SLIDE_MS);
+      noteMoveSound("slide", state, !!slide);
+    } else {
+      audioRef.current.playRollStart(cubeCount(state), isSlideMove ? SLIDE_MS : ROLL_MS);
+      noteMoveSound("rollStart", state, true);
+    }
 
     /* Move-triggered ambient FX (weight lifting/landing glow, glitch
        bursts, landing shockwave) — entirely theme-owned. These
@@ -7937,7 +7958,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
     if (step.teleports && step.from) {
       stateOf.set(step.pieceId, step.from);
-      audioRef.current.playLanding(cubeCount(step.from), contactArea(step.from));
+      if (!slidesOnly(step.from)) audioRef.current.playLanding(cubeCount(step.from), contactArea(step.from));
       putBack(360);
       return;
     }

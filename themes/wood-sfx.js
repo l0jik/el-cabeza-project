@@ -86,6 +86,17 @@ export function createWoodSfx(ctx, out, { board: boardKind = "folding" } = {}) {
       const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.012 + m * 0.003, t + dur * 0.4); g.gain.linearRampToValueAtTime(0, t + dur);
       n.connect(bp).connect(g).connect(out);
     },
+    /* The Cabeza, a felt-footed disc, only ever slides (user: "should not
+       have a tap or falling tone, as they are only slid"): an even glide
+       over the lacquer for the move's length, in and out softly, nothing
+       struck (the tip's drag above rises and falls; this holds). */
+    slide(units, durationMs) {
+      const m = massOf(units), t = now(), dur = Math.max(0.15, (durationMs || 350) / 1000), lv = 0.01 + m * 0.002;
+      const n = noise(t, dur), bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 620 / Math.sqrt(m); bp.Q.value = 0.8;
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1800;
+      const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(lv, t + dur * 0.25); g.gain.setValueAtTime(lv, t + dur * 0.7); g.gain.linearRampToValueAtTime(0, t + dur);
+      n.connect(bp).connect(lp).connect(g).connect(out);
+    },
     // Loudness follows the piece's weight; pitch, the face it lands on.
     landing(units, contact) {
       const m = massOf(units);

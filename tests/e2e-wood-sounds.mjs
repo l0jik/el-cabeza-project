@@ -72,15 +72,17 @@ async function run(theme) {
       const w = WoodSfx.createWoodSfx(ctx, ctx.destination, { board });
       fn(w);
       const d = (await ctx.startRendering()).getChannelData(0);
-      let peak = 0, zc = 0;
-      for (let i = 0; i < d.length; i++) { peak = Math.max(peak, Math.abs(d[i])); if (i && (d[i - 1] < 0) !== (d[i] < 0) && Math.abs(d[i]) > 1e-4) zc++; }
-      return { peak: +peak.toFixed(3), zc };
+      let peak = 0, zc = 0, early = 0;
+      for (let i = 0; i < d.length; i++) { peak = Math.max(peak, Math.abs(d[i])); if (i < 44100 * 0.02) early = Math.max(early, Math.abs(d[i])); if (i && (d[i - 1] < 0) !== (d[i] < 0) && Math.abs(d[i]) > 1e-4) zc++; }
+      // (early: the loudest in the first 20 ms, where a knock strikes)
+      return { peak: +peak.toFixed(3), zc, early: +early.toFixed(4) };
     };
     const out = {};
     for (const board of ["solid", "folding"]) {
       out[board] = {
         select: await render(board, (w) => w.select()), deselect: await render(board, (w) => w.deselect()),
         blocked: await render(board, (w) => w.blocked()), roll: await render(board, (w) => w.rollStart(2, 350)),
+        slide: await render(board, (w) => w.slide(1, 350)),
         capture: await render(board, (w) => w.capture()),
         onEnd: await render(board, (w) => w.landing(3, 1)), onSide: await render(board, (w) => w.landing(3, 3)),
       };
@@ -93,7 +95,10 @@ async function run(theme) {
     // (The roll is a soft rumble by design, filtered noise peaking about
     // 0.005-0.007 as the noise falls: against 0.005 it failed now and
     // then. Its floor is under half that, still far from silence.)
-    check(`${board}: every cue is audible and under full scale`, Object.entries(r).every(([k, x]) => x.peak > (k === "roll" ? 0.002 : 0.005) && x.peak < 1), JSON.stringify(r));
+    check(`${board}: every cue is audible and under full scale`, Object.entries(r).every(([k, x]) => x.peak > (k === "roll" || k === "slide" ? 0.002 : 0.005) && x.peak < 1), JSON.stringify(r));
+    // The Cabeza's slide (user: "should not have a tap or falling tone"):
+    // nothing struck, it comes in gently where a knock is loudest at once.
+    check(`${board}: the slide strikes nothing (soft in its first 20 ms, a landing loudest there)`, r.slide.early < r.slide.peak * 0.4 && r.onEnd.early > r.onEnd.peak * 0.6, JSON.stringify({ slide: r.slide, onEnd: r.onEnd }));
     check(`${board}: a 1x3 on its side sounds lower than on end`, r.onSide.zc < r.onEnd.zc * 0.8, `${r.onSide.zc} vs ${r.onEnd.zc}`);
   }
   await page.close();

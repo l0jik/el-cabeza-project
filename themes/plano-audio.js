@@ -260,6 +260,8 @@ export function createAudio() {
   return {
     ensureStarted, beginGameFadeIn, setZoom, setMuted, setVolume, setTension, beginFadeOut, resetWindDown,
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
+    // The Cabeza's moves (it only slides, the chassis's slidesOnly): the pencil's stroke, no landing.
+    playSlide: playRollStart,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose,
     // Neon-only effects; the chassis calls every audio method unconditionally.

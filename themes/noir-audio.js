@@ -516,6 +516,8 @@ export function createAudio() {
     ensureStarted, beginGameFadeIn, setZoom, setMuted, setVolume, setTension, beginFadeOut, resetWindDown,
     setChannelLevel, setChannelMuted,
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
+    // The Cabeza's moves (it only slides, the chassis's slidesOnly): the stone's grind, no landing.
+    playSlide: playRollStart,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose,
     // the thunder after noir-fx.js's lightning; the car on the board; a

@@ -133,6 +133,13 @@ export function createAudio() {
       const m = mass(volumeUnits);
       I.whoosh(at(), Math.max(0.2, (durationMs || 400) / 1000), 0.025 + 0.008 * m);
     },
+    // The Cabeza's moves (it only slides, the chassis's slidesOnly): a
+    // softer whoosh, no landing.
+    playSlide(volumeUnits, durationMs) {
+      if (!ready()) return;
+      const m = mass(volumeUnits);
+      I.whoosh(at(), Math.max(0.2, (durationMs || 400) / 1000), 0.018 + 0.006 * m);
+    },
     playLanding(volumeUnits) {
       if (!ready()) return;
       const m = mass(volumeUnits), t = at();
