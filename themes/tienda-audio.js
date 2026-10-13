@@ -962,7 +962,7 @@ export function createAudio({ tapeUrl = null, tapeUrls = null, tapeTitles = null
     playDeselect() { ensureGraph(); if (!ctx) return; wood.deselect(); },
     playBlocked() { ensureGraph(); if (!ctx) return; wood.blocked(); },
     playRollStart(volumeUnits, durationMs) { ensureGraph(); if (!ctx) return; wood.rollStart(volumeUnits, durationMs); },
-    // The Cabeza's moves: a glide, no knock (the chassis's slidesOnly).
+    // A slide (the Cabeza's, a slid block's): a glide, no knock (the chassis's slides).
     playSlide(volumeUnits, durationMs) { ensureGraph(); if (!ctx) return; wood.slide(volumeUnits, durationMs); },
     // contact: the squares the landing face covers (wood-sfx.js landingSize).
     playLanding(volumeUnits, contact) { ensureGraph(); if (!ctx) return; wood.landing(volumeUnits, contact); },

@@ -43,8 +43,8 @@ const E2E = [
   ["e2e-ciudad.mjs"], ["e2e-ciudad-sound.mjs"], ["e2e-gameplay.mjs", "ciudad"],
   // Hold to end a turn early (a tap on the moved piece only says so); the City's Cabezas to try.
   ["e2e-hold-to-end.mjs"], ["e2e-ciudad-cabezas.mjs"],
-  // The Cabeza only slides: no roll's start or landing's knock, in any world.
-  ["e2e-cabeza-slide-sound.mjs"],
+  // Slides (the Cabeza's, a slid block's): no roll's start or landing's knock, in any world.
+  ["e2e-slide-sounds.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

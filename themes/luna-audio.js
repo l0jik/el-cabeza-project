@@ -285,7 +285,7 @@ export function createAudio() {
   return {
     ensureStarted, beginGameFadeIn, setZoom, setMuted, setVolume, setTension, beginFadeOut, resetWindDown,
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
-    // The Cabeza's moves (it only slides, the chassis's slidesOnly): the whir, no landing.
+    // A slide (the Cabeza's, a slid block's; the chassis's slides): the whir, no landing.
     playSlide: playRollStart,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose,

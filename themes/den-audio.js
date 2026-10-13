@@ -849,7 +849,7 @@ export function createAudio() {
     playDeselect: cue(() => wood.deselect()),
     playBlocked: cue(() => wood.blocked()),
     playRollStart: cue((units, durationMs) => wood.rollStart(units, durationMs)),
-    // The Cabeza's moves: a glide, no knock (the chassis's slidesOnly).
+    // A slide (the Cabeza's, a slid block's): a glide, no knock (the chassis's slides).
     playSlide: cue((units, durationMs) => wood.slide(units, durationMs)),
     // units: the piece's cubes; contact: the squares its landing face covers.
     playLanding: cue((units, contact) => wood.landing(units, contact)),

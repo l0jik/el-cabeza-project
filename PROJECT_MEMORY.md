@@ -152,13 +152,17 @@ How to use it:
   nothing struck) in the den and the store; the City, Noir, Luna, Plano
   and Cromo use their roll's glide (playSlide: playRollStart); Lluvia a
   softer whoosh; the Lab (its looks' roll sounds are blips), Neon and
-  Parrish have none, so the Cabeza is silent there. Other pieces' slides
-  (the Slide laws) still land as before. window.__EC_TEST_MOVE_SOUNDS__
-  (a test's array) gets { kind, id, type, played } per sound asked for.
-  Tests: e2e-cabeza-slide-sound (the den, the store, the City, Neon, the
-  Lab: Turrito rolls and lands, either side's Cabeza only slides, no
-  wood knock), e2e-wood-sounds renders the slide (soft in its first
-  20 ms where a landing is loudest).
+  Parrish have none, so the Cabeza is silent there. Then slid blocks the
+  same way (user: "make slid blocks glide quietly too"): the chassis's
+  slides(piece, dir) is the Cabeza or a slide key, so any slide plays
+  playSlide and never lands (move.isSlide at the commit; an undone
+  black-hole slide too). window.__EC_TEST_MOVE_SOUNDS__ (a test's array)
+  gets { kind, id, type, played } per sound asked for. Tests:
+  e2e-slide-sounds (the den, the store, the City, Neon, the Lab, with
+  Orthogonal slide and 3 actions: a Turrito's roll starts and lands, its
+  slide only glides, one knock; either side's Cabeza only slides, no
+  knock), e2e-wood-sounds renders the slide (soft in its first 20 ms
+  where a landing is loudest).
 - e2e-singularity's triple tap on the bare sphere (CI run 49, shard 1):
   three taps count within 650 ms as the page takes them, and on a loaded
   machine the sphere's slow frames spread three clicks sent 120 ms apart
