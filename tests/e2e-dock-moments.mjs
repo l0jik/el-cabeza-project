@@ -21,6 +21,7 @@ const PAGES = [
   ["cromo", null, { endGame: "Lay down", newGame: "Set the stones", caption: "The stones rest." }],
   ["plano", null, { endGame: "Roll up the plans", newGame: "A fresh sheet", caption: "Plans rolled up." }],
   ["luna", null, { endGame: "End mission", newGame: "New mission", caption: "Mission scrubbed." }],
+  ["ciudad", null, { endGame: "Call it a day", newGame: "Break ground", caption: "Work stopped." }],
   ["lluvia", '[data-testid="lluvia-straight-to-board"]', { endGame: "Walk away", newGame: "Another round", caption: "Mưa vẫn rơi" }],
 ];
 

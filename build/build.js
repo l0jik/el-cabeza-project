@@ -74,6 +74,9 @@ const targets = [
   { name: "plano", entry: "apps/plano.jsx", title: "Plano Cabeza", head: '<meta name="theme-color" content="#1D4C8A">' },
   // Luna: the game as a moon base, the board part of the lunar surface.
   { name: "luna", entry: "apps/luna.jsx", title: "Luna Cabeza", head: '<meta name="theme-color" content="#05070B">' },
+  // Ciudad: the game in the city of the glass towers and cranes, at the
+  // time of day the player picks (not in the switcher until the user says).
+  { name: "ciudad", entry: "apps/ciudad.jsx", title: "Ciudad Cabeza", head: '<meta name="theme-color" content="#2F4458">' },
   // Noir: the game as a night in a film noir city (in the switcher since the
   // user's "Incorporate Noir into Theme Switcher now").
   { name: "noir", entry: "apps/noir.jsx", title: "Noir Cabeza", head: '<meta name="theme-color" content="#0B0B0C">', files: {

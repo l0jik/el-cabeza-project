@@ -120,6 +120,12 @@ const LOOKS = {
     line: "rgba(236,236,236,0.4)", lineW: "1px", radius: "0px", display: "'Bebas Neue', 'Oswald', Impact, sans-serif", displayWeight: 400, body: "'Courier Prime', 'Courier New', monospace",
     shadow: "0 0 0 3px #0B0B0C, 0 0 0 4px rgba(236,236,236,0.35), 0 24px 60px rgba(0,0,0,0.75)", glow: "none", case: "uppercase", track: "0.14em", cellA: "#3A3A3A", cellB: "#1E1E1E",
   },
+  // Ciudad: a street's name sign, white on the slate's blue, the city's white panels
+  ciudad: {
+    backdrop: "rgba(30,40,52,0.5)", surface: "#F4F4F0", ink: "#24313D", muted: "#5E6E7E", accent: "#2F4458", accentInk: "#FFFFFF",
+    line: "rgba(36,49,61,0.22)", lineW: "1px", radius: "8px", display: "'Overpass', 'Arial Narrow', Arial, sans-serif", displayWeight: 800, body: "'Overpass', 'Helvetica Neue', Arial, sans-serif",
+    shadow: "0 0 0 1px rgba(36,49,61,0.12), 0 24px 60px rgba(16,24,34,0.35)", glow: "none", case: "uppercase", track: "0.1em", cellA: "#BCBAB4", cellB: "#5A6A78",
+  },
   parrish: {
     backdrop: "rgba(8,14,38,0.55)", surface: "#F6ECD6", ink: "#1D2C5E", muted: "#5A6A9A", accent: "#1D2C5E", accentInk: "#F2D293",
     line: "rgba(201,150,59,0.7)", lineW: "1px", radius: "2px", display: "'Cinzel', Georgia, serif", displayWeight: 700, body: "'Cormorant Garamond', Georgia, serif",

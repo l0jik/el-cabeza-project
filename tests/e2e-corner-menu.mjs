@@ -37,6 +37,7 @@ const WORLDS = [
   { page: "plano", look: "plano" },
   { page: "luna", look: "luna" },
   { page: "noir", look: "noir" },
+  { page: "ciudad", look: "ciudad" },
   { page: "parrish", query: "?look=orinoco", look: "parrish-orinoco" },
   { page: "parrish", query: "?look=watermark", look: "parrish-watermark" },
 ];

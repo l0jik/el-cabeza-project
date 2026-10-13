@@ -572,3 +572,18 @@ note (a top-level `- ` entry or a `### ` heading) in it, to grep or skim.
 - GitHub browser tests #37 (a88d0f3, set 5): seven shards green,
 - GitHub browser tests #38 (9902682): e2e-dock-call passed with the new
 - Glass towers and cranes (#96; user: "go ahead with the glass towers and
+
+## [17.md](17.md) (169 lines, 12 entries)
+
+- The I-beam frame (user: "Partially constructed I-beam structure skeleton
+- The corner menu (#183-186; user: "move forward with the corner menus as
+- Swiss Design's black pieces edged (user: "Swiss Design black / dark
+- A rejected tool call stops that call, not the round. Its stock note
+- Watermark's soundtrack, two songs at once (user: "if you skip to the
+- The corner menu, round 2:
+- GitHub's run 41, shard 2: e2e-dock-call's one-step win missed (Noir).
+- 10 PM lights by plan (user: "too random, some are so lit up they simply
+- Cranes (user: "Cranes heights don't always have to be the same. If a
+- Setting out the pieces by hand (user: "a toggle(?) / way to manually
+- The city's Cabeza (user: "What is the Cabeza piece for the city maps
+- The 10 PM loops: scratch city/ loops.mjs (each state of the lights

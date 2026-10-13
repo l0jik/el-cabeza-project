@@ -434,6 +434,45 @@ export const LOOKS = {
     .cm-noir .ft .go, .cm-noir .cm-extra { color:var(--ink); letter-spacing:.14em; font:400 11.5px/1 'Courier Prime', monospace; }
     `,
   },
+  /* Ciudad: a street's name sign, white on the slate's blue, its thin white
+     rule just inside the edge, set in Overpass (the road signs' own face);
+     the card the city's white with the sign at its head, the pieces' counts
+     in tags, anything not standard flagged in the cranes' yellow. */
+  ciudad: {
+    fonts: "family=Overpass:wght@400;600;700;800&family=Overpass+Mono:wght@400;600",
+    tab: (r) => `<span class="t">Rules</span><span class="s">${esc(sums.short(r))}</span>`,
+    L: {
+      head: `<div class="hd"><span class="kick">This game · by order</span><h3>Rules</h3></div>`,
+      laws: () => "Laws in force", pieces: () => "Pieces, each side", board: () => "The district",
+      noLaws: "The standard rules",
+      foot: () => `<div class="ft"><span><span class="mk"></span>not the standard set</span>${rulesLink("Full rules ›")}</div>`,
+    },
+    css: `
+    .cm-ciudad { --ink:#24313D; --mut:#5E6E7E; --sign:#2F4458; --paper:#F4F4F0; --y:#E8B81B; color: var(--ink); }
+    .cm-ciudad .cm-tab { gap:10px; padding:9px 14px 7px 13px; background:var(--sign); border-radius:7px; color:#fff; box-shadow: inset 0 0 0 2px var(--sign), inset 0 0 0 3.2px rgba(255,255,255,.9), 0 8px 20px rgba(16,24,34,.3); }
+    .cm-ciudad .t { font:800 14px/1 'Overpass', 'Arial Narrow', Arial, sans-serif; letter-spacing:.14em; text-transform:uppercase; }
+    .cm-ciudad .s { font:400 11px/1 'Overpass Mono', 'DejaVu Sans Mono', monospace; color:rgba(255,255,255,.8); }
+    .cm-ciudad .cm-card { padding:8px 0 14px; background:var(--paper); border-radius:12px; color:var(--ink); box-shadow: 0 0 0 1px rgba(36,49,61,.14), 0 18px 44px rgba(16,24,34,.32); }
+    .cm-ciudad .hd { margin:0 8px 2px; padding:12px 16px 10px; border-radius:8px; background:var(--sign); color:#fff; box-shadow: inset 0 0 0 3px var(--sign), inset 0 0 0 4.2px rgba(255,255,255,.9); }
+    .cm-ciudad .kick { display:block; font:600 10px/1 'Overpass Mono', 'DejaVu Sans Mono', monospace; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.78); }
+    .cm-ciudad h3 { margin:6px 0 0; font:800 25px/1 'Overpass', 'Arial Narrow', Arial, sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+    .cm-ciudad .cm-sec { padding:0 16px; }
+    .cm-ciudad h4 { display:flex; align-items:center; gap:8px; margin:13px 0 6px; font:800 11px/1 'Overpass', 'Arial Narrow', Arial, sans-serif; letter-spacing:.16em; text-transform:uppercase; color:var(--mut); }
+    .cm-ciudad h4::after { content:""; flex:1; height:1px; background:rgba(36,49,61,.16); }
+    .cm-ciudad .cm-law { position:relative; padding:3px 0 4px 18px; }
+    .cm-ciudad .cm-law::before { content:""; position:absolute; left:0; top:7px; width:9px; height:9px; border-radius:2px; background:var(--sign); }
+    .cm-ciudad .cm-law.cm-none::before { background:transparent; box-shadow: inset 0 0 0 1.5px var(--mut); }
+    .cm-ciudad .cm-name { font:700 14.5px/1.3 'Overpass', 'Arial Narrow', Arial, sans-serif; }
+    .cm-ciudad .cm-set { font:400 11.5px/1.5 'Overpass Mono', 'DejaVu Sans Mono', monospace; color:var(--mut); } .cm-ciudad .cm-set .k::after { content:":"; } .cm-ciudad .cm-set .v { color:var(--ink); }
+    .cm-ciudad .cm-pc, .cm-ciudad .cm-bd { font:600 13.5px/1.9 'Overpass', 'Arial Narrow', Arial, sans-serif; }
+    .cm-ciudad .cm-pc .c, .cm-ciudad .cm-bd .v { font:600 11.5px/1 'Overpass Mono', 'DejaVu Sans Mono', monospace; padding:3px 6px; border-radius:4px; background:rgba(47,68,88,.1); font-variant-numeric:tabular-nums; }
+    .cm-ciudad .cm-pc.changed .c { background:var(--y); color:var(--ink); }
+    .cm-ciudad .ft { display:flex; justify-content:space-between; align-items:center; gap:10px; margin:13px 16px 0; font:400 10.5px/1.2 'Overpass Mono', 'DejaVu Sans Mono', monospace; color:var(--mut); }
+    .cm-ciudad .ft .mk { display:inline-block; width:9px; height:9px; border-radius:2px; background:var(--y); vertical-align:-1px; margin-right:5px; }
+    .cm-ciudad .ft .go, .cm-ciudad .cm-extra { font:800 11px/1 'Overpass', 'Arial Narrow', Arial, sans-serif; letter-spacing:.14em; text-transform:uppercase; color:var(--sign); white-space:nowrap; }
+    .cm-ciudad .cm-extra { margin:10px 16px 0; }
+    `,
+  },
   /* Tá muid beo: a painted cartouche, cream and cobalt, ruled in gold. */
   "parrish-orinoco": {
     fonts: "family=Cinzel:wght@600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600",

@@ -92,179 +92,103 @@ How to use it:
 ## History (`docs/memory/history/`)
 
 - [history/README.md](docs/memory/history/README.md): the index, every
-  round's first line, part by part (01 is the oldest, 16 the newest, up
-  to the scream and hall-pull options, set 5 in the game, two GitHub
-  flakes found (the dock's hop, the songs' count) and the glass towers
-  and cranes).
+  round's first line, part by part (01 is the oldest, 17 the newest, up
+  to the corner menu in every world, the I-beam frame, Watermark's one
+  song at a time, 10 PM's lights by plan and its loops, the cranes' rule,
+  the placement mock-ups and the city's Cabeza).
 
 ## Recent rounds
 
-- The I-beam frame (user: "Partially constructed I-beam structure skeleton
-  can be in one of the blank game board squares as City flavor"): scratch
-  city/ lotMap forces board.frames to "frame"; lotRelief's frame branch is
-  a steel I-section skeleton (flange 0.024, web 0.006, #8e4a36 primer, a
-  concrete deck #bcbab4, a hoarding, a bundle of beams). vg1-vg5 carry one;
-  close-up vgf. The review page (artifact DBmVxjLHatrNiebqgkbmPt) has it
-  from version 2.
-- The corner menu (#183-186; user: "move forward with the corner menus as
-  illustrated in the mockups", option 1's sheets): the game's rules at the
-  top left in every world, each in its own look.
-  - chassis/corner-menu.js: gameRules(pieces, missing, holes) reads the
-    engine (ACTIVE_LAWS, BOARD_ROWS/COLS) and the board: the laws as the
-    menus name them, with Shoving's two settings and Split movement's
-    pieces and actions; each side's pieces as the game began (the first
-    turn's snapshot; the most either side has), marked where they differ
-    from the standard five; the board (cols x rows, as the order forms
-    write it), missing pairs, black holes; a plain summary line. LOOKS has
-    the mock-ups' ten looks (parrish-watermark is orinoco's CSS
-    recoloured). cornerMenuParts(look, rules, extra): tab, card, CSS.
-  - chassis/CornerMenu.jsx: the tab (closed, 0.82) and the card; a tap
-    opens it; a press outside, Escape or the tab closes it. A law opens
-    its MOVES card, "Rules" the "game" tab (Quick where a theme hides it:
-    the den, the store). The dock's open and close sounds. Each look's
-    fonts linked once.
-  - Chassis: rulesNow each render, also game.rules for a theme's own
-    read-out. Shown while playing (not awaiting Begin, not through the
-    Singularity, not noGame); theme.cornerMenu is a look's name or a
-    function of the setup extras (a name, {look, extra}, or null). Hidden
-    with the points in the story's scenes. The closed tab steps aside
-    (opacity 0) where the check alert's card (<= 1000 px wide) or its chip
-    (<= 680 px) would sit over it.
-  - Themes: standard "den", neon, lluvia, cromo, plano, luna, noir; parrish
-    by lookName(). tienda: none in the store before it's bought (Nova's
-    story: its shop corner is up then), "store" with the purchase on the
-    slip after (not when the clerk's confused), "store" on its own page.
-  - Retired: Neon's Current Variants flyout (and MobileShell's CSS for it)
-    and the store's in-game OrderSlip. The currentVariants snapshot stays
-    (the New Game card's line, Plain rules, replays).
-  - The Lab: no menu; its read-out (themes/lab/hud.js LabRules) gains a
-    Rules line in play and the list when brought up, in the stats' own
-    colours. The list scrolls within the room left on the screen (Bauhaus
-    ran off an 800 px screen). On a phone it's backed by the page's ground
-    in the direction's frame; Minimal Mono's and New Typography's narrow
-    columns give it 300 px (NARROW_RULES). Brought up by the mouse it now
-    stays while the mouse is on it (it went down after 8 s regardless,
-    under the cursor); by a tap, it goes down after 12 s, begun again by
-    a press inside it. In the corner it now scales from its top left
-    (transform-origin 0 0 while compact): the list made it taller, and
-    scaled about its middle its top dropped from under a still mouse,
-    which closed it, every 120 ms or so (a law couldn't be clicked).
-    Where the read-out is a strip (narrow or short screens) the rules are
-    at most 420 px wide.
-  - User, of the Lab's red counts: "Why are some of these numbers in red?
-    What's the point of it?" The colour marks a count not as in the
-    standard game (one each of the first five), but only the worlds' cards
-    said so. Now the Lab's changed counts carry "*" and a key line
-    ("* Differs from the standard game", only when one does), since a
-    colour alone is lost in Brutalism and Minimal Mono (accent = ink); and
-    Plano's card notes its revision triangle ("revised from the standard
-    set").
-  - Tests: e2e-corner-menu (new: every world, a plain game, game over, the
-    Lab, Nova's store after the story). e2e-tienda, e2e-outside-dismiss,
-    e2e-nova-mobile, e2e-store-nudge and e2e-story moved to the menu.
-    Screens: scratch cornermenu/shoot-real.mjs (real/), every world on a
-    desktop and a phone, the phone bar layout too.
-- Swiss Design's black pieces edged (user: "Swiss Design black / dark
-  pieces need edging to help define their form similar to Mono"): lab
-  specs.js swiss pieces.edges { dark: 0xf2f2ef } (the white pieces' own
-  white; scene.js paints the fillet, the Cabeza gets its rim rings). The
-  line is thinner than Mono's (fillet 0.018 to its 0.03), crisp, Swiss.
-- A rejected tool call stops that call, not the round. Its stock note
-  ("STOP what you are doing and wait for the user...") came when the user
-  turned down a long blocking wait for a test; it was taken as a hold on
-  committing and pushing, twice, against the stop hook (user: "What did I
-  tell you to stop & wait on?"). Carry on with the standing routine, and
-  don't block on long waits: background them.
-- Watermark's soundtrack, two songs at once (user: "if you skip to the
-  next track, it seems like the first track continues playing, so you
-  have 2 playing at the same time"). The skip itself was right; the fault
-  was older: a song's end and the next song were on the page's timers
-  (setTimeout) while the song played on the audio clock. When the audio
-  falls behind (a phone suspends it with the screen off or another app
-  up; a busy machine; GitHub's runner), the timers end the song early and
-  start the next over the first's last stretch, and a skip then stops
-  only the newer. Reproduced by suspending the AudioContext 6 s near a
-  song's end: two sounding. GitHub's run 38 ("between songs, back: two
-  sounding") was this, not the test's counting, as was concluded then.
-  Now (themes/parrish-audio.js): the end timer looks at the audio clock
-  and waits on while it's short; hushOthers() keeps one song at a time
-  (playHumsFrom, a skip, a pause fade every other song still sounding);
-  a skip also lets the opening (the intro) go.
-- The corner menu, round 2:
-  - "The usual rules" is "The standard rules" (user, of the Watermark
-    card); likewise "the standard game" (the Parrish tab) and "not the
-    standard set" (the Noir and Parrish keys).
-  - Watermark and Orinoco: closed, the tab is minimized (the title only,
-    scale 0.8, opacity 0.5; 0.85 under a mouse); a tap opens it at full
-    size and strength (user: "too obstructive / distracting").
-- GitHub's run 41, shard 2: e2e-dock-call's one-step win missed (Noir).
-  Not the corner menu: the commit before it lost the same steps 3/3
-  here. Just after Begin the page is busy for seconds on a slow machine,
-  and a move asked 300 ms after setting the position was dropped
-  (beginMove's anim/busy guard). winNow now waits for the position
-  (__EC_TEST_PIECES__), then asks the move again till it's made; every
-  section checks the win (the reduced-motion and other-world sections
-  didn't, so a missed win showed as "no call").
-- 10 PM lights by plan (user: "too random, some are so lit up they simply
-  look like black and white Rubik's cubes" and "cut the total lights on
-  in the buildings by 20%, and occasionally change which lights are on"):
-  scratch city/ P.nightPlan. The backdrop had repeated 6x12-window tiles
-  of random lights, cool white, on every face, roofs too. Now a facade's
-  style draws its windows as before (the scene's random draws untouched)
-  but which are lit follows a plan (nightPlan): offices by the floor
-  (whole, or a run at one end; ten at night, mostly empty), homes by the
-  flat (2-3 windows, the same flats up the building, a room or two lit,
-  now and then a TV's blue), a stair lit up the side, one building in
-  eight dark; warmer and dimmer (windowGlow 1.15). The windows' shapes
-  from a mask (the style drawn again, all lit, the seed put back). The
-  backdrop gets a map of its own per building, its roof a roof. 48% of
-  windows lit (was 60%). LIVE keeps every window: window.__live switches
-  a few on and off for the looping clips.
-- Cranes (user: "Cranes heights don't always have to be the same. If a
-  building moves onto a square with a crane, it obviously will
-  disappear. Try to keep cranes as far from other pieces as possible, but
-  once placed it remains in that square until displaced by a playing
-  piece moving into its square."): scratch city/ board.sites { far: 2 }
-  (farSites: the free squares farthest from every piece, apart from each
-  other too) and board.craneHs (each its own height, 4.0 to 7.0). For a
-  City world: cranes placed at the start on the squares farthest from the
-  pieces, staying put; a piece moving onto one takes its square and the
-  crane is gone.
-- Setting out the pieces by hand (user: "a toggle(?) / way to manually
-  place pieces before the start of a match ... If playing against AI, it
-  will automatically preserve rotational symmetry ... If the newly moved
-  piece displaces a piece ... placed outside the board until the user
-  returns to place it ... We will do 5 option mock-ups, then choose"; and
-  "allow pieces to be setup anywhere on a players own 1/2 of the board"):
-  five options drawn over the den (scratch placement/: pm.js helpers,
-  scenes/opt1-5.js and menu.js, shoot-pm.mjs). In the den the player is
-  Dark, the near walnut set (rows 0-2); the computer Light. pm.js: a
-  piece is a mesh and a shell (hide both); a copy of a hidden piece is
-  made visible; tints are fresh plain materials (the den's wood is a
-  shader of its own that goes black without its maps). Options: 1 pick up
-  and set down (drag in the board, a bench on the table), 2 the plan (a
-  flat plan card), 3 tap then tap (dots, swap), 4 set out from the box,
-  5 openings (Standard, Wedge, Wall, Fortress, your own). Review page:
-  artifact RbyavJEn9cG59NwDbVwA7M "Setting Out the Pieces". Recommended:
-  1 with 3's taps. Asked: home rows three (the standard Opa stands in the
-  third; the user wrote "back 2 rows") or two; two players mirrored or
-  each their own; ideas (behind a screen for two players, saved
-  openings, same as last time, the computer's own). Shuffled stays
-  Neon's alone (the den and the store: Standard or By hand).
-- The city's Cabeza (user: "What is the Cabeza piece for the city maps
-  supposed to be? Give me 10 other city appropriate options"): now a round
-  glass pavilion (CABEZA.midmod: a glass drum, 12 thin columns, a flat
-  disc roof, lit inside at night). Offered: a city hall rotunda, a
-  bandstand, a carousel, a bronze head in a fountain (named as the
-  favourite), a planetarium, a clock kiosk, a roundabout monument, a water
-  tower, a subway entrance, a little stadium. Waiting on the user.
-- The 10 PM loops: scratch city/ loops.mjs (each state of the lights
-  drawn once at 3200x2000) and loopfinish.py (nightcard each, 1600 wide,
-  ffmpeg concat into a seamless 12 s MP4, about 1 MB). window.__live.plan
-  switches groups (a flat, an office floor, a stair) rather than single
-  windows: one a building, the 40 biggest on the screen (the board's
-  first), and only those that change a small test render (400x250, put
-  on or out and back) — before that, half the switches fell on walls
-  turned away and nothing changed. The review page (artifact
-  DBmVxjLHatrNiebqgkbmPt) shows the 10 PM scenes and close-ups as the
-  loops, the cranes' new rule in its call.
+- Ciudad, a new world: the city of the glass towers and cranes, playable,
+  at the time of day the player picks (user: "implement city as it
+  currently is. Maybe just have a toggle switch to switch between the
+  different times of day. It's all essentially the same map ... they can
+  basically play in that city and change the time of day"). Page
+  el-cabeza-ciudad.html (apps/ciudad.jsx, build target "ciudad", landing
+  page link); NOT in the theme switcher (realities.js WORLDS) until the
+  user says, as Noir was. Name "Ciudad" and the sides "Slate" (dark) and
+  "Chalk" (light) are my picks, put to the user. Gate look, points glow
+  (an office's cool light, a home's warm one), corner-menu look "ciudad"
+  (a street's name sign: white on #2F4458, a white rule inside the edge,
+  Overpass, the road signs' face; changed counts in the cranes' yellow).
+  - themes/ciudad-models.js: BUILD.midvar ported (the five models from the
+    id, hashed with SEED 265 so the standard five of each side differ and
+    each kind differs across the board; white and grey-blue families; the
+    1x3 always the glass tower, lying down a glass hall; odd pieces as
+    columns of facade, faces against a neighbour left out; the Cabeza the
+    pavilion). A building's walls are one atlas canvas (every face of every
+    box, a row a box) and one material: one draw; plain parts merged by
+    material. Windows by plan in the shader (PLAN_GLSL cityPlan, per
+    window from aWin (the window across its face, the floor from the top,
+    the face, the face's windows) and aSeed): offices by the floor (whole
+    or a run at one end, a desk or two), homes by the flat (2-3 windows,
+    the same flats up the building, a room or two lit, a TV's blue), a
+    stair; one building in eight dark (not pieces: uNoDark). flick(): 12%
+    of office floors and 15% of flats ever switch, each its own period
+    (90-300 s), over for 15% of it. The light a^2.2 (as drawn on black on
+    an sRGB canvas). shade() copies the scratch's (linear, hex read back)
+    so the walls match the stills. GLSL: `flat` is reserved (WebGL2): the
+    first build threw on it.
+  - themes/ciudad-time.js: the five times (Morning, Afternoon, Golden Hour,
+    Overcast from vv1-vv4; 10 PM from TEN_PM): sky (4 stops), haze, sun
+    (colour, strength, direction as the first view sees it), hemisphere,
+    exposure, night 0/1. NOW eases over 2.4 s (the windows come on behind
+    the dark, go out ahead of the dawn). Kept in localStorage
+    (elcabeza.ciudad.time); ?time=morning|afternoon|golden|overcast|night.
+    Test hook __CIUDAD_TIME__ (get, set).
+  - themes/ciudad-hud.js: the switch (renderExtraOverlays): a street sign
+    at the top right, 78 px down (under the masthead in play), the hour's
+    icon and name; a tap opens the five with their clocks; Escape or a tap
+    outside closes. Phones (<= 560 px): the icon alone, 46 px down; so
+    Morning and Golden Hour are a sunrise and a sunset (an arrow up, an
+    arrow down over the sun on the horizon), as they looked alike.
+  - themes/ciudad-fx.js: the sky dome (gradient top to horizon, the sun's
+    glow and disc, cloud wisps, a deck when overcast), the haze, the key
+    light as the sun turned with the board (as Luna's, Noir's), hemisphere
+    and exposure set when NOW changes, an env map per hour (PMREM of the
+    hour's sky, swapped half way through a change) for the glass,
+    sRGB output. A pool of light under the piece picked up; dust where a
+    building lands.
+  - themes/ciudad.js: the board as the district (streets on every grid
+    line, kerbed blocks in flags, crossings, a crossing's stripes on each
+    goal row's street, letters and numbers in road paint); the slab darker
+    by night (x0.3) with the lamps' pools glowing then. BOARD_PAINT: the
+    board's canvas for the lots to be painted on, a block made plain again.
+    Move markers a parking bay's white line (a crush a box junction in the
+    cranes' yellow), unlit so they read at night. Dock words: Street /
+    Aerial / Skyline, Call it a day, Break ground, City record, Zoning code,
+    Ribbon cut.
+  - themes/ciudad-lots.js: laid out when a game is set out (a signature of
+    the pieces while awaitingBegin): about half the free blocks a lot
+    (park, lawn, plaza, subway, court, building site), the two cranes on
+    farSites (the free squares farthest from every piece, apart), heights
+    5.6-7.0 and 4.0-5.2, the steel frame on the next farthest. A lot a
+    piece's block has covered for 420 ms is taken (its crane, its trees,
+    its paint). A crane swings its jib now and then (7 s, every 25-60 s;
+    the shadows are drawn again only then). Night: beacons, a lit cab,
+    the frame's bulbs and a welder.
+  - themes/ciudad-city.js: a street just off each edge, then a 2.92 grid
+    of blocks out to 46: by the board parks, plazas, car parks and low
+    buildings; out from there blocks of 1-3 buildings in the four styles
+    (one geometry and material a style and variant, windows by plan,
+    dissolving out of the camera's way as Noir's); walls x0.62 and roofs
+    x0.42 at night; parks' trees instanced; lamps (posts instanced, heads
+    one Points). roofAt for the camera.
+  - themes/ciudad-life.js: Plano's lanes: cars and buses both ways on every
+    street within 22, bikes, people on the pavements; on the board a lane
+    each way down about half the lines, its cars gone where a building
+    stands across the street and while a building moves; people at the
+    free blocks' corners, gone when the block is taken. Lamps at night (two
+    Points draws). Nothing casts a shadow.
+  - themes/ciudad-audio.js: made, not recorded (a first version): the
+    city's roar, cars going by, birds (most in the morning), the sites'
+    clanks, a crossing's beeps, wind when overcast, at night a siren far
+    off and footsteps; cues: a crossing button, a horn, hydraulics, a
+    footing landing, a demolition, a ribbon-cut chord and cheer, a lift.
+  - Measured (desktop, in play, morning): 179 draw calls, 196k triangles.
+  - Tests: e2e-ciudad (the switch, kept, ?time=, night lit and darker, the
+    lots, the cranes' rule, the streets; the night noted in the page while
+    it eases: on the software renderer a click outlasts the change),
+    e2e-smoke ciudad, e2e-gameplay ciudad (Slate, Chalk), e2e-corner-menu
+    (the ciudad look), e2e-dock-moments (its words) and e2e-touch-in-game
+    (Neon's turn and tilt; Noir is still not in that list).

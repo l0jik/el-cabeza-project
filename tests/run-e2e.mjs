@@ -17,7 +17,7 @@ import { spawn } from "node:child_process";
 
 // [script, ...args], in the order they've always run.
 const E2E = [
-  ["e2e-smoke.mjs", "standard"], ["e2e-smoke.mjs", "neon"], ["e2e-smoke.mjs", "cromo"], ["e2e-smoke.mjs", "plano"], ["e2e-smoke.mjs", "luna"], ["e2e-smoke.mjs", "noir"], ["e2e-smoke.mjs", "lluvia"], ["e2e-smoke.mjs", "tienda"],
+  ["e2e-smoke.mjs", "standard"], ["e2e-smoke.mjs", "neon"], ["e2e-smoke.mjs", "cromo"], ["e2e-smoke.mjs", "plano"], ["e2e-smoke.mjs", "luna"], ["e2e-smoke.mjs", "noir"], ["e2e-smoke.mjs", "lluvia"], ["e2e-smoke.mjs", "tienda"], ["e2e-smoke.mjs", "ciudad"],
   ["e2e-outside-dismiss.mjs"], ["e2e-lab.mjs"], ["e2e-gameplay.mjs", "standard"], ["e2e-gameplay.mjs", "neon"],
   ["e2e-board-size.mjs"], ["e2e-ai-worker.mjs"], ["e2e-ai-split.mjs"], ["e2e-movelog.mjs"], ["e2e-replay.mjs"], ["e2e-undo-audio.mjs"], ["e2e-undo-wormhole.mjs"],
   ["e2e-lluvia.mjs"], ["e2e-odd-pieces.mjs"], ["e2e-shoving.mjs"], ["e2e-anomaly.mjs"], ["e2e-pivot.mjs"], ["e2e-pivot-drag.mjs"], ["e2e-points.mjs"], ["e2e-rules.mjs"],
@@ -39,6 +39,8 @@ const E2E = [
   ["e2e-luna-floors.mjs"],
   // The corner menu: the game's rules at the top left, every world's look.
   ["e2e-corner-menu.mjs"],
+  // Ciudad: the city at the hour picked, its lots and cranes, its streets.
+  ["e2e-ciudad.mjs"], ["e2e-gameplay.mjs", "ciudad"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");
