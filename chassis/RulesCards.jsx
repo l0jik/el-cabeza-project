@@ -1,6 +1,6 @@
 /* The rules cards: five ways into the rules, shown as tabs in the INFO
    overlay (see ElCabeza3D.jsx) and opened in place from wherever a rule
-   matters (the Current Variants flyout, the unused-points note, the
+   matters (the corner menu, the unused-points note, the
    SINGULARITY LAWS menu, the sphere's help line) through one window event,
    so themes never import the chassis:
 

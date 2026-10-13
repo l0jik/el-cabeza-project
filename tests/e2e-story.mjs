@@ -129,7 +129,7 @@ console.log("\ndesktop: the store, the purchase, home");
   check("...where the game is only tried: Try a Game", (await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Game" }).count()) === 1 && (await page.locator('[data-testid="dock-panel"] button', { hasText: "Begin Game" }).count()) === 0);
   await page.locator('[data-testid="dock-panel"] button', { hasText: "Try a Game" }).first().click();
   check("a game begins", await poll(() => has(page, "tienda-price-tag"), 10000));
-  check("...its price tag, not an order slip", !(await has(page, "tienda-slip-tag")) && /El Cabeza/i.test(await q(page, "tienda-price-tag").innerText()) && /7\.97/.test(await q(page, "tienda-price-tag").innerText()));
+  check("...its price tag, not the rules menu", !(await has(page, "corner-menu")) && /El Cabeza/i.test(await q(page, "tienda-price-tag").innerText()) && /7\.97/.test(await q(page, "tienda-price-tag").innerText()));
   check("...with the ten classic pieces", await page.evaluate(() => { const p = window.__EC_TEST_PIECES__ || []; return p.length === 10 && p.every((x) => ["cabeza", "turrito", "flaco", "chato", "opa"].includes(x.type)); }));
   await q(page, "tienda-price-tag").click();
   check("the tag unfolds: Put one in the cart", await poll(() => has(page, "tienda-price-cart"), 5000));

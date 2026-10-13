@@ -111,7 +111,7 @@ console.log("\nshopping: the PA, the cart, closing time (user: nothing about ord
   check("the dock opens", await openDockPanel(page));
   check("...its buy button: Put one in the cart", /Put one in the cart/i.test(await q(page, "story-purchase").innerText()));
   await q(page, "tienda-try-game").click();
-  check("a game: the game's price tag, no order slip", await poll(() => has(page, "tienda-price-tag"), 10000) && !(await has(page, "tienda-slip-tag")));
+  check("a game: the game's price tag, no rules menu (nothing of orders before it's bought)", await poll(() => has(page, "tienda-price-tag"), 10000) && !(await has(page, "corner-menu")));
   check("the PA: El Cabeza in stock, Aisle 9", await poll(async () => (await has(page, "tienda-pa-instock")) && /aisle 9/i.test(await q(page, "tienda-pa-instock").innerText()), 15000));
   await q(page, "tienda-pa-instock").click();
   check("...a tap on it: one in the cart", await poll(async () => (await has(page, "tienda-cart")) && (await page.evaluate(() => window.__TIENDA_SHOP__().cart)) === 1, 4000));

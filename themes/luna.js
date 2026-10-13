@@ -204,6 +204,8 @@ export function useSetupExtras({ game, pieces }) {
 
 /* The dock, in mission control's words (chassis DOCK_WORDS). The flight
    rules are what NASA calls its book of what to do when. */
+// The corner menu's look (chassis/corner-menu.js): the mission patch and its checklist.
+export const cornerMenu = "luna";
 export const dockWords = {
   views: ["Ground", "Orbit", "Base"],
   endGame: "End mission",

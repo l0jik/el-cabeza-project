@@ -29,7 +29,7 @@ import {
   defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
 } from "./rules-selections.js";
-import { SquarePicker, OpponentSection, CarbonCopies, OrderSlip, ORDER_PARTS_CSS } from "./tienda-order.js";
+import { SquarePicker, OpponentSection, CarbonCopies, ORDER_PARTS_CSS } from "./tienda-order.js";
 import { ShopCorner, StorePA, useShoppingVisit } from "./tienda-shopping.js";
 import { ensurePaper, ensureAgedPaper } from "./tienda-textures.js";
 import { WoodPieceViewer, ensureWoodPhotos, woodPhoto, hasWoodShowcase } from "./tienda-showcase.js";
@@ -712,16 +712,9 @@ export function renderExtraOverlays(x) {
 function renderOverlaysHere(x) {
   if (!x) return null;
   const store = !!x.story && x.story.mode === "store";
-  // In a game: the sales slip of what was ordered. At home only for a game
-  // with rules ordered from the catalog (the carbon copy of the order); a
-  // classic game there has none.
-  if (x.isPlaying && !x.awaitingBegin) {
-    const home = !!x.story && x.story.mode === "home";
-    if (home && !(x.currentVariants && x.currentVariants.length)) return null;
-    // (In the store before it's bought, its price tag instead: above.)
-    if (store && !(x.story.after && x.story.after()) && !(x.story.realities && x.story.realities())) return null;
-    return h(OrderSlip, { key: "slip", groups: x.currentVariants, audio: x.audio, onPurchase: store ? x.story.onPurchase : null });
-  }
+  // In a game: the game's rules are the corner menu's (the chassis's; in
+  // the store, the sales slip, tienda.js's cornerMenu).
+  if (x.isPlaying && !x.awaitingBegin) return null;
   if (store && x.tiendaOverlay === "clerk") {
     return h(ClerkScene, {
       key: "clerk", audio: x.audio,

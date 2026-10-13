@@ -28,6 +28,8 @@ const FOCUS_EVENT = "el-cabeza:focus";
 import MobileShell, { SIDE_MAX_H as SHELL_SIDE_MAX_H } from "./MobileShell.jsx";
 import VolumeFader from "./VolumeFader.jsx";
 import NowPlaying from "./NowPlaying.jsx";
+import CornerMenu from "./CornerMenu.jsx";
+import { gameRules } from "./corner-menu.js";
 import { RealityGate, storyOver, GATE_EVENT, openRealityGate } from "../themes/reality-gate.js";
 import { saveLastWorld } from "../themes/realities.js";
 import { sideNamesOf, SIDE_NAMES as WORLD_SIDE_NAMES, DEFAULT_SIDE_NAMES } from "../themes/side-names.js";
@@ -812,10 +814,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      via the setter threaded through useSetupExtras below. */
   const [missingSquares, setMissingSquares] = useState(() => carried("missingSquares", []));
   /* Snapshot of the specials (LAWS / MATTER / TOPOLOGY) chosen for the
-     current game, captured by finalizeSingularityBegin for the in-game
-     "Current Variants" flyout (themes/neon-singularity.js). null means a
-     plain, non-Singularity game — the flyout then reads "Standard rules".
-     Cleared on New Game (handleReset). */
+     current game, captured by finalizeSingularityBegin (themes/neon-
+     singularity.js): the New Game card's line, the Plain rules link. null
+     means a plain game. Cleared on New Game (handleReset). (The rules in
+     play, for the corner menu, are read from the engine: rulesNow.) */
   const [currentVariants, setCurrentVariants] = useState(() => carried("currentVariants", null));
   /* On a real win with currentVariants set (a Singularity-originated
      game), New Game asks RETAIN vs RECONFIGURE instead of silently
@@ -2743,6 +2745,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       else dismissCheck(0, -260);
     } else { el.style.transition = "transform 180ms ease-out, opacity 180ms ease-out"; el.style.transform = "translate(-50%, 0)"; el.style.opacity = "1"; }
   };
+  // The game as it's being played, for the corner menu and a theme's own
+  // read-out (the Lab's): its laws, each side's pieces as it began (the
+  // first turn's snapshot, so a piece taken doesn't change the count), the
+  // board. Read fresh each render: the laws and the board's size are the
+  // engine's, set as a game begins.
+  const rulesNow = gameRules(turnHistory.length && turnHistory[0].pieces ? turnHistory[0].pieces : pieces, missingSquares, blackHoles);
   const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
@@ -2766,11 +2774,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // blackHoles/setBlackHoles just above, for the impassable-void
     // feature (see the missingGroup effect below).
     missingSquares, setMissingSquares,
-    // Current Variants flyout: isPlaying gates when the in-game flyout
-    // shows; currentVariants is the snapshot finalizeSingularityBegin
-    // captures of the specials chosen for THIS game (null = a plain,
-    // non-Singularity game -> the flyout reads "Standard rules"),
-    // cleared on New Game (handleReset).
+    // isPlaying: a game under way; currentVariants is the snapshot
+    // finalizeSingularityBegin captures of the specials chosen for THIS
+    // game (null = a plain game), cleared on New Game (handleReset).
     isPlaying, currentVariants, setCurrentVariants,
     // TOPOLOGIES board resize: finalizeSingularityBegin calls this to
     // apply the chosen board size before placing the roster/holes.
@@ -2784,8 +2790,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       aiDifficulty, aiLevel: aiPlayer ? (AI_DIFFICULTY[aiDifficulty] || {}).label || null : null,
       selectedType: (pieces.find((p) => p.id === selectedId) || {}).type || null,
       pieceCount: { dark: pieces.filter((p) => p.owner === "dark").length, light: pieces.filter((p) => p.owner === "light").length },
+      rules: rulesNow,
     },
   }) : null;
+  /* The corner menu (chassis/CornerMenu.jsx): while a game is being
+     played (not through Neon's Singularity, nor where a theme says there's
+     no game), in the look the theme names (theme.cornerMenu: a look's
+     name, or a function of the setup extras giving one, { look, extra },
+     or nothing, as the store does before the game's bought). The story's
+     scenes hide it with the points (the style beside the points counter). */
+  const cornerShown = isPlaying && !awaitingBegin && !!theme.cornerMenu && !(setupExtras && (setupExtras.noGame || (setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle")));
+  const cornerRaw = cornerShown ? (typeof theme.cornerMenu === "function" ? theme.cornerMenu(setupExtras || {}) : theme.cornerMenu) : null;
+  const cornerMenu = cornerRaw ? (typeof cornerRaw === "string" ? { look: cornerRaw } : cornerRaw) : null;
   // The Begin Game button's words, which a theme may change for where the
   // game is (Tienda's store: "Try a Game", it isn't bought yet).
   const beginLabel = (theme.beginLabel && theme.beginLabel(setupExtras)) || "Begin Game";
@@ -2913,7 +2929,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
   }, []);
 
-  // Any part of the page (a theme's flyout, the sphere, the unused-points
+  // Any part of the page (the corner menu, the sphere, the unused-points
   // note) opens a rules card through this one event (see RulesCards.jsx).
   useEffect(() => {
     const onOpen = (e) => {
@@ -7946,8 +7962,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       setBlackHoles([]);
       setActiveMissingSquares([]);
       setMissingSquares([]);
-      // No captured variant snapshot — the flyout reads "Standard rules",
-      // and the Reset rules control (gated on this) hides itself.
+      // No captured variant snapshot: the Reset rules control (gated on
+      // this) hides itself.
       setCurrentVariants(null);
     }
     // Invalidates both views' cached fit baselines — see the refs' own
@@ -8236,8 +8252,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (!total) return { error: problem || "No moves found." };
     return { rec, total, problem, legacy: !!rec.legacy, codeDamaged: !!rec.codeDamaged, final: res.final };
   }, [replayText, replayNames]);
-  // The rules a replayed game was played under, for the rules flyout (as a
-  // custom game's own).
+  // The rules a replayed game was played under, as a custom game's own
+  // snapshot (the New Game card's line, Plain rules).
   function replayVariants(rec) {
     const groups = [];
     const laws = LAW_OPTIONS.filter((l) => rec.laws[l.key]).map((l) => l.name);
@@ -8898,10 +8914,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           scenes flag themselves on the page (the TV visit, the hall, the
           summons, the trip, the ending, the store's clerk); Neon's
           Singularity through its phase. Their own sheets hide the rest. */}
-      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"]),
-html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"]),
-html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"]),
-body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"]) {
+      <style>{`html.ec-tv-visit :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
+html.ec-summon :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
+html.ec-hall-scene :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]),
+body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-counter"], [data-testid="piece-card"], [data-testid="unused-points-note"], [data-testid="check-alert"], [data-testid="check-alert-recall"], [data-testid="dock-call-aura"], [data-testid="corner-menu"]) {
   opacity: 0 !important; pointer-events: none !important; transition: opacity 0.4s ease !important;
 }`}</style>
       {!shell && showPoints && !awaitingBegin && (isPlaying || pointsFinal) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle") && (() => {
@@ -11760,6 +11776,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
       </div>
 
       {theme.renderExtraOverlays && theme.renderExtraOverlays(setupExtras)}
+      {cornerMenu && <CornerMenu key={cornerMenu.look} look={cornerMenu.look} rules={rulesNow} extra={cornerMenu.extra || null} audio={audioRef.current} />}
       {gate && (
         <RealityGate
           key={gate.n}

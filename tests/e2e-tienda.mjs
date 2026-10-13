@@ -441,15 +441,17 @@ for (const size of [SIZES[2], SIZES[7]]) {
   check(`the game has the pieces ordered (${[...types].sort().join(", ")})`, ["arcoAlto", "block1x3", "block2x3", "codo"].every((t) => types.has(t)));
   check("...the hand-marked square cut out", game.missing.length === 4 && game.missing.some((m) => m.row === handSpot[0] && m.col === handSpot[1]), JSON.stringify({ handSpot, missing: game.missing }));
   check("...cut squares and black holes drawn in the store's wood and brass", game.cuts === 4 && game.pockets === 2, JSON.stringify(game));
-  const slipTag = page.locator('[data-testid="tienda-slip-tag"]');
-  check("in the game, the sales slip shows at the top left", (await slipTag.count()) === 1 && inView(await slipTag.boundingBox(), size));
+  // The game's rules: the corner menu, in the store's look (the price tag,
+  // "Your order", and the typed sales slip it opens into).
+  const slipTag = page.locator('[data-testid="corner-menu-tab"]');
+  check("in the game, the sales slip's tag shows at the top left", (await slipTag.count()) === 1 && inView(await slipTag.boundingBox(), size) && (await attr('[data-testid="corner-menu"]', "data-look")) === "store" && /Your order/i.test(await slipTag.innerText()));
   await slipTag.click({ timeout: 30000 });
   await page.waitForTimeout(400);
-  const slip = await txt('[data-testid="tienda-slip-paper"]').catch(() => "");
-  check("...it unfolds to the order: rules, pieces, board", /RULES/.test(slip) && /PIECES/.test(slip) && /BOARD/.test(slip) && /Shoving/.test(slip) && !/as far as it travels/.test(slip) && /Arco Alto/.test(slip), slip.replace(/\n/g, " | "));
-  await press('[data-testid="tienda-slip-law-shoving"]');
+  const slip = await page.locator('[data-testid="corner-menu-card"]').first().textContent().catch(() => "");
+  check("...it unfolds to the order: laws, pieces, board", /LAWS/.test(slip) && /PIECES/.test(slip) && /BOARD/.test(slip) && /Shoving/.test(slip) && !/as far as it travels/.test(slip) && /Arco Alto/.test(slip), slip.replace(/\n/g, " | "));
+  await press('[data-testid="corner-menu-law-shoving"]');
   await page.waitForTimeout(800);
-  check("...and a rule on it opens that rule's card", (await attr('[data-testid="info-overlay"]', "data-open")) === "true");
+  check("...and a law on it opens that law's card", (await attr('[data-testid="info-overlay"]', "data-open")) === "true");
   await shot("11-slip");
   check("no page errors", errs.length === 0, errs.join(" | "));
   await ctx.close();

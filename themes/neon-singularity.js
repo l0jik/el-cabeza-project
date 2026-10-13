@@ -729,17 +729,18 @@ function missingSquaresLabel(count) {
   return `Missing squares (${count} pair${count === 1 ? "" : "s"})`;
 }
 
-/* The in-game Current Variants flyout's data: the specials this game
-   actually started with, grouped by category, ACTIVE ones only, using
-   the same label tables the sphere menu shows so names match. Returned
-   as a flat list of {key,label,items} groups; a group is omitted when it
-   has no active items, and an all-empty result renders as "Standard
-   rules" (see VariantsFlyout). */
+/* The specials this game actually started with (the chassis's
+   currentVariants: the New Game card's line, Plain rules, a replay),
+   grouped by category, ACTIVE ones only, using the same label tables the
+   sphere menu shows so names match. Returned as a flat list of
+   {key,label,items} groups; a group is omitted when it has no active
+   items. (The game's rules in play are the corner menu's,
+   chassis/corner-menu.js, read from the engine.) */
 function buildVariantsSnapshot(selections) {
   const groups = [];
   const lawItems = LAWS_ITEMS.filter((i) => selections.laws[i.key]);
   const laws = lawItems.map((i) => lawLabel(i, selections));
-  // keys: which rules card each item opens when tapped in the flyout.
+  // keys: each law's own key (the rules card it has).
   if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws, keys: lawItems.map((i) => i.key) });
 
   const matter = [];
@@ -3830,7 +3831,8 @@ export function useSingularityPhase({
   // Missing Squares TOPOLOGIES option — same reasoning, see
   // finalizeSingularityBegin below.
   setMissingSquares,
-  // Current Variants flyout snapshot setter — see finalizeSingularityBegin.
+  // The specials snapshot's setter (the chassis's currentVariants) — see
+  // finalizeSingularityBegin.
   setCurrentVariants,
   // TOPOLOGIES board resize — see finalizeSingularityBegin.
   applyBoardResize,
@@ -4126,9 +4128,9 @@ export function useSingularityPhase({
       // chassis React copy from the same list, so enforced == drawn.
       setActiveBlackHoles(holes);
       if (setBlackHoles) setBlackHoles(holes);
-      // Snapshot the active specials for the in-game Current Variants
-      // flyout (and, now, as the signal the chassis uses to show its Reset
-      // rules control — a null snapshot means a plain game).
+      // Snapshot the active specials (the New Game card's line, and the
+      // signal the chassis uses to show its Reset rules control — a null
+      // snapshot means a plain game).
       const variants = buildVariantsSnapshot(sel);
       if (setCurrentVariants) setCurrentVariants(variants);
 
@@ -4375,206 +4377,6 @@ export function useSingularityPhase({
     three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking,
   };
-}
-
-/* The in-game Current Variants reference — a compact top-left HUD emblem
-   that reports which Singularity categories this game is running under.
-   Collapsed, it's a dimmed stack of three checkbox rows (one per
-   category: LAWS / MATTER / TOPOLOGY), each row a small square + an
-   abstract glyph; a category with active variants shows its box filled
-   and glowing blue, an inactive one shows it muted/unchecked. A
-   continuous 0.5s hover or press-and-hold brightens the emblem to full
-   and flies a panel out to the right/below listing the active variants;
-   leaving the combined zone starts a 0.5s buffer — return within it and
-   it stays open, otherwise it collapses back to the dimmed emblem.
-   `groups` is buildVariantsSnapshot's output (or null/empty for a plain
-   game -> "Standard rules"). */
-
-// Category order + glyphs for the three emblem rows. Keys match
-// buildVariantsSnapshot's group keys so a row lights up iff that group
-// carries active items.
-const VARIANT_ROWS = [
-  { key: "laws", glyph: "⌬" },
-  { key: "matter", glyph: "⍝" },
-  { key: "topologies", glyph: "⏣" },
-];
-const VARIANT_HOLD_MS = 500; // continuous hover/hold before opening
-const VARIANT_EXIT_MS = 500; // buffer before collapsing after leaving
-
-function VariantsFlyout({ groups }) {
-  const h = React.createElement;
-  const [open, setOpen] = React.useState(false);
-  const openTimer = React.useRef(null);
-  const exitTimer = React.useRef(null);
-
-  const clearTimers = () => {
-    if (openTimer.current) { clearTimeout(openTimer.current); openTimer.current = null; }
-    if (exitTimer.current) { clearTimeout(exitTimer.current); exitTimer.current = null; }
-  };
-  React.useEffect(() => clearTimers, []);
-
-  // Pointer entered the combined zone (emblem or open panel). Cancel any
-  // pending collapse; if still closed, arm the 500ms open timer.
-  const onEnter = () => {
-    if (exitTimer.current) { clearTimeout(exitTimer.current); exitTimer.current = null; }
-    if (open) return;
-    if (openTimer.current) return;
-    openTimer.current = setTimeout(() => { openTimer.current = null; setOpen(true); }, VARIANT_HOLD_MS);
-  };
-  // Pointer left the combined zone. Cancel a not-yet-fired open; if
-  // already open, arm the 500ms exit buffer.
-  const onLeave = () => {
-    if (openTimer.current) { clearTimeout(openTimer.current); openTimer.current = null; }
-    if (!open) return;
-    if (exitTimer.current) return;
-    exitTimer.current = setTimeout(() => { exitTimer.current = null; setOpen(false); }, VARIANT_EXIT_MS);
-  };
-
-  const active = Array.isArray(groups) && groups.length > 0;
-  const groupByKey = {};
-  if (active) groups.forEach((g) => { groupByKey[g.key] = g; });
-
-  const accent = "#3b82f6";
-  const accentGlow = "rgba(59,130,246,0.55)";
-  const idleOpacity = 0.4;
-
-  // --- Collapsed emblem: three checkbox rows -------------------------
-  const emblemRows = VARIANT_ROWS.map((row) => {
-    const on = !!groupByKey[row.key];
-    const box = h("span", {
-      style: {
-        width: 11, height: 11, flex: "0 0 auto", borderRadius: 2,
-        border: on ? `1px solid ${accent}` : "1px solid rgba(160,174,192,0.5)",
-        background: on ? accent : "transparent",
-        boxShadow: on && open ? `0 0 7px ${accentGlow}` : "none",
-      },
-    });
-    const glyph = h("span", {
-      style: {
-        fontFamily: "'Chakra Petch', sans-serif", fontSize: 12, lineHeight: 1,
-        color: on ? (open ? "#dbeafe" : accent) : "rgba(160,174,192,0.65)",
-        textShadow: on && open ? `0 0 8px ${accentGlow}` : "none",
-      },
-    }, row.glyph);
-    return h("div", {
-      key: row.key,
-      style: { display: "flex", alignItems: "center", gap: 6 },
-    }, box, glyph);
-  });
-
-  const emblem = h(
-    "div",
-    {
-      title: "Currently selected singularity variants",
-      style: {
-        display: "flex", flexDirection: "column", gap: 4,
-        padding: "6px 8px", borderRadius: 5,
-        background: open ? "rgba(7,15,26,0.95)" : "rgba(10,14,22,0.72)",
-        border: open ? `1px solid ${accent}` : "1px solid rgba(120,140,170,0.28)",
-        boxShadow: open ? `0 0 16px ${accentGlow}` : "none",
-        opacity: open ? 1 : idleOpacity,
-        transition: "opacity 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease",
-        cursor: "default", userSelect: "none",
-      },
-    },
-    emblemRows
-  );
-
-  // --- Expanded panel: the active variant details --------------------
-  const panel = open && h(
-    "div",
-    {
-      style: {
-        marginTop: 6, background: "rgba(7,15,26,0.96)",
-        border: `1px solid ${accent}`, borderRadius: 5,
-        padding: "8px 6px", minWidth: 184, maxWidth: 248,
-        boxShadow: `0 8px 26px rgba(0,0,0,0.55), 0 0 14px ${accentGlow}`,
-      },
-    },
-    active
-      ? groups.map((g) =>
-          h(
-            "div",
-            { key: g.key, style: { padding: "3px 8px 5px" } },
-            h(
-              "div",
-              { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 } },
-              h("span", { style: { fontFamily: "'Chakra Petch', sans-serif", fontWeight: 700, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "#93c5fd" } }, g.label),
-              h("span", { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: "rgba(147,197,253,0.55)" } }, String(g.items.length))
-            ),
-            h(
-              "ul",
-              { style: { margin: "3px 0 0", padding: "0 0 0 12px", listStyle: "none" } },
-              g.items.map((it, idx) =>
-                h(
-                  "li",
-                  { key: idx, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, lineHeight: 1.55, color: "rgba(223,244,255,0.9)" } },
-                  // A law opens its rules card (the MOVES tile for it).
-                  g.keys && g.keys[idx]
-                    ? h(
-                        "button",
-                        {
-                          type: "button",
-                          "data-testid": `variants-law-${g.keys[idx]}`,
-                          onClick: () => openRulesCard("moves", g.keys[idx]),
-                          style: { all: "unset", cursor: "pointer", borderBottom: "1px dotted rgba(147,197,253,0.45)" },
-                        },
-                        "• " + it
-                      )
-                    : "• " + it
-                )
-              )
-            )
-          )
-        )
-      : h(
-          "div",
-          { style: { padding: "3px 8px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: "rgba(200,214,230,0.75)" } },
-          "Standard rules"
-        ),
-    open &&
-      h(
-        "button",
-        {
-          type: "button",
-          "data-testid": "variants-rules",
-          onClick: () => openRulesCard("game"),
-          style: { all: "unset", cursor: "pointer", display: "block", padding: "6px 8px 2px", fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "#93c5fd" },
-        },
-        "Rules ›"
-      )
-  );
-
-  return h(
-    "div",
-    {
-      "data-testid": "variants-flyout",
-      "data-open": open ? "true" : "false",
-      onMouseEnter: onEnter,
-      onMouseLeave: onLeave,
-      onPointerDown: onEnter,
-      onPointerUp: onLeave,
-      style: {
-        position: "absolute", top: 12, left: 12, zIndex: 40,
-        display: "flex", flexDirection: "column", alignItems: "flex-start",
-        pointerEvents: "auto",
-      },
-    },
-    emblem,
-    panel
-  );
-}
-
-export function renderVariantsFlyout(setupExtras) {
-  // Only during an actual in-progress game: not on the setup dock
-  // (awaitingBegin), not through the Singularity cinematic, and not once
-  // the game has ended (isPlaying goes false on a win).
-  if (!setupExtras || !setupExtras.isPlaying || setupExtras.awaitingBegin) return null;
-  // Only a game with custom rules shows the emblem; a plain game has no
-  // variants to list, and three empty boxes just read as clutter.
-  const groups = setupExtras.currentVariants;
-  if (!Array.isArray(groups) || groups.length === 0) return null;
-  return React.createElement(VariantsFlyout, { groups: setupExtras.currentVariants, key: "variants-flyout" });
 }
 
 export function renderSingularityOverlay(setupExtras) {

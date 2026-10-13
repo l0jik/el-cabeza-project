@@ -422,6 +422,8 @@ export function useSetupExtras({ game, pieces }) {
 /* The dock, in a film set's words (chassis DOCK_WORDS): the move log is
    the script, the plain rules the Production Code (the rulebook every
    film of the time was shot under), a finished game the end title. */
+// The corner menu's look (chassis/corner-menu.js): a RULES title card, its one red the HOTEL sign's.
+export const cornerMenu = "noir";
 export const dockWords = {
   views: ["Wide shot", "Bird's-eye", "Set"],
   endGame: "Cut",

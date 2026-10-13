@@ -114,6 +114,19 @@ export const outlineYOffset = OUTLINE_Y_OFFSET;
 export const lockExtrasUntilSingularity = true;
 // No "This game" tab in the rules in the store (user).
 export const rulesTabsHidden = ["game"];
+/* The corner menu (chassis/corner-menu.js): the price tag, "Your order",
+   that opens into the typed sales slip. Not in the store before the game's
+   bought (nothing there mentions rules or orders: its own price tag, the
+   shop corner, is up then); after it, with the purchase on the slip (Nova's
+   story), but for the clerk who's never heard of it. */
+export function cornerMenu(x) {
+  const story = x && x.story;
+  if (!story || story.mode !== "store") return "store";
+  const after = !!(story.after && story.after());
+  if (!after && !(story.realities && story.realities())) return null;
+  if (clerkConfusedNow() || !story.onPurchase) return "store";
+  return { look: "store", extra: { label: after ? "Purchase another copy \u203a" : "Purchase and bring home \u203a", onClick: story.onPurchase } };
+}
 // The store to look round (as the den): closer zoom, further out (far
 // enough to go round the advertisement's stand and see it from behind),
 // and the camera may wander off the board into the aisles (chassis:

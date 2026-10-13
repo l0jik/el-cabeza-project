@@ -295,6 +295,8 @@ export function renderGlobalDefs() {
 /* Fonts (the city's signs need Dela Gothic One and Saira), and the title
    as a pink neon tube. */
 /* The dock, said in the rain (chassis DOCK_WORDS). */
+// The corner menu's look (chassis/corner-menu.js): its LUẬT neon sign.
+export const cornerMenu = "lluvia";
 export const dockWords = {
   views: ["Street", "Rooftop", "City"],
   endGame: "Walk away",

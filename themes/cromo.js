@@ -489,6 +489,8 @@ export function renderGlobalDefs() {
 /* Fonts, and the chrome-lettered title (Michroma, a cold steel
    gradient). */
 /* The dock, said in chrome (chassis DOCK_WORDS). */
+// The corner menu's look (chassis/corner-menu.js): an engraved steel parameters plate.
+export const cornerMenu = "cromo";
 export const dockWords = {
   views: ["Stance", "Plan", "Hall"],
   endGame: "Lay down",

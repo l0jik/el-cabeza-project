@@ -328,6 +328,9 @@ export function createDockPainter(renderer, scene) {
 /* ------------------------------------------------------------ the menus' look */
 
 /* The dock, in the painter's words (chassis DOCK_WORDS). */
+// The corner menu's look (chassis/corner-menu.js): a painted cartouche,
+// cream and cobalt, or wine and old gold.
+export const cornerMenu = () => (lookName() === "watermark" ? "parrish-watermark" : "parrish-orinoco");
 export const dockWords = {
   views: ["At the easel", "From above"],
   endGame: "Lay down the brush",

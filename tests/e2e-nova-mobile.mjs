@@ -237,7 +237,8 @@ async function waitFor(fn, ms = 8000) {
   check("a tap outside dismisses the invite", await waitFor(async () => (await page.locator(".ec-singularity-invite-btn").count()) === 0));
   await q(page, "shell-begin").click();
   await page.waitForTimeout(2500);
-  check("a plain Neon game shows no custom-rules emblem", (await page.locator('[data-testid="variants-flyout"]').count()) === 0);
+  const cm = await page.evaluate(() => { const m = document.querySelector('[data-testid="corner-menu"]'); if (!m) return null; const r = m.getBoundingClientRect(); return { look: m.dataset.look, tab: m.querySelector('[data-testid="corner-menu-tab"]').textContent, top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right), bar: parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--ec-shell-top")) || 0 }; });
+  check("a plain Neon game: the corner menu says the standard game, under the bar, on the screen", !!cm && cm.look === "neon" && /STANDARD/i.test(cm.tab) && cm.top >= cm.bar && cm.left >= 0 && cm.right <= 390, JSON.stringify(cm));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

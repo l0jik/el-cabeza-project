@@ -18,6 +18,12 @@
    corner whatever the direction did to it. Set up and game over: where
    the direction puts it, full size.
 
+   In play it also carries the game's rules (the corner menu every other
+   world has, chassis/corner-menu.js, here in the read-out's own type):
+   tucked away, one line summing them up; brought up, the laws and their
+   settings, each side's pieces, the board. A law's name opens its rules
+   card.
+
    It only reads the game (x.game, handed over by the chassis); it
    changes nothing. The session clock and the count of pieces at the
    start live at module level, so they carry across theme switches the
@@ -35,6 +41,59 @@ const clock = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${
 
 function flap(text) {
   return h("span", { className: "lab-flap", "aria-hidden": "true" }, [...String(text)].map((ch, i) => h("b", { key: i }, ch === " " ? " " : ch)));
+}
+
+// A rules card, opened the way every part of the page opens one (the
+// chassis listens; chassis/RulesCards.jsx).
+const openRules = (tab, focus = null) => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab, focus } }));
+
+function LabRules({ rules, open }) {
+  const ref = React.useRef(null);
+  const listRef = React.useRef(null);
+  React.useLayoutEffect(() => {
+    const box = ref.current, hud = box && box.closest(".lab-hud");
+    if (!hud) return;
+    // (Each direction colours its numbers and labels its own way: the
+    // rules take the same two colours, read off the stats beside them.)
+    const dd = hud.querySelector(".lab-stats dd"), dt = hud.querySelector(".lab-stats dt");
+    if (dd) box.style.setProperty("--lab-rules-ink", getComputedStyle(dd).color);
+    if (dt) box.style.setProperty("--lab-rules-sub", getComputedStyle(dt).color);
+    // Brought up, the read-out sits full size under the lab's bar: the
+    // list has the room left below it on the screen (clear of the corner
+    // buttons) and scrolls within that, rather than running off the foot
+    // of a short screen. (Measured where it will be, not mid-glide.)
+    const list = listRef.current;
+    if (!list) return;
+    let off = 0;
+    for (let el = list; el && el !== hud; el = el.offsetParent) off += el.offsetTop;
+    const bar = document.querySelector('[data-testid="lab-bar"]');
+    const b = bar ? bar.getBoundingClientRect() : null;
+    const top = (b && b.height ? b.bottom : 10) + 8;
+    list.style.maxHeight = `${Math.max(140, Math.round(window.innerHeight - top - off - 64))}px`;
+  });
+  const { laws, pieces, board } = rules;
+  const law = (l) => h("li", { key: l.key },
+    h("button", { type: "button", "data-testid": `lab-rules-law-${l.key}`, onClick: (e) => { e.stopPropagation(); openRules("moves", l.key); } }, l.name),
+    (l.sets || []).map(([k, v]) => h("i", { key: k }, `${k}: ${v}`)));
+  return h("div", { ref, className: "lab-rules", "data-testid": "lab-hud-rules", "data-open": open ? "true" : "false" },
+    h("div", { className: "row" }, h("span", { className: "lab-label" }, "Rules"), h("span", { className: "sum" }, `${rules.summary} ${open ? "\u25B4" : "\u25BE"}`)),
+    open && h("div", { ref: listRef, className: "lab-rules-list" },
+      h("span", { className: "lab-label" }, "Laws"),
+      h("ul", null, laws.length ? laws.map(law) : h("li", null, "None: the standard rules")),
+      h("span", { className: "lab-label" }, "Pieces \u00b7 each side"),
+      // (What isn't as in the standard game, one each of the first five,
+      // marked and said: a colour alone is lost where a direction's accent
+      // is its ink, Brutalism's and Minimal Mono's.)
+      h("ul", { className: "pcs" }, pieces.map((p) => {
+        const odd = p.count !== p.std;
+        return h("li", { key: p.type, className: odd ? "changed" : undefined }, h("span", null, p.name),
+          h("b", null, p.count, odd ? h("span", { className: "mark", "aria-hidden": "true" }, "*") : null, odd ? h("span", { className: "lab-sr" }, ", not as in the standard game") : null));
+      })),
+      pieces.some((p) => p.count !== p.std) ? h("span", { className: "lab-rules-key" }, h("span", { className: "mark", "aria-hidden": "true" }, "*"), " Differs from the standard game") : null,
+      h("span", { className: "lab-label" }, "Board"),
+      h("ul", null,
+        h("li", null, "Size ", h("b", null, board.label)),
+        board.pairs ? h("li", null, "Missing squares ", h("b", null, `${board.pairs} ${board.pairs === 1 ? "pair" : "pairs"}`)) : null)));
 }
 
 export function LabHud({ spec, x }) {
@@ -93,6 +152,11 @@ export function LabHud({ spec, x }) {
     const place = (animate) => {
       const cur = { t: el.style.translate || "0px 0px", s: el.style.scale || "1" };
       el.style.transition = "none";
+      // (In the corner it grows and shrinks from its top left, which stays
+      // put however tall it gets: the rules' list, brought up, makes it
+      // taller, and scaled about its middle its top would drop away from a
+      // still mouse, which then left it, closing it, over and over.)
+      el.style.transformOrigin = compact ? "0 0" : "";
       let next = { t: "0px 0px", s: "1" };
       if (compact) {
         const k = open ? 1 : 0.5;
@@ -124,12 +188,17 @@ export function LabHud({ spec, x }) {
     const again = setTimeout(() => place(true), 1100);
     return () => { clearTimeout(clearT); clearTimeout(again); window.removeEventListener("resize", onResize); el.removeEventListener("animationend", onAnimEnd); };
   }, [compact, open, spec.id]);
-  // (Back down by itself a while after a tap opened it.)
+  // (Back down by itself a while after a tap opened it, the while long
+  // enough to read the rules in it, and begun again by a press inside it,
+  // a scroll of the rules too. Brought up by the mouse, it stays while the
+  // mouse is on it.)
+  const openedBy = React.useRef(null);
+  const [poke, setPoke] = React.useState(0);
   React.useEffect(() => {
-    if (!open || !compact) return undefined;
-    const t = setTimeout(() => setOpen(false), 8000);
+    if (!open || !compact || openedBy.current === "hover") return undefined;
+    const t = setTimeout(() => setOpen(false), 12000);
     return () => clearTimeout(t);
-  }, [open, compact]);
+  }, [open, compact, poke]);
   React.useEffect(() => { if (!compact) setOpen(false); }, [compact]);
 
   if (!game) return null;
@@ -160,11 +229,11 @@ export function LabHud({ spec, x }) {
       ref: hudRef,
       "data-testid": "lab-hud",
       "data-compact": compact ? (open ? "open" : "small") : "no",
-      onPointerEnter: (e) => { if (compact && e.pointerType === "mouse") setOpen(true); },
+      onPointerEnter: (e) => { if (compact && e.pointerType === "mouse") { openedBy.current = "hover"; setOpen(true); } },
       onPointerLeave: (e) => { if (compact && e.pointerType === "mouse") setOpen(false); },
-      onPointerDown: (e) => { lastPointer.current = e.pointerType; },
+      onPointerDown: (e) => { lastPointer.current = e.pointerType; if (open && e.pointerType !== "mouse") setPoke((n) => n + 1); },
       // (A tap opens and closes it; a mouse has the hover for that.)
-      onClick: (e) => { if (!compact || lastPointer.current === "mouse") return; e.stopPropagation(); setOpen((o) => !o); },
+      onClick: (e) => { if (!compact || lastPointer.current === "mouse") return; e.stopPropagation(); openedBy.current = "tap"; setOpen((o) => !o); },
       "data-lab": spec.id,
       "data-player": game.currentPlayer,
       "data-status": game.status,
@@ -191,6 +260,7 @@ export function LabHud({ spec, x }) {
         h("span", { className: "n" }, pad2(e.n)),
         h("span", { className: "m" }, h("i", { className: "p", "data-p": e.player, "aria-label": SIDE[e.player] }), `${e.notation || ""}${e.mark || ""}`))))
       : null,
-    h("div", { className: "lab-over", role: "status" }, game.status === "finished" && game.winner ? `${SIDE[game.winner]} wins` : "", game.winReason ? h("div", { className: "lab-label", style: { marginTop: 6 } }, game.winReason) : null)
+    h("div", { className: "lab-over", role: "status" }, game.status === "finished" && game.winner ? `${SIDE[game.winner]} wins` : "", game.winReason ? h("div", { className: "lab-label", style: { marginTop: 6 } }, game.winReason) : null),
+    compact && game.rules ? h(LabRules, { rules: game.rules, open }) : null
   );
 }

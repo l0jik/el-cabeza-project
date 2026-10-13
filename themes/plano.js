@@ -345,6 +345,8 @@ export function useSetupExtras({ game }) {
 /* ------------------------------------------------------------ words, fonts, UI */
 
 /* The dock, said in a drawing office's words (chassis DOCK_WORDS). */
+// The corner menu's look (chassis/corner-menu.js): the drawing's game spec title block, with a plan of the board.
+export const cornerMenu = "plano";
 export const dockWords = {
   views: ["Street", "Plan", "Site"],
   endGame: "Roll up the plans",

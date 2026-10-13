@@ -1,7 +1,7 @@
 /* In-game helper pop-ups go away on a press outside them, in every
    theme: the piece card (off the board, and mid-turn on an empty square,
    when the piece itself stays selected), the unused-points note, and
-   Tienda's "Your order" slip once it has been tapped open. */
+   the corner menu (the game's rules) once it has been tapped open. */
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
@@ -72,18 +72,18 @@ for (const theme of ["neon", "tienda", "lluvia"]) {
   check("mid-turn, a tap on an empty square puts the card away", await poll(async () => (await card.count()) === 0));
   check("...but the piece stays selected (its moves still showing)", (await badges()) > 0);
 
-  if (theme === "tienda") {
-    const slip = page.locator('[data-testid="tienda-slip"]');
-    await page.locator('[data-testid="tienda-slip-tag"]').click();
-    check("the order slip taps open", await poll(async () => (await slip.getAttribute("data-open")) === "true"));
+  {
+    const menu = page.locator('[data-testid="corner-menu"]');
+    await page.locator('[data-testid="corner-menu-tab"]').click();
+    check("the corner menu taps open", await poll(async () => (await menu.getAttribute("data-open")) === "true"));
     e = await empty();
     await page.mouse.click(e.x, e.y);
-    check("a press outside it closes the slip", await poll(async () => (await slip.getAttribute("data-open")) === "false"));
-    await page.locator('[data-testid="tienda-slip-tag"]').click();
-    await poll(async () => (await slip.getAttribute("data-open")) === "true");
+    check("a press outside it closes the menu", await poll(async () => (await menu.getAttribute("data-open")) === "false"));
+    await page.locator('[data-testid="corner-menu-tab"]').click();
+    await poll(async () => (await menu.getAttribute("data-open")) === "true");
     await page.mouse.move(e.x, e.y);
     await page.keyboard.press("Escape");
-    check("...and so does Escape", await poll(async () => (await slip.getAttribute("data-open")) === "false"));
+    check("...and so does Escape", await poll(async () => (await menu.getAttribute("data-open")) === "false"));
   }
 
   await context.close();

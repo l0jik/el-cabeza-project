@@ -112,6 +112,27 @@ const HUD_BASE = `
   @keyframes lab-turn-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes lab-capture { 0% { transform: none; } 30% { transform: translateX(-3px); } 60% { transform: translateX(3px); } 100% { transform: none; } }
   .lab-hud[data-captured="yes"] .lab-stats { animation: lab-capture 320ms linear; }
+  /* The game's rules, in play (hud.js's LabRules): a line of their own
+     across the read-out, the list when it's brought up, in the colours of
+     the numbers and labels beside them. */
+  .lab-hud .lab-rules { grid-column: 1 / -1; margin-top: 12px; padding-top: 10px; border-top: var(--border-width, 1px) solid var(--border-color, currentColor); }
+  .lab-hud .lab-rules .row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 10px; }
+  .lab-hud .lab-rules .lab-label { display: block; margin: 8px 0 3px; }
+  .lab-hud .lab-rules .row .lab-label { margin: 0; }
+  .lab-hud .lab-rules .lab-rules-list { overflow-y: auto; overscroll-behavior: contain; }
+  .lab-hud .lab-rules ul { list-style: none; margin: 0; padding: 0; font-family: var(--font-body, system-ui); }
+  .lab-hud .lab-rules li { font-size: 13px; line-height: 1.45; color: var(--lab-rules-ink, inherit); }
+  .lab-hud .lab-rules li i { font-style: normal; display: block; padding-left: 10px; font-size: 11.5px; color: var(--lab-rules-sub, inherit); }
+  .lab-hud .lab-rules li button { all: unset; cursor: pointer; }
+  .lab-hud .lab-rules li button:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+  .lab-hud .lab-rules li button:focus-visible { outline: 2px solid var(--accent-primary, currentColor); outline-offset: 2px; }
+  .lab-hud .lab-rules .pcs { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+  .lab-hud .lab-rules .pcs li { display: flex; justify-content: space-between; }
+  .lab-hud .lab-rules .pcs li b { font-weight: 700; }
+  .lab-hud .lab-rules .pcs li.changed b { color: var(--accent-primary, currentColor); }
+  .lab-hud .lab-rules .mark { font-weight: 700; color: var(--accent-primary, currentColor); margin-left: 1px; }
+  .lab-hud .lab-rules .lab-rules-key { display: block; margin-top: 4px; font-size: 11px; color: var(--lab-rules-sub, inherit); }
+  .lab-hud .lab-rules .sum { font-size: 12px; white-space: nowrap; color: var(--lab-rules-sub, inherit); }
   /* Compact: a phone, or any screen without room beside the board. */
   @media (max-aspect-ratio: 3/2), (max-width: 899px) {
     .lab-hud { left: calc(10px + env(safe-area-inset-left)); right: calc(10px + env(safe-area-inset-right)); top: 58px; width: auto; }
@@ -125,6 +146,12 @@ const HUD_BASE = `
     /* (No cell narrower than its own words: they'd run into the next.) */
     .lab-hud .lab-stats div:not(.wide) { min-width: max-content; }
     .lab-hud[data-phase="setup"] { display: none; }
+    /* (The rules, brought up, lie over the board here: on the page's own
+       ground, in the direction's frame, so they read as they do beside it.) */
+    .lab-hud .lab-rules[data-open="true"] { background: var(--bg-primary); border: var(--border-width) solid var(--border-color); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 10px 12px 12px; }
+    /* (Not the whole width of a wide screen: a count beside its name.) */
+    .lab-hud .lab-rules { max-width: 420px; }
   }
   @media (prefers-reduced-motion: reduce) { .lab-hud, .lab-hud * { animation: none !important; transition: none !important; } }
 `;
@@ -139,6 +166,11 @@ const COMPACT_FLOAT = `
 const FLOATS = new Set(["swiss", "bauhaus", "elementarism", "brutalist", "newTypography", "neoBrutalist", "minimalMono", "ultimateFusion"]);
 
 /* ------------------------------------------------------------ the ten */
+
+/* (On a phone, the two narrow read-outs, a column beside the turn number:
+   the rules, brought up, are wider than the column, so they don't wrap a
+   word a line.) */
+const NARROW_RULES = `@media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud .lab-rules[data-open="true"] { width: min(300px, calc(100vw - 24px)); } }`;
 
 const HUD = {
   swiss: `
@@ -249,6 +281,7 @@ const HUD = {
   .lab-hud .lab-log li:first-child .n { color: var(--accent-primary); }
   .lab-hud .lab-over { font-weight: 900; font-stretch: 62%; font-size: 64px; line-height: 0.85; letter-spacing: -0.04em; border-top: 8px solid var(--accent-primary); padding-top: 8px; margin-top: 10px; }
   @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud .lab-big { font-size: 64px; position: absolute; right: 0; top: 0; } .lab-hud .lab-big small { display: none; } .lab-hud .lab-turn { font-size: 13px; margin: 6px 0 6px; } .lab-hud .lab-stats { gap: 4px 18px; } .lab-hud .lab-stats dd { font-size: 16px; } }
+  ${NARROW_RULES}
   `,
   corporateSwiss: `
   .lab-hud { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -315,6 +348,7 @@ const HUD = {
   .lab-hud .lab-over { font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.2em; margin-top: 26px; }
   .lab-hud .lab-turn { animation-duration: 600ms; }
   @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud .lab-big { font-size: 22px; position: absolute; right: 0; top: 0; margin: 0; } .lab-hud .lab-big small { display: none; } .lab-hud .lab-turn { margin-bottom: 8px; } .lab-hud .lab-id { display: none; } }
+  ${NARROW_RULES}
   `,
   ultimateFusion: `
   .lab-hud { background: #1F1F1F; border: 3px solid #EAE6DF; box-shadow: 6px 6px 0 #0A0A0A; padding: 0; width: clamp(220px, 22vw, 300px);

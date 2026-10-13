@@ -21,7 +21,7 @@ import { makePolycubeGeometry } from "../engine/geometry.js";
 import { PIECE_ORIENTATIONS, shuffledIndices, generateAnomalySetup } from "../engine/anomaly.js";
 // Moved to engine/anomaly.js; re-exported so existing imports keep working.
 export { PIECE_ORIENTATIONS, shuffledIndices, generateAnomalySetup };
-import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay, renderVariantsFlyout } from "./neon-singularity.js";
+import { advanceSingularityScene, useSingularityPhase, renderSingularityOverlay } from "./neon-singularity.js";
 
 /* Everything visual in this experimental skin lives in these two
    objects (COLORS for the DOM/CSS layer, HEX for the Three.js scene
@@ -2428,6 +2428,8 @@ export function mountAmbientEffects(refs, helpers) {
    The Singularity button's own CSS is NOT included here — see
    renderSetupExtras below for why that's still pending. */
 /* The dock, said by the terminal (chassis DOCK_WORDS). */
+// The corner menu's look (chassis/corner-menu.js): a ruleset readout in cyan.
+export const cornerMenu = "neon";
 export const dockWords = {
   views: ["POV", "Orbit", "Room"],
   focus: "Dim",
@@ -3269,8 +3271,8 @@ export function useSetupExtras({
     // Missing Squares TOPOLOGIES option: same reasoning as
     // setBlackHoles just above, for the impassable-void feature.
     setMissingSquares,
-    // Current Variants flyout: the setter finalizeSingularityBegin uses
-    // to record which specials this game started with.
+    // The setter finalizeSingularityBegin uses to record which specials
+    // this game started with (the chassis's currentVariants).
     setCurrentVariants,
     // TOPOLOGIES: applies the chosen board size before the roster/holes
     // are placed (finalizeSingularityBegin).
@@ -3382,9 +3384,8 @@ export function useSetupExtras({
     revealSingularity,
     commitSingularity,
     singularityBtnRef,
-    // For the in-game Current Variants flyout (renderExtraOverlays):
-    // shown only once a game has actually begun (awaitingBegin cleared)
-    // and is still in progress (isPlaying).
+    // Whether a game has actually begun (awaitingBegin cleared) and is
+    // still in progress (isPlaying), and the specials it began with.
     isPlaying, awaitingBegin, currentVariants,
     // The sphere's full-screen layer sits at 2000: while it is up, the
     // chassis's full-screen button comes above it so it still works, but
@@ -3537,8 +3538,7 @@ export function renderExtraOverlays(setupExtras) {
     React.Fragment,
     null,
     renderSingularityInvite(setupExtras),
-    renderSingularityOverlay(setupExtras),
-    renderVariantsFlyout(setupExtras)
+    renderSingularityOverlay(setupExtras)
   );
 }
 

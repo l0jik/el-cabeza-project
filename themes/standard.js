@@ -269,6 +269,8 @@ export function renderGlobalDefs() {
    in the box's own Bodoni. The box lid's lettering needs Bodoni Moda,
    Libre Franklin and Courier Prime too (den-room.js paints it). */
 /* The dock, said in the den (chassis DOCK_WORDS). */
+// The corner menu's look (chassis/corner-menu.js): the den's 1975 house rules card.
+export const cornerMenu = "den";
 export const dockWords = {
   views: ["My side", "Overhead", "The room"],
   focus: "Lights low",

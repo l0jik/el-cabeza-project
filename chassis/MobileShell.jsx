@@ -85,8 +85,9 @@ export default function MobileShell({ ctl }) {
     );
   }, [ctl.fullFrame, landscape, float, sideW, safe.top, safe.right, safe.bottom, safe.left]);
 
-  // Page-wide hooks for theme CSS (Neon's rules flyout moves below the
-  // top bar) and the bar's live height for the piece card and notes.
+  // Page-wide hooks for CSS (the corner menu moves below the top bar,
+  // chassis/corner-menu.js) and the bar's live height for the piece card
+  // and notes.
   useEffect(() => {
     const root = document.documentElement;
     root.classList.add("ec-shell");
@@ -307,7 +308,6 @@ function shellCss(t) {
     .ec-shell-row:disabled { opacity: 0.4; cursor: default; }
     .ec-shell-group { border-radius: 16px; background: ${t.faint}; border: 1px solid ${t.hair}; overflow: hidden; }
     .ec-shell-group > * + * { border-top: 1px solid ${t.hair}; }
-    html.ec-shell [data-testid="variants-flyout"] { top: calc(var(--ec-shell-top, 60px) + 4px) !important; left: 12px !important; }
     @keyframes ec-shell-sheet-in { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
     @keyframes ec-shell-side-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
     @keyframes ec-shell-fade-in { from { opacity: 0; } to { opacity: 1; } }
