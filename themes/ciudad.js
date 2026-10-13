@@ -378,7 +378,8 @@ ${HUD_CSS}
 export { mountAmbientEffects } from "./ciudad-fx.js";
 export { renderExtraOverlays } from "./ciudad-hud.js";
 // The reality's name, at the top of the info panel's This game tab.
-export const realityName = "Ciudad";
+// (User: "Name = The City"; its page, files and ids keep "ciudad".)
+export const realityName = "The City";
 export { createAudio, hasAudio } from "./ciudad-audio.js";
 // The sound menu's sliders (chassis: theme.soundChannels; ciudad-audio.js setChannelLevel).
 export const soundChannels = [

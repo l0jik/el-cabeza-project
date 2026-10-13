@@ -43,6 +43,9 @@ export const WORLDS = [
   // The game as a night in a film noir city (user: "Incorporate Noir into
   // Theme Switcher now").
   { id: "noir", name: "Noir", line: "Rain on a 1940s city at night, in black and white.", href: "el-cabeza-noir.html" },
+  // The city of glass towers and cranes (user: "Name = The City ... Do
+  // theme switcher entry"; its page and files keep the name ciudad).
+  { id: "ciudad", name: "The City", line: "Glass towers and cranes, alive at the hour you pick.", href: "el-cabeza-ciudad.html" },
   // Parrish's two palettes, each its own reality (user): one page, the
   // look in the address (themes/parrish-looks.js).
   // (Named "Tá muid beo" and "Go deo na ndeor" by the user; ids and

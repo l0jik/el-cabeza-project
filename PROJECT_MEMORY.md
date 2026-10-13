@@ -169,3 +169,14 @@ How to use it:
   past it (stage stayed "labels"; run 48 and local runs passed the same
   code). It now taps three times again, up to three tries, and says how
   many it took.
+- The City, named and in the switcher (user: "Name = The City / Side names
+  are fine. / Do theme switcher entry"): realityName "The City" (the info
+  panel's This game), the tab "El Cabeza · The City"; its page, files and
+  ids keep "ciudad" (el-cabeza-ciudad.html). realities.js WORLDS: { id:
+  "ciudad", name: "The City", line: "Glass towers and cranes, alive at the
+  hour you pick." } after Noir; its card picture made by
+  tools/channel_shots.mjs at Golden Hour (assets/den/channels/ciudad.jpg,
+  in build.js's channel list), so the den's TV shows it too. Slate and
+  Chalk stay. Tests: e2e-gate "The City, in the switcher" (card, picture,
+  page, gate look, title, last world, You are here), e2e-ending's 21
+  realities.

@@ -362,6 +362,30 @@ console.log("Noir, in the switcher");
   await ctx.close();
 }
 
+// User: "Name = The City ... Do theme switcher entry".
+console.log("The City, in the switcher");
+{
+  const { p, ctx, errs } = await open("el-cabeza-nova.html");
+  const card = p.locator('[data-testid="reality-ciudad"]');
+  check("Nova's switcher: a card for The City", !!(await poll(async () => (await card.count()) > 0, 20000)) && /The City/.test(await card.innerText()));
+  const pic = await card.locator(".shot").evaluate((e) => getComputedStyle(e).backgroundImage);
+  const loaded = await p.evaluate((u) => new Promise((done) => { const i = new Image(); i.onload = () => done(i.naturalWidth); i.onerror = () => done(0); i.src = u; }), (/url\("?([^")]+)"?\)/.exec(pic) || [])[1] || "");
+  check(`...with its picture (${loaded}px wide)`, /el-cabeza-channel-ciudad\.jpg/.test(pic) && loaded > 0, pic);
+  await card.click();
+  check("...which goes there", !!(await poll(async () => /el-cabeza-ciudad\.html/.test(p.url()), 8000)));
+  check("The City's page: the gate, in its look", !!(await gateOn(p)) && (await p.locator('[data-testid="reality-gate"]').getAttribute("data-world")) === "ciudad");
+  check("...its tab named The City", /The City/.test(await p.title()), await p.title());
+  await p.waitForTimeout(800); await shot(p, "ciudad");
+  await p.locator('[data-testid="gate-standard"]').click();
+  await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000);
+  check("a game begun in The City is kept as the last world", (await p.evaluate(() => localStorage.getItem("el-cabeza:last-world"))) === "ciudad");
+  await p.locator('[data-testid="action-corner"]').first().click();
+  const here = p.locator('[data-testid="reality-ciudad"] .here');
+  check("its Other realities: The City marked You are here", !!(await poll(async () => (await here.count()) > 0, 6000)));
+  check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
 await browser.close();
 console.log(fails ? `\nGATE E2E FAILED (${fails})` : "\nGATE E2E PASSED");
 process.exit(fails ? 1 : 0);

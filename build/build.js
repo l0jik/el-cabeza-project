@@ -45,7 +45,7 @@ const DEN_RECORDS = {
   "el-cabeza-trip-dusk.jpg": "assets/den/trip/glutts-dusk.jpg",
   // The other realities' pictures (themes/realities.js: the den's set after
   // the story, and the realities menu; tools/channel_shots.mjs).
-  ...Object.fromEntries(["den", "neon", "store", "lluvia", "cromo", "plano", "luna", "noir", "parrish-orinoco", "parrish-watermark", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-elementarism", "lab-brutalist",
+  ...Object.fromEntries(["den", "neon", "store", "lluvia", "cromo", "plano", "luna", "noir", "ciudad", "parrish-orinoco", "parrish-watermark", "lab-swiss", "lab-bauhaus", "lab-destijl", "lab-elementarism", "lab-brutalist",
     "lab-newTypography", "lab-corporateSwiss", "lab-neoBrutalist", "lab-minimalMono", "lab-ultimateFusion"].map((id) => [`el-cabeza-channel-${id}.jpg`, `assets/den/channels/${id}.jpg`])),
 };
 
@@ -78,7 +78,7 @@ const targets = [
   // time of day the player picks (not in the switcher until the user says).
   // Its city, recorded, one loop an hour (tools/ciudad_sounds.py), beside
   // the page and fetched as the hour's wanted, not in it.
-  { name: "ciudad", entry: "apps/ciudad.jsx", title: "Ciudad Cabeza", head: '<meta name="theme-color" content="#2F4458">', files: Object.fromEntries(
+  { name: "ciudad", entry: "apps/ciudad.jsx", title: "El Cabeza · The City", head: '<meta name="theme-color" content="#2F4458">', files: Object.fromEntries(
     ["morning", "afternoon", "golden", "overcast", "night"].map((h) => [`el-cabeza-ciudad-city-${h}.mp3`, `assets/ciudad/city-${h}.mp3`])) },
   // Noir: the game as a night in a film noir city (in the switcher since the
   // user's "Incorporate Noir into Theme Switcher now").
