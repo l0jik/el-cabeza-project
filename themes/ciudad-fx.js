@@ -27,7 +27,7 @@ import { createLots } from "./ciudad-lots.js";
 import { createLife } from "./ciudad-life.js";
 import { quality } from "./tienda-quality.js";
 import { PLAY } from "./ciudad.js";
-import { cabezas } from "./ciudad-cabezas.js";
+import { cabezas, cabezaKind } from "./ciudad-cabezas.js";
 
 // The sun as the first view of the board sees it (the board at theta PI,
 // as Noir's moon): ciudad-time.js gives its direction in that frame.
@@ -159,7 +159,7 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
     dims = `${BOARD_ROWS}x${BOARD_COLS}`;
     lastVersion = -1;
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__CIUDAD__ = { lots: () => lots.test(), life: () => life.test(), now: () => ({ id: NOW.id, night: NOW.night, exposure: NOW.exposure }), cabezas: () => cabezas().map((c) => c.id) };
+      window.__CIUDAD__ = { lots: () => lots.test(), life: () => life.test(), now: () => ({ id: NOW.id, night: NOW.night, exposure: NOW.exposure }), cabezas: () => cabezas().map((c) => c.id), cabeza: () => cabezaKind() };
     }
   }
 

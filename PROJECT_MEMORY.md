@@ -328,8 +328,9 @@ How to use it:
   (tempietto, pantheon, capitol, palladian, openrotunda, glassdome, deco,
   concrete, greenroof, saucer), listed after the rotunda; the shared tools
   moved to ciudad-cabeza-kit.js. The list is made when first asked for
-  (cabezas()): the rotundas' module is in the models' import cycle. Still
-  the pavilion by default; ?cabeza=<id> plays one. Sheets: scratch
+  (cabezas()): the rotundas' module is in the models' import cycle. Then
+  the pavilion by default (now the glass dome, below); ?cabeza=<id> plays
+  one. Sheets: scratch
   rotundas/ (shoot.mjs, sheet.py). e2e-ciudad-cabezas builds all 21 for
   both sides (inside the square, on the pavilion's ground, under 0.8 tall;
   __CIUDAD__.cabezas()).
@@ -352,3 +353,24 @@ How to use it:
   moved, or press End turn". __EC_TEST_HOLD_MS__ lengthens it for
   pictures. e2e-hold-to-end (Standard, the City, the den's phone bar);
   e2e-lab now holds where it tapped.
+- The City's Cabeza is the glass dome (user: "The cabeza for city maps
+  themes will be number 6, glass dome. Although make the glass dome
+  slightly larger, the diameter. Do not increase the height... Give it a
+  third less rib supports"): CABEZA_PLAYED "glassdome" in
+  ciudad-cabezas.js (?cabeza=<id> still plays any of the 21). Its dome
+  0.46 across where it was 0.4, as tall (0.2: k = dh / dr, the rings at
+  the heights they were, the ramps following the wider glass), on 16
+  ribs where it had 24. Measured on the board: 0.40 -> 0.46 across, 0.197
+  tall both. __CIUDAD__.cabeza() says which is played; e2e-ciudad-cabezas
+  checks it's the glass dome. Before/now sheets: scratch glassdome/
+  (shoot.mjs, sheet.py; the old build from a worktree of the commit
+  before). "City maps" is the user's name for the City (first asked as
+  "What is the Cabeza piece for the city maps supposed to be?"); Plano
+  keeps its own drawn rotunda.
+- e2e-hold-to-end's short press and drag (CI run 47, the City): on a
+  loaded machine the lift or the drag's first move reached the page after
+  the 0.65 s, so the page saw a held press and the turn ended. Those two
+  checks now hold 4 s (__EC_TEST_HOLD_MS__) and wait it out; the held
+  check keeps the real 0.65 s. Shown (scratch holdci/repro.mjs): the drag
+  sent 0.8 s late ends the turn at 0.65 s, not at 4 s; the CPU slowed 6x
+  alone doesn't (a move queued before the hold's frame still wins).

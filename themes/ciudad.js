@@ -13,10 +13,10 @@
    crane on it, a steel frame going up (ciudad-lots.js); a building that
    moves onto one takes its block. Each piece is a building at its exact
    game size (ciudad-models.js): one side white, the other grey-blue, each
-   piece a model and a tint of its own; the 1x3 all glass; the Cabeza the
-   round glass pavilion. Round the board the city goes on into the haze
-   (ciudad-city.js), its streets alive with cars, buses, bikes and people
-   (ciudad-life.js).
+   piece a model and a tint of its own; the 1x3 all glass; the Cabeza a
+   round stone hall under a glass dome. Round the board the city goes on
+   into the haze (ciudad-city.js), its streets alive with cars, buses,
+   bikes and people (ciudad-life.js).
 
    Five times of day, one map (ciudad-time.js): Morning, Afternoon, Golden
    Hour, Overcast and 10 PM, picked with the switch at the top right
@@ -261,7 +261,7 @@ export function makeGrid() {
 
 /* The chassis's piece is the hit target, unseen; the building rides on it
    (a child, so it moves and rolls with it). The Cabeza's target is as tall
-   as the Cabeza it is (the pavilion, or the one tried, ciudad-cabezas.js). */
+   as the Cabeza it is (the glass dome, or the one tried, ciudad-cabezas.js). */
 const HIDDEN = () => new THREE.MeshBasicMaterial({ visible: false });
 export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
   let g = geo;

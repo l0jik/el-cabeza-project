@@ -3,7 +3,9 @@
    Hall Rotunda Cabeza Piece design options"), each played with
    ?cabeza=<id>: every one is built for both sides, stands on its own
    square (inside it, on the ground) and keeps low as the disc does, lit
-   at 10 PM, and nothing's thrown.
+   at 10 PM, and nothing's thrown. The one played with no ?cabeza= is the
+   glass dome (user: "The cabeza for city maps themes will be number 6,
+   glass dome"), its dome wider than it was (0.4) and no taller (0.2).
 
    Built in one page: the address says which, and the board's pieces put
    back makes the Cabezas again (the model's kept by its kind).
@@ -26,6 +28,8 @@ await poll(() => page.evaluate(() => !!window.__EC_TEST_SET_PIECES__ && !!window
 await page.waitForTimeout(1500);
 const ids = await page.evaluate(() => window.__CIUDAD__.cabezas());
 check(`the Cabezas to try: ${ids.length} (the pavilion, the eleven, the rotunda's ten)`, ids.length === 21 && ids.includes("pavilion") && ids.includes("capitol") && ids.includes("saucer"), JSON.stringify(ids));
+const played = await page.evaluate(() => window.__CIUDAD__.cabeza());
+check(`the one played with no ?cabeza=: the glass dome (${played})`, played === "glassdome");
 
 const POSITION = [
   { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 4, col: 4, w: 1, h: 1, z: 1 },

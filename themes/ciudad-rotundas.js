@@ -271,7 +271,11 @@ function openRotunda(side) {
 /* 6. Glass dome (the Reichstag's way): a stone hall, two floors of
    windows, a roof terrace and its rail; on it a dome of glass ribbed and
    ringed in steel, two ramps spiralling up inside it round a cone of
-   mirrors; at night the dome lit from within. */
+   mirrors; at night the dome lit from within. The City's Cabeza (user:
+   "The cabeza for city maps themes will be number 6, glass dome... make
+   the glass dome slightly larger, the diameter. Do not increase the
+   height... Give it a third less rib supports"): the dome 0.46 across
+   where it was 0.4, as tall as it was (0.2), on 16 ribs where it had 24. */
 function glassDome(side) {
   const t = tones(side), b = mk(side, "glassdome");
   const stoneM = std(t.stone, { roughness: 0.7 }), stone2M = std(t.stone2, { roughness: 0.72 }), trimM = capM(t);
@@ -286,14 +290,15 @@ function glassDome(side) {
   const ty = y0 + hh + 0.014;
   b.geo(new THREE.TorusGeometry(hr - 0.004, 0.003, 4, 72).rotateX(Math.PI / 2).translate(0, ty + 0.022, 0), steel);
   for (let i = 0; i < 48; i++) { const a = (i / 48) * TAU; b.cyl(0.002, 0.002, 0.022, 4, steel, Math.sin(a) * (hr - 0.004), ty + 0.011, Math.cos(a) * (hr - 0.004)); }
-  const dr = 0.2;
+  // the dome: dr across its rim, dh tall (k, the one over the other)
+  const dr = 0.23, dh = 0.2, k = dh / dr;
   b.cyl(dr + 0.012, dr + 0.012, 0.012, 48, stone2M, 0, ty + 0.006, 0);
   const domeY = ty + 0.012;
   const glass = litGlass(t.glass, "#ffe6c0", 0.02, 0.32, { transparent: true, opacity: 0.32, depthWrite: false, roughness: 0.05, side: THREE.DoubleSide });
-  b.geo(domeGeo(dr, 1, domeY, 0.16), glass);
-  domeRibs(b, 24, dr, 1, domeY, 0.0028, steel, 0, 0.16);
-  for (const th of [1.32, 1.08, 0.84, 0.6, 0.38]) domeRing(b, dr, 1, domeY, th, 0.0026, steel);
-  domeRing(b, dr, 1, domeY, 0.16, 0.006, steel);
+  b.geo(domeGeo(dr, k, domeY, 0.16), glass);
+  domeRibs(b, 16, dr, k, domeY, 0.0028, steel, 0, 0.16);
+  for (const th of [1.32, 1.08, 0.84, 0.6, 0.38]) domeRing(b, dr, k, domeY, th, 0.0026, steel);
+  domeRing(b, dr, k, domeY, 0.16, 0.006, steel);
   // inside: the cone of mirrors, point down; the two ramps
   const mirror = glassy(new THREE.MeshStandardMaterial({ color: col("#cfd6dc"), metalness: 1, roughness: 0.12, emissive: col("#ffe2b8"), emissiveIntensity: 0 }));
   TIMED.add((n) => { mirror.emissiveIntensity = 0.5 * n; });
@@ -302,13 +307,13 @@ function glassDome(side) {
   for (const a0 of [0, Math.PI]) {
     const pts = [];
     for (let i = 0; i <= 64; i++) {
-      const s = i / 64, yy = 0.012 + s * 0.15, rr = Math.sqrt(Math.max(0, dr * dr - yy * yy)) * 0.88, a = a0 + s * 2.2 * Math.PI;
+      const s = i / 64, yy = 0.012 + s * 0.15, rr = dr * Math.sqrt(Math.max(0, 1 - (yy / dh) ** 2)) * 0.88, a = a0 + s * 2.2 * Math.PI;
       pts.push(new THREE.Vector3(Math.sin(a) * rr, domeY + yy, Math.cos(a) * rr));
     }
     b.geo(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 96, 0.005, 4), steel);
   }
   glowAt(b, "#ffe6c0", 0.55, 0, domeY + 0.09, 0, 0.45);
-  return done(b, domeY + dr * Math.cos(0.16) + 0.006);
+  return done(b, domeY + dh * Math.cos(0.16) + 0.006);
 }
 
 /* 7. Art Deco: a drum of fins with tall windows between, set back twice,

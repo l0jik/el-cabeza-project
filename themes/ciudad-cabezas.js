@@ -3,10 +3,11 @@
    the 10 options for the city's cabeza"): the round glass pavilion it is
    now, and the ten. Each keeps to its one square, low and round as the
    standard game's disc is, in its side's colours (Chalk's whites, Slate's
-   grey-blues), and lit at night. ?cabeza=<name> plays with one; the
-   pavilion until the user picks. The rotunda's ten (user: "Give me 10
-   different City Hall Rotunda Cabeza Piece design options") are in
-   ciudad-rotundas.js, listed after it.
+   grey-blues), and lit at night. ?cabeza=<name> plays with one. The
+   rotunda's ten (user: "Give me 10 different City Hall Rotunda Cabeza
+   Piece design options") are in ciudad-rotundas.js, listed after it; the
+   sixth, the glass dome, is the one played (user: "The cabeza for city
+   maps themes will be number 6, glass dome").
 
    Made as the buildings are (ciudad-models.js builder: the parts merged
    by material); what turns or tells the time is a mesh of its own. */
@@ -18,8 +19,8 @@ import { ROTUNDAS } from "./ciudad-rotundas.js";
 
 /* ------------------------------------------------------------ the eleven */
 
-/* The glass pavilion (as it is): a glass drum under a flat disc roof,
-   twelve thin columns round it, the light inside. */
+/* The glass pavilion (the first played): a glass drum under a flat disc
+   roof, twelve thin columns round it, the light inside. */
 function pavilion(side) {
   const F = FAMILY[side], b = builder(seedOf(`cab-${side}`), "midmod", F, side, cellPx()), r = R, h = 0.128;
   const slab = side === "light" ? F.slab : F.walls[0];
@@ -387,10 +388,11 @@ export const cabezas = () => LIST || (LIST = [
 ]);
 let BY = null;
 const byId = (id) => (BY || (BY = Object.fromEntries(cabezas().map((c) => [c.id, c]))))[id];
-// ?cabeza=<id> (the ones to try), else the pavilion.
+// ?cabeza=<id> (the ones to try), else the glass dome.
+export const CABEZA_PLAYED = "glassdome";
 export function cabezaKind() {
   try { const q = new URLSearchParams(window.location.search).get("cabeza"); if (q && byId(q)) return q; } catch (e) { /* not in a page */ }
-  return "pavilion";
+  return CABEZA_PLAYED;
 }
 // Each side's faces the other's across the board: the models face +z (the
 // dark side's way forward); the light side's turned round, in a group of

@@ -84,29 +84,42 @@ async function desktop(world) {
   check("a tap on the piece that's moved: the turn goes on", (await turns(page)) === 0);
   check(`...and a note says so ("${note}")`, !!note && /tap keeps your turn going \(\d actions? left\)/i.test(note) && /hold the piece to end it/i.test(note), String(note));
 
+  /* A short press, then a drag: what lets a hold go. Held 4 s here
+     (__EC_TEST_HOLD_MS__) and waited out: on a loaded machine (CI, the
+     City) the lift or the drag's first move reached the page after the
+     0.65 s, a press held still as far as the page could tell, and the turn
+     ended. What's tested is that they let it go; how long a hold takes is
+     the next check's. */
+  const HOLD = 4000;
+  await page.evaluate((ms) => { window.__EC_TEST_HOLD_MS__ = ms; }, HOLD);
   // A short press: nothing.
   await page.mouse.move(p.x, p.y);
+  let t0 = Date.now();
   await page.mouse.down();
-  await page.waitForTimeout(300);
-  const ringShown = (await ring(page).count()) === 1;
+  const ringShown = !!(await poll(async () => (await ring(page).count()) === 1, 2000, 50));
   const label = ringShown ? await ring(page).innerText() : "";
   await page.mouse.up();
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(Math.max(0, t0 + HOLD + 600 - Date.now()));
   check("a press on it shows the ring, and what to do", ringShown && /keep holding to end your turn/i.test(label), label);
   check("...let go early: nothing ends, the ring goes", (await turns(page)) === 0 && (await ring(page).count()) === 0);
 
   // A press that moves off (a drag): nothing ends.
   p = await at(page, "dark-turrito");
   await page.mouse.move(p.x, p.y);
+  t0 = Date.now();
   await page.mouse.down();
   await page.waitForTimeout(120);
   await page.mouse.move(p.x + 60, p.y + 4, { steps: 6 });
-  await page.waitForTimeout(900);
+  const ringGone = await poll(async () => (await ring(page).count()) === 0 && Date.now() - t0, 2500, 50);
+  await page.waitForTimeout(Math.max(0, t0 + HOLD + 600 - Date.now()));
   const afterDrag = await turns(page);
   const ringAfterDrag = await ring(page).count();
   await page.mouse.up();
   await page.waitForTimeout(500);
-  check("a press that moves off it (a drag): nothing ends, no ring", afterDrag === 0 && ringAfterDrag === 0 && (await turns(page)) === 0);
+  const afterLift = await turns(page);
+  check("a press that moves off it (a drag): nothing ends, no ring", !!ringGone && afterDrag === 0 && ringAfterDrag === 0 && afterLift === 0,
+    `ring gone after ${ringGone || "never"} ms; turns ended ${afterDrag} by the hold's time, ${afterLift} after the lift; ring ${ringAfterDrag}`);
+  await page.evaluate(() => { delete window.__EC_TEST_HOLD_MS__; });
 
   // Held: the turn ends.
   await page.waitForTimeout(800);

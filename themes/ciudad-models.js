@@ -24,9 +24,9 @@
    - Odd-shaped pieces: a column of the building's own facade on each of
      its cubes' squares, one box for every unbroken run up it, the faces
      pressed against a neighbour left out.
-   - The Cabeza is the round glass pavilion (a glass drum under a flat
-     disc roof, thin columns round it, lit inside at night), or one of the
-     ten offered for it with ?cabeza= (ciudad-cabezas.js).
+   - The Cabeza is the glass dome (a round stone hall, a glass dome on
+     its roof ribbed in steel, lit inside at night, ciudad-rotundas.js), or
+     one of the others offered for it with ?cabeza= (ciudad-cabezas.js).
 
    The windows by night (user, of the 10 PM city: "too random ... like
    black and white Rubik's cubes"; "cut the total lights on in the
@@ -104,7 +104,7 @@ export function tex(c, srgb = true) { const t = new THREE.CanvasTexture(c); if (
    night (0 by day, 1 at ten), the clock (s, for the switching), the
    windows' strength. Shared by every material that lights by plan. */
 export const PLAN_U = { uNight: { value: 0 }, uTime: { value: 0 }, uGlow: { value: 1.15 } };
-// Materials whose glow follows the night (lobbies, the pavilion, crowns,
+// Materials whose glow follows the night (lobbies, the Cabeza, crowns,
 // beacons): each apply(n) sets its own.
 export const TIMED = new Set();
 export function applyNight(n) { TIMED.forEach((f) => f(n)); }
