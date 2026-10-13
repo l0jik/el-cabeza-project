@@ -53,6 +53,11 @@ export const LAB_SPECS = [
     },
     pieces: {
       edgeRadius: 0.018, outline: { t: 0.008, dark: 0x111111, light: 0x111111 },
+      // Edge lines on the black pieces, in the white pieces' own white
+      // (user: "Swiss Design black / dark pieces need edging to help define
+      // their form similar to Mono"; scene.js pieceMaterial). The white
+      // ones show their form in the light already.
+      edges: { dark: 0xf2f2ef },
       dark: { color: 0x151515, roughness: 0.9, metalness: 0 },
       light: { color: 0xf2f2ef, roughness: 0.92, metalness: 0 },
       mark: null,
