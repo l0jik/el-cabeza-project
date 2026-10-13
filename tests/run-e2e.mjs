@@ -41,6 +41,8 @@ const E2E = [
   ["e2e-corner-menu.mjs"],
   // Ciudad: the city at the hour picked, its lots and cranes, its streets.
   ["e2e-ciudad.mjs"], ["e2e-ciudad-sound.mjs"], ["e2e-gameplay.mjs", "ciudad"],
+  // Hold to end a turn early (a tap on the moved piece only says so); the City's Cabezas to try.
+  ["e2e-hold-to-end.mjs"], ["e2e-ciudad-cabezas.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

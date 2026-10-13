@@ -123,11 +123,12 @@ async function waitSwitched(page, id) {
   check("back on the first direction, the address says so", (await labId(page)) === "swiss" && (await page.evaluate(() => new URLSearchParams(location.search).get("theme"))) === "swiss");
 
   // Play carries on: finish Light's turn.
-  // (The Chato may still be the selected piece, carried over: a tap on it
-  // again is "stop here", which ends Light's turn by itself. Only if it's
-  // still Light's turn after the tap is there a move to play.)
+  // (The Chato may still be the selected piece, carried over: holding it
+  // is "stop here" (Hold to end; a tap only says so), which ends Light's
+  // turn by itself. Only if it's still Light's turn after the hold is
+  // there a move to play.)
   const lp2 = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-chato"));
-  await page.mouse.click(lp2.x, lp2.y); await page.waitForTimeout(400);
+  await page.mouse.move(lp2.x, lp2.y); await page.mouse.down(); await page.waitForTimeout(1200); await page.mouse.up(); await page.waitForTimeout(400);
   if ((await state(page)).player === "light") {
     const b2 = await page.evaluate(() => window.__EC_TEST_COST_BADGES__());
     const d2 = (b2.find((x) => x.text !== "free") || b2[0] || {}).dir;

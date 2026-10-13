@@ -50,11 +50,13 @@ console.log(`[${target}] title text:`, JSON.stringify(title));
 
 // The dock piece turns about its own middle (user, the City: "rotating
 // such that it is attached to the exterior of a sphere, whereas the
-// center of gravity should be the center of the piece itself"): the
-// middle of what's drawn of it, in its turning group's own space, within
-// 5% of its size of the group's origin. (The City, Noir and Luna stood
-// their models on the origin: 50%, 50% and 33% off.)
-const pivot = await page.evaluate(() => {
+// center of gravity should be the center of the piece itself"; then "I
+// think the lunar one also has the same issue"): the middle of what's
+// drawn of it, in its turning group's own space, within 5% of its size of
+// the group's origin; every piece the dock can roll, both sides' (a visit
+// shows one at random). (The City, Noir and Luna stood their models on
+// the origin: 50%, 50% and 33% off.)
+const pivotOf = () => page.evaluate(() => {
   const d = window.__EC_TEST_DOCK__ && window.__EC_TEST_DOCK__();
   if (!d) return null;
   const g = d.pieceGroup, keep = [g.rotation.clone(), g.scale.clone(), g.position.clone()];
@@ -76,8 +78,20 @@ const pivot = await page.evaluate(() => {
   const mid = lo.map((v, k) => (v + hi[k]) / 2), size = Math.max(...hi.map((v, k) => v - lo[k]));
   return { off: Math.hypot(...mid) / size, mid: mid.map((v) => +v.toFixed(3)) };
 });
-console.log(`[${target}] dock piece turns about its own middle:`, pivot ? `${(pivot.off * 100).toFixed(1)}% of its size off` : "not found");
-if (!pivot || pivot.off > 0.05) errors.push(`dock piece: turns about a point ${pivot ? `${(pivot.off * 100).toFixed(1)}% of its size off its middle ${JSON.stringify(pivot.mid)}` : "(not found)"}`);
+const kinds = await page.evaluate(() => (window.__EC_TEST_DOCK__ && window.__EC_TEST_DOCK__().types) || []);
+let worst = null, seen = 0;
+for (const type of kinds) for (const side of ["dark", "light"]) {
+  await page.evaluate(([t, s]) => window.__EC_TEST_DOCK__().show(t, s), [type, side]);
+  await page.waitForTimeout(250);
+  const p = await pivotOf();
+  if (!p) { errors.push(`dock piece: the ${side} ${type} not found`); continue; }
+  seen++;
+  if (!worst || p.off > worst.off) worst = { ...p, type, side };
+}
+if (kinds.length) await page.evaluate(() => window.__EC_TEST_DOCK__().show(null, null));
+console.log(`[${target}] dock piece turns about its own middle:`, worst ? `${seen} pieces, at most ${(worst.off * 100).toFixed(1)}% of its size off (the ${worst.side} ${worst.type})` : "not found");
+if (!worst || seen < 10) errors.push(`dock piece: ${seen} of the ten pieces measured`);
+if (worst && worst.off > 0.05) errors.push(`dock piece: the ${worst.side} ${worst.type} turns about a point ${(worst.off * 100).toFixed(1)}% of its size off its middle ${JSON.stringify(worst.mid)}`);
 
 // The dock starts as a spinning 3D piece preview; double-tapping it
 // bounces it into the settings panel (with Begin Game) — same gesture

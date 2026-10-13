@@ -86,7 +86,7 @@ function QuickCard({ C, budget }) {
   const rows = [
     ["Win", <>Get your <b>Cabeza</b> to the far row, or crush the enemy Cabeza by landing a block on it.</>],
     ["Must", <><b>Move at least 1 piece, 1 time.</b> Skipping your turn is not allowed.</>],
-    ["Turn", <>Spend up to <b>{budget} actions</b> <Dots n={budget} C={C} /> on one piece. You can stop after one move: tap the piece again, or press End turn.</>],
+    ["Turn", <>Spend up to <b>{budget} actions</b> <Dots n={budget} C={C} /> on one piece. You can stop after one move: hold the piece you moved, or press End turn.</>],
     ["Blocks", <>Every piece but the Cabeza. Tip over an edge: north, south, east or west. <b>1 action</b> a roll.</>],
     // The Opa is a block with its own cost, so it sits indented under Blocks.
     ["Opa", <>The big cube's move costs <b>2 actions</b>, and it moves once per turn.</>, true],
@@ -666,7 +666,7 @@ function TurnCard({ C, budget, classic }) {
       ? <>Spend your actions <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, an Opa move is 2.</>
       : <>Spend your actions <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, a slide or any Opa move is 2, a pivot 1, a shove 1 more.</>,
     <>Changed your mind? Moving back to where you were this turn gives the actions back.</>,
-    <>The turn ends when the actions run out, when nothing left can use them, or when you stop early after your first move: tap the piece again, or press End turn.</>,
+    <>The turn ends when the actions run out, when nothing left can use them, or when you stop early after your first move: hold the piece you moved, or press End turn.</>,
   ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

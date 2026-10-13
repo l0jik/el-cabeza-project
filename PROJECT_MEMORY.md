@@ -310,3 +310,45 @@ How to use it:
   ok). openConfigurations(): label round, waitForTiltSettle, its place read
   again, tapped, the panel waited for, up to 4 times; for the Load and the
   Delete reopenings.
+- Freesound, re-probed 13 Oct 17:01 UTC (user: "I already did this,
+  yesterday"): the environment change took (the CONNECT to freesound.org
+  and cdn.freesound.org now opens; on 11 Oct it was refused at the gate),
+  but freesound itself answers every request from this machine with an
+  empty 403, robots.txt and the API included (as sites do to cloud
+  addresses). Nothing more to set; files would have to come from the user.
+- Corner piece, every world (user: "I think the lunar one also has the
+  same issue"): the dock picks one of five pieces and a side at random a
+  visit, so the earlier check saw one. __EC_TEST_DOCK__().show(type, side)
+  (test hook) puts any in it; all 13 pages x 5 types x 2 sides measure at
+  most 0.7% (Luna's), and frames of each world's tumble (scratch
+  dockpivot2: frames.mjs, allsheet.py) show it turning about its middle.
+  e2e-smoke now measures all ten in every world it runs.
+- City Hall rotunda, ten more (user: "Give me 10 different City Hall
+  Rotunda Cabeza Piece design options"): themes/ciudad-rotundas.js
+  (tempietto, pantheon, capitol, palladian, openrotunda, glassdome, deco,
+  concrete, greenroof, saucer), listed after the rotunda; the shared tools
+  moved to ciudad-cabeza-kit.js. The list is made when first asked for
+  (cabezas()): the rotundas' module is in the models' import cycle. Still
+  the pavilion by default; ?cabeza=<id> plays one. Sheets: scratch
+  rotundas/ (shoot.mjs, sheet.py). e2e-ciudad-cabezas builds all 21 for
+  both sides (inside the square, on the pavilion's ground, under 0.8 tall;
+  __CIUDAD__.cabezas()).
+- Hold to end (user: "Let's go with solution D", the end-turn page): with
+  actions left, a tap on the piece that's moved no longer ends the turn; it
+  says "A tap keeps your turn going (N actions left). Hold the piece to end
+  it." (hold-to-end-hint). A press held on it 0.65 s ends the turn: a ring
+  round the piece's middle fills, "Keep holding to end your turn" under it
+  (hold-to-end); moving more than the drag dead zone, a second finger, a
+  pointercancel or letting go first cancels; the lift after it's no tap.
+  Its time up, it ends at the next frame (Chrome hands pointer moves over
+  a frame at a time: on the slow renderer the timer beat a drag's first
+  move). While the piece is still rolling, a press on the square it's
+  going to holds the same way (ends as it lands); a tap there gives the
+  note once it's landed, none within 0.5 s of the tap that set it moving
+  (the double click on a marker that ended turns by accident). The End
+  turn button is as it was. Switch "Hold to end" in the dock in play and
+  "Hold to end a turn" in the phone menu (el-cabeza:hold-to-end, on unless
+  "0"); off, a tap ends the turn as before. Rules text: "hold the piece you
+  moved, or press End turn". __EC_TEST_HOLD_MS__ lengthens it for
+  pictures. e2e-hold-to-end (Standard, the City, the den's phone bar);
+  e2e-lab now holds where it tapped.

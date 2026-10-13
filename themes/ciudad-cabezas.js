@@ -4,61 +4,17 @@
    now, and the ten. Each keeps to its one square, low and round as the
    standard game's disc is, in its side's colours (Chalk's whites, Slate's
    grey-blues), and lit at night. ?cabeza=<name> plays with one; the
-   pavilion until the user picks.
+   pavilion until the user picks. The rotunda's ten (user: "Give me 10
+   different City Hall Rotunda Cabeza Piece design options") are in
+   ciudad-rotundas.js, listed after it.
 
    Made as the buildings are (ciudad-models.js builder: the parts merged
    by material); what turns or tells the time is a mesh of its own. */
 
 import * as THREE from "three";
-import { DISC_DIAM, CABEZA_SCALE } from "../engine/constants.js";
-import { FAMILY, builder, std, col, glassy, TIMED, nightGlow, cv, tex, cellPx, seedOf } from "./ciudad-models.js";
-import { timeId, timeOf, onTimeChange } from "./ciudad-time.js";
-
-// (from the engine, not ciudad-models.js: that module imports this one,
-// and a value of its read as this one loads isn't there yet; R came out
-// NaN and every part sized by it went missing)
-const R = (DISC_DIAM * CABEZA_SCALE) / 2;
-
-/* ------------------------------------------------------------ small tools */
-
-// A side's colours for its Cabeza.
-function tones(side) {
-  const F = FAMILY[side], L = side === "light";
-  return {
-    F, L,
-    stone: L ? F.slab : F.walls[0], // the main stone: Chalk's white, Slate's grey-blue
-    stone2: L ? F.walls[2] : F.walls[3], // steps, bases
-    trim: L ? "#ffffff" : F.walls[2], // posts, rails, eaves
-    accent: F.accents[0], // roofs, domes
-    glass: F.glasses[0],
-  };
-}
-const mk = (side, name) => builder(seedOf(`cab-${name}-${side}`), "midmod", FAMILY[side], side, cellPx());
-// Glass lit from within: a little by day, warmly at night.
-function litGlass(c, lit = "#ffe0b0", day = 0.1, night = 0.7, o = {}) {
-  const m = glassy(new THREE.MeshStandardMaterial({ color: col(c), roughness: 0.1, metalness: 0.45, emissive: col(lit), emissiveIntensity: day, ...o }));
-  TIMED.add((n) => { m.emissiveIntensity = day + night * n; });
-  return m;
-}
-// A thing that shines at night (a bulb, a lamp, a light bank, a lit face).
-function litMat(c, lit, day = 0.05, night = 1.2, o = {}) {
-  const m = new THREE.MeshStandardMaterial({ color: col(c), roughness: 0.5, emissive: col(lit), emissiveIntensity: day, ...o });
-  TIMED.add((n) => { m.emissiveIntensity = day + night * n; });
-  return m;
-}
-// A rod from a to c (legs, braces, rails, jets).
-function rodGeo(a, c, r, seg = 6) {
-  const A = new THREE.Vector3(...a), C = new THREE.Vector3(...c), d = C.clone().sub(A), len = d.length();
-  const g = new THREE.CylinderGeometry(r, r, len, seg);
-  g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize())));
-  g.translate((A.x + C.x) / 2, (A.y + C.y) / 2, (A.z + C.z) / 2);
-  return g;
-}
-// A ring of a profile turned round the upright (a basin, a kerb, a bowl).
-const lathe = (pts, seg = 56) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg);
-const sphereAt = (r, x, y, z, ws = 10, hs = 8) => { const g = new THREE.SphereGeometry(r, ws, hs); g.translate(x, y, z); return g; };
-const glowAt = (b, color, size, x, y, z, k = 0.8) => { const s = nightGlow(color, size, k); s.position.set(x, y, z); b.extra(s); };
-const done = (b, top) => { const g = b.finish(); g.userData.top = top; return g; };
+import { FAMILY, builder, std, col, glassy, TIMED, cv, tex, cellPx, seedOf } from "./ciudad-models.js";
+import { R, tones, mk, litGlass, litMat, rodGeo, lathe, sphereAt, glowAt, done, mergeAll, headGeo, clockFace } from "./ciudad-cabeza-kit.js";
+import { ROTUNDAS } from "./ciudad-rotundas.js";
 
 /* ------------------------------------------------------------ the eleven */
 
@@ -191,47 +147,10 @@ function carousel(side) {
   glowAt(b, "#ffd08a", 1.0, 0, y0 + ph * 0.6, 0, 0.4);
   return done(b, y0 + ph + 0.21);
 }
-function mergeAll(list) {
-  // (positions, normals and uvs, as the builder's parts are merged)
-  const geos = list.map((g) => { if (!g.index) return g; const q = g.toNonIndexed(); g.dispose(); return q; });
-  let n = 0; for (const g of geos) n += g.attributes.position.count;
-  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2);
-  let o = 0;
-  for (const g of geos) {
-    pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3);
-    if (g.attributes.uv) uv.set(g.attributes.uv.array, o * 2);
-    o += g.attributes.position.count; g.dispose();
-  }
-  const out = new THREE.BufferGeometry();
-  out.setAttribute("position", new THREE.BufferAttribute(pos, 3)); out.setAttribute("normal", new THREE.BufferAttribute(nor, 3)); out.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-  return out;
-}
 
 /* 4. The head itself: a round fountain, a giant head on a plinth in it
    (Chalk's in white stone, Slate's in grey-blue bronze), six jets arching
    in from the rim, the water and the head lit from below at night. */
-function headGeo() {
-  // a unit sphere pushed into a head: the face toward +z
-  const g = new THREE.SphereGeometry(1, 56, 40), p = g.attributes.position, v = new THREE.Vector3();
-  const bump = (x, y, cx, cy, sx, sy) => Math.exp(-(((x - cx) / sx) ** 2) - (((y - cy) / sy) ** 2));
-  for (let i = 0; i < p.count; i++) {
-    v.fromBufferAttribute(p, i);
-    const { x, y, z } = v, front = Math.max(0, z), f2 = front * front;
-    let r = 1;
-    r += 0.2 * bump(x, y, 0, -0.08, 0.15, 0.24) * front ** 4; // the nose
-    r += 0.06 * bump(x, y, 0, 0.26, 0.6, 0.08) * f2; // the brow
-    r -= 0.075 * (bump(x, y, -0.33, 0.1, 0.15, 0.1) + bump(x, y, 0.33, 0.1, 0.15, 0.1)) * f2; // the eyes
-    r += 0.035 * bump(x, y, 0, -0.42, 0.2, 0.05) * f2; // the lips
-    r += 0.05 * bump(x, y, 0, -0.66, 0.24, 0.1) * f2; // the chin
-    r += 0.07 * Math.exp(-((y / 0.16) ** 2) - (((z + 0.08) / 0.18) ** 2)) * Math.abs(x) ** 6; // the ears
-    let sx = 0.8, sz = 0.92;
-    if (y < 0) sx *= 1 - 0.3 * Math.min(1, -y) * (0.45 + 0.55 * front); // the jaw, narrower
-    if (z < 0) sz *= 1.06; // the back of the head, fuller
-    p.setXYZ(i, x * sx * r, y * r, z * sz * r);
-  }
-  g.computeVertexNormals();
-  return g;
-}
 function head(side) {
   const t = tones(side), b = mk(side, "head");
   const stoneM = std(t.stone, { roughness: 0.6 }), stone2M = std(t.stone2, { roughness: 0.7 });
@@ -286,19 +205,6 @@ function planetarium(side) {
 /* 6. Clock kiosk: a round newsstand, its window lit, a flat roof, and up
    on a post a four-faced clock that tells the hour the city's at (the
    time of day picked; its faces lit at night). */
-const CLOCKS = new Set();
-function drawClock(c, clock) {
-  const x = c.getContext("2d"), s = c.width, m = /(\d+):(\d+)/.exec(clock) || [0, 12, 0], H = +m[1] % 12, M = +m[2];
-  x.fillStyle = "#2f3b47"; x.fillRect(0, 0, s, s);
-  x.beginPath(); x.arc(s / 2, s / 2, s * 0.44, 0, Math.PI * 2); x.fillStyle = "#f7f5ee"; x.fill();
-  x.strokeStyle = "#2f3b47"; x.lineCap = "round";
-  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; x.lineWidth = i % 3 ? s * 0.018 : s * 0.034; x.beginPath(); x.moveTo(s / 2 + Math.sin(a) * s * 0.36, s / 2 - Math.cos(a) * s * 0.36); x.lineTo(s / 2 + Math.sin(a) * s * 0.41, s / 2 - Math.cos(a) * s * 0.41); x.stroke(); }
-  const hand = (a, len, w) => { x.lineWidth = w; x.beginPath(); x.moveTo(s / 2, s / 2); x.lineTo(s / 2 + Math.sin(a) * len, s / 2 - Math.cos(a) * len); x.stroke(); };
-  hand(((H + M / 60) / 12) * Math.PI * 2, s * 0.22, s * 0.05);
-  hand((M / 60) * Math.PI * 2, s * 0.33, s * 0.03);
-  x.fillStyle = "#2f3b47"; x.beginPath(); x.arc(s / 2, s / 2, s * 0.035, 0, Math.PI * 2); x.fill();
-}
-onTimeChange((id) => CLOCKS.forEach(({ c, t }) => { drawClock(c, timeOf(id).clock); t.needsUpdate = true; }));
 function kiosk(side) {
   const t = tones(side), b = mk(side, "kiosk");
   const stoneM = std(t.stone, { roughness: 0.7 }), stone2M = std(t.stone2, { roughness: 0.75 }), trimM = std(t.trim, { roughness: 0.5 }), roofM = std(t.accent, { roughness: 0.55, metalness: 0.2 });
@@ -311,8 +217,7 @@ function kiosk(side) {
   b.cyl(kr + 0.05, kr + 0.04, 0.018, 40, roofM, 0, 0.171 + 0.009, 0);
   const cone = new THREE.ConeGeometry(kr + 0.02, 0.05, 40); cone.translate(0, 0.189 + 0.025, 0); b.geo(cone, roofM);
   b.cyl(0.011, 0.015, 0.1, 10, std(t.L ? "#5e6e7e" : "#2f3b47", { roughness: 0.4, metalness: 0.4 }), 0, 0.214 + 0.05, 0);
-  const cs = 0.082, cy = 0.314 + cs / 2, c = cv(128, 128), ft = tex(c);
-  drawClock(c, timeOf(timeId()).clock); CLOCKS.add({ c, t: ft });
+  const cs = 0.082, cy = 0.314 + cs / 2, ft = clockFace();
   const fm = new THREE.MeshStandardMaterial({ map: ft, emissive: col("#fff2d8"), emissiveMap: ft, emissiveIntensity: 0.02, roughness: 0.4 });
   TIMED.add((n) => { fm.emissiveIntensity = 0.02 + 0.85 * n; });
   const caseM = std(t.L ? "#5e6e7e" : "#2f3b47", { roughness: 0.4, metalness: 0.4 });
@@ -462,9 +367,14 @@ function stadium(side) {
 
 /* ------------------------------------------------------------ which */
 
-export const CABEZAS = [
+// (Made the first time it's asked for, not as this loads: the rotundas'
+// module is in the models' import cycle, and its list may not be there
+// yet when this one runs.)
+let LIST = null;
+export const cabezas = () => LIST || (LIST = [
   { id: "pavilion", name: "Glass pavilion", make: pavilion },
   { id: "rotunda", name: "City hall rotunda", make: rotunda },
+  ...ROTUNDAS,
   { id: "bandstand", name: "Bandstand", make: bandstand },
   { id: "carousel", name: "Carousel", make: carousel },
   { id: "head", name: "The head, in a fountain", make: head },
@@ -474,18 +384,19 @@ export const CABEZAS = [
   { id: "watertower", name: "Water tower", make: waterTower },
   { id: "subway", name: "Subway entrance", make: subway },
   { id: "stadium", name: "Little stadium", make: stadium },
-];
-const BY_ID = Object.fromEntries(CABEZAS.map((c) => [c.id, c]));
-// ?cabeza=<id> (the ten to try), else the pavilion.
+]);
+let BY = null;
+const byId = (id) => (BY || (BY = Object.fromEntries(cabezas().map((c) => [c.id, c]))))[id];
+// ?cabeza=<id> (the ones to try), else the pavilion.
 export function cabezaKind() {
-  try { const q = new URLSearchParams(window.location.search).get("cabeza"); if (q && BY_ID[q]) return q; } catch (e) { /* not in a page */ }
+  try { const q = new URLSearchParams(window.location.search).get("cabeza"); if (q && byId(q)) return q; } catch (e) { /* not in a page */ }
   return "pavilion";
 }
 // Each side's faces the other's across the board: the models face +z (the
 // dark side's way forward); the light side's turned round, in a group of
 // its own (the theme sets the building's own rotation to none).
 export function cabezaFor(side) {
-  const g = BY_ID[cabezaKind()].make(side);
+  const g = byId(cabezaKind()).make(side);
   if (side !== "light") return g;
   const w = new THREE.Group();
   g.rotation.y = Math.PI;

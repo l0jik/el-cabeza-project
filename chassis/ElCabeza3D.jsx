@@ -316,6 +316,21 @@ function loadCheckAlert() {
 function saveCheckAlert(on) {
   try { window.localStorage.setItem(CHECK_ALERT_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
 }
+/* Hold to end (user: "Let's go with solution D", of the five ways to stop
+   a turn being ended by accident): with actions left, a tap on the piece
+   that's moved no longer ends the turn (the second click of a double
+   click on a move marker did, landing on the piece's square); a press
+   held on it does, a ring filling round it, and a tap says so. On unless
+   switched off (then a tap ends it, as before). The End turn button
+   stays as it is. */
+const HOLD_END_KEY = "el-cabeza:hold-to-end";
+const HOLD_END_MS = 650;
+function loadHoldToEnd() {
+  try { return window.localStorage.getItem(HOLD_END_KEY) !== "0"; } catch (e) { return true; }
+}
+function saveHoldToEnd(on) {
+  try { window.localStorage.setItem(HOLD_END_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
+}
 // With nothing saved, a theme's default opponent if it has one (the store:
 // a new player gets the computer, theme.defaultOpponent), else two players.
 function loadOpponentPrefs(fallback = null) {
@@ -1153,6 +1168,46 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       </span>
     </button>
   );
+  // Hold to end: its switch (the dock in play, the phone's menu); the ring
+  // while a press is held on the moved piece (endHold: where it's drawn);
+  // the press itself (endHoldRef: its pointer, where it went down, its
+  // timer, done once the turn's ended by it, its lift then no tap); the
+  // note a tap gets instead (holdHint).
+  const [holdToEnd, setHoldToEnd] = useState(loadHoldToEnd);
+  const holdToEndRef = useRef(holdToEnd);
+  holdToEndRef.current = holdToEnd;
+  const toggleHoldToEnd = () => { const next = !holdToEnd; setHoldToEnd(next); saveHoldToEnd(next); };
+  const holdSwitch = (testid) => (
+    <button
+      className="ec-btn"
+      role="switch"
+      aria-checked={holdToEnd}
+      data-testid={testid}
+      title="Hold to end: a tap on the piece you've moved keeps your turn going; hold it to end the turn"
+      onClick={(e) => { showToggleHint(e, holdToEnd ? "Hold to end: off. A tap on the piece you've moved ends your turn." : "Hold to end: on. A tap on the piece you've moved keeps your turn going; hold it to end the turn."); toggleHoldToEnd(); }}
+      style={{ ...dockLinkStyle(), display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none" }}
+    >
+      Hold to end
+      <span aria-hidden="true" style={{ width: 24, height: 14, borderRadius: 8, boxSizing: "border-box", position: "relative", flexShrink: 0, border: "1.5px solid currentColor", opacity: holdToEnd ? 1 : 0.55, transition: "opacity 180ms ease" }}>
+        <span style={{ position: "absolute", top: 1.5, left: holdToEnd ? 11.5 : 1.5, width: 8, height: 8, borderRadius: "50%", background: "currentColor", transition: "left 180ms ease" }} />
+      </span>
+    </button>
+  );
+  const [endHold, setEndHold] = useState(null);
+  const endHoldRef = useRef(null);
+  const [holdHint, setHoldHint] = useState(null);
+  const moveTapAtRef = useRef(0); // when a tap on a marker last set a piece moving
+  function cancelEndHold() {
+    const h = endHoldRef.current;
+    if (h) clearTimeout(h.timer);
+    endHoldRef.current = null;
+    setEndHold(null);
+  }
+  useEffect(() => {
+    if (!holdHint) return undefined;
+    const id = setTimeout(() => setHoldHint(null), 4000);
+    return () => clearTimeout(id);
+  }, [holdHint]);
   // Switched off from the banner itself: a moment's note where it was.
   const [checkOffNote, setCheckOffNote] = useState(0);
   useEffect(() => {
@@ -1317,6 +1372,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // the dock piece's colour (the far side's, below) doesn't flip each turn.
   const [boardNearSide, setBoardNearSide] = useState(() => carried("boardNearSide", currentPlayer));
   const dockSessionColor = boardNearSide === "dark" ? "light" : "dark";
+  // (Tests: a side picked for the dock piece, so each world's every piece
+  // can be looked at; see __EC_TEST_DOCK__'s show.)
+  const [dockTestSide, setDockTestSide] = useState(null);
 
   /* Orients the pre-game board to match boardNearSide the moment a fresh
      setup screen is shown — theta 0 is Dark-top/Light-bottom (Light
@@ -1712,7 +1770,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       draggedFar: false,
     };
     dockPieceRef.current = state;
-    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_DOCK__ = () => ({ state, pieceGroup, camera, mount }); // tests: the dock piece's own scene
+    if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_DOCK__ = () => ({ state, pieceGroup, camera, mount, types: DOCK_PIECE_TYPES, show: (type, side) => { if (type) setDockSessionPieceType(type); setDockTestSide(side || null); } }); // tests: the dock piece's own scene, and any piece in it
 
     let raf;
     let last = performance.now();
@@ -1935,7 +1993,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     }
     // During a game it's whoever's turn it is (user: "another visual
     // indicator ... as to whose turn it is"); before and after, as above.
-    const side = dockTurnSide || (aiPlayer !== null ? (aiPlayer === "dark" ? "light" : "dark") : dockSessionColor);
+    const side = dockTestSide || dockTurnSide || (aiPlayer !== null ? (aiPlayer === "dark" ? "light" : "dark") : dockSessionColor);
     const isDark = side === "dark";
     const meta = PIECE_META[dockSessionPieceType];
     const isDisc = meta.shape === "disc";
@@ -2055,7 +2113,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const ownFootprint = isDisc ? DISC_DIAM : Math.max(orientation.w, orientation.h, orientation.z);
     setDockHitFraction(HIT_TIGHTEN * Math.max(0.4, ownFootprint / DOCK_PIECE_LARGEST_DIM));
     if (state.renderer) state.renderer.domElement.dataset.side = side;
-  }, [aiPlayer, dockSessionColor, dockSessionPieceType, theme, dockTurnSide]);
+  }, [aiPlayer, dockSessionColor, dockSessionPieceType, theme, dockTurnSide, dockTestSide]);
 
   /* Mirrors the audio engine's own `windingDown` flag but at the
      component level: flips true once a win or a manual end fires, so
@@ -6170,6 +6228,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const piece = pieces.find((p) => p.id === intent.pieceId);
     if (!piece || piece.id !== selectedId) return;
     if (intent.kind === "stop") handleStopHere();
+    else if (intent.kind === "hint") setHoldHint({ key: Date.now() });
     else if (intent.kind === "move") beginMoveRef.current(piece, intent.dir);
   }, [busy, stepsUsed, isPlaying, awaitingBegin, currentPlayer, aiPlayer, pieces, selectedId]);
 
@@ -6662,7 +6721,39 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
             }
           }
         }
+        /* Hold to end: a press on the piece that's moved this turn (or,
+           while it's still on its way, on the square it's going to) ends
+           the turn if it's held (holdDoneRef); the ring is drawn round the
+           piece's middle. Moving off it (a drag, an undo, a slide, the
+           camera), a second finger or letting go first: nothing ends. */
+        if (endHoldRef.current) cancelEndHold();
+        if (!altPanning && holdToEndRef.current && isPlaying && currentPlayer !== aiPlayer && !awaitingBegin && !replayingRef.current && selectedId != null) {
+          let at = null;
+          if (busy || anim.current) {
+            const inFlight = inFlightRef.current, cell = inFlight && screenToBoardCell(ev);
+            if (cell && cellInFootprint(cell, inFlight.landing)) at = inFlight.landing;
+          } else if (turnLocked) {
+            const hit = pick(ev);
+            if (hit && hit.type === "piece" && hit.id === selectedId) at = pieces.find((p) => p.id === selectedId) || null;
+          }
+          if (at) {
+            const pc = pieceCenter(at);
+            const mid = PIECE_META[at.type] && PIECE_META[at.type].shape === "disc" ? (DISC_H * CABEZA_SCALE) / 2 : (at.z * PIECE_SCALE) / 2;
+            const sp = worldToScreen(pc.x, pc.z, mid);
+            // (Its time up, it ends at the next frame: a finger's moves
+            // reach the page a frame at a time, so one that moved off
+            // before then has let it go by then.)
+            // (Tests may hold it longer, to picture it: __EC_TEST_HOLD_MS__.)
+            const ms = (window.__EC_TEST_HOOKS__ && window.__EC_TEST_HOLD_MS__) || HOLD_END_MS;
+            const hold = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, done: false, timer: 0 };
+            hold.timer = setTimeout(() => requestAnimationFrame(() => holdDoneRef.current(hold)), ms);
+            endHoldRef.current = hold;
+            setEndHold({ x: sp.x, y: sp.y, key: Date.now(), touch: ev.pointerType === "touch", ms });
+          }
+        }
       } else {
+        // (A second finger: no hold.)
+        if (endHoldRef.current && !endHoldRef.current.done) cancelEndHold();
         /* A second finger cancels the rotate outright rather than
            blending into it. */
         dragging = false;
@@ -6693,6 +6784,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       if (active.has(ev.pointerId)) {
         active.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
       }
+      const eh = endHoldRef.current;
+      if (eh && !eh.done && ev.pointerId === eh.id && Math.hypot(ev.clientX - eh.x0, ev.clientY - eh.y0) > DRAG_DEAD_ZONE_PX) cancelEndHold();
 
       if (active.size >= 2) {
         if (active.size === 2) {
@@ -6961,6 +7054,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     }
 
     function onUp(ev) {
+      const eh = endHoldRef.current;
+      const heldToEnd = !!(eh && eh.done && ev.pointerId === eh.id);
+      if (eh && ev.pointerId === eh.id) { if (eh.done) endHoldRef.current = null; else cancelEndHold(); }
       const wasMulti = active.size >= 2;
       // Exactly two, not "two or more" — a third contact having ever
       // joined this gesture already nulled twoFingerStartMid in onDown,
@@ -7040,6 +7136,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
       const wasDrag = moved > DRAG_DEAD_ZONE_PX;
       dragging = false;
+
+      // (The turn's been ended by holding the piece: this lift is no tap.)
+      if (heldToEnd) {
+        pivotDrag = null;
+        if (slideDrag) { slideDrag = null; updateSlideArrow(null); }
+        undoDragTarget = null;
+        return;
+      }
 
       /* Slide LAW: a drag that settled on a legal slide direction commits
          that slide on release. If none was chosen (drag went nowhere legal,
@@ -7121,8 +7225,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               // Tapping the square the piece is headed for — same
               // gesture as tapping the piece itself once it's actually
               // there (see the turnLocked branch below) — means "stop
-              // here," don't chain a second step.
-              pendingIntentRef.current = { pieceId: inFlight.pieceId, kind: "stop" };
+              // here," don't chain a second step. With Hold to end on, a
+              // tap doesn't end the turn: once it's there, the note how
+              // to; and none for the second click of a double click on
+              // the marker that set it going (within half a second).
+              if (!holdToEndRef.current) pendingIntentRef.current = { pieceId: inFlight.pieceId, kind: "stop" };
+              else if (performance.now() - moveTapAtRef.current > 500) pendingIntentRef.current = { pieceId: inFlight.pieceId, kind: "hint" };
             } else {
               for (const [dir2, move2] of Object.entries(inFlight.secondMoves)) {
                 if (cellInFootprint(cell, move2.candidate)) {
@@ -7148,13 +7256,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       }
       const hit = pick(ev);
       if (hit && hit.type === "ghost" && activePieceRef.current) {
+        moveTapAtRef.current = performance.now();
         beginMove(activePieceRef.current, hit.dir);
       } else if (hit && hit.type === "piece" && turnLocked && hit.id === selectedId) {
         // Tapping directly on the piece that's already made a step this
         // turn stops here, same as the "Stop here" button — handleStopHere
         // re-checks stepsUsed/etc. itself, so this is a no-op the one
         // frame the piece is mid-animation and not yet actually stoppable.
-        handleStopHere();
+        // With Hold to end on (as it starts), a tap keeps the turn going
+        // and says how to end it; holding the piece ends it (onDown).
+        if (holdToEndRef.current) setHoldHint({ key: Date.now() });
+        else handleStopHere();
       } else if (hit && hit.type === "piece" && turnLocked && ACTIVE_LAWS.splitMovement && currentPlayer !== aiPlayer) {
         // Split Movement: mid-turn, tapping a DIFFERENT own piece hands the
         // leftover bank to it (the "another piece can roll for one point"
@@ -7185,6 +7297,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     }
 
     function onCancel(ev) {
+      if (endHoldRef.current && ev.pointerId === endHoldRef.current.id) { if (endHoldRef.current.done) endHoldRef.current = null; else cancelEndHold(); }
       active.delete(ev.pointerId);
       if (active.size < 2) {
         pinchDist = 0;
@@ -7732,6 +7845,25 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useEffect(() => { setEndTurnAsk(null); }, [currentPlayer]);
   // (Is a sheet up? Read by helpers.sheets, at the theme's mount above.)
   sheetsUpRef.current = !!(musicPanel || musicChipOpen || soundMenuAt || showInfoOverlay || showMoveLog || showReplaySheet || endTurnAsk || showVictoryPlacard);
+  // A hold held to its end: the turn ends (or, the piece still on its way,
+  // ends once it's there). Assigned each render, so the timer reads now.
+  const holdDoneRef = useRef(null);
+  holdDoneRef.current = (h) => {
+    if (!h || h !== endHoldRef.current || h.done) return;
+    h.done = true;
+    setEndHold(null);
+    setHoldHint(null);
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* no vibration here */ }
+    if (busy || anim.current) {
+      const inFlight = inFlightRef.current;
+      if (inFlight) pendingIntentRef.current = { pieceId: inFlight.pieceId, kind: "stop" };
+    } else handleStopHere();
+  };
+  useEffect(() => {
+    setHoldHint(null);
+    if (endHoldRef.current && !endHoldRef.current.done) cancelEndHold();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPlayer, status]);
   function handleStopHere() {
     // Guards the human-facing entry point only — the AI's own orchestration
     // effect calls settleTurn directly, bypassing this, so its own
@@ -9189,6 +9321,64 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         );
       })()}
 
+      {/* Hold to end (see endHoldRef): the ring round the piece filling
+         while it's held, and under it what to do; drawn a moment after the
+         press, so a quick tap or a drag never shows it. */}
+      {endHold && (() => {
+        const r = endHold.touch ? 50 : 40, S = r + 8;
+        return (
+          <div key={endHold.key} data-testid="hold-to-end" aria-hidden="true" style={{ position: "fixed", left: endHold.x, top: endHold.y, width: 0, height: 0, zIndex: 14, pointerEvents: "none" }}>
+            <style>{"@keyframes ecHoldFill{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}@keyframes ecHoldIn{from{opacity:0}to{opacity:1}}"}</style>
+            <svg width={2 * S} height={2 * S} viewBox={`0 0 ${2 * S} ${2 * S}`} style={{ position: "absolute", left: -S, top: -S, overflow: "visible", animation: "ecHoldIn 140ms ease 90ms both" }}>
+              <circle cx={S} cy={S} r={r} fill="none" stroke={COLORS.charcoal} strokeOpacity="0.45" strokeWidth="9" />
+              <circle cx={S} cy={S} r={r} fill="none" stroke={COLORS.cream} strokeOpacity="0.35" strokeWidth="5" />
+              <circle cx={S} cy={S} r={r} fill="none" stroke={COLORS.cream} strokeWidth="5" strokeLinecap="round" pathLength="100" strokeDasharray="100" transform={`rotate(-90 ${S} ${S})`} style={{ animation: `ecHoldFill ${endHold.ms}ms linear both` }} />
+            </svg>
+            <div style={{ position: "absolute", left: 0, top: S + 6, transform: "translateX(-50%)", whiteSpace: "nowrap", padding: "6px 12px", borderRadius: 999, background: COLORS.charcoal, color: COLORS.cream, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, fontWeight: 600, boxShadow: "0 4px 14px rgba(0,0,0,0.3)", animation: "ecHoldIn 160ms ease 160ms both" }}>
+              Keep holding to end your turn
+            </div>
+          </div>
+        );
+      })()}
+      {/* ...and what a tap on it says instead of ending the turn. */}
+      {holdHint && isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && (() => {
+        const left = Math.max(0, turnBudget() - stepsUsed);
+        return (
+          <div
+            key={holdHint.key}
+            data-testid="hold-to-end-hint"
+            role="status"
+            style={{
+              position: "fixed",
+              left: "50%",
+              bottom: shell ? "calc(var(--ec-shell-bottom, 0px) + 10px)" : showPoints ? 98 : 26,
+              transform: "translateX(-50%)",
+              zIndex: 13,
+              width: "max-content",
+              maxWidth: "min(calc(100vw - 32px), 460px)",
+              boxSizing: "border-box",
+              padding: "9px 14px",
+              borderRadius: 10,
+              background: modalSurface,
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              border: `1px solid ${COLORS.slateSoft}`,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+              color: COLORS.charcoal,
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontSize: 13.5,
+              lineHeight: 1.4,
+              textAlign: "center",
+              pointerEvents: "none",
+              animation: "ecHoldHint 4s ease both",
+            }}
+          >
+            <style>{"@keyframes ecHoldHint{0%{opacity:0;transform:translate(-50%,6px)}8%{opacity:1;transform:translate(-50%,0)}82%{opacity:1}100%{opacity:0}}"}</style>
+            A tap keeps your turn going ({left} action{left === 1 ? "" : "s"} left). <b>Hold</b> the piece to end it.
+          </div>
+        );
+      })()}
+
       {/* Unused-points note — see unusedNote. Sits just above the points
          counter when that's on, in its place when it's off. */}
       {unusedNote && isPlaying && dockView !== "panel" && (
@@ -10217,6 +10407,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               )}
               {/* The check alert, in play against the computer. */}
               {declutter && aiPlayer && checkSwitch("check-alert-switch")}
+              {/* Hold to end, in play. */}
+              {declutter && holdSwitch("hold-to-end-switch")}
             </div>
             {declutter && (
               <button className="ec-btn" data-testid="end-game" data-dock-role="link" title="End this game" onClick={handleEndActiveGame} style={dockLinkStyle()}>
@@ -11021,6 +11213,8 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             onToggleCosts: () => { const next = !showCosts; setShowCosts(next); saveShowCosts(next); },
             checkAlert,
             onToggleCheckAlert: toggleCheckAlert,
+            holdToEnd,
+            onToggleHoldToEnd: toggleHoldToEnd,
             pageItems: [
               ...((mobileShell && mobileShell.menuItems) || []),
               ...(layoutSwitch ? [{ key: "layout", testid: "shell-menu-layout", label: "Use the classic dock", detail: "The floating piece", onClick: () => layoutSwitch("dock") }] : []),
