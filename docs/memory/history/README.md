@@ -558,3 +558,17 @@ note (a top-level `- ` entry or a `### ` heading) in it, to grep or skim.
 - Settings corner menu (user, choosing what it lists): "laws including
 - Luna: pieces see-through as they roll (user's video, Record_2026-10-11-21-09-55:
 - Corner menu mock-ups (user: Option 1, "make mock-ups first"; contents
+
+## [16.md](16.md) (238 lines, 11 entries)
+
+- The scream, ten others to hear (user: "I want a different "aaahhh!" Let
+- Corner menu mock-ups, sent (scratch cornermenu/sheets/corner-menu-1,
+- GitHub browser tests #30 (f3138ee, Luna's closed floors): all 8 shards
+- The scream, five yells instead (user: "Get me 5 more screams, but more
+- The five yells in the whole scene (user: "use all of the yells and do
+- The pull, round two (user: "None are working. Do a full 5 new sets.
+- Round two's end shouts, a preverb (user: "Add 1.7 sec. preverb to all
+- Set 5 in the game (user: "Let's go with number 5 for the hull pull, but
+- GitHub browser tests #37 (a88d0f3, set 5): seven shards green,
+- GitHub browser tests #38 (9902682): e2e-dock-call passed with the new
+- Glass towers and cranes (#96; user: "go ahead with the glass towers and
