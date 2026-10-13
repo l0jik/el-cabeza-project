@@ -230,3 +230,41 @@ How to use it:
   City world: cranes placed at the start on the squares farthest from the
   pieces, staying put; a piece moving onto one takes its square and the
   crane is gone.
+- Setting out the pieces by hand (user: "a toggle(?) / way to manually
+  place pieces before the start of a match ... If playing against AI, it
+  will automatically preserve rotational symmetry ... If the newly moved
+  piece displaces a piece ... placed outside the board until the user
+  returns to place it ... We will do 5 option mock-ups, then choose"; and
+  "allow pieces to be setup anywhere on a players own 1/2 of the board"):
+  five options drawn over the den (scratch placement/: pm.js helpers,
+  scenes/opt1-5.js and menu.js, shoot-pm.mjs). In the den the player is
+  Dark, the near walnut set (rows 0-2); the computer Light. pm.js: a
+  piece is a mesh and a shell (hide both); a copy of a hidden piece is
+  made visible; tints are fresh plain materials (the den's wood is a
+  shader of its own that goes black without its maps). Options: 1 pick up
+  and set down (drag in the board, a bench on the table), 2 the plan (a
+  flat plan card), 3 tap then tap (dots, swap), 4 set out from the box,
+  5 openings (Standard, Wedge, Wall, Fortress, your own). Review page:
+  artifact RbyavJEn9cG59NwDbVwA7M "Setting Out the Pieces". Recommended:
+  1 with 3's taps. Asked: home rows three (the standard Opa stands in the
+  third; the user wrote "back 2 rows") or two; two players mirrored or
+  each their own; ideas (behind a screen for two players, saved
+  openings, same as last time, the computer's own). Shuffled stays
+  Neon's alone (the den and the store: Standard or By hand).
+- The city's Cabeza (user: "What is the Cabeza piece for the city maps
+  supposed to be? Give me 10 other city appropriate options"): now a round
+  glass pavilion (CABEZA.midmod: a glass drum, 12 thin columns, a flat
+  disc roof, lit inside at night). Offered: a city hall rotunda, a
+  bandstand, a carousel, a bronze head in a fountain (named as the
+  favourite), a planetarium, a clock kiosk, a roundabout monument, a water
+  tower, a subway entrance, a little stadium. Waiting on the user.
+- The 10 PM loops: scratch city/ loops.mjs (each state of the lights
+  drawn once at 3200x2000) and loopfinish.py (nightcard each, 1600 wide,
+  ffmpeg concat into a seamless 12 s MP4, about 1 MB). window.__live.plan
+  switches groups (a flat, an office floor, a stair) rather than single
+  windows: one a building, the 40 biggest on the screen (the board's
+  first), and only those that change a small test render (400x250, put
+  on or out and back) — before that, half the switches fell on walls
+  turned away and nothing changed. The review page (artifact
+  DBmVxjLHatrNiebqgkbmPt) shows the 10 PM scenes and close-ups as the
+  loops, the cranes' new rule in its call.
