@@ -382,9 +382,11 @@ export const realityName = "Ciudad";
 export { createAudio, hasAudio } from "./ciudad-audio.js";
 // The sound menu's sliders (chassis: theme.soundChannels; ciudad-audio.js setChannelLevel).
 export const soundChannels = [
-  { key: "city", label: "The city", hint: "The traffic, the birds by day, the night's own sounds" },
+  { key: "city", label: "The city", hint: "Real streets recorded, a different one each hour" },
   { key: "pieces", label: "Pieces", hint: "The buildings moving, landing, crushing" },
 ];
+// The city's recordings credited on the About card (assets/ciudad/src/CREDITS.md).
+export const soundCredits = "The city’s sounds are recordings of real streets, from freesound.org (by way of the Scaper library’s and the Blanket app’s sounds), looped and mixed by the hour: the morning, a city park in Tel Aviv by yonts (CC0) and a wood thrush’s morning by kvgarlic (CC0); the traffic, “NYC_street leve02l” by gezortenplotz (freesound.org/s/44796), CC BY 3.0; the afternoon’s busy street and the overcast street at work with its tram, “street scene 3” and “street scene 1” by saphe (freesound.org/s/173955, freesound.org/s/150993), CC BY 4.0; the evening, the high street of Gandia by jormarp (CC0); the wind, felix.blume (CC0); at night, crickets by Lisa Redfern and a restaurant by stephan (soundbible.com, public domain).";
 // The in-game menu offers a switch for the cost badges on the move markers.
 export const moveCostToggle = true;
 

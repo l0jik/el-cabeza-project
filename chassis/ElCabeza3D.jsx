@@ -174,6 +174,27 @@ function mastheadClamp(floorPx, vw, ceilingPx, scale) {
   return `clamp(${floorPx * s}px, ${vw * s}vw, ${ceilingPx * s}px)`;
 }
 
+/* The middle of what's drawn of a model, its invisible hit shapes left
+   out: its parts as they'll stand in the group they're about to join
+   (none has a parent yet, so each one's own matrix is that). The dock
+   piece turns about it (see the dock's mesh-building effect). */
+function drawnMiddle(parts) {
+  const box = new THREE.Box3(), part = new THREE.Box3();
+  parts.forEach((p) => {
+    if (!p) return;
+    p.updateMatrixWorld(true);
+    p.traverseVisible((o) => {
+      if (!o.geometry) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      if (!mats.some((m) => m && m.visible !== false && m.colorWrite !== false)) return;
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      if (o.geometry.boundingBox.isEmpty()) return;
+      box.union(part.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld));
+    });
+  });
+  return box.isEmpty() ? new THREE.Vector3() : box.getCenter(new THREE.Vector3());
+}
+
 /* ------------------------------------------------------------------ */
 /*  El Cabeza — 3D — shared chassis                                    */
 /*                                                                     */
@@ -1947,6 +1968,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       z: orientation.z,
     };
     const { mesh, shell } = theme.buildPieceVisual({ piece: fakePiece, isDark, isDisc, geo, center: { x: 0, z: 0 }, y: 0 });
+    // Turned about its own middle (user, the City: "rotating such that
+    // it is attached to the exterior of a sphere, whereas the center of
+    // gravity should be the center of the piece itself"). The worlds that
+    // build their pieces up from the street (the City, Noir, Luna) stand
+    // the model on the origin, so as it tumbled its middle swung round
+    // the pivot, half its height away; the middle of what's drawn of it
+    // is brought there instead, as the setup's 3D viewer does
+    // (reality-gate's lookModel). The other worlds' models are centred
+    // already (within 2% of their size), so for them this changes nothing.
+    const middle = drawnMiddle([mesh, shell]);
+    mesh.position.sub(middle);
+    if (shell) shell.position.sub(middle);
     // Neon's body is translucent with depthWrite:false (see
     // buildPieceVisual's own comment on the self-z-fighting bevel
     // bug this avoids), which also means its wireframe shell never

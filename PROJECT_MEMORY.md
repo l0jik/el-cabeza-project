@@ -262,3 +262,51 @@ How to use it:
   the middle, B a bubble at the piece (recommended), C the turn bar asks,
   D hold to end, E tap again to confirm; review page "Ending a Turn
   Early". Waiting on the user.
+  Published: https://claude.ai/artifact/S7GgzbhAyBgZ8U8Dec2RRd
+- The dock piece turns about its own middle (user, Ciudad: "rotating such
+  that it is attached to the exterior of a sphere, whereas the center of
+  gravity should be the center of the piece itself"). The worlds that
+  build pieces up from the street (Ciudad, Noir, Luna: mesh at y, the
+  building at -y) stood the dock model on the pivot, and the dock's idle
+  tumble (x, y and z) swung its middle round it: measured 50%, 50%, 33%
+  of their size off, the others within 2%. Chassis drawnMiddle (the box of
+  what's drawn, hidden hit shapes left out) brings the middle to the pivot
+  before the depth pre-pass, as reality-gate's lookModel does; every world
+  now 0%. e2e-smoke checks it in every world it runs (under 5%; the old
+  code failed it, Ciudad 11% with a short piece).
+- City sounds from real recordings (user: "go out onto the other resources
+  and find real sounds, not synthesized for the city"). From this session
+  only GitHub (raw, codeload), npm, PyPI, GitLab, Bitbucket, Launchpad and
+  archive.ubuntu.com answer; freesound, Wikimedia, archive.org, Pixabay,
+  soundbible are refused or unreachable. So: recordings carried by
+  open-source projects with their sources listed, each licence checked on
+  its freesound page (WebFetch reads those): the Scaper library's test
+  sounds (tests/data/audio/background, named by freesound id) and the
+  Blanket app's (data/resources/sounds, SOUNDS_LICENSING.md). Moodist's
+  urban sounds (Pixabay licence or CC0, which not said per sound) left
+  aside. assets/ciudad/src + CREDITS.md; tools/ciudad_sounds.py makes one
+  seamless stereo loop an hour (layers looped on their own, summed): morning
+  the Tel Aviv park (yonts CC0, its first 46 s) + wood thrush (kvgarlic
+  CC0, its 4836 Hz insect drone notched) + NYC traffic dulled
+  (gezortenplotz CC BY 3.0); afternoon Szczecin street scene 3 (saphe CC BY
+  4.0) + NYC + Gandia voices (jormarp CC0); golden Gandia (recorded ~19h) +
+  street 3 dulled + thrush far; overcast street scene 1 (saphe: tools,
+  cars, a tram) + felix.blume wind (CC0) + NYC; night NYC dulled to 600 Hz
+  + park + crickets (Lisa Redfern, PD) + restaurant (stephan, PD). Mono
+  sources widened by a random-phase all-pass twin round the loop (a
+  seconds-long offset, as Noir's rain, put the tram through twice).
+  ciudad-audio: the hour's loop fetched (beside the page, build.js files)
+  and crossfaded over 2.4 s as the hour changes; from disk the made city
+  stands in. soundCredits on the About card. e2e-ciudad-sound (served over
+  http, as Noir's).
+  Level: BED_GAIN 0.16 on the city channel (made city measured -37.8 dBFS
+  afternoon, -43.5 at 10 PM; the recordings within a dB under; scratch
+  citysounds/calibrate.mjs, cityLevel() an analyser on the channel).
+- GitHub run 45 shard 1 (e2e-singularity, the CONFIGURATIONS panel): its
+  reopening tapped the label once, at once; bringConfigLabelToFront
+  returns as the label faces you while the sphere's tilt can still coast,
+  and on the slow renderer the tap fell where the label had been, so Load
+  was waited for in a panel that never opened. Not reproduced here (143
+  ok). openConfigurations(): label round, waitForTiltSettle, its place read
+  again, tapped, the panel waited for, up to 4 times; for the Load and the
+  Delete reopenings.

@@ -1,15 +1,28 @@
 /* Ciudad's sound: the city at the hour it is, and the buildings moving.
 
    The city (the sound menu's "The city"), following the time of day
-   (setHour, from ciudad-fx.js):
+   (setHour, from ciudad-fx.js), is recorded (user: "find real sounds, not
+   synthesized for the city"): one loop an hour, made by
+   tools/ciudad_sounds.py from recordings of real streets (a park in Tel
+   Aviv in the morning with its birds, a busy street in Szczecin in the
+   afternoon, the high street of Gandia at seven in the evening, a street
+   at work with a tram going by and the wind over it when it's overcast,
+   New York's traffic far off with crickets and a restaurant at ten at
+   night; assets/ciudad/src/CREDITS.md). The hour's loop is fetched when
+   it's wanted and the one playing crossfaded into it over the light's own
+   change (2.4 s).
+
+   Opened from disk (a browser won't fetch a file beside the page), or if
+   the recordings can't be had, the city is made here instead, as it was
+   at first:
    - by day the traffic's low roar, a car going by now and then (to one
      side and the other), a bus's brakes, a crossing's beeps, birds (most
      in the morning), now and then a clank from the building sites;
    - overcast, the wind between the towers over it all, fewer birds;
    - at ten at night the roar down low, a car now and then, a siren far
      across the city, a door, someone's footsteps, the wind.
-   All of it made here (filtered noise, oscillators), each part's level
-   eased as the hour changes.
+   (filtered noise, oscillators), each part's level eased as the hour
+   changes.
 
    The pieces (the sound menu's "Pieces"): a crossing button's click to
    pick a building up, a softer one to put it down, a car's horn for a
@@ -20,8 +33,26 @@
 
 export const hasAudio = true;
 
-// How each hour's city sounds: the roar, passing cars (a minute), birds
-// (a minute), the sites' clanks (a minute), wind, sirens (an hour).
+// The city's recordings: one loop an hour, beside the page (build.js).
+const BED_URL = (id) => `el-cabeza-ciudad-city-${id}.mp3`;
+// (their files the loop with LOOP_PAD of its own end before it and of its
+// start after it: tools/ciudad_sounds.py)
+const LOOP_PAD = 0.3;
+// The recordings made at the city's own loudness by the hour (the
+// afternoon -20 dBFS, 10 PM -27); brought down to sit under the pieces'
+// cues where the made city did. Measured on the city's channel (its mean
+// over 12 s, calibrate in the scratch notes of that round): the made
+// afternoon -37.8 dBFS, its 10 PM -43.5; the recordings at 0.1 were 5 dB
+// under that, so this, 4 dB up, leaves them a dB under the made city's
+// level (they sound the fuller for their middle frequencies, the made
+// city's level being mostly its low roar).
+const BED_GAIN = 0.16;
+// The hour's change, as the light's (ciudad-time.js).
+const BED_XFADE = 2.4;
+
+// The made city (from disk), how each hour sounds: the roar, passing cars
+// (a minute), birds (a minute), the sites' clanks (a minute), wind, sirens
+// (an hour).
 const HOURS = {
   morning: { roar: 0.05, cars: 7, birds: 22, clank: 3, wind: 0.0, sirens: 2, beeps: 2 },
   afternoon: { roar: 0.065, cars: 10, birds: 9, clank: 4, wind: 0.004, sirens: 4, beeps: 3 },
@@ -34,6 +65,10 @@ export function createAudio() {
   let ctx = null, master = null, sfx = null, amb = null, intro = null, rev = null, wet = null, noiseBuf = null, brownBuf = null;
   let muted = false, windingDown = false, ambRunning = false, zoom = 0.5, volume = 1, vol = null, ambGain = null;
   let timers = [], menuVoice = null, hour = "morning", night = 0, roarG = null, windG = null, roarLp = null;
+  // the city recorded: "loading" till the hour's loop is in, then
+  // "recording"; "made" from disk or if none could be had
+  let city = null, bedNow = null, meter = null;
+  const beds = {};
   const CH = {}, levels = { city: 1, pieces: 1 };
 
   function ensureGraph() {
@@ -71,9 +106,61 @@ export function createAudio() {
       brownBuf = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate);
       const bd = brownBuf.getChannelData(0); let b = 0; for (let i = 0; i < bd.length; i++) { b = (b + 0.02 * (Math.random() * 2 - 1)) / 1.02; bd[i] = b * 3.5; }
     } catch (e) { ctx = null; }
+    // (the hour's recording on its way from the start, so it's here by the game)
+    if (ctx && fetchable()) bed(hour);
   }
   function ensureStarted() { ensureGraph(); if (ctx && ctx.state === "suspended") ctx.resume(); }
   const now = () => ctx.currentTime + 0.005;
+
+  /* ---- the city recorded ---- */
+  // (Not from disk: a browser won't fetch a file beside a page opened from disk.)
+  const fetchable = () => typeof fetch === "function" && !(typeof location !== "undefined" && location.protocol === "file:");
+  function fetchBuffer(url) {
+    return fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status))).then((ab) => ctx.decodeAudioData(ab));
+  }
+  // A loop: from its first sound + LOOP_PAD to its last - LOOP_PAD (an
+  // encoder's padding left out), as Noir's.
+  function loopOf(buf) {
+    const d = buf.getChannelData(0), lim = Math.min(d.length, Math.floor(buf.sampleRate * 0.2));
+    let a = 0, z = d.length - 1;
+    while (a < lim && Math.abs(d[a]) < 1e-4) a++;
+    while (z > d.length - lim && Math.abs(d[z]) < 1e-4) z--;
+    return { buf, start: a / buf.sampleRate + LOOP_PAD, end: (z + 1) / buf.sampleRate - LOOP_PAD };
+  }
+  function bed(id) {
+    if (!beds[id]) { beds[id] = fetchBuffer(BED_URL(id)).then(loopOf); beds[id].catch(() => {}); }
+    return beds[id];
+  }
+  // The hour's loop in, the one before out, over `secs`; if the hour's
+  // been changed again by the time it's in, that change's own call plays.
+  function playBed(id, secs) {
+    bed(id).then((clip) => {
+      if (!ctx || !ambRunning || hour !== id || (bedNow && bedNow.id === id)) return;
+      city = "recording";
+      const t = ctx.currentTime, s = ctx.createBufferSource(), g = ctx.createGain();
+      s.buffer = clip.buf; s.loop = true; s.loopStart = clip.start; s.loopEnd = clip.end;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(BED_GAIN, t + secs);
+      s.connect(g).connect(CH.city.bus);
+      s.start(t, clip.start + Math.random() * Math.max(0, clip.end - clip.start - 1));
+      if (bedNow) {
+        const old = bedNow;
+        old.g.gain.cancelScheduledValues(t); old.g.gain.setValueAtTime(old.g.gain.value, t); old.g.gain.linearRampToValueAtTime(0, t + secs);
+        try { old.s.stop(t + secs + 0.1); } catch (e) { /* stopped */ }
+      }
+      bedNow = { id, s, g };
+    }).catch(() => {
+      // (none to be had: the made city stands in, unless one's playing)
+      if (city !== "recording" && ambRunning) startMade();
+    });
+  }
+  // The city channel's level now (dBFS), for the tests.
+  function cityLevel() {
+    if (!ctx || !CH.city) return null;
+    if (!meter) { meter = ctx.createAnalyser(); meter.fftSize = 16384; CH.city.gate.connect(meter); }
+    const d = new Float32Array(meter.fftSize); meter.getFloatTimeDomainData(d);
+    let e = 0; for (let i = 0; i < d.length; i++) e += d[i] * d[i];
+    return 20 * Math.log10(Math.sqrt(e / d.length) + 1e-12);
+  }
 
   /* ---- pieces of sound ---- */
   function out(node, dry, send, chan = CH.pieces, pan = 0) {
@@ -126,6 +213,12 @@ export function createAudio() {
   function startAmbience() {
     if (ambRunning || !ctx) return;
     ambRunning = true;
+    if (fetchable()) { city = "loading"; playBed(hour, 2.5); } else startMade();
+  }
+  // The made city (from disk, or no recording to be had).
+  function startMade() {
+    if (city === "made" || !ctx) return;
+    city = "made";
     // the traffic's roar: low, swelling a little as the city breathes
     const r = ctx.createBufferSource(); r.buffer = brownBuf; r.loop = true;
     roarLp = ctx.createBiquadFilter(); roarLp.type = "lowpass"; roarLp.frequency.value = 420;
@@ -200,7 +293,9 @@ export function createAudio() {
     night = n || 0;
     if (id === hour) return;
     hour = HOURS[id] ? id : "morning";
-    if (!ctx || !roarG) return;
+    if (!ctx) return;
+    if (city === "recording" || city === "loading") { playBed(hour, BED_XFADE); return; }
+    if (!roarG) return;
     const t = ctx.currentTime;
     roarG.gain.setTargetAtTime(H().roar, t, 1.2);
     windG.gain.setTargetAtTime(H().wind, t, 1.2);
@@ -336,13 +431,14 @@ export function createAudio() {
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose,
-    debugState: () => ({ ctx: !!ctx, ambience: ambRunning, hour, night, levels: { ...levels } }),
+    debugState: () => ({ ctx: !!ctx, ambience: ambRunning, hour, night, levels: { ...levels }, city, bed: bedNow && bedNow.id, fetched: Object.keys(beds) }),
+    cityLevel,
     playFlicker: noop, playArc: noop, playGlitch: noop,
     playSingularityOpen: noop, playSingularityClose: noop, playSingularityBell: noop, playSingularityDismiss: noop,
     startSingularityHum: noop, updateSingularityHum: noop, stopSingularityHum: noop,
     continueSingularityHumThroughCollapse: noop, startSingularityCollapseRoar: noop,
     cutSingularityAudioToSilence: noop, resumeAudioAfterSingularity: noop,
-    dispose() { clearTimers(); if (ctx) { try { ctx.close(); } catch (e) { /* closed */ } } },
+    dispose() { clearTimers(); if (bedNow) { try { bedNow.s.stop(); } catch (e) { /* stopped */ } bedNow = null; } if (ctx) { try { ctx.close(); } catch (e) { /* closed */ } } },
   };
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__CIUDAD_AUDIO__ = api;
   return api;

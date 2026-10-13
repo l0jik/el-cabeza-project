@@ -924,6 +924,24 @@ async function bringConfigLabelToFront() {
   }
   return (await sphereState()).configLabel;
 }
+// The CONFIGURATIONS panel opened as a player would: the label brought
+// round, the sphere's tilt let settle (it can still be coasting when the
+// label first faces you), tapped where it is then, and tapped again if the
+// panel didn't open. (GitHub's run 45 tapped once, at once: on its slow
+// renderer the tap fell where the label had been, and Load was waited for
+// in a panel that never opened.)
+async function openConfigurations() {
+  const isOpen = async () => (await page.locator('[data-testid="category-overlay"]').getAttribute("data-category").catch(() => null)) === "configurations";
+  for (let i = 0; i < 4; i++) {
+    await bringConfigLabelToFront();
+    await waitForTiltSettle();
+    const c = (await sphereState()).configLabel;
+    if (!c || c.facing <= 0.85) continue;
+    await page.mouse.click(c.x, c.y);
+    for (let k = 0; k < 20; k++) { if (await isOpen()) return true; await page.waitForTimeout(150); }
+  }
+  return isOpen();
+}
 // Tilt back down until the equator (the three category labels) faces you.
 // waitForSphereSettle watches the left/right spin; the up/down tilt can
 // still be coasting, so wait for IT to stop too before trusting it.
@@ -990,9 +1008,7 @@ if (state.activeCategory === "topologies") {
 }
 check("(setup) a rule was changed after saving",
   (await sphereState()).selections.topologies.missingSquares === false);
-cfgLabel = await bringConfigLabelToFront();
-await page.mouse.click(cfgLabel.x, cfgLabel.y);
-await page.waitForTimeout(300);
+await openConfigurations();
 await page.locator('[data-testid="config-item"][data-name="Test Setup"] [data-testid="config-load"]').click();
 await page.waitForTimeout(300);
 state = await sphereState();
@@ -1004,9 +1020,7 @@ check("the summary names the loaded configuration",
 // Back to the labels, then delete it (with its confirm step).
 await page.locator('[data-testid="singularity-edit-settings"]').click();
 await page.waitForTimeout(300);
-cfgLabel = await bringConfigLabelToFront();
-await page.mouse.click(cfgLabel.x, cfgLabel.y);
-await page.waitForTimeout(300);
+await openConfigurations();
 await page.locator('[data-testid="config-delete"]').first().click();
 await page.waitForTimeout(150);
 await page.locator('[data-testid="config-delete-confirm"]').click();

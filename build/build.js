@@ -76,7 +76,10 @@ const targets = [
   { name: "luna", entry: "apps/luna.jsx", title: "Luna Cabeza", head: '<meta name="theme-color" content="#05070B">' },
   // Ciudad: the game in the city of the glass towers and cranes, at the
   // time of day the player picks (not in the switcher until the user says).
-  { name: "ciudad", entry: "apps/ciudad.jsx", title: "Ciudad Cabeza", head: '<meta name="theme-color" content="#2F4458">' },
+  // Its city, recorded, one loop an hour (tools/ciudad_sounds.py), beside
+  // the page and fetched as the hour's wanted, not in it.
+  { name: "ciudad", entry: "apps/ciudad.jsx", title: "Ciudad Cabeza", head: '<meta name="theme-color" content="#2F4458">', files: Object.fromEntries(
+    ["morning", "afternoon", "golden", "overcast", "night"].map((h) => [`el-cabeza-ciudad-city-${h}.mp3`, `assets/ciudad/city-${h}.mp3`])) },
   // Noir: the game as a night in a film noir city (in the switcher since the
   // user's "Incorporate Noir into Theme Switcher now").
   { name: "noir", entry: "apps/noir.jsx", title: "Noir Cabeza", head: '<meta name="theme-color" content="#0B0B0C">', files: {

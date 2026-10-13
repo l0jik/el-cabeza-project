@@ -40,7 +40,7 @@ const E2E = [
   // The corner menu: the game's rules at the top left, every world's look.
   ["e2e-corner-menu.mjs"],
   // Ciudad: the city at the hour picked, its lots and cranes, its streets.
-  ["e2e-ciudad.mjs"], ["e2e-gameplay.mjs", "ciudad"],
+  ["e2e-ciudad.mjs"], ["e2e-ciudad-sound.mjs"], ["e2e-gameplay.mjs", "ciudad"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");
