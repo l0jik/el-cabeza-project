@@ -318,3 +318,21 @@ How to use it:
     Its 'ended' only lets a source go sooner, and sounding counts those
     still ahead on the audio clock. The same drop now passes, as does the
     whole of e2e-now-playing.
+- Glass towers and cranes (#96; user: "go ahead with the glass towers and
+  cranes, and then give me a link to evaluate it"). The ask, from round 8:
+  "some buildings are ... entirely glass ... a 1x3, which would be the
+  tallest piece"; "a construction site or two with really, really tall
+  cranes ... They just can't look like the buildings".
+  - Scratch city/: presets vg1-vg5 are vv1-vv5 (73-77) through GLASSIFY:
+    tallGlass; a 1x3 Block standing a side (GLASS_ALTO, z 3, BUILD.midvar's
+    glass-tower branch); TOWER_PAL (light #9fb2c0 glass with #eef0ee frames,
+    dark #26323e with #3a4652); board.sites, two free squares lotMap forces
+    to "construction", each with a crane; craneH [5.0, 5.8] (6-7 cubes,
+    twice the tower). Close-ups: vgt, vgd, vgk.
+  - Fixed on the way: the board's cranes were built before EXTRAS existed
+    (a TDZ error the first time a preset asked for one). They're now queued
+    (BOARD_CRANES) and built with the extras.
+  - Rendered at 1600x1000, DPR 2 (about 10 s each), finished with post5's
+    postcard. The page is artifact DBmVxjLHatrNiebqgkbmPt (scratch
+    glasspage/): close-ups, the five scenes with a Before switch, and a
+    full-size view. The line-up (72) is unchanged. Waiting on feedback.
