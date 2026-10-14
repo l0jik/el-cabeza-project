@@ -4,8 +4,9 @@
    so nothing in the store talks of orders or rules; it only sells the
    game, the way a 1975 store would:
 
-   - its price tag (top left, in a game), which unfolds into the shelf
-     ticket: the game, the aisle, the price, and "Put one in the cart";
+   - its price tag (top left, in a game; under a replay's bar while one's
+     playing), which unfolds into the shelf ticket: the game, the aisle,
+     the price, and "Put one in the cart";
    - the cart: once one's in it, the tag becomes the cart ("Cart · 1
      item"), and "Check out" is the purchase (story.onPurchase); the
      dock's own button says the same (tienda.js);
@@ -69,7 +70,7 @@ function setDim(on) {
 
 /* ---- the look ---- */
 const CSS = `
-  .td-shop { position: fixed; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); z-index: 40;
+  .td-shop { position: fixed; top: max(12px, env(safe-area-inset-top), var(--ec-replay-clear, 0px)); left: max(12px, env(safe-area-inset-left)); z-index: 40;
     display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: calc(100vw - 24px); }
   .td-shop-tag { position: relative; display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 6px 12px 6px 22px; border: 1px solid rgba(46,33,24,0.45);
     border-radius: 2px 10px 10px 2px; background-color: ${PAPER}; background-image: var(--tienda-paper); color: ${INK}; cursor: pointer;

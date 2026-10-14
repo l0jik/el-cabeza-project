@@ -9255,21 +9255,28 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     return () => { document.removeEventListener("pointerdown", away, true); window.removeEventListener("keydown", esc); };
   }, [replaySpeedMenu]);
   useEffect(() => { if (!replay) setReplaySpeedMenu(false); }, [replay]);
+  // Where the bar ends goes up on the page as --ec-replay-clear, for a
+  // world's own things at the top to keep under it (the City's clock, the
+  // store's price tag: top: max(their own, var(--ec-replay-clear, 0px))).
   useLayoutEffect(() => {
-    if (!replay) { setCornerBelow(null); return undefined; }
+    const root = document.documentElement;
+    if (!replay) { setCornerBelow(null); root.style.removeProperty("--ec-replay-clear"); return undefined; }
     const fit = () => {
       const bar = replayBarRef.current, tab = document.querySelector('[data-testid="corner-menu-tab"]');
-      if (!bar || !tab) { setCornerBelow(null); return; }
-      const b = bar.getBoundingClientRect(), t = tab.getBoundingClientRect();
+      if (!bar) { setCornerBelow(null); return; }
+      const b = bar.getBoundingClientRect(), clear = Math.round(b.bottom + 8);
+      root.style.setProperty("--ec-replay-clear", `${clear}px`);
+      if (!tab) { setCornerBelow(null); return; }
+      const t = tab.getBoundingClientRect();
       // (Side by side, as on a wide screen, it stays where it is.)
-      setCornerBelow(t.left < b.right && t.right > b.left ? Math.round(b.bottom + 8) : null);
+      setCornerBelow(t.left < b.right && t.right > b.left ? clear : null);
     };
     fit();
     const raf = requestAnimationFrame(fit);
     window.addEventListener("resize", fit);
     const ro = typeof ResizeObserver !== "undefined" && replayBarRef.current ? new ResizeObserver(fit) : null;
     if (ro) ro.observe(replayBarRef.current);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", fit); if (ro) ro.disconnect(); };
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", fit); if (ro) ro.disconnect(); root.style.removeProperty("--ec-replay-clear"); };
   }, [!!replay, !!cornerMenu]);
   // Stop: the game stays where it's got to, to play on from (a turn under
   // way is played out first: a turn can't be left half the record's).
@@ -10127,7 +10134,11 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               top: "calc(var(--ec-shell-top, env(safe-area-inset-top, 0px)) + 12px)",
               left: "50%",
               transform: "translateX(-50%)",
-              zIndex: 13,
+              // Over the title as it fades on its way to the corner (20);
+              // with the speeds open, over the rules tab and a world's
+              // own things at the top too (40, 41), so none hides one.
+              // Still under every sheet and card that opens over the game.
+              zIndex: replaySpeedMenu ? 42 : 21,
               display: "flex",
               alignItems: "center",
               gap: 2,

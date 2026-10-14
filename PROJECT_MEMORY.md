@@ -268,3 +268,21 @@ How to use it:
   when the replay ends. e2e-replay: the menu's speeds, the same turn at
   0.5× and at 4× (taken back between), and the phone's tab clear of the
   bar.
+- ...then on a phone the speeds opened UNDER the stepped-down tab (z 40)
+  in every world, and under the City's clock (4×): the menu lives in the
+  bar's stacking context (fixed, z 13 then). A probe of every world, both
+  sizes, by elementFromPoint over the bar's buttons and the speeds, found
+  that, the City clock (z 13, top 46px on a phone) over the bar's end,
+  and the title (z 20, fading on its way to the corner for 2 s after
+  Begin) over the bar's bottom edge. Now: the bar is z 21 while a replay
+  plays, 42 while its speeds are open (over the HUD layer, 40-41: the
+  corner menu, the store's tag and PA; under every sheet, 1045+); a
+  corner card opened over it still wins. The chassis puts where the bar
+  ends on <html> as --ec-replay-clear (bar bottom + 8px) while a replay
+  plays, so a world's own top HUD can keep under it: the City's clock and
+  the store's price tag use top: max(their own, var(--ec-replay-clear,
+  0px)). The tab goes straight under the bar, no glide: the corner menu
+  only comes up as a replay starts playing, so a glide always began over
+  the bar (slow here in Luna and Parrish). e2e-replay's phone section:
+  nothing over the bar's buttons or any speed, the clock under the bar
+  and back up.

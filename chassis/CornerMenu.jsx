@@ -24,7 +24,8 @@ function useFonts(look, fonts) {
 }
 
 // below: the px its top stands at instead of its own (out from under the
-// replay's bar), or null.
+// replay's bar), or null. Straight there, no glide: it comes up as a
+// replay starts playing, so a glide began over the bar.
 export default function CornerMenu({ look, rules, extra = null, audio = null, below = null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -64,7 +65,7 @@ export default function CornerMenu({ look, rules, extra = null, audio = null, be
       data-look={look}
       data-open={open ? "true" : "false"}
       onClick={onClick}
-      style={below != null ? { top: below, transition: "top 0.25s ease" } : undefined}
+      style={below != null ? { top: below } : undefined}
     >
       <style>{css}</style>
       <button

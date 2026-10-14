@@ -238,7 +238,8 @@ check("no page errors", errs.length === 0, errs.join(" | "));
 
 // On a phone, in the City (user: "On a playback, the rules button is
 // blocking the playback controls"): the corner menu's tab steps down
-// under the bar, clear of it, and goes back up once the replay's over.
+// under the bar, clear of it, and goes back up once the replay's over;
+// the City's clock the same; the speeds open over both.
 console.log("on a phone: the rules tab clear of the bar");
 {
   const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -266,12 +267,42 @@ console.log("on a phone: the rules tab clear of the bar");
   check("...the tab under the bar", !!bar && !!tab && tab.y >= bar.y + bar.height);
   const speedBtn = await ph.locator('[data-testid="replay-speed"]').boundingBox();
   check("...the speed button clear of it too", !!speedBtn && !meet(speedBtn, tab));
+  // The City's clock (top right) keeps under the bar too: on a phone it
+  // stood over the bar's end.
+  const clockAt = () => ph.locator('[data-testid="ciudad-time-chip"]').boundingBox().catch(() => null);
+  const clock = await poll(async () => { const c = await clockAt(); return c && bar && c.y >= bar.y + bar.height ? c : null; }, 5000);
+  check("...the City's clock under the bar too", !!clock && !meet(bar, clock), JSON.stringify({ bar, clock: await clockAt() }));
+  // What's drawn over each control, at its middle and in from its corners
+  // (the topmost thing there, as a tap finds it): nothing but itself.
+  const over = (sel) => ph.evaluate((sel) => {
+    const out = [];
+    for (const el of document.querySelectorAll(sel)) {
+      const r = el.getBoundingClientRect();
+      for (const [fx, fy] of [[0.5, 0.5], [0.2, 0.2], [0.8, 0.2], [0.2, 0.8], [0.8, 0.8]]) {
+        const at = document.elementFromPoint(r.left + r.width * fx, r.top + r.height * fy);
+        if (at && !el.contains(at)) out.push(`${el.dataset.testid}: ${at.tagName.toLowerCase()}${at.dataset.testid ? "[" + at.dataset.testid + "]" : ""}.${String(at.className || "").split(" ")[0]}`);
+      }
+    }
+    return [...new Set(out)];
+  }, sel);
+  const onBar = await over('[data-testid="replay-bar"] button');
+  check("...nothing over the bar's buttons", onBar.length === 0, onBar.join("; "));
+  // The speeds open under the bar, over the tab and the clock: each one
+  // there to be tapped.
+  await ph.locator('[data-testid="replay-speed"]').click();
+  await poll(() => ph.locator('[data-testid="replay-speed-menu"]').isVisible(), 3000);
+  const onSpeeds = await over('[data-testid="replay-speed-menu"] button');
+  check("the speeds open over the rules tab and the clock, every one clear", onSpeeds.length === 0 && (await ph.locator('[data-testid="replay-speed-menu"] button').count()) === 6, onSpeeds.join("; "));
+  await ph.locator('[data-testid="replay-speed-0.5"]').click();
+  check("...and 0.5× taken from there", (await ph.locator('[data-testid="replay-speed"]').innerText()).trim() === "0.5×");
   await ph.locator('[data-testid="replay-stop"]').click().catch(() => {});
   const up = await poll(async () => {
     const t = await ph.locator('[data-testid="corner-menu-tab"]').boundingBox().catch(() => null);
     return (await ph.locator('[data-testid="replay-bar"]').count()) === 0 && t && t.y < 80 ? t : null;
   }, 15000);
   check("the replay over: the tab back at the top", !!up, JSON.stringify(up));
+  const clockUp = await poll(async () => { const c = await clockAt(); return c && c.y < 56 ? c : null; }, 5000);
+  check("...and the clock back up", !!clockUp, JSON.stringify(await clockAt()));
   check("no page errors", errs2.length === 0, errs2.join(" | "));
   await ctx2.close();
 }

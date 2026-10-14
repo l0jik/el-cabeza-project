@@ -1115,20 +1115,31 @@ if (state.activeCategory === "topologies") {
 // Triple-tapping BARE sphere (well outside any root label's latitude
 // band, near the pole) finalizes every selection and reveals the
 // summary menu — a plain tap there must NOT open a category first.
-// (Three taps count within 650 ms, timed as the page takes them: on a
-// loaded machine (CI run 49) the sphere's slow frames spread three clicks
-// sent 120 ms apart past that, and it stayed on its labels. So, as a
-// player would, tap three times again, up to three tries, saying how many
-// it took.)
+// (Three taps count within 650 ms, timed as the page takes them. A
+// Playwright click waits until the page has handled it, so on a loaded
+// machine (CI runs 49 and 55) the sphere's slow frames spread three clicks
+// sent 120 ms apart past that, and it stayed on its labels. So the taps go
+// as a player's do, at their own pace: real clicks (CDP's Input, as
+// Playwright's own), each sent without waiting on the last's handling.
+// And, as a player would, tap three times again, up to three tries,
+// saying how many it took.)
 const bareX = cx2;
 const bareY = obox2.y + obox2.height * 0.15;
+const cdp = await page.context().newCDPSession(page);
+async function tapThrice(x, y) {
+  const sent = [cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y })];
+  for (let i = 0; i < 3; i++) {
+    sent.push(cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1 }));
+    await new Promise((r) => setTimeout(r, 40));
+    sent.push(cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1 }));
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  await Promise.all(sent);
+}
 let tries = 0;
 while (tries < 3) {
   tries++;
-  for (let i = 0; i < 3; i++) {
-    await page.mouse.click(bareX, bareY);
-    await page.waitForTimeout(120);
-  }
+  await tapThrice(bareX, bareY);
   await page.waitForTimeout(250);
   state = await sphereState();
   if (state.stage !== "labels") break;

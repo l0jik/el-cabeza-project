@@ -9,7 +9,9 @@
    the city into that hour (ciudad-time.js) and the hands go round to it
    with the light, forward, the way time goes; the dial stays to be
    watched until a tap outside or Escape. Kept for next time. There in the
-   setup and in play alike. React through createElement, as the other
+   setup and in play alike; under a replay's bar while one's playing
+   (--ec-replay-clear, from the chassis: on a phone it stood over the
+   bar's end). React through createElement, as the other
    overlays, so the theme still imports in plain Node. */
 
 import React from "react";
@@ -103,7 +105,7 @@ function Face({ size, big }) {
 }
 
 export const HUD_CSS = `
-  .ciu-time { position: fixed; z-index: 13; top: calc(78px + env(safe-area-inset-top, 0px)); right: calc(16px + env(safe-area-inset-right, 0px));
+  .ciu-time { position: fixed; z-index: 13; top: max(calc(78px + env(safe-area-inset-top, 0px)), var(--ec-replay-clear, 0px)); right: calc(16px + env(safe-area-inset-right, 0px)); transition: top 0.25s ease;
     display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font-family: 'Overpass', 'Arial Narrow', Arial, sans-serif; }
   .ciu-time .chip { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 13px 0 6px;
     border-radius: 8px; background: #2F4458; color: #FFFFFF; font: 700 12.5px/1 'Overpass', 'Arial Narrow', Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase;
@@ -143,7 +145,7 @@ export const HUD_CSS = `
   .ciu-time .now .nm { font: 800 17px/1.1 'Overpass', 'Arial Narrow', Arial, sans-serif; }
   .ciu-time .now .ck { margin-top: 3px; font: 400 12px/1 'Overpass Mono', 'DejaVu Sans Mono', monospace; color: #5E6E7E; font-variant-numeric: tabular-nums; }
   @media (max-width: 560px) {
-    .ciu-time { top: calc(46px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); }
+    .ciu-time { top: max(calc(46px + env(safe-area-inset-top, 0px)), var(--ec-replay-clear, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); }
     .ciu-time .chip { width: 42px; height: 42px; padding: 0; justify-content: center; gap: 0; }
     .ciu-time .chip .lbl, .ciu-time .chip .car { display: none; }
   }
