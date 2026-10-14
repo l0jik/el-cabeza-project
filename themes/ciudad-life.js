@@ -18,7 +18,7 @@
 import * as THREE from "three";
 import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { BOARD_ROWS, BOARD_COLS, SQUARE_SIZE, OFF_X, OFF_Z } from "../engine/constants.js";
-import { col, glowTex } from "./ciudad-models.js";
+import { col, glowTex, farDim } from "./ciudad-models.js";
 
 const CAR_COLS = ["#a85a4a", "#d8d0c0", "#3a3a3e", "#5a6e84", "#c4a056", "#7a7e80", "#e8e2d4", "#6a8296"];
 const CLOTHES = ["#3a3631", "#6a5240", "#5f8682", "#a85a4a", "#c4a056", "#d8d0c0", "#4e5458", "#7a6a8a", "#2e3a4a"];
@@ -137,7 +137,7 @@ export function createLife({ EX, EZ, tier, city }) {
   const headPos = new Float32Array(cars.length * 2 * 3), tailPos = new Float32Array(cars.length * 2 * 3);
   const lampPts = (arr, color, size) => {
     const g = keep(new THREE.BufferGeometry()); g.setAttribute("position", new THREE.BufferAttribute(arr, 3));
-    const m = keep(new THREE.PointsMaterial({ map: glowTex(), color: col(color), size, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    const m = keep(farDim(new THREE.PointsMaterial({ map: glowTex(), color: col(color), size, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }), "a"));
     const pts = new THREE.Points(g, m); pts.frustumCulled = false; pts.raycast = () => {}; pts.visible = false; group.add(pts);
     return pts;
   };

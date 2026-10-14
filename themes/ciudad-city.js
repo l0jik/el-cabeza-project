@@ -23,7 +23,7 @@
 
 import * as THREE from "three";
 import {
-  FACADE, STYLE_GRID, OFFICE, planMaterial, FOCUS, PLAN_U, sink, quad, geoOf, cv, tex, col, shade, glowTex, rnd as mrnd,
+  FACADE, STYLE_GRID, OFFICE, planMaterial, FOCUS, PLAN_U, sink, quad, geoOf, cv, tex, col, shade, glowTex, rnd as mrnd, farDim,
 } from "./ciudad-models.js";
 import { edgeLamps } from "./ciudad.js";
 
@@ -174,6 +174,7 @@ export function buildCity({ EX, EZ, tier }) {
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance *= uNight;");
   };
   groundMat.customProgramCacheKey = () => "ciudad-ground";
+  farDim(groundMat); // (the lamps' pools fainter the farther off)
   const GY = -0.06;
   const ground = new THREE.Mesh(keepG(new THREE.PlaneGeometry(GS, GS)), groundMat);
   ground.rotation.x = -Math.PI / 2; ground.position.y = GY; ground.receiveShadow = true; ground.raycast = () => {}; ground.name = "ciudad-ground";
@@ -317,7 +318,7 @@ export function buildCity({ EX, EZ, tier }) {
   });
   posts.castShadow = true; posts.raycast = () => {}; group.add(posts);
   const hg = keepG(new THREE.BufferGeometry()); hg.setAttribute("position", new THREE.BufferAttribute(heads, 3));
-  const headMat = keepM(new THREE.PointsMaterial({ map: glowTex(), color: col("#ffd9a0"), size: 0.55, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  const headMat = keepM(farDim(new THREE.PointsMaterial({ map: glowTex(), color: col("#ffd9a0"), size: 0.55, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }), "a"));
   const headPts = new THREE.Points(hg, headMat); headPts.raycast = () => {}; headPts.visible = false; headPts.name = "ciudad-lamp-heads";
   group.add(headPts);
 

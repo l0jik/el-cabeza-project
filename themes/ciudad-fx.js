@@ -21,7 +21,7 @@
 import * as THREE from "three";
 import { SLAB_X, SLAB_Z, BOARD_ROWS, BOARD_COLS } from "../engine/constants.js";
 import { NOW, TIMES, stepTime, timeOf } from "./ciudad-time.js";
-import { PLAN_U, FOCUS, applyNight, setEnv, glowTex } from "./ciudad-models.js";
+import { PLAN_U, FAR_U, FOCUS, applyNight, setEnv, glowTex } from "./ciudad-models.js";
 import { buildCity } from "./ciudad-city.js";
 import { createLots } from "./ciudad-lots.js";
 import { createLife } from "./ciudad-life.js";
@@ -159,7 +159,7 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
     dims = `${BOARD_ROWS}x${BOARD_COLS}`;
     lastVersion = -1;
     if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
-      window.__CIUDAD__ = { lots: () => lots.test(), life: () => life.test(), now: () => ({ id: NOW.id, night: NOW.night, exposure: NOW.exposure }), cabezas: () => cabezas().map((c) => c.id), cabeza: () => cabezaKind() };
+      window.__CIUDAD__ = { lots: () => lots.test(), life: () => life.test(), now: () => ({ id: NOW.id, night: NOW.night, exposure: NOW.exposure }), cabezas: () => cabezas().map((c) => c.id), cabeza: () => cabezaKind(), viewR: () => FAR_U.uViewR.value };
     }
   }
 
@@ -303,6 +303,7 @@ export function mountAmbientEffects(refs, { three, cam, audio }) {
       PLAN_U.uTime.value = sec;
       if (t.camera) {
         const d = t.camera.position.length();
+        FAR_U.uViewR.value = d; // (the night's lights fade beyond it, ciudad-models.js farDim)
         fog.near = d + 3; fog.far = d + (NOW.clouds > 0.6 ? 48 : 56);
         sky.tick(t.camera, sec);
       }

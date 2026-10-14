@@ -36,6 +36,7 @@ import {
 import { buildingFor, PLAN_U, col } from "./ciudad-models.js";
 import { HUD_CSS } from "./ciudad-hud.js";
 import { quality } from "./tienda-quality.js";
+import { NOW } from "./ciudad-time.js";
 
 /* ------------------------------------------------------------ palette */
 
@@ -325,8 +326,9 @@ function bayMarker({ cx, cz, hx, hz, isCrush }) {
 /* The markers to choose from (user: "they're white. They're kind of hard
    to see on the background of the game board. I need to see five
    alternatives ... black and white diagonal striped, like construction
-   tape ... something that glows maybe"). ?markers= picks one to try; the
-   parking bay above until one's chosen:
+   tape ... something that glows maybe"). Chosen: the tape with the
+   cones by day, the parking bay at night (hourMarker, below); ?markers=
+   still picks any one of them to see (hour, tapecones, bay, or):
    - tape: hazard tape round the block, thick black and yellow stripes at
      45 degrees crawling along it (a crush red and white, crossed);
    - glow: a neon tube round it on a dark casing, its glow breathing (a
@@ -338,7 +340,7 @@ function bayMarker({ cx, cz, hx, hz, isCrush }) {
    - pin: a map pin over it, bobbing, a ring going out from it on the
      ground (a crush a red pin, an X on the ground). */
 const MARKER_STYLE = (() => {
-  try { const m = typeof window !== "undefined" && /[?&]markers=([a-z]+)/.exec(window.location.search); return m ? m[1] : "bay"; } catch (e) { return "bay"; }
+  try { const m = typeof window !== "undefined" && /[?&]markers=([a-z]+)/.exec(window.location.search); return m ? m[1] : "hour"; } catch (e) { return "hour"; }
 })();
 
 // What every one of them is made of: its materials (each with its share of
@@ -402,12 +404,12 @@ function glowBand() {
   return GLOW_BAND;
 }
 
-function tapeMarker({ cx, cz, hx, hz, isCrush }) {
+// Hazard tape round the block, w wide, its stripes crawling along it (a
+// crush red and white, crossed).
+function addTape(K, ix, iz, w, isCrush) {
   // (user: "Thick black & yellow alternating, diagonal stripes at 45°
   // angle", as hazard tape is; a crush red and white)
-  const K = markerKit(), ix = hx * 0.8, iz = hz * 0.8, w = 0.16;
   const tex = isCrush ? stripes("#d6221a", "#f6f6f2") : stripes("#111111", "#ffd000");
-  K.flat(new THREE.PlaneGeometry(hx * 1.7, hz * 1.7), K.basic(isCrush ? "#d6221a" : "#141414", isCrush ? 0.16 : 0.1), 0.012);
   // each strip laid along its own length, turned into place (the
   // stripes run the same way round all four)
   const strip = (len, x, z, rot, y = 0.02) => {
@@ -419,7 +421,42 @@ function tapeMarker({ cx, cz, hx, hz, isCrush }) {
   strip(iz * 2 + w, -ix, 0, Math.PI / 2); strip(iz * 2 + w, ix, 0, -Math.PI / 2);
   if (isCrush) for (const a of [Math.PI / 4, -Math.PI / 4]) strip(Math.hypot(ix, iz) * 1.9, 0, 0, a, 0.021);
   // the stripes crawl along the tape
-  K.ticks.push((now) => { for (const o of K.group.children) if (o.material.map) o.material.map.offset.x = -(now / 2600) % 1; });
+  K.ticks.push((now) => { for (const o of K.group.children) if (o.material && o.material.map) o.material.map.offset.x = -(now / 2600) % 1; });
+}
+// A traffic cone on each corner: a base, the cone, its white band (a
+// crush's red).
+function addCones(K, ix, iz, isCrush, H = 0.17, R = 0.045) {
+  const orange = isCrush ? "#e0261b" : "#ff6a13";
+  const coneM = K.mat(new THREE.MeshStandardMaterial({ color: col(orange), roughness: 0.55 }), 1); coneM.userData.steady = true;
+  const bandM = K.mat(new THREE.MeshStandardMaterial({ color: col("#f4f4f0"), roughness: 0.3, emissive: col("#f4f4f0"), emissiveIntensity: 0.15 }), 1); bandM.userData.steady = true;
+  const baseM = K.mat(new THREE.MeshStandardMaterial({ color: col("#1c1c1c"), roughness: 0.8 }), 1); baseM.userData.steady = true;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const g = new THREE.Group(); g.position.set(sx * ix, 0, sz * iz);
+    g.add(K.solid(new THREE.BoxGeometry(R * 2.6, 0.012, R * 2.6).translate(0, 0.006, 0), baseM));
+    g.add(K.solid(new THREE.ConeGeometry(R, H, 18).translate(0, 0.012 + H / 2, 0), coneM));
+    g.add(K.solid(new THREE.CylinderGeometry(R * 0.52, R * 0.66, H * 0.2, 18, 1, true).translate(0, 0.012 + H * 0.52, 0), bandM));
+    K.group.add(g);
+  }
+  return orange;
+}
+
+function tapeMarker({ cx, cz, hx, hz, isCrush }) {
+  const K = markerKit();
+  K.flat(new THREE.PlaneGeometry(hx * 1.7, hz * 1.7), K.basic(isCrush ? "#d6221a" : "#141414", isCrush ? 0.16 : 0.1), 0.012);
+  addTape(K, hx * 0.8, hz * 0.8, 0.16, isCrush);
+  return K.done(cx, cz);
+}
+
+// The two together, the City's by day (user: "Do the yellow & black
+// construction tape with the orange cones"): the tape round the block, a
+// cone standing on each of its corners (a crush red and white tape,
+// crossed, the cones red).
+function tapeConesMarker({ cx, cz, hx, hz, isCrush }) {
+  const K = markerKit(), ix = hx * 0.8, iz = hz * 0.8;
+  K.flat(new THREE.PlaneGeometry(hx * 1.7, hz * 1.7), K.basic(isCrush ? "#d6221a" : "#141414", isCrush ? 0.16 : 0.1), 0.012);
+  addTape(K, ix, iz, 0.14, isCrush);
+  addCones(K, ix, iz, isCrush, 0.19, 0.05);
+  K.breathe((now) => 0.85 + 0.15 * Math.sin(now / 480));
   return K.done(cx, cz);
 }
 
@@ -452,18 +489,7 @@ function conesMarker({ cx, cz, hx, hz, isCrush }) {
     }
   }
   K.flat(new THREE.PlaneGeometry(hx * 1.6, hz * 1.6), K.basic(orange, 0.08), 0.012);
-  // a cone on each corner: a base, the cone, its white band
-  const coneM = K.mat(new THREE.MeshStandardMaterial({ color: col(orange), roughness: 0.55 }), 1); coneM.userData.steady = true;
-  const bandM = K.mat(new THREE.MeshStandardMaterial({ color: col("#f4f4f0"), roughness: 0.3, emissive: col("#f4f4f0"), emissiveIntensity: 0.15 }), 1); bandM.userData.steady = true;
-  const baseM = K.mat(new THREE.MeshStandardMaterial({ color: col("#1c1c1c"), roughness: 0.8 }), 1); baseM.userData.steady = true;
-  const H = 0.17, R = 0.045;
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    const g = new THREE.Group(); g.position.set(sx * ix, 0, sz * iz);
-    g.add(K.solid(new THREE.BoxGeometry(R * 2.6, 0.012, R * 2.6).translate(0, 0.006, 0), baseM));
-    g.add(K.solid(new THREE.ConeGeometry(R, H, 18).translate(0, 0.012 + H / 2, 0), coneM));
-    g.add(K.solid(new THREE.CylinderGeometry(R * 0.52, R * 0.66, H * 0.2, 18, 1, true).translate(0, 0.012 + H * 0.52, 0), bandM));
-    K.group.add(g);
-  }
+  addCones(K, ix, iz, isCrush);
   if (isCrush) {
     const tex = stripes("#e0261b", "#f6f6f2");
     for (const a of [Math.PI / 4, -Math.PI / 4]) {
@@ -528,8 +554,34 @@ function pinMarker({ cx, cz, hx, hz, isCrush }) {
   return K.done(cx, cz);
 }
 
-const MARKERS = { bay: bayMarker, tape: tapeMarker, glow: glowMarker, cones: conesMarker, asphalt: asphaltMarker, pin: pinMarker };
-export function buildMoveIndicator(opts) { return (MARKERS[MARKER_STYLE] || bayMarker)(opts); }
+/* The City's own, by the hour (user: "Night can have it's normal move
+   markers... Only day time needs the construction tape"): the tape and
+   cones by day, the parking bay at 10 PM, each faded by how far into the
+   night it is (NOW.night), so a change of the clock with a piece up eases
+   one into the other. */
+function hourMarker(opts) {
+  const day = tapeConesMarker(opts), night = bayMarker(opts), root = new THREE.Group();
+  // (each made at the block's middle: here the group is)
+  root.position.copy(day.root.position); day.root.position.set(0, 0, 0); night.root.position.set(0, 0, 0);
+  day.root.name = "ciudad-marker-day"; night.root.name = "ciudad-marker-night";
+  root.add(day.root, night.root);
+  let v = 0;
+  const show = (now) => {
+    const n = Math.min(1, Math.max(0, NOW.night || 0));
+    day.root.visible = n < 0.999; night.root.visible = n > 0.001;
+    day.setOpacity(v * (1 - n)); night.setOpacity(v * n);
+    if (now !== undefined) { day.tick(now); night.tick(now); }
+  };
+  return {
+    root,
+    setOpacity(o) { v = o; show(); },
+    tick(now) { show(now || 0); },
+    dispose() { day.dispose(); night.dispose(); },
+  };
+}
+
+const MARKERS = { hour: hourMarker, bay: bayMarker, tapecones: tapeConesMarker, tape: tapeMarker, glow: glowMarker, cones: conesMarker, asphalt: asphaltMarker, pin: pinMarker };
+export function buildMoveIndicator(opts) { return (MARKERS[MARKER_STYLE] || hourMarker)(opts); }
 
 /* ------------------------------------------------------------ the game, for the scene */
 

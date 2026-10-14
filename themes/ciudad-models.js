@@ -104,6 +104,34 @@ export function tex(c, srgb = true) { const t = new THREE.CanvasTexture(c); if (
    night (0 by day, 1 at ten), the clock (s, for the switching), the
    windows' strength. Shared by every material that lights by plan. */
 export const PLAN_U = { uNight: { value: 0 }, uTime: { value: 0 }, uGlow: { value: 1.15 } };
+/* The night's lights fall off with how far they are from the one looking
+   (user: "City lights at night should be dimmer the farther from the
+   user's perspective they are"): uViewR the camera's distance from the
+   board's middle (ciudad-fx.js sets it each frame); a light that near or
+   nearer is as bright as it is, one farther fades as (near / far)^2.2
+   (half as bright a quarter as far again, a quarter at twice as far), to
+   no less than a tenth. */
+export const FAR_U = { uViewR: { value: 12 } };
+const FAR_GLSL = "uniform float uViewR; varying float vFarD;\nfloat cityFar(float d) { return clamp(pow((uViewR + 1.0) / max(d, 0.001), 2.2), 0.1, 1.0); }";
+/* A material's night light, so faded: its emissive (mode "e": windows,
+   lamp pools, lobbies) or its alpha ("a": glows, lamp heads, car lamps). */
+export function farDim(mat, mode = "e") {
+  const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey();
+  mat.onBeforeCompile = (shader, renderer) => {
+    if (prev) prev.call(mat, shader, renderer);
+    shader.uniforms.uViewR = FAR_U.uViewR;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying float vFarD;")
+      .replace("#include <project_vertex>", "#include <project_vertex>\nvFarD = length(mvPosition.xyz);");
+    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `#include <common>\n${FAR_GLSL}`);
+    shader.fragmentShader = mode === "e"
+      ? shader.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance *= cityFar(vFarD);")
+      : shader.fragmentShader.replace("#include <alphatest_fragment>", "diffuseColor.a *= cityFar(vFarD);\n#include <alphatest_fragment>");
+  };
+  mat.customProgramCacheKey = () => `${prevKey}|far-${mode}`;
+  mat.needsUpdate = true;
+  return mat;
+}
 // Materials whose glow follows the night (lobbies, the Cabeza, crowns,
 // beacons): each apply(n) sets its own.
 export const TIMED = new Set();
@@ -231,7 +259,7 @@ export function planMaterial(mat, { kind = 1, pal = 2, noDark = false, see = fal
       .replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>${see ? SEE_CUT : ""}`);
   };
   mat.customProgramCacheKey = () => (see ? "ciudad-plan-see" : "ciudad-plan");
-  return mat;
+  return farDim(mat);
 }
 
 /* ------------------------------------------------------------ facades */
@@ -434,7 +462,7 @@ export function lobbyMat(glass, lit) {
   const key = glass + lit;
   let m = LOBBY.get(key);
   if (!m) {
-    m = glassy(new THREE.MeshStandardMaterial({ color: col(glass), roughness: 0.15, metalness: 0.4, emissive: col(lit), emissiveIntensity: 0.06 }));
+    m = farDim(glassy(new THREE.MeshStandardMaterial({ color: col(glass), roughness: 0.15, metalness: 0.4, emissive: col(lit), emissiveIntensity: 0.06 })));
     TIMED.add((n) => { m.emissiveIntensity = 0.06 + 0.26 * n; });
     LOBBY.set(key, m);
   }
@@ -442,6 +470,7 @@ export function lobbyMat(glass, lit) {
 }
 // Something lit only at night (a crown, a beacon's glow): its opacity the night's.
 export function nightOnly(m, k = 1) {
+  farDim(m, "a");
   m.transparent = true; m.opacity = 0; m.depthWrite = false;
   TIMED.add((n) => { m.opacity = n * k; m.visible = n > 0.01; });
   return m;

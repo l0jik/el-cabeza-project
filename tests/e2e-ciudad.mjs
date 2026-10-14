@@ -20,6 +20,15 @@
      farthest from the pieces, the other crane still standing; a park to a
      free block a square clear of them, its trees with it; as many lots as
      before, grown up on their new blocks.
+   - The move markers by the hour (user: "Do the yellow & black
+     construction tape with the orange cones ... Night can have it's
+     normal move markers... Only day time needs the construction tape"):
+     a piece picked up by day, its moves taped off with cones at their
+     corners; at 10 PM the parking bays.
+   - The night's lights fainter the farther off (user: "City lights at
+     night should be dimmer the farther from the user's perspective they
+     are"): the windows', the lamps' and the cars' shaders fade with the
+     distance, from the camera's own distance out.
    - The traffic and the people there.
    - Nothing thrown.
 
@@ -108,6 +117,38 @@ console.log("The time switch");
   check("Afternoon: the night gone again", !!back);
   await page.keyboard.press("Escape");
   check("the lamps out", await T(() => !window.__EC_TEST_THREE__().scene.getObjectByName("ciudad-lamp-heads").visible));
+}
+
+console.log("The night's lights, fainter the farther off");
+{
+  const far = await T(() => {
+    const t = window.__EC_TEST_THREE__(), keys = (t.renderer.info.programs || []).map((p) => p.cacheKey || "").join(" ");
+    return { viewR: window.__CIUDAD__.viewR(), cam: t.camera.position.length(), glow: /\|far-e/.test(keys), alpha: /\|far-a/.test(keys) };
+  });
+  check("the fade starts at the camera's own distance from the board", Math.abs(far.viewR - far.cam) < 0.5, JSON.stringify(far));
+  check("...the windows and the lamps' pools fade with it (their shaders)", far.glow, JSON.stringify(far));
+  check("...the lamp heads and the cars' lamps too", far.alpha, JSON.stringify(far));
+}
+
+console.log("The move markers by the hour");
+{
+  const shown = () => T(() => { const s = window.__EC_TEST_THREE__().scene, v = (n) => { let on = false; s.traverse((o) => { if (o.name === n) { let p = o, vis = true; while (p) { vis = vis && p.visible; p = p.parent; } on = on || vis; } }); return on; }; return { day: v("ciudad-marker-day"), night: v("ciudad-marker-night") }; });
+  let picked = null;
+  for (const id of ["light-turrito", "dark-turrito", "light-flaco", "dark-flaco"]) {
+    const pos = await T((who) => window.__EC_TEST_SCREEN_POS__(who), id);
+    if (!pos) continue;
+    await page.mouse.click(pos.x, pos.y);
+    picked = await poll(async () => { const s = await shown(); return s.day || s.night ? s : null; }, 3000);
+    if (picked) break;
+  }
+  check("by day, a piece picked up: its moves taped off with cones, not the bays", !!picked && picked.day && !picked.night, JSON.stringify(picked));
+  await T(() => window.__CIUDAD_TIME__.set("night", true));
+  const n = await poll(async () => { const s = await shown(); return s.night && !s.day ? s : null; }, 4000);
+  check("...at 10 PM, the parking bays", !!n, JSON.stringify(await shown()));
+  await T(() => window.__CIUDAD_TIME__.set("afternoon", true));
+  const d = await poll(async () => { const s = await shown(); return s.day && !s.night ? s : null; }, 4000);
+  check("...by day again, the tape and cones", !!d, JSON.stringify(await shown()));
+  await page.keyboard.press("Escape");
 }
 
 console.log("The free blocks");
