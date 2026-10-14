@@ -330,8 +330,8 @@ function saveCheckAlert(on) {
 }
 /* A move's sounds, the world's (its audio's playRollStart as the piece
    sets off, playLanding as it comes down), every move, the Cabeza's too.
-   Where the pieces are wood (theme.woodPieces: the den, the store,
-   Parrish) a slide tips nothing and nothing comes down: the Cabeza's
+   Where the pieces are wood (theme.woodPieces: the den, the store) a
+   slide tips nothing and nothing comes down: the Cabeza's
    moves, which only ever slide (user: "Cabeza pieces should not have a
    tap or falling tone, as they are only slid ... the cabeza piece should
    not make a rolling tap noise when it moves"), and any piece's slide
@@ -340,7 +340,8 @@ function saveCheckAlert(on) {
    then they're silent), never a roll's start or a landing's knock. Only
    there (user: "I do not want all worlds to have the exact same piece
    noises, only the ones that use the wooden pieces"): every other world
-   keeps its own start and landing for every move. Tests that set
+   keeps its own start and landing for every move, Parrish too (user:
+   "Parrish should keep its own sounds"). Tests that set
    window.__EC_TEST_MOVE_SOUNDS__ = [] see each one asked for. */
 const slidesOnly = (piece) => !!piece && !!PIECE_META[piece.type] && PIECE_META[piece.type].shape === "disc";
 const slides = (piece, dir) => slidesOnly(piece) || (!!dir && isSlideKey(dir));
