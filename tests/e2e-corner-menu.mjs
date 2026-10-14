@@ -166,15 +166,32 @@ for (const world of WORLDS) {
   // (A tap at the button's middle, straight away: Playwright's own tap()
   // waits on a heavy page for seconds, longer than a raise lasts.)
   const tapAt = async (sel) => { const b = await page.locator(sel).boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };
+  // The tap after the raise opens it. On a loaded machine (CI run 66: the
+  // City by touch, the clock) a tap can land late, after the raise has
+  // lapsed (RAISE_MS 5 s), and is a first tap again, so it only raises:
+  // then once more, as a hand would. A tap on a raised button that
+  // doesn't open it, three times over, is the failure this guards.
+  const tapOpens = async (sel, state, since) => {
+    for (let i = 1; i <= 3; i++) {
+      await tapAt(sel);
+      const opened = await poll(async () => { const v = await state(); return v && v.open === "true" ? v : null; }, 4000);
+      if (opened) return { taps: i, ms: Date.now() - since };
+      const v = await state();
+      if (!(v && v.raised === "true" && v.open === "false")) return { taps: 0, ms: Date.now() - since, state: v };
+      await page.waitForTimeout(400);
+    }
+    return { taps: 0, ms: Date.now() - since };
+  };
   const cm = () => page.evaluate(() => { const m = document.querySelector('[data-testid="corner-menu"]'); const t = m && m.querySelector('[data-testid="corner-menu-tab"]'); return m && { open: m.dataset.open, raised: m.dataset.raised, opacity: Number(getComputedStyle(t).opacity) }; });
   check(`the Rules tab dimmed (${(await cm()).opacity})`, !!(await poll(async () => Math.abs((await cm()).opacity - 0.6) < 0.02, 5000)));
   await tapAt('[data-testid="corner-menu-tab"]');
+  const tabTap = Date.now();
   let st = await poll(async () => { const v = await cm(); return v.raised === "true" && Math.abs(v.opacity - 1) < 0.02 ? v : null; }, 5000);
   check(`...a first tap raises it to full, the card not open (${JSON.stringify(st || await cm())})`, !!st && st.open === "false");
   await page.waitForTimeout(800);
-  await tapAt('[data-testid="corner-menu-tab"]');
-  st = await poll(async () => { const v = await cm(); return v && v.open === "true" ? v : null; }, 3000);
-  check("...a second tap opens it", !!st);
+  const tabOpened = await tapOpens('[data-testid="corner-menu-tab"]', cm, tabTap);
+  check(`...a second tap opens it (${tabOpened.taps} tap(s), ${tabOpened.ms} ms after the first)`, tabOpened.taps > 0, JSON.stringify(tabOpened.state || null));
+  st = await cm();
   await page.keyboard.press("Escape");
   st = await poll(async () => { const v = await cm(); return v && v.open === "false" ? v : null; }, 3000);
   check("...closed again, it's down again", !!st && st.raised === "false", JSON.stringify(st));
@@ -188,11 +205,12 @@ for (const world of WORLDS) {
   const c0 = await poll(async () => { const v = await ck(); return v && Math.abs(v.opacity - 0.6) < 0.02 ? v : null; }, 5000);
   check(`the City's clock dimmed till it's wanted (${JSON.stringify(c0 || await ck())})`, !!c0);
   await tapAt('[data-testid="ciudad-time-chip"]');
+  const chipTap = Date.now();
   const c1 = await poll(async () => { const v = await ck(); return v.raised === "true" && Math.abs(v.opacity - 1) < 0.02 ? v : null; }, 5000);
   check(`...a first tap raises it to full, the dial not open (${JSON.stringify(c1 || await ck())})`, !!c1 && c1.open === "false");
   await page.waitForTimeout(800);
-  await tapAt('[data-testid="ciudad-time-chip"]');
-  check("...a second tap opens the dial", !!(await poll(async () => (await ck()).open === "true", 3000)));
+  const dialOpened = await tapOpens('[data-testid="ciudad-time-chip"]', ck, chipTap);
+  check(`...a second tap opens the dial (${dialOpened.taps} tap(s), ${dialOpened.ms} ms after the first)`, dialOpened.taps > 0, JSON.stringify(dialOpened.state || null));
   await page.keyboard.press("Escape");
   check("...closed again, it's down again", !!(await poll(async () => { const v = await ck(); return v.open === "false" && v.raised === "false"; }, 3000)));
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
