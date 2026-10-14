@@ -309,6 +309,27 @@ undefined` crash from `weightGroup`/`fxGroup` being added to the scene
 but never assigned back onto the shared `three.current` object the
 builder functions expected to find them on.
 
+## Online play, saves, and Nova in pieces (2026-10)
+
+- `server/relay.js` is the game's one server: a WebSocket relay for two
+  players (rooms by code; each settled turn's piece-tagged steps relayed
+  and kept, so a dropped line resumes) and an HTTP store for saves (a
+  code per save). Its address is `chassis/online-config.js` RELAY_URL, a
+  placeholder until deployed; `?relay=` or localStorage overrides it.
+- `chassis/online.js` (the relay client, the join link, the tab's
+  session) and the chassis's `online` state: the other player's side is
+  gated as the computer's (`foeSide`), their turns are played through
+  the same plan path as the AI's (`aiDirsRef`), yours go down the line
+  from `endTurn` and the crush/goal branches.
+- `chassis/saves.js`: everything in localStorage under the game's
+  prefixes as one record; a file, or a code on the server; `?restore=`.
+- Nova's page is built as an ES module with code splitting (`split` in
+  build.js): the story and the chassis in one file, each world Nova
+  holds beyond its own three (`apps/unified.jsx` LAZY: The City so far)
+  in a chunk fetched when picked. Every other page is still a single
+  self-contained file. Tests open file:// pages, so every Playwright
+  launch passes `--allow-file-access-from-files`.
+
 ## Open decisions — resolved
 
 The two decisions flagged in the original sketch are both implemented:

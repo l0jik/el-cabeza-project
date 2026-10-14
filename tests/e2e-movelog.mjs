@@ -5,7 +5,7 @@
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 const context = await browser.newContext({ viewport: { width: 900, height: 900 } });
 await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 const page = await context.newPage();

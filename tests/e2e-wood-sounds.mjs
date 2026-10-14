@@ -21,7 +21,7 @@ check("a big piece on end is a little lower than a cube", landingSize(3, 1) > 1 
 check("contactArea: a box's footprint", contactArea({ w: 1, h: 3, z: 1 }) === 3 && contactArea({ w: 1, h: 1, z: 3 }) === 1);
 check("contactArea: an odd shape's bottom cubes", contactArea({ vox: "0,0,0;1,0,0;0,0,1", w: 2, h: 1, z: 2 }) === 2);
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--autoplay-policy=no-user-gesture-required"] });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--autoplay-policy=no-user-gesture-required"] });
 async function run(theme) {
   console.log(theme);
   const page = await browser.newPage({ viewport: { width: 1000, height: 820 } });

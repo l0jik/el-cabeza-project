@@ -46,7 +46,7 @@ const CASES = [
   { theme: "neon", rows: 20, cols: 20, label: "maximum" },
 ];
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 let failures = 0;
 
 for (const { theme, rows, cols, label } of CASES) {

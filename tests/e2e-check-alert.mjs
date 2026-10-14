@@ -252,7 +252,7 @@ console.log("\nThe den on a phone, the bar layout: the setup's field and the men
   const seed = { "el-cabeza:story": JSON.stringify({ owned: true }), "el-cabeza:singularity-seen": "1", "el-cabeza:commercial-aired": "1", "el-cabeza:special-order-noted": "1", "el-cabeza:nova-layout": "bar" };
   const { ctx, page, errs } = await open(`${D}/el-cabeza-nova.html`, { phone: true, seed });
   check("no Check alert field while the opponent's a person", (await page.locator('[data-testid="shell-check-alert"]').count()) === 0);
-  await page.locator('[data-testid="shell-opponent"] button[data-value="true"]').click();
+  await page.locator('[data-testid="shell-opponent"] button[data-value="ai"]').click();
   await page.waitForTimeout(300);
   await page.locator('[data-testid="shell-ai-side"] button[data-value="light"]').click();
   await page.waitForTimeout(300);

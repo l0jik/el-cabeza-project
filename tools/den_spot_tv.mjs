@@ -45,7 +45,7 @@ const server = http.createServer((req, res) => {
 const port = server.address().port;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "den-spot-tv-"));
 
-const browser = await chromium.launch({ executablePath: process.env.EC_CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"] });
+const browser = await chromium.launch({ executablePath: process.env.EC_CHROME || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"] });
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 960 }, deviceScaleFactor: 1 })).newPage();
 const errs = [];
 page.on("pageerror", (e) => errs.push(e.message));

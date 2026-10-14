@@ -6,7 +6,7 @@ import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
 const rows = 16, cols = 7;
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
 const errs = [];
 page.on("pageerror", (e) => errs.push(e.message));

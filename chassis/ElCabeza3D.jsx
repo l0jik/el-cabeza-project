@@ -51,7 +51,11 @@ import { quality, createGovernor } from "./device-fit.js";
 import { createShadowWatch } from "./shadow-watch.js";
 import { fpsWanted, createFpsReadout } from "./fps-readout.js";
 import { collectSave, applySave, downloadSave, readSaveFile, cloudSave, cloudFetch, cloudRecord, restoreLink, restoreFromLink, takeRestoreNote, normalizeCode } from "./saves.js";
-import { relayReady } from "./online-config.js";
+import { relayReady, relayUrl } from "./online-config.js";
+import { createRelayClient, takeJoinParam, joinLink, keepOnlineSession, savedOnlineSession, otherSide } from "./online.js";
+// ?join=CODE (the link a host copies, chassis/online.js): the code, read
+// once off the address, taken by the first chassis to mount.
+let JOIN_PARAM = typeof window !== "undefined" ? takeJoinParam() : null;
 // A link with ?restore=CODE (chassis/saves.js): the save fetched and put
 // in place, and the page reloaded on it, before anything else is kept.
 if (typeof window !== "undefined") restoreFromLink();
@@ -581,6 +585,129 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      color chip" instead, echoing the small circular dots already used for
      exactly that purpose in the status bar and the move record's Dark/
      Light column headers — the same visual idea reused, not a new one. */
+  /* The dock's online panel (chassis/online.js): a menu (host or join), the
+     host's code and link while they wait, the guest's code to type, and
+     where the game stands once it's on. */
+  function renderOnlinePanel() {
+    const o = online;
+    const label = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.slate };
+    const line = { fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12.5, lineHeight: 1.45, color: COLORS.slate, margin: 0 };
+    const btn = (primary) => ({
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase",
+      color: primary ? COLORS.cream : COLORS.charcoal, background: primary ? COLORS.charcoal : "transparent",
+      border: `1.5px solid ${COLORS.charcoal}`, padding: "8px 11px", cursor: "pointer", flex: "1 1 0", minWidth: 0, whiteSpace: "nowrap",
+    });
+    const link = o && o.code ? joinLink(o.code) : "";
+    const copy = (text, what) => {
+      try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => setOnline((x) => (x ? { ...x, copied: what } : x)), () => {}); } catch (e) { /* no clipboard */ }
+    };
+    const back = () => { setOnlineView(null); setShowOpponentPicker(true); };
+    const ready = relayReady();
+    const row = (children) => <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>{children}</div>;
+    let body;
+    if (onlineView === "menu" || !o) {
+      body = (
+        <>
+          {!ready && (
+            <p data-testid="online-not-ready" style={line}>
+              The online server isn’t set up yet: its address is a placeholder until it’s deployed (server/README.md).
+            </p>
+          )}
+          {row(<>
+            <button type="button" className="ec-btn" data-testid="online-host" disabled={!ready} onClick={hostOnline} style={{ ...btn(true), opacity: ready ? 1 : 0.45 }}>Host a game</button>
+            <button type="button" className="ec-btn" data-testid="online-join-view" disabled={!ready} onClick={() => setOnlineView("join")} style={{ ...btn(false), opacity: ready ? 1 : 0.45 }}>Join with a code</button>
+          </>)}
+          <button type="button" className="ec-btn" data-testid="online-back" onClick={back} style={{ ...dockLinkStyle(), alignSelf: "flex-start" }}>Back</button>
+        </>
+      );
+    } else if (o.status === "error") {
+      body = (
+        <>
+          <p data-testid="online-error" style={{ ...line, color: "#b3261e" }}>{o.error}</p>
+          {row(<>
+            <button type="button" className="ec-btn" data-testid="online-again" onClick={() => { leaveOnline(); setOnlineView("menu"); setShowOpponentPicker(false); }} style={btn(false)}>Back</button>
+          </>)}
+        </>
+      );
+    } else if (o.role === "host") {
+      body = (
+        <>
+          {o.status === "connecting" ? (
+            <p data-testid="online-status" style={line}>Connecting to the server…</p>
+          ) : (
+            <>
+              <div data-testid="online-code-row" style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <span style={label}>Game code</span>
+                <span data-testid="online-code" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 18, letterSpacing: "0.18em", color: COLORS.charcoal }}>{o.code}</span>
+              </div>
+              {row(<>
+                <button type="button" className="ec-btn" data-testid="online-copy-link" onClick={() => copy(link, "link")} style={btn(false)}>{o.copied === "link" ? "Link copied" : "Copy a link"}</button>
+                <button type="button" className="ec-btn" data-testid="online-copy-code" onClick={() => copy(o.code, "code")} style={btn(false)}>{o.copied === "code" ? "Code copied" : "Copy the code"}</button>
+              </>)}
+              <p data-testid="online-status" style={line}>
+                {o.status === "gone" ? "The other player left." : o.status === "playing" ? "In play." : o.peer ? "The other player is here: Begin Game when ready." : "Waiting for the other player…"}
+                {" "}You play {sideName(o.mySide)}, first; they play {sideName(o.theirSide)}.
+                {awaitingBegin && o.status !== "gone" && (
+                  <>
+                    {" "}
+                    <button type="button" className="ec-btn" data-testid="online-swap" onClick={toggleStartingPlayer} style={{ ...dockLinkStyle(), padding: "0 2px", fontSize: 10 }}>Swap sides</button>
+                  </>
+                )}
+              </p>
+            </>
+          )}
+          {o.link === "down" && o.status !== "connecting" && <p data-testid="online-link" style={{ ...line, color: "#b3261e" }}>Your connection dropped; trying again…</p>}
+          <button type="button" className="ec-btn" data-testid="online-leave" onClick={leaveOnline} style={{ ...dockLinkStyle(), alignSelf: "flex-start" }}>Leave</button>
+        </>
+      );
+    } else {
+      // the guest
+      const joined = o.status === "waiting" || o.status === "playing" || o.status === "gone";
+      body = joined ? (
+        <>
+          <p data-testid="online-status" style={line}>
+            {o.status === "gone" ? "The other player left." : o.status === "playing" ? `In play with ${o.code}.` : `Joined ${o.code}. Waiting for the host to begin…`}
+            {" "}You play {sideName(o.mySide)}; they play {sideName(o.theirSide)}{o.status === "waiting" ? ", first" : ""}.
+          </p>
+          {o.link === "down" && <p data-testid="online-link" style={{ ...line, color: "#b3261e" }}>Your connection dropped; trying again…</p>}
+          <button type="button" className="ec-btn" data-testid="online-leave" onClick={leaveOnline} style={{ ...dockLinkStyle(), alignSelf: "flex-start" }}>Leave</button>
+        </>
+      ) : o.status === "connecting" ? (
+        <p data-testid="online-status" style={line}>Joining {o.code}…</p>
+      ) : null;
+    }
+    // (the join view before any code's been sent)
+    if (onlineView === "join" && (!o || (o.role === "guest" && o.status !== "connecting" && o.status !== "waiting" && o.status !== "playing" && o.status !== "gone"))) {
+      body = (
+        <>
+          {o && o.status === "error" && <p data-testid="online-error" style={{ ...line, color: "#b3261e" }}>{o.error}</p>}
+          {row(<>
+            <input
+              data-testid="online-code-input"
+              value={joinCodeText}
+              onChange={(e) => setJoinCodeText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") joinOnline(joinCodeText); }}
+              placeholder="KQ7M3H"
+              spellCheck={false}
+              autoComplete="off"
+              autoCapitalize="characters"
+              aria-label="The game code to join"
+              style={{ flex: "1 1 0", minWidth: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, letterSpacing: "0.16em", textTransform: "uppercase", color: COLORS.charcoal, background: COLORS.slateFaint, border: `1px solid ${COLORS.slateSoft}`, borderRadius: 4, padding: "7px 10px", outlineColor: COLORS.charcoal }}
+            />
+            <button type="button" className="ec-btn" data-testid="online-join" onClick={() => joinOnline(joinCodeText)} style={{ ...btn(true), flex: "0 0 auto" }}>Join</button>
+          </>)}
+          <button type="button" className="ec-btn" data-testid="online-back" onClick={() => { if (o) leaveOnline(); setOnlineView("menu"); setShowOpponentPicker(false); }} style={{ ...dockLinkStyle(), alignSelf: "flex-start" }}>Back</button>
+        </>
+      );
+    }
+    return (
+      <div data-testid="online-panel" style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", minWidth: 0 }}>
+        <span style={label}>Online</span>
+        {body}
+      </div>
+    );
+  }
+
   function aiSideButtonStyle(side) {
     const isDark = side === "dark";
     return {
@@ -958,6 +1085,28 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const [busy, setBusy] = useState(false);
   /* null = two-player. "dark"/"light" = that color is AI-controlled. */
   const [aiPlayer, setAiPlayer] = useState(() => carried("aiPlayer", savedOpponent.aiPlayer));
+  /* Online play (chassis/online.js, server/relay.js; user: "implement
+     online play against another person"): the other player at the far end
+     of the relay. `online`: null, or { role: "host" | "guest", code,
+     mySide, theirSide, status: "connecting" | "waiting" | "playing" |
+     "gone" | "error", peer (the other player's on the line), link ("up" |
+     "down": this side's own line), error, game (the host's setup) }. Their
+     turns arrive as piece-tagged steps and are played here as the
+     computer's plan is (the AI turn effect); yours go down the line as
+     they settle (endTurn). */
+  const [online, setOnline] = useState(null);
+  const onlineRef = useRef(null);
+  onlineRef.current = online;
+  const onlineClientRef = useRef(null);
+  const onlineQueueRef = useRef([]); // turns to play here, in order: { n, steps, side }
+  const onlineTurnRef = useRef(0); // turns on the board so far, either side's (the relay's n)
+  const onlineDrivenRef = useRef(false); // the turn being played came down the line
+  const onlineHandlerRef = useRef(null);
+  const [onlineTick, setOnlineTick] = useState(0);
+  const [onlineView, setOnlineView] = useState(null); // the dock's online panel: "menu" | "host" | "join"
+  const [joinCodeText, setJoinCodeText] = useState("");
+  // The side that isn't yours to move: the computer's, or the other player's.
+  const foeSide = aiPlayer || (online && online.theirSide) || null;
   /* Which of the opponent row's two sub-views is showing — decoupled
      from aiPlayer itself so the Back control can return to the
      Human/AI-side picker WITHOUT resetting the actual selection. Picking
@@ -1083,7 +1232,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   useEffect(() => {
     if (gameArmed && gateCfg && gateCfg.world && storyOver()) saveLastWorld(gateCfg.world);
   }, [gameArmed, gateCfg && gateCfg.world]);
-  const [gate, setGate] = useState(() => (gateCfg && !gateCfg.deferred && !gameArmed && storyOver() && (!gateCfg.when || gateCfg.when()) ? { stage: "choose", n: 0 } : null));
+  const [gate, setGate] = useState(() => (gateCfg && !gateCfg.deferred && !gameArmed && storyOver() && (!gateCfg.when || gateCfg.when()) && !JOIN_PARAM && !savedOnlineSession() ? { stage: "choose", n: 0 } : null));
   useEffect(() => {
     if (!gateCfg) return undefined;
     const on = (e) => { if (storyOver()) setGate({ stage: (e.detail && e.detail.stage) || "choose", sel: (e.detail && e.detail.sel) || null, n: Date.now() }); };
@@ -2880,7 +3029,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      (engine cabezaThreats), from the board as it stands, so it comes and
      goes as you move: a step out of reach clears it, a step into reach
      brings it up. [{ attacker, cabeza }] or null. */
-  const youSide = aiPlayer ? (aiPlayer === "dark" ? "light" : "dark") : null;
+  const youSide = aiPlayer ? (aiPlayer === "dark" ? "light" : "dark") : online && online.mySide ? online.mySide : null;
   const checkThreats = React.useMemo(() => {
     // (Not while a replay plays: nobody's playing for real.)
     if (!checkAlert || !youSide || awaitingBegin || !isPlaying || winner || currentPlayer !== youSide || replaying) return null;
@@ -3231,8 +3380,219 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }, [showVictoryPlacard, showNewGameChoice]);
 
   function selectOpponent(value) {
+    // (Human or the computer picked while online: the line's left.)
+    if (onlineRef.current) leaveOnline();
     setAiPlayer(value);
     setGameArmed(false); // switching opponent type always re-requires Begin Game, Human included
+  }
+
+  /* ---- Online play (chassis/online.js, server/relay.js) ----
+     The host opens a room on the relay and gets a six-letter code; the
+     other player joins with it, or with the link that carries it
+     (?join=CODE). The host's setup (rules, board, holes, missing squares,
+     the pieces as set out, who opens; the host plays the opening side)
+     goes over at Begin, and the other player's board begins on it. Each
+     side's finished turn goes down the line as its piece-tagged steps,
+     numbered; the relay keeps them, so a line that drops is resumed from
+     where it was (and a reload, or Nova's change of world, picks the game
+     up again: the session's kept in sessionStorage). Nobody judges a
+     move but the same rules on both boards. */
+  function onlineSetupPacket() {
+    const b = getBoardDimensions();
+    return {
+      board: { rows: b.rows, cols: b.cols },
+      laws: { ...ACTIVE_LAWS },
+      holes: JSON.parse(JSON.stringify(BLACK_HOLES)),
+      missing: JSON.parse(JSON.stringify(MISSING_SQUARES)),
+      pieces: pieces.map((p) => ({ ...p })),
+      opener: humanStartSide,
+      hostSide: humanStartSide,
+    };
+  }
+  function onlineSend(msg) { const c = onlineClientRef.current; return !!(c && c.send(msg)); }
+  function sendOnlineTurn(steps) {
+    onlineTurnRef.current += 1;
+    onlineSend({ t: "turn", n: onlineTurnRef.current, steps: steps.map((st) => ({ pieceId: st.pieceId, dir: st.dir })) });
+  }
+  // A turn that ends the game (a crush, the goal) is recorded without
+  // endTurn: the same send, from there, if it's yours and not one played
+  // from the line.
+  function sendOnlineTurnIfMine(steps) {
+    const driven = onlineDrivenRef.current;
+    onlineDrivenRef.current = false;
+    const o = onlineRef.current;
+    if (o && !driven && currentPlayer === o.mySide) sendOnlineTurn(steps);
+  }
+  // The host's setup put in place here (the engine's module state and the
+  // chassis's own): a guest's board, before and at Begin.
+  function applyOnlineSetup(g) {
+    if (!g || typeof g !== "object") return;
+    if (g.board && g.board.rows && g.board.cols) applyBoardResize(g.board.rows, g.board.cols);
+    if (g.laws && typeof g.laws === "object") setActiveLaws({ ...VANILLA_LAWS, ...g.laws });
+    if (Array.isArray(g.holes)) { setActiveBlackHoles(g.holes); setBlackHoles(g.holes); }
+    if (Array.isArray(g.missing)) { setActiveMissingSquares(g.missing); setMissingSquares(g.missing); }
+    if (Array.isArray(g.pieces) && g.pieces.length) setPieces(g.pieces.map((p) => ({ ...p })));
+    if (g.opener === "dark" || g.opener === "light") { setCurrentPlayer(g.opener); setHumanStartSide(g.opener); }
+  }
+  // Turns from the relay, queued for the AI turn effect to play (each
+  // numbered on from the last one here; a repeat is dropped).
+  function queueOnlineTurns(list, sideOf) {
+    let added = 0;
+    (list || []).forEach((rec) => {
+      if (!rec || rec.n !== onlineTurnRef.current + 1 || !Array.isArray(rec.steps) || !rec.steps.length) return;
+      onlineTurnRef.current = rec.n;
+      onlineQueueRef.current.push({ n: rec.n, steps: rec.steps, side: sideOf(rec) });
+      added++;
+    });
+    if (added) setOnlineTick((t) => t + 1);
+  }
+  const onlineSideOf = (by, g, o) => {
+    const hostSide = (g && g.hostSide) || (o && (o.role === "host" ? o.mySide : o.theirSide)) || "dark";
+    return by === "host" ? hostSide : otherSide(hostSide);
+  };
+  // The host's Begin, arrived: this board set up as the host's and begun
+  // (a finished game here is cleared first).
+  function onlineBegin(g) {
+    if (!awaitingBeginRef.current || statusRef.current !== "playing") resetGame(false);
+    applyOnlineSetup(g);
+    onlineQueueRef.current = [];
+    onlineTurnRef.current = 0;
+    onlineDrivenRef.current = false;
+    setOnline((o) => (o ? { ...o, status: "playing", game: g || o.game } : o));
+    setTimeout(() => { if (triggerBeginGameRef.current) triggerBeginGameRef.current(); }, 80);
+  }
+  function onOnlineMessage(m) {
+    const o = onlineRef.current;
+    switch (m.t) {
+      case "hosted": {
+        const st = { role: "host", code: m.code, mySide: humanStartSide, theirSide: otherSide(humanStartSide), status: "waiting", peer: false, link: "up", error: "" };
+        setOnline(st);
+        keepOnlineSession({ code: st.code, role: "host", mySide: st.mySide, theirSide: st.theirSide });
+        break;
+      }
+      case "joined":
+      case "resumed": {
+        const g = m.game || null;
+        const role = m.role || (o && o.role) || "guest";
+        const hostSide = (g && g.hostSide) || (o && (role === "host" ? o.mySide : o.theirSide)) || "dark";
+        const mySide = role === "host" ? hostSide : otherSide(hostSide);
+        const st = { role, code: m.code, mySide, theirSide: otherSide(mySide), status: m.begun ? "playing" : "waiting", peer: !!m.peer, link: "up", error: "", game: g };
+        setOnline(st);
+        keepOnlineSession({ code: st.code, role, mySide, theirSide: st.theirSide });
+        if (role === "guest") { setGate(null); setShowOpponentPicker(false); setOnlineView("join"); }
+        else { setShowOpponentPicker(false); setOnlineView("host"); }
+        if (role === "guest" && !m.begun) applyOnlineSetup(g);
+        if (m.begun && awaitingBeginRef.current) onlineBegin(g);
+        if (m.begun) queueOnlineTurns(m.turns, (rec) => onlineSideOf(rec.by, g, st));
+        break;
+      }
+      case "setup": {
+        if (!o || o.role !== "guest" || !awaitingBeginRef.current) break;
+        const g = m.game || null;
+        applyOnlineSetup(g);
+        const hostSide = (g && g.hostSide) || o.theirSide;
+        setOnline((x) => (x ? { ...x, game: g, mySide: otherSide(hostSide), theirSide: hostSide } : x));
+        break;
+      }
+      case "begin": if (o && o.role === "guest") onlineBegin(m.game || null); break;
+      case "turn": if (o) queueOnlineTurns([{ n: m.n, steps: m.steps }], () => o.theirSide); break;
+      case "peer": {
+        setOnline((x) => (x ? { ...x, peer: !!m.present, status: m.left ? "gone" : x.status } : x));
+        // The other player left mid-game: the game ends here, as End game does.
+        if (m.left) { keepOnlineSession(null); if (!awaitingBeginRef.current && statusRef.current === "playing") handleEndActiveGame(); }
+        break;
+      }
+      case "error": {
+        if (m.code === "turn-order") { onlineSend({ t: "resume", code: o && o.code, role: o && o.role, since: onlineTurnRef.current }); break; }
+        setOnline((x) => ({ ...(x || { role: "guest" }), status: "error", error: m.message || "Something went wrong." }));
+        if (m.code === "no-room" || m.code === "taken" || m.code === "full") {
+          const c = onlineClientRef.current; if (c) c.close(); onlineClientRef.current = null;
+          keepOnlineSession(null);
+        }
+        break;
+      }
+      default: break;
+    }
+  }
+  onlineHandlerRef.current = onOnlineMessage;
+  function onlineConnect(first) {
+    const url = relayUrl();
+    if (!url) { setOnline((x) => ({ ...(x || { role: "guest" }), status: "error", error: "The online server isn\u2019t set up yet." })); return; }
+    if (onlineClientRef.current) onlineClientRef.current.close();
+    const client = createRelayClient(url, {
+      onOpen: (again) => {
+        setOnline((x) => (x ? { ...x, link: "up" } : x));
+        if (!again) { first(client); return; }
+        const cur = onlineRef.current;
+        if (cur && cur.code) client.send({ t: "resume", code: cur.code, role: cur.role, since: onlineTurnRef.current });
+      },
+      onMessage: (msg) => { if (onlineHandlerRef.current) onlineHandlerRef.current(msg); },
+      onClose: () => setOnline((x) => (x ? { ...x, link: "down" } : x)),
+    });
+    onlineClientRef.current = client;
+  }
+  function hostOnline() {
+    if (aiPlayer !== null) { setAiPlayer(null); setGameArmed(false); }
+    setOnline({ role: "host", code: "", mySide: humanStartSide, theirSide: otherSide(humanStartSide), status: "connecting", peer: false, link: "down", error: "" });
+    setOnlineView("host");
+    setShowOpponentPicker(false);
+    onlineConnect((c) => c.send({ t: "host", game: onlineSetupPacket() }));
+  }
+  function joinOnline(raw) {
+    const code = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    setOnlineView("join");
+    setShowOpponentPicker(false);
+    if (code.length !== 6) { setOnline((x) => ({ ...(x || { role: "guest" }), status: "error", error: "A game code is six letters, like KQ7M3H." })); return; }
+    if (aiPlayer !== null) { setAiPlayer(null); setGameArmed(false); }
+    setOnline({ role: "guest", code, mySide: "light", theirSide: "dark", status: "connecting", peer: false, link: "down", error: "" });
+    onlineConnect((c) => c.send({ t: "join", code }));
+  }
+  // The game this tab was in (a reload, a change of world): picked up again.
+  function resumeOnline(saved) {
+    setOnline({ ...saved, status: "connecting", peer: false, link: "down", error: "" });
+    setShowOpponentPicker(false);
+    setOnlineView(saved.role === "host" ? "host" : "join");
+    onlineConnect((c) => c.send({ t: "resume", code: saved.code, role: saved.role, since: 0 }));
+  }
+  function leaveOnline() {
+    const c = onlineClientRef.current;
+    if (c) { c.send({ t: "leave" }); c.close(); }
+    onlineClientRef.current = null;
+    onlineQueueRef.current = [];
+    onlineTurnRef.current = 0;
+    onlineDrivenRef.current = false;
+    keepOnlineSession(null);
+    setOnline(null);
+    setOnlineView(null);
+    setJoinCodeText("");
+    if (awaitingBeginRef.current) setShowOpponentPicker(true);
+  }
+  // Hosting, the opening side swapped (the status pill, the Human button):
+  // you play it, the other player the other; they're told.
+  useEffect(() => {
+    const o = onlineRef.current;
+    if (!o || o.role !== "host" || !awaitingBegin) return;
+    if (o.mySide !== humanStartSide) {
+      setOnline({ ...o, mySide: humanStartSide, theirSide: otherSide(humanStartSide) });
+      keepOnlineSession({ code: o.code, role: "host", mySide: humanStartSide, theirSide: otherSide(humanStartSide) });
+    }
+    onlineSend({ t: "setup", game: onlineSetupPacket() });
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [humanStartSide]);
+  // A link with a code, or the game this tab was in: joined, or resumed, at mount.
+  useEffect(() => {
+    const code = JOIN_PARAM;
+    JOIN_PARAM = null;
+    if (code) { joinOnline(code); return; }
+    const saved = savedOnlineSession();
+    if (saved) resumeOnline(saved);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, []);
+  // (This chassis unmounting, as Nova changes world: the line's closed; the
+  // next one resumes the game from the session kept.)
+  useEffect(() => () => { const c = onlineClientRef.current; if (c) c.close(); onlineClientRef.current = null; }, []);
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) {
+    window.__EC_TEST_ONLINE__ = () => (online ? { ...online, queued: onlineQueueRef.current.length, turns: onlineTurnRef.current, link: onlineClientRef.current ? onlineClientRef.current.state() : "none" } : null);
   }
 
   /* The real Begin Game action, hoisted out of the button below so a
@@ -3270,6 +3630,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const triggerBeginGameRef = useRef(null);
   triggerBeginGameRef.current = triggerBeginGame;
   function triggerBeginGame() {
+    // Online: the host's Begin sends the game as it stands (rules, board,
+    // holes, pieces as set out, who opens); the other player's board
+    // begins on it.
+    const o = onlineRef.current;
+    if (o && o.role === "host") {
+      onlineQueueRef.current = [];
+      onlineTurnRef.current = 0;
+      onlineDrivenRef.current = false;
+      onlineSend({ t: "begin", game: onlineSetupPacket() });
+      setOnline({ ...o, status: "playing" });
+    }
     audioRef.current.beginGameFadeIn();
     audioRef.current.playPowerOn();
     ambientRef.current && ambientRef.current.armOnBegin();
@@ -3323,6 +3694,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // just set up is the board (its setPieces comes in the same moment).
   const [setOutPending, setSetOutPending] = useState(false);
   function beginOrSetOut() {
+    if (onlineRef.current && onlineRef.current.role === "guest") return; // (the host begins)
     if (startByHand && awaitingBegin && !setOutRef.current) setSetOutPending(true);
     else triggerBeginGame();
   }
@@ -3969,7 +4341,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      away, until another piece is picked or the turn moves on. */
   const [pieceCardDismissed, setPieceCardDismissed] = useState(false);
   useEffect(() => { setPieceCardDismissed(false); }, [selectedId, currentPlayer]);
-  const pieceCardShown = showGuide && isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && !replaying && dockView !== "panel" && !pieceCardDismissed;
+  const pieceCardShown = showGuide && isPlaying && !!selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== foeSide && !replaying && dockView !== "panel" && !pieceCardDismissed;
   /* The card sits above whatever corner buttons a theme stacks at the
      lower left (the den's lamp, room view and full screen; user: the card
      lay over them), measured as it shows and on a resize. */
@@ -4005,7 +4377,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     !busy &&
     activePiece &&
     activePiece.owner === currentPlayer &&
-    currentPlayer !== aiPlayer && // the AI moves without narrating its options on the board
+    currentPlayer !== foeSide && // the AI moves without narrating its options on the board
     !replaying && // (nor does a replay)
     stepsRemaining > 0
       ? legalMovesFor(pieces, activePiece, stepsRemaining)
@@ -4019,8 +4391,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const shadowEntries = Object.entries(shadows).filter(([, m]) => !m.isSlide);
   // (Stop here above the points row; see its button. Kept up through a
   // move's own animation, when the markers are briefly gone.)
-  const stopHereFloat = !shell && isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && (stepsRemaining > 0 || busy) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
-  const undoMoveFloat = !shell && isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
+  const stopHereFloat = !shell && isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && (stepsRemaining > 0 || busy) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
+  const undoMoveFloat = !shell && isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
   // (The piece card's place, measured below everything at the lower left.)
   useLayoutEffect(() => {
     if (!pieceCardShown || typeof document === "undefined") return undefined;
@@ -5870,7 +6242,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     const costLabel = (move) => {
       const cand = move.candidate;
       const nextBoard = pieces.map((p) => (p.id === cand.id ? cand : p));
-      const isFree = currentPlayer !== aiPlayer && !move.crushes && !move.shoves &&
+      const isFree = currentPlayer !== foeSide && !move.crushes && !move.shoves &&
         turnTrailRef.current.some((e) => sameBoard(e.board, nextBoard));
       return isFree ? "free" : String(moveCost(move));
     };
@@ -6053,6 +6425,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }, []);
 
   const endTurn = useCallback((nextLog, turnEntry) => {
+    // Online: your own turn, settled, goes down the line (one that came
+    // down it, or was replayed after a reconnect, doesn't go back).
+    const driven = onlineDrivenRef.current;
+    onlineDrivenRef.current = false;
+    if (turnEntry && onlineRef.current && !driven && turnEntry.currentPlayer === onlineRef.current.mySide) sendOnlineTurn(turnEntry.steps);
     if (turnEntry) setTurnHistory((prev) => [...prev, turnEntry]);
     setSelectedId(null);
     setHoveredId(null);
@@ -6182,6 +6559,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         audioRef.current.beginFadeOut(3);
         setPieces(nextPieces);
         setLog([...log, makeStepEntry(stepsNext, "\u00d7", currentPlayer)]);
+        sendOnlineTurnIfMine(stepsNext);
         setTurnHistory((prev) => [
           ...prev,
           {
@@ -6227,6 +6605,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       audioRef.current.beginFadeOut(3);
       setPieces(nextPieces);
       setLog([...log, makeStepEntry(stepsNext, "\u2726", currentPlayer)]);
+      sendOnlineTurnIfMine(stepsNext);
       setTurnHistory((prev) => [
         ...prev,
         {
@@ -6276,7 +6655,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        replay counts on the points it planned with. A crush or a shove
        changes the board for good, so neither can be walked back. */
     const trail = turnTrailRef.current;
-    if (currentPlayer !== aiPlayer && !replayingRef.current && !move.crushes && !move.shoves) {
+    if (currentPlayer !== foeSide && !replayingRef.current && !move.crushes && !move.shoves) {
       const sameBoard = (a, b) =>
         a.length === b.length && a.every((p) => { const q = b.find((x) => x.id === p.id); return q && sameState(p, q); });
       const k = trail.findIndex((e) => sameBoard(e.board, nextPieces));
@@ -6352,7 +6731,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (stop) {
       // Points left over that nothing could spend: say why, so the turn
       // ending doesn't look like a glitch (the player's own turns only).
-      if (!move.teleports && used < budget && currentPlayer !== aiPlayer && !replayingRef.current) {
+      if (!move.teleports && used < budget && currentPlayer !== foeSide && !replayingRef.current) {
         const left = budget - used;
         const why =
           piece.type === "opa" && !splitOn
@@ -6366,7 +6745,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // computer ending with your Cabeza in its reach waits, the alert up,
       // set as it would be mid-turn so Take back (handleUndoTurn) and Hold
       // to end (handleStopHere) find the turn's steps.
-      if (checkAlert && aiPlayer && currentPlayer !== aiPlayer && !replayingRef.current && cabezaThreats(nextPieces, currentPlayer).length) {
+      if (checkAlert && foeSide && currentPlayer !== foeSide && !replayingRef.current && cabezaThreats(nextPieces, currentPlayer).length) {
         setMovedPieceIds(movedAfter);
         setPendingSteps(stepsNext);
         setSelectedId(piece.id);
@@ -6635,6 +7014,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // left from the other side's piece, or a test's move, once played
       // the other side's piece on this side's points.)
       if (piece.owner !== currentPlayer) return;
+      // The computer's side, or the other player's online, moves only by
+      // its plan (aiDirsRef): never by a tap, a key or a test's move here.
+      if (foeSide && piece.owner === foeSide && !aiDirsRef.current) return;
       const remainingBefore = maxStepsFor(piece.type) - (piece.id === selectedId ? stepsUsed : 0);
       const move = legalMovesFor(pieces, piece, remainingBefore)[dir];
       if (!move) return;
@@ -6685,7 +7067,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         move.shoves ? move.shoves.map((q) => ({ ...q, state: pieces.find((p) => p.id === q.id) })) : null
       );
     },
-    [pieces, busy, selectedId, stepsUsed, animateStep, currentPlayer]
+    [pieces, busy, selectedId, stepsUsed, animateStep, currentPlayer, foeSide]
   );
   beginMoveRef.current = beginMove;
 
@@ -6777,9 +7159,31 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      feeling instant and robotic. */
   useEffect(() => {
     // (A replay plays both sides itself.)
-    if (!isPlaying || busy || anim.current || currentPlayer !== aiPlayer || awaitingBegin || replaying) return;
+    if (!isPlaying || busy || anim.current || awaitingBegin || replaying) return;
+    /* Online (chassis/online.js): the other player's turn, arrived down the
+       line (or either side's, replayed after a reconnect), is played here
+       exactly as the computer's plan below is: step by step through
+       beginMove, then settled. */
+    const queued = onlineRef.current ? onlineQueueRef.current[0] : null;
+    const onlineDrives = !!queued && queued.side === currentPlayer;
+    if (currentPlayer !== foeSide && !onlineDrives && !(aiDirsRef.current && aiDirsRef.current.online)) return;
 
     if (stepsUsed === 0 && !aiDirsRef.current) {
+      if (onlineDrives) {
+        const planSteps = queued.steps;
+        const piece = pieces.find((p) => p.id === planSteps[0].pieceId);
+        if (!piece) { onlineQueueRef.current.shift(); return; }
+        // (Taken off the queue only as it starts: a re-run of this effect
+        // before then just schedules it again.)
+        const timer = setTimeout(() => {
+          if (onlineQueueRef.current[0] !== queued) return;
+          onlineQueueRef.current.shift();
+          aiDirsRef.current = { planSteps, next: 1, online: true };
+          onlineDrivenRef.current = true;
+          beginMoveRef.current(piece, planSteps[0].dir);
+        }, 150);
+        return () => clearTimeout(timer);
+      }
       setAiThinking(true);
       /* The search starts at once and the pause runs alongside it (user:
          "AI is spending too much time thinking on turn"): it used to wait
@@ -6883,7 +7287,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       aiDirsRef.current = null;
       if (piece) settleTurn(piece, pendingNotation, pendingSteps);
     }
-  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, pendingSteps, awaitingBegin, log, selectedId, replaying]);
+  }, [currentPlayer, aiPlayer, isPlaying, busy, stepsUsed, pieces, aiDifficulty, pendingNotation, pendingSteps, awaitingBegin, log, selectedId, replaying, onlineTick]);
 
   /* Drains a human's queued continuation (see pendingIntentRef/onUp's
      busy branch above) the instant the step it was waiting on actually
@@ -6894,7 +7298,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      cleared pendingIntentRef itself (see settleTurn), so there's nothing
      left to drain once stepsUsed resets to 0. */
   useEffect(() => {
-    if (busy || anim.current || !isPlaying || awaitingBegin || currentPlayer === aiPlayer || replayingRef.current) return;
+    if (busy || anim.current || !isPlaying || awaitingBegin || currentPlayer === foeSide || replayingRef.current) return;
     if (stepsUsed === 0) return;
     const intent = pendingIntentRef.current;
     if (!intent) return;
@@ -7290,7 +7694,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         // exact piece, mid-turn, on the human's own turn.
         undoDragTarget = null;
         slideDrag = null;
-        if (!altPanning && selectedId != null && !busy && !anim.current && currentPlayer !== aiPlayer && !awaitingBegin && !replayingRef.current) {
+        if (!altPanning && selectedId != null && !busy && !anim.current && currentPlayer !== foeSide && !awaitingBegin && !replayingRef.current) {
           const hit = pick(ev);
           if (hit && hit.type === "piece" && hit.id === selectedId) {
             if (turnLocked) {
@@ -7354,7 +7758,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
           }
         }
         pivotDrag = null;
-        if (!altPanning && !busy && !anim.current && currentPlayer !== aiPlayer && !awaitingBegin && isPlaying && !replayingRef.current) {
+        if (!altPanning && !busy && !anim.current && currentPlayer !== foeSide && !awaitingBegin && isPlaying && !replayingRef.current) {
           /* The piece under the finger, looking past the move markers (a
              selected piece's turn arrows lie over its arms, and their wide
              tap areas won the press, so grabbing an arm did nothing: user,
@@ -7407,7 +7811,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
            piece's middle. Moving off it (a drag, an undo, a slide, the
            camera), a second finger or letting go first: nothing ends. */
         if (endHoldRef.current) cancelEndHold();
-        if (!altPanning && holdToEndRef.current && isPlaying && currentPlayer !== aiPlayer && !awaitingBegin && !replayingRef.current && selectedId != null) {
+        if (!altPanning && holdToEndRef.current && isPlaying && currentPlayer !== foeSide && !awaitingBegin && !replayingRef.current && selectedId != null) {
           let at = null;
           if (busy || anim.current) {
             const inFlight = inFlightRef.current, cell = inFlight && screenToBoardCell(ev);
@@ -7679,7 +8083,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         if (el.style.cursor === "pointer") el.style.cursor = "grab";
       }
 
-      if (busy || !isPlaying || currentPlayer === aiPlayer || awaitingBegin || replayingRef.current) return;
+      if (busy || !isPlaying || currentPlayer === foeSide || awaitingBegin || replayingRef.current) return;
       const hit = pick(ev, { respectDepth: true });
       if (hit && hit.type === "ghost") {
         el.style.cursor = "pointer";
@@ -7897,7 +8301,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
          select/deselect a piece on release. An Option/Alt drag is never
          a click. */
       // (A replay playing: the board is the replay's.)
-      if (wasAltPan || wasDrag || !isPlaying || currentPlayer === aiPlayer || awaitingBegin || replayingRef.current) return;
+      if (wasAltPan || wasDrag || !isPlaying || currentPlayer === foeSide || awaitingBegin || replayingRef.current) return;
 
       /* A step is currently animating: real ghost meshes don't exist to
          pick() against (beginMove already cleared them), so a tap here
@@ -7960,7 +8364,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         // and says how to end it; holding the piece ends it (onDown).
         if (holdToEndRef.current) setHoldHint({ key: Date.now() });
         else handleStopHere();
-      } else if (hit && hit.type === "piece" && turnLocked && ACTIVE_LAWS.splitMovement && currentPlayer !== aiPlayer) {
+      } else if (hit && hit.type === "piece" && turnLocked && ACTIVE_LAWS.splitMovement && currentPlayer !== foeSide) {
         // Split Movement: mid-turn, tapping a DIFFERENT own piece hands the
         // leftover bank to it (the "another piece can roll for one point"
         // case). Allowed only while a point remains and the 2-piece cap
@@ -8567,7 +8971,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // roll of a two-step turn (stepsUsed > 0 by then), and clicking it
     // ends the turn while that roll's own animation is still in flight,
     // before its own commit logic has had a chance to run.
-    if (!selectedPiece || stepsUsed === 0 || busy || anim.current || currentPlayer === aiPlayer || awaitingBegin || replayingRef.current) return;
+    if (!selectedPiece || stepsUsed === 0 || busy || anim.current || currentPlayer === foeSide || awaitingBegin || replayingRef.current) return;
     // Settle against the piece that actually moved LAST this turn, not
     // whatever happens to be selected — under Split Movement the player may
     // have just selected a second piece without moving it yet, and
@@ -8644,7 +9048,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   }
 
   function handleUndoTurn() {
-    if (!turnSnapshot || busy || anim.current || currentPlayer === aiPlayer || awaitingBegin || replayingRef.current) return;
+    if (!turnSnapshot || busy || anim.current || currentPlayer === foeSide || awaitingBegin || replayingRef.current) return;
     pendingIntentRef.current = null; // whatever was queued for this turn no longer applies
 
     const restore = () => {
@@ -8706,6 +9110,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   function handleUndoLastTurn(opts) {
     const fromReplay = !!(opts && opts.fromReplay === true);
     if (turnHistory.length === 0 || busy || aiThinking || turnLocked || anim.current || awaitingBegin) return;
+    if (onlineRef.current && !fromReplay) return; // (a turn sent down the line stays)
     if (replayingRef.current && !fromReplay) return;
 
     /* Collect the batch of entries to undo, most recent first. Against
@@ -8725,7 +9130,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     while (stack.length > 0) {
       const entry = stack.pop();
       batch.push(entry);
-      if (fromReplay || aiPlayer === null || entry.currentPlayer !== aiPlayer) break;
+      if (fromReplay || aiPlayer === null || entry.currentPlayer !== foeSide) break;
     }
     if (batch.length === 0) return;
     const target = batch[batch.length - 1]; // oldest entry in the batch — final restore target
@@ -8985,7 +9390,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     // Opponent (Human / AI side) and AI difficulty carry over into every
     // new game, whichever reset path got here. The dock shows the
     // Back+Difficulty view for a kept AI opponent, the picker for Human.
-    setShowOpponentPicker(aiPlayer === null);
+    setShowOpponentPicker(aiPlayer === null && !onlineRef.current);
+    // (Online, a new game: back to waiting for Begin.)
+    setOnline((o) => (o && o.status === "playing" ? { ...o, status: "waiting" } : o));
     setGameArmed(false); // every fresh game — Human included — now waits on Begin Game
     resetTransitionUntilRef.current = performance.now() + RESET_TRANSITION_MS;
     // Faces the side about to move first, at the SAME oblique pitch
@@ -9016,6 +9423,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      the same "close the one overlay before opening the next" pattern the
      placard's own Move Log button already uses. */
   function handleNewGameClick() {
+    // Online: the host starts the next game; a guest whose host has left
+    // is on their own again.
+    if (online && online.role === "guest" && online.status !== "gone") return;
+    if (online && online.status === "gone") leaveOnline();
     const t = three.current;
     const eligible =
       status === "finished" &&
@@ -9461,6 +9872,10 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     ? "Game ended"
     : aiThinking
     ? `${sideName(currentPlayer)} (AI) thinking\u2026`
+    : online && isPlaying && online.status !== "gone" && !online.peer
+    ? "The other player is reconnecting\u2026"
+    : online && isPlaying && currentPlayer === online.theirSide
+    ? `${sideName(currentPlayer)} (online) to move\u2026`
     : activePiece && activePiece.owner === currentPlayer
     ? `${PIECE_META[activePiece.type].name} \u00b7 ${stepsRemaining} ${
         activePiece.type === "cabeza" ? "step" : "roll"
@@ -10147,7 +10562,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         );
       })()}
       {/* ...and what a tap on it says instead of ending the turn. */}
-      {holdHint && isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && (() => {
+      {holdHint && isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && (() => {
         const left = Math.max(0, turnBudget() - stepsUsed);
         return (
           <div
@@ -11269,7 +11684,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                  "DAR…") on a narrow phone — confirmed via screenshot. */
               minWidth: awaitingBegin
                 ? 0
-                : isPlaying && turnLocked && currentPlayer !== aiPlayer
+                : isPlaying && turnLocked && currentPlayer !== foeSide
                 ? 186
                 : !turnLocked && turnHistory.length > 0
                 ? 104
@@ -11277,17 +11692,17 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               justifyContent: "flex-end",
             }}
           >
-            {isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && shadowEntries.length > 0 && (
+            {isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && shadowEntries.length > 0 && (
               <button className="ec-btn" onClick={handleEndTurnClick} style={playerButtonStyle(currentPlayer)}>
                 End turn
               </button>
             )}
-            {isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && (
+            {isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && (
               <button className="ec-btn" onClick={handleUndoTurn} style={ghostButtonStyle()}>
                 Undo move
               </button>
             )}
-            {!turnLocked && !awaitingBegin && !replaying && turnHistory.length > 0 && (
+            {!turnLocked && !awaitingBegin && !replaying && turnHistory.length > 0 && !online && (
               <button
                 className="ec-btn"
                 onClick={handleUndoLastTurn}
@@ -11314,13 +11729,14 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         {!awaitingBegin && !declutter && (
           <div data-dock-moment="over" style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4, flexShrink: 0 }}>
             <div data-testid="dock-caption" data-dock-role="caption" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontStyle: "italic", fontSize: 13, color: COLORS.slate, textAlign: "center", lineHeight: 1.3 }}>
-              {status === "finished" ? dockWords.wonCaption : dockWords.endedCaption}
+              {online && online.status === "gone" ? "The other player left." : status === "finished" ? dockWords.wonCaption : dockWords.endedCaption}
             </div>
             <button
               className="ec-btn"
               data-testid="new-game"
               data-dock-role="primary"
-              title="New game"
+              title={online && online.role === "guest" && online.status !== "gone" ? "The host starts the next game" : "New game"}
+              disabled={!!(online && online.role === "guest" && online.status !== "gone")}
               onClick={handleNewGameClick}
               style={{
                 fontFamily: "'IBM Plex Mono', monospace",
@@ -11529,7 +11945,21 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                   </button>
                 );
               })}
+              {/* Online (chassis/online.js): another person, over the game's
+                 server. The panel below takes the row, as Difficulty does. */}
+              <button
+                className="ec-btn"
+                data-opponent="online"
+                aria-pressed={!!online}
+                disabled={busy || aiThinking || turnLocked}
+                onClick={() => { setOnlineView(online ? (online.role === "host" ? "host" : "join") : "menu"); setShowOpponentPicker(false); }}
+                style={{ ...ghostButtonStyle(), ...pickedMark(!!online), flexShrink: 0, cursor: busy || aiThinking || turnLocked ? "default" : "pointer" }}
+              >
+                Online
+              </button>
             </>
+          ) : onlineView ? (
+            renderOnlinePanel()
           ) : (
             <>
               <button
@@ -11636,6 +12066,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                   className="ec-btn"
                   data-dock-role="begin"
                   onClick={beginOrSetOut}
+                  disabled={!!(online && online.role === "guest")}
                   style={{
                     ...playerButtonStyle(currentPlayer),
                     fontSize: 11,
@@ -11652,7 +12083,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                     minWidth: theme.renderSetupExtras ? 0 : undefined,
                   }}
                 >
-                  {startByHand ? "Set out my pieces" : beginLabel}
+                  {online && online.role === "guest" ? "Waiting for the host\u2026" : startByHand ? "Set out my pieces" : beginLabel}
                 </button>
               );
               const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras });
@@ -12192,7 +12623,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             statusText, currentPlayer, winner, aiPlayer, aiThinking,
             aiTurn: isPlaying && currentPlayer === aiPlayer,
             selectedOwn: !!selectedPiece && selectedPiece.owner === currentPlayer,
-            pieceInfo: showGuide && isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== aiPlayer && !replaying
+            pieceInfo: showGuide && isPlaying && selectedPiece && selectedPiece.owner === currentPlayer && currentPlayer !== foeSide && !replaying
               ? { type: selectedPiece.type, ...pieceCardInfo(selectedPiece, ACTIVE_LAWS, PIECE_META[selectedPiece.type].name) }
               : null,
             showGuide,
@@ -12203,6 +12634,9 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             onToggleStart: toggleStartingPlayer,
             onSelectOpponent: selectOpponent,
             onSetDifficulty: setAiDifficulty,
+            // Online (chassis/online.js): the panel's state and ways.
+            online, onlineView,
+            onlineCtl: { ready: relayReady(), host: hostOnline, join: joinOnline, leave: leaveOnline, view: setOnlineView, codeText: joinCodeText, setCodeText: setJoinCodeText, link: () => (online && online.code ? joinLink(online.code) : ""), names: SIDE_NAMES },
             onBegin: beginOrSetOut,
             setupActions: theme.shellSetupActions && setupExtras ? theme.shellSetupActions(setupExtras) : [],
             beginLabel: startByHand ? "Set out my pieces" : beginLabel,
@@ -12213,12 +12647,12 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             words: dockWords,
             noGame: !!(setupExtras && setupExtras.noGame),
             // Play
-            canUndoMove: isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying,
-            canStopHere: isPlaying && turnLocked && currentPlayer !== aiPlayer && !replaying && shadowEntries.length > 0,
-            canUndoTurn: isPlaying && !turnLocked && !replaying && turnHistory.length > 0,
+            canUndoMove: isPlaying && turnLocked && currentPlayer !== foeSide && !replaying,
+            canStopHere: isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && shadowEntries.length > 0,
+            canUndoTurn: isPlaying && !turnLocked && !replaying && turnHistory.length > 0 && !online,
             // After a game ends its last turn can still be taken back (the
             // desktop dock's Undo turn does the same), from the menu.
-            canUndoAfter: !isPlaying && !awaitingBegin && !replaying && turnHistory.length > 0,
+            canUndoAfter: !isPlaying && !awaitingBegin && !replaying && turnHistory.length > 0 && !online,
             undoTurnBusy: !!(busy || aiThinking || anim.current),
             onUndoMove: handleUndoTurn,
             onStopHere: handleEndTurnClick,
@@ -12233,7 +12667,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             onToggleFocus: focusable ? toggleFocus : null,
             // Menu
             playersLine: ["dark", "light"]
-              .map((side) => `${sideName(side)}: ${aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : "Human"}`)
+              .map((side) => `${sideName(side)}: ${aiPlayer === side ? `AI (${AI_DIFFICULTY[aiDifficulty].label})` : aiPlayer ? "You" : online ? (side === online.mySide ? "You" : "Online") : "Human"}`)
               .join("  \u00b7  "),
             onOpenRules: (tab, focus) => openRulesAt(tab, focus || null),
             rulesTabsHidden: hiddenRulesTabs,

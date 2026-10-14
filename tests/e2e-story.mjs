@@ -8,7 +8,7 @@
    game, the offer after one) rings it up: the receipt prints, the screen
    goes to black with "Later, at home.", and the den comes up, remembered
    (localStorage el-cabeza:story). At home the whole order form is back
-   ("See the pieces" until the Singularity, then "Custom rules"), with "Back to the store" and "Start the story over";
+   ("See the pieces" until the Singularity, then "Custom rules"), with "Start the story over" (no "Back to the store", user);
    a game ordered there (a 14 x 12 board) doesn't follow the player back to
    the store, which is the classic game again. A reload opens at home; the
    fresh start clears the purchase and puts the lid back on. On a phone
@@ -17,7 +17,7 @@ import { chromium } from "playwright";
 import { openDockPanel, waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
 
 const URL = "file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html";
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--autoplay-policy=no-user-gesture-required"] });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--autoplay-policy=no-user-gesture-required"] });
 let failures = 0;
 const check = (l, c, extra) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && extra ? " — " + extra : ""}`); };
 const poll = async (fn, ms = 20000, step = 250) => {
@@ -176,7 +176,7 @@ console.log("\ndesktop: the store, the purchase, home");
   // Before the Singularity there are no custom rules anywhere: the row
   // offers the catalog's page (look only), whose foot line is faded.
   check("the setup row has See the pieces (no custom rules yet)", /See the pieces/i.test(await q(page, "tienda-order-form").innerText()));
-  check("...Back to the store, and no Restart story (only at the foot of the theme switcher, user)", (await has(page, "story-back-to-store")) && !(await has(page, "story-restart")));
+  check("...no Back to the store (user), and no Restart story (only at the foot of the theme switcher, user)", !(await has(page, "story-back-to-store")) && !(await has(page, "story-restart")));
   check("...and no purchase (it's bought)", !(await has(page, "story-purchase")));
   await q(page, "tienda-order-form").click();
   check("See the pieces is the catalog, not the order form", await poll(() => has(page, "tienda-catalog"), 8000) && !(await has(page, "tienda-order")));
@@ -455,7 +455,7 @@ console.log("\nphone with the control bar: the store and home");
   check("buying from the menu takes it home", went.gone && went.there, JSON.stringify(went));
   check("home's bar has See the pieces (before the Singularity)", await poll(() => has(page, "shell-see-pieces"), 10000) && !(await has(page, "shell-custom-rules")));
   await q(page, "shell-menu-button").tap().catch(() => {});
-  check("...and its menu the way back and Neon, no Restart story", await poll(async () => (await has(page, "shell-menu-back-to-store")) && (await has(page, "shell-menu-switch-theme")) && !(await has(page, "shell-menu-restart")), 8000));
+  check("...and its menu Neon, no Back to the store (user), no Restart story", await poll(async () => (await has(page, "shell-menu-switch-theme")) && !(await has(page, "shell-menu-back-to-store")) && !(await has(page, "shell-menu-restart")), 8000));
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
 }

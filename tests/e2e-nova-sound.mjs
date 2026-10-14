@@ -10,7 +10,7 @@
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--autoplay-policy=no-user-gesture-required"] });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--autoplay-policy=no-user-gesture-required"] });
 let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
 const q = (page, id) => page.locator(`[data-testid="${id}"]`);

@@ -8,7 +8,7 @@
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 let failures = 0;
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 const H = { id: "dark-hombro", type: "hombro", owner: "dark", row: 4, col: 4, w: 2, h: 2, z: 2, vox: "0,0,0;0,0,1;1,0,1;0,1,1" };
 const POS = [
   { id: "dark-cabeza", type: "cabeza", owner: "dark", row: 0, col: 4, w: 1, h: 1, z: 1 }, H,

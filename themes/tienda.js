@@ -573,10 +573,13 @@ export function renderSetupExtras({ beginGameButton, openOrderForm, story, speci
     // second line slid under its corner switches (user's screenshot). No
     // "Restart story" in it: that's only at the very bottom of the theme
     // switcher (user).
-    : h("div", { key: "links", style: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "nowrap", width: "100%" } },
-        !gone && link("store", "Back to the store", story.onBackToStore, "story-back-to-store"),
-        // After the story's end: every other version of the game (Nova).
-        realities && link("realities", "Other realities", story.onRealities, "story-realities"));
+    // (No "Back to the store" any more, user: the special order is the
+    // way back there in the story, and the switcher after it.)
+    : realities
+      // After the story's end: every other version of the game (Nova).
+      ? h("div", { key: "links", style: { display: "flex", gap: 10, justifyContent: "center", flexWrap: "nowrap", width: "100%" } },
+          link("realities", "Other realities", story.onRealities, "story-realities"))
+      : null;
   // Back after the story the table has no game on it: only the purchase
   // (which is the clerk's scene), no Custom rules or Begin Game.
   if (after) return h("div", { style: { display: "flex", flexDirection: "column", gap: 8, width: "100%" } }, under);

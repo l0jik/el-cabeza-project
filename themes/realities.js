@@ -45,7 +45,12 @@ export const WORLDS = [
   { id: "noir", name: "Noir", line: "Rain on a 1940s city at night, in black and white.", href: "el-cabeza-noir.html" },
   // The city of glass towers and cranes (user: "Name = The City ... Do
   // theme switcher entry"; its page and files keep the name ciudad).
-  { id: "ciudad", name: "The City", line: "Glass towers and cranes, alive at the hour you pick.", href: "el-cabeza-ciudad.html" },
+  // ...and the first of the site's own pages to live on Nova's page as well
+  // (user: "consolidate everything into a single link"): in Nova it
+  // switches in place (`nova`, its theme fetched when it's picked,
+  // apps/unified.jsx); from any other page it opens Nova there
+  // (?world=ciudad). Its own page stays, for a direct link.
+  { id: "ciudad", name: "The City", line: "Glass towers and cranes, alive at the hour you pick.", nova: "ciudad", href: "el-cabeza-ciudad.html" },
   // Parrish's two palettes, each its own reality (user): one page, the
   // look in the address (themes/parrish-looks.js).
   // (Named "Tá muid beo" and "Go deo na ndeor" by the user; ids and

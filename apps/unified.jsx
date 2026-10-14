@@ -104,7 +104,7 @@ const OPEN_SWITCHER = (() => {
 // From another page's realities menu (realities.js goToWorld): ?world=
 // <place>, after the story.
 const WORLD_PARAM = (() => {
-  try { const w = new URLSearchParams(window.location.search).get("world"); return storyEnded() && ["standard", "neon", "tienda"].includes(w) ? w : null; } catch (e) { return null; }
+  try { const w = new URLSearchParams(window.location.search).get("world"); return storyEnded() && ["standard", "neon", "tienda", "ciudad"].includes(w) ? w : null; } catch (e) { return null; }
 })();
 // A look at one of the den's scenes without playing the story there:
 // ?scene=revelation (den-ending.js), ?scene=glutts (the trip back to
@@ -264,6 +264,32 @@ const novaNeonTheme = {
   },
 };
 const THEMES = { tienda: storeTheme, standard: homeTheme, neon: novaNeonTheme };
+/* The site's other pages, on Nova's page as well (user: "consolidate
+   everything into a single link to where it's all integrated together"),
+   The City first: each fetched only when it's picked (build/build.js
+   builds Nova's page in pieces, the story and the chassis in one, each of
+   these worlds in its own), and torn down with the chassis when it's
+   left. LAZY[name]() resolves to the theme's module; THEMES[name] is made
+   from it once, with Nova's own gate and corner (the realities menu in
+   place, as the den's and Neon's). */
+const LAZY = { ciudad: () => import("../themes/ciudad.js") };
+const CUT_CAPTIONS = { standard: "The den, 1975.", neon: "Neon.", tienda: "Big Glutts, Games & Hobby Dept.", ciudad: "The City." };
+function makeNovaTheme(name, mod) {
+  return {
+    ...mod,
+    realityGate: SCENE_LINK ? null : { world: name, novaGo: (to, w) => storyBridge.goWorld(w) },
+    cornerAction: () => (storyEnded() ? { label: "Other realities", onClick: () => storyBridge.openRealities() } : null),
+  };
+}
+const loadingWorlds = {};
+function ensureWorld(name) {
+  if (THEMES[name]) return Promise.resolve(THEMES[name]);
+  if (!LAZY[name]) return Promise.reject(new Error(`no world ${name}`));
+  if (!loadingWorlds[name]) {
+    loadingWorlds[name] = LAZY[name]().then((mod) => { THEMES[name] = makeNovaTheme(name, mod); return THEMES[name]; }).catch((e) => { delete loadingWorlds[name]; throw e; });
+  }
+  return loadingWorlds[name];
+}
 
 /* Every place starts with the classic game. The rules, board and squares
    of a game ordered at home, or set up in Singularity, live in the
@@ -299,7 +325,9 @@ const {
 
 function UnifiedApp() {
   // A first visit opens in the store; once the game is bought, at home.
-  const [themeName, setThemeName] = useState(() => (SUMMONS_PARAM ? "neon" : WORLD_PARAM || (SCENE_PARAM || readOwned() ? "standard" : "tienda")));
+  const [themeName, setThemeName] = useState(() => (SUMMONS_PARAM ? "neon" : (WORLD_PARAM && THEMES[WORLD_PARAM] ? WORLD_PARAM : null) || (SCENE_PARAM || readOwned() ? "standard" : "tienda")));
+  // A world being fetched (LAZY), named, while it comes.
+  const [loadingWorld, setLoadingWorld] = useState(null);
   // Before the first Singularity visit the way into Neon from the den is
   // the television alone (user): no title hold there, no shortcut in the
   // phone menu. After it (engine/journey.js), both; a story restart locks
@@ -599,7 +627,10 @@ function UnifiedApp() {
     saveOwned(true);
     startCut({ kind: "purchase", caption: "Later, at home.", to: "standard" });
   };
+  // (The way back to the store before it's gone, for the tests of the
+  // store revisited (e2e-clerk): no button offers it any more, user.)
   storyBridge.backToStore = () => { if (!storeGone()) startCut({ kind: "fade", caption: "Back at the store.", to: "tienda" }); };
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_BACK_TO_STORE__ = () => storyBridge.backToStore();
   storyBridge.goHomeConfused = (o) => {
     if (busyRef.current) return;
     saveStoreGone();
@@ -620,11 +651,14 @@ function UnifiedApp() {
      them (realities.js). "Other realities" (the den's dock, the phone's
      menu) opens the same menu over wherever you are. */
   const [ended, setEnded] = useState(() => storyEnded());
-  const CUT_CAPTIONS = { standard: "The den, 1975.", neon: "Neon.", tienda: "Big Glutts, Games & Hobby Dept." };
   storyBridge.finishStory = () => { saveStoryEnded(); setEnded(true); };
   storyBridge.goWorld = (w) => goToWorld(w, (to) => {
-    if (busyRef.current || to === themeName) return;
-    startCut({ kind: "fade", caption: CUT_CAPTIONS[to] || "", to });
+    if (busyRef.current || to === themeName || loadingWorld) return;
+    const go = () => startCut({ kind: "fade", caption: CUT_CAPTIONS[to] || "", to });
+    if (THEMES[to]) { go(); return; }
+    // (a world fetched as it's picked: a word while it comes, then the cut)
+    setLoadingWorld(w.name || to);
+    ensureWorld(to).then(() => { setLoadingWorld(null); go(); }).catch(() => setLoadingWorld(null));
   });
   storyBridge.openRealities = (opts = {}) => {
     if (busyRef.current) return;
@@ -731,7 +765,10 @@ function UnifiedApp() {
       },
     };
     const after = storeAfter();
-    const items = themeName === "tienda"
+    const items = LAZY[themeName]
+      // (the site's other worlds here: the switcher alone)
+      ? [ended && { key: "realities", testid: "shell-menu-realities", label: "Other realities", detail: "Every version of the game", onClick: () => storyBridge.openRealities() }].filter(Boolean)
+      : themeName === "tienda"
       ? [tiendaTheme.clerkConfused()
           ? { key: "confused", testid: "shell-menu-go-home-confused", label: "Go home, confused.", detail: "Nobody here has heard of it", onClick: () => storyBridge.goHomeConfused() }
           : { key: "purchase", testid: "shell-menu-purchase", label: after ? "Purchase another copy" : "Purchase and bring home", detail: after ? "$7.97, at the register" : "$7.97, and home to the den", onClick: () => storyBridge.purchase() },
@@ -740,7 +777,7 @@ function UnifiedApp() {
         ? [
             switchTheme,
             ended && { key: "realities", testid: "shell-menu-realities", label: "Other realities", detail: "Every version of the game", onClick: () => storyBridge.openRealities() },
-            !storeGone() && { key: "back-to-store", testid: "shell-menu-back-to-store", label: "Back to the store", detail: "Where the game came from", onClick: () => storyBridge.backToStore() },
+            // (No "Back to the store" here either, user.)
           ].filter(Boolean)
         // (In Neon its way back, the hold's twin, only once the story's
         // over, as the hold.)
@@ -813,6 +850,15 @@ function UnifiedApp() {
         <CrtTransitionOverlay direction={transition.direction} filterId={transition.filterId} onDone={onTransitionDone} sfx={sfxRef.current} />
       )}
       {cut && <StoryCut key={cut.kind + cut.to} cut={cut} onSwap={onCutSwap} onDone={onCutDone} sfx={sfxRef.current} />}
+      {loadingWorld && (
+        <div
+          data-testid="world-loading"
+          role="status"
+          style={{ position: "fixed", left: "50%", bottom: "max(22px, env(safe-area-inset-bottom))", transform: "translateX(-50%)", zIndex: 1700, padding: "9px 16px", borderRadius: 999, background: "rgba(10,8,18,0.82)", color: "#efe9ff", fontFamily: "'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif", fontSize: 13, letterSpacing: "0.08em", textTransform: "uppercase", pointerEvents: "none" }}
+        >
+          Loading {loadingWorld}…
+        </div>
+      )}
     </>
   );
 }
@@ -823,4 +869,10 @@ applyBootstrapLaws();
 bootRules = { board: getBoardDimensions(), laws: { ...ACTIVE_LAWS } };
 
 // (?fresh: nothing mounts, so nothing's kept again before the page reloads.)
-if (!FRESH) ReactDOM.createRoot(document.getElementById("root")).render(<UnifiedApp />);
+// A world of the site's asked for by the address (?world=ciudad): fetched
+// first, then the page opens there (or in the den, if it can't be had).
+if (!FRESH) {
+  const boot = () => ReactDOM.createRoot(document.getElementById("root")).render(<UnifiedApp />);
+  if (WORLD_PARAM && LAZY[WORLD_PARAM]) ensureWorld(WORLD_PARAM).then(boot, boot);
+  else boot();
+}

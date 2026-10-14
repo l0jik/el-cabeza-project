@@ -13,7 +13,7 @@ import { openDockPanel } from "./dock-helpers.mjs";
 
 const URL = "file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html";
 const shots = process.argv.includes("--shots") ? process.argv[process.argv.indexOf("--shots") + 1] : null;
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--autoplay-policy=no-user-gesture-required"] });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--autoplay-policy=no-user-gesture-required"] });
 let failures = 0;
 const check = (l, c, extra) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && extra ? " — " + extra : ""}`); };
 const poll = async (fn, ms = 20000, step = 250) => {
@@ -56,9 +56,8 @@ for (const phone of [false, true]) {
   await page.goto(URL);
   check("opens at home", await poll(() => page.evaluate(() => !!window.__DEN_THREE__), 30000));
   await page.waitForTimeout(1500);
-  await openDockPanel(page);
-  await poll(() => has(page, "story-back-to-store"), 10000);
-  await q(page, "story-back-to-store").click();
+  // (No "Back to the store" button any more, user: the test's own way there.)
+  await page.evaluate(() => window.__EC_TEST_BACK_TO_STORE__());
   check("back to the store", await poll(() => page.evaluate(() => !!window.__TIENDA_THREE__), 30000));
   await page.waitForTimeout(2500);
   const table = await page.evaluate(() => {

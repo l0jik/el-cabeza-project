@@ -64,6 +64,9 @@ Object.assign(DEN_RECORDS, LOST_HAND);
 // The Games counter's photographs (themes/tienda-overlay.js ClerkScene).
 const CLERK_SHOTS = ["clerk-hello", "clerk-sure", "clerk-go", "clerk-hmm", "clerk-sorry", "clerk-phone",
   "manager-1", "manager-2", "manager-3", "manager-4", "manager-5", "manager-6", "manager-7", "manager-8"];
+// The City's recorded hours and horns, beside its page and beside Nova's.
+const CIUDAD_FILES = Object.fromEntries(
+  ["morning", "afternoon", "golden", "overcast", "night"].map((h) => [`el-cabeza-ciudad-city-${h}.mp3`, `assets/ciudad/city-${h}.mp3`]).concat([["el-cabeza-ciudad-honks.mp3", "assets/ciudad/honks.mp3"]]));
 const targets = [
   // The den's records (themes/standard.js DEN_TRACKS), files beside the
   // page like Tienda's reels: fetched when played. Nova's den reads the same.
@@ -78,8 +81,7 @@ const targets = [
   // time of day the player picks (not in the switcher until the user says).
   // Its city, recorded, one loop an hour (tools/ciudad_sounds.py), beside
   // the page and fetched as the hour's wanted, not in it.
-  { name: "ciudad", entry: "apps/ciudad.jsx", title: "El Cabeza · The City", head: '<meta name="theme-color" content="#2F4458">', files: Object.fromEntries(
-    ["morning", "afternoon", "golden", "overcast", "night"].map((h) => [`el-cabeza-ciudad-city-${h}.mp3`, `assets/ciudad/city-${h}.mp3`]).concat([["el-cabeza-ciudad-honks.mp3", "assets/ciudad/honks.mp3"]])) },
+  { name: "ciudad", entry: "apps/ciudad.jsx", title: "El Cabeza · The City", head: '<meta name="theme-color" content="#2F4458">', files: CIUDAD_FILES },
   // Noir: the game as a night in a film noir city (in the switcher since the
   // user's "Incorporate Noir into Theme Switcher now").
   { name: "noir", entry: "apps/noir.jsx", title: "Noir Cabeza", head: '<meta name="theme-color" content="#0B0B0C">', files: {
@@ -93,7 +95,9 @@ const targets = [
   // its intro and its close, the user's opening and end of "Orinoco Flow"
   // (each in a long hall, tools/parrish_bookends.py).
   { name: "parrish", entry: "apps/parrish.jsx", title: "Parrish Cabeza", head: '<meta name="theme-color" content="#0E1A3D">', files: { "el-cabeza-parrish-stabs.mp3": "assets/parrish/piece-stabs.mp3", "el-cabeza-parrish-intro.mp3": "assets/parrish/intro.mp3", "el-cabeza-parrish-outro.mp3": "assets/parrish/outro.mp3", "el-cabeza-parrish-hums.mp3": "assets/parrish/hums.mp3", "el-cabeza-parrish-soundtrack-orinoco.mp3": "assets/parrish/soundtrack-orinoco.mp3", "el-cabeza-parrish-na-seas.mp3": "assets/parrish/na-seas.mp3", "el-cabeza-parrish-evening.mp3": "assets/parrish/evening.mp3" } },
-  { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: DEN_RECORDS },
+  // Nova: in pieces (split), the worlds it holds beside it; the City's
+  // sounds beside it too, for the City in place.
+  { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover", split: true, files: { ...DEN_RECORDS, ...CIUDAD_FILES } },
   // Tienda's page can draw under a phone's
   // notch and home bar (the theme keeps its controls clear of them).
   // Its files beside the page: the store's reels (the 1974 Muzak tape and
@@ -135,11 +139,21 @@ const workerJs = workerResult.outputFiles[0].text;
 const workerJsEscaped = workerJs.replace(/<\/script/gi, "<\\/script");
 
 for (const t of targets) {
+  /* Nova's page in pieces (user: "consolidate everything into a single
+     link"): the story and the chassis as one module, and each of the
+     site's other worlds that Nova now holds (apps/unified.jsx LAZY, The
+     City first) as a chunk of its own, fetched only when it's picked, the
+     code they share (three, React, the chassis, the engine) in a shared
+     chunk. So Nova's page is a `<script type="module">` with files beside
+     it, rather than one self-contained file; the tests open file:// pages
+     with Chromium's --allow-file-access-from-files for it. */
+  const split = !!t.split;
   const result = await esbuild.build({
     entryPoints: [t.entry],
     bundle: true,
     write: false,
-    format: "iife",
+    format: split ? "esm" : "iife",
+    ...(split ? { splitting: true, outdir: "dist", entryNames: `el-cabeza-${t.name}-app`, chunkNames: `el-cabeza-${t.name}-[name]-[hash]` } : {}),
     // Sound files (assets/) are inlined as data: URLs, keeping each page a
     // single self-contained file.
     loader: { ".js": "jsx", ".mp3": "dataurl", ".jpg": "dataurl", ".webp": "dataurl" },
@@ -164,14 +178,31 @@ for (const t of targets) {
     // branch entirely, so only the production build gets bundled.
     define: { "process.env.NODE_ENV": '"production"' },
   });
-  const js = result.outputFiles[0].text;
+  let script, size, pieces = "";
+  if (split) {
+    let total = 0;
+    const names = [];
+    for (const f of result.outputFiles) {
+      const name = f.path.split(/[\\/]/).pop();
+      writeFileSync(`dist/${name}`, f.contents);
+      total += f.text.length;
+      names.push(`${name} ${(f.text.length / 1024).toFixed(0)}kb`);
+    }
+    script = `<script type="module" src="el-cabeza-${t.name}-app.js"></script>`;
+    size = total;
+    pieces = `: ${names.join(", ")}`;
+  } else {
+    const js = result.outputFiles[0].text;
+    script = `<script>${js}</script>`;
+    size = js.length;
+  }
   // type="application/x-ai-worker" (not a JS mimetype) keeps the browser
   // from ever trying to execute this inline — chassis/ElCabeza3D.jsx
   // reads its textContent and turns it into a real Worker via a Blob URL.
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="${t.viewport || "width=device-width,initial-scale=1"}">${t.head || ""}<meta name="robots" content="noindex, nofollow"><title>${t.title}</title></head><body style="margin:0"><div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script><script>${js}</script></body></html>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="${t.viewport || "width=device-width,initial-scale=1"}">${t.head || ""}<meta name="robots" content="noindex, nofollow"><title>${t.title}</title></head><body style="margin:0"><div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script>${script}</body></html>`;
   writeFileSync(`dist/el-cabeza-${t.name}.html`, html);
   Object.entries({ ...COMMON_FILES, ...(t.files || {}) }).forEach(([to, from]) => copyFileSync(from, `dist/${to}`));
-  console.log(`built dist/el-cabeza-${t.name}.html (${(js.length / 1024).toFixed(0)}kb JS, ${(workerJs.length / 1024).toFixed(0)}kb worker)`);
+  console.log(`built dist/el-cabeza-${t.name}.html (${(size / 1024).toFixed(0)}kb JS, ${(workerJs.length / 1024).toFixed(0)}kb worker)${pieces}`);
 }
 
 /* Nova used to be published as el-cabeza-unified.html, and that link has

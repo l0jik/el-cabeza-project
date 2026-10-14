@@ -368,6 +368,81 @@ function Field({ label, children }) {
   );
 }
 
+/* ---- online (the phone's take on the dock's online panel) ------------- */
+
+function OnlineBlock({ ctl, t }) {
+  const o = ctl.online, c = ctl.onlineCtl, view = ctl.onlineView;
+  const name = (side) => (t.names && t.names[side]) || side;
+  const btn = { width: "100%", height: 44, fontSize: 12 };
+  const line = { margin: 0, fontSize: 13, lineHeight: 1.4, opacity: 0.85 };
+  const [copied, setCopied] = React.useState("");
+  const copy = (text, what) => { try { navigator.clipboard.writeText(text).then(() => setCopied(what), () => {}); } catch (e) { /* none */ } };
+  let body = null;
+  const joinView = view === "join" && (!o || (o.role === "guest" && !["connecting", "waiting", "playing", "gone"].includes(o.status)));
+  if (joinView) {
+    body = (
+      <>
+        {o && o.status === "error" && <p data-testid="shell-online-error" style={{ ...line, color: "#e5392d" }}>{o.error}</p>}
+        <input data-testid="shell-online-code-input" value={c.codeText} onChange={(e) => c.setCodeText(e.target.value)} placeholder="KQ7M3H" spellCheck={false} autoComplete="off" autoCapitalize="characters" aria-label="The game code to join"
+          className="ec-shell-input" style={{ width: "100%", boxSizing: "border-box", height: 44, fontFamily: "'IBM Plex Mono', monospace", fontSize: 16, letterSpacing: "0.16em", textTransform: "uppercase", padding: "0 12px", borderRadius: 10, border: "1px solid currentColor", background: "transparent", color: "inherit" }} />
+        <button type="button" className="ec-shell-btn ec-shell-primary" data-testid="shell-online-join" onClick={() => c.join(c.codeText)} style={btn}>Join</button>
+        <button type="button" className="ec-shell-btn" data-testid="shell-online-back" onClick={() => { if (o) c.leave(); c.view("menu"); }} style={btn}>Back</button>
+      </>
+    );
+  } else if (!o || view === "menu") {
+    body = (
+      <>
+        {!c.ready && <p data-testid="shell-online-not-ready" style={line}>The online server isn’t set up yet: its address is a placeholder until it’s deployed.</p>}
+        <button type="button" className="ec-shell-btn ec-shell-primary" data-testid="shell-online-host" disabled={!c.ready} onClick={c.host} style={btn}>Host a game</button>
+        <button type="button" className="ec-shell-btn" data-testid="shell-online-join-view" disabled={!c.ready} onClick={() => c.view("join")} style={btn}>Join with a code</button>
+      </>
+    );
+  } else if (o.status === "error") {
+    body = (
+      <>
+        <p data-testid="shell-online-error" style={{ ...line, color: "#e5392d" }}>{o.error}</p>
+        <button type="button" className="ec-shell-btn" data-testid="shell-online-back" onClick={() => { c.leave(); c.view("menu"); }} style={btn}>Back</button>
+      </>
+    );
+  } else if (o.role === "host") {
+    body = (
+      <>
+        {o.status === "connecting" ? <p data-testid="shell-online-status" style={line}>Connecting to the server…</p> : (
+          <>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <span style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.7 }}>Game code</span>
+              <span data-testid="shell-online-code" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, letterSpacing: "0.18em" }}>{o.code}</span>
+            </div>
+            <button type="button" className="ec-shell-btn" data-testid="shell-online-copy-link" onClick={() => copy(c.link(), "link")} style={btn}>{copied === "link" ? "Link copied" : "Copy a link"}</button>
+            <p data-testid="shell-online-status" style={line}>
+              {o.status === "gone" ? "The other player left." : o.status === "playing" ? "In play." : o.peer ? "The other player is here: Begin when ready." : "Waiting for the other player…"}
+              {" "}You play {name(o.mySide)}, first; they play {name(o.theirSide)}.
+            </p>
+          </>
+        )}
+        {o.link === "down" && o.status !== "connecting" && <p data-testid="shell-online-link" style={{ ...line, color: "#e5392d" }}>Your connection dropped; trying again…</p>}
+        <button type="button" className="ec-shell-btn" data-testid="shell-online-leave" onClick={c.leave} style={btn}>Leave</button>
+      </>
+    );
+  } else {
+    body = (
+      <>
+        <p data-testid="shell-online-status" style={line}>
+          {o.status === "connecting" ? `Joining ${o.code}…` : o.status === "gone" ? "The other player left." : o.status === "playing" ? `In play with ${o.code}.` : `Joined ${o.code}. Waiting for the host to begin…`}
+          {o.status !== "connecting" && <>{" "}You play {name(o.mySide)}; they play {name(o.theirSide)}.</>}
+        </p>
+        {o.link === "down" && <p data-testid="shell-online-link" style={{ ...line, color: "#e5392d" }}>Your connection dropped; trying again…</p>}
+        <button type="button" className="ec-shell-btn" data-testid="shell-online-leave" onClick={c.leave} style={btn}>Leave</button>
+      </>
+    );
+  }
+  return (
+    <Field label="Online">
+      <div data-testid="shell-online" style={{ display: "flex", flexDirection: "column", gap: 8 }}>{body}</div>
+    </Field>
+  );
+}
+
 /* ---- setup ------------------------------------------------------------- */
 
 function SetupPanel({ ctl, t }) {
@@ -413,7 +488,7 @@ function SetupPanel({ ctl, t }) {
           testid="shell-first-move"
           options={sideOpts(true)}
           value={ctl.currentPlayer}
-          disabled={locked}
+          disabled={locked || !!(ctl.online && ctl.online.role === "guest")}
           onChange={() => ctl.onToggleStart()}
         />
       </Field>
@@ -421,15 +496,19 @@ function SetupPanel({ ctl, t }) {
         <Seg
           label="Opponent"
           testid="shell-opponent"
-          options={[{ value: false, label: "Human" }, { value: true, label: "AI" }]}
-          value={vsAi}
+          options={[{ value: "human", label: "Human" }, { value: "ai", label: "AI" }, { value: "online", label: "Online" }]}
+          value={ctl.online ? "online" : vsAi ? "ai" : "human"}
           disabled={locked}
-          onChange={(ai) => {
+          onChange={(v) => {
             ctl.cue("Select");
-            ctl.onSelectOpponent(ai ? (ctl.currentPlayer === "dark" ? "light" : "dark") : null);
+            if (v === "online") { if (ctl.onlineCtl) ctl.onlineCtl.view(ctl.online ? (ctl.online.role === "host" ? "host" : "join") : "menu"); return; }
+            if (ctl.online && ctl.onlineCtl) ctl.onlineCtl.leave();
+            ctl.onSelectOpponent(v === "ai" ? (ctl.currentPlayer === "dark" ? "light" : "dark") : null);
           }}
         />
       </Field>
+      {/* Online (chassis/online.js): host, join, and where it stands. */}
+      {(ctl.online || ctl.onlineView) && ctl.onlineCtl && <OnlineBlock ctl={ctl} t={t} />}
       {vsAi && (
         <>
           <Field label="AI plays">
@@ -507,9 +586,10 @@ function SetupPanel({ ctl, t }) {
           className="ec-shell-btn ec-shell-primary"
           data-testid="shell-begin"
           onClick={ctl.onBegin}
+          disabled={!!(ctl.online && ctl.online.role === "guest")}
           style={{ flex: 1, height: 52, fontSize: 13 }}
         >
-          {ctl.beginLabel || "Begin Game"}
+          {ctl.online && ctl.online.role === "guest" ? "Waiting for the host\u2026" : ctl.beginLabel || "Begin Game"}
         </button>
       </div>
       {below.map((a) => (
@@ -541,7 +621,7 @@ function PlayPanel({ ctl, t }) {
       <button key="log" type="button" className="ec-shell-btn ec-shell-ghost" data-testid="shell-movelog" onClick={ctl.onOpenMoveLog} style={{ flex: 1 }}>
         {(ctl.words && ctl.words.moveLog) || "Move Log"}
       </button>,
-      <button key="new" type="button" className="ec-shell-btn ec-shell-primary" data-testid="shell-new-game" onClick={ctl.onNewGame} style={{ flex: 1.3 }}>
+      <button key="new" type="button" className="ec-shell-btn ec-shell-primary" data-testid="shell-new-game" onClick={ctl.onNewGame} disabled={!!(ctl.online && ctl.online.role === "guest" && ctl.online.status !== "gone")} title={ctl.online && ctl.online.role === "guest" && ctl.online.status !== "gone" ? "The host starts the next game" : undefined} style={{ flex: 1.3 }}>
         {(ctl.words && ctl.words.newGame) || "New Game"}
       </button>
     );

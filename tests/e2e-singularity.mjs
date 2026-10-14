@@ -46,7 +46,7 @@ const TOLL_TO_COLLAPSE_MS = 3600;
 // Collapse (3200ms) + blackout dwell (700ms), with generous margin.
 const COLLAPSE_TO_SPHERE_MS = 5500;
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 const page = await browser.newPage({ viewport: { width: 1100, height: 900 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

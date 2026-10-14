@@ -76,7 +76,7 @@ html, body { margin: 0; width: 960px; height: 720px; overflow: hidden; }
 const HIDE_UI = "button, [data-dock-piece], [data-testid='dock-panel'], .ec-title, [data-masthead] { visibility: hidden !important; }";
 
 const only = process.argv[2] ? process.argv[2].split(",") : null;
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--use-gl=angle", "--ignore-gpu-blocklist"] });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--use-gl=angle", "--ignore-gpu-blocklist"] });
 for (const [id, url, wait, prep] of SHOTS) {
   if (only && !only.includes(id)) continue;
   const page = await browser.newPage({ viewport: { width: 960, height: 720 } });

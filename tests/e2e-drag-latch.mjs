@@ -15,7 +15,7 @@ const pageName = process.argv[2] || "el-cabeza-tienda.html";
 const phone = (process.argv[3] || "phone") === "phone";
 const vp = phone ? { width: 390, height: 844 } : { width: 1100, height: 800 };
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader"] });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--enable-unsafe-swiftshader", "--use-gl=swiftshader"] });
 const ctx = await browser.newContext({ viewport: vp });
 await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__TIENDA_MUSIC_ONLY__ = "none"; });
 const page = await ctx.newPage();

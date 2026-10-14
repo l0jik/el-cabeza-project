@@ -36,7 +36,7 @@ const SUBSONIC_MAX = 0.06;
 
 const browser = await chromium.launch({
   executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
-  args: ["--autoplay-policy=no-user-gesture-required"],
+  args: ["--allow-file-access-from-files", "--autoplay-policy=no-user-gesture-required"],
 });
 const page = await browser.newPage({ viewport: { width: 1100, height: 900 } });
 const errors = [];

@@ -47,7 +47,7 @@ const poll = async (fn, ms = 20000, step = 200) => {
     await new Promise((r) => setTimeout(r, step));
   }
 };
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"] });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"] });
 {
   // A new player: the store, the story's start; the spot's sound may come
   // early, its video not.

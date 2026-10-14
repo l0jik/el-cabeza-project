@@ -15,7 +15,7 @@ import { createInitialPieces, legalMovesFor, applyShoves, turnContinues, sameSta
 import { setActiveLaws, maxStepsFor, turnBudget, moveCost, maxPiecesPerTurn, GOAL_ROW, ACTIVE_LAWS, PIECE_META } from "../engine/constants.js";
 import { VANILLA_LAWS } from "../engine/replay.js";
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader"] });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--enable-unsafe-swiftshader", "--use-gl=swiftshader"] });
 let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
 const poll = async (fn, ms = 8000, step = 150) => { const end = Date.now() + ms; let v; while (Date.now() < end) { v = await fn(); if (v) return v; await new Promise((r) => setTimeout(r, step)); } return v; };

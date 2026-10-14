@@ -20,7 +20,7 @@ import { SIDE_NAMES } from "../themes/side-names.js";
 
 const DARK_NAMES = `\\b(${[...new Set(["Dark", ...Object.values(SIDE_NAMES).map((n) => n.dark)])].join("|")})\\b`;
 
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 let failures = 0;
 const check = (l, c, d) => { if (!c) failures++; console.log(`  ${c ? "ok  " : "FAIL"} ${l}${!c && d ? " — " + d : ""}`); };
 const NOVA = "file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html";
@@ -96,7 +96,7 @@ async function waitFor(fn, ms = 8000) {
   const after = await page.evaluate(() => document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]').dataset.value);
   check("First move switches sides", after !== before, `${before} -> ${after}`);
   await q(page, "shell-first-move").locator(`button[data-value="${before}"]`).click();
-  await q(page, "shell-opponent").locator('button[data-value="true"]').click();
+  await q(page, "shell-opponent").locator('button[data-value="ai"]').click();
   await page.waitForTimeout(300);
   check("choosing AI shows the AI's side and level", (await visible(page, "shell-ai-side")) && (await visible(page, "shell-ai-level")));
   const aiSide = await page.evaluate(() => document.querySelector('[data-testid="shell-ai-side"] [aria-pressed="true"]').dataset.value);
@@ -105,7 +105,7 @@ async function waitFor(fn, ms = 8000) {
   await q(page, "shell-ai-level").locator('button[data-value="hard"]').click();
   await page.waitForTimeout(200);
   check("the level is chosen", await page.evaluate(() => document.querySelector('[data-testid="shell-ai-level"] [aria-pressed="true"]').dataset.value === "hard"));
-  await q(page, "shell-opponent").locator('button[data-value="false"]').click();
+  await q(page, "shell-opponent").locator('button[data-value="human"]').click();
   await page.waitForTimeout(200);
   check("back to two players hides the AI rows", !(await visible(page, "shell-ai-side")));
 
@@ -158,7 +158,7 @@ async function waitFor(fn, ms = 8000) {
   await page.waitForTimeout(400);
   // (No "Rules in this game" in the store or the den: theme.rulesTabsHidden.)
   const rows = ["shell-menu-rules", "shell-menu-movelog", "shell-menu-end", "shell-menu-top", "shell-menu-player",
-    "shell-menu-sound", "shell-menu-points", "shell-menu-costs", "shell-menu-switch-theme", "shell-menu-back-to-store", "shell-menu-about"];
+    "shell-menu-sound", "shell-menu-points", "shell-menu-costs", "shell-menu-switch-theme", "shell-menu-about"];
   const missing = [];
   for (const r of rows) if (!(await q(page, r).count())) missing.push(r);
   check("the menu has every option", missing.length === 0, missing.join(", "));
@@ -247,7 +247,7 @@ async function waitFor(fn, ms = 8000) {
 {
   console.log("portrait, vs AI");
   const { ctx, page, errs } = await open(NOVA, { width: 390, height: 844, bar: true });
-  await q(page, "shell-opponent").locator('button[data-value="true"]').click();
+  await q(page, "shell-opponent").locator('button[data-value="ai"]').click();
   await q(page, "shell-ai-level").locator('button[data-value="easy"]').click();
   const human = await page.evaluate(() => document.querySelector('[data-testid="shell-first-move"] [aria-pressed="true"]').dataset.value);
   // The side's name as this theme says it (Walnut / Ash, Photon / Plasma...).

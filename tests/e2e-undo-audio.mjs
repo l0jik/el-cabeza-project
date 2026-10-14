@@ -6,7 +6,7 @@ import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 
 const theme = process.argv[2] || "neon";
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--autoplay-policy=no-user-gesture-required"] });
+const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--autoplay-policy=no-user-gesture-required"] });
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
 const errs = [];
 page.on("pageerror", (e) => errs.push(e.message));

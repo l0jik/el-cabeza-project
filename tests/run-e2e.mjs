@@ -51,6 +51,10 @@ const E2E = [
   ["e2e-closeups.mjs"],
   // Save & carry: a file, and a code on the game's server (run here on a free port).
   ["e2e-saves.mjs"],
+  // Online play: two browsers through the relay (run here on a free port).
+  ["e2e-online.mjs"],
+  // The City on Nova's page (its chunk fetched as it's picked), in and out of it in place.
+  ["e2e-nova-city.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");
