@@ -1,9 +1,10 @@
 ## Future wishlist (user-requested, not started)
 
-- **REMIND THE USER: the den's music (asked to be reminded,
-  2026-09-27).** The stereo console's record player and 8-track are
-  built, and the music panel lists them, but the tracks are the user's
-  to send. When they arrive: bundle each as an asset and list it in
+- **The den's music (done: the user sent them; one record and five
+  8-track tapes are in themes/standard.js DEN_TRACKS).** Was: "REMIND
+  THE USER" (2026-09-27). The stereo console's record player and 8-track
+  are built, and the music panel lists them, but the tracks are the
+  user's to send. When they arrive: bundle each as an asset and list it in
   themes/standard.js `DEN_TRACKS` ({ id, title, artist, medium: "record"
   | "8track", url }). See "The den, round 2" below.
 - **REMIND THE USER: a city-block version (asked to be reminded,
