@@ -92,8 +92,10 @@ window.renderFront = function renderFront(spec) {
   for (const q of spec.pieces) {
     const pose = typeof q.pose === "object" ? q.pose : PIECE_ORIENTATIONS[q.type][q.pose || 0];
     const p = { id: q.id || `${q.type}-${placed.length}`, type: q.type, owner: q.mat === "dark" ? "dark" : "light", row: q.row, col: q.col, w: pose.w, h: pose.h, z: pose.z, ...(pose.vox ? { vox: pose.vox } : {}) };
-    for (const o of placed) if (piecesClash(p, o)) throw new Error(`${p.id} clashes with ${o.id}`);
-    placed.push(p);
+    // (a piece set down at an angle, as a hand would on a table, isn't
+    // on the board's squares: no clash check for it, just room left)
+    if (!q.rot) for (const o of placed) if (piecesClash(p, o)) throw new Error(`${p.id} clashes with ${o.id}`);
+    if (!q.rot) placed.push(p);
     const geo = geometryFor(p);
     const center = { x: (p.col + p.w / 2) * SQUARE_SIZE - OFF_X, z: (p.row + p.h / 2) * SQUARE_SIZE - OFF_Z };
     const y = restingY(p) + (q.lift || 0);
@@ -106,6 +108,11 @@ window.renderFront = function renderFront(spec) {
       mesh = new THREE.Mesh(geo, otherMaterial(q.mat, env));
       mesh.position.set(center.x, y, center.z);
       mesh.castShadow = true; mesh.receiveShadow = true;
+    }
+    if (q.rot) {
+      // turned about its own middle, on the spot
+      const turn = (m) => { const c0 = new THREE.Vector3(center.x, 0, center.z); m.position.sub(c0); m.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(q.rot)); m.position.add(c0); m.rotation.y = THREE.MathUtils.degToRad(q.rot); };
+      turn(mesh); group.children.forEach((o) => { if (o.userData && o.userData.pieceId === p.id && o.userData.kind === "shell") turn(o); });
     }
     group.add(mesh);
   }

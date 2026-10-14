@@ -297,11 +297,20 @@ async function preview(lostMs) {
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html?scene=summons");
   const S = () => page.evaluate(() => (window.__EC_SUMMON__ ? window.__EC_SUMMON__() : { active: false }));
   check("it opens in Neon with the summons up, though the sphere's been seen", !!(await poll(async () => (await S()).active, 30000)));
-  const s1 = await poll(async () => { const s = await S(); return s.ready && s.screen ? s : null; }, 15000);
-  await page.mouse.click(s1.screen.x, s1.screen.y);
-  check("...a tap on the singularity: the invite", !!(await poll(async () => (await page.locator(".ec-singularity-invite-btn").count()) > 0, 4000)));
-  const b = await page.locator(".ec-singularity-invite-btn").boundingBox();
-  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  // (CI runs 15 and 71: on a loaded runner the one tap on the sphere can
+  // land before it takes taps, or where it was a frame ago: the sphere's
+  // place is read again and tapped again, three times at most.)
+  let invite = false, taps = 0;
+  while (!invite && taps < 3) {
+    const s1 = await poll(async () => { const s = await S(); return s.ready && s.screen ? s : null; }, 15000);
+    if (!s1) break;
+    await page.mouse.click(s1.screen.x, s1.screen.y);
+    taps++;
+    invite = !!(await poll(async () => (await page.locator(".ec-singularity-invite-btn").count()) > 0, 4000));
+  }
+  check(`...a tap on the singularity: the invite (${taps} tap(s))`, invite);
+  const b = invite ? await page.locator(".ec-singularity-invite-btn").boundingBox() : null;
+  if (b) await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
   check("...into the sphere", !!(await poll(() => page.evaluate(() => { const ph = document.querySelector("[data-singularity-phase]"); return !!ph && ph.getAttribute("data-singularity-phase") === "sphere"; }), 25000)));
   check("...as a first visit (the ring and heartbeat)", !!(await poll(() => page.evaluate(() => !!(window.__EC_UNEASE__ && window.__EC_UNEASE__().sound)), 5000)));
   return { ctx, page, errs };

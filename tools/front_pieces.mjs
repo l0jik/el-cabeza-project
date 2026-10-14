@@ -135,6 +135,50 @@ export const COMPOSITIONS = {
     size: [2000, 2000], dpr: 1, camera: { kind: "top", pad: 1.0 }, board: true, light: { keyDir: [-0.5, 1, 0.6] },
     pieces: initialPiecesFor(10, 10).map((p) => ({ type: p.type, pose: { w: p.w, h: p.h, z: p.z }, col: p.col, row: p.row, mat: p.owner === "dark" ? "dark" : "light", id: p.id })),
   },
+  // NOVA in the pieces, lying on the slab, from above (user: "one of the S
+  // shape or Z shape pieces on its side at an angle. That would make an N.
+  // A cabeza for the O. The elbow piece at resting on its corner. That
+  // would be a V, and then the A could be any of the arches ... with its
+  // open side pointing down"): the Rayo lying as an S turned on its side
+  // (a pose it rolls into), the Cabeza, the Codo set down corner-first,
+  // the Arco Alto rolled flat with its bar away from you.
+  "nova-wood": {
+    size: [2400, 900], dpr: 1, camera: { kind: "top", pad: 1.04 }, ground: 0.4, light: { keyDir: [-0.6, 1, 0.45] },
+    pieces: [
+      pc("rayo", { w: 2, h: 3, z: 1, vox: "0,0,0;0,1,0;1,1,0;1,2,0" }, 0, 0, "dark"),
+      pc("cabeza", 0, 3, 1, "light", { lift: 0 }),
+      pc("codo", { w: 2, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0" }, 5, 0.5, "dark", { rot: 45 }),
+      pc("arcoAlto", { w: 3, h: 3, z: 1, vox: "0,0,0;1,0,0;2,0,0;0,1,0;0,2,0;2,1,0;2,2,0" }, 8, 0, "light"),
+    ],
+  },
+  "nova-brass": {
+    size: [2400, 900], dpr: 1, camera: { kind: "top", pad: 1.04 }, ground: 0.5, light: { keyDir: [-0.6, 1, 0.45] },
+    pieces: [
+      pc("rayo", { w: 2, h: 3, z: 1, vox: "0,0,0;0,1,0;1,1,0;1,2,0" }, 0, 0, "black"),
+      pc("cabeza", 0, 3, 1, "brass"),
+      pc("codo", { w: 2, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0" }, 5, 0.5, "black", { rot: 45 }),
+      pc("arcoAlto", { w: 3, h: 3, z: 1, vox: "0,0,0;1,0,0;2,0,0;0,1,0;0,2,0;2,1,0;2,2,0" }, 8, 0, "brass"),
+    ],
+  },
+  // The standing pieces in a row, seen from their row's side and low, in wood (the sunset's skyline, real).
+  "skyline-wood": {
+    size: [3600, 700], dpr: 1, camera: { kind: "ortho", az: 0.0, el: 0.1, pad: 1.02 }, ground: 0.3, light: { keyDir: [-0.3, 1, 0.8] },
+    pieces: (() => {
+      const row = [["arcoAlto", P.arcoAltoUp], ["flaco", P.flacoUp], ["turrito", 0], ["block1x3", P.b13Up], ["opa", 0], ["codo", P.codoUp], ["zeta", P.zetaUp], ["chato", P.chatoAcross], ["cruce", P.cruceUp], ["rayo", P.rayoUp], ["arcoChico", P.arcoChicoUp], ["hombro", P.hombro], ["arcoAncho", P.arcoAnchoUp]];
+      let col = 0; const out = [];
+      row.forEach(([t, pose], i) => { const o = PIECE_ORIENTATIONS[t][pose]; out.push(pc(t, pose, col, 0, i % 2 ? "light" : "dark")); col += o.w + 1; });
+      return out;
+    })(),
+  },
+  "skyline-short": {
+    size: [2400, 700], dpr: 1, camera: { kind: "ortho", az: 0.0, el: 0.1, pad: 1.02 }, ground: 0.3, light: { keyDir: [-0.3, 1, 0.8] },
+    pieces: (() => {
+      const row = [["arcoAlto", P.arcoAltoUp], ["flaco", P.flacoUp], ["turrito", 0], ["opa", 0], ["codo", P.codoUp], ["zeta", P.zetaUp], ["chato", P.chatoAcross], ["arcoChico", P.arcoChicoUp]];
+      let col = 0; const out = [];
+      row.forEach(([t, pose], i) => { const o = PIECE_ORIENTATIONS[t][pose]; out.push(pc(t, pose, col, 0, i % 2 ? "light" : "dark")); col += o.w + 1; });
+      return out;
+    })(),
+  },
   // The Cabeza alone, from above, each wood: the disc the marks are drawn from.
   "cabeza-dark": { size: [1000, 1000], dpr: 1, camera: { kind: "top", pad: 1.15 }, ground: 0.3, pieces: [pc("cabeza", 0, 0, 0, "dark")] },
   "cabeza-light": { size: [1000, 1000], dpr: 1, camera: { kind: "top", pad: 1.15 }, ground: 0.3, pieces: [pc("cabeza", 0, 0, 0, "light")] },

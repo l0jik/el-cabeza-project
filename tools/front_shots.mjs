@@ -6,7 +6,8 @@ import { chromium } from "playwright";
 import fs from "node:fs";
 const ROOT = "/home/user/el-cabeza-project";
 const only = process.argv.slice(2).map(Number);
-const N = Array.from({ length: 10 }, (_, i) => i + 1).filter((i) => !only.length || only.includes(i));
+const ALL = fs.readdirSync(`${ROOT}/front`).map((f) => /^front-(\d+)\.html$/.exec(f)).filter(Boolean).map((m) => Number(m[1])).sort((a, b) => a - b);
+const N = ALL.filter((i) => !only.length || only.includes(i));
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files"] });
 const settle = async (page) => {
   await page.evaluate(() => document.fonts.ready);

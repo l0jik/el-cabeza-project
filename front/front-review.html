@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>Front page, ten ways</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>Front page, thirty ways</title>
 <style>
 body { margin: 0; background: #1b1916; color: #e9e1d2; font-family: system-ui, sans-serif; padding: 24px 16px 60px; }
 h1 { font-weight: 500; font-size: 1.5rem; margin: 0 0 6px; } p.lead { margin: 0 0 24px; color: #b9ae9a; max-width: 70ch; }
@@ -12,8 +12,8 @@ h1 { font-weight: 500; font-size: 1.5rem; margin: 0 0 6px; } p.lead { margin: 0 
 .shots img.phone { width: 96px; }
 .v a.open { color: #f0d79a; font-weight: 600; text-decoration: none; } .v a.open:hover { text-decoration: underline; }
 </style></head><body>
-<h1>Front page, ten ways</h1>
-<p class="lead">Each one is a working page: open it on a desktop and on a phone. Every piece pictured is drawn by the game itself, at its real shape and size (walnut for Dark, olive ash for Light; the brass and black lacquer are the set's own).</p>
+<h1>Front page, thirty ways</h1>
+<p class="lead">1 to 10 from the first round; 11 to 30 the retro-future set. Each one is a working page: open it on a desktop and on a phone. Every piece pictured is drawn by the game itself, at its real shape and size (walnut for Dark, olive ash for Light; the brass and black lacquer are the set's own).</p>
 <div class="grid" id="grid"></div>
 <script>
 const V = [
@@ -27,6 +27,27 @@ const V = [
   [8, "Brown, the catalogue", "Leather brown, the disc with crosshairs, and every piece in a row beneath, named left to right."],
   [9, "Paper, the opening", "The folding hardwood board with the standard opening set out, beside the wordmark."],
   [10, "NOVA, in pieces", "NOVA spelled with the game's own pieces (your idea): a Rayo on end, the Cabeza, an Arco Alto lying flat, an Arco Alto standing."],
+  // The second set: the 70s with a modern spin (user: "retro future ... this is from the 70s, yet there's a modern spin on it").
+  [11, "The receiver", "A 1975 stereo's brushed faceplate: the wordmark in its black display window, NOVA lit orange, the knobs are the buttons."],
+  [12, "The orange mosaic", "Big Glutts' tiled floor under a frosted cream card, the board's opening from above."],
+  [13, "The den", "The den itself, lamp-lit: the board by the fire, photographed in the game."],
+  [14, "Neon", "The Neon world's board in light, the wordmark over it, NOVA in magenta."],
+  [15, "The hologram", "The 1975 board under a projected cyan grid."],
+  [16, "Blueprint", "Plano: the city drawn in white on blue, the wordmark in white."],
+  [17, "Chrome", "Cromo: steel and stone, the name in brushed silver."],
+  [18, "Golden hour, in wood", "The striped sun with the real wooden pieces standing in a row against it, and their reflection."],
+  [19, "NOVA in wood", "NOVA as you set it out: a Rayo on its side, the Cabeza, a Codo on its corner, an Arco Alto with its opening down, in walnut and olive ash."],
+  [20, "NOVA in neon", "The same four as a neon sign, each cube outlined."],
+  [21, "Avocado and harvest gold", "The 70s palette with a supergraphic stripe, and an Arco Chico sheltering a Turrito."],
+  [22, "Space-age white", "White, the whole wordmark in the wide 70s sans, one orange accent, the axonometric cluster."],
+  [23, "The City at 10 PM", "Glass towers and cranes at night, photographed in the game."],
+  [24, "Luna", "The moon base under the Earth."],
+  [25, "Noir", "Rain on a 1940s city at night, in black and white."],
+  [26, "Lluvia", "The city in the rain, far below."],
+  [27, "Parrish", "The painted terrace by the sea, in cobalt, cream and gold."],
+  [28, "The box back", "A 1975 box's back: the specs, every piece in a row with its name."],
+  [29, "1975 / Nova", "The den on one side, Neon on the other, one seam, one wordmark."],
+  [30, "The ring", "One thin brass ring round the head, and nothing else."],
 ];
 document.getElementById("grid").innerHTML = V.map(([n, t, d]) => `<div class="v"><h2><span>${n}</span>${t}</h2><p>${d}</p><div class="shots"><a href="front-${n}.html"><img src="front/review/front-${n}-desk.jpg" alt="Version ${n} on a desktop"></a><a href="front-${n}.html"><img class="phone" src="front/review/front-${n}-phone.jpg" alt="Version ${n} on a phone"></a></div><a class="open" href="front-${n}.html">Open front-${n}.html →</a></div>`).join("");
 </script>

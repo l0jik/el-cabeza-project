@@ -25,17 +25,20 @@ const svg = (s, cls, title) => `<svg class="${cls}" viewBox="0 0 ${s.w} ${s.h}" 
 const SKY = [["arcoAlto", 0, "Arco Alto"], ["flaco", 2, "Flaco, standing"], ["turrito", 0, "Turrito"], ["block1x3", 2, "1×3, standing"], ["opa", 0, "Opa"], ["codo", 0, "Codo, standing"], ["zeta", 0, "Zeta"], ["chato", 1, "Chato, on edge"], ["cruce", 2, "Cruce, on its bar"], ["rayo", 0, "Rayo, standing"], ["arcoChico", 0, "Arco Chico"], ["hombro", 0, "Hombro"], ["arcoAncho", 0, "Arco Ancho"]];
 const skyline = SKY.map(([t, p, n]) => svg(shape(t, p, "front"), "p", n)).join("");
 
-// NOVA, in four pieces (user: "Nova can be spelled using the ones
-// marked"): N a Rayo stood on end (its upright pose rolled over sideways,
-// engine/shapes.js rollVox E: two cubes high on the left, two low on the
-// right), O the Cabeza from above, V the Arco Alto lying flat with its
-// opening up (a Roman V), A the Arco Alto standing (its opening the A's counter).
+// NOVA, in the pieces, as the user set it out ("one of the S shape or Z
+// shape pieces on its side at an angle. That would make an N. A cabeza
+// for the O. The elbow piece at resting on its corner. That would be a
+// V, and then the A could be any of the arches ... with its open side
+// pointing down"): the Rayo lying as an S on its side (two cubes high on
+// the left, two low on the right), the Cabeza from above, the Codo (its
+// two arms the same length) set on its corner, the Arco Alto with its
+// opening down. The V is the only one turned off the square (-45deg), in
+// its own box so the word sets on one baseline.
+const vSil = shape("codo", { w: 2, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0" }, "top");
 const nova = [
-  svg(shape("rayo", { w: 2, h: 1, z: 3, vox: "0,0,1;0,0,2;1,0,0;1,0,1" }, "front"), "g n", "N: a Rayo on end"),
+  svg(shape("rayo", { w: 2, h: 3, z: 1, vox: "0,0,0;0,1,0;1,1,0;1,2,0" }, "top"), "g n", "N: a Rayo on its side"),
   svg(shape("cabeza", 0, "top"), "g o", "O: the Cabeza"),
-  // (the Alto rolled over onto its side, engine/shapes.js rollVox S: the
-  // same seven cubes lying flat, its bar at the bottom, so a U the height of the N and the A)
-  svg(shape("arcoAlto", { w: 3, h: 3, z: 1, vox: "0,0,0;0,1,0;0,2,0;1,2,0;2,0,0;2,1,0;2,2,0" }, "top"), "g v", "V: an Arco Alto, flat"),
-  svg(shape("arcoAlto", 0, "front"), "g a", "A: an Arco Alto, standing"),
+  `<span class="g v" style="display:inline-block;width:calc(var(--u) * 2.83);height:calc(var(--u) * 2.12);position:relative" role="img" aria-label="V: a Codo on its corner"><svg viewBox="0 0 2 2" style="position:absolute;left:50%;top:0;width:calc(var(--u) * 2);height:calc(var(--u) * 2);transform:translate(-50%, calc(var(--u) * -0.3)) rotate(-45deg);transform-origin:50% 50%"><g shape-rendering="crispEdges">${vSil.body}</g></svg></span>`,
+  svg(shape("arcoAlto", 0, "front"), "g a", "A: an Arco Alto, its opening down"),
 ].join("");
 process.stdout.write(JSON.stringify({ skyline, nova }));
