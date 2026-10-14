@@ -2881,6 +2881,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      threats, the alert left on. A different threat (another piece in
      reach, another Cabeza), or the next turn's, brings it back. */
   const [checkDismissed, setCheckDismissed] = useState("");
+  /* The turn held (user: "Check Alert was turned on, but it didn't trigger
+     though it should've": their Cabeza's last step took it into reach, the
+     turn went straight to the computer, and the alert, which reads the
+     board on your own turn, never had a moment). A move that would end
+     your turn with your Cabeza in reach doesn't hand it over: it waits,
+     the alert up, till you take the turn back or end it anyway (user's
+     pick, "Hold the turn"). { piece, notation, steps } for settleTurn, or
+     null. Holding the moved piece (Hold to end) ends it too. */
+  const [checkHold, setCheckHold] = useState(null);
+  const checkHoldRef = useRef(null);
+  checkHoldRef.current = checkHold;
+  // (Over when the turn is: ended, taken back, or the game done.)
+  useEffect(() => {
+    if (checkHold && (!turnSnapshot || currentPlayer !== youSide || status !== "playing")) setCheckHold(null);
+  }, [checkHold, turnSnapshot, currentPlayer, status, youSide]);
   const checkKey = checkThreats ? `${turnHistory.length}|${checkThreats.map((x) => `${x.attacker}>${x.cabeza}`).sort().join(",")}` : "";
   const checkHidden = !!checkThreats && checkKey === checkDismissed;
   // (Once the danger's past, a dismissal is forgotten: the same threat coming back later is news again.)
@@ -2891,7 +2906,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // The card goes the way it's sent (a swipe), or up and out (a tap elsewhere), then it's dismissed.
   const dismissCheck = (dx = 0, dy = -40) => {
     const el = checkCardRef.current, key = checkKeyRef.current;
-    if (!key) return;
+    // (While the turn's held the card is the way on: it stays.)
+    if (!key || checkHoldRef.current) return;
     if (!el || (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) { setCheckDismissed(key); return; }
     el.style.transition = "transform 200ms ease-in, opacity 200ms ease-in";
     el.style.transform = `translate(calc(-50% + ${dx}px), ${dy}px)`;
@@ -2916,7 +2932,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const onCheckDown = (e) => { swipe.current = { x: e.clientX, y: e.clientY, t: Date.now(), id: e.pointerId, on: false }; };
   const onCheckMove = (e) => {
     const sw = swipe.current, el = checkCardRef.current;
-    if (!sw || sw.id !== e.pointerId || !el) return;
+    if (!sw || sw.id !== e.pointerId || !el || checkHoldRef.current) return;
     const dx = e.clientX - sw.x, dy = Math.min(0, e.clientY - sw.y);
     if (!sw.on && Math.hypot(dx, dy) > 8) { sw.on = true; try { el.setPointerCapture(e.pointerId); } catch (err) { /* gone */ } el.style.transition = "none"; el.style.animation = "none"; }
     if (sw.on) { el.style.transform = `translate(calc(-50% + ${dx}px), ${dy}px)`; el.style.opacity = String(Math.max(0.25, 1 - Math.max(Math.abs(dx), -dy) / 260)); }
@@ -6332,7 +6348,19 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
               : "no move fits the actions left";
         setUnusedNote({ key: Date.now(), text: `${left} action${left > 1 ? "s" : ""} unused: ${why}` });
       }
-      settleTurn(move.candidate, notation, stepsNext);
+      // The check alert's last word (checkHold): your turn against the
+      // computer ending with your Cabeza in its reach waits, the alert up,
+      // set as it would be mid-turn so Take back (handleUndoTurn) and Hold
+      // to end (handleStopHere) find the turn's steps.
+      if (checkAlert && aiPlayer && currentPlayer !== aiPlayer && !replayingRef.current && cabezaThreats(nextPieces, currentPlayer).length) {
+        setMovedPieceIds(movedAfter);
+        setPendingSteps(stepsNext);
+        setSelectedId(piece.id);
+        setHoveredId(piece.id);
+        setStepsUsed(used);
+        setCheckDismissed(""); // (put away earlier this turn or not, it's up now)
+        setCheckHold({ piece: move.candidate, notation, steps: stepsNext });
+      } else settleTurn(move.candidate, notation, stepsNext);
     } else {
       setMovedPieceIds(movedAfter);
       setPendingSteps(stepsNext);
@@ -8644,6 +8672,21 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
     run(pendingSteps.length - 1);
   }
+  // The held turn (checkHold): ended as it stands, or taken back whole.
+  function endHeldTurn() {
+    const held = checkHoldRef.current;
+    if (!held || busy || anim.current) return;
+    setCheckHold(null);
+    settleTurn(held.piece, held.notation, held.steps);
+  }
+  function takeBackHeldTurn() {
+    if (!checkHoldRef.current || busy || anim.current) return;
+    setCheckHold(null);
+    handleUndoTurn();
+  }
+  // (The alert turned off while it holds a turn: the turn goes on over.)
+  useEffect(() => { if (checkHold && !checkAlert) endHeldTurn(); });
+  if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_CHECK_HOLD__ = () => !!checkHoldRef.current; // tests: a turn held
   // A replay's step back takes back exactly one turn, whoever played it
   // ({ fromReplay: true }); the buttons can't while a replay plays.
   function handleUndoLastTurn(opts) {
@@ -10401,17 +10444,19 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         const verb = kinds.size === 1 && kinds.has("roll") ? "tumble onto" : kinds.size === 1 && kinds.has("slide") ? "slide onto" : "crush";
         const yours = pieces.filter((p) => p.type === "cabeza" && p.owner === youSide).length > 1 ? "a Cabeza of yours" : "your Cabeza";
         const esc = (checkView && checkView.escapes) || [];
-        const advice = esc.some((e) => e.safe) ? "Move your Cabeza to a green square, or block its way."
-          : esc.length ? "No square your Cabeza can reach this turn is safe: block its way if you can."
-            : "Your Cabeza can't move again this turn: block its way if you can.";
+        const advice = checkHold ? "Your turn waits: take it back and move another way, or end it as it is."
+          : esc.some((e) => e.safe) ? "Move your Cabeza to a green square, or block its way."
+            : esc.length ? "No square your Cabeza can reach this turn is safe: block its way if you can."
+              : "Your Cabeza can't move again this turn: block its way if you can.";
         const label = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase" };
         return (
           <div
             key={checkKey}
             ref={checkCardRef}
             data-testid="check-alert"
+            data-held={checkHold ? "true" : "false"}
             role="alert"
-            title="Swipe it away, or tap anywhere else, to put it away for this turn"
+            title={checkHold ? "Take your turn back, or end it as it is" : "Swipe it away, or tap anywhere else, to put it away for this turn"}
             onPointerDown={onCheckDown}
             onPointerMove={onCheckMove}
             onPointerUp={onCheckUp}
@@ -10480,6 +10525,29 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                 </span>
               </button>
             </div>
+            {/* The turn held (checkHold): the two ways on. */}
+            {checkHold && (
+              <div style={{ display: "flex", alignItems: "stretch", gap: 10, marginTop: 10 }}>
+                <button
+                  type="button"
+                  data-testid="check-alert-take-back"
+                  title="Take this turn's moves back and move another way"
+                  onClick={takeBackHeldTurn}
+                  style={{ ...label, flex: 1, minHeight: 36, padding: "8px 10px", borderRadius: 9, border: "1.5px solid #e5392d", background: "#e5392d", color: "#fff", fontWeight: 600, cursor: "pointer" }}
+                >
+                  Take it back
+                </button>
+                <button
+                  type="button"
+                  data-testid="check-alert-end-turn"
+                  title="End your turn as it is: the computer moves next"
+                  onClick={endHeldTurn}
+                  style={{ ...label, flex: 1, minHeight: 36, padding: "8px 10px", borderRadius: 9, border: `1.5px solid ${COLORS.charcoal}`, background: "transparent", color: COLORS.charcoal, fontWeight: 600, cursor: "pointer" }}
+                >
+                  End turn
+                </button>
+              </div>
+            )}
           </div>
         );
       })()}

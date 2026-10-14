@@ -371,17 +371,28 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await page.waitForTimeout(500);
   await press('[data-testid="tienda-cell-0-4"]');
   check("the picker refuses a back row, and says why", /back rows/.test(await txt('[data-testid="tienda-picker-note"]')) && (await count('[data-testid="tienda-picker"]')) === 1);
-  // A square the random placement hasn't taken: a tap on the rolled pair
+  // Squares the random placement hasn't taken: a tap on the rolled pair
   // only keeps it (it was on 3-2 or its partner about one run in thirty,
-  // and this failed).
-  const pick = await page.evaluate(() => ["3-2", "3-3", "4-2"].find((k) => { const b = document.querySelector(`[data-testid="tienda-cell-${k}"]`); return b && !b.dataset.mark && !b.querySelector(".mk"); }));
+  // and this failed). Two of them, neither the other's partner.
+  const [first, pick] = await page.evaluate(() => ["3-2", "3-3", "4-2", "4-3"].filter((k) => { const b = document.querySelector(`[data-testid="tienda-cell-${k}"]`); return b && !b.dataset.mark && !b.querySelector(".mk"); }));
+  // A tap marks the pair and the board stays up (user: "you select the
+  // square and it immediately closes that choice menu. That shouldn't
+  // happen ... press the square, see the one you've pressed, and then
+  // click done"); another square moves it; the same one again leaves it.
+  const markOf = (k) => attr(`[data-testid="tienda-cell-${k}"]`, "data-mark");
+  await press(`[data-testid="tienda-cell-${first}"]`);
+  check("...a tap marks the pair, and the board stays up", (await count('[data-testid="tienda-picker"]')) === 1 && (await markOf(first)) === "hand", JSON.stringify({ first, mark: await markOf(first) }));
   await press(`[data-testid="tienda-cell-${pick}"]`);
+  check("...a tap on another square moves it", (await markOf(pick)) === "hand" && !(await markOf(first)), JSON.stringify({ first: await markOf(first), pick: await markOf(pick) }));
+  await press(`[data-testid="tienda-cell-${pick}"]`);
+  check("...a tap on the marked square leaves it marked", (await count('[data-testid="tienda-picker"]')) === 1 && (await markOf(pick)) === "hand");
+  await press('[data-testid="tienda-picker-done"]');
   // The software renderer can hold the store's frame for a while: wait
   // for the picker to go, up to a few seconds, not a fixed moment.
   for (let i = 0; i < 30 && (await count('[data-testid="tienda-picker"]')); i++) await page.waitForTimeout(200);
   const [pickRow, pickCol] = pick.split("-").map(Number);
   const holeWhere = await txt('[data-testid="tienda-hole-where"]');
-  check("...a tap places the pair and closes", (await count('[data-testid="tienda-picker"]')) === 0 && holeWhere.startsWith(`O row ${pickRow + 1}, col ${pickCol + 1}`) && !/random/.test(holeWhere), JSON.stringify({ pick, holeWhere }));
+  check("...Done places the pair and goes back to the form", (await count('[data-testid="tienda-picker"]')) === 0 && holeWhere.startsWith(`O row ${pickRow + 1}, col ${pickCol + 1}`) && !/random/.test(holeWhere), JSON.stringify({ pick, holeWhere }));
   await press('[data-testid="tienda-missing"]');
   await press('[data-testid="tienda-missing-count-inc"]');
   check("Missing squares: 2 pairs rolled at once", ((await txt('[data-testid="tienda-missing-where"]')).match(/X row/g) || []).length === 2);

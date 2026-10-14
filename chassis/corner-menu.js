@@ -108,8 +108,13 @@ const BASE = `
   html.ec-shell .cm { top: calc(var(--ec-shell-top, 60px) + 6px); left: 12px; }
   .cm * { box-sizing: border-box; }
   .cm button { all: unset; box-sizing: border-box; cursor: pointer; }
-  .cm .cm-tab { display: flex; align-items: center; opacity: 0.82; transition: opacity 0.18s ease; }
-  .cm .cm-tab:hover, .cm[data-open="true"] .cm-tab { opacity: 1; }
+  /* The tab at 60% till it's wanted (user: "Dim the circled buttons ...
+     a tap or hover before a click on a mouse will raise them 100% again";
+     CornerMenu.jsx and raise-on-tap.js): a mouse over it, a first tap on a
+     touch screen ([data-raised]), the card open or a key's focus raise it. */
+  .cm .cm-tab { display: flex; align-items: center; opacity: 0.6; transition: opacity 0.18s ease; }
+  .cm[data-raised="true"] .cm-tab, .cm[data-open="true"] .cm-tab, .cm .cm-tab:focus-visible { opacity: 1; }
+  @media (hover: hover) { .cm .cm-tab:hover { opacity: 1; } }
   .cm button:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
   .cm .cm-card { width: 304px; max-width: calc(100vw - 28px); max-height: calc(100vh - 96px); overflow-y: auto; overscroll-behavior: contain; }
   html.ec-shell .cm .cm-card { max-height: calc(100vh - var(--ec-shell-top, 60px) - var(--ec-shell-bottom, 120px) - 70px); }
@@ -122,7 +127,7 @@ const BASE = `
   .cm .cm-pc, .cm .cm-bd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .cm .cm-extra { display: block; margin-top: 10px; text-decoration: underline; }
   /* The den's lights down (focus mode): it dims with the room until it's opened. */
-  html.ec-lights-down .cm:not([data-open="true"]) { opacity: 0.3; }
+  html.ec-lights-down .cm:not([data-open="true"]):not([data-raised="true"]) { opacity: 0.3; }
   @media (hover: hover) { html.ec-lights-down .cm:not([data-open="true"]):hover { opacity: 0.9; } }
   /* The check alert (a Cabeza in danger) comes first: where its card, or
      the chip that calls it back, would sit over the tab, the tab steps
@@ -509,11 +514,13 @@ export const LOOKS = {
        new Corner menu needs to be minimized and set to 50% opaque with a
        tap or click raising it to its full size and opacity. It's currently
        too obstructive / distracting."): closed, the title alone, smaller,
-       at half strength; a tap opens it at full size and strength. */
+       at half strength; a mouse over it brings it to full strength, and a
+       tap raises it to full size and strength (raise-on-tap.js, as every
+       world's tab now), a second opening it. */
     .cm-parrish-orinoco .cm-tab { transform-origin:0 0; transition: opacity .18s ease, transform .18s ease; }
-    .cm-parrish-orinoco:not([data-open="true"]) .cm-tab { opacity:.5; transform:scale(.8); padding:7px 14px; }
-    .cm-parrish-orinoco:not([data-open="true"]) .cm-tab .s { display:none; }
-    @media (hover: hover) { .cm-parrish-orinoco:not([data-open="true"]) .cm-tab:hover { opacity:.85; } }
+    .cm-parrish-orinoco:not([data-open="true"]):not([data-raised="true"]) .cm-tab { opacity:.5; transform:scale(.8); padding:7px 14px; }
+    .cm-parrish-orinoco:not([data-open="true"]):not([data-raised="true"]) .cm-tab .s { display:none; }
+    @media (hover: hover) { .cm-parrish-orinoco:not([data-open="true"]):not([data-raised="true"]) .cm-tab:hover { opacity:1; } }
     `,
   },
 };

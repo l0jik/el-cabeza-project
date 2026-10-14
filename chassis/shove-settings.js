@@ -61,17 +61,22 @@ export const OWN_BLOCKS = "A shove pushes only your opponent's pieces: one of yo
 /* What actually shoves with the rules as they're set, for the line under
    the settings (user: the Slide/Shoving link confused even the
    developer). It changes as Orthogonal slide is ticked. `laws` are the
-   menu's own: slide, diagonalSlide. */
+   menu's own: slide, diagonalSlide. The menus keep "Slides only" and
+   Orthogonal slide in step (rules-selections.js toggleLaw and setShove,
+   Neon's sphere its own), and the buttons show it when they move, so
+   the line no longer warns of it (user, of "Turning Orthogonal slide off
+   switches this back to Slides and rolls": "a bit opaque ... we should
+   take it out"; its twin "Choosing Slides only turns it on" went too). */
 export function shoveNow(saved, laws = {}) {
   const s = shoveOf(saved);
   // (And never on a diagonal, user: said while Diagonal slide is on.)
   const diag = laws.diagonalSlide ? " Diagonal slides never shove." : "";
   const own = s.own ? "" : ` ${OWN_BLOCKS}`;
   if (!s.onRolls)
-    return `Right now only slides shove.${diag} A roll into a piece is just blocked.${own} Turning Orthogonal slide off switches this back to Slides and rolls.`;
+    return `Right now only slides shove.${diag} A roll into a piece is just blocked.${own}`;
   if (!laws.slide)
     return laws.diagonalSlide
-      ? `Right now only rolls shove: Orthogonal slide is off, and diagonal slides never shove.${own} Choosing Slides only turns it on.`
-      : `Right now only rolls shove: Orthogonal slide is off, so there are no slides to shove with.${own} Choosing Slides only turns it on.`;
+      ? `Right now only rolls shove: Orthogonal slide is off, and diagonal slides never shove.${own}`
+      : `Right now only rolls shove: Orthogonal slide is off, so there are no slides to shove with.${own}`;
   return `Right now slides and rolls both shove.${diag}${own}`;
 }

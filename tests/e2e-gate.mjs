@@ -190,6 +190,45 @@ console.log("Cabeza Nova: the one menu");
   await shot(p, "picker-phone");
   await p.locator('[data-testid="gate-picker-random"]').click();
   await p.locator('[data-testid="gate-picker-done"]').click();
+  {
+    // Black holes by hand (user: "you select the square and it
+    // immediately closes that choice menu. That shouldn't happen ... press
+    // the square, see the one you've pressed, and then click done"): a tap
+    // marks a square and its partner and the board stays up; another
+    // square moves them; the same square again leaves it; Done goes back
+    // to the menu; Cancel after a tap keeps what was there.
+    await p.locator('[data-testid="gate-law-blackHoleSquares"]').click();
+    await p.locator('[data-testid="gate-place-holes"]').click();
+    check("black holes: the board to mark", !!(await poll(async () => (await p.locator('[data-testid="gate-picker"]').count()) > 0, 3000)));
+    // two free squares a hole may take, neither the other's partner
+    const [a, b] = await p.evaluate(() => {
+      const free = [...document.querySelectorAll('[data-testid^="gate-cell-"]')].filter((el) => !el.classList.contains("banned") && !el.classList.contains("piece") && !el.querySelector(".mk")).map((el) => el.dataset.testid);
+      const rc = (id) => id.split("-").slice(2).map(Number), grid = document.querySelector(".rg-grid");
+      const cols = getComputedStyle(grid).gridTemplateColumns.split(" ").length, rows = Math.round(grid.children.length / cols);
+      const first = free[0], [r0, c0] = rc(first);
+      return [first, free.find((id) => { const [r, c] = rc(id); return id !== first && !(r === rows - 1 - r0 && c === cols - 1 - c0); })];
+    });
+    const markOf = (id) => p.evaluate((i) => { const el = document.querySelector(`[data-testid="${i}"] .mk`); return el ? (el.classList.contains("mirror") ? "mirror" : "hand") : ""; }, id);
+    const open = async () => (await p.locator('[data-testid="gate-picker"]').count()) > 0;
+    await p.locator(`[data-testid="${a}"]`).click();
+    check("...a tap marks the square, and the board stays up", (await open()) && (await markOf(a)) === "hand", `${a} ${await markOf(a)}`);
+    check("...its partner, turned half round, marked with it", (await p.locator('[data-testid="gate-picker"] .mk.mirror').count()) >= 1);
+    await p.locator(`[data-testid="${b}"]`).click();
+    check("...a tap on another square moves them", (await markOf(b)) === "hand" && (await markOf(a)) === "", `${a}=${await markOf(a)} ${b}=${await markOf(b)}`);
+    await p.locator(`[data-testid="${b}"]`).click();
+    check("...a tap on the marked square leaves it marked", (await open()) && (await markOf(b)) === "hand");
+    await p.locator('[data-testid="gate-picker-done"]').click();
+    check("...Done goes back to the menu, placed by hand", !(await open()) && /Placed by hand/.test(await p.locator('[data-testid="gate-place-holes"]').locator("xpath=..").innerText()));
+    await p.locator('[data-testid="gate-place-holes"]').click();
+    await poll(open, 3000);
+    check("...opened again, it shows that square", (await markOf(b)) === "hand");
+    await p.locator(`[data-testid="${a}"]`).click();
+    await p.locator('[data-testid="gate-picker"] button', { hasText: /^Cancel$/ }).click();
+    await p.locator('[data-testid="gate-place-holes"]').click();
+    await poll(open, 3000);
+    check("...a tap then Cancel keeps what was there", (await markOf(b)) === "hand" && (await markOf(a)) === "");
+    await p.locator('[data-testid="gate-picker"] button', { hasText: /^Cancel$/ }).click();
+  }
   check("Reset back to the classic set", await (async () => {
     await p.locator('[data-testid="gate-reset"]').click();
     const v = await p.locator('[data-testid="gate-count-codo-value"]').innerText();

@@ -742,16 +742,36 @@ if (state.activeCategory === "laws") {
     (await page.locator('[data-testid="blackhole-picker-blocked-caption"]').getAttribute("data-pulse")) === "1" &&
       (await page.locator('[data-testid="blackhole-confirm"]').count()) === 0);
 
-  const cell = page.locator('[data-selectable="true"]').first();
-  const cellId = await cell.getAttribute("data-testid");
-  const m = cellId.match(/bh-cell-(\d+)-(\d+)/);
-  await cell.click();
+  // A tap marks the square (its partner with it) and the picker stays up
+  // (user: "you select the square and it immediately closes that choice
+  // menu. That shouldn't happen ... press the square, see the one you've
+  // pressed, and then click done"); another square moves it; the same
+  // square again leaves it (user's pick); Done confirms and closes.
+  const free = await page.evaluate(() => [...document.querySelectorAll('[data-testid="blackhole-picker"] [data-selectable="true"]')]
+    .filter((el) => !el.dataset.chosen).map((el) => el.dataset.testid));
+  const cellId = free[0], cellId2 = free[free.length - 1];
+  const m = cellId2.match(/bh-cell-(\d+)-(\d+)/);
+  const chosenOf = (id) => page.locator(`[data-testid="${id}"]`).getAttribute("data-chosen");
+  await page.locator(`[data-testid="${cellId}"]`).click();
   await page.waitForTimeout(150);
-  check("picking a cell shows the SELECTED confirmation",
+  check("a tap marks the square, and the picker stays up (no SELECTED yet)",
+    (await page.locator('[data-testid="blackhole-picker"]').count()) > 0 && (await page.locator('[data-testid="blackhole-confirm"]').count()) === 0 &&
+      (await chosenOf(cellId)) === "hand", `${cellId} ${await chosenOf(cellId)}`);
+  await page.locator(`[data-testid="${cellId2}"]`).click();
+  await page.waitForTimeout(150);
+  check("...a tap on another square moves it",
+    (await chosenOf(cellId2)) === "hand" && (await chosenOf(cellId)) === null, `${cellId}=${await chosenOf(cellId)} ${cellId2}=${await chosenOf(cellId2)}`);
+  await page.locator(`[data-testid="${cellId2}"]`).click();
+  await page.waitForTimeout(150);
+  check("...a tap on the marked square leaves it marked",
+    (await chosenOf(cellId2)) === "hand" && (await page.locator('[data-testid="blackhole-picker"]').count()) > 0 && (await page.locator('[data-testid="blackhole-confirm"]').count()) === 0);
+  await page.locator('[data-testid="blackhole-picker-done"]').click();
+  await page.waitForTimeout(150);
+  check("Done shows the SELECTED confirmation",
     (await page.locator('[data-testid="blackhole-confirm"]').count()) > 0);
 
   await page.waitForTimeout(950); // the confirm holds ~780ms, then auto-closes
-  check("the picker closes after a selection",
+  check("...and the picker closes, back to the menu",
     (await page.locator('[data-testid="blackhole-picker"]').count()) === 0);
   state = await sphereState();
   const man = state.selections.blackHole && state.selections.blackHole.manual;
@@ -790,6 +810,18 @@ if (state.activeCategory === "laws") {
   check("Cancel puts the hand-picked Black Hole spot back",
     state.selections.blackHole.random === false && !!state.selections.blackHole.manual && state.selections.blackHole.manual.row === Number(m[1]) &&
       state.selections.blackHole.manual.col === Number(m[2]),
+    JSON.stringify(state.selections.blackHole));
+  // A tap commits as it goes too: Cancel after one puts the spot back.
+  await page.locator('[data-testid="blackhole-place-btn"]').click();
+  await page.waitForTimeout(250);
+  await page.locator(`[data-testid="${cellId}"]`).click();
+  await page.waitForTimeout(150);
+  await page.locator('[data-testid="blackhole-picker-cancel"]').click();
+  await page.waitForTimeout(200);
+  state = await sphereState();
+  check("...and a tap then Cancel keeps the spot it opened with",
+    (await page.locator('[data-testid="blackhole-picker"]').count()) === 0 && state.selections.blackHole.random === false && !!state.selections.blackHole.manual &&
+      state.selections.blackHole.manual.row === Number(m[1]) && state.selections.blackHole.manual.col === Number(m[2]),
     JSON.stringify(state.selections.blackHole));
 
   // Shoving has one setting: which moves shove (slides and rolls, the

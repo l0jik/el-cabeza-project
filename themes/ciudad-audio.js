@@ -50,6 +50,11 @@ const LOOP_PAD = 0.3;
 // level (they sound the fuller for their middle frequencies, the made
 // city's level being mostly its low roar).
 const BED_GAIN = 0.16;
+// The whole of the city's ambience (its recording, the horns, the made
+// city), 30% down from where it was set (user: "The ambient city noises
+// should be reduced 30%"): on the ambience's own gain, under the sound
+// menu's slider.
+const AMBIENCE = 0.7;
 // The hour's change, as the light's (ciudad-time.js).
 const BED_XFADE = 2.4;
 /* Horns (user: "The city needs more like gridlock traffic sound with
@@ -72,7 +77,10 @@ const HONKS = [[0.0, 2.484, "car"], [2.834, 2.036, "lean"], [5.22, 2.55, "lean"]
 const HOURS = {
 // honks: a minute; answered: how often another driver answers; jam: how
 // often it's a gridlock's chorus; near: how close they come (0 all far off)
-  morning: { roar: 0.05, cars: 7, birds: 22, clank: 3, wind: 0.0, sirens: 2, beeps: 2, honks: 2.5, answered: 0.15, jam: 0.03, near: 0.5 },
+  // (the morning's birds 15% fewer, user: "Reduce frequency of bird calls
+  // in city ... on the morning theme or time period ... reduce it 15%";
+  // its recording's thinned as much, tools/ciudad_sounds.py)
+  morning: { roar: 0.05, cars: 7, birds: 18.7, clank: 3, wind: 0.0, sirens: 2, beeps: 2, honks: 2.5, answered: 0.15, jam: 0.03, near: 0.5 },
   afternoon: { roar: 0.065, cars: 10, birds: 9, clank: 4, wind: 0.004, sirens: 4, beeps: 3, honks: 5, answered: 0.35, jam: 0.1, near: 1 },
   golden: { roar: 0.06, cars: 9, birds: 12, clank: 1, wind: 0.004, sirens: 4, beeps: 2, honks: 6, answered: 0.4, jam: 0.12, near: 1 },
   overcast: { roar: 0.055, cars: 8, birds: 3, clank: 2, wind: 0.02, sirens: 4, beeps: 2, honks: 3.5, answered: 0.25, jam: 0.06, near: 0.7 },
@@ -102,7 +110,7 @@ export function createAudio() {
       master.connect(comp).connect(vol).connect(ctx.destination);
       intro = ctx.createGain(); intro.gain.value = 0; intro.connect(master);
       amb = ctx.createGain(); amb.gain.value = 1; amb.connect(intro);
-      ambGain = ctx.createGain(); ambGain.gain.value = 0.75 + 0.35 * zoom; ambGain.connect(amb);
+      ambGain = ctx.createGain(); ambGain.gain.value = (0.75 + 0.35 * zoom) * AMBIENCE; ambGain.connect(amb);
       // the street between the towers: a short, bright echo off the glass
       rev = ctx.createConvolver();
       const len = Math.floor(ctx.sampleRate * 1.1), ir = ctx.createBuffer(2, len, ctx.sampleRate);
@@ -367,7 +375,7 @@ export function createAudio() {
     master.gain.cancelScheduledValues(t0); master.gain.setValueAtTime(muted ? 0 : 1, t0);
     intro.gain.cancelScheduledValues(t0); intro.gain.setValueAtTime(0, t0); intro.gain.linearRampToValueAtTime(1, t0 + 3);
   }
-  function setZoom(z) { zoom = z; if (ambGain && ctx) ambGain.gain.setTargetAtTime(0.75 + 0.35 * z, ctx.currentTime, 0.4); }
+  function setZoom(z) { zoom = z; if (ambGain && ctx) ambGain.gain.setTargetAtTime((0.75 + 0.35 * z) * AMBIENCE, ctx.currentTime, 0.4); }
   function setTension() {}
   function setMuted(m) { muted = m; if (master && ctx) master.gain.setTargetAtTime(muted ? 0 : 1, ctx.currentTime, 0.08); }
   function setVolume(v) { volume = Math.max(0, Math.min(1, v)); if (vol && ctx) vol.gain.setTargetAtTime(volume, ctx.currentTime, 0.05); }

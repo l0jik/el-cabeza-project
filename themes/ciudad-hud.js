@@ -16,6 +16,7 @@
 
 import React from "react";
 import { TIMES, NOW, timeId, setTime, onTimeChange } from "./ciudad-time.js";
+import { useRaise } from "../chassis/raise-on-tap.js";
 
 const h = React.createElement;
 const byId = (id) => TIMES.find((t) => t.id === id) || TIMES[0];
@@ -109,8 +110,13 @@ export const HUD_CSS = `
     display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font-family: 'Overpass', 'Arial Narrow', Arial, sans-serif; }
   .ciu-time .chip { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 9px; height: 40px; padding: 0 13px 0 6px;
     border-radius: 8px; background: #2F4458; color: #FFFFFF; font: 700 12.5px/1 'Overpass', 'Arial Narrow', Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase;
-    box-shadow: inset 0 0 0 2px #2F4458, inset 0 0 0 3.2px rgba(255,255,255,0.9), 0 6px 18px rgba(16,24,34,0.28); opacity: 0.9; transition: opacity 0.2s ease; }
-  .ciu-time .chip:hover, .ciu-time .chip[aria-expanded="true"] { opacity: 1; }
+    box-shadow: inset 0 0 0 2px #2F4458, inset 0 0 0 3.2px rgba(255,255,255,0.9), 0 6px 18px rgba(16,24,34,0.28); opacity: 0.6; transition: opacity 0.2s ease; }
+  /* At 60% till it's wanted, as the Rules tab (user: "Dim the circled
+     buttons ... a tap or hover before a click on a mouse will raise them
+     100% again"; chassis/raise-on-tap.js): a mouse over it, a first tap on
+     a touch screen, the dial open or a key's focus raise it. */
+  .ciu-time .chip[data-raised="true"], .ciu-time .chip[aria-expanded="true"], .ciu-time .chip:focus-visible { opacity: 1; }
+  @media (hover: hover) { .ciu-time .chip:hover { opacity: 1; } }
   .ciu-time .chip:focus-visible { outline: 2px solid #F2C230; outline-offset: 3px; }
   .ciu-time .chip .lbl { padding-top: 2px; white-space: nowrap; }
   .ciu-time .chip .car { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid rgba(255,255,255,0.85); margin-left: 1px; transition: transform 0.2s ease; }
@@ -156,6 +162,7 @@ function TimeSwitch() {
   const [id, setId] = React.useState(timeId());
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef(null);
+  const lift = useRaise(rootRef, open);
   React.useEffect(() => onTimeChange((v) => setId(v)), []);
   React.useEffect(() => {
     if (!open) return undefined;
@@ -172,7 +179,8 @@ function TimeSwitch() {
     h("button", {
       type: "button", className: "chip", "data-testid": "ciudad-time-chip", "aria-expanded": open ? "true" : "false", "aria-controls": "ciu-time-dial",
       "aria-label": `Time of day: ${cur.name}, ${cur.clock}. Change it`, title: `Time of day: ${cur.name}, ${cur.clock}`,
-      onClick: () => setOpen((o) => !o),
+      "data-raised": lift.raised ? "true" : "false", onPointerDown: lift.onPointerDown,
+      onClick: (e) => { if (!open && lift.firstTapRaises(e)) return; setOpen((o) => !o); },
     }, h(Face, { size: 30 }), h("span", { className: "lbl" }, cur.name), h("span", { className: "car" })),
     open && h("div", { className: "card", id: "ciu-time-dial" },
       h("div", { className: "hd" }, h("span", null, "Time of day"), h("span", null, "The city")),

@@ -3,10 +3,13 @@
    looks). Closed, a tab with a line summing the game up; a tap opens the
    card (the laws and their settings, each side's pieces, the board, a
    way into the rules); a tap outside it, Escape or the tab again close
-   it. A law's name opens its rules card; "Rules" opens the game's. */
+   it. A law's name opens its rules card; "Rules" opens the game's. The
+   tab sits dimmed till it's wanted (raise-on-tap.js): a mouse over it, or
+   on a touch screen a first tap, raises it, and a second tap opens it. */
 import React, { useEffect, useRef, useState } from "react";
 import { openRules } from "./RulesCards.jsx";
 import { cornerMenuParts } from "./corner-menu.js";
+import { useRaise } from "./raise-on-tap.js";
 
 // Each look's type, fetched once (a world's own CSS may already have it;
 // the den's Caprasimo, for one, comes late).
@@ -29,6 +32,7 @@ function useFonts(look, fonts) {
 export default function CornerMenu({ look, rules, extra = null, audio = null, below = null }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const lift = useRaise(ref, open);
   const { tab, card, css, fonts } = cornerMenuParts(look, rules, extra);
   useFonts(look, fonts);
 
@@ -51,6 +55,7 @@ export default function CornerMenu({ look, rules, extra = null, audio = null, be
     const what = t.getAttribute("data-cm");
     if (what === "tab") {
       if (open) shut();
+      else if (lift.firstTapRaises(e)) return;
       else { setOpen(true); if (audio && audio.playDockOpen) audio.playDockOpen(); }
     } else if (what === "rules") { setOpen(false); openRules("game"); }
     else if (what === "law") { setOpen(false); openRules("moves", t.getAttribute("data-law")); }
@@ -64,6 +69,8 @@ export default function CornerMenu({ look, rules, extra = null, audio = null, be
       data-testid="corner-menu"
       data-look={look}
       data-open={open ? "true" : "false"}
+      data-raised={lift.raised ? "true" : "false"}
+      onPointerDown={lift.onPointerDown}
       onClick={onClick}
       style={below != null ? { top: below } : undefined}
     >

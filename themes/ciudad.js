@@ -425,8 +425,8 @@ function addTape(K, ix, iz, w, isCrush) {
 }
 // A traffic cone on each corner: a base, the cone, its white band (a
 // crush's red).
-function addCones(K, ix, iz, isCrush, H = 0.17, R = 0.045) {
-  const orange = isCrush ? "#e0261b" : "#ff6a13";
+function addCones(K, ix, iz, isCrush, H = 0.17, R = 0.045, color = null) {
+  const orange = color || (isCrush ? "#e0261b" : "#ff6a13");
   const coneM = K.mat(new THREE.MeshStandardMaterial({ color: col(orange), roughness: 0.55 }), 1); coneM.userData.steady = true;
   const bandM = K.mat(new THREE.MeshStandardMaterial({ color: col("#f4f4f0"), roughness: 0.3, emissive: col("#f4f4f0"), emissiveIntensity: 0.15 }), 1); bandM.userData.steady = true;
   const baseM = K.mat(new THREE.MeshStandardMaterial({ color: col("#1c1c1c"), roughness: 0.8 }), 1); baseM.userData.steady = true;
@@ -448,14 +448,16 @@ function tapeMarker({ cx, cz, hx, hz, isCrush }) {
 }
 
 // The two together, the City's by day (user: "Do the yellow & black
-// construction tape with the orange cones"): the tape round the block, a
-// cone standing on each of its corners (a crush red and white tape,
-// crossed, the cones red).
+// construction tape with the orange cones"): the tape round the block; a
+// crush red and white tape, crossed, and an orange cone on each of its
+// corners. Only the crush has the cones (user: "the orange cones should
+// only be on any red and white stripe indicator. The yellow and black do
+// not need the cones anymore").
 function tapeConesMarker({ cx, cz, hx, hz, isCrush }) {
   const K = markerKit(), ix = hx * 0.8, iz = hz * 0.8;
   K.flat(new THREE.PlaneGeometry(hx * 1.7, hz * 1.7), K.basic(isCrush ? "#d6221a" : "#141414", isCrush ? 0.16 : 0.1), 0.012);
   addTape(K, ix, iz, 0.14, isCrush);
-  addCones(K, ix, iz, isCrush, 0.19, 0.05);
+  if (isCrush) addCones(K, ix, iz, isCrush, 0.19, 0.05, "#ff6a13");
   K.breathe((now) => 0.85 + 0.15 * Math.sin(now / 480));
   return K.done(cx, cz);
 }

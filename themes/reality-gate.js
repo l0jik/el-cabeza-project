@@ -293,7 +293,11 @@ const segBtn = (key, on, text, onClick, testid, disabled = false) => h("button",
 
 /* Marking the board by hand (as Tienda's order form and Neon's sphere):
    squares cut out (X) or the black holes' place (O); each mark's 180°
-   partner is filled in. Drawn from Dark's side, as the board faces. */
+   partner is filled in. Drawn from Dark's side, as the board faces. The
+   black holes' square is marked and stays shown till Done (user: "press
+   the square, see the one you've pressed, and then click done to
+   confirm"): a tap elsewhere moves it, a tap on it leaves it (a random
+   one becomes yours). */
 function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) }) {
   const [draft, setDraft] = React.useState(() => cloneSelections(sel));
   const [note, setNote] = React.useState("");
@@ -319,7 +323,11 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
   const tap = (r, c) => {
     const at = marks.get(`${r},${c}`);
     if (at) {
-      if (isHole) { onDone(draft); return; }
+      if (isHole) {
+        if (at.spot.random) { const d = cloneSelections(draft); d.holeSpot = { row: at.spot.row, col: at.spot.col, random: false }; setDraft(d); }
+        setNote("");
+        return;
+      }
       const d = cloneSelections(draft);
       setSpots(d, spots.map((p) => (p === at.spot ? (p.random ? { ...p, random: false } : null) : p)).filter(Boolean));
       setDraft(d); setNote("");
@@ -343,7 +351,6 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
       list.push({ row: r, col: c, random: false });
     }
     setSpots(d, list);
-    if (isHole) { onDone(d); return; }
     setDraft(d); setNote("");
   };
   const maxW = Math.min((typeof window !== "undefined" ? window.innerWidth : 600) - 64, 560);
@@ -371,7 +378,7 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
     h("div", { className: "rg-pick-box" },
       h("h3", null, title),
       h("p", null, isHole
-        ? "Tap a square for one black hole; its partner, turned half round, is marked for you. Not in either side's two back rows."
+        ? "Tap a square for one black hole; its partner, turned half round, is marked for you. Tap another to move them, then Done. Not in either side's two back rows."
         : `Tap up to ${count} ${count === 1 ? "square" : "squares"}; each one's partner, turned half round, is marked for you. Dashed marks were picked at random: tap one to keep it. Dots show where the pieces start.`),
       h("div", { className: "rg-side" }, `Far side · ${names.light}`),
       h("div", { className: "rg-grid", role: "grid", "aria-label": `${boardLabel(draft)} board`, style: { gridTemplateColumns: `repeat(${cols}, ${cell}px)` } }, cells),
@@ -380,7 +387,7 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
       h("div", { className: "rg-pick-btns" },
         h("button", { type: "button", className: "rg-small", "data-testid": "gate-picker-random", onClick: () => setDraft(randomizeSpots(cloneSelections(draft), kind)), "data-stroke": "0" }, "Random"),
         h("button", { type: "button", className: "rg-small", onClick: onCancel, "data-stroke": "3" }, "Cancel"),
-        h("button", { type: "button", className: "rg-small", "data-testid": "gate-picker-done", onClick: () => onDone(isHole ? draft : fillSpots(cloneSelections(draft), kind)), "data-stroke": "2" }, "Done"))));
+        h("button", { type: "button", className: "rg-small", "data-testid": "gate-picker-done", onClick: () => onDone(fillSpots(cloneSelections(draft), kind)), "data-stroke": "2" }, "Done"))));
 }
 
 /* ------------------------------------------------------------ the pieces' pictures */

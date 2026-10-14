@@ -2520,16 +2520,27 @@ function renderPairedSquarePicker(t, kind) {
       s.bump();
       return;
     }
+    // Black Holes: the tapped square is marked, its partner with it, and
+    // the picker stays open for Done (user: "press the square, see the one
+    // you've pressed, and then click done to confirm"). A tap on the
+    // marked square leaves it (a random one becomes yours); one elsewhere
+    // moves them. It commits as it goes, as Random does: Cancel puts back
+    // the spot it opened with.
+    const cur = pairedSpots(sel, kind)[0];
+    if (cur && cur.row === r && cur.col === c && !cur.random) return;
     setPairedSpots(sel, kind, [{ row: r, col: c, random: false }]);
-    s[k.confirmFlag] = { row: r, col: c };
-    finish();
+    s.labelsDirty = true;
+    if (s.audio && s.audio.playSelect) s.audio.playSelect();
+    s.bump();
   };
   // Done (multi-select): commit the draft, then fill any open spots at
   // random; the flash shows the final layout, random fills included.
   const done = () => {
     if (confirm) return;
     if (!multi) {
-      // Keep the spot shown (e.g. one Random just rolled).
+      // Keep the spot shown (tapped, or one Random just rolled); none at
+      // all, one is rolled.
+      if (!pairedSpots(sel, kind)[0]) fillPairedSpots(s, kind, false);
       const spot = pairedSpots(sel, kind)[0];
       if (!spot) { close(); return; }
       s[k.confirmFlag] = { row: spot.row, col: spot.col };
@@ -2660,7 +2671,7 @@ function renderPairedSquarePicker(t, kind) {
         ...cells
       ),
       label(
-        multi ? `Your side · ${handCount} of ${count} selected` : "Your side · tap a square",
+        multi ? `Your side · ${handCount} of ${count} selected` : "Your side · tap a square, then Done",
         confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"
       ),
       multi

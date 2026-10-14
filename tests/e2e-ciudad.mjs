@@ -23,8 +23,9 @@
    - The move markers by the hour (user: "Do the yellow & black
      construction tape with the orange cones ... Night can have it's
      normal move markers... Only day time needs the construction tape"):
-     a piece picked up by day, its moves taped off with cones at their
-     corners; at 10 PM the parking bays.
+     a piece picked up by day, its moves taped off; at 10 PM the parking
+     bays. Cones only round a crush (user: "the orange cones should only
+     be on any red and white stripe indicator"): orange, one a corner.
    - The night's lights fainter the farther off (user: "City lights at
      night should be dimmer the farther from the user's perspective they
      are"): the windows', the lamps' and the cars' shaders fade with the
@@ -141,13 +142,13 @@ console.log("The move markers by the hour");
     picked = await poll(async () => { const s = await shown(); return s.day || s.night ? s : null; }, 3000);
     if (picked) break;
   }
-  check("by day, a piece picked up: its moves taped off with cones, not the bays", !!picked && picked.day && !picked.night, JSON.stringify(picked));
+  check("by day, a piece picked up: its moves taped off, not the bays", !!picked && picked.day && !picked.night, JSON.stringify(picked));
   await T(() => window.__CIUDAD_TIME__.set("night", true));
   const n = await poll(async () => { const s = await shown(); return s.night && !s.day ? s : null; }, 4000);
   check("...at 10 PM, the parking bays", !!n, JSON.stringify(await shown()));
   await T(() => window.__CIUDAD_TIME__.set("afternoon", true));
   const d = await poll(async () => { const s = await shown(); return s.day && !s.night ? s : null; }, 4000);
-  check("...by day again, the tape and cones", !!d, JSON.stringify(await shown()));
+  check("...by day again, the tape", !!d, JSON.stringify(await shown()));
   await page.keyboard.press("Escape");
 }
 
@@ -210,6 +211,42 @@ console.log("The streets alive");
   check("cars and buses", life.cars > 50 && life.buses > 0, JSON.stringify(life));
   check("people", life.people > 50);
   check("cars on the board's own streets", life.boardCars > 5);
+}
+
+console.log("Cones only round a crush");
+{
+  // (user: "the orange cones should only be on any red and white stripe
+  // indicator. The yellow and black do not need the cones anymore"): each
+  // side's Turrito beside the other's Cabeza, the one to move picked up by
+  // day; each marker's cones
+  const P = (id, type, owner, row, col) => ({ id, type, owner, row, col, w: 1, h: 1, z: 1 });
+  await T((l) => window.__EC_TEST_SET_PIECES__(l), [P("light-turrito", "turrito", "light", 4, 7), P("dark-cabeza", "cabeza", "dark", 4, 8), P("dark-turrito", "turrito", "dark", 6, 2), P("light-cabeza", "cabeza", "light", 6, 3)]);
+  await page.waitForTimeout(600);
+  const marks = () => T(() => {
+    const out = [];
+    window.__EC_TEST_THREE__().scene.traverse((o) => {
+      const day = o.userData && o.userData.kind === "ghostLine" && o.getObjectByName("ciudad-marker-day");
+      if (!day) return;
+      let cones = 0, orange = true;
+      day.traverse((m) => { if (m.isMesh && m.geometry.type === "ConeGeometry") { cones++; const c = m.material.color; orange = orange && c.g / c.r > 0.08; } });
+      out.push({ crush: !!o.userData.isCrush, cones, orange });
+    });
+    return out;
+  });
+  let m = null;
+  for (const id of ["light-turrito", "dark-turrito"]) {
+    const pos = await T((who) => window.__EC_TEST_SCREEN_POS__(who), id);
+    if (!pos) continue;
+    await page.mouse.click(pos.x, pos.y);
+    m = await poll(async () => { const l = await marks(); return l.some((x) => x.crush) && l.some((x) => !x.crush) ? l : null; }, 4000);
+    if (m) break;
+  }
+  check("a crush and plain moves marked", !!m, JSON.stringify(await marks()));
+  if (m) {
+    check("the yellow and black tape: no cones", m.filter((x) => !x.crush).every((x) => x.cones === 0), JSON.stringify(m));
+    check("the red and white: a cone on each corner, orange", m.filter((x) => x.crush).every((x) => x.cones === 4 && x.orange), JSON.stringify(m));
+  }
+  await page.keyboard.press("Escape");
 }
 
 console.log("The hour kept");

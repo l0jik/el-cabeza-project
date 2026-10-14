@@ -12,7 +12,11 @@
    "Rules" the rules. A plain game says it's the standard game; once the
    game's over the menu goes. The Lab's read-out carries the same rules
    (hovered, the list; a law opens its card). In Nova's store after the
-   story, the slip offers the purchase. */
+   story, the slip offers the purchase. The tab sits dimmed till it's
+   wanted (user: "Dim the circled buttons ... a tap or hover before a click
+   on a mouse will raise them 100% again", at 60%, Parrish's at half): a
+   mouse over it raises it; on a touch screen a first tap raises it and a
+   second opens it, and so with the City's clock. */
 import { chromium } from "playwright";
 import { openDockPanel, waitForDockCorner, reopenDockPanelFromCorner } from "./dock-helpers.mjs";
 
@@ -101,6 +105,19 @@ for (const world of WORLDS) {
   check("...its tab in the top left, on the screen", s.tabBox.x >= 0 && s.tabBox.y >= 0 && s.tabBox.x < 60 && s.tabBox.y < 60 && s.tabBox.r <= VIEW.width / 2, JSON.stringify(s.tabBox));
   // (Parrish counts in words.)
   check(`...saying what the game is ("${s.tab.trim()}")`, /(?:2|two) laws/i.test(s.tab), s.tab);
+  {
+    // (Its fade is a CSS transition, which moves a frame at a time: on the
+    // software renderer a heavy world's frame can take most of a second.)
+    const tabOpacity = () => page.evaluate(() => Number(getComputedStyle(document.querySelector('[data-testid="corner-menu-tab"]')).opacity));
+    const settle = (want) => poll(async () => { const v = await tabOpacity(); return Math.abs(v - want) < 0.02 ? v : null; }, 5000);
+    await page.mouse.move(VIEW.width / 2, VIEW.height - 40);
+    const want = world.look.startsWith("parrish") ? 0.5 : 0.6;
+    const dim = await settle(want);
+    check(`...dimmed till it's wanted (${dim || await tabOpacity()})`, !!dim, String(await tabOpacity()));
+    await page.locator('[data-testid="corner-menu-tab"]').hover();
+    const up = await settle(1);
+    check(`...the mouse over it: full strength (${up || await tabOpacity()})`, !!up, String(await tabOpacity()));
+  }
 
   await page.locator('[data-testid="corner-menu-tab"]').click();
   s = await poll(async () => { const v = await menuState(page); return v && v.open === "true" && v.card ? v : null; }, 4000);
@@ -127,6 +144,57 @@ for (const world of WORLDS) {
   await page.locator('[data-testid="corner-menu-rules"]').click();
   check("\"Rules\" opens the rules", !!(await poll(() => overlayOpen(page), 4000)));
   await closeOverlay(page);
+  check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+  await context.close();
+}
+
+/* ---- a touch screen: the first tap raises, the second opens (the tab and the City's clock) ---- */
+{
+  console.log("[ciudad, by touch]");
+  // (A phone's page: a quick second tap isn't taken for a double tap's zoom.
+  // And a second tap a moment after the first, as a hand does.)
+  const context = await browser.newContext({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  page.setDefaultTimeout(30000);
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.addInitScript(([l, b]) => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = l; window.__EC_BOARD__ = b; try { localStorage.setItem("el-cabeza:singularity-seen", "1"); } catch (e) { /* none */ } }, [LAWS, BOARD]);
+  await page.goto(`${DIST}/el-cabeza-ciudad.html`);
+  await page.waitForTimeout(2500);
+  await begin(page);
+  await poll(() => menuState(page));
+  // (A tap at the button's middle, straight away: Playwright's own tap()
+  // waits on a heavy page for seconds, longer than a raise lasts.)
+  const tapAt = async (sel) => { const b = await page.locator(sel).boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };
+  const cm = () => page.evaluate(() => { const m = document.querySelector('[data-testid="corner-menu"]'); const t = m && m.querySelector('[data-testid="corner-menu-tab"]'); return m && { open: m.dataset.open, raised: m.dataset.raised, opacity: Number(getComputedStyle(t).opacity) }; });
+  check(`the Rules tab dimmed (${(await cm()).opacity})`, !!(await poll(async () => Math.abs((await cm()).opacity - 0.6) < 0.02, 5000)));
+  await tapAt('[data-testid="corner-menu-tab"]');
+  let st = await poll(async () => { const v = await cm(); return v.raised === "true" && Math.abs(v.opacity - 1) < 0.02 ? v : null; }, 5000);
+  check(`...a first tap raises it to full, the card not open (${JSON.stringify(st || await cm())})`, !!st && st.open === "false");
+  await page.waitForTimeout(800);
+  await tapAt('[data-testid="corner-menu-tab"]');
+  st = await poll(async () => { const v = await cm(); return v && v.open === "true" ? v : null; }, 3000);
+  check("...a second tap opens it", !!st);
+  await page.keyboard.press("Escape");
+  st = await poll(async () => { const v = await cm(); return v && v.open === "false" ? v : null; }, 3000);
+  check("...closed again, it's down again", !!st && st.raised === "false", JSON.stringify(st));
+  await tapAt('[data-testid="corner-menu-tab"]');
+  await page.waitForTimeout(300);
+  check("...raised and left alone", (await cm()).raised === "true");
+  check("...it goes back down after a few seconds", !!(await poll(async () => (await cm()).raised === "false", 9000)));
+  // The City's clock, the same.
+  const chip = page.locator('[data-testid="ciudad-time-chip"]');
+  const ck = () => page.evaluate(() => { const c = document.querySelector('[data-testid="ciudad-time-chip"]'); return c && { raised: c.dataset.raised, open: c.getAttribute("aria-expanded"), opacity: Number(getComputedStyle(c).opacity) }; });
+  const c0 = await poll(async () => { const v = await ck(); return v && Math.abs(v.opacity - 0.6) < 0.02 ? v : null; }, 5000);
+  check(`the City's clock dimmed till it's wanted (${JSON.stringify(c0 || await ck())})`, !!c0);
+  await tapAt('[data-testid="ciudad-time-chip"]');
+  const c1 = await poll(async () => { const v = await ck(); return v.raised === "true" && Math.abs(v.opacity - 1) < 0.02 ? v : null; }, 5000);
+  check(`...a first tap raises it to full, the dial not open (${JSON.stringify(c1 || await ck())})`, !!c1 && c1.open === "false");
+  await page.waitForTimeout(800);
+  await tapAt('[data-testid="ciudad-time-chip"]');
+  check("...a second tap opens the dial", !!(await poll(async () => (await ck()).open === "true", 3000)));
+  await page.keyboard.press("Escape");
+  check("...closed again, it's down again", !!(await poll(async () => { const v = await ck(); return v.open === "false" && v.raised === "false"; }, 3000)));
   check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
   await context.close();
 }

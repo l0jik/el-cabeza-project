@@ -14,7 +14,10 @@
    not. It comes and goes with the
    position. Its switch is in the setup, in the in-game menu (the dock's
    panel; the phone bar's menu) and on the card. Never in a game between
-   two people.
+   two people. Your own last move into reach (user: "Check Alert was
+   turned on, but it didn't trigger though it should've"): the turn waits,
+   the card up and staying up, till you take it back or end it; with the
+   alert off it goes over as ever.
 
    node tests/e2e-check-alert.mjs */
 import { chromium } from "playwright";
@@ -301,6 +304,52 @@ console.log("\nThe den on a phone, the bar layout: the setup's field and the men
   check("...and the warning's gone", (await card(page).count()) === 0);
   check(`no page errors (${errs.length})`, errs.length === 0, errs.join(" | "));
   await ctx.close();
+}
+
+console.log("\nYour own last move into reach: the turn waits");
+{
+  // Your Cabeza two steps from a light Turrito's reach: its first step is
+  // safe, its second (the turn's last action) walks into reach.
+  const WALK = [T("light-turrito", "light", 4, 4), CAB("dark-cabeza", "dark", 4, 8), T("dark-turrito", "dark", 8, 1), CAB("light-cabeza", "light", 1, 8)];
+  const held = (page) => page.evaluate(() => !!(window.__EC_TEST_CHECK_HOLD__ && window.__EC_TEST_CHECK_HOLD__()));
+  const side = (page) => page.locator('[data-testid="turn-status"]').first().getAttribute("data-side");
+  const cabAt = (page) => page.evaluate(() => { const c = window.__EC_TEST_PIECES__.find((p) => p.id === "dark-cabeza"); return c ? `${c.row},${c.col}` : null; });
+  const step = async (page, to) => { await page.evaluate(() => window.__EC_TEST_MOVE__("dark-cabeza", "W")); return !!(await poll(async () => (await cabAt(page)) === to, 8000)); };
+  async function game(alertOn) {
+    const { ctx, page, errs } = await open(`${D}/el-cabeza-neon.html`, { seed: alertOn ? {} : { "el-cabeza:check-alert": "0" } });
+    await openDockPanel(page);
+    await page.locator('[data-opponent="ai-light"]').first().click();
+    await page.waitForTimeout(500);
+    await page.locator('[data-dock-role="begin"]').first().click();
+    await armed(page);
+    await page.waitForTimeout(1500);
+    await setPieces(page, WALK);
+    return { ctx, page, errs };
+  }
+  const { ctx, page, errs } = await game(true);
+  check("your Cabeza out of reach: no warning", !(await reading(page)) && (await card(page).count()) === 0);
+  check("...a first step, still out of reach: none, and your turn goes on", (await step(page, "4,7")) && !(await reading(page)) && (await side(page)) === "dark");
+  check("the last step, into reach: the turn waits", (await step(page, "4,6")) && !!(await poll(() => held(page), 4000)) && (await side(page)) === "dark");
+  check("...the card up, held", !!(await poll(async () => (await card(page).count()) === 1 && (await card(page).getAttribute("data-held")) === "true", 4000)));
+  check("...saying the turn waits", /Your turn waits/.test(await page.locator('[data-testid="check-alert-advice"]').textContent()));
+  await page.mouse.click(60, 400);
+  await page.waitForTimeout(700);
+  check("...a tap elsewhere doesn't put it away", (await card(page).count()) === 1 && (await held(page)));
+  await page.locator('[data-testid="check-alert-take-back"]').click();
+  check("Take it back: the turn rewinds, your Cabeza home, still your turn", !!(await poll(async () => (await cabAt(page)) === "4,8" && !(await held(page)), 10000)) && (await side(page)) === "dark");
+  check("...and no warning there", !!(await poll(async () => (await card(page).count()) === 0, 3000)));
+  check("the same two steps again: held again", (await step(page, "4,7")) && (await step(page, "4,6")) && !!(await poll(() => held(page), 4000)));
+  await page.locator('[data-testid="check-alert-end-turn"]').click();
+  check("End turn: over to the computer (and it takes your Cabeza)", !!(await poll(async () => !(await held(page)) && ((await side(page)) === "light" || (await cabAt(page)) === null), 6000)));
+  check("...the card gone", !!(await poll(async () => (await card(page).count()) === 0, 4000)));
+  check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+  {
+    const { ctx, page, errs } = await game(false);
+    check("with the alert off: the last step into reach goes over as ever", (await step(page, "4,7")) && (await step(page, "4,6")) && !!(await poll(async () => (await side(page)) === "light" || (await cabAt(page)) === null, 6000)) && !(await held(page)));
+    check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+    await ctx.close();
+  }
 }
 
 console.log("\nTwo people: never a warning");

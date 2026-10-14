@@ -12,7 +12,10 @@ the city".
              kvgarlic, CC0; below 1.2 kHz taken out, the wood's own hush,
              and an insect's steady drone at 4.8 kHz),
              and the traffic far off (street level in New York,
-             gezortenplotz, CC BY 3.0; dulled above 900 Hz).
+             gezortenplotz, CC BY 3.0; dulled above 900 Hz). 15% of the
+             park's and the thrush's calls taken out (user: "Reduce
+             frequency of bird calls in city ... on the morning theme or
+             time period ... reduce it 15%"; fewer_calls).
              -> assets/ciudad/city-morning.mp3
   afternoon  (2:10 PM) a busy street walked down (street scene 3, saphe,
              CC BY 4.0), more cars (New York), people along the high street
@@ -193,11 +196,50 @@ def write(x, name):
 
 def hour(layers, length, level, name):
     """The hour's layers (each a loop `length` long, stereo, at its dB
-    against the others) summed, the loudest moments rounded off, at
-    `level` dBFS RMS."""
-    mix = sum(to_db(x, db) for x, db in layers)
+    against the others, or None when it's been set already) summed, the
+    loudest moments rounded off, at `level` dBFS RMS."""
+    mix = sum(x if db is None else to_db(x, db) for x, db in layers)
     mix = to_db(soft_peaks(to_db(mix, level)), level)
     write(padded(mix), name)
+
+
+def calls(x, band=(1800, 9000), over=6.0, merge=0.12, min_len=0.04):
+    """A layer's bird calls: where the birds' band stands `over` dB above
+    its own floor (its 40th percentile, 20 ms at a time), calls closer
+    than `merge` s together one call, at least `min_len` s long.
+    [(start, end)] in s."""
+    m = x.mean(1) if x.ndim == 2 else x
+    b = sosfiltfilt(butter(4, band, "bandpass", fs=SR, output="sos"), m)
+    w = int(0.02 * SR)
+    env = 10 * np.log10(np.convolve(b ** 2, np.ones(w) / w, "same") + 1e-12)
+    on = (env > np.percentile(env, 40) + over).astype(np.int8)
+    ed = np.flatnonzero(np.diff(np.concatenate([[0], on, [0]])))
+    out = []
+    for a, z in zip(ed[::2] / SR, ed[1::2] / SR):
+        if out and a - out[-1][1] < merge:
+            out[-1][1] = z
+        else:
+            out.append([a, z])
+    return [(a, z) for a, z in out if z - a >= min_len]
+
+
+def fewer_calls(x, share, band=(1800, 9000), edge=0.15, fade=0.015):
+    """`share` of a layer's bird calls (calls(), as near as whole calls
+    come, spread evenly through it) taken out of the birds' band, faded in
+    and out over `fade` s, all else under them left as it was; none within
+    `edge` s of the loop's ends, so it stays seamless. (x, taken, found)."""
+    found = [c for c in calls(x, band) if c[0] > edge and c[1] < len(x) / SR - edge]
+    k = int(len(found) * share + 0.5)
+    pick = {int((i + 0.5) * len(found) / k) for i in range(k)}
+    take = [c for i, c in enumerate(found) if i in pick]
+    f, mask = int(fade * SR), np.zeros(len(x))
+    for a, z in take:
+        i, j = int(a * SR) - f, int(z * SR) + f
+        mask[i:i + f] = np.maximum(mask[i:i + f], np.linspace(0, 1, f))
+        mask[i + f:j - f] = 1
+        mask[j - f:j] = np.maximum(mask[j - f:j], np.linspace(1, 0, f))
+    bp = sosfiltfilt(butter(4, band, "bandpass", fs=SR, output="sos"), x, axis=0)
+    return x - bp * (mask[:, None] if x.ndim == 2 else mask), len(take), len(found)
 
 
 # ---- the layers ----
@@ -241,7 +283,11 @@ def gridlock(length, dull=None, start=120.0):
 
 def morning():
     L = 42.0
-    hour([(park(L), -30), (thrush(L), -35), (nyc(L, dull=900), -34), (gridlock(L, dull=1800, start=60.0), -31)], L, -24, "city-morning.mp3")
+    # (each set at its level first, so the calls left keep theirs)
+    pk, n1, m1 = fewer_calls(to_db(park(L), -30), 0.15)
+    th, n2, m2 = fewer_calls(to_db(thrush(L), -35), 0.15, band=(1200, 9000))
+    print(f"morning: {n1} of the park's {m1} bird calls out, {n2} of the thrush's {m2}")
+    hour([(pk, None), (th, None), (nyc(L, dull=900), -34), (gridlock(L, dull=1800, start=60.0), -31)], L, -24, "city-morning.mp3")
 
 
 def afternoon():

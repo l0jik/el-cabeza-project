@@ -82,8 +82,11 @@ export const ORDER_PARTS_CSS = `
 /* Marks spots on a draft of the selection. kind "missing": up to
    missingCount pairs, tap to mark or unmark, a rolled spot tapped becomes
    yours; Done fills any open pairs at random. kind "hole": one pair, a tap
-   places it and closes. The grid is drawn from Dark's side (the side that
-   moves first), as the board faces at the start. */
+   marks it and it stays shown till Done (user: "press the square, see the
+   one you've pressed, and then click done to confirm"): a tap elsewhere
+   moves it, a tap on it leaves it (a rolled one becomes yours). The grid
+   is drawn from Dark's side (the side that moves first), as the board
+   faces at the start. */
 export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
   const [draft, setDraft] = React.useState(() => cloneSelections(sel));
   const [note, setNote] = React.useState({ text: "", n: 0 });
@@ -114,7 +117,11 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
   const tap = (r, c) => {
     const at = marks.get(`${r},${c}`);
     if (at) {
-      if (isHole) { audio && audio.playMark && audio.playMark(); onDone(draft); return; }
+      if (isHole) {
+        if (at.spot.random) { const d = cloneSelections(draft); d.holeSpot = { row: at.spot.row, col: at.spot.col, random: false }; setDraft(d); audio && audio.playMark && audio.playMark(); }
+        say("");
+        return;
+      }
       // A rolled spot becomes yours; one of yours comes off.
       const d = cloneSelections(draft);
       const list = spots.map((p) => (p === at.spot ? (p.random ? { ...p, random: false } : null) : p)).filter(Boolean);
@@ -142,14 +149,13 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
     }
     setSpots(d, list);
     audio && audio.playMark && audio.playMark();
-    if (isHole) { onDone(d); return; }
     setDraft(d); say("");
   };
   const random = () => {
     const d = randomizeSpots(cloneSelections(draft), kind);
     setDraft(d); audio && audio.playMark && audio.playMark(); say("");
   };
-  const done = () => { const d = isHole ? draft : fillSpots(cloneSelections(draft), kind); onDone(d); };
+  const done = () => onDone(fillSpots(cloneSelections(draft), kind));
 
   const maxW = Math.min(window.innerWidth - 64, 560), maxH = Math.max(160, window.innerHeight * 0.52);
   const cell = Math.max(14, Math.floor(Math.min(maxW / cols, maxH / rows)));
@@ -177,7 +183,7 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
   }
   const title = isHole ? "Place the black holes" : "Mark the squares to cut out";
   const help = isHole
-    ? "Mark one square with an O; its partner, turned half round, is marked for you. Not in either side's two back rows. Dots show where the pieces start; mark one and they set out round it."
+    ? "Mark one square with an O; its partner, turned half round, is marked for you. Mark another to move them, then Done. Not in either side's two back rows. Dots show where the pieces start; mark one and they set out round it."
     : `Mark up to ${count} ${count === 1 ? "square" : "squares"} with an X; each one's partner, turned half round, is marked for you. Dashed marks were rolled at random: tap one to keep it. Dots show where the pieces start.`;
   return h("div", { className: "td-picker-layer", "data-testid": "tienda-picker", "data-kind": kind, role: "dialog", "aria-modal": "true", "aria-label": title,
     onClick: (e) => { if (e.target === e.currentTarget) onCancel(); } },

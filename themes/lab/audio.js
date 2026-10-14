@@ -300,20 +300,38 @@ const VOICES = {
       theme() { seq([700, 1100, 1500], (f, i) => pop(f, 0.12, i * 0.06)); },
     };
   })(),
-  minimalMono: {
-    hover() {},
-    select() { tone({ f: 62, dur: 0.12, a: 0.008, g: 0.2, det: 0 }); },
-    deselect() { tone({ f: 55, dur: 0.1, a: 0.008, g: 0.13, det: 0 }); },
-    blocked() { seq([0, 0.1], (d) => tone({ f: 48, dur: 0.08, a: 0.006, g: 0.14, delay: d, det: 0 })); },
-    roll() {},
-    land() { noise({ dur: 0.05, g: 0.1, filter: { type: "lowpass", f: 180 } }); },
-    capture() { tone({ f: 41, dur: 0.3, a: 0.01, g: 0.26, det: 0 }); },
-    turn() { tone({ f: 70, dur: 0.06, a: 0.008, g: 0.07, det: 0 }); },
-    win() { tone({ f: 55, dur: 0.6, a: 0.02, g: 0.18, det: 0 }); tone({ f: 82.4, dur: 0.6, a: 0.02, g: 0.14, delay: 0.25, det: 0 }); },
-    open() {},
-    close() {},
-    theme() { tone({ f: 58, dur: 0.2, a: 0.01, g: 0.16, det: 0 }); },
-  },
+  /* Minimal Mono (user: "Sounds on minimal mono seem like they are way
+     too low ... does this sound volume setting match with other ones?"):
+     the same master as every direction, but its notes are 41-82 Hz, which
+     a phone's or a laptop's speaker hardly gives back and the ear hears
+     faintly at any level (its pick-up and landing, against the other
+     directions' median: 3% and 5% through a small speaker, 23% and 4% as
+     heard on headphones, A-weighted). Each note now carries its 4th and
+     8th partials, quietly, so it's heard at about the others' level (92%
+     and 107% through a small speaker, 83% and 79% on headphones) and still
+     reads as one low, plain note. The roll, a hover, the panel's open and
+     close stay silent, as they were made. */
+  minimalMono: (() => {
+    const note = (f, dur, a, g, delay = 0) => {
+      tone({ f, dur, a, g, delay, det: 0 });
+      tone({ f: f * 4, dur, a, g: g * 0.3, delay, det: 0 });
+      tone({ f: f * 8, dur: dur * 0.7, a, g: g * 0.2, delay, det: 0 });
+    };
+    return {
+      hover() {},
+      select() { note(62, 0.12, 0.008, 0.2); },
+      deselect() { note(55, 0.1, 0.008, 0.13); },
+      blocked() { seq([0, 0.1], (d) => note(48, 0.08, 0.006, 0.14, d)); },
+      roll() {},
+      land() { noise({ dur: 0.05, g: 0.1, filter: { type: "lowpass", f: 180 } }); note(98, 0.07, 0.004, 0.075); },
+      capture() { note(41, 0.3, 0.01, 0.26); },
+      turn() { note(70, 0.06, 0.008, 0.07); },
+      win() { note(55, 0.6, 0.02, 0.18); note(82.4, 0.6, 0.02, 0.14, 0.25); },
+      open() {},
+      close() {},
+      theme() { note(58, 0.2, 0.01, 0.16); },
+    };
+  })(),
   ultimateFusion: {
     hover() { tone({ f: 2400, dur: 0.01, g: 0.015, det: 0 }); },
     select() { tone({ f: 1200, dur: 0.03, g: 0.05, det: 0 }); noise({ dur: 0.03, g: 0.08, filter: { type: "bandpass", f: 2400, q: 6 } }); },
