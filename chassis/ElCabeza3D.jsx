@@ -12766,6 +12766,34 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                 {theme.soundCredits}
               </p>
             )}
+            {/* The disclaimer, last of all (user: "put the disclaimer at the
+               bottom of the About tab"; their words for it: "This is an
+               unofficial, non-commercial implementation and is not
+               affiliated with or endorsed by them"): "them" named as the
+               game's creators, the magazine that described it and whoever
+               holds rights in it; others' music and recordings (the Parrish
+               looks' songs, the sounds credited above) their owners'. */}
+            <p
+              data-testid="info-disclaimer"
+              style={{
+                margin: "14px auto 0",
+                maxWidth: 480,
+                textAlign: "center",
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 10,
+                lineHeight: 1.6,
+                letterSpacing: "0.03em",
+                color: COLORS.slate,
+                textWrap: "pretty",
+              }}
+            >
+              This is an unofficial, non-commercial implementation of El
+              Cabeza, the game by Jaime Poniachik and Enrique Lindenbaum, and
+              is not affiliated with or endorsed by them, by <em>Revista Humor
+              y Juegos</em>, or by anyone holding rights in the original game.
+              Music and recordings by others belong to their respective
+              owners; no endorsement by them is implied.
+            </p>
             </>
             )}
             </div>

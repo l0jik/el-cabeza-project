@@ -29,32 +29,11 @@ How to use it:
 
 ## Open reminders (from the user; not done yet)
 
-- **A disclaimer on the site** (user, 2026-10-08: "we need to have some
-  sort of disclaimer on the site or something like this: 'This is an
-  unofficial, non-commercial implementation and is not affiliated with
-  or endorsed by them.'"). Still to settle with the user: who "them" is
-  named as, and where it shows (every page, e.g. a small line at the
-  foot, an about panel, the first screen). 2026-10-11 the user asked for
-  ideas: options given in chat (a one-line footer, an About paragraph, a
-  full Notices section, in-world variants; placement; the "Orinoco Flow"
-  clips flagged). Waiting on the user's pick. Then the user asked how
-  rights work given how far the game's been augmented ("essentially
-  created a new game"). Answered as general information, not legal
-  advice:
-  - Game mechanics, names and titles aren't copyrightable (USCO FL-108;
-    Argentina draws the same idea/expression line). The original's rules
-    are free to implement; the 1987 article's text and art are not free
-    to copy.
-  - The user owns their own expression, but not the new mechanics
-    (patents only; US 1-year grace after their own disclosure).
-  - AI-generated parts may not be protected: human authorship is
-    required (Thaler v. Perlmutter, D.C. Cir. 2025; cert denied 2
-    March 2026).
-  - Suggested its own name (e.g. Cabeza Nova), "based on El Cabeza by
-    Poniachik and Lindenbaum", a © line, and a licence choice for the
-    repo.
-  - Still needing permission: the "Orinoco Flow" clips, and the people
-    in their videos (for commercial use).
+- None open. The last, the disclaimer (user, 2026-10-08), is in since
+  2026-10-14: the foot of ABOUT in every world (Recent rounds, "The
+  disclaimer"). What was said about rights along the way (mechanics and
+  names not copyrightable, AI-made parts, the Orinoco Flow clips) is kept
+  in docs/memory/00-open-reminders.md.
 
 ## Topics (`docs/memory/`)
 
@@ -348,3 +327,4 @@ How to use it:
 - City quieter, fewer morning birds, cones only round a crush (user: "The ambient city noises should be reduced 30%. Reduce frequency of bird calls in city ... At the morning, on the morning theme or time period. I mean, okay, reduce it 15%. For any city theme movement indicators, the orange cones should only be on any red and white stripe indicator. The yellow and black do not need the cones anymore"). ciudad-audio.js AMBIENCE 0.7 on ambGain, at creation and in setZoom (ambGain carries CH.city: the recorded hourly beds, the horns and the made city; the piece cues are untouched). The birds read as the morning's only, 15% fewer: the morning bed's park and wood thrush layers each lose 3 of their 18 calls (the nearest whole share), spread evenly, taken out of the bird band only (tools/ciudad_sounds.py calls(): the 1.8-9 kHz band 6 dB over its own 40th percentile, merged within 0.12 s, at least 40 ms; fewer_calls(x, share): round(n x share) of them, faded 15 ms, none within 0.15 s of the loop's ends so it stays seamless; hour() takes db=None for a layer already set); city-morning.mp3 regenerated (the tool is deterministic: the unchanged morning came out byte for byte). The made city's HOURS morning birds 22 -> 18.7 (used only when the recordings can't be had). ciudad.js tapeConesMarker: cones only when isCrush, and orange now (#ff6a13; a crush's were red); addCones takes a color. e2e-ciudad "Cones only round a crush" (a Turrito beside the dark Cabeza: plain markers 0 cones, the crush 4, orange).
 - Minimal Mono's sounds (user: "seem like they are way too low. What is the percentage ... does this sound volume setting match with other ones?"). Its setting matches: one Lab master for all ten directions (0.8, through the compressor), and its gains were in line. The trouble was pitch: its notes were plain sines at 41-82 Hz, which a phone's or laptop's speaker hardly plays and the ear hears faintly at any level. Measured (scratch: the ten voices' pick-up and landing as lab/audio.js makes them, the loudest 50 ms): through a small speaker (4th-order 300 Hz high-pass) Minimal Mono's pick-up was 3% of the other directions' median and its landing 5%; A-weighted (headphones, as heard) 23% and 4%. themes/lab/audio.js minimalMono: every note now note(f, ...) = the sine plus partials at x4 (0.3 of its gain) and x8 (0.2, 70% as long), the same low pitch, now heard; the landing's dull knock gets a 98 Hz note on top. Now 92% / 107% on a small speaker and 83% / 79% A-weighted, both inside the other directions' spread. Roll, hover, open and close stay silent there as before.
 - The single link (user: "what's left to work on right now. When are we going to consolidate everything into a single link to where it's all integrated together?"). Answered: it is one link already, el-cabeza-nova.html: the story (the store, the den, Neon), then (or at once with ?switcher) Other realities with all 21 worlds; every other page has the Other realities corner and Restart story back to Nova. Not one page, though: the Den, Big Glutts and Neon switch in place; the other 18 (Lluvia, Cromo, Plano, Luna, Noir, The City, Parrish's two looks, the Lab's ten) are 8 pages of their own (build/build.js: one self-contained HTML a world, its JS inlined as an IIFE), so picking one loads that page. Offered: every world in place on Nova's page, each world's code fetched only when it's picked (esbuild splitting, ESM), torn down cleanly when left (scene, sound, overlays, HUD such as the City's clock, CSS, window hooks), the old addresses opening Nova at that world; world by world, The City first. Waiting on the user. Left otherwise: the disclaimer (waiting on the user's pick); not started: online play (needs a relay or signalling server), saves that outlive the browser; the "city-block version" reminder probably met by Noir and The City (to confirm). The den's music reminder was stale (the record and five tapes are in): future-wishlist.md marked done.
+- The disclaimer (user: "put the disclaimer at the bottom of the About tab. Use your best judgment, given all the information that I've already given you. And if I need to make any changes to it, I will later"). chassis/ElCabeza3D.jsx, ABOUT's last paragraph in every world (data-testid info-disclaimer), under the implementation line and a world's sound credits, in their small print (IBM Plex Mono 10px, COLORS.slate, centred, 480 wide): "This is an unofficial, non-commercial implementation of El Cabeza, the game by Jaime Poniachik and Enrique Lindenbaum, and is not affiliated with or endorsed by them, by Revista Humor y Juegos, or by anyone holding rights in the original game. Music and recordings by others belong to their respective owners; no endorsement by them is implied." The user's own sentence kept; "them" named as ABOUT names them (the creators, the 1987 magazine) and whoever holds rights (no claim made about heirs or publishers); the second sentence for the Orinoco Flow clips and the credited recordings. Shown before and after the Singularity alike. Mirrored into the old single-file copies (el_cabeza_3d.jsx, el-cabeza-neon-3d.html), as ABOUT's text always is. e2e-original: ABOUT ends with it, the names in it; in Nova's den it's last, under the sound credits. Looked at in the den (desktop), Neon (phone) and Noir (desktop).

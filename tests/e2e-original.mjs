@@ -2,7 +2,8 @@
    playOriginal): it closes INFO and sets up a plain game with the basic
    rules only. On the Neon page, laws switched on at boot (window.__EC_LAWS__)
    are cleared. In Nova (apps/unified.jsx), taken from the Neon theme, it
-   also switches back to the Standard theme. */
+   also switches back to the Standard theme. And the disclaimer at ABOUT's
+   foot, last of all, under a world's sound credits where it has them. */
 import { chromium } from "playwright";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
@@ -39,6 +40,12 @@ const theme = (page) => page.evaluate(() => {
   await page.waitForTimeout(400);
   const text = await page.locator('[data-testid="info-body"]').textContent();
   check("ABOUT says the original is the basic rules alone", /The original El Cabeza is played with its basic rules alone/.test(text));
+  // The disclaimer, at the bottom (user: "put the disclaimer at the bottom
+  // of the About tab"): unofficial, non-commercial, and whom it isn't
+  // affiliated with or endorsed by, named.
+  const last = await page.evaluate(() => { const ps = [...document.querySelectorAll('[data-testid="info-body"] p')]; const l = ps[ps.length - 1]; return l ? { id: l.getAttribute("data-testid"), text: l.textContent.replace(/\s+/g, " "), shown: l.getBoundingClientRect().height > 0 } : null; });
+  check("ABOUT ends with the disclaimer", !!last && last.id === "info-disclaimer" && last.shown, JSON.stringify(last));
+  check("...unofficial and non-commercial, not affiliated with or endorsed by the game's creators or the magazine", !!last && /unofficial, non-commercial implementation/.test(last.text) && /not affiliated with or endorsed by them/.test(last.text) && /Jaime Poniachik and Enrique Lindenbaum/.test(last.text) && /Revista Humor y Juegos/.test(last.text), last && last.text);
   await page.locator('[data-testid="play-original"]').click();
   await page.waitForTimeout(800);
   check("the link closes INFO", (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "false");
@@ -69,6 +76,13 @@ const theme = (page) => page.evaluate(() => {
   await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-nova.html");
   await page.waitForTimeout(2000);
   check("Nova opens on the Standard theme", (await theme(page)) === "standard");
+  // (the den credits its recorded sounds: the disclaimer comes under them)
+  await openAbout(page);
+  await page.waitForTimeout(400);
+  const tail = await page.evaluate(() => [...document.querySelectorAll('[data-testid="info-body"] p')].slice(-2).map((p) => p.getAttribute("data-testid")));
+  check("the den's ABOUT: the disclaimer last, under the sound credits", tail[0] === "info-sound-credits" && tail[1] === "info-disclaimer", JSON.stringify(tail));
+  await page.mouse.click(6, 6);
+  await page.waitForTimeout(500);
   // Hold the masthead, then confirm CONNECT: over to Neon.
   const box = await page.locator("h1").first().boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
