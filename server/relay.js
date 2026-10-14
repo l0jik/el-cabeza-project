@@ -22,6 +22,7 @@
        client: {t:"join", code}            server: {t:"joined", code, game, turns, begun}
                                            host:   {t:"peer", present:true}
        client: {t:"resume", code, role, since}   server: {t:"resumed", game, turns, begun, peer}
+                                           (a seat still held by an older line is taken over: the old one's closed)
        host:   {t:"setup", game}           guest:  {t:"setup", game}       (before it begins)
        host:   {t:"begin", game}           guest:  {t:"begin", game}
        either: {t:"turn", n, steps}        other:  {t:"turn", n, steps}
@@ -77,10 +78,16 @@ function send(res, status, body) {
 }
 function readBody(req, limit) {
   return new Promise((resolve, reject) => {
-    const chunks = []; let size = 0;
-    req.on("data", (c) => { size += c.length; if (size > limit) { reject(new Error("too large")); req.destroy(); return; } chunks.push(c); });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    req.on("error", reject);
+    if (parseInt(req.headers["content-length"] || "0", 10) > limit) { req.resume(); req.on("end", () => reject(new Error("too large"))); req.on("error", () => reject(new Error("too large"))); return; }
+    const chunks = []; let size = 0, over = false;
+    req.on("data", (c) => {
+      size += c.length;
+      if (over) { if (size > limit * 4) req.destroy(); return; }
+      if (size > limit) { over = true; chunks.length = 0; return; } // (drained, so the 413 gets through)
+      chunks.push(c);
+    });
+    req.on("end", () => (over ? reject(new Error("too large")) : resolve(Buffer.concat(chunks).toString("utf8"))));
+    req.on("error", () => reject(new Error(over ? "too large" : "bad request")));
   });
 }
 const savePath = (c) => path.join(SAVES_DIR, `${c.replace("-", "")}.json`);
@@ -225,9 +232,16 @@ class Client {
 const rooms = new Map();
 const other = (room, role) => (role === "host" ? room.guest : room.host);
 
-function joinRoom(client, room, role) {
+function joinRoom(client, room, role, takeOver = false) {
   const slot = room[role];
-  if (slot && slot !== client && !slot.closed) return false;
+  if (slot && slot !== client && !slot.closed) {
+    if (!takeOver) return false;
+    // The same player back on a new line before the old one closed (a
+    // phone changing networks): the new line takes the seat.
+    slot.room = null;
+    slot.sendText({ t: "error", code: "replaced", message: "this seat was taken up from another connection" });
+    slot.close(4001);
+  }
   room[role] = client;
   client.room = room; client.role = role;
   room.emptySince = 0;
@@ -273,7 +287,7 @@ function handle(client, msg) {
       const role = msg.role === "host" ? "host" : "guest";
       if (!r) { client.sendText({ t: "error", code: "no-room", message: "that game is gone" }); return; }
       if (room && room !== r) leaveRoom(client, true);
-      if (!joinRoom(client, r, role)) { client.sendText({ t: "error", code: "taken", message: "someone else holds that seat" }); return; }
+      joinRoom(client, r, role, true);
       const since = Math.max(0, parseInt(msg.since, 10) || 0);
       const peer = other(r, role);
       client.sendText({ t: "resumed", code: c, role, game: r.game, turns: r.turns.slice(since), begun: r.begun, peer: !!(peer && !peer.closed) });

@@ -274,6 +274,9 @@ const THEMES = { tienda: storeTheme, standard: homeTheme, neon: novaNeonTheme };
    place, as the den's and Neon's). */
 const LAZY = { ciudad: () => import("../themes/ciudad.js") };
 const CUT_CAPTIONS = { standard: "The den, 1975.", neon: "Neon.", tienda: "Big Glutts, Games & Hobby Dept.", ciudad: "The City." };
+// The tab's name while one of the site's other worlds is up here (its own
+// page's title; build/build.js); Nova's own otherwise.
+const WORLD_TITLES = { ciudad: "El Cabeza \u00b7 The City" };
 function makeNovaTheme(name, mod) {
   return {
     ...mod,
@@ -326,6 +329,7 @@ const {
 function UnifiedApp() {
   // A first visit opens in the store; once the game is bought, at home.
   const [themeName, setThemeName] = useState(() => (SUMMONS_PARAM ? "neon" : (WORLD_PARAM && THEMES[WORLD_PARAM] ? WORLD_PARAM : null) || (SCENE_PARAM || readOwned() ? "standard" : "tienda")));
+  useEffect(() => { try { document.title = WORLD_TITLES[themeName] || "El Cabeza Nova"; } catch (e) { /* no document */ } }, [themeName]);
   // A world being fetched (LAZY), named, while it comes.
   const [loadingWorld, setLoadingWorld] = useState(null);
   // Before the first Singularity visit the way into Neon from the den is

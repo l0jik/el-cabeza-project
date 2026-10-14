@@ -28,16 +28,18 @@ const poll = async (fn, ms = 8000, step = 150) => { const end = Date.now() + ms;
 
 // The server, on a free port, its saves in a scratch folder.
 const dataDir = mkdtempSync(join(tmpdir(), "ec-saves-"));
-const relay = spawn(process.execPath, ["server/relay.js", "--port", "0", "--data", dataDir], { cwd: "/home/user/el-cabeza-project", stdio: ["ignore", "pipe", "pipe"] });
-const port = await new Promise((resolve, reject) => {
+// (or, with RELAY set, a server already running: the same one on Cloudflare
+// under wrangler dev, RELAY=ws://127.0.0.1:8790; see server/README.md)
+const relay = process.env.RELAY ? null : spawn(process.execPath, ["server/relay.js", "--port", "0", "--data", dataDir], { cwd: "/home/user/el-cabeza-project", stdio: ["ignore", "pipe", "pipe"] });
+const port = relay ? await new Promise((resolve, reject) => {
   let out = "";
   relay.stdout.on("data", (d) => { out += d; const m = /listening on (\d+)/.exec(out); if (m) resolve(parseInt(m[1], 10)); });
   relay.stderr.on("data", (d) => { out += d; });
   relay.on("exit", () => reject(new Error("relay exited: " + out)));
   setTimeout(() => reject(new Error("relay never listened: " + out)), 15000);
-});
-const RELAY = `ws://127.0.0.1:${port}`;
-console.log(`relay on ${port}`);
+}) : 0;
+const RELAY = process.env.RELAY || `ws://127.0.0.1:${port}`;
+console.log(relay ? `relay on ${port}` : `relay at ${RELAY}`);
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--allow-file-access-from-files"] });
 const SEED = { "el-cabeza:show-points": "0", "el-cabeza:hold-to-end": "0", "el-cabeza:last-world": "noir", "elcabeza.ciudad.time": "night" };
@@ -194,6 +196,6 @@ console.log("The phone's menu");
 }
 
 await browser.close();
-relay.kill();
+if (relay) relay.kill();
 console.log(fails ? `\n${fails} check(s) failed` : "\nall checks passed");
 process.exit(fails ? 1 : 0);

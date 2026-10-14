@@ -1,0 +1,19 @@
+# The game's server on Cloudflare Workers (worker.js; how to deploy it:
+# ../README.md). The name is the address: el-cabeza-relay.<your-subdomain>.workers.dev
+name = "el-cabeza-relay"
+main = "worker.js"
+compatibility_date = "2026-06-01"
+workers_dev = true
+
+# The rooms and the saves live in a Durable Object (SQLite-backed, the
+# kind the free plan has).
+[[durable_objects.bindings]]
+name = "RELAY"
+class_name = "Relay"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Relay"]
+
+[observability]
+enabled = true

@@ -316,6 +316,16 @@ builder functions expected to find them on.
   and kept, so a dropped line resumes) and an HTTP store for saves (a
   code per save). Its address is `chassis/online-config.js` RELAY_URL, a
   placeholder until deployed; `?relay=` or localStorage overrides it.
+- `server/cloudflare/worker.js` is the same server for Cloudflare Workers
+  (the free plan: no sleeping, lasting storage), the one to deploy
+  (`server/README.md`). One Worker hands every request to a Durable
+  Object class, `Relay`, two instances by name: "rooms" (the WebSockets,
+  through the hibernation API, each socket's room and role in its
+  attachment; rooms and turns in SQLite tables; an alarm sweeps empty
+  rooms) and "saves" (a table). The wire protocol is identical, so the
+  client and `tests/relay-protocol.mjs` (run against either server with
+  `RELAY=`) don't know which one they're on. One behaviour both share
+  now: a `resume` on a seat whose old line is still open takes it over.
 - `chassis/online.js` (the relay client, the join link, the tab's
   session) and the chassis's `online` state: the other player's side is
   gated as the computer's (`foeSide`), their turns are played through

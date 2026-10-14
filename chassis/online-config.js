@@ -1,7 +1,9 @@
-/* Where the game's server is (server/relay.js: the relay for online play
-   and the store for cloud saves). PLACEHOLDER until it's deployed (user:
-   "Use placeholder information until actual information can be
-   inserted"): put the deployed server's wss:// address in RELAY_URL,
+/* Where the game's server is (server/cloudflare/worker.js on Cloudflare
+   Workers, or server/relay.js anywhere Node runs: the relay for online
+   play and the store for cloud saves). PLACEHOLDER until it's deployed
+   (user: "Use placeholder information until actual information can be
+   inserted"): put the deployed server's wss:// address in RELAY_URL
+   (wss://el-cabeza-relay.<subdomain>.workers.dev; server/README.md),
    rebuild, push. Until then the Online and cloud-save screens say the
    server isn't set up yet.
 

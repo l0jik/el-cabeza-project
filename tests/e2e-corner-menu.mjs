@@ -166,21 +166,21 @@ for (const world of WORLDS) {
   // (A tap at the button's middle, straight away: Playwright's own tap()
   // waits on a heavy page for seconds, longer than a raise lasts.)
   const tapAt = async (sel) => { const b = await page.locator(sel).boundingBox(); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); };
-  // The tap after the raise opens it. On a loaded machine (CI run 66: the
-  // City by touch, the clock) a tap can land late, after the raise has
-  // lapsed (RAISE_MS 5 s), and is a first tap again, so it only raises:
-  // then once more, as a hand would. A tap on a raised button that
-  // doesn't open it, three times over, is the failure this guards.
+  // The tap after the raise opens it. On a loaded machine (CI runs 66 and
+  // 68: the City by touch) a tap can land late, after the raise has lapsed
+  // (RAISE_MS 5 s), and is a first tap again, so it only raises: then once
+  // more, soon (a short wait for the card, so the next tap comes well
+  // within the raise), as a hand would. A tap on a raised button that
+  // doesn't open it, five times over, is the failure this guards.
   const tapOpens = async (sel, state, since) => {
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= 5; i++) {
       await tapAt(sel);
-      const opened = await poll(async () => { const v = await state(); return v && v.open === "true" ? v : null; }, 4000);
+      const opened = await poll(async () => { const v = await state(); return v && v.open === "true" ? v : null; }, 2000);
       if (opened) return { taps: i, ms: Date.now() - since };
       const v = await state();
       if (!(v && v.raised === "true" && v.open === "false")) return { taps: 0, ms: Date.now() - since, state: v };
-      await page.waitForTimeout(400);
     }
-    return { taps: 0, ms: Date.now() - since };
+    return { taps: 0, ms: Date.now() - since, state: await state() };
   };
   const cm = () => page.evaluate(() => { const m = document.querySelector('[data-testid="corner-menu"]'); const t = m && m.querySelector('[data-testid="corner-menu-tab"]'); return m && { open: m.dataset.open, raised: m.dataset.raised, opacity: Number(getComputedStyle(t).opacity) }; });
   check(`the Rules tab dimmed (${(await cm()).opacity})`, !!(await poll(async () => Math.abs((await cm()).opacity - 0.6) < 0.02, 5000)));

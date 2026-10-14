@@ -32,16 +32,18 @@ const poll = async (fn, ms = 8000, step = 150) => { const end = Date.now() + ms;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const dataDir = mkdtempSync(join(tmpdir(), "ec-online-"));
-const relay = spawn(process.execPath, ["server/relay.js", "--port", "0", "--data", dataDir], { cwd: "/home/user/el-cabeza-project", stdio: ["ignore", "pipe", "pipe"] });
-const port = await new Promise((resolve, reject) => {
+// (or, with RELAY set, a server already running: the same one on Cloudflare
+// under wrangler dev, RELAY=ws://127.0.0.1:8790; see server/README.md)
+const relay = process.env.RELAY ? null : spawn(process.execPath, ["server/relay.js", "--port", "0", "--data", dataDir], { cwd: "/home/user/el-cabeza-project", stdio: ["ignore", "pipe", "pipe"] });
+const port = relay ? await new Promise((resolve, reject) => {
   let out = "";
   relay.stdout.on("data", (d) => { out += d; const m = /listening on (\d+)/.exec(out); if (m) resolve(parseInt(m[1], 10)); });
   relay.stderr.on("data", (d) => { out += d; });
   relay.on("exit", () => reject(new Error("relay exited: " + out)));
   setTimeout(() => reject(new Error("relay never listened: " + out)), 15000);
-});
-const RELAY = `ws://127.0.0.1:${port}`;
-console.log(`relay on ${port}`);
+}) : 0;
+const RELAY = process.env.RELAY || `ws://127.0.0.1:${port}`;
+console.log(relay ? `relay on ${port}` : `relay at ${RELAY}`);
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--enable-unsafe-swiftshader", "--use-gl=swiftshader", "--allow-file-access-from-files"] });
 async function open(file, query = "", { relayOn = true, ctx: given = null } = {}) {
@@ -197,6 +199,6 @@ console.log("A code nobody has");
 }
 
 await browser.close();
-relay.kill();
+if (relay) relay.kill();
 console.log(fails ? `\n${fails} check(s) failed` : "\nall checks passed");
 process.exit(fails ? 1 : 0);

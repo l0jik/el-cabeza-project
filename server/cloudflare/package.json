@@ -1,0 +1,13 @@
+{
+  "name": "el-cabeza-relay",
+  "private": true,
+  "type": "module",
+  "description": "The game's server on Cloudflare Workers: online play and cloud saves (see ../README.md).",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.0"
+  }
+}

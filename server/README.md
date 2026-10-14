@@ -1,6 +1,6 @@
 # The game's server: online play and cloud saves
 
-One small Node program, `relay.js`, no packages. It does two things:
+One small server does two things:
 
 - **Online play.** A relay between two browsers: the host gets a game code,
   the other player joins with it (or with the link that carries it), and
@@ -11,34 +11,46 @@ One small Node program, `relay.js`, no packages. It does two things:
 - **Cloud saves.** Everything a browser keeps for the game, saved under an
   eight-letter code; the same code restores it anywhere.
 
-## Run it
+It exists twice, with the same messages and the same addresses:
 
-    node server/relay.js                     # port 8787, saves under ./data
-    PORT=8080 DATA_DIR=/srv/cabeza node server/relay.js
+- `cloudflare/worker.js`, for **Cloudflare Workers** (free plan: nothing
+  sleeps, the storage lasts, no card). This is the one to deploy.
+- `relay.js`, the same thing as a plain Node program (no packages), for a
+  machine of your own or any host that runs Node; the tests run it.
 
-`GET /health` answers `{"ok":true,...}`.
+## Deploy it on Cloudflare (free)
 
-## Deploy it (any of these; a free tier is plenty)
+You need a Cloudflare account (dash.cloudflare.com, sign up with an
+email; the free plan asks for no card). Then either way:
 
-**Fly.io**
+**From the dashboard, with nothing to install.** Cloudflare builds the
+`server/cloudflare` folder of this repository and deploys it on every
+push.
 
-    cd server
-    fly launch --no-deploy --name el-cabeza-relay      # accepts the Dockerfile here
-    fly volumes create cabeza_data --size 1
-    # in fly.toml: [mounts] source="cabeza_data" destination="/data"
-    #              [env]    DATA_DIR="/data"
-    fly deploy
+1. In the dashboard: *Workers & Pages* → *Create* → the *Workers* tab →
+   *Import a repository* (the first time it asks to connect your GitHub
+   account and to allow the Cloudflare app to see this repository).
+2. Pick `el-cabeza-project`. Name the Worker **`el-cabeza-relay`** (it
+   must match the name in `cloudflare/wrangler.toml`). Branch: the one
+   this site deploys from.
+3. Build settings: *Root directory* `server/cloudflare`; *Build command*
+   empty; *Deploy command* `npx wrangler deploy` (the default).
+4. *Save and Deploy*. The first time, it asks you to choose a
+   `workers.dev` subdomain (any name; it's part of the address). A minute
+   later the Worker is up at
+   `https://el-cabeza-relay.<your-subdomain>.workers.dev`.
 
-The address is then `wss://el-cabeza-relay.fly.dev`.
+**Or from a computer with Node:**
 
-**Render / Railway**: a new Web Service from this repo, root directory
-`server`, start command `node relay.js`, a persistent disk mounted at
-`/data` with `DATA_DIR=/data`. The address is the service's `https://`
-host with `wss://` in front.
+    cd server/cloudflare
+    npx wrangler login        # opens the browser to allow it
+    npx wrangler deploy       # prints the address
 
-**Your own machine**: `node relay.js` behind any HTTPS reverse proxy
-(Caddy: `reverse_proxy localhost:8787`), because a page served over
-`https://` can only open `wss://`.
+Either way, check it: open `https://el-cabeza-relay.<your-subdomain>.workers.dev/health`
+in a browser; it answers `{"ok":true,"service":"el-cabeza-relay",...}`.
+
+Its storage (the games on the go, the saves) is a Durable Object the
+deploy creates by itself; nothing else to set up.
 
 ## Tell the game where it is
 
@@ -46,17 +58,43 @@ host with `wss://` in front.
 
     export const RELAY_URL = "wss://PLACEHOLDER-el-cabeza-relay.example.com";
 
-Replace the placeholder with your server's `wss://` address, rebuild, and
+Replace the placeholder with the Worker's address, with `wss://` in
+front: `wss://el-cabeza-relay.<your-subdomain>.workers.dev`. Rebuild and
 push. Until then the game's Online and Save-to-the-cloud screens say the
 server isn't set up yet.
 
-To try a server without rebuilding, open any page with `?relay=wss://...`
-(kept for that tab), or set `localStorage["el-cabeza:relay"]`.
+To try a server without rebuilding, open any page with
+`?relay=wss://el-cabeza-relay.<your-subdomain>.workers.dev` (kept for
+that tab), or set `localStorage["el-cabeza:relay"]`.
+
+## The Node server, elsewhere
+
+    node server/relay.js                     # port 8787, saves under ./data
+    PORT=8080 DATA_DIR=/srv/cabeza node server/relay.js
+
+`GET /health` answers `{"ok":true,...}`. A page served over `https://`
+can only open `wss://`, so it needs an HTTPS front: Caddy
+(`reverse_proxy localhost:8787`), or a host that gives one. Render's free
+web service runs it from this repository (root directory `server`, start
+command `node relay.js`; the `Dockerfile` here works too), but a free
+service there sleeps after fifteen idle minutes and keeps no disk, so
+saves would need another store: the Cloudflare Worker is the one that
+works whole for nothing.
 
 ## What it keeps
 
-- Rooms, in memory: gone 30 minutes after the last player leaves.
-- Saves, as files in `DATA_DIR/saves`: nothing else. A save is at most
-  512 KB. There's no account, so a code is the only key to a save: anyone
-  with it can read it, and only the browser that made it (it holds a
-  token) can update it.
+- Rooms: gone 30 minutes after the last player leaves (and in any case
+  after a week).
+- Saves: the record under its code, nothing else; at most 512 KB each.
+  There's no account, so a code is the only key to a save: anyone with
+  it can read it, and only the browser that made it (it holds a token)
+  can update it.
+
+## Checking a server
+
+    node tests/relay-protocol.mjs                                    # the Node server, started here
+    RELAY=ws://127.0.0.1:8790 node tests/relay-protocol.mjs          # the Worker under `npx wrangler dev --port 8790`
+    RELAY=wss://el-cabeza-relay.NAME.workers.dev node tests/relay-protocol.mjs
+
+The same `RELAY=` runs the browser tests (`tests/e2e-online.mjs`,
+`tests/e2e-saves.mjs`) against any server.

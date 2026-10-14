@@ -411,9 +411,11 @@ console.log("The City, in the switcher");
   const loaded = await p.evaluate((u) => new Promise((done) => { const i = new Image(); i.onload = () => done(i.naturalWidth); i.onerror = () => done(0); i.src = u; }), (/url\("?([^")]+)"?\)/.exec(pic) || [])[1] || "");
   check(`...with its picture (${loaded}px wide)`, /el-cabeza-channel-ciudad\.jpg/.test(pic) && loaded > 0, pic);
   await card.click();
-  check("...which goes there", !!(await poll(async () => /el-cabeza-ciudad\.html/.test(p.url()), 8000)));
-  check("The City's page: the gate, in its look", !!(await gateOn(p)) && (await p.locator('[data-testid="reality-gate"]').getAttribute("data-world")) === "ciudad");
-  check("...its tab named The City", /The City/.test(await p.title()), await p.title());
+  // (In place on Nova's page now, its chunk fetched as it's picked:
+  // apps/unified.jsx LAZY, tests/e2e-nova-city.mjs. The address stays.)
+  check("...which comes up there, in place (the address still Nova's)", !!(await poll(() => p.evaluate(() => !!window.__CIUDAD__), 40000, 250)) && /el-cabeza-nova\.html/.test(p.url()), p.url());
+  check("The City, up: the gate, in its look", !!(await gateOn(p)) && (await p.locator('[data-testid="reality-gate"]').getAttribute("data-world")) === "ciudad");
+  check("...the tab named The City while it's up", !!(await poll(async () => /The City/.test(await p.title()), 4000)), await p.title());
   await p.waitForTimeout(800); await shot(p, "ciudad");
   await p.locator('[data-testid="gate-standard"]').click();
   await poll(() => p.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000);
