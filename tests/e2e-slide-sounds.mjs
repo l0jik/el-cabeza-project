@@ -71,7 +71,9 @@ for (const [name, page0, quiet, hasSlide, wood, computer] of WORLDS) {
 
   const at = (id) => page.evaluate((i) => (window.__EC_TEST_PIECES__ || []).find((q) => q.id === i) || null, id);
   const turns = () => page.evaluate(() => (window.__EC_TEST_TURNS__ || []).length);
-  const step = async (id, dir, row, ms = 10000) => {
+  // (20 s a step: Parrish, the heaviest page, took more than 10 on a
+  // loaded runner, CI run 57, its sounds all there)
+  const step = async (id, dir, row, ms = 20000) => {
     await page.evaluate(([i, d]) => window.__EC_TEST_MOVE__(i, d), [id, dir]);
     const ok = await poll(async () => { const q = await at(id); return q && q.row === row; }, ms);
     await page.waitForTimeout(700);
@@ -95,7 +97,7 @@ for (const [name, page0, quiet, hasSlide, wood, computer] of WORLDS) {
   if (wood) check("...one knock of wood, the roll's", (await knocks()) - k0 === 1, `${k0} -> ${await knocks()}`);
   // The other side's turn: its Cabeza steps three times (both players at
   // the board), or the computer plays (the store's opponent). (A heavy
-  // world's step can take more than 4 s here: each gets its 10.)
+  // world's step can take more than 4 s here: each gets its 20.)
   const lightCab = !computer && (await step("light-cabeza", "N", 8)) && (await step("light-cabeza", "N", 7)) && (await step("light-cabeza", "N", 6));
   if (!lightCab) await poll(async () => (await turns()) >= 2, 30000, 300);
   await page.waitForTimeout(800);
