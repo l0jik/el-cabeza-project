@@ -23,9 +23,15 @@
      I-sections, decks on the lower floors, a brace, beams waiting on the
      ground; at night a string of bulbs round its second floor and someone
      at work with a welder up top.
-   - A building moving onto a lot's block takes it: the lot, its crane,
-     its frame, gone for the rest of the game (the block plain paving
-     again under the building). A new game lays the lots out afresh. */
+   - A building moving onto a lot's block takes it, and the lot goes on
+     elsewhere (user: "whenever one of those is destroyed, that same piece
+     that gets run over needs to reappear somewhere else on the map"): the
+     block under the building plain paving again, and the same lot (its
+     trees, its crane, its frame) on a free block, growing up out of the
+     ground there. A crane's site and the frame go as far from the pieces
+     as can be, as they were laid out; any other lot to a block a square
+     clear of them if there is one. Only with no free block left is it
+     gone. A new game lays the lots out afresh. */
 
 import * as THREE from "three";
 import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -162,6 +168,7 @@ export function createLots({ tier }) {
   const nightFns = new Set(); // this layout's own night lights
   const pending = new Map(); // "r,c" -> when a building first stood on it
   const swing = []; // the cranes' slewing
+  const grows = []; // lots moved, growing up on their new blocks: { L, t0 }
 
   // something lit only at night, for this layout
   const nightMat = (m, k = 1) => { m.transparent = true; m.opacity = 0; m.depthWrite = false; nightFns.add((n) => { m.opacity = n * k; m.visible = n > 0.01; }); return m; };
@@ -180,25 +187,44 @@ export function createLots({ tier }) {
   }
   const trunkGeo = new THREE.CylinderGeometry(0.008, 0.012, 1, 6).translate(0, 0.5, 0), crownGeo = new THREE.SphereGeometry(1, 12, 9);
   const trunkMat = std("#6a5440", { roughness: 0.9 }), crownMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92 });
+  // a tree's crown: its spheres, [x, y, z, sx, sy, sz, colour]
+  function crownsOf(t) {
+    const k = t.k, th = 0.07 * k * (t.kind === "flat" ? 1.5 : t.kind === "oval" ? 1.1 : 1);
+    t.th = th;
+    if (t.balls) return t.balls.map(([dx, dy, dz, r0]) => { const r = r0 * k; return [t.x + dx * k, th + r * 0.75 + dy * k, t.z + dz * k, r, r, r, t.c]; });
+    if (t.kind === "oval") return [[t.x, th + 0.075 * k, t.z, 0.05 * k, 0.085 * k, 0.05 * k, t.c]];
+    if (t.kind === "flat") return [[t.x, th + 0.02 * k, t.z, 0.098 * k, 0.036 * k, 0.098 * k, t.c]];
+    const r = t.r * k;
+    return [[t.x, th + r * 0.85, t.z, r, r * t.sy, r, t.c]];
+  }
   function placeTrees() {
-    const crowns = [];
-    for (const t of trees) {
-      const k = t.k, th = 0.07 * k * (t.kind === "flat" ? 1.5 : t.kind === "oval" ? 1.1 : 1);
-      t.th = th;
-      if (t.balls) for (const [dx, dy, dz, r0] of t.balls) { const r = r0 * k; crowns.push([t.x + dx * k, th + r * 0.75 + dy * k, t.z + dz * k, r, r, r, t.c]); }
-      else if (t.kind === "oval") crowns.push([t.x, th + 0.075 * k, t.z, 0.05 * k, 0.085 * k, 0.05 * k, t.c]);
-      else if (t.kind === "flat") crowns.push([t.x, th + 0.02 * k, t.z, 0.098 * k, 0.036 * k, 0.098 * k, t.c]);
-      else { const r = t.r * k; crowns.push([t.x, th + r * 0.85, t.z, r, r * t.sy, r, t.c]); }
-    }
     for (const m of [treeMesh, trunkMesh]) if (m) { group.remove(m); m.dispose(); }
     treeMesh = trunkMesh = null;
     if (!trees.length) return;
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3();
     trunkMesh = new THREE.InstancedMesh(trunkGeo, trunkMat, trees.length);
-    trees.forEach((t, i) => { p.set(t.x, 0, t.z); s.set(t.k, t.th, t.k); m4.compose(p, q, s); trunkMesh.setMatrixAt(i, m4); });
-    treeMesh = new THREE.InstancedMesh(crownGeo, crownMat, crowns.length);
-    crowns.forEach(([x, y, z, sx, sy, sz, c], i) => { p.set(x, y, z); s.set(sx, sy, sz); m4.compose(p, q, s); treeMesh.setMatrixAt(i, m4); treeMesh.setColorAt(i, col(c)); });
+    treeMesh = new THREE.InstancedMesh(crownGeo, crownMat, trees.reduce((n, t) => n + crownsOf(t).length, 0));
+    writeTrees(true);
     for (const m of [trunkMesh, treeMesh]) { m.castShadow = true; m.receiveShadow = true; m.raycast = () => {}; group.add(m); }
+  }
+  // Every tree where it stands, each grown t.grow of the way up from its
+  // foot (a moved lot's come up with it; 1 when not given), and their
+  // colours the first time.
+  const m4 = new THREE.Matrix4(), q0 = new THREE.Quaternion(), v3 = new THREE.Vector3(), s3 = new THREE.Vector3();
+  function writeTrees(colours) {
+    if (!trunkMesh || !treeMesh) return;
+    let i = 0;
+    trees.forEach((t, ti) => {
+      const g = t.grow == null ? 1 : Math.max(0.001, t.grow), crowns = crownsOf(t);
+      v3.set(t.x, 0, t.z); s3.set(t.k, t.th * g, t.k); m4.compose(v3, q0, s3); trunkMesh.setMatrixAt(ti, m4);
+      for (const [x, y, z, sx, sy, sz, c] of crowns) {
+        v3.set(t.x + (x - t.x) * g, y * g, t.z + (z - t.z) * g); s3.set(sx * g, sy * g, sz * g); m4.compose(v3, q0, s3);
+        treeMesh.setMatrixAt(i, m4);
+        if (colours) treeMesh.setColorAt(i, col(c));
+        i++;
+      }
+    });
+    trunkMesh.instanceMatrix.needsUpdate = true; treeMesh.instanceMatrix.needsUpdate = true;
+    if (colours && treeMesh.instanceColor) treeMesh.instanceColor.needsUpdate = true;
   }
 
   /* -------- each lot's relief */
@@ -322,7 +348,7 @@ export function createLots({ tier }) {
   /* -------- laying the lots out for a game */
   function clear() {
     for (const L of lots.values()) { if (L.grp) { group.remove(L.grp); disposeGroup(L.grp); } if (L.crane) { group.remove(L.crane); disposeGroup(L.crane); } }
-    lots.clear(); trees.length = 0; nightFns.clear(); pending.clear(); swing.length = 0;
+    lots.clear(); trees.length = 0; nightFns.clear(); pending.clear(); swing.length = 0; grows.length = 0;
   }
   function layOut(pieces) {
     clear();
@@ -366,16 +392,60 @@ export function createLots({ tier }) {
     painted = BOARD_PAINT.tex;
   }
   let painted = null;
-  // a building has taken a lot's block: the lot, its crane, gone; the block plain again
-  function take(key) {
+  const paintable = () => BOARD_PAINT.ctx && BOARD_PAINT.rows === BOARD_ROWS && BOARD_PAINT.cols === BOARD_COLS;
+  /* A building has taken a lot's block: the lot goes on elsewhere, the
+     block under the building plain again (see the top). Where: a block no
+     piece covers, on the board, with no lot of its own; a crane's site or
+     the frame as far from the pieces as can be (farSites, as laid out),
+     any other lot one at least a square clear of them if there's one, else
+     any. Null: no block left. */
+  function siteFor(L, pieces) {
+    const cov = covered(pieces), off = offBoard();
+    if (L.crane || L.type === "frame") {
+      const [site] = farSites(pieces, 1, new Set([...off, ...lots.keys()]), cov);
+      return site || null;
+    }
+    const cells = [...cov].map((k) => k.split(",").map(Number)), free = [];
+    for (let r = 0; r < BOARD_ROWS; r++) for (let c = 0; c < BOARD_COLS; c++) {
+      const k = `${r},${c}`;
+      if (cov.has(k) || off.has(k) || lots.has(k)) continue;
+      free.push([r, c, cells.length ? Math.min(...cells.map(([a, b]) => Math.max(Math.abs(a - r), Math.abs(b - c)))) : 99]);
+    }
+    const clear = free.filter((f) => f[2] >= 2), from = clear.length ? clear : free;
+    if (!from.length) return null;
+    const [r, c] = from[Math.floor(rnd() * from.length)];
+    return [r, c];
+  }
+  // The same lot, moved to [r, c]: its relief, its crane, its trees
+  // shifted there, drawn on its new block (the old one plain), and grown
+  // up from the ground (tick).
+  function moveLot(L, key, [r, c], now) {
+    const to = `${r},${c}`, dx = (c - L.c) * SQ, dz = (r - L.r) * SQ;
+    if (paintable()) {
+      BOARD_PAINT.plain(L.r, L.c);
+      const q = BOARD_PAINT.lotRect(r, c); drawLot(BOARD_PAINT.ctx, q.x, q.y, q.s, L.type);
+      BOARD_PAINT.tex.needsUpdate = true;
+    }
+    if (L.grp) { L.grp.position.x += dx; L.grp.position.z += dz; L.grp.scale.y = 0.001; }
+    if (L.crane) { L.crane.position.x += dx; L.crane.position.z += dz; L.crane.scale.y = 0.001; }
+    for (const t of trees) if (t.key === key) { t.key = to; t.x += dx; t.z += dz; t.grow = 0; }
+    lots.delete(key); pending.delete(key);
+    L.r = r; L.c = c; L.moves = (L.moves || 0) + 1;
+    lots.set(to, L);
+    writeTrees(false);
+    grows.push({ L, key: to, t0: now });
+  }
+  function take(key, pieces, now) {
     const L = lots.get(key);
     if (!L) return;
+    const site = pieces ? siteFor(L, pieces) : null;
+    if (site) { moveLot(L, key, site, now); return; }
     if (L.grp) { group.remove(L.grp); disposeGroup(L.grp); }
     if (L.crane) { group.remove(L.crane); disposeGroup(L.crane); const i = swing.findIndex((w) => w.g === L.crane); if (i >= 0) swing.splice(i, 1); }
     lots.delete(key);
     for (let i = trees.length - 1; i >= 0; i--) if (trees[i].key === key) trees.splice(i, 1);
     placeTrees();
-    if (BOARD_PAINT.ctx && BOARD_PAINT.rows === BOARD_ROWS && BOARD_PAINT.cols === BOARD_COLS) { BOARD_PAINT.plain(L.r, L.c); BOARD_PAINT.tex.needsUpdate = true; }
+    if (paintable()) { BOARD_PAINT.plain(L.r, L.c); BOARD_PAINT.tex.needsUpdate = true; }
   }
   function disposeGroup(g) {
     g.traverse((o) => { if (o.geometry && !o.isInstancedMesh) o.geometry.dispose(); if (o.material && !o.material.userData.shared) o.material.dispose(); });
@@ -385,7 +455,7 @@ export function createLots({ tier }) {
     group,
     /* Each frame, from the game: being set out, the lots follow the layout
        (a new game, a changed setup); in play, a lot a building has stood
-       on a moment (it has landed) is taken. */
+       on a moment (it has landed) is taken, and goes on elsewhere. */
     update(play, now) {
       const pieces = play.pieces;
       if (!pieces) return;
@@ -397,13 +467,26 @@ export function createLots({ tier }) {
       if (BOARD_PAINT.tex && BOARD_PAINT.tex !== painted) paint();
       if (play.awaitingBegin) return;
       const cov = covered(pieces);
-      for (const key of lots.keys()) {
+      for (const key of [...lots.keys()]) {
         if (!cov.has(key)) { pending.delete(key); continue; }
         if (!pending.has(key)) pending.set(key, now);
-        else if (now - pending.get(key) > 420) { pending.delete(key); take(key); }
+        else if (now - pending.get(key) > 420) { pending.delete(key); take(key, pieces, now); }
       }
     },
     tick(now, n) {
+      // a moved lot grows up on its new block: the ground's relief and its
+      // trees in under a second, a crane's mast in two, eased in and out
+      if (grows.length) {
+        for (let i = grows.length - 1; i >= 0; i--) {
+          const G = grows[i], u = Math.min(1, (now - G.t0) / 900), uc = Math.min(1, (now - G.t0) / 2000);
+          const e = u * u * (3 - 2 * u), ec = uc * uc * (3 - 2 * uc);
+          if (G.L.grp) G.L.grp.scale.y = Math.max(0.001, e);
+          if (G.L.crane) G.L.crane.scale.y = Math.max(0.001, ec);
+          for (const t of trees) if (t.key === G.key) t.grow = u >= 1 ? null : e;
+          if (u >= 1 && uc >= 1) grows.splice(i, 1);
+        }
+        writeTrees(false);
+      }
       // a crane swings its jib round now and then (slowly: the shadows follow)
       for (const w of swing) {
         if (!w.t0 && now > w.next) { w.t0 = now; w.from = w.g.rotation.y; w.to = w.from + (rnd() < 0.5 ? -1 : 1) * rr(0.5, 1.4); }
@@ -417,7 +500,7 @@ export function createLots({ tier }) {
       if (n > 0.01) for (const L of lots.values()) if (L.type === "frame" && L.grp) L.grp.traverse((o) => { if (o.userData.weld) o.material.opacity = n * (Math.random() < 0.18 ? 0.15 : 0.6 + 0.4 * Math.random()); });
     },
     night(n) { nightNow = n; nightFns.forEach((f) => f(n)); },
-    test() { return { lots: [...lots.values()].map((L) => ({ type: L.type, row: L.r, col: L.c, crane: L.crane ? +L.crane.userData.h.toFixed(2) : 0 })), cranes: [...lots.values()].filter((L) => L.crane).map((L) => [L.r, L.c]) }; },
+    test() { return { lots: [...lots.values()].map((L) => ({ type: L.type, row: L.r, col: L.c, crane: L.crane ? +L.crane.userData.h.toFixed(2) : 0, moves: L.moves || 0, trees: trees.filter((t) => t.key === `${L.r},${L.c}`).length, grown: !grows.some((G) => G.L === L) })), cranes: [...lots.values()].filter((L) => L.crane).map((L) => [L.r, L.c]) }; },
     dispose() { clear(); for (const m of [treeMesh, trunkMesh]) if (m) { group.remove(m); m.dispose(); } trunkGeo.dispose(); crownGeo.dispose(); crownMat.dispose(); },
   };
 }

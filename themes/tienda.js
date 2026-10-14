@@ -672,6 +672,9 @@ export const soundChannels = [
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).
 export const moveCostToggle = true;
+// The pieces are wood (chassis: theme.woodPieces): the Cabeza only ever
+// slides, and a slid block glides, no knock.
+export const woodPieces = true;
 // The visit goes full screen at the first tap, usually the one that opens
 // the box (chassis: theme.fullscreenOnFirstTap; browsers need a tap first).
 export const fullscreenOnFirstTap = true;

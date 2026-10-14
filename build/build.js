@@ -79,7 +79,7 @@ const targets = [
   // Its city, recorded, one loop an hour (tools/ciudad_sounds.py), beside
   // the page and fetched as the hour's wanted, not in it.
   { name: "ciudad", entry: "apps/ciudad.jsx", title: "El Cabeza · The City", head: '<meta name="theme-color" content="#2F4458">', files: Object.fromEntries(
-    ["morning", "afternoon", "golden", "overcast", "night"].map((h) => [`el-cabeza-ciudad-city-${h}.mp3`, `assets/ciudad/city-${h}.mp3`])) },
+    ["morning", "afternoon", "golden", "overcast", "night"].map((h) => [`el-cabeza-ciudad-city-${h}.mp3`, `assets/ciudad/city-${h}.mp3`]).concat([["el-cabeza-ciudad-honks.mp3", "assets/ciudad/honks.mp3"]])) },
   // Noir: the game as a night in a film noir city (in the switcher since the
   // user's "Incorporate Noir into Theme Switcher now").
   { name: "noir", entry: "apps/noir.jsx", title: "Noir Cabeza", head: '<meta name="theme-color" content="#0B0B0C">', files: {

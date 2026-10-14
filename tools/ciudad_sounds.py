@@ -70,6 +70,13 @@ THRUSH = "wood-thrush-morning-kvgarlic-156826.ogg"
 WIND = "wind-in-a-field-felix-blume-217506.ogg"
 CRICKETS = "crickets-at-night-lisa-redfern.ogg"
 RESTAURANT = "restaurant-ambiance-stephan.ogg"
+# Downtown New York from a hotel window, its traffic held up and horns
+# going far and near (TRP, CC0; freesound.org itself in reach again by
+# then, so straight from its previews): the gridlock under every hour
+# (user: "The city needs more like gridlock traffic sound with honking
+# ... like in downtown New York ... but not overwhelming"). The honks
+# nearer are the game's own, one at a time (tools/ciudad_honks.py).
+GRIDLOCK = "city-distant-hotel-window-trp-715663.ogg"
 
 
 def load(name):
@@ -225,33 +232,40 @@ def gandia(length, seed=37):
     return wide(loop_of(x, length), seed)
 
 
+def gridlock(length, dull=None, start=120.0):
+    x = hp(cut(load(GRIDLOCK), start, start + length + XF), 40)
+    if dull:
+        x = lp(x, dull)
+    return loop_of(x, length)
+
+
 def morning():
     L = 42.0
-    hour([(park(L), -30), (thrush(L), -35), (nyc(L, dull=900), -34)], L, -24, "city-morning.mp3")
+    hour([(park(L), -30), (thrush(L), -35), (nyc(L, dull=900), -34), (gridlock(L, dull=1800, start=60.0), -31)], L, -24, "city-morning.mp3")
 
 
 def afternoon():
     L = 56.0
-    hour([(street3(L), -22), (nyc(L), -26), (gandia(L, 41), -30)], L, -20, "city-afternoon.mp3")
+    hour([(street3(L), -22), (nyc(L), -26), (gandia(L, 41), -30), (gridlock(L), -23)], L, -20, "city-afternoon.mp3")
 
 
 def golden():
     L = 56.0
-    hour([(gandia(L), -22), (street3(L, dull=2500), -29), (thrush(L, 1500), -38)], L, -21, "city-golden.mp3")
+    hour([(gandia(L), -22), (street3(L, dull=2500), -29), (thrush(L, 1500), -38), (gridlock(L, start=240.0), -24)], L, -21, "city-golden.mp3")
 
 
 def overcast():
     L = 40.8
     work = wide(loop_of(hp(cut(mono(load(STREET1)), 0.0, 45.0), 35), L), 53)
     wind = loop_of(hp(laid_end_to_end(load(WIND), L + XF), 40), L)
-    hour([(work, -22), (wind, -27), (nyc(L, dull=1500), -31)], L, -21, "city-overcast.mp3")
+    hour([(work, -22), (wind, -27), (nyc(L, dull=1500), -31), (gridlock(L, dull=3000, start=300.0), -27)], L, -21, "city-overcast.mp3")
 
 
 def night():
     L = 42.0
     crickets = loop_of(hp(cut(load(CRICKETS), 0.0, L + XF), 1800, 4), L)
     restaurant = loop_of(lp(hp(laid_end_to_end(load(RESTAURANT), L + XF), 120), 2500), L)
-    hour([(nyc(L, dull=600), -28), (park(L), -31), (crickets, -40), (restaurant, -39)], L, -27, "city-night.mp3")
+    hour([(nyc(L, dull=600), -28), (park(L), -31), (crickets, -40), (restaurant, -39), (gridlock(L, dull=900, start=360.0), -35)], L, -27, "city-night.mp3")
 
 
 if __name__ == "__main__":

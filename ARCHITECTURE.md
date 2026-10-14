@@ -178,12 +178,15 @@ export const ownsPixelRatio = true; // or undefined
 // Every method always exists — Standard's is every method as a no-op,
 // Neon's is createSoundscape(). The chassis calls these unconditionally
 // at fixed game-event sites and never branches on "does this theme
-// have audio." One exception, playSlide: a slide (the Cabeza's moves,
-// which only ever slide, and any piece's slide under the Slide laws)
-// plays the world's playSlide(units, ms) if it has one (else nothing),
-// never playRollStart or playLanding (user: "should not have a tap or
-// falling tone, as they are only slid"; "make slid blocks glide quietly
-// too"; the chassis's slides).
+// have audio." One exception, playSlide, and only where the pieces are
+// wood (export const woodPieces = true: the den, the store, Parrish): a
+// slide (the Cabeza's moves, which only ever slide, and any piece's slide
+// under the Slide laws) plays the world's playSlide(units, ms) if it has
+// one (else nothing), never playRollStart or playLanding (user: "should
+// not have a tap or falling tone, as they are only slid"; "make slid
+// blocks glide quietly too"; the chassis's slides). Every other world
+// plays its own playRollStart and playLanding for every move, the
+// Cabeza's too (user: "only the ones that use the wooden pieces").
 export function createAudio() {
   return {
     ensureStarted() {}, beginGameFadeIn() {}, setZoom(t) {}, setMuted(m) {},

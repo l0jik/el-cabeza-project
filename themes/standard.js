@@ -235,6 +235,9 @@ export const music = {
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle, the costs-toggle button).
 export const moveCostToggle = true;
+// The pieces are wood (chassis: theme.woodPieces): the Cabeza only ever
+// slides, and a slid block glides, no knock.
+export const woodPieces = true;
 
 export const mountAmbientEffects = createDenEffects(woodSet, { viewPitch });
 // The rules lie in the room: the leaflet on the coffee table opens them

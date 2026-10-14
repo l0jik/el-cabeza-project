@@ -329,14 +329,18 @@ function saveCheckAlert(on) {
   try { window.localStorage.setItem(CHECK_ALERT_KEY, on ? "1" : "0"); } catch (e) { /* storage unavailable */ }
 }
 /* A move's sounds, the world's (its audio's playRollStart as the piece
-   sets off, playLanding as it comes down). A slide tips nothing and
-   nothing comes down: the Cabeza's moves, which only ever slide (user:
-   "Cabeza pieces should not have a tap or falling tone, as they are only
-   slid ... the cabeza piece should not make a rolling tap noise when it
-   moves"), and any piece's slide under the Slide laws (user: "make slid
-   blocks glide quietly too"). They play the world's slide (playSlide,
-   which a world may leave out, and then they're silent), never a roll's
-   start or a landing's knock. Tests that set
+   sets off, playLanding as it comes down), every move, the Cabeza's too.
+   Where the pieces are wood (theme.woodPieces: the den, the store,
+   Parrish) a slide tips nothing and nothing comes down: the Cabeza's
+   moves, which only ever slide (user: "Cabeza pieces should not have a
+   tap or falling tone, as they are only slid ... the cabeza piece should
+   not make a rolling tap noise when it moves"), and any piece's slide
+   under the Slide laws (user: "make slid blocks glide quietly too"). They
+   play the world's slide (playSlide, which a world may leave out, and
+   then they're silent), never a roll's start or a landing's knock. Only
+   there (user: "I do not want all worlds to have the exact same piece
+   noises, only the ones that use the wooden pieces"): every other world
+   keeps its own start and landing for every move. Tests that set
    window.__EC_TEST_MOVE_SOUNDS__ = [] see each one asked for. */
 const slidesOnly = (piece) => !!piece && !!PIECE_META[piece.type] && PIECE_META[piece.type].shape === "disc";
 const slides = (piece, dir) => slidesOnly(piece) || (!!dir && isSlideKey(dir));
@@ -3388,13 +3392,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const setOutOnBench = (s, id) => !!(s && id && s.so.bench.some((p) => p.id === id));
   const turnsOf = (p) => !!p && (PIECE_ORIENTATIONS[p.type] || []).length > 1;
   const setOutCue = (name, p) => { try { const a = audioRef.current; if (a[name]) a[name](p ? cubeCount(p) : undefined); } catch (e) { /* audio not started */ } };
-  // A piece set down: the world's knock as it lands (the Cabeza only ever
-  // slides: its slide, or nothing).
+  // A piece set down: the world's knock as it lands (where the pieces are
+  // wood the Cabeza only ever slides: its slide, or nothing).
   function setDownSound(p) {
     if (!p) return;
     const a = audioRef.current;
     try {
-      if (slidesOnly(p)) { if (a.playSlide) a.playSlide(cubeCount(p), SLIDE_MS); }
+      if (theme.woodPieces && slidesOnly(p)) { if (a.playSlide) a.playSlide(cubeCount(p), SLIDE_MS); }
       else a.playLanding(cubeCount(p), contactArea(p));
     } catch (e) { /* audio not started */ }
   }
@@ -6225,8 +6229,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
     // Cubes, not box volume (an odd shape weighs what it's made of), and
     // the face it came down on (how low a wood theme's knock is). Not a
-    // slide (the Cabeza's, or any piece's): nothing comes down (slides).
-    if (!slidesOnly(piece) && !move.isSlide) {
+    // slide (the Cabeza's, or any piece's) where the pieces are wood:
+    // nothing comes down (slides).
+    if (!(theme.woodPieces && (slidesOnly(piece) || move.isSlide))) {
       audioRef.current.playLanding(cubeCount(piece), contactArea(move.candidate));
       noteMoveSound("landing", piece, true);
     }
@@ -6386,14 +6391,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
        it accompanied the motion itself). Same shape/kind distinction as
        the branch below: a translate (disc, or any Slide) uses SLIDE_MS
        rather than ROLL_MS, though both constants share one value today. */
-    // (A slide, the Cabeza's or any piece's: the world's slide, if it has
-    // one, never a roll's start.)
-    if (slides(state, dir)) {
+    // (A slide, the Cabeza's or any piece's, where the pieces are wood:
+    // the world's slide, if it has one, never a roll's start.)
+    if (theme.woodPieces && slides(state, dir)) {
       const slide = audioRef.current.playSlide;
       if (slide) audioRef.current.playSlide(cubeCount(state), SLIDE_MS);
       noteMoveSound("slide", state, !!slide);
     } else {
-      audioRef.current.playRollStart(cubeCount(state), ROLL_MS);
+      audioRef.current.playRollStart(cubeCount(state), PIECE_META[state.type].shape === "disc" || isSlideMove ? SLIDE_MS : ROLL_MS);
       noteMoveSound("rollStart", state, true);
     }
 
@@ -8583,7 +8588,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     };
     if (step.teleports && step.from) {
       stateOf.set(step.pieceId, step.from);
-      if (!slides(step.from, step.dir)) audioRef.current.playLanding(cubeCount(step.from), contactArea(step.from));
+      if (!(theme.woodPieces && slides(step.from, step.dir))) audioRef.current.playLanding(cubeCount(step.from), contactArea(step.from));
       putBack(360);
       return;
     }

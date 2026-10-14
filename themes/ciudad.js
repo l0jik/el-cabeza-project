@@ -289,7 +289,7 @@ export function buildPieceVisual({ piece, isDark, isDisc, geo, center, y }) {
    round it, its corners heavier, a faint wash inside; a crush a box
    junction, the block hatched across in the cranes' yellow. Drawn as its
    own light, so it reads by day and by night. */
-export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
+function bayMarker({ cx, cz, hx, hz, isCrush }) {
   const group = new THREE.Group(), mats = [], geos = [];
   const color = isCrush ? new THREE.Color("#f2c230") : new THREE.Color(0xf4f6f8);
   const basic = (k, extra = {}) => { const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6, ...extra }); m.userData.k = k; mats.push(m); return m; };
@@ -321,6 +321,215 @@ export function buildMoveIndicator({ cx, cz, hx, hz, isCrush }) {
     dispose() { geos.forEach((gg) => gg.dispose()); mats.forEach((m) => m.dispose()); },
   };
 }
+
+/* The markers to choose from (user: "they're white. They're kind of hard
+   to see on the background of the game board. I need to see five
+   alternatives ... black and white diagonal striped, like construction
+   tape ... something that glows maybe"). ?markers= picks one to try; the
+   parking bay above until one's chosen:
+   - tape: hazard tape round the block, thick black and yellow stripes at
+     45 degrees crawling along it (a crush red and white, crossed);
+   - glow: a neon tube round it on a dark casing, its glow breathing (a
+     crush in hot red, crossed);
+   - cones: traffic cones on its corners, an orange dashed line between
+     (a crush: the cones red, a barrier's stripes crossed on it);
+   - asphalt: the block fresh dark asphalt, taxi yellow round it (a crush
+     the yellow box junction on it, red round it);
+   - pin: a map pin over it, bobbing, a ring going out from it on the
+     ground (a crush a red pin, an X on the ground). */
+const MARKER_STYLE = (() => {
+  try { const m = typeof window !== "undefined" && /[?&]markers=([a-z]+)/.exec(window.location.search); return m ? m[1] : "bay"; } catch (e) { return "bay"; }
+})();
+
+// What every one of them is made of: its materials (each with its share of
+// the opacity, k), its geometries, flat pieces on the ground.
+function markerKit() {
+  const group = new THREE.Group(), mats = [], geos = [], ticks = [];
+  const mat = (m, k = 1) => { m.transparent = true; m.opacity = 0; m.depthWrite = false; m.userData.k = k; mats.push(m); return m; };
+  const basic = (color, k = 1, extra = {}) => mat(new THREE.MeshBasicMaterial({ color: new THREE.Color(color), toneMapped: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6, ...extra }), k);
+  const flat = (geo, m, y, x = 0, z = 0, rot = 0) => { geos.push(geo); const o = new THREE.Mesh(geo, m); o.rotation.x = -Math.PI / 2; o.rotation.z = rot; o.position.set(x, y, z); o.renderOrder = 4; o.raycast = () => {}; group.add(o); return o; };
+  const solid = (geo, m) => { geos.push(geo); const o = new THREE.Mesh(geo, m); o.renderOrder = 5; o.raycast = () => {}; return o; };
+  let target = 0, breathe = () => 1;
+  return {
+    group, mats, geos, basic, mat, flat, solid, ticks,
+    breathe(fn) { breathe = fn; },
+    done(cx, cz) {
+      group.position.set(cx, 0, cz);
+      return {
+        root: group,
+        // (the chassis shows a move at 0.5, 0.95 under the pointer, a
+        // crush at 0.8: here 0.5 and up is all there, so they read)
+        setOpacity(v) { target = Math.min(1, v * 2); mats.forEach((m) => { m.opacity = target * m.userData.k; }); },
+        tick(now) { const b = breathe(now || 0); mats.forEach((m) => { m.opacity = target * m.userData.k * (m.userData.steady ? 1 : b); }); ticks.forEach((f) => f(now || 0, target)); },
+        dispose() { geos.forEach((g) => g.dispose()); mats.forEach((m) => { if (m.map && !(m.map.userData && m.map.userData.shared)) m.map.dispose(); m.dispose(); }); },
+      };
+    },
+  };
+}
+// The four strips round the block, w wide, their middles ix / iz out.
+function ringStrips(K, ix, iz, w, mFor, y) {
+  return [[0, -iz, ix * 2 + w, w], [0, iz, ix * 2 + w, w], [-ix, 0, iz * 2 + w, w, true], [ix, 0, iz * 2 + w, w, true]].map(([x, z, len, ww, side]) => {
+    const m = mFor(len, side);
+    return K.flat(side ? new THREE.PlaneGeometry(ww, len) : new THREE.PlaneGeometry(len, ww), m, y, x, z);
+  });
+}
+// Stripes drawn once a colour pair, at 45 degrees, to repeat along a strip.
+const STRIPES = new Map();
+function stripes(a, b) {
+  const key = a + b;
+  if (STRIPES.has(key)) return STRIPES.get(key);
+  // a tile twice as long as the tape is wide: one band of each across it,
+  // each as wide as the tape, at 45 degrees (laid at repeat len / 2w)
+  const c = document.createElement("canvas"); c.width = 128; c.height = 64;
+  const x = c.getContext("2d");
+  x.fillStyle = b; x.fillRect(0, 0, 128, 64);
+  x.fillStyle = a;
+  for (let k = -128; k < 256; k += 128) { x.beginPath(); x.moveTo(k, 0); x.lineTo(k + 64, 0); x.lineTo(k + 64 - 64, 64); x.lineTo(k - 64, 64); x.closePath(); x.fill(); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.userData = { shared: true };
+  if ("colorSpace" in t) t.colorSpace = THREE.SRGBColorSpace;
+  STRIPES.set(key, t);
+  return t;
+}
+// A soft band: bright along its middle, nothing at its edges (a glow).
+let GLOW_BAND = null;
+function glowBand() {
+  if (GLOW_BAND) return GLOW_BAND;
+  const c = document.createElement("canvas"); c.width = 4; c.height = 64;
+  const x = c.getContext("2d"), g = x.createLinearGradient(0, 0, 0, 64);
+  g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255,1)"); g.addColorStop(1, "rgba(255,255,255,0)");
+  x.fillStyle = g; x.fillRect(0, 0, 4, 64);
+  GLOW_BAND = new THREE.CanvasTexture(c); GLOW_BAND.userData = { shared: true };
+  return GLOW_BAND;
+}
+
+function tapeMarker({ cx, cz, hx, hz, isCrush }) {
+  // (user: "Thick black & yellow alternating, diagonal stripes at 45°
+  // angle", as hazard tape is; a crush red and white)
+  const K = markerKit(), ix = hx * 0.8, iz = hz * 0.8, w = 0.16;
+  const tex = isCrush ? stripes("#d6221a", "#f6f6f2") : stripes("#111111", "#ffd000");
+  K.flat(new THREE.PlaneGeometry(hx * 1.7, hz * 1.7), K.basic(isCrush ? "#d6221a" : "#141414", isCrush ? 0.16 : 0.1), 0.012);
+  // each strip laid along its own length, turned into place (the
+  // stripes run the same way round all four)
+  const strip = (len, x, z, rot, y = 0.02) => {
+    const t = tex.clone(); t.userData = {}; t.needsUpdate = true; t.repeat.set(len / (w * 2), 1);
+    const m = K.basic("#ffffff", 1, { map: t }); m.userData.steady = true;
+    K.flat(new THREE.PlaneGeometry(len, w), m, y, x, z, rot);
+  };
+  strip(ix * 2 + w, 0, -iz, 0); strip(ix * 2 + w, 0, iz, Math.PI);
+  strip(iz * 2 + w, -ix, 0, Math.PI / 2); strip(iz * 2 + w, ix, 0, -Math.PI / 2);
+  if (isCrush) for (const a of [Math.PI / 4, -Math.PI / 4]) strip(Math.hypot(ix, iz) * 1.9, 0, 0, a, 0.021);
+  // the stripes crawl along the tape
+  K.ticks.push((now) => { for (const o of K.group.children) if (o.material.map) o.material.map.offset.x = -(now / 2600) % 1; });
+  return K.done(cx, cz);
+}
+
+function glowMarker({ cx, cz, hx, hz, isCrush }) {
+  const K = markerKit(), ix = hx * 0.84, iz = hz * 0.84, hue = isCrush ? "#ff2a4d" : "#14e6ff";
+  // the casing under it (it reads on the pale paving by day), the tube, its glow
+  ringStrips(K, ix, iz, 0.05, () => { const m = K.basic("#0c1a2a", 0.6); m.userData.steady = true; return m; }, 0.016);
+  ringStrips(K, ix, iz, 0.024, () => { const m = K.basic(hue, 1); m.userData.steady = true; return m; }, 0.019);
+  ringStrips(K, ix, iz, 0.2, () => K.basic(hue, 0.55, { map: glowBand(), blending: THREE.AdditiveBlending }), 0.018);
+  K.flat(new THREE.PlaneGeometry(hx * 1.7, hz * 1.7), K.basic(hue, 0.08), 0.012);
+  if (isCrush) for (const a of [Math.PI / 4, -Math.PI / 4]) {
+    const len = Math.hypot(ix, iz) * 1.9;
+    K.flat(new THREE.PlaneGeometry(len, 0.024), (() => { const m = K.basic(hue, 1); m.userData.steady = true; return m; })(), 0.02, 0, 0, a);
+    K.flat(new THREE.PlaneGeometry(len, 0.16), K.basic(hue, 0.5, { map: glowBand(), blending: THREE.AdditiveBlending }), 0.019, 0, 0, a);
+  }
+  K.breathe((now) => 0.7 + 0.3 * Math.sin(now / 420));
+  return K.done(cx, cz);
+}
+
+function conesMarker({ cx, cz, hx, hz, isCrush }) {
+  const K = markerKit(), ix = hx * 0.78, iz = hz * 0.78;
+  const orange = isCrush ? "#e0261b" : "#ff6a13";
+  // the dashed line round it
+  const dash = 0.09, gap = 0.06;
+  for (const [ax, az, len, side] of [[0, -iz, ix * 2, false], [0, iz, ix * 2, false], [-ix, 0, iz * 2, true], [ix, 0, iz * 2, true]]) {
+    for (let d = -len / 2 + 0.08; d < len / 2 - 0.08; d += dash + gap) {
+      const L = Math.min(dash, len / 2 - 0.08 - d), mid = d + L / 2;
+      const m = K.basic(orange, 0.95); m.userData.steady = true;
+      K.flat(side ? new THREE.PlaneGeometry(0.03, L) : new THREE.PlaneGeometry(L, 0.03), m, 0.016, side ? ax : mid, side ? mid : az);
+    }
+  }
+  K.flat(new THREE.PlaneGeometry(hx * 1.6, hz * 1.6), K.basic(orange, 0.08), 0.012);
+  // a cone on each corner: a base, the cone, its white band
+  const coneM = K.mat(new THREE.MeshStandardMaterial({ color: col(orange), roughness: 0.55 }), 1); coneM.userData.steady = true;
+  const bandM = K.mat(new THREE.MeshStandardMaterial({ color: col("#f4f4f0"), roughness: 0.3, emissive: col("#f4f4f0"), emissiveIntensity: 0.15 }), 1); bandM.userData.steady = true;
+  const baseM = K.mat(new THREE.MeshStandardMaterial({ color: col("#1c1c1c"), roughness: 0.8 }), 1); baseM.userData.steady = true;
+  const H = 0.17, R = 0.045;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const g = new THREE.Group(); g.position.set(sx * ix, 0, sz * iz);
+    g.add(K.solid(new THREE.BoxGeometry(R * 2.6, 0.012, R * 2.6).translate(0, 0.006, 0), baseM));
+    g.add(K.solid(new THREE.ConeGeometry(R, H, 18).translate(0, 0.012 + H / 2, 0), coneM));
+    g.add(K.solid(new THREE.CylinderGeometry(R * 0.52, R * 0.66, H * 0.2, 18, 1, true).translate(0, 0.012 + H * 0.52, 0), bandM));
+    K.group.add(g);
+  }
+  if (isCrush) {
+    const tex = stripes("#e0261b", "#f6f6f2");
+    for (const a of [Math.PI / 4, -Math.PI / 4]) {
+      const t = tex.clone(); t.userData = {}; t.needsUpdate = true; const len = Math.hypot(ix, iz) * 1.8; t.repeat.set(len / 0.16, 1);
+      const m = K.basic("#ffffff", 1, { map: t }); m.userData.steady = true;
+      K.flat(new THREE.PlaneGeometry(len, 0.07), m, 0.02, 0, 0, a);
+    }
+  }
+  K.breathe((now) => 0.85 + 0.15 * Math.sin(now / 480));
+  return K.done(cx, cz);
+}
+
+function asphaltMarker({ cx, cz, hx, hz, isCrush }) {
+  const K = markerKit(), ix = hx * 0.84, iz = hz * 0.84, yellow = "#ffc20e", edge = isCrush ? "#e5302a" : yellow;
+  const patch = K.basic("#26292e", 0.88); patch.userData.steady = true;
+  K.flat(new THREE.PlaneGeometry(ix * 2 + 0.05, iz * 2 + 0.05), patch, 0.013);
+  const line = () => { const m = K.basic(edge, 1); m.userData.steady = true; return m; };
+  ringStrips(K, ix, iz, 0.04, line, 0.017);
+  // the corners heavier, brackets
+  const cl = Math.min(ix, iz) * 0.4, cw = 0.075;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    K.flat(new THREE.PlaneGeometry(cl, cw), line(), 0.018, sx * (ix - cl / 2), sz * iz);
+    K.flat(new THREE.PlaneGeometry(cw, cl), line(), 0.018, sx * ix, sz * (iz - cl / 2));
+  }
+  if (isCrush) {
+    const d = Math.hypot(ix, iz) * 2;
+    for (const t of [-0.5, 0, 0.5]) for (const a of [Math.PI / 4, -Math.PI / 4]) {
+      const m = K.basic(yellow, 0.95); m.userData.steady = true;
+      K.flat(new THREE.PlaneGeometry(d * (1 - Math.abs(t) * 0.9), 0.035), m, 0.018, (a > 0 ? 1 : -1) * t * ix * 0.7, t * iz * 0.7, a);
+    }
+  }
+  K.breathe(() => 1);
+  return K.done(cx, cz);
+}
+
+function pinMarker({ cx, cz, hx, hz, isCrush }) {
+  const K = markerKit(), hue = isCrush ? "#e53935" : "#1a73e8";
+  // on the ground: a dot where it points, a ring going out from it
+  const dot = K.basic(hue, 0.85); dot.userData.steady = true;
+  K.flat(new THREE.CircleGeometry(0.07, 28), dot, 0.016);
+  const ringM = K.basic(hue, 0.9); ringM.userData.steady = true;
+  const ring = K.flat(new THREE.RingGeometry(0.8, 1, 48), ringM, 0.015);
+  const rim = K.basic(hue, 0.35); rim.userData.steady = true;
+  K.flat(new THREE.RingGeometry(Math.min(hx, hz) * 0.8, Math.min(hx, hz) * 0.84, 56), rim, 0.014);
+  if (isCrush) for (const a of [Math.PI / 4, -Math.PI / 4]) { const m = K.basic(hue, 0.9); m.userData.steady = true; K.flat(new THREE.PlaneGeometry(Math.min(hx, hz) * 1.3, 0.05), m, 0.017, 0, 0, a); }
+  // the pin: a head, its point, the white hole through it
+  const pinM = K.mat(new THREE.MeshStandardMaterial({ color: col(hue), roughness: 0.35, metalness: 0.1, emissive: col(hue), emissiveIntensity: 0.25 }), 1); pinM.userData.steady = true;
+  const holeM = K.mat(new THREE.MeshBasicMaterial({ color: new THREE.Color("#ffffff"), toneMapped: false }), 1); holeM.userData.steady = true;
+  const pin = new THREE.Group(), r = 0.085;
+  pin.add(K.solid(new THREE.SphereGeometry(r, 24, 16), pinM));
+  pin.add(K.solid(new THREE.ConeGeometry(r * 0.72, r * 1.9, 24).rotateX(Math.PI).translate(0, -r * 1.05, 0), pinM));
+  for (const s2 of [1, -1]) pin.add(K.solid(new THREE.CircleGeometry(r * 0.42, 20).translate(0, 0, s2 * (r + 0.001)).rotateY(s2 > 0 ? 0 : Math.PI), holeM));
+  K.group.add(pin);
+  const base = 0.36, rr = Math.min(hx, hz) * 0.8;
+  K.ticks.push((now, target) => {
+    pin.position.y = base + 0.035 * Math.sin(now / 380);
+    pin.rotation.y = now / 1400;
+    const u = (now % 1600) / 1600;
+    ring.scale.setScalar(0.1 + u * rr); ringM.opacity = target * 0.9 * (1 - u);
+  });
+  K.breathe(() => 1);
+  return K.done(cx, cz);
+}
+
+const MARKERS = { bay: bayMarker, tape: tapeMarker, glow: glowMarker, cones: conesMarker, asphalt: asphaltMarker, pin: pinMarker };
+export function buildMoveIndicator(opts) { return (MARKERS[MARKER_STYLE] || bayMarker)(opts); }
 
 /* ------------------------------------------------------------ the game, for the scene */
 
@@ -387,7 +596,7 @@ export const soundChannels = [
   { key: "pieces", label: "Pieces", hint: "The buildings moving, landing, crushing" },
 ];
 // The city's recordings credited on the About card (assets/ciudad/src/CREDITS.md).
-export const soundCredits = "The city’s sounds are recordings of real streets, from freesound.org (by way of the Scaper library’s and the Blanket app’s sounds), looped and mixed by the hour: the morning, a city park in Tel Aviv by yonts (CC0) and a wood thrush’s morning by kvgarlic (CC0); the traffic, “NYC_street leve02l” by gezortenplotz (freesound.org/s/44796), CC BY 3.0; the afternoon’s busy street and the overcast street at work with its tram, “street scene 3” and “street scene 1” by saphe (freesound.org/s/173955, freesound.org/s/150993), CC BY 4.0; the evening, the high street of Gandia by jormarp (CC0); the wind, felix.blume (CC0); at night, crickets by Lisa Redfern and a restaurant by stephan (soundbible.com, public domain).";
+export const soundCredits = "The city’s sounds are recordings of real streets, from freesound.org (by way of the Scaper library’s and the Blanket app’s sounds), looped and mixed by the hour: the morning, a city park in Tel Aviv by yonts (CC0) and a wood thrush’s morning by kvgarlic (CC0); the traffic, “NYC_street leve02l” by gezortenplotz (freesound.org/s/44796), CC BY 3.0; the afternoon’s busy street and the overcast street at work with its tram, “street scene 3” and “street scene 1” by saphe (freesound.org/s/173955, freesound.org/s/150993), CC BY 4.0; the evening, the high street of Gandia by jormarp (CC0); the wind, felix.blume (CC0); at night, crickets by Lisa Redfern and a restaurant by stephan (soundbible.com, public domain); the gridlock and its horns, downtown New York from a hotel window and its traffic by TRP, 41st Street at 8th Avenue by eyesplice, a traffic jam’s horns by craigsmith, and single horns by jasonlee3071, wanaki, DeVern, Brett+Butter, mudflea2, keweldog and Legnalegna55 (freesound.org, all CC0).";
 // The in-game menu offers a switch for the cost badges on the move markers.
 export const moveCostToggle = true;
 

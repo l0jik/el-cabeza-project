@@ -14,8 +14,12 @@
      them out again.
    - The free blocks: lots laid out; two cranes on the free squares
      farthest from the pieces, each its own height; a steel frame going up.
-   - A building onto a crane's square takes it: that crane gone, the other
-     still standing.
+   - A building onto a lot's block takes it, and the lot goes on
+     elsewhere (user: "that same piece that gets run over needs to
+     reappear somewhere else on the map"): a crane's to the free block
+     farthest from the pieces, the other crane still standing; a park to a
+     free block a square clear of them, its trees with it; as many lots as
+     before, grown up on their new blocks.
    - The traffic and the people there.
    - Nothing thrown.
 
@@ -122,13 +126,41 @@ console.log("The free blocks");
   let farthest = 0; for (let r = 0; r < 10; r++) for (let c = 0; c < 10; c++) if (!taken.has(`${r},${c}`)) farthest = Math.max(farthest, dist(r, c));
   check("the first crane on a square as far from the pieces as any", Math.abs(dist(...L.cranes[0]) - farthest) < 1e-6, `${dist(...L.cranes[0])} vs ${farthest}`);
   check("the cranes apart", Math.hypot(L.cranes[0][0] - L.cranes[1][0], L.cranes[0][1] - L.cranes[1][1]) >= 4);
-  // a building onto the first crane's square
-  const [r, c] = L.cranes[0];
+  // a building onto the first crane's square: the crane goes on, as far
+  // from the pieces as any free block, the other standing
+  const [r, c] = L.cranes[0], craneH = L.lots.find((l) => l.row === r && l.col === c).crane;
   await T(([r, c]) => window.__EC_TEST_SET_PIECES__(window.__EC_TEST_PIECES__.map((p) => (p.id === "dark-turrito" ? { ...p, row: r, col: c } : p))), [r, c]);
-  const after = await poll(() => T(() => { const q = window.__CIUDAD__.lots(); return q.cranes.length === 1 && q; }), 4000);
-  check("a building on its square: that crane gone", !!after);
-  check("the other still standing", !!after && after.cranes[0][0] === L.cranes[1][0] && after.cranes[0][1] === L.cranes[1][1]);
-  check("its lot gone with it", !!after && !after.lots.some((l) => l.row === r && l.col === c));
+  const after = await poll(() => T(([r, c]) => { const q = window.__CIUDAD__.lots(); return !q.lots.some((l) => l.row === r && l.col === c) && q; }, [r, c]), 4000);
+  check("a building on a crane's square: the lot gone from under it", !!after);
+  const moved = after && after.lots.find((l) => l.crane && l.moves === 1);
+  check("...and the same crane on another block", !!moved && Math.abs(moved.crane - craneH) < 1e-6 && after.cranes.length === 2 && !(moved.row === r && moved.col === c), JSON.stringify(after && after.cranes));
+  check("the other still standing", !!after && after.cranes.some(([a, b]) => a === L.cranes[1][0] && b === L.cranes[1][1]));
+  check("as many lots as before", !!after && after.lots.length === L.lots.length, `${L.lots.length} -> ${after && after.lots.length}`);
+  {
+    const ps = await T(() => window.__EC_TEST_PIECES__);
+    const cells2 = []; for (const p of ps) for (let y = p.row; y < p.row + p.h; y++) for (let x = p.col; x < p.col + p.w; x++) cells2.push([y, x]);
+    const cov = new Set(cells2.map((q) => q.join(","))), lotsAt = new Set((after ? after.lots : []).filter((l) => l !== moved).map((l) => `${l.row},${l.col}`));
+    const d2 = (y, x) => Math.min(...cells2.map(([a, b]) => Math.hypot(a - y, b - x)));
+    let far = 0; for (let y = 0; y < 10; y++) for (let x = 0; x < 10; x++) if (!cov.has(`${y},${x}`) && !lotsAt.has(`${y},${x}`)) far = Math.max(far, d2(y, x));
+    check("...on a free block as far from the pieces as any", !!moved && !cov.has(`${moved.row},${moved.col}`) && Math.abs(d2(moved.row, moved.col) - far) < 1e-6, moved ? `${d2(moved.row, moved.col)} vs ${far}` : "");
+  }
+  check("...grown up there", !!(await poll(() => T(() => window.__CIUDAD__.lots().lots.every((l) => l.grown)), 6000)));
+  // then onto a park: the same park, its trees with it, on a free block a
+  // square clear of every piece
+  const before = await T(() => window.__CIUDAD__.lots());
+  const park = before.lots.find((l) => l.type === "park" && l.trees > 0 && l.moves === 0);
+  check("a park to try", !!park);
+  if (park) {
+    await T(([r, c]) => window.__EC_TEST_SET_PIECES__(window.__EC_TEST_PIECES__.map((p) => (p.id === "dark-turrito" ? { ...p, row: r, col: c } : p))), [park.row, park.col]);
+    const after2 = await poll(() => T(([r, c]) => { const q = window.__CIUDAD__.lots(); return !q.lots.some((l) => l.row === r && l.col === c) && q; }, [park.row, park.col]), 4000);
+    const p2 = after2 && after2.lots.find((l) => l.type === "park" && l.moves === 1);
+    check("a building on a park: the same park on another block, its trees with it", !!p2 && p2.trees === park.trees && after2.lots.length === before.lots.length, JSON.stringify(p2));
+    const ps = await T(() => window.__EC_TEST_PIECES__);
+    const cells3 = []; for (const p of ps) for (let y = p.row; y < p.row + p.h; y++) for (let x = p.col; x < p.col + p.w; x++) cells3.push([y, x]);
+    const clear = p2 && Math.min(...cells3.map(([a, b]) => Math.max(Math.abs(a - p2.row), Math.abs(b - p2.col))));
+    check("...a square clear of every piece", !!p2 && clear >= 2, `${clear}`);
+    check("...grown up there", !!(await poll(() => T(() => window.__CIUDAD__.lots().lots.every((l) => l.grown)), 6000)));
+  }
 }
 
 console.log("The streets alive");

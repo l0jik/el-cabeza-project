@@ -342,8 +342,6 @@ export function createAudio() {
   return {
     ensureStarted, beginGameFadeIn, setZoom, setMuted, setVolume, setTension, beginFadeOut, resetWindDown,
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
-    // A slide (the Cabeza's, a slid block's; the chassis's slides): the air slide, no landing.
-    playSlide: playRollStart,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose, playStone,
     // Neon-only effects; the chassis calls every audio method unconditionally.

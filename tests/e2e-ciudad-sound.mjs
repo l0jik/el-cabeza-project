@@ -39,7 +39,8 @@ async function visit(url, label) {
   const page = await browser.newPage({ viewport: { width: 1100, height: 760 } });
   const errs = [], fetched = {};
   page.on("pageerror", (e) => errs.push(e.message));
-  page.on("response", (r) => { const m = /el-cabeza-ciudad-city-([a-z]+)\.mp3/.exec(r.url()); if (m) fetched[m[1]] = r.status(); });
+  let honks = null;
+  page.on("response", (r) => { const m = /el-cabeza-ciudad-city-([a-z]+)\.mp3/.exec(r.url()); if (m) fetched[m[1]] = r.status(); if (/el-cabeza-ciudad-honks\.mp3/.test(r.url())) honks = r.status(); });
   await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
   await page.goto(url);
   await poll(() => page.evaluate(() => !!window.__EC_TEST_CAM__), 30000);
@@ -48,7 +49,7 @@ async function visit(url, label) {
   await openDockPanel(page);
   await page.locator("button", { hasText: /Begin Game/ }).first().click();
   const st = () => page.evaluate(() => window.__CIUDAD_AUDIO__ && window.__CIUDAD_AUDIO__.debugState());
-  return { page, errs, fetched, st };
+  return { page, errs, fetched, st, honksFetched: () => honks };
 }
 // The city's channel, its loudest over a couple of seconds (dBFS).
 async function heard(page) {
@@ -63,7 +64,7 @@ async function pick(page, id) {
 }
 
 {
-  const { page, errs, fetched, st } = await visit(`http://127.0.0.1:${server.address().port}/el-cabeza-ciudad.html?time=morning`, "served over http");
+  const { page, errs, fetched, st, honksFetched } = await visit(`http://127.0.0.1:${server.address().port}/el-cabeza-ciudad.html?time=morning`, "served over http");
   const s = await poll(async () => { const v = await st(); return v && v.city === "recording" && v.bed === "morning" ? v : null; }, 40000);
   check("once a game's begun, the city is the recording: the morning's loop", !!s, JSON.stringify(await st()));
   check("...fetched (and no other hour's yet)", fetched.morning === 200 && Object.keys(fetched).length === 1, JSON.stringify(fetched));
@@ -78,6 +79,17 @@ async function pick(page, id) {
   check("...then Afternoon: its loop", !!a && fetched.afternoon === 200, JSON.stringify({ st: await st(), fetched }));
   const al = await heard(page);
   check(`...heard (${al.toFixed(1)} dBFS)`, al > -60 && al < -12, String(al));
+  // the horns (user: "gridlock traffic sound with honking ... like in
+  // downtown New York ... but not overwhelming"): their file in, more by
+  // day than at night, and a honk heard on the city's channel, no louder
+  // than the city's own peaks allow
+  const hs = await poll(async () => { const v = await st(); return v && v.honkFile ? v : null; }, 20000);
+  check("the horns' file fetched", !!hs && honksFetched() === 200, JSON.stringify(await st()));
+  check(`...about 5 honks a minute in the afternoon (${hs && hs.honksPerMin})`, !!hs && hs.honksPerMin === 5);
+  const before = (await st()).honked;
+  let loud = -Infinity;
+  for (let i = 0; i < 3; i++) { await page.evaluate(() => window.__CIUDAD_AUDIO__.testHonk()); for (let k = 0; k < 8; k++) { loud = Math.max(loud, await page.evaluate(() => window.__CIUDAD_AUDIO__.cityLevel())); await page.waitForTimeout(120); } }
+  check(`...a honk played (${(await st()).honked - before} asked), the city's channel at most ${loud.toFixed(1)} dBFS`, (await st()).honked >= before + 3 && loud < -10, String(loud));
 
   // the About card's credits
   await page.evaluate(() => window.dispatchEvent(new CustomEvent("el-cabeza:open-rules", { detail: { tab: "about" } })));
@@ -95,6 +107,9 @@ async function pick(page, id) {
   await pick(page, "night");
   await page.waitForTimeout(1500);
   check("...an hour picked: still the made city, nothing fetched", (await st()).city === "made" && Object.keys(fetched).length === 0, JSON.stringify(await st()));
+  const h0 = (await st()).honked;
+  await page.evaluate(() => window.__CIUDAD_AUDIO__.testHonk());
+  check("...a made horn stands in for the recorded ones", (await st()).honked === h0 + 1 || (await st()).honked === h0 + 2 || (await st()).honked === h0 + 3, JSON.stringify(await st()));
   check("nothing thrown", errs.length === 0, errs.slice(0, 3).join(" | "));
   await page.close();
 }

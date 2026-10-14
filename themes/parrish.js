@@ -268,6 +268,10 @@ export const soundChannels = [
 // The in-game menu offers a switch for the cost badges on the move
 // markers (chassis: theme.moveCostToggle).
 export const moveCostToggle = true;
+// The pieces are the wooden set (chassis: theme.woodPieces): the Cabeza
+// only ever slides and a slid block glides, so neither is put down on a
+// note (the stabs have no slide: they move silently).
+export const woodPieces = true;
 
 // Parrish sizes its own pixel ratio, lower for its painting
 // (parrish-scene.js), so the chassis's doesn't (chassis/device-fit.js).

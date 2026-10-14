@@ -24,6 +24,9 @@
    (filtered noise, oscillators), each part's level eased as the hour
    changes.
 
+   Over it the horns (HONKS below): honks of New York traffic one at a
+   time, more by day, an answer now and then, fewest at 10 PM.
+
    The pieces (the sound menu's "Pieces"): a crossing button's click to
    pick a building up, a softer one to put it down, a car's horn for a
    move that isn't allowed, hydraulics and steel as a building tips, a
@@ -49,16 +52,31 @@ const LOOP_PAD = 0.3;
 const BED_GAIN = 0.16;
 // The hour's change, as the light's (ciudad-time.js).
 const BED_XFADE = 2.4;
+/* Horns (user: "The city needs more like gridlock traffic sound with
+   honking and stuff like that, like you know, in like downtown New York
+   ... but not overwhelming"): honks cut from real recordings of New York
+   traffic and of single cars (tools/ciudad_honks.py), one file beside the
+   page, played one at a time at random, each a car somewhere of its own
+   (to one side or the other, near or down the block: quieter and duller
+   the further), now and then answered by another driver or two; a
+   gridlock's chorus of them now and then by day. Under the hour's own
+   loop (which has the gridlock far off in it) and the pieces' cues. From
+   disk a made horn stands in. HONKS: [start, length, kind] (the tool's
+   print). */
+const HONK_URL = "el-cabeza-ciudad-honks.mp3";
+const HONKS = [[0.0, 2.484, "car"], [2.834, 2.036, "lean"], [5.22, 2.55, "lean"], [8.12, 0.505, "car"], [8.975, 0.784, "car"], [10.109, 0.706, "car"], [11.165, 0.418, "far"], [11.933, 0.786, "car"], [13.069, 2.488, "car"], [15.907, 0.937, "car"], [17.194, 1.103, "car"], [18.648, 0.274, "street"], [19.272, 0.847, "street"], [20.469, 1.268, "street"], [22.088, 1.829, "jam"], [24.267, 1.95, "jam"], [26.567, 1.95, "jam"], [28.867, 1.255, "jam"], [30.472, 1.518, "jam"]];
 
 // The made city (from disk), how each hour sounds: the roar, passing cars
 // (a minute), birds (a minute), the sites' clanks (a minute), wind, sirens
 // (an hour).
 const HOURS = {
-  morning: { roar: 0.05, cars: 7, birds: 22, clank: 3, wind: 0.0, sirens: 2, beeps: 2 },
-  afternoon: { roar: 0.065, cars: 10, birds: 9, clank: 4, wind: 0.004, sirens: 4, beeps: 3 },
-  golden: { roar: 0.06, cars: 9, birds: 12, clank: 1, wind: 0.004, sirens: 4, beeps: 2 },
-  overcast: { roar: 0.055, cars: 8, birds: 3, clank: 2, wind: 0.02, sirens: 4, beeps: 2 },
-  night: { roar: 0.03, cars: 4, birds: 0, clank: 0, wind: 0.01, sirens: 14, beeps: 0 },
+// honks: a minute; answered: how often another driver answers; jam: how
+// often it's a gridlock's chorus; near: how close they come (0 all far off)
+  morning: { roar: 0.05, cars: 7, birds: 22, clank: 3, wind: 0.0, sirens: 2, beeps: 2, honks: 2.5, answered: 0.15, jam: 0.03, near: 0.5 },
+  afternoon: { roar: 0.065, cars: 10, birds: 9, clank: 4, wind: 0.004, sirens: 4, beeps: 3, honks: 5, answered: 0.35, jam: 0.1, near: 1 },
+  golden: { roar: 0.06, cars: 9, birds: 12, clank: 1, wind: 0.004, sirens: 4, beeps: 2, honks: 6, answered: 0.4, jam: 0.12, near: 1 },
+  overcast: { roar: 0.055, cars: 8, birds: 3, clank: 2, wind: 0.02, sirens: 4, beeps: 2, honks: 3.5, answered: 0.25, jam: 0.06, near: 0.7 },
+  night: { roar: 0.03, cars: 4, birds: 0, clank: 0, wind: 0.01, sirens: 14, beeps: 0, honks: 0.7, answered: 0.05, jam: 0, near: 0 },
 };
 
 export function createAudio() {
@@ -214,6 +232,46 @@ export function createAudio() {
     if (ambRunning || !ctx) return;
     ambRunning = true;
     if (fetchable()) { city = "loading"; playBed(hour, 2.5); } else startMade();
+    startHonks();
+  }
+  /* ---- the horns ---- */
+  let honkBuf = null, honked = 0, honksOn = false;
+  function startHonks() {
+    if (honksOn) return;
+    honksOn = true;
+    if (fetchable()) fetchBuffer(HONK_URL).then((b) => { honkBuf = b; }).catch(() => {});
+    every(12, () => { if (Math.random() < H().honks / 12) honk(); });
+  }
+  // one car's horn: a recorded honk (or a made one), somewhere on the
+  // block, nearer or further; now and then another driver answers
+  function honk(answer = false) {
+    if (!ctx || !CH.city) return;
+    const h = H(), t = now() + (answer ? 0.25 + Math.random() * 1.3 : 0);
+    const far = Math.random() > h.near * (answer ? 0.7 : 1);
+    const dist = far ? 0.55 + Math.random() * 0.45 : Math.random() * 0.55; // 0 near .. 1 down the block
+    const level = 0.2 * Math.pow(10, (-14 * dist) / 20) * (hour === "night" ? 0.6 : 1);
+    const pan = (Math.random() * 2 - 1) * 0.85;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 7500 - 5600 * dist;
+    const g = ctx.createGain(); g.gain.value = level;
+    lp.connect(g); out(g, 1, 0.12 + 0.25 * dist, CH.city, pan);
+    honked++;
+    if (honkBuf) {
+      const jam = !answer && Math.random() < h.jam;
+      const pool = HONKS.filter(([, , k]) => (jam ? k === "jam" : k !== "jam" && (far || k !== "far")));
+      const [at, len] = pool[Math.floor(Math.random() * pool.length)];
+      const s = ctx.createBufferSource(); s.buffer = honkBuf; s.playbackRate.value = 0.94 + Math.random() * 0.12;
+      s.connect(lp); s.start(t, at, len);
+    } else {
+      // made: a car's two-note horn, a tap or two or a lean on it
+      const f = 330 + Math.random() * 160, taps = Math.random() < 0.35 ? 2 : 1, len = Math.random() < 0.2 ? 0.7 + Math.random() * 0.6 : 0.16 + Math.random() * 0.12;
+      for (let i = 0; i < taps; i++) for (const r of [1, 1.26]) {
+        const o = ctx.createOscillator(), og = ctx.createGain(), t1 = t + i * (len + 0.09);
+        o.type = "sawtooth"; o.frequency.value = f * r;
+        og.gain.setValueAtTime(0, t1); og.gain.linearRampToValueAtTime(0.18, t1 + 0.012); og.gain.setValueAtTime(0.18, t1 + len); og.gain.linearRampToValueAtTime(0, t1 + len + 0.03);
+        o.connect(og).connect(lp); o.start(t1); o.stop(t1 + len + 0.05);
+      }
+    }
+    if (!answer && Math.random() < h.answered) { honk(true); if (Math.random() < 0.35) honk(true); }
   }
   // The made city (from disk, or no recording to be had).
   function startMade() {
@@ -429,11 +487,11 @@ export function createAudio() {
     ensureStarted, beginGameFadeIn, setZoom, setMuted, setVolume, setTension, beginFadeOut, resetWindDown,
     setChannelLevel, setChannelMuted, setHour,
     playSelect, playDeselect, playBlocked, playRollStart, playLanding, playCapture, playWin,
-    // A slide (the Cabeza's, a slid block's; the chassis's slides): the rumble of a building moved, no landing.
-    playSlide: playRollStart,
     playMenu, fadeOutMenu, stopMenu, playRulesOpen, playRulesClose, playRulesTab,
     playPowerOn, playPowerOff, playDockOpen, playDockClose,
-    debugState: () => ({ ctx: !!ctx, ambience: ambRunning, hour, night, levels: { ...levels }, city, bed: bedNow && bedNow.id, fetched: Object.keys(beds) }),
+    debugState: () => ({ ctx: !!ctx, ambience: ambRunning, hour, night, levels: { ...levels }, city, bed: bedNow && bedNow.id, fetched: Object.keys(beds), honked, honkFile: !!honkBuf, honksPerMin: H().honks }),
+    // test-only: a horn now
+    testHonk: () => honk(),
     cityLevel,
     playFlicker: noop, playArc: noop, playGlitch: noop,
     playSingularityOpen: noop, playSingularityClose: noop, playSingularityBell: noop, playSingularityDismiss: noop,

@@ -1,19 +1,24 @@
-/* A slide tips nothing and nothing comes down, so it never makes a roll's
-   start or a landing's knock: the Cabeza's moves, which only ever slide
-   (user: "Cabeza pieces should not have a tap or falling tone, as they are
-   only slid ... Anytime like there is a wood tone on a Cabeza being moved,
-   that needs to be removed"), and a block slid under the Slide laws (user:
-   "make slid blocks glide quietly too"; the chassis's slides). They ask
-   the world for a slide (playSlide), which the den and the store play as
-   a glide over the lacquer and the City as its own; Neon and the Lab have
-   none, so they're silent there. A roll still starts and lands as before.
+/* Where the pieces are wood (theme.woodPieces: the den, the store,
+   Parrish), a slide tips nothing and nothing comes down, so it never
+   makes a roll's start or a landing's knock: the Cabeza's moves, which
+   only ever slide (user: "Cabeza pieces should not have a tap or falling
+   tone, as they are only slid ... Anytime like there is a wood tone on a
+   Cabeza being moved, that needs to be removed"), and a block slid under
+   the Slide laws (user: "make slid blocks glide quietly too"; the
+   chassis's slides). They ask the world for a slide (playSlide), which the
+   den and the store play as a glide over the lacquer; Parrish has none
+   (its stabs move silently). Every other world keeps its own sounds for
+   every move, a start and a landing, the Cabeza's too (user: "I do not
+   want all worlds to have the exact same piece noises, only the ones that
+   use the wooden pieces"): the City, Neon, the Lab here. A roll starts
+   and lands everywhere.
 
    Each world, with Orthogonal slide and 3 actions: Dark's Turrito rolls
    once and slides once (its turn), the other side's turn (its Cabeza
    steps three times, or the store's computer plays), then Dark's Cabeza
    steps three times; the sounds the chassis asked for, piece by piece
-   (window.__EC_TEST_MOVE_SOUNDS__), and in the wood worlds the knocks
-   played (window.__EC_TEST_LANDINGS__).
+   (window.__EC_TEST_MOVE_SOUNDS__), and in the den and the store the
+   knocks played (window.__EC_TEST_LANDINGS__).
 
    node tests/e2e-slide-sounds.mjs */
 import { chromium } from "playwright";
@@ -31,23 +36,27 @@ const POSITION = [
   { id: "light-cabeza", type: "cabeza", owner: "light", row: 9, col: 5, w: 1, h: 1, z: 1 },
   { id: "light-turrito", type: "turrito", owner: "light", row: 6, col: 6, w: 1, h: 1, z: 1 },
 ];
-// (world, its page, whether it has a slide sound, whether its knocks are the wood's)
+// (world, its page, its pieces wood (quiet slides), whether it has a slide
+// sound, whether its knocks are the wood's, whether the other side is the
+// computer (the store's test game))
 const WORLDS = [
-  ["the den", "standard", true, true],
-  ["the store", "tienda", true, true],
-  ["the City", "ciudad", true, false],
-  ["Neon", "neon", false, false],
-  ["the Lab", "lab", false, false],
+  ["the den", "standard", true, true, true, false],
+  ["the store", "tienda", true, true, true, true],
+  ["Parrish", "parrish?look=orinoco", true, false, false, false],
+  ["the City", "ciudad", false, false, false, false],
+  ["Neon", "neon", false, false, false, false],
+  ["the Lab", "lab", false, false, false, false],
 ];
 
-for (const [name, page0, hasSlide, wood] of WORLDS) {
+for (const [name, page0, quiet, hasSlide, wood, computer] of WORLDS) {
   console.log(name);
   const ctx = await browser.newContext({ viewport: { width: 1100, height: 820 } });
   await ctx.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; window.__EC_LAWS__ = { slide: true, threeActions: true }; window.__EC_TEST_MOVE_SOUNDS__ = []; window.__EC_TEST_LANDINGS__ = []; try { if (!sessionStorage.getItem("seeded")) { sessionStorage.setItem("seeded", "1"); localStorage.clear(); } } catch (e) { /* none */ } });
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push(e.message));
-  await page.goto(`${D}/el-cabeza-${page0}.html`);
+  const [file, q] = page0.split("?");
+  await page.goto(`${D}/el-cabeza-${file}.html${q ? "?" + q : ""}`);
   await poll(() => page.evaluate(() => !!window.__EC_TEST_SET_PIECES__), 30000, 250);
   await page.waitForTimeout(page0 === "tienda" ? 4000 : 1500);
   if (page0 === "tienda") { await page.locator("button", { hasText: /open the box/i }).first().click(); await page.waitForTimeout(5000); }
@@ -72,16 +81,22 @@ for (const [name, page0, hasSlide, wood] of WORLDS) {
   const knocks = () => page.evaluate(() => window.__EC_TEST_LANDINGS__.length);
 
   // Dark's turn: its Turrito rolls once (a roll's start, a landing), then
-  // slides once (a slide, nothing more).
+  // slides once (wood: a slide, nothing more; elsewhere a start and a
+  // landing, as any move).
   const k0 = wood ? await knocks() : 0;
   const tur = (await step("dark-turrito", "S", 4)) && (await step("dark-turrito", "slide-S", 5));
   const turAsked = await asked("dark-turrito");
-  check("a Turrito's roll starts and lands as before; its slide only glides", tur && turAsked.map((e) => e.kind).join(",") === "rollStart,landing,slide", JSON.stringify(turAsked));
-  check(hasSlide ? "...the world's slide played" : "...no slide here: silent", turAsked.filter((e) => e.kind === "slide").every((e) => e.played === hasSlide), JSON.stringify(turAsked));
+  if (quiet) {
+    check("a Turrito's roll starts and lands; its slide only glides", tur && turAsked.map((e) => e.kind).join(",") === "rollStart,landing,slide", JSON.stringify(turAsked));
+    check(hasSlide ? "...the world's slide played" : "...no slide here: silent", turAsked.filter((e) => e.kind === "slide").every((e) => e.played === hasSlide), JSON.stringify(turAsked));
+  } else {
+    check("not wood: a Turrito's roll and its slide each start and land, as before", tur && turAsked.map((e) => e.kind).join(",") === "rollStart,landing,rollStart,landing", JSON.stringify(turAsked));
+  }
   if (wood) check("...one knock of wood, the roll's", (await knocks()) - k0 === 1, `${k0} -> ${await knocks()}`);
   // The other side's turn: its Cabeza steps three times (both players at
-  // the board), or the computer plays (the store's opponent).
-  const lightCab = (await step("light-cabeza", "N", 8, 4000)) && (await step("light-cabeza", "N", 7)) && (await step("light-cabeza", "N", 6));
+  // the board), or the computer plays (the store's opponent). (A heavy
+  // world's step can take more than 4 s here: each gets its 10.)
+  const lightCab = !computer && (await step("light-cabeza", "N", 8)) && (await step("light-cabeza", "N", 7)) && (await step("light-cabeza", "N", 6));
   if (!lightCab) await poll(async () => (await turns()) >= 2, 30000, 300);
   await page.waitForTimeout(800);
   // Dark's turn again: its Cabeza steps three times.
@@ -90,13 +105,18 @@ for (const [name, page0, hasSlide, wood] of WORLDS) {
   const cabAsked = await asked("dark-cabeza");
   console.log("   asked:", JSON.stringify(await page.evaluate(() => window.__EC_TEST_MOVE_SOUNDS__)));
   check("the Cabeza stepped three times", cab);
-  check("...each step a slide, nothing else (no roll's start, no landing)", cabAsked.length === 3 && cabAsked.every((e) => e.kind === "slide"), JSON.stringify(cabAsked));
-  check(hasSlide ? "...the world's slide played" : "...no slide here: silent", cabAsked.every((e) => e.played === hasSlide), JSON.stringify(cabAsked));
-  if (wood) check("...and not one knock of wood", (await knocks()) === k1, `${k1} -> ${await knocks()}`);
   const anyCab = await page.evaluate(() => window.__EC_TEST_MOVE_SOUNDS__.filter((e) => e.type === "cabeza"));
-  check(`every Cabeza move in the game a slide (${anyCab.length}, either side's)`, anyCab.length >= 3 && anyCab.every((e) => e.kind === "slide"), JSON.stringify(anyCab));
-  const anySlid = await page.evaluate(() => window.__EC_TEST_MOVE_SOUNDS__.filter((e) => e.kind === "landing"));
-  check("no landing in the game but the roll's (and the computer's rolls)", anySlid.every((e) => e.type !== "cabeza"), JSON.stringify(anySlid));
+  if (quiet) {
+    check("...each step a slide, nothing else (no roll's start, no landing)", cabAsked.length === 3 && cabAsked.every((e) => e.kind === "slide"), JSON.stringify(cabAsked));
+    check(hasSlide ? "...the world's slide played" : "...no slide here: silent", cabAsked.every((e) => e.played === hasSlide), JSON.stringify(cabAsked));
+    if (wood) check("...and not one knock of wood", (await knocks()) === k1, `${k1} -> ${await knocks()}`);
+    check(`every Cabeza move in the game a slide (${anyCab.length}, either side's)`, anyCab.length >= 3 && anyCab.every((e) => e.kind === "slide"), JSON.stringify(anyCab));
+    const anySlid = await page.evaluate(() => window.__EC_TEST_MOVE_SOUNDS__.filter((e) => e.kind === "landing"));
+    check("no landing in the game but the roll's (and the computer's rolls)", anySlid.every((e) => e.type !== "cabeza"), JSON.stringify(anySlid));
+  } else {
+    check("not wood: each step the world's own start and landing, as before", cabAsked.map((e) => e.kind).join(",") === "rollStart,landing,rollStart,landing,rollStart,landing", JSON.stringify(cabAsked));
+    check(`...every Cabeza move in the game a start and a landing (${anyCab.length}, either side's)`, anyCab.length >= 6 && !anyCab.some((e) => e.kind === "slide"), JSON.stringify(anyCab));
+  }
   check(`no page errors (${errs.length})`, errs.length === 0, errs.slice(0, 3).join(" | "));
   await ctx.close();
 }

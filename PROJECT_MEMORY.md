@@ -286,3 +286,51 @@ How to use it:
   the bar (slow here in Luna and Parrish). e2e-replay's phone section:
   nothing over the bar's buttons or any speed, the clock under the bar
   and back up.
+- Piece sounds, only the wooden worlds alike (user: "I do not want all
+  worlds to have the exact same piece noises, only the ones that use the
+  wooden pieces ... revert them now"): the Cabeza-only-slides rule and
+  "slid blocks glide quietly" (8ca0cbc, 9959978) now apply only where
+  theme.woodPieces (standard.js, tienda.js, parrish.js: the wooden set).
+  Elsewhere every move plays the world's own playRollStart (SLIDE_MS for
+  the disc or a slide, as before) and playLanding, the Cabeza's too; the
+  City, Cromo, Lluvia, Luna, Noir and Plano audio files are back exactly
+  as before 8ca0cbc (no playSlide). Parrish counted as wooden (its pieces
+  are the wood set; its stabs have no slide, so the Cabeza and slides are
+  silent there): asked the user if they'd rather it went back.
+  e2e-slide-sounds: den, store, Parrish quiet; City, Neon, Lab start and
+  land every move (the store marked as playing the computer; the others'
+  steps get 10 s, a heavy world's first step took over 4 s).
+- City lots go on elsewhere (user: "whenever one of those is destroyed,
+  that same piece that gets run over needs to reappear somewhere else on
+  the map"): ciudad-lots.js take() now moves the same lot (its relief
+  group shifted, its crane, its instanced trees moved by key, its paint
+  redrawn) to siteFor(): a crane's site or the frame as far from the
+  pieces as any free block (farSites), any other lot a random free block
+  a square clear of every piece if there is one; it grows up out of the
+  ground (relief scale.y in 0.9 s, the crane's mast in 2 s, the trees by
+  writeTrees' t.grow). Only with no free block is it gone. test() gives
+  moves, trees, grown. e2e-ciudad: the crane and a park, run over, go on.
+- City move markers, five to choose from (user: white ones "hard to see";
+  "black and white diagonal striped, like construction tape ... something
+  that glows maybe"; then, with photos, "Thick black & yellow alternating,
+  diagonal stripes at 45° angle"): ciudad.js ?markers= tape (hazard tape,
+  a crush red/white crossed, stripes crawling), glow (cyan neon tube on a
+  dark casing, crush red), cones (orange cones and dashes, crush red),
+  asphalt (dark patch, taxi-yellow edge, crush the box junction), pin (map
+  pin bobbing, ring going out, crush red); bay (the parking bay) stays the
+  default till the user picks. The new ones take the chassis's 0.5 as
+  full strength (markerKit setOpacity: v * 2). Renders: scratch markers/
+  shoot.mjs (desk afternoon/night/crush, phone).
+- City gridlock and horns (user: "gridlock traffic sound with honking ...
+  like in downtown New York ... but not overwhelming"): freesound.org's
+  search and previews answer again (14 Oct; a sound's own page still 403,
+  bursts refused: 7 s between searches). TRP's hotel-window streetscape
+  (CC0) is the GRIDLOCK layer in every hour's loop (tools/ciudad_sounds.py;
+  -23 afternoon to -35 dulled at night); tools/ciudad_honks.py cuts 19
+  honks (single cars, a lean, a far one, street honks, craigsmith's jam
+  chorus; all CC0, assets/ciudad/src/CREDITS.md) into honks.mp3, its table
+  HONKS in ciudad-audio.js, played one at a time (HOURS honks a minute:
+  2.5 / 5 / 6 rush hour / 3.5 / 0.7 at night; answered by another driver
+  now and then; side and distance random, quieter and duller further);
+  from disk a made two-note horn. e2e-ciudad-sound checks the file, the
+  rate, a honk heard. A 45 s listen: scratch city-afternoon-gridlock-sample.mp3.
