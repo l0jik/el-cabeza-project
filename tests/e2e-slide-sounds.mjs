@@ -107,6 +107,7 @@ for (const [name, page0, quiet, hasSlide, counted, computer] of WORLDS) {
   await page.waitForTimeout(800);
   // Dark's turn again: its Cabeza steps three times.
   const k1 = counted ? await knocks() : 0;
+  const n1 = await page.evaluate(() => window.__EC_TEST_MOVE_SOUNDS__.length);
   const cab = (await step("dark-cabeza", "S", 1)) && (await step("dark-cabeza", "S", 2)) && (await step("dark-cabeza", "S", 3));
   const cabAsked = await asked("dark-cabeza");
   console.log("   asked:", JSON.stringify(await page.evaluate(() => window.__EC_TEST_MOVE_SOUNDS__)));
@@ -115,7 +116,14 @@ for (const [name, page0, quiet, hasSlide, counted, computer] of WORLDS) {
   if (quiet) {
     check("...each step a slide, nothing else (no roll's start, no landing)", cabAsked.length === 3 && cabAsked.every((e) => e.kind === "slide"), JSON.stringify(cabAsked));
     check(hasSlide ? "...the world's slide played" : "...no slide here: silent", cabAsked.every((e) => e.played === hasSlide), JSON.stringify(cabAsked));
-    if (counted) check("...and not one knock of wood", (await knocks()) === k1, `${k1} -> ${await knocks()}`);
+    // (Against the computer its turn comes round as the Cabeza's ends, and
+    // its first roll can knock before this looks, CI run 64: the knocks
+    // counted are those beyond its own landings, each noted as it's played,
+    // read together.)
+    if (counted) {
+      const w = await page.evaluate((n) => ({ knocks: window.__EC_TEST_LANDINGS__.length, theirs: window.__EC_TEST_MOVE_SOUNDS__.slice(n).filter((e) => e.kind === "landing" && e.id !== "dark-cabeza").length }), n1);
+      check("...and not one knock of wood", w.knocks - k1 === w.theirs, `${k1} -> ${w.knocks}, the computer's landings since ${w.theirs}`);
+    }
     check(`every Cabeza move in the game a slide (${anyCab.length}, either side's)`, anyCab.length >= 3 && anyCab.every((e) => e.kind === "slide"), JSON.stringify(anyCab));
     const anySlid = await page.evaluate(() => window.__EC_TEST_MOVE_SOUNDS__.filter((e) => e.kind === "landing"));
     check("no landing in the game but the roll's (and the computer's rolls)", anySlid.every((e) => e.type !== "cabeza"), JSON.stringify(anySlid));
