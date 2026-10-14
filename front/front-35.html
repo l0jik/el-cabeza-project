@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex, nofollow"><title>El Cabeza Nova</title><meta name="theme-color" content="#0B0A09"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&amp;family=Cormorant+Garamond:ital,wght@0,500;1,500&amp;family=Josefin+Sans:wght@400;600&amp;family=IBM+Plex+Mono&amp;family=Michroma&amp;family=Jost:wght@400;500;600&amp;family=Architects+Daughter&amp;display=swap" rel="stylesheet"><link rel="stylesheet" href="front.css">
+<style>
+
+:root { --bg: #0B0A09; --ink: #EADFC9; --muted: #C9BDA6; --gold: #C9A24A; --btn-bg: #EADFC9; --btn-ink: #0B0A09; --btn-line: #EADFC9; }
+.dial { position: relative; width: min(84vw, 460px); aspect-ratio: 2 / 1.15; overflow: visible; }
+.dial .arc { position: absolute; left: 0; right: 0; bottom: 0; aspect-ratio: 2 / 1; border-radius: 1000px 1000px 0 0; border: 1px solid var(--gold); border-bottom: none; }
+.dial .arc::before { content: ""; position: absolute; left: 50%; bottom: 0; width: 50%; height: 100%; background: linear-gradient(155deg, #e8c97d 0%, #b78b3f 45%, #d9b363 70%, #946d2a 100%); border-radius: 0 1000px 0 0; opacity: 0.92; }
+.dial .arc::after { content: ""; position: absolute; left: 0; bottom: 0; width: 50%; height: 100%; background: radial-gradient(circle at 60% 70%, #3a3029 0%, #1a1512 60%, #0B0A09 100%); border-radius: 1000px 0 0 0; }
+.dial .needle { position: absolute; left: 50%; bottom: 0; width: 2px; height: 96%; background: #EADFC9; transform-origin: 50% 100%; transform: rotate(38deg); z-index: 2; box-shadow: 0 0 8px rgba(234,223,201,0.6); }
+.dial .needle::after { content: ""; position: absolute; top: -8px; left: 50%; width: 10px; height: 10px; border-radius: 50%; background: var(--gold); transform: translateX(-50%); }
+.dial .pin { position: absolute; left: 50%; bottom: -8px; width: 16px; height: 16px; border-radius: 50%; background: #EADFC9; transform: translateX(-50%); z-index: 3; }
+.dial .lbl { position: absolute; bottom: -34px; font-family: var(--font-future); font-size: 0.62rem; letter-spacing: 0.36em; color: var(--gold); }
+.dial .lbl.l { left: 0; } .dial .lbl.r { right: 0; }
+.btn { color: var(--gold); }
+
+</style></head><body>
+<main class="page">
+  <div class="dial" role="img" aria-label="A dial, dark on the left and gold on the right, its needle turned toward Nova."><div class="arc"></div><div class="needle"></div><div class="pin"></div><span class="lbl l">1975</span><span class="lbl r">Nova</span></div>
+  <h1 class="wordmark future"><span class="name">El Cabeza</span><span class="nova">Nova</span></h1>
+  <p class="tagline">Turned all the way up.</p>
+  <nav class="actions"><a class="btn primary " href="el-cabeza-nova.html">Play</a><a class="btn " href="el-cabeza-nova.html?switcher">Other realities</a></nav>
+</main>
+<p class="foot">This is an unofficial, non-commercial implementation of El Cabeza, the game by Jaime Poniachik and Enrique Lindenbaum, and is not affiliated with or endorsed by them, by <em>Revista Humor y Juegos</em>, or by anyone holding rights in the original game.</p>
+</body></html>

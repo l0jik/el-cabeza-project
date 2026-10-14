@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex, nofollow"><title>El Cabeza Nova</title><meta name="theme-color" content="#0A0908"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&amp;family=Cormorant+Garamond:ital,wght@0,500;1,500&amp;family=Josefin+Sans:wght@400;600&amp;family=IBM+Plex+Mono&amp;family=Michroma&amp;family=Jost:wght@400;500;600&amp;family=Architects+Daughter&amp;display=swap" rel="stylesheet"><link rel="stylesheet" href="front.css">
+<style>
+
+:root { --bg: #0B0A09; --ink: #EADFC9; --muted: #C9BDA6; --gold: #C9A24A; --btn-bg: #EADFC9; --btn-ink: #0B0A09; --btn-line: #EADFC9; --gold: #4DE8FF; --btn-bg: #E4A93B; --btn-ink: #0A0908; --btn-line: #EADFC9; }
+.bridge { position: relative; width: 100vw; height: clamp(110px, 18vh, 180px); overflow: hidden; }
+.bridge .stripes { position: absolute; inset: 0; background: linear-gradient(180deg, #D9641E 0 25%, #E4A93B 25% 50%, #F1E3C3 50% 75%, #5A3A1E 75% 100%); -webkit-mask-image: linear-gradient(90deg, #000 35%, transparent 65%); mask-image: linear-gradient(90deg, #000 35%, transparent 65%); }
+.bridge .grid { position: absolute; inset: -40% 0 0 0; perspective: 500px; -webkit-mask-image: linear-gradient(90deg, transparent 38%, #000 68%); mask-image: linear-gradient(90deg, transparent 38%, #000 68%); }
+.bridge .grid::before { content: ""; position: absolute; inset: 0; transform: rotateX(55deg); transform-origin: 50% 100%; background-image: linear-gradient(90deg, rgba(77,232,255,0.8) 1.5px, transparent 1.5px), linear-gradient(0deg, rgba(77,232,255,0.8) 1.5px, transparent 1.5px); background-size: 44px 44px; }
+.wordmark .nova { color: #4DE8FF; }
+
+</style></head><body>
+<main class="page">
+  <h1 class="wordmark future"><span class="name">El Cabeza</span><span class="nova">Nova</span></h1>
+  <div class="bridge" aria-hidden="true"><div class="stripes"></div><div class="grid"></div></div>
+  <p class="tagline">The racing stripe runs into the grid.</p>
+  <nav class="actions"><a class="btn primary " href="el-cabeza-nova.html">Play</a><a class="btn " href="el-cabeza-nova.html?switcher">Other realities</a></nav>
+</main>
+<p class="foot">This is an unofficial, non-commercial implementation of El Cabeza, the game by Jaime Poniachik and Enrique Lindenbaum, and is not affiliated with or endorsed by them, by <em>Revista Humor y Juegos</em>, or by anyone holding rights in the original game.</p>
+</body></html>

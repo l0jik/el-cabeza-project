@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>Front page, thirty ways</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>Front page, fifty ways</title>
 <style>
 body { margin: 0; background: #1b1916; color: #e9e1d2; font-family: system-ui, sans-serif; padding: 24px 16px 60px; }
 h1 { font-weight: 500; font-size: 1.5rem; margin: 0 0 6px; } p.lead { margin: 0 0 24px; color: #b9ae9a; max-width: 70ch; }
@@ -12,8 +12,8 @@ h1 { font-weight: 500; font-size: 1.5rem; margin: 0 0 6px; } p.lead { margin: 0 
 .shots img.phone { width: 96px; }
 .v a.open { color: #f0d79a; font-weight: 600; text-decoration: none; } .v a.open:hover { text-decoration: underline; }
 </style></head><body>
-<h1>Front page, thirty ways</h1>
-<p class="lead">1 to 10 from the first round; 11 to 30 the retro-future set. Each one is a working page: open it on a desktop and on a phone. Every piece pictured is drawn by the game itself, at its real shape and size (walnut for Dark, olive ash for Light; the brass and black lacquer are the set's own).</p>
+<h1>Front page, fifty ways</h1>
+<p class="lead">1 to 10 from the first round; 11 to 30 the retro-future set; 31 to 50 each one way of bridging 1975 and now. Each one is a working page: open it on a desktop and on a phone. Every piece pictured is drawn by the game itself, at its real shape and size (walnut for Dark, olive ash for Light; the brass and black lacquer are the set's own).</p>
 <div class="grid" id="grid"></div>
 <script>
 const V = [
@@ -48,6 +48,27 @@ const V = [
   [28, "The box back", "A 1975 box's back: the specs, every piece in a row with its name."],
   [29, "1975 / Nova", "The den on one side, Neon on the other, one seam, one wordmark."],
   [30, "The ring", "One thin brass ring round the head, and nothing else."],
+  // The third set: each page one way of bridging 1975 and now (user: "bridge the old with the new, the vintage with the modern").
+  [31, "The disc, half walnut", "Your mark with the left half the real walnut Cabeza and the right half gold: the bridge is the mark itself."],
+  [32, "One piece, two eras", "The same cluster rendered twice, wood and black-and-brass, split down the middle so each piece straddles the seam."],
+  [33, "The set, on the set", "Neon playing on a 1975 television: the future seen first on the den's TV."],
+  [34, "The record sleeve", "The walnut Cabeza sliding out of a square sleeve like a record. Side A 1975, side B Nova."],
+  [35, "The dial", "Your half-dark, half-gold disc as a gauge, the hairline its needle, turned to Nova."],
+  [36, "Walnut wall, glass card", "A frosted-glass card (now) on a walnut-panelled wall (then)."],
+  [37, "Stripes to grid", "The 70s racing stripe runs into a cyan perspective grid."],
+  [38, "Halftone to pixels", "Printed halftone dots on the left turning into a neon pixel grid on the right, one piece across both."],
+  [39, "The box and the phone", "The 1975 box on the store's table beside a phone showing Neon."],
+  [40, "Golden hour, 10 PM", "The City at its two hours, one seam."],
+  [41, "The opening, annotated", "The 1975 board from above with a numbered legend in the space-age sans."],
+  [42, "Neon over the den", "NOVA in neon hung over the den's board."],
+  [43, "Sunrise", "The striped sun rising behind the wooden pieces, on paper."],
+  [44, "The head, to scale", "A blueprint of the Cabeza with its real dimensions: 1.03 squares across, 0.246 high, at 0.84."],
+  [45, "The notched disc", "Your disc with the bite, in brushed brass, the pair in black and brass in the notch."],
+  [46, "Green, the star, Luna", "The green disc-and-star mark, with the moon base below."],
+  [47, "The realities, catalogued", "The twenty-one worlds as a 1975 catalogue page set in a modern grid."],
+  [48, "The Polaroid", "The den pinned up as a Polaroid on a black page."],
+  [49, "Chrome over walnut", "The name in chrome over the wooden tile wall."],
+  [50, "The seam", "The den and Lluvia with a brass line between and the half-walnut, half-gold head on it: three references in one."],
 ];
 document.getElementById("grid").innerHTML = V.map(([n, t, d]) => `<div class="v"><h2><span>${n}</span>${t}</h2><p>${d}</p><div class="shots"><a href="front-${n}.html"><img src="front/review/front-${n}-desk.jpg" alt="Version ${n} on a desktop"></a><a href="front-${n}.html"><img class="phone" src="front/review/front-${n}-phone.jpg" alt="Version ${n} on a phone"></a></div><a class="open" href="front-${n}.html">Open front-${n}.html →</a></div>`).join("");
 </script>

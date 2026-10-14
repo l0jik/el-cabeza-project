@@ -371,7 +371,10 @@ export const LOOKS = {
   /* Luna: the mission patch, and the mission's checklist. */
   luna: {
     fonts: "family=Jost:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500",
-    tab: (r) => `<span class="patch"><i class="moon"></i><i class="earth"></i></span><span class="tt"><span class="t">Mission rules</span><span class="s">${esc(sums.plain(r))}</span></span>`,
+    // (user: the tab "too long" on a phone: Rules under Mission, the board
+    // under the rest of the summary, everything a size smaller; the
+    // separator stays in the text, hidden, so the words read as before)
+    tab: (r) => { const sum = sums.plain(r), at = sum.lastIndexOf(" · "); const top = at < 0 ? sum : sum.slice(0, at), bottom = at < 0 ? "" : sum.slice(at + 3); return `<span class="patch"><i class="moon"></i><i class="earth"></i></span><span class="tt"><span class="t"><span class="w">Mission</span> <span class="w">rules</span></span><span class="s"><span class="w">${esc(top)}</span>${bottom ? `<span class="sep"> · </span><span class="w">${esc(bottom)}</span>` : ""}</span></span>`; },
     L: {
       head: `<div class="hd"><span class="kick">MISSION PARAMETERS</span><h3>Base rules</h3></div>`,
       laws: () => "Laws", pieces: () => "Pieces · each side", board: () => "Board",
@@ -380,13 +383,15 @@ export const LOOKS = {
     },
     css: `
     .cm-luna { --o:#FF7A1A; --ink:#E8ECF2; --mut:#9AA6B6; --bg:rgba(13,17,24,.92); color: var(--ink); }
-    .cm-luna .cm-tab { gap:11px; padding:7px 15px 7px 7px; background:var(--bg); border:1px solid rgba(232,236,242,.22); border-radius:18px; box-shadow:0 10px 24px rgba(0,0,0,.5); }
-    .cm-luna .patch { position:relative; width:34px; height:34px; border-radius:31%; background:#0B0E14; border:2px solid var(--o); box-shadow: inset 0 0 0 2px #0B0E14, inset 0 0 0 3px rgba(255,122,26,.45); overflow:hidden; flex:none; }
-    .cm-luna .moon { position:absolute; left:-6px; bottom:-14px; width:34px; height:24px; border-radius:50%; background: radial-gradient(circle at 40% 30%, #c9c6bf, #7d7a73); }
-    .cm-luna .earth { position:absolute; right:6px; top:6px; width:9px; height:9px; border-radius:50%; background: radial-gradient(circle at 35% 35%, #9fd0ff, #2b6cb0); box-shadow: 0 0 6px rgba(120,190,255,.7); }
-    .cm-luna .tt { display:flex; flex-direction:column; gap:4px; }
-    .cm-luna .t { font:600 11.5px/1 'Jost', sans-serif; letter-spacing:.2em; text-transform:uppercase; color:var(--ink); }
-    .cm-luna .s { font:400 10.5px/1 'IBM Plex Mono', monospace; color:var(--mut); }
+    .cm-luna .cm-tab { gap:9px; padding:6px 12px 6px 6px; background:var(--bg); border:1px solid rgba(232,236,242,.22); border-radius:16px; box-shadow:0 10px 24px rgba(0,0,0,.5); }
+    .cm-luna .patch { position:relative; width:32px; height:32px; border-radius:31%; background:#0B0E14; border:2px solid var(--o); box-shadow: inset 0 0 0 2px #0B0E14, inset 0 0 0 3px rgba(255,122,26,.45); overflow:hidden; flex:none; }
+    .cm-luna .moon { position:absolute; left:-6px; bottom:-13px; width:32px; height:22px; border-radius:50%; background: radial-gradient(circle at 40% 30%, #c9c6bf, #7d7a73); }
+    .cm-luna .earth { position:absolute; right:5px; top:5px; width:8px; height:8px; border-radius:50%; background: radial-gradient(circle at 35% 35%, #9fd0ff, #2b6cb0); box-shadow: 0 0 6px rgba(120,190,255,.7); }
+    .cm-luna .tt { display:flex; flex-direction:column; gap:3px; }
+    .cm-luna .t { font:600 10px/1.05 'Jost', sans-serif; letter-spacing:.18em; text-transform:uppercase; color:var(--ink); }
+    .cm-luna .s { font:400 9.5px/1.15 'IBM Plex Mono', monospace; color:var(--mut); }
+    .cm-luna .t .w, .cm-luna .s .w { display:block; }
+    .cm-luna .s .sep { display:none; }
     .cm-luna .cm-card { padding:16px 18px 14px; background:var(--bg); border:1px solid rgba(232,236,242,.22); border-radius:16px; color:var(--ink); box-shadow: 0 0 0 1px rgba(255,122,26,.12), 0 20px 50px rgba(0,0,0,.65); }
     .cm-luna .kick { font:500 10px/1 'IBM Plex Mono', monospace; letter-spacing:.18em; color:var(--o); }
     .cm-luna h3 { margin:6px 0 2px; font:600 24px/1 'Jost', sans-serif; color:#fff; }

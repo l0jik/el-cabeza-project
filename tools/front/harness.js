@@ -20,7 +20,7 @@ import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H, SQUARE_SIZE, SLAB_X, SLAB
 import { PIECE_ORIENTATIONS } from "../../engine/anomaly.js";
 import { makeRoundedBox, makePolycubeSmooth, restingY } from "../../engine/geometry.js";
 import { piecesClash } from "../../engine/shapes.js";
-import { createWoodSet, EDGE_RADIUS } from "../../themes/wood-set.js";
+import { createWoodSet, EDGE_RADIUS, OUTLINE_Y_OFFSET } from "../../themes/wood-set.js";
 
 const quality = () => ({ tier: "high", dprCap: 2, dprFloor: 1, shadowMap: 4096, boardTexture: 2048, texScale: 1, physical: true, detail: 2, tvWall: true });
 
@@ -98,7 +98,7 @@ window.renderFront = function renderFront(spec) {
     if (!q.rot) placed.push(p);
     const geo = geometryFor(p);
     const center = { x: (p.col + p.w / 2) * SQUARE_SIZE - OFF_X, z: (p.row + p.h / 2) * SQUARE_SIZE - OFF_Z };
-    const y = restingY(p) + (q.lift || 0);
+    const y = restingY(p) * (q.scale || 1) + (q.lift || 0);
     let mesh;
     if (q.mat === "light" || q.mat === "dark") {
       const v = set.buildPieceVisual({ piece: p, isDark: q.mat === "dark", isDisc: PIECE_META[p.type].shape === "disc", geo, center, y });
@@ -109,6 +109,7 @@ window.renderFront = function renderFront(spec) {
       mesh.position.set(center.x, y, center.z);
       mesh.castShadow = true; mesh.receiveShadow = true;
     }
+    if (q.scale) { mesh.scale.setScalar(q.scale); group.children.forEach((o) => { if (o.userData && o.userData.pieceId === p.id && o.userData.kind === "shell") { o.scale.setScalar(q.scale); o.position.y = y + OUTLINE_Y_OFFSET; } }); }
     if (q.rot) {
       // turned about its own middle, on the spot
       const turn = (m) => { const c0 = new THREE.Vector3(center.x, 0, center.z); m.position.sub(c0); m.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(q.rot)); m.position.add(c0); m.rotation.y = THREE.MathUtils.degToRad(q.rot); };

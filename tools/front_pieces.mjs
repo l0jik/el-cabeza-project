@@ -146,18 +146,18 @@ export const COMPOSITIONS = {
     size: [2400, 900], dpr: 1, camera: { kind: "top", pad: 1.04 }, ground: 0.4, light: { keyDir: [-0.6, 1, 0.45] },
     pieces: [
       pc("rayo", { w: 2, h: 3, z: 1, vox: "0,0,0;0,1,0;1,1,0;1,2,0" }, 0, 0, "dark"),
-      pc("cabeza", 0, 3, 1, "light", { lift: 0 }),
-      pc("codo", { w: 2, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0" }, 5, 0.5, "dark", { rot: 45 }),
-      pc("arcoAlto", { w: 3, h: 3, z: 1, vox: "0,0,0;1,0,0;2,0,0;0,1,0;0,2,0;2,1,0;2,2,0" }, 8, 0, "light"),
+      pc("cabeza", 0, 3, 1, "light", { scale: 2.3 }), // (the head larger than life, the user's ask)
+      pc("codo", { w: 2, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0" }, 5.6, 0.5, "dark", { rot: 45 }),
+      pc("arcoAlto", { w: 3, h: 3, z: 1, vox: "0,0,0;1,0,0;2,0,0;0,1,0;0,2,0;2,1,0;2,2,0" }, 8.6, 0, "light"),
     ],
   },
   "nova-brass": {
     size: [2400, 900], dpr: 1, camera: { kind: "top", pad: 1.04 }, ground: 0.5, light: { keyDir: [-0.6, 1, 0.45] },
     pieces: [
       pc("rayo", { w: 2, h: 3, z: 1, vox: "0,0,0;0,1,0;1,1,0;1,2,0" }, 0, 0, "black"),
-      pc("cabeza", 0, 3, 1, "brass"),
-      pc("codo", { w: 2, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0" }, 5, 0.5, "black", { rot: 45 }),
-      pc("arcoAlto", { w: 3, h: 3, z: 1, vox: "0,0,0;1,0,0;2,0,0;0,1,0;0,2,0;2,1,0;2,2,0" }, 8, 0, "brass"),
+      pc("cabeza", 0, 3, 1, "brass", { scale: 2.3 }),
+      pc("codo", { w: 2, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0" }, 5.6, 0.5, "black", { rot: 45 }),
+      pc("arcoAlto", { w: 3, h: 3, z: 1, vox: "0,0,0;1,0,0;2,0,0;0,1,0;0,2,0;2,1,0;2,2,0" }, 8.6, 0, "brass"),
     ],
   },
   // The standing pieces in a row, seen from their row's side and low, in wood (the sunset's skyline, real).

@@ -66,4 +66,4 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); -w
 /* NOVA set in the pieces (tools/front_glyphs.mjs): one unit for all four. */
 .pieces-nova { display: flex; align-items: flex-end; justify-content: center; gap: calc(var(--u, 24px) * 0.55); }
 .pieces-nova .g { display: block; }
-.pieces-nova .o { margin-bottom: calc(var(--u, 24px) * 1.07); }
+.pieces-nova .o { margin-bottom: calc(var(--u, 24px) * 0.5); }

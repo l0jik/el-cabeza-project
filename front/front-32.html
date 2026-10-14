@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex, nofollow"><title>El Cabeza Nova</title><meta name="theme-color" content="#0B0A09"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&amp;family=Cormorant+Garamond:ital,wght@0,500;1,500&amp;family=Josefin+Sans:wght@400;600&amp;family=IBM+Plex+Mono&amp;family=Michroma&amp;family=Jost:wght@400;500;600&amp;family=Architects+Daughter&amp;display=swap" rel="stylesheet"><link rel="stylesheet" href="front.css">
+<style>
+
+:root { --bg: #0B0A09; --ink: #EADFC9; --muted: #C9BDA6; --gold: #C9A24A; --btn-bg: #EADFC9; --btn-ink: #0B0A09; --btn-line: #EADFC9; }
+.seam { position: relative; width: min(94vw, 900px); aspect-ratio: 1710 / 959; }
+.seam img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.seam .now { clip-path: inset(0 0 0 50%); }
+.seam .then { clip-path: inset(0 50% 0 0); }
+.seam .line { position: absolute; left: 50%; top: -6%; bottom: -6%; width: 1px; background: var(--gold); opacity: 0.85; }
+.seam .yr { position: absolute; bottom: -8%; font-family: var(--font-future); font-size: 0.62rem; letter-spacing: 0.4em; color: var(--gold); }
+.seam .yr.l { left: 0; } .seam .yr.r { right: 0; text-indent: 0; }
+.btn { color: var(--gold); }
+
+</style></head><body>
+<main class="page">
+  <div class="seam" role="img" aria-label="The same pieces twice: walnut and olive ash on the left, black lacquer and brass on the right, split down the middle.">
+    <img class="then" src="front/cluster.webp" alt=""><img class="now" src="front/cluster-brass.webp" alt="">
+    <div class="line" aria-hidden="true"></div><span class="yr l">1975</span><span class="yr r">Nova</span>
+  </div>
+  <h1 class="wordmark future"><span class="name">El Cabeza</span><span class="nova">Nova</span></h1>
+  <p class="tagline">The same pieces. 1975 on the left.</p>
+  <nav class="actions"><a class="btn primary " href="el-cabeza-nova.html">Play</a><a class="btn " href="el-cabeza-nova.html?switcher">Other realities</a></nav>
+</main>
+<p class="foot">This is an unofficial, non-commercial implementation of El Cabeza, the game by Jaime Poniachik and Enrique Lindenbaum, and is not affiliated with or endorsed by them, by <em>Revista Humor y Juegos</em>, or by anyone holding rights in the original game.</p>
+</body></html>

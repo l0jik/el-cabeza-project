@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex, nofollow"><title>El Cabeza Nova</title><meta name="theme-color" content="#2a1d12"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&amp;family=Cormorant+Garamond:ital,wght@0,500;1,500&amp;family=Josefin+Sans:wght@400;600&amp;family=IBM+Plex+Mono&amp;family=Michroma&amp;family=Jost:wght@400;500;600&amp;family=Architects+Daughter&amp;display=swap" rel="stylesheet"><link rel="stylesheet" href="front.css">
+<style>
+
+:root { --bg: #2a1d12; --ink: #EADFC9; --muted: #C9BDA6; --gold: #E2BF72; --btn-bg: #EADFC9; --btn-ink: #2a1d12; --btn-line: #EADFC9; }
+body { background: radial-gradient(ellipse at 50% 20%, #3a2a1c 0%, #2a1d12 50%, #16100a 100%); }
+.tv { position: relative; width: min(92vw, 720px); padding: 26px 26px 54px; border-radius: 22px; background: linear-gradient(180deg, #5a3b22, #3b2616 60%, #2a1a0f); box-shadow: 0 40px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,220,180,0.25); }
+.tv .screen { position: relative; aspect-ratio: 4 / 3; border-radius: 10% / 14%; overflow: hidden; background: #000; box-shadow: inset 0 0 40px rgba(0,0,0,0.9); }
+.tv .screen img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 45%; filter: saturate(1.25) contrast(1.05); }
+.tv .screen::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.28) 2px 3px), radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.08), rgba(0,0,0,0.45) 100%); pointer-events: none; }
+.tv .dials { position: absolute; right: 30px; bottom: 16px; display: flex; gap: 12px; }
+.tv .dials i { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #cfc6b8, #6b5f50); box-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+.tv .brand { position: absolute; left: 30px; bottom: 20px; font-family: var(--font-future); font-size: 0.56rem; letter-spacing: 0.36em; color: #d9c7a8; opacity: 0.8; }
+
+</style></head><body>
+<main class="page">
+  <div class="tv"><div class="screen"><img src="front/world-neon.webp" alt="Neon's board in light, playing on a 1975 television set."></div><span class="brand">Channel 3</span><div class="dials" aria-hidden="true"><i></i><i></i></div></div>
+  <h1 class="wordmark future"><span class="name">El Cabeza</span><span class="nova">Nova</span></h1>
+  <p class="tagline">Seen first on the den's television.</p>
+  <nav class="actions"><a class="btn primary " href="el-cabeza-nova.html">Play</a><a class="btn " href="el-cabeza-nova.html?switcher">Other realities</a></nav>
+</main>
+<p class="foot">This is an unofficial, non-commercial implementation of El Cabeza, the game by Jaime Poniachik and Enrique Lindenbaum, and is not affiliated with or endorsed by them, by <em>Revista Humor y Juegos</em>, or by anyone holding rights in the original game.</p>
+</body></html>

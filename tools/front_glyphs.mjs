@@ -8,8 +8,11 @@ import { DISC_DIAM, CABEZA_SCALE } from "../engine/constants.js";
 
 const cubesOf = (o) => (o.vox ? o.vox.split(";").map((s) => s.split(",").map(Number)) : (() => { const out = []; for (let x = 0; x < o.w; x++) for (let y = 0; y < o.h; y++) for (let l = 0; l < o.z; l++) out.push([x, y, l]); return out; })());
 // Front elevation (x across, levels up) or plan (x across, rows down), as unit squares.
-function shape(type, pose, view) {
-  if (type === "cabeza") { const d = DISC_DIAM * CABEZA_SCALE; return { w: d, h: d, body: `<circle cx="${(d / 2).toFixed(3)}" cy="${(d / 2).toFixed(3)}" r="${(d / 2).toFixed(3)}"/>` }; }
+// The O: the Cabeza drawn larger than its square (user: "make the cabeza
+// larger in this image"), the one liberty the lettering takes.
+const O_SCALE = 2.3;
+function shape(type, pose, view, scale = 1) {
+  if (type === "cabeza") { const d = DISC_DIAM * CABEZA_SCALE * scale; return { w: d, h: d, body: `<circle cx="${(d / 2).toFixed(3)}" cy="${(d / 2).toFixed(3)}" r="${(d / 2).toFixed(3)}"/>` }; }
   const o = typeof pose === "object" ? pose : PIECE_ORIENTATIONS[type][pose];
   const seen = new Set(); let body = "";
   for (const [x, y, l] of cubesOf(o)) {
@@ -37,7 +40,7 @@ const skyline = SKY.map(([t, p, n]) => svg(shape(t, p, "front"), "p", n)).join("
 const vSil = shape("codo", { w: 2, h: 2, z: 1, vox: "0,0,0;0,1,0;1,1,0" }, "top");
 const nova = [
   svg(shape("rayo", { w: 2, h: 3, z: 1, vox: "0,0,0;0,1,0;1,1,0;1,2,0" }, "top"), "g n", "N: a Rayo on its side"),
-  svg(shape("cabeza", 0, "top"), "g o", "O: the Cabeza"),
+  svg(shape("cabeza", 0, "top", O_SCALE), "g o", "O: the Cabeza"),
   `<span class="g v" style="display:inline-block;width:calc(var(--u) * 2.83);height:calc(var(--u) * 2.12);position:relative" role="img" aria-label="V: a Codo on its corner"><svg viewBox="0 0 2 2" style="position:absolute;left:50%;top:0;width:calc(var(--u) * 2);height:calc(var(--u) * 2);transform:translate(-50%, calc(var(--u) * -0.3)) rotate(-45deg);transform-origin:50% 50%"><g shape-rendering="crispEdges">${vSil.body}</g></svg></span>`,
   svg(shape("arcoAlto", 0, "front"), "g a", "A: an Arco Alto, its opening down"),
 ].join("");

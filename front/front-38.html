@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex, nofollow"><title>El Cabeza Nova</title><meta name="theme-color" content="#0B0A09"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&amp;family=Cormorant+Garamond:ital,wght@0,500;1,500&amp;family=Josefin+Sans:wght@400;600&amp;family=IBM+Plex+Mono&amp;family=Michroma&amp;family=Jost:wght@400;500;600&amp;family=Architects+Daughter&amp;display=swap" rel="stylesheet"><link rel="stylesheet" href="front.css">
+<style>
+
+:root { --bg: #0B0A09; --ink: #EADFC9; --muted: #C9BDA6; --gold: #C9A24A; --btn-bg: #EADFC9; --btn-ink: #0B0A09; --btn-line: #EADFC9; --gold: #FF3FB3; }
+.plate { position: relative; width: min(94vw, 920px); height: clamp(220px, 36vh, 360px); display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; border-radius: 6px; }
+.plate .then { background-color: #EFE6D4; background-image: radial-gradient(circle, #5A3A1E 0 30%, transparent 31%); background-size: 12px 12px; }
+.plate .then::after { content: ""; position: absolute; inset: 0; width: 50%; background-image: radial-gradient(circle, #5A3A1E 0 10%, transparent 11%); background-size: 12px 12px; -webkit-mask-image: linear-gradient(90deg, transparent, #000); mask-image: linear-gradient(90deg, transparent, #000); }
+.plate .now { background-color: #07060c; background-image: linear-gradient(90deg, rgba(255,63,179,0.9) 1px, transparent 1px), linear-gradient(0deg, rgba(255,63,179,0.9) 1px, transparent 1px); background-size: 12px 12px; }
+.plate img { position: absolute; left: 50%; top: 50%; width: 58%; transform: translate(-50%, -50%); filter: drop-shadow(0 20px 24px rgba(0,0,0,0.5)); }
+
+</style></head><body>
+<main class="page">
+  <div class="plate" aria-label="Halftone dots on the left, a magenta pixel grid on the right, with the Arco Chico and a Turrito across both."><div class="then"></div><div class="now"></div><img src="front/arch.webp" alt=""></div>
+  <h1 class="wordmark future"><span class="name">El Cabeza</span><span class="nova">Nova</span></h1>
+  <p class="tagline">Printed then. Rendered now.</p>
+  <nav class="actions"><a class="btn primary " href="el-cabeza-nova.html">Play</a><a class="btn " href="el-cabeza-nova.html?switcher">Other realities</a></nav>
+</main>
+<p class="foot">This is an unofficial, non-commercial implementation of El Cabeza, the game by Jaime Poniachik and Enrique Lindenbaum, and is not affiliated with or endorsed by them, by <em>Revista Humor y Juegos</em>, or by anyone holding rights in the original game.</p>
+</body></html>
