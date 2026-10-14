@@ -11,6 +11,14 @@ import { spawn } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// The repository, wherever it's checked out (the Pages deploy runs this
+// in test:engine with no /home/user/el-cabeza-project link).
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
+// The browser's WebSocket client is Node's own from 22 on; on an older
+// Node the wire can't be tested from here, and that's said, not failed.
+if (typeof WebSocket === "undefined") { console.log("relay-protocol: skipped, this Node has no WebSocket client (Node 22 or later has)"); process.exit(0); }
 
 let fails = 0;
 const check = (name, ok, extra = "") => { console.log(`  ${ok ? "ok  " : "FAIL"} ${name}${!ok && extra ? "  " + extra : ""}`); if (!ok) fails++; };
@@ -20,7 +28,7 @@ const external = process.env.RELAY || "";
 let relay = null, RELAY = external;
 if (!external) {
   const dataDir = mkdtempSync(join(tmpdir(), "ec-relay-"));
-  relay = spawn(process.execPath, ["server/relay.js", "--port", "0", "--data", dataDir], { cwd: "/home/user/el-cabeza-project", stdio: ["ignore", "pipe", "pipe"] });
+  relay = spawn(process.execPath, [join(ROOT, "server/relay.js"), "--port", "0", "--data", dataDir], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
   const port = await new Promise((resolve, reject) => {
     let out = "";
     relay.stdout.on("data", (d) => { out += d; const m = /listening on (\d+)/.exec(out); if (m) resolve(parseInt(m[1], 10)); });
