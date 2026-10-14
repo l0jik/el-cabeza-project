@@ -154,8 +154,37 @@ await page.locator('[data-testid="replay-back"]').click();
 const backTo = await poll(() => page.evaluate((n) => (window.__EC_TEST_TURNS__.length === n - 1 ? n - 1 : null), stepped), 8000);
 check(`A turn back takes one back (${stepped} -> ${backTo})`, backTo === stepped - 1);
 await page.waitForTimeout(1200);
+// The speeds (user: "a slowdown feature, like 0.75, 0.5"): a menu from the
+// speed button, slower and faster; the moves themselves at that rate.
 await page.locator('[data-testid="replay-speed"]').click();
+const speeds = await page.locator('[data-testid="replay-speed-menu"] button').allInnerTexts();
+check(`the speed opens its speeds (${speeds.join(" ")})`, speeds.map((x) => x.trim()).join(" ") === "0.5× 0.75× 1× 1.5× 2× 4×");
+const turnTime = async () => {
+  const n = await page.evaluate(() => window.__EC_TEST_TURNS__.length);
+  const t0 = Date.now();
+  await page.locator('[data-testid="replay-step"]').click();
+  await poll(() => page.evaluate((k) => window.__EC_TEST_TURNS__.length > k && !(window.__EC_TEST_REPLAY_STATE__ || {}).busy, n), 30000, 50);
+  return Date.now() - t0;
+};
+await page.locator('[data-testid="replay-speed-0.5"]').click();
+check("0.5×: chosen, the menu put away", (await page.locator('[data-testid="replay-speed"]').innerText()).trim() === "0.5×" && (await page.locator('[data-testid="replay-speed-menu"]').count()) === 0);
+// (The same turn both ways: played at 0.5×, taken back, played at 4×.)
+const slowTurn = await turnTime();
+await page.waitForTimeout(600);
+const before = await page.evaluate(() => window.__EC_TEST_TURNS__.length);
+await page.locator('[data-testid="replay-back"]').click();
+await poll(() => page.evaluate((n) => window.__EC_TEST_TURNS__.length === n - 1, before), 8000);
+await page.waitForTimeout(800);
 await page.locator('[data-testid="replay-speed"]').click();
+await page.locator('[data-testid="replay-speed-0.75"]').click();
+check("0.75× too", (await page.locator('[data-testid="replay-speed"]').innerText()).trim() === "0.75×");
+await page.locator('[data-testid="replay-speed"]').click();
+await page.locator('[data-testid="replay-speed-4"]').click();
+const fastTurn = await turnTime();
+// (8 times as long, were it all timing; a test's slow frames and the
+// polling add the same to both.)
+check(`the same turn at 0.5× takes far longer than at 4× (${slowTurn} ms, ${fastTurn} ms)`, slowTurn > fastTurn * 1.8, `${slowTurn} vs ${fastTurn}`);
+await page.waitForTimeout(600);
 check("speed goes to 4×", (await page.locator('[data-testid="replay-speed"]').innerText()).trim() === "4×");
 await page.locator('[data-testid="replay-play"]').click(); // play
 const done = await poll(() => page.evaluate(() => window.__EC_TEST_REPLAY_STATE__ && window.__EC_TEST_REPLAY_STATE__.phase === "done"), 90000, 300);
@@ -185,7 +214,7 @@ check(`its lines alone still read, from the standard start ("${legacyReading.rep
 await page.locator('[data-testid="replay-start"]').click();
 await poll(() => page.evaluate(() => window.__EC_TEST_REPLAY_STATE__ && window.__EC_TEST_REPLAY_STATE__.phase === "play"), 8000);
 await page.locator('[data-testid="replay-speed"]').click();
-await page.locator('[data-testid="replay-speed"]').click();
+await page.locator('[data-testid="replay-speed-4"]').click();
 const done2 = await poll(() => page.evaluate(() => window.__EC_TEST_REPLAY_STATE__ && window.__EC_TEST_REPLAY_STATE__.phase === "done"), 90000, 300);
 check("...and replay to the same board", !!done2 && posOf(await state()) === posOf(original));
 await page.locator('[data-testid="replay-play-on"]').click();
@@ -206,6 +235,46 @@ await page.waitForTimeout(300);
 const cutAlone = await page.locator('[data-testid="replay-reading"]').innerText();
 check(`a code alone, cut short, says so and can't be replayed ("${cutAlone}")`, /damaged|cut short/i.test(cutAlone) && await page.locator('[data-testid="replay-start"]').isDisabled());
 check("no page errors", errs.length === 0, errs.join(" | "));
+
+// On a phone, in the City (user: "On a playback, the rules button is
+// blocking the playback controls"): the corner menu's tab steps down
+// under the bar, clear of it, and goes back up once the replay's over.
+console.log("on a phone: the rules tab clear of the bar");
+{
+  const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await ctx2.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; });
+  const ph = await ctx2.newPage();
+  const errs2 = [];
+  ph.on("pageerror", (e) => errs2.push(e.message));
+  await ph.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-ciudad.html");
+  await poll(() => ph.evaluate(() => !!window.__EC_TEST_REPLAY__), 30000, 250);
+  await ph.waitForTimeout(1500);
+  await ph.evaluate((t) => window.__EC_TEST_REPLAY__(t, 1), copied);
+  await poll(() => ph.evaluate(() => window.__EC_TEST_REPLAY_STATE__ && window.__EC_TEST_REPLAY_STATE__.phase === "play"), 10000);
+  await ph.locator('[data-testid="replay-play"]').click().catch(() => {});
+  const boxes = await poll(async () => {
+    const bar = await ph.locator('[data-testid="replay-bar"]').boundingBox();
+    const tab = await ph.locator('[data-testid="corner-menu-tab"]').boundingBox();
+    return bar && tab ? { bar, tab } : null;
+  }, 10000);
+  await ph.waitForTimeout(600);
+  const bar = await ph.locator('[data-testid="replay-bar"]').boundingBox();
+  const tab = await ph.locator('[data-testid="corner-menu-tab"]').boundingBox();
+  const meet = (a, b) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  check("both there: the bar and the rules tab", !!boxes);
+  check("...not one over the other", !!bar && !!tab && !meet(bar, tab), JSON.stringify({ bar, tab }));
+  check("...the tab under the bar", !!bar && !!tab && tab.y >= bar.y + bar.height);
+  const speedBtn = await ph.locator('[data-testid="replay-speed"]').boundingBox();
+  check("...the speed button clear of it too", !!speedBtn && !meet(speedBtn, tab));
+  await ph.locator('[data-testid="replay-stop"]').click().catch(() => {});
+  const up = await poll(async () => {
+    const t = await ph.locator('[data-testid="corner-menu-tab"]').boundingBox().catch(() => null);
+    return (await ph.locator('[data-testid="replay-bar"]').count()) === 0 && t && t.y < 80 ? t : null;
+  }, 15000);
+  check("the replay over: the tab back at the top", !!up, JSON.stringify(up));
+  check("no page errors", errs2.length === 0, errs2.join(" | "));
+  await ctx2.close();
+}
 
 await browser.close();
 console.log(failures === 0 ? "\nREPLAY E2E PASSED" : `\nREPLAY E2E FAILED (${failures})`);

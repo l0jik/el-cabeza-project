@@ -370,6 +370,10 @@ export function modelViews(parts, type, views, size = 220) {
     return { url: c.toDataURL("image/png"), data: g.getImageData(0, 0, size, size).data };
   };
   const solid = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+  // (What isn't a shape draws nothing: hidden by its material, not its
+  // visibility, which would hide what hangs from it too, as a world's
+  // invisible hit box holds its building.)
+  const none = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
   const out = [];
   for (const [yaw, pitch] of views) {
     group.rotation.set(pitch, yaw, 0, "YXZ");
@@ -377,20 +381,25 @@ export function modelViews(parts, type, views, size = 220) {
     const real = grab();
     const swapped = [];
     group.traverse((o) => {
-      if (!o.visible) return;
+      // (Only what draws: a group's own visibility would hide it all.)
+      if (!o.visible || !(o.isMesh || o.isSprite || o.isPoints || o.isLine)) return;
       const m = o.material;
       const glow = !o.isMesh || !m || (Array.isArray(m) ? m.every((x) => x.depthWrite === false || !x.visible) : m.depthWrite === false || !m.visible || m.colorWrite === false);
-      if (glow) { swapped.push([o, null, o.visible]); o.visible = false; } else { swapped.push([o, m]); o.material = solid; }
+      // (A sprite, a line: a leaf, hidden as it is.)
+      if (!o.isMesh) { swapped.push([o, null, o.visible]); o.visible = false; return; }
+      swapped.push([o, m]);
+      o.material = glow ? none : solid;
     });
     renderer.render(scene, camera);
     const shape = grab();
     swapped.forEach(([o, m, v]) => { if (m) o.material = m; else o.visible = v; });
     let cover = 0, empty = 0;
     for (let i = 3; i < shape.data.length; i += 4) if (shape.data[i] > 200) { cover++; if (real.data[i] < 128) empty++; }
-    out.push({ url: real.url, seeThrough: cover ? empty / cover : 0 });
+    out.push({ url: real.url, shapeUrl: shape.url, seeThrough: cover ? empty / cover : 0 });
   }
   scene.remove(group);
   solid.dispose();
+  none.dispose();
   renderer.dispose();
   if (renderer.forceContextLoss) renderer.forceContextLoss();
   return out;

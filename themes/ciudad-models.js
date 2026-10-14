@@ -482,6 +482,15 @@ export function builder(sd, style, look, side, cell) {
       const faces = [Z, Z, X, X].map((len) => ({ bays: Math.max(1, Math.round(len / G.bay)) }));
       const box = atlas.add({ style: st, pal, floors, faces });
       walls.push({ box, X, Y, Z, y0, cx: o.dx || 0, cz: o.dz || 0, fl0: o.fl0 || 0, hidden: o.hidden || {}, units: G.units });
+      /* ...and a floor under them (user, of the pieces' close-ups: the
+         Hombro and the Flaco "having transparency issues"): walls alone
+         are open beneath, and one-sided, so a building turned over, or
+         rolling, or an odd piece's overhang seen from below, showed
+         straight through; and round a lobby set in from them, a slit. */
+      // (A hair inside them: their faces and its sides never share a plane.)
+      const floor = new THREE.BoxGeometry(X - 0.002, 0.006, Z - 0.002);
+      floor.translate(o.dx || 0, y0 + 0.003, o.dz || 0);
+      add(floor, std(pal.slab || pal.mullion || "#b9b4aa", { roughness: 0.85 }));
     },
     finish() {
       const g = new THREE.Group();

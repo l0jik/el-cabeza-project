@@ -234,6 +234,37 @@ How to use it:
   against the computer, the gate's Standard Cabeza, every world, a phone).
   dock-helpers' openDockPanel no longer clicks again once the panel's
   open, and waits 2.5 s a try: its second click could land on the panel
-  (the Start row now sits where the piece was). A test's seeding mark
-  belongs in localStorage: sessionStorage isn't always back in time on a
-  file: page's reload, and the clear then wiped what was saved.
+  (the Start row now sits where the piece was). Don't check a saved
+  choice by reloading straight after it's saved: in the tests' browser
+  the reload can find localStorage not yet written (locally 1 in 4, and
+  CI run 54's shard 5); start a page from it kept instead.
+- The pieces' close-ups (the setup menus' 3D blow-up, "drag to turn"):
+  the City's Hombro (user video) and Flaco (user screenshot) showed
+  through. Its buildings (ciudad-models.js builder) were walls and a
+  roof: open beneath and one-sided, so a piece turned over (or rolling,
+  in play), an odd piece's overhang from below, or the slit round a lobby
+  set in from the walls, showed straight through. builder.walls() now
+  lays a floor under every wall section (look.slab, 2 mm inside the walls
+  so no faces share a plane). The sweep (user: "how many other pieces
+  ... other worlds"): piece-showcase.js modelViews(parts, type, views)
+  draws a close-up's model turned to [yaw, pitch]s as the viewer does,
+  and again as an opaque copy (meshes swapped to a white double-sided
+  material; non-shapes hidden by material, not visibility: a world's
+  invisible hit box holds its building), and gives the see-through share;
+  reality-gate.js lookParts(look) and NEON_SHOWCASE are its parts; the
+  chassis hook __EC_TEST_LOOK_VIEWS__(type, views, size, "neon"?). Before:
+  the City's eight odd pieces 17-36% from below, the Flaco 2%, the 1×3
+  2%; every other world 0, Luna's Cabeza aside (its glass dome, meant).
+  After: all 0. tests/e2e-closeups.mjs keeps it so (every world, Neon's
+  MATTER glass too, 8 views each, at most 1%).
+- Replays (user, a phone in the City: "the rules button is blocking the
+  playback controls ... a slowdown feature, like 0.75, 0.5"): the speed
+  button opens a menu (REPLAY_SPEEDS 0.5, 0.75, 1, 1.5, 2, 4;
+  replay-speed-<v>), and the moves themselves go at that rate
+  (replayRateRef: the render loop's a.elapsed += dt * rate while a replay
+  plays), not only the pauses between them. The corner menu's tab steps
+  down under the replay bar wherever the two would meet (cornerBelow,
+  measured from both; CornerMenu's below prop sets its top), and back up
+  when the replay ends. e2e-replay: the menu's speeds, the same turn at
+  0.5× and at 4× (taken back between), and the phone's tab clear of the
+  bar.

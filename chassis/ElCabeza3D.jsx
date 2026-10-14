@@ -756,6 +756,18 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const replaying = !!replay;
   const replayingRef = useRef(false);
   replayingRef.current = replaying;
+  // Its speeds (user: "a slowdown feature, like 0.75, 0.5"): the moves
+  // themselves at that rate (the render loop's step), not only the pauses
+  // between them.
+  const REPLAY_SPEEDS = [0.5, 0.75, 1, 1.5, 2, 4];
+  const replayRateRef = useRef(1);
+  replayRateRef.current = replay && replay.phase === "play" ? replay.speed || 1 : 1;
+  const [replaySpeedMenu, setReplaySpeedMenu] = useState(false);
+  /* The corner menu's tab steps down under the replay's bar wherever the
+     two would meet (user, on a phone: "the rules button is blocking the
+     playback controls"): the px it then stands at, or null. */
+  const replayBarRef = useRef(null);
+  const [cornerBelow, setCornerBelow] = useState(null);
   // Its sheet (a pasted log in, what it holds, Replay), and the paste.
   const [showReplaySheet, setShowReplaySheet] = useState(false);
   const [replayText, setReplayText] = useState("");
@@ -5135,7 +5147,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
 
       const a = anim.current;
       if (a) {
-        a.elapsed += dt;
+        a.elapsed += dt * replayRateRef.current;
         const t = Math.min(a.elapsed / a.duration, 1);
         const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
         /* Residual eased separately from rotation, but — critically —
@@ -9230,9 +9242,35 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     setReplay((r) => (r ? { ...r, phase: "play", playing: false, untilTurn: null, error: null } : r));
     handleUndoLastTurn({ fromReplay: true });
   }
-  function replaySpeed() {
-    setReplay((r) => (r ? { ...r, speed: r.speed >= 4 ? 1 : r.speed * 2 } : r));
+  function replaySpeed(speed) {
+    setReplay((r) => (r ? { ...r, speed } : r));
+    setReplaySpeedMenu(false);
   }
+  useEffect(() => {
+    if (!replaySpeedMenu) return undefined;
+    const away = (e) => { if (!(e.target && e.target.closest && e.target.closest('[data-testid="replay-speed-menu"], [data-testid="replay-speed"]'))) setReplaySpeedMenu(false); };
+    const esc = (e) => { if (e.key === "Escape") setReplaySpeedMenu(false); };
+    document.addEventListener("pointerdown", away, true);
+    window.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", away, true); window.removeEventListener("keydown", esc); };
+  }, [replaySpeedMenu]);
+  useEffect(() => { if (!replay) setReplaySpeedMenu(false); }, [replay]);
+  useLayoutEffect(() => {
+    if (!replay) { setCornerBelow(null); return undefined; }
+    const fit = () => {
+      const bar = replayBarRef.current, tab = document.querySelector('[data-testid="corner-menu-tab"]');
+      if (!bar || !tab) { setCornerBelow(null); return; }
+      const b = bar.getBoundingClientRect(), t = tab.getBoundingClientRect();
+      // (Side by side, as on a wide screen, it stays where it is.)
+      setCornerBelow(t.left < b.right && t.right > b.left ? Math.round(b.bottom + 8) : null);
+    };
+    fit();
+    const raf = requestAnimationFrame(fit);
+    window.addEventListener("resize", fit);
+    const ro = typeof ResizeObserver !== "undefined" && replayBarRef.current ? new ResizeObserver(fit) : null;
+    if (ro) ro.observe(replayBarRef.current);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", fit); if (ro) ro.disconnect(); };
+  }, [!!replay, !!cornerMenu]);
   // Stop: the game stays where it's got to, to play on from (a turn under
   // way is played out first: a turn can't be left half the record's).
   function replayStop() {
@@ -10080,6 +10118,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         );
         return (
           <div
+            ref={replayBarRef}
             data-testid="replay-bar"
             role="toolbar"
             aria-label="Replay"
@@ -10124,13 +10163,46 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                 type="button"
                 className="ec-btn"
                 data-testid="replay-speed"
-                aria-label={`Speed ${replay.speed} times`}
+                aria-label={`Speed: ${replay.speed} times`}
+                aria-haspopup="menu"
+                aria-expanded={replaySpeedMenu}
                 title="Speed"
-                onClick={replaySpeed}
+                onClick={() => setReplaySpeedMenu((v) => !v)}
                 style={{ minWidth: 34, height: 32, flexShrink: 0, border: "none", background: "transparent", color: COLORS.charcoal, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, letterSpacing: "0.02em", cursor: "pointer", padding: "0 4px", fontVariantNumeric: "tabular-nums" }}
               >
                 {replay.speed}×
               </button>
+            )}
+            {/* The speeds, slower and faster, under the bar. */}
+            {!done && replaySpeedMenu && (
+              <div
+                data-testid="replay-speed-menu"
+                role="menu"
+                aria-label="Replay speed"
+                style={{
+                  position: "absolute", top: "calc(100% + 6px)", right: 8, display: "flex", gap: 2, padding: 4,
+                  borderRadius: 14, background: modalSurface, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+                  border: `1px solid ${COLORS.slateSoft}`, boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
+                }}
+              >
+                {REPLAY_SPEEDS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={replay.speed === v}
+                    data-testid={`replay-speed-${v}`}
+                    onClick={() => replaySpeed(v)}
+                    style={{
+                      minWidth: 40, height: 32, borderRadius: 10, border: "none", cursor: "pointer", padding: "0 6px",
+                      background: replay.speed === v ? COLORS.charcoal : "transparent", color: replay.speed === v ? COLORS.cream : COLORS.charcoal,
+                      fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, letterSpacing: "0.02em", fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {v}×
+                  </button>
+                ))}
+              </div>
             )}
             {done ? (
               <button
@@ -12842,7 +12914,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
       </div>
 
       {theme.renderExtraOverlays && theme.renderExtraOverlays(setupExtras)}
-      {cornerMenu && <CornerMenu key={cornerMenu.look} look={cornerMenu.look} rules={rulesNow} extra={cornerMenu.extra || null} audio={audioRef.current} />}
+      {cornerMenu && <CornerMenu key={cornerMenu.look} look={cornerMenu.look} rules={rulesNow} extra={cornerMenu.extra || null} audio={audioRef.current} below={cornerBelow} />}
       {gate && (
         <RealityGate
           key={gate.n}

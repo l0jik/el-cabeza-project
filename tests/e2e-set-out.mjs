@@ -65,9 +65,7 @@ async function drag(page, a, b, steps = 12) {
 async function tap(page, p) { await page.mouse.click(p.x, p.y); await page.waitForTimeout(450); }
 async function open(world, { query = "", viewport = { width: 1280, height: 800 }, phone = false, seed = null } = {}) {
   const ctx = await browser.newContext(phone ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport });
-  // (A fresh player once, then kept across a reload: the mark is kept in
-  // localStorage itself, as sessionStorage isn't always back in time on a
-  // reload of a file: page, which wiped what the page had saved.)
+  // (A fresh player once: the mark is kept in localStorage itself.)
   await ctx.addInitScript((seed) => {
     window.__EC_TEST_HOOKS__ = true;
     try {
@@ -106,13 +104,10 @@ if (want("den")) {
   await page.locator('[data-testid="start-by-hand"]').click();
   await page.waitForTimeout(200);
   check("By hand: the half switch, and Begin says Set out my pieces", (await page.locator('[data-testid="set-out-half-setup"]').count()) === 1 && /set out my pieces/i.test(await page.locator('[data-dock-role="begin"]').innerText()));
+  // (Read back at load: the computer's section below starts from it kept.
+  // No reload here: a reload straight after a save can find it not yet
+  // written, in a test's browser; CI run 54.)
   check("...kept", await page.evaluate(() => localStorage.getItem("el-cabeza:start-position") === "hand"));
-  await page.reload();
-  await poll(() => page.evaluate(() => !!window.__EC_TEST_CAM__), 30000, 250);
-  await page.waitForTimeout(1200);
-  await openDockPanel(page);
-  await page.waitForTimeout(300);
-  check("...and after a reload still By hand", (await page.locator('[data-testid="start-by-hand"]').getAttribute("aria-pressed")) === "true");
   await page.locator('[data-dock-role="begin"]').click();
   let s = await poll(() => so(page), 8000);
   await page.waitForTimeout(600);
@@ -271,7 +266,7 @@ if (want("computer")) {
   await page.waitForTimeout(600);
   await settled(page);
   const cam = await page.evaluate(() => window.__EC_TEST_CAM__());
-  check("you set out Ash's side, the camera from there", !!s && s.side === "light" && Math.abs(Math.cos(cam.theta) - 1) < 1e-6);
+  check("By hand kept from before: you set out Ash's side, the camera from there", !!s && s.side === "light" && Math.abs(Math.cos(cam.theta) - 1) < 1e-6);
   check(`...the banner: "the computer mirrors"`, /the computer mirrors every move/i.test(await page.locator('[data-testid="set-out-hint"]').innerText()));
   await tap(page, await pos(page, "light-turrito"));
   await tap(page, await sq(page, 8, 9));
