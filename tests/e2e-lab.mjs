@@ -125,17 +125,25 @@ async function waitSwitched(page, id) {
   // Play carries on: finish Light's turn.
   // (The Chato may still be the selected piece, carried over: holding it
   // is "stop here" (Hold to end; a tap only says so), which ends Light's
-  // turn by itself. Only if it's still Light's turn after the hold is
-  // there a move to play.)
+  // turn by itself. It's held till the turn passes, as a player holds till
+  // the ring closes: a fixed 1.2 s press could be let go before the hold's
+  // 650 ms and the frame after it came round on a loaded runner, and then
+  // nothing ended (CI run 60). Only if it's still Light's turn after the
+  // hold is there a move to play, and never the step back (S, back over
+  // its N): the chassis takes that as the step undone, not a second
+  // action, and the turn goes on (CI run 60: the Chato home at 0/2).)
   const lp2 = await page.evaluate(() => window.__EC_TEST_SCREEN_POS__("light-chato"));
-  await page.mouse.move(lp2.x, lp2.y); await page.mouse.down(); await page.waitForTimeout(1200); await page.mouse.up(); await page.waitForTimeout(400);
+  await page.mouse.move(lp2.x, lp2.y); await page.mouse.down();
+  await poll(async () => (await state(page)).player === "dark", 8000, 200);
+  await page.mouse.up(); await page.waitForTimeout(400);
   if ((await state(page)).player === "light") {
     const b2 = await page.evaluate(() => window.__EC_TEST_COST_BADGES__());
-    const d2 = (b2.find((x) => x.text !== "free") || b2[0] || {}).dir;
+    const d2 = (b2.find((x) => x.text !== "free" && x.dir !== "S") || {}).dir;
     if (d2) await page.evaluate((d) => window.__EC_TEST_MOVE__("light-chato", d), d2);
   }
-  check("after the switches the turn finishes and play passes to Dark", !!(await poll(async () => (await state(page)).player === "dark", 6000)));
-  const logLen = await page.evaluate(() => window.__EC_TEST_LOG__.length);
+  check("after the switches the turn finishes and play passes to Dark", !!(await poll(async () => (await state(page)).player === "dark", 15000)));
+  // (The side to move can show a frame before the log has the turn.)
+  const logLen = (await poll(() => page.evaluate(() => window.__EC_TEST_LOG__.length === 2), 4000)) ? 2 : await page.evaluate(() => window.__EC_TEST_LOG__.length);
   check("...and the log grows by one (two turns in all)", logLen === 2, String(logLen));
 
   // A switch asked for mid-animation waits for the step to land.
