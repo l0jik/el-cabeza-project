@@ -221,3 +221,21 @@ writeFileSync(
 `
 );
 console.log("built dist/el-cabeza-unified.html (redirect to Nova)");
+
+/* ---- the front page's versions (front/*.html; the pictures the pages
+   use, assets/front/*.webp and *.svg, under dist/front/). Each version
+   is a page of its own for review (front-N.html); the chosen one becomes
+   the site's index.html. */
+import { readdirSync, existsSync } from "fs";
+if (existsSync("front")) {
+  mkdirSync("dist/front", { recursive: true });
+  for (const f of readdirSync("assets/front")) if (/\.(webp|svg|json)$/.test(f)) copyFileSync(`assets/front/${f}`, `dist/front/${f}`);
+  if (existsSync("front/review")) { mkdirSync("dist/front/review", { recursive: true }); for (const f of readdirSync("front/review")) if (f.endsWith(".jpg")) copyFileSync(`front/review/${f}`, `dist/front/review/${f}`); }
+  let n = 0;
+  for (const f of readdirSync("front")) {
+    if (!/\.(html|css)$/.test(f)) continue;
+    copyFileSync(`front/${f}`, `dist/${f}`);
+    if (f.endsWith(".html")) n++;
+  }
+  console.log(`built the front page's ${n} page(s) (front/ -> dist/)`);
+}

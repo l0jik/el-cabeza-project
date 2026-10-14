@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>Front page, ten ways</title>
+<style>
+body { margin: 0; background: #1b1916; color: #e9e1d2; font-family: system-ui, sans-serif; padding: 24px 16px 60px; }
+h1 { font-weight: 500; font-size: 1.5rem; margin: 0 0 6px; } p.lead { margin: 0 0 24px; color: #b9ae9a; max-width: 70ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 22px; }
+.v { background: #26221e; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.v h2 { font-size: 1.05rem; font-weight: 600; margin: 0; } .v h2 span { color: #c9a24a; margin-right: 8px; }
+.v p { margin: 0; color: #b9ae9a; font-size: .92rem; line-height: 1.4; }
+.shots { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+.shots img { width: 100%; height: auto; border-radius: 6px; display: block; background: #000; }
+.shots img.phone { width: 96px; }
+.v a.open { color: #f0d79a; font-weight: 600; text-decoration: none; } .v a.open:hover { text-decoration: underline; }
+</style></head><body>
+<h1>Front page, ten ways</h1>
+<p class="lead">Each one is a working page: open it on a desktop and on a phone. Every piece pictured is drawn by the game itself, at its real shape and size (walnut for Dark, olive ash for Light; the brass and black lacquer are the set's own).</p>
+<div class="grid" id="grid"></div>
+<script>
+const V = [
+  [1, "Paper, the disc", "Cream paper. The Cabeza's disc half in shadow, half in gold, a Turrito and a Flaco standing in front."],
+  [2, "Black, the ring", "A thin gold ring with its dot; inside, the disc and an Arco Chico sheltering a Turrito."],
+  [3, "Green, the star", "Deep green. The disc under a star, and the pieces together in an axonometric view below."],
+  [4, "Stone, the lay", "Every piece in the box laid flat on a black slab, as the tile wall of your reference, seen from above."],
+  [5, "Black, the axonometric", "The cluster of pieces large on black, over a faint gold grid."],
+  [6, "Golden hour", "A striped sun with the pieces standing in a row against it, their reflection below. Each silhouette is a piece's front elevation."],
+  [7, "Brushed brass", "A brushed-brass disc with the pieces in black lacquer and brass in front of it."],
+  [8, "Brown, the catalogue", "Leather brown, the disc with crosshairs, and every piece in a row beneath, named left to right."],
+  [9, "Paper, the opening", "The folding hardwood board with the standard opening set out, beside the wordmark."],
+  [10, "NOVA, in pieces", "NOVA spelled with the game's own pieces (your idea): a Rayo on end, the Cabeza, an Arco Alto lying flat, an Arco Alto standing."],
+];
+document.getElementById("grid").innerHTML = V.map(([n, t, d]) => `<div class="v"><h2><span>${n}</span>${t}</h2><p>${d}</p><div class="shots"><a href="front-${n}.html"><img src="front/review/front-${n}-desk.jpg" alt="Version ${n} on a desktop"></a><a href="front-${n}.html"><img class="phone" src="front/review/front-${n}-phone.jpg" alt="Version ${n} on a phone"></a></div><a class="open" href="front-${n}.html">Open front-${n}.html →</a></div>`).join("");
+</script>
+</body></html>

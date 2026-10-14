@@ -5,3 +5,4 @@ data/
 server/data/
 server/cloudflare/node_modules/
 server/cloudflare/.wrangler/
+assets/front/*.png

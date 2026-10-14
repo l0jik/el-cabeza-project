@@ -1,0 +1,40 @@
+/* The front page's shared bones (user: "Make 10 versions of the front
+   page"; the look of each version is its own <style>): the wordmark as
+   the user's references set it (EL CABEZA in an inscriptional serif, NOVA
+   spaced between two rules), the buttons, the mark's disc, the small print.
+   Every picture of a piece on these pages is the game's own
+   (tools/front_pieces.mjs; assets/front/). */
+:root {
+  --bg: #EFE6D4; --ink: #1C1814; --muted: #6B5F50; --gold: #B98A3E; --gold-hi: #E2BF72; --gold-lo: #8E6A2A;
+  --rule: rgba(28, 24, 20, 0.45); --btn-bg: #1C1814; --btn-ink: #EFE6D4; --btn-line: #1C1814;
+  --font-display: "Cinzel", "Trajan Pro", "Times New Roman", serif;
+  --font-ui: "Josefin Sans", "Futura", "Avenir Next", system-ui, sans-serif;
+  --font-text: "Cormorant Garamond", "Garamond", Georgia, serif;
+  --font-mono: "IBM Plex Mono", "Menlo", monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); -webkit-font-smoothing: antialiased; min-height: 100svh; display: flex; flex-direction: column; }
+.page { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(24px, 5vh, 56px) 20px; gap: clamp(18px, 3vh, 34px); text-align: center; }
+.wordmark { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 0.42em; }
+.wordmark .name { font-family: var(--font-display); font-weight: 600; font-size: clamp(2rem, 7.4vw, 4.6rem); letter-spacing: 0.09em; line-height: 1; text-transform: uppercase; white-space: nowrap; }
+.wordmark .nova { display: flex; align-items: center; gap: 0.9em; font-size: clamp(0.8rem, 2.3vw, 1.25rem); letter-spacing: 0.62em; text-indent: 0.62em; text-transform: uppercase; color: var(--gold); line-height: 1; }
+.wordmark .nova::before, .wordmark .nova::after { content: ""; width: 2.6em; height: 1px; background: currentColor; opacity: 0.75; }
+.tagline { font-family: var(--font-text); font-style: italic; font-weight: 500; font-size: clamp(1.15rem, 2.4vw, 1.55rem); line-height: 1.35; color: var(--muted); max-width: 36ch; margin: 0; text-wrap: balance; }
+.actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-width: 11.5em; padding: 1.05em 2.2em 0.95em; border-radius: 999px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.28em; text-indent: 0.28em; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--btn-line); color: var(--btn-line); background: transparent; transition: transform 0.18s ease, opacity 0.18s ease; }
+.btn.primary { background: var(--btn-bg); color: var(--btn-ink); border-color: var(--btn-bg); }
+.btn:hover { transform: translateY(-1px); }
+.btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.foot { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.03em; line-height: 1.5; color: var(--muted); max-width: 60ch; padding: 0 20px 22px; margin: 0 auto; text-align: center; opacity: 0.85; text-wrap: pretty; }
+/* The mark: the Cabeza's disc, half in shadow, half in gold, a hairline through it. */
+.mark { position: relative; width: min(62vw, 300px); aspect-ratio: 1; display: grid; place-items: center; }
+.disc { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; }
+.disc::before, .disc::after { content: ""; position: absolute; top: 0; bottom: 0; width: 50%; }
+.disc::before { left: 0; background: radial-gradient(circle at 42% 30%, #4a4038 0%, #221c17 55%, #110e0b 100%); }
+.disc::after { right: 0; background: linear-gradient(155deg, #e8c97d 0%, #b78b3f 45%, #d9b363 70%, #946d2a 100%); }
+.axis { position: absolute; left: 50%; top: -12%; bottom: -8%; width: 1px; background: var(--ink); opacity: 0.8; }
+.base { position: absolute; left: -24%; right: -24%; bottom: -8%; height: 1px; background: var(--ink); opacity: 0.8; }
+.mark .pieces { position: absolute; left: 50%; bottom: -8%; transform: translateX(-50%); width: 48%; height: auto; }
+@media (prefers-reduced-motion: no-preference) { .btn { transition: transform 0.18s ease; } }
+@media (max-width: 720px) { .page { gap: 18px; } .btn { min-width: 10em; padding: 0.95em 1.6em 0.85em; } }

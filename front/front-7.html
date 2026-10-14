@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex, nofollow"><title>El Cabeza Nova</title><meta name="theme-color" content="#090806"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&amp;family=Cormorant+Garamond:ital,wght@0,500;1,500&amp;family=Josefin+Sans:wght@400;600&amp;family=IBM+Plex+Mono&amp;display=swap" rel="stylesheet"><link rel="stylesheet" href="front.css">
+<style>
+:root { --bg: #090806; --ink: #EADFC9; --muted: #A89B84; --btn-bg: #C9A24A; --btn-ink: #090806; --btn-line: #C9A24A; }
+.brass { position: relative; width: min(84vw, 520px); aspect-ratio: 1; display: grid; place-items: end center; }
+.brass::before { content: ""; position: absolute; inset: 0; border-radius: 50%; filter: blur(0.4px);
+  background: radial-gradient(circle at 38% 32%, rgba(255,240,200,0.55) 0%, rgba(255,240,200,0) 38%), repeating-conic-gradient(from 0deg, #9a7430 0deg 0.35deg, #c9a24a 0.35deg 0.7deg, #a8803a 0.7deg 1.1deg), #b8903f;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.7), inset 0 0 60px rgba(0,0,0,0.35); }
+.brass::after { content: ""; position: absolute; left: 50%; top: -6%; bottom: -4%; width: 1px; background: #EADFC9; opacity: 0.55; }
+.brass img { position: relative; width: 84%; height: auto; margin-bottom: 4%; filter: drop-shadow(0 18px 24px rgba(0,0,0,0.55)); }
+.btn { color: #C9A24A; }
+</style></head><body>
+<main class="page">
+  <div class="brass"><img src="front/cluster-brass.webp" alt="The game's pieces in black lacquer and brass: an Arco Alto with a Turrito in its opening, an Opa, a Flaco, a Codo, a Chato, a Hombro and the two Cabezas."></div>
+  <h1 class="wordmark"><span class="name">El Cabeza</span><span class="nova">Nova</span></h1>
+  <p class="tagline">Walnut and olive ash, a brass latch: the game as it was sold.</p>
+  <nav class="actions"><a class="btn primary" href="el-cabeza-nova.html">Play</a><a class="btn" href="el-cabeza-nova.html?switcher">Other realities</a></nav>
+</main>
+<p class="foot">This is an unofficial, non-commercial implementation of El Cabeza, the game by Jaime Poniachik and Enrique Lindenbaum, and is not affiliated with or endorsed by them, by <em>Revista Humor y Juegos</em>, or by anyone holding rights in the original game.</p>
+</body></html>
