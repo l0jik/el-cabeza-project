@@ -49,6 +49,8 @@ const E2E = [
   ["e2e-set-out.mjs"],
   // The pieces' close-ups, every piece in every world, solid from every side.
   ["e2e-closeups.mjs"],
+  // Save & carry: a file, and a code on the game's server (run here on a free port).
+  ["e2e-saves.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

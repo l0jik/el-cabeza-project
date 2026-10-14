@@ -50,6 +50,11 @@ import { gameRecord, encodeReplay, checkReplay, readPastedLog, VANILLA_LAWS } fr
 import { quality, createGovernor } from "./device-fit.js";
 import { createShadowWatch } from "./shadow-watch.js";
 import { fpsWanted, createFpsReadout } from "./fps-readout.js";
+import { collectSave, applySave, downloadSave, readSaveFile, cloudSave, cloudFetch, cloudRecord, restoreLink, restoreFromLink, takeRestoreNote, normalizeCode } from "./saves.js";
+import { relayReady } from "./online-config.js";
+// A link with ?restore=CODE (chassis/saves.js): the save fetched and put
+// in place, and the page reloaded on it, before anything else is kept.
+if (typeof window !== "undefined") restoreFromLink();
 // A few seconds of 1974 mall muzak (archive.org, "Mall Music Muzak - Mall
 // Of 1974", Third Floor Spending Spree, from 0:06, fading out), played when
 // ABOUT's link returns to the original game. A file beside every page
@@ -776,6 +781,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // Its sheet (a pasted log in, what it holds, Replay), and the paste.
   const [showReplaySheet, setShowReplaySheet] = useState(false);
   const [replayText, setReplayText] = useState("");
+  /* Save & carry (chassis/saves.js; user: "saves that survive clearing the
+     browser or carry to another device"): the sheet, its word on what it
+     last did, the code typed to restore, and the cloud code this browser
+     holds. */
+  const [showSavesSheet, setShowSavesSheet] = useState(false);
+  const [savesNote, setSavesNote] = useState(null); // { text, kind: "ok" | "err" | "busy" }
+  const [savesCodeText, setSavesCodeText] = useState("");
+  const [cloudCode, setCloudCode] = useState(() => { const r = cloudRecord(); return r ? r.code : ""; });
+  const savesFileRef = useRef(null);
   // Test-only mirror of the move log plus each turn's piece-tagged steps,
   // so e2e tests can read what a turn actually did (e.g. an AI Split
   // Movement turn moving two pieces) without parsing rendered text.
@@ -9140,6 +9154,68 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   function closeReplaySheet() {
     setShowReplaySheet(false);
   }
+  function openSavesSheet() {
+    setShowMoveLog(false);
+    setShowVictoryPlacard(false);
+    setShowReplaySheet(false);
+    const note = takeRestoreNote();
+    if (note) setSavesNote({ text: note, kind: /Couldn/.test(note) ? "err" : "ok" });
+    setShowSavesSheet(true);
+  }
+  function closeSavesSheet() { setShowSavesSheet(false); }
+  useEffect(() => {
+    if (!showSavesSheet || typeof window === "undefined") return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setShowSavesSheet(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showSavesSheet]);
+  // (The restore a link asked for failed, or landed: its word, when the
+  // sheet's not open to take it.)
+  useEffect(() => {
+    const note = takeRestoreNote();
+    if (note) setSavesNote({ text: note, kind: /Couldn/.test(note) ? "err" : "ok" });
+  }, []);
+  const savesVersion = APP_VERSION;
+  function savesDownload() {
+    try {
+      const name = downloadSave(collectSave({ version: savesVersion }));
+      setSavesNote({ text: `Saved as ${name}.`, kind: "ok" });
+    } catch (e) { setSavesNote({ text: e.message, kind: "err" }); }
+  }
+  function savesPickFile() { if (savesFileRef.current) { savesFileRef.current.value = ""; savesFileRef.current.click(); } }
+  function savesLoadFile(file) {
+    setSavesNote({ text: "Reading\u2026", kind: "busy" });
+    readSaveFile(file).then((save) => {
+      const n = applySave(save);
+      setSavesNote({ text: `Loaded ${n} thing${n === 1 ? "" : "s"}. Starting over on it\u2026`, kind: "ok" });
+      setTimeout(() => window.location.reload(), 600);
+    }).catch((e) => setSavesNote({ text: e.message, kind: "err" }));
+  }
+  function savesCloudSave() {
+    setSavesNote({ text: "Saving to the cloud\u2026", kind: "busy" });
+    cloudSave(collectSave({ version: savesVersion })).then(({ code, updated }) => {
+      setCloudCode(code);
+      setSavesNote({ text: `${updated ? "Updated" : "Saved as"} ${code}.`, kind: "ok" });
+    }).catch((e) => setSavesNote({ text: e.message, kind: "err" }));
+  }
+  function savesCloudRestore() {
+    const code = normalizeCode(savesCodeText);
+    if (!code) { setSavesNote({ text: "A code is eight letters, like ABCD-EFGH.", kind: "err" }); return; }
+    setSavesNote({ text: `Fetching ${code}\u2026`, kind: "busy" });
+    cloudFetch(code).then(({ save }) => {
+      const n = applySave(save);
+      setSavesNote({ text: `Restored ${n} thing${n === 1 ? "" : "s"} from ${code}. Starting over on it\u2026`, kind: "ok" });
+      setTimeout(() => window.location.reload(), 600);
+    }).catch((e) => setSavesNote({ text: e.message, kind: "err" }));
+  }
+  function savesCopy(text, what) {
+    const done = () => setSavesNote({ text: `${what} copied.`, kind: "ok" });
+    const fail = () => setSavesNote({ text: `Couldn't copy; it's ${text}`, kind: "err" });
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fail);
+      else fail();
+    } catch (e) { fail(); }
+  }
   // (Escape puts it away too.)
   useEffect(() => {
     if (!showReplaySheet || typeof window === "undefined") return undefined;
@@ -11664,26 +11740,58 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
            where the dock piece had been, so a second tap while the panel
            opened began the game. */}
         {(awaitingBegin || !isPlaying) && !replay && (
-          <button
-            className="ec-btn"
-            data-testid="replay-link"
-            data-dock-role="link"
-            title="Replay a game from a copied move log"
-            onClick={openReplaySheet}
+          <div
+            data-dock-role="footer-links"
             style={{
-              ...dockLinkStyle(),
               position: "absolute",
               left: 16,
               bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
               maxWidth: `calc(100% - ${(theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + 20}px)`,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              padding: "7px 2px",
+              display: "flex",
+              alignItems: "baseline",
+              gap: 10,
+              minWidth: 0,
             }}
           >
-            {dockWords.replay}
-          </button>
+            <button
+              className="ec-btn"
+              data-testid="replay-link"
+              data-dock-role="link"
+              title="Replay a game from a copied move log"
+              onClick={openReplaySheet}
+              style={{
+                ...dockLinkStyle(),
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                minWidth: 0,
+                flex: "0 1 auto",
+                padding: "7px 2px",
+              }}
+            >
+              {dockWords.replay}
+            </button>
+            {/* ...and beside it, everything this browser keeps, carried
+               (chassis/saves.js: a file, or the cloud). */}
+            <button
+              className="ec-btn"
+              data-testid="open-saves"
+              data-dock-role="link"
+              title="Save your progress and settings to a file or the cloud, or restore them"
+              onClick={openSavesSheet}
+              style={{
+                ...dockLinkStyle(),
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                minWidth: 0,
+                flex: "0 1 auto",
+                padding: "7px 2px",
+              }}
+            >
+              Save &amp; carry
+            </button>
+          </div>
         )}
         {/* Who's playing what — a quiet read-out in the dock's footer strip
            (the one Sound's icon sits in), never a control: the setup
@@ -12132,6 +12240,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             logCount: log.length,
             onOpenMoveLog: openMoveLog,
             onOpenReplay: openReplaySheet,
+            onOpenSaves: openSavesSheet,
             onEndGame: handleEndActiveGame,
             endBusy: !!(busy || anim.current),
             onNewGame: handleNewGameClick,
@@ -12274,9 +12383,19 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             data-testid="open-replay"
             title="Paste a copied move log and play it back"
             onClick={openReplaySheet}
-            style={{ ...dockLinkStyle(), display: "block", margin: "-6px auto 14px" }}
+            style={{ ...dockLinkStyle(), display: "block", margin: "-6px auto 2px" }}
           >
             Replay a game from a copied log
+          </button>
+          {/* (Everything this browser keeps, carried: a file, or the cloud.) */}
+          <button
+            className="ec-btn"
+            data-testid="open-saves-log"
+            title="Save your progress and settings to a file or the cloud, or restore them"
+            onClick={openSavesSheet}
+            style={{ ...dockLinkStyle(), display: "block", margin: "0 auto 14px" }}
+          >
+            Save &amp; carry
           </button>
 
           {log.length === 0 ? (
@@ -12512,6 +12631,144 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               {replayReading && !replayReading.error && replayReading.problem ? `Replay ${replayReading.total} turns` : "Replay"}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Save & carry (chassis/saves.js): a file, or the cloud (the game's
+          own server, server/relay.js; a placeholder address until it's
+          deployed, chassis/online-config.js). Same sheet as Replay's. */}
+      <div
+        data-testid="saves-backdrop"
+        onClick={closeSavesSheet}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: modalBackdrop,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+          boxSizing: "border-box",
+          zIndex: 1050,
+          opacity: showSavesSheet ? 1 : 0,
+          pointerEvents: showSavesSheet ? "auto" : "none",
+          visibility: showSavesSheet ? "visible" : "hidden",
+          transition: showSavesSheet ? "opacity 0.3s ease" : "opacity 0.3s ease, visibility 0s linear 0.3s",
+        }}
+        aria-hidden={!showSavesSheet}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          data-testid="saves-sheet"
+          role="dialog"
+          aria-label="Save and carry"
+          style={{
+            position: "relative",
+            width: "clamp(280px, 90%, 460px)",
+            maxHeight: "86vh",
+            overflowY: "auto",
+            background: modalSurface,
+            backdropFilter: "blur(6px)",
+            border: `1px solid ${COLORS.slateSoft}`,
+            boxShadow: "0 30px 70px rgba(36,24,10,0.35)",
+            padding: "32px 24px 24px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          {(() => {
+            const label = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.slate };
+            const btn = (primary) => ({
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 11,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: primary ? COLORS.cream : COLORS.charcoal,
+              background: primary ? COLORS.charcoal : "transparent",
+              border: `1.5px solid ${COLORS.charcoal}`,
+              padding: "9px 12px",
+              cursor: "pointer",
+              flex: "1 1 0",
+              minWidth: 0,
+            });
+            const cloud = relayReady();
+            const link = cloudCode ? restoreLink(cloudCode) : "";
+            return (
+              <>
+                <h2 style={{ margin: 0, textAlign: "center", fontFamily: titleFontFamily, fontWeight: 600, fontSize: 19, letterSpacing: "0.04em", color: COLORS.charcoal }}>
+                  SAVE &amp; CARRY
+                </h2>
+                <p style={{ margin: 0, textAlign: "center", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13, lineHeight: 1.45, color: COLORS.slate }}>
+                  Everything this browser keeps for the game: the story so far, your settings, your sound levels. Keep it safe from a cleared browser, or carry it to another device.
+                </p>
+                <div style={label}>A file</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" className="ec-btn" data-testid="saves-download" onClick={savesDownload} style={btn(false)}>Download a save</button>
+                  <button type="button" className="ec-btn" data-testid="saves-load" onClick={savesPickFile} style={btn(false)}>Load a save…</button>
+                  <input
+                    ref={savesFileRef}
+                    data-testid="saves-file"
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) savesLoadFile(f); }}
+                    style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  />
+                </div>
+                <div style={{ ...label, marginTop: 6 }}>The cloud</div>
+                {!cloud ? (
+                  <p data-testid="saves-cloud-note" style={{ margin: 0, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 12.5, lineHeight: 1.45, color: COLORS.slate }}>
+                    The cloud isn’t set up yet: the game’s server has a placeholder address until it’s deployed. The file above works now.
+                  </p>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                      <button type="button" className="ec-btn" data-testid="saves-cloud-save" onClick={savesCloudSave} style={btn(true)}>
+                        {cloudCode ? "Save to the cloud again" : "Save to the cloud"}
+                      </button>
+                    </div>
+                    {cloudCode && (
+                      <div data-testid="saves-cloud-code" style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 12px", background: COLORS.slateFaint, border: `1px solid ${COLORS.slateSoft}`, borderRadius: 4 }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                          <span style={label}>Your code</span>
+                          <span data-testid="saves-code" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 16, letterSpacing: "0.14em", color: COLORS.charcoal }}>{cloudCode}</span>
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button type="button" className="ec-btn" data-testid="saves-copy-code" onClick={() => savesCopy(cloudCode, "The code")} style={{ ...btn(false), padding: "7px 10px", fontSize: 10 }}>Copy the code</button>
+                          <button type="button" className="ec-btn" data-testid="saves-copy-link" onClick={() => savesCopy(link, "The link")} style={{ ...btn(false), padding: "7px 10px", fontSize: 10 }}>Copy a link</button>
+                        </div>
+                        <span style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11.5, lineHeight: 1.4, color: COLORS.slate }}>
+                          Type the code on another device, or open the link there. Anyone with the code can restore it.
+                        </span>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                      <input
+                        data-testid="saves-code-input"
+                        value={savesCodeText}
+                        onChange={(e) => setSavesCodeText(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") savesCloudRestore(); }}
+                        placeholder="ABCD-EFGH"
+                        spellCheck={false}
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        aria-label="A code to restore"
+                        style={{ flex: "1 1 0", minWidth: 0, fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.charcoal, background: COLORS.slateFaint, border: `1px solid ${COLORS.slateSoft}`, borderRadius: 4, padding: "8px 10px", outlineColor: COLORS.charcoal }}
+                      />
+                      <button type="button" className="ec-btn" data-testid="saves-cloud-restore" onClick={savesCloudRestore} style={{ ...btn(false), flex: "0 0 auto" }}>Restore</button>
+                    </div>
+                  </>
+                )}
+                <div data-testid="saves-note" data-kind={savesNote ? savesNote.kind : "none"} aria-live="polite" style={{ minHeight: 18, fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, lineHeight: 1.5, color: savesNote && savesNote.kind === "err" ? "#b3261e" : COLORS.charcoal }}>
+                  {savesNote ? savesNote.text : <span style={{ color: COLORS.slate }}>Restoring replaces what this browser keeps.</span>}
+                </div>
+                <button type="button" className="ec-btn" data-testid="saves-close" onClick={closeSavesSheet} style={{ ...dockLinkStyle(), alignSelf: "center" }}>Close</button>
+              </>
+            );
+          })()}
         </div>
       </div>
 
