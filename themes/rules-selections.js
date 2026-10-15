@@ -67,7 +67,7 @@ export const LAW_OPTIONS = [
   { key: "splitThree", name: "Split movement, 3 pieces", note: "Spend a turn's 3 actions on up to three pieces, one action each. Brings 3 actions per turn." },
   // (User: the first player's handicap, not standard Cabeza's, as a toggle,
   // on by default for anything other than the standard game: `def`.)
-  { key: "punto", name: "Punto", def: true, note: "The side that opens has one action fewer on its first turn of the game, to blunt the first strike. On unless you turn it off; the standard game has no handicap." },
+  { key: "punto", name: "Punto", def: true, note: "The opening ramps up, to blunt the first strike: the opener has one action on the game's first turn, the other side two on the second, then every turn has its full actions (with 2 a turn, only the opener's first turn is short). On unless you turn it off; the standard game has no handicap." },
 ];
 // Shoving's settings, the chassis's (chassis/shove-settings.js): which
 // moves shove (with slides only, a roll into a piece is simply blocked),

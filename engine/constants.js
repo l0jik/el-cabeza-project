@@ -333,10 +333,15 @@ export let ACTIVE_LAWS = {
   // its way (the default), or only the other side's (a move into one of
   // your own is blocked, as without the law). chassis/shove-settings.js.
   shoveOwn: true,
-  // Punto LAW: the side that opens has one action fewer on its
-  // first turn of the game (user: in standard Cabeza there is no
-  // handicapping the first player, but it should be toggleable). See
-  // FIRST_TURN_SHORT below for how the turn itself is marked.
+  // Punto LAW: the game's opening ramps up, a turn's actions capped at
+  // its number: the side that opens has one action on the game's first
+  // turn, the other side two on the second, and from the third every
+  // turn has the full budget. With 2 actions a turn only the opener's
+  // first turn is short (user: in standard Cabeza there is no
+  // handicapping the first player, but it should be toggleable; then,
+  // for 3 actions: "the first player gets one action, the second player
+  // gets two, and then the first player on their second turn gets
+  // three"). See OPENING_TURN below for how the turn is marked.
   punto: false,
 };
 
@@ -391,32 +396,47 @@ export function maxStepsFor(type) {
   return Math.max(1, (ACTIVE_LAWS.threeActions ? base + 1 : base) - firstTurnCut());
 }
 
-/* The Punto LAW (ACTIVE_LAWS.punto): the opener's
-   first turn is one action short. Measured over computer games on the big
-   board with every law on, the side that struck first with a full turn
-   won three games in four, so the law blunts the first strike (as komi
-   evens Go); the standard game has no handicap, so it is off unless
-   chosen. FIRST_TURN_SHORT marks the turn: set by whoever is driving a
-   game while the first player's first turn is being played (the chassis,
-   with nothing settled yet; the replay check on a record's first turn;
-   the AI at the root of its search when it opens), and read with the law
-   by maxStepsFor/turnBudget, so every budget read in the engine and the
-   chassis follows it. The same mutable-module-state pattern as
-   ACTIVE_LAWS: a Worker's own copy is set by its own request. */
+/* The Punto LAW (ACTIVE_LAWS.punto): the opening ramps up, the game's
+   turn n (from 1) capped at n actions until the full budget is reached.
+   Measured over computer games on the big board with every law on, the
+   side that struck first with a full turn won three games in four, so the
+   law blunts the first strike (as komi evens Go); the standard game has
+   no handicap, so it is off unless chosen. OPENING_TURN marks which turn
+   of the game is being played (0-based; -1 none): set by whoever is
+   driving a game (the chassis, from how many turns have settled; the
+   replay check on each of a record's turns; the AI at the root of its
+   search), and read with the law by maxStepsFor/turnBudget, so every
+   budget read in the engine and the chassis follows it. The same
+   mutable-module-state pattern as ACTIVE_LAWS: a Worker's own copy is
+   set by its own request. FIRST_TURN_SHORT is the old boolean form (the
+   game's first turn), kept for the readers that only ever asked that. */
 export const FIRST_TURN_CUT = 1;
+export let OPENING_TURN = -1;
 export let FIRST_TURN_SHORT = false;
+export function setOpeningTurn(index) {
+  OPENING_TURN = Number.isInteger(index) && index >= 0 ? index : -1;
+  FIRST_TURN_SHORT = OPENING_TURN === 0;
+  return OPENING_TURN;
+}
 export function setFirstTurnShort(on) {
-  FIRST_TURN_SHORT = !!on;
+  setOpeningTurn(on ? 0 : -1);
   return FIRST_TURN_SHORT;
 }
-const firstTurnCut = () => (ACTIVE_LAWS.punto && FIRST_TURN_SHORT ? FIRST_TURN_CUT : 0);
+// How many actions the marked turn is short of the full budget: the
+// game's first turn two short of three (one action), its second one
+// short (two), the rest none; with a budget of two, the first turn one short.
+const firstTurnCut = () => {
+  if (!ACTIVE_LAWS.punto || OPENING_TURN < 0) return 0;
+  const full = ACTIVE_LAWS.threeActions ? 3 : 2;
+  return Math.max(0, full - 1 - OPENING_TURN);
+};
 /* Runs fn with the cut off and puts it back: for a read of the OTHER
    side's reach (a crush threat, a set-out's safety) and for a search
    below its root, which are full turns whoever is opening. */
 export function withFullTurn(fn) {
-  const was = FIRST_TURN_SHORT;
-  FIRST_TURN_SHORT = false;
-  try { return fn(); } finally { FIRST_TURN_SHORT = was; }
+  const was = OPENING_TURN;
+  setOpeningTurn(-1);
+  try { return fn(); } finally { setOpeningTurn(was); }
 }
 
 /* The whole turn's action-point bank, independent of any one piece: 2 by

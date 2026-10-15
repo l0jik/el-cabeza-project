@@ -2,7 +2,7 @@
    the Standard and Neon theme sources before extraction (see
    build/scratch/) — pure logic, no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost, ACTIVE_LAWS, turnBudget, maxPiecesPerTurn, MISSING_SQUARES, FIRST_TURN_SHORT, setFirstTurnShort } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost, ACTIVE_LAWS, turnBudget, maxPiecesPerTurn, MISSING_SQUARES, OPENING_TURN, setOpeningTurn } from "./constants.js";
 import { legalMovesFor, legalRolls, legalCabezaSteps, sameState } from "./rules.js";
 import { maskAt } from "./shapes.js";
 
@@ -979,20 +979,21 @@ function recordHistory(history, turn, depth) {
    depths) and threaded through every recursive call — `ply` counts UP
    from the root (0) precisely so killers stay ply-indexed rather than
    remaining-depth-indexed, since `depth` counts down instead. */
-export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, deadline, rootBias = null, weights = DEFAULT_EVAL_WEIGHTS, killers = EMPTY_KILLERS, history = EMPTY_HISTORY, ply = 0, rootFirst = null, openingTurn = false) {
+export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, deadline, rootBias = null, weights = DEFAULT_EVAL_WEIGHTS, killers = EMPTY_KILLERS, history = EMPTY_HISTORY, ply = 0, rootFirst = null, openingTurn = -1) {
   if (performance.now() > deadline) {
     return { score: evaluatePosition(pieces, aiPlayer, weights, player), turn: null, timedOut: true };
   }
 
-  /* The AI opening the game (constants.js FIRST_TURN_SHORT; under the
-     Punto law its first turn is one action short): the root's
-     turns are generated as the game's first turn. Every ply below it, the
-     replies and the turns after, is a full turn, so the mark is on just
-     while the root's turns are generated. */
+  /* Which turn of the game the root is (constants.js OPENING_TURN; under
+     the Punto law the opening turns are short): the root's turns are
+     generated as that turn. Every ply below it, the replies and the
+     turns after, is a full turn (the ramp is over by the third turn, and
+     a search that deep is never reached in an opening), so the mark is
+     on just while the root's turns are generated. */
   let turns;
-  if (ply === 0 && openingTurn) {
-    setFirstTurnShort(true);
-    try { turns = generateTurns(pieces, player); } finally { setFirstTurnShort(false); }
+  if (ply === 0 && Number.isInteger(openingTurn) && openingTurn >= 0) {
+    setOpeningTurn(openingTurn);
+    try { turns = generateTurns(pieces, player); } finally { setOpeningTurn(-1); }
   } else {
     turns = generateTurns(pieces, player);
   }
@@ -1464,10 +1465,10 @@ function yieldToEventLoop() {
 export const lastSearchInfo = { depth: 0, depthMs: [], partial: false };
 
 
-/* The search itself (findBestAiTurn below wraps it). `openingTurn`: the
-   AI is playing the game's first turn, so the root's turns are generated
-   as one (minimaxSearch; one action short under the Punto
-   law), everything below the root at full length. */
+/* The search itself (findBestAiTurn below wraps it). `openingTurn`: which
+   turn of the game the AI is playing (0-based), so the root's turns are
+   generated as that turn (minimaxSearch; short under the Punto law in the
+   opening), everything below the root at full length. */
 async function searchBestTurn(
   pieces,
   aiPlayer,
@@ -1490,7 +1491,7 @@ async function searchBestTurn(
     verifyReplies = false,
     forcedCrush = false,
     threatBonus = 25,
-    openingTurn = false,
+    openingTurn = -1,
   },
   cabezaStreak = 0,
   turnIndex = 0,
@@ -1606,18 +1607,18 @@ async function searchBestTurn(
   return out;
 }
 
-/* The search runs with the first-turn mark off (the chassis sets
-   FIRST_TURN_SHORT while the live first turn is played; a search reads
-   replies and later turns, which are full), and the AI's own opening turn
-   comes in through its config as `openingTurn`, marked at the root alone.
-   The mark is put back as it was found. */
+/* The search runs with the turn mark off (the chassis sets OPENING_TURN
+   while a live turn is played; a search reads replies and later turns,
+   which are full), and the AI's own turn comes in through its config as
+   `openingTurn`, marked at the root alone. The mark is put back as it
+   was found. */
 export async function findBestAiTurn(pieces, aiPlayer, config, cabezaStreak = 0, turnIndex = 0, pieceStreaks = null, recentPlaces = null) {
-  const was = FIRST_TURN_SHORT;
-  setFirstTurnShort(false);
+  const was = OPENING_TURN;
+  setOpeningTurn(-1);
   try {
     return await searchBestTurn(pieces, aiPlayer, config, cabezaStreak, turnIndex, pieceStreaks, recentPlaces);
   } finally {
-    setFirstTurnShort(was);
+    setOpeningTurn(was);
   }
 }
 

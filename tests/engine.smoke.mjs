@@ -1,6 +1,6 @@
 import { createInitialPieces, legalMovesFor, sameState, pairLog, turnContinues, evaluateBlockLanding, pickMissingSquares, pickBlackHoleSquares, pickMissingSquarePairs, missingSquaresKeepPath, initialPiecesFor, getPieceAt, blockedDiagonalShoves } from "../engine/rules.js";
 import { findBestAiTurn, AI_DIFFICULTY, evaluatePosition, generateTurns } from "../engine/ai.js";
-import { setBlackHoles, setMissingSquares, turnBudget, MAX_PIECES_PER_TURN, moveCost, maxStepsFor, setFirstTurnShort, FIRST_TURN_SHORT, FIRST_TURN_CUT } from "../engine/constants.js";
+import { setBlackHoles, setMissingSquares, turnBudget, MAX_PIECES_PER_TURN, moveCost, maxStepsFor, setFirstTurnShort, FIRST_TURN_SHORT, FIRST_TURN_CUT, setOpeningTurn, OPENING_TURN } from "../engine/constants.js";
 import { pieceCenter, makeRoundedBox, pivotFor } from "../engine/geometry.js";
 import { BOARD_ROWS, BOARD_COLS, setActiveLaws, isSlideKey } from "../engine/constants.js";
 
@@ -112,11 +112,11 @@ console.log("[split] bank 2/3 and 2-piece cap OK");
 
 // ---- The Punto law ----
 // Off (the standard game), the game's first turn is a turn like any
-// other. On, while the first player's first turn is played (constants.js
-// FIRST_TURN_SHORT marks it), every budget is one action short: the bank,
-// each piece's own, and so an Opa (whose move costs two) can't move at
-// all. The computer's search takes it at its root only, and leaves the
-// mark as it found it.
+// other. On, the opening ramps up: the game's turn n (constants.js
+// OPENING_TURN marks which) is capped at n actions until the full budget,
+// so with 2 actions the first turn is one (no Opa move, whose cost is
+// two), and with 3 the first is one and the second two. The computer's
+// search takes it at its root only, and leaves the mark as it found it.
 setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false, punto: false });
 if (FIRST_TURN_CUT !== 1) throw new Error("The opener's first turn is one action short");
 setFirstTurnShort(true);
@@ -127,15 +127,31 @@ if (turnBudget() !== 1 || maxStepsFor("turrito") !== 1 || maxStepsFor("cabeza") 
 if (Object.keys(legalMovesFor(createInitialPieces(), createInitialPieces().find((p) => p.id === "dark-opa"), maxStepsFor("opa"))).length !== 0) throw new Error("An Opa can't move in a one-action turn");
 if (generateTurns(createInitialPieces(), "dark").some((t) => t.dirs.length !== 1)) throw new Error("Every first turn under the law is one action");
 setActiveLaws({ threeActions: true });
-if (turnBudget() !== 2 || maxStepsFor("flaco") !== 2) throw new Error("With 3 Actions the short first turn is two");
+if (turnBudget() !== 1 || maxStepsFor("flaco") !== 1) throw new Error("With 3 Actions the game's first turn is one action");
+setOpeningTurn(1);
+if (turnBudget() !== 2 || maxStepsFor("flaco") !== 2) throw new Error("...the second two");
+setOpeningTurn(2);
+if (turnBudget() !== 3 || maxStepsFor("flaco") !== 3) throw new Error("...the third the full three");
+setOpeningTurn(-1);
+if (turnBudget() !== 3) throw new Error("...and unmarked, the full three");
 setActiveLaws({ threeActions: false });
-setFirstTurnShort(false);
-if (turnBudget() !== 2 || maxStepsFor("turrito") !== 2) throw new Error("After the first turn the budget is whole again, the law on");
+setOpeningTurn(1);
+if (turnBudget() !== 2 || maxStepsFor("turrito") !== 2) throw new Error("With 2 actions the second turn is already whole");
+setOpeningTurn(-1);
+if (turnBudget() !== 2 || maxStepsFor("turrito") !== 2) throw new Error("After the opening the budget is whole again, the law on");
+if (OPENING_TURN !== -1 || FIRST_TURN_SHORT) throw new Error("The marks read back");
 {
   for (let i = 0; i < 4; i++) {
-    const plan = await findBestAiTurn(createInitialPieces(), "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150, jitter: 3, openingJitter: 3, openingTurn: true }, 0, 0);
+    const plan = await findBestAiTurn(createInitialPieces(), "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150, jitter: 3, openingJitter: 3, openingTurn: 0 }, 0, 0);
     if (!plan || (plan.steps ? plan.steps.length : plan.dirs.length) !== 1) throw new Error("The computer opening under the law plays one action: " + JSON.stringify(plan));
   }
+  setActiveLaws({ threeActions: true });
+  for (let i = 0; i < 4; i++) {
+    const plan = await findBestAiTurn(createInitialPieces(), "light", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150, jitter: 3, openingJitter: 3, openingTurn: 1 }, 0, 0);
+    const n = plan ? (plan.steps ? plan.steps.length : plan.dirs.length) : 0;
+    if (!plan || n > 2) throw new Error("The computer's second turn of a 3-action game under the law plays at most two actions: " + JSON.stringify(plan));
+  }
+  setActiveLaws({ threeActions: false });
   if (FIRST_TURN_SHORT) throw new Error("The search leaves the first-turn mark as it found it");
   setFirstTurnShort(true);
   const plan = await findBestAiTurn(createInitialPieces(), "light", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150 }, 0, 1);
@@ -145,13 +161,13 @@ if (turnBudget() !== 2 || maxStepsFor("turrito") !== 2) throw new Error("After t
   setActiveLaws({ punto: false });
   let two = false;
   for (let i = 0; i < 6 && !two; i++) {
-    const p = await findBestAiTurn(createInitialPieces(), "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150, jitter: 3, openingJitter: 3, openingTurn: true }, 0, 0);
+    const p = await findBestAiTurn(createInitialPieces(), "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150, jitter: 3, openingJitter: 3, openingTurn: 0 }, 0, 0);
     two = !!p && (p.steps ? p.steps.length : p.dirs.length) === 2;
   }
   if (!two) throw new Error("With the law off the computer's opening turn may use both actions");
 }
 setActiveLaws({ punto: false });
-console.log("[punto] the Punto law: one action short for the opener, the search's root alone OK");
+console.log("[punto] the Punto law: the opening's ramp (1, 2, then all), the search's root alone OK");
 
 // turnContinues is the single "is there another move?" rule the live game
 // and AI both defer to. Board: an Opa plus a Turrito (both Dark) with the

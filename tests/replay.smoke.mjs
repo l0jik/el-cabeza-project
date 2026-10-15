@@ -4,7 +4,7 @@
    copied before codes existed is read from its lines; a move that
    doesn't fit is caught at its turn. */
 import { createInitialPieces, legalMovesFor, applyShoves, turnContinues, pairLog, sameState } from "../engine/rules.js";
-import { setActiveLaws, maxStepsFor, turnBudget, moveCost, maxPiecesPerTurn, PIECE_META, GOAL_ROW, ACTIVE_LAWS, getBoardDimensions, setFirstTurnShort, FIRST_TURN_CUT } from "../engine/constants.js";
+import { setActiveLaws, maxStepsFor, turnBudget, moveCost, maxPiecesPerTurn, PIECE_META, GOAL_ROW, ACTIVE_LAWS, getBoardDimensions, setOpeningTurn, FIRST_TURN_CUT } from "../engine/constants.js";
 import { encodeReplay, decodeReplay, checkReplay, parseLogText, readPastedLog, VANILLA_LAWS, REPLAY_TAG } from "../engine/replay.js";
 
 let failures = 0;
@@ -23,9 +23,10 @@ const sameBoard = (a, b) => a.length === b.length && a.every((p) => { const q = 
    Movement, another piece taking the points), never back to a board the
    turn already had (a human's would be refunded, so a record never has
    one). Returns the record and the board it ends on. */
-// `cut`: the Punto law on (the opener's first turn one action
-// short); 0 leaves it off, a first turn at full length, as a game from
-// before the law (its code lists no such law, and replays as it was played).
+// `cut`: the Punto law on (the opening's ramp: the first turn one action,
+// the second two, then all); 0 leaves it off, every turn at full length,
+// as a game from before the law (its code lists no such law, and replays
+// as it was played).
 function randomGame(seed, laws, maxTurns = 40, cut = FIRST_TURN_CUT) {
   const r = rng(seed);
   laws = { ...laws, punto: cut > 0 };
@@ -37,7 +38,7 @@ function randomGame(seed, laws, maxTurns = 40, cut = FIRST_TURN_CUT) {
   const turns = [];
   let winner = null;
   for (let t = 0; t < maxTurns && !winner; t++) {
-    setFirstTurnShort(cut > 0 && t === 0);
+    setOpeningTurn(cut > 0 ? t : -1);
     const trail = [board];
     let used = 0, selected = null, moved = [];
     const steps = [];
@@ -85,7 +86,7 @@ function randomGame(seed, laws, maxTurns = 40, cut = FIRST_TURN_CUT) {
     board = turnBoard;
     if (!winner) player = player === "dark" ? "light" : "dark";
   }
-  setFirstTurnShort(false);
+  setOpeningTurn(-1);
   const { rows, cols } = getBoardDimensions();
   const rec = { rows, cols, laws: { ...VANILLA_LAWS, ...laws }, holes: [], missing: [], start, opener, turns, winner };
   setActiveLaws({ ...VANILLA_LAWS });
@@ -136,8 +137,11 @@ console.log("the opener's first turn");
   // replays so.
   const cutGames = [];
   for (let seed = 101; seed <= 110; seed++) cutGames.push(randomGame(seed, LAW_SETS[seed % LAW_SETS.length]));
-  const firstShort = cutGames.every((g) => g.rec.turns.length && g.rec.turns[0].reduce((n, s) => n + (s.dir.startsWith("slide-") ? 2 : 1), 0) <= (g.rec.laws.threeActions ? 2 : 1));
-  check("a record's first turn spends one action fewer (ten games)", firstShort);
+  const spent = (steps) => steps.reduce((n, s) => n + (s.dir.startsWith("slide-") ? 2 : 1), 0);
+  const firstShort = cutGames.every((g) => g.rec.turns.length && spent(g.rec.turns[0]) <= 1);
+  check("a record's first turn is one action (ten games)", firstShort);
+  const secondShort = cutGames.every((g) => g.rec.turns.length < 2 || spent(g.rec.turns[1]) <= 2);
+  check("...and its second at most two", secondShort);
   check("...and its code lists the law", cutGames.every((g) => JSON.parse(Buffer.from(encodeReplay(g.rec).slice(REPLAY_TAG.length).replace(/-/g, "+").replace(/_/g, "/"), "base64").toString()).l.includes("punto")));
   check("...and replays by the rules", cutGames.every((g) => checkReplay(decodeReplay(encodeReplay(g.rec))).ok));
   let oldOk = true, oldTwo = 0;

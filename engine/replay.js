@@ -36,7 +36,7 @@ import {
   ACTIVE_LAWS, setActiveLaws, BLACK_HOLES, setBlackHoles, MISSING_SQUARES, setMissingSquares,
   getBoardDimensions, setBoardDimensions, PIECE_META, GOAL_ROW, maxStepsFor, turnBudget, moveCost,
   maxPiecesPerTurn, isSlideKey, isPivotKey, baseDirOfSlideKey,
-  FIRST_TURN_SHORT, setFirstTurnShort,
+  OPENING_TURN, setOpeningTurn,
 } from "./constants.js";
 import { legalMovesFor, applyShoves, turnContinues, initialPiecesFor, sameState } from "./rules.js";
 
@@ -187,20 +187,20 @@ export function decodeReplay(text) {
    holes, missing squares), then puts back whatever was set before: the
    check runs while another game may be on the board. */
 function withSetup(rec, fn) {
-  const before = { dims: getBoardDimensions(), laws: ACTIVE_LAWS, holes: BLACK_HOLES, missing: MISSING_SQUARES, short: FIRST_TURN_SHORT };
+  const before = { dims: getBoardDimensions(), laws: ACTIVE_LAWS, holes: BLACK_HOLES, missing: MISSING_SQUARES, opening: OPENING_TURN };
   try {
     setBoardDimensions(rec.rows, rec.cols);
     setActiveLaws({ ...VANILLA_LAWS, ...rec.laws });
     setBlackHoles(rec.holes);
     setMissingSquares(rec.missing);
-    setFirstTurnShort(false);
+    setOpeningTurn(-1);
     return fn();
   } finally {
     setBoardDimensions(before.dims.rows, before.dims.cols);
     setActiveLaws({ ...VANILLA_LAWS, ...before.laws });
     setBlackHoles(before.holes);
     setMissingSquares(before.missing);
-    setFirstTurnShort(before.short);
+    setOpeningTurn(before.opening);
   }
 }
 
@@ -281,10 +281,10 @@ export function checkReplay(rec) {
     for (let t = 0; t < rec.turns.length; t++) {
       const fail = (error, step = 0) => ({ ok: false, bad: t, step, error, valid: t, turns: rec.turns.length, final: { pieces: board, player, won } });
       if (won) return fail("a move after the game was won");
-      // The opener's first turn (one action short under the Punto law).
-      setFirstTurnShort(t === 0);
+      // Which turn of the game this is (the opening turns short under Punto).
+      setOpeningTurn(t);
       const r = playTurn(board, player, rec.turns[t]);
-      setFirstTurnShort(false);
+      setOpeningTurn(-1);
       if (r.error) return fail(r.error, r.step);
       board = r.board;
       if (r.winner) won = { winner: r.winner, why: r.why };

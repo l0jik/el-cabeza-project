@@ -41,7 +41,7 @@ export const LAW_TEXT = {
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 actions instead of 2." },
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 actions can be shared between up to three pieces in one turn, one action each." },
   shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra action. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
-  punto: { name: "Punto", text: "The side that opens has one action fewer on its first turn of the game, to blunt the first strike." },
+  punto: { name: "Punto", text: "The opening ramps up, to blunt the first strike: the side that opens has one action on the game's first turn, the other side two on the second, and from the third turn on every turn has its full actions. With 2 actions a turn, only the opener's first turn is short." },
 };
 // Shoving as this game plays it: its settings (chassis/shove-settings.js)
 // say whether rolls shove too (ACTIVE_LAWS.shoveOnRolls, on unless set to
@@ -512,14 +512,14 @@ function tiles(C) {
       ),
     },
     {
-      key: "punto", law: "punto", title: "Punto", cost: null, text: LAW_TEXT.punto.text + " With 2 actions, the opener's first turn is one roll or one step; with 3 Actions, two.",
+      key: "punto", law: "punto", title: "Punto", cost: null, text: LAW_TEXT.punto.text + " One action is one roll or one Cabeza step: no Opa move, no slide.",
       svg: (
         <>
           {[40, 60].map((x, i) => (
             <circle key={x} className={`ec-rc-dot${i}`} cx={x} cy="30" r="7" fill={ink} />
           ))}
           <circle cx="80" cy="30" r="7" fill="none" stroke={ink} strokeWidth="1.2" strokeDasharray="3 2" opacity=".6" />
-          <text x="60" y="52" fontFamily={mono} fontSize="6" fill={glow} textAnchor="middle">FIRST TURN</text>
+          <text x="60" y="52" fontFamily={mono} fontSize="6" fill={glow} textAnchor="middle">TURN 1 · 1, TURN 2 · 2, THEN ALL</text>
         </>
       ),
     },

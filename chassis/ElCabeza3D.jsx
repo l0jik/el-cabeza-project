@@ -9,7 +9,7 @@ import {
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, setBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
   isSlideKey, slideKey, baseDirOfSlideKey, isPivotKey, pivotTurnOfKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
   MISSING_SQUARES, setMissingSquares as setActiveMissingSquares,
-  turnBudget, maxPiecesPerTurn, setFirstTurnShort, withFullTurn,
+  turnBudget, maxPiecesPerTurn, setOpeningTurn, withFullTurn,
 } from "../engine/constants.js";
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues, applyShoves, blockedDiagonalShoves,
@@ -893,17 +893,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const replaying = !!replay;
   const replayingRef = useRef(false);
   replayingRef.current = replaying;
-  /* The game's first turn (engine/constants.js FIRST_TURN_SHORT): while
-     the first player's first turn is being played, nothing settled yet,
-     the engine knows it, and under the Punto law every budget
-     read here (the dots, a second move, a hand-over, the hold) sees a
-     turn one action short. A replayed record brings its own laws, so an
-     old record without the law replays its full first turn. Set as the
-     render reads it, so the handlers and effects that follow agree with
-     what's on screen; the computer's own search gets it through its
-     config (openingTurn), at its root alone. */
-  const openingTurn = status === "playing" && turnHistory.length === 0;
-  setFirstTurnShort(openingTurn);
+  /* Which turn of the game is being played (engine/constants.js
+     OPENING_TURN: the turns settled so far), so that under the Punto law
+     every budget read here (the dots, a second move, a hand-over, the
+     hold) sees the opening's short turns: the first one action, the
+     second two, the rest the full budget. A replayed record brings its
+     own laws, so an old record without the law replays its full opening.
+     Set as the render reads it, so the handlers and effects that follow
+     agree with what's on screen; the computer's own search gets it
+     through its config (openingTurn), at its root alone. */
+  const openingTurn = status === "playing" ? turnHistory.length : -1;
+  setOpeningTurn(openingTurn);
   // Its speeds (user: "a slowdown feature, like 0.75, 0.5"): the moves
   // themselves at that rate (the render loop's step), not only the pauses
   // between them.
@@ -7220,7 +7220,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const args = [
           pieces,
           aiPlayer,
-          // Opening the game, its first turn is the game's first (openingTurn, at the root of its search: one action short under the Punto law).
+          // Which turn of the game it is playing (openingTurn, at the root of its search: short in the opening under the Punto law).
           { ...AI_DIFFICULTY[aiDifficulty], openingTurn },
           aiCabezaStreakRef.current,
           log.length, // turns played so far — drives the opening jitter boost
