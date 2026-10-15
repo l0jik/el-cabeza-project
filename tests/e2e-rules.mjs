@@ -59,7 +59,7 @@ for (const theme of ["neon", "standard"]) {
     await page.waitForTimeout(500);
   }
   const tiles = await page.locator('[data-testid^="rules-tile-"]').count();
-  check("MOVES has a tile for every move and law (17)", tiles === 17, String(tiles));
+  check("MOVES has a tile for every move and law (18)", tiles === 18, String(tiles));
   // Every move that tips a piece over an edge is shown from the side too;
   // a Cabeza step, a slide and the point dots aren't (nothing tips).
   const sides = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('[data-testid^="rules-tile-"]')].map((t) => [t.dataset.testid.replace("rules-tile-", ""), [...t.querySelectorAll("svg text")].some((x) => x.textContent === "SIDE")])));
