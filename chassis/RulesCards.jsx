@@ -41,7 +41,7 @@ export const LAW_TEXT = {
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 actions instead of 2." },
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 actions can be shared between up to three pieces in one turn, one action each." },
   shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra action. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
-  shortFirstTurn: { name: "Short First Turn", text: "The side that opens has one action fewer on its first turn of the game, to blunt the first strike." },
+  punto: { name: "Punto", text: "The side that opens has one action fewer on its first turn of the game, to blunt the first strike." },
 };
 // Shoving as this game plays it: its settings (chassis/shove-settings.js)
 // say whether rolls shove too (ACTIVE_LAWS.shoveOnRolls, on unless set to
@@ -512,7 +512,7 @@ function tiles(C) {
       ),
     },
     {
-      key: "shortFirstTurn", law: "shortFirstTurn", title: "Short first turn", cost: null, text: LAW_TEXT.shortFirstTurn.text + " With 2 actions, the opener's first turn is one roll or one step; with 3 Actions, two.",
+      key: "punto", law: "punto", title: "Punto", cost: null, text: LAW_TEXT.punto.text + " With 2 actions, the opener's first turn is one roll or one step; with 3 Actions, two.",
       svg: (
         <>
           {[40, 60].map((x, i) => (

@@ -985,7 +985,7 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
   }
 
   /* The AI opening the game (constants.js FIRST_TURN_SHORT; under the
-     Short First Turn law its first turn is one action short): the root's
+     Punto law its first turn is one action short): the root's
      turns are generated as the game's first turn. Every ply below it, the
      replies and the turns after, is a full turn, so the mark is on just
      while the root's turns are generated. */
@@ -1466,7 +1466,7 @@ export const lastSearchInfo = { depth: 0, depthMs: [], partial: false };
 
 /* The search itself (findBestAiTurn below wraps it). `openingTurn`: the
    AI is playing the game's first turn, so the root's turns are generated
-   as one (minimaxSearch; one action short under the Short First Turn
+   as one (minimaxSearch; one action short under the Punto
    law), everything below the root at full length. */
 async function searchBestTurn(
   pieces,

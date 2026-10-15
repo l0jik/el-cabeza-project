@@ -333,11 +333,11 @@ export let ACTIVE_LAWS = {
   // its way (the default), or only the other side's (a move into one of
   // your own is blocked, as without the law). chassis/shove-settings.js.
   shoveOwn: true,
-  // Short First Turn LAW: the side that opens has one action fewer on its
+  // Punto LAW: the side that opens has one action fewer on its
   // first turn of the game (user: in standard Cabeza there is no
   // handicapping the first player, but it should be toggleable). See
   // FIRST_TURN_SHORT below for how the turn itself is marked.
-  shortFirstTurn: false,
+  punto: false,
 };
 
 export function setActiveLaws(partial) {
@@ -391,7 +391,7 @@ export function maxStepsFor(type) {
   return Math.max(1, (ACTIVE_LAWS.threeActions ? base + 1 : base) - firstTurnCut());
 }
 
-/* The Short First Turn LAW (ACTIVE_LAWS.shortFirstTurn): the opener's
+/* The Punto LAW (ACTIVE_LAWS.punto): the opener's
    first turn is one action short. Measured over computer games on the big
    board with every law on, the side that struck first with a full turn
    won three games in four, so the law blunts the first strike (as komi
@@ -409,7 +409,7 @@ export function setFirstTurnShort(on) {
   FIRST_TURN_SHORT = !!on;
   return FIRST_TURN_SHORT;
 }
-const firstTurnCut = () => (ACTIVE_LAWS.shortFirstTurn && FIRST_TURN_SHORT ? FIRST_TURN_CUT : 0);
+const firstTurnCut = () => (ACTIVE_LAWS.punto && FIRST_TURN_SHORT ? FIRST_TURN_CUT : 0);
 /* Runs fn with the cut off and puts it back: for a read of the OTHER
    side's reach (a crush threat, a set-out's safety) and for a search
    below its root, which are full turns whoever is opening. */

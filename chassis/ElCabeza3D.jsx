@@ -895,7 +895,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   replayingRef.current = replaying;
   /* The game's first turn (engine/constants.js FIRST_TURN_SHORT): while
      the first player's first turn is being played, nothing settled yet,
-     the engine knows it, and under the Short First Turn law every budget
+     the engine knows it, and under the Punto law every budget
      read here (the dots, a second move, a hand-over, the hold) sees a
      turn one action short. A replayed record brings its own laws, so an
      old record without the law replays its full first turn. Set as the
@@ -1455,8 +1455,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // (Opened on one of the extras on purpose, an order form's "How it
   // works ›" or a law on the order slip, the card shows them all, so the
   // one asked for is there.)
-  const EXTRA_FOCUS = ["splitMovement", "splitThree", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving", "shortFirstTurn", "shoveRoll", "shelter", "missing"];
-  const standardGame = !["splitMovement", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving", "shortFirstTurn"].some((k) => ACTIVE_LAWS[k])
+  const EXTRA_FOCUS = ["splitMovement", "splitThree", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving", "punto", "shoveRoll", "shelter", "missing"];
+  const standardGame = !["splitMovement", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving", "punto"].some((k) => ACTIVE_LAWS[k])
     && pieces.every((p) => CLASSIC_TYPES.includes(p.type)) && !MISSING_SQUARES.length && !(blackHoles && blackHoles.length);
   const [focusMode, setFocusMode] = useState(false);
   const toggleFocus = () => setFocusMode((v) => !v);
@@ -7220,7 +7220,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const args = [
           pieces,
           aiPlayer,
-          // Opening the game, its first turn is the game's first (openingTurn, at the root of its search: one action short under the Short First Turn law).
+          // Opening the game, its first turn is the game's first (openingTurn, at the root of its search: one action short under the Punto law).
           { ...AI_DIFFICULTY[aiDifficulty], openingTurn },
           aiCabezaStreakRef.current,
           log.length, // turns played so far — drives the opening jitter boost
@@ -9302,7 +9302,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // session settings — cleared here for a plain game (both the engine
       // module state read by rules.js/the AI worker and the chassis's own
       // React copies).
-      setActiveLaws({ splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwn: true, shortFirstTurn: false });
+      setActiveLaws({ splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwn: true, punto: false });
       setActiveBlackHoles([]);
       setBlackHoles([]);
       setActiveMissingSquares([]);

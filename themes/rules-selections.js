@@ -67,7 +67,7 @@ export const LAW_OPTIONS = [
   { key: "splitThree", name: "Split movement, 3 pieces", note: "Spend a turn's 3 actions on up to three pieces, one action each. Brings 3 actions per turn." },
   // (User: the first player's handicap, not standard Cabeza's, as a toggle,
   // on by default for anything other than the standard game: `def`.)
-  { key: "shortFirstTurn", name: "Short first turn", def: true, note: "The side that opens has one action fewer on its first turn of the game, to blunt the first strike. On unless you turn it off; the standard game has no handicap." },
+  { key: "punto", name: "Punto", def: true, note: "The side that opens has one action fewer on its first turn of the game, to blunt the first strike. On unless you turn it off; the standard game has no handicap." },
 ];
 // Shoving's settings, the chassis's (chassis/shove-settings.js): which
 // moves shove (with slides only, a roll into a piece is simply blocked),
@@ -135,7 +135,7 @@ export function normalizeSelections(sel) {
     out.counts[p.key] = Math.max(p.min, Math.min(p.max, Math.round(v)));
   });
   out.laws = { ...d.laws };
-  // (A law a save doesn't know of keeps its default: Short first turn is on unless turned off.)
+  // (A law a save doesn't know of keeps its default: Punto is on unless turned off.)
   LAW_OPTIONS.forEach((l) => { out.laws[l.key] = sel.laws && typeof sel.laws[l.key] === "boolean" ? sel.laws[l.key] : !!l.def; });
   // (One Split movement at a time: three pieces wins.)
   if (out.laws.splitThree) out.laws.splitMovement = false;

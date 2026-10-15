@@ -46,9 +46,9 @@ export const REPLAY_TAG = "ECR1.";
 export const VANILLA_LAWS = {
   splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false,
   cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwn: true,
-  // (Short First Turn travels in the code's law list like any law; a code
+  // (Punto travels in the code's law list like any law; a code
   // from before it has none, and its first turn replays at full length.)
-  shortFirstTurn: false,
+  punto: false,
 };
 const LAW_KEYS = Object.keys(VANILLA_LAWS).filter((k) => k !== "shoveOnRolls" && k !== "shoveOwn");
 
@@ -281,7 +281,7 @@ export function checkReplay(rec) {
     for (let t = 0; t < rec.turns.length; t++) {
       const fail = (error, step = 0) => ({ ok: false, bad: t, step, error, valid: t, turns: rec.turns.length, final: { pieces: board, player, won } });
       if (won) return fail("a move after the game was won");
-      // The opener's first turn (one action short under the Short First Turn law).
+      // The opener's first turn (one action short under the Punto law).
       setFirstTurnShort(t === 0);
       const r = playTurn(board, player, rec.turns[t]);
       setFirstTurnShort(false);
