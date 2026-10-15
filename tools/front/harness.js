@@ -50,7 +50,7 @@ function environment(renderer) {
 
 // The chassis's geometry for a piece in a pose (ElCabeza3D.jsx, the
 // mesh's own): the disc, a smoothed polycube, or a rounded box.
-function geometryFor(p) {
+export function geometryFor(p) {
   if (PIECE_META[p.type].shape === "disc") return new THREE.CylinderGeometry((DISC_DIAM * CABEZA_SCALE) / 2, (DISC_DIAM * CABEZA_SCALE) / 2, DISC_H * CABEZA_SCALE, 48);
   return p.vox ? makePolycubeSmooth(p, PIECE_SCALE, EDGE_RADIUS) : makeRoundedBox(p.w * PIECE_SCALE, p.z * PIECE_SCALE, p.h * PIECE_SCALE, EDGE_RADIUS);
 }
