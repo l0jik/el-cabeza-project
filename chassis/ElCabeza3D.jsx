@@ -9,7 +9,7 @@ import {
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, setBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
   isSlideKey, slideKey, baseDirOfSlideKey, isPivotKey, pivotTurnOfKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
   MISSING_SQUARES, setMissingSquares as setActiveMissingSquares,
-  turnBudget, maxPiecesPerTurn, FIRST_TURN_CUT, setFirstTurnShort, withFullTurn,
+  turnBudget, maxPiecesPerTurn, setFirstTurnShort, withFullTurn,
 } from "../engine/constants.js";
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues, applyShoves, blockedDiagonalShoves,
@@ -893,17 +893,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const replaying = !!replay;
   const replayingRef = useRef(false);
   replayingRef.current = replaying;
-  /* The opener's first turn is one action short (engine/constants.js,
-     FIRST_TURN_SHORT; a rule of every game, not a law). While the first
-     player's first turn is being played, nothing settled yet, every
-     budget read here (the dots, a second move, a hand-over, the hold)
-     sees the shorter turn. A replayed record says whether its own first
-     turn was short (one from before the rule wasn't). Set as the render
-     reads it, so the handlers and effects that follow agree with what's
-     on screen; the computer's own search gets it through its config
-     (firstTurnCut), at its root alone. */
-  const firstTurnCut = status === "playing" && turnHistory.length === 0 ? (replay && replay.rec ? (replay.rec.cut || 0) : FIRST_TURN_CUT) : 0;
-  setFirstTurnShort(firstTurnCut > 0);
+  /* The game's first turn (engine/constants.js FIRST_TURN_SHORT): while
+     the first player's first turn is being played, nothing settled yet,
+     the engine knows it, and under the Short First Turn law every budget
+     read here (the dots, a second move, a hand-over, the hold) sees a
+     turn one action short. A replayed record brings its own laws, so an
+     old record without the law replays its full first turn. Set as the
+     render reads it, so the handlers and effects that follow agree with
+     what's on screen; the computer's own search gets it through its
+     config (openingTurn), at its root alone. */
+  const openingTurn = status === "playing" && turnHistory.length === 0;
+  setFirstTurnShort(openingTurn);
   // Its speeds (user: "a slowdown feature, like 0.75, 0.5"): the moves
   // themselves at that rate (the render loop's step), not only the pauses
   // between them.
@@ -1455,8 +1455,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // (Opened on one of the extras on purpose, an order form's "How it
   // works ›" or a law on the order slip, the card shows them all, so the
   // one asked for is there.)
-  const EXTRA_FOCUS = ["splitMovement", "splitThree", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving", "shoveRoll", "shelter", "missing"];
-  const standardGame = !["splitMovement", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving"].some((k) => ACTIVE_LAWS[k])
+  const EXTRA_FOCUS = ["splitMovement", "splitThree", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving", "shortFirstTurn", "shoveRoll", "shelter", "missing"];
+  const standardGame = !["splitMovement", "slide", "diagonalSlide", "blackHoleSquares", "cantileverPivot", "threeActions", "shoving", "shortFirstTurn"].some((k) => ACTIVE_LAWS[k])
     && pieces.every((p) => CLASSIC_TYPES.includes(p.type)) && !MISSING_SQUARES.length && !(blackHoles && blackHoles.length);
   const [focusMode, setFocusMode] = useState(false);
   const toggleFocus = () => setFocusMode((v) => !v);
@@ -7220,8 +7220,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const args = [
           pieces,
           aiPlayer,
-          // Its own first turn as the opener is one action short (firstTurnCut, at the root of its search).
-          { ...AI_DIFFICULTY[aiDifficulty], firstTurnCut },
+          // Opening the game, its first turn is the game's first (openingTurn, at the root of its search: one action short under the Short First Turn law).
+          { ...AI_DIFFICULTY[aiDifficulty], openingTurn },
           aiCabezaStreakRef.current,
           log.length, // turns played so far — drives the opening jitter boost
           aiPieceStreaksRef.current,
@@ -9302,7 +9302,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // session settings — cleared here for a plain game (both the engine
       // module state read by rules.js/the AI worker and the chassis's own
       // React copies).
-      setActiveLaws({ splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwn: true });
+      setActiveLaws({ splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwn: true, shortFirstTurn: false });
       setActiveBlackHoles([]);
       setBlackHoles([]);
       setActiveMissingSquares([]);

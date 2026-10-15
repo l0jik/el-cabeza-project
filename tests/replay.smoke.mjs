@@ -23,11 +23,12 @@ const sameBoard = (a, b) => a.length === b.length && a.every((p) => { const q = 
    Movement, another piece taking the points), never back to a board the
    turn already had (a human's would be refunded, so a record never has
    one). Returns the record and the board it ends on. */
-// `cut`: the opener's first turn one action short (FIRST_TURN_CUT, every
-// game's now); 0 plays a first turn at full length, as a game from before
-// the rule did (its code has no cut, and replays as it was played).
+// `cut`: the Short First Turn law on (the opener's first turn one action
+// short); 0 leaves it off, a first turn at full length, as a game from
+// before the law (its code lists no such law, and replays as it was played).
 function randomGame(seed, laws, maxTurns = 40, cut = FIRST_TURN_CUT) {
   const r = rng(seed);
+  laws = { ...laws, shortFirstTurn: cut > 0 };
   setActiveLaws({ ...VANILLA_LAWS, ...laws });
   const start = createInitialPieces();
   let board = start.map((p) => ({ ...p }));
@@ -86,7 +87,7 @@ function randomGame(seed, laws, maxTurns = 40, cut = FIRST_TURN_CUT) {
   }
   setFirstTurnShort(false);
   const { rows, cols } = getBoardDimensions();
-  const rec = { rows, cols, laws: { ...VANILLA_LAWS, ...laws }, holes: [], missing: [], start, opener, turns, winner, cut };
+  const rec = { rows, cols, laws: { ...VANILLA_LAWS, ...laws }, holes: [], missing: [], start, opener, turns, winner };
   setActiveLaws({ ...VANILLA_LAWS });
   return { rec, board, player, winner };
 }
@@ -130,13 +131,14 @@ const LAW_SETS = [
 
 console.log("the opener's first turn");
 {
-  // Every record's first turn is one action short; a record from before
-  // the rule (no cut in its code) played a full first turn and replays so.
+  // Under the law a record's first turn is one action short and its code
+  // lists the law; a record without it played a full first turn and
+  // replays so.
   const cutGames = [];
   for (let seed = 101; seed <= 110; seed++) cutGames.push(randomGame(seed, LAW_SETS[seed % LAW_SETS.length]));
   const firstShort = cutGames.every((g) => g.rec.turns.length && g.rec.turns[0].reduce((n, s) => n + (s.dir.startsWith("slide-") ? 2 : 1), 0) <= (g.rec.laws.threeActions ? 2 : 1));
   check("a record's first turn spends one action fewer (ten games)", firstShort);
-  check("...and its code says so (k: 1)", cutGames.every((g) => JSON.parse(Buffer.from(encodeReplay(g.rec).slice(REPLAY_TAG.length).replace(/-/g, "+").replace(/_/g, "/"), "base64").toString()).k === 1));
+  check("...and its code lists the law", cutGames.every((g) => JSON.parse(Buffer.from(encodeReplay(g.rec).slice(REPLAY_TAG.length).replace(/-/g, "+").replace(/_/g, "/"), "base64").toString()).l.includes("shortFirstTurn")));
   check("...and replays by the rules", cutGames.every((g) => checkReplay(decodeReplay(encodeReplay(g.rec))).ok));
   let oldOk = true, oldTwo = 0;
   for (let seed = 201; seed <= 220; seed++) {
@@ -144,13 +146,13 @@ console.log("the opener's first turn");
     const first = g.rec.turns[0] || [];
     if (first.length >= 2) oldTwo++;
     const code = encodeReplay(g.rec);
-    if (/"k"/.test(Buffer.from(code.slice(REPLAY_TAG.length).replace(/-/g, "+").replace(/_/g, "/"), "base64").toString())) oldOk = false;
+    if (/shortFirstTurn/.test(Buffer.from(code.slice(REPLAY_TAG.length).replace(/-/g, "+").replace(/_/g, "/"), "base64").toString())) oldOk = false;
     const back = decodeReplay(code);
-    if (!back || back.error || back.cut !== 0 || !checkReplay(back).ok) oldOk = false;
-    // The same first turn under the rule: a two-action first turn doesn't fit.
-    if (first.length >= 2 && checkReplay({ ...back, cut: 1 }).ok) oldOk = false;
+    if (!back || back.error || back.laws.shortFirstTurn !== false || !checkReplay(back).ok) oldOk = false;
+    // The same first turn under the law: a two-action first turn doesn't fit.
+    if (first.length >= 2 && checkReplay({ ...back, laws: { ...back.laws, shortFirstTurn: true } }).ok) oldOk = false;
   }
-  check(`a code without the cut replays its full first turn, and the same turn under the rule doesn't fit (${oldTwo} two-action openings of 20)`, oldOk && oldTwo > 0);
+  check(`a code without the law replays its full first turn, and the same turn under the law doesn't fit (${oldTwo} two-action openings of 20)`, oldOk && oldTwo > 0);
 }
 
 console.log("codes");

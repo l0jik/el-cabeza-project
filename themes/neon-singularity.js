@@ -561,6 +561,7 @@ const LAWS_ITEMS = [
   { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
   { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Hombro, Cruce, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 action." },
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 actions per turn instead of 2." },
+  { key: "shortFirstTurn", label: "Short First Turn", blurb: "The side that opens has one action fewer on its first turn of the game, to blunt the first strike." },
   { key: "shoving", label: "Shoving", blurb: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal Slide. Anything behind them blocks. Costs 1 extra action. Choose whether rolls shove too, or only slides, and whether a shove may push your own pieces." },
 ];
 

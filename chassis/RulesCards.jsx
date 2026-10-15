@@ -41,6 +41,7 @@ export const LAW_TEXT = {
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 actions instead of 2." },
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 actions can be shared between up to three pieces in one turn, one action each." },
   shoving: { name: "Shoving", text: "A piece rolling or sliding into pieces with fewer cubes than it, all together, pushes them along, for 1 extra action. A slide pushes them one square; a roll pushes them just past where it lands. Never diagonally, even with Diagonal Slide. Nothing may be behind them." },
+  shortFirstTurn: { name: "Short First Turn", text: "The side that opens has one action fewer on its first turn of the game, to blunt the first strike." },
 };
 // Shoving as this game plays it: its settings (chassis/shove-settings.js)
 // say whether rolls shove too (ACTIVE_LAWS.shoveOnRolls, on unless set to
@@ -86,7 +87,6 @@ function QuickCard({ C, budget }) {
     ["Win", <>Get your <b>Cabeza</b> to the far row, or crush the enemy Cabeza by landing a block on it.</>],
     ["Must", <><b>Move at least 1 piece, 1 time.</b> Skipping your turn is not allowed.</>],
     ["Turn", <>Spend up to <b>{budget} actions</b> <Dots n={budget} C={C} /> on one piece. You can stop after one move: hold the piece you moved, or press End turn.</>],
-    ["First", <>The side that opens has <b>one action fewer</b> on its first turn of the game.</>],
     ["Blocks", <>Every piece but the Cabeza. Tip over an edge: north, south, east or west. <b>1 action</b> a roll.</>],
     // The Opa is a block with its own cost, so it sits indented under Blocks.
     ["Opa", <>The big cube's move costs <b>2 actions</b>, and it moves once per turn.</>, true],
@@ -126,9 +126,6 @@ function CostsCard({ C, classic }) {
       <div style={{ display: "flex", justifyContent: "space-between", fontFamily: mono, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", border: `1px solid ${C.slateSoft}`, background: C.slateFaint, padding: "8px 10px" }}>
         <span>Actions per turn</span>
         <span>2{!classic && <span style={{ color: C.slate }}> · 3 with 3 Actions</span>}</span>
-      </div>
-      <div style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: "0.06em", color: C.slate, marginTop: -4 }} data-testid="rules-first-turn">
-        The opener's first turn of the game: one action fewer.
       </div>
       <div>
         {rows.map(([name, sub, cost, law]) => (
@@ -515,6 +512,18 @@ function tiles(C) {
       ),
     },
     {
+      key: "shortFirstTurn", law: "shortFirstTurn", title: "Short first turn", cost: null, text: LAW_TEXT.shortFirstTurn.text + " With 2 actions, the opener's first turn is one roll or one step; with 3 Actions, two.",
+      svg: (
+        <>
+          {[40, 60].map((x, i) => (
+            <circle key={x} className={`ec-rc-dot${i}`} cx={x} cy="30" r="7" fill={ink} />
+          ))}
+          <circle cx="80" cy="30" r="7" fill="none" stroke={ink} strokeWidth="1.2" strokeDasharray="3 2" opacity=".6" />
+          <text x="60" y="52" fontFamily={mono} fontSize="6" fill={glow} textAnchor="middle">FIRST TURN</text>
+        </>
+      ),
+    },
+    {
       key: "missing", title: "Missing squares", cost: null, text: "A topology option: nothing can stand on a missing square, though an overhang may reach over one. A piece can't move onto it.",
       svg: (
         <>
@@ -670,7 +679,6 @@ function TurnCard({ C, budget, classic }) {
       : <>Spend your actions <Dots n={budget} C={C} /> on its moves: a roll or Cabeza step is 1, a slide or any Opa move is 2, a pivot 1, a shove 1 more.</>,
     <>Changed your mind? Moving back to where you were this turn gives the actions back.</>,
     <>The turn ends when the actions run out, when nothing left can use them, or when you stop early after your first move: hold the piece you moved, or press End turn.</>,
-    <>The side that opens the game has <b>one action fewer</b> on its first turn, to blunt the first strike.</>,
   ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

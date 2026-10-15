@@ -42,6 +42,7 @@ export function gameRules(pieces = [], missing = [], holes = []) {
   if (A.cantileverPivot) laws.push({ key: "cantileverPivot", name: "Cantilever pivot" });
   if (A.splitMovement) laws.push({ key: A.splitThree ? "splitThree" : "splitMovement", name: "Split movement", sets: [["Pieces", A.splitThree ? "Up to 3" : "Up to 2"], ["Actions", A.splitThree || A.threeActions ? "3 a turn" : "2 a turn"]] });
   else if (A.threeActions) laws.push({ key: "threeActions", name: "3 actions per turn" });
+  if (A.shortFirstTurn) laws.push({ key: "shortFirstTurn", name: "Short first turn" });
 
   const most = {};
   for (const owner of ["light", "dark"]) {

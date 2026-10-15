@@ -979,17 +979,18 @@ function recordHistory(history, turn, depth) {
    depths) and threaded through every recursive call — `ply` counts UP
    from the root (0) precisely so killers stay ply-indexed rather than
    remaining-depth-indexed, since `depth` counts down instead. */
-export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, deadline, rootBias = null, weights = DEFAULT_EVAL_WEIGHTS, killers = EMPTY_KILLERS, history = EMPTY_HISTORY, ply = 0, rootFirst = null, rootCut = 0) {
+export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, deadline, rootBias = null, weights = DEFAULT_EVAL_WEIGHTS, killers = EMPTY_KILLERS, history = EMPTY_HISTORY, ply = 0, rootFirst = null, openingTurn = false) {
   if (performance.now() > deadline) {
     return { score: evaluatePosition(pieces, aiPlayer, weights, player), turn: null, timedOut: true };
   }
 
-  /* The opener's short first turn (constants.js FIRST_TURN_SHORT): the
-     AI's own first turn as the opener is cut at the root only. Every
-     ply below it, the replies and the turns after, is a full turn, so
-     the cut is on just while the root's turns are generated. */
+  /* The AI opening the game (constants.js FIRST_TURN_SHORT; under the
+     Short First Turn law its first turn is one action short): the root's
+     turns are generated as the game's first turn. Every ply below it, the
+     replies and the turns after, is a full turn, so the mark is on just
+     while the root's turns are generated. */
   let turns;
-  if (ply === 0 && rootCut) {
+  if (ply === 0 && openingTurn) {
     setFirstTurnShort(true);
     try { turns = generateTurns(pieces, player); } finally { setFirstTurnShort(false); }
   } else {
@@ -1463,10 +1464,10 @@ function yieldToEventLoop() {
 export const lastSearchInfo = { depth: 0, depthMs: [], partial: false };
 
 
-/* The search itself (findBestAiTurn below wraps it). `firstTurnCut` is
-   the AI's own short first turn as the opener: the root's turns are
-   generated that much short (minimaxSearch's rootCut), everything below
-   the root at full length. */
+/* The search itself (findBestAiTurn below wraps it). `openingTurn`: the
+   AI is playing the game's first turn, so the root's turns are generated
+   as one (minimaxSearch; one action short under the Short First Turn
+   law), everything below the root at full length. */
 async function searchBestTurn(
   pieces,
   aiPlayer,
@@ -1489,7 +1490,7 @@ async function searchBestTurn(
     verifyReplies = false,
     forcedCrush = false,
     threatBonus = 25,
-    firstTurnCut = 0,
+    openingTurn = false,
   },
   cabezaStreak = 0,
   turnIndex = 0,
@@ -1539,7 +1540,7 @@ async function searchBestTurn(
     if (performance.now() > deadline) break;
     if (depth > 1) await yieldToEventLoop(); // let a frame render between depths — see the function comment above
     const depthStart = performance.now();
-    const result = minimaxSearch(working, aiPlayer, aiPlayer, depth, -Infinity, Infinity, deadline, rootBias, weights, killers, history, 0, best && moveKey(best), firstTurnCut);
+    const result = minimaxSearch(working, aiPlayer, aiPlayer, depth, -Infinity, Infinity, deadline, rootBias, weights, killers, history, 0, best && moveKey(best), openingTurn);
     /* A depth that runs out of time is not all lost. It searches the last
        depth's choice first, to the end, so every other root turn whose
        search also finished and scored higher is a better choice at this
@@ -1605,11 +1606,11 @@ async function searchBestTurn(
   return out;
 }
 
-/* The search runs with the opener's cut off (the chassis sets
+/* The search runs with the first-turn mark off (the chassis sets
    FIRST_TURN_SHORT while the live first turn is played; a search reads
-   replies and later turns, which are full), and the AI's own short first
-   turn comes in through its config as `firstTurnCut`, applied at the root
-   alone. The flag is put back as it was found. */
+   replies and later turns, which are full), and the AI's own opening turn
+   comes in through its config as `openingTurn`, marked at the root alone.
+   The mark is put back as it was found. */
 export async function findBestAiTurn(pieces, aiPlayer, config, cabezaStreak = 0, turnIndex = 0, pieceStreaks = null, recentPlaces = null) {
   const was = FIRST_TURN_SHORT;
   setFirstTurnShort(false);

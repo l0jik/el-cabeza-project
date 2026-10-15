@@ -65,6 +65,8 @@ export const LAW_OPTIONS = [
   // (User: a three-piece limit as its own choice; one or the other of the
   // two Split movements, and it brings 3 actions, a point a piece.)
   { key: "splitThree", name: "Split movement, 3 pieces", note: "Spend a turn's 3 actions on up to three pieces, one action each. Brings 3 actions per turn." },
+  // (User: the first player's handicap, not standard Cabeza's, as a toggle.)
+  { key: "shortFirstTurn", name: "Short first turn", note: "The side that opens has one action fewer on its first turn of the game, to blunt the first strike." },
 ];
 // Shoving's settings, the chassis's (chassis/shove-settings.js): which
 // moves shove (with slides only, a roll into a piece is simply blocked),

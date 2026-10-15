@@ -110,39 +110,48 @@ if (turnBudget() !== 3) throw new Error("Split Movement + 3 Actions is a 3-point
 if (MAX_PIECES_PER_TURN !== 2) throw new Error("At most two pieces may move in a turn");
 console.log("[split] bank 2/3 and 2-piece cap OK");
 
-// ---- The opener's short first turn ----
-// A rule of every game (constants.js FIRST_TURN_SHORT): while the first
-// player's first turn is played, every budget is one action short: the
-// bank, each piece's own, and so an Opa (whose move costs two) can't move
-// at all. The computer's search takes the cut at its root only, and
-// leaves the flag as it found it.
-setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
+// ---- The Short First Turn law ----
+// Off (the standard game), the game's first turn is a turn like any
+// other. On, while the first player's first turn is played (constants.js
+// FIRST_TURN_SHORT marks it), every budget is one action short: the bank,
+// each piece's own, and so an Opa (whose move costs two) can't move at
+// all. The computer's search takes it at its root only, and leaves the
+// mark as it found it.
+setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false, shortFirstTurn: false });
 if (FIRST_TURN_CUT !== 1) throw new Error("The opener's first turn is one action short");
 setFirstTurnShort(true);
+if (turnBudget() !== 2 || maxStepsFor("turrito") !== 2) throw new Error("With the law off, the first turn is whole");
+if (!generateTurns(createInitialPieces(), "dark").some((t) => t.dirs.length === 2)) throw new Error("...with two-action turns");
+setActiveLaws({ shortFirstTurn: true });
 if (turnBudget() !== 1 || maxStepsFor("turrito") !== 1 || maxStepsFor("cabeza") !== 1) throw new Error("A short first turn is one action");
 if (Object.keys(legalMovesFor(createInitialPieces(), createInitialPieces().find((p) => p.id === "dark-opa"), maxStepsFor("opa"))).length !== 0) throw new Error("An Opa can't move in a one-action turn");
-setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: true });
+if (generateTurns(createInitialPieces(), "dark").some((t) => t.dirs.length !== 1)) throw new Error("Every first turn under the law is one action");
+setActiveLaws({ threeActions: true });
 if (turnBudget() !== 2 || maxStepsFor("flaco") !== 2) throw new Error("With 3 Actions the short first turn is two");
-setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false });
+setActiveLaws({ threeActions: false });
 setFirstTurnShort(false);
-if (turnBudget() !== 2 || maxStepsFor("turrito") !== 2) throw new Error("Off, the budget is whole again");
+if (turnBudget() !== 2 || maxStepsFor("turrito") !== 2) throw new Error("After the first turn the budget is whole again, the law on");
 {
-  const plans = [];
   for (let i = 0; i < 4; i++) {
-    const plan = await findBestAiTurn(createInitialPieces(), "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150, jitter: 3, openingJitter: 3, firstTurnCut: 1 }, 0, 0);
-    if (!plan || (plan.steps ? plan.steps.length : plan.dirs.length) !== 1) throw new Error("The computer opening with the cut plays one action: " + JSON.stringify(plan));
-    plans.push(plan);
+    const plan = await findBestAiTurn(createInitialPieces(), "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150, jitter: 3, openingJitter: 3, openingTurn: true }, 0, 0);
+    if (!plan || (plan.steps ? plan.steps.length : plan.dirs.length) !== 1) throw new Error("The computer opening under the law plays one action: " + JSON.stringify(plan));
   }
-  if (FIRST_TURN_SHORT) throw new Error("The search leaves the first-turn flag as it found it");
+  if (FIRST_TURN_SHORT) throw new Error("The search leaves the first-turn mark as it found it");
   setFirstTurnShort(true);
   const plan = await findBestAiTurn(createInitialPieces(), "light", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150 }, 0, 1);
   if (!FIRST_TURN_SHORT) throw new Error("...and puts it back when it was on");
   setFirstTurnShort(false);
-  if (!plan) throw new Error("the search still answers with the flag on outside it");
-  const turns = generateTurns(createInitialPieces(), "dark");
-  if (!turns.some((t) => t.dirs.length === 2)) throw new Error("Without the cut the opening has two-action turns");
+  if (!plan) throw new Error("the search still answers with the mark on outside it");
+  setActiveLaws({ shortFirstTurn: false });
+  let two = false;
+  for (let i = 0; i < 6 && !two; i++) {
+    const p = await findBestAiTurn(createInitialPieces(), "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150, jitter: 3, openingJitter: 3, openingTurn: true }, 0, 0);
+    two = !!p && (p.steps ? p.steps.length : p.dirs.length) === 2;
+  }
+  if (!two) throw new Error("With the law off the computer's opening turn may use both actions");
 }
-console.log("[first turn] one action short for the opener, the search's root alone OK");
+setActiveLaws({ shortFirstTurn: false });
+console.log("[first turn] the Short First Turn law: one action short for the opener, the search's root alone OK");
 
 // turnContinues is the single "is there another move?" rule the live game
 // and AI both defer to. Board: an Opa plus a Turrito (both Dark) with the

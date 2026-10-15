@@ -17,9 +17,6 @@
        m: [[row, col], ...],      missing squares
        p: [[id, type, owner, row, col, w, h, z, vox?], ...]   the start
        f: "d" | "l",              who opened
-       k: 1,                      the opener's first turn one action short
-                                  (absent in a code from before the rule:
-                                  its first turn replays at full length)
        t: ["3N.3E", "7S", ...],   each turn: steps "<piece index><move key>"
        r: "d" | "l" }             the winner, when the game was won
 
@@ -39,7 +36,7 @@ import {
   ACTIVE_LAWS, setActiveLaws, BLACK_HOLES, setBlackHoles, MISSING_SQUARES, setMissingSquares,
   getBoardDimensions, setBoardDimensions, PIECE_META, GOAL_ROW, maxStepsFor, turnBudget, moveCost,
   maxPiecesPerTurn, isSlideKey, isPivotKey, baseDirOfSlideKey,
-  FIRST_TURN_CUT, FIRST_TURN_SHORT, setFirstTurnShort,
+  FIRST_TURN_SHORT, setFirstTurnShort,
 } from "./constants.js";
 import { legalMovesFor, applyShoves, turnContinues, initialPiecesFor, sameState } from "./rules.js";
 
@@ -49,6 +46,9 @@ export const REPLAY_TAG = "ECR1.";
 export const VANILLA_LAWS = {
   splitMovement: false, splitThree: false, slide: false, diagonalSlide: false, blackHoleSquares: false,
   cantileverPivot: false, threeActions: false, shoving: false, shoveOnRolls: true, shoveOwn: true,
+  // (Short First Turn travels in the code's law list like any law; a code
+  // from before it has none, and its first turn replays at full length.)
+  shortFirstTurn: false,
 };
 const LAW_KEYS = Object.keys(VANILLA_LAWS).filter((k) => k !== "shoveOnRolls" && k !== "shoveOwn");
 
@@ -79,9 +79,6 @@ export function gameRecord({ turnHistory, pieces, currentPlayer, status, winner 
     missing: (MISSING_SQUARES || []).map((c) => ({ row: c.row, col: c.col })),
     start: (first ? first.pieces : pieces).map((p) => ({ ...p })),
     opener: first ? first.currentPlayer : currentPlayer,
-    // The opener's first turn was one action short (constants.js
-    // FIRST_TURN_CUT), as every game's is now.
-    cut: FIRST_TURN_CUT,
     turns: turnHistory.map((h) =>
       (h.steps && h.steps.length ? h.steps : (h.dirs || []).map((dir) => ({ pieceId: h.pieceId, dir }))).map((s) => ({ pieceId: s.pieceId, dir: s.dir }))
     ),
@@ -101,7 +98,6 @@ export function encodeReplay(rec) {
     m: (rec.missing || []).map((c) => [c.row, c.col]),
     p: rec.start.map((p) => [p.id, p.type, p.owner, p.row, p.col, p.w, p.h, p.z, ...(p.vox ? [p.vox] : [])]),
     f: rec.opener === "light" ? "l" : "d",
-    ...(rec.cut ? { k: rec.cut } : {}),
     t: rec.turns.map((steps) => steps.map((s) => `${index.get(s.pieceId)}${s.dir}`).join(".")),
     ...(rec.winner ? { r: rec.winner === "light" ? "l" : "d" } : {}),
   };
@@ -152,8 +148,6 @@ function recordOf(json) {
     holes: (Array.isArray(json.h) ? json.h : []).filter(isCell).map(([row, col]) => ({ row, col })),
     missing: (Array.isArray(json.m) ? json.m : []).filter(isCell).map(([row, col]) => ({ row, col })),
     start, opener, turns,
-    // (Only a cut of one is a rule of the game; anything else reads as none.)
-    cut: json.k === 1 ? 1 : 0,
     winner: side(json.r),
   };
 }
@@ -287,8 +281,8 @@ export function checkReplay(rec) {
     for (let t = 0; t < rec.turns.length; t++) {
       const fail = (error, step = 0) => ({ ok: false, bad: t, step, error, valid: t, turns: rec.turns.length, final: { pieces: board, player, won } });
       if (won) return fail("a move after the game was won");
-      // The opener's first turn, one action short when the record says so.
-      setFirstTurnShort(t === 0 && !!rec.cut);
+      // The opener's first turn (one action short under the Short First Turn law).
+      setFirstTurnShort(t === 0);
       const r = playTurn(board, player, rec.turns[t]);
       setFirstTurnShort(false);
       if (r.error) return fail(r.error, r.step);

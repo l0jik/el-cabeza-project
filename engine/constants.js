@@ -333,6 +333,11 @@ export let ACTIVE_LAWS = {
   // its way (the default), or only the other side's (a move into one of
   // your own is blocked, as without the law). chassis/shove-settings.js.
   shoveOwn: true,
+  // Short First Turn LAW: the side that opens has one action fewer on its
+  // first turn of the game (user: in standard Cabeza there is no
+  // handicapping the first player, but it should be toggleable). See
+  // FIRST_TURN_SHORT below for how the turn itself is marked.
+  shortFirstTurn: false,
 };
 
 export function setActiveLaws(partial) {
@@ -386,15 +391,17 @@ export function maxStepsFor(type) {
   return Math.max(1, (ACTIVE_LAWS.threeActions ? base + 1 : base) - firstTurnCut());
 }
 
-/* The opener's first turn is one action short. A rule of the whole game,
-   not a law: over computer games on the big board with every law on, the
-   side that struck first with a full turn won three games in four, so the
-   first strike is blunted (as komi evens Go). FIRST_TURN_SHORT is set by
-   whoever is driving a game while the first player's first turn is being
-   played (the chassis, with nothing settled yet; the replay check on a
-   record's first turn; the AI at the root of its search when it opens),
-   and read by maxStepsFor/turnBudget, so every budget read in the engine
-   and the chassis follows it. The same mutable-module-state pattern as
+/* The Short First Turn LAW (ACTIVE_LAWS.shortFirstTurn): the opener's
+   first turn is one action short. Measured over computer games on the big
+   board with every law on, the side that struck first with a full turn
+   won three games in four, so the law blunts the first strike (as komi
+   evens Go); the standard game has no handicap, so it is off unless
+   chosen. FIRST_TURN_SHORT marks the turn: set by whoever is driving a
+   game while the first player's first turn is being played (the chassis,
+   with nothing settled yet; the replay check on a record's first turn;
+   the AI at the root of its search when it opens), and read with the law
+   by maxStepsFor/turnBudget, so every budget read in the engine and the
+   chassis follows it. The same mutable-module-state pattern as
    ACTIVE_LAWS: a Worker's own copy is set by its own request. */
 export const FIRST_TURN_CUT = 1;
 export let FIRST_TURN_SHORT = false;
@@ -402,7 +409,7 @@ export function setFirstTurnShort(on) {
   FIRST_TURN_SHORT = !!on;
   return FIRST_TURN_SHORT;
 }
-const firstTurnCut = () => (FIRST_TURN_SHORT ? FIRST_TURN_CUT : 0);
+const firstTurnCut = () => (ACTIVE_LAWS.shortFirstTurn && FIRST_TURN_SHORT ? FIRST_TURN_CUT : 0);
 /* Runs fn with the cut off and puts it back: for a read of the OTHER
    side's reach (a crush threat, a set-out's safety) and for a search
    below its root, which are full turns whoever is opening. */

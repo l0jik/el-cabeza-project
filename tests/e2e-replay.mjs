@@ -34,7 +34,7 @@ function planGame(seed, laws, turnsWanted, opener = "dark") {
   let player = opener;
   const turns = [];
   for (let t = 0; t < turnsWanted; t++) {
-    setFirstTurnShort(t === 0); // the opener's first turn is one action short
+    setFirstTurnShort(t === 0); // the game's first turn (one action short under the Short First Turn law, on below)
     const trail = [board];
     let used = 0, selected = null, moved = [], tb = board, over = false;
     const steps = [];
@@ -77,7 +77,7 @@ function planGame(seed, laws, turnsWanted, opener = "dark") {
   return { turns, board };
 }
 
-const LAWS = { splitMovement: true, threeActions: true, slide: true };
+const LAWS = { splitMovement: true, threeActions: true, slide: true, shortFirstTurn: true };
 const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
 const errs = [];
 page.on("pageerror", (e) => errs.push(e.message));
