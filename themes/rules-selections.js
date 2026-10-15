@@ -65,8 +65,9 @@ export const LAW_OPTIONS = [
   // (User: a three-piece limit as its own choice; one or the other of the
   // two Split movements, and it brings 3 actions, a point a piece.)
   { key: "splitThree", name: "Split movement, 3 pieces", note: "Spend a turn's 3 actions on up to three pieces, one action each. Brings 3 actions per turn." },
-  // (User: the first player's handicap, not standard Cabeza's, as a toggle.)
-  { key: "shortFirstTurn", name: "Short first turn", note: "The side that opens has one action fewer on its first turn of the game, to blunt the first strike." },
+  // (User: the first player's handicap, not standard Cabeza's, as a toggle,
+  // on by default for anything other than the standard game: `def`.)
+  { key: "shortFirstTurn", name: "Short first turn", def: true, note: "The side that opens has one action fewer on its first turn of the game, to blunt the first strike. On unless you turn it off; the standard game has no handicap." },
 ];
 // Shoving's settings, the chassis's (chassis/shove-settings.js): which
 // moves shove (with slides only, a roll into a piece is simply blocked),
@@ -98,7 +99,7 @@ export function defaultSelections() {
   const counts = {};
   PIECE_OPTIONS.forEach((p) => { counts[p.key] = p.def; });
   const laws = {};
-  LAW_OPTIONS.forEach((l) => { laws[l.key] = false; });
+  LAW_OPTIONS.forEach((l) => { laws[l.key] = !!l.def; });
   return {
     counts, laws, shove: { ...DEFAULT_SHOVE },
     rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM,
@@ -125,7 +126,8 @@ export function normalizeSelections(sel) {
     out.counts[p.key] = Math.max(p.min, Math.min(p.max, Math.round(v)));
   });
   out.laws = { ...d.laws };
-  LAW_OPTIONS.forEach((l) => { out.laws[l.key] = !!(sel.laws && sel.laws[l.key]); });
+  // (A law a save doesn't know of keeps its default: Short first turn is on unless turned off.)
+  LAW_OPTIONS.forEach((l) => { out.laws[l.key] = sel.laws && typeof sel.laws[l.key] === "boolean" ? sel.laws[l.key] : !!l.def; });
   // (One Split movement at a time: three pieces wins.)
   if (out.laws.splitThree) out.laws.splitMovement = false;
   // Which moves shove (a save from before the setting came back has none:
