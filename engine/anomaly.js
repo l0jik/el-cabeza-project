@@ -7,7 +7,7 @@
    generateAnomalySetup places Dark's pieces at random in its two home
    rows and mirrors them through the board's centre for Light. */
 
-import { BOARD_ROWS, BOARD_COLS } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, withFullTurn } from "./constants.js";
 import { createInitialPieces } from "./rules.js";
 import { mirrorVox } from "./shapes.js";
 import { cabezaInDanger } from "./ai.js";
@@ -277,7 +277,8 @@ export function generateAnomalySetup(roster, blocked = []) {
      so one side's check covers both. Checked under the laws in force, so
      callers set the laws first. If no shuffle comes out safe, the first
      one that fits is still used. */
-  const safe = (pieces) => !pieces.some((p) => p.type === "cabeza" && p.owner === "light") || !cabezaInDanger(pieces, "light");
+  // (Read with a full turn: the second player's first turn is one, and by the mirror its reach is the opener's.)
+  const safe = (pieces) => !pieces.some((p) => p.type === "cabeza" && p.owner === "light") || !withFullTurn(() => cabezaInDanger(pieces, "light"));
   let fallback = null;
   for (let attempt = 0; attempt < 300; attempt++) {
     const occupied = new Set(blockedKeys);

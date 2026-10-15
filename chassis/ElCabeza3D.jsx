@@ -9,7 +9,7 @@ import {
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, setBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
   isSlideKey, slideKey, baseDirOfSlideKey, isPivotKey, pivotTurnOfKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
   MISSING_SQUARES, setMissingSquares as setActiveMissingSquares,
-  turnBudget, maxPiecesPerTurn,
+  turnBudget, maxPiecesPerTurn, FIRST_TURN_CUT, setFirstTurnShort, withFullTurn,
 } from "../engine/constants.js";
 import {
   createInitialPieces, rollBlock, legalMovesFor, pairLog, sameState, turnContinues, applyShoves, blockedDiagonalShoves,
@@ -893,6 +893,17 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const replaying = !!replay;
   const replayingRef = useRef(false);
   replayingRef.current = replaying;
+  /* The opener's first turn is one action short (engine/constants.js,
+     FIRST_TURN_SHORT; a rule of every game, not a law). While the first
+     player's first turn is being played, nothing settled yet, every
+     budget read here (the dots, a second move, a hand-over, the hold)
+     sees the shorter turn. A replayed record says whether its own first
+     turn was short (one from before the rule wasn't). Set as the render
+     reads it, so the handlers and effects that follow agree with what's
+     on screen; the computer's own search gets it through its config
+     (firstTurnCut), at its root alone. */
+  const firstTurnCut = status === "playing" && turnHistory.length === 0 ? (replay && replay.rec ? (replay.rec.cut || 0) : FIRST_TURN_CUT) : 0;
+  setFirstTurnShort(firstTurnCut > 0);
   // Its speeds (user: "a slowdown feature, like 0.75, 0.5"): the moves
   // themselves at that rate (the render loop's step), not only the pauses
   // between them.
@@ -3033,7 +3044,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const checkThreats = React.useMemo(() => {
     // (Not while a replay plays: nobody's playing for real.)
     if (!checkAlert || !youSide || awaitingBegin || !isPlaying || winner || currentPlayer !== youSide || replaying) return null;
-    const found = cabezaThreats(pieces, youSide);
+    const found = withFullTurn(() => cabezaThreats(pieces, youSide));
     return found.length ? found : null;
   }, [checkAlert, youSide, awaitingBegin, isPlaying, winner, currentPlayer, pieces, replaying]);
   if (typeof window !== "undefined" && window.__EC_TEST_HOOKS__) window.__EC_TEST_CHECK__ = () => checkThreats; // tests: the alert's reading
@@ -3928,7 +3939,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (!r.ok) {
       setOutCue("playBlocked");
       const danger = r.reason === "danger"
-        ? [...new Set(["dark", "light"].flatMap((side) => cabezaThreats(s.so.pieces, side).flatMap((x) => [x.cabeza, x.attacker])))]
+        ? [...new Set(["dark", "light"].flatMap((side) => withFullTurn(() => cabezaThreats(s.so.pieces, side)).flatMap((x) => [x.cabeza, x.attacker])))]
         : null;
       commitSetOut({ ...s, chosen: r.reason === "bench" ? s.so.bench[0].id : null, note: { kind: r.reason }, danger });
       setSetOutAim(null);
@@ -4207,7 +4218,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      it may still take them; else none. */
   const checkView = React.useMemo(() => {
     if (!checkThreats || checkHidden) return null;
-    const lines = checkThreats.map(({ attacker, cabeza }) => ({ attacker, cabeza, steps: crushLine(pieces, attacker, cabeza) })).filter((l) => l.steps && l.steps.length);
+    const lines = checkThreats.map(({ attacker, cabeza }) => ({ attacker, cabeza, steps: withFullTurn(() => crushLine(pieces, attacker, cabeza)) })).filter((l) => l.steps && l.steps.length);
     const cabIds = [...new Set(checkThreats.map((x) => x.cabeza))];
     const escapes = cabIds.flatMap((id) => {
       const cab = pieces.find((q) => q.id === id);
@@ -4215,7 +4226,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       const left = !turnLocked ? maxStepsFor(cab.type)
         : selectedId === cab.id ? maxStepsFor(cab.type) - stepsUsed
         : ACTIVE_LAWS.splitMovement && canTakeSplitPoints(cab) ? turnBudget() - stepsUsed : 0;
-      return cabezaEscapes(pieces, id, left);
+      // (`left` is this turn's own, cut or not; the squares' safety is read against a full reply.)
+      return withFullTurn(() => cabezaEscapes(pieces, id, left));
     });
     return { lines, escapes, cabIds };
   }, [checkThreats, checkHidden, pieces, turnLocked, selectedId, stepsUsed]);
@@ -6745,7 +6757,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       // computer ending with your Cabeza in its reach waits, the alert up,
       // set as it would be mid-turn so Take back (handleUndoTurn) and Hold
       // to end (handleStopHere) find the turn's steps.
-      if (checkAlert && foeSide && currentPlayer !== foeSide && !replayingRef.current && cabezaThreats(nextPieces, currentPlayer).length) {
+      if (checkAlert && foeSide && currentPlayer !== foeSide && !replayingRef.current && withFullTurn(() => cabezaThreats(nextPieces, currentPlayer)).length) {
         setMovedPieceIds(movedAfter);
         setPendingSteps(stepsNext);
         setSelectedId(piece.id);
@@ -7208,7 +7220,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         const args = [
           pieces,
           aiPlayer,
-          AI_DIFFICULTY[aiDifficulty],
+          // Its own first turn as the opener is one action short (firstTurnCut, at the root of its search).
+          { ...AI_DIFFICULTY[aiDifficulty], firstTurnCut },
           aiCabezaStreakRef.current,
           log.length, // turns played so far — drives the opening jitter boost
           aiPieceStreaksRef.current,

@@ -17,6 +17,9 @@
        m: [[row, col], ...],      missing squares
        p: [[id, type, owner, row, col, w, h, z, vox?], ...]   the start
        f: "d" | "l",              who opened
+       k: 1,                      the opener's first turn one action short
+                                  (absent in a code from before the rule:
+                                  its first turn replays at full length)
        t: ["3N.3E", "7S", ...],   each turn: steps "<piece index><move key>"
        r: "d" | "l" }             the winner, when the game was won
 
@@ -36,6 +39,7 @@ import {
   ACTIVE_LAWS, setActiveLaws, BLACK_HOLES, setBlackHoles, MISSING_SQUARES, setMissingSquares,
   getBoardDimensions, setBoardDimensions, PIECE_META, GOAL_ROW, maxStepsFor, turnBudget, moveCost,
   maxPiecesPerTurn, isSlideKey, isPivotKey, baseDirOfSlideKey,
+  FIRST_TURN_CUT, FIRST_TURN_SHORT, setFirstTurnShort,
 } from "./constants.js";
 import { legalMovesFor, applyShoves, turnContinues, initialPiecesFor, sameState } from "./rules.js";
 
@@ -75,6 +79,9 @@ export function gameRecord({ turnHistory, pieces, currentPlayer, status, winner 
     missing: (MISSING_SQUARES || []).map((c) => ({ row: c.row, col: c.col })),
     start: (first ? first.pieces : pieces).map((p) => ({ ...p })),
     opener: first ? first.currentPlayer : currentPlayer,
+    // The opener's first turn was one action short (constants.js
+    // FIRST_TURN_CUT), as every game's is now.
+    cut: FIRST_TURN_CUT,
     turns: turnHistory.map((h) =>
       (h.steps && h.steps.length ? h.steps : (h.dirs || []).map((dir) => ({ pieceId: h.pieceId, dir }))).map((s) => ({ pieceId: s.pieceId, dir: s.dir }))
     ),
@@ -94,6 +101,7 @@ export function encodeReplay(rec) {
     m: (rec.missing || []).map((c) => [c.row, c.col]),
     p: rec.start.map((p) => [p.id, p.type, p.owner, p.row, p.col, p.w, p.h, p.z, ...(p.vox ? [p.vox] : [])]),
     f: rec.opener === "light" ? "l" : "d",
+    ...(rec.cut ? { k: rec.cut } : {}),
     t: rec.turns.map((steps) => steps.map((s) => `${index.get(s.pieceId)}${s.dir}`).join(".")),
     ...(rec.winner ? { r: rec.winner === "light" ? "l" : "d" } : {}),
   };
@@ -144,6 +152,8 @@ function recordOf(json) {
     holes: (Array.isArray(json.h) ? json.h : []).filter(isCell).map(([row, col]) => ({ row, col })),
     missing: (Array.isArray(json.m) ? json.m : []).filter(isCell).map(([row, col]) => ({ row, col })),
     start, opener, turns,
+    // (Only a cut of one is a rule of the game; anything else reads as none.)
+    cut: json.k === 1 ? 1 : 0,
     winner: side(json.r),
   };
 }
@@ -183,18 +193,20 @@ export function decodeReplay(text) {
    holes, missing squares), then puts back whatever was set before: the
    check runs while another game may be on the board. */
 function withSetup(rec, fn) {
-  const before = { dims: getBoardDimensions(), laws: ACTIVE_LAWS, holes: BLACK_HOLES, missing: MISSING_SQUARES };
+  const before = { dims: getBoardDimensions(), laws: ACTIVE_LAWS, holes: BLACK_HOLES, missing: MISSING_SQUARES, short: FIRST_TURN_SHORT };
   try {
     setBoardDimensions(rec.rows, rec.cols);
     setActiveLaws({ ...VANILLA_LAWS, ...rec.laws });
     setBlackHoles(rec.holes);
     setMissingSquares(rec.missing);
+    setFirstTurnShort(false);
     return fn();
   } finally {
     setBoardDimensions(before.dims.rows, before.dims.cols);
     setActiveLaws({ ...VANILLA_LAWS, ...before.laws });
     setBlackHoles(before.holes);
     setMissingSquares(before.missing);
+    setFirstTurnShort(before.short);
   }
 }
 
@@ -275,7 +287,10 @@ export function checkReplay(rec) {
     for (let t = 0; t < rec.turns.length; t++) {
       const fail = (error, step = 0) => ({ ok: false, bad: t, step, error, valid: t, turns: rec.turns.length, final: { pieces: board, player, won } });
       if (won) return fail("a move after the game was won");
+      // The opener's first turn, one action short when the record says so.
+      setFirstTurnShort(t === 0 && !!rec.cut);
       const r = playTurn(board, player, rec.turns[t]);
+      setFirstTurnShort(false);
       if (r.error) return fail(r.error, r.step);
       board = r.board;
       if (r.winner) won = { winner: r.winner, why: r.why };

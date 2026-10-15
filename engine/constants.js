@@ -383,7 +383,33 @@ export function setMissingSquares(list) {
    per-type call sites keep working. */
 export function maxStepsFor(type) {
   const base = PIECE_META[type].maxSteps;
-  return ACTIVE_LAWS.threeActions ? base + 1 : base;
+  return Math.max(1, (ACTIVE_LAWS.threeActions ? base + 1 : base) - firstTurnCut());
+}
+
+/* The opener's first turn is one action short. A rule of the whole game,
+   not a law: over computer games on the big board with every law on, the
+   side that struck first with a full turn won three games in four, so the
+   first strike is blunted (as komi evens Go). FIRST_TURN_SHORT is set by
+   whoever is driving a game while the first player's first turn is being
+   played (the chassis, with nothing settled yet; the replay check on a
+   record's first turn; the AI at the root of its search when it opens),
+   and read by maxStepsFor/turnBudget, so every budget read in the engine
+   and the chassis follows it. The same mutable-module-state pattern as
+   ACTIVE_LAWS: a Worker's own copy is set by its own request. */
+export const FIRST_TURN_CUT = 1;
+export let FIRST_TURN_SHORT = false;
+export function setFirstTurnShort(on) {
+  FIRST_TURN_SHORT = !!on;
+  return FIRST_TURN_SHORT;
+}
+const firstTurnCut = () => (FIRST_TURN_SHORT ? FIRST_TURN_CUT : 0);
+/* Runs fn with the cut off and puts it back: for a read of the OTHER
+   side's reach (a crush threat, a set-out's safety) and for a search
+   below its root, which are full turns whoever is opening. */
+export function withFullTurn(fn) {
+  const was = FIRST_TURN_SHORT;
+  FIRST_TURN_SHORT = false;
+  try { return fn(); } finally { FIRST_TURN_SHORT = was; }
 }
 
 /* The whole turn's action-point bank, independent of any one piece: 2 by
@@ -395,7 +421,7 @@ export function maxStepsFor(type) {
    Without Split Movement a turn is always one piece and this is simply that
    piece's budget. */
 export function turnBudget() {
-  return ACTIVE_LAWS.threeActions ? 3 : 2;
+  return Math.max(1, (ACTIVE_LAWS.threeActions ? 3 : 2) - firstTurnCut());
 }
 
 /* The hard ceiling on how many DISTINCT pieces may move in a single turn,

@@ -12,7 +12,7 @@
 import { chromium } from "playwright";
 import { openDockPanel } from "./dock-helpers.mjs";
 import { createInitialPieces, legalMovesFor, applyShoves, turnContinues, sameState, pairLog } from "../engine/rules.js";
-import { setActiveLaws, maxStepsFor, turnBudget, moveCost, maxPiecesPerTurn, GOAL_ROW, ACTIVE_LAWS, PIECE_META } from "../engine/constants.js";
+import { setActiveLaws, maxStepsFor, turnBudget, moveCost, maxPiecesPerTurn, GOAL_ROW, ACTIVE_LAWS, PIECE_META, setFirstTurnShort } from "../engine/constants.js";
 import { VANILLA_LAWS } from "../engine/replay.js";
 
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--allow-file-access-from-files", "--enable-unsafe-swiftshader", "--use-gl=swiftshader"] });
@@ -34,6 +34,7 @@ function planGame(seed, laws, turnsWanted, opener = "dark") {
   let player = opener;
   const turns = [];
   for (let t = 0; t < turnsWanted; t++) {
+    setFirstTurnShort(t === 0); // the opener's first turn is one action short
     const trail = [board];
     let used = 0, selected = null, moved = [], tb = board, over = false;
     const steps = [];
@@ -71,6 +72,7 @@ function planGame(seed, laws, turnsWanted, opener = "dark") {
     board = tb;
     player = player === "dark" ? "light" : "dark";
   }
+  setFirstTurnShort(false);
   setActiveLaws({ ...VANILLA_LAWS });
   return { turns, board };
 }

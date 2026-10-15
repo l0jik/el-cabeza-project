@@ -15,7 +15,7 @@
    mirrors are off it too). Pure: each step gives a new set-out. The
    chassis (ElCabeza3D.jsx, the set-out banner) draws and drives it. */
 
-import { BOARD_ROWS, BOARD_COLS, MISSING_SQUARES, BLACK_HOLES } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, MISSING_SQUARES, BLACK_HOLES, withFullTurn } from "./constants.js";
 import { piecesClash, groundCellsOf, maskAt, mirrorVox, parseVox, voxKey } from "./shapes.js";
 import { PIECE_ORIENTATIONS } from "./anomaly.js";
 import { cabezaInDanger } from "./ai.js";
@@ -205,7 +205,7 @@ export function setHalf(so, half) {
 export function readiness(so) {
   if (so.bench.length) return { ok: false, reason: "bench" };
   for (const side of ["dark", "light"]) {
-    if (so.pieces.some((p) => p.type === "cabeza" && p.owner === side) && cabezaInDanger(so.pieces.map(copy), side)) return { ok: false, reason: "danger", side };
+    if (so.pieces.some((p) => p.type === "cabeza" && p.owner === side) && withFullTurn(() => cabezaInDanger(so.pieces.map(copy), side))) return { ok: false, reason: "danger", side };
   }
   return { ok: true, reason: null };
 }
