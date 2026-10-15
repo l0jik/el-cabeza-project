@@ -56,7 +56,10 @@ export const LAW_OPTIONS = [
   // note: along a row or column, not corner to corner.
   { key: "slide", name: "Orthogonal slide", note: "Move a piece one open square along its row or column (not corner to corner) without tipping it. 2 actions (a roll is 1)." },
   { key: "diagonalSlide", name: "Diagonal slide", note: "Move a piece one open square corner to corner without tipping it. 2 actions. On its own, or with Orthogonal slide for all eight ways. Never shoves." },
-  { key: "blackHoleSquares", name: "Black hole squares", note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn." },
+  // (A law to the engine, but a feature of the board to a player, so the
+  // menus set it with the board, under Missing squares, not under Rules,
+  // and All rules leaves it alone, as it does Missing squares: `board`.)
+  { key: "blackHoleSquares", name: "Black hole squares", board: true, note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn." },
   { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 action more. Choose whether rolls shove too, or only slides, and whether a shove may push your own pieces." },
   { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 action." },
   // (3 actions per turn directly above Split movement: user.)
@@ -69,6 +72,9 @@ export const LAW_OPTIONS = [
   // on by default for anything other than the standard game: `def`.)
   { key: "punto", name: "Punto", def: true, note: "The opening ramps up, to blunt the first strike: the opener has one action on the game's first turn, the other side two on the second, then every turn has its full actions (with 2 a turn, only the opener's first turn is short). On unless you turn it off; the standard game has no handicap." },
 ];
+// The laws the menus list under Rules, and the one they set with the board.
+export const RULE_LAWS = LAW_OPTIONS.filter((l) => !l.board);
+export const HOLES_LAW = LAW_OPTIONS.find((l) => l.key === "blackHoleSquares");
 // Shoving's settings, the chassis's (chassis/shove-settings.js): which
 // moves shove (with slides only, a roll into a piece is simply blocked),
 // and which pieces a shove may push, a slide's or a roll's (user: "all
@@ -316,16 +322,17 @@ export function toggleLaw(sel, key) {
    own switch does it, the two Split movements one or the other (whichever
    is on, else three pieces, which brings its 3 actions); off: every law
    off the same way. All on reads true with either Split movement. `toggle`
-   is the menu's own (Neon's sphere keeps its own selections). */
+   is the menu's own (Neon's sphere keeps its own selections). Black hole
+   squares, set with the board, are left alone, as Missing squares are. */
 const SPLITS = ["splitMovement", "splitThree"];
-export const allLawsOn = (sel) => LAW_OPTIONS.every((l) => (SPLITS.includes(l.key) ? SPLITS.some((k) => sel.laws[k]) : !!sel.laws[l.key]));
+export const allLawsOn = (sel) => RULE_LAWS.every((l) => (SPLITS.includes(l.key) ? SPLITS.some((k) => sel.laws[k]) : !!sel.laws[l.key]));
 export function setAllLaws(sel, on, toggle = toggleLaw) {
   if (on) {
-    LAW_OPTIONS.forEach((l) => {
+    RULE_LAWS.forEach((l) => {
       if (sel.laws[l.key] || l.key === "splitMovement" || (l.key === "splitThree" && sel.laws.splitMovement)) return;
       toggle(sel, l.key);
     });
-  } else LAW_OPTIONS.forEach((l) => { if (sel.laws[l.key]) toggle(sel, l.key); });
+  } else RULE_LAWS.forEach((l) => { if (sel.laws[l.key]) toggle(sel, l.key); });
   return sel;
 }
 // Shoving's setting: "Slides only" brings Slide (user: "make slides only
@@ -384,7 +391,7 @@ const pieceName = (p) => p.name;
 export function variantsOf(sel, labels = {}) {
   const L = { laws: "LAWS", matter: "MATTER", topologies: "TOPOLOGY", ...labels };
   const groups = [];
-  const lawsOn = LAW_OPTIONS.filter((l) => sel.laws[l.key]);
+  const lawsOn = RULE_LAWS.filter((l) => sel.laws[l.key]);
   if (lawsOn.length) groups.push({ key: "laws", label: L.laws, items: lawsOn.map((l) => (l.key === "shoving" ? shovingName(sel) : l.name)), keys: lawsOn.map((l) => l.key) });
   const matter = PIECE_OPTIONS.filter((p) => sel.counts[p.key] !== p.def).map((p) => `${sel.counts[p.key]}× ${pieceName(p)}`);
   if (sel.random) matter.unshift("Randomized start");
@@ -392,6 +399,7 @@ export function variantsOf(sel, labels = {}) {
   const topo = [];
   if (sel.rows !== DEFAULT_BOARD_DIM || sel.cols !== DEFAULT_BOARD_DIM) topo.push(`${boardLabel(sel)} board`);
   if (sel.missing) topo.push(`Missing squares (${sel.missingCount} ${sel.missingCount === 1 ? "pair" : "pairs"})`);
+  if (sel.laws.blackHoleSquares) topo.push(HOLES_LAW.name); // (with the board, as the menus set it)
   if (topo.length) groups.push({ key: "topologies", label: L.topologies, items: topo });
   return groups.length ? groups : null;
 }

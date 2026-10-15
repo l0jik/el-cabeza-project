@@ -25,7 +25,7 @@
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
 import {
-  PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
+  PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
   defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
 } from "./rules-selections.js";
@@ -1627,7 +1627,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   }, h("span", { className: "td-warn-hand", "aria-hidden": "true" }, "☞"), h("span", null, w.text)));
   const spotsLine = (list, mark) => (list.length ? list.map((p) => `${mark} row ${p.row + 1}, col ${p.col + 1}${p.random ? " (random)" : ""}`).join(" · ") : "none yet");
 
-  const lawRows = LAW_OPTIONS.flatMap((l) => {
+  const lawRows = RULE_LAWS.flatMap((l) => {
     const on = !!sel.laws[l.key];
     const info = h("button", { type: "button", className: "td-info", "data-testid": `tienda-law-${l.key}-info`, onClick: (e) => { e.preventDefault(); e.stopPropagation(); explain(l.key); } }, "How it works ›");
     const out = [check(`law-${l.key}`, on, l.name, l.note, () => change((s) => toggleLaw(s, l.key)), info)];
@@ -1646,14 +1646,20 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
             }, o.name))))),
         h("span", { className: "td-sub-val", "data-testid": "tienda-shove-now" }, shoveNow(sel))));
     }
-    if (on && l.key === "blackHoleSquares") {
-      out.push(h("div", { key: "holes", className: "td-sub", "data-testid": "tienda-hole-settings" },
-        h("span", { className: "td-sub-h" }, "Where"),
-        h("span", { className: "td-sub-val", "data-testid": "tienda-hole-where" }, spotsLine(sel.holeSpot ? [sel.holeSpot] : [], "O")),
-        h("button", { type: "button", className: "td-btn td-plain td-small-btn", "data-testid": "tienda-hole-select", onClick: () => { click(); setPicker("hole"); } }, "Select")));
-    }
     return [...out, ...warnFor(l.key)];
   });
+  // Black hole squares: a law to the engine, a feature of the board to a
+  // player, so on the Board section, under Missing squares (user), with
+  // Where and Select as the missing squares have.
+  const holesOn = !!sel.laws.blackHoleSquares;
+  const holeRows = [
+    check("holes", holesOn, HOLES_LAW.name, HOLES_LAW.note, () => change((s) => toggleLaw(s, "blackHoleSquares")),
+      h("button", { type: "button", className: "td-info", "data-testid": "tienda-holes-info", onClick: (e) => { e.preventDefault(); e.stopPropagation(); explain("blackHoleSquares"); } }, "How it works ›")),
+    holesOn && h("div", { key: "holes-where", className: "td-sub", "data-testid": "tienda-hole-settings" },
+      h("span", { className: "td-sub-h" }, "Where"),
+      h("span", { className: "td-sub-val", "data-testid": "tienda-hole-where" }, spotsLine(sel.holeSpot ? [sel.holeSpot] : [], "O")),
+      h("button", { type: "button", className: "td-btn td-plain td-small-btn", "data-testid": "tienda-hole-select", onClick: () => { click(); setPicker("hole"); } }, "Select")),
+  ];
 
   const setDim = (k, v) => { click(); change((s) => { s[k] = clampDim(v); refreshSpots(s); }); };
   const dimRow = (k, label, note) => h("div", { className: "td-dim", "data-testid": `tienda-${k}` },
@@ -1763,10 +1769,10 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   };
   // (The standard order: no law, the first-turn handicap included.)
   const standard = () => { click(); replace(standardSelections()); };
-  const lawsOn = LAW_OPTIONS.filter((l) => sel.laws[l.key]).length;
+  const lawsOn = RULE_LAWS.filter((l) => sel.laws[l.key]).length;
   const summary = classic
     ? `${total} pieces a side · ${boardLabel(sel)} board`
-    : `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board${sel.missing ? ` · ${sel.missingCount} cut ${sel.missingCount === 1 ? "pair" : "pairs"}` : ""}`;
+    : `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board${sel.missing ? ` · ${sel.missingCount} cut ${sel.missingCount === 1 ? "pair" : "pairs"}` : ""}${sel.laws.blackHoleSquares ? " · black holes" : ""}`;
   // The form's sections, numbered as they come (the classic page has no Rules).
   let secNo = 0;
   const sec = (title, note, ...body) => h("div", { className: "td-sec" },
@@ -1805,6 +1811,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
           sizeRow,
           check("missing", !!sel.missing, "Missing squares", "Pairs of squares cut clean out of the board; nothing can stand on them or pass over them.", () => change((s) => { s.missing = !s.missing; if (s.missing) fillSpots(s, "missing"); })),
           missingRows,
+          ...holeRows,
         ),
         sec("Who's playing", null, h(OpponentSection, { x, audio })),
         sec("Carbon copies", "keep this order to use again (this browser only; not the opponent)",

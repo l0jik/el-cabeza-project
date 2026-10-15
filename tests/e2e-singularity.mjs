@@ -673,10 +673,12 @@ if (state.activeCategory === "topologies") {
   await page.waitForTimeout(200);
 }
 
-// ---- LAWS: Black Hole Squares manual placement (the ghost-grid picker).
-// Toggling the law on reveals a placement control; opening its picker and
-// tapping a cell on the player's side stores that cell as the manual hole
-// (its mirror is the paired hole), then closes back to the LAWS overlay. --
+// ---- LAWS, then TOPOLOGY: Black Hole Squares manual placement (the
+// ghost-grid picker). The toggle sits in TOPOLOGY with the board (user:
+// "more appropriate there"). Toggling it on reveals a placement control;
+// opening its picker and tapping a cell on the player's side stores that
+// cell as the manual hole (its mirror is the paired hole), then closes
+// back to the TOPOLOGY overlay. --
 state = await navigateToCategory("laws");
 check("dragging brings LAWS into view regardless of the shuffled arrangement",
   state.activeCategory === "laws", `activeCategory=${state.activeCategory}`);
@@ -684,7 +686,7 @@ if (state.activeCategory === "laws") {
   // Every law at once, first in LAWS (user: "a switch ... at the top of all
   // custom setting menus to turn all laws on").
   {
-    const LAW_KEYS = ["slide", "diagonalSlide", "blackHoleSquares", "shoving", "cantileverPivot", "threeActions", "splitMovement", "splitThree"];
+    const LAW_KEYS = ["slide", "diagonalSlide", "shoving", "cantileverPivot", "threeActions", "splitMovement", "splitThree"];
     const all = page.locator('[data-testid="law-all"]');
     const first = await page.evaluate(() => { const r = document.querySelector('[data-testid^="law-"][data-checked]'); return r && r.dataset.testid; });
     check(`All Laws first in LAWS, off (${first})`, first === "law-all" && (await all.getAttribute("data-checked")) === "false");
@@ -692,7 +694,8 @@ if (state.activeCategory === "laws") {
     await page.waitForTimeout(150);
     state = await sphereState();
     const on = LAW_KEYS.filter((k) => state.selections.laws[k]);
-    check(`...on: every law, Split Movement three pieces the one split (${on.join(" ")})`, on.length === 7 && !state.selections.laws.splitMovement && state.selections.laws.splitThree && (await all.getAttribute("data-checked")) === "true");
+    check(`...on: every law, Split Movement three pieces the one split (${on.join(" ")})`, on.length === 6 && !state.selections.laws.splitMovement && state.selections.laws.splitThree && (await all.getAttribute("data-checked")) === "true");
+    check("...Black Hole Squares, set with the board, left alone", !state.selections.laws.blackHoleSquares);
     // (It keeps you in LAWS: no trip to MATTER for Pivot.)
     await page.waitForTimeout(2200);
     check("...and keeps you in LAWS", (await sphereState()).activeCategory === "laws");
@@ -701,7 +704,12 @@ if (state.activeCategory === "laws") {
     state = await sphereState();
     check("...off: none, still in LAWS", !LAW_KEYS.some((k) => state.selections.laws[k]) && state.activeCategory === "laws" && (await all.getAttribute("data-checked")) === "false");
   }
-  await page.locator('[data-testid="law-blackHoleSquares"]').click();
+  // Over to TOPOLOGY, where Black Hole Squares sits under Missing Squares.
+  await closeOverlay();
+  state = await navigateToCategory("topologies");
+  check("Black Hole Squares: in TOPOLOGY, with the board", state.activeCategory === "topologies" && (await page.locator('[data-testid="topo-blackHoleSquares"]').count()) === 1 && (await page.locator('[data-testid="law-blackHoleSquares"]').count()) === 0, `activeCategory=${state.activeCategory}`);
+  check("...right under Missing Squares", await page.evaluate(() => { const m = document.querySelector('[data-testid="topo-missingSquares"]'); let n = m && m.nextElementSibling; if (n && n.getAttribute("data-testid") === "missing-placement") n = n.nextElementSibling; return !!n && n.getAttribute("data-testid") === "topo-blackHoleSquares"; }));
+  await page.locator('[data-testid="topo-blackHoleSquares"]').click();
   await page.waitForTimeout(150);
   state = await sphereState();
   check("Black Hole Squares toggles on", state.selections.laws.blackHoleSquares === true,
@@ -711,7 +719,7 @@ if (state.activeCategory === "laws") {
   // It must sit DIRECTLY below the Black Hole Squares toggle (its own
   // sub-option), not appended after every law.
   const placementRightAfterToggle = await page.evaluate(() => {
-    const toggle = document.querySelector('[data-testid="law-blackHoleSquares"]');
+    const toggle = document.querySelector('[data-testid="topo-blackHoleSquares"]');
     const next = toggle && toggle.nextElementSibling;
     return !!next && next.getAttribute("data-testid") === "blackhole-placement";
   });
@@ -823,6 +831,10 @@ if (state.activeCategory === "laws") {
     (await page.locator('[data-testid="blackhole-picker"]').count()) === 0 && state.selections.blackHole.random === false && !!state.selections.blackHole.manual &&
       state.selections.blackHole.manual.row === Number(m[1]) && state.selections.blackHole.manual.col === Number(m[2]),
     JSON.stringify(state.selections.blackHole));
+  // Back to LAWS for the rest.
+  await closeOverlay();
+  state = await navigateToCategory("laws");
+  check("...and back to LAWS", state.activeCategory === "laws", `activeCategory=${state.activeCategory}`);
 
   // Shoving has one setting: which moves shove (slides and rolls, the
   // default, or slides only). With an Opa in the roster and 2 points a
@@ -921,12 +933,12 @@ if (state.activeCategory === "laws") {
   }
   if (!pivotWasOn) { await page.locator('[data-testid="law-cantileverPivot"]').click(); await page.waitForTimeout(120); }
   // Each law's "i" opens its rules card: the MOVES tab, that law's tile.
-  await page.locator('[data-testid="law-blackHoleSquares-info"]').click();
+  await page.locator('[data-testid="law-slide-info"]').click();
   await page.waitForTimeout(600);
   check("a law's i opens the MOVES card at that law's tile",
     (await page.locator('[data-testid="info-overlay"]').getAttribute("data-open")) === "true" &&
-      (await page.locator('[data-testid="rules-tile-blackHoleSquares"]').getAttribute("data-focus")) === "true");
-  check("...without toggling the law", (await sphereState()).selections.laws.blackHoleSquares === state.selections.laws.blackHoleSquares);
+      (await page.locator('[data-testid="rules-tile-slide"]').getAttribute("data-focus")) === "true");
+  check("...without toggling the law", (await sphereState()).selections.laws.slide === state.selections.laws.slide);
   await page.mouse.click(6, 6);
   await page.waitForTimeout(500);
 

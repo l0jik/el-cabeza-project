@@ -36,7 +36,8 @@ export function gameRules(pieces = [], missing = [], holes = []) {
   const A = ACTIVE_LAWS, laws = [];
   if (A.slide) laws.push({ key: "slide", name: "Orthogonal slide" });
   if (A.diagonalSlide) laws.push({ key: "diagonalSlide", name: "Diagonal slide" });
-  if (A.blackHoleSquares) laws.push({ key: "blackHoleSquares", name: "Black hole squares" });
+  // (Black hole squares: a law to the engine, but listed with the board
+  // below, as the menus set them.)
   // (Shoving's settings, both, in the chassis's words: chassis/shove-settings.js.)
   if (A.shoving) laws.push({ key: "shoving", name: "Shoving", sets: shoveChosen(shoveFromLaws(A)) });
   if (A.cantileverPivot) laws.push({ key: "cantileverPivot", name: "Cantilever pivot" });
@@ -53,9 +54,9 @@ export function gameRules(pieces = [], missing = [], holes = []) {
   const types = [...ORDER.filter((t) => most[t] || STANDARD[t]), ...Object.keys(most).filter((t) => !ORDER.includes(t))];
   const list = types.map((t) => ({ type: t, name: NAMES[t] || t.charAt(0).toUpperCase() + t.slice(1), count: most[t] || 0, std: STANDARD[t] || 0 }));
   const perSide = list.reduce((s, p) => s + p.count, 0);
-  const rows = BOARD_ROWS, cols = BOARD_COLS, pairs = Math.floor((missing || []).length / 2);
-  const board = { rows, cols, label: `${cols} × ${rows}`, missing: missing || [], holes: holes || [], pairs };
-  const standard = !laws.length && list.every((p) => p.count === p.std) && rows === 10 && cols === 10 && !pairs;
+  const rows = BOARD_ROWS, cols = BOARD_COLS, pairs = Math.floor((missing || []).length / 2), holePairs = Math.floor((holes || []).length / 2);
+  const board = { rows, cols, label: `${cols} × ${rows}`, missing: missing || [], holes: holes || [], pairs, holePairs };
+  const standard = !laws.length && list.every((p) => p.count === p.std) && rows === 10 && cols === 10 && !pairs && !holePairs;
   const r = { laws, pieces: list, perSide, board, standard };
   // (The line that sums it up, plainly: a theme's own read-out has it.)
   r.summary = sums.plain(r);
@@ -82,7 +83,7 @@ function card(r, L, extra) {
     ? r.laws.map((l) => `<li class="cm-law"><button type="button" class="cm-name" data-cm="law" data-law="${esc(l.key)}" data-testid="corner-menu-law-${esc(l.key)}">${esc(l.name)}</button>${(l.sets || []).map(([k, v]) => `<span class="cm-set"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></span>`).join("")}</li>`).join("")
     : `<li class="cm-law cm-none"><span class="cm-name">${esc(L.noLaws || "None: the standard rules")}</span></li>`;
   const pieces = r.pieces.map((p) => `<li class="cm-pc${p.count !== p.std ? " changed" : ""}"><span class="n">${esc(p.name)}</span><span class="c">${L.count ? L.count(p.count) : p.count}</span></li>`).join("");
-  const rows = [["Size", r.board.label], ...(r.board.pairs ? [["Missing squares", plural(r.board.pairs, "pair")]] : [])];
+  const rows = [["Size", r.board.label], ...(r.board.pairs ? [["Missing squares", plural(r.board.pairs, "pair")]] : []), ...(r.board.holePairs ? [["Black holes", plural(r.board.holePairs, "pair")]] : [])];
   const board = rows.map(([k, v]) => `<li class="cm-bd"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></li>`).join("");
   const go = extra ? `<button type="button" class="go cm-extra" data-cm="extra" data-testid="corner-menu-extra">${esc(extra.label)}</button>` : "";
   return `${L.head || ""}

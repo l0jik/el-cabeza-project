@@ -182,8 +182,8 @@ import("../themes/rules-selections.js").then(async (m) => {
     check("all laws reads off at the start", !m.allLawsOn(a));
     m.setAllLaws(a, true);
     const on = m.LAW_OPTIONS.filter((l) => a.laws[l.key]).map((l) => l.key);
-    check(`all laws on: every one but two pieces, three pieces in its place (${on.join(" ")})`, m.allLawsOn(a) && on.length === m.LAW_OPTIONS.length - 1 && a.laws.splitThree && !a.laws.splitMovement && a.laws.threeActions);
-    check("...the black holes placed, as their own switch does", m.holeCellsOf(a).length === 2, JSON.stringify(a.holeSpot));
+    check(`all laws on: every one but two pieces, three pieces in its place (${on.join(" ")})`, m.allLawsOn(a) && on.length === m.RULE_LAWS.length - 1 && a.laws.splitThree && !a.laws.splitMovement && a.laws.threeActions);
+    check("...the black holes left alone: they're set with the board", !a.laws.blackHoleSquares && m.holeCellsOf(a).length === 0, JSON.stringify(a.holeSpot));
     m.setAllLaws(a, false);
     check("all laws off: none on", !m.LAW_OPTIONS.some((l) => a.laws[l.key]) && !m.allLawsOn(a));
     const b = m.defaultSelections(); m.toggleLaw(b, "splitMovement"); m.setShove(b, "onRolls", false);

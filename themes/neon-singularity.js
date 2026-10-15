@@ -558,7 +558,10 @@ const LAWS_ITEMS = [
   { key: "splitThree", label: "Split Movement, 3 Pieces", blurb: "Split a turn's 3 actions between up to three pieces, one action each. Brings 3 Actions Per Turn." },
   { key: "slide", label: "Orthogonal Slide", blurb: "Move a piece one open square along its row or column (north, south, east or west, not corner to corner) without tipping it. Costs 2 actions (a roll costs 1)." },
   { key: "diagonalSlide", label: "Diagonal Slide", blurb: "Move a piece one open square corner to corner without tipping it. Costs 2 actions. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
-  { key: "blackHoleSquares", label: "Black Hole Squares", blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
+  // (A law to the engine, a feature of the board to a player: set in
+  // TOPOLOGY with the board, under Missing Squares, not in LAWS, and All
+  // Laws leaves it alone, user: `board`.)
+  { key: "blackHoleSquares", label: "Black Hole Squares", board: true, blurb: "Two linked squares. A one-square piece that enters one comes out beside the other, on the same side it went in. Ends the turn." },
   { key: "cantileverPivot", label: "Cantilever Pivot", blurb: "A piece balanced on one cube (only a Codo, Hombro, Cruce, Rayo or Zeta can be) turns a quarter turn around it. Costs 1 action." },
   { key: "threeActions", label: "3 Actions Per Turn", blurb: "3 actions per turn instead of 2." },
   // (On by default: a game begun here is never the standard game.)
@@ -686,7 +689,8 @@ function createDefaultSelections() {
 }
 
 function isCategoryActive(key, selections) {
-  if (key === "laws") return Object.values(selections.laws).some(Boolean);
+  // (Black Hole Squares lights TOPOLOGY, where it's set, not LAWS.)
+  if (key === "laws") return LAWS_ITEMS.some((i) => !i.board && selections.laws[i.key]);
   if (key === "matter") {
     if (selections.matter.randomizeStart) return true;
     return MATTER_ROSTER.some((p) => selections.matter.roster[p.key] !== p.default);
@@ -695,7 +699,8 @@ function isCategoryActive(key, selections) {
     return (
       selections.topologies.rows !== DEFAULT_BOARD_DIM ||
       selections.topologies.cols !== DEFAULT_BOARD_DIM ||
-      selections.topologies.missingSquares
+      selections.topologies.missingSquares ||
+      !!selections.laws.blackHoleSquares
     );
   }
   return false;
@@ -736,7 +741,7 @@ function missingSquaresLabel(count) {
    chassis/corner-menu.js, read from the engine.) */
 function buildVariantsSnapshot(selections) {
   const groups = [];
-  const lawItems = LAWS_ITEMS.filter((i) => selections.laws[i.key]);
+  const lawItems = LAWS_ITEMS.filter((i) => !i.board && selections.laws[i.key]);
   const laws = lawItems.map((i) => lawLabel(i, selections));
   // keys: each law's own key (the rules card it has).
   if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws, keys: lawItems.map((i) => i.key) });
@@ -753,6 +758,7 @@ function buildVariantsSnapshot(selections) {
   const topoItems = [];
   if (rows !== DEFAULT_BOARD_DIM || cols !== DEFAULT_BOARD_DIM) topoItems.push(`${rows} × ${cols} board`);
   if (missingSquares) topoItems.push(missingSquaresLabel(selections.missingSquare.count));
+  if (selections.laws.blackHoleSquares) topoItems.push("Black Hole Squares"); // (set with the board)
   if (topoItems.length) groups.push({ key: "topologies", label: "TOPOLOGY", items: topoItems });
   return groups;
 }
@@ -2027,13 +2033,13 @@ function renderCheckboxRow(item, checked, onToggle, testId, onInfo = null) {
   );
 }
 
-/* The Black Hole Squares placement control, shown under the LAWS
-   checkboxes once that law is on. By default the two holes are placed
+/* The Black Hole Squares placement control, shown under its toggle in
+   TOPOLOGY (with the board) once that law is on. By default the two holes are placed
    automatically (random but fair); this lets the player instead pick the
    cell on their own side of the board, its 180-degree mirror becoming the
    paired hole. Reads/writes t.singularity.selections.blackHole directly,
    the same live-bridge pattern the checkboxes use. */
-/* Shared by Black Hole Squares (LAWS) and Missing Squares (TOPOLOGIES):
+/* Shared by Black Hole Squares and Missing Squares (both in TOPOLOGY):
    both place a manually-pickable, rotationally-mirrored pair of squares
    via an identical ghost-grid picker, differing only in text/testids and
    which selections field they read/write. `kind` picks one of these. */
@@ -2168,6 +2174,13 @@ function randomizePairedSpots(s, kind) {
   const allHand = spots.length >= pairedCount(s.selections, kind) && spots.every((p) => !p.random);
   if (allHand) setPairedSpots(s.selections, kind, []);
   return fillPairedSpots(s, kind, true);
+}
+// Black Hole Squares on or off (TOPOLOGY, with the board): on with no
+// spot yet rolls a real one now.
+function toggleBlackHoleSquares(s) {
+  const sel = s.selections;
+  sel.laws.blackHoleSquares = !sel.laws.blackHoleSquares;
+  if (sel.laws.blackHoleSquares && !sel.blackHole.manual) fillPairedSpots(s, "blackHole", false);
 }
 // When the board size changes, spots that were rolled at random re-roll
 // for the new size; hand-picked spots stay while they still fit.
@@ -2728,7 +2741,7 @@ function renderPairedSquarePicker(t, kind) {
             },
             otherKind === "missingSquare"
               ? "Missing Squares are on but have no spot yet — set one in Topology to see it here (black holes will never land on them either way)."
-              : "Black Holes are on but have no spot yet — set one in Laws to see it here (missing squares will never land on them either way)."
+              : "Black Holes are on but have no spot yet — set one in Topology to see it here (missing squares will never land on them either way)."
           )
         : null,
       otherCells.length
@@ -2748,7 +2761,7 @@ function renderPairedSquarePicker(t, kind) {
             h("style", null, "@keyframes ecBlockedPulse{0%{background:rgba(255,70,70,0.55);box-shadow:0 0 18px rgba(255,90,90,0.9);transform:scale(1.04)}100%{background:rgba(255,70,70,0.08);box-shadow:none;transform:scale(1)}}"),
             otherKind === "missingSquare"
               ? "▮ Missing Squares (set in Topology) — black holes can't go here."
-              : "● Black Holes (set in Laws) — missing squares can't go here."
+              : "● Black Holes (set in Topology) — missing squares can't go here."
           )
         : null,
       confirm
@@ -2936,8 +2949,6 @@ function renderCategoryOverlay(t) {
       // brings Slide; Slide off puts Shoving back on slides and rolls.
       if (key === "shoving" && sel.laws.shoving && sel.shove && sel.shove.onRolls === false) sel.laws.slide = true;
       if (key === "slide" && !sel.laws.slide && sel.shove && sel.shove.onRolls === false) sel.shove = { ...sel.shove, onRolls: true };
-      // Turning Black Holes on with no spot yet rolls a real one now.
-      if (key === "blackHoleSquares" && sel.laws.blackHoleSquares && !sel.blackHole.manual) fillPairedSpots(s, "blackHole", false);
     };
     // Every law at once, first in LAWS (user: "a switch ... at the top of
     // all custom setting menus to turn all laws on"); rules-selections.js
@@ -2954,10 +2965,9 @@ function renderCategoryOverlay(t) {
       "div",
       { style: { display: "flex", flexDirection: "column" } },
       h("div", { key: "all", style: { borderBottom: "1px solid rgba(142,243,255,0.25)", marginBottom: 4 } }, allRow),
-      // The Black Hole Squares manual-placement control sits DIRECTLY
-      // below its own toggle (not appended after every law), so it reads
-      // as that toggle's sub-option. Only shown when the law is on.
-      ...LAWS_ITEMS.flatMap((item) => {
+      // (Black Hole Squares, a law to the engine, is set in TOPOLOGY with
+      // the board, user: `board`.)
+      ...LAWS_ITEMS.filter((item) => !item.board).flatMap((item) => {
         const row = renderCheckboxRow(
           item,
           sel.laws[item.key],
@@ -2971,9 +2981,6 @@ function renderCategoryOverlay(t) {
           `law-${item.key}`,
           () => openRulesCard("moves", item.key)
         );
-        if (item.key === "blackHoleSquares" && sel.laws.blackHoleSquares) {
-          return [row, renderPairedSquarePlacementRow(t, "blackHole")];
-        }
         const warning = lawWarning(item.key, sel);
         if (warning && item.key === "cantileverPivot") warning.onTap = () => showPivotPieces(s);
         const settings = item.key === "shoving" && sel.laws.shoving ? [renderShoveSettingsRow(t)] : [];
@@ -3010,8 +3017,8 @@ function renderCategoryOverlay(t) {
     body = renderConfigurationsBody(t);
   } else if (category === "topologies") {
     // Missing Squares' own manual-placement control sits directly below
-    // its toggle (its own sub-option), same as Black Hole Squares' does
-    // under LAWS — only shown once the toggle is on.
+    // its toggle (its own sub-option), as Black Hole Squares' does below
+    // — only shown once the toggle is on.
     const missingRow = renderCheckboxRow(
       { key: "missingSquares", label: "Missing Squares", blurb: "One to five rotationally-mirrored pairs of squares no piece can ever enter or pass through." },
       sel.topologies.missingSquares,
@@ -3021,6 +3028,16 @@ function renderCategoryOverlay(t) {
         s.labelsDirty = true; s.bump();
       },
       "topo-missingSquares"
+    );
+    // Black Hole Squares: a law to the engine, a feature of the board to a
+    // player, so here under Missing Squares (user), its placement control
+    // directly below it, its "i" the law's own card.
+    const holesRow = renderCheckboxRow(
+      LAWS_ITEMS.find((i) => i.key === "blackHoleSquares"),
+      sel.laws.blackHoleSquares,
+      () => { toggleBlackHoleSquares(s); s.labelsDirty = true; s.bump(); },
+      "topo-blackHoleSquares",
+      () => openRulesCard("moves", "blackHoleSquares")
     );
     body = h(
       "div",
@@ -3037,7 +3054,8 @@ function renderCategoryOverlay(t) {
           onChange: (v) => { sel.topologies.cols = v; rerollRandomPairedSquares(s); s.labelsDirty = true; s.bump(); },
         })
       ),
-      ...(sel.topologies.missingSquares ? [missingRow, renderPairedSquarePlacementRow(t, "missingSquare")] : [missingRow])
+      ...(sel.topologies.missingSquares ? [missingRow, renderPairedSquarePlacementRow(t, "missingSquare")] : [missingRow]),
+      ...(sel.laws.blackHoleSquares ? [holesRow, renderPairedSquarePlacementRow(t, "blackHole")] : [holesRow])
     );
   }
 
@@ -3274,7 +3292,7 @@ function renderSummaryPanel(setupExtras) {
   const sel = t.singularity.selections;
   const h = React.createElement;
 
-  const lawsOn = LAWS_ITEMS.filter((i) => sel.laws[i.key]);
+  const lawsOn = LAWS_ITEMS.filter((i) => !i.board && sel.laws[i.key]);
   const piecesChanged = MATTER_ROSTER.some((p) => sel.matter.roster[p.key] !== p.default);
   // An optional piece that's off (a default of 0, still at 0 — the Codo)
   // is left out rather than listed as "0 Codo".
@@ -3282,7 +3300,7 @@ function renderSummaryPanel(setupExtras) {
     .filter((p) => p.default > 0 || sel.matter.roster[p.key] > 0)
     .map((p) => `${sel.matter.roster[p.key]} ${rosterItemLabel(p, sel)}`)
     .join(" · ");
-  const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}${sel.topologies.missingSquares ? `, ${missingSquaresLabel(sel.missingSquare.count)}` : ""}`;
+  const boardLine = `${sel.topologies.rows} × ${sel.topologies.cols}${sel.topologies.missingSquares ? `, ${missingSquaresLabel(sel.missingSquare.count)}` : ""}${sel.laws.blackHoleSquares ? ", Black Hole Squares" : ""}`;
   const lineStyle = { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11.5, color: "rgba(207,216,220,0.85)", lineHeight: 1.7 };
   const tagStyle = { color: "#66d9ff", letterSpacing: "0.08em" };
 

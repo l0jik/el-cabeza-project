@@ -45,7 +45,7 @@ import { RealityGate, storyOver, GATE_EVENT, openRealityGate, lookParts } from "
 import { modelViews, NEON_SHOWCASE } from "../themes/piece-showcase.js";
 import { saveLastWorld } from "../themes/realities.js";
 import { sideNamesOf, SIDE_NAMES as WORLD_SIDE_NAMES, DEFAULT_SIDE_NAMES } from "../themes/side-names.js";
-import { LAW_OPTIONS } from "../themes/rules-selections.js";
+import { RULE_LAWS, HOLES_LAW } from "../themes/rules-selections.js";
 import { gameRecord, encodeReplay, checkReplay, readPastedLog, VANILLA_LAWS } from "../engine/replay.js";
 import { quality, createGovernor } from "./device-fit.js";
 import { createShadowWatch } from "./shadow-watch.js";
@@ -9669,11 +9669,12 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // snapshot (the New Game card's line, Plain rules).
   function replayVariants(rec) {
     const groups = [];
-    const laws = LAW_OPTIONS.filter((l) => rec.laws[l.key]).map((l) => l.name);
-    if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws, keys: LAW_OPTIONS.filter((l) => rec.laws[l.key]).map((l) => l.key) });
+    const laws = RULE_LAWS.filter((l) => rec.laws[l.key]).map((l) => l.name);
+    if (laws.length) groups.push({ key: "laws", label: "LAWS", items: laws, keys: RULE_LAWS.filter((l) => rec.laws[l.key]).map((l) => l.key) });
     const topo = [];
     if (rec.rows !== bootBoardRef.current.rows || rec.cols !== bootBoardRef.current.cols) topo.push(`${rec.cols} × ${rec.rows} board`);
     if (rec.missing.length) topo.push(`Missing squares (${rec.missing.length / 2} ${rec.missing.length === 2 ? "pair" : "pairs"})`);
+    if (rec.laws.blackHoleSquares) topo.push(HOLES_LAW.name); // (with the board, as the menus set it)
     if (topo.length) groups.push({ key: "topologies", label: "TOPOLOGY", items: topo });
     return groups.length ? groups : null;
   }

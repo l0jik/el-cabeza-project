@@ -127,7 +127,7 @@ console.log("Cabeza Nova: the one menu");
     await all.click();
     const n = await p.locator(laws).count();
     const on = await p.$$eval(`${laws}[aria-checked="true"]`, (els) => els.map((e) => e.dataset.testid));
-    check(`...on: every rule, Split movement three pieces the one split (${on.length}/${n})`, n === 9 && on.length === 8 && !on.includes("gate-law-splitMovement") && (await all.getAttribute("aria-checked")) === "true");
+    check(`...on: every rule, Split movement three pieces the one split (${on.length}/${n})`, n === 8 && on.length === 7 && !on.includes("gate-law-splitMovement") && (await all.getAttribute("aria-checked")) === "true");
     // (No pivot piece in the classic five: it keeps you where you are, the
     // pivot guide's trip to the pieces held back, its note saying why.)
     await p.waitForTimeout(2200);
@@ -136,7 +136,7 @@ console.log("Cabeza Nova: the one menu");
     await p.locator('[data-testid="gate-law-slide"]').click();
     check("...one rule off by hand: All rules reads off", (await all.getAttribute("aria-checked")) === "false");
     await all.click();
-    check("...on again: back on", (await all.getAttribute("aria-checked")) === "true" && (await p.locator(`${laws}[aria-checked="true"]`).count()) === 8);
+    check("...on again: back on", (await all.getAttribute("aria-checked")) === "true" && (await p.locator(`${laws}[aria-checked="true"]`).count()) === 7);
     // Shoving's settings: which moves shove, and which pieces a shove
     // pushes, a slide's or a roll's (user: "all pieces or only opponents",
     // for slides only as well).
@@ -197,7 +197,8 @@ console.log("Cabeza Nova: the one menu");
     // marks a square and its partner and the board stays up; another
     // square moves them; the same square again leaves it; Done goes back
     // to the menu; Cancel after a tap keeps what was there.
-    await p.locator('[data-testid="gate-law-blackHoleSquares"]').click();
+    // (The switch sits under Board, with the missing squares, user.)
+    await p.locator('[data-testid="gate-holes"]').click();
     await p.locator('[data-testid="gate-place-holes"]').click();
     check("black holes: the board to mark", !!(await poll(async () => (await p.locator('[data-testid="gate-picker"]').count()) > 0, 3000)));
     // two free squares a hole may take, neither the other's partner
@@ -285,7 +286,7 @@ console.log("the store's order form: All rules, and its marked boxes");
   await all.click({ force: true });
   const n = await p.locator(laws).count();
   const on = await p.$$eval(`${laws}:checked`, (els) => els.map((e) => e.dataset.testid));
-  check(`...marked: every rule, Split movement three pieces the one split (${on.length}/${n})`, n === 9 && on.length === 8 && !on.includes("tienda-law-splitMovement-input") && (await all.isChecked()));
+  check(`...marked: every rule, Split movement three pieces the one split (${on.length}/${n})`, n === 8 && on.length === 7 && !on.includes("tienda-law-splitMovement-input") && (await all.isChecked()));
   await p.waitForTimeout(2200);
   const stay = await p.evaluate(() => { const r = document.querySelector('[data-testid="tienda-all-laws"]').getBoundingClientRect(), f = document.querySelector(".td-form-scroll").getBoundingClientRect(); return r.top >= f.top - 1 && r.bottom <= f.bottom + 1; });
   check("...it keeps you there, its note saying what pivoting needs", stay && /Cantilever pivot needs a Codo/.test(await p.locator('[data-testid="tienda-all-laws"]').textContent()));

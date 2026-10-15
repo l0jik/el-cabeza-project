@@ -71,7 +71,7 @@ await page.waitForTimeout(300);
   await all.click(); await page.waitForTimeout(150);
   const n = await page.locator('button[data-testid^="lluvia-law-"]').count();
   const on = await page.$$eval('button[data-testid^="lluvia-law-"][aria-pressed="true"]', (els) => els.map((e) => e.dataset.testid));
-  check(`...on: every law, Split movement three pieces the one split (${on.length}/${n})`, n === 9 && on.length === 8 && !on.includes("lluvia-law-splitMovement") && (await all.getAttribute("aria-pressed")) === "true");
+  check(`...on: every law, Split movement three pieces the one split (${on.length}/${n})`, n === 8 && on.length === 7 && !on.includes("lluvia-law-splitMovement") && (await all.getAttribute("aria-pressed")) === "true");
   await all.click(); await page.waitForTimeout(150);
   check("...off: none", (await page.locator('button[data-testid^="lluvia-law-"][aria-pressed="true"]').count()) === 0 && (await all.getAttribute("aria-pressed")) === "false");
   // (The rows were held to their least height in a flex column, their

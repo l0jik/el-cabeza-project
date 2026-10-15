@@ -31,7 +31,7 @@ import { makeRoundedBox, makePolycubeSmooth } from "../engine/geometry.js";
 import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constants.js";
 import { POSES, PieceViewer } from "./piece-showcase.js";
 import {
-  PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
+  PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
   defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, lawWarnings, piecesFit, minColsFor,
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
 } from "./rules-selections.js";
@@ -573,18 +573,14 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
 
   const rules = h("section", { className: "rg-sec", "aria-label": "Rules" },
     h("h3", null, "Rules"),
-    LAW_OPTIONS.map((l) => h(React.Fragment, { key: l.key },
+    RULE_LAWS.map((l) => h(React.Fragment, { key: l.key },
       h("div", { className: "rg-row" },
         h("span", { className: "rg-name" }, l.name, h("span", { className: "rg-note" }, l.note)),
         h(Switch, { on: sel.laws[l.key], label: l.name, testid: `gate-law-${l.key}`, onClick: () => change((n) => toggleLaw(n, l.key)) })),
       l.key === "shoving" && sel.laws.shoving && h("div", { className: "rg-sub" },
         shoveShown(sel).map((s) => h(Seg, { key: s.key, label: s.name }, s.options.map((o) => segBtn(String(o.value), (sel.shove[s.key] !== false) === o.value, o.name, () => change((n) => setShove(n, s.key, o.value)),
           s.key === "onRolls" ? `gate-shove-${o.value ? "rolls" : "slides"}` : `gate-shove-${o.value ? "all" : "opponents"}`)))),
-        h("span", { className: "rg-note", "data-testid": "gate-shove-now" }, shoveNow(sel))),
-      l.key === "blackHoleSquares" && sel.laws.blackHoleSquares && h("div", { className: "rg-sub" },
-        h("div", { className: "rg-row" },
-          h("span", { className: "rg-note" }, sel.holeSpot ? (sel.holeSpot.random ? "Placed at random." : "Placed by hand.") : "Placed at random."),
-          h("button", { type: "button", className: "rg-small", "data-testid": "gate-place-holes", onClick: () => setPicker("hole"), "data-stroke": "1" }, "Place them"))))),
+        h("span", { className: "rg-note", "data-testid": "gate-shove-now" }, shoveNow(sel))))),
     warnings.map((w) => h("div", { key: w.testid, className: "rg-warn", "data-testid": `gate-${w.testid}`, ...(w.key === "cantileverPivot" ? { onClick: showPivots, style: { cursor: "pointer" }, title: "Show me" } : {}) }, w.text)));
 
   const board = h("section", { className: "rg-sec", "aria-label": "Board" },
@@ -606,7 +602,16 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
       h("div", { className: "rg-row" }, h("span", { className: "rg-name" }, "Pairs"),
         h(Stepper, { value: sel.missingCount, min: 1, max: MAX_MISSING_PAIRS, label: "Pairs cut out", testid: "gate-missing-count", onChange: (v) => change((n) => { n.missingCount = v; n.missingSpots = n.missingSpots.slice(0, v); fillSpots(n, "missing"); }) })),
       h("div", { className: "rg-row" }, h("span", { className: "rg-note" }, "Random unless you mark them."),
-        h("button", { type: "button", className: "rg-small", "data-testid": "gate-mark-missing", onClick: () => setPicker("missing"), "data-stroke": "0" }, "Mark them"))));
+        h("button", { type: "button", className: "rg-small", "data-testid": "gate-mark-missing", onClick: () => setPicker("missing"), "data-stroke": "0" }, "Mark them"))),
+    // Black hole squares: a law to the engine, a feature of the board to a
+    // player, so set here with the board, under Missing squares (user).
+    h("div", { className: "rg-row" },
+      h("span", { className: "rg-name" }, HOLES_LAW.name, h("span", { className: "rg-note" }, HOLES_LAW.note)),
+      h(Switch, { on: sel.laws.blackHoleSquares, label: HOLES_LAW.name, testid: "gate-holes", onClick: () => change((n) => toggleLaw(n, "blackHoleSquares")) })),
+    sel.laws.blackHoleSquares && h("div", { className: "rg-sub" },
+      h("div", { className: "rg-row" },
+        h("span", { className: "rg-note" }, sel.holeSpot ? (sel.holeSpot.random ? "Placed at random." : "Placed by hand.") : "Placed at random."),
+        h("button", { type: "button", className: "rg-small", "data-testid": "gate-place-holes", onClick: () => setPicker("hole"), "data-stroke": "1" }, "Place them"))));
 
   return h(React.Fragment, null,
     h("div", { className: "rg-sheet", "data-testid": "gate-sheet", role: "dialog", "aria-modal": "true", "aria-label": "Cabeza Nova" },

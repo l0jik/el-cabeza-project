@@ -22,7 +22,7 @@
 
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
-import { PIECE_OPTIONS, LAW_OPTIONS, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow } from "./rules-selections.js";
+import { PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow } from "./rules-selections.js";
 import { SHOVE_SETTINGS, shoveOf } from "../chassis/shove-settings.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
@@ -44,7 +44,7 @@ const JP = "'Dela Gothic One', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'IPA
 const SIGN = { cabeza: "頭", turrito: "塔", flaco: "細", chato: "平", opa: "重", block1x3: "棒", block2x3: "板", codo: "肘", arcoChico: "弧", arcoAlto: "拱", arcoAncho: "橋", rayo: "雷", zeta: "乙", hombro: "肩", cruce: "十" };
 // [key, name, sign, min, max, default]
 const PIECES = PIECE_OPTIONS.map((p) => [p.key, p.name, SIGN[p.key], p.min, p.max, p.def]);
-const LAWS = LAW_OPTIONS.map((l) => [l.key, l.name, l.note]);
+const LAWS = RULE_LAWS.map((l) => [l.key, l.name, l.note]); // (black holes are set with the board)
 const clone = cloneSelections;
 const totalOf = totalPieces;
 export { defaultSelections };
@@ -145,11 +145,11 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
       return [row, ...(shoveRow ? [shoveRow] : []), ...warn];
     })];
   } else {
-    const flag = (k, label) => h("button", {
-      key: k, type: "button", "data-testid": `lluvia-topo-${k}`, "aria-pressed": sel[k] ? "true" : "false",
-      onClick: () => { sound("key"); change((s) => { s[k] = !s[k]; }); },
+    const flag = (k, label, on = !!sel[k], flip = (s) => { s[k] = !s[k]; }) => h("button", {
+      key: k, type: "button", "data-testid": `lluvia-topo-${k}`, "aria-pressed": on ? "true" : "false",
+      onClick: () => { sound("key"); change((s) => { flip(s); }); },
       style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: 52, background: "transparent", border: "none", borderTop: "1px solid rgba(255,179,71,0.12)", cursor: "pointer", ...TERM, fontSize: 22, color: "#ffe2b0" },
-    }, h("span", null, label), h("span", { style: { color: sel[k] ? "#fff27a" : "#7a6040" } }, sel[k] ? "[ ON ]" : "[OFF ]"));
+    }, h("span", null, label), h("span", { style: { color: on ? "#fff27a" : "#7a6040" } }, on ? "[ ON ]" : "[OFF ]"));
     body = [
       h("span", { key: "l", style: { display: "block", fontSize: 18, color: "#a8783a", padding: "6px 0" } }, "BOARD SIZE"),
       h("div", { key: "s", style: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, paddingBottom: 10 } },
@@ -159,6 +159,9 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo }) {
             style: { height: 48, border: "1px solid", borderRadius: 3, font: "400 24px 'VT323', monospace", cursor: "pointer", ...(on ? { background: AMBER, color: "#140a04", borderColor: AMBER } : { background: "transparent", color: "#ffcf8a", borderColor: "rgba(255,179,71,0.5)" }) } }, `${n} × ${n}`);
         })),
       flag("missing", "Missing squares"),
+      // (Black hole squares: a law to the engine, a feature of the board
+      // here, under Missing squares, user; their place is rolled.)
+      flag("holes", HOLES_LAW.name, !!sel.laws.blackHoleSquares, (s) => toggleLaw(s, "blackHoleSquares")),
       flag("random", "Randomized start"),
     ];
   }

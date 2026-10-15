@@ -365,7 +365,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
   check("...Escape closes the card and the form stays", (await attr('[data-testid="info-overlay"]', "data-open")) === "false" && (await count('[data-testid="tienda-order"]')) === 1);
 
   // The board: black holes placed by hand, missing squares marked.
-  await press('[data-testid="tienda-law-blackHoleSquares"]');
+  await press('[data-testid="tienda-holes"]'); // (under Board, with the missing squares)
   check("Black holes get a place at once (at random)", /O row/.test(await txt('[data-testid="tienda-hole-where"]')));
   await press('[data-testid="tienda-hole-select"]');
   await page.waitForTimeout(500);
