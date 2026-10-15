@@ -112,11 +112,11 @@ console.log("[split] bank 2/3 and 2-piece cap OK");
 
 // ---- The Punto law ----
 // Off (the standard game), the game's first turn is a turn like any
-// other. On, the opening ramps up: the game's turn n (constants.js
-// OPENING_TURN marks which) is capped at n actions until the full budget,
-// so with 2 actions the first turn is one (no Opa move, whose cost is
-// two), and with 3 the first is one and the second two. The computer's
-// search takes it at its root only, and leaves the mark as it found it.
+// other. On, the game's first turn (constants.js OPENING_TURN marks
+// which) is one action short: one action with 2 a turn (no Opa move,
+// whose cost is two), two with 3; every turn after is whole. The
+// computer's search takes it at its root only, and leaves the mark as it
+// found it.
 setActiveLaws({ slide: false, diagonalSlide: false, blackHoleSquares: false, cantileverPivot: false, splitMovement: false, threeActions: false, punto: false });
 if (FIRST_TURN_CUT !== 1) throw new Error("The opener's first turn is one action short");
 setFirstTurnShort(true);
@@ -127,9 +127,9 @@ if (turnBudget() !== 1 || maxStepsFor("turrito") !== 1 || maxStepsFor("cabeza") 
 if (Object.keys(legalMovesFor(createInitialPieces(), createInitialPieces().find((p) => p.id === "dark-opa"), maxStepsFor("opa"))).length !== 0) throw new Error("An Opa can't move in a one-action turn");
 if (generateTurns(createInitialPieces(), "dark").some((t) => t.dirs.length !== 1)) throw new Error("Every first turn under the law is one action");
 setActiveLaws({ threeActions: true });
-if (turnBudget() !== 1 || maxStepsFor("flaco") !== 1) throw new Error("With 3 Actions the game's first turn is one action");
+if (turnBudget() !== 2 || maxStepsFor("flaco") !== 2) throw new Error("With 3 Actions the game's first turn is two actions");
 setOpeningTurn(1);
-if (turnBudget() !== 2 || maxStepsFor("flaco") !== 2) throw new Error("...the second two");
+if (turnBudget() !== 3 || maxStepsFor("flaco") !== 3) throw new Error("...the second the full three");
 setOpeningTurn(2);
 if (turnBudget() !== 3 || maxStepsFor("flaco") !== 3) throw new Error("...the third the full three");
 setOpeningTurn(-1);
@@ -147,9 +147,9 @@ if (OPENING_TURN !== -1 || FIRST_TURN_SHORT) throw new Error("The marks read bac
   }
   setActiveLaws({ threeActions: true });
   for (let i = 0; i < 4; i++) {
-    const plan = await findBestAiTurn(createInitialPieces(), "light", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150, jitter: 3, openingJitter: 3, openingTurn: 1 }, 0, 0);
+    const plan = await findBestAiTurn(createInitialPieces(), "dark", { ...AI_DIFFICULTY.easy, timeBudgetMs: 150, jitter: 3, openingJitter: 3, openingTurn: 0 }, 0, 0);
     const n = plan ? (plan.steps ? plan.steps.length : plan.dirs.length) : 0;
-    if (!plan || n > 2) throw new Error("The computer's second turn of a 3-action game under the law plays at most two actions: " + JSON.stringify(plan));
+    if (!plan || n > 2) throw new Error("The computer's opening turn of a 3-action game under the law plays at most two actions: " + JSON.stringify(plan));
   }
   setActiveLaws({ threeActions: false });
   if (FIRST_TURN_SHORT) throw new Error("The search leaves the first-turn mark as it found it");
@@ -167,7 +167,7 @@ if (OPENING_TURN !== -1 || FIRST_TURN_SHORT) throw new Error("The marks read bac
   if (!two) throw new Error("With the law off the computer's opening turn may use both actions");
 }
 setActiveLaws({ punto: false });
-console.log("[punto] the Punto law: the opening's ramp (1, 2, then all), the search's root alone OK");
+console.log("[punto] the Punto law: the opener's first turn one action short, the search's root alone OK");
 
 // turnContinues is the single "is there another move?" rule the live game
 // and AI both defer to. Board: an Opa plus a Turrito (both Dark) with the

@@ -985,11 +985,10 @@ export function minimaxSearch(pieces, player, aiPlayer, depth, alpha, beta, dead
   }
 
   /* Which turn of the game the root is (constants.js OPENING_TURN; under
-     the Punto law the opening turns are short): the root's turns are
+     the Punto law the game's first turn is short): the root's turns are
      generated as that turn. Every ply below it, the replies and the
-     turns after, is a full turn (the ramp is over by the third turn, and
-     a search that deep is never reached in an opening), so the mark is
-     on just while the root's turns are generated. */
+     turns after, is a full turn (only the opening turn is short), so the
+     mark is on just while the root's turns are generated. */
   let turns;
   if (ply === 0 && Number.isInteger(openingTurn) && openingTurn >= 0) {
     setOpeningTurn(openingTurn);

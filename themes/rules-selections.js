@@ -70,7 +70,7 @@ export const LAW_OPTIONS = [
   { key: "splitThree", name: "Split movement, 3 pieces", note: "Spend a turn's 3 actions on up to three pieces, one action each. Brings 3 actions per turn." },
   // (User: the first player's handicap, not standard Cabeza's, as a toggle,
   // on by default for anything other than the standard game: `def`.)
-  { key: "punto", name: "Punto", def: true, note: "The opening ramps up, to blunt the first strike: the opener has one action on the game's first turn, the other side two on the second, then every turn has its full actions (with 2 a turn, only the opener's first turn is short). On unless you turn it off; the standard game has no handicap." },
+  { key: "punto", name: "Punto", def: true, note: "The side that opens has one action fewer on the game's first turn, to blunt the first strike: one action with 2 a turn, two with 3. On unless you turn it off; the standard game has no handicap." },
 ];
 // The laws the menus list under Rules, and the one they set with the board.
 export const RULE_LAWS = LAW_OPTIONS.filter((l) => !l.board);
