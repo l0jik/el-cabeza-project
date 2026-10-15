@@ -32,7 +32,7 @@ import { PIECE_SCALE, CABEZA_SCALE, DISC_DIAM, DISC_H } from "../engine/constant
 import { POSES, PieceViewer } from "./piece-showcase.js";
 import {
   PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
-  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, lawWarnings, piecesFit, minColsFor,
+  defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, lawWarnings, piecesFit, minColsFor,
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
 } from "./rules-selections.js";
 import { WORLDS, createRealitiesMenu, goToWorld, REALITIES_VISIT_KEY } from "./realities.js";
@@ -636,7 +636,8 @@ export function RealityGate({ api, world, stage: initialStage = "choose", sel: i
   const [hidden, setHidden] = React.useState(false);
   const w = WORLDS.find((x) => x.id === world);
   const reopen = (s) => openRealityGate({ stage: "nova", sel: s });
-  const standard = () => { onClose(); beginCustomGame(defaultSelections(), api, null); };
+  // (The standard game: no law, the first-turn handicap included.)
+  const standard = () => { onClose(); beginCustomGame(standardSelections(), api, null); };
   const play = (sel) => { onClose(); beginCustomGame(sel, api, reopen); };
   // (The menu over it; back to the buttons if you stay, or pick where
   // you already are.)

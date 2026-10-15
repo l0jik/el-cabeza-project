@@ -26,7 +26,7 @@ import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
 import {
   PIECE_OPTIONS, LAW_OPTIONS, ARCO_SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
-  defaultSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
+  defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
   pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
 } from "./rules-selections.js";
 import { SquarePicker, OpponentSection, CarbonCopies, ORDER_PARTS_CSS } from "./tienda-order.js";
@@ -1761,7 +1761,8 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     // (The stamp stays long enough to read before the form goes: user.)
     setTimeout(() => onPlace(sel), reduced ? 900 : 2700);
   };
-  const standard = () => { click(); replace(defaultSelections()); };
+  // (The standard order: no law, the first-turn handicap included.)
+  const standard = () => { click(); replace(standardSelections()); };
   const lawsOn = LAW_OPTIONS.filter((l) => sel.laws[l.key]).length;
   const summary = classic
     ? `${total} pieces a side · ${boardLabel(sel)} board`

@@ -107,6 +107,15 @@ export function defaultSelections() {
     random: false,
   };
 }
+/* The standard game's selections: the five pieces, the 10x10 board and
+   no law at all. defaultSelections() is where a custom setup starts
+   (the first-turn handicap on, as every non-standard game has it); this
+   is what a "Standard" button begins. */
+export function standardSelections() {
+  const s = defaultSelections();
+  LAW_OPTIONS.forEach((l) => { s.laws[l.key] = false; });
+  return s;
+}
 export const cloneSelections = (s) => JSON.parse(JSON.stringify(s));
 export const totalPieces = (sel) => Object.values(sel.counts).reduce((a, b) => a + b, 0);
 
