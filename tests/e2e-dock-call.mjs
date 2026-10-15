@@ -130,6 +130,7 @@ async function open(name, opts = {}) {
   let s = await poll(async () => { const v = await callState(page); return v.opacity < 0.9 ? v : null; }, 4000) || await callState(page);
   check("in play: no call, the corner's faint watermark", s.call === false && !s.aura && s.opacity < 0.9 && s.halo === "none", JSON.stringify(s));
   check("a game won: the placard", await winNow(page));
+  check("...two humans: no AI level on it", (await page.locator('[data-testid="victory-foe"]').count()) === 0);
   const away = await putAway(page);
   check("...put away", away.gone, JSON.stringify(away.notes));
   s = await poll(async () => { const v = await callState(page); return v.call && v.opacity > 0.99 ? v : null; }, 4000) || await callState(page);
@@ -176,6 +177,7 @@ async function open(name, opts = {}) {
   const { ctx, page, errs } = await open("noir", { reducedMotion: "reduce" });
   await begin(page);
   check("a game won: the placard", await winNow(page));
+  check("...two humans: no AI level on it", (await page.locator('[data-testid="victory-foe"]').count()) === 0);
   const away = await putAway(page);
   check("the placard put away", away.gone, JSON.stringify(away.notes));
   const s = await poll(async () => { const v = await callState(page); return v.call && v.opacity > 0.99 ? v : null; }, 5000) || await callState(page);
@@ -231,6 +233,7 @@ for (const [name, glows] of [["standard", /^#(ff8a2a|ffd98a)$/i], ["neon", /^#(4
   const { ctx, page, errs } = await open(name);
   await begin(page);
   check("a game won: the placard", await winNow(page));
+  check("...two humans: no AI level on it", (await page.locator('[data-testid="victory-foe"]').count()) === 0);
   const away = await putAway(page);
   check("the placard put away", away.gone, JSON.stringify(away.notes));
   const s = await poll(async () => { const v = await callState(page); return v.call && v.opacity > 0.99 ? v : null; }, 5000) || await callState(page);

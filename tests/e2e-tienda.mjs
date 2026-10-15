@@ -272,6 +272,8 @@ for (const size of [SIZES[2], SIZES[7]]) {
   await page.waitForTimeout(5000);
   const placard = page.locator('[data-testid="victory-placard"]');
   check("the Cabeza reaching the far row puts up the win placard", (await placard.count()) === 1 && /walnut wins/i.test(await placard.innerText())); // (Big Glutts calls Dark "Walnut", side-names.js)
+  // (The store's test game is against the Easy AI, playing Ash: whom they beat, small, under the reason.)
+  check("...and whom they beat, under the reason", /against the easy ai/i.test(await placard.locator('[data-testid="victory-foe"]').innerText().catch(() => "")), await placard.innerText());
   check("...on screen", inView(await placard.boundingBox(), size, 1));
   const wound = await page.evaluate(() => window.__TIENDA_AUDIO__());
   check("the music winds down at the end of the game", wound.windingDown === true, JSON.stringify(wound));

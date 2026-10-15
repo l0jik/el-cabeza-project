@@ -3127,6 +3127,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // board. Read fresh each render: the laws and the board's size are the
   // engine's, set as a game begins.
   const rulesNow = gameRules(turnHistory.length && turnHistory[0].pieces ? turnHistory[0].pieces : pieces, missingSquares, blackHoles);
+  /* Who the winner beat, small, under the reason on the win placard, on the
+     Lab's read-out and in the move log's Result line (user: "in small text
+     underneath Ash wins, it should say against medium AI or whatever the
+     case may have been"): the AI's level when the game had one, as the
+     one beaten or as the winner itself; two humans, an online game or a
+     replay say nothing. */
+  const winFoeNote = status === "finished" && winner && aiPlayer && !replaying
+    ? `${winner === aiPlayer ? "The" : "Against the"} ${(AI_DIFFICULTY[aiDifficulty] || {}).label || "chosen"} AI`
+    : null;
   const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
@@ -3165,7 +3174,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     game: {
       currentPlayer, stepsUsed, turnBudget: turnBudget(), log, status, winner, winReason,
       turns: turnHistory.length, selectedId, hoveredId, aiPlayer, awaitingBegin, busy,
-      aiDifficulty, aiLevel: aiPlayer ? (AI_DIFFICULTY[aiDifficulty] || {}).label || null : null,
+      aiDifficulty, aiLevel: aiPlayer ? (AI_DIFFICULTY[aiDifficulty] || {}).label || null : null, winFoeNote,
       selectedType: (pieces.find((p) => p.id === selectedId) || {}).type || null,
       pieceCount: { dark: pieces.filter((p) => p.owner === "dark").length, light: pieces.filter((p) => p.owner === "light").length },
       rules: rulesNow,
@@ -4405,6 +4414,14 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // move's own animation, when the markers are briefly gone.)
   const stopHereFloat = !shell && isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && (stepsRemaining > 0 || busy) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
   const undoMoveFloat = !shell && isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
+  /* On a phone the corner's column (How to play, Room view, Focus, the
+     theme's action) climbs behind the turn buttons, which sit centred at
+     the foot and span most of the width: while they show, the column
+     above full screen steps aside, as the corner does under the dock
+     panel (user: the Other realities planet "showing up on the undo move
+     button"). Full screen, at the foot below them, stays. */
+  const cornerColumnUnderFloats = cornerStack && (stopHereFloat || undoMoveFloat) && showPoints;
+  const cornerColumnCovered = cornerControlsCovered || cornerColumnUnderFloats;
   // (The piece card's place, measured below everything at the lower left.)
   useLayoutEffect(() => {
     if (!pieceCardShown || typeof document === "undefined") return undefined;
@@ -9501,7 +9518,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     });
     const summary =
       status === "finished" && winner
-        ? `Result: ${sideName(winner)} wins${winReason ? " \u2014 " + winReason : ""}`
+        ? `Result: ${sideName(winner)} wins${winReason ? " \u2014 " + winReason : ""}${winFoeNote ? ", " + winFoeNote[0].toLowerCase() + winFoeNote.slice(1) : ""}`
         : status === "ended"
         ? "Game ended manually, no winner"
         : "";
@@ -10456,7 +10473,10 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
       {(stopHereFloat || undoMoveFloat) && showPoints && (
         <div
           data-testid="turn-buttons-float"
-          style={{ position: "fixed", left: "50%", bottom: 50, transform: "translateX(-50%)", zIndex: 12, display: "flex", gap: 10, alignItems: "center", whiteSpace: "nowrap" }}
+          /* (On a phone 10 px higher, clear of the full screen button at
+              the foot of the corner's column: a world's wide buttons, the
+              Parrish looks' brush strokes, reach it there.) */
+          style={{ position: "fixed", left: "50%", bottom: cornerStack ? 60 : 50, transform: "translateX(-50%)", zIndex: 12, display: "flex", gap: 10, alignItems: "center", whiteSpace: "nowrap" }}
         >
           {undoMoveFloat && (
             <button type="button" className="ec-btn" data-testid="undo-move-float" onClick={handleUndoTurn} style={{ ...playerButtonStyle(currentPlayer), whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 7 }}>
@@ -11200,11 +11220,11 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           style={{
             position: "fixed", ...cornerStyle("room"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
-            color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5,
-            pointerEvents: cornerControlsCovered ? "none" : "auto", visibility: cornerControlsCovered ? "hidden" : "visible", cursor: viewMode === "room" ? "default" : "pointer", transition: "opacity 0.5s ease",
+            color: COLORS.charcoal, opacity: cornerColumnCovered ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5,
+            pointerEvents: cornerColumnCovered ? "none" : "auto", visibility: cornerColumnCovered ? "hidden" : "visible", cursor: viewMode === "room" ? "default" : "pointer", transition: "opacity 0.5s ease",
           }}
-          onMouseEnter={(e) => { if (!cornerControlsCovered && viewMode !== "room") e.currentTarget.style.opacity = 1; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5; }}
+          onMouseEnter={(e) => { if (!cornerColumnCovered && viewMode !== "room") e.currentTarget.style.opacity = 1; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerColumnCovered ? 0 : viewMode === "room" ? 0.22 : focusMode ? 0.25 : 0.5; }}
         >
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 10.5 12 4l9 6.5" strokeDasharray="2.2 2.2" />
@@ -11226,11 +11246,11 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           style={{
             position: "fixed", ...cornerStyle("action"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
-            color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : focusMode ? 0.25 : 0.5,
-            pointerEvents: cornerControlsCovered ? "none" : "auto", visibility: cornerControlsCovered ? "hidden" : "visible", cursor: "pointer", transition: "opacity 0.5s ease",
+            color: COLORS.charcoal, opacity: cornerColumnCovered ? 0 : focusMode ? 0.25 : 0.5,
+            pointerEvents: cornerColumnCovered ? "none" : "auto", visibility: cornerColumnCovered ? "hidden" : "visible", cursor: "pointer", transition: "opacity 0.5s ease",
           }}
-          onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : focusMode ? 0.25 : 0.5; }}
+          onMouseEnter={(e) => { if (!cornerColumnCovered) e.currentTarget.style.opacity = 1; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerColumnCovered ? 0 : focusMode ? 0.25 : 0.5; }}
         >
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="5" />
@@ -11254,11 +11274,11 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           style={{
             position: "fixed", ...cornerStyle("focus"), zIndex: cornerControlsZ, width: 38, height: 38,
             display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none",
-            color: COLORS.charcoal, opacity: cornerControlsCovered ? 0 : focusMode ? 0.4 : 0.5,
-            pointerEvents: cornerControlsCovered ? "none" : "auto", visibility: cornerControlsCovered ? "hidden" : "visible", cursor: "pointer", transition: "opacity 0.5s ease",
+            color: COLORS.charcoal, opacity: cornerColumnCovered ? 0 : focusMode ? 0.4 : 0.5,
+            pointerEvents: cornerColumnCovered ? "none" : "auto", visibility: cornerColumnCovered ? "hidden" : "visible", cursor: "pointer", transition: "opacity 0.5s ease",
           }}
-          onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : focusMode ? 0.4 : 0.5; }}
+          onMouseEnter={(e) => { if (!cornerColumnCovered) e.currentTarget.style.opacity = 1; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerColumnCovered ? 0 : focusMode ? 0.4 : 0.5; }}
         >
           {/* A light bulb (the user): the room's lights on, it shines, rays
               all round; focus on, the lights are down: the bulb alone, out. */}
@@ -11376,18 +11396,18 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           background: "transparent",
           border: "none",
           color: COLORS.charcoal,
-          opacity: cornerControlsCovered ? 0 : 0.6,
-          pointerEvents: cornerControlsCovered ? "none" : "auto", visibility: cornerControlsCovered ? "hidden" : "visible",
+          opacity: cornerColumnCovered ? 0 : 0.6,
+          pointerEvents: cornerColumnCovered ? "none" : "auto", visibility: cornerColumnCovered ? "hidden" : "visible",
           cursor: "pointer",
           fontFamily: "'IBM Plex Sans', sans-serif",
           fontSize: 12.5,
           fontWeight: 500,
           transition: "opacity 0.5s ease",
         }}
-        onMouseEnter={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
-        onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : 0.6; }}
-        onFocus={(e) => { if (!cornerControlsCovered) e.currentTarget.style.opacity = 1; }}
-        onBlur={(e) => { e.currentTarget.style.opacity = cornerControlsCovered ? 0 : 0.6; }}
+        onMouseEnter={(e) => { if (!cornerColumnCovered) e.currentTarget.style.opacity = 1; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = cornerColumnCovered ? 0 : 0.6; }}
+        onFocus={(e) => { if (!cornerColumnCovered) e.currentTarget.style.opacity = 1; }}
+        onBlur={(e) => { e.currentTarget.style.opacity = cornerColumnCovered ? 0 : 0.6; }}
       >
         {/* On a narrow screen only the "?" shows, clear of the points
             counter at the bottom centre. */}
@@ -11507,7 +11527,13 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           // never overlaps whichever row currently happens to end at
           // the panel's own right edge (e.g. Full Screen during
           // declutter), regardless of which rows are showing.
-          padding: theme.hasAudio ? "14px 20px 40px" : "14px 20px 16px",
+          // (A theme whose frame sits inside the panel's edge, the Parrish
+          // looks' gold line 9px in, lifts the strip and everything in it
+          // by --ec-dock-foot-lift, so the names and the switches clear
+          // the line; user: "the bottom of the box should be extended
+          // down a little bit further. The root words at the bottom seem
+          // a bit cramped".)
+          padding: theme.hasAudio ? "14px 20px calc(40px + var(--ec-dock-foot-lift, 0px))" : "14px 20px calc(16px + var(--ec-dock-foot-lift, 0px))",
           // The phone layout's bars replace the dock (MobileShell below).
           display: shell ? "none" : "flex",
           flexDirection: "column",
@@ -12143,7 +12169,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             style={{
               position: "absolute",
               right: 8,
-              bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
+              bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
               width: 30,
               height: 30,
               display: "flex",
@@ -12190,7 +12216,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             style={{
               position: "absolute",
               left: 16,
-              bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
+              bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
               maxWidth: `calc(100% - ${(theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0) + 20}px)`,
               display: "flex",
               alignItems: "baseline",
@@ -12254,7 +12280,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               right: (theme.hasAudio ? 76 : 44) + 32 + (theme.moveCostToggle ? 32 : 0) + (layoutSwitch ? 32 : 0),
               // (With the corner switches, into the strip at the end of the
               // panel's content when it scrolls: --ec-dock-overflow.)
-              bottom: "calc(7px - var(--ec-dock-overflow, 0px))",
+              bottom: "calc(7px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
               fontFamily: "'IBM Plex Mono', monospace",
               // Larger and in the dock's own text colour per feedback
               // (was 9px slate at 0.75 — too dim and small to read).
@@ -12292,7 +12318,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           style={{
             position: "absolute",
             right: theme.hasAudio ? 40 : 8,
-            bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
+            bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
             width: 30,
             height: 30,
             display: "flex",
@@ -12333,7 +12359,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             style={{
               position: "absolute",
               right: theme.hasAudio ? 72 : 40,
-              bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
+              bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
               width: 30,
               height: 30,
               display: "flex",
@@ -12368,7 +12394,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           style={{
             position: "absolute",
             right: (theme.hasAudio ? 40 : 8) + 32 + (theme.moveCostToggle ? 32 : 0),
-            bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
+            bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
             width: 30,
             height: 30,
             display: "flex",
@@ -12402,7 +12428,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             style={{
               position: "absolute",
               right: (theme.hasAudio ? 40 : 8) + 64 + (theme.moveCostToggle ? 32 : 0),
-              bottom: "calc(8px - var(--ec-dock-overflow, 0px))",
+              bottom: "calc(8px + var(--ec-dock-foot-lift, 0px) - var(--ec-dock-overflow, 0px))",
               width: 30,
               height: 30,
               display: "flex",
@@ -13577,7 +13603,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
 
           <p
             style={{
-              margin: "0 0 28px",
+              margin: winFoeNote ? "0 0 7px" : "0 0 28px",
               fontFamily: "'IBM Plex Mono', monospace",
               fontSize: 11,
               letterSpacing: "0.14em",
@@ -13587,6 +13613,23 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           >
             {winReason}
           </p>
+          {/* Whom they beat (winFoeNote): the AI's level, smaller still. */}
+          {winFoeNote && (
+            <p
+              data-testid="victory-foe"
+              style={{
+                margin: "0 0 28px",
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 10,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: COLORS.slate,
+                opacity: 0.78,
+              }}
+            >
+              {winFoeNote}
+            </p>
+          )}
 
           <div style={{ display: "flex", gap: 8 }}>
             <button

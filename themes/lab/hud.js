@@ -260,7 +260,9 @@ export function LabHud({ spec, x }) {
         h("span", { className: "n" }, pad2(e.n)),
         h("span", { className: "m" }, h("i", { className: "p", "data-p": e.player, "aria-label": SIDE[e.player] }), `${e.notation || ""}${e.mark || ""}`))))
       : null,
-    h("div", { className: "lab-over", role: "status" }, game.status === "finished" && game.winner ? `${SIDE[game.winner]} wins` : "", game.winReason ? h("div", { className: "lab-label", style: { marginTop: 6 } }, game.winReason) : null),
+    h("div", { className: "lab-over", role: "status" }, game.status === "finished" && game.winner ? `${SIDE[game.winner]} wins` : "", game.winReason ? h("div", { className: "lab-label", style: { marginTop: 6 } }, game.winReason) : null,
+      // (Whom they beat, the AI's level: the chassis's winFoeNote.)
+      game.winFoeNote ? h("div", { className: "lab-label", style: { marginTop: 4, opacity: 0.8 } }, game.winFoeNote) : null),
     compact && game.rules ? h(LabRules, { rules: game.rules, open }) : null
   );
 }

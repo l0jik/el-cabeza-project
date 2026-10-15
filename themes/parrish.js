@@ -461,6 +461,12 @@ export const styleSheet = `
     -webkit-mask-box-image: url(${MENU_EDGE}) 64 fill / 16px stretch;
     mask-border: url(${MENU_EDGE}) 64 fill / 16px stretch;
     outline: 1px solid ${GOLD(0.62)} !important; outline-offset: -9px !important;
+    /* The gold line sits 9px inside the edge, where the chassis keeps
+       the dock's foot (the sides' names, the corner switches) 7-8px from
+       it: lifted clear of the line (chassis --ec-dock-foot-lift; user:
+       "the bottom of the box should be extended down a little bit
+       further. The root words at the bottom seem a bit cramped"). */
+    --ec-dock-foot-lift: 10px;
   }
   :is(${PANELS}) :is(h1, h2, h3, h4) { font-family: 'Cinzel', Georgia, serif !important; font-weight: 700 !important; letter-spacing: 0.08em !important; color: ${MENU.ink} !important; }
   :is(${PANELS}) :is(div, span, p, li, label, td, th, output, small, strong, em, b, i, a) { font-family: 'Cormorant Garamond', Georgia, serif !important; }
