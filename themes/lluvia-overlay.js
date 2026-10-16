@@ -32,6 +32,9 @@ const h = React.createElement;
 const PINK = "#ff3dbb", CYAN = "#23e6ff", AMBER = "#ffb347";
 const TUBE = (c) => `0 0 4px rgba(255,255,255,0.8), 0 0 10px ${c}, 0 0 22px ${c}, 0 0 40px ${c}`;
 const TERM = { fontFamily: "'VT323', monospace", color: "#ffcf8a" };
+// A Board row's words (wrapping at the left) and its [ ON ] (whole, at the right).
+const ROW_WORDS = { flex: "1 1 auto", minWidth: 0, textAlign: "left" };
+const ROW_FLAG = { flex: "none", whiteSpace: "nowrap", marginLeft: 10 };
 const SAIRA = "'Saira Condensed', system-ui, sans-serif";
 const SAIRA_X = "'Saira Extra Condensed', system-ui, sans-serif";
 const ELITE = "'Special Elite', 'Courier New', monospace";
@@ -141,7 +144,7 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
         style: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", gap: 10, width: "100%", minHeight: 56, padding: "6px 0", background: "transparent", border: "none", borderBottom: "1px solid rgba(255,179,71,0.12)", textAlign: "left", cursor: "pointer", ...TERM },
       },
       h("span", { style: { display: "flex", flexDirection: "column" } }, h("span", { style: { fontSize: 22, color: "#ffe2b0" } }, name), h("span", { style: { fontSize: 16, color: "#a8783a" } }, note)),
-      h("span", { style: { fontSize: 22, color: on ? "#fff27a" : "#7a6040", textShadow: on ? "0 0 8px rgba(255,242,122,0.7)" : "none" } }, on ? "[ ON ]" : "[OFF ]"));
+      h("span", { style: { fontSize: 22, whiteSpace: "nowrap", color: on ? "#fff27a" : "#7a6040", textShadow: on ? "0 0 8px rgba(255,242,122,0.7)" : "none" } }, on ? "[ ON ]" : "[OFF ]"));
       return [row, ...(shoveRow ? [shoveRow] : []), ...warn];
     })];
   } else {
@@ -149,14 +152,14 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
       key: k, type: "button", "data-testid": `lluvia-topo-${k}`, "aria-pressed": on ? "true" : "false",
       onClick: () => { sound("key"); change((s) => { flip(s); }); },
       style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: 52, background: "transparent", border: "none", borderTop: "1px solid rgba(255,179,71,0.12)", cursor: "pointer", ...TERM, fontSize: 22, color: "#ffe2b0" },
-    }, h("span", null, label), h("span", { style: { color: on ? "#fff27a" : "#7a6040" } }, on ? "[ ON ]" : "[OFF ]"));
+    }, h("span", { style: ROW_WORDS }, label), h("span", { style: { ...ROW_FLAG, color: on ? "#fff27a" : "#7a6040" } }, on ? "[ ON ]" : "[OFF ]"));
     body = [
       h("span", { key: "l", style: { display: "block", fontSize: 18, color: "#a8783a", padding: "6px 0" } }, "BOARD SIZE"),
       h("div", { key: "s", style: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, paddingBottom: 10 } },
         ...SIZES.map((n) => {
           const on = sel.rows === n && sel.cols === n;
           return h("button", { key: n, type: "button", "data-testid": `lluvia-size-${n}`, "aria-pressed": on ? "true" : "false", onClick: () => { sound("key"); change((s) => { s.rows = n; s.cols = n; }); },
-            style: { height: 48, border: "1px solid", borderRadius: 3, font: "400 24px 'VT323', monospace", cursor: "pointer", ...(on ? { background: AMBER, color: "#140a04", borderColor: AMBER } : { background: "transparent", color: "#ffcf8a", borderColor: "rgba(255,179,71,0.5)" }) } }, `${n} × ${n}`);
+            style: { height: 48, border: "1px solid", borderRadius: 3, font: "400 clamp(18px, 6vw, 24px) 'VT323', monospace", whiteSpace: "nowrap", padding: "0 4px", cursor: "pointer", ...(on ? { background: AMBER, color: "#140a04", borderColor: AMBER } : { background: "transparent", color: "#ffcf8a", borderColor: "rgba(255,179,71,0.5)" }) } }, `${n} × ${n}`);
         })),
       flag("missing", "Missing squares"),
       // (Black hole squares: a law to the engine, a feature of the board
@@ -189,12 +192,12 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
           key: "byhand", type: "button", "data-testid": "lluvia-topo-byhand", "aria-pressed": start.on ? "true" : "false",
           onClick: () => { sound("key"); start.set(!start.on); },
           style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: 52, background: "transparent", border: "none", borderTop: "1px solid rgba(255,179,71,0.12)", cursor: "pointer", ...TERM, fontSize: 22, color: "#ffe2b0" },
-        }, h("span", null, "Place pieces manually"), h("span", { style: { color: start.on ? "#fff27a" : "#7a6040" } }, start.on ? "[ ON ]" : "[OFF ]")),
+        }, h("span", { style: ROW_WORDS }, "Place pieces manually"), h("span", { style: { ...ROW_FLAG, color: start.on ? "#fff27a" : "#7a6040" } }, start.on ? "[ ON ]" : "[OFF ]")),
         ...(start.on ? [h("button", {
           key: "byhalf", type: "button", "data-testid": "lluvia-topo-byhalf", "aria-pressed": start.half ? "true" : "false",
           onClick: () => { sound("key"); start.toggleHalf(); },
           style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: 52, background: "transparent", border: "none", borderTop: "1px solid rgba(255,179,71,0.12)", cursor: "pointer", ...TERM, fontSize: 22, color: "#ffe2b0", paddingLeft: 14 },
-        }, h("span", null, "Anywhere in my half"), h("span", { style: { color: start.half ? "#fff27a" : "#7a6040" } }, start.half ? "[ ON ]" : "[OFF ]"))] : []),
+        }, h("span", { style: ROW_WORDS }, "Anywhere in my half"), h("span", { style: { ...ROW_FLAG, color: start.half ? "#fff27a" : "#7a6040" } }, start.half ? "[ ON ]" : "[OFF ]"))] : []),
       ] : []),
     ];
   }
@@ -204,8 +207,12 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
     style: { "--ec-guide": "#ffb347", "--ec-guide-glow": "rgba(255,179,71,0.45)", "--ec-guide-bg": "rgba(255,179,71,0.14)", ...column, bottom: 10, maxHeight: "74vh", display: "flex", flexDirection: "column", borderRadius: 8, background: "#0e0904", border: "1px solid rgba(255,179,71,0.55)", boxShadow: "inset 0 0 40px rgba(255,140,40,0.14), 0 0 40px rgba(0,0,0,0.8)", overflow: "hidden", ...TERM, width: "min(calc(100% - 20px), 460px)" },
   },
   h("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderBottom: "1px dashed rgba(255,179,71,0.4)" } },
-    h("span", { style: { fontSize: 16, color: "#a8783a", whiteSpace: "nowrap" } }, "KV-OS >"),
-    h("span", { style: { whiteSpace: "nowrap", fontFamily: SAIRA_X, fontWeight: 800, fontSize: 22, letterSpacing: "0.06em", color: title[3], textShadow: TUBE(title[2]) } }, title[0], " ", h("span", { style: { fontFamily: JP, fontSize: 17, color: title[2], textShadow: "none" } }, title[1])),
+    // (On a phone the breadcrumb goes over the title, and CLOSE stays on
+    // the panel: user, "check globally to see if this is happening
+    // elsewhere and fix".)
+    h("span", { style: { display: "flex", flexWrap: "wrap", alignItems: "baseline", columnGap: 10, rowGap: 2, minWidth: 0, flex: "1 1 auto" } },
+      h("span", { style: { fontSize: 16, color: "#a8783a", whiteSpace: "nowrap" } }, "KV-OS >"),
+      h("span", { style: { whiteSpace: "nowrap", fontFamily: SAIRA_X, fontWeight: 800, fontSize: 22, letterSpacing: "0.06em", color: title[3], textShadow: TUBE(title[2]) } }, title[0], " ", h("span", { style: { fontFamily: JP, fontSize: 17, color: title[2], textShadow: "none" } }, title[1]))),
     h("button", { type: "button", "data-testid": "lluvia-panel-close", onClick: onClose, style: { marginLeft: "auto", flexShrink: 0, whiteSpace: "nowrap", height: 36, padding: "0 10px", background: "transparent", border: "1px solid rgba(255,179,71,0.6)", borderRadius: 3, color: "#ffcf8a", font: "400 18px 'VT323', monospace", cursor: "pointer" } }, "CLOSE ✕")),
   // (Plain blocks, one under another: in a flex column, and in a grid, the
   // row buttons were sized without their text, held to their 56px least

@@ -10,7 +10,7 @@
    - which moves shove: "Slides and rolls" (the default) or "Slides only"
      (a roll into a piece is simply blocked, as without the law);
    - which pieces a shove may push, a slide's or a roll's: "All pieces"
-     (the default) or "Only opponents'" (one of your own in the way blocks
+     (the default) or "Only opponents" (one of your own in the way blocks
      the move, as without the law).
    A selection keeps them as shove: { onRolls, own }; the engine gets
    ACTIVE_LAWS.shoveOnRolls and ACTIVE_LAWS.shoveOwn (engine/rules.js
@@ -19,7 +19,7 @@
 // Each setting and its two options, in the order the menus show them.
 export const SHOVE_SETTINGS = [
   { key: "onRolls", name: "Shoves on", options: [{ value: true, name: "Slides and rolls" }, { value: false, name: "Slides only" }] },
-  { key: "own", name: "Shoves push", options: [{ value: true, name: "All pieces" }, { value: false, name: "Only opponents'" }] },
+  { key: "own", name: "Shoves push", options: [{ value: true, name: "All pieces" }, { value: false, name: "Only opponents" }] },
 ];
 export const DEFAULT_SHOVE = { onRolls: true, own: true };
 
@@ -52,7 +52,7 @@ export function shoveChosen(saved) {
 // only opponents'", "slides only, only opponents'".
 export function shoveSummary(saved) {
   const s = shoveOf(saved);
-  return `${s.onRolls ? "slides and rolls" : "slides only"}${s.own ? "" : ", only opponents'"}`;
+  return `${s.onRolls ? "slides and rolls" : "slides only"}${s.own ? "" : ", only opponents"}`;
 }
 
 // The sentence for "Only opponents'", wherever a setting's described.

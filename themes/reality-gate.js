@@ -185,7 +185,13 @@ const CSS = `
 .rg-sec { padding: 14px 0 6px; border-bottom: 1px dashed var(--rg-line); }
 .rg-sec:last-child { border-bottom: none; }
 .rg-sec h3 { margin: 0 0 8px; font: 700 12px/1.2 var(--rg-body); letter-spacing: 0.16em; text-transform: uppercase; color: var(--rg-muted); }
-.rg-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 46px; padding: 3px 0; }
+/* A row's words take the room its control leaves, never less than their
+   longest word; a control that won't fit beside them goes under them
+   (user: a "Back 3 rows" button "overlapping the words 'pieces in'").
+   Beside the words, the control sits at the right; under, at the left. */
+.rg-row { display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 6px; min-height: 46px; padding: 3px 0; }
+.rg-row > :first-child { flex: 1 1 0; min-width: min-content; }
+.rg-row > :not(:first-child) { flex: 0 1 auto; max-width: 100%; }
 .rg-name { font: 600 15px/1.25 var(--rg-body); }
 .rg-piece-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .rg-pic { flex: none; width: 66px; height: 50px; display: flex; align-items: center; justify-content: center;
@@ -261,23 +267,31 @@ button.rg-pic:focus-visible { outline: 2px solid var(--rg-accent); outline-offse
    placed at random isn't drawn: a dashed ring said so, and was more
    puzzle than help, user. With two sets the buttons over the board say
    which pair a tap moves, the other pair dimmed.) */
-.rg-cell .mk.bh, .rg-bh-key i { --bh: #FFB23F; --bh-glow: rgba(255,178,63,0.8); }
-.rg-cell .mk.bh[data-set="2"], .rg-bh-key i[data-set="2"] { --bh: #5CC8FF; --bh-glow: rgba(92,200,255,0.8); }
-.rg-cell .mk.bh, .rg-bh-key i { border-radius: 50%; box-shadow: 0 0 7px 1px var(--bh-glow);
+.rg-cell .mk.bh, .rg-bh-key i, .rg-bh-status i { --bh: #FFB23F; --bh-glow: rgba(255,178,63,0.8); }
+.rg-cell .mk.bh[data-set="2"], .rg-bh-key i[data-set="2"], .rg-bh-status i[data-set="2"] { --bh: #5CC8FF; --bh-glow: rgba(92,200,255,0.8); }
+.rg-cell .mk.bh, .rg-bh-key i, .rg-bh-status i { border-radius: 50%; box-shadow: 0 0 7px 1px var(--bh-glow);
   background: radial-gradient(circle closest-side, #000 0 50%, #0B0B0E 57%, var(--bh) 64% 80%, rgba(0,0,0,0.85) 88%, transparent 100%); }
 .rg-cell .mk.bh { width: 78%; height: 78%; opacity: 1; color: transparent; text-shadow: none; outline: none; padding: 0; transition: opacity 0.15s ease; }
 .rg-cell .mk.bh.idle { opacity: 0.45; }
+/* (The pair a tap places, user: "it's not clear which one you're
+   selecting at any given time": its tab filled in its colour, a line
+   saying so, and its two holes pulsing.) */
+.rg-cell .mk.bh.live { animation: rg-bh-live 1.3s ease-in-out infinite; }
+@keyframes rg-bh-live { 50% { box-shadow: 0 0 0 3px var(--bh), 0 0 16px 5px var(--bh-glow); } }
+.rg-bh-status { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 1.4em; text-align: center; font: 700 14px/1.35 var(--rg-body); color: var(--rg-ink); }
+.rg-bh-status i { display: inline-block; width: 16px; height: 16px; flex: none; }
 .rg-bh-key { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; font: 600 12px/1.2 var(--rg-body); color: var(--rg-muted); }
 .rg-bh-key button { --bh: #FFB23F; appearance: none; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; cursor: pointer;
   border: var(--rg-line-w) solid var(--rg-line); border-radius: var(--rg-radius); background: transparent; color: var(--rg-ink); font: 600 14px/1 var(--rg-body); }
 .rg-bh-key button[data-set="2"] { --bh: #5CC8FF; }
-.rg-bh-key button[aria-pressed="true"] { border-color: var(--bh); background: color-mix(in srgb, var(--bh) 24%, transparent); box-shadow: 0 0 0 1px var(--bh); }
+.rg-bh-key button[aria-pressed="true"] { border-color: var(--bh); background: var(--bh); color: #14110C; box-shadow: 0 0 0 2px color-mix(in srgb, var(--bh) 40%, transparent), 0 0 12px var(--bh); }
 .rg-bh-key button:focus-visible { outline: 2px solid var(--rg-accent); outline-offset: 2px; }
 .rg-bh-key i { display: inline-block; width: 16px; height: 16px; flex: none; }
 .rg-explain { margin: 0; font: 400 13px/1.45 var(--rg-body); color: var(--rg-ink); max-width: 62ch; }
 .rg-pick-note { min-height: 1.35em; font: 600 13px/1.35 var(--rg-body); color: var(--rg-accent); }
 .rg-pick-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
-@media (prefers-reduced-motion: reduce) { .rg-layer, .rg-sheet { animation: none; } .rg-big, .rg-switch::after, .rg-cell .mk.bh { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .rg-layer, .rg-sheet { animation: none; } .rg-big, .rg-switch::after, .rg-cell .mk.bh { transition: none; }
+  .rg-cell .mk.bh.live { animation: none; box-shadow: 0 0 0 3px var(--bh), 0 0 10px 2px var(--bh-glow); } }
 `;
 function ensureCss() {
   if (typeof document === "undefined" || document.querySelector("style[data-ec-reality-gate]")) return;
@@ -347,8 +361,8 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
     marks.set(`${m.row},${m.col}`, { spot: p, mirror: true, set: i + 1 });
   });
   // A black hole's mark: drawn, not lettered (the CSS above); with two
-  // sets, the pair a tap doesn't move dimmed.
-  const holeMk = (set, more = "") => h("span", { className: `mk bh${more}${isHole && count === 2 && set !== aim ? " idle" : ""}`, "data-set": set });
+  // sets, the pair a tap places pulsing, the other dimmed.
+  const holeMk = (set, more = "") => h("span", { className: `mk bh${more}${isHole && count === 2 ? (set === aim ? " live" : " idle") : ""}`, "data-set": set });
   const tap = (r, c) => {
     const at = marks.get(`${r},${c}`);
     if (at) {
@@ -363,7 +377,7 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
       setDraft(d); setNote("");
       return;
     }
-    if (other.has(`${r},${c}`)) { setNote(isHole ? "That square is cut out." : "That square is a black hole."); return; }
+    if (other.has(`${r},${c}`)) { setNote(isHole ? "That square is cut out." : "That square is a singularity."); return; }
     // (A black hole's square: where the hole, or one of two, moves to.)
     const moved = isHole ? holeSpotsAfterTap(draft, r, c, count === 2 ? aim : 1) : null;
     const problem = isHole ? moved.problem : spotProblem(draft, kind, r, c, spots.filter(Boolean));
@@ -392,31 +406,35 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
       const cls = ["rg-cell", (r + c) % 2 ? "dk" : "lt"];
       if (pieceAt(r, c)) cls.push("piece");
       if (!at && isHole && spotProblem(draft, "hole", r, c) === "backRow") cls.push("banned");
+      // (Two sets: the squares beside the other pair's holes, where the
+      // pair being placed can't go, shaded too.)
+      else if (!at && isHole && count === 2 && !other.has(`${r},${c}`) && holeSpotsAfterTap(draft, r, c, aim).problem === "near") cls.push("banned", "near");
       const how = at ? `${at.mirror ? " mirror" : ""}${at.spot.random && !isHole ? " rolled" : ""}` : "";
       const mark = at ? (isHole ? holeMk(at.set, how) : h("span", { className: `mk${how}` }, "X"))
         : other.has(`${r},${c}`) ? (isHole ? h("span", { className: "mk mirror" }, "X") : holeMk(other.get(`${r},${c}`), " mirror")) : null;
       cells.push(h("button", {
         key: `${r},${c}`, type: "button", className: cls.join(" "), "data-testid": `gate-cell-${r}-${c}`,
-        "aria-label": `Row ${r + 1}, column ${c + 1}${at ? (isHole ? `, black hole${count === 2 ? ` of set ${at.set}` : ""}` : ", cut out") : ""}`,
+        "aria-label": `Row ${r + 1}, column ${c + 1}${at ? (isHole ? `, singularity${count === 2 ? ` of set ${at.set}` : ""}` : ", cut out") : ""}`,
         style: { width: cell, height: cell, fontSize: Math.max(10, cell * 0.55) }, onClick: () => tap(r, c),
       }, mark));
     }
   }
-  const title = isHole ? "Place the black holes" : "Mark the squares to cut out";
+  const title = isHole ? "Place the singularities" : "Mark the squares to cut out";
   return h("div", { className: "rg-pick", "data-testid": "gate-picker", role: "dialog", "aria-modal": "true", "aria-label": title,
     onClick: (e) => { if (e.target === e.currentTarget) onCancel(); } },
     h("div", { className: "rg-pick-box" },
       h("h3", null, title),
       h("p", null, isHole
         ? count === 2
-          ? "Pick a set, then tap a square: its black hole moves there, and its partner, turned half round, is marked for you in the same colour. Then Done. Not in either side's two back rows, nor beside each other."
-          : "Tap a square for the black hole; its partner, turned half round, is marked for you. Tap another to move them, then Done. Not in either side's two back rows."
+          ? "Choose a set, then tap a square: that set's singularity moves there, and its partner, turned half round, follows in the same colour. Tap a singularity to choose its set. Then Done. Not in either side's two back rows, nor beside the other set's singularities (those squares are shaded)."
+          : "Tap a square for the singularity; its partner, turned half round, is marked for you. Tap another to move them, then Done. Not in either side's two back rows."
         : `Tap up to ${count} ${count === 1 ? "square" : "squares"}; each one's partner, turned half round, is marked for you. Dashed marks were picked at random: tap one to keep it. Dots show where the pieces start.`),
       // (Two sets: which set a tap moves, the buttons in its colours.)
-      isHole && count === 2 && h("div", { className: "rg-bh-key", role: "group", "aria-label": "The set a tap moves", "data-testid": "gate-hole-key" },
-        h("span", null, "A tap moves"),
+      isHole && count === 2 && h("div", { className: "rg-bh-key", role: "group", "aria-label": "The set a tap places", "data-testid": "gate-hole-key" },
         [1, 2].map((n) => h("button", { key: n, type: "button", "data-set": n, "aria-pressed": aim === n ? "true" : "false", "data-testid": `gate-hole-aim-${n}`, onClick: () => { setAim(n); setNote(""); } },
           h("i", { "data-set": n }), `Set ${n}`))),
+      isHole && count === 2 && h("div", { className: "rg-bh-status", "data-testid": "gate-hole-status", "data-set": aim },
+        h("i", { "data-set": aim }), `Now placing Set ${aim} (${aim === 1 ? "amber" : "blue"}): tap a square for its singularity.`),
       h("div", { className: "rg-side" }, `Far side · ${names.light}`),
       h("div", { className: "rg-grid", role: "grid", "aria-label": `${boardLabel(draft)} board`, style: { gridTemplateColumns: `repeat(${cols}, ${cell}px)` } }, cells),
       h("div", { className: "rg-side" }, `Near side · ${names.dark}`),
@@ -664,7 +682,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
       // out of either hole on the far side, its pick.
       h("div", { className: "rg-row" },
         h("span", { className: "rg-name" }, "Sets"),
-        h(Seg, { label: "Sets of black holes" },
+        h(Seg, { label: "Sets of singularities" },
           segBtn("1", holeSetsOf(sel) === 1, "1", () => change((n) => setHoleSets(n, 1)), "gate-hole-sets-1"),
           segBtn("2", holeSetsOf(sel) === 2, "2", () => change((n) => setHoleSets(n, 2)), "gate-hole-sets-2"))),
       // How they work, as they're set (user: "an explanation on the setup

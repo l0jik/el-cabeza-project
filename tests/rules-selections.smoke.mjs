@@ -108,13 +108,13 @@ import("../themes/rules-selections.js").then(async (m) => {
   s.shove = { onRolls: true, own: false };
   check("opponents' only reaches the engine", m.lawsForEngine(s).shoveOwn === false && m.lawsForEngine(s).shoveOnRolls === true);
   check("...the line says so", /only your opponent's pieces/.test(m.shoveNow(s)), m.shoveNow(s));
-  check("...and the summary too", m.variantsOf(s)[0].items.includes("Shoving (slides and rolls, only opponents')"), JSON.stringify(m.variantsOf(s)[0].items));
+  check("...and the summary too", m.variantsOf(s)[0].items.includes("Shoving (slides and rolls, only opponents)"), JSON.stringify(m.variantsOf(s)[0].items));
   check("...and it survives a save", m.normalizeSelections(m.cloneSelections(s)).shove.own === false);
   s.shove = { onRolls: false, own: false };
   s.laws.slide = true;
   check("with slides only: opponents' only reaches the engine", m.lawsForEngine(s).shoveOwn === false && m.lawsForEngine(s).shoveOnRolls === false);
   check("...the line says so", /only slides shove/.test(m.shoveNow(s)) && /only your opponent's pieces/.test(m.shoveNow(s)), m.shoveNow(s));
-  check("...the summary too", m.variantsOf(s)[0].items.includes("Shoving (slides only, only opponents')"), JSON.stringify(m.variantsOf(s)[0].items));
+  check("...the summary too", m.variantsOf(s)[0].items.includes("Shoving (slides only, only opponents)"), JSON.stringify(m.variantsOf(s)[0].items));
   check("...a game that isn't the default one", !m.isDefaultSelections(s));
   check("...and it survives a save", m.normalizeSelections(m.cloneSelections(s)).shove.own === false);
   s.laws.slide = false;
@@ -225,15 +225,15 @@ import("../themes/rules-selections.js").then(async (m) => {
     // from any of the three other black holes on the board").
     check("Exit from any hole: off to start with", h.holeAnyExit === false && m.lawsForEngine(h).holeAnyExit === false);
     h.holeAnyExit = true;
-    check("...on: to the engine with two sets, and in the summary", m.lawsForEngine(h).holeAnyExit === true && /2 sets, exit from any hole/.test(JSON.stringify(m.variantsOf(h))) && /any of the other three/.test(m.holeSetsText(h)));
+    check("...on: to the engine with two sets, and in the summary", m.lawsForEngine(h).holeAnyExit === true && /2 sets, exit from any other singularity/.test(JSON.stringify(m.variantsOf(h))) && /any of the other three/.test(m.holeSetsText(h)));
     check("...kept through a save; an older save has it off", m.normalizeSelections(JSON.parse(JSON.stringify(h))).holeAnyExit === true && m.normalizeSelections({ laws: {} }).holeAnyExit === false);
-    check("...and how two sets work said otherwise: the other half", /either hole on the other half/.test(m.holeSetsText({ ...h, holeAnyExit: false })));
+    check("...and how two sets work said otherwise: the other half", /either one on the other half/.test(m.holeSetsText({ ...h, holeAnyExit: false })));
     const one = m.defaultSelections(); one.laws.blackHoleSquares = true; one.holeSpots = [{ row: 3, col: 2, random: false }];
     tap = m.holeSpotsAfterTap(one, 3, 3);
     check("with one set the hole simply moves, even next door", tap.spots && tap.spots.length === 1 && tap.spots[0].col === 3, JSON.stringify(tap));
     m.setHoleSets(h, 1);
     check("back to one set: the spot marked by hand stays", h.holeSpots.length === 1 && !h.holeSpots[0].random, JSON.stringify(h.holeSpots));
-    check("...and Exit from any hole goes nowhere with one set", m.lawsForEngine(h).holeAnyExit === false && !/exit from any hole/.test(JSON.stringify(m.variantsOf(h))) && /A hole and its partner/.test(m.holeSetsText(h)));
+    check("...and Exit from any hole goes nowhere with one set", m.lawsForEngine(h).holeAnyExit === false && !/exit from any other singularity/.test(JSON.stringify(m.variantsOf(h))) && /A singularity and its partner/.test(m.holeSetsText(h)));
     h.holeAnyExit = false;
     m.setHoleSets(h, 2);
     h.holeSpots = [{ row: 3, col: 2, random: false }, { row: 2, col: 6, random: false }];

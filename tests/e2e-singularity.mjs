@@ -869,11 +869,11 @@ if (state.activeCategory === "laws") {
   // page for the two black holes, how they work".)
   check("Sets 2: a second black-hole spot, the hand-placed one kept, said how they work",
     bh2.sets === 2 && !!bh2.second && bh2.manual.row === Number(m[1]) && bh2.manual.col === Number(m[2]) &&
-      /either hole on the other half, you choose which, the normal way/.test(await page.locator('[data-testid="blackhole-explain"]').innerText()),
+      /either one on the other half: you choose which singularity\. It comes out the normal way, one square past that singularity/.test(await page.locator('[data-testid="blackhole-explain"]').innerText()),
     JSON.stringify(bh2));
   // The box under two sets (user: "a toggle switch that allows them to
   // exit from any of the three other black holes on the board").
-  check("...Exit From Any Hole under it, off", (await page.locator('[data-testid="blackhole-any-exit"]').getAttribute("data-checked")) === "false");
+  check("...Exit From Any Other Singularity under it, off", (await page.locator('[data-testid="blackhole-any-exit"]').getAttribute("data-checked")) === "false");
   await page.locator('[data-testid="blackhole-any-exit"]').click();
   await page.waitForTimeout(150);
   check("...on: kept in the selections, the words say any of the other three",
@@ -891,8 +891,17 @@ if (state.activeCategory === "laws") {
   check("...the picker: four holes, no dashed edges, Set 1 chosen, Set 2's pair dimmed",
     hc.length === 4 && hc.every((c) => !c.dashed) && hc.every((c) => c.dim === (c.set === "2")) &&
       (await page.locator('[data-testid="blackhole-picker-aim-1"]').getAttribute("aria-pressed")) === "true", JSON.stringify(hc));
+  // (Which pair a tap places, said and shown, user: "it's not clear which
+  // one you're selecting at any given time".)
+  const livePair = () => page.evaluate(() => [...document.querySelectorAll('[data-testid="blackhole-picker"] [data-hole-live="true"]')].map((el) => el.dataset.holeSet).join(","));
+  check("...a line says which (Set 1, amber), its pair pulsing",
+    /^Now placing Set 1 \(amber\): tap a square on your side for its singularity\.$/.test((await page.locator('[data-testid="blackhole-picker-status"]').innerText()).trim()) && (await livePair()) === "1,1",
+    `${await page.locator('[data-testid="blackhole-picker-status"]').innerText()} · ${await livePair()}`);
   await page.locator('[data-testid="blackhole-picker-aim-2"]').click();
   await page.waitForTimeout(150);
+  check("...Set 2 chosen: the line says so (blue), its pair pulsing now",
+    /^Now placing Set 2 \(blue\)/.test((await page.locator('[data-testid="blackhole-picker-status"]').innerText()).trim()) && (await livePair()) === "2,2",
+    `${await page.locator('[data-testid="blackhole-picker-status"]').innerText()} · ${await livePair()}`);
   const bhCols = (await sphereState()).selections.topologies.cols;
   const nearCell = `bh-cell-${m[1]}-${Number(m[2]) + (Number(m[2]) < bhCols - 1 ? 1 : -1)}`;
   hc = await holeCells();

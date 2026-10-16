@@ -551,7 +551,7 @@ export const styleSheet = `
   /* Who's playing: taller again (user: "Computer plays Walnut (dark)" on
      two lines wants more room in its stroke). */
   .rg-seg.rg-opp button { min-height: 66px !important; padding: 15px 18px !important; }
-  @media (max-width: 560px) { .rg-sec .rg-row:has(> .rg-seg) { grid-template-columns: minmax(0, 1fr); row-gap: 6px; } }
+  @media (max-width: 560px) { .rg-sec .rg-row:has(> .rg-seg) > .rg-seg { flex-basis: 100%; } }
   /* The camera views: two strokes side by side, no box round them. */
   :is(${PANELS}) [data-dock-role="views"] { border: none !important; border-radius: 0 !important; overflow: visible !important; gap: 10px; }
   /* The status line ("Dark to move"): a broad stroke of glaze, no box. */

@@ -1667,7 +1667,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
     holesOn && h("div", { key: "holes-where", className: "td-sub", "data-testid": "tienda-hole-settings" },
       h("div", { className: "td-sub-row" },
         h("span", { className: "td-sub-h" }, "Sets"),
-        h("div", { className: "td-seg", role: "group", "aria-label": "Sets of black holes" },
+        h("div", { className: "td-seg", role: "group", "aria-label": "Sets of singularities" },
           ...[1, 2].map((n) => h("button", {
             key: n, type: "button", "aria-pressed": holeSetsOf(sel) === n ? "true" : "false", "data-testid": `tienda-hole-sets-${n}`,
             onClick: () => { click(); change((s) => setHoleSets(s, n)); },
@@ -1796,7 +1796,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const lawsOn = RULE_LAWS.filter((l) => sel.laws[l.key]).length;
   const summary = classic
     ? `${total} pieces a side · ${boardLabel(sel)} board`
-    : `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board${sel.missing ? ` · ${sel.missingCount} cut ${sel.missingCount === 1 ? "pair" : "pairs"}` : ""}${sel.laws.blackHoleSquares ? (holeSetsOf(sel) === 2 ? " · 2 sets of black holes" : " · black holes") : ""}`;
+    : `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board${sel.missing ? ` · ${sel.missingCount} cut ${sel.missingCount === 1 ? "pair" : "pairs"}` : ""}${sel.laws.blackHoleSquares ? (holeSetsOf(sel) === 2 ? " · 2 sets of singularities" : " · singularities") : ""}`;
   // The form's sections, numbered as they come (the classic page has no Rules).
   let secNo = 0;
   const sec = (title, note, ...body) => h("div", { className: "td-sec" },

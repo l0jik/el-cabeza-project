@@ -455,7 +455,9 @@ export function createScene(spec) {
     } else if (kind === "plinth") {
       plane(R * 4, R * 4, new THREE.MeshStandardMaterial({ color: 0x8b877f, roughness: 1, map: paintGroundSheetConcrete() }));
       box(0, 0, SLAB_X + 1.2, SLAB_Z + 1.2, 0.5, 0x9c988f, below - 0.5 + 0.001, { roughness: 1 });
-      box(SLAB_X / 2 + 1.9, -SLAB_Z / 2 + 1.2, 1.2, 2.4, 1.6, 0xa39f96, below, { roughness: 1 });
+      // (No concrete block beside it any more: the size and colour of a
+      // light piece, it read as one left off the board, user: "Why is that
+      // piece just sitting out there outside of the board?")
     } else if (kind === "offsetSlab") {
       plane(R * 4, R * 4, new THREE.MeshBasicMaterial({ color: hex(C.bgPrimary) }));
       // The board's hard offset shadow: a black slab, down and to the right.

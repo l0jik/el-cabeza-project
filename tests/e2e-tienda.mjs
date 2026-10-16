@@ -420,7 +420,7 @@ for (const size of [SIZES[2], SIZES[7]]) {
   // (How they work, said under Sets, user: "an explanation on the setup
   // page for the two black holes, how they work".)
   check("Black holes, two sets: a second rolled, the hand-placed one kept, and it says how they work", (where2.match(/O row/g) || []).length === 2 && where2.startsWith(`O row ${pickRow + 1}, col ${pickCol + 1}`)
-    && /either hole on the other half, you choose which, the normal way/.test(await txt('[data-testid="tienda-hole-sets-note"]')), where2);
+    && /either one on the other half: you choose which singularity\. It comes out the normal way, one square past that singularity/.test(await txt('[data-testid="tienda-hole-sets-note"]')), where2);
   // The box under two sets (user: "a toggle switch that allows them to
   // exit from any of the three other black holes on the board").
   check("...with Exit from any hole to mark, unmarked", (await count('[data-testid="tienda-hole-any"]')) === 1 && !(await page.locator('[data-testid="tienda-hole-any-input"]').isChecked()));
@@ -436,9 +436,15 @@ for (const size of [SIZES[2], SIZES[7]]) {
     aim1: document.querySelector('[data-testid="tienda-hole-aim-1"]')?.getAttribute("aria-pressed"),
     idle2: document.querySelectorAll('[data-testid="tienda-picker"] .mk.bh.idle[data-set="2"]').length,
     idle1: document.querySelectorAll('[data-testid="tienda-picker"] .mk.bh.idle[data-set="1"]').length,
+    live1: document.querySelectorAll('[data-testid="tienda-picker"] .mk.bh.live[data-set="1"]').length,
+    status: document.querySelector('[data-testid="tienda-hole-status"]')?.textContent || "",
   }));
   check("...the picker: no dashed rings, Set 1 chosen, Set 2's pair faded", pk.rings === 0 && pk.aim1 === "true" && pk.idle2 === 2 && pk.idle1 === 0, JSON.stringify(pk));
+  // (Which pair a mark places, said and shown, user: "it's not clear which
+  // one you're selecting at any given time".)
+  check("...a line says which (Set 1, red pencil), its pair pulsing", /^Now placing Set 1 \(red pencil\): mark a square for its singularity\.$/.test(pk.status) && pk.live1 === 2, JSON.stringify(pk));
   await press('[data-testid="tienda-hole-aim-2"]');
+  check("...Set 2 chosen: the line says so (blue pencil)", /^Now placing Set 2 \(blue pencil\)/.test(await txt('[data-testid="tienda-hole-status"]')), await txt('[data-testid="tienda-hole-status"]'));
   const far = await page.evaluate(() => {
     const cells = [...document.querySelectorAll('[data-testid="tienda-picker"] .td-cell')];
     const one = cells.filter((b) => b.querySelector('.mk.bh[data-set="1"]')).map((b) => [+b.dataset.row, +b.dataset.col]);

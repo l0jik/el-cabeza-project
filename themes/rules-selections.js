@@ -60,7 +60,7 @@ export const LAW_OPTIONS = [
   // (A law to the engine, but a feature of the board to a player, so the
   // menus set it with the board, under Missing squares, not under Rules,
   // and All rules leaves it alone, as it does Missing squares: `board`.)
-  { key: "blackHoleSquares", name: "Black hole squares", board: true, note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn. One set or two." },
+  { key: "blackHoleSquares", name: "Singularity squares", board: true, note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn. One set or two." },
   { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 action more. Choose whether rolls shove too, or only slides, and whether a shove may push your own pieces." },
   { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 action." },
   // (3 actions per turn directly above Split movement: user.)
@@ -217,17 +217,25 @@ export const holeSetsOf = (sel) => (sel.holeSets === 2 ? 2 : 1);
 export const holeAnyExitOn = (sel) => !!(sel.laws.blackHoleSquares && holeSetsOf(sel) === 2 && sel.holeAnyExit);
 /* How the holes work, under Sets in every menu (user: "an explanation on
    the setup page for the two black holes, how they work"), worded once
-   here. Coming out "the normal way": one square past the hole, on the
-   side the piece went in from, as with one set. */
+   here. With two sets the player picks only the hole: coming out is the
+   normal way, one square past it on the side the piece went in from,
+   under the usual rules (user: "You simply have your choice of black hole
+   to exit from while still following the normal exit rules and
+   restrictions"). */
 export const HOLE_SETS_TEXT = {
-  1: "A hole and its partner. A piece that goes into one comes out of the other, one square past it on the side it went in from, and its turn ends.",
-  2: "Two pairs, one hole of each on each half of the board (a pair shares a colour). A piece that goes into a hole on one half comes out of either hole on the other half, you choose which, the normal way: one square past it on the side it went in from.",
-  any: "Two pairs (a pair shares a colour). A piece that goes into a hole comes out of any of the other three, you choose which, the one on its own half too, the normal way: one square past it on the side it went in from.",
+  1: "A singularity and its partner. A piece that goes into one comes out of the other, one square past it on the same side it went in from, and its turn ends.",
+  2: "Two pairs, each with one singularity on each half of the board (a pair shares a colour). A piece that goes into a singularity may come out of either one on the other half: you choose which singularity. It comes out the normal way, one square past that singularity on the same side it went in from, under the usual rules.",
+  any: "Two pairs (a pair shares a colour). A piece that goes into a singularity may come out of any of the other three, the one on its own half too: you choose which singularity, not where it lands. It comes out the normal way, one square past that singularity on the same side it went in from, under the usual rules.",
 };
 export const holeSetsText = (sel) => (holeSetsOf(sel) === 1 ? HOLE_SETS_TEXT[1] : sel.holeAnyExit ? HOLE_SETS_TEXT.any : HOLE_SETS_TEXT[2]);
 // The switch under two sets (user: "a toggle switch that allows them to
-// exit from any of the three other black holes on the board").
-export const HOLE_ANY_EXIT = { name: "Exit from any hole", note: "Off: out of the two holes on the other half. On: out of any of the other three." };
+// exit from any of the three other black holes on the board"; named and
+// worded as the user put it: "Rewrite to say "exit from any other
+// singularity". Off = Can only exit from singularities on opponent's half
+// of the board. On = Can exit from any other singularity on the board."
+// The engine's rule is the other half from the one gone into, which is
+// the opponent's for a singularity on your own half.)
+export const HOLE_ANY_EXIT = { name: "Exit from any other singularity", note: "Off: can only exit from singularities on the opponent's half of the board. On: can exit from any other singularity on the board." };
 // Black holes never sit in either side's back two rows; missing squares
 // may, but never wall the board off.
 export const holeRowAllowed = (row, rows) => blackHoleRowAllowed(row, rows);
@@ -335,8 +343,8 @@ export function holeSpotsAfterTap(sel, row, col, set = 1) {
 }
 // What a picker says of a square a spot can't go on.
 export const SPOT_PROBLEMS = {
-  backRow: "Black holes can't go in either side's two back rows.",
-  near: "Black holes need a square between them.",
+  backRow: "Singularities can't go in either side's two back rows.",
+  near: "Singularities need a square between them.",
   wall: "That would cut the board in two: every square must still be reachable.",
   centre: "The middle square has no partner. Pick another.",
 };
@@ -482,7 +490,7 @@ export function variantsOf(sel, labels = {}) {
   if (sel.rows !== DEFAULT_BOARD_DIM || sel.cols !== DEFAULT_BOARD_DIM) topo.push(`${boardLabel(sel)} board`);
   if (sel.missing) topo.push(`Missing squares (${sel.missingCount} ${sel.missingCount === 1 ? "pair" : "pairs"})`);
   // (With the board, as the menus set it; two sets say so.)
-  if (sel.laws.blackHoleSquares) topo.push(holeSetsOf(sel) === 2 ? `${HOLES_LAW.name} (2 sets${holeAnyExitOn(sel) ? ", exit from any hole" : ""})` : HOLES_LAW.name);
+  if (sel.laws.blackHoleSquares) topo.push(holeSetsOf(sel) === 2 ? `${HOLES_LAW.name} (2 sets${holeAnyExitOn(sel) ? ", exit from any other singularity" : ""})` : HOLES_LAW.name);
   if (topo.length) groups.push({ key: "topologies", label: L.topologies, items: topo });
   return groups.length ? groups : null;
 }

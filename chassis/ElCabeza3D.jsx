@@ -9733,7 +9733,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     if (rec.rows !== bootBoardRef.current.rows || rec.cols !== bootBoardRef.current.cols) topo.push(`${rec.cols} × ${rec.rows} board`);
     if (rec.missing.length) topo.push(`Missing squares (${rec.missing.length / 2} ${rec.missing.length === 2 ? "pair" : "pairs"})`);
     // (With the board, as the menus set it; two sets say so.)
-    if (rec.laws.blackHoleSquares) topo.push((rec.holes || []).length > 2 ? `${HOLES_LAW.name} (2 sets${rec.laws.holeAnyExit ? ", exit from any hole" : ""})` : HOLES_LAW.name);
+    if (rec.laws.blackHoleSquares) topo.push((rec.holes || []).length > 2 ? `${HOLES_LAW.name} (2 sets${rec.laws.holeAnyExit ? ", exit from any other singularity" : ""})` : HOLES_LAW.name);
     if (topo.length) groups.push({ key: "topologies", label: "TOPOLOGY", items: topo });
     return groups.length ? groups : null;
   }

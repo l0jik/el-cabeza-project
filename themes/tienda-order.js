@@ -53,16 +53,24 @@ export const ORDER_PARTS_CSS = `
      (Whether one was placed at random isn't drawn: a dashed ring said so,
      and was more puzzle than help, user. With two sets the buttons over
      the board say which pair a mark moves, the other pair faded.) */
-  .td-cell .mk.bh, .td-bh-key i { --bh: ${RED}; border-radius: 50%;
+  .td-cell .mk.bh, .td-bh-key i, .td-bh-status i { --bh: ${RED}; border-radius: 50%;
     background: radial-gradient(circle closest-side, #17110C 0 55%, ${PAPER} 60% 71%, var(--bh) 75% 93%, transparent 97%); }
-  .td-cell .mk.bh[data-set="2"], .td-bh-key i[data-set="2"] { --bh: ${PENCIL}; }
+  .td-cell .mk.bh[data-set="2"], .td-bh-key i[data-set="2"], .td-bh-status i[data-set="2"] { --bh: ${PENCIL}; }
   .td-cell .mk.bh { width: 78%; height: 78%; opacity: 1; font-size: 0; box-shadow: 0 1px 2px rgba(23,17,12,0.45); outline: none; padding: 0; }
   .td-cell .mk.bh.idle { opacity: 0.4; }
+  /* (The pair a mark places, user: "it's not clear which one you're
+     selecting at any given time": its tab filled in its pencil, a line
+     saying so, and its two holes pulsing.) */
+  .td-cell .mk.bh.live { animation: tdBhLive 1.3s ease-in-out infinite; }
+  @keyframes tdBhLive { 50% { box-shadow: 0 0 0 3px var(--bh), 0 1px 2px rgba(23,17,12,0.45); } }
+  .td-bh-status { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 1.4em; text-align: center; font: 700 13px/1.35 ${COURIER}; color: ${INK}; }
+  .td-bh-status i { display: inline-block; width: 16px; height: 16px; flex: none; }
+  @media (prefers-reduced-motion: reduce) { .td-cell .mk.bh.live { animation: none; box-shadow: 0 0 0 3px var(--bh); } }
   .td-bh-key { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; font: 700 12px/1.2 ${COURIER}; color: ${INK}; }
   .td-bh-key button { --bh: ${RED}; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; cursor: pointer;
     border: 1.5px solid ${INK}; border-radius: 2px; background: transparent; color: ${INK}; font: 700 14px/1 ${COURIER}; }
   .td-bh-key button[data-set="2"] { --bh: ${PENCIL}; }
-  .td-bh-key button[aria-pressed="true"] { border: 2.5px solid var(--bh); background: rgba(255,255,255,0.45); box-shadow: 2px 2px 0 var(--bh); }
+  .td-bh-key button[aria-pressed="true"] { border: 2.5px solid var(--bh); background: var(--bh); color: ${PAPER}; box-shadow: 2px 2px 0 ${INK}; }
   .td-bh-key button:focus-visible { outline: 3px solid ${RED}; outline-offset: 2px; }
   .td-bh-key i { display: inline-block; width: 16px; height: 16px; flex: none; }
   .td-cell:focus-visible { outline: 3px solid ${RED}; outline-offset: -3px; z-index: 2; }
@@ -137,8 +145,8 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
   // and their partners coming in pairs.)
   const otherSet = new Map(other.map((q, i) => [`${q.row},${q.col}`, Math.floor(i / 2) + 1]));
   // A black hole's mark: drawn, not lettered (the CSS above); with two
-  // sets, the pair a mark doesn't move faded.
-  const holeMk = (set, more = "") => h("span", { className: `mk bh${more}${isHole && count === 2 && set !== aim ? " idle" : ""}`, "data-set": set });
+  // sets, the pair a mark places pulsing, the other faded.
+  const holeMk = (set, more = "") => h("span", { className: `mk bh${more}${isHole && count === 2 ? (set === aim ? " live" : " idle") : ""}`, "data-set": set });
 
   const tap = (r, c) => {
     const at = marks.get(`${r},${c}`);
@@ -156,7 +164,7 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
       setDraft(d); audio && audio.playMark && audio.playMark(); say("");
       return;
     }
-    if (otherSet.has(`${r},${c}`)) { say(isHole ? "That square is cut out." : "That square is a black hole."); return; }
+    if (otherSet.has(`${r},${c}`)) { say(isHole ? "That square is cut out." : "That square is a singularity."); return; }
     // (A black hole's square: where the hole, or one of two, moves to.)
     const moved = isHole ? holeSpotsAfterTap(draft, r, c, count === 2 ? aim : 1) : null;
     const problem = isHole ? moved.problem : spotProblem(draft, kind, r, c, spots.filter(Boolean));
@@ -194,6 +202,9 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
       if (r < 2 || r >= rows - 2) cls.push("home");
       if (pieceAt(r, c)) cls.push("piece");
       if (!at && isHole && spotProblem(draft, "hole", r, c) === "backRow") cls.push("banned");
+      // (Two sets: the squares beside the other pair's holes, where the
+      // pair being placed can't go, hatched too.)
+      else if (!at && isHole && count === 2 && !otherSet.has(`${r},${c}`) && holeSpotsAfterTap(draft, r, c, aim).problem === "near") cls.push("banned", "near");
       if (!at && !isHole && spotProblem(draft, "missing", r, c, spots) === "wall") cls.push("wall");
       const how = at ? `${at.mirror ? " mirror" : ""}${at.spot.random && !isHole ? " rolled" : ""}` : "";
       const mark = at ? (isHole ? holeMk(at.set, how) : h("span", { className: `mk${how}` }, "X"))
@@ -201,17 +212,17 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
       cells.push(h("button", {
         key: `${r},${c}`, type: "button", className: cls.join(" "),
         "data-testid": `tienda-cell-${r}-${c}`, "data-row": r, "data-col": c, "data-mark": at ? (at.mirror ? "mirror" : at.spot.random ? "rolled" : "hand") : "",
-        "aria-label": `Row ${r + 1}, column ${c + 1}${at ? (isHole ? `, black hole${count === 2 ? ` of set ${at.set}` : ""}` : ", cut out") : ""}`,
+        "aria-label": `Row ${r + 1}, column ${c + 1}${at ? (isHole ? `, singularity${count === 2 ? ` of set ${at.set}` : ""}` : ", cut out") : ""}`,
         style: { width: cell, height: cell, fontSize: Math.max(10, cell * 0.55) },
         onClick: () => tap(r, c),
       }, mark));
     }
   }
-  const title = isHole ? "Place the black holes" : "Mark the squares to cut out";
+  const title = isHole ? "Place the singularities" : "Mark the squares to cut out";
   const help = isHole
     ? count === 2
-      ? "Pick a set, then mark a square: its black hole moves there, and its partner, turned half round, is marked for you in the same pencil. Then Done. Not in either side's two back rows, nor beside each other. Dots show where the pieces start; mark one and they set out round it."
-      : "Mark one square for the black hole; its partner, turned half round, is marked for you. Mark another to move them, then Done. Not in either side's two back rows. Dots show where the pieces start; mark one and they set out round it."
+      ? "Choose a set, then mark a square: that set's singularity moves there, and its partner, turned half round, follows in the same pencil. Mark a singularity to choose its set. Then Done. Not in either side's two back rows, nor beside the other set's singularities (those squares are hatched). Dots show where the pieces start; mark one and they set out round it."
+      : "Mark one square for the singularity; its partner, turned half round, is marked for you. Mark another to move them, then Done. Not in either side's two back rows. Dots show where the pieces start; mark one and they set out round it."
     : `Mark up to ${count} ${count === 1 ? "square" : "squares"} with an X; each one's partner, turned half round, is marked for you. Dashed marks were rolled at random: tap one to keep it. Dots show where the pieces start.`;
   return h("div", { className: "td-picker-layer", "data-testid": "tienda-picker", "data-kind": kind, role: "dialog", "aria-modal": "true", "aria-label": title,
     onClick: (e) => { if (e.target === e.currentTarget) onCancel(); } },
@@ -219,10 +230,11 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
       h("h3", null, title),
       h("p", null, help),
       // (Two sets: which set a mark moves, the buttons in its pencil.)
-      isHole && count === 2 && h("div", { className: "td-bh-key", role: "group", "aria-label": "The set a mark moves", "data-testid": "tienda-hole-key" },
-        h("span", null, "A mark moves"),
+      isHole && count === 2 && h("div", { className: "td-bh-key", role: "group", "aria-label": "The set a mark places", "data-testid": "tienda-hole-key" },
         [1, 2].map((n) => h("button", { key: n, type: "button", "data-set": n, "aria-pressed": aim === n ? "true" : "false", "data-testid": `tienda-hole-aim-${n}`, onClick: () => { setAim(n); say(""); } },
           h("i", { "data-set": n }), `Set ${n}`))),
+      isHole && count === 2 && h("div", { className: "td-bh-status", "data-testid": "tienda-hole-status", "data-set": aim },
+        h("i", { "data-set": aim }), `Now placing Set ${aim} (${aim === 1 ? "red" : "blue"} pencil): mark a square for its singularity.`),
       h("div", { className: "td-picker-side" }, `Far side · ${SIDE.light}`),
       h("div", { className: "td-grid", role: "grid", "aria-label": `${boardLabel(draft)} board`, style: { gridTemplateColumns: `repeat(${cols}, ${cell}px)` } }, cells),
       h("div", { className: "td-picker-side" }, `Your side · ${SIDE.dark}`),
@@ -310,7 +322,7 @@ export function CarbonCopies({ sel, onLoad, audio }) {
   return h("div", { "data-testid": "tienda-copies" },
     h("div", { className: "td-copy-new" },
       h("label", { htmlFor: "tienda-copy-name", style: { font: `700 13px/1.2 ${FRANKLIN}` } }, "Name this order"),
-      h("input", { id: "tienda-copy-name", "data-testid": "tienda-copy-name", value: name, maxLength: 40, placeholder: "e.g. Big board, black holes",
+      h("input", { id: "tienda-copy-name", "data-testid": "tienda-copy-name", value: name, maxLength: 40, placeholder: "e.g. Big board, singularities",
         onChange: (e) => setName(e.target.value), onKeyDown: (e) => { if (e.key === "Enter") file(); } }),
       h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-copy-save", onClick: file }, "File a copy"),
     ),

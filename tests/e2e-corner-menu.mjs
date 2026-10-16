@@ -124,7 +124,7 @@ for (const world of WORLDS) {
   check("a tap opens the card", !!s && !!s.card);
   if (s && s.card) {
     const t = s.card;
-    check("...the laws, and Shoving's settings", /Orthogonal slide/i.test(t) && /Shoving/i.test(t) && /Shoves on/i.test(t) && /Slides and rolls/i.test(t) && /Only opponents'/i.test(t) && !/Diagonal slide/i.test(t), t.slice(0, 400));
+    check("...the laws, and Shoving's settings", /Orthogonal slide/i.test(t) && /Shoving/i.test(t) && /Shoves on/i.test(t) && /Slides and rolls/i.test(t) && /Only opponents(?!')/i.test(t) && !/Diagonal slide/i.test(t), t.slice(0, 400));
     check("...each side's pieces", /Cabeza/i.test(t) && /Turrito/i.test(t) && /Flaco/i.test(t) && /Chato/i.test(t) && /Opa/i.test(t));
     check("...the board, 10 across by 12", /10 × 12/.test(t) || /10×12/.test(t), t.slice(-300));
     check("...all of it on the screen", s.cardBox.x >= 0 && s.cardBox.y >= 0 && s.cardBox.r <= VIEW.width && s.cardBox.b <= VIEW.height, JSON.stringify(s.cardBox));
@@ -249,7 +249,7 @@ for (const world of WORLDS) {
   await page.hover('[data-testid="lab-hud"]');
   const list = await poll(() => page.evaluate(() => { const r = document.querySelector('[data-testid="lab-hud-rules"]'); return r && r.dataset.open === "true" ? r.textContent : null; }), 5000);
   await page.waitForTimeout(1200); // (its glide up to full size)
-  check("brought up, it lists the laws, their settings, the pieces, the board", !!list && /Orthogonal slide/.test(list) && /Shoves push: Only opponents'/.test(list) && /Turrito/.test(list) && /Size 10 × 12/.test(list), list && list.slice(0, 300));
+  check("brought up, it lists the laws, their settings, the pieces, the board", !!list && /Orthogonal slide/.test(list) && /Shoves push: Only opponents(?!')/.test(list) && /Turrito/.test(list) && /Size 10 × 12/.test(list), list && list.slice(0, 300));
   const fits = await page.evaluate(() => { const l = document.querySelector('[data-testid="lab-hud-rules"] .lab-rules-list'); const r = l && l.getBoundingClientRect(); return r ? { top: Math.round(r.top), bottom: Math.round(r.bottom), h: innerHeight, max: l.style.maxHeight } : null; });
   check("...the list within the screen", !!fits && fits.bottom <= fits.h, JSON.stringify(fits));
   await page.waitForTimeout(8000);

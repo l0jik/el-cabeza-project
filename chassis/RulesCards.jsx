@@ -36,7 +36,7 @@ export const LAW_TEXT = {
   splitMovement: { name: "Split Movement, 2 Pieces", text: "Your actions can be shared between up to two pieces in one turn." },
   slide: { name: "Orthogonal Slide", text: "Any piece can move one open square along its row or column (north, south, east or west, not corner to corner) without tipping. A slide costs 2 actions." },
   diagonalSlide: { name: "Diagonal Slide", text: "Any piece can move one open square corner to corner without tipping, for 2 actions. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
-  blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends. With two sets, it comes out of either hole in the other half of the board, the player's pick (with Exit from any hole, any of the other three); a piece pushed in comes out of its hole's own partner." },
+  blackHoleSquares: { name: "Singularity Squares", text: "Two linked singularities. A piece standing on one square that enters one comes out of the other, one square past it on the same side it went in, and the turn ends. With two sets, the player picks which singularity it comes out of, either one in the other half of the board (with Exit from any other singularity, any of the other three), and it comes out of that one the same way; a piece pushed in comes out of that singularity's own partner." },
   cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 action." },
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 actions instead of 2." },
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 actions can be shared between up to three pieces in one turn, one action each." },
@@ -47,13 +47,14 @@ export const LAW_TEXT = {
 // other half (ACTIVE_LAWS.holeAnyExit off) or anywhere (on). `holes`: how
 // many there are on the board, 2 or 4 (0: say it all).
 export function blackHoleText(laws = {}, holes = 0) {
-  const start = "A piece standing on one square that enters a hole comes out";
-  const end = "on the same side it went in, and the turn ends";
-  if (holes === 2) return `Two linked holes. ${start} of the other ${end}.`;
+  const start = "A piece standing on one square that enters a singularity comes out";
+  const end = "one square past it on the same side it went in, and the turn ends";
+  if (holes === 2) return `Two linked singularities. ${start} of the other, ${end}.`;
   if (holes === 4) {
+    // (The player picks the singularity, not where it lands: user.)
     return laws.holeAnyExit
-      ? `Two sets of linked holes. ${start} of any of the other three, the player's pick, ${end}; a piece pushed in comes out of its hole's own partner.`
-      : `Two sets of linked holes. ${start} of either hole in the other half of the board, the player's pick, ${end}; a piece pushed in comes out of its hole's own partner.`;
+      ? `Two sets of linked singularities. ${start} of the singularity the player picks, any of the other three, ${end}; a piece pushed in comes out of that singularity's own partner.`
+      : `Two sets of linked singularities. ${start} of the singularity the player picks, either one in the other half of the board, ${end}; a piece pushed in comes out of that singularity's own partner.`;
   }
   return LAW_TEXT.blackHoleSquares.text;
 }
@@ -468,8 +469,8 @@ function tiles(C) {
       ),
     },
     {
-      key: "blackHoleSquares", law: "blackHoleSquares", title: "Black hole", cost: null,
-      text: "Only a piece standing on one square can enter: a Cabeza, a Turrito, or an upright Flaco or 1×3. It comes out of the other hole on the same side it went in (here: in from the west, out to the west), and the turn ends. With two sets of holes, it may come out of either hole in the other half of the board (with Exit from any hole, any of the other three).",
+      key: "blackHoleSquares", law: "blackHoleSquares", title: "Singularity", cost: null,
+      text: "Only a piece standing on one square can enter: a Cabeza, a Turrito, or an upright Flaco or 1×3. It comes out of the other singularity on the same side it went in (here: in from the west, out to the west), and the turn ends. With two sets of singularities, it may come out of either one in the other half of the board (with Exit from any other singularity, any of the other three), the same way.",
       svg: (
         <>
           {panelsWith([1, 3])}
@@ -768,7 +769,7 @@ const PIECE_TEXT = {
   turrito: ["Rolls one square north, south, east or west, 1 action a roll. " + CRUSH, "roll"],
   opa: ["The big cube rolls two squares at once. Its move costs 2 actions, once per turn. " + CRUSH, "opa"],
   chato: ["Rolls over one edge into the next squares, 1 action a roll. " + CRUSH, "roll"],
-  block1x3: ["Rolls over one edge, 1 action a roll. Standing on one square, it can enter a black hole. " + CRUSH, "roll"],
+  block1x3: ["Rolls over one edge, 1 action a roll. Standing on one square, it can enter a singularity. " + CRUSH, "roll"],
   block2x3: ["Rolls over one edge, 1 action a roll. " + CRUSH, "roll"],
   codo: ["Three cubes in an L. Rolls for 1 action; its overhang can shelter a Cabeza. " + CUBE_CRUSH, "shelter"],
   arcoChico: ["An arch. Rolls for 1 action; a Cabeza in its opening is sheltered. " + CUBE_CRUSH, "shelter"],
