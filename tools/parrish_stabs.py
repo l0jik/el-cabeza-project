@@ -219,7 +219,10 @@ def main():
     with tempfile.TemporaryDirectory() as d:
         wav = os.path.join(d, "s.wav")
         sf.write(wav, y, SR, subtype="PCM_16")
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-c:a", "libmp3lame", "-b:a", "160k", OUT], check=True)
+        # (V3: 0.2 MB. It was 160k, 0.5 MB, till the user's "shrink the iOS
+        # download size"; the file in assets/parrish was re-encoded from
+        # that, at the same 48 kHz, so the slices' times hold.)
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-c:a", "libmp3lame", "-q:a", "3", OUT], check=True)
     print(json.dumps(table))
     print(f"{OUT}: {pos:.2f} s, {os.path.getsize(OUT) // 1024} KB")
 

@@ -6,7 +6,8 @@
     "build": "node build/build.js",
     "test:engine": "node tests/engine.smoke.mjs && node tests/ai-threats.smoke.mjs && node tests/ai-net.smoke.mjs && node tests/shapes.smoke.mjs && node tests/board-size.smoke.mjs && node --import ./tests/asset-hooks.mjs tests/theme-standard.smoke.mjs && node --import ./tests/asset-hooks.mjs tests/theme-futuris.smoke.mjs && node tests/tienda-music.smoke.mjs && node tests/rules-selections.smoke.mjs && node tests/story-save.smoke.mjs && node tests/replay.smoke.mjs && node tests/black-hole-sets.smoke.mjs && node tests/placement.smoke.mjs && node tests/relay-protocol.mjs",
     "test:e2e": "npm run build && node tests/run-e2e.mjs",
-    "test": "npm run test:engine && npm run test:e2e"
+    "test": "npm run test:engine && npm run test:e2e",
+    "size": "node tools/app_size.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.24.0",

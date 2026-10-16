@@ -77,7 +77,10 @@ def render(src, out_path, RT60, TAIL, WET, FADE):
     with tempfile.TemporaryDirectory() as d:
         wav = os.path.join(d, "o.wav")
         sf.write(wav, out, SR, subtype="PCM_16")
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-c:a", "libmp3lame", "-b:a", "192k", OUT], check=True)
+        # (V4: about 0.25 MB each. They were 192k, 0.4 MB, till the user's
+        # "shrink the iOS download size"; the files in assets/parrish were
+        # re-encoded from those, at the same 48 kHz.)
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-c:a", "libmp3lame", "-q:a", "4", OUT], check=True)
     print(f"{OUT}: {n / SR:.1f} s")
 
 

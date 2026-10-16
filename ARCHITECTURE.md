@@ -333,12 +333,19 @@ builder functions expected to find them on.
   from `endTurn` and the crush/goal branches.
 - `chassis/saves.js`: everything in localStorage under the game's
   prefixes as one record; a file, or a code on the server; `?restore=`.
-- Nova's page is built as an ES module with code splitting (`split` in
-  build.js): the story and the chassis in one file, each world Nova
+- Every page's script is built in one esbuild run as ES modules with
+  code splitting (build.js): each page's own entry
+  (`el-cabeza-<name>-app.js`) and the chunks the pages share
+  (`el-cabeza-chunk-*.js`: three, React, the chassis, the engine),
+  preloaded by each page (`<link rel="modulepreload">`); each world Nova
   holds beyond its own three (`apps/unified.jsx` LAZY: The City so far)
-  in a chunk fetched when picked. Every other page is still a single
-  self-contained file. Tests open file:// pages, so every Playwright
-  launch passes `--allow-file-access-from-files`.
+  comes in a chunk fetched when picked. (Until 2026-10-16 every other
+  page was a single self-contained file: 19 MB of script across the
+  pages, now 4 MB; user: "shrink the iOS download size".) The AI worker
+  stays inline in each page. Tests open file:// pages, so every
+  Playwright launch passes `--allow-file-access-from-files`.
+  `npm run size` (tools/app_size.mjs): what an app of the game would
+  weigh, installed and downloaded.
 
 ## Open decisions — resolved
 

@@ -20,15 +20,19 @@
   Single tests here take 1-11 min each on the software renderer.) While
   a sweep is running, a new request's build waits for it or stops it
   (kill by PID): never rebuild `dist/` under it.
-- `npm run build` → `build/build.js`: three esbuild passes (one per app
-  entry) plus one shared pass for `engine/ai-worker.js`, embedded as
+- `npm run build` → `build/build.js`: one esbuild pass for every page's
+  entry (ES modules, splitting on: each page's own `el-cabeza-<name>-app.js`
+  and the chunks the pages share, `el-cabeza-chunk-*.js`, preloaded by
+  each page's `<link rel="modulepreload">`; since 2026-10-16, user: "shrink
+  the iOS download size") plus one pass for `engine/ai-worker.js`, embedded as
   **inert script text** (`type="application/x-ai-worker"`, not a JS
   mimetype) inside each HTML file and turned into a real `Worker` via a
-  Blob URL at runtime. This is deliberate: it keeps the "one
-  self-contained HTML file per target, no second network request" model
-  while still running the AI search off the main thread. Don't ship the
-  worker as a separate file — that breaks the single-file deployment
-  model this whole build exists to preserve.
+  Blob URL at runtime. This is deliberate: the worker needs no file of
+  its own (nothing for a file:// page to be refused, no second request
+  before the computer can think) while still running the AI search off
+  the main thread. Don't ship the worker as a separate file. (Until
+  2026-10-16 every page but Nova's was one self-contained HTML file; see
+  13-hard-invariants.md for why that changed.)
 - `define: { "process.env.NODE_ENV": '"production"' }` on every esbuild
   call — **do not remove**. Without it, react/react-dom silently ship
   their development build (real per-render `Object.freeze`, prop-type

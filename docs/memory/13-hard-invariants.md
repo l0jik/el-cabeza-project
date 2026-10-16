@@ -7,8 +7,15 @@
 - Theme modules stay plain ES modules with **no JSX syntax** (only
   `React.createElement` where JSX-like output is needed) — this is what
   lets the theme smoke tests `import` them directly in Node.
-- The build stays **one self-contained HTML file per target** — no second
-  network request for the AI worker or anything else.
+- The AI worker stays **inline in every page** (inert script text turned
+  into a Worker through a Blob URL) — never a worker file of its own.
+  (This was "one self-contained HTML file per target, no second network
+  request" until 2026-10-16. Nova's page was split first, for the City in
+  place; then, for the user's "shrink the iOS download size", every
+  page's script became ES modules beside it, the code the pages share
+  (three, React, the chassis, the engine) in shared chunks: 19 MB of
+  script to 4 MB. A deliberate change, told to the user with the size it
+  saved; pages already fetched their sounds and pictures beside them.)
 - `findBestAiTurn`'s `{ pieceId, dirs }` return shape is a stable public
   contract across the worker, chassis, and tests.
 - Every theme's audio interface must implement every method (no-op where

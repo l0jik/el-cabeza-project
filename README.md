@@ -20,7 +20,7 @@ the story's scenes).
 | `assets/` | Recordings, photographs and textures, with sources in `*/src/`. |
 | `tools/` | The scripts that make the processed assets from their sources. |
 | `tests/` | Node smoke tests (`*.smoke.mjs`) and Playwright end-to-end tests (`e2e-*.mjs`). |
-| `build/` | `build.js`: each page bundled (esbuild) into one self-contained HTML file in `dist/`. |
+| `build/` | `build.js`: the pages bundled (esbuild) into `dist/`, each page's script beside it and the code they share in shared chunks. `npm run size`: what an app of the game would weigh. |
 
 ## Commands
 

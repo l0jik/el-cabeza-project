@@ -1,8 +1,9 @@
 /* The City on Nova's page (user: "consolidate everything into a single
    link to where it's all integrated together"; the first of the site's
    other worlds to live in Nova, apps/unified.jsx LAZY): Nova's page is
-   built in pieces (build/build.js split), the City's theme a chunk fetched
-   only when it's picked.
+   built in pieces (build/build.js: its own script and the chunks every
+   world's page shares), the City's theme a chunk fetched only when it's
+   picked.
 
    - ?world=ciudad opens Nova in the City (the chunk fetched first): the
      City's scene, its clock, its corner menu; Nova's own realities corner.
@@ -65,11 +66,21 @@ const lots = await T(() => window.__CIUDAD__.lots());
 check("...its lots and cranes laid out", !!lots && lots.lots.length >= 12 && lots.cranes.length === 2, JSON.stringify(lots && lots.cranes));
 // (file:// keeps no resource timings: the pieces checked on disk instead)
 {
-  const names = fs.readdirSync(DIST).filter((f) => /^el-cabeza-nova-.*\.js$/.test(f));
-  const app = fs.readFileSync(`${DIST}/el-cabeza-nova-app.js`, "utf8");
-  const cityChunk = names.find((f) => /^el-cabeza-nova-ciudad-/.test(f));
-  check("the page's script in pieces: the app, the City's own chunk, the shared one", names.length === 3 && !!cityChunk && names.some((f) => /^el-cabeza-nova-chunk-/.test(f)), names.join(", "));
-  check("...the City's code only in its chunk, fetched as it's picked", !!cityChunk && !app.includes("ciudad-lamp-heads") && fs.readFileSync(`${DIST}/${cityChunk}`, "utf8").includes("ciudad-lamp-heads") && app.includes(`import("./${cityChunk}")`));
+  // What the page loads up front: its own script and the chunks that
+  // imports (the code every world's page shares, build/build.js), all
+  // preloaded; the City's code only behind an import(), fetched as it's
+  // picked.
+  const read = (f) => fs.readFileSync(`${DIST}/${f}`, "utf8");
+  const imports = (f, seen = new Set()) => {
+    for (const [, n] of read(f).matchAll(/(?:from|import)\s*"\.\/(el-cabeza-[\w-]+\.js)"/g)) if (!seen.has(n)) { seen.add(n); imports(n, seen); }
+    return seen;
+  };
+  const upFront = ["el-cabeza-nova-app.js", ...imports("el-cabeza-nova-app.js")];
+  const preloaded = [...read("el-cabeza-nova.html").matchAll(/modulepreload" href="([^"]+)"/g)].map((m) => m[1]);
+  check("the page's script in pieces: its own and the chunks it shares, preloaded", upFront.length > 2 && preloaded.length === upFront.length - 1 && preloaded.every((f) => upFront.includes(f)), upFront.join(", "));
+  const later = upFront.flatMap((f) => [...read(f).matchAll(/import\("\.\/(el-cabeza-[\w-]+\.js)"\)/g)].map((m) => m[1]));
+  const city = later.flatMap((f) => [f, ...imports(f)]).filter((f) => !upFront.includes(f));
+  check("...the City's code in none of them, only in what's fetched as it's picked", !upFront.some((f) => read(f).includes("ciudad-lamp-heads")) && city.some((f) => read(f).includes("ciudad-lamp-heads")), JSON.stringify({ later, city }));
 }
 await page.locator('[data-testid="gate-standard"]').click();
 check("a game begins there (Standard Cabeza from its gate)", !!(await poll(() => T(() => window.__EC_TEST_ARMED__ === true), 8000)) && (await page.locator('[data-testid="reality-gate"]').count()) === 0);

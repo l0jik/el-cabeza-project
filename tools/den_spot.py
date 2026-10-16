@@ -28,8 +28,8 @@ the store). 720 frames, 24 fps, 640x480.
 Writes, for build/build.js:
   assets/den/spot.mp4        H.264, no sound (most browsers, Safari)
   assets/den/spot.webm       VP9, no sound (browsers without H.264)
-  assets/den/spot-sound.mp3  the sound, -16 LUFS (played through the
-                             set's speaker, den-ad-audio.js)
+  assets/den/spot-sound.mp3  the sound, -16 LUFS, mono (played through
+                             the set's speaker, den-ad-audio.js)
 
 Needs an ffmpeg with libx264, libvpx-vp9 and libmp3lame (FFMPEG=path to
 use another; `pip install imageio-ffmpeg` has one). The sources aren't
@@ -185,7 +185,10 @@ def sound(src, tmp):
        "-c:a", "pcm_s24le", edited)
 
     os.makedirs(OUT, exist_ok=True)
-    ff("-i", edited, "-c:a", "libmp3lame", "-b:a", "192k", os.path.join(OUT, "spot-sound.mp3"))
+    # (Mono, as the mix is, V3 at its 48 kHz: 0.3 MB. It was stereo
+    # 192k, 0.7 MB, till the user's "shrink the iOS download size"; the
+    # file in assets/den was re-encoded from that, its timing unchanged.)
+    ff("-i", edited, "-ac", "1", "-c:a", "libmp3lame", "-q:a", "3", os.path.join(OUT, "spot-sound.mp3"))
     print(f"(the mix was {loud:.1f} LUFS, now -16)")
 
 

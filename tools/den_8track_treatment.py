@@ -161,8 +161,13 @@ def encode(x, path, title, artist):
         f.write(np.ascontiguousarray(np.clip(x, -1, 1).T.astype(np.float32)).tobytes())
         tmp = f.name
     try:
+        # (32 kHz, V5, the top above 11 kHz cut: the den plays the tapes
+        # through a 9 kHz lowpass, den-audio.js. They were 48 kHz V4, 12 MB
+        # the five, till the user's "shrink the iOS download size"; the files
+        # in assets/den were re-encoded from those, 8.8 MB.)
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", tmp,
-                        "-codec:a", "libmp3lame", "-q:a", "4", "-cutoff", "11000",
+                        "-af", "aresample=32000:resampler=soxr:precision=28",
+                        "-codec:a", "libmp3lame", "-q:a", "5", "-cutoff", "11000",
                         "-metadata", f"title={title}", "-metadata", f"artist={artist}",
                         "-metadata", "comment=El Cabeza den 8-track (tools/den_8track_treatment.py)", path], check=True)
     finally:

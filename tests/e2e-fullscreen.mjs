@@ -19,7 +19,8 @@ import { fileURLToPath } from "url";
 import { openDockPanel } from "./dock-helpers.mjs";
 
 const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
-const TYPES = { ".html": "text/html; charset=utf-8", ".mp3": "audio/mpeg" };
+// (.js as JavaScript: the page's script is modules beside it, build/build.js.)
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mp3": "audio/mpeg", ".jpg": "image/jpeg", ".webp": "image/webp", ".mp4": "video/mp4", ".webm": "video/webm" };
 const server = http.createServer((req, res) => {
   const f = path.join(DIST, decodeURIComponent(req.url.split("?")[0]));
   if (!f.startsWith(DIST) || !fs.existsSync(f) || !fs.statSync(f).isFile()) { res.writeHead(404); return res.end(); }

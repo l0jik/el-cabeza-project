@@ -8,8 +8,10 @@ ElCabeza3D.jsx` (~5900 lines — the actual React component: state, camera/
 input, JSX skeleton, generic actions; theme-agnostic). Three entry points
 (`apps/standard.jsx`, `apps/futuris.jsx`, `apps/unified.jsx` + its
 `unifiedTransition.jsx` theme-switcher) are bundled by `build/build.js`
-(esbuild) into three self-contained HTML files in `dist/` (gitignored,
-built fresh every time). No backend. Everything is client-side state,
+(esbuild) into HTML pages in `dist/` (gitignored, built fresh every
+time), their scripts ES modules beside them, the code all the pages share
+in shared chunks (since 2026-10-16; until then each page was one
+self-contained file). No backend. Everything is client-side state,
 reset on reload, EXCEPT opponent settings (Human/AI side, AI difficulty,
 Human-vs-Human starting side), which persist in `localStorage` under
 `el-cabeza:opponent` (chassis `loadOpponentPrefs`/`saveOpponentPrefs`,

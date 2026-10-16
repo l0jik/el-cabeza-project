@@ -42,7 +42,11 @@ subprocess for the MP3 in and out):
     once a revolution for a while, and a faint surface hash breathing with
     the record's turn.
 
-Writes the MP3 (LAME V2 via ffmpeg) with the source's title and artist.
+Writes the MP3 (LAME V5 at 32 kHz via ffmpeg) with the source's title and
+artist. (It was V2 at 48 kHz, 5 MB, until the user's "shrink the iOS
+download size": the den plays it through a 13 kHz lowpass, den-audio.js,
+so 32 kHz keeps all it lets through; assets/den/1974_console_master.mp3
+was re-encoded from the V2 file, 2.6 MB, its peaks held under 0 dBFS.)
 """
 
 import argparse
@@ -92,7 +96,8 @@ def encode_mp3(x, sr, path, title, artist):
         tmp = f.name
     try:
         cmd = ["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(sr), "-ac", "2", "-i", tmp,
-               "-codec:a", "libmp3lame", "-q:a", "2"]
+               "-af", "aresample=32000:resampler=soxr:precision=28,alimiter=limit=0.89:attack=2:release=40:level=false:latency=true",
+               "-codec:a", "libmp3lame", "-q:a", "5"]
         if title:
             cmd += ["-metadata", f"title={title}"]
         if artist:

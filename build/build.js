@@ -1,5 +1,5 @@
 import * as esbuild from "esbuild";
-import { writeFileSync, mkdirSync, copyFileSync } from "fs";
+import { writeFileSync, mkdirSync, copyFileSync, readdirSync, existsSync, rmSync } from "fs";
 
 // The den's records: the user's tracks, each through tools/console_1974_turntable.py.
 const DEN_RECORDS = {
@@ -95,9 +95,9 @@ const targets = [
   // its intro and its close, the user's opening and end of "Orinoco Flow"
   // (each in a long hall, tools/parrish_bookends.py).
   { name: "parrish", entry: "apps/parrish.jsx", title: "Parrish Cabeza", head: '<meta name="theme-color" content="#0E1A3D">', files: { "el-cabeza-parrish-stabs.mp3": "assets/parrish/piece-stabs.mp3", "el-cabeza-parrish-intro.mp3": "assets/parrish/intro.mp3", "el-cabeza-parrish-outro.mp3": "assets/parrish/outro.mp3", "el-cabeza-parrish-hums.mp3": "assets/parrish/hums.mp3", "el-cabeza-parrish-soundtrack-orinoco.mp3": "assets/parrish/soundtrack-orinoco.mp3", "el-cabeza-parrish-na-seas.mp3": "assets/parrish/na-seas.mp3", "el-cabeza-parrish-evening.mp3": "assets/parrish/evening.mp3" } },
-  // Nova: in pieces (split), the worlds it holds beside it; the City's
-  // sounds beside it too, for the City in place.
-  { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover", split: true, files: { ...DEN_RECORDS, ...CIUDAD_FILES } },
+  // Nova: the worlds it holds beside it (the City's chunk fetched as it's
+  // picked); the City's sounds beside it too, for the City in place.
+  { name: "nova", entry: "apps/unified.jsx", title: "El Cabeza Nova", viewport: "width=device-width,initial-scale=1,viewport-fit=cover", files: { ...DEN_RECORDS, ...CIUDAD_FILES } },
   // Tienda's page can draw under a phone's
   // notch and home bar (the theme keeps its controls clear of them).
   // Its files beside the page: the store's reels (the 1974 Muzak tape and
@@ -120,11 +120,10 @@ const targets = [
 
 mkdirSync("dist", { recursive: true });
 
-/* Bundled once, shared by all three targets (identical AI code
-   regardless of theme) — see engine/ai-worker.js's own header comment
-   for why this is embedded as inert script text rather than shipped as
-   a second file: the whole point of this build is one self-contained
-   HTML page per theme. Plain JS, no JSX loader needed. */
+/* Bundled once, shared by every page (identical AI code regardless of
+   theme) — see engine/ai-worker.js's own header comment for why this is
+   embedded as inert script text rather than shipped as a file of its
+   own. Plain JS, no JSX loader needed. */
 const workerResult = await esbuild.build({
   entryPoints: ["engine/ai-worker.js"],
   bundle: true,
@@ -138,24 +137,29 @@ const workerJs = workerResult.outputFiles[0].text;
 // prematurely close this holder tag when the browser parses the HTML.
 const workerJsEscaped = workerJs.replace(/<\/script/gi, "<\\/script");
 
-for (const t of targets) {
-  /* Nova's page in pieces (user: "consolidate everything into a single
-     link"): the story and the chassis as one module, and each of the
-     site's other worlds that Nova now holds (apps/unified.jsx LAZY, The
-     City first) as a chunk of its own, fetched only when it's picked, the
-     code they share (three, React, the chassis, the engine) in a shared
-     chunk. So Nova's page is a `<script type="module">` with files beside
-     it, rather than one self-contained file; the tests open file:// pages
-     with Chromium's --allow-file-access-from-files for it. */
-  const split = !!t.split;
+/* Every page's script from one run, the code the pages share in chunks
+   beside them (user: "shrink the iOS download size"). Each world's page
+   used to carry its own copy of three, React, the chassis and the engine
+   (about 1.1 MB, twelve pages over: 19 MB of script, 7 MB zipped); built
+   together they come to about 4 MB (2 MB zipped), the shared chunks
+   (el-cabeza-chunk-*.js) fetched once and kept from world to world. Each
+   page loads its own entry (el-cabeza-<name>-app.js) as a module and
+   preloads the chunks that imports; Nova's City still comes only as it's
+   picked (apps/unified.jsx LAZY, user: "consolidate everything into a
+   single link"). So no page is a single file any more: the tests open
+   file:// pages with Chromium's --allow-file-access-from-files for it. */
+{
   const result = await esbuild.build({
-    entryPoints: [t.entry],
+    entryPoints: Object.fromEntries(targets.map((t) => [`el-cabeza-${t.name}-app`, t.entry])),
     bundle: true,
     write: false,
-    format: split ? "esm" : "iife",
-    ...(split ? { splitting: true, outdir: "dist", entryNames: `el-cabeza-${t.name}-app`, chunkNames: `el-cabeza-${t.name}-[name]-[hash]` } : {}),
-    // Sound files (assets/) are inlined as data: URLs, keeping each page a
-    // single self-contained file.
+    metafile: true,
+    format: "esm",
+    splitting: true,
+    outdir: "dist",
+    chunkNames: "el-cabeza-[name]-[hash]",
+    // Pictures (assets/) are inlined as data: URLs, in the chunk of the
+    // code that shows them.
     loader: { ".js": "jsx", ".mp3": "dataurl", ".jpg": "dataurl", ".webp": "dataurl" },
     // Every page minified (2026-10 audit): Nova's script went from 3.9 MB
     // to 2.5 MB (1.27 to 1.11 MB gzipped), less for a phone to download
@@ -178,31 +182,40 @@ for (const t of targets) {
     // branch entirely, so only the production build gets bundled.
     define: { "process.env.NODE_ENV": '"production"' },
   });
-  let script, size, pieces = "";
-  if (split) {
-    let total = 0;
-    const names = [];
-    for (const f of result.outputFiles) {
-      const name = f.path.split(/[\\/]/).pop();
-      writeFileSync(`dist/${name}`, f.contents);
-      total += f.text.length;
-      names.push(`${name} ${(f.text.length / 1024).toFixed(0)}kb`);
-    }
-    script = `<script type="module" src="el-cabeza-${t.name}-app.js"></script>`;
-    size = total;
-    pieces = `: ${names.join(", ")}`;
-  } else {
-    const js = result.outputFiles[0].text;
-    script = `<script>${js}</script>`;
-    size = js.length;
+  const written = new Set();
+  for (const f of result.outputFiles) {
+    const name = f.path.split(/[\\/]/).pop();
+    writeFileSync(`dist/${name}`, f.contents);
+    written.add(name);
   }
-  // type="application/x-ai-worker" (not a JS mimetype) keeps the browser
-  // from ever trying to execute this inline — chassis/ElCabeza3D.jsx
-  // reads its textContent and turns it into a real Worker via a Blob URL.
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="${t.viewport || "width=device-width,initial-scale=1"}">${t.head || ""}<meta name="robots" content="noindex, nofollow"><title>${t.title}</title></head><body style="margin:0"><div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script>${script}</body></html>`;
-  writeFileSync(`dist/el-cabeza-${t.name}.html`, html);
-  Object.entries({ ...COMMON_FILES, ...(t.files || {}) }).forEach(([to, from]) => copyFileSync(from, `dist/${to}`));
-  console.log(`built dist/el-cabeza-${t.name}.html (${(size / 1024).toFixed(0)}kb JS, ${(workerJs.length / 1024).toFixed(0)}kb worker)${pieces}`);
+  // (An earlier build's chunks, their names hashed, cleared away.)
+  for (const f of readdirSync("dist")) if (/^el-cabeza-.*\.js$/.test(f) && !written.has(f)) rmSync(`dist/${f}`);
+  const outs = result.metafile.outputs;
+  const bytes = (name) => outs[`dist/${name}`].bytes;
+  const kb = (n) => `${(n / 1024).toFixed(0)}kb`;
+  // The chunks a script imports, and theirs (what's only import()ed
+  // waits till it's asked for).
+  const imported = (name, seen = new Set()) => {
+    for (const imp of outs[`dist/${name}`].imports) {
+      const n = imp.path.split("/").pop();
+      if (imp.kind === "import-statement" && !seen.has(n)) { seen.add(n); imported(n, seen); }
+    }
+    return seen;
+  };
+  for (const t of targets) {
+    const entry = `el-cabeza-${t.name}-app.js`;
+    const chunks = [...imported(entry)];
+    const preload = chunks.map((c) => `<link rel="modulepreload" href="${c}">`).join("");
+    // type="application/x-ai-worker" (not a JS mimetype) keeps the browser
+    // from ever trying to execute this inline — chassis/ElCabeza3D.jsx
+    // reads its textContent and turns it into a real Worker via a Blob URL.
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="${t.viewport || "width=device-width,initial-scale=1"}">${t.head || ""}<meta name="robots" content="noindex, nofollow"><title>${t.title}</title>${preload}</head><body style="margin:0"><div id="root"></div><script type="application/x-ai-worker" id="ai-worker-src">${workerJsEscaped}</script><script type="module" src="${entry}"></script></body></html>`;
+    writeFileSync(`dist/el-cabeza-${t.name}.html`, html);
+    Object.entries({ ...COMMON_FILES, ...(t.files || {}) }).forEach(([to, from]) => copyFileSync(from, `dist/${to}`));
+    const own = bytes(entry), shared = chunks.reduce((s, c) => s + bytes(c), 0);
+    console.log(`built dist/el-cabeza-${t.name}.html (${kb(own + shared)} JS: its own ${kb(own)}, ${chunks.length} shared chunk(s) ${kb(shared)}; ${kb(workerJs.length)} worker)`);
+  }
+  console.log(`the pages' scripts together: ${kb([...written].reduce((s, n) => s + bytes(n), 0))} in ${written.size} files`);
 }
 
 /* Nova used to be published as el-cabeza-unified.html, and that link has
@@ -244,7 +257,6 @@ console.log("built dist/el-cabeza-neon.html (redirect to Futuris)");
    use, assets/front/*.webp and *.svg, under dist/front/). Each version
    is a page of its own for review (front-N.html); the chosen one becomes
    the site's index.html. */
-import { readdirSync, existsSync } from "fs";
 if (existsSync("front")) {
   mkdirSync("dist/front", { recursive: true });
   for (const f of readdirSync("assets/front")) if (/\.(webp|svg|json)$/.test(f)) copyFileSync(`assets/front/${f}`, `dist/front/${f}`);
