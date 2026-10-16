@@ -22,8 +22,11 @@ its own eval weights (`twoStepBias`, `cabezaRepeatBias`, `blockAdvance`,
 | tier | maxDepth | timeBudgetMs |
 |---|---|---|
 | easy | 3 | 450 |
-| medium | 8 | 2200 |
-| hard | 11 | 4300 |
+| medium | 8 | 1200 (was 2200) |
+| hard | 11 | 2800 (was 4300, then 3500) |
+
+(The cuts are explained in the AI_DIFFICULTY comments; in the fast rules
+Hard also checks past its time, see "Hard from two reported games".)
 
 **Important context if retuning these:** Medium's `wall` weight (2.0) and
 Hard's (4) exist because a real reported game was reconstructed
@@ -110,3 +113,105 @@ both colours. But new vs new drew at 80 turns, safe and aimless, so:
   up to ten fresh games instead of four (four failed about one run in
   eight).
 
+### Hard from two reported games (2026-10-16): verify till a turn holds, a net one turn further
+The user's setup both times: 14 rows by 13 columns, every law (Split
+Movement with three pieces, Slides, Black holes, Cantilever Pivot,
+3 Actions, Shoving, Punto), ten pieces a side, Hard as Walnut (dark).
+Game 1's replay code is kept in tests/ai-net.smoke.mjs. The analysis
+scripts were in that session's scratchpad, hardgame/ (replay.mjs replays
+a code with the real engine, `CODE=./code2.txt` for the second game;
+solver.mjs and solve54.log, the exact two-turn check of the 28th turn),
+and go with it; the smoke test's replay is the place to start again.
+
+Game 1, the user won (crush, 30 turns each). What lost it:
+- In these rules Hard only ever finishes depth 1: 3,934 root turns at
+  its 28th turn, evaluatePosition 1.2 ms each, 4.6 s for them all. Its
+  choice rests on the evaluation and the reply check (checkOneTurnChoice).
+- Its 29th turn: 2 of 2,576 turns held (both Cruce moves). The
+  best-scoring ones all fell to a Split Movement reply (an Arco steps
+  aside, a 2x3 comes down on the Cabeza), which blockTurnReach can't
+  see; the old check stopped after three past the deadline and played
+  the best-scoring: lost at once.
+- The real mistake was its 28th: block1x3:S cabeza:W cabeza:W walked
+  the Cabeza into a pocket within reach of a Turrito that had come
+  through a black hole. No reply ended the game at once, but one won by
+  force (solve54.log: lost in two). 28 of 3,934 turns survived the next
+  reply; of the 20 the exact check got through, only the retreat
+  cabeza:N cabeza:NE cabeza:NE held a turn further (none of its 1,994
+  replies made a threat).
+- blockTurnReach didn't follow a block through a black hole, so
+  cabezaInDanger missed a crush by a block coming out of the far hole.
+
+What changed (de0c2fb):
+- `endingLine(pieces, side)` (exported, with `canEndGame`): can `side`
+  end the game on its coming turn, exactly as
+  `generateTurns(...).some((t) => t.endsGame)` answers it, by a search
+  that moves only pieces that can still matter (distance bounds per
+  piece), each line once (memo on the moved pieces' states, the points
+  spent, which pieces moved). Returns the line, [{ id, from, to,
+  shoved }]. Checked: the reported game's 2,581 positions (144 ms ->
+  8.8 ms each) and 76,000 positions of random games (26,162 where the
+  side could end it), 0 mismatches; about 13x faster than generateTurns
+  (0.4 ms vs 5 ms). Once, before those, a random game gave one mismatch
+  (endingLine yes, generateTurns no: the safe way round) that never came
+  back (setups use Math.random; scratchpad equiv/ending.mjs dumps such a
+  position now). If it's ever seen again, that's where to start.
+- Medium's reply check uses endingLine (same answers, sooner).
+- Hard (`verifyGraceMs` 1500): checks past its time until a turn holds.
+  A line found after a turn is kept as its region (lineRegion: the boxes
+  it uses, a square wider), and any other turn that doesn't touch it
+  (turnTouches) is passed over without a search: it leaves the line
+  standing.
+- The net (`netGuard`, `netGraceMs` 2500, `netMax` 3; opponentNet and
+  hasAnswer): a turn that holds is looked at one turn further. If some
+  reply makes a threat (one block's, cabezaInDanger; only blocks the
+  reply could have changed are walked again) that no turn of Hard's
+  answers (hasAnswer: the Cabeza's own steps first, then the turns that
+  touch the line), the turn is netted and the next that holds is
+  looked at; a square the Cabeza was netted on is skipped after. If all
+  are netted, the first that held is played.
+- blockTurnReach follows black holes (a box with two sides of one,
+  canDrop, aims at the far hole when a target stands beside it).
+- Speed, exact (same arithmetic in the same order, so the same answers):
+  shapes.js rollSweepClashes keeps each shape's sweep (sweepOf) and
+  first checks the obstacle is near; pivotSweepClashes keeps its trig;
+  rules.js blackHoleVerdict and overlapsMissingSquare return at once
+  when no hole or missing square is in the box. Checked on 3,626
+  positions: 510,560 sweep and 7,618 pivot calls and 127,659
+  legalMovesFor calls the same; legalMovesFor 2.2x faster.
+- On the game's positions Hard now plays the retreat at its 28th turn
+  (about 6.2 s) and a Cruce move at its 29th.
+- tests/ai-net.smoke.mjs (in test:engine): the game's code; endingLine
+  against generateTurns at all 120 side-positions; the two turns that
+  hold at the 29th; the net after the 28th as played and none after the
+  retreat; a black-hole crush seen by legalMovesFor, cabezaInDanger and
+  cabezaThreats.
+Measured, new Hard against the old (scratchpad aisim/sim.mjs: the repo's
+engine against an untouched copy of the one before, engine-old/; the
+user's setup without Punto and game 1's roster; colours alternating;
+140 turns a draw): 8 wins, 3 losses, 3 draws over 14 games (as dark
+4-2-1, as light 4-1-2). Its thinking, turn-weighted: 4.1 s a turn on
+average against 3.1 s, at most 7.8 s against 7.3 s. CI for de0c2fb:
+Deploy #777 and Browser tests #97 (all eight shards) green.
+Still open: two of the three losses were walks home, game 12 (batch C,
+start position recorded, aisim/an/replay12.mjs) after the light Cabeza
+went through a black hole into dark's half (in at (9,9), out at (4,2)).
+The net check counts only crush threats on Hard's own Cabeza; a reply
+that brings theirs within a turn of its goal row with no answer isn't
+seen. Counting it is cheap (endingLine when their Cabeza ends within
+turnBudget() rows of its goal and the reply touched its way there, and
+those replies tried first); in game 12 the check had already found a
+net two turns before the walk, so whether that alone would have saved
+it wasn't settled (an exact look at one turn of that game takes over
+ten minutes: generateTurns is about 0.24 s there).
+
+Game 2, Hard won (played before de0c2fb was live, so the old Hard). Its
+Cabeza went into the black hole at (4,10) on its 32nd turn (C:
+SW.SW.SE) and came out at (8,1), deep in the user's half; at its 35th it
+stood at (10,5), three steps from its goal row, with a way under the
+user's standing Arco Ancho, and walked home at its 36th. The user's
+35th (Ch: S.S.S) left the way open; 13 of their 876 turns closed it
+(AN: slide-N, one action, puts the arch's leg on the square it walked
+under). The user never had a turn that ended the game. The check alert
+reads cabezaThreats only (a single block's crush on your own Cabeza):
+it says nothing of the other side's Cabeza walking home.
