@@ -3,7 +3,7 @@
    One component, one piece of markup: the theme id, the turn number,
    whose move it is, the numbers (the theme's name, moves, actions spent,
    the AI's level, time), the last few moves, and how the game ended. The
-   ten stylesheets (themes/lab/css.js) turn the same markup into a Swiss
+   nine stylesheets (themes/lab/css.js) turn the same markup into a Swiss
    column, a Bauhaus set of forms, a Mondrian grid, a tilted
    Elementarist stack, Brutalist blocks, a Tschichold page, a departure
    board, Neo-Brutalist cards, near-nothing, or a machine panel.

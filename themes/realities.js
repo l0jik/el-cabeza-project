@@ -4,7 +4,7 @@
 
    WORLDS: the three of Nova's own places (they switch in place: `nova`,
    its theme's name), and the other pages of the site (`href`): Lluvia,
-   Cromo, and the Theme Lab's ten design worlds (?theme=<id>). Each has a
+   Cromo, and the Theme Lab's nine design worlds (?theme=<id>). Each has a
    picture (`shot`: a screenshot of it, made by tools/channel_shots.mjs,
    beside the page), shown here and on the den's television, where after
    the story each click of the knob is the next one (den-tv.js).
@@ -12,13 +12,12 @@
    createRealitiesMenu: the menu itself, over the void at the end
    (den-ending.js) or over the den (Nova's "Other realities"). */
 
-// The Lab's ten, each with a one-line description (user: not "From the
+// The Lab's nine, each with a one-line description (user: not "From the
 // Theme Lab", a very brief line on what the theme is).
 const LAB = [
   ["swiss", "Swiss Design", "A rational grid, one red, nothing extra."],
   ["bauhaus", "Bauhaus", "Circle, square, triangle, in primary paint."],
   ["destijl", "De Stijl", "Mondrian's black lines and primary fields."],
-  ["elementarism", "Elementarism", "The grid set against a 45° diagonal."],
   ["brutalist", "Brutalism", "Raw concrete: poured, cast, stencilled."],
   ["newTypography", "New Typography", "The board set like a Tschichold page."],
   ["corporateSwiss", "Corporate Swiss", "A 1960s information system, consoles and all."],

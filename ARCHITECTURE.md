@@ -345,7 +345,8 @@ builder functions expected to find them on.
   stays inline in each page. Tests open file:// pages, so every
   Playwright launch passes `--allow-file-access-from-files`.
   `npm run size` (tools/app_size.mjs): what an app of the game would
-  weigh, installed and downloaded.
+  weigh, installed and downloaded (`npm run size -- --android` for
+  Android's).
 
 ## Open decisions — resolved
 

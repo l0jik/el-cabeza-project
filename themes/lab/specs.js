@@ -1,4 +1,4 @@
-/* Theme Lab: the ten design directions, as data.
+/* Theme Lab: the nine design directions, as data.
 
    Each entry is one complete visual system for the same game. The
    factory (themes/lab/factory.js) turns an entry into an ordinary
@@ -169,57 +169,10 @@ export const LAB_SPECS = [
     audio: "destijl",
   },
   {
-    id: "elementarism",
-    // The dock in this direction's voice (chassis DOCK_WORDS).
-    words: {"views": ["Player", "Plan", "Room"], "endGame": "Break off", "newGame": "New vector", "moveLog": "Vectors", "plainRules": "Bare elements", "nextGame": "Next", "endedCaption": "The diagonal holds.", "wonCaption": "Counter-composition complete."},
-    num: "04",
-    name: "Elementarism",
-    short: "ELEMENTARISM",
-    tagline: "Van Doesburg's diagonal: the grid set against a 45° counter-composition, every move a vector.",
-    colors: {
-      bgPrimary: "#1C2127", bgSecondary: "#262C33", surface: "#2E353D",
-      textPrimary: "#EEF1F4", textSecondary: "#9AA5B1",
-      accentPrimary: "#FF5A1F", accentSecondary: "#C9D2DB",
-      boardSurface: "#B9C0C7", boardGrid: "#2A3038",
-      pieceDark: "#2A3038", pieceLight: "#D5DBE1", inkOnDark: "#FF5A1F", inkOnLight: "#1C2127",
-    },
-    typography: {
-      url: FONT("family=Saira+Condensed:wght@500;700;800&family=Saira:wght@400;500;600"),
-      display: "'Saira Condensed', 'Arial Narrow', sans-serif",
-      body: "'Saira', 'Helvetica Neue', Arial, sans-serif",
-      mono: "'Saira Condensed', 'Arial Narrow', sans-serif",
-      displayWeight: 800, tracking: "0.02em", labelTracking: "0.22em", labelCase: "uppercase",
-    },
-    spacing: { unit: 8, gutter: 22 },
-    borders: { width: 1, radius: 0, color: "#C9D2DB" },
-    shadows: { x: 0, y: 8, blur: 22, opacity: 0.35, color: "0,0,0" },
-    board: {
-      paint: "brushedDiagonal", grid: "machined", gridOpacity: 0.8, sideColor: 0x6d7680, roughness: 0.38, metalness: 0.75,
-      goal: "hatch", coords: null,
-    },
-    pieces: {
-      edgeRadius: 0.02, outline: null,
-      dark: { color: 0x3a424c, roughness: 0.34, metalness: 0.85 },
-      light: { color: 0xc9d0d8, roughness: 0.28, metalness: 0.9 },
-      mark: "diamond",
-    },
-    indicator: "vector", selection: "diagonalFrame", landing: "streak",
-    ground: "diagonalPlanes",
-    hud: "elementarism",
-    animation: { speed: 220, ease: "cubic-bezier(.7,0,.2,1)", enter: "slice" },
-    materials: "Brushed aluminium board, machined grooves; anodised metal pieces.",
-    lighting: {
-      toneMapping: "aces", exposure: 1.2, pitch: 0.9,
-      ambient: { color: 0xdfe8f2, intensity: 0.2 }, hemi: { sky: 0xe6eef8, ground: 0x2a3038, intensity: 0.5 },
-      key: { color: 0xffffff, intensity: 1.35 }, fill: { color: 0xffc9a8, intensity: 0.4 }, back: { color: 0xb8d4ff, intensity: 0.55 },
-    },
-    audio: "elementarism",
-  },
-  {
     id: "brutalist",
     // The dock in this direction's voice (chassis DOCK_WORDS).
     words: {"views": ["Player", "Plan", "Room"], "endGame": "Demolish", "newGame": "Pour again", "moveLog": "Cast log", "plainRules": "Raw rules", "nextGame": "Next", "endedCaption": "Set. Cured.", "wonCaption": "Mass prevails."},
-    num: "05",
+    num: "04",
     name: "Brutalism",
     short: "BRUTALISM",
     tagline: "Béton brut. Poured, cast, stencilled. Mass over ornament.",
@@ -266,7 +219,7 @@ export const LAB_SPECS = [
     id: "newTypography",
     // The dock in this direction's voice (chassis DOCK_WORDS).
     words: {"views": ["Player", "Plan", "Room"], "endGame": "Close the page", "newGame": "New page", "moveLog": "Colophon", "plainRules": "Plain setting", "nextGame": "Next", "endedCaption": "Set in type.", "wonCaption": "Printed."},
-    num: "06",
+    num: "05",
     name: "New Typography",
     short: "NEW TYPOGRAPHY",
     tagline: "After Tschichold: the page is the architecture, the board a figure set into it.",
@@ -313,7 +266,7 @@ export const LAB_SPECS = [
     id: "corporateSwiss",
     // The dock in this direction's voice (chassis DOCK_WORDS).
     words: {"views": ["Player", "Plan", "Room"], "endGame": "Cancel service", "newGame": "Next departure", "moveLog": "Departure board", "plainRules": "Standard timetable", "nextGame": "Next service", "endedCaption": "Service ended.", "wonCaption": "Arrived on time."},
-    num: "07",
+    num: "06",
     name: "Corporate Swiss",
     short: "CORPORATE SWISS",
     tagline: "A 1960s information system: departure board, annual report, engineering console.",
@@ -360,7 +313,7 @@ export const LAB_SPECS = [
     id: "neoBrutalist",
     // The dock in this direction's voice (chassis DOCK_WORDS).
     words: {"views": ["Me", "Above", "Room"], "endGame": "Bail", "newGame": "Go again!", "moveLog": "Receipts", "plainRules": "Plain rules", "nextGame": "Next", "endedCaption": "Bold move.", "wonCaption": "Nailed it."},
-    num: "08",
+    num: "07",
     name: "Neo-Brutalism",
     short: "NEO-BRUTALISM",
     tagline: "Flat paint, thick outlines, hard offset shadows, and a lot of nerve.",
@@ -407,7 +360,7 @@ export const LAB_SPECS = [
     id: "minimalMono",
     // The dock in this direction's voice (chassis DOCK_WORDS).
     words: {"views": ["player", "top", "room"], "endGame": "end", "newGame": "again", "moveLog": "log", "plainRules": "plain", "nextGame": "next", "endedCaption": "—", "wonCaption": "done."},
-    num: "09",
+    num: "08",
     name: "Minimal Mono",
     short: "MINIMAL MONO",
     tagline: "Reduction to the edge of disappearance. Black, white, and the grey of opacity.",
@@ -461,7 +414,7 @@ export const LAB_SPECS = [
     id: "ultimateFusion",
     // The dock in this direction's voice (chassis DOCK_WORDS).
     words: {"views": ["Player", "Plan", "Room"], "endGame": "Shut down", "newGame": "Run the machine", "moveLog": "Machine log", "plainRules": "Base rules", "nextGame": "Next", "endedCaption": "The machine rests.", "wonCaption": "Measure, structure, mass."},
-    num: "10",
+    num: "09",
     name: "Ultimate Fusion",
     short: "ULTIMATE FUSION",
     tagline: "Swiss measure, De Stijl structure, Brutalist mass: one architectural machine.",

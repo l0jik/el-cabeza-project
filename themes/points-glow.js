@@ -31,7 +31,6 @@ export const POINTS_GLOW = {
   swiss: { dark: "#e63946", light: "#ffffff" },
   bauhaus: { dark: "#d1362a", light: "#3f78ff" },
   destijl: { dark: "#d7261e", light: "#3d66ff" },
-  elementarism: { dark: "#ff5a1f", light: "#c9d2db" },
   brutalist: { dark: "#ff3b00", light: "#e4ddd0" },
   newTypography: { dark: "#d0021b", light: "#fff6e6" },
   corporateSwiss: { dark: "#ffc400", light: "#cfe0ff" },

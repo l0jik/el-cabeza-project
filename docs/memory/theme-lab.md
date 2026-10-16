@@ -1,13 +1,20 @@
-## Theme Lab (built): the same game in ten design directions (user request)
+## Theme Lab (built): the same game in nine design directions (user request)
 
 Page: `el-cabeza-lab.html` (apps/lab.jsx), built minified. It's a design
-exploration, not a new game: ten complete visual systems over the one
-chassis and engine, switchable live without touching the game. The ten
+exploration, not a new game: nine complete visual systems over the one
+chassis and engine, switchable live without touching the game. The nine
 (ids in themes/lab/specs.js): 01 Swiss (`swiss`), 02 Bauhaus (`bauhaus`),
-03 De Stijl (`destijl`), 04 Elementarism (`elementarism`), 05 Brutalism
-(`brutalist`), 06 New Typography (`newTypography`), 07 Corporate Swiss
-(`corporateSwiss`), 08 Neo-Brutalism (`neoBrutalist`), 09 Minimal Mono
-(`minimalMono`), 10 Ultimate Fusion (`ultimateFusion`).
+03 De Stijl (`destijl`), 04 Brutalism (`brutalist`), 05 New Typography
+(`newTypography`), 06 Corporate Swiss (`corporateSwiss`), 07
+Neo-Brutalism (`neoBrutalist`), 08 Minimal Mono (`minimalMono`), 09
+Ultimate Fusion (`ultimateFusion`). (There were ten until 2026-10-16:
+Elementarism, the fourth, was deleted, user: "Completely remove the
+Elementarism theme. Delete it." Its spec, stylesheet, voice and what
+only it drew went with it: the vector move marker, the diagonal planes
+under the board, the brushed diagonal plate, the diamond mark, the
+diagonal selection frame, the landing streak and the slice curtain; the
+directions after it were renumbered. A saved or linked
+?theme=elementarism opens Swiss.)
 
 Architecture (engine → presentation adapter → config → primitives):
 - `themes/lab/specs.js`: each direction as data: colors (semantic
@@ -30,11 +37,11 @@ Architecture (engine → presentation adapter → config → primitives):
   ticks, Fusion channels), slab materials, pieces (material + optional
   back-face outline shell + a printed mark on the top face: Bauhaus
   circle/square/triangle, glyph letters, stencil codes with the square,
-  serials, stickers, ID+coordinate), ten legal-move indicators (red
-  corners, direction triangles, recessed field, vectors, hard frames,
+  serials, stickers, ID+coordinate), nine legal-move indicators (red
+  corners, direction triangles, recessed field, hard frames,
   bullet + rule, brackets, pop tile, crosshair, a plate that slides out
   from under the board), black holes/missing squares, and the ground
-  composition (sheet, forms, Mondrian bars, diagonal planes, plinth,
+  composition (sheet, forms, Mondrian bars, plinth,
   offset shadow slab, console, machine bed) with a far underlay so the
   low setup view never runs off a sheet. Indicator opacity is the
   chassis's hot/cold value ×2.1 (at ×1 they read as stains).
@@ -47,14 +54,14 @@ Architecture (engine → presentation adapter → config → primitives):
   don't turn when the board turns to face a player.
 - `themes/lab/hud.js` + `css.js`: one HUD markup (id, turn number, side
   to move, moves/points/pieces/taken/time, last six moves, result) that
-  ten stylesheets compose ten ways; semantic custom properties on :root
+  nine stylesheets compose nine ways; semantic custom properties on :root
   (--bg-primary, --accent-primary, --border-width, --shadow-x, ...);
   the chassis's own UI restyled from the tokens. Compact strip on phones
   (max-aspect 3/2 or < 900px), the turn number floated in a reserved
   column. Session clock/initial counts are module-level (carry across
   switches). Turn changes play the voice's turn cue.
 - `themes/lab/audio.js`: ONE AudioContext for the page, made on the
-  first gesture and kept across switches; ten synthesized voices; every
+  first gesture and kept across switches; nine synthesized voices; every
   sound is a short enveloped node chain (zero-start, zero-end), at most
   24 at once, each released once on 'ended' OR by a timed backstop
   (headless Chrome never fires 'ended'); global volume + mute.
@@ -77,11 +84,11 @@ Random, Full screen, Hide interface (H), Sound on/off (M) + volume,
 Reset presentation (view + interface, never the game), Return to game,
 L toggles the panel, Esc / outside press closes it. The theme is kept in
 ?theme= and localStorage. Each switch shows a short curtain in the new
-direction's colours and transition language (wipe, stack, bars, slice,
+direction's colours and transition language (wipe, stack, bars,
 slam, set, flap, pop, fade, machine).
 
-Test: `tests/e2e-lab.mjs` (state identical across all ten switches,
-mid-turn; play continues; switch during a step waits; the ten differ in
+Test: `tests/e2e-lab.mjs` (state identical across all nine switches,
+mid-turn; play continues; switch during a step waits; the nine differ in
 faces/accents/HUD; every control; sound starts only after a gesture and
 releases its voices; phone compact HUD, no sideways scroll).
 

@@ -77,7 +77,7 @@ export const realitiesCorner = (world, novaGo = null) => () => (storyOver() ? { 
 
 /* ------------------------------------------------------------ the looks */
 
-/* Each reality's way of drawing it, as CSS variables. The Lab's ten
+/* Each reality's way of drawing it, as CSS variables. The Lab's nine
    take their own design tokens (themes/lab/css.js puts them on the page). */
 const LOOKS = {
   den: {

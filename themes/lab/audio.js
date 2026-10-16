@@ -1,4 +1,4 @@
-/* Theme Lab: one audio manager, ten voices.
+/* Theme Lab: one audio manager, nine voices.
 
    One AudioContext for the whole page, made on the first user gesture
    (browsers refuse sound before one) and kept across theme switches:
@@ -205,34 +205,6 @@ const VOICES = {
     close() { tone({ type: "square", f: 990, dur: 0.015, g: 0.035, filter: { f: 2400 } }); },
     theme() { seq([660, 990, 1320], (f, i) => tone({ type: "square", f, dur: 0.02, g: 0.05, delay: i * 0.05, filter: { f: 2400 } })); },
   },
-  /* Elementarism (user: the sweeps were bad; something very slight and
-     midrange, less is more, distinction golden): one small struck bar, a
-     soft midrange tick with a faint inharmonic overtone (a wooden or
-     glass tone bar's 2.76), each leaning a hair downward as it sounds
-     (the diagonal); and one interval for everything, the tritone, the
-     octave's own diagonal (E and B-flat), rising to take, falling to let
-     go. Quiet, short, a little air round it. */
-  elementarism: (() => {
-    const E = 659.3, Bb = 932.3;
-    const bar = (f, g, delay = 0, dur = 0.09, lean = 0.025) => {
-      tone({ f, f2: f * (1 - lean), dur, a: 0.002, g, delay, det: 0.004, verb: 0.22 });
-      tone({ f: f * 2.76, dur: 0.022, a: 0.001, g: g * 0.22, delay, det: 0.004 });
-    };
-    return {
-      hover() { bar(Bb * 1.5, 0.008, 0, 0.03); },
-      select() { bar(E, 0.05); bar(Bb, 0.038, 0.045); },
-      deselect() { bar(Bb, 0.04); bar(E, 0.034, 0.045); },
-      blocked() { bar(Bb / 2, 0.034, 0, 0.1, 0.04); bar(Bb / 2 * 1.06, 0.025, 0, 0.1, 0.04); },
-      roll() { bar(E * 0.89, 0.022, 0, 0.05); bar(Bb * 0.89, 0.018, 0.07, 0.05); },
-      land(m) { bar(E * (0.8 - 0.12 * m), 0.06, 0, 0.12, 0.05); noise({ dur: 0.018, g: 0.025, filter: { type: "bandpass", f: 750, q: 1.6 } }); },
-      capture() { seq([Bb, E, Bb / 2], (f, i) => bar(f, 0.045, i * 0.07, i === 2 ? 0.22 : 0.08)); },
-      turn() { bar(E * 1.19, 0.03, 0, 0.06); },
-      win() { seq([Bb / 2, E, Bb, E * 2], (f, i) => bar(f, 0.04, i * 0.12, i === 3 ? 0.6 : 0.1, i === 3 ? 0.008 : 0.025)); },
-      open() { bar(E * 1.59, 0.024, 0, 0.04); },
-      close() { bar(Bb * 0.8, 0.022, 0, 0.04); },
-      theme() { bar(E, 0.04); bar(Bb, 0.032, 0.08); bar(E * 2, 0.02, 0.16, 0.35, 0.008); },
-    };
-  })(),
   brutalist: {
     hover() { noise({ dur: 0.01, g: 0.025, filter: { type: "bandpass", f: 4000, q: 8 } }); },
     select() { noise({ dur: 0.05, g: 0.16, filter: { type: "bandpass", f: 2400, q: 8 } }); tone({ type: "sawtooth", f: 110, dur: 0.06, g: 0.05, dist: true, filter: { f: 900 } }); },

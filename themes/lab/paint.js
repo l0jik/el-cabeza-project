@@ -199,35 +199,6 @@ const PAINTERS = {
     g.fillRect(pad, pad, fw, sq); g.fillRect(pad, pad + fh - sq, fw, sq);
   },
 
-  brushedDiagonal(spec, b) {
-    const { g, W, H, pad, sq } = b;
-    const base = g.createLinearGradient(0, 0, W, H);
-    base.addColorStop(0, "#C7CDD3"); base.addColorStop(0.5, "#AEB5BD"); base.addColorStop(1, "#C3C9CF");
-    g.fillStyle = base; g.fillRect(0, 0, W, H);
-    // The brushing runs at 45°: the counter-composition in the metal itself.
-    const r = rng(404);
-    g.save(); g.translate(W / 2, H / 2); g.rotate(-Math.PI / 4);
-    const D = Math.hypot(W, H);
-    for (let i = 0; i < 2600; i++) {
-      const y = (r() - 0.5) * D, x = (r() - 0.5) * D, len = 40 + r() * 400;
-      g.strokeStyle = r() < 0.5 ? `rgba(255,255,255,${0.04 + r() * 0.08})` : `rgba(40,48,58,${0.03 + r() * 0.06})`;
-      g.lineWidth = 0.6 + r() * 1.2;
-      g.beginPath(); g.moveTo(x, y); g.lineTo(x + len, y); g.stroke();
-    }
-    g.restore();
-    // Goal rows: orange hatching at 45°.
-    const fw = BOARD_COLS * sq;
-    [0, BOARD_ROWS - 1].forEach((row) => {
-      g.save(); g.beginPath(); g.rect(pad, pad + row * sq, fw, sq); g.clip();
-      g.strokeStyle = spec.colors.accentPrimary; g.globalAlpha = 0.34; g.lineWidth = sq * 0.05;
-      for (let x = -sq; x < fw + sq; x += sq * 0.24) { g.beginPath(); g.moveTo(pad + x, pad + row * sq + sq); g.lineTo(pad + x + sq, pad + row * sq); g.stroke(); }
-      g.restore();
-    });
-    // A single diagonal axis across the whole plate, machined in.
-    g.strokeStyle = "rgba(28,33,39,0.22)"; g.lineWidth = pad * 0.08;
-    g.beginPath(); g.moveTo(0, H); g.lineTo(W, 0); g.stroke();
-  },
-
   concrete(spec, b) {
     const { g, W, H, pad, sq, cell } = b;
     g.fillStyle = spec.colors.boardSurface; g.fillRect(0, 0, W, H);
@@ -567,7 +538,7 @@ export function markTexture(spec, kind, { label, owner, type, square, w = 1, h =
   MARKS.set(key, tex);
   return track(tex, paint);
 }
-const MARK_KINDS = new Set(["shape", "cabezaYellow", "diamond", "code", "glyph", "serial", "sticker", "idCoord"]);
+const MARK_KINDS = new Set(["shape", "cabezaYellow", "code", "glyph", "serial", "sticker", "idCoord"]);
 function drawMark(spec, kind, { label, owner, type, square, isCabeza }, g, W, H) {
   const m = Math.min(W, H);
   const dark = owner === "dark";
@@ -588,14 +559,6 @@ function drawMark(spec, kind, { label, owner, type, square, isCabeza }, g, W, H)
     g.fill();
   } else if (kind === "cabezaYellow") {
     g.fillStyle = col.accentTertiary; g.fillRect(0, 0, W, H);
-  } else if (kind === "diamond") {
-    g.save(); g.translate(W / 2, H / 2); g.rotate(Math.PI / 4);
-    const s = m * 0.34;
-    g.fillStyle = isCabeza ? col.accentPrimary : dark ? col.accentPrimary : "#1C2127";
-    g.fillRect(-s / 2, -s / 2, s, s);
-    g.restore();
-    g.strokeStyle = g.fillStyle; g.lineWidth = m * 0.03;
-    g.beginPath(); g.moveTo(W * 0.12, H * 0.88); g.lineTo(W * 0.88, H * 0.12); g.stroke();
   } else if (kind === "code") {
     g.fillStyle = ink;
     g.font = `800 ${Math.round(m * 0.34)}px 'JetBrains Mono', 'Courier New', monospace`;

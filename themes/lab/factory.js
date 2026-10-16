@@ -13,7 +13,7 @@
             ↓
      scene.js · ambient.js · hud.js · css.js · audio.js  ← shared primitives
             ↓
-     ten visual systems */
+     nine visual systems */
 
 import React from "react";
 import * as THREE from "three";

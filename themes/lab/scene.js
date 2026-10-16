@@ -63,7 +63,7 @@ function gridLines(width, height, y, { borders = true, skipInner = false } = {})
 }
 
 /* The colour of each ground's far underlay (its sheet's own base). */
-const UNDERLAY = { console: "#0E1C33", machine: "#2A2927", diagonalPlanes: "#1C2127", plinth: "#8B877F", mondrian: "#F4F2EC" };
+const UNDERLAY = { console: "#0E1C33", machine: "#2A2927", plinth: "#8B877F", mondrian: "#F4F2EC" };
 
 export function createScene(spec) {
   const C = spec.colors;
@@ -310,23 +310,6 @@ export function createScene(spec) {
       mesh(flatGeo([{ x: 0, z: 0, w: hx * 1.9, d: hz * 1.9 }]), basic(0x0e0e0e, {}), 0.052);
       mesh(flatGeo([{ x: 0, z: 0, w: hx * 1.7, d: hz * 1.7 }]), basic(isCrush ? hex(C.accentPrimary) : hex(C.accentTertiary)), 0.054);
       mesh(flatGeo([{ x: 0, z: 0, w: hx * 1.45, d: hz * 1.45 }]), basic(0xf6f5f0), 0.056);
-    } else if (K === "vector") {
-      // Elementarism: a vector from the piece's side of the square, with
-      // a parallelogram head, in signal orange.
-      const v = dirVec(dir);
-      const ang = Math.atan2(v.x, v.z);
-      const L = Math.max(hx, hz) * 1.6, t = isCrush ? 0.07 : 0.045;
-      const g = new THREE.Group(); g.rotation.y = ang; root.add(g);
-      const shaft = new THREE.Mesh(boxesGeometry([{ x: 0, z: -L * 0.2, w: t, d: L * 0.8, h: 0, y: 0 }]), basic(accent));
-      const head = new THREE.Shape();
-      const hs = Math.min(hx, hz) * 0.42;
-      head.moveTo(-hs, 0); head.lineTo(0, hs * 0.9); head.lineTo(hs, 0); head.lineTo(hs, -hs * 0.35); head.lineTo(0, hs * 0.55); head.lineTo(-hs, -hs * 0.35); head.closePath();
-      const hg = new THREE.ShapeGeometry(head); geos.push(hg, shaft.geometry);
-      const hm = new THREE.Mesh(hg, basic(accent)); hm.rotation.x = -Math.PI / 2; hm.position.z = L * 0.2;
-      shaft.position.y = hm.position.y = 0.056;
-      g.add(shaft, hm);
-      const base = Math.atan2(1, 1);
-      mesh(flatGeo([{ x: 0, z: 0, w: hx * 1.4, d: 0.012 }]), basic(0x1c2127)).rotation.y = base;
     } else if (K === "block") {
       // Brutalism: a thick black frame, and a solid block for a crush.
       const t = isCrush ? hx : 0.09;
@@ -469,13 +452,6 @@ export function createScene(spec) {
       box(-SLAB_X / 2 - 2.6, -SLAB_Z / 2 - 2.8, 2.8, 2.6, 0.06, hex(C.accentPrimary));
       box(SLAB_X / 2 + 3.6, SLAB_Z / 2 + 2.2, 2.6, 2.4, 0.06, hex(C.accentSecondary));
       box(SLAB_X / 2 + 3.6, -SLAB_Z / 2 - 0.5, 2.6, 1.6, 0.06, hex(C.accentTertiary));
-    } else if (kind === "diagonalPlanes") {
-      plane(R * 4, R * 4, new THREE.MeshStandardMaterial({ color: 0x1c2127, roughness: 0.5, metalness: 0.6 }));
-      // Counter-composition: long planes crossing under the board at 45°.
-      [[0, 0.1, 0x3a434d, R * 3.4, 1.4], [R * 0.2, 0.2, 0x2a3038, R * 2.6, 0.5], [-R * 0.9, 0.05, hex(C.accentPrimary), R * 1.6, 0.14]].forEach(([off, h, col, len, wid], i) => {
-        const b = box(off, -off * 0.3, len, wid, h, col, below - 0.1, { metalness: 0.7, roughness: 0.35 });
-        b.rotation.y = i === 2 ? -Math.PI / 4 : Math.PI / 4;
-      });
     } else if (kind === "plinth") {
       plane(R * 4, R * 4, new THREE.MeshStandardMaterial({ color: 0x8b877f, roughness: 1, map: paintGroundSheetConcrete() }));
       box(0, 0, SLAB_X + 1.2, SLAB_Z + 1.2, 0.5, 0x9c988f, below - 0.5 + 0.001, { roughness: 1 });

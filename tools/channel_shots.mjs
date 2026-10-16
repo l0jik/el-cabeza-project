@@ -14,7 +14,7 @@ import { fileURLToPath } from "url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = (f) => "file://" + path.join(ROOT, "dist", f);
-const LAB = ["swiss", "bauhaus", "destijl", "elementarism", "brutalist", "newTypography", "corporateSwiss", "neoBrutalist", "minimalMono", "ultimateFusion"];
+const LAB = ["swiss", "bauhaus", "destijl", "brutalist", "newTypography", "corporateSwiss", "neoBrutalist", "minimalMono", "ultimateFusion"];
 const SHOTS = [
   ["den", dist("el-cabeza-standard.html"), 6500],
   ["futuris", dist("el-cabeza-futuris.html"), 6500],

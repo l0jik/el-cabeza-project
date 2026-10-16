@@ -38,7 +38,6 @@ export const SIDE_NAMES = {
   swiss: pair("Black", "White", ["#111111", "#FAFAF8"]),
   bauhaus: pair("Red", "Blue", ["#C8332A", "#1F4EA3"]),
   destijl: pair("Red", "Blue", ["#D7261E", "#1B3FA0"]),
-  elementarism: pair("Graphite", "Silver", ["#2A3038", "#D5DBE1"]),
   brutalist: pair("Iron", "Concrete", ["#2B2A28", "#C9C5BC"], ["dark", "light"]),
   newTypography: pair("Ink", "Paper", ["#141210", "#F1EADB"], ["dark", "light"]),
   corporateSwiss: pair("Navy", "Platinum", ["#1A2B4A", "#D8DEE8"]),

@@ -1,10 +1,10 @@
-/* The Theme Lab (apps/lab.jsx): ten design directions over one game.
+/* The Theme Lab (apps/lab.jsx): nine design directions over one game.
 
    What must hold, and is checked here:
    - every direction loads and renders with no page errors;
    - switching direction never touches the game: the same pieces in the
      same places, the same side to move, the same actions used mid-turn,
-     the same log, all ten times over, and play carries on afterwards;
+     the same log, all nine times over, and play carries on afterwards;
    - a switch asked for while a step is still animating waits for it;
    - the directions really differ (their tokens, fonts, HUD composition);
    - every lab control works: the picker, previous/next (buttons and
@@ -93,7 +93,7 @@ async function waitSwitched(page, id) {
 
   // Switch through every direction, several ways; nothing about the game moves.
   const ids = await page.evaluate(() => window.__LAB__.ids);
-  check("ten directions", ids.length === 10, ids.join(","));
+  check("nine directions, Elementarism not among them (user: \"Completely remove the Elementarism theme\")", ids.length === 9 && !ids.includes("elementarism"), ids.join(","));
   const accents = new Set(), fonts = new Set(), huds = new Set();
   let intact = 0;
   for (let i = 1; i <= ids.length; i++) {
@@ -118,8 +118,8 @@ async function waitSwitched(page, id) {
     accents.add(look.accent); fonts.add(look.font); huds.add(look.hud);
     if (!look.title.includes(id === "swiss" ? "Swiss" : "")) console.log("   title", look.title);
   }
-  check(`the game is untouched by all ten switches (${intact}/10)`, intact === 10);
-  check(`the directions differ: ${fonts.size} display faces, ${accents.size} accents, ${huds.size} HUD compositions`, fonts.size >= 9 && accents.size >= 6 && huds.size === 10);
+  check(`the game is untouched by all nine switches (${intact}/${ids.length})`, intact === ids.length);
+  check(`the directions differ: ${fonts.size} display faces, ${accents.size} accents, ${huds.size} HUD compositions`, fonts.size >= ids.length - 1 && accents.size >= 6 && huds.size === ids.length);
   check("back on the first direction, the address says so", (await labId(page)) === "swiss" && (await page.evaluate(() => new URLSearchParams(location.search).get("theme"))) === "swiss");
 
   // Play carries on: finish Light's turn.
@@ -198,7 +198,7 @@ async function waitSwitched(page, id) {
   await page.locator('[data-testid="lab-prev"]').click();
   await poll(async () => (await labId(page)) !== before2 && !(await page.evaluate(() => window.__LAB__.busy())), 15000);
   const idx = (x) => ids.indexOf(x);
-  check("the ‹ button steps back one", idx(await labId(page)) === (idx(before2) + 9) % 10);
+  check("the ‹ button steps back one", idx(await labId(page)) === (idx(before2) + ids.length - 1) % ids.length);
   await page.waitForTimeout(1500);
   check("sound voices are released after they play", (await page.evaluate(() => window.__LAB__.audio().active)) === 0, String(await page.evaluate(() => window.__LAB__.audio().active)));
   check("no page errors", errs.length === 0, errs.slice(0, 4).join(" | "));
@@ -240,6 +240,24 @@ async function waitSwitched(page, id) {
   }
   const tgt = await page.locator('[data-testid="lab-next"]').boundingBox();
   check("the lab's buttons are touch-sized", tgt.width >= 36 && tgt.height >= 36, JSON.stringify(tgt));
+  check("no page errors", errs.length === 0, errs.slice(0, 4).join(" | "));
+  await context.close();
+}
+
+// ------------------------------------------------- Elementarism, deleted
+{
+  // (User: "Completely remove the Elementarism theme. Delete it." A link
+  // to it, or the choice saved from before, opens the first direction.)
+  console.log("[an old link to Elementarism]");
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  const errs = [];
+  page.on("pageerror", (e) => errs.push(e.message));
+  await page.addInitScript(() => { window.__EC_TEST_HOOKS__ = true; try { localStorage.setItem("el-cabeza:lab-theme", "elementarism"); } catch (e) { /* none */ } });
+  await page.goto("file:///home/user/el-cabeza-project/dist/el-cabeza-lab.html?theme=elementarism");
+  const up = await poll(() => page.evaluate(() => !!window.__LAB__ && !!document.querySelector('[data-testid="lab-hud"]')), 15000);
+  check("?theme=elementarism (and it saved as the last choice) opens Swiss", !!up && (await labId(page)) === "swiss", up ? await labId(page) : "no Lab");
+  check("...and it's nowhere among the directions", !(await page.evaluate(() => window.__LAB__.ids.includes("elementarism"))));
   check("no page errors", errs.length === 0, errs.slice(0, 4).join(" | "));
   await context.close();
 }

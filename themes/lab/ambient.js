@@ -81,12 +81,6 @@ export function createAmbient(spec, scene, live) {
           add(flat([{ x: 0, z: 0, w: w + 0.16, d: d + 0.16 }], 0x0e0e0e, a, 0.055));
           add(flat([{ x: 0, z: 0, w: w + 0.06, d: d + 0.06 }], hex(C.accentTertiary), a, 0.057));
           break;
-        case "diagonalFrame": {
-          const f = frame(w * 0.9, d * 0.9, 0.03, hex(C.accentPrimary), a, 0.058, 0.12);
-          f.rotation.y = Math.PI / 4; add(f);
-          add(flat([{ x: 0, z: 0, w: Math.hypot(w, d) * 1.2, d: 0.02 }], hex(C.accentPrimary), a * 0.7, 0.057)).rotation.y = -Math.PI / 4;
-          break;
-        }
         case "hardFrame":
           add(frame(w, d, 0.09, 0x111111, a, 0.057, 0.1)).position.set(0.07, 0.056, 0.07);
           add(frame(w, d, 0.09, hex(C.accentSecondary), a, 0.058, 0.1));
@@ -162,10 +156,6 @@ export function createAmbient(spec, scene, live) {
         reg(flat([{ x: 0, z: 0, w: w + 0.08, d: d + 0.08 }], 0x000000, 0.3, 0.055));
         const f = reg(frame(w - 0.08, d - 0.08, 0.05, 0x0e0e0e, 1, 0.056, 0.02));
         upd = (k) => f.scale.setScalar(1 - 0.06 * Math.sin(Math.min(1, k * 2) * Math.PI));
-      } else if (kind === "streak") {
-        const m = reg(flat([{ x: 0, z: 0, w: Math.hypot(w, d) * 1.5, d: 0.05 }], hex(C.accentPrimary), 1, 0.058));
-        m.rotation.y = Math.PI / 4;
-        upd = (k) => { m.scale.x = 0.3 + k * 1.2; };
       } else if (kind === "dust") {
         const n = 18, pts = [];
         for (let i = 0; i < n; i++) {

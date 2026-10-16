@@ -1,4 +1,4 @@
-/* El Cabeza · Theme Lab: the same game in ten design directions.
+/* El Cabeza · Theme Lab: the same game in nine design directions.
 
    Everything here is presentation. The chassis (chassis/ElCabeza3D.jsx)
    runs the game exactly as every other page does; each direction is an
@@ -94,9 +94,6 @@ const LAB_CSS = `
   .lab-curtain[data-enter="wipe"].in { animation-name: lab-wipe-in; } .lab-curtain[data-enter="wipe"].out { animation-name: lab-wipe-out; }
   @keyframes lab-wipe-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
   @keyframes lab-wipe-out { from { clip-path: inset(0); } to { clip-path: inset(0 0 0 100%); } }
-  .lab-curtain[data-enter="slice"].in { animation-name: lab-slice-in; } .lab-curtain[data-enter="slice"].out { animation-name: lab-slice-out; }
-  @keyframes lab-slice-in { from { clip-path: polygon(0 0, 0 0, 0 0, 0 0); } to { clip-path: polygon(0 0, 200% 0, 0 200%, 0 0); } }
-  @keyframes lab-slice-out { from { clip-path: polygon(100% 100%, -100% 100%, 100% -100%, 100% 100%); } to { clip-path: polygon(100% 100%, 100% 100%, 100% 100%, 100% 100%); } }
   .lab-curtain[data-enter="slam"].in { animation: lab-slam-in 140ms steps(2, end) both; }
   @keyframes lab-slam-in { from { transform: translateY(-100%); } to { transform: none; } }
   .lab-curtain[data-enter="flap"].in { animation: lab-flap-in 200ms ease-in both; transform-origin: 50% 0; }
@@ -223,7 +220,7 @@ function LabApp() {
       if (/INPUT|TEXTAREA|SELECT/.test(tag) || (e.target && e.target.isContentEditable)) return;
       if (e.key === "[") step(-1);
       else if (e.key === "]") step(1);
-      else if (/^[0-9]$/.test(e.key)) { const n = e.key === "0" ? 9 : Number(e.key) - 1; if (THEMES[n]) switchTo(THEMES[n].labId); }
+      else if (/^[1-9]$/.test(e.key)) { const n = Number(e.key) - 1; if (THEMES[n]) switchTo(THEMES[n].labId); }
       else if (e.key === "l" || e.key === "L") setPanelOpen((o) => !o);
       else if (e.key === "h" || e.key === "H") setUiHidden((u) => !u);
       else if (e.key === "m" || e.key === "M") { startLabAudio(); setLabMuted(!labAudioState().muted); }
@@ -356,7 +353,7 @@ function LabApp() {
             <dt>Sound</dt>
             <dd>{AUDIO_NOTES[spec.audio]}</dd>
           </dl>
-          <p className="lab-keys">Keys: [ ] step · 1–0 jump · H hide interface · M sound · L this panel · Esc close. The game carries over every switch.</p>
+          <p className="lab-keys">Keys: [ ] step · 1–9 jump · H hide interface · M sound · L this panel · Esc close. The game carries over every switch.</p>
         </div>
       )}
       {curtain && curSpec && (
@@ -383,7 +380,6 @@ const AUDIO_NOTES = {
   swiss: "Crisp square-wave clicks.",
   bauhaus: "Warm triangle-wave tones and chords.",
   destijl: "Short electronic pulse trains.",
-  elementarism: "Directional pitch sweeps.",
   brutalist: "Distorted sawtooth, struck metal, heavy thuds.",
   newTypography: "Type-bar strikes, carriage return, a bell.",
   corporateSwiss: "Terminal beeps and split-flap flutter.",

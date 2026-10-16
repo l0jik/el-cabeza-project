@@ -8,7 +8,7 @@
         card, piece card, points) restyled from those tokens, so every
         control keeps working and only its dress changes;
      3. the direction's own composition of the in-game read-out (the HUD,
-        themes/lab/hud.js), which is where the ten differ most.
+        themes/lab/hud.js), which is where the nine differ most.
    Motion is state, never decoration: every animation here marks a turn
    changing, a piece taken, a game ending, and all of it stops under
    prefers-reduced-motion. */
@@ -163,9 +163,9 @@ const COMPACT_FLOAT = `
     .lab-hud .lab-big { position: absolute !important; right: 0 !important; top: 0 !important; width: 84px; margin: 0 !important; text-align: right; z-index: 1; }
   }
 `;
-const FLOATS = new Set(["swiss", "bauhaus", "elementarism", "brutalist", "newTypography", "neoBrutalist", "minimalMono", "ultimateFusion"]);
+const FLOATS = new Set(["swiss", "bauhaus", "brutalist", "newTypography", "neoBrutalist", "minimalMono", "ultimateFusion"]);
 
-/* ------------------------------------------------------------ the ten */
+/* ------------------------------------------------------------ the nine */
 
 /* (On a phone, the two narrow read-outs, a column beside the turn number:
    the rules, brought up, are wider than the column, so they don't wrap a
@@ -228,23 +228,6 @@ const HUD = {
   .lab-hud .lab-over { grid-column: 1 / -1; background: var(--accent-tertiary); font-family: var(--font-display); font-size: 20px; }
   .lab-hud:not([data-status="finished"]) .lab-over { display: none; }
   @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud { grid-template-columns: auto 1fr; } .lab-hud .lab-big { min-height: 0; font-size: 26px; } .lab-hud .lab-id { display: none; } .lab-hud > * { padding: 6px 8px; } }
-  `,
-  elementarism: `
-  .lab-hud { transform: rotate(-6deg); transform-origin: 0 0; top: 96px; color: var(--text-primary); }
-  .lab-hud .lab-id { font-family: var(--font-display); font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase; display: flex; gap: 10px; }
-  .lab-hud .lab-id .num { color: var(--accent-primary); }
-  .lab-hud .lab-big { font-family: var(--font-display); font-weight: 800; font-style: italic; font-size: clamp(72px, 9vw, 120px); line-height: 0.8; margin: 14px 0 6px; transform: skewX(-12deg);
-    background: linear-gradient(135deg, transparent 0 46%, var(--accent-primary) 46% 54%, transparent 54%); padding: 6px 0; }
-  .lab-hud .lab-big small { display: block; font-size: 11px; font-style: normal; letter-spacing: 0.22em; color: var(--text-secondary); }
-  .lab-hud .lab-turn { background: var(--surface); padding: 10px 28px 10px 14px; font-family: var(--font-display); font-size: 20px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
-    clip-path: polygon(0 0, 100% 0, calc(100% - 20px) 100%, 0 100%); border-left: 4px solid var(--accent-primary); margin-bottom: 14px; animation-name: lab-elem-slide; }
-  @keyframes lab-elem-slide { from { transform: translate(-30px, 30px); opacity: 0; } to { transform: none; opacity: 1; } }
-  .lab-hud .lab-stats { background: rgba(46,53,61,0.85); padding: 12px 14px; clip-path: polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%); margin-bottom: 14px; }
-  .lab-hud .lab-stats dd { font-family: var(--font-display); font-size: 22px; }
-  .lab-hud .lab-log li { border-bottom: 1px solid rgba(201,210,219,0.18); padding: 4px 0; transform: skewX(-8deg); }
-  .lab-hud .lab-log .n { color: var(--accent-primary); font-family: var(--font-display); }
-  .lab-hud .lab-over { font-family: var(--font-display); font-size: 40px; font-weight: 800; font-style: italic; text-transform: uppercase; color: var(--accent-primary); margin-top: 10px; }
-  @media (max-aspect-ratio: 3/2), (max-width: 899px) { .lab-hud { transform: rotate(-3deg); top: 72px; } .lab-hud .lab-big { font-size: 40px; } .lab-hud .lab-turn { font-size: 15px; padding: 6px 22px 6px 10px; margin-bottom: 6px; } .lab-hud .lab-stats dd { font-size: 17px; } }
   `,
   brutalist: `
   .lab-hud { text-transform: uppercase; font-family: var(--font-mono); }
@@ -379,7 +362,6 @@ const CHROME = {
   swiss: `.ec-btn-invert { background: #000 !important; color: #FFF !important; } [data-testid="dock-panel"] { border-top: 4px solid var(--accent-primary) !important; }`,
   bauhaus: `[data-testid="dock-panel"] { border-left: 12px solid var(--accent-primary) !important; } .ec-btn { text-transform: lowercase !important; }`,
   destijl: `[data-testid="dock-panel"] { box-shadow: inset 0 0 0 6px #0E0E0E !important; border: 0 !important; } [data-testid="victory-placard"] { border: 8px solid #0E0E0E !important; } [data-testid="victory-placard"]::before { content: ""; position: absolute; left: 0; top: 0; width: 34%; height: 18px; background: var(--accent-primary); }`,
-  elementarism: `[data-testid="dock-panel"] { clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px)); border-left: 3px solid var(--accent-primary) !important; }`,
   brutalist: `.ec-btn { border: 3px solid #111 !important; box-shadow: 4px 4px 0 #111 !important; text-transform: uppercase; } .ec-btn:active { transform: translate(4px, 4px) !important; box-shadow: none !important; } [data-testid="dock-panel"] { border-width: 4px !important; }`,
   newTypography: `[data-testid="dock-panel"] { border-width: 0 0 0 !important; border-top: 6px solid #141210 !important; } .ec-title { font-stretch: 62%; }`,
   corporateSwiss: `[data-testid="dock-panel"] { border-top: 3px solid var(--accent-primary) !important; }`,
