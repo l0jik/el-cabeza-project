@@ -530,7 +530,7 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
   // three flash where they sit (pivot-guide.js).
   const pivotHush = useGuideHush();
   const showPivots = usePivotGuide(warnings.some((w) => w.key === "cantileverPivot"), { warnSel: '[data-testid="gate-law-warning-cantileverPivot"]', rowSel: (k) => `[data-testid="gate-piece-${k}"]`, quiet: pivotHush.quiet });
-  const { aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking } = api || {};
+  const { aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking, startByHand, onStartByHand, ownHalf, onToggleOwnHalf } = api || {};
   const locked = !!(busy || aiThinking);
   const names = sideNamesFor(world); // what this world calls its two sides
   const resize = (rows, cols) => change((n) => { n.rows = clampDim(rows); n.cols = clampDim(cols); refreshSpots(n); });
@@ -595,6 +595,19 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
     h("div", { className: "rg-row" },
       h("span", { className: "rg-name" }, "Shuffled start", h("span", { className: "rg-note" }, "The pieces set out in a random order.")),
       h(Switch, { on: sel.random, label: "Shuffled start", testid: "gate-random", onClick: () => change((n) => { n.random = !n.random; }) })),
+    // Set out by hand (user, here on a phone: "Where in the settings menu
+    // do you have the option of placing your pieces by hand? I don't see
+    // that anywhere."): the setup's Starting position, the same one the
+    // dock's and the phone bar's Start row set (the chassis keeps it), so
+    // Play sets your pieces out first. With it, how far up they may go.
+    onStartByHand && h("div", { className: "rg-row" },
+      h("span", { className: "rg-name" }, "Set out by hand", h("span", { className: "rg-note" }, "Place your pieces yourself before the game; the other side mirrors yours.")),
+      h(Switch, { on: !!startByHand, label: "Set out by hand", testid: "gate-by-hand", onClick: () => onStartByHand(!startByHand) })),
+    onStartByHand && startByHand && h("div", { className: "rg-sub" },
+      h("div", { className: "rg-row" }, h("span", { className: "rg-name" }, "Pieces in"),
+        h(Seg, { label: "Where your pieces may be set out" },
+          segBtn("rows", !ownHalf, "Back 3 rows", () => { if (ownHalf) onToggleOwnHalf(); }, "gate-by-hand-rows"),
+          segBtn("half", !!ownHalf, "My half", () => { if (!ownHalf) onToggleOwnHalf(); }, "gate-by-hand-half")))),
     h("div", { className: "rg-row" },
       h("span", { className: "rg-name" }, "Missing squares", h("span", { className: "rg-note" }, "Pairs of squares cut out of the board.")),
       h(Switch, { on: sel.missing, label: "Missing squares", testid: "gate-missing", onClick: () => change((n) => { n.missing = !n.missing; if (n.missing) fillSpots(n, "missing"); }) })),

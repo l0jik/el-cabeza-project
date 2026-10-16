@@ -13807,9 +13807,10 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           onClose={() => setGate(null)}
           api={{
             // (Its Standard Cabeza and Play: with By hand chosen, the
-            // set-out first.)
+            // set-out first; the sheet's own switch for it sets the same.)
             three, setPieces, setBlackHoles, setMissingSquares, setCurrentVariants, applyBoardResize, triggerBeginGame: beginOrSetOut,
             aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking,
+            startByHand, onStartByHand: toggleStartByHand, ownHalf, onToggleOwnHalf: toggleOwnHalf,
           }}
         />
       )}

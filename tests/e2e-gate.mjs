@@ -248,6 +248,33 @@ console.log("Cabeza Nova: the one menu");
   await ctx.close();
 }
 
+console.log("Cabeza Nova: Set out by hand");
+{
+  // (User, on a phone in this menu: "Where in the settings menu do you have
+  // the option of placing your pieces by hand? I don't see that anywhere.")
+  const { p, ctx, errs } = await open("el-cabeza-cromo.html", { viewport: { width: 390, height: 844 } });
+  await p.addInitScript(() => { try { localStorage.removeItem("el-cabeza:start-position"); localStorage.removeItem("el-cabeza:set-out-half"); } catch (e) { /* none */ } });
+  await p.reload();
+  await gateOn(p);
+  await p.locator('[data-testid="gate-nova"]').click();
+  await poll(async () => (await p.locator('[data-testid="gate-sheet"]').count()) > 0, 4000);
+  const byHand = p.locator('[data-testid="gate-by-hand"]');
+  await byHand.scrollIntoViewIfNeeded();
+  check("Set out by hand in the menu, under Shuffled start, off at first", (await byHand.getAttribute("aria-checked")) === "false"
+    && await p.evaluate(() => { const r = document.querySelector('[data-testid="gate-random"]').closest(".rg-row"); return !!r.nextElementSibling && !!r.nextElementSibling.querySelector('[data-testid="gate-by-hand"]'); }));
+  check("...no Pieces in while it's off", (await p.locator('[data-testid="gate-by-hand-rows"]').count()) === 0);
+  await byHand.click();
+  check("on: Pieces in, the back 3 rows chosen", !!(await poll(async () => (await p.locator('[data-testid="gate-by-hand-rows"]').getAttribute("aria-pressed")) === "true", 3000)));
+  await p.locator('[data-testid="gate-by-hand-half"]').click();
+  check("...My half", !!(await poll(async () => (await p.locator('[data-testid="gate-by-hand-half"]').getAttribute("aria-pressed")) === "true", 3000)));
+  check("...kept as the setup's Starting position", await p.evaluate(() => localStorage.getItem("el-cabeza:start-position") === "hand" && localStorage.getItem("el-cabeza:set-out-half") === "1"));
+  await shot(p, "sheet-by-hand");
+  await p.locator('[data-testid="gate-play"]').click();
+  check("Play sets your pieces out first", !!(await poll(async () => (await p.locator('[data-testid="set-out-banner"]').count()) > 0, 20000)));
+  check("no page errors", errs.length === 0, errs.slice(0, 3).join(" | "));
+  await ctx.close();
+}
+
 console.log("before the story's over");
 {
   const { p, ctx, errs } = await open("el-cabeza-cromo.html", { ended: false });
