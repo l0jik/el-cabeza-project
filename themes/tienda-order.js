@@ -47,6 +47,19 @@ export const ORDER_PARTS_CSS = `
   .td-cell .mk { position: relative; z-index: 1; font-size: 1.05em; }
   .td-cell .mk.mirror { opacity: 0.45; }
   .td-cell .mk.rolled { outline: 1.5px dashed ${PENCIL}; outline-offset: 1px; padding: 0 2px; }
+  /* A black hole on the form (user: as an O they were "kind of hard to
+     see"): the circle inked in, a paper ring round it and a pencil ring
+     round that, red for the first set's pair, blue for the second's; one
+     placed at random is ringed in dashes. */
+  .td-cell .mk.bh, .td-bh-key i { --bh: ${RED}; border-radius: 50%;
+    background: radial-gradient(circle closest-side, #17110C 0 55%, ${PAPER} 60% 71%, var(--bh) 75% 93%, transparent 97%); }
+  .td-cell .mk.bh[data-set="2"], .td-bh-key i[data-set="2"] { --bh: ${PENCIL}; }
+  .td-cell .mk.bh { width: 78%; height: 78%; opacity: 1; font-size: 0; box-shadow: 0 1px 2px rgba(23,17,12,0.45); }
+  .td-cell .mk.bh.rolled { outline: none; padding: 0; }
+  .td-cell .mk.bh.rolled::after { content: ""; position: absolute; inset: -13%; border-radius: 50%; border: 2px dashed var(--bh); }
+  .td-bh-key { display: flex; justify-content: center; gap: 18px; font: 700 12px/1 ${COURIER}; color: ${INK}; }
+  .td-bh-key span { display: inline-flex; align-items: center; gap: 7px; }
+  .td-bh-key i { display: inline-block; width: 15px; height: 15px; }
   .td-cell:focus-visible { outline: 3px solid ${RED}; outline-offset: -3px; z-index: 2; }
   .td-picker-note { font: 700 12.5px/1.35 ${COURIER}; color: ${RED}; min-height: 1.35em; }
   .td-picker-note.pulse { animation: tdPulse 0.5s ease 2; }
@@ -108,12 +121,16 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
 
   // What's marked where: { r,c -> { spot, mirror, rolled } }.
   const marks = new Map();
-  spots.forEach((p) => {
-    marks.set(`${p.row},${p.col}`, { spot: p, mirror: false });
+  spots.forEach((p, i) => {
+    marks.set(`${p.row},${p.col}`, { spot: p, mirror: false, set: i + 1 });
     const m = mirrorCell(p.row, p.col, rows, cols);
-    marks.set(`${m.row},${m.col}`, { spot: p, mirror: true });
+    marks.set(`${m.row},${m.col}`, { spot: p, mirror: true, set: i + 1 });
   });
-  const otherSet = new Set(other.map((q) => `${q.row},${q.col}`));
+  // (The other feature's squares; a black hole's with its set, the spots
+  // and their partners coming in pairs.)
+  const otherSet = new Map(other.map((q, i) => [`${q.row},${q.col}`, Math.floor(i / 2) + 1]));
+  // A black hole's mark: drawn, not lettered (the CSS above).
+  const holeMk = (set, more = "") => h("span", { className: `mk bh${more}`, "data-set": set });
 
   const tap = (r, c) => {
     const at = marks.get(`${r},${c}`);
@@ -169,12 +186,13 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
       if (pieceAt(r, c)) cls.push("piece");
       if (!at && isHole && spotProblem(draft, "hole", r, c) === "backRow") cls.push("banned");
       if (!at && !isHole && spotProblem(draft, "missing", r, c, spots) === "wall") cls.push("wall");
-      const mark = at ? h("span", { className: `mk${at.mirror ? " mirror" : ""}${at.spot.random ? " rolled" : ""}` }, isHole ? "O" : "X")
-        : otherSet.has(`${r},${c}`) ? h("span", { className: "mk mirror" }, isHole ? "X" : "O") : null;
+      const how = at ? `${at.mirror ? " mirror" : ""}${at.spot.random ? " rolled" : ""}` : "";
+      const mark = at ? (isHole ? holeMk(at.set, how) : h("span", { className: `mk${how}` }, "X"))
+        : otherSet.has(`${r},${c}`) ? (isHole ? h("span", { className: "mk mirror" }, "X") : holeMk(otherSet.get(`${r},${c}`), " mirror")) : null;
       cells.push(h("button", {
         key: `${r},${c}`, type: "button", className: cls.join(" "),
         "data-testid": `tienda-cell-${r}-${c}`, "data-row": r, "data-col": c, "data-mark": at ? (at.mirror ? "mirror" : at.spot.random ? "rolled" : "hand") : "",
-        "aria-label": `Row ${r + 1}, column ${c + 1}${at ? (isHole ? ", black hole" : ", cut out") : ""}`,
+        "aria-label": `Row ${r + 1}, column ${c + 1}${at ? (isHole ? `, black hole${count === 2 ? ` of set ${at.set}` : ""}` : ", cut out") : ""}`,
         style: { width: cell, height: cell, fontSize: Math.max(10, cell * 0.55) },
         onClick: () => tap(r, c),
       }, mark));
@@ -183,8 +201,8 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
   const title = isHole ? "Place the black holes" : "Mark the squares to cut out";
   const help = isHole
     ? count === 2
-      ? "Mark two squares with an O, one black hole of each set; each one's partner, turned half round, is marked for you. Mark another to move one, then Done. Not in either side's two back rows, nor beside each other. Dots show where the pieces start; mark one and they set out round it."
-      : "Mark one square with an O; its partner, turned half round, is marked for you. Mark another to move them, then Done. Not in either side's two back rows. Dots show where the pieces start; mark one and they set out round it."
+      ? "Mark two squares, one black hole of each set; each one's partner, turned half round, is marked for you in the same pencil. Mark another to move one, then Done. One ringed in dashes was placed at random: mark it to keep it. Not in either side's two back rows, nor beside each other. Dots show where the pieces start; mark one and they set out round it."
+      : "Mark one square for the black hole; its partner, turned half round, is marked for you. Mark another to move them, then Done. One ringed in dashes was placed at random: mark it to keep it. Not in either side's two back rows. Dots show where the pieces start; mark one and they set out round it."
     : `Mark up to ${count} ${count === 1 ? "square" : "squares"} with an X; each one's partner, turned half round, is marked for you. Dashed marks were rolled at random: tap one to keep it. Dots show where the pieces start.`;
   return h("div", { className: "td-picker-layer", "data-testid": "tienda-picker", "data-kind": kind, role: "dialog", "aria-modal": "true", "aria-label": title,
     onClick: (e) => { if (e.target === e.currentTarget) onCancel(); } },
@@ -194,6 +212,8 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
       h("div", { className: "td-picker-side" }, `Far side · ${SIDE.light}`),
       h("div", { className: "td-grid", role: "grid", "aria-label": `${boardLabel(draft)} board`, style: { gridTemplateColumns: `repeat(${cols}, ${cell}px)` } }, cells),
       h("div", { className: "td-picker-side" }, `Your side · ${SIDE.dark}`),
+      isHole && count === 2 && h("div", { className: "td-bh-key", "data-testid": "tienda-hole-key" },
+        h("span", null, h("i", { "data-set": 1 }), "Set 1"), h("span", null, h("i", { "data-set": 2 }), "Set 2")),
       h("div", { key: note.n, className: `td-picker-note${note.text ? " pulse" : ""}`, role: "status", "data-testid": "tienda-picker-note" }, note.text),
       h("div", { className: "td-picker-btns" },
         h("button", { type: "button", className: "td-btn td-plain", "data-testid": "tienda-picker-random", onClick: random }, "Random"),

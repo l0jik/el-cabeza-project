@@ -2647,6 +2647,11 @@ function renderPairedSquarePicker(t, kind) {
     s.bump();
   };
 
+  // A black hole's square (user: they were "kind of hard to see" as a dark
+  // square): a black disc in a glowing ring, a hole and its partner in its
+  // set's colour (amber, then blue), as the other setup menus mark them.
+  const HOLE_RING = ["#FFB23F", "#5CC8FF"], HOLE_GLOW = ["rgba(255,178,63,0.85)", "rgba(92,200,255,0.85)"];
+  const holeDisc = (ring) => `radial-gradient(circle closest-side, #000 0 50%, #0B0B0E 57%, ${ring} 64% 80%, rgba(0,0,0,0.85) 88%, transparent 100%)`;
   const cells = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -2656,6 +2661,7 @@ function renderPairedSquarePicker(t, kind) {
       const mirrorOf = mirrorOfShownAt(r, c);
       const walled = selectable && !chosen && wallsOff(r, c);
       const isRandom = !!((chosen || mirrorOf) && (chosen || mirrorOf).random);
+      const holeSet = kind === "blackHole" && (chosen || mirrorOf) ? Math.min(1, Math.max(0, shown.indexOf(chosen || mirrorOf))) : -1;
       let onClick;
       if (!confirm) onClick = walled ? pulseWall : selectable ? () => pick(r, c) : other ? pulseBlocked : undefined;
       cells.push(h("div", {
@@ -2664,6 +2670,7 @@ function renderPairedSquarePicker(t, kind) {
         "data-selectable": selectable && !walled ? "true" : "false",
         "data-occupied-by": other ? otherKind : undefined,
         "data-chosen": chosen ? (chosen.random ? "random" : "hand") : undefined,
+        "data-hole-set": holeSet >= 0 ? holeSet + 1 : undefined,
         "data-wall-blocked": walled ? "true" : undefined,
         onClick,
         style: other ? {
@@ -2672,6 +2679,15 @@ function renderPairedSquarePicker(t, kind) {
           boxSizing: "border-box",
           cursor: "not-allowed",
           ...otherStyle,
+        } : holeSet >= 0 ? {
+          aspectRatio: "1 / 1",
+          borderRadius: 2,
+          boxSizing: "border-box",
+          // (Placed at random: a dashed edge in its ring's colour, tap to keep it.)
+          border: isRandom ? `1.5px dashed ${HOLE_RING[holeSet]}` : "1px solid rgba(102,217,255,0.4)",
+          background: `${holeDisc(HOLE_RING[holeSet])}, rgba(102,217,255,0.08)`,
+          boxShadow: `0 0 10px ${HOLE_GLOW[holeSet]}`,
+          cursor: confirm ? "default" : selectable ? "pointer" : "default",
         } : {
           aspectRatio: "1 / 1",
           borderRadius: 2,
@@ -2748,6 +2764,12 @@ function renderPairedSquarePicker(t, kind) {
         multi ? `Your side · ${handCount} of ${count} selected` : "Your side · tap a square, then Done",
         confirm ? "rgba(142,243,255,0.5)" : "#8ef3ff"
       ),
+      // (Two sets: which colour is which.)
+      kind === "blackHole" && count === 2
+        ? h("div", { "data-testid": `${k.pickerTestid}-key`, style: { display: "flex", justifyContent: "center", gap: 16, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(207,216,220,0.8)" } },
+          ...[0, 1].map((i) => h("span", { key: i, style: { display: "inline-flex", alignItems: "center", gap: 6 } },
+            h("i", { style: { display: "inline-block", width: 14, height: 14, borderRadius: "50%", background: holeDisc(HOLE_RING[i]), boxShadow: `0 0 6px ${HOLE_GLOW[i]}` } }), `Set ${i + 1}`)))
+        : null,
       multi
         ? h(
             "div",
@@ -2763,7 +2785,7 @@ function renderPairedSquarePicker(t, kind) {
             h("style", null, "@keyframes ecBlockedPulse{0%{background:rgba(255,70,70,0.55);box-shadow:0 0 18px rgba(255,90,90,0.9);transform:scale(1.04)}100%{background:rgba(255,70,70,0.08);box-shadow:none;transform:scale(1)}}"),
             handCount >= count
               ? `All ${count} are selected — tap one to remove it first, or press Random.`
-              : `Tap up to ${count}; tap one again to remove it. Any left open are placed at random when you press Done. Dashed squares were placed at random — tap one to keep it.`
+              : `Tap up to ${count}; tap one again to remove it. Any left open are placed at random when you press Done. Dashed squares were placed at random — tap one to keep it.${kind === "blackHole" ? " A hole and its partner share a colour." : ""}`
           )
         : null,
       backRowsBanned

@@ -1038,6 +1038,8 @@ const MORE_CSS = `
   .td-warn-hand { flex: none; font: 400 30px/1 'Noto Sans Symbols 2', 'Segoe UI Symbol', 'Apple Symbols', 'DejaVu Sans', sans-serif; }
   .td-diagram-mark { position: absolute; display: flex; align-items: center; justify-content: center; font: 700 10px/1 ${COURIER}; font-style: normal; color: #1F3A6B;
     background: rgba(239,230,205,0.8); }
+  .td-diagram-hole { width: 76%; height: 76%; border-radius: 50%; background: #17110C; box-shadow: 0 0 0 1.5px #A33F33; }
+  .td-diagram-hole[data-set="2"] { box-shadow: 0 0 0 1.5px #1F3A6B; }
   .td-opponent .td-dim { border-bottom: none; }
   /* The order going through: the stamp comes down, and the form goes. */
   .td-filled-stamp { position: absolute; left: 50%; top: 42%; z-index: 5; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -1519,9 +1521,11 @@ export const TIENDA_VARIANT_LABELS = { laws: "RULES", matter: "PIECES", topologi
 function BoardDiagram({ sel }) {
   const { rows, cols } = sel;
   const cell = Math.max(3, Math.min(92 / cols, 92 / rows));
-  // Marked squares: X cut out, O black holes (drawn from Dark's side, as
-  // the picker is: row 0 at the bottom, column 0 on the right).
-  const mark = (c, ch, i) => h("i", { key: `${ch}${i}`, className: "td-diagram-mark", style: { left: (cols - 1 - c.col) * cell, top: (rows - 1 - c.row) * cell, width: cell, height: cell, fontSize: Math.max(7, cell * 0.9) } }, ch);
+  // Marked squares: X cut out, black holes inked in, ringed in their set's
+  // pencil, as on the board to mark (drawn from Dark's side, as the picker
+  // is: row 0 at the bottom, column 0 on the right).
+  const mark = (c, ch, i) => h("i", { key: `${ch}${i}`, className: "td-diagram-mark", style: { left: (cols - 1 - c.col) * cell, top: (rows - 1 - c.row) * cell, width: cell, height: cell, fontSize: Math.max(7, cell * 0.9) } },
+    ch === "O" ? h("b", { className: "td-diagram-hole", "data-set": Math.floor(i / 2) + 1 }) : ch);
   return h("figure", { className: "td-diagram", "data-testid": "tienda-board-diagram", "data-rows": rows, "data-cols": cols, "aria-label": `The board: ${cols} squares wide, ${rows} long` },
     h("div", { className: "td-diagram-board", style: { width: cell * cols, height: cell * rows, backgroundSize: `${cell * 2}px ${cell * 2}px` } },
       h("i", { className: "td-home td-home-far", style: { height: cell * 2 } }),

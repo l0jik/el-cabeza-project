@@ -238,9 +238,12 @@ console.log("Cabeza Nova: the one menu");
       && /either hole on the far side/.test(await p.locator('[data-testid="gate-hole-sets-2"]').locator("xpath=../..").innerText()));
     await p.locator('[data-testid="gate-place-holes"]').click();
     await poll(open, 3000);
-    // (The squares cut out show on this board too, as X: count the O's.)
-    const holeMarks = await p.evaluate(() => [...document.querySelectorAll('[data-testid="gate-picker"] .mk')].filter((el) => el.textContent === "O").length);
-    check("...four holes on the board, the one placed by hand still there", holeMarks === 4 && (await markOf(b)) === "hand", `${holeMarks} O's, ${b} ${await markOf(b)}`);
+    // (The squares cut out show on this board too, as X. The holes are
+    // drawn, not lettered, user: as O's they were "kind of hard to see": a
+    // black disc in a ring of its set's colour, a pair sharing one.)
+    const holeMarks = await p.evaluate(() => { const m = [...document.querySelectorAll('[data-testid="gate-picker"] .mk.bh')]; return { n: m.length, one: m.filter((el) => el.dataset.set === "1").length, two: m.filter((el) => el.dataset.set === "2").length, letters: m.filter((el) => el.textContent).length }; });
+    check("...four holes on the board, the one placed by hand still there", holeMarks.n === 4 && (await markOf(b)) === "hand", `${JSON.stringify(holeMarks)}, ${b} ${await markOf(b)}`);
+    check("...drawn as black holes, each set's pair in its own colour, with a key", holeMarks.one === 2 && holeMarks.two === 2 && holeMarks.letters === 0 && (await p.locator('[data-testid="gate-hole-key"]').count()) === 1, JSON.stringify(holeMarks));
     const beside = await p.evaluate((id) => {
       const [r, c] = id.split("-").slice(2).map(Number);
       for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {

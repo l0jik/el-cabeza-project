@@ -399,6 +399,8 @@ for (const size of [SIZES[2], SIZES[7]]) {
   const markOf = (k) => attr(`[data-testid="tienda-cell-${k}"]`, "data-mark");
   await press(`[data-testid="tienda-cell-${first}"]`);
   check("...a tap marks the pair, and the board stays up", (await count('[data-testid="tienda-picker"]')) === 1 && (await markOf(first)) === "hand", JSON.stringify({ first, mark: await markOf(first) }));
+  // (Inked in, not an O: user, the holes were "kind of hard to see".)
+  check("...the pair drawn as black holes, inked in, in one pencil", (await count('[data-testid="tienda-picker"] .mk.bh[data-set="1"]')) === 2);
   await press(`[data-testid="tienda-cell-${pick}"]`);
   check("...a tap on another square moves it", (await markOf(pick)) === "hand" && !(await markOf(first)), JSON.stringify({ first: await markOf(first), pick: await markOf(pick) }));
   await press(`[data-testid="tienda-cell-${pick}"]`);

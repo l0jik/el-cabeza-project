@@ -255,9 +255,24 @@ button.rg-pic:focus-visible { outline: 2px solid var(--rg-accent); outline-offse
 .rg-cell .mk { position: relative; z-index: 1; color: var(--rg-accent); font-weight: 800; text-shadow: 0 0 2px var(--rg-surface); }
 .rg-cell .mk.mirror { opacity: 0.5; }
 .rg-cell .mk.rolled { outline: 1.5px dashed var(--rg-accent); outline-offset: 1px; padding: 0 2px; }
+/* A black hole on the board to mark (user: as an O they were "kind of
+   hard to see"): a black disc in a glowing ring, a hole and its partner in
+   the same colour, the other set's pair in another; one placed at random
+   wears a dashed ring turning round it. */
+.rg-cell .mk.bh, .rg-bh-key i { --bh: #FFB23F; --bh-glow: rgba(255,178,63,0.8); }
+.rg-cell .mk.bh[data-set="2"], .rg-bh-key i[data-set="2"] { --bh: #5CC8FF; --bh-glow: rgba(92,200,255,0.8); }
+.rg-cell .mk.bh, .rg-bh-key i { border-radius: 50%; box-shadow: 0 0 7px 1px var(--bh-glow);
+  background: radial-gradient(circle closest-side, #000 0 50%, #0B0B0E 57%, var(--bh) 64% 80%, rgba(0,0,0,0.85) 88%, transparent 100%); }
+.rg-cell .mk.bh { width: 78%; height: 78%; opacity: 1; color: transparent; text-shadow: none; }
+.rg-cell .mk.bh.rolled { outline: none; padding: 0; }
+.rg-cell .mk.bh.rolled::after { content: ""; position: absolute; inset: -13%; border-radius: 50%; border: 2px dashed var(--bh); animation: rg-bh-turn 7s linear infinite; }
+@keyframes rg-bh-turn { to { transform: rotate(360deg); } }
+.rg-bh-key { display: flex; justify-content: center; gap: 16px; font: 600 12px/1 var(--rg-body); color: var(--rg-muted); }
+.rg-bh-key span { display: inline-flex; align-items: center; gap: 7px; }
+.rg-bh-key i { display: inline-block; width: 15px; height: 15px; }
 .rg-pick-note { min-height: 1.35em; font: 600 13px/1.35 var(--rg-body); color: var(--rg-accent); }
 .rg-pick-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
-@media (prefers-reduced-motion: reduce) { .rg-layer, .rg-sheet { animation: none; } .rg-big, .rg-switch::after { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .rg-layer, .rg-sheet, .rg-cell .mk.bh.rolled::after { animation: none; } .rg-big, .rg-switch::after { transition: none; } }
 `;
 function ensureCss() {
   if (typeof document === "undefined" || document.querySelector("style[data-ec-reality-gate]")) return;
@@ -310,18 +325,22 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
   const count = isHole ? holeSetsOf(draft) : draft.missingCount;
   const pieces = React.useMemo(() => initialPiecesFor(rows, cols), [rows, cols]);
   const pieceAt = (r, c) => pieces.some((p) => r >= p.row && r < p.row + p.h && c >= p.col && c < p.col + p.w);
-  const other = new Set((isHole ? missingCellsOf(draft) : holeCellsOf(draft)).map((q) => `${q.row},${q.col}`));
+  // (The other feature's squares, not to be marked: a black hole's with
+  // its set, the spots and their partners coming in pairs.)
+  const other = new Map((isHole ? missingCellsOf(draft) : holeCellsOf(draft)).map((q, i) => [`${q.row},${q.col}`, Math.floor(i / 2) + 1]));
   React.useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); onCancel(); } };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, []);
   const marks = new Map();
-  spots.forEach((p) => {
-    marks.set(`${p.row},${p.col}`, { spot: p, mirror: false });
+  spots.forEach((p, i) => {
+    marks.set(`${p.row},${p.col}`, { spot: p, mirror: false, set: i + 1 });
     const m = mirrorCell(p.row, p.col, rows, cols);
-    marks.set(`${m.row},${m.col}`, { spot: p, mirror: true });
+    marks.set(`${m.row},${m.col}`, { spot: p, mirror: true, set: i + 1 });
   });
+  // A black hole's mark: drawn, not lettered (the CSS above).
+  const holeMk = (set, more = "") => h("span", { className: `mk bh${more}`, "data-set": set });
   const tap = (r, c) => {
     const at = marks.get(`${r},${c}`);
     if (at) {
@@ -364,11 +383,12 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
       const cls = ["rg-cell", (r + c) % 2 ? "dk" : "lt"];
       if (pieceAt(r, c)) cls.push("piece");
       if (!at && isHole && spotProblem(draft, "hole", r, c) === "backRow") cls.push("banned");
-      const mark = at ? h("span", { className: `mk${at.mirror ? " mirror" : ""}${at.spot.random ? " rolled" : ""}` }, isHole ? "O" : "X")
-        : other.has(`${r},${c}`) ? h("span", { className: "mk mirror" }, isHole ? "X" : "O") : null;
+      const how = at ? `${at.mirror ? " mirror" : ""}${at.spot.random ? " rolled" : ""}` : "";
+      const mark = at ? (isHole ? holeMk(at.set, how) : h("span", { className: `mk${how}` }, "X"))
+        : other.has(`${r},${c}`) ? (isHole ? h("span", { className: "mk mirror" }, "X") : holeMk(other.get(`${r},${c}`), " mirror")) : null;
       cells.push(h("button", {
         key: `${r},${c}`, type: "button", className: cls.join(" "), "data-testid": `gate-cell-${r}-${c}`,
-        "aria-label": `Row ${r + 1}, column ${c + 1}${at ? (isHole ? ", black hole" : ", cut out") : ""}`,
+        "aria-label": `Row ${r + 1}, column ${c + 1}${at ? (isHole ? `, black hole${count === 2 ? ` of set ${at.set}` : ""}` : ", cut out") : ""}`,
         style: { width: cell, height: cell, fontSize: Math.max(10, cell * 0.55) }, onClick: () => tap(r, c),
       }, mark));
     }
@@ -380,12 +400,14 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
       h("h3", null, title),
       h("p", null, isHole
         ? count === 2
-          ? "Tap two squares, one black hole of each set; each one's partner, turned half round, is marked for you. Tap another to move one, then Done. Not in either side's two back rows, nor beside each other."
-          : "Tap a square for one black hole; its partner, turned half round, is marked for you. Tap another to move them, then Done. Not in either side's two back rows."
+          ? "Tap two squares, one black hole of each set; each one's partner, turned half round, is marked for you in the same colour. Tap another to move one, then Done. A dashed ring was placed at random: tap it to keep it. Not in either side's two back rows, nor beside each other."
+          : "Tap a square for one black hole; its partner, turned half round, is marked for you. Tap another to move them, then Done. A dashed ring was placed at random: tap it to keep it. Not in either side's two back rows."
         : `Tap up to ${count} ${count === 1 ? "square" : "squares"}; each one's partner, turned half round, is marked for you. Dashed marks were picked at random: tap one to keep it. Dots show where the pieces start.`),
       h("div", { className: "rg-side" }, `Far side · ${names.light}`),
       h("div", { className: "rg-grid", role: "grid", "aria-label": `${boardLabel(draft)} board`, style: { gridTemplateColumns: `repeat(${cols}, ${cell}px)` } }, cells),
       h("div", { className: "rg-side" }, `Near side · ${names.dark}`),
+      isHole && count === 2 && h("div", { className: "rg-bh-key", "data-testid": "gate-hole-key" },
+        h("span", null, h("i", { "data-set": 1 }), "Set 1"), h("span", null, h("i", { "data-set": 2 }), "Set 2")),
       h("div", { className: "rg-pick-note", role: "status" }, note),
       h("div", { className: "rg-pick-btns" },
         h("button", { type: "button", className: "rg-small", "data-testid": "gate-picker-random", onClick: () => setDraft(randomizeSpots(cloneSelections(draft), kind)), "data-stroke": "0" }, "Random"),

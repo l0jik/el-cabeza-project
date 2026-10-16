@@ -783,6 +783,12 @@ if (state.activeCategory === "laws") {
   check("a tap marks the square, and the picker stays up (no SELECTED yet)",
     (await page.locator('[data-testid="blackhole-picker"]').count()) > 0 && (await page.locator('[data-testid="blackhole-confirm"]').count()) === 0 &&
       (await chosenOf(cellId)) === "hand", `${cellId} ${await chosenOf(cellId)}`);
+  // (Drawn as a black hole, a black disc in its set's glowing ring, the
+  // partner too: user, the holes were "kind of hard to see".)
+  check("...the hole and its partner drawn as black holes, in one colour",
+    (await page.locator('[data-testid="blackhole-picker"] [data-hole-set="1"]').count()) === 2 &&
+      /radial-gradient/.test(await page.locator(`[data-testid="${cellId}"]`).evaluate((el) => el.style.background)));
+  if (process.env.EC_SHOTS) await page.locator('[data-testid="blackhole-picker"]').screenshot({ path: `${process.env.EC_SHOTS}/futuris-hole-picker.png` });
   await page.locator(`[data-testid="${cellId2}"]`).click();
   await page.waitForTimeout(150);
   check("...a tap on another square moves it",
