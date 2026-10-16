@@ -366,10 +366,10 @@ check("MATTER lists every piece type as the same kind of row (15, each Arco size
   rowKeys.join(",") === "cabeza,turrito,flaco,chato,opa,block1x3,block2x3,arcoChico,arcoAlto,arcoAncho,codo,hombro,cruce,rayo,zeta", rowKeys.join(","));
 check("no checkbox rows are left for pieces", (await page.locator('[data-testid^="matter-piece-"]').count()) === 0);
 {
-  // Set out by hand in MATTER's Setup too (user: "is set out by hand in
+  // Place pieces manually in MATTER's Setup too (user: "is set out by hand in
   // every relevant menu now?"), under Randomized Start.
   const byHand = page.locator('[data-testid="matter-by-hand"]');
-  check("Set Out By Hand under Randomized Start, unticked", (await byHand.count()) === 1 && (await byHand.getAttribute("data-checked")) === "false"
+  check("Place Pieces Manually under Randomized Start, unticked", (await byHand.count()) === 1 && (await byHand.getAttribute("data-checked")) === "false"
     && (await page.locator('[data-testid="matter-by-hand-half"]').count()) === 0);
   await byHand.scrollIntoViewIfNeeded();
   await byHand.click();

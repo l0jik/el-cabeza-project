@@ -45,7 +45,7 @@ const E2E = [
   ["e2e-hold-to-end.mjs"], ["e2e-ciudad-cabezas.mjs"],
   // Slides (the Cabeza's, a slid block's): no roll's start or landing's knock, in any world.
   ["e2e-slide-sounds.mjs"],
-  // Set out by hand before a game: drag or tap, the bench, the mirror, every world.
+  // Place pieces manually before a game: drag or tap, the bench, the mirror, every world.
   ["e2e-set-out.mjs"],
   // The pieces' close-ups, every piece in every world, solid from every side.
   ["e2e-closeups.mjs"],

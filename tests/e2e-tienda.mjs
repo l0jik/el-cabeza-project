@@ -213,10 +213,10 @@ for (const size of [SIZES[2], SIZES[7]]) {
   const formStays = (await page.locator('[data-testid="tienda-order"]').count()) === 1;
   check("tapping outside puts it back; the order form stays", (await viewer.count()) === 0 && formStays, `viewer ${await viewer.count()}, form ${formStays}`);
   {
-    // Set out by hand on the order form too (user: "is set out by hand in
+    // Place pieces manually on the order form too (user: "is set out by hand in
     // every relevant menu now?"), under the pieces.
     const byHand = page.locator('[data-testid="tienda-by-hand-input"]');
-    check("Set out by hand on the order form, unmarked", (await byHand.count()) === 1 && !(await byHand.isChecked()) && (await page.locator('[data-testid="tienda-by-hand-settings"]').count()) === 0);
+    check("Place pieces manually on the order form, unmarked", (await byHand.count()) === 1 && !(await byHand.isChecked()) && (await page.locator('[data-testid="tienda-by-hand-settings"]').count()) === 0);
     await page.locator('[data-testid="tienda-by-hand"]').scrollIntoViewIfNeeded();
     await press('[data-testid="tienda-by-hand"]');
     await page.waitForTimeout(200);

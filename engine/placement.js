@@ -1,4 +1,4 @@
-/* Setting out the pieces by hand before a game (user: "a toggle(?) / way
+/* Placing the pieces manually before a game (user: "a toggle(?) / way
    to manually place pieces before the start of a match ... If playing
    against AI, it will automatically preserve rotational symmetry ... If
    the newly moved piece displaces a piece ... placed outside the board

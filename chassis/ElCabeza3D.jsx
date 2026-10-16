@@ -3139,7 +3139,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const winFoeNote = status === "finished" && winner && aiPlayer && !replaying
     ? `${winner === aiPlayer ? "The" : "Against the"} ${(AI_DIFFICULTY[aiDifficulty] || {}).label || "chosen"} AI`
     : null;
-  // Set out by hand's two choices (see "Set out by hand" below), here so
+  // Placing pieces manually: its two choices (see "Place pieces manually" below), here so
   // the theme's own menus can be handed them.
   const [startByHand, setStartByHand] = useState(loadStartByHand);
   const [ownHalf, setOwnHalf] = useState(loadOwnHalf);
@@ -3148,7 +3148,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const setupExtras = theme.useSetupExtras ? theme.useSetupExtras({
     awaitingBegin, pieces, setPieces, audio: audioRef.current, three,
     aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY,
-    // (Begin, from a world's own menus: with By hand chosen, the set-out
+    // (Begin, from a world's own menus: with Manual chosen, the set-out
     // first; and the choice itself, so those menus offer it too: the
     // store's order form, Lluvia's panels, Futuris's sphere.)
     busy, aiThinking, triggerBeginGame: beginOrSetOut,
@@ -3685,11 +3685,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     topDownView();
   }
 
-  /* ---- Set out by hand (user: "a toggle(?) / way to manually place
+  /* ---- Place pieces manually (user: "a toggle(?) / way to manually place
      pieces before the start of a match"; engine/placement.js has the
      rules, chassis/set-out.js the bench, the board's marks and what's
-     kept). The setup's Starting position, Standard or By hand, and
-     Anywhere in my half, are kept between games. With By hand, Begin (the
+     kept). The setup's Starting position, Standard or Manual, and
+     Anywhere in my half, are kept between games. With Manual, Begin (the
      dock's, the phone's, a world's own menus') sets out first: the dock
      and the title step aside, a banner takes the top, the camera tips
      over the board from your side, and your pieces can be dragged, or
@@ -3719,7 +3719,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   const setOutBarRef = useRef(null);
   // The bench's pieces, built as the world builds its own: by id.
   const benchCacheRef = useRef(new Map());
-  // Begin with By hand: set out first, once the board a world's menu has
+  // Begin with Manual: set out first, once the board a world's menu has
   // just set up is the board (its setPieces comes in the same moment).
   const [setOutPending, setSetOutPending] = useState(false);
   function beginOrSetOut() {
@@ -3757,13 +3757,13 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     </button>
   );
   // The dock's Starting position row (the mock-ups' setup): Standard, or
-  // By hand; with By hand, Anywhere in my half beside it.
+  // Manual; with Manual, Anywhere in my half beside it.
   const startRow = (
     <div data-dock-role="start" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: "6px 8px", marginTop: 8 }}>
       <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: COLORS.slate, marginRight: 2, flexShrink: 0 }}>
         Start
       </span>
-      {[{ v: false, label: "Standard", title: "The pieces start where the set puts them" }, { v: true, label: "By hand", title: "Set your pieces out yourself before the game; the other side mirrors yours" }].map((o) => (
+      {[{ v: false, label: "Standard", title: "The pieces start where the set puts them" }, { v: true, label: "Manual", title: "Place your pieces yourself before the game; the other side mirrors yours" }].map((o) => (
         <button
           key={o.label}
           className="ec-btn"
@@ -5827,7 +5827,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
     });
   }, [pieces]);
 
-  /* Setting out by hand: the bench's pieces, each built as the world
+  /* Placing pieces manually: the bench's pieces, each built as the world
      builds its pieces, and the board's marks (chassis/set-out.js), in
      groups of the board's own so they turn with it. A piece on the bench
      keeps its mesh while it stays put there (a drag carries that mesh). */
@@ -7750,7 +7750,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
         lastX = ev.clientX;
         lastY = ev.clientY;
         el.style.cursor = "grabbing";
-        // Setting out by hand: a press on a piece of yours (on the board or
+        // Placing pieces manually: a press on a piece of yours (on the board or
         // the bench) is the set-out's, not the view's.
         if (!altPanning && setOutRef.current && setOutPointerRef.current.down(ev, { pick, screenToBoardCell })) {
           dragging = false;
@@ -8297,7 +8297,7 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       const wasDrag = moved > DRAG_DEAD_ZONE_PX;
       dragging = false;
 
-      // Setting out by hand: a tap anywhere but on a piece of yours sets the
+      // Placing pieces manually: a tap anywhere but on a piece of yours sets the
       // chosen piece at the dot nearest it, or lets it go.
       if (setOutRef.current) {
         if (!wasAltPan && !wasDrag) setOutPointerRef.current.tap(ev, { pick, screenToBoardCell });
@@ -10848,7 +10848,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
         );
       })()}
 
-      {/* Setting out by hand: the banner across the top (the mock-ups'
+      {/* Placing pieces manually: the banner across the top (the mock-ups'
           options 1 and 3), saying what to do now, with Begin; the set-out's
           own buttons under it, or on a phone in a bar along the bottom. In
           the world's own colours, as the check alert's card. */}
@@ -10903,7 +10903,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             {s.so.bench.length > 0 && <button type="button" data-testid="set-out-put-back" disabled={!backable} onClick={setOutPutItBack} title="Put the piece from the bench back where it stood, if those squares are free" style={btn(backable)}>Put it back</button>}
             {canTurn && <button type="button" data-testid="set-out-turn" onClick={setOutTurnChosen} title="Turn it to its next way round (R)" style={btn()}>Turn</button>}
             <button type="button" data-testid="set-out-standard" disabled={atStart} onClick={setOutStandard} title="Every piece back where it began" style={btn(!atStart)}>Standard</button>
-            {setOutLastOk && <button type="button" data-testid="set-out-same" onClick={setOutSameAsLast} title="Set out as your last game began" style={btn()}>Same as last time</button>}
+            {setOutLastOk && <button type="button" data-testid="set-out-same" onClick={setOutSameAsLast} title="Place them as your last game began" style={btn()}>Same as last time</button>}
             {halfSwitch("set-out-half", s.so.half, setOutToggleHalf, compact)}
             <button type="button" data-testid="set-out-back" onClick={cancelSetOut} title="Back to the game's setup" style={{ ...btn(), border: "none", textDecoration: "underline", textUnderlineOffset: 3 }}>Back</button>
           </>
@@ -10914,7 +10914,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               ref={setOutBannerRef}
               data-testid="set-out-banner"
               role="region"
-              aria-label="Set out by hand"
+              aria-label="Place pieces manually"
               style={{
                 position: "fixed",
                 top: "calc(env(safe-area-inset-top, 0px) + 12px)",
@@ -10939,7 +10939,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             >
               <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                 <div style={{ flex: "1 1 auto", minWidth: 0 }}>
-                  <div style={{ ...label, fontSize: compact ? 9.5 : 10.5, color: edge === "#e5392d" ? edge : COLORS.slate, fontWeight: 700 }}>Before the game · Set out by hand</div>
+                  <div style={{ ...label, fontSize: compact ? 9.5 : 10.5, color: edge === "#e5392d" ? edge : COLORS.slate, fontWeight: 700 }}>Before the game · Place pieces manually</div>
                   <div data-testid="set-out-title" style={{ fontFamily: titleFontFamily, fontWeight: 700, fontSize: compact ? 16 : 19, lineHeight: 1.15, marginTop: 4, textWrap: "balance" }}>{title}</div>
                   <div data-testid="set-out-hint" style={{ marginTop: 3, opacity: 0.78 }}>{hint}</div>
                 </div>
@@ -12130,7 +12130,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
               setup as well as the in-game menu). */}
           {aiPlayer && checkSwitch("check-alert-setup")}
 
-          {/* Starting position: Standard, or By hand (set out before the
+          {/* Starting position: Standard, or Manual (set out before the
               game; the other side mirrors yours). */}
           {awaitingBegin && startRow}
 
@@ -12164,7 +12164,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
                     minWidth: theme.renderSetupExtras ? 0 : undefined,
                   }}
                 >
-                  {online && online.role === "guest" ? "Waiting for the host\u2026" : startByHand ? "Set out my pieces" : beginLabel}
+                  {online && online.role === "guest" ? "Waiting for the host\u2026" : startByHand ? "Place my pieces" : beginLabel}
                 </button>
               );
               const extras = theme.renderSetupExtras && theme.renderSetupExtras({ beginGameButton, ...setupExtras });
@@ -12720,7 +12720,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
             onlineCtl: { ready: relayReady(), host: hostOnline, join: joinOnline, leave: leaveOnline, view: setOnlineView, codeText: joinCodeText, setCodeText: setJoinCodeText, link: () => (online && online.code ? joinLink(online.code) : ""), names: SIDE_NAMES },
             onBegin: beginOrSetOut,
             setupActions: theme.shellSetupActions && setupExtras ? theme.shellSetupActions(setupExtras) : [],
-            beginLabel: startByHand ? "Set out my pieces" : beginLabel,
+            beginLabel: startByHand ? "Place my pieces" : beginLabel,
             startByHand,
             onStartByHand: toggleStartByHand,
             ownHalf,
@@ -13827,7 +13827,7 @@ body:has(.den-trip, .den-ending, .td-clerk-layer) :is([data-testid="points-count
           pieceLook={{ buildPieceVisual: theme.buildPieceVisual, EDGE_RADIUS: theme.EDGE_RADIUS }}
           onClose={() => setGate(null)}
           api={{
-            // (Its Standard Cabeza and Play: with By hand chosen, the
+            // (Its Standard Cabeza and Play: with Manual chosen, the
             // set-out first; the sheet's own switch for it sets the same.)
             three, setPieces, setBlackHoles, setMissingSquares, setCurrentVariants, applyBoardResize, triggerBeginGame: beginOrSetOut,
             aiPlayer, selectOpponent, aiDifficulty, setAiDifficulty, AI_DIFFICULTY, busy, aiThinking,

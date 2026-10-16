@@ -256,7 +256,7 @@ export const styleSheet = `...`;
 export function renderGlobalDefs() { return null; }
 ```
 
-Set out by hand (the setup's Starting position: Standard, or By hand)
+Place pieces manually (the setup's Starting position: Standard, or Manual)
 is the chassis's, in every world: the rules are `engine/placement.js`
 (the rows a side may use, the 180° mirror, a piece set on another of
 yours swapping into the squares it left if it fits there, or the other

@@ -598,17 +598,17 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
     h("div", { className: "rg-row" },
       h("span", { className: "rg-name" }, "Shuffled start", h("span", { className: "rg-note" }, "The pieces set out in a random order.")),
       h(Switch, { on: sel.random, label: "Shuffled start", testid: "gate-random", onClick: () => change((n) => { n.random = !n.random; }) })),
-    // Set out by hand (user, here on a phone: "Where in the settings menu
+    // Place pieces manually (user, here on a phone: "Where in the settings menu
     // do you have the option of placing your pieces by hand? I don't see
     // that anywhere."): the setup's Starting position, the same one the
     // dock's and the phone bar's Start row set (the chassis keeps it), so
     // Play sets your pieces out first. With it, how far up they may go.
     onStartByHand && h("div", { className: "rg-row" },
-      h("span", { className: "rg-name" }, "Set out by hand", h("span", { className: "rg-note" }, "Place your pieces yourself before the game; the other side mirrors yours.")),
-      h(Switch, { on: !!startByHand, label: "Set out by hand", testid: "gate-by-hand", onClick: () => onStartByHand(!startByHand) })),
+      h("span", { className: "rg-name" }, "Place pieces manually", h("span", { className: "rg-note" }, "Place your pieces yourself before the game; the other side mirrors yours.")),
+      h(Switch, { on: !!startByHand, label: "Place pieces manually", testid: "gate-by-hand", onClick: () => onStartByHand(!startByHand) })),
     onStartByHand && startByHand && h("div", { className: "rg-sub" },
       h("div", { className: "rg-row" }, h("span", { className: "rg-name" }, "Pieces in"),
-        h(Seg, { label: "Where your pieces may be set out" },
+        h(Seg, { label: "Where your pieces may be placed" },
           segBtn("rows", !ownHalf, "Back 3 rows", () => { if (ownHalf) onToggleOwnHalf(); }, "gate-by-hand-rows"),
           segBtn("half", !!ownHalf, "My half", () => { if (!ownHalf) onToggleOwnHalf(); }, "gate-by-hand-half")))),
     h("div", { className: "rg-row" },

@@ -3073,11 +3073,11 @@ function renderCategoryOverlay(t) {
         () => { sel.matter.randomizeStart = !sel.matter.randomizeStart; s.labelsDirty = true; s.bump(); },
         "matter-randomize-start"
       ),
-      // Set out by hand (user: "is set out by hand in every relevant menu
+      // Place pieces manually (user: "is set out by hand in every relevant menu
       // now?"): the setup's Starting position, the same the dock and the
       // worlds' menus set; Begin then sets your pieces out first.
       s.startCtl && renderCheckboxRow(
-        { key: "setOutByHand", label: "Set Out By Hand", blurb: "Place your pieces yourself before the game; the other side mirrors yours." },
+        { key: "setOutByHand", label: "Place Pieces Manually", blurb: "Place your pieces yourself before the game; the other side mirrors yours." },
         s.startCtl.byHand,
         () => { s.startCtl.set(!s.startCtl.byHand); s.bump(); },
         "matter-by-hand"

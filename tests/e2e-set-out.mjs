@@ -1,12 +1,12 @@
-/* Set out by hand (user: "a toggle(?) / way to manually place pieces
+/* Place pieces manually (user: "a toggle(?) / way to manually place pieces
    before the start of a match"; picked: dragging a piece, or tapping it
    then a square; the back three rows or anywhere in your own half; two
    players mirrored; Same as last time). engine/placement.js has the rules
    (tests/placement.smoke.mjs); this is the chassis's side of it.
 
    The den on a desktop, two players, Walnut first:
-   - the setup's Start (Standard, By hand), remembered, and with By hand
-     the half switch and "Set out my pieces";
+   - the setup's Start (Standard, Manual), remembered, and with Manual
+     the half switch and "Place my pieces";
    - setting out: the banner, the dock and the title aside, the camera
      from Walnut's side, the bench, the rows outlined;
    - a tap chooses (dots on every free square), a tap on a dot sets it
@@ -103,7 +103,7 @@ if (want("den")) {
   check("...no half switch, and Begin as ever", (await page.locator('[data-testid="set-out-half-setup"]').count()) === 0 && /begin game/i.test(await page.locator('[data-dock-role="begin"]').innerText()));
   await page.locator('[data-testid="start-by-hand"]').click();
   await page.waitForTimeout(200);
-  check("By hand: the half switch, and Begin says Set out my pieces", (await page.locator('[data-testid="set-out-half-setup"]').count()) === 1 && /set out my pieces/i.test(await page.locator('[data-dock-role="begin"]').innerText()));
+  check("Manual: the half switch, and Begin says Place my pieces", (await page.locator('[data-testid="set-out-half-setup"]').count()) === 1 && /place my pieces/i.test(await page.locator('[data-dock-role="begin"]').innerText()));
   // (Read back at load: the computer's section below starts from it kept.
   // No reload here: a reload straight after a save can find it not yet
   // written, in a test's browser; CI run 54.)
@@ -112,7 +112,7 @@ if (want("den")) {
   let s = await poll(() => so(page), 8000);
   await page.waitForTimeout(600);
   await settled(page);
-  check("Set out my pieces: setting out, Walnut's side, no game yet", !!s && s.side === "dark" && (await page.evaluate(() => window.__EC_TEST_ARMED__)) !== true);
+  check("Place my pieces: setting out, Walnut's side, no game yet", !!s && s.side === "dark" && (await page.evaluate(() => window.__EC_TEST_ARMED__)) !== true);
   check("...the banner, the dock and the title aside", (await page.locator('[data-testid="set-out-banner"]').count()) === 1 && (await page.locator('[data-testid="dock-panel"]').getAttribute("data-open")) === "false" && (await page.locator('[data-dock-piece]').evaluate((e) => getComputedStyle(e).display)) === "none" && (await page.locator("[data-masthead]").evaluate((e) => getComputedStyle(e).opacity)) === "0");
   const cam = await page.evaluate(() => window.__EC_TEST_CAM__());
   check(`...the camera tipped over the board from Walnut's side (pitch ${cam.phi.toFixed(2)})`, Math.abs(Math.cos(cam.theta) + 1) < 1e-6 && cam.phi < 0.6);
@@ -266,7 +266,7 @@ if (want("computer")) {
   await page.waitForTimeout(600);
   await settled(page);
   const cam = await page.evaluate(() => window.__EC_TEST_CAM__());
-  check("By hand kept from before: you set out Ash's side, the camera from there", !!s && s.side === "light" && Math.abs(Math.cos(cam.theta) - 1) < 1e-6);
+  check("Manual kept from before: you set out Ash's side, the camera from there", !!s && s.side === "light" && Math.abs(Math.cos(cam.theta) - 1) < 1e-6);
   check(`...the banner: "the computer mirrors"`, /the computer mirrors every move/i.test(await page.locator('[data-testid="set-out-hint"]').innerText()));
   await tap(page, await pos(page, "light-turrito"));
   await tap(page, await sq(page, 8, 9));
@@ -286,7 +286,7 @@ if (want("gate")) {
     await page.waitForTimeout(800);
     await page.locator('[data-testid="gate-standard"]').click();
     const s = await poll(() => so(page), 8000);
-    check("Standard Cabeza, with By hand chosen: set out first", !!s && (await page.evaluate(() => window.__EC_TEST_ARMED__)) !== true);
+    check("Standard Cabeza, with Manual chosen: set out first", !!s && (await page.evaluate(() => window.__EC_TEST_ARMED__)) !== true);
     await page.waitForTimeout(1500);
     await page.locator('[data-testid="set-out-begin"]').click();
     check("...then Begin: the game", !!(await poll(() => page.evaluate(() => window.__EC_TEST_ARMED__ === true), 6000)));
@@ -329,7 +329,7 @@ if (want("phone")) {
   check("the setup's Start, in the bar", (await start.count()) === 1);
   await start.tap();
   await page.waitForTimeout(300);
-  check("...By hand: Pieces in, and Set out my pieces", (await page.locator('[data-testid="shell-set-out-half"]').count()) === 1 && /set out my pieces/i.test(await page.locator('[data-testid="shell-begin"]').innerText()));
+  check("...Manual: Pieces in, and Place my pieces", (await page.locator('[data-testid="shell-set-out-half"]').count()) === 1 && /place my pieces/i.test(await page.locator('[data-testid="shell-begin"]').innerText()));
   await page.locator('[data-testid="shell-begin"]').tap();
   let s = await poll(() => so(page), 8000);
   await page.waitForTimeout(600);

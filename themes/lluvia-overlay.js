@@ -177,7 +177,7 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
         }),
         h("span", { style: { flexBasis: "100%", fontSize: 16, color: "#a8783a" } }, holeSetsOf(sel) === 2 ? "A piece that drops in comes out of either hole on the far side." : "A hole and its partner."))] : []),
       flag("random", "Randomized start"),
-      // Set out by hand (user: "is set out by hand in every relevant menu
+      // Place pieces manually (user: "is set out by hand in every relevant menu
       // now?"): the setup's Starting position, not the order's, so it
       // flips the chassis's own choice, as the dock's Start does.
       ...(start ? [
@@ -185,7 +185,7 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
           key: "byhand", type: "button", "data-testid": "lluvia-topo-byhand", "aria-pressed": start.on ? "true" : "false",
           onClick: () => { sound("key"); start.set(!start.on); },
           style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: 52, background: "transparent", border: "none", borderTop: "1px solid rgba(255,179,71,0.12)", cursor: "pointer", ...TERM, fontSize: 22, color: "#ffe2b0" },
-        }, h("span", null, "Set out by hand"), h("span", { style: { color: start.on ? "#fff27a" : "#7a6040" } }, start.on ? "[ ON ]" : "[OFF ]")),
+        }, h("span", null, "Place pieces manually"), h("span", { style: { color: start.on ? "#fff27a" : "#7a6040" } }, start.on ? "[ ON ]" : "[OFF ]")),
         ...(start.on ? [h("button", {
           key: "byhalf", type: "button", "data-testid": "lluvia-topo-byhalf", "aria-pressed": start.half ? "true" : "false",
           onClick: () => { sound("key"); start.toggleHalf(); },

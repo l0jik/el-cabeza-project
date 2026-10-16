@@ -1,4 +1,4 @@
-/* Setting out the pieces by hand (engine/placement.js): the rows a side
+/* Placing the pieces manually (engine/placement.js): the rows a side
    may use, the mirror, a piece set down where another stands (swapped
    when it fits the squares just left, or to the bench), Put it back,
    turning, the half switch, missing squares, a safe start, and Same as

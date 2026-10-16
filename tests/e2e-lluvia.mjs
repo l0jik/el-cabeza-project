@@ -116,10 +116,10 @@ await page.locator('[data-testid="lluvia-open-topologies"]').click();
 await page.waitForTimeout(300);
 await page.locator('[data-testid="lluvia-size-12"]').click();
 {
-  // Set out by hand here too (user: "is set out by hand in every relevant
+  // Place pieces manually here too (user: "is set out by hand in every relevant
   // menu now?"): the setup's own choice, so it's kept as the dock keeps it.
   const byHand = page.locator('[data-testid="lluvia-topo-byhand"]');
-  check("Set out by hand in the Board panel, off", (await byHand.count()) === 1 && (await byHand.getAttribute("aria-pressed")) === "false"
+  check("Place pieces manually in the Board panel, off", (await byHand.count()) === 1 && (await byHand.getAttribute("aria-pressed")) === "false"
     && (await page.locator('[data-testid="lluvia-topo-byhalf"]').count()) === 0);
   await byHand.click();
   await page.waitForTimeout(150);

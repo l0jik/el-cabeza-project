@@ -1,4 +1,4 @@
-/* Set out by hand, in the chassis (user: "a toggle(?) / way to manually
+/* Place pieces manually, in the chassis (user: "a toggle(?) / way to manually
    place pieces before the start of a match"; of the five ways mocked up
    they picked dragging a piece on the board, or tapping it then a square;
    the back three rows, or anywhere in your own half; two players mirrored
@@ -17,7 +17,7 @@ import { zoneRows, targets } from "../engine/placement.js";
 import { piecesClash } from "../engine/shapes.js";
 
 /* ---- kept between games ------------------------------------------------ */
-// Standard, or By hand: the setup's Starting position. Standard unless chosen.
+// Standard, or Manual: the setup's Starting position. Standard unless chosen.
 const START_KEY = "el-cabeza:start-position";
 export function loadStartByHand() {
   try { return window.localStorage.getItem(START_KEY) === "hand"; } catch (e) { return false; }

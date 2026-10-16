@@ -273,7 +273,7 @@ console.log("Cabeza Nova: the one menu");
   await ctx.close();
 }
 
-console.log("Cabeza Nova: Set out by hand");
+console.log("Cabeza Nova: Place pieces manually");
 {
   // (User, on a phone in this menu: "Where in the settings menu do you have
   // the option of placing your pieces by hand? I don't see that anywhere.")
@@ -285,7 +285,7 @@ console.log("Cabeza Nova: Set out by hand");
   await poll(async () => (await p.locator('[data-testid="gate-sheet"]').count()) > 0, 4000);
   const byHand = p.locator('[data-testid="gate-by-hand"]');
   await byHand.scrollIntoViewIfNeeded();
-  check("Set out by hand in the menu, under Shuffled start, off at first", (await byHand.getAttribute("aria-checked")) === "false"
+  check("Place pieces manually in the menu, under Shuffled start, off at first", (await byHand.getAttribute("aria-checked")) === "false"
     && await p.evaluate(() => { const r = document.querySelector('[data-testid="gate-random"]').closest(".rg-row"); return !!r.nextElementSibling && !!r.nextElementSibling.querySelector('[data-testid="gate-by-hand"]'); }));
   check("...no Pieces in while it's off", (await p.locator('[data-testid="gate-by-hand-rows"]').count()) === 0);
   await byHand.click();
