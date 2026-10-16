@@ -144,6 +144,7 @@ function missingSquareAt(row, col) {
    For a box that's its whole footprint, as always. */
 function overlapsMissingSquare(candidate) {
   if (!MISSING_SQUARES.length) return false; // the common case, checked at every node of an AI search
+  if (!MISSING_SQUARES.some((m) => m.row >= candidate.row && m.row < candidate.row + candidate.h && m.col >= candidate.col && m.col < candidate.col + candidate.w)) return false;
   return groundCellsOf(candidate).some(([r, c]) => missingSquareAt(r, c));
 }
 
@@ -161,6 +162,10 @@ function blackHoleVerdict(candidate) {
   // enter — an odd-shaped piece never is one, even balanced on a single
   // cube, so it can never drop in.
   if (!BLACK_HOLES.length) return { blocked: false, teleportTo: null }; // no holes this game
+  // (Neither hole inside the piece's box: nothing it stands on is a hole.)
+  if (!BLACK_HOLES.some((b) => b.row >= candidate.row && b.row < candidate.row + candidate.h && b.col >= candidate.col && b.col < candidate.col + candidate.w)) {
+    return { blocked: false, teleportTo: null };
+  }
   const cells = groundCellsOf(candidate);
   const hit = cells.map(([r, c]) => blackHoleAt(r, c)).find(Boolean);
   if (!hit) return { blocked: false, teleportTo: null };

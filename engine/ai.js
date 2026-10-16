@@ -2,7 +2,7 @@
    the Standard and Neon theme sources before extraction (see
    build/scratch/) — pure logic, no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost, ACTIVE_LAWS, turnBudget, maxPiecesPerTurn, MISSING_SQUARES, OPENING_TURN, setOpeningTurn } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost, ACTIVE_LAWS, turnBudget, maxPiecesPerTurn, MISSING_SQUARES, BLACK_HOLES, OPENING_TURN, setOpeningTurn } from "./constants.js";
 import { legalMovesFor, legalRolls, legalCabezaSteps, sameState } from "./rules.js";
 import { maskAt } from "./shapes.js";
 
@@ -173,11 +173,27 @@ function markGround(marks, cand) {
 function blockTurnReach(pieces, p, points, targets, marks, threatened, stopAtCrush) {
   const span = Math.max(p.w, p.h, p.z || 1);
   const slack = marks ? 1 : 0;
+  // With Black Holes, a target beside one hole is also in reach of a
+  // one-square piece that can get to the other: it drops in there and
+  // comes out on it (rules.js, evaluateBlockLanding). This used to be cut
+  // as too far away, so neither the AI nor the check alert saw it.
+  const holes = ACTIVE_LAWS.blackHoleSquares && BLACK_HOLES.length === 2 ? BLACK_HOLES : null;
+  const holeAims = [];
+  if (holes) {
+    for (const t of targets) {
+      for (let i = 0; i < 2; i++) {
+        if (Math.abs(holes[i].row - t.row) + Math.abs(holes[i].col - t.col) === 1) holeAims.push(holes[1 - i]);
+      }
+    }
+  }
   const within = (q, left) => {
     for (const t of targets) {
       const dr = Math.max(0, t.row - (q.row + q.h - 1), q.row - t.row);
       const dc = Math.max(0, t.col - (q.col + q.w - 1), q.col - t.col);
       if (Math.max(dr, dc) <= left * span + slack) return true;
+    }
+    if (holeAims.length && canDrop(q)) {
+      for (const a of holeAims) if (boxDist(q, a.row, a.col) <= left * span + slack) return true;
     }
     return false;
   };
@@ -309,6 +325,187 @@ function undoTurn(pieces, turn, undos) {
   for (let i = undos.length - 1; i >= 0; i--) {
     undoMove(pieces, turn.steps ? turn.steps[i].piece : turn.piece, undos[i]);
   }
+}
+
+/* ----------------------------------------- a turn that ends the game */
+
+const spanOf = (p) => Math.max(p.w, p.h, p.z || 1);
+// Squares from a piece's footprint box to a square (0 inside it).
+function boxDist(p, r, c) {
+  return Math.max(Math.max(0, r - (p.row + p.h - 1), p.row - r), Math.max(0, c - (p.col + p.w - 1), p.col - c));
+}
+// A box with two sides of one can stand on a single square, and so drop
+// into a black hole (an odd shape never can).
+function canDrop(p) {
+  return !p.vox && (p.w === 1) + (p.h === 1) + ((p.z || 1) === 1) >= 2;
+}
+
+/* Can `side` end the game on its coming turn: crush the other side's last
+   Cabeza, or walk a Cabeza of its own onto its goal row? The answer is
+   exactly generateTurns(pieces, side).some((t) => t.endsGame), every Split
+   Movement pairing and shove included, but only pieces that can still
+   matter are ever moved: one near enough to a target to strike it with
+   the points left, one that could stand in such a piece's way, a
+   one-square piece in reach of the hole whose far side a target stands
+   beside, and for a walk home the Cabeza and what's around it. Each line
+   is walked once (the same pieces in the same places, the same points
+   spent). Returns the line that does it, as [{ id, from, to, shoved }]
+   (each piece's box before and after, and any piece a step pushed), or
+   null. Works on a copy. Checked against generateTurns on 2,581
+   positions of a reported Hard game: the same answer every time, about
+   fifteen times faster. */
+export function endingLine(pieces, side) {
+  const board = pieces.map((p) => ({ ...p }));
+  const opp = opponentOf(side);
+  const targets = board.filter((p) => p.type === "cabeza" && p.owner === opp);
+  if (!targets.length) return null;
+  const own = board.filter((p) => p.owner === side);
+  const ownCabezas = own.filter((p) => p.type === "cabeza");
+  const split = !!ACTIVE_LAWS.splitMovement;
+  const budget = turnBudget();
+  const cap = split ? maxPiecesPerTurn() : 1;
+  const goal = GOAL_ROW[side];
+  let maxSpan = 1;
+  for (const p of own) if (p.type !== "cabeza") maxSpan = Math.max(maxSpan, spanOf(p));
+  const slack = ACTIVE_LAWS.shoving ? 1 : 0;
+  const holes = ACTIVE_LAWS.blackHoleSquares && BLACK_HOLES.length === 2 ? BLACK_HOLES : null;
+  const onBoard = new Set(board);
+  // What a strike can aim at: each target, and (for a one-square piece)
+  // the hole whose far side a target stands beside.
+  const aims = () => {
+    const out = [];
+    for (const t of targets) {
+      if (!onBoard.has(t)) continue;
+      out.push({ row: t.row, col: t.col, hole: false });
+      if (holes) {
+        for (let i = 0; i < 2; i++) {
+          if (Math.abs(holes[i].row - t.row) + Math.abs(holes[i].col - t.col) === 1) out.push({ row: holes[1 - i].row, col: holes[1 - i].col, hole: true });
+        }
+      }
+    }
+    return out;
+  };
+  const matters = (q, left, A) => {
+    if (q.type === "cabeza") {
+      if (Math.abs(goal - q.row) <= left) return true; // walking home
+      return A.some((a) => boxDist(q, a.row, a.col) <= left * maxSpan + 1); // stepping out of a strike's way
+    }
+    for (const a of A) {
+      const d = boxDist(q, a.row, a.col);
+      if ((!a.hole || canDrop(q)) && d <= left * spanOf(q) + slack) return true; // striking
+      if (d <= left * maxSpan + 1) return true; // in a striker's way
+    }
+    // In the way of a Cabeza of ours walking home.
+    return ownCabezas.some((c) => onBoard.has(c) && Math.abs(goal - c.row) <= left && boxDist(q, c.row, c.col) <= left + 1);
+  };
+  const seen = new Set();
+  const moved = [];
+  const touched = new Set();
+  const line = [];
+  const stateKey = (p) => `${p.id}@${p.row},${p.col},${p.w},${p.h},${p.z},${p.vox || ""}`;
+  const keyOf = (used) => [...touched].map(stateKey).sort().join("|") + "#" + used + "#" + moved.map((p) => p.id).sort().join(",");
+  const stepOf = (q, m) => ({
+    id: q.id,
+    from: { row: q.row, col: q.col, w: q.w, h: q.h },
+    to: { row: m.candidate.row, col: m.candidate.col, w: m.candidate.w, h: m.candidate.h },
+    shoved: m.shoves ? m.shoves.map((sh) => {
+      const o = board.find((x) => x.id === sh.id);
+      return { id: sh.id, from: { row: o ? o.row : sh.row, col: o ? o.col : sh.col, w: o ? o.w : 1, h: o ? o.h : 1 }, to: { row: sh.row, col: sh.col, w: o ? o.w : 1, h: o ? o.h : 1 } };
+    }) : null,
+  });
+  const walk = (used) => {
+    const left = budget - used;
+    if (left <= 0) return false;
+    const A = aims();
+    for (const q of own) {
+      if (!onBoard.has(q)) continue;
+      const fresh = !moved.includes(q);
+      if (fresh && moved.length >= cap) continue;
+      if (!matters(q, left, A)) continue;
+      const moves = legalMovesFor(board, q, Math.min(left, maxStepsFor(q.type) - (split ? used : 0)));
+      for (const dir in moves) {
+        const m = moves[dir];
+        const ends = (m.crushes && m.crushes.type === "cabeza" && m.crushes.owner === opp && crushEndsGame(board, m.crushes)) ||
+          (!m.crushes && q.type === "cabeza" && m.candidate.row === goal);
+        if (ends) { line.push(stepOf(q, m)); return true; }
+        const cost = moveCost(m);
+        if (left - cost < 1 || m.teleports) continue;
+        const step = stepOf(q, m);
+        const u = applyMove(board, q, m);
+        if (u.removed) onBoard.delete(u.removed);
+        if (fresh) moved.push(q);
+        const added = [];
+        if (!touched.has(q)) { touched.add(q); added.push(q); }
+        if (u.shoved) for (const sh of u.shoved) if (!touched.has(sh.piece)) { touched.add(sh.piece); added.push(sh.piece); }
+        const key = keyOf(used + cost);
+        let hit = false;
+        if (!seen.has(key)) {
+          seen.add(key);
+          line.push(step);
+          hit = walk(used + cost);
+          if (!hit) line.pop();
+        }
+        for (const x of added) touched.delete(x);
+        if (fresh) moved.pop();
+        if (u.removed) onBoard.add(u.removed);
+        undoMove(board, q, u);
+        if (hit) return true;
+      }
+    }
+    return false;
+  };
+  return walk(0) ? line : null;
+}
+export const canEndGame = (pieces, side) => !!endingLine(pieces, side);
+// (For tests: the net check and its answer search.)
+export const _netCheck = { opponentNet: (...a) => opponentNet(...a), hasAnswer: (...a) => hasAnswer(...a) };
+
+/* The squares a line of moves (endingLine) depends on: every box its
+   pieces stood in or came to, pushed pieces included, each a square
+   wider all round. A turn that moves nothing into or out of them (and
+   doesn't move the Cabeza it ends on) leaves the line standing. */
+function lineRegion(line) {
+  const boxes = [];
+  for (const st of line) {
+    boxes.push(st.from, st.to);
+    if (st.shoved) for (const sh of st.shoved) boxes.push(sh.from, sh.to);
+  }
+  return boxes;
+}
+const boxesNear = (a, b) => a.row <= b.row + b.h && b.row <= a.row + a.h && a.col <= b.col + b.w && b.col <= a.col + a.w;
+// Every box a turn's pieces stand in before, during and after it, and those of any piece it pushes.
+function turnBoxes(turn) {
+  const out = [];
+  const at = new Map();
+  const steps = turn.steps ? turn.steps.map((st) => ({ piece: st.piece, move: st.move })) : turn.moves.map((m) => ({ piece: turn.piece, move: m }));
+  for (const { piece, move } of steps) {
+    const before = at.get(piece.id) || piece;
+    out.push({ row: before.row, col: before.col, w: before.w, h: before.h });
+    const c = move.candidate;
+    out.push({ row: c.row, col: c.col, w: c.w, h: c.h });
+    at.set(piece.id, c);
+    if (move.shoves) {
+      for (const sh of move.shoves) {
+        const was = at.get(sh.id);
+        out.push({ row: sh.row, col: sh.col, w: was ? was.w : 1, h: was ? was.h : 1 });
+        if (was) out.push({ row: was.row, col: was.col, w: was.w, h: was.h });
+      }
+    }
+  }
+  return out;
+}
+function turnTouches(turn, region, pieces) {
+  const boxes = turnBoxes(turn);
+  // (A pushed piece's box before the turn, read off the board.)
+  const steps = turn.steps ? turn.steps.map((st) => st.move) : turn.moves;
+  for (const m of steps) {
+    if (!m.shoves) continue;
+    for (const sh of m.shoves) {
+      const o = pieces.find((x) => x.id === sh.id);
+      if (o) boxes.push({ row: o.row, col: o.col, w: o.w, h: o.h }, { row: sh.row, col: sh.col, w: o.w, h: o.h });
+    }
+  }
+  return boxes.some((b) => region.some((r) => boxesNear(b, r)));
 }
 
 /* Every complete legal turn available to `player` from this position:
@@ -1362,15 +1559,202 @@ function checkOneTurnChoice(pieces, player, rootScores, deadline, weights) {
   if (!rootScores.length || rootScores[0].turn.endsGame) return rootScores[0] || null;
   const forced = weights.forcedCrush ? findForcedCrush(pieces, player, rootScores, deadline) : null;
   if (forced) return { turn: forced.turn, score: forced.score + FORCED_CRUSH_VALUE };
-  for (let i = 0; i < rootScores.length && i < 40 && (i < 3 || performance.now() < deadline); i++) {
-    const { turn } = rootScores[i];
-    if (turn.endsGame) return rootScores[i];
-    const undos = applyTurn(pieces, turn);
-    const safe = !generateTurns(pieces, opponentOf(player)).some((r) => r.endsGame);
-    undoTurn(pieces, turn, undos);
-    if (safe) return rootScores[i];
+  const opp = opponentOf(player);
+  if (!weights.verifyGraceMs) {
+    // Medium: the best few, while the time lasts.
+    for (let i = 0; i < rootScores.length && i < 40 && (i < 3 || performance.now() < deadline); i++) {
+      const { turn } = rootScores[i];
+      if (turn.endsGame) return rootScores[i];
+      const undos = applyTurn(pieces, turn);
+      const safe = !endingLine(pieces, opp);
+      undoTurn(pieces, turn, undos);
+      if (safe) return rootScores[i];
+    }
+    return rootScores[0];
   }
-  return rootScores[0];
+  /* Hard keeps looking, for up to verifyGraceMs past the search, until a
+     turn holds (a reported game: the best-scoring turns all fell to a
+     Split Movement reply, an Arco stepping aside for a 2x3 to come down
+     on the Cabeza, which the evaluation can't see; after three checks
+     the old rule played the best-scoring one anyway, and only two turns
+     out of 2,576 held). A line the opponent has that a turn doesn't touch
+     stands after it, so once a line is known (the threat already on the
+     board, or one found after a turn that left it alone) every turn that
+     leaves it alone is passed over without a search. With `netGuard`, a
+     turn that holds is also checked for a net (opponentNet): one the
+     opponent can answer with a threat no turn of ours meets is passed
+     over for the next that holds, up to `netMax` looks within
+     netGraceMs. */
+  const now = performance.now();
+  const stopAt = Math.max(deadline, now) + weights.verifyGraceMs;
+  const netStop = Math.max(deadline, now) + (weights.netGraceMs || 0);
+  const lines = [];
+  const standing = endingLine(pieces, opp);
+  if (standing) lines.push(lineRegion(standing));
+  // Where a turn leaves our Cabeza (the square of the first one it moves, or where it stands).
+  const cabezaSquareAfter = (turn) => {
+    const steps = turn.steps ? turn.steps.map((st) => ({ piece: st.piece, move: st.move })) : turn.moves.map((m) => ({ piece: turn.piece, move: m }));
+    let at = null;
+    for (const { piece, move } of steps) if (piece.type === "cabeza" && piece.owner === player) at = move.candidate;
+    if (!at) at = pieces.find((p) => p.type === "cabeza" && p.owner === player);
+    return at ? at.row * 1000 + at.col : -1;
+  };
+  let firstSafe = null;
+  let netLooks = 0;
+  // Squares a turn left our Cabeza on and a net closed round it: another
+  // turn that leaves it there is passed over while others are looked at.
+  const nettedAt = new Set();
+  lastSearchInfo.verified = 0;
+  lastSearchInfo.netted = 0;
+  for (let i = 0; i < rootScores.length; i++) {
+    // Past the grace, stop; once a turn that holds has been found netted,
+    // the net's own time decides how long to look for another.
+    if (i >= 3 && performance.now() > (firstSafe ? netStop : stopAt)) break;
+    const entry = rootScores[i];
+    const { turn } = entry;
+    if (turn.endsGame) return entry;
+    if (lines.some((reg) => !turnTouches(turn, reg, pieces))) continue;
+    const square = cabezaSquareAfter(turn);
+    if (nettedAt.has(square)) continue;
+    lastSearchInfo.verified++;
+    const undos = applyTurn(pieces, turn);
+    const line = endingLine(pieces, opp);
+    let netted = false;
+    if (!line && weights.netGuard && netLooks < (weights.netMax || 3) && performance.now() < netStop) {
+      netLooks++;
+      netted = opponentNet(pieces, player, netStop) === true;
+    }
+    undoTurn(pieces, turn, undos);
+    if (line) {
+      const reg = lineRegion(line);
+      if (!turnTouches(turn, reg, pieces)) lines.push(reg);
+      continue;
+    }
+    if (!netted) return entry;
+    lastSearchInfo.netted++;
+    nettedAt.add(square);
+    if (!firstSafe) firstSafe = entry;
+  }
+  return firstSafe || rootScores[0];
+}
+
+/* Hard's look one turn further at a one-turn search's choice (netGuard):
+   with our turn played (applied to `pieces`), can the opponent make a
+   threat on our Cabeza that no turn of ours answers? The reported game
+   was lost to exactly this: Hard's Cabeza stepped into a pocket within
+   reach of a Turrito that had come through a black hole; each turn it
+   then had held for one more turn, until the reply that closed the net.
+   true (netted), false, or null if it ran out of time (stopAt). The
+   threats looked for are a single block's (cabezaInDanger, as the
+   evaluation sees them), worked out only for the blocks a reply could
+   have changed; an answer is any turn after which the opponent has no
+   game-ending line at all (endingLine). The caller has checked the
+   position has none now. */
+function opponentNet(pieces, me, stopAt) {
+  const opp = opponentOf(me);
+  const cabezas = pieces.filter((p) => p.type === "cabeza" && p.owner === me);
+  if (!cabezas.length) return true;
+  const pts = turnBudget();
+  const holes = ACTIVE_LAWS.blackHoleSquares && BLACK_HOLES.length === 2;
+  // Nothing of theirs within two turns' reach: no net closes in one.
+  const reachOf = (q) => pts * spanOf(q);
+  if (!pieces.some((q) => q.owner === opp && q.type !== "cabeza" && ((holes && canDrop(q)) || cabezas.some((c) => boxDist(q, c.row, c.col) <= 2 * reachOf(q) + 1)))) return false;
+  const replies = generateTurns(pieces, opp);
+  // The likeliest nets first: the replies that end nearest our Cabeza.
+  const nearness = (r) => {
+    let best = Infinity;
+    for (const b of turnBoxes(r)) for (const c of cabezas) best = Math.min(best, boxDist(b, c.row, c.col));
+    return best;
+  };
+  const order = replies.map((r) => ({ r, d: nearness(r) })).sort((a, b) => a.d - b.d);
+  for (const { r } of order) {
+    if (performance.now() > stopAt) return null;
+    if (r.endsGame) return true;
+    // What the reply moves or pushes, before and after.
+    const boxes = turnBoxes(r);
+    const steps = r.steps ? r.steps.map((st) => st.move) : r.moves;
+    let movesCabeza = r.steps ? r.steps.some((st) => st.piece.type === "cabeza" && st.piece.owner === me) : false;
+    for (const m of steps) {
+      if (!m.shoves) continue;
+      for (const sh of m.shoves) {
+        const o = pieces.find((x) => x.id === sh.id);
+        if (!o) continue;
+        if (o.type === "cabeza" && o.owner === me) movesCabeza = true;
+        boxes.push({ row: o.row, col: o.col, w: o.w, h: o.h }, { row: sh.row, col: sh.col, w: o.w, h: o.h });
+      }
+    }
+    const undos = applyTurn(pieces, r);
+    let threatened = false;
+    if (movesCabeza) threatened = cabezaInDanger(pieces, me);
+    else {
+      const live = pieces.filter((p) => p.type === "cabeza" && p.owner === me);
+      for (const b of pieces) {
+        if (b.owner !== opp || b.type === "cabeza") continue;
+        const reach = reachOf(b);
+        if (!(holes && canDrop(b)) && !live.some((c) => boxDist(b, c.row, c.col) <= reach + 1)) continue;
+        // A block nothing near it changed walks as it did before the reply (no crush).
+        const span = spanOf(b);
+        if (!boxes.some((x) => Math.max(Math.max(0, x.row - (b.row + b.h - 1), b.row - (x.row + x.h - 1)), Math.max(0, x.col - (b.col + b.w - 1), b.col - (x.col + x.w - 1))) <= reach + span + 1)) continue;
+        if (blockTurnReach(pieces, b, maxStepsFor(b.type), live, null, null, true)) { threatened = true; break; }
+      }
+    }
+    const netted = threatened && !hasAnswer(pieces, me, stopAt);
+    undoTurn(pieces, r, undos);
+    if (netted) return true;
+  }
+  return false;
+}
+
+/* After a threat on `me`'s Cabeza (opponentNet): a turn of ours after which
+   the opponent has no game-ending line. The Cabeza stepping away is
+   tried first (cheap, and usually it); then every turn that touches a
+   line the opponent has (endingLine: one that's left alone still
+   stands). Out of time counts as answered: a net is only claimed when
+   it's shown. */
+function hasAnswer(pieces, me, stopAt) {
+  const opp = opponentOf(me);
+  for (const cab of pieces.filter((p) => p.type === "cabeza" && p.owner === me)) {
+    const tried = new Set();
+    let found = false;
+    const walk = (left) => {
+      const moves = legalCabezaSteps(pieces, cab);
+      for (const dir in moves) {
+        const m = moves[dir];
+        if (m.crushes) continue;
+        if (m.candidate.row === GOAL_ROW[me]) { found = true; return; }
+        const u = applyMove(pieces, cab, m);
+        const key = cab.row * 1000 + cab.col;
+        if (!tried.has(key)) {
+          tried.add(key);
+          if (!cabezaInDanger(pieces, me) && !endingLine(pieces, opp)) found = true;
+        }
+        if (!found && left - 1 >= 1 && !m.teleports) walk(left - 1);
+        undoMove(pieces, cab, u);
+        if (found) return;
+      }
+    };
+    walk(turnBudget());
+    if (found) return true;
+  }
+  const first = endingLine(pieces, opp);
+  if (!first) return true;
+  const lines = [lineRegion(first)];
+  for (const t of generateTurns(pieces, me)) {
+    if (performance.now() > stopAt) return true;
+    if (t.endsGame) return true;
+    if (lines.some((reg) => !turnTouches(t, reg, pieces))) continue;
+    const undos = applyTurn(pieces, t);
+    // (A single block's crush still there settles it at a fraction of the cost.)
+    const line = cabezaInDanger(pieces, me) ? null : endingLine(pieces, opp);
+    const answered = !line && !cabezaInDanger(pieces, me);
+    undoTurn(pieces, t, undos);
+    if (answered) return true;
+    if (line) {
+      const reg = lineRegion(line);
+      if (!turnTouches(t, reg, pieces)) lines.push(reg);
+    }
+  }
+  return false;
 }
 
 /* A turn that wins by force: after it the opponent's Cabeza is in reach
@@ -1461,7 +1845,7 @@ function yieldToEventLoop() {
 /* The deepest search depth the last findBestAiTurn call fully completed,
    and whether the depth after it, unfinished, changed the choice — for
    tests and the AI simulator (tests/ai-sim.mjs). */
-export const lastSearchInfo = { depth: 0, depthMs: [], partial: false };
+export const lastSearchInfo = { depth: 0, depthMs: [], partial: false, verified: 0, netted: 0 };
 
 
 /* The search itself (findBestAiTurn below wraps it). `openingTurn`: which
@@ -1489,6 +1873,10 @@ async function searchBestTurn(
     backtrackBias = 0,
     verifyReplies = false,
     forcedCrush = false,
+    verifyGraceMs = 0,
+    netGuard = false,
+    netGraceMs = 0,
+    netMax = 3,
     threatBonus = 25,
     openingTurn = -1,
   },
@@ -1518,7 +1906,7 @@ async function searchBestTurn(
       : null;
   // `beam` rides along with the evaluation weights since both thread
   // through every ply of the search (see minimaxSearch).
-  const weights = { blockAdvance, turritoBonus, wall, centrality, cabezaSafety, beam, verifyReplies, forcedCrush, threatBonus };
+  const weights = { blockAdvance, turritoBonus, wall, centrality, cabezaSafety, beam, verifyReplies, forcedCrush, verifyGraceMs, netGuard, netGraceMs, netMax, threatBonus };
   /* The ONLY pieces-array allocation in the whole search: everything
      below (generateTurns, minimaxSearch, their move-ordering pass) now
      mutates this one cloned array/objects in place via applyMove/
@@ -1842,6 +2230,18 @@ export const AI_DIFFICULTY = {
     backtrackBias: 8,
     verifyReplies: true,
     forcedCrush: true,
+    /* From a reported game Hard lost (14x13, ten pieces a side, every
+       law): at a one-turn search it keeps checking its best turns
+       against every reply for up to this long past its time, until one
+       holds, rather than playing the best-scoring after three; and it
+       looks one turn further at the turn it plays (netGuard): a turn
+       that lets the opponent make a threat no turn of Hard's answers is
+       passed over for the next that holds (up to netMax looks, within
+       netGraceMs). See checkOneTurnChoice and opponentNet. */
+    verifyGraceMs: 1500,
+    netGuard: true,
+    netGraceMs: 2500,
+    netMax: 3,
     blockAdvance: 1.4,
     turritoBonus: 0, // was 1.6 — see Medium's note
 

@@ -126,14 +126,19 @@ export function piecesClash(a, b) {
    relies on. */
 // rollVox results, cached: an AI search rolls the same few poses the
 // same ways thousands of times.
+// (Keyed by the cube string, then the box and direction as one number:
+// no key string is built per call.)
 const rollCache = new Map();
+const DIR_INDEX = { N: 0, S: 1, E: 2, W: 3 };
 export function rollVox(piece, dir) {
   const { w, h, z } = piece;
-  const key = `${piece.vox}|${w},${h},${z}|${dir}`;
-  const hit = rollCache.get(key);
-  if (hit) return hit;
+  let byShape = rollCache.get(piece.vox);
+  if (!byShape) { byShape = new Map(); rollCache.set(piece.vox, byShape); }
+  const key = ((w * 64 + h) * 64 + z) * 8 + (DIR_INDEX[dir] ?? 4);
+  const hit = byShape.get(key);
+  if (hit !== undefined && (DIR_INDEX[dir] !== undefined)) return hit;
   const out = rollVoxUncached(piece, dir);
-  rollCache.set(key, out);
+  if (DIR_INDEX[dir] !== undefined) byShape.set(key, out);
   return out;
 }
 function rollVoxUncached(piece, dir) {
@@ -167,6 +172,81 @@ function rollVoxUncached(piece, dir) {
    hit — the Cabeza being crushed. */
 const SWEEP_SAMPLES = 8;
 const SWEEP_EPS = 1e-3;
+
+/* A roll's sweep, worked out once per shape, size and direction (an AI
+   search rolls the same few poses thousands of times): each moving
+   cube's lane and its place along the roll relative to the pivot, how
+   far the swing reaches, and each cube's four corners at every sampled
+   angle, kept as the products the turn is made of (du·cos and v·sin
+   apart, du·sin + v·cos whole), so adding the pivot back at the board
+   gives exactly the sums the turn always computed. */
+const sweepCache = new Map();
+function sweepOf(piece, dir) {
+  let byShape = sweepCache.get(piece.vox || "");
+  if (!byShape) { byShape = new Map(); sweepCache.set(piece.vox || "", byShape); }
+  const key = ((piece.w * 64 + piece.h) * 64 + piece.z) * 8 + DIR_INDEX[dir];
+  let sw = byShape.get(key);
+  if (sw) return sw;
+  const alongCols = dir === "E" || dir === "W";
+  const pivotRel = dir === "E" ? piece.w : dir === "S" ? piece.h : 0;
+  const sign = dir === "E" || dir === "S" ? -1 : 1;
+  const laneOff = [];
+  const du0s = [];
+  const levels = [];
+  const add = (x, y, l) => {
+    laneOff.push(alongCols ? y : x);
+    du0s.push((alongCols ? x : y) - pivotRel);
+    levels.push(l);
+  };
+  if (piece.vox) parseVox(piece.vox).forEach(([x, y, l]) => add(x, y, l));
+  else for (let y = 0; y < piece.h; y++) for (let x = 0; x < piece.w; x++) for (let l = 0; l < piece.z; l++) add(x, y, l);
+  const n = laneOff.length;
+  let reach = 0;
+  for (let i = 0; i < n; i++) reach = Math.max(reach, Math.hypot(Math.max(Math.abs(du0s[i]), Math.abs(du0s[i] + 1)), levels[i] + 1));
+  const terms = new Float64Array((SWEEP_SAMPLES - 1) * n * 12);
+  for (let k = 1; k < SWEEP_SAMPLES; k++) {
+    const phi = (sign * (Math.PI / 2) * k) / SWEEP_SAMPLES;
+    const cs = Math.cos(phi);
+    const sn = Math.sin(phi);
+    for (let i = 0; i < n; i++) {
+      const du0 = du0s[i];
+      const l = levels[i];
+      const o = ((k - 1) * n + i) * 12;
+      // The cube's corners (u0, l), (u0 + 1, l), (u0 + 1, l + 1), (u0, l + 1).
+      const corner = (j, du, v) => {
+        terms[o + j * 3] = du * cs;
+        terms[o + j * 3 + 1] = v * sn;
+        terms[o + j * 3 + 2] = du * sn + v * cs;
+      };
+      corner(0, du0, l);
+      corner(1, du0 + 1, l);
+      corner(2, du0 + 1, l + 1);
+      corner(3, du0, l + 1);
+    }
+  }
+  // Which lanes (offsets from the piece's first) hold a moving cube.
+  const laneHas = [];
+  laneOff.forEach((off) => { laneHas[off] = true; });
+  sw = { laneOff, laneHas, n, reach, terms };
+  byShape.set(key, sw);
+  return sw;
+}
+
+/* Does rolling `piece` in `dir` sweep any of its cubes through another
+   piece's cubes on the way? For two boxes this can never happen without
+   the landing itself clashing (a tipping box stays inside the columns of
+   its before/after footprints, which boxes fill from the ground up), so
+   callers only run this when an odd shape is on the board. With an
+   overhang in play it matters: a cube rising or coming down past an
+   overhang, or a piece tipping out from under one.
+
+   Each cube turns about the pivot edge in the roll's own vertical
+   plane; it's sampled at intermediate angles (the endpoints are the
+   start pose and the landing, both checked elsewhere) and tested
+   against every cube of every other piece in the same plane with a
+   separating-axis test, shrunk by a hair so cubes merely touching edge
+   to edge don't count. `ignore` is a piece the landing is allowed to
+   hit — the Cabeza being crushed. */
 export function rollSweepClashes(pieces, piece, dir, ignore = null) {
   const alongCols = dir === "E" || dir === "W";
   // Pivot position along the roll axis, in square units, and the turn's
@@ -174,22 +254,40 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
   // below), W/N toward decreasing.
   const pivot = dir === "E" ? piece.col + piece.w : dir === "W" ? piece.col : dir === "S" ? piece.row + piece.h : piece.row;
   const sign = dir === "E" || dir === "S" ? -1 : 1;
+  const myLo = alongCols ? piece.row : piece.col;
+  const myHi = myLo + (alongCols ? piece.h : piece.w) - 1;
 
-  // Moving cubes as (lane, u0, l): lane = the row (E/W) or column (N/S)
-  // the cube travels in, u0 = its low edge along the roll axis.
-  const moving = [];
-  const cubes = piece.vox ? parseVox(piece.vox) : null;
-  const pushCube = (x, y, l) => {
-    moving.push(alongCols ? [piece.row + y, piece.col + x, l] : [piece.col + x, piece.row + y, l]);
-  };
-  if (cubes) cubes.forEach(([x, y, l]) => pushCube(x, y, l));
-  else for (let y = 0; y < piece.h; y++) for (let x = 0; x < piece.w; x++) for (let l = 0; l < piece.z; l++) pushCube(x, y, l);
+  /* First a cheap look: is anything near enough to be in the way at all?
+     Every moving cube stays within the piece's length along the roll of
+     the pivot and below its height, so `reach` further down never exceeds
+     this bound, and a piece it rules out the full test would rule out too.
+     Most rolls (any box rolling with no odd shape beside it) end here,
+     before a cube is looked at. */
+  const bound = Math.hypot(alongCols ? piece.w : piece.h, piece.z || 1) + 1e-9;
+  let near = false;
+  for (const other of pieces) {
+    if (other.id === piece.id || other === ignore || (Array.isArray(ignore) && ignore.includes(other))) continue;
+    if (other.type === "cabeza" || (!piece.vox && !other.vox)) continue;
+    const laneLo = alongCols ? other.row : other.col;
+    const laneHi = laneLo + (alongCols ? other.h : other.w) - 1;
+    if (laneHi < myLo || laneLo > myHi) continue;
+    const uLo = alongCols ? other.col : other.row;
+    const uHi = uLo + (alongCols ? other.w : other.h);
+    if (uHi < pivot - bound - 1 || uLo > pivot + bound + 1) continue;
+    near = true;
+    break;
+  }
+  if (!near) return false;
+
+  // The moving cubes (lane: the row for E/W, the column for N/S, each
+  // cube travels in), worked out once per pose (sweepOf).
+  const sw = sweepOf(piece, dir);
+  const base = alongCols ? piece.row : piece.col;
+  const laneHas = sw.laneHas;
+  const reach = sw.reach;
 
   // Obstacle cubes of other pieces, grouped by lane, only in lanes a
   // moving cube uses and within reach of the pivot.
-  const lanes = new Set(moving.map((m) => m[0]));
-  let reach = 0;
-  for (const [, u0, l] of moving) reach = Math.max(reach, Math.hypot(Math.max(Math.abs(u0 - pivot), Math.abs(u0 + 1 - pivot)), l + 1));
   const obstacles = new Map();
   for (const other of pieces) {
     if (other.id === piece.id || other === ignore || (Array.isArray(ignore) && ignore.includes(other))) continue;
@@ -205,7 +303,7 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
     // Turrito beside it, "it should have only been able to travel over
     // the Flaco"). A taller piece in the way, or anything on the landing,
     // still stops it.
-    if (other.type === "cabeza" || leavesClearance(piece, other)) continue;
+    if (other.type === "cabeza") continue;
     const low = other.z <= 1;
     // Box against box can't clash mid-roll without the landing clashing
     // too (see above), so a box only needs checking against odd shapes.
@@ -215,16 +313,16 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
     // of the pivot along the roll axis.
     const laneLo = alongCols ? other.row : other.col;
     const laneHi = laneLo + (alongCols ? other.h : other.w) - 1;
-    const myLo = alongCols ? piece.row : piece.col;
-    const myHi = myLo + (alongCols ? piece.h : piece.w) - 1;
     if (laneHi < myLo || laneLo > myHi) continue;
     const uLo = alongCols ? other.col : other.row;
     const uHi = uLo + (alongCols ? other.w : other.h);
     if (uHi < pivot - reach - 1 || uLo > pivot + reach + 1) continue;
+    // (The clearance test last: it walks the other piece's squares.)
+    if (leavesClearance(piece, other)) continue;
     for (let y = 0; y < other.h; y++) {
       for (let x = 0; x < other.w; x++) {
         const lane = alongCols ? other.row + y : other.col + x;
-        if (!lanes.has(lane)) continue;
+        if (!laneHas[lane - base]) continue;
         const u = alongCols ? other.col + x : other.row + y;
         if (Math.abs(u + 0.5 - pivot) > reach + 1) continue;
         // (A one-cube piece's square on the roller's side: risen over.)
@@ -240,38 +338,56 @@ export function rollSweepClashes(pieces, piece, dir, ignore = null) {
   }
   if (!obstacles.size) return false;
 
+  const T = sw.terms;
+  const n = sw.n;
   for (let k = 1; k < SWEEP_SAMPLES; k++) {
-    const phi = (sign * (Math.PI / 2) * k) / SWEEP_SAMPLES;
-    const cs = Math.cos(phi);
-    const sn = Math.sin(phi);
-    for (const [lane, u0, l] of moving) {
-      const obs = obstacles.get(lane);
+    for (let i = 0; i < n; i++) {
+      const obs = obstacles.get(base + sw.laneOff[i]);
       if (!obs) continue;
       // The cube's four corners, turned about (pivot, 0).
-      const corners = [
-        [u0, l], [u0 + 1, l], [u0 + 1, l + 1], [u0, l + 1],
-      ].map(([u, v]) => {
-        const du = u - pivot;
-        return [pivot + du * cs - v * sn, du * sn + v * cs];
-      });
+      const o = ((k - 1) * n + i) * 12;
+      const u0 = pivot + T[o] - T[o + 1], v0 = T[o + 2];
+      const u1 = pivot + T[o + 3] - T[o + 4], v1 = T[o + 5];
+      const u2 = pivot + T[o + 6] - T[o + 7], v2 = T[o + 8];
+      const u3 = pivot + T[o + 9] - T[o + 10], v3 = T[o + 11];
       // The turned square's bounding box: most obstacles are nowhere
       // near it, and the full separating-axis test is only needed for
       // the ones this can't rule out.
       let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
-      for (const [cu, cv] of corners) {
-        if (cu < minU) minU = cu;
-        if (cu > maxU) maxU = cu;
-        if (cv < minV) minV = cv;
-        if (cv > maxV) maxV = cv;
-      }
+      if (u0 < minU) minU = u0; if (u0 > maxU) maxU = u0; if (v0 < minV) minV = v0; if (v0 > maxV) maxV = v0;
+      if (u1 < minU) minU = u1; if (u1 > maxU) maxU = u1; if (v1 < minV) minV = v1; if (v1 > maxV) maxV = v1;
+      if (u2 < minU) minU = u2; if (u2 > maxU) maxU = u2; if (v2 < minV) minV = v2; if (v2 > maxV) maxV = v2;
+      if (u3 < minU) minU = u3; if (u3 > maxU) maxU = u3; if (v3 < minV) minV = v3; if (v3 > maxV) maxV = v3;
       for (const [ou, ol] of obs) {
         if (maxU - SWEEP_EPS <= ou + SWEEP_EPS || ou + 1 - SWEEP_EPS <= minU + SWEEP_EPS) continue;
         if (maxV - SWEEP_EPS <= ol + SWEEP_EPS || ol + 1 - SWEEP_EPS <= minV + SWEEP_EPS) continue;
-        if (squaresOverlap(corners, ou, ol)) return true;
+        if (turnedSquareHits(u0, v0, u1, v1, u2, v2, u3, v3, ou, ol)) return true;
       }
     }
   }
   return false;
+}
+
+/* squaresOverlap below for a roll's turned cube (no inset), with the
+   corners passed one by one: the same arithmetic in the same order,
+   without building arrays for every cube at every angle. */
+function turnedSquareHits(u0, v0, u1, v1, u2, v2, u3, v3, ou, ol) {
+  for (let a = 0; a < 4; a++) {
+    const ax = a === 0 ? 1 : a === 1 ? 0 : a === 2 ? u1 - u0 : u3 - u0;
+    const ay = a === 0 ? 0 : a === 1 ? 1 : a === 2 ? v1 - v0 : v3 - v0;
+    let aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity, d;
+    d = u0 * ax + v0 * ay; if (d < aMin) aMin = d; if (d > aMax) aMax = d;
+    d = u1 * ax + v1 * ay; if (d < aMin) aMin = d; if (d > aMax) aMax = d;
+    d = u2 * ax + v2 * ay; if (d < aMin) aMin = d; if (d > aMax) aMax = d;
+    d = u3 * ax + v3 * ay; if (d < aMin) aMin = d; if (d > aMax) aMax = d;
+    d = (ou + 0) * ax + (ol + 0) * ay; if (d < bMin) bMin = d; if (d > bMax) bMax = d;
+    d = (ou + 1) * ax + (ol + 0) * ay; if (d < bMin) bMin = d; if (d > bMax) bMax = d;
+    d = (ou + 1) * ax + (ol + 1) * ay; if (d < bMin) bMin = d; if (d > bMax) bMax = d;
+    d = (ou + 0) * ax + (ol + 1) * ay; if (d < bMin) bMin = d; if (d > bMax) bMax = d;
+    const len = Math.hypot(ax, ay);
+    if (aMax - SWEEP_EPS * len <= bMin + SWEEP_EPS * len || bMax - SWEEP_EPS * len <= aMin + SWEEP_EPS * len) return false;
+  }
+  return true;
 }
 
 // ---- pivoting (Cantilever Pivot LAW) ----
@@ -368,6 +484,14 @@ export function pivotArmPoint(piece) {
    drawn size the corner reaches 1.50 and the next cube starts at 1.57:
    what's blocked is exactly what you'd see collide. */
 const DRAWN_INSET = (1 - PIECE_SCALE) / 2;
+// The sampled angles' cosines and sines, for each way round (sign).
+const PIVOT_TRIG = { 1: [], [-1]: [] };
+for (const sg of [1, -1]) {
+  for (let k = 1; k < SWEEP_SAMPLES; k++) {
+    const phi = (sg * (Math.PI / 2) * k) / SWEEP_SAMPLES;
+    PIVOT_TRIG[sg].push([Math.cos(phi), Math.sin(phi)]);
+  }
+}
 export function pivotSweepClashes(pieces, piece, turn) {
   const pc = pivotCellOf(piece);
   const cu = pc.col + 0.5;
@@ -378,6 +502,7 @@ export function pivotSweepClashes(pieces, piece, turn) {
   if (!arm.length) return false;
   const reach = Math.max(...arm.map(([c, r]) => Math.hypot(c + 0.5 - cu, r + 0.5 - cv))) + 1;
   const sign = turn === "cw" ? 1 : -1;
+  const trig = PIVOT_TRIG[sign];
   for (const other of pieces) {
     if (other.id === piece.id || other.type === "cabeza") continue; // lower than a cube: swung over
     if (other.row > cv + reach || other.row + other.h < cv - reach) continue;
@@ -388,25 +513,51 @@ export function pivotSweepClashes(pieces, piece, turn) {
         if (!mask) continue;
         for (const [ac, ar, l] of arm) {
           if (!((mask >> l) & 1)) continue;
-          for (let k = 1; k < SWEEP_SAMPLES; k++) {
-            const phi = (sign * (Math.PI / 2) * k) / SWEEP_SAMPLES;
-            const cs = Math.cos(phi);
-            const sn = Math.sin(phi);
+          // The arm cube at its drawn size, its corners as offsets from
+          // the planted cube's centre.
+          const a0 = ac + DRAWN_INSET, a1 = ac + 1 - DRAWN_INSET, b0 = ar + DRAWN_INSET, b1 = ar + 1 - DRAWN_INSET;
+          const du0 = a0 - cu, du1 = a1 - cu, dv0 = b0 - cv, dv1 = b1 - cv;
+          for (let k = 0; k < trig.length; k++) {
+            const cs = trig[k][0];
+            const sn = trig[k][1];
             // Rows run down the screen, so this turns (u, v) clockwise
-            // as seen from above for a positive angle.
-            const a0 = ac + DRAWN_INSET, a1 = ac + 1 - DRAWN_INSET, b0 = ar + DRAWN_INSET, b1 = ar + 1 - DRAWN_INSET;
-            const corners = [[a0, b0], [a1, b0], [a1, b1], [a0, b1]].map(([u, v]) => {
-              const du = u - cu;
-              const dv = v - cv;
-              return [cu + du * cs - dv * sn, cv + du * sn + dv * cs];
-            });
-            if (squaresOverlap(corners, c, r, DRAWN_INSET)) return true;
+            // as seen from above for a positive angle. Corners in the
+            // order (a0, b0), (a1, b0), (a1, b1), (a0, b1).
+            const u0 = cu + du0 * cs - dv0 * sn, v0 = cv + du0 * sn + dv0 * cs;
+            const u1 = cu + du1 * cs - dv0 * sn, v1 = cv + du1 * sn + dv0 * cs;
+            const u2 = cu + du1 * cs - dv1 * sn, v2 = cv + du1 * sn + dv1 * cs;
+            const u3 = cu + du0 * cs - dv1 * sn, v3 = cv + du0 * sn + dv1 * cs;
+            if (turnedSquareHitsInset(u0, v0, u1, v1, u2, v2, u3, v3, c, r, DRAWN_INSET)) return true;
           }
         }
       }
     }
   }
   return false;
+}
+
+/* squaresOverlap below for a pivot's turned cube (drawn in by `inset`),
+   with the corners passed one by one: the same arithmetic in the same
+   order, without building arrays at every angle. */
+function turnedSquareHitsInset(u0, v0, u1, v1, u2, v2, u3, v3, ou, ol, inset) {
+  const lo = inset, hi = 1 - inset;
+  const bx0 = ou + lo, bx1 = ou + hi, by0 = ol + lo, by1 = ol + hi;
+  for (let a = 0; a < 4; a++) {
+    const ax = a === 0 ? 1 : a === 1 ? 0 : a === 2 ? u1 - u0 : u3 - u0;
+    const ay = a === 0 ? 0 : a === 1 ? 1 : a === 2 ? v1 - v0 : v3 - v0;
+    let aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity, d;
+    d = u0 * ax + v0 * ay; if (d < aMin) aMin = d; if (d > aMax) aMax = d;
+    d = u1 * ax + v1 * ay; if (d < aMin) aMin = d; if (d > aMax) aMax = d;
+    d = u2 * ax + v2 * ay; if (d < aMin) aMin = d; if (d > aMax) aMax = d;
+    d = u3 * ax + v3 * ay; if (d < aMin) aMin = d; if (d > aMax) aMax = d;
+    d = bx0 * ax + by0 * ay; if (d < bMin) bMin = d; if (d > bMax) bMax = d;
+    d = bx1 * ax + by0 * ay; if (d < bMin) bMin = d; if (d > bMax) bMax = d;
+    d = bx1 * ax + by1 * ay; if (d < bMin) bMin = d; if (d > bMax) bMax = d;
+    d = bx0 * ax + by1 * ay; if (d < bMin) bMin = d; if (d > bMax) bMax = d;
+    const len = Math.hypot(ax, ay);
+    if (aMax - SWEEP_EPS * len <= bMin + SWEEP_EPS * len || bMax - SWEEP_EPS * len <= aMin + SWEEP_EPS * len) return false;
+  }
+  return true;
 }
 
 /* Whether `other` sits wholly beneath `piece` without reaching its
