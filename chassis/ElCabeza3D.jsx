@@ -7,7 +7,7 @@ import {
   CAMERA_DAMPING, RESET_CAMERA_DAMPING, RESET_TRANSITION_MS,
   ORBIT_SENS_THETA, ORBIT_SENS_PHI, DRAG_DEAD_ZONE_PX, ZOOM_MIN, ZOOM_MAX_FOR_BOARD,
   PIECE_META, GOAL_ROW, STEP_DIRS, INVERSE_DIR, getBoardDimensions, setBoardDimensions, maxStepsFor, setActiveLaws, ACTIVE_LAWS,
-  isSlideKey, slideKey, baseDirOfSlideKey, isPivotKey, pivotTurnOfKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost,
+  isSlideKey, slideKey, baseDirOfSlideKey, isPivotKey, pivotTurnOfKey, BLACK_HOLES, setBlackHoles as setActiveBlackHoles, moveCost, plainKeyOf,
   MISSING_SQUARES, setMissingSquares as setActiveMissingSquares,
   turnBudget, maxPiecesPerTurn, setOpeningTurn, withFullTurn,
 } from "../engine/constants.js";
@@ -991,6 +991,9 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
       const r = t.renderer.domElement.getBoundingClientRect();
       return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
     };
+    // The board square [row, col] under a point in the board's own space
+    // (a move marker's), for tests of where a marker sits.
+    window.__EC_TEST_SQUARE_OF__ = (p) => [Math.floor((p.z + OFF_Z) / SQUARE_SIZE), Math.floor((p.x + OFF_X) / SQUARE_SIZE)];
     // The cost badges on the move markers now showing: [{ dir, text }].
     window.__EC_TEST_COST_BADGES__ = () => {
       const t = three.current;
@@ -4415,7 +4418,15 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
   // carry no isSlide flag) show as ghosts. This keeps the board from
   // being buried under a marker for every slide direction on top of every
   // roll.
-  const shadowEntries = Object.entries(shadows).filter(([, m]) => !m.isSlide);
+  // (With two sets of black holes a slide into one shows where it comes
+  // out too, each way out its own marker to tap, user: "the player's piece
+  // will show the exit point at ... the 2 that are on the other side of
+  // the board". A slide that lands where a roll does leaves it to the
+  // roll's marker.)
+  const holeSlides = BLACK_HOLES.length > 2
+    ? Object.entries(shadows).filter(([, m]) => m.isSlide && m.teleports && !Object.values(shadows).some((r) => !r.isSlide && r.teleports && r.candidate.row === m.candidate.row && r.candidate.col === m.candidate.col))
+    : [];
+  const shadowEntries = [...Object.entries(shadows).filter(([, m]) => !m.isSlide), ...holeSlides];
   // (Stop here above the points row; see its button. Kept up through a
   // move's own animation, when the markers are briefly gone.)
   const stopHereFloat = !shell && isPlaying && turnLocked && currentPlayer !== foeSide && !replaying && (stepsRemaining > 0 || busy) && dockView !== "panel" && !(setupExtras && setupExtras.singularityPhase && setupExtras.singularityPhase !== "idle");
@@ -6824,8 +6835,11 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      a move, inverted for an undo. On completion the parts are re-attached
      to the piece group with their world pose preserved, which is what
      lets steps be chained without a rebuild in between. */
-  const animateStep = useCallback((state, dir, onDone, shove = null) => {
+  const animateStep = useCallback((state, key, onDone, shove = null) => {
     const t = three.current;
+    // (Two sets of black holes: the other set's way out is the same
+    // movement into the hole.)
+    const dir = plainKeyOf(key);
     const parts = t.pieceGroup.children.filter((c) => c.userData.pieceId === state.id);
     /* Shoving LAW: each pushed piece (a shove can push several side by
        side) glides to where it's pushed over the same time as the move,
@@ -9056,7 +9070,8 @@ export default function ElCabeza3D({ theme, initialMuted = false, onMutedChange,
      through rather than where it ended up. Only a 1x1 footprint can
      ever sit on a hole in the first place (a bigger one is blocked
      outright — see blackHoleVerdict), so that's the only case checked. */
-  function nextStateAfterDir(state, dir) {
+  function nextStateAfterDir(state, key) {
+    const dir = plainKeyOf(key);
     const farHole = state.w === 1 && state.h === 1
       ? BLACK_HOLES.find((b) => b.row === state.row && b.col === state.col)
       : null;

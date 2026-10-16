@@ -222,10 +222,22 @@ brings it within a turn of home is a net; seven rows out it isn't); game
 against the same opponent): it now wins by a crush at turn 94 instead of
 losing to the walk; 12 games of the changed Hard against the Hard before
 it (aisim/sim2.mjs, the user's setup, colours alternating,
-scratchpad/aisim/w2-a and w2-b): 9 wins and 2 losses over the first 11
-(both losses crushes, none a walk home; the twelfth still playing when
-this was written), 5-1 as dark, 4-1 as light. Thinking: about 4.2 s a
+scratchpad/aisim/w2-a and w2-b): 10 wins and 2 losses (both losses
+crushes, none a walk home), 5-1 as dark, 5-1 as light. Thinking: about 4.2 s a
 turn on average against 3.7 s, at most 7.2 s against 7.7 s.
+Two sets of black holes (user, the same day: "add the option to increase
+the number of black hole sets to 2"): every place here that assumed
+exactly two holes reads the holes' ways out (rules.js holeExits) instead:
+holesInto(t) gives the holes a one-square piece can drop into to come
+out beside a target (both strike-aim lists: blockTurnReach's and the
+net check's), routeHolesFor(rows, cols) the holes as squares with where
+each lets out, for cabezaRouteCost (a step into a hole relaxes each way
+out; its buckets hold n * 8 + 40 now). generateTurns needs nothing: the
+other set's way out is its own move key ("E-x"). Checked in
+tests/black-hole-sets.smoke.mjs: a Turrito beside one hole threatens a
+Cabeza beside the other set's far hole (seen with two sets, not with the
+one pair), a Cabeza beside a hole reads nearer home with the other set's
+way out, and Medium takes the way out nearer home.
 
 Game 2, Hard won (played before de0c2fb was live, so the old Hard). Its
 Cabeza went into the black hole at (4,10) on its 32nd turn (C:

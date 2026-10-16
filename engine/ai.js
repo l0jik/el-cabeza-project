@@ -3,7 +3,7 @@
    build/scratch/) — pure logic, no React, no Three.js, no DOM. */
 
 import { BOARD_ROWS, BOARD_COLS, GOAL_ROW, maxStepsFor, moveCost, ACTIVE_LAWS, turnBudget, maxPiecesPerTurn, MISSING_SQUARES, BLACK_HOLES, OPENING_TURN, setOpeningTurn } from "./constants.js";
-import { legalMovesFor, legalRolls, legalCabezaSteps, sameState } from "./rules.js";
+import { legalMovesFor, legalRolls, legalCabezaSteps, sameState, holeExits } from "./rules.js";
 import { maskAt } from "./shapes.js";
 
 /* Everything below is pure — no React, no Three.js. It only knows the
@@ -177,15 +177,8 @@ function blockTurnReach(pieces, p, points, targets, marks, threatened, stopAtCru
   // one-square piece that can get to the other: it drops in there and
   // comes out on it (rules.js, evaluateBlockLanding). This used to be cut
   // as too far away, so neither the AI nor the check alert saw it.
-  const holes = ACTIVE_LAWS.blackHoleSquares && BLACK_HOLES.length === 2 ? BLACK_HOLES : null;
   const holeAims = [];
-  if (holes) {
-    for (const t of targets) {
-      for (let i = 0; i < 2; i++) {
-        if (Math.abs(holes[i].row - t.row) + Math.abs(holes[i].col - t.col) === 1) holeAims.push(holes[1 - i]);
-      }
-    }
-  }
+  if (ACTIVE_LAWS.blackHoleSquares && BLACK_HOLES.length >= 2) for (const t of targets) holeAims.push(...holesInto(t));
   const within = (q, left) => {
     for (const t of targets) {
       const dr = Math.max(0, t.row - (q.row + q.h - 1), q.row - t.row);
@@ -340,6 +333,18 @@ function canDrop(p) {
   return !p.vox && (p.w === 1) + (p.h === 1) + ((p.z || 1) === 1) >= 2;
 }
 
+/* The black holes a one-square piece can drop into to come out beside
+   `t`: those with a way out (rules.js holeExits) through a hole next to
+   it. One set: the other hole; two sets: either hole in the far half. */
+function holesInto(t) {
+  const out = [];
+  for (const h of BLACK_HOLES) {
+    if (Math.abs(h.row - t.row) + Math.abs(h.col - t.col) !== 1) continue;
+    for (const g of BLACK_HOLES) if (g !== h && !out.includes(g) && holeExits(g).includes(h)) out.push(g);
+  }
+  return out;
+}
+
 /* Can `side` end the game on its coming turn: crush the other side's last
    Cabeza, or walk a Cabeza of its own onto its goal row? The answer is
    exactly generateTurns(pieces, side).some((t) => t.endsGame), every Split
@@ -368,7 +373,7 @@ export function endingLine(pieces, side) {
   let maxSpan = 1;
   for (const p of own) if (p.type !== "cabeza") maxSpan = Math.max(maxSpan, spanOf(p));
   const slack = ACTIVE_LAWS.shoving ? 1 : 0;
-  const holes = ACTIVE_LAWS.blackHoleSquares && BLACK_HOLES.length === 2 ? BLACK_HOLES : null;
+  const holes = ACTIVE_LAWS.blackHoleSquares && BLACK_HOLES.length >= 2;
   const onBoard = new Set(board);
   // What a strike can aim at: each target, and (for a one-square piece)
   // the hole whose far side a target stands beside.
@@ -377,11 +382,7 @@ export function endingLine(pieces, side) {
     for (const t of targets) {
       if (!onBoard.has(t)) continue;
       out.push({ row: t.row, col: t.col, hole: false });
-      if (holes) {
-        for (let i = 0; i < 2; i++) {
-          if (Math.abs(holes[i].row - t.row) + Math.abs(holes[i].col - t.col) === 1) out.push({ row: holes[1 - i].row, col: holes[1 - i].col, hole: true });
-        }
-      }
+      if (holes) for (const g of holesInto(t)) out.push({ row: g.row, col: g.col, hole: true });
     }
     return out;
   };
@@ -799,6 +800,24 @@ const ROUTE_RING = HOLE_STEPS_MAX + ATTACKED_STEP_COST + 2;
 let routeDist = null;
 let routeBuckets = null;
 let routeCounts = null;
+// The holes as squares, each with where it lets out (rules.js
+// holeExits), kept while the holes and the board stay the same.
+let routeHoles = null;
+let routeHolesKey = null;
+function routeHolesFor(rows, cols) {
+  if (BLACK_HOLES.length < 2) return null;
+  if (routeHolesKey && routeHolesKey.holes === BLACK_HOLES && routeHolesKey.rows === rows && routeHolesKey.cols === cols) return routeHoles;
+  const isHole = new Uint8Array(rows * cols);
+  const out = [];
+  for (const h of BLACK_HOLES) {
+    const i = h.row * cols + h.col;
+    isHole[i] = 1;
+    out[i] = holeExits(h);
+  }
+  routeHoles = { isHole, out };
+  routeHolesKey = { holes: BLACK_HOLES, rows, cols };
+  return routeHoles;
+}
 function cabezaRouteCost(cabeza, goalRow, blocked, attacked) {
   const rows = BOARD_ROWS;
   const cols = BOARD_COLS;
@@ -808,13 +827,12 @@ function cabezaRouteCost(cabeza, goalRow, blocked, attacked) {
   const ring = ROUTE_RING;
   if (!routeDist || routeDist.length !== n) {
     routeDist = new Int16Array(n);
-    // (Every edge can push once: eight a square, and a hole's two.)
-    routeBuckets = Array.from({ length: ring }, () => new Int32Array(n * 8 + 8));
+    // (Every edge can push once: eight a square; a step into a hole once
+    // for each way out, two with two sets: at most four holes' eight.)
+    routeBuckets = Array.from({ length: ring }, () => new Int32Array(n * 8 + 40));
     routeCounts = new Int32Array(ring);
   }
-  const holes = BLACK_HOLES.length === 2 ? BLACK_HOLES : null;
-  const hole0 = holes ? holes[0].row * cols + holes[0].col : -1;
-  const hole1 = holes ? holes[1].row * cols + holes[1].col : -1;
+  const holes = routeHolesFor(rows, cols);
   const dist = routeDist;
   dist.fill(0x7fff);
   routeCounts.fill(0);
@@ -842,20 +860,28 @@ function cabezaRouteCost(cabeza, goalRow, blocked, attacked) {
           if (!dr && !dc) continue;
           const nc = c + dc;
           if (nc < 0 || nc >= cols) continue;
-          let ni = nr * cols + nc;
-          let cost = 1;
-          if (ni === hole0 || ni === hole1) {
-            // Into the hole: out past the far one, the turn's walk spent.
-            const far = ni === hole0 ? holes[1] : holes[0];
-            const er = far.row - dr;
-            const ec = far.col - dc;
-            if (er < 0 || er >= rows || ec < 0 || ec >= cols) continue;
-            ni = er * cols + ec;
-            if (ni === hole0 || ni === hole1) continue;
-            cost = turnSteps;
+          const ni = nr * cols + nc;
+          if (holes && holes.isHole[ni]) {
+            // Into the hole: out past a far one (either of two, with two
+            // sets), the turn's walk spent.
+            for (const far of holes.out[ni]) {
+              const er = far.row - dr;
+              const ec = far.col - dc;
+              if (er < 0 || er >= rows || ec < 0 || ec >= cols) continue;
+              const ei = er * cols + ec;
+              if (holes.isHole[ei] || blocked[ei]) continue;
+              const nd = d + turnSteps + (attacked[ei] ? ATTACKED_STEP_COST : 0);
+              if (nd < dist[ei]) {
+                dist[ei] = nd;
+                const ns = nd % ring;
+                routeBuckets[ns][routeCounts[ns]++] = ei;
+                pending++;
+              }
+            }
+            continue;
           }
           if (blocked[ni]) continue;
-          const nd = d + cost + (attacked[ni] ? ATTACKED_STEP_COST : 0);
+          const nd = d + 1 + (attacked[ni] ? ATTACKED_STEP_COST : 0);
           if (nd < dist[ni]) {
             dist[ni] = nd;
             const ns = nd % ring;
@@ -1690,7 +1716,7 @@ function opponentNet(pieces, me, stopAt) {
   const cabezas = pieces.filter((p) => p.type === "cabeza" && p.owner === me);
   if (!cabezas.length) return true;
   const pts = turnBudget();
-  const holes = ACTIVE_LAWS.blackHoleSquares && BLACK_HOLES.length === 2;
+  const holes = ACTIVE_LAWS.blackHoleSquares && BLACK_HOLES.length >= 2;
   const reachOf = (q) => pts * spanOf(q);
   // Their Cabeza's walk home: a turn's steps from the goal row, and how
   // near one has to start to get there in one turn (two turns' steps, or

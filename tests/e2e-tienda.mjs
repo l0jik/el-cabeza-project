@@ -409,6 +409,16 @@ for (const size of [SIZES[2], SIZES[7]]) {
   const [pickRow, pickCol] = pick.split("-").map(Number);
   const holeWhere = await txt('[data-testid="tienda-hole-where"]');
   check("...Done places the pair and goes back to the form", (await count('[data-testid="tienda-picker"]')) === 0 && holeWhere.startsWith(`O row ${pickRow + 1}, col ${pickCol + 1}`) && !/random/.test(holeWhere), JSON.stringify({ pick, holeWhere }));
+  // Two sets (user: "add the option to increase the number of black hole
+  // sets to 2"): a second hole rolled, the one placed by hand kept; one
+  // set again keeps that one.
+  await press('[data-testid="tienda-hole-sets-2"]');
+  const where2 = await txt('[data-testid="tienda-hole-where"]');
+  check("Black holes, two sets: a second rolled, the hand-placed one kept, and it says what that does", (where2.match(/O row/g) || []).length === 2 && where2.startsWith(`O row ${pickRow + 1}, col ${pickCol + 1}`)
+    && /either hole on the far side/.test(await txt('[data-testid="tienda-hole-sets-note"]')), where2);
+  await press('[data-testid="tienda-hole-sets-1"]');
+  const where1 = await txt('[data-testid="tienda-hole-where"]');
+  check("...one set again: the hand-placed one stays", (where1.match(/O row/g) || []).length === 1 && where1.startsWith(`O row ${pickRow + 1}, col ${pickCol + 1}`), where1);
   await press('[data-testid="tienda-missing"]');
   await press('[data-testid="tienda-missing-count-inc"]');
   check("Missing squares: 2 pairs rolled at once", ((await txt('[data-testid="tienda-missing-where"]')).match(/X row/g) || []).length === 2);

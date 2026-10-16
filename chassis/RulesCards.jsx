@@ -36,7 +36,7 @@ export const LAW_TEXT = {
   splitMovement: { name: "Split Movement, 2 Pieces", text: "Your actions can be shared between up to two pieces in one turn." },
   slide: { name: "Orthogonal Slide", text: "Any piece can move one open square along its row or column (north, south, east or west, not corner to corner) without tipping. A slide costs 2 actions." },
   diagonalSlide: { name: "Diagonal Slide", text: "Any piece can move one open square corner to corner without tipping, for 2 actions. On its own, or with Orthogonal Slide for all eight ways. A diagonal slide never shoves." },
-  blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends." },
+  blackHoleSquares: { name: "Black Hole Squares", text: "Two linked holes. A piece standing on one square that enters one hole comes out of the other on the same side it went in, and the turn ends. With two sets, it comes out of either hole in the other half of the board, the player's pick; a piece pushed in comes out of its hole's own partner." },
   cantileverPivot: { name: "Cantilever Pivot", text: "A Codo, Hombro, Cruce, Rayo or Zeta balanced on one cube can turn a quarter turn around it, for 1 action." },
   threeActions: { name: "3 Actions Per Turn", text: "Each turn has 3 actions instead of 2." },
   splitThree: { name: "Split Movement, 3 Pieces", text: "Your 3 actions can be shared between up to three pieces in one turn, one action each." },
@@ -454,7 +454,7 @@ function tiles(C) {
     },
     {
       key: "blackHoleSquares", law: "blackHoleSquares", title: "Black hole", cost: null,
-      text: "Only a piece standing on one square can enter: a Cabeza, a Turrito, or an upright Flaco or 1×3. It comes out of the other hole on the same side it went in (here: in from the west, out to the west), and the turn ends.",
+      text: "Only a piece standing on one square can enter: a Cabeza, a Turrito, or an upright Flaco or 1×3. It comes out of the other hole on the same side it went in (here: in from the west, out to the west), and the turn ends. With two sets of holes, it may come out of either hole in the other half of the board.",
       svg: (
         <>
           {panelsWith([1, 3])}

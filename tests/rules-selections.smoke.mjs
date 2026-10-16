@@ -127,7 +127,7 @@ import("../themes/rules-selections.js").then(async (m) => {
   s.laws.cantileverPivot = true;
   check("a pivot with nothing to pivot warns", m.lawWarnings(s).some((w) => w.testid === "law-warning-cantileverPivot"));
   m.toggleLaw(s, "blackHoleSquares");
-  check("switching black holes on rolls their place, off the back rows", !!s.holeSpot && m.holeRowAllowed(s.holeSpot.row, s.rows));
+  check("switching black holes on rolls their place, off the back rows", s.holeSpots.length === 1 && m.holeRowAllowed(s.holeSpots[0].row, s.rows));
   check("a black hole in a back row is refused", m.spotProblem(s, "hole", 0, 4) === "backRow" && m.spotProblem(s, "hole", 9, 4) === "backRow");
   s.missing = true; s.missingCount = 3; m.fillSpots(s, "missing");
   check("3 missing pairs rolled, never on the black holes", s.missingSpots.length === 3 && !m.missingCellsOf(s).some((c) => m.holeCellsOf(s).some((h) => h.row === c.row && h.col === c.col)));
@@ -136,7 +136,7 @@ import("../themes/rules-selections.js").then(async (m) => {
   check("marking a square that would cut the board in two is refused", m.spotProblem(wallSel, "missing", 3, 3, wallSel.missingSpots) === "wall" || m.spotProblem(wallSel, "missing", 2, 3, wallSel.missingSpots) === "wall");
   // Applying it: hand-placed squares are honoured, pieces set out round them.
   const t = m.defaultSelections();
-  t.laws.blackHoleSquares = true; t.holeSpot = { row: 3, col: 2, random: false };
+  t.laws.blackHoleSquares = true; t.holeSpots = [{ row: 3, col: 2, random: false }];
   t.missing = true; t.missingCount = 1; t.missingSpots = [{ row: 1, col: 4, random: false }]; // in Dark's home rows, on the standard opening
   const x = { applyBoardResize: (r, c) => setBoardDimensions(r, c) };
   let honoured = 0, clear = 0;
@@ -183,7 +183,7 @@ import("../themes/rules-selections.js").then(async (m) => {
     m.setAllLaws(a, true);
     const on = m.LAW_OPTIONS.filter((l) => a.laws[l.key]).map((l) => l.key);
     check(`all laws on: every one but two pieces, three pieces in its place (${on.join(" ")})`, m.allLawsOn(a) && on.length === m.RULE_LAWS.length - 1 && a.laws.splitThree && !a.laws.splitMovement && a.laws.threeActions);
-    check("...the black holes left alone: they're set with the board", !a.laws.blackHoleSquares && m.holeCellsOf(a).length === 0, JSON.stringify(a.holeSpot));
+    check("...the black holes left alone: they're set with the board", !a.laws.blackHoleSquares && m.holeCellsOf(a).length === 0, JSON.stringify(a.holeSpots));
     m.setAllLaws(a, false);
     check("all laws off: none on", !m.LAW_OPTIONS.some((l) => a.laws[l.key]) && !m.allLawsOn(a));
     const b = m.defaultSelections(); m.toggleLaw(b, "splitMovement"); m.setShove(b, "onRolls", false);
@@ -193,6 +193,42 @@ import("../themes/rules-selections.js").then(async (m) => {
     check("one switched off after: all laws reads off", !m.allLawsOn(b));
     m.setAllLaws(b, false);
     check("off from slides only puts Shoving back on slides and rolls", !b.laws.slide && b.shove.onRolls === true);
+  }
+  // Two sets of black holes (user: "add the option to increase the number
+  // of black hole sets to 2").
+  {
+    const h = m.defaultSelections();
+    m.toggleLaw(h, "blackHoleSquares");
+    check("one set to start with", m.holeSetsOf(h) === 1 && h.holeSpots.length === 1);
+    m.setHoleSets(h, 2);
+    const cells = m.holeCellsOf(h);
+    check("two sets: a second spot rolled, four holes in all", h.holeSpots.length === 2 && cells.length === 4, JSON.stringify(h.holeSpots));
+    const touching = cells.some((a, i) => cells.some((b, j) => Math.floor(i / 2) !== Math.floor(j / 2) && Math.max(Math.abs(a.row - b.row), Math.abs(a.col - b.col)) <= 1));
+    check("...never beside the first set's", !touching);
+    const first = h.holeSpots[0];
+    check("a hole beside the other set's is refused", m.spotProblem(h, "hole", first.row, first.col + (first.col < 9 ? 1 : -1), [first]) === "near");
+    // A picker's tap: with two sets a rolled spot gives way first, else the one marked first.
+    h.holeSpots = [{ row: 3, col: 2, random: false }, { row: 2, col: 6, random: true }];
+    let tap = m.holeSpotsAfterTap(h, 4, 7);
+    check("a tap with two sets takes the rolled spot's place", tap.spots && tap.spots.length === 2 && tap.spots[0].row === 3 && tap.spots[1].row === 4 && !tap.spots[1].random, JSON.stringify(tap));
+    h.holeSpots = tap.spots;
+    tap = m.holeSpotsAfterTap(h, 2, 6);
+    check("...then the one marked first gives way", tap.spots && tap.spots[0].row === 4 && tap.spots[1].row === 2, JSON.stringify(tap));
+    check("...and a square beside the one kept is refused, said why", m.holeSpotsAfterTap(h, 4, 6).problem === "near" && !!m.SPOT_PROBLEMS.near);
+    const one = m.defaultSelections(); one.laws.blackHoleSquares = true; one.holeSpots = [{ row: 3, col: 2, random: false }];
+    tap = m.holeSpotsAfterTap(one, 3, 3);
+    check("with one set the hole simply moves, even next door", tap.spots && tap.spots.length === 1 && tap.spots[0].col === 3, JSON.stringify(tap));
+    m.setHoleSets(h, 1);
+    check("back to one set: the spot marked by hand stays", h.holeSpots.length === 1 && !h.holeSpots[0].random, JSON.stringify(h.holeSpots));
+    m.setHoleSets(h, 2);
+    h.holeSpots = [{ row: 3, col: 2, random: false }, { row: 2, col: 6, random: false }];
+    const x2 = { applyBoardResize: (r, c) => setBoardDimensions(r, c) };
+    const out = m.applySelections(h, x2);
+    check("applied: the four holes as marked", out.holes.length === 4 && [[3, 2], [6, 7], [2, 6], [7, 3]].every(([r, c]) => out.holes.some((q) => q.row === r && q.col === c)), JSON.stringify(out.holes));
+    check("...and the summary says two sets", JSON.stringify(m.variantsOf(h)).includes("(2 sets)"));
+    const old = m.normalizeSelections({ laws: { blackHoleSquares: true }, holeSpot: { row: 3, col: 2, random: false } });
+    check("a save from before keeps its one hole's place", old.holeSets === 1 && old.holeSpots.length === 1 && old.holeSpots[0].row === 3 && !("holeSpot" in old));
+    check("two sets off with the law: the default selections again", m.isDefaultSelections({ ...m.defaultSelections(), holeSets: 2 }));
   }
   setBoardDimensions(10, 10);
   console.log(failures ? `\n${failures} check(s) failed` : "\nall rules-selections checks passed");

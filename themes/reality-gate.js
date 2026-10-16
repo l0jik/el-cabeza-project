@@ -34,6 +34,7 @@ import {
   PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM,
   defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, lawWarnings, piecesFit, minColsFor,
   beginCustomGame, fillSpots, randomizeSpots, refreshSpots, spotProblem, mirrorCell, missingCellsOf, holeCellsOf, boardLabel, clampDim, pieceTypeOf,
+  holeSetsOf, setHoleSets, holeSpotsAfterTap, SPOT_PROBLEMS,
 } from "./rules-selections.js";
 import { WORLDS, createRealitiesMenu, goToWorld, REALITIES_VISIT_KEY } from "./realities.js";
 import { sideNamesFor, sideLabel, sideDotStyle } from "./side-names.js";
@@ -297,15 +298,16 @@ const segBtn = (key, on, text, onClick, testid, disabled = false) => h("button",
    black holes' square is marked and stays shown till Done (user: "press
    the square, see the one you've pressed, and then click done to
    confirm"): a tap elsewhere moves it, a tap on it leaves it (a random
-   one becomes yours). */
+   one becomes yours). With two sets, one square for each: a tap elsewhere
+   moves a rolled one, or else the one marked first. */
 function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) }) {
   const [draft, setDraft] = React.useState(() => cloneSelections(sel));
   const [note, setNote] = React.useState("");
   const { rows, cols } = draft;
   const isHole = kind === "hole";
-  const spots = isHole ? (draft.holeSpot ? [draft.holeSpot] : []) : draft.missingSpots;
-  const setSpots = (d, list) => { if (isHole) d.holeSpot = list[0] || null; else d.missingSpots = list; };
-  const count = isHole ? 1 : draft.missingCount;
+  const spots = isHole ? draft.holeSpots : draft.missingSpots;
+  const setSpots = (d, list) => { if (isHole) d.holeSpots = list; else d.missingSpots = list; };
+  const count = isHole ? holeSetsOf(draft) : draft.missingCount;
   const pieces = React.useMemo(() => initialPiecesFor(rows, cols), [rows, cols]);
   const pieceAt = (r, c) => pieces.some((p) => r >= p.row && r < p.row + p.h && c >= p.col && c < p.col + p.w);
   const other = new Set((isHole ? missingCellsOf(draft) : holeCellsOf(draft)).map((q) => `${q.row},${q.col}`));
@@ -324,7 +326,7 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
     const at = marks.get(`${r},${c}`);
     if (at) {
       if (isHole) {
-        if (at.spot.random) { const d = cloneSelections(draft); d.holeSpot = { row: at.spot.row, col: at.spot.col, random: false }; setDraft(d); }
+        if (at.spot.random) { const d = cloneSelections(draft); setSpots(d, spots.map((p) => (p === at.spot ? { ...p, random: false } : p))); setDraft(d); }
         setNote("");
         return;
       }
@@ -334,14 +336,13 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
       return;
     }
     if (other.has(`${r},${c}`)) { setNote(isHole ? "That square is cut out." : "That square is a black hole."); return; }
-    const problem = spotProblem(draft, kind, r, c, spots.filter(Boolean));
-    if (problem === "backRow") { setNote("Black holes can't go in either side's two back rows."); return; }
-    if (problem === "wall") { setNote("That would cut the board in two: every square must still be reachable."); return; }
-    if (problem === "centre") { setNote("The middle square has no partner. Pick another."); return; }
-    if (problem) { setNote("Pick another square."); return; }
+    // (A black hole's square: where the hole, or one of two, moves to.)
+    const moved = isHole ? holeSpotsAfterTap(draft, r, c) : null;
+    const problem = isHole ? moved.problem : spotProblem(draft, kind, r, c, spots.filter(Boolean));
+    if (problem) { setNote(SPOT_PROBLEMS[problem] || "Pick another square."); return; }
     const d = cloneSelections(draft);
     let list = spots.slice();
-    if (isHole) list = [{ row: r, col: c, random: false }];
+    if (isHole) list = moved.spots;
     else {
       if (list.length >= count) {
         const i = list.findIndex((p) => p.random);
@@ -378,7 +379,9 @@ function SpotPicker({ sel, kind, onDone, onCancel, names = sideNamesFor(null) })
     h("div", { className: "rg-pick-box" },
       h("h3", null, title),
       h("p", null, isHole
-        ? "Tap a square for one black hole; its partner, turned half round, is marked for you. Tap another to move them, then Done. Not in either side's two back rows."
+        ? count === 2
+          ? "Tap two squares, one black hole of each set; each one's partner, turned half round, is marked for you. Tap another to move one, then Done. Not in either side's two back rows, nor beside each other."
+          : "Tap a square for one black hole; its partner, turned half round, is marked for you. Tap another to move them, then Done. Not in either side's two back rows."
         : `Tap up to ${count} ${count === 1 ? "square" : "squares"}; each one's partner, turned half round, is marked for you. Dashed marks were picked at random: tap one to keep it. Dots show where the pieces start.`),
       h("div", { className: "rg-side" }, `Far side · ${names.light}`),
       h("div", { className: "rg-grid", role: "grid", "aria-label": `${boardLabel(draft)} board`, style: { gridTemplateColumns: `repeat(${cols}, ${cell}px)` } }, cells),
@@ -622,8 +625,16 @@ function NovaSheet({ api, initial, onBack, onPlay, world, pieceLook }) {
       h("span", { className: "rg-name" }, HOLES_LAW.name, h("span", { className: "rg-note" }, HOLES_LAW.note)),
       h(Switch, { on: sel.laws.blackHoleSquares, label: HOLES_LAW.name, testid: "gate-holes", onClick: () => change((n) => toggleLaw(n, "blackHoleSquares")) })),
     sel.laws.blackHoleSquares && h("div", { className: "rg-sub" },
+      // One set or two (user: "add the option to increase the number of
+      // black hole sets to 2"): with two, a piece dropping into one comes
+      // out of either hole on the far side, its pick.
       h("div", { className: "rg-row" },
-        h("span", { className: "rg-note" }, sel.holeSpot ? (sel.holeSpot.random ? "Placed at random." : "Placed by hand.") : "Placed at random."),
+        h("span", { className: "rg-name" }, "Sets", h("span", { className: "rg-note" }, holeSetsOf(sel) === 2 ? "A piece that drops in comes out of either hole on the far side." : "A hole and its partner.")),
+        h(Seg, { label: "Sets of black holes" },
+          segBtn("1", holeSetsOf(sel) === 1, "1", () => change((n) => setHoleSets(n, 1)), "gate-hole-sets-1"),
+          segBtn("2", holeSetsOf(sel) === 2, "2", () => change((n) => setHoleSets(n, 2)), "gate-hole-sets-2"))),
+      h("div", { className: "rg-row" },
+        h("span", { className: "rg-note" }, sel.holeSpots.length && sel.holeSpots.every((p) => !p.random) ? "Placed by hand." : sel.holeSpots.some((p) => !p.random) ? "Placed by hand and at random." : "Placed at random."),
         h("button", { type: "button", className: "rg-small", "data-testid": "gate-place-holes", onClick: () => setPicker("hole"), "data-stroke": "1" }, "Place them"))));
 
   return h(React.Fragment, null,

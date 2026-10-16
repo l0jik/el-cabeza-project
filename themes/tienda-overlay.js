@@ -27,7 +27,7 @@ import React from "react";
 import {
   PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, ARCO_SIZES, MAX_PIECES, MAX_MISSING_PAIRS, MIN_BOARD_DIM, MAX_BOARD_DIM, DEFAULT_BOARD_DIM,
   defaultSelections, standardSelections, cloneSelections, normalizeSelections, totalPieces, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, shoveShown, beginCustomGame, piecesFit, minColsFor, boardLabel, clampDim,
-  pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf,
+  pieceTypeOf, lawWarnings, fillSpots, refreshSpots, missingCellsOf, holeCellsOf, holeSetsOf, setHoleSets,
 } from "./rules-selections.js";
 import { SquarePicker, OpponentSection, CarbonCopies, ORDER_PARTS_CSS } from "./tienda-order.js";
 import { ShopCorner, StorePA, useShoppingVisit } from "./tienda-shopping.js";
@@ -1650,15 +1650,25 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   });
   // Black hole squares: a law to the engine, a feature of the board to a
   // player, so on the Board section, under Missing squares (user), with
-  // Where and Select as the missing squares have.
+  // Where and Select as the missing squares have; and one set or two (user:
+  // "add the option to increase the number of black hole sets to 2").
   const holesOn = !!sel.laws.blackHoleSquares;
   const holeRows = [
     check("holes", holesOn, HOLES_LAW.name, HOLES_LAW.note, () => change((s) => toggleLaw(s, "blackHoleSquares")),
       h("button", { type: "button", className: "td-info", "data-testid": "tienda-holes-info", onClick: (e) => { e.preventDefault(); e.stopPropagation(); explain("blackHoleSquares"); } }, "How it works ›")),
     holesOn && h("div", { key: "holes-where", className: "td-sub", "data-testid": "tienda-hole-settings" },
-      h("span", { className: "td-sub-h" }, "Where"),
-      h("span", { className: "td-sub-val", "data-testid": "tienda-hole-where" }, spotsLine(sel.holeSpot ? [sel.holeSpot] : [], "O")),
-      h("button", { type: "button", className: "td-btn td-plain td-small-btn", "data-testid": "tienda-hole-select", onClick: () => { click(); setPicker("hole"); } }, "Select")),
+      h("div", { className: "td-sub-row" },
+        h("span", { className: "td-sub-h" }, "Sets"),
+        h("div", { className: "td-seg", role: "group", "aria-label": "Sets of black holes" },
+          ...[1, 2].map((n) => h("button", {
+            key: n, type: "button", "aria-pressed": holeSetsOf(sel) === n ? "true" : "false", "data-testid": `tienda-hole-sets-${n}`,
+            onClick: () => { click(); change((s) => setHoleSets(s, n)); },
+          }, String(n)))),
+        h("span", { className: "td-sub-val", "data-testid": "tienda-hole-sets-note" }, holeSetsOf(sel) === 2 ? "A piece that drops in comes out of either hole on the far side." : "A hole and its partner.")),
+      h("div", { className: "td-sub-row" },
+        h("span", { className: "td-sub-h" }, "Where"),
+        h("span", { className: "td-sub-val", "data-testid": "tienda-hole-where" }, spotsLine(sel.holeSpots, "O")),
+        h("button", { type: "button", className: "td-btn td-plain td-small-btn", "data-testid": "tienda-hole-select", onClick: () => { click(); setPicker("hole"); } }, "Select"))),
   ];
 
   const setDim = (k, v) => { click(); change((s) => { s[k] = clampDim(v); refreshSpots(s); }); };
@@ -1772,7 +1782,7 @@ function OrderForm({ initial, onChange, onCancel, onPlace, audio, where = "store
   const lawsOn = RULE_LAWS.filter((l) => sel.laws[l.key]).length;
   const summary = classic
     ? `${total} pieces a side · ${boardLabel(sel)} board`
-    : `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board${sel.missing ? ` · ${sel.missingCount} cut ${sel.missingCount === 1 ? "pair" : "pairs"}` : ""}${sel.laws.blackHoleSquares ? " · black holes" : ""}`;
+    : `${total} pieces a side · ${lawsOn} ${lawsOn === 1 ? "rule" : "rules"} · ${boardLabel(sel)} board${sel.missing ? ` · ${sel.missingCount} cut ${sel.missingCount === 1 ? "pair" : "pairs"}` : ""}${sel.laws.blackHoleSquares ? (holeSetsOf(sel) === 2 ? " · 2 sets of black holes" : " · black holes") : ""}`;
   // The form's sections, numbered as they come (the classic page has no Rules).
   let secNo = 0;
   const sec = (title, note, ...body) => h("div", { className: "td-sec" },

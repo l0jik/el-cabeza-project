@@ -55,6 +55,8 @@ const E2E = [
   ["e2e-online.mjs"],
   // The City on Nova's page (its chunk fetched as it's picked), in and out of it in place.
   ["e2e-nova-city.mjs"],
+  // Two sets of black holes: a marker at each way out, the other set's taken by a tap.
+  ["e2e-hole-sets.mjs"],
 ];
 
 const label = ([f, ...a]) => [f.replace(/\.mjs$/, ""), ...a].join(" ");

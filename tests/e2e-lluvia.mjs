@@ -129,6 +129,20 @@ await page.locator('[data-testid="lluvia-size-12"]').click();
   await page.waitForTimeout(150);
   check("...and off again", (await byHand.getAttribute("aria-pressed")) === "false");
 }
+{
+  // Black holes: one set or two (user: "add the option to increase the
+  // number of black hole sets to 2").
+  await page.locator('[data-testid="lluvia-topo-holes"]').click();
+  await page.waitForTimeout(150);
+  check("Black holes on: Sets under it, one chosen", (await page.locator('[data-testid="lluvia-hole-sets-1"]').getAttribute("aria-pressed")) === "true");
+  await page.locator('[data-testid="lluvia-hole-sets-2"]').click();
+  await page.waitForTimeout(150);
+  check("...two can be chosen, and it says what that does", (await page.locator('[data-testid="lluvia-hole-sets-2"]').getAttribute("aria-pressed")) === "true"
+    && /either hole on the far side/.test(await page.locator('[data-testid="lluvia-hole-sets"]').innerText()));
+  await page.locator('[data-testid="lluvia-topo-holes"]').click();
+  await page.waitForTimeout(150);
+  check("...and black holes off hides it", (await page.locator('[data-testid="lluvia-hole-sets"]').count()) === 0);
+}
 await page.locator('[data-testid="lluvia-panel-close"]').click();
 await page.waitForTimeout(150);
 await page.locator('[data-testid="lluvia-opponent"]').click();

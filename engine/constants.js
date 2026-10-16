@@ -351,9 +351,9 @@ export function setActiveLaws(partial) {
 }
 
 /* Black Hole Squares LAW placement: [] when the law is off (the
-   default), or exactly two {row,col} squares once
-   pickBlackHoleSquares (rules.js) has placed them for the current
-   Singularity game — see rules.js's blackHoleVerdict/
+   default), or two {row,col} squares (one set) or four (two sets: two
+   mirrored pairs) once pickBlackHoleSets (rules.js) has placed them for
+   the current game — see rules.js's blackHoleVerdict/
    evaluateBlockLanding for how they redirect a move. Same mutable-
    module-state pattern as ACTIVE_LAWS/BOARD_ROWS: REPLACED (not
    mutated) on change, so a live-binding importer (rules.js, the AI
@@ -529,7 +529,21 @@ export const INVERSE_DIR = {
 export const SLIDE_KEY_PREFIX = "slide-";
 export const isSlideKey = (key) => key.startsWith(SLIDE_KEY_PREFIX);
 export const slideKey = (dir) => SLIDE_KEY_PREFIX + dir;
-export const baseDirOfSlideKey = (key) => key.slice(SLIDE_KEY_PREFIX.length);
+export const baseDirOfSlideKey = (key) => plainKeyOf(key).slice(SLIDE_KEY_PREFIX.length);
+
+/* Black Hole Squares with two sets (user: "if 2 sets is selected, the
+   player's piece will show the exit point at ... only the 2 that are on
+   the other side of the board"): a piece that drops into a hole may come
+   out of either hole on the far side, so the same roll, slide or step
+   is two moves. The plain key comes out of the hole's own partner (its
+   mirror, as with one set); the plain key with OTHER_EXIT_MARK on the end
+   comes out of the other set's hole (see holeExits in rules.js). Where a
+   key is read for its direction (an animation, an arrow, undo), the mark
+   is taken off first: plainKeyOf. */
+export const OTHER_EXIT_MARK = "-x";
+export const isOtherExitKey = (key) => key.endsWith(OTHER_EXIT_MARK);
+export const otherExitKey = (key) => key + OTHER_EXIT_MARK;
+export const plainKeyOf = (key) => (isOtherExitKey(key) ? key.slice(0, -OTHER_EXIT_MARK.length) : key);
 
 /* Every slide key needs its own inverse for undo's backward replay,
    derived from the plain table above so the two can't drift apart. */

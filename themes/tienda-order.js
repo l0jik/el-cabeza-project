@@ -16,7 +16,7 @@ import React from "react";
 import { initialPiecesFor } from "../engine/rules.js";
 import {
   cloneSelections, normalizeSelections, fillSpots, randomizeSpots, spotProblem, mirrorCell,
-  missingCellsOf, holeCellsOf, boardLabel, totalPieces,
+  missingCellsOf, holeCellsOf, boardLabel, totalPieces, holeSetsOf, holeSpotsAfterTap, SPOT_PROBLEMS,
 } from "./rules-selections.js";
 import { sideSurface } from "./tienda.js";
 import { sideNamesFor, sideLabel } from "./side-names.js";
@@ -84,17 +84,18 @@ export const ORDER_PARTS_CSS = `
    yours; Done fills any open pairs at random. kind "hole": one pair, a tap
    marks it and it stays shown till Done (user: "press the square, see the
    one you've pressed, and then click done to confirm"): a tap elsewhere
-   moves it, a tap on it leaves it (a rolled one becomes yours). The grid
-   is drawn from Dark's side (the side that moves first), as the board
-   faces at the start. */
+   moves it, a tap on it leaves it (a rolled one becomes yours); with two
+   sets, one square for each, a tap elsewhere moving a rolled one, or else
+   the one marked first. The grid is drawn from Dark's side (the side that
+   moves first), as the board faces at the start. */
 export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
   const [draft, setDraft] = React.useState(() => cloneSelections(sel));
   const [note, setNote] = React.useState({ text: "", n: 0 });
   const { rows, cols } = draft;
   const isHole = kind === "hole";
-  const spots = isHole ? (draft.holeSpot ? [draft.holeSpot] : []) : draft.missingSpots;
-  const setSpots = (d, list) => { if (isHole) d.holeSpot = list[0] || null; else d.missingSpots = list; };
-  const count = isHole ? 1 : draft.missingCount;
+  const spots = isHole ? draft.holeSpots : draft.missingSpots;
+  const setSpots = (d, list) => { if (isHole) d.holeSpots = list; else d.missingSpots = list; };
+  const count = isHole ? holeSetsOf(draft) : draft.missingCount;
   const pieces = React.useMemo(() => initialPiecesFor(rows, cols), [rows, cols]);
   const pieceAt = (r, c) => pieces.some((p) => r >= p.row && r < p.row + p.h && c >= p.col && c < p.col + p.w);
   const other = isHole ? missingCellsOf(draft) : holeCellsOf(draft);
@@ -118,7 +119,7 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
     const at = marks.get(`${r},${c}`);
     if (at) {
       if (isHole) {
-        if (at.spot.random) { const d = cloneSelections(draft); d.holeSpot = { row: at.spot.row, col: at.spot.col, random: false }; setDraft(d); audio && audio.playMark && audio.playMark(); }
+        if (at.spot.random) { const d = cloneSelections(draft); setSpots(d, spots.map((p) => (p === at.spot ? { ...p, random: false } : p))); setDraft(d); audio && audio.playMark && audio.playMark(); }
         say("");
         return;
       }
@@ -130,15 +131,13 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
       return;
     }
     if (otherSet.has(`${r},${c}`)) { say(isHole ? "That square is cut out." : "That square is a black hole."); return; }
-    const keep = spots.filter(Boolean);
-    const problem = spotProblem(draft, kind, r, c, keep);
-    if (problem === "backRow") { say("Black holes can't go in either side's two back rows."); return; }
-    if (problem === "wall") { say("That would cut the board in two: every square must still be reachable."); return; }
-    if (problem === "centre") { say("The middle square has no partner. Pick another."); return; }
-    if (problem) { say("Pick another square."); return; }
+    // (A black hole's square: where the hole, or one of two, moves to.)
+    const moved = isHole ? holeSpotsAfterTap(draft, r, c) : null;
+    const problem = isHole ? moved.problem : spotProblem(draft, kind, r, c, spots.filter(Boolean));
+    if (problem) { say(SPOT_PROBLEMS[problem] || "Pick another square."); return; }
     const d = cloneSelections(draft);
     let list = spots.slice();
-    if (isHole) list = [{ row: r, col: c, random: false }];
+    if (isHole) list = moved.spots;
     else {
       if (list.length >= count) {
         const i = list.findIndex((p) => p.random);
@@ -183,7 +182,9 @@ export function SquarePicker({ sel, kind, onDone, onCancel, audio }) {
   }
   const title = isHole ? "Place the black holes" : "Mark the squares to cut out";
   const help = isHole
-    ? "Mark one square with an O; its partner, turned half round, is marked for you. Mark another to move them, then Done. Not in either side's two back rows. Dots show where the pieces start; mark one and they set out round it."
+    ? count === 2
+      ? "Mark two squares with an O, one black hole of each set; each one's partner, turned half round, is marked for you. Mark another to move one, then Done. Not in either side's two back rows, nor beside each other. Dots show where the pieces start; mark one and they set out round it."
+      : "Mark one square with an O; its partner, turned half round, is marked for you. Mark another to move them, then Done. Not in either side's two back rows. Dots show where the pieces start; mark one and they set out round it."
     : `Mark up to ${count} ${count === 1 ? "square" : "squares"} with an X; each one's partner, turned half round, is marked for you. Dashed marks were rolled at random: tap one to keep it. Dots show where the pieces start.`;
   return h("div", { className: "td-picker-layer", "data-testid": "tienda-picker", "data-kind": kind, role: "dialog", "aria-modal": "true", "aria-label": title,
     onClick: (e) => { if (e.target === e.currentTarget) onCancel(); } },

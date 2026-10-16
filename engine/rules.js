@@ -2,7 +2,7 @@
    between the Standard and Futuris theme sources before extraction — see
    build/scratch/. Pure logic: no React, no Three.js, no DOM. */
 
-import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, maxPiecesPerTurn, moveCost, PIVOT_KEYS } from "./constants.js";
+import { BOARD_ROWS, BOARD_COLS, ROLL_DIRS, STEP_DIRS, ACTIVE_LAWS, slideKey, otherExitKey, BLACK_HOLES, MISSING_SQUARES, SLIDE_COST, OPA_MOVE_COST, maxPiecesPerTurn, moveCost, PIVOT_KEYS } from "./constants.js";
 import { rollVox, groundCellsOf, piecesClash, rollSweepClashes, anyOddShape, cubeCount, pivotCellOf, pivotPiece, pivotSweepClashes } from "./shapes.js";
 
 /* Dark's half of the opening setup, with columns expressed RELATIVE to
@@ -118,15 +118,37 @@ export function inBounds(piece) {
 }
 
 /* Black Hole Squares LAW (SINGULARITY_DESIGN.md): BLACK_HOLES is either
-   [] (law off) or exactly the two paired squares pickBlackHoleSquares
-   below placed. blackHoleAt/otherBlackHole are trivial when empty —
-   .find on [] is always undefined — which is what keeps every caller
-   below a no-op with the law off. */
+   [] (law off), the two paired squares of one set, or the four of two
+   sets (two mirrored pairs), as pickBlackHoleSets below placed them.
+   blackHoleAt/holeExits are trivial when empty — .find on [] is always
+   undefined — which is what keeps every caller below a no-op with the
+   law off. */
 function blackHoleAt(row, col) {
   return BLACK_HOLES.find((b) => b.row === row && b.col === col) || null;
 }
 function otherBlackHole(square) {
   return BLACK_HOLES.length === 2 ? BLACK_HOLES.find((b) => b !== square) : null;
+}
+/* Which half of the board a square is in, -1 or 1: split across the
+   middle, a square on the middle row of an odd board going by its
+   column, so a square and its mirror are always on opposite sides. */
+function sideOf(sq) {
+  const r = 2 * sq.row - (BOARD_ROWS - 1);
+  return r ? Math.sign(r) : Math.sign(2 * sq.col - (BOARD_COLS - 1));
+}
+/* Where a piece that drops into `hole` may come out. One set: the other
+   hole. Two sets: either hole on the far side of the board (user: "only
+   the 2 that are on the other side of the board, obviously"), the hole's
+   own partner (its mirror) first: the plain move key's way out. The other
+   set's is the key with OTHER_EXIT_MARK (constants.js). */
+export function holeExits(hole) {
+  if (BLACK_HOLES.length <= 2) {
+    const other = otherBlackHole(hole);
+    return other ? [other] : [];
+  }
+  const far = BLACK_HOLES.filter((b) => b !== hole && sideOf(b) !== sideOf(hole));
+  const mate = far.find((b) => b.row === BOARD_ROWS - 1 - hole.row && b.col === BOARD_COLS - 1 - hole.col);
+  return mate ? [mate, ...far.filter((b) => b !== mate)] : far;
 }
 
 /* Missing Squares TOPOLOGIES option: MISSING_SQUARES is either [] (off)
@@ -150,8 +172,9 @@ function overlapsMissingSquare(candidate) {
 
 /* A candidate's fate w.r.t. black holes: blocked outright, passes
    through untouched, or is redirected (wormhole entry) to the paired
-   square. ONLY a candidate whose ENTIRE footprint is exactly one cell,
-   sitting exactly on a hole, can enter — "no partial/failed-entry" and
+   square (`teleportTo`; `exits` lists every hole it may come out of,
+   two with two sets, see holeExits). ONLY a candidate whose ENTIRE
+   footprint is exactly one cell, sitting exactly on a hole, can enter — "no partial/failed-entry" and
    "route around it" (the design doc's words for a multi-cell piece)
    cash out to: any overlap at all with a hole cell blocks a >1-cell
    footprint outright, since such a footprint can never coincide with a
@@ -170,8 +193,8 @@ function blackHoleVerdict(candidate) {
   const hit = cells.map(([r, c]) => blackHoleAt(r, c)).find(Boolean);
   if (!hit) return { blocked: false, teleportTo: null };
   if (cells.length === 1 && candidate.w === 1 && candidate.h === 1) {
-    const other = otherBlackHole(hit);
-    if (other) return { blocked: false, teleportTo: other };
+    const exits = holeExits(hit);
+    if (exits.length) return { blocked: false, teleportTo: exits[0], exits };
   }
   return { blocked: true, teleportTo: null };
 }
@@ -211,7 +234,11 @@ function pieceOccupancyVerdict(pieces, candidate) {
   return { legal: false, crushes: null };
 }
 
-export function evaluateBlockLanding(pieces, candidate, travelDir) {
+/* `exit`: which of the far holes a piece entering one comes out of (see
+   holeExits): 0, the partner, as with one set, or 1, the other set's.
+   A hole entry's verdict says how many ways out there are (`ways`), legal
+   or not, so a caller knows to ask for the second. */
+export function evaluateBlockLanding(pieces, candidate, travelDir, exit = 0) {
   if (!inBounds(candidate)) return { legal: false, crushes: null };
   if (overlapsMissingSquare(candidate)) return { legal: false, crushes: null };
   const bh = blackHoleVerdict(candidate);
@@ -228,13 +255,16 @@ export function evaluateBlockLanding(pieces, candidate, travelDir) {
     // illegal). Off-board or blocked by a non-crushable piece there = the
     // entry is simply illegal, no partial entry. travelDir is [dr,dc]; a
     // caller reaching a wormhole always has it (see legalRolls/
-    // translatedCandidate).
+    // translatedCandidate). Nor may it come out onto another hole (two
+    // holes side by side: the placement keeps two sets' holes apart).
+    const ways = bh.exits.length;
+    const to = bh.exits[exit];
+    if (!to) return { legal: false, crushes: null, ways };
     const [dr, dc] = travelDir;
-    const eject = { ...candidate, row: bh.teleportTo.row - dr, col: bh.teleportTo.col - dc };
-    if (!inBounds(eject)) return { legal: false, crushes: null };
-    if (overlapsMissingSquare(eject)) return { legal: false, crushes: null };
+    const eject = { ...candidate, row: to.row - dr, col: to.col - dc };
+    if (!inBounds(eject) || overlapsMissingSquare(eject) || blackHoleAt(eject.row, eject.col)) return { legal: false, crushes: null, ways };
     const verdict = pieceOccupancyVerdict(pieces, eject);
-    return verdict.legal ? { ...verdict, teleportsTo: { row: eject.row, col: eject.col } } : { legal: false, crushes: null };
+    return verdict.legal ? { ...verdict, teleportsTo: { row: eject.row, col: eject.col }, ways } : { legal: false, crushes: null, ways };
   }
   return pieceOccupancyVerdict(pieces, candidate);
 }
@@ -278,8 +308,32 @@ export function blackHoleRowAllowed(r, rows) {
   return r >= 2 && r <= rows - 3;
 }
 
-export function pickBlackHoleSquares(pieces, rows, cols, avoid = [], attempts = 200) {
-  return pickPairedSquares(pieces, rows, cols, avoid, attempts, blackHoleRowAllowed);
+/* One set: a mirrored pair. `existing`: holes already placed (a second
+   set's pair goes in with them): the new pair stays a square clear of
+   each all round, so no hole's way out is another hole. */
+export function pickBlackHoleSquares(pieces, rows, cols, avoid = [], attempts = 200, existing = []) {
+  const apart = (pair) => pair.every((p) => existing.every((e) => Math.max(Math.abs(e.row - p.row), Math.abs(e.col - p.col)) > 1));
+  return pickPairedSquares(pieces, rows, cols, avoid.concat(existing), attempts, blackHoleRowAllowed, apart);
+}
+
+/* `sets` sets of black holes (1 or 2): `existing` (already placed, kept
+   as they are) and fresh pairs until there are that many or no room is
+   left. Every square, existing first. */
+export function pickBlackHoleSets(pieces, rows, cols, sets = 1, avoid = [], existing = []) {
+  const out = existing.slice();
+  while (out.length < sets * 2) {
+    const pair = pickBlackHoleSquares(pieces, rows, cols, avoid, 200, out);
+    if (!pair.length) break;
+    out.push(...pair);
+  }
+  return out;
+}
+
+/* Two holes too close for two sets: touching, sides or corners, so one's
+   way out could be the other. (The hand-placed spots in the setup menus
+   are held to it, as the random ones are.) */
+export function holesTouch(a, b) {
+  return Math.max(Math.abs(a.row - b.row), Math.abs(a.col - b.col)) <= 1;
 }
 
 /* Is every square that ISN'T missing still reachable from every other
@@ -358,7 +412,8 @@ export function pickMissingSquarePairs(pieces, rows, cols, count, avoid = [], ex
    squares, one in the far half of its landing goes one.
    Only a Turrito or a Cabeza can be pushed into a Black Hole: it drops in
    and comes out one square past the paired hole, the same exit a wormhole
-   move uses. Anything else reaching a hole is blocked.
+   move uses (with two sets, the hole's own partner: the pusher doesn't
+   choose). Anything else reaching a hole is blocked.
    Returns [{ id, row, col, teleports }], one per pushed piece, or null.
    Being pushed onto the far row never wins: only a Cabeza's own move
    does. */
@@ -383,7 +438,7 @@ function tryShove(pieces, mover, landing, hits, [dr, dc], clearOfLanding) {
       if (bh.teleportTo) {
         if (q.type !== "turrito" && q.type !== "cabeza") return null;
         const eject = { ...q, row: bh.teleportTo.row - dr, col: bh.teleportTo.col - dc };
-        if (!inBounds(eject) || overlapsMissingSquare(eject)) return null;
+        if (!inBounds(eject) || overlapsMissingSquare(eject) || blackHoleAt(eject.row, eject.col)) return null;
         end = { pos: eject, teleports: true };
         break;
       }
@@ -437,23 +492,32 @@ export function legalRolls(pieces, piece) {
   for (const dir of ROLL_DIRS) {
     const candidate = rollBlock(piece, dir);
     const verdict = evaluateBlockLanding(pieces, candidate, STEP_DIRS[dir]);
-    if (verdict.legal && sweep && rollSweepClashes(pieces, piece, dir, verdict.crushes)) continue;
-    // Rolls shove unless Shoving is set to slides only.
-    if (!verdict.legal && ACTIVE_LAWS.shoving && ACTIVE_LAWS.shoveOnRolls !== false) {
-      const shoveMove = rollShove(pieces, piece, candidate, dir, sweep);
-      if (shoveMove) out[dir] = shoveMove;
-      continue;
-    }
-    if (verdict.legal) {
-      // A wormhole roll ejects the piece one cell past the far hole (see
-      // evaluateBlockLanding) — it never sits on either hole. teleportsTo
-      // is the ejection square, and only ever set when the law is on.
-      out[dir] = verdict.teleportsTo
-        ? { candidate: { ...candidate, row: verdict.teleportsTo.row, col: verdict.teleportsTo.col }, crushes: verdict.crushes, teleports: true }
-        : { candidate, crushes: verdict.crushes };
+    const move = rollMove(pieces, piece, dir, candidate, verdict, sweep);
+    if (move) out[dir] = move;
+    // Two sets of black holes: out of the far side's other hole is a
+    // move of its own (otherExitKey).
+    if (verdict.ways > 1) {
+      const other = evaluateBlockLanding(pieces, candidate, STEP_DIRS[dir], 1);
+      if (other.legal && !(sweep && rollSweepClashes(pieces, piece, dir, other.crushes))) {
+        out[otherExitKey(dir)] = { candidate: { ...candidate, row: other.teleportsTo.row, col: other.teleportsTo.col }, crushes: other.crushes, teleports: true };
+      }
     }
   }
   return out;
+}
+
+// One roll's move, or null (legalRolls).
+function rollMove(pieces, piece, dir, candidate, verdict, sweep) {
+  if (verdict.legal && sweep && rollSweepClashes(pieces, piece, dir, verdict.crushes)) return null;
+  // Rolls shove unless Shoving is set to slides only.
+  if (!verdict.legal && ACTIVE_LAWS.shoving && ACTIVE_LAWS.shoveOnRolls !== false) return rollShove(pieces, piece, candidate, dir, sweep);
+  if (!verdict.legal) return null;
+  // A wormhole roll ejects the piece one cell past the far hole (see
+  // evaluateBlockLanding) — it never sits on either hole. teleportsTo
+  // is the ejection square, and only ever set when the law is on.
+  return verdict.teleportsTo
+    ? { candidate: { ...candidate, row: verdict.teleportsTo.row, col: verdict.teleportsTo.col }, crushes: verdict.crushes, teleports: true }
+    : { candidate, crushes: verdict.crushes };
 }
 
 /* Shared by Cabeza's own always-on step and the Slide LAW's general
@@ -466,14 +530,17 @@ export function legalRolls(pieces, piece) {
    cellsOf generalizes the emptiness check across any w x h, not just
    the single cell a 1x1 Cabeza needs; for a 1x1 candidate the two are
    the same check. */
-function translatedCandidate(pieces, piece, dr, dc, allowShove = false) {
+/* `exit` 1: the way out of the other set's hole (two sets; see holeExits),
+   null unless the candidate drops into a hole. */
+function translatedCandidate(pieces, piece, dr, dc, allowShove = false, exit = 0) {
   const candidate = { ...piece, row: piece.row + dr, col: piece.col + dc };
   if (!inBounds(candidate)) return null;
   if (overlapsMissingSquare(candidate)) return null;
   const bh = blackHoleVerdict(candidate);
   if (bh.blocked) return null;
+  if (exit && !bh.teleportTo) return null;
   if (bh.teleportTo) {
-    const verdict = evaluateBlockLanding(pieces, candidate, [dr, dc]);
+    const verdict = evaluateBlockLanding(pieces, candidate, [dr, dc], exit);
     if (!verdict.legal) return null;
     return {
       candidate: { ...candidate, row: verdict.teleportsTo.row, col: verdict.teleportsTo.col },
@@ -491,6 +558,10 @@ function translatedCandidate(pieces, piece, dr, dc, allowShove = false) {
   return null;
 }
 
+/* Two sets of black holes: is the square a 1x1 piece steps or slides onto
+   a hole? (Only then is there a second way out to ask about.) */
+const holeAhead = (piece, dr, dc) => BLACK_HOLES.length > 2 && piece.w === 1 && piece.h === 1 && !!blackHoleAt(piece.row + dr, piece.col + dc);
+
 export function legalCabezaSteps(pieces, piece) {
   const out = {};
   for (const [dir, [dr, dc]] of Object.entries(STEP_DIRS)) {
@@ -500,6 +571,8 @@ export function legalCabezaSteps(pieces, piece) {
         ? { candidate: move.candidate, crushes: move.crushes, teleports: true }
         : { candidate: move.candidate, crushes: null };
     }
+    const other = holeAhead(piece, dr, dc) && translatedCandidate(pieces, piece, dr, dc, false, 1);
+    if (other) out[otherExitKey(dir)] = { candidate: other.candidate, crushes: other.crushes, teleports: true };
   }
   return out;
 }
@@ -534,6 +607,8 @@ export function legalSlideSteps(pieces, piece) {
           ? { candidate: move.candidate, crushes: null, isSlide: true, shoves: move.shoves }
           : { candidate: move.candidate, crushes: null, isSlide: true };
     }
+    const other = holeAhead(piece, dr, dc) && translatedCandidate(pieces, piece, dr, dc, false, 1);
+    if (other) out[otherExitKey(dir)] = { candidate: other.candidate, crushes: other.crushes, isSlide: true, teleports: true };
   }
   return out;
 }

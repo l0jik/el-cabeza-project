@@ -22,7 +22,7 @@
 
 import { usePivotGuide, useGuideHush } from "./pivot-guide.js";
 import React from "react";
-import { PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow } from "./rules-selections.js";
+import { PIECE_OPTIONS, RULE_LAWS, HOLES_LAW, SIZES, MAX_PIECES, defaultSelections, cloneSelections, totalPieces, beginCustomGame, lawWarnings, toggleLaw, allLawsOn, setAllLaws, setShove, shoveNow, holeSetsOf, setHoleSets } from "./rules-selections.js";
 import { SHOVE_SETTINGS, shoveOf } from "../chassis/shove-settings.js";
 import { LLUVIA } from "./lluvia-city.js";
 import { bus } from "./lluvia-bus.js";
@@ -162,6 +162,20 @@ function Panel({ panel, sel, change, onClose, sound, pieceLook, onGoTo, start = 
       // (Black hole squares: a law to the engine, a feature of the board
       // here, under Missing squares, user; their place is rolled.)
       flag("holes", HOLES_LAW.name, !!sel.laws.blackHoleSquares, (s) => toggleLaw(s, "blackHoleSquares")),
+      // One set or two (user: "add the option to increase the number of
+      // black hole sets to 2"): with two, a piece that drops in comes out
+      // of either hole on the far side.
+      ...(sel.laws.blackHoleSquares ? [h("div", { key: "holesets", "data-testid": "lluvia-hole-sets", style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "4px 0 10px 14px", ...TERM } },
+        h("span", { style: { fontSize: 17, color: "#a8783a", marginRight: 4 } }, "SETS"),
+        ...[1, 2].map((n) => {
+          const on = holeSetsOf(sel) === n;
+          return h("button", {
+            key: n, type: "button", "data-testid": `lluvia-hole-sets-${n}`, "aria-pressed": on ? "true" : "false",
+            onClick: () => { sound("key"); change((s) => { setHoleSets(s, n); }); },
+            style: { height: 38, minWidth: 44, padding: "0 12px", border: "1px solid", borderRadius: 3, font: "400 20px 'VT323', monospace", cursor: "pointer", ...(on ? { background: AMBER, color: "#140a04", borderColor: AMBER } : { background: "transparent", color: "#ffcf8a", borderColor: "rgba(255,179,71,0.5)" }) },
+          }, String(n));
+        }),
+        h("span", { style: { flexBasis: "100%", fontSize: 16, color: "#a8783a" } }, holeSetsOf(sel) === 2 ? "A piece that drops in comes out of either hole on the far side." : "A hole and its partner."))] : []),
       flag("random", "Randomized start"),
       // Set out by hand (user: "is set out by hand in every relevant menu
       // now?"): the setup's Starting position, not the order's, so it

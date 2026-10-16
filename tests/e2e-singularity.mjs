@@ -849,6 +849,35 @@ if (state.activeCategory === "laws") {
     (await page.locator('[data-testid="blackhole-picker"]').count()) === 0 && state.selections.blackHole.random === false && !!state.selections.blackHole.manual &&
       state.selections.blackHole.manual.row === Number(m[1]) && state.selections.blackHole.manual.col === Number(m[2]),
     JSON.stringify(state.selections.blackHole));
+  // Two sets (user: "add the option to increase the number of black hole
+  // sets to 2"): the Sets drum in the placement control; two rolls a
+  // second spot on your side, the hand-placed one kept; the picker shows
+  // both, a square beside the hand-placed one barred (the sets' holes may
+  // not touch); one set again drops the second.
+  await page.locator('[data-testid="blackhole-sets-inc"]').click();
+  await page.waitForTimeout(200);
+  state = await sphereState();
+  const bh2 = state.selections.blackHole;
+  check("Sets 2: a second black-hole spot, the hand-placed one kept, said what it does",
+    bh2.sets === 2 && !!bh2.second && bh2.manual.row === Number(m[1]) && bh2.manual.col === Number(m[2]) &&
+      /either hole on the far side/.test(await page.locator('[data-testid="blackhole-placement-text"]').innerText()),
+    JSON.stringify(bh2));
+  await page.locator('[data-testid="blackhole-place-btn"]').click();
+  await page.waitForTimeout(250);
+  const bhCols = (await sphereState()).selections.topologies.cols;
+  const nearCell = `bh-cell-${m[1]}-${Number(m[2]) + (Number(m[2]) < bhCols - 1 ? 1 : -1)}`;
+  check("...the picker shows both, a square beside the hand-placed one barred",
+    (await page.locator('[data-testid="blackhole-picker"] [data-chosen]').count()) === 2 &&
+      (await page.locator(`[data-testid="${nearCell}"]`).getAttribute("data-wall-blocked")) === "true",
+    `${nearCell}: ${await page.locator(`[data-testid="${nearCell}"]`).getAttribute("data-wall-blocked")}`);
+  await page.locator('[data-testid="blackhole-picker-cancel"]').click();
+  await page.waitForTimeout(200);
+  await page.locator('[data-testid="blackhole-sets-dec"]').click();
+  await page.waitForTimeout(200);
+  state = await sphereState();
+  check("...one set again: the second is dropped, the hand-placed one kept",
+    state.selections.blackHole.sets === 1 && !state.selections.blackHole.second && state.selections.blackHole.manual.row === Number(m[1]),
+    JSON.stringify(state.selections.blackHole));
   // Back to LAWS for the rest.
   await closeOverlay();
   state = await navigateToCategory("laws");

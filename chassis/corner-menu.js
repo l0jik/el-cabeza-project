@@ -83,7 +83,7 @@ function card(r, L, extra) {
     ? r.laws.map((l) => `<li class="cm-law"><button type="button" class="cm-name" data-cm="law" data-law="${esc(l.key)}" data-testid="corner-menu-law-${esc(l.key)}">${esc(l.name)}</button>${(l.sets || []).map(([k, v]) => `<span class="cm-set"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></span>`).join("")}</li>`).join("")
     : `<li class="cm-law cm-none"><span class="cm-name">${esc(L.noLaws || "None: the standard rules")}</span></li>`;
   const pieces = r.pieces.map((p) => `<li class="cm-pc${p.count !== p.std ? " changed" : ""}"><span class="n">${esc(p.name)}</span><span class="c">${L.count ? L.count(p.count) : p.count}</span></li>`).join("");
-  const rows = [["Size", r.board.label], ...(r.board.pairs ? [["Missing squares", plural(r.board.pairs, "pair")]] : []), ...(r.board.holePairs ? [["Black holes", plural(r.board.holePairs, "pair")]] : [])];
+  const rows = [["Size", r.board.label], ...(r.board.pairs ? [["Missing squares", plural(r.board.pairs, "pair")]] : []), ...(r.board.holePairs ? [["Black holes", plural(r.board.holePairs, "set")]] : [])];
   const board = rows.map(([k, v]) => `<li class="cm-bd"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></li>`).join("");
   const go = extra ? `<button type="button" class="go cm-extra" data-cm="extra" data-testid="corner-menu-extra">${esc(extra.label)}</button>` : "";
   return `${L.head || ""}

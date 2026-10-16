@@ -229,6 +229,31 @@ console.log("Cabeza Nova: the one menu");
     await poll(open, 3000);
     check("...a tap then Cancel keeps what was there", (await markOf(b)) === "hand" && (await markOf(a)) === "");
     await p.locator('[data-testid="gate-picker"] button', { hasText: /^Cancel$/ }).click();
+    // Two sets (user: "add the option to increase the number of black
+    // hole sets to 2"): a second hole rolled with its partner, the one
+    // placed by hand kept; a square beside a hole of the other set is
+    // refused, said why.
+    await p.locator('[data-testid="gate-hole-sets-2"]').click();
+    check("two sets: Sets 2 chosen, said what it does", (await p.locator('[data-testid="gate-hole-sets-2"]').getAttribute("aria-pressed")) === "true"
+      && /either hole on the far side/.test(await p.locator('[data-testid="gate-hole-sets-2"]').locator("xpath=../..").innerText()));
+    await p.locator('[data-testid="gate-place-holes"]').click();
+    await poll(open, 3000);
+    // (The squares cut out show on this board too, as X: count the O's.)
+    const holeMarks = await p.evaluate(() => [...document.querySelectorAll('[data-testid="gate-picker"] .mk')].filter((el) => el.textContent === "O").length);
+    check("...four holes on the board, the one placed by hand still there", holeMarks === 4 && (await markOf(b)) === "hand", `${holeMarks} O's, ${b} ${await markOf(b)}`);
+    const beside = await p.evaluate((id) => {
+      const [r, c] = id.split("-").slice(2).map(Number);
+      for (const [dr, dc] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+        const el = document.querySelector(`[data-testid="gate-cell-${r + dr}-${c + dc}"]`);
+        if (el && !el.classList.contains("banned") && !el.querySelector(".mk")) return el.dataset.testid;
+      }
+      return null;
+    }, b);
+    await p.locator(`[data-testid="${beside}"]`).click();
+    check("...a square beside the hand-placed hole is refused, said why", (await markOf(beside)) === "" && /square between them/.test(await p.locator(".rg-pick-note").innerText()), `${beside}: ${await p.locator(".rg-pick-note").innerText()}`);
+    await p.locator('[data-testid="gate-picker-done"]').click();
+    await p.locator('[data-testid="gate-hole-sets-1"]').click();
+    check("...back to one set", (await p.locator('[data-testid="gate-hole-sets-1"]').getAttribute("aria-pressed")) === "true");
   }
   check("Reset back to the classic set", await (async () => {
     await p.locator('[data-testid="gate-reset"]').click();

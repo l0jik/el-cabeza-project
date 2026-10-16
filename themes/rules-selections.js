@@ -11,7 +11,8 @@
 import { setActiveLaws, setBlackHoles, setMissingSquares, getBoardDimensions, MIN_BOARD_DIM, MAX_BOARD_DIM } from "../engine/constants.js";
 import { SHOVE_SETTINGS, DEFAULT_SHOVE, shoveOf, shoveLaws, shoveSummary, shoveNow as shoveNowFor } from "../chassis/shove-settings.js";
 import {
-  createInitialPieces, initialPiecesFor, pickBlackHoleSquares, pickMissingSquares, missingSquaresKeepPath, blackHoleRowAllowed,
+  createInitialPieces, initialPiecesFor, pickBlackHoleSquares, pickBlackHoleSets, pickMissingSquares, missingSquaresKeepPath, blackHoleRowAllowed,
+  holesTouch,
 } from "../engine/rules.js";
 import { generateAnomalySetup, packHomeBand } from "../engine/anomaly.js";
 
@@ -59,7 +60,7 @@ export const LAW_OPTIONS = [
   // (A law to the engine, but a feature of the board to a player, so the
   // menus set it with the board, under Missing squares, not under Rules,
   // and All rules leaves it alone, as it does Missing squares: `board`.)
-  { key: "blackHoleSquares", name: "Black hole squares", board: true, note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn." },
+  { key: "blackHoleSquares", name: "Black hole squares", board: true, note: "Two linked squares: a one-square piece that goes in one comes out beside the other. Ends the turn. One set or two." },
   { key: "shoving", name: "Shoving", note: "Moving into pieces with fewer cubes, all together, pushes them along: a slide one square, a roll just past where it lands. Never diagonally, even with Diagonal slide. 1 action more. Choose whether rolls shove too, or only slides, and whether a shove may push your own pieces." },
   { key: "cantileverPivot", name: "Cantilever pivot", note: "A Codo, Hombro, Cruce, Rayo or Zeta standing on one cube turns a quarter turn round it. 1 action." },
   // (3 actions per turn directly above Split movement: user.)
@@ -89,6 +90,9 @@ export const SIZES = [8, 10, 12];
 export const MAX_PIECES = 10;
 export const DEFAULT_BOARD_DIM = 10;
 export const MAX_MISSING_PAIRS = 5;
+// Sets of black holes (user: "add the option to increase the number of
+// black hole sets to 2"): a set is a hole and its mirror.
+export const MAX_HOLE_SETS = 2;
 export { MIN_BOARD_DIM, MAX_BOARD_DIM };
 export const clampDim = (v) => Math.max(MIN_BOARD_DIM, Math.min(MAX_BOARD_DIM, Math.round(v)));
 
@@ -96,7 +100,8 @@ export const clampDim = (v) => Math.max(MIN_BOARD_DIM, Math.min(MAX_BOARD_DIM, M
    { counts: {key: n}, laws: {key: bool}, shove: {onRolls, own},
      rows, cols, missing: bool, missingCount: 1..5,
      missingSpots: [{row, col, random}]   one square of each missing pair,
-     holeSpot: {row, col, random} | null  one of the two black holes,
+     holeSets: 1..2,                      sets of black holes,
+     holeSpots: [{row, col, random}]      one hole of each set,
      random: bool }                       a shuffled start
    Each spot's partner is its 180° mirror. A spot marked random was rolled
    by the menu (and re-rolls when the board changes size); the others were
@@ -109,7 +114,7 @@ export function defaultSelections() {
   return {
     counts, laws, shove: { ...DEFAULT_SHOVE },
     rows: DEFAULT_BOARD_DIM, cols: DEFAULT_BOARD_DIM,
-    missing: false, missingCount: 1, missingSpots: [], holeSpot: null,
+    missing: false, missingCount: 1, missingSpots: [], holeSets: 1, holeSpots: [],
     random: false,
   };
 }
@@ -157,7 +162,11 @@ export function normalizeSelections(sel) {
   out.missing = !!out.missing;
   out.missingCount = Math.max(1, Math.min(MAX_MISSING_PAIRS, Math.round(out.missingCount || 1)));
   out.missingSpots = Array.isArray(out.missingSpots) ? out.missingSpots.filter((p) => p && Number.isFinite(p.row) && Number.isFinite(p.col)).map((p) => ({ row: p.row, col: p.col, random: !!p.random })) : [];
-  out.holeSpot = out.holeSpot && Number.isFinite(out.holeSpot.row) ? { row: out.holeSpot.row, col: out.holeSpot.col, random: !!out.holeSpot.random } : null;
+  // (A save from before two sets: one hole's spot.)
+  const spotOf = (p) => (p && Number.isFinite(p.row) && Number.isFinite(p.col) ? { row: p.row, col: p.col, random: !!p.random } : null);
+  out.holeSets = sel.holeSets === 2 ? 2 : 1;
+  out.holeSpots = (Array.isArray(sel.holeSpots) ? sel.holeSpots : [sel.holeSpot]).map(spotOf).filter(Boolean).slice(0, out.holeSets);
+  delete out.holeSpot;
   out.random = !!out.random;
   return out;
 }
@@ -167,9 +176,9 @@ function effective(sel) {
   const e = cloneSelections(sel);
   if (!e.laws.shoving) e.shove = { ...DEFAULT_SHOVE };
   if (!e.missing) { e.missingCount = 1; e.missingSpots = []; }
-  if (!e.laws.blackHoleSquares) e.holeSpot = null;
+  if (!e.laws.blackHoleSquares) { e.holeSets = 1; e.holeSpots = []; }
   e.missingSpots = (e.missingSpots || []).map((p) => ({ row: p.row, col: p.col }));
-  if (e.holeSpot) e.holeSpot = { row: e.holeSpot.row, col: e.holeSpot.col };
+  e.holeSpots = (e.holeSpots || []).map((p) => ({ row: p.row, col: p.col }));
   return e;
 }
 export const isDefaultSelections = (sel) => JSON.stringify(effective(normalizeSelections(sel))) === JSON.stringify(effective(defaultSelections()));
@@ -192,15 +201,19 @@ const missingOn = (sel) => sel.missing;
 const holesOn = (sel) => sel.laws.blackHoleSquares;
 // The squares each feature has chosen, with their mirrors.
 export const missingCellsOf = (sel) => (missingOn(sel) ? spotCells(sel.missingSpots, sel.rows, sel.cols) : []);
-export const holeCellsOf = (sel) => (holesOn(sel) && sel.holeSpot ? spotCells([sel.holeSpot], sel.rows, sel.cols) : []);
+export const holeCellsOf = (sel) => (holesOn(sel) ? spotCells(sel.holeSpots, sel.rows, sel.cols) : []);
+// How many sets of black holes, and their spots, as a selection holds them.
+export const holeSetsOf = (sel) => (sel.holeSets === 2 ? 2 : 1);
 // Black holes never sit in either side's back two rows; missing squares
 // may, but never wall the board off.
 export const holeRowAllowed = (row, rows) => blackHoleRowAllowed(row, rows);
 
 /* Can a spot be marked for a feature (kind "missing" or "hole") on this
    selection's board: inside it, not its own mirror, off the other
-   feature's squares, and (black holes) out of the back rows or (missing
-   squares) leaving every square reachable? Returns a reason when not. */
+   feature's squares, and (black holes) out of the back rows and clear of
+   the other set's holes all round, or (missing squares) leaving every
+   square reachable? `keep`: the feature's other spots. Returns a reason
+   when not. */
 export function spotProblem(sel, kind, row, col, keep = []) {
   const { rows, cols } = sel;
   if (row < 0 || col < 0 || row >= rows || col >= cols) return "off";
@@ -208,7 +221,11 @@ export function spotProblem(sel, kind, row, col, keep = []) {
   if (m.row === row && m.col === col) return "centre";
   const other = kind === "hole" ? missingCellsOf(sel) : holeCellsOf(sel);
   if (listed(other, row, col) || listed(other, m.row, m.col)) return "taken";
-  if (kind === "hole") return holeRowAllowed(row, rows) ? null : "backRow";
+  if (kind === "hole") {
+    if (!holeRowAllowed(row, rows)) return "backRow";
+    // (Two sets: a hole beside another could have a piece come out onto it.)
+    return spotCells(keep, rows, cols).some((q) => holesTouch(q, { row, col }) || holesTouch(q, m)) ? "near" : null;
+  }
   const cells = spotCells([...keep, { row, col }], rows, cols);
   return missingSquaresKeepPath(cells, rows, cols) ? null : "wall";
 }
@@ -221,8 +238,8 @@ export function spotProblem(sel, kind, row, col, keep = []) {
    changes size. Mutates and returns sel. */
 export function fillSpots(sel, kind, reroll = false) {
   const { rows, cols } = sel;
-  const count = kind === "hole" ? 1 : sel.missingCount;
-  const current = kind === "hole" ? (sel.holeSpot ? [sel.holeSpot] : []) : sel.missingSpots;
+  const count = kind === "hole" ? holeSetsOf(sel) : sel.missingCount;
+  const current = kind === "hole" ? sel.holeSpots : sel.missingSpots;
   const pieces = initialPiecesFor(rows, cols);
   const avoid = kind === "hole" ? missingCellsOf(sel) : holeCellsOf(sel);
   const kept = [];
@@ -238,26 +255,57 @@ export function fillSpots(sel, kind, reroll = false) {
   if (!reroll) current.filter((p) => p.random).forEach((p) => { if (kept.length < count && fits(p)) kept.push({ row: p.row, col: p.col, random: true }); });
   for (let tries = 0; kept.length < count && tries < 40; tries++) {
     const pair = kind === "hole"
-      ? pickBlackHoleSquares(pieces, rows, cols, avoid)
+      ? pickBlackHoleSquares(pieces, rows, cols, avoid, 200, spotCells(kept, rows, cols))
       : pickMissingSquares(pieces, rows, cols, avoid, 200, spotCells(kept, rows, cols));
     if (!pair.length) break;
     const spot = { row: pair[0].row, col: pair[0].col, random: true };
     if (!spotProblem(sel, kind, spot.row, spot.col, kept)) kept.push(spot);
   }
-  if (kind === "hole") sel.holeSpot = kept[0] || null;
+  if (kind === "hole") sel.holeSpots = kept;
   else sel.missingSpots = kept;
   return sel;
 }
 // The Random button: re-rolls the random spots, keeping hand-placed ones,
 // or all of them when every spot was placed by hand.
 export function randomizeSpots(sel, kind) {
-  const spots = kind === "hole" ? (sel.holeSpot ? [sel.holeSpot] : []) : sel.missingSpots;
-  const count = kind === "hole" ? 1 : sel.missingCount;
+  const spots = kind === "hole" ? sel.holeSpots : sel.missingSpots;
+  const count = kind === "hole" ? holeSetsOf(sel) : sel.missingCount;
   if (spots.length >= count && spots.every((p) => !p.random)) {
-    if (kind === "hole") sel.holeSpot = null; else sel.missingSpots = [];
+    if (kind === "hole") sel.holeSpots = []; else sel.missingSpots = [];
   }
   return fillSpots(sel, kind, true);
 }
+
+/* One set of black holes or two: the spots trimmed (rolled ones go
+   first) or filled to the count. Mutates and returns sel. */
+export function setHoleSets(sel, n) {
+  sel.holeSets = n === 2 ? 2 : 1;
+  const mine = sel.holeSpots.filter((p) => !p.random), rolled = sel.holeSpots.filter((p) => p.random);
+  sel.holeSpots = [...mine, ...rolled].slice(0, sel.holeSets);
+  return fillSpots(sel, "hole");
+}
+
+/* A tap on a free square in a picker of the black holes' place: the spots
+   after it, or the problem with that square ({ problem }). With one set
+   the hole moves there; with two it takes the place of a rolled one, or
+   else of the one marked first (user: "press the square, see the one
+   you've pressed, and then click done to confirm"). */
+export function holeSpotsAfterTap(sel, row, col) {
+  const list = sel.holeSpots.slice();
+  if (list.length >= holeSetsOf(sel)) {
+    const i = list.findIndex((p) => p.random);
+    list.splice(i >= 0 ? i : 0, 1);
+  }
+  const problem = spotProblem(sel, "hole", row, col, list);
+  return problem ? { problem } : { spots: [...list, { row, col, random: false }] };
+}
+// What a picker says of a square a spot can't go on.
+export const SPOT_PROBLEMS = {
+  backRow: "Black holes can't go in either side's two back rows.",
+  near: "Black holes need a square between them.",
+  wall: "That would cut the board in two: every square must still be reachable.",
+  centre: "The middle square has no partner. Pick another.",
+};
 // After a size change: random spots re-roll, hand spots stay if they fit.
 export function refreshSpots(sel) {
   if (missingOn(sel)) fillSpots(sel, "missing", true);
@@ -399,7 +447,8 @@ export function variantsOf(sel, labels = {}) {
   const topo = [];
   if (sel.rows !== DEFAULT_BOARD_DIM || sel.cols !== DEFAULT_BOARD_DIM) topo.push(`${boardLabel(sel)} board`);
   if (sel.missing) topo.push(`Missing squares (${sel.missingCount} ${sel.missingCount === 1 ? "pair" : "pairs"})`);
-  if (sel.laws.blackHoleSquares) topo.push(HOLES_LAW.name); // (with the board, as the menus set it)
+  // (With the board, as the menus set it; two sets say so.)
+  if (sel.laws.blackHoleSquares) topo.push(holeSetsOf(sel) === 2 ? `${HOLES_LAW.name} (2 sets)` : HOLES_LAW.name);
   if (topo.length) groups.push({ key: "topologies", label: L.topologies, items: topo });
   return groups.length ? groups : null;
 }
@@ -430,13 +479,14 @@ function placeMissing(sel, rows, cols, pieces) {
   return out;
 }
 function placeHoles(sel, rows, cols, pieces, avoid) {
-  const p = sel.holeSpot;
-  if (p && p.row < rows && p.col < cols && blackHoleRowAllowed(p.row, rows)) {
+  const out = [];
+  (sel.holeSpots || []).forEach((p) => {
+    if (out.length >= holeSetsOf(sel) * 2 || p.row >= rows || p.col >= cols || !blackHoleRowAllowed(p.row, rows)) return;
     const m = mirrorCell(p.row, p.col, rows, cols);
-    const free = (c) => !occupied(pieces, c.row, c.col) && !listed(avoid, c.row, c.col);
-    if (!(m.row === p.row && m.col === p.col) && free(p) && free(m)) return [{ row: p.row, col: p.col }, m];
-  }
-  return pickBlackHoleSquares(pieces, rows, cols, avoid);
+    const free = (c) => !occupied(pieces, c.row, c.col) && !listed(avoid, c.row, c.col) && !out.some((q) => holesTouch(q, c));
+    if (!(m.row === p.row && m.col === p.col) && free(p) && free(m)) out.push({ row: p.row, col: p.col }, m);
+  });
+  return pickBlackHoleSets(pieces, rows, cols, holeSetsOf(sel), avoid, out);
 }
 
 /* Sets the board up as chosen: board size first, then the pieces (set
@@ -447,7 +497,7 @@ export function applySelections(sel, x, opts = {}) {
   x.applyBoardResize && x.applyBoardResize(sel.rows, sel.cols);
   setActiveLaws(lawsForEngine(sel));
   const { rows, cols } = getBoardDimensions();
-  const chosen = [...(missingOn(sel) ? sel.missingSpots : []), ...(holesOn(sel) && sel.holeSpot ? [sel.holeSpot] : [])]
+  const chosen = [...(missingOn(sel) ? sel.missingSpots : []), ...(holesOn(sel) ? sel.holeSpots : [])]
     .filter((p) => p.row < rows && p.col < cols).map((p) => ({ row: p.row, col: p.col }));
   let placed;
   if (isCustomRoster(sel) || sel.random) placed = generateAnomalySetup(rosterOf(sel), chosen);
